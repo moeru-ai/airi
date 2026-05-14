@@ -1,5 +1,5 @@
 ---
-title: OpenAI (和兼容 API)
+title: OpenAI（和兼容 API）
 description: 在 AIRI 中配置 OpenAI 和兼容 OpenAI 的 API 作为 STT 服务商
 ---
 

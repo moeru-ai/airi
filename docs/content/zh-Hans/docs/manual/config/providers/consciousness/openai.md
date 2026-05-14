@@ -1,5 +1,5 @@
 ---
-title: OpenAI (和兼容 API)
+title: OpenAI（和兼容 API）
 description: 在 AIRI 中配置 OpenAI 兼容服务商作为大模型服务商
 is_openai_compatible: true
 ---
