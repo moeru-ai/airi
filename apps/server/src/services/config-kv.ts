@@ -21,7 +21,7 @@ import { configRedisKey } from '../utils/redis-keys'
  * the router service is responsible for surfacing CONFIG_NOT_SET when the
  * whole `LLM_ROUTER_CONFIG` entry is absent.
  */
-const fallbackTriggersSchema = optional(
+export const fallbackTriggersSchema = optional(
   object({
     httpCodes: optional(array(number()), [401, 402, 403, 429, 500, 502, 503, 504]),
     onTimeout: optional(boolean(), true),
@@ -29,7 +29,7 @@ const fallbackTriggersSchema = optional(
   { httpCodes: [401, 402, 403, 429, 500, 502, 503, 504], onTimeout: true },
 )
 
-const keyEntrySchema = object({
+export const keyEntrySchema = object({
   id: pipe(
     string(),
     nonEmpty('keys[].id must not be empty'),
@@ -38,7 +38,7 @@ const keyEntrySchema = object({
   ciphertext: pipe(string(), nonEmpty('keys[].ciphertext must not be empty')),
 })
 
-const llmUpstreamSchema = object({
+export const llmUpstreamSchema = object({
   baseURL: pipe(string(), nonEmpty('llm.upstreams[].baseURL must not be empty')),
   overrideModel: optional(string()),
   keys: pipe(array(keyEntrySchema), check(v => v.length >= 1, 'llm.upstreams[].keys must contain at least 1 entry')),
@@ -46,26 +46,26 @@ const llmUpstreamSchema = object({
   timeoutMs: optional(number()),
 })
 
-const llmModelSchema = object({
+export const llmModelSchema = object({
   upstreams: pipe(array(llmUpstreamSchema), check(v => v.length >= 1, 'llm.models[].upstreams must contain at least 1 entry')),
   fallbackTriggers: fallbackTriggersSchema,
 })
 
 const ttsProviderSchema = picklist(['azure', 'dashscope-cosyvoice', 'volcengine'])
 
-const ttsUpstreamSchema = object({
+export const ttsUpstreamSchema = object({
   baseURL: pipe(string(), nonEmpty('tts.upstreams[].baseURL must not be empty')),
   keys: pipe(array(keyEntrySchema), check(v => v.length >= 1, 'tts.upstreams[].keys must contain at least 1 entry')),
   adapterParams: optional(record(string(), any()), {}),
 })
 
-const ttsModelSchema = object({
+export const ttsModelSchema = object({
   provider: ttsProviderSchema,
   upstreams: pipe(array(ttsUpstreamSchema), check(v => v.length >= 1, 'tts.models[].upstreams must contain at least 1 entry')),
   fallbackTriggers: fallbackTriggersSchema,
 })
 
-const llmRouterDefaultsSchema = optional(
+export const llmRouterDefaultsSchema = optional(
   object({
     perAttemptTimeoutMs: optional(number(), 30000),
     fullChainTimeoutMs: optional(number(), 60000),
@@ -74,7 +74,7 @@ const llmRouterDefaultsSchema = optional(
   { perAttemptTimeoutMs: 30000, fullChainTimeoutMs: 60000, fallbackHttpCodes: [401, 402, 403, 429, 500, 502, 503, 504] },
 )
 
-const llmRouterConfigSchema = object({
+export const llmRouterConfigSchema = object({
   llm: object({
     models: record(string(), llmModelSchema),
   }),
