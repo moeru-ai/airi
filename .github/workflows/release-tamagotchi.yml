@@ -202,6 +202,77 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Package Windows Steam content
+        if: ${{ github.event_name != 'schedule' && matrix.os == 'windows-latest' }}
+        shell: pwsh
+        run: |
+          $exePath = 'apps/stage-tamagotchi/dist/win-unpacked/airi.exe'
+          if (!(Test-Path $exePath)) {
+            Write-Error "Expected Steam launch executable was not found at $exePath"
+            exit 1
+          }
+
+          New-Item -ItemType Directory -Force steam-content/windows | Out-Null
+          Copy-Item apps/stage-tamagotchi/dist/win-unpacked/* steam-content/windows -Recurse -Force
+          tar -cf steam-content-windows.tar -C steam-content windows
+
+      - name: Upload Windows Steam content
+        if: ${{ github.event_name != 'schedule' && matrix.os == 'windows-latest' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: steam-content-windows
+          path: steam-content-windows.tar
+          if-no-files-found: error
+
+      - name: Package macOS Steam content
+        if: ${{ github.event_name != 'schedule' && matrix.os == 'macos-15-intel' }}
+        run: |
+          app_path="$(find apps/stage-tamagotchi/dist dist -name '*.app' -type d 2>/dev/null | sort | head -n 1)"
+          if [ -z "$app_path" ]; then
+            echo "Expected macOS .app bundle was not found."
+            find apps/stage-tamagotchi/dist dist -maxdepth 3 -type d 2>/dev/null || true
+            exit 1
+          fi
+
+          executable_path="$app_path/Contents/MacOS/airi"
+          if [ ! -x "$executable_path" ]; then
+            echo "Expected executable bit was missing at $executable_path."
+            exit 1
+          fi
+
+          mkdir -p steam-content/macos
+          ditto "$app_path" steam-content/macos/AIRI.app
+          tar -cf steam-content-macos.tar -C steam-content macos
+
+      - name: Upload macOS Steam content
+        if: ${{ github.event_name != 'schedule' && matrix.os == 'macos-15-intel' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: steam-content-macos
+          path: steam-content-macos.tar
+          if-no-files-found: error
+
+      - name: Package Linux Steam content
+        if: ${{ github.event_name != 'schedule' && matrix.os == 'ubuntu-latest' }}
+        run: |
+          executable_path='apps/stage-tamagotchi/dist/linux-unpacked/airi'
+          if [ ! -x "$executable_path" ]; then
+            echo "Expected Linux executable was not found or is not executable at $executable_path."
+            exit 1
+          fi
+
+          mkdir -p steam-content/linux
+          cp -a apps/stage-tamagotchi/dist/linux-unpacked/. steam-content/linux/
+          tar -cf steam-content-linux.tar -C steam-content linux
+
+      - name: Upload Linux Steam content
+        if: ${{ github.event_name != 'schedule' && matrix.os == 'ubuntu-latest' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: steam-content-linux
+          path: steam-content-linux.tar
+          if-no-files-found: error
+
       - name: Setup Flatpak (Linux Only)
         if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm' }}
         run: |
