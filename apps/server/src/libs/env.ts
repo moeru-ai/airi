@@ -6,8 +6,6 @@ import { useLogger } from '@guiiai/logg'
 import { injeca } from 'injeca'
 import { integer, maxValue, minValue, nonEmpty, object, optional, parse, pipe, string, transform } from 'valibot'
 
-import { DEFAULT_BILLING_EVENTS_STREAM } from '../utils/redis-keys'
-
 /**
  * Parses `ADDITIONAL_TRUSTED_ORIGINS`: comma-separated absolute origins used for
  * CORS (`/api/*`) and request-derived trusted bases (e.g. Stripe return URLs).
