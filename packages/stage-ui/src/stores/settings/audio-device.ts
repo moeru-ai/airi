@@ -4,17 +4,19 @@ import { watch } from 'vue'
 
 import { useAudioDevice } from '../../composables/audio'
 
+let microphonePermissionStatus: PermissionStatus
+
 export const useSettingsAudioDevice = defineStore('settings-audio-devices', () => {
   const { audioInputs, deviceConstraints, selectedAudioInput: selectedAudioInputNonPersist, startStream, stopStream, stream, askPermission } = useAudioDevice()
 
   const selectedAudioInputPersist = useLocalStorageManualReset<string>('settings/audio/input', selectedAudioInputNonPersist.value)
-  const selectedAudioInputEnabledPersist = useLocalStorageManualReset<boolean>('settings/audio/input/enabled', false)
+  const audioInputEnabled = useLocalStorageManualReset<boolean>('settings/audio/input/enabled', false)
 
   watch(selectedAudioInputPersist, (newValue) => {
     selectedAudioInputNonPersist.value = newValue
   })
 
-  watch(selectedAudioInputEnabledPersist, (val) => {
+  watch(audioInputEnabled, (val) => {
     if (val) {
       startStream()
     }
@@ -23,14 +25,25 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     }
   })
 
+  // permissionGranted from vueuse does not track revocation yet.
+  // implement it manually.
+  navigator.permissions.query({ name: 'microphone' }).then((status) => {
+    microphonePermissionStatus = status
+    status.onchange = () => {
+      console.info(`status changed to ${status.state}`)
+      if (status.state === 'denied' || status.state === 'prompt')
+        audioInputEnabled.value = false
+    }
+  })
+  microphonePermissionStatus // suppress unused variable lint
   function initialize() {
     const hasSelectedInput = selectedAudioInputPersist.value
       && audioInputs.value.some(device => device.deviceId === selectedAudioInputPersist.value)
 
-    if (selectedAudioInputEnabledPersist.value && hasSelectedInput) {
+    if (audioInputEnabled.value && hasSelectedInput) {
       startStream()
     }
-    if (selectedAudioInputNonPersist.value && !selectedAudioInputEnabledPersist.value) {
+    if (selectedAudioInputNonPersist.value && !audioInputEnabled.value) {
       selectedAudioInputPersist.value = selectedAudioInputNonPersist.value
     }
   }
@@ -38,7 +51,7 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
   function resetState() {
     selectedAudioInputPersist.reset()
     selectedAudioInputNonPersist.value = ''
-    selectedAudioInputEnabledPersist.reset()
+    audioInputEnabled.reset()
     stopStream()
   }
 
@@ -46,7 +59,7 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     audioInputs,
     deviceConstraints,
     selectedAudioInput: selectedAudioInputPersist,
-    enabled: selectedAudioInputEnabledPersist,
+    enabled: audioInputEnabled,
 
     stream,
 
