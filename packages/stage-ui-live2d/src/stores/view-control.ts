@@ -9,16 +9,16 @@ interface ControlConfig { min: number, max: number, step: number, default: numbe
 const viewControlsEnabled = ref(false)
 /** what value to control for the control element */
 const viewControlMode = ref<SupportedControl>('scale')
-/** model position relative to the center of the screen, in pixels */
+/** model position relative to the center of the screen, in percentages */
 const position = useLocalStorage<{ x: number, y: number }>('settings/live2d/position', { x: 0, y: 0 })
-/** model scaling. `1` means no scaling. */
+/** model scaling factor. `1` means no scaling. */
 const scale = useLocalStorage('settings/live2d/scale', 1)
 
 const formatPercentD1 = (val: number) => `${val.toFixed(1)}%`
 const formatToPercent = (val: number) => `${(val * 100).toFixed(0)}%`
 
 export const defaultControlConfig: Record<SupportedControl, ControlConfig> = {
-  // TODO: calculate the min and max value dynamically according to window height/width, or allow user to set it
+  // TODO: allow user to set preferred default
   x: {
     min: -500,
     max: 500,

@@ -14,7 +14,7 @@ const cameraDistance = useLocalStorage('settings/stage-ui-three/cameraDistance',
 /**
  * Internal state of the camera. Users should not be able to set this directly, use `cameraDistance` instead.
  */
-const cameraPosition = useLocalStorage('settings/stage-ui-three/camera-position', DEFAULT_CAMERA_POSITION)
+const cameraPosition = useLocalStorage('settings/stage-ui-three/camera-position', { ...DEFAULT_CAMERA_POSITION })
 
 export function useThreeCamera() {
   return {
