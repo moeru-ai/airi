@@ -12,6 +12,7 @@ import type { ChatService } from './services/chats'
 import type { ConfigKVService } from './services/config-kv'
 import type { FluxService } from './services/flux'
 import type { FluxTransactionService } from './services/flux-transaction'
+import type { LlmRouterService } from './services/llm-router'
 import type { ProviderService } from './services/providers'
 import type { RequestLogService } from './services/request-log'
 import type { StripeService } from './services/stripe'
@@ -59,10 +60,12 @@ import { createConfigKVService } from './services/config-kv'
 import { createEmailService } from './services/email'
 import { createFluxService } from './services/flux'
 import { createFluxTransactionService } from './services/flux-transaction'
+import { createLlmRouterService } from './services/llm-router'
 import { createProviderService } from './services/providers'
 import { createRequestLogService } from './services/request-log'
 import { createStripeService } from './services/stripe'
 import { createUserDeletionService } from './services/user-deletion'
+import { createEnvelopeCrypto } from './utils/envelope-crypto'
 import { ApiError, createInternalError, createUnauthorizedError } from './utils/error'
 import { nanoid } from './utils/id'
 import { getTrustedOrigin } from './utils/origin'
@@ -85,6 +88,7 @@ interface AppDeps {
   env: Env
   otel: OtelInstance | null
   userDeletionService: UserDeletionService
+  llmRouter: LlmRouterService | null
 }
 
 export async function buildApp(deps: AppDeps) {
@@ -228,7 +232,7 @@ export async function buildApp(deps: AppDeps) {
     /**
      * V1 routes for official provider.
      */
-    .route('/api/v1/openai', createV1CompletionsRoutes(deps.fluxService, deps.billingService, deps.configKV, deps.requestLogService, deps.ttsMeter, deps.redis, deps.env, deps.otel?.genAi, deps.otel?.revenue, deps.otel?.rateLimit))
+    .route('/api/v1/openai', createV1CompletionsRoutes(deps.fluxService, deps.billingService, deps.configKV, deps.requestLogService, deps.ttsMeter, deps.redis, deps.env, deps.llmRouter, deps.otel?.genAi, deps.otel?.revenue, deps.otel?.rateLimit))
 
     /**
      * Flux routes.
@@ -465,6 +469,30 @@ export async function createApp() {
     }, dependsOn.otel?.revenue),
   })
 
+  // LLM router (KTD-5 in-process replacement for the knoway sidecar).
+  // Graceful skip when LLM_ROUTER_MASTER_KEY is unset: the chat-completions
+  // route falls back to the legacy GATEWAY_BASE_URL fetch path. This branch
+  // exists only for the U4→U8 transition window — U8 makes the master key
+  // (and the router) non-optional and deletes the legacy fallback.
+  const llmRouter = injeca.provide('services:llmRouter', {
+    dependsOn: { configKV, env: parsedEnv, otel },
+    build: ({ dependsOn }) => {
+      if (dependsOn.env.LLM_ROUTER_MASTER_KEY == null) {
+        logger.warn('LLM_ROUTER_MASTER_KEY is not set; LLM router is disabled and chat completions will use the legacy GATEWAY_BASE_URL path (U4 transition)')
+        return null
+      }
+      const envelopeCrypto = createEnvelopeCrypto({
+        masterKey: dependsOn.env.LLM_ROUTER_MASTER_KEY,
+        previousMasterKey: dependsOn.env.LLM_ROUTER_MASTER_KEY_PREVIOUS,
+      })
+      return createLlmRouterService({
+        configKV: dependsOn.configKV,
+        envelopeCrypto,
+        gatewayMetrics: dependsOn.otel?.gateway ?? null,
+      })
+    },
+  })
+
   await injeca.start()
   const resolved = await injeca.resolve({
     db,
@@ -484,6 +512,7 @@ export async function createApp() {
     env: parsedEnv,
     otel,
     userDeletionService,
+    llmRouter,
   })
   // Register the cluster-wide ObservableGauge for active sessions. Each
   // replica polls the same DB (cached 10s, in-flight coalesced) and the
@@ -509,6 +538,7 @@ export async function createApp() {
     env: resolved.env,
     otel: resolved.otel,
     userDeletionService: resolved.userDeletionService,
+    llmRouter: resolved.llmRouter,
   })
 
   logger.withFields({ hostname: resolved.env.HOST, port: resolved.env.PORT }).log('Server started')
