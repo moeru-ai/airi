@@ -43,6 +43,16 @@ export function createBillingService(
    * commit. The unique partial index `(user_id, request_id) WHERE request_id IS NOT NULL`
    * keeps retries idempotent at the DB level.
    *
+   * Partial-debit semantics:
+   * When `0 < balance < amount`, the balance is drained to zero and the
+   * ledger row is written with `amount = charged` and metadata recording
+   * `requestedAmount` + `unbilled`. The function returns `charged < requested`
+   * so callers can attribute the delta to a metric counter. This prevents
+   * the post-streaming leak where a partial-balance user could replay the
+   * same request indefinitely (each attempt rolled back the whole tx,
+   * leaving the balance untouched). The very next call sees `flux <= 0`
+   * and hits the throw branch.
+   *
    * Private — call domain-specific wrappers (e.g. consumeFluxForLLM) instead.
    */
   async function debitFlux(input: {
@@ -52,7 +62,7 @@ export function createBillingService(
     description?: string
     source: string
     metadata?: Record<string, unknown>
-  }): Promise<{ userId: string, flux: number }> {
+  }): Promise<{ userId: string, flux: number, charged: number, requested: number }> {
     const result = await db.transaction(async (tx) => {
       // Idempotency: a previous successful debit with the same requestId
       // returns the prior post-balance and skips the second deduction.
@@ -61,6 +71,7 @@ export function createBillingService(
       if (input.requestId != null) {
         const [existing] = await tx
           .select({
+            amount: fluxTxSchema.fluxTransaction.amount,
             balanceAfter: fluxTxSchema.fluxTransaction.balanceAfter,
           })
           .from(fluxTxSchema.fluxTransaction)
@@ -71,7 +82,17 @@ export function createBillingService(
           .limit(1)
 
         if (existing) {
-          return { userId: input.userId, flux: existing.balanceAfter, idempotent: true as const }
+          // Replay reuses the historical `charged`; we deliberately reflect
+          // the original (possibly partial) outcome instead of the caller's
+          // current `amount`, so the caller doesn't double-fire unbilled
+          // counters on retries.
+          return {
+            userId: input.userId,
+            flux: existing.balanceAfter,
+            charged: existing.amount,
+            requested: existing.amount,
+            idempotent: true as const,
+          }
         }
       }
 
@@ -86,12 +107,21 @@ export function createBillingService(
       }
 
       const balanceBefore = row.flux
-      if (balanceBefore < input.amount) {
+      // Hard floor: zero (or somehow negative) balance still throws so
+      // streaming callers' catch path fires `fluxUnbilled` with the full
+      // amount and TTS meter restores its debt counter. Partial debit only
+      // kicks in when there is *some* balance left to drain.
+      if (balanceBefore <= 0) {
         metrics?.fluxInsufficientBalance.add(1)
         throw createPaymentRequiredError('Insufficient flux')
       }
 
-      const balanceAfter = balanceBefore - input.amount
+      const chargedAmount = Math.min(input.amount, balanceBefore)
+      const balanceAfter = balanceBefore - chargedAmount
+      const isPartial = chargedAmount < input.amount
+      if (isPartial) {
+        metrics?.fluxInsufficientBalance.add(1)
+      }
 
       await tx.update(fluxSchema.userFlux)
         .set({ flux: balanceAfter, updatedAt: new Date() })
@@ -100,28 +130,47 @@ export function createBillingService(
       await tx.insert(fluxTxSchema.fluxTransaction).values({
         userId: input.userId,
         type: 'debit',
-        amount: input.amount,
+        amount: chargedAmount,
         balanceBefore,
         balanceAfter,
         requestId: input.requestId,
         description: input.description ?? input.source,
-        metadata: input.metadata != null || input.source != null
-          ? {
-              ...input.metadata,
-              source: input.source,
-            }
-          : undefined,
+        metadata: {
+          ...input.metadata,
+          source: input.source,
+          ...(isPartial && {
+            requestedAmount: input.amount,
+            unbilled: input.amount - chargedAmount,
+          }),
+        },
       })
 
-      return { userId: input.userId, flux: balanceAfter, idempotent: false as const }
+      return {
+        userId: input.userId,
+        flux: balanceAfter,
+        charged: chargedAmount,
+        requested: input.amount,
+        idempotent: false as const,
+      }
     })
 
     if (!result.idempotent) {
       await updateRedisCache(input.userId, result.flux)
     }
 
-    logger.withFields({ userId: input.userId, amount: input.amount, balance: result.flux, idempotent: result.idempotent }).log('Debited flux')
-    return { userId: result.userId, flux: result.flux }
+    logger.withFields({
+      userId: input.userId,
+      amount: input.amount,
+      charged: result.charged,
+      balance: result.flux,
+      idempotent: result.idempotent,
+    }).log('Debited flux')
+    return {
+      userId: result.userId,
+      flux: result.flux,
+      charged: result.charged,
+      requested: result.requested,
+    }
   }
 
   return {
@@ -138,7 +187,7 @@ export function createBillingService(
       model?: string
       promptTokens?: number
       completionTokens?: number
-    }): Promise<{ userId: string, flux: number }> {
+    }): Promise<{ userId: string, flux: number, charged: number, requested: number }> {
       return debitFlux({
         userId: input.userId,
         amount: input.amount,

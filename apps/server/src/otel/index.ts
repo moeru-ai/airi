@@ -116,17 +116,25 @@ export interface RevenueMetrics {
   fluxInsufficientBalance: Counter
   fluxCredited: Counter
   /**
-   * Streaming-only: Flux consumed by a request whose post-stream debit failed.
+   * Flux value that the LLM proxy could not collect from the user. Fires from
+   * both the streaming and non-streaming completion paths.
    *
    * Use when:
-   * - Tracking real revenue leak in the LLM streaming proxy.
+   * - Tracking real revenue leak in the LLM proxy.
+   *
+   * Labels (`reason`):
+   * - `debit_failed` — `consumeFluxForLLM` threw (DB error, or `balance <= 0`
+   *   after a race lost). Counter records the *full* requested amount.
+   * - `partial_debit_drained` — user had `0 < balance < requested`, so we
+   *   drained the balance to zero and charged what we could. Counter records
+   *   `requested - charged` (the unbilled remainder only).
    *
    * Why this needs its own metric:
    * - The streaming response is already sent (HTTP 200, tokens delivered) by
-   *   the time the catch around `billingService.consumeFluxForLLM` runs.
-   *   DB latency / HTTP 5xx alerts do NOT fire on this path — the failure is
-   *   silent at the transport layer. This counter is the only signal that
-   *   ties Flux value owed to a failed debit.
+   *   the time we discover we can't collect in full. DB latency / HTTP 5xx
+   *   alerts do NOT fire on this path — the failure is silent at the
+   *   transport layer. This counter is the only signal that ties Flux value
+   *   owed to a missed debit.
    * - Recommended alert: `increase(airi_billing_flux_unbilled_total[5m]) > 0`
    *   pages on-call immediately on any sustained leak.
    */

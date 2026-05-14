@@ -123,10 +123,23 @@ export function createV1CompletionsRoutes(
   // Failed debits are logged at error level for monitoring/alerting.
   // A pre-debit model would require holding the response until billing confirms,
   // which adds latency and complicates streaming. We accept the leak for now.
+  //
+  // Pre-flight gates on `balance >= fallbackRate` (not just `> 0`) because
+  // streaming providers that don't echo `usage` cause every billable request
+  // to fall back to `FLUX_PER_REQUEST`. Without this gate, a user sitting on
+  // `0 < balance < fallbackRate` could spawn N parallel requests that each
+  // pass the loose `>0` check, complete the stream, and race on the debit —
+  // first wins, rest land in the partial-debit / catch path unbilled. With
+  // the gate, concurrent requests are rejected before the upstream call.
   async function handleCompletion(c: Context<HonoEnv>) {
     const user = c.get('user')!
+    // Read billing rates before pre-flight so the gate can compare against
+    // the realistic per-request cost (fallback rate), not just `> 0`.
+    const fallbackRate = await configKV.getOrThrow('FLUX_PER_REQUEST')
+    const fluxPer1kTokens = await configKV.get('FLUX_PER_1K_TOKENS')
+
     const flux = await fluxService.getFlux(user.id)
-    if (flux.flux <= 0) {
+    if (flux.flux < fallbackRate) {
       throw createPaymentRequiredError('Insufficient flux')
     }
 
@@ -170,9 +183,9 @@ export function createV1CompletionsRoutes(
       })
     }
 
-    // Post-billing: parse usage and charge after successful response
-    const fallbackRate = await configKV.getOrThrow('FLUX_PER_REQUEST')
-    const fluxPer1kTokens = await configKV.get('FLUX_PER_1K_TOKENS')
+    // Post-billing: parse usage and charge after successful response.
+    // `fallbackRate` / `fluxPer1kTokens` were hoisted to the top of this
+    // function so the pre-flight gate can use them too.
 
     if (body.stream) {
       // Streaming: return response immediately, bill after stream ends
@@ -270,10 +283,16 @@ export function createV1CompletionsRoutes(
             // Debit flux via DB transaction (source of truth)
             // NOTICE: streaming response is already sent, so we cannot reject on failure.
             // Log at error level so unpaid usage is visible in monitoring/alerts.
+            //
+            // `consumeFluxForLLM` now drains to zero on partial balance instead
+            // of throwing — the catch path only fires on `balance <= 0` (post-
+            // race) or real DB errors. Partial debits are signalled via the
+            // returned `charged < requested` and accounted to the same
+            // `fluxUnbilled` counter (different `reason` label).
             const requestId = nanoid()
             let actualCharged = 0
             try {
-              await billingService.consumeFluxForLLM({
+              const result = await billingService.consumeFluxForLLM({
                 userId: user.id,
                 amount: fluxConsumed,
                 requestId,
@@ -282,7 +301,21 @@ export function createV1CompletionsRoutes(
                 promptTokens: usage.promptTokens,
                 completionTokens: usage.completionTokens,
               })
-              actualCharged = fluxConsumed
+              actualCharged = result.charged
+              if (result.charged < result.requested) {
+                revenue?.fluxUnbilled.add(result.requested - result.charged, {
+                  [GEN_AI_ATTR_REQUEST_MODEL]: requestModel,
+                  reason: 'partial_debit_drained',
+                  stage: 'streaming',
+                })
+                logger.withFields({
+                  userId: user.id,
+                  requestId,
+                  requested: result.requested,
+                  charged: result.charged,
+                  unbilled: result.requested - result.charged,
+                }).warn('Partial debit after streaming — flux drained to zero')
+              }
             }
             catch (err) {
               // Real revenue leak: streaming response already sent (HTTP 200,
@@ -329,10 +362,12 @@ export function createV1CompletionsRoutes(
     span.end()
     recordMetrics({ model: requestModel, status: response.status, type: 'chat', durationMs, fluxConsumed, ...usage })
 
-    // Debit flux via DB transaction (source of truth)
-    // NOTICE: no try/catch — debit failure (e.g. insufficient balance) must block the response
+    // Debit flux via DB transaction (source of truth).
+    // The upstream call has already happened (cost incurred), so partial
+    // debit + `fluxUnbilled` is the only sane recovery — same shape as the
+    // streaming path. `balance <= 0` still throws and bubbles up as 402.
     const requestId = nanoid()
-    await billingService.consumeFluxForLLM({
+    const result = await billingService.consumeFluxForLLM({
       userId: user.id,
       amount: fluxConsumed,
       requestId,
@@ -341,13 +376,27 @@ export function createV1CompletionsRoutes(
       promptTokens: usage.promptTokens,
       completionTokens: usage.completionTokens,
     })
+    if (result.charged < result.requested) {
+      revenue?.fluxUnbilled.add(result.requested - result.charged, {
+        [GEN_AI_ATTR_REQUEST_MODEL]: requestModel,
+        reason: 'partial_debit_drained',
+        stage: 'non_streaming',
+      })
+      logger.withFields({
+        userId: user.id,
+        requestId,
+        requested: result.requested,
+        charged: result.charged,
+        unbilled: result.requested - result.charged,
+      }).warn('Partial debit on non-streaming completion — flux drained to zero')
+    }
 
     recordRequestLog({
       userId: user.id,
       model: requestModel,
       status: response.status,
       durationMs,
-      fluxConsumed,
+      fluxConsumed: result.charged,
       promptTokens: usage.promptTokens,
       completionTokens: usage.completionTokens,
     })
