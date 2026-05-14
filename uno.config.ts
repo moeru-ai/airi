@@ -155,6 +155,17 @@ export function sharedUnoConfig() {
     safelist: [
       ...'prose prose-sm m-auto text-left'.split(' '),
       ...safelistAllPrimaryBackgrounds(),
+      'i-solar:armchair-2-bold-duotone',
+      'i-solar:battery-charge-bold-duotone',
+      'i-solar:box-minimalistic-bold-duotone',
+      'i-solar:database-bold-duotone',
+      'i-solar:emoji-funny-square-bold-duotone',
+      'i-solar:filters-bold-duotone',
+      'i-solar:layers-bold-duotone',
+      'i-solar:leaf-bold-duotone',
+      'i-solar:people-nearby-bold-duotone',
+      'i-solar:user-circle-bold-duotone',
+      'i-solar:wi-fi-router-bold-duotone',
     ],
     // hyoban/unocss-preset-shadcn: Use shadcn ui with UnoCSS
     // https://github.com/hyoban/unocss-preset-shadcn
