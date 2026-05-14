@@ -136,7 +136,9 @@ const errorMetadataRegistry: Record<string, Omit<ParsedServerErrorMessage, 'mess
  * - Parsed error with classification (code, authentication, recoverable, terminal)
  */
 export function parseServerErrorMessage(message: string): ParsedServerErrorMessage {
-  const metadata = errorMetadataRegistry[message]
+  const metadata = Object.hasOwn(errorMetadataRegistry, message)
+    ? errorMetadataRegistry[message]
+    : undefined
   if (metadata) {
     return { ...metadata, message }
   }
