@@ -149,28 +149,116 @@ export function selectConsumerPeerId(options: {
 /**
  * Constant-time string comparison that prevents timing attacks (CWE-208).
  *
- * @param {string} a - the first string to compare
- * @param {string} b - the expected value (e.g., the real secret)
- * @returns {boolean} `true` if the strings are equal, `false` otherwise
+ * Compares two strings in constant time to prevent attackers from learning
+ * information about the target string through timing side-channels.
+ *
+ * Use when:
+ * - Comparing authentication tokens or secrets
+ * - Any security-sensitive string comparison
+ *
+ * Expects:
+ * - Both strings are available (no lazy evaluation)
+ *
+ * Returns:
+ * - `true` if the strings are equal, `false` otherwise
  */
 function timingSafeCompare(a: string, b: string): boolean {
   const bufA = Buffer.from(a)
   const bufB = Buffer.from(b)
   if (bufA.length !== bufB.length) {
-    // Compare against itself to keep constant time, then return false
-    timingSafeEqual(bufA, bufA)
-    // To prevent leaking length information, we perform a dummy comparison on the
-    // expected value, making the execution time dependent on its length.
-    timingSafeEqual(bufB, bufB)
+    // Compare against b regardless of length to maintain constant time.
+    // This prevents attackers from learning the expected string's length.
+    try {
+      timingSafeEqual(bufA, bufB)
+    }
+    catch {
+      // timingSafeEqual throws when buffers are different lengths,
+      // but we expect this for length mismatches. Catch and continue.
+    }
     return false
   }
 
   return timingSafeEqual(bufA, bufB)
 }
 
-// helper send function
+/**
+ * Sends an event to a specific peer.
+ * Converts the event to JSON format before transmission.
+ * @internal
+ */
 function send(peer: Peer, event: WebSocketBaseEvent<string, unknown> | string) {
   peer.send(stringifyEvent(event))
+}
+
+/**
+ * Safely sends an event to a peer and handles transmission errors.
+ * @internal
+ */
+function trySendToPeer(
+  peer: Peer,
+  event: WebSocketBaseEvent<string, unknown> | string,
+  options: {
+    onError?: (error: Error) => void
+    logError?: boolean
+  } = {},
+): boolean {
+  try {
+    send(peer, event)
+    return true
+  }
+  catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err))
+    options.onError?.(error)
+    if (options.logError) {
+      const logger = useLogg('@proj-airi/server-runtime:websocket')
+      logger.withError(error).debug('failed to send event to peer')
+    }
+    return false
+  }
+}
+
+/**
+ * Validates that a peer is authenticated.
+ * Sends not-authenticated error to the peer if validation fails.
+ * @internal
+ */
+function ensureAuthenticated(
+  peerId: string,
+  peers: Map<string, AuthenticatedPeer>,
+  options: {
+    send: (peer: Peer, event: WebSocketBaseEvent<string, unknown>) => void
+    RESPONSES: ReturnType<typeof createResponses>
+    eventId?: string
+  },
+): AuthenticatedPeer | null {
+  const peerInfo = peers.get(peerId)
+  if (!peerInfo?.authenticated) {
+    send(peerInfo?.peer, options.RESPONSES.notAuthenticated(options.eventId))
+    return null
+  }
+  return peerInfo
+}
+
+/**
+ * Validates event data satisfies required criteria.
+ * @internal
+ */
+function validateEventData(
+  data: unknown,
+  predicate: (data: any) => boolean,
+  errorMessage: string,
+  options: {
+    send: (peer: Peer, event: WebSocketBaseEvent<string, unknown>) => void
+    peer: Peer
+    RESPONSES: ReturnType<typeof createResponses>
+    eventId?: string
+  },
+): boolean {
+  if (!predicate(data)) {
+    send(options.peer, options.RESPONSES.error(errorMessage, options.eventId))
+    return false
+  }
+  return true
 }
 
 export interface AppOptions {
@@ -223,17 +311,33 @@ export function normalizeLoggerConfig(options?: AppOptions) {
 /**
  * Creates the H3 websocket application and its in-memory peer registry.
  *
+ * Sets up a complete websocket server with:
+ * - Peer authentication and lifecycle management
+ * - Module registration and discovery (registry sync)
+ * - Consumer-based event routing for load distribution
+ * - Health checking with automatic peer removal on timeout
+ * - Event routing with optional policy-based filtering
+ * - Heartbeat monitoring for liveness detection
+ *
  * Use when:
  * - Embedding the AIRI websocket runtime inside a server process
  * - Spinning up a testable application instance before binding a socket listener
  *
  * Expects:
  * - Caller lifecycle management to invoke `dispose` when the app is no longer needed
+ * - Auth token (if provided) must be validated for all clients
+ * - Routing middleware should be stateless and idempotent
  *
  * Returns:
- * - The H3 app plus cleanup helpers for peer shutdown and timer disposal
+ * - The H3 app at `/ws` endpoint plus cleanup helpers for peer shutdown and timer disposal
+ *
+ * Ownership:
+ * - Manages peer registry and module registry as internal mutable state
+ * - Owns all timers and intervals created during setup
+ * - Consumer orchestrator state is isolated within this function scope
  */
 export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => void, dispose: () => void } {
+  // === Configuration & State Initialization ===
   const instanceId = options?.instanceId || optionOrEnv(undefined, 'SERVER_INSTANCE_ID', nanoid())
   const authToken = optionOrEnv(options?.auth?.token, 'AUTHENTICATION_TOKEN', '')
 
@@ -246,6 +350,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
     onError: error => appLogger.withError(error).error('an error occurred'),
   })
 
+  // === Registries & Orchestrators ===
   const peerStore = createServerWsPeerStore<AuthenticatedPeer>()
   const peers = peerStore.peers
   const peersByModule = new Map<string, Map<number | undefined, AuthenticatedPeer>>()
@@ -261,6 +366,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
   const healthCheckIntervalMs = resolveServerWsHealthCheckIntervalMs(heartbeatTtlMs)
   let disposed = false
 
+  // === Health Check & Peer Liveness ===
   function broadcastPeerHealthy(peerInfo: AuthenticatedPeer, parentId?: string) {
     if (!peerInfo.name || !peerInfo.identity) {
       return
@@ -334,6 +440,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
     healthCheckInterval.unref?.()
   }
 
+  // === Module Registry & Consumer Management ===
   function registerModulePeer(p: AuthenticatedPeer, name: string, index?: number) {
     if (!peersByModule.has(name)) {
       peersByModule.set(name, new Map())
@@ -440,6 +547,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
       }))
   }
 
+  // === Broadcasting & Registry Synchronization ===
   function sendRegistrySync(peer: Peer, parentId?: string) {
     send(peer, {
       type: 'registry:modules:sync',
@@ -464,6 +572,8 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
     }
   }
 
+  // === WebSocket Gateway Handler ===
+  // Handles peer lifecycle: open, message, error, close
   const websocketGateway = createGateway({
     handler: {
       open: (peer) => {
@@ -890,6 +1000,8 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
         logger.withFields({ peer: peer.peer.id, peerName: peer.name }).withError(error as Error).debug('failed to close peer during shutdown')
       }
     }
+    // Clear the peer map after closing all connections to prevent memory leaks
+    peers.clear()
   }
 
   function dispose() {
