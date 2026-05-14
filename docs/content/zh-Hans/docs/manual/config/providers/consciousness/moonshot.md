@@ -1,5 +1,5 @@
 ---
-title: Moonshot (月之暗面)
+title: Moonshot （月之暗面）
 description: 在 AIRI 中配置 Moonshot (月之暗面) 作为大模型服务商
 is_openai_compatible: true
 ---

@@ -1,18 +1,18 @@
 ---
-title: 302.AI
-description: 在 AIRI 中配置 302.AI 作为大模型服务商
+title: Perplexity
+description: 在 AIRI 中配置 Perplexity 作为大模型服务商
 is_openai_compatible: true
 ---
 
-本文档介绍了如何在 AIRI 中配置 302.AI 作为大模型服务商。由于此类提供商原生支持 OpenAI 格式的 API，配置过程非常标准且直接。
+本文档介绍了如何在 AIRI 中配置 Perplexity 作为大模型服务商。由于此类提供商原生支持 OpenAI 格式的 API，配置过程非常标准且直接。
 
-::: info 为什么选择 302.AI？
-优秀的 AI 聚合平台，提供按量计费模式和统一的 API 接口，免去了维护多个海外账号和支付方式的烦恼。
+::: info 为什么选择 Perplexity？
+专注于‘联网搜索’大模型，能实时调取全网信息并生成带有精准引用来源的回答，非常适合需要实时数据支持的研究场景。
 :::
 
 ## 第一步：获取 API 密钥
 
-1. 登录你的 [302.AI 管理控制台](https://302.ai/)。
+1. 登录你的 [Perplexity 管理控制台](https://www.perplexity.ai/settings/api)。
 2. 找到 API 密钥 菜单并生成你的 API 密钥。 通常 API 密钥 会以 "sk-" 开头。
 
     ::: warning 安全提醒
@@ -26,15 +26,15 @@ is_openai_compatible: true
 
 ## 第二步：输入 API 信息
 
-请在 AIRI 的 **设置 -> 服务来源 -> 302.AI** 页面中按以下说明填写：
+请在 AIRI 的 **设置 -> 服务来源 -> Perplexity** 页面中按以下说明填写：
 
 ### 1. 基础设置 (Basic)
-* **API 密钥**: 填入你在 302.AI 后台生成的 API 令牌。
+* **API 密钥**: 填入你在 Perplexity 后台生成的 API 令牌。
     * *提示：点击右侧的刷新图标可以清空输入。*
 
 ### 2. 高级设置 (Advanced)
 点击 **Advanced** 箭头展开隐藏选项：
-* **Base URL**: `https://api.302.ai/v1`。默认情况下不需要更改。
+* **Base URL**: `https://api.perplexity.ai`。默认情况下不需要更改。
 
 ### 3. 配置校验 (Validation)
 填写完成后，你会看到底部的蓝色通知栏：
@@ -45,10 +45,10 @@ is_openai_compatible: true
 
 ## 开发者快速参考 (Developer Quick-Start)
 
-如果你需要手动测试 302.AI 的 API 连通性，可以使用以下 cURL 命令进行调试：
+如果你需要手动测试 Perplexity 的 API 连通性，可以使用以下 cURL 命令进行调试：
 
 ```bash
-curl https://api.302.ai/v1/chat/completions \
+curl https://api.perplexity.ai/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $YOUR_API_KEY" \
   -d '{
