@@ -165,20 +165,22 @@ export function selectConsumerPeerId(options: {
 function timingSafeCompare(a: string, b: string): boolean {
   const bufA = Buffer.from(a)
   const bufB = Buffer.from(b)
-  if (bufA.length !== bufB.length) {
-    // Compare against b regardless of length to maintain constant time.
-    // This prevents attackers from learning the expected string's length.
-    try {
-      timingSafeEqual(bufA, bufB)
-    }
-    catch {
-      // timingSafeEqual throws when buffers are different lengths,
-      // but we expect this for length mismatches. Catch and continue.
-    }
-    return false
-  }
 
-  return timingSafeEqual(bufA, bufB)
+  // Normalize attacker-controlled input to the expected length
+  // so timingSafeEqual always performs a real comparison.
+  const paddedA = Buffer.alloc(bufB.length)
+
+  bufA.copy(
+    paddedA,
+    0,
+    0,
+    Math.min(bufA.length, bufB.length),
+  )
+
+  return (
+    timingSafeEqual(paddedA, bufB)
+    && bufA.length === bufB.length
+  )
 }
 
 /**
@@ -188,77 +190,6 @@ function timingSafeCompare(a: string, b: string): boolean {
  */
 function send(peer: Peer, event: WebSocketBaseEvent<string, unknown> | string) {
   peer.send(stringifyEvent(event))
-}
-
-/**
- * Safely sends an event to a peer and handles transmission errors.
- * @internal
- */
-function trySendToPeer(
-  peer: Peer,
-  event: WebSocketBaseEvent<string, unknown> | string,
-  options: {
-    onError?: (error: Error) => void
-    logError?: boolean
-  } = {},
-): boolean {
-  try {
-    send(peer, event)
-    return true
-  }
-  catch (err) {
-    const error = err instanceof Error ? err : new Error(String(err))
-    options.onError?.(error)
-    if (options.logError) {
-      const logger = useLogg('@proj-airi/server-runtime:websocket')
-      logger.withError(error).debug('failed to send event to peer')
-    }
-    return false
-  }
-}
-
-/**
- * Validates that a peer is authenticated.
- * Sends not-authenticated error to the peer if validation fails.
- * @internal
- */
-function ensureAuthenticated(
-  peerId: string,
-  peers: Map<string, AuthenticatedPeer>,
-  options: {
-    send: (peer: Peer, event: WebSocketBaseEvent<string, unknown>) => void
-    RESPONSES: ReturnType<typeof createResponses>
-    eventId?: string
-  },
-): AuthenticatedPeer | null {
-  const peerInfo = peers.get(peerId)
-  if (!peerInfo?.authenticated) {
-    send(peerInfo?.peer, options.RESPONSES.notAuthenticated(options.eventId))
-    return null
-  }
-  return peerInfo
-}
-
-/**
- * Validates event data satisfies required criteria.
- * @internal
- */
-function validateEventData(
-  data: unknown,
-  predicate: (data: any) => boolean,
-  errorMessage: string,
-  options: {
-    send: (peer: Peer, event: WebSocketBaseEvent<string, unknown>) => void
-    peer: Peer
-    RESPONSES: ReturnType<typeof createResponses>
-    eventId?: string
-  },
-): boolean {
-  if (!predicate(data)) {
-    send(options.peer, options.RESPONSES.error(errorMessage, options.eventId))
-    return false
-  }
-  return true
 }
 
 export interface AppOptions {
@@ -991,17 +922,31 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
 
   function closeAllPeers() {
     logger.withFields({ totalPeers: peers.size }).log('closing all peers')
-    for (const peer of Array.from(peers.values())) {
-      logger.withFields({ peer: peer.peer.id, peerName: peer.name }).debug('closing peer')
+
+    for (const peerInfo of Array.from(peers.values())) {
+      logger.withFields({
+        peer: peerInfo.peer.id,
+        peerName: peerInfo.name,
+      }).debug('closing peer')
+
+      peers.delete(peerInfo.peer.id)
+      unregisterModulePeer(peerInfo, 'server shutdown')
+
       try {
-        peer.peer.close?.()
+        peerInfo.peer.close?.()
       }
       catch (error) {
-        logger.withFields({ peer: peer.peer.id, peerName: peer.name }).withError(error as Error).debug('failed to close peer during shutdown')
+        logger
+          .withFields({
+            peer: peerInfo.peer.id,
+            peerName: peerInfo.name,
+          })
+          .withError(error as Error)
+          .debug('failed to close peer during shutdown')
       }
     }
-    // Clear the peer map after closing all connections to prevent memory leaks
-    peers.clear()
+
+    resetRoutingState()
   }
 
   function dispose() {
