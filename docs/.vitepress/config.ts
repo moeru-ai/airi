@@ -157,7 +157,6 @@ export default defineConfig<ThemeConfig>({
                 text: 'Configuration',
                 items: [
                   { text: 'Configuration Guide', link: withBase('/en/docs/manual/config/') },
-                  { text: 'Character Card Template', link: withBase('/en/docs/manual/tamagotchi/character-card-template') },
                 ],
               },
             ],
@@ -303,58 +302,81 @@ export default defineConfig<ThemeConfig>({
                 text: '配置',
                 items: [
                   { text: '配置指南', link: withBase('/zh-Hans/docs/manual/config/') },
+                  { text: '配置服务来源', collapsed: true, items: [
+                    { text: '聊天', collapsed: true, items: [
+                      { text: 'OpenRouter', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/openrouter') },
+                      { text: 'Ollama', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/ollama') },
+                      { text: '深度求索 DeepSeek', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/deepseek') },
+                      { text: 'OpenAI (和兼容 API)', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/openai') },
+                      { text: '302.ai', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/302ai') },
+                      { text: 'fireworks', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/fireworks') },
+                      { text: 'Groq', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/groq') },
+                      { text: 'MiniMax', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/minimax') },
+                      { text: 'Mistral', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/mistral') },
+                      { text: '月之暗面', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/moonshot') },
+                      { text: 'Nvidia NIM', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/nvidia') },
+                      { text: 'Novita', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/novita') },
+                      { text: 'Perplexity', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/perplexity') },
+                      { text: 'Together.ai', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/together') },
+                      { text: 'Z.ai', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/zhipu') },
+                    ] },
+                    { text: 'Speech', collapsed: true, items: [
+                      { text: 'OpenAI (和兼容 API)', link: withBase('/zh-Hans/docs/manual/config/providers/speech/openai') },
+                      { text: 'OpenRouter', link: withBase('/zh-Hans/docs/manual/config/providers/speech/openrouter') },
+                    ] },
+                    { text: 'Transcription', collapsed: true, items: [
+                      { text: '阿里云智能语音服务', link: withBase('/zh-Hans/docs/manual/config/providers/transcription/aliyun') },
+                      { text: 'OpenAI (和兼容 API)', link: withBase('/zh-Hans/docs/manual/config/providers/transcription/openai') },
+                    ] },
+                  ] },
+                ],
+              },
+              {
+                text: '贡献指南',
+                icon: 'lucide:users',
+                items: [
                   {
-                    text: '角色卡模板',
-                    link: withBase('/zh-Hans/docs/manual/tamagotchi/character-card-template'),
+                    text: '基础配置与开发',
+                    items: [
+                      { text: '环境配置与基础准备', link: withBase('/zh-Hans/docs/contributing/') },
+                      { text: '桌面端', link: withBase('/zh-Hans/docs/contributing/tamagotchi') },
+                      { text: '网页端', link: withBase('/zh-Hans/docs/contributing/webui') },
+                      { text: '文档站', link: withBase('/zh-Hans/docs/contributing/docs') },
+                    ],
+                  },
+                  {
+                    text: '游戏与社交平台',
+                    items: [
+                      { text: 'Minecraft', link: withBase('/zh-Hans/docs/contributing/services/minecraft') },
+                      { text: 'Satori Bot', link: withBase('/zh-Hans/docs/contributing/services/satori') },
+                      { text: 'Telegram Bot', link: withBase('/zh-Hans/docs/contributing/services/telegram') },
+                      { text: 'Discord Bot', link: withBase('/zh-Hans/docs/contributing/services/discord') },
+                    ],
+                  },
+                  {
+                    text: '设计指南',
+                    items: [
+                      { text: '介绍', link: withBase('/zh-Hans/docs/contributing/design-guidelines/') },
+                      { text: '艺术家与开发者 (参考资源)', link: withBase('/zh-Hans/docs/contributing/design-guidelines/resources') },
+                      { text: '工具', link: withBase('/zh-Hans/docs/contributing/design-guidelines/tools') },
+                    ],
                   },
                 ],
               },
-            ],
-          },
-          {
-            text: '贡献指南',
-            icon: 'lucide:users',
-            items: [
               {
-                text: '基础配置与开发',
+                text: '编年史',
+                icon: 'lucide:calendar-days',
                 items: [
-                  { text: '环境配置与基础准备', link: withBase('/zh-Hans/docs/contributing/') },
-                  { text: '桌面端', link: withBase('/zh-Hans/docs/contributing/tamagotchi') },
-                  { text: '网页端', link: withBase('/zh-Hans/docs/contributing/webui') },
-                  { text: '文档站', link: withBase('/zh-Hans/docs/contributing/docs') },
+                  { text: '首次公开 v0.1.0', link: withBase('/zh-Hans/docs/chronicles/version-v0.1.0/') },
+                  { text: '先前的故事 v0.0.1', link: withBase('/zh-Hans/docs/chronicles/version-v0.0.1/') },
                 ],
               },
               {
-                text: '游戏与社交平台',
-                items: [
-                  { text: 'Minecraft', link: withBase('/zh-Hans/docs/contributing/services/minecraft') },
-                  { text: 'Satori Bot', link: withBase('/zh-Hans/docs/contributing/services/satori') },
-                  { text: 'Telegram Bot', link: withBase('/zh-Hans/docs/contributing/services/telegram') },
-                  { text: 'Discord Bot', link: withBase('/zh-Hans/docs/contributing/services/discord') },
-                ],
-              },
-              {
-                text: '设计指南',
-                items: [
-                  { text: '介绍', link: withBase('/zh-Hans/docs/contributing/design-guidelines/') },
-                  { text: '艺术家与开发者 (参考资源)', link: withBase('/zh-Hans/docs/contributing/design-guidelines/resources') },
-                  { text: '工具', link: withBase('/zh-Hans/docs/contributing/design-guidelines/tools') },
-                ],
+                text: '角色',
+                icon: 'lucide:scan-face',
+                link: withBase('/zh-Hans/characters/'),
               },
             ],
-          },
-          {
-            text: '编年史',
-            icon: 'lucide:calendar-days',
-            items: [
-              { text: '首次公开 v0.1.0', link: withBase('/zh-Hans/docs/chronicles/version-v0.1.0/') },
-              { text: '先前的故事 v0.0.1', link: withBase('/zh-Hans/docs/chronicles/version-v0.0.1/') },
-            ],
-          },
-          {
-            text: '角色',
-            icon: 'lucide:scan-face',
-            link: withBase('/zh-Hans/characters/'),
           },
         ] as (DefaultTheme.SidebarItem & { icon?: string })[],
 
@@ -448,7 +470,6 @@ export default defineConfig<ThemeConfig>({
                 text: '設定',
                 items: [
                   { text: '設定ガイド', link: withBase('/ja/docs/manual/config/') },
-                  { text: 'キャラクターカードテンプレート', link: withBase('/ja/docs/manual/tamagotchi/character-card-template') },
                 ],
               },
             ],
