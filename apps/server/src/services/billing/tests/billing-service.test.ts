@@ -1,15 +1,13 @@
 import type Redis from 'ioredis'
 
 import type { Database } from '../../../libs/db'
-import type { MqService } from '../../../libs/mq'
 import type { createConfigKVService } from '../../config-kv'
-import type { BillingEvent } from '../billing-events'
 
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { mockDB } from '../../../libs/mock-db'
-import { DEFAULT_BILLING_EVENTS_STREAM, userFluxRedisKey } from '../../../utils/redis-keys'
+import { userFluxRedisKey } from '../../../utils/redis-keys'
 import { createBillingService } from '../billing-service'
 
 import * as schema from '../../../schemas'
@@ -35,21 +33,9 @@ function createMockRedis(): Redis {
   } as unknown as Redis
 }
 
-function createMockBillingMq(): MqService<BillingEvent> {
-  return {
-    stream: DEFAULT_BILLING_EVENTS_STREAM,
-    publish: vi.fn(async () => '1-0'),
-    ensureConsumerGroup: vi.fn(async () => true),
-    consume: vi.fn(async () => []),
-    claimIdleMessages: vi.fn(async () => []),
-    ack: vi.fn(async () => 1),
-  } as any
-}
-
 describe('billingService', () => {
   let db: Database
   let redis: Redis
-  let billingMq: MqService<BillingEvent>
   let billingService: ReturnType<typeof createBillingService>
 
   beforeAll(async () => {
@@ -64,8 +50,7 @@ describe('billingService', () => {
 
   beforeEach(async () => {
     redis = createMockRedis()
-    billingMq = createMockBillingMq()
-    billingService = createBillingService(db, redis, billingMq, createMockConfigKV())
+    billingService = createBillingService(db, redis, createMockConfigKV())
 
     await db.delete(schema.fluxTransaction)
     await db.delete(schema.userFlux).where(eq(schema.userFlux.userId, 'user-billing-1'))
@@ -114,11 +99,6 @@ describe('billingService', () => {
         source: 'stripe.checkout.completed',
       })
 
-      // Verify billing events published to stream
-      expect(billingMq.publish).toHaveBeenCalledTimes(2)
-      expect(billingMq.publish).toHaveBeenCalledWith(expect.objectContaining({ eventType: 'flux.credited' }))
-      expect(billingMq.publish).toHaveBeenCalledWith(expect.objectContaining({ eventType: 'stripe.checkout.completed' }))
-
       // Verify stripe session marked as credited
       const [sessionRecord] = await db.select().from(schema.stripeCheckoutSession).where(eq(schema.stripeCheckoutSession.stripeSessionId, 'sess-billing-1'))
       expect(sessionRecord?.fluxCredited).toBe(true)
@@ -148,13 +128,14 @@ describe('billingService', () => {
 
       expect(second).toEqual({ applied: false })
 
-      // Only 2 publish calls from the first invocation
-      expect(billingMq.publish).toHaveBeenCalledTimes(2)
+      // Idempotent replay must not double-write the ledger
+      const txRecords = await db.select().from(schema.fluxTransaction).where(eq(schema.fluxTransaction.userId, 'user-billing-1'))
+      expect(txRecords).toHaveLength(1)
     })
   })
 
   describe('consumeFluxForLLM', () => {
-    it('deducts balance, publishes flux.debited event, updates Redis', async () => {
+    it('deducts balance, writes the ledger row inside the transaction, and refreshes Redis', async () => {
       // Setup: give user some flux first
       await db.insert(schema.userFlux).values({ userId: 'user-billing-1', flux: 100 })
 
@@ -173,18 +154,25 @@ describe('billingService', () => {
       const [fluxRecord] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-billing-1'))
       expect(fluxRecord?.flux).toBe(70)
 
-      // Verify flux.debited event published to stream (transaction written by consumer)
-      expect(billingMq.publish).toHaveBeenCalledTimes(1)
-      expect(billingMq.publish).toHaveBeenCalledWith(expect.objectContaining({
-        eventType: 'flux.debited',
+      // Ledger row written inline (no async consumer involved post-refactor)
+      const [txRecord] = await db.select().from(schema.fluxTransaction).where(and(
+        eq(schema.fluxTransaction.userId, 'user-billing-1'),
+        eq(schema.fluxTransaction.requestId, 'req-1'),
+      ))
+      expect(txRecord).toMatchObject({
         userId: 'user-billing-1',
-        payload: expect.objectContaining({
-          amount: 30,
-          balanceAfter: 70,
-          description: 'gpt-4',
-          metadata: { promptTokens: 120, completionTokens: 80 },
-        }),
-      }))
+        type: 'debit',
+        amount: 30,
+        balanceBefore: 100,
+        balanceAfter: 70,
+        requestId: 'req-1',
+        description: 'gpt-4',
+      })
+      expect(txRecord?.metadata).toMatchObject({
+        promptTokens: 120,
+        completionTokens: 80,
+        source: 'llm.request',
+      })
 
       // Verify Redis cache updated
       expect(redis.set).toHaveBeenCalledWith(userFluxRedisKey('user-billing-1'), '70')
@@ -204,14 +192,11 @@ describe('billingService', () => {
 
       const txRecords = await db.select().from(schema.fluxTransaction)
       expect(txRecords).toHaveLength(0)
-
-      // Verify no event was published
-      expect(billingMq.publish).not.toHaveBeenCalled()
     })
   })
 
   describe('creditFlux', () => {
-    it('credits balance with transaction + outbox', async () => {
+    it('credits balance and writes the ledger row in one transaction', async () => {
       const result = await billingService.creditFlux({
         userId: 'user-billing-1',
         amount: 50,
@@ -221,6 +206,7 @@ describe('billingService', () => {
 
       expect(result.balanceAfter).toBe(50)
       expect(result.balanceBefore).toBe(0)
+      expect(result.idempotent).toBe(false)
 
       // Verify transaction
       const txRecords = await db.select().from(schema.fluxTransaction).where(eq(schema.fluxTransaction.userId, 'user-billing-1'))
@@ -231,10 +217,62 @@ describe('billingService', () => {
         balanceBefore: 0,
         balanceAfter: 50,
       })
+    })
 
-      // Verify billing event published to stream
-      expect(billingMq.publish).toHaveBeenCalledTimes(1)
-      expect(billingMq.publish).toHaveBeenCalledWith(expect.objectContaining({ eventType: 'flux.credited' }))
+    it('is idempotent across retries with the same requestId', async () => {
+      // ROOT CAUSE:
+      //
+      // Worker crash window: creditFlux commits the credit, then the
+      // grant-batch poller crashes before marking its own state row
+      // (e.g. flux_grant_batch_recipient) as granted. On restart the poller
+      // re-claims the same row and calls creditFlux again with the same
+      // requestId.
+      //
+      // Before the fix: second call hit the unique index on
+      // (user_id, request_id) and threw, the poller's catch block marked
+      // the recipient as `failed` despite the user already having been credited.
+      // User got the FLUX but the recipient row was stuck in failed.
+      //
+      // After the fix: second call detects the existing flux_transaction row,
+      // returns it as an idempotent success without touching balance or cache.
+      // Poller advances to granted normally.
+      const requestId = 'campaign-replay-test'
+
+      const first = await billingService.creditFlux({
+        userId: 'user-billing-1',
+        amount: 100,
+        requestId,
+        description: 'Replay test',
+        source: 'admin',
+      })
+      expect(first.idempotent).toBe(false)
+      expect(first.balanceAfter).toBe(100)
+
+      // Second call with same requestId — simulates crash-recovery retry.
+      const second = await billingService.creditFlux({
+        userId: 'user-billing-1',
+        amount: 100,
+        requestId,
+        description: 'Replay test',
+        source: 'admin',
+      })
+
+      expect(second.idempotent).toBe(true)
+      // Same record returned, not a fresh credit
+      expect(second.fluxTransactionId).toBe(first.fluxTransactionId)
+      expect(second.balanceAfter).toBe(first.balanceAfter)
+
+      // Balance must NOT have doubled
+      const [fluxRow] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-billing-1'))
+      expect(fluxRow!.flux).toBe(100)
+
+      // Only one ledger row exists (unique index would prevent a second anyway,
+      // but verify the function didn't try to insert and silently swallow)
+      const txRecords = await db.select().from(schema.fluxTransaction).where(and(
+        eq(schema.fluxTransaction.userId, 'user-billing-1'),
+        eq(schema.fluxTransaction.requestId, requestId),
+      ))
+      expect(txRecords).toHaveLength(1)
     })
   })
 })

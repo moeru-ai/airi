@@ -27,6 +27,7 @@ import { join, resolve } from 'node:path'
 
 import { BrowserWindow, screen } from 'electron'
 
+import { desktopOverlayPollHeartbeatMarker, desktopOverlayPollHeartbeatQueryParam } from '../../../shared/desktop-overlay-heartbeat'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { setupDesktopOverlayElectronInvokes } from './rpc/index.electron'
 import {
@@ -38,6 +39,15 @@ import {
 /** Whether the desktop overlay feature is enabled */
 export function isDesktopOverlayEnabled(): boolean {
   return process.env.AIRI_DESKTOP_OVERLAY === '1'
+}
+
+/**
+ * Smoke-only overlay heartbeat mode.
+ * The recut desktop smoke uses this to surface renderer console lines and
+ * mount the in-page smoke bridge.
+ */
+export function isDesktopOverlayPollHeartbeatEnabled(): boolean {
+  return process.env.AIRI_DESKTOP_OVERLAY_POLL_HEARTBEAT === '1'
 }
 
 let overlayWindow: BrowserWindow | null = null
@@ -81,6 +91,14 @@ export async function setupDesktopOverlayWindow(params: {
     overlayWindow = null
   })
 
+  if (isDesktopOverlayPollHeartbeatEnabled()) {
+    overlayWindow.webContents.on('console-message', (_event, _level, message) => {
+      if (message.includes(desktopOverlayPollHeartbeatMarker)) {
+        console.info(message)
+      }
+    })
+  }
+
   // NOTICE: Wire eventa RPC BEFORE loading the renderer page.
   // The overlay's onMounted fires during load() and immediately starts
   // polling via callTool. If the handlers aren't registered yet, the
@@ -99,7 +117,9 @@ export async function setupDesktopOverlayWindow(params: {
     overlayWindow,
     withHashRoute(
       baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')),
-      '/desktop-overlay',
+      isDesktopOverlayPollHeartbeatEnabled()
+        ? `/desktop-overlay?${desktopOverlayPollHeartbeatQueryParam}=1`
+        : '/desktop-overlay',
     ),
   )
 

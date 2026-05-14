@@ -32,6 +32,7 @@ words:
   - baichuan
   - baiducloud
   - bailian
+  - Basemove
   - bestmove
   - bigserial
   - bilibili
@@ -201,6 +202,7 @@ words:
   - msvc
   - multisampling
   - Myriam
+  - napi
   - ndarray
   - Neko
   - nekomeowww
@@ -312,9 +314,11 @@ words:
   - tolist
   - tresjs
   - Triggerable
+  - truncatable
   - tsdown
   - ttft
   - turborepo
+  - uiohook
   - unbird
   - unbundle
   - unconfig
@@ -342,7 +346,6 @@ words:
   - vueuse
   - waapi
   - Waifu
-  - warpdrive
   - Warudo
   - wavefile
   - webgpu

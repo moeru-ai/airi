@@ -15,6 +15,7 @@ doc:
     title: Page suivante
   previous-page:
     title: Page précédente
+  published-at: Published at {date}
 home:
   subtitle: >-
     Recréer Neuro-sama, un contenant d’âmes de waifus / personnages virtuels IA pour les amener dans notre monde.

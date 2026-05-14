@@ -9,7 +9,7 @@ const logger = useLogger('flux-transaction')
 
 export interface TransactionEntry {
   userId: string
-  type: 'credit' | 'debit' | 'initial'
+  type: 'credit' | 'debit' | 'initial' | 'promo'
   amount: number
   balanceBefore: number
   balanceAfter: number
@@ -48,8 +48,9 @@ export function createFluxTransactionService(db: Database) {
     },
 
     async getStats(userId: string) {
-      // Get the balance right after the most recent credit/initial transaction
-      // as the "capacity" for the progress bar
+      // Get the balance right after the most recent credit/initial/promo transaction
+      // as the "capacity" for the progress bar. 'promo' (admin grant) bumps capacity
+      // so the user's progress bar reflects the new total they have to spend.
       const [latestCredit] = await db.select({
         balanceAfter: schema.fluxTransaction.balanceAfter,
       })
@@ -57,7 +58,7 @@ export function createFluxTransactionService(db: Database) {
         .where(
           and(
             eq(schema.fluxTransaction.userId, userId),
-            inArray(schema.fluxTransaction.type, ['credit', 'initial']),
+            inArray(schema.fluxTransaction.type, ['credit', 'initial', 'promo']),
           ),
         )
         .orderBy(desc(schema.fluxTransaction.createdAt))

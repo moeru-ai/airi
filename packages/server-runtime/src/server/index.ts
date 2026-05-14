@@ -32,6 +32,13 @@ export interface Server {
   updateConfig: (newOptions: ServerOptions) => void
 }
 
+function isAddressInUseError(error: unknown) {
+  return typeof error === 'object'
+    && error !== null
+    && 'code' in error
+    && (error as NodeJS.ErrnoException).code === 'EADDRINUSE'
+}
+
 /**
  * Collects local IP addresses that can be used to reach the server from the LAN.
  *
@@ -189,6 +196,10 @@ export function createServer(opts?: ServerOptions): Server {
         serverInstance = null
         h3App.dispose()
         await instance.close(true).catch(() => {})
+        if (isAddressInUseError(error)) {
+          log.withError(error).warn('WebSocket server port already in use, assuming an existing listener is available')
+          return
+        }
         log.withError(error).error('failed to start WebSocket server')
         throw error
       }

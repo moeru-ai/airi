@@ -30,7 +30,7 @@ const CHROME_APP_NAME = 'Google Chrome'
 function getChromeSessionAction(runtime: ComputerUseServerRuntime): ActionInvocation {
   const sessionInfo = runtime.chromeSessionManager.getSessionInfo()
   return {
-    kind: sessionInfo && !sessionInfo.wasAlreadyRunning ? 'focus_app' : 'open_app',
+    kind: sessionInfo ? 'focus_app' : 'open_app',
     input: {
       app: CHROME_APP_NAME,
     },
@@ -63,7 +63,7 @@ export async function executeChromeEnsure(
       appName: 'Google Chrome',
       windowId: sessionInfo.windowId,
       pid: sessionInfo.pid,
-      agentLaunched: !sessionInfo.wasAlreadyRunning,
+      agentLaunched: sessionInfo.agentOwned,
     })
   }
 
@@ -76,7 +76,7 @@ export async function executeChromeEnsure(
     }
   }
 
-  // Auto-connect CDP bridge when the agent launched Chrome with CDP.
+  // Auto-connect CDP bridge when the agent owns Chrome and CDP is available.
   // Best-effort only: Chrome may need a moment before the DevTools server answers.
   let cdpStatus = 'not applicable'
   if (sessionInfo.cdpUrl) {
@@ -97,7 +97,7 @@ export async function executeChromeEnsure(
   }
 
   const lines = [
-    `Chrome session ${sessionInfo.wasAlreadyRunning ? 'joined' : 'launched'}:`,
+    'Chrome session launched:',
     `  PID: ${sessionInfo.pid}`,
     `  Window: ${sessionInfo.windowId}`,
     `  Agent-owned: ${sessionInfo.agentOwned}`,

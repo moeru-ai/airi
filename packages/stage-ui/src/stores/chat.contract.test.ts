@@ -134,6 +134,9 @@ vi.mock('./chat/session-store', () => ({
     persistSessionMessages: persistSessionMessagesMock,
     getSessionGeneration: () => currentGeneration,
     forkSession: forkSessionMock,
+    // Cloud sync surface used by `chat.ts performSend`. Mocked as a no-op so
+    // the orchestrator contract tests do not need a real WS / cloud mapper.
+    pushMessageToCloud: vi.fn().mockResolvedValue(undefined),
   }),
 }))
 

@@ -100,7 +100,7 @@ describe('executeTool (patched @xsai/shared-chat)', () => {
     expect(out.completionToolResult.isError).toBe(true)
     expect(ToolExecutionError.isInstance(out.completionToolResult.error)).toBe(true)
     expect(String(out.message.content)).toContain('myTool')
-    expect(String(out.message.content)).toContain('execute failed')
+    expect(String(out.message.content)).toContain('execution failed')
   })
 
   it('rethrows AbortError from tool execute', async () => {

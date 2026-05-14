@@ -4,12 +4,14 @@ import type { ComponentPublicInstance } from 'vue'
 import type { PluginHostModuleSummary, PluginModuleWidgetPayload } from '../../../../shared/eventa/plugin/host'
 
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { isPlainObject } from 'es-toolkit'
 import { computed, shallowRef } from 'vue'
 
 import { widgetsIframePublish } from '../../../../shared/eventa'
 import { electronPluginGetAssetBaseUrl } from '../../../../shared/eventa/plugin/assets'
 import { electronPluginInspect } from '../../../../shared/eventa/plugin/host'
+import { publishWidgetSparkNotifyReaction } from '../composables/use-bridge-spark'
 import { useExtensionUIForModule } from '../composables/use-extension-ui-for-module'
 import { useIframeMessagePort } from '../composables/use-iframe-message-port'
 import { canRenderExtensionUi, sanitizeExtensionUiRenderProps } from '../host'
@@ -59,6 +61,7 @@ function omitControlFields(record: Record<string, any>) {
 const inspectPluginHost = useElectronEventaInvoke(electronPluginInspect)
 const getPluginAssetBaseUrl = useElectronEventaInvoke(electronPluginGetAssetBaseUrl)
 const publishWidgetIframeEvent = useElectronEventaInvoke(widgetsIframePublish)
+const contextBridgeStore = useContextBridgeStore()
 
 const model = computed<PluginModuleWidgetPayload & Record<string, unknown>>(() => (
   isPlainObject(props.modelValue) ? props.modelValue as PluginModuleWidgetPayload & Record<string, unknown> : {} as PluginModuleWidgetPayload & Record<string, unknown>
@@ -93,7 +96,7 @@ const iframeSandbox = computed(() => firstString(
 
 const iframeElement = shallowRef<HTMLIFrameElement | null>(null)
 
-const { iframeLoadError, onIframeError, onIframeLoad } = useIframeMessagePort(
+const { context: iframeContext, iframeLoadError, onIframeError, onIframeLoad } = useIframeMessagePort(
   iframeElement,
   {
     moduleId,
@@ -102,6 +105,14 @@ const { iframeLoadError, onIframeError, onIframeLoad } = useIframeMessagePort(
     propsPayload: resolvedWidgetProps,
     onPublish: async (event) => {
       if (!moduleId.value) {
+        return
+      }
+
+      const handled = await publishWidgetSparkNotifyReaction(event, {
+        dispatchSparkNotifyReaction: options => contextBridgeStore.dispatchSparkNotifyReaction(options),
+        emit: (eventDefinition, payload) => iframeContext.emit(eventDefinition, payload),
+      })
+      if (handled) {
         return
       }
 

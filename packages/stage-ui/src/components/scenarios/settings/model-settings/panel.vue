@@ -12,6 +12,7 @@ import Live2D from './live2d.vue'
 import VRM from './vrm.vue'
 
 import { DisplayModelFormat } from '../../../../stores/display-models'
+import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 import { useSettings } from '../../../../stores/settings'
 import { ModelSelectorDialog } from '../../dialogs/model-selector'
 
@@ -30,6 +31,7 @@ defineEmits<{
 
 const modelSelectorOpen = ref(false)
 const settingsStore = useSettings()
+const airiCardStore = useAiriCardStore()
 const { stageModelSelected, stageModelSelectedDisplayModel } = storeToRefs(settingsStore)
 
 const currentSelectedDisplayModel = computed<DisplayModel | undefined>(() => stageModelSelectedDisplayModel.value)
@@ -43,6 +45,7 @@ const settingsClassList = computed(() => {
 
 async function handleModelPick(selectedModel: DisplayModel | undefined) {
   stageModelSelected.value = selectedModel?.id ?? ''
+  airiCardStore.updateActiveCardDisplayModel(selectedModel?.id)
   await settingsStore.updateStageModel()
 
   if (selectedModel?.format === DisplayModelFormat.Live2dZip)

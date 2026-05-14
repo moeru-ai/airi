@@ -9,7 +9,7 @@ import type {
 import type { WidgetsAddPayload, WidgetSnapshot, WidgetsUpdatePayload } from '../../../../shared/eventa'
 import type { PluginHostService } from './types'
 
-import { cp, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { cp, mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, join, resolve } from 'node:path'
 
@@ -719,6 +719,7 @@ describe('setupPluginHost', () => {
     try {
       await stat(join(chessLikePluginRoot, 'dist'))
       await cp(join(chessLikePluginRoot, 'dist'), pluginDir, { recursive: true })
+      await symlink(join(chessLikePluginRoot, 'node_modules'), join(pluginDir, 'node_modules'), 'junction')
     }
     catch {
       await mkdir(pluginDir, { recursive: true })
@@ -766,19 +767,19 @@ describe('setupPluginHost', () => {
               ),
               sandbox: 'allow-scripts allow-same-origin allow-forms allow-popups',
             }),
-            windowSize: expect.objectContaining({
-              width: 980,
-              height: 840,
-              minWidth: 640,
-              minHeight: 640,
-            }),
           }),
           config: expect.objectContaining({
             defaults: expect.objectContaining({
+              airiSide: 'white',
               opening: 'queen-gambit',
-              side: 'white',
             }),
           }),
+          widgets: expect.arrayContaining([
+            expect.objectContaining({
+              id: 'main-board',
+              kind: 'primary',
+            }),
+          ]),
         }),
       }),
     ]))

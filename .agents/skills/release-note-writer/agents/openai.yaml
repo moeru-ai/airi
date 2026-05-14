@@ -1,0 +1,4 @@
+interface:
+  display_name: "Release Note Writer"
+  short_description: "Write grouped, user-friendly release notes"
+  default_prompt: "Use $release-note-writer to turn this changelog into user-friendly release notes."

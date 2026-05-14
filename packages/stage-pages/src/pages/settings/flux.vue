@@ -63,6 +63,20 @@ function isPositive(record: AuditRecord): boolean {
   return record.type !== 'debit'
 }
 
+// Lookup table avoids a chained ternary in the template (banned by CLAUDE.md
+// naming/style rules). Unknown types fall back to typeInitial so older
+// records without an explicit mapping still render something.
+const TYPE_LABEL_KEY: Record<string, string> = {
+  debit: 'settings.pages.flux.audit.typeConsumption',
+  credit: 'settings.pages.flux.audit.typeAddition',
+  initial: 'settings.pages.flux.audit.typeInitial',
+  promo: 'settings.pages.flux.audit.typePromo',
+}
+
+function typeLabel(type: string): string {
+  return t(TYPE_LABEL_KEY[type] ?? TYPE_LABEL_KEY.initial)
+}
+
 const auditRecords = ref<AuditRecord[]>([])
 const auditLoading = ref(false)
 const auditHasMore = ref(false)
@@ -394,11 +408,7 @@ async function handleBuy(stripePriceId: string) {
                       ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
                       : 'bg-green-500/10 text-green-600 dark:text-green-400'"
                   >
-                    {{ row.record.type === 'debit'
-                      ? t('settings.pages.flux.audit.typeConsumption')
-                      : row.record.type === 'credit'
-                        ? t('settings.pages.flux.audit.typeAddition')
-                        : t('settings.pages.flux.audit.typeInitial') }}
+                    {{ typeLabel(row.record.type) }}
                   </span>
                 </td>
                 <td px-4 py-3>
@@ -497,11 +507,7 @@ async function handleBuy(stripePriceId: string) {
                   ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
                   : 'bg-green-500/10 text-green-600 dark:text-green-400'"
               >
-                {{ row.record.type === 'debit'
-                  ? t('settings.pages.flux.audit.typeConsumption')
-                  : row.record.type === 'credit'
-                    ? t('settings.pages.flux.audit.typeAddition')
-                    : t('settings.pages.flux.audit.typeInitial') }}
+                {{ typeLabel(row.record.type) }}
               </span>
               <span text-sm font-semibold font-mono :class="isPositive(row.record) ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'">
                 {{ displayAmount(row.record) }}
