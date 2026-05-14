@@ -52,12 +52,24 @@ describe('createChatSyncWindowLifecycle', async () => {
     expect(chatSyncStoreMock.dispose).not.toHaveBeenCalled()
   })
 
-  it('initializes as authority for settings routes', () => {
+  it('does not initialize chat sync for settings windows', () => {
+    const lifecycle = createChatSyncWindowLifecycle('/', '#/settings')
+
+    lifecycle.initialize()
+    lifecycle.dispose()
+
+    expect(chatSyncStoreMock.initialize).not.toHaveBeenCalled()
+    expect(chatSyncStoreMock.dispose).not.toHaveBeenCalled()
+  })
+
+  it('does not initialize chat sync for nested settings windows', () => {
     const lifecycle = createChatSyncWindowLifecycle('/', '#/settings/unrelated')
 
     lifecycle.initialize()
+    lifecycle.dispose()
 
-    expect(chatSyncStoreMock.initialize).toHaveBeenCalledWith('authority')
+    expect(chatSyncStoreMock.initialize).not.toHaveBeenCalled()
+    expect(chatSyncStoreMock.dispose).not.toHaveBeenCalled()
   })
 
   it('normalizes hash query strings when resolving the initial route', () => {

@@ -14,7 +14,7 @@ export function resolveInitialChatSyncRoutePath(routePath: string, hash = global
 
 function resolveChatSyncWindowRole(routePath: string): ChatSyncWindowRole | null {
   const path = normalizeRoutePath(routePath)
-  if (path === '/' || path.startsWith('/settings'))
+  if (path === '/')
     return 'authority'
   if (path === '/chat')
     return 'follower'
