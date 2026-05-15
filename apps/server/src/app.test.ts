@@ -68,6 +68,7 @@ function createTestDeps() {
     } as any,
     otel: null,
     userDeletionService: {} as any,
+    llmRouter: null,
     posthog: null,
   }
 

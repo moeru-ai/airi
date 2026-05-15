@@ -1,0 +1,30 @@
+[
+  {
+    "id": "longxiaochun",
+    "name": "Longxiaochun",
+    "description": "DashScope CosyVoice default female voice",
+    "compatible_models": ["cosyvoice-v1"],
+    "formats": [
+      { "name": "mp3", "format_code": "mp3", "mime_type": "audio/mpeg", "extension": "mp3", "bitrate": 64, "sample_rate": 22050 }
+    ],
+    "labels": { "gender": "Female", "type": "neural" },
+    "languages": [
+      { "code": "zh-CN", "title": "Chinese (Simplified)" }
+    ],
+    "tags": ["chinese", "neural"]
+  },
+  {
+    "id": "longxiaobai",
+    "name": "Longxiaobai",
+    "description": "DashScope CosyVoice male voice",
+    "compatible_models": ["cosyvoice-v1"],
+    "formats": [
+      { "name": "mp3", "format_code": "mp3", "mime_type": "audio/mpeg", "extension": "mp3", "bitrate": 64, "sample_rate": 22050 }
+    ],
+    "labels": { "gender": "Male", "type": "neural" },
+    "languages": [
+      { "code": "zh-CN", "title": "Chinese (Simplified)" }
+    ],
+    "tags": ["chinese", "neural"]
+  }
+]

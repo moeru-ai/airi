@@ -9,6 +9,7 @@ import type { BillingService } from '../../../services/billing/billing-service'
 import type { FluxMeter } from '../../../services/billing/flux-meter'
 import type { ConfigKVService } from '../../../services/config-kv'
 import type { FluxService } from '../../../services/flux'
+import type { LlmRouterService } from '../../../services/llm-router'
 import type { RequestLogService } from '../../../services/request-log'
 import type { HonoEnv } from '../../../types/hono'
 
@@ -91,6 +92,7 @@ export function createV1CompletionsRoutes(
   ttsMeter: FluxMeter,
   redis: Redis,
   env: Env,
+  llmRouter: LlmRouterService | null,
   genAi?: GenAiMetrics | null,
   revenue?: RevenueMetrics | null,
   rateLimitMetrics?: RateLimitMetrics | null,
@@ -147,6 +149,12 @@ export function createV1CompletionsRoutes(
     }
 
     const body = await c.req.json()
+    // NOTICE:
+    // GATEWAY_BASE_URL is still required by env validation (U8 removes it after
+    // router is fully wired). When `llmRouter` is null (graceful skip — no
+    // LLM_ROUTER_MASTER_KEY), this falls back to the legacy knoway fetch path
+    // unchanged. Server-connection attributes still tag the legacy path; the
+    // router enriches the active span with its own gateway.* attrs on success.
     const baseUrl = normalizeBaseUrl(env.GATEWAY_BASE_URL)
     const serverAttributes = getServerConnectionAttributes(baseUrl)
     let requestModel = body.model || 'auto'
@@ -166,12 +174,34 @@ export function createV1CompletionsRoutes(
 
     const startedAt = Date.now()
 
-    const response = await context.with(trace.setSpan(context.active(), span), () =>
-      fetch(`${baseUrl}chat/completions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...body, model: requestModel }),
-      }))
+    // Router throws ApiError (502/503/504/400) on full exhaustion or unknown
+    // model. We do NOT catch here — global app.onError renders the ApiError
+    // shape. Span is closed inside the catch so failures show up in traces.
+    // NOTICE:
+    // Propagate the client disconnect signal so an upstream LLM call doesn't
+    // keep generating tokens (and burning paid upstream quota) after the
+    // caller hangs up. Without this the streaming-cancel path records
+    // fluxConsumed: 0 while real cost was incurred — a silent revenue leak.
+    // Source: codex review 2026-05-15 HIGH #1.
+    const clientAbort = c.req.raw.signal
+    let response: Response
+    try {
+      response = await context.with(trace.setSpan(context.active(), span), () =>
+        llmRouter
+          ? llmRouter.route({ modelName: requestModel, body, headers: {}, abortSignal: clientAbort })
+          : fetch(`${baseUrl}chat/completions`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...body, model: requestModel }),
+              signal: clientAbort,
+            }))
+    }
+    catch (err) {
+      span.setStatus({ code: SpanStatusCode.ERROR, message: 'Router exhausted or unknown model' })
+      span.end()
+      recordMetrics({ model: requestModel, status: 502, type: 'chat', durationMs: Date.now() - startedAt, fluxConsumed: 0 })
+      throw err
+    }
 
     const durationMs = Date.now() - startedAt
     span.setAttribute('http.response.status_code', response.status)

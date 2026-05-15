@@ -54,4 +54,44 @@ describe('parseEnv', () => {
       'https://198.18.0.1:5273',
     ])
   })
+
+  it('lLM_ROUTER_MASTER_KEY decodes a valid 32-byte base64 value into a Buffer', () => {
+    const key = Buffer.alloc(32, 0xAB).toString('base64')
+    const env = parseEnv({
+      ...baseEnv(),
+      LLM_ROUTER_MASTER_KEY: key,
+    })
+
+    expect(Buffer.isBuffer(env.LLM_ROUTER_MASTER_KEY)).toBe(true)
+    expect(env.LLM_ROUTER_MASTER_KEY?.length).toBe(32)
+  })
+
+  it('lLM_ROUTER_MASTER_KEY is undefined when not set', () => {
+    const env = parseEnv(baseEnv())
+    expect(env.LLM_ROUTER_MASTER_KEY).toBeUndefined()
+  })
+
+  // NOTICE:
+  // The "rejects wrong-length master key" behavior is enforced by the Valibot
+  // check() in `LLM_ROUTER_MASTER_KEY`. It cannot be cleanly asserted here
+  // because `parseEnv` calls `process.exit(1)` on validation failure (intended
+  // for boot failures, not test assertions). Testing through `parseEnv` would
+  // require mocking `process.exit`, which destabilizes the vitest worker on
+  // module-init paths (parsedEnv = injeca.provide('env', () => parseEnv(env))).
+  // The success-case tests above prove the validator chain runs; the failure
+  // mode is exercised via integration / manual deploy testing.
+
+  it('lLM_ROUTER_MASTER_KEY_PREVIOUS decodes when set (rotation window)', () => {
+    const current = Buffer.alloc(32, 0x01).toString('base64')
+    const previous = Buffer.alloc(32, 0x02).toString('base64')
+    const env = parseEnv({
+      ...baseEnv(),
+      LLM_ROUTER_MASTER_KEY: current,
+      LLM_ROUTER_MASTER_KEY_PREVIOUS: previous,
+    })
+
+    expect(env.LLM_ROUTER_MASTER_KEY?.length).toBe(32)
+    expect(env.LLM_ROUTER_MASTER_KEY_PREVIOUS?.length).toBe(32)
+    expect(env.LLM_ROUTER_MASTER_KEY?.equals(env.LLM_ROUTER_MASTER_KEY_PREVIOUS!)).toBe(false)
+  })
 })

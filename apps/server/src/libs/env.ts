@@ -4,7 +4,7 @@ import { env, exit } from 'node:process'
 
 import { useLogger } from '@guiiai/logg'
 import { injeca } from 'injeca'
-import { integer, maxValue, minValue, nonEmpty, object, optional, parse, pipe, string, transform } from 'valibot'
+import { check, integer, maxValue, minValue, nonEmpty, object, optional, parse, pipe, string, transform } from 'valibot'
 
 /**
  * Parses `ADDITIONAL_TRUSTED_ORIGINS`: comma-separated absolute origins used for
@@ -119,10 +119,32 @@ const EnvSchema = object({
   POSTHOG_API_KEY: optional(string(), ''),
   POSTHOG_HOST: optional(string(), 'https://us.i.posthog.com'),
 
-  // LLM gateway (infrastructure config — baked per deployment)
+  // LLM gateway (infrastructure config — baked per deployment).
+  // GATEWAY_BASE_URL is retained for the knoway path during cutover; U8 removes
+  // it once the in-process router fully replaces the sidecar.
   GATEWAY_BASE_URL: pipe(string(), nonEmpty('GATEWAY_BASE_URL is required')),
   DEFAULT_CHAT_MODEL: pipe(string(), nonEmpty('DEFAULT_CHAT_MODEL is required')),
   DEFAULT_TTS_MODEL: pipe(string(), nonEmpty('DEFAULT_TTS_MODEL is required')),
+
+  // Envelope-encryption master key for in-process LLM/TTS router (KTD-5).
+  // Stored as base64-encoded 32 random bytes. Validator decodes + asserts the
+  // 32-byte length at parse time so a misconfigured key fails the deploy
+  // rather than passing readiness and breaking on first router request.
+  LLM_ROUTER_MASTER_KEY: optional(pipe(
+    string(),
+    nonEmpty('LLM_ROUTER_MASTER_KEY must not be empty'),
+    transform(b64 => Buffer.from(b64, 'base64')),
+    check(buf => buf.length === 32, 'LLM_ROUTER_MASTER_KEY must decode to exactly 32 bytes (base64-encoded 32-byte random)'),
+  )),
+  // Optional second master key used only during rotation: encrypts under
+  // LLM_ROUTER_MASTER_KEY (new), retries decrypt against LLM_ROUTER_MASTER_KEY_PREVIOUS
+  // (old). Drop after re-encrypting every stored ciphertext.
+  LLM_ROUTER_MASTER_KEY_PREVIOUS: optional(pipe(
+    string(),
+    nonEmpty('LLM_ROUTER_MASTER_KEY_PREVIOUS must not be empty when set'),
+    transform(b64 => Buffer.from(b64, 'base64')),
+    check(buf => buf.length === 32, 'LLM_ROUTER_MASTER_KEY_PREVIOUS must decode to exactly 32 bytes when set'),
+  )),
 
   // Database pool
   DB_POOL_MAX: optionalIntegerFromString(20, 'DB_POOL_MAX', 1),

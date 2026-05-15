@@ -2,6 +2,7 @@ import type { Env } from '../../../libs/env'
 import type { BillingService } from '../../../services/billing/billing-service'
 import type { ConfigKVService } from '../../../services/config-kv'
 import type { FluxService } from '../../../services/flux'
+import type { LlmRouterService } from '../../../services/llm-router'
 import type { RequestLogService } from '../../../services/request-log'
 import type { HonoEnv } from '../../../types/hono'
 
@@ -90,6 +91,12 @@ function createMockRedis() {
   }
 }
 
+// NOTE: a router-mock helper used to live here but was removed because the
+// existing route tests all exercise the legacy fetch path (llmRouter = null).
+// Router internals are exhaustively covered in
+// apps/server/src/services/llm-router/router.test.ts (15 tests). Add a
+// router-injecting helper here when route-level routing tests are introduced.
+
 function createMockTtsMeter(unitsPerFlux = 1000) {
   let debt = 0
   return {
@@ -113,6 +120,7 @@ function createTestApp(
   ttsMeter?: ReturnType<typeof createMockTtsMeter>,
   env?: Env,
   redis?: ReturnType<typeof createMockRedis>,
+  llmRouter?: LlmRouterService | null,
 ) {
   const routes = createV1CompletionsRoutes(
     fluxService,
@@ -122,6 +130,7 @@ function createTestApp(
     ttsMeter ?? createMockTtsMeter(),
     (redis ?? createMockRedis()) as any,
     env ?? createMockEnv(),
+    llmRouter ?? null,
     null,
   )
   const app = new Hono<HonoEnv>()

@@ -13,6 +13,7 @@ import type { ChatService } from './services/chats'
 import type { ConfigKVService } from './services/config-kv'
 import type { FluxService } from './services/flux'
 import type { FluxTransactionService } from './services/flux-transaction'
+import type { LlmRouterService } from './services/llm-router'
 import type { ProviderService } from './services/providers'
 import type { RequestLogService } from './services/request-log'
 import type { StripeService } from './services/stripe'
@@ -62,12 +63,15 @@ import { createConfigKVService } from './services/config-kv'
 import { createEmailService } from './services/email'
 import { createFluxService } from './services/flux'
 import { createFluxTransactionService } from './services/flux-transaction'
+import { createLlmRouterService } from './services/llm-router'
 import { createPostHogClient } from './services/posthog'
 import { createProviderService } from './services/providers'
 import { createRequestLogService } from './services/request-log'
 import { createStripeService } from './services/stripe'
 import { createUserDeletionService } from './services/user-deletion'
 import { ApiError, createInternalError } from './utils/error'
+import { createEnvelopeCrypto } from './utils/envelope-crypto'
+import { ApiError, createInternalError, createUnauthorizedError } from './utils/error'
 import { nanoid } from './utils/id'
 import { getTrustedOrigin } from './utils/origin'
 
@@ -89,6 +93,7 @@ interface AppDeps {
   env: Env
   otel: OtelInstance | null
   userDeletionService: UserDeletionService
+  llmRouter: LlmRouterService | null
   posthog: PostHog | null
 }
 
@@ -128,7 +133,10 @@ export async function buildApp(deps: AppDeps) {
       serviceVersion: process.env.npm_package_version || '0.0.0',
     })
     app.use('*', async (c, next) => {
-      if (c.req.path === '/health')
+      // Skip /health (legacy Railway probe) and /healthz/* (new liveness +
+      // readiness routes added in U7) so high-frequency probes don't pollute
+      // http.* metrics or the Latency-by-Route panel.
+      if (c.req.path === '/health' || c.req.path.startsWith('/healthz/'))
         return next()
       return otelMw(c, next)
     })
@@ -159,6 +167,35 @@ export async function buildApp(deps: AppDeps) {
     return chatWsSetup(session.user.id)
   }))
 
+  // Subscribe to the cross-instance config invalidation channel so admin
+  // writes to LLM_ROUTER_CONFIG propagate within ≤5s across the cluster
+  // (R16 / KTD-4). Falls back to the in-memory cache TTL on missed messages.
+  // Uses a dedicated ioredis subscriber connection (subscribe mode requires
+  // a separate connection per ioredis docs).
+  if (deps.llmRouter) {
+    const configSub = deps.redis.duplicate()
+    configSub.on('message', (channel, message) => {
+      if (channel !== 'configkv:invalidate')
+        return
+      try {
+        const payload = JSON.parse(message) as { key?: unknown }
+        if (payload?.key !== 'LLM_ROUTER_CONFIG')
+          return
+        deps.llmRouter?.invalidateConfig()
+        deps.otel?.gateway?.configReload.add(1, {
+          source: 'pubsub',
+          service_instance_id: deps.env.OTEL_SERVICE_NAME,
+        })
+      }
+      catch (err) {
+        logger.withError(err).warn('Failed to parse configkv:invalidate payload')
+      }
+    })
+    configSub.subscribe('configkv:invalidate').catch((err: unknown) => {
+      logger.withError(err).warn('Failed to subscribe to configkv:invalidate channel')
+    })
+  }
+
   const builtApp = app
     .use('*', sessionMiddleware(deps.auth, deps.env))
     .use('*', bodyLimit({ maxSize: 1024 * 1024 }))
@@ -187,9 +224,43 @@ export async function buildApp(deps: AppDeps) {
     })
 
     /**
-     * Health check route.
+     * Health check route (legacy — kept for backward compatibility with the
+     * existing Railway probe configuration). New deployments should target
+     * /healthz/live (liveness) and /healthz/ready (readiness) separately.
      */
     .on('GET', '/health', c => c.json({ status: 'ok' }))
+    /**
+     * Liveness probe — returns 200 as long as the Node process is alive.
+     * Must not touch Postgres, Redis, or any external dependency: a single
+     * upstream blip should NOT cause Railway to recycle the pod (R13/R14).
+     */
+    .on('GET', '/healthz/live', c => c.json({ status: 'live' }))
+    /**
+     * Readiness probe — verifies the instance can serve traffic. Pings
+     * Postgres + Redis (the only two infra dependencies that, if down, mean
+     * we genuinely can't serve). Gateway-internal key health is intentionally
+     * NOT checked (R14): one bad upstream key must not pull the whole instance
+     * out of the load balancer pool.
+     */
+    .on('GET', '/healthz/ready', async (c) => {
+      // Run both checks in parallel and let either fail independently.
+      const [dbResult, redisResult] = await Promise.allSettled([
+        deps.db.execute('SELECT 1'),
+        deps.redis.ping(),
+      ])
+
+      const dbReady = dbResult.status === 'fulfilled'
+      const redisReady = redisResult.status === 'fulfilled'
+      const ready = dbReady && redisReady
+
+      return c.json(
+        {
+          status: ready ? 'ready' : 'not_ready',
+          checks: { db: dbReady ? 'ok' : 'fail', redis: redisReady ? 'ok' : 'fail' },
+        },
+        ready ? 200 : 503,
+      )
+    })
 
     /**
      * Service identity at the API root. Visitors who land here from a stray
@@ -233,7 +304,7 @@ export async function buildApp(deps: AppDeps) {
     /**
      * V1 routes for official provider.
      */
-    .route('/api/v1/openai', createV1CompletionsRoutes(deps.fluxService, deps.billingService, deps.configKV, deps.requestLogService, deps.ttsMeter, deps.redis, deps.env, deps.otel?.genAi, deps.otel?.revenue, deps.otel?.rateLimit, deps.posthog))
+    .route('/api/v1/openai', createV1CompletionsRoutes(deps.fluxService, deps.billingService, deps.configKV, deps.requestLogService, deps.ttsMeter, deps.redis, deps.env, deps.llmRouter, deps.otel?.genAi, deps.otel?.revenue, deps.otel?.rateLimit))
 
     /**
      * Flux routes.
@@ -508,6 +579,30 @@ export async function createApp() {
     }, dependsOn.otel?.revenue),
   })
 
+  // LLM router (KTD-5 in-process replacement for the knoway sidecar).
+  // Graceful skip when LLM_ROUTER_MASTER_KEY is unset: the chat-completions
+  // route falls back to the legacy GATEWAY_BASE_URL fetch path. This branch
+  // exists only for the U4→U8 transition window — U8 makes the master key
+  // (and the router) non-optional and deletes the legacy fallback.
+  const llmRouter = injeca.provide('services:llmRouter', {
+    dependsOn: { configKV, env: parsedEnv, otel },
+    build: ({ dependsOn }) => {
+      if (dependsOn.env.LLM_ROUTER_MASTER_KEY == null) {
+        logger.warn('LLM_ROUTER_MASTER_KEY is not set; LLM router is disabled and chat completions will use the legacy GATEWAY_BASE_URL path (U4 transition)')
+        return null
+      }
+      const envelopeCrypto = createEnvelopeCrypto({
+        masterKey: dependsOn.env.LLM_ROUTER_MASTER_KEY,
+        previousMasterKey: dependsOn.env.LLM_ROUTER_MASTER_KEY_PREVIOUS,
+      })
+      return createLlmRouterService({
+        configKV: dependsOn.configKV,
+        envelopeCrypto,
+        gatewayMetrics: dependsOn.otel?.gateway ?? null,
+      })
+    },
+  })
+
   await injeca.start()
   const resolved = await injeca.resolve({
     db,
@@ -527,6 +622,7 @@ export async function createApp() {
     env: parsedEnv,
     otel,
     userDeletionService,
+    llmRouter,
     posthog,
   })
   // Register the cluster-wide ObservableGauges for sessions / users. Each
@@ -561,6 +657,7 @@ export async function createApp() {
     env: resolved.env,
     otel: resolved.otel,
     userDeletionService: resolved.userDeletionService,
+    llmRouter: resolved.llmRouter,
     posthog: resolved.posthog,
   })
 

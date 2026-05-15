@@ -64,6 +64,7 @@
   "devDependencies": {
     "@better-auth/cli": "^1.4.21",
     "@types/pg": "^8.20.0",
-    "drizzle-kit": "catalog:"
+    "drizzle-kit": "catalog:",
+    "unspeech": "catalog:xsai"
   }
 }
