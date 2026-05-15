@@ -60,8 +60,8 @@ Server `characters` 表（[`apps/server/src/schemas/characters.ts`](../../../app
 新建文件 `apps/server/src/schemas/user-characters.ts`：
 
 ```ts
-import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 import type { AiriCard } from '@proj-airi/stage-ui/types/airi-card'
+import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 
 import { index, jsonb, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
 
@@ -112,11 +112,11 @@ export type UserActiveCharacter = InferSelectModel<typeof userActiveCharacter>
 `useAiriCardStore` 现有 `cards: Map<string, AiriCard>` + `activeCardId: string` 不变。新增 internal：
 
 ```ts
-type SyncOp = { kind: 'upsert' | 'delete', clientId: string }
+interface SyncOp { kind: 'upsert' | 'delete', clientId: string }
 
 interface SyncState {
   status: 'offline' | 'unauthenticated' | 'syncing' | 'synced' | 'error'
-  pendingOps: Map<string, SyncOp>           // by clientId, 最后一笔操作覆盖前面
+  pendingOps: Map<string, SyncOp> // by clientId, 最后一笔操作覆盖前面
   lastSyncedAt: number | null
   lastError: string | null
 }
