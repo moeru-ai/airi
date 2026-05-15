@@ -103,18 +103,27 @@ function hasDanglingOpeningTagStart(value: string): boolean {
 
 function stripReasoningTags(value: string): string {
   let output = ''
+  let inTag = false
+  let tagStart = -1
 
-  for (let index = 0; index < value.length;) {
-    if (value[index] === '<' && value[index + 1] !== '|') {
-      const closeIndex = value.indexOf('>', index + 1)
-      if (closeIndex >= 0) {
-        index = closeIndex + 1
-        continue
-      }
+  for (let i = 0; i < value.length; i++) {
+    if (!inTag && value[i] === '<' && value[i + 1] !== '|') {
+      inTag = true
+      tagStart = i
+      continue
     }
+    if (inTag && value[i] === '>') {
+      inTag = false
+      continue
+    }
+    if (!inTag) {
+      output += value[i]
+    }
+  }
 
-    output += value[index]
-    index += 1
+  // If the string ends inside an unclosed tag, restore the original content.
+  if (inTag) {
+    output += value.slice(tagStart)
   }
 
   return output
