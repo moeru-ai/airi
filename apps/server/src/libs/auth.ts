@@ -89,13 +89,13 @@ function buildWebRedirectUris(env: Env): string[] {
   return [...uris]
 }
 
-function buildTrustedWebRedirectUri(redirectUri: string): string | null {
+function buildTrustedWebRedirectUri(redirectUri: string, additionalTrustedOrigins: readonly string[]): string | null {
   try {
     const parsed = new URL(redirectUri)
     if (parsed.pathname !== '/auth/callback')
       return null
 
-    const trustedOrigin = getTrustedOrigin(parsed.origin)
+    const trustedOrigin = getTrustedOrigin(parsed.origin, additionalTrustedOrigins)
     if (!trustedOrigin)
       return null
 
@@ -173,6 +173,7 @@ function buildTrustedClientSeeds(env: Env): TrustedClientSeed[] {
     public: true,
     redirectUris: [
       'capacitor://localhost/auth/callback',
+      'ai.moeru.airi-pocket://links/auth/callback',
     ],
     scopes: [...OIDC_SCOPES],
     grantTypes: [...OIDC_GRANT_TYPES],
@@ -201,6 +202,7 @@ export function getTrustedOIDCClientIds(): string[] {
 export async function ensureDynamicFirstPartyRedirectUri(
   db: Database,
   request: Request,
+  additionalTrustedOrigins: readonly string[],
 ): Promise<void> {
   const url = new URL(request.url)
   const clientId = url.searchParams.get('client_id')
@@ -213,7 +215,7 @@ export async function ensureDynamicFirstPartyRedirectUri(
 
   switch (clientId) {
     case OIDC_CLIENT_ID_WEB:
-      normalizedRedirectUri = buildTrustedWebRedirectUri(redirectUri)
+      normalizedRedirectUri = buildTrustedWebRedirectUri(redirectUri, additionalTrustedOrigins)
       break
     case OIDC_CLIENT_ID_ELECTRON:
       normalizedRedirectUri = buildTrustedElectronRedirectUri(request, redirectUri)

@@ -104,7 +104,7 @@ export async function buildApp(deps: AppDeps) {
     .use(
       '/api/*',
       cors({
-        origin: origin => getTrustedOrigin(origin),
+        origin: origin => getTrustedOrigin(origin, deps.env.ADDITIONAL_TRUSTED_ORIGINS),
         credentials: true,
       }),
     )

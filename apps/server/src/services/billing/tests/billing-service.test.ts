@@ -148,7 +148,7 @@ describe('billingService', () => {
         completionTokens: 80,
       })
 
-      expect(result).toEqual({ userId: 'user-billing-1', flux: 70 })
+      expect(result).toEqual({ userId: 'user-billing-1', flux: 70, charged: 30, requested: 30 })
 
       // Verify DB balance
       const [fluxRecord] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-billing-1'))
@@ -178,20 +178,101 @@ describe('billingService', () => {
       expect(redis.set).toHaveBeenCalledWith(userFluxRedisKey('user-billing-1'), '70')
     })
 
-    it('throws 402 when balance is insufficient', async () => {
+    // ROOT CAUSE:
+    //
+    // Before: when `0 < balance < amount`, debitFlux threw and rolled back the
+    // whole tx. The streaming proxy had already delivered the response, so the
+    // unpaid request was logged but the user's balance was untouched.
+    // A scripted attacker on a partial balance could replay forever — balance
+    // never moved, line 129 (`flux <= 0`) kept letting requests through, and
+    // every call landed in the catch path crediting `fluxUnbilled` for the
+    // full amount.
+    //
+    // After: balance is drained to zero, the ledger records `amount = charged`
+    // plus `metadata.requestedAmount` / `metadata.unbilled`, and the caller
+    // gets `charged < requested` so it can attribute the leak to
+    // `fluxUnbilled{reason="partial_debit_drained"}`. The next request from
+    // the same user is rejected at the pre-flight gate.
+    it('partial-debits when balance is below the requested amount and writes unbilled metadata (Issue: unpaid-usage-exploit)', async () => {
       await db.insert(schema.userFlux).values({ userId: 'user-billing-1', flux: 5 })
+
+      const result = await billingService.consumeFluxForLLM({
+        userId: 'user-billing-1',
+        amount: 38,
+        requestId: 'req-partial',
+        description: 'gpt-4',
+      })
+
+      expect(result).toEqual({ userId: 'user-billing-1', flux: 0, charged: 5, requested: 38 })
+
+      const [fluxRecord] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-billing-1'))
+      expect(fluxRecord?.flux).toBe(0)
+
+      const [txRecord] = await db.select().from(schema.fluxTransaction).where(and(
+        eq(schema.fluxTransaction.userId, 'user-billing-1'),
+        eq(schema.fluxTransaction.requestId, 'req-partial'),
+      ))
+      expect(txRecord).toMatchObject({
+        type: 'debit',
+        amount: 5,
+        balanceBefore: 5,
+        balanceAfter: 0,
+      })
+      expect(txRecord?.metadata).toMatchObject({
+        source: 'llm.request',
+        requestedAmount: 38,
+        unbilled: 33,
+      })
+
+      // Redis cache reflects the zero balance, so the next pre-flight gate
+      // (`flux < fallbackRate`) rejects immediately.
+      expect(redis.set).toHaveBeenCalledWith(userFluxRedisKey('user-billing-1'), '0')
+    })
+
+    it('throws 402 when balance is already zero (no ledger row, no balance change)', async () => {
+      await db.insert(schema.userFlux).values({ userId: 'user-billing-1', flux: 0 })
 
       await expect(billingService.consumeFluxForLLM({
         userId: 'user-billing-1',
         amount: 10,
       })).rejects.toThrow('Insufficient flux')
 
-      // Verify no side effects
       const [fluxRecord] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-billing-1'))
-      expect(fluxRecord?.flux).toBe(5)
+      expect(fluxRecord?.flux).toBe(0)
 
       const txRecords = await db.select().from(schema.fluxTransaction)
       expect(txRecords).toHaveLength(0)
+    })
+
+    it('idempotent replay returns the historical charge without re-debiting (partial debits stay partial on retry)', async () => {
+      await db.insert(schema.userFlux).values({ userId: 'user-billing-1', flux: 5 })
+
+      const first = await billingService.consumeFluxForLLM({
+        userId: 'user-billing-1',
+        amount: 38,
+        requestId: 'req-replay',
+      })
+      const second = await billingService.consumeFluxForLLM({
+        userId: 'user-billing-1',
+        amount: 38,
+        requestId: 'req-replay',
+      })
+
+      expect(first.charged).toBe(5)
+      expect(first.flux).toBe(0)
+      // Replay reflects the original partial outcome — equal `charged` and
+      // `requested` prevent the streaming caller from double-firing
+      // `fluxUnbilled` on retries.
+      expect(second.charged).toBe(5)
+      expect(second.requested).toBe(5)
+      expect(second.flux).toBe(0)
+
+      // Ledger has exactly one row for `req-replay`
+      const txRecords = await db.select().from(schema.fluxTransaction).where(and(
+        eq(schema.fluxTransaction.userId, 'user-billing-1'),
+        eq(schema.fluxTransaction.requestId, 'req-replay'),
+      ))
+      expect(txRecords).toHaveLength(1)
     })
   })
 
