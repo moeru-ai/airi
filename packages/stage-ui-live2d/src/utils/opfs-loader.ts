@@ -229,10 +229,10 @@ function encodeProperty(obj: any, path: string) {
   let cursor = obj
   const propPath = path.split('.')
   // will lose reference when access to the last level
-  while (propPath.length > 1 && propPath[0] in cursor) {
+  while (propPath.length > 1 && cursor != null && typeof cursor === 'object' && propPath[0] in cursor) {
     cursor = cursor[propPath.shift()!]
   }
-  if (cursor[propPath[0]] == null)
+  if (cursor != null && cursor[propPath[0]] == null)
     return
   if (typeof cursor[propPath[0]] === 'string')
     cursor[propPath[0]] = encodeURI(cursor[propPath[0]])
@@ -242,7 +242,7 @@ function encodeProperty(obj: any, path: string) {
 }
 // TODO: find all file paths and encode them by recursively visiting the settings
 function encodeModelSettings(input: any): string {
-  const settings = { ...input }
+  const settings = JSON.parse(JSON.stringify(input))
   const propertyToEncode = [
     'FileReferences.Moc',
     'FileReferences.Textures',
