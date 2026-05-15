@@ -1,0 +1,15 @@
+{
+  "name": "openviking-memory",
+  "type": "module",
+  "version": "1.0.0",
+  "private": true,
+  "description": "OpenViking 长期记忆插件",
+  "scripts": {
+    "build": "tsdown",
+    "dev": "pnpm run build",
+    "pack": "pnpm run build && tar -czf dist/openviking-memory.tar.gz plugin.airi.json -C dist/dist index.mjs"
+  },
+  "dependencies": {
+    "@proj-airi/plugin-protocol": "workspace:*"
+  }
+}

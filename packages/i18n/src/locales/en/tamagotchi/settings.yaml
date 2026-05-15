@@ -6,6 +6,23 @@ pages:
     mcp-server:
       description: Connect and manage MCP server and tools
       title: MCP Server
+  plugins:
+    description: View and manage plugins
+    title: Plugin Manager
+    status:
+      loaded: Loaded
+      stopped: Stopped
+    actions:
+      enable: Enable
+      disable: Disable
+      load: Load
+      unload: Unload
+      save: Save
+      cancel: Cancel
+    config:
+      title: Configuration
+      description: Plugin configuration
+    no-description: No plugins found
   system:
     sections:
       section:

@@ -7,6 +7,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const invokeMocks = vi.hoisted(() => ({
   invokePluginTool: vi.fn(async (payload: unknown) => payload),
+  listPlugins: vi.fn(async () => ({
+    root: '/test/plugins/v1',
+    plugins: [
+      { name: 'openviking-memory', entrypoints: {}, path: '/test/plugins/v1/openviking-memory/plugin.airi.json', enabled: true, autoReload: false, loaded: true, isNew: false },
+    ],
+  })),
   listPluginXsaiTools: vi.fn(async () => ({
     tools: [
       {
@@ -31,6 +37,13 @@ const invokeMocks = vi.hoisted(() => ({
       },
     ],
   })),
+  queryContext: vi.fn(async () => ({
+    contexts: [
+      { text: '[5/16/2026] Project plan for memory system', score: 0.92 },
+    ],
+  })),
+  ingestContextMessage: vi.fn(),
+  onChatTurnComplete: vi.fn(() => vi.fn()),
 }))
 
 vi.mock('@proj-airi/electron-vueuse', () => ({
@@ -39,9 +52,26 @@ vi.mock('@proj-airi/electron-vueuse', () => ({
       return invokeMocks.listPluginXsaiTools
     if (event?.receiveEvent?.id === 'eventa:invoke:electron:plugins:tools:invoke-receive')
       return invokeMocks.invokePluginTool
+    if (event?.receiveEvent?.id === 'eventa:invoke:electron:plugin:query-context-receive')
+      return invokeMocks.queryContext
+    if (event?.receiveEvent?.id === 'eventa:invoke:electron:plugins:list-receive')
+      return invokeMocks.listPlugins
 
     throw new Error(`Unexpected eventa invoke: ${JSON.stringify(event)}`)
   },
+}))
+
+vi.mock('@proj-airi/stage-ui/stores/chat/context-store', () => ({
+  useChatContextStore: () => ({
+    ingestContextMessage: invokeMocks.ingestContextMessage,
+  }),
+}))
+
+vi.mock('@proj-airi/stage-ui/stores/chat', () => ({
+  useChatOrchestratorStore: () => ({
+    onChatTurnComplete: invokeMocks.onChatTurnComplete,
+  }),
+  ContextProvider: null,
 }))
 
 describe('useTamagotchiPluginToolsStore', async () => {
@@ -51,6 +81,10 @@ describe('useTamagotchiPluginToolsStore', async () => {
     setActivePinia(createPinia())
     invokeMocks.listPluginXsaiTools.mockClear()
     invokeMocks.invokePluginTool.mockClear()
+    invokeMocks.queryContext.mockClear()
+    invokeMocks.listPlugins.mockClear()
+    invokeMocks.ingestContextMessage.mockClear()
+    invokeMocks.onChatTurnComplete.mockClear()
   })
 
   afterEach(() => {

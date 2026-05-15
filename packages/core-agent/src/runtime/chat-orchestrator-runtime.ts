@@ -176,6 +176,8 @@ export interface ChatOrchestratorRuntimeDeps {
   getSystemPromptSupplement?: () => string | undefined
   /** Runtime context providers ingested immediately before prompt composition. */
   runtimeContextProviders?: Array<() => ContextMessage | null | undefined>
+  /** Async callback invoked after runtime context ingest and before message composition hooks. */
+  onBeforeCompose?: (sendingMessage: string) => Promise<void>
   /** Clock used for persisted message timestamps. @default Date.now */
   now?: () => number
   /** Monotonic clock used for elapsed telemetry in milliseconds. @default performance.now */
@@ -365,6 +367,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     // date anchor + per-message [HH:MM] prefixes, which is more KV-cache
     // friendly and less prone to weak models echoing timestamps verbatim.
     ingestRuntimeContexts()
+    await deps.onBeforeCompose?.(sendingMessage)
 
     const sendingCreatedAt = now()
 

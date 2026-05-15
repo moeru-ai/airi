@@ -31,6 +31,19 @@ import {
   union,
 } from 'valibot'
 
+export interface PluginConfigFieldDeclaration {
+  type: 'string' | 'secret' | 'number' | 'boolean'
+  label: string
+  description?: string
+  default?: string | number | boolean
+  required?: boolean
+  placeholder?: string
+}
+
+export interface PluginConfigDeclaration {
+  schema: Record<string, PluginConfigFieldDeclaration>
+}
+
 /**
  * Lists the supported plugin runtimes recognized by the host.
  *
@@ -341,8 +354,16 @@ export interface ManifestV1 {
   kind: 'manifest.plugin.airi.moeru.ai'
   /** Stable plugin name used for identity generation and display. */
   name: string
+  /** Human-readable display name for settings UI. */
+  displayName?: string
+  /** Human-readable description for settings UI. */
+  description?: string
+  /** Plugin version string (read from package.json at discovery time). */
+  version?: string
   /** Requested permissions that the host will evaluate and grant. */
   permissions: ModulePermissionDeclaration
+  /** Plugin configuration schema for settings UI. */
+  config?: PluginConfigDeclaration
   /** Runtime-specific module entrypoints that the host can resolve and import. */
   entrypoints: {
     /** Fallback entrypoint used when no runtime-specific path is provided. */
@@ -377,10 +398,26 @@ const localizableSchema = union([
  * Returns:
  * - A Valibot schema for the AIRI plugin manifest format
  */
+const pluginConfigFieldSchema = object({
+  type: picklist(['string', 'secret', 'number', 'boolean']),
+  label: string(),
+  description: optional(string()),
+  default: optional(union([string(), number(), boolean()])),
+  required: optional(boolean()),
+  placeholder: optional(string()),
+})
+
+const pluginConfigSchema = object({
+  schema: record(string(), pluginConfigFieldSchema),
+})
+
 export const manifestV1Schema = object({
   apiVersion: literal('v1'),
   kind: literal('manifest.plugin.airi.moeru.ai'),
   name: string(),
+  displayName: optional(string()),
+  description: optional(string()),
+  version: optional(string()),
   permissions: object({
     apis: optional(array(object({
       key: string(),
@@ -418,6 +455,7 @@ export const manifestV1Schema = object({
       required: optional(boolean()),
     }))),
   }),
+  config: optional(pluginConfigSchema),
   entrypoints: object({
     default: optional(string()),
     electron: optional(string()),

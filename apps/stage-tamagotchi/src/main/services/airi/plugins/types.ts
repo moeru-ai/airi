@@ -122,6 +122,7 @@ export interface PluginConfig {
   enabled: string[]
   autoReload: string[]
   known: Record<string, { path: string }>
+  configs: Record<string, Record<string, string | number | boolean>>
 }
 
 /**

@@ -1,3 +1,5 @@
+import type { PluginHostContribution, PluginSessionApiFactoryContext } from '@proj-airi/plugin-sdk/plugin-host'
+
 import type {
   PluginHostDebugSnapshot,
   PluginRegistrySnapshot,
@@ -189,6 +191,50 @@ export interface PluginHostHostService extends PluginHostService {
   getAssetBaseUrl: () => string
 
   /**
+   * Queries a plugin's memory context provider for the given user message.
+   *
+   * Use when:
+   * - Renderer needs to inject memory context before an LLM call
+   * - A plugin registered a context provider during its setupModules phase
+   *
+   * Expects:
+   * - The named plugin has been loaded and has registered a context provider
+   *
+   * Returns:
+   * - An array of context items with text and relevance score
+   */
+  queryContext?: (payload: { pluginName: string, query: string }) => Promise<{ contexts: Array<{ text: string, score: number }> }>
+
+  /**
+   * Returns the merged plugin configuration (defaults from manifest + user overrides).
+   *
+   * Use when:
+   * - Renderer settings page needs to display the current plugin configuration
+   *
+   * Expects:
+   * - The named plugin exists in the registry
+   *
+   * Returns:
+   * - The merged config snapshot with schema and values
+   */
+  getPluginConfig: (payload: { pluginName: string }) => Promise<{ schema: Record<string, { type: string, label: string, description?: string, default?: unknown, required?: boolean, placeholder?: string }>, values: Record<string, string | number | boolean> }>
+
+  /**
+   * Persists user configuration overrides for one plugin.
+   *
+   * Use when:
+   * - Renderer settings page saves plugin configuration changes
+   *
+   * Expects:
+   * - Config keys match the plugin manifest's config.schema
+   * - Value types match the field declarations
+   *
+   * Returns:
+   * - The updated plugin registry snapshot after persistence
+   */
+  setPluginConfig: (payload: { pluginName: string, config: Record<string, string | number | boolean> }) => Promise<PluginRegistrySnapshot>
+
+  /**
    * Disposes optional host features and asset hosting resources.
    *
    * Use when:
@@ -228,9 +274,30 @@ export async function setupPluginHostHostService(
   const pluginConfig = createPluginHostConfigStore()
   pluginConfig.setup()
 
+  // Context provider registry: plugins register providers that the host can query
+  const contextProviders = new Map<string, (query: string) => Promise<Array<{ text: string, score: number }>>>()
+
+  const contextProviderContribution: PluginHostContribution = {
+    install(installContext) {
+      installContext.registerSessionApi('context', (factoryContext: PluginSessionApiFactoryContext) => {
+        return {
+          registerProvider: (provider: (query: string) => Promise<Array<{ text: string, score: number }>>) => {
+            contextProviders.set(factoryContext.session.ownerPluginId, provider)
+          },
+          unregisterProvider: () => {
+            contextProviders.delete(factoryContext.session.ownerPluginId)
+          },
+        }
+      })
+    },
+  }
+
   // Kit API, Host
   const builtInKitRuntime = createBuiltInPluginKitRuntime(options)
-  const host = new PluginHost({ runtime: 'electron', contributions: builtInKitRuntime.contributions })
+  const host = new PluginHost({
+    runtime: 'electron',
+    contributions: [...builtInKitRuntime.contributions, contextProviderContribution],
+  })
   builtInKitRuntime.attachHost(host) // reverse dependency injection
   log.withFields({ pluginsRoot }).log('loading plugin manifests')
   // Once kit injected the host, then apply kits
@@ -462,6 +529,7 @@ export async function setupPluginHostHostService(
           ...config.known,
           [payload.name]: { path: manifestPath },
         },
+        configs: config.configs,
       })
 
       autoReloadFeature.sync()
@@ -511,6 +579,77 @@ export async function setupPluginHostHostService(
     },
     getAssetBaseUrl() {
       return pluginAssetService.getBaseUrl() ?? ''
+    },
+    async queryContext(payload: { pluginName: string, query: string }) {
+      const provider = contextProviders.get(payload.pluginName)
+      if (!provider) {
+        return { contexts: [] }
+      }
+      const contexts = await provider(payload.query)
+      return { contexts }
+    },
+    async getPluginConfig(payload: { pluginName: string }) {
+      const entry = pluginRegistry.findManifestEntry(payload.pluginName)
+      if (!entry) {
+        return { schema: {}, values: {} as Record<string, string | number | boolean> }
+      }
+      const manifest = entry.manifest as { config?: { schema?: Record<string, { type: string, label: string, description?: string, default?: string | number | boolean, required?: boolean, placeholder?: string }> } }
+      const configDecl = manifest.config
+      const schemaFields: Record<string, { type: string, label: string, description?: string, default?: unknown, required?: boolean, placeholder?: string }> = {}
+      const defaultValues: Record<string, string | number | boolean> = {}
+      if (configDecl?.schema) {
+        for (const [key, field] of Object.entries(configDecl.schema)) {
+          schemaFields[key] = {
+            type: field.type,
+            label: field.label,
+            description: field.description,
+            default: field.default,
+            required: field.required,
+            placeholder: field.placeholder,
+          }
+          if (field.default !== undefined) {
+            defaultValues[key] = field.default
+          }
+        }
+      }
+      const userConfig: Record<string, string | number | boolean> = getConfig().configs[payload.pluginName] ?? {}
+      return {
+        schema: schemaFields,
+        values: { ...defaultValues, ...userConfig },
+      }
+    },
+    async setPluginConfig(payload: { pluginName: string, config: Record<string, string | number | boolean> }) {
+      const entry = pluginRegistry.findManifestEntry(payload.pluginName)
+      if (!entry) {
+        throw new Error(`Plugin not found: ${payload.pluginName}`)
+      }
+      const manifest = entry.manifest as { config?: { schema?: Record<string, Record<string, unknown>> } }
+      const configDecl = manifest.config
+      if (configDecl?.schema) {
+        for (const key of Object.keys(payload.config)) {
+          if (!(key in configDecl.schema)) {
+            throw new Error(`Unknown config key: ${key}`)
+          }
+        }
+      }
+      const currentConfig = getConfig()
+      pluginConfig.update({
+        ...currentConfig,
+        configs: {
+          ...currentConfig.configs,
+          [payload.pluginName]: payload.config as Record<string, string | number | boolean>,
+        },
+      })
+
+      const sessionId = loadedSessionIds.get(payload.pluginName)
+      if (sessionId) {
+        const session = await host.reload(sessionId)
+        if (session) {
+          loadedSessionIds.set(payload.pluginName, session.id)
+        }
+      }
+
+      return listSnapshot()
     },
     async dispose() {
       autoReloadFeature.dispose()

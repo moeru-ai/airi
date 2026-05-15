@@ -1,6 +1,6 @@
 import type { PluginConfig } from '../types'
 
-import { array, object, record, string } from 'valibot'
+import { array, boolean, number, object, record, string, union } from 'valibot'
 
 import { createConfig } from '../../../../libs/electron/persistence'
 
@@ -10,6 +10,7 @@ const pluginConfigSchema = object({
   known: record(string(), object({
     path: string(),
   })),
+  configs: record(string(), record(string(), union([string(), number(), boolean()]))),
 })
 
 function createDefaultPluginConfig(): PluginConfig {
@@ -17,6 +18,7 @@ function createDefaultPluginConfig(): PluginConfig {
     enabled: [],
     autoReload: [],
     known: {},
+    configs: {},
   }
 }
 

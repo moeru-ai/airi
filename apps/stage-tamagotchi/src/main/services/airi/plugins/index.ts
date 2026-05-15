@@ -1,3 +1,4 @@
+import type { PluginConfigSnapshot } from '../../../../shared/eventa/plugin/config'
 import type {
   PluginHostService,
   SetupPluginHostOptions,
@@ -21,6 +22,14 @@ import {
   pluginProtocolListProviders,
   pluginProtocolListProvidersEventName,
 } from '../../../../shared/eventa/plugin/capabilities'
+import {
+  electronPluginGetConfig,
+  electronPluginSetConfig,
+
+} from '../../../../shared/eventa/plugin/config'
+import {
+  electronPluginQueryContext,
+} from '../../../../shared/eventa/plugin/context'
 import {
   electronPluginInspect,
   electronPluginList,
@@ -101,6 +110,21 @@ export async function setupPluginHost(options: SetupPluginHostOptions): Promise<
 
   defineInvokeHandler(context, electronPluginInvokeTool, async (payload) => {
     return await hostService.host.invokeTool(payload.ownerPluginId, payload.name, payload.input)
+  })
+
+  defineInvokeHandler(context, electronPluginQueryContext, async (payload) => {
+    if (!hostService.queryContext) {
+      return { contexts: [] }
+    }
+    return await hostService.queryContext(payload)
+  })
+
+  defineInvokeHandler(context, electronPluginGetConfig, async (payload) => {
+    return await hostService.getPluginConfig(payload) as PluginConfigSnapshot
+  })
+
+  defineInvokeHandler(context, electronPluginSetConfig, async (payload) => {
+    return await hostService.setPluginConfig(payload as { pluginName: string, config: Record<string, string | number | boolean> })
   })
 
   defineInvokeHandler(context, electronPluginUpdateCapability, async (payload) => {

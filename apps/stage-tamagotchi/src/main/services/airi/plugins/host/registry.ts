@@ -181,6 +181,9 @@ export function createPluginSummary(
   const name = entry.manifest.name
   return {
     name,
+    displayName: entry.manifest.displayName,
+    description: entry.manifest.description,
+    version: entry.manifest.version,
     entrypoints: entry.manifest.entrypoints,
     path: entry.path,
     enabled: config.enabled.includes(name),

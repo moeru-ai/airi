@@ -1,4 +1,4 @@
-import type { ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
+import type { ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, ContextMessage, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message } from '@xsai/shared-chat'
 
@@ -43,6 +43,8 @@ function isTextDelta(event: StreamEvent): event is Extract<StreamEvent, { type: 
 
 export type { QueuedSendSnapshot, ChatOrchestratorSendOptions as SendOptions } from '@proj-airi/core-agent'
 
+export type ContextProvider = (userMessage: string) => Promise<ContextMessage | void>
+
 export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const llmStore = useLLM()
   const llmToolsetPromptsStore = useLlmToolsetPromptsStore()
@@ -68,6 +70,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
   const sending = ref(false)
   const pendingQueuedSendCount = ref(0)
+  const registeredContextProviders = ref<ContextProvider[]>([])
   let ownedActiveTurnSpan: typeof activeTurnSpan.value
 
   async function streamWithStageAdapters(
@@ -160,6 +163,18 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     runtimeContextProviders: [
       createMinecraftContext,
     ],
+    onBeforeCompose: async (sendingMessage) => {
+      for (const provider of registeredContextProviders.value) {
+        try {
+          const context = await provider(sendingMessage)
+          if (context)
+            chatContext.ingestContextMessage(context)
+        }
+        catch (error) {
+          console.warn('[chat] Registered context provider failed:', error)
+        }
+      }
+    },
     createId: nanoid,
     unwrapMessage: message => toRaw(message),
     onStateChange: syncRuntimeState,
@@ -290,5 +305,15 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     onAssistantResponseEnd: runtime.hooks.onAssistantResponseEnd,
     onAssistantMessage: runtime.hooks.onAssistantMessage,
     onChatTurnComplete: runtime.hooks.onChatTurnComplete,
+
+    registeredContextProviders,
+    registerContextProvider: (provider: ContextProvider): (() => void) => {
+      registeredContextProviders.value.push(provider)
+      return () => {
+        const idx = registeredContextProviders.value.indexOf(provider)
+        if (idx >= 0)
+          registeredContextProviders.value.splice(idx, 1)
+      }
+    },
   }
 })

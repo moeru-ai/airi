@@ -6,6 +6,23 @@ pages:
     mcp-server:
       description: 连接与管理 MCP 服务器和工具
       title: MCP 服务器
+  plugins:
+    description: 查看和管理插件
+    title: 插件管理
+    status:
+      loaded: 已加载
+      stopped: 已停止
+    actions:
+      enable: 启用
+      disable: 禁用
+      load: 加载
+      unload: 卸载
+      save: 保存
+      cancel: 取消
+    config:
+      title: 配置
+      description: 插件配置
+    no-description: 未找到插件
   system:
     sections:
       section:

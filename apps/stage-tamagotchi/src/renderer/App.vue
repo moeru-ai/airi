@@ -212,6 +212,12 @@ onMounted(async () => {
   await displayModelsStore.initialize()
   cardStore.initialize()
 
+  // NOTICE: Have to refresh and register context provider here
+  // It should only contains the context provider registration.
+  // but the tools from plugins are not collected after loaded (timing issue).
+  // refresh here to ensure the tools are available.
+  await pluginToolsStore.initialize()
+
   await chatSessionStore.initialize()
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
