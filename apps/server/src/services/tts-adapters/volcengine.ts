@@ -1,8 +1,12 @@
+import type { Voice } from 'unspeech'
+
 import type { TtsAdapter, TtsAdapterContext, TtsInput, TtsResult } from './types'
 
 import { Buffer } from 'node:buffer'
 
 import { errorMessageFrom } from '@moeru/std'
+
+import volcengineVoices from './voices/volcengine.json' with { type: 'json' }
 
 import { createInternalError } from '../../utils/error'
 import { nanoid } from '../../utils/id'
@@ -132,8 +136,7 @@ export const volcengineAdapter: TtsAdapter = {
   },
 
   getVoiceCatalog() {
-    // TODO(U6): replace with `import voices from './voices/volcengine.json' with { type: 'json' }`.
-    return []
+    return volcengineVoices as Voice[]
   },
 }
 

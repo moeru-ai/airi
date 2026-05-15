@@ -1,6 +1,10 @@
+import type { Voice } from 'unspeech'
+
 import type { TtsAdapter, TtsAdapterContext, TtsInput, TtsResult } from './types'
 
 import { errorMessageFrom } from '@moeru/std'
+
+import azureVoices from './voices/azure.json' with { type: 'json' }
 
 import { createInternalError } from '../../utils/error'
 
@@ -186,8 +190,7 @@ export const azureAdapter: TtsAdapter = {
   },
 
   getVoiceCatalog() {
-    // TODO(U6): replace with `import voices from './voices/azure.json' with { type: 'json' }`.
-    return []
+    return azureVoices as Voice[]
   },
 }
 

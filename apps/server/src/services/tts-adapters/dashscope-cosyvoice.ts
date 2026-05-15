@@ -1,8 +1,12 @@
+import type { Voice } from 'unspeech'
+
 import type { TtsAdapter, TtsAdapterContext, TtsInput, TtsResult } from './types'
 
 import { Buffer } from 'node:buffer'
 
 import { errorMessageFrom } from '@moeru/std'
+
+import cosyvoiceVoices from './voices/dashscope-cosyvoice.json' with { type: 'json' }
 
 import { createInternalError } from '../../utils/error'
 
@@ -119,8 +123,7 @@ export const dashscopeCosyvoiceAdapter: TtsAdapter = {
   },
 
   getVoiceCatalog() {
-    // TODO(U6): replace with `import voices from './voices/dashscope-cosyvoice.json' with { type: 'json' }`.
-    return []
+    return cosyvoiceVoices as Voice[]
   },
 }
 
