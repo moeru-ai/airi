@@ -321,7 +321,11 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
     }
   }
 
-  function resetRoutingState() {
+  function resetRoutingState(force = false) {
+    if (!force && peers.size > 0) {
+      return
+    }
+
     peers.clear()
     peersByModule.clear()
     consumers.clear()
@@ -922,27 +926,13 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
 
   function closeAllPeers() {
     logger.withFields({ totalPeers: peers.size }).log('closing all peers')
-
+  
     for (const peerInfo of Array.from(peers.values())) {
       logger.withFields({
         peer: peerInfo.peer.id,
         peerName: peerInfo.name,
       }).debug('closing peer')
-
-      try {
-        peers.delete(peerInfo.peer.id)
-        unregisterModulePeer(peerInfo, 'server shutdown')
-      }
-      catch (error) {
-        logger
-          .withFields({
-            peer: peerInfo.peer.id,
-            peerName: peerInfo.name,
-          })
-          .withError(error as Error)
-          .debug('failed to unregister peer during shutdown')
-      }
-
+  
       try {
         peerInfo.peer.close?.()
       }
@@ -954,10 +944,30 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
           })
           .withError(error as Error)
           .debug('failed to close peer during shutdown')
+  
+        // Keep the peer registered so a failed shutdown does not orphan a live socket.
+        continue
+      }
+  
+      // Some websocket runtimes may never emit `close`
+      // during abrupt shutdown sequences. Remove peers
+      // synchronously after initiating a successful close
+      // so shutdown cleanup is deterministic.
+      peers.delete(peerInfo.peer.id)
+  
+      try {
+        unregisterModulePeer(peerInfo, 'server shutdown')
+      }
+      catch (error) {
+        logger
+          .withFields({
+            peer: peerInfo.peer.id,
+            peerName: peerInfo.name,
+          })
+          .withError(error as Error)
+          .debug('failed to unregister peer during shutdown')
       }
     }
-
-    resetRoutingState()
   }
 
   function dispose() {
