@@ -102,6 +102,7 @@ export class OPFSCache {
       const files = await OPFSCache.readDirectoryRecursive(dirHandle, '')
 
       if (files.length > 0) {
+        patchModelSettings(files)
         return files
       }
     }
@@ -232,7 +233,7 @@ function encodeProperty(obj: any, path: string) {
   while (propPath.length > 1 && cursor != null && typeof cursor === 'object' && propPath[0] in cursor) {
     cursor = cursor[propPath.shift()!]
   }
-  if (cursor != null && cursor[propPath[0]] == null)
+  if (cursor == null || cursor[propPath[0]] == null)
     return
   if (typeof cursor[propPath[0]] === 'string')
     cursor[propPath[0]] = encodeURI(cursor[propPath[0]])
@@ -244,11 +245,33 @@ function encodeProperty(obj: any, path: string) {
 function encodeModelSettings(input: any): string {
   const settings = JSON.parse(JSON.stringify(input))
   const propertyToEncode = [
+    'FileReferences.DisplayInfo',
     'FileReferences.Moc',
     'FileReferences.Textures',
     'FileReferences.Physics',
     'url',
   ]
   propertyToEncode.forEach(k => encodeProperty(settings, k))
+  settings?.FileReferences.Expressions?.map((exp: { Name: string, File: string }) => {
+    exp.File = encodeURI(exp.File)
+    return exp
+  })
   return JSON.stringify(settings)
+}
+function patchModelSettings(list: File[]) {
+  let settingsIndex: number = -1
+  for (let i = 0; i < list.length; i++) {
+    const file = list[i]
+    if (!file.name.endsWith('items_pinned_to_model.json') && (file.name.endsWith('model.json') || file.name.endsWith('model3.json'))) {
+      settingsIndex = i
+    }
+  }
+  if (settingsIndex < 0)
+    return
+  const old = list[settingsIndex]
+  const newFile = new File([old], old.name)
+  Object.defineProperty(newFile, 'webkitRelativePath', {
+    value: encodeURI(old.webkitRelativePath),
+  })
+  list[settingsIndex] = newFile
 }
