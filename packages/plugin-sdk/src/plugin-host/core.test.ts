@@ -477,6 +477,14 @@ describe('for PluginHost', () => {
       availability: () => false,
       execute: async () => ({ ok: true, ended: true }),
     })
+    await session.apis.tools.registerToolsetPrompt({
+      id: 'chess-tools',
+      prompt: {
+        id: 'airi-plugin-game-chess.prompt',
+        title: 'Chess Plugin Guidance',
+        content: 'Do not pass fen or pgn when mode is "new".',
+      },
+    })
 
     await expect(host.listAvailableToolDescriptors()).resolves.toEqual([
       {
@@ -489,21 +497,34 @@ describe('for PluginHost', () => {
         },
       },
     ])
-    await expect(host.listSerializedXsaiTools()).resolves.toEqual([
-      {
-        ownerPluginId: session.identity.plugin.id,
-        name: 'play_chess',
-        description: 'Open chess.',
-        parameters: {
-          type: 'object',
-          properties: {
-            opening: {
-              type: 'string',
+    await expect(host.listSerializedXsaiTools()).resolves.toEqual({
+      prompts: [
+        {
+          ownerPluginId: session.identity.plugin.id,
+          id: 'chess-tools',
+          prompt: {
+            id: 'airi-plugin-game-chess.prompt',
+            title: 'Chess Plugin Guidance',
+            content: 'Do not pass fen or pgn when mode is "new".',
+          },
+        },
+      ],
+      tools: [
+        {
+          ownerPluginId: session.identity.plugin.id,
+          name: 'play_chess',
+          description: 'Open chess.',
+          parameters: {
+            type: 'object',
+            properties: {
+              opening: {
+                type: 'string',
+              },
             },
           },
         },
-      },
-    ])
+      ],
+    })
     await expect(host.invokeTool(session.identity.plugin.id, 'play_chess', { opening: 'sicilian' })).resolves.toEqual({
       ok: true,
       input: { opening: 'sicilian' },
@@ -550,7 +571,7 @@ describe('for PluginHost', () => {
     host.stop(session.id)
 
     await expect(host.listAvailableToolDescriptors()).resolves.toEqual([])
-    await expect(host.listSerializedXsaiTools()).resolves.toEqual([])
+    await expect(host.listSerializedXsaiTools()).resolves.toEqual({ prompts: [], tools: [] })
     await expect(host.invokeTool(session.identity.plugin.id, 'play_chess', {})).rejects.toThrow(
       `Plugin tool not found: ${session.identity.plugin.id}:play_chess`,
     )
@@ -612,7 +633,7 @@ describe('for PluginHost', () => {
     expect(host.getSession(session.id)).toBeUndefined()
     expect(host.getBinding('module-ready-hook-failure')).toBeUndefined()
     await expect(host.listAvailableToolDescriptors()).resolves.toEqual([])
-    await expect(host.listSerializedXsaiTools()).resolves.toEqual([])
+    await expect(host.listSerializedXsaiTools()).resolves.toEqual({ prompts: [], tools: [] })
     await expect(host.invokeTool(session.identity.plugin.id, 'ready_hook_tool', {})).rejects.toThrow(
       `Plugin tool not found: ${session.identity.plugin.id}:ready_hook_tool`,
     )
@@ -668,7 +689,7 @@ describe('for PluginHost', () => {
     expect(host.getSession(session.id)).toBeUndefined()
     expect(host.getBinding('module-stopped-hook-failure')).toBeUndefined()
     await expect(host.listAvailableToolDescriptors()).resolves.toEqual([])
-    await expect(host.listSerializedXsaiTools()).resolves.toEqual([])
+    await expect(host.listSerializedXsaiTools()).resolves.toEqual({ prompts: [], tools: [] })
     await expect(host.invokeTool(session.identity.plugin.id, 'stopped_hook_tool', {})).rejects.toThrow(
       `Plugin tool not found: ${session.identity.plugin.id}:stopped_hook_tool`,
     )

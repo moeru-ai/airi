@@ -1,4 +1,5 @@
 import type Redis from 'ioredis'
+import type { PostHog } from 'posthog-node'
 
 import type { Env } from '../../libs/env'
 import type { RateLimitMetrics, RevenueMetrics } from '../../otel'
@@ -16,6 +17,7 @@ import { safeParse } from 'valibot'
 
 import { authGuard } from '../../middlewares/auth'
 import { rateLimiter } from '../../middlewares/rate-limit'
+import { captureSafe } from '../../services/posthog'
 import { createBadRequestError, createServiceUnavailableError } from '../../utils/error'
 import { errorMessageFromUnknown } from '../../utils/error-message'
 import { resolveTrustedRequestOrigin } from '../../utils/origin'
@@ -50,6 +52,7 @@ export function createStripeRoutes(
   redis: Redis,
   metrics?: RevenueMetrics | null,
   rateLimitMetrics?: RateLimitMetrics | null,
+  posthog?: PostHog | null,
 ) {
   const stripe = env.STRIPE_SECRET_KEY ? new Stripe(env.STRIPE_SECRET_KEY) : null
 
@@ -285,7 +288,7 @@ export function createStripeRoutes(
 
       switch (event.type) {
         case 'checkout.session.completed': {
-          await handleCheckoutSessionCompleted(event.id, event.data.object, fluxService, stripeService, billingService)
+          const result = await handleCheckoutSessionCompleted(event.id, event.data.object, fluxService, stripeService, billingService)
           metrics?.stripeCheckoutCompleted.add(1)
           // Revenue capture in smallest currency unit (e.g. cents).
           // Cross-currency aggregation is meaningless, so always group by `currency` in queries.
@@ -295,6 +298,15 @@ export function createStripeRoutes(
               source: 'checkout',
             })
           }
+          // PostHog: funnel terminator. Only fire when the handler actually
+          // processed the checkout — malformed sessions (missing userId,
+          // invalid fluxAmount) take the early-return path above and would
+          // otherwise poison the funnel with phantom conversions. distinctId
+          // is the Better Auth user id so it merges with the browser's
+          // `posthog.identify(userId)` and the prior `checkout_started`
+          // event lines up. See docs/ai-context/metrics-ownership.md.
+          if (result.processed)
+            await capturePaymentCompleted(posthog, event.data.object)
           break
         }
         case 'customer.created':
@@ -307,6 +319,8 @@ export function createStripeRoutes(
         case 'customer.subscription.deleted': {
           await handleSubscriptionEvent(event.data.object, stripeService)
           metrics?.stripeSubscriptionEvent.add(1, { event_type: event.type.replace('customer.subscription.', '') })
+          if (event.type === 'customer.subscription.deleted')
+            await captureSubscriptionCancelled(posthog, stripeService, event.data.object)
           break
         }
         case 'invoice.created':
@@ -339,11 +353,11 @@ async function handleCheckoutSessionCompleted(
   fluxService: FluxService,
   stripeService: StripeService,
   billingService: BillingService,
-) {
+): Promise<{ processed: boolean }> {
   const userId = session.metadata?.userId
   if (!userId) {
     logger.withFields({ sessionId: session.id }).warn('Checkout session missing userId in metadata')
-    return
+    return { processed: false }
   }
 
   logger.withFields({ userId, sessionId: session.id, mode: session.mode, amount: session.amount_total, currency: session.currency }).log('Processing checkout session')
@@ -378,13 +392,27 @@ async function handleCheckoutSessionCompleted(
   })
 
   // Idempotent flux credit: use fluxCredited flag inside a transaction
-  // to prevent double-crediting on webhook replay
-  const metadataFlux = session.metadata?.fluxAmount
-  if (session.mode === 'payment' && session.amount_total != null && metadataFlux) {
+  // to prevent double-crediting on webhook replay.
+  //
+  // For `payment` mode (one-time Flux purchase) `metadata.fluxAmount` is
+  // required — without it we can't credit anything, and the funnel must
+  // not see a `payment_completed` event for a checkout that didn't
+  // actually deliver Flux. Non-`payment` modes (e.g. `setup` for saving
+  // a card) deliberately skip crediting and still count as processed.
+  if (session.mode === 'payment') {
+    if (session.amount_total == null) {
+      logger.withFields({ userId, sessionId: session.id }).warn('Payment-mode checkout missing amount_total; skipping credit and capture')
+      return { processed: false }
+    }
+    const metadataFlux = session.metadata?.fluxAmount
+    if (!metadataFlux) {
+      logger.withFields({ userId, sessionId: session.id }).warn('Payment-mode checkout missing metadata.fluxAmount; skipping credit and capture')
+      return { processed: false }
+    }
     const fluxAmount = Number(metadataFlux)
     if (!Number.isFinite(fluxAmount) || fluxAmount <= 0) {
       logger.withFields({ userId, sessionId: session.id, metadataFlux }).warn('Invalid fluxAmount in session metadata, skipping credit')
-      return
+      return { processed: false }
     }
 
     const result = await billingService.creditFluxFromStripeCheckout({
@@ -404,6 +432,75 @@ async function handleCheckoutSessionCompleted(
       balanceAfter: result.balanceAfter,
     }).log('Processed flux credit for one-time payment')
   }
+
+  return { processed: true }
+}
+
+async function capturePaymentCompleted(
+  posthog: PostHog | null | undefined,
+  session: Stripe.Checkout.Session,
+): Promise<void> {
+  if (!posthog)
+    return
+
+  const userId = session.metadata?.userId
+  const email = session.customer_email
+    || (typeof session.customer_details?.email === 'string' ? session.customer_details.email : null)
+    || null
+
+  // distinctId fallback chain: userId (Better Auth, matches browser identify())
+  // > email (PostHog will merge on identify later) > stripe session id (last
+  // resort — orphan event but at least we count it).
+  const distinctId = userId || email || session.id
+
+  const fluxAmount = Number(session.metadata?.fluxAmount)
+  const stripeCustomerId = typeof session.customer === 'string' ? session.customer : session.customer?.id
+
+  await captureSafe(posthog, {
+    distinctId,
+    event: 'payment_completed',
+    properties: {
+      amount_total: session.amount_total,
+      currency: session.currency,
+      flux_amount: Number.isFinite(fluxAmount) ? fluxAmount : null,
+      mode: session.mode,
+      stripe_session_id: session.id,
+      stripe_customer_id: stripeCustomerId,
+      stripe_subscription_id: typeof session.subscription === 'string' ? session.subscription : session.subscription?.id,
+      ...(userId ? { user_id: userId } : {}),
+      // $set populates the PostHog person profile so funnel joins work even
+      // when a user pays via direct checkout link before ever loading the SPA.
+      ...(email ? { $set: { email } } : {}),
+    },
+  })
+}
+
+async function captureSubscriptionCancelled(
+  posthog: PostHog | null | undefined,
+  stripeService: StripeService,
+  subscription: Stripe.Subscription,
+): Promise<void> {
+  if (!posthog)
+    return
+
+  const stripeCustomerId = typeof subscription.customer === 'string' ? subscription.customer : subscription.customer.id
+  const customer = await stripeService.getCustomerByStripeId(stripeCustomerId)
+  const distinctId = customer?.userId || stripeCustomerId
+
+  await captureSafe(posthog, {
+    distinctId,
+    event: 'subscription_cancelled',
+    properties: {
+      stripe_subscription_id: subscription.id,
+      stripe_customer_id: stripeCustomerId,
+      cancel_at_period_end: subscription.cancel_at_period_end,
+      cancellation_reason: subscription.cancellation_details?.reason ?? null,
+      cancellation_comment: subscription.cancellation_details?.comment ?? null,
+      canceled_at: subscription.canceled_at,
+      ended_at: subscription.ended_at,
+      ...(customer?.userId ? { user_id: customer.userId } : {}),
+    },
+  })
 }
 
 async function handleCustomerEvent(

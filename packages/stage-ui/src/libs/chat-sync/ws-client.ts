@@ -9,8 +9,6 @@ import { computed, ref, shallowRef, watch } from 'vue'
 
 import * as v from 'valibot'
 
-import { createPendingTracker } from './pending-tracker'
-
 const RECONNECT_BASE_MS = 1000
 const RECONNECT_MAX_MS = 30_000
 const RECONNECT_RETRIES = -1
@@ -186,24 +184,13 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
 
   // The eventa context is rebuilt on every `onConnected` so RPC + push
   // listeners survive a reconnect by re-binding to the fresh ws.
+  // In-flight invokes auto-reject on socket close because the native ws
+  // adapter registers wsDisconnectedEvent / wsErrorEvent as abort events on
+  // the context (see @moeru/eventa adapters/websocket/native).
   const context = shallowRef<WsEventContext | undefined>(undefined)
   const contextDisposers: Array<() => void> = []
   const newMessagesHandlers = new Set<(payload: NewMessagesPayload) => void>()
   const statusHandlers = new Set<(status: ChatWsStatus) => void>()
-
-  // Pending RPC reject callbacks — drained on context disposal so callers
-  // do not hang waiting for a response that will never arrive.
-  // NOTICE:
-  // eventa@0.3.0 stores per-invoke promise resolvers in a closure-scoped Map
-  // and registers per-RPC ctx.on listeners on the live context. Disposing
-  // the context detaches the underlying socket but does not drain those
-  // resolvers. We wrap each invoke call in a `PendingTracker` that the
-  // disposeContext can flush.
-  // Source: @moeru/eventa@0.3.0 dist/src-Bb-vxm5k.mjs:62-99 — `defineInvoke`'s
-  // `mInvokeIdPromiseResolvers / mInvokeIdPromiseRejectors`.
-  // Removal condition: when eventa exposes a public flush/dispose API on the
-  // invoke handle, drop this wrapper.
-  const pendingRpcs = createPendingTracker()
 
   function notifyStatus(next: ChatWsStatus) {
     // Surface every transition in console so v1 reconnect / reconcile traces
@@ -229,10 +216,6 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
       catch {}
     }
     context.value = undefined
-
-    // Reject every in-flight RPC so callers do not hang on a context that
-    // is now detached from any live socket.
-    pendingRpcs.drainAll(new Error('chat-ws: rpc cancelled (socket disconnected)'))
   }
 
   function attachContextListeners(ctx: WsEventContext) {
@@ -309,8 +292,9 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
 
   // We pass a function so each invoke resolves the *current* context. After
   // a reconnect, `context` is rebuilt; a captured reference would point at a
-  // disposed context and the invoke would hang waiting for a response that
-  // never arrives (see pendingRpcRejects NOTICE for the dispose-flush story).
+  // disposed context. eventa's native ws adapter installs wsDisconnectedEvent
+  // and wsErrorEvent as abortOnEvents, so any invoke whose socket dies before
+  // a response arrives rejects with a real Error instead of hanging.
   const invokeSendMessages = defineInvoke(getContext, sendMessages)
   const invokePullMessages = defineInvoke(getContext, pullMessages)
 
@@ -341,8 +325,8 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
       disposeContext()
       stopStatusWatch()
     },
-    sendMessages: req => pendingRpcs.track(invokeSendMessages(req)),
-    pullMessages: req => pendingRpcs.track(invokePullMessages(req)),
+    sendMessages: req => invokeSendMessages(req),
+    pullMessages: req => invokePullMessages(req),
     onNewMessages(handler) {
       newMessagesHandlers.add(handler)
       return () => {

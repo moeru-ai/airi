@@ -114,6 +114,11 @@ const EnvSchema = object({
   STRIPE_SECRET_KEY: optional(string()),
   STRIPE_WEBHOOK_SECRET: optional(string()),
 
+  // PostHog server-side analytics. Optional — when unset the client is null
+  // and `captureSafe(...)` is a no-op so webhooks still complete.
+  POSTHOG_API_KEY: optional(string(), ''),
+  POSTHOG_HOST: optional(string(), 'https://us.i.posthog.com'),
+
   // LLM gateway (infrastructure config — baked per deployment)
   GATEWAY_BASE_URL: pipe(string(), nonEmpty('GATEWAY_BASE_URL is required')),
   DEFAULT_CHAT_MODEL: pipe(string(), nonEmpty('DEFAULT_CHAT_MODEL is required')),

@@ -82,8 +82,8 @@ catalogs:
       specifier: 0.1.0-beta.15
       version: 0.1.0-beta.15
     '@moeru/eventa':
-      specifier: 1.0.0-beta.4
-      version: 1.0.0-beta.4
+      specifier: 1.0.0-beta.5
+      version: 1.0.0-beta.5
     '@moeru/std':
       specifier: 0.1.0-beta.17
       version: 0.1.0-beta.17
@@ -291,6 +291,9 @@ catalogs:
     posthog-js:
       specifier: 1.306.1
       version: 1.306.1
+    posthog-node:
+      specifier: ^5.34.1
+      version: 5.34.1
     reka-ui:
       specifier: ^2.9.2
       version: 2.9.6
@@ -640,7 +643,7 @@ importers:
         version: 1.1.2(hono@4.11.3)
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.4(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
+        version: 1.0.0-beta.5(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -721,7 +724,7 @@ importers:
         version: 0.5.3(hono@4.11.3)(unstorage@1.17.5(aws4fetch@1.0.20)(idb-keyval@6.2.2)(ioredis@5.10.1))
       injeca:
         specifier: 'catalog:'
-        version: 0.2.0(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.9)
+        version: 0.2.0(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.11)
       ioredis:
         specifier: ^5.10.1
         version: 5.10.1
@@ -731,6 +734,9 @@ importers:
       pg:
         specifier: ^8.20.0
         version: 8.20.0
+      posthog-node:
+        specifier: 'catalog:'
+        version: 5.34.1(rxjs@7.8.2)
       resend:
         specifier: ^6.12.2
         version: 6.12.2
@@ -788,7 +794,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.4(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
+        version: 1.0.0-beta.5(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -932,7 +938,7 @@ importers:
         version: 1.40.1
       nanoid:
         specifier: ^5.1.9
-        version: 5.1.9
+        version: 5.1.11
       node-vibrant:
         specifier: ^4.0.4
         version: 4.0.4(encoding@0.1.13)
@@ -1191,7 +1197,7 @@ importers:
         version: 11.3.2
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.4(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
+        version: 1.0.0-beta.5(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -1344,7 +1350,7 @@ importers:
         version: 1.45.1
       injeca:
         specifier: 'catalog:'
-        version: 0.2.0(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.9)
+        version: 0.2.0(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.11)
       jszip:
         specifier: ^3.10.1
         version: 3.10.1
@@ -1660,7 +1666,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.4(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
+        version: 1.0.0-beta.5(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -1816,7 +1822,7 @@ importers:
         version: 1.40.1
       nanoid:
         specifier: ^5.1.9
-        version: 5.1.9
+        version: 5.1.11
       node-vibrant:
         specifier: ^4.0.4
         version: 4.0.4(encoding@0.1.13)
@@ -2042,7 +2048,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.4(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
+        version: 1.0.0-beta.5(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2093,7 +2099,7 @@ importers:
         version: 4.1.0
       nanoid:
         specifier: ^5.1.9
-        version: 5.1.9
+        version: 5.1.11
       nprogress:
         specifier: ^0.2.0
         version: 0.2.0
@@ -2497,7 +2503,7 @@ importers:
         version: 0.5.0-beta.2(zod-to-json-schema@3.25.2(zod@4.3.6))(zod@4.3.6)
       nanoid:
         specifier: ^5.1.9
-        version: 5.1.9
+        version: 5.1.11
       vieval:
         specifier: 'catalog:'
         version: 0.0.5(@opentelemetry/api@1.9.1)(@types/node@25.6.0)(@vitest/browser-playwright@4.1.4)(@vitest/coverage-v8@4.1.4)(chokidar@5.0.0)(dotenv@17.4.2)(esbuild@0.27.2)(giget@2.0.0)(jiti@2.6.1)(jsdom@29.0.2(@noble/hashes@2.0.1)(canvas@3.2.3))(less@4.6.4)(magicast@0.5.2)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
@@ -2531,7 +2537,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.4(electron@40.8.5)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
+        version: 1.0.0-beta.5(electron@40.8.5)
       builder-util-runtime:
         specifier: 'catalog:'
         version: 9.5.1
@@ -2559,7 +2565,7 @@ importers:
         version: 3.0.2(electron@41.2.1)
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.4(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
+        version: 1.0.0-beta.5(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2577,7 +2583,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.4(electron@40.8.5)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
+        version: 1.0.0-beta.5(electron@40.8.5)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2672,7 +2678,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.4(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
+        version: 1.0.0-beta.5(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2684,7 +2690,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.4(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
+        version: 1.0.0-beta.5(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
       '@xsai/shared-chat':
         specifier: 'catalog:'
         version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
@@ -2693,7 +2699,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.4(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
+        version: 1.0.0-beta.5(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
       '@proj-airi/plugin-protocol':
         specifier: workspace:*
         version: link:../plugin-protocol
@@ -2718,7 +2724,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.4(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
+        version: 1.0.0-beta.5(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
       '@proj-airi/plugin-sdk':
         specifier: workspace:*
         version: link:../plugin-sdk
@@ -2845,7 +2851,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.4(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
+        version: 1.0.0-beta.5(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
 
   packages/server-shared:
     dependencies:
@@ -2857,7 +2863,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.4(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
+        version: 1.0.0-beta.5(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2908,7 +2914,7 @@ importers:
         version: 1.10.0
       nanoid:
         specifier: ^5.1.9
-        version: 5.1.9
+        version: 5.1.11
       node-vibrant:
         specifier: ^4.0.4
         version: 4.0.4(encoding@0.1.13)
@@ -2972,7 +2978,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.4(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
+        version: 1.0.0-beta.5(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3029,7 +3035,7 @@ importers:
         version: 3.4.0
       nanoid:
         specifier: ^5.1.9
-        version: 5.1.9
+        version: 5.1.11
       node-vibrant:
         specifier: ^4.0.4
         version: 4.0.4(encoding@0.1.13)
@@ -3118,7 +3124,7 @@ importers:
         version: 3.0.2(electron@41.2.1)
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.4(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
+        version: 1.0.0-beta.5(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
       '@nekopaw/tempora':
         specifier: 'catalog:'
         version: 0.4.0-alpha.1
@@ -3142,7 +3148,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.4(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
+        version: 1.0.0-beta.5(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3325,7 +3331,7 @@ importers:
         version: 1.40.1
       nanoid:
         specifier: ^5.1.9
-        version: 5.1.9
+        version: 5.1.11
       node-vibrant:
         specifier: ^4.0.4
         version: 4.0.4(encoding@0.1.13)
@@ -3648,7 +3654,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.4(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
+        version: 1.0.0-beta.5(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
       '@pixiv/three-vrm':
         specifier: ^3.5.2
         version: 3.5.2(@types/three@0.184.0)(three@0.184.0)
@@ -3923,7 +3929,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.4(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
+        version: 1.0.0-beta.5(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -4020,7 +4026,7 @@ importers:
         version: 1.2.4
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.4(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
+        version: 1.0.0-beta.5(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
       '@proj-airi/server-sdk':
         specifier: workspace:^
         version: link:../../packages/server-sdk
@@ -4038,7 +4044,7 @@ importers:
         version: 1.0.3(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vue@3.5.32(typescript@5.9.3))(wxt@0.20.24(@types/node@25.6.0)(canvas@3.2.3)(eslint@10.2.1(jiti@2.6.1))(jiti@2.6.1)(less@4.6.4)(lightningcss@1.32.0)(rollup@4.60.1)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
       nanoid:
         specifier: ^5.1.9
-        version: 5.1.9
+        version: 5.1.11
       vue:
         specifier: 'catalog:'
         version: 3.5.32(typescript@5.9.3)
@@ -4268,7 +4274,7 @@ importers:
         version: 1.45.1
       nanoid:
         specifier: ^5.1.9
-        version: 5.1.9
+        version: 5.1.11
       valibot:
         specifier: ^1.3.1
         version: 1.3.1(typescript@5.9.3)
@@ -4368,7 +4374,7 @@ importers:
         version: 1.42.0(encoding@0.1.13)
       nanoid:
         specifier: ^5.1.9
-        version: 5.1.9
+        version: 5.1.11
       p-limit:
         specifier: ^7.3.0
         version: 7.3.0
@@ -6873,11 +6879,11 @@ packages:
       web-worker:
         optional: true
 
-  '@moeru/eventa@1.0.0-beta.4':
-    resolution: {integrity: sha512-Pnpufz3Pbqrx7Ea+UgoF2C7U8y2vq3larEcsUhHtO91GZHSKptdSSHiqlIkq1pZBDxbsJO4LUU1Kplvx32mj/Q==}
+  '@moeru/eventa@1.0.0-beta.5':
+    resolution: {integrity: sha512-7E7YGLkYjgW4wOGn6sgy6mCYCJ1VgN9XL6nrcNFvj13++7xx2yW/XJ+/7uetLJKdSYeu5xejAxDQNNjOaHtTng==}
     peerDependencies:
       electron: '>=39'
-      h3: '>=2.0.1-rc.17'
+      h3: '>=2.0.1-rc.22'
       web-worker: ^1.5.0
     peerDependenciesMeta:
       electron:
@@ -8572,8 +8578,14 @@ packages:
   '@polka/url@1.0.0-next.29':
     resolution: {integrity: sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww==}
 
+  '@posthog/core@1.29.1':
+    resolution: {integrity: sha512-q+/t/DZALr50YTE0dFgfGSS9EgwcyAlqsn+JS61wLkwdcDM5yu/YTDM8oMKmJupsyjSZlVkDuHZAMd4ab7AxzQ==}
+
   '@posthog/core@1.7.1':
     resolution: {integrity: sha512-kjK0eFMIpKo9GXIbts8VtAknsoZ18oZorANdtuTj1CbgS28t4ZVq//HAWhnxEuXRTrtkd+SUJ6Ux3j2Af8NCuA==}
+
+  '@posthog/types@1.373.4':
+    resolution: {integrity: sha512-n+0AbGRYYsbi+CQXQi2rF1lwTSyASlaogcw4YSkzB5KeMa4Y6nhNb7+TTnu9aVor+BycsQYCa2OsBrMMbaTekw==}
 
   '@prisma/client@5.22.0':
     resolution: {integrity: sha512-M0SVXfyHnQREBKxCgyo7sffrKttwE6R8PMq330MIUF0pTwjUhLbW84pFDlf06B27XyCR++VtjugEnIHdr07SVA==}
@@ -14924,13 +14936,13 @@ packages:
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
 
-  nanoid@5.1.6:
-    resolution: {integrity: sha512-c7+7RQ+dMB5dPwwCp4ee1/iV/q2P6aK1mTZcfr1BTuVlyW9hJYiMPybJCcnBlQtuSmTIWNeazm/zqNoZSSElBg==}
+  nanoid@5.1.11:
+    resolution: {integrity: sha512-v+KEsUv2ps74PaSKv0gHTxTCgMXOIfBEbaqa6w6ISIGC7ZsvHN4N9oJ8d4cmf0n5oTzQz2SLmThbQWhjd/8eKg==}
     engines: {node: ^18 || >=20}
     hasBin: true
 
-  nanoid@5.1.9:
-    resolution: {integrity: sha512-ZUvP7KeBLe3OZ1ypw6dI/TzYJuvHP77IM4Ry73waSQTLn8/g8rpdjfyVAh7t1/+FjBtG4lCP42MEbDxOsRpBMw==}
+  nanoid@5.1.6:
+    resolution: {integrity: sha512-c7+7RQ+dMB5dPwwCp4ee1/iV/q2P6aK1mTZcfr1BTuVlyW9hJYiMPybJCcnBlQtuSmTIWNeazm/zqNoZSSElBg==}
     engines: {node: ^18 || >=20}
     hasBin: true
 
@@ -15591,6 +15603,15 @@ packages:
 
   posthog-js@1.306.1:
     resolution: {integrity: sha512-wO7bliv/5tlAlfoKCUzwkGXZVNexk0dHigMf9tNp0q1rzs62wThogREY7Tz7h/iWKYiuXy1RumtVlTmHuBXa1w==}
+
+  posthog-node@5.34.1:
+    resolution: {integrity: sha512-kGl0kSfh2+Ey3KL5Sji3yv9W5xwPK9sTkINRoFqCh9fbYXWWY6Zwi5Psv2QmRcbYiMJBk/iecnoOKVDRRga6PA==}
+    engines: {node: ^20.20.0 || >=22.22.0}
+    peerDependencies:
+      rxjs: ^7.0.0
+    peerDependenciesMeta:
+      rxjs:
+        optional: true
 
   postject@1.0.0-alpha.6:
     resolution: {integrity: sha512-b9Eb8h2eVqNE8edvKdwqkrY6O7kAwmI8kcnBv1NScolYJbo59XUF0noFq+lxbC1yN20bmC0WBEbDC5H/7ASb0A==}
@@ -21070,23 +21091,22 @@ snapshots:
 
   '@moeru/eventa@0.3.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))':
     dependencies:
-      nanoid: 5.1.9
+      nanoid: 5.1.11
       picomatch: 4.0.4
     optionalDependencies:
       electron: 41.2.1
       h3: 2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15))
 
-  '@moeru/eventa@1.0.0-beta.4(electron@40.8.5)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))':
+  '@moeru/eventa@1.0.0-beta.5(electron@40.8.5)':
     dependencies:
-      nanoid: 5.1.9
+      nanoid: 5.1.11
       picomatch: 4.0.4
     optionalDependencies:
       electron: 40.8.5
-      h3: 2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15))
 
-  '@moeru/eventa@1.0.0-beta.4(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))':
+  '@moeru/eventa@1.0.0-beta.5(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))':
     dependencies:
-      nanoid: 5.1.9
+      nanoid: 5.1.11
       picomatch: 4.0.4
     optionalDependencies:
       electron: 41.2.1
@@ -22640,9 +22660,15 @@ snapshots:
 
   '@polka/url@1.0.0-next.29': {}
 
+  '@posthog/core@1.29.1':
+    dependencies:
+      '@posthog/types': 1.373.4
+
   '@posthog/core@1.7.1':
     dependencies:
       cross-spawn: 7.0.6
+
+  '@posthog/types@1.373.4': {}
 
   '@prisma/client@5.22.0': {}
 
@@ -24382,9 +24408,9 @@ snapshots:
       obug: 2.1.1
       std-env: 4.1.0
       tinyrainbow: 3.1.0
-      vitest: 4.1.4(@opentelemetry/api@1.9.1)(@types/node@24.12.2)(@vitest/browser-playwright@4.1.4)(@vitest/coverage-v8@4.1.4)(jsdom@29.0.2(@noble/hashes@2.0.1)(canvas@3.2.3))(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
+      vitest: 4.1.4(@opentelemetry/api@1.9.1)(@types/node@25.6.0)(@vitest/browser-playwright@4.1.4)(@vitest/coverage-v8@4.1.4)(jsdom@29.0.2(@noble/hashes@2.0.1)(canvas@3.2.3))(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
     optionalDependencies:
-      '@vitest/browser': 4.1.4(bufferutil@4.1.0)(utf-8-validate@5.0.10)(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.4)
+      '@vitest/browser': 4.1.4(bufferutil@4.1.0)(utf-8-validate@5.0.10)(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.4)
 
   '@vitest/eslint-plugin@1.6.15(@typescript-eslint/eslint-plugin@8.58.1(@typescript-eslint/parser@8.58.1(eslint@10.2.1(jiti@2.6.1))(typescript@5.9.3))(eslint@10.2.1(jiti@2.6.1))(typescript@5.9.3))(eslint@10.2.1(jiti@2.6.1))(typescript@5.9.3)(vitest@4.1.4)':
     dependencies:
@@ -28535,17 +28561,17 @@ snapshots:
 
   ini@4.1.3: {}
 
+  injeca@0.2.0(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.11):
+    dependencies:
+      error-stack-parser: 2.1.4
+      nanoid: 5.1.11
+    optionalDependencies:
+      '@guiiai/logg': 1.2.11
+
   injeca@0.2.0(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.6):
     dependencies:
       error-stack-parser: 2.1.4
       nanoid: 5.1.6
-    optionalDependencies:
-      '@guiiai/logg': 1.2.11
-
-  injeca@0.2.0(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.9):
-    dependencies:
-      error-stack-parser: 2.1.4
-      nanoid: 5.1.9
     optionalDependencies:
       '@guiiai/logg': 1.2.11
 
@@ -30028,9 +30054,9 @@ snapshots:
 
   nanoid@3.3.11: {}
 
-  nanoid@5.1.6: {}
+  nanoid@5.1.11: {}
 
-  nanoid@5.1.9: {}
+  nanoid@5.1.6: {}
 
   nanospinner@1.2.2:
     dependencies:
@@ -30826,6 +30852,12 @@ snapshots:
       fflate: 0.4.8
       preact: 10.28.1
       web-vitals: 4.2.4
+
+  posthog-node@5.34.1(rxjs@7.8.2):
+    dependencies:
+      '@posthog/core': 1.29.1
+    optionalDependencies:
+      rxjs: 7.8.2
 
   postject@1.0.0-alpha.6:
     dependencies:

@@ -44,6 +44,7 @@ import {
   METRIC_STRIPE_PAYMENT_FAILED,
   METRIC_STRIPE_SUBSCRIPTION_EVENT,
   METRIC_USER_ACTIVE_SESSIONS,
+  METRIC_USER_DISTINCT_ACTIVE,
   METRIC_USER_LOGIN,
   METRIC_USER_REGISTERED,
   METRIC_WS_CONNECTIONS_ACTIVE,
@@ -77,6 +78,21 @@ export interface AuthMetrics {
    *   "Multi-Replica Considerations".
    */
   activeSessions: ObservableGauge
+  /**
+   * Pull-based gauge for distinct users with ≥1 non-expired session.
+   *
+   * Use when:
+   * - Querying real "active users" — not session rows. Better Auth creates a
+   *   new `session` row per sign-in and per OIDC token refresh, and never
+   *   GCs expired rows, so {@link AuthMetrics.activeSessions} drifts up
+   *   over time even when the actual user base is small.
+   *
+   * Expects:
+   * - Backed by `SELECT COUNT(DISTINCT user_id) FROM session WHERE expires_at > now()`.
+   *   Same cluster-wide truth as `activeSessions`; dashboards MUST aggregate
+   *   with `avg()`, not `sum()` — see observability-conventions.md.
+   */
+  distinctActiveUsers: ObservableGauge
 }
 
 export interface EngagementMetrics {
@@ -225,7 +241,10 @@ export function initOtel(env: Env): OtelInstance | null {
       description: 'Number of user sign-ins',
     }),
     activeSessions: meter.createObservableGauge(METRIC_USER_ACTIVE_SESSIONS, {
-      description: 'Active user sessions sourced from Postgres (cluster-wide; dashboard must use max(), not sum())',
+      description: 'Active user sessions sourced from Postgres (cluster-wide; dashboard must use avg(), not sum())',
+    }),
+    distinctActiveUsers: meter.createObservableGauge(METRIC_USER_DISTINCT_ACTIVE, {
+      description: 'Distinct users with ≥1 non-expired session — true active-user count, immune to per-row session inflation (cluster-wide; dashboard must use avg(), not sum())',
     }),
   }
 

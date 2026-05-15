@@ -1,6 +1,6 @@
 import type { EventContext } from '@moeru/eventa'
 
-import type { PluginToolDefinitionRecord } from '../../../../plugin-host/shared'
+import type { PluginToolDefinitionRecord, PluginToolsetPromptDefinitionRecord } from '../../../../plugin-host/shared'
 
 /**
  * Identifies the bound API call used to register plugin tools.
@@ -49,6 +49,20 @@ export interface RegisterToolInput {
 }
 
 /**
+ * Carries one low-level toolset prompt registration request into the host.
+ *
+ * Use when:
+ * - A plugin wants shared model-facing guidance for a group of tools
+ *
+ * Expects:
+ * - `id` is stable within the owning plugin
+ *
+ * Returns:
+ * - A registration payload consumed by the bound host implementation
+ */
+export type RegisterToolsetPromptInput = PluginToolsetPromptDefinitionRecord
+
+/**
  * Defines the host-side callbacks needed by the low-level plugin tool client.
  *
  * Use when:
@@ -62,6 +76,7 @@ export interface RegisterToolInput {
  */
 export interface ToolClientBindings {
   register: (input: RegisterToolInput) => Promise<void> | void
+  registerToolsetPrompt: (input: RegisterToolsetPromptInput) => Promise<void> | void
 }
 
 function createMissingBindingError(method: string) {
@@ -92,6 +107,9 @@ export function createTools(_ctx: EventContext<any, any>, bindings?: ToolClientB
   return {
     async register(input: RegisterToolInput) {
       return await requireBinding(bindings, 'tools.register').register(input)
+    },
+    async registerToolsetPrompt(input: RegisterToolsetPromptInput) {
+      return await requireBinding(bindings, 'tools.registerToolsetPrompt').registerToolsetPrompt(input)
     },
   }
 }

@@ -1,4 +1,5 @@
 import type Redis from 'ioredis'
+import type { PostHog } from 'posthog-node'
 
 import type { AuthInstance } from './libs/auth'
 import type { Database } from './libs/db'
@@ -41,6 +42,7 @@ import { resolveRequestAuth } from './libs/request-auth'
 import { sessionMiddleware } from './middlewares/auth'
 import { emitOtelLog, initOtel } from './otel'
 import { registerActiveSessionsGauge } from './otel/gauges/active-sessions'
+import { registerDistinctActiveUsersGauge } from './otel/gauges/distinct-active-users'
 import { createAdminFluxGrantsRoutes } from './routes/admin/flux-grants'
 import { createAuthRoutes } from './routes/auth'
 import { createCharacterRoutes } from './routes/characters'
@@ -59,6 +61,7 @@ import { createConfigKVService } from './services/config-kv'
 import { createEmailService } from './services/email'
 import { createFluxService } from './services/flux'
 import { createFluxTransactionService } from './services/flux-transaction'
+import { createPostHogClient } from './services/posthog'
 import { createProviderService } from './services/providers'
 import { createRequestLogService } from './services/request-log'
 import { createStripeService } from './services/stripe'
@@ -85,6 +88,7 @@ interface AppDeps {
   env: Env
   otel: OtelInstance | null
   userDeletionService: UserDeletionService
+  posthog: PostHog | null
 }
 
 export async function buildApp(deps: AppDeps) {
@@ -238,7 +242,7 @@ export async function buildApp(deps: AppDeps) {
     /**
      * Stripe routes.
      */
-    .route('/api/v1/stripe', createStripeRoutes(deps.fluxService, deps.stripeService, deps.billingService, deps.configKV, deps.env, deps.redis, deps.otel?.revenue, deps.otel?.rateLimit))
+    .route('/api/v1/stripe', createStripeRoutes(deps.fluxService, deps.stripeService, deps.billingService, deps.configKV, deps.env, deps.redis, deps.otel?.revenue, deps.otel?.rateLimit, deps.posthog))
 
     /**
      * Admin routes — guarded by `ADMIN_EMAILS` allowlist + verified email.
@@ -350,6 +354,44 @@ export async function createApp() {
       fromEmail: dependsOn.env.RESEND_FROM_EMAIL,
       fromName: dependsOn.env.RESEND_FROM_NAME,
     }, undefined, dependsOn.otel?.email),
+  })
+
+  // Webhook capture path goes through `captureSafe` → `captureImmediate`,
+  // which awaits the HTTP send inline, so individual events never sit in
+  // the background queue. `flush()` + `_shutdown()` on SIGTERM is the belt-
+  // and-suspenders drain for any future call site that uses the regular
+  // `capture()` (which only enqueues).
+  //
+  // NOTICE:
+  // We use the underscore-prefixed `_shutdown` despite its "internal" naming
+  // because the public `shutdown(timeoutMs)` returns void (`types.d.ts:580`)
+  // — there is no way to await its completion. `_shutdown(timeoutMs)` returns
+  // `Promise<void>` (`client.d.ts:934`) and is the only way to ensure the
+  // process doesn't exit while PostHog cleanup is still running. Posthog's
+  // own examples show `await client._shutdown()` as the recommended pattern.
+  const posthog = injeca.provide('services:posthog', {
+    dependsOn: { env: parsedEnv, lifecycle },
+    build: ({ dependsOn }) => {
+      const client = createPostHogClient(dependsOn.env)
+      if (client) {
+        dependsOn.lifecycle.appHooks.onStop(async () => {
+          try {
+            await client.flush()
+          }
+          catch {
+            // Flush failures on shutdown are non-fatal; we lose at most a
+            // few queued events. Fall through to shutdown anyway.
+          }
+          try {
+            await client._shutdown(5000)
+          }
+          catch {
+            // Shutdown errors are also non-fatal during process exit.
+          }
+        })
+      }
+      return client
+    },
   })
 
   const characterService = injeca.provide('services:characters', {
@@ -484,12 +526,21 @@ export async function createApp() {
     env: parsedEnv,
     otel,
     userDeletionService,
+    posthog,
   })
-  // Register the cluster-wide ObservableGauge for active sessions. Each
-  // replica polls the same DB (cached 10s, in-flight coalesced) and the
-  // dashboard aggregates with avg(), not sum(). See observability-conventions.md.
-  if (resolved.otel)
+  // Register the cluster-wide ObservableGauges for sessions / users. Each
+  // replica polls the same DB (cached 10s, in-flight coalesced); dashboards
+  // aggregate with avg(), not sum(). See observability-conventions.md.
+  //
+  // Both gauges share the same `session` table: `user.active_sessions` is
+  // `COUNT(*)` (row inflation prone), `user.distinct_active` is
+  // `COUNT(DISTINCT user_id)` (real active-user count). Comparing the two
+  // surfaces session-row leakage from missing GC + per-OIDC-token row
+  // creation.
+  if (resolved.otel) {
     registerActiveSessionsGauge(resolved.otel.auth.activeSessions, resolved.db, resolved.otel.observability.metricReadErrors)
+    registerDistinctActiveUsersGauge(resolved.otel.auth.distinctActiveUsers, resolved.db, resolved.otel.observability.metricReadErrors)
+  }
 
   const { app, injectWebSocket } = await buildApp({
     auth: resolved.auth,
@@ -509,6 +560,7 @@ export async function createApp() {
     env: resolved.env,
     otel: resolved.otel,
     userDeletionService: resolved.userDeletionService,
+    posthog: resolved.posthog,
   })
 
   logger.withFields({ hostname: resolved.env.HOST, port: resolved.env.PORT }).log('Server started')

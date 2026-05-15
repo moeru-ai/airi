@@ -1,3 +1,7 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
+
+# Developer-provided local VRM fixtures for editor preview scenes.
+assets/fixtures/vrm/*
+!assets/fixtures/vrm/.gitkeep

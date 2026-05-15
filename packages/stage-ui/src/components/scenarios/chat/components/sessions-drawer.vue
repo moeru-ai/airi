@@ -5,14 +5,16 @@ import { useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { DrawerContent, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot, DrawerTitle } from 'vaul-vue'
-import { computed, onMounted, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { useAnalytics } from '../../../../composables/use-analytics'
 import { useBreakpoints } from '../../../../composables/use-breakpoints'
 import { extractMessageText } from '../../../../libs/chat-sync'
 import { useAuthStore } from '../../../../stores/auth'
 import { useChatSessionStore } from '../../../../stores/chat/session-store'
 import { useAiriCardStore } from '../../../../stores/modules/airi-card'
+import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
 
 /**
  * Bottom-sheet (mobile) / centered-modal (desktop) UI surface that lists every
@@ -44,6 +46,16 @@ const chatSession = useChatSessionStore()
 const { sessionMetas, sessionMessages, activeSessionId } = storeToRefs(chatSession)
 const { activeCardId } = storeToRefs(useAiriCardStore())
 const { userId } = storeToRefs(useAuthStore())
+const { activeModel } = storeToRefs(useConsciousnessStore())
+const { trackChatSessionStarted } = useAnalytics()
+
+// Re-entry guard for the "new session" button. Without this, a rapid
+// double-click would call `createSession` twice (creating two orphan
+// sessions) and emit duplicate `chat_session_started` analytics events.
+// The async `createSession` includes IndexedDB writes + a cloud reconcile
+// kick-off, so even a single click can stay in flight long enough for a
+// second click to slip through.
+const isCreatingSession = ref(false)
 
 useResizeObserver(document.documentElement, () => screenSafeArea.update())
 onMounted(() => screenSafeArea.update())
@@ -147,9 +159,23 @@ async function selectSession(sessionId: string) {
 }
 
 async function startNewSession() {
-  const characterId = activeCardId.value || 'default'
-  await chatSession.createSession(characterId, { setActive: true })
-  showDialog.value = false
+  if (isCreatingSession.value)
+    return
+  isCreatingSession.value = true
+  try {
+    const characterId = activeCardId.value || 'default'
+    await chatSession.createSession(characterId, { setActive: true })
+    // PostHog retention denominator. We pick this call site (UI new-session
+    // button) rather than `createSession` in the store because the store also
+    // creates sessions for cloud-reconcile / fork / restore flows that aren't
+    // user-initiated. Model id is informational; sessionIndex is omitted
+    // (PostHog can compute it from per-user event ordering).
+    trackChatSessionStarted(activeModel.value || 'unknown')
+    showDialog.value = false
+  }
+  finally {
+    isCreatingSession.value = false
+  }
 }
 
 async function deleteRow(event: Event, sessionId: string) {
@@ -217,6 +243,7 @@ watch(showDialog, async (open) => {
                 'hover:bg-primary-200/70 dark:hover:bg-primary-800/50',
                 'transition-colors',
               ]"
+              :disabled="isCreatingSession"
               @click="startNewSession"
             >
               {{ t('stage.chat.sessions.new') }}
@@ -301,6 +328,7 @@ watch(showDialog, async (open) => {
               'hover:bg-primary-200/70 dark:hover:bg-primary-800/50',
               'transition-colors',
             ]"
+            :disabled="isCreatingSession"
             @click="startNewSession"
           >
             {{ t('stage.chat.sessions.new') }}

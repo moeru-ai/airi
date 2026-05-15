@@ -6,6 +6,7 @@ import type { BillingService } from './billing-service'
 import { useLogger } from '@guiiai/logg'
 
 import { createPaymentRequiredError } from '../../utils/error'
+import { GEN_AI_ATTR_REQUEST_MODEL } from '../../utils/observability'
 import { userFluxMeterDebtRedisKey } from '../../utils/redis-keys'
 
 const logger = useLogger('flux-meter')
@@ -65,9 +66,19 @@ interface AccumulateInput {
 }
 
 interface AccumulateResult {
+  /** Actual flux charged to the user (== amount we are sure was billed). */
   fluxDebited: number
+  /** Residual debt left in Redis after this call. Includes unbilled units restored on partial drain. */
   debtAfter: number
+  /** User's flux balance after this call. */
   balanceAfter: number
+  /**
+   * Flux that crossed the meter threshold but couldn't be charged because the
+   * user's balance was lower than what the request required. > 0 means the
+   * user received service they only partially paid for. Reflects the gap
+   * between `requested` and `charged` returned by `billingService.consumeFluxForLLM`.
+   */
+  unbilledFlux: number
 }
 
 /**
@@ -134,49 +145,46 @@ export function createFluxMeter(
    */
   async function accumulate(input: AccumulateInput): Promise<AccumulateResult> {
     if (!Number.isFinite(input.units) || input.units <= 0)
-      return { fluxDebited: 0, debtAfter: await readDebt(input.userId), balanceAfter: input.currentBalance }
+      return { fluxDebited: 0, debtAfter: await readDebt(input.userId), balanceAfter: input.currentBalance, unbilledFlux: 0 }
 
     const modelLabel = typeof input.metadata?.model === 'string' ? input.metadata.model : 'unknown'
     metrics?.ttsChars.add(input.units, { meter: config.name, model: modelLabel })
 
     const runtime = await getRuntime()
     const key = userFluxMeterDebtRedisKey(input.userId, config.name)
-    const [fluxDebited, debtAfter] = await runScript(key, input.units, runtime)
+    const [fluxRequested, debtAfterSettlement] = await runScript(key, input.units, runtime)
 
-    if (fluxDebited === 0) {
+    if (fluxRequested === 0) {
       logger.withFields({
         userId: input.userId,
         meter: config.name,
         units: input.units,
-        debtAfter,
+        debtAfter: debtAfterSettlement,
       }).debug('Accumulated units below flux threshold')
-      return { fluxDebited: 0, debtAfter, balanceAfter: input.currentBalance }
+      return { fluxDebited: 0, debtAfter: debtAfterSettlement, balanceAfter: input.currentBalance, unbilledFlux: 0 }
     }
 
+    let result: Awaited<ReturnType<typeof billingService.consumeFluxForLLM>>
     try {
-      const { flux } = await billingService.consumeFluxForLLM({
+      result = await billingService.consumeFluxForLLM({
         userId: input.userId,
-        amount: fluxDebited,
+        amount: fluxRequested,
         requestId: input.requestId,
         description: `${config.name}_request`,
         ...(typeof input.metadata?.model === 'string' && { model: input.metadata.model }),
       })
-
-      return { fluxDebited, debtAfter, balanceAfter: flux }
     }
     catch (error) {
-      // Restore the already-settled portion back into the debt counter so the
-      // next successful request picks it up. Without this, a failed debit
-      // (insufficient balance under concurrency, transient DB error) silently
-      // under-bills the user for `fluxDebited * unitsPerFlux` units.
-      const restoreUnits = fluxDebited * runtime.unitsPerFlux
+      // The billing call threw (balance <= 0 hard floor, transient DB error,
+      // network blip). The debit did NOT commit, so restore the full
+      // already-settled portion back into the debt counter for the next
+      // request to retry.
+      const restoreUnits = fluxRequested * runtime.unitsPerFlux
       try {
         await redis.incrby(key, restoreUnits)
         await redis.expire(key, runtime.debtTtlSeconds)
       }
       catch (rollbackError) {
-        // Rollback failure is itself a billing leak; log loudly for manual
-        // reconciliation but do not shadow the original error.
         logger.withError(rollbackError).withFields({
           userId: input.userId,
           meter: config.name,
@@ -186,6 +194,87 @@ export function createFluxMeter(
       }
       throw error
     }
+
+    // Billing-service invariant — checked OUTSIDE the try/catch above so a
+    // post-debit assertion failure does NOT trigger the "restore full debt"
+    // rollback path. The DB tx already committed `result.charged`; restoring
+    // `fluxRequested * unitsPerFlux` would set up a double-charge on the
+    // next request (LUA re-settles the restored debt, billing re-debits the
+    // same usage). Surface loud, but don't compensate.
+    if (!Number.isInteger(result.charged) || result.charged < 0 || result.charged > result.requested) {
+      logger.withFields({
+        userId: input.userId,
+        meter: config.name,
+        requestId: input.requestId,
+        requested: result.requested,
+        charged: result.charged,
+      }).error('billing-service returned invalid charged/requested — manual reconciliation needed')
+      throw new Error(`billing-service returned invalid charged=${result.charged} for requested=${result.requested}`)
+    }
+
+    // Partial-debit path: balance was insufficient and `debitFlux` drained
+    // it to zero. We've already DECRBY'd `fluxRequested * unitsPerFlux` from
+    // the debt counter via the LUA script, but only `result.charged` of
+    // those flux were actually billed. Restore the gap so the debt counter
+    // reflects the user's true outstanding obligation, and surface it on
+    // the same `fluxUnbilled` counter the streaming/non-streaming chat
+    // paths use (different `reason` label).
+    //
+    // REVIEW: Settlement (LUA `runScript`) and the `INCRBY` restore below
+    // are not atomic. A concurrent `accumulate()` could observe the debt
+    // counter mid-window (between DECRBY and the restore INCRBY) and
+    // mis-bill. In practice the window is small (one in-flight DB tx) and
+    // a re-billing attempt would land in the same partial-debit branch,
+    // but the right long-term fix is either a short Redis lock keyed by
+    // `{userId, meter}` around `runScript → consumeFluxForLLM → restore`,
+    // or moving the unbilled portion into a separate Redis key that the
+    // LUA script doesn't touch. See codex review thread on PR.
+    if (result.charged < result.requested) {
+      const unbilledFlux = result.requested - result.charged
+      const restoreUnits = unbilledFlux * runtime.unitsPerFlux
+
+      metrics?.fluxUnbilled.add(unbilledFlux, {
+        source: 'tts_meter',
+        meter: config.name,
+        reason: 'partial_debit_drained',
+        ...(typeof input.metadata?.model === 'string' && { [GEN_AI_ATTR_REQUEST_MODEL]: input.metadata.model }),
+      })
+
+      let debtAfterRestore = debtAfterSettlement
+      try {
+        debtAfterRestore = await redis.incrby(key, restoreUnits)
+        await redis.expire(key, runtime.debtTtlSeconds)
+      }
+      catch (rollbackError) {
+        // Log loudly so on-call can reconcile manually; don't shadow the
+        // partial-debit signal by re-throwing.
+        logger.withError(rollbackError).withFields({
+          userId: input.userId,
+          meter: config.name,
+          restoreUnits,
+          requestId: input.requestId,
+        }).error('Failed to restore meter debt after partial-debit drain')
+      }
+
+      logger.withFields({
+        userId: input.userId,
+        meter: config.name,
+        requestId: input.requestId,
+        requested: result.requested,
+        charged: result.charged,
+        unbilledFlux,
+        restoreUnits,
+      }).warn('Partial debit on flux meter — flux drained to zero')
+
+      return {
+        fluxDebited: result.charged,
+        debtAfter: debtAfterRestore,
+        balanceAfter: result.flux,
+        unbilledFlux,
+      }
+    }
+
+    return { fluxDebited: result.charged, debtAfter: debtAfterSettlement, balanceAfter: result.flux, unbilledFlux: 0 }
   }
 
   return {

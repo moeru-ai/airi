@@ -1,7 +1,10 @@
 import type {
   PluginToolDefinitionRecord,
+  PluginToolsetPromptDefinitionRecord,
   RegisteredPluginToolDescriptor,
+  SerializedToolsetPromptDefinition,
   SerializedXsaiToolDefinition,
+  SerializedXsaiToolsetDefinition,
 } from '../../../shared'
 
 /**
@@ -25,6 +28,25 @@ export interface ToolRegistryRecord {
 }
 
 /**
+ * Stores one plugin toolset prompt registration inside the in-memory host runtime.
+ *
+ * Use when:
+ * - Tracking prompt ownership and lifecycle for a plugin-owned toolset
+ *
+ * Expects:
+ * - `ownerPluginId` and `toolset.id` together are unique
+ *
+ * Returns:
+ * - A host-managed record used for prompt serialization
+ */
+export interface ToolsetPromptRegistryRecord {
+  ownerSessionId: string
+  ownerPluginId: string
+  toolset: PluginToolsetPromptDefinitionRecord
+  availability?: () => Promise<boolean> | boolean
+}
+
+/**
  * In-memory registry for plugin-contributed tools.
  *
  * Use when:
@@ -39,10 +61,17 @@ export interface ToolRegistryRecord {
  */
 export class ToolRegistryService {
   private readonly tools = new Map<string, ToolRegistryRecord>()
+  private readonly toolsetPrompts = new Map<string, ToolsetPromptRegistryRecord>()
 
   register(record: ToolRegistryRecord) {
     const key = `${record.ownerPluginId}:${record.tool.id}`
     this.tools.set(key, record)
+    return record
+  }
+
+  registerToolsetPrompt(record: ToolsetPromptRegistryRecord) {
+    const key = `${record.ownerPluginId}:${record.toolset.id}`
+    this.toolsetPrompts.set(key, record)
     return record
   }
 
@@ -68,7 +97,25 @@ export class ToolRegistryService {
     return items
   }
 
-  async listSerializedXsaiTools() {
+  async listToolsetPrompts() {
+    const prompts: SerializedToolsetPromptDefinition[] = []
+
+    for (const record of this.toolsetPrompts.values()) {
+      if (await record.availability?.() === false) {
+        continue
+      }
+
+      prompts.push({
+        ownerPluginId: record.ownerPluginId,
+        id: record.toolset.id,
+        prompt: structuredClone(record.toolset.prompt),
+      })
+    }
+
+    return prompts
+  }
+
+  async listSerializedXsaiTools(): Promise<SerializedXsaiToolsetDefinition> {
     const items: SerializedXsaiToolDefinition[] = []
 
     for (const record of this.tools.values()) {
@@ -84,7 +131,10 @@ export class ToolRegistryService {
       })
     }
 
-    return items
+    return {
+      prompts: await this.listToolsetPrompts(),
+      tools: items,
+    }
   }
 
   async invoke(ownerPluginId: string, toolId: string, input: unknown) {

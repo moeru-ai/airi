@@ -54,7 +54,7 @@ catalog:
   '@intlify/core': ^11.3.2
   '@modelcontextprotocol/sdk': ^1.29.0
   '@moeru/eslint-config': 0.1.0-beta.15
-  '@moeru/eventa': 1.0.0-beta.4
+  '@moeru/eventa': 1.0.0-beta.5
   '@moeru/std': 0.1.0-beta.17
   '@napi-rs/image': ^1.12.0
   '@nekopaw/tempora': 0.4.0-alpha.1
@@ -124,6 +124,7 @@ catalog:
   oxc-minify: ^0.126.0
   pinia: ^3.0.4
   posthog-js: 1.306.1
+  posthog-node: ^5.34.1
   reka-ui: ^2.9.2
   replicate: ^1.4.0
   splitpanes: ^4.0.4

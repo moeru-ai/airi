@@ -1,10 +1,34 @@
 using System;
-using System.IO;
 using System.Text.Json;
 using Godot;
 
+/// <summary>
+/// Root node for the Godot sidecar stage runtime.
+///
+/// Use when:
+/// - Running the desktop Godot stage through Electron main.
+/// - Receiving scene input from the current stage settings model selection.
+///
+/// Expects:
+/// - Electron launches Godot with <c>--airi-ws-url=&lt;runtime-url&gt;</c>.
+/// - The scene contains or can create an avatar root node.
+///
+/// Returns:
+/// - A running stage process that reports ready/applied/error envelopes to Electron main.
+///
+/// Call stack:
+///
+/// Godot scene tree
+///   -> <see cref="_Ready"/>
+///     -> <see cref="StageBridge.Connect"/>
+///   -> <see cref="_Process"/>
+///     -> <see cref="StageBridge.Poll"/>
+///       -> <see cref="HandleMessage"/>
+/// </summary>
 public partial class StageRoot : Node3D
 {
+    private const string AvatarRootNodeName = "AvatarRoot";
+    private const string EditorPreviewRootNodeName = "EditorPreviewRoot";
     private const string WebSocketUrlArgumentPrefix = "--airi-ws-url=";
 
     private readonly JsonSerializerOptions _jsonOptions = new()
@@ -12,27 +36,34 @@ public partial class StageRoot : Node3D
         PropertyNameCaseInsensitive = true,
     };
 
-    private readonly WebSocketPeer _socket = new();
-
+    private StageBridge _bridge = null!;
+    private StageSceneController _sceneController = null!;
     private Label3D _statusLabel = null!;
-    private bool _readyAnnounced;
     private bool _shutdownRequested;
 
+    /// <inheritdoc/>
     public override void _Ready()
     {
+        HideEditorPreviewRoot();
         _statusLabel = CreateStatusLabel();
         AddChild(_statusLabel);
+
+        _sceneController = new StageSceneController(ResolveAvatarRoot(), new VrmAvatarLoader());
 
         var webSocketUrl = ResolveWebSocketUrl();
         if (string.IsNullOrWhiteSpace(webSocketUrl))
         {
             UpdateStatus("Missing Electron bridge URL.");
-            GD.PushError("Godot stage missing --airi-ws-url argument.");
-            GetTree().Quit();
+            GD.PushWarning("Godot stage missing --airi-ws-url argument.");
             return;
         }
 
-        var connectError = _socket.ConnectToUrl(webSocketUrl);
+        _bridge = new StageBridge(_jsonOptions);
+        _bridge.Opened += HandleBridgeOpened;
+        _bridge.MessageReceived += HandleMessage;
+        _bridge.Closed += HandleBridgeClosed;
+
+        var connectError = _bridge.Connect(webSocketUrl);
         if (connectError != Error.Ok)
         {
             UpdateStatus("Failed to connect to Electron main.");
@@ -42,52 +73,75 @@ public partial class StageRoot : Node3D
         }
 
         UpdateStatus("Connecting to Electron main...");
-        GD.Print($"StageRoot connecting to {webSocketUrl}");
     }
 
+    /// <inheritdoc/>
     public override void _Process(double delta)
     {
-        _socket.Poll();
-
-        switch (_socket.GetReadyState())
+        if (_bridge == null)
         {
-            case WebSocketPeer.State.Open:
-                if (!_readyAnnounced)
-                {
-                    SendEnvelope("stage.ready");
-                    _readyAnnounced = true;
-                    UpdateStatus("Connected to Electron main.");
-                }
-
-                while (_socket.GetAvailablePacketCount() > 0)
-                {
-                    HandleMessage(_socket.GetPacket().GetStringFromUtf8());
-                }
-                break;
-            case WebSocketPeer.State.Closed:
-                if (_shutdownRequested)
-                {
-                    GetTree().Quit();
-                    return;
-                }
-
-                var message = $"Electron bridge closed ({_socket.GetCloseCode()}).";
-                UpdateStatus(message);
-                GD.PushWarning(message);
-                GetTree().Quit();
-                break;
+            return;
         }
+
+        _bridge.Poll();
     }
 
-    private Label3D CreateStatusLabel()
+    private void HandleBridgeOpened()
+    {
+        _bridge.SendEnvelope("stage.ready");
+        UpdateStatus("Connected to Electron main.");
+    }
+
+    private void HandleBridgeClosed(string message)
+    {
+        if (_shutdownRequested)
+        {
+            GetTree().Quit();
+            return;
+        }
+
+        UpdateStatus(message);
+        GD.PushWarning(message);
+        GetTree().Quit();
+    }
+
+    private Node3D ResolveAvatarRoot()
+    {
+        var avatarRoot = GetNodeOrNull<Node3D>(AvatarRootNodeName);
+        if (avatarRoot != null)
+        {
+            return avatarRoot;
+        }
+
+        avatarRoot = new Node3D
+        {
+            Name = AvatarRootNodeName,
+        };
+        AddChild(avatarRoot);
+        return avatarRoot;
+    }
+
+    private void HideEditorPreviewRoot()
+    {
+        var editorPreviewRoot = GetNodeOrNull<Node3D>(EditorPreviewRootNodeName);
+        if (editorPreviewRoot == null)
+        {
+            return;
+        }
+
+        editorPreviewRoot.Visible = false;
+        editorPreviewRoot.ProcessMode = ProcessModeEnum.Disabled;
+    }
+
+    private static Label3D CreateStatusLabel()
     {
         return new Label3D
         {
             Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
-            FontSize = 56,
+            FontSize = 34,
             Modulate = new Color(0.95f, 0.98f, 1.0f),
             PixelSize = 0.0035f,
-            Position = new Vector3(0.0f, 1.35f, 0.0f),
+            Position = new Vector3(-1.45f, 1.75f, 0.0f),
             Text = "Godot Stage (experimental)",
         };
     }
@@ -96,7 +150,7 @@ public partial class StageRoot : Node3D
     {
         try
         {
-            var envelope = JsonSerializer.Deserialize<GodotEnvelope>(rawMessage, _jsonOptions);
+            var envelope = JsonSerializer.Deserialize<StageEnvelope>(rawMessage, _jsonOptions);
             if (envelope == null || string.IsNullOrWhiteSpace(envelope.Type))
             {
                 return;
@@ -118,10 +172,7 @@ public partial class StageRoot : Node3D
         {
             var message = $"Failed to parse Electron message: {error.Message}";
             UpdateStatus(message);
-            SendEnvelope("scene.error", new
-            {
-                message,
-            });
+            SendSceneError(message);
         }
     }
 
@@ -129,24 +180,23 @@ public partial class StageRoot : Node3D
     {
         if (payloadElement == null)
         {
-            SendEnvelope("scene.error", new
-            {
-                message = "Scene input payload was empty.",
-            });
+            SendSceneError("Scene input payload was empty.");
             return;
         }
 
         try
         {
-            var payload = payloadElement.Value.Deserialize<SceneApplyPayload>(_jsonOptions);
+            var payload = payloadElement.Value.Deserialize<StageSceneApplyPayload>(_jsonOptions);
             if (payload == null)
             {
                 throw new InvalidOperationException("Scene input payload could not be parsed.");
             }
 
-            var fileName = Path.GetFileName(payload.Path);
+            _sceneController.Apply(payload);
+            var fileName = System.IO.Path.GetFileName(payload.Path);
             UpdateStatus($"Connected to Electron main.\nModel: {payload.Name}\nAsset: {fileName}");
-            SendEnvelope("scene.applied", new
+
+            _bridge.SendEnvelope("scene.applied", new
             {
                 modelId = payload.ModelId,
             });
@@ -155,16 +205,19 @@ public partial class StageRoot : Node3D
         {
             var message = $"Failed to apply scene input: {error.Message}";
             UpdateStatus(message);
-            SendEnvelope("scene.error", new
-            {
-                message,
-            });
+            SendSceneError(message);
         }
     }
 
     private static string ResolveWebSocketUrl()
     {
-        foreach (var argument in OS.GetCmdlineUserArgs())
+        string[] arguments = OS.GetCmdlineUserArgs();
+        if (arguments.Length == 0)
+        {
+            arguments = OS.GetCmdlineArgs();
+        }
+
+        foreach (var argument in arguments)
         {
             if (argument.StartsWith(WebSocketUrlArgumentPrefix, StringComparison.Ordinal))
             {
@@ -175,31 +228,14 @@ public partial class StageRoot : Node3D
         return string.Empty;
     }
 
-    private void SendEnvelope(string type, object payload = null)
+    private void SendSceneError(string message)
     {
-        if (_socket.GetReadyState() != WebSocketPeer.State.Open)
+        _bridge.SendEnvelope("scene.error", new
         {
-            return;
-        }
-
-        _socket.SendText(JsonSerializer.Serialize(new
-        {
-            type,
-            payload,
-        }, _jsonOptions));
+            message,
+        });
     }
 
-    private void UpdateStatus(string message)
-    {
+    private void UpdateStatus(string message) =>
         _statusLabel.Text = $"Godot Stage (experimental)\n{message}";
-    }
-
-    private sealed record GodotEnvelope(string Type, JsonElement? Payload);
-
-    private sealed record SceneApplyPayload(
-        string ModelId,
-        string Format,
-        string Name,
-        string Path
-    );
 }

@@ -85,6 +85,7 @@ describe('seedTrustedClients', () => {
     expect(pocketClient.tokenEndpointAuthMethod).toBe('none')
     expect(pocketClient.redirectUris).toEqual([
       'capacitor://localhost/auth/callback',
+      'ai.moeru.airi-pocket://links/auth/callback',
     ])
   })
 
