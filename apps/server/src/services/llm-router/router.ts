@@ -170,6 +170,13 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         }
 
         const status = response.status
+        // NOTICE:
+        // Cancel the failed upstream body so the socket can be returned to
+        // the pool before we move on. Without this, a 401/429/5xx fallback
+        // storm leaves dozens of half-read bodies in flight per request and
+        // exhausts the connection pool exactly when the upstream is sick.
+        // Source: codex review 2026-05-15 HIGH #2.
+        response.body?.cancel().catch(() => {})
         failures.push({ keyId: key.id, status })
         onAttemptFailure({ keyId: key.id, status })
         options.gatewayMetrics?.fallbackCount.add(1, {

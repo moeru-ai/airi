@@ -45,7 +45,11 @@ async function main() {
     if (init?.headers) {
       const hdrs = init.headers as Record<string, string>
       const auth = hdrs.authorization || hdrs.Authorization
-      console.log(`  auth   = ${auth ? `${auth.slice(0, 30)}...` : '<none>'}`)
+      // NOTICE:
+      // Never log credential substrings: a 30-char prefix of an OpenRouter
+      // key (`sk-or-v1-bb1a38505a7309...`) is enough to identify the account.
+      // Print presence only. Source: codex review 2026-05-15 #10.
+      console.log(`  auth   = ${auth ? '<set>' : '<none>'}`)
     }
     if (init?.body) {
       console.log(`  body   = ${String(init.body).slice(0, 200)}`)

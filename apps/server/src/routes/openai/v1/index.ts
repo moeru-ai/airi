@@ -174,15 +174,23 @@ export function createV1CompletionsRoutes(
     // Router throws ApiError (502/503/504/400) on full exhaustion or unknown
     // model. We do NOT catch here — global app.onError renders the ApiError
     // shape. Span is closed inside the catch so failures show up in traces.
+    // NOTICE:
+    // Propagate the client disconnect signal so an upstream LLM call doesn't
+    // keep generating tokens (and burning paid upstream quota) after the
+    // caller hangs up. Without this the streaming-cancel path records
+    // fluxConsumed: 0 while real cost was incurred — a silent revenue leak.
+    // Source: codex review 2026-05-15 HIGH #1.
+    const clientAbort = c.req.raw.signal
     let response: Response
     try {
       response = await context.with(trace.setSpan(context.active(), span), () =>
         llmRouter
-          ? llmRouter.route({ modelName: requestModel, body, headers: {} })
+          ? llmRouter.route({ modelName: requestModel, body, headers: {}, abortSignal: clientAbort })
           : fetch(`${baseUrl}chat/completions`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ ...body, model: requestModel }),
+              signal: clientAbort,
             }))
     }
     catch (err) {

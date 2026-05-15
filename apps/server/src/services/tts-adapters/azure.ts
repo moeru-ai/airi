@@ -6,7 +6,16 @@ import { errorMessageFrom } from '@moeru/std'
 
 import azureVoices from './voices/azure.json' with { type: 'json' }
 
-import { createInternalError } from '../../utils/error'
+import { createBadRequestError, createInternalError } from '../../utils/error'
+
+// NOTICE:
+// Voice IDs Azure accepts are stable strings like `en-US-AvaMultilingualNeural`.
+// We allow the canonical Microsoft pattern only — letters/digits/hyphens.
+// Without this guard a malicious `voice` field can break out of `name='...'`
+// in the SSML envelope and inject arbitrary `<voice>` / `<lexicon>` elements,
+// running under our Azure credential.
+// Source: codex review 2026-05-15 HIGH #3.
+const AZURE_VOICE_ID = /^[a-z0-9-]+$/i
 
 /**
  * Default Azure voice when the caller doesn't pick one. Microsoft markets this
@@ -144,6 +153,8 @@ export const azureAdapter: TtsAdapter = {
 
   async send(input: TtsInput, ctx: TtsAdapterContext): Promise<TtsResult> {
     const voice = input.voice ?? DEFAULT_AZURE_VOICE
+    if (!AZURE_VOICE_ID.test(voice))
+      throw createBadRequestError(`azure voice id contains unsupported characters: ${voice}`, 'BAD_REQUEST', { voice })
     const outputFormat = resolveAzureFormat(input.responseFormat)
     const disableSsml = input.extraOptions?.disableSsml === true
 
