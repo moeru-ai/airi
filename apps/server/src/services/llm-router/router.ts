@@ -3,17 +3,20 @@ import type { Buffer } from 'node:buffer'
 import type { GatewayMetrics } from '../../otel'
 import type { EnvelopeCrypto } from '../../utils/envelope-crypto'
 import type { ConfigKVService } from '../config-kv'
-import type { LlmRouteRequest, LlmUpstream } from './types'
+import type { TtsAdapterId, TtsInput } from '../tts-adapters/types'
+import type { LlmRouteRequest, LlmUpstream, TtsUpstream } from './types'
 
 import { useLogger } from '@guiiai/logg'
 import { trace } from '@opentelemetry/api'
 
+import { ApiError } from '../../utils/error'
 import {
   AIRI_ATTR_GEN_AI_GATEWAY_FALLBACK_DEPTH,
   AIRI_ATTR_GEN_AI_GATEWAY_KEY_ID,
   AIRI_ATTR_GEN_AI_GATEWAY_UPSTREAM_INDEX,
   AIRI_ATTR_GEN_AI_GATEWAY_UPSTREAM_URL,
 } from '../../utils/observability'
+import { getAdapter } from '../tts-adapters'
 import { createConfigLoader } from './config-loader'
 import { mapUpstreamError } from './error-mapping'
 import { createKeyRotator } from './key-rotator'
@@ -304,8 +307,217 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     })
   }
 
+  /**
+   * Run one TTS upstream's key list in order, parallel to {@link dispatchOneUpstream}
+   * but delegating actual HTTP to the provider adapter. Adapters surface
+   * upstream non-2xx as `Error & { status: number }`; network failures /
+   * timeouts arrive as plain `Error` with no status.
+   */
+  async function dispatchOneTtsUpstream(
+    upstream: TtsUpstream,
+    upstreamIndex: number,
+    providerId: TtsAdapterId,
+    input: TtsInput,
+    modelName: string,
+    abortSignal: AbortSignal | undefined,
+    perAttemptTimeoutMs: number,
+    fallbackHttpCodes: number[],
+    onAttemptFailure: (failure: { keyId: string, status: number | 'timeout' }) => void,
+  ): Promise<
+    | { kind: 'ok', contentType: string, body: ArrayBuffer | ReadableStream<Uint8Array>, attemptIndex: number }
+    | { kind: 'exhausted', failures: Array<{ keyId: string, status: number | 'timeout' }> }
+  > {
+    const providerTag = deriveProviderTag(upstream.baseURL)
+    const rotator = createKeyRotator(upstream, options.envelopeCrypto, modelName, options.gatewayMetrics, providerTag)
+    const adapter = getAdapter(providerId)
+    const failures: Array<{ keyId: string, status: number | 'timeout' }> = []
+    let attemptIndex = 0
+
+    for (const key of rotator) {
+      try {
+        // Per-attempt timeout composed with caller abort — same shape as chat.
+        // See chat dispatch for the AbortSignal.any rationale.
+        const attemptCtrl = new AbortController()
+        const timeoutHandle = setTimeout(() => attemptCtrl.abort(new Error('attempt-timeout')), perAttemptTimeoutMs)
+        const callerOnAbort = () => attemptCtrl.abort(abortSignal?.reason)
+        if (abortSignal != null) {
+          if (abortSignal.aborted)
+            attemptCtrl.abort(abortSignal.reason)
+          else
+            abortSignal.addEventListener('abort', callerOnAbort, { once: true })
+        }
+
+        let result
+        try {
+          result = await adapter.send(input, {
+            keyPlaintext: key.plaintext,
+            baseURL: upstream.baseURL.replace(/\/+$/, ''),
+            adapterParams: upstream.adapterParams ?? {},
+            fetchImpl,
+            abortSignal: attemptCtrl.signal,
+          })
+        }
+        finally {
+          clearTimeout(timeoutHandle)
+          if (abortSignal != null)
+            abortSignal.removeEventListener('abort', callerOnAbort)
+        }
+
+        trace.getActiveSpan()?.setAttributes({
+          [AIRI_ATTR_GEN_AI_GATEWAY_UPSTREAM_URL]: upstream.baseURL,
+          [AIRI_ATTR_GEN_AI_GATEWAY_UPSTREAM_INDEX]: upstreamIndex,
+          [AIRI_ATTR_GEN_AI_GATEWAY_KEY_ID]: key.id,
+          [AIRI_ATTR_GEN_AI_GATEWAY_FALLBACK_DEPTH]: attemptIndex,
+        })
+        return { kind: 'ok', contentType: result.contentType, body: result.body, attemptIndex }
+      }
+      catch (err) {
+        if (abortSignal?.aborted) {
+          logger.withError(err).withFields({ keyId: key.id }).debug('Caller aborted upstream tts fetch; propagating without fallback')
+          throw err
+        }
+
+        // Adapter contract (see `apps/server/src/services/tts-adapters/types.ts`
+        // and the three impls):
+        //
+        // - `ApiError` 4xx — adapter rejected the *request* before talking to
+        //   the upstream (e.g. azure invalid voice id, volcengine missing
+        //   `adapterParams.appid`). Every key on every upstream would reject
+        //   the same way, so propagate without fallback.
+        // - `ApiError` 5xx — adapter caught a network failure and wrapped it
+        //   in `createInternalError(...)`. Different keys / upstreams may
+        //   succeed, so fold into the same fallback path as a plain network
+        //   error.
+        // - `Error & { status: number }` — upstream answered non-2xx; we own
+        //   the fallback decision and consult `fallbackHttpCodes`.
+        // - plain `Error` — network failure or per-attempt timeout (our
+        //   AbortController fired); treat as `'timeout'` for KTD-1 mapping.
+        if (err instanceof ApiError && err.statusCode < 500)
+          throw err
+
+        const rawStatus
+          = (err as { status?: unknown }).status
+            ?? (err instanceof ApiError ? err.statusCode : undefined)
+        const failureStatus: number | 'timeout' = typeof rawStatus === 'number' ? rawStatus : 'timeout'
+        failures.push({ keyId: key.id, status: failureStatus })
+        onAttemptFailure({ keyId: key.id, status: failureStatus })
+        options.gatewayMetrics?.fallbackCount.add(1, {
+          provider: providerTag,
+          from_key: key.id,
+          reason: String(failureStatus),
+        })
+        if (typeof rawStatus === 'number') {
+          options.gatewayMetrics?.upstreamErrors.add(1, {
+            provider: providerTag,
+            status_code: rawStatus,
+          })
+          if (!fallbackHttpCodes.includes(rawStatus)) {
+            // Same policy as chat: non-fallback status stops this upstream
+            // but the outer loop still tries the next upstream.
+            attemptIndex += 1
+            break
+          }
+        }
+        logger.withError(err).withFields({ keyId: key.id, upstream: upstream.baseURL }).warn('Upstream TTS attempt failed')
+      }
+      finally {
+        key.plaintext.fill(0)
+      }
+
+      attemptIndex += 1
+    }
+
+    return { kind: 'exhausted', failures }
+  }
+
+  async function routeTts(req: { modelName: string, input: TtsInput, abortSignal?: AbortSignal }): Promise<Response> {
+    if (req.abortSignal?.aborted)
+      throw req.abortSignal.reason ?? new Error('aborted')
+
+    const slice = await configLoader.getModelConfig('tts', req.modelName)
+    if (slice.kind !== 'tts') {
+      // Defensive — config-loader returns 'tts' when kind='tts', but a future
+      // schema change could broaden this. Surface as 500.
+      throw new Error(`Expected tts model slice for ${req.modelName}, got ${slice.kind}`)
+    }
+
+    const defaults = slice.defaults ?? { perAttemptTimeoutMs: 30000, fullChainTimeoutMs: 60000, fallbackHttpCodes: [401, 402, 403, 429, 500, 502, 503, 504] }
+    const fallbackHttpCodes = slice.model.fallbackTriggers?.httpCodes ?? defaults.fallbackHttpCodes ?? [401, 402, 403, 429, 500, 502, 503, 504]
+
+    const allFailures: Array<{ provider: string, keyId: string, status: number | 'timeout' }> = []
+    let triedUpstreams = 0
+
+    for (let i = 0; i < slice.model.upstreams.length; i += 1) {
+      const upstream = slice.model.upstreams[i]
+      const providerTag = deriveProviderTag(upstream.baseURL)
+      triedUpstreams += 1
+
+      // tts upstream schema has no per-upstream timeoutMs (see ttsUpstreamSchema);
+      // we use the defaults bucket alone here.
+      const perAttemptTimeoutMs = defaults.perAttemptTimeoutMs ?? 30000
+
+      const result = await dispatchOneTtsUpstream(
+        upstream,
+        i,
+        slice.model.provider,
+        req.input,
+        req.modelName,
+        req.abortSignal,
+        perAttemptTimeoutMs,
+        fallbackHttpCodes,
+        (failure) => { allFailures.push({ provider: providerTag, ...failure }) },
+      )
+
+      if (result.kind === 'ok') {
+        return new Response(result.body, {
+          status: 200,
+          headers: { 'content-type': result.contentType },
+        })
+      }
+
+      options.gatewayMetrics?.keyExhaustedCount.add(1, { provider: providerTag })
+    }
+
+    const lastFailure = allFailures.at(-1)
+    if (lastFailure == null) {
+      throw new Error(`Router exhausted with no recorded failures for tts model ${req.modelName}`)
+    }
+
+    const distinctStatuses = new Set(allFailures.map(f => f.status))
+    if (distinctStatuses.size === 1) {
+      const status = allFailures[0].status
+      const providersHit = new Set(allFailures.map(f => f.provider))
+      for (const provider of providersHit) {
+        options.gatewayMetrics?.sameStatusExhaustion.add(1, {
+          provider,
+          status_code: typeof status === 'number' ? status : 'timeout',
+        })
+      }
+    }
+
+    throw mapUpstreamError(lastFailure.status, {
+      triedKeys: allFailures.length,
+      triedUpstreams,
+      lastStatusCode: lastFailure.status,
+    })
+  }
+
+  /**
+   * Returns the static voice catalog for one TTS provider model. Read from
+   * the adapter's compiled-in JSON — no network call, no envelope decrypt,
+   * no per-upstream variation (voice lists are provider-wide).
+   */
+  async function listTtsVoices(modelName: string) {
+    const slice = await configLoader.getModelConfig('tts', modelName)
+    if (slice.kind !== 'tts')
+      throw new Error(`Expected tts model slice for ${modelName}, got ${slice.kind}`)
+    return getAdapter(slice.model.provider).getVoiceCatalog()
+  }
+
   return {
     route,
+    routeTts,
+    listTtsVoices,
     /**
      * Expose the loader's invalidate hook so U7's Pub/Sub subscriber and
      * the admin endpoint (U9) can flush the cache without a separate

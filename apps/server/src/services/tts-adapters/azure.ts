@@ -31,8 +31,9 @@ const DEFAULT_AZURE_VOICE = 'en-US-AvaMultilingualNeural'
 /**
  * Default Azure output format header value.
  *
- * Mirrors the current knoway hosted default. Maps to OpenAI's `mp3` response
- * format at the adapter boundary (callers can still override).
+ * Maps to OpenAI's `mp3` response format at the adapter boundary so callers
+ * who don't pin `response_format` get a sensible mp3 stream. Callers can
+ * still override via `input.responseFormat`.
  */
 const DEFAULT_AZURE_FORMAT = 'audio-24khz-48kbitrate-mono-mp3'
 

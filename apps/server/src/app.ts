@@ -93,7 +93,7 @@ interface AppDeps {
   env: Env
   otel: OtelInstance | null
   userDeletionService: UserDeletionService
-  llmRouter: LlmRouterService | null
+  llmRouter: LlmRouterService
   posthog: PostHog | null
 }
 
@@ -169,29 +169,27 @@ export async function buildApp(deps: AppDeps) {
   // (R16 / KTD-4). Falls back to the in-memory cache TTL on missed messages.
   // Uses a dedicated ioredis subscriber connection (subscribe mode requires
   // a separate connection per ioredis docs).
-  if (deps.llmRouter) {
-    const configSub = deps.redis.duplicate()
-    configSub.on('message', (channel, message) => {
-      if (channel !== 'configkv:invalidate')
+  const configSub = deps.redis.duplicate()
+  configSub.on('message', (channel, message) => {
+    if (channel !== 'configkv:invalidate')
+      return
+    try {
+      const payload = JSON.parse(message) as { key?: unknown }
+      if (payload?.key !== 'LLM_ROUTER_CONFIG')
         return
-      try {
-        const payload = JSON.parse(message) as { key?: unknown }
-        if (payload?.key !== 'LLM_ROUTER_CONFIG')
-          return
-        deps.llmRouter?.invalidateConfig()
-        deps.otel?.gateway?.configReload.add(1, {
-          source: 'pubsub',
-          service_instance_id: deps.env.OTEL_SERVICE_NAME,
-        })
-      }
-      catch (err) {
-        logger.withError(err).warn('Failed to parse configkv:invalidate payload')
-      }
-    })
-    configSub.subscribe('configkv:invalidate').catch((err: unknown) => {
-      logger.withError(err).warn('Failed to subscribe to configkv:invalidate channel')
-    })
-  }
+      deps.llmRouter.invalidateConfig()
+      deps.otel?.gateway?.configReload.add(1, {
+        source: 'pubsub',
+        service_instance_id: deps.env.OTEL_SERVICE_NAME,
+      })
+    }
+    catch (err) {
+      logger.withError(err).warn('Failed to parse configkv:invalidate payload')
+    }
+  })
+  configSub.subscribe('configkv:invalidate').catch((err: unknown) => {
+    logger.withError(err).warn('Failed to subscribe to configkv:invalidate channel')
+  })
 
   const builtApp = app
     .use('*', sessionMiddleware(deps.auth, deps.env))
@@ -296,7 +294,7 @@ export async function buildApp(deps: AppDeps) {
     /**
      * V1 routes for official provider.
      */
-    .route('/api/v1/openai', createV1CompletionsRoutes(deps.fluxService, deps.billingService, deps.configKV, deps.requestLogService, deps.ttsMeter, deps.redis, deps.env, deps.llmRouter, deps.otel?.genAi, deps.otel?.revenue, deps.otel?.rateLimit))
+    .route('/api/v1/openai', createV1CompletionsRoutes(deps.fluxService, deps.billingService, deps.configKV, deps.requestLogService, deps.ttsMeter, deps.llmRouter, deps.otel?.genAi, deps.otel?.revenue, deps.otel?.rateLimit))
 
     /**
      * Flux routes.
@@ -572,17 +570,11 @@ export async function createApp() {
   })
 
   // LLM router (KTD-5 in-process replacement for the knoway sidecar).
-  // Graceful skip when LLM_ROUTER_MASTER_KEY is unset: the chat-completions
-  // route falls back to the legacy GATEWAY_BASE_URL fetch path. This branch
-  // exists only for the U4→U8 transition window — U8 makes the master key
-  // (and the router) non-optional and deletes the legacy fallback.
+  // LLM_ROUTER_MASTER_KEY is required at env-parse time, so this provider
+  // always builds a real router — the legacy `null` fallback path is gone.
   const llmRouter = injeca.provide('services:llmRouter', {
     dependsOn: { configKV, env: parsedEnv, otel },
     build: ({ dependsOn }) => {
-      if (dependsOn.env.LLM_ROUTER_MASTER_KEY == null) {
-        logger.warn('LLM_ROUTER_MASTER_KEY is not set; LLM router is disabled and chat completions will use the legacy GATEWAY_BASE_URL path (U4 transition)')
-        return null
-      }
       const envelopeCrypto = createEnvelopeCrypto({
         masterKey: dependsOn.env.LLM_ROUTER_MASTER_KEY,
         previousMasterKey: dependsOn.env.LLM_ROUTER_MASTER_KEY_PREVIOUS,

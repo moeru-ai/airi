@@ -1,8 +1,6 @@
 import type { Context } from 'hono'
-import type Redis from 'ioredis'
 import type { PostHog } from 'posthog-node'
 
-import type { Env } from '../../../libs/env'
 import type { GenAiMetrics, RateLimitMetrics, RevenueMetrics } from '../../../otel'
 import type { UsageInfo } from '../../../services/billing/billing'
 import type { BillingService } from '../../../services/billing/billing-service'
@@ -33,20 +31,9 @@ import {
   GEN_AI_ATTR_REQUEST_MODEL,
   GEN_AI_ATTR_USAGE_INPUT_TOKENS,
   GEN_AI_ATTR_USAGE_OUTPUT_TOKENS,
-  getServerConnectionAttributes,
 } from '../../../utils/observability'
-import { getCompressed, setCompressed } from '../../../utils/redis-compressed'
-import { ttsVoicesUpstreamCacheRedisKey } from '../../../utils/redis-keys'
 
 const tracer = trace.getTracer('v1-completions')
-
-// Upstream /audio/voices only changes when the gateway onboards a new backend
-// (days-to-weeks cadence). 24h TTL cuts per-request gateway calls to ~1/day
-// per model; operators can bump DEFAULT_TTS_VOICES immediately via configKV
-// (that map is fetched fresh per request, not cached here) and can wipe the
-// stale voice list with `DEL tts:voices:upstream:<model>` when a backend swap
-// needs to show up before the TTL expires.
-const TTS_VOICES_CACHE_TTL_SECONDS = 24 * 60 * 60
 
 const SAFE_RESPONSE_HEADERS = new Set([
   'content-type',
@@ -62,10 +49,6 @@ function buildSafeResponseHeaders(response: Response): Headers {
       headers.set(key, value)
   })
   return headers
-}
-
-function normalizeBaseUrl(gatewayBaseUrl: string): string {
-  return gatewayBaseUrl.endsWith('/') ? gatewayBaseUrl : `${gatewayBaseUrl}/`
 }
 
 function getLlmMetricAttributes(opts: { model: string, type: string, status: number }): Record<string, string | number> {
@@ -90,9 +73,7 @@ export function createV1CompletionsRoutes(
   configKV: ConfigKVService,
   requestLogService: RequestLogService,
   ttsMeter: FluxMeter,
-  redis: Redis,
-  env: Env,
-  llmRouter: LlmRouterService | null,
+  llmRouter: LlmRouterService,
   genAi?: GenAiMetrics | null,
   revenue?: RevenueMetrics | null,
   rateLimitMetrics?: RateLimitMetrics | null,
@@ -149,26 +130,20 @@ export function createV1CompletionsRoutes(
     }
 
     const body = await c.req.json()
-    // NOTICE:
-    // GATEWAY_BASE_URL is still required by env validation (U8 removes it after
-    // router is fully wired). When `llmRouter` is null (graceful skip — no
-    // LLM_ROUTER_MASTER_KEY), this falls back to the legacy knoway fetch path
-    // unchanged. Server-connection attributes still tag the legacy path; the
-    // router enriches the active span with its own gateway.* attrs on success.
-    const baseUrl = normalizeBaseUrl(env.GATEWAY_BASE_URL)
-    const serverAttributes = getServerConnectionAttributes(baseUrl)
     let requestModel = body.model || 'auto'
 
     if (requestModel === 'auto') {
-      requestModel = env.DEFAULT_CHAT_MODEL
+      requestModel = await configKV.getOrThrow('DEFAULT_CHAT_MODEL')
     }
 
+    // Server-connection attrs come from the router (which knows the actual
+    // upstream baseURL it dispatched to) — it enriches the active span with
+    // its own `airi.gen_ai.gateway.*` attrs on success.
     const span = tracer.startSpan('llm.gateway.chat', {
       attributes: {
         [GEN_AI_ATTR_OPERATION_NAME]: 'chat',
         [GEN_AI_ATTR_REQUEST_MODEL]: requestModel,
         [AIRI_ATTR_GEN_AI_STREAM]: !!body.stream,
-        ...serverAttributes,
       },
     })
 
@@ -187,14 +162,7 @@ export function createV1CompletionsRoutes(
     let response: Response
     try {
       response = await context.with(trace.setSpan(context.active(), span), () =>
-        llmRouter
-          ? llmRouter.route({ modelName: requestModel, body, headers: {}, abortSignal: clientAbort })
-          : fetch(`${baseUrl}chat/completions`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ ...body, model: requestModel }),
-              signal: clientAbort,
-            }))
+        llmRouter.route({ modelName: requestModel, body, headers: {}, abortSignal: clientAbort }))
     }
     catch (err) {
       span.setStatus({ code: SpanStatusCode.ERROR, message: 'Router exhausted or unknown model' })
@@ -486,15 +454,13 @@ export function createV1CompletionsRoutes(
     }
 
     const body = await c.req.json()
-    const baseUrl = normalizeBaseUrl(env.GATEWAY_BASE_URL)
-    const serverAttributes = getServerConnectionAttributes(baseUrl)
     let requestModel = body.model || 'auto'
     // NOTICE: Guard against non-string body.input — upstream would reject it
     // anyway, but billing math (.length → INCRBY) turns NaN into a Redis error.
     const inputText: string = typeof body.input === 'string' ? body.input : ''
 
     if (requestModel === 'auto') {
-      requestModel = env.DEFAULT_TTS_MODEL
+      requestModel = await configKV.getOrThrow('DEFAULT_TTS_MODEL')
     }
 
     // Pre-flight: refuse before hitting upstream if this segment would push the
@@ -502,22 +468,36 @@ export function createV1CompletionsRoutes(
     // still pass when the user has at least 1 Flux.
     await ttsMeter.assertCanAfford(user.id, inputText.length, flux.flux)
 
+    // Map OpenAI-shaped /audio/speech body → adapter-neutral TtsInput. Speed
+    // / response_format / extra fields stay in adapterParams for adapters that
+    // care (Azure SSML rate, Volcengine audio_params, etc.).
+    const ttsInput = {
+      text: inputText,
+      voice: typeof body.voice === 'string' ? body.voice : undefined,
+      speed: typeof body.speed === 'number' ? body.speed : undefined,
+      responseFormat: typeof body.response_format === 'string' ? body.response_format : undefined,
+    }
+
     const span = tracer.startSpan('llm.gateway.tts', {
       attributes: {
         [GEN_AI_ATTR_REQUEST_MODEL]: requestModel,
         [AIRI_ATTR_GEN_AI_OPERATION_KIND]: 'text_to_speech',
-        ...serverAttributes,
       },
     })
 
     const startedAt = Date.now()
 
-    const response = await context.with(trace.setSpan(context.active(), span), () =>
-      fetch(`${baseUrl}audio/speech`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...body, model: requestModel }),
-      }))
+    let response: Response
+    try {
+      response = await context.with(trace.setSpan(context.active(), span), () =>
+        llmRouter.routeTts({ modelName: requestModel, input: ttsInput, abortSignal: c.req.raw.signal }))
+    }
+    catch (err) {
+      span.setStatus({ code: SpanStatusCode.ERROR, message: 'TTS router exhausted or unknown model' })
+      span.end()
+      recordMetrics({ model: requestModel, status: 502, type: 'tts', durationMs: Date.now() - startedAt, fluxConsumed: 0 })
+      throw err
+    }
 
     const durationMs = Date.now() - startedAt
     span.setAttribute('http.response.status_code', response.status)
@@ -535,16 +515,27 @@ export function createV1CompletionsRoutes(
     // Debt-ledger billing: accumulate chars in Redis; only debit when we
     // cross a whole-Flux boundary. Sub-threshold requests cost 0 Flux at this
     // call site — the cost is realised on a later request that crosses.
-    const { fluxDebited: fluxConsumed } = await ttsMeter.accumulate({
-      userId: user.id,
-      units: inputText.length,
-      currentBalance: flux.flux,
-      requestId: nanoid(),
-      metadata: { model: requestModel },
-    })
-
-    span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxConsumed)
-    span.end()
+    //
+    // Wrapped in try/finally so a Redis blip inside `accumulate()` (or any
+    // throw before `span.end()`) doesn't leak the active span. Falling-through
+    // to `throw` reaches the global ApiError handler — billing failure on a
+    // 200 upstream is rare but observable, and a dropped span would have
+    // hidden it.
+    let fluxConsumed = 0
+    try {
+      const result = await ttsMeter.accumulate({
+        userId: user.id,
+        units: inputText.length,
+        currentBalance: flux.flux,
+        requestId: nanoid(),
+        metadata: { model: requestModel },
+      })
+      fluxConsumed = result.fluxDebited
+      span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxConsumed)
+    }
+    finally {
+      span.end()
+    }
     recordMetrics({ model: requestModel, status: response.status, type: 'tts', durationMs, fluxConsumed })
 
     recordRequestLog({
@@ -563,46 +554,27 @@ export function createV1CompletionsRoutes(
 
   async function handleListVoices(c: Context<HonoEnv>) {
     // Voice catalogs are per-model (different TTS models expose different
-    // voices), so cache key and upstream query are both keyed by model.
-    // `auto` and missing values fall back to the server's default.
+    // voices). Catalog content comes from the adapter's compiled-in JSON
+    // (apps/server/src/services/tts-adapters/voices/*.json), so there's
+    // nothing to fetch and the Redis upstream cache is no longer needed —
+    // adapter-side JSON is already in-process. Recommended map stays in
+    // configKV so operators can edit it without a deploy.
     const requested = c.req.query('model')
-    const model = (!requested || requested === 'auto') ? env.DEFAULT_TTS_MODEL : requested
-    const cacheKey = ttsVoicesUpstreamCacheRedisKey(model)
+    const model = (!requested || requested === 'auto')
+      ? await configKV.getOrThrow('DEFAULT_TTS_MODEL')
+      : requested
 
-    let body: Record<string, unknown>
-    const cached = await getCompressed(redis, cacheKey)
-    if (cached != null) {
-      body = JSON.parse(cached) as Record<string, unknown>
-    }
-    else {
-      const url = new URL(`${normalizeBaseUrl(env.GATEWAY_BASE_URL)}audio/voices`)
-      url.searchParams.set('model', model)
-      const response = await fetch(url, { method: 'GET', headers: { Accept: 'application/json' } })
-      if (!response.ok) {
-        return new Response(response.body, {
-          status: response.status,
-          headers: buildSafeResponseHeaders(response),
-        })
-      }
-      // Cache the raw upstream bytes so the write path skips a parse→stringify
-      // round-trip. Body is parsed below for merging with `recommended`.
-      const text = await response.text()
-      body = JSON.parse(text) as Record<string, unknown>
-      await setCompressed(redis, cacheKey, text, TTS_VOICES_CACHE_TTL_SECONDS)
-    }
-
-    // Recommended map is read fresh from configKV (Redis-backed) so operator
-    // edits take effect immediately even while the upstream list is cached.
+    const voices = await llmRouter.listTtsVoices(model)
     const recommended = (await configKV.getOptional('DEFAULT_TTS_VOICES')) ?? {}
-    return Response.json({ ...body, recommended })
+    return Response.json({ voices, recommended })
   }
 
   async function handleListTTSModels(_c: Context<HonoEnv>) {
     // Mirror the chat provider: expose a single 'auto' routing alias instead
     // of the concrete DEFAULT_TTS_MODEL id. Keeps clients insulated from
     // backend model swaps and stays symmetric with /chat listModels.
-    // /audio/speech and /audio/voices already translate 'auto' into
-    // env.DEFAULT_TTS_MODEL before hitting upstream.
+    // /audio/speech and /audio/voices already translate 'auto' into the
+    // configKV DEFAULT_TTS_MODEL alias before hitting upstream.
     return Response.json({
       models: [{ id: 'auto', name: 'Auto' }],
     })

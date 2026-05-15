@@ -1,7 +1,26 @@
 # LLM/TTS router replacing knoway — verification
 
-Verification artifacts for the in-process router shipped across U1-U9 of
+Verification artifacts for the in-process router. Scope tracked against
 `docs/plans/2026-05-15-001-feat-llm-tts-router-replacing-knoway-plan.md`.
+
+## Coverage status
+
+| User path | Code wired | Has fresh evidence |
+|---|---|---|
+| chat completions happy (router → OpenRouter) | ✅ | ✅ commit `3a88f4225`, 2026-05-15 |
+| chat completions fallback (key/upstream exhaustion) | ✅ | ❌ unit-test only, needs real-wire run |
+| TTS speech (Azure) via `routeTts` | ✅ | ⏳ pending (was knoway-fetch until 2026-05-15) |
+| TTS speech (dashscope-cosyvoice) via `routeTts` | ✅ | ⏳ pending |
+| TTS speech (Volcengine) via `routeTts` | ✅ | ⏳ pending |
+| `/audio/voices` from adapter catalog (no upstream) | ✅ | ⏳ pending (sanity curl) |
+| `/livez` | ✅ | ✅ commit `cfad87757`, 2026-05-15 |
+| `/readyz` | ✅ | ✅ commit `cfad87757`, 2026-05-15 |
+
+The TTS paths and `/audio/voices` were missing from the prior revision of
+this doc (which claimed `shipped across U1-U9` while the route handlers
+were still hitting `GATEWAY_BASE_URL`). The router-side wiring landed
+2026-05-15; the table above tracks the real evidence backlog so the doc
+stops asserting completion ahead of measurement.
 
 ## E2E: chat completion through router service
 
@@ -90,10 +109,10 @@ Verification artifacts for the in-process router shipped across U1-U9 of
 - **U9 admin HTTP endpoint**: bootstrap currently goes through the
   `scripts/seed-router-config.ts` CLI. The plan's full HTTP admin endpoint
   with ETag + audit log + HMAC publish is deferred; tracked in plan U9.
-- **GATEWAY_BASE_URL**: still required in env schema. The chat completions
-  route reads it for the legacy knoway fall-through path when `llmRouter`
-  is `null`. Remove once all deployments have rotated in
-  `LLM_ROUTER_MASTER_KEY` and `LLM_ROUTER_CONFIG`.
+- ~~**GATEWAY_BASE_URL**: still required in env schema~~. Resolved
+  2026-05-15: env entry removed, all routes go through `llmRouter.route` /
+  `routeTts` / `listTtsVoices`. The `LLM_ROUTER_MASTER_KEY` env var is
+  now required (no graceful skip).
 - **Grafana dashboard JSON updates**: the new `airi.gen_ai.gateway.*`
   counters are emitted from `apps/server/src/otel/index.ts` but the
   Grafana dashboard JSON in `otel/grafana/dashboards/` does not yet have

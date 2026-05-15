@@ -1,3 +1,5 @@
+import { Buffer } from 'node:buffer'
+
 import { describe, expect, it } from 'vitest'
 
 import { parseAdditionalTrustedOriginsEnv, parseEnv } from './env'
@@ -11,9 +13,8 @@ function baseEnv(): Record<string, string> {
     AUTH_GOOGLE_CLIENT_SECRET: 'google-secret',
     AUTH_GITHUB_CLIENT_ID: 'github-client',
     AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
-    GATEWAY_BASE_URL: 'http://localhost:18080',
-    DEFAULT_CHAT_MODEL: 'openai/gpt-5-mini',
-    DEFAULT_TTS_MODEL: 'microsoft/v1',
+    // Required: a deterministic 32-byte base64 value so env parse succeeds.
+    LLM_ROUTER_MASTER_KEY: Buffer.alloc(32, 0xAA).toString('base64'),
   }
 }
 
@@ -63,12 +64,7 @@ describe('parseEnv', () => {
     })
 
     expect(Buffer.isBuffer(env.LLM_ROUTER_MASTER_KEY)).toBe(true)
-    expect(env.LLM_ROUTER_MASTER_KEY?.length).toBe(32)
-  })
-
-  it('lLM_ROUTER_MASTER_KEY is undefined when not set', () => {
-    const env = parseEnv(baseEnv())
-    expect(env.LLM_ROUTER_MASTER_KEY).toBeUndefined()
+    expect(env.LLM_ROUTER_MASTER_KEY.length).toBe(32)
   })
 
   // NOTICE:
@@ -90,8 +86,8 @@ describe('parseEnv', () => {
       LLM_ROUTER_MASTER_KEY_PREVIOUS: previous,
     })
 
-    expect(env.LLM_ROUTER_MASTER_KEY?.length).toBe(32)
+    expect(env.LLM_ROUTER_MASTER_KEY.length).toBe(32)
     expect(env.LLM_ROUTER_MASTER_KEY_PREVIOUS?.length).toBe(32)
-    expect(env.LLM_ROUTER_MASTER_KEY?.equals(env.LLM_ROUTER_MASTER_KEY_PREVIOUS!)).toBe(false)
+    expect(env.LLM_ROUTER_MASTER_KEY.equals(env.LLM_ROUTER_MASTER_KEY_PREVIOUS!)).toBe(false)
   })
 })

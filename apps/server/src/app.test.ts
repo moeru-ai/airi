@@ -68,7 +68,10 @@ function createTestDeps() {
     } as any,
     otel: null,
     userDeletionService: {} as any,
-    llmRouter: null,
+    llmRouter: {
+      route: vi.fn(async () => new Response('{}', { status: 200 })),
+      invalidateConfig: vi.fn(),
+    } as any,
     posthog: null,
   }
 

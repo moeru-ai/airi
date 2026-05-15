@@ -108,6 +108,16 @@ const ConfigEntrySchemas = {
   // BCP-47 locale → recommended voice id for the default TTS model.
   // Consumed by the client to preselect a voice matching UI locale.
   DEFAULT_TTS_VOICES: optional(record(string(), string()), {}),
+  // Server-side alias resolution for `model: 'auto'` in /chat/completions and
+  // /audio/speech. The modelName written here must exist as a key in
+  // LLM_ROUTER_CONFIG.{llm,tts}.models — the router itself doesn't understand
+  // `auto`, this layer translates before dispatch. No default: missing entry
+  // surfaces CONFIG_NOT_SET (resolveWithDefault swallows ValiError) so a
+  // misconfigured deploy fails the request instead of silently routing to an
+  // empty modelName. Naked schema (not wrapped in optional) keeps the inferred
+  // type tight (`string` rather than `string | undefined`) for call sites.
+  DEFAULT_CHAT_MODEL: pipe(string(), nonEmpty('DEFAULT_CHAT_MODEL must not be empty')),
+  DEFAULT_TTS_MODEL: pipe(string(), nonEmpty('DEFAULT_TTS_MODEL must not be empty')),
   // No default — the router throws CONFIG_NOT_SET when this entry is absent
   // so the admin endpoint (U9) is forced to populate it before traffic flows.
   LLM_ROUTER_CONFIG: optional(llmRouterConfigSchema),

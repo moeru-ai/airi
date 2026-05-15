@@ -175,7 +175,7 @@
 1. 校验已登录
 2. 检查相关配置是否存在
 3. 检查用户 Flux 是否大于 0
-4. 代理请求到 `GATEWAY_BASE_URL`
+4. 交给 `llmRouter.route` / `llmRouter.routeTts`：读 `LLM_ROUTER_CONFIG`，按 upstream 链路 + key rotator + envelope crypto 调上游
 5. 解析 usage，计算扣费
 6. 记录 metrics
 7. 调 `billingService.debitFlux()`

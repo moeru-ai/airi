@@ -497,4 +497,162 @@ describe('createLlmRouterService', () => {
     expect(fetchImpl.mock.calls.length).toBe(2)
     expect((configKV.getOptional as ReturnType<typeof vi.fn>).mock.calls.length).toBe(2)
   })
+
+  // --- routeTts adapter error contract -------------------------------------
+  //
+  // ROOT CAUSE:
+  //
+  // Before patch, `dispatchOneTtsUpstream` read `err.status` to decide
+  // fallback, but `ApiError.statusCode` (not `.status`) is the canonical
+  // field. Every adapter-internal `ApiError` (invalid voice, missing
+  // adapter params, network wrap) was silently coerced to `'timeout'` and
+  // walked every key + upstream before surfacing — wasting upstream quota
+  // and hiding the actual user-facing 400 behind a 502 mapping.
+  //
+  // After patch: ApiError 4xx propagates immediately; ApiError 5xx folds
+  // into the network-failure fallback path using `statusCode`; `Error &
+  // { status }` stays on the existing fallback policy.
+  describe('routeTts adapter error handling', () => {
+    function makeTtsConfig(opts: {
+      provider?: 'azure'
+      upstreams?: Array<{ baseURL: string, keyIds: string[], adapterParams?: Record<string, unknown> }>
+    }): { config: RouterConfig, crypto: ReturnType<typeof createEnvelopeCrypto> } {
+      const crypto = createEnvelopeCrypto({ masterKey: freshMasterKey() })
+      const modelName = 'tts-test'
+      const upstreams = opts.upstreams ?? [{ baseURL: 'https://up-a.example', keyIds: ['kA1'] }]
+      const upstreamConfigs = upstreams.map(u => ({
+        baseURL: u.baseURL,
+        keys: u.keyIds.map((id) => {
+          const plaintext = `sk-${id}`
+          const ct = crypto.encryptKey(plaintext, { modelName, keyEntryId: id })
+          return { id, ciphertext: ct }
+        }),
+        adapterParams: u.adapterParams ?? {},
+      }))
+      const config: RouterConfig = {
+        llm: { models: {} },
+        tts: {
+          models: {
+            [modelName]: {
+              provider: opts.provider ?? 'azure',
+              upstreams: upstreamConfigs,
+              fallbackTriggers: { httpCodes: [401, 429, 500, 502, 503, 504], onTimeout: true },
+            },
+          },
+        },
+        defaults: {
+          perAttemptTimeoutMs: 5000,
+          fullChainTimeoutMs: 10000,
+          fallbackHttpCodes: [401, 429, 500, 502, 503, 504],
+        },
+      } as RouterConfig
+      return { config, crypto }
+    }
+
+    it('apiError 4xx (invalid voice) propagates without touching the second key', async () => {
+      // azure adapter validates `voice` against AZURE_VOICE_ID before any
+      // network call; an invalid voice throws createBadRequestError(400).
+      // Two keys are configured: the second must NEVER be tried.
+      const { config, crypto } = makeTtsConfig({ upstreams: [{ baseURL: 'https://az.example', keyIds: ['kA1', 'kA2'] }] })
+      const fetchImpl = vi.fn(async () => happyResponse({ ok: 1 }))
+      const metrics = makeMetrics()
+
+      const router = createLlmRouterService({
+        configKV: makeConfigKV(config),
+        envelopeCrypto: crypto,
+        gatewayMetrics: metrics,
+        fetchImpl,
+      })
+
+      let caught: unknown
+      try {
+        await router.routeTts({
+          modelName: 'tts-test',
+          input: { text: 'hi', voice: 'bogus voice with spaces' },
+        })
+      }
+      catch (err) {
+        caught = err
+      }
+
+      expect(caught).toBeInstanceOf(ApiError)
+      expect((caught as ApiError).statusCode).toBe(400)
+      // The adapter rejects before fetch; with the bug this would have walked
+      // both keys (and pushed fallback counters). After the fix: zero fetch,
+      // zero fallback bookkeeping.
+      expect(fetchImpl).not.toHaveBeenCalled()
+      expect((metrics.fallbackCount.add as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled()
+    })
+
+    it('apiError 5xx (adapter-wrapped network failure) walks to the next key', async () => {
+      // azure adapter wraps a fetch reject as createInternalError(500).
+      // The router should treat that as a fallback-eligible network failure
+      // and try the second key — not propagate the 500 as a final error.
+      const { config, crypto } = makeTtsConfig({ upstreams: [{ baseURL: 'https://az.example', keyIds: ['kA1', 'kA2'] }] })
+
+      let callIdx = 0
+      const fetchImpl = vi.fn(async () => {
+        callIdx += 1
+        if (callIdx === 1)
+          throw new TypeError('network unreachable')
+        return new Response(new Uint8Array([0x01]), { status: 200, headers: { 'content-type': 'audio/mpeg' } })
+      })
+      const metrics = makeMetrics()
+
+      const router = createLlmRouterService({
+        configKV: makeConfigKV(config),
+        envelopeCrypto: crypto,
+        gatewayMetrics: metrics,
+        fetchImpl,
+      })
+
+      const res = await router.routeTts({
+        modelName: 'tts-test',
+        input: { text: 'hi', voice: 'en-US-AvaMultilingualNeural' },
+      })
+
+      expect(res.status).toBe(200)
+      expect(fetchImpl).toHaveBeenCalledTimes(2)
+      // Adapter-wrapped 500 is in the fallback list, so one fallback hop is
+      // recorded between key 1 and key 2.
+      expect((metrics.fallbackCount.add as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1)
+    })
+
+    it('upstream `Error & { status: 401 }` folds into the existing fallback path', async () => {
+      // azure adapter throws `Error & { status: number }` on upstream non-2xx
+      // (see azure.ts:189-194). 401 is in fallbackHttpCodes so we must try
+      // the next key.
+      const { config, crypto } = makeTtsConfig({ upstreams: [{ baseURL: 'https://az.example', keyIds: ['kA1', 'kA2'] }] })
+
+      let callIdx = 0
+      const fetchImpl = vi.fn(async () => {
+        callIdx += 1
+        if (callIdx === 1)
+          return failResponse(401)
+        return new Response(new Uint8Array([0x01]), { status: 200, headers: { 'content-type': 'audio/mpeg' } })
+      })
+      const metrics = makeMetrics()
+
+      const router = createLlmRouterService({
+        configKV: makeConfigKV(config),
+        envelopeCrypto: crypto,
+        gatewayMetrics: metrics,
+        fetchImpl,
+      })
+
+      const res = await router.routeTts({
+        modelName: 'tts-test',
+        input: { text: 'hi', voice: 'en-US-AvaMultilingualNeural' },
+      })
+
+      expect(res.status).toBe(200)
+      expect(fetchImpl).toHaveBeenCalledTimes(2)
+      const fallbackCalls = (metrics.fallbackCount.add as ReturnType<typeof vi.fn>).mock.calls
+      expect(fallbackCalls.length).toBe(1)
+      // Recorded reason matches the upstream status, not 'timeout' — that's
+      // the regression: pre-fix this would have been 'timeout' because the
+      // adapter's `Error & { status }` was read as undefined.
+      expect(fallbackCalls[0][1]).toMatchObject({ reason: '401' })
+    })
+  })
 })
