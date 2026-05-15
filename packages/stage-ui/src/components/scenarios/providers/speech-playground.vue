@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { VoiceInfo } from '../../../stores/providers'
 
+import { errorMessageFrom } from '@moeru/std'
 import { FieldCheckbox, FieldCombobox } from '@proj-airi/ui'
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -20,7 +21,12 @@ const props = defineProps<{
   // Current state
   apiKeyConfigured?: boolean
   voicesLoading?: boolean
+  hideVoiceSelection?: boolean
 }>()
+
+const selectedVoice = defineModel<string>('selectedVoice', {
+  default: '',
+})
 
 const { t } = useI18n()
 
@@ -32,7 +38,6 @@ const errorMessage = ref('')
 const audioPlayer = ref<HTMLAudioElement | null>(null)
 const useSSML = ref(false)
 const ssmlText = ref('')
-const selectedVoice = ref('')
 
 // Watch for changes in available voices
 watch(
@@ -82,7 +87,7 @@ async function handleGenerateTestSpeech() {
   }
   catch (error) {
     console.error('Error generating speech:', error)
-    errorMessage.value = error instanceof Error ? error.message : 'An unknown error occurred'
+    errorMessage.value = errorMessageFrom(error) ?? 'An unknown error occurred'
   }
   finally {
     isGenerating.value = false
@@ -164,12 +169,15 @@ defineExpose({
       </template>
 
       <FieldCombobox
+        v-if="!props.hideVoiceSelection"
         v-model="selectedVoice"
         :options="voiceOptions"
         :label="t('settings.pages.providers.provider.elevenlabs.playground.fields.field.voice.label')"
         :description="t('settings.pages.providers.provider.elevenlabs.playground.fields.field.voice.description')"
         layout="horizontal"
       />
+
+      <slot name="before-actions" />
 
       <!-- Playground actions -->
       <button

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
+import { errorMessageFrom } from '@moeru/std'
 import {
   Alert,
   ErrorContainer,
@@ -19,9 +20,10 @@ import {
   Skeleton,
   Textarea,
 } from '@proj-airi/ui'
+import { useDebounceFn } from '@vueuse/core'
 import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
@@ -56,6 +58,37 @@ const isGenerating = ref(false)
 const audioUrl = ref('')
 const audioPlayer = ref<HTMLAudioElement | null>(null)
 const errorMessage = ref('')
+const activeSpeechProviderMetadata = computed(() => {
+  return activeSpeechProvider.value ? providersStore.getProviderMetadata(activeSpeechProvider.value) : undefined
+})
+const usesRemoteVoiceSearch = computed(() => {
+  return activeSpeechProviderMetadata.value?.capabilities.voiceSearchMode === 'remote'
+})
+const visibleVoiceOptions = computed(() => {
+  return (availableVoices.value[activeSpeechProvider.value] || []).filter((voice) => {
+    if (!activeSpeechModel.value) {
+      return true
+    }
+
+    return !voice.compatibleModels || voice.compatibleModels.includes(activeSpeechModel.value)
+  }).map(voice => ({
+    id: voice.id,
+    name: voice.name,
+    description: voice.description,
+    previewURL: voice.previewURL,
+    customizable: false,
+  }))
+})
+
+const debouncedLoadVoicesForSearch = useDebounceFn(async (providerId: string, searchTerm: string) => {
+  if (!providerId || activeSpeechProvider.value !== providerId) {
+    return
+  }
+
+  await speechStore.loadVoicesForProvider(providerId, {
+    searchTerm,
+  })
+}, 500)
 
 // Sync OpenAI Compatible model and voice from provider config
 function syncOpenAICompatibleSettings() {
@@ -86,13 +119,18 @@ function syncOpenAICompatibleSettings() {
 
 onMounted(async () => {
   await providersStore.loadModelsForConfiguredProviders()
-  await speechStore.loadVoicesForProvider(activeSpeechProvider.value)
+  await speechStore.loadVoicesForProvider(activeSpeechProvider.value, {
+    searchTerm: usesRemoteVoiceSearch.value ? voiceSearchQuery.value : '',
+  })
   syncOpenAICompatibleSettings()
 })
 
 watch(activeSpeechProvider, async (newProvider, oldProvider) => {
+  voiceSearchQuery.value = ''
   await providersStore.loadModelsForConfiguredProviders()
-  await speechStore.loadVoicesForProvider(newProvider)
+  await speechStore.loadVoicesForProvider(newProvider, {
+    searchTerm: '',
+  })
 
   // Reset model and voice when switching providers (but not on initial load)
   if (oldProvider !== undefined && oldProvider !== newProvider) {
@@ -106,8 +144,18 @@ watch(activeSpeechProvider, async (newProvider, oldProvider) => {
 
 watch(activeSpeechModel, async () => {
   if (activeSpeechProvider.value) {
-    await speechStore.loadVoicesForProvider(activeSpeechProvider.value)
+    await speechStore.loadVoicesForProvider(activeSpeechProvider.value, {
+      searchTerm: usesRemoteVoiceSearch.value ? voiceSearchQuery.value : '',
+    })
   }
+})
+
+watch(voiceSearchQuery, (searchTerm) => {
+  if (!activeSpeechProvider.value || !usesRemoteVoiceSearch.value) {
+    return
+  }
+
+  void debouncedLoadVoicesForSearch(activeSpeechProvider.value, searchTerm)
 })
 
 // Function to generate speech
@@ -190,7 +238,7 @@ async function generateTestSpeech() {
   }
   catch (error) {
     console.error('Error generating speech:', error)
-    errorMessage.value = error instanceof Error ? error.message : 'An unknown error occurred'
+    errorMessage.value = errorMessageFrom(error) ?? 'An unknown error occurred'
   }
   finally {
     isGenerating.value = false
@@ -435,7 +483,7 @@ function handleDeleteProvider(providerId: string) {
           </div>
 
           <!-- Loading state -->
-          <div v-if="isLoadingSpeechProviderVoices">
+          <div v-if="isLoadingSpeechProviderVoices && !(availableVoices[activeSpeechProvider]?.length > 0)">
             <div class="flex flex-col gap-4">
               <Skeleton class="w-full rounded-lg p-2.5 text-sm">
                 <div class="h-1lh" />
@@ -460,27 +508,24 @@ function handleDeleteProvider(providerId: string) {
           <!-- Error state -->
           <!-- Voice selection with RadioCardManySelect (skip for OpenAI Compatible) -->
           <div
-            v-else-if="activeSpeechProvider !== 'openai-compatible-audio-speech' && availableVoices[activeSpeechProvider] && availableVoices[activeSpeechProvider].length > 0"
+            v-else-if="activeSpeechProvider !== 'openai-compatible-audio-speech' && (usesRemoteVoiceSearch || (availableVoices[activeSpeechProvider] && availableVoices[activeSpeechProvider].length > 0))"
             class="space-y-6"
           >
+            <ErrorContainer
+              v-if="speechProviderError"
+              class="mb-2"
+              title="Error loading voices"
+              :error="speechProviderError"
+            />
+
             <VoiceCardManySelect
               v-model:search-query="voiceSearchQuery"
               v-model:voice-id="activeSpeechVoiceId"
+              :remote-search="usesRemoteVoiceSearch"
+              :loading="isLoadingSpeechProviderVoices"
+              :loading-text="usesRemoteVoiceSearch ? 'Searching voices...' : 'Loading voices...'"
               :show-visualizer="false"
-              :voices="availableVoices[activeSpeechProvider]?.filter(voice => {
-                // If no model is selected, show all voices
-                if (!activeSpeechModel) {
-                  return true
-                }
-                // If a model is selected, filter by compatibility
-                return !voice.compatibleModels || voice.compatibleModels.includes(activeSpeechModel)
-              }).map(voice => ({
-                id: voice.id,
-                name: voice.name,
-                description: voice.description,
-                previewURL: voice.previewURL,
-                customizable: false,
-              }))"
+              :voices="visibleVoiceOptions"
               :searchable="true"
               :search-placeholder="t('settings.pages.modules.speech.sections.section.provider-voice-selection.search_voices_placeholder')"
               :search-no-results-title="t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices')"

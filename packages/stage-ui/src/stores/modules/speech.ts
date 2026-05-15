@@ -2,6 +2,7 @@ import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import type { VoiceInfo } from '../providers'
 
+import { errorMessageFrom } from '@moeru/std'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset } from '@vueuse/core'
 import { generateSpeech } from '@xsai/generate-speech'
@@ -83,7 +84,7 @@ export const useSpeechStore = defineStore('speech', () => {
     return ['elevenlabs', 'microsoft-speech', 'azure-speech'].includes(activeSpeechProvider.value)
   })
 
-  async function loadVoicesForProvider(provider: string) {
+  async function loadVoicesForProvider(provider: string, options: { searchTerm?: string } = {}) {
     if (!provider) {
       return []
     }
@@ -92,7 +93,10 @@ export const useSpeechStore = defineStore('speech', () => {
     speechProviderError.value = null
 
     try {
-      const voices = await providersStore.getProviderMetadata(provider).capabilities.listVoices?.(providersStore.getProviderConfig(provider)) || []
+      const voices = await providersStore.getProviderMetadata(provider).capabilities.listVoices?.({
+        ...providersStore.getProviderConfig(provider),
+        searchTerm: options.searchTerm ?? '',
+      }) || []
       // Reassign to trigger reactivity when adding/updating provider entries
       availableVoices.value = {
         ...availableVoices.value,
@@ -102,7 +106,7 @@ export const useSpeechStore = defineStore('speech', () => {
     }
     catch (error) {
       console.error(`Error fetching voices for ${provider}:`, error)
-      speechProviderError.value = error instanceof Error ? error.message : 'Unknown error'
+      speechProviderError.value = errorMessageFrom(error) ?? 'Unknown error'
       return []
     }
     finally {
