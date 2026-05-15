@@ -113,10 +113,21 @@ stops asserting completion ahead of measurement.
   2026-05-15: env entry removed, all routes go through `llmRouter.route` /
   `routeTts` / `listTtsVoices`. The `LLM_ROUTER_MASTER_KEY` env var is
   now required (no graceful skip).
-- **Grafana dashboard JSON updates**: the new `airi.gen_ai.gateway.*`
-  counters are emitted from `apps/server/src/otel/index.ts` but the
-  Grafana dashboard JSON in `otel/grafana/dashboards/` does not yet have
-  panels for them. Plan U8 panel + alert work is deferred to a follow-up.
+- ~~**Grafana dashboard JSON updates**: the new `airi.gen_ai.gateway.*`
+  counters … do not yet have panels for them~~. Partially resolved
+  2026-05-16: `otel/grafana/dashboards/build.ts` generates three router
+  rows (Health / Trends / Admin Plane) covering the 7 gateway counters
+  that have live producers: `fallback_count`, `upstream_errors`,
+  `key_exhausted`, `same_status_exhaustion`, `decrypt_failures`,
+  `config_reload`, and `subscriber_state` (producer added in the same
+  PR — `app.ts` now emits `connected` / `error` / `reconnecting` from the
+  `configkv:invalidate` subscriber). The remaining two counters
+  (`config_write`, `config_invalid_hmac`) intentionally have no panels
+  because their producer is the Plan U9 admin HTTP endpoint that has
+  not shipped; they will rejoin Rows 6.5 / 6.7 alongside the U9 PR.
+  Alert rules (key.exhausted > 0, fallback ratio > 30%, single-key
+  error ratio > 80%) are still configured through Grafana UI, not
+  build.ts — IaC-ifying them is a separate follow-up.
 - **knoway compose retention**: keep `/Users/luoling8192/Git/proj-airi/airi-railway/knoway/`
   + the corresponding container entry in `airi-railway/docker-compose.yml`
   for **at least 14 days without a P1+ incident** before removing per plan R18.

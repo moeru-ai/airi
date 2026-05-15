@@ -729,6 +729,118 @@ elements['panel-32'] = piePanel(
   { noValue: '—' },
 )
 
+// Rows 6.5 / 6.6 / 6.7: LLM/TTS in-process router (KTD-5 / KTD-6).
+// These counters are emitted from `apps/server/src/services/llm-router/router.ts`
+// for every chat AND tts dispatch attempt. fallback_count / upstream_errors
+// track per-attempt failures inside one user request; key_exhausted /
+// same_status_exhaustion fire only on full chain exhaustion. config_* counters
+// belong to the admin-plane subscriber and the seed/admin writers — separated
+// into a collapsed row because operators only look at them during config
+// rollout or post-incident.
+//
+// Counter → prom name mapping (OTel dot → underscore + `_total` for counters):
+//   airi.gen_ai.gateway.fallback.count          → airi_gen_ai_gateway_fallback_count_total
+//   airi.gen_ai.gateway.upstream.errors         → airi_gen_ai_gateway_upstream_errors_total
+//   airi.gen_ai.gateway.key.exhausted           → airi_gen_ai_gateway_key_exhausted_total
+//   airi.gen_ai.gateway.same_status_exhaustion  → airi_gen_ai_gateway_same_status_exhaustion_total
+//   airi.gen_ai.gateway.config.reload           → airi_gen_ai_gateway_config_reload_total
+//   airi.gen_ai.gateway.decrypt.failures        → airi_gen_ai_gateway_decrypt_failures_total
+//   airi.gen_ai.gateway.subscriber_state        → airi_gen_ai_gateway_subscriber_state_total
+//   airi.gen_ai.gateway.config.write            → airi_gen_ai_gateway_config_write_total
+//   airi.gen_ai.gateway.config.invalid_hmac     → airi_gen_ai_gateway_config_invalid_hmac_total
+elements['panel-60'] = statPanel(
+  60,
+  'Key Exhausted (5m)',
+  'Number of (model, upstream) pairs that ran out of usable keys within one user request over the last 5 minutes. Any non-zero value means at least one user request walked an entire upstream\'s key list without a 2xx. Sustained > 0 = a provider account is dead or every stored ciphertext is failing to decrypt — page on-call.',
+  [query(`sum(increase(airi_gen_ai_gateway_key_exhausted_total{${SERVICE_FILTER}}[5m]))`, 'events')],
+  { unit: 'short', steps: [{ color: 'green', value: 0 }, { color: 'red', value: 1 }], noValue: '0' },
+)
+
+elements['panel-61'] = statPanel(
+  61,
+  'Decrypt Failures (5m)',
+  'Envelope-crypto decrypt failures in the key rotator. A non-zero value here is security-relevant: either the master key was rotated without re-wrapping ciphertexts, or someone forged a config blob. Triages straight to the seed script + master-key audit trail.',
+  [query(`sum(increase(airi_gen_ai_gateway_decrypt_failures_total{${SERVICE_FILTER}}[5m]))`, 'events')],
+  { unit: 'short', steps: [{ color: 'green', value: 0 }, { color: 'red', value: 1 }], noValue: '0' },
+)
+
+elements['panel-62'] = gaugePanel(
+  62,
+  'Fallback Ratio % (5m)',
+  'Fallback attempts ÷ total LLM operations over the last 5m. Sustained > 30% means one provider is degraded and the router is silently masking it for users (but burning quota on the failing upstream). chat + tts share the operation counter so this is a cluster-wide health gauge.',
+  [query(
+    `100 * sum(rate(airi_gen_ai_gateway_fallback_count_total{${SERVICE_FILTER}}[5m])) / clamp_min(sum(rate(gen_ai_client_operation_count_total{${SERVICE_FILTER}}[5m])), 1)`,
+    'fallback %',
+  )],
+  { steps: [{ color: 'green', value: 0 }, { color: 'yellow', value: 10 }, { color: 'red', value: 30 }], max: 100, decimals: 1, noValue: '0' },
+)
+
+// panel-63 (Invalid HMAC Writes) intentionally not built: the producer
+// (`config_invalid_hmac` counter) lives in the Plan U9 admin HTTP endpoint
+// that hasn't shipped yet. Adding the panel now would surface a permanent
+// zero that misleads readers into thinking "no attack" when it actually
+// means "no producer". Re-add together with the U9 endpoint PR.
+
+elements['panel-64'] = timeseriesPanel(
+  64,
+  'Fallback Count by Provider + Reason',
+  'Per-provider fallback events broken down by failure reason (HTTP status or `timeout`). A wide spread of reasons under one provider = transient upstream; a single reason dominating = systematic issue (e.g. 429 quota cap, 401 expired key).',
+  [query(
+    `sum by (provider, reason) (rate(airi_gen_ai_gateway_fallback_count_total{${SERVICE_FILTER}}[$__rate_interval]))`,
+    '{{provider}} · {{reason}}',
+  )],
+  { unit: 'ops' },
+)
+
+elements['panel-65'] = timeseriesPanel(
+  65,
+  'Upstream Errors by Status Code',
+  'Per-upstream non-2xx response rate split by status code. Only counts attempts where the upstream actually answered (network timeouts and adapter aborts go to the fallback counter under `reason=timeout`). 401/403 = bad key; 429 = quota; 5xx = upstream outage.',
+  [query(
+    `sum by (provider, status_code) (rate(airi_gen_ai_gateway_upstream_errors_total{${SERVICE_FILTER}}[$__rate_interval]))`,
+    '{{provider}} · {{status_code}}',
+  )],
+  { unit: 'ops' },
+)
+
+elements['panel-66'] = timeseriesPanel(
+  66,
+  'Same-Status Exhaustion by Provider/Status',
+  'Full-chain exhaustions where every attempt returned the same status code (or all timed out). A strong signal that ordinary key fallback cannot recover — points at an account-level cap or a shared backend brownout on the provider side. Each spike is one user request.',
+  [query(
+    `sum by (provider, status_code) (rate(airi_gen_ai_gateway_same_status_exhaustion_total{${SERVICE_FILTER}}[$__rate_interval]))`,
+    '{{provider}} · {{status_code}}',
+  )],
+  { unit: 'ops' },
+)
+
+elements['panel-67'] = timeseriesPanel(
+  67,
+  'Config Reload Events',
+  'Cache invalidations of `LLM_ROUTER_CONFIG` split by source (`pubsub` = Redis fan-out from a peer\'s write; `boot` = first load on startup). Steady low rate is normal. A sudden burst aligned with a deploy = expected. An unexplained burst = someone is writing to the config without auditing.',
+  [query(
+    `sum by (source) (rate(airi_gen_ai_gateway_config_reload_total{${SERVICE_FILTER}}[$__rate_interval]))`,
+    '{{source}}',
+  )],
+  { unit: 'ops' },
+)
+
+// panel-68 (Config Writes) intentionally not built: same reasoning as panel-63
+// — the `config_write` counter has no producer until the Plan U9 admin
+// endpoint ships. Re-add together with the U9 endpoint PR so the `by result`
+// label set (success / etag_mismatch / validation_failed) is meaningful.
+
+elements['panel-69'] = statPanel(
+  69,
+  'Subscriber State Events (5m)',
+  'Lifecycle events for the cross-instance Redis Pub/Sub subscriber (`connected` on initial subscribe, `error` on connection error or subscribe failure, `reconnecting` while ioredis is re-establishing the connection). One `connected` per replica per deploy is normal. Sustained `error` or `reconnecting` without a matching `connected` means an instance is desynced from `configkv:invalidate` — its in-memory router config will drift up to the configCacheTtlMs fallback window.',
+  [query(
+    `sum by (state, service_instance_id) (increase(airi_gen_ai_gateway_subscriber_state_total{${SERVICE_FILTER}}[5m]))`,
+    '{{state}} ({{service_instance_id}})',
+  )],
+  { unit: 'short', noValue: '0' },
+)
+
 // Row 7: Infrastructure — process / DB health (collapsed by default)
 elements['panel-50'] = statPanel(
   50,
@@ -867,6 +979,32 @@ const rows = [
     item('panel-31', 8, 0, 8, 7),
     item('panel-32', 16, 0, 8, 7),
   ]),
+  // Row 6.5: LLM router health — 3 stat/gauge × 8 wide × 5 high.
+  // These are the "wake someone up" indicators (key exhausted, decrypt
+  // failures, fallback storms). Always visible, no collapse, because they
+  // answer "is the in-process router healthy right now". The Invalid HMAC
+  // panel will join this row when the Plan U9 admin endpoint lands.
+  row('LLM Router Health', [
+    item('panel-60', 0, 0, 8, 5),
+    item('panel-61', 8, 0, 8, 5),
+    item('panel-62', 16, 0, 8, 5),
+  ]),
+  // Row 6.6: LLM router trends — 4 timeseries × 6 wide × 8 high.
+  // Same dimensions as Row 6.5 but answers "how is it changing / which
+  // provider is contributing". Wider time context for triage.
+  row('LLM Router Trends', [
+    item('panel-64', 0, 0, 6, 8),
+    item('panel-65', 6, 0, 6, 8),
+    item('panel-66', 12, 0, 6, 8),
+    item('panel-67', 18, 0, 6, 8),
+  ]),
+  // Row 6.7: Gateway admin plane — 1 stat × 24 wide × 5 high, collapsed by
+  // default. Tracks per-instance subscriber lifecycle for cross-instance
+  // config consistency triage. Config Writes panel rejoins this row when the
+  // Plan U9 admin endpoint lands.
+  row('Gateway Admin Plane', [
+    item('panel-69', 0, 0, 24, 5),
+  ], { collapse: true }),
   // Row 7: 1 stat + 3 by-instance timeseries × 6 wide × 6 high (collapsed by
   // default — only relevant when triaging. By-instance breakdowns catch
   // single-replica issues that cluster aggregates would average away.)

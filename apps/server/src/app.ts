@@ -63,7 +63,7 @@ import { createConfigKVService } from './services/config-kv'
 import { createEmailService } from './services/email'
 import { createFluxService } from './services/flux'
 import { createFluxTransactionService } from './services/flux-transaction'
-import { createLlmRouterService } from './services/llm-router'
+import { createConfigSyncSubscriber, createLlmRouterService } from './services/llm-router'
 import { createPostHogClient } from './services/posthog'
 import { createProviderService } from './services/providers'
 import { createRequestLogService } from './services/request-log'
@@ -164,31 +164,14 @@ export async function buildApp(deps: AppDeps) {
     return chatWsSetup(session.user.id)
   }))
 
-  // Subscribe to the cross-instance config invalidation channel so admin
-  // writes to LLM_ROUTER_CONFIG propagate within ≤5s across the cluster
-  // (R16 / KTD-4). Falls back to the in-memory cache TTL on missed messages.
-  // Uses a dedicated ioredis subscriber connection (subscribe mode requires
-  // a separate connection per ioredis docs).
-  const configSub = deps.redis.duplicate()
-  configSub.on('message', (channel, message) => {
-    if (channel !== 'configkv:invalidate')
-      return
-    try {
-      const payload = JSON.parse(message) as { key?: unknown }
-      if (payload?.key !== 'LLM_ROUTER_CONFIG')
-        return
-      deps.llmRouter.invalidateConfig()
-      deps.otel?.gateway?.configReload.add(1, {
-        source: 'pubsub',
-        service_instance_id: deps.env.OTEL_SERVICE_NAME,
-      })
-    }
-    catch (err) {
-      logger.withError(err).warn('Failed to parse configkv:invalidate payload')
-    }
-  })
-  configSub.subscribe('configkv:invalidate').catch((err: unknown) => {
-    logger.withError(err).warn('Failed to subscribe to configkv:invalidate channel')
+  // Cross-instance config invalidation. The subscriber owns its own
+  // connection + lifecycle metrics; see services/llm-router/config-sync-subscriber.ts.
+  createConfigSyncSubscriber({
+    redis: deps.redis,
+    llmRouter: deps.llmRouter,
+    gatewayMetrics: deps.otel?.gateway ?? null,
+    instanceId: deps.env.OTEL_SERVICE_NAME,
+    logger: useLogger('config-sync').useGlobalConfig(),
   })
 
   const builtApp = app
