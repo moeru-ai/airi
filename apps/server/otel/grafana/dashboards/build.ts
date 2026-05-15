@@ -414,17 +414,12 @@ elements['panel-6'] = gaugePanel(
 // Row 2: Distribution — "what KIND of traffic right now?"
 // Donuts answer the current breakdown question better than stacked area.
 // Use `topk(N, ...)` so a long-tail label set doesn't render an unreadable
-// 30-slice pie.
-elements['panel-7'] = piePanel(
-  7,
-  'HTTP Methods (last 5m)',
-  'Share of inbound HTTP requests by method. Skew toward POST often signals a misbehaving client; surprise PUT/DELETE may indicate stale clients.',
-  [query(
-    `sum by (http_request_method) (increase(http_server_request_duration_seconds_count{${SERVICE_FILTER}, http_request_method!="OPTIONS"}[5m]))`,
-    '{{http_request_method}}',
-  )],
-)
-
+// 30-slice pie. HTTP method donut was removed because the dimension is so
+// low-cardinality (GET/POST/DELETE/HEAD) that the slice ratios barely move —
+// the by-method timeseries in Row 3 already conveys the same information
+// with time context. Status-code donut was replaced by Top Routes because
+// the 2xx slice dominates and the by-status timeseries in Row 5 already
+// surfaces 4xx/5xx independently.
 elements['panel-8'] = piePanel(
   8,
   'LLM Models (last 5m)',
@@ -437,11 +432,11 @@ elements['panel-8'] = piePanel(
 
 elements['panel-9'] = piePanel(
   9,
-  'HTTP Status Codes (last 5m)',
-  'Distribution of response codes. A healthy server is ~95%+ 2xx — yellow/red slices stand out instantly.',
+  'Top Routes by Requests (last 5m)',
+  'Top 10 Hono-matched routes by request count over the last 5 minutes. Answers "which endpoint is being hit, and how much" — replaces the previous HTTP status-code donut whose 2xx slice dominated everything else. Cardinality is bounded because `http_route` is the matched route pattern, not the concrete URL.',
   [query(
-    `sum by (http_response_status_code) (increase(http_server_request_duration_seconds_count{${SERVICE_FILTER}, http_request_method!="OPTIONS"}[5m]))`,
-    '{{http_response_status_code}}',
+    `topk(10, sum by (http_route) (increase(http_server_request_duration_seconds_count{${SERVICE_FILTER}, http_request_method!="OPTIONS", http_route!=""}[5m])))`,
+    '{{http_route}}',
   )],
 )
 
@@ -477,6 +472,28 @@ elements['panel-12'] = timeseriesPanel(
     query(`sum(rate(ws_messages_received_total{${SERVICE_FILTER}}[$__rate_interval]))`, 'received/s', 'B'),
   ],
   { unit: 'ops' },
+)
+
+elements['panel-13'] = timeseriesPanel(
+  13,
+  'WS Connections',
+  'Live WebSocket connection count over time. Row 1\'s stat shows the current value; this panel lets you correlate connection-count changes with deploys, network blips, or message throughput spikes. Same gauge as Row 1, charted instead of `lastNotNull`.',
+  [query(`sum(ws_connections_active{${SERVICE_FILTER}})`, 'connections')],
+  { unit: 'short' },
+)
+
+// Row 3.5: Top Endpoints — Row 3 answered "by method/model/WS-channel".
+// This row answers "by route" which has higher cardinality and warrants
+// a full-width panel + topk so the legend stays readable.
+elements['panel-14'] = timeseriesPanel(
+  14,
+  'HTTP Request Rate by Route (top 10)',
+  'Per-route request rate, top 10 by current rate. Pair with Row 4 P95 to spot hot endpoints that are also slow. Cardinality is the Hono-matched route pattern (e.g. `/api/v1/openai/v1/chat/completions`), not the concrete URL.',
+  [query(
+    `topk(10, sum by (http_route) (rate(http_server_request_duration_seconds_count{${SERVICE_FILTER}, http_request_method!="OPTIONS", http_route!=""}[$__rate_interval])))`,
+    '{{http_route}}',
+  )],
+  { unit: 'reqps' },
 )
 
 // Row 4: Latency — how slow we are
@@ -648,17 +665,29 @@ const rows = [
     item('panel-5', 16, 0, 4, 4),
     item('panel-6', 20, 0, 4, 4),
   ]),
-  // Row 2: 3 donuts × 8 wide × 7 high — current-state distribution
+  // Row 2: 2 donuts × 12 wide × 7 high — current-state distribution
+  // Dropped HTTP-methods donut (low-cardinality, redundant with Row 3 by-method
+  // timeseries) and HTTP-status donut (2xx dominated, 4xx/5xx already broken
+  // out in Row 5). Replaced status donut with Top Routes which answers a
+  // higher-information question with the same visual budget.
   row('Distribution (now)', [
-    item('panel-7', 0, 0, 8, 7),
-    item('panel-8', 8, 0, 8, 7),
-    item('panel-9', 16, 0, 8, 7),
+    item('panel-8', 0, 0, 12, 7),
+    item('panel-9', 12, 0, 12, 7),
   ]),
-  // Row 3: 3 timeseries × 8 wide × 8 high — same data as Row 2 but over time
+  // Row 3: 4 timeseries × 6 wide × 8 high — same data as Row 2 but over time.
+  // WS Connections joined this row so the live WS state can be correlated
+  // with HTTP/LLM/WS-message trends on the same time axis.
   row('Traffic Trends', [
-    item('panel-10', 0, 0, 8, 8),
-    item('panel-11', 8, 0, 8, 8),
-    item('panel-12', 16, 0, 8, 8),
+    item('panel-10', 0, 0, 6, 8),
+    item('panel-11', 6, 0, 6, 8),
+    item('panel-12', 12, 0, 6, 8),
+    item('panel-13', 18, 0, 6, 8),
+  ]),
+  // Row 3.5: 1 timeseries × 24 wide × 7 high — top routes get the full width
+  // because route-level cardinality (~5-10 series after topk) needs space
+  // for the legend table.
+  row('Top Endpoints', [
+    item('panel-14', 0, 0, 24, 7),
   ]),
   // Row 4: 2 timeseries × 12 wide × 8 high
   row('Latency', [

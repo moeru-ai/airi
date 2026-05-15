@@ -73,3 +73,60 @@ export function registerPosthogBuildInfo(buildInfo: AboutBuildInfo): void {
     app_build_time: buildInfo.builtOn,
   })
 }
+
+/**
+ * Identify the current user on PostHog so server-side `payment_completed` /
+ * `subscription_cancelled` events (which use the Better Auth user id as
+ * `distinctId`) merge with the same person profile as the browser's
+ * anonymous funnel start events. Without this call the funnel is broken
+ * end-to-end: server events land on the user-id person, browser events
+ * land on the anonymous device person, PostHog cannot join them.
+ *
+ * Expects:
+ * - `userId` is the Better Auth user id (`user.id`) — must match what
+ *   `apps/server/src/routes/stripe/index.ts` passes as `distinctId` in
+ *   `capturePaymentCompleted`.
+ */
+export function identifyPosthogUser(userId: string): void {
+  if (!posthogInitialized || posthog.has_opted_out_capturing())
+    return
+  // PostHog's `identify` is idempotent and aliases the anonymous distinct
+  // id, so calling it on every auth-state-change is safe.
+  posthog.identify(userId)
+}
+
+/**
+ * Reset PostHog's distinct id on logout so subsequent activity from this
+ * device is treated as a new anonymous user (not attributed to the prior
+ * logged-in user, which would corrupt cohort analysis if a second user
+ * signs in on the same device).
+ */
+export function resetPosthog(): void {
+  if (!posthogInitialized)
+    return
+  posthog.reset()
+}
+
+interface PosthogCaptureOptions {
+  send_instantly?: boolean
+  transport?: 'XHR' | 'fetch' | 'sendBeacon'
+}
+
+/**
+ * Single source-of-truth wrapper for emitting events from store-layer code
+ * (places that can't pull `useAnalytics()` without creating circular
+ * `analytics-store → use-analytics composable → analytics-store` graphs).
+ * Returns `false` when capture was skipped so callers can gate dedup flags.
+ *
+ * Use when:
+ * - You're inside a pinia store / Vue watcher that needs to fire a PostHog
+ *   event. UI components should still prefer `useAnalytics()` composable
+ *   for consistency with existing call sites.
+ */
+export function capturePosthogEvent(name: string, properties: Record<string, unknown>, options?: PosthogCaptureOptions): boolean {
+  if (!posthogInitialized || posthog.has_opted_out_capturing())
+    return false
+
+  posthog.capture(name, properties, options)
+  return true
+}

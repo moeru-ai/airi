@@ -124,6 +124,7 @@ catalog:
   oxc-minify: ^0.126.0
   pinia: ^3.0.4
   posthog-js: 1.306.1
+  posthog-node: ^5.34.1
   reka-ui: ^2.9.2
   replicate: ^1.4.0
   splitpanes: ^4.0.4

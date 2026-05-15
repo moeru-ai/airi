@@ -530,97 +530,6 @@
         }
       }
     },
-    "panel-7": {
-      "kind": "Panel",
-      "spec": {
-        "data": {
-          "kind": "QueryGroup",
-          "spec": {
-            "queries": [
-              {
-                "kind": "PanelQuery",
-                "spec": {
-                  "hidden": false,
-                  "query": {
-                    "datasource": {
-                      "name": "grafanacloud-projairi-prom"
-                    },
-                    "group": "prometheus",
-                    "kind": "DataQuery",
-                    "spec": {
-                      "expr": "sum by (http_request_method) (increase(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\"}[5m]))",
-                      "legendFormat": "{{http_request_method}}"
-                    },
-                    "version": "v0"
-                  },
-                  "refId": "A"
-                }
-              }
-            ],
-            "queryOptions": {},
-            "transformations": []
-          }
-        },
-        "description": "Share of inbound HTTP requests by method. Skew toward POST often signals a misbehaving client; surprise PUT/DELETE may indicate stale clients.",
-        "id": 7,
-        "links": [],
-        "title": "HTTP Methods (last 5m)",
-        "vizConfig": {
-          "group": "piechart",
-          "kind": "VizConfig",
-          "spec": {
-            "fieldConfig": {
-              "defaults": {
-                "color": {
-                  "mode": "palette-classic"
-                },
-                "custom": {
-                  "hideFrom": {
-                    "legend": false,
-                    "tooltip": false,
-                    "viz": false
-                  }
-                },
-                "unit": "short",
-                "noValue": "no traffic"
-              },
-              "overrides": []
-            },
-            "options": {
-              "displayLabels": [
-                "percent"
-              ],
-              "legend": {
-                "calcs": [
-                  "lastNotNull"
-                ],
-                "displayMode": "table",
-                "placement": "right",
-                "showLegend": true,
-                "values": [
-                  "value",
-                  "percent"
-                ]
-              },
-              "pieType": "donut",
-              "reduceOptions": {
-                "calcs": [
-                  "lastNotNull"
-                ],
-                "fields": "",
-                "values": false
-              },
-              "tooltip": {
-                "hideZeros": false,
-                "mode": "single",
-                "sort": "none"
-              }
-            }
-          },
-          "version": "13.0.0-23630096546"
-        }
-      }
-    },
     "panel-8": {
       "kind": "Panel",
       "spec": {
@@ -730,8 +639,8 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "sum by (http_response_status_code) (increase(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\"}[5m]))",
-                      "legendFormat": "{{http_response_status_code}}"
+                      "expr": "topk(10, sum by (http_route) (increase(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\", http_route!=\"\"}[5m])))",
+                      "legendFormat": "{{http_route}}"
                     },
                     "version": "v0"
                   },
@@ -743,10 +652,10 @@
             "transformations": []
           }
         },
-        "description": "Distribution of response codes. A healthy server is ~95%+ 2xx — yellow/red slices stand out instantly.",
+        "description": "Top 10 Hono-matched routes by request count over the last 5 minutes. Answers \"which endpoint is being hit, and how much\" — replaces the previous HTTP status-code donut whose 2xx slice dominated everything else. Cardinality is bounded because `http_route` is the matched route pattern, not the concrete URL.",
         "id": 9,
         "links": [],
-        "title": "HTTP Status Codes (last 5m)",
+        "title": "Top Routes by Requests (last 5m)",
         "vizConfig": {
           "group": "piechart",
           "kind": "VizConfig",
@@ -1142,6 +1051,238 @@
                   ]
                 },
                 "unit": "ops"
+              },
+              "overrides": []
+            },
+            "options": {
+              "annotations": {
+                "clustering": -1,
+                "multiLane": false
+              },
+              "legend": {
+                "calcs": [
+                  "lastNotNull",
+                  "max"
+                ],
+                "displayMode": "table",
+                "placement": "right",
+                "showLegend": true
+              },
+              "tooltip": {
+                "hideZeros": false,
+                "mode": "multi",
+                "sort": "desc"
+              }
+            }
+          },
+          "version": "13.0.0-23630096546"
+        }
+      }
+    },
+    "panel-13": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "grafanacloud-projairi-prom"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "expr": "sum(ws_connections_active{service_name=~\"$service\", deployment_environment=~\"$env\"})",
+                      "legendFormat": "connections"
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "Live WebSocket connection count over time. Row 1's stat shows the current value; this panel lets you correlate connection-count changes with deploys, network blips, or message throughput spikes. Same gauge as Row 1, charted instead of `lastNotNull`.",
+        "id": 13,
+        "links": [],
+        "title": "WS Connections",
+        "vizConfig": {
+          "group": "timeseries",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "barWidthFactor": 0.6,
+                  "drawStyle": "line",
+                  "fillOpacity": 20,
+                  "gradientMode": "none",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 1,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "auto",
+                  "showValues": false,
+                  "spanNulls": false,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short"
+              },
+              "overrides": []
+            },
+            "options": {
+              "annotations": {
+                "clustering": -1,
+                "multiLane": false
+              },
+              "legend": {
+                "calcs": [
+                  "lastNotNull",
+                  "max"
+                ],
+                "displayMode": "table",
+                "placement": "right",
+                "showLegend": true
+              },
+              "tooltip": {
+                "hideZeros": false,
+                "mode": "multi",
+                "sort": "desc"
+              }
+            }
+          },
+          "version": "13.0.0-23630096546"
+        }
+      }
+    },
+    "panel-14": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "grafanacloud-projairi-prom"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "expr": "topk(10, sum by (http_route) (rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\", http_route!=\"\"}[$__rate_interval])))",
+                      "legendFormat": "{{http_route}}"
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "Per-route request rate, top 10 by current rate. Pair with Row 4 P95 to spot hot endpoints that are also slow. Cardinality is the Hono-matched route pattern (e.g. `/api/v1/openai/v1/chat/completions`), not the concrete URL.",
+        "id": 14,
+        "links": [],
+        "title": "HTTP Request Rate by Route (top 10)",
+        "vizConfig": {
+          "group": "timeseries",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "barWidthFactor": 0.6,
+                  "drawStyle": "line",
+                  "fillOpacity": 20,
+                  "gradientMode": "none",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 1,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "auto",
+                  "showValues": false,
+                  "spanNulls": false,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "reqps"
               },
               "overrides": []
             },
@@ -2678,24 +2819,11 @@
                     "spec": {
                       "element": {
                         "kind": "ElementReference",
-                        "name": "panel-7"
-                      },
-                      "height": 7,
-                      "width": 8,
-                      "x": 0,
-                      "y": 0
-                    }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
                         "name": "panel-8"
                       },
                       "height": 7,
-                      "width": 8,
-                      "x": 8,
+                      "width": 12,
+                      "x": 0,
                       "y": 0
                     }
                   },
@@ -2707,8 +2835,8 @@
                         "name": "panel-9"
                       },
                       "height": 7,
-                      "width": 8,
-                      "x": 16,
+                      "width": 12,
+                      "x": 12,
                       "y": 0
                     }
                   }
@@ -2734,7 +2862,7 @@
                         "name": "panel-10"
                       },
                       "height": 8,
-                      "width": 8,
+                      "width": 6,
                       "x": 0,
                       "y": 0
                     }
@@ -2747,8 +2875,8 @@
                         "name": "panel-11"
                       },
                       "height": 8,
-                      "width": 8,
-                      "x": 8,
+                      "width": 6,
+                      "x": 6,
                       "y": 0
                     }
                   },
@@ -2760,8 +2888,21 @@
                         "name": "panel-12"
                       },
                       "height": 8,
-                      "width": 8,
-                      "x": 16,
+                      "width": 6,
+                      "x": 12,
+                      "y": 0
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-13"
+                      },
+                      "height": 8,
+                      "width": 6,
+                      "x": 18,
                       "y": 0
                     }
                   }
@@ -2769,6 +2910,33 @@
               }
             },
             "title": "Traffic Trends"
+          }
+        },
+        {
+          "kind": "RowsLayoutRow",
+          "spec": {
+            "collapse": false,
+            "layout": {
+              "kind": "GridLayout",
+              "spec": {
+                "items": [
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-14"
+                      },
+                      "height": 7,
+                      "width": 24,
+                      "x": 0,
+                      "y": 0
+                    }
+                  }
+                ]
+              }
+            },
+            "title": "Top Endpoints"
           }
         },
         {
