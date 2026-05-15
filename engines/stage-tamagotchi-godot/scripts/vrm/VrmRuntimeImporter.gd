@@ -9,6 +9,15 @@ extends RefCounted
 const vrm_constants = preload("res://addons/vrm/vrm_constants.gd")
 const vrm_extension_class = preload("res://scripts/vrm/AiriVrmRuntimeExtension.gd")
 
+# NOTICE:
+# Godot exposes this named-skin-bind flag through EditorSceneFormatImporter, but
+# GLTFDocument also consumes the same bit during runtime append_from_file import.
+# Keep the literal here because exported runtime code should not depend on the
+# editor importer API.
+# Source: Godot 4.6.2 `modules/gltf/gltf_document.cpp`
+# `GLTF_IMPORT_USE_NAMED_SKIN_BINDS = 16`.
+# Removal condition:
+# - Replace with a public GLTFDocument runtime flag if Godot exposes one.
 const IMPORT_USE_NAMED_SKIN_BINDS := 16
 
 var _last_error := ""
