@@ -4,7 +4,8 @@
 
 应用在 `src/app.ts` 中挂载以下路由：
 
-- `GET /health`
+- `GET /livez` — K8s 风格 liveness 探针，纯静态 200，不碰任何外部依赖
+- `GET /readyz` — K8s 风格 readiness 探针，并发 ping Postgres + Redis；任一失败回 503。**不**检查上游 LLM key 健康（R14）
 - `GET /` — 服务标识 JSON，避免邮件链接拼错落到框架默认 404
 - `/api/auth/*`
 - `/api/v1/characters`

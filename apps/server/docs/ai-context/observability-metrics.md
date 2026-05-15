@@ -30,7 +30,7 @@ OTel SDK 在导出到 Prometheus 时做两件事：
 >
 > **STABLE-only**：[instrumentation.ts](../../instrumentation.ts) 把 `OTEL_SEMCONV_STABILITY_OPT_IN=http` 提前注入。OLD 系列（`http.server.duration` in ms）不再发射。详见 [`observability-conventions.md` 的 SemconvStability 章节](./observability-conventions.md#semconvstability-迁移说明)。
 >
-> `/health` 路径在 [app.ts](../../src/app.ts) 的 @hono/otel 包装层被显式 skip，Railway 健康检查不进 metric。
+> `/livez` 和 `/readyz` 在 [app.ts](../../src/app.ts) 的 @hono/otel 包装层被显式 skip，K8s 风格探针不进 metric。
 
 ## Auth & Users
 

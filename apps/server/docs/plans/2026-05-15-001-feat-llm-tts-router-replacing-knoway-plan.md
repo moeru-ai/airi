@@ -10,7 +10,7 @@ deepened:
 
 ## Summary
 
-在 `apps/server` 内新建一个 in-process 路由模块替换 knoway sidecar：LLM `/v1/chat/completions` 走 SSE passthrough + 请求内多 key fallback + 跨 upstream fallback；TTS `/v1/audio/speech` 走 adapter interface（v1 三家：Azure / DashScope cosyvoice / Volcengine，非流式 REST 实现）；`/v1/audio/voices` 由仓库内静态 JSON 提供；configKV 增 `LLM_ROUTER_CONFIG` composite 条目承载整棵路由器配置；新 envelope encryption 工具加密存储 provider key；OTel 用 `airi.gen_ai.gateway.*` 自定义属性，新增 fallback / key 健康相关 metrics；新增 `/healthz/live` + `/healthz/ready`；一次性切流 + 数据驱动决定何时删 knoway compose。
+在 `apps/server` 内新建一个 in-process 路由模块替换 knoway sidecar：LLM `/v1/chat/completions` 走 SSE passthrough + 请求内多 key fallback + 跨 upstream fallback；TTS `/v1/audio/speech` 走 adapter interface（v1 三家：Azure / DashScope cosyvoice / Volcengine，非流式 REST 实现）；`/v1/audio/voices` 由仓库内静态 JSON 提供；configKV 增 `LLM_ROUTER_CONFIG` composite 条目承载整棵路由器配置；新 envelope encryption 工具加密存储 provider key；OTel 用 `airi.gen_ai.gateway.*` 自定义属性，新增 fallback / key 健康相关 metrics；新增 `/livez` + `/readyz`；一次性切流 + 数据驱动决定何时删 knoway compose。
 
 ---
 
@@ -61,7 +61,7 @@ R-IDs 沿用 origin 文档（详见 origin 中 R1-R19 描述）：
 | KTD-9 | Voice catalog 用 **静态 JSON 提交仓库**（`apps/server/src/services/tts-adapters/voices/*.json`），不在运行时跨服务聚合 | origin D12 |
 | KTD-10 | LLM/TTS 路由 logic **全部下沉到 `src/services/llm-router/`**，路由层只做 param validation + auth guard + 调 service + 处理响应；现有 `routes/openai/v1/index.ts` 的 TODO `:97-98` 同期解决 | apps/server/CLAUDE.md "Routes: thin — no business logic" |
 | KTD-11 | 路由器**不持久化** key 死活状态（origin D33 risk-accepted），但 OTel 上报支持 SLO 触发器（fallback.depth > 0.5 / 24h, 单 key > 80% 错误 / 30min）以便后续手动促 v2 | origin Success Criteria + D29 |
-| KTD-12 | `/healthz/live` 和 `/healthz/ready` 是**新路径**（不替换现有 `/health` —— 后者保留兼容），按现有 `httpInstrumentationMiddleware` 的 `/health` 排除规则同样跳过 | apps/server/src/app.ts:126-128 模式 |
+| KTD-12 | `/livez` 和 `/readyz` 是**新路径**（K8s 风格，post-implementation 决定不保留 legacy `/health`），按现有 `httpInstrumentationMiddleware` 的探针排除规则同样跳过 | apps/server/src/app.ts:126-128 模式 |
 | KTD-13 | 跨 upstream fallback 在**同一请求内**触发：upstream A 全 key 失败后切 upstream B 全 key 试，全 upstream 都失败才返 5xx | origin R5 |
 
 ---
@@ -220,7 +220,7 @@ apps/server/
 │   │   └── index.ts                           # MODIFY: prime new gateway metrics; new GatewayMetrics bundle
 │   ├── services/
 │   │   └── config-kv.ts                       # MODIFY: add LLM_ROUTER_CONFIG to ConfigEntrySchemas
-│   ├── app.ts                                 # MODIFY: DI wiring, /healthz routes, remove GATEWAY_BASE_URL
+│   ├── app.ts                                 # MODIFY: DI wiring, /livez + /readyz routes, remove GATEWAY_BASE_URL
 │   ├── libs/env.ts                            # MODIFY: add LLM_ROUTER_MASTER_KEY env var; remove GATEWAY_BASE_URL
 │   └── libs/env.test.ts                       # MODIFY
 ├── otel/
@@ -232,7 +232,7 @@ apps/server/
 │   └── ai-context/
 │       ├── observability-metrics.md           # MODIFY: register new metrics
 │       ├── observability-conventions.md       # MODIFY: gen_ai.system values + airi.gen_ai.gateway.* namespace
-│       ├── transport-and-routes.md            # MODIFY: new /healthz routes; route → service mapping
+│       ├── transport-and-routes.md            # MODIFY: new /livez + /readyz routes; route → service mapping
 │       ├── redis-boundaries-and-pubsub.md     # MODIFY: configkv:invalidate channel contract
 │       └── verifications/
 │           └── llm-router.md                  # NEW: verification doc per AGENTS.md template
@@ -559,9 +559,9 @@ apps/server/
 
 ---
 
-### U7. Pub/Sub config invalidation + `/healthz/live` + `/healthz/ready`
+### U7. Pub/Sub config invalidation + `/livez` + `/readyz`
 
-**Goal**: Wire Pub/Sub-driven invalidation of the LLM router config in-memory cache (KTD-4). Add per-instance `config.reload` OTel counter. Add `/healthz/live` (always 200) and `/healthz/ready` (Postgres + Redis ping) endpoints. **Gateway key health does NOT affect readiness** (R14).
+**Goal**: Wire Pub/Sub-driven invalidation of the LLM router config in-memory cache (KTD-4). Add per-instance `config.reload` OTel counter. Add `/livez` (always 200) and `/readyz` (Postgres + Redis ping) endpoints. **Gateway key health does NOT affect readiness** (R14).
 
 **Requirements**: R13, R14, R16, R16a (acknowledged as Outstanding Question — not actively delivered, see "Resolve before merging" below), KTD-4, KTD-12.
 
@@ -570,7 +570,7 @@ apps/server/
 **Files**:
 - `apps/server/src/services/llm-router/config-loader.ts` (MODIFY — add `subscribeToInvalidations(redis)` wiring)
 - `apps/server/src/utils/redis-keys.ts` (MODIFY — add `configKvInvalidateChannel()` helper)
-- `apps/server/src/app.ts` (MODIFY — register `/healthz/live`, `/healthz/ready`, exclude both from `httpInstrumentationMiddleware`; wire config-loader to redis subscriber; admin endpoint for `set LLM_ROUTER_CONFIG` publishes invalidation)
+- `apps/server/src/app.ts` (MODIFY — register `/livez`, `/readyz`, exclude both from `httpInstrumentationMiddleware`; wire config-loader to redis subscriber; admin endpoint for `set LLM_ROUTER_CONFIG` publishes invalidation)
 - `apps/server/src/routes/admin/...` (MODIFY — if admin set endpoint exists for configKV; publish on write)
 - `apps/server/src/app.test.ts` (NEW — health endpoint tests)
 - `apps/server/docs/ai-context/redis-boundaries-and-pubsub.md` (MODIFY — declare `configkv:invalidate` channel)
@@ -580,9 +580,9 @@ apps/server/
 - On `configKV.set('LLM_ROUTER_CONFIG', value)`: publish to channel.
 - In `createLlmRouterService` init: subscribe via separate `ioredis` instance (Redis Pub/Sub requires dedicated subscriber connection per ioredis docs). On message matching `key === 'LLM_ROUTER_CONFIG'`: call `config-loader.invalidate()` and increment `gateway.configReload.add(1, {service_instance_id, source: 'pubsub'})`.
 - TTL fallback: in-memory cache has TTL = 5s. On TTL expiry next request reloads from configKV (Postgres+Redis source-of-truth chain) and increments counter with `source: 'ttl'`.
-- `/healthz/live`: route returns `200 {status: 'live'}` always. No DB / Redis touch. Excluded from `httpInstrumentationMiddleware` (`apps/server/src/app.ts:126-128` pattern).
-- `/healthz/ready`: route pings Postgres (`SELECT 1`) + Redis (`PING`). Returns 200 if both ok; 503 otherwise. **Does not check gateway key health** (R14 — single key flap can't take instance out of pool).
-- Existing `/health` endpoint at `apps/server/src/app.ts:187` stays (keep external monitors stable); declared deprecated in docs in U8.
+- `/livez`: route returns `200 {status: 'live'}` always. No DB / Redis touch. Excluded from `httpInstrumentationMiddleware` (`apps/server/src/app.ts:126-128` pattern).
+- `/readyz`: route pings Postgres (`SELECT 1`) + Redis (`PING`). Returns 200 if both ok; 503 otherwise. **Does not check gateway key health** (R14 — single key flap can't take instance out of pool).
+- Legacy `/health` endpoint removed post-implementation in favor of K8s-style `/livez` + `/readyz` (single source of truth, no overlap).
 
 **Patterns to follow**:
 - ioredis Pub/Sub: dedicated subscriber connection (search for existing pubsub usage in `apps/server` — `redis-boundaries-and-pubsub.md` references this)
@@ -593,17 +593,17 @@ apps/server/
 - (1) Config-loader subscribes on init; on Pub/Sub message for `LLM_ROUTER_CONFIG`: cache cleared, next read fetches fresh.
 - (2) Pub/Sub message for unrelated key: no invalidation, no counter increment.
 - (3) TTL expiry path: cache populated → 5s elapse (mock clock or vitest fake timers) → next read fetches fresh + counter incremented with `source: 'ttl'`.
-- (4) `GET /healthz/live` returns 200 + `{status: 'live'}` even when Redis is down (Redis client error mocked).
-- (5) `GET /healthz/ready` returns 200 when both Postgres + Redis ping ok.
-- (6) `GET /healthz/ready` returns 503 when Postgres down (mock pool query throws).
-- (7) `GET /healthz/ready` returns 503 when Redis down (mock ping throws).
-- (8) `GET /healthz/ready` returns 200 even with `LLM_ROUTER_CONFIG` missing (gateway state does not block readiness per R14).
-- (9) `httpInstrumentationMiddleware` does NOT instrument `/healthz/*` requests (assert OTel http span count after probe = 0).
+- (4) `GET /livez` returns 200 + `{status: 'live'}` even when Redis is down (Redis client error mocked).
+- (5) `GET /readyz` returns 200 when both Postgres + Redis ping ok.
+- (6) `GET /readyz` returns 503 when Postgres down (mock pool query throws).
+- (7) `GET /readyz` returns 503 when Redis down (mock ping throws).
+- (8) `GET /readyz` returns 200 even with `LLM_ROUTER_CONFIG` missing (gateway state does not block readiness per R14).
+- (9) `httpInstrumentationMiddleware` does NOT instrument `/livez` or `/readyz` requests (assert OTel http span count after probe = 0).
 
 **Verification**:
 - `pnpm -F @proj-airi/server typecheck` passes
 - `pnpm exec vitest run apps/server/src/app.test.ts` green
-- Manual: `curl /healthz/live` → 200; `curl /healthz/ready` → 200 with Postgres + Redis up
+- Manual: `curl /livez` → 200; `curl /readyz` → 200 with Postgres + Redis up
 
 **Resolve before merging**:
 - **R16a admin permission model** is an explicit Outstanding Question in origin; if it's not resolved before this unit ships, the admin set-config endpoint stays behind existing flat-admin-role auth. Note as known limitation in PR description: "Admin endpoint for `set LLM_ROUTER_CONFIG` uses existing flat admin role; role-scoping is follow-up work".
@@ -675,7 +675,7 @@ apps/server/
 - `apps/server/src/libs/env.test.ts` (MODIFY)
 - `apps/server/scripts/verify-router-config.ts` (NEW — operator script referenced in U1 Migration step; decrypts current `LLM_ROUTER_CONFIG` against `LLM_ROUTER_MASTER_KEY` to validate boot-time correctness)
 - `apps/server/src/scripts/otel/llm-router-smoke.ts` (NEW — new smoke fixture that produces traces tagged with `airi.gen_ai.gateway.*` attrs; **note**: the previously-referenced `apps/server/src/scripts/otel/smoke.ts` does not exist — the actual existing file is `ws-smoke.ts` for WebSocket smoke; gateway-specific smoke is new work)
-- `apps/server/docs/ai-context/transport-and-routes.md` (MODIFY — route → service mapping update; `/healthz/live` + `/healthz/ready` documented; `/health` marked deprecated)
+- `apps/server/docs/ai-context/transport-and-routes.md` (MODIFY — route → service mapping update; `/livez` + `/readyz` documented; legacy `/health` removed)
 - `apps/server/docs/ai-context/observability-conventions.md` (MODIFY)
 - `apps/server/docs/ai-context/verifications/llm-router.md` (FINALIZE — full verification with real evidence)
 - (Possibly) `apps/server/scripts/...` (NEW — knoway compose retention policy doc / data-driven trigger criteria)
@@ -684,7 +684,7 @@ apps/server/
 - Grafana dashboard JSON: add 3 panels (key exhausted count time series, fallback depth distribution, upstream errors by status code) + 3 alert rules (P0 key.exhausted > 0 in 5min, P1 fallback ratio > 30% in 15min, P2 single key > 80% errors in 30min). Use existing `build.ts` to assemble. Thresholds are placeholders — refine post-launch.
 - DI wiring: extend `AppDeps` interface (`apps/server/src/app.ts:70-88`) with `llmRouter` field. Register via `injeca.provide('services:llmRouter', { dependsOn: ['services:configKV', 'libs:redis', 'otel'], build: ... })`. Thread into `createV1CompletionsRoutes` factory.
 - `GATEWAY_BASE_URL` removal: delete from env schema; verify no remaining consumers via grep — current consumers per existing brainstorm context: `apps/server/src/libs/env.ts`, `apps/server/src/libs/env.test.ts`, `apps/server/src/routes/openai/v1/index.ts`, `apps/server/src/routes/openai/v1/route.test.ts`, `apps/server/src/scripts/otel/smoke.ts`. Update each.
-- Verification doc (`apps/server/docs/ai-context/verifications/llm-router.md`): follow AGENTS.md template — for each user path (chat completions happy / chat completions fallback / TTS speech happy / voices listing / healthz live / healthz ready), include scenario / command / expected output / actual output (curl response snippets) / environment (commit SHA + deploy env) / last verified date.
+- Verification doc (`apps/server/docs/ai-context/verifications/llm-router.md`): follow AGENTS.md template — for each user path (chat completions happy / chat completions fallback / TTS speech happy / voices listing / livez / readyz), include scenario / command / expected output / actual output (curl response snippets) / environment (commit SHA + deploy env) / last verified date.
 - knoway compose: do not delete yet. Document retention criteria in transport-and-routes.md and PR description: "knoway compose stays until: 14 days post-deploy without P1+ incidents OR 1 peak-traffic event without P1+ incidents. Reset on any P1."
 
 **Patterns to follow**:
@@ -772,8 +772,8 @@ Verification doc lives at `apps/server/docs/ai-context/verifications/llm-router.
 4. **TTS speech (cosyvoice)**: same against cosyvoice model.
 5. **TTS speech (Volcengine)**: same against Volcengine model.
 6. **Voices listing**: `curl GET /api/v1/openai/audio/voices?model=azure-tts` returns voice catalog JSON.
-7. **Liveness**: `curl /healthz/live` returns 200 + `{status: 'live'}`.
-8. **Readiness**: `curl /healthz/ready` returns 200 with Postgres+Redis up; 503 otherwise.
+7. **Liveness**: `curl /livez` returns 200 + `{status: 'live'}`.
+8. **Readiness**: `curl /readyz` returns 200 with Postgres+Redis up; 503 otherwise.
 9. **Pre-upstream validation**: `curl POST /api/v1/openai/chat/completions model=unknown` returns 400 with `unknown_model` error code.
 10. **All-keys exhaustion**: with all keys invalid, returns 502 (per KTD-1 final-cause mapping).
 

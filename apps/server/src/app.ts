@@ -124,19 +124,16 @@ export async function buildApp(deps: AppDeps) {
     // @hono/otel records `http.server.request.duration` and
     // `http.server.active_requests` with the matched Hono route pattern
     // (auto-instrumentation can't see Hono's router, so it would emit empty
-    // `http.route` and concrete URLs — the previous Latency-by-Route bug).
+    // `http.route` and concrete URLs, the previous Latency-by-Route bug).
     //
-    // /health is Railway's healthcheck pinger — high frequency, zero signal,
-    // skip outright.
+    // K8s-style probes are high-frequency and zero-signal for product
+    // metrics; skip outright so they don't pollute http.* dashboards.
     const otelMw = httpInstrumentationMiddleware({
       serviceName: deps.env.OTEL_SERVICE_NAME,
       serviceVersion: process.env.npm_package_version || '0.0.0',
     })
     app.use('*', async (c, next) => {
-      // Skip /health (legacy Railway probe) and /healthz/* (new liveness +
-      // readiness routes added in U7) so high-frequency probes don't pollute
-      // http.* metrics or the Latency-by-Route panel.
-      if (c.req.path === '/health' || c.req.path.startsWith('/healthz/'))
+      if (c.req.path === '/livez' || c.req.path === '/readyz')
         return next()
       return otelMw(c, next)
     })
@@ -224,25 +221,20 @@ export async function buildApp(deps: AppDeps) {
     })
 
     /**
-     * Health check route (legacy — kept for backward compatibility with the
-     * existing Railway probe configuration). New deployments should target
-     * /healthz/live (liveness) and /healthz/ready (readiness) separately.
+     * Liveness probe (K8s convention). Returns 200 as long as the Node
+     * process is alive. Must not touch Postgres, Redis, or any external
+     * dependency: a single upstream blip should NOT cause Railway to
+     * recycle the pod (R13/R14).
      */
-    .on('GET', '/health', c => c.json({ status: 'ok' }))
+    .on('GET', '/livez', c => c.json({ status: 'live' }))
     /**
-     * Liveness probe — returns 200 as long as the Node process is alive.
-     * Must not touch Postgres, Redis, or any external dependency: a single
-     * upstream blip should NOT cause Railway to recycle the pod (R13/R14).
+     * Readiness probe (K8s convention). Verifies the instance can serve
+     * traffic by pinging Postgres + Redis (the only two infra dependencies
+     * that, if down, mean we genuinely can't serve). Gateway-internal key
+     * health is intentionally NOT checked (R14): one bad upstream key
+     * must not pull the whole instance out of the load balancer pool.
      */
-    .on('GET', '/healthz/live', c => c.json({ status: 'live' }))
-    /**
-     * Readiness probe — verifies the instance can serve traffic. Pings
-     * Postgres + Redis (the only two infra dependencies that, if down, mean
-     * we genuinely can't serve). Gateway-internal key health is intentionally
-     * NOT checked (R14): one bad upstream key must not pull the whole instance
-     * out of the load balancer pool.
-     */
-    .on('GET', '/healthz/ready', async (c) => {
+    .on('GET', '/readyz', async (c) => {
       // Run both checks in parallel and let either fail independently.
       const [dbResult, redisResult] = await Promise.allSettled([
         deps.db.execute('SELECT 1'),

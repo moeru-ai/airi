@@ -45,25 +45,31 @@ Verification artifacts for the in-process router shipped across U1-U9 of
 
 ## Liveness probe
 
-- **Scenario**: `GET /healthz/live` returns 200 with `{status: "live"}` even
-  when external dependencies are degraded.
-- **Command**: `curl http://localhost:3000/healthz/live`
+- **Scenario**: `GET /livez` returns 200 with `{status: "live"}` even
+  when external dependencies are degraded. K8s-style flat naming; legacy
+  `/health` and nested `/healthz/live` removed in this revision.
+- **Command**: `curl -i http://localhost:3000/livez`
 - **Expected output**: HTTP 200, body `{"status":"live"}`.
-- **Actual output** (2026-05-15):
+- **Actual output** (commit `cfad87757` + uncommitted route rename, 2026-05-15):
   ```
+  HTTP 200
   {"status":"live"}
   ```
+  Cross-check: `curl http://localhost:3000/health` → HTTP 404 (legacy
+  endpoint removed); `curl http://localhost:3000/healthz/live` → HTTP 404
+  (nested form removed).
 - **Last verified**: 2026-05-15.
 
 ## Readiness probe
 
-- **Scenario**: `GET /healthz/ready` returns 200 when Postgres + Redis both
+- **Scenario**: `GET /readyz` returns 200 when Postgres + Redis both
   respond; 503 otherwise. Gateway-internal key health does NOT block
   readiness (R14).
-- **Command**: `curl http://localhost:3000/healthz/ready`
+- **Command**: `curl -i http://localhost:3000/readyz`
 - **Expected output**: HTTP 200, body `{"status":"ready","checks":{"db":"ok","redis":"ok"}}`.
-- **Actual output** (2026-05-15):
+- **Actual output** (commit `cfad87757` + uncommitted route rename, 2026-05-15):
   ```
+  HTTP 200
   {"status":"ready","checks":{"db":"ok","redis":"ok"}}
   ```
 - **Last verified**: 2026-05-15.
