@@ -134,10 +134,10 @@ export class OPFSCache {
         if (settings) {
           // eslint-disable-next-line no-console
           console.debug('[OPFS] Reconstructing settings file...')
-          const settingsJson = JSON.stringify(settings.json)
+          const settingsText = encodeModelSettings(settings.json)
           const settingsFileName = settings.url || 'model.model3.json'
 
-          writePromises.push(OPFSCache.writeFile(dirHandle, settingsFileName, settingsJson))
+          writePromises.push(OPFSCache.writeFile(dirHandle, settingsFileName, settingsText))
         }
       }
 
@@ -223,4 +223,32 @@ export class OPFSCache {
 
     return next()
   }
+}
+
+function encodeProperty(obj: any, path: string) {
+  let cursor = obj
+  const propPath = path.split('.')
+  // will lose reference when access to the last level
+  while (propPath.length > 1 && propPath[0] in cursor) {
+    cursor = cursor[propPath.shift()!]
+  }
+  if (cursor[propPath[0]] == null)
+    return
+  if (typeof cursor[propPath[0]] === 'string')
+    cursor[propPath[0]] = encodeURI(cursor[propPath[0]])
+  if (Array.isArray(cursor[propPath[0]]) && typeof cursor[propPath[0]][0] === 'string') {
+    cursor[propPath[0]] = cursor[propPath[0]].map((s: string) => encodeURI(s))
+  }
+}
+// TODO: find all file paths and encode them by recursively visiting the settings
+function encodeModelSettings(input: any): string {
+  const settings = { ...input }
+  const propertyToEncode = [
+    'FileReferences.Moc',
+    'FileReferences.Textures',
+    'FileReferences.Physics',
+    'url',
+  ]
+  propertyToEncode.forEach(k => encodeProperty(settings, k))
+  return JSON.stringify(settings)
 }
