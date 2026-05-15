@@ -918,7 +918,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
     dispose: () => {
       clearInterval(healthCheckInterval)
       closeAllPeers()
-      resetRoutingState()
+      resetRoutingState(true)
     },
   })
 
@@ -945,7 +945,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
           .withError(error as Error)
           .debug('failed to close peer during shutdown')
 
-        // Keep the peer registered so a failed shutdown does not orphan a live socket.
+        // Leave the peer registered until forced disposal cleanup.
         continue
       }
 
