@@ -922,16 +922,27 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
 
   function closeAllPeers() {
     logger.withFields({ totalPeers: peers.size }).log('closing all peers')
-
+  
     for (const peerInfo of Array.from(peers.values())) {
       logger.withFields({
         peer: peerInfo.peer.id,
         peerName: peerInfo.name,
       }).debug('closing peer')
-
-      peers.delete(peerInfo.peer.id)
-      unregisterModulePeer(peerInfo, 'server shutdown')
-
+  
+      try {
+        peers.delete(peerInfo.peer.id)
+        unregisterModulePeer(peerInfo, 'server shutdown')
+      }
+      catch (error) {
+        logger
+          .withFields({
+            peer: peerInfo.peer.id,
+            peerName: peerInfo.name,
+          })
+          .withError(error as Error)
+          .debug('failed to unregister peer during shutdown')
+      }
+  
       try {
         peerInfo.peer.close?.()
       }
@@ -945,7 +956,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
           .debug('failed to close peer during shutdown')
       }
     }
-
+  
     resetRoutingState()
   }
 
