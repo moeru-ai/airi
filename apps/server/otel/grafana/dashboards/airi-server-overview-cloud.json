@@ -41,8 +41,8 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "avg(user_active_sessions{service_name=~\"$service\", deployment_environment=~\"$env\"})",
-                      "legendFormat": "sessions"
+                      "expr": "avg(user_distinct_active{service_name=~\"$service\", deployment_environment=~\"$env\"})",
+                      "legendFormat": "users"
                     },
                     "version": "v0"
                   },
@@ -54,7 +54,7 @@
             "transformations": []
           }
         },
-        "description": "Currently active sessions in Postgres (Better Auth `session.expires_at > now()`). Cluster-wide gauge — every replica polls the same DB on a 10s cache. We aggregate with `avg()` (not `sum()`, which would multiply by replica count; not `max()`, which biases high when one replica's cache is fresher than another's after a logout).",
+        "description": "COUNT(DISTINCT user_id) over the Better Auth `session` table where `expires_at > now()`. This is the *real* active-user count. The historical \"Active Users\" panel queried `user.active_sessions` (COUNT(*) on the same table), which counts session **rows** not users — Better Auth creates a new row per sign-in and per OIDC access-token issuance and never GCs expired rows, so the row count drifts up and we have seen it report ~80K on a deployment with hundreds of actual users. Compare with `panel-15` (Active Sessions) to spot session-row inflation; ratio > ~5 means it's time for a session GC cron. Cluster-wide gauge — `avg()`, not `sum()`.",
         "id": 1,
         "links": [],
         "title": "Active Users",
@@ -106,7 +106,7 @@
         }
       }
     },
-    "panel-2": {
+    "panel-15": {
       "kind": "Panel",
       "spec": {
         "data": {
@@ -124,8 +124,8 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "sum(ws_connections_active{service_name=~\"$service\", deployment_environment=~\"$env\"})",
-                      "legendFormat": "connections"
+                      "expr": "avg(user_active_sessions{service_name=~\"$service\", deployment_environment=~\"$env\"})",
+                      "legendFormat": "sessions"
                     },
                     "version": "v0"
                   },
@@ -137,10 +137,10 @@
             "transformations": []
           }
         },
-        "description": "Live registry size from chat-ws (ObservableGauge, scraped each export interval).",
-        "id": 2,
+        "description": "COUNT(*) over the Better Auth `session` table where `expires_at > now()`. Counts session **rows**, not users — see `panel-1` for the de-duplicated user count. Useful as a denominator to spot row inflation: divide by panel-1 to get rows-per-user, watch for sustained growth.",
+        "id": 15,
         "links": [],
-        "title": "WS Connections",
+        "title": "Active Sessions",
         "vizConfig": {
           "group": "stat",
           "kind": "VizConfig",
@@ -156,6 +156,10 @@
                     {
                       "color": "green",
                       "value": 0
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 5000
                     }
                   ]
                 },
@@ -216,7 +220,7 @@
             "transformations": []
           }
         },
-        "description": "5-minute average inbound HTTP request rate. /health (Railway probe) is excluded at the @hono/otel middleware level so this reflects real user traffic.",
+        "description": "5-minute average inbound HTTP request rate. /health (Railway probe) is excluded at the @hono/otel middleware level so this reflects real user traffic. **Fixed 5m window — intentionally does not follow the dashboard time picker** (see row-level note). For trends, see panel-14 (HTTP Request Rate by Route).",
         "id": 3,
         "links": [],
         "title": "Req/s (5m)",
@@ -304,7 +308,7 @@
             "transformations": []
           }
         },
-        "description": "5xx responses ÷ all responses over the last 5m. Spikes correlate with deploys, upstream outages, or DB problems. >1% warns, >5% pages.",
+        "description": "5xx responses ÷ all responses over the last 5m. **Fixed 5m window — intentionally does not follow the dashboard time picker**: this is an on-call glance (\"is the service failing right now\"). For range-aware triage use panel-9 donut and panel-44 timeseries. Spikes correlate with deploys, upstream outages, or DB problems. >1% warns, >5% pages.",
         "id": 4,
         "links": [],
         "title": "5xx Rate %",
@@ -392,7 +396,7 @@
             "transformations": []
           }
         },
-        "description": "5-minute average LLM gateway request rate (chat + tts).",
+        "description": "5-minute average LLM gateway request rate (chat + tts). **Fixed 5m window — see row-level note.** For trends and per-model breakdown see panel-11.",
         "id": 5,
         "links": [],
         "title": "LLM Req/s (5m)",
@@ -472,7 +476,7 @@
             "transformations": []
           }
         },
-        "description": "Email failures ÷ total attempts over the last 5m. >5% means Resend / DNS / suppression-list problems blocking auth flows.",
+        "description": "Email failures ÷ total attempts over the last 5m. **Fixed 5m window — see row-level note.** >5% means Resend / DNS / suppression-list problems blocking auth flows.",
         "id": 6,
         "links": [],
         "title": "Email Failure %",
@@ -548,7 +552,7 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "topk(8, sum by (gen_ai_request_model) (increase(gen_ai_client_operation_count_total{service_name=~\"$service\", deployment_environment=~\"$env\", gen_ai_request_model!=\"\"}[5m])))",
+                      "expr": "topk(8, sum by (gen_ai_request_model) (increase(gen_ai_client_operation_count_total{service_name=~\"$service\", deployment_environment=~\"$env\", gen_ai_request_model!=\"\"}[$__range])))",
                       "legendFormat": "{{gen_ai_request_model}}"
                     },
                     "version": "v0"
@@ -561,10 +565,10 @@
             "transformations": []
           }
         },
-        "description": "Share of LLM gateway calls by model. Quickly shows which model is doing the heavy lifting.",
+        "description": "Share of LLM gateway calls by model, summed over the dashboard time range. Follows the time picker — pick 1h to see the last hour's model mix, pick 7d to see this week's.",
         "id": 8,
         "links": [],
-        "title": "LLM Models (last 5m)",
+        "title": "LLM Models (range)",
         "vizConfig": {
           "group": "piechart",
           "kind": "VizConfig",
@@ -639,7 +643,7 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "topk(10, sum by (http_route) (increase(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\", http_route!=\"\"}[5m])))",
+                      "expr": "topk(10, sum by (http_route) (increase(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\", http_route!=\"\", http_response_status_code=~\"5..\"}[$__range])))",
                       "legendFormat": "{{http_route}}"
                     },
                     "version": "v0"
@@ -652,10 +656,10 @@
             "transformations": []
           }
         },
-        "description": "Top 10 Hono-matched routes by request count over the last 5 minutes. Answers \"which endpoint is being hit, and how much\" — replaces the previous HTTP status-code donut whose 2xx slice dominated everything else. Cardinality is bounded because `http_route` is the matched route pattern, not the concrete URL.",
+        "description": "Top 10 Hono-matched routes by 5xx response count over the dashboard time range. Follows the time picker — pick 1h for \"what's failing right now\", pick 24h for \"what failed most today\". The overall 5xx% gauge (panel-4) is a fixed-5m snapshot for on-call glance; this donut respects the time picker for triage.",
         "id": 9,
         "links": [],
-        "title": "Top Routes by Requests (last 5m)",
+        "title": "Top Routes by 5xx (range)",
         "vizConfig": {
           "group": "piechart",
           "kind": "VizConfig",
@@ -673,7 +677,7 @@
                   }
                 },
                 "unit": "short",
-                "noValue": "no traffic"
+                "noValue": "no 5xx"
               },
               "overrides": []
             },
@@ -1947,6 +1951,122 @@
         }
       }
     },
+    "panel-44": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "grafanacloud-projairi-prom"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "expr": "topk(10, sum by (http_route) (rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\", http_route!=\"\", http_response_status_code=~\"5..\"}[$__rate_interval])))",
+                      "legendFormat": "{{http_route}}"
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "5xx response rate split by route. Use this to confirm whether a 5xx spike in `panel-4` is concentrated on one endpoint (e.g. a broken deploy of /api/v1/openai/*) or scattered (e.g. DB outage taking down everything). Drill into the Logs row (`panel-91`) for the matching error bodies + trace ids.",
+        "id": 44,
+        "links": [],
+        "title": "5xx Rate by Route (top 10)",
+        "vizConfig": {
+          "group": "timeseries",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "barWidthFactor": 0.6,
+                  "drawStyle": "line",
+                  "fillOpacity": 20,
+                  "gradientMode": "none",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 1,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "auto",
+                  "showValues": false,
+                  "spanNulls": false,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "reqps"
+              },
+              "overrides": []
+            },
+            "options": {
+              "annotations": {
+                "clustering": -1,
+                "multiLane": false
+              },
+              "legend": {
+                "calcs": [
+                  "lastNotNull",
+                  "max"
+                ],
+                "displayMode": "table",
+                "placement": "right",
+                "showLegend": true
+              },
+              "tooltip": {
+                "hideZeros": false,
+                "mode": "multi",
+                "sort": "desc"
+              }
+            }
+          },
+          "version": "13.0.0-23630096546"
+        }
+      }
+    },
     "panel-30": {
       "kind": "Panel",
       "spec": {
@@ -2239,7 +2359,7 @@
             "transformations": []
           }
         },
-        "description": "PostgreSQL query duration P95 from PgInstrumentation. Spikes correlate with index misses, connection exhaustion, or backend lock contention.",
+        "description": "PostgreSQL query duration P95 from PgInstrumentation. **Fixed 5m window — does not follow the dashboard time picker** (same posture as the Service Health row stats: this is a \"right now\" glance). Spikes correlate with index misses, connection exhaustion, or backend lock contention.",
         "id": 50,
         "links": [],
         "title": "DB Query P95 (5m)",
@@ -2708,6 +2828,71 @@
           "version": "13.0.0-23630096546"
         }
       }
+    },
+    "panel-91": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "grafanacloud-projairi-logs"
+                    },
+                    "group": "loki",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "expr": "{service_name=~\"$service\", deployment_environment=~\"$env\"} | json | level=~\"warn|error\"",
+                      "legendFormat": ""
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "Server-side error logs (level=warn|error) from Loki. Loki derived fields turn `trace_id` and `req` into clickable links — `trace_id` jumps to Tempo for full request playback (spans + child calls + DB queries), `req` filters this panel to a single request id. Use this together with panel-9 (which route) and panel-44 (when).",
+        "id": 91,
+        "links": [],
+        "title": "5xx Error Logs",
+        "vizConfig": {
+          "group": "logs",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {},
+              "overrides": []
+            },
+            "options": {
+              "dedupStrategy": "none",
+              "enableInfiniteScrolling": false,
+              "enableLogDetails": true,
+              "prettifyLogMessage": false,
+              "showCommonLabels": false,
+              "showControls": false,
+              "showFieldSelector": false,
+              "showLabels": true,
+              "showLevel": true,
+              "showLogAttributes": true,
+              "showTime": true,
+              "sortOrder": "Descending",
+              "timestampResolution": "ms",
+              "unwrappedColumns": false,
+              "wrapLogMessage": true
+            }
+          },
+          "version": "13.0.0-23630096546"
+        }
+      }
     }
   },
   "layout": {
@@ -2740,7 +2925,7 @@
                     "spec": {
                       "element": {
                         "kind": "ElementReference",
-                        "name": "panel-2"
+                        "name": "panel-15"
                       },
                       "height": 4,
                       "width": 4,
@@ -3058,6 +3243,33 @@
                     "spec": {
                       "element": {
                         "kind": "ElementReference",
+                        "name": "panel-44"
+                      },
+                      "height": 7,
+                      "width": 24,
+                      "x": 0,
+                      "y": 0
+                    }
+                  }
+                ]
+              }
+            },
+            "title": "5xx Triage"
+          }
+        },
+        {
+          "kind": "RowsLayoutRow",
+          "spec": {
+            "collapse": false,
+            "layout": {
+              "kind": "GridLayout",
+              "spec": {
+                "items": [
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
                         "name": "panel-30"
                       },
                       "height": 7,
@@ -3177,12 +3389,25 @@
                     "spec": {
                       "element": {
                         "kind": "ElementReference",
-                        "name": "panel-90"
+                        "name": "panel-91"
                       },
-                      "height": 12,
+                      "height": 10,
                       "width": 24,
                       "x": 0,
                       "y": 0
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-90"
+                      },
+                      "height": 10,
+                      "width": 24,
+                      "x": 0,
+                      "y": 10
                     }
                   }
                 ]

@@ -50,6 +50,14 @@
 | LLM token / cost | **Grafana**（短期） | 后续若引入 Langfuse 则迁过去 |
 | 用户行为漏斗各步骤 | **PostHog**（必须） | 第一步通常是前端事件，Grafana 拿不到 |
 
+### Better Auth session table 与活跃用户
+
+`user_active_sessions`（COUNT(\*)）和 `user_distinct_active`（COUNT(DISTINCT user_id)）共享同一张 `session` 表：
+
+- **Better Auth 每次 sign-in / 每次 OIDC access-token 颁发都新建一条 session row，从不主动 GC 过期 row**——因为 `oauth_access_token.session_id` FK 指向 session（`apps/server/src/libs/auth.ts:513` 注释）
+- 实战观察：~80K `user_active_sessions` 对应实际只有几百 distinct user。比例 5+ 就该考虑加 session GC cron 或缩短 Better Auth `expiresIn`
+- 永远展示 `user_distinct_active` 给非工程师看（PM、运营）；`user_active_sessions` 留给工程师 debug
+
 ### Dashboard 标注规则
 
 两边都展示的指标，**必须**在 Grafana panel description 和 PostHog insight description 里：
@@ -95,7 +103,7 @@
 | WS | `ws_connections_active` / `ws_messages_*_total` | Grafana | |
 | LLM | `gen_ai_client_operation_count_total` / `gen_ai_client_first_token_duration_seconds` | Grafana | |
 | Billing | `airi_billing_flux_unbilled_total` | Grafana | **告警必须**：`increase(airi_billing_flux_unbilled_total[5m]) > 0` |
-| Auth | `user_active_sessions` | Postgres → Grafana 派生 | 集群级 gauge，用 `avg()` 不要 `sum()` |
+| Auth | `user_active_sessions` / `user_distinct_active` | Postgres → Grafana 派生 | 集群级 gauge，用 `avg()` 不要 `sum()`。两个一起看：`user_active_sessions` = `COUNT(*)`（session row 数，会膨胀）, `user_distinct_active` = `COUNT(DISTINCT user_id)`（真实活跃用户数）|
 | Stripe | `airi_stripe_revenue_minor_unit_total` / `stripe_events_total` | Postgres → 两边展示 | Grafana 是系统侧 webhook 计数 |
 | Runtime | `v8js_memory_*` / `nodejs_eventloop_delay_*` | Grafana | per `service_instance_id` |
 | Rate-limit | `airi_rate_limit_blocked_total` | Grafana | in-memory per replica |
@@ -216,6 +224,30 @@ PostHog UI 配 cohort：
 | **手动 capture** `payment_completed`（后端 webhook） | 漏斗终点 event，跟前端 `checkout_started` 串联 |
 
 不能只用 source connector：它是 data warehouse 层，**不生成 person event，做不了漏斗**。
+
+## 5xx Triage 路径
+
+Dashboard 上 follow 这条 panel 链可以从"出事了"一路 drill 到"哪个 trace 是真凶"：
+
+1. **panel-4 `5xx Rate %`**（Row 1）— 数字 / gauge 颜色变红，说明出事
+2. **panel-9 `Top Routes by 5xx`**（Row 2 donut）— "现在哪些 route 在失败"
+3. **panel-44 `5xx Rate by Route`**（Row 5.5 timeseries）— "什么时候开始的、是单点还是普遍"
+4. **panel-91 `5xx Error Logs`**（Row 8 上半）— 实际错误消息，里面有 `trace_id` field 可点 → Tempo 看完整 trace 回放
+
+### Tempo / Loki derived fields 配置（一次性）
+
+panel-91 的 `trace_id` 字段必须配 Grafana Cloud Loki datasource 的 **Derived fields** 才能跳 Tempo。这不在 dashboard JSON 范围内，是 datasource 级配置：
+
+- **Grafana Cloud** → Connections → Data sources → 选 `grafanacloud-projairi-logs`（Loki）→ Derived fields
+- 添加：
+  - **Name**: `trace_id`
+  - **Type**: Regex in label or value
+  - **Regex**: `"trace_id":"([a-f0-9]+)"`（匹配我们 logger 的 JSON 输出）
+  - **URL**: 留空
+  - **Internal link**: ✓，datasource 选 `grafanacloud-projairi-traces`（Tempo）
+- 同样手法可加 `req` (request id) → 配 internal link 回 Loki 自身，按 requestId filter
+
+配置完之后日志面板里 `trace_id` 会变成蓝色可点，直接跳 Tempo waterfall。这一步配置只做一次，新加 panel 自动享有。
 
 ## Grafana Alert SOP
 

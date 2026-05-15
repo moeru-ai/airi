@@ -355,28 +355,50 @@ function row(title: string, items: ReturnType<typeof item>[], { collapse = false
 // between defined panel ids and layout references.
 const elements: Record<string, unknown> = {}
 
-// Row 1: Service Health — answers "is anything broken right now?"
+// Row 1: Service Health — answers "is anything broken **right now**?"
+//
+// Time-window policy for this row: all rate / ratio queries use a fixed
+// `[5m]` window and DO NOT follow the dashboard time picker. Reason:
+// these panels are designed for on-call glance ("is the service healthy
+// at this instant"), and we want the number to be stable across whatever
+// time range the viewer happened to pick. If we used `$__rate_interval`,
+// the same panel would show different numbers depending on whether the
+// time picker is set to "last 1 hour" vs "last 7 days", which is
+// confusing for an at-a-glance health board.
+//
+// To see trends over the time-picker range, use the Row 3 timeseries
+// (HTTP / LLM / WS by-* panels) which DO follow the time picker.
+// Panels titled "(range)" (Distribution donuts, Business stats) also
+// follow the time picker by design.
+//
 // Mix of stats (absolute counts) and gauges (bounded ratios with thresholds).
 elements['panel-1'] = statPanel(
   1,
   'Active Users',
-  'Currently active sessions in Postgres (Better Auth `session.expires_at > now()`). Cluster-wide gauge — every replica polls the same DB on a 10s cache. We aggregate with `avg()` (not `sum()`, which would multiply by replica count; not `max()`, which biases high when one replica\'s cache is fresher than another\'s after a logout).',
-  [query(`avg(user_active_sessions{${SERVICE_FILTER}})`, 'sessions')],
+  'COUNT(DISTINCT user_id) over the Better Auth `session` table where `expires_at > now()`. This is the *real* active-user count. The historical "Active Users" panel queried `user.active_sessions` (COUNT(*) on the same table), which counts session **rows** not users — Better Auth creates a new row per sign-in and per OIDC access-token issuance and never GCs expired rows, so the row count drifts up and we have seen it report ~80K on a deployment with hundreds of actual users. Compare with `panel-15` (Active Sessions) to spot session-row inflation; ratio > ~5 means it\'s time for a session GC cron. Cluster-wide gauge — `avg()`, not `sum()`.',
+  [query(`avg(user_distinct_active{${SERVICE_FILTER}})`, 'users')],
   { unit: 'short', steps: [{ color: 'green', value: 0 }, { color: 'yellow', value: 1000 }] },
 )
 
-elements['panel-2'] = statPanel(
-  2,
-  'WS Connections',
-  'Live registry size from chat-ws (ObservableGauge, scraped each export interval).',
-  [query(`sum(ws_connections_active{${SERVICE_FILTER}})`, 'connections')],
-  { unit: 'short' },
+elements['panel-15'] = statPanel(
+  15,
+  'Active Sessions',
+  'COUNT(*) over the Better Auth `session` table where `expires_at > now()`. Counts session **rows**, not users — see `panel-1` for the de-duplicated user count. Useful as a denominator to spot row inflation: divide by panel-1 to get rows-per-user, watch for sustained growth.',
+  [query(`avg(user_active_sessions{${SERVICE_FILTER}})`, 'sessions')],
+  { unit: 'short', steps: [{ color: 'green', value: 0 }, { color: 'yellow', value: 5000 }] },
 )
+
+// WS Connections stat was removed — its sparkline duplicated the
+// timeseries in Row 3 (`panel-13`), which already shows the live
+// connection count over time with the same `sum(ws_connections_active)`
+// query. Keeping both meant the same number rendered twice on first
+// look. The Row 3 timeseries wins because it lets you actually read off
+// a value at a specific timestamp instead of squinting at the sparkline.
 
 elements['panel-3'] = statPanel(
   3,
   'Req/s (5m)',
-  '5-minute average inbound HTTP request rate. /health (Railway probe) is excluded at the @hono/otel middleware level so this reflects real user traffic.',
+  '5-minute average inbound HTTP request rate. /health (Railway probe) is excluded at the @hono/otel middleware level so this reflects real user traffic. **Fixed 5m window — intentionally does not follow the dashboard time picker** (see row-level note). For trends, see panel-14 (HTTP Request Rate by Route).',
   [query(`sum(rate(http_server_request_duration_seconds_count{${SERVICE_FILTER}, http_request_method!="OPTIONS"}[5m]))`, 'req/s')],
   { unit: 'reqps', steps: [{ color: 'green', value: 0 }, { color: 'yellow', value: 100 }, { color: 'red', value: 500 }], decimals: 2 },
 )
@@ -384,7 +406,7 @@ elements['panel-3'] = statPanel(
 elements['panel-4'] = gaugePanel(
   4,
   '5xx Rate %',
-  '5xx responses ÷ all responses over the last 5m. Spikes correlate with deploys, upstream outages, or DB problems. >1% warns, >5% pages.',
+  '5xx responses ÷ all responses over the last 5m. **Fixed 5m window — intentionally does not follow the dashboard time picker**: this is an on-call glance ("is the service failing right now"). For range-aware triage use panel-9 donut and panel-44 timeseries. Spikes correlate with deploys, upstream outages, or DB problems. >1% warns, >5% pages.',
   [query(
     `100 * sum(rate(http_server_request_duration_seconds_count{${SERVICE_FILTER}, http_request_method!="OPTIONS", http_response_status_code=~"5.."}[5m])) / clamp_min(sum(rate(http_server_request_duration_seconds_count{${SERVICE_FILTER}, http_request_method!="OPTIONS"}[5m])), 1)`,
     'fail %',
@@ -395,7 +417,7 @@ elements['panel-4'] = gaugePanel(
 elements['panel-5'] = statPanel(
   5,
   'LLM Req/s (5m)',
-  '5-minute average LLM gateway request rate (chat + tts).',
+  '5-minute average LLM gateway request rate (chat + tts). **Fixed 5m window — see row-level note.** For trends and per-model breakdown see panel-11.',
   [query(`sum(rate(gen_ai_client_operation_count_total{${SERVICE_FILTER}}[5m]))`, 'req/s')],
   { unit: 'reqps', decimals: 2 },
 )
@@ -403,7 +425,7 @@ elements['panel-5'] = statPanel(
 elements['panel-6'] = gaugePanel(
   6,
   'Email Failure %',
-  'Email failures ÷ total attempts over the last 5m. >5% means Resend / DNS / suppression-list problems blocking auth flows.',
+  'Email failures ÷ total attempts over the last 5m. **Fixed 5m window — see row-level note.** >5% means Resend / DNS / suppression-list problems blocking auth flows.',
   [query(
     `100 * sum(rate(airi_email_failures_total{${SERVICE_FILTER}}[5m])) / clamp_min(sum(rate(airi_email_send_total{${SERVICE_FILTER}}[5m])) + sum(rate(airi_email_failures_total{${SERVICE_FILTER}}[5m])), 1)`,
     'fail %',
@@ -422,22 +444,30 @@ elements['panel-6'] = gaugePanel(
 // surfaces 4xx/5xx independently.
 elements['panel-8'] = piePanel(
   8,
-  'LLM Models (last 5m)',
-  'Share of LLM gateway calls by model. Quickly shows which model is doing the heavy lifting.',
+  'LLM Models (range)',
+  'Share of LLM gateway calls by model, summed over the dashboard time range. Follows the time picker — pick 1h to see the last hour\'s model mix, pick 7d to see this week\'s.',
   [query(
-    `topk(8, sum by (gen_ai_request_model) (increase(gen_ai_client_operation_count_total{${SERVICE_FILTER}, gen_ai_request_model!=""}[5m])))`,
+    `topk(8, sum by (gen_ai_request_model) (increase(gen_ai_client_operation_count_total{${SERVICE_FILTER}, gen_ai_request_model!=""}[$__range])))`,
     '{{gen_ai_request_model}}',
   )],
 )
 
+// "Top Routes by Requests" lives as a timeseries in `panel-14` (Top
+// Endpoints row) — keeping a donut here too would just be a frozen
+// snapshot of the timeseries. Instead, this slot answers the higher-
+// value question "which routes are producing the 5xx right now?" so
+// the dashboard surfaces *failing* endpoints, not just busy ones.
+// Pair with panel-44 (5xx Rate by Route timeseries) for the same data
+// over time.
 elements['panel-9'] = piePanel(
   9,
-  'Top Routes by Requests (last 5m)',
-  'Top 10 Hono-matched routes by request count over the last 5 minutes. Answers "which endpoint is being hit, and how much" — replaces the previous HTTP status-code donut whose 2xx slice dominated everything else. Cardinality is bounded because `http_route` is the matched route pattern, not the concrete URL.',
+  'Top Routes by 5xx (range)',
+  'Top 10 Hono-matched routes by 5xx response count over the dashboard time range. Follows the time picker — pick 1h for "what\'s failing right now", pick 24h for "what failed most today". The overall 5xx% gauge (panel-4) is a fixed-5m snapshot for on-call glance; this donut respects the time picker for triage.',
   [query(
-    `topk(10, sum by (http_route) (increase(http_server_request_duration_seconds_count{${SERVICE_FILTER}, http_request_method!="OPTIONS", http_route!=""}[5m])))`,
+    `topk(10, sum by (http_route) (increase(http_server_request_duration_seconds_count{${SERVICE_FILTER}, http_request_method!="OPTIONS", http_route!="", http_response_status_code=~"5.."}[$__range])))`,
     '{{http_route}}',
   )],
+  { noValue: 'no 5xx' },
 )
 
 // Row 3: Traffic Trends — same data as Row 2, but answering "how is it changing"
@@ -564,6 +594,22 @@ elements['panel-42'] = timeseriesPanel(
   { unit: 'ops' },
 )
 
+// 5xx by route over time — complements panel-9 (donut: which routes
+// are failing right now) and panel-40 (4xx/5xx by status code: what
+// kind of error). This is the "when did /foo start blowing up" view.
+// topk(10) keeps the legend readable when one bad deploy lights up
+// the whole API surface.
+elements['panel-44'] = timeseriesPanel(
+  44,
+  '5xx Rate by Route (top 10)',
+  '5xx response rate split by route. Use this to confirm whether a 5xx spike in `panel-4` is concentrated on one endpoint (e.g. a broken deploy of /api/v1/openai/*) or scattered (e.g. DB outage taking down everything). Drill into the Logs row (`panel-91`) for the matching error bodies + trace ids.',
+  [query(
+    `topk(10, sum by (http_route) (rate(http_server_request_duration_seconds_count{${SERVICE_FILTER}, http_request_method!="OPTIONS", http_route!="", http_response_status_code=~"5.."}[$__rate_interval])))`,
+    '{{http_route}}',
+  )],
+  { unit: 'reqps' },
+)
+
 // Row 6: Business — money flow
 elements['panel-30'] = statPanel(
   30,
@@ -602,7 +648,7 @@ elements['panel-32'] = piePanel(
 elements['panel-50'] = statPanel(
   50,
   'DB Query P95 (5m)',
-  'PostgreSQL query duration P95 from PgInstrumentation. Spikes correlate with index misses, connection exhaustion, or backend lock contention.',
+  'PostgreSQL query duration P95 from PgInstrumentation. **Fixed 5m window — does not follow the dashboard time picker** (same posture as the Service Health row stats: this is a "right now" glance). Spikes correlate with index misses, connection exhaustion, or backend lock contention.',
   [query(
     `histogram_quantile(0.95, sum by (le) (rate(db_client_operation_duration_seconds_bucket{${SERVICE_FILTER}}[5m])))`,
     'p95',
@@ -651,25 +697,43 @@ elements['panel-90'] = logsPanel(
   `{${SERVICE_FILTER}} |= \`\``,
 )
 
+// 5xx-only log stream — paired with the 5xx by-route timeseries and
+// donut so on-call goes panel-4 (something is wrong) → panel-9
+// (where) → panel-44 (when) → panel-91 (actual error message + trace
+// id, click trace_id → Tempo for full request playback). Filters at
+// the Loki query level so Grafana doesn't ship the entire log
+// firehose to the browser just to client-side filter.
+elements['panel-91'] = logsPanel(
+  91,
+  '5xx Error Logs',
+  'Server-side error logs (level=warn|error) from Loki. Loki derived fields turn `trace_id` and `req` into clickable links — `trace_id` jumps to Tempo for full request playback (spans + child calls + DB queries), `req` filters this panel to a single request id. Use this together with panel-9 (which route) and panel-44 (when).',
+  `{${SERVICE_FILTER}} | json | level=~"warn|error"`,
+)
+
 // ---------------------------------------------------------------------------
 // Layout
 // ---------------------------------------------------------------------------
 
 const rows = [
-  // Row 1: 6 stats/gauges × 4 wide × 4 high (full width)
+  // Row 1: 6 stats/gauges, each 4 wide (4×6=24). Active Users (panel-1)
+  // and Active Sessions (panel-15) sit side-by-side so on-call can spot
+  // session-row inflation at a glance (panel-15 climbs while panel-1
+  // stays flat → Better Auth row leak, not real user growth). WS
+  // Connections stat is gone (duplicated by Row 3 timeseries panel-13).
   row('Service Health', [
     item('panel-1', 0, 0, 4, 4),
-    item('panel-2', 4, 0, 4, 4),
+    item('panel-15', 4, 0, 4, 4),
     item('panel-3', 8, 0, 4, 4),
     item('panel-4', 12, 0, 4, 4),
     item('panel-5', 16, 0, 4, 4),
     item('panel-6', 20, 0, 4, 4),
   ]),
-  // Row 2: 2 donuts × 12 wide × 7 high — current-state distribution
-  // Dropped HTTP-methods donut (low-cardinality, redundant with Row 3 by-method
-  // timeseries) and HTTP-status donut (2xx dominated, 4xx/5xx already broken
-  // out in Row 5). Replaced status donut with Top Routes which answers a
-  // higher-information question with the same visual budget.
+  // Row 2: 2 donuts × 12 wide × 7 high — current-state distribution.
+  // Left donut: LLM models (where load is going). Right donut: 5xx by
+  // route (where failures are concentrated). The previous "Top Routes
+  // by Requests" donut was replaced because its timeseries form in
+  // Row 3.5 carries the same data with time context; 5xx-by-route is
+  // the higher-value glance.
   row('Distribution (now)', [
     item('panel-8', 0, 0, 12, 7),
     item('panel-9', 12, 0, 12, 7),
@@ -694,7 +758,7 @@ const rows = [
     item('panel-20', 0, 0, 12, 8),
     item('panel-21', 12, 0, 12, 8),
   ]),
-  // Row 5: 1 stacked area + 2 stats + 1 timeseries × 7 high
+  // Row 5: 1 stacked area + 2 stats + 1 timeseries × 7 high.
   // Stream Interruptions and ⚠ Flux Unbilled sit next to the 4xx/5xx trend
   // so revenue-leak signal (which doesn't show up in 5xx) gets the same
   // glance-weight as transport-layer errors.
@@ -703,6 +767,13 @@ const rows = [
     item('panel-41', 10, 0, 4, 7),
     item('panel-43', 14, 0, 4, 7),
     item('panel-42', 18, 0, 6, 7),
+  ]),
+  // Row 5.5: 5xx by-route trend full width. Triage path: panel-4
+  // (something wrong) → panel-9 donut (which route now) → here (when
+  // it started + per-route rates over time) → panel-91 (actual error
+  // log lines + clickable trace_id for full request replay in Tempo).
+  row('5xx Triage', [
+    item('panel-44', 0, 0, 24, 7),
   ]),
   // Row 6: 1 stat + 1 gauge + 1 donut × 8 wide × 7 high
   row('Business', [
@@ -719,9 +790,12 @@ const rows = [
     item('panel-52', 12, 0, 6, 6),
     item('panel-53', 18, 0, 6, 6),
   ], { collapse: true }),
-  // Row 8: full-width logs
+  // Row 8: full-width logs. Two panels stacked: errors-only on top
+  // (default focus for triage) and the full firehose below (manual
+  // filter when you need broader context).
   row('Logs', [
-    item('panel-90', 0, 0, 24, 12),
+    item('panel-91', 0, 0, 24, 10),
+    item('panel-90', 0, 10, 24, 10),
   ]),
 ]
 
