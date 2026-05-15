@@ -127,7 +127,10 @@ export async function buildApp(deps: AppDeps) {
       serviceVersion: process.env.npm_package_version || '0.0.0',
     })
     app.use('*', async (c, next) => {
-      if (c.req.path === '/health')
+      // Skip /health (legacy Railway probe) and /healthz/* (new liveness +
+      // readiness routes added in U7) so high-frequency probes don't pollute
+      // http.* metrics or the Latency-by-Route panel.
+      if (c.req.path === '/health' || c.req.path.startsWith('/healthz/'))
         return next()
       return otelMw(c, next)
     })
@@ -158,6 +161,35 @@ export async function buildApp(deps: AppDeps) {
     return chatWsSetup(session.user.id)
   }))
 
+  // Subscribe to the cross-instance config invalidation channel so admin
+  // writes to LLM_ROUTER_CONFIG propagate within ≤5s across the cluster
+  // (R16 / KTD-4). Falls back to the in-memory cache TTL on missed messages.
+  // Uses a dedicated ioredis subscriber connection (subscribe mode requires
+  // a separate connection per ioredis docs).
+  if (deps.llmRouter) {
+    const configSub = deps.redis.duplicate()
+    configSub.on('message', (channel, message) => {
+      if (channel !== 'configkv:invalidate')
+        return
+      try {
+        const payload = JSON.parse(message) as { key?: unknown }
+        if (payload?.key !== 'LLM_ROUTER_CONFIG')
+          return
+        deps.llmRouter?.invalidateConfig()
+        deps.otel?.gateway?.configReload.add(1, {
+          source: 'pubsub',
+          service_instance_id: deps.env.OTEL_SERVICE_NAME,
+        })
+      }
+      catch (err) {
+        logger.withError(err).warn('Failed to parse configkv:invalidate payload')
+      }
+    })
+    configSub.subscribe('configkv:invalidate').catch((err: unknown) => {
+      logger.withError(err).warn('Failed to subscribe to configkv:invalidate channel')
+    })
+  }
+
   const builtApp = app
     .use('*', sessionMiddleware(deps.auth, deps.env))
     .use('*', bodyLimit({ maxSize: 1024 * 1024 }))
@@ -186,9 +218,43 @@ export async function buildApp(deps: AppDeps) {
     })
 
     /**
-     * Health check route.
+     * Health check route (legacy — kept for backward compatibility with the
+     * existing Railway probe configuration). New deployments should target
+     * /healthz/live (liveness) and /healthz/ready (readiness) separately.
      */
     .on('GET', '/health', c => c.json({ status: 'ok' }))
+    /**
+     * Liveness probe — returns 200 as long as the Node process is alive.
+     * Must not touch Postgres, Redis, or any external dependency: a single
+     * upstream blip should NOT cause Railway to recycle the pod (R13/R14).
+     */
+    .on('GET', '/healthz/live', c => c.json({ status: 'live' }))
+    /**
+     * Readiness probe — verifies the instance can serve traffic. Pings
+     * Postgres + Redis (the only two infra dependencies that, if down, mean
+     * we genuinely can't serve). Gateway-internal key health is intentionally
+     * NOT checked (R14): one bad upstream key must not pull the whole instance
+     * out of the load balancer pool.
+     */
+    .on('GET', '/healthz/ready', async (c) => {
+      // Run both checks in parallel and let either fail independently.
+      const [dbResult, redisResult] = await Promise.allSettled([
+        deps.db.execute('SELECT 1'),
+        deps.redis.ping(),
+      ])
+
+      const dbReady = dbResult.status === 'fulfilled'
+      const redisReady = redisResult.status === 'fulfilled'
+      const ready = dbReady && redisReady
+
+      return c.json(
+        {
+          status: ready ? 'ready' : 'not_ready',
+          checks: { db: dbReady ? 'ok' : 'fail', redis: redisReady ? 'ok' : 'fail' },
+        },
+        ready ? 200 : 503,
+      )
+    })
 
     /**
      * Service identity at the API root. Visitors who land here from a stray
