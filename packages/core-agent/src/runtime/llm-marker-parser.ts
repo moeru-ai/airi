@@ -77,14 +77,10 @@ function createLlmMarkerParser(options?: MarkerParserOptions) {
 
   return {
     async consume(textPart: string, onLiteral: (value: string) => Promise<void> | void, onSpecial: (value: string) => Promise<void> | void) {
-      // Only unescape the incoming chunk plus the minimal tail of the
-      // old buffer needed to reconstruct split escape sequences —
-      // rescanning the full buffer each chunk is O(N²).
-      const tail = buffer.slice(-tailLength)
-      const unescapedInput = (tail + textPart)
+      buffer += textPart
+      buffer = buffer
         .replaceAll(ESCAPED_TAG_OPEN, TAG_OPEN)
         .replaceAll(ESCAPED_TAG_CLOSE, TAG_CLOSE)
-      buffer = buffer.slice(0, -tailLength) + unescapedInput
 
       while (buffer.length > 0) {
         if (!inTag) {

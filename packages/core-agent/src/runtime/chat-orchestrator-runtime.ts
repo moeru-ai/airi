@@ -6,6 +6,8 @@ import type { AgentForegroundStreamPort } from '../contracts/stream-port'
 import type { ChatAssistantMessage, ChatHistoryItem, ChatSlices, ChatStreamEventContext, ContextMessage, StreamingAssistantMessage } from '../types/chat'
 import type { StreamEvent, StreamOptions } from '../types/llm'
 
+import { createQueue } from '@proj-airi/stream-kit'
+
 import { formatContextPromptText } from '../messages/context-prompt'
 import { formatTimePrefix } from '../messages/datetime-prefix'
 import { createChatHooks } from './agent-hooks'
@@ -13,60 +15,6 @@ import { useLlmmarkerParser } from './llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from './response-categoriser'
 
 const STREAMING_UI_FLUSH_CHUNK_SIZE = 24
-
-interface QueueHandlerContext<T> {
-  data: T
-}
-
-function createRuntimeQueue<T>(options: {
-  handlers: Array<(ctx: QueueHandlerContext<T>) => Promise<void>>
-}) {
-  const queue: T[] = []
-  const listeners = {
-    enqueue: [] as Array<(payload: T) => void>,
-    dequeue: [] as Array<(payload: T) => void>,
-  }
-  let drainTask: Promise<void> | undefined
-
-  function emit(eventName: keyof typeof listeners, payload: T) {
-    for (const listener of listeners[eventName]) {
-      listener(payload)
-    }
-  }
-
-  async function drain() {
-    while (queue.length > 0) {
-      const payload = queue.shift()
-      if (!payload)
-        continue
-
-      emit('dequeue', payload)
-      for (const handler of options.handlers) {
-        try {
-          await handler({ data: payload })
-        }
-        catch {
-          // Keep queue semantics aligned with @proj-airi/stream-kit: handler
-          // failures do not stop later queued work.
-        }
-      }
-    }
-
-    drainTask = undefined
-  }
-
-  return {
-    enqueue(payload: T) {
-      queue.push(payload)
-      emit('enqueue', payload)
-      if (!drainTask)
-        drainTask = drain()
-    },
-    on(eventName: keyof typeof listeners, listener: (payload: T) => void) {
-      listeners[eventName].push(listener)
-    },
-  }
-}
 
 function prependTextToContent<T extends { content?: unknown }>(msg: T, text: string): T {
   const content = msg.content
@@ -321,17 +269,6 @@ function defaultCreateId() {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
 }
 
-function createAssistantMessage(now: () => number, createId: () => string): StreamingAssistantMessage {
-  return {
-    role: 'assistant',
-    content: '',
-    slices: [],
-    tool_results: [],
-    createdAt: now(),
-    id: createId(),
-  }
-}
-
 /**
  * Creates the core chat orchestrator runtime used behind UI facades.
  *
@@ -422,9 +359,16 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       return
 
     deps.session.ensureSession(sessionId)
+
+    // Datetime is no longer injected through the side-channel context store.
+    // It is applied at message-assembly time (see below) as a system-prompt
+    // date anchor + per-message [HH:MM] prefixes, which is more KV-cache
+    // friendly and less prone to weak models echoing timestamps verbatim.
     ingestRuntimeContexts()
 
     const sendingCreatedAt = now()
+
+    // TODO: Expire or prune stale runtime contexts from disconnected services before composing.
     const streamingMessageContext: ChatStreamEventContext = {
       message: { role: 'user', content: sendingMessage, createdAt: sendingCreatedAt, id: createId() },
       contexts: deps.context.snapshot(),
@@ -448,7 +392,14 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
     setSending(true)
 
-    const buildingMessage = createAssistantMessage(now, createId)
+    const buildingMessage: StreamingAssistantMessage = {
+      role: 'assistant',
+      content: '',
+      slices: [],
+      tool_results: [],
+      createdAt: now(),
+      id: createId(),
+    }
     patchForegroundStream(sessionId, buildingMessage)
     deps.onTrackFirstMessage?.()
     deps.onMessageSendStarted?.({
@@ -496,6 +447,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         id: userMessageId,
       }
       deps.session.appendSessionMessage(sessionId, userMessage)
+
+      // Cloud sync v1: only the raw text part round-trips; image attachments
+      // and other non-text parts stay local.
       deps.onUserMessageAppended?.({
         sessionId,
         message: userMessage,
@@ -561,7 +515,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         minLiteralEmitLength: STREAMING_UI_FLUSH_CHUNK_SIZE,
       })
 
-      const toolCallQueue = createRuntimeQueue<ChatSlices>({
+      const toolCallQueue = createQueue<ChatSlices>({
         handlers: [
           async (ctx) => {
             if (shouldAbort())
@@ -772,7 +726,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     }
   }
 
-  const sendQueue = createRuntimeQueue<QueuedSend>({
+  const sendQueue = createQueue<QueuedSend>({
     handlers: [
       async ({ data }) => {
         const { sendingMessage, options, generation, deferred, sessionId, cancelled } = data
