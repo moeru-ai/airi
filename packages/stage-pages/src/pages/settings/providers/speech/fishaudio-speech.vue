@@ -103,7 +103,7 @@ async function loadVoiceOptions(searchTerm: string) {
     const providerConfig = providersStore.getProviderConfig(providerId)
     const voices = await providerMetadata.capabilities.listVoices?.({
       ...providerConfig,
-      query: searchTerm,
+      searchTerm,
     }) || []
 
     voiceOptions.value = voices.map(voice => ({
