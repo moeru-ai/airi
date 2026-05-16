@@ -96,7 +96,7 @@ export class OPFSCache {
         // This avoids serving a stale model when ids are reused or props are out of sync.
         // eslint-disable-next-line no-console
         console.debug(`[OPFS] Cache mismatch for ${key}, source url changed`)
-        await dirHandle.removeEntry(dirHandle.name) // actually invalidates cache
+        await root.removeEntry(dirHandle.name, { recursive: true }) // actually invalidates cache
         return null
       }
 
