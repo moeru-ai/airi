@@ -136,3 +136,13 @@ apps/stage-tamagotchi/electron.vite.config.*.mjs
 .obsidian/
 
 docs/ai/context/verifications/
+
+
+#OpenClaw files
+HEARTBEAT.md
+IDENTITY.md
+SOUL.md
+TOOLS.md
+USER.md
+.env
+.openclaw/
