@@ -58,6 +58,7 @@ const isGenerating = ref(false)
 const audioUrl = ref('')
 const audioPlayer = ref<HTMLAudioElement | null>(null)
 const errorMessage = ref('')
+let suppressVoiceSearchQueryWatch = false
 const activeSpeechProviderMetadata = computed(() => {
   return activeSpeechProvider.value ? providersStore.getProviderMetadata(activeSpeechProvider.value) : undefined
 })
@@ -127,6 +128,7 @@ onMounted(async () => {
 })
 
 watch(activeSpeechProvider, async (newProvider, oldProvider) => {
+  suppressVoiceSearchQueryWatch = voiceSearchQuery.value !== ''
   voiceSearchQuery.value = ''
   await providersStore.loadModelsForConfiguredProviders()
   await speechStore.loadVoicesForProvider(newProvider, {
@@ -152,6 +154,11 @@ watch(activeSpeechModel, async () => {
 })
 
 watch(voiceSearchQuery, (searchTerm) => {
+  if (suppressVoiceSearchQueryWatch) {
+    suppressVoiceSearchQueryWatch = false
+    return
+  }
+
   if (!activeSpeechProvider.value || !usesRemoteVoiceSearch.value) {
     return
   }
@@ -215,6 +222,11 @@ async function generateTestSpeech() {
       stopTestAudio()
     }
 
+    const activeProviderId = activeSpeechProvider.value
+    const audioMimeType = activeProviderId === 'fishaudio-speech' || activeProviderId === 'minimax-speech'
+      ? 'audio/mpeg'
+      : 'audio/wav'
+
     const input = useSSML.value
       ? ssmlText.value
       : ssmlEnabled.value && speechStore.supportsSSML
@@ -229,7 +241,7 @@ async function generateTestSpeech() {
 
     // Convert the response to a blob and create an object URL
     audioUrl.value = URL.createObjectURL(new Blob([response], {
-      type: activeSpeechProvider.value === 'fishaudio-speech' ? 'audio/mpeg' : '',
+      type: audioMimeType,
     }))
 
     // Play the audio

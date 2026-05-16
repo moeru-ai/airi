@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { SpeechProvider } from '@xsai-ext/providers/utils'
 
+import { errorMessageFrom } from '@moeru/std'
 import {
   SpeechPlayground,
   SpeechProviderSettings,
@@ -76,6 +77,7 @@ const isLoadingModels = computed(() => {
   return providersStore.isLoadingModels[providerId] || false
 })
 const isLoadingVoices = ref(false)
+const voiceSearchError = ref('')
 let latestVoiceSearchRequestId = 0
 
 const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
@@ -87,12 +89,15 @@ const apiKey = computed(() => getFishAudioApiKey(config.value?.apiKey))
 async function loadVoiceOptions(searchTerm: string) {
   if (!apiKey.value) {
     latestVoiceSearchRequestId += 1
+    isLoadingVoices.value = false
+    voiceSearchError.value = ''
     voiceOptions.value = []
     return
   }
 
   const requestId = ++latestVoiceSearchRequestId
   isLoadingVoices.value = true
+  voiceSearchError.value = ''
   try {
     const providerConfig = providersStore.getProviderConfig(providerId)
     const voices = await providerMetadata.value.capabilities.listVoices?.({
@@ -108,6 +113,15 @@ async function loadVoiceOptions(searchTerm: string) {
       value: voice.id,
       label: voice.name,
     }))
+  }
+  catch (error) {
+    if (requestId !== latestVoiceSearchRequestId) {
+      return
+    }
+
+    console.error('Failed to load Fish Audio voices:', error)
+    voiceSearchError.value = errorMessageFrom(error) ?? 'Failed to load Fish Audio voices'
+    isLoadingVoices.value = false
   }
   finally {
     if (requestId === latestVoiceSearchRequestId) {
@@ -152,9 +166,7 @@ async function loadProviderDiscoveryData() {
   const validationResult = await providerMetadata.value.validators.validateProviderConfig(providerConfig)
   if (!validationResult.valid) {
     speechStore.availableVoices[providerId] = []
-    if (voice.value) {
-      voice.value = ''
-    }
+    voiceOptions.value = []
     return
   }
 
@@ -181,11 +193,11 @@ onMounted(async () => {
 
 watch(apiKey, async (newApiKey, previousApiKey) => {
   if (!newApiKey) {
+    latestVoiceSearchRequestId += 1
+    isLoadingVoices.value = false
+    voiceSearchError.value = ''
     speechStore.availableVoices[providerId] = []
     voiceOptions.value = []
-    if (voice.value) {
-      voice.value = ''
-    }
     return
   }
 
@@ -254,6 +266,9 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
             @update:search-value="handleVoiceSearch"
             @input="handleVoiceSearch"
           />
+          <p v-if="voiceSearchError" class="text-sm text-red-500">
+            {{ voiceSearchError }}
+          </p>
         </template>
       </SpeechPlayground>
     </template>

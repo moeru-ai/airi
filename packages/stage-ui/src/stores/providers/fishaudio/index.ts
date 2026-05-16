@@ -6,7 +6,7 @@ import { errorMessageFrom } from '@moeru/std'
 
 const DEFAULT_BASE_URL = 'https://api.fish.audio/'
 const DEFAULT_MODEL = 's2-pro'
-const DEFAULT_OUTPUT_FORMAT = 'mp3'
+const DEFAULT_OUTPUT_FORMAT = 'mp3' as const
 const PROVIDER_ID = 'fishaudio-speech'
 const FISH_AUDIO_PROXY_BASE_URL = '/api-fish'
 
@@ -23,8 +23,8 @@ function normalizeBaseUrl(value: unknown): string {
   return ensureTrailingSlash(baseUrl || DEFAULT_BASE_URL)
 }
 
-function normalizeOutputFormat(value: unknown): 'mp3' | 'wav' {
-  return value === 'wav' ? 'wav' : 'mp3'
+function normalizeOutputFormat(_value: unknown): typeof DEFAULT_OUTPUT_FORMAT {
+  return DEFAULT_OUTPUT_FORMAT
 }
 
 /**
@@ -79,7 +79,7 @@ function createAudioFetch(baseUrl: string, apiKey: string, defaultModel: string)
     // Fish Audio should stay on a strict MP3 path so the request payload and playback blob
     // both resolve to a stable `audio/mpeg` contract on Apple devices.
     // Removal condition: Fish Audio exposes a guaranteed MIME-safe playback contract for Safari.
-    const responseFormat = normalizeOutputFormat('mp3')
+    const responseFormat = normalizeOutputFormat(body.response_format)
     const referenceId = normalizeString(body.voice)
 
     const payload: Record<string, unknown> = {
@@ -120,7 +120,7 @@ function createAudioFetch(baseUrl: string, apiKey: string, defaultModel: string)
 
     const audioBuffer = await response.arrayBuffer()
     const audioBlob = new Blob([audioBuffer], {
-      type: responseFormat === 'wav' ? 'audio/wav' : 'audio/mpeg',
+      type: 'audio/mpeg',
     })
 
     return new Response(audioBlob, {
