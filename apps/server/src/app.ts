@@ -179,11 +179,17 @@ export async function buildApp(deps: AppDeps) {
     .use('*', bodyLimit({ maxSize: 1024 * 1024 }))
     .onError((err, c) => {
       if (err instanceof ApiError) {
+        // Surface details + cause to the server-side log only. SEC-5 keeps
+        // upstream body content (carried by `cause`) out of the client
+        // response body; the logger / OTel pipeline is the right channel
+        // for operators to see the real upstream message.
+        const logFields = { details: err.details, cause: (err as { cause?: unknown }).cause }
+
         if (err.statusCode >= 500) {
-          logger.withError(err).error('API error occurred')
+          logger.withError(err).withFields(logFields).error('API error occurred')
         }
         else if (err.statusCode !== 401) {
-          logger.withError(err).warn('API error occurred')
+          logger.withError(err).withFields(logFields).warn('API error occurred')
         }
 
         return c.json({

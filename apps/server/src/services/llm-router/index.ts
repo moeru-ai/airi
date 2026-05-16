@@ -5,7 +5,7 @@ export { createConfigSyncSubscriber } from './config-sync-subscriber'
 export type { ConfigSyncSubscriber, ConfigSyncSubscriberOptions } from './config-sync-subscriber'
 
 export { mapUpstreamError } from './error-mapping'
-export type { UpstreamErrorContext } from './error-mapping'
+export type { RouterErrorCause, UpstreamAttempt, UpstreamErrorContext } from './error-mapping'
 
 export { createKeyRotator } from './key-rotator'
 export type { RotatableUpstream, RotatedKey } from './key-rotator'

@@ -97,8 +97,8 @@ function happyResponse(bodyJson: object) {
   })
 }
 
-function failResponse(status: number) {
-  return new Response(JSON.stringify({ error: 'bad' }), {
+function failResponse(status: number, body: object = { error: 'bad' }) {
+  return new Response(JSON.stringify(body), {
     status,
     headers: { 'content-type': 'application/json' },
   })
@@ -256,6 +256,63 @@ describe('createLlmRouterService', () => {
     }
 
     expect((metrics.keyExhaustedCount.add as ReturnType<typeof vi.fn>).mock.calls.length).toBe(2)
+  })
+
+  it('full exhaustion attaches per-attempt cause (bodySnippet for HTTP, errorMessage for network) so operators can debug 502s', async () => {
+    // ROOT CAUSE:
+    //
+    // Before this regression, `mapUpstreamError` only put `lastStatusCode`
+    // into ApiError.details — the upstream body (e.g. OpenRouter 403
+    // "This model is not available in your region.") was cancelled on the
+    // wire and never reached the logger. Operators saw the bare 502 and
+    // had to re-probe the upstream by hand to find the real reason.
+    //
+    // We now snapshot up to 256 body bytes per failed HTTP attempt and
+    // capture errorMessageFromUnknown(err) for network attempts, then
+    // attach the full attempt list to ApiError.cause. SEC-5 keeps it out
+    // of details/response body; the logger surfaces cause for diagnosis.
+    const { config, crypto } = makeConfig({
+      upstreams: [
+        { baseURL: 'https://up-a.example/v1', keyIds: ['kA1'] },
+        { baseURL: 'https://up-b.example/v1', keyIds: ['kB1'] },
+      ],
+    })
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(failResponse(401, { error: { message: 'key disabled', code: 'AUTH' } }))
+      .mockImplementationOnce(async () => { throw new Error('ECONNRESET while reading response') })
+
+    const router = createLlmRouterService({
+      configKV: makeConfigKV(config),
+      envelopeCrypto: crypto,
+      gatewayMetrics: null,
+      fetchImpl,
+    })
+
+    try {
+      await router.route({ modelName: 'openai/gpt-5-mini', body: {} })
+      throw new Error('expected throw')
+    }
+    catch (err) {
+      expect(err).toBeInstanceOf(ApiError)
+      // Client-facing surface stays SEC-5 clean — no body content here.
+      expect((err as ApiError).details).toMatchObject({ triedKeys: 2, triedUpstreams: 2, lastStatusCode: 'timeout' })
+      expect(JSON.stringify((err as ApiError).details)).not.toContain('key disabled')
+
+      // Server-side cause carries the actual diagnostics.
+      const cause = (err as ApiError & { cause?: { attempts?: unknown[] } }).cause
+      expect(cause).toBeDefined()
+      expect(cause?.attempts).toHaveLength(2)
+
+      const first = (cause!.attempts as Array<Record<string, unknown>>)[0]
+      expect(first).toMatchObject({ keyId: 'kA1', status: 401 })
+      expect(first.bodySnippet).toEqual(expect.stringContaining('key disabled'))
+      expect(first.errorMessage).toBeUndefined()
+
+      const second = (cause!.attempts as Array<Record<string, unknown>>)[1]
+      expect(second).toMatchObject({ keyId: 'kB1', status: 'timeout' })
+      expect(second.errorMessage).toEqual(expect.stringContaining('ECONNRESET'))
+      expect(second.bodySnippet).toBeUndefined()
+    }
   })
 
   it('same-status exhaustion: all keys 429 → throws 503 + sameStatusExhaustion incremented per provider', async () => {

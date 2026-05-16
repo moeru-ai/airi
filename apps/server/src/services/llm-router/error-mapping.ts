@@ -20,6 +20,41 @@ export interface UpstreamErrorContext {
 }
 
 /**
+ * One recorded upstream attempt. Carries the raw provider response snippet
+ * and network error message so operators can diagnose 502s without re-
+ * probing the upstream. Lives on `ApiError.cause`, never on `details`, so
+ * SEC-5 (no upstream content in client-facing response body) still holds.
+ */
+export interface UpstreamAttempt {
+  provider: string
+  keyId: string
+  status: number | 'timeout'
+  /**
+   * First ≤256 bytes of the upstream response body when the attempt
+   * received an HTTP response. Helps tell apart "key invalid", "region
+   * blocked", "model not enabled" without re-running the request.
+   */
+  bodySnippet?: string
+  /**
+   * Result of `errorMessageFrom(err)` when the attempt threw before getting
+   * an HTTP response (per-attempt timeout, DNS, ECONNRESET) or when an
+   * adapter wrapped a network failure. TTS adapters bake the body snippet
+   * into this message, so chat upstreams populate `bodySnippet` and TTS
+   * upstreams populate `errorMessage`.
+   */
+  errorMessage?: string
+}
+
+/**
+ * Server-only cause attached to the {@link ApiError} that
+ * {@link mapUpstreamError} produces. Surfaced through logger + OTel
+ * span attributes, never through the HTTP response body.
+ */
+export interface RouterErrorCause {
+  attempts: UpstreamAttempt[]
+}
+
+/**
  * Map a final upstream failure to a client-facing {@link ApiError} per
  * KTD-1 last-attempt-wins policy.
  *
@@ -31,6 +66,9 @@ export interface UpstreamErrorContext {
  * - `status` is a non-2xx HTTP code or the literal `'timeout'` token. Passing
  *   a 2xx code is a programmer error (this mapper should only run after the
  *   router decides every attempt failed) and throws an internal error.
+ * - `attempts` (when provided) lists every recorded upstream attempt.
+ *   Attached to `ApiError.cause` so logger / OTel can surface the real
+ *   upstream message; SEC-5 forbids the same content on `details`.
  *
  * Returns:
  * - `504 GATEWAY_TIMEOUT` when the last attempt timed out.
@@ -39,13 +77,28 @@ export interface UpstreamErrorContext {
  * - `502 BAD_GATEWAY` for every other non-2xx upstream status (401/402/403,
  *   5xx, anything else).
  */
-export function mapUpstreamError(status: number | 'timeout', context: UpstreamErrorContext): ApiError {
+export function mapUpstreamError(
+  status: number | 'timeout',
+  context: UpstreamErrorContext,
+  attempts?: UpstreamAttempt[],
+): ApiError {
   const details = {
     triedKeys: context.triedKeys,
     triedUpstreams: context.triedUpstreams,
     lastStatusCode: context.lastStatusCode,
   }
 
+  const apiErr = buildApiError(status, details)
+  if (attempts != null && attempts.length > 0) {
+    // Server-only cause. Logger / OTel pick this up; SEC-5 keeps it out
+    // of the client-facing response body.
+    const cause: RouterErrorCause = { attempts }
+    ;(apiErr as { cause?: unknown }).cause = cause
+  }
+  return apiErr
+}
+
+function buildApiError(status: number | 'timeout', details: UpstreamErrorContext): ApiError {
   if (status === 'timeout')
     return createGatewayTimeoutError('Upstream timeout', details)
 

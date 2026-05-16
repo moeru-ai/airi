@@ -6,10 +6,13 @@ import type { ConfigKVService } from '../config-kv'
 import type { TtsAdapterId, TtsInput } from '../tts-adapters/types'
 import type { LlmRouteRequest, LlmUpstream, TtsUpstream } from './types'
 
+import { Buffer as NodeBuffer } from 'node:buffer'
+
 import { useLogger } from '@guiiai/logg'
 import { trace } from '@opentelemetry/api'
 
 import { ApiError } from '../../utils/error'
+import { errorMessageFromUnknown } from '../../utils/error-message'
 import {
   AIRI_ATTR_GEN_AI_GATEWAY_FALLBACK_DEPTH,
   AIRI_ATTR_GEN_AI_GATEWAY_KEY_ID,
@@ -20,6 +23,47 @@ import { getAdapter } from '../tts-adapters'
 import { createConfigLoader } from './config-loader'
 import { mapUpstreamError } from './error-mapping'
 import { createKeyRotator } from './key-rotator'
+
+const UPSTREAM_BODY_SNIPPET_MAX = 256
+
+/**
+ * Read at most `maxBytes` from an upstream non-2xx response body for
+ * diagnostic logging, then cancel the rest so the socket can return to
+ * the pool. Safe to call concurrently with the surrounding fallback walk.
+ *
+ * Use when:
+ * - The router decided this upstream attempt failed and is about to
+ *   record a failure entry; we want the operator-visible body snippet
+ *   without buffering the entire response.
+ *
+ * Returns `undefined` when the body is absent or read fails — diagnostics
+ * is best-effort, the fallback chain must not stall on it.
+ */
+async function readUpstreamBodySnippet(response: Response, maxBytes = UPSTREAM_BODY_SNIPPET_MAX): Promise<string | undefined> {
+  if (response.body == null)
+    return undefined
+  const reader = response.body.getReader()
+  try {
+    const chunks: Uint8Array[] = []
+    let total = 0
+    while (total < maxBytes) {
+      const { value, done } = await reader.read()
+      if (done)
+        break
+      chunks.push(value)
+      total += value.length
+    }
+    reader.cancel().catch(() => {})
+    if (chunks.length === 0)
+      return undefined
+    const buf = NodeBuffer.concat(chunks.map(c => NodeBuffer.from(c)))
+    return buf.subarray(0, maxBytes).toString('utf8')
+  }
+  catch {
+    reader.cancel().catch(() => {})
+    return undefined
+  }
+}
 
 /**
  * Resolved per-attempt token: `'Bearer sk-xxx'` etc. The router substitutes
@@ -106,15 +150,15 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     req: LlmRouteRequest,
     perAttemptTimeoutMs: number,
     fallbackHttpCodes: number[],
-    onAttemptFailure: (failure: { keyId: string, status: number | 'timeout' }) => void,
+    onAttemptFailure: (failure: { keyId: string, status: number | 'timeout', bodySnippet?: string, errorMessage?: string }) => void,
   ): Promise<
     | { kind: 'ok', response: Response, attemptIndex: number }
-    | { kind: 'exhausted', failures: Array<{ keyId: string, status: number | 'timeout' }> }
+    | { kind: 'exhausted', failures: Array<{ keyId: string, status: number | 'timeout', bodySnippet?: string, errorMessage?: string }> }
   > {
     const provider = deriveProviderTag(upstream.baseURL)
     const rotator = createKeyRotator(upstream, options.envelopeCrypto, req.modelName, options.gatewayMetrics, provider)
 
-    const failures: Array<{ keyId: string, status: number | 'timeout' }> = []
+    const failures: Array<{ keyId: string, status: number | 'timeout', bodySnippet?: string, errorMessage?: string }> = []
     let attemptIndex = 0
 
     for (const key of rotator) {
@@ -174,14 +218,17 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
 
         const status = response.status
         // NOTICE:
-        // Cancel the failed upstream body so the socket can be returned to
-        // the pool before we move on. Without this, a 401/429/5xx fallback
-        // storm leaves dozens of half-read bodies in flight per request and
-        // exhausts the connection pool exactly when the upstream is sick.
-        // Source: codex review 2026-05-15 HIGH #2.
-        response.body?.cancel().catch(() => {})
-        failures.push({ keyId: key.id, status })
-        onAttemptFailure({ keyId: key.id, status })
+        // Drain at most UPSTREAM_BODY_SNIPPET_MAX bytes of the failed body
+        // for diagnostic logging (operators need to see the upstream's real
+        // error, not just the status code), then cancel the rest so the
+        // socket can return to the pool. Without the cancel, a 401/429/5xx
+        // fallback storm leaves half-read bodies in flight and exhausts the
+        // connection pool exactly when the upstream is sick.
+        // Source: codex review 2026-05-15 HIGH #2 (cancel) + cause-propagation
+        // follow-up 2026-05-16 (snippet).
+        const bodySnippet = await readUpstreamBodySnippet(response)
+        failures.push({ keyId: key.id, status, bodySnippet })
+        onAttemptFailure({ keyId: key.id, status, bodySnippet })
         options.gatewayMetrics?.fallbackCount.add(1, {
           provider,
           from_key: key.id,
@@ -211,9 +258,12 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
 
         // Per-attempt timeout (our AbortController fired) or low-level
         // network error (DNS, ECONNRESET, etc.). Treat both as a 'timeout'
-        // for KTD-1 mapping purposes.
-        failures.push({ keyId: key.id, status: 'timeout' })
-        onAttemptFailure({ keyId: key.id, status: 'timeout' })
+        // for KTD-1 mapping purposes. errorMessage flows into the thrown
+        // ApiError.cause so operators can tell apart "DNS failed" from
+        // "attempt-timeout" without re-running the request.
+        const errorMessage = errorMessageFromUnknown(err)
+        failures.push({ keyId: key.id, status: 'timeout', errorMessage })
+        onAttemptFailure({ keyId: key.id, status: 'timeout', errorMessage })
         options.gatewayMetrics?.fallbackCount.add(1, {
           provider,
           from_key: key.id,
@@ -248,7 +298,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     const defaults = slice.defaults ?? { perAttemptTimeoutMs: 30000, fullChainTimeoutMs: 60000, fallbackHttpCodes: [401, 402, 403, 429, 500, 502, 503, 504] }
     const fallbackHttpCodes = slice.model.fallbackTriggers?.httpCodes ?? defaults.fallbackHttpCodes ?? [401, 402, 403, 429, 500, 502, 503, 504]
 
-    const allFailures: Array<{ provider: string, keyId: string, status: number | 'timeout' }> = []
+    const allFailures: Array<{ provider: string, keyId: string, status: number | 'timeout', bodySnippet?: string, errorMessage?: string }> = []
     let triedUpstreams = 0
 
     for (let i = 0; i < slice.model.upstreams.length; i += 1) {
@@ -300,11 +350,15 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       }
     }
 
-    throw mapUpstreamError(lastFailure.status, {
-      triedKeys: allFailures.length,
-      triedUpstreams,
-      lastStatusCode: lastFailure.status,
-    })
+    throw mapUpstreamError(
+      lastFailure.status,
+      {
+        triedKeys: allFailures.length,
+        triedUpstreams,
+        lastStatusCode: lastFailure.status,
+      },
+      allFailures,
+    )
   }
 
   /**
@@ -322,15 +376,15 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     abortSignal: AbortSignal | undefined,
     perAttemptTimeoutMs: number,
     fallbackHttpCodes: number[],
-    onAttemptFailure: (failure: { keyId: string, status: number | 'timeout' }) => void,
+    onAttemptFailure: (failure: { keyId: string, status: number | 'timeout', errorMessage?: string }) => void,
   ): Promise<
     | { kind: 'ok', contentType: string, body: ArrayBuffer | ReadableStream<Uint8Array>, attemptIndex: number }
-    | { kind: 'exhausted', failures: Array<{ keyId: string, status: number | 'timeout' }> }
+    | { kind: 'exhausted', failures: Array<{ keyId: string, status: number | 'timeout', errorMessage?: string }> }
   > {
     const providerTag = deriveProviderTag(upstream.baseURL)
     const rotator = createKeyRotator(upstream, options.envelopeCrypto, modelName, options.gatewayMetrics, providerTag)
     const adapter = getAdapter(providerId)
-    const failures: Array<{ keyId: string, status: number | 'timeout' }> = []
+    const failures: Array<{ keyId: string, status: number | 'timeout', errorMessage?: string }> = []
     let attemptIndex = 0
 
     for (const key of rotator) {
@@ -399,8 +453,13 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
           = (err as { status?: unknown }).status
             ?? (err instanceof ApiError ? err.statusCode : undefined)
         const failureStatus: number | 'timeout' = typeof rawStatus === 'number' ? rawStatus : 'timeout'
-        failures.push({ keyId: key.id, status: failureStatus })
-        onAttemptFailure({ keyId: key.id, status: failureStatus })
+        // TTS adapters bake the upstream body snippet into err.message
+        // (azure: `azure tts upstream 403: <body>`, cosyvoice / volcengine
+        // analogous), so a single errorMessage carries both the status
+        // and the upstream payload diagnostics.
+        const errorMessage = errorMessageFromUnknown(err)
+        failures.push({ keyId: key.id, status: failureStatus, errorMessage })
+        onAttemptFailure({ keyId: key.id, status: failureStatus, errorMessage })
         options.gatewayMetrics?.fallbackCount.add(1, {
           provider: providerTag,
           from_key: key.id,
@@ -444,7 +503,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     const defaults = slice.defaults ?? { perAttemptTimeoutMs: 30000, fullChainTimeoutMs: 60000, fallbackHttpCodes: [401, 402, 403, 429, 500, 502, 503, 504] }
     const fallbackHttpCodes = slice.model.fallbackTriggers?.httpCodes ?? defaults.fallbackHttpCodes ?? [401, 402, 403, 429, 500, 502, 503, 504]
 
-    const allFailures: Array<{ provider: string, keyId: string, status: number | 'timeout' }> = []
+    const allFailures: Array<{ provider: string, keyId: string, status: number | 'timeout', errorMessage?: string }> = []
     let triedUpstreams = 0
 
     for (let i = 0; i < slice.model.upstreams.length; i += 1) {
@@ -495,11 +554,15 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       }
     }
 
-    throw mapUpstreamError(lastFailure.status, {
-      triedKeys: allFailures.length,
-      triedUpstreams,
-      lastStatusCode: lastFailure.status,
-    })
+    throw mapUpstreamError(
+      lastFailure.status,
+      {
+        triedKeys: allFailures.length,
+        triedUpstreams,
+        lastStatusCode: lastFailure.status,
+      },
+      allFailures,
+    )
   }
 
   /**
