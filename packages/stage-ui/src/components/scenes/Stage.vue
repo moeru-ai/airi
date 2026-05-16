@@ -5,6 +5,7 @@ import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { UnElevenLabsOptions } from 'unspeech'
 
 import type { EmotionPayload } from '../../constants/emotions'
+import type { SpeechTransport, StageTtsSession, StreamingSessionSnapshot } from '../../libs/speech/tts-session'
 
 import { sleep } from '@moeru/std'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
@@ -28,9 +29,12 @@ import { useDuckDb } from '../../composables/use-duck-db'
 import { useIOTraceBridge } from '../../composables/use-io-trace-bridge'
 import { initIOTracer } from '../../composables/use-io-tracer'
 import { useSpeechPipelineAnalytics } from '../../composables/use-speech-pipeline-analytics'
+import { llmInferenceEndToken } from '../../constants'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
+import { getDefinedProvider } from '../../libs/providers/providers'
 import { OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { streamingSynthesize } from '../../libs/speech/streaming-session'
+import { createStageTtsSession } from '../../libs/speech/tts-session'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useBackgroundStore } from '../../stores/background'
 import { useChatOrchestratorStore } from '../../stores/chat'
@@ -40,6 +44,7 @@ import { useSpeechStore } from '../../stores/modules/speech'
 import { useProvidersStore } from '../../stores/providers'
 import { useSettings } from '../../stores/settings'
 import { useSpeechRuntimeStore } from '../../stores/speech-runtime'
+
 const props = withDefaults(defineProps<{
   paused?: boolean
   focusAt: { x: number, y: number }
@@ -300,6 +305,23 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
     if (!activeSpeechProvider.value)
       return null
 
+    // Streaming provider must NEVER reach this per-segment callback. The
+    // streaming code path opens its own ws at `onBeforeMessageComposed`
+    // and bypasses speech-pipeline entirely. If we got here while the
+    // streaming provider is active, the open path failed (most often:
+    // voice catalog hadn't finished loading when the user sent the
+    // message). The old fallback would silently re-open a fresh ws per
+    // segment — exactly the behavior the refactor is meant to delete.
+    // Codex review MEDIUM #3: refuse loudly instead.
+    if (resolveSpeechTransport(activeSpeechProvider.value) === 'bidirectional-ws') {
+      console.warn('[Speech Pipeline] bidirectional-ws provider reached per-segment fallback', {
+        reason: 'streaming session was not opened at intent start (voice unset?)',
+        provider: activeSpeechProvider.value,
+        segment: request.text?.slice(0, 40),
+      })
+      return null
+    }
+
     const provider = await providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
     if (!provider) {
       console.error('Failed to initialize speech provider')
@@ -361,38 +383,14 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
       : request.text
 
     try {
-      // Streaming TTS path: open a WebSocket to apps/server which proxies to
-      // unspeech bidirectional. Server-side starts streaming audio as the
-      // upstream synthesises, so first-byte latency is significantly lower
-      // than the buffered REST round-trip. We still wait for `session.finished`
-      // here and decode a single AudioBuffer per segment because the existing
-      // playbackManager is AudioBuffer-shaped; a future refactor can chunk on
-      // `sentence.end` events for true play-as-you-receive.
-      let res: ArrayBuffer | null = null
-      if (activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID) {
-        // Derive the upstream resource id from the routed model. `model`
-        // looks like `volcengine/seed-tts-2.0`; the bit after the slash
-        // becomes `api_resource_id` for unspeech → Volcengine X-Api-Resource-Id.
-        const apiResourceId = model.includes('/') ? model.split('/', 2)[1] : 'seed-tts-2.0'
-        const result = await streamingSynthesize({
-          model,
-          voice: voice.id,
-          input,
-          signal,
-          extraBody: {
-            api_resource_id: apiResourceId,
-            audio: { sample_rate: 24000, bit_rate: 64000 },
-          },
-        })
-        res = result.audio
-      }
-      else {
-        res = await generateSpeech({
-          ...provider.speech(model, providerConfig),
-          input,
-          voice: voice.id,
-        })
-      }
+      // Non-streaming providers only: synth via REST. Streaming provider
+      // was already early-returned above; it owns its own ws path opened
+      // in `onBeforeMessageComposed`.
+      const res = await generateSpeech({
+        ...provider.speech(model, providerConfig),
+        input,
+        voice: voice.id,
+      })
 
       if (signal.aborted || !res || res.byteLength === 0)
         return null
@@ -547,7 +545,82 @@ function setupAnalyser() {
   }
 }
 
-let currentChatIntent: ReturnType<typeof speechRuntimeStore.openIntent> | null = null
+// One TTS session per LLM intent. The active provider determines which
+// adapter `createStageTtsSession` returns: the segmenter-based adapter for
+// every non-streaming provider, or the bidirectional WebSocket adapter
+// for the official streaming provider. Stage.vue intentionally does NOT
+// branch on provider id anywhere below — the factory is the single
+// decision point. See `packages/stage-ui/src/libs/speech/tts-session.ts`.
+let currentSession: StageTtsSession | null = null
+
+function buildStreamingSnapshot(): StreamingSessionSnapshot | null {
+  // Snapshotted once per session, so a mid-session provider/voice swap
+  // does not corrupt an in-flight session — the watcher below detects
+  // changes and tears down explicitly. Returns `null` when streaming
+  // can't be opened (no voice picked, no audioContext, no model);
+  // `createStageTtsSession` falls back to the segmenter adapter in that
+  // case, which is the right behaviour for the rest of the providers too.
+  const voiceId = activeSpeechVoice.value?.id
+  if (!voiceId)
+    return null
+  const sessionModel = (activeSpeechModel.value as string | undefined) || 'volcengine/seed-tts-2.0'
+  const apiResourceId = sessionModel.includes('/') ? sessionModel.split('/', 2)[1] : 'seed-tts-2.0'
+  // TTS 2.0 / ICL 2.0 ship subtitles asynchronously relative to audio
+  // (per the wire spec), so chunk-on-sentence-end would drop frames.
+  // Buffer the entire session and decode at session.finished instead.
+  const bufferEntireSession = apiResourceId.startsWith('seed-tts-2.0') || apiResourceId.startsWith('seed-icl-2.0')
+  return {
+    model: sessionModel,
+    voice: voiceId,
+    bufferEntireSession,
+    extraBody: {
+      api_resource_id: apiResourceId,
+      audio: { sample_rate: 24000, bit_rate: 64000 },
+    },
+    ownerId: activeCardId.value,
+    onImmediateSpecial: playSpecialToken,
+  }
+}
+
+function resolveSpeechTransport(providerId: string | null | undefined): SpeechTransport | undefined {
+  if (!providerId)
+    return undefined
+  // Read straight from the unified ProviderDefinition registry — keeps the
+  // factory transport-agnostic and lets a new provider opt into streaming
+  // by setting `capabilities.speech.transport: 'bidirectional-ws'` in its
+  // own `defineProvider` call (no Stage / factory edits needed).
+  return getDefinedProvider(providerId)?.capabilities?.speech?.transport
+}
+
+function openTtsSession(): StageTtsSession {
+  return createStageTtsSession<AudioBuffer>({
+    transport: resolveSpeechTransport(activeSpeechProvider.value),
+    streaming: buildStreamingSnapshot,
+    audioContext,
+    playbackManager,
+    openIntent: opts => speechRuntimeStore.openIntent(opts),
+    intentOptions: () => ({
+      ownerId: activeCardId.value,
+      priority: 'normal',
+      behavior: 'queue',
+    }),
+    hooks: {
+      onError: (err) => {
+        console.error('[Speech Pipeline] streaming session error', {
+          provider: activeSpeechProvider.value,
+          model: activeSpeechModel.value,
+          error: err,
+        })
+        if (currentSession?.intentId.startsWith('stream-'))
+          currentSession = null
+      },
+      onDone: () => {
+        if (currentSession?.intentId.startsWith('stream-'))
+          currentSession = null
+      },
+    },
+  })
+}
 
 chatHookCleanups.push(onBeforeMessageComposed(async () => {
   playbackManager.stopAll('new-message')
@@ -571,16 +644,8 @@ chatHookCleanups.push(onBeforeMessageComposed(async () => {
     console.warn('[Stage] Failed to post present reset (channel may be closed)', { error })
   }
 
-  if (currentChatIntent) {
-    currentChatIntent.cancel('new-message')
-    currentChatIntent = null
-  }
-
-  currentChatIntent = speechRuntimeStore.openIntent({
-    ownerId: activeCardId.value,
-    priority: 'normal',
-    behavior: 'queue',
-  })
+  currentSession?.cancel('new-message')
+  currentSession = openTtsSession()
 }))
 
 chatHookCleanups.push(onBeforeSend(async () => {
@@ -588,21 +653,26 @@ chatHookCleanups.push(onBeforeSend(async () => {
 }))
 
 chatHookCleanups.push(onTokenLiteral(async (literal) => {
-  currentChatIntent?.writeLiteral(literal)
+  currentSession?.appendText(literal)
 }))
 
 chatHookCleanups.push(onTokenSpecial(async (special) => {
-  // console.debug('Stage received special token:', special)
-  currentChatIntent?.writeSpecial(special)
+  currentSession?.appendSpecial(special)
 }))
 
 chatHookCleanups.push(onStreamEnd(async () => {
-  currentChatIntent?.writeFlush()
+  currentSession?.finishInput()
 }))
 
 chatHookCleanups.push(onAssistantResponseEnd(async (_message) => {
-  currentChatIntent?.end()
-  currentChatIntent = null
+  currentSession?.end()
+  // Streaming sessions null-out via the onDone hook; segmenter sessions
+  // stay around until the next `onBeforeMessageComposed` cancels them
+  // (the segmenter pipeline's IntentHandle.end is idempotent and
+  // ResourceMessages still arrive after end() — clearing here would
+  // race with the pipeline's own cleanup). Keep the ref pointing at
+  // the just-ended session; it costs nothing and the next message
+  // replaces it.
   // const res = await embed({
   //   ...transformersProvider.embed('Xenova/nomic-embed-text-v1'),
   //   input: message,
@@ -610,6 +680,32 @@ chatHookCleanups.push(onAssistantResponseEnd(async (_message) => {
 
   // await db.value?.execute(`INSERT INTO memory_test (vec) VALUES (${JSON.stringify(res.embedding)});`)
 }))
+
+// Mid-session provider / voice / model swaps would otherwise keep feeding
+// tokens to the OLD adapter (segmenter for the new provider, or stale ws
+// for the streaming provider). Cancel the active session so the next LLM
+// token after the swap falls through `currentSession?.` cleanly (silent
+// drop is acceptable — we don't try to fork-replay text into a new
+// adapter with potentially different voice/model).
+watch(
+  [activeSpeechProvider, () => activeSpeechVoice.value?.id, activeSpeechModel],
+  ([provider, voiceId, model], [prevProvider, prevVoiceId, prevModel]) => {
+    if (!currentSession)
+      return
+    if (provider === prevProvider && voiceId === prevVoiceId && model === prevModel)
+      return
+    console.warn('[Speech Pipeline] provider/voice/model changed mid-session, tearing down', {
+      provider,
+      prevProvider,
+      voiceId,
+      prevVoiceId,
+      model,
+      prevModel,
+    })
+    currentSession.cancel('provider-or-voice-changed')
+    currentSession = null
+  },
+)
 
 // Resume audio context on first user interaction (browser requirement)
 let audioContextResumed = false
@@ -716,6 +812,14 @@ onUnmounted(() => {
   resetLive2dLipSync()
   chatHookCleanups.forEach(dispose => dispose?.())
   viewUpdateCleanups.forEach(dispose => dispose?.())
+  // Tear down any in-flight TTS session (segmenter or streaming) and
+  // drain playback. Without this, a still-open streaming ws keeps
+  // feeding sentences into a playbackManager whose listeners still
+  // mutate component refs (caption / nowSpeaking). Codex review: HIGH
+  // #1 + MEDIUM #5.
+  currentSession?.cancel('unmount')
+  currentSession = null
+  playbackManager.stopAll('unmount')
 })
 
 defineExpose({

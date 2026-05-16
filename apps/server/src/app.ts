@@ -53,7 +53,7 @@ import { createCharacterRoutes } from './routes/characters'
 import { createChatWsHandlers } from './routes/chat-ws'
 import { createChatRoutes } from './routes/chats'
 import { createFluxRoutes } from './routes/flux'
-import { createV1CompletionsRoutes } from './routes/openai/v1'
+import { createV1Routes } from './routes/openai/v1'
 import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
 import { createAdminFluxGrantsService } from './services/admin-flux-grants'
@@ -204,6 +204,11 @@ export async function buildApp(deps: AppDeps) {
     logger: useLogger('config-sync').useGlobalConfig(),
   })
 
+  // Built once so the OpenAI-compat and audio routers share the same closure
+  // (helpers like recordMetrics / recordRequestLog cross both surfaces) but
+  // mount at different prefixes — see the `.route` calls below.
+  const v1Routes = createV1Routes(deps.fluxService, deps.billingService, deps.configKV, deps.requestLogService, deps.ttsMeter, deps.llmRouter, deps.otel?.genAi, deps.otel?.revenue, deps.otel?.rateLimit)
+
   const builtApp = app
     .use('*', sessionMiddleware(deps.auth, deps.env))
     .use('*', bodyLimit({ maxSize: 1024 * 1024 }))
@@ -311,9 +316,13 @@ export async function buildApp(deps: AppDeps) {
     .route('/api/v1/chats', createChatRoutes(deps.chatService))
 
     /**
-     * V1 routes for official provider.
+     * V1 OpenAI-compatible and audio routes. The factory returns two
+     * sibling routers because the audio surface deliberately lives outside
+     * `/openai/` — its `/voices`, `/voices/streaming`, and `/models`
+     * extensions aren't OpenAI public APIs.
      */
-    .route('/api/v1/openai', createV1CompletionsRoutes(deps.fluxService, deps.billingService, deps.configKV, deps.requestLogService, deps.ttsMeter, deps.llmRouter, deps.otel?.genAi, deps.otel?.revenue, deps.otel?.rateLimit))
+    .route('/api/v1/openai', v1Routes.openaiRoutes)
+    .route('/api/v1/audio', v1Routes.audioRoutes)
 
     /**
      * Flux routes.

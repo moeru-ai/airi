@@ -67,7 +67,7 @@ function getLlmMetricAttributes(opts: { model: string, type: string, status: num
   }
 }
 
-export function createV1CompletionsRoutes(
+export function createV1Routes(
   fluxService: FluxService,
   billingService: BillingService,
   configKV: ConfigKVService,
@@ -635,6 +635,65 @@ export function createV1CompletionsRoutes(
     return Response.json({ voices, recommended })
   }
 
+  /**
+   * Voice catalog for the streaming TTS provider (`/audio/speech/ws`).
+   *
+   * The HTTP `/audio/voices?model=…` endpoint above queries
+   * `LLM_ROUTER_CONFIG.tts.models` and is unaware of the streaming
+   * surface. Streaming uses `STREAMING_TTS_UPSTREAM` (a single unspeech
+   * instance) instead, and unspeech ships an embed-time voice catalog
+   * for Volcengine that doesn't require credentials — so we proxy
+   * straight to it. Falls back to an empty list if streaming isn't
+   * configured yet so the client can render "no voices" instead of
+   * exploding.
+   */
+  async function handleListStreamingVoices(_c: Context<HonoEnv>) {
+    const upstream = await configKV.getOptional('STREAMING_TTS_UPSTREAM')
+    if (!upstream || !upstream.baseURL)
+      return Response.json({ voices: [], recommended: {} })
+
+    let voicesURL: string
+    try {
+      const u = new URL(upstream.baseURL)
+      // ws:// → http://, wss:// → https://. unspeech serves both the WS
+      // stream and the REST voices endpoint on the same listener.
+      u.protocol = u.protocol === 'wss:' ? 'https:' : 'http:'
+      u.pathname = '/api/voices'
+      u.search = '?provider=volcengine'
+      voicesURL = u.toString()
+    }
+    catch (err) {
+      logger.withError(err).withFields({ baseURL: upstream.baseURL }).warn('streaming-voices: bad upstream URL')
+      return Response.json({ voices: [], recommended: {} })
+    }
+
+    let res: Response
+    try {
+      res = await globalThis.fetch(voicesURL, {
+        signal: AbortSignal.timeout(5000),
+      })
+    }
+    catch (err) {
+      logger.withError(err).withFields({ voicesURL }).warn('streaming-voices: unspeech fetch failed')
+      return Response.json({ voices: [], recommended: {} })
+    }
+
+    if (!res.ok) {
+      logger.withFields({ voicesURL, status: res.status }).warn('streaming-voices: unspeech non-2xx')
+      return Response.json({ voices: [], recommended: {} })
+    }
+
+    const data = await res.json().catch(() => ({})) as { voices?: unknown[] }
+    return Response.json({
+      voices: Array.isArray(data.voices) ? data.voices : [],
+      // STREAMING_TTS_UPSTREAM is not part of DEFAULT_TTS_VOICES (which
+      // keys on LLM_ROUTER_CONFIG model ids). Future enhancement: add a
+      // separate streaming-recommended map if locale-based auto-pick
+      // matters for streaming too.
+      recommended: {},
+    })
+  }
+
   async function handleListTTSModels(_c: Context<HonoEnv>) {
     // Mirror the chat provider: expose a single 'auto' routing alias instead
     // of the concrete DEFAULT_TTS_MODEL id. Keeps clients insulated from
@@ -652,11 +711,27 @@ export function createV1CompletionsRoutes(
   // 60 requests per minute per user for LLM completions
   const completionsRateLimit = rateLimiter({ max: 60, windowSec: 60, metrics: rateLimitMetrics, routeLabel: 'openai.completions' })
 
-  return new Hono<HonoEnv>()
+  // OpenAI-compatible surface (mounted at /api/v1/openai). Only routes that
+  // mirror an actual OpenAI public endpoint belong here. Audio used to live
+  // under this prefix too, but the `/audio/voices` listing endpoint isn't a
+  // real OpenAI route and the streaming TTS protocol has nothing to do with
+  // OpenAI — keeping them here mislabelled the surface, so audio now mounts
+  // at /api/v1/audio (see `audioRoutes` below).
+  const openaiRoutes = new Hono<HonoEnv>()
     .use('*', authGuard)
     .post('/chat/completions', completionsRateLimit, chatGuard, handleCompletion)
     .post('/chat/completion', completionsRateLimit, chatGuard, handleCompletion)
-    .post('/audio/speech', ttsGuard, handleTTS)
-    .get('/audio/voices', handleListVoices)
-    .get('/audio/models', handleListTTSModels)
+
+  // AIRI audio surface (mounted at /api/v1/audio). Lives outside /openai/ so
+  // the `/voices`, `/voices/streaming`, and `/models` extensions aren't
+  // misread as OpenAI-compatible. `/audio/speech/ws` is registered
+  // separately in app.ts because it needs the WebSocket upgrade middleware.
+  const audioRoutes = new Hono<HonoEnv>()
+    .use('*', authGuard)
+    .post('/speech', ttsGuard, handleTTS)
+    .get('/voices', handleListVoices)
+    .get('/voices/streaming', handleListStreamingVoices)
+    .get('/models', handleListTTSModels)
+
+  return { openaiRoutes, audioRoutes }
 }

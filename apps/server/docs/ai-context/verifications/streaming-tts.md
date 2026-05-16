@@ -83,19 +83,22 @@ once it lands.
 
 ```bash
 cd apps/server
-LLM_ROUTER_MASTER_KEY="$LLM_ROUTER_MASTER_KEY" \
+STREAMING_TTS_UPSTREAM_URL="ws://airi-unspeech.railway.internal:5933/v1/audio/speech/stream" \
 VOLCENGINE_TTS_API_KEY="$VOLCENGINE_TTS_API_KEY" \
 pnpm exec dotenvx run --env-file=.env.local -- \
-  tsx scripts/seed-router-config.ts \
-    --streaming-tts-key "$VOLCENGINE_TTS_API_KEY"
+  tsx scripts/seed-streaming-tts.ts
 ```
 
-> Note: `seed-router-config.ts` does not yet implement
-> `--streaming-tts-key`. Until then, write the configKV entry directly
-> from a one-off node REPL using `configKV.set('STREAMING_TTS_UPSTREAM',
-> { baseURL: 'ws://localhost:5933/v1/audio/speech/stream', keys: [{ id:
-> 'volcengine-prod-1', ciphertext: envelopeCrypto.encryptKey(<plaintext>,
-> { modelName: 'streaming-tts', keyEntryId: 'volcengine-prod-1' }) }] })`.
+The script reads `LLM_ROUTER_MASTER_KEY` and `REDIS_URL` from
+`.env.local`, envelope-encrypts the Volcengine key under AAD
+`{ modelName: 'streaming-tts', keyEntryId: 'volcengine-prod-1' }`, and
+writes the `STREAMING_TTS_UPSTREAM` configKV entry. Use `--dry-run` to
+preview the ciphertext length without committing.
+
+To point at a different unspeech instance later, just re-run the script
+with a different `STREAMING_TTS_UPSTREAM_URL`. To rotate the upstream
+key, re-run with `--key-id volcengine-prod-N` (the audio-speech-ws
+route always reads `keys[0]`, so a write replaces the active key).
 
 ### Scenario L1: streaming session happy path
 

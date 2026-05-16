@@ -8,7 +8,7 @@ import type { HonoEnv } from '../../../types/hono'
 import { Hono } from 'hono'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 
-import { createV1CompletionsRoutes } from '.'
+import { createV1Routes } from '.'
 import { ApiError } from '../../../utils/error'
 
 // --- Mock helpers ---
@@ -122,7 +122,7 @@ function createTestApp(
   ttsMeter?: ReturnType<typeof createMockTtsMeter>,
   llmRouter?: LlmRouterService,
 ) {
-  const routes = createV1CompletionsRoutes(
+  const { openaiRoutes, audioRoutes } = createV1Routes(
     fluxService,
     billingService ?? createMockBillingService(),
     configKV,
@@ -153,7 +153,12 @@ function createTestApp(
     await next()
   })
 
-  app.route('/api/v1/openai', routes)
+  // Mounting mirrors production (see app.ts): chat completions under
+  // `/api/v1/openai`, audio under `/api/v1/audio`. Test request URLs were
+  // batch-migrated from the legacy `/api/v1/openai/audio/*` prefix when the
+  // audio surface was split out of the OpenAI-compat namespace.
+  app.route('/api/v1/openai', openaiRoutes)
+  app.route('/api/v1/audio', audioRoutes)
   return app
 }
 
@@ -492,7 +497,38 @@ describe('v1CompletionsRoutes', () => {
     })
   })
 
-  describe('pOST /api/v1/openai/audio/speech', () => {
+  describe('legacy audio paths under /openai/', () => {
+    // Audio used to live at /api/v1/openai/audio/*. After the refactor it
+    // moved to /api/v1/audio/*; these are kept as 404 sentinels so a
+    // future accidental re-mount under the old prefix is caught by tests.
+    // Codex review LOW #6.
+    it('returns 404 for /api/v1/openai/audio/speech (moved to /api/v1/audio/speech)', async () => {
+      const app = createTestApp(createMockFluxService(), createMockConfigKV())
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/openai/audio/speech', { method: 'POST' }),
+        { user: testUser } as any,
+      )
+      expect(res.status).toBe(404)
+    })
+    it('returns 404 for /api/v1/openai/audio/voices', async () => {
+      const app = createTestApp(createMockFluxService(), createMockConfigKV())
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/openai/audio/voices', { method: 'GET' }),
+        { user: testUser } as any,
+      )
+      expect(res.status).toBe(404)
+    })
+    it('returns 404 for /api/v1/openai/audio/models', async () => {
+      const app = createTestApp(createMockFluxService(), createMockConfigKV())
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/openai/audio/models', { method: 'GET' }),
+        { user: testUser } as any,
+      )
+      expect(res.status).toBe(404)
+    })
+  })
+
+  describe('pOST /api/v1/audio/speech', () => {
     it('should proxy TTS request to upstream with resolved model', async () => {
       globalThis.fetch = vi.fn(async () => new Response(new Uint8Array([1]), {
         status: 200,
@@ -505,7 +541,7 @@ describe('v1CompletionsRoutes', () => {
       )
 
       await app.fetch(
-        new Request('http://localhost/api/v1/openai/audio/speech', {
+        new Request('http://localhost/api/v1/audio/speech', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ model: 'auto', input: 'test', voice: 'alloy' }),
@@ -532,7 +568,7 @@ describe('v1CompletionsRoutes', () => {
       const app = createTestApp(createMockFluxService(), createMockConfigKV(), billingService)
 
       await app.fetch(
-        new Request('http://localhost/api/v1/openai/audio/speech', {
+        new Request('http://localhost/api/v1/audio/speech', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ model: 'auto', input: 'hello', voice: 'alloy' }),
@@ -554,7 +590,7 @@ describe('v1CompletionsRoutes', () => {
       const app = createTestApp(createMockFluxService(), createMockConfigKV(), billingService, undefined, undefined, llmRouter)
 
       const res = await app.fetch(
-        new Request('http://localhost/api/v1/openai/audio/speech', {
+        new Request('http://localhost/api/v1/audio/speech', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ model: 'auto', input: 'hello', voice: 'alloy' }),
@@ -573,7 +609,7 @@ describe('v1CompletionsRoutes', () => {
       )
 
       const res = await app.fetch(
-        new Request('http://localhost/api/v1/openai/audio/speech', {
+        new Request('http://localhost/api/v1/audio/speech', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ model: 'auto', input: 'hello', voice: 'alloy' }),
@@ -593,7 +629,7 @@ describe('v1CompletionsRoutes', () => {
       const app = createTestApp(createMockFluxService(), createMockConfigKV(), billingService)
 
       await app.fetch(
-        new Request('http://localhost/api/v1/openai/audio/speech', {
+        new Request('http://localhost/api/v1/audio/speech', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ model: 'auto', input: '', voice: 'alloy' }),
@@ -618,7 +654,7 @@ describe('v1CompletionsRoutes', () => {
       const app = createTestApp(createMockFluxService(), createMockConfigKV(), billingService, undefined, ttsMeter)
 
       await app.fetch(
-        new Request('http://localhost/api/v1/openai/audio/speech', {
+        new Request('http://localhost/api/v1/audio/speech', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ model: 'auto', input: longInput, voice: 'alloy' }),
@@ -634,7 +670,7 @@ describe('v1CompletionsRoutes', () => {
     it('should return 401 when unauthenticated', async () => {
       const app = createTestApp(createMockFluxService(), createMockConfigKV())
 
-      const res = await app.request('/api/v1/openai/audio/voices', { method: 'GET' })
+      const res = await app.request('/api/v1/audio/voices', { method: 'GET' })
       expect(res.status).toBe(401)
     })
 
@@ -671,7 +707,7 @@ describe('v1CompletionsRoutes', () => {
       )
 
       const res = await app.fetch(
-        new Request('http://localhost/api/v1/openai/audio/speech', {
+        new Request('http://localhost/api/v1/audio/speech', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ model: 'auto', input: 'hi', voice: 'en-US-AvaMultilingualNeural' }),
@@ -699,7 +735,7 @@ describe('v1CompletionsRoutes', () => {
       const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, undefined, undefined, llmRouter)
 
       const res = await app.fetch(
-        new Request('http://localhost/api/v1/openai/audio/speech', {
+        new Request('http://localhost/api/v1/audio/speech', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ model: 'auto', input: 'hi', voice: 'alloy' }),
@@ -710,7 +746,7 @@ describe('v1CompletionsRoutes', () => {
     })
   })
 
-  describe('gET /api/v1/openai/audio/models', () => {
+  describe('gET /api/v1/audio/models', () => {
     it('exposes only the auto routing alias regardless of DEFAULT_TTS_MODEL', async () => {
       const app = createTestApp(
         createMockFluxService(),
@@ -718,7 +754,7 @@ describe('v1CompletionsRoutes', () => {
       )
 
       const res = await app.fetch(
-        new Request('http://localhost/api/v1/openai/audio/models', { method: 'GET' }),
+        new Request('http://localhost/api/v1/audio/models', { method: 'GET' }),
         { user: testUser } as any,
       )
 
@@ -730,12 +766,12 @@ describe('v1CompletionsRoutes', () => {
     it('should return 401 when unauthenticated', async () => {
       const app = createTestApp(createMockFluxService(), createMockConfigKV())
 
-      const res = await app.request('/api/v1/openai/audio/models', { method: 'GET' })
+      const res = await app.request('/api/v1/audio/models', { method: 'GET' })
       expect(res.status).toBe(401)
     })
   })
 
-  describe('gET /api/v1/openai/audio/voices', () => {
+  describe('gET /api/v1/audio/voices', () => {
     it('returns the adapter voice catalog plus recommended map for the resolved model', async () => {
       const voices = [
         { id: 'en-US-JennyNeural', name: 'Jenny', provider: 'azure', locale: 'en-US', gender: 'Female' },
@@ -751,7 +787,7 @@ describe('v1CompletionsRoutes', () => {
       const app = createTestApp(createMockFluxService(), configKV, undefined, undefined, undefined, llmRouter)
 
       const res = await app.fetch(
-        new Request('http://localhost/api/v1/openai/audio/voices', { method: 'GET' }),
+        new Request('http://localhost/api/v1/audio/voices', { method: 'GET' }),
         { user: testUser } as any,
       )
 
@@ -769,7 +805,7 @@ describe('v1CompletionsRoutes', () => {
 
       const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, undefined, undefined, llmRouter)
 
-      await app.fetch(new Request('http://localhost/api/v1/openai/audio/voices?model=alibaba/cosyvoice-v1'), { user: testUser } as any)
+      await app.fetch(new Request('http://localhost/api/v1/audio/voices?model=alibaba/cosyvoice-v1'), { user: testUser } as any)
       expect(llmRouter.listTtsVoices).toHaveBeenCalledWith('alibaba/cosyvoice-v1')
     })
 
@@ -781,7 +817,7 @@ describe('v1CompletionsRoutes', () => {
 
       const app = createTestApp(createMockFluxService(), configKV, undefined, undefined, undefined, llmRouter)
 
-      await app.fetch(new Request('http://localhost/api/v1/openai/audio/voices?model=auto'), { user: testUser } as any)
+      await app.fetch(new Request('http://localhost/api/v1/audio/voices?model=auto'), { user: testUser } as any)
       expect(llmRouter.listTtsVoices).toHaveBeenCalledWith('microsoft/v1')
     })
   })
