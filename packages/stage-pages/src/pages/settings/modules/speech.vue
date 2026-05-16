@@ -92,6 +92,29 @@ const debouncedLoadVoicesForSearch = useDebounceFn(async (providerId: string, se
   })
 }, 500)
 
+function hydrateSavedVoiceSelection() {
+  const voiceId = activeSpeechVoiceId.value
+  if (!voiceId || activeSpeechVoice.value) {
+    return
+  }
+
+  const loadedVoice = availableVoices.value[activeSpeechProvider.value]?.find(voice => voice.id === voiceId)
+  if (loadedVoice) {
+    activeSpeechVoice.value = loadedVoice
+    return
+  }
+
+  updateCustomVoiceName(voiceId)
+}
+
+function hasCachedVoicesForActiveProvider(): boolean {
+  if (!activeSpeechProvider.value) {
+    return false
+  }
+
+  return Object.hasOwn(availableVoices.value, activeSpeechProvider.value)
+}
+
 // Sync OpenAI Compatible model and voice from provider config
 function syncOpenAICompatibleSettings() {
   if (activeSpeechProvider.value !== 'openai-compatible-audio-speech')
@@ -121,9 +144,17 @@ function syncOpenAICompatibleSettings() {
 
 onMounted(async () => {
   await providersStore.loadModelsForConfiguredProviders()
-  await speechStore.loadVoicesForProvider(activeSpeechProvider.value, {
-    searchTerm: usesRemoteVoiceSearch.value ? voiceSearchQuery.value : '',
-  })
+  if (
+    activeSpeechProvider.value
+    && activeSpeechProvider.value !== 'speech-noop'
+    && !isLoadingSpeechProviderVoices.value
+    && !hasCachedVoicesForActiveProvider()
+  ) {
+    await speechStore.loadVoicesForProvider(activeSpeechProvider.value, {
+      searchTerm: usesRemoteVoiceSearch.value ? voiceSearchQuery.value : '',
+    })
+  }
+  hydrateSavedVoiceSelection()
   syncOpenAICompatibleSettings()
 })
 
@@ -150,6 +181,7 @@ watch(activeSpeechModel, async () => {
     await speechStore.loadVoicesForProvider(activeSpeechProvider.value, {
       searchTerm: usesRemoteVoiceSearch.value ? voiceSearchQuery.value : '',
     })
+    hydrateSavedVoiceSelection()
   }
 })
 
