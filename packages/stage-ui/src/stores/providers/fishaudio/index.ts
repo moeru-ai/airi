@@ -2,13 +2,17 @@ import type { SpeechProvider } from '@xsai-ext/providers/utils'
 
 import type { ModelInfo, ProviderMetadata } from '../../providers'
 
+import { defineInvoke } from '@moeru/eventa'
+import { createContext } from '@moeru/eventa/adapters/electron/renderer'
 import { errorMessageFrom } from '@moeru/std'
+import { electronFishAudioTTS } from '@proj-airi/stage-shared'
 
 const DEFAULT_BASE_URL = 'https://api.fish.audio/'
 const DEFAULT_MODEL = 's2-pro'
 const DEFAULT_OUTPUT_FORMAT = 'mp3' as const
 const PROVIDER_ID = 'fishaudio-speech'
 const FISH_AUDIO_PROXY_BASE_URL = '/api-fish'
+const FISH_AUDIO_MIME_TYPE = 'audio/mpeg'
 
 function ensureTrailingSlash(value: string): string {
   return value.endsWith('/') ? value : `${value}/`
@@ -25,6 +29,25 @@ function normalizeBaseUrl(value: unknown): string {
 
 function normalizeOutputFormat(_value: unknown): typeof DEFAULT_OUTPUT_FORMAT {
   return DEFAULT_OUTPUT_FORMAT
+}
+
+function isDefaultBaseUrl(baseUrl: string): boolean {
+  return ensureTrailingSlash(baseUrl) === DEFAULT_BASE_URL
+}
+
+function getElectronIpcRenderer(): Parameters<typeof createContext>[0] | undefined {
+  return (globalThis as { window?: { electron?: { ipcRenderer?: Parameters<typeof createContext>[0] } } }).window?.electron?.ipcRenderer
+}
+
+function decodeBase64Audio(base64: string): ArrayBuffer {
+  const binary = globalThis.atob(base64)
+  const bytes = new Uint8Array(binary.length)
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index)
+  }
+
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
 }
 
 /**
@@ -54,9 +77,45 @@ function buildFishAudioHeaders(apiKey: string, contentType?: string): HeadersIni
 function resolveFishAudioRequestBaseUrl(baseUrl: string): string {
   const normalizedBaseUrl = ensureTrailingSlash(baseUrl)
   const shouldUseProxy = import.meta.env.DEV
-    && normalizedBaseUrl === DEFAULT_BASE_URL
+    && isDefaultBaseUrl(normalizedBaseUrl)
 
   return ensureTrailingSlash(shouldUseProxy ? FISH_AUDIO_PROXY_BASE_URL : normalizedBaseUrl)
+}
+
+async function invokeElectronFishAudioTts(payload: {
+  apiKey: string
+  baseUrl: string
+  chunkLength?: number
+  latency: string
+  model: string
+  mp3Bitrate?: number
+  normalize: boolean
+  referenceId?: string
+  text: string
+}): Promise<Response> {
+  const ipcRenderer = getElectronIpcRenderer()
+  if (!ipcRenderer) {
+    throw new Error('Electron ipcRenderer is not available for Fish Audio TTS.')
+  }
+
+  const { context } = createContext(ipcRenderer)
+  const invokeTts = defineInvoke(context, electronFishAudioTTS)
+  const result = await invokeTts({
+    ...payload,
+    baseUrl: ensureTrailingSlash(payload.baseUrl),
+  })
+
+  const audioBlob = new Blob([decodeBase64Audio(result.audioBase64)], {
+    type: result.mimeType,
+  })
+
+  return new Response(audioBlob, {
+    status: result.status,
+    statusText: result.statusText,
+    headers: {
+      'Content-Type': result.mimeType,
+    },
+  })
 }
 
 async function buildErrorFromResponse(response: Response): Promise<Error> {
@@ -109,6 +168,20 @@ function createAudioFetch(baseUrl: string, apiKey: string, defaultModel: string)
       payload.mp3_bitrate = body.mp3_bitrate
     }
 
+    if (!import.meta.env.DEV && isDefaultBaseUrl(baseUrl) && getElectronIpcRenderer()) {
+      return invokeElectronFishAudioTts({
+        apiKey,
+        baseUrl,
+        text,
+        model: (payload as { model?: string }).model || DEFAULT_MODEL,
+        normalize: Boolean(payload.normalize),
+        latency: String(payload.latency),
+        referenceId,
+        chunkLength: typeof payload.chunk_length === 'number' ? payload.chunk_length : undefined,
+        mp3Bitrate: typeof payload.mp3_bitrate === 'number' ? payload.mp3_bitrate : undefined,
+      })
+    }
+
     const requestBaseUrl = resolveFishAudioRequestBaseUrl(baseUrl)
     const headers = new Headers(buildFishAudioHeaders(apiKey, 'application/json'))
     headers.set('model', (payload as any).model || 's2-pro')
@@ -124,7 +197,7 @@ function createAudioFetch(baseUrl: string, apiKey: string, defaultModel: string)
 
     const audioBuffer = await response.arrayBuffer()
     const audioBlob = new Blob([audioBuffer], {
-      type: 'audio/mpeg',
+      type: FISH_AUDIO_MIME_TYPE,
     })
 
     return new Response(audioBlob, {
@@ -367,7 +440,6 @@ async function validateFishAudioConfiguration(
  * - The xsAI speech request must be translated into Fish Audio's JSON TTS payload
  *
  * Expects:
- * - `import.meta.env.VITE_FISHAUDIO_API_KEY` contains a Fish Audio API token when browser auth is required
  * - `config.baseUrl` is either empty or an absolute Fish Audio-compatible base URL
  *
  * Returns:
