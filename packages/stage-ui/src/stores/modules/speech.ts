@@ -84,7 +84,10 @@ export const useSpeechStore = defineStore('speech', () => {
     return ['elevenlabs', 'microsoft-speech', 'azure-speech'].includes(activeSpeechProvider.value)
   })
 
-  async function loadVoicesForProvider(provider: string, options: { searchTerm?: string } = {}) {
+  async function loadVoicesForProvider(
+    provider: string,
+    options: { searchTerm?: string, shouldApply?: () => boolean } = {},
+  ) {
     if (!provider) {
       return []
     }
@@ -97,6 +100,9 @@ export const useSpeechStore = defineStore('speech', () => {
         ...providersStore.getProviderConfig(provider),
         searchTerm: options.searchTerm ?? '',
       }) || []
+      if (options.shouldApply && !options.shouldApply()) {
+        return voices
+      }
       // Reassign to trigger reactivity when adding/updating provider entries
       availableVoices.value = {
         ...availableVoices.value,

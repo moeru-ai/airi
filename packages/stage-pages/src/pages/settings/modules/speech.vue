@@ -87,6 +87,7 @@ const debouncedLoadVoicesForSearch = useDebounceFn(async (providerId: string, se
 
   await speechStore.loadVoicesForProvider(providerId, {
     searchTerm,
+    shouldApply: () => activeSpeechProvider.value === providerId && voiceSearchQuery.value === searchTerm,
   })
 }, 500)
 
@@ -227,7 +228,9 @@ async function generateTestSpeech() {
     })
 
     // Convert the response to a blob and create an object URL
-    audioUrl.value = URL.createObjectURL(new Blob([response]))
+    audioUrl.value = URL.createObjectURL(new Blob([response], {
+      type: activeSpeechProvider.value === 'fishaudio-speech' ? 'audio/mpeg' : '',
+    }))
 
     // Play the audio
     setTimeout(() => {

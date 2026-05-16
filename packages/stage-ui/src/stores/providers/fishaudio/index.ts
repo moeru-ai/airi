@@ -27,7 +27,20 @@ function normalizeOutputFormat(value: unknown): 'mp3' | 'wav' {
   return value === 'wav' ? 'wav' : 'mp3'
 }
 
-function getFishAudioApiKey(configApiKey?: unknown): string {
+/**
+ * Resolves the effective Fish Audio API key.
+ *
+ * Use when:
+ * - Fish Audio credentials may come from saved provider config or `VITE_FISHAUDIO_API_KEY`
+ * - UI and provider code need one consistent effective-key check
+ *
+ * Expects:
+ * - `configApiKey` may be omitted or contain surrounding whitespace
+ *
+ * Returns:
+ * - The trimmed provider key, or the trimmed env fallback when no provider key exists
+ */
+export function getFishAudioApiKey(configApiKey?: unknown): string {
   return normalizeString(configApiKey) || normalizeString(import.meta.env.VITE_FISHAUDIO_API_KEY)
 }
 
@@ -48,7 +61,7 @@ async function buildErrorFromResponse(response: Response): Promise<Error> {
   return new Error(`Fish Audio TTS request failed: ${response.status} ${response.statusText}${details}`)
 }
 
-function createAudioFetch(baseUrl: string, apiKey: string, defaultModel: string, defaultFormat: 'mp3' | 'wav') {
+function createAudioFetch(baseUrl: string, apiKey: string, defaultModel: string) {
   return async (_input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     if (!init?.body || typeof init.body !== 'string') {
       throw new Error('Invalid request body')
@@ -61,7 +74,12 @@ function createAudioFetch(baseUrl: string, apiKey: string, defaultModel: string,
     }
 
     const model = normalizeString(body.model) || defaultModel
-    const responseFormat = normalizeOutputFormat(body.response_format ?? defaultFormat)
+    // NOTICE:
+    // Safari WebKit is sensitive to missing or incorrectly sniffed audio MIME types.
+    // Fish Audio should stay on a strict MP3 path so the request payload and playback blob
+    // both resolve to a stable `audio/mpeg` contract on Apple devices.
+    // Removal condition: Fish Audio exposes a guaranteed MIME-safe playback contract for Safari.
+    const responseFormat = normalizeOutputFormat('mp3')
     const referenceId = normalizeString(body.voice)
 
     const payload: Record<string, unknown> = {
@@ -101,27 +119,28 @@ function createAudioFetch(baseUrl: string, apiKey: string, defaultModel: string,
     }
 
     const audioBuffer = await response.arrayBuffer()
-    const contentType = response.headers.get('Content-Type')
-      || (responseFormat === 'wav' ? 'audio/wav' : 'audio/mpeg')
+    const audioBlob = new Blob([audioBuffer], {
+      type: responseFormat === 'wav' ? 'audio/wav' : 'audio/mpeg',
+    })
 
-    return new Response(audioBuffer, {
+    return new Response(audioBlob, {
       status: response.status,
       statusText: response.statusText,
       headers: {
-        'Content-Type': contentType,
+        'Content-Type': audioBlob.type,
       },
     })
   }
 }
 
-function createSpeechProvider(baseUrl: string, apiKey: string, defaultFormat: 'mp3' | 'wav'): SpeechProvider {
+function createSpeechProvider(baseUrl: string, apiKey: string): SpeechProvider {
   return {
     speech: (model?: string) => {
       const resolvedModel = normalizeString(model) || DEFAULT_MODEL
       return {
         baseURL: `${baseUrl}v1/`,
         model: resolvedModel,
-        fetch: createAudioFetch(baseUrl, apiKey, resolvedModel, defaultFormat),
+        fetch: createAudioFetch(baseUrl, apiKey, resolvedModel),
       }
     },
   }
@@ -370,8 +389,7 @@ export function buildFishAudioSpeechProvider(
     createProvider: async (config) => {
       const baseUrl = normalizeBaseUrl(config.baseUrl)
       const apiKey = getFishAudioApiKey(config.apiKey)
-      const format = normalizeOutputFormat(config.format)
-      return createSpeechProvider(baseUrl, apiKey, format)
+      return createSpeechProvider(baseUrl, apiKey)
     },
     capabilities: {
       listModels: async config => listModels(normalizeString(config.searchTerm)),

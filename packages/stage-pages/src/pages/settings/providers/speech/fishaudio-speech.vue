@@ -7,6 +7,7 @@ import {
 } from '@proj-airi/stage-ui/components'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { getFishAudioApiKey } from '@proj-airi/stage-ui/stores/providers/fishaudio'
 import { FieldCombobox } from '@proj-airi/ui'
 import { useDebounceFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -76,8 +77,11 @@ const isLoadingModels = computed(() => {
 })
 const isLoadingVoices = ref(false)
 
-const apiKeyConfigured = computed(() => !!config.value?.apiKey)
-const apiKey = computed(() => config.value?.apiKey?.trim() || '')
+const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
+const apiKeyConfigured = computed(() => {
+  return providerMetadata.value.configured || Boolean(getFishAudioApiKey(config.value?.apiKey))
+})
+const apiKey = computed(() => getFishAudioApiKey(config.value?.apiKey))
 
 function syncSelectedVoice() {
   const firstVoice = voiceOptions.value[0]
@@ -99,9 +103,8 @@ async function loadVoiceOptions(searchTerm: string) {
 
   isLoadingVoices.value = true
   try {
-    const providerMetadata = providersStore.getProviderMetadata(providerId)
     const providerConfig = providersStore.getProviderConfig(providerId)
-    const voices = await providerMetadata.capabilities.listVoices?.({
+    const voices = await providerMetadata.value.capabilities.listVoices?.({
       ...providerConfig,
       searchTerm,
     }) || []
@@ -150,8 +153,7 @@ async function loadProviderDiscoveryData() {
   await providersStore.fetchModelsForProvider(providerId)
 
   const providerConfig = providersStore.getProviderConfig(providerId)
-  const providerMetadata = providersStore.getProviderMetadata(providerId)
-  const validationResult = await providerMetadata.validators.validateProviderConfig(providerConfig)
+  const validationResult = await providerMetadata.value.validators.validateProviderConfig(providerConfig)
   if (!validationResult.valid) {
     speechStore.availableVoices[providerId] = []
     if (voice.value) {
@@ -237,6 +239,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
       <SpeechPlayground
         v-model:selected-voice="voice"
         :available-voices="availableVoices"
+        audio-mime-type="audio/mpeg"
         :generate-speech="handleGenerateSpeech"
         :hide-voice-selection="true"
         :api-key-configured="apiKeyConfigured"

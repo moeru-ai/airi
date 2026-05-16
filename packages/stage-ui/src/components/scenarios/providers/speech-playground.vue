@@ -22,6 +22,7 @@ const props = defineProps<{
   apiKeyConfigured?: boolean
   voicesLoading?: boolean
   hideVoiceSelection?: boolean
+  audioMimeType?: string
 }>()
 
 const selectedVoice = defineModel<string>('selectedVoice', {
@@ -76,7 +77,9 @@ async function handleGenerateTestSpeech() {
     const response = await props.generateSpeech(input, selectedVoice.value, useSSML.value)
 
     // Convert the response to a blob and create an object URL
-    audioUrl.value = URL.createObjectURL(new Blob([response]))
+    audioUrl.value = URL.createObjectURL(new Blob([response], {
+      type: props.audioMimeType || '',
+    }))
 
     // Play the audio
     setTimeout(() => {

@@ -7,14 +7,11 @@ describe('fish audio speech provider', () => {
     vi.unstubAllGlobals()
   })
 
-  it('translates xsai speech requests into Fish Audio /v1/tts payloads', async () => {
+  it('translates xsai speech requests into Fish Audio /v1/tts payloads with Safari-safe MP3 output', async () => {
     vi.stubEnv('VITE_FISHAUDIO_API_KEY', 'env-fish-key')
 
     const upstreamResponse = new Response(new Uint8Array([1, 2, 3]).buffer, {
       status: 200,
-      headers: {
-        'Content-Type': 'audio/wav',
-      },
     })
 
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => upstreamResponse)
@@ -56,23 +53,20 @@ describe('fish audio speech provider', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(requestUrl).toBe('/api-fish/v1/tts')
-    expect(requestInit).toMatchObject({
-      method: 'POST',
-      headers: {
-        'Authorization': 'Bearer fish-key',
-        'Content-Type': 'application/json',
-      },
-    })
+    expect(requestInit.method).toBe('POST')
+    const headers = new Headers(requestInit.headers)
+    expect(headers.get('Authorization')).toBe('Bearer fish-key')
+    expect(headers.get('Content-Type')).toBe('application/json')
     expect(JSON.parse(String(requestInit.body))).toEqual({
       text: 'Hello from AIRI',
-      format: 'wav',
+      format: 'mp3',
       normalize: false,
       latency: 'balanced',
       chunk_length: 240,
       model: 'custom-model',
       reference_id: 'voice-123',
     })
-    expect(response.headers.get('Content-Type')).toBe('audio/wav')
+    expect(response.headers.get('Content-Type')).toBe('audio/mpeg')
     expect(Array.from(new Uint8Array(await response.arrayBuffer()))).toEqual([1, 2, 3])
   })
 
