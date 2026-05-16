@@ -120,7 +120,9 @@ export const useSpeechStore = defineStore('speech', () => {
       return []
     }
     finally {
-      isLoadingSpeechProviderVoices.value = false
+      if (!options.shouldApply || options.shouldApply()) {
+        isLoadingSpeechProviderVoices.value = false
+      }
     }
   }
 
