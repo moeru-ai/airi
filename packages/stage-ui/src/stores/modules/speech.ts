@@ -111,6 +111,10 @@ export const useSpeechStore = defineStore('speech', () => {
       return voices
     }
     catch (error) {
+      if (options.shouldApply && !options.shouldApply()) {
+        return []
+      }
+
       console.error(`Error fetching voices for ${provider}:`, error)
       speechProviderError.value = errorMessageFrom(error) ?? 'Unknown error'
       return []
