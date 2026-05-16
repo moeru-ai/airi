@@ -49,6 +49,10 @@ interface Args {
   azureRegion: string
   azureTtsModel: string
   dashscopeTtsModel: string
+  /** `intl` → dashscope-intl.aliyuncs.com (Singapore); `cn` → dashscope.aliyuncs.com (Beijing). */
+  dashscopeRegion: string
+  /** Concrete cosyvoice variant the adapter calls upstream. Independent from `dashscopeTtsModel` (the gateway-facing alias). */
+  dashscopeUpstreamModel: string
   defaultTtsModel: string | undefined
 }
 
@@ -76,7 +80,9 @@ function parseArgs(argv: string[]): Args {
     defaultChatModel: values['default-chat-model'] ?? 'chat-default',
     azureRegion: values['azure-region'] ?? 'eastasia',
     azureTtsModel: values['azure-tts-model'] ?? 'microsoft/v1',
-    dashscopeTtsModel: values['dashscope-tts-model'] ?? 'alibaba/cosyvoice-v1',
+    dashscopeTtsModel: values['dashscope-tts-model'] ?? 'alibaba/cosyvoice-v2',
+    dashscopeRegion: values['dashscope-region'] ?? 'intl',
+    dashscopeUpstreamModel: values['dashscope-upstream-model'] ?? 'cosyvoice-v2',
     defaultTtsModel: values['default-tts-model'],
   }
 }
@@ -132,14 +138,21 @@ function buildDashscope(args: Args, plaintext: string, envelope: EnvelopeCrypto)
     modelName: args.dashscopeTtsModel,
     keyEntryId,
   })
+  // dashscope-cosyvoice adapter expects the FULL non-streaming endpoint path —
+  // it does not append `/services/audio/tts/SpeechSynthesizer` itself. A bare
+  // `/api/v1` baseURL was the root cause of the 404 storm during the v1→v2
+  // migration; do not regress here.
+  const host = args.dashscopeRegion === 'cn'
+    ? 'dashscope.aliyuncs.com'
+    : 'dashscope-intl.aliyuncs.com'
   return {
     ttsModelName: args.dashscopeTtsModel,
     ttsModel: {
       provider: 'dashscope-cosyvoice',
       upstreams: [{
-        baseURL: 'https://dashscope-intl.aliyuncs.com/api/v1',
+        baseURL: `https://${host}/api/v1/services/audio/tts/SpeechSynthesizer`,
         keys: [{ id: keyEntryId, ciphertext }],
-        adapterParams: {},
+        adapterParams: { model: args.dashscopeUpstreamModel },
       }],
     },
   }
