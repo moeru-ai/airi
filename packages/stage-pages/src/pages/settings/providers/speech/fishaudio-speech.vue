@@ -76,6 +76,7 @@ const isLoadingModels = computed(() => {
   return providersStore.isLoadingModels[providerId] || false
 })
 const isLoadingVoices = ref(false)
+let latestVoiceSearchRequestId = 0
 
 const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
 const apiKeyConfigured = computed(() => {
@@ -83,24 +84,14 @@ const apiKeyConfigured = computed(() => {
 })
 const apiKey = computed(() => getFishAudioApiKey(config.value?.apiKey))
 
-function syncSelectedVoice() {
-  const firstVoice = voiceOptions.value[0]
-  const hasSelectedVoice = voiceOptions.value.some(item => item.value === voice.value)
-  if ((!voice.value || !hasSelectedVoice) && firstVoice) {
-    voice.value = firstVoice.value
-  }
-  else if (!firstVoice && voice.value) {
-    voice.value = ''
-  }
-}
-
 async function loadVoiceOptions(searchTerm: string) {
   if (!apiKey.value) {
+    latestVoiceSearchRequestId += 1
     voiceOptions.value = []
-    syncSelectedVoice()
     return
   }
 
+  const requestId = ++latestVoiceSearchRequestId
   isLoadingVoices.value = true
   try {
     const providerConfig = providersStore.getProviderConfig(providerId)
@@ -109,14 +100,19 @@ async function loadVoiceOptions(searchTerm: string) {
       searchTerm,
     }) || []
 
+    if (requestId !== latestVoiceSearchRequestId) {
+      return
+    }
+
     voiceOptions.value = voices.map(voice => ({
       value: voice.id,
       label: voice.name,
     }))
-    syncSelectedVoice()
   }
   finally {
-    isLoadingVoices.value = false
+    if (requestId === latestVoiceSearchRequestId) {
+      isLoadingVoices.value = false
+    }
   }
 }
 
