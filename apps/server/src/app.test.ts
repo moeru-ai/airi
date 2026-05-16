@@ -72,6 +72,10 @@ function createTestDeps() {
       route: vi.fn(async () => new Response('{}', { status: 200 })),
       invalidateConfig: vi.fn(),
     } as any,
+    envelopeCrypto: {
+      encryptKey: vi.fn(),
+      decryptKey: vi.fn(),
+    } as any,
     posthog: null,
   }
 

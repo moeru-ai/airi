@@ -11,6 +11,7 @@ import { defineProvider } from '../registry'
 import { createOfficialOpenAIProvider, OFFICIAL_ICON, withCredentials } from './shared'
 
 export const OFFICIAL_SPEECH_PROVIDER_ID = 'official-provider-speech'
+export const OFFICIAL_SPEECH_STREAMING_PROVIDER_ID = 'official-provider-speech-streaming'
 
 // Locale → voice id map recommended by the server. Populated by listVoices()
 // from the /audio/voices response's `recommended` field so the auto-pick can
@@ -150,6 +151,100 @@ export const providerOfficialSpeech = defineProvider({
           // 'auto' alias). Re-applying the client-side filter on top would
           // zero out the list because upstream compatibility ids never match
           // 'auto'. See packages/stage-pages/.../speech.vue filter predicate.
+          languages: Array.isArray(v.languages) ? v.languages : [],
+        }
+      })
+    },
+  },
+})
+
+/**
+ * Streaming sibling of {@link providerOfficialSpeech}. Same auth and voice
+ * catalog as the HTTP TTS provider, but speech synthesis goes through the
+ * `/api/v1/audio/speech/ws` proxy (server bridges to unspeech bidirectional
+ * upstream — Volcengine v3 today). The pipeline consumer (Stage.vue) detects
+ * this provider id and dispatches to `streamingSynthesize` instead of
+ * `generateSpeech`.
+ *
+ * The `createProvider` hook still returns the OpenAI-shaped provider so that
+ * legacy code paths (REST `/v1/audio/speech` fallback when the ws path errors
+ * out) keep working without a separate provider instance.
+ */
+export const providerOfficialSpeechStreaming = defineProvider({
+  id: OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
+  order: -1,
+  name: 'Official Streaming Speech Provider',
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.official.speech-streaming-title'),
+  description: 'Official streaming text-to-speech provider by AIRI (low-latency bidirectional WebSocket).',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.official.speech-streaming-description'),
+  tasks: ['text-to-speech'],
+  icon: OFFICIAL_ICON,
+  requiresCredentials: false,
+  createProviderConfig: () => officialConfigSchema,
+  createProvider(_config) {
+    const provider = createOfficialOpenAIProvider()
+    const originalSpeech = provider.speech.bind(provider)
+    provider.speech = (model: string) => {
+      const result = originalSpeech(model)
+      result.fetch = withCredentials()
+      return result
+    }
+    return provider
+  },
+  validationRequiredWhen: () => false,
+  extraMethods: {
+    listModels: async (): Promise<ModelInfo[]> => {
+      // Streaming-capable models. The wire `model` field uses the
+      // `<backend>/<id>` shape unspeech expects (see
+      // `unspeech/docs/wire-protocols/audio-speech-stream-v1.md`).
+      return [
+        {
+          id: 'volcengine/seed-tts-2.0',
+          name: 'Volcengine Seed-TTS 2.0',
+          provider: OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
+          description: 'Volcengine bidirectional streaming TTS (TTS 2.0)',
+        },
+        {
+          id: 'volcengine/seed-tts-1.0',
+          name: 'Volcengine Seed-TTS 1.0',
+          provider: OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
+          description: 'Volcengine bidirectional streaming TTS (TTS 1.0)',
+        },
+      ]
+    },
+    listVoices: async (): Promise<VoiceInfo[]> => {
+      // Reuse the HTTP voices endpoint with an explicit `?model=` filter so
+      // the catalog matches Volcengine's bidirectional upstream rather than
+      // whatever DEFAULT_TTS_MODEL points at.
+      const res = await globalThis.fetch(
+        `${SERVER_URL}/api/v1/openai/audio/voices?model=volcengine`,
+        { headers: authHeaders() },
+      )
+      if (!res.ok)
+        return []
+
+      const data = await res.json() as {
+        voices?: {
+          id: string
+          name: string
+          description?: string
+          labels?: Record<string, unknown>
+          languages?: { code: string, title: string }[]
+          preview_audio_url?: string
+        }[]
+      }
+      if (!Array.isArray(data.voices))
+        return []
+
+      return data.voices.map((v) => {
+        const rawGender = typeof v.labels?.gender === 'string' ? (v.labels.gender as string) : undefined
+        return {
+          id: v.id,
+          name: v.name,
+          provider: OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
+          description: v.description || undefined,
+          gender: rawGender?.toLowerCase() || undefined,
+          previewURL: v.preview_audio_url || undefined,
           languages: Array.isArray(v.languages) ? v.languages : [],
         }
       })

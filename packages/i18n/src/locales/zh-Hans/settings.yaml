@@ -1288,6 +1288,8 @@ pages:
         description: 登录后即可使用的服务来源
         speech-title: AIRI 官方语音合成服务
         speech-description: 登录后即可使用的发声单元服务
+        speech-streaming-title: AIRI 官方流式语音合成服务
+        speech-streaming-description: 双向流式低延迟的语音合成服务，登录后即可使用
         transcription-title: AIRI 官方语音识别服务
         transcription-description: 登录后即可使用的听觉单元服务
       transcriptions:

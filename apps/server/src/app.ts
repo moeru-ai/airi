@@ -19,6 +19,7 @@ import type { RequestLogService } from './services/request-log'
 import type { StripeService } from './services/stripe'
 import type { UserDeletionService } from './services/user-deletion'
 import type { HonoEnv } from './types/hono'
+import type { EnvelopeCrypto } from './utils/envelope-crypto'
 
 import process from 'node:process'
 
@@ -46,6 +47,7 @@ import { emitOtelLog, initOtel } from './otel'
 import { registerActiveSessionsGauge } from './otel/gauges/active-sessions'
 import { registerDistinctActiveUsersGauge } from './otel/gauges/distinct-active-users'
 import { createAdminFluxGrantsRoutes } from './routes/admin/flux-grants'
+import { createAudioSpeechWsHandlers } from './routes/audio-speech-ws'
 import { createAuthRoutes } from './routes/auth'
 import { createCharacterRoutes } from './routes/characters'
 import { createChatWsHandlers } from './routes/chat-ws'
@@ -89,6 +91,7 @@ interface AppDeps {
   ttsMeter: FluxMeter
   requestLogService: RequestLogService
   configKV: ConfigKVService
+  envelopeCrypto: EnvelopeCrypto
   redis: Redis
   env: Env
   otel: OtelInstance | null
@@ -162,6 +165,33 @@ export async function buildApp(deps: AppDeps) {
       return createUnauthorizedWsEvents()
 
     return chatWsSetup(session.user.id)
+  }))
+
+  // Bidirectional streaming TTS proxy. The handler factory builds one ws-to-ws
+  // bridge per connection: client ↔ apps/server ↔ unspeech ↔ upstream
+  // (Volcengine bidirection etc.). Auth via ?token= mirrors /ws/chat —
+  // browsers can't set Authorization headers on WebSocket constructors.
+  const audioSpeechWsSetup = createAudioSpeechWsHandlers({
+    configKV: deps.configKV,
+    envelopeCrypto: deps.envelopeCrypto,
+    fluxService: deps.fluxService,
+    ttsMeter: deps.ttsMeter,
+    requestLogService: deps.requestLogService,
+  })
+  app.get('/api/v1/audio/speech/ws', upgradeWebSocket(async (c) => {
+    const token = c.req.query('token')
+    if (!token) {
+      throw createUnauthorizedError('Missing token')
+    }
+    const session = await resolveRequestAuth(
+      deps.auth,
+      deps.env,
+      new Headers({ Authorization: `Bearer ${token}` }),
+    )
+    if (!session?.user) {
+      throw createUnauthorizedError('Invalid token')
+    }
+    return audioSpeechWsSetup(session.user.id)
   }))
 
   // Cross-instance config invalidation. The subscriber owns its own
@@ -558,22 +588,27 @@ export async function createApp() {
     }, dependsOn.otel?.revenue),
   })
 
+  // Envelope crypto for at-rest upstream key decryption. Shared by the LLM
+  // router (HTTP chat / TTS) and the audio-speech-ws proxy (streaming TTS)
+  // so a single master-key change rotates every surface at once.
+  const envelopeCrypto = injeca.provide('libs:envelopeCrypto', {
+    dependsOn: { env: parsedEnv },
+    build: ({ dependsOn }) => createEnvelopeCrypto({
+      masterKey: dependsOn.env.LLM_ROUTER_MASTER_KEY,
+      previousMasterKey: dependsOn.env.LLM_ROUTER_MASTER_KEY_PREVIOUS,
+    }),
+  })
+
   // LLM router (KTD-5 in-process replacement for the knoway sidecar).
   // LLM_ROUTER_MASTER_KEY is required at env-parse time, so this provider
   // always builds a real router — the legacy `null` fallback path is gone.
   const llmRouter = injeca.provide('services:llmRouter', {
-    dependsOn: { configKV, env: parsedEnv, otel },
-    build: ({ dependsOn }) => {
-      const envelopeCrypto = createEnvelopeCrypto({
-        masterKey: dependsOn.env.LLM_ROUTER_MASTER_KEY,
-        previousMasterKey: dependsOn.env.LLM_ROUTER_MASTER_KEY_PREVIOUS,
-      })
-      return createLlmRouterService({
-        configKV: dependsOn.configKV,
-        envelopeCrypto,
-        gatewayMetrics: dependsOn.otel?.gateway ?? null,
-      })
-    },
+    dependsOn: { configKV, envelopeCrypto, otel },
+    build: ({ dependsOn }) => createLlmRouterService({
+      configKV: dependsOn.configKV,
+      envelopeCrypto: dependsOn.envelopeCrypto,
+      gatewayMetrics: dependsOn.otel?.gateway ?? null,
+    }),
   })
 
   await injeca.start()
@@ -591,6 +626,7 @@ export async function createApp() {
     adminFluxGrantsService,
     ttsMeter,
     configKV,
+    envelopeCrypto,
     redis,
     env: parsedEnv,
     otel,
@@ -626,6 +662,7 @@ export async function createApp() {
     ttsMeter: resolved.ttsMeter,
     requestLogService: resolved.requestLogService,
     configKV: resolved.configKV,
+    envelopeCrypto: resolved.envelopeCrypto,
     redis: resolved.redis,
     env: resolved.env,
     otel: resolved.otel,

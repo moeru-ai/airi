@@ -29,6 +29,8 @@ import { useIOTraceBridge } from '../../composables/use-io-trace-bridge'
 import { initIOTracer } from '../../composables/use-io-tracer'
 import { useSpeechPipelineAnalytics } from '../../composables/use-speech-pipeline-analytics'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
+import { OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '../../libs/providers/providers/official'
+import { streamingSynthesize } from '../../libs/speech/streaming-session'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useBackgroundStore } from '../../stores/background'
 import { useChatOrchestratorStore } from '../../stores/chat'
@@ -38,7 +40,6 @@ import { useSpeechStore } from '../../stores/modules/speech'
 import { useProvidersStore } from '../../stores/providers'
 import { useSettings } from '../../stores/settings'
 import { useSpeechRuntimeStore } from '../../stores/speech-runtime'
-
 const props = withDefaults(defineProps<{
   paused?: boolean
   focusAt: { x: number, y: number }
@@ -360,11 +361,38 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
       : request.text
 
     try {
-      const res = await generateSpeech({
-        ...provider.speech(model, providerConfig),
-        input,
-        voice: voice.id,
-      })
+      // Streaming TTS path: open a WebSocket to apps/server which proxies to
+      // unspeech bidirectional. Server-side starts streaming audio as the
+      // upstream synthesises, so first-byte latency is significantly lower
+      // than the buffered REST round-trip. We still wait for `session.finished`
+      // here and decode a single AudioBuffer per segment because the existing
+      // playbackManager is AudioBuffer-shaped; a future refactor can chunk on
+      // `sentence.end` events for true play-as-you-receive.
+      let res: ArrayBuffer | null = null
+      if (activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID) {
+        // Derive the upstream resource id from the routed model. `model`
+        // looks like `volcengine/seed-tts-2.0`; the bit after the slash
+        // becomes `api_resource_id` for unspeech → Volcengine X-Api-Resource-Id.
+        const apiResourceId = model.includes('/') ? model.split('/', 2)[1] : 'seed-tts-2.0'
+        const result = await streamingSynthesize({
+          model,
+          voice: voice.id,
+          input,
+          signal,
+          extraBody: {
+            api_resource_id: apiResourceId,
+            audio: { sample_rate: 24000, bit_rate: 64000 },
+          },
+        })
+        res = result.audio
+      }
+      else {
+        res = await generateSpeech({
+          ...provider.speech(model, providerConfig),
+          input,
+          voice: voice.id,
+        })
+      }
 
       if (signal.aborted || !res || res.byteLength === 0)
         return null
@@ -372,7 +400,20 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
       const audioBuffer = await audioContext.decodeAudioData(res)
       return audioBuffer
     }
-    catch {
+    catch (err) {
+      // Surface the error with context. Pipeline still drops the segment
+      // (returning null) so the conversation keeps going, but operators see
+      // the failure in devtools instead of silent truncation. Streaming
+      // failures (truncated session, network drop, billing rejection) now
+      // produce visible diagnostic lines — see codex review item #6.
+      if (!signal.aborted) {
+        console.error('[Speech Pipeline] tts() failed', {
+          provider: activeSpeechProvider.value,
+          model,
+          voice: voice?.id,
+          error: err,
+        })
+      }
       return null
     }
   },

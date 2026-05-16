@@ -121,6 +121,16 @@ const ConfigEntrySchemas = {
   // No default — the router throws CONFIG_NOT_SET when this entry is absent
   // so the admin endpoint (U9) is forced to populate it before traffic flows.
   LLM_ROUTER_CONFIG: optional(llmRouterConfigSchema),
+  // Streaming TTS upstream — a single unspeech instance that the
+  // /api/v1/audio/speech/ws proxy connects to. Separate from
+  // LLM_ROUTER_CONFIG.tts.models because the streaming surface has different
+  // semantics from one-shot HTTP TTS: ws-to-ws bridging, no per-attempt retry
+  // (a live ws cannot transparently switch upstream mid-session), upstream
+  // does the protocol translation to providers (Volcengine v3 etc.). Reuses
+  // ttsUpstreamSchema only for the key envelope shape — `keys` carry the
+  // upstream-provider API key (e.g. Volcengine X-Api-Key), not an unspeech
+  // tenant token.
+  STREAMING_TTS_UPSTREAM: optional(ttsUpstreamSchema),
 } as const
 
 type ConfigDefinitions = {

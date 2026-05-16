@@ -188,6 +188,7 @@
     "@types/hast": "catalog:",
     "@types/splitpanes": "catalog:",
     "@types/unist": "catalog:",
+    "@types/ws": "^8.18.1",
     "@unocss/reset": "^66.6.8",
     "@vitejs/plugin-vue": "^6.0.6",
     "@webgpu/types": "catalog:",
@@ -202,6 +203,7 @@
     "vite": "^6.4.2",
     "vitest-browser-vue": "catalog:",
     "vue": "catalog:",
-    "vue-tsc": "^3.2.6"
+    "vue-tsc": "^3.2.6",
+    "ws": "catalog:"
   }
 }
