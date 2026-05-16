@@ -88,9 +88,11 @@ function createAudioFetch(baseUrl: string, apiKey: string, defaultModel: string,
     }
 
     const requestBaseUrl = resolveFishAudioRequestBaseUrl(baseUrl)
+    const headers = new Headers(buildFishAudioHeaders(apiKey, 'application/json'))
+    headers.set('model', (payload as any).model || 's2-pro')
     const response = await globalThis.fetch(`${requestBaseUrl}v1/tts`, {
       method: 'POST',
-      headers: buildFishAudioHeaders(apiKey, 'application/json'),
+      headers,
       body: JSON.stringify(payload),
     })
 
