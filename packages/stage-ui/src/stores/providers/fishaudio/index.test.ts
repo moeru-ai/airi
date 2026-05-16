@@ -8,8 +8,6 @@ describe('fish audio speech provider', () => {
   })
 
   it('translates xsai speech requests into Fish Audio /v1/tts payloads with Safari-safe MP3 output', async () => {
-    vi.stubEnv('VITE_FISHAUDIO_API_KEY', 'env-fish-key')
-
     const upstreamResponse = new Response(new Uint8Array([1, 2, 3]).buffer, {
       status: 200,
     })
@@ -71,8 +69,6 @@ describe('fish audio speech provider', () => {
   })
 
   it('maps Fish Audio model records into AIRI voices', async () => {
-    vi.stubEnv('VITE_FISHAUDIO_API_KEY', 'env-fish-key')
-
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
       return new Response(JSON.stringify({
         items: [
@@ -114,6 +110,38 @@ describe('fish audio speech provider', () => {
         label: 'Voice Two',
       },
     ])
+  })
+
+  it('respects custom base URLs in dev instead of forcing the local proxy', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
+      return new Response(JSON.stringify({
+        items: [
+          { _id: 'voice-1', title: 'Voice One' },
+        ],
+      }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+    })
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    await listVoices({
+      apiKey: 'fish-key',
+      baseUrl: 'https://custom-fish.example/api/',
+      searchTerm: 'voice',
+    })
+
+    const firstCall = fetchMock.mock.calls[0]
+    if (!firstCall) {
+      throw new Error('Expected fetch to be called')
+    }
+
+    const [requestUrl] = firstCall
+
+    expect(requestUrl).toBe('https://custom-fish.example/api/model?page_size=20&title=voice')
   })
 
   it('validates provider credentials by pinging the Fish Audio model endpoint', async () => {

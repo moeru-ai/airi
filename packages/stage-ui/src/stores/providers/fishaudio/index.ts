@@ -31,17 +31,17 @@ function normalizeOutputFormat(_value: unknown): typeof DEFAULT_OUTPUT_FORMAT {
  * Resolves the effective Fish Audio API key.
  *
  * Use when:
- * - Fish Audio credentials may come from saved provider config or `VITE_FISHAUDIO_API_KEY`
- * - UI and provider code need one consistent effective-key check
+ * - Fish Audio credentials are stored in the provider configuration
+ * - UI and provider code need one consistent trimmed-key check
  *
  * Expects:
  * - `configApiKey` may be omitted or contain surrounding whitespace
  *
  * Returns:
- * - The trimmed provider key, or the trimmed env fallback when no provider key exists
+ * - The trimmed provider key, or an empty string when no provider key exists
  */
 export function getFishAudioApiKey(configApiKey?: unknown): string {
-  return normalizeString(configApiKey) || normalizeString(import.meta.env.VITE_FISHAUDIO_API_KEY)
+  return normalizeString(configApiKey)
 }
 
 function buildFishAudioHeaders(apiKey: string, contentType?: string): HeadersInit {
@@ -52,7 +52,11 @@ function buildFishAudioHeaders(apiKey: string, contentType?: string): HeadersIni
 }
 
 function resolveFishAudioRequestBaseUrl(baseUrl: string): string {
-  return ensureTrailingSlash(import.meta.env.DEV ? FISH_AUDIO_PROXY_BASE_URL : baseUrl)
+  const normalizedBaseUrl = ensureTrailingSlash(baseUrl)
+  const shouldUseProxy = import.meta.env.DEV
+    && normalizedBaseUrl === DEFAULT_BASE_URL
+
+  return ensureTrailingSlash(shouldUseProxy ? FISH_AUDIO_PROXY_BASE_URL : normalizedBaseUrl)
 }
 
 async function buildErrorFromResponse(response: Response): Promise<Error> {
