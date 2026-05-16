@@ -2,7 +2,6 @@
 import type { DisplayModel } from '../../../../stores/display-models'
 import type { ModelSettingsRuntimeSnapshot } from './runtime'
 
-import { useLive2d } from '@proj-airi/stage-ui-live2d'
 import { Button, Callout } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
@@ -11,7 +10,6 @@ import Godot from './godot.vue'
 import Live2D from './live2d.vue'
 import VRM from './vrm.vue'
 
-import { DisplayModelFormat } from '../../../../stores/display-models'
 import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 import { useSettings } from '../../../../stores/settings'
 import { ModelSelectorDialog } from '../../dialogs/model-selector'
@@ -47,9 +45,6 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
   stageModelSelected.value = selectedModel?.id ?? ''
   airiCardStore.updateActiveCardDisplayModel(selectedModel?.id)
   await settingsStore.updateStageModel()
-
-  if (selectedModel?.format === DisplayModelFormat.Live2dZip)
-    useLive2d().shouldUpdateView()
 }
 </script>
 

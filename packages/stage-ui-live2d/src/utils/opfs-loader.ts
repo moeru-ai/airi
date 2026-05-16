@@ -96,13 +96,13 @@ export class OPFSCache {
         // This avoids serving a stale model when ids are reused or props are out of sync.
         // eslint-disable-next-line no-console
         console.debug(`[OPFS] Cache mismatch for ${key}, source url changed`)
+        await dirHandle.removeEntry(dirHandle.name) // actually invalidates cache
         return null
       }
 
       const files = await OPFSCache.readDirectoryRecursive(dirHandle, '')
 
       if (files.length > 0) {
-        patchModelSettings(files)
         return files
       }
     }
@@ -125,21 +125,6 @@ export class OPFSCache {
       for (const file of files) {
         const relativePath = file.webkitRelativePath || file.name
         writePromises.push(OPFSCache.writeFile(dirHandle, relativePath, file))
-      }
-
-      const settingsFile = files.find(f => f.name.endsWith('.model.json') || f.name.endsWith('.model3.json'))
-
-      if (!settingsFile) {
-        // reconstruct settings files from ModelSettings
-        const settings: ModelSettings = (files as any).settings
-        if (settings) {
-          // eslint-disable-next-line no-console
-          console.debug('[OPFS] Reconstructing settings file...')
-          const settingsText = encodeModelSettings(settings.json)
-          const settingsFileName = settings.url || 'model.model3.json'
-
-          writePromises.push(OPFSCache.writeFile(dirHandle, settingsFileName, settingsText))
-        }
       }
 
       await Promise.all(writePromises)
@@ -220,6 +205,23 @@ export class OPFSCache {
       return next()
     }
 
+    const settingsFile = files.find(f => f.name.endsWith('.model.json') || f.name.endsWith('.model3.json'))
+    if (!settingsFile) {
+      // reconstruct settings files from ModelSettings
+      const settings: ModelSettings = (files as any).settings
+      if (settings) {
+        // eslint-disable-next-line no-console
+        console.debug('[OPFS] Reconstructing settings file...')
+        const settingsText = encodeModelSettings(settings.json)
+        const settingsFilePath = settings.url || 'model.model3.json'
+        const settingsFile = new File([settingsText], settingsFilePath)
+        Object.defineProperty(settingsFile, 'webkitRelativePath', {
+          value: encodeURI(settingsFilePath),
+        })
+        files.push(settingsFile)
+      }
+      delete (context.source as any).settings // force the loader to read re-created settings file
+    }
     await OPFSCache.save(context.opfsKey, files, context.opfsUrl)
 
     return next()
@@ -257,21 +259,4 @@ function encodeModelSettings(input: any): string {
     return exp
   })
   return JSON.stringify(settings)
-}
-function patchModelSettings(list: File[]) {
-  let settingsIndex: number = -1
-  for (let i = 0; i < list.length; i++) {
-    const file = list[i]
-    if (!file.name.endsWith('items_pinned_to_model.json') && (file.name.endsWith('model.json') || file.name.endsWith('model3.json'))) {
-      settingsIndex = i
-    }
-  }
-  if (settingsIndex < 0)
-    return
-  const old = list[settingsIndex]
-  const newFile = new File([old], old.name)
-  Object.defineProperty(newFile, 'webkitRelativePath', {
-    value: encodeURI(old.webkitRelativePath),
-  })
-  list[settingsIndex] = newFile
 }
