@@ -254,9 +254,17 @@ function encodeModelSettings(input: any): string {
     'url',
   ]
   propertyToEncode.forEach(k => encodeProperty(settings, k))
-  settings?.FileReferences.Expressions?.map((exp: { Name: string, File: string }) => {
+  settings?.FileReferences?.Expressions?.map((exp: { Name: string, File: string }) => {
     exp.File = encodeURI(exp.File)
     return exp
+  })
+  Object.keys(settings?.FileReferences?.Motions ?? {}).forEach((k) => {
+    if (!Array.isArray(settings?.FileReferences?.Motions[k]))
+      return // not sure whether 'Motions' is of type Record<string,[]>, assume it is for now.
+    settings?.FileReferences?.Motions[k].map((exp: { File: string }) => {
+      exp.File = encodeURI(exp.File)
+      return exp
+    })
   })
   return JSON.stringify(settings)
 }
