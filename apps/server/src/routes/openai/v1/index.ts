@@ -647,10 +647,15 @@ export function createV1Routes(
    * configured yet so the client can render "no voices" instead of
    * exploding.
    */
-  async function handleListStreamingVoices(_c: Context<HonoEnv>) {
+  async function handleListStreamingVoices(c: Context<HonoEnv>) {
     const upstream = await configKV.getOptional('STREAMING_TTS_UPSTREAM')
     if (!upstream || !upstream.baseURL)
       return Response.json({ voices: [], recommended: {} })
+
+    // Pass through the api_resource_id (e.g. `seed-tts-2.0`). unspeech
+    // filters the embedded Volcengine catalogue server-side; absent model
+    // means "return everything streaming-safe".
+    const model = c.req.query('model')
 
     let voicesURL: string
     try {
@@ -659,7 +664,10 @@ export function createV1Routes(
       // stream and the REST voices endpoint on the same listener.
       u.protocol = u.protocol === 'wss:' ? 'https:' : 'http:'
       u.pathname = '/api/voices'
-      u.search = '?provider=volcengine'
+      const params = new URLSearchParams({ provider: 'volcengine' })
+      if (model)
+        params.set('model', model)
+      u.search = `?${params.toString()}`
       voicesURL = u.toString()
     }
     catch (err) {

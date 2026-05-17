@@ -48,7 +48,7 @@ const voicesLoading = ref(false)
 async function loadVoices() {
   voicesLoading.value = true
   try {
-    await speechStore.loadVoicesForProvider(providerId)
+    await speechStore.loadVoicesForProvider(providerId, model.value)
   }
   finally {
     voicesLoading.value = false
@@ -62,11 +62,9 @@ onMounted(async () => {
   await loadVoices()
 })
 
-// Reload voices when the model variant changes. The streaming provider
-// shares one voice catalogue across model variants (both Seed-TTS 2.0 and
-// 1.0 expose the same `zh_female_*` ids), so this is mostly a refresh —
-// but it keeps the flow consistent with provider pages where the variant
-// actually does change the catalogue.
+// Volcengine TTS 1.0 and 2.0 ship different voice catalogues (mars/moon/ICL
+// vs uranus/saturn; see unspeech voices.go). Re-fetch on model change so the
+// list switches accordingly.
 watch(model, async () => {
   await loadVoices()
 })

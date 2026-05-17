@@ -47,7 +47,12 @@ export interface ProviderOnboardingField {
 
 export interface ProviderExtraMethods<TConfig> {
   listModels?: (config: TConfig, provider: ProviderInstance) => Promise<ModelInfo[]>
-  listVoices?: (config: TConfig, provider: ProviderInstance) => Promise<VoiceInfo[]>
+  /**
+   * Returns the voice catalogue. `model` lets providers whose voices vary by
+   * model variant (Volcengine streaming TTS 1.0 vs 2.0 differ in catalogue)
+   * narrow the result. Providers with a single catalogue ignore it.
+   */
+  listVoices?: (config: TConfig, provider: ProviderInstance, model?: string) => Promise<VoiceInfo[]>
   loadModel?: (config: TConfig, provider: ProviderInstance, hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void }) => Promise<void>
 }
 

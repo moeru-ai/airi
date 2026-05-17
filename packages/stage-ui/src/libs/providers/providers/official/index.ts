@@ -223,15 +223,23 @@ export const providerOfficialSpeechStreaming = defineProvider({
         },
       ]
     },
-    listVoices: async (): Promise<VoiceInfo[]> => {
+    listVoices: async (_config, _provider, model): Promise<VoiceInfo[]> => {
       // Streaming voices live behind a dedicated endpoint
       // (`/audio/voices/streaming`) because they come from a separate
       // configKV entry (`STREAMING_TTS_UPSTREAM`) than the HTTP TTS
       // `?model=...` lookup. The server proxies to unspeech's
       // `/api/voices?provider=volcengine`, which ships an embed-time
       // catalogue without requiring credentials.
+      //
+      // `model` here is the unspeech-routed id (e.g. `volcengine/seed-tts-2.0`).
+      // unspeech expects the bare `api_resource_id` for its filter, so we
+      // strip the backend prefix before forwarding.
+      const apiResourceId = model?.includes('/') ? model.split('/', 2)[1] : model
+      const voicesURL = new URL(`${SERVER_URL}/api/v1/audio/voices/streaming`)
+      if (apiResourceId)
+        voicesURL.searchParams.set('model', apiResourceId)
       const res = await globalThis.fetch(
-        `${SERVER_URL}/api/v1/audio/voices/streaming`,
+        voicesURL.toString(),
         { headers: authHeaders() },
       )
       if (!res.ok)
