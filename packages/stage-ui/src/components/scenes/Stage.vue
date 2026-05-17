@@ -6,9 +6,10 @@ import type { UnElevenLabsOptions } from 'unspeech'
 
 import type { EmotionPayload } from '../../constants/emotions'
 
+import { sleep } from '@moeru/std'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
-import { createPlaybackManager, createSpeechPipeline } from '@proj-airi/pipelines-audio'
+import { createPlaybackManager, createSpeechPipeline, normalizeActPayload } from '@proj-airi/pipelines-audio'
 import { Live2DScene, useLive2d } from '@proj-airi/stage-ui-live2d'
 import { ThreeScene } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
@@ -22,22 +23,20 @@ import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
-import { useDelayMessageQueue, useEmotionsMessageQueue } from '../../composables/queues'
 import { useAuthProviderSync } from '../../composables/use-auth-provider-sync'
 import { useDuckDb } from '../../composables/use-duck-db'
 import { useIOTraceBridge } from '../../composables/use-io-trace-bridge'
 import { initIOTracer } from '../../composables/use-io-tracer'
-import { llmInferenceEndToken } from '../../constants'
-import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
+import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useBackgroundStore } from '../../stores/background'
 import { useChatOrchestratorStore } from '../../stores/chat'
+import { useLlmStreamingControlStore } from '../../stores/llm-streaming-control'
 import { useAiriCardStore } from '../../stores/modules'
 import { useSpeechStore } from '../../stores/modules/speech'
 import { useProvidersStore } from '../../stores/providers'
 import { useSettings } from '../../stores/settings'
 import { useSpeechRuntimeStore } from '../../stores/speech-runtime'
-import { shouldRunLive2dLipSyncLoop } from './runtime'
 
 const props = withDefaults(defineProps<{
   paused?: boolean
@@ -139,22 +138,73 @@ const emotionsQueue = createQueue<EmotionPayload>({
   ],
 })
 
-const emotionMessageContentQueue = useEmotionsMessageQueue(emotionsQueue)
-emotionMessageContentQueue.onHandlerEvent('emotion', (emotion) => {
-  // eslint-disable-next-line no-console
-  console.debug('emotion detected', emotion)
-})
+const streamingControl = useLlmStreamingControlStore()
 
-const delaysQueue = useDelayMessageQueue()
-delaysQueue.onHandlerEvent('delay', (delay) => {
-  // eslint-disable-next-line no-console
-  console.debug('delay detected', delay)
-})
+function toStageEmotionPayload(payload: { name: string, intensity: number }): EmotionPayload | undefined {
+  switch (payload.name) {
+    case 'happy':
+      return { name: Emotion.Happy, intensity: payload.intensity }
+    case 'sad':
+      return { name: Emotion.Sad, intensity: payload.intensity }
+    case 'angry':
+      return { name: Emotion.Angry, intensity: payload.intensity }
+    case 'think':
+      return { name: Emotion.Think, intensity: payload.intensity }
+    case 'surprised':
+      return { name: Emotion.Surprise, intensity: payload.intensity }
+    case 'awkward':
+      return { name: Emotion.Awkward, intensity: payload.intensity }
+    case 'question':
+      return { name: Emotion.Question, intensity: payload.intensity }
+    case 'curious':
+      return { name: Emotion.Curious, intensity: payload.intensity }
+    case 'neutral':
+      return { name: Emotion.Neutral, intensity: payload.intensity }
+    default:
+      return undefined
+  }
+}
 
-// Play special token: delay or emotion
-function playSpecialToken(special: string) {
-  delaysQueue.enqueue(special)
-  emotionMessageContentQueue.enqueue(special)
+chatHookCleanups.push(streamingControl.onSignal(async (signal) => {
+  if (signal.type === 'act') {
+    const act = normalizeActPayload(signal.payload)
+    if (act.motion && stageModelRenderer.value === 'live2d') {
+      currentMotion.value = { group: act.motion }
+      return
+    }
+    if (act.emotion) {
+      const emotion = toStageEmotionPayload(act.emotion)
+      if (!emotion)
+        return
+
+      // eslint-disable-next-line no-console
+      console.debug('emotion detected', emotion)
+      emotionsQueue.enqueue(emotion)
+    }
+    return
+  }
+
+  if (signal.type === 'delay') {
+    // eslint-disable-next-line no-console
+    console.debug('delay detected', signal.seconds)
+    await sleep(signal.seconds * 1000)
+  }
+}))
+
+// Play special token: plugin CALL, delay, or emotion.
+async function playSpecialToken(
+  special: string,
+  options?: {
+    turnId?: string
+    intentId?: string
+    streamId?: string
+  },
+) {
+  await streamingControl.dispatchWith(special, {
+    turnId: options?.turnId,
+    intentId: options?.intentId,
+    streamId: options?.streamId,
+  })
 }
 const lipSyncNode = ref<AudioNode>()
 
@@ -170,6 +220,13 @@ async function playFunction(item: Parameters<Parameters<typeof createPlaybackMan
     catch {
       return
     }
+  }
+
+  if (stageModelRenderer.value === 'live2d' && !lipSyncStarted.value) {
+    // NOTICE: Playback can be triggered by non-chat speech intents, so initialize
+    // the wLipSync graph here before connecting the AudioBufferSourceNode.
+    setupAnalyser()
+    await setupLipSync()
   }
 
   const source = audioContext.createBufferSource()
@@ -326,14 +383,24 @@ useIOTraceBridge(speechPipeline)
 void speechRuntimeStore.registerHost(speechPipeline)
 
 speechPipeline.on('onSpecial', (segment) => {
-  if (segment.special)
-    playSpecialToken(segment.special)
+  if (segment.special) {
+    void playSpecialToken(segment.special, {
+      turnId: segment.turnId,
+      intentId: segment.intentId,
+      streamId: segment.streamId,
+    })
+  }
 })
 
-playbackManager.onEnd(({ item }) => {
-  if (item.special)
-    playSpecialToken(item.special)
+speechPipeline.on('onTurnEnd', (turnId) => {
+  streamingControl.completeTurn(turnId)
+})
 
+speechPipeline.on('onTurnCancel', ({ turnId }) => {
+  streamingControl.cancelTurn(turnId)
+})
+
+playbackManager.onEnd(() => {
   nowSpeaking.value = false
   mouthOpenSize.value = 0
 })
@@ -345,7 +412,7 @@ playbackManager.onStart(({ item }) => {
   // breaking playback when the channel is unavailable.
   assistantCaption.value += ` ${item.text}`
   try {
-    postCaption({ type: 'caption-assistant', text: assistantCaption.value })
+    postCaption({ type: 'caption-assistant', text: item.text })
   }
   catch {
     // BroadcastChannel may be closed - don't break playback
@@ -400,10 +467,7 @@ function resetLive2dLipSync() {
 }
 
 function syncLipSyncLoop() {
-  if (shouldRunLive2dLipSyncLoop({
-    stageModelRenderer: stageModelRenderer.value,
-    paused: Boolean(props.paused),
-  }) && lipSyncStarted.value) {
+  if (stageModelRenderer.value === 'live2d' && !props.paused && lipSyncStarted.value) {
     startLipSyncLoop()
     return
   }
@@ -490,7 +554,6 @@ chatHookCleanups.push(onTokenSpecial(async (special) => {
 }))
 
 chatHookCleanups.push(onStreamEnd(async () => {
-  delaysQueue.enqueue(llmInferenceEndToken)
   currentChatIntent?.writeFlush()
 }))
 
