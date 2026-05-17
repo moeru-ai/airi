@@ -627,7 +627,7 @@ export function createV1Routes(
       : requested
 
     const voices = await llmRouter.listTtsVoices(model)
-    const recommended = (await configKV.getOptional('DEFAULT_TTS_VOICES')) ?? {}
+    const recommended = (await configKV.getOptional('DEFAULT_TTS_VOICES'))?.[model] ?? {}
     // Debug level: high-frequency catalog poll from UI selectors, no
     // billing / user-facing side effect — useful only when debugging
     // voice-picker drift, never as a permanent audit trail line.
@@ -692,13 +692,12 @@ export function createV1Routes(
     }
 
     const data = await res.json().catch(() => ({})) as { voices?: unknown[] }
+    const recommended = model
+      ? ((await configKV.getOptional('DEFAULT_TTS_VOICES'))?.[model] ?? {})
+      : {}
     return Response.json({
       voices: Array.isArray(data.voices) ? data.voices : [],
-      // STREAMING_TTS_UPSTREAM is not part of DEFAULT_TTS_VOICES (which
-      // keys on LLM_ROUTER_CONFIG model ids). Future enhancement: add a
-      // separate streaming-recommended map if locale-based auto-pick
-      // matters for streaming too.
-      recommended: {},
+      recommended,
     })
   }
 

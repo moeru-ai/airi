@@ -105,9 +105,12 @@ const ConfigEntrySchemas = {
   // No default — absent lets Stripe auto-select payment methods via Dashboard config
   STRIPE_PAYMENT_METHODS: optional(array(string())),
   STRIPE_PAYMENT_METHOD_OPTIONS: optional(record(string(), any()), {}),
-  // BCP-47 locale → recommended voice id for the default TTS model.
-  // Consumed by the client to preselect a voice matching UI locale.
-  DEFAULT_TTS_VOICES: optional(record(string(), string()), {}),
+  // model id → (BCP-47 locale → recommended voice id). Outer key is either a
+  // router TTS model id (LLM_ROUTER_CONFIG.tts.models key) for REST or a
+  // streaming api_resource_id (e.g. `seed-tts-2.0`) for the streaming surface.
+  // The two key spaces do not overlap. Consumed by the client to preselect a
+  // voice matching UI locale per active model.
+  DEFAULT_TTS_VOICES: optional(record(string(), record(string(), string())), {}),
   // Server-side alias resolution for `model: 'auto'` in /chat/completions and
   // /audio/speech. The modelName written here must exist as a key in
   // LLM_ROUTER_CONFIG.{llm,tts}.models — the router itself doesn't understand
