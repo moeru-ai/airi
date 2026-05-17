@@ -6,6 +6,7 @@ import type { Database } from './libs/db'
 import type { Env } from './libs/env'
 import type { OtelInstance } from './otel'
 import type { AdminFluxGrantsService } from './services/admin-flux-grants'
+import type { AdminRouterConfigService } from './services/admin-router-config'
 import type { BillingService } from './services/billing/billing-service'
 import type { FluxMeter } from './services/billing/flux-meter'
 import type { CharacterService } from './services/characters'
@@ -46,6 +47,7 @@ import { sessionMiddleware } from './middlewares/auth'
 import { emitOtelLog, initOtel } from './otel'
 import { registerActiveSessionsGauge } from './otel/gauges/active-sessions'
 import { registerDistinctActiveUsersGauge } from './otel/gauges/distinct-active-users'
+import { createAdminRouterConfigRoutes } from './routes/admin/config/router'
 import { createAdminFluxGrantsRoutes } from './routes/admin/flux-grants'
 import { createAudioSpeechWsHandlers } from './routes/audio-speech-ws'
 import { createAuthRoutes } from './routes/auth'
@@ -57,6 +59,7 @@ import { createV1Routes } from './routes/openai/v1'
 import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
 import { createAdminFluxGrantsService } from './services/admin-flux-grants'
+import { createAdminRouterConfigService } from './services/admin-router-config'
 import { createBillingService } from './services/billing/billing-service'
 import { createFluxMeter } from './services/billing/flux-meter'
 import { createCharacterService } from './services/characters'
@@ -71,7 +74,6 @@ import { createProviderService } from './services/providers'
 import { createRequestLogService } from './services/request-log'
 import { createStripeService } from './services/stripe'
 import { createUserDeletionService } from './services/user-deletion'
-import { ApiError, createInternalError } from './utils/error'
 import { createEnvelopeCrypto } from './utils/envelope-crypto'
 import { ApiError, createInternalError, createUnauthorizedError } from './utils/error'
 import { nanoid } from './utils/id'
@@ -88,6 +90,7 @@ interface AppDeps {
   stripeService: StripeService
   billingService: BillingService
   adminFluxGrantsService: AdminFluxGrantsService
+  adminRouterConfigService: AdminRouterConfigService
   ttsMeter: FluxMeter
   requestLogService: RequestLogService
   configKV: ConfigKVService
@@ -339,6 +342,14 @@ export async function buildApp(deps: AppDeps) {
      * v1 only includes synchronous one-shot promo flux grants.
      */
     .route('/api/admin/flux-grants', createAdminFluxGrantsRoutes(deps.adminFluxGrantsService, deps.env))
+
+    /**
+     * Admin LLM router config seeding/patching. Replaces the
+     * `scripts/seed-router-config.ts` and `scripts/seed-streaming-tts.ts`
+     * one-off scripts for in-cluster use; the scripts stay as break-glass
+     * tools. See `routes/admin/config/router/index.ts` for the body shape.
+     */
+    .route('/api/admin/config/router', createAdminRouterConfigRoutes(deps.adminRouterConfigService, deps.env))
 
     /**
      * Catch-all 404 in JSON. Replaces hono's default `text/html` "404 Not
@@ -608,6 +619,18 @@ export async function createApp() {
     }),
   })
 
+  // Admin router-config seeding service. Reuses the shared envelope crypto
+  // so written ciphertexts decrypt cleanly under the same master key the
+  // gateway already uses. Mounted at POST /api/admin/config/router.
+  const adminRouterConfigService = injeca.provide('services:adminRouterConfig', {
+    dependsOn: { configKV, envelopeCrypto, redis },
+    build: ({ dependsOn }) => createAdminRouterConfigService({
+      configKV: dependsOn.configKV,
+      envelope: dependsOn.envelopeCrypto,
+      redis: dependsOn.redis,
+    }),
+  })
+
   // LLM router (KTD-5 in-process replacement for the knoway sidecar).
   // LLM_ROUTER_MASTER_KEY is required at env-parse time, so this provider
   // always builds a real router — the legacy `null` fallback path is gone.
@@ -633,6 +656,7 @@ export async function createApp() {
     stripeService,
     billingService,
     adminFluxGrantsService,
+    adminRouterConfigService,
     ttsMeter,
     configKV,
     envelopeCrypto,
@@ -668,6 +692,7 @@ export async function createApp() {
     stripeService: resolved.stripeService,
     billingService: resolved.billingService,
     adminFluxGrantsService: resolved.adminFluxGrantsService,
+    adminRouterConfigService: resolved.adminRouterConfigService,
     ttsMeter: resolved.ttsMeter,
     requestLogService: resolved.requestLogService,
     configKV: resolved.configKV,

@@ -47,6 +47,7 @@ function createTestDeps() {
     stripeService: {} as any,
     billingService: {} as any,
     adminFluxGrantsService: {} as any,
+    adminRouterConfigService: {} as any,
     ttsMeter: {} as any,
     requestLogService: {} as any,
     configKV: {
