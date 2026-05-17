@@ -858,14 +858,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     console.info('[chat-sync] creating WS client →', SERVER_URL)
     wsClient = createChatWsClient({
       serverUrl: SERVER_URL,
-      // NOTICE:
-      // `getAuthToken()` reads `localStorage` directly — that read is NOT
-      // reactive, so `ws-client`'s `urlRef = computed(() => ... getToken())`
-      // captures the initial token forever and ignores `oauth2/token`
-      // refreshes. The auto-reconnect loop then hammers `/ws/chat?token=<old>`
-      // and every upgrade returns 401 until the user reloads the tab.
-      // Read through the Pinia store ref so the computed actually tracks
-      // token rotation and rebuilds the URL.
+      // Reactive read — see `createChatWsUrlRef` contract.
       getToken: () => authToken.value,
     })
 

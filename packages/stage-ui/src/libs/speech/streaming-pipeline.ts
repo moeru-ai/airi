@@ -132,6 +132,21 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
   let chunkBytes = 0
   let sentenceIndex = 0
   /**
+   * Promise chain for serialized `flushAccumulatedAsSentence` invocations.
+   *
+   * Each `handleControlFrame` runs via `void handleControlFrame(...)`, so
+   * multiple control frames execute concurrently. Without serialization,
+   * `session.finished`'s synchronous `chunkBytes === 0` check fires
+   * immediately (the prior `sentence.end` already cleared the buffer
+   * synchronously before its `await decodeAudioData`), terminating the
+   * session before the last sentence's `decodeAudioData` resolves — its
+   * `onSentence` then arrives after `terminated = true` in tts-session.ts
+   * and gets dropped. Chaining all flushes through this single promise lets
+   * `requestTerminate` await the tail before tearing down.
+   */
+  let pendingFlush: Promise<void> = Promise.resolve()
+  let terminationRequested = false
+  /**
    * FIFO of sentence texts seen via `sentence.start` events that haven't
    * been paired with a `sentence.end` yet. The protocol promises in-order
    * pairs, but a buggy upstream or re-ordered transport could send two
@@ -185,6 +200,27 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
     }
   }
 
+  function enqueueFlush(textOverride?: string): Promise<void> {
+    // `.catch(() => {})` keeps a single decode failure from poisoning the
+    // tail of the chain — failures already surface via `onError` inside
+    // `flushAccumulatedAsSentence`.
+    pendingFlush = pendingFlush.then(() => flushAccumulatedAsSentence(textOverride)).catch(() => {})
+    return pendingFlush
+  }
+
+  async function requestTerminate(err: Error | null) {
+    if (closed || terminationRequested)
+      return
+    terminationRequested = true
+    // Wait for every queued flush (and its `onSentence` dispatch) to drain
+    // before flipping `closed`. Without this await, late-resolving decodes
+    // would land after `onDone` has already set `terminated = true` in the
+    // consumer adapter and be dropped — that is the "last sentence missing"
+    // symptom observed in the wild.
+    await pendingFlush
+    terminate(err)
+  }
+
   ws.addEventListener('open', () => {
     const startFrame = {
       event: 'start',
@@ -234,7 +270,13 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
         if (bufferEntireSession)
           break
         const text = readSentenceText(evt.payload) ?? pendingSentenceTexts.shift() ?? ''
-        await flushAccumulatedAsSentence(text)
+        // Fire-and-forget into the serialized chain. We do NOT await here;
+        // awaiting from the message handler does not block sibling handlers
+        // (they run concurrently via `void handleControlFrame`), so an
+        // await would only delay this handler's own return without
+        // preventing the session.finished race. The chain itself is what
+        // enforces ordering.
+        void enqueueFlush(text)
         break
       }
       case 'subtitle': {
@@ -249,14 +291,14 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
       }
       case 'session.finished': {
         sawSessionFinished = true
-        await flushAccumulatedAsSentence()
-        terminate(null)
+        void enqueueFlush()
+        void requestTerminate(null)
         break
       }
       case 'error': {
         const code = evt.code ?? 'streaming_tts_error'
         const message = evt.message ?? code
-        terminate(new Error(`${code}: ${message}`))
+        void requestTerminate(new Error(`${code}: ${message}`))
         break
       }
     }
@@ -266,15 +308,17 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
     if (closed)
       return
     if (sawSessionFinished) {
-      // Normal end after `session.finished`; flushAccumulatedAsSentence
-      // already ran. Just mark closed and notify.
-      terminate(null)
+      // Normal end after `session.finished`; the session.finished handler
+      // already enqueued the tail flush and called requestTerminate. Just
+      // make sure termination happens even if that path somehow didn't
+      // (idempotent — requestTerminate guards against re-entry).
+      void requestTerminate(null)
       return
     }
     // Closed before completion: surface as an error so callers don't
     // mistake truncated audio for a successful (short) sentence.
     const reason = ev.reason || `closed_${ev.code}`
-    terminate(new Error(`streaming_tts_closed: ${reason}`))
+    void requestTerminate(new Error(`streaming_tts_closed: ${reason}`))
   })
 
   ws.addEventListener('error', () => {
@@ -312,12 +356,17 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
       safeSend(JSON.stringify({ event: 'finish' }))
     },
     cancel() {
-      if (closed)
+      if (closed || terminationRequested)
         return
       safeSend(JSON.stringify({ event: 'cancel' }))
-      // Surface cancel as a non-error termination; consumers already
-      // initiated this so they don't need a synthetic error.
-      terminate(null)
+      // Route through `requestTerminate` so any in-flight `decodeAudioData`
+      // can still resolve and emit `onSentence` before `onDone` flips the
+      // consumer's `terminated` flag. tts-session.ts then runs
+      // `stopByIntent` on the playback manager and drops whatever did
+      // schedule, so this does NOT prolong playback — it just keeps the
+      // termination semantics consistent across cancel / session.finished
+      // / error / close paths (codex review).
+      void requestTerminate(null)
     },
   }
 }
