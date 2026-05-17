@@ -129,4 +129,80 @@ describe('publishWidgetSparkNotifyReaction', () => {
       headline: 'Quick move',
     }))
   })
+
+  /**
+   * @example
+   * await publishWidgetSparkNotifyReaction(eventWithCalls, options)
+   * expect(options.dispatchSparkNotifyPerformance).toHaveBeenCalledWith(expect.objectContaining({ timeoutMs: 15000 }))
+   */
+  it('uses awaitable performance notify when the widget declares calls', async () => {
+    const dispatchSparkNotifyReaction = vi.fn(async () => 'unused')
+    const dispatchSparkNotifyPerformance = vi.fn(async () => ({
+      type: 'called' as const,
+      name: 'chess.play',
+      reaction: 'Played.',
+    }))
+    const emit = vi.fn()
+
+    const result = await publishWidgetSparkNotifyReaction({
+      route: {
+        namespace: 'airi.plugin.game.chess.commentary',
+        name: 'request',
+      },
+      payload: {
+        requestId: 'req-call',
+        fallbackResponseText: 'fallback',
+        calls: [
+          {
+            name: 'chess.play',
+            prompt: 'Play the prepared chess reply.',
+            examples: [
+              '<|CALL ["chess.play", {"move":"Nf3"}]|>',
+            ],
+          },
+        ],
+        timeoutMs: 15000,
+        sparkNotify: {
+          kind: 'ping',
+          urgency: 'immediate',
+          headline: 'A move is ready',
+          destinations: ['character'],
+        },
+      },
+    }, {
+      dispatchSparkNotifyReaction,
+      dispatchSparkNotifyPerformance,
+      emit,
+    })
+
+    expect(result).toBe(true)
+    expect(dispatchSparkNotifyReaction).not.toHaveBeenCalled()
+    expect(dispatchSparkNotifyPerformance).toHaveBeenCalledWith(expect.objectContaining({
+      headline: 'A move is ready',
+      fallbackResponseText: 'fallback',
+      timeoutMs: 15000,
+      calls: [
+        {
+          manifest: {
+            name: 'chess.play',
+            prompt: 'Play the prepared chess reply.',
+            examples: [
+              '<|CALL ["chess.play", {"move":"Nf3"}]|>',
+            ],
+          },
+          handler: expect.any(Function),
+        },
+      ],
+    }))
+    expect(emit).toHaveBeenCalledWith(widgetsIframeBroadcastEvent, expect.objectContaining({
+      payload: expect.objectContaining({
+        requestId: 'req-call',
+        text: 'Played.',
+        performance: {
+          type: 'called',
+          name: 'chess.play',
+        },
+      }),
+    }))
+  })
 })

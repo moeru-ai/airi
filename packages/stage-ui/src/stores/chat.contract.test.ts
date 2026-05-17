@@ -80,12 +80,17 @@ vi.mock('../composables', () => ({
 }))
 
 vi.mock('../composables/llm-marker-parser', () => ({
-  useLlmmarkerParser: (options: { onLiteral?: (literal: string) => Promise<void>, onEnd?: (fullText: string) => Promise<void> }) => {
+  useLlmmarkerParser: (options: { onLiteral?: (literal: string) => Promise<void>, onSpecial?: (special: string) => Promise<void>, onEnd?: (fullText: string) => Promise<void> }) => {
     let fullText = ''
     return {
       consume: async (textPart: string) => {
         parserConsumeMock(textPart)
         fullText += textPart
+        if (textPart.startsWith('<|') && textPart.endsWith('|>')) {
+          await options.onSpecial?.(textPart)
+          return
+        }
+
         await options.onLiteral?.(textPart)
       },
       end: async () => {
@@ -149,6 +154,12 @@ vi.mock('./chat/stream-store', () => ({
 vi.mock('./llm', () => ({
   useLLM: () => ({
     stream: llmStreamMock,
+  }),
+}))
+
+vi.mock('./llm-toolset-prompts', () => ({
+  useLlmToolsetPromptsStore: () => ({
+    activeToolsetPrompt: 'Plugin toolset guidance.',
   }),
 }))
 
@@ -293,7 +304,8 @@ describe('chat orchestrator contract', () => {
     // instead of a system anchor).
     const systemContent = (composedMessages[0] as any).content
     const systemText = typeof systemContent === 'string' ? systemContent : systemContent.map((p: any) => p.text).join('')
-    expect(systemText).toBe('system prompt')
+    expect(systemText).toContain('system prompt')
+    expect(systemText).toContain('Plugin toolset guidance.')
 
     // The user turn is prefixed with [YYYY-MM-DD HH:MM]. Both historic and
     // current turns share the same shape so prefix-cache stays valid when a
@@ -308,6 +320,26 @@ describe('chat orchestrator contract', () => {
     expect(syntheticContextText).not.toContain('<module ')
     expect(syntheticContextText).toContain('[Context]')
     expect(syntheticContextText).toContain('- system:weather: sunny')
+  })
+
+  it('emits special tokens for speech timeline handling during chat streaming', async () => {
+    getContextsSnapshotMock.mockReturnValue({})
+    llmStreamMock.mockImplementationOnce(async (_model, _provider, _messages, options) => {
+      await options.onStreamEvent({ type: 'text-delta', text: '<|CALL ["plugin.action"]|>' })
+    })
+
+    const store = useChatOrchestratorStore()
+    const specialHook = vi.fn()
+    store.onTokenSpecial(specialHook)
+
+    await store.ingest('trigger special', {
+      chatProvider: provider,
+      model: 'mock-model',
+    })
+
+    expect(specialHook).toHaveBeenCalledWith('<|CALL ["plugin.action"]|>', expect.objectContaining({
+      contexts: {},
+    }))
   })
 
   it('rejects cancelled queued sends before they start', async () => {

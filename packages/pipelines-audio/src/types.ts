@@ -7,6 +7,7 @@ export interface PriorityResolver {
 export interface TextToken {
   type: 'literal' | 'special' | 'flush'
   value?: string
+  turnId?: string
   streamId: string
   intentId: string
   sequence: number
@@ -14,6 +15,7 @@ export interface TextToken {
 }
 
 export interface TextSegment {
+  turnId?: string
   streamId: string
   intentId: string
   segmentId: string
@@ -24,6 +26,7 @@ export interface TextSegment {
 }
 
 export interface TtsRequest {
+  turnId?: string
   streamId: string
   intentId: string
   segmentId: string
@@ -35,6 +38,7 @@ export interface TtsRequest {
 }
 
 export interface TtsResult<TAudio> {
+  turnId?: string
   streamId: string
   intentId: string
   segmentId: string
@@ -47,6 +51,7 @@ export interface TtsResult<TAudio> {
 
 export interface PlaybackItem<TAudio> {
   id: string
+  turnId?: string
   streamId: string
   intentId: string
   segmentId: string
@@ -83,6 +88,7 @@ export interface PlaybackRejectEvent<TAudio> {
 export type IntentBehavior = 'queue' | 'interrupt' | 'replace'
 
 export interface IntentOptions {
+  turnId?: string
   intentId?: string
   streamId?: string
   priority?: PriorityLevel | number
@@ -91,6 +97,7 @@ export interface IntentOptions {
 }
 
 export interface IntentHandle {
+  turnId?: string
   intentId: string
   streamId: string
   priority: number
@@ -114,7 +121,10 @@ export interface SpeechPipelineEvents<TAudio> {
   onPlaybackReject: (event: PlaybackRejectEvent<TAudio>) => void
   onIntentStart: (intentId: string) => void
   onIntentEnd: (intentId: string) => void
-  onIntentCancel: (intentId: string, reason?: string) => void
+  onIntentCancel: (event: { intentId: string, reason?: string }) => void
+  onTurnStart: (turnId: string) => void
+  onTurnEnd: (turnId: string) => void
+  onTurnCancel: (event: { turnId: string, reason?: string }) => void
 }
 
 export interface LoggerLike {

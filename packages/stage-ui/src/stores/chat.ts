@@ -25,6 +25,7 @@ import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
 import { useContextObservabilityStore } from './devtools/context-observability'
 import { useLLM } from './llm'
+import { useLlmToolsetPromptsStore } from './llm-toolset-prompts'
 import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
@@ -108,6 +109,7 @@ export interface QueuedSendSnapshot {
 
 export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const llmStore = useLLM()
+  const llmToolsetPromptsStore = useLlmToolsetPromptsStore()
   const consciousnessStore = useConsciousnessStore()
   const artistryAutonomousStore = useAutonomousArtistryStore()
   const { activeProvider } = storeToRefs(consciousnessStore)
@@ -376,6 +378,20 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
         return rawMessage
       })
+
+      const activeToolsetPrompt = llmToolsetPromptsStore.activeToolsetPrompt.trim()
+      if (activeToolsetPrompt) {
+        const systemMessage = newMessages.find(message => message.role === 'system')
+        if (systemMessage) {
+          systemMessage.content = `${systemMessage.content}\n\n${activeToolsetPrompt}`
+        }
+        else {
+          newMessages.unshift({
+            role: 'system',
+            content: activeToolsetPrompt,
+          })
+        }
+      }
 
       const contextsSnapshot = chatContext.getContextsSnapshot()
       const contextPromptText = formatContextPromptText(contextsSnapshot)

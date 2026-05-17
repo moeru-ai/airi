@@ -110,6 +110,7 @@ const { context: iframeContext, iframeLoadError, onIframeError, onIframeLoad } =
 
       const handled = await publishWidgetSparkNotifyReaction(event, {
         dispatchSparkNotifyReaction: options => contextBridgeStore.dispatchSparkNotifyReaction(options),
+        dispatchSparkNotifyPerformance: options => contextBridgeStore.dispatchSparkNotifyPerformance(options),
         emit: (eventDefinition, payload) => iframeContext.emit(eventDefinition, payload),
       })
       if (handled) {
