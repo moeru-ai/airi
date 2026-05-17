@@ -12,7 +12,6 @@ import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
 import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
-import { getAuthToken } from '../../libs/auth'
 import { authedFetch } from '../../libs/auth-fetch'
 import {
   applyCreateActions,
@@ -48,7 +47,7 @@ interface CloudMergePayload {
 const OUTBOX_MAX_ATTEMPTS = 5
 
 export const useChatSessionStore = defineStore('chat-session', () => {
-  const { userId } = storeToRefs(useAuthStore())
+  const { userId, token: authToken } = storeToRefs(useAuthStore())
   const { activeCardId, systemPrompt } = storeToRefs(useAiriCardStore())
 
   const activeSessionId = ref<string>('')
@@ -851,7 +850,15 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     console.info('[chat-sync] creating WS client →', SERVER_URL)
     wsClient = createChatWsClient({
       serverUrl: SERVER_URL,
-      getToken: getAuthToken,
+      // NOTICE:
+      // `getAuthToken()` reads `localStorage` directly — that read is NOT
+      // reactive, so `ws-client`'s `urlRef = computed(() => ... getToken())`
+      // captures the initial token forever and ignores `oauth2/token`
+      // refreshes. The auto-reconnect loop then hammers `/ws/chat?token=<old>`
+      // and every upgrade returns 401 until the user reloads the tab.
+      // Read through the Pinia store ref so the computed actually tracks
+      // token rotation and rebuilds the URL.
+      getToken: () => authToken.value,
     })
 
     wsClient.onNewMessages((payload) => {
