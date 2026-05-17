@@ -10,7 +10,9 @@
  *
  * Expects:
  * - `.env.local` provides REDIS_URL, LLM_ROUTER_MASTER_KEY.
- * - `LLM_ROUTER_CONFIG` already seeded (run scripts/seed-router-config.ts first).
+ * - `LLM_ROUTER_CONFIG` already seeded via
+ *   `POST /api/admin/config/router` (see
+ *   `docs/ai-context/verifications/llm-router.md` for the curl invocation).
  *
  * Returns: exit 0 with the assistant response printed; exit 1 on failure.
  */

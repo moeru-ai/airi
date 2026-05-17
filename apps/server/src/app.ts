@@ -344,10 +344,10 @@ export async function buildApp(deps: AppDeps) {
     .route('/api/admin/flux-grants', createAdminFluxGrantsRoutes(deps.adminFluxGrantsService, deps.env))
 
     /**
-     * Admin LLM router config seeding/patching. Replaces the
-     * `scripts/seed-router-config.ts` and `scripts/seed-streaming-tts.ts`
-     * one-off scripts for in-cluster use; the scripts stay as break-glass
-     * tools. See `routes/admin/config/router/index.ts` for the body shape.
+     * Admin LLM router config seeding/patching. Single entry point for
+     * writing `LLM_ROUTER_CONFIG`, `STREAMING_TTS_UPSTREAM`, and the
+     * `DEFAULT_{CHAT,TTS}_MODEL` aliases — see
+     * `routes/admin/config/router/index.ts` for the body shape.
      */
     .route('/api/admin/config/router', createAdminRouterConfigRoutes(deps.adminRouterConfigService, deps.env))
 

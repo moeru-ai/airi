@@ -69,10 +69,10 @@ const DashscopeSliceSchema = object({
 })
 
 /**
- * `upstreamURL` must be ws:// or wss://. Mirrors the soft-validate in the
- * seed-streaming-tts script — http(s):// here is almost always a copy-paste
- * of the unspeech REST endpoint, which would fail at `new WebSocket()`
- * inside the audio-speech-ws proxy with no actionable error for the admin.
+ * `upstreamURL` must be ws:// or wss://. http(s):// here is almost always a
+ * copy-paste of the unspeech REST endpoint, which would fail at
+ * `new WebSocket()` inside the audio-speech-ws proxy with no actionable
+ * error for the admin.
  */
 const StreamingTtsSliceSchema = object({
   kind: literal('streaming-tts'),
@@ -108,12 +108,10 @@ const BodySchema = object({
 })
 
 /**
- * Admin route for seeding / patching the LLM router config tree.
- *
- * Mounted at `POST /api/admin/config/router`. Replaces the
- * `scripts/seed-router-config.ts` and `scripts/seed-streaming-tts.ts`
- * one-off scripts for routine in-cluster operation; the scripts are kept
- * as break-glass tools for cold-boot / disaster recovery.
+ * Admin route for seeding / patching the LLM router config tree. Mounted
+ * at `POST /api/admin/config/router`; the only supported way to write
+ * `LLM_ROUTER_CONFIG`, `STREAMING_TTS_UPSTREAM`, and the
+ * `DEFAULT_{CHAT,TTS}_MODEL` aliases.
  *
  * Body shape (discriminated on `slices[].kind`):
  *

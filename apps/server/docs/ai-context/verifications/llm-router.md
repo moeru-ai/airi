@@ -28,14 +28,28 @@ stops asserting completion ahead of measurement.
   upstream, then invokes the router directly to call OpenRouter for a chat
   completion. Validates envelope decrypt → configKV load → key rotation →
   upstream fetch → response parse on the real wire path.
-- **Command**:
+- **Command** (admin endpoint replaced the seed script on 2026-05-18; the
+  2026-05-15 evidence below was captured with the now-removed
+  `scripts/seed-router-config.ts`):
   ```bash
+  # 1. seed via the admin endpoint — requires an account whose email is in
+  #    ADMIN_EMAILS and is verified.
+  curl -sS -X POST http://localhost:3000/api/admin/config/router \
+    -H "Authorization: Bearer $ADMIN_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "mode": "merge",
+      "slices": [{
+        "kind": "openrouter",
+        "modelName": "chat-default",
+        "overrideModel": "openai/gpt-4o-mini",
+        "plaintextKey": "<OPENROUTER_KEY>"
+      }],
+      "defaults": { "chatModel": "chat-default" }
+    }' | jq
+
+  # 2. exercise the router via the in-process e2e harness.
   cd apps/server
-  pnpm exec dotenvx run --env-file=.env.local -- \
-    tsx scripts/seed-router-config.ts \
-      --openrouter-key '<OPENROUTER_KEY>' \
-      --openrouter-model openai/gpt-4o-mini \
-      --default-chat-model chat-default
   pnpm exec dotenvx run --env-file=.env.local -- \
     tsx scripts/e2e-llm-router.ts
   ```
@@ -106,9 +120,14 @@ stops asserting completion ahead of measurement.
 
 ## Known limitations / follow-up
 
-- **U9 admin HTTP endpoint**: bootstrap currently goes through the
-  `scripts/seed-router-config.ts` CLI. The plan's full HTTP admin endpoint
-  with ETag + audit log + HMAC publish is deferred; tracked in plan U9.
+- **U9 admin HTTP endpoint**: partially shipped 2026-05-18 as
+  `POST /api/admin/config/router` (see `routes/admin/config/router/index.ts`).
+  Covers the write path with audit-log fields on the structured logger,
+  envelope encryption in-process, and cross-instance invalidation publish.
+  The plan's ETag-based optimistic concurrency control and HMAC-signed
+  invalidate payload are still deferred; the `config_write` and
+  `config_invalid_hmac` counters described below remain producerless until
+  those land.
 - ~~**GATEWAY_BASE_URL**: still required in env schema~~. Resolved
   2026-05-15: env entry removed, all routes go through `llmRouter.route` /
   `routeTts` / `listTtsVoices`. The `LLM_ROUTER_MASTER_KEY` env var is
@@ -123,8 +142,9 @@ stops asserting completion ahead of measurement.
   PR — `app.ts` now emits `connected` / `error` / `reconnecting` from the
   `configkv:invalidate` subscriber). The remaining two counters
   (`config_write`, `config_invalid_hmac`) intentionally have no panels
-  because their producer is the Plan U9 admin HTTP endpoint that has
-  not shipped; they will rejoin Rows 6.5 / 6.7 alongside the U9 PR.
+  because their producer is the ETag + HMAC slice of the U9 admin
+  endpoint that has not shipped (see the U9 entry above); they will
+  rejoin Rows 6.5 / 6.7 when that slice lands.
   Alert rules (key.exhausted > 0, fallback ratio > 30%, single-key
   error ratio > 80%) are still configured through Grafana UI, not
   build.ts — IaC-ifying them is a separate follow-up.

@@ -82,23 +82,30 @@ once it lands.
 ### Prerequisite: seed `STREAMING_TTS_UPSTREAM`
 
 ```bash
-cd apps/server
-STREAMING_TTS_UPSTREAM_URL="ws://airi-unspeech.railway.internal:5933/v1/audio/speech/stream" \
-VOLCENGINE_TTS_API_KEY="$VOLCENGINE_TTS_API_KEY" \
-pnpm exec dotenvx run --env-file=.env.local -- \
-  tsx scripts/seed-streaming-tts.ts
+curl -sS -X POST http://localhost:3000/api/admin/config/router \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "slices": [{
+      "kind": "streaming-tts",
+      "upstreamURL": "ws://airi-unspeech.railway.internal:5933/v1/audio/speech/stream",
+      "plaintextKey": "<VOLCENGINE_TTS_API_KEY>"
+    }]
+  }' | jq
 ```
 
-The script reads `LLM_ROUTER_MASTER_KEY` and `REDIS_URL` from
-`.env.local`, envelope-encrypts the Volcengine key under AAD
-`{ modelName: 'streaming-tts', keyEntryId: 'volcengine-prod-1' }`, and
-writes the `STREAMING_TTS_UPSTREAM` configKV entry. Use `--dry-run` to
-preview the ciphertext length without committing.
+The server envelope-encrypts the plaintext key under AAD
+`{ modelName: 'streaming-tts', keyEntryId: 'volcengine-prod-1' }` and
+writes `STREAMING_TTS_UPSTREAM`. Add `"dryRun": true` to preview the
+ciphertext length without committing.
 
-To point at a different unspeech instance later, just re-run the script
-with a different `STREAMING_TTS_UPSTREAM_URL`. To rotate the upstream
-key, re-run with `--key-id volcengine-prod-N` (the audio-speech-ws
-route always reads `keys[0]`, so a write replaces the active key).
+To point at a different unspeech instance later, repeat the call with a
+different `upstreamURL`. To rotate the upstream key, pass
+`"keyEntryId": "volcengine-prod-N"` (the audio-speech-ws route always
+reads `keys[0]`, so a write replaces the active key).
+
+`$ADMIN_TOKEN` is a Bearer token for an account whose email is in
+`ADMIN_EMAILS` and is verified.
 
 ### Scenario L1: streaming session happy path
 
