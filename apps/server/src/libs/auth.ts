@@ -16,7 +16,7 @@ import { deleteSessionCookie } from 'better-auth/cookies'
 import { bearer, jwt, magicLink } from 'better-auth/plugins'
 import { eq } from 'drizzle-orm'
 
-import { captureSafe } from '../services/posthog'
+import { captureSafe } from '../services/adapters/posthog'
 import { ApiError } from '../utils/error'
 import { getAuthTrustedOrigins, getTrustedOrigin } from '../utils/origin'
 import { oidcJwtBearer } from './auth-plugins/oidc-jwt-bearer'
