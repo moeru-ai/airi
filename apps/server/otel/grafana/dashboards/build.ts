@@ -43,7 +43,11 @@ interface ThresholdStep { color: string, value: number }
 type PanelQuery = ReturnType<typeof query>
 type LegendCalc = 'lastNotNull' | 'max' | 'min' | 'mean' | 'sum'
 
-function query(expr: string, legend: string, refId = 'A', datasource: DataSource = PROM) {
+interface QueryOpts {
+  instant?: boolean
+}
+
+function query(expr: string, legend: string, refId = 'A', datasource: DataSource = PROM, opts: QueryOpts = {}) {
   return {
     kind: 'PanelQuery',
     spec: {
@@ -52,7 +56,11 @@ function query(expr: string, legend: string, refId = 'A', datasource: DataSource
         datasource,
         group: datasource === LOKI ? 'loki' : 'prometheus',
         kind: 'DataQuery',
-        spec: { expr, legendFormat: legend },
+        spec: {
+          expr,
+          legendFormat: legend,
+          ...(opts.instant && { instant: true, range: false }),
+        },
         version: 'v0',
       },
       refId,
@@ -100,6 +108,12 @@ interface TimeseriesPanelOpts {
   stack?: boolean
   fillOpacity?: number
   legendCalcs?: LegendCalc[]
+}
+
+interface TablePanelOpts {
+  unit?: string
+  decimals?: number
+  noValue?: string
 }
 
 // `noValue` shows a friendly placeholder instead of "No data" red text when
@@ -290,6 +304,48 @@ function timeseriesPanel(id: number, title: string, description: string, queries
   }
 }
 
+function tablePanel(id: number, title: string, description: string, queries: PanelQuery[], opts: TablePanelOpts = {}) {
+  const { unit = 'short', decimals, noValue = '0' } = opts
+  return {
+    kind: 'Panel',
+    spec: {
+      data: { kind: 'QueryGroup', spec: { queries, queryOptions: {}, transformations: [] } },
+      description,
+      id,
+      links: [],
+      title,
+      vizConfig: {
+        group: 'table',
+        kind: 'VizConfig',
+        spec: {
+          fieldConfig: {
+            defaults: {
+              color: { mode: 'thresholds' },
+              custom: {
+                align: 'auto',
+                cellOptions: { type: 'auto' },
+                inspect: false,
+              },
+              thresholds: thresholds([{ color: 'green', value: 0 }]),
+              unit,
+              ...(decimals != null && { decimals }),
+              ...(noValue != null && { noValue }),
+            },
+            overrides: [],
+          },
+          options: {
+            cellHeight: 'sm',
+            footer: { countRows: false, fields: '', reducer: ['sum'], show: false },
+            showHeader: true,
+            sortBy: [{ desc: true, displayName: 'Value' }],
+          },
+        },
+        version: SCHEMA_VERSION,
+      },
+    },
+  }
+}
+
 function logsPanel(id: number, title: string, description: string, expr: string) {
   return {
     kind: 'Panel',
@@ -374,9 +430,9 @@ const elements: Record<string, unknown> = {}
 // Mix of stats (absolute counts) and gauges (bounded ratios with thresholds).
 elements['panel-1'] = statPanel(
   1,
-  'Active Users',
-  'COUNT(DISTINCT user_id) over the Better Auth `session` table where `expires_at > now()`. This is the *real* active-user count. The historical "Active Users" panel queried `user.active_sessions` (COUNT(*) on the same table), which counts session **rows** not users — Better Auth creates a new row per sign-in and per OIDC access-token issuance and never GCs expired rows, so the row count drifts up and we have seen it report ~80K on a deployment with hundreds of actual users. Compare with `panel-15` (Active Sessions) to spot session-row inflation; ratio > ~5 means it\'s time for a session GC cron. Cluster-wide gauge — `avg()`, not `sum()`.',
-  [query(`avg(user_distinct_active{${SERVICE_FILTER}})`, 'users')],
+  'New Users 24h',
+  'Rolling 24h `increase(user.registered)` — counts the Better Auth `databaseHooks.user.create.after` fires over the last 24 hours. This is the operational signup signal; for DAU / WAU / MAU / cohort retention, query PostHog (`event = session_started`, emitted from `databaseHooks.session.create.after`).',
+  [query(`sum(increase(user_registered_total{${SERVICE_FILTER}}[24h]))`, 'new users')],
   { unit: 'short', steps: [{ color: 'green', value: 0 }, { color: 'yellow', value: 1000 }] },
 )
 
@@ -433,15 +489,10 @@ elements['panel-6'] = gaugePanel(
   { steps: [{ color: 'green', value: 0 }, { color: 'yellow', value: 1 }, { color: 'red', value: 5 }], max: 20, decimals: 1, noValue: '0' },
 )
 
-// Row 2: Distribution — "what KIND of traffic right now?"
-// Donuts answer the current breakdown question better than stacked area.
+// Row 2: Distribution — range-aware breakdowns over the selected time window.
+// Donuts answer the "what share of traffic" question better than stacked area.
 // Use `topk(N, ...)` so a long-tail label set doesn't render an unreadable
-// 30-slice pie. HTTP method donut was removed because the dimension is so
-// low-cardinality (GET/POST/DELETE/HEAD) that the slice ratios barely move —
-// the by-method timeseries in Row 3 already conveys the same information
-// with time context. Status-code donut was replaced by Top Routes because
-// the 2xx slice dominates and the by-status timeseries in Row 5 already
-// surfaces 4xx/5xx independently.
+// 30-slice pie.
 elements['panel-8'] = piePanel(
   8,
   'LLM Models (range)',
@@ -452,36 +503,7 @@ elements['panel-8'] = piePanel(
   )],
 )
 
-// "Top Routes by Requests" lives as a timeseries in `panel-14` (Top
-// Endpoints row) — keeping a donut here too would just be a frozen
-// snapshot of the timeseries. Instead, this slot answers the higher-
-// value question "which routes are producing the 5xx right now?" so
-// the dashboard surfaces *failing* endpoints, not just busy ones.
-// Pair with panel-44 (5xx Rate by Route timeseries) for the same data
-// over time.
-elements['panel-9'] = piePanel(
-  9,
-  'Top Routes by 5xx (range)',
-  'Top 10 Hono-matched routes by 5xx response count over the dashboard time range. Follows the time picker — pick 1h for "what\'s failing right now", pick 24h for "what failed most today". The overall 5xx% gauge (panel-4) is a fixed-5m snapshot for on-call glance; this donut respects the time picker for triage.',
-  [query(
-    `topk(10, sum by (http_route) (increase(http_server_request_duration_seconds_count{${SERVICE_FILTER}, http_request_method!="OPTIONS", http_route!="", http_response_status_code=~"5.."}[$__range])))`,
-    '{{http_route}}',
-  )],
-  { noValue: 'no 5xx' },
-)
-
-// Row 3: Traffic Trends — same data as Row 2, but answering "how is it changing"
-elements['panel-10'] = timeseriesPanel(
-  10,
-  'HTTP Request Rate by Method',
-  'Inbound rate split by HTTP method, showing the time evolution of the donut in row 2.',
-  [query(
-    `sum by (http_request_method) (rate(http_server_request_duration_seconds_count{${SERVICE_FILTER}, http_request_method!="OPTIONS"}[$__rate_interval]))`,
-    '{{http_request_method}}',
-  )],
-  { unit: 'reqps' },
-)
-
+// Row 3: Traffic Trends — transport / model / websocket changes over time.
 elements['panel-11'] = timeseriesPanel(
   11,
   'LLM Request Rate by Model',
@@ -507,14 +529,12 @@ elements['panel-12'] = timeseriesPanel(
 elements['panel-13'] = timeseriesPanel(
   13,
   'WS Connections',
-  'Live WebSocket connection count over time. Row 1\'s stat shows the current value; this panel lets you correlate connection-count changes with deploys, network blips, or message throughput spikes. Same gauge as Row 1, charted instead of `lastNotNull`.',
+  'Live WebSocket connection count over time. Use this to correlate connection-count changes with deploys, network blips, or message throughput spikes.',
   [query(`sum(ws_connections_active{${SERVICE_FILTER}})`, 'connections')],
   { unit: 'short' },
 )
 
-// Row 3.5: Top Endpoints — Row 3 answered "by method/model/WS-channel".
-// This row answers "by route" which has higher cardinality and warrants
-// a full-width panel + topk so the legend stays readable.
+// Row 3.5: Top Endpoints — route-level traffic over time.
 elements['panel-14'] = timeseriesPanel(
   14,
   'HTTP Request Rate by Route (top 10)',
@@ -524,6 +544,63 @@ elements['panel-14'] = timeseriesPanel(
     '{{http_route}}',
   )],
   { unit: 'reqps' },
+)
+
+// Row 3.6: Route Triage — tables answer "which routes should I inspect first?"
+elements['panel-16'] = tablePanel(
+  16,
+  'Top Routes by Requests (range)',
+  'Top Hono-matched routes by request count over the selected dashboard range. This is the main traffic list: start here to see which API surfaces are hottest before checking latency or errors.',
+  [query(
+    `topk(20, sum by (http_route) (increase(http_server_request_duration_seconds_count{${SERVICE_FILTER}, http_request_method!="OPTIONS", http_route!=""}[$__range])))`,
+    '{{http_route}}',
+    'A',
+    PROM,
+    { instant: true },
+  )],
+  { unit: 'short' },
+)
+
+elements['panel-17'] = tablePanel(
+  17,
+  'Top Routes by Errors (range)',
+  'Top route + status-code pairs by 4xx/5xx count over the selected dashboard range. This answers both "which route errors most" and "what error class/status is it".',
+  [query(
+    `topk(20, sum by (http_route, http_response_status_code) (increase(http_server_request_duration_seconds_count{${SERVICE_FILTER}, http_request_method!="OPTIONS", http_route!="", http_response_status_code=~"4..|5.."}[$__range])))`,
+    '{{http_route}} {{http_response_status_code}}',
+    'A',
+    PROM,
+    { instant: true },
+  )],
+  { unit: 'short' },
+)
+
+elements['panel-18'] = tablePanel(
+  18,
+  'Top Routes by Error Rate (range)',
+  'Top Hono-matched routes by 4xx/5xx percentage over the selected dashboard range. Use this next to the error-count table so low-traffic routes with severe failure ratios do not get hidden behind high-volume endpoints.',
+  [query(
+    `topk(20, 100 * sum by (http_route) (increase(http_server_request_duration_seconds_count{${SERVICE_FILTER}, http_request_method!="OPTIONS", http_route!="", http_response_status_code=~"4..|5.."}[$__range])) / clamp_min(sum by (http_route) (increase(http_server_request_duration_seconds_count{${SERVICE_FILTER}, http_request_method!="OPTIONS", http_route!=""}[$__range])), 1))`,
+    '{{http_route}}',
+    'A',
+    PROM,
+    { instant: true },
+  )],
+  { unit: 'percent', decimals: 2 },
+)
+
+elements['panel-19'] = tablePanel(
+  19,
+  'HTTP P95 by Route (now)',
+  'Top Hono-matched routes by current P95 latency. This complements the request and error tables: a hot route with high latency is usually a better optimization target than a cold slow route.',
+  [query(
+    `topk(20, histogram_quantile(0.95, sum by (le, http_route) (rate(http_server_request_duration_seconds_bucket{${SERVICE_FILTER}, http_request_method!="OPTIONS", http_route!="", http_response_status_code!="404"}[$__rate_interval]))))`,
+    '{{http_route}}',
+    'A',
+    PROM,
+    { instant: true },
+  )],
+  { unit: 's', decimals: 3 },
 )
 
 // Row 4: Latency — how slow we are
@@ -552,13 +629,21 @@ elements['panel-21'] = timeseriesPanel(
 // Row 5: Errors / Quality — what's failing
 elements['panel-40'] = timeseriesPanel(
   40,
-  '4xx / 5xx Rate',
-  'Stacked error response rates. 4xx surfaces client-side issues (validation, auth); 5xx is server-side. 200/3xx are intentionally excluded so a small absolute number isn\'t hidden behind a wall of green.',
-  [query(
-    `sum by (http_response_status_code) (rate(http_server_request_duration_seconds_count{${SERVICE_FILTER}, http_request_method!="OPTIONS", http_response_status_code=~"4..|5.."}[$__rate_interval]))`,
-    '{{http_response_status_code}}',
-  )],
-  { unit: 'reqps', stack: true, fillOpacity: 60 },
+  'Error Rate %',
+  'Error rate as a percentage of total non-OPTIONS HTTP traffic — 4xx (client-side: validation, auth, missing routes) and 5xx (server-side) over the same denominator. Compare against the route error tables to localise spikes.',
+  [
+    query(
+      `100 * sum(rate(http_server_request_duration_seconds_count{${SERVICE_FILTER}, http_request_method!="OPTIONS", http_response_status_code=~"4.."}[$__rate_interval])) / clamp_min(sum(rate(http_server_request_duration_seconds_count{${SERVICE_FILTER}, http_request_method!="OPTIONS"}[$__rate_interval])), 1)`,
+      '4xx %',
+      'A',
+    ),
+    query(
+      `100 * sum(rate(http_server_request_duration_seconds_count{${SERVICE_FILTER}, http_request_method!="OPTIONS", http_response_status_code=~"5.."}[$__rate_interval])) / clamp_min(sum(rate(http_server_request_duration_seconds_count{${SERVICE_FILTER}, http_request_method!="OPTIONS"}[$__rate_interval])), 1)`,
+      '5xx %',
+      'B',
+    ),
+  ],
+  { unit: 'percent', stack: false, fillOpacity: 20 },
 )
 
 elements['panel-41'] = statPanel(
@@ -575,9 +660,9 @@ elements['panel-41'] = statPanel(
 elements['panel-43'] = statPanel(
   43,
   '⚠ Flux Unbilled (range)',
-  'Flux value owed by users but never debited (post-stream debit failed AFTER the LLM response was already sent). Real revenue leak — DB latency and HTTP 5xx alerts do NOT cover this, because the response was 2xx and the catch path is silent. Any sustained >0 should page on-call.',
+  'Flux value owed by users but never debited for unexpected reasons (excludes `partial_debit_drained`, which is a known partial-balance drain path). Real revenue leak — DB latency and HTTP 5xx alerts do NOT cover this, because the response was 2xx and the catch path is silent.',
   [query(
-    `sum(increase(airi_billing_flux_unbilled_total{${SERVICE_FILTER}}[$__range]))`,
+    `sum(increase(airi_billing_flux_unbilled_total{${SERVICE_FILTER}, reason!="partial_debit_drained"}[$__range]))`,
     'flux',
   )],
   { unit: 'short', steps: [{ color: 'green', value: 0 }, { color: 'red', value: 1 }], noValue: '0', graphMode: 'none' },
@@ -728,30 +813,32 @@ const rows = [
     item('panel-5', 16, 0, 4, 4),
     item('panel-6', 20, 0, 4, 4),
   ]),
-  // Row 2: 2 donuts × 12 wide × 7 high — current-state distribution.
-  // Left donut: LLM models (where load is going). Right donut: 5xx by
-  // route (where failures are concentrated). The previous "Top Routes
-  // by Requests" donut was replaced because its timeseries form in
-  // Row 3.5 carries the same data with time context; 5xx-by-route is
-  // the higher-value glance.
-  row('Distribution (now)', [
-    item('panel-8', 0, 0, 12, 7),
-    item('panel-9', 12, 0, 12, 7),
+  // Row 2: range-aware distribution. Route traffic/errors live in the table
+  // rows below because operators need sortable lists, not pie slices.
+  row('Distribution (range)', [
+    item('panel-8', 0, 0, 24, 7),
   ]),
-  // Row 3: 4 timeseries × 6 wide × 8 high — same data as Row 2 but over time.
-  // WS Connections joined this row so the live WS state can be correlated
-  // with HTTP/LLM/WS-message trends on the same time axis.
+  // Row 3: 3 timeseries × 8 wide × 8 high — model and websocket trends.
+  // HTTP route traffic gets a dedicated full-width route row below.
   row('Traffic Trends', [
-    item('panel-10', 0, 0, 6, 8),
-    item('panel-11', 6, 0, 6, 8),
-    item('panel-12', 12, 0, 6, 8),
-    item('panel-13', 18, 0, 6, 8),
+    item('panel-11', 0, 0, 8, 8),
+    item('panel-12', 8, 0, 8, 8),
+    item('panel-13', 16, 0, 8, 8),
   ]),
-  // Row 3.5: 1 timeseries × 24 wide × 7 high — top routes get the full width
-  // because route-level cardinality (~5-10 series after topk) needs space
-  // for the legend table.
+  // Row 3.5: 1 timeseries × 24 wide × 7 high — top routes over time.
   row('Top Endpoints', [
     item('panel-14', 0, 0, 24, 7),
+  ]),
+  // Row 3.6: sortable route tables. These answer the high-value operational
+  // questions first: what is hot, what is failing, and whether the failure is
+  // absolute volume or ratio.
+  row('Route Triage', [
+    item('panel-16', 0, 0, 12, 8),
+    item('panel-17', 12, 0, 12, 8),
+  ]),
+  row('Route Risk', [
+    item('panel-18', 0, 0, 12, 8),
+    item('panel-19', 12, 0, 12, 8),
   ]),
   // Row 4: 2 timeseries × 12 wide × 8 high
   row('Latency', [
@@ -769,9 +856,8 @@ const rows = [
     item('panel-42', 18, 0, 6, 7),
   ]),
   // Row 5.5: 5xx by-route trend full width. Triage path: panel-4
-  // (something wrong) → panel-9 donut (which route now) → here (when
-  // it started + per-route rates over time) → panel-91 (actual error
-  // log lines + clickable trace_id for full request replay in Tempo).
+  // (something wrong) → Route Triage tables (which route/status) → here
+  // (when it started) → panel-91 (actual error/warn logs + trace ids).
   row('5xx Triage', [
     item('panel-44', 0, 0, 24, 7),
   ]),
@@ -865,13 +951,15 @@ const variables = [
  *
  * Reading order:
  *   1. Service Health — six gauges/stats, "is everything OK right now?"
- *   2. Distribution — three donuts, "what KIND of traffic now?"
- *   3. Traffic Trends — same data over time
- *   4. Latency — P95 over routes/models
- *   5. Errors / Quality — what's failing
- *   6. Business — Stripe / Flux money flow
- *   7. Infrastructure (collapsed) — DB / runtime health for triage
- *   8. Logs — Loki for live debugging
+ *   2. Distribution — range share for model traffic
+ *   3. Traffic Trends — model / websocket trends
+ *   4. Route Triage — top requested routes, error routes/statuses, error-rate
+ *      routes, and route P95 table
+ *   5. Latency — P95 over routes/models
+ *   6. Errors / Quality — what's failing
+ *   7. Business — Stripe / Flux money flow
+ *   8. Infrastructure (collapsed) — DB / runtime health for triage
+ *   9. Logs — Loki for live debugging
  *
  * Counter conventions:
  *   - rate() for "what's happening now"

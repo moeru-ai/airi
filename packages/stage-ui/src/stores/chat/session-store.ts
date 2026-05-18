@@ -23,6 +23,7 @@ import {
   reconcileLocalAndRemote,
 } from '../../libs/chat-sync'
 import { SERVER_URL } from '../../libs/server'
+import { capturePosthogEvent } from '../analytics/posthog'
 import { useAuthStore } from '../auth'
 import { useAiriCardStore } from '../modules/airi-card'
 import { mergeLoadedSessionMessages } from './session-message-merge'
@@ -439,6 +440,13 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     const meta = sessionMetas.value[sessionId]
     if (!meta)
       return
+
+    // Snapshot count before the in-memory wipe below zeroes it out.
+    const messageCount = (sessionMessages.value[sessionId] ?? []).length
+    capturePosthogEvent('chat_session_deleted', {
+      session_id: sessionId,
+      message_count: messageCount,
+    })
 
     const wasActive = activeSessionId.value === sessionId
     const characterId = meta.characterId

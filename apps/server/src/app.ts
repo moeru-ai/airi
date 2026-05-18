@@ -233,7 +233,7 @@ export async function buildApp(deps: AppDeps) {
     /**
      * V1 routes for official provider.
      */
-    .route('/api/v1/openai', createV1CompletionsRoutes(deps.fluxService, deps.billingService, deps.configKV, deps.requestLogService, deps.ttsMeter, deps.redis, deps.env, deps.otel?.genAi, deps.otel?.revenue, deps.otel?.rateLimit))
+    .route('/api/v1/openai', createV1CompletionsRoutes(deps.fluxService, deps.billingService, deps.configKV, deps.requestLogService, deps.ttsMeter, deps.redis, deps.env, deps.otel?.genAi, deps.otel?.revenue, deps.otel?.rateLimit, deps.posthog))
 
     /**
      * Flux routes.
@@ -455,7 +455,7 @@ export async function createApp() {
   })
 
   const auth = injeca.provide('services:auth', {
-    dependsOn: { db, env: parsedEnv, otel, email: emailService, userDeletionService },
+    dependsOn: { db, env: parsedEnv, otel, email: emailService, userDeletionService, posthog },
     build: async ({ dependsOn }) => {
       // Seed trusted OIDC clients into DB so FK constraints on oauth_access_token are satisfied
       await seedTrustedClients(dependsOn.db, dependsOn.env)
@@ -468,7 +468,7 @@ export async function createApp() {
           redirectUris: client.redirectUris.join(', '),
         }).log('OIDC trusted client ready')
       }
-      return createAuth(dependsOn.db, dependsOn.env, dependsOn.email, dependsOn.otel?.auth, dependsOn.userDeletionService)
+      return createAuth(dependsOn.db, dependsOn.env, dependsOn.email, dependsOn.otel?.auth, dependsOn.userDeletionService, dependsOn.posthog)
     },
   })
 

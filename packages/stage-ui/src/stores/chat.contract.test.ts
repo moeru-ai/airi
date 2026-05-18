@@ -76,6 +76,11 @@ vi.mock('@proj-airi/stream-kit', () => ({
 vi.mock('../composables', () => ({
   useAnalytics: () => ({
     trackFirstMessage: trackFirstMessageMock,
+    trackMessageSendStarted: vi.fn(),
+    trackLlmRequestStarted: vi.fn(),
+    trackLlmFirstToken: vi.fn(),
+    trackAssistantResponseRendered: vi.fn(),
+    trackMessageRound: vi.fn(),
   }),
 }))
 

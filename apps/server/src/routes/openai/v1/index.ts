@@ -1,5 +1,6 @@
 import type { Context } from 'hono'
 import type Redis from 'ioredis'
+import type { PostHog } from 'posthog-node'
 
 import type { Env } from '../../../libs/env'
 import type { GenAiMetrics, RateLimitMetrics, RevenueMetrics } from '../../../otel'
@@ -19,6 +20,7 @@ import { authGuard } from '../../../middlewares/auth'
 import { configGuard } from '../../../middlewares/config-guard'
 import { rateLimiter } from '../../../middlewares/rate-limit'
 import { calculateFluxFromUsage, extractUsageFromBody } from '../../../services/billing/billing'
+import { captureSafe } from '../../../services/posthog'
 import { createPaymentRequiredError } from '../../../utils/error'
 import { nanoid } from '../../../utils/id'
 import {
@@ -92,6 +94,7 @@ export function createV1CompletionsRoutes(
   genAi?: GenAiMetrics | null,
   revenue?: RevenueMetrics | null,
   rateLimitMetrics?: RateLimitMetrics | null,
+  posthog?: PostHog | null,
 ) {
   const logger = useLogger('v1-completions').useGlobalConfig()
   // TODO: Extract this compat route into smaller facades/modules.
@@ -177,6 +180,18 @@ export function createV1CompletionsRoutes(
       span.setStatus({ code: SpanStatusCode.ERROR, message: `Gateway ${response.status}` })
       span.end()
       recordMetrics({ model: requestModel, status: response.status, type: 'chat', durationMs, fluxConsumed: 0 })
+      // Emit server-side so funnels see real HTTP status — the client only
+      // ever observes "stream closed" and cannot tell 401 / 429 / 5xx apart.
+      void captureSafe(posthog ?? null, {
+        distinctId: user.id,
+        event: 'llm_request_failed',
+        properties: {
+          model: requestModel,
+          http_status: response.status,
+          duration_ms: durationMs,
+          stream: !!body.stream,
+        },
+      })
       return new Response(response.body, {
         status: response.status,
         headers: buildSafeResponseHeaders(response),
@@ -339,6 +354,21 @@ export function createV1CompletionsRoutes(
               promptTokens: usage.promptTokens,
               completionTokens: usage.completionTokens,
             })
+
+            void captureSafe(posthog ?? null, {
+              distinctId: user.id,
+              event: 'llm_request_succeeded',
+              properties: {
+                model: requestModel,
+                http_status: response.status,
+                duration_ms: durationMs,
+                prompt_tokens: usage.promptTokens ?? 0,
+                completion_tokens: usage.completionTokens ?? 0,
+                flux_consumed: actualCharged,
+                stream: true,
+                stream_interrupted: streamInterrupted,
+              },
+            })
           }
         }
       })()
@@ -399,6 +429,20 @@ export function createV1CompletionsRoutes(
       fluxConsumed: result.charged,
       promptTokens: usage.promptTokens,
       completionTokens: usage.completionTokens,
+    })
+
+    void captureSafe(posthog ?? null, {
+      distinctId: user.id,
+      event: 'llm_request_succeeded',
+      properties: {
+        model: requestModel,
+        http_status: response.status,
+        duration_ms: durationMs,
+        prompt_tokens: usage.promptTokens ?? 0,
+        completion_tokens: usage.completionTokens ?? 0,
+        flux_consumed: result.charged,
+        stream: false,
+      },
     })
 
     return c.json(responseBody)

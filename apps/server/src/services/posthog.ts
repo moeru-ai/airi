@@ -67,6 +67,17 @@ export function createPostHogClient(env: Env): PostHog | null {
  *   handler can return before the event reaches PostHog and SIGTERM may
  *   strand the queued event. `captureImmediate` does the HTTP send inline
  *   and resolves only after the network round-trip.
+ *
+ * Consent boundary:
+ * - Browser-side capture is gated by `useAnalytics().canCapture()` (user
+ *   toggle in Settings → Analytics).
+ * - Server-side events here are operational telemetry tied to business
+ *   facts that already occurred (auth records the user, Stripe records
+ *   the payment, the LLM router records the request). They are emitted
+ *   regardless of the browser toggle on legitimate-interest grounds —
+ *   the user cannot opt out of the server knowing they signed up or
+ *   paid, only out of additional product analytics on top. Surface this
+ *   distinction in the privacy policy.
  */
 export async function captureSafe(
   posthog: PostHog | null,

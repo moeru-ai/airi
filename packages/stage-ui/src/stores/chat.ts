@@ -113,7 +113,14 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const consciousnessStore = useConsciousnessStore()
   const artistryAutonomousStore = useAutonomousArtistryStore()
   const { activeProvider } = storeToRefs(consciousnessStore)
-  const { trackFirstMessage } = useAnalytics()
+  const {
+    trackFirstMessage,
+    trackMessageSendStarted,
+    trackLlmRequestStarted,
+    trackLlmFirstToken,
+    trackAssistantResponseRendered,
+    trackMessageRound,
+  } = useAnalytics()
 
   const chatSession = useChatSessionStore()
   const chatStream = useChatStreamStore()
@@ -219,6 +226,11 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
     updateUI()
     trackFirstMessage()
+    trackMessageSendStarted({
+      source: options.input ? 'voice' : 'text',
+      model: options.model,
+    })
+    const roundStartedAt = performance.now()
 
     try {
       await hooks.emitBeforeMessageComposedHooks(sendingMessage, streamingMessageContext)
@@ -466,6 +478,12 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       const llmRequestTs = performance.now()
       let llmFirstTokenEmitted = false
 
+      trackLlmRequestStarted({
+        model: options.model,
+        provider: activeProvider.value || 'unknown',
+        has_voice: !!options.input,
+      })
+
       try {
         await llmStore.stream(options.model, options.chatProvider, newMessages as Message[], {
           headers,
@@ -503,9 +521,11 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
               case 'text-delta':
                 if (!llmFirstTokenEmitted) {
                   llmFirstTokenEmitted = true
+                  const ttfbMs = performance.now() - llmRequestTs
                   llmSpan.addEvent(IOEvents.LLMFirstToken, {
-                    [IOAttributes.LLM_TTFT]: performance.now() - llmRequestTs,
+                    [IOAttributes.LLM_TTFT]: ttfbMs,
                   })
+                  trackLlmFirstToken({ model: options.model, ttfb_ms: Math.round(ttfbMs) })
                 }
                 fullText += event.text
                 await parser.consume(event.text)
@@ -546,6 +566,11 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
       await parser.end()
 
+      trackAssistantResponseRendered({
+        model: options.model,
+        latency_ms: Math.round(performance.now() - llmRequestTs),
+      })
+
       if (!isStaleGeneration() && buildingMessage.slices.length > 0) {
         const finalAssistant = toRaw(buildingMessage)
         chatSession.appendSessionMessage(sessionId, finalAssistant)
@@ -579,6 +604,12 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       if (isForegroundSession()) {
         streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
       }
+
+      trackMessageRound({
+        duration_ms: Math.round(performance.now() - roundStartedAt),
+        has_voice: !!options.input,
+        model: options.model,
+      })
     }
     catch (error) {
       console.error('Error sending message:', error)

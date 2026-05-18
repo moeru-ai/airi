@@ -27,6 +27,7 @@ import { useAuthProviderSync } from '../../composables/use-auth-provider-sync'
 import { useDuckDb } from '../../composables/use-duck-db'
 import { useIOTraceBridge } from '../../composables/use-io-trace-bridge'
 import { initIOTracer } from '../../composables/use-io-tracer'
+import { useSpeechPipelineAnalytics } from '../../composables/use-speech-pipeline-analytics'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useBackgroundStore } from '../../stores/background'
@@ -380,6 +381,7 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
 
 initIOTracer()
 useIOTraceBridge(speechPipeline)
+useSpeechPipelineAnalytics()
 void speechRuntimeStore.registerHost(speechPipeline)
 
 speechPipeline.on('onSpecial', (segment) => {

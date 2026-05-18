@@ -8,6 +8,7 @@ import { defineStore } from 'pinia'
 import { ref, toRaw } from 'vue'
 import { toast } from 'vue-sonner'
 
+import { useAnalytics } from '../../composables/use-analytics'
 import { useBackgroundStore } from '../background'
 import { useChatSessionStore } from '../chat/session-store'
 import { useProvidersStore } from '../providers'
@@ -169,6 +170,12 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
       }
 
       // 2. Call LLM (Non-streaming for structured data)
+      // Bypasses the chat orchestrator's llm_request_* funnel — emit a
+      // dedicated event so Director LLM cost is separable from chat.
+      useAnalytics().trackAutonomousGenerateText({
+        model: modelId,
+        reason: target,
+      })
       const chatConfig = chatProvider.chat(modelId)
       const response = await generateText({
         ...chatConfig,
