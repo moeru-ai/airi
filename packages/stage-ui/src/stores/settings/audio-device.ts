@@ -28,9 +28,8 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
   // permissionGranted from vueuse does not track revocation yet.
   // implement it manually.
   navigator?.permissions?.query({ name: 'microphone' }).then((status) => {
-    microphonePermissionStatus = status
+    microphonePermissionStatus = status // existing one cleaned up by GC
     status.onchange = () => {
-      console.info(`status changed to ${status.state}`)
       if (status.state === 'denied' || status.state === 'prompt')
         audioInputEnabled.value = false
     }
