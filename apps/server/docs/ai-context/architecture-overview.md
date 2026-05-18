@@ -160,4 +160,4 @@ Redis 在这里同时承担：
 ## 当前值得注意的实现信号
 
 - `/api/v1/openai` 当前开放：`POST /chat/completions`、`POST /chat/completion`、`POST /audio/speech`、`GET /audio/voices`。`handleTranscription` 路由尚未挂载。
-- `flux_grant_batch` schema 已被简化版 `admin-flux-grants` 取代。代码层（service / route / worker / tests）已删。但 `src/schemas/flux-grant-batch.ts` 仍在并跟随 `schemas/index.ts` 导出，对应生产 DB 表 `flux_grant_batch` / `flux_grant_batch_recipient` 也仍在。下次清理要删 schema 文件 + 生成 drop table migration，属破坏性 DDL，需单独 PR 处理。
+- `flux_grant_batch` schema 已被简化版 `admin-flux-grants` 取代，代码 + schema 都已清理。`drizzle/0011_open_unus.sql` 是 drop migration（`DROP TABLE flux_grant_batch / flux_grant_batch_recipient CASCADE`，顺带清掉 6 个 index）。这条 DDL 是不可逆破坏，需要操作员在合适的部署窗口手动 `pnpm db:push` 推到 prod；只要 prod DB 还没 apply 0011，回滚 server image 不会丢数据。
