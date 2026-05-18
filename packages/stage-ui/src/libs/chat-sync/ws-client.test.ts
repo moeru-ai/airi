@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildChatWsUrl, computeReconnectDelay, mapStatus } from './ws-client'
+import { buildChatWsUrl, computeReconnectDelay, mapStatus, WS_CLOSE_UNAUTHORIZED } from './ws-client'
 
 describe('buildChatWsUrl', () => {
   /**
@@ -104,5 +104,24 @@ describe('mapStatus', () => {
   it('distinguishes closed (auto-reconnect pending) from idle (user intent off)', () => {
     expect(mapStatus('CLOSED', true)).toBe('closed')
     expect(mapStatus('CLOSED', false)).toBe('idle')
+  })
+})
+describe('wS_CLOSE_UNAUTHORIZED', () => {
+  // ROOT CAUSE:
+  //
+  // Browsers do not expose the HTTP 401 status to the WebSocket `close`
+  // event when an upgrade is rejected — the only signal a client gets is
+  // `code=1006` (abnormal closure), indistinguishable from a transient
+  // network drop. VueUse's `useWebSocket.autoReconnect` then hammers the
+  // same stale token forever.
+  //
+  // The server accepts the upgrade and closes with this custom code so
+  // the client can distinguish "auth failed, stop reconnecting" from
+  // "network blip, keep retrying". The matching constant on the server
+  // lives at `apps/server/src/libs/ws-auth.ts:WS_CLOSE_UNAUTHORIZED` and
+  // is exercised by `apps/server/src/libs/ws-auth.test.ts`. If either
+  // value drifts the close-code contract breaks silently.
+  it('matches the server-side close code contract (4001, IANA private range)', () => {
+    expect(WS_CLOSE_UNAUTHORIZED).toBe(4001)
   })
 })
