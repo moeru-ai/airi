@@ -21,8 +21,8 @@ import { env, exit } from 'node:process'
 import Redis from 'ioredis'
 
 import { parseEnv } from '../src/libs/env'
-import { createConfigKVService } from '../src/services/config-kv'
-import { createLlmRouterService } from '../src/services/llm-router'
+import { createConfigKVService } from '../src/services/adapters/config-kv'
+import { createLlmRouterService } from '../src/services/domain/llm-router'
 import { createEnvelopeCrypto } from '../src/utils/envelope-crypto'
 
 async function main() {

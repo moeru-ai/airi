@@ -87,8 +87,8 @@ SELECT user_id, amount, balance_after, created_at
 ## 6. 实现位置
 
 - 路由：[`apps/server/src/routes/admin/flux-grants/index.ts`](apps/server/src/routes/admin/flux-grants/index.ts)
-- Service：[`apps/server/src/services/admin-flux-grants/index.ts`](apps/server/src/services/admin-flux-grants/index.ts)
-- 单测：[`apps/server/src/services/admin-flux-grants/tests/admin-flux-grants.test.ts`](apps/server/src/services/admin-flux-grants/tests/admin-flux-grants.test.ts)
+- Service：[`apps/server/src/services/domain/admin/flux-grants/index.ts`](apps/server/src/services/domain/admin/flux-grants/index.ts)
+- 单测：[`apps/server/src/services/domain/admin/flux-grants/tests/admin-flux-grants.test.ts`](apps/server/src/services/domain/admin/flux-grants/tests/admin-flux-grants.test.ts)
 - adminGuard：[`apps/server/src/middlewares/admin-guard.ts`](apps/server/src/middlewares/admin-guard.ts)
 - 数据库：**没有**专门的表；唯一持久化是 `flux_transaction` ledger
 - 已废弃：`flux_grant_batch` / `flux_grant_batch_recipient`（drizzle migration `0011_superb_lady_deathstrike.sql` 删表）

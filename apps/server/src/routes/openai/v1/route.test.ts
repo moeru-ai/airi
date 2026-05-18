@@ -1,8 +1,8 @@
-import type { BillingService } from '../../../services/billing/billing-service'
-import type { ConfigKVService } from '../../../services/config-kv'
-import type { FluxService } from '../../../services/flux'
-import type { LlmRouterService } from '../../../services/llm-router'
-import type { RequestLogService } from '../../../services/request-log'
+import type { ConfigKVService } from '../../../services/adapters/config-kv'
+import type { BillingService } from '../../../services/domain/billing/billing-service'
+import type { FluxService } from '../../../services/domain/flux'
+import type { LlmRouterService } from '../../../services/domain/llm-router'
+import type { RequestLogService } from '../../../services/domain/request-log'
 import type { HonoEnv } from '../../../types/hono'
 
 import { Hono } from 'hono'

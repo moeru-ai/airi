@@ -1,5 +1,5 @@
 import type { Env } from '../../../libs/env'
-import type { AdminFluxGrantsService } from '../../../services/admin-flux-grants'
+import type { AdminFluxGrantsService } from '../../../services/domain/admin/flux-grants'
 import type { HonoEnv } from '../../../types/hono'
 
 import { Hono } from 'hono'

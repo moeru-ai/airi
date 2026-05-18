@@ -1,5 +1,5 @@
-import type { FluxService } from '../../services/flux'
-import type { FluxTransactionService } from '../../services/flux-transaction'
+import type { FluxService } from '../../services/domain/flux'
+import type { FluxTransactionService } from '../../services/domain/flux-transaction'
 import type { HonoEnv } from '../../types/hono'
 
 import { Hono } from 'hono'

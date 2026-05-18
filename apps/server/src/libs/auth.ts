@@ -1,8 +1,8 @@
 import type { PostHog } from 'posthog-node'
 
 import type { AuthMetrics } from '../otel'
-import type { EmailService } from '../services/email'
-import type { UserDeletionService } from '../services/user-deletion'
+import type { EmailService } from '../services/adapters/email'
+import type { UserDeletionService } from '../services/domain/user-deletion'
 import type { Database } from './db'
 import type { Env } from './env'
 

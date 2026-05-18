@@ -66,7 +66,7 @@
 实现位置：
 
 - route: `src/routes/characters/index.ts`
-- service: `src/services/characters.ts`
+- service: `src/services/domain/characters.ts`
 
 主要能力：
 
@@ -91,7 +91,7 @@
 实现位置：
 
 - route: `src/routes/providers/index.ts`
-- service: `src/services/providers.ts`
+- service: `src/services/domain/providers.ts`
 
 主要能力：
 
@@ -110,7 +110,7 @@
 实现位置：
 
 - route: `src/routes/chats/index.ts`
-- service: `src/services/chats.ts`
+- service: `src/services/domain/chats.ts`
 
 主要能力：
 
@@ -240,7 +240,7 @@
 实现位置：
 
 - route: `src/routes/admin/flux-grants/index.ts`
-- service: `src/services/admin-flux-grants/index.ts`
+- service: `src/services/domain/admin/flux-grants/index.ts`
 - guard: `src/middlewares/admin-guard.ts`
 
 主要能力：

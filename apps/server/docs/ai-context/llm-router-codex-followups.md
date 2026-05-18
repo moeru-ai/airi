@@ -13,11 +13,11 @@ remaining findings are deferred — each evaluated through the AGENTS.md
    "client disconnects but upstream keeps generating + burning paid quota"
    leak.
 2. **Failed upstream response bodies not drained** — fixed in
-   `apps/server/src/services/llm-router/router.ts`. Every non-2xx fallback
+   `apps/server/src/services/domain/llm-router/router.ts`. Every non-2xx fallback
    path now calls `response.body?.cancel()` before continuing. Prevents
    socket-pool exhaustion under fallback storms.
 3. **SSML voice attribute injection** — fixed in
-   `apps/server/src/services/tts-adapters/azure.ts`. Voice id is
+   `apps/server/src/services/adapters/tts/azure.ts`. Voice id is
    regex-validated (`^[a-z0-9-]+$/i`) before SSML interpolation; invalid
    values throw `BAD_REQUEST`. Prevents attribute-context breakout under
    the server's Azure credential.

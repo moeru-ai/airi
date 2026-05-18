@@ -1,9 +1,9 @@
 import type { WSContext, WSEvents } from 'hono/ws'
 
-import type { FluxMeter } from '../../services/billing/flux-meter'
-import type { ConfigKVService } from '../../services/config-kv'
-import type { FluxService } from '../../services/flux'
-import type { RequestLogService } from '../../services/request-log'
+import type { ConfigKVService } from '../../services/adapters/config-kv'
+import type { FluxMeter } from '../../services/domain/billing/flux-meter'
+import type { FluxService } from '../../services/domain/flux'
+import type { RequestLogService } from '../../services/domain/request-log'
 import type { EnvelopeCrypto } from '../../utils/envelope-crypto'
 
 import { Buffer } from 'node:buffer'

@@ -1,5 +1,5 @@
 import type { Env } from '../../../../libs/env'
-import type { AdminRouterConfigService, SliceInput } from '../../../../services/admin-router-config'
+import type { AdminRouterConfigService, SliceInput } from '../../../../services/domain/admin/router-config'
 import type { HonoEnv } from '../../../../types/hono'
 
 import { Hono } from 'hono'
