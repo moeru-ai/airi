@@ -384,6 +384,8 @@ Searchable dropdown/autocomplete using reka-ui with grouping.
 | `contentWidth` | `string \| number?` | — | Dropdown width |
 
 **v-model**: `modelValue: T`
+**v-model args**: `searchTerm: string` — mirrors the current input text so parents can drive remote-search requests without mutating the selected value.
+**Emits**: `search(value: string)` — fires on input changes so async option sources can fetch and refresh results externally.
 **Slots**: `option({ option })`, `empty`
 
 ### ComboboxSelect
@@ -402,6 +404,8 @@ Simplified Combobox wrapper for string/number options.
 | `contentWidth` | `string \| number?` | — | Dropdown width |
 
 **v-model**: `modelValue: string | number`
+**v-model args**: `searchTerm: string`
+**Emits**: `search(value: string)`
 **Slots**: `option({ option })`, `empty`
 
 ### ComboboxOption

@@ -21,6 +21,7 @@ import type {
 import type { ProviderOnboardingField } from '../libs/providers/types'
 import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream-transcription'
 
+import { errorMessageFrom } from '@moeru/std'
 import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
 import { getCachedWebGPUCapabilities, isWebGPUSupported } from '@proj-airi/stage-shared/webgpu'
 import { computedAsync, useIntervalFn, useLocalStorage } from '@vueuse/core'
@@ -55,6 +56,7 @@ import { useAuthStore } from './auth'
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
 import { convertProviderDefinitionsToMetadata } from './providers/converters'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
+import { buildFishAudioSpeechProvider } from './providers/fishaudio'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
 import { buildOpenRouterAudioSpeechProvider } from './providers/openrouter/audio-speech'
 import { createWebSpeechAPIProvider } from './providers/web-speech-api'
@@ -138,6 +140,7 @@ export interface ProviderMetadata {
   capabilities: {
     listModels?: (config: Record<string, unknown>) => Promise<ModelInfo[]>
     listVoices?: (config: Record<string, unknown>) => Promise<VoiceInfo[]>
+    voiceSearchMode?: 'local' | 'remote'
     loadModel?: (config: Record<string, unknown>, hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void }) => Promise<void>
   }
   validators: {
@@ -1554,6 +1557,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+    'fishaudio-speech': buildFishAudioSpeechProvider(v => baseUrlValidator.value(v)),
     'openrouter-audio-speech': buildOpenRouterAudioSpeechProvider(v => baseUrlValidator.value(v)),
     'mimo-audio-speech': {
       id: 'mimo-audio-speech',
@@ -2527,7 +2531,7 @@ export const useProvidersStore = defineStore('providers', () => {
     catch (error) {
       console.error(`Error fetching models for ${providerId}:`, error)
       if (runtimeState) {
-        runtimeState.modelLoadError = error instanceof Error ? error.message : 'Unknown error'
+        runtimeState.modelLoadError = errorMessageFrom(error) ?? 'Unknown error'
       }
       return []
     }

@@ -992,6 +992,9 @@ pages:
       deepgram-tts:
         description: deepgram.com
         title: Deepgram
+      fishaudio-speech:
+        description: fish.audio
+        title: Fish Audio
       speech-noop:
         title: 无
         description: 不使用语音合成
