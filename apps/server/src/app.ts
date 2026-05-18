@@ -75,7 +75,7 @@ import { createRequestLogService } from './services/request-log'
 import { createStripeService } from './services/stripe'
 import { createUserDeletionService } from './services/user-deletion'
 import { createEnvelopeCrypto } from './utils/envelope-crypto'
-import { ApiError, createInternalError, createUnauthorizedError } from './utils/error'
+import { ApiError, createInternalError } from './utils/error'
 import { nanoid } from './utils/id'
 import { getTrustedOrigin } from './utils/origin'
 
@@ -183,17 +183,17 @@ export async function buildApp(deps: AppDeps) {
   })
   app.get('/api/v1/audio/speech/ws', upgradeWebSocket(async (c) => {
     const token = c.req.query('token')
-    if (!token) {
-      throw createUnauthorizedError('Missing token')
-    }
+    if (!token)
+      return createUnauthorizedWsEvents()
+
     const session = await resolveRequestAuth(
       deps.auth,
       deps.env,
       new Headers({ Authorization: `Bearer ${token}` }),
     )
-    if (!session?.user) {
-      throw createUnauthorizedError('Invalid token')
-    }
+    if (!session?.user)
+      return createUnauthorizedWsEvents()
+
     return audioSpeechWsSetup(session.user.id)
   }))
 
