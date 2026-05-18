@@ -17,8 +17,8 @@ export function useLive2DCursorTracking(canvas: MaybeRefOrGetter<HTMLCanvasEleme
     const modelScale: number = toValue(modelScaling)
     const renderScale = live2dRenderScale.value
     return {
-      x: (mousePosition.x.value - canvasBoundingRect.value.left + live2dModelEyeOffset.value.x * modelScale * renderScale) * renderScale,
-      y: (mousePosition.y.value - canvasBoundingRect.value.top + live2dModelEyeOffset.value.y * modelScale * renderScale) * renderScale,
+      x: (mousePosition.x.value - canvasBoundingRect.value.left + live2dModelEyeOffset.value.x * modelScale) * renderScale,
+      y: (mousePosition.y.value - canvasBoundingRect.value.top + live2dModelEyeOffset.value.y * modelScale) * renderScale,
     }
   })
 
