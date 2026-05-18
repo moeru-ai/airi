@@ -174,7 +174,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p build/linux
-          godot --headless --export-release "Linux" build/linux/godot-stage
+          godot --headless --export-release "Linux ${{ matrix.arch }}" build/linux/godot-stage
 
       - name: Build (Windows Only) # Windows
         if: matrix.os == 'windows-latest'
