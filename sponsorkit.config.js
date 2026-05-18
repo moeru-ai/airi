@@ -3,6 +3,8 @@ import { extname } from 'node:path'
 
 import { defineConfig, tierPresets } from 'sponsorkit'
 
+import { createOpenCollectiveProvider } from './scripts/sponsorkit/openCollectiveProvider.js'
+
 const avatarMimeTypeMap = {
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
@@ -49,7 +51,7 @@ const kofiProvider = {
 }
 
 export default defineConfig({
-  providers: ['patreon', 'opencollective', kofiProvider],
+  providers: ['patreon', createOpenCollectiveProvider(), kofiProvider],
   renderer: 'tiers',
   width: 960,
   padding: {
