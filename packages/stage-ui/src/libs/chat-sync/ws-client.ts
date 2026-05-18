@@ -13,6 +13,17 @@ const RECONNECT_BASE_MS = 1000
 const RECONNECT_MAX_MS = 30_000
 const RECONNECT_RETRIES = -1
 
+/**
+ * Server-side auth rejection close code (IANA application range 4000-4999).
+ *
+ * Browsers swallow the HTTP 401 status when a WebSocket upgrade is rejected,
+ * so the only way for the server to distinguish "wrong token, stop retrying"
+ * from a transient network drop on the client is to accept the upgrade and
+ * close with a custom application code. The server emits this from
+ * `apps/server/src/app.ts` when `resolveRequestAuth` returns null.
+ */
+export const WS_CLOSE_UNAUTHORIZED = 4001
+
 // NOTICE:
 // The native ws adapter's context type is not directly exported from
 // `@moeru/eventa/adapters/websocket/native`; use the inferred return type so
@@ -261,8 +272,24 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
       context.value = created.context
       attachContextListeners(created.context)
     },
-    onDisconnected() {
+    onDisconnected(_rawWs, ev) {
       disposeContext()
+      // ROOT CAUSE:
+      //
+      // useWebSocket's autoReconnect treats every onclose as worth
+      // retrying. When the server rejects auth, the only structured
+      // signal we get is the close `code` (the close `reason` body is
+      // also delivered but not used for routing here). 4001 is our
+      // contract with apps/server/src/app.ts for "this token will never
+      // succeed without rotation"; calling `ws.close()` here sets
+      // useWebSocket's internal `explicitlyClosed` flag so the next
+      // onclose path skips the reconnect schedule. The next time
+      // `urlRef` changes (token refresh), `watch(urlRef, open)` calls
+      // `open()` which resets `explicitlyClosed` to false and re-inits.
+      if (ev.code === WS_CLOSE_UNAUTHORIZED) {
+        console.warn('[chat-ws] server rejected auth (4001), pausing reconnect until token rotates')
+        ws.close()
+      }
     },
     onError(_rawWs, event) {
       console.warn('[chat-ws] ws error event:', event)

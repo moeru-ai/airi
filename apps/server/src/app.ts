@@ -39,6 +39,7 @@ import { parsedEnv } from './libs/env'
 import { initializeExternalDependency } from './libs/external-dependency'
 import { createRedis } from './libs/redis'
 import { resolveRequestAuth } from './libs/request-auth'
+import { createUnauthorizedWsEvents } from './libs/ws-auth'
 import { sessionMiddleware } from './middlewares/auth'
 import { emitOtelLog, initOtel } from './otel'
 import { registerActiveSessionsGauge } from './otel/gauges/active-sessions'
@@ -66,7 +67,7 @@ import { createProviderService } from './services/providers'
 import { createRequestLogService } from './services/request-log'
 import { createStripeService } from './services/stripe'
 import { createUserDeletionService } from './services/user-deletion'
-import { ApiError, createInternalError, createUnauthorizedError } from './utils/error'
+import { ApiError, createInternalError } from './utils/error'
 import { nanoid } from './utils/id'
 import { getTrustedOrigin } from './utils/origin'
 
@@ -144,17 +145,17 @@ export async function buildApp(deps: AppDeps) {
 
   app.get('/ws/chat', upgradeWebSocket(async (c) => {
     const token = c.req.query('token')
-    if (!token) {
-      throw createUnauthorizedError('Missing token')
-    }
+    if (!token)
+      return createUnauthorizedWsEvents()
+
     const session = await resolveRequestAuth(
       deps.auth,
       deps.env,
       new Headers({ Authorization: `Bearer ${token}` }),
     )
-    if (!session?.user) {
-      throw createUnauthorizedError('Invalid token')
-    }
+    if (!session?.user)
+      return createUnauthorizedWsEvents()
+
     return chatWsSetup(session.user.id)
   }))
 
