@@ -1,10 +1,10 @@
-import type { ConfigKVService } from '../../adapters/config-kv'
-import type { RouterConfig } from './types'
+import type { ConfigKVService } from '../../../adapters/config-kv'
+import type { RouterConfig } from '../types'
 
 import { describe, expect, it, vi } from 'vitest'
 
-import { ApiError } from '../../../utils/error'
-import { createConfigLoader } from './config-loader'
+import { ApiError } from '../../../../utils/error'
+import { createConfigLoader } from '../config-loader'
 
 function makeConfig(): RouterConfig {
   return {

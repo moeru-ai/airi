@@ -1,15 +1,15 @@
-import type { Database } from '../../../libs/db'
+import type { Database } from '../../../../libs/db'
 
 import { eq } from 'drizzle-orm'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { mockDB } from '../../../libs/mock-db'
-import { createCharacterService } from '../characters'
-import { createChatService } from '../chats'
-import { createFluxService } from '../flux'
-import { createProviderService } from '../providers'
+import { mockDB } from '../../../../libs/mock-db'
+import { createCharacterService } from '../../characters'
+import { createChatService } from '../../chats'
+import { createFluxService } from '../../flux'
+import { createProviderService } from '../../providers'
 
-import * as schema from '../../../schemas'
+import * as schema from '../../../../schemas'
 
 function fakeRedis() {
   const map = new Map<string, string>()

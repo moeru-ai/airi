@@ -15,8 +15,8 @@ import { rateLimiter } from '../../middlewares/rate-limit'
 import { account, user } from '../../schemas/accounts'
 import { createBadRequestError } from '../../utils/error'
 import { getServerAuthUiDistDir, renderServerAuthUiHtml, SERVER_AUTH_UI_BASE_PATH } from '../../utils/server-auth-ui'
-import { createElectronCallbackRelay } from '../oidc/electron-callback'
-import { createOIDCTokenAuthRoute } from '../oidc/token-auth'
+import { createElectronCallbackRelay } from './oidc/electron-callback'
+import { createOIDCTokenAuthRoute } from './oidc/token-auth'
 
 // NOTICE:
 // Loose RFC-5322-ish regex used to fail fast on obviously malformed input.

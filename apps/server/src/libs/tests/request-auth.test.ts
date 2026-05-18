@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { resolveRequestAuth } from './request-auth'
+import { resolveRequestAuth } from '../request-auth'
 
 // Mock jose module
 vi.mock('jose', () => ({

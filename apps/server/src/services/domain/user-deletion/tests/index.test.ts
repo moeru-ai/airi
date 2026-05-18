@@ -1,8 +1,8 @@
-import type { UserDeletionHandler } from './types'
+import type { UserDeletionHandler } from '../types'
 
 import { describe, expect, it, vi } from 'vitest'
 
-import { createUserDeletionService } from './index'
+import { createUserDeletionService } from '../index'
 
 function makeHandler(name: string, priority: number, body?: () => Promise<void> | void): UserDeletionHandler {
   return {

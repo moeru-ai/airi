@@ -2,17 +2,17 @@ import type { Buffer } from 'node:buffer'
 
 import type { Counter } from '@opentelemetry/api'
 
-import type { GatewayMetrics } from '../../../otel'
-import type { ConfigKVService } from '../../adapters/config-kv'
-import type { RouterConfig } from './types'
+import type { GatewayMetrics } from '../../../../otel'
+import type { ConfigKVService } from '../../../adapters/config-kv'
+import type { RouterConfig } from '../types'
 
 import { randomBytes } from 'node:crypto'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { createEnvelopeCrypto } from '../../../utils/envelope-crypto'
-import { ApiError } from '../../../utils/error'
-import { createLlmRouterService } from './router'
+import { createEnvelopeCrypto } from '../../../../utils/envelope-crypto'
+import { ApiError } from '../../../../utils/error'
+import { createLlmRouterService } from '../router'
 
 function freshMasterKey(): Buffer {
   return randomBytes(32)

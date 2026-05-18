@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { ensureDynamicFirstPartyRedirectUri, seedTrustedClients } from './auth'
+import { ensureDynamicFirstPartyRedirectUri, seedTrustedClients } from '../auth'
 
 function createMockDb(existingRowsByCall: unknown[][] = []) {
   const limit = vi.fn()

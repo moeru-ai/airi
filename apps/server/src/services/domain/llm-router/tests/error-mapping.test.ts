@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { ApiError } from '../../../utils/error'
-import { mapUpstreamError } from './error-mapping'
+import { ApiError } from '../../../../utils/error'
+import { mapUpstreamError } from '../error-mapping'
 
 const exampleContext = { triedKeys: 2, triedUpstreams: 1, lastStatusCode: 401 as const }
 

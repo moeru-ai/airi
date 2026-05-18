@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createUnauthorizedWsEvents, WS_CLOSE_UNAUTHORIZED } from './ws-auth'
+import { createUnauthorizedWsEvents, WS_CLOSE_UNAUTHORIZED } from '../ws-auth'
 
 describe('createUnauthorizedWsEvents', () => {
   // ROOT CAUSE:

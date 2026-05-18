@@ -1,8 +1,8 @@
-import type { HonoEnv } from '../../types/hono'
+import type { HonoEnv } from '../../../types/hono'
 
 import { Hono } from 'hono'
 
-import { renderServerAuthUiHtml } from '../../utils/server-auth-ui'
+import { renderServerAuthUiHtml } from '../../../utils/server-auth-ui'
 
 /**
  * Render an HTML relay page that forwards the OIDC authorization code

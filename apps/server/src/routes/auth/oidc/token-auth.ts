@@ -1,11 +1,11 @@
-import type { AuthInstance } from '../../libs/auth'
-import type { Env } from '../../libs/env'
-import type { HonoEnv } from '../../types/hono'
+import type { AuthInstance } from '../../../libs/auth'
+import type { Env } from '../../../libs/env'
+import type { HonoEnv } from '../../../types/hono'
 
 import { Hono } from 'hono'
 
-import { buildGravatarUrl } from '../../libs/gravatar'
-import { resolveRequestAuth } from '../../libs/request-auth'
+import { buildGravatarUrl } from '../../../libs/gravatar'
+import { resolveRequestAuth } from '../../../libs/request-auth'
 
 export interface OIDCTokenAuthRouteDeps {
   auth: AuthInstance

@@ -2,7 +2,7 @@ import { Buffer } from 'node:buffer'
 
 import { describe, expect, it } from 'vitest'
 
-import { parseAdditionalTrustedOriginsEnv, parseEnv } from './env'
+import { parseAdditionalTrustedOriginsEnv, parseEnv } from '../env'
 
 function baseEnv(): Record<string, string> {
   return {

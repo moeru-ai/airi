@@ -2,15 +2,15 @@ import type { Buffer } from 'node:buffer'
 
 import type { Counter } from '@opentelemetry/api'
 
-import type { GatewayMetrics } from '../../../otel'
+import type { GatewayMetrics } from '../../../../otel'
 
 import { randomBytes } from 'node:crypto'
 
 import { describe, expect, it, vi } from 'vitest'
 
-import { createEnvelopeCrypto } from '../../../utils/envelope-crypto'
-import { ApiError } from '../../../utils/error'
-import { createKeyRotator } from './key-rotator'
+import { createEnvelopeCrypto } from '../../../../utils/envelope-crypto'
+import { ApiError } from '../../../../utils/error'
+import { createKeyRotator } from '../key-rotator'
 
 function freshMasterKey(): Buffer {
   return randomBytes(32)
