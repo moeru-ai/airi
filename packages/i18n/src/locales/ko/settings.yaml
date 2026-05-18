@@ -131,10 +131,10 @@ live2d:
     title: 모델로부터 색상 추출
     button-extract:
       title: 추출
-  focus:
-    title: 마우스 포인터 추적 비활성화
-    button-disable:
-      title: Disable model mouse tracking
+  animation:
+    title: 애니메이션
+    focus:
+      title: 커서 추적 사용
   render-scale:
     title: Render scale
   fps:

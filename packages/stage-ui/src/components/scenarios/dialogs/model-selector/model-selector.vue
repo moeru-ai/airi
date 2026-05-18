@@ -9,6 +9,7 @@ import { useFileDialog } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger, EditableArea, EditableEditTrigger, EditableInput, EditablePreview, EditableRoot, EditableSubmitTrigger } from 'reka-ui'
 import { ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import Live2DReportModal from './Live2DReportModal.vue'
 
@@ -24,6 +25,7 @@ const emits = defineEmits<{
 
 const displayModelStore = useDisplayModelsStore()
 const { displayModelsFromIndexedDBLoading, displayModels } = storeToRefs(displayModelStore)
+const { t } = useI18n()
 
 function handleRemoveModel(model: DisplayModel) {
   displayModelStore.removeDisplayModel(model.id)
@@ -146,7 +148,7 @@ spineDialog.onChange(handleAddSpineModel)
 
     <div flex items-center>
       <div w-full flex-1 text-xl>
-        Model Selector
+        {{ t('settings.model-select.select-model.title') }}
       </div>
       <div>
         <DropdownMenuRoot>
@@ -157,7 +159,7 @@ spineDialog.onChange(handleAddSpineModel)
             aria-label="Options for Display Models"
           >
             <div i-solar:add-circle-bold />
-            <div>Add</div>
+            <div>{{ t('settings.model-select.select-model.import') }}</div>
           </DropdownMenuTrigger>
           <DropdownMenuPortal>
             <DropdownMenuContent
@@ -256,7 +258,7 @@ spineDialog.onChange(handleAddSpineModel)
                   >
                     <button flex items-center gap-1 outline-none @click="handleRemoveModel(model)">
                       <div i-solar:trash-bin-minimalistic-bold-duotone />
-                      <div>Remove</div>
+                      <div>{{ t('settings.model-select.select-model.remove') }}</div>
                     </button>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -320,14 +322,14 @@ spineDialog.onChange(handleAddSpineModel)
               </div>
             </div>
             <Button class="hidden md:block" variant="secondary" @click="handlePick(model)">
-              Pick
+              {{ t('settings.model-select.select-model.select') }}
             </Button>
           </div>
         </div>
       </div>
     </div>
     <Button class="block md:hidden" @click="handleMobilePick()">
-      Confirm
+      {{ t('settings.model-select.select-model.confirm') }}
     </Button>
   </div>
 </template>

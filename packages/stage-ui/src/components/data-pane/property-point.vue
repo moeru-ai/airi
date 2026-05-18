@@ -136,6 +136,7 @@ function stopDrag() {
   </div>
   <div />
   <label
+    v-if="props.xConfig !== undefined"
     h-fit w-full inline-flex items-center rounded-md px="1.5" py="0.5"
     :class="[isDragging === 'x' ? 'bg-red-100/50 dark:bg-red-900/50' : 'bg-neutral-100 dark:bg-neutral-900', props.disabled ? 'opacity-60' : '']"
     transition="colors duration-200 ease-in-out"
@@ -159,6 +160,7 @@ function stopDrag() {
     </span>
   </label>
   <label
+    v-if="props.yConfig !== undefined"
     h-fit inline-flex items-center rounded-md px="1.5" py="0.5"
     :class="[isDragging === 'y' ? 'bg-blue-100/50 dark:bg-blue-900/50' : 'bg-neutral-100 dark:bg-neutral-900', props.disabled ? 'opacity-60' : '']"
     transition="colors duration-200 ease-in-out"
@@ -182,6 +184,7 @@ function stopDrag() {
     </span>
   </label>
   <label
+    v-if="props.zConfig !== undefined"
     h-fit inline-flex items-center rounded-md px="1.5" py="0.5"
     :class="[isDragging === 'z' ? 'bg-green-100/50 dark:bg-green-900/50' : 'bg-neutral-100 dark:bg-neutral-900', props.disabled ? 'opacity-60' : '']"
     transition="colors duration-200 ease-in-out"

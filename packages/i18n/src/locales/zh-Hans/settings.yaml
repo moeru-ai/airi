@@ -105,6 +105,22 @@ analytics:
     description: 关闭任何非必要使用数据及崩溃分析的采集与上传
   disabled:
     title: 此开发版本的使用数据及崩溃分析功能已禁用
+model-select:
+  panel-callout:
+    support-status-header: 我们支持2D和3D模型
+    support-status: >
+      点击 {select-button} 以选择或导入模型。
+      目前我们支持从 {zip} 导入Live2D模型，和从 {vrm} 导入VRM模型。
+    model-type-example: >
+      Neuro-sama 采用来自Live2D Inc.公司的技术所制作的2D模型,
+      而 Grok Ani （来自 Grok Companion）使用 VRM / MMD 相关开源技术制作的3D模型。
+  select-model:
+    title: 模型选择
+    button: 选择模型
+    select: 选择
+    import: 导入
+    remove: 移除
+    confirm: 确认
 live2d:
   change-model:
     from-file: 从文件加载
@@ -129,19 +145,56 @@ live2d:
     change-to-vrm: 切换至3D虚拟形象设定页面（VRM）
   theme-color-from-model:
     title: 从模型提取主题颜色
+    description: >
+      从当前模型画布中提取主题色，点击颜色即可将其应用至 AIRI 界面。
+      若没有获取到想要的颜色，可改变模型动作，多次尝试提取。
     button-extract:
       title: 提取
-  focus:
-    title: 禁用模型鼠标跟踪
-    button-disable:
-      title: 禁用 Live2D 模型的鼠标追踪
-  render-scale:
-    title: 渲染精度
-  fps:
-    title: 帧率
-    description: 限制渲染帧率
-    options:
-      unlimited: '∞'
+  animation:
+    title: 动画
+    focus:
+      title: 启用鼠标追踪
+      description: 让模型看向当前光标所在位置。可能与强制眼球动画冲突。
+      offset: 偏移量
+    force-idle-eye-animation:
+      title: 强制眼球动画
+      description: 待机时随机看向屏幕各处
+    auto-blink:
+      title: 使用眨眼动画
+      description: 使用模型默认眨眼动画
+    force-auto-blink:
+      title: 强制眨眼动画
+      description: 强制模型眨眼，模型无眨眼动画时可用。
+    motion:
+      idle-motion: 待机动作
+      no-motion: 无可用动作
+      placeholder: 选择待机动作
+  parameters:
+    title: 模型参数
+    render-scale:
+      title: 渲染精度
+    fps:
+      title: 帧率
+      description: 限制渲染帧率
+      options:
+        unlimited: ∞
+    shadow: 阴影
+    reset-parameters: 重置所有参数至默认
+  clear-model-cache: 清除模型缓存
+  expressions:
+    title: 表情
+    override-toggle: 启用表情
+    sdk-preset-preserved-notice: >
+      SDK提供的表情和眼部动作被禁用后会保留
+    no-expression: 当前模型无可用表情
+    llm-integration-wip: 表情系统暂未接入语言模型
+    save-default: 保存为默认表情
+    reset: 重置表情状态
+    expose-to-llm-toggle: 允许LLM使用模型表情
+    expose-to-llm-options:
+      none: 无
+      all: 全部
+      custom: 仅指定
 microphone: 麦克风
 models: 模型
 pages:

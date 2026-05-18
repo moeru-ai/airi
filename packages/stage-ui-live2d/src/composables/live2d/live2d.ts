@@ -2,8 +2,10 @@ import { useLocalStorageManualReset, useVersionedLocalStorageManualReset } from 
 import { defineStore } from 'pinia'
 
 export const useSettingsLive2d = defineStore('settings-live2d', () => {
-  const live2dDisableFocus = useLocalStorageManualReset<boolean>('settings/live2d/disable-focus', false)
+  const live2dCursorTracking = useLocalStorageManualReset<boolean>('settings/live2d/disable-focus', false)
+  const live2dModelEyeOffset = useLocalStorageManualReset('settings/live2d/model-eye-offset', { x: 0, y: 0 })
   const live2dIdleAnimationEnabled = useLocalStorageManualReset<boolean>('settings/live2d/idle-animation-enabled', true)
+  const live2dForceIdleEyeAnimation = useLocalStorageManualReset<boolean>('settings/live2d/idle-animation-enabled', false)
   const live2dAutoBlinkEnabled = useVersionedLocalStorageManualReset<boolean>('settings/live2d/auto-blink-enabled', false, {
     defaultVersion: '2.0.0',
     satisfiesVersionBy(beforeVersion, afterVersion) {
@@ -30,8 +32,10 @@ export const useSettingsLive2d = defineStore('settings-live2d', () => {
   const live2dRenderScale = useLocalStorageManualReset<number>('settings/live2d/render-scale', 2)
 
   function resetState() {
-    live2dDisableFocus.reset()
+    live2dCursorTracking.reset()
+    live2dModelEyeOffset.reset()
     live2dIdleAnimationEnabled.reset()
+    live2dForceIdleEyeAnimation.reset()
     live2dAutoBlinkEnabled.reset()
     live2dForceAutoBlinkEnabled.reset()
     live2dExpressionEnabled.reset()
@@ -41,8 +45,10 @@ export const useSettingsLive2d = defineStore('settings-live2d', () => {
   }
 
   return {
-    live2dDisableFocus,
+    live2dCursorTracking,
+    live2dModelEyeOffset,
     live2dIdleAnimationEnabled,
+    live2dForceIdleEyeAnimation,
     live2dAutoBlinkEnabled,
     live2dForceAutoBlinkEnabled,
     live2dExpressionEnabled,

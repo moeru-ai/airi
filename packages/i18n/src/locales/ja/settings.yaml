@@ -131,17 +131,21 @@ live2d:
     title: モデルから色を抽出
     button-extract:
       title: 抽出
-  focus:
-    title: モデルのマウストラッキングを無効にする
-    button-disable:
-      title: モデルのマウストラッキングを無効にする
-  render-scale:
-    title: レンダリングスケール
-  fps:
-    title: FPS
-    description: レンダリングフレームレートを制限
-    options:
-      unlimited: '∞'
+  animation:
+    title: アニメーション
+    focus:
+      title: カーソル追跡を有効化
+  parameters:
+    title: モデルパラメータ
+    render-scale:
+      title: レンダリングスケール
+    fps:
+      title: FPS
+      description: レンダリングフレームレートを制限
+      options:
+        unlimited: '∞'
+  expressions:
+    title: 表情
 microphone: マイク
 models: モデル
 pages:

@@ -1,4 +1,6 @@
 export * from './animation'
 export * from './beat-sync'
+export * from './cursor-tracking'
 export * from './expression-controller'
+export * from './live2d'
 export * from './motion-manager'

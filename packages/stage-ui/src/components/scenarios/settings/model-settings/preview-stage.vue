@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import type { ModelSettingsRuntimeSnapshot } from './runtime'
 
-import { Live2DScene } from '@proj-airi/stage-ui-live2d'
+import { Live2DScene, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
 import { SpineScene } from '@proj-airi/stage-ui-spine'
 import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
-import { useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, provide, ref, watch } from 'vue'
 
@@ -24,8 +23,8 @@ const emit = defineEmits<{
   (e: 'runtimeSnapshotChanged', value: ModelSettingsRuntimeSnapshot): void
 }>()
 
-const positionCursor = useMouse()
 const settingsStore = useSettings()
+const l2dSettings = useSettingsLive2d()
 const modelStore = useModelStore()
 const live2dSceneRef = ref<{ canvasElement: () => HTMLCanvasElement | undefined }>()
 const vrmSceneRef = ref<{ canvasElement: () => HTMLCanvasElement | undefined }>()
@@ -37,18 +36,24 @@ const vrmPreviewStageInstanceId = `model-settings-preview-stage:${Math.random().
 provide('previewStage', true)
 
 const {
-  live2dDisableFocus,
   stageModelSelected,
   stageModelSelectedUrl,
   stageModelRenderer,
   themeColorsHue,
   themeColorsHueDynamic,
+
+} = storeToRefs(settingsStore)
+const {
+  live2dCursorTracking,
   live2dIdleAnimationEnabled,
+  live2dForceIdleEyeAnimation,
   live2dAutoBlinkEnabled,
   live2dForceAutoBlinkEnabled,
   live2dShadowEnabled,
   live2dMaxFps,
   live2dRenderScale,
+} = storeToRefs(l2dSettings)
+const {
   spinePremultipliedAlpha,
   spineDefaultMixDuration,
   spineIdleAnimationEnabled,
@@ -164,13 +169,13 @@ defineExpose({
       <Live2DScene
         ref="live2dSceneRef"
         v-model:state="live2dComponentState"
-        :focus-at="{ x: positionCursor.x.value, y: positionCursor.y.value }"
         :model-src="stageModelSelectedUrl"
         :model-id="stageModelSelected"
-        :disable-focus-at="live2dDisableFocus"
+        :cursor-tracking="live2dCursorTracking"
         :theme-colors-hue="themeColorsHue"
         :theme-colors-hue-dynamic="themeColorsHueDynamic"
         :live2d-idle-animation-enabled="live2dIdleAnimationEnabled"
+        :live2d-force-idle-eye-animation="live2dForceIdleEyeAnimation"
         :live2d-auto-blink-enabled="live2dAutoBlinkEnabled"
         :live2d-force-auto-blink-enabled="live2dForceAutoBlinkEnabled"
         :live2d-shadow-enabled="live2dShadowEnabled"

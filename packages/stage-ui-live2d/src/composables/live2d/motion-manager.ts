@@ -28,6 +28,7 @@ export type MotionManagerPluginContext = MotionManagerUpdateContext & {
   motionManager: PixiLive2DInternalModel['motionManager']
   modelParameters: Ref<any>
   live2dIdleAnimationEnabled: Ref<boolean>
+  live2dForceIdleEyeAnimation: Ref<boolean>
   live2dAutoBlinkEnabled: Ref<boolean>
   live2dForceAutoBlinkEnabled: Ref<boolean>
   isIdleMotion: boolean
@@ -42,6 +43,7 @@ export interface UseLive2DMotionManagerUpdateOptions {
   motionManager: PixiLive2DInternalModel['motionManager']
   modelParameters: Ref<any>
   live2dIdleAnimationEnabled: Ref<boolean>
+  live2dForceIdleEyeAnimation: Ref<boolean>
   live2dAutoBlinkEnabled: Ref<boolean>
   live2dForceAutoBlinkEnabled: Ref<boolean>
   lastUpdateTime: Ref<number>
@@ -53,6 +55,7 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
     motionManager,
     modelParameters,
     live2dIdleAnimationEnabled,
+    live2dForceIdleEyeAnimation,
     live2dAutoBlinkEnabled,
     live2dForceAutoBlinkEnabled,
     lastUpdateTime,
@@ -95,6 +98,7 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
       motionManager,
       modelParameters,
       live2dIdleAnimationEnabled,
+      live2dForceIdleEyeAnimation,
       live2dAutoBlinkEnabled,
       live2dForceAutoBlinkEnabled,
       isIdleMotion,
@@ -206,8 +210,8 @@ export function useMotionUpdatePluginIdleDisable(idleEyeFocus = useLive2DIdleEye
     if (!ctx.live2dIdleAnimationEnabled.value && ctx.isIdleMotion) {
       ctx.motionManager.stopAllMotions()
 
-      // Still update eye focus and blink even if idle motion is stopped
-      idleEyeFocus.update(ctx.internalModel, ctx.now)
+      if (ctx.live2dForceIdleEyeAnimation.value)
+        idleEyeFocus.update(ctx.internalModel, ctx.now)
       if (ctx.internalModel.eyeBlink != null) {
         ctx.internalModel.eyeBlink.updateParameters(ctx.model, ctx.timeDelta / 1000)
       }
