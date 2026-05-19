@@ -33,6 +33,11 @@ describe('parseAdditionalTrustedOriginsEnv', () => {
   it('throws on invalid segments', () => {
     expect(() => parseAdditionalTrustedOriginsEnv('not-a-url')).toThrow(/invalid URL origin segment/)
   })
+
+  it('rejects opaque and non-http(s) origins', () => {
+    expect(() => parseAdditionalTrustedOriginsEnv('javascript:alert(1)')).toThrow(/invalid URL origin segment/)
+    expect(() => parseAdditionalTrustedOriginsEnv('file:///tmp/a')).toThrow(/invalid URL origin segment/)
+  })
 })
 
 describe('parseEnv', () => {
