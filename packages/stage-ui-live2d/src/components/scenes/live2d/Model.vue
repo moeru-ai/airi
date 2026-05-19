@@ -443,9 +443,6 @@ async function loadModel() {
       }
 
       internalModelRef.value = internalModel
-      initExpressionController(internalModel).catch((err) => {
-        console.warn('[Model.vue] Expression controller initialisation failed:', err)
-      })
     }
 
     emits('modelLoaded')
@@ -457,6 +454,9 @@ async function loadModel() {
   finally {
     modelLoading.value = false
     componentState.value = 'mounted'
+    await initExpressionController(internalModelRef.value).catch((err) => {
+      console.warn('[Model.vue] Expression controller initialization failed:', err)
+    })
     modelLoadMutex.release()
   }
 }
@@ -468,11 +468,11 @@ async function loadModel() {
  * This is intentionally fire-and-forget from loadModel so that a failure in
  * expression loading does not prevent the model itself from rendering.
  */
-async function initExpressionController(internalModel: PixiLive2DInternalModel) {
+async function initExpressionController(internalModel?: PixiLive2DInternalModel) {
   // Dispose any previous state (handles model reloads)
   expressionController.dispose()
 
-  const settings = (internalModel as any).settings
+  const settings = internalModel?.settings as any
   if (!settings)
     return
 
