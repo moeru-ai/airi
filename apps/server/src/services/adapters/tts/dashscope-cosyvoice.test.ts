@@ -4,15 +4,8 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { dashscopeCosyvoiceAdapter } from './dashscope-cosyvoice'
 
-const FULL_ENDPOINT = 'https://dashscope-intl.aliyuncs.com/api/v1/services/audio/tts/SpeechSynthesizer'
-const AUDIO_URL = 'https://dashscope-internal.aliyuncs.com/audio/abc.mp3'
-
-function jsonResponse(body: object, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'content-type': 'application/json' },
-  })
-}
+const UNSPEECH = 'http://unspeech.local:5933'
+const SPEECH_URL = `${UNSPEECH}/v1/audio/speech`
 
 function binaryResponse(bytes: Uint8Array, status = 200) {
   return new Response(bytes, {
@@ -22,58 +15,36 @@ function binaryResponse(bytes: Uint8Array, status = 200) {
 }
 
 describe('dashscopeCosyvoiceAdapter', () => {
-  it('sends v2-shaped body: voice / format under input, not parameters (regression — old shape returned no audio.data)', async () => {
-    const fetchImpl = vi.fn()
-      .mockResolvedValueOnce(jsonResponse({ output: { audio: { url: AUDIO_URL } } }))
-      .mockResolvedValueOnce(binaryResponse(new Uint8Array([1, 2, 3, 4])))
+  it('forwards to unspeech with model=alibaba/<adapterParams.model>, voice + response_format passthrough', async () => {
+    const audioBytes = new Uint8Array([0x49, 0x44, 0x33, 0x04, 0x00, 0x00]) // ID3v2 mp3 header
+    const fetchImpl = vi.fn().mockResolvedValueOnce(binaryResponse(audioBytes))
 
-    await dashscopeCosyvoiceAdapter.send(
+    const result = await dashscopeCosyvoiceAdapter.send(
       { text: 'hi there', voice: 'longxiaochun_v2', responseFormat: 'mp3' },
       {
         keyPlaintext: Buffer.from('sk-test', 'utf8'),
-        baseURL: FULL_ENDPOINT,
+        baseURL: 'https://dashscope-intl.aliyuncs.com/api/v1/services/audio/tts/SpeechSynthesizer',
+        unspeechBaseURL: UNSPEECH,
         adapterParams: { model: 'cosyvoice-v2' },
         fetchImpl: fetchImpl as unknown as typeof fetch,
       },
     )
 
-    expect(fetchImpl).toHaveBeenCalledTimes(2)
-    const [synthesizeUrl, synthesizeInit] = fetchImpl.mock.calls[0]
-    expect(synthesizeUrl).toBe(FULL_ENDPOINT)
-    expect(synthesizeInit.method).toBe('POST')
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+    const [calledURL, init] = fetchImpl.mock.calls[0]
+    expect(calledURL).toBe(SPEECH_URL)
+    expect(init.method).toBe('POST')
 
-    const body = JSON.parse(synthesizeInit.body as string)
+    const body = JSON.parse(init.body as string)
     expect(body).toEqual({
-      model: 'cosyvoice-v2',
-      input: {
-        text: 'hi there',
-        voice: 'longxiaochun_v2',
-        format: 'mp3',
-      },
+      model: 'alibaba/cosyvoice-v2',
+      input: 'hi there',
+      voice: 'longxiaochun_v2',
+      response_format: 'mp3',
     })
-    // Critical: voice / format must NOT leak into a top-level `parameters` block.
-    expect(body.parameters).toBeUndefined()
-  })
 
-  it('follows output.audio.url to fetch the actual audio bytes and returns them as ArrayBuffer (regression — v1 parsed base64 from output.audio.data, v2 returns a URL instead)', async () => {
-    const audioBytes = new Uint8Array([0x49, 0x44, 0x33, 0x04, 0x00, 0x00]) // ID3v2 mp3 header
-    const fetchImpl = vi.fn()
-      .mockResolvedValueOnce(jsonResponse({ output: { audio: { url: AUDIO_URL, data: '' } } }))
-      .mockResolvedValueOnce(binaryResponse(audioBytes))
-
-    const result = await dashscopeCosyvoiceAdapter.send(
-      { text: 'hi', responseFormat: 'mp3' },
-      {
-        keyPlaintext: Buffer.from('sk-test', 'utf8'),
-        baseURL: FULL_ENDPOINT,
-        adapterParams: {},
-        fetchImpl: fetchImpl as unknown as typeof fetch,
-      },
-    )
-
-    const [audioFetchUrl, audioFetchInit] = fetchImpl.mock.calls[1]
-    expect(audioFetchUrl).toBe(AUDIO_URL)
-    expect(audioFetchInit.method).toBe('GET')
+    const headers = init.headers as Record<string, string>
+    expect(headers.Authorization).toBe('Bearer sk-test')
 
     expect(result.contentType).toBe('audio/mpeg')
     expect(result.body).toBeInstanceOf(ArrayBuffer)
@@ -81,16 +52,16 @@ describe('dashscopeCosyvoiceAdapter', () => {
     expect(Array.from(out)).toEqual(Array.from(audioBytes))
   })
 
-  it('throws Error with .status when synthesis endpoint returns non-2xx (router maps to fallback chain)', async () => {
-    const fetchImpl = vi.fn()
-      .mockResolvedValueOnce(jsonResponse({ code: 'InvalidApiKey', message: 'bad key' }, 401))
+  it('throws Error with .status when unspeech returns non-2xx (router walks to next key)', async () => {
+    const fetchImpl = vi.fn().mockResolvedValueOnce(new Response('bad key', { status: 401 }))
 
     await expect(
       dashscopeCosyvoiceAdapter.send(
         { text: 'hi' },
         {
           keyPlaintext: Buffer.from('sk-test', 'utf8'),
-          baseURL: FULL_ENDPOINT,
+          baseURL: 'https://dashscope-intl.aliyuncs.com/api/v1/services/audio/tts/SpeechSynthesizer',
+          unspeechBaseURL: UNSPEECH,
           adapterParams: {},
           fetchImpl: fetchImpl as unknown as typeof fetch,
         },
@@ -100,58 +71,39 @@ describe('dashscopeCosyvoiceAdapter', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1)
   })
 
-  it('throws Error with .status when output envelope contains no audio.url (treat as recoverable upstream error)', async () => {
-    // ROOT CAUSE:
-    //
-    // CosyVoice v2 non-streaming returns audio.url; if upstream returns 200
-    // with an empty envelope (rare — policy reject / region edge case), the
-    // v1 adapter silently returned "no audio data" while modeled status was
-    // 200. Router can't decide whether to fall back without a status. We
-    // attach the response status to the error so the router treats it as a
-    // recoverable upstream failure and walks to the next key.
-    const fetchImpl = vi.fn()
-      .mockResolvedValueOnce(jsonResponse({ output: {} }))
-
-    await expect(
-      dashscopeCosyvoiceAdapter.send(
-        { text: 'hi' },
-        {
-          keyPlaintext: Buffer.from('sk-test', 'utf8'),
-          baseURL: FULL_ENDPOINT,
-          adapterParams: {},
-          fetchImpl: fetchImpl as unknown as typeof fetch,
-        },
-      ),
-    ).rejects.toMatchObject({ status: 200, message: expect.stringContaining('no audio.url') })
-  })
-
-  it('uses cosyvoice-v2 + longxiaochun_v2 as defaults when caller omits model / voice (regression — v1 defaults broke against the v2 endpoint)', async () => {
-    const fetchImpl = vi.fn()
-      .mockResolvedValueOnce(jsonResponse({ output: { audio: { url: AUDIO_URL } } }))
-      .mockResolvedValueOnce(binaryResponse(new Uint8Array([0])))
+  it('falls back to cosyvoice-v2 + longxiaochun_v2 when caller omits model / voice', async () => {
+    const fetchImpl = vi.fn().mockResolvedValueOnce(binaryResponse(new Uint8Array([0])))
 
     await dashscopeCosyvoiceAdapter.send(
       { text: 'hi' },
       {
         keyPlaintext: Buffer.from('sk-test', 'utf8'),
-        baseURL: FULL_ENDPOINT,
+        baseURL: 'https://dashscope-intl.aliyuncs.com/api/v1/services/audio/tts/SpeechSynthesizer',
+        unspeechBaseURL: UNSPEECH,
         adapterParams: {},
         fetchImpl: fetchImpl as unknown as typeof fetch,
       },
     )
 
     const body = JSON.parse(fetchImpl.mock.calls[0][1].body as string)
-    expect(body.model).toBe('cosyvoice-v2')
-    expect(body.input.voice).toBe('longxiaochun_v2')
-    expect(body.input.format).toBe('mp3')
+    expect(body.model).toBe('alibaba/cosyvoice-v2')
+    expect(body.voice).toBe('longxiaochun_v2')
+    expect(body.response_format).toBe('mp3')
   })
 
-  it('voice catalog contains v2-suffixed ids and is non-empty', () => {
-    const catalog = dashscopeCosyvoiceAdapter.getVoiceCatalog()
-    expect(catalog.length).toBeGreaterThan(0)
-    expect(catalog.some(v => v.id === 'longxiaochun_v2')).toBe(true)
-    // No bare v1 ids should survive the migration.
-    expect(catalog.find(v => v.id === 'longxiaochun')).toBeUndefined()
-    expect(catalog.find(v => v.id === 'longxiaobai')).toBeUndefined()
+  it('voice catalog is proxied through unspeech (alibaba backend)', async () => {
+    // The catalog itself is unspeech-owned now (embedded JSON in
+    // unspeech/pkg/backend/alibaba/voices.go). This test only verifies the
+    // wire contract — fixture content is intentionally minimal so an
+    // unspeech-side roster change doesn't break us.
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
+      voices: [{ id: 'longxiaochun_v2', name: 'Longxiaochun v2' }],
+    }), { status: 200 })) as unknown as typeof fetch
+    const catalog = await dashscopeCosyvoiceAdapter.getVoiceCatalog({
+      adapterParams: {},
+      unspeechBaseURL: UNSPEECH,
+      fetchImpl,
+    })
+    expect(catalog).toEqual([{ id: 'longxiaochun_v2', name: 'Longxiaochun v2' }])
   })
 })

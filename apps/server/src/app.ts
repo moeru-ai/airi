@@ -635,11 +635,12 @@ export async function createApp() {
   // LLM_ROUTER_MASTER_KEY is required at env-parse time, so this provider
   // always builds a real router — the legacy `null` fallback path is gone.
   const llmRouter = injeca.provide('services:llmRouter', {
-    dependsOn: { configKV, envelopeCrypto, otel },
+    dependsOn: { configKV, envelopeCrypto, otel, redis },
     build: ({ dependsOn }) => createLlmRouterService({
       configKV: dependsOn.configKV,
       envelopeCrypto: dependsOn.envelopeCrypto,
       gatewayMetrics: dependsOn.otel?.gateway ?? null,
+      redis: dependsOn.redis,
     }),
   })
 

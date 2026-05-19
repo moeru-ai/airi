@@ -147,6 +147,18 @@ const ConfigEntrySchemas = {
   // carry the upstream-provider API key (e.g. Volcengine X-Api-Key), not an
   // unspeech tenant token.
   STREAMING_TTS_UPSTREAM: optional(streamingTtsUpstreamSchema),
+  // unspeech REST base URL (e.g. `https://airi-unspeech.railway.internal:5933`).
+  // Used by:
+  // - HTTP voice catalog lookup for live providers (Azure): the Azure TTS
+  //   adapter calls `<base>/api/voices?backend=microsoft&region=<region>`.
+  // - Streaming voice catalog lookup: the streaming voices handler calls
+  //   `<base>/api/voices?provider=volcengine&model=<api_resource_id>`.
+  // Kept explicit (no derivation from STREAMING_TTS_UPSTREAM.baseURL) so
+  // operators can point REST/voices lookups at a different unspeech instance
+  // from the streaming ws upstream if they want. Naked schema (no default):
+  // missing entry surfaces CONFIG_NOT_SET and the request fails fast instead
+  // of silently returning an empty voices list.
+  UNSPEECH_REST_BASE_URL: pipe(string(), nonEmpty('UNSPEECH_REST_BASE_URL must not be empty')),
 } as const
 
 type ConfigDefinitions = {

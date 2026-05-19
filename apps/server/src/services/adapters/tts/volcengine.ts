@@ -1,14 +1,10 @@
 import type { Voice } from 'unspeech'
 
-import type { TtsAdapter, TtsAdapterContext, TtsInput, TtsResult } from './types'
-
-import { Buffer } from 'node:buffer'
+import type { TtsAdapter, TtsAdapterContext, TtsInput, TtsResult, TtsVoiceCatalogContext } from './types'
 
 import { errorMessageFrom } from '@moeru/std'
 
-import volcengineVoices from './voices/volcengine.json' with { type: 'json' }
-
-import { createInternalError } from '../../../utils/error'
+import { createBadGatewayError, createInternalError } from '../../../utils/error'
 import { nanoid } from '../../../utils/id'
 
 /**
@@ -50,55 +46,51 @@ export const volcengineAdapter: TtsAdapter = {
   id: 'volcengine',
 
   async send(input: TtsInput, ctx: TtsAdapterContext): Promise<TtsResult> {
-    const appid = typeof ctx.adapterParams.appid === 'string' ? ctx.adapterParams.appid : undefined
-    if (!appid) {
-      // Misconfigured upstream — the router config validation should have
-      // caught this earlier, but defending here keeps the adapter total.
+    const appid = ctx.adapterParams.appid
+    if (typeof appid !== 'string' || !appid)
       throw createInternalError('volcengine tts: adapterParams.appid is required')
-    }
+
     const cluster = typeof ctx.adapterParams.cluster === 'string'
       ? ctx.adapterParams.cluster
       : DEFAULT_VOLCENGINE_CLUSTER
+
+    const apiResourceId = typeof ctx.adapterParams.model === 'string'
+      ? ctx.adapterParams.model
+      : undefined
 
     const voice = input.voice ?? DEFAULT_VOLCENGINE_VOICE
     const encoding = input.responseFormat ?? DEFAULT_VOLCENGINE_FORMAT
     const speed = input.speed ?? 1
 
-    const token = ctx.keyPlaintext.toString('utf8')
-
-    // Volcengine TTS request envelope (v1 non-streaming "query" mode).
-    // Per docs the `reqid` must be unique per request; we use nanoid for that.
-    const body = {
-      app: { appid, token, cluster },
-      user: { uid: 'airi-server' },
-      audio: {
-        voice_type: voice,
-        encoding,
-        speed_ratio: speed,
+    // unspeech volcengine backend (unspeech/pkg/backend/volcengine/speech.go):
+    // - reads token from `Authorization: Bearer <token>` (strips "Bearer "
+    //   prefix), then re-attaches as `Bearer; <token>` to the upstream — so
+    //   we send a normal Bearer here, NOT the `Bearer; ` form.
+    // - takes `app.appid`, `app.cluster`, `user.uid`, `request.reqid`,
+    //   `audio.encoding`, `audio.speed_ratio` from `extra_body` jsonpath.
+    // - decodes the upstream base64 audio frame itself and returns binary.
+    const body = JSON.stringify({
+      model: apiResourceId ? `volcengine/${apiResourceId}` : 'volcengine',
+      input: input.text,
+      voice,
+      response_format: encoding,
+      extra_body: {
+        app: { appid, cluster },
+        user: { uid: 'airi-server' },
+        audio: { speed_ratio: speed },
+        request: { reqid: nanoid(), operation: 'query' },
       },
-      request: {
-        reqid: nanoid(),
-        text: input.text,
-        operation: 'query',
-      },
-    }
-
-    const headers: Record<string, string> = {
-      // NOTICE:
-      // Volcengine's auth header uses `Bearer; <token>` (note the semicolon),
-      // not standard `Bearer <token>`. Documented at
-      // https://www.volcengine.com/docs/6561/79817 — sending a normal Bearer
-      // returns 401.
-      'Authorization': `Bearer; ${token}`,
-      'Content-Type': 'application/json',
-    }
+    })
 
     let response: Response
     try {
-      response = await ctx.fetchImpl(ctx.baseURL, {
+      response = await ctx.fetchImpl(`${ctx.unspeechBaseURL.replace(/\/+$/, '')}/v1/audio/speech`, {
         method: 'POST',
-        headers,
-        body: JSON.stringify(body),
+        headers: {
+          'Authorization': `Bearer ${ctx.keyPlaintext.toString('utf8')}`,
+          'Content-Type': 'application/json',
+        },
+        body,
         signal: ctx.abortSignal,
       })
     }
@@ -113,42 +105,54 @@ export const volcengineAdapter: TtsAdapter = {
       throw err
     }
 
-    let payload: unknown
-    try {
-      payload = await response.json()
-    }
-    catch (error) {
-      throw createInternalError(`volcengine tts response parse failed: ${errorMessageFrom(error) ?? 'unknown'}`)
-    }
-
-    const audioData = extractVolcengineAudioBase64(payload)
-    if (!audioData) {
-      const err = new Error('volcengine tts upstream returned no audio data') as Error & { status?: number }
-      err.status = response.status
-      throw err
-    }
-
-    const buf = Buffer.from(audioData, 'base64')
-    const arrayBuffer = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
-    const contentType = encodingToMime(encoding)
+    // unspeech decodes the base64 audio frame and returns binary audio
+    // directly — no more JSON envelope on this side.
+    const arrayBuffer = await response.arrayBuffer()
+    const contentType = response.headers.get('content-type') ?? encodingToMime(encoding)
 
     return { contentType, body: arrayBuffer }
   },
 
-  getVoiceCatalog() {
-    return volcengineVoices as Voice[]
-  },
-}
+  async getVoiceCatalog(ctx: TtsVoiceCatalogContext): Promise<Voice[]> {
+    // unspeech embeds the Volcengine catalog at build time
+    // (unspeech/pkg/backend/volcengine/voices.go), filtered server-side to
+    // streaming-compatible voices. Passing `model=<api_resource_id>` narrows
+    // further by `compatible_models` — adapterParams.model is the operator-
+    // configured resource id (e.g. `seed-tts-2.0`).
+    const url = new URL(`${ctx.unspeechBaseURL.replace(/\/+$/, '')}/api/voices`)
+    url.searchParams.set('backend', 'volcengine')
+    const apiResourceId = typeof ctx.adapterParams?.model === 'string'
+      ? ctx.adapterParams.model
+      : undefined
+    if (apiResourceId)
+      url.searchParams.set('model', apiResourceId)
 
-/**
- * Reads the `data` base64 field from Volcengine's JSON response. Returns
- * `null` if the response shape doesn't carry audio (e.g. error envelope).
- */
-function extractVolcengineAudioBase64(payload: unknown): string | null {
-  if (!payload || typeof payload !== 'object')
-    return null
-  const data = (payload as Record<string, unknown>).data
-  return typeof data === 'string' ? data : null
+    let response: Response
+    try {
+      response = await ctx.fetchImpl(url.toString(), {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+        signal: ctx.abortSignal,
+      })
+    }
+    catch (error) {
+      throw createBadGatewayError(`volcengine voices fetch failed: ${errorMessageFrom(error) ?? 'unknown'}`)
+    }
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => '')
+      throw createBadGatewayError(
+        `volcengine voices upstream ${response.status}: ${text.slice(0, 256)}`,
+        { lastStatusCode: response.status },
+      )
+    }
+
+    const data = await response.json() as { voices: Voice[] }
+    if (!Array.isArray(data.voices))
+      throw createBadGatewayError('volcengine voices upstream missing voices[]')
+
+    return data.voices
+  },
 }
 
 /**

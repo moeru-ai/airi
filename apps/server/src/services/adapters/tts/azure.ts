@@ -1,12 +1,10 @@
 import type { Voice } from 'unspeech'
 
-import type { TtsAdapter, TtsAdapterContext, TtsInput, TtsResult } from './types'
+import type { TtsAdapter, TtsAdapterContext, TtsInput, TtsResult, TtsVoiceCatalogContext } from './types'
 
 import { errorMessageFrom } from '@moeru/std'
 
-import azureVoices from './voices/azure.json' with { type: 'json' }
-
-import { createBadRequestError, createInternalError } from '../../../utils/error'
+import { createBadGatewayError, createBadRequestError, createInternalError, createServiceUnavailableError } from '../../../utils/error'
 
 // NOTICE:
 // Voice IDs Azure accepts are stable strings like `en-US-AvaMultilingualNeural`.
@@ -159,24 +157,39 @@ export const azureAdapter: TtsAdapter = {
     const outputFormat = resolveAzureFormat(input.responseFormat)
     const disableSsml = input.extraOptions?.disableSsml === true
 
-    // When disableSsml is set the caller is responsible for shipping valid
-    // SSML themselves; we forward as-is to support callers wiring their own
-    // <speak> documents.
-    const body = disableSsml
+    // We build the SSML envelope on our side rather than letting unspeech do
+    // it, because (a) unspeech's `processSSML` does not honor `<prosody rate>`
+    // so speed multipliers would be silently dropped, and (b) the SSML escape
+    // (`escapeForSsml`) is a security boundary — keeping it in this process
+    // means a misbehaving unspeech can never accidentally accept raw text and
+    // surface an injection. unspeech detects a pre-built `<speak>` document
+    // in the `input` field and forwards it verbatim.
+    const ssml = disableSsml
       ? input.text
       : buildAzureSsml(input.text, voice, input.speed)
 
-    const headers: Record<string, string> = {
-      'Ocp-Apim-Subscription-Key': ctx.keyPlaintext.toString('utf8'),
-      'X-Microsoft-OutputFormat': outputFormat,
-      'Content-Type': 'application/ssml+xml',
-    }
+    const region = ctx.adapterParams?.region
+    if (typeof region !== 'string' || !region)
+      throw createInternalError('azure tts upstream is missing adapterParams.region')
+
+    const body = JSON.stringify({
+      model: 'microsoft/v1',
+      input: ssml,
+      voice,
+      response_format: outputFormat,
+      extra_body: { region },
+    })
 
     let response: Response
     try {
-      response = await ctx.fetchImpl(ctx.baseURL, {
+      response = await ctx.fetchImpl(`${ctx.unspeechBaseURL.replace(/\/+$/, '')}/v1/audio/speech`, {
         method: 'POST',
-        headers,
+        headers: {
+          // unspeech's microsoft backend reads the bearer token verbatim as
+          // the Azure subscription key (unspeech/pkg/backend/microsoft/speech.go:264).
+          'Authorization': `Bearer ${ctx.keyPlaintext.toString('utf8')}`,
+          'Content-Type': 'application/json',
+        },
         body,
         signal: ctx.abortSignal,
       })
@@ -189,6 +202,8 @@ export const azureAdapter: TtsAdapter = {
 
     if (!response.ok) {
       // Bubble the upstream status. Router (U3) maps to fallback or 5xx.
+      // unspeech preserves the upstream Azure status code on its
+      // `apierrors.NewUpstreamError(status)` envelope.
       const text = await response.text().catch(() => '')
       const err = new Error(`azure tts upstream ${response.status}: ${text.slice(0, 256)}`) as Error & { status?: number }
       err.status = response.status
@@ -201,8 +216,50 @@ export const azureAdapter: TtsAdapter = {
     return { contentType, body: arrayBuffer }
   },
 
-  getVoiceCatalog() {
-    return azureVoices as Voice[]
+  async getVoiceCatalog(ctx: TtsVoiceCatalogContext): Promise<Voice[]> {
+    // Azure has no static catalog. Voices live at Microsoft's `voices/list`
+    // REST endpoint, which we reach via the unspeech `microsoft` backend
+    // because unspeech already maps the proprietary response shape to
+    // `types.Voice` (full formats table, masterpiece preview URLs, locale
+    // metadata). Calling unspeech also keeps a single integration point for
+    // every other provider that could grow this way later.
+    if (!ctx.region)
+      throw createServiceUnavailableError('azure tts region not configured', 'AZURE_TTS_NOT_CONFIGURED')
+    if (!ctx.keyPlaintext)
+      throw createServiceUnavailableError('azure tts key not configured', 'AZURE_TTS_NOT_CONFIGURED')
+
+    const url = `${ctx.unspeechBaseURL.replace(/\/+$/, '')}/api/voices?backend=microsoft&region=${encodeURIComponent(ctx.region)}`
+
+    let response: Response
+    try {
+      response = await ctx.fetchImpl(url, {
+        method: 'GET',
+        headers: {
+          // unspeech's microsoft backend reads the bearer token verbatim as
+          // the Azure subscription key (see unspeech/pkg/backend/microsoft/voices.go).
+          Authorization: `Bearer ${ctx.keyPlaintext.toString('utf8')}`,
+          Accept: 'application/json',
+        },
+        signal: ctx.abortSignal,
+      })
+    }
+    catch (error) {
+      throw createBadGatewayError(`azure voices fetch failed: ${errorMessageFrom(error) ?? 'unknown'}`)
+    }
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => '')
+      throw createBadGatewayError(
+        `azure voices upstream ${response.status}: ${text.slice(0, 256)}`,
+        { lastStatusCode: response.status },
+      )
+    }
+
+    const data = await response.json() as { voices: Voice[] }
+    if (!Array.isArray(data.voices))
+      throw createBadGatewayError('azure voices upstream missing voices[]')
+
+    return data.voices
   },
 }
 

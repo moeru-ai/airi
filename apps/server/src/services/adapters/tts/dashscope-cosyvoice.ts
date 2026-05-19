@@ -1,14 +1,10 @@
 import type { Voice } from 'unspeech'
 
-import type { TtsAdapter, TtsAdapterContext, TtsInput, TtsResult } from './types'
-
-import { Buffer } from 'node:buffer'
+import type { TtsAdapter, TtsAdapterContext, TtsInput, TtsResult, TtsVoiceCatalogContext } from './types'
 
 import { errorMessageFrom } from '@moeru/std'
 
-import cosyvoiceVoices from './voices/dashscope-cosyvoice.json' with { type: 'json' }
-
-import { createInternalError } from '../../../utils/error'
+import { createBadGatewayError, createInternalError } from '../../../utils/error'
 
 /**
  * Default DashScope cosyvoice voice id. v2 voice ids carry an explicit `_v2`
@@ -38,15 +34,7 @@ const DEFAULT_COSYVOICE_FORMAT = 'mp3'
 const DEFAULT_COSYVOICE_MODEL = 'cosyvoice-v2'
 
 /**
- * Hard cap on the audio bytes we will pull from the `output.audio.url`
- * follow-up fetch. CosyVoice non-streaming responses for normal TTS prompts
- * stay well under this; the limit exists so a misbehaving / hijacked URL
- * cannot exhaust memory on the gateway instance.
- */
-const MAX_AUDIO_BYTES = 25 * 1024 * 1024
-
-/**
- * DashScope cosyvoice non-streaming REST adapter.
+ * DashScope cosyvoice adapter.
  *
  * Use when:
  * - Routing a hosted TTS request to Alibaba DashScope's cosyvoice v2 / v3
@@ -78,31 +66,22 @@ export const dashscopeCosyvoiceAdapter: TtsAdapter = {
     const voice = input.voice ?? DEFAULT_COSYVOICE_VOICE
     const format = input.responseFormat ?? DEFAULT_COSYVOICE_FORMAT
 
-    // v2 / v3 request shape: voice / format / sample_rate live under `input`
-    // (NOT `parameters`, which was the v1 multimodal-generation schema). Speed
-    // is currently dropped on v2 non-streaming — there is no documented field
-    // for it on this endpoint; SSML rate is the supported substitute on
-    // SSML-enabled voices.
-    const body: Record<string, unknown> = {
-      model,
-      input: {
-        text: input.text,
-        voice,
-        format,
-      },
-    }
-
-    const headers: Record<string, string> = {
-      'Authorization': `Bearer ${ctx.keyPlaintext.toString('utf8')}`,
-      'Content-Type': 'application/json',
-    }
+    const body = JSON.stringify({
+      model: `alibaba/${model}`,
+      input: input.text,
+      voice,
+      response_format: format,
+    })
 
     let response: Response
     try {
-      response = await ctx.fetchImpl(ctx.baseURL, {
+      response = await ctx.fetchImpl(`${ctx.unspeechBaseURL.replace(/\/+$/, '')}/v1/audio/speech`, {
         method: 'POST',
-        headers,
-        body: JSON.stringify(body),
+        headers: {
+          'Authorization': `Bearer ${ctx.keyPlaintext.toString('utf8')}`,
+          'Content-Type': 'application/json',
+        },
+        body,
         signal: ctx.abortSignal,
       })
     }
@@ -117,121 +96,47 @@ export const dashscopeCosyvoiceAdapter: TtsAdapter = {
       throw err
     }
 
-    let payload: unknown
-    try {
-      payload = await response.json()
-    }
-    catch (error) {
-      throw createInternalError(`dashscope-cosyvoice tts response parse failed: ${errorMessageFrom(error) ?? 'unknown'}`)
-    }
+    // unspeech aggregates the WS binary frames and returns the audio buffer
+    // directly, so we no longer parse a JSON envelope or follow a signed URL.
+    const audioBytes = await response.arrayBuffer()
+    const contentType = response.headers.get('content-type') ?? formatToMime(format)
 
-    const audioUrl = extractCosyvoiceAudioUrl(payload)
-    if (!audioUrl) {
-      // Could be a request-mode mismatch (SSE was enabled, response shape
-      // changed) or an upstream-policy reject that returned 200 with an empty
-      // envelope. Treat as a recoverable upstream error so the router can
-      // try the next key / upstream.
-      const err = new Error(`dashscope-cosyvoice tts upstream returned no audio.url (envelope: ${stringifyEnvelope(payload)})`) as Error & { status?: number }
-      err.status = response.status
-      throw err
-    }
-
-    let audioBytes: ArrayBuffer
-    try {
-      audioBytes = await fetchAudioBytes(ctx.fetchImpl, audioUrl, ctx.abortSignal)
-    }
-    catch (error) {
-      throw createInternalError(`dashscope-cosyvoice tts audio download failed: ${errorMessageFrom(error) ?? 'unknown'}`)
-    }
-
-    const contentType = formatToMime(format)
     return { contentType, body: audioBytes }
   },
 
-  getVoiceCatalog() {
-    return cosyvoiceVoices as Voice[]
-  },
-}
+  async getVoiceCatalog(ctx: TtsVoiceCatalogContext): Promise<Voice[]> {
+    // unspeech's alibaba backend embeds the catalog at build time
+    // (unspeech/pkg/backend/alibaba/voices.go `//go:embed voices.json`),
+    // so this call is in-memory on unspeech's side and only crosses a TCP
+    // hop. No upstream credential is required.
+    const url = `${ctx.unspeechBaseURL.replace(/\/+$/, '')}/api/voices?backend=alibaba`
 
-/**
- * Pulls the `output.audio.url` short-lived signed URL out of a cosyvoice
- * non-streaming JSON envelope. Returns `null` if the response shape doesn't
- * match (e.g. error envelope, SSE leak, or v1-style `audio.data` payload),
- * so the caller can surface a clear upstream error.
- */
-function extractCosyvoiceAudioUrl(payload: unknown): string | null {
-  if (payload == null || typeof payload !== 'object')
-    return null
-  const output = (payload as { output?: unknown }).output
-  if (output == null || typeof output !== 'object')
-    return null
-  const audio = (output as { audio?: unknown }).audio
-  if (audio == null || typeof audio !== 'object')
-    return null
-  const url = (audio as { url?: unknown }).url
-  if (typeof url !== 'string' || url.length === 0)
-    return null
-  return url
-}
-
-/**
- * Stringify just enough of the upstream JSON to make the "no audio.url" error
- * actionable, without leaking secrets like API keys. Keeps the snippet small
- * so it fits inside the router's bodySnippet propagation path.
- */
-function stringifyEnvelope(payload: unknown): string {
-  try {
-    return JSON.stringify(payload).slice(0, 256)
-  }
-  catch {
-    return '<unserializable>'
-  }
-}
-
-/**
- * Follow-up GET against the short-lived signed URL the cosyvoice endpoint
- * returns. Streamed into an ArrayBuffer with a hard size cap so a misbehaving
- * URL cannot exhaust memory on the gateway.
- */
-async function fetchAudioBytes(fetchImpl: typeof fetch, url: string, abortSignal: AbortSignal | undefined): Promise<ArrayBuffer> {
-  const audioResp = await fetchImpl(url, { method: 'GET', signal: abortSignal })
-  if (!audioResp.ok) {
-    const err = new Error(`audio.url responded ${audioResp.status}`) as Error & { status?: number }
-    err.status = audioResp.status
-    throw err
-  }
-
-  if (audioResp.body == null) {
-    throw new Error('audio.url response had no body')
-  }
-
-  const reader = audioResp.body.getReader()
-  const chunks: Uint8Array[] = []
-  let total = 0
-  let drained = false
-  try {
-    while (true) {
-      const { value, done } = await reader.read()
-      if (done) {
-        drained = true
-        break
-      }
-      total += value.length
-      if (total > MAX_AUDIO_BYTES)
-        throw new Error(`audio payload exceeded ${MAX_AUDIO_BYTES} bytes`)
-      chunks.push(value)
+    let response: Response
+    try {
+      response = await ctx.fetchImpl(url, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+        signal: ctx.abortSignal,
+      })
     }
-  }
-  finally {
-    // Cancel only if we exited early; double-cancel after a clean drain is
-    // a no-op in spec but `reader.closed` is a Promise (always truthy), so
-    // we track the drain explicitly instead of testing `closed`.
-    if (!drained)
-      reader.cancel().catch(() => {})
-  }
+    catch (error) {
+      throw createBadGatewayError(`cosyvoice voices fetch failed: ${errorMessageFrom(error) ?? 'unknown'}`)
+    }
 
-  const buf = Buffer.concat(chunks.map(c => Buffer.from(c)))
-  return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
+    if (!response.ok) {
+      const text = await response.text().catch(() => '')
+      throw createBadGatewayError(
+        `cosyvoice voices upstream ${response.status}: ${text.slice(0, 256)}`,
+        { lastStatusCode: response.status },
+      )
+    }
+
+    const data = await response.json() as { voices: Voice[] }
+    if (!Array.isArray(data.voices))
+      throw createBadGatewayError('cosyvoice voices upstream missing voices[]')
+
+    return data.voices
+  },
 }
 
 /**
