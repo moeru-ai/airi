@@ -1,4 +1,4 @@
-import type { ProviderService } from '../../services/providers'
+import type { ProviderService } from '../../services/domain/providers'
 import type { HonoEnv } from '../../types/hono'
 
 import { Hono } from 'hono'

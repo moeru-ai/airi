@@ -19,6 +19,15 @@ import {
   METRIC_AIRI_EMAIL_SEND,
   METRIC_AIRI_FLUX_CREDITED,
   METRIC_AIRI_FLUX_UNBILLED,
+  METRIC_AIRI_GEN_AI_GATEWAY_CONFIG_INVALID_HMAC,
+  METRIC_AIRI_GEN_AI_GATEWAY_CONFIG_RELOAD,
+  METRIC_AIRI_GEN_AI_GATEWAY_CONFIG_WRITE,
+  METRIC_AIRI_GEN_AI_GATEWAY_DECRYPT_FAILURES,
+  METRIC_AIRI_GEN_AI_GATEWAY_FALLBACK_COUNT,
+  METRIC_AIRI_GEN_AI_GATEWAY_KEY_EXHAUSTED_COUNT,
+  METRIC_AIRI_GEN_AI_GATEWAY_SAME_STATUS_EXHAUSTION,
+  METRIC_AIRI_GEN_AI_GATEWAY_SUBSCRIBER_STATE,
+  METRIC_AIRI_GEN_AI_GATEWAY_UPSTREAM_ERRORS,
   METRIC_AIRI_GEN_AI_STREAM_INTERRUPTED,
   METRIC_AIRI_OBSERVABILITY_READ_ERRORS,
   METRIC_AIRI_RATE_LIMIT_BLOCKED,
@@ -44,6 +53,7 @@ import {
   METRIC_STRIPE_PAYMENT_FAILED,
   METRIC_STRIPE_SUBSCRIPTION_EVENT,
   METRIC_USER_ACTIVE_SESSIONS,
+  METRIC_USER_DISTINCT_ACTIVE,
   METRIC_USER_LOGIN,
   METRIC_USER_REGISTERED,
   METRIC_WS_CONNECTIONS_ACTIVE,
@@ -77,6 +87,21 @@ export interface AuthMetrics {
    *   "Multi-Replica Considerations".
    */
   activeSessions: ObservableGauge
+  /**
+   * Pull-based gauge for distinct users with ≥1 non-expired session.
+   *
+   * Use when:
+   * - Querying real "active users" — not session rows. Better Auth creates a
+   *   new `session` row per sign-in and per OIDC token refresh, and never
+   *   GCs expired rows, so {@link AuthMetrics.activeSessions} drifts up
+   *   over time even when the actual user base is small.
+   *
+   * Expects:
+   * - Backed by `SELECT COUNT(DISTINCT user_id) FROM session WHERE expires_at > now()`.
+   *   Same cluster-wide truth as `activeSessions`; dashboards MUST aggregate
+   *   with `avg()`, not `sum()` — see observability-conventions.md.
+   */
+  distinctActiveUsers: ObservableGauge
 }
 
 export interface EngagementMetrics {
@@ -116,17 +141,25 @@ export interface RevenueMetrics {
   fluxInsufficientBalance: Counter
   fluxCredited: Counter
   /**
-   * Streaming-only: Flux consumed by a request whose post-stream debit failed.
+   * Flux value that the LLM proxy could not collect from the user. Fires from
+   * both the streaming and non-streaming completion paths.
    *
    * Use when:
-   * - Tracking real revenue leak in the LLM streaming proxy.
+   * - Tracking real revenue leak in the LLM proxy.
+   *
+   * Labels (`reason`):
+   * - `debit_failed` — `consumeFluxForLLM` threw (DB error, or `balance <= 0`
+   *   after a race lost). Counter records the *full* requested amount.
+   * - `partial_debit_drained` — user had `0 < balance < requested`, so we
+   *   drained the balance to zero and charged what we could. Counter records
+   *   `requested - charged` (the unbilled remainder only).
    *
    * Why this needs its own metric:
    * - The streaming response is already sent (HTTP 200, tokens delivered) by
-   *   the time the catch around `billingService.consumeFluxForLLM` runs.
-   *   DB latency / HTTP 5xx alerts do NOT fire on this path — the failure is
-   *   silent at the transport layer. This counter is the only signal that
-   *   ties Flux value owed to a failed debit.
+   *   the time we discover we can't collect in full. DB latency / HTTP 5xx
+   *   alerts do NOT fire on this path — the failure is silent at the
+   *   transport layer. This counter is the only signal that ties Flux value
+   *   owed to a missed debit.
    * - Recommended alert: `increase(airi_billing_flux_unbilled_total[5m]) > 0`
    *   pages on-call immediately on any sustained leak.
    */
@@ -143,6 +176,70 @@ export interface GenAiMetrics {
   fluxConsumed: Counter
   firstTokenDuration: Histogram
   streamInterrupted: Counter
+}
+
+export interface GatewayMetrics {
+  /**
+   * Per-attempt fallback event. Increments once per failing key try when the
+   * router moves on to the next key/upstream. Recommended labels:
+   * `provider`, `from_key`, `reason`.
+   */
+  fallbackCount: Counter
+  /**
+   * Upstream error responses received during fallback iteration. Recommended
+   * labels: `provider`, `status_code`.
+   */
+  upstreamErrors: Counter
+  /**
+   * All keys (across all upstreams) failed in a single request — the user gets
+   * a 5xx. Primary alert source for user-facing degradation.
+   * Recommended label: `provider`.
+   *
+   * Recommended alert:
+   *   `increase(airi_gen_ai_gateway_key_exhausted_total[5m]) > 0` → page on-call.
+   */
+  keyExhaustedCount: Counter
+  /**
+   * All keys in one request failed with the *same* upstream status code.
+   * Strong signal of account-level (shared-backend) rate limiting that
+   * per-key fallback cannot recover from — see plan D33 risk-acceptance
+   * and the adversarial finding ADV-PLAN-006.
+   * Recommended labels: `provider`, `status_code`.
+   *
+   * Recommended alert:
+   *   `rate(airi_gen_ai_gateway_same_status_exhaustion_total[15m]) / rate(...request_count[15m]) > 0.05`
+   */
+  sameStatusExhaustion: Counter
+  /**
+   * Local in-memory configKV cache reloaded (router config). Labels: `source`
+   * (`pubsub` | `ttl` | `manual`), `service_instance_id`.
+   */
+  configReload: Counter
+  /**
+   * Envelope-crypto decryption auth-tag failures. Any >0 sample indicates
+   * config corruption or a master-key rotation misstep — investigate.
+   * Recommended labels: `provider`, `key_entry_id`.
+   */
+  decryptFailures: Counter
+  /**
+   * Pub/Sub subscriber lifecycle transitions (`subscribed` |
+   * `reconnecting` | `error` | `closed`). Watch for sustained
+   * `reconnecting` — the TTL self-heal stops being ≤5s once the subscriber
+   * is dead.
+   */
+  subscriberState: Counter
+  /**
+   * Admin endpoint write events for `LLM_ROUTER_CONFIG`. Labels: `result`
+   * (`success` | `4xx` | `5xx`), `actor_email`. Audit-trail surrogate
+   * given v1 keeps the flat-admin-role permission model (R16a known
+   * limitation).
+   */
+  configWrite: Counter
+  /**
+   * Pub/Sub invalidation messages dropped because the HMAC did not verify.
+   * >0 = forged or replayed message — investigate Redis access boundary.
+   */
+  configInvalidHmac: Counter
 }
 
 export interface EmailMetrics {
@@ -172,6 +269,7 @@ export interface OtelInstance {
   engagement: EngagementMetrics
   revenue: RevenueMetrics
   genAi: GenAiMetrics
+  gateway: GatewayMetrics
   email: EmailMetrics
   rateLimit: RateLimitMetrics
   observability: ObservabilityMetrics
@@ -217,7 +315,10 @@ export function initOtel(env: Env): OtelInstance | null {
       description: 'Number of user sign-ins',
     }),
     activeSessions: meter.createObservableGauge(METRIC_USER_ACTIVE_SESSIONS, {
-      description: 'Active user sessions sourced from Postgres (cluster-wide; dashboard must use max(), not sum())',
+      description: 'Active user sessions sourced from Postgres (cluster-wide; dashboard must use avg(), not sum())',
+    }),
+    distinctActiveUsers: meter.createObservableGauge(METRIC_USER_DISTINCT_ACTIVE, {
+      description: 'Distinct users with ≥1 non-expired session — true active-user count, immune to per-row session inflation (cluster-wide; dashboard must use avg(), not sum())',
     }),
   }
 
@@ -311,6 +412,39 @@ export function initOtel(env: Env): OtelInstance | null {
     }),
   }
 
+  // Router gateway metrics (in-process LLM/TTS routing — KTD-3).
+  // Every counter alerts on a different failure shape; see metric-handle JSDoc
+  // on GatewayMetrics for the recommended PromQL.
+  const gateway: GatewayMetrics = {
+    fallbackCount: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_FALLBACK_COUNT, {
+      description: 'Per-attempt fallback events in the in-process LLM/TTS router',
+    }),
+    upstreamErrors: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_UPSTREAM_ERRORS, {
+      description: 'Upstream error responses received during fallback iteration',
+    }),
+    keyExhaustedCount: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_KEY_EXHAUSTED_COUNT, {
+      description: 'All keys (across all upstreams) failed in a single request — primary user-facing alert',
+    }),
+    sameStatusExhaustion: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_SAME_STATUS_EXHAUSTION, {
+      description: 'All keys in one request failed with the same upstream status (account-level rate-limit signal)',
+    }),
+    configReload: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_CONFIG_RELOAD, {
+      description: 'Local in-memory router config cache reloaded (by source: pubsub / ttl / manual)',
+    }),
+    decryptFailures: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_DECRYPT_FAILURES, {
+      description: 'Envelope-crypto decryption auth-tag failures (config corruption or rotation misstep)',
+    }),
+    subscriberState: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_SUBSCRIBER_STATE, {
+      description: 'Pub/Sub subscriber lifecycle state transitions',
+    }),
+    configWrite: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_CONFIG_WRITE, {
+      description: 'Admin endpoint LLM_ROUTER_CONFIG write events (audit-trail surrogate)',
+    }),
+    configInvalidHmac: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_CONFIG_INVALID_HMAC, {
+      description: 'Pub/Sub invalidation messages dropped due to HMAC mismatch (forged or replayed)',
+    }),
+  }
+
   const email: EmailMetrics = {
     send: meter.createCounter(METRIC_AIRI_EMAIL_SEND, {
       description: 'Transactional emails accepted by Resend',
@@ -372,6 +506,15 @@ export function initOtel(env: Env): OtelInstance | null {
     genAi.tokenUsageOutput,
     genAi.fluxConsumed,
     genAi.streamInterrupted,
+    gateway.fallbackCount,
+    gateway.upstreamErrors,
+    gateway.keyExhaustedCount,
+    gateway.sameStatusExhaustion,
+    gateway.configReload,
+    gateway.decryptFailures,
+    gateway.subscriberState,
+    gateway.configWrite,
+    gateway.configInvalidHmac,
     email.send,
     email.failures,
     rateLimit.blocked,
@@ -379,7 +522,7 @@ export function initOtel(env: Env): OtelInstance | null {
   ]
   for (const counter of counters) counter.add(0)
 
-  return { auth, engagement, revenue, genAi, email, rateLimit, observability }
+  return { auth, engagement, revenue, genAi, gateway, email, rateLimit, observability }
 }
 
 const severityMap: Record<string, SeverityNumber> = {

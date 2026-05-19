@@ -18,6 +18,7 @@
  * Usage:
  *   pnpm -F @proj-airi/server exec node --import tsx ./src/scripts/otel/smoke.ts
  */
+import { Buffer } from 'node:buffer'
 import { env, exit } from 'node:process'
 
 import { metrics } from '@opentelemetry/api'
@@ -38,9 +39,9 @@ env.AUTH_GOOGLE_CLIENT_ID ??= 'test'
 env.AUTH_GOOGLE_CLIENT_SECRET ??= 'test'
 env.AUTH_GITHUB_CLIENT_ID ??= 'test'
 env.AUTH_GITHUB_CLIENT_SECRET ??= 'test'
-env.GATEWAY_BASE_URL ??= 'http://test'
-env.DEFAULT_CHAT_MODEL ??= 'test'
-env.DEFAULT_TTS_MODEL ??= 'test'
+// 32 deterministic bytes is enough to satisfy env validation; the smoke
+// script never actually hits the router.
+env.LLM_ROUTER_MASTER_KEY ??= Buffer.alloc(32, 0xAA).toString('base64')
 env.OTEL_EXPORTER_OTLP_ENDPOINT ??= 'http://localhost:4318'
 
 const { initOtel } = await import('../../otel/index')

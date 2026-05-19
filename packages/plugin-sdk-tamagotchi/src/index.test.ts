@@ -32,6 +32,7 @@ describe('plugin-sdk-tamagotchi', () => {
         },
         tools: {
           register: registerTool,
+          registerToolsetPrompt: vi.fn(),
         },
         kits: {
           list: async () => [
@@ -75,6 +76,12 @@ describe('plugin-sdk-tamagotchi', () => {
     })
 
     await defineToolset(ctx, {
+      id: 'chess-tools',
+      prompt: {
+        id: 'airi-plugin-game-chess.prompt',
+        title: 'Chess Plugin Guidance',
+        content: 'Do not pass fen or pgn when mode is "new".',
+      },
       tools: [
         {
           id: 'play_chess',
@@ -88,6 +95,14 @@ describe('plugin-sdk-tamagotchi', () => {
       ],
     })
 
+    expect(ctx.apis.tools.registerToolsetPrompt).toHaveBeenCalledWith({
+      id: 'chess-tools',
+      prompt: {
+        id: 'airi-plugin-game-chess.prompt',
+        title: 'Chess Plugin Guidance',
+        content: 'Do not pass fen or pgn when mode is "new".',
+      },
+    })
     expect(gamelet).toBeDefined()
     expect(registerBinding).toHaveBeenCalledWith({
       moduleId: 'chess',
@@ -167,6 +182,7 @@ describe('plugin-sdk-tamagotchi', () => {
         },
         tools: {
           register: registerTool,
+          registerToolsetPrompt: vi.fn(),
         },
       },
     }
@@ -223,6 +239,7 @@ describe('plugin-sdk-tamagotchi', () => {
         },
         tools: {
           register: registerTool,
+          registerToolsetPrompt: vi.fn(),
         },
       },
     }

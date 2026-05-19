@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { client } from '@proj-airi/stage-ui/composables/api'
+import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Button, SelectTab } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
@@ -12,6 +13,7 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const { credits } = storeToRefs(authStore)
+const { trackPricingViewed, trackPlanSelected, trackCheckoutStarted } = useAnalytics()
 
 interface FluxPackage {
   stripePriceId: string
@@ -221,6 +223,12 @@ async function fetchPackages() {
 onMounted(async () => {
   Promise.allSettled([fetchPackages(), authStore.updateCredits(), fetchStats(), fetchAuditHistory()])
 
+  // PostHog funnel step 1: pricing surface view. Today this is an in-app
+  // settings page (already-authenticated users); when we add a public
+  // pricing landing page the surface label changes but the event stays the
+  // same, so the funnel definition in PostHog doesn't need re-wiring.
+  trackPricingViewed('settings_flux', 'one_time')
+
   if (route.query.success === 'true') {
     message.value = { type: 'success', text: t('settings.pages.flux.checkout.success') }
     router.replace({ query: {} })
@@ -234,6 +242,11 @@ onMounted(async () => {
 async function handleBuy(stripePriceId: string) {
   loadingPriceId.value = stripePriceId
   message.value = null
+  // PostHog funnel step 2: user picked a plan. price_minor_unit lives on
+  // the Stripe webhook (server-side `payment_completed`); we deliberately
+  // don't send a formatted-string price from the SPA so funnels don't get
+  // poisoned by currency-formatting drift.
+  trackPlanSelected(stripePriceId, { currency: selectedCurrency.value })
   try {
     const res = await client.api.v1.stripe.checkout.$post({ json: { stripePriceId, currency: selectedCurrency.value } })
     if (!res.ok) {
@@ -243,6 +256,10 @@ async function handleBuy(stripePriceId: string) {
     }
     const data = await res.json()
     if (data.url) {
+      // PostHog funnel step 3: about to redirect to Stripe. Capture before
+      // the page nav so the event is sent (PostHog's beforeunload handler
+      // would otherwise race the navigation).
+      trackCheckoutStarted(stripePriceId, { currency: selectedCurrency.value })
       window.location.href = data.url
     }
   }

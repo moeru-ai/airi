@@ -384,7 +384,7 @@ export function processNarrative(text: string, options?: TtsInputChunkOptions): 
 
 export function createTtsSegmentStream(
   tokens: ReadableStream<TextToken>,
-  meta: { streamId: string, intentId: string },
+  meta: { streamId: string, intentId: string, turnId?: string },
   options?: TtsInputChunkOptions,
 ) {
   const { stream, write, close, error } = createPushStream<TextSegment>()
@@ -483,6 +483,7 @@ export function createTtsSegmentStream(
       const reader = byteStream.getReader()
       await chunkEmitter(reader, pendingSpecials, options, async (chunk) => {
         write({
+          turnId: meta.turnId,
           streamId: meta.streamId,
           intentId: meta.intentId,
           segmentId: `${meta.streamId}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`,

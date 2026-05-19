@@ -4,7 +4,8 @@
 
 应用在 `src/app.ts` 中挂载以下路由：
 
-- `GET /health`
+- `GET /livez` — K8s 风格 liveness 探针，纯静态 200，不碰任何外部依赖
+- `GET /readyz` — K8s 风格 readiness 探针，并发 ping Postgres + Redis；任一失败回 503。**不**检查上游 LLM key 健康（R14）
 - `GET /` — 服务标识 JSON，避免邮件链接拼错落到框架默认 404
 - `/api/auth/*`
 - `/api/v1/characters`
@@ -65,7 +66,7 @@
 实现位置：
 
 - route: `src/routes/characters/index.ts`
-- service: `src/services/characters.ts`
+- service: `src/services/domain/characters.ts`
 
 主要能力：
 
@@ -90,7 +91,7 @@
 实现位置：
 
 - route: `src/routes/providers/index.ts`
-- service: `src/services/providers.ts`
+- service: `src/services/domain/providers.ts`
 
 主要能力：
 
@@ -109,7 +110,7 @@
 实现位置：
 
 - route: `src/routes/chats/index.ts`
-- service: `src/services/chats.ts`
+- service: `src/services/domain/chats.ts`
 
 主要能力：
 
@@ -174,7 +175,7 @@
 1. 校验已登录
 2. 检查相关配置是否存在
 3. 检查用户 Flux 是否大于 0
-4. 代理请求到 `GATEWAY_BASE_URL`
+4. 交给 `llmRouter.route` / `llmRouter.routeTts`：读 `LLM_ROUTER_CONFIG`，按 upstream 链路 + key rotator + envelope crypto 调上游
 5. 解析 usage，计算扣费
 6. 记录 metrics
 7. 调 `billingService.debitFlux()`
@@ -239,7 +240,7 @@
 实现位置：
 
 - route: `src/routes/admin/flux-grants/index.ts`
-- service: `src/services/admin-flux-grants/index.ts`
+- service: `src/services/domain/admin/flux-grants/index.ts`
 - guard: `src/middlewares/admin-guard.ts`
 
 主要能力：

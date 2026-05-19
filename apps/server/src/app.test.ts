@@ -47,6 +47,7 @@ function createTestDeps() {
     stripeService: {} as any,
     billingService: {} as any,
     adminFluxGrantsService: {} as any,
+    adminRouterConfigService: {} as any,
     ttsMeter: {} as any,
     requestLogService: {} as any,
     configKV: {
@@ -68,6 +69,15 @@ function createTestDeps() {
     } as any,
     otel: null,
     userDeletionService: {} as any,
+    llmRouter: {
+      route: vi.fn(async () => new Response('{}', { status: 200 })),
+      invalidateConfig: vi.fn(),
+    } as any,
+    envelopeCrypto: {
+      encryptKey: vi.fn(),
+      decryptKey: vi.fn(),
+    } as any,
+    posthog: null,
   }
 
   return {

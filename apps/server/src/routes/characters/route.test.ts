@@ -6,7 +6,7 @@ import { beforeAll, describe, expect, it } from 'vitest'
 
 import { createCharacterRoutes } from '.'
 import { mockDB } from '../../libs/mock-db'
-import { createCharacterService } from '../../services/characters'
+import { createCharacterService } from '../../services/domain/characters'
 import { ApiError } from '../../utils/error'
 
 import * as schema from '../../schemas'

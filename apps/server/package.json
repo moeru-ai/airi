@@ -55,14 +55,18 @@
     "ioredis": "^5.10.1",
     "jose": "catalog:",
     "pg": "^8.20.0",
+    "posthog-node": "catalog:",
     "resend": "^6.12.2",
     "stripe": "^22.0.2",
     "valibot": "catalog:",
+    "ws": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@better-auth/cli": "^1.4.21",
     "@types/pg": "^8.20.0",
-    "drizzle-kit": "catalog:"
+    "@types/ws": "^8.18.1",
+    "drizzle-kit": "catalog:",
+    "unspeech": "catalog:xsai"
   }
 }

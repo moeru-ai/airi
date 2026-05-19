@@ -41,8 +41,47 @@ export interface ElectronPluginXsaiToolDefinition {
   parameters: Record<string, unknown>
 }
 
+/**
+ * Serialized toolset prompt exposed by the plugin host.
+ *
+ * Use when:
+ * - Registering plugin-backed prompt guidance in the renderer
+ *
+ * Expects:
+ * - `content` is already model-facing prompt text
+ *
+ * Returns:
+ * - N/A
+ */
+export interface ElectronPluginToolsetPromptDefinition {
+  ownerPluginId: string
+  id: string
+  prompt: {
+    id: string
+    title?: string
+    content: string
+  }
+}
+
+/**
+ * Serialized plugin xsai tools and shared prompt guidance.
+ *
+ * Use when:
+ * - Refreshing renderer LLM tool registrations from the Electron plugin host
+ *
+ * Expects:
+ * - The host filtered out inactive plugin sessions
+ *
+ * Returns:
+ * - N/A
+ */
+export interface ElectronPluginXsaiToolsetDefinition {
+  tools: ElectronPluginXsaiToolDefinition[]
+  prompts: ElectronPluginToolsetPromptDefinition[]
+}
+
 export const electronPluginListAgentTools = defineInvokeEventa<ElectronPluginToolDescriptor[]>('eventa:invoke:electron:plugins:tools:list')
-export const electronPluginListXsaiTools = defineInvokeEventa<ElectronPluginXsaiToolDefinition[]>('eventa:invoke:electron:plugins:tools:list-xsai')
+export const electronPluginListXsaiTools = defineInvokeEventa<ElectronPluginXsaiToolsetDefinition>('eventa:invoke:electron:plugins:tools:list-xsai')
 export const electronPluginInvokeTool = defineInvokeEventa<unknown, {
   ownerPluginId: string
   name: string

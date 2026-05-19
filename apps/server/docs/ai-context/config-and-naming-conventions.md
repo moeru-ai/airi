@@ -18,7 +18,7 @@
 
 ### 单一真相源
 
-`src/services/config-kv.ts` 中的 `ConfigEntrySchemas` 是以下三件事的单一真相源：
+`src/services/adapters/config-kv.ts` 中的 `ConfigEntrySchemas` 是以下三件事的单一真相源：
 
 - 配置值的运行时校验
 - 配置值的默认值

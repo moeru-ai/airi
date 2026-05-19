@@ -2,7 +2,7 @@ import type { ActorRefFrom } from 'xstate'
 
 import type { createApis } from '../plugin/apis/client'
 import type { AnnounceBindingInput, UpdateBindingInput } from '../plugin/apis/client/bindings'
-import type { RegisterToolInput } from '../plugin/apis/client/tools'
+import type { RegisterToolInput, RegisterToolsetPromptInput } from '../plugin/apis/client/tools'
 import type { Plugin } from '../plugin/shared'
 import type { BindingRecord, KitCapabilityDescriptor, KitDescriptor } from './shared'
 import type {
@@ -873,6 +873,7 @@ export class PluginHost {
       },
       tools: {
         register: input => this.registerTool(session.id, input),
+        registerToolsetPrompt: input => this.registerToolsetPrompt(session.id, input),
       },
     })
 
@@ -1174,6 +1175,28 @@ export class PluginHost {
 
         return await input.execute(toolInput)
       },
+    })
+  }
+
+  registerToolsetPrompt(sessionId: string, input: RegisterToolsetPromptInput) {
+    const session = this.getSessionOrThrow(sessionId)
+
+    this.assertPermission(session, {
+      area: 'apis',
+      action: 'invoke',
+      key: pluginToolApiRegisterEventName,
+    })
+    this.assertPermission(session, {
+      area: 'resources',
+      action: 'write',
+      key: pluginToolRegistryResourceKey,
+    })
+
+    this.tools.registerToolsetPrompt({
+      ownerSessionId: session.id,
+      ownerPluginId: session.identity.plugin.id,
+      toolset: structuredClone(input),
+      availability: () => Boolean(this.getSession(session.id)),
     })
   }
 

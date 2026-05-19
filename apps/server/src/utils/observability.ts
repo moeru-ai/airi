@@ -5,6 +5,8 @@
 // GenAI semconv attributes — https://opentelemetry.io/docs/specs/semconv/gen-ai/
 export const GEN_AI_ATTR_OPERATION_NAME = 'gen_ai.operation.name'
 export const GEN_AI_ATTR_REQUEST_MODEL = 'gen_ai.request.model'
+export const GEN_AI_ATTR_RESPONSE_MODEL = 'gen_ai.response.model'
+export const GEN_AI_ATTR_SYSTEM = 'gen_ai.system'
 export const GEN_AI_ATTR_USAGE_INPUT_TOKENS = 'gen_ai.usage.input_tokens'
 export const GEN_AI_ATTR_USAGE_OUTPUT_TOKENS = 'gen_ai.usage.output_tokens'
 
@@ -18,6 +20,15 @@ export const AIRI_ATTR_GEN_AI_OUTPUT_FULL_TEXT = 'airi.gen_ai.output.full_text'
 export const AIRI_ATTR_GEN_AI_OUTPUT_TEXT = 'airi.gen_ai.output.text'
 export const AIRI_ATTR_GEN_AI_STREAM = 'airi.gen_ai.stream'
 export const AIRI_ATTR_GEN_AI_STREAM_INTERRUPTED = 'airi.gen_ai.stream_interrupted'
+
+// AIRI router gateway span attributes (in-process LLM/TTS routing — KTD-3).
+// All prefixed `airi.gen_ai.gateway.*` to stay under the existing `airi.gen_ai.*`
+// namespace already used by `airi.gen_ai.stream_interrupted`.
+export const AIRI_ATTR_GEN_AI_GATEWAY_UPSTREAM_URL = 'airi.gen_ai.gateway.upstream.url'
+export const AIRI_ATTR_GEN_AI_GATEWAY_UPSTREAM_INDEX = 'airi.gen_ai.gateway.upstream.index'
+export const AIRI_ATTR_GEN_AI_GATEWAY_KEY_ID = 'airi.gen_ai.gateway.key.id'
+export const AIRI_ATTR_GEN_AI_GATEWAY_FALLBACK_DEPTH = 'airi.gen_ai.gateway.fallback.depth'
+export const AIRI_ATTR_GEN_AI_GATEWAY_FALLBACK_REASON = 'airi.gen_ai.gateway.fallback.reason'
 
 // Server attributes
 export const SERVER_ATTR_ADDRESS = 'server.address'
@@ -37,6 +48,11 @@ export const METRIC_AUTH_FAILURES = 'auth.failures'
 export const METRIC_USER_REGISTERED = 'user.registered'
 export const METRIC_USER_LOGIN = 'user.login'
 export const METRIC_USER_ACTIVE_SESSIONS = 'user.active_sessions'
+// Distinct users with at least one non-expired session row. Pair with
+// USER_ACTIVE_SESSIONS to detect "session row inflation" (Better Auth
+// creates a new row per sign-in / per OIDC token refresh and never GCs)
+// vs real user growth.
+export const METRIC_USER_DISTINCT_ACTIVE = 'user.distinct_active'
 
 // Engagement (AIRI custom)
 export const METRIC_CHAT_MESSAGES = 'chat.messages'
@@ -88,6 +104,52 @@ export const METRIC_AIRI_RATE_LIMIT_BLOCKED = 'airi.rate_limit.blocked'
 // AIRI GenAI — stream quality
 export const METRIC_AIRI_GEN_AI_STREAM_INTERRUPTED = 'airi.gen_ai.stream.interrupted'
 export const METRIC_GEN_AI_CLIENT_FIRST_TOKEN_DURATION = 'gen_ai.client.first_token.duration'
+
+// AIRI router gateway — in-process LLM/TTS routing fallback / health signals.
+//
+// fallback_count    — each retry attempt (per failing key). Labels: provider,
+//                     from_key, reason. Dashboard sum gives 24h fallback volume.
+// upstream_errors   — upstream-side error responses. Labels: provider, status_code.
+// key_exhausted     — all keys in a single request failed. Labels: provider.
+//                     **Primary alert source for "user-facing degradation"**.
+// same_status_exhaustion
+//                  — all keys failed in one request *with the same status code*.
+//                     Strong signal of shared-backend (account-level) rate limit
+//                     that ordinary fallback can't help with. Drives D33's blind
+//                     spot detection per adversarial review.
+// config_reload    — local in-memory configKV cache reloaded. Labels: source
+//                     (`pubsub` | `ttl` | `manual`), service_instance_id.
+// decrypt_failures — envelope-crypto decryption auth-tag failures. Labels:
+//                     provider, key_entry_id. >0 = config corruption or rotation
+//                     misstep.
+// subscriber_state — Pub/Sub subscriber lifecycle transitions. Labels: state
+//                     (`subscribed` | `reconnecting` | `error` | `closed`).
+// config_write     — admin endpoint write events. Labels: result
+//                     (`success` | `4xx` | `5xx`), actor_email.
+// config_invalid_hmac
+//                  — Pub/Sub invalidation messages dropped due to HMAC mismatch
+//                     (forged or replayed). >0 = investigate Redis access.
+export const METRIC_AIRI_GEN_AI_GATEWAY_FALLBACK_COUNT = 'airi.gen_ai.gateway.fallback.count'
+export const METRIC_AIRI_GEN_AI_GATEWAY_UPSTREAM_ERRORS = 'airi.gen_ai.gateway.upstream.errors'
+export const METRIC_AIRI_GEN_AI_GATEWAY_KEY_EXHAUSTED_COUNT = 'airi.gen_ai.gateway.key.exhausted'
+export const METRIC_AIRI_GEN_AI_GATEWAY_SAME_STATUS_EXHAUSTION = 'airi.gen_ai.gateway.same_status_exhaustion'
+export const METRIC_AIRI_GEN_AI_GATEWAY_CONFIG_RELOAD = 'airi.gen_ai.gateway.config.reload'
+export const METRIC_AIRI_GEN_AI_GATEWAY_DECRYPT_FAILURES = 'airi.gen_ai.gateway.decrypt.failures'
+export const METRIC_AIRI_GEN_AI_GATEWAY_SUBSCRIBER_STATE = 'airi.gen_ai.gateway.subscriber_state'
+export const METRIC_AIRI_GEN_AI_GATEWAY_CONFIG_WRITE = 'airi.gen_ai.gateway.config.write'
+export const METRIC_AIRI_GEN_AI_GATEWAY_CONFIG_INVALID_HMAC = 'airi.gen_ai.gateway.config.invalid_hmac'
+
+// ---------------------------------------------------------------------------
+// Canonical gen_ai.system values
+// ---------------------------------------------------------------------------
+//
+// First emitter of `gen_ai.system` in this repo (see observability-conventions.md).
+// Lock these values now so future adapters / providers don't fork the namespace.
+
+export const GEN_AI_SYSTEM_OPENROUTER = 'openrouter'
+export const GEN_AI_SYSTEM_AZURE_SPEECH = 'azure.speech'
+export const GEN_AI_SYSTEM_DASHSCOPE_COSYVOICE = 'dashscope.cosyvoice'
+export const GEN_AI_SYSTEM_VOLCENGINE_TTS = 'volcengine.tts'
 
 // ---------------------------------------------------------------------------
 // Helpers

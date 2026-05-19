@@ -1,16 +1,14 @@
-import type { Env } from '../../../libs/env'
-import type { BillingService } from '../../../services/billing/billing-service'
-import type { ConfigKVService } from '../../../services/config-kv'
-import type { FluxService } from '../../../services/flux'
-import type { RequestLogService } from '../../../services/request-log'
+import type { ConfigKVService } from '../../../services/adapters/config-kv'
+import type { BillingService } from '../../../services/domain/billing/billing-service'
+import type { FluxService } from '../../../services/domain/flux'
+import type { LlmRouterService } from '../../../services/domain/llm-router'
+import type { RequestLogService } from '../../../services/domain/request-log'
 import type { HonoEnv } from '../../../types/hono'
-
-import { Buffer } from 'node:buffer'
 
 import { Hono } from 'hono'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 
-import { createV1CompletionsRoutes } from '.'
+import { createV1Routes } from '.'
 import { ApiError } from '../../../utils/error'
 
 // --- Mock helpers ---
@@ -26,8 +24,13 @@ function createMockBillingService(flux = 100): BillingService {
   let balance = flux
   return {
     consumeFluxForLLM: vi.fn(async (input: { userId: string, amount: number }) => {
-      balance -= input.amount
-      return { userId: input.userId, flux: balance }
+      // Mirror billing-service.ts:debitFlux semantics so route tests see the
+      // same `charged < requested` signal that production callers handle.
+      if (balance <= 0)
+        throw Object.assign(new Error('Insufficient flux'), { statusCode: 402 })
+      const charged = Math.min(input.amount, balance)
+      balance -= charged
+      return { userId: input.userId, flux: balance, charged, requested: input.amount }
     }),
     creditFlux: vi.fn(),
     creditFluxFromStripeCheckout: vi.fn(),
@@ -35,20 +38,13 @@ function createMockBillingService(flux = 100): BillingService {
   } as any
 }
 
-function createMockEnv(overrides: Partial<Env> = {}): Env {
-  return {
-    GATEWAY_BASE_URL: 'http://mock-gateway/',
-    DEFAULT_CHAT_MODEL: 'openai/gpt-5-mini',
-    DEFAULT_TTS_MODEL: 'tts-1',
-    ...overrides,
-  } as Env
-}
-
 function createMockConfigKV(overrides: Record<string, any> = {}): ConfigKVService {
   const defaults: Record<string, any> = {
     FLUX_PER_REQUEST: 1,
     FLUX_PER_1K_CHARS_TTS: 2,
     TTS_DEBT_TTL_SECONDS: 86400,
+    DEFAULT_CHAT_MODEL: 'openai/gpt-5-mini',
+    DEFAULT_TTS_MODEL: 'tts-1',
     ...overrides,
   }
   return {
@@ -69,21 +65,11 @@ function createMockRequestLogService(): RequestLogService {
   }
 }
 
-function createMockRedis() {
-  const store = new Map<string, Buffer>()
-  return {
-    get: vi.fn(async (key: string) => {
-      const v = store.get(key)
-      return v ? v.toString('utf8') : null
-    }),
-    getBuffer: vi.fn(async (key: string) => store.get(key) ?? null),
-    set: vi.fn(async (key: string, value: string | Buffer) => {
-      store.set(key, Buffer.isBuffer(value) ? value : Buffer.from(value, 'utf8'))
-      return 'OK'
-    }),
-    _store: store,
-  }
-}
+// NOTE: a router-mock helper used to live here but was removed because the
+// existing route tests all exercise the legacy fetch path (llmRouter = null).
+// Router internals are exhaustively covered in
+// apps/server/src/services/llm-router/router.test.ts (15 tests). Add a
+// router-injecting helper here when route-level routing tests are introduced.
 
 function createMockTtsMeter(unitsPerFlux = 1000) {
   let debt = 0
@@ -100,23 +86,49 @@ function createMockTtsMeter(unitsPerFlux = 1000) {
   } as any
 }
 
+function createMockLlmRouter(impl?: Partial<LlmRouterService>): LlmRouterService {
+  return {
+    // Default: forward to globalThis.fetch so existing chat tests that mock
+    // fetch keep working. Per-test overrides can replace `route` directly.
+    route: vi.fn(async ({ modelName, body, abortSignal }) => {
+      return globalThis.fetch('http://mock-gateway/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...body, model: modelName }),
+        signal: abortSignal,
+      })
+    }),
+    // TTS default also forwards to fetch, against a stable path tests can
+    // assert on. The mocked response body becomes the audio payload.
+    routeTts: vi.fn(async ({ modelName, input, abortSignal }) => {
+      return globalThis.fetch('http://mock-gateway/audio/speech', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: modelName, input: input.text, voice: input.voice }),
+        signal: abortSignal,
+      })
+    }),
+    listTtsVoices: vi.fn(async () => []),
+    invalidateConfig: vi.fn(),
+    ...impl,
+  } as LlmRouterService
+}
+
 function createTestApp(
   fluxService: FluxService,
   configKV: ConfigKVService,
   billingService?: BillingService,
   requestLogService?: RequestLogService,
   ttsMeter?: ReturnType<typeof createMockTtsMeter>,
-  env?: Env,
-  redis?: ReturnType<typeof createMockRedis>,
+  llmRouter?: LlmRouterService,
 ) {
-  const routes = createV1CompletionsRoutes(
+  const { openaiRoutes, audioRoutes } = createV1Routes(
     fluxService,
     billingService ?? createMockBillingService(),
     configKV,
     requestLogService ?? createMockRequestLogService(),
     ttsMeter ?? createMockTtsMeter(),
-    (redis ?? createMockRedis()) as any,
-    env ?? createMockEnv(),
+    llmRouter ?? createMockLlmRouter(),
     null,
   )
   const app = new Hono<HonoEnv>()
@@ -141,7 +153,12 @@ function createTestApp(
     await next()
   })
 
-  app.route('/api/v1/openai', routes)
+  // Mounting mirrors production (see app.ts): chat completions under
+  // `/api/v1/openai`, audio under `/api/v1/audio`. Test request URLs were
+  // batch-migrated from the legacy `/api/v1/openai/audio/*` prefix when the
+  // audio surface was split out of the OpenAI-compat namespace.
+  app.route('/api/v1/openai', openaiRoutes)
+  app.route('/api/v1/audio', audioRoutes)
   return app
 }
 
@@ -186,6 +203,94 @@ describe('v1CompletionsRoutes', () => {
         { user: testUser } as any,
       )
       expect(res.status).toBe(402)
+    })
+
+    // ROOT CAUSE:
+    //
+    // Before: pre-flight gated only on `flux > 0`. A user with 0 < balance <
+    // fallbackRate could pass the gate, complete the stream, then either land
+    // in the catch path (insufficient balance throws) or — worse — race N
+    // parallel requests through and have all but one land unbilled.
+    //
+    // After: gate compares balance against `FLUX_PER_REQUEST` so the very
+    // first request a partially-funded user makes is rejected without
+    // touching the upstream. Combined with partial-debit semantics in
+    // `consumeFluxForLLM`, this closes both the serial-replay and concurrent
+    // race forms of the unpaid-usage exploit.
+    it('rejects pre-flight when balance is below FLUX_PER_REQUEST (Issue: unpaid-usage-exploit)', async () => {
+      const fluxService = createMockFluxService(5)
+      const billingService = createMockBillingService(5)
+      globalThis.fetch = vi.fn() as any
+      const app = createTestApp(
+        fluxService,
+        createMockConfigKV({ FLUX_PER_REQUEST: 38 }),
+        billingService,
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/openai/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'auto', messages: [{ role: 'user', content: 'hi' }] }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(402)
+      // Critical: upstream was never called — leak is closed before cost is incurred.
+      expect(globalThis.fetch).not.toHaveBeenCalled()
+      expect(billingService.consumeFluxForLLM).not.toHaveBeenCalled()
+    })
+
+    // ROOT CAUSE:
+    //
+    // Before: when usage arrived and `fluxConsumed > balance`, debitFlux
+    // threw, the response had already been delivered, and the user's balance
+    // never moved. Same user with the same script kept replaying.
+    //
+    // After: balance is drained to zero (`charged = balance`), the request
+    // log records the actual `charged` (5, not the full 38), and the next
+    // request fails the pre-flight gate.
+    it('non-streaming completion drains partial balance and logs charged (Issue: unpaid-usage-exploit)', async () => {
+      const upstreamBody = JSON.stringify({
+        id: 'chatcmpl-partial',
+        choices: [{ message: { content: 'hi' } }],
+        usage: { prompt_tokens: 20000, completion_tokens: 18000 },
+      })
+      globalThis.fetch = vi.fn(async () => new Response(upstreamBody, {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }))
+
+      // Balance 5 passes the gate when fallbackRate is 5 (matching schema default),
+      // but the per-token cost lands at ceil(38000/1000 * 1) = 38 → partial debit.
+      const fluxService = createMockFluxService(5)
+      const billingService = createMockBillingService(5)
+      const requestLogService = createMockRequestLogService()
+      const app = createTestApp(
+        fluxService,
+        createMockConfigKV({ FLUX_PER_REQUEST: 5, FLUX_PER_1K_TOKENS: 1 }),
+        billingService,
+        requestLogService,
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/openai/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'auto', messages: [{ role: 'user', content: 'hi' }] }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(200)
+      // Caller asked for 38 (token-based cost), mock-billing returns charged=5.
+      expect(billingService.consumeFluxForLLM).toHaveBeenCalledWith(
+        expect.objectContaining({ amount: 38 }),
+      )
+      expect(requestLogService.logRequest).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: 'user-1', fluxConsumed: 5 }),
+      )
     })
 
     it('should proxy upstream response on success', async () => {
@@ -236,11 +341,7 @@ describe('v1CompletionsRoutes', () => {
 
       const app = createTestApp(
         createMockFluxService(),
-        createMockConfigKV(),
-        undefined,
-        undefined,
-        undefined,
-        createMockEnv({ DEFAULT_CHAT_MODEL: 'anthropic/claude-sonnet' }),
+        createMockConfigKV({ DEFAULT_CHAT_MODEL: 'anthropic/claude-sonnet' }),
       )
 
       await app.fetch(
@@ -396,7 +497,38 @@ describe('v1CompletionsRoutes', () => {
     })
   })
 
-  describe('pOST /api/v1/openai/audio/speech', () => {
+  describe('legacy audio paths under /openai/', () => {
+    // Audio used to live at /api/v1/openai/audio/*. After the refactor it
+    // moved to /api/v1/audio/*; these are kept as 404 sentinels so a
+    // future accidental re-mount under the old prefix is caught by tests.
+    // Codex review LOW #6.
+    it('returns 404 for /api/v1/openai/audio/speech (moved to /api/v1/audio/speech)', async () => {
+      const app = createTestApp(createMockFluxService(), createMockConfigKV())
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/openai/audio/speech', { method: 'POST' }),
+        { user: testUser } as any,
+      )
+      expect(res.status).toBe(404)
+    })
+    it('returns 404 for /api/v1/openai/audio/voices', async () => {
+      const app = createTestApp(createMockFluxService(), createMockConfigKV())
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/openai/audio/voices', { method: 'GET' }),
+        { user: testUser } as any,
+      )
+      expect(res.status).toBe(404)
+    })
+    it('returns 404 for /api/v1/openai/audio/models', async () => {
+      const app = createTestApp(createMockFluxService(), createMockConfigKV())
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/openai/audio/models', { method: 'GET' }),
+        { user: testUser } as any,
+      )
+      expect(res.status).toBe(404)
+    })
+  })
+
+  describe('pOST /api/v1/audio/speech', () => {
     it('should proxy TTS request to upstream with resolved model', async () => {
       globalThis.fetch = vi.fn(async () => new Response(new Uint8Array([1]), {
         status: 200,
@@ -405,15 +537,11 @@ describe('v1CompletionsRoutes', () => {
 
       const app = createTestApp(
         createMockFluxService(),
-        createMockConfigKV(),
-        undefined,
-        undefined,
-        undefined,
-        createMockEnv({ DEFAULT_TTS_MODEL: 'tts-1-hd' }),
+        createMockConfigKV({ DEFAULT_TTS_MODEL: 'tts-1-hd' }),
       )
 
       await app.fetch(
-        new Request('http://localhost/api/v1/openai/audio/speech', {
+        new Request('http://localhost/api/v1/audio/speech', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ model: 'auto', input: 'test', voice: 'alloy' }),
@@ -440,7 +568,7 @@ describe('v1CompletionsRoutes', () => {
       const app = createTestApp(createMockFluxService(), createMockConfigKV(), billingService)
 
       await app.fetch(
-        new Request('http://localhost/api/v1/openai/audio/speech', {
+        new Request('http://localhost/api/v1/audio/speech', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ model: 'auto', input: 'hello', voice: 'alloy' }),
@@ -451,17 +579,22 @@ describe('v1CompletionsRoutes', () => {
       expect(billingService.consumeFluxForLLM).not.toHaveBeenCalled()
     })
 
-    it('should not charge when upstream returns error', async () => {
-      globalThis.fetch = vi.fn(async () => new Response('{"error":"service down"}', {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      }))
-
+    it('should not charge when routeTts upstream returns error', async () => {
+      const llmRouter = createMockLlmRouter({
+        routeTts: vi.fn(async () => new Response('{"error":"service down"}', {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        })) as any,
+      })
       const billingService = createMockBillingService(100)
-      const app = createTestApp(createMockFluxService(), createMockConfigKV(), billingService)
+      const app = createTestApp(createMockFluxService(), createMockConfigKV(), billingService, undefined, undefined, llmRouter)
 
       const res = await app.fetch(
-        new Request('http://localhost/api/v1/openai/audio/voices', { method: 'GET' }),
+        new Request('http://localhost/api/v1/audio/speech', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'auto', input: 'hello', voice: 'alloy' }),
+        }),
         { user: testUser } as any,
       )
 
@@ -476,7 +609,7 @@ describe('v1CompletionsRoutes', () => {
       )
 
       const res = await app.fetch(
-        new Request('http://localhost/api/v1/openai/audio/speech', {
+        new Request('http://localhost/api/v1/audio/speech', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ model: 'auto', input: 'hello', voice: 'alloy' }),
@@ -496,7 +629,7 @@ describe('v1CompletionsRoutes', () => {
       const app = createTestApp(createMockFluxService(), createMockConfigKV(), billingService)
 
       await app.fetch(
-        new Request('http://localhost/api/v1/openai/audio/speech', {
+        new Request('http://localhost/api/v1/audio/speech', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ model: 'auto', input: '', voice: 'alloy' }),
@@ -521,7 +654,7 @@ describe('v1CompletionsRoutes', () => {
       const app = createTestApp(createMockFluxService(), createMockConfigKV(), billingService, undefined, ttsMeter)
 
       await app.fetch(
-        new Request('http://localhost/api/v1/openai/audio/speech', {
+        new Request('http://localhost/api/v1/audio/speech', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ model: 'auto', input: longInput, voice: 'alloy' }),
@@ -537,39 +670,91 @@ describe('v1CompletionsRoutes', () => {
     it('should return 401 when unauthenticated', async () => {
       const app = createTestApp(createMockFluxService(), createMockConfigKV())
 
-      const res = await app.request('/api/v1/openai/audio/voices', { method: 'GET' })
+      const res = await app.request('/api/v1/audio/voices', { method: 'GET' })
       expect(res.status).toBe(401)
     })
 
-    it('should forward gateway error status', async () => {
-      globalThis.fetch = vi.fn(async () => new Response('{"error":"bad"}', {
-        status: 502,
-        headers: { 'Content-Type': 'application/json' },
-      }))
+    // ROOT CAUSE:
+    //
+    // Before patch, `handleTTS` ran `ttsMeter.accumulate()` outside any
+    // try/finally and set the billing attribute + called `span.end()`
+    // *afterwards*. If `accumulate()` rejected (e.g. Redis blip on
+    // INCRBY), the call site threw straight to `app.onError` and the
+    // active span was never closed — OTel batched-span buffer leaked one
+    // span per failed TTS billing event, and `recordRequestLog` was
+    // skipped silently.
+    //
+    // After patch (apps/server/src/routes/openai/v1/index.ts:471-493):
+    // `accumulate()` + `span.setAttribute()` are wrapped in try/finally,
+    // span.end() runs unconditionally, and the error propagates to the
+    // global handler. recordRequestLog is still skipped (we can't log a
+    // billing-failed request without a fluxConsumed value), but the
+    // failure is now observable instead of hidden by a leaked span.
+    it('tTS billing failure closes the span and surfaces error to onError (regression)', async () => {
+      const requestLogService = createMockRequestLogService()
+      const ttsMeter = createMockTtsMeter()
+      // Override accumulate to simulate a Redis INCRBY failure mid-billing.
+      ttsMeter.accumulate = vi.fn(async () => {
+        throw new Error('redis INCRBY timeout')
+      })
 
-      const app = createTestApp(createMockFluxService(), createMockConfigKV())
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV(),
+        undefined,
+        requestLogService,
+        ttsMeter,
+      )
 
       const res = await app.fetch(
-        new Request('http://localhost/api/v1/openai/audio/voices', { method: 'GET' }),
+        new Request('http://localhost/api/v1/audio/speech', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'auto', input: 'hi', voice: 'en-US-AvaMultilingualNeural' }),
+        }),
+        { user: testUser } as any,
+      )
+
+      // Generic Error (not ApiError) → onError renders 500.
+      expect(res.status).toBe(500)
+      // recordRequestLog never reached, by design (no fluxConsumed to log).
+      expect(requestLogService.logRequest).not.toHaveBeenCalled()
+      // accumulate was actually attempted (proves we walked into the billing
+      // block, not the upstream-error branch).
+      expect(ttsMeter.accumulate).toHaveBeenCalledTimes(1)
+    })
+
+    it('should forward routeTts error status (502)', async () => {
+      const llmRouter = createMockLlmRouter({
+        routeTts: vi.fn(async () => new Response('{"error":"bad"}', {
+          status: 502,
+          headers: { 'Content-Type': 'application/json' },
+        })) as any,
+      })
+
+      const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, undefined, undefined, llmRouter)
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/speech', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'auto', input: 'hi', voice: 'alloy' }),
+        }),
         { user: testUser } as any,
       )
       expect(res.status).toBe(502)
     })
   })
 
-  describe('gET /api/v1/openai/audio/models', () => {
+  describe('gET /api/v1/audio/models', () => {
     it('exposes only the auto routing alias regardless of DEFAULT_TTS_MODEL', async () => {
       const app = createTestApp(
         createMockFluxService(),
-        createMockConfigKV(),
-        undefined,
-        undefined,
-        undefined,
-        createMockEnv({ DEFAULT_TTS_MODEL: 'microsoft/v1' }),
+        createMockConfigKV({ DEFAULT_TTS_MODEL: 'microsoft/v1' }),
       )
 
       const res = await app.fetch(
-        new Request('http://localhost/api/v1/openai/audio/models', { method: 'GET' }),
+        new Request('http://localhost/api/v1/audio/models', { method: 'GET' }),
         { user: testUser } as any,
       )
 
@@ -581,111 +766,151 @@ describe('v1CompletionsRoutes', () => {
     it('should return 401 when unauthenticated', async () => {
       const app = createTestApp(createMockFluxService(), createMockConfigKV())
 
-      const res = await app.request('/api/v1/openai/audio/models', { method: 'GET' })
+      const res = await app.request('/api/v1/audio/models', { method: 'GET' })
       expect(res.status).toBe(401)
     })
   })
 
-  describe('gET /api/v1/openai/audio/voices', () => {
-    it('should proxy voice list from gateway', async () => {
-      const voicesResponse = { voices: [
-        { id: 'en-US-JennyNeural', name: 'Jenny', provider: 'MICROSOFT_SPEECH_SERVICE_V1', locale: 'en-US', gender: 'Female' },
-        { id: 'alloy', name: 'Alloy', provider: 'OPEN_AI', locale: '', gender: '' },
-      ] }
-      globalThis.fetch = vi.fn(async () => new Response(JSON.stringify(voicesResponse), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      }))
+  describe('gET /api/v1/audio/voices', () => {
+    it('returns the recommended bucket scoped to the resolved model', async () => {
+      const voices = [
+        { id: 'en-US-JennyNeural', name: 'Jenny', provider: 'azure', locale: 'en-US', gender: 'Female' },
+        { id: 'en-US-AvaMultilingualNeural', name: 'Ava', provider: 'azure', locale: 'en-US', gender: 'Female' },
+      ]
+      const llmRouter = createMockLlmRouter({
+        listTtsVoices: vi.fn(async () => voices) as any,
+      })
+      const configKV = createMockConfigKV({
+        DEFAULT_TTS_VOICES: {
+          'tts-1': { 'en-US': 'en-US-AvaMultilingualNeural' },
+          'other-model': { 'en-US': 'should-not-leak' },
+        },
+      })
 
-      const app = createTestApp(createMockFluxService(), createMockConfigKV())
+      const app = createTestApp(createMockFluxService(), configKV, undefined, undefined, undefined, llmRouter)
 
       const res = await app.fetch(
-        new Request('http://localhost/api/v1/openai/audio/voices', { method: 'GET' }),
+        new Request('http://localhost/api/v1/audio/voices', { method: 'GET' }),
         { user: testUser } as any,
       )
 
       expect(res.status).toBe(200)
-      const data = await res.json() as typeof voicesResponse
-      expect(data.voices).toHaveLength(2)
-      expect(data.voices[0].id).toBe('en-US-JennyNeural')
-
-      const [calledUrl, calledInit] = (globalThis.fetch as any).mock.calls[0]
-      expect(String(calledUrl)).toBe('http://mock-gateway/audio/voices?model=tts-1')
-      expect(calledInit).toMatchObject({ method: 'GET' })
+      const data = await res.json() as { voices: typeof voices, recommended: Record<string, string> }
+      expect(data.voices).toEqual(voices)
+      expect(data.recommended).toEqual({ 'en-US': 'en-US-AvaMultilingualNeural' })
+      expect(llmRouter.listTtsVoices).toHaveBeenCalledWith('tts-1')
     })
 
-    it('serves the second request from Redis without re-hitting the gateway', async () => {
-      const voicesResponse = { voices: [{ id: 'alloy', name: 'Alloy' }] }
-      globalThis.fetch = vi.fn(async () => new Response(JSON.stringify(voicesResponse), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      }))
-      const redis = createMockRedis()
-      const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, undefined, undefined, undefined, redis)
+    it('returns an empty recommended map when the resolved model has no bucket', async () => {
+      const llmRouter = createMockLlmRouter({
+        listTtsVoices: vi.fn(async () => []) as any,
+      })
+      const configKV = createMockConfigKV({
+        DEFAULT_TTS_VOICES: {
+          'other-model': { 'en-US': 'something' },
+        },
+      })
 
-      await app.fetch(new Request('http://localhost/api/v1/openai/audio/voices'), { user: testUser } as any)
-      await app.fetch(new Request('http://localhost/api/v1/openai/audio/voices'), { user: testUser } as any)
+      const app = createTestApp(createMockFluxService(), configKV, undefined, undefined, undefined, llmRouter)
 
-      expect(globalThis.fetch).toHaveBeenCalledTimes(1)
-      expect(redis.set).toHaveBeenCalledTimes(1)
-    })
-
-    it('stores the cached body gzipped (first two bytes are the gzip magic)', async () => {
-      // Big payload so gzip actually compresses below plain json size. Using
-      // a single-voice body would hit the gzip header overhead and be larger.
-      const voices = Array.from({ length: 200 }, (_, i) => ({
-        id: `voice-${i}`,
-        name: `Voice ${i}`,
-        description: 'Microsoft Server Speech Text to Speech Voice (zh-CN, XiaozhenNeural)',
-      }))
-      const voicesResponse = { voices }
-      const rawJson = JSON.stringify(voicesResponse)
-      globalThis.fetch = vi.fn(async () => new Response(rawJson, {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      }))
-      const redis = createMockRedis()
-      const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, undefined, undefined, undefined, redis)
-
-      await app.fetch(new Request('http://localhost/api/v1/openai/audio/voices'), { user: testUser } as any)
-
-      const stored = redis._store.get('tts:voices:upstream:tts-1')
-      expect(stored).toBeDefined()
-      expect(stored![0]).toBe(0x1F)
-      expect(stored![1]).toBe(0x8B)
-      expect(stored!.length).toBeLessThan(rawJson.length)
-    })
-
-    it('transparently reads legacy plain-JSON cache entries left over from before compression', async () => {
-      globalThis.fetch = vi.fn()
-      const redis = createMockRedis()
-      redis._store.set(
-        'tts:voices:upstream:tts-1',
-        Buffer.from(JSON.stringify({ voices: [{ id: 'legacy', name: 'Legacy' }] }), 'utf8'),
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/voices?model=alibaba/cosyvoice-v1', { method: 'GET' }),
+        { user: testUser } as any,
       )
-      const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, undefined, undefined, undefined, redis)
 
-      const res = await app.fetch(new Request('http://localhost/api/v1/openai/audio/voices'), { user: testUser } as any)
-      const data = await res.json() as { voices: { id: string }[] }
-
-      expect(data.voices).toEqual([{ id: 'legacy', name: 'Legacy' }])
-      expect(globalThis.fetch).not.toHaveBeenCalled()
+      expect(res.status).toBe(200)
+      const data = await res.json() as { recommended: Record<string, string> }
+      expect(data.recommended).toEqual({})
     })
 
-    it('caches per-model — different models each hit the gateway once', async () => {
-      const fetchMock = vi.fn(async (url: any) => new Response(
-        JSON.stringify({ voices: [{ id: `${new URL(url).searchParams.get('model')}-v` }] }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } },
-      ))
-      globalThis.fetch = fetchMock as any
-      const redis = createMockRedis()
-      const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, undefined, undefined, undefined, redis)
+    it('uses the explicit ?model= query when provided instead of DEFAULT_TTS_MODEL', async () => {
+      const llmRouter = createMockLlmRouter({
+        listTtsVoices: vi.fn(async (model: string) => [{ id: `${model}-v`, name: model } as any]) as any,
+      })
 
-      await app.fetch(new Request('http://localhost/api/v1/openai/audio/voices?model=tts-1'), { user: testUser } as any)
-      await app.fetch(new Request('http://localhost/api/v1/openai/audio/voices?model=tts-hd'), { user: testUser } as any)
-      await app.fetch(new Request('http://localhost/api/v1/openai/audio/voices?model=tts-1'), { user: testUser } as any)
+      const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, undefined, undefined, llmRouter)
 
-      expect(fetchMock).toHaveBeenCalledTimes(2)
+      await app.fetch(new Request('http://localhost/api/v1/audio/voices?model=alibaba/cosyvoice-v1'), { user: testUser } as any)
+      expect(llmRouter.listTtsVoices).toHaveBeenCalledWith('alibaba/cosyvoice-v1')
+    })
+
+    it('resolves `auto` model to configKV DEFAULT_TTS_MODEL', async () => {
+      const llmRouter = createMockLlmRouter({
+        listTtsVoices: vi.fn(async () => []) as any,
+      })
+      const configKV = createMockConfigKV({ DEFAULT_TTS_MODEL: 'microsoft/v1' })
+
+      const app = createTestApp(createMockFluxService(), configKV, undefined, undefined, undefined, llmRouter)
+
+      await app.fetch(new Request('http://localhost/api/v1/audio/voices?model=auto'), { user: testUser } as any)
+      expect(llmRouter.listTtsVoices).toHaveBeenCalledWith('microsoft/v1')
+    })
+  })
+
+  describe('gET /api/v1/audio/voices/streaming', () => {
+    function mockUnspeechVoices(voices: unknown[]) {
+      globalThis.fetch = vi.fn(async () => new Response(JSON.stringify({ voices }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })) as any
+    }
+
+    it('returns the streaming-model bucket of DEFAULT_TTS_VOICES when ?model= matches', async () => {
+      mockUnspeechVoices([{ id: 'zh_female_vv_uranus_bigtts', name: 'Vivi 2.0' }])
+      const configKV = createMockConfigKV({
+        STREAMING_TTS_UPSTREAM: { baseURL: 'http://unspeech.local' },
+        DEFAULT_TTS_VOICES: {
+          'seed-tts-2.0': { 'zh-cn': 'zh_female_vv_uranus_bigtts' },
+          'seed-tts-1.0': { 'zh-cn': 'should-not-leak' },
+        },
+      })
+
+      const app = createTestApp(createMockFluxService(), configKV)
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/voices/streaming?model=seed-tts-2.0'),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(200)
+      const data = await res.json() as { recommended: Record<string, string> }
+      expect(data.recommended).toEqual({ 'zh-cn': 'zh_female_vv_uranus_bigtts' })
+    })
+
+    it('returns empty recommended when ?model= is omitted', async () => {
+      mockUnspeechVoices([])
+      const configKV = createMockConfigKV({
+        STREAMING_TTS_UPSTREAM: { baseURL: 'http://unspeech.local' },
+        DEFAULT_TTS_VOICES: { 'seed-tts-2.0': { 'zh-cn': 'x' } },
+      })
+
+      const app = createTestApp(createMockFluxService(), configKV)
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/voices/streaming'),
+        { user: testUser } as any,
+      )
+
+      const data = await res.json() as { recommended: Record<string, string> }
+      expect(data.recommended).toEqual({})
+    })
+
+    it('returns empty recommended when the requested model has no configKV bucket', async () => {
+      mockUnspeechVoices([])
+      const configKV = createMockConfigKV({
+        STREAMING_TTS_UPSTREAM: { baseURL: 'http://unspeech.local' },
+        DEFAULT_TTS_VOICES: { 'seed-tts-2.0': { 'zh-cn': 'x' } },
+      })
+
+      const app = createTestApp(createMockFluxService(), configKV)
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/voices/streaming?model=seed-tts-1.0'),
+        { user: testUser } as any,
+      )
+
+      const data = await res.json() as { recommended: Record<string, string> }
+      expect(data.recommended).toEqual({})
     })
   })
 
