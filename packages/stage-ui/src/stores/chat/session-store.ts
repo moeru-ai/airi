@@ -23,6 +23,7 @@ import {
   reconcileLocalAndRemote,
 } from '../../libs/chat-sync'
 import { SERVER_URL } from '../../libs/server'
+import { capturePosthogEvent } from '../analytics/posthog'
 import { useAuthStore } from '../auth'
 import { useAiriCardStore } from '../modules/airi-card'
 import { mergeLoadedSessionMessages } from './session-message-merge'
@@ -440,6 +441,13 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     if (!meta)
       return
 
+    // Snapshot count before the in-memory wipe below zeroes it out.
+    const messageCount = (sessionMessages.value[sessionId] ?? []).length
+    capturePosthogEvent('chat_session_deleted', {
+      session_id: sessionId,
+      message_count: messageCount,
+    })
+
     const wasActive = activeSessionId.value === sessionId
     const characterId = meta.characterId
     const cloudChatId = meta.cloudChatId
@@ -850,14 +858,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     console.info('[chat-sync] creating WS client →', SERVER_URL)
     wsClient = createChatWsClient({
       serverUrl: SERVER_URL,
-      // NOTICE:
-      // `getAuthToken()` reads `localStorage` directly — that read is NOT
-      // reactive, so `ws-client`'s `urlRef = computed(() => ... getToken())`
-      // captures the initial token forever and ignores `oauth2/token`
-      // refreshes. The auto-reconnect loop then hammers `/ws/chat?token=<old>`
-      // and every upgrade returns 401 until the user reloads the tab.
-      // Read through the Pinia store ref so the computed actually tracks
-      // token rotation and rebuilds the URL.
+      // Reactive read — see `createChatWsUrlRef` contract.
       getToken: () => authToken.value,
     })
 

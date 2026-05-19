@@ -162,9 +162,9 @@ const data = JSON.parse(message) as BroadcastMessage
 - key helper 集中点
   - `src/utils/redis-keys.ts`
 - 余额读 cache-aside
-  - `src/services/flux.ts`
+  - `src/services/domain/flux.ts`
 - Sub-Flux 计量债务账本
-  - `src/services/billing/flux-meter.ts`
+  - `src/services/domain/billing/flux-meter.ts`
 - TTS voices 上游响应缓存
   - `src/routes/openai/v1/index.ts::handleListVoices`
 - Pub/Sub 聊天广播

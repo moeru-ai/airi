@@ -30,7 +30,7 @@ OTel SDK 在导出到 Prometheus 时做两件事：
 >
 > **STABLE-only**：[instrumentation.ts](../../instrumentation.ts) 把 `OTEL_SEMCONV_STABILITY_OPT_IN=http` 提前注入。OLD 系列（`http.server.duration` in ms）不再发射。详见 [`observability-conventions.md` 的 SemconvStability 章节](./observability-conventions.md#semconvstability-迁移说明)。
 >
-> `/health` 路径在 [app.ts](../../src/app.ts) 的 @hono/otel 包装层被显式 skip，Railway 健康检查不进 metric。
+> `/livez` 和 `/readyz` 在 [app.ts](../../src/app.ts) 的 @hono/otel 包装层被显式 skip，K8s 风格探针不进 metric。
 
 ## Auth & Users
 
@@ -52,13 +52,13 @@ OTel SDK 在导出到 Prometheus 时做两件事：
 
 | Metric | 类型 | 落点 | Labels |
 |---|---|---|---|
-| `chat.messages` | Counter | [services/chats.ts](../../src/services/chats.ts) `pushMessages` | — |
-| `character.created` | Counter | [services/characters.ts](../../src/services/characters.ts) | — |
+| `chat.messages` | Counter | [services/domain/chats.ts](../../src/services/domain/chats.ts) `pushMessages` | — |
+| `character.created` | Counter | [services/domain/characters.ts](../../src/services/domain/characters.ts) | — |
 | `character.deleted` | Counter | 同上 | — |
 | `character.engagement` | Counter | 同上（like/bookmark） | `action`（`like` / `unlike` / `bookmark` / `unbookmark`） |
 | `ws.connections.active` | ObservableGauge | [routes/chat-ws/index.ts](../../src/routes/chat-ws/index.ts) `addCallback` walks `userConnections` Map | — |
 | `ws.messages.sent` | Counter | 同上 | — |
-| `ws.messages.received` | Counter | [services/chats.ts](../../src/services/chats.ts) | — |
+| `ws.messages.received` | Counter | [services/domain/chats.ts](../../src/services/domain/chats.ts) | — |
 
 ## Revenue & Billing
 
@@ -80,10 +80,10 @@ OTel SDK 在导出到 Prometheus 时做两件事：
 | Metric | 类型 | 落点 | Labels |
 |---|---|---|---|
 | `airi.billing.flux.consumed` | Counter | [routes/openai/v1/index.ts](../../src/routes/openai/v1/index.ts) `recordMetrics`（chat / tts） | `gen_ai.request.model`、`gen_ai.operation.name`/`airi.gen_ai.operation.kind`、`http.response.status_code` |
-| `airi.billing.flux.credited` | Counter | [services/billing/billing-service.ts](../../src/services/billing/billing-service.ts) 三条入账路径 | `source`（`stripe.checkout`/`stripe.invoice`/`promo`/`admin_grant`/...）、`type`（`credit`/`promo`） |
+| `airi.billing.flux.credited` | Counter | [services/domain/billing/billing-service.ts](../../src/services/domain/billing/billing-service.ts) 三条入账路径 | `source`（`stripe.checkout`/`stripe.invoice`/`promo`/`admin_grant`/...）、`type`（`credit`/`promo`） |
 | `airi.billing.flux.unbilled` | Counter | [routes/openai/v1/index.ts](../../src/routes/openai/v1/index.ts) streaming 路径里 `consumeFluxForLLM` 失败的 catch | `gen_ai.request.model`、`reason`（`debit_failed`）、`stage`（`streaming`） |
-| `flux.insufficient_balance` | Counter | [services/billing/billing-service.ts](../../src/services/billing/billing-service.ts) `debitFlux` | — |
-| `airi.billing.tts.chars` | Counter | [services/billing/flux-meter.ts](../../src/services/billing/flux-meter.ts) `accumulate` | `meter`（`tts`）、`model` |
+| `flux.insufficient_balance` | Counter | [services/domain/billing/billing-service.ts](../../src/services/domain/billing/billing-service.ts) `debitFlux` | — |
+| `airi.billing.tts.chars` | Counter | [services/domain/billing/flux-meter.ts](../../src/services/domain/billing/flux-meter.ts) `accumulate` | `meter`（`tts`）、`model` |
 | `airi.billing.tts.preflight_rejections` | Counter | `flux-meter.ts` `assertCanAfford` | `meter`、`reason`（`insufficient_balance`） |
 
 > **`airi.billing.flux.unbilled` 是 P0 告警金线**：流式响应已经发给用户（HTTP 200，token 已经流出），但 post-stream debit 抛错——response 路径不会因此 5xx，DB latency 也只在 catch 那一瞬间显著。HTTP / DB 告警**覆盖不到**这条静默 revenue leak。推荐 alert：`increase(airi_billing_flux_unbilled_total[5m]) > 0` 持续 > 0 立刻 page。
@@ -101,7 +101,7 @@ OTel SDK 在导出到 Prometheus 时做两件事：
 
 ## Email（Resend）
 
-来源 [services/email.ts](../../src/services/email.ts) 的 `send()` 内部 try/catch。
+来源 [services/adapters/email.ts](../../src/services/adapters/email.ts) 的 `send()` 内部 try/catch。
 
 | Metric | 类型 | Labels |
 |---|---|---|

@@ -51,6 +51,7 @@ import {
 import { initializeElectronAuthCallbackBridge } from './bridges/electron-auth-callback'
 import { initializeStageThreeRuntimeTraceBridge } from './bridges/stage-three-runtime-trace'
 import { useLanguage } from './composables/use-language'
+import { createChatSyncWindowLifecycle } from './stores/chat-sync-lifecycle'
 import { useTamagotchiMcpToolsStore } from './stores/mcp-tools'
 import { useTamagotchiPluginToolsStore } from './stores/plugin-tools'
 import { useServerChannelSettingsStore } from './stores/settings/server-channel'
@@ -96,6 +97,7 @@ const getMainLocale = useElectronEventaInvoke(i18nGetLocale)
 const setLocale = useElectronEventaInvoke(i18nSetLocale)
 const getGodotStageStatus = useElectronEventaInvoke(electronGodotStageGetStatus)
 const syncArtistryConfig = useElectronEventaInvoke(artistrySyncConfig)
+const chatSyncLifecycle = createChatSyncWindowLifecycle(route.path)
 const isChatWindowRoute = () => route.path === '/chat'
 const isGodotStageRoute = () => route.path === '/' || route.path.startsWith('/settings')
 const isWidgetsWindowRoute = () => route.path === '/widgets'
@@ -196,6 +198,8 @@ context.value.on(electronGodotStageStatusChanged, (event) => {
 })
 
 onMounted(async () => {
+  chatSyncLifecycle.initialize()
+
   // NOTICE: Issue #1658
   // When Electron restarts, renderer localStorage may not be flushed to disk.
   // The store's onMounted hook falls back to navigator.language, which triggers
@@ -254,6 +258,10 @@ onMounted(async () => {
 
   // Preload local inference models (Kokoro TTS, etc.) in background after a delay
   inferencePreload.triggerPreload()
+})
+
+onUnmounted(() => {
+  chatSyncLifecycle.dispose()
 })
 
 watch(themeColorsHue, () => {

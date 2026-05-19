@@ -17,13 +17,14 @@ export function useTranscriptions(options: TranscriptionOptions) {
   const { messageInputRef: messageInput, sendMessage, isStageTamagotchi } = options
 
   const hearingStore = useHearingStore()
+  const audioDeviceSettingsStore = useSettingsAudioDevice()
   const hearingPipeline = useHearingSpeechInputPipeline()
   const { transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
   const { supportsStreamInput } = storeToRefs(hearingPipeline)
   const { configured: hearingConfigured, autoSendEnabled, autoSendDelay } = storeToRefs(hearingStore)
-  const { enabled: hearingEnabled, stream } = storeToRefs(useSettingsAudioDevice())
+  const { enabled: hearingEnabled, stream } = storeToRefs(audioDeviceSettingsStore)
   const providersStore = useProvidersStore()
-  const { askPermission, startStream } = useSettingsAudioDevice()
+  const { askPermission, startStream } = audioDeviceSettingsStore
 
   const isListening = ref(false)
 

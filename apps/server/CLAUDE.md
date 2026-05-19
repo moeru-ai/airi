@@ -49,7 +49,7 @@ Local observability: `docker compose -f apps/server/docker-compose.otel.yml up -
 
 - **Flux read/write separation**: `FluxService` reads (Redis cache-aside), `BillingService` writes (single Postgres tx that mutates `user_flux` and writes the matching `flux_transaction` ledger row). Never put write-balance logic in `flux.ts`.
 - **No async billing pipeline**: debits and credits update balance + ledger in one transaction. The `(user_id, request_id)` partial unique index gives DB-level idempotency for retries; LLM `request log` rows are written best-effort right after the response is delivered.
-- **LLM gateway proxy**: `/api/v1/openai` forwards to `GATEWAY_BASE_URL`. Server handles auth/billing/logging — not model execution.
+- **In-process LLM/TTS router**: `/api/v1/openai` is dispatched by `services/domain/llm-router` reading `LLM_ROUTER_CONFIG` (per-model upstream chain + envelope-encrypted keys). `chat/completions` walks LLM upstreams with key fallback; `audio/speech` delegates to a TTS adapter (`azure` / `dashscope-cosyvoice` / `volcengine`); `audio/voices` returns the adapter's compiled-in catalog. Server handles auth/billing/logging, not model execution.
 - **Redis is cache + pub/sub, not truth**: balance cache, app_settings read cache, WebSocket cross-instance pub/sub. Truth is always Postgres.
 - **Auth**: Better Auth + OIDC. `sessionMiddleware` fills context but doesn't block; `authGuard` returns 401.
 - **Multi-instance safe**: all writes go through Postgres transactions; cross-instance messaging uses Redis Pub/Sub. No async work, no in-process singletons — admin flux grants happen synchronously inside the POST that triggered them.

@@ -1,6 +1,8 @@
+import type { PostHog } from 'posthog-node'
+
 import type { AuthMetrics } from '../otel'
-import type { EmailService } from '../services/email'
-import type { UserDeletionService } from '../services/user-deletion'
+import type { EmailService } from '../services/adapters/email'
+import type { UserDeletionService } from '../services/domain/user-deletion'
 import type { Database } from './db'
 import type { Env } from './env'
 
@@ -14,6 +16,7 @@ import { deleteSessionCookie } from 'better-auth/cookies'
 import { bearer, jwt, magicLink } from 'better-auth/plugins'
 import { eq } from 'drizzle-orm'
 
+import { captureSafe } from '../services/adapters/posthog'
 import { ApiError } from '../utils/error'
 import { getAuthTrustedOrigins, getTrustedOrigin } from '../utils/origin'
 import { oidcJwtBearer } from './auth-plugins/oidc-jwt-bearer'
@@ -361,6 +364,7 @@ export function createAuth(
   email?: EmailService,
   metrics?: AuthMetrics | null,
   userDeletionService?: UserDeletionService,
+  posthog?: PostHog | null,
 ) {
   return betterAuth({
     secret: env.BETTER_AUTH_SECRET,
@@ -637,15 +641,27 @@ export function createAuth(
     databaseHooks: {
       user: {
         create: {
-          after: async () => {
+          after: async (user) => {
             metrics?.userRegistered.add(1)
+            await captureSafe(posthog ?? null, {
+              event: 'user_signed_up',
+              distinctId: user.id,
+            })
           },
         },
       },
       session: {
         create: {
-          after: async () => {
+          after: async (session) => {
             metrics?.userLogin.add(1)
+            await db
+              .update(authSchema.user)
+              .set({ lastSeenAt: new Date() })
+              .where(eq(authSchema.user.id, session.userId))
+            await captureSafe(posthog ?? null, {
+              event: 'session_started',
+              distinctId: session.userId,
+            })
           },
         },
       },

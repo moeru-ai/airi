@@ -1,23 +1,22 @@
 ---
-title: デスクトップ版のガイド
-description: Project AIRI のたまごっちバージョンの使い方
+title: デスクトップ版クイックスタート
+description: Project AIRI デスクトップ版の使い方
 ---
 
-## 今すぐチャットしたい！
+## まずチャットする
 
-問題ありません、私についてきてください：
+AIRI をインストールして起動したら、まずはオンボーディングを進めると会話を始めやすくなります。
 
-- オンボーディングプロセスを完了する
+1. AIRI に求められた場合は言語を選択します。
+2. **プロバイダーでセットアップ** を選びます。既に AIRI アカウントを使っている場合は、**サインイン** を選んでもかまいません。
+3. OpenRouter、OpenAI Compatible API、DeepSeek、Ollama、Qwen、Gemini、Claude などのチャットプロバイダーを選びます。
+4. API キー、またはローカルエンドポイントなど必要な情報を入力します。
+5. チャットモデルを選び、保存して続行します。
+6. メインのキャラクターウィンドウ右下にあるコントロールアイランドで **展開** をクリックします。
+7. **チャットを開く** をクリックし、メッセージを入力して送信します。
 
-1. 希望の LLM / AI プロバイダーを選択します（デモビデオでは OpenRouter を選択しました）
-2. LLM / AI と対話するための API キーを入力します（これはキャラクターの脳/魂として機能します）
-3. 希望のチャットモデルを選択します（デモビデオでは `DeepSeek V3 0324` を選択しました）
-4. システムトレイから **Fade on Hover**（ホバー時にフェード）モードを無効にします
-5. モデル UI にカーソルを合わせ、吹き出しアイコンをクリックすると、チャットウィンドウが表示されます
-6. 入力してチャットしましょう！
-
-::: tip ローカルで Ollama を使用していますか？
-完了後、`OLLAMA_ORIGINS=*` システム環境変数を設定し、Ollama アプリケーションを再起動する必要があります。
+::: tip ローカルの Ollama を使う場合
+システム環境変数 `OLLAMA_ORIGINS=*` を設定し、Ollama を再起動してから AIRI で選択してください。
 :::
 
 <br />
@@ -26,60 +25,41 @@ description: Project AIRI のたまごっちバージョンの使い方
  <source src="/assets/tutorial-basic-setup-providers.mp4" type="video/mp4">
 </video>
 
-<br />
+## 画面にあるもの
 
-ええと、これは早すぎましたね。**Fade on Hover** とは何なのか、どうやってすべてをカスタマイズするのか、まだわかりませんよね？
+デスクトップ版は Stage Tamagotchi とも呼ばれ、主に次の画面で構成されています。
 
-::: warning 私たちはまだ開発の初期段階にあり、多くの機能はまだ完全には利用できません
-いくつかの機能はまだ準備ができていませんが、現在それらを実現するために懸命に取り組んでいます：
+- **メインキャラクターウィンドウ**：デスクトップ上に常駐する Live2D / VRM ステージです。
+- **コントロールアイランド**：キャラクターウィンドウ右下の小さなボタングループです。
+- **チャットウィンドウ**：コントロールアイランドから開く会話用ウィンドウです。
+- **設定ウィンドウ**：プロバイダー、キャラクター、モデル、モジュール、データ、接続、システム設定を変更できます。
+- **システムトレイメニュー**：サイズ、配置、設定、キャプション、ウィジェット、終了などを操作できます。
 
-- 文字起こし
-- ローカル音声合成 (GPT-SoVITS, IndexTTS など)
-- 歌唱
-- UI からの Discord の設定（ただし、すでに機能しており、設定にはコーディングスキルが必要です）
-- UI からの Minecraft エージェントの設定（ただし、すでに機能しており、設定にはコーディングスキルが必要です）
-:::
+キャラクターウィンドウが隠れている場合は、AIRI のトレイアイコンをクリックするか、トレイメニューの **表示** から戻せます。
 
-しかし、その前に...
+## コントロールアイランド
 
-::: tip ありがとうございます！
+コントロールアイランドは、デスクトップ版を日常的に操作するための便利な入口です。
 
-ダウンロードして試していただきありがとうございます！
-:::
+- **展開** をクリックすると、追加の操作が表示されます。
+- **チャットを開く** でチャットウィンドウを開きます。
+- **設定を開く** でプロバイダー、モデル、モジュール、キャラクター、システム設定を開きます。
+- **プロファイルを切り替え** でアクティブなキャラクターカードを変更します。
+- 必要に応じて **再読み込み** でステージを再読み込みします。
+- ライト / ダークのアイコンでテーマを切り替えます。
+- ピンのアイコンで常に手前に表示するかを切り替えます。
+- 目のアイコンで **自動的に隠す** / **常に表示** を切り替えます。
+- マイクボタンで聴覚コントロールを開きます。
+- 移動ボタンをドラッグして、キャラクターウィンドウを移動します。
 
-ダウンロード後、どこからでも AIRI を起動できます。ユーザーインターフェースは2つの部分で構成されていることがわかります：
+## 自動的に隠す
 
-- オンボーディング / ウィザードセットアップガイド
-- モデル (Live2D および VRM モデルを表示可能)
+目のアイコンは、AIRI をしっかり操作できる状態にするか、作業中の視界やクリックへの干渉をやわらげるかを切り替えます。
 
-![](/assets/screenshot-ui.avif)
+- **常に表示** は、キャラクターを表示したままクリックできる状態にします。
+- **自動的に隠す** は、カーソルが近づいたときにキャラクターと UI をフェードさせ、背後のアプリへクリックを通しやすくします。
 
-システムトレイには、次のような他のオプション/コマンドがあります：
-
-- 表示 / 非表示
-- 設定を開く
-- ウィンドウの自動配置
-- など
-
-基本的な概念と機能を説明しながら、一つずつ始めていきましょう。
-
-## ウィンドウ操作
-
-以下について説明します：
-
-- モデルウィンドウとの対話方法は？
-- モデルウィンドウの移動方法は？
-- サイズ変更の方法は？
-
-### Fade on Hover（ホバー時にフェード）
-
-::: info TL;DR | チートシート
-この機能を切り替える（モデルと対話できるようにする）には、<kbd aria-label="Shift" data-keyboard-key="shift" inline-block>Shift</kbd> + <kbd aria-label="Alt" data-macos-keyboard-key="option" inline-block>Alt</kbd> + <kbd aria-label="I" inline-block>I</kbd> ショートカットを使用します。
-
-キーのマッピングは [設定] -> [一般] -> [ショートカット] でカスタマイズできます。
-:::
-
-モデルにカーソルを合わせると、Live2D モデルがフェードアウト/消え、カーソルで対話できないことに気付くでしょう。
+初めて自動的に隠すを有効にすると、AIRI は挙動を説明する短い案内を表示します。AIRI をクリックしづらくなった場合は、カーソルをコントロールアイランド付近に移動し、もう一度目のアイコンをクリックすると戻せます。
 
 <div rounded-lg overflow-hidden>
   <video autoplay loop muted class="scale-180 translate-x--30 translate-y--2 lg:scale-150 lg:translate-x--40">
@@ -87,50 +67,9 @@ description: Project AIRI のたまごっちバージョンの使い方
   </video>
 </div>
 
-これは、デフォルトで **Fade on Hover** 機能が有効になっているためです。つまり、カーソルがモデルウィンドウの上に重なると、ウィンドウがフェードアウトし、クリックがウィンドウを完全に通過します。
+## 移動とサイズ変更
 
-これは非常に強力な機能です。コンパニオンがあなたのそばに住んでいる間、それを使えば使うほど便利だと感じるでしょう。ここに私たちが考えた2つのシナリオがあります：
-
-#### CrunchyRoll の閲覧
-
-<video autoplay loop muted>
-  <source src="/assets/tutorial-demo-browsing-crunchy-roll.mp4" type="video/mp4">
-</video>
-
-#### Steam の閲覧
-
-<video autoplay loop muted>
-  <source src="/assets/tutorial-demo-browsing-steam.mp4" type="video/mp4">
-</video>
-
-この機能を無効にするのは簡単です。
-
-この機能を無効にするには2つの方法があります：
-
-- システムトレイ
-- ショートカット
-
-以下からこの機能を切り替えることができます：
-
-1. システムトレイアイコンを右クリック
-2. **Window mode**（ウィンドウモード）をクリック
-3. **Fade on hover**（ホバー時にフェード）をクリック
-
-<div rounded-lg overflow-hidden>
-  <video autoplay loop muted class="scale-200 translate-x--35 translate-y--23 lg:scale-180 lg:translate-x--60 lg:translate-y--40">
-    <source src="/assets/tutorial-basic-disable-fade-on-hover.mp4" type="video/mp4">
-  </video>
-</div>
-
-### ウィンドウを移動
-
-::: info TL;DR | チートシート
-この機能を切り替える（モデルと対話できるようにする）には、<kbd aria-label="Shift" data-keyboard-key="shift" inline-block>Shift</kbd> + <kbd aria-label="Alt" data-macos-keyboard-key="option" inline-block>Alt</kbd> + <kbd aria-label="N" inline-block>N</kbd> ショートカットを使用します。
-
-キーのマッピングは [設定] -> [一般] -> [ショートカット] でカスタマイズできます。
-:::
-
-<br />
+キャラクターウィンドウを移動するには、コントロールアイランド右下の移動ボタンをドラッグします。
 
 <div rounded-lg overflow-hidden>
   <video autoplay loop muted class="scale-225 translate-x--45 translate-y--5 lg:scale-200 lg:translate-x--80 lg:translate-y--5">
@@ -138,15 +77,13 @@ description: Project AIRI のたまごっちバージョンの使い方
   </video>
 </div>
 
-### ウィンドウのサイズ変更
+Windows では、ウィンドウの端や角をドラッグしてサイズを変更できます。トレイメニューにも便利なプリセットがあります。
 
-::: info TL;DR | チートシート
-この機能を切り替える（モデルと対話できるようにする）には、<kbd aria-label="Shift" data-keyboard-key="shift" inline-block>Shift</kbd> + <kbd aria-label="Alt" data-macos-keyboard-key="option" inline-block>Alt</kbd> + <kbd aria-label="A" inline-block>A</kbd> ショートカットを使用します。
+1. AIRI のトレイアイコンを右クリックします。
+2. **サイズ調節** を開きます。
+3. **おすすめ**、**高さ最大**、**高さ半分**、**フルスクリーン** から選びます。
 
-キーのマッピングは [設定] -> [一般] -> [ショートカット] でカスタマイズできます。
-:::
-
-<br />
+同じトレイメニューの **揃える** を使うと、中央や画面の角にウィンドウを配置できます。
 
 <div rounded-lg overflow-hidden>
   <video autoplay loop muted class="scale-160 translate-x--20 lg:scale-150 lg:translate-x--40 lg:translate-y-10">
@@ -154,16 +91,14 @@ description: Project AIRI のたまごっちバージョンの使い方
   </video>
 </div>
 
-## チャット
+## 確認しておくと便利な設定
 
-現在、システムトレイからチャットウィンドウを呼び出す直接のオプション/コマンドはありませんが、将来的に追加する可能性があります。現在、チャットウィンドウを開くには、**Fade on Hover** モードをオフに切り替える必要があります。
+最初のチャットができたら、次のページも確認しておくと便利です。
 
-::: info TL;DR | チートシート
-Fade on Hover のショートカットは：<kbd aria-label="Shift" data-keyboard-key="shift" inline-block>Shift</kbd> + <kbd aria-label="Alt" data-macos-keyboard-key="option" inline-block>Alt</kbd> + <kbd aria-label="I" inline-block>I</kbd> です。
-:::
+- **サービスソース**：Chat、Speech、Transcription、Artistry のプロバイダーを追加・編集します。
+- **ボディモジュール**：意識、発声、聴覚、視覚、記憶、Discord、Minecraft、Factorio、MCP などで使うプロバイダーを選びます。
+- **キャラクターモデル**：Live2D / VRM モデルを切り替えたり、自分のモデルをインポートしたりできます。
+- **AIRI キャラクターカード**：アクティブなキャラクターを変更、または新規作成します。
+- **システム**：言語、テーマ、分析データの設定、デスクトップ固有の設定を変更します。
 
-<br />
-
-<video autoplay loop muted>
- <source src="/assets/tutorial-basic-open-chat.mp4" type="video/mp4">
-</video>
+一部のモジュールはまだ実験的で、ローカルのソース設定や外部サービスが必要になる場合があります。

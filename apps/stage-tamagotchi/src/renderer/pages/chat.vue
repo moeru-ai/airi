@@ -1,20 +1,6 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue'
-
 import InteractiveArea from '../components/InteractiveArea.vue'
 import WindowTitleBar from '../components/Window/TitleBar.vue'
-
-import { useChatSyncStore } from '../stores/chat-sync'
-
-const chatSyncStore = useChatSyncStore()
-
-onMounted(() => {
-  chatSyncStore.initialize('follower')
-})
-
-onUnmounted(() => {
-  chatSyncStore.dispose()
-})
 </script>
 
 <template>

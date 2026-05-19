@@ -573,6 +573,30 @@ jobs:
             apps/stage-tamagotchi/bundle/latest-*.yml
           append_body: true
 
+  publish-gitcode-release:
+    name: Publish GitCode Release Mirror
+    needs: build
+    if: ${{ always() && github.repository == 'moeru-ai/airi' && (github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && !inputs.build_only && !inputs.artifacts_only && inputs.tag != '')) }}
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate release mirror tools
+        run: |
+          gh --version
+          jq --version
+          curl --version
+
+      - name: Publish release assets to GitCode
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
+          GITCODE_OWNER: ${{ secrets.GITCODE_OWNER }}
+          GITCODE_REPO: ${{ secrets.GITCODE_REPO }}
+          GITCODE_RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: bash .github/scripts/publish-gitcode-release.sh
+
   publish-distribution:
     name: Publish Distribution
     needs: build

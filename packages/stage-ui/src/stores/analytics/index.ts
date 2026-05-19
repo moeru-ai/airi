@@ -1,10 +1,12 @@
 import type { AboutBuildInfo } from '../../components/scenarios/about/types'
 
+import { isStageCapacitor, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
 
 import { useBuildInfo } from '../../composables/use-build-info'
 import { useAuthStore } from '../auth'
+import { useAiriCardStore } from '../modules/airi-card'
 import { useConsciousnessStore } from '../modules/consciousness'
 import { useSettingsAnalytics } from '../settings/analytics'
 import {
@@ -68,8 +70,19 @@ export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
 
     if (isPosthogAvailableInBuild()) {
       const shouldCapture = syncPosthogCapture(analyticsEnabled.value)
-      if (shouldCapture)
+      if (shouldCapture) {
         registerPosthogBuildInfo(buildInfo.value)
+        const platform: 'web' | 'desktop' | 'mobile'
+          = isStageTamagotchi()
+            ? 'desktop'
+            : isStageCapacitor()
+              ? 'mobile'
+              : 'web'
+        capturePosthogEvent('app_loaded', {
+          platform,
+          version: buildInfo.value.version,
+        })
+      }
     }
 
     // Wire PostHog identity to auth state. Without this server-side events
@@ -149,6 +162,24 @@ export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
         }
       },
       { immediate: true },
+    )
+
+    // Same single-callsite pattern as model_switched: track active
+    // character changes here so any UI surface that swaps cards
+    // (settings page, character picker, hotkey) is auto-instrumented.
+    const cardStore = useAiriCardStore()
+    watch(
+      () => cardStore.activeCardId,
+      (next, prev) => {
+        // Boot-time watcher tick (no previous value) is the baseline,
+        // not a switch — skip emit; the first real A→B will fire.
+        if (!next || !prev || prev === next)
+          return
+        capturePosthogEvent('character_switched', {
+          from_character_id: prev,
+          to_character_id: next,
+        })
+      },
     )
 
     isInitialized.value = true

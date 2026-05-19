@@ -87,6 +87,7 @@
     "@proj-airi/server-sdk-shared": "workspace:^",
     "@proj-airi/stage-shared": "workspace:^",
     "@proj-airi/stage-ui-live2d": "workspace:^",
+    "@proj-airi/stage-ui-spine": "workspace:^",
     "@proj-airi/stage-ui-three": "workspace:^",
     "@proj-airi/ui": "workspace:^",
     "@ricky0123/vad-web": "^0.0.30",
@@ -188,6 +189,7 @@
     "@types/hast": "catalog:",
     "@types/splitpanes": "catalog:",
     "@types/unist": "catalog:",
+    "@types/ws": "^8.18.1",
     "@unocss/reset": "^66.6.8",
     "@vitejs/plugin-vue": "^6.0.6",
     "@webgpu/types": "catalog:",
@@ -202,6 +204,7 @@
     "vite": "^6.4.2",
     "vitest-browser-vue": "catalog:",
     "vue": "catalog:",
-    "vue-tsc": "^3.2.6"
+    "vue-tsc": "^3.2.6",
+    "ws": "catalog:"
   }
 }

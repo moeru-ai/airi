@@ -1,9 +1,10 @@
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message } from '@xsai/shared-chat'
 
+import { IOSpanNames } from '@proj-airi/stage-shared'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ref } from 'vue'
+import { nextTick, ref } from 'vue'
 
 import { useChatOrchestratorStore } from './chat'
 
@@ -15,6 +16,27 @@ vi.hoisted(() => {
   }
 })
 
+const ioTracerMocks = vi.hoisted(() => {
+  const activeTurnSpan = { value: undefined as any }
+  const spans: any[] = []
+  const startSpanMock = vi.fn((name: string) => {
+    const span = {
+      name,
+      addEvent: vi.fn(),
+      end: vi.fn(),
+      setAttribute: vi.fn(),
+    }
+    spans.push(span)
+    return span
+  })
+
+  return {
+    activeTurnSpan,
+    spans,
+    startSpanMock,
+  }
+})
+
 const llmStreamMock = vi.fn()
 const trackFirstMessageMock = vi.fn()
 const ingestContextMessageMock = vi.fn()
@@ -23,8 +45,6 @@ const createMinecraftContextMock = vi.fn()
 const persistSessionMessagesMock = vi.fn()
 const forkSessionMock = vi.fn()
 const ensureSessionMock = vi.fn()
-const parserConsumeMock = vi.fn()
-const parserEndMock = vi.fn()
 
 const activeSessionIdRef = ref('session-1')
 const streamingMessageRef = ref<any>({ role: 'assistant', content: '', slices: [], tool_results: [] })
@@ -39,77 +59,20 @@ vi.mock('pinia', async () => {
   }
 })
 
-vi.mock('@proj-airi/stream-kit', () => ({
-  createQueue: ({ handlers }: { handlers: Array<(ctx: { data: any }) => Promise<void> | void> }) => {
-    const enqueueListeners: Array<(data: any) => void> = []
-    const dequeueListeners: Array<(data: any) => void> = []
-
-    return {
-      enqueue(data: any) {
-        for (const listener of enqueueListeners)
-          listener(data)
-
-        queueMicrotask(async () => {
-          try {
-            for (const handler of handlers) {
-              await handler({ data })
-            }
-          }
-          finally {
-            for (const listener of dequeueListeners)
-              listener(data)
-          }
-        })
-      },
-      on(event: 'enqueue' | 'dequeue', listener: (data: any) => void) {
-        if (event === 'enqueue') {
-          enqueueListeners.push(listener)
-          return
-        }
-
-        dequeueListeners.push(listener)
-      },
-    }
-  },
-}))
-
 vi.mock('../composables', () => ({
   useAnalytics: () => ({
     trackFirstMessage: trackFirstMessageMock,
+    trackMessageSendStarted: vi.fn(),
+    trackLlmRequestStarted: vi.fn(),
+    trackLlmFirstToken: vi.fn(),
+    trackAssistantResponseRendered: vi.fn(),
+    trackMessageRound: vi.fn(),
   }),
 }))
 
-vi.mock('../composables/llm-marker-parser', () => ({
-  useLlmmarkerParser: (options: { onLiteral?: (literal: string) => Promise<void>, onSpecial?: (special: string) => Promise<void>, onEnd?: (fullText: string) => Promise<void> }) => {
-    let fullText = ''
-    return {
-      consume: async (textPart: string) => {
-        parserConsumeMock(textPart)
-        fullText += textPart
-        if (textPart.startsWith('<|') && textPart.endsWith('|>')) {
-          await options.onSpecial?.(textPart)
-          return
-        }
-
-        await options.onLiteral?.(textPart)
-      },
-      end: async () => {
-        parserEndMock()
-        await options.onEnd?.(fullText)
-      },
-    }
-  },
-}))
-
-vi.mock('../composables/response-categoriser', () => ({
-  createStreamingCategorizer: () => ({
-    consume: vi.fn(),
-    filterToSpeech: (literal: string) => literal,
-  }),
-  categorizeResponse: (fullText: string) => ({
-    speech: fullText,
-    reasoning: '',
-  }),
+vi.mock('../composables/use-io-tracer', () => ({
+  activeTurnSpan: ioTracerMocks.activeTurnSpan,
+  startSpan: ioTracerMocks.startSpanMock,
 }))
 
 vi.mock('./chat/context-providers', () => ({
@@ -192,13 +155,15 @@ describe('chat orchestrator contract', () => {
     trackFirstMessageMock.mockReset()
     ingestContextMessageMock.mockReset()
     getContextsSnapshotMock.mockReset()
+    getContextsSnapshotMock.mockReturnValue({})
     createMinecraftContextMock.mockReset()
     createMinecraftContextMock.mockReturnValue(undefined)
     persistSessionMessagesMock.mockReset()
     forkSessionMock.mockReset()
     ensureSessionMock.mockReset()
-    parserConsumeMock.mockReset()
-    parserEndMock.mockReset()
+    ioTracerMocks.activeTurnSpan.value = undefined
+    ioTracerMocks.spans.length = 0
+    ioTracerMocks.startSpanMock.mockClear()
     activeSessionIdRef.value = 'session-1'
     streamingMessageRef.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
     currentGeneration = 1
@@ -280,8 +245,6 @@ describe('chat orchestrator contract', () => {
     // for datetime in this test (minecraft is mocked to return undefined).
     expect(ingestContextMessageMock).not.toHaveBeenCalled()
     expect(persistSessionMessagesMock).not.toHaveBeenCalled()
-    expect(parserConsumeMock).toHaveBeenCalledWith('hello')
-    expect(parserEndMock).toHaveBeenCalledTimes(1)
     expect(hookOrder).toEqual([
       'before-compose',
       'after-compose',
@@ -342,34 +305,236 @@ describe('chat orchestrator contract', () => {
     }))
   })
 
-  it('rejects cancelled queued sends before they start', async () => {
-    llmStreamMock.mockImplementation(async () => {
-      // keep pending
-      await new Promise(() => {})
+  /**
+   * @example
+   * store.sending = true
+   * await nextTick()
+   * expect(store.sending).toBe(true)
+   */
+  it('keeps sending writable for context bridge and chat sync consumers', async () => {
+    const store = useChatOrchestratorStore()
+
+    expect(store.sending).toBe(false)
+
+    store.sending = true
+    await nextTick()
+    expect(store.sending).toBe(true)
+
+    store.sending = false
+    await nextTick()
+    expect(store.sending).toBe(false)
+  })
+
+  /**
+   * @example
+   * store.sending = false while a local runtime send is still streaming.
+   */
+  it('does not end the owned IO turn span when external sending mirror is cleared mid-send', async () => {
+    let releaseStream: (() => void) | undefined
+    llmStreamMock.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        releaseStream = resolve
+      })
     })
 
     const store = useChatOrchestratorStore()
-    const pending = store.ingest('cancel me', {
+    const send = store.ingest('hold stream', {
       model: 'gpt-test',
       chatProvider: provider,
     })
 
-    store.cancelPendingSends('session-1')
+    await vi.waitFor(() => {
+      expect(store.sending).toBe(true)
+    })
+    await vi.waitFor(() => {
+      expect(ioTracerMocks.spans.some(span => span.name === IOSpanNames.InteractionTurn)).toBe(true)
+    })
 
-    await expect(pending).rejects.toThrow('Chat session was reset before send could start')
+    const turnSpan = ioTracerMocks.spans.find(span => span.name === IOSpanNames.InteractionTurn)
+    if (!turnSpan)
+      throw new Error('Expected the chat facade to create an interaction turn span')
+
+    store.sending = false
+    await nextTick()
+
+    expect(turnSpan.end).not.toHaveBeenCalled()
+
+    releaseStream?.()
+    await send
+
+    expect(turnSpan.end).toHaveBeenCalledTimes(1)
+    expect(ioTracerMocks.activeTurnSpan.value).toBeUndefined()
+  })
+
+  /**
+   * @example
+   * createMinecraftContext() returns a runtime context update.
+   * The facade passes it into the core runtime before prompt snapshots are read.
+   */
+  it('ingests runtime context providers before composing prompt snapshots', async () => {
+    const minecraftContext = {
+      id: 'minecraft-context',
+      contextId: 'system:minecraft',
+      strategy: 'replace-self',
+      source: 'minecraft',
+      text: 'player is near spawn',
+      createdAt: 123,
+    }
+    let composedMessages: Message[] = []
+
+    createMinecraftContextMock.mockReturnValue(minecraftContext)
+    getContextsSnapshotMock.mockReturnValue({
+      'system:minecraft': [minecraftContext],
+    })
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, messages: Message[], options: any) => {
+      composedMessages = messages
+      await options.onStreamEvent({ type: 'text-delta', text: 'minecraft reply' })
+      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+    })
+
+    const store = useChatOrchestratorStore()
+
+    await store.ingest('where am I?', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    expect(ingestContextMessageMock).toHaveBeenCalledTimes(1)
+    expect(ingestContextMessageMock).toHaveBeenCalledWith(minecraftContext)
+    expect(ingestContextMessageMock.mock.invocationCallOrder[0]).toBeLessThan(
+      getContextsSnapshotMock.mock.invocationCallOrder[0],
+    )
+    const minecraftMessageContent = composedMessages[1]?.content
+    if (!Array.isArray(minecraftMessageContent))
+      throw new TypeError('Expected composed user message content to be an array')
+    expect(minecraftMessageContent[1]).toMatchObject({
+      text: expect.stringContaining('- system:minecraft: player is near spawn'),
+    })
+  })
+
+  it('rejects cancelled queued sends before they start', async () => {
+    let releaseFirstSend: (() => void) | undefined
+    llmStreamMock.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        releaseFirstSend = resolve
+      })
+    })
+
+    const store = useChatOrchestratorStore()
+    const firstSend = store.ingest('hold queue', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+    const secondSend = store.ingest('cancel me', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    await vi.waitFor(() => {
+      expect(llmStreamMock).toHaveBeenCalledTimes(1)
+    })
+    await vi.waitFor(() => {
+      expect(store.pendingQueuedSendCount).toBe(1)
+    })
+    store.cancelPendingSends('session-1')
+    releaseFirstSend?.()
+
+    await expect(secondSend).rejects.toThrow('Chat session was reset before send could start')
+    await firstSend
+  })
+
+  /**
+   * @example
+   * store.getPendingQueuedSendSnapshot()
+   * // => [{ sessionId, generation, cancelled, messagePreview, hasAttachments, inputType }]
+   */
+  it('mirrors pending queued send snapshots from the core runtime', async () => {
+    let releaseFirstSend: (() => void) | undefined
+    llmStreamMock.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        releaseFirstSend = resolve
+      })
+    })
+
+    const queuedMessage = 'queued-message-'.repeat(12)
+    const store = useChatOrchestratorStore()
+    const firstSend = store.ingest('hold queue', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+    const secondSend = store.ingest(queuedMessage, {
+      model: 'gpt-test',
+      chatProvider: provider,
+      attachments: [
+        {
+          type: 'image',
+          data: 'aW1hZ2U=',
+          mimeType: 'image/png',
+        },
+      ],
+      input: {
+        type: 'input:text',
+        data: {
+          text: 'queued input',
+        },
+      },
+    })
+
+    await vi.waitFor(() => {
+      expect(llmStreamMock).toHaveBeenCalledTimes(1)
+    })
+    await vi.waitFor(() => {
+      expect(store.pendingQueuedSendCount).toBe(1)
+    })
+
+    expect(store.getPendingQueuedSendSnapshot()).toEqual([
+      {
+        sessionId: 'session-1',
+        generation: 1,
+        cancelled: false,
+        messagePreview: queuedMessage.slice(0, 120),
+        hasAttachments: true,
+        inputType: 'input:text',
+      },
+    ])
+
+    store.cancelPendingSends('session-1')
+    releaseFirstSend?.()
+
+    await expect(secondSend).rejects.toThrow('Chat session was reset before send could start')
+    await firstSend
   })
 
   it('rejects stale generation sends before performSend starts', async () => {
+    let releaseFirstSend: (() => void) | undefined
+    llmStreamMock.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        releaseFirstSend = resolve
+      })
+    })
+
     const store = useChatOrchestratorStore()
-    const pending = store.ingest('stale request', {
+    const firstSend = store.ingest('hold queue', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+    const secondSend = store.ingest('stale request', {
       model: 'gpt-test',
       chatProvider: provider,
     })
 
+    await vi.waitFor(() => {
+      expect(llmStreamMock).toHaveBeenCalledTimes(1)
+    })
+    await vi.waitFor(() => {
+      expect(store.pendingQueuedSendCount).toBe(1)
+    })
     currentGeneration = 2
+    releaseFirstSend?.()
 
-    await expect(pending).rejects.toThrow('Chat session was reset before send could start')
-    expect(llmStreamMock).not.toHaveBeenCalled()
+    await firstSend
+    await expect(secondSend).rejects.toThrow('Chat session was reset before send could start')
+    expect(llmStreamMock).toHaveBeenCalledTimes(1)
   })
 
   it('uses forked session id in ingestOnFork and keeps public store contract keys', async () => {

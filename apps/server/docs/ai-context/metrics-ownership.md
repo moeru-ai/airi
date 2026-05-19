@@ -112,7 +112,7 @@
 
 已接入：
 - 前端 `posthog-js` 通过 `packages/stage-ui/src/stores/analytics/posthog.ts` 初始化，三个 app（web / desktop / pocket）按 `isStageTamagotchi()` 等选 project key
-- 后端 `posthog-node` 通过 `apps/server/src/services/posthog.ts` + injeca provider `services:posthog`
+- 后端 `posthog-node` 通过 `apps/server/src/services/adapters/posthog.ts` + injeca provider `services:posthog`
 - 前端↔后端 identity merge：`useSharedAnalyticsStore.initialize()` watch `authStore.isAuthenticated` 自动调 `posthog.identify(user.id)` / `reset()`
 
 已埋点：
@@ -152,7 +152,7 @@
 `apps/server`：
 
 ```ts
-// services/posthog.ts（新增）
+// services/adapters/posthog.ts（新增）
 import { PostHog } from 'posthog-node'
 
 export function createPostHog(env: ServerEnv) {

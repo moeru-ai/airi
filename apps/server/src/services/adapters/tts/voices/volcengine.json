@@ -1,0 +1,30 @@
+[
+  {
+    "id": "BV001_streaming",
+    "name": "BV001 (Streaming)",
+    "description": "Volcengine default streaming voice",
+    "compatible_models": ["volcano_tts"],
+    "formats": [
+      { "name": "mp3", "format_code": "mp3", "mime_type": "audio/mpeg", "extension": "mp3", "bitrate": 64, "sample_rate": 24000 }
+    ],
+    "labels": { "gender": "Female", "type": "neural" },
+    "languages": [
+      { "code": "zh-CN", "title": "Chinese (Simplified)" }
+    ],
+    "tags": ["chinese", "streaming"]
+  },
+  {
+    "id": "BV002_streaming",
+    "name": "BV002 (Streaming)",
+    "description": "Volcengine male streaming voice",
+    "compatible_models": ["volcano_tts"],
+    "formats": [
+      { "name": "mp3", "format_code": "mp3", "mime_type": "audio/mpeg", "extension": "mp3", "bitrate": 64, "sample_rate": 24000 }
+    ],
+    "labels": { "gender": "Male", "type": "neural" },
+    "languages": [
+      { "code": "zh-CN", "title": "Chinese (Simplified)" }
+    ],
+    "tags": ["chinese", "streaming"]
+  }
+]
