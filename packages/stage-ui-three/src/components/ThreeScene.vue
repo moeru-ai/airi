@@ -100,7 +100,6 @@ const {
   modelOffset,
   modelRotationY,
 
-  cameraFOV,
   cameraPosition,
   cameraDistance,
 
@@ -436,8 +435,7 @@ function onOrbitControlsReady() {
 const controlEnable = computed(() => {
   return controlsReady.value
     && modelPhase.value === 'ready'
-    && scenePhase.value === 'mounted'
-    && sceneTransactionDepth.value === 0
+    && !sceneMutationLocked.value
 })
 function onVRMModelLoadStart(reason: VrmLifecycleReason) {
   modelPhase.value = 'loading'
@@ -728,10 +726,7 @@ defineExpose({
         ref="controlsRef"
         :control-enable="controlEnable"
         :model-size="modelSize"
-        :camera-position="cameraPosition"
         :camera-target="modelOrigin"
-        :camera-f-o-v="cameraFOV"
-        :camera-distance="cameraDistance"
         @orbit-controls-camera-changed="onOrbitControlsCameraChanged"
         @orbit-controls-ready="onOrbitControlsReady"
       />

@@ -139,8 +139,7 @@ watch(hearingPopoverOpen, async (value) => {
 onAfterMessageComposed(async () => {
 })
 
-const { startAnalyzer, stopAnalyzer, volumeLevel } = useAudioAnalyzer()
-const normalizedVolume = computed(() => Math.min(1, Math.max(0, (volumeLevel.value ?? 0) / 100)))
+const { startAnalyzer, stopAnalyzer } = useAudioAnalyzer()
 let analyzerSource: MediaStreamAudioSourceNode | undefined
 
 function teardownAnalyzer() {
@@ -294,7 +293,6 @@ watch(sendMode, () => {
               v-model:auto-send="autoSendEnabled"
               :transcription="isListening"
               :granted="true"
-              :volume-level="normalizedVolume"
               @toggle-transcription="() => isListening ? stopStreamingTranscription() : startStreamingTranscription()"
             />
           </PopoverContent>

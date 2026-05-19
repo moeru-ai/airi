@@ -1,10 +1,31 @@
 <script setup lang="ts">
 import { RoundRange } from '@proj-airi/ui'
-import { onUnmounted } from 'vue'
+import { computed, onUnmounted } from 'vue'
 
-import { controlConfig, useL2dViewControl } from '../../stores'
+import { defaultControlConfig as conf, formatter, useL2dViewControl } from '../../stores'
 
-const { scale, position, viewControlsEnabled, viewControlMode } = useL2dViewControl()
+const { scale, position, viewControlsEnabled, viewControlMode, set: setValue } = useL2dViewControl()
+
+const controlledValue = computed({
+  get() {
+    switch (viewControlMode.value) {
+      case 'x':
+        return position.value.x
+      case 'y':
+        return position.value.y
+      case 'scale':
+        return scale.value
+      default: throw new Error(`Unexpected control key: ${viewControlMode.value}`)
+    }
+  },
+  set(value) {
+    setValue(viewControlMode.value, value)
+  },
+})
+
+const formattedValue = computed(() => {
+  return formatter[viewControlMode.value](controlledValue.value)
+})
 
 onUnmounted(() => {
   viewControlsEnabled.value = false
@@ -15,31 +36,13 @@ onUnmounted(() => {
   <Transition name="fade-side-pops-in">
     <div v-if="viewControlsEnabled">
       <Transition name="fade-side-pops-in" mode="out-in">
-        <div v-if="viewControlMode === 'x'" relative class="[&_.round-range-tooltip]:hover:opacity-100">
+        <div :key="viewControlMode" relative class="[&_.round-range-tooltip]:hover:opacity-100">
           <RoundRange
-            v-model="position.x" :min="controlConfig.x.min" :max="controlConfig.x.max" :step="controlConfig.x.step" handle-wheel
+            v-model="controlledValue" :min="conf[viewControlMode].min" :max="conf[viewControlMode].max" :step="conf[viewControlMode].step" handle-wheel
             data-direction="vertical" h="50%" write-vertical-left
           />
           <div class="round-range-tooltip" top="50%" translate-y="[-50%]" absolute left-10 font-mono op-0 transition="all duration-200 ease-in-out">
-            {{ controlConfig.x.format(position.x) }}
-          </div>
-        </div>
-        <div v-else-if="viewControlMode === 'y'" relative class="[&_.round-range-tooltip]:hover:opacity-100">
-          <RoundRange
-            v-model="position.y" :min="controlConfig.y.min" :max="controlConfig.y.max" :step="controlConfig.y.step" handle-wheel
-            data-direction="vertical" h="50%" write-vertical-left
-          />
-          <div class="round-range-tooltip" top="50%" translate-y="[-50%]" absolute left-10 font-mono op-0 transition="all duration-200 ease-in-out">
-            {{ controlConfig.y.format(position.y) }}
-          </div>
-        </div>
-        <div v-else-if="viewControlMode === 'scale'" relative class="[&_.round-range-tooltip]:hover:opacity-100">
-          <RoundRange
-            v-model="scale" :min="controlConfig.scale.min" :max="controlConfig.scale.max" :step="controlConfig.scale.step" handle-wheel
-            data-direction="vertical" h="50%" write-vertical-left
-          />
-          <div class="round-range-tooltip" top="50%" translate-y="[-50%]" absolute left-10 font-mono op-0 transition="all duration-200 ease-in-out">
-            {{ controlConfig.scale.format(scale) }}
+            {{ formattedValue }}
           </div>
         </div>
       </Transition>
