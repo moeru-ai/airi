@@ -59,6 +59,20 @@ export const ttsUpstreamSchema = object({
   adapterParams: optional(record(string(), any()), {}),
 })
 
+export const streamingTtsUpstreamSchema = object({
+  baseURL: pipe(string(), nonEmpty('STREAMING_TTS_UPSTREAM.baseURL must not be empty')),
+  keys: pipe(array(keyEntrySchema), check(v => v.length >= 1, 'STREAMING_TTS_UPSTREAM.keys must contain at least 1 entry')),
+  adapterParams: optional(record(string(), any()), {}),
+  models: optional(
+    array(object({
+      id: pipe(string(), nonEmpty('STREAMING_TTS_UPSTREAM.models[].id must not be empty')),
+      name: optional(string()),
+      description: optional(string()),
+    })),
+    [],
+  ),
+})
+
 export const ttsModelSchema = object({
   provider: ttsProviderSchema,
   upstreams: pipe(array(ttsUpstreamSchema), check(v => v.length >= 1, 'tts.models[].upstreams must contain at least 1 entry')),
@@ -129,11 +143,10 @@ const ConfigEntrySchemas = {
   // LLM_ROUTER_CONFIG.tts.models because the streaming surface has different
   // semantics from one-shot HTTP TTS: ws-to-ws bridging, no per-attempt retry
   // (a live ws cannot transparently switch upstream mid-session), upstream
-  // does the protocol translation to providers (Volcengine v3 etc.). Reuses
-  // ttsUpstreamSchema only for the key envelope shape — `keys` carry the
-  // upstream-provider API key (e.g. Volcengine X-Api-Key), not an unspeech
-  // tenant token.
-  STREAMING_TTS_UPSTREAM: optional(ttsUpstreamSchema),
+  // does the protocol translation to providers (Volcengine v3 etc.). `keys`
+  // carry the upstream-provider API key (e.g. Volcengine X-Api-Key), not an
+  // unspeech tenant token.
+  STREAMING_TTS_UPSTREAM: optional(streamingTtsUpstreamSchema),
 } as const
 
 type ConfigDefinitions = {

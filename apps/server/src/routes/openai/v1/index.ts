@@ -712,6 +712,18 @@ export function createV1Routes(
     })
   }
 
+  async function handleListStreamingTTSModels(_c: Context<HonoEnv>) {
+    const upstream = await configKV.getOptional('STREAMING_TTS_UPSTREAM')
+    const models = upstream?.models ?? []
+    return Response.json({
+      models: models.map(m => ({
+        id: m.id,
+        name: m.name ?? m.id,
+        description: m.description,
+      })),
+    })
+  }
+
   const chatGuard = configGuard(configKV, ['FLUX_PER_REQUEST'], 'Service is not available yet')
   const ttsGuard = configGuard(configKV, ['FLUX_PER_1K_CHARS_TTS'], 'TTS service is not available yet')
 
@@ -739,6 +751,7 @@ export function createV1Routes(
     .get('/voices', handleListVoices)
     .get('/voices/streaming', handleListStreamingVoices)
     .get('/models', handleListTTSModels)
+    .get('/models/streaming', handleListStreamingTTSModels)
 
   return { openaiRoutes, audioRoutes }
 }

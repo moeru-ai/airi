@@ -205,23 +205,20 @@ export const providerOfficialSpeechStreaming = defineProvider({
   validationRequiredWhen: () => false,
   extraMethods: {
     listModels: async (): Promise<ModelInfo[]> => {
-      // Streaming-capable models. The wire `model` field uses the
-      // `<backend>/<id>` shape unspeech expects (see
-      // `unspeech/docs/wire-protocols/audio-speech-stream-v1.md`).
-      return [
-        {
-          id: 'volcengine/seed-tts-2.0',
-          name: 'Volcengine Seed-TTS 2.0',
-          provider: OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
-          description: 'Volcengine bidirectional streaming TTS (TTS 2.0)',
-        },
-        {
-          id: 'volcengine/seed-tts-1.0',
-          name: 'Volcengine Seed-TTS 1.0',
-          provider: OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
-          description: 'Volcengine bidirectional streaming TTS (TTS 1.0)',
-        },
-      ]
+      const res = await globalThis.fetch(`${SERVER_URL}/api/v1/audio/models/streaming`, { headers: authHeaders() })
+      if (!res.ok)
+        throw new Error(`streaming models upstream ${res.status}: ${await res.text().catch(() => '')}`.slice(0, 256))
+
+      const data = await res.json() as { models?: { id: string, name?: string, description?: string }[] }
+      if (!Array.isArray(data.models))
+        throw new Error('streaming models upstream returned malformed body')
+
+      return data.models.map(m => ({
+        id: m.id,
+        name: m.name ?? m.id,
+        provider: OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
+        description: m.description,
+      }))
     },
     listVoices: async (_config, _provider, model): Promise<VoiceInfo[]> => {
       // Streaming voices live behind a dedicated endpoint

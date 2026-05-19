@@ -771,6 +771,77 @@ describe('v1CompletionsRoutes', () => {
     })
   })
 
+  describe('gET /api/v1/audio/models/streaming', () => {
+    it('returns the operator-configured streaming model catalog', async () => {
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV({
+          STREAMING_TTS_UPSTREAM: {
+            baseURL: 'wss://unspeech.local',
+            keys: [{ id: 'k1', ciphertext: 'enc' }],
+            models: [
+              { id: 'volcengine/seed-tts-2.0', name: 'Volcengine Seed-TTS 2.0', description: 'TTS 2.0' },
+              { id: 'volcengine/seed-tts-1.0' },
+            ],
+          },
+        }),
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/models/streaming', { method: 'GET' }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(200)
+      const data = await res.json() as { models: { id: string, name: string, description?: string }[] }
+      expect(data.models).toEqual([
+        { id: 'volcengine/seed-tts-2.0', name: 'Volcengine Seed-TTS 2.0', description: 'TTS 2.0' },
+        { id: 'volcengine/seed-tts-1.0', name: 'volcengine/seed-tts-1.0' },
+      ])
+    })
+
+    it('returns an empty list when STREAMING_TTS_UPSTREAM is unset', async () => {
+      const app = createTestApp(createMockFluxService(), createMockConfigKV())
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/models/streaming', { method: 'GET' }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(200)
+      const data = await res.json() as { models: unknown[] }
+      expect(data.models).toEqual([])
+    })
+
+    it('returns an empty list when STREAMING_TTS_UPSTREAM has no models', async () => {
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV({
+          STREAMING_TTS_UPSTREAM: {
+            baseURL: 'wss://unspeech.local',
+            keys: [{ id: 'k1', ciphertext: 'enc' }],
+          },
+        }),
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/models/streaming', { method: 'GET' }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(200)
+      const data = await res.json() as { models: unknown[] }
+      expect(data.models).toEqual([])
+    })
+
+    it('should return 401 when unauthenticated', async () => {
+      const app = createTestApp(createMockFluxService(), createMockConfigKV())
+
+      const res = await app.request('/api/v1/audio/models/streaming', { method: 'GET' })
+      expect(res.status).toBe(401)
+    })
+  })
+
   describe('gET /api/v1/audio/voices', () => {
     it('returns the recommended bucket scoped to the resolved model', async () => {
       const voices = [

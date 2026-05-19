@@ -2,7 +2,7 @@ import type Redis from 'ioredis'
 import type { InferOutput } from 'valibot'
 
 import type { EnvelopeCrypto } from '../../../../utils/envelope-crypto'
-import type { ConfigKVService, llmModelSchema, llmRouterConfigSchema, ttsModelSchema, ttsUpstreamSchema } from '../../../adapters/config-kv'
+import type { ConfigKVService, llmModelSchema, llmRouterConfigSchema, streamingTtsUpstreamSchema, ttsModelSchema } from '../../../adapters/config-kv'
 
 import { useLogger } from '@guiiai/logg'
 
@@ -28,7 +28,7 @@ const DEFAULT_KEY_ENTRY_IDS = {
 type LlmRouterConfig = InferOutput<typeof llmRouterConfigSchema>
 type LlmModel = InferOutput<typeof llmModelSchema>
 type TtsModel = InferOutput<typeof ttsModelSchema>
-type TtsUpstream = InferOutput<typeof ttsUpstreamSchema>
+type StreamingTtsUpstream = InferOutput<typeof streamingTtsUpstreamSchema>
 
 /**
  * Per-provider input. The admin route validates the shape with Valibot
@@ -115,7 +115,7 @@ interface TtsModelSlice {
 interface StreamingTtsSlice {
   target: 'streaming-tts'
   kind: 'streaming-tts'
-  value: TtsUpstream
+  value: StreamingTtsUpstream
   keyEntryId: string
 }
 
@@ -246,6 +246,7 @@ export function buildStreamingTtsSlice(input: StreamingTtsSliceInput, envelope: 
       baseURL: input.upstreamURL,
       keys: [{ id: keyEntryId, ciphertext }],
       adapterParams: {},
+      models: [],
     },
   }
 }
@@ -465,7 +466,9 @@ export function createAdminRouterConfigService(deps: AdminRouterConfigDeps) {
       invalidatedKeys.push('LLM_ROUTER_CONFIG')
     }
     if (streamingSlice) {
-      await deps.configKV.set('STREAMING_TTS_UPSTREAM', streamingSlice.value as never)
+      const existing = await deps.configKV.getOptional('STREAMING_TTS_UPSTREAM')
+      const merged = { ...streamingSlice.value, models: existing?.models ?? streamingSlice.value.models }
+      await deps.configKV.set('STREAMING_TTS_UPSTREAM', merged as never)
       invalidatedKeys.push('STREAMING_TTS_UPSTREAM')
     }
     if (input.defaults?.chatModel) {
