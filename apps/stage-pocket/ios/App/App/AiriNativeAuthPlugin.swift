@@ -45,8 +45,7 @@ class AiriNativeAuthPlugin: CAPPlugin, CAPBridgedPlugin, ASWebAuthenticationPres
                 }
 
                 if let authError = error as? ASWebAuthenticationSessionError,
-                   authError.code == .canceledLogin
-                {
+                   authError.code == .canceledLogin {
                     call.reject("USER_CANCELLED", "The authentication session was cancelled")
                     return
                 }
