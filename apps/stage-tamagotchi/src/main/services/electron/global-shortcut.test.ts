@@ -101,6 +101,19 @@ async function setupMocks() {
       unregister: unregisterMock,
       unregisterAll: unregisterAllMock,
     },
+    systemPreferences: {
+      isTrustedAccessibilityClient: vi.fn(() => true),
+    },
+  }))
+
+  vi.doMock('uiohook-napi', () => ({
+    uIOhook: {
+      on: vi.fn(),
+      removeListener: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn(),
+    },
+    UiohookKey: new Proxy({}, { get: () => 0 }),
   }))
 
   vi.doMock('@moeru/eventa', async (importOriginal) => {
@@ -162,19 +175,15 @@ describe('setupGlobalShortcutService', () => {
     expect(m.registerMock).toHaveBeenCalledWith('CmdOrCtrl+Shift+K', expect.any(Function))
   })
 
-  it('refuses receiveKeyUps with reason "unsupported" and does not call globalShortcut', async () => {
-    // Electron's `globalShortcut` does not deliver key-release
-    // events. The driver refuses `receiveKeyUps: true` honestly so
-    // callers can switch to (or fail back from) the uiohook driver
-    // path that will handle it.
+  it('routes receiveKeyUps:true to the uiohook driver and bypasses electron.globalShortcut', async () => {
     const m = await setupMocks()
     const service = m.setupGlobalShortcutService()
     const ctx = createMockContext()
     registerMockWindow(service, ctx)
 
     const handler = ctx.invokeHandlers.get('eventa:invoke:electron:shortcut:register')!
-    const result = handler({ ...exampleBinding('ptt'), receiveKeyUps: true }) as { id: string, ok: boolean, reason?: string }
-    expect(result).toEqual({ id: 'ptt', ok: false, reason: ShortcutFailureReasons.Unsupported })
+    const result = handler({ ...exampleBinding('ptt'), receiveKeyUps: true }) as { id: string, ok: boolean }
+    expect(result).toEqual({ id: 'ptt', ok: true })
     expect(m.registerMock).not.toHaveBeenCalled()
   })
 

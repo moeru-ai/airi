@@ -62,10 +62,12 @@ export interface ShortcutBinding {
   /**
    * Whether the driver should also emit key-release events.
    *
-   * Drivers that cannot deliver release events refuse the registration
-   * with `{ ok: false, reason: ShortcutFailureReasons.Unsupported }`. The Electron
-   * `globalShortcut` driver currently refuses; a uiohook-based driver
-   * path is planned to honour this flag.
+   * Routes the binding through the uiohook driver, which delivers
+   * both `down` and `up` phases. Required for push-to-talk and any
+   * hold-driven flow. Drivers that genuinely cannot deliver release
+   * events under the current session (e.g. native Wayland for the
+   * uiohook path) refuse with `{ ok: false, reason: ShortcutFailureReasons.Unsupported }`;
+   * macOS without Accessibility permission refuses with `Denied`.
    *
    * @default false
    */
