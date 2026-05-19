@@ -178,13 +178,22 @@ export function normalizeNullableAnyOf(schema: JsonSchema): JsonSchema {
   const next: JsonSchema = { ...schema }
 
   if (next.properties) {
-    next.properties = Object.fromEntries(
+    const properties = Object.fromEntries(
       Object.entries(next.properties).map(([key, value]) => {
         if (!isJsonSchema(value))
           return [key, value]
         return [key, normalizeNullableAnyOf(value)]
       }),
     )
+    next.properties = properties
+
+    if (Array.isArray(next.required)) {
+      const propertyNames = new Set(Object.keys(properties))
+      next.required = next.required.filter(key => propertyNames.has(key))
+
+      if (next.required.length === 0)
+        delete next.required
+    }
   }
 
   if (Array.isArray(next.items)) {
