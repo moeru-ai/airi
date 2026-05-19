@@ -1,10 +1,15 @@
 import type { MaybeRefOrGetter } from 'vue'
 
+import { isStageWeb } from '@proj-airi/stage-shared'
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 import { computed, toValue } from 'vue'
 
 const breakpoints = useBreakpoints(breakpointsTailwind)
-const startingOffsetY = computed(() => breakpoints.between('sm', 'md').value || breakpoints.smaller('sm').value ? 0.75 : 1)
+const startingOffsetY = computed(() => {
+  if (isStageWeb())
+    breakpoints.smallerOrEqual('md').value ? 0.75 : 1
+  return 1
+})
 
 /**
  *  Normalizes the model so that user `scale == 1` means twice the viewport height,
