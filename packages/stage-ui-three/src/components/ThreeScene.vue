@@ -447,7 +447,7 @@ function onVRMSceneBootstrap(value: SceneBootstrap) {
   pendingSceneBootstrap.value = value
 }
 
-function onVRMModelLookAtTarget(value: Vec3) {
+function onVRMModelLookAtTarget(value: Vector3) {
   lookAtTarget.value.x = value.x
   lookAtTarget.value.y = value.y
   lookAtTarget.value.z = value.z

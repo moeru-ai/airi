@@ -1,4 +1,5 @@
 import type { Vector3 } from 'three'
+import type { ComputedRef, Ref } from 'vue'
 
 import { useBroadcastChannel, useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
@@ -82,6 +83,13 @@ const vrmViewUpdateRuntimeInstanceId = Math.random().toString(36).slice(2, 10)
 let vrmViewUpdateMessageSequence = 0
 const { modelOffset, set: setViewControl } = useThreeViewControl()
 const { cameraDistance, cameraFOV, cameraPosition } = useThreeCamera()
+
+// === User scene settings ===
+// These values are intended to survive model reloads and direct edits from settings UI.
+const modelRotationY = useLocalStorage('settings/stage-ui-three/modelRotationY', 0)
+const trackingMode = useLocalStorage('settings/stage-ui-three/trackingMode', 'none' as 'camera' | 'mouse' | 'none')
+const trackingSource: Ref<ComputedRef<{ x: number, y: number }> | null> = ref(null)
+
 export const useModelStore = defineStore('modelStore', () => {
   const { post, data } = useBroadcastChannel<BroadcastChannelEvents, BroadcastChannelEvents>({ name: 'airi-stores-stage-ui-three-vrm' })
   const shouldUpdateViewHooks = ref(new Set<() => void>())
@@ -143,11 +151,6 @@ export const useModelStore = defineStore('modelStore', () => {
   const modelSize = useLocalStorage('settings/stage-ui-three/modelSize', { x: 0, y: 0, z: 0 })
   const modelOrigin = useLocalStorage('settings/stage-ui-three/modelOrigin', { x: 0, y: 0, z: 0 })
   const eyeHeight = useLocalStorage('settings/stage-ui-three/eyeHeight', 0)
-
-  // === User scene settings ===
-  // These values are intended to survive model reloads and direct edits from settings UI.
-  const modelRotationY = useLocalStorage('settings/stage-ui-three/modelRotationY', 0)
-  const trackingMode = useLocalStorage('settings/stage-ui-three/trackingMode', 'none' as 'camera' | 'mouse' | 'none')
 
   // === View state ===
   /** current runtime pose. may be recalculated when a new model bootstrap is applied. */
@@ -237,6 +240,7 @@ export const useModelStore = defineStore('modelStore', () => {
 
     lookAtTarget,
     trackingMode,
+    trackingSource,
     eyeHeight,
     renderScale,
     multisampling,

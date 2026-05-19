@@ -158,6 +158,11 @@ live2dEyeTrackingSource.value = computed(() => ({
   x: mouseX.value,
   y: mouseY.value,
 }))
+const { trackingSource } = storeToRefs(useModelStore())
+trackingSource.value = computed(() => ({
+  x: mouseX.value,
+  y: mouseY.value,
+}))
 </script>
 
 <template>

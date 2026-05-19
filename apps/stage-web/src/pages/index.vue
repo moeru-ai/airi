@@ -11,6 +11,7 @@ import { BackgroundProvider } from '@proj-airi/stage-layouts/components/Backgrou
 import { useBackgroundThemeColor } from '@proj-airi/stage-layouts/composables/theme-color'
 import { useBackgroundStore } from '@proj-airi/stage-layouts/stores/background'
 import { useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
+import { useModelStore } from '@proj-airi/stage-ui-three'
 import { HoloCoupon } from '@proj-airi/stage-ui/components'
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useAudioRecorder } from '@proj-airi/stage-ui/composables/audio/audio-recorder'
@@ -151,6 +152,11 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
 const { live2dEyeTrackingSource } = storeToRefs(useSettingsLive2d())
 const { x: mouseX, y: mouseY } = useMouse()
 live2dEyeTrackingSource.value = computed(() => ({
+  x: mouseX.value,
+  y: mouseY.value,
+}))
+const { trackingSource } = storeToRefs(useModelStore())
+trackingSource.value = computed(() => ({
   x: mouseX.value,
   y: mouseY.value,
 }))

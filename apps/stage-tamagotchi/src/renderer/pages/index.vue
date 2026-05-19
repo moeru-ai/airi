@@ -112,8 +112,6 @@ const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
 
 const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)
 
-// const { live2dLookAtX, live2dLookAtY } = storeToRefs(useWindowStore())
-
 const { pause, resume } = watch(isTransparent, (transparent) => {
   shouldFadeOnCursorWithin.value = fadeOnHoverEnabled.value && !transparent
 }, { immediate: true })
@@ -459,8 +457,12 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
 // Assistant caption is broadcast from Stage.vue via the same channel
 
 const { live2dEyeTrackingSource } = storeToRefs(useSettingsLive2d())
-
 live2dEyeTrackingSource.value = computed(() => ({
+  x: relativeMouseX.value,
+  y: relativeMouseY.value,
+}))
+const { trackingSource } = storeToRefs(useModelStore())
+trackingSource.value = computed(() => ({
   x: relativeMouseX.value,
   y: relativeMouseY.value,
 }))
