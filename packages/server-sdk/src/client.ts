@@ -396,14 +396,17 @@ export class Client<C = undefined> {
       void this.handleMessage(event)
     }
 
-    ws.onerror = (event: any) => {
+    ws.onerror = (event: unknown) => {
       clearConnectTimer()
 
       if (!isCurrentSocket()) {
         return
       }
 
-      const error = event?.error instanceof Error ? event.error : new Error('WebSocket error')
+      // Extract error from WebSocket error event which may vary in shape
+      const error = (event as any)?.error instanceof Error
+        ? (event as any).error
+        : new Error('WebSocket error')
       if (this.connectionAttempt) {
         this.handleSocketFailure(error, ws)
       }
@@ -715,10 +718,13 @@ export class Client<C = undefined> {
           return
         }
 
-        const modules = (data.data as any)?.modules as Array<{
-          name: string
-          identity?: { id?: string }
-        }> ?? []
+        const syncData = data.data as {
+          modules?: Array<{
+            name: string
+            identity?: { id?: string }
+          }>
+        } | unknown
+        const modules = Array.isArray((syncData as any)?.modules) ? (syncData as any).modules : []
 
         const selfRegistered = modules.some(
           m => m.name === this.opts.name
@@ -758,8 +764,10 @@ export class Client<C = undefined> {
       return
     }
 
+    // Cast is necessary here because the Set stores callbacks from potentially different event types,
+    // but we're only calling listeners registered for this specific event type
     const results = await Promise.allSettled(
-      Array.from(listeners).map(listener => Promise.resolve(listener(data as any))),
+      Array.from(listeners).map(listener => Promise.resolve((listener as (data: WebSocketEvent<C>) => void | Promise<void>)(data))),
     )
 
     for (const result of results) {
