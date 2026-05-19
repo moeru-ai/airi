@@ -645,23 +645,14 @@ export function createV1Routes(
   /**
    * Voice catalog for the streaming TTS provider (`/audio/speech/ws`).
    *
-   * Streaming uses `STREAMING_TTS_UPSTREAM` (a single unspeech instance)
-   * to actually open the ws session, but the REST voices catalog lives
-   * at `UNSPEECH_REST_BASE_URL` — kept as a separate configKV entry so
-   * operators can split the streaming endpoint from the catalog source
-   * if they want, and so this path doesn't have to derive HTTPS from a
-   * `wss://` URL (which has bitten us once already).
-   *
    * Errors propagate verbatim: missing config → 503, malformed upstream
-   * URL → 500, unspeech network failure → 502, unspeech non-2xx → 502.
+   * URL → 502, unspeech network failure → 502, unspeech non-2xx → 502.
    * No empty-array fallback — the UI surfaces a real failure state.
    */
   async function handleListStreamingVoices(c: Context<HonoEnv>) {
-    const streaming = await configKV.getOptional('STREAMING_TTS_UPSTREAM')
-    if (!streaming || !streaming.baseURL)
+    const unspeech = await configKV.getOptional('UNSPEECH_UPSTREAM')
+    if (!unspeech?.streaming?.baseURL)
       throw createServiceUnavailableError('streaming tts upstream not configured', 'STREAMING_TTS_NOT_CONFIGURED')
-
-    const unspeechBaseURL = await configKV.getOrThrow('UNSPEECH_REST_BASE_URL')
 
     // Pass through the api_resource_id (e.g. `seed-tts-2.0`). unspeech
     // filters the embedded Volcengine catalogue server-side; absent model
@@ -670,7 +661,7 @@ export function createV1Routes(
 
     let voicesURL: string
     try {
-      const u = new URL(unspeechBaseURL)
+      const u = new URL(unspeech.restBaseURL)
       u.pathname = '/api/voices'
       const params = new URLSearchParams({ provider: 'volcengine' })
       if (model)
@@ -679,8 +670,8 @@ export function createV1Routes(
       voicesURL = u.toString()
     }
     catch (err) {
-      logger.withError(err).withFields({ unspeechBaseURL }).warn('streaming-voices: bad UNSPEECH_REST_BASE_URL')
-      throw createBadGatewayError('UNSPEECH_REST_BASE_URL is malformed')
+      logger.withError(err).withFields({ restBaseURL: unspeech.restBaseURL }).warn('streaming-voices: bad UNSPEECH_UPSTREAM.restBaseURL')
+      throw createBadGatewayError('UNSPEECH_UPSTREAM.restBaseURL is malformed')
     }
 
     let res: Response
@@ -734,8 +725,8 @@ export function createV1Routes(
   }
 
   async function handleListStreamingTTSModels(_c: Context<HonoEnv>) {
-    const upstream = await configKV.getOptional('STREAMING_TTS_UPSTREAM')
-    const models = upstream?.models ?? []
+    const unspeech = await configKV.getOptional('UNSPEECH_UPSTREAM')
+    const models = unspeech?.streaming?.models ?? []
     return Response.json({
       models: models.map(m => ({
         id: m.id,

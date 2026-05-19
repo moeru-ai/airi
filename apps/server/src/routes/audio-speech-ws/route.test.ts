@@ -168,11 +168,14 @@ function makeFakeDeps(overrides: {
   }
   const configKV = {
     getOptional: vi.fn(async (key: string) => {
-      if (key === 'STREAMING_TTS_UPSTREAM') {
+      if (key === 'UNSPEECH_UPSTREAM') {
         return {
-          baseURL: overrides.upstreamURL,
-          keys: [{ id: 'test-key-1', ciphertext: 'ENCRYPTED_PLACEHOLDER' }],
-          adapterParams: {},
+          restBaseURL: 'http://unspeech.local:5933',
+          streaming: {
+            baseURL: overrides.upstreamURL,
+            keys: [{ id: 'test-key-1', ciphertext: 'ENCRYPTED_PLACEHOLDER' }],
+            adapterParams: {},
+          },
         }
       }
       return null
@@ -294,7 +297,7 @@ describe('audio-speech-ws route', () => {
     expect(client.closeCode).toBe(1008)
   })
 
-  it('refuses with streaming_tts_not_configured when STREAMING_TTS_UPSTREAM is empty', async () => {
+  it('refuses with streaming_tts_not_configured when UNSPEECH_UPSTREAM.streaming is empty', async () => {
     const deps = makeFakeDeps({ upstreamURL: 'ws://unused', fluxBalance: 100 })
     deps.configKV.getOptional = vi.fn(async () => null) as any
 

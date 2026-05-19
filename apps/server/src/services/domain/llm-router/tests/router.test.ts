@@ -56,12 +56,12 @@ function makeMetrics(): GatewayMetrics {
 function makeConfigKV(config: RouterConfig | null): ConfigKVService {
   return {
     getOptional: vi.fn(async (key: string) => (key === 'LLM_ROUTER_CONFIG' ? config : null)),
-    // routeTts reads UNSPEECH_REST_BASE_URL once per request via getOrThrow.
+    // routeTts reads UNSPEECH_UPSTREAM once per request via getOrThrow.
     // LLM-side tests never invoke routeTts so the value is irrelevant; TTS
-    // tests need a non-empty string.
+    // tests need a populated restBaseURL.
     getOrThrow: vi.fn(async (key: string) => {
-      if (key === 'UNSPEECH_REST_BASE_URL')
-        return 'http://unspeech.local:5933'
+      if (key === 'UNSPEECH_UPSTREAM')
+        return { restBaseURL: 'http://unspeech.local:5933' }
       return undefined
     }),
     get: vi.fn(),

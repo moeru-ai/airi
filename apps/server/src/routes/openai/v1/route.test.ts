@@ -809,13 +809,16 @@ describe('v1CompletionsRoutes', () => {
       const app = createTestApp(
         createMockFluxService(),
         createMockConfigKV({
-          STREAMING_TTS_UPSTREAM: {
-            baseURL: 'wss://unspeech.local',
-            keys: [{ id: 'k1', ciphertext: 'enc' }],
-            models: [
-              { id: 'volcengine/seed-tts-2.0', name: 'Volcengine Seed-TTS 2.0', description: 'TTS 2.0' },
-              { id: 'volcengine/seed-tts-1.0' },
-            ],
+          UNSPEECH_UPSTREAM: {
+            restBaseURL: 'http://unspeech.local:5933',
+            streaming: {
+              baseURL: 'wss://unspeech.local',
+              keys: [{ id: 'k1', ciphertext: 'enc' }],
+              models: [
+                { id: 'volcengine/seed-tts-2.0', name: 'Volcengine Seed-TTS 2.0', description: 'TTS 2.0' },
+                { id: 'volcengine/seed-tts-1.0' },
+              ],
+            },
           },
         }),
       )
@@ -833,7 +836,7 @@ describe('v1CompletionsRoutes', () => {
       ])
     })
 
-    it('returns an empty list when STREAMING_TTS_UPSTREAM is unset', async () => {
+    it('returns an empty list when UNSPEECH_UPSTREAM is unset', async () => {
       const app = createTestApp(createMockFluxService(), createMockConfigKV())
 
       const res = await app.fetch(
@@ -846,13 +849,16 @@ describe('v1CompletionsRoutes', () => {
       expect(data.models).toEqual([])
     })
 
-    it('returns an empty list when STREAMING_TTS_UPSTREAM has no models', async () => {
+    it('returns an empty list when streaming subtree has no models', async () => {
       const app = createTestApp(
         createMockFluxService(),
         createMockConfigKV({
-          STREAMING_TTS_UPSTREAM: {
-            baseURL: 'wss://unspeech.local',
-            keys: [{ id: 'k1', ciphertext: 'enc' }],
+          UNSPEECH_UPSTREAM: {
+            restBaseURL: 'http://unspeech.local:5933',
+            streaming: {
+              baseURL: 'wss://unspeech.local',
+              keys: [{ id: 'k1', ciphertext: 'enc' }],
+            },
           },
         }),
       )
@@ -1000,8 +1006,7 @@ describe('v1CompletionsRoutes', () => {
     it('returns the streaming-model bucket of DEFAULT_TTS_VOICES when ?model= matches', async () => {
       mockUnspeechVoices([{ id: 'zh_female_vv_uranus_bigtts', name: 'Vivi 2.0' }])
       const configKV = createMockConfigKV({
-        STREAMING_TTS_UPSTREAM: { baseURL: 'ws://unspeech.local:5933/v1/audio/speech/stream' },
-        UNSPEECH_REST_BASE_URL: 'http://unspeech.local:5933',
+        UNSPEECH_UPSTREAM: { restBaseURL: 'http://unspeech.local:5933', streaming: { baseURL: 'ws://unspeech.local:5933/v1/audio/speech/stream', keys: [{ id: 'k1', ciphertext: 'enc' }] } },
         DEFAULT_TTS_VOICES: {
           'seed-tts-2.0': { 'zh-cn': 'zh_female_vv_uranus_bigtts' },
           'seed-tts-1.0': { 'zh-cn': 'should-not-leak' },
@@ -1023,8 +1028,7 @@ describe('v1CompletionsRoutes', () => {
     it('returns empty recommended when ?model= is omitted', async () => {
       mockUnspeechVoices([])
       const configKV = createMockConfigKV({
-        STREAMING_TTS_UPSTREAM: { baseURL: 'ws://unspeech.local:5933/v1/audio/speech/stream' },
-        UNSPEECH_REST_BASE_URL: 'http://unspeech.local:5933',
+        UNSPEECH_UPSTREAM: { restBaseURL: 'http://unspeech.local:5933', streaming: { baseURL: 'ws://unspeech.local:5933/v1/audio/speech/stream', keys: [{ id: 'k1', ciphertext: 'enc' }] } },
         DEFAULT_TTS_VOICES: { 'seed-tts-2.0': { 'zh-cn': 'x' } },
       })
 
@@ -1042,8 +1046,7 @@ describe('v1CompletionsRoutes', () => {
     it('returns empty recommended when the requested model has no configKV bucket', async () => {
       mockUnspeechVoices([])
       const configKV = createMockConfigKV({
-        STREAMING_TTS_UPSTREAM: { baseURL: 'ws://unspeech.local:5933/v1/audio/speech/stream' },
-        UNSPEECH_REST_BASE_URL: 'http://unspeech.local:5933',
+        UNSPEECH_UPSTREAM: { restBaseURL: 'http://unspeech.local:5933', streaming: { baseURL: 'ws://unspeech.local:5933/v1/audio/speech/stream', keys: [{ id: 'k1', ciphertext: 'enc' }] } },
         DEFAULT_TTS_VOICES: { 'seed-tts-2.0': { 'zh-cn': 'x' } },
       })
 
@@ -1058,11 +1061,10 @@ describe('v1CompletionsRoutes', () => {
       expect(data.recommended).toEqual({})
     })
 
-    it('returns 503 STREAMING_TTS_NOT_CONFIGURED when STREAMING_TTS_UPSTREAM is absent', async () => {
+    it('returns 503 STREAMING_TTS_NOT_CONFIGURED when UNSPEECH_UPSTREAM.streaming is absent', async () => {
       mockUnspeechVoices([])
       const configKV = createMockConfigKV({
-        STREAMING_TTS_UPSTREAM: undefined,
-        UNSPEECH_REST_BASE_URL: 'http://unspeech.local:5933',
+        UNSPEECH_UPSTREAM: { restBaseURL: 'http://unspeech.local:5933' },
       })
 
       const app = createTestApp(createMockFluxService(), configKV)
@@ -1080,8 +1082,7 @@ describe('v1CompletionsRoutes', () => {
     it('returns 502 BAD_GATEWAY when unspeech responds non-2xx', async () => {
       mockUnspeechFailure(503, 'unspeech is sleeping')
       const configKV = createMockConfigKV({
-        STREAMING_TTS_UPSTREAM: { baseURL: 'ws://unspeech.local:5933/v1/audio/speech/stream' },
-        UNSPEECH_REST_BASE_URL: 'http://unspeech.local:5933',
+        UNSPEECH_UPSTREAM: { restBaseURL: 'http://unspeech.local:5933', streaming: { baseURL: 'ws://unspeech.local:5933/v1/audio/speech/stream', keys: [{ id: 'k1', ciphertext: 'enc' }] } },
       })
 
       const app = createTestApp(createMockFluxService(), configKV)
@@ -1101,8 +1102,7 @@ describe('v1CompletionsRoutes', () => {
         throw new Error('ECONNREFUSED')
       }) as any
       const configKV = createMockConfigKV({
-        STREAMING_TTS_UPSTREAM: { baseURL: 'ws://unspeech.local:5933/v1/audio/speech/stream' },
-        UNSPEECH_REST_BASE_URL: 'http://unspeech.local:5933',
+        UNSPEECH_UPSTREAM: { restBaseURL: 'http://unspeech.local:5933', streaming: { baseURL: 'ws://unspeech.local:5933/v1/audio/speech/stream', keys: [{ id: 'k1', ciphertext: 'enc' }] } },
       })
 
       const app = createTestApp(createMockFluxService(), configKV)

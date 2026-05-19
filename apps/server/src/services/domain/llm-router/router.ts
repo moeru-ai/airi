@@ -549,7 +549,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     // Adapters POST to unspeech `/v1/audio/speech`; resolve the base URL once
     // per request rather than per upstream attempt so a single configKV miss
     // surfaces as a clean 503 before any key rotation happens.
-    const unspeechBaseURL = await options.configKV.getOrThrow('UNSPEECH_REST_BASE_URL')
+    const unspeechBaseURL = (await options.configKV.getOrThrow('UNSPEECH_UPSTREAM')).restBaseURL
 
     const allFailures: Array<{ provider: string, keyId: string, status: number | 'timeout', errorMessage?: string }> = []
     let triedUpstreams = 0
@@ -652,7 +652,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       }
     }
 
-    const unspeechBaseURL = await options.configKV.getOrThrow('UNSPEECH_REST_BASE_URL')
+    const unspeechBaseURL = (await options.configKV.getOrThrow('UNSPEECH_UPSTREAM')).restBaseURL
 
     // Live providers (Azure) need the decrypted Azure subscription key + region;
     // static-catalog providers (alibaba, volcengine) ignore both. The router
@@ -694,9 +694,9 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
 
   /**
    * Drops every cached TTS voice catalog. Called by the configkv invalidation
-   * subscriber when `LLM_ROUTER_CONFIG` or `UNSPEECH_REST_BASE_URL` changes —
-   * a key rotation or unspeech endpoint move must propagate to in-flight
-   * voice-picker fetches without waiting for the 6h TTL.
+   * subscriber when `LLM_ROUTER_CONFIG` or `UNSPEECH_UPSTREAM` changes — a key
+   * rotation or unspeech endpoint move must propagate to in-flight voice-
+   * picker fetches without waiting for the 6h TTL.
    */
   async function invalidateTtsVoicesCache(): Promise<void> {
     // SCAN avoids blocking redis on a large keyspace; production deployments
@@ -730,7 +730,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     invalidateConfig: configLoader.invalidate,
     /**
      * Flush the Redis voice catalog cache. The config-sync subscriber calls
-     * this when LLM_ROUTER_CONFIG or UNSPEECH_REST_BASE_URL is rotated; admin
+     * this when LLM_ROUTER_CONFIG or UNSPEECH_UPSTREAM is rotated; admin
      * writes invalidate it directly so the next voice-picker fetch repopulates.
      */
     invalidateTtsVoicesCache,

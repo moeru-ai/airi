@@ -69,28 +69,36 @@ const DashscopeSliceSchema = object({
 })
 
 /**
- * `upstreamURL` must be ws:// or wss://. http(s):// here is almost always a
- * copy-paste of the unspeech REST endpoint, which would fail at
- * `new WebSocket()` inside the audio-speech-ws proxy with no actionable
- * error for the admin.
+ * `restBaseURL` is the unspeech REST root (http(s)://host:port, no path).
+ * `streaming.upstreamURL` must be ws:// or wss:// — http(s):// here is almost
+ * always a copy-paste of the REST endpoint and fails at `new WebSocket()`
+ * inside the audio-speech-ws proxy with no actionable error for the admin.
  */
-const StreamingTtsSliceSchema = object({
-  kind: literal('streaming-tts'),
-  upstreamURL: pipe(
+const UnspeechSliceSchema = object({
+  kind: literal('unspeech'),
+  restBaseURL: pipe(
     string(),
-    nonEmpty('upstreamURL is required'),
-    regex(/^wss?:\/\/\S+$/, 'upstreamURL must start with ws:// or wss://'),
+    nonEmpty('restBaseURL is required'),
+    regex(/^https?:\/\/\S+$/, 'restBaseURL must start with http:// or https://'),
     maxLength(500),
   ),
-  plaintextKey: pipe(string(), nonEmpty('plaintextKey is required'), maxLength(MAX_KEY_LENGTH)),
-  keyEntryId: optional(pipe(string(), nonEmpty(), maxLength(200), NO_PIPE)),
+  streaming: optional(object({
+    upstreamURL: pipe(
+      string(),
+      nonEmpty('streaming.upstreamURL is required'),
+      regex(/^wss?:\/\/\S+$/, 'streaming.upstreamURL must start with ws:// or wss://'),
+      maxLength(500),
+    ),
+    plaintextKey: pipe(string(), nonEmpty('streaming.plaintextKey is required'), maxLength(MAX_KEY_LENGTH)),
+    keyEntryId: optional(pipe(string(), nonEmpty(), maxLength(200), NO_PIPE)),
+  })),
 })
 
 const SliceSchema = variant('kind', [
   OpenRouterSliceSchema,
   AzureSliceSchema,
   DashscopeSliceSchema,
-  StreamingTtsSliceSchema,
+  UnspeechSliceSchema,
 ])
 
 const BodySchema = object({
@@ -110,7 +118,7 @@ const BodySchema = object({
 /**
  * Admin route for seeding / patching the LLM router config tree. Mounted
  * at `POST /api/admin/config/router`; the only supported way to write
- * `LLM_ROUTER_CONFIG`, `STREAMING_TTS_UPSTREAM`, and the
+ * `LLM_ROUTER_CONFIG`, `UNSPEECH_UPSTREAM`, and the
  * `DEFAULT_{CHAT,TTS}_MODEL` aliases.
  *
  * Body shape (discriminated on `slices[].kind`):
@@ -127,9 +135,12 @@ const BodySchema = object({
  *       { "kind": "dashscope-cosyvoice", "modelName": "alibaba/cosyvoice-v2",
  *         "region": "intl", "upstreamModel": "cosyvoice-v2",
  *         "plaintextKey": "..." },
- *       { "kind": "streaming-tts",
- *         "upstreamURL": "ws://airi-unspeech.railway.internal:5933/v1/audio/speech/stream",
- *         "plaintextKey": "..." }
+ *       { "kind": "unspeech",
+ *         "restBaseURL": "http://airi-unspeech.railway.internal:5933",
+ *         "streaming": {
+ *           "upstreamURL": "ws://airi-unspeech.railway.internal:5933/v1/audio/speech/stream",
+ *           "plaintextKey": "..."
+ *         } }
  *     ],
  *     "defaults": {
  *       "chatModel": "chat-default",    // writes DEFAULT_CHAT_MODEL
@@ -144,7 +155,7 @@ const BodySchema = object({
  *     "invalidatedKeys": ["LLM_ROUTER_CONFIG", "DEFAULT_CHAT_MODEL", ...],
  *     "preview":  {                     // ciphertext redacted to "<N chars>"
  *       "LLM_ROUTER_CONFIG":     { ... },
- *       "STREAMING_TTS_UPSTREAM": { ... },
+ *       "UNSPEECH_UPSTREAM":     { ... },
  *       "DEFAULT_CHAT_MODEL":    "chat-default",
  *       "DEFAULT_TTS_MODEL":     "alibaba/cosyvoice-v2"
  *     }

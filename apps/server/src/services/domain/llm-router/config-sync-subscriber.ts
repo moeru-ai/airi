@@ -82,8 +82,8 @@ export function createConfigSyncSubscriber(opts: ConfigSyncSubscriberOptions): C
       const payload = JSON.parse(message) as { key?: unknown }
       // LLM_ROUTER_CONFIG drives a model-config cache + voice-catalog cache
       // invalidation (key rotation, model add/remove, region swap all need to
-      // surface immediately). UNSPEECH_REST_BASE_URL only affects the voice
-      // catalog cache because no other in-process structure references it.
+      // surface immediately). UNSPEECH_UPSTREAM only affects the voice catalog
+      // cache because no other in-process structure references it.
       if (payload?.key === 'LLM_ROUTER_CONFIG') {
         opts.llmRouter.invalidateConfig()
         void opts.llmRouter.invalidateTtsVoicesCache().catch((err) => {
@@ -95,9 +95,9 @@ export function createConfigSyncSubscriber(opts: ConfigSyncSubscriberOptions): C
         })
         return
       }
-      if (payload?.key === 'UNSPEECH_REST_BASE_URL') {
+      if (payload?.key === 'UNSPEECH_UPSTREAM') {
         void opts.llmRouter.invalidateTtsVoicesCache().catch((err) => {
-          opts.logger.withError(err).warn('Failed to invalidate tts voices cache on UNSPEECH_REST_BASE_URL change')
+          opts.logger.withError(err).warn('Failed to invalidate tts voices cache on UNSPEECH_UPSTREAM change')
         })
       }
     }

@@ -93,7 +93,7 @@ export type TtsAdapterId = 'azure' | 'dashscope-cosyvoice' | 'volcengine'
  * verbatim. Providers with static, credential-less catalogs (DashScope
  * cosyvoice, Volcengine) ignore both fields.
  *
- * `unspeechBaseURL` is the configKV `UNSPEECH_REST_BASE_URL` resolved by the
+ * `unspeechBaseURL` is `UNSPEECH_UPSTREAM.restBaseURL` resolved by the
  * router. Passing it through the context keeps adapters free of configKV
  * coupling — they receive a fully-resolved URL string.
  */

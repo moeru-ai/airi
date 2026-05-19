@@ -345,7 +345,7 @@ export async function buildApp(deps: AppDeps) {
 
     /**
      * Admin LLM router config seeding/patching. Single entry point for
-     * writing `LLM_ROUTER_CONFIG`, `STREAMING_TTS_UPSTREAM`, and the
+     * writing `LLM_ROUTER_CONFIG`, `UNSPEECH_UPSTREAM`, and the
      * `DEFAULT_{CHAT,TTS}_MODEL` aliases — see
      * `routes/admin/config/router/index.ts` for the body shape.
      */
