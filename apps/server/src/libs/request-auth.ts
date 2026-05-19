@@ -81,14 +81,17 @@ function resolveTestAuthToken(env: Env, accessToken: string): RequestAuthSession
 
 let cachedJWKS: ReturnType<typeof createRemoteJWKSet> | null = null
 
+function localJwksUrl(env: Env): URL {
+  const host = env.HOST ?? '0.0.0.0'
+  const jwksHost = host === '0.0.0.0' || host === '127.0.0.1' || host === 'localhost'
+    ? '127.0.0.1'
+    : host
+  return new URL('/api/auth/jwks', `http://${jwksHost}:${env.PORT}`)
+}
+
 function getJWKS(env: Env): ReturnType<typeof createRemoteJWKSet> {
-  if (!cachedJWKS) {
-    // Use the local listener for this server's own JWKS so development tunnels
-    // such as ngrok are not involved in request-time token verification.
-    cachedJWKS = createRemoteJWKSet(
-      new URL('/api/auth/jwks', `http://127.0.0.1:${env.PORT}`),
-    )
-  }
+  if (!cachedJWKS)
+    cachedJWKS = createRemoteJWKSet(localJwksUrl(env))
   return cachedJWKS
 }
 
