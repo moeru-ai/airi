@@ -13,6 +13,7 @@ export interface SubsystemConfig {
 export const SUBSYSTEM_CONFIGS: SubsystemConfig[] = [
   { subsystem: IOSubsystems.ASR, label: 'ASR', color: '#3b82f6', bgColor: '#3b82f618', icon: 'i-lucide:mic' },
   { subsystem: IOSubsystems.LLM, label: 'LLM', color: '#a855f7', bgColor: '#a855f718', icon: 'i-lucide:brain' },
+  { subsystem: IOSubsystems.StreamingControl, label: 'Streaming Control', color: '#06b6d4', bgColor: '#06b6d418', icon: 'i-lucide:radio-tower' },
   { subsystem: IOSubsystems.TTS, label: 'TTS', color: '#22c55e', bgColor: '#22c55e18', icon: 'i-lucide:audio-lines' },
   { subsystem: IOSubsystems.Playback, label: 'Playback', color: '#f87171', bgColor: '#f8717118', icon: 'i-lucide:play' },
 ]

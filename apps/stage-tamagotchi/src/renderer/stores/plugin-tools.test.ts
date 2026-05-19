@@ -1,22 +1,36 @@
 import type { Tool } from '@xsai/shared-chat'
 
 import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/llm-tools'
+import { useLlmToolsetPromptsStore } from '@proj-airi/stage-ui/stores/llm-toolset-prompts'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const invokeMocks = vi.hoisted(() => ({
   invokePluginTool: vi.fn(async (payload: unknown) => payload),
-  listPluginXsaiTools: vi.fn(async () => [
-    {
-      ownerPluginId: 'plugin-chess',
-      name: 'play_chess',
-      description: 'Play a chess move.',
-      parameters: {
-        type: 'object',
-        properties: {},
+  listPluginXsaiTools: vi.fn(async () => ({
+    tools: [
+      {
+        ownerPluginId: 'plugin-chess',
+        name: 'play_chess',
+        description: 'Play a chess move.',
+        parameters: {
+          type: 'object',
+          properties: {},
+        },
       },
-    },
-  ]),
+    ],
+    prompts: [
+      {
+        ownerPluginId: 'plugin-chess',
+        id: 'chess-tools',
+        prompt: {
+          id: 'airi-plugin-game-chess.prompt',
+          title: 'Chess Plugin Guidance',
+          content: 'Do not pass fen or pgn when mode is "new".',
+        },
+      },
+    ],
+  })),
 }))
 
 vi.mock('@proj-airi/electron-vueuse', () => ({
@@ -51,6 +65,7 @@ describe('useTamagotchiPluginToolsStore', async () => {
    */
   it('loads plugin xsai tools, proxies execution, and clears them from the shared llm-tools store', async () => {
     const llmToolsStore = useLlmToolsStore()
+    const llmToolsetPromptsStore = useLlmToolsetPromptsStore()
     const store = useTamagotchiPluginToolsStore()
     const toolOptions = {} as Parameters<Tool['execute']>[1]
 
@@ -62,6 +77,7 @@ describe('useTamagotchiPluginToolsStore', async () => {
     expect(pluginTools).toEqual([
       expect.objectContaining({ function: expect.objectContaining({ name: 'play_chess' }) }),
     ])
+    expect(llmToolsetPromptsStore.activeToolsetPrompt).toContain('Do not pass fen or pgn when mode is "new".')
 
     const executionResult = await playChessTool?.execute({
       move: 'e2e4',
@@ -85,6 +101,7 @@ describe('useTamagotchiPluginToolsStore', async () => {
     store.dispose()
 
     expect(llmToolsStore.toolsByProvider['plugin-tools']).toBeUndefined()
+    expect(llmToolsetPromptsStore.promptsByProvider['plugin-tools']).toBeUndefined()
   })
 
   /**

@@ -1,10 +1,37 @@
 import type { SparkNotifyResponseControl } from '@proj-airi/core-agent/agents/spark-notify'
+import type { LlmStreamingControlCallManifest } from '@proj-airi/pipelines-audio'
 import type { WebSocketEventOf } from '@proj-airi/server-sdk'
 
 import { array, boolean, finite, looseObject, nonEmpty, number, optional, picklist, pipe, record, string, trim, unknown } from 'valibot'
 
 type SparkNotifyProtocolEvent = WebSocketEventOf<'spark:notify'>
 type SparkNotifyProtocolData = SparkNotifyProtocolEvent['data']
+
+export type SparkNotifyReactionCallHandler = (payload?: Record<string, unknown>) => Promise<void> | void
+
+/**
+ * Registered performance call available during one spark notify reaction.
+ */
+export interface SparkNotifyReactionCallRegistration {
+  /** Prompt manifest rendered into the model instructions and used as the dispatch key. */
+  manifest: LlmStreamingControlCallManifest
+  /** Runtime callback executed when the matching CALL token is emitted. */
+  handler: SparkNotifyReactionCallHandler
+}
+
+/**
+ * Result returned by the call-aware spark notify reaction bridge.
+ */
+export interface SparkNotifyPerformanceResult {
+  /** Text reaction produced by the existing spark notify path. */
+  reaction: string
+  /** Terminal state for the performance request. */
+  type: 'called' | 'completed' | 'timeout' | 'cancelled'
+  /** Name of the generic performance call that resolved the request, when applicable. */
+  name?: string
+  /** Payload emitted by the matching CALL token, when applicable. */
+  payload?: Record<string, unknown>
+}
 
 /**
  * Caller-facing request used by the context bridge to turn one spark notification into a reaction string.
@@ -47,6 +74,14 @@ export interface SparkNotifyReactionOptions
    * @default 'plugin-module-host'
    */
   source?: SparkNotifyProtocolEvent['source']
+  /** Generic performance calls allowed during this spark notify reaction request. */
+  calls?: SparkNotifyReactionCallRegistration[]
+  /**
+   * Maximum time to wait for a registered performance call after spark notify starts.
+   *
+   * @default 5000
+   */
+  timeoutMs?: number
 }
 
 export const sparkNotifyReactionOptionsSchema = looseObject({

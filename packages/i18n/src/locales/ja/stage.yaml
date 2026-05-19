@@ -94,6 +94,6 @@ promo-banner:
       cta: テーマを表示
 waiting: 待機中
 websocket-status:
-  connected: 接続済み
-  disconnected: 未接続
-  open-settings: 接続設定を開く
+  connected: Connected
+  disconnected: No connection
+  open-settings: Open connection settings

@@ -31,6 +31,8 @@
   - traces / metrics 命名规则，标准 OTel 字段与 `airi.*` 自定义字段边界，SemconvStability 迁移、Counter priming、Dashboard 变量陷阱
 - `observability-metrics.md`
   - 全量 metric 目录（按域分组：HTTP / Auth / Engagement / Revenue / GenAI / Email / Rate limit / Runtime），含名字、类型、Labels、落点
+- `metrics-ownership.md`
+  - 指标分层规则：什么走 Grafana / 什么走 PostHog / 什么是 Postgres truth；含 7 题判定 Checklist、PostHog 事件命名约定、当前指标归属总表、PostHog 接入路线图
 - `auth-and-oidc.md`
   - 认证与 OIDC Provider 架构、登录流程、trusted clients、踩坑记录
 - `email-auth-resend.md`
@@ -45,6 +47,10 @@
   - 账号注销端到端验证：what's verified（schema/typecheck/units）和 what's pending（live DB + Resend + Stripe trace）
 - `verifications/admin-flux-grants.md`
   - Admin 同步发 FLUX 路径：同步 grant / dry-run / adminGuard 拒绝（架构刚从 batch 切换到同步，待重新实测）
+- `verifications/flux-unbilled-exploit-fix.md`
+  - Unpaid-usage exploit 修补（commit `7267b0d6b`）的代码层验证 + 残余 gap（TTS flux-meter 未适配 partial-debit）+ follow-up 清单
+- `verifications/flux-unbilled-reconciliation.md`
+  - 70.2K 历史漏账的取证 SQL + Loki query 模板、处理决策框架、修补后的监控建议
 
 ## 快速结论
 
@@ -67,6 +73,7 @@
 - 改 Flux 充值价格 / 多币种 / Stripe Product/Price：先看 `stripe-pricing.md`
 - 改 trace / metric attributes、OTel 命名：先看 `observability-conventions.md`
 - 加新 metric / 找当前 metric 全量列表：先看 `observability-metrics.md`
+- 决定新指标该走 Grafana 还是 PostHog：先看 `metrics-ownership.md`
 - 改认证、OIDC、登录流程：先看 `auth-and-oidc.md`
 - 改邮件 service / Better Auth 邮件 callback：先看 `email-auth-resend.md`
 - 改账号注销 / 业务 service 的 `deleteAllForUser`：先看 `account-deletion.md`

@@ -2,7 +2,7 @@ import type { AuthInstance } from '../../libs/auth'
 import type { Database } from '../../libs/db'
 import type { Env } from '../../libs/env'
 import type { RateLimitMetrics } from '../../otel'
-import type { ConfigKVService } from '../../services/config-kv'
+import type { ConfigKVService } from '../../services/adapters/config-kv'
 import type { HonoEnv } from '../../types/hono'
 
 import { oauthProviderAuthServerMetadata, oauthProviderOpenIdConfigMetadata } from '@better-auth/oauth-provider'
@@ -15,8 +15,8 @@ import { rateLimiter } from '../../middlewares/rate-limit'
 import { account, user } from '../../schemas/accounts'
 import { createBadRequestError } from '../../utils/error'
 import { getServerAuthUiDistDir, renderServerAuthUiHtml, SERVER_AUTH_UI_BASE_PATH } from '../../utils/server-auth-ui'
-import { createElectronCallbackRelay } from '../oidc/electron-callback'
-import { createOIDCTokenAuthRoute } from '../oidc/token-auth'
+import { createElectronCallbackRelay } from './oidc/electron-callback'
+import { createOIDCTokenAuthRoute } from './oidc/token-auth'
 
 // NOTICE:
 // Loose RFC-5322-ish regex used to fail fast on obviously malformed input.
@@ -135,7 +135,7 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
       routeLabel: 'auth.api',
     }))
     .use('/api/auth/oauth2/authorize', async (c, next) => {
-      await ensureDynamicFirstPartyRedirectUri(deps.db, c.req.raw)
+      await ensureDynamicFirstPartyRedirectUri(deps.db, c.req.raw, deps.env.ADDITIONAL_TRUSTED_ORIGINS)
       await next()
     })
     .route('/api/auth', createOIDCTokenAuthRoute(deps))

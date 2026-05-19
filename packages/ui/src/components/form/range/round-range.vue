@@ -64,11 +64,13 @@ function handleInput(e: Event) {
 }
 
 function onWheelInput(ev: WheelEvent) {
-  let valueAfter = 0
+  if (ev.deltaY === 0)
+    return
+  let valueAfter = modelValue.value
   if (ev.deltaY < 0)
-    valueAfter = modelValue.value += props.step * (shiftPressed.value ? 50 : 1)
+    valueAfter += props.step * (shiftPressed.value ? 50 : 1)
   if (ev.deltaY > 0)
-    valueAfter = modelValue.value -= props.step * (shiftPressed.value ? 50 : 1)
+    valueAfter -= props.step * (shiftPressed.value ? 50 : 1)
   modelValue.value = Math.min(Math.max(valueAfter, props.min), props.max)
 }
 </script>

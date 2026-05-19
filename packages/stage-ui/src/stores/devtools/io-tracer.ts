@@ -14,7 +14,11 @@ const MAX_TURNS = 50
 function attrsToMeta(attrs: Attributes): Record<string, any> {
   const meta: Record<string, any> = {}
   for (const [key, value] of Object.entries(attrs)) {
-    const shortKey = key.includes('.') ? key.split('.').at(-1)! : key
+    const shortKey = key === IOAttributes.TooltipKeys
+      ? 'tooltipKeys'
+      : key.includes('.')
+        ? key.split('.').at(-1)!
+        : key
     meta[shortKey] = value
   }
   return meta
@@ -124,6 +128,11 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
 
     const turn = getOrCreateTurn()
     const meta = attrsToMeta(readable.attributes)
+    const events = readable.events.map(event => ({
+      name: event.name,
+      timeTs: hrTimeToMilliseconds(event.time),
+      meta: attrsToMeta(event.attributes ?? {}),
+    }))
 
     for (const event of readable.events) {
       const eventAttrs = event.attributes ?? {}
@@ -153,6 +162,7 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
       startTs: startMs,
       endTs: endMs,
       meta,
+      events,
     }
 
     turn.spans.push(ioSpan)

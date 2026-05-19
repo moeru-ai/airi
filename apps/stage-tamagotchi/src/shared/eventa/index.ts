@@ -328,7 +328,7 @@ export interface ElectronGodotStageStatus {
  */
 export interface ElectronGodotStageSceneInputPayload {
   modelId: string
-  format: string
+  format: 'vrm'
   name: string
   fileName: string
   data: Uint8Array

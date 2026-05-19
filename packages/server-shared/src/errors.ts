@@ -41,131 +41,112 @@ export function createInvalidJsonServerErrorMessage(errorMessage: string) {
   return `invalid JSON, error: ${errorMessage}`
 }
 
+/**
+ * Error metadata registry for predictable error code classification.
+ * Maps error messages to their error code and classification properties.
+ * @internal
+ */
+const errorMetadataRegistry: Record<string, Omit<ParsedServerErrorMessage, 'message'>> = {
+  [ServerErrorMessages.invalidToken]: {
+    authentication: true,
+    code: 'invalid-token',
+    recoverable: false,
+    terminal: true,
+  },
+  [ServerErrorMessages.notAuthenticated]: {
+    authentication: true,
+    code: 'not-authenticated',
+    recoverable: true,
+    terminal: false,
+  },
+  [ServerErrorMessages.mustAuthenticateBeforeAnnouncing]: {
+    authentication: true,
+    code: 'must-authenticate-before-announcing',
+    recoverable: true,
+    terminal: false,
+  },
+  [ServerErrorMessages.invalidEventFormat]: {
+    authentication: false,
+    code: 'invalid-event-format',
+    recoverable: false,
+    terminal: false,
+  },
+  [ServerErrorMessages.moduleAnnounceNameInvalid]: {
+    authentication: false,
+    code: 'module-announce-name-invalid',
+    recoverable: false,
+    terminal: false,
+  },
+  [ServerErrorMessages.moduleAnnounceIndexInvalid]: {
+    authentication: false,
+    code: 'module-announce-index-invalid',
+    recoverable: false,
+    terminal: false,
+  },
+  [ServerErrorMessages.moduleAnnounceIdentityInvalid]: {
+    authentication: false,
+    code: 'module-announce-identity-invalid',
+    recoverable: false,
+    terminal: false,
+  },
+  [ServerErrorMessages.moduleNotFound]: {
+    authentication: false,
+    code: 'module-not-found',
+    recoverable: false,
+    terminal: false,
+  },
+  [ServerErrorMessages.moduleConsumerEventInvalid]: {
+    authentication: false,
+    code: 'module-consumer-event-invalid',
+    recoverable: false,
+    terminal: false,
+  },
+  [ServerErrorMessages.noConsumerRegistered]: {
+    authentication: false,
+    code: 'no-consumer-registered',
+    recoverable: true,
+    terminal: false,
+  },
+  [ServerErrorMessages.uiConfigureModuleNameInvalid]: {
+    authentication: false,
+    code: 'ui-configure-module-name-invalid',
+    recoverable: false,
+    terminal: false,
+  },
+  [ServerErrorMessages.uiConfigureModuleIndexInvalid]: {
+    authentication: false,
+    code: 'ui-configure-module-index-invalid',
+    recoverable: false,
+    terminal: false,
+  },
+}
+
+/**
+ * Parses a server error message and classifies it.
+ *
+ * Use when:
+ * - Receiving error messages from the server
+ * - Determining whether to retry or give up
+ * - Checking if the error is authentication-related
+ *
+ * Expects:
+ * - Message string that matches one of ServerErrorMessages or starts with 'invalid JSON, error: '
+ *
+ * Returns:
+ * - Parsed error with classification (code, authentication, recoverable, terminal)
+ */
 export function parseServerErrorMessage(message: string): ParsedServerErrorMessage {
-  if (message === ServerErrorMessages.invalidToken) {
-    return {
-      authentication: true,
-      code: 'invalid-token',
-      message,
-      recoverable: false,
-      terminal: true,
-    }
-  }
-
-  if (message === ServerErrorMessages.notAuthenticated) {
-    return {
-      authentication: true,
-      code: 'not-authenticated',
-      message,
-      recoverable: true,
-      terminal: false,
-    }
-  }
-
-  if (message === ServerErrorMessages.mustAuthenticateBeforeAnnouncing) {
-    return {
-      authentication: true,
-      code: 'must-authenticate-before-announcing',
-      message,
-      recoverable: true,
-      terminal: false,
-    }
-  }
-
-  if (message === ServerErrorMessages.invalidEventFormat) {
-    return {
-      authentication: false,
-      code: 'invalid-event-format',
-      message,
-      recoverable: false,
-      terminal: false,
-    }
+  const metadata = Object.hasOwn(errorMetadataRegistry, message)
+    ? errorMetadataRegistry[message]
+    : undefined
+  if (metadata) {
+    return { ...metadata, message }
   }
 
   if (message.startsWith('invalid JSON, error: ')) {
     return {
       authentication: false,
       code: 'invalid-json',
-      message,
-      recoverable: false,
-      terminal: false,
-    }
-  }
-
-  if (message === ServerErrorMessages.moduleAnnounceNameInvalid) {
-    return {
-      authentication: false,
-      code: 'module-announce-name-invalid',
-      message,
-      recoverable: false,
-      terminal: false,
-    }
-  }
-
-  if (message === ServerErrorMessages.moduleAnnounceIndexInvalid) {
-    return {
-      authentication: false,
-      code: 'module-announce-index-invalid',
-      message,
-      recoverable: false,
-      terminal: false,
-    }
-  }
-
-  if (message === ServerErrorMessages.moduleAnnounceIdentityInvalid) {
-    return {
-      authentication: false,
-      code: 'module-announce-identity-invalid',
-      message,
-      recoverable: false,
-      terminal: false,
-    }
-  }
-
-  if (message === ServerErrorMessages.moduleNotFound) {
-    return {
-      authentication: false,
-      code: 'module-not-found',
-      message,
-      recoverable: false,
-      terminal: false,
-    }
-  }
-
-  if (message === ServerErrorMessages.moduleConsumerEventInvalid) {
-    return {
-      authentication: false,
-      code: 'module-consumer-event-invalid',
-      message,
-      recoverable: false,
-      terminal: false,
-    }
-  }
-
-  if (message === ServerErrorMessages.noConsumerRegistered) {
-    return {
-      authentication: false,
-      code: 'no-consumer-registered',
-      message,
-      recoverable: true,
-      terminal: false,
-    }
-  }
-
-  if (message === ServerErrorMessages.uiConfigureModuleNameInvalid) {
-    return {
-      authentication: false,
-      code: 'ui-configure-module-name-invalid',
-      message,
-      recoverable: false,
-      terminal: false,
-    }
-  }
-
-  if (message === ServerErrorMessages.uiConfigureModuleIndexInvalid) {
-    return {
-      authentication: false,
-      code: 'ui-configure-module-index-invalid',
       message,
       recoverable: false,
       terminal: false,
@@ -181,10 +162,17 @@ export function parseServerErrorMessage(message: string): ParsedServerErrorMessa
   }
 }
 
+/**
+ * Checks if a server error message is authentication-related.
+ */
 export function isAuthenticationServerErrorMessage(message: string) {
   return parseServerErrorMessage(message).authentication
 }
 
+/**
+ * Checks if a server error message is a terminal authentication error.
+ * Terminal errors should not be retried.
+ */
 export function isTerminalAuthenticationServerErrorMessage(message: string) {
   const parsed = parseServerErrorMessage(message)
   return parsed.authentication && parsed.terminal

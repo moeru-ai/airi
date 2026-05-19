@@ -1,24 +1,22 @@
 ---
-title: 桌面版上手指南
-description: 如何使用桌面版的 Project AIRI
+title: 桌面版快速开始
+description: 如何开始使用 Project AIRI 桌面版
 ---
 
-## 我现在就想聊天！
+## 先开始聊天
 
-没问题，跟着我来：
+安装并启动 AIRI 后，可以先跟随首次引导完成基础配置：
 
-- 完成入门引导教程
-
-1. 选择您想要的 LLM / AI 提供商（在演示视频中，我选择了 OpenRouter）
-2. 输入与 LLM / AI 进行交互需要的 API 密钥（会作为角色的「大脑」或「灵魂」）
-3. 挑选一个合适的聊天（Chat）模型（在演示视频中，我选择了 `DeepSeek V3 0324`）
-4. 从系统托盘中禁用 **悬停时淡化** 模式
-5. 将鼠标悬停在「角色模型」的界面上，点击聊天气泡图标，这将调出聊天窗口
-6. 现在输入点什么就可以开聊了！
+1. 如果 AIRI 要求选择语言，先选择你想使用的语言。
+2. 选择 **配置您自己的 AI 服务来源**；如果你已经在使用 AIRI 账号，也可以选择登录。
+3. 选择一个聊天服务来源，例如 OpenRouter、OpenAI 兼容 API、DeepSeek、Ollama、Qwen、Gemini 或 Claude。
+4. 填入 API Key，或本地服务地址等必要信息。
+5. 选择聊天模型，然后保存并继续。
+6. 回到主角色窗口后，点击右下角控制岛里的 **展开** 按钮。
+7. 点击 **打开聊天**，输入消息并发送。
 
 ::: tip 在本地使用 Ollama？
-您需要设置系统环境变量 `OLLAMA_ORIGINS=*`，
-并在设置完成后重启 Ollama 应用程序。
+你需要设置系统环境变量 `OLLAMA_ORIGINS=*`，然后重启 Ollama，再从 AIRI 中选择它。
 :::
 
 <br />
@@ -27,114 +25,51 @@ description: 如何使用桌面版的 Project AIRI
  <source src="/assets/tutorial-basic-setup-providers.mp4" type="video/mp4">
 </video>
 
-<br />
+## 你会看到什么
 
-嗯，确实，这节奏太快了。我想... 你应该还没搞明白「**悬停时淡化**」到底是什么功能，
-以及如何自定义所有设置，对吧？
+桌面版也叫 Stage Tamagotchi，通常由这些界面组成：
 
-::: tip 我们仍处于开发的早期阶段，许多功能尚未完全可用。
-其中一些功能尚未真正就绪，但我们正努力让它们尽快实现：
+- **主角色窗口**：常驻桌面的 Live2D / VRM 舞台。
+- **控制岛**：主角色窗口右下角的小按钮组。
+- **聊天窗口**：从控制岛打开的对话窗口。
+- **设置窗口**：配置服务来源、角色、模型、机体模块、数据、连接和系统选项。
+- **系统托盘菜单**：调整大小、对齐位置、打开设置、字幕、小部件和退出。
 
-- 文本转语音（语音控制）功能
-- 本地语音合成（例如 GPT-SoVITS、IndexTTS 等）
-- AI 唱歌
-- 从用户界面配置 Discord（但已经可以用了！只是需要掌握一些写代码的能力才能配置）
-- 从用户界面配置 Minecraft Agent 智能体（但已经可以用了！只是需要掌握一些写代码的能力才能配置）
-:::
+如果主角色窗口被隐藏了，可以点击 AIRI 的托盘图标，或在托盘菜单里选择 **显示** 把它带回来。
 
-但首先。。。
+## 控制岛
 
-::: tip 谢谢你！
+控制岛是日常操作桌面版时最方便的入口。
 
-感谢你下载并试用它！
-:::
+- 点击 **展开** 显示更多操作。
+- 点击 **打开聊天** 打开聊天窗口。
+- 点击 **打开设置** 配置服务来源、模型、机体模块、角色和系统设置。
+- 点击 **切换角色** 更换当前角色卡。
+- 需要时，可以点击 **刷新** 重新加载舞台。
+- 点击亮色 / 暗色图标切换主题。
+- 点击图钉图标切换窗口置顶。
+- 点击眼睛图标切换 **悬停时隐藏** / **总是显示**。
+- 点击麦克风按钮打开听力控制。
+- 拖动移动按钮来移动主角色窗口。
 
-下载完成后，你可以从任何位置启动 AIRI。你将看到用户界面由两部分组成：
+## 悬停时隐藏
 
-- 新手引导 / 设置向导
-- 模型（可显示 Live2D 和 VRM 模型）
+眼睛图标用于切换 AIRI 的显示方式：保持可点击，或在你工作时尽量减少遮挡和点击干扰。
 
-![](/assets/screenshot-ui.avif)
+- **总是显示** 会让角色保持可见、可点击。
+- **悬停时隐藏** 会在光标靠近时淡出角色和界面，让点击更容易落到下面的应用上。
 
-我们还在系统托盘中提供了其他选项/命令，包括：
-
-- 显示 / 隐藏
-- 打开设置
-- 自动定位窗口
-- 等等。
-
-让我们从逐一讲解基本概念和功能开始吧。
-
-## 窗口控制
-
-我们将介绍以下几个内容：
-
-- 如何与模型窗口互动？
-- 如何移动模型窗口？
-- 如何调整其大小？
-
-### 悬停时淡化
-
-::: info 快捷键速记
-要切换此功能（即可与模型进行交互），请使用快捷键<kbd aria-label="Shift" data-keyboard-key="shift" inline-block>Shift</kbd> + <kbd aria-label="Alt" data-macos-keyboard-key="option" inline-block>Alt</kbd> + <kbd aria-label="I" inline-block>I</kbd> 。
-
-你可以在以下位置自定义按键映射：[设置]-> [外观] -> [通用] -> [快捷键]
-:::
-
-你会发现，当鼠标悬停在模型上时，Live2D/VRM 模型会逐渐淡出或消失，
-此时你无法通过光标与它进行交互。
+首次开启悬停时隐藏时，AIRI 会弹出一个简短说明。若开启后不方便点击 AIRI，把光标移到控制岛附近，再点一次眼睛图标即可切回。
 
 <div rounded-lg overflow-hidden>
   <video autoplay loop muted class="scale-180 translate-x--30 translate-y--2 lg:scale-150 lg:translate-x--40">
-      <source src="/assets/tutorial-basic-fade-on-hover.mp4" type="video/mp4">
+    <source src="/assets/tutorial-basic-fade-on-hover.mp4" type="video/mp4">
   </video>
 </div>
 
-这是因为默认情况下，**悬停时淡化** 功能是启用的：也就是说，
-每当光标悬停在模型窗口的上方时，模型会淡出，并且你的点击会直接穿透该窗口。
+## 移动和调整大小
 
-这是一个非常强大的功能，在不断让「伙伴」一直陪伴在身边的过程中，你也可能会越来越发现它的有用之处。比如下面这两种我们想到的两个使用场景：
-
-#### 浏览 CrunchyRoll
-
-<video autoplay loop muted>
-  <source src="/assets/tutorial-demo-browsing-crunchy-roll.mp4" type="video/mp4">
-</video>
-
-#### 浏览 Steam
-
-<video autoplay loop muted>
-  <source src="/assets/tutorial-demo-browsing-steam.mp4" type="video/mp4">
-</video>
-
-当然，想要禁用这一功能其实很简单。
-
-有两种方式可以禁用它：
-
-- 系统托盘
-- 快捷键
-
-你可以通过以下步骤来切换该功能：
-
-1. 右键单击系统托盘图标；
-2. 点击 **窗口模式**
-3. 点击 **悬停时淡化**
-
-<div rounded-lg overflow-hidden>
-  <video autoplay loop muted class="scale-200 translate-x--35 translate-y--23 lg:scale-180 lg:translate-x--60 lg:translate-y--40">
-     <source src="/assets/tutorial-basic-disable-fade-on-hover.mp4" type="video/mp4">
-  </video>
-</div>
-
-### 移动窗口
-
-::: info 快捷键速记
-要切换此功能（即可与模型进行交互），请使用快捷键 <kbd aria-label="Shift" data-keyboard-key="shift" inline-block>Shift</kbd> + <kbd aria-label="Alt" data-macos-keyboard-key="option" inline-block>Alt</kbd> + <kbd aria-label="N" inline-block>N</kbd>。
-
-你可以在 [设置]-> [外观] -> [通用] -> [快捷键] 中自定义按键映射。
-:::
-
-<br />
+要移动主角色窗口，拖动控制岛右下角的移动按钮。
 
 <div rounded-lg overflow-hidden>
   <video autoplay loop muted class="scale-225 translate-x--45 translate-y--5 lg:scale-200 lg:translate-x--80 lg:translate-y--5">
@@ -142,15 +77,13 @@ description: 如何使用桌面版的 Project AIRI
   </video>
 </div>
 
-### 调整窗口大小
+在 Windows 上，你可以拖动窗口边缘或角落来调整大小。托盘菜单里也提供了几个常用尺寸：
 
-::: info 快捷键速记
-要切换此功能（即可与模型进行交互），请使用快捷键 <kbd aria-label="Shift" data-keyboard-key="shift" inline-block>Shift</kbd> + <kbd aria-label="Alt" data-macos-keyboard-key="option" inline-block>Alt</kbd> + <kbd aria-label="A" inline-block>A</kbd>。
+1. 右键 AIRI 托盘图标。
+2. 打开 **调整大小**。
+3. 选择 **推荐**、**全高**、**半高** 或 **全屏**。
 
-你可以在 [设置]-> [外观] -> [通用] -> [快捷键] 中自定义按键映射。
-:::
-
-<br />
+同一个托盘菜单里的 **对齐到** 可以把窗口放到屏幕中央或四角。
 
 <div rounded-lg overflow-hidden>
   <video autoplay loop muted class="scale-160 translate-x--20 lg:scale-150 lg:translate-x--40 lg:translate-y-10">
@@ -158,17 +91,14 @@ description: 如何使用桌面版的 Project AIRI
   </video>
 </div>
 
-## 聊天
+## 建议再看看这些设置
 
-目前系统托盘中没有直接打开聊天窗口的选项或命令，但我们未来可能会添加这一功能。
-目前，要打开聊天窗口，你需要先关闭 **悬停时淡化** 模式。
+完成第一次聊天后，建议再看看这些页面：
 
-::: info 快捷键速记
-悬停时淡化（Fade on Hover）的快捷键是：<kbd aria-label="Shift" data-keyboard-key="shift" inline-block>Shift</kbd> + <kbd aria-label="Alt" data-macos-keyboard-key="option" inline-block>Alt</kbd> + <kbd aria-label="I" inline-block>I</kbd>.
-:::
+- **服务来源**：添加或编辑 Chat、Speech、Transcription、Artistry 服务来源。
+- **机体模块**：为意识、发声、听觉、视觉、记忆、Discord、Minecraft、Factorio、MCP 等模块选择服务。
+- **角色模型**：切换 Live2D / VRM 模型，或导入自己的模型。
+- **AIRI 角色卡**：切换当前角色，或创建一个新的角色卡。
+- **系统**：设置语言、主题、数据分析偏好和桌面端专用选项。
 
-<br />
-
-<video autoplay loop muted>
- <source src="/assets/tutorial-basic-open-chat.mp4" type="video/mp4">
-</video>
+部分模块仍处于实验阶段，可能需要本地源码配置或额外的外部服务。更完整的 Windows 使用说明可以参考[桌面版详细说明书](./setup-and-use/)。

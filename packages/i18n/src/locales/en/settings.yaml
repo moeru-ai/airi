@@ -1337,6 +1337,8 @@ pages:
         description: Official AI provider by AIRI.
         speech-title: Official Speech Provider
         speech-description: Official text-to-speech provider by AIRI.
+        speech-streaming-title: Official Streaming Speech Provider
+        speech-streaming-description: Official low-latency text-to-speech provider by AIRI (bidirectional WebSocket).
         transcription-title: Official Transcription Provider
         transcription-description: Official speech-to-text provider by AIRI.
       transcriptions:
@@ -1626,6 +1628,35 @@ vrm:
   skybox:
     skybox-intensity: SkyBox Intensity
     skybox-specular-mix: Specular Mix
+spine:
+  title: Spine Settings
+  scale-and-position:
+    title: Scale And Position
+    scale: Scale
+    x: X
+    'y': 'Y'
+  theme-color-from-model:
+    title: Extract colors from model
+    button-extract:
+      title: Extract
+  animation:
+    title: Animation
+    idle-animation: Idle Animation
+    mix-duration: Mix Duration (seconds)
+    speed: Animation Speed
+  variant:
+    title: Variant
+    current-variant: Active Variant
+  skin:
+    title: Skin
+    current-skin: Current Skin
+  rendering:
+    title: Rendering
+    max-fps: Maximum FPS
+    render-scale: Render Scale
+  fps:
+    options:
+      unlimited: Unlimited
 websocket-secure-enabled:
   title: Enable Secure WebSocket (WSS)
   description: >-

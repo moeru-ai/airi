@@ -1,4 +1,4 @@
-export type ModelSettingsRuntimeRenderer = 'disabled' | 'live2d' | 'vrm' | 'godot'
+export type ModelSettingsRuntimeRenderer = 'disabled' | 'live2d' | 'vrm' | 'spine' | 'godot'
 export type ModelSettingsRuntimePhase = 'pending' | 'loading' | 'binding' | 'mounted' | 'no-model' | 'error'
 
 export interface ModelSettingsRuntimeSnapshot {

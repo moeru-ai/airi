@@ -1,5 +1,5 @@
 import type { ContextInit } from '@proj-airi/plugin-sdk'
-import type { HostDataRecord } from '@proj-airi/plugin-sdk/plugin-host'
+import type { HostDataRecord, ToolsetPromptManifest } from '@proj-airi/plugin-sdk/plugin-host'
 import type { JsonSchema, Schema as StandardSchemaV1 } from 'xsschema'
 
 import { hostDataRecordSchema } from '@proj-airi/plugin-sdk/plugin-host'
@@ -118,6 +118,8 @@ export interface PluginToolDefinition<TInputSchema = unknown> {
  * - Resolves once every tool has been registered with the host
  */
 export interface DefineToolsetOptions<TInputSchema = unknown> {
+  id?: string
+  prompt?: ToolsetPromptManifest
   tools: Array<PluginToolDefinition<TInputSchema>>
 }
 
@@ -330,6 +332,13 @@ export async function defineToolset(
   options: DefineToolsetOptions,
 ): Promise<void> {
   const executionContext = createToolExecutionContext(ctx)
+
+  if (options.prompt) {
+    await ctx.apis.tools.registerToolsetPrompt({
+      id: options.id ?? options.prompt.id,
+      prompt: options.prompt,
+    })
+  }
 
   for (const definition of options.tools) {
     const isAvailable = definition.isAvailable

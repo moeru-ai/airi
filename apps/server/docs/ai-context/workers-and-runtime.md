@@ -105,7 +105,7 @@
 重要实现细节：
 
 - `sdk.start()` 必须发生在 `metrics.getMeter()` 之前
-- `/health` 会被 HTTP instrumentation 忽略
+- `/livez` 和 `/readyz` 会被 HTTP instrumentation 忽略
 
 ## 运行时修改建议
 

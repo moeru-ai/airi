@@ -138,12 +138,12 @@ CLI 入口在 `src/bin/run.ts`，只有一种角色：
 
 这是服务端最重要的边界之一，尽量不要把写余额逻辑重新塞回 `flux.ts`。
 
-### LLM 网关代理而不是本地 provider 编排
+### LLM/TTS 路由在进程内，而不是本地 provider 编排
 
-`/api/v1/openai` 并不直接调具体模型 provider，而是转发到 `config: GATEWAY_BASE_URL`。因此：
+`/api/v1/openai` 由 `services/domain/llm-router` 读取 `LLM_ROUTER_CONFIG` 后按 upstream 链路 + key rotator 直接调 provider（OpenRouter、Azure Speech、阿里云 DashScope、火山引擎 等），不再依赖外部 knoway sidecar。因此：
 
-- 服务端关心的是鉴权、限流、计费、日志、观测
-- 具体模型执行和 usage 返回格式由 gateway 决定
+- 服务端关心的是鉴权、限流、计费、日志、观测、上游路由与 key 健康
+- 具体模型协议翻译由 `services/domain/llm-router` 与 `services/adapters/tts` 的 adapter 完成
 
 ### Redis 有多种职责，但都不是余额真相源
 
@@ -160,4 +160,4 @@ Redis 在这里同时承担：
 ## 当前值得注意的实现信号
 
 - `/api/v1/openai` 当前开放：`POST /chat/completions`、`POST /chat/completion`、`POST /audio/speech`、`GET /audio/voices`。`handleTranscription` 路由尚未挂载。
-- `flux_grant_batch` schema / service / route 已被简化版 `admin-flux-grants` 取代，但旧的 `src/schemas/flux-grant-batch.ts`、`src/services/admin-flux-grant-batch/`、`src/routes/admin/flux-grant-batches/` 仍以 dead code 形态残留在仓库里，没有在 `app.ts` 装配。改这块前直接删旧文件，不要继续往里面加东西。
+- `flux_grant_batch` schema 已被简化版 `admin-flux-grants` 取代，代码 + schema 都已清理。`drizzle/0011_open_unus.sql` 是 drop migration（`DROP TABLE flux_grant_batch / flux_grant_batch_recipient CASCADE`，顺带清掉 6 个 index）。这条 DDL 是不可逆破坏，需要操作员在合适的部署窗口手动 `pnpm db:push` 推到 prod；只要 prod DB 还没 apply 0011，回滚 server image 不会丢数据。

@@ -12,7 +12,6 @@ import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
 import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
-import { getAuthToken } from '../../libs/auth'
 import { authedFetch } from '../../libs/auth-fetch'
 import {
   applyCreateActions,
@@ -24,6 +23,7 @@ import {
   reconcileLocalAndRemote,
 } from '../../libs/chat-sync'
 import { SERVER_URL } from '../../libs/server'
+import { capturePosthogEvent } from '../analytics/posthog'
 import { useAuthStore } from '../auth'
 import { useAiriCardStore } from '../modules/airi-card'
 import { mergeLoadedSessionMessages } from './session-message-merge'
@@ -48,7 +48,7 @@ interface CloudMergePayload {
 const OUTBOX_MAX_ATTEMPTS = 5
 
 export const useChatSessionStore = defineStore('chat-session', () => {
-  const { userId } = storeToRefs(useAuthStore())
+  const { userId, token: authToken } = storeToRefs(useAuthStore())
   const { activeCardId, systemPrompt } = storeToRefs(useAiriCardStore())
 
   const activeSessionId = ref<string>('')
@@ -440,6 +440,13 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     const meta = sessionMetas.value[sessionId]
     if (!meta)
       return
+
+    // Snapshot count before the in-memory wipe below zeroes it out.
+    const messageCount = (sessionMessages.value[sessionId] ?? []).length
+    capturePosthogEvent('chat_session_deleted', {
+      session_id: sessionId,
+      message_count: messageCount,
+    })
 
     const wasActive = activeSessionId.value === sessionId
     const characterId = meta.characterId
@@ -851,7 +858,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     console.info('[chat-sync] creating WS client →', SERVER_URL)
     wsClient = createChatWsClient({
       serverUrl: SERVER_URL,
-      getToken: getAuthToken,
+      // Reactive read — see `createChatWsUrlRef` contract.
+      getToken: () => authToken.value,
     })
 
     wsClient.onNewMessages((payload) => {

@@ -51,20 +51,30 @@ function createSegmenter(texts: string[]) {
   }
 }
 
-function createPlaybackSpy() {
+function createPlaybackSpy(options?: { autoEnd?: boolean }) {
   const scheduled: Array<PlaybackItem<string>> = []
+  const endListeners: Array<(event: { item: PlaybackItem<string>, endedAt: number }) => void> = []
+  const autoEnd = options?.autoEnd ?? true
 
   return {
     scheduled,
+    end(item: PlaybackItem<string>) {
+      for (const listener of endListeners)
+        listener({ item, endedAt: Date.now() })
+    },
     playback: {
       schedule(item: PlaybackItem<string>) {
         scheduled.push(item)
+        if (autoEnd)
+          queueMicrotask(() => endListeners.forEach(listener => listener({ item, endedAt: Date.now() })))
       },
       stopAll: vi.fn(),
       stopByIntent: vi.fn(),
       stopByOwner: vi.fn(),
       onStart: vi.fn(),
-      onEnd: vi.fn(),
+      onEnd(listener: (event: { item: PlaybackItem<string>, endedAt: number }) => void) {
+        endListeners.push(listener)
+      },
       onInterrupt: vi.fn(),
       onReject: vi.fn(),
     },
@@ -186,5 +196,118 @@ describe('createSpeechPipeline', () => {
 
     expect(abortedRequests.sort()).toEqual([0, 1])
     expect(scheduled).toEqual([])
+  })
+
+  it('dispatches special controls only after the preceding playback item ends', async () => {
+    const { scheduled, playback, end } = createPlaybackSpy({ autoEnd: false })
+    const events: string[] = []
+
+    const pipeline = createSpeechPipeline<string>({
+      ttsMaxConcurrent: 2,
+      segmenter: (_tokens, meta) => {
+        return new ReadableStream<TextSegment>({
+          start(controller) {
+            controller.enqueue({
+              turnId: meta.turnId,
+              streamId: meta.streamId,
+              intentId: meta.intentId,
+              segmentId: 'segment:0',
+              text: 'before',
+              special: null,
+              reason: 'flush',
+              createdAt: Date.now(),
+            })
+            controller.enqueue({
+              turnId: meta.turnId,
+              streamId: meta.streamId,
+              intentId: meta.intentId,
+              segmentId: 'segment:1',
+              text: '',
+              special: '<|CALL ["plugin.action"]|>',
+              reason: 'special',
+              createdAt: Date.now(),
+            })
+            controller.close()
+          },
+        })
+      },
+      playback,
+      async tts(request) {
+        events.push(`tts:${request.text}`)
+        return request.text
+      },
+    })
+
+    pipeline.on('onSpecial', (segment) => {
+      events.push(`special:${segment.special}`)
+      events.push(`turn:${segment.turnId}`)
+    })
+
+    const intent = pipeline.openIntent({ turnId: 'turn-1' })
+    intent.end()
+
+    await delay(0)
+    expect(scheduled.map(item => item.text)).toEqual(['before'])
+    expect(events).toEqual(['tts:before'])
+
+    end(scheduled[0]!)
+    await delay(0)
+
+    expect(events).toEqual([
+      'tts:before',
+      'special:<|CALL ["plugin.action"]|>',
+      'turn:turn-1',
+    ])
+  })
+
+  it('does not schedule queued timeline playback after the owning intent is cancelled', async () => {
+    const { scheduled, playback, end } = createPlaybackSpy({ autoEnd: false })
+
+    const pipeline = createSpeechPipeline<string>({
+      ttsMaxConcurrent: 2,
+      segmenter: (_tokens, meta) => {
+        return new ReadableStream<TextSegment>({
+          start(controller) {
+            controller.enqueue({
+              turnId: meta.turnId,
+              streamId: meta.streamId,
+              intentId: meta.intentId,
+              segmentId: 'segment:0',
+              text: 'first',
+              special: null,
+              reason: 'flush',
+              createdAt: Date.now(),
+            })
+            controller.enqueue({
+              turnId: meta.turnId,
+              streamId: meta.streamId,
+              intentId: meta.intentId,
+              segmentId: 'segment:1',
+              text: 'second',
+              special: null,
+              reason: 'flush',
+              createdAt: Date.now(),
+            })
+            controller.close()
+          },
+        })
+      },
+      playback,
+      async tts(request) {
+        return request.text
+      },
+    })
+
+    const intent = pipeline.openIntent({ intentId: 'intent-1', turnId: 'turn-1' })
+    intent.end()
+
+    await delay(0)
+    expect(scheduled.map(item => item.text)).toEqual(['first'])
+
+    intent.cancel('newer-intent')
+    end(scheduled[0]!)
+    await delay(0)
+
+    expect(scheduled.map(item => item.text)).toEqual(['first'])
   })
 })

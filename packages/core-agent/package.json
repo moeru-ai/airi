@@ -42,6 +42,7 @@
     "@proj-airi/pipelines-audio": "workspace:^",
     "@proj-airi/server-sdk": "workspace:^",
     "@proj-airi/server-shared": "workspace:^",
+    "@proj-airi/stream-kit": "workspace:^",
     "@xsai-ext/providers": "catalog:",
     "@xsai/generate-speech": "catalog:",
     "@xsai/generate-text": "catalog:",
@@ -51,11 +52,17 @@
     "@xsai/stream-text": "catalog:",
     "@xsai/tool": "catalog:",
     "nanoid": "^5.1.9",
+    "rehype-parse": "^9.0.1",
+    "rehype-stringify": "^10.0.1",
+    "unified": "^11.0.5",
+    "unist-util-visit": "^5.1.0",
     "vieval": "catalog:",
     "xsschema": "catalog:",
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@types/hast": "catalog:",
+    "@types/unist": "catalog:",
     "tsdown": "catalog:",
     "typescript": "^5.9.3"
   }

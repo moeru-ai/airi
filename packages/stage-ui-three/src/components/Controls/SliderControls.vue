@@ -1,10 +1,40 @@
 <script setup lang="ts">
 import { RoundRange } from '@proj-airi/ui'
-import { onUnmounted } from 'vue'
+import { storeToRefs } from 'pinia'
+import { computed, onUnmounted } from 'vue'
 
-import { controlConfig as conf, useThreeViewControl } from '../../stores/view-control'
+import { useModelStore } from '../../stores/model-store'
+import { defaultControlConfig as conf, formatter, useThreeViewControl } from '../../stores/view-control'
 
-const { cameraDistance, cameraFOV, modelOffset, viewControlsEnabled, viewControlMode } = useThreeViewControl()
+const { cameraDistance, cameraFOV, modelOffset, viewControlsEnabled, viewControlMode, set: setValue } = useThreeViewControl()
+const { sceneMutationLocked } = storeToRefs(useModelStore())
+
+const controlledValue = computed({
+  get() {
+    switch (viewControlMode.value) {
+      case 'x':
+        return modelOffset.value.x
+      case 'y':
+        return modelOffset.value.y
+      case 'z':
+        return modelOffset.value.z
+      case 'cameraDistance':
+        return cameraDistance.value
+      case 'cameraFOV':
+        return cameraFOV.value
+      default: throw new Error(`Unexpected control key: ${viewControlMode.value}`)
+    }
+  },
+  set(value) {
+    if (sceneMutationLocked.value)
+      return
+    setValue(viewControlMode.value, value)
+  },
+})
+
+const formattedValue = computed(() => {
+  return formatter[viewControlMode.value](controlledValue.value)
+})
 
 onUnmounted(() => {
   viewControlsEnabled.value = false
@@ -13,56 +43,23 @@ onUnmounted(() => {
 
 <template>
   <Transition name="fade-side-pops-in">
-    <div v-if="viewControlsEnabled">
+    <fieldset v-if="viewControlsEnabled">
       <Transition name="fade-side-pops-in" mode="out-in">
-        <!-- TODO: generate the controls programmatically, while preserving the transition -->
-        <div v-if="viewControlMode === 'x'" relative class="[&_.round-range-tooltip]:hover:opacity-100">
+        <div :key="viewControlMode" relative class="[&_.round-range-tooltip]:hover:opacity-100">
           <RoundRange
-            v-model="modelOffset.x" :min="conf.x.min" :max="conf.x.max" :step="conf.x.step" handle-wheel
-            data-direction="vertical" h="50%" write-vertical-left
+            v-model="controlledValue" :min="conf[viewControlMode].min" :max="conf[viewControlMode].max"
+            :disabled="sceneMutationLocked" :step="conf[viewControlMode].step" handle-wheel data-direction="vertical"
+            h="50%" write-vertical-left
           />
-          <div class="round-range-tooltip" top="50%" translate-y="[-50%]" absolute left-10 font-mono op-0 transition="all duration-200 ease-in-out">
-            {{ conf.x.format(modelOffset.x) }}
-          </div>
-        </div>
-        <div v-else-if="viewControlMode === 'y'" relative class="[&_.round-range-tooltip]:hover:opacity-100">
-          <RoundRange
-            v-model="modelOffset.y" :min="conf.y.min" :max="conf.y.max" :step="conf.y.step" handle-wheel
-            data-direction="vertical" h="50%" write-vertical-left
-          />
-          <div class="round-range-tooltip" top="50%" translate-y="[-50%]" absolute left-10 font-mono op-0 transition="all duration-200 ease-in-out">
-            {{ conf.y.format(modelOffset.y) }}
-          </div>
-        </div>
-        <div v-else-if="viewControlMode === 'z'" relative class="[&_.round-range-tooltip]:hover:opacity-100">
-          <RoundRange
-            v-model="modelOffset.z" :min="conf.z.min" :max="conf.z.max" :step="conf.z.step" handle-wheel
-            data-direction="vertical" h="50%" write-vertical-left
-          />
-          <div class="round-range-tooltip" top="50%" translate-y="[-50%]" absolute left-10 font-mono op-0 transition="all duration-200 ease-in-out">
-            {{ conf.z.format(modelOffset.z) }}
-          </div>
-        </div>
-        <div v-else-if="viewControlMode === 'cameraDistance'" relative class="[&_.round-range-tooltip]:hover:opacity-100">
-          <RoundRange
-            v-model="cameraDistance" :min="conf.cameraDistance.min" :max="conf.cameraDistance.max" :step="conf.cameraDistance.step" handle-wheel
-            data-direction="vertical" h="50%" write-vertical-left
-          />
-          <div class="round-range-tooltip" top="50%" translate-y="[-50%]" absolute left-10 font-mono op-0 transition="all duration-200 ease-in-out">
-            {{ conf.cameraDistance.format(cameraDistance) }}
-          </div>
-        </div>
-        <div v-else-if="viewControlMode === 'cameraFOV'" relative class="[&_.round-range-tooltip]:hover:opacity-100">
-          <RoundRange
-            v-model="cameraFOV" :min="conf.cameraFOV.min" :max="conf.cameraFOV.max" :step="conf.cameraFOV.step" handle-wheel
-            data-direction="vertical" h="50%" write-vertical-left
-          />
-          <div class="round-range-tooltip" top="50%" translate-y="[-50%]" absolute left-10 font-mono op-0 transition="all duration-200 ease-in-out">
-            {{ conf.cameraFOV.format(cameraFOV) }}
+          <div
+            class="round-range-tooltip" top="50%" translate-y="[-50%]" absolute left-10 font-mono op-0
+            transition="all duration-200 ease-in-out"
+          >
+            {{ formattedValue }}
           </div>
         </div>
       </Transition>
-    </div>
+    </fieldset>
   </Transition>
 </template>
 

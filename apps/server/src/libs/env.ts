@@ -1,10 +1,52 @@
 import type { InferOutput } from 'valibot'
 
+import { Buffer } from 'node:buffer'
 import { env, exit } from 'node:process'
 
 import { useLogger } from '@guiiai/logg'
 import { injeca } from 'injeca'
-import { integer, maxValue, minValue, nonEmpty, object, optional, parse, pipe, string, transform } from 'valibot'
+import { check, integer, maxValue, minValue, nonEmpty, object, optional, parse, pipe, string, transform } from 'valibot'
+
+/**
+ * Parses `ADDITIONAL_TRUSTED_ORIGINS`: comma-separated absolute origins used for
+ * CORS (`/api/*`) and request-derived trusted bases (e.g. Stripe return URLs).
+ * Each segment is normalized via `URL.origin` so trailing slashes are stripped.
+ *
+ * Before:
+ * - `" https://10.0.0.129:5273/ , https://198.18.0.1:5273 "`
+ *
+ * After:
+ * - `["https://10.0.0.129:5273", "https://198.18.0.1:5273"]`
+ */
+export function parseAdditionalTrustedOriginsEnv(raw: string): string[] {
+  const trimmed = raw.trim()
+  if (!trimmed)
+    return []
+
+  const seen = new Set<string>()
+  const out: string[] = []
+
+  for (const part of trimmed.split(',')) {
+    const entry = part.trim()
+    if (!entry)
+      continue
+
+    let normalized: string
+    try {
+      normalized = new URL(entry).origin
+    }
+    catch {
+      throw new TypeError(`ADDITIONAL_TRUSTED_ORIGINS: invalid URL origin segment "${entry}"`)
+    }
+
+    if (!seen.has(normalized)) {
+      seen.add(normalized)
+      out.push(normalized)
+    }
+  }
+
+  return out
+}
 
 function optionalIntegerFromString(defaultValue: number, envKey: string, minimum: number) {
   return optional(
@@ -38,6 +80,16 @@ const EnvSchema = object({
 
   API_SERVER_URL: optional(string(), 'http://localhost:3000'),
 
+  // Comma-separated exact origins (e.g. Capacitor dev server `https://10.x:5273`).
+  // Prefer this over broad private-IP regex heuristics in production-like configs.
+  ADDITIONAL_TRUSTED_ORIGINS: optional(
+    pipe(
+      string(),
+      transform(raw => parseAdditionalTrustedOriginsEnv(raw)),
+    ),
+    '',
+  ),
+
   DATABASE_URL: pipe(string(), nonEmpty('DATABASE_URL is required')),
   REDIS_URL: pipe(string(), nonEmpty('REDIS_URL is required')),
 
@@ -63,10 +115,38 @@ const EnvSchema = object({
   STRIPE_SECRET_KEY: optional(string()),
   STRIPE_WEBHOOK_SECRET: optional(string()),
 
-  // LLM gateway (infrastructure config — baked per deployment)
-  GATEWAY_BASE_URL: pipe(string(), nonEmpty('GATEWAY_BASE_URL is required')),
-  DEFAULT_CHAT_MODEL: pipe(string(), nonEmpty('DEFAULT_CHAT_MODEL is required')),
-  DEFAULT_TTS_MODEL: pipe(string(), nonEmpty('DEFAULT_TTS_MODEL is required')),
+  // PostHog server-side analytics. Optional — when unset the client is null
+  // and `captureSafe(...)` is a no-op so webhooks still complete.
+  POSTHOG_API_KEY: optional(string(), ''),
+  POSTHOG_HOST: optional(string(), 'https://us.i.posthog.com'),
+
+  // LLM/TTS gateway is fully internalised by the in-process router; provider
+  // baseURLs live per-upstream inside LLM_ROUTER_CONFIG, and the default chat /
+  // tts model aliases moved to configKV (DEFAULT_CHAT_MODEL / DEFAULT_TTS_MODEL)
+  // so they're hot-swappable via Pub/Sub invalidation. No env entries needed
+  // here.
+
+  // Envelope-encryption master key for in-process LLM/TTS router (KTD-5).
+  // Stored as base64-encoded 32 random bytes. Validator decodes + asserts the
+  // 32-byte length at parse time so a misconfigured key fails the deploy
+  // rather than passing readiness and breaking on first router request.
+  // Required: the router has no fallback path, so an unset master key means
+  // chat completions cannot serve at all.
+  LLM_ROUTER_MASTER_KEY: pipe(
+    string(),
+    nonEmpty('LLM_ROUTER_MASTER_KEY is required'),
+    transform(b64 => Buffer.from(b64, 'base64')),
+    check(buf => buf.length === 32, 'LLM_ROUTER_MASTER_KEY must decode to exactly 32 bytes (base64-encoded 32-byte random)'),
+  ),
+  // Optional second master key used only during rotation: encrypts under
+  // LLM_ROUTER_MASTER_KEY (new), retries decrypt against LLM_ROUTER_MASTER_KEY_PREVIOUS
+  // (old). Drop after re-encrypting every stored ciphertext.
+  LLM_ROUTER_MASTER_KEY_PREVIOUS: optional(pipe(
+    string(),
+    nonEmpty('LLM_ROUTER_MASTER_KEY_PREVIOUS must not be empty when set'),
+    transform(b64 => Buffer.from(b64, 'base64')),
+    check(buf => buf.length === 32, 'LLM_ROUTER_MASTER_KEY_PREVIOUS must decode to exactly 32 bytes when set'),
+  )),
 
   // Database pool
   DB_POOL_MAX: optionalIntegerFromString(20, 'DB_POOL_MAX', 1),

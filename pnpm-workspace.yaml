@@ -27,6 +27,7 @@ patchedDependencies:
   '@xsai/stream-text@0.5.0-beta.2': patches/@xsai__stream-text@0.5.0-beta.2.patch
   mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
   pixi-live2d-display: patches/pixi-live2d-display.patch
+  sponsorkit@17.1.0: patches/sponsorkit@17.1.0.patch
 catalog:
   '@ax-llm/ax': ^19.0.43
   '@better-auth/oauth-provider': 1.5.6
@@ -54,7 +55,7 @@ catalog:
   '@intlify/core': ^11.3.2
   '@modelcontextprotocol/sdk': ^1.29.0
   '@moeru/eslint-config': 0.1.0-beta.15
-  '@moeru/eventa': 1.0.0-beta.4
+  '@moeru/eventa': 1.0.0-beta.5
   '@moeru/std': 0.1.0-beta.17
   '@napi-rs/image': ^1.12.0
   '@nekopaw/tempora': 0.4.0-alpha.1
@@ -124,6 +125,7 @@ catalog:
   oxc-minify: ^0.126.0
   pinia: ^3.0.4
   posthog-js: 1.306.1
+  posthog-node: ^5.34.1
   reka-ui: ^2.9.2
   replicate: ^1.4.0
   splitpanes: ^4.0.4
