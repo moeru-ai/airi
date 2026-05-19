@@ -68,12 +68,6 @@ const {
 
 } = storeToRefs(settingsStore)
 const {
-  live2dCursorTracking,
-  live2dIdleAnimationEnabled,
-  live2dForceIdleEyeAnimation,
-  live2dAutoBlinkEnabled,
-  live2dForceAutoBlinkEnabled,
-  live2dExpressionEnabled,
   live2dShadowEnabled,
   live2dMaxFps,
   live2dRenderScale,
@@ -876,14 +870,8 @@ defineExpose({
         :mouth-open-size="mouthOpenSize"
         :now-speaking="nowSpeaking"
         :paused="paused"
-        :cursor-tracking="live2dCursorTracking"
         :theme-colors-hue="themeColorsHue"
         :theme-colors-hue-dynamic="themeColorsHueDynamic"
-        :live2d-idle-animation-enabled="live2dIdleAnimationEnabled"
-        :live2d-force-idle-eye-animation="live2dForceIdleEyeAnimation"
-        :live2d-auto-blink-enabled="live2dAutoBlinkEnabled"
-        :live2d-force-auto-blink-enabled="live2dForceAutoBlinkEnabled"
-        :live2d-expression-enabled="live2dExpressionEnabled"
         :live2d-shadow-enabled="live2dShadowEnabled"
         :live2d-max-fps="live2dMaxFps"
         :live2d-render-scale="live2dRenderScale"

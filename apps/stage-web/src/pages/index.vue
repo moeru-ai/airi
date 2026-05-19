@@ -10,6 +10,7 @@ import workletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&u
 import { BackgroundProvider } from '@proj-airi/stage-layouts/components/Backgrounds'
 import { useBackgroundThemeColor } from '@proj-airi/stage-layouts/composables/theme-color'
 import { useBackgroundStore } from '@proj-airi/stage-layouts/stores/background'
+import { useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
 import { HoloCoupon } from '@proj-airi/stage-ui/components'
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useAudioRecorder } from '@proj-airi/stage-ui/composables/audio/audio-recorder'
@@ -19,7 +20,7 @@ import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consci
 import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
+import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 
@@ -146,6 +147,13 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
     }
   }
 })
+
+const { live2dEyeTrackingSource } = storeToRefs(useSettingsLive2d())
+const { x: mouseX, y: mouseY } = useMouse()
+live2dEyeTrackingSource.value = computed(() => ({
+  x: mouseX.value,
+  y: mouseY.value,
+}))
 </script>
 
 <template>

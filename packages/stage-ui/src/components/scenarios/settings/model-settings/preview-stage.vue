@@ -4,6 +4,7 @@ import type { ModelSettingsRuntimeSnapshot } from './runtime'
 import { Live2DScene, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
 import { SpineScene } from '@proj-airi/stage-ui-spine'
 import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
+import { useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, provide, ref, watch } from 'vue'
 
@@ -24,7 +25,6 @@ const emit = defineEmits<{
 }>()
 
 const settingsStore = useSettings()
-const l2dSettings = useSettingsLive2d()
 const modelStore = useModelStore()
 const live2dSceneRef = ref<{ canvasElement: () => HTMLCanvasElement | undefined }>()
 const vrmSceneRef = ref<{ canvasElement: () => HTMLCanvasElement | undefined }>()
@@ -43,16 +43,6 @@ const {
   themeColorsHueDynamic,
 
 } = storeToRefs(settingsStore)
-const {
-  live2dCursorTracking,
-  live2dIdleAnimationEnabled,
-  live2dForceIdleEyeAnimation,
-  live2dAutoBlinkEnabled,
-  live2dForceAutoBlinkEnabled,
-  live2dShadowEnabled,
-  live2dMaxFps,
-  live2dRenderScale,
-} = storeToRefs(l2dSettings)
 const {
   spinePremultipliedAlpha,
   spineDefaultMixDuration,
@@ -161,6 +151,13 @@ watch(runtimeSnapshot, snapshot => emit('runtimeSnapshotChanged', snapshot), { i
 defineExpose({
   capturePreviewFrame,
 })
+
+const { live2dEyeTrackingSource } = storeToRefs(useSettingsLive2d())
+const { x: mouseX, y: mouseY } = useMouse()
+live2dEyeTrackingSource.value = computed(() => ({
+  x: mouseX.value,
+  y: mouseY.value,
+}))
 </script>
 
 <template>
@@ -171,16 +168,8 @@ defineExpose({
         v-model:state="live2dComponentState"
         :model-src="stageModelSelectedUrl"
         :model-id="stageModelSelected"
-        :cursor-tracking="live2dCursorTracking"
         :theme-colors-hue="themeColorsHue"
         :theme-colors-hue-dynamic="themeColorsHueDynamic"
-        :live2d-idle-animation-enabled="live2dIdleAnimationEnabled"
-        :live2d-force-idle-eye-animation="live2dForceIdleEyeAnimation"
-        :live2d-auto-blink-enabled="live2dAutoBlinkEnabled"
-        :live2d-force-auto-blink-enabled="live2dForceAutoBlinkEnabled"
-        :live2d-shadow-enabled="live2dShadowEnabled"
-        :live2d-max-fps="live2dMaxFps"
-        :live2d-render-scale="live2dRenderScale"
       />
     </div>
   </template>

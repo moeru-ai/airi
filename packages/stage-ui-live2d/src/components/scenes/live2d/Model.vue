@@ -41,7 +41,7 @@ const props = withDefaults(defineProps<{
   height: number
   paused?: boolean
   focusAt?: { x: number, y: number }
-  cursorTracking?: boolean
+  eyeTracking?: boolean
   themeColorsHue?: number
   themeColorsHueDynamic?: boolean
   live2dIdleAnimationEnabled?: boolean
@@ -55,7 +55,7 @@ const props = withDefaults(defineProps<{
   nowSpeaking: false,
   paused: false,
   focusAt: () => ({ x: 0, y: 0 }),
-  cursorTracking: false,
+  eyeTracking: false,
   disableFocusAt: false,
   scale: 1,
   themeColorsHue: 220.44,
@@ -728,7 +728,7 @@ watch(live2dExpressionEnabled, (enabled) => {
 watch(focusAt, (value) => {
   if (!model.value)
     return
-  if (!props.cursorTracking)
+  if (!props.eyeTracking)
     return
 
   model.value.focus(value.x, value.y)

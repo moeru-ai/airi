@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { Screen } from '@proj-airi/ui'
+import { storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
 
 import SliderControls from '../ViewControls/SliderControls.vue'
 import Live2DCanvas from './live2d/Canvas.vue'
 import Live2DModel from './live2d/Model.vue'
 
-import { useLive2DCursorTracking } from '../../composables/live2d'
+import { useLive2DCursorTracking, useSettingsLive2d } from '../../composables/live2d'
 import { useL2dViewControl } from '../../stores'
 
 import '../../utils/live2d-zip-loader'
@@ -19,32 +20,14 @@ withDefaults(defineProps<{
   paused?: boolean
   mouthOpenSize?: number
   nowSpeaking?: boolean
-  cursorTracking?: boolean
   themeColorsHue?: number
   themeColorsHueDynamic?: boolean
-  live2dIdleAnimationEnabled?: boolean
-  live2dForceIdleEyeAnimation?: boolean
-  live2dAutoBlinkEnabled?: boolean
-  live2dForceAutoBlinkEnabled?: boolean
-  live2dExpressionEnabled?: boolean
-  live2dShadowEnabled?: boolean
-  live2dMaxFps?: number
-  live2dRenderScale?: number
 }>(), {
   paused: false,
   mouthOpenSize: 0,
   nowSpeaking: false,
-  cursorTracking: false,
   themeColorsHue: 220.44,
   themeColorsHueDynamic: false,
-  live2dIdleAnimationEnabled: true,
-  live2dForceIdleAnimation: true,
-  live2dAutoBlinkEnabled: true,
-  live2dForceAutoBlinkEnabled: false,
-  live2dExpressionEnabled: true,
-  live2dShadowEnabled: true,
-  live2dMaxFps: 0,
-  live2dRenderScale: 2,
 })
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
@@ -55,6 +38,17 @@ const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
 const live2dModelRef = ref<InstanceType<typeof Live2DModel>>()
 
 const { scale } = useL2dViewControl()
+const {
+  live2dEyeTracking,
+  live2dIdleAnimationEnabled,
+  live2dForceIdleEyeAnimation,
+  live2dAutoBlinkEnabled,
+  live2dForceAutoBlinkEnabled,
+  live2dExpressionEnabled,
+  live2dMaxFps,
+  live2dRenderScale,
+  live2dShadowEnabled,
+} = storeToRefs(useSettingsLive2d())
 const mouseFocus = useLive2DCursorTracking(
   () => live2dCanvasRef.value?.canvasElement(),
   () => ((live2dModelRef.value?.modelNormalizeParams.scale ?? 1) * scale.value),
@@ -103,7 +97,7 @@ defineExpose({
         :height="height"
         :paused="paused"
         :focus-at="mouseFocus"
-        :cursor-tracking="cursorTracking"
+        :eye-tracking="live2dEyeTracking"
         :theme-colors-hue="themeColorsHue"
         :theme-colors-hue-dynamic="themeColorsHueDynamic"
         :live2d-idle-animation-enabled="live2dIdleAnimationEnabled"

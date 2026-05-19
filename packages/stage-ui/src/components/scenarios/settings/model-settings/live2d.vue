@@ -27,7 +27,7 @@ const { t } = useI18n()
 
 const settings = useSettingsLive2d()
 const {
-  live2dCursorTracking,
+  live2dEyeTracking,
   live2dModelEyeOffset,
   live2dIdleAnimationEnabled,
   live2dAutoBlinkEnabled,
@@ -307,7 +307,7 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
     :expand="false"
   >
     <FieldCheckbox
-      v-model="live2dCursorTracking"
+      v-model="live2dEyeTracking"
       :label="t('settings.live2d.animation.focus.title')"
       :description="t('settings.live2d.animation.focus.description')"
       placement="right"
