@@ -1,4 +1,5 @@
 import type { NewMessagesPayload, PullMessagesRequest, PullMessagesResponse, SendMessagesRequest, SendMessagesResponse } from '@proj-airi/server-sdk-shared'
+import type { ComputedRef, Ref } from 'vue'
 
 import { defineInvoke } from '@moeru/eventa'
 import { createContext as createWsContext, wsErrorEvent } from '@moeru/eventa/adapters/websocket/native'
@@ -179,19 +180,36 @@ export function mapStatus(vue: 'OPEN' | 'CONNECTING' | 'CLOSED', enabled: boolea
  *   indefinitely (eventa@0.3.0 does not flush its internal pending maps when
  *   the underlying context is disposed; we wrap each invoke in a race).
  */
+/**
+ * Build the reactive ws URL ref `useWebSocket` watches.
+ *
+ * `getToken` MUST read from a reactive source (Pinia store ref, Vue ref,
+ * computed). A non-reactive read (e.g. `localStorage.getItem`) freezes the
+ * URL at first evaluation and `useWebSocket` will reconnect forever with
+ * the stale token after the next OIDC refresh — verified by
+ * `freezes ws URL when getToken is non-reactive` in ws-client.test.ts.
+ */
+export function createChatWsUrlRef(
+  enabled: Ref<boolean>,
+  getToken: () => string | null,
+  serverUrl: string,
+): ComputedRef<string | undefined> {
+  return computed(() => {
+    if (!enabled.value)
+      return undefined
+    const token = getToken()
+    if (!token)
+      return undefined
+    return buildChatWsUrl(serverUrl, token)
+  })
+}
+
 export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsClient {
   // `enabled` mirrors user intent: connect() flips on, disconnect() flips off.
   // The url ref returns `undefined` when disabled, which makes useWebSocket
   // close cleanly without firing the auto-reconnect loop.
   const enabled = ref(false)
-  const urlRef = computed<string | undefined>(() => {
-    if (!enabled.value)
-      return undefined
-    const token = options.getToken()
-    if (!token)
-      return undefined
-    return buildChatWsUrl(options.serverUrl, token)
-  })
+  const urlRef = createChatWsUrlRef(enabled, options.getToken, options.serverUrl)
 
   // The eventa context is rebuilt on every `onConnected` so RPC + push
   // listeners survive a reconnect by re-binding to the fresh ws.

@@ -23,3 +23,17 @@ export function withCredentials() {
 export function createOfficialOpenAIProvider() {
   return createOpenAI('', `${SERVER_URL}/api/v1/openai/`)
 }
+
+/**
+ * Provider scoped to the audio surface (`/api/v1/audio/`). The OpenAI helper
+ * (`createOpenAI`) builds upstream URLs as `<baseURL><resource>`, where
+ * `<resource>` is e.g. `audio/speech`. We point baseURL at `/api/v1/` so the
+ * generated URL is `/api/v1/audio/speech` — matching the audio routes
+ * mounted in app.ts after they were split out of `/api/v1/openai/`.
+ *
+ * Returned provider still exposes the OpenAI-shaped `.speech()` API so xsai's
+ * `generateSpeech()` can consume it directly.
+ */
+export function createOfficialAudioProvider() {
+  return createOpenAI('', `${SERVER_URL}/api/v1/`)
+}

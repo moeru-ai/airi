@@ -685,7 +685,7 @@ pages:
         empty: 这里什么都还没有哦，在下面添加一个！
       add:
         title: 新建
-        description: '填写新的服务器配置，然后点击「保存并重启」，完成后将会更新至上方的「已配置」'
+        description: "填写新的服务器配置，然后点击「保存并重启」，完成后将会更新至上方的「已配置」"
         pending-badge: 未保存
       status:
         unknown: 未加载
@@ -1288,6 +1288,8 @@ pages:
         description: 登录后即可使用的服务来源
         speech-title: AIRI 官方语音合成服务
         speech-description: 登录后即可使用的发声单元服务
+        speech-streaming-title: AIRI 官方流式语音合成服务
+        speech-streaming-description: 双向流式低延迟的语音合成服务，登录后即可使用
         transcription-title: AIRI 官方语音识别服务
         transcription-description: 登录后即可使用的听觉单元服务
       transcriptions:

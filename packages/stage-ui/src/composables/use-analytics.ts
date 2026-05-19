@@ -167,6 +167,182 @@ export function useAnalytics() {
     posthog.capture('chat_session_started', { model_id: modelId, ...(sessionIndex != null && { session_index: sessionIndex }) })
   }
 
+  // ─── LLM round events (client-known fields only) ──────────────────────
+  // Source-of-truth for HTTP status / token usage / billing stage is the
+  // server (apps/server/src/routes/openai/v1) — emitting those server-side
+  // via captureSafe so PostHog has both perspectives merged on the same
+  // distinctId. These client emits supply the user-facing latency picture
+  // (TTFT, render time) that the server cannot see.
+
+  function trackMessageSendStarted(properties: { source: 'text' | 'voice', model?: string }) {
+    if (!canCapture())
+      return
+    posthog.capture('message_send_started', properties)
+  }
+
+  function trackLlmRequestStarted(properties: { model: string, provider: string, has_voice: boolean }) {
+    if (!canCapture())
+      return
+    posthog.capture('llm_request_started', properties)
+  }
+
+  /** First token from a streaming LLM response — perceived responsiveness anchor. */
+  function trackLlmFirstToken(properties: { model: string, ttfb_ms: number }) {
+    if (!canCapture())
+      return
+    posthog.capture('llm_first_token', properties)
+  }
+
+  /** Stream finished and the UI has fully rendered the assistant message. */
+  function trackAssistantResponseRendered(properties: { model: string, latency_ms: number }) {
+    if (!canCapture())
+      return
+    posthog.capture('assistant_response_rendered', properties)
+  }
+
+  /** Closing event for one full message round (user send → assistant render). */
+  function trackMessageRound(properties: { duration_ms: number, has_voice: boolean, model: string }) {
+    if (!canCapture())
+      return
+    posthog.capture('message_round', properties)
+  }
+
+  // ─── STT events ──────────────────────────────────────────────────────
+
+  function trackSttStarted(provider: string) {
+    if (!canCapture())
+      return
+    posthog.capture('stt_started', { provider })
+  }
+
+  function trackSttSucceeded(properties: { provider: string, latency_ms: number, char_count: number, stream: boolean }) {
+    if (!canCapture())
+      return
+    posthog.capture('stt_succeeded', properties)
+  }
+
+  function trackSttFailed(properties: { provider: string, error_code?: string }) {
+    if (!canCapture())
+      return
+    posthog.capture('stt_failed', properties)
+  }
+
+  // ─── PTT events ──────────────────────────────────────────────────────
+
+  function trackPttPressed() {
+    if (!canCapture())
+      return
+    posthog.capture('ptt_pressed')
+  }
+
+  function trackPttReleased(holdMs: number) {
+    if (!canCapture())
+      return
+    posthog.capture('ptt_released', { hold_ms: holdMs })
+  }
+
+  // ─── TTS events (forwarded from speech bus by use-speech-pipeline-analytics) ─
+  // voice_id is `voice_type: 'catalog' | 'custom'` to keep cardinality
+  // bounded — MiMo voice clone allows arbitrary user-supplied voice ids
+  // (see codex F6). Actual voice_id is in properties for debug, NOT for
+  // PostHog group-by.
+
+  function trackTtsIntentStarted(properties: { intent_id: string, turn_id?: string }) {
+    if (!canCapture())
+      return
+    posthog.capture('tts_intent_started', properties)
+  }
+
+  function trackTtsIntentEnded(properties: { intent_id: string, turn_id?: string, duration_ms: number }) {
+    if (!canCapture())
+      return
+    posthog.capture('tts_intent_ended', properties)
+  }
+
+  function trackTtsIntentCancelled(properties: { intent_id: string, turn_id?: string, reason?: string }) {
+    if (!canCapture())
+      return
+    posthog.capture('tts_intent_cancelled', properties)
+  }
+
+  // ─── Autonomous LLM path (artistry-autonomous bypasses chat orchestrator) ─
+
+  function trackAutonomousGenerateText(properties: { model: string, reason?: string }) {
+    if (!canCapture())
+      return
+    posthog.capture('autonomous_generate_text', properties)
+  }
+
+  // ─── App lifecycle ───────────────────────────────────────────────────
+
+  function trackAppLoaded(properties: { platform: 'web' | 'desktop' | 'mobile', version: string, cold_start_ms?: number }) {
+    if (!canCapture())
+      return
+    posthog.capture('app_loaded', properties)
+  }
+
+  // ─── Feature usage / retention ───────────────────────────────────────
+
+  function trackCharacterDeleted(properties: { character_id: string }) {
+    if (!canCapture())
+      return
+    posthog.capture('character_deleted', properties)
+  }
+
+  function trackCharacterSwitched(properties: { from_character_id?: string, to_character_id: string }) {
+    if (!canCapture())
+      return
+    posthog.capture('character_switched', properties)
+  }
+
+  function trackChatSessionDeleted(properties: { session_id: string, message_count: number }) {
+    if (!canCapture())
+      return
+    posthog.capture('chat_session_deleted', properties)
+  }
+
+  function trackOnboardingStepCompleted(step: string) {
+    if (!canCapture())
+      return
+    posthog.capture('onboarding_step_completed', { step })
+  }
+
+  function trackOnboardingSkipped(at_step: string) {
+    if (!canCapture())
+      return
+    posthog.capture('onboarding_skipped', { at_step })
+  }
+
+  // ─── Monetization (client side) ──────────────────────────────────────
+
+  function trackFluxLowWarningShown(properties: { balance: number, threshold: number }) {
+    if (!canCapture())
+      return
+    posthog.capture('flux_low_warning_shown', properties)
+  }
+
+  function trackFluxTopupClicked(properties: { balance: number, surface: string }) {
+    if (!canCapture())
+      return
+    posthog.capture('flux_topup_clicked', properties)
+  }
+
+  // ─── Voice clone (custom TTS voice) ──────────────────────────────────
+
+  function trackVoiceCloneCreated(properties: { provider: string }) {
+    if (!canCapture())
+      return
+    posthog.capture('voice_clone_created', properties)
+  }
+
+  // ─── Device pairing / channel (Electron / Tamagotchi) ─────────────────
+
+  function trackDeviceChannelConnected(properties: { channel: string }) {
+    if (!canCapture())
+      return
+    posthog.capture('device_channel_connected', properties)
+  }
+
   return {
     privacyPolicyUrl,
     trackProviderClick,
@@ -180,5 +356,37 @@ export function useAnalytics() {
     trackVoiceModeActivated,
     trackModelSwitched,
     trackChatSessionStarted,
+
+    trackMessageSendStarted,
+    trackLlmRequestStarted,
+    trackLlmFirstToken,
+    trackAssistantResponseRendered,
+    trackMessageRound,
+
+    trackSttStarted,
+    trackSttSucceeded,
+    trackSttFailed,
+
+    trackPttPressed,
+    trackPttReleased,
+
+    trackTtsIntentStarted,
+    trackTtsIntentEnded,
+    trackTtsIntentCancelled,
+
+    trackAutonomousGenerateText,
+
+    trackAppLoaded,
+
+    trackCharacterDeleted,
+    trackCharacterSwitched,
+    trackChatSessionDeleted,
+    trackOnboardingStepCompleted,
+    trackOnboardingSkipped,
+
+    trackFluxLowWarningShown,
+    trackFluxTopupClicked,
+    trackVoiceCloneCreated,
+    trackDeviceChannelConnected,
   }
 }

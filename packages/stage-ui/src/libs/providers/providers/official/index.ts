@@ -8,9 +8,10 @@ import { z } from 'zod'
 import { getAuthToken } from '../../../../libs/auth'
 import { SERVER_URL } from '../../../../libs/server'
 import { defineProvider } from '../registry'
-import { createOfficialOpenAIProvider, OFFICIAL_ICON, withCredentials } from './shared'
+import { createOfficialAudioProvider, createOfficialOpenAIProvider, OFFICIAL_ICON, withCredentials } from './shared'
 
 export const OFFICIAL_SPEECH_PROVIDER_ID = 'official-provider-speech'
+export const OFFICIAL_SPEECH_STREAMING_PROVIDER_ID = 'official-provider-speech-streaming'
 
 // Locale → voice id map recommended by the server. Populated by listVoices()
 // from the /audio/voices response's `recommended` field so the auto-pick can
@@ -77,7 +78,7 @@ export const providerOfficialSpeech = defineProvider({
   requiresCredentials: false,
   createProviderConfig: () => officialConfigSchema,
   createProvider(_config) {
-    const provider = createOfficialOpenAIProvider()
+    const provider = createOfficialAudioProvider()
     const originalSpeech = provider.speech.bind(provider)
     provider.speech = (model: string) => {
       const result = originalSpeech(model)
@@ -89,7 +90,7 @@ export const providerOfficialSpeech = defineProvider({
   validationRequiredWhen: () => false,
   extraMethods: {
     listModels: async (): Promise<ModelInfo[]> => {
-      const res = await globalThis.fetch(`${SERVER_URL}/api/v1/openai/audio/models`, { headers: authHeaders() })
+      const res = await globalThis.fetch(`${SERVER_URL}/api/v1/audio/models`, { headers: authHeaders() })
       if (!res.ok)
         return []
 
@@ -104,7 +105,7 @@ export const providerOfficialSpeech = defineProvider({
       }))
     },
     listVoices: async (): Promise<VoiceInfo[]> => {
-      const res = await globalThis.fetch(`${SERVER_URL}/api/v1/openai/audio/voices`, { headers: authHeaders() })
+      const res = await globalThis.fetch(`${SERVER_URL}/api/v1/audio/voices`, { headers: authHeaders() })
       if (!res.ok)
         return []
 
@@ -150,6 +151,122 @@ export const providerOfficialSpeech = defineProvider({
           // 'auto' alias). Re-applying the client-side filter on top would
           // zero out the list because upstream compatibility ids never match
           // 'auto'. See packages/stage-pages/.../speech.vue filter predicate.
+          languages: Array.isArray(v.languages) ? v.languages : [],
+        }
+      })
+    },
+  },
+})
+
+/**
+ * Streaming sibling of {@link providerOfficialSpeech}. Same auth and voice
+ * catalog as the HTTP TTS provider, but speech synthesis goes through the
+ * `/api/v1/audio/speech/ws` proxy (server bridges to unspeech bidirectional
+ * upstream — Volcengine v3 today). The pipeline consumer (Stage.vue) detects
+ * this provider id and dispatches to `streamingSynthesize` instead of
+ * `generateSpeech`.
+ *
+ * The `createProvider` hook still returns the OpenAI-shaped provider so that
+ * legacy code paths (REST `/v1/audio/speech` fallback when the ws path errors
+ * out) keep working without a separate provider instance.
+ */
+export const providerOfficialSpeechStreaming = defineProvider({
+  id: OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
+  order: -1,
+  name: 'Official Streaming Speech Provider',
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.official.speech-streaming-title'),
+  description: 'Official streaming text-to-speech provider by AIRI (low-latency bidirectional WebSocket).',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.official.speech-streaming-description'),
+  tasks: ['text-to-speech'],
+  icon: OFFICIAL_ICON,
+  requiresCredentials: false,
+  // Mark this provider as speaking the bidirectional ws TTS protocol so the
+  // session adapter (`tts-session.ts`) picks the streaming path without
+  // hard-coding provider id. Default for every other provider is `'rest'`.
+  capabilities: {
+    speech: { transport: 'bidirectional-ws' },
+  },
+  createProviderConfig: () => officialConfigSchema,
+  createProvider(_config) {
+    // Same audio-scoped baseURL as the HTTP speech provider. The streaming
+    // provider does not actually use `.speech()` for synthesis (it goes
+    // through `streamingSynthesize` which opens its own WebSocket), but the
+    // OpenAI-shaped provider instance is still returned so legacy fallback
+    // and feature-detection helpers keep working.
+    const provider = createOfficialAudioProvider()
+    const originalSpeech = provider.speech.bind(provider)
+    provider.speech = (model: string) => {
+      const result = originalSpeech(model)
+      result.fetch = withCredentials()
+      return result
+    }
+    return provider
+  },
+  validationRequiredWhen: () => false,
+  extraMethods: {
+    listModels: async (): Promise<ModelInfo[]> => {
+      // Streaming-capable models. The wire `model` field uses the
+      // `<backend>/<id>` shape unspeech expects (see
+      // `unspeech/docs/wire-protocols/audio-speech-stream-v1.md`).
+      return [
+        {
+          id: 'volcengine/seed-tts-2.0',
+          name: 'Volcengine Seed-TTS 2.0',
+          provider: OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
+          description: 'Volcengine bidirectional streaming TTS (TTS 2.0)',
+        },
+        {
+          id: 'volcengine/seed-tts-1.0',
+          name: 'Volcengine Seed-TTS 1.0',
+          provider: OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
+          description: 'Volcengine bidirectional streaming TTS (TTS 1.0)',
+        },
+      ]
+    },
+    listVoices: async (_config, _provider, model): Promise<VoiceInfo[]> => {
+      // Streaming voices live behind a dedicated endpoint
+      // (`/audio/voices/streaming`) because they come from a separate
+      // configKV entry (`STREAMING_TTS_UPSTREAM`) than the HTTP TTS
+      // `?model=...` lookup. The server proxies to unspeech's
+      // `/api/voices?provider=volcengine`, which ships an embed-time
+      // catalogue without requiring credentials.
+      //
+      // `model` here is the unspeech-routed id (e.g. `volcengine/seed-tts-2.0`).
+      // unspeech expects the bare `api_resource_id` for its filter, so we
+      // strip the backend prefix before forwarding.
+      const apiResourceId = model?.includes('/') ? model.split('/', 2)[1] : model
+      const voicesURL = new URL(`${SERVER_URL}/api/v1/audio/voices/streaming`)
+      if (apiResourceId)
+        voicesURL.searchParams.set('model', apiResourceId)
+      const res = await globalThis.fetch(
+        voicesURL.toString(),
+        { headers: authHeaders() },
+      )
+      if (!res.ok)
+        return []
+
+      const data = await res.json() as {
+        voices?: {
+          id: string
+          name: string
+          description?: string
+          labels?: Record<string, unknown>
+          languages?: { code: string, title: string }[]
+          preview_audio_url?: string
+        }[]
+      }
+      if (!Array.isArray(data.voices))
+        return []
+
+      return data.voices.map((v) => {
+        const rawGender = typeof v.labels?.gender === 'string' ? (v.labels.gender as string) : undefined
+        return {
+          id: v.id,
+          name: v.name,
+          provider: OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
+          description: v.description || undefined,
+          gender: rawGender?.toLowerCase() || undefined,
+          previewURL: v.preview_audio_url || undefined,
           languages: Array.isArray(v.languages) ? v.languages : [],
         }
       })

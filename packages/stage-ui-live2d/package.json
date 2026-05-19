@@ -69,6 +69,7 @@
   "devDependencies": {
     "@types/culori": "^4.0.1",
     "@types/three": "^0.184.0",
+    "vitest": "catalog:",
     "vue-tsc": "^3.2.6"
   }
 }

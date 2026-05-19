@@ -105,7 +105,7 @@ services:
       tempo:
         condition: service_healthy
     healthcheck:
-      test: ['CMD', 'wget', '--spider', '-q', 'http://localhost:3000/api/health']
+      test: ['CMD', 'wget', '--spider', '-q', 'http://localhost:3000/livez']
       interval: 10s
       timeout: 5s
       retries: 5

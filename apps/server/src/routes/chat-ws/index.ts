@@ -2,7 +2,7 @@ import type Redis from 'ioredis'
 
 import type { HonoWsInvocableEventContext } from '../../libs/eventa-hono-adapter'
 import type { EngagementMetrics } from '../../otel'
-import type { ChatService } from '../../services/chats'
+import type { ChatService } from '../../services/domain/chats'
 
 import { useLogger } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'

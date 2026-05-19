@@ -1,4 +1,4 @@
-import type { CharacterService } from '../../services/characters'
+import type { CharacterService } from '../../services/domain/characters'
 import type { HonoEnv } from '../../types/hono'
 
 import { Hono } from 'hono'

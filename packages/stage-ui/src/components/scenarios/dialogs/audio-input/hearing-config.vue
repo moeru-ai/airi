@@ -3,20 +3,21 @@ import { Button, Callout, FieldCombobox } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 
+import { useAudioAnalyzer, useAudioDevice } from '../../../../composables'
 import { useSettingsAudioDevice } from '../../../../stores'
 
 const props = withDefaults(defineProps<{
-  granted?: boolean
-  volumeLevel?: number
+  granted?: boolean // permission status on OS level
   transcription?: boolean
 }>(), {
   granted: false,
-  volumeLevel: 0,
 })
 
 const emit = defineEmits(['toggleTranscription'])
-
-const { enabled, selectedAudioInput, audioInputs } = storeToRefs(useSettingsAudioDevice())
+const deviceStore = useSettingsAudioDevice()
+const { enabled, selectedAudioInput } = storeToRefs(deviceStore)
+const { audioInputs, permissionGranted, askPermission } = useAudioDevice()
+const { volumeLevel } = useAudioAnalyzer()
 
 const autoSend = defineModel<boolean>('autoSend')
 const ringEnabledClass = computed(() => enabled.value
@@ -27,8 +28,10 @@ const ringEnabledClass = computed(() => enabled.value
 function toggleHearingEnabled() {
   if (enabled.value)
     return enabled.value = false
-  if (!enabled.value && selectedAudioInput.value !== '')
-    enabled.value = true
+  if (selectedAudioInput.value !== '' && permissionGranted.value)
+    return enabled.value = true
+  if (!permissionGranted.value)
+    return askPermission().then(() => { enabled.value = permissionGranted.value })
 }
 </script>
 
@@ -40,17 +43,17 @@ function toggleHearingEnabled() {
         <!-- Rings (scale + opacity follow volume) -->
         <div
           class="absolute left-1/2 top-1/2 h-20 w-20 rounded-full transition-all duration-150 -translate-x-1/2 -translate-y-1/2"
-          :style="{ transform: `translate(-50%, -50%) scale(${1 + (props.volumeLevel / 100) * 0.35})`, opacity: String(0.25 + (props.volumeLevel / 100) * 0.25) }"
+          :style="{ transform: `translate(-50%, -50%) scale(${1 + (volumeLevel / 100) * 0.35})`, opacity: String(0.25 + (volumeLevel / 100) * 0.25) }"
           :class="ringEnabledClass"
         />
         <div
           class="absolute left-1/2 top-1/2 h-24 w-24 rounded-full transition-all duration-200 -translate-x-1/2 -translate-y-1/2"
-          :style="{ transform: `translate(-50%, -50%) scale(${1.2 + (props.volumeLevel / 100) * 0.55})`, opacity: String(0.15 + (props.volumeLevel / 100) * 0.2) }"
+          :style="{ transform: `translate(-50%, -50%) scale(${1.2 + (volumeLevel / 100) * 0.55})`, opacity: String(0.15 + (volumeLevel / 100) * 0.2) }"
           :class="enabled ? 'bg-primary-500/10 dark:bg-primary-600/15' : 'bg-neutral-300/10 dark:bg-neutral-700/10'"
         />
         <div
           class="absolute left-1/2 top-1/2 h-28 w-28 rounded-full transition-all duration-300 -translate-x-1/2 -translate-y-1/2"
-          :style="{ transform: `translate(-50%, -50%) scale(${1.5 + (props.volumeLevel / 100) * 0.8})`, opacity: String(0.08 + (props.volumeLevel / 100) * 0.15) }"
+          :style="{ transform: `translate(-50%, -50%) scale(${1.5 + (volumeLevel / 100) * 0.8})`, opacity: String(0.08 + (volumeLevel / 100) * 0.15) }"
           :class="enabled ? 'bg-primary-500/5 dark:bg-primary-600/10' : 'bg-neutral-300/5 dark:bg-neutral-700/5'"
         />
 
