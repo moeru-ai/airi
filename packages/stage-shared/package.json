@@ -19,6 +19,7 @@
     "./auth": "./src/auth/index.ts",
     "./beat-sync": "./src/beat-sync/index.ts",
     "./global-shortcut": "./src/global-shortcut/index.ts",
+    "./godot-stage": "./src/godot-stage/index.ts",
     "./server-channel-qr": "./src/server-channel-qr.ts",
     "./electron-renderer": "./src/electron-renderer.d.ts",
     "./composables": "./src/composables/index.ts",
