@@ -11,6 +11,9 @@ export const AvatarModelConfigSchema = object({
   live2d: optional(object({
     urls: array(string()),
   })),
+  spine: optional(object({
+    urls: array(string()),
+  })),
 })
 
 export const CharacterCapabilityConfigSchema = object({
@@ -44,6 +47,7 @@ const CharacterCapabilityTypeSchema = union([
 const AvatarModelTypeSchema = union([
   literal('vrm'),
   literal('live2d'),
+  literal('spine'),
 ])
 
 const PromptTypeSchema = union([

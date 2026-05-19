@@ -8,6 +8,7 @@ import { computed, ref } from 'vue'
 
 import Godot from './godot.vue'
 import Live2D from './live2d.vue'
+import Spine from './spine.vue'
 import VRM from './vrm.vue'
 
 import { useAiriCardStore } from '../../../../stores/modules/airi-card'
@@ -59,12 +60,12 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
     <Callout label="We support both 2D and 3D models">
       <p>
         Click <strong>Select Model</strong> to import different formats of
-        models into catalog, currently, <code>.zip</code> (Live2D) and <code>.vrm</code> (VRM) are supported.
+        models into catalog, currently, <code>.zip</code> (Live2D, Spine) and <code>.vrm</code> (VRM) are supported.
       </p>
       <p>
         Neuro-sama uses 2D model driven by Live2D Inc. developed framework.
-        While Grok Ani (first female character announced in Grok Companion)
-        uses 3D model that is driven by VRM / MMD open formats.
+        Grok Ani uses 3D model that is driven by VRM / MMD open formats.
+        Spine 2D models are supported via Esoteric Software's Spine runtime.
       </p>
     </Callout>
     <div :class="['flex flex-wrap items-center gap-2']">
@@ -84,6 +85,13 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
     />
     <VRM
       v-if="effectiveRenderer === 'vrm'"
+      :allow-extract-colors="allowExtractColors"
+      :palette="palette"
+      :runtime-snapshot="runtimeSnapshot"
+      @extract-colors-from-model="$emit('extractColorsFromModel')"
+    />
+    <Spine
+      v-if="effectiveRenderer === 'spine'"
       :allow-extract-colors="allowExtractColors"
       :palette="palette"
       :runtime-snapshot="runtimeSnapshot"
