@@ -2486,6 +2486,9 @@ importers:
       '@proj-airi/server-shared':
         specifier: workspace:^
         version: link:../server-shared
+      '@proj-airi/stream-kit':
+        specifier: workspace:^
+        version: link:../stream-kit
       '@xsai-ext/providers':
         specifier: 'catalog:'
         version: 0.5.0-beta.2
@@ -2513,6 +2516,18 @@ importers:
       nanoid:
         specifier: ^5.1.9
         version: 5.1.11
+      rehype-parse:
+        specifier: ^9.0.1
+        version: 9.0.1
+      rehype-stringify:
+        specifier: ^10.0.1
+        version: 10.0.1
+      unified:
+        specifier: ^11.0.5
+        version: 11.0.5
+      unist-util-visit:
+        specifier: ^5.1.0
+        version: 5.1.0
       vieval:
         specifier: 'catalog:'
         version: 0.0.5(@opentelemetry/api@1.9.1)(@types/node@25.6.0)(@vitest/browser-playwright@4.1.4)(@vitest/coverage-v8@4.1.4)(chokidar@5.0.0)(dotenv@17.4.2)(esbuild@0.27.2)(giget@2.0.0)(jiti@2.6.1)(jsdom@29.0.2(@noble/hashes@2.0.1)(canvas@3.2.3))(less@4.6.4)(magicast@0.5.2)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
@@ -2523,6 +2538,12 @@ importers:
         specifier: ^4.3.6
         version: 4.3.6
     devDependencies:
+      '@types/hast':
+        specifier: 'catalog:'
+        version: 3.0.4
+      '@types/unist':
+        specifier: 'catalog:'
+        version: 3.0.3
       tsdown:
         specifier: 'catalog:'
         version: 0.21.9(@arethetypeswrong/core@0.18.2)(oxc-resolver@11.19.1(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2))(publint@0.3.18)(synckit@0.11.12)(typescript@5.9.3)(unplugin-unused@0.5.7)(vue-tsc@3.2.6(typescript@5.9.3))
