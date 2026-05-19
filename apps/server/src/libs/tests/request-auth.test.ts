@@ -178,7 +178,7 @@ describe('resolveRequestAuth', () => {
       key: {} as any,
     } as any)
 
-    const { resolveRequestAuth: resolveWithHost } = await import('./request-auth')
+    const { resolveRequestAuth: resolveWithHost } = await import('../request-auth')
     const auth = {
       api: {
         getSession: vi.fn().mockResolvedValue(null),
