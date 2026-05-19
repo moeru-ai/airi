@@ -428,6 +428,9 @@ patchedDependencies:
   pixi-live2d-display:
     hash: 122ac09349321d5bfe9d9817aa095cd1c9c4132af86345aa9e27ba8b63dadf2c
     path: patches/pixi-live2d-display.patch
+  sponsorkit@17.1.0:
+    hash: f5887da52a29ae85732e01644d05c0c274231fe76b95aebeafbfab6dc4444f88
+    path: patches/sponsorkit@17.1.0.patch
 
 importers:
 
@@ -507,7 +510,7 @@ importers:
         version: 2.13.1
       sponsorkit:
         specifier: ^17.1.0
-        version: 17.1.0
+        version: 17.1.0(patch_hash=f5887da52a29ae85732e01644d05c0c274231fe76b95aebeafbfab6dc4444f88)
       sponsors-svg:
         specifier: ^0.3.0
         version: 0.3.0
@@ -32054,7 +32057,7 @@ snapshots:
     dependencies:
       vue: 3.5.32(typescript@5.9.3)
 
-  sponsorkit@17.1.0:
+  sponsorkit@17.1.0(patch_hash=f5887da52a29ae85732e01644d05c0c274231fe76b95aebeafbfab6dc4444f88):
     dependencies:
       ansis: 4.2.0
       cac: 6.7.14

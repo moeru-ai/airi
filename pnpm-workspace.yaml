@@ -27,6 +27,7 @@ patchedDependencies:
   '@xsai/stream-text@0.5.0-beta.2': patches/@xsai__stream-text@0.5.0-beta.2.patch
   mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
   pixi-live2d-display: patches/pixi-live2d-display.patch
+  sponsorkit@17.1.0: patches/sponsorkit@17.1.0.patch
 catalog:
   '@ax-llm/ax': ^19.0.43
   '@better-auth/oauth-provider': 1.5.6
