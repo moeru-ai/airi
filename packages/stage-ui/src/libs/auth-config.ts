@@ -69,7 +69,7 @@ export const OIDC_CLIENT_ID = import.meta.env.VITE_OIDC_CLIENT_ID
   || (usesNativeOidcClient ? 'airi-stage-pocket' : 'airi-stage-web')
 
 export const OIDC_REDIRECT_URI = import.meta.env.VITE_OIDC_REDIRECT_URI
-  ? `${origin}/auth/callback`
+  ? import.meta.env.VITE_OIDC_REDIRECT_URI
   : capacitorPlatform === 'ios'
     ? NATIVE_AUTH_REDIRECT_URI
     : capacitorPlatform !== 'web'

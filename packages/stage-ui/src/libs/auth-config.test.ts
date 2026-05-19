@@ -17,6 +17,7 @@ describe('oIDC client config', () => {
   beforeEach(() => {
     nativePlatform = false
     platform = 'web'
+    vi.unstubAllEnvs()
     vi.resetModules()
     vi.stubGlobal('window', {
       location: {
@@ -30,6 +31,14 @@ describe('oIDC client config', () => {
 
     expect(OIDC_CLIENT_ID).toBe('airi-stage-web')
     expect(OIDC_REDIRECT_URI).toBe('https://airi.moeru.ai/auth/callback')
+  })
+
+  it('uses VITE_OIDC_REDIRECT_URI as the full redirect URI when set', async () => {
+    vi.stubEnv('VITE_OIDC_REDIRECT_URI', 'https://example.com/auth/callback')
+
+    const { OIDC_REDIRECT_URI } = await import('./auth-config')
+
+    expect(OIDC_REDIRECT_URI).toBe('https://example.com/auth/callback')
   })
 
   it('uses the app-owned Pocket redirect URI on native platforms', async () => {
