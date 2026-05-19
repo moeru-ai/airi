@@ -6,43 +6,30 @@ using System;
 public sealed class StageViewRuntime
 {
     private const double SnapshotMinIntervalSeconds = 0.1;
-    private const double PersistIdleSeconds = 0.25;
+    private const double IdleSnapshotSeconds = 0.25;
 
     private readonly StageViewController _controller;
-    private readonly StageViewStateStore _store;
 
-    private double _persistIdleRemaining = -1;
+    private double _idleSnapshotRemaining = -1;
     private double _snapshotRemaining;
-    private bool _pendingPersist;
-    private string _pendingPersistReason;
-    private string _pendingPersistRequestId;
+    private bool _pendingIdleSnapshot;
+    private bool _hasViewState;
+    private string _pendingSnapshotReason;
+    private string _pendingSnapshotRequestId;
     private StageViewState _state = StageViewStateRules.CreateDefault();
 
     public event Action<StageViewSnapshotPayload> SnapshotReady;
 
     public event Action<StageViewErrorPayload> ErrorReady;
 
-    public StageViewRuntime(StageViewStateStore store, StageViewController controller)
+    public StageViewRuntime(StageViewController controller)
     {
-        _store = store;
         _controller = controller;
     }
 
     public StageViewState State => _state;
 
-    public void Initialize()
-    {
-        var loadResult = _store.Load();
-        _state = loadResult.State;
-        _controller.Apply(_state);
-
-        if (!string.IsNullOrWhiteSpace(loadResult.ErrorMessage))
-        {
-            EmitError("invalid-state-file", loadResult.ErrorMessage);
-        }
-
-        EmitSnapshot("loaded");
-    }
+    public bool HasViewState => _hasViewState;
 
     public void Process(double delta)
     {
@@ -51,27 +38,20 @@ public sealed class StageViewRuntime
             _snapshotRemaining -= delta;
         }
 
-        if (!_pendingPersist || _persistIdleRemaining < 0)
+        if (!_pendingIdleSnapshot || _idleSnapshotRemaining < 0)
         {
             return;
         }
 
-        _persistIdleRemaining -= delta;
-        if (_persistIdleRemaining > 0)
+        _idleSnapshotRemaining -= delta;
+        if (_idleSnapshotRemaining > 0)
         {
             return;
         }
 
-        var reason = _pendingPersistReason ?? "local-input";
-        var requestId = _pendingPersistRequestId;
-
-        if (!PersistCurrentState(reason, requestId))
-        {
-            _persistIdleRemaining = PersistIdleSeconds;
-            return;
-        }
-
-        ClearPendingPersist();
+        var reason = _pendingSnapshotReason ?? "local-input";
+        var requestId = _pendingSnapshotRequestId;
+        ClearPendingIdleSnapshot();
         EmitSnapshot(reason, requestId);
     }
 
@@ -82,8 +62,9 @@ public sealed class StageViewRuntime
             _controller.CreateBootstrapCameraPose(),
             CurrentUnixMilliseconds()
         );
+        _hasViewState = true;
         _controller.Apply(_state);
-        QueueIdlePersist("loaded", null);
+        ClearPendingIdleSnapshot();
         EmitSnapshot("loaded");
     }
 
@@ -99,22 +80,22 @@ public sealed class StageViewRuntime
 
     public void RequestSnapshot(StageViewSnapshotRequestPayload request)
     {
+        if (!_hasViewState)
+        {
+            return;
+        }
+
         EmitSnapshot("request", request.RequestId);
     }
 
-    public void FlushForShutdown()
+    public void EmitLoadedSnapshot()
     {
-        if (_pendingPersist)
+        if (!_hasViewState)
         {
-            if (!PersistCurrentState("shutdown-flush"))
-            {
-                return;
-            }
-
-            ClearPendingPersist();
+            return;
         }
 
-        EmitSnapshot("shutdown-flush");
+        EmitSnapshot("loaded");
     }
 
     public void EmitInvalidPayload(string message, string requestId = null)
@@ -130,10 +111,20 @@ public sealed class StageViewRuntime
     {
         try
         {
+            if (!_hasViewState)
+            {
+                EmitError(
+                    "view-state-unavailable",
+                    "Godot stage view state is not available until scene input is applied.",
+                    requestId
+                );
+                return;
+            }
+
             _state = StageViewStateRules.ApplyPatch(_state, patch, CurrentUnixMilliseconds());
             _controller.Apply(_state);
 
-            QueueIdlePersist(reason, requestId);
+            QueueIdleSnapshot(reason, requestId);
             if (_snapshotRemaining <= 0)
             {
                 _snapshotRemaining = SnapshotMinIntervalSeconds;
@@ -146,34 +137,20 @@ public sealed class StageViewRuntime
         }
     }
 
-    private void QueueIdlePersist(string reason, string requestId)
+    private void QueueIdleSnapshot(string reason, string requestId)
     {
-        _pendingPersist = true;
-        _persistIdleRemaining = PersistIdleSeconds;
-        _pendingPersistReason = reason;
-        _pendingPersistRequestId = requestId;
+        _pendingIdleSnapshot = true;
+        _idleSnapshotRemaining = IdleSnapshotSeconds;
+        _pendingSnapshotReason = reason;
+        _pendingSnapshotRequestId = requestId;
     }
 
-    private bool PersistCurrentState(string reason, string requestId = null)
+    private void ClearPendingIdleSnapshot()
     {
-        try
-        {
-            _store.Save(_state);
-            return true;
-        }
-        catch (Exception error)
-        {
-            EmitError("persistence-failed", $"Failed to persist {reason}: {error.Message}", requestId);
-            return false;
-        }
-    }
-
-    private void ClearPendingPersist()
-    {
-        _pendingPersist = false;
-        _persistIdleRemaining = -1;
-        _pendingPersistReason = null;
-        _pendingPersistRequestId = null;
+        _pendingIdleSnapshot = false;
+        _idleSnapshotRemaining = -1;
+        _pendingSnapshotReason = null;
+        _pendingSnapshotRequestId = null;
     }
 
     private void EmitSnapshot(string reason, string requestId = null)

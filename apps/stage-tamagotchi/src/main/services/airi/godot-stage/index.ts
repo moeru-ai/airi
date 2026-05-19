@@ -410,6 +410,13 @@ export function createGodotStageManager(): GodotStageManager {
     viewErrorListeners.publish(payload)
   }
 
+  function broadcastInvalidViewPayloadError(error: unknown) {
+    broadcastViewError({
+      code: 'invalid-payload',
+      message: errorMessageFrom(error) ?? 'Invalid Godot stage view-state payload.',
+    })
+  }
+
   function clearProcessState() {
     currentProcess = undefined
     currentSocketPeer = undefined
@@ -519,11 +526,21 @@ export function createGodotStageManager(): GodotStageManager {
         return
       }
       case 'stage.view.snapshot': {
-        broadcastViewSnapshot(parseStageViewSnapshotPayload(message.payload))
+        try {
+          broadcastViewSnapshot(parseStageViewSnapshotPayload(message.payload))
+        }
+        catch (error) {
+          broadcastInvalidViewPayloadError(error)
+        }
         return
       }
       case 'stage.view.error': {
-        broadcastViewError(parseStageViewErrorPayload(message.payload))
+        try {
+          broadcastViewError(parseStageViewErrorPayload(message.payload))
+        }
+        catch (error) {
+          broadcastInvalidViewPayloadError(error)
+        }
         return
       }
       default: {

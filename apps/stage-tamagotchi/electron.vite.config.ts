@@ -25,6 +25,7 @@ export default defineConfig({
       externalizeDeps: {
         include: [
           'electron-click-drag-plugin',
+          'uiohook-napi',
         ],
       },
     },

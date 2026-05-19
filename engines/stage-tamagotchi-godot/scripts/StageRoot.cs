@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Godot;
@@ -32,7 +31,6 @@ public partial class StageRoot : Node3D
     private const string AvatarRootNodeName = "AvatarRoot";
     private const string CameraNodeName = "Camera3D";
     private const string EditorPreviewRootNodeName = "EditorPreviewRoot";
-    private const string StorageRootArgumentPrefix = "--airi-storage-root=";
     private const string WebSocketUrlArgumentPrefix = "--airi-ws-url=";
 
     private readonly JsonSerializerOptions _jsonOptions = new()
@@ -48,8 +46,8 @@ public partial class StageRoot : Node3D
     private StageViewController _viewController = null!;
     private StageCameraInputController _viewInputController = null!;
     private StageViewRuntime _viewRuntime = null!;
+    private string _activeSceneModelId;
     private bool _shutdownRequested;
-    private string _startupFatalMessage;
 
     /// <inheritdoc/>
     public override void _Ready()
@@ -108,17 +106,6 @@ public partial class StageRoot : Node3D
 
     private void HandleBridgeOpened()
     {
-        if (!string.IsNullOrWhiteSpace(_startupFatalMessage))
-        {
-            SendViewError("storage-root-missing", _startupFatalMessage);
-            _bridge.SendEnvelope("stage.fatal", new
-            {
-                message = _startupFatalMessage,
-            });
-            return;
-        }
-
-        _viewRuntime.Initialize();
         _bridge.SendEnvelope("stage.ready");
         UpdateStatus("Connected to Electron main.");
     }
@@ -218,7 +205,6 @@ public partial class StageRoot : Node3D
                 case "host.shutdown":
                     _shutdownRequested = true;
                     UpdateStatus("Shutdown requested by Electron main.");
-                    _viewRuntime?.FlushForShutdown();
                     GetTree().Quit();
                     break;
             }
@@ -247,12 +233,22 @@ public partial class StageRoot : Node3D
                 throw new InvalidOperationException("Scene input payload could not be parsed.");
             }
 
-            // TODO:
-            // Make avatar apply and view bootstrap one transaction. Today avatar apply commits
-            // before bootstrap, so a bootstrap failure reports scene.error with the new avatar loaded.
-            var avatar = _sceneController.Apply(payload);
-            _viewController?.UseAvatar(avatar);
-            _viewRuntime?.BootstrapForAvatar();
+            if (_viewRuntime?.HasViewState == true
+                && string.Equals(_activeSceneModelId, payload.ModelId, StringComparison.Ordinal))
+            {
+                _viewRuntime.EmitLoadedSnapshot();
+            }
+            else
+            {
+                // TODO:
+                // Make avatar apply and view bootstrap one transaction. Today avatar apply commits
+                // before bootstrap, so a bootstrap failure reports scene.error with the new avatar loaded.
+                var avatar = _sceneController.Apply(payload);
+                _viewController?.UseAvatar(avatar);
+                _viewRuntime?.BootstrapForAvatar();
+                _activeSceneModelId = payload.ModelId;
+            }
+
             var fileName = System.IO.Path.GetFileName(payload.Path);
             UpdateStatus($"Connected to Electron main.\nModel: {payload.Name}\nAsset: {fileName}");
 
@@ -314,11 +310,6 @@ public partial class StageRoot : Node3D
         return ResolveArgumentValue(WebSocketUrlArgumentPrefix);
     }
 
-    private static string ResolveStorageRoot()
-    {
-        return ResolveArgumentValue(StorageRootArgumentPrefix);
-    }
-
     private static string ResolveArgumentValue(string prefix)
     {
         var arguments = OS.GetCmdlineUserArgs();
@@ -340,20 +331,9 @@ public partial class StageRoot : Node3D
 
     private void InitializeViewRuntime(Node3D avatarRoot)
     {
-        var storageRoot = ResolveStorageRoot();
-        if (string.IsNullOrWhiteSpace(storageRoot) || !Path.IsPathFullyQualified(storageRoot))
-        {
-            _startupFatalMessage = "Godot stage missing valid --airi-storage-root argument.";
-            GD.PushWarning(_startupFatalMessage);
-            return;
-        }
-
         var cameraController = new StageCameraPoseController(ResolveCamera());
         _viewController = new StageViewController(avatarRoot, cameraController);
-        _viewRuntime = new StageViewRuntime(
-            new StageViewStateStore(storageRoot, _jsonOptions),
-            _viewController
-        );
+        _viewRuntime = new StageViewRuntime(_viewController);
         _viewRuntime.SnapshotReady += payload => _bridge.SendEnvelope("stage.view.snapshot", payload);
         _viewRuntime.ErrorReady += payload => _bridge.SendEnvelope("stage.view.error", payload);
         _viewInputController = new StageCameraInputController(_viewRuntime, cameraController);
@@ -365,11 +345,6 @@ public partial class StageRoot : Node3D
         {
             message,
         });
-    }
-
-    private void SendViewError(string code, string message)
-    {
-        _bridge.SendEnvelope("stage.view.error", new StageViewErrorPayload(code, message));
     }
 
     private void UpdateStatus(string message) =>

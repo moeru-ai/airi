@@ -23,6 +23,11 @@ public sealed class StageCameraInputController
 
     public void Process(double delta)
     {
+        if (!_runtime.HasViewState)
+        {
+            return;
+        }
+
         var x = 0.0f;
         var z = 0.0f;
 
@@ -116,6 +121,11 @@ public sealed class StageCameraInputController
 
     private void Orbit(InputEventMouseMotion mouseMotion)
     {
+        if (!_runtime.HasViewState)
+        {
+            return;
+        }
+
         var camera = _runtime.State.Camera;
         _runtime.ApplyLocalPatch(_cameraController.CreateOrbitPatch(
             camera,
@@ -128,6 +138,11 @@ public sealed class StageCameraInputController
 
     private void Pan(InputEventMouseMotion mouseMotion)
     {
+        if (!_runtime.HasViewState)
+        {
+            return;
+        }
+
         _runtime.ApplyLocalPatch(_cameraController.CreateScreenPanPatch(
             _runtime.State.Camera,
             mouseMotion.Position,
@@ -137,6 +152,11 @@ public sealed class StageCameraInputController
 
     private void MoveCameraLocal(Vector3 localMove)
     {
+        if (!_runtime.HasViewState)
+        {
+            return;
+        }
+
         _runtime.ApplyLocalPatch(_cameraController.CreateCameraLocalMovePatch(
             _runtime.State.Camera,
             localMove
