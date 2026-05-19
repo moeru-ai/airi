@@ -61,7 +61,7 @@ describe('getAdapter', () => {
 })
 
 describe('dashscopeCosyvoiceAdapter.getVoiceCatalog', () => {
-  it('calls unspeech with backend=alibaba (no Bearer)', async () => {
+  it('calls unspeech with provider=alibaba (no Bearer)', async () => {
     const adapter = getAdapter('dashscope-cosyvoice')
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
       voices: [{ id: 'longxiaochun_v2', name: 'Longxiaochun v2' }],
@@ -75,7 +75,7 @@ describe('dashscopeCosyvoiceAdapter.getVoiceCatalog', () => {
 
     expect(voices).toEqual([{ id: 'longxiaochun_v2', name: 'Longxiaochun v2' }])
     const [calledUrl, init] = (fetchImpl as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0]
-    expect(calledUrl).toBe('http://unspeech.local/api/voices?backend=alibaba')
+    expect(calledUrl).toBe('http://unspeech.local/api/voices?provider=alibaba')
     const headers = (init.headers ?? {}) as Record<string, string>
     expect(headers.Authorization).toBeUndefined()
   })
@@ -92,7 +92,7 @@ describe('dashscopeCosyvoiceAdapter.getVoiceCatalog', () => {
 })
 
 describe('volcengineAdapter.getVoiceCatalog', () => {
-  it('calls unspeech with backend=volcengine and forwards adapterParams.model as ?model=', async () => {
+  it('calls unspeech with provider=volcengine and forwards adapterParams.model as ?model=', async () => {
     const adapter = getAdapter('volcengine')
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
       voices: [{ id: 'zh_female_x', name: 'X' }],
@@ -106,7 +106,7 @@ describe('volcengineAdapter.getVoiceCatalog', () => {
 
     expect(voices).toEqual([{ id: 'zh_female_x', name: 'X' }])
     const [calledUrl] = (fetchImpl as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0]
-    expect(calledUrl).toBe('http://unspeech.local/api/voices?backend=volcengine&model=seed-tts-2.0')
+    expect(calledUrl).toBe('http://unspeech.local/api/voices?provider=volcengine&model=seed-tts-2.0')
   })
 
   it('omits ?model= when adapterParams.model is not set', async () => {
@@ -118,7 +118,7 @@ describe('volcengineAdapter.getVoiceCatalog', () => {
       fetchImpl,
     })
     const [calledUrl] = (fetchImpl as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0]
-    expect(calledUrl).toBe('http://unspeech.local/api/voices?backend=volcengine')
+    expect(calledUrl).toBe('http://unspeech.local/api/voices?provider=volcengine')
   })
 })
 
@@ -140,7 +140,7 @@ describe('azureAdapter.getVoiceCatalog', () => {
     expect(voices).toEqual([{ id: 'en-US-AvaMultilingualNeural', name: 'Ava' }])
     expect(fetchImpl).toHaveBeenCalledTimes(1)
     const [calledUrl, init] = (fetchImpl as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0]
-    expect(calledUrl).toBe('http://unspeech.local:5933/api/voices?backend=microsoft&region=eastasia')
+    expect(calledUrl).toBe('http://unspeech.local:5933/api/voices?provider=microsoft&region=eastasia')
     const headers = init.headers as Record<string, string>
     expect(headers.Authorization).toBe('Bearer subscription-key-XYZ')
   })

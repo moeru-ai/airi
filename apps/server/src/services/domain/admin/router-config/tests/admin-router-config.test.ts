@@ -356,11 +356,23 @@ describe('createAdminRouterConfigService', () => {
         streaming: {
           upstreamURL: 'wss://unspeech.example/v1/audio/speech/stream',
           plaintextKey: 'volc',
+          models: [
+            { id: 'volcengine/seed-tts-2.0', name: 'Seed-TTS 2.0', description: 'Low-latency streaming TTS' },
+          ],
+          defaultModel: 'volcengine/seed-tts-2.0',
         },
       }],
     })
 
     expect(kv.store.has('UNSPEECH_UPSTREAM')).toBe(true)
+    expect(kv.store.get('UNSPEECH_UPSTREAM')).toMatchObject({
+      streaming: {
+        models: [
+          { id: 'volcengine/seed-tts-2.0', name: 'Seed-TTS 2.0', description: 'Low-latency streaming TTS' },
+        ],
+        defaultModel: 'volcengine/seed-tts-2.0',
+      },
+    })
     expect(kv.store.has('LLM_ROUTER_CONFIG')).toBe(false)
     expect(result.invalidatedKeys).toEqual(['UNSPEECH_UPSTREAM'])
     expect(captured.map(p => JSON.parse(p.payload).key)).toEqual(['UNSPEECH_UPSTREAM'])

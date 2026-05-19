@@ -120,7 +120,7 @@ export const volcengineAdapter: TtsAdapter = {
     // further by `compatible_models` — adapterParams.model is the operator-
     // configured resource id (e.g. `seed-tts-2.0`).
     const url = new URL(`${ctx.unspeechBaseURL.replace(/\/+$/, '')}/api/voices`)
-    url.searchParams.set('backend', 'volcengine')
+    url.searchParams.set('provider', 'volcengine')
     const apiResourceId = typeof ctx.adapterParams?.model === 'string'
       ? ctx.adapterParams.model
       : undefined

@@ -11,8 +11,6 @@ import { afterAll, describe, expect, it, vi } from 'vitest'
 import { createV1Routes } from '.'
 import { ApiError } from '../../../utils/error'
 
-// --- Mock helpers ---
-
 function createMockFluxService(flux = 100): FluxService {
   return {
     getFlux: vi.fn(async () => ({ userId: 'user-1', flux })),
@@ -164,8 +162,6 @@ function createTestApp(
 }
 
 const testUser = { id: 'user-1', name: 'Test User', email: 'test@example.com' }
-
-// --- Tests ---
 
 describe('v1CompletionsRoutes', () => {
   const originalFetch = globalThis.fetch
@@ -319,12 +315,10 @@ describe('v1CompletionsRoutes', () => {
       const data = await res.json() as { id: string }
       expect(data.id).toBe('chatcmpl-1')
 
-      // Verify flux was debited via billingService
       expect(billingService.consumeFluxForLLM).toHaveBeenCalledWith(
         expect.objectContaining({ userId: 'user-1', amount: 1 }),
       )
 
-      // Verify upstream was called with correct URL and resolved model
       expect(globalThis.fetch).toHaveBeenCalledWith(
         'http://mock-gateway/chat/completions',
         expect.objectContaining({
@@ -406,13 +400,11 @@ describe('v1CompletionsRoutes', () => {
       )
 
       expect(res.status).toBe(500)
-      // Post-billing: no charge on failed requests
       expect(billingService.consumeFluxForLLM).not.toHaveBeenCalled()
     })
 
     it('should return 503 when config keys are missing', async () => {
       const configKV = createMockConfigKV()
-      // Override getOptional to return null for required keys
       configKV.getOptional = vi.fn(async () => null)
 
       const app = createTestApp(createMockFluxService(), configKV)
@@ -748,7 +740,7 @@ describe('v1CompletionsRoutes', () => {
   })
 
   describe('gET /api/v1/audio/models', () => {
-    it('exposes auto alias plus every configured tts model id', async () => {
+    it('exposes every configured tts model id', async () => {
       const app = createTestApp(
         createMockFluxService(),
         createMockConfigKV({
@@ -771,14 +763,13 @@ describe('v1CompletionsRoutes', () => {
 
       expect(res.status).toBe(200)
       const data = await res.json() as { models: { id: string, name: string }[] }
-      expect(data.models[0]).toEqual({ id: 'auto', name: 'Auto' })
-      expect(data.models.slice(1).map(m => m.id)).toEqual([
+      expect(data.models.map(m => m.id)).toEqual([
         'alibaba/cosyvoice-v2',
         'microsoft/v1',
       ])
     })
 
-    it('returns only the auto alias when no tts models are configured', async () => {
+    it('returns an empty list when no tts models are configured', async () => {
       const app = createTestApp(
         createMockFluxService(),
         createMockConfigKV({
@@ -793,7 +784,7 @@ describe('v1CompletionsRoutes', () => {
 
       expect(res.status).toBe(200)
       const data = await res.json() as { models: { id: string, name: string }[] }
-      expect(data.models).toEqual([{ id: 'auto', name: 'Auto' }])
+      expect(data.models).toEqual([])
     })
 
     it('should return 401 when unauthenticated', async () => {
@@ -805,7 +796,7 @@ describe('v1CompletionsRoutes', () => {
   })
 
   describe('gET /api/v1/audio/models/streaming', () => {
-    it('returns the operator-configured streaming model catalog', async () => {
+    it('returns the operator-configured streaming model catalog + default', async () => {
       const app = createTestApp(
         createMockFluxService(),
         createMockConfigKV({
@@ -818,6 +809,7 @@ describe('v1CompletionsRoutes', () => {
                 { id: 'volcengine/seed-tts-2.0', name: 'Volcengine Seed-TTS 2.0', description: 'TTS 2.0' },
                 { id: 'volcengine/seed-tts-1.0' },
               ],
+              defaultModel: 'volcengine/seed-tts-2.0',
             },
           },
         }),
@@ -829,11 +821,37 @@ describe('v1CompletionsRoutes', () => {
       )
 
       expect(res.status).toBe(200)
-      const data = await res.json() as { models: { id: string, name: string, description?: string }[] }
+      const data = await res.json() as { available: boolean, models: { id: string, name: string, description?: string }[], default: string | null }
+      expect(data.available).toBe(true)
       expect(data.models).toEqual([
         { id: 'volcengine/seed-tts-2.0', name: 'Volcengine Seed-TTS 2.0', description: 'TTS 2.0' },
         { id: 'volcengine/seed-tts-1.0', name: 'volcengine/seed-tts-1.0' },
       ])
+      expect(data.default).toBe('volcengine/seed-tts-2.0')
+    })
+
+    it('returns default: null when operator has not set a streaming default', async () => {
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV({
+          UNSPEECH_UPSTREAM: {
+            restBaseURL: 'http://unspeech.local:5933',
+            streaming: {
+              baseURL: 'wss://unspeech.local',
+              keys: [{ id: 'k1', ciphertext: 'enc' }],
+              models: [{ id: 'volcengine/seed-tts-2.0', name: 'Vol' }],
+            },
+          },
+        }),
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/models/streaming', { method: 'GET' }),
+        { user: testUser } as any,
+      )
+
+      const data = await res.json() as { default: string | null }
+      expect(data.default).toBeNull()
     })
 
     it('returns an empty list when UNSPEECH_UPSTREAM is unset', async () => {
@@ -845,11 +863,12 @@ describe('v1CompletionsRoutes', () => {
       )
 
       expect(res.status).toBe(200)
-      const data = await res.json() as { models: unknown[] }
+      const data = await res.json() as { available: boolean, models: unknown[] }
+      expect(data.available).toBe(false)
       expect(data.models).toEqual([])
     })
 
-    it('returns an empty list when streaming subtree has no models', async () => {
+    it('reports available: true with empty models when streaming subtree has no models', async () => {
       const app = createTestApp(
         createMockFluxService(),
         createMockConfigKV({
@@ -869,7 +888,8 @@ describe('v1CompletionsRoutes', () => {
       )
 
       expect(res.status).toBe(200)
-      const data = await res.json() as { models: unknown[] }
+      const data = await res.json() as { available: boolean, models: unknown[] }
+      expect(data.available).toBe(true)
       expect(data.models).toEqual([])
     })
 

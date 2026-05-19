@@ -96,6 +96,10 @@ export interface UnspeechSliceInput {
     plaintextKey: string
     /** @default 'volcengine-prod-1' */
     keyEntryId?: string
+    /** Operator-curated streaming models exposed to the frontend picker. */
+    models?: Array<{ id: string, name?: string, description?: string }>
+    /** Server-curated default streaming model id. */
+    defaultModel?: string
   }
 }
 
@@ -262,7 +266,8 @@ export function buildUnspeechSlice(input: UnspeechSliceInput, envelope: Envelope
         baseURL: input.streaming.upstreamURL,
         keys: [{ id: keyEntryId, ciphertext }],
         adapterParams: {},
-        models: [],
+        models: input.streaming.models ?? [],
+        defaultModel: input.streaming.defaultModel,
       },
     },
   }
@@ -451,18 +456,22 @@ export function createAdminRouterConfigService(deps: AdminRouterConfigDeps) {
       nextRouterConfig = buildNextRouterConfig(input.mode, existing, llmTtsSlices)
     }
 
-    // Step 3: build the next UNSPEECH_UPSTREAM. Streaming `models` carry the
-    // operator-curated catalog and must survive key/URL rotation, so we read
-    // existing and graft them onto the new value when the slice's streaming
+    // Step 3: build the next UNSPEECH_UPSTREAM. Streaming `models` +
+    // `defaultModel` are operator-curated and must survive key/URL rotation,
+    // so we graft them from the existing entry when the slice's streaming
     // subtree is set (otherwise there's nothing to merge into).
     let nextUnspeech: UnspeechUpstream | undefined
     if (unspeechSlice) {
       const existing = await deps.configKV.getOptional('UNSPEECH_UPSTREAM')
       const newValue = unspeechSlice.value
-      if (newValue.streaming && existing?.streaming?.models?.length) {
+      if (newValue.streaming && existing?.streaming) {
         nextUnspeech = {
           ...newValue,
-          streaming: { ...newValue.streaming, models: existing.streaming.models },
+          streaming: {
+            ...newValue.streaming,
+            models: existing.streaming.models?.length ? existing.streaming.models : newValue.streaming.models,
+            defaultModel: existing.streaming.defaultModel ?? newValue.streaming.defaultModel,
+          },
         }
       }
       else {

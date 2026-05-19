@@ -109,7 +109,7 @@ export const dashscopeCosyvoiceAdapter: TtsAdapter = {
     // (unspeech/pkg/backend/alibaba/voices.go `//go:embed voices.json`),
     // so this call is in-memory on unspeech's side and only crosses a TCP
     // hop. No upstream credential is required.
-    const url = `${ctx.unspeechBaseURL.replace(/\/+$/, '')}/api/voices?backend=alibaba`
+    const url = `${ctx.unspeechBaseURL.replace(/\/+$/, '')}/api/voices?provider=alibaba`
 
     let response: Response
     try {
