@@ -1,7 +1,7 @@
 using System;
 
 /// <summary>
-/// Coordinates Godot-owned view state, scene application, persistence, and snapshots.
+/// Coordinates Godot-owned view state, scene application, and snapshots.
 /// </summary>
 public sealed class StageViewRuntime
 {

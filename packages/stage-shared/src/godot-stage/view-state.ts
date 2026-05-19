@@ -156,8 +156,9 @@ export type StageViewErrorCode
     | 'invalid-state-file'
     | 'persistence-failed'
     | 'storage-root-missing'
+    | 'view-state-unavailable'
 
-/** Error event emitted by Godot for view-state request, validation, or persistence failures. */
+/** Error event emitted by Godot for view-state request, validation, or lifecycle failures. */
 export interface StageViewErrorPayload {
   code: StageViewErrorCode
   message: string
@@ -165,7 +166,7 @@ export interface StageViewErrorPayload {
 }
 
 export const StageViewErrorPayloadSchema = strictObject({
-  code: picklist(['invalid-payload', 'invalid-state-file', 'persistence-failed', 'storage-root-missing']),
+  code: picklist(['invalid-payload', 'invalid-state-file', 'persistence-failed', 'storage-root-missing', 'view-state-unavailable']),
   message: string(),
   requestId: requestIdSchema,
 })

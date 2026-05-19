@@ -4,6 +4,10 @@ using System.Text.Json;
 
 /// <summary>
 /// Load and save Godot-owned stage view state under the AIRI-provided storage root.
+///
+/// This preserves the persistence mechanism for the future Godot-hosted architecture.
+/// The current Electron-sidecar runtime does not wire this store into the active view-state
+/// lifecycle; sidecar view state starts with the Godot process and ends when it exits.
 /// </summary>
 public sealed class StageViewStateStore
 {
@@ -96,7 +100,7 @@ public sealed class StageViewStateStore
 }
 
 /// <summary>
-/// Result of loading persisted Godot view state.
+/// Result of loading Godot view state from the retained store mechanism.
 /// </summary>
 public sealed record StageViewStateLoadResult(
     StageViewState State,

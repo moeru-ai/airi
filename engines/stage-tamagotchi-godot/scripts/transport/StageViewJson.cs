@@ -2,7 +2,7 @@ using System;
 using System.Text.Json;
 
 /// <summary>
-/// Strict JSON parser for Godot view-state transport and persisted payloads.
+/// Strict JSON parser for Godot view-state transport payloads.
 /// </summary>
 public static class StageViewJson
 {

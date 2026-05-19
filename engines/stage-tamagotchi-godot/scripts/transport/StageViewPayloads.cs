@@ -1,7 +1,7 @@
 using Godot;
 
 /// <summary>
-/// Three-dimensional numeric vector used by persisted Godot stage view state.
+/// Three-dimensional numeric vector used by Godot stage view state.
 /// </summary>
 public sealed record StageViewVec3(double X, double Y, double Z)
 {
@@ -26,7 +26,7 @@ public sealed record StageCameraPoseState(
 );
 
 /// <summary>
-/// Persisted Godot-owned view state for the stage.
+/// Godot-owned view state for the current sidecar process.
 /// </summary>
 public sealed record StageViewState(
     int SchemaVersion,
@@ -72,7 +72,7 @@ public sealed record StageViewPatchRequestPayload(string RequestId, StageViewPat
 public sealed record StageViewSnapshotRequestPayload(string RequestId);
 
 /// <summary>
-/// Snapshot emitted by Godot after load, mutation, local input, request, or shutdown flush.
+/// Snapshot emitted by Godot after load, mutation, local input, or request.
 /// </summary>
 public sealed record StageViewSnapshotPayload(
     StageViewState State,
@@ -82,7 +82,7 @@ public sealed record StageViewSnapshotPayload(
 );
 
 /// <summary>
-/// Error emitted by Godot for view-state validation, storage, or persistence failures.
+/// Error emitted by Godot for view-state validation or lifecycle failures.
 /// </summary>
 public sealed record StageViewErrorPayload(
     string Code,
