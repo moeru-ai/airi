@@ -7,7 +7,7 @@ const OPEN_COLLECTIVE_GRAPHQL_ENDPOINT = 'https://api.opencollective.com/graphql
  *
  * Use when:
  * - SponsorKit fetches OpenCollective sponsors from GitHub Actions.
- * - The configured OpenCollective token is a `pt_` personal token.
+ * - The configured OpenCollective credential is shown as a personal token in OpenCollective.
  *
  * Expects:
  * - SponsorKit's OpenCollective provider to keep the normal sponsor parsing behavior.
@@ -52,10 +52,10 @@ export function createOpenCollectiveProvider() {
  * Normalizes OpenCollective auth headers.
  *
  * Before:
- * - `{ "Api-Key": "pt_example" }`
+ * - `{ "Api-Key": "personal-token-example" }`
  *
  * After:
- * - `{ "Personal-Token": "pt_example" }`
+ * - `{ "Personal-Token": "personal-token-example" }`
  */
 export function rewriteOpenCollectiveAuthHeaders(headers = {}) {
   const normalizedHeaders = new Headers(headers)

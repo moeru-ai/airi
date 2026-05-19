@@ -7,7 +7,7 @@ import { createOpenCollectiveProvider, rewriteOpenCollectiveAuthHeaders } from '
  */
 describe('createOpenCollectiveProvider', () => {
   /**
-   * @example A pt_ token is sent as Personal-Token, not as the legacy Api-Key header.
+   * @example A personal token is sent as Personal-Token, not as the legacy Api-Key header.
    */
   it('uses the OpenCollective Personal-Token header for GraphQL requests', async () => {
     const originalFetch = globalThis.fetch
@@ -50,7 +50,7 @@ describe('createOpenCollectiveProvider', () => {
       await provider.fetchSponsors({
         includePastSponsors: true,
         opencollective: {
-          key: 'pt_test-token',
+          key: 'personal-token-example',
           slug: 'proj-airi',
         },
       })
@@ -64,11 +64,11 @@ describe('createOpenCollectiveProvider', () => {
        */
       expect(requests[0].url).toBe('https://api.opencollective.com/graphql/v2/')
       /**
-       * @example expect SponsorKit not to send the deprecated Api-Key header for pt_ tokens.
+       * @example expect SponsorKit not to send the deprecated Api-Key header for personal tokens.
        */
       expect(Object.fromEntries(requests[0].headers.entries())).toMatchObject({
         'content-type': 'application/json',
-        'personal-token': 'pt_test-token',
+        'personal-token': 'personal-token-example',
       })
       /**
        * @example expect the legacy Api-Key header to be omitted.
@@ -86,13 +86,13 @@ describe('createOpenCollectiveProvider', () => {
   it('preserves existing Personal-Token headers', () => {
     const headers = rewriteOpenCollectiveAuthHeaders({
       'Api-Key': 'legacy-token',
-      'Personal-Token': 'pt_existing-token',
+      'Personal-Token': 'existing-personal-token',
     })
 
     /**
      * @example expect an explicit Personal-Token to win over the legacy Api-Key value.
      */
-    expect(headers.get('Personal-Token')).toBe('pt_existing-token')
+    expect(headers.get('Personal-Token')).toBe('existing-personal-token')
     /**
      * @example expect the legacy Api-Key header to stay when no rewrite is needed.
      */
