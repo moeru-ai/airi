@@ -276,9 +276,6 @@ catalogs:
     nanoid:
       specifier: 5.1.6
       version: 5.1.6
-    node-abi:
-      specifier: ^4.31.0
-      version: 4.31.0
     node-pty:
       specifier: ^1.1.0
       version: 1.1.0
@@ -434,6 +431,9 @@ patchedDependencies:
   sponsorkit@17.1.0:
     hash: f5887da52a29ae85732e01644d05c0c274231fe76b95aebeafbfab6dc4444f88
     path: patches/sponsorkit@17.1.0.patch
+  uiohook-napi@1.5.5:
+    hash: 012c5e5ad881d5ae40fc0af58832e31a0772ab0a74c038c8f4dfe51efaf398dd
+    path: patches/uiohook-napi@1.5.5.patch
 
 importers:
 
@@ -1425,7 +1425,7 @@ importers:
         version: 0.184.0
       uiohook-napi:
         specifier: 'catalog:'
-        version: 1.5.5
+        version: 1.5.5(patch_hash=012c5e5ad881d5ae40fc0af58832e31a0772ab0a74c038c8f4dfe51efaf398dd)
       unified:
         specifier: ^11.0.5
         version: 11.0.5
@@ -1484,9 +1484,6 @@ importers:
       '@electron/notarize':
         specifier: 'catalog:'
         version: 3.1.1
-      '@electron/rebuild':
-        specifier: ^4.0.3
-        version: 4.0.3
       '@iconify-json/carbon':
         specifier: ^1.2.20
         version: 1.2.20
@@ -1631,9 +1628,6 @@ importers:
       mkcert:
         specifier: 'catalog:'
         version: 3.2.0
-      node-abi:
-        specifier: 'catalog:'
-        version: 4.31.0
       std-env:
         specifier: ^4.1.0
         version: 4.1.0
@@ -32760,7 +32754,7 @@ snapshots:
 
   uint4@0.1.2: {}
 
-  uiohook-napi@1.5.5:
+  uiohook-napi@1.5.5(patch_hash=012c5e5ad881d5ae40fc0af58832e31a0772ab0a74c038c8f4dfe51efaf398dd):
     dependencies:
       node-gyp-build: 4.8.4
 
