@@ -180,11 +180,19 @@ async function getActiveTab() {
  * Send a CU_ACTION message to a specific tab + frame.
  * msg_bridge.js (ISOLATED world) receives → postMessage → content.js (MAIN world)
  */
-async function sendCUAction(tabId, frameId, method, args) {
+function resolveActionTimeoutMs(timeoutMs) {
+  const numericTimeout = Number(timeoutMs)
+  if (!Number.isFinite(numericTimeout) || numericTimeout <= 0)
+    return SEND_CU_ACTION_TIMEOUT_MS
+
+  return Math.max(1, Math.min(Math.ceil(numericTimeout), SEND_CU_ACTION_TIMEOUT_MS))
+}
+
+async function sendCUAction(tabId, frameId, method, args, options = {}) {
   return new Promise((resolve) => {
     const timeout = setTimeout(() => {
       resolve({ success: false, error: 'sendMessage timeout' })
-    }, SEND_CU_ACTION_TIMEOUT_MS)
+    }, resolveActionTimeoutMs(options.timeoutMs))
 
     try {
       chrome.tabs.sendMessage(
@@ -213,7 +221,7 @@ async function sendCUAction(tabId, frameId, method, args) {
  * Run a CU_ACTION across all frames (or specified frames) in a tab.
  * Returns [{frameId, result}]
  */
-async function runCUAction(tabId, frameIds, method, args) {
+async function runCUAction(tabId, frameIds, method, args, options = {}) {
   let targets = frameIds
   if (!targets || (Array.isArray(targets) && targets.length === 0)) {
     const frames = await chrome.webNavigation.getAllFrames({ tabId })
@@ -225,7 +233,7 @@ async function runCUAction(tabId, frameIds, method, args) {
 
   return Promise.all(
     targets.map(async (fid) => {
-      const result = await sendCUAction(tabId, fid, method, args)
+      const result = await sendCUAction(tabId, fid, method, args, options)
       return { frameId: fid, result }
     }),
   )
@@ -465,9 +473,51 @@ async function handleCommand(cmd) {
         let lastFrameError = ''
 
         result = await new Promise((resolve) => {
+          async function resolveTimeout() {
+            if (lastFrames.length === 0) {
+              let frameIds = []
+              if (Array.isArray(cmd.frameIds) && cmd.frameIds.length > 0) {
+                frameIds = cmd.frameIds
+              }
+              else if (typeof cmd.frameIds === 'number') {
+                frameIds = [cmd.frameIds]
+              }
+              else {
+                try {
+                  const frames = await chrome.webNavigation.getAllFrames({ tabId })
+                  frameIds = frames.map(frame => frame.frameId)
+                }
+                catch {
+                  frameIds = [0]
+                }
+              }
+              lastFrames = frameIds.map(frameId => ({ frameId }))
+            }
+
+            const lastError = lastPollError || lastFrameError || undefined
+            resolve(lastFrames.map(entry => ({
+              frameId: entry.frameId,
+              result: {
+                success: false,
+                error: `timed out waiting for selector "${selector}"`,
+                selector,
+                timeoutMs,
+                ...(lastError ? { lastError } : {}),
+              },
+            })))
+          }
+
           async function poll() {
+            const remainingMs = deadline - Date.now()
+            if (remainingMs <= 0) {
+              await resolveTimeout()
+              return
+            }
+
             try {
-              const frames = await runCUAction(tabId, cmd.frameIds || null, 'findElements', [selector, 1])
+              const frames = await runCUAction(tabId, cmd.frameIds || null, 'findElements', [selector, 1], {
+                timeoutMs: remainingMs,
+              })
               lastFrames = frames
               const frameErrors = frames
                 .map(entry => unwrapBridgePayload(entry.result))
@@ -490,41 +540,12 @@ async function handleCommand(cmd) {
               lastPollError = e?.message || String(e)
             }
 
-            if (Date.now() >= deadline) {
-              if (lastFrames.length === 0) {
-                let frameIds = []
-                if (Array.isArray(cmd.frameIds) && cmd.frameIds.length > 0) {
-                  frameIds = cmd.frameIds
-                }
-                else if (typeof cmd.frameIds === 'number') {
-                  frameIds = [cmd.frameIds]
-                }
-                else {
-                  try {
-                    const frames = await chrome.webNavigation.getAllFrames({ tabId })
-                    frameIds = frames.map(frame => frame.frameId)
-                  }
-                  catch {
-                    frameIds = [0]
-                  }
-                }
-                lastFrames = frameIds.map(frameId => ({ frameId }))
-              }
-
-              const lastError = lastPollError || lastFrameError || undefined
-              resolve(lastFrames.map(entry => ({
-                frameId: entry.frameId,
-                result: {
-                  success: false,
-                  error: `timed out waiting for selector "${selector}"`,
-                  selector,
-                  timeoutMs,
-                  ...(lastError ? { lastError } : {}),
-                },
-              })))
+            const nextDelayMs = Math.min(WAIT_FOR_ELEMENT_POLL_INTERVAL_MS, Math.max(0, deadline - Date.now()))
+            if (nextDelayMs <= 0) {
+              await resolveTimeout()
               return
             }
-            setTimeout(poll, WAIT_FOR_ELEMENT_POLL_INTERVAL_MS)
+            setTimeout(poll, nextDelayMs)
           }
           poll()
         })
