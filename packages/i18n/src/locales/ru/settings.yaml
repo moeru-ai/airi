@@ -131,10 +131,10 @@ live2d:
     title: Извлечь цвета из модели
     button-extract:
       title: Извлечь
-  focus:
-    title: Отключить слежение за мышью
-    button-disable:
-      title: Отключить отслеживание мыши модели
+  animation:
+    title: анимация
+    focus:
+      title: Включить отслеживание курсора
   render-scale:
     title: Масштаб рендеринга
   fps:

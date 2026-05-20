@@ -131,10 +131,10 @@ live2d:
     title: Trích xuất màu từ mô hình
     button-extract:
       title: Trích xuất
-  focus:
-    title: Tắt theo dõi chuột cho mô hình
-    button-disable:
-      title: Disable model mouse tracking
+  animation:
+    title: Diễn hoạt
+    focus:
+      title: Bật theo dõi con trỏ
   render-scale:
     title: Render scale
   fps:

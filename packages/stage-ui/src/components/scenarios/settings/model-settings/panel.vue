@@ -5,6 +5,7 @@ import type { ModelSettingsRuntimeSnapshot } from './runtime'
 import { Button, Callout } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import Godot from './godot.vue'
 import Live2D from './live2d.vue'
@@ -28,6 +29,7 @@ defineEmits<{
   (e: 'extractColorsFromModel'): void
 }>()
 
+const { t } = useI18n()
 const modelSelectorOpen = ref(false)
 const settingsStore = useSettings()
 const airiCardStore = useAiriCardStore()
@@ -57,21 +59,26 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
       ...settingsClassList,
     ]"
   >
-    <Callout label="We support both 2D and 3D models">
+    <Callout :label="t('settings.model-select.panel-callout.support-status-header')">
+      <i18n-t keypath="settings.model-select.panel-callout.support-status" tag="p">
+        <template #select-button>
+          <strong>{{ t('settings.model-select.select-model.button') }}</strong>
+        </template>
+        <template #zip>
+          <code>.zip</code>
+        </template>
+        <template #vrm>
+          <code>.vrm</code>
+        </template>
+      </i18n-t>
       <p>
-        Click <strong>Select Model</strong> to import different formats of
-        models into catalog, currently, <code>.zip</code> (Live2D, Spine) and <code>.vrm</code> (VRM) are supported.
-      </p>
-      <p>
-        Neuro-sama uses 2D model driven by Live2D Inc. developed framework.
-        Grok Ani uses 3D model that is driven by VRM / MMD open formats.
-        Spine 2D models are supported via Esoteric Software's Spine runtime.
+        {{ t('settings.model-select.panel-callout.model-type-example') }}
       </p>
     </Callout>
     <div :class="['flex flex-wrap items-center gap-2']">
       <ModelSelectorDialog v-model:show="modelSelectorOpen" :selected-model="currentSelectedDisplayModel" @pick="handleModelPick">
         <Button variant="secondary">
-          Select Model
+          {{ t('settings.model-select.select-model.button') }}
         </Button>
       </ModelSelectorDialog>
       <slot name="actions" />

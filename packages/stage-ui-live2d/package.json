@@ -23,7 +23,7 @@
     "./composables/live2d": "./src/composables/live2d/index.ts",
     "./constants/emotions": "./src/constants/emotions.ts",
     "./stores": "./src/stores/index.ts",
-    "./stores/live2d": "./src/stores/live2d.ts",
+    "./stores/model-parameters": "./src/stores/model-parameters.ts",
     "./stores/expression-store": "./src/stores/expression-store.ts",
     "./tools/expression-tools": "./src/tools/expression-tools.ts",
     "./utils/eye-motions": "./src/utils/eye-motions.ts",

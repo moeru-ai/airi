@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ModelSettingsRuntimeSnapshot } from './runtime'
 
-import { Live2DScene } from '@proj-airi/stage-ui-live2d'
+import { Live2DScene, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
 import { SpineScene } from '@proj-airi/stage-ui-spine'
 import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
 import { useMouse } from '@vueuse/core'
@@ -24,7 +24,6 @@ const emit = defineEmits<{
   (e: 'runtimeSnapshotChanged', value: ModelSettingsRuntimeSnapshot): void
 }>()
 
-const positionCursor = useMouse()
 const settingsStore = useSettings()
 const modelStore = useModelStore()
 const live2dSceneRef = ref<{ canvasElement: () => HTMLCanvasElement | undefined }>()
@@ -37,18 +36,14 @@ const vrmPreviewStageInstanceId = `model-settings-preview-stage:${Math.random().
 provide('previewStage', true)
 
 const {
-  live2dDisableFocus,
   stageModelSelected,
   stageModelSelectedUrl,
   stageModelRenderer,
   themeColorsHue,
   themeColorsHueDynamic,
-  live2dIdleAnimationEnabled,
-  live2dAutoBlinkEnabled,
-  live2dForceAutoBlinkEnabled,
-  live2dShadowEnabled,
-  live2dMaxFps,
-  live2dRenderScale,
+
+} = storeToRefs(settingsStore)
+const {
   spinePremultipliedAlpha,
   spineDefaultMixDuration,
   spineIdleAnimationEnabled,
@@ -156,6 +151,18 @@ watch(runtimeSnapshot, snapshot => emit('runtimeSnapshotChanged', snapshot), { i
 defineExpose({
   capturePreviewFrame,
 })
+
+const { live2dEyeTrackingSource } = storeToRefs(useSettingsLive2d())
+const { x: mouseX, y: mouseY } = useMouse()
+live2dEyeTrackingSource.value = computed(() => ({
+  x: mouseX.value,
+  y: mouseY.value,
+}))
+const { trackingSource } = storeToRefs(useModelStore())
+trackingSource.value = computed(() => ({
+  x: mouseX.value,
+  y: mouseY.value,
+}))
 </script>
 
 <template>
@@ -164,18 +171,10 @@ defineExpose({
       <Live2DScene
         ref="live2dSceneRef"
         v-model:state="live2dComponentState"
-        :focus-at="{ x: positionCursor.x.value, y: positionCursor.y.value }"
         :model-src="stageModelSelectedUrl"
         :model-id="stageModelSelected"
-        :disable-focus-at="live2dDisableFocus"
         :theme-colors-hue="themeColorsHue"
         :theme-colors-hue-dynamic="themeColorsHueDynamic"
-        :live2d-idle-animation-enabled="live2dIdleAnimationEnabled"
-        :live2d-auto-blink-enabled="live2dAutoBlinkEnabled"
-        :live2d-force-auto-blink-enabled="live2dForceAutoBlinkEnabled"
-        :live2d-shadow-enabled="live2dShadowEnabled"
-        :live2d-max-fps="live2dMaxFps"
-        :live2d-render-scale="live2dRenderScale"
       />
     </div>
   </template>

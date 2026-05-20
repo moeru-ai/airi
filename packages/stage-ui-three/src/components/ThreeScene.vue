@@ -133,7 +133,8 @@ const vrmFrameRuntimeHook = shallowRef<VrmFrameRuntimeHook>()
 
 const camera = shallowRef(new PerspectiveCamera())
 const controlsRef = shallowRef<InstanceType<typeof OrbitControls>>()
-const tresCanvasRef = shallowRef<TresContext>()
+const tresContextRef = shallowRef<TresContext>()
+const screenRef = ref<InstanceType<typeof Screen>>()
 const skyBoxEnvRef = ref<InstanceType<typeof SkyBox>>()
 const dirLightRef = ref<InstanceType<typeof DirectionalLight>>()
 const stageThreeRuntimeTraceContext = getStageThreeRuntimeTraceContext()
@@ -276,10 +277,10 @@ function applySceneBootstrap(value: SceneBootstrap) {
 }
 
 const { readRenderTargetRegionAtClientPoint, disposeRenderTarget } = useRenderTargetRegionAtClientPoint({
-  getRenderer: () => tresCanvasRef.value?.renderer.instance as WebGLRenderer | undefined,
-  getScene: () => tresCanvasRef.value?.scene.value,
+  getRenderer: () => tresContextRef.value?.renderer.instance as WebGLRenderer | undefined,
+  getScene: () => tresContextRef.value?.scene.value,
   getCamera: () => camera.value,
-  getCanvas: () => tresCanvasRef.value?.renderer.instance.domElement,
+  getCanvas: () => tresContextRef.value?.renderer.instance.domElement,
 })
 
 /*
@@ -447,7 +448,7 @@ function onVRMSceneBootstrap(value: SceneBootstrap) {
   pendingSceneBootstrap.value = value
 }
 
-function onVRMModelLookAtTarget(value: Vec3) {
+function onVRMModelLookAtTarget(value: Vector3) {
   lookAtTarget.value.x = value.x
   lookAtTarget.value.y = value.y
   lookAtTarget.value.z = value.z
@@ -482,7 +483,7 @@ function onSkyBoxReady(EnvPayload: {
 
 // === Tres Canvas ===
 function onTresReady(context: TresContext) {
-  tresCanvasRef.value = context
+  tresContextRef.value = context
   canvasReady.value = true
   emitSceneSubtreeTrace('tresCanvasRef', 'attached')
   setScenePhaseWithTrace(resolveScenePhaseAfterBinding(), 'tres:ready')
@@ -492,7 +493,7 @@ function onTresRender() {
   if (!isStageThreeRuntimeTraceEnabled())
     return
 
-  const renderer = tresCanvasRef.value?.renderer.instance
+  const renderer = tresContextRef.value?.renderer.instance
   if (!renderer)
     return
 
@@ -515,11 +516,11 @@ onMounted(() => {
 
 onUnmounted(() => {
   invalidateBindingRevision()
-  if (tresCanvasRef.value)
+  if (tresContextRef.value)
     emitSceneSubtreeTrace('tresCanvasRef', 'detached')
 
   canvasReady.value = false
-  tresCanvasRef.value = undefined
+  tresContextRef.value = undefined
   activeModelSrc.value = undefined
   pendingSceneBootstrap.value = undefined
   resetSceneBindingTransactions()
@@ -669,6 +670,8 @@ function updateDirLightTarget(newRotation: { x: number, y: number, z: number }) 
   directionalLightTarget.value = { x: target.x, y: target.y, z: target.z }
 }
 
+const getScreenBBox = () => screenRef.value?.containerRef?.getBoundingClientRect() ?? { top: 0, left: 0, width: 500, height: 500 }
+
 watch(directionalLightRotation, (newRotation) => {
   updateDirLightTarget(newRotation)
 }, { deep: true })
@@ -685,17 +688,17 @@ defineExpose({
     applyVrmFrameRuntimeHook()
   },
   canvasElement: () => {
-    return tresCanvasRef.value?.renderer.instance.domElement
+    return tresContextRef.value?.renderer.instance.domElement
   },
   camera: () => camera.value,
-  renderer: () => tresCanvasRef.value?.renderer.instance,
+  renderer: () => tresContextRef.value?.renderer.instance,
   scene: () => modelRef.value?.scene,
   readRenderTargetRegionAtClientPoint,
   captureFrame: async () => {
-    if (!tresCanvasRef.value)
+    if (!tresContextRef.value)
       return null
 
-    const { renderer, scene } = tresCanvasRef.value
+    const { renderer, scene } = tresContextRef.value
     renderer.instance.render(scene.value, camera.value)
 
     return new Promise<Blob | null>((resolve) => {
@@ -706,7 +709,7 @@ defineExpose({
 </script>
 
 <template>
-  <Screen v-slot="{ width, height }" relative>
+  <Screen ref="screenRef" v-slot="{ width, height }" relative>
     <div top="50%" translate-y="[-50%]" fixed z-15 px-3>
       <SliderControls />
     </div>
@@ -779,6 +782,7 @@ defineExpose({
         :eye-height="eyeHeight"
         :camera-position="cameraPosition"
         :camera="camera"
+        :screen-bounding-box="getScreenBBox"
         @loading-progress="(val: number) => emit('loadModelProgress', val)"
         @load-start="onVRMModelLoadStart"
         @scene-bootstrap="onVRMSceneBootstrap"

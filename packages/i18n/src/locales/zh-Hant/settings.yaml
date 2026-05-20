@@ -131,10 +131,10 @@ live2d:
     title: 從模型中提取顏色
     button-extract:
       title: 提取
-  focus:
-    title: 停用模型滑鼠追蹤
-    button-disable:
-      title: Disable model mouse tracking
+  animation:
+    title: 動畫
+    focus:
+      title: 啟用游標追蹤
   render-scale:
     title: Render scale
   fps:

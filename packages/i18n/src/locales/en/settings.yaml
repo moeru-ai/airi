@@ -114,6 +114,22 @@ analytics:
     description: Turn this off to opt out of analytics collection.
   disabled:
     title: Analytics disabled for this development build
+model-select:
+  panel-callout:
+    support-status-header: We support both 2D and 3D models
+    support-status: >
+      Click {select-button} to select or import models.
+      Currently, {zip} (for Live2D models) and {vrm} (for VRM models) are supported.
+    model-type-example: >
+      Neuro-sama uses 2D model driven by framework developed by Live2D Inc,
+      while Grok Ani (in Grok Companion) uses 3D model driven by VRM / MMD open formats.
+  select-model:
+    title: Model Selector
+    button: Select model
+    select: Pick
+    import: Import
+    remove: Remove
+    confirm: Confirm
 live2d:
   change-model:
     from-file: Load from File
@@ -138,19 +154,60 @@ live2d:
     change-to-vrm: Click here to switch to the 3D avatar setting (VRM)
   theme-color-from-model:
     title: Extract colors from model
+    description: >
+      Extract prominent colors from current rendering canvas.
+      Click on the color to apply it to AIRI.
+      Try to extract multiple times, with the model in different poses,
+      if the colors are not desirable.
     button-extract:
       title: Extract
-  focus:
-    title: Disable model mouse tracking
-    button-disable:
-      title: Disable model mouse tracking
-  render-scale:
-    title: Render scale
-  fps:
-    title: FPS
-    description: Limit rendering frame rate
-    options:
-      unlimited: ∞
+  animation:
+    title: Animation
+    focus:
+      title: Enable mouse tracking
+      description: Track current mouse position. May conflict with force idle eye animation
+      offset: Eye offset(%)
+    force-idle-eye-animation:
+      title: Force eye animation when idle
+      description: Randomly look around when idle
+    auto-blink:
+      title: Auto blink
+      description: Use default blinking animation of the model
+    force-auto-blink:
+      title: Force auto blink
+      description: Force blinking animation with external timer
+    idle-motion:
+      title: Idle animation
+      no-motion: No animation available
+      placeholder: Select animation
+      disable-motion: Disabled
+      disable-motion-description: Disable idle animation
+  parameters:
+    title: Model Parameters
+    render-scale:
+      title: Render scale
+    fps:
+      title: FPS
+      description: Limit rendering frame rate
+      options:
+        unlimited: ∞
+    shadow: Drop shadow
+    reset-parameters: Reset to default parameters
+  clear-model-cache: Clear model cache
+  expressions:
+    title: Expressions
+    override-toggle: Expression system
+    sdk-preset-preserved-notice: >
+      SDK expression manager and eye blink are preserved when disabled.
+    no-expression: No expressions available for this model.
+    llm-integration-wip: LLM tool integration is not yet wired up.
+    save-default: Save expression defaults
+    reset: Reset all expressions
+    expose-to-llm-toggle: Expose to LLM
+    expose-to-llm-options:
+      none: None
+      all: All
+      custom: Custom
 microphone: Microphone
 models: Model
 pages:
