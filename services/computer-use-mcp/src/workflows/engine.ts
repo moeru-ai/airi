@@ -1086,6 +1086,10 @@ async function executePtyStepFamily(params: {
   }
 }
 
+function ensurePtyCommandTerminator(command: string): string {
+  return /[\r\n]$/.test(command) ? command : `${command}\r`
+}
+
 /**
  * Execute a one-shot command on a PTY session by sending the command,
  * waiting briefly, and reading the screen.
@@ -1109,8 +1113,10 @@ async function executePtyCommand(params: {
   }
 
   try {
-    // Send the command with a trailing carriage return
-    const sendResult = await executePrepTool(`pty_send_input:${ptySessionId}:${command}`)
+    // Send the command with a trailing carriage return so one-shot PTY
+    // commands are submitted instead of remaining buffered at the prompt.
+    const commandToSend = ensurePtyCommandTerminator(command)
+    const sendResult = await executePrepTool(`pty_send_input:${ptySessionId}:${commandToSend}`)
     if (sendResult.isError === true) {
       return {
         succeeded: false,

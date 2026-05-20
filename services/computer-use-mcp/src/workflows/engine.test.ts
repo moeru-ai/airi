@@ -819,6 +819,47 @@ describe('workflow engine', () => {
     expect(displayInfo?.displays).toHaveLength(2)
   })
 
+  it('terminates one-shot PTY commands before sending input', async () => {
+    const wf: WorkflowDefinition = {
+      id: 'test_pty_command_terminator',
+      name: 'PTY Command Terminator Test',
+      description: 'One-shot PTY commands should be submitted to the shell.',
+      maxRetries: 3,
+      steps: [
+        {
+          label: 'Run PTY command',
+          kind: 'run_command',
+          description: 'Run via PTY',
+          params: { command: 'echo hello' },
+          terminal: { mode: 'pty', interaction: 'one_shot' },
+        },
+      ],
+    }
+
+    const executeAction: ExecuteAction = vi.fn().mockResolvedValue(makeSuccessResult())
+    const executePrepTool = vi.fn().mockImplementation(async (toolName: string) => {
+      if (toolName.startsWith('pty_read_screen:')) {
+        return makePrepSuccessResult({ screenContent: 'hello' })
+      }
+      return makePrepSuccessResult({ status: 'ok' })
+    })
+    const acquirePty = vi.fn().mockResolvedValue({ acquired: true, ptySessionId: 'pty-1' })
+    const sm = new RunStateManager()
+
+    const result = await executeWorkflow({
+      workflow: wf,
+      executeAction,
+      executePrepTool,
+      acquirePty,
+      stateManager: sm,
+    })
+
+    expect(result.success).toBe(true)
+    expect(executeAction).not.toHaveBeenCalled()
+    expect(executePrepTool).toHaveBeenCalledWith('pty_send_input:pty-1:echo hello\r')
+    expect(executePrepTool).toHaveBeenCalledWith('pty_read_screen:pty-1')
+  })
+
   it('fails the workflow when a preparatory tool fails', async () => {
     const wf: WorkflowDefinition = {
       id: 'test_failed_prep',
