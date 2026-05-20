@@ -210,11 +210,15 @@ export function buildGptSoVitsProvider(
       validateProviderConfig: (config) => {
         const errors: Error[] = []
 
-        if (!config.baseUrl)
-          errors.push(new Error('Base URL is required.'))
+        // Normalize before validating so a missing trailing slash isn't a
+        // false-negative (the createProvider step also normalizes).
+        const normalizedUrl = typeof config.baseUrl === 'string' ? normalizeBaseUrl(config.baseUrl) : ''
 
-        if (config.baseUrl) {
-          const res = baseUrlValidator(config.baseUrl)
+        if (!normalizedUrl) {
+          errors.push(new Error('Base URL is required.'))
+        }
+        else {
+          const res = baseUrlValidator(normalizedUrl)
           if (res)
             return res
         }

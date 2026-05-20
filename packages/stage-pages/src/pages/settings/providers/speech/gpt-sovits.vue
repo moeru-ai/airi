@@ -8,8 +8,9 @@ import {
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { FieldInput } from '@proj-airi/ui'
+import { useDebounceFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 
 const providerId = 'gpt-sovits'
 const defaultModel = 'gpt-sovits'
@@ -23,42 +24,50 @@ function ensureConfig() {
     providers.value[providerId] = {}
 }
 
+function setField(key: string, value: unknown) {
+  // Replace the whole config object to guarantee Vue's reactive tracking fires
+  // and the deep watch in the providers store triggers re-validation.
+  providers.value[providerId] = {
+    ...providers.value[providerId],
+    [key]: value,
+  }
+}
+
 const refAudioPath = computed({
   get: () => providers.value[providerId]?.refAudioPath as string | undefined || '',
-  set: (value) => {
-    ensureConfig()
-    providers.value[providerId].refAudioPath = value
-  },
+  set: value => setField('refAudioPath', value),
 })
 
 const promptText = computed({
   get: () => providers.value[providerId]?.promptText as string | undefined || '',
-  set: (value) => {
-    ensureConfig()
-    providers.value[providerId].promptText = value
-  },
+  set: value => setField('promptText', value),
 })
 
 const promptLang = computed({
   get: () => providers.value[providerId]?.promptLang as string | undefined || 'auto',
-  set: (value) => {
-    ensureConfig()
-    providers.value[providerId].promptLang = value
-  },
+  set: value => setField('promptLang', value),
 })
 
 const textLang = computed({
   get: () => providers.value[providerId]?.textLang as string | undefined || 'auto',
-  set: (value) => {
-    ensureConfig()
-    providers.value[providerId].textLang = value
-  },
+  set: value => setField('textLang', value),
 })
 
 const availableVoices = computed(() => speechStore.availableVoices[providerId] || [])
 
+// Force re-validation after custom fields change so the green "configured"
+// indicator in the providers list updates promptly.
+const debouncedValidate = useDebounceFn(() => {
+  void providersStore.validateProvider(providerId, { force: true })
+}, 600)
+
+watch([refAudioPath, promptText, promptLang, textLang], debouncedValidate)
+
 onMounted(async () => {
   ensureConfig()
+  // Run an initial validation so the configured state is correct when
+  // the user returns to the providers list.
+  void providersStore.validateProvider(providerId, { force: true })
   await speechStore.loadVoicesForProvider(providerId)
 })
 
