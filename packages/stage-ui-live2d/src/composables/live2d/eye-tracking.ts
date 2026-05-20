@@ -23,16 +23,13 @@ export function useEyeTracking(
     modelHeight: number
   }>,
 ): ComputedRef<{ x: number, y: number }> {
-  // computed caching
-  const canvasRect = computed(() => {
-    return toValue(canvas)?.getBoundingClientRect()
-  })
   const mouseFocus = computed(() => {
     const { normalizedScale, modelWidth, modelHeight } = toValue(model)
     const renderScale = live2dRenderScale.value
     // does not require further unwrapping for some reason
     const trackingSource = live2dEyeTrackingSource.value as { x: number, y: number } | null
-    if (!trackingSource || !(canvasRect.value)) {
+    const canvasRect = toValue(canvas)?.getBoundingClientRect()
+    if (!trackingSource || !(canvasRect)) {
       return { x: 1000, y: 1000 }
     }
     const eyeOffset = {
@@ -40,8 +37,8 @@ export function useEyeTracking(
       y: live2dModelEyeOffset.value.y / 100 * modelHeight * normalizedScale * scale.value,
     }
     return {
-      x: (trackingSource.x - canvasRect.value.left + eyeOffset.x) * renderScale,
-      y: (trackingSource.y - canvasRect.value.top + eyeOffset.y) * renderScale,
+      x: (trackingSource.x - canvasRect.left + eyeOffset.x) * renderScale,
+      y: (trackingSource.y - canvasRect.top + eyeOffset.y) * renderScale,
     }
   })
 

@@ -4,7 +4,7 @@ import { useLocalStorageManualReset, useVersionedLocalStorageManualReset } from 
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-const live2dEyeTracking = useLocalStorageManualReset<boolean>('settings/live2d/disable-focus', false)
+const live2dEyeTracking = useLocalStorageManualReset<boolean>('settings/live2d/eye-tracking', false)
 /**
  * A position to perform eye-tracking on.
  * Should be a position relative to the application window:
