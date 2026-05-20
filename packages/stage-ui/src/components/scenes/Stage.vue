@@ -71,7 +71,7 @@ const {
   live2dShadowEnabled,
   live2dMaxFps,
   live2dRenderScale,
-} = useSettingsLive2d()
+} = storeToRefs(useSettingsLive2d())
 const {
   spinePremultipliedAlpha,
   spineDefaultMixDuration,
