@@ -2389,6 +2389,10 @@ export const useProvidersStore = defineStore('providers', () => {
       if (!providerMetadata[providerId] || intervalMs <= 0)
         continue
 
+      // Only start periodic validation for providers that have been explicitly added
+      if (!addedProviders.value[providerId])
+        continue
+
       if (providerRevalidationLoops.has(providerId)) {
         continue
       }
@@ -2404,8 +2408,8 @@ export const useProvidersStore = defineStore('providers', () => {
   // Update configuration status for all configured providers
   async function updateConfigurationStatus() {
     await Promise.all(Object.entries(providerMetadata)
-      // TODO: ignore un-configured provider
-      // .filter(([_, provider]) => provider.configured)
+      // Only validate providers that have been explicitly added by the user
+      .filter(([providerId]) => addedProviders.value[providerId])
       .map(async ([providerId]) => {
         try {
           if (providerRuntimeState.value[providerId]) {
@@ -2424,6 +2428,23 @@ export const useProvidersStore = defineStore('providers', () => {
   // Call initially and watch for changes
   watch(providerCredentials, updateConfigurationStatus, { deep: true, immediate: true })
   startPeriodicRuntimeValidation()
+
+  // Watch for newly added providers and start their periodic validation
+  watch(addedProviders, (newAdded, oldAdded) => {
+    for (const providerId of Object.keys(newAdded)) {
+      if (newAdded[providerId] && !oldAdded?.[providerId]) {
+        // Provider was just added, start its periodic validation if configured
+        const intervalMs = providerValidationIntervalMsById.get(providerId)
+        if (intervalMs && intervalMs > 0 && !providerRevalidationLoops.has(providerId)) {
+          const loop = useIntervalFn(() => {
+            void validateProvider(providerId, { force: true })
+          }, intervalMs, { immediate: false, immediateCallback: false })
+          loop.resume()
+          providerRevalidationLoops.set(providerId, loop)
+        }
+      }
+    }
+  }, { deep: true })
 
   watch(() => authState.isAuthenticated, updateConfigurationStatus)
 
