@@ -14,7 +14,7 @@ import { ensureDynamicFirstPartyRedirectUri } from '../../libs/auth'
 import { rateLimiter } from '../../middlewares/rate-limit'
 import { account, user } from '../../schemas/accounts'
 import { createBadRequestError } from '../../utils/error'
-import { getServerAuthUiDistDir, renderServerAuthUiHtml, SERVER_AUTH_UI_BASE_PATH } from '../../utils/server-auth-ui'
+import { getServerAuthUiDistDir, renderOidcSocialPostBridgeHtml, renderServerAuthUiHtml, SERVER_AUTH_UI_BASE_PATH } from '../../utils/server-auth-ui'
 import { createElectronCallbackRelay } from './oidc/electron-callback'
 import { createOIDCTokenAuthRoute } from './oidc/token-auth'
 
@@ -26,6 +26,15 @@ import { createOIDCTokenAuthRoute } from './oidc/token-auth'
 const EMAIL_SHAPE_RE = /^[^\s@]+@[^\s@][^\s.@]*\.[^\s@]+$/
 
 const RE_SERVER_AUTH_UI_BASE_PATH = /^\/auth/
+
+type SocialAuthProviderId = 'google' | 'github'
+
+function parseSocialAuthProviderId(value: string | null | undefined): SocialAuthProviderId | undefined {
+  if (value === 'google' || value === 'github')
+    return value
+
+  return undefined
+}
 
 export interface AuthRoutesDeps {
   auth: AuthInstance
@@ -74,7 +83,7 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
      * routes in registration order — specific path before wildcard wins.
      */
     .on('GET', `${SERVER_AUTH_UI_BASE_PATH}/sign-in`, (c) => {
-      const provider = c.req.query('provider')
+      const provider = parseSocialAuthProviderId(c.req.query('provider'))
 
       // Reconstruct the OIDC authorize URL from query params so the flow
       // resumes after social login. The oauthProvider plugin appends all
@@ -90,9 +99,12 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
         ? `${deps.env.API_SERVER_URL}/api/auth/oauth2/authorize?${oidcParams.toString()}`
         : '/'
 
-      if (!!provider && ['google', 'github'].includes(provider)) {
-        const socialUrl = `${deps.env.API_SERVER_URL}/api/auth/sign-in/social?provider=${provider}&callbackURL=${encodeURIComponent(callbackURL)}`
-        return c.redirect(socialUrl)
+      if (provider) {
+        return c.html(renderOidcSocialPostBridgeHtml({
+          apiServerUrl: deps.env.API_SERVER_URL,
+          provider,
+          callbackURL,
+        }))
       }
 
       return c.html(renderServerAuthUiHtml({
@@ -135,8 +147,17 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
       routeLabel: 'auth.api',
     }))
     .use('/api/auth/oauth2/authorize', async (c, next) => {
+      const provider = parseSocialAuthProviderId(c.req.query('provider'))
       await ensureDynamicFirstPartyRedirectUri(deps.db, c.req.raw, deps.env.ADDITIONAL_TRUSTED_ORIGINS)
       await next()
+      const location = c.res.headers.get('location')
+      if (provider && location) {
+        const redirectUrl = new URL(location, deps.env.API_SERVER_URL)
+        if (redirectUrl.pathname === `${SERVER_AUTH_UI_BASE_PATH}/sign-in` && !redirectUrl.searchParams.has('provider')) {
+          redirectUrl.searchParams.set('provider', provider)
+          c.res.headers.set('location', redirectUrl.pathname + redirectUrl.search)
+        }
+      }
     })
     .route('/api/auth', createOIDCTokenAuthRoute(deps))
     /**

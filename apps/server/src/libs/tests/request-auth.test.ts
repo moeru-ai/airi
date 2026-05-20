@@ -2,17 +2,20 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { resolveRequestAuth } from '../request-auth'
 
-// Mock jose module
 vi.mock('jose', () => ({
   createRemoteJWKSet: vi.fn(() => 'mock-jwks'),
   jwtVerify: vi.fn(),
 }))
 
 const { jwtVerify } = await import('jose')
+const { createRemoteJWKSet } = await import('jose')
 const mockedJwtVerify = vi.mocked(jwtVerify)
+const mockedCreateRemoteJWKSet = vi.mocked(createRemoteJWKSet)
 
 const mockEnv = {
   API_SERVER_URL: 'http://localhost:3000',
+  HOST: '0.0.0.0',
+  PORT: 3000,
 } as any
 
 describe('resolveRequestAuth', () => {
@@ -81,6 +84,7 @@ describe('resolveRequestAuth', () => {
       new Headers({ Authorization: 'Bearer eyJhbGciOiJSUzI1NiJ9.test.sig' }),
     )
 
+    expect(mockedCreateRemoteJWKSet).toHaveBeenCalledWith(new URL('http://127.0.0.1:3000/api/auth/jwks'))
     expect(result).toEqual({
       user,
       session: {
@@ -155,5 +159,95 @@ describe('resolveRequestAuth', () => {
     )
 
     expect(result).toBeNull()
+  })
+
+  it('fetches JWKS from the configured HOST when not bound to all interfaces', async () => {
+    vi.resetModules()
+    mockedCreateRemoteJWKSet.mockClear()
+    mockedJwtVerify.mockResolvedValue({
+      payload: {
+        sub: 'user-1',
+        iss: 'http://10.0.0.5:3000/api/auth',
+        aud: 'http://10.0.0.5:3000',
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + 3600,
+        jti: 'jwt-token-id',
+      },
+      protectedHeader: { alg: 'RS256' },
+      key: {} as any,
+    } as any)
+
+    const { resolveRequestAuth: resolveWithHost } = await import('../request-auth')
+    const auth = {
+      api: {
+        getSession: vi.fn().mockResolvedValue(null),
+      },
+      $context: Promise.resolve({
+        internalAdapter: {
+          findUserById: vi.fn().mockResolvedValue({
+            id: 'user-1',
+            email: 'user@example.com',
+            name: 'User',
+            emailVerified: true,
+            image: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }),
+        },
+      }),
+    }
+
+    await resolveWithHost(
+      auth as any,
+      { API_SERVER_URL: 'http://10.0.0.5:3000', HOST: '10.0.0.5', PORT: 3000 } as any,
+      new Headers({ Authorization: 'Bearer eyJhbGciOiJSUzI1NiJ9.test.sig' }),
+    )
+
+    expect(mockedCreateRemoteJWKSet).toHaveBeenCalledWith(new URL('http://10.0.0.5:3000/api/auth/jwks'))
+  })
+
+  it.each(['::1', '::'])('fetches JWKS from bracketed IPv6 loopback when HOST is %s', async (host) => {
+    vi.resetModules()
+    mockedCreateRemoteJWKSet.mockClear()
+    mockedJwtVerify.mockResolvedValue({
+      payload: {
+        sub: 'user-1',
+        iss: 'http://[::1]:3000/api/auth',
+        aud: 'http://[::1]:3000',
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + 3600,
+        jti: 'jwt-token-id',
+      },
+      protectedHeader: { alg: 'RS256' },
+      key: {} as any,
+    } as any)
+
+    const { resolveRequestAuth: resolveWithHost } = await import('../request-auth')
+    const auth = {
+      api: {
+        getSession: vi.fn().mockResolvedValue(null),
+      },
+      $context: Promise.resolve({
+        internalAdapter: {
+          findUserById: vi.fn().mockResolvedValue({
+            id: 'user-1',
+            email: 'user@example.com',
+            name: 'User',
+            emailVerified: true,
+            image: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }),
+        },
+      }),
+    }
+
+    await resolveWithHost(
+      auth as any,
+      { API_SERVER_URL: 'http://[::1]:3000', HOST: host, PORT: 3000 } as any,
+      new Headers({ Authorization: 'Bearer eyJhbGciOiJSUzI1NiJ9.test.sig' }),
+    )
+
+    expect(mockedCreateRemoteJWKSet).toHaveBeenCalledWith(new URL('http://[::1]:3000/api/auth/jwks'))
   })
 })

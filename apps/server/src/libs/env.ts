@@ -31,13 +31,20 @@ export function parseAdditionalTrustedOriginsEnv(raw: string): string[] {
     if (!entry)
       continue
 
-    let normalized: string
+    let parsed: URL
     try {
-      normalized = new URL(entry).origin
+      parsed = new URL(entry)
     }
     catch {
       throw new TypeError(`ADDITIONAL_TRUSTED_ORIGINS: invalid URL origin segment "${entry}"`)
     }
+
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:')
+      throw new TypeError(`ADDITIONAL_TRUSTED_ORIGINS: invalid URL origin segment "${entry}"`)
+
+    const normalized = parsed.origin
+    if (normalized === 'null')
+      throw new TypeError(`ADDITIONAL_TRUSTED_ORIGINS: invalid URL origin segment "${entry}"`)
 
     if (!seen.has(normalized)) {
       seen.add(normalized)

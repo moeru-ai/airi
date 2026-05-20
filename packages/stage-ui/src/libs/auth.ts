@@ -1,11 +1,14 @@
 import type { OIDCFlowParams, TokenResponse } from './auth-oidc'
 
+import { Capacitor } from '@capacitor/core'
 import { createAuthClient } from 'better-auth/vue'
 
 import { useAuthStore } from '../stores/auth'
+import { completeOIDCCallbackUrl } from './auth-callback'
 import { OIDC_CLIENT_ID, OIDC_REDIRECT_URI } from './auth-config'
-import { buildAuthorizationURL, persistFlowState } from './auth-oidc'
-import { SERVER_URL } from './server'
+import { buildAuthorizationURL, consumeFlowState, exchangeCodeForTokens, persistFlowState } from './auth-oidc'
+import { openNativeAuthSession } from './native-auth'
+import { isNgrokServerUrl, SERVER_URL } from './server'
 
 export type OAuthProvider = 'google' | 'github'
 
@@ -30,6 +33,9 @@ export const authClient = createAuthClient({
       type: 'Bearer',
       token: () => getAuthToken() ?? '',
     },
+    ...(isNgrokServerUrl()
+      ? { headers: { 'ngrok-skip-browser-warning': 'true' } }
+      : {}),
   },
 })
 
@@ -183,17 +189,39 @@ export async function signOut() {
  * Builds the authorization URL, persists PKCE state, and navigates.
  */
 export async function signInOIDC(params: OIDCFlowParams) {
-  const { provider, ...oidcParams } = params
-  const { url, flowState } = await buildAuthorizationURL(oidcParams)
+  // Must pass `params` (incl. `provider`) so authorize URL can include `?provider=google` / github.
+  const { url, flowState } = await buildAuthorizationURL(params)
   persistFlowState(flowState, params)
 
-  if (!provider) {
+  let capacitorPlatform = 'web'
+  try {
+    capacitorPlatform = Capacitor.getPlatform()
+  }
+  catch {
+    // no Capacitor
+  }
+  if (capacitorPlatform === 'ios') {
+    const callbackUrl = await openNativeAuthSession(url.toString())
+    await completeOIDCCallbackUrl(callbackUrl, {
+      consumeFlowState,
+      exchangeCodeForTokens,
+      applyOIDCTokens,
+      fetchSession,
+    })
+    return
+  }
+  if (capacitorPlatform !== 'web') {
+    window.location.assign(url.toString())
+    return
+  }
+
+  if (!params.provider) {
     window.location.href = url
     return
   }
 
   await authClient.signIn.social({
-    provider,
+    provider: params.provider,
     callbackURL: url.toString(),
   })
 }

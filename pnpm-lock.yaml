@@ -3185,6 +3185,9 @@ importers:
 
   packages/stage-ui:
     dependencies:
+      '@capacitor/core':
+        specifier: 'catalog:'
+        version: 8.3.1
       '@date-fns/utc':
         specifier: ^2.1.1
         version: 2.1.1
