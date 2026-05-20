@@ -1484,6 +1484,9 @@ importers:
       '@electron/notarize':
         specifier: 'catalog:'
         version: 3.1.1
+      '@electron/rebuild':
+        specifier: ^4.0.3
+        version: 4.0.3
       '@iconify-json/carbon':
         specifier: ^1.2.20
         version: 1.2.20
