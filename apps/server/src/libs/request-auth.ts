@@ -83,10 +83,15 @@ let cachedJWKS: ReturnType<typeof createRemoteJWKSet> | null = null
 
 function localJwksUrl(env: Env): URL {
   const host = env.HOST ?? '0.0.0.0'
-  const jwksHost = host === '0.0.0.0' || host === '127.0.0.1' || host === 'localhost'
+  const lookupHost = host === '0.0.0.0' || host === '127.0.0.1' || host === 'localhost'
     ? '127.0.0.1'
-    : host
-  return new URL('/api/auth/jwks', `http://${jwksHost}:${env.PORT}`)
+    : host === '::'
+      ? '::1'
+      : host
+  const origin = lookupHost.includes(':')
+    ? `http://[${lookupHost}]:${env.PORT}`
+    : `http://${lookupHost}:${env.PORT}`
+  return new URL('/api/auth/jwks', origin)
 }
 
 function getJWKS(env: Env): ReturnType<typeof createRemoteJWKSet> {
