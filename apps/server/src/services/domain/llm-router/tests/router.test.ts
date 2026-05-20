@@ -1,6 +1,7 @@
 import type { Buffer } from 'node:buffer'
 
 import type { Counter } from '@opentelemetry/api'
+import type Redis from 'ioredis'
 
 import type { GatewayMetrics } from '../../../../otel'
 import type { ConfigKVService } from '../../../adapters/config-kv'
@@ -13,6 +14,22 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createEnvelopeCrypto } from '../../../../utils/envelope-crypto'
 import { ApiError } from '../../../../utils/error'
 import { createLlmRouterService } from '../router'
+
+/**
+ * Minimal redis stub shared across `createLlmRouterService` tests. The router
+ * only touches redis through the TTS voice catalog cache, which the LLM-side
+ * tests never exercise — every method here is a no-op vi.fn so the type
+ * checker is happy without spinning a real client.
+ */
+function makeRedisStub(): Redis {
+  async function* emptyScan(): AsyncGenerator<string[]> {}
+  return {
+    get: vi.fn(async () => null),
+    set: vi.fn(async () => 'OK'),
+    scanStream: vi.fn(() => emptyScan()),
+    pipeline: vi.fn(() => ({ del: vi.fn(), exec: vi.fn(async () => []) })),
+  } as unknown as Redis
+}
 
 function freshMasterKey(): Buffer {
   return randomBytes(32)
@@ -39,7 +56,14 @@ function makeMetrics(): GatewayMetrics {
 function makeConfigKV(config: RouterConfig | null): ConfigKVService {
   return {
     getOptional: vi.fn(async (key: string) => (key === 'LLM_ROUTER_CONFIG' ? config : null)),
-    getOrThrow: vi.fn(),
+    // routeTts reads UNSPEECH_UPSTREAM once per request via getOrThrow.
+    // LLM-side tests never invoke routeTts so the value is irrelevant; TTS
+    // tests need a populated restBaseURL.
+    getOrThrow: vi.fn(async (key: string) => {
+      if (key === 'UNSPEECH_UPSTREAM')
+        return { restBaseURL: 'http://unspeech.local:5933' }
+      return undefined
+    }),
     get: vi.fn(),
     set: vi.fn(),
   } as unknown as ConfigKVService
@@ -122,6 +146,7 @@ describe('createLlmRouterService', () => {
       envelopeCrypto: crypto,
       gatewayMetrics: metrics,
       fetchImpl,
+      redis: makeRedisStub(),
     })
 
     const res = await router.route({ modelName: 'openai/gpt-5-mini', body: { messages: [] } })
@@ -140,6 +165,7 @@ describe('createLlmRouterService', () => {
       envelopeCrypto: crypto,
       gatewayMetrics: null,
       fetchImpl,
+      redis: makeRedisStub(),
     })
 
     await router.route({ modelName: 'openai/gpt-5-mini', body: { messages: [{ role: 'user', content: 'hi' }] } })
@@ -164,6 +190,7 @@ describe('createLlmRouterService', () => {
       envelopeCrypto: crypto,
       gatewayMetrics: null,
       fetchImpl,
+      redis: makeRedisStub(),
     })
 
     await router.route({ modelName: 'openai/gpt-5-mini', body: { messages: [] } })
@@ -184,6 +211,7 @@ describe('createLlmRouterService', () => {
       envelopeCrypto: crypto,
       gatewayMetrics: metrics,
       fetchImpl,
+      redis: makeRedisStub(),
     })
 
     const res = await router.route({ modelName: 'openai/gpt-5-mini', body: {} })
@@ -217,6 +245,7 @@ describe('createLlmRouterService', () => {
       envelopeCrypto: crypto,
       gatewayMetrics: metrics,
       fetchImpl,
+      redis: makeRedisStub(),
     })
 
     const res = await router.route({ modelName: 'openai/gpt-5-mini', body: {} })
@@ -242,6 +271,7 @@ describe('createLlmRouterService', () => {
       envelopeCrypto: crypto,
       gatewayMetrics: metrics,
       fetchImpl,
+      redis: makeRedisStub(),
     })
 
     try {
@@ -286,6 +316,7 @@ describe('createLlmRouterService', () => {
       envelopeCrypto: crypto,
       gatewayMetrics: null,
       fetchImpl,
+      redis: makeRedisStub(),
     })
 
     try {
@@ -330,6 +361,7 @@ describe('createLlmRouterService', () => {
       envelopeCrypto: crypto,
       gatewayMetrics: metrics,
       fetchImpl,
+      redis: makeRedisStub(),
     })
 
     await expect(router.route({ modelName: 'openai/gpt-5-mini', body: {} })).rejects.toMatchObject({ statusCode: 503, errorCode: 'SERVICE_UNAVAILABLE' })
@@ -358,6 +390,7 @@ describe('createLlmRouterService', () => {
       envelopeCrypto: crypto,
       gatewayMetrics: null,
       fetchImpl,
+      redis: makeRedisStub(),
     })
 
     try {
@@ -403,6 +436,7 @@ describe('createLlmRouterService', () => {
       envelopeCrypto: crypto,
       gatewayMetrics: null,
       fetchImpl,
+      redis: makeRedisStub(),
     })
 
     const res = await router.route({ modelName: 'openai/gpt-5-mini', body: {} })
@@ -432,6 +466,7 @@ describe('createLlmRouterService', () => {
       envelopeCrypto: crypto,
       gatewayMetrics: null,
       fetchImpl,
+      redis: makeRedisStub(),
     })
 
     try {
@@ -456,6 +491,7 @@ describe('createLlmRouterService', () => {
       envelopeCrypto: crypto,
       gatewayMetrics: metrics,
       fetchImpl,
+      redis: makeRedisStub(),
     })
 
     try {
@@ -480,6 +516,7 @@ describe('createLlmRouterService', () => {
       envelopeCrypto: crypto,
       gatewayMetrics: null,
       fetchImpl,
+      redis: makeRedisStub(),
     })
 
     await expect(router.route({ modelName: 'whatever', body: {} })).rejects.toMatchObject({ statusCode: 503, errorCode: 'CONFIG_NOT_SET' })
@@ -497,6 +534,7 @@ describe('createLlmRouterService', () => {
       envelopeCrypto: crypto,
       gatewayMetrics: null,
       fetchImpl,
+      redis: makeRedisStub(),
     })
 
     await expect(router.route({ modelName: 'openai/gpt-5-mini', body: {}, abortSignal: ctrl.signal })).rejects.toThrow(/client-disconnected/)
@@ -527,6 +565,7 @@ describe('createLlmRouterService', () => {
       envelopeCrypto: crypto,
       gatewayMetrics: null,
       fetchImpl,
+      redis: makeRedisStub(),
     })
 
     await expect(router.route({ modelName: 'openai/gpt-5-mini', body: {}, abortSignal: ctrl.signal })).rejects.toThrow(/client-disconnected/)
@@ -544,6 +583,7 @@ describe('createLlmRouterService', () => {
       envelopeCrypto: crypto,
       gatewayMetrics: null,
       fetchImpl,
+      redis: makeRedisStub(),
     })
 
     await router.route({ modelName: 'openai/gpt-5-mini', body: {} })
@@ -619,6 +659,7 @@ describe('createLlmRouterService', () => {
         envelopeCrypto: crypto,
         gatewayMetrics: metrics,
         fetchImpl,
+        redis: makeRedisStub(),
       })
 
       let caught: unknown
@@ -645,7 +686,7 @@ describe('createLlmRouterService', () => {
       // azure adapter wraps a fetch reject as createInternalError(500).
       // The router should treat that as a fallback-eligible network failure
       // and try the second key — not propagate the 500 as a final error.
-      const { config, crypto } = makeTtsConfig({ upstreams: [{ baseURL: 'https://az.example', keyIds: ['kA1', 'kA2'] }] })
+      const { config, crypto } = makeTtsConfig({ upstreams: [{ baseURL: 'https://az.example', keyIds: ['kA1', 'kA2'], adapterParams: { region: 'eastasia' } }] })
 
       let callIdx = 0
       const fetchImpl = vi.fn(async () => {
@@ -661,6 +702,7 @@ describe('createLlmRouterService', () => {
         envelopeCrypto: crypto,
         gatewayMetrics: metrics,
         fetchImpl,
+        redis: makeRedisStub(),
       })
 
       const res = await router.routeTts({
@@ -679,7 +721,7 @@ describe('createLlmRouterService', () => {
       // azure adapter throws `Error & { status: number }` on upstream non-2xx
       // (see azure.ts:189-194). 401 is in fallbackHttpCodes so we must try
       // the next key.
-      const { config, crypto } = makeTtsConfig({ upstreams: [{ baseURL: 'https://az.example', keyIds: ['kA1', 'kA2'] }] })
+      const { config, crypto } = makeTtsConfig({ upstreams: [{ baseURL: 'https://az.example', keyIds: ['kA1', 'kA2'], adapterParams: { region: 'eastasia' } }] })
 
       let callIdx = 0
       const fetchImpl = vi.fn(async () => {
@@ -695,6 +737,7 @@ describe('createLlmRouterService', () => {
         envelopeCrypto: crypto,
         gatewayMetrics: metrics,
         fetchImpl,
+        redis: makeRedisStub(),
       })
 
       const res = await router.routeTts({

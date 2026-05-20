@@ -92,11 +92,11 @@ export const providerOfficialSpeech = defineProvider({
     listModels: async (): Promise<ModelInfo[]> => {
       const res = await globalThis.fetch(`${SERVER_URL}/api/v1/audio/models`, { headers: authHeaders() })
       if (!res.ok)
-        return []
+        throw new Error(`audio models upstream ${res.status}: ${await res.text().catch(() => '')}`.slice(0, 256))
 
       const data = await res.json() as { models?: { id: string, name: string }[] }
       if (!Array.isArray(data.models))
-        return []
+        throw new Error('audio models upstream returned malformed body')
 
       return data.models.map(m => ({
         id: m.id,
@@ -104,10 +104,18 @@ export const providerOfficialSpeech = defineProvider({
         provider: OFFICIAL_SPEECH_PROVIDER_ID,
       }))
     },
-    listVoices: async (): Promise<VoiceInfo[]> => {
-      const res = await globalThis.fetch(`${SERVER_URL}/api/v1/audio/voices`, { headers: authHeaders() })
+    listVoices: async (_config, _provider, model): Promise<VoiceInfo[]> => {
+      // Voice catalogs are model-scoped on the server side. Pass the active
+      // model through so Azure / cosyvoice / future provider voices route to
+      // the right adapter. `auto` defers to the server's DEFAULT_TTS_MODEL,
+      // but it MUST be sent explicitly — an absent `model` is treated as a
+      // client bug and returns 400.
+      const target = model && model.length > 0 ? model : 'auto'
+      const url = new URL(`${SERVER_URL}/api/v1/audio/voices`)
+      url.searchParams.set('model', target)
+      const res = await globalThis.fetch(url.toString(), { headers: authHeaders() })
       if (!res.ok)
-        return []
+        throw new Error(`audio voices upstream ${res.status}: ${await res.text().catch(() => '')}`.slice(0, 256))
 
       // Shape aligned with unspeech's types.ListVoicesResponse, plus the
       // `recommended` field our server injects from configKV DEFAULT_TTS_VOICES.
@@ -132,7 +140,7 @@ export const providerOfficialSpeech = defineProvider({
       recommendedVoicesByLocale = (data.recommended && typeof data.recommended === 'object') ? data.recommended : {}
 
       if (!Array.isArray(data.voices))
-        return []
+        throw new Error('audio voices upstream returned malformed body')
 
       return data.voices.map((v) => {
         // unspeech surfaces gender inside labels rather than as a top-level field.
@@ -205,23 +213,25 @@ export const providerOfficialSpeechStreaming = defineProvider({
   validationRequiredWhen: () => false,
   extraMethods: {
     listModels: async (): Promise<ModelInfo[]> => {
-      // Streaming-capable models. The wire `model` field uses the
-      // `<backend>/<id>` shape unspeech expects (see
-      // `unspeech/docs/wire-protocols/audio-speech-stream-v1.md`).
-      return [
-        {
-          id: 'volcengine/seed-tts-2.0',
-          name: 'Volcengine Seed-TTS 2.0',
-          provider: OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
-          description: 'Volcengine bidirectional streaming TTS (TTS 2.0)',
-        },
-        {
-          id: 'volcengine/seed-tts-1.0',
-          name: 'Volcengine Seed-TTS 1.0',
-          provider: OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
-          description: 'Volcengine bidirectional streaming TTS (TTS 1.0)',
-        },
-      ]
+      // Streaming TTS catalog is operator-controlled via configKV
+      // (`STREAMING_TTS_MODELS`). The wire `model` field uses the
+      // `<backend>/<api_resource_id>` shape unspeech expects (see
+      // `unspeech/docs/wire-protocols/audio-speech-stream-v1.md`); the server
+      // returns whatever the operator put there, no client-side defaults.
+      const res = await globalThis.fetch(`${SERVER_URL}/api/v1/audio/models/streaming`, { headers: authHeaders() })
+      if (!res.ok)
+        throw new Error(`streaming models upstream ${res.status}: ${await res.text().catch(() => '')}`.slice(0, 256))
+
+      const data = await res.json() as { models?: { id: string, name?: string, description?: string }[] }
+      if (!Array.isArray(data.models))
+        throw new Error('streaming models upstream returned malformed body')
+
+      return data.models.map(m => ({
+        id: m.id,
+        name: m.name ?? m.id,
+        provider: OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
+        description: m.description,
+      }))
     },
     listVoices: async (_config, _provider, model): Promise<VoiceInfo[]> => {
       // Streaming voices live behind a dedicated endpoint
@@ -243,7 +253,7 @@ export const providerOfficialSpeechStreaming = defineProvider({
         { headers: authHeaders() },
       )
       if (!res.ok)
-        return []
+        throw new Error(`streaming voices upstream ${res.status}: ${await res.text().catch(() => '')}`.slice(0, 256))
 
       const data = await res.json() as {
         voices?: {
@@ -256,7 +266,7 @@ export const providerOfficialSpeechStreaming = defineProvider({
         }[]
       }
       if (!Array.isArray(data.voices))
-        return []
+        throw new Error('streaming voices upstream returned malformed body')
 
       return data.voices.map((v) => {
         const rawGender = typeof v.labels?.gender === 'string' ? (v.labels.gender as string) : undefined

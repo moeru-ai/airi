@@ -2,7 +2,7 @@ import type Redis from 'ioredis'
 import type { InferOutput } from 'valibot'
 
 import type { EnvelopeCrypto } from '../../../../utils/envelope-crypto'
-import type { ConfigKVService, llmModelSchema, llmRouterConfigSchema, ttsModelSchema, ttsUpstreamSchema } from '../../../adapters/config-kv'
+import type { ConfigKVService, llmModelSchema, llmRouterConfigSchema, ttsModelSchema, unspeechUpstreamSchema } from '../../../adapters/config-kv'
 
 import { useLogger } from '@guiiai/logg'
 
@@ -22,13 +22,13 @@ const DEFAULT_KEY_ENTRY_IDS = {
   'openrouter': 'openrouter-prod-1',
   'azure': 'azure-tts-prod-1',
   'dashscope-cosyvoice': 'dashscope-tts-prod-1',
-  'streaming-tts': 'volcengine-prod-1',
+  'unspeech': 'volcengine-prod-1',
 } as const
 
 type LlmRouterConfig = InferOutput<typeof llmRouterConfigSchema>
 type LlmModel = InferOutput<typeof llmModelSchema>
 type TtsModel = InferOutput<typeof ttsModelSchema>
-type TtsUpstream = InferOutput<typeof ttsUpstreamSchema>
+type UnspeechUpstream = InferOutput<typeof unspeechUpstreamSchema>
 
 /**
  * Per-provider input. The admin route validates the shape with Valibot
@@ -42,7 +42,7 @@ export type SliceInput
   = | OpenRouterSliceInput
     | AzureSliceInput
     | DashscopeSliceInput
-    | StreamingTtsSliceInput
+    | UnspeechSliceInput
 
 export interface OpenRouterSliceInput {
   kind: 'openrouter'
@@ -84,14 +84,19 @@ export interface DashscopeSliceInput {
   keyEntryId?: string
 }
 
-export interface StreamingTtsSliceInput {
-  kind: 'streaming-tts'
-  /** unspeech ws endpoint: `ws://airi-unspeech.railway.internal:5933/v1/audio/speech/stream` etc. */
-  upstreamURL: string
-  /** Upstream provider key (Volcengine `X-Api-Key`), not an unspeech token. */
-  plaintextKey: string
-  /** @default 'volcengine-prod-1' */
-  keyEntryId?: string
+export interface UnspeechSliceInput {
+  kind: 'unspeech'
+  /** unspeech REST root: `http(s)://host:port` (no trailing slash, no path). */
+  restBaseURL: string
+  /** Streaming subtree — omit when running unspeech REST-only without ws TTS. */
+  streaming?: {
+    /** unspeech ws endpoint: `ws(s)://host:port/v1/audio/speech/stream`. */
+    upstreamURL: string
+    /** Upstream provider key (Volcengine `X-Api-Key`), not an unspeech token. */
+    plaintextKey: string
+    /** @default 'volcengine-prod-1' */
+    keyEntryId?: string
+  }
 }
 
 interface LlmModelSlice {
@@ -112,14 +117,15 @@ interface TtsModelSlice {
   keyEntryId: string
 }
 
-interface StreamingTtsSlice {
-  target: 'streaming-tts'
-  kind: 'streaming-tts'
-  value: TtsUpstream
-  keyEntryId: string
+interface UnspeechSlice {
+  target: 'unspeech'
+  kind: 'unspeech'
+  value: UnspeechUpstream
+  /** Streaming key entry id when `streaming` is set; `null` otherwise. */
+  keyEntryId: string | null
 }
 
-type BuiltSlice = LlmModelSlice | TtsModelSlice | StreamingTtsSlice
+type BuiltSlice = LlmModelSlice | TtsModelSlice | UnspeechSlice
 
 /**
  * Encrypts an OpenRouter slice into the LLM_ROUTER_CONFIG.llm shape.
@@ -222,30 +228,42 @@ export function buildDashscopeSlice(input: DashscopeSliceInput, envelope: Envelo
 }
 
 /**
- * Encrypts a streaming TTS slice into the STREAMING_TTS_UPSTREAM shape.
+ * Encrypts an unspeech slice into the UNSPEECH_UPSTREAM shape.
  *
  * Use when:
- * - Admin posts a `streaming-tts` slice; called by {@link buildSlice}.
+ * - Admin posts an `unspeech` slice; called by {@link buildSlice}.
  *
  * Expects:
- * - `upstreamURL` starts with `ws://` or `wss://`. http:// is almost always a
- *   copy-paste of the unspeech REST endpoint and fails at `new WebSocket()`
- *   inside the audio-speech-ws proxy.
+ * - `streaming.upstreamURL` (when provided) starts with `ws://` or `wss://`.
+ *   http:// is almost always a copy-paste of the unspeech REST endpoint and
+ *   fails at `new WebSocket()` inside the audio-speech-ws proxy.
  */
-export function buildStreamingTtsSlice(input: StreamingTtsSliceInput, envelope: EnvelopeCrypto): StreamingTtsSlice {
-  const keyEntryId = input.keyEntryId ?? DEFAULT_KEY_ENTRY_IDS['streaming-tts']
-  const ciphertext = envelope.encryptKey(input.plaintextKey, {
+export function buildUnspeechSlice(input: UnspeechSliceInput, envelope: EnvelopeCrypto): UnspeechSlice {
+  if (!input.streaming) {
+    return {
+      target: 'unspeech',
+      kind: 'unspeech',
+      keyEntryId: null,
+      value: { restBaseURL: input.restBaseURL },
+    }
+  }
+  const keyEntryId = input.streaming.keyEntryId ?? DEFAULT_KEY_ENTRY_IDS.unspeech
+  const ciphertext = envelope.encryptKey(input.streaming.plaintextKey, {
     modelName: STREAMING_TTS_AAD_MODEL_NAME,
     keyEntryId,
   })
   return {
-    target: 'streaming-tts',
-    kind: 'streaming-tts',
+    target: 'unspeech',
+    kind: 'unspeech',
     keyEntryId,
     value: {
-      baseURL: input.upstreamURL,
-      keys: [{ id: keyEntryId, ciphertext }],
-      adapterParams: {},
+      restBaseURL: input.restBaseURL,
+      streaming: {
+        baseURL: input.streaming.upstreamURL,
+        keys: [{ id: keyEntryId, ciphertext }],
+        adapterParams: {},
+        models: [],
+      },
     },
   }
 }
@@ -265,8 +283,8 @@ export function buildSlice(input: SliceInput, envelope: EnvelopeCrypto): BuiltSl
       return buildAzureSlice(input, envelope)
     case 'dashscope-cosyvoice':
       return buildDashscopeSlice(input, envelope)
-    case 'streaming-tts':
-      return buildStreamingTtsSlice(input, envelope)
+    case 'unspeech':
+      return buildUnspeechSlice(input, envelope)
   }
 }
 
@@ -359,10 +377,10 @@ export interface ApplyInput {
 
 export interface AppliedSummary {
   kind: SliceInput['kind']
-  target: 'llm-router' | 'streaming-tts'
+  target: 'llm-router' | 'unspeech'
   surface?: 'llm' | 'tts'
   modelName?: string
-  keyEntryId: string
+  keyEntryId: string | null
 }
 
 export interface ApplyResult {
@@ -370,7 +388,7 @@ export interface ApplyResult {
   invalidatedKeys: string[]
   preview: {
     LLM_ROUTER_CONFIG?: unknown
-    STREAMING_TTS_UPSTREAM?: unknown
+    UNSPEECH_UPSTREAM?: unknown
     DEFAULT_CHAT_MODEL?: string
     DEFAULT_TTS_MODEL?: string
   }
@@ -407,21 +425,21 @@ export function createAdminRouterConfigService(deps: AdminRouterConfigDeps) {
    * Applies an admin request, returning the redacted preview either way.
    *
    * Expects:
-   * - At most one `streaming-tts` slice per request. The streaming surface
-   *   is a single unspeech instance per deployment, so multiple entries are
-   *   almost always an admin mistake.
+   * - At most one `unspeech` slice per request. unspeech is a single
+   *   deployment per environment, so multiple entries are almost always an
+   *   admin mistake.
    */
   async function apply(input: ApplyInput): Promise<ApplyResult> {
-    const streamingCount = input.slices.filter(s => s.kind === 'streaming-tts').length
-    if (streamingCount > 1)
-      throw createBadRequestError('At most one streaming-tts slice per request', 'INVALID_BODY')
+    const unspeechCount = input.slices.filter(s => s.kind === 'unspeech').length
+    if (unspeechCount > 1)
+      throw createBadRequestError('At most one unspeech slice per request', 'INVALID_BODY')
 
     // Step 1: encrypt every slice. Throws (via envelope) only on malformed
     // master key, which means the deployment is broken; surface as 500.
     const built = input.slices.map(s => buildSlice(s, deps.envelope))
 
     const llmTtsSlices = built.filter((s): s is LlmModelSlice | TtsModelSlice => s.target === 'llm-router')
-    const streamingSlice = built.find((s): s is StreamingTtsSlice => s.target === 'streaming-tts')
+    const unspeechSlice = built.find((s): s is UnspeechSlice => s.target === 'unspeech')
 
     // Step 2: build the next LLM_ROUTER_CONFIG tree if any LLM/TTS slice
     // was supplied. `merge` reads existing first; `reset` skips the read.
@@ -433,17 +451,36 @@ export function createAdminRouterConfigService(deps: AdminRouterConfigDeps) {
       nextRouterConfig = buildNextRouterConfig(input.mode, existing, llmTtsSlices)
     }
 
+    // Step 3: build the next UNSPEECH_UPSTREAM. Streaming `models` carry the
+    // operator-curated catalog and must survive key/URL rotation, so we read
+    // existing and graft them onto the new value when the slice's streaming
+    // subtree is set (otherwise there's nothing to merge into).
+    let nextUnspeech: UnspeechUpstream | undefined
+    if (unspeechSlice) {
+      const existing = await deps.configKV.getOptional('UNSPEECH_UPSTREAM')
+      const newValue = unspeechSlice.value
+      if (newValue.streaming && existing?.streaming?.models?.length) {
+        nextUnspeech = {
+          ...newValue,
+          streaming: { ...newValue.streaming, models: existing.streaming.models },
+        }
+      }
+      else {
+        nextUnspeech = newValue
+      }
+    }
+
     const preview: ApplyResult['preview'] = {}
     if (nextRouterConfig)
       preview.LLM_ROUTER_CONFIG = redactCiphertext(nextRouterConfig)
-    if (streamingSlice)
-      preview.STREAMING_TTS_UPSTREAM = redactCiphertext(streamingSlice.value)
+    if (nextUnspeech)
+      preview.UNSPEECH_UPSTREAM = redactCiphertext(nextUnspeech)
     if (input.defaults?.chatModel)
       preview.DEFAULT_CHAT_MODEL = input.defaults.chatModel
     if (input.defaults?.ttsModel)
       preview.DEFAULT_TTS_MODEL = input.defaults.ttsModel
 
-    const applied: AppliedSummary[] = built.map(s => s.target === 'streaming-tts'
+    const applied: AppliedSummary[] = built.map(s => s.target === 'unspeech'
       ? { kind: s.kind, target: s.target, keyEntryId: s.keyEntryId }
       : { kind: s.kind, target: s.target, surface: s.surface, modelName: s.modelName, keyEntryId: s.keyEntryId })
 
@@ -457,16 +494,16 @@ export function createAdminRouterConfigService(deps: AdminRouterConfigDeps) {
       return { applied, invalidatedKeys: [], preview }
     }
 
-    // Step 3: real writes. configKV.set runs the per-key valibot validator,
+    // Step 4: real writes. configKV.set runs the per-key valibot validator,
     // so a malformed shape fails here BEFORE we publish invalidation.
     const invalidatedKeys: string[] = []
     if (nextRouterConfig) {
       await deps.configKV.set('LLM_ROUTER_CONFIG', nextRouterConfig as never)
       invalidatedKeys.push('LLM_ROUTER_CONFIG')
     }
-    if (streamingSlice) {
-      await deps.configKV.set('STREAMING_TTS_UPSTREAM', streamingSlice.value as never)
-      invalidatedKeys.push('STREAMING_TTS_UPSTREAM')
+    if (nextUnspeech) {
+      await deps.configKV.set('UNSPEECH_UPSTREAM', nextUnspeech as never)
+      invalidatedKeys.push('UNSPEECH_UPSTREAM')
     }
     if (input.defaults?.chatModel) {
       await deps.configKV.set('DEFAULT_CHAT_MODEL', input.defaults.chatModel)
@@ -477,10 +514,10 @@ export function createAdminRouterConfigService(deps: AdminRouterConfigDeps) {
       invalidatedKeys.push('DEFAULT_TTS_MODEL')
     }
 
-    // Step 4: cross-instance invalidation. config-sync-subscriber currently
-    // only acts on `LLM_ROUTER_CONFIG` (audio-speech-ws reads
-    // `STREAMING_TTS_UPSTREAM` fresh on every connection), but we publish
-    // all touched keys for forward compatibility.
+    // Step 5: cross-instance invalidation. audio-speech-ws reads
+    // UNSPEECH_UPSTREAM.streaming fresh on every connection so the publish
+    // is observability-only for that surface; LLM_ROUTER_CONFIG and the
+    // voice catalog cache rely on it for cross-instance freshness.
     for (const key of invalidatedKeys) {
       const payload = JSON.stringify({ key, version: Date.now(), publishedAt: Date.now() })
       await deps.redis.publish('configkv:invalidate', payload)

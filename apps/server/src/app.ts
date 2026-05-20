@@ -345,7 +345,7 @@ export async function buildApp(deps: AppDeps) {
 
     /**
      * Admin LLM router config seeding/patching. Single entry point for
-     * writing `LLM_ROUTER_CONFIG`, `STREAMING_TTS_UPSTREAM`, and the
+     * writing `LLM_ROUTER_CONFIG`, `UNSPEECH_UPSTREAM`, and the
      * `DEFAULT_{CHAT,TTS}_MODEL` aliases — see
      * `routes/admin/config/router/index.ts` for the body shape.
      */
@@ -635,11 +635,12 @@ export async function createApp() {
   // LLM_ROUTER_MASTER_KEY is required at env-parse time, so this provider
   // always builds a real router — the legacy `null` fallback path is gone.
   const llmRouter = injeca.provide('services:llmRouter', {
-    dependsOn: { configKV, envelopeCrypto, otel },
+    dependsOn: { configKV, envelopeCrypto, otel, redis },
     build: ({ dependsOn }) => createLlmRouterService({
       configKV: dependsOn.configKV,
       envelopeCrypto: dependsOn.envelopeCrypto,
       gatewayMetrics: dependsOn.otel?.gateway ?? null,
+      redis: dependsOn.redis,
     }),
   })
 

@@ -1,5 +1,7 @@
 import type { Buffer } from 'node:buffer'
 
+import type Redis from 'ioredis'
+
 import type { GatewayMetrics } from '../../../otel'
 import type { EnvelopeCrypto } from '../../../utils/envelope-crypto'
 import type { ConfigKVService } from '../../adapters/config-kv'
@@ -96,6 +98,12 @@ export interface CreateLlmRouterServiceOptions {
   /** OTel gateway metric bundle. `null` when OTel is disabled. */
   gatewayMetrics: GatewayMetrics | null
   /**
+   * Redis client used as the TTS voice catalog cache. Live catalogs (Azure)
+   * are stable but heavy; caching avoids hammering Microsoft on every voice
+   * picker open while keeping freshness within {@link TTS_VOICES_CACHE_TTL_S}.
+   */
+  redis: Redis
+  /**
    * Fetch implementation. Defaults to `globalThis.fetch`. Tests inject a
    * `vi.fn` so we never touch the real network.
    * @default globalThis.fetch
@@ -106,6 +114,39 @@ export interface CreateLlmRouterServiceOptions {
    * @default 5_000
    */
   configCacheTtlMs?: number
+  /**
+   * TTL for the Redis voice catalog cache in seconds.
+   * @default 21_600 (6h)
+   */
+  ttsVoiceCacheTtlSeconds?: number
+}
+
+/**
+ * Default TTL for the TTS voice catalog Redis cache, per provider.
+ *
+ * - Azure (`microsoft`): live `voices/list` REST. Stable on a weekly cadence
+ *   so 6h trades a tolerable freshness window for a big upstream call
+ *   reduction.
+ * - alibaba / volcengine: unspeech embeds the catalog at build time, so the
+ *   only way the catalog changes is unspeech redeploy. 24h is conservative
+ *   and avoids hammering unspeech on every voice-picker open.
+ *
+ * Admin config writes invalidate every cache entry directly through
+ * `invalidateTtsVoicesCache`, so a key rotation or unspeech URL change
+ * propagates immediately and doesn't have to wait out the TTL.
+ */
+const TTS_VOICES_CACHE_TTL_S_BY_PROVIDER: Record<string, number> = {
+  'azure': 21_600,
+  'dashscope-cosyvoice': 86_400,
+  'volcengine': 86_400,
+}
+
+function ttsVoicesCacheTtl(provider: string): number {
+  return TTS_VOICES_CACHE_TTL_S_BY_PROVIDER[provider] ?? 21_600
+}
+
+function ttsVoicesCacheKey(provider: string, modelName: string): string {
+  return `tts:voices:${provider}:${modelName}`
 }
 
 /**
@@ -376,6 +417,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     abortSignal: AbortSignal | undefined,
     perAttemptTimeoutMs: number,
     fallbackHttpCodes: number[],
+    unspeechBaseURL: string,
     onAttemptFailure: (failure: { keyId: string, status: number | 'timeout', errorMessage?: string }) => void,
   ): Promise<
     | { kind: 'ok', contentType: string, body: ArrayBuffer | ReadableStream<Uint8Array>, attemptIndex: number }
@@ -406,6 +448,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
           result = await adapter.send(input, {
             keyPlaintext: key.plaintext,
             baseURL: upstream.baseURL.replace(/\/+$/, ''),
+            unspeechBaseURL,
             adapterParams: upstream.adapterParams ?? {},
             fetchImpl,
             abortSignal: attemptCtrl.signal,
@@ -503,6 +546,11 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     const defaults = slice.defaults ?? { perAttemptTimeoutMs: 30000, fullChainTimeoutMs: 60000, fallbackHttpCodes: [401, 402, 403, 429, 500, 502, 503, 504] }
     const fallbackHttpCodes = slice.model.fallbackTriggers?.httpCodes ?? defaults.fallbackHttpCodes ?? [401, 402, 403, 429, 500, 502, 503, 504]
 
+    // Adapters POST to unspeech `/v1/audio/speech`; resolve the base URL once
+    // per request rather than per upstream attempt so a single configKV miss
+    // surfaces as a clean 503 before any key rotation happens.
+    const unspeechBaseURL = (await options.configKV.getOrThrow('UNSPEECH_UPSTREAM')).restBaseURL
+
     const allFailures: Array<{ provider: string, keyId: string, status: number | 'timeout', errorMessage?: string }> = []
     let triedUpstreams = 0
 
@@ -524,6 +572,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         req.abortSignal,
         perAttemptTimeoutMs,
         fallbackHttpCodes,
+        unspeechBaseURL,
         (failure) => { allFailures.push({ provider: providerTag, ...failure }) },
       )
 
@@ -566,15 +615,107 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
   }
 
   /**
-   * Returns the static voice catalog for one TTS provider model. Read from
-   * the adapter's compiled-in JSON — no network call, no envelope decrypt,
-   * no per-upstream variation (voice lists are provider-wide).
+   * Returns the voice catalog for one TTS provider model.
+   *
+   * For live providers (Azure) this proxies to unspeech REST with the
+   * decrypted upstream key + region resolved from the model's first
+   * upstream. Result is cached in Redis under
+   * `tts:voices:<provider>:<modelName>` with a {@link TTS_VOICES_CACHE_TTL_S}
+   * TTL. Upstream errors are NEVER swallowed — they bubble through as 5xx
+   * so the UI can render a real failure state instead of an empty list.
+   * Cache writes only happen on success.
+   *
+   * Static providers (dashscope-cosyvoice, volcengine) return their bundled
+   * JSON and bypass the cache (no upstream call to amortize).
    */
   async function listTtsVoices(modelName: string) {
     const slice = await configLoader.getModelConfig('tts', modelName)
     if (slice.kind !== 'tts')
       throw new Error(`Expected tts model slice for ${modelName}, got ${slice.kind}`)
-    return getAdapter(slice.model.provider).getVoiceCatalog()
+
+    const adapter = getAdapter(slice.model.provider)
+    const upstream = slice.model.upstreams[0]
+
+    const cacheKey = ttsVoicesCacheKey(slice.model.provider, modelName)
+    const cached = await options.redis.get(cacheKey).catch(() => null)
+    if (cached != null) {
+      try {
+        const parsed = JSON.parse(cached) as unknown
+        if (Array.isArray(parsed))
+          return parsed
+        // Malformed cache entry — drop and refetch. Don't throw; the upstream
+        // path is the source of truth and a stale/poisoned cache row is not a
+        // caller-visible failure.
+      }
+      catch {
+        // fallthrough — refetch
+      }
+    }
+
+    const unspeechBaseURL = (await options.configKV.getOrThrow('UNSPEECH_UPSTREAM')).restBaseURL
+
+    // Live providers (Azure) need the decrypted Azure subscription key + region;
+    // static-catalog providers (alibaba, volcengine) ignore both. The router
+    // decrypts unconditionally so the adapter doesn't have to know which
+    // category it's in — adapters that don't need creds just won't read them.
+    const region = typeof upstream.adapterParams?.region === 'string'
+      ? upstream.adapterParams.region
+      : undefined
+
+    const keyEntry = upstream.keys[0]
+    const plaintext = slice.model.provider === 'azure'
+      ? options.envelopeCrypto.decryptKey(keyEntry.ciphertext, { modelName, keyEntryId: keyEntry.id })
+      : undefined
+
+    try {
+      const voices = await adapter.getVoiceCatalog({
+        keyPlaintext: plaintext,
+        region,
+        adapterParams: upstream.adapterParams ?? {},
+        unspeechBaseURL,
+        fetchImpl,
+      })
+
+      // Cache only on success — failure responses must NOT be persisted or
+      // the next admin reconfigure would have to wait out the TTL even after
+      // fixing credentials.
+      const ttl = options.ttsVoiceCacheTtlSeconds ?? ttsVoicesCacheTtl(slice.model.provider)
+      await options.redis.set(cacheKey, JSON.stringify(voices), 'EX', ttl)
+        .catch((err) => {
+          logger.withError(err).withFields({ cacheKey }).warn('failed to write tts voices cache')
+        })
+
+      return voices
+    }
+    finally {
+      plaintext?.fill(0)
+    }
+  }
+
+  /**
+   * Drops every cached TTS voice catalog. Called by the configkv invalidation
+   * subscriber when `LLM_ROUTER_CONFIG` or `UNSPEECH_UPSTREAM` changes — a key
+   * rotation or unspeech endpoint move must propagate to in-flight voice-
+   * picker fetches without waiting for the 6h TTL.
+   */
+  async function invalidateTtsVoicesCache(): Promise<void> {
+    // SCAN avoids blocking redis on a large keyspace; production deployments
+    // can have voice catalogs from many models. Using a stream keeps memory
+    // bounded.
+    const stream = options.redis.scanStream({ match: 'tts:voices:*', count: 100 })
+    const pipeline = options.redis.pipeline()
+    let queued = 0
+    for await (const keys of stream as AsyncIterable<string[]>) {
+      for (const key of keys) {
+        pipeline.del(key)
+        queued += 1
+      }
+    }
+    if (queued > 0) {
+      await pipeline.exec().catch((err) => {
+        logger.withError(err).warn('failed to invalidate tts voices cache')
+      })
+    }
   }
 
   return {
@@ -587,6 +728,12 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
      * service wrapper.
      */
     invalidateConfig: configLoader.invalidate,
+    /**
+     * Flush the Redis voice catalog cache. The config-sync subscriber calls
+     * this when LLM_ROUTER_CONFIG or UNSPEECH_UPSTREAM is rotated; admin
+     * writes invalidate it directly so the next voice-picker fetch repopulates.
+     */
+    invalidateTtsVoicesCache,
   }
 }
 

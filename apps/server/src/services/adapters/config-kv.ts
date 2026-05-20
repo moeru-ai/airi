@@ -59,6 +59,25 @@ export const ttsUpstreamSchema = object({
   adapterParams: optional(record(string(), any()), {}),
 })
 
+export const streamingTtsUpstreamSchema = object({
+  baseURL: pipe(string(), nonEmpty('UNSPEECH_UPSTREAM.streaming.baseURL must not be empty')),
+  keys: pipe(array(keyEntrySchema), check(v => v.length >= 1, 'UNSPEECH_UPSTREAM.streaming.keys must contain at least 1 entry')),
+  adapterParams: optional(record(string(), any()), {}),
+  models: optional(
+    array(object({
+      id: pipe(string(), nonEmpty('UNSPEECH_UPSTREAM.streaming.models[].id must not be empty')),
+      name: optional(string()),
+      description: optional(string()),
+    })),
+    [],
+  ),
+})
+
+export const unspeechUpstreamSchema = object({
+  restBaseURL: pipe(string(), nonEmpty('UNSPEECH_UPSTREAM.restBaseURL must not be empty')),
+  streaming: optional(streamingTtsUpstreamSchema),
+})
+
 export const ttsModelSchema = object({
   provider: ttsProviderSchema,
   upstreams: pipe(array(ttsUpstreamSchema), check(v => v.length >= 1, 'tts.models[].upstreams must contain at least 1 entry')),
@@ -124,16 +143,12 @@ const ConfigEntrySchemas = {
   // No default — the router throws CONFIG_NOT_SET when this entry is absent
   // so the admin endpoint (U9) is forced to populate it before traffic flows.
   LLM_ROUTER_CONFIG: optional(llmRouterConfigSchema),
-  // Streaming TTS upstream — a single unspeech instance that the
-  // /api/v1/audio/speech/ws proxy connects to. Separate from
-  // LLM_ROUTER_CONFIG.tts.models because the streaming surface has different
-  // semantics from one-shot HTTP TTS: ws-to-ws bridging, no per-attempt retry
-  // (a live ws cannot transparently switch upstream mid-session), upstream
-  // does the protocol translation to providers (Volcengine v3 etc.). Reuses
-  // ttsUpstreamSchema only for the key envelope shape — `keys` carry the
-  // upstream-provider API key (e.g. Volcengine X-Api-Key), not an unspeech
-  // tenant token.
-  STREAMING_TTS_UPSTREAM: optional(ttsUpstreamSchema),
+  // Single unspeech deployment used for every TTS surface: REST audio/speech,
+  // REST voices catalog, ws audio/speech/stream. `streaming` is optional —
+  // operator may run REST-only without the ws upstream. `streaming.keys`
+  // carry the upstream-provider API key (Volcengine X-Api-Key), not an
+  // unspeech tenant token (unspeech itself is unauthenticated).
+  UNSPEECH_UPSTREAM: optional(unspeechUpstreamSchema),
 } as const
 
 type ConfigDefinitions = {
@@ -175,16 +190,16 @@ export function createConfigKVService(redis: Redis) {
       return value ?? null
     },
 
-    async getOrThrow<K extends ConfigKey>(key: K): Promise<ConfigDefinitions[K]> {
+    async getOrThrow<K extends ConfigKey>(key: K): Promise<Exclude<ConfigDefinitions[K], undefined>> {
       const raw = await redis.get(configRedisKey(key))
       const value = resolveWithDefault(key, raw)
       if (value === undefined)
         throw createServiceUnavailableError('Service configuration is incomplete', 'CONFIG_NOT_SET')
 
-      return value
+      return value as Exclude<ConfigDefinitions[K], undefined>
     },
 
-    async get<K extends ConfigKey>(key: K): Promise<ConfigDefinitions[K]> {
+    async get<K extends ConfigKey>(key: K): Promise<Exclude<ConfigDefinitions[K], undefined>> {
       return this.getOrThrow(key)
     },
 
