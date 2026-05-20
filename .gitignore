@@ -117,6 +117,7 @@ outputs/
 
 # MediaPipe task assets
 packages/model-driver-mediapipe/tasks/assets/*
+apps/stage-web/public/mediapipe-wasm
 
 # Plugins
 plugins/local

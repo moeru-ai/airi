@@ -23,6 +23,8 @@ const taskSources: Record<keyof VisionTaskAssets, string> = {
 const assetsRoot = fileURLToPath(new URL('./assets', import.meta.url))
 const wasmSourceDir = fileURLToPath(new URL('../node_modules/@mediapipe/tasks-vision/wasm', import.meta.url))
 const wasmOutputDir = fileURLToPath(new URL('./assets/wasm', import.meta.url))
+// Also copy wasm files to stage-web public/ so they are served at a stable, unhashed path
+const wasmPublicDir = fileURLToPath(new URL('../../../apps/stage-web/public/mediapipe-wasm', import.meta.url))
 const taskTargets = Object.entries(taskSources).map(([key, source]) => ({
   key: key as keyof VisionTaskAssets,
   source,
@@ -96,5 +98,10 @@ await fs.cp(wasmSourceDir, wasmOutputDir, { recursive: true, force: true })
 const wasmEntries = await fs.readdir(wasmOutputDir)
 if (!wasmEntries.length)
   throw new Error(`Failed to ensure MediaPipe WASM assets: ${wasmOutputDir} is empty`)
+
+// Copy wasm files to stage-web public/ for stable serving in production builds
+await fs.mkdir(wasmPublicDir, { recursive: true })
+await fs.cp(wasmOutputDir, wasmPublicDir, { recursive: true, force: true })
+console.log(`MediaPipe WASM assets copied to ${wasmPublicDir}`)
 
 console.log('All MediaPipe vision task assets are prepared.')
