@@ -72,6 +72,8 @@ interface MockState {
   setSessionMessages: ReturnType<typeof vi.fn>
   getSessionMessages: ReturnType<typeof vi.fn>
   ingest: ReturnType<typeof vi.fn>
+  sending: Ref<boolean>
+  streamingMessage: Ref<{ role: string, content: string, slices: unknown[], tool_results: unknown[], createdAt?: number }>
 }
 
 let mockState: MockState
@@ -94,13 +96,13 @@ vi.mock('@proj-airi/stage-ui/stores/chat/session-store', () => ({
 
 vi.mock('@proj-airi/stage-ui/stores/chat/stream-store', () => ({
   useChatStreamStore: () => ({
-    streamingMessage: ref({ role: 'assistant', content: '', slices: [], tool_results: [] }),
+    streamingMessage: mockState.streamingMessage,
   }),
 }))
 
 vi.mock('@proj-airi/stage-ui/stores/chat', () => ({
   useChatOrchestratorStore: () => ({
-    sending: ref(false),
+    sending: mockState.sending,
     ingest: mockState.ingest,
   }),
 }))
@@ -170,6 +172,8 @@ describe('useChatSyncStore authority ingest failures', async () => {
     const ingest = vi.fn(async () => {
       throw new Error('Remote sent 403 response: {"error":{"message":"This model is not available in your region.","code":403}}')
     })
+    const sending = ref(false)
+    const streamingMessage = ref({ role: 'assistant', content: '', slices: [], tool_results: [] })
 
     mockState = {
       activeSessionId,
@@ -179,6 +183,8 @@ describe('useChatSyncStore authority ingest failures', async () => {
       setSessionMessages,
       getSessionMessages,
       ingest,
+      sending,
+      streamingMessage,
     }
 
     vi.stubGlobal('BroadcastChannel', MockBroadcastChannel)
@@ -367,6 +373,63 @@ describe('useChatSyncStore authority ingest failures', async () => {
     })
 
     peer.close()
+    store.dispose()
+  })
+
+  /**
+   * @example
+   * it('returns the active stream state when a follower requests its initial snapshot', async () => {
+   *   // authority is mid-response
+   *   // follower request receives both session and stream state in one full snapshot
+   * })
+   */
+  it('returns session and stream state together for late-joining followers', async () => {
+    mockState.sending.value = true
+    mockState.streamingMessage.value = {
+      role: 'assistant',
+      content: 'partial answer',
+      slices: [{ type: 'text', text: 'partial answer' }],
+      tool_results: [],
+      createdAt: 123,
+    }
+
+    const store = useChatSyncStore()
+    store.initialize('authority')
+
+    const follower = new MockBroadcastChannel('airi:stage-tamagotchi:chat-sync')
+    const received: unknown[] = []
+    follower.addEventListener('message', ((event: MessageEvent) => {
+      received.push(event.data)
+    }) as EventListener)
+
+    follower.postMessage({
+      type: 'request-snapshot',
+      requestId: 'req-snapshot',
+      senderId: 'follower',
+    })
+
+    await vi.waitFor(() => {
+      expect(received).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          type: 'full-snapshot',
+          authorityId: expect.any(String),
+          snapshot: expect.objectContaining({
+            session: expect.objectContaining({
+              activeSessionId: 'session-1',
+            }),
+            stream: expect.objectContaining({
+              sending: true,
+              streamingMessage: expect.objectContaining({
+                content: 'partial answer',
+                createdAt: 123,
+              }),
+            }),
+          }),
+        }),
+      ]))
+    })
+
+    follower.close()
     store.dispose()
   })
 

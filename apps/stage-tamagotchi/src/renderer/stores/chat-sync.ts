@@ -37,6 +37,11 @@ interface StreamSnapshotPayload {
   streamingMessage: StreamingAssistantMessage
 }
 
+interface FullSnapshotPayload {
+  session: SessionSnapshotPayload
+  stream: StreamSnapshotPayload
+}
+
 interface IngestCommandPayload {
   text: string
   attachments?: AttachmentPayload[]
@@ -55,6 +60,7 @@ type ChatSyncMessage
     | { type: 'request-snapshot', requestId: string, senderId: string }
     | { type: 'session-snapshot', authorityId: string, snapshot: SessionSnapshotPayload }
     | { type: 'stream-snapshot', authorityId: string, snapshot: StreamSnapshotPayload }
+    | { type: 'full-snapshot', authorityId: string, snapshot: FullSnapshotPayload }
     | { type: 'command', authorityId?: string, requestId: string, senderId: string, command: 'ingest', payload: IngestCommandPayload }
     | { type: 'command', authorityId?: string, requestId: string, senderId: string, command: 'retry', payload: RetryCommandPayload }
     | { type: 'command', authorityId?: string, requestId: string, senderId: string, command: 'cleanup', payload: { sessionId?: string } }
@@ -223,6 +229,20 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       type: 'stream-snapshot',
       authorityId: instanceId,
       snapshot: buildStreamSnapshot(),
+    })
+  }
+
+  function broadcastFullSnapshot() {
+    if (mode.value !== 'authority')
+      return
+
+    post({
+      type: 'full-snapshot',
+      authorityId: instanceId,
+      snapshot: {
+        session: buildSessionSnapshot(),
+        stream: buildStreamSnapshot(),
+      },
     })
   }
 
@@ -446,7 +466,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
         return
       case 'request-snapshot':
         if (mode.value === 'authority')
-          broadcastSessionSnapshot()
+          broadcastFullSnapshot()
         return
       case 'session-snapshot':
         if (mode.value !== 'follower')
@@ -459,6 +479,13 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
           return
         authorityId.value = message.authorityId
         applyStreamSnapshot(message.snapshot)
+        return
+      case 'full-snapshot':
+        if (mode.value !== 'follower')
+          return
+        authorityId.value = message.authorityId
+        applySessionSnapshot(message.snapshot.session)
+        applyStreamSnapshot(message.snapshot.stream)
         return
       case 'command':
         void handleCommand(message)
