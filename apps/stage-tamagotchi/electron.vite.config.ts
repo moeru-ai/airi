@@ -24,14 +24,9 @@ export default defineConfig({
     build: {
       externalizeDeps: {
         include: [
+          // Native modules that have `__dirname` usages. Externalize to avoid bundling
+          // them into ESM and causing issues in runtime.
           'electron-click-drag-plugin',
-          // NOTICE:
-          // Temporary fix for the uiohook key-up shortcut path introduced in f86d86c04.
-          // Without externalization, Rolldown bundles `uiohook-napi` into the ESM main
-          // output, and its CommonJS `node-gyp-build` path reaches `__dirname`, which
-          // crashes Electron main at startup. Makito should review whether the final fix
-          // should also move `uiohook-napi` to runtime dependencies or adjust the driver
-          // loading boundary.
           'uiohook-napi',
         ],
       },

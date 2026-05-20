@@ -131,17 +131,33 @@ live2d:
     title: Extraire les couleurs du modèle
     button-extract:
       title: Extraire
-  focus:
-    title: Désactiver le suivi du modèle par la souris
-    button-disable:
-      title: Désactiver le suivi souris du modèle
-  render-scale:
-    title: Échelle de rendu
-  fps:
-    title: FPS
-    description: Limiter la fréquence d'image du rendu
-    options:
-      unlimited: '∞'
+  animation:
+    title: Animation
+    focus:
+      title: Activer le suivi du curseur
+    blink-enable:
+      title: Activer le clignement
+      description: Permet au modèle de cligner des yeux.
+    auto-blink:
+      title: Auto
+      description: Utilise l’animation de clignement par défaut du modèle.
+    force-auto-blink:
+      title: Forcer
+      description: Force le clignement avec un minuteur externe.
+    blink-mode:
+      title: Mode de clignement
+      description: Choisissez le clignement intégré du modèle ou le minuteur forcé d’AIRI.
+  parameters:
+    title: Paramètres du modèle
+    render-scale:
+      title: Échelle de rendu
+    fps:
+      title: FPS
+      description: Limiter la fréquence d'image du rendu
+      options:
+        unlimited: '∞'
+  expressions:
+    title: Expressions
 microphone: Microphone
 models: Modèle
 pages:
