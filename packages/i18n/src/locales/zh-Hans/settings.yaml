@@ -163,10 +163,10 @@ live2d:
       title: 启用眨眼
       description: 让模型眨眼。
     auto-blink:
-      title: 使用眨眼动画
+      title: 自动
       description: 使用模型默认眨眼动画
     force-auto-blink:
-      title: 强制眨眼动画
+      title: 强制
       description: 强制模型眨眼，模型无眨眼动画时可用。
     blink-mode:
       title: 眨眼模式

@@ -135,6 +135,18 @@ live2d:
     title: Animation
     focus:
       title: Activer le suivi du curseur
+    blink-enable:
+      title: Activer le clignement
+      description: Permet au modèle de cligner des yeux.
+    auto-blink:
+      title: Auto
+      description: Utilise l’animation de clignement par défaut du modèle.
+    force-auto-blink:
+      title: Forcer
+      description: Force le clignement avec un minuteur externe.
+    blink-mode:
+      title: Mode de clignement
+      description: Choisissez le clignement intégré du modèle ou le minuteur forcé d’AIRI.
   parameters:
     title: Paramètres du modèle
     render-scale:

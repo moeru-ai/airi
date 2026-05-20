@@ -135,6 +135,18 @@ live2d:
     title: アニメーション
     focus:
       title: カーソル追跡を有効化
+    blink-enable:
+      title: まばたきを有効化
+      description: モデルをまばたきさせます。
+    auto-blink:
+      title: 自動
+      description: モデル既定のまばたきアニメーションを使用します。
+    force-auto-blink:
+      title: 強制
+      description: 外部タイマーでまばたきを強制します。
+    blink-mode:
+      title: まばたきモード
+      description: モデル内蔵のまばたき、または AIRI の強制まばたきタイマーを選択します。
   parameters:
     title: モデルパラメータ
     render-scale:

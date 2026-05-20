@@ -135,6 +135,18 @@ live2d:
     title: Diễn hoạt
     focus:
       title: Bật theo dõi con trỏ
+    blink-enable:
+      title: Bật chớp mắt
+      description: Cho phép mô hình chớp mắt.
+    auto-blink:
+      title: Tự động
+      description: Dùng hoạt ảnh chớp mắt mặc định của mô hình.
+    force-auto-blink:
+      title: Ép buộc
+      description: Ép chớp mắt bằng bộ hẹn giờ bên ngoài.
+    blink-mode:
+      title: Chế độ chớp mắt
+      description: Chọn chớp mắt tích hợp của mô hình hoặc bộ hẹn giờ ép buộc của AIRI.
   render-scale:
     title: Render scale
   fps:

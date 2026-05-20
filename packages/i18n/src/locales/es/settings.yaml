@@ -135,6 +135,18 @@ live2d:
     title: Animación
     focus:
       title: Habilitar el seguimiento del cursor
+    blink-enable:
+      title: Activar parpadeo
+      description: Permite que el modelo parpadee.
+    auto-blink:
+      title: Auto
+      description: Usa la animación de parpadeo predeterminada del modelo.
+    force-auto-blink:
+      title: Forzar
+      description: Fuerza el parpadeo con un temporizador externo.
+    blink-mode:
+      title: Modo de parpadeo
+      description: Elige el parpadeo integrado del modelo o el temporizador forzado de AIRI.
   parameters:
     title: Parámetros del modelo
     render-scale:

@@ -174,10 +174,10 @@ live2d:
       title: Enable blink
       description: Let the model blink.
     auto-blink:
-      title: Auto blink
+      title: Auto
       description: Use default blinking animation of the model
     force-auto-blink:
-      title: Force auto blink
+      title: Force
       description: Force blinking animation with external timer
     blink-mode:
       title: Blink mode

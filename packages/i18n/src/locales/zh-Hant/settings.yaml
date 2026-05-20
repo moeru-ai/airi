@@ -135,6 +135,18 @@ live2d:
     title: 動畫
     focus:
       title: 啟用游標追蹤
+    blink-enable:
+      title: 啟用眨眼
+      description: 讓模型眨眼。
+    auto-blink:
+      title: 自動
+      description: 使用模型預設眨眼動畫。
+    force-auto-blink:
+      title: 強制
+      description: 透過外部計時器強制眨眼。
+    blink-mode:
+      title: 眨眼模式
+      description: 選擇模型內建眨眼，或使用 AIRI 的強制眨眼計時器。
   render-scale:
     title: Render scale
   fps:
