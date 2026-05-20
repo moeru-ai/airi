@@ -193,7 +193,6 @@
     "h3": "2.0.1-rc.20",
     "less": "^4.6.4",
     "mkcert": "catalog:",
-    "node-abi": "catalog:",
     "std-env": "^4.1.0",
     "superjson": "catalog:",
     "unocss-preset-scrollbar": "^4.0.0",

@@ -37,7 +37,7 @@ export const defaultModelParameters = {
   breath: 0,
 }
 
-export const useLive2d = defineStore('live2d', () => {
+export const useLive2dParams = defineStore('live2d', () => {
   const { post, data } = useBroadcastChannel<BroadcastChannelEvents, BroadcastChannelEvents>({ name: 'airi-stores-stage-ui-live2d' })
   const shouldUpdateViewHooks = ref(new Set<() => void>())
 

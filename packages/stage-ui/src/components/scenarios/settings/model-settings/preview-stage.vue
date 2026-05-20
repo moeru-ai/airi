@@ -6,7 +6,7 @@ import { SpineScene } from '@proj-airi/stage-ui-spine'
 import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
 import { useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, provide, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import { useSettings } from '../../../../stores/settings'
 import {
@@ -24,7 +24,6 @@ const emit = defineEmits<{
   (e: 'runtimeSnapshotChanged', value: ModelSettingsRuntimeSnapshot): void
 }>()
 
-const positionCursor = useMouse()
 const settingsStore = useSettings()
 const modelStore = useModelStore()
 const live2dSceneRef = ref<{ canvasElement: () => HTMLCanvasElement | undefined }>()
@@ -34,21 +33,15 @@ const live2dComponentState = ref<'pending' | 'loading' | 'mounted'>('pending')
 const spineComponentState = ref<'pending' | 'loading' | 'mounted'>('pending')
 const vrmPreviewStageInstanceId = `model-settings-preview-stage:${Math.random().toString(36).slice(2, 10)}`
 
-provide('previewStage', true)
-
 const {
-  live2dDisableFocus,
   stageModelSelected,
   stageModelSelectedUrl,
   stageModelRenderer,
   themeColorsHue,
   themeColorsHueDynamic,
-  live2dIdleAnimationEnabled,
-  live2dAutoBlinkEnabled,
-  live2dForceAutoBlinkEnabled,
-  live2dShadowEnabled,
-  live2dMaxFps,
-  live2dRenderScale,
+
+} = storeToRefs(settingsStore)
+const {
   spinePremultipliedAlpha,
   spineDefaultMixDuration,
   spineIdleAnimationEnabled,
@@ -156,6 +149,12 @@ watch(runtimeSnapshot, snapshot => emit('runtimeSnapshotChanged', snapshot), { i
 defineExpose({
   capturePreviewFrame,
 })
+
+const { x: mouseX, y: mouseY } = useMouse()
+const cursorPosition = computed(() => ({
+  x: mouseX.value,
+  y: mouseY.value,
+}))
 </script>
 
 <template>
@@ -164,24 +163,17 @@ defineExpose({
       <Live2DScene
         ref="live2dSceneRef"
         v-model:state="live2dComponentState"
-        :focus-at="{ x: positionCursor.x.value, y: positionCursor.y.value }"
         :model-src="stageModelSelectedUrl"
         :model-id="stageModelSelected"
-        :disable-focus-at="live2dDisableFocus"
+        :cursor-position="cursorPosition"
         :theme-colors-hue="themeColorsHue"
         :theme-colors-hue-dynamic="themeColorsHueDynamic"
-        :live2d-idle-animation-enabled="live2dIdleAnimationEnabled"
-        :live2d-auto-blink-enabled="live2dAutoBlinkEnabled"
-        :live2d-force-auto-blink-enabled="live2dForceAutoBlinkEnabled"
-        :live2d-shadow-enabled="live2dShadowEnabled"
-        :live2d-max-fps="live2dMaxFps"
-        :live2d-render-scale="live2dRenderScale"
       />
     </div>
   </template>
   <template v-if="stageModelRenderer === 'vrm'">
     <div :class="vrmSceneClassList">
-      <ThreeScene ref="vrmSceneRef" :model-src="stageModelSelectedUrl" />
+      <ThreeScene ref="vrmSceneRef" :cursor-position="cursorPosition" :model-src="stageModelSelectedUrl" />
     </div>
   </template>
   <template v-if="stageModelRenderer === 'spine'">

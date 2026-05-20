@@ -16,10 +16,9 @@ import {
 } from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 // From stage-ui-three package
-import { inject, onMounted, onUnmounted, shallowRef, toRefs, watch } from 'vue'
+import { onMounted, onUnmounted, shallowRef, toRefs, watch } from 'vue'
 
 import { useThreeCamera } from '../../stores/camera'
-import { useThreeViewControl } from '../../stores/view-control'
 
 /*
   * Props:
@@ -58,8 +57,6 @@ const camera = shallowRef<PerspectiveCamera | null>(null)
 let disposeControlsChange: (() => void) | undefined
 
 const { cameraPosition, cameraFOV, cameraDistance } = useThreeCamera()
-const { viewControlsEnabled } = useThreeViewControl()
-const isPreviewStage = inject<boolean>('previewStage')
 
 // Initialisation on onMounted
 function registerInfoFlow() {
@@ -118,11 +115,11 @@ function registerInfoFlow() {
     camera.value.updateProjectionMatrix()
     controls.value.update()
   })
-  watch([controlEnable, viewControlsEnabled], (newEnable) => {
+  watch(controlEnable, (newEnable) => {
     if (!camera.value || !controls.value)
       return
-    controls.value.enableRotate = isPreviewStage || newEnable.every(Boolean)
-    controls.value.enableZoom = isPreviewStage || newEnable.every(Boolean)
+    controls.value.enableRotate = newEnable
+    controls.value.enableZoom = newEnable
   }, { immediate: true })
 
   /*

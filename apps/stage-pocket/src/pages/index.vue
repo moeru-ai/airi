@@ -11,14 +11,14 @@ import { BackgroundProvider } from '@proj-airi/stage-layouts/components/Backgrou
 import { useBackgroundThemeColor } from '@proj-airi/stage-layouts/composables/theme-color'
 import { useBackgroundStore } from '@proj-airi/stage-layouts/stores/background'
 import { IS_DEV } from '@proj-airi/stage-shared'
-import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
+import { ViewControlSlider, WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useAudioRecorder } from '@proj-airi/stage-ui/composables/audio/audio-recorder'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
@@ -38,6 +38,7 @@ const isMobile = breakpoints.smaller('md')
 const backgroundStore = useBackgroundStore()
 const { selectedOption, sampledColor } = storeToRefs(backgroundStore)
 const backgroundSurface = useTemplateRef<InstanceType<typeof BackgroundProvider>>('backgroundSurface')
+const { stageModelRenderer } = storeToRefs(useSettings())
 
 const { syncBackgroundTheme } = useBackgroundThemeColor({ backgroundSurface, selectedOption, sampledColor })
 onMounted(() => syncBackgroundTheme())
@@ -189,15 +190,25 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
       </div>
       <!-- page -->
       <div relative flex="~ 1 row gap-y-0 gap-x-2 <md:col" min-h-0>
-        <WidgetStage
-          min-w="1/2"
-          min-h-0 flex-1
-          :paused="paused"
-          :focus-at="{
-            x: positionCursor.x.value,
-            y: positionCursor.y.value,
-          }"
-        />
+        <div relative min-w="1/2" min-h-0 flex-1>
+          <div
+            absolute left-0 z-15 px-3
+            :class="[
+              stageModelRenderer === 'live2d' ? 'top-0 h-full py-[20vh]' : 'top-1/2 -translate-y-1/2',
+            ]"
+          >
+            <ViewControlSlider />
+          </div>
+          <WidgetStage
+            h-full w-full
+            :enable-orbit-controls="!isMobile"
+            :paused="paused"
+            :focus-at="{
+              x: positionCursor.x.value,
+              y: positionCursor.y.value,
+            }"
+          />
+        </div>
         <InteractiveArea v-if="!isMobile" h="85dvh" absolute right-4 flex flex-1 flex-col max-w="500px" min-w="30%" />
         <MobileInteractiveArea v-if="isMobile" @settings-open="handleSettingsOpen">
           <template v-if="IS_DEV" #status>

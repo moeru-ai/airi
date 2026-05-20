@@ -131,10 +131,22 @@ live2d:
     title: Извлечь цвета из модели
     button-extract:
       title: Извлечь
-  focus:
-    title: Отключить слежение за мышью
-    button-disable:
-      title: Отключить отслеживание мыши модели
+  animation:
+    title: анимация
+    focus:
+      title: Включить отслеживание курсора
+    blink-enable:
+      title: Включить моргание
+      description: Позволяет модели моргать.
+    auto-blink:
+      title: Авто
+      description: Использовать стандартную анимацию моргания модели.
+    force-auto-blink:
+      title: Принудительно
+      description: Принудительно моргать по внешнему таймеру.
+    blink-mode:
+      title: Режим моргания
+      description: Выберите встроенное моргание модели или принудительный таймер AIRI.
   render-scale:
     title: Масштаб рендеринга
   fps:
