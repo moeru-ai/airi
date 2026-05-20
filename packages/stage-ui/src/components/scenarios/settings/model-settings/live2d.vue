@@ -67,11 +67,15 @@ function isGroupActive(group: { parameters: { parameterId: string, value: number
 const selectedRuntimeMotion = ref<string>('')
 const runtimeMotions = ref<Array<{ name: string, displayPath: string, group: string, index: number }>>([])
 const canExtractColors = computed(() => props.runtimeSnapshot.canCapturePreview)
-const runtimeMotionOptions = computed(() => runtimeMotions.value.map(motion => ({
-  label: motion.name,
-  value: motion.displayPath,
-  description: motion.displayPath,
-})))
+const runtimeMotionOptions = computed(() => {
+  const options = runtimeMotions.value.map(motion => ({
+    label: motion.name,
+    value: motion.displayPath,
+    description: motion.displayPath,
+  }))
+  options.unshift({ label: t('settings.live2d.animation.idle-motion.disable-motion'), value: '<motion disabled>', description: t('settings.live2d.animation.idle-motion.disable-motion-description') })
+  return options
+})
 const fpsOptions = computed(() => [
   { value: 30, label: '30' },
   { value: 60, label: '60' },
@@ -128,6 +132,7 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
 
   const motion = runtimeMotions.value.find(item => item.displayPath === selectedMotionPath)
   if (!motion) {
+    live2dIdleAnimationEnabled.value = false
     return
   }
 
@@ -341,15 +346,15 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
     />
     <FieldCombobox
       v-model="selectedRuntimeMotion"
-      :label="t('settings.live2d.animation.motion.idle-motion')"
+      :label="t('settings.live2d.animation.idle-motion.title')"
       :options="runtimeMotionOptions"
-      :placeholder="t('settings.live2d.animation.motion.placeholder')"
+      :placeholder="t('settings.live2d.animation.idle-motion.placeholder')"
       :select-class="['w-full']"
       :content-min-width="256"
       @update:model-value="handleMotionSelect"
     >
       <template #empty>
-        {{ t('settings.live2d.animation.motion.no-motion') }}
+        {{ t('settings.live2d.animation.idle-motion.no-motion') }}
       </template>
     </FieldCombobox>
   </Section>

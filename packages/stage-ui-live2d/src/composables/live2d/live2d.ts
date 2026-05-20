@@ -13,9 +13,10 @@ const live2dEyeTracking = useLocalStorageManualReset<boolean>('settings/live2d/d
  * the application window that renders the model
  */
 const live2dEyeTrackingSource: Ref<ComputedRef<{ x: number, y: number }> | null> = ref(null)
+/** Offset from model center to the eyes of the model. */
 const live2dModelEyeOffset = useLocalStorageManualReset('settings/live2d/model-eye-offset', { x: 0, y: 0 })
 const live2dIdleAnimationEnabled = useLocalStorageManualReset<boolean>('settings/live2d/idle-animation-enabled', true)
-const live2dForceIdleEyeAnimation = useLocalStorageManualReset<boolean>('settings/live2d/idle-animation-enabled', false)
+const live2dForceIdleEyeAnimation = useLocalStorageManualReset<boolean>('settings/live2d/idle-eye-animation-enabled', false)
 const live2dAutoBlinkEnabled = useVersionedLocalStorageManualReset<boolean>('settings/live2d/auto-blink-enabled', false, {
   defaultVersion: '2.0.0',
   satisfiesVersionBy(beforeVersion, afterVersion) {

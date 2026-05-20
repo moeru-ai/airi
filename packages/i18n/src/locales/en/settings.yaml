@@ -176,10 +176,12 @@ live2d:
     force-auto-blink:
       title: Force auto blink
       description: Force blinking animation with external timer
-    motion:
-      idle-motion: Idle animation
+    idle-motion:
+      title: Idle animation
       no-motion: No animation available
       placeholder: Select animation
+      disable-motion: Disabled
+      disable-motion-description: Disable idle animation
   parameters:
     title: Model Parameters
     render-scale:

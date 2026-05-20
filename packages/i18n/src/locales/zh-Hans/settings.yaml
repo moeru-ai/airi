@@ -165,10 +165,12 @@ live2d:
     force-auto-blink:
       title: 强制眨眼动画
       description: 强制模型眨眼，模型无眨眼动画时可用。
-    motion:
-      idle-motion: 待机动作
+    idle-motion:
+      title: 待机动作
       no-motion: 无可用动作
       placeholder: 选择待机动作
+      disable-motion: 禁用
+      disable-motion-description: 禁用待机动作
   parameters:
     title: 模型参数
     render-scale:
