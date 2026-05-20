@@ -255,6 +255,7 @@ export function useMotionUpdatePluginAutoEyeBlink(
     startLeft: 1,
     startRight: 1,
     delayMs: 0,
+    openDurationMs: 300,
   }
 
   // Eye values captured at blink start.  Used as the base during
@@ -263,11 +264,13 @@ export function useMotionUpdatePluginAutoEyeBlink(
   let preBlinkLeft = 1.0
   let preBlinkRight = 1.0
   const blinkCloseDuration = 75 // ms
-  const blinkOpenDuration = 75 // ms
+  const minBlinkOpenDuration = 150 // ms
+  const maxBlinkOpenDuration = 300 // ms
   const minDelay = 3000
   const maxDelay = 8000
 
   const clamp01 = (value: number) => Math.min(1, Math.max(0, value))
+  const randomBlinkOpenDuration = () => minBlinkOpenDuration + Math.random() * (maxBlinkOpenDuration - minBlinkOpenDuration)
 
   function resetBlinkState() {
     blinkState.phase = 'idle'
@@ -307,13 +310,14 @@ export function useMotionUpdatePluginAutoEyeBlink(
       if (blinkState.progress >= 1) {
         blinkState.phase = 'opening'
         blinkState.progress = 0
+        blinkState.openDurationMs = randomBlinkOpenDuration()
       }
 
       return { eyeLOpen, eyeROpen }
     }
 
     // Opening: move back to the base with ease-in.
-    blinkState.progress = Math.min(1, blinkState.progress + dt / blinkOpenDuration)
+    blinkState.progress = Math.min(1, blinkState.progress + dt / blinkState.openDurationMs)
     const eased = easeInQuad(blinkState.progress)
     const eyeLOpen = clamp01(blinkState.startLeft * eased)
     const eyeROpen = clamp01(blinkState.startRight * eased)

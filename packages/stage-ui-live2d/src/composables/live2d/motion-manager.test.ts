@@ -135,4 +135,48 @@ describe('live2d motion manager plugins', () => {
     expect(context.internalModel.eyeBlink?.updateParameters).not.toHaveBeenCalled()
     expect(context.handled).toBe(true)
   })
+
+  /**
+   * @example
+   * expect(context.model.getParameterValueById('ParamEyeLOpen')).toBeLessThan(1)
+   */
+  it('opens force blink over a randomized 150ms to 300ms duration', () => {
+    const randomSpy = vi.spyOn(Math, 'random')
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0.5)
+
+    const context = createContext({
+      live2dAutoBlinkEnabled: ref(true),
+      live2dForceAutoBlinkEnabled: ref(true),
+      timeDelta: 3,
+    })
+    const plugin = useMotionUpdatePluginAutoEyeBlink(ref(false))
+
+    // ROOT CAUSE:
+    //
+    // Force blink previously reopened at one fixed speed.
+    // That made closed eyes feel either too quick or too slow depending on
+    // the model's eye-open parameter range.
+    //
+    // We fixed this by randomizing each opening phase between 150ms and 300ms.
+    plugin(context)
+    context.timeDelta = 0.075
+    context.handled = false
+    plugin(context)
+    context.timeDelta = 0.15
+    context.handled = false
+    plugin(context)
+
+    expect(context.model.getParameterValueById('ParamEyeLOpen')).toBeCloseTo(4 / 9)
+    expect(context.model.getParameterValueById('ParamEyeROpen')).toBeCloseTo(4 / 9)
+
+    context.timeDelta = 0.075
+    context.handled = false
+    plugin(context)
+
+    expect(context.model.getParameterValueById('ParamEyeLOpen')).toBe(1)
+    expect(context.model.getParameterValueById('ParamEyeROpen')).toBe(1)
+
+    randomSpy.mockRestore()
+  })
 })
