@@ -73,7 +73,13 @@ const runtimeMotionOptions = computed(() => {
     value: motion.displayPath,
     description: motion.displayPath,
   }))
-  options.unshift({ label: t('settings.live2d.animation.idle-motion.disable-motion'), value: '<motion disabled>', description: t('settings.live2d.animation.idle-motion.disable-motion-description') })
+  if (options.length > 0) {
+    options.unshift({
+      label: t('settings.live2d.animation.idle-motion.disable-motion'),
+      value: '<motion disabled>',
+      description: t('settings.live2d.animation.idle-motion.disable-motion-description'),
+    })
+  }
   return options
 })
 const fpsOptions = computed(() => [
