@@ -7,8 +7,7 @@ import SliderControls from '../ViewControls/SliderControls.vue'
 import Live2DCanvas from './live2d/Canvas.vue'
 import Live2DModel from './live2d/Model.vue'
 
-import { useLive2DCursorTracking, useSettingsLive2d } from '../../composables/live2d'
-import { useL2dViewControl } from '../../stores'
+import { useLive2DEyeTracking, useSettingsLive2d } from '../../composables/live2d'
 
 import '../../utils/live2d-zip-loader'
 import '../../utils/live2d-opfs-registration'
@@ -37,7 +36,6 @@ const componentStateModel = defineModel<'pending' | 'loading' | 'mounted'>('mode
 const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
 const live2dModelRef = ref<InstanceType<typeof Live2DModel>>()
 
-const { scale } = useL2dViewControl()
 const {
   live2dEyeTracking,
   live2dIdleAnimationEnabled,
@@ -49,9 +47,13 @@ const {
   live2dRenderScale,
   live2dShadowEnabled,
 } = storeToRefs(useSettingsLive2d())
-const mouseFocus = useLive2DCursorTracking(
+const mouseFocus = useLive2DEyeTracking(
   () => live2dCanvasRef.value?.canvasElement(),
-  () => ((live2dModelRef.value?.modelNormalizeParams.scale ?? 1) * scale.value),
+  () => ({
+    normalizedScale: live2dModelRef.value?.modelNormalizeParams.scale ?? 1,
+    modelWidth: live2dModelRef.value?.initialModelWidth ?? 1000,
+    modelHeight: live2dModelRef.value?.initialModelHeight ?? 1000,
+  }),
 )
 
 watch([componentStateModel, componentStateCanvas], () => {

@@ -155,7 +155,7 @@ live2d:
     focus:
       title: 启用鼠标追踪
       description: 让模型看向当前光标所在位置。可能与强制眼球动画冲突。
-      offset: 偏移量
+      offset: 眼部偏移量(%)
     force-idle-eye-animation:
       title: 强制眼球动画
       description: 待机时随机看向屏幕各处

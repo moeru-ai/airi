@@ -166,7 +166,7 @@ live2d:
     focus:
       title: Enable mouse tracking
       description: Track current mouse position. May conflict with force idle eye animation
-      offset: Offset
+      offset: Eye offset(%)
     force-idle-eye-animation:
       title: Force eye animation when idle
       description: Randomly look around when idle

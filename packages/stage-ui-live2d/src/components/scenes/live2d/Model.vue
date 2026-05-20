@@ -758,6 +758,8 @@ defineExpose({
   setMotion,
   listMotionGroups,
   modelNormalizeParams,
+  initialModelHeight,
+  initialModelWidth,
 })
 
 import.meta.hot?.dispose(() => {

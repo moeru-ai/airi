@@ -317,14 +317,20 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
       :description="t('settings.live2d.animation.focus.description')"
       placement="right"
     />
-    <div class="grid grid-cols-4">
+    <div v-if="live2dEyeTracking" class="grid grid-cols-4">
       <PropertyPoint
         v-model:x="live2dModelEyeOffset.x"
         v-model:y="live2dModelEyeOffset.y"
-        :label="t('settings.live2d.animation.focus.offset')"
-        :x-config="{ min: -2000, max: 2000, step: 1, label: 'X', formatValue: (val: number) => val?.toFixed(0) }"
-        :y-config="{ min: -2000, max: 2000, step: 1, label: 'Y', formatValue: (val: number) => val?.toFixed(0) }"
-      />
+
+        :x-config="{ min: -100, max: 100, step: 0.01, label: 'X', formatValue: (val: number) => val?.toFixed(2) }"
+        :y-config="{ min: -100, max: 100, step: 0.01, label: 'Y', formatValue: (val: number) => val?.toFixed(2) }"
+      >
+        <template #label>
+          <p class="text-xs text-neutral-500 dark:text-neutral-400">
+            {{ t('settings.live2d.animation.focus.offset') }}
+          </p>
+        </template>
+      </PropertyPoint>
     </div>
     <FieldCheckbox
       v-model="live2dForceIdleEyeAnimation"
