@@ -21,9 +21,11 @@ export function useEyeTracking(
   screenBoundingBox: MaybeRefOrGetter<{ top: number, left: number, height: number, width: number }>,
 ) {
   const focusPos = computed<Vector3>(() => {
-    if (trackingMode.value === 'camera' || !(trackingSource.value))
+    if (trackingMode.value === 'camera')
       return new Vector3(cameraPosition.value.x, cameraPosition.value.y, cameraPosition.value.z)
     const ctx = toValue(context)
+    if (trackingMode.value === 'none' || !trackingSource.value)
+      return ctx.defaultLookAt
     const screen = toValue(screenBoundingBox)
     if (trackingMode.value === 'mouse') {
       const trackingPos = trackingSource.value as unknown as { x: number, y: number }
