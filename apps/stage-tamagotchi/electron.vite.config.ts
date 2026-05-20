@@ -24,7 +24,10 @@ export default defineConfig({
     build: {
       externalizeDeps: {
         include: [
+          // Native modules that have `__dirname` usages. Externalize to avoid bundling
+          // them into ESM and causing issues in runtime.
           'electron-click-drag-plugin',
+          'uiohook-napi',
         ],
       },
     },
