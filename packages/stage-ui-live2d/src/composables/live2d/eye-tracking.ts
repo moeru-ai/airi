@@ -6,29 +6,42 @@ import { computed, toValue } from 'vue'
 import { useL2dViewControl } from '../../stores'
 import { useSettingsLive2d } from './live2d'
 
-const { live2dRenderScale, live2dModelEyeOffset, live2dEyeTrackingSource } = storeToRefs(useSettingsLive2d())
-const { scale } = useL2dViewControl()
+export interface Live2DEyeFocusSource {
+  x: number
+  y: number
+}
 
 /**
- * Maps the tracking source's position into the model's rendering space. Does not enable tracking by itself.
- * @param canvas the canvas that draws the avatar
- * @param model normalized scale and dimensions of the model
- * @returns a computed ref that maps the tracking source's position into the model's rendering space
+ * Maps a cursor position into the Live2D model driver's eye focus coordinates.
+ *
+ * Use when:
+ * - A Live2D scene owns the canvas and fitted model geometry.
+ * - A parent component provides cursor coordinates in the same client coordinate space as the canvas rect.
+ *
+ * Expects:
+ * - Source coordinates are relative to the browser viewport or Electron window that contains the canvas.
+ * - The canvas element exposes a client rect in that same coordinate space.
+ *
+ * Returns:
+ * - A computed focus point suitable for `Live2DModel.focus(x, y)`.
  */
-export function useEyeTracking(
-  canvas: MaybeRefOrGetter<HTMLCanvasElement | undefined>,
+export function useLive2DEyeFocusFor(options: {
+  canvas: MaybeRefOrGetter<HTMLCanvasElement | undefined>
   model: MaybeRefOrGetter<{
     normalizedScale: number
     modelWidth: number
     modelHeight: number
-  }>,
-): ComputedRef<{ x: number, y: number }> {
+  }>
+  source: MaybeRefOrGetter<Live2DEyeFocusSource | null | undefined>
+}): ComputedRef<{ x: number, y: number }> {
+  const { live2dRenderScale, live2dModelEyeOffset } = storeToRefs(useSettingsLive2d())
+  const { scale } = useL2dViewControl()
+
   const mouseFocus = computed(() => {
-    const { normalizedScale, modelWidth, modelHeight } = toValue(model)
+    const { normalizedScale, modelWidth, modelHeight } = toValue(options.model)
     const renderScale = live2dRenderScale.value
-    // does not require further unwrapping for some reason
-    const trackingSource = live2dEyeTrackingSource.value as { x: number, y: number } | null
-    const canvasRect = toValue(canvas)?.getBoundingClientRect()
+    const trackingSource = toValue(options.source)
+    const canvasRect = toValue(options.canvas)?.getBoundingClientRect()
     if (!trackingSource || !(canvasRect)) {
       return { x: 1000, y: 1000 }
     }

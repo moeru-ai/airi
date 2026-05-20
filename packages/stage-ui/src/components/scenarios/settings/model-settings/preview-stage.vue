@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import type { ModelSettingsRuntimeSnapshot } from './runtime'
 
-import { Live2DScene, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
+import { Live2DScene } from '@proj-airi/stage-ui-live2d'
 import { SpineScene } from '@proj-airi/stage-ui-spine'
 import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
 import { useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, provide, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import { useSettings } from '../../../../stores/settings'
 import {
@@ -32,8 +32,6 @@ const spineSceneRef = ref<{ canvasElement: () => HTMLCanvasElement | undefined }
 const live2dComponentState = ref<'pending' | 'loading' | 'mounted'>('pending')
 const spineComponentState = ref<'pending' | 'loading' | 'mounted'>('pending')
 const vrmPreviewStageInstanceId = `model-settings-preview-stage:${Math.random().toString(36).slice(2, 10)}`
-
-provide('previewStage', true)
 
 const {
   stageModelSelected,
@@ -152,14 +150,8 @@ defineExpose({
   capturePreviewFrame,
 })
 
-const { live2dEyeTrackingSource } = storeToRefs(useSettingsLive2d())
 const { x: mouseX, y: mouseY } = useMouse()
-live2dEyeTrackingSource.value = computed(() => ({
-  x: mouseX.value,
-  y: mouseY.value,
-}))
-const { trackingSource } = storeToRefs(useModelStore())
-trackingSource.value = computed(() => ({
+const cursorPosition = computed(() => ({
   x: mouseX.value,
   y: mouseY.value,
 }))
@@ -173,6 +165,7 @@ trackingSource.value = computed(() => ({
         v-model:state="live2dComponentState"
         :model-src="stageModelSelectedUrl"
         :model-id="stageModelSelected"
+        :cursor-position="cursorPosition"
         :theme-colors-hue="themeColorsHue"
         :theme-colors-hue-dynamic="themeColorsHueDynamic"
       />
@@ -180,7 +173,7 @@ trackingSource.value = computed(() => ({
   </template>
   <template v-if="stageModelRenderer === 'vrm'">
     <div :class="vrmSceneClassList">
-      <ThreeScene ref="vrmSceneRef" :model-src="stageModelSelectedUrl" />
+      <ThreeScene ref="vrmSceneRef" :cursor-position="cursorPosition" :model-src="stageModelSelectedUrl" />
     </div>
   </template>
   <template v-if="stageModelRenderer === 'spine'">

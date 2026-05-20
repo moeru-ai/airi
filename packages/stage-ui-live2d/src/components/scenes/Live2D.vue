@@ -1,18 +1,20 @@
 <script setup lang="ts">
+import type { Live2DEyeFocusSource } from '../../composables/live2d'
+
 import { Screen } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { ref, watch } from 'vue'
+import { onUnmounted, ref, watch } from 'vue'
 
-import SliderControls from '../ViewControls/SliderControls.vue'
 import Live2DCanvas from './live2d/Canvas.vue'
 import Live2DModel from './live2d/Model.vue'
 
-import { useEyeTracking, useSettingsLive2d } from '../../composables/live2d'
+import { useLive2DEyeFocusFor, useSettingsLive2d } from '../../composables/live2d'
 
 import '../../utils/live2d-zip-loader'
 import '../../utils/live2d-opfs-registration'
 
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
+  cursorPosition?: Live2DEyeFocusSource
   modelSrc?: string
   modelId?: string
 
@@ -35,6 +37,8 @@ const componentStateModel = defineModel<'pending' | 'loading' | 'mounted'>('mode
 
 const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
 const live2dModelRef = ref<InstanceType<typeof Live2DModel>>()
+const activeCursorPosition = ref<Live2DEyeFocusSource | null>(null)
+let clearCursorFocusTimeout: ReturnType<typeof setTimeout> | undefined
 
 const {
   live2dEyeTracking,
@@ -47,14 +51,29 @@ const {
   live2dRenderScale,
   live2dShadowEnabled,
 } = storeToRefs(useSettingsLive2d())
-const mouseFocus = useEyeTracking(
-  () => live2dCanvasRef.value?.canvasElement(),
-  () => ({
+const mouseFocus = useLive2DEyeFocusFor({
+  canvas: () => live2dCanvasRef.value?.canvasElement(),
+  model: () => ({
     normalizedScale: live2dModelRef.value?.modelNormalizeParams.scale ?? 1,
     modelWidth: live2dModelRef.value?.initialModelWidth ?? 1000,
     modelHeight: live2dModelRef.value?.initialModelHeight ?? 1000,
   }),
-)
+  source: activeCursorPosition,
+})
+
+watch(() => props.cursorPosition, (cursorPosition) => {
+  activeCursorPosition.value = cursorPosition ? { ...cursorPosition } : null
+  if (clearCursorFocusTimeout)
+    clearTimeout(clearCursorFocusTimeout)
+  clearCursorFocusTimeout = setTimeout(() => {
+    activeCursorPosition.value = null
+  }, 1000)
+})
+
+onUnmounted(() => {
+  if (clearCursorFocusTimeout)
+    clearTimeout(clearCursorFocusTimeout)
+})
 
 watch([componentStateModel, componentStateCanvas], () => {
   componentState.value = (componentStateModel.value === 'mounted' && componentStateCanvas.value === 'mounted')
@@ -74,9 +93,6 @@ defineExpose({
 
 <template>
   <Screen v-slot="{ width, height }" relative>
-    <div absolute top-0 z-15 h-full px-3 py="20vh">
-      <SliderControls />
-    </div>
     <Live2DCanvas
       ref="live2dCanvasRef"
       v-slot="{ app }"
@@ -100,6 +116,7 @@ defineExpose({
         :paused="paused"
         :focus-at="mouseFocus"
         :eye-tracking="live2dEyeTracking"
+        :eye-focus-source-active="!!activeCursorPosition"
         :theme-colors-hue="themeColorsHue"
         :theme-colors-hue-dynamic="themeColorsHueDynamic"
         :live2d-idle-animation-enabled="live2dIdleAnimationEnabled"

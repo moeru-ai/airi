@@ -43,18 +43,35 @@ import {
   stageThreeTraceThreeSceneSubtreeEvent,
   stageThreeTraceThreeSceneTransactionEvent,
 } from '../trace'
-import { OrbitControls, SliderControls } from './Controls'
+import { OrbitControls } from './Controls'
 import { SkyBox } from './Environment'
 import { VRMModel } from './Model'
 
 const props = withDefaults(defineProps<{
   currentAudioSource?: AudioBufferSourceNode
+  cursorPosition?: { x: number, y: number }
   modelSrc?: string
   skyBoxSrc?: string
+  /**
+   * Enables user-driven OrbitControls camera rotation and zoom.
+   *
+   * This is controlled by the app shell because orbit gestures conflict with
+   * mobile view-control overlays, while desktop/tamagotchi stages still expect
+   * direct scene manipulation.
+   *
+   * | Surface | Expected value | Reason |
+   * | --- | --- | --- |
+   * | stage-web desktop | `true` | Mouse orbit is the primary camera control. |
+   * | stage-web mobile | `false` | Touch input is reserved for mobile view controls and chat UI. |
+   * | stage-pocket mobile | `false` | Touch input is reserved for mobile view controls and chat UI. |
+   * | stage-tamagotchi | `true` | The transparent desktop stage has no mobile view-control overlay. |
+   */
+  enableOrbitControls?: boolean
   showAxes?: boolean
   idleAnimation?: string
   paused?: boolean
 }>(), {
+  enableOrbitControls: true,
   showAxes: false,
   idleAnimation: new URL('../assets/vrm/animations/idle_loop.vrma', import.meta.url).href,
   paused: false,
@@ -434,7 +451,8 @@ function onOrbitControlsReady() {
 }
 
 const controlEnable = computed(() => {
-  return controlsReady.value
+  return props.enableOrbitControls
+    && controlsReady.value
     && modelPhase.value === 'ready'
     && !sceneMutationLocked.value
 })
@@ -448,11 +466,6 @@ function onVRMSceneBootstrap(value: SceneBootstrap) {
   pendingSceneBootstrap.value = value
 }
 
-function onVRMModelLookAtTarget(value: Vector3) {
-  lookAtTarget.value.x = value.x
-  lookAtTarget.value.y = value.y
-  lookAtTarget.value.z = value.z
-}
 function onVRMModelLoaded(value: string) {
   activeModelSrc.value = value
   pendingCommittedModelSrc.value = value
@@ -710,9 +723,6 @@ defineExpose({
 
 <template>
   <Screen ref="screenRef" v-slot="{ width, height }" relative>
-    <div top="50%" translate-y="[-50%]" fixed z-15 px-3>
-      <SliderControls />
-    </div>
     <TresCanvas
       :width="width"
       :height="height"
@@ -768,6 +778,7 @@ defineExpose({
       <VRMModel
         ref="modelRef"
         :current-audio-source="props.currentAudioSource"
+        :cursor-position="props.cursorPosition"
         :last-committed-model-src="lastCommittedModelSrc"
         :model-src="props.modelSrc"
         :idle-animation="props.idleAnimation"
@@ -777,7 +788,6 @@ defineExpose({
         :npr-irr-s-h="irrSHTex"
         :model-offset="modelOffset"
         :model-rotation-y="modelRotationY"
-        :look-at-target="lookAtTarget"
         :tracking-mode="trackingMode"
         :eye-height="eyeHeight"
         :camera-position="cameraPosition"
@@ -786,7 +796,6 @@ defineExpose({
         @loading-progress="(val: number) => emit('loadModelProgress', val)"
         @load-start="onVRMModelLoadStart"
         @scene-bootstrap="onVRMSceneBootstrap"
-        @look-at-target="onVRMModelLookAtTarget"
         @error="onVRMModelError"
         @loaded="onVRMModelLoaded"
       />

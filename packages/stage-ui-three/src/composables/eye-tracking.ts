@@ -1,40 +1,61 @@
 import type { PerspectiveCamera, Raycaster } from 'three'
 import type { MaybeRefOrGetter } from 'vue'
 
-import { storeToRefs } from 'pinia'
+import type { TrackingMode, Vec3 } from '../stores/model-store'
+
 import { Vector2, Vector3 } from 'three'
 import { computed, toValue } from 'vue'
 
-import { useModelStore } from '../stores/model-store'
-
-interface ThreeWorldContext {
+interface VRMWorldContext {
   raycaster: Raycaster
   camera: PerspectiveCamera
   defaultLookAt: Vector3
 }
 
-const { trackingSource, trackingMode, cameraPosition } = storeToRefs(useModelStore())
+export interface VRMEyeFocusSource {
+  x: number
+  y: number
+}
 
-// look at mouse
-export function useEyeTracking(
-  context: MaybeRefOrGetter<ThreeWorldContext>,
-  screenBoundingBox: MaybeRefOrGetter<{ top: number, left: number, height: number, width: number }>,
-) {
+/**
+ * Maps cursor and camera tracking modes into a VRM world-space eye focus target.
+ *
+ * Use when:
+ * - A VRM model needs a look-at target derived from scene-local cursor coordinates.
+ * - The scene owns the screen bounds used to normalize pointer coordinates.
+ *
+ * Expects:
+ * - Source coordinates are relative to the browser viewport or Electron window that contains the scene.
+ * - Screen bounds are in the same client coordinate space as the source.
+ *
+ * Returns:
+ * - A computed Three.js vector suitable for VRM eye focus updates.
+ */
+export function useVRMEyeFocusFor(options: {
+  cameraPosition: MaybeRefOrGetter<Vec3>
+  context: MaybeRefOrGetter<VRMWorldContext>
+  screenBoundingBox: MaybeRefOrGetter<{ top: number, left: number, height: number, width: number }>
+  source: MaybeRefOrGetter<VRMEyeFocusSource | null | undefined>
+  trackingMode: MaybeRefOrGetter<TrackingMode>
+}) {
   const focusPos = computed<Vector3>(() => {
-    if (trackingMode.value === 'camera')
-      return new Vector3(cameraPosition.value.x, cameraPosition.value.y, cameraPosition.value.z)
-    const ctx = toValue(context)
-    if (trackingMode.value === 'none' || !trackingSource.value)
+    const trackingMode = toValue(options.trackingMode)
+    if (trackingMode === 'camera') {
+      const cameraPosition = toValue(options.cameraPosition)
+      return new Vector3(cameraPosition.x, cameraPosition.y, cameraPosition.z)
+    }
+
+    const ctx = toValue(options.context)
+    const trackingSource = toValue(options.source)
+    if (trackingMode === 'none' || !trackingSource)
       return ctx.defaultLookAt
-    const screen = toValue(screenBoundingBox)
-    if (trackingMode.value === 'mouse') {
-      const trackingPos = trackingSource.value as unknown as { x: number, y: number }
-      // from tracking origin to camera center(screen center)
+    const screen = toValue(options.screenBoundingBox)
+    if (trackingMode === 'mouse') {
       const castedPos = castScreenToCam(
         ctx,
         new Vector2(
-          ((trackingPos.x - screen.left) / screen.width) * 2 - 1,
-          -((trackingPos.y - screen.top) / screen.height) * 2 + 1,
+          ((trackingSource.x - screen.left) / screen.width) * 2 - 1,
+          -((trackingSource.y - screen.top) / screen.height) * 2 + 1,
         ),
       )
       return castedPos
@@ -45,7 +66,7 @@ export function useEyeTracking(
   return focusPos
 }
 
-function castScreenToCam(ctx: ThreeWorldContext, point: Vector2): Vector3 {
+function castScreenToCam(ctx: VRMWorldContext, point: Vector2): Vector3 {
   ctx.raycaster.setFromCamera(point, ctx.camera)
   const nearPlaneDistance = ctx.camera.near
   const direction = ctx.raycaster.ray.direction.clone().normalize().multiplyScalar(8)

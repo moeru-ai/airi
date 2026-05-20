@@ -27,6 +27,8 @@ export type MotionManagerPluginContext = MotionManagerUpdateContext & {
   internalModel: PixiLive2DInternalModel
   motionManager: PixiLive2DInternalModel['motionManager']
   modelParameters: Ref<any>
+  live2dEyeTrackingEnabled: Ref<boolean>
+  live2dEyeFocusSourceActive: Ref<boolean>
   live2dIdleAnimationEnabled: Ref<boolean>
   live2dForceIdleEyeAnimation: Ref<boolean>
   live2dAutoBlinkEnabled: Ref<boolean>
@@ -42,6 +44,8 @@ export interface UseLive2DMotionManagerUpdateOptions {
   internalModel: PixiLive2DInternalModel
   motionManager: PixiLive2DInternalModel['motionManager']
   modelParameters: Ref<any>
+  live2dEyeTrackingEnabled: Ref<boolean>
+  live2dEyeFocusSourceActive: Ref<boolean>
   live2dIdleAnimationEnabled: Ref<boolean>
   live2dForceIdleEyeAnimation: Ref<boolean>
   live2dAutoBlinkEnabled: Ref<boolean>
@@ -54,6 +58,8 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
     internalModel,
     motionManager,
     modelParameters,
+    live2dEyeTrackingEnabled,
+    live2dEyeFocusSourceActive,
     live2dIdleAnimationEnabled,
     live2dForceIdleEyeAnimation,
     live2dAutoBlinkEnabled,
@@ -97,6 +103,8 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
       internalModel,
       motionManager,
       modelParameters,
+      live2dEyeTrackingEnabled,
+      live2dEyeFocusSourceActive,
       live2dIdleAnimationEnabled,
       live2dForceIdleEyeAnimation,
       live2dAutoBlinkEnabled,
@@ -210,7 +218,7 @@ export function useMotionUpdatePluginIdleDisable(idleEyeFocus = useLive2DIdleEye
     if (!ctx.live2dIdleAnimationEnabled.value && ctx.isIdleMotion) {
       ctx.motionManager.stopAllMotions()
 
-      if (ctx.live2dForceIdleEyeAnimation.value)
+      if (ctx.live2dForceIdleEyeAnimation.value && (!ctx.live2dEyeTrackingEnabled.value || !ctx.live2dEyeFocusSourceActive.value))
         idleEyeFocus.update(ctx.internalModel, ctx.now)
       if (ctx.internalModel.eyeBlink != null) {
         ctx.internalModel.eyeBlink.updateParameters(ctx.model, ctx.timeDelta / 1000)
@@ -228,6 +236,10 @@ export function useMotionUpdatePluginIdleDisable(idleEyeFocus = useLive2DIdleEye
 export function useMotionUpdatePluginIdleFocus(idleEyeFocus = useLive2DIdleEyeFocus()): MotionManagerPlugin {
   return (ctx) => {
     if (!ctx.isIdleMotion || ctx.handled)
+      return
+    if (!ctx.live2dForceIdleEyeAnimation.value)
+      return
+    if (ctx.live2dEyeTrackingEnabled.value && ctx.live2dEyeFocusSourceActive.value)
       return
 
     idleEyeFocus.update(ctx.internalModel, ctx.now)

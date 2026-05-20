@@ -1,5 +1,4 @@
 import type { Vector3 } from 'three'
-import type { ComputedRef, Ref } from 'vue'
 
 import { useBroadcastChannel, useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
@@ -85,15 +84,7 @@ const { modelOffset, set: setViewControl } = useThreeViewControl()
 const { cameraDistance, cameraFOV, cameraPosition } = useThreeCamera()
 
 const modelRotationY = useLocalStorage('settings/stage-ui-three/modelRotationY', 0)
-const trackingMode = useLocalStorage('settings/stage-ui-three/trackingMode', 'none' as 'camera' | 'mouse' | 'none')
-/**
- * A position to perform eye-tracking on.
- * Should be a position relative to the application window:
- * - for browser targets, it should be the top-left corner of the viewport
- * - for tamagotchi targets, it should be the top-left corner of
- * the application window that renders the model
- */
-const trackingSource: Ref<ComputedRef<{ x: number, y: number }> | null> = ref(null)
+const trackingMode = useLocalStorage<TrackingMode>('settings/stage-ui-three/trackingMode', 'none')
 
 export const useModelStore = defineStore('modelStore', () => {
   const { post, data } = useBroadcastChannel<BroadcastChannelEvents, BroadcastChannelEvents>({ name: 'airi-stores-stage-ui-three-vrm' })
@@ -245,7 +236,6 @@ export const useModelStore = defineStore('modelStore', () => {
 
     lookAtTarget,
     trackingMode,
-    trackingSource,
     eyeHeight,
     renderScale,
     multisampling,

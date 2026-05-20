@@ -154,17 +154,23 @@ live2d:
     title: 动画
     focus:
       title: 启用鼠标追踪
-      description: 让模型看向当前光标所在位置。可能与强制眼球动画冲突。
+      description: 光标移动时让模型看向光标；光标停止后恢复待机眼球动画。
       offset: 眼部偏移量(%)
     force-idle-eye-animation:
-      title: 强制眼球动画
-      description: 待机时随机看向屏幕各处
+      title: 待机眼球动画
+      description: 没有活跃光标焦点时随机看向屏幕各处。
+    blink-enable:
+      title: 启用眨眼
+      description: 让模型眨眼。
     auto-blink:
       title: 使用眨眼动画
       description: 使用模型默认眨眼动画
     force-auto-blink:
       title: 强制眨眼动画
       description: 强制模型眨眼，模型无眨眼动画时可用。
+    blink-mode:
+      title: 眨眼模式
+      description: 选择模型内置眨眼，或使用 AIRI 的强制眨眼计时器。
     idle-motion:
       title: 待机动作
       no-motion: 无可用动作

@@ -165,17 +165,23 @@ live2d:
     title: Animation
     focus:
       title: Enable mouse tracking
-      description: Track current mouse position. May conflict with force idle eye animation
+      description: Look at the cursor while it is moving. Idle eye movement resumes after the cursor stops.
       offset: Eye offset(%)
     force-idle-eye-animation:
-      title: Force eye animation when idle
-      description: Randomly look around when idle
+      title: Idle eye movement
+      description: Randomly look around when there is no active cursor focus.
+    blink-enable:
+      title: Enable blink
+      description: Let the model blink.
     auto-blink:
       title: Auto blink
       description: Use default blinking animation of the model
     force-auto-blink:
       title: Force auto blink
       description: Force blinking animation with external timer
+    blink-mode:
+      title: Blink mode
+      description: Choose the model built-in blink or AIRI's forced blink timer.
     idle-motion:
       title: Idle animation
       no-motion: No animation available

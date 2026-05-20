@@ -15,7 +15,6 @@ import {
   useElectronRelativeMouse,
 } from '@proj-airi/electron-vueuse'
 import { IS_DEV } from '@proj-airi/stage-shared'
-import { useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
 import { useModelStore, useThreeSceneIsTransparentAtPoint } from '@proj-airi/stage-ui-three'
 import { HoloCoupon } from '@proj-airi/stage-ui/components'
 import {
@@ -456,13 +455,7 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
 
 // Assistant caption is broadcast from Stage.vue via the same channel
 
-const { live2dEyeTrackingSource } = storeToRefs(useSettingsLive2d())
-live2dEyeTrackingSource.value = computed(() => ({
-  x: relativeMouseX.value,
-  y: relativeMouseY.value,
-}))
-const { trackingSource } = storeToRefs(useModelStore())
-trackingSource.value = computed(() => ({
+const cursorPosition = computed(() => ({
   x: relativeMouseX.value,
   y: relativeMouseY.value,
 }))
@@ -500,6 +493,7 @@ trackingSource.value = computed(() => ({
           v-model:state="componentStateStage"
           h-full w-full
           flex-1
+          :cursor-position="cursorPosition"
           :paused="stagePaused"
         />
         <HoloCoupon />

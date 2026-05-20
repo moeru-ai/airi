@@ -87,6 +87,27 @@ const fpsOptions = computed(() => [
   { value: 60, label: '60' },
   { value: 0, label: t('settings.live2d.parameters.fps.options.unlimited') },
 ])
+const blinkModeOptions = computed(() => [
+  {
+    value: 'auto',
+    label: t('settings.live2d.animation.auto-blink.title'),
+    description: t('settings.live2d.animation.auto-blink.description'),
+  },
+  {
+    value: 'force',
+    label: t('settings.live2d.animation.force-auto-blink.title'),
+    description: t('settings.live2d.animation.force-auto-blink.description'),
+  },
+])
+const live2dBlinkMode = computed<'auto' | 'force'>({
+  get() {
+    return live2dForceAutoBlinkEnabled.value ? 'force' : 'auto'
+  },
+  set(mode) {
+    live2dAutoBlinkEnabled.value = true
+    live2dForceAutoBlinkEnabled.value = mode === 'force'
+  },
+})
 
 watch(() => live2d.availableMotions, (motions) => {
   runtimeMotions.value = motions.map(m => ({
@@ -346,16 +367,21 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
     />
     <FieldCheckbox
       v-model="live2dAutoBlinkEnabled"
-      :label="t('settings.live2d.animation.auto-blink.title')"
-      :description="t('settings.live2d.animation.auto-blink.description')"
+      :label="t('settings.live2d.animation.blink-enable.title')"
+      :description="t('settings.live2d.animation.blink-enable.description')"
       placement="right"
     />
-    <FieldCheckbox
-      v-model="live2dForceAutoBlinkEnabled"
-      :label="t('settings.live2d.animation.force-auto-blink.title')"
-      :description="t('settings.live2d.animation.force-auto-blink.description')"
-      placement="right"
-    />
+    <label v-if="live2dAutoBlinkEnabled" class="flex flex-wrap gap-4">
+      <div class="flex-1">
+        <div class="flex items-center gap-1 text-sm font-medium">
+          {{ t('settings.live2d.animation.blink-mode.title') }}
+        </div>
+        <div class="text-xs text-neutral-500 dark:text-neutral-400">
+          {{ t('settings.live2d.animation.blink-mode.description') }}
+        </div>
+      </div>
+      <SelectTab v-model="live2dBlinkMode" :options="blinkModeOptions" size="sm" :class="['shrink-0']" />
+    </label>
     <FieldCombobox
       v-model="selectedRuntimeMotion"
       :label="t('settings.live2d.animation.idle-motion.title')"

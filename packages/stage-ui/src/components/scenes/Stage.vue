@@ -45,8 +45,13 @@ import { useSettings } from '../../stores/settings'
 import { useSpeechRuntimeStore } from '../../stores/speech-runtime'
 
 const props = withDefaults(defineProps<{
+  cursorPosition?: { x: number, y: number }
+  enableOrbitControls?: boolean
   paused?: boolean
-}>(), { paused: false, scale: 1 })
+}>(), {
+  enableOrbitControls: true,
+  paused: false,
+})
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
 
@@ -867,6 +872,7 @@ defineExpose({
         h-full w-full flex-1
         :model-src="stageModelSelectedUrl"
         :model-id="stageModelSelected"
+        :cursor-position="cursorPosition"
         :mouth-open-size="mouthOpenSize"
         :now-speaking="nowSpeaking"
         :paused="paused"
@@ -882,9 +888,11 @@ defineExpose({
         v-model:state="componentState"
         min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
         :model-src="stageModelSelectedUrl"
+        :cursor-position="cursorPosition"
         :idle-animation="animations.idleLoop.toString()"
         :paused="paused"
         :show-axes="stageViewControlsEnabled"
+        :enable-orbit-controls="props.enableOrbitControls"
         :current-audio-source="currentAudioSource"
         @error="console.error"
       />

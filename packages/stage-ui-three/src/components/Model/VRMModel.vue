@@ -25,7 +25,7 @@ import type {
   VrmLoadHookContext,
   VrmMaterialHookContext,
 } from '../../composables/vrm/hooks'
-import type { SceneBootstrap, Vec3 } from '../../stores/model-store'
+import type { SceneBootstrap, TrackingMode, Vec3 } from '../../stores/model-store'
 import type { VrmLifecycleReason } from '../../trace'
 import type { ManagedVrmInstance } from './vrm-instance-cache'
 
@@ -57,7 +57,7 @@ import {
 
 } from 'vue'
 
-import { useEyeTracking } from '../../composables/eye-tracking'
+import { useVRMEyeFocusFor } from '../../composables/eye-tracking'
 import {
   createIblProbeController,
   injectDiffuseIBL,
@@ -107,6 +107,7 @@ import {
 */
 const props = withDefaults(defineProps<{
   currentAudioSource?: AudioBufferSourceNode
+  cursorPosition?: { x: number, y: number }
   lastCommittedModelSrc?: string
   modelSrc?: string
   idleAnimation: string
@@ -119,7 +120,7 @@ const props = withDefaults(defineProps<{
 
   modelOffset: Vec3
   modelRotationY: number
-  trackingMode: string
+  trackingMode: TrackingMode
   eyeHeight: number
   screenBoundingBox: () => { top: number, left: number, width: number, height: number }
   cameraPosition: Vec3
@@ -895,11 +896,17 @@ async function loadModel() {
   }
 }
 
-const focusPos = useEyeTracking(() => ({
-  camera: camera.value,
-  raycaster,
-  defaultLookAt: defaultTookAt.value,
-}), props.screenBoundingBox)
+const focusPos = useVRMEyeFocusFor({
+  cameraPosition: () => props.cameraPosition,
+  context: () => ({
+    camera: camera.value,
+    raycaster,
+    defaultLookAt: defaultTookAt.value,
+  }),
+  screenBoundingBox: props.screenBoundingBox,
+  source: () => props.cursorPosition,
+  trackingMode: () => props.trackingMode,
+})
 
 onMounted(async () => {
   // watch if the model needs to be reloaded

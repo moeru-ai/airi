@@ -17,7 +17,6 @@ import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 
 import {
   createBeatSyncController,
   useExpressionController,
-
   useLive2DMotionManagerUpdate,
   useMotionUpdatePluginAutoEyeBlink,
   useMotionUpdatePluginBeatSync,
@@ -42,6 +41,7 @@ const props = withDefaults(defineProps<{
   paused?: boolean
   focusAt?: { x: number, y: number }
   eyeTracking?: boolean
+  eyeFocusSourceActive?: boolean
   themeColorsHue?: number
   themeColorsHueDynamic?: boolean
   live2dIdleAnimationEnabled?: boolean
@@ -56,6 +56,7 @@ const props = withDefaults(defineProps<{
   paused: false,
   focusAt: () => ({ x: 0, y: 0 }),
   eyeTracking: false,
+  eyeFocusSourceActive: false,
   disableFocusAt: false,
   scale: 1,
   themeColorsHue: 220.44,
@@ -166,6 +167,8 @@ const {
 const themeColorsHue = toRef(() => props.themeColorsHue)
 const themeColorsHueDynamic = toRef(() => props.themeColorsHueDynamic)
 const live2dIdleAnimationEnabled = toRef(() => props.live2dIdleAnimationEnabled)
+const live2dEyeTrackingEnabled = toRef(() => props.eyeTracking)
+const live2dEyeFocusSourceActive = toRef(() => props.eyeFocusSourceActive)
 const live2dForceIdleEyeAnimation = toRef(() => props.live2dForceIdleEyeAnimation)
 const live2dAutoBlinkEnabled = toRef(() => props.live2dAutoBlinkEnabled)
 const live2dForceAutoBlinkEnabled = toRef(() => props.live2dForceAutoBlinkEnabled)
@@ -338,6 +341,8 @@ async function loadModel() {
       internalModel,
       motionManager,
       modelParameters,
+      live2dEyeTrackingEnabled,
+      live2dEyeFocusSourceActive,
       live2dIdleAnimationEnabled,
       live2dForceIdleEyeAnimation,
       live2dAutoBlinkEnabled,
