@@ -1426,6 +1426,9 @@ importers:
       three:
         specifier: ^0.184.0
         version: 0.184.0
+      uiohook-napi:
+        specifier: 'catalog:'
+        version: 1.5.5
       unified:
         specifier: ^11.0.5
         version: 11.0.5
@@ -1637,9 +1640,6 @@ importers:
       superjson:
         specifier: 'catalog:'
         version: 2.2.6
-      uiohook-napi:
-        specifier: 'catalog:'
-        version: 1.5.5
       unocss-preset-scrollbar:
         specifier: ^4.0.0
         version: 4.0.0(unocss@66.6.8(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)))
