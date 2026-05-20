@@ -13,24 +13,28 @@ interface ThreeWorldContext {
   defaultLookAt: Vector3
 }
 
-const offset = {
-  x: 0,
-  y: 200,
-}
-
 const { trackingSource, trackingMode, cameraPosition } = storeToRefs(useModelStore())
 
 // look at mouse
 export function useEyeTracking(
   context: MaybeRefOrGetter<ThreeWorldContext>,
+  screenBoundingBox: MaybeRefOrGetter<{ top: number, left: number, height: number, width: number }>,
 ) {
   const focusPos = computed<Vector3>(() => {
     if (trackingMode.value === 'camera' || !(trackingSource.value))
       return new Vector3(cameraPosition.value.x, cameraPosition.value.y, cameraPosition.value.z)
     const ctx = toValue(context)
+    const screen = toValue(screenBoundingBox)
     if (trackingMode.value === 'mouse') {
       const trackingPos = trackingSource.value as unknown as { x: number, y: number }
-      const castedPos = castToCam(ctx, new Vector2(trackingPos.x - window.innerWidth / 2 + offset.x, -(trackingPos.y - offset.y)))
+      // from tracking origin to camera center(screen center)
+      const castedPos = castScreenToCam(
+        ctx,
+        new Vector2(
+          ((trackingPos.x - screen.left) / screen.width) * 2 - 1,
+          -((trackingPos.y - screen.top) / screen.height) * 2 + 1,
+        ),
+      )
       return castedPos
     }
     return ctx.defaultLookAt
@@ -39,14 +43,11 @@ export function useEyeTracking(
   return focusPos
 }
 
-function castToCam(ctx: ThreeWorldContext, point: Vector2): Vector3 {
+function castScreenToCam(ctx: ThreeWorldContext, point: Vector2): Vector3 {
   ctx.raycaster.setFromCamera(point, ctx.camera)
-
-  // Calculate point on near plane using camera parameters
   const nearPlaneDistance = ctx.camera.near
-  const direction = ctx.raycaster.ray.direction.clone().normalize().multiplyScalar(20)
+  const direction = ctx.raycaster.ray.direction.clone().normalize().multiplyScalar(8)
   const pointOnNearPlane = ctx.raycaster.ray.origin.clone()
     .add(direction.multiplyScalar(nearPlaneDistance))
-  // pointOnNearPlane.setZ(1)
   return pointOnNearPlane
 }

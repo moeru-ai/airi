@@ -84,10 +84,15 @@ let vrmViewUpdateMessageSequence = 0
 const { modelOffset, set: setViewControl } = useThreeViewControl()
 const { cameraDistance, cameraFOV, cameraPosition } = useThreeCamera()
 
-// === User scene settings ===
-// These values are intended to survive model reloads and direct edits from settings UI.
 const modelRotationY = useLocalStorage('settings/stage-ui-three/modelRotationY', 0)
 const trackingMode = useLocalStorage('settings/stage-ui-three/trackingMode', 'none' as 'camera' | 'mouse' | 'none')
+/**
+ * A position to perform eye-tracking on.
+ * Should be a position relative to the application window:
+ * - for browser targets, it should be the top-left corner of the viewport
+ * - for tamagotchi targets, it should be the top-left corner of
+ * the application window that renders the model
+ */
 const trackingSource: Ref<ComputedRef<{ x: number, y: number }> | null> = ref(null)
 
 export const useModelStore = defineStore('modelStore', () => {

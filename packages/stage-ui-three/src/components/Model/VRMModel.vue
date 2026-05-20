@@ -121,6 +121,7 @@ const props = withDefaults(defineProps<{
   modelRotationY: number
   trackingMode: string
   eyeHeight: number
+  screenBoundingBox: () => { top: number, left: number, width: number, height: number }
   cameraPosition: Vec3
 
   camera: PerspectiveCamera
@@ -898,7 +899,7 @@ const focusPos = useEyeTracking(() => ({
   camera: camera.value,
   raycaster,
   defaultLookAt: defaultTookAt.value,
-}))
+}), props.screenBoundingBox)
 
 onMounted(async () => {
   // watch if the model needs to be reloaded

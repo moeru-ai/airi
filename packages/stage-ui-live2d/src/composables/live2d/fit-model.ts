@@ -6,9 +6,9 @@ import { computed, toValue } from 'vue'
 
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const startingOffsetY = computed(() => {
-  if (isStageWeb())
-    breakpoints.smallerOrEqual('md').value ? 0.75 : 1
-  return 1
+  if (isStageWeb()) // showing upper half of the body in landscape, 3/4 in portrait, in web targets
+    return breakpoints.smallerOrEqual('md').value ? 0.75 : 1
+  return 1 // upper half
 })
 
 /**
@@ -34,7 +34,7 @@ export function useFitModel(
     return {
       scale: minScale,
       x: canvas.width / 2,
-      y: canvas.height * startingOffsetY.value, // showing upper half of the body in landscape, 3/4 in portrait
+      y: canvas.height * startingOffsetY.value,
     }
   })
 

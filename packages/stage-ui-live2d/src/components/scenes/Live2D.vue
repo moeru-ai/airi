@@ -7,7 +7,7 @@ import SliderControls from '../ViewControls/SliderControls.vue'
 import Live2DCanvas from './live2d/Canvas.vue'
 import Live2DModel from './live2d/Model.vue'
 
-import { useLive2DEyeTracking, useSettingsLive2d } from '../../composables/live2d'
+import { useEyeTracking, useSettingsLive2d } from '../../composables/live2d'
 
 import '../../utils/live2d-zip-loader'
 import '../../utils/live2d-opfs-registration'
@@ -47,7 +47,7 @@ const {
   live2dRenderScale,
   live2dShadowEnabled,
 } = storeToRefs(useSettingsLive2d())
-const mouseFocus = useLive2DEyeTracking(
+const mouseFocus = useEyeTracking(
   () => live2dCanvasRef.value?.canvasElement(),
   () => ({
     normalizedScale: live2dModelRef.value?.modelNormalizeParams.scale ?? 1,
