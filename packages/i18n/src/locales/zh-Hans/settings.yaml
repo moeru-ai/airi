@@ -107,20 +107,18 @@ analytics:
     title: 此开发版本的使用数据及崩溃分析功能已禁用
 model-select:
   panel-callout:
-    support-status-header: 我们支持2D和3D模型
+    support-status-header: We support both 2D and 3D models
     support-status: >
-      点击 {select-button} 以选择或导入模型。
-      目前我们支持从 {zip} 导入Live2D模型，和从 {vrm} 导入VRM模型。
+      Click {select-button} to select or import models. Currently, {zip} (for Live2D models) and {vrm} (for VRM models) are supported.
     model-type-example: >
-      Neuro-sama 采用来自Live2D Inc.公司的技术所制作的2D模型,
-      而 Grok Ani （来自 Grok Companion）使用 VRM / MMD 相关开源技术制作的3D模型。
+      Neuro-sama uses 2D model driven by framework developed by Live2D Inc, while Grok Ani (in Grok Companion) uses 3D model driven by VRM / MMD open formats.
   select-model:
-    title: 模型选择
-    button: 选择模型
-    select: 选择
-    import: 导入
-    remove: 移除
-    confirm: 确认
+    title: Model Selector
+    button: Select model
+    select: Pick
+    import: Import
+    remove: Remove
+    confirm: Confirm
 live2d:
   change-model:
     from-file: 从文件加载
@@ -146,63 +144,62 @@ live2d:
   theme-color-from-model:
     title: 从模型提取主题颜色
     description: >
-      从当前模型画布中提取主题色，点击颜色即可将其应用至 AIRI 界面。
-      若没有获取到想要的颜色，可改变模型动作，多次尝试提取。
+      Extract prominent colors from current rendering canvas. Click on the color to apply it to AIRI. Try to extract multiple times, with the model in different poses, if the colors are not desirable.
     button-extract:
       title: 提取
   animation:
-    title: 动画
+    title: Animation
     focus:
-      title: 启用鼠标追踪
-      description: 光标移动时让模型看向光标；光标停止后恢复待机眼球动画。
-      offset: 眼部偏移量(%)
+      title: Enable mouse tracking
+      description: Look at the cursor while it is moving. Idle eye movement resumes after the cursor stops.
+      offset: Eye offset(%)
     force-idle-eye-animation:
-      title: 待机眼球动画
-      description: 没有活跃光标焦点时随机看向屏幕各处。
+      title: Idle eye movement
+      description: Randomly look around when there is no active cursor focus.
     blink-enable:
-      title: 启用眨眼
-      description: 让模型眨眼。
+      title: Enable blink
+      description: Let the model blink.
     auto-blink:
-      title: 自动
-      description: 使用模型默认眨眼动画
+      title: Auto
+      description: Use default blinking animation of the model
     force-auto-blink:
-      title: 强制
-      description: 强制模型眨眼，模型无眨眼动画时可用。
+      title: Force
+      description: Force blinking animation with external timer
     blink-mode:
-      title: 眨眼模式
-      description: 选择模型内置眨眼，或使用 AIRI 的强制眨眼计时器。
+      title: Blink mode
+      description: Choose the model built-in blink or AIRI's forced blink timer.
     idle-motion:
-      title: 待机动作
-      no-motion: 无可用动作
-      placeholder: 选择待机动作
-      disable-motion: 禁用
-      disable-motion-description: 禁用待机动作
+      title: Idle animation
+      no-motion: No animation available
+      placeholder: Select animation
+      disable-motion: Disabled
+      disable-motion-description: Disable idle animation
   parameters:
-    title: 模型参数
+    title: Model Parameters
     render-scale:
-      title: 渲染精度
+      title: Render scale
     fps:
-      title: 帧率
-      description: 限制渲染帧率
+      title: FPS
+      description: Limit rendering frame rate
       options:
-        unlimited: ∞
-    shadow: 阴影
-    reset-parameters: 重置所有参数至默认
-  clear-model-cache: 清除模型缓存
+        unlimited: '∞'
+    shadow: Drop shadow
+    reset-parameters: Reset to default parameters
+  clear-model-cache: Clear model cache
   expressions:
-    title: 表情
-    override-toggle: 启用表情
+    title: Expressions
+    override-toggle: Expression system
     sdk-preset-preserved-notice: >
-      SDK提供的表情和眼部动作被禁用后会保留
-    no-expression: 当前模型无可用表情
-    llm-integration-wip: 表情系统暂未接入语言模型
-    save-default: 保存为默认表情
-    reset: 重置表情状态
-    expose-to-llm-toggle: 允许LLM使用模型表情
+      SDK expression manager and eye blink are preserved when disabled.
+    no-expression: No expressions available for this model.
+    llm-integration-wip: LLM tool integration is not yet wired up.
+    save-default: Save expression defaults
+    reset: Reset all expressions
+    expose-to-llm-toggle: Expose to LLM
     expose-to-llm-options:
-      none: 无
-      all: 全部
-      custom: 仅指定
+      none: None
+      all: All
+      custom: Custom
 microphone: 麦克风
 models: 模型
 pages:
@@ -746,7 +743,7 @@ pages:
         empty: 这里什么都还没有哦，在下面添加一个！
       add:
         title: 新建
-        description: '填写新的服务器配置，然后点击「保存并重启」，完成后将会更新至上方的「已配置」'
+        description: "填写新的服务器配置，然后点击「保存并重启」，完成后将会更新至上方的「已配置」"
         pending-badge: 未保存
       status:
         unknown: 未加载
@@ -1349,8 +1346,8 @@ pages:
         description: 登录后即可使用的服务来源
         speech-title: AIRI 官方语音合成服务
         speech-description: 登录后即可使用的发声单元服务
-        speech-streaming-title: AIRI 官方流式语音合成服务
-        speech-streaming-description: 双向流式低延迟的语音合成服务，登录后即可使用
+        speech-streaming-title: Official Streaming Speech Provider
+        speech-streaming-description: Official low-latency text-to-speech provider by AIRI (bidirectional WebSocket).
         transcription-title: AIRI 官方语音识别服务
         transcription-description: 登录后即可使用的听觉单元服务
       transcriptions:
@@ -1628,6 +1625,35 @@ vrm:
   skybox:
     skybox-intensity: 天空盒光照强度
     skybox-specular-mix: 漫反射/镜面反射混合系数
+spine:
+  title: Spine Settings
+  scale-and-position:
+    title: Scale And Position
+    scale: Scale
+    x: X
+    'y': 'Y'
+  theme-color-from-model:
+    title: Extract colors from model
+    button-extract:
+      title: Extract
+  animation:
+    title: Animation
+    idle-animation: Idle Animation
+    mix-duration: Mix Duration (seconds)
+    speed: Animation Speed
+  variant:
+    title: Variant
+    current-variant: Active Variant
+  skin:
+    title: Skin
+    current-skin: Current Skin
+  rendering:
+    title: Rendering
+    max-fps: Maximum FPS
+    render-scale: Render Scale
+  fps:
+    options:
+      unlimited: Unlimited
 websocket-secure-enabled:
   title: 启用安全WebSocket (WSS)
   description: >-
