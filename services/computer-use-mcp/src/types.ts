@@ -300,6 +300,10 @@ export interface TerminalCommandResult {
   command: string
   stdout: string
   stderr: string
+  stdoutTruncated?: boolean
+  stderrTruncated?: boolean
+  stdoutOriginalLength?: number
+  stderrOriginalLength?: number
   exitCode: number
   effectiveCwd: string
   durationMs: number

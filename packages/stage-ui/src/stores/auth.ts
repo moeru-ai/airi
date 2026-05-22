@@ -151,13 +151,7 @@ export const useAuthStore = defineStore('auth', () => {
         return tokens.access_token
       }
       catch {
-        user.value = null
-        session.value = null
-        token.value = null
-        refreshToken.value = null
-        idToken.value = null
-        oidcClientId.value = null
-        tokenExpiry.value = null
+        clearAllAuthState()
         return null
       }
       finally {
@@ -176,6 +170,11 @@ export const useAuthStore = defineStore('auth', () => {
 
   function scheduleTokenRefresh(expiresInSeconds: number): void {
     stopRefreshTimer()
+    // Guard against missing/invalid lifetimes (e.g. token response omitted
+    // expires_in). useTimeoutFn with NaN/<=0 delay would fire immediately
+    // and spin a refresh loop — skip scheduling instead.
+    if (!Number.isFinite(expiresInSeconds) || expiresInSeconds <= 0)
+      return
     // Refresh at 80% of lifetime
     refreshDelayMs.value = expiresInSeconds * 0.8 * 1000
     startRefreshTimer()
@@ -212,8 +211,23 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  function clearOIDCState(): void {
+  /**
+   * Reset every auth-related field atomically.
+   *
+   * Use when: signing out, refresh fails, session is rejected by server, or
+   * persisted state is detected inconsistent.
+   *
+   * Why atomic: `refreshToken` and `oidcClientId` must either both exist or
+   * both be absent. A "half-cleared" state (one present, one null) makes
+   * `refreshTokenNow()` early-return without attempting refresh, so 401s
+   * loop silently until the user lands on a page that calls fetchSession.
+   */
+  function clearAllAuthState(): void {
     stopRefreshTimer()
+    user.value = null
+    session.value = null
+    token.value = null
+    refreshToken.value = null
     oidcClientId.value = null
     tokenExpiry.value = null
     idToken.value = null
@@ -260,7 +274,7 @@ export const useAuthStore = defineStore('auth', () => {
     scheduleTokenRefresh,
     restoreRefreshSchedule,
     refreshTokenNow,
-    clearOIDCState,
+    clearAllAuthState,
     onTokenRefreshed,
   }
 })

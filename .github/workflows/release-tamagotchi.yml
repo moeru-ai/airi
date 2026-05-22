@@ -122,6 +122,12 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           run_install: false
+
+      - name: Install macOS System Dependencies for node-canvas
+        if: runner.os == 'macOS'
+        run: |
+          brew install pkg-config cairo pango jpeg giflib librsvg
+
       - uses: actions/setup-node@v6
         with:
           node-version: lts/*
@@ -133,6 +139,42 @@ jobs:
       # ---------
 
       - run: pnpm run build:packages
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Setup Godot
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: '4.6.2' 
+          use-dotnet: true
+          include-templates: true
+
+      - name: Export Godot Stage (Windows)
+        if: matrix.os == 'windows-latest'
+        working-directory: ./engines/stage-tamagotchi-godot
+        shell: bash
+        run: |
+          mkdir -p build/win
+          godot --headless --export-release "Windows Desktop" build/win/godot-stage.exe
+
+      - name: Export Godot Stage (macOS)
+        if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-26'
+        working-directory: ./engines/stage-tamagotchi-godot
+        shell: bash
+        run: |
+          mkdir -p build/mac
+          godot --headless --export-release "macOS" build/mac/godot-stage.app
+
+      - name: Export Godot Stage (Linux)
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
+        working-directory: ./engines/stage-tamagotchi-godot
+        shell: bash
+        run: |
+          mkdir -p build/linux
+          godot --headless --export-release "Linux ${{ matrix.arch }}" build/linux/godot-stage
 
       - name: Build (Windows Only) # Windows
         if: matrix.os == 'windows-latest'
@@ -530,6 +572,30 @@ jobs:
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.flatpak
             apps/stage-tamagotchi/bundle/latest-*.yml
           append_body: true
+
+  publish-gitcode-release:
+    name: Publish GitCode Release Mirror
+    needs: build
+    if: ${{ always() && github.repository == 'moeru-ai/airi' && (github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && !inputs.build_only && !inputs.artifacts_only && inputs.tag != '')) }}
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate release mirror tools
+        run: |
+          gh --version
+          jq --version
+          curl --version
+
+      - name: Publish release assets to GitCode
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
+          GITCODE_OWNER: ${{ secrets.GITCODE_OWNER }}
+          GITCODE_REPO: ${{ secrets.GITCODE_REPO }}
+          GITCODE_RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: bash .github/scripts/publish-gitcode-release.sh
 
   publish-distribution:
     name: Publish Distribution

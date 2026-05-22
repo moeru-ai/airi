@@ -2,28 +2,32 @@
 import { useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle, DialogTrigger, VisuallyHidden } from 'reka-ui'
 import { DrawerContent, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot, DrawerTrigger } from 'vaul-vue'
-import { onMounted } from 'vue'
+import { onMounted, watch } from 'vue'
 
 import HearingConfig from './hearing-config.vue'
 
+import { useAudioDevice } from '../../../../composables'
 import { useBreakpoints } from '../../../../composables/use-breakpoints'
 
 const props = defineProps<{
   overlayDim?: boolean
   overlayBlur?: boolean
   granted?: boolean
-  audioInputs?: MediaDeviceInfo[]
-  volumeLevel?: number
+  transcription?: boolean
+  toggleTranscription?: () => void
 }>()
 
 const showDialog = defineModel('show', { type: Boolean, default: false, required: false })
-const selectedAudioInput = defineModel<string>('selectedAudioInput')
-const enabled = defineModel<boolean>('enabled', { default: false })
 
 const { isDesktop } = useBreakpoints()
+const { askPermission } = useAudioDevice()
 const screenSafeArea = useScreenSafeArea()
 
 useResizeObserver(document.documentElement, () => screenSafeArea.update())
+watch(showDialog, (show) => {
+  if (show)
+    askPermission()
+})
 onMounted(() => screenSafeArea.update())
 </script>
 
@@ -45,11 +49,8 @@ onMounted(() => screenSafeArea.update())
           <DialogTitle>Hearing Input</DialogTitle>
         </VisuallyHidden>
         <HearingConfig
-          v-model:enabled="enabled"
-          v-model:selected-audio-input="selectedAudioInput"
-          :audio-inputs="props.audioInputs"
-          :granted="props.granted"
-          :volume-level="props.volumeLevel"
+          :granted="props.granted" :transcription="props.transcription"
+          @toggle-transcription="() => toggleTranscription?.()"
         />
         <slot name="extra" />
       </DialogContent>
@@ -78,11 +79,9 @@ onMounted(() => screenSafeArea.update())
           ]"
         />
         <HearingConfig
-          v-model:enabled="enabled"
-          v-model:selected-audio-input="selectedAudioInput"
-          :audio-inputs="props.audioInputs"
           :granted="props.granted"
-          :volume-level="props.volumeLevel"
+          :transcription="props.transcription"
+          @toggle-transcription="() => toggleTranscription?.()"
         />
         <slot name="extra" />
       </DrawerContent>

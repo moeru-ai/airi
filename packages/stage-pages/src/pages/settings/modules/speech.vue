@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
+import { errorMessageFrom } from '@moeru/std'
 import {
   Alert,
   ErrorContainer,
@@ -190,7 +191,7 @@ async function generateTestSpeech() {
   }
   catch (error) {
     console.error('Error generating speech:', error)
-    errorMessage.value = error instanceof Error ? error.message : 'An unknown error occurred'
+    errorMessage.value = errorMessageFrom(error) || 'An unknown error occurred'
   }
   finally {
     isGenerating.value = false
@@ -258,166 +259,163 @@ function handleDeleteProvider(providerId: string) {
 <template>
   <div flex="~ col md:row gap-6">
     <div bg="neutral-100 dark:[rgba(0,0,0,0.3)]" rounded-xl p-4 flex="~ col gap-4" class="h-fit w-full md:w-[40%]">
-      <div>
-        <div flex="~ col gap-4">
-          <div>
-            <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
-              {{ t('settings.pages.modules.speech.sections.section.provider-voice-selection.title') }}
-            </h2>
-            <div text="neutral-400 dark:neutral-500">
-              <span>{{ t('settings.pages.modules.speech.sections.section.provider-voice-selection.description') }}</span>
-            </div>
-          </div>
-          <div max-w-full>
-            <fieldset
-              v-if="configuredSpeechProvidersMetadata.length > 0" flex="~ row gap-4"
-              min-w-0 of-x-auto scroll-smooth role="radiogroup"
-            >
-              <RadioCardSimple
-                v-for="metadata in configuredSpeechProvidersMetadata"
-                :id="metadata.id"
-                :key="metadata.id"
-                v-model="activeSpeechProvider"
-                name="speech-provider"
-                :value="metadata.id"
-                :title="metadata.localizedName || 'Unknown'"
-                :description="metadata.localizedDescription"
-                @click="trackProviderClick(metadata.id, 'speech')"
-              >
-                <template #topRight>
-                  <button
-                    v-if="metadata.id !== 'speech-noop' && !metadata.id.startsWith('official-provider')"
-                    type="button"
-                    class="rounded bg-neutral-100 p-1 text-neutral-600 transition-colors dark:bg-neutral-800/60 hover:bg-neutral-200 dark:text-neutral-300 dark:hover:bg-neutral-700/60"
-                    @click.stop.prevent="handleDeleteProvider(metadata.id)"
-                  >
-                    <div i-solar:trash-bin-trash-bold-duotone class="text-base" />
-                  </button>
-                </template>
-              </RadioCardSimple>
-              <RouterLink
-                to="/settings/providers#speech"
-                border="2px solid"
-                class="border-neutral-100 bg-white dark:border-neutral-900 hover:border-primary-500/30 dark:bg-neutral-900/20 dark:hover:border-primary-400/30"
-                flex="~ col items-center justify-center"
-                transition="all duration-200 ease-in-out"
-                relative min-w-50 w-fit rounded-xl p-4
-              >
-                <div i-solar:add-circle-line-duotone class="text-2xl text-neutral-500 dark:text-neutral-500" />
-                <div
-                  class="bg-dotted-neutral-200/80 dark:bg-dotted-neutral-700/50"
-                  absolute inset-0 z--1
-                  style="background-size: 10px 10px; mask-image: linear-gradient(165deg, white 30%, transparent 50%);"
-                />
-              </RouterLink>
-            </fieldset>
-            <div v-else>
-              <RouterLink
-                class="flex items-center gap-3 rounded-lg p-4" border="2 dashed neutral-200 dark:neutral-800"
-                bg="neutral-50 dark:neutral-800" transition="colors duration-200 ease-in-out" to="/settings/providers"
-              >
-                <div i-solar:warning-circle-line-duotone class="text-2xl text-amber-500 dark:text-amber-400" />
-                <div class="flex flex-col">
-                  <span class="font-medium">No Speech Providers Configured</span>
-                  <span class="text-sm text-neutral-400 dark:text-neutral-500">Click here to set up your speech
-                    providers</span>
-                </div>
-                <div i-solar:arrow-right-line-duotone class="ml-auto text-xl text-neutral-400 dark:text-neutral-500" />
-              </RouterLink>
-            </div>
+      <div flex="~ col gap-4">
+        <div>
+          <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
+            {{ t('settings.pages.modules.speech.sections.section.provider-voice-selection.title') }}
+          </h2>
+          <div text="neutral-400 dark:neutral-500">
+            <span>{{ t('settings.pages.modules.speech.sections.section.provider-voice-selection.description') }}</span>
           </div>
         </div>
-        <div>
-          <!-- Model selection section -->
-          <div v-if="activeSpeechProvider && activeSpeechProvider !== 'speech-noop'">
-            <div flex="~ col gap-4">
-              <div>
-                <h2 class="text-lg md:text-2xl">
-                  {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.title') }}
-                </h2>
-                <div class="flex flex-col items-start gap-1 text-neutral-400 md:flex-row md:items-center md:justify-between dark:text-neutral-400">
-                  <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.subtitle') }}</span>
-                  <span v-if="activeSpeechModel" class="text-sm text-neutral-400 font-medium dark:text-neutral-400">{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.current_model_label') }} {{ activeSpeechModel }}</span>
-                </div>
+        <div max-w-full>
+          <fieldset
+            v-if="configuredSpeechProvidersMetadata.length > 0" flex="~ row gap-4"
+            min-w-0 of-x-auto scroll-smooth role="radiogroup"
+          >
+            <RadioCardSimple
+              v-for="metadata in configuredSpeechProvidersMetadata"
+              :id="metadata.id"
+              :key="metadata.id"
+              v-model="activeSpeechProvider"
+              name="speech-provider"
+              :value="metadata.id"
+              :title="metadata.localizedName || 'Unknown'"
+              :description="metadata.localizedDescription"
+              @click="trackProviderClick(metadata.id, 'speech')"
+            >
+              <template #topRight>
+                <button
+                  v-if="metadata.id !== 'speech-noop' && !metadata.id.startsWith('official-provider')"
+                  type="button"
+                  class="rounded bg-neutral-100 p-1 text-neutral-600 transition-colors dark:bg-neutral-800/60 hover:bg-neutral-200 dark:text-neutral-300 dark:hover:bg-neutral-700/60"
+                  @click.stop.prevent="handleDeleteProvider(metadata.id)"
+                >
+                  <div i-solar:trash-bin-trash-bold-duotone class="text-base" />
+                </button>
+              </template>
+            </RadioCardSimple>
+            <RouterLink
+              to="/settings/providers#speech"
+              border="2px solid"
+              class="border-neutral-100 bg-white dark:border-neutral-900 hover:border-primary-500/30 dark:bg-neutral-900/20 dark:hover:border-primary-400/30"
+              flex="~ col items-center justify-center"
+              transition="all duration-200 ease-in-out"
+              relative min-w-50 w-fit rounded-xl p-4
+            >
+              <div i-solar:add-circle-line-duotone class="text-2xl text-neutral-500 dark:text-neutral-500" />
+              <div
+                class="bg-dotted-neutral-200/80 dark:bg-dotted-neutral-700/50"
+                absolute inset-0 z--1
+                style="background-size: 10px 10px; mask-image: linear-gradient(165deg, white 30%, transparent 50%);"
+              />
+            </RouterLink>
+          </fieldset>
+          <div v-else>
+            <RouterLink
+              class="flex items-center gap-3 rounded-lg p-4" border="2 dashed neutral-200 dark:neutral-800"
+              bg="neutral-50 dark:neutral-800" transition="colors duration-200 ease-in-out" to="/settings/providers"
+            >
+              <div i-solar:warning-circle-line-duotone class="text-2xl text-amber-500 dark:text-amber-400" />
+              <div class="flex flex-col">
+                <span class="font-medium">No Speech Providers Configured</span>
+                <span class="text-sm text-neutral-400 dark:text-neutral-500">Click here to set up your speech
+                  providers</span>
               </div>
+              <div i-solar:arrow-right-line-duotone class="ml-auto text-xl text-neutral-400 dark:text-neutral-500" />
+            </RouterLink>
+          </div>
+        </div>
+      </div>
 
-              <!-- Manual input for OpenAI Compatible -->
-              <div v-if="activeSpeechProvider === 'openai-compatible-audio-speech'">
-                <FieldInput
-                  :model-value="activeSpeechModel || ''"
-                  label="Model"
-                  description="Enter the TTS model to use for speech generation"
-                  placeholder="tts-1"
-                  @update:model-value="updateCustomModelName"
-                />
-              </div>
-
-              <!-- Model listing for other providers -->
-              <div v-else-if="supportsModelListing">
-                <!-- Loading state -->
-                <div v-if="isLoadingActiveProviderModels" class="flex items-center justify-center py-4">
-                  <div class="mr-2 animate-spin">
-                    <div i-solar:spinner-line-duotone text-xl />
-                  </div>
-                  <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.loading') }}</span>
-                </div>
-
-                <!-- Error state -->
-                <template v-else-if="activeProviderModelError">
-                  <ErrorContainer
-                    :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
-                    :error="activeProviderModelError"
-                  />
-
-                  <FieldInput
-                    :model-value="activeSpeechModel || ''"
-                    label="Model"
-                    description="Enter model name manually if model discovery fails"
-                    :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
-                    @update:model-value="updateCustomModelName"
-                  />
-                </template>
-
-                <!-- No models available -->
-                <template v-else-if="providerModels.length === 0 && !isLoadingActiveProviderModels">
-                  <Alert type="warning">
-                    <template #title>
-                      {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models') }}
-                    </template>
-                    <template #content>
-                      {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}
-                    </template>
-                  </Alert>
-
-                  <FieldInput
-                    :model-value="activeSpeechModel || ''"
-                    label="Model"
-                    description="Enter model name manually when no models are returned"
-                    :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
-                    @update:model-value="updateCustomModelName"
-                  />
-                </template>
-
-                <!-- Using the new RadioCardManySelect component -->
-                <template v-else-if="providerModels.length > 0">
-                  <RadioCardManySelect
-                    v-model="activeSpeechModel"
-                    v-model:search-query="modelSearchQuery"
-                    :items="providerModels"
-                    :searchable="true"
-                    :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
-                    :search-no-results-title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results')"
-                    :search-no-results-description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results_description', { query: modelSearchQuery })"
-                    :search-results-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_results', { count: '{count}', total: '{total}' })"
-                    :custom-input-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.custom_model_placeholder')"
-                    :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
-                    :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
-                    expanded-class="mb-12"
-                    @update:custom-value="updateCustomModelName"
-                  />
-                </template>
-              </div>
+      <!-- Model selection section -->
+      <div v-if="activeSpeechProvider && activeSpeechProvider !== 'speech-noop'">
+        <div flex="~ col gap-4">
+          <div>
+            <h2 class="text-lg md:text-2xl">
+              {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.title') }}
+            </h2>
+            <div class="flex flex-col items-start gap-1 text-neutral-400 md:flex-row md:items-center md:justify-between dark:text-neutral-400">
+              <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.subtitle') }}</span>
+              <span v-if="activeSpeechModel" class="text-sm text-neutral-400 font-medium dark:text-neutral-400">{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.current_model_label') }} {{ activeSpeechModel }}</span>
             </div>
+          </div>
+
+          <!-- Manual input for OpenAI Compatible -->
+          <div v-if="activeSpeechProvider === 'openai-compatible-audio-speech'">
+            <FieldInput
+              :model-value="activeSpeechModel || ''"
+              label="Model"
+              description="Enter the TTS model to use for speech generation"
+              placeholder="tts-1"
+              @update:model-value="updateCustomModelName"
+            />
+          </div>
+
+          <!-- Model listing for other providers -->
+          <div v-else-if="supportsModelListing" class="flex flex-col gap-4">
+            <!-- Loading state -->
+            <div v-if="isLoadingActiveProviderModels" class="flex items-center justify-center py-4">
+              <div class="mr-2 animate-spin">
+                <div i-solar:spinner-line-duotone text-xl />
+              </div>
+              <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.loading') }}</span>
+            </div>
+
+            <!-- Error state -->
+            <template v-else-if="activeProviderModelError">
+              <ErrorContainer
+                :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
+                :error="activeProviderModelError"
+              />
+
+              <FieldInput
+                :model-value="activeSpeechModel || ''"
+                label="Model"
+                description="Enter model name manually if model discovery fails"
+                :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
+                @update:model-value="updateCustomModelName"
+              />
+            </template>
+
+            <!-- No models available -->
+            <template v-else-if="providerModels.length === 0 && !isLoadingActiveProviderModels">
+              <Alert type="warning">
+                <template #title>
+                  {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models') }}
+                </template>
+                <template #content>
+                  {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}
+                </template>
+              </Alert>
+
+              <FieldInput
+                :model-value="activeSpeechModel || ''"
+                label="Model"
+                description="Enter model name manually when no models are returned"
+                :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
+                @update:model-value="updateCustomModelName"
+              />
+            </template>
+
+            <!-- Using the new RadioCardManySelect component -->
+            <template v-else-if="providerModels.length > 0">
+              <RadioCardManySelect
+                v-model="activeSpeechModel"
+                v-model:search-query="modelSearchQuery"
+                :items="providerModels"
+                :searchable="true"
+                :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
+                :search-no-results-title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results')"
+                :search-no-results-description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results_description', { query: modelSearchQuery })"
+                :search-results-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_results', { count: '{count}', total: '{total}' })"
+                :custom-input-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.custom_model_placeholder')"
+                :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
+                :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
+                expanded-class="mb-12"
+                @update:custom-value="updateCustomModelName"
+              />
+            </template>
           </div>
         </div>
       </div>

@@ -869,10 +869,13 @@ describe('setupPluginHost', () => {
       expect.objectContaining({ id: 'play_chess' }),
       expect.objectContaining({ id: 'end_play_chess' }),
     ])
-    await expect(invokeListXsaiTools()).resolves.toEqual([
-      expect.objectContaining({ name: 'play_chess' }),
-      expect.objectContaining({ name: 'end_play_chess' }),
-    ])
+    await expect(invokeListXsaiTools()).resolves.toEqual({
+      prompts: [],
+      tools: [
+        expect.objectContaining({ name: 'play_chess' }),
+        expect.objectContaining({ name: 'end_play_chess' }),
+      ],
+    })
     await expect(invokePluginTool({
       ownerPluginId: session.identity.plugin.id,
       name: 'play_chess',

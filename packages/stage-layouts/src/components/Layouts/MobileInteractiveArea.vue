@@ -2,8 +2,10 @@
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 
+import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { ChatHistory, HearingConfigDialog } from '@proj-airi/stage-ui/components'
+import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
@@ -25,10 +27,10 @@ import ViewControls from '../Layouts/InteractiveArea/Actions/ViewControls.vue'
 import IndicatorMicVolume from '../Widgets/IndicatorMicVolume.vue'
 import ActionAbout from './InteractiveArea/Actions/About.vue'
 
+import { useTranscriptions } from '../../composables/use-transcriptions'
 import { BackgroundDialogPicker } from '../Backgrounds'
 
 const { isDark, toggleDark } = useTheme()
-const hearingDialogOpen = ref(false)
 const chatOrchestrator = useChatOrchestratorStore()
 const chatSession = useChatSessionStore()
 const chatStream = useChatStreamStore()
@@ -45,6 +47,7 @@ function handleDeleteMessage(index: number) {
 const messageInput = ref('')
 const isComposing = ref(false)
 const backgroundDialogOpen = ref(false)
+const sessionsDrawerOpen = ref(false)
 
 const screenSafeArea = useScreenSafeArea()
 const providersStore = useProvidersStore()
@@ -55,16 +58,25 @@ const { themeColorsHueDynamic } = storeToRefs(useSettings())
 const { viewControlsEnabled: l2dViewCtrlEnabled } = useL2dViewControl()
 const { viewControlsEnabled: threeViewCtrlEnabled } = useThreeViewControl()
 const settingsAudioDevice = useSettingsAudioDevice()
-const { enabled, selectedAudioInput, stream, audioInputs } = storeToRefs(settingsAudioDevice)
+const { enabled, stream } = storeToRefs(settingsAudioDevice)
 const { ingest, onAfterMessageComposed } = chatOrchestrator
 const { t } = useI18n()
 const { audioContext } = useAudioContext()
-const { startAnalyzer, stopAnalyzer, volumeLevel } = useAudioAnalyzer()
+const { startAnalyzer, stopAnalyzer } = useAudioAnalyzer()
 let analyzerSource: MediaStreamAudioSourceNode | undefined
 
 function isMobileDevice() {
   return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 }
+
+const { isListening, startStreamingTranscription, stopStreamingTranscription } = useTranscriptions(
+  {
+    messageInputRef: messageInput,
+    sendMessage: handleSend,
+    isStageTamagotchi,
+  },
+)
+const toggleTranscription = () => isListening.value ? stopStreamingTranscription() : startStreamingTranscription()
 
 async function handleSubmit() {
   if (!isMobileDevice()) {
@@ -103,14 +115,14 @@ function teardownAnalyzer() {
   try {
     analyzerSource?.disconnect()
   }
-  catch {}
+  catch { }
   analyzerSource = undefined
   stopAnalyzer()
 }
 
 async function setupAnalyzer() {
   teardownAnalyzer()
-  if (!hearingDialogOpen.value || !enabled.value || !stream.value)
+  if (!enabled.value || !stream.value)
     return
   if (audioContext.state === 'suspended')
     await audioContext.resume()
@@ -121,15 +133,9 @@ async function setupAnalyzer() {
   analyzerSource.connect(analyser)
 }
 
-watch([hearingDialogOpen, enabled, stream], () => {
+watch([enabled, stream], () => {
   setupAnalyzer()
 }, { immediate: true })
-
-watch(hearingDialogOpen, (value) => {
-  if (value) {
-    settingsAudioDevice.askPermission()
-  }
-})
 
 onAfterMessageComposed(async () => {
 })
@@ -173,12 +179,20 @@ onMounted(() => {
       <div translate-y="[-100%]" absolute right-0 px-3 pb-3 font-sans>
         <div flex="~ col" gap-1>
           <ActionAbout />
+          <button
+            border="2 solid neutral-100/60 dark:neutral-800/30"
+            bg="neutral-50/70 dark:neutral-800/70"
+            w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md
+            title="Conversations"
+            @click="sessionsDrawerOpen = true"
+          >
+            <div i-solar:chat-line-bold-duotone size-5 text="neutral-500 dark:neutral-400" />
+          </button>
+          <ChatSessionsDrawer v-model="sessionsDrawerOpen" />
           <HearingConfigDialog
-            v-model:show="hearingDialogOpen"
             v-model:enabled="enabled"
-            v-model:selected-audio-input="selectedAudioInput"
-            :audio-inputs="audioInputs"
-            :volume-level="volumeLevel"
+            :transcription="isListening"
+            :toggle-transcription="toggleTranscription"
             :granted="true"
           >
             <button
@@ -188,7 +202,7 @@ onMounted(() => {
               title="Hearing"
             >
               <Transition name="fade" mode="out-in">
-                <IndicatorMicVolume v-if="enabled" size-5 color-class="text-neutral-500 dark:text-neutral-400" />
+                <IndicatorMicVolume v-if="enabled" size-5 :color-class="isListening ? undefined : 'text-neutral-500 dark:text-neutral-400'" />
                 <div v-else i-solar:microphone-3-outline size-5 text="neutral-500 dark:neutral-400" />
               </Transition>
             </button>

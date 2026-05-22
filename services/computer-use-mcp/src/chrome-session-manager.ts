@@ -2,16 +2,18 @@
  * Chrome Session Manager — agent-owned Chrome window lifecycle.
  *
  * Responsibilities:
- * - Detect whether Chrome is already running
- * - Launch Chrome with CDP if not running
- * - Create a new window in existing Chrome
- * - Track window identity via PID
+ * - Launch a dedicated Chrome profile with CDP
+ * - Track the launched browser PID
  * - Bring agent window to front / restore user's previous foreground
  *
  * macOS only. Uses AppleScript and `open` CLI for Chrome lifecycle control.
  */
 
 import type { ChromeSessionInfo, ComputerUseConfig } from './types'
+
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { createServer } from 'node:net'
+import { join } from 'node:path'
 
 import { runProcess } from './utils/process'
 import { sleep } from './utils/sleep'
@@ -22,6 +24,7 @@ import { sleep } from './utils/sleep'
 
 const CHROME_APP_NAME = 'Google Chrome'
 const DEFAULT_CDP_PORT = 9222
+const DEFAULT_CDP_PORT_SCAN_ATTEMPTS = 20
 
 // ---------------------------------------------------------------------------
 // Public interface
@@ -31,19 +34,18 @@ export interface ChromeSessionManager {
   /**
    * Ensure the agent has a usable Chrome window.
    *
-   * - Chrome not running → launch with CDP flag + new window
-   * - Chrome running → create new window in existing instance
+   * - No active agent session → launch a dedicated Chrome profile with CDP
+   * - Existing agent session still has a live Chrome window → reuse it
    *
-   * Reuses the cached session only when the agent launched a dedicated Chrome
-   * instance itself. When joining an existing user-owned Chrome process, a
-   * fresh window must be created on every ensure because this module does not
-   * track a verifiable OS window handle for the agent tab/window.
+   * Human-owned Chrome instances are not reused. The agent always launches its
+   * own profile so browser-dom/CDP capture has a stable endpoint.
    */
   ensureAgentWindow: (options?: { url?: string, cdpPort?: number }) => Promise<ChromeSessionInfo>
 
   /**
    * Bring the agent's Chrome window to the foreground.
-   * Returns false if the tracked session is missing or Chrome is no longer running.
+   * Returns false if the tracked session is missing, Chrome is no longer
+   * running, or the tracked window is gone.
    */
   bringToFront: () => Promise<boolean>
 
@@ -74,6 +76,7 @@ export function createChromeSessionManager(
   let session: ChromeSessionInfo | null = null
   let previousForegroundApp: string | undefined
   const onSessionLost = options?.onSessionLost
+  let activeProfileDir: string | undefined
 
   // -- Helpers ------------------------------------------------------------
 
@@ -90,14 +93,108 @@ export function createChromeSessionManager(
     }
   }
 
-  async function getChromeMainPid(): Promise<number | undefined> {
+  async function isProcessAlive(pid: number): Promise<boolean> {
     try {
-      const { stdout } = await runProcess('pgrep', ['-x', 'Google Chrome'], {
+      const { stdout } = await runProcess('ps', ['-p', String(pid), '-o', 'pid='], {
         timeoutMs: config.timeoutMs,
       })
-      const pids = stdout.trim().split('\n').map(Number).filter(n => !Number.isNaN(n))
-      // The lowest PID is typically the main Chrome process
-      return pids.length > 0 ? Math.min(...pids) : undefined
+      return stdout.trim().length > 0
+    }
+    catch {
+      return false
+    }
+  }
+
+  async function hasChromeWindow(pid: number): Promise<boolean> {
+    try {
+      const { stdout } = await runProcess(config.binaries.osascript, [
+        '-e',
+        `tell application "System Events" to get count of windows of (first application process whose unix id is ${pid})`,
+      ], { timeoutMs: config.timeoutMs })
+      return Number.parseInt(stdout.trim(), 10) > 0
+    }
+    catch {
+      return false
+    }
+  }
+
+  async function terminateChromeProcess(pid: number): Promise<void> {
+    await runProcess('kill', ['-TERM', String(pid)], { timeoutMs: config.timeoutMs }).catch(() => {})
+    await sleep(250)
+
+    if (!await isProcessAlive(pid)) {
+      return
+    }
+
+    await runProcess('kill', ['-KILL', String(pid)], { timeoutMs: config.timeoutMs }).catch(() => {})
+    await sleep(250)
+
+    if (await isProcessAlive(pid)) {
+      throw new Error(`Failed to terminate stale Chrome process ${pid}`)
+    }
+  }
+
+  async function findAndTerminateChromeByProfile(profileDir: string, cdpPort: number): Promise<void> {
+    const pid = await getChromePidForProfile(profileDir, cdpPort)
+    if (!pid) {
+      return
+    }
+
+    await terminateChromeProcess(pid)
+  }
+
+  async function clearSessionState(): Promise<void> {
+    session = null
+    previousForegroundApp = undefined
+    if (activeProfileDir) {
+      const profileDir = activeProfileDir
+      activeProfileDir = undefined
+      await rm(profileDir, { recursive: true, force: true }).catch(() => {})
+      return
+    }
+    activeProfileDir = undefined
+  }
+
+  async function getChromePidForProfile(profileDir: string, cdpPort: number): Promise<number | undefined> {
+    try {
+      const { stdout } = await runProcess('ps', ['-axww', '-o', 'pid=,command='], {
+        timeoutMs: config.timeoutMs,
+      })
+      const matchingLine = stdout
+        .split('\n')
+        .map(line => line.trim())
+        .find(line =>
+          line.includes('/Contents/MacOS/Google Chrome')
+          && !line.includes('Helper')
+          && line.includes(`--user-data-dir=${profileDir}`)
+          && line.includes(`--remote-debugging-port=${cdpPort}`),
+        )
+
+      if (!matchingLine) {
+        return undefined
+      }
+
+      const pidText = matchingLine.split(/\s+/u)[0]
+      const pid = Number(pidText)
+      return Number.isFinite(pid) ? pid : undefined
+    }
+    catch {
+      return undefined
+    }
+  }
+
+  async function getTrackedChromePid(trackedSession: ChromeSessionInfo): Promise<number | undefined> {
+    if (!activeProfileDir || !trackedSession.cdpUrl) {
+      return undefined
+    }
+
+    try {
+      const cdpPort = Number.parseInt(new URL(trackedSession.cdpUrl).port, 10)
+      if (!Number.isFinite(cdpPort)) {
+        return undefined
+      }
+
+      return await getChromePidForProfile(activeProfileDir, cdpPort)
     }
     catch {
       return undefined
@@ -117,13 +214,49 @@ export function createChromeSessionManager(
     }
   }
 
-  async function launchChromeWithCdp(cdpPort: number, url?: string): Promise<void> {
+  async function canListenOnPort(port: number): Promise<boolean> {
+    return await new Promise<boolean>((resolvePromise) => {
+      const server = createServer()
+      server.once('error', () => {
+        resolvePromise(false)
+      })
+      server.listen(port, '127.0.0.1', () => {
+        server.close(() => resolvePromise(true))
+      })
+    })
+  }
+
+  async function resolveLaunchCdpPort(requestedPort: number, explicit: boolean): Promise<number> {
+    if (explicit) {
+      return requestedPort
+    }
+
+    for (let index = 0; index < DEFAULT_CDP_PORT_SCAN_ATTEMPTS; index += 1) {
+      const candidate = requestedPort + index
+      if (await canListenOnPort(candidate)) {
+        return candidate
+      }
+    }
+
+    throw new Error(`Could not find an available Chrome CDP port starting from ${requestedPort}`)
+  }
+
+  async function launchChromeWithCdp(cdpPort: number, profileDir: string, url?: string): Promise<void> {
+    // Chrome uses the user-data-dir root "First Run" sentinel to decide
+    // whether the branded first-run dialog should appear.
+    await writeFile(join(profileDir, 'First Run'), '').catch(() => {})
+
     const args = [
       '-na',
       CHROME_APP_NAME,
       '--args',
       '--new-window',
+      '--no-first-run',
+      '--no-default-browser-check',
+      '--disable-default-apps',
+      '--disable-features=ChromeWhatsNewUI',
       `--remote-debugging-port=${cdpPort}`,
+      `--user-data-dir=${profileDir}`,
     ]
     if (url) {
       args.push(url)
@@ -135,31 +268,6 @@ export function createChromeSessionManager(
 
     // Wait for Chrome to finish launching
     await sleep(2000)
-  }
-
-  async function createNewWindow(url?: string): Promise<void> {
-    // NOTICE: Pass the URL as an `osascript` argv value instead of interpolating
-    // it into the AppleScript source. `desktop_ensure_chrome` accepts arbitrary
-    // strings, so direct interpolation creates an AppleScript injection path when
-    // the URL contains quotes. The review report on PR #1649 correctly called this
-    // out as a P1 command-injection issue.
-    const script = url
-      ? `on run argv
-tell application "${CHROME_APP_NAME}" to make new window with properties {mode:"normal"}
-tell application "${CHROME_APP_NAME}" to set URL of active tab of front window to item 1 of argv
-end run`
-      : `tell application "${CHROME_APP_NAME}" to make new window`
-
-    const args = url
-      ? ['-e', script, '--', url]
-      : ['-e', script]
-
-    await runProcess(config.binaries.osascript, args, {
-      timeoutMs: config.timeoutMs,
-    })
-
-    // Brief delay for the window to appear
-    await sleep(500)
   }
 
   async function activateChrome(): Promise<void> {
@@ -185,68 +293,104 @@ end run`
 
   return {
     async ensureAgentWindow(options) {
-      // If we already have a session, only reuse it when the agent launched a
-      // dedicated Chrome instance. Joined sessions only cache process metadata,
-      // not a verifiable OS window handle, so blindly reusing them after the
-      // user closes that window would redirect later focus/click flows onto a
-      // different Chrome window.
+      let ensureOutcome: ChromeSessionInfo['ensureOutcome'] = 'launched'
+
       if (session) {
-        const stillRunning = await isChromeRunning()
-        if (stillRunning && !session.wasAlreadyRunning) {
-          return session
+        const trackedSession = session
+        const trackedChromePid = await getTrackedChromePid(trackedSession)
+
+        if (trackedChromePid === trackedSession.pid) {
+          const stillRunning = await isProcessAlive(trackedSession.pid)
+          const stillHasWindow = stillRunning && await hasChromeWindow(trackedSession.pid)
+          if (stillHasWindow) {
+            trackedSession.ensureOutcome = 'reused'
+            return trackedSession
+          }
+
+          try {
+            if (stillRunning) {
+              ensureOutcome = 'recreated_after_missing_window'
+              await terminateChromeProcess(trackedSession.pid)
+            }
+            else {
+              ensureOutcome = 'recreated_after_process_exit'
+            }
+          }
+          finally {
+            // Chrome died or the tracked window disappeared — clear stale session.
+            await clearSessionState()
+            onSessionLost?.()
+          }
         }
-        if (!stillRunning) {
-          // Chrome died — clear stale session.
+        else {
+          // The tracked PID no longer resolves to the expected Chrome profile.
+          // Treat it as stale and relaunch without touching that PID.
+          ensureOutcome = 'recreated_after_process_exit'
+          await clearSessionState()
           onSessionLost?.()
         }
-        session = null
       }
 
-      // Record the user's current foreground app before we steal focus
+      // Record the user's current foreground app before we steal focus.
       previousForegroundApp = await getCurrentForegroundApp()
 
-      const cdpPort = options?.cdpPort ?? DEFAULT_CDP_PORT
+      const cdpPort = await resolveLaunchCdpPort(
+        options?.cdpPort ?? DEFAULT_CDP_PORT,
+        options?.cdpPort !== undefined,
+      )
       const wasAlreadyRunning = await isChromeRunning()
+      await mkdir(config.sessionRoot, { recursive: true })
+      activeProfileDir = await mkdtemp(join(config.sessionRoot, 'chrome-profile-'))
 
-      if (wasAlreadyRunning) {
-        // Chrome is running — create a new window in the existing instance
-        await createNewWindow(options?.url)
+      try {
+        // Always launch a dedicated profile so CDP is stable even when Chrome is already running.
+        await launchChromeWithCdp(cdpPort, activeProfileDir, options?.url)
+
+        // Bring Chrome to front.
+        await activateChrome()
+        // Brief wait for activation.
+        await sleep(300)
+
+        const deadline = Date.now() + config.timeoutMs
+        let pid: number | undefined
+        while (Date.now() < deadline) {
+          pid = await getChromePidForProfile(activeProfileDir, cdpPort)
+          if (pid) {
+            break
+          }
+          await sleep(250)
+        }
+        if (!pid) {
+          throw new Error('Failed to get Chrome PID after launch')
+        }
+
+        session = {
+          ensureOutcome,
+          wasAlreadyRunning,
+          windowId: `${pid}:0:${CHROME_APP_NAME}`,
+          cdpUrl: `http://127.0.0.1:${cdpPort}`,
+          pid,
+          agentOwned: true,
+          initialUrl: options?.url,
+          createdAt: new Date().toISOString(),
+        }
+
+        return session
       }
-      else {
-        // Chrome not running — launch with CDP
-        await launchChromeWithCdp(cdpPort, options?.url)
+      catch (error) {
+        await findAndTerminateChromeByProfile(activeProfileDir, cdpPort)
+        await clearSessionState()
+        throw error
       }
-
-      // Bring Chrome to front
-      await activateChrome()
-      // Brief wait for activation
-      await sleep(300)
-
-      // Get the Chrome PID
-      const pid = await getChromeMainPid()
-      if (!pid) {
-        throw new Error('Failed to get Chrome PID after launch')
-      }
-
-      session = {
-        wasAlreadyRunning,
-        windowId: `${pid}:0:${CHROME_APP_NAME}`,
-        cdpUrl: wasAlreadyRunning ? undefined : `http://127.0.0.1:${cdpPort}`,
-        pid,
-        agentOwned: !wasAlreadyRunning,
-        initialUrl: options?.url,
-        createdAt: new Date().toISOString(),
-      }
-
-      return session
     },
 
     async bringToFront() {
       if (!session)
         return false
-      const stillRunning = await isChromeRunning()
-      if (!stillRunning) {
-        session = null
+      const stillRunning = await isProcessAlive(session.pid)
+      const stillHasWindow = stillRunning && await hasChromeWindow(session.pid)
+      if (!stillHasWindow) {
+        await clearSessionState()
         onSessionLost?.()
         return false
       }
@@ -266,8 +410,7 @@ end run`
 
     endSession() {
       const hadSession = session !== null
-      session = null
-      previousForegroundApp = undefined
+      void clearSessionState()
       if (hadSession) {
         onSessionLost?.()
       }

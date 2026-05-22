@@ -108,6 +108,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload to GitHub Releases
+        id: upload-github-release
         if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && !inputs.build_only) }}
         uses: softprops/action-gh-release@v2
         with:
@@ -124,3 +125,14 @@ jobs:
         run: butler push apps/stage-pocket/android/bundle/${{ env.APK_NAME }} nekomeowww/airi:android --userversion ${{ env.VERSION }}
         env:
           BUTLER_API_KEY: ${{ secrets.GAME_PUBLISHING_ITCHIO }}
+
+      - name: Publish release assets to GitCode
+        if: ${{ always() && github.repository == 'moeru-ai/airi' && steps.upload-github-release.outcome == 'success' && (github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && !inputs.build_only)) }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
+          GITCODE_OWNER: ${{ secrets.GITCODE_OWNER }}
+          GITCODE_REPO: ${{ secrets.GITCODE_REPO }}
+          GITCODE_RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: bash .github/scripts/publish-gitcode-release.sh

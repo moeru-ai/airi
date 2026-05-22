@@ -1,170 +1,198 @@
-import type { ProviderCatalogProvider } from '../database/repos/providers.repo'
+import type { Ref } from 'vue'
 
-import { nanoid } from 'nanoid'
+import type { InferenceServiceProvider } from '../models/inference-service-providers'
+import type { PatchConfigParams } from '../services/inference-service-providers'
+
+import { useMutation, useQuery, useQueryCache } from '@pinia/colada'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
 import { client } from '../composables/api'
-import { useLocalFirstRequest } from '../composables/use-local-first'
-import { providersRepo } from '../database/repos/providers.repo'
-import { getDefinedProvider, listProviders } from '../libs/providers/providers'
+import { inferenceServiceProvidersModel as model } from '../models/inference-service-providers'
+import { inferenceServiceProvidersService as service } from '../services/inference-service-providers'
 
-export const useProviderCatalogStore = defineStore('provider-catalog', () => {
-  const defs = computed(() => listProviders())
-  const configs = ref<Record<string, ProviderCatalogProvider>>({})
+interface StoreQuery<TData> {
+  error: Ref<Error | null>
+  isLoading: Ref<boolean>
+  refetch: (force?: boolean) => Promise<{ data?: TData }>
+}
+
+interface StoreMutation<TVars, TData> {
+  error: Ref<Error | null>
+  mutateAsync: (vars: TVars) => Promise<TData>
+}
+
+export function createProviderCatalogListQueryOptions(params: {
+  client: Parameters<typeof service.fetchRemote>[0]
+  model: Pick<typeof model, 'saveAll'>
+  service: Pick<typeof service, 'fetchRemote'>
+}) {
+  return {
+    key: ['inference-service-providers'],
+    query: async (context: { signal: AbortSignal }) => {
+      const remote = await params.service.fetchRemote(params.client, { abortSignal: context.signal })
+      await params.model.saveAll(remote, { abortSignal: context.signal })
+      return remote
+    },
+    enabled: false,
+  }
+}
+
+export function createProviderCatalogStoreController(params: {
+  addProviderMutation: StoreMutation<InferenceServiceProvider, InferenceServiceProvider>
+  commitProviderConfigMutation: StoreMutation<{ providerId: string, config: Record<string, unknown>, options: PatchConfigParams }, InferenceServiceProvider>
+  configs: Ref<Record<string, InferenceServiceProvider>>
+  model: typeof model
+  providersQuery: StoreQuery<Record<string, InferenceServiceProvider>>
+  removeProviderMutation: StoreMutation<string, void>
+  service: typeof service
+}) {
+  const {
+    addProviderMutation,
+    commitProviderConfigMutation,
+    configs,
+    model,
+    providersQuery,
+    removeProviderMutation,
+    service,
+  } = params
+  const defs = computed(() => service.listDefinitions())
+  const mutationError = computed(() =>
+    addProviderMutation.error.value
+    ?? removeProviderMutation.error.value
+    ?? commitProviderConfigMutation.error.value)
 
   async function fetchList() {
-    return useLocalFirstRequest({
-      local: async () => {
-        const cached = await providersRepo.getAll()
-        if (Object.keys(cached).length > 0) {
-          configs.value = cached
-        }
-      },
-      remote: async () => {
-        const res = await client.api.v1.providers.$get()
-        if (!res.ok) {
-          throw new Error('Failed to fetch providers')
-        }
-        const data = await res.json()
+    const cached = await model.list()
+    if (Object.keys(cached).length > 0)
+      configs.value = cached
 
-        const newConfigs: Record<string, ProviderCatalogProvider> = {}
-        for (const item of data) {
-          newConfigs[item.id] = {
-            id: item.id,
-            definitionId: item.definitionId,
-            name: item.name,
-            config: item.config as Record<string, any>,
-            validated: item.validated,
-            validationBypassed: item.validationBypassed,
-          }
-        }
-        configs.value = newConfigs
-        await providersRepo.saveAll(newConfigs)
-      },
-    })
+    try {
+      const state = await providersQuery.refetch(true)
+      if (state.data)
+        configs.value = state.data
+      return state.data ?? cached
+    }
+    catch {
+      return cached
+    }
   }
 
-  async function addProvider(definitionId: string, initialConfig: Record<string, any> = {}) {
-    const definition = getDefinedProvider(definitionId)
-    if (!definition) {
-      throw new Error(`Provider definition with id "${definitionId}" not found.`)
+  async function addProvider(definitionId: string, initialConfig: Record<string, unknown> = {}) {
+    const provider = service.buildLocal(definitionId, initialConfig)
+    configs.value[provider.id] = provider
+    await model.upsert(provider)
+
+    try {
+      const remote = await addProviderMutation.mutateAsync(provider)
+      delete configs.value[provider.id]
+      await model.remove(provider.id)
+      configs.value[remote.id] = remote
+      await model.upsert(remote)
+      return remote
     }
-
-    const id = nanoid()
-    const provider: ProviderCatalogProvider = {
-      id,
-      definitionId,
-      name: definition.name,
-      config: initialConfig,
-      validated: false,
-      validationBypassed: false,
+    catch {
+      return provider
     }
-
-    return useLocalFirstRequest<ProviderCatalogProvider>({
-      local: async () => {
-        configs.value[id] = provider
-        await providersRepo.upsert(provider)
-        return provider
-      },
-      remote: async () => {
-        const res = await client.api.v1.providers.$post({
-          json: {
-            id,
-            definitionId,
-            name: provider.name,
-            config: provider.config,
-            validated: provider.validated,
-            validationBypassed: provider.validationBypassed,
-          },
-        })
-        if (!res.ok) {
-          throw new Error('Failed to add provider')
-        }
-        const item = await res.json() as ProviderCatalogProvider
-        const finalProvider: ProviderCatalogProvider = {
-          id: item.id,
-          definitionId: item.definitionId,
-          name: item.name,
-          config: item.config as Record<string, any>,
-          validated: item.validated,
-          validationBypassed: item.validationBypassed,
-        }
-
-        configs.value[item.id] = finalProvider
-        await providersRepo.upsert(finalProvider)
-        return item
-      },
-    })
   }
 
   async function removeProvider(providerId: string) {
-    if (!configs.value[providerId]) {
+    if (!configs.value[providerId])
       return
-    }
 
-    return useLocalFirstRequest({
-      local: async () => {
-        delete configs.value[providerId]
-        await providersRepo.remove(providerId)
-      },
-      remote: async () => {
-        const res = await client.api.v1.providers[':id'].$delete({
-          param: { id: providerId },
-        })
-        if (!res.ok) {
-          throw new Error('Failed to remove provider')
-        }
-      },
-    })
+    delete configs.value[providerId]
+    await model.remove(providerId)
+
+    try {
+      await removeProviderMutation.mutateAsync(providerId)
+    }
+    catch {
+      // Keep current local-first behavior: local removal is retained on remote failure.
+    }
   }
 
-  async function commitProviderConfig(providerId: string, newConfig: Record<string, any>, options: { validated: boolean, validationBypassed: boolean }) {
+  async function commitProviderConfig(providerId: string, newConfig: Record<string, unknown>, options: PatchConfigParams) {
     const provider = configs.value[providerId]
-    if (!provider) {
+    if (!provider)
       return
-    }
 
-    return useLocalFirstRequest<ProviderCatalogProvider>({
-      local: async () => {
-        provider.config = { ...newConfig }
-        provider.validated = options.validated
-        provider.validationBypassed = options.validationBypassed
-        await providersRepo.upsert(provider)
-        return provider
-      },
-      remote: async () => {
-        const res = await client.api.v1.providers[':id'].$patch({
-          param: { id: providerId },
-          // @ts-expect-error hono client typing misses json option for this route
-          json: {
-            config: newConfig,
-            validated: options.validated,
-            validationBypassed: options.validationBypassed,
-          },
-        })
-        if (!res.ok) {
-          throw new Error('Failed to update provider config')
-        }
-        const item = await res.json() as ProviderCatalogProvider
-        // Sync with server response just in case
-        provider.config = { ...item.config }
-        provider.validated = item.validated
-        provider.validationBypassed = item.validationBypassed
-        await providersRepo.upsert(provider)
-        return provider
-      },
-    })
+    const localProvider = {
+      ...provider,
+      config: { ...newConfig },
+      validated: options.validated,
+      validationBypassed: options.validationBypassed,
+    }
+    configs.value[providerId] = localProvider
+    await model.upsert(localProvider)
+
+    try {
+      const remote = await commitProviderConfigMutation.mutateAsync({ providerId, config: newConfig, options })
+      configs.value[remote.id] = remote
+      await model.upsert(remote)
+      return remote
+    }
+    catch {
+      return localProvider
+    }
   }
 
   return {
     configs,
     defs,
-    getDefinedProvider,
+    getDefinedProvider: service.getDefinition,
+    isLoading: computed(() => providersQuery.isLoading.value),
+    error: computed(() => providersQuery.error.value),
+    mutationError,
 
     fetchList,
     addProvider,
     removeProvider,
     commitProviderConfig,
   }
+}
+
+export const useProviderCatalogStore = defineStore('provider-catalog', () => {
+  const queryCache = useQueryCache()
+  const configs = ref<Record<string, InferenceServiceProvider>>({})
+
+  const providersQuery = useQuery(createProviderCatalogListQueryOptions({
+    client,
+    model,
+    service,
+  }))
+
+  const addProviderMutation = useMutation({
+    mutation: async (provider: InferenceServiceProvider) => service.createRemote(client, provider),
+    async onSettled() {
+      await queryCache.invalidateQueries({ key: ['inference-service-providers'] })
+    },
+  })
+
+  const removeProviderMutation = useMutation({
+    mutation: async (providerId: string) => service.deleteRemote(client, providerId),
+    async onSettled() {
+      await queryCache.invalidateQueries({ key: ['inference-service-providers'] })
+    },
+  })
+
+  const commitProviderConfigMutation = useMutation({
+    mutation: async (payload: {
+      providerId: string
+      config: Record<string, unknown>
+      options: PatchConfigParams
+    }) => service.patchConfigRemote(client, payload.providerId, payload.config, payload.options),
+    async onSettled() {
+      await queryCache.invalidateQueries({ key: ['inference-service-providers'] })
+    },
+  })
+
+  return createProviderCatalogStoreController({
+    addProviderMutation,
+    commitProviderConfigMutation,
+    configs,
+    model,
+    providersQuery,
+    removeProviderMutation,
+    service,
+  })
 })

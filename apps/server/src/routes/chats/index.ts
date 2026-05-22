@@ -1,4 +1,4 @@
-import type { ChatService } from '../../services/chats'
+import type { ChatService } from '../../services/domain/chats'
 import type { HonoEnv } from '../../types/hono'
 
 import { Hono } from 'hono'

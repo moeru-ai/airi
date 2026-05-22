@@ -18,12 +18,24 @@ import type { OverlayState } from './desktop-overlay-polling'
 
 import { electron } from '@proj-airi/electron-eventa'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { getMcpToolBridge } from '@proj-airi/stage-ui/stores/mcp-tool-bridge'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
-import { getDesktopOverlayReadinessContract } from '../../shared/eventa'
+import { electronMcpApplyAndRestart, electronMcpCallTool, electronMcpGetRuntimeStatus, electronMcpListTools, getDesktopOverlayReadinessContract } from '../../shared/eventa'
 import { pointInOverlay, rectIntersectsOverlay, screenRectToLocal, screenToLocal } from './desktop-overlay-coordinates'
-import { createEmptyOverlayState, createOverlayPollController } from './desktop-overlay-polling'
+import { createEmptyOverlayState, createOverlayPollController, formatOverlayPollHeartbeat, isOverlayPollHeartbeatEnabled } from './desktop-overlay-polling'
+
+declare global {
+  interface Window {
+    __AIRI_DESKTOP_OVERLAY_SMOKE__?: {
+      applyAndRestartMcp: () => Promise<unknown>
+      callMcpTool: (payload: { name: string, arguments?: Record<string, unknown> }) => Promise<unknown>
+      getMcpRuntimeStatus: () => Promise<unknown>
+      getOverlayState: () => OverlayState
+      getReadiness: () => Promise<{ state: 'booting' | 'ready' | 'degraded', error?: string }>
+      listMcpTools: () => Promise<unknown>
+    }
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Overlay window bounds — read once on mount from main process
@@ -31,7 +43,12 @@ import { createEmptyOverlayState, createOverlayPollController } from './desktop-
 
 const getWindowBounds = useElectronEventaInvoke(electron.window.getBounds)
 const getReadiness = useElectronEventaInvoke(getDesktopOverlayReadinessContract)
+const applyAndRestartMcp = useElectronEventaInvoke(electronMcpApplyAndRestart)
+const callMcpTool = useElectronEventaInvoke(electronMcpCallTool)
+const getMcpRuntimeStatus = useElectronEventaInvoke(electronMcpGetRuntimeStatus)
+const listMcpTools = useElectronEventaInvoke(electronMcpListTools)
 const overlayBounds = ref<Rect | null>(null)
+const pollHeartbeatEnabled = isOverlayPollHeartbeatEnabled()
 
 // ---------------------------------------------------------------------------
 // Reactive state — single ref driven by poll controller
@@ -71,21 +88,15 @@ const matchedCandidate = computed(() => {
 // Polling controller
 // ---------------------------------------------------------------------------
 
-let bridgeAvailable = false
-
 const controller = createOverlayPollController({
-  callTool: async (name) => {
-    // Probe bridge availability lazily
-    if (!bridgeAvailable) {
-      getMcpToolBridge() // Throws if not set
-      bridgeAvailable = true
-    }
-    return getMcpToolBridge().callTool({ name })
-  },
+  callTool: name => callMcpTool({ name }),
   getReadiness: async () => getReadiness(),
   onState: (newState) => {
     state.value = newState
   },
+  onHeartbeat: pollHeartbeatEnabled
+    ? heartbeat => console.info(formatOverlayPollHeartbeat(heartbeat))
+    : undefined,
 })
 
 // ---------------------------------------------------------------------------
@@ -199,11 +210,23 @@ onMounted(async () => {
     }
   }
 
+  if (pollHeartbeatEnabled) {
+    window.__AIRI_DESKTOP_OVERLAY_SMOKE__ = {
+      applyAndRestartMcp,
+      callMcpTool,
+      getMcpRuntimeStatus,
+      getOverlayState: () => state.value,
+      getReadiness,
+      listMcpTools,
+    }
+  }
+
   controller.start()
 })
 
 onUnmounted(() => {
   controller.stop()
+  delete window.__AIRI_DESKTOP_OVERLAY_SMOKE__
 })
 </script>
 

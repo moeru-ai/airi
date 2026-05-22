@@ -6,7 +6,7 @@ import { beforeAll, describe, expect, it } from 'vitest'
 
 import { createProviderRoutes } from '.'
 import { mockDB } from '../../libs/mock-db'
-import { createProviderService } from '../../services/providers'
+import { createProviderService } from '../../services/domain/providers'
 import { ApiError } from '../../utils/error'
 
 import * as schema from '../../schemas'

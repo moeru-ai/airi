@@ -105,6 +105,20 @@ analytics:
     description: この機能を無効にすると、分析データの収集をオプトアウトできます。
   disabled:
     title: この開発ビルドでは分析が無効になっています
+model-select:
+  panel-callout:
+    support-status-header: We support both 2D and 3D models
+    support-status: >
+      Click {select-button} to select or import models. Currently, {zip} (for Live2D models) and {vrm} (for VRM models) are supported.
+    model-type-example: >
+      Neuro-sama uses 2D model driven by framework developed by Live2D Inc, while Grok Ani (in Grok Companion) uses 3D model driven by VRM / MMD open formats.
+  select-model:
+    title: Model Selector
+    button: Select model
+    select: Pick
+    import: Import
+    remove: Remove
+    confirm: Confirm
 live2d:
   change-model:
     from-file: ファイルから読み込む
@@ -129,19 +143,63 @@ live2d:
     change-to-vrm: 3Dアバター設定 (VRM) に切り替えるにはここをクリック
   theme-color-from-model:
     title: モデルから色を抽出
+    description: >
+      Extract prominent colors from current rendering canvas. Click on the color to apply it to AIRI. Try to extract multiple times, with the model in different poses, if the colors are not desirable.
     button-extract:
       title: 抽出
-  focus:
-    title: モデルのマウストラッキングを無効にする
-    button-disable:
-      title: モデルのマウストラッキングを無効にする
-  render-scale:
-    title: レンダリングスケール
-  fps:
-    title: FPS
-    description: レンダリングフレームレートを制限
-    options:
-      unlimited: '∞'
+  animation:
+    title: Animation
+    focus:
+      title: Enable mouse tracking
+      description: Look at the cursor while it is moving. Idle eye movement resumes after the cursor stops.
+      offset: Eye offset(%)
+    force-idle-eye-animation:
+      title: Idle eye movement
+      description: Randomly look around when there is no active cursor focus.
+    blink-enable:
+      title: Enable blink
+      description: Let the model blink.
+    auto-blink:
+      title: Auto
+      description: Use default blinking animation of the model
+    force-auto-blink:
+      title: Force
+      description: Force blinking animation with external timer
+    blink-mode:
+      title: Blink mode
+      description: Choose the model built-in blink or AIRI's forced blink timer.
+    idle-motion:
+      title: Idle animation
+      no-motion: No animation available
+      placeholder: Select animation
+      disable-motion: Disabled
+      disable-motion-description: Disable idle animation
+  parameters:
+    title: Model Parameters
+    render-scale:
+      title: Render scale
+    fps:
+      title: FPS
+      description: Limit rendering frame rate
+      options:
+        unlimited: '∞'
+    shadow: Drop shadow
+    reset-parameters: Reset to default parameters
+  clear-model-cache: Clear model cache
+  expressions:
+    title: Expressions
+    override-toggle: Expression system
+    sdk-preset-preserved-notice: >
+      SDK expression manager and eye blink are preserved when disabled.
+    no-expression: No expressions available for this model.
+    llm-integration-wip: LLM tool integration is not yet wired up.
+    save-default: Save expression defaults
+    reset: Reset all expressions
+    expose-to-llm-toggle: Expose to LLM
+    expose-to-llm-options:
+      none: None
+      all: All
+      custom: Custom
 microphone: マイク
 models: モデル
 pages:
@@ -773,6 +831,7 @@ pages:
       typeAddition: 補充
       typeConsumption: 利用状況
       typeInitial: 初期付与
+      typePromo: Promo Grant
       loading: 履歴を読み込み中…
       empty: 取引記録はまだありません。
       loadMore: さらに読み込む
@@ -1287,6 +1346,8 @@ pages:
         description: AIRIが提供する公式AIプロバイダー。
         speech-title: 公式音声プロバイダー
         speech-description: AIRIが提供する公式テキスト読み上げプロバイダー。
+        speech-streaming-title: Official Streaming Speech Provider
+        speech-streaming-description: Official low-latency text-to-speech provider by AIRI (bidirectional WebSocket).
         transcription-title: 公式文字起こしプロバイダー
         transcription-description: AIRIが提供する公式の音声テキスト変換プロバイダー。
       transcriptions:
@@ -1564,6 +1625,35 @@ vrm:
   skybox:
     skybox-intensity: スカイボックスの強度
     skybox-specular-mix: 鏡面反射の混合
+spine:
+  title: Spine Settings
+  scale-and-position:
+    title: Scale And Position
+    scale: Scale
+    x: X
+    'y': 'Y'
+  theme-color-from-model:
+    title: Extract colors from model
+    button-extract:
+      title: Extract
+  animation:
+    title: Animation
+    idle-animation: Idle Animation
+    mix-duration: Mix Duration (seconds)
+    speed: Animation Speed
+  variant:
+    title: Variant
+    current-variant: Active Variant
+  skin:
+    title: Skin
+    current-skin: Current Skin
+  rendering:
+    title: Rendering
+    max-fps: Maximum FPS
+    render-scale: Render Scale
+  fps:
+    options:
+      unlimited: Unlimited
 websocket-secure-enabled:
   title: セキュア WebSocket (WSS) を有効にする
   description: >-

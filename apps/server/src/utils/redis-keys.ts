@@ -15,18 +15,12 @@ export function createRedisKey(...parts: RedisKeyPart[]): string {
   return parts.map(normalizeRedisKeyPart).join(':')
 }
 
-export const DEFAULT_BILLING_EVENTS_STREAM = createRedisKey('billing', 'events')
-
 export function configRedisKey(key: string): string {
   return createRedisKey('config', key)
 }
 
 export function userFluxRedisKey(userId: string): string {
   return createRedisKey('user', userId, 'flux')
-}
-
-export function ttsVoicesUpstreamCacheRedisKey(model: string): string {
-  return createRedisKey('tts', 'voices', 'upstream', model)
 }
 
 export function userFluxMeterDebtRedisKey(userId: string, meterName: string): string {

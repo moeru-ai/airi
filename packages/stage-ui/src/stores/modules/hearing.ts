@@ -13,6 +13,7 @@ import { computed, ref, shallowRef, watch } from 'vue'
 
 import vadWorkletUrl from '../../workers/vad/process.worklet?worker&url'
 
+import { useAnalytics } from '../../composables/use-analytics'
 import { activeTurnSpan, startSpan } from '../../composables/use-io-tracer'
 import { useProvidersStore } from '../providers'
 import { streamAliyunTranscription } from '../providers/aliyun/stream-transcription'
@@ -194,77 +195,110 @@ export const useHearingStore = defineStore('hearing-store', () => {
     const features = providersStore.getTranscriptionFeatures(providerId)
     const streamExecutor = STREAM_TRANSCRIPTION_EXECUTORS[providerId]
 
-    if (features.supportsStreamOutput && streamExecutor) {
-      // TODO: integrate VAD-driven silence detection to stop and restart realtime sessions based on silence thresholds.
-      const request = provider.transcription(model, options?.providerOptions)
+    const { trackSttStarted, trackSttSucceeded, trackSttFailed } = useAnalytics()
+    const sttStartedAt = performance.now()
+    trackSttStarted(providerId)
 
-      if (features.supportsStreamInput && normalizedInput.inputAudioStream) {
-        const streamResult = streamExecutor({
-          ...request,
-          inputAudioStream: normalizedInput.inputAudioStream,
-        } as Parameters<typeof streamExecutor>[0])
-        return {
-          mode: 'stream',
-          ...streamResult,
-        }
-      }
-
-      if (!features.supportsStreamInput && normalizedInput.file) {
-        const streamResult = streamExecutor({
-          ...request,
-          file: normalizedInput.file,
-        } as Parameters<typeof streamExecutor>[0])
-        return {
-          mode: 'stream',
-          ...streamResult,
-        }
-      }
-
-      if (features.supportsStreamInput && !normalizedInput.inputAudioStream && normalizedInput.file) {
-        const streamResult = streamExecutor({
-          ...request,
-          file: normalizedInput.file,
-        } as Parameters<typeof streamExecutor>[0])
-        return {
-          mode: 'stream',
-          ...streamResult,
-        }
-      }
-
-      if (!features.supportsGenerate || !normalizedInput.file) {
-        throw new Error('No compatible input provided for streaming transcription.')
-      }
+    function emitSucceeded(charCount: number, stream: boolean) {
+      trackSttSucceeded({
+        provider: providerId,
+        latency_ms: Math.round(performance.now() - sttStartedAt),
+        char_count: charCount,
+        stream,
+      })
+    }
+    function emitFailed(err: unknown) {
+      trackSttFailed({ provider: providerId, error_code: (errorMessageFrom(err) ?? 'unknown').slice(0, 64) })
     }
 
-    if (!normalizedInput.file) {
-      throw new Error('File input is required for transcription.')
-    }
+    try {
+      if (features.supportsStreamOutput && streamExecutor) {
+        // TODO: integrate VAD-driven silence detection to stop and restart realtime sessions based on silence thresholds.
+        const request = provider.transcription(model, options?.providerOptions)
 
-    const useVerboseJson = !format && confidenceThreshold.value > CONFIDENCE_THRESHOLD_DISABLED
-    const response = await generateTranscription({
-      ...provider.transcription(model, options?.providerOptions),
-      file: normalizedInput.file,
-      responseFormat: useVerboseJson ? 'verbose_json' : format,
-    })
+        // Stream branches: emit succeeded with char_count=0 once the
+        // executor returns successfully — char count is only known by
+        // the downstream consumer of the stream, which lives outside
+        // this store. Latency here = "time to start of stream".
+        if (features.supportsStreamInput && normalizedInput.inputAudioStream) {
+          const streamResult = streamExecutor({
+            ...request,
+            inputAudioStream: normalizedInput.inputAudioStream,
+          } as Parameters<typeof streamExecutor>[0])
+          emitSucceeded(0, true)
+          return {
+            mode: 'stream',
+            ...streamResult,
+          }
+        }
 
-    if (useVerboseJson) {
-      if (response.segments) {
-        verboseJsonNotSupported.value = false
-        return {
-          mode: 'generate',
-          ...response,
-          text: filterTranscriptionByConfidence(response.segments, confidenceThreshold.value),
+        if (!features.supportsStreamInput && normalizedInput.file) {
+          const streamResult = streamExecutor({
+            ...request,
+            file: normalizedInput.file,
+          } as Parameters<typeof streamExecutor>[0])
+          emitSucceeded(0, true)
+          return {
+            mode: 'stream',
+            ...streamResult,
+          }
+        }
+
+        if (features.supportsStreamInput && !normalizedInput.inputAudioStream && normalizedInput.file) {
+          const streamResult = streamExecutor({
+            ...request,
+            file: normalizedInput.file,
+          } as Parameters<typeof streamExecutor>[0])
+          emitSucceeded(0, true)
+          return {
+            mode: 'stream',
+            ...streamResult,
+          }
+        }
+
+        if (!features.supportsGenerate || !normalizedInput.file) {
+          throw new Error('No compatible input provided for streaming transcription.')
         }
       }
-      else {
-        verboseJsonNotSupported.value = true
-        console.warn('[Hearing] Confidence filter is enabled but the provider did not return verbose_json segments. Filtering has no effect.')
+
+      if (!normalizedInput.file) {
+        throw new Error('File input is required for transcription.')
+      }
+
+      const useVerboseJson = !format && confidenceThreshold.value > CONFIDENCE_THRESHOLD_DISABLED
+      const response = await generateTranscription({
+        ...provider.transcription(model, options?.providerOptions),
+        file: normalizedInput.file,
+        responseFormat: useVerboseJson ? 'verbose_json' : format,
+      })
+
+      if (useVerboseJson) {
+        if (response.segments) {
+          verboseJsonNotSupported.value = false
+          const filteredText = filterTranscriptionByConfidence(response.segments, confidenceThreshold.value)
+          emitSucceeded(filteredText.length, false)
+          return {
+            mode: 'generate',
+            ...response,
+            text: filteredText,
+          }
+        }
+        else {
+          verboseJsonNotSupported.value = true
+          console.warn('[Hearing] Confidence filter is enabled but the provider did not return verbose_json segments. Filtering has no effect.')
+        }
+      }
+
+      const fallbackText = typeof response.text === 'string' ? response.text : ''
+      emitSucceeded(fallbackText.length, false)
+      return {
+        mode: 'generate',
+        ...response,
       }
     }
-
-    return {
-      mode: 'generate',
-      ...response,
+    catch (err) {
+      emitFailed(err)
+      throw err
     }
   }
 

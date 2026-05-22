@@ -5,6 +5,7 @@ import Tres from '@tresjs/core'
 import NProgress from 'nprogress'
 
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
+import { PiniaColada } from '@pinia/colada'
 import { isEnvTruthy } from '@proj-airi/stage-shared'
 import { MotionPlugin } from '@vueuse/motion'
 import { createPinia } from 'pinia'
@@ -51,6 +52,7 @@ createApp(App)
   .use(autoAnimatePlugin as unknown as Plugin)
   .use(router)
   .use(pinia)
+  .use(PiniaColada)
   .use(i18n)
   .use(Tres)
   .mount('#app')

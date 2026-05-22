@@ -1,3 +1,5 @@
+import type { BrowserWindow } from 'electron'
+
 import type { FileLoggerHandle } from './app/file-logger'
 
 import process, { env, platform } from 'node:process'
@@ -20,6 +22,7 @@ import icon from '../../resources/icon.png?asset'
 
 import { openDebugger, setupDebugger } from './app/debugger'
 import { nullFileLoggerHandle, setupFileLogger } from './app/file-logger'
+import { installSingleInstanceGuard } from './app/single-instance'
 import { createArtistryConfig } from './configs/artistry'
 import { createGlobalAppConfig } from './configs/global'
 import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed } from './libs/bootkit/lifecycle'
@@ -33,6 +36,7 @@ import { setupMcpStdioManager } from './services/airi/mcp-servers'
 import { setupPluginHost } from './services/airi/plugins'
 import { setupArtistryBridge } from './services/airi/widgets/artistry-bridge'
 import { setupAutoUpdater } from './services/electron/auto-updater'
+import { setupGlobalShortcutService } from './services/electron/global-shortcut'
 import { setupTray } from './tray'
 import { setupAboutWindowReusable } from './windows/about'
 import { setupBeatSync } from './windows/beat-sync'
@@ -57,6 +61,11 @@ setGlobalLogLevel(LogLevel.Log)
 setupDebugger()
 
 const log = useLogg('main').useGlobalConfig()
+
+const appUserDataPath = env.APP_USER_DATA_PATH?.trim()
+if (appUserDataPath) {
+  app.setPath('userData', appUserDataPath)
+}
 
 // Thanks to [@blurymind](https://github.com/blurymind),
 //
@@ -87,12 +96,23 @@ if (isLinux) {
 app.dock?.setIcon(icon)
 electronApp.setAppUserModelId('ai.moeru.airi')
 
-initScreenCaptureForMain()
+// Track the real user-facing AIRI window because the process also owns hidden utility windows.
+// The second-instance handler should restore the main UI instead of accidentally surfacing internals.
+let userFacingMainWindow: BrowserWindow | undefined
+const shouldStartMainProcess = installSingleInstanceGuard({ app, getWindow: () => userFacingMainWindow })
+
+if (shouldStartMainProcess) {
+  initScreenCaptureForMain()
+}
 
 let fileLogger: FileLoggerHandle = nullFileLoggerHandle
 let skipFileLogging = false
 
 app.whenReady().then(async () => {
+  if (!shouldStartMainProcess) {
+    return
+  }
+
   // Initialize file logger and register the hook
   fileLogger = await setupFileLogger()
 
@@ -156,6 +176,8 @@ app.whenReady().then(async () => {
 
   const windowAuthManager = injeca.provide('services:window-auth-manager', () => createWindowAuthManagerService())
 
+  const globalShortcut = injeca.provide('services:global-shortcut', () => setupGlobalShortcutService())
+
   // BeatSync will create a background window to capture and process audio.
   const beatSync = injeca.provide('windows:beat-sync', () => setupBeatSync())
 
@@ -182,13 +204,18 @@ app.whenReady().then(async () => {
   })
 
   const settingsWindow = injeca.provide('windows:settings', {
-    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, serverChannel, godotStageManager, mcpStdioManager, i18n, windowAuthManager },
+    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, serverChannel, godotStageManager, mcpStdioManager, i18n, windowAuthManager, globalShortcut },
     build: async ({ dependsOn }) => setupSettingsWindowReusableFunc(dependsOn),
   })
 
   const mainWindow = injeca.provide('windows:main', {
     dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, godotStageManager, mcpStdioManager, i18n, onboardingWindowManager, windowAuthManager },
-    build: async ({ dependsOn }) => setupMainWindow(dependsOn),
+    build: async ({ dependsOn }) => setupMainWindow({
+      ...dependsOn,
+      onWindowCreated: (window) => {
+        userFacingMainWindow = window
+      },
+    }),
   })
 
   const captionWindow = injeca.provide('windows:caption', {

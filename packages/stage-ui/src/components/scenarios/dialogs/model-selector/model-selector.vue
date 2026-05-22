@@ -9,6 +9,7 @@ import { useFileDialog } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger, EditableArea, EditableEditTrigger, EditableInput, EditablePreview, EditableRoot, EditableSubmitTrigger } from 'reka-ui'
 import { ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import Live2DReportModal from './Live2DReportModal.vue'
 
@@ -24,6 +25,7 @@ const emits = defineEmits<{
 
 const displayModelStore = useDisplayModelsStore()
 const { displayModelsFromIndexedDBLoading, displayModels } = storeToRefs(displayModelStore)
+const { t } = useI18n()
 
 function handleRemoveModel(model: DisplayModel) {
   displayModelStore.removeDisplayModel(model.id)
@@ -101,10 +103,26 @@ async function handleAddVRMModel(file: FileList | null) {
   highlightDisplayModelCard.value = displayModel.id
 }
 
+async function handleAddSpineModel(file: FileList | null) {
+  if (file === null || file.length === 0)
+    return
+  if (!file[0].name.endsWith('.zip'))
+    return
+
+  // NOTICE:
+  // Keep this await for the same import-then-pick race as Live2D/VRM imports above.
+  // The returned model id is only safe to highlight after addDisplayModel has updated the store.
+  // Source/context: model selector import flow -> settings model pick -> settings-stage-model.getDisplayModel().
+  // Removal condition: addDisplayModel becomes a synchronous transaction or pick is blocked by explicit import state.
+  const displayModel = await displayModelStore.addDisplayModel(DisplayModelFormat.SpineZip, file[0])
+  highlightDisplayModelCard.value = displayModel.id
+}
+
 const mapFormatRenderer: Record<DisplayModelFormat, string> = {
   [DisplayModelFormat.Live2dZip]: 'Live2D',
   [DisplayModelFormat.Live2dDirectory]: 'Live2D',
   [DisplayModelFormat.VRM]: 'VRM',
+  [DisplayModelFormat.SpineZip]: 'Spine',
   [DisplayModelFormat.PMXDirectory]: 'MMD',
   [DisplayModelFormat.PMXZip]: 'MMD',
   [DisplayModelFormat.PMD]: 'MMD',
@@ -112,9 +130,11 @@ const mapFormatRenderer: Record<DisplayModelFormat, string> = {
 
 const live2dDialog = useFileDialog({ accept: '.zip', multiple: false, reset: true })
 const vrmDialog = useFileDialog({ accept: '.vrm', multiple: false, reset: true })
+const spineDialog = useFileDialog({ accept: '.zip', multiple: false, reset: true })
 
 live2dDialog.onChange(handleAddLive2DModel)
 vrmDialog.onChange(handleAddVRMModel)
+spineDialog.onChange(handleAddSpineModel)
 </script>
 
 <template>
@@ -128,7 +148,7 @@ vrmDialog.onChange(handleAddVRMModel)
 
     <div flex items-center>
       <div w-full flex-1 text-xl>
-        Model Selector
+        {{ t('settings.model-select.select-model.title') }}
       </div>
       <div>
         <DropdownMenuRoot>
@@ -139,7 +159,7 @@ vrmDialog.onChange(handleAddVRMModel)
             aria-label="Options for Display Models"
           >
             <div i-solar:add-circle-bold />
-            <div>Add</div>
+            <div>{{ t('settings.model-select.select-model.import') }}</div>
           </DropdownMenuTrigger>
           <DropdownMenuPortal>
             <DropdownMenuContent
@@ -173,6 +193,17 @@ vrmDialog.onChange(handleAddVRMModel)
                 transition="colors duration-200 ease-in-out" @click="vrmDialog.open()"
               >
                 VRM
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                :class="[
+                  'data-[disabled]:text-mauve8 relative flex cursor-pointer select-none items-center rounded-md px-3 py-2 leading-none outline-none data-[disabled]:pointer-events-none',
+                  'text-base sm:text-sm',
+                  'data-[highlighted]:bg-primary-300/20 dark:data-[highlighted]:bg-primary-100/20',
+                  'data-[highlighted]:text-primary-400 dark:data-[highlighted]:text-primary-200',
+                ]"
+                transition="colors duration-200 ease-in-out" @click="spineDialog.open()"
+              >
+                Spine
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenuPortal>
@@ -227,7 +258,7 @@ vrmDialog.onChange(handleAddVRMModel)
                   >
                     <button flex items-center gap-1 outline-none @click="handleRemoveModel(model)">
                       <div i-solar:trash-bin-minimalistic-bold-duotone />
-                      <div>Remove</div>
+                      <div>{{ t('settings.model-select.select-model.remove') }}</div>
                     </button>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -291,14 +322,14 @@ vrmDialog.onChange(handleAddVRMModel)
               </div>
             </div>
             <Button class="hidden md:block" variant="secondary" @click="handlePick(model)">
-              Pick
+              {{ t('settings.model-select.select-model.select') }}
             </Button>
           </div>
         </div>
       </div>
     </div>
     <Button class="block md:hidden" @click="handleMobilePick()">
-      Confirm
+      {{ t('settings.model-select.select-model.confirm') }}
     </Button>
   </div>
 </template>

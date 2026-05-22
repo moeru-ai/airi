@@ -23,6 +23,7 @@ describe('stage-ui exports contract', () => {
       '.',
       './components',
       './components/*',
+      './components/scenarios/chat',
       './components/scenarios/settings/model-settings',
       './components/scenes',
       './composables',

@@ -46,8 +46,10 @@ function createTestDeps() {
     fluxTransactionService: {} as any,
     stripeService: {} as any,
     billingService: {} as any,
+    adminFluxGrantsService: {} as any,
+    adminRouterConfigService: {} as any,
     ttsMeter: {} as any,
-    billingMq: {} as any,
+    requestLogService: {} as any,
     configKV: {
       getOrThrow: vi.fn(async (key: string) => {
         switch (key) {
@@ -63,9 +65,19 @@ function createTestDeps() {
     redis: redis as any,
     env: {
       API_SERVER_URL: 'http://localhost:3000',
+      ADMIN_EMAILS: '',
     } as any,
     otel: null,
     userDeletionService: {} as any,
+    llmRouter: {
+      route: vi.fn(async () => new Response('{}', { status: 200 })),
+      invalidateConfig: vi.fn(),
+    } as any,
+    envelopeCrypto: {
+      encryptKey: vi.fn(),
+      decryptKey: vi.fn(),
+    } as any,
+    posthog: null,
   }
 
   return {

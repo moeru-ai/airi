@@ -25,6 +25,7 @@ import { ReplicateProvider } from './providers/replicate'
 
 const log = useLogg('artistry-bridge').useGlobalConfig()
 const DEFAULT_REMIX_ID = '48250602'
+const DEFAULT_ARTISTRY_PROVIDER = 'none'
 
 interface ArtistrySyncSnapshot {
   provider?: string
@@ -147,10 +148,15 @@ export async function generateHeadless(params: {
   }
 
   const executionPromise = (async () => {
-    const requestedProvider = (params.provider || artistryConfig.get()?.artistryProvider || 'comfyui').trim().toLowerCase()
+    const requestedProvider = (params.provider || artistryConfig.get()?.artistryProvider || DEFAULT_ARTISTRY_PROVIDER).trim().toLowerCase()
+    if (requestedProvider === 'none') {
+      log.log('[Headless] Provider is \'none\'. Bypassing generation.')
+      throw new Error('Artistry provider is disabled.')
+    }
+
     const provider = artistryProviders.get(requestedProvider)
     if (!provider) {
-      log.error(`[Headless] CRITICAL: Provider '${requestedProvider}' not found in registry! fallback to replicate`)
+      log.error(`[Headless] Provider '${requestedProvider}' not found in registry.`)
       throw new Error(`Provider '${requestedProvider}' not found.`)
     }
 
@@ -250,7 +256,7 @@ export async function generateHeadless(params: {
     return await executionPromise
   }
   catch (err) {
-    return { error: err instanceof Error ? err.message : String(err) }
+    return { error: errorMessageFrom(err) ?? String(err) }
   }
   finally {
     // Remove from map after completion so it can be re-triggered later
@@ -291,7 +297,7 @@ async function handleArtistryTrigger(params: {
     globals: robustParse(artistryConfigOverrides.globals || artistryConfigOverrides.Globals || cardDefaults.globals, 'artistryGlobals'),
   }
   const { config: artistryConfig } = await injeca.resolve({ config: 'configs:artistry' } as { config: ProvidedBy<Config<typeof artistryConfigSchema>> })
-  const providerId = config.provider || cardDefaults.provider || artistryConfig.get()?.artistryProvider || 'comfyui'
+  const providerId = config.provider || cardDefaults.provider || artistryConfig.get()?.artistryProvider || DEFAULT_ARTISTRY_PROVIDER
 
   // [BY DESIGN]: Short-circuit if artistry is explicitly disabled (provider: 'none').
   // This prevents noisy "Provider not found" errors when the feature is intentionally bypassed.
@@ -463,7 +469,7 @@ export async function setupArtistryBridge(params: {
     defineInvokeHandler(params.context, artistrySyncConfig, (payload) => {
       log.log(`🔄 Syncing artistry config to main. Provider: ${payload.provider}`)
       params.artistryConfig.update({
-        artistryProvider: payload.provider || params.artistryConfig.get()?.artistryProvider || 'comfyui',
+        artistryProvider: payload.provider || params.artistryConfig.get()?.artistryProvider || DEFAULT_ARTISTRY_PROVIDER,
         artistryGlobals: payload.globals || params.artistryConfig.get()?.artistryGlobals || {
           comfyuiServerUrl: 'http://localhost:8188',
           comfyuiSavedWorkflows: [],

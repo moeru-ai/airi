@@ -19,6 +19,10 @@ config/icon="res://icon.svg"
 
 project/assembly_name="stage-tamagotchi-godot"
 
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/Godot-MToon-Shader/plugin.cfg", "res://addons/vrm/plugin.cfg")
+
 [physics]
 
 3d/physics_engine="Jolt Physics"
@@ -26,3 +30,4 @@ project/assembly_name="stage-tamagotchi-godot"
 [rendering]
 
 rendering_device/driver.windows="d3d12"
+textures/vram_compression/import_etc2_astc=true
