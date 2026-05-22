@@ -1,4 +1,10 @@
 <script setup lang="ts">
+import type {
+  StageViewErrorPayload,
+  StageViewPatch,
+  StageViewSnapshotPayload,
+} from '@proj-airi/stage-shared/godot-stage'
+
 import type { DisplayModel } from '../../../../stores/display-models'
 import type { ModelSettingsRuntimeSnapshot } from './runtime'
 
@@ -15,34 +21,41 @@ import VRM from './vrm.vue'
 import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 import { useSettings } from '../../../../stores/settings'
 import { ModelSelectorDialog } from '../../dialogs/model-selector'
+import { resolveModelSettingsPanelRenderer } from './runtime'
 
-const props = withDefaults(defineProps<{
+interface ModelSettingsPanelProps {
   palette: string[]
   settingsClass?: string | string[]
   allowExtractColors?: boolean
   runtimeSnapshot: ModelSettingsRuntimeSnapshot
-}>(), {
+  godotViewSnapshot?: StageViewSnapshotPayload | null
+  godotViewError?: StageViewErrorPayload
+  godotViewControlsLocked?: boolean
+}
+
+interface ModelSettingsPanelEmits {
+  extractColorsFromModel: []
+  patchGodotViewState: [patch: StageViewPatch]
+}
+
+const props = withDefaults(defineProps<ModelSettingsPanelProps>(), {
   allowExtractColors: true,
+  godotViewControlsLocked: true,
+  godotViewSnapshot: null,
 })
 
-defineEmits<{
-  (e: 'extractColorsFromModel'): void
-}>()
+const emit = defineEmits<ModelSettingsPanelEmits>()
 
 const { t } = useI18n()
 const modelSelectorOpen = ref(false)
 const settingsStore = useSettings()
 const airiCardStore = useAiriCardStore()
-const { stageModelSelected, stageModelSelectedDisplayModel } = storeToRefs(settingsStore)
+const { stageModelRenderer, stageModelSelected, stageModelSelectedDisplayModel } = storeToRefs(settingsStore)
 
-const currentSelectedDisplayModel = computed<DisplayModel | undefined>(() => stageModelSelectedDisplayModel.value)
-const effectiveRenderer = computed(() => props.runtimeSnapshot.renderer)
-const settingsClassList = computed(() => {
-  if (!props.settingsClass)
-    return []
-
-  return typeof props.settingsClass === 'string' ? [props.settingsClass] : props.settingsClass
-})
+const effectiveRenderer = computed(() => resolveModelSettingsPanelRenderer({
+  settingsRenderer: stageModelRenderer.value,
+  runtimeRenderer: props.runtimeSnapshot.renderer,
+}))
 
 async function handleModelPick(selectedModel: DisplayModel | undefined) {
   stageModelSelected.value = selectedModel?.id ?? ''
@@ -56,7 +69,7 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
     :class="[
       'flex flex-col gap-2',
       'z-10 overflow-y-scroll p-2',
-      ...settingsClassList,
+      settingsClass,
     ]"
   >
     <Callout :label="t('settings.model-select.panel-callout.support-status-header')">
@@ -76,7 +89,7 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
       </p>
     </Callout>
     <div :class="['flex flex-wrap items-center gap-2']">
-      <ModelSelectorDialog v-model:show="modelSelectorOpen" :selected-model="currentSelectedDisplayModel" @pick="handleModelPick">
+      <ModelSelectorDialog v-model:show="modelSelectorOpen" :selected-model="stageModelSelectedDisplayModel" @pick="handleModelPick">
         <Button variant="secondary">
           {{ t('settings.model-select.select-model.button') }}
         </Button>
@@ -88,14 +101,14 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
       :allow-extract-colors="allowExtractColors"
       :palette="palette"
       :runtime-snapshot="runtimeSnapshot"
-      @extract-colors-from-model="$emit('extractColorsFromModel')"
+      @extract-colors-from-model="emit('extractColorsFromModel')"
     />
     <VRM
       v-if="effectiveRenderer === 'vrm'"
       :allow-extract-colors="allowExtractColors"
       :palette="palette"
       :runtime-snapshot="runtimeSnapshot"
-      @extract-colors-from-model="$emit('extractColorsFromModel')"
+      @extract-colors-from-model="emit('extractColorsFromModel')"
     />
     <Spine
       v-if="effectiveRenderer === 'spine'"
@@ -107,6 +120,10 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
     <Godot
       v-if="effectiveRenderer === 'godot'"
       :runtime-snapshot="runtimeSnapshot"
+      :view-snapshot="godotViewSnapshot"
+      :view-error="godotViewError"
+      :view-controls-locked="godotViewControlsLocked"
+      @patch-view-state="emit('patchGodotViewState', $event)"
     />
   </div>
 </template>
