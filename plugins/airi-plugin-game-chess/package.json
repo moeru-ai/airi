@@ -5,6 +5,8 @@
   "private": true,
   "description": "Chess plugin for AIRI gamelet/widget runtime",
   "scripts": {
+    "build": "tsdown && pnpm run build:ui",
+    "build:ui": "vite build --config src/ui/vite.config.ts",
     "test": "vitest run --root . --config vitest.config.ts",
     "eval:run": "vieval run --root . --config ./vieval.config.ts",
     "typecheck": "vue-tsc --noEmit -p tsconfig.json"
@@ -37,6 +39,8 @@
     "pinia": "catalog:",
     "unocss": "^66.6.7",
     "vieval": "catalog:",
+    "vite": "catalog:",
+    "vue-tsc": "^3.2.6",
     "xsschema": "catalog:"
   }
 }

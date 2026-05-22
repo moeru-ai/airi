@@ -11,6 +11,7 @@ import { widgetsIframePublish } from '../../../../shared/eventa'
 import { electronPluginGetAssetBaseUrl } from '../../../../shared/eventa/plugin/assets'
 import { electronPluginInspect } from '../../../../shared/eventa/plugin/host'
 import { useExtensionUIForModule } from '../composables/use-extension-ui-for-module'
+import { useGameletAiTurns } from '../composables/use-gamelet-ai-turns'
 import { useIframeMessagePort } from '../composables/use-iframe-message-port'
 import { canRenderExtensionUi, sanitizeExtensionUiRenderProps } from '../host'
 
@@ -59,6 +60,7 @@ function omitControlFields(record: Record<string, any>) {
 const inspectPluginHost = useElectronEventaInvoke(electronPluginInspect)
 const getPluginAssetBaseUrl = useElectronEventaInvoke(electronPluginGetAssetBaseUrl)
 const publishWidgetIframeEvent = useElectronEventaInvoke(widgetsIframePublish)
+const gameletAiTurns = useGameletAiTurns()
 
 const model = computed<PluginModuleWidgetPayload & Record<string, unknown>>(() => (
   isPlainObject(props.modelValue) ? props.modelValue as PluginModuleWidgetPayload & Record<string, unknown> : {} as PluginModuleWidgetPayload & Record<string, unknown>
@@ -101,6 +103,10 @@ const { iframeLoadError, onIframeError, onIframeLoad } = useIframeMessagePort(
     moduleConfig,
     propsPayload: resolvedWidgetProps,
     onPublish: async (event) => {
+      // A gamelet may ask the character to react; this stays generic across
+      // gamelets — the gamelet owns any domain-specific wording.
+      gameletAiTurns.handlePublish(event)
+
       if (!moduleId.value) {
         return
       }
