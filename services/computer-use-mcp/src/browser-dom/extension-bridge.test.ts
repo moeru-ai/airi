@@ -237,6 +237,31 @@ describe('browserDomExtensionBridge', () => {
     ])
   })
 
+  it('waitForElement does not keep the legacy full send-timeout buffer when the extension hangs', async () => {
+    const result = await createConnectedBridge({ requestTimeoutMs: 5_000 })
+    bridge = result.bridge
+    client = result.client
+
+    // The mock extension deliberately does not answer waitForElement. The
+    // bridge should only keep a small transport grace on top of the requested
+    // wait budget, not the old 9.5s background send-message buffer.
+    client.on('message', (raw) => {
+      const data = JSON.parse(String(raw)) as Record<string, unknown>
+      if (data.action !== 'waitForElement')
+        return
+
+      expect(data.timeoutMs).toBe(100)
+    })
+
+    const startedAt = Date.now()
+    await expect(bridge.waitForElement({
+      selector: '#never-appears',
+      timeoutMs: 100,
+    })).rejects.toThrow('browser dom bridge timed out waiting for waitForElement')
+
+    expect(Date.now() - startedAt).toBeLessThan(2_500)
+  })
+
   it('waitForElement uses the default requestTimeoutMs for extension-side polling when no timeoutMs is provided', async () => {
     const result = await createConnectedBridge({ requestTimeoutMs: 200 })
     bridge = result.bridge

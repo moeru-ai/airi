@@ -23,7 +23,7 @@ const SUPPORTED_ACTIONS = new Set([
   'getComputedStyles',
   'waitForElement',
 ])
-const WAIT_FOR_ELEMENT_BRIDGE_TIMEOUT_BUFFER_MS = 9_500
+const WAIT_FOR_ELEMENT_BRIDGE_TIMEOUT_GRACE_MS = 1_000
 
 interface PendingBridgeRequest {
   reject: (error: Error) => void
@@ -375,17 +375,17 @@ export class BrowserDomExtensionBridge {
     frameIds?: number[]
   }) {
     const effectiveTimeout = params.timeoutMs ?? this.config.requestTimeoutMs
-    // NOTICE: The bridge-level timeout must exceed the background-level polling
-    // timeout, otherwise the bridge rejects before the extension finishes polling.
-    // The extension can overrun by one full frame send timeout (8s) plus the
-    // polling interval (500ms), so keep headroom for slow or unresponsive frames.
+    // NOTICE: The bridge-level timeout only needs a small transport grace: the
+    // extension now passes the remaining waitForElement budget into each
+    // frame-level send, so slow or unresponsive frames no longer require an
+    // extra full send-message timeout on top of the requested poll budget.
     return await this.callAction<Array<BrowserDomFrameResult<Record<string, unknown>>>>('waitForElement', {
       selector: params.selector,
       timeoutMs: effectiveTimeout,
       tabId: params.tabId,
       frameIds: params.frameIds,
     }, {
-      timeoutMs: effectiveTimeout + WAIT_FOR_ELEMENT_BRIDGE_TIMEOUT_BUFFER_MS,
+      timeoutMs: effectiveTimeout + WAIT_FOR_ELEMENT_BRIDGE_TIMEOUT_GRACE_MS,
     })
   }
 
