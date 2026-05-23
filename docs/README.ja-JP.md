@@ -171,7 +171,7 @@
 - [DevLog @ 2025.08.05](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.05/) — 2025/08/05
 - [DevLog @ 2025.08.01](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.01/) — 2025/08/01
 - [DevLog @ 2025.07.18](https://airi.moeru.ai/docs/en/blog/DevLog-2025.07.18/) — 2025/07/18
-- [DreamLog 0x1](https://airi.moeru.ai/docs/en/blog/dreamlog-0x1/) — 2025/06/16
+- [DreamLog 0x1](https://airi.moeru.ai/docs/en/blog/DreamLog-0x1/) — 2025/06/16
 - ...そのほかは[ドキュメントサイト](https://airi.moeru.ai/docs/en/)で
 
 ## このプロジェクトの特別な点は？

@@ -168,7 +168,7 @@
 - [DevLog @ 2025.08.05](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.05/) — 2025년 8월 5일
 - [DevLog @ 2025.08.01](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.01/) — 2025년 8월 1일
 - [DevLog @ 2025.07.18](https://airi.moeru.ai/docs/en/blog/DevLog-2025.07.18/) — 2025년 7월 18일
-- [DreamLog 0x1](https://airi.moeru.ai/docs/en/blog/dreamlog-0x1/) — 2025년 6월 16일
+- [DreamLog 0x1](https://airi.moeru.ai/docs/en/blog/DreamLog-0x1/) — 2025년 6월 16일
 - ...더 많은 내용은 [문서 사이트](https://airi.moeru.ai/docs/en/)에서
 
 ## 이 프로젝트의 특별한 점은?
