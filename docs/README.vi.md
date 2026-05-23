@@ -167,7 +167,7 @@ Do đó, dự án AIRI mang đến một lựa chọn khác: **cho phép bạn s
 - [DevLog @ 2025.08.05](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.05/) ngày 5 tháng 8, 2025
 - [DevLog @ 2025.08.01](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.01/) ngày 1 tháng 8, 2025
 - [DevLog @ 2025.07.18](https://airi.moeru.ai/docs/en/blog/DevLog-2025.07.18/) ngày 18 tháng 7, 2025
-- [DreamLog 0x1](https://airi.moeru.ai/docs/en/blog/dreamlog-0x1/) ngày 16 tháng 6, 2025
+- [DreamLog 0x1](https://airi.moeru.ai/docs/en/blog/DreamLog-0x1/) ngày 16 tháng 6, 2025
 - ...xem thêm tại [docs page](https://airi.moeru.ai/docs)
 
 ## Dự Án Này Có Gì Đặc Biệt?
