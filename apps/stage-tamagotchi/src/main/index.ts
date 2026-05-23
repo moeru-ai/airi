@@ -324,7 +324,8 @@ async function handleAppExit() {
 
   if (!exitedNormally) {
     app.exit(1)
-  } else {
+  }
+  else {
     app.quit()
   }
 }
