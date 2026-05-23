@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="stage-tamagotchi-godot"
-run/main_scene="uid://c4t68p7ibkjxg"
+run/main_scene="res://scenes/stage-root.tscn"
 config/features=PackedStringArray("4.6", "C#", "Forward Plus")
 config/icon="res://icon.svg"
 
