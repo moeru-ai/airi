@@ -322,12 +322,19 @@ async function handleAppExit() {
   skipFileLogging = true
   await logIfError('flush file logs', () => fileLogger.close()) // Ensure all logs are flushed
 
-  app.exit(exitedNormally ? 0 : 1)
+  if (!exitedNormally) {
+    app.exit(1)
+  } else {
+    app.quit()
+  }
 }
 
 process.on('SIGINT', () => handleAppExit())
 
 app.on('before-quit', (event) => {
+  if (appExiting)
+    return
+
   event.preventDefault()
   handleAppExit()
 })
