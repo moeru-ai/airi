@@ -4,6 +4,7 @@ import type { ChatToolCallRendererRegistry } from './tool-call-renderer'
 
 import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import ChatResponsePart from './response-part.vue'
 import ChatToolCallBlock from './tool-call-block.vue'
@@ -78,6 +79,8 @@ const boxClasses = computed(() => [
   props.variant === 'mobile' ? 'px-2 py-2 text-sm bg-primary-50/90 dark:bg-primary-950/90' : 'px-3 py-3 bg-primary-50/80 dark:bg-primary-950/80',
 ])
 const copyText = computed(() => getChatHistoryItemCopyText(props.message as ChatHistoryItem))
+
+const { t } = useI18n()
 </script>
 
 <template>
@@ -123,6 +126,17 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
             </template>
           </div>
           <div v-else-if="showLoader" i-eos-icons:three-dots-loading />
+          <div
+            v-if="message.stopped"
+            :class="[
+              'flex items-center gap-1 self-start rounded-full px-2 py-0.5',
+              'text-xs text-neutral-500 dark:text-neutral-400',
+              'bg-neutral-200/50 dark:bg-neutral-700/40',
+            ]"
+          >
+            <div class="i-solar:stop-circle-bold-duotone h-3.5 w-3.5" aria-hidden="true" />
+            <span>{{ t('stage.chat.message.stopped') }}</span>
+          </div>
         </div>
       </template>
     </ChatActionMenu>

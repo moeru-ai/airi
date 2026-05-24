@@ -43,7 +43,8 @@ const { askPermission } = useSettingsAudioDevice()
 const { enabled, stream } = storeToRefs(useSettingsAudioDevice())
 const chatOrchestrator = useChatOrchestratorStore()
 const chatSession = useChatSessionStore()
-const { ingest, onAfterMessageComposed } = chatOrchestrator
+const { ingest, onAfterMessageComposed, stopSending } = chatOrchestrator
+const { sending } = storeToRefs(chatOrchestrator)
 const { messages } = storeToRefs(chatSession)
 const { audioContext } = useAudioContext()
 const { t } = useI18n()
@@ -264,6 +265,22 @@ watch(sendMode, () => {
             </DropdownMenuContent>
           </DropdownMenuPortal>
         </DropdownMenuRoot>
+
+        <!-- Stop streaming button: only visible while a send is in flight -->
+        <button
+          v-if="sending"
+          :class="[
+            'h-8 w-8 flex items-center justify-center rounded-md outline-none',
+            'transition-all duration-200 active:scale-95',
+            'text-lg text-red-500 dark:text-red-400',
+            'hover:bg-red-100/60 dark:hover:bg-red-900/40',
+          ]"
+          :title="t('stage.chat.actions.stop')"
+          :aria-label="t('stage.chat.actions.stop')"
+          @click="stopSending()"
+        >
+          <div class="i-solar:stop-circle-bold-duotone h-5 w-5" />
+        </button>
 
         <!-- Microphone icon button -->
         <PopoverRoot v-model:open="hearingPopoverOpen">

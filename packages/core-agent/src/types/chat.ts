@@ -31,6 +31,14 @@ export interface ChatAssistantMessage extends AssistantMessage {
     speech: string
     reasoning: string
   }
+  /**
+   * Marks an assistant turn that was interrupted by the user via the stop
+   * button. The partial content (slices, categorization, tool_results) is
+   * preserved so the user can see what was produced before the cancel; the
+   * UI renders a "Stopped" badge and the message remains a valid retry
+   * target.
+   */
+  stopped?: boolean
 }
 
 export type ChatMessage = ChatAssistantMessage | SystemMessage | ToolMessage | UserMessage

@@ -299,6 +299,22 @@ async function handleCleanupMessages() {
       </div>
     </div>
     <div :class="['flex items-center justify-end gap-2 py-1']">
+      <!-- Stop streaming button: only visible while a send is in flight -->
+      <button
+        v-if="sending"
+        :class="[
+          'max-h-[10lh] min-h-[1lh] flex items-center justify-center rounded-md p-2 outline-none',
+          'transition-colors transition-transform active:scale-95',
+          'bg-red-100 text-red-500 dark:bg-red-900/30 dark:text-red-400',
+          'hover:bg-red-200 dark:hover:bg-red-900/50',
+        ]"
+        :title="t('stage.chat.actions.stop')"
+        :aria-label="t('stage.chat.actions.stop')"
+        @click="() => chatSyncStore.requestStop()"
+      >
+        <div class="i-solar:stop-circle-bold-duotone text-lg" />
+      </button>
+
       <DropdownMenuRoot>
         <DropdownMenuTrigger as-child>
           <button

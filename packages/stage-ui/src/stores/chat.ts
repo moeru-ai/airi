@@ -254,6 +254,10 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     runtime.cancelPendingSends(sessionId)
   }
 
+  function stopSending(sessionId?: string) {
+    runtime.stopSending(sessionId)
+  }
+
   function getPendingQueuedSendSnapshot() {
     return runtime.getPendingQueuedSendSnapshot()
   }
@@ -265,6 +269,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     ingest,
     ingestOnFork,
     cancelPendingSends,
+    stopSending,
     getPendingQueuedSendSnapshot,
 
     clearHooks: runtime.hooks.clearHooks,
@@ -279,6 +284,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     emitAssistantResponseEndHooks: runtime.hooks.emitAssistantResponseEndHooks,
     emitAssistantMessageHooks: runtime.hooks.emitAssistantMessageHooks,
     emitChatTurnCompleteHooks: runtime.hooks.emitChatTurnCompleteHooks,
+    emitAssistantStopHooks: runtime.hooks.emitAssistantStopHooks,
 
     onBeforeMessageComposed: runtime.hooks.onBeforeMessageComposed,
     onAfterMessageComposed: runtime.hooks.onAfterMessageComposed,
@@ -290,5 +296,6 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     onAssistantResponseEnd: runtime.hooks.onAssistantResponseEnd,
     onAssistantMessage: runtime.hooks.onAssistantMessage,
     onChatTurnComplete: runtime.hooks.onChatTurnComplete,
+    onAssistantStop: runtime.hooks.onAssistantStop,
   }
 })

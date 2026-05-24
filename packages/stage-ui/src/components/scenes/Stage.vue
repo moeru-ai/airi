@@ -33,7 +33,7 @@ import { useDuckDb } from '../../composables/use-duck-db'
 import { useIOTraceBridge } from '../../composables/use-io-trace-bridge'
 import { initIOTracer } from '../../composables/use-io-tracer'
 import { useSpeechPipelineAnalytics } from '../../composables/use-speech-pipeline-analytics'
-import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
+import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionNeutralMotionName, EmotionThinkMotionName } from '../../constants/emotions'
 import { getDefaultStreamingModel, getDefinedProvider } from '../../libs/providers/providers'
 import { OFFICIAL_SPEECH_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { createStageTtsSession } from '../../libs/speech/tts-session'
@@ -93,7 +93,7 @@ const { audioContext } = useAudioContext()
 const currentAudioSource = ref<AudioBufferSourceNode>()
 const { latestStopRequest } = storeToRefs(useSpeechOutputControlStore())
 
-const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatOrchestratorStore()
+const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd, onAssistantStop } = useChatOrchestratorStore()
 const chatHookCleanups: Array<() => void> = []
 // WORKAROUND: clear previous handlers on unmount to avoid duplicate calls when this component remounts.
 //             We keep per-hook disposers instead of wiping the global chat hooks to play nicely with
@@ -765,7 +765,7 @@ chatHookCleanups.push(onAssistantResponseEnd(async (_message) => {
   // Streaming sessions null-out via the onDone hook; segmenter sessions
   // stay around until the next `onBeforeMessageComposed` cancels them
   // (the segmenter pipeline's IntentHandle.end is idempotent and
-  // ResourceMessages still arrive after end() — clearing here would
+  // ResourceMessages still arrive after end(), clearing here would
   // race with the pipeline's own cleanup). Keep the ref pointing at
   // the just-ended session; it costs nothing and the next message
   // replaces it.
@@ -775,6 +775,36 @@ chatHookCleanups.push(onAssistantResponseEnd(async (_message) => {
   // })
 
   // await db.value?.execute(`INSERT INTO memory_test (vec) VALUES (${JSON.stringify(res.embedding)});`)
+}))
+
+// NOTICE:
+// Tear down the side effects bound to the partial turn when the user
+// stops mid-stream. `onAssistantResponseEnd` is intentionally NOT fired
+// on stop (stopping is not a completed turn), so we mirror only the
+// pieces that must reset: cancel just the current TTS session (avoid
+// `playbackManager.stopAll` so unrelated audio like the Spark-notify
+// reaction cue keeps playing), wipe the caption in this window plus the
+// follower caption/present windows, and reset motion to Idle so the
+// "thinking" pose does not persist past the stop.
+chatHookCleanups.push(onAssistantStop(async () => {
+  currentSession?.cancel('user-stopped')
+  currentSession = null
+
+  assistantCaption.value = ''
+  try {
+    postCaption({ type: 'caption-assistant', text: '' })
+  }
+  catch (error) {
+    console.warn('[Stage] Failed to post caption reset on stop (channel may be closed)', { error })
+  }
+  try {
+    postPresent({ type: 'assistant-reset' })
+  }
+  catch (error) {
+    console.warn('[Stage] Failed to post present reset on stop (channel may be closed)', { error })
+  }
+
+  currentMotion.value = { group: EmotionNeutralMotionName }
 }))
 
 // Mid-session provider / voice / model swaps would otherwise keep feeding

@@ -483,6 +483,194 @@ describe('createChatOrchestratorRuntime', () => {
 
   /**
    * @example
+   * The user clicks Stop mid-stream after the assistant has emitted
+   * some text. The orchestrator persists the partial turn with a
+   * `stopped` marker and does NOT fire turn-complete hooks.
+   */
+  it('persists partial assistant turn with stopped marker when user aborts mid-stream', async () => {
+    const harness = createHarness()
+    const postStreamHooks: string[] = []
+    const stopHookMessages: string[] = []
+    let appendedCountAtStop = -1
+
+    harness.runtime.hooks.onStreamEnd(async () => {
+      postStreamHooks.push('stream-end')
+    })
+    harness.runtime.hooks.onAssistantResponseEnd(async () => {
+      postStreamHooks.push('assistant-end')
+    })
+    harness.runtime.hooks.onAfterSend(async () => {
+      postStreamHooks.push('after-send')
+    })
+    harness.runtime.hooks.onAssistantMessage(async () => {
+      postStreamHooks.push('assistant-message')
+    })
+    harness.runtime.hooks.onChatTurnComplete(async () => {
+      postStreamHooks.push('turn-complete')
+    })
+    harness.runtime.hooks.onAssistantStop(async (messageText) => {
+      // Capture how many assistant persists happened by the time the stop
+      // hook fires; the orchestrator persists the stopped turn FIRST and
+      // only then emits onAssistantStop, so Stage.vue/captions/mods always
+      // see the persisted partial before they reset their side effects.
+      appendedCountAtStop = harness.assistantAppended.length
+      stopHookMessages.push(messageText)
+    })
+
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      // NOTICE:
+      // Text length must exceed STREAMING_UI_FLUSH_CHUNK_SIZE (24) so the
+      // marker parser flushes a slice synchronously before we hang on the
+      // abort signal. Without that flush, buildingMessage.slices is empty
+      // and the abort path correctly skips persistence, which would not
+      // exercise the stopped-marker contract under test.
+      await options?.onStreamEvent?.({
+        type: 'text-delta',
+        text: 'partial assistant reply before the user pressed stop',
+      })
+      await new Promise<void>((_resolve, reject) => {
+        const signal = (options as { abortSignal?: AbortSignal })?.abortSignal
+        signal?.addEventListener('abort', () => {
+          // xsai/fetch surfaces user-initiated cancellation as an AbortError.
+          // The orchestrator's catch block branches on signal.aborted, not on
+          // error.name, so any thrown value is fine; we use a realistic shape.
+          reject(new DOMException('aborted', 'AbortError'))
+        })
+      })
+    })
+
+    const send = harness.runtime.ingest('hello', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    await vi.waitFor(() => {
+      expect(harness.stream).toHaveBeenCalledTimes(1)
+    })
+
+    harness.runtime.stopSending('session-1')
+
+    await send
+
+    const lastMessage = harness.sessionMessages['session-1']?.at(-1)
+    expect(lastMessage).toMatchObject({
+      role: 'assistant',
+      stopped: true,
+    })
+    expect((lastMessage as StreamingAssistantMessage).slices.length).toBeGreaterThan(0)
+    expect(harness.assistantAppended).toHaveLength(1)
+    expect(postStreamHooks).toEqual([])
+    expect(harness.telemetry.assistantResponseRendered).toEqual([])
+    expect(harness.foregroundResets.length).toBeGreaterThan(0)
+    expect(stopHookMessages).toHaveLength(1)
+    expect(stopHookMessages[0]).toBe('partial assistant reply before the user pressed stop')
+    expect(appendedCountAtStop).toBe(1)
+  })
+
+  /**
+   * @example
+   * The user clicks Stop before any token has flushed (network slow, or
+   * cancelling right after pressing Send). No partial assistant message is
+   * persisted because the slice buffer is empty, but `onAssistantStop`
+   * still fires so the TTS session opened in `onBeforeMessageComposed`
+   * can tear down.
+   */
+  it('still fires onAssistantStop even when no slices have flushed', async () => {
+    const harness = createHarness()
+
+    let stopHookCount = 0
+    let stopMessageText: string | undefined
+    harness.runtime.hooks.onAssistantStop(async (messageText) => {
+      stopHookCount += 1
+      stopMessageText = messageText
+    })
+
+    // NOTICE:
+    // Mock the stream to hang on the abort signal without ever emitting a
+    // text-delta. The orchestrator's guard at the abort branch suppresses
+    // persistence when buildingMessage.slices is empty, so this exercises
+    // the path where onAssistantStop fires alone (no onAssistantMessageAppended).
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      await new Promise<void>((_resolve, reject) => {
+        const signal = (options as { abortSignal?: AbortSignal })?.abortSignal
+        signal?.addEventListener('abort', () => {
+          reject(new DOMException('aborted', 'AbortError'))
+        })
+      })
+    })
+
+    const send = harness.runtime.ingest('hello', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    await vi.waitFor(() => {
+      expect(harness.stream).toHaveBeenCalledTimes(1)
+    })
+
+    harness.runtime.stopSending('session-1')
+
+    await send
+
+    expect(harness.assistantAppended).toHaveLength(0)
+    const lastMessage = harness.sessionMessages['session-1']?.at(-1)
+    expect((lastMessage as ChatHistoryItem | undefined)?.role).not.toBe('assistant')
+    expect(stopHookCount).toBe(1)
+    expect(stopMessageText).toBe('')
+  })
+
+  /**
+   * @example
+   * A normally-completed assistant turn must NOT trigger `onAssistantStop`.
+   * `onAssistantStop` is reserved for user-initiated cancellation; firing
+   * it on success would make subscribers (TTS, captions, motion) reset
+   * mid-finalize.
+   */
+  it('does not fire onAssistantStop on a normally-completed turn', async () => {
+    const harness = createHarness()
+
+    let stopHookCount = 0
+    harness.runtime.hooks.onAssistantStop(async () => {
+      stopHookCount += 1
+    })
+
+    await harness.runtime.ingest('hello', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    expect(stopHookCount).toBe(0)
+    expect(harness.assistantAppended).toHaveLength(1)
+  })
+
+  /**
+   * @example
+   * `clearHooks()` must drop every bucket, including the newly-added
+   * `onAssistantStop` bucket. If it leaked, subscribers from a previous
+   * Stage.vue mount or a torn-down mods plugin would keep firing on the
+   * next stop.
+   */
+  it('clearHooks drops the onAssistantStop subscriber', async () => {
+    const harness = createHarness()
+
+    let stopHookCount = 0
+    harness.runtime.hooks.onAssistantStop(async () => {
+      stopHookCount += 1
+    })
+
+    harness.runtime.hooks.clearHooks()
+
+    await harness.runtime.hooks.emitAssistantStopHooks('any text', {
+      message: { role: 'assistant', content: '', slices: [], tool_results: [] } as StreamingAssistantMessage,
+      contexts: {},
+      composedMessage: [],
+    })
+
+    expect(stopHookCount).toBe(0)
+  })
+
+  /**
+   * @example
    * Attachments, reasoning deltas, and tool events update the assistant builder.
    */
   it('handles attachments, reasoning deltas, tool events, and assistant finalization', async () => {

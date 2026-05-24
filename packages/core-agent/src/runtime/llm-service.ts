@@ -249,13 +249,39 @@ export async function streamFrom({
       // from starting.
       // Keep `steps.then(resolveOnce)` so evaluation runners observe the real end
       // of the stream lifecycle instead of an intermediate tool boundary.
+      //
+      // NOTICE:
+      // When the user presses Stop, every side-channel promise rejects with an
+      // AbortError ("BodyStreamBuffer was aborted"). That is the intended
+      // cancellation path, not a fault: the orchestrator already branches on
+      // `sendController.signal.aborted` to persist the partial turn. Suppress
+      // the console.error in that case so a routine stop does not paint four
+      // red lines in devtools. We still propagate the rejection via
+      // `rejectOnce(error)` on the `steps` catch so the orchestrator's outer
+      // catch block runs and persists the `stopped` marker.
+      const isAbortError = (error: unknown): boolean => {
+        if (options?.abortSignal?.aborted)
+          return true
+        return error instanceof Error && error.name === 'AbortError'
+      }
+
       void streamResult.steps.then(resolveOnce).catch((error) => {
         rejectOnce(error)
-        console.error('Stream steps error:', error)
+        if (!isAbortError(error))
+          console.error('Stream steps error:', error)
       })
-      void streamResult.messages.catch(error => console.error('Stream messages error:', error))
-      void streamResult.usage.catch(error => console.error('Stream usage error:', error))
-      void streamResult.totalUsage.catch(error => console.error('Stream totalUsage error:', error))
+      void streamResult.messages.catch((error) => {
+        if (!isAbortError(error))
+          console.error('Stream messages error:', error)
+      })
+      void streamResult.usage.catch((error) => {
+        if (!isAbortError(error))
+          console.error('Stream usage error:', error)
+      })
+      void streamResult.totalUsage.catch((error) => {
+        if (!isAbortError(error))
+          console.error('Stream totalUsage error:', error)
+      })
     }
     catch (error) {
       rejectOnce(error)

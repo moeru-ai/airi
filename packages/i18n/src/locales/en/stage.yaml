@@ -1,11 +1,13 @@
 chat:
   actions:
     retry: Retry
+    stop: Stop
   message:
     character-name:
       airi: AIRI
       core-system: Core System
       you: You
+    stopped: Stopped
   reasoning: Reasoning
   sessions:
     title: Conversations

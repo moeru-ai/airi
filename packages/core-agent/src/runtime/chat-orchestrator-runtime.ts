@@ -253,6 +253,10 @@ export interface ChatOrchestratorRuntime {
   ingest: (sendingMessage: string, options: ChatOrchestratorSendOptions, targetSessionId?: string) => Promise<void>
   /** Rejects queued sends that have not started yet. */
   cancelPendingSends: (sessionId?: string) => void
+  /** Aborts the in-flight stream for the given session (or any session when omitted). */
+  cancelActiveSend: (sessionId?: string) => void
+  /** Aborts the in-flight stream and rejects every queued send. */
+  stopSending: (sessionId?: string) => void
   /** Returns serializable snapshots of currently queued sends. */
   getPendingQueuedSendSnapshot: () => QueuedSendSnapshot[]
   /** Returns the current queued send count. */
@@ -292,6 +296,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
   let sending = false
   let pendingQueuedSends: QueuedSend[] = []
+  let activeSendController: AbortController | undefined
+  let activeSendSessionId: string | undefined
 
   function emitStateChange() {
     deps.onStateChange?.({
@@ -385,11 +391,14 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       },
     })
 
+    const sendController = new AbortController()
     const isStaleGeneration = () => deps.session.getSessionGeneration(sessionId) !== generation
-    const shouldAbort = () => isStaleGeneration()
+    const shouldAbort = () => isStaleGeneration() || sendController.signal.aborted
     if (shouldAbort())
       return
 
+    activeSendController = sendController
+    activeSendSessionId = sessionId
     setSending(true)
 
     const buildingMessage: StreamingAssistantMessage = {
@@ -407,6 +416,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       model: options.model,
     })
     const roundStartedAt = monotonicNow()
+
+    // Hoisted out of the try block so the abort path in catch can persist
+    // the partial transcript captured up to the stop point.
+    let fullText = ''
 
     try {
       await hooks.emitBeforeMessageComposedHooks(sendingMessage, streamingMessageContext)
@@ -596,7 +609,6 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       await hooks.emitAfterMessageComposedHooks(sendingMessage, streamingMessageContext)
       await hooks.emitBeforeSendHooks(sendingMessage, streamingMessageContext)
 
-      let fullText = ''
       const headers = (options.providerConfig?.headers || {}) as Record<string, string>
 
       if (shouldAbort())
@@ -615,6 +627,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         tools: options.tools,
         waitForTools: true,
         captureToolErrors: true,
+        abortSignal: sendController.signal,
         onStreamEvent: async (event: StreamEvent) => {
           switch (event.type) {
             case 'tool-call':
@@ -683,6 +696,14 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         latencyMs: Math.round(monotonicNow() - llmRequestStartedAt),
       })
 
+      // NOTICE:
+      // Past this point the stream has drained successfully. If the user
+      // presses Stop in the microseconds between parser.end() resolving and
+      // this guard, we still treat the turn as a complete response (no
+      // `stopped` marker, turn-complete hooks fire as normal). Rationale:
+      // every token already arrived, so the response is whole; the abort
+      // signal only reaches here when there is nothing left to cancel. The
+      // catch block below owns the genuine mid-stream cancellation path.
       if (!isStaleGeneration() && buildingMessage.slices.length > 0) {
         const finalAssistant = buildingMessage
         deps.session.appendSessionMessage(sessionId, finalAssistant)
@@ -717,10 +738,55 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       })
     }
     catch (error) {
+      // User-initiated cancellation surfaces as an AbortError from xsai/fetch.
+      // We swallow it here so the caller does not see a synthetic error.
+      //
+      // Persist the partial draft with a `stopped` marker so the UI can
+      // acknowledge the cancellation visibly (badge + retry affordance) and
+      // include the partial assistant turn in the next-turn LLM context.
+      //
+      // Turn-complete hooks are intentionally NOT fired on a stop: downstream
+      // observers (cloud sync, analytics, turn-complete listeners) treat
+      // those as "a full assistant turn landed", which is not what happened
+      // here. The stopped marker is the contract for that state.
+      if (sendController.signal.aborted) {
+        if (!isStaleGeneration() && buildingMessage.slices.length > 0) {
+          const stoppedAssistant: StreamingAssistantMessage = {
+            ...buildingMessage,
+            stopped: true,
+          }
+          deps.session.appendSessionMessage(sessionId, stoppedAssistant)
+          deps.onAssistantMessageAppended?.({
+            sessionId,
+            message: stoppedAssistant,
+            messageText: fullText,
+          })
+        }
+        // NOTICE:
+        // Fire `onAssistantStop` unconditionally, regardless of whether any
+        // slices flushed. Subscribers (TTS session, captions, motion) bind
+        // their lifecycle to `onBeforeMessageComposed` which already opened
+        // resources before the first token; those resources must be torn
+        // down even when the user stops faster than the model's first byte.
+        await hooks.emitAssistantStopHooks(fullText, streamingMessageContext)
+        return
+      }
+
       console.error('Error sending message:', error)
       throw error
     }
     finally {
+      // NOTICE:
+      // Reset the streaming bubble on every abort path, not just the catch
+      // block. `shouldAbort()` checkpoints between setSending(true) and the
+      // LLM stream call can early-return without entering catch, which would
+      // otherwise leave the empty assistant bubble painted.
+      if (sendController.signal.aborted)
+        resetForegroundStream(sessionId)
+      if (activeSendController === sendController) {
+        activeSendController = undefined
+        activeSendSessionId = undefined
+      }
       setSending(false)
       deps.onSendSettled?.({ sessionId })
     }
@@ -794,6 +860,34 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     emitStateChange()
   }
 
+  /**
+   * Aborts the in-flight stream, if any.
+   *
+   * Use when:
+   * - The user clicks a stop button to cancel the current assistant response.
+   * - A session-scoped cancel is needed; passing `sessionId` will only abort when
+   *   the running send belongs to that session.
+   *
+   * Expects:
+   * - The active send loop will see the AbortSignal via `deps.llm.stream`, throw,
+   *   land in the catch block, and discard partial content.
+   *
+   * Returns:
+   * - Nothing. State updates are emitted via `onStateChange` once the send settles.
+   */
+  function cancelActiveSend(sessionId?: string) {
+    if (!activeSendController)
+      return
+    if (sessionId && activeSendSessionId !== sessionId)
+      return
+    activeSendController.abort()
+  }
+
+  function stopSending(sessionId?: string) {
+    cancelActiveSend(sessionId)
+    cancelPendingSends(sessionId)
+  }
+
   function getPendingQueuedSendSnapshot() {
     return pendingQueuedSends.map(queued => ({
       sessionId: queued.sessionId,
@@ -808,6 +902,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   return {
     ingest,
     cancelPendingSends,
+    cancelActiveSend,
+    stopSending,
     getPendingQueuedSendSnapshot,
     getPendingQueuedSendCount: () => pendingQueuedSends.length,
     getSending: () => sending,

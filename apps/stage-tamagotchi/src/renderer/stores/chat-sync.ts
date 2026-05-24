@@ -79,11 +79,13 @@ type ChatSyncMessage
     | { type: 'request-snapshot', requestId: string, senderId: string }
     | { type: 'session-snapshot', authorityId: string, snapshot: SessionSnapshotPayload }
     | { type: 'stream-snapshot', authorityId: string, snapshot: StreamSnapshotPayload }
+    | { type: 'assistant-stop', authorityId: string }
     | ChatCommandMessage<'ingest', IngestCommandPayload>
     | ChatCommandMessage<'spotlight-ingest', SpotlightIngestPayload>
     | ChatCommandMessage<'retry', RetryCommandPayload>
     | ChatCommandMessage<'cleanup', { sessionId?: string }>
     | ChatCommandMessage<'delete-message', { sessionId?: string, messageId?: string, index?: number }>
+    | ChatCommandMessage<'stop', { sessionId?: string }>
     | ({ type: 'response', requestId: string, authorityId: string } & ChatResponsePayload)
 
 interface PendingRequest {
@@ -239,6 +241,16 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     })
   }
 
+  function broadcastAssistantStop() {
+    if (mode.value !== 'authority')
+      return
+
+    post({
+      type: 'assistant-stop',
+      authorityId: instanceId,
+    })
+  }
+
   function stopWatchers() {
     while (stopSyncWatchers.length > 0) {
       const stop = stopSyncWatchers.pop()
@@ -261,6 +273,9 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       watch([sending, streamingMessage], () => {
         broadcastStreamSnapshot()
       }, { deep: true, immediate: true }),
+      chatOrchestrator.onAssistantStop(async () => {
+        broadcastAssistantStop()
+      }),
     )
 
     broadcastAuthorityAnnouncement()
@@ -450,6 +465,9 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
         case 'delete-message':
           executeDeleteMessage(message.payload)
           break
+        case 'stop':
+          chatOrchestrator.stopSending(message.payload.sessionId)
+          break
       }
 
       respond({ ok: true })
@@ -523,6 +541,27 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
           return
         authorityId.value = message.authorityId
         applyStreamSnapshot(message.snapshot)
+        return
+      case 'assistant-stop':
+        if (mode.value !== 'follower')
+          return
+        authorityId.value = message.authorityId
+        // NOTICE:
+        // Re-emit the orchestrator's `onAssistantStop` locally on follower
+        // windows so Stage.vue (and any other in-renderer subscriber) can
+        // tear down TTS, captions, and motion expressions bound to the
+        // partial turn. The orchestrator catch only ran in the authority
+        // window, so this BroadcastChannel hop is the only signal a
+        // follower receives. The synthetic context mirrors what runtime
+        // subscribers typically read: the in-flight streaming message
+        // (already applied via prior `stream-snapshot`) plus empty
+        // contexts and composed message, because no subscriber on this
+        // path consumes them.
+        void chatOrchestrator.emitAssistantStopHooks('', {
+          message: streamingMessage.value as ChatHistoryItem,
+          contexts: {},
+          composedMessage: [],
+        })
         return
       case 'command':
         void handleCommand(message)
@@ -671,6 +710,21 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     })
   }
 
+  async function requestStop(payload: { sessionId?: string } = {}) {
+    if (mode.value === 'authority') {
+      chatOrchestrator.stopSending(payload.sessionId)
+      return
+    }
+
+    return await dispatchCommand({
+      type: 'command',
+      requestId: createRequestId(),
+      senderId: instanceId,
+      command: 'stop',
+      payload,
+    })
+  }
+
   function dispose() {
     stopWatchers()
     clearHeartbeat()
@@ -690,5 +744,6 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     requestRetry,
     requestCleanup,
     requestDeleteMessage,
+    requestStop,
   }
 })
