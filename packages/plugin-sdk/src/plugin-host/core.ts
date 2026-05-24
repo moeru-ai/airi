@@ -1538,7 +1538,9 @@ export class PluginHost {
       }
 
       // Step 12/13: apply default config path for alpha when no manual configuration is required.
-      await this.applyConfiguration(session.id, {
+      // When `options.config` is provided (e.g. from reload with updated plugin configs),
+      // use it directly instead of the default empty envelope.
+      await this.applyConfiguration(session.id, options.config ?? {
         configId: `${session.identity.id}:default`,
         revision: 1,
         schemaVersion: 1,

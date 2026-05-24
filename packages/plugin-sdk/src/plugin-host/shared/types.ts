@@ -705,4 +705,6 @@ export interface PluginStartOptions {
   requiredCapabilities?: string[]
   /** Wait timeout applied to each required capability. @default 15000 */
   capabilityWaitTimeoutMs?: number
+  /** Optional configuration envelope to apply during initialization. */
+  config?: ModuleConfigEnvelope
 }

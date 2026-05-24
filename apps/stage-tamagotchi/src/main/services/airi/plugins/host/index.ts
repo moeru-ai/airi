@@ -1,4 +1,4 @@
-import type { PluginHostContribution, PluginSessionApiFactoryContext } from '@proj-airi/plugin-sdk/plugin-host'
+import type { ModuleConfigEnvelope, PluginHostContribution, PluginSessionApiFactoryContext } from '@proj-airi/plugin-sdk/plugin-host'
 
 import type {
   PluginHostDebugSnapshot,
@@ -408,7 +408,7 @@ export async function setupPluginHostHostService(
 
   const loadPluginByName = async (
     name: string,
-    loadOptions: { cacheBustKey?: string } = {},
+    loadOptions: { cacheBustKey?: string, config?: ModuleConfigEnvelope } = {},
   ) => {
     if (loaded.has(name)) {
       return
@@ -420,7 +420,7 @@ export async function setupPluginHostHostService(
     }
 
     const manifestForLoad = createManifestForLoad(entry, loadOptions)
-    const session = await host.start(manifestForLoad, { cwd: dirname(entry.path) })
+    const session = await host.start(manifestForLoad, { cwd: dirname(entry.path), config: loadOptions.config })
     loaded.add(name)
     loadedSessionIds.set(name, session.id)
     log.log('plugin loaded', { plugin: name, sessionId: session.id })
@@ -483,8 +483,16 @@ export async function setupPluginHostHostService(
         continue
       }
 
+      const pluginUserConfig = config.configs[name]
+      const configEnvelope: ModuleConfigEnvelope = {
+        configId: `${name}:config`,
+        revision: 1,
+        schemaVersion: 1,
+        full: pluginUserConfig ?? {},
+      }
+
       try {
-        await loadPluginByName(name)
+        await loadPluginByName(name, { config: configEnvelope })
       }
       catch (error) {
         log.withError(error).withFields({ plugin: name }).error('plugin failed to start')
@@ -643,7 +651,13 @@ export async function setupPluginHostHostService(
 
       const sessionId = loadedSessionIds.get(payload.pluginName)
       if (sessionId) {
-        const session = await host.reload(sessionId)
+        const configEnvelope: ModuleConfigEnvelope = {
+          configId: `${payload.pluginName}:user-config`,
+          revision: 1,
+          schemaVersion: 1,
+          full: payload.config,
+        }
+        const session = await host.reload(sessionId, { config: configEnvelope })
         if (session) {
           loadedSessionIds.set(payload.pluginName, session.id)
         }
