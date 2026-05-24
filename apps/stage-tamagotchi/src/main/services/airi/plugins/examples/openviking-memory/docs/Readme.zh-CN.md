@@ -4,8 +4,54 @@
 
 ## 功能
 
-- **搜索记忆**（`memory_search`）：根据查询关键词搜索长期记忆
+### 工具列表
+
+- **搜索记忆**（`memory_search`）：根据查询关键词搜索长期记忆。返回结果格式如下：
+
+  ```json
+  [
+    {
+      "context_type": "memory",
+      "uri": "viking://user/default/memories/manual/1779530859829-dly184hl.md",
+      "level": 2,
+      "score": 0.6159865260124207,
+      "category": "",
+      "match_reason": "",
+      "relations": [],
+      "abstract": "1. 该文档是一份个人日程计划笔记...",
+      "overview": null
+    },
+    {
+      "context_type": "memory",
+      "uri": "viking://user/default/memories/manual/1779384773203-r0jq33bf.md",
+      "level": 2,
+      "score": 0.6076329350471497,
+      "category": "",
+      "match_reason": "",
+      "relations": [],
+      "abstract": "This document is a concise personal travel plan...",
+      "overview": null
+    }
+  ]
+  ```
+
+  每个结果字段说明：
+
+  | 字段 | 类型 | 说明 |
+  |------|------|------|
+  | `context_type` | `string` | 上下文类型，固定为 `memory` |
+  | `uri` | `string` | 记忆文件的 URI，可用于 `memory_read` 工具读取完整内容 |
+  | `level` | `number` | 层级（0-3），数字越大表示越相关 |
+  | `score` | `number` | 相关性评分（0-1），越高越匹配 |
+  | `category` | `string` | 分类标签 |
+  | `match_reason` | `string` | 匹配原因说明 |
+  | `relations` | `array` | 关联的其它记忆 URI 列表 |
+  | `abstract` | `string` | 记忆内容的摘要/概述 |
+  | `overview` | `string \| null` | 概览信息 |
+
+- **读取记忆**（`memory_read`）：根据 URI 读取一条记忆的完整内容
 - **保存记忆**（`memory_save`）：将重要信息保存到长期记忆
+- **保存对话记录**（`memory_save_conversation`）：将一轮对话（用户消息 + 助手回复 + 工具调用）保存到长期记忆
 - **删除记忆**（`memory_delete`）：删除指定的记忆条目
 
 ## 安装
@@ -31,15 +77,27 @@
 
 2. **将插件复制到插件目录**
 
-   根据操作系统，将打包文件解压后的 `openviking-memory/` 目录复制到对应的插件目录：
+   根据运行环境，将打包文件解压后的 `openviking-memory/` 目录复制到对应的插件目录。
+
+   **生产环境**（打包后的应用）：
 
    | 操作系统 | 插件目录 |
    |----------|----------|
    | **macOS** | `~/Library/Application Support/${appId}/plugins/v1/` |
    | **Windows** | `%APPDATA%\\${appId}\\plugins\\v1\\` |
-   **Linux** | `$XDG_CONFIG_HOME/${appId}/plugins/v1/` 或 `~/.config/${appId}/plugins/v1/` |
+   | **Linux** | `$XDG_CONFIG_HOME/${appId}/plugins/v1/` 或 `~/.config/${appId}/plugins/v1/` |
 
-   > `${appId}` 为 AIRI 应用的标识符，具体值请参考应用配置。
+   > `${appId}` 为 AIRI 应用的标识符（默认 `ai.moeru.airi`），具体值请参考应用配置。
+
+   **开发环境**（`pnpm dev`）：
+
+   当使用 `electron-vite dev` 运行时，Electron 使用包名作为用户数据目录，插件目录为：
+
+   | 操作系统 | 插件目录 |
+   |----------|----------|
+   | **macOS** | `~/Library/Application Support/@proj-airi/stage-tamagotchi/plugins/v1/` |
+   | **Windows** | `%APPDATA%\\@proj-airi\\stage-tamagotchi\\plugins\\v1\\` |
+   | **Linux** | `~/.config/@proj-airi/stage-tamagotchi/plugins/v1/` |
 
 3. **在插件管理器中启用**
 
@@ -62,7 +120,9 @@
 加载成功后，AIRI 将获得以下工具能力：
 
 - `memory_search` — 搜索长期记忆
+- `memory_read` — 根据 URI 读取记忆完整内容
 - `memory_save` — 保存记忆
+- `memory_save_conversation` — 保存对话记录
 - `memory_delete` — 删除记忆
 
 ## 开发

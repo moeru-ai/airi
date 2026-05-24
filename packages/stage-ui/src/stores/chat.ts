@@ -70,7 +70,6 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
   const sending = ref(false)
   const pendingQueuedSendCount = ref(0)
-  const registeredContextProviders = ref<ContextProvider[]>([])
   let ownedActiveTurnSpan: typeof activeTurnSpan.value
 
   async function streamWithStageAdapters(
@@ -163,18 +162,6 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     runtimeContextProviders: [
       createMinecraftContext,
     ],
-    onBeforeCompose: async (sendingMessage) => {
-      for (const provider of registeredContextProviders.value) {
-        try {
-          const context = await provider(sendingMessage)
-          if (context)
-            chatContext.ingestContextMessage(context)
-        }
-        catch (error) {
-          console.warn('[chat] Registered context provider failed:', error)
-        }
-      }
-    },
     createId: nanoid,
     unwrapMessage: message => toRaw(message),
     onStateChange: syncRuntimeState,
@@ -282,6 +269,8 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     cancelPendingSends,
     getPendingQueuedSendSnapshot,
 
+    registerRuntimeContextProvider: runtime.registerRuntimeContextProvider,
+
     clearHooks: runtime.hooks.clearHooks,
 
     emitBeforeMessageComposedHooks: runtime.hooks.emitBeforeMessageComposedHooks,
@@ -305,15 +294,5 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     onAssistantResponseEnd: runtime.hooks.onAssistantResponseEnd,
     onAssistantMessage: runtime.hooks.onAssistantMessage,
     onChatTurnComplete: runtime.hooks.onChatTurnComplete,
-
-    registeredContextProviders,
-    registerContextProvider: (provider: ContextProvider): (() => void) => {
-      registeredContextProviders.value.push(provider)
-      return () => {
-        const idx = registeredContextProviders.value.indexOf(provider)
-        if (idx >= 0)
-          registeredContextProviders.value.splice(idx, 1)
-      }
-    },
   }
 })

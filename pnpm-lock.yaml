@@ -1677,6 +1677,12 @@ importers:
         specifier: ^3.3.0
         version: 3.3.0
 
+  apps/stage-tamagotchi/src/main/services/airi/plugins/examples/openviking-memory:
+    dependencies:
+      '@proj-airi/plugin-protocol':
+        specifier: workspace:*
+        version: link:../../../../../../../../../packages/plugin-protocol
+
   apps/stage-web:
     dependencies:
       '@date-fns/utc':

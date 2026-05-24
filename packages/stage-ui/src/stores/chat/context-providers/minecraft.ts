@@ -7,7 +7,7 @@ import { useMinecraftStore } from '../../modules/gaming-minecraft'
 
 const MINECRAFT_CONTEXT_ID = 'system:minecraft-integration'
 
-export function createMinecraftContext(): ContextMessage | null {
+export function createMinecraftContext(_sendingMessage: string): ContextMessage | null {
   const minecraftStore = useMinecraftStore()
   minecraftStore.initialize()
 

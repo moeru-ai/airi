@@ -1,4 +1,4 @@
-import type { ModuleConfigEnvelope, PluginHostContribution, PluginSessionApiFactoryContext } from '@proj-airi/plugin-sdk/plugin-host'
+import type { ModuleConfigEnvelope } from '@proj-airi/plugin-sdk/plugin-host'
 
 import type {
   PluginHostDebugSnapshot,
@@ -274,29 +274,11 @@ export async function setupPluginHostHostService(
   const pluginConfig = createPluginHostConfigStore()
   pluginConfig.setup()
 
-  // Context provider registry: plugins register providers that the host can query
-  const contextProviders = new Map<string, (query: string) => Promise<Array<{ text: string, score: number }>>>()
-
-  const contextProviderContribution: PluginHostContribution = {
-    install(installContext) {
-      installContext.registerSessionApi('context', (factoryContext: PluginSessionApiFactoryContext) => {
-        return {
-          registerProvider: (provider: (query: string) => Promise<Array<{ text: string, score: number }>>) => {
-            contextProviders.set(factoryContext.session.ownerPluginId, provider)
-          },
-          unregisterProvider: () => {
-            contextProviders.delete(factoryContext.session.ownerPluginId)
-          },
-        }
-      })
-    },
-  }
-
   // Kit API, Host
   const builtInKitRuntime = createBuiltInPluginKitRuntime(options)
   const host = new PluginHost({
     runtime: 'electron',
-    contributions: [...builtInKitRuntime.contributions, contextProviderContribution],
+    contributions: builtInKitRuntime.contributions,
   })
   builtInKitRuntime.attachHost(host) // reverse dependency injection
   log.withFields({ pluginsRoot }).log('loading plugin manifests')
@@ -426,6 +408,18 @@ export async function setupPluginHostHostService(
     log.log('plugin loaded', { plugin: name, sessionId: session.id })
   }
 
+  const buildPluginConfigEnvelope = (name: string): ModuleConfigEnvelope | undefined => {
+    const userConfig = getConfig().configs[name]
+    if (!userConfig)
+      return undefined
+    return {
+      configId: `${name}:config`,
+      revision: 1,
+      schemaVersion: 1,
+      full: userConfig,
+    }
+  }
+
   const stopLoadedPluginByName = async (name: string) => {
     const sessionId = loadedSessionIds.get(name)
     if (!sessionId) {
@@ -463,7 +457,7 @@ export async function setupPluginHostHostService(
     reload: async (name) => {
       await stopLoadedPluginByName(name)
       await refreshManifests()
-      await loadPluginByName(name, { cacheBustKey: `auto-reload-${Date.now()}` })
+      await loadPluginByName(name, { cacheBustKey: `auto-reload-${Date.now()}`, config: buildPluginConfigEnvelope(name) })
     },
   })
 
@@ -483,16 +477,8 @@ export async function setupPluginHostHostService(
         continue
       }
 
-      const pluginUserConfig = config.configs[name]
-      const configEnvelope: ModuleConfigEnvelope = {
-        configId: `${name}:config`,
-        revision: 1,
-        schemaVersion: 1,
-        full: pluginUserConfig ?? {},
-      }
-
       try {
-        await loadPluginByName(name, { config: configEnvelope })
+        await loadPluginByName(name, { config: buildPluginConfigEnvelope(name) })
       }
       catch (error) {
         log.withError(error).withFields({ plugin: name }).error('plugin failed to start')
@@ -571,7 +557,7 @@ export async function setupPluginHostHostService(
     },
     async load(name) {
       await refreshManifests()
-      await loadPluginByName(name)
+      await loadPluginByName(name, { config: buildPluginConfigEnvelope(name) })
       autoReloadFeature.sync()
       return listSnapshot()
     },
@@ -589,12 +575,26 @@ export async function setupPluginHostHostService(
       return pluginAssetService.getBaseUrl() ?? ''
     },
     async queryContext(payload: { pluginName: string, query: string }) {
-      const provider = contextProviders.get(payload.pluginName)
-      if (!provider) {
+      if (!loaded.has(payload.pluginName))
+        return { contexts: [] }
+
+      try {
+        const result = await host.invokeTool(
+          payload.pluginName,
+          'memory_search',
+          { query: payload.query },
+        )
+        const data = result as { results?: Array<Record<string, unknown>> }
+        return {
+          contexts: (data.results ?? []).map(item => ({
+            text: `[${item.uri}]\n${String(item.abstract ?? '')}`,
+            score: Number(item.score ?? 0),
+          })),
+        }
+      }
+      catch {
         return { contexts: [] }
       }
-      const contexts = await provider(payload.query)
-      return { contexts }
     },
     async getPluginConfig(payload: { pluginName: string }) {
       const entry = pluginRegistry.findManifestEntry(payload.pluginName)

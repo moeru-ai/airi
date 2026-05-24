@@ -175,9 +175,7 @@ export interface ChatOrchestratorRuntimeDeps {
   /** Returns optional prompt text appended to the provider system message for this send. */
   getSystemPromptSupplement?: () => string | undefined
   /** Runtime context providers ingested immediately before prompt composition. */
-  runtimeContextProviders?: Array<() => ContextMessage | null | undefined>
-  /** Async callback invoked after runtime context ingest and before message composition hooks. */
-  onBeforeCompose?: (sendingMessage: string) => Promise<void>
+  runtimeContextProviders?: Array<(sendingMessage: string) => ContextMessage | null | undefined | Promise<ContextMessage | null | undefined>>
   /** Clock used for persisted message timestamps. @default Date.now */
   now?: () => number
   /** Monotonic clock used for elapsed telemetry in milliseconds. @default performance.now */
@@ -265,6 +263,8 @@ export interface ChatOrchestratorRuntime {
   setSending: (next: boolean) => void
   /** Hook registry preserved from the previous stage-ui store API. */
   hooks: ReturnType<typeof createChatHooks>
+  /** Registers an additional runtime context provider after construction. */
+  registerRuntimeContextProvider: (provider: (sendingMessage: string) => ContextMessage | null | undefined | Promise<ContextMessage | null | undefined>) => void
 }
 
 function defaultCreateId() {
@@ -294,6 +294,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
   let sending = false
   let pendingQueuedSends: QueuedSend[] = []
+  const additionalRuntimeContextProviders: Array<(sendingMessage: string) => ContextMessage | null | undefined | Promise<ContextMessage | null | undefined>> = []
 
   function emitStateChange() {
     deps.onStateChange?.({
@@ -323,9 +324,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       deps.foregroundStream.reset()
   }
 
-  function ingestRuntimeContexts() {
-    for (const provider of deps.runtimeContextProviders ?? []) {
-      const contextMessage = provider()
+  async function ingestRuntimeContexts(sendingMessage: string) {
+    const providers = [
+      ...(deps.runtimeContextProviders ?? []),
+      ...additionalRuntimeContextProviders,
+    ]
+    for (const provider of providers) {
+      const contextMessage = await provider(sendingMessage)
       if (contextMessage)
         deps.context.ingest(contextMessage)
     }
@@ -366,8 +371,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     // It is applied at message-assembly time (see below) as a system-prompt
     // date anchor + per-message [HH:MM] prefixes, which is more KV-cache
     // friendly and less prone to weak models echoing timestamps verbatim.
-    ingestRuntimeContexts()
-    await deps.onBeforeCompose?.(sendingMessage)
+    await ingestRuntimeContexts(sendingMessage)
 
     const sendingCreatedAt = now()
 
@@ -816,5 +820,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     getSending: () => sending,
     setSending,
     hooks,
+    registerRuntimeContextProvider: (provider) => {
+      additionalRuntimeContextProviders.push(provider)
+    },
   }
 }

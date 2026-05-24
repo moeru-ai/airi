@@ -7,10 +7,16 @@ export interface Memory {
 }
 
 export interface ConversationTurn {
+  sessionId?: string
   userMessage: string
   assistantResponse: string
   toolCalls?: unknown[]
   timestamp: string
+}
+
+export interface ConversationSaveResult {
+  id: string
+  sessionId: string
 }
 
 export interface OpenVikingClientConfig {
@@ -20,7 +26,8 @@ export interface OpenVikingClientConfig {
 
 export interface OpenVikingClient {
   searchMemories: (query: string) => Promise<Record<string, unknown>[]>
-  saveConversation: (conversation: ConversationTurn) => Promise<{ id: string }>
+  readMemory: (uri: string) => Promise<{ uri: string, content: string }>
+  saveConversation: (conversation: ConversationTurn) => Promise<ConversationSaveResult>
   saveMemory: (content: string, tags?: string[]) => Promise<{ id: string }>
   deleteMemory: (id: string) => Promise<void>
   healthCheck: () => Promise<boolean>
@@ -110,45 +117,50 @@ export function createOpenVikingClient(config: OpenVikingClientConfig): OpenViki
       return data.result?.memories ?? []
     },
 
-    async saveConversation(conversation: ConversationTurn): Promise<{ id: string }> {
-      const sessionRes = await apiFetch('/api/v1/sessions', {
-        method: 'POST',
-        body: JSON.stringify({}),
+    async readMemory(uri: string): Promise<{ uri: string, content: string }> {
+      const params = new URLSearchParams({ uri })
+      const response = await apiFetch(`/api/v1/content/read?${params}`, {
+        method: 'GET',
       })
-      if (!sessionRes.ok) {
-        throw new Error(`session creation failed: HTTP ${sessionRes.status}`)
+      if (!response.ok) {
+        throw new Error(`read memory failed: HTTP ${response.status}`)
       }
-      const sessionData = await sessionRes.json() as { status: string, result: { session_id: string } }
-      const sessionId = sessionData.result?.session_id
-      if (!sessionId) {
-        throw new Error('failed to create session')
-      }
+      const data = await response.json() as { status: string, result: string }
+      return { uri, content: data.result ?? '' }
+    },
 
+    async saveConversation(conversation: ConversationTurn): Promise<ConversationSaveResult> {
+      const sessionId = conversation.sessionId || crypto.randomUUID()
+
+      const userPayload = {
+        role: 'user',
+        content: conversation.userMessage || '(empty)',
+        created_at: conversation.timestamp,
+      }
+      console.info('[openviking] saveConversation sessionId:', sessionId, 'user payload:', JSON.stringify(userPayload))
       const msgRes = await apiFetch(`/api/v1/sessions/${sessionId}/messages`, {
         method: 'POST',
-        body: JSON.stringify({
-          role: 'user',
-          content: conversation.userMessage || '(empty)',
-          createdAt: conversation.timestamp,
-        }),
+        body: JSON.stringify(userPayload),
       })
       if (!msgRes.ok) {
         throw new Error(`save message failed: HTTP ${msgRes.status}`)
       }
 
+      const assistantPayload = {
+        role: 'assistant',
+        content: conversation.assistantResponse || '(empty)',
+        created_at: conversation.timestamp,
+      }
+      console.info('[openviking] saveConversation assistant payload:', JSON.stringify(assistantPayload))
       const assistRes = await apiFetch(`/api/v1/sessions/${sessionId}/messages`, {
         method: 'POST',
-        body: JSON.stringify({
-          role: 'assistant',
-          content: conversation.assistantResponse || '(empty)',
-          createdAt: conversation.timestamp,
-        }),
+        body: JSON.stringify(assistantPayload),
       })
       if (!assistRes.ok) {
         throw new Error(`save assistant message failed: HTTP ${assistRes.status}`)
       }
 
-      return { id: sessionId }
+      return { id: sessionId, sessionId }
     },
 
     async deleteMemory(id: string): Promise<void> {

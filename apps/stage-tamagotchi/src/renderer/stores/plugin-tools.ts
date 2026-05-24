@@ -3,12 +3,14 @@ import type { ElectronPluginXsaiToolDefinition } from '../../shared/eventa/plugi
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
+import { extractMessageText } from '@proj-airi/stage-ui/libs/chat-sync'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
-import { useChatContextStore } from '@proj-airi/stage-ui/stores/chat/context-store'
+import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/maintenance'
 import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/llm-tools'
 import { useLlmToolsetPromptsStore } from '@proj-airi/stage-ui/stores/llm-toolset-prompts'
 import { rawTool } from '@xsai/tool'
 import { defineStore } from 'pinia'
+import { onScopeDispose, ref } from 'vue'
 
 import { electronPluginQueryContext } from '../../shared/eventa/plugin/context'
 import { electronPluginList } from '../../shared/eventa/plugin/host'
@@ -36,7 +38,7 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
   const llmToolsStore = useLlmToolsStore()
   const llmToolsetPromptsStore = useLlmToolsetPromptsStore()
   const chatOrchestratorStore = useChatOrchestratorStore()
-  const chatContext = useChatContextStore()
+  const conversationSessionId = ref<string | null>(null)
 
   const listPluginXsaiToolDefinitions = useElectronEventaInvoke(electronPluginListXsaiTools)
   const invokePluginTool = useElectronEventaInvoke(electronPluginInvokeTool)
@@ -44,14 +46,29 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
   const listPlugins = useElectronEventaInvoke(electronPluginList)
 
   let postProcessingUnsubscribe: (() => void) | null = null
-  let unregisterContextProvider: (() => void) | null = null
+  let cleanupUnsubscribe: (() => void) | null = null
+
+  {
+    const maintenanceStore = useChatMaintenanceStore()
+    cleanupUnsubscribe = maintenanceStore.$onAction(({ name, after }) => {
+      if (name === 'cleanupMessages') {
+        after(() => {
+          conversationSessionId.value = null
+          console.info('[plugin-tools] conversationSessionId reset after cleanupMessages')
+        })
+      }
+    })
+  }
+
+  onScopeDispose(() => {
+    cleanupUnsubscribe?.()
+    cleanupUnsubscribe = null
+  })
 
   async function initialize() {
     try {
       await refresh()
-      unregisterContextProvider = chatOrchestratorStore.registerContextProvider(
-        (userMessage: string) => injectMemoryContext(userMessage),
-      )
+      chatOrchestratorStore.registerRuntimeContextProvider(injectMemoryContext)
       registerPostProcessingHook()
       console.info('[plugin-tools] initialized')
     }
@@ -103,51 +120,67 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
   function dispose() {
     llmToolsStore.clearTools('plugin-tools')
     llmToolsetPromptsStore.clearToolsetPrompts('plugin-tools')
+    conversationSessionId.value = null
     if (postProcessingUnsubscribe) {
       postProcessingUnsubscribe()
       postProcessingUnsubscribe = null
     }
-    if (unregisterContextProvider) {
-      unregisterContextProvider()
-      unregisterContextProvider = null
+    if (cleanupUnsubscribe) {
+      cleanupUnsubscribe()
+      cleanupUnsubscribe = null
     }
   }
 
-  async function injectMemoryContext(userMessage: string) {
+  async function injectMemoryContext(sendingMessage: string) {
     const snapshot = await listPlugins()
     const loadedPlugins = snapshot.plugins.filter((p: { loaded: boolean, enabled: boolean }) => p.loaded && p.enabled)
     if (loadedPlugins.length === 0) {
-      console.info('[plugin-tools] injectMemoryContext: no loaded plugins')
       return undefined
     }
+
+    const gathered: Array<{ text: string, pluginName: string }> = []
     for (const plugin of loadedPlugins) {
       try {
-        const result = await queryPluginContext({ pluginName: plugin.name, query: userMessage })
-        console.info(`[plugin-tools] injectMemoryContext: plugin="${plugin.name}" found ${result.contexts.length} context(s)`)
-        if (result.contexts.length === 0) {
+        const result = await queryPluginContext({ pluginName: plugin.name, query: sendingMessage })
+        if (result.contexts.length === 0)
           continue
-        }
+
         const contextText = result.contexts.map((c: { text: string }) => c.text).join('\n')
-        chatContext.ingestContextMessage({
-          id: generateId(),
-          contextId: `${PLUGIN_CONTEXT_ID_PREFIX}${plugin.name}`,
-          strategy: ContextUpdateStrategy.ReplaceSelf,
-          text: contextText,
-          createdAt: Date.now(),
-          metadata: {
-            source: {
-              id: plugin.name,
-              kind: 'plugin' as const,
-              plugin: { id: plugin.name },
-            },
-          },
-        })
+        gathered.push({ text: contextText, pluginName: plugin.name })
       }
       catch (error) {
         console.warn(`[plugin-tools] failed to inject memory context from plugin "${plugin.name}":`, error)
       }
     }
-    return undefined
+
+    if (gathered.length === 0)
+      return undefined
+
+    const combinedText = gathered
+      .map(ctx => `[Plugin: ${ctx.pluginName}]\n${ctx.text}`)
+      .join('\n\n')
+
+    return {
+      id: generateId(),
+      contextId: PLUGIN_CONTEXT_ID_PREFIX,
+      strategy: ContextUpdateStrategy.ReplaceSelf,
+      text: combinedText,
+      createdAt: Date.now(),
+      metadata: {
+        source: {
+          id: 'plugin-memory',
+          kind: 'plugin' as const,
+          plugin: { id: 'plugin-memory' },
+        },
+      },
+    }
+  }
+
+  function ensureConversationSessionId(): string {
+    if (!conversationSessionId.value) {
+      conversationSessionId.value = `conversation_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
+    }
+    return conversationSessionId.value
   }
 
   function registerPostProcessingHook(): () => void {
@@ -155,16 +188,19 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
       postProcessingUnsubscribe()
       postProcessingUnsubscribe = null
     }
-    const unsubscribe = chatOrchestratorStore.onChatTurnComplete(async (chat: any) => {
+    const unsubscribe = chatOrchestratorStore.onChatTurnComplete(async (chat, context) => {
       const snapshot = await listPlugins()
       const loadedPlugins = snapshot.plugins.filter((p: { loaded: boolean, enabled: boolean }) => p.loaded && p.enabled)
       if (loadedPlugins.length === 0) {
         console.info('[plugin-tools] onChatTurnComplete: no loaded plugins')
         return
       }
-      const userMessage = chat.output.content
+      const userMessage = extractMessageText(context.message)
+      console.info('[plugin-tools] onChatTurnComplete userMessage:', userMessage)
+      console.info('[plugin-tools] onChatTurnComplete assistantResponse:', chat.outputText)
       const turn: Record<string, unknown> = {
-        userMessage: typeof userMessage === 'string' ? userMessage : '',
+        sessionId: ensureConversationSessionId(),
+        userMessage,
         assistantResponse: chat.outputText,
         toolCalls: chat.output.tool_results,
         timestamp: new Date().toISOString(),
@@ -172,7 +208,7 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
       for (const plugin of loadedPlugins) {
         invokePluginTool({
           ownerPluginId: plugin.name,
-          name: 'memory/save_conversation',
+          name: 'memory_save_conversation',
           input: turn,
         }).catch((err: unknown) => console.warn(`[plugin-tools] failed to save turn to plugin "${plugin.name}"`, err))
       }
