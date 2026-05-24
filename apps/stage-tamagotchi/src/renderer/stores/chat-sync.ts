@@ -548,13 +548,17 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
         authorityId.value = message.authorityId
         // NOTICE:
         // Re-emit the orchestrator's `onAssistantStop` locally on follower
-        // windows so Stage.vue (and any other in-renderer subscriber) can
-        // tear down TTS, captions, and motion expressions bound to the
-        // partial turn. The orchestrator catch only ran in the authority
-        // window, so this BroadcastChannel hop is the only signal a
-        // follower receives. The synthetic context mirrors what runtime
-        // subscribers typically read: the in-flight streaming message
-        // (already applied via prior `stream-snapshot`) plus empty
+        // windows so any future in-renderer subscriber (devtools, analytics,
+        // mods plugin) can react to the stop. The built-in stage no longer
+        // consumes this hook in v1 by design: stop is scoped to "stop
+        // generation" only, so TTS keeps speaking the tokens that already
+        // arrived and captions/motion follow naturally. The orchestrator
+        // fires `onAssistantStop` from its `finally` block on every abort
+        // path (including pre-stream `shouldAbort()` returns) in the
+        // authority window, so this BroadcastChannel hop is the only
+        // signal a follower receives. The synthetic context mirrors what
+        // runtime subscribers typically read: the in-flight streaming
+        // message (already applied via prior `stream-snapshot`) plus empty
         // contexts and composed message, because no subscriber on this
         // path consumes them.
         void chatOrchestrator.emitAssistantStopHooks('', {
