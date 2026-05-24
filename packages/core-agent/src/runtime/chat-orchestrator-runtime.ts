@@ -347,7 +347,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       }
 
       if (rawMessage.role === 'assistant') {
-        const { slices: _slices, tool_results: _toolResults, categorization: _categorization, ...rest } = rawMessage as ChatAssistantMessage
+        // NOTICE:
+        // `stopped` is session-state for UI (badge, retry, "this turn was
+        // cancelled" context for the next prompt). It is not a wire-protocol
+        // field. Strip it before the provider sees it so strict
+        // OpenAI-compatible gateways do not reject the request on unknown
+        // properties.
+        const { slices: _slices, tool_results: _toolResults, categorization: _categorization, stopped: _stopped, ...rest } = rawMessage as ChatAssistantMessage
         return unwrapMessage(rest)
       }
 
@@ -762,13 +768,6 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
             messageText: fullText,
           })
         }
-        // NOTICE:
-        // Fire `onAssistantStop` unconditionally, regardless of whether any
-        // slices flushed. Subscribers (TTS session, captions, motion) bind
-        // their lifecycle to `onBeforeMessageComposed` which already opened
-        // resources before the first token; those resources must be torn
-        // down even when the user stops faster than the model's first byte.
-        await hooks.emitAssistantStopHooks(fullText, streamingMessageContext)
         return
       }
 
@@ -783,6 +782,17 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       // otherwise leave the empty assistant bubble painted.
       if (sendController.signal.aborted)
         resetForegroundStream(sessionId)
+      // NOTICE:
+      // Fire `onAssistantStop` from `finally` so the lifecycle contract holds
+      // for every abort path, not just the catch from `deps.llm.stream()`.
+      // Early `shouldAbort()` returns at the pre-stream checkpoints (after
+      // `emitBeforeMessageComposedHooks` has already opened TTS/caption
+      // sessions, after prompt projection, after `emitBeforeSendHooks`) used
+      // to bypass this emission entirely, leaking those subscribers'
+      // resources. Subscribers must be able to tear down even when the user
+      // stops faster than the model's first byte.
+      if (sendController.signal.aborted)
+        await hooks.emitAssistantStopHooks(fullText, streamingMessageContext)
       if (activeSendController === sendController) {
         activeSendController = undefined
         activeSendSessionId = undefined

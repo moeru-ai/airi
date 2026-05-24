@@ -748,4 +748,99 @@ describe('createChatOrchestratorRuntime', () => {
     expect(harness.assistantAppended).toHaveLength(1)
     expect(harness.foregroundResets).toHaveLength(1)
   })
+
+  /**
+   * @example
+   * The user presses Stop after `onBeforeMessageComposed` has already opened
+   * a TTS session but before `deps.llm.stream()` is invoked. The pre-stream
+   * `shouldAbort()` checkpoint must still fire `onAssistantStop` so the
+   * leaked TTS session, captions, and any other subscriber resources can
+   * tear down.
+   */
+  // ROOT CAUSE:
+  //
+  // Pre-stream `shouldAbort()` returns at lines 397/452/614 of
+  // chat-orchestrator-runtime.ts used to `return` without firing
+  // `emitAssistantStopHooks`. The hook was only fired from inside the
+  // catch block, which is only entered when `deps.llm.stream()` itself
+  // throws AbortError. If the stop landed before that call, every
+  // resource opened by `emitBeforeMessageComposedHooks` (TTS session,
+  // captions, motion) was leaked.
+  //
+  // Fix: move `emitAssistantStopHooks` into the `finally` block, gated
+  // by `sendController.signal.aborted`, so every abort path notifies.
+  it('fires onAssistantStop even when stop is pressed before the LLM stream call', async () => {
+    const harness = createHarness()
+
+    let stopHookCount = 0
+    harness.runtime.hooks.onAssistantStop(async () => {
+      stopHookCount += 1
+    })
+
+    // NOTICE:
+    // Trigger the stop from inside `onBeforeSend`, which fires after
+    // composition but before `deps.llm.stream()`. The next `shouldAbort()`
+    // checkpoint then returns early, never entering the stream.
+    harness.runtime.hooks.onBeforeSend(async () => {
+      harness.runtime.stopSending('session-1')
+    })
+
+    await harness.runtime.ingest('hello', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    expect(harness.stream).not.toHaveBeenCalled()
+    expect(stopHookCount).toBe(1)
+    expect(harness.assistantAppended).toHaveLength(0)
+  })
+
+  /**
+   * @example
+   * A previous assistant turn was cancelled and persisted with
+   * `stopped: true`. When the next user message is sent, the runtime must
+   * strip `stopped` from the provider-bound message so strict OpenAI-style
+   * gateways do not reject the request on unknown properties.
+   */
+  // ROOT CAUSE:
+  //
+  // buildProviderMessages() in chat-orchestrator-runtime.ts only stripped
+  // `slices`, `tool_results`, and `categorization` from assistant
+  // messages. `stopped` is session-state (UI badge, retry, "this turn
+  // was cancelled" context), not a wire-protocol field, so it must also
+  // be stripped before the message goes to the provider.
+  it('strips `stopped` from provider-bound assistant messages', async () => {
+    const harness = createHarness()
+    harness.sessionMessages['session-1'].push({
+      role: 'assistant',
+      content: 'partial reply',
+      slices: [{ type: 'text', text: 'partial reply' }],
+      tool_results: [],
+      stopped: true,
+      createdAt: new Date(2026, 3, 25, 18, 10).getTime(),
+      id: 'prev-assistant',
+    } as StreamingAssistantMessage)
+
+    let composedMessages: Message[] = []
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, messages, options) => {
+      composedMessages = messages
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'follow-up' })
+      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+    })
+
+    await harness.runtime.ingest('continue please', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    const assistantInPrompt = composedMessages.find(message => message.role === 'assistant')
+    expect(assistantInPrompt).toBeDefined()
+    expect(assistantInPrompt).toMatchObject({
+      role: 'assistant',
+      content: 'partial reply',
+    })
+    expect(assistantInPrompt).not.toHaveProperty('stopped')
+    expect(assistantInPrompt).not.toHaveProperty('slices')
+    expect(assistantInPrompt).not.toHaveProperty('tool_results')
+  })
 })
