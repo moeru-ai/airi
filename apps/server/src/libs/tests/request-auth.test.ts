@@ -247,14 +247,17 @@ describe('resolveRequestAuth', () => {
     expect(result).toBeNull()
   })
 
-  it('fetches JWKS from the configured HOST when not bound to all interfaces', async () => {
+  it.each([
+    ['10.0.0.5', 'http://10.0.0.5:3000'],
+    ['localhost', 'http://localhost:3000'],
+  ])('fetches JWKS from HOST %s', async (host, origin) => {
     vi.resetModules()
     mockedCreateRemoteJWKSet.mockClear()
     mockedJwtVerify.mockResolvedValue({
       payload: {
         sub: 'user-1',
-        iss: 'http://10.0.0.5:3000/api/auth',
-        aud: 'http://10.0.0.5:3000',
+        iss: `${origin}/api/auth`,
+        aud: origin,
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 3600,
         jti: 'jwt-token-id',
@@ -285,11 +288,11 @@ describe('resolveRequestAuth', () => {
 
     await resolveWithHost(
       auth as any,
-      { API_SERVER_URL: 'http://10.0.0.5:3000', HOST: '10.0.0.5', PORT: 3000 } as any,
+      { API_SERVER_URL: origin, HOST: host, PORT: 3000 } as any,
       new Headers({ Authorization: 'Bearer eyJhbGciOiJSUzI1NiJ9.test.sig' }),
     )
 
-    expect(mockedCreateRemoteJWKSet).toHaveBeenCalledWith(new URL('http://10.0.0.5:3000/api/auth/jwks'))
+    expect(mockedCreateRemoteJWKSet).toHaveBeenCalledWith(new URL(`${origin}/api/auth/jwks`))
   })
 
   it.each(['::1', '::'])('fetches JWKS from bracketed IPv6 loopback when HOST is %s', async (host) => {

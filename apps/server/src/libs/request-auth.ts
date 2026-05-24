@@ -83,7 +83,7 @@ let cachedJWKS: ReturnType<typeof createRemoteJWKSet> | null = null
 
 function localJwksUrl(env: Env): URL {
   const host = env.HOST ?? '0.0.0.0'
-  const lookupHost = host === '0.0.0.0' || host === '127.0.0.1' || host === 'localhost'
+  const lookupHost = host === '0.0.0.0' || host === '127.0.0.1'
     ? '127.0.0.1'
     : host === '::'
       ? '::1'
