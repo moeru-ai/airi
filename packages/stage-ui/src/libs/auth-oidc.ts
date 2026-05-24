@@ -1,7 +1,7 @@
 import { Capacitor } from '@capacitor/core'
 import { generateCodeChallenge, generateCodeVerifier, generateState } from '@proj-airi/stage-shared/auth'
 
-import { applyNgrokSkipRequestHeader, SERVER_URL } from './server'
+import { SERVER_URL } from './server'
 
 // OIDC Authorization Code + PKCE client for all platforms.
 
@@ -95,12 +95,10 @@ export async function exchangeCodeForTokens(
     bodyParams.client_secret = params.clientSecret
 
   const body = new URLSearchParams(bodyParams)
-  const tokenHeaders = new Headers({ 'Content-Type': 'application/x-www-form-urlencoded' })
-  applyNgrokSkipRequestHeader(tokenHeaders)
 
   const response = await fetch(new URL(OIDC_TOKEN_PATH, SERVER_URL), {
     method: 'POST',
-    headers: tokenHeaders,
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
   })
 
@@ -132,12 +130,10 @@ export async function refreshAccessToken(
     params.client_secret = clientSecret
 
   const body = new URLSearchParams(params)
-  const refreshHeaders = new Headers({ 'Content-Type': 'application/x-www-form-urlencoded' })
-  applyNgrokSkipRequestHeader(refreshHeaders)
 
   const response = await fetch(new URL(OIDC_TOKEN_PATH, SERVER_URL), {
     method: 'POST',
-    headers: refreshHeaders,
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
   })
 

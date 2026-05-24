@@ -54,6 +54,6 @@ When the mobile dev server uses a non-localhost origin (for example `https://10.
 
 Restart the API server after changing this variable.
 
-## Local HTTPS API (ngrok; no TLS in Node)
+## Local HTTPS API (reverse proxy; no TLS in Node)
 
-When the client runs on **https** (e.g. Vite `dev:https` or Capacitor) while Hono stays on **`http://127.0.0.1:3000`**, WebKit can treat **`https` → `http` API** calls as mixed content. Use an **https** tunnel that forwards to this API (typical: [ngrok](https://ngrok.com/) http → `127.0.0.1:3000`) and point **`API_SERVER_URL`** / the frontend **`VITE_SERVER_URL`** (or equivalent `SERVER_URL`) at that **https** base URL. Stage UI sends `ngrok-skip-browser-warning` on requests when the host looks like ngrok so the free-tier interstitial does not block API traffic.
+When the client runs on **https** (e.g. Vite `dev:https` or Capacitor) while Hono stays on **`http://127.0.0.1:3000`**, WebKit can treat **`https` → `http` API** calls as mixed content. Terminate TLS on a reverse proxy or tunnel (for example **frp**, Caddy, or nginx) that forwards to this API, then point **`API_SERVER_URL`** and the frontend **`VITE_SERVER_URL`** (or equivalent `SERVER_URL`) at that **https** public base URL.

@@ -8,7 +8,7 @@ import { completeOIDCCallbackUrl } from './auth-callback'
 import { OIDC_CLIENT_ID, OIDC_REDIRECT_URI } from './auth-config'
 import { buildAuthorizationURL, consumeFlowState, exchangeCodeForTokens, persistFlowState } from './auth-oidc'
 import { openNativeAuthSession } from './native-auth'
-import { isNgrokServerUrl, SERVER_URL } from './server'
+import { SERVER_URL } from './server'
 
 export type OAuthProvider = 'google' | 'github'
 
@@ -33,9 +33,6 @@ export const authClient = createAuthClient({
       type: 'Bearer',
       token: () => getAuthToken() ?? '',
     },
-    ...(isNgrokServerUrl()
-      ? { headers: { 'ngrok-skip-browser-warning': 'true' } }
-      : {}),
   },
 })
 
