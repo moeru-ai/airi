@@ -137,7 +137,6 @@ export function createOpenVikingClient(config: OpenVikingClientConfig): OpenViki
         content: conversation.userMessage || '(empty)',
         created_at: conversation.timestamp,
       }
-      console.info('[openviking] saveConversation sessionId:', sessionId, 'user payload:', JSON.stringify(userPayload))
       const msgRes = await apiFetch(`/api/v1/sessions/${sessionId}/messages`, {
         method: 'POST',
         body: JSON.stringify(userPayload),
@@ -151,7 +150,6 @@ export function createOpenVikingClient(config: OpenVikingClientConfig): OpenViki
         content: conversation.assistantResponse || '(empty)',
         created_at: conversation.timestamp,
       }
-      console.info('[openviking] saveConversation assistant payload:', JSON.stringify(assistantPayload))
       const assistRes = await apiFetch(`/api/v1/sessions/${sessionId}/messages`, {
         method: 'POST',
         body: JSON.stringify(assistantPayload),
