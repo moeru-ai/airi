@@ -53,5 +53,7 @@ describe('fenSchema', () => {
     // Castling rights must be canonical and duplicate-free.
     expect(isValidFen('r3k2r/8/8/8/8/8/8/R3K2R w KK - 0 1')).toBe(false)
     expect(isValidFen('r3k2r/8/8/8/8/8/8/R3K2R w qK - 0 1')).toBe(false)
+    // Fullmove number must be a positive integer.
+    expect(isValidFen('8/8/8/8/8/8/8/8 w - - 0 0')).toBe(false)
   })
 })

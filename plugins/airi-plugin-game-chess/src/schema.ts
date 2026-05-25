@@ -118,7 +118,7 @@ function hasValidFenPiecePlacement(fen: string): boolean {
         squareCount += Number(char)
         previousWasDigit = true
       }
-      else if (/^[PNBRQKpnbrqk]$/.test(char)) {
+      else if (/^[PNBRQK]$/i.test(char)) {
         squareCount += 1
         previousWasDigit = false
       }
@@ -146,7 +146,7 @@ export const fenSchema = v.pipe(
   // Six space-separated fields: 8 ranks of piece placement, side to move,
   // castling rights, en passant target, halfmove clock, fullmove number.
   v.regex(
-    /^([1-8PNBRQKpnbrqk]+\/){7}[1-8PNBRQKpnbrqk]+ [wb] (?:-|(?=[KQkq])K?Q?k?q?) (?:-|[a-h][36]) \d+ \d+$/,
+    /^([1-8PNBRQKpnbrqk]+\/){7}[1-8PNBRQKpnbrqk]+ [wb] (?:-|(?=[KQkq])K?Q?k?q?) (?:-|[a-h][36]) \d+ [1-9]\d*$/,
     'Malformed FEN string.',
   ),
   v.check(hasValidFenPiecePlacement, 'Malformed FEN string.'),
