@@ -18,6 +18,9 @@ describe('fenSchema', () => {
   it('accepts well-formed standard FENs', () => {
     // Starting position.
     expect(isValidFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')).toBe(true)
+    // Canonical castling-right subsets.
+    expect(isValidFen('r3k2r/8/8/8/8/8/8/R3K2R w KQk - 0 1')).toBe(true)
+    expect(isValidFen('r3k2r/8/8/8/8/8/8/R3K2R w Qq - 0 1')).toBe(true)
     // After 1.e4 — carries an en passant target on rank 3.
     expect(isValidFen('rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1')).toBe(true)
     // King-and-king endgame — no castling rights, no en passant.
@@ -41,5 +44,14 @@ describe('fenSchema', () => {
     expect(isValidFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR x KQkq - 0 1')).toBe(false)
     // Trailing fields (castling, en passant, clocks) are missing.
     expect(isValidFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w')).toBe(false)
+    // A rank may not encode more than eight squares.
+    expect(isValidFen('8/8/8/8/8/8/8/88 w - - 0 1')).toBe(false)
+    // Empty runs must be canonical single digits, not adjacent digits.
+    expect(isValidFen('11111111/8/8/8/8/8/8/8 w - - 0 1')).toBe(false)
+    // Each rank must account for exactly eight squares.
+    expect(isValidFen('7/8/8/8/8/8/8/8 w - - 0 1')).toBe(false)
+    // Castling rights must be canonical and duplicate-free.
+    expect(isValidFen('r3k2r/8/8/8/8/8/8/R3K2R w KK - 0 1')).toBe(false)
+    expect(isValidFen('r3k2r/8/8/8/8/8/8/R3K2R w qK - 0 1')).toBe(false)
   })
 })

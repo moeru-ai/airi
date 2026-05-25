@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PieceSymbol, Square } from 'chess.js'
+import type { Color, PieceSymbol, Square } from 'chess.js'
 
 import type { CommentaryMode } from '../coach/coachTurn'
 import type { SemanticEvent } from '../game/gameEvents'
@@ -68,11 +68,18 @@ const playMode = ref<'coach' | 'companion'>('coach')
 /** How chatty the coach should be. Default `'brief'` for fast play. */
 const commentaryMode = ref<CommentaryMode>('brief')
 
+const companionPlayerColor = ref<Color>(userColor.value)
+
+function snapshotCompanionPlayerColor(): void {
+  companionPlayerColor.value = userColor.value
+}
+
 // In companion mode the opponent + verbosity are not user choices — they are
 // part of the mode contract. Watch the mode toggle and snap settings into
 // place so the UI cannot be left in an inconsistent state.
 watch(playMode, (mode) => {
   if (mode === 'companion') {
+    snapshotCompanionPlayerColor()
     opponentMode.value = 'stockfish'
     opponentStrength.value = 'intermediate'
     commentaryMode.value = 'brief'
@@ -100,7 +107,7 @@ watch(status, (newStatus, oldStatus) => {
   if (newStatus === 'checkmate') {
     // The mated side cannot move; whoever moved last is the winner.
     const winnerColor = turn.value === 'w' ? 'b' : 'w'
-    recordResult(winnerColor === userColor.value ? 'win' : 'loss')
+    recordResult(winnerColor === companionPlayerColor.value ? 'win' : 'loss')
   }
   else if (newStatus === 'stalemate' || newStatus === 'draw') {
     recordResult('draw')
@@ -175,9 +182,15 @@ const { events } = useGameSession(game, engine, {
   onAfterMove: () => opponent.maybeRespond(),
 })
 
-// If the user switches sides or toggles the opponent on mid-game, the engine
-// may suddenly owe a move — kick it once for the new configuration.
-watch([opponentMode, userColor], () => {
+// If the user toggles the opponent on mid-game, the engine may suddenly owe a
+// move — kick it once for the new configuration.
+watch(opponentMode, () => {
+  void opponent.maybeRespond()
+})
+
+watch(userColor, () => {
+  if (playMode.value === 'companion' && lastMove.value === null)
+    snapshotCompanionPlayerColor()
   void opponent.maybeRespond()
 })
 
@@ -188,6 +201,7 @@ watch([opponentMode, userColor], () => {
 async function handleReset(): Promise<void> {
   commentingMove.value = null
   chatterBubble.value = null
+  snapshotCompanionPlayerColor()
   reset()
   await opponent.maybeRespond()
 }

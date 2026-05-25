@@ -101,6 +101,39 @@ export interface ClassifiedMove {
   cpLoss: number
 }
 
+function hasValidFenPiecePlacement(fen: string): boolean {
+  const placement = fen.split(' ')[0]
+  const ranks = placement.split('/')
+  if (ranks.length !== 8)
+    return false
+
+  return ranks.every((rank) => {
+    let squareCount = 0
+    let previousWasDigit = false
+
+    for (const char of rank) {
+      if (/^[1-8]$/.test(char)) {
+        if (previousWasDigit)
+          return false
+        squareCount += Number(char)
+        previousWasDigit = true
+      }
+      else if (/^[PNBRQKpnbrqk]$/.test(char)) {
+        squareCount += 1
+        previousWasDigit = false
+      }
+      else {
+        return false
+      }
+
+      if (squareCount > 8)
+        return false
+    }
+
+    return squareCount === 8
+  })
+}
+
 /**
  * Validates that a string is a structurally well-formed standard FEN.
  *
@@ -113,7 +146,8 @@ export const fenSchema = v.pipe(
   // Six space-separated fields: 8 ranks of piece placement, side to move,
   // castling rights, en passant target, halfmove clock, fullmove number.
   v.regex(
-    /^([1-8PNBRQKpnbrqk]+\/){7}[1-8PNBRQKpnbrqk]+ [wb] (?:-|[KQkq]+) (?:-|[a-h][36]) \d+ \d+$/,
+    /^([1-8PNBRQKpnbrqk]+\/){7}[1-8PNBRQKpnbrqk]+ [wb] (?:-|(?=[KQkq])K?Q?k?q?) (?:-|[a-h][36]) \d+ \d+$/,
     'Malformed FEN string.',
   ),
+  v.check(hasValidFenPiecePlacement, 'Malformed FEN string.'),
 )
