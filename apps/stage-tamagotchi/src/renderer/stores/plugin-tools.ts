@@ -17,6 +17,7 @@ import { electronPluginInvokeTool, electronPluginListXsaiTools } from '../../sha
 const PLUGIN_CONTEXT_ID_PREFIX = 'system:plugin:'
 const MEMORY_SAVE_CONVERSATION_TOOL = 'memory_save_conversation'
 const MEMORY_SEARCH_TOOL = 'memory_search'
+const MEMORY_CONTEXT_TIMEOUT_MS = 3_000
 
 function generateId(): string {
   return `plugin_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
@@ -138,14 +139,13 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
       return undefined
     }
 
-    const gathered: Array<{ text: string, pluginName: string }> = []
-    for (const plugin of loadedPlugins) {
-      try {
+    const results = await Promise.allSettled(
+      loadedPlugins.map(async (plugin) => {
         const result = await invokePluginTool({
           ownerPluginId: plugin.name,
           name: MEMORY_SEARCH_TOOL,
           input: { query: sendingMessage },
-        })
+        }, { signal: AbortSignal.timeout(MEMORY_CONTEXT_TIMEOUT_MS) })
 
         const data = result as { results?: Array<Record<string, unknown>> }
 
@@ -153,12 +153,17 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
           .map(item => `[${item.uri}]\n${String(item.abstract ?? '')}`)
           .join('\n\n')
 
-        if (contextText) {
-          gathered.push({ text: contextText, pluginName: plugin.name })
-        }
+        return contextText ? { text: contextText, pluginName: plugin.name } : null
+      }),
+    )
+
+    const gathered: Array<{ text: string, pluginName: string }> = []
+    for (const result of results) {
+      if (result.status === 'fulfilled' && result.value) {
+        gathered.push(result.value)
       }
-      catch (error) {
-        console.warn(`[plugin-tools] failed to inject memory context from plugin "${plugin.name}":`, error)
+      else if (result.status === 'rejected') {
+        console.warn('[plugin-tools] memory context lookup timed out or failed:', result.reason)
       }
     }
 
