@@ -657,9 +657,23 @@ export async function setupPluginHostHostService(
           schemaVersion: 1,
           full: payload.config,
         }
-        const session = await host.reload(sessionId, { config: configEnvelope })
-        if (session) {
-          loadedSessionIds.set(payload.pluginName, session.id)
+        const oldSessionId = sessionId
+        try {
+          const session = await host.reload(sessionId, { config: configEnvelope })
+
+          clearModuleAssetSessionCacheByOwnerSessionId(oldSessionId)
+          await pluginAssetService.revokeByOwnerSessionId(oldSessionId)
+
+          if (session) {
+            loadedSessionIds.set(payload.pluginName, session.id)
+          }
+        }
+        catch (error) {
+          loaded.delete(payload.pluginName)
+          loadedSessionIds.delete(payload.pluginName)
+          clearModuleAssetSessionCacheByOwnerSessionId(oldSessionId)
+          await pluginAssetService.revokeByOwnerSessionId(oldSessionId)
+          throw error
         }
       }
 
