@@ -28,9 +28,6 @@ import {
 
 } from '../../../../shared/eventa/plugin/config'
 import {
-  electronPluginQueryContext,
-} from '../../../../shared/eventa/plugin/context'
-import {
   electronPluginInspect,
   electronPluginList,
   electronPluginLoad,
@@ -110,13 +107,6 @@ export async function setupPluginHost(options: SetupPluginHostOptions): Promise<
 
   defineInvokeHandler(context, electronPluginInvokeTool, async (payload) => {
     return await hostService.host.invokeTool(payload.ownerPluginId, payload.name, payload.input)
-  })
-
-  defineInvokeHandler(context, electronPluginQueryContext, async (payload) => {
-    if (!hostService.queryContext) {
-      return { contexts: [] }
-    }
-    return await hostService.queryContext(payload)
   })
 
   defineInvokeHandler(context, electronPluginGetConfig, async (payload) => {

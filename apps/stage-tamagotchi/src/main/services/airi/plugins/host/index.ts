@@ -191,21 +191,6 @@ export interface PluginHostHostService extends PluginHostService {
   getAssetBaseUrl: () => string
 
   /**
-   * Queries a plugin's memory context provider for the given user message.
-   *
-   * Use when:
-   * - Renderer needs to inject memory context before an LLM call
-   * - A plugin registered a context provider during its setupModules phase
-   *
-   * Expects:
-   * - The named plugin has been loaded and has registered a context provider
-   *
-   * Returns:
-   * - An array of context items with text and relevance score
-   */
-  queryContext?: (payload: { pluginName: string, query: string }) => Promise<{ contexts: Array<{ text: string, score: number }> }>
-
-  /**
    * Returns the merged plugin configuration (defaults from manifest + user overrides).
    *
    * Use when:
@@ -573,28 +558,6 @@ export async function setupPluginHostHostService(
     },
     getAssetBaseUrl() {
       return pluginAssetService.getBaseUrl() ?? ''
-    },
-    async queryContext(payload: { pluginName: string, query: string }) {
-      if (!loaded.has(payload.pluginName))
-        return { contexts: [] }
-
-      try {
-        const result = await host.invokeTool(
-          payload.pluginName,
-          'memory_search',
-          { query: payload.query },
-        )
-        const data = result as { results?: Array<Record<string, unknown>> }
-        return {
-          contexts: (data.results ?? []).map(item => ({
-            text: `[${item.uri}]\n${String(item.abstract ?? '')}`,
-            score: Number(item.score ?? 0),
-          })),
-        }
-      }
-      catch {
-        return { contexts: [] }
-      }
     },
     async getPluginConfig(payload: { pluginName: string }) {
       const entry = pluginRegistry.findManifestEntry(payload.pluginName)

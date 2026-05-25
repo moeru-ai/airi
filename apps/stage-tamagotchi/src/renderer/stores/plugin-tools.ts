@@ -11,12 +11,12 @@ import { useLlmToolsetPromptsStore } from '@proj-airi/stage-ui/stores/llm-toolse
 import { rawTool } from '@xsai/tool'
 import { defineStore } from 'pinia'
 
-import { electronPluginQueryContext } from '../../shared/eventa/plugin/context'
 import { electronPluginList } from '../../shared/eventa/plugin/host'
 import { electronPluginInvokeTool, electronPluginListXsaiTools } from '../../shared/eventa/plugin/tools'
 
 const PLUGIN_CONTEXT_ID_PREFIX = 'system:plugin:'
 const MEMORY_SAVE_CONVERSATION_TOOL = 'memory_save_conversation'
+const MEMORY_SEARCH_TOOL = 'memory_search'
 
 function generateId(): string {
   return `plugin_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
@@ -42,10 +42,10 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
 
   const listPluginXsaiToolDefinitions = useElectronEventaInvoke(electronPluginListXsaiTools)
   const invokePluginTool = useElectronEventaInvoke(electronPluginInvokeTool)
-  const queryPluginContext = useElectronEventaInvoke(electronPluginQueryContext)
   const listPlugins = useElectronEventaInvoke(electronPluginList)
 
-  const pluginsWithMemoryTool = new Set<string>()
+  const pluginsWithMemorySaveTool = new Set<string>()
+  const pluginsWithMemorySearchTool = new Set<string>()
 
   let postProcessingUnsubscribe: (() => void) | null = null
 
@@ -84,10 +84,14 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
             })),
           )
 
-          pluginsWithMemoryTool.clear()
+          pluginsWithMemorySaveTool.clear()
+          pluginsWithMemorySearchTool.clear()
           for (const tool of definitions.tools) {
             if (tool.name === MEMORY_SAVE_CONVERSATION_TOOL) {
-              pluginsWithMemoryTool.add(tool.ownerPluginId)
+              pluginsWithMemorySaveTool.add(tool.ownerPluginId)
+            }
+            if (tool.name === MEMORY_SEARCH_TOOL) {
+              pluginsWithMemorySearchTool.add(tool.ownerPluginId)
             }
           }
 
@@ -110,7 +114,8 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
   function dispose() {
     llmToolsStore.clearTools('plugin-tools')
     llmToolsetPromptsStore.clearToolsetPrompts('plugin-tools')
-    pluginsWithMemoryTool.clear()
+    pluginsWithMemorySaveTool.clear()
+    pluginsWithMemorySearchTool.clear()
     if (postProcessingUnsubscribe) {
       postProcessingUnsubscribe()
       postProcessingUnsubscribe = null
@@ -126,7 +131,9 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
       console.warn('[plugin-tools] failed to list plugins for memory context injection:', error)
       return undefined
     }
-    const loadedPlugins = snapshot.plugins.filter((p: { loaded: boolean, enabled: boolean }) => p.loaded && p.enabled)
+    const loadedPlugins = snapshot.plugins.filter(
+      (p: { loaded: boolean, enabled: boolean, name: string }) => p.loaded && p.enabled && pluginsWithMemorySearchTool.has(p.name),
+    )
     if (loadedPlugins.length === 0) {
       return undefined
     }
@@ -134,12 +141,21 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
     const gathered: Array<{ text: string, pluginName: string }> = []
     for (const plugin of loadedPlugins) {
       try {
-        const result = await queryPluginContext({ pluginName: plugin.name, query: sendingMessage })
-        if (result.contexts.length === 0)
-          continue
+        const result = await invokePluginTool({
+          ownerPluginId: plugin.name,
+          name: MEMORY_SEARCH_TOOL,
+          input: { query: sendingMessage },
+        })
 
-        const contextText = result.contexts.map((c: { text: string }) => c.text).join('\n')
-        gathered.push({ text: contextText, pluginName: plugin.name })
+        const data = result as { results?: Array<Record<string, unknown>> }
+
+        const contextText = (data.results ?? [])
+          .map(item => `[${item.uri}]\n${String(item.abstract ?? '')}`)
+          .join('\n\n')
+
+        if (contextText) {
+          gathered.push({ text: contextText, pluginName: plugin.name })
+        }
       }
       catch (error) {
         console.warn(`[plugin-tools] failed to inject memory context from plugin "${plugin.name}":`, error)
@@ -187,7 +203,7 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
       try {
         const snapshot = await listPlugins()
         const loadedPlugins = snapshot.plugins.filter(
-          (p: { loaded: boolean, enabled: boolean, name: string }) => p.loaded && p.enabled && pluginsWithMemoryTool.has(p.name),
+          (p: { loaded: boolean, enabled: boolean, name: string }) => p.loaded && p.enabled && pluginsWithMemorySaveTool.has(p.name),
         )
         if (loadedPlugins.length === 0) {
           return

@@ -44,9 +44,8 @@ export async function setupModules({ apis }: ContextInit): Promise<void> {
     },
     execute: async (input: unknown) => {
       const { query, limit } = input as { query: string, limit?: number }
-      const results = await client!.searchMemories(query)
-      const limited = typeof limit === 'number' ? results.slice(0, limit) : results
-      return { results: limited }
+      const results = await client!.searchMemories(query, limit ?? 5)
+      return { results }
     },
   })
 

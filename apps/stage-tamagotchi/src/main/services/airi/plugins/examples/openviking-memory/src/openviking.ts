@@ -25,7 +25,7 @@ export interface OpenVikingClientConfig {
 }
 
 export interface OpenVikingClient {
-  searchMemories: (query: string) => Promise<Record<string, unknown>[]>
+  searchMemories: (query: string, limit: number) => Promise<Record<string, unknown>[]>
   readMemory: (uri: string) => Promise<{ uri: string, content: string }>
   saveConversation: (conversation: ConversationTurn) => Promise<ConversationSaveResult>
   saveMemory: (content: string, tags?: string[]) => Promise<{ id: string }>
@@ -99,10 +99,10 @@ export function createOpenVikingClient(config: OpenVikingClientConfig): OpenViki
   }
 
   return {
-    async searchMemories(query: string): Promise<Record<string, unknown>[]> {
+    async searchMemories(query: string, limit: number): Promise<Record<string, unknown>[]> {
       const response = await apiFetch('/api/v1/search/find', {
         method: 'POST',
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ query, limit }),
       })
       if (!response.ok) {
         if (response.status === 401) {
