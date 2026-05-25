@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { client } from '@proj-airi/stage-ui/composables/api'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Button, SelectTab } from '@proj-airi/ui'
+import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -14,6 +16,13 @@ const router = useRouter()
 const authStore = useAuthStore()
 const { credits } = storeToRefs(authStore)
 const { trackPricingViewed, trackPlanSelected, trackCheckoutStarted } = useAnalytics()
+
+// On desktop, checkout happens in the external system browser (see handleBuy), so
+// the app never receives the success_url redirect that web/mobile use to refresh.
+// Re-pull the FLUX balance whenever the window regains focus; the balance source
+// of truth is the server (credited by the Stripe webhook).
+if (isStageTamagotchi())
+  useEventListener(window, 'focus', () => authStore.updateCredits())
 
 interface FluxPackage {
   stripePriceId: string
@@ -260,7 +269,14 @@ async function handleBuy(stripePriceId: string) {
       // the page nav so the event is sent (PostHog's beforeunload handler
       // would otherwise race the navigation).
       trackCheckoutStarted(stripePriceId, { currency: selectedCurrency.value })
-      window.location.href = data.url
+      // Electron renderer runs from file:// and cannot navigate to Stripe in-window
+      // (the settings window would load checkout.stripe.com and never come back).
+      // window.open routes through setWindowOpenHandler -> shell.openExternal, so the
+      // system browser handles payment. Web keeps the in-window redirect.
+      if (isStageTamagotchi())
+        window.open(data.url, '_blank')
+      else
+        window.location.href = data.url
     }
   }
   catch {

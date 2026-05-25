@@ -80,6 +80,13 @@ const EnvSchema = object({
 
   API_SERVER_URL: optional(string(), 'http://localhost:3000'),
 
+  // Canonical user-facing web app origin. Used as the Stripe redirect base
+  // (success_url / cancel_url / portal return_url) when a request has no trusted
+  // browser origin — notably the Electron desktop renderer, which loads from
+  // file:// and sends no usable web origin. Web/mobile requests keep returning to
+  // their own origin; only origin-less clients fall back to this.
+  WEB_APP_URL: optional(string(), 'https://airi.moeru.ai'),
+
   // Comma-separated exact origins (e.g. Capacitor dev server `https://10.x:5273`).
   // Prefer this over broad private-IP regex heuristics in production-like configs.
   ADDITIONAL_TRUSTED_ORIGINS: optional(
