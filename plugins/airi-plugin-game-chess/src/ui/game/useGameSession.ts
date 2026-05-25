@@ -74,19 +74,18 @@ export function useGameSession(game: ChessGame, engine: EngineReview, options: G
       return
     }
     const classified = await engine.review(context)
-    // Null: engine not ready yet, or a newer move superseded this review.
-    if (classified === null)
-      return
-    session.submitMove({
-      classification: classified.classification,
-      cpLoss: classified.cpLoss,
-      moveUci: context.moveUci,
-      mover: context.fenBefore.split(' ')[1] === 'w' ? 'white' : 'black',
-      isCheck: context.isCheck,
-      isCheckmate: context.isCheckmate,
-      status: game.status.value,
-      whiteEvalCp: engine.evaluation.value ?? 0,
-    })
+    if (classified !== null) {
+      session.submitMove({
+        classification: classified.classification,
+        cpLoss: classified.cpLoss,
+        moveUci: context.moveUci,
+        mover: context.fenBefore.split(' ')[1] === 'w' ? 'white' : 'black',
+        isCheck: context.isCheck,
+        isCheckmate: context.isCheckmate,
+        status: game.status.value,
+        whiteEvalCp: engine.evaluation.value ?? 0,
+      })
+    }
     await options.onAfterMove?.()
   })
 

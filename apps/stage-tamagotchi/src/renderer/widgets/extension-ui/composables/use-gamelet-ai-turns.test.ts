@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { ingest, getProviderInstance, consciousness } = vi.hoisted(() => ({
   ingest: vi.fn<(text: string, options: { model: string, chatProvider: unknown }) => Promise<void>>(async () => undefined),
@@ -38,6 +38,15 @@ function flush(): Promise<void> {
  * useGameletAiTurns().handlePublish({ payload: { type: 'gamelet:ai-turn', request } })
  */
 describe('useGameletAiTurns', () => {
+  beforeEach(() => {
+    ingest.mockReset()
+    ingest.mockResolvedValue(undefined)
+    getProviderInstance.mockReset()
+    getProviderInstance.mockResolvedValue({ name: 'deepseek-stub' })
+    consciousness.activeProvider = 'deepseek'
+    consciousness.activeModel = 'deepseek-chat'
+  })
+
   /**
    * @example
    * expect(ingest).toHaveBeenCalledTimes(1)
@@ -102,7 +111,6 @@ describe('useGameletAiTurns', () => {
    * expect(ingest).toHaveBeenCalledTimes(1)
    */
   it('drops a concurrent ai-turn while the first is still streaming', async () => {
-    ingest.mockClear()
     let release: () => void = () => {}
     const inFlight = new Promise<void>((resolve) => {
       release = resolve
@@ -120,6 +128,26 @@ describe('useGameletAiTurns', () => {
 
     release()
     await flush()
+  })
+
+  it('drops a concurrent ai-turn while the provider is still resolving', async () => {
+    let releaseProvider: () => void = () => {}
+    const provider = new Promise<{ name: string }>((resolve) => {
+      releaseProvider = () => resolve({ name: 'slow-provider' })
+    })
+    getProviderInstance.mockImplementationOnce(() => provider)
+    const { handlePublish } = useGameletAiTurns()
+
+    handlePublish({ payload: { type: 'gamelet:ai-turn', request: validRequest() } })
+    handlePublish({ payload: { type: 'gamelet:ai-turn', request: validRequest() } })
+    await flush()
+
+    expect(getProviderInstance).toHaveBeenCalledTimes(1)
+    expect(ingest).not.toHaveBeenCalled()
+
+    releaseProvider()
+    await flush()
+    expect(ingest).toHaveBeenCalledTimes(1)
   })
 
   /**

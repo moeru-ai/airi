@@ -86,21 +86,23 @@ export function useGameletAiTurns(): { handlePublish: (event: Record<string, unk
       return
     }
 
-    let chatProvider: ChatProvider
-    try {
-      chatProvider = await providersStore.getProviderInstance<ChatProvider>(provider)
-    }
-    catch (error) {
-      console.error('[useGameletAiTurns] failed to resolve chat provider:', errorMessageFrom(error))
-      return
-    }
-
     busy = true
     try {
-      await chatOrchestrator.ingest(buildIngestText(request), { model, chatProvider })
-    }
-    catch (error) {
-      console.error('[useGameletAiTurns] ingest failed:', errorMessageFrom(error))
+      let chatProvider: ChatProvider
+      try {
+        chatProvider = await providersStore.getProviderInstance<ChatProvider>(provider)
+      }
+      catch (error) {
+        console.error('[useGameletAiTurns] failed to resolve chat provider:', errorMessageFrom(error))
+        return
+      }
+
+      try {
+        await chatOrchestrator.ingest(buildIngestText(request), { model, chatProvider })
+      }
+      catch (error) {
+        console.error('[useGameletAiTurns] ingest failed:', errorMessageFrom(error))
+      }
     }
     finally {
       busy = false
