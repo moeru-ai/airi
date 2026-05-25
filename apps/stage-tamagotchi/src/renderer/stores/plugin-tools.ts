@@ -16,6 +16,7 @@ import { electronPluginList } from '../../shared/eventa/plugin/host'
 import { electronPluginInvokeTool, electronPluginListXsaiTools } from '../../shared/eventa/plugin/tools'
 
 const PLUGIN_CONTEXT_ID_PREFIX = 'system:plugin:'
+const MEMORY_SAVE_CONVERSATION_TOOL = 'memory_save_conversation'
 
 function generateId(): string {
   return `plugin_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
@@ -43,6 +44,8 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
   const invokePluginTool = useElectronEventaInvoke(electronPluginInvokeTool)
   const queryPluginContext = useElectronEventaInvoke(electronPluginQueryContext)
   const listPlugins = useElectronEventaInvoke(electronPluginList)
+
+  const pluginsWithMemoryTool = new Set<string>()
 
   let postProcessingUnsubscribe: (() => void) | null = null
 
@@ -81,6 +84,13 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
             })),
           )
 
+          pluginsWithMemoryTool.clear()
+          for (const tool of definitions.tools) {
+            if (tool.name === MEMORY_SAVE_CONVERSATION_TOOL) {
+              pluginsWithMemoryTool.add(tool.ownerPluginId)
+            }
+          }
+
           return definitions.tools.map((definition: ElectronPluginXsaiToolDefinition) =>
             rawTool({
               name: definition.name,
@@ -100,6 +110,7 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
   function dispose() {
     llmToolsStore.clearTools('plugin-tools')
     llmToolsetPromptsStore.clearToolsetPrompts('plugin-tools')
+    pluginsWithMemoryTool.clear()
     if (postProcessingUnsubscribe) {
       postProcessingUnsubscribe()
       postProcessingUnsubscribe = null
@@ -175,7 +186,9 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
     const unsubscribe = chatOrchestratorStore.onChatTurnComplete(async (chat, context) => {
       try {
         const snapshot = await listPlugins()
-        const loadedPlugins = snapshot.plugins.filter((p: { loaded: boolean, enabled: boolean }) => p.loaded && p.enabled)
+        const loadedPlugins = snapshot.plugins.filter(
+          (p: { loaded: boolean, enabled: boolean, name: string }) => p.loaded && p.enabled && pluginsWithMemoryTool.has(p.name),
+        )
         if (loadedPlugins.length === 0) {
           return
         }
@@ -190,7 +203,7 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
         for (const plugin of loadedPlugins) {
           invokePluginTool({
             ownerPluginId: plugin.name,
-            name: 'memory_save_conversation',
+            name: MEMORY_SAVE_CONVERSATION_TOOL,
             input: turn,
           }).catch((err: unknown) => console.warn(`[plugin-tools] failed to save turn to plugin "${plugin.name}"`, err))
         }
