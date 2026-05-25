@@ -66,7 +66,7 @@ interface GravatarOptions {
  * - "Hello@Example.COM "
  *
  * After:
- * - "https://www.gravatar.com/avatar/973dfe463ec85785f5f95af5ba3906eedb2d931c24e69824a89ea65dba4e813b?d=identicon&s=200"
+ * - "https://www.gravatar.com/avatar/1753bdb368271a785887ddbfb926164f2f7c6a88f609c07ff0401c5572955206?d=identicon&s=200"
  */
 export function buildGravatarUrl(email: string, options: GravatarOptions = {}): string | null {
   const trimmed = email.trim().toLowerCase()
