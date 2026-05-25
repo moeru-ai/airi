@@ -1,4 +1,3 @@
-import type { Env } from '../../../../libs/env'
 import type { AdminRouterConfigService, SliceInput } from '../../../../services/domain/admin/router-config'
 import type { HonoEnv } from '../../../../types/hono'
 
@@ -175,11 +174,10 @@ const BodySchema = object({
  */
 export function createAdminRouterConfigRoutes(
   service: AdminRouterConfigService,
-  env: Env,
 ) {
   return new Hono<HonoEnv>()
     .use('*', authGuard)
-    .use('*', adminGuard(env))
+    .use('*', adminGuard)
     .post('/', async (c) => {
       const user = c.get('user')!
 

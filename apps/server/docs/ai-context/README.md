@@ -41,6 +41,8 @@
   - 账号注销架构：auth 表 hard delete + 业务表软删，handler 协议、各业务行为、failure 模型
 - `admin-flux-grants.md`
   - Admin 批量发 FLUX（活动赠送）：单一同步 POST，无 batch 表无后台 loop，`adminGuard` 邮箱白名单 + 可选 `idempotencyKey`
+- `account-ban.md`
+  - Admin 授权改 role-based（better-auth `admin` 插件，删 `ADMIN_EMAILS`）；ban/unban 收敛到 better-auth 原生端点（`user.banned`），`resolveRequestAuth` + userinfo guard 做 OIDC JWT 热路径立即生效；改余额（`setFlux`）保留自建；含 disabledPaths 端点收口与「dashboard 为何不上」的决策
 - `verifications/email-auth.md`
   - 邮箱注册 / 忘记密码 / OIDC 桥接登录 三条用户路径的真实实测证据
 - `verifications/account-deletion.md`
@@ -51,6 +53,8 @@
   - Unpaid-usage exploit 修补（commit `7267b0d6b`）的代码层验证 + 残余 gap（TTS flux-meter 未适配 partial-debit）+ follow-up 清单
 - `verifications/flux-unbilled-reconciliation.md`
   - 70.2K 历史漏账的取证 SQL + Loki query 模板、处理决策框架、修补后的监控建议
+- `verifications/admin-user-balance-ban.md`
+  - Admin role 鉴权 / 封禁热路径闸 / 改余额：role adminGuard、resolveRequestAuth+userinfo 封禁、setFlux 的真实 PGlite/Hono 执行证据（含 flux-grants 集成测试走 role），及 better-auth admin 端点本身待端到端实测
 
 ## 快速结论
 

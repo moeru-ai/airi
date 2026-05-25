@@ -51,6 +51,8 @@ interface SessionUser {
   email: string
   emailVerified?: boolean
   name?: string
+  /** better-auth `admin` plugin role. Set `'admin'` to pass `adminGuard`. */
+  role?: string | null
 }
 
 export type Harness = Awaited<ReturnType<typeof startVerificationContext>>
@@ -75,17 +77,8 @@ export type Harness = Awaited<ReturnType<typeof startVerificationContext>>
  *   set a session user, seed flux balance, override config keys, and inspect
  *   the in-memory Redis store
  */
-interface HarnessOptions {
-  /**
-   * Comma-separated email allowlist baked into `adminGuard`. Must be set at
-   * boot time — the guard parses this once at route construction, so flipping
-   * `ctx.env.ADMIN_EMAILS` mid-test has no effect. Tests that need to swap
-   * admins should boot a fresh context.
-   */
-  adminEmails?: string
-}
 
-export async function startVerificationContext(opts: HarnessOptions = {}) {
+export async function startVerificationContext() {
   const db = await getSharedDb()
   await resetDataRows(db)
 
@@ -177,7 +170,6 @@ export async function startVerificationContext(opts: HarnessOptions = {}) {
 
   const env: any = {
     API_SERVER_URL: 'http://localhost:3000',
-    ADMIN_EMAILS: opts.adminEmails ?? '',
     OTEL_SERVICE_NAME: 'airi-server-test',
     ADDITIONAL_TRUSTED_ORIGINS: '',
     HOST: '127.0.0.1',
@@ -195,6 +187,7 @@ export async function startVerificationContext(opts: HarnessOptions = {}) {
     stripeService: stub,
     billingService,
     adminFluxGrantsService,
+    adminUsersService: stub,
     ttsMeter: stub,
     requestLogService: { logRequest: vi.fn(async () => undefined) } as any,
     configKV,
@@ -225,6 +218,9 @@ export async function startVerificationContext(opts: HarnessOptions = {}) {
               email: user.email,
               name: user.name ?? user.id,
               emailVerified: user.emailVerified ?? true,
+              role: user.role ?? null,
+              banned: false,
+              banExpires: null,
               createdAt: new Date(),
               updatedAt: new Date(),
             },

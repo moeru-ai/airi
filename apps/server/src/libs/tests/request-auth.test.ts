@@ -16,6 +16,32 @@ const mockEnv = {
 } as any
 
 describe('resolveRequestAuth', () => {
+  it('rejects a banned principal even when the session resolves (immediate revocation)', async () => {
+    // `user.banned` comes from the better-auth admin plugin and is loaded with
+    // the user row, so the hot-path gate is a field check (no extra query).
+    const authSession = {
+      user: { id: 'user-1', email: 'banned@example.com', name: 'User', emailVerified: true, image: null, banned: true, banExpires: null, createdAt: new Date(), updatedAt: new Date() },
+      session: { id: 'session-1', userId: 'user-1', token: 'session-token', createdAt: new Date(), updatedAt: new Date(), expiresAt: new Date(Date.now() + 60_000), ipAddress: null, userAgent: null },
+    }
+    const auth = { api: { getSession: vi.fn().mockResolvedValue(authSession) } }
+
+    const result = await resolveRequestAuth(auth as any, mockEnv, new Headers())
+
+    expect(result).toBeNull()
+  })
+
+  it('treats an expired ban (banExpires in the past) as not banned', async () => {
+    const authSession = {
+      user: { id: 'user-1', email: 'expired@example.com', name: 'User', emailVerified: true, image: null, banned: true, banExpires: new Date(Date.now() - 1000), createdAt: new Date(), updatedAt: new Date() },
+      session: { id: 'session-1', userId: 'user-1', token: 'session-token', createdAt: new Date(), updatedAt: new Date(), expiresAt: new Date(Date.now() + 60_000), ipAddress: null, userAgent: null },
+    }
+    const auth = { api: { getSession: vi.fn().mockResolvedValue(authSession) } }
+
+    const result = await resolveRequestAuth(auth as any, mockEnv, new Headers())
+
+    expect(result).toBe(authSession)
+  })
+
   it('returns the better-auth session when it is already available', async () => {
     const authSession = {
       user: { id: 'user-1', email: 'user@example.com', name: 'User', emailVerified: true, image: null, createdAt: new Date(), updatedAt: new Date() },
