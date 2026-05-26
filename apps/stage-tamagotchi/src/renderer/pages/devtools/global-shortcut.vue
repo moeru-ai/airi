@@ -144,6 +144,18 @@ function formatTime(ms: number) {
   return new Date(ms).toLocaleTimeString()
 }
 
+function deltaForTrigger(index: number): string {
+  const current = triggers.value[index]
+  if (!current)
+    return ''
+  for (let i = index + 1; i < triggers.value.length; i++) {
+    const prev = triggers.value[i]
+    if (prev.id === current.id)
+      return String(current.time - prev.time)
+  }
+  return ''
+}
+
 let disposeTriggerListener: (() => void) | undefined
 
 onMounted(async () => {
@@ -195,7 +207,7 @@ onUnmounted(() => {
         <FieldCheckbox
           v-model="form.receiveKeyUps"
           label="Receive key-ups"
-          description="Asks the driver to also emit on release. Electron driver refuses with 'unsupported'."
+          description="Routes the binding through the uiohook driver so both 'down' and 'up' fire. macOS needs Accessibility; native Wayland returns 'unsupported'."
         />
       </div>
       <div class="flex flex-wrap gap-3">
@@ -349,6 +361,9 @@ onUnmounted(() => {
               <th class="px-3 py-2 text-left">
                 Phase
               </th>
+              <th class="px-3 py-2 text-left">
+                Δ ms
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -365,6 +380,9 @@ onUnmounted(() => {
               </td>
               <td class="px-3 py-2 font-mono">
                 {{ t.phase }}
+              </td>
+              <td class="px-3 py-2 text-neutral-500 font-mono dark:text-neutral-400">
+                {{ deltaForTrigger(i) }}
               </td>
             </tr>
           </tbody>

@@ -2,7 +2,6 @@
 /*
   * - Extend OrbitControls from three
   * - Define camera behavior
-  * - TODO: implement the control elements and replace the <slot/>
 */
 
 import type { Vec3 } from '../../stores/model-store'
@@ -19,21 +18,17 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 // From stage-ui-three package
 import { onMounted, onUnmounted, shallowRef, toRefs, watch } from 'vue'
 
+import { useThreeCamera } from '../../stores/camera'
+
 /*
   * Props:
   * - model size
-  * - camera position
   * - camera target: camera looking at target
-  * - camera fov angle
-  * - camera distance: camera position - camera target
 */
 const props = defineProps<{
   controlEnable: boolean
   modelSize: Vec3
-  cameraPosition: Vec3
   cameraTarget: Vec3
-  cameraFOV: number
-  cameraDistance: number
 }>()
 /*
   * Emits:
@@ -51,10 +46,7 @@ const emit = defineEmits<{
 const {
   controlEnable,
   modelSize,
-  cameraPosition,
   cameraTarget,
-  cameraFOV,
-  cameraDistance,
 } = toRefs(props)
 
 extend({ OrbitControls })
@@ -63,6 +55,8 @@ const { camera: cameraTres, renderer } = useTres()
 const controls = shallowRef<OrbitControls>()
 const camera = shallowRef<PerspectiveCamera | null>(null)
 let disposeControlsChange: (() => void) | undefined
+
+const { cameraPosition, cameraFOV, cameraDistance } = useThreeCamera()
 
 // Initialisation on onMounted
 function registerInfoFlow() {

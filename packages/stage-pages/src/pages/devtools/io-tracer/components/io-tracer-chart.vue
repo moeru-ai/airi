@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { IOSpan, IOSubsystem, IOTurn } from '@proj-airi/stage-shared'
 
+import { IOSubsystems } from '@proj-airi/stage-shared'
 import { useElementBounding, useElementSize, useEventListener } from '@vueuse/core'
 import { computed, ref, watch } from 'vue'
 
@@ -131,8 +132,8 @@ const layout = computed(() => {
   const gapAnnotations: GapAnnotation[] = []
   let y = 0
 
-  const subsystemOrder: IOSubsystem[] = ['tts', 'playback']
-  const ttsSubsystems = new Set<IOSubsystem>(['tts', 'playback'])
+  const subsystemOrder: IOSubsystem[] = [IOSubsystems.TTS, IOSubsystems.Playback]
+  const ttsSubsystems = new Set<IOSubsystem>([IOSubsystems.TTS, IOSubsystems.Playback])
   let isFirstTurn = true
 
   for (const turn of turns.value) {
@@ -146,7 +147,10 @@ const layout = computed(() => {
     }
     isFirstTurn = false
 
-    const llmSpans = turnSpans.filter(s => s.subsystem === 'llm').sort((a, b) => a.startTs - b.startTs)
+    const llmSpans = turnSpans.filter(s => s.subsystem === IOSubsystems.LLM).sort((a, b) => a.startTs - b.startTs)
+    const auxiliarySpans = turnSpans
+      .filter(s => s.subsystem !== IOSubsystems.LLM && !ttsSubsystems.has(s.subsystem))
+      .sort((a, b) => a.startTs - b.startTs)
     const ttsSpanList = turnSpans.filter(s => ttsSubsystems.has(s.subsystem))
 
     const segmentGroups = new Map<string, IOSpan[]>()
@@ -166,7 +170,12 @@ const layout = computed(() => {
       .sort((a, b) => a[0].startTs - b[0].startTs)
 
     for (const span of llmSpans) {
-      rows.push({ type: 'span', span, turn, subsystem: 'llm', y })
+      rows.push({ type: 'span', span, turn, subsystem: IOSubsystems.LLM, y })
+      y += ROW_HEIGHT
+    }
+
+    for (const span of auxiliarySpans) {
+      rows.push({ type: 'span', span, turn, subsystem: span.subsystem, y })
       y += ROW_HEIGHT
     }
 
@@ -512,6 +521,28 @@ function spanLabel(span: IOSpan): string {
   const subsystemLabel = SUBSYSTEM_CONFIG_MAP.get(span.subsystem)?.label ?? ''
   return `${subsystemLabel} / ${span.name}`
 }
+
+function formatMetaValue(value: unknown): string {
+  if (value == null)
+    return ''
+  if (typeof value === 'object')
+    return JSON.stringify(value)
+  return String(value)
+}
+
+function tooltipMetaEntries(span: IOSpan) {
+  const tooltipKeys = Array.isArray(span.meta.tooltipKeys)
+    ? span.meta.tooltipKeys.filter((key): key is string => typeof key === 'string')
+    : []
+
+  return tooltipKeys
+    .map(key => [key, span.meta[key]] as const)
+    .filter(([, value]) => value !== undefined && value !== '')
+    .map(([key, value]) => ({
+      label: key,
+      value: formatMetaValue(value),
+    }))
+}
 </script>
 
 <template>
@@ -830,6 +861,19 @@ function spanLabel(span: IOSpan): string {
         </div>
         <div v-if="hoveredSpan.span.meta.chunk_reason" :class="['text-amber-300/80 mt-0.5']">
           chunk: {{ hoveredSpan.span.meta.chunk_reason }}
+        </div>
+        <div
+          v-if="tooltipMetaEntries(hoveredSpan.span).length > 0"
+          :class="['mt-1.5 pt-1.5 border-t border-neutral-700/80 flex flex-col gap-0.5']"
+        >
+          <div
+            v-for="entry in tooltipMetaEntries(hoveredSpan.span)"
+            :key="entry.label"
+            :class="['grid grid-cols-[auto_1fr] gap-x-2 text-neutral-300']"
+          >
+            <span :class="['text-neutral-500']">{{ entry.label }}</span>
+            <span :class="['font-mono text-neutral-100 truncate']">{{ entry.value }}</span>
+          </div>
         </div>
       </div>
     </Teleport>

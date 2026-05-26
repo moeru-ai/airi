@@ -21,6 +21,12 @@ Godot-native desktop stage runtime project for `stage-tamagotchi`.
 - Early-stage scene and runtime validation work.
 - G1.1 VRM-only scene input baseline: Electron materializes the selected `.vrm`
   file, sends its native file path, and Godot imports it at runtime.
+- G1.2 Godot-owned in-process view state: Godot bootstraps camera pose from the
+  loaded avatar, accepts host-origin camera patches, emits view snapshots for
+  the settings UI, and handles local camera input inside the sidecar process.
+- Current sidecar view state starts when the Godot stage process starts and ends
+  when that process exits. The retained store code is not wired into the active
+  runtime path yet.
 
 ## Directory Layout
 

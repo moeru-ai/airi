@@ -112,6 +112,35 @@ describe('fish audio speech provider', () => {
     ])
   })
 
+  it('caches listVoices calls for identical configurations and search terms', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
+      return new Response(JSON.stringify({
+        items: [
+          { _id: 'voice-cached', title: 'Cached Voice' },
+        ],
+      }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+    })
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    const voices1 = await listVoices({ apiKey: 'cached-key', searchTerm: 'test-cache' })
+    const voices2 = await listVoices({ apiKey: 'cached-key', searchTerm: 'test-cache' })
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(voices1).toEqual(voices2)
+    expect(voices1).toEqual([
+      {
+        value: 'voice-cached',
+        label: 'Cached Voice',
+      },
+    ])
+  })
+
   it('respects custom base URLs in dev instead of forcing the local proxy', async () => {
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
       return new Response(JSON.stringify({

@@ -16,6 +16,7 @@ import StepProviderConfiguration from './step-provider-configuration.vue'
 import StepProviderSelection from './step-provider-selection.vue'
 import StepWelcome from './step-welcome.vue'
 
+import { capturePosthogEvent } from '../../../../stores/analytics/posthog'
 import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
 import { useProvidersStore } from '../../../../stores/providers'
 
@@ -108,6 +109,7 @@ async function saveProviderConfiguration(data: ProviderConfigData) {
 }
 
 async function handleSave() {
+  capturePosthogEvent('onboarding_step_completed', { step: currentStep.value?.id ?? 'unknown' })
   emit('configured')
 }
 
@@ -180,6 +182,7 @@ async function navigateNext() {
     return
   }
 
+  capturePosthogEvent('onboarding_step_completed', { step: currentStep.value.id })
   direction.value = 'next'
   step.value++
 }

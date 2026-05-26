@@ -1,9 +1,10 @@
+import type { LlmStreamingControlCallManifest } from '@proj-airi/pipelines-audio'
 import type { WebSocketEventOf } from '@proj-airi/server-sdk'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { UserMessage } from '@xsai/shared-chat'
 
 import type { ChatStreamEvent, ChatStreamEventContext, ContextMessage } from '../../../types/chat'
-import type { SparkNotifyReactionOptions } from './spark-notify-reaction'
+import type { SparkNotifyPerformanceResult, SparkNotifyReactionOptions } from './spark-notify-reaction'
 
 import { errorMessageFrom } from '@moeru/std'
 import { isStageTamagotchi, isStageWeb } from '@proj-airi/stage-shared'
@@ -21,6 +22,7 @@ import { useChatContextStore } from '../../chat/context-store'
 import { useChatSessionStore } from '../../chat/session-store'
 import { useChatStreamStore } from '../../chat/stream-store'
 import { useContextObservabilityStore } from '../../devtools/context-observability'
+import { useLlmStreamingControlStore } from '../../llm-streaming-control'
 import { useConsciousnessStore } from '../../modules/consciousness'
 import { useProvidersStore } from '../../providers'
 import { useModsServerChannelStore } from './channel-server'
@@ -57,6 +59,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
   const consciousnessStore = useConsciousnessStore()
   const providersStore = useProvidersStore()
   const { activeProvider, activeModel } = storeToRefs(consciousnessStore)
+  const streamingControl = useLlmStreamingControlStore()
 
   const { post: broadcastContext, data: incomingContext } = useBroadcastChannel<ContextMessage, ContextMessage>({ name: CONTEXT_CHANNEL_NAME })
   const { post: broadcastStreamEvent, data: incomingStreamEvent } = useBroadcastChannel<ChatStreamEvent, ChatStreamEvent>({ name: CHAT_STREAM_CHANNEL_NAME })
@@ -66,19 +69,24 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       requestId: string
       fromInstanceId: string
       payload: SparkNotifyReactionOptions
+      performance?: {
+        callManifests: LlmStreamingControlCallManifest[]
+        timeoutMs?: number
+      }
     }
     | {
       type: 'response'
       requestId: string
       toInstanceId: string
       reaction: string
+      performance?: SparkNotifyPerformanceResult
     }
   const SPARK_NOTIFY_BRIDGE_CHANNEL_NAME = 'airi-spark-notify-bridge'
   const sparkNotifyBridgeInstanceId = `spark-notify-${nanoid()}`
   const sparkNotifyHostRole = ref<'main' | 'client'>('client')
   const sparkNotifyBridgeWaiters = new Map<string, {
-    resolve: (reaction: string) => void
-    timeout: ReturnType<typeof setTimeout>
+    resolve: (result: { reaction: string, performance?: SparkNotifyPerformanceResult }) => Promise<void> | void
+    timeout?: ReturnType<typeof setTimeout>
   }>()
   const { post: postSparkNotifyBridgeMessage, data: incomingSparkNotifyBridgeMessage } = useBroadcastChannel<SparkNotifyBridgeMessage, SparkNotifyBridgeMessage>({ name: SPARK_NOTIFY_BRIDGE_CHANNEL_NAME })
 
@@ -133,13 +141,30 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     }
   }
 
-  async function handleSparkNotifyReactionLocal(options: SparkNotifyReactionOptions) {
+  function withStreamingCallPrompt(options: SparkNotifyReactionOptions, callPrompt: string): SparkNotifyReactionOptions {
+    if (!callPrompt) {
+      return options
+    }
+
+    return {
+      ...options,
+      messageOverride: {
+        ...options.messageOverride,
+        appendSystemInstructions: [
+          ...(options.messageOverride?.appendSystemInstructions ?? []),
+          callPrompt,
+        ],
+      },
+    }
+  }
+
+  async function handleSparkNotifyReactionLocal(options: SparkNotifyReactionOptions, identity?: { id?: string, eventId?: string }) {
     const event: WebSocketEventOf<'spark:notify'> = {
       type: 'spark:notify',
       source: options.source ?? 'plugin-module-host',
       data: {
-        id: nanoid(),
-        eventId: nanoid(),
+        id: identity?.id ?? nanoid(),
+        eventId: identity?.eventId ?? nanoid(),
         lane: options.lane,
         kind: options.kind ?? 'ping',
         urgency: options.urgency ?? 'immediate',
@@ -185,7 +210,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       }, 5000)
 
       sparkNotifyBridgeWaiters.set(requestId, {
-        resolve: (reaction) => {
+        resolve: ({ reaction }) => {
           clearTimeout(timeout)
           resolve(reaction || options.fallbackResponseText)
         },
@@ -199,6 +224,154 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         payload: options,
       })
     })
+  }
+
+  async function handleSparkNotifyPerformanceLocal(options: SparkNotifyReactionOptions): Promise<SparkNotifyPerformanceResult> {
+    const calls = options.calls ?? []
+
+    if (calls.length === 0) {
+      const reaction = await handleSparkNotifyReactionLocal(options)
+      return {
+        type: 'completed',
+        reaction,
+      }
+    }
+
+    const sparkNotifyId = nanoid()
+    const turn = streamingControl.beginTurn({ turnId: `spark:${sparkNotifyId}` })
+
+    let latestReaction = ''
+    let reactionPromise: Promise<string> | undefined
+    let dispose: (() => void) | undefined
+
+    const calledPromise = new Promise<SparkNotifyPerformanceResult>((resolve) => {
+      const disposers = calls.map(call => turn.on(call.manifest, async (payload) => {
+        await call.handler(payload)
+        const reaction = await (reactionPromise ?? Promise.resolve(latestReaction || options.fallbackResponseText))
+        resolve({
+          type: 'called',
+          name: call.manifest.name,
+          payload,
+          reaction,
+        })
+      }))
+      dispose = () => {
+        for (const item of disposers) {
+          item()
+        }
+      }
+    })
+
+    reactionPromise = handleSparkNotifyReactionLocal(withStreamingCallPrompt(
+      options,
+      turn.renderManifestPrompt(),
+    ), { id: sparkNotifyId })
+      .then((reaction) => {
+        latestReaction = reaction
+        return reaction
+      })
+      .catch(() => {
+        latestReaction = options.fallbackResponseText
+        return options.fallbackResponseText
+      })
+
+    const turnDonePromise = turn.done.then(async (result): Promise<SparkNotifyPerformanceResult> => {
+      const reaction = await (reactionPromise ?? Promise.resolve(latestReaction || options.fallbackResponseText))
+      return {
+        type: result.type === 'cancelled' ? 'cancelled' : 'completed',
+        reaction: reaction || options.fallbackResponseText,
+      }
+    })
+
+    const result = await Promise.race([calledPromise, turnDonePromise])
+    dispose?.()
+    return result
+  }
+
+  async function dispatchSparkNotifyPerformance(options: SparkNotifyReactionOptions): Promise<SparkNotifyPerformanceResult> {
+    const calls = options.calls ?? []
+
+    if (sparkNotifyHostRole.value === 'main') {
+      return await handleSparkNotifyPerformanceLocal(options)
+    }
+
+    if (calls.length === 0) {
+      const reaction = await dispatchSparkNotifyReaction(options)
+      return {
+        type: 'completed',
+        reaction,
+      }
+    }
+
+    const requestId = nanoid()
+    return await new Promise<SparkNotifyPerformanceResult>((resolve) => {
+      const timeout = setTimeout(() => {
+        sparkNotifyBridgeWaiters.delete(requestId)
+        resolve(createFallbackPerformanceResult(options, 'timeout'))
+      }, Math.max(1, options.timeoutMs ?? 5000))
+
+      sparkNotifyBridgeWaiters.set(requestId, {
+        resolve: async ({ reaction, performance }) => {
+          clearTimeout(timeout)
+          if (performance?.type === 'called' && performance.name) {
+            await findPerformanceCall(options, performance.name)?.handler(performance.payload)
+          }
+
+          resolve(performance ?? createFallbackPerformanceResult(options, 'completed', reaction))
+        },
+        timeout,
+      })
+
+      const { calls: _calls, timeoutMs: _timeoutMs, ...payload } = options
+      postSparkNotifyBridgeMessage({
+        type: 'request',
+        requestId,
+        fromInstanceId: sparkNotifyBridgeInstanceId,
+        payload,
+        performance: {
+          callManifests: calls.map(call => call.manifest),
+          timeoutMs: options.timeoutMs,
+        },
+      })
+    })
+  }
+
+  function createFallbackPerformanceResult(
+    options: SparkNotifyReactionOptions,
+    type: Extract<SparkNotifyPerformanceResult['type'], 'completed' | 'timeout'>,
+    reaction?: string,
+  ): SparkNotifyPerformanceResult {
+    return {
+      type,
+      reaction: reaction || options.fallbackResponseText,
+    }
+  }
+
+  function findPerformanceCall(options: SparkNotifyReactionOptions, name: string) {
+    return options.calls?.find(call => call.manifest.name === name)
+  }
+
+  function withContextBridgeLock<T>(key: string, callback: () => Promise<T>) {
+    if (typeof navigator !== 'undefined' && 'locks' in navigator && typeof navigator.locks.request === 'function') {
+      return navigator.locks.request(key, callback)
+    }
+    return callback()
+  }
+
+  async function withContextBridgeExclusiveLock<T>(key: string, callback: () => Promise<T>) {
+    if (typeof navigator !== 'undefined' && 'locks' in navigator && typeof navigator.locks.request === 'function') {
+      // BroadcastChannel delivers the same bridge request to every Stage window.
+      // `ifAvailable` makes non-owning windows skip instead of queueing and replaying
+      // the same spark reaction after the first window finishes.
+      return await navigator.locks.request(key, { ifAvailable: true }, async (lock) => {
+        if (!lock) {
+          return undefined
+        }
+        return await callback()
+      })
+    }
+
+    return await callback()
   }
 
   async function initialize() {
@@ -281,12 +454,25 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
             return
           }
 
-          const reaction = await handleSparkNotifyReactionLocal(event.payload)
-          postSparkNotifyBridgeMessage({
-            type: 'response',
-            requestId: event.requestId,
-            toInstanceId: event.fromInstanceId,
-            reaction,
+          await withContextBridgeExclusiveLock(`context-bridge:spark-notify:${event.requestId}`, async () => {
+            const performance = event.performance?.callManifests.length
+              ? await handleSparkNotifyPerformanceLocal({
+                  ...event.payload,
+                  calls: event.performance.callManifests.map(manifest => ({
+                    manifest,
+                    handler: async () => undefined,
+                  })),
+                  timeoutMs: event.performance.timeoutMs,
+                })
+              : undefined
+            const reaction = performance?.reaction ?? await handleSparkNotifyReactionLocal(event.payload)
+            postSparkNotifyBridgeMessage({
+              type: 'response',
+              requestId: event.requestId,
+              toInstanceId: event.fromInstanceId,
+              reaction,
+              ...(performance ? { performance } : {}),
+            })
           })
           return
         }
@@ -302,7 +488,10 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           }
 
           sparkNotifyBridgeWaiters.delete(event.requestId)
-          waiter.resolve(event.reaction)
+          await waiter.resolve({
+            reaction: event.reaction,
+            performance: event.performance,
+          })
         }
       })
       disposeHookFns.value.push(stopSparkNotifyBridgeWatch)
@@ -366,13 +555,6 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           details: contextMessage,
         })
       }))
-
-      function withContextBridgeLock<T>(key: string, callback: () => Promise<T>) {
-        if (typeof navigator !== 'undefined' && 'locks' in navigator && typeof navigator.locks.request === 'function') {
-          return navigator.locks.request(key, callback)
-        }
-        return callback()
-      }
 
       disposeHookFns.value.push(serverChannelStore.onEvent('input:text', async (event) => {
         const {
@@ -720,7 +902,8 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       remoteStreamGuard = null
 
       for (const [requestId, waiter] of sparkNotifyBridgeWaiters) {
-        clearTimeout(waiter.timeout)
+        if (waiter.timeout)
+          clearTimeout(waiter.timeout)
         sparkNotifyBridgeWaiters.delete(requestId)
       }
     }
@@ -735,6 +918,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     initialize,
     dispose,
     dispatchSparkNotifyReaction,
+    dispatchSparkNotifyPerformance,
     setSparkNotifyHostRole,
   }
 })

@@ -1,85 +1,96 @@
 import { useLocalStorage } from '@vueuse/core'
 import { ref } from 'vue'
 
+import { DEFAULT_CAMERA_DISTANCE, DEFAULT_CAMERA_FOV, useThreeCamera } from './camera'
+
 export const supportedControl = ['x', 'y', 'z', 'cameraDistance', 'cameraFOV'] as const
-type SupportedControl = typeof supportedControl[number]
-interface ControlConfig { min: number, max: number, step: number, default: number, format: (val: number) => string }
+export type SupportedControl = typeof supportedControl[number]
+interface ControlConfig { min: number, max: number, step: number, default: number, buttonText: string }
 
-const formatDecimal2Meters = (val: number) => `${val.toFixed(2)}m`
+const formatMetersD2 = (val: number) => `${val.toFixed(2)}m`
 
-export const controlConfig: Record<SupportedControl, ControlConfig> = {
+export const defaultControlConfig: Record<SupportedControl, ControlConfig> = {
   // TODO: allow user to set the min/max value
   x: {
     min: -10,
     max: 10,
     step: 0.01,
     default: 0,
-    format: formatDecimal2Meters,
+    buttonText: 'X',
   },
   y: {
     min: -10,
     max: 10,
     step: 0.01,
     default: 0,
-    format: formatDecimal2Meters,
+    buttonText: 'Y',
   },
   z: {
     min: -10,
     max: 10,
     step: 0.01,
     default: 0,
-    format: formatDecimal2Meters,
+    buttonText: 'Z',
   },
   cameraDistance: {
     min: 0,
     max: 10,
     step: 0.01,
-    default: 1,
-    format: formatDecimal2Meters,
+    default: DEFAULT_CAMERA_DISTANCE,
+    buttonText: 'Dis',
   },
   cameraFOV: {
     min: 10,
     max: 120,
     step: 1,
-    default: 40,
-    format: (val: number) => `${val.toFixed(0)}°`,
+    default: DEFAULT_CAMERA_FOV,
+    buttonText: 'FOV',
   },
 }
 
-/** camera field of view, in degrees. */
-const cameraFOV = useLocalStorage('settings/stage-ui-three/cameraFOV', 40)
-/**
- * euclidean distance between the model center and the camera center, in meters.
- * setting this value will move the camera along the axis.
- */
-const cameraDistance = useLocalStorage('settings/stage-ui-three/cameraDistance', 1)
+export const formatter: Record<SupportedControl, (val: number) => string> = {
+  x: formatMetersD2,
+  y: formatMetersD2,
+  z: formatMetersD2,
+  cameraDistance: formatMetersD2,
+  cameraFOV: (val: number) => `${val.toFixed(0)}°`,
+}
+const clampMinMax = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max)
+
+const { cameraDistance, cameraFOV } = useThreeCamera()
+const controlConfig = ref(defaultControlConfig)
 /** model position from the scene origin, in meters. */
-const modelOffset = useLocalStorage('settings/stage-ui-three/modelOffset', { x: 0, y: 0, z: 0 })
-/** show or hide the control element(slider) on HUD. */
+const modelOffset = useLocalStorage('settings/stage-ui-three/modelOffset', { x: defaultControlConfig.x.default, y: defaultControlConfig.y.default, z: defaultControlConfig.z.default })
+/**
+ * show or hide the control element(slider) on HUD.
+ *  also enable/disable camera panning.
+ */
 const viewControlsEnabled = ref(false)
 /** what value to control for the control element */
 const viewControlMode = ref<SupportedControl>('cameraDistance')
 
 /**
- * reset the given control to its default value.
- *  @param key the control to reset
+ * set the given control to the given value.
+ *  @param key the control to set
+ *  @param value optional, will reset the value to its default if not provided
  */
-function reset(key: SupportedControl) {
+function set(key: SupportedControl, value?: number) {
+  const clamped = value !== undefined ? clampMinMax(value, defaultControlConfig[key].min, defaultControlConfig[key].max) : undefined
   switch (key) {
     case 'x':
-      modelOffset.value.x = controlConfig.x.default
+      modelOffset.value.x = clamped ?? defaultControlConfig.x.default
       break
     case 'y':
-      modelOffset.value.y = controlConfig.y.default
+      modelOffset.value.y = clamped ?? defaultControlConfig.y.default
       break
     case 'z':
-      modelOffset.value.z = controlConfig.z.default
+      modelOffset.value.z = clamped ?? defaultControlConfig.z.default
       break
     case 'cameraDistance':
-      cameraDistance.value = controlConfig.cameraDistance.default
+      cameraDistance.value = clamped ?? defaultControlConfig.cameraDistance.default
       break
     case 'cameraFOV':
-      cameraFOV.value = controlConfig.cameraFOV.default
+      cameraFOV.value = clamped ?? defaultControlConfig.cameraFOV.default
       break
   }
 }
@@ -96,8 +107,8 @@ export function useThreeViewControl() {
     viewControlsEnabled,
     /** what value to control for the control element */
     viewControlMode,
-
+    controlConfig,
     /** reset the given control to its default value. */
-    reset,
+    set,
   }
 }

@@ -1,8 +1,8 @@
 import type { StripeCheckoutSession, StripeInvoice } from '../../schemas/stripe'
-import type { BillingService } from '../../services/billing/billing-service'
-import type { ConfigKVService } from '../../services/config-kv'
-import type { FluxService } from '../../services/flux'
-import type { StripeService } from '../../services/stripe'
+import type { ConfigKVService } from '../../services/adapters/config-kv'
+import type { BillingService } from '../../services/domain/billing/billing-service'
+import type { FluxService } from '../../services/domain/flux'
+import type { StripeService } from '../../services/domain/stripe'
 import type { HonoEnv } from '../../types/hono'
 
 import { Hono } from 'hono'

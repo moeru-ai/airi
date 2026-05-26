@@ -62,7 +62,7 @@ auth ──depends on──► userDeletionService ──depends on──► [st
 auth 和业务 service **互不依赖**，双方都只依赖 `userDeletionService` 这层抽象。这是 DIP 的标准形态。
 
 ```ts
-// apps/server/src/services/user-deletion/types.ts
+// apps/server/src/services/domain/user-deletion/types.ts
 export interface UserDeletionHandler {
   name: string
   /** Lower runs first. 10=external side-effects, 20=financial+cache, 30=pure DB */
@@ -101,11 +101,11 @@ export interface UserDeletionService {
 
 **所有读业务表的查询都必须加 `isNull(deletedAt)` 过滤**，否则被删用户的数据还能被列出来 / 关联出来。重点扫描：
 
-- `apps/server/src/services/flux.ts` — getBalance / readBalance
-- `apps/server/src/services/characters.ts` — listCharacters
-- `apps/server/src/services/providers.ts` — listProviderConfigs
-- `apps/server/src/services/chats.ts` — listChats / listMessages
-- `apps/server/src/services/billing/billing-service.ts` — invoice / sub 查询
+- `apps/server/src/services/domain/flux.ts` — getBalance / readBalance
+- `apps/server/src/services/domain/characters.ts` — listCharacters
+- `apps/server/src/services/domain/providers.ts` — listProviderConfigs
+- `apps/server/src/services/domain/chats.ts` — listChats / listMessages
+- `apps/server/src/services/domain/billing/billing-service.ts` — invoice / sub 查询
 
 写完后用 `pnpm typecheck` + grep `from(flux|character|chats|providers|stripe)` 兜底。
 
@@ -158,8 +158,8 @@ better-auth `internalAdapter.deleteAccounts` 删本地 `account` 表（user 跟 
 - 业务表 schema: `apps/server/src/schemas/{flux,flux-transaction,stripe,characters,user-character,providers,chats}.ts`
 - Auth schema (不改): `apps/server/src/schemas/accounts.ts`
 - Auth 配置: `apps/server/src/libs/auth.ts` (extend with `user.deleteUser`)
-- Email service: `apps/server/src/services/email.ts` (extend interface + Resend impl)
-- Deletion scheduler: `apps/server/src/services/user-deletion/` (registry only, no domain logic)
+- Email service: `apps/server/src/services/adapters/email.ts` (extend interface + Resend impl)
+- Deletion scheduler: `apps/server/src/services/domain/user-deletion/` (registry only, no domain logic)
 - 各 service 自己的 `deleteAllForUser`: `apps/server/src/services/{characters,chats,flux,providers,stripe}.ts`
 - UI - settings page: `packages/stage-pages/src/pages/settings/account/account-settings-page.vue` (line ~430 TODO)
 - UI - confirmation page (新): `apps/ui-server-auth/src/pages/delete-account.vue`

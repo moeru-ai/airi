@@ -2,7 +2,7 @@ import type { AuthInstance } from '../../libs/auth'
 import type { Database } from '../../libs/db'
 import type { Env } from '../../libs/env'
 import type { RateLimitMetrics } from '../../otel'
-import type { ConfigKVService } from '../../services/config-kv'
+import type { ConfigKVService } from '../../services/adapters/config-kv'
 import type { HonoEnv } from '../../types/hono'
 
 import { oauthProviderAuthServerMetadata, oauthProviderOpenIdConfigMetadata } from '@better-auth/oauth-provider'
@@ -11,12 +11,13 @@ import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 
 import { ensureDynamicFirstPartyRedirectUri } from '../../libs/auth'
+import { isUserBannedNow, resolveSessionIgnoringBan } from '../../libs/request-auth'
 import { rateLimiter } from '../../middlewares/rate-limit'
 import { account, user } from '../../schemas/accounts'
-import { createBadRequestError } from '../../utils/error'
+import { createBadRequestError, createForbiddenError } from '../../utils/error'
 import { getServerAuthUiDistDir, renderServerAuthUiHtml, SERVER_AUTH_UI_BASE_PATH } from '../../utils/server-auth-ui'
-import { createElectronCallbackRelay } from '../oidc/electron-callback'
-import { createOIDCTokenAuthRoute } from '../oidc/token-auth'
+import { createElectronCallbackRelay } from './oidc/electron-callback'
+import { createOIDCTokenAuthRoute } from './oidc/token-auth'
 
 // NOTICE:
 // Loose RFC-5322-ish regex used to fail fast on obviously malformed input.
@@ -136,6 +137,22 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
     }))
     .use('/api/auth/oauth2/authorize', async (c, next) => {
       await ensureDynamicFirstPartyRedirectUri(deps.db, c.req.raw, deps.env.ADDITIONAL_TRUSTED_ORIGINS)
+      await next()
+    })
+    // NOTICE:
+    // `/api/auth/*` bypasses sessionMiddleware (and thus the ban gate in
+    // resolveRequestAuth), and oauthProvider's /oauth2/userinfo validates the
+    // bearer JWT by signature only — so a banned user's still-valid access
+    // token (<=1h TTL) could otherwise read its own profile claims after a ban.
+    // This guard re-applies the ban check on that one endpoint. We resolve the
+    // subject ignoring the ban, then 403 if banned, so an invalid/expired token
+    // still falls through to better-auth's own 401 rather than being masked.
+    // (/oauth2/introspect needs confidential client credentials, which no
+    // first-party AIRI client has, so it has no reachable banned-caller path.)
+    .use('/api/auth/oauth2/userinfo', async (c, next) => {
+      const resolved = await resolveSessionIgnoringBan(deps.auth, deps.env, c.req.raw.headers)
+      if (resolved && isUserBannedNow(resolved.user))
+        throw createForbiddenError('This account has been banned')
       await next()
     })
     .route('/api/auth', createOIDCTokenAuthRoute(deps))

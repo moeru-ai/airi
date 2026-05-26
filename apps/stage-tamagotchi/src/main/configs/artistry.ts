@@ -3,7 +3,7 @@ import { any, array, number, object, optional, string } from 'valibot'
 import { createConfig } from '../libs/electron/persistence'
 
 export const artistryConfigSchema = object({
-  artistryProvider: optional(string(), 'comfyui'),
+  artistryProvider: optional(string(), 'none'),
   artistryGlobals: optional(object({
     comfyuiServerUrl: optional(string(), 'http://localhost:8188'),
     comfyuiSavedWorkflows: optional(array(any()), []),

@@ -48,7 +48,7 @@ services:
     ports:
       - '6112:3000'
     healthcheck:
-      test: ['CMD-SHELL', 'curl -f http://localhost:3000/health || exit 1']
+      test: ['CMD-SHELL', 'curl -f http://localhost:3000/livez || exit 1']
       interval: 10s
       timeout: 5s
       retries: 5

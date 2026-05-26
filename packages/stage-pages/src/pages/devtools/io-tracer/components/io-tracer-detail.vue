@@ -83,6 +83,22 @@ const metaEntries = computed(() => {
     }))
 })
 
+const eventEntries = computed(() => {
+  const span = props.span
+  if (!span)
+    return []
+
+  return (span.events ?? []).map(event => ({
+    name: event.name,
+    relativeTime: fmtMs(event.timeTs - span.startTs),
+    meta: Object.entries(event.meta)
+      .map(([key, value]) => ({
+        key: key.includes('.') ? key.split('.').at(-1)! : key,
+        value: typeof value === 'object' ? JSON.stringify(value) : String(value),
+      })),
+  }))
+})
+
 function copyValue(value: string) {
   navigator.clipboard.writeText(value)
 }
@@ -194,6 +210,42 @@ function copyValue(value: string) {
           >
             <div class="i-solar:copy-bold-duotone h-3 w-3" />
           </button>
+        </div>
+      </div>
+
+      <!-- Events -->
+      <div v-if="eventEntries.length > 0">
+        <div :class="['text-neutral-500 font-medium mb-1.5 uppercase tracking-wider text-2.5']">
+          Events
+        </div>
+        <div :class="['flex flex-col gap-1.5']">
+          <div
+            v-for="entry in eventEntries"
+            :key="`${entry.name}:${entry.relativeTime}`"
+            :class="[
+              'rounded border border-neutral-100 dark:border-neutral-800',
+              'bg-neutral-50 dark:bg-neutral-800/60',
+              'p-1.5',
+            ]"
+          >
+            <div :class="['flex items-center justify-between gap-2']">
+              <span :class="['font-mono text-2.5 truncate']">{{ entry.name }}</span>
+              <span :class="['font-mono text-2.5 text-neutral-400 flex-shrink-0']">+{{ entry.relativeTime }}</span>
+            </div>
+            <div
+              v-if="entry.meta.length > 0"
+              :class="['mt-1 flex flex-col gap-0.5']"
+            >
+              <div
+                v-for="item in entry.meta"
+                :key="item.key"
+                :class="['grid grid-cols-[auto_1fr] gap-x-2']"
+              >
+                <span :class="['text-neutral-400 text-2.5']">{{ item.key }}</span>
+                <span :class="['font-mono text-2.5 truncate']">{{ item.value }}</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

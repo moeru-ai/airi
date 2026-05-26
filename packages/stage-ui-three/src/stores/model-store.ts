@@ -6,6 +6,7 @@ import { computed, ref, watch } from 'vue'
 
 import defaultSkyBoxSrc from '../components/Environment/assets/sky_linekotsi_23_HDRI.hdr?url'
 
+import { DEFAULT_CAMERA_POSITION, useThreeCamera } from './camera'
 import { supportedControl, useThreeViewControl } from './view-control'
 
 // TODO: this is for future type injection features
@@ -79,7 +80,11 @@ interface BroadcastChannelEventShouldUpdateView {
 
 const vrmViewUpdateRuntimeInstanceId = Math.random().toString(36).slice(2, 10)
 let vrmViewUpdateMessageSequence = 0
-const { cameraFOV, cameraDistance, modelOffset, reset: resetViewControl } = useThreeViewControl()
+const { modelOffset, set: setViewControl } = useThreeViewControl()
+const { cameraDistance, cameraFOV, cameraPosition } = useThreeCamera()
+
+const modelRotationY = useLocalStorage('settings/stage-ui-three/modelRotationY', 0)
+const trackingMode = useLocalStorage<TrackingMode>('settings/stage-ui-three/trackingMode', 'none')
 
 export const useModelStore = defineStore('modelStore', () => {
   const { post, data } = useBroadcastChannel<BroadcastChannelEvents, BroadcastChannelEvents>({ name: 'airi-stores-stage-ui-three-vrm' })
@@ -143,16 +148,8 @@ export const useModelStore = defineStore('modelStore', () => {
   const modelOrigin = useLocalStorage('settings/stage-ui-three/modelOrigin', { x: 0, y: 0, z: 0 })
   const eyeHeight = useLocalStorage('settings/stage-ui-three/eyeHeight', 0)
 
-  // === User scene settings ===
-  // These values are intended to survive model reloads and direct edits from settings UI.
-  const modelRotationY = useLocalStorage('settings/stage-ui-three/modelRotationY', 0)
-  const trackingMode = useLocalStorage('settings/stage-ui-three/trackingMode', 'none' as 'camera' | 'mouse' | 'none')
-
   // === View state ===
-  // `cameraDistance` is the user-facing distance control. `cameraPosition` and
-  // `lookAtTarget` represent the current runtime pose and may be recalculated when
-  // a new model bootstrap is applied.
-  const cameraPosition = useLocalStorage('settings/stage-ui-three/camera-position', { x: 0, y: 0, z: -1 })
+  /** current runtime pose. may be recalculated when a new model bootstrap is applied. */
   const lookAtTarget = useLocalStorage('settings/stage-ui-three/lookAtTarget', { x: 0, y: 0, z: 0 })
 
   function resetModelStore() {
@@ -164,8 +161,8 @@ export const useModelStore = defineStore('modelStore', () => {
     modelOrigin.value = { x: 0, y: 0, z: 0 }
     modelRotationY.value = 0
 
-    cameraPosition.value = { x: 0, y: 0, z: 0 }
-    supportedControl.forEach(c => resetViewControl(c))
+    cameraPosition.value = { ...DEFAULT_CAMERA_POSITION }
+    supportedControl.forEach(c => setViewControl(c))
 
     lookAtTarget.value = { x: 0, y: 0, z: 0 }
     trackingMode.value = 'none'

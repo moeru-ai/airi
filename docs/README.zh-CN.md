@@ -34,7 +34,7 @@
 
 <p float="left" align="center">
   <!-- readme-section:release-binary-windows -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0/AIRI-0.9.0-windows-x64-setup.exe">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.10.2/AIRI-0.10.2-windows-x64-setup.exe">
     <picture>
       <source
         width="33%"
@@ -50,7 +50,7 @@
     </picture>
   </a>
   <!-- readme-section:release-binary-macos -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0/AIRI-0.9.0-darwin-arm64.dmg">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.10.2/AIRI-0.10.2-darwin-arm64.dmg">
     <picture>
       <source
         width="33%"
@@ -162,12 +162,15 @@
 
 ## 我们发布的 DevLog & 近期更新
 
+- [DevLog @ 2026.03.29](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2026.03.29/) — 2026 年 3 月 29 日
+- [DevLog @ 2026.02.16](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2026.02.16/) — 2026 年 2 月 16 日
 - [DevLog @ 2026.01.01](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2026.01.01/) — 2026 年 1 月 1 日
 - [DevLog @ 2025.10.20](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2025.10.20/) — 2025 年 10 月 20 日
+- [DevLog @ 2025.08.26](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2025.08.26/) — 2025 年 8 月 26 日
 - [DevLog @ 2025.08.05](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2025.08.05/) — 2025 年 8 月 5 日
 - [DevLog @ 2025.08.01](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2025.08.01/) — 2025 年 8 月 1 日
 - [DevLog @ 2025.07.18](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2025.07.18/) — 2025 年 7 月 18 日
-- [DreamLog 0x1](https://airi.moeru.ai/docs/zh-Hans/blog/dreamlog-0x1/) — 2025 年 6 月 16 日
+- [DreamLog 0x1](https://airi.moeru.ai/docs/zh-Hans/blog/DreamLog-0x1/) — 2025 年 6 月 16 日
 - ...更多请见[文档站](https://airi.moeru.ai/docs/zh-Hans/)
 
 ## 这个项目有什么特别？

@@ -139,7 +139,10 @@ export interface ProviderMetadata {
     | Promise<TranscriptionProviderWithExtraOptions>
   capabilities: {
     listModels?: (config: Record<string, unknown>) => Promise<ModelInfo[]>
-    listVoices?: (config: Record<string, unknown>) => Promise<VoiceInfo[]>
+    listVoices?: (
+      config: Record<string, unknown>,
+      options?: string | { model?: string, searchTerm?: string },
+    ) => Promise<VoiceInfo[]>
     voiceSearchMode?: 'local' | 'remote'
     loadModel?: (config: Record<string, unknown>, hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void }) => Promise<void>
   }
@@ -2279,6 +2282,19 @@ export const useProvidersStore = defineStore('providers', () => {
   const providerValidationInFlight = new Map<string, Promise<boolean>>()
   const providerRevalidationLoops = new Map<string, { resume: () => void }>()
 
+  // Server-driven availability overrides for providers whose visibility can
+  // only be decided at runtime from the backend (e.g. the streaming TTS
+  // provider, which exists only when `UNSPEECH_UPSTREAM.streaming` is
+  // configured server-side). A `false` entry hides the provider from the
+  // available lists regardless of its static `isAvailableBy`; an absent entry
+  // means no override. Written by the auth-sync glue after it probes the
+  // server. Reactive so the available/configured provider lists re-derive.
+  const providerAvailabilityOverrides = ref<Record<string, boolean>>({})
+
+  function setProviderAvailabilityOverride(providerId: string, available: boolean) {
+    providerAvailabilityOverrides.value = { ...providerAvailabilityOverrides.value, [providerId]: available }
+  }
+
   const configuredProviders = computed(() => {
     const result: Record<string, boolean> = {}
     for (const [key, state] of Object.entries(providerRuntimeState.value)) {
@@ -2690,9 +2706,17 @@ export const useProvidersStore = defineStore('providers', () => {
   }
 
   const availableProvidersMetadata = computedAsync<ProviderMetadata[]>(async () => {
+    // Spread-read the overrides synchronously so this re-runs when a
+    // server-driven availability flips: computedAsync uses watchEffect, which
+    // only tracks reactive reads before the first `await` — the per-provider
+    // `isAvailableBy()` below runs after one, so reads inside it aren't tracked.
+    const overrides = { ...providerAvailabilityOverrides.value }
     const providers: ProviderMetadata[] = []
 
     for (const provider of allProvidersMetadata.value) {
+      if (overrides[provider.id] === false)
+        continue
+
       const p = getProviderMetadata(provider.id)
       const isAvailableBy = p.isAvailableBy || (() => true)
 
@@ -2790,6 +2814,7 @@ export const useProvidersStore = defineStore('providers', () => {
     resetProviderSettings,
     forceProviderConfigured,
     setProviderUnconfigured,
+    setProviderAvailabilityOverride,
     availableProvidersMetadata,
     allChatProvidersMetadata,
     allAudioSpeechProvidersMetadata,

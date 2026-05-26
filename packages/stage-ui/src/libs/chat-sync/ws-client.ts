@@ -1,4 +1,5 @@
 import type { NewMessagesPayload, PullMessagesRequest, PullMessagesResponse, SendMessagesRequest, SendMessagesResponse } from '@proj-airi/server-sdk-shared'
+import type { ComputedRef, Ref } from 'vue'
 
 import { defineInvoke } from '@moeru/eventa'
 import { createContext as createWsContext, wsErrorEvent } from '@moeru/eventa/adapters/websocket/native'
@@ -12,6 +13,17 @@ import * as v from 'valibot'
 const RECONNECT_BASE_MS = 1000
 const RECONNECT_MAX_MS = 30_000
 const RECONNECT_RETRIES = -1
+
+/**
+ * Server-side auth rejection close code (IANA application range 4000-4999).
+ *
+ * Browsers swallow the HTTP 401 status when a WebSocket upgrade is rejected,
+ * so the only way for the server to distinguish "wrong token, stop retrying"
+ * from a transient network drop on the client is to accept the upgrade and
+ * close with a custom application code. The server emits this from
+ * `apps/server/src/app.ts` when `resolveRequestAuth` returns null.
+ */
+export const WS_CLOSE_UNAUTHORIZED = 4001
 
 // NOTICE:
 // The native ws adapter's context type is not directly exported from
@@ -168,19 +180,36 @@ export function mapStatus(vue: 'OPEN' | 'CONNECTING' | 'CLOSED', enabled: boolea
  *   indefinitely (eventa@0.3.0 does not flush its internal pending maps when
  *   the underlying context is disposed; we wrap each invoke in a race).
  */
+/**
+ * Build the reactive ws URL ref `useWebSocket` watches.
+ *
+ * `getToken` MUST read from a reactive source (Pinia store ref, Vue ref,
+ * computed). A non-reactive read (e.g. `localStorage.getItem`) freezes the
+ * URL at first evaluation and `useWebSocket` will reconnect forever with
+ * the stale token after the next OIDC refresh — verified by
+ * `freezes ws URL when getToken is non-reactive` in ws-client.test.ts.
+ */
+export function createChatWsUrlRef(
+  enabled: Ref<boolean>,
+  getToken: () => string | null,
+  serverUrl: string,
+): ComputedRef<string | undefined> {
+  return computed(() => {
+    if (!enabled.value)
+      return undefined
+    const token = getToken()
+    if (!token)
+      return undefined
+    return buildChatWsUrl(serverUrl, token)
+  })
+}
+
 export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsClient {
   // `enabled` mirrors user intent: connect() flips on, disconnect() flips off.
   // The url ref returns `undefined` when disabled, which makes useWebSocket
   // close cleanly without firing the auto-reconnect loop.
   const enabled = ref(false)
-  const urlRef = computed<string | undefined>(() => {
-    if (!enabled.value)
-      return undefined
-    const token = options.getToken()
-    if (!token)
-      return undefined
-    return buildChatWsUrl(options.serverUrl, token)
-  })
+  const urlRef = createChatWsUrlRef(enabled, options.getToken, options.serverUrl)
 
   // The eventa context is rebuilt on every `onConnected` so RPC + push
   // listeners survive a reconnect by re-binding to the fresh ws.
@@ -261,8 +290,24 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
       context.value = created.context
       attachContextListeners(created.context)
     },
-    onDisconnected() {
+    onDisconnected(_rawWs, ev) {
       disposeContext()
+      // ROOT CAUSE:
+      //
+      // useWebSocket's autoReconnect treats every onclose as worth
+      // retrying. When the server rejects auth, the only structured
+      // signal we get is the close `code` (the close `reason` body is
+      // also delivered but not used for routing here). 4001 is our
+      // contract with apps/server/src/app.ts for "this token will never
+      // succeed without rotation"; calling `ws.close()` here sets
+      // useWebSocket's internal `explicitlyClosed` flag so the next
+      // onclose path skips the reconnect schedule. The next time
+      // `urlRef` changes (token refresh), `watch(urlRef, open)` calls
+      // `open()` which resets `explicitlyClosed` to false and re-inits.
+      if (ev.code === WS_CLOSE_UNAUTHORIZED) {
+        console.warn('[chat-ws] server rejected auth (4001), pausing reconnect until token rotates')
+        ws.close()
+      }
     },
     onError(_rawWs, event) {
       console.warn('[chat-ws] ws error event:', event)

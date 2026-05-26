@@ -17,7 +17,6 @@ import type {
   Texture,
   WebGLRenderer,
 } from 'three'
-import type { Ref, WatchStopHandle } from 'vue'
 
 import type {
   VrmDisposeHookContext,
@@ -26,13 +25,13 @@ import type {
   VrmLoadHookContext,
   VrmMaterialHookContext,
 } from '../../composables/vrm/hooks'
-import type { SceneBootstrap, Vec3 } from '../../stores/model-store'
+import type { SceneBootstrap, TrackingMode, Vec3 } from '../../stores/model-store'
 import type { VrmLifecycleReason } from '../../trace'
 import type { ManagedVrmInstance } from './vrm-instance-cache'
 
 import { VRMUtils } from '@pixiv/three-vrm'
 import { useLoop, useTresContext } from '@tresjs/core'
-import { until, useMouse } from '@vueuse/core'
+import { until } from '@vueuse/core'
 import {
   AnimationMixer,
   Box3,
@@ -40,11 +39,9 @@ import {
   Mesh,
   MeshPhysicalMaterial,
   MeshStandardMaterial,
-  Plane,
   Raycaster,
 
   SRGBColorSpace,
-  Vector2,
   Vector3,
 } from 'three'
 import {
@@ -60,6 +57,7 @@ import {
 
 } from 'vue'
 
+import { useVRMEyeFocusFor } from '../../composables/eye-tracking'
 import {
   createIblProbeController,
   injectDiffuseIBL,
@@ -109,6 +107,7 @@ import {
 */
 const props = withDefaults(defineProps<{
   currentAudioSource?: AudioBufferSourceNode
+  cursorPosition?: { x: number, y: number }
   lastCommittedModelSrc?: string
   modelSrc?: string
   idleAnimation: string
@@ -121,9 +120,9 @@ const props = withDefaults(defineProps<{
 
   modelOffset: Vec3
   modelRotationY: number
-  lookAtTarget: Vec3
-  trackingMode: string
+  trackingMode: TrackingMode
   eyeHeight: number
+  screenBoundingBox: () => { top: number, left: number, width: number, height: number }
   cameraPosition: Vec3
 
   camera: PerspectiveCamera
@@ -141,7 +140,6 @@ const emit = defineEmits<{
   (e: 'loadingProgress', value: number): void
   (e: 'loadStart', value: 'initial-load' | 'model-reload' | 'model-switch'): void
   (e: 'sceneBootstrap', value: SceneBootstrap): void
-  (e: 'lookAtTarget', value: Vec3): void
 
   (e: 'error', value: unknown): void
   (e: 'loaded', value: string): void
@@ -161,10 +159,7 @@ const {
 
   modelOffset,
   modelRotationY,
-  lookAtTarget,
-  trackingMode,
   eyeHeight,
-  cameraPosition,
 
   camera,
 } = toRefs(props)
@@ -176,12 +171,7 @@ const vrmGroup = shallowRef<Group>()
 const modelLoaded = ref<boolean>(false)
 let loadSequence = 0
 // for eye tracking modes
-const { x: mouseX, y: mouseY } = useMouse()
 const raycaster = new Raycaster()
-const mouse = new Vector2()
-const mouseTarget = shallowRef<Vec3>()
-let stopMouseWatch: WatchStopHandle | undefined
-let stopCameraWatch: WatchStopHandle | undefined
 
 // Animation related ref
 const vrmAnimationMixer = ref<AnimationMixer>()
@@ -454,7 +444,6 @@ function bindManagedVrmInstanceRenderLoop() {
     })
     const blinkAndSaccadeMs = measureFrameStep(tracingEnabled, () => {
       blink.update(activeVrm, delta)
-      idleEyeSaccades.update(activeVrm, lookAtTarget, delta)
     })
     const emoteMs = measureFrameStep(tracingEnabled, () => {
       vrmEmote.value?.update(delta)
@@ -563,40 +552,7 @@ function componentCleanUp(
   }
 }
 
-// look at mouse
-function lookAtMouse(
-  mouseX: number,
-  mouseY: number,
-  camera: Ref<PerspectiveCamera>,
-): Vec3 {
-  mouse.x = (mouseX / window.innerWidth) * 2 - 1
-  mouse.y = -(mouseY / window.innerHeight) * 2 + 1
-
-  // Raycast from the mouse position
-  raycaster.setFromCamera(mouse, camera.value)
-
-  // Create a plane in front of the camera
-  const cameraDirection = new Vector3()
-  camera.value.getWorldDirection(cameraDirection) // Get camera's forward direction
-
-  const plane = new Plane()
-  plane.setFromNormalAndCoplanarPoint(
-    cameraDirection,
-    camera.value.position.clone().add(cameraDirection.multiplyScalar(1)), // 1 unit in front of the camera
-  )
-
-  const intersection = new Vector3()
-  raycaster.ray.intersectPlane(plane, intersection)
-  return { x: intersection.x, y: intersection.y, z: intersection.z }
-}
-
-function defaultTookAt(eyeHeight: number): Vec3 {
-  return {
-    x: 0,
-    y: eyeHeight,
-    z: -100,
-  }
-}
+const defaultTookAt = computed(() => new Vector3(0, eyeHeight.value, -100))
 
 function computeBoundingBox(vrmScene: Object3D) {
   const box = new Box3()
@@ -661,7 +617,7 @@ function buildSceneBootstrap(activeVrm: VRM, cacheHit: boolean): SceneBootstrap 
     cameraDistance: cameraPosition.distanceTo(modelCenter),
     cameraPosition: { x: cameraPosition.x, y: cameraPosition.y, z: cameraPosition.z },
     eyeHeight: eyePositionY,
-    lookAtTarget: defaultTookAt(eyePositionY),
+    lookAtTarget: defaultTookAt.value,
     modelOffset: {
       x: bootstrapRoot.position.x,
       y: bootstrapRoot.position.y,
@@ -940,6 +896,18 @@ async function loadModel() {
   }
 }
 
+const focusPos = useVRMEyeFocusFor({
+  cameraPosition: () => props.cameraPosition,
+  context: () => ({
+    camera: camera.value,
+    raycaster,
+    defaultLookAt: defaultTookAt.value,
+  }),
+  screenBoundingBox: props.screenBoundingBox,
+  source: () => props.cursorPosition,
+  trackingMode: () => props.trackingMode,
+})
+
 onMounted(async () => {
   // watch if the model needs to be reloaded
   // Registered BEFORE the initial load to avoid missing src changes
@@ -1023,32 +991,9 @@ onMounted(async () => {
     })
     airiIblProbe?.update(mode, skyBoxIntensity.value, nprIrrSH.value ?? null)
   }, { immediate: true })
-  // update eye tracking mode
-  watch(trackingMode, (newMode) => {
-    stopCameraWatch?.()
-    stopCameraWatch = undefined
-    stopMouseWatch?.()
-    stopMouseWatch = undefined
-    if (newMode === 'camera') {
-      stopCameraWatch = watch(cameraPosition, (newPosition) => {
-        // watch to update look at target to camera
-        emit('lookAtTarget', newPosition)
-      }, { immediate: true, deep: true })
-    }
-    else if (newMode === 'mouse') {
-      stopMouseWatch = watch([mouseX, mouseY], ([newX, newY]) => {
-        mouseTarget.value = lookAtMouse(newX, newY, camera)
-        // watch to update look at target to mouse
-        emit('lookAtTarget', mouseTarget.value)
-      }, { immediate: true, deep: true })
-    }
-    else {
-      emit('lookAtTarget', defaultTookAt(eyeHeight.value))
-    }
+  watch(focusPos, (newPos) => {
+    idleEyeSaccades.instantUpdate(vrm.value, newPos)
   }, { immediate: true })
-  watch(lookAtTarget, (newTarget) => {
-    idleEyeSaccades.instantUpdate(vrm.value, newTarget)
-  }, { deep: true })
 })
 
 onUnmounted(() => {

@@ -269,6 +269,8 @@ export interface FishAudioVoiceOption {
   label: string
 }
 
+const voiceCache = new Map<string, FishAudioVoiceOption[]>()
+
 interface FishAudioVoiceQueryOptions {
   apiKey?: unknown
   baseUrl?: unknown
@@ -358,7 +360,19 @@ function extractErrorStatus(error: unknown): number | undefined {
  * - GET /api-fish/model?page_size=20&title=grace
  */
 export async function listVoices(options: string | FishAudioVoiceQueryOptions = ''): Promise<FishAudioVoiceOption[]> {
-  return fetchVoiceOptions(typeof options === 'string' ? { searchTerm: options } : options)
+  const queryOptions = typeof options === 'string' ? { searchTerm: options } : options
+  const searchTerm = normalizeString(queryOptions.searchTerm ?? queryOptions.query)
+  const apiKey = getFishAudioApiKey(queryOptions.apiKey)
+  const baseUrl = normalizeBaseUrl(queryOptions.baseUrl)
+  const cacheKey = `${apiKey}:${baseUrl}:${searchTerm}`
+
+  if (voiceCache.has(cacheKey)) {
+    return voiceCache.get(cacheKey)!
+  }
+
+  const results = await fetchVoiceOptions(queryOptions)
+  voiceCache.set(cacheKey, results)
+  return results
 }
 
 async function validateFishAudioConfiguration(
@@ -469,11 +483,15 @@ export function buildFishAudioSpeechProvider(
     },
     capabilities: {
       listModels: async config => listModels(normalizeString(config.searchTerm)),
-      listVoices: async (config) => {
+      listVoices: async (config, options) => {
+        const parsedOptions = typeof options === 'object' && options !== null
+          ? options
+          : { model: options }
+
         const voices = await listVoices({
           apiKey: config.apiKey,
           baseUrl: config.baseUrl,
-          searchTerm: typeof config.searchTerm === 'string' ? config.searchTerm : '',
+          searchTerm: parsedOptions.searchTerm || '',
         })
         return voices.map(voice => ({
           id: voice.value,

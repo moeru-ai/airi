@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   generate:
@@ -35,7 +36,58 @@ jobs:
       - name: Generate sponsors svg
         run: pnpm run sponsors:generate
 
-      - uses: stefanzweifel/git-auto-commit-action@v6
-        with:
-          commit_message: 'chore: update sponsors svg'
-          commit_author: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
+      - name: Remove private SponsorKit cache
+        run: rm -f docs/content/public/assets/sponsors/.cache.json
+
+      - name: Create or update sponsors PR
+        env:
+          GH_TOKEN: ${{ secrets.PAT_SLASH_COMMAND_DISPATCH }}
+          SPONSORS_BRANCH: automation/update-sponsors-svg
+        run: |
+          if [ -z "$(git status --porcelain -- docs/content/public/assets/sponsors)" ]; then
+            echo "No sponsors asset changes to publish."
+            exit 0
+          fi
+
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::PAT_SLASH_COMMAND_DISPATCH is required so generated sponsors PRs trigger required checks."
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+          git fetch origin "${SPONSORS_BRANCH}:refs/remotes/origin/${SPONSORS_BRANCH}" || true
+          git checkout -B "$SPONSORS_BRANCH"
+          git add docs/content/public/assets/sponsors/sponsors.json docs/content/public/assets/sponsors/sponsors.svg
+          git commit -m "chore: update sponsors svg"
+          git push --force-with-lease origin "$SPONSORS_BRANCH"
+
+          PR_NUMBER="$(gh pr list \
+            --repo "$GITHUB_REPOSITORY" \
+            --head "$SPONSORS_BRANCH" \
+            --state open \
+            --json number \
+            --jq '.[0].number // empty')"
+
+          if [ -n "$PR_NUMBER" ]; then
+            gh pr edit "$PR_NUMBER" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "chore: update sponsors svg" \
+              --body "This PR updates generated SponsorKit assets from the scheduled sponsors workflow."
+            PR_TARGET="$PR_NUMBER"
+          else
+            PR_TARGET="$(gh pr create \
+              --repo "$GITHUB_REPOSITORY" \
+              --base main \
+              --head "$SPONSORS_BRANCH" \
+              --title "chore: update sponsors svg" \
+              --body "This PR updates generated SponsorKit assets from the scheduled sponsors workflow.")"
+          fi
+
+          gh pr merge "$PR_TARGET" \
+            --repo "$GITHUB_REPOSITORY" \
+            --auto \
+            --squash \
+            --delete-branch

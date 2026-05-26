@@ -19,7 +19,7 @@ export interface ComfyUIWorkflowTemplate {
 
 export const useArtistryStore = defineStore('artistry', () => {
   // --- Persistent Global Settings (User Preferences) ---
-  const globalProvider = useLocalStorageManualReset<string>('artistry-provider', 'comfyui')
+  const globalProvider = useLocalStorageManualReset<string>('artistry-provider', 'none')
   const globalModel = useLocalStorageManualReset<string>('artistry-model', '')
   const globalPromptPrefix = useLocalStorageManualReset<string>('artistry-prompt-prefix', '')
   const globalProviderOptions = useLocalStorageManualReset<Record<string, any> | undefined>('artistry-provider-options', undefined)
@@ -117,6 +117,9 @@ export const useArtistryStore = defineStore('artistry', () => {
 
   const configured = computed(() => {
     if (!activeProvider.value)
+      return false
+
+    if (activeProvider.value === 'none')
       return false
 
     if (activeProvider.value === 'replicate') {

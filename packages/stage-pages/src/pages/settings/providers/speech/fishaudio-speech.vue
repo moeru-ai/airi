@@ -100,10 +100,10 @@ async function loadVoiceOptions(searchTerm: string) {
   voiceSearchError.value = ''
   try {
     const providerConfig = providersStore.getProviderConfig(providerId)
-    const voices = await providerMetadata.value.capabilities.listVoices?.({
-      ...providerConfig,
-      searchTerm,
-    }) || []
+    const voices = await providerMetadata.value.capabilities.listVoices?.(
+      providerConfig,
+      { searchTerm },
+    ) || []
 
     if (requestId !== latestVoiceSearchRequestId) {
       return

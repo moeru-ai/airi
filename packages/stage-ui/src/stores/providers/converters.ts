@@ -161,10 +161,13 @@ export function convertProviderDefinitionToMetadata(
           }
         },
       listVoices: definition.extraMethods?.listVoices
-        ? async (config) => {
+        ? async (config, options) => {
           const provider = await definition.createProvider(config as any)
           try {
-            return await definition.extraMethods!.listVoices!(config as any, provider)
+            const modelId = typeof options === 'object' && options !== null
+              ? options.model
+              : options
+            return await definition.extraMethods!.listVoices!(config as any, provider, modelId)
           }
           finally {
             await (provider as { dispose?: () => Promise<void> | void }).dispose?.()

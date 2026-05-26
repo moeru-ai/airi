@@ -94,6 +94,6 @@ promo-banner:
       cta: Xem Chủ đề
 waiting: Đang chờ
 websocket-status:
-  connected: Đã kết nối
-  disconnected: Chưa kết nối
-  open-settings: Mở cài đặt kết nối
+  connected: Connected
+  disconnected: No connection
+  open-settings: Open connection settings

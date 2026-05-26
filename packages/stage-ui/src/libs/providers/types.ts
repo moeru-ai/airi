@@ -47,7 +47,12 @@ export interface ProviderOnboardingField {
 
 export interface ProviderExtraMethods<TConfig> {
   listModels?: (config: TConfig, provider: ProviderInstance) => Promise<ModelInfo[]>
-  listVoices?: (config: TConfig, provider: ProviderInstance) => Promise<VoiceInfo[]>
+  /**
+   * Returns the voice catalogue. `model` lets providers whose voices vary by
+   * model variant (Volcengine streaming TTS 1.0 vs 2.0 differ in catalogue)
+   * narrow the result. Providers with a single catalogue ignore it.
+   */
+  listVoices?: (config: TConfig, provider: ProviderInstance, model?: string) => Promise<VoiceInfo[]>
   loadModel?: (config: TConfig, provider: ProviderInstance, hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void }) => Promise<void>
 }
 
@@ -189,6 +194,26 @@ export interface ProviderDefinition<TConfig extends any = any> {
       generateOutput: boolean
       streamOutput: boolean
       streamInput: boolean
+    }
+    /**
+     * Declares the TTS transport this provider speaks. Drives Stage's TTS
+     * session adapter selection (`@proj-airi/stage-ui/libs/speech/tts-session`):
+     *
+     * - `rest` (default when this whole block is absent): the host opens
+     *   a `pipelines-audio` IntentHandle and the provider's `speech()` is
+     *   called per-segment by the speech-pipeline `tts()` callback. This
+     *   matches every OpenAI-shaped HTTP TTS provider.
+     * - `bidirectional-ws`: the host opens one streaming TTS WebSocket
+     *   for the whole LLM intent and forwards raw token chunks without
+     *   client-side segmentation. The provider's `speech()` is unused
+     *   for synthesis on this path (kept only for legacy fallback).
+     *
+     * Designed so a future provider (ElevenLabs streaming, OpenAI Realtime
+     * Voice, etc.) only needs to set this flag — Stage and the session
+     * factory do not need to know each provider's id.
+     */
+    speech?: {
+      transport: 'rest' | 'bidirectional-ws'
     }
   }
   /**

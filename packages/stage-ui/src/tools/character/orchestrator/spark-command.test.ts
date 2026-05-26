@@ -59,9 +59,10 @@ describe('tools/character/orchestrator/spark-command', () => {
       testField: z.union([z.string(), z.null()]),
     }))
     const normalized = normalizeNullableAnyOf(schemaTestUnion as JsonSchema)
+    const testField = normalized.properties?.testField as JsonSchema
 
-    expect((normalized.properties?.testField as JsonSchema).type).toEqual(['string', 'null'])
-    expect((normalized.properties?.testField as JsonSchema).anyOf).toBeUndefined()
+    expect(testField.type).toEqual(['string', 'null'])
+    expect(testField.anyOf).toBeUndefined()
   })
 
   it('deduplicates primitive types after normalization', async () => {
@@ -69,9 +70,54 @@ describe('tools/character/orchestrator/spark-command', () => {
       testField: z.union([z.literal('force'), z.literal('soft'), z.literal(false)]),
     }))
     const normalized = normalizeNullableAnyOf(schemaTestUnion as JsonSchema)
+    const testField = normalized.properties?.testField as JsonSchema
 
-    expect((normalized.properties?.testField as JsonSchema).type).toEqual(['string', 'boolean'])
-    expect((normalized.properties?.testField as JsonSchema).anyOf).toBeUndefined()
+    expect(testField.type).toEqual(['string', 'boolean'])
+    expect(testField.anyOf).toBeUndefined()
+  })
+
+  it('removes required keys that are not declared in sibling properties', () => {
+    const normalized = normalizeNullableAnyOf({
+      type: 'object',
+      properties: {
+        contexts: {
+          anyOf: [
+            {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  metadata: {
+                    anyOf: [
+                      {
+                        type: 'array',
+                        items: {
+                          type: 'object',
+                          properties: {
+                            key: { type: 'string' },
+                          },
+                          required: ['key', 'value'],
+                        },
+                      },
+                      { type: 'null' },
+                    ],
+                  },
+                },
+              },
+            },
+            { type: 'null' },
+          ],
+        },
+      },
+      required: ['contexts'],
+    } as JsonSchema)
+
+    const contexts = getArraySchema(normalized.properties?.contexts as JsonSchema)
+    const contextItem = contexts?.items as JsonSchema
+    const metadata = getArraySchema(contextItem.properties?.metadata as JsonSchema)
+    const metadataItem = metadata?.items as JsonSchema
+
+    expect(metadataItem.required).toEqual(['key'])
   })
 
   it('should render sparkNotifyCommandItemSchema into correct schema', async () => {

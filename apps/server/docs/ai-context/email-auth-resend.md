@@ -27,7 +27,7 @@ Last updated: 2026-04-27
 
 In:
 
-- `apps/server/src/services/email.ts`：统一 `EmailService` 接口（`sendVerification` / `sendPasswordReset` / `sendMagicLink` / `sendChangeEmail`），每个方法对应一个 HTML + plaintext 模板。
+- `apps/server/src/services/adapters/email.ts`：统一 `EmailService` 接口（`sendVerification` / `sendPasswordReset` / `sendMagicLink` / `sendChangeEmail`），每个方法对应一个 HTML + plaintext 模板。
 - `apps/server/src/libs/auth.ts`：装上 4 个 callback；启用 `requireEmailVerification: true`；加载 `magicLink` plugin。
 - `apps/server/src/libs/env.ts`：新增 `RESEND_API_KEY`（必填）、`RESEND_FROM_EMAIL`（必填）、`RESEND_FROM_NAME`（可选）、`AUTH_EMAIL_VERIFY_REDIRECT_URL` / `AUTH_PASSWORD_RESET_REDIRECT_URL`（可选，默认根据 `API_SERVER_URL` 推算 ui-server-auth origin）。
 - `apps/server/src/app.ts`：把 `EmailService` 通过 `injeca` 装配，注入到 `auth` provider。

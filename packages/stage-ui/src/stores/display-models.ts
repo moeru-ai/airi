@@ -9,6 +9,7 @@ export enum DisplayModelFormat {
   Live2dZip = 'live2d-zip',
   Live2dDirectory = 'live2d-directory',
   VRM = 'vrm',
+  SpineZip = 'spine-zip',
   PMXZip = 'pmx-zip',
   PMXDirectory = 'pmx-directory',
   PMD = 'pmd',
@@ -58,6 +59,7 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
 
   let generateLive2DPreview: (file: File) => Promise<string | undefined>
   let generateVrmPreview: (file: File) => Promise<string | undefined>
+  let generateSpinePreview: (file: File) => Promise<string | undefined>
 
   const displayModelsFromIndexedDBLoading = ref(false)
 
@@ -105,6 +107,7 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
 
   const loadLive2DModelPreview = (file: File) => generateLive2DPreview(file)
   const loadVrmModelPreview = (file: File) => generateVrmPreview(file)
+  const loadSpineModelPreview = (file: File) => generateSpinePreview(file)
 
   async function addDisplayModel(format: DisplayModelFormat, file: File) {
     await until(displayModelsFromIndexedDBLoading).toBe(false)
@@ -116,6 +119,10 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     }
     else if (format === DisplayModelFormat.VRM) {
       const previewImage = await loadVrmModelPreview(file)
+      newDisplayModel.previewImage = previewImage
+    }
+    else if (format === DisplayModelFormat.SpineZip) {
+      const previewImage = await loadSpineModelPreview(file)
       newDisplayModel.previewImage = previewImage
     }
 
@@ -179,9 +186,11 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
 
     const { loadLive2DModelPreview } = await import('@proj-airi/stage-ui-live2d/utils/live2d-preview')
     const { loadVrmModelPreview } = await import('@proj-airi/stage-ui-three/utils/vrm-preview')
+    const { loadSpineModelPreview } = await import('@proj-airi/stage-ui-spine/utils/spine-preview')
 
     generateLive2DPreview = loadLive2DModelPreview
     generateVrmPreview = loadVrmModelPreview
+    generateSpinePreview = loadSpineModelPreview
   }
 
   return {

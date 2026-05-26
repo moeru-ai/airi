@@ -23,14 +23,13 @@
     "./composables/live2d": "./src/composables/live2d/index.ts",
     "./constants/emotions": "./src/constants/emotions.ts",
     "./stores": "./src/stores/index.ts",
-    "./stores/live2d": "./src/stores/live2d.ts",
+    "./stores/model-parameters": "./src/stores/model-parameters.ts",
     "./stores/expression-store": "./src/stores/expression-store.ts",
     "./tools/expression-tools": "./src/tools/expression-tools.ts",
     "./utils/eye-motions": "./src/utils/eye-motions.ts",
     "./utils/live2d-preview": "./src/utils/live2d-preview.ts",
     "./utils/live2d-zip-loader": "./src/utils/live2d-zip-loader.ts",
     "./utils/live2d-opfs-registration": "./src/utils/live2d-opfs-registration.ts",
-    "./utils/live2d-uri-encode-filenames": "./src/utils/live2d-uri-encode-filenames.ts",
     "./utils/opfs-loader": "./src/utils/opfs-loader.ts"
   },
   "scripts": {
@@ -69,6 +68,7 @@
   "devDependencies": {
     "@types/culori": "^4.0.1",
     "@types/three": "^0.184.0",
+    "vitest": "catalog:vitest",
     "vue-tsc": "^3.2.6"
   }
 }

@@ -107,7 +107,7 @@ jobs:
         working-directory: ./engines/stage-tamagotchi-godot
         run: |
           mkdir -p build/linux
-          godot --headless --export-release "Linux" build/linux/godot-stage
+          godot --headless --export-release "Linux x64" build/linux/godot-stage
 
   typecheck:
     name: Type Check

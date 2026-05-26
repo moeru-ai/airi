@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import type {
+  StageViewErrorPayload,
+  StageViewPatch,
+  StageViewSnapshotPayload,
+} from '@proj-airi/stage-shared/godot-stage'
 import type { DisplayModel } from '@proj-airi/stage-ui/stores/display-models'
 
 import type {
@@ -7,27 +12,41 @@ import type {
 } from '../../../../shared/eventa'
 
 import { errorMessageFrom } from '@moeru/std'
-import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { ModelSettingsPanel } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings'
-import { DisplayModelFormat } from '@proj-airi/stage-ui/stores/display-models'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { Button, Callout } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import {
   electronGodotStageApplySceneInput,
+  electronGodotStageApplyViewPatch,
   electronGodotStageGetStatus,
+  electronGodotStageGetViewSnapshot,
+  electronGodotStageRequestViewSnapshot,
   electronGodotStageStart,
+  electronGodotStageStatusChanged,
   electronGodotStageStop,
+  electronGodotStageViewSnapshotChanged,
+  electronGodotStageViewStateError,
 } from '../../../../shared/eventa'
 import { useModelSettingsRuntimeSnapshot } from '../../../composables/model-settings-runtime-snapshot'
 import { assertGodotSceneInputSupportedDisplayModel } from './godot-scene-input'
+import { createGodotViewPatchQueue } from './godot-view-patch-queue'
+import {
+  resolveGodotViewSessionTransition,
+  shouldAcceptGodotViewSessionEvent,
+} from './godot-view-session'
 
 const settingsStore = useSettings()
 const { stageModelRenderer, stageModelSelectedDisplayModel } = storeToRefs(settingsStore)
+const context = useElectronEventaContext()
 const applyGodotStageSceneInput = useElectronEventaInvoke(electronGodotStageApplySceneInput)
+const applyGodotStageViewPatch = useElectronEventaInvoke(electronGodotStageApplyViewPatch)
 const getGodotStageStatus = useElectronEventaInvoke(electronGodotStageGetStatus)
+const getGodotStageViewSnapshot = useElectronEventaInvoke(electronGodotStageGetViewSnapshot)
+const requestGodotStageViewSnapshot = useElectronEventaInvoke(electronGodotStageRequestViewSnapshot)
 const startGodotStage = useElectronEventaInvoke(electronGodotStageStart)
 const stopGodotStage = useElectronEventaInvoke(electronGodotStageStop)
 
@@ -39,9 +58,15 @@ const godotStageStatus = ref<ElectronGodotStageStatus>({
   updatedAt: 0,
 })
 const switchingGodotStage = ref(false)
+const godotViewError = ref<StageViewErrorPayload>()
+const godotViewSnapshot = ref<StageViewSnapshotPayload | null>(null)
 const { runtimeSnapshot } = useModelSettingsRuntimeSnapshot()
 
-let latestSceneSyncRequest = 0
+let sceneSyncGeneration = 0
+let godotSessionEpoch = 0
+let disposeGodotStageStatusListener: (() => void) | undefined
+let disposeGodotViewSnapshotListener: (() => void) | undefined
+let disposeGodotViewErrorListener: (() => void) | undefined
 
 const usesGodotStage = computed(() => stageModelRenderer.value === 'godot')
 const godotToggleLabel = computed(() => usesGodotStage.value
@@ -56,31 +81,15 @@ const godotStatusMessage = computed(() => {
 
   return undefined
 })
+const godotViewControlsLocked = computed(() => {
+  return godotStageStatus.value.state !== 'running' || !godotViewSnapshot.value
+})
 
-function createEmptyGodotStageStatus(): ElectronGodotStageStatus {
+function createStoppedGodotStageStatus(): ElectronGodotStageStatus {
   return {
     state: 'stopped',
     pid: null,
     updatedAt: Date.now(),
-  }
-}
-
-function inferModelFileExtension(format: DisplayModelFormat) {
-  switch (format) {
-    case DisplayModelFormat.Live2dZip:
-      return '.zip'
-    case DisplayModelFormat.Live2dDirectory:
-      return '.live2d'
-    case DisplayModelFormat.VRM:
-      return '.vrm'
-    case DisplayModelFormat.PMXZip:
-      return '.zip'
-    case DisplayModelFormat.PMXDirectory:
-      return '.pmxdir'
-    case DisplayModelFormat.PMD:
-      return '.pmd'
-    default:
-      return '.bin'
   }
 }
 
@@ -96,7 +105,7 @@ function inferModelFileName(model: DisplayModel) {
   }
   catch {}
 
-  return `${model.id}${inferModelFileExtension(model.format)}`
+  return `${model.id}.vrm`
 }
 
 async function readSceneInputData(model: DisplayModel) {
@@ -115,39 +124,148 @@ async function createSceneInputPayload(model: DisplayModel): Promise<ElectronGod
 
   return {
     modelId: model.id,
-    format: DisplayModelFormat.VRM,
+    format: 'vrm',
     name: model.name,
     fileName: inferModelFileName(model),
     data: await readSceneInputData(model),
   }
 }
 
+function nextGodotSessionEpoch() {
+  godotSessionEpoch += 1
+  return godotSessionEpoch
+}
+
+function isCurrentGodotSession(epoch: number) {
+  return epoch === godotSessionEpoch
+}
+
+function setGodotViewError(error: unknown, fallbackMessage: string) {
+  godotViewError.value = {
+    code: 'invalid-payload',
+    message: errorMessageFrom(error) ?? fallbackMessage,
+  }
+}
+
 async function refreshGodotStageStatus() {
   try {
-    godotStageStatus.value = await getGodotStageStatus()
+    applyGodotStageStatus(await getGodotStageStatus())
   }
   catch (error) {
-    godotStageStatus.value = createEmptyGodotStageStatus()
+    applyGodotStageStatus(createStoppedGodotStageStatus())
     godotStageError.value = errorMessageFrom(error) ?? 'Failed to query Godot stage status.'
   }
 }
 
+async function refreshGodotViewSnapshot(epoch = godotSessionEpoch) {
+  try {
+    const snapshot = await getGodotStageViewSnapshot()
+    if (!isCurrentGodotSession(epoch))
+      return
+
+    godotViewSnapshot.value = snapshot
+    godotViewError.value = undefined
+  }
+  catch (error) {
+    if (!isCurrentGodotSession(epoch))
+      return
+
+    setGodotViewError(error, 'Failed to query Godot stage view state.')
+  }
+}
+
+async function applyGodotViewPatchNow(patch: StageViewPatch) {
+  const epoch = godotSessionEpoch
+
+  try {
+    await applyGodotStageViewPatch(patch)
+    if (!isCurrentGodotSession(epoch))
+      return
+
+    godotViewError.value = undefined
+  }
+  catch (error) {
+    if (!isCurrentGodotSession(epoch))
+      return
+
+    setGodotViewError(error, 'Failed to apply Godot stage view patch.')
+  }
+}
+
+const godotViewPatchQueue = createGodotViewPatchQueue({
+  applyPatch: applyGodotViewPatchNow,
+  intervalMs: 50,
+})
+
+function endGodotViewSession() {
+  nextGodotSessionEpoch()
+  sceneSyncGeneration += 1
+  godotViewSnapshot.value = null
+  godotViewError.value = undefined
+  godotViewPatchQueue.reset()
+}
+
+function beginGodotViewSession() {
+  const epoch = nextGodotSessionEpoch()
+  godotViewSnapshot.value = null
+  godotViewError.value = undefined
+  godotViewPatchQueue.reset()
+  void refreshGodotViewSnapshot(epoch)
+  void handleGodotViewSnapshotRequest(epoch)
+}
+
+function applyGodotStageStatus(next: ElectronGodotStageStatus) {
+  const previousState = godotStageStatus.value.state
+  godotStageStatus.value = next
+
+  const transition = resolveGodotViewSessionTransition(previousState, next.state)
+  if (transition.end) {
+    endGodotViewSession()
+    return
+  }
+
+  if (transition.begin)
+    beginGodotViewSession()
+}
+
+function handleGodotViewPatch(patch: StageViewPatch) {
+  godotViewPatchQueue.enqueue(patch)
+}
+
+async function handleGodotViewSnapshotRequest(epoch = godotSessionEpoch) {
+  try {
+    await requestGodotStageViewSnapshot()
+    if (!isCurrentGodotSession(epoch))
+      return
+
+    godotViewError.value = undefined
+  }
+  catch (error) {
+    if (!isCurrentGodotSession(epoch))
+      return
+
+    setGodotViewError(error, 'Failed to request Godot stage view snapshot.')
+  }
+}
+
 async function syncGodotSceneInput(model: DisplayModel) {
-  const requestId = ++latestSceneSyncRequest
+  const syncGeneration = ++sceneSyncGeneration
+  const epoch = godotSessionEpoch
 
   try {
     const payload = await createSceneInputPayload(model)
-    if (requestId !== latestSceneSyncRequest)
+    if (syncGeneration !== sceneSyncGeneration || !isCurrentGodotSession(epoch))
       return
 
     await applyGodotStageSceneInput(payload)
-    if (requestId !== latestSceneSyncRequest)
+    if (syncGeneration !== sceneSyncGeneration || !isCurrentGodotSession(epoch))
       return
 
+    void handleGodotViewSnapshotRequest(epoch)
     godotStageError.value = undefined
   }
   catch (error) {
-    if (requestId !== latestSceneSyncRequest)
+    if (syncGeneration !== sceneSyncGeneration || !isCurrentGodotSession(epoch))
       return
 
     godotStageError.value = errorMessageFrom(error) ?? 'Failed to apply model input to Godot stage.'
@@ -160,12 +278,12 @@ async function handleGodotStageToggle() {
 
   try {
     if (usesGodotStage.value) {
-      godotStageStatus.value = await stopGodotStage()
+      applyGodotStageStatus(await stopGodotStage())
       settingsStore.restoreBuiltInStageModelRenderer()
       return
     }
 
-    godotStageStatus.value = await startGodotStage()
+    applyGodotStageStatus(await startGodotStage())
     settingsStore.setStageModelRenderer('godot')
   }
   catch (error) {
@@ -189,7 +307,45 @@ watch(
 )
 
 onMounted(async () => {
+  disposeGodotStageStatusListener = context.value.on(electronGodotStageStatusChanged, (event) => {
+    if (!event.body)
+      return
+
+    applyGodotStageStatus(event.body)
+  })
+
+  disposeGodotViewSnapshotListener = context.value.on(electronGodotStageViewSnapshotChanged, (event) => {
+    if (!event.body)
+      return
+
+    if (!shouldAcceptGodotViewSessionEvent(godotStageStatus.value.state))
+      return
+
+    godotViewSnapshot.value = event.body
+    godotViewError.value = undefined
+  })
+
+  disposeGodotViewErrorListener = context.value.on(electronGodotStageViewStateError, (event) => {
+    if (!event.body)
+      return
+
+    if (!shouldAcceptGodotViewSessionEvent(godotStageStatus.value.state))
+      return
+
+    godotViewError.value = event.body
+  })
+
   await refreshGodotStageStatus()
+})
+
+onUnmounted(() => {
+  disposeGodotStageStatusListener?.()
+  disposeGodotStageStatusListener = undefined
+  disposeGodotViewSnapshotListener?.()
+  disposeGodotViewSnapshotListener = undefined
+  disposeGodotViewErrorListener?.()
+  disposeGodotViewErrorListener = undefined
+  godotViewPatchQueue.dispose()
 })
 </script>
 
@@ -207,6 +363,9 @@ onMounted(async () => {
     <div :class="['relative', 'h-full', 'flex justify-center', 'w-full']">
       <ModelSettingsPanel
         :allow-extract-colors="false"
+        :godot-view-error="godotViewError"
+        :godot-view-controls-locked="godotViewControlsLocked"
+        :godot-view-snapshot="godotViewSnapshot"
         :palette="palette"
         :runtime-snapshot="runtimeSnapshot"
         :settings-class="[
@@ -217,6 +376,7 @@ onMounted(async () => {
           'overflow-y-scroll',
           'relative',
         ]"
+        @patch-godot-view-state="handleGodotViewPatch"
       >
         <template #actions>
           <Button

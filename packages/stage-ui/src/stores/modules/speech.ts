@@ -12,7 +12,7 @@ import { useI18n } from 'vue-i18n'
 import { toXml } from 'xast-util-to-xml'
 import { x } from 'xastscript'
 
-import { setupOfficialSpeechAutoPick } from '../../libs/providers/providers/official'
+import { getDefaultStreamingModel, OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, setupOfficialSpeechAutoPick } from '../../libs/providers/providers/official'
 import { useProvidersStore } from '../providers'
 
 export function toSignedPercent(value: number): string {
@@ -86,9 +86,20 @@ export const useSpeechStore = defineStore('speech', () => {
 
   async function loadVoicesForProvider(
     provider: string,
-    options: { searchTerm?: string, shouldApply?: () => boolean } = {},
+    modelOrOptions?: string | { model?: string, searchTerm?: string, shouldApply?: () => boolean },
   ) {
+    const options = typeof modelOrOptions === 'object' && modelOrOptions !== null
+      ? modelOrOptions
+      : { model: modelOrOptions }
+
     if (!provider) {
+      return []
+    }
+
+    // Streaming provider visibility is server-driven and only confirmed after
+    // the auth probe force-configures it. Keep the gate at the public loader so
+    // pages cannot bypass it and issue `/voices/streaming` while unavailable.
+    if (provider === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID && !providersStore.configuredProviders[provider]) {
       return []
     }
 
@@ -96,10 +107,10 @@ export const useSpeechStore = defineStore('speech', () => {
     speechProviderError.value = null
 
     try {
-      const voices = await providersStore.getProviderMetadata(provider).capabilities.listVoices?.({
-        ...providersStore.getProviderConfig(provider),
-        searchTerm: options.searchTerm ?? '',
-      }) || []
+      const voices = await providersStore.getProviderMetadata(provider).capabilities.listVoices?.(
+        providersStore.getProviderConfig(provider),
+        { model: options.model, searchTerm: options.searchTerm },
+      ) || []
       if (options.shouldApply && !options.shouldApply()) {
         return voices
       }
@@ -131,12 +142,64 @@ export const useSpeechStore = defineStore('speech', () => {
     return availableVoices.value[provider] || []
   }
 
+  function clearVoiceSelection() {
+    activeSpeechVoiceId.value = ''
+    activeSpeechVoice.value = undefined
+  }
+
+  // Streaming TTS voices are model-scoped: the server only returns recommended
+  // voices for an explicit `?model=`. Ensure the active model is a valid
+  // streaming model id so voice loading gets the right recommendations (parity
+  // with the HTTP provider's auto-pick). Reseeds the server-curated default
+  // both when no model is selected AND when `activeSpeechModel` still holds a
+  // stale id from a previously-active provider (the global model ref is shared
+  // across providers, and the per-surface reset may not have run yet). No-op
+  // for non-streaming providers.
+  function ensureStreamingDefaultModel() {
+    if (activeSpeechProvider.value !== OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
+      return
+    const streamingModels = providersStore.getModelsForProvider(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
+    const hasValidSelection = !!activeSpeechModel.value && streamingModels.some(m => m.id === activeSpeechModel.value)
+    if (hasValidSelection)
+      return
+    // Replace an empty/stale (non-streaming) selection with the server default.
+    // When no default can be resolved yet (catalog not loaded), clear it to ''
+    // so callers pass `undefined` (server returns the full streaming catalog)
+    // rather than forwarding a stale non-streaming model id as `?model=`.
+    const nextModel = getDefaultStreamingModel() ?? streamingModels[0]?.id ?? ''
+    if (activeSpeechModel.value === nextModel)
+      return
+    activeSpeechModel.value = nextModel
+    // The previously-selected voice belonged to the stale/empty model context,
+    // so drop it; auto-pick re-picks a recommended voice for the new model.
+    clearVoiceSelection()
+  }
+
+  function ensureActiveSpeechModel() {
+    ensureStreamingDefaultModel()
+
+    if (activeSpeechProvider.value !== OFFICIAL_SPEECH_PROVIDER_ID)
+      return
+
+    const models = providersStore.getModelsForProvider(OFFICIAL_SPEECH_PROVIDER_ID)
+    if (!models.length)
+      return
+
+    const hasValidSelection = !!activeSpeechModel.value && models.some(m => m.id === activeSpeechModel.value)
+    if (hasValidSelection)
+      return
+
+    activeSpeechModel.value = models[0]?.id ?? ''
+    clearVoiceSelection()
+  }
+
   // Watch for provider changes and load voices
   watch(activeSpeechProvider, async (newProvider) => {
-    if (newProvider) {
-      await loadVoicesForProvider(newProvider)
-      // Don't reset voice settings when changing providers to allow for persistence
-    }
+    if (!newProvider)
+      return
+    ensureActiveSpeechModel()
+    await loadVoicesForProvider(newProvider, activeSpeechModel.value || undefined)
+    // Don't reset voice settings when changing providers to allow for persistence
   }, {
     // REVIEW: should we always load voices on init? What will happen when network is not available?
     immediate: true,
@@ -175,7 +238,8 @@ export const useSpeechStore = defineStore('speech', () => {
   )
 
   onMounted(() => {
-    loadVoicesForProvider(activeSpeechProvider.value).then(() => {
+    ensureActiveSpeechModel()
+    loadVoicesForProvider(activeSpeechProvider.value, activeSpeechModel.value || undefined).then(() => {
       if (activeSpeechVoiceId.value) {
         activeSpeechVoice.value = availableVoices.value[activeSpeechProvider.value]?.find(voice => voice.id === activeSpeechVoiceId.value)
       }
@@ -187,6 +251,10 @@ export const useSpeechStore = defineStore('speech', () => {
     activeSpeechVoiceId,
     availableVoices,
     uiLocale: locale,
+  })
+
+  watch(providerModels, () => {
+    ensureActiveSpeechModel()
   })
 
   watch([activeSpeechVoiceId, availableVoices], ([voiceId, voices]) => {
@@ -350,6 +418,8 @@ export const useSpeechStore = defineStore('speech', () => {
     speech,
     loadVoicesForProvider,
     getVoicesForProvider,
+    ensureStreamingDefaultModel,
+    ensureActiveSpeechModel,
     generateSSML,
     resetState,
   }

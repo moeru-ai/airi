@@ -1,5 +1,6 @@
 using System;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Godot;
 
 /// <summary>
@@ -28,17 +29,24 @@ using Godot;
 public partial class StageRoot : Node3D
 {
     private const string AvatarRootNodeName = "AvatarRoot";
+    private const string CameraNodeName = "Camera3D";
     private const string EditorPreviewRootNodeName = "EditorPreviewRoot";
     private const string WebSocketUrlArgumentPrefix = "--airi-ws-url=";
 
     private readonly JsonSerializerOptions _jsonOptions = new()
     {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
     };
 
     private StageBridge _bridge = null!;
     private StageSceneController _sceneController = null!;
     private Label3D _statusLabel = null!;
+    private StageViewController _viewController = null!;
+    private StageCameraInputController _viewInputController = null!;
+    private StageViewRuntime _viewRuntime = null!;
+    private string _activeSceneModelId;
     private bool _shutdownRequested;
 
     /// <inheritdoc/>
@@ -48,7 +56,9 @@ public partial class StageRoot : Node3D
         _statusLabel = CreateStatusLabel();
         AddChild(_statusLabel);
 
-        _sceneController = new StageSceneController(ResolveAvatarRoot(), new VrmAvatarLoader());
+        var avatarRoot = ResolveAvatarRoot();
+        _sceneController = new StageSceneController(avatarRoot, new VrmAvatarLoader());
+        InitializeViewRuntime(avatarRoot);
 
         var webSocketUrl = ResolveWebSocketUrl();
         if (string.IsNullOrWhiteSpace(webSocketUrl))
@@ -67,7 +77,7 @@ public partial class StageRoot : Node3D
         if (connectError != Error.Ok)
         {
             UpdateStatus("Failed to connect to Electron main.");
-            GD.PushError($"Godot stage failed to connect to {webSocketUrl}: {connectError}.");
+            GD.PushError($"Godot stage failed to connect to Electron main: {connectError}.");
             GetTree().Quit();
             return;
         }
@@ -84,6 +94,14 @@ public partial class StageRoot : Node3D
         }
 
         _bridge.Poll();
+        _viewRuntime?.Process(delta);
+        _viewInputController?.Process(delta);
+    }
+
+    /// <inheritdoc/>
+    public override void _Input(InputEvent @event)
+    {
+        _viewInputController?.HandleInput(@event);
     }
 
     private void HandleBridgeOpened()
@@ -119,6 +137,23 @@ public partial class StageRoot : Node3D
         };
         AddChild(avatarRoot);
         return avatarRoot;
+    }
+
+    private Camera3D ResolveCamera()
+    {
+        var camera = GetNodeOrNull<Camera3D>(CameraNodeName);
+        if (camera != null)
+        {
+            return camera;
+        }
+
+        camera = new Camera3D
+        {
+            Current = true,
+            Name = CameraNodeName,
+        };
+        AddChild(camera);
+        return camera;
     }
 
     private void HideEditorPreviewRoot()
@@ -161,6 +196,12 @@ public partial class StageRoot : Node3D
                 case "host.scene.apply":
                     ApplySceneInput(envelope.Payload);
                     break;
+                case "host.view.patch":
+                    ApplyViewPatch(envelope.Payload);
+                    break;
+                case "host.view.request_snapshot":
+                    RequestViewSnapshot(envelope.Payload);
+                    break;
                 case "host.shutdown":
                     _shutdownRequested = true;
                     UpdateStatus("Shutdown requested by Electron main.");
@@ -192,7 +233,22 @@ public partial class StageRoot : Node3D
                 throw new InvalidOperationException("Scene input payload could not be parsed.");
             }
 
-            _sceneController.Apply(payload);
+            if (_viewRuntime?.HasViewState == true
+                && string.Equals(_activeSceneModelId, payload.ModelId, StringComparison.Ordinal))
+            {
+                _viewRuntime.EmitLoadedSnapshot();
+            }
+            else
+            {
+                // TODO:
+                // Make avatar apply and view bootstrap one transaction. Today avatar apply commits
+                // before bootstrap, so a bootstrap failure reports scene.error with the new avatar loaded.
+                var avatar = _sceneController.Apply(payload);
+                _viewController?.UseAvatar(avatar);
+                _viewRuntime?.BootstrapForAvatar();
+                _activeSceneModelId = payload.ModelId;
+            }
+
             var fileName = System.IO.Path.GetFileName(payload.Path);
             UpdateStatus($"Connected to Electron main.\nModel: {payload.Name}\nAsset: {fileName}");
 
@@ -209,9 +265,54 @@ public partial class StageRoot : Node3D
         }
     }
 
+    private void ApplyViewPatch(JsonElement? payloadElement)
+    {
+        if (payloadElement == null)
+        {
+            _viewRuntime?.EmitInvalidPayload("View patch payload was empty.");
+            return;
+        }
+
+        var requestId = StageViewJson.TryReadRequestId(payloadElement.Value);
+        try
+        {
+            var payload = StageViewJson.ParsePatchRequest(payloadElement.Value);
+            _viewRuntime.ApplyRemotePatch(payload);
+        }
+        catch (Exception error)
+        {
+            _viewRuntime?.EmitInvalidPayload(error.Message, requestId);
+        }
+    }
+
+    private void RequestViewSnapshot(JsonElement? payloadElement)
+    {
+        if (payloadElement == null)
+        {
+            _viewRuntime?.EmitInvalidPayload("View snapshot request payload was empty.");
+            return;
+        }
+
+        var requestId = StageViewJson.TryReadRequestId(payloadElement.Value);
+        try
+        {
+            var payload = StageViewJson.ParseSnapshotRequest(payloadElement.Value);
+            _viewRuntime.RequestSnapshot(payload);
+        }
+        catch (Exception error)
+        {
+            _viewRuntime?.EmitInvalidPayload(error.Message, requestId);
+        }
+    }
+
     private static string ResolveWebSocketUrl()
     {
-        string[] arguments = OS.GetCmdlineUserArgs();
+        return ResolveArgumentValue(WebSocketUrlArgumentPrefix);
+    }
+
+    private static string ResolveArgumentValue(string prefix)
+    {
+        var arguments = OS.GetCmdlineUserArgs();
         if (arguments.Length == 0)
         {
             arguments = OS.GetCmdlineArgs();
@@ -219,13 +320,23 @@ public partial class StageRoot : Node3D
 
         foreach (var argument in arguments)
         {
-            if (argument.StartsWith(WebSocketUrlArgumentPrefix, StringComparison.Ordinal))
+            if (argument.StartsWith(prefix, StringComparison.Ordinal))
             {
-                return argument[WebSocketUrlArgumentPrefix.Length..];
+                return argument[prefix.Length..];
             }
         }
 
         return string.Empty;
+    }
+
+    private void InitializeViewRuntime(Node3D avatarRoot)
+    {
+        var cameraController = new StageCameraPoseController(ResolveCamera());
+        _viewController = new StageViewController(avatarRoot, cameraController);
+        _viewRuntime = new StageViewRuntime(_viewController);
+        _viewRuntime.SnapshotReady += payload => _bridge.SendEnvelope("stage.view.snapshot", payload);
+        _viewRuntime.ErrorReady += payload => _bridge.SendEnvelope("stage.view.error", payload);
+        _viewInputController = new StageCameraInputController(_viewRuntime, cameraController);
     }
 
     private void SendSceneError(string message)

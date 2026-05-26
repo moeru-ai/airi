@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { ref } from 'vue'
 
-import { buildChatWsUrl, computeReconnectDelay, mapStatus } from './ws-client'
+import { buildChatWsUrl, computeReconnectDelay, createChatWsUrlRef, mapStatus, WS_CLOSE_UNAUTHORIZED } from './ws-client'
 
 describe('buildChatWsUrl', () => {
   /**
@@ -104,5 +105,98 @@ describe('mapStatus', () => {
   it('distinguishes closed (auto-reconnect pending) from idle (user intent off)', () => {
     expect(mapStatus('CLOSED', true)).toBe('closed')
     expect(mapStatus('CLOSED', false)).toBe('idle')
+  })
+})
+
+describe('ws_CLOSE_UNAUTHORIZED', () => {
+  // ROOT CAUSE:
+  //
+  // Browsers do not expose the HTTP 401 status to the WebSocket `close`
+  // event when an upgrade is rejected — the only signal a client gets is
+  // `code=1006` (abnormal closure), indistinguishable from a transient
+  // network drop. VueUse's `useWebSocket.autoReconnect` then hammers the
+  // same stale token forever.
+  //
+  // The server accepts the upgrade and closes with this custom code so
+  // the client can distinguish "auth failed, stop reconnecting" from
+  // "network blip, keep retrying". The matching constant on the server
+  // lives at `apps/server/src/libs/ws-auth.ts:WS_CLOSE_UNAUTHORIZED` and
+  // is exercised by `apps/server/src/libs/ws-auth.test.ts`. If either
+  // value drifts the close-code contract breaks silently.
+  it('matches the server-side close code contract (4001, IANA private range)', () => {
+    expect(WS_CLOSE_UNAUTHORIZED).toBe(4001)
+  })
+})
+
+describe('createChatWsUrlRef', () => {
+  it('returns undefined when disabled regardless of token', () => {
+    const enabled = ref(false)
+    const url = createChatWsUrlRef(enabled, () => 'tok', 'https://api.example.com')
+    expect(url.value).toBeUndefined()
+  })
+
+  it('returns undefined when getToken yields null/empty', () => {
+    const enabled = ref(true)
+    const nullUrl = createChatWsUrlRef(enabled, () => null, 'https://api.example.com')
+    expect(nullUrl.value).toBeUndefined()
+  })
+
+  // ROOT CAUSE:
+  //
+  // Production wired `getToken: () => localStorage.getItem('auth/v1/token')`.
+  // The Vue `computed` cannot track non-reactive reads (DOM storage,
+  // module-level let, etc.), so the URL froze at first evaluation. After an
+  // OIDC `oauth2/token` refresh wrote a new access token into localStorage,
+  // `useWebSocket` kept reconnecting with the stale token in the query
+  // string, producing an infinite `/ws/chat?token=<old>` → 401 loop until
+  // the user reloaded the tab.
+  //
+  // Fix: callers MUST pass a closure that reads from a reactive source
+  // (Pinia store ref / Vue ref / computed). The two cases below pin the
+  // contract: reactive source rebuilds the URL on rotation; non-reactive
+  // source intentionally does NOT (so future regressions show up here).
+  it('rebuilds url when getToken reads a reactive ref (token rotation)', () => {
+    const enabled = ref(true)
+    const tokenRef = ref<string | null>('old-token')
+    const url = createChatWsUrlRef(enabled, () => tokenRef.value, 'https://api.example.com')
+
+    expect(url.value).toBe('wss://api.example.com/ws/chat?token=old-token')
+    tokenRef.value = 'new-token'
+    expect(url.value).toBe('wss://api.example.com/ws/chat?token=new-token')
+  })
+
+  it('freezes ws URL when getToken is non-reactive (regression guard)', () => {
+    const enabled = ref(true)
+    // Module-local let stands in for `localStorage.getItem` — neither is a
+    // Vue reactive dep, so the computed cannot observe mutations.
+    let storage: string | null = 'frozen-token'
+    const url = createChatWsUrlRef(enabled, () => storage, 'https://api.example.com')
+
+    expect(url.value).toBe('wss://api.example.com/ws/chat?token=frozen-token')
+    storage = 'rotated-token'
+    // Still the old value — this is what broke production. If this ever
+    // starts returning 'rotated-token' Vue's reactivity model changed and
+    // the contract comment on createChatWsUrlRef can be relaxed.
+    expect(url.value).toBe('wss://api.example.com/ws/chat?token=frozen-token')
+  })
+})
+
+describe('wS_CLOSE_UNAUTHORIZED', () => {
+  // ROOT CAUSE:
+  //
+  // Browsers do not expose the HTTP 401 status to the WebSocket `close`
+  // event when an upgrade is rejected — the only signal a client gets is
+  // `code=1006` (abnormal closure), indistinguishable from a transient
+  // network drop. VueUse's `useWebSocket.autoReconnect` then hammers the
+  // same stale token forever.
+  //
+  // The server accepts the upgrade and closes with this custom code so
+  // the client can distinguish "auth failed, stop reconnecting" from
+  // "network blip, keep retrying". The matching constant on the server
+  // lives at `apps/server/src/libs/ws-auth.ts:WS_CLOSE_UNAUTHORIZED` and
+  // is exercised by `apps/server/src/libs/ws-auth.test.ts`. If either
+  // value drifts the close-code contract breaks silently.
+  it('matches the server-side close code contract (4001, IANA private range)', () => {
+    expect(WS_CLOSE_UNAUTHORIZED).toBe(4001)
   })
 })

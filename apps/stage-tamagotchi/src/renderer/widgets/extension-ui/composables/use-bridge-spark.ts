@@ -1,11 +1,12 @@
-import type { SparkNotifyReactionOptions } from '@proj-airi/stage-ui/stores/mods/api/spark-notify-reaction'
+import type { SparkNotifyPerformanceResult, SparkNotifyReactionOptions } from '@proj-airi/stage-ui/stores/mods/api/spark-notify-reaction'
 
 import { widgetsIframeBroadcastEvent } from '@proj-airi/plugin-sdk-tamagotchi/widgets'
 import { sparkNotifyReactionOptionsSchema } from '@proj-airi/stage-ui/stores/mods/api/spark-notify-reaction'
-import { looseObject, nonEmpty, optional, pipe, record, safeParse, string, trim, unknown } from 'valibot'
+import { array, finite, looseObject, nonEmpty, number, optional, pipe, record, safeParse, string, trim, unknown } from 'valibot'
 
 interface PublishWidgetSparkNotifyReactionOptions {
   dispatchSparkNotifyReaction: (options: SparkNotifyReactionOptions) => Promise<string>
+  dispatchSparkNotifyPerformance?: (options: SparkNotifyReactionOptions) => Promise<SparkNotifyPerformanceResult>
   emit: (event: typeof widgetsIframeBroadcastEvent, payload: Record<string, unknown>) => void
 }
 
@@ -29,6 +30,12 @@ const widgetSparkNotifyEventSchema = looseObject({
     // because it owns the user-facing fallback for its current UI state.
     fallbackResponseText: string(),
     responseRoute: optional(record(string(), unknown())),
+    calls: optional(array(looseObject({
+      name: pipe(string(), trim(), nonEmpty()),
+      prompt: pipe(string(), trim(), nonEmpty()),
+      examples: optional(array(string())),
+    }))),
+    timeoutMs: optional(pipe(number(), finite())),
     sparkNotify: looseObject({}),
   }),
 })
@@ -60,6 +67,8 @@ function createSparkNotifyReactionOptions(event: Record<string, unknown>) {
   return {
     requestId: payload.requestId,
     responseRoute,
+    calls: payload.calls,
+    timeoutMs: payload.timeoutMs,
     reactionOptions: reactionOptionsResult.output satisfies SparkNotifyReactionOptions,
   }
 }
@@ -89,13 +98,35 @@ export async function publishWidgetSparkNotifyReaction(
     return false
   }
 
-  const text = await options.dispatchSparkNotifyReaction(request.reactionOptions)
+  const widgetCallManifests = request.calls ?? []
+  const performance = widgetCallManifests.length > 0 && options.dispatchSparkNotifyPerformance
+    ? await options.dispatchSparkNotifyPerformance({
+        ...request.reactionOptions,
+        timeoutMs: request.timeoutMs,
+        calls: widgetCallManifests.map(manifest => ({
+          manifest,
+          handler: async () => undefined,
+        })),
+      })
+    : undefined
+
+  const text = performance
+    ? performance.reaction
+    : await options.dispatchSparkNotifyReaction(request.reactionOptions)
 
   options.emit(widgetsIframeBroadcastEvent, {
     route: request.responseRoute,
     payload: {
       ...(request.requestId ? { requestId: request.requestId } : {}),
       text,
+      ...(performance
+        ? {
+            performance: {
+              type: performance.type,
+              name: performance.name,
+            },
+          }
+        : {}),
     },
   })
 

@@ -15,6 +15,7 @@ import {
   electronShortcutUnregisterAll,
 } from '../../../shared/eventa'
 import { onAppBeforeQuit } from '../../libs/bootkit/lifecycle'
+import { createUiohookDriver } from './global-shortcut-uiohook'
 
 export type EventaContext = ReturnType<typeof createContext>['context']
 
@@ -34,10 +35,10 @@ export interface GlobalShortcutService {
   dispose: () => void
 }
 
-interface ActiveBinding {
-  binding: ShortcutBinding
-  electronAccelerator: string
-}
+type ActiveBinding = { binding: ShortcutBinding } & (
+  | { driver: 'electron', electronAccelerator: string }
+  | { driver: 'uiohook' }
+)
 
 export function setupGlobalShortcutService(): GlobalShortcutService {
   const log = useLogg('global-shortcut').useGlobalConfig()
@@ -56,20 +57,12 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
     }
   }
 
-  function tryRegister(binding: ShortcutBinding): ShortcutRegistrationResult {
-    if (binding.receiveKeyUps) {
-      // Electron's `globalShortcut` only fires on press. A separate
-      // driver path (uiohook-napi) handles `receiveKeyUps: true`;
-      // this driver refuses honestly until that path is wired.
-      return { id: binding.id, ok: false, reason: ShortcutFailureReasons.Unsupported }
-    }
+  const uiohookDriver = createUiohookDriver({
+    broadcastTriggered,
+    logger: log,
+  })
 
-    if (active.has(binding.id)) {
-      // Callers must `unregister` first to rebind. Avoids silent overrides
-      // between unrelated registration sites.
-      return { id: binding.id, ok: false, reason: ShortcutFailureReasons.DuplicateId }
-    }
-
+  function tryRegisterElectron(binding: ShortcutBinding): ShortcutRegistrationResult {
     const electronAccelerator = formatElectronAccelerator(binding.accelerator)
     const ok = globalShortcut.register(electronAccelerator, () => broadcastTriggered(binding.id, 'down'))
 
@@ -78,30 +71,37 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
       // causes (held by another app, or denied by the OS for media
       // keys / Accessibility-gated combos on macOS). Electron does not
       // expose which case applied, so this driver reports `Conflict`
-      // for both. A future driver path (XDG portal, native macOS) can
-      // emit `Denied` directly.
+      // for both. The uiohook driver path can emit `Denied` directly.
       return { id: binding.id, ok: false, reason: ShortcutFailureReasons.Conflict }
     }
 
-    active.set(binding.id, { binding, electronAccelerator })
+    active.set(binding.id, { binding, driver: 'electron', electronAccelerator })
     return { id: binding.id, ok: true }
+  }
+
+  function tryRegisterUiohook(binding: ShortcutBinding): ShortcutRegistrationResult {
+    const result = uiohookDriver.tryRegister(binding)
+    if (result.ok)
+      active.set(binding.id, { binding, driver: 'uiohook' })
+    return result
+  }
+
+  function tryRegister(binding: ShortcutBinding): ShortcutRegistrationResult {
+    if (active.has(binding.id)) {
+      return { id: binding.id, ok: false, reason: ShortcutFailureReasons.DuplicateId }
+    }
+
+    return binding.receiveKeyUps
+      ? tryRegisterUiohook(binding)
+      : tryRegisterElectron(binding)
   }
 
   function unregisterById(id: string): void {
     const entry = active.get(id)
     if (!entry)
       return
-    try {
-      globalShortcut.unregister(entry.electronAccelerator)
-    }
-    catch (error) {
-      log.withError(error).warn(`Failed to unregister accelerator for "${id}"`)
-    }
-    active.delete(id)
-  }
 
-  function unregisterAll(): void {
-    for (const [id, entry] of active) {
+    if (entry.driver === 'electron') {
       try {
         globalShortcut.unregister(entry.electronAccelerator)
       }
@@ -109,6 +109,24 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
         log.withError(error).warn(`Failed to unregister accelerator for "${id}"`)
       }
     }
+    else {
+      uiohookDriver.unregisterById(id)
+    }
+    active.delete(id)
+  }
+
+  function unregisterAll(): void {
+    for (const [id, entry] of active) {
+      if (entry.driver !== 'electron')
+        continue
+      try {
+        globalShortcut.unregister(entry.electronAccelerator)
+      }
+      catch (error) {
+        log.withError(error).warn(`Failed to unregister accelerator for "${id}"`)
+      }
+    }
+    uiohookDriver.unregisterAll()
     active.clear()
   }
 
@@ -142,6 +160,7 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
 
   const dispose: GlobalShortcutService['dispose'] = () => {
     unregisterAll()
+    uiohookDriver.dispose()
     contexts.clear()
   }
 
