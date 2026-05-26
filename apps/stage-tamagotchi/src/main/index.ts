@@ -66,8 +66,12 @@ const appUserDataPath = env.APP_USER_DATA_PATH?.trim()
 if (appUserDataPath) {
   app.setPath('userData', appUserDataPath)
 }
+else {
+  const defaultUserDataPath = app.getPath('userData')
+  app.setPath('userData', defaultUserDataPath)
+}
 
-app.setName('AIRI')
+app.setName(app.getName())
 
 // Thanks to [@blurymind](https://github.com/blurymind),
 //
