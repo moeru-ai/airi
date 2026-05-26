@@ -623,17 +623,17 @@ export async function setupPluginHostHostService(
             case 'string':
             case 'secret':
               if (typeof value !== 'string') {
-                throw new Error(`Config field "${key}" must be a string, got ${typeof value}`)
+                throw new TypeError(`Config field "${key}" must be a string, got ${typeof value}`)
               }
               break
             case 'number':
               if (typeof value !== 'number') {
-                throw new Error(`Config field "${key}" must be a number, got ${typeof value}`)
+                throw new TypeError(`Config field "${key}" must be a number, got ${typeof value}`)
               }
               break
             case 'boolean':
               if (typeof value !== 'boolean') {
-                throw new Error(`Config field "${key}" must be a boolean, got ${typeof value}`)
+                throw new TypeError(`Config field "${key}" must be a boolean, got ${typeof value}`)
               }
               break
           }
