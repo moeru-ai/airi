@@ -190,12 +190,7 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
     }
   }
 
-  function ensureConversationSessionId(): string {
-    const sessionId = chatSession.activeSessionId
-    if (!sessionId) {
-      return `conversation_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
-    }
-    const generation = chatSession.getSessionGeneration(sessionId)
+  function ensureConversationSessionId(sessionId: string, generation: number): string {
     return `conversation_${sessionId}_gen${generation}`
   }
 
@@ -206,6 +201,12 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
     }
     const unsubscribe = chatOrchestratorStore.onChatTurnComplete(async (chat, context) => {
       try {
+        // Capture session metadata synchronously before any async work so that
+        // a concurrent session switch during streaming does not misattribute
+        // this completed turn to the wrong session.
+        const sessionId = chatSession.activeSessionId
+        const generation = chatSession.getSessionGeneration(sessionId)
+
         const snapshot = await listPlugins()
         const loadedPlugins = snapshot.plugins.filter(
           (p: { loaded: boolean, enabled: boolean, name: string }) => p.loaded && p.enabled && pluginsWithMemorySaveTool.has(p.name),
@@ -215,7 +216,7 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
         }
         const userMessage = extractMessageText(context.message)
         const turn: Record<string, unknown> = {
-          sessionId: ensureConversationSessionId(),
+          sessionId: ensureConversationSessionId(sessionId, generation),
           userMessage,
           assistantResponse: chat.outputText,
           toolCalls: chat.output.tool_results,
