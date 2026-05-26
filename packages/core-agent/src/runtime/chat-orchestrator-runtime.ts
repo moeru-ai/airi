@@ -377,6 +377,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
     // TODO: Expire or prune stale runtime contexts from disconnected services before composing.
     const streamingMessageContext: ChatStreamEventContext = {
+      sessionId,
+      generation,
       message: { role: 'user', content: sendingMessage, createdAt: sendingCreatedAt, id: createId() },
       contexts: deps.context.snapshot(),
       composedMessage: [],

@@ -5,7 +5,6 @@ import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { extractMessageText } from '@proj-airi/stage-ui/libs/chat-sync'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
-import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/llm-tools'
 import { useLlmToolsetPromptsStore } from '@proj-airi/stage-ui/stores/llm-toolset-prompts'
 import { rawTool } from '@xsai/tool'
@@ -39,7 +38,6 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
   const llmToolsStore = useLlmToolsStore()
   const llmToolsetPromptsStore = useLlmToolsetPromptsStore()
   const chatOrchestratorStore = useChatOrchestratorStore()
-  const chatSession = useChatSessionStore()
 
   const listPluginXsaiToolDefinitions = useElectronEventaInvoke(electronPluginListXsaiTools)
   const invokePluginTool = useElectronEventaInvoke(electronPluginInvokeTool)
@@ -201,11 +199,8 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
     }
     const unsubscribe = chatOrchestratorStore.onChatTurnComplete(async (chat, context) => {
       try {
-        // Capture session metadata synchronously before any async work so that
-        // a concurrent session switch during streaming does not misattribute
-        // this completed turn to the wrong session.
-        const sessionId = chatSession.activeSessionId
-        const generation = chatSession.getSessionGeneration(sessionId)
+        const sessionId = context.sessionId
+        const generation = context.generation
 
         const snapshot = await listPlugins()
         const loadedPlugins = snapshot.plugins.filter(

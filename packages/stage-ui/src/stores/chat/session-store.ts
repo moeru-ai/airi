@@ -179,8 +179,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 
   function ensureGeneration(sessionId: string) {
-    if (sessionGenerations.value[sessionId] === undefined)
-      sessionGenerations.value[sessionId] = 0
+    if (sessionGenerations.value[sessionId] === undefined) {
+      sessionGenerations.value[sessionId] = sessionMetas.value[sessionId]?.generation ?? 0
+    }
   }
 
   async function loadIndexForUser(currentUserId: string) {
@@ -1222,7 +1223,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       index.value = cloneDeep(snapshot.index)
     }
     sessionGenerations.value = Object.fromEntries(
-      Object.keys(snapshot.sessionMessages).map(sessionId => [sessionId, sessionGenerations.value[sessionId] ?? 0]),
+      Object.keys(snapshot.sessionMessages).map(sessionId => [sessionId, sessionGenerations.value[sessionId] ?? snapshot.sessionMetas[sessionId]?.generation ?? 0]),
     )
     loadedSessions.clear()
     for (const sessionId of Object.keys(snapshot.sessionMessages)) {
@@ -1242,6 +1243,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   function cleanupMessages(sessionId = activeSessionId.value) {
     ensureGeneration(sessionId)
     sessionGenerations.value[sessionId] += 1
+    if (sessionMetas.value[sessionId])
+      sessionMetas.value[sessionId].generation = sessionGenerations.value[sessionId]
     setSessionMessages(sessionId, [generateInitialMessage()])
   }
 
