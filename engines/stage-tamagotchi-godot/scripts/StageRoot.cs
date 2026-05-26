@@ -53,6 +53,8 @@ public partial class StageRoot : Node3D
     public override void _Ready()
     {
         HideEditorPreviewRoot();
+        StageVisualPreset.Apply(this);
+
         _statusLabel = CreateStatusLabel();
         AddChild(_statusLabel);
 
@@ -242,7 +244,8 @@ public partial class StageRoot : Node3D
             {
                 // TODO:
                 // Make avatar apply and view bootstrap one transaction. Today avatar apply commits
-                // before bootstrap, so a bootstrap failure reports scene.error with the new avatar loaded.
+                // before bootstrap. If bootstrap fails, scene.error is reported with the new
+                // avatar already loaded.
                 var avatar = _sceneController.Apply(payload);
                 _viewController?.UseAvatar(avatar);
                 _viewRuntime?.BootstrapForAvatar();
@@ -334,7 +337,8 @@ public partial class StageRoot : Node3D
         var cameraController = new StageCameraPoseController(ResolveCamera());
         _viewController = new StageViewController(avatarRoot, cameraController);
         _viewRuntime = new StageViewRuntime(_viewController);
-        _viewRuntime.SnapshotReady += payload => _bridge.SendEnvelope("stage.view.snapshot", payload);
+        _viewRuntime.SnapshotReady += payload =>
+            _bridge.SendEnvelope("stage.view.snapshot", payload);
         _viewRuntime.ErrorReady += payload => _bridge.SendEnvelope("stage.view.error", payload);
         _viewInputController = new StageCameraInputController(_viewRuntime, cameraController);
     }

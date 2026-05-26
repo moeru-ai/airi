@@ -139,6 +139,40 @@ Runtime import details live in [`docs/vrm-runtime-import.md`](docs/vrm-runtime-i
 Vendored add-on local patches and generated metadata differences are tracked in
 [`docs/vendor-patches.md`](docs/vendor-patches.md).
 
+## Default Stage Visuals
+
+G1.3 installs a fixed default presentation preset at runtime. It includes a sky
+environment, a large world-anchored grid ground at `Y=0`, a center `T` marker at
+the world origin, and a fixed directional light rig.
+
+The sky environment reuses the existing stage-ui-three HDRI at
+`packages/stage-ui-three/src/components/Environment/assets/sky_linekotsi_23_HDRI.hdr`
+when the Godot stage runs from a workspace checkout. The HDRI is not copied into
+Godot `assets/`, and the release packaging path for this shared asset remains a
+separate follow-up.
+
+The grid ground is visual-only. It does not move the avatar root away from
+`(0, 0, 0)`, and its shader fades distant grid lines into the horizon color
+without enabling volumetric fog.
+
+## Material Rendering Check
+
+G1.3 includes a focused runtime material verification scene for the committed
+AvatarSample A/B fixtures:
+
+```powershell
+& $env:GODOT4 --headless --path . `
+  --scene res://scenes/verification/materialRenderingCheck.tscn `
+  --quit-after 5 `
+  --log-file material-check.log
+```
+
+This check imports both samples through `VrmRuntimeImporter.gd` and verifies the
+runtime material surface covers MToon, alpha/cutout, transparent materials,
+outline passes, and mesh shadow casters. The current A/B fixtures do not contain
+unlit materials, so this check reports `unlit = 0` and does not treat that as a
+failure.
+
 ## Live Debugging From The Godot Editor
 
 Use this path when Electron is the real host and the model is selected from the
