@@ -608,8 +608,8 @@ export async function setupPluginHostHostService(
             if (!(fieldName in payload.config)) {
               throw new Error(`Missing required config field: ${fieldName}`)
             }
-            if (fieldDecl.type === 'string' && payload.config[fieldName] === '') {
-              throw new Error(`Required string config field "${fieldName}" must not be empty`)
+            if ((fieldDecl.type === 'string' || fieldDecl.type === 'secret') && payload.config[fieldName] === '') {
+              throw new Error(`Required ${fieldDecl.type} config field "${fieldName}" must not be empty`)
             }
           }
         }
