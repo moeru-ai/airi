@@ -1,4 +1,4 @@
-import type { ModuleConfigEnvelope } from '@proj-airi/plugin-sdk/plugin-host'
+import type { ModuleConfigEnvelope, PluginHostSession } from '@proj-airi/plugin-sdk/plugin-host'
 
 import type {
   PluginHostDebugSnapshot,
@@ -657,15 +657,9 @@ export async function setupPluginHostHostService(
           full: payload.config,
         }
         const oldSessionId = sessionId
+        let session: PluginHostSession | null
         try {
-          const session = await host.reload(sessionId, { config: configEnvelope })
-
-          clearModuleAssetSessionCacheByOwnerSessionId(oldSessionId)
-          await pluginAssetService.revokeByOwnerSessionId(oldSessionId)
-
-          if (session) {
-            loadedSessionIds.set(payload.pluginName, session.id)
-          }
+          session = await host.reload(sessionId, { config: configEnvelope })
         }
         catch (error) {
           loaded.delete(payload.pluginName)
@@ -673,6 +667,18 @@ export async function setupPluginHostHostService(
           clearModuleAssetSessionCacheByOwnerSessionId(oldSessionId)
           await pluginAssetService.revokeByOwnerSessionId(oldSessionId)
           throw error
+        }
+
+        try {
+          clearModuleAssetSessionCacheByOwnerSessionId(oldSessionId)
+          await pluginAssetService.revokeByOwnerSessionId(oldSessionId)
+        }
+        catch (cleanupError) {
+          log.withError(cleanupError).withFields({ pluginName: payload.pluginName }).error('post-reload cleanup failed')
+        }
+
+        if (session) {
+          loadedSessionIds.set(payload.pluginName, session.id)
         }
       }
 
