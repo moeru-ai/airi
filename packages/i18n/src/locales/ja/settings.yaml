@@ -10,7 +10,7 @@ animations:
 dialogs:
   onboarding:
     official:
-      title: AIRI Official Provider
+      title: AIRI 公式プロバイダー
     title: AIRI へようこそ！
     description: まず最初のAIプロバイダーを設定しましょう。
     selectProvider: AIプロバイダーを選択
@@ -64,11 +64,11 @@ dialogs:
       stateGranted: 許可済み
       stateNotGranted: 許可されていません
   bug-report:
-    title: Bug report (´;ω;`)ヾ(･∀･`)
-    subtitle: Oops, sorry we made something wrong. Would you mind telling us what happened?
-    trigger-label: Report a Bug
-    submit-label: Send Bug Report
-    triage-description: Include screenshot and page context to help us triage this issue.
+    title: バク報告　(´;ω;`)ヾ(･∀･`)
+    subtitle: "予期せぬエラーが発生しました　\n何が起こったか報告してくれませんか？"
+    trigger-label: バグを報告
+    submit-label: バグ報告を送信
+    triage-description: この問題の解決のためにページ内容とスクリーンショットを含める。
     description-placeholder: Steps to reproduce, expected behavior, and actual behavior
     include-current-page-screenshot: Include current page screenshot
     manual-media:
@@ -107,16 +107,16 @@ analytics:
     title: この開発ビルドでは分析が無効になっています
 model-select:
   panel-callout:
-    support-status-header: We support both 2D and 3D models
+    support-status-header: 私たちは2Dと3Dのモデル両方をサポートしています
     support-status: >
       Click {select-button} to select or import models. Currently, {zip} (for Live2D models) and {vrm} (for VRM models) are supported.
     model-type-example: >
       Neuro-sama uses 2D model driven by framework developed by Live2D Inc, while Grok Ani (in Grok Companion) uses 3D model driven by VRM / MMD open formats.
   select-model:
     title: Model Selector
-    button: Select model
+    button: モデルを選択
     select: Pick
-    import: Import
+    import: インポート
     remove: Remove
     confirm: Confirm
 live2d:
@@ -148,7 +148,7 @@ live2d:
     button-extract:
       title: 抽出
   animation:
-    title: Animation
+    title: アニメーション
     focus:
       title: Enable mouse tracking
       description: Look at the cursor while it is moving. Idle eye movement resumes after the cursor stops.
@@ -207,8 +207,8 @@ pages:
     title: アカウント
     description: プロフィールを表示し、アカウントを管理します
     notLoggedIn: アカウントにログインして、全機能をご利用ください
-    login: Sign in
-    logout: Sign out
+    login: サインイン
+    logout: サインアウト
     fluxBalance: Flux 残高
     viewFluxDetails: 詳細を見る
     signedInAs: サインイン済み
@@ -227,10 +227,10 @@ pages:
       message:
         saved: Profile updated.
       error:
-        fallback: We could not save your changes.
+        fallback: 変更を保存できませんでした
     connections:
-      tab: Connected accounts
-      title: Connected accounts
+      tab: 接続済みアカウント
+      title: 接続済みアカウント
       description: Sign in to AIRI through these providers. Unlink to revoke access, then link again to switch to a different account.
       status:
         linked: Linked
@@ -240,7 +240,7 @@ pages:
         link: Link
         unlink: Unlink
       message:
-        loading: Loading connected accounts...
+        loading: 接続されたアカウントを読み込んでいます...
         unlinked: '{provider} disconnected.'
         linked: '{provider} connected.'
         linkStarted: Redirecting to {provider}…
@@ -248,23 +248,23 @@ pages:
         listFailed: Could not load connected accounts.
         unlinkFailed: Could not unlink this account.
         linkFailed: Could not start the link flow.
-        lastAccount: This is your only sign-in method. Set a password first before unlinking it.
+        lastAccount: "これはあなたの唯一のサインイン方法です。\nリンクを解除する前にパスワードを設定してください。"
     security:
-      tab: Security
-      title: Security
+      tab: セキュリティ
+      title: セキュリティ
       description: Change your password. Your other devices will be signed out.
       setDescription: You signed in via a social provider, so there is no current password yet. We'll email a secure link to set one.
       currentPassword:
-        label: Current password
-        placeholder: Enter your current password
+        label: 現在のパスワード
+        placeholder: 現在のパスワードを入力してください
       newPassword:
-        label: New password
+        label: 新しいパスワード
         placeholder: At least 8 characters
       confirmPassword:
-        label: Confirm new password
-        placeholder: Repeat your new password
+        label: 新しいパスワードを確認
+        placeholder: 新しいパスワードをもう一度入力してください
       action:
-        changePassword: Change password
+        changePassword: パスワードを変更
         sendSetLink: Email me a link to set my password
       message:
         changed: Password changed. Other sessions have been signed out.
