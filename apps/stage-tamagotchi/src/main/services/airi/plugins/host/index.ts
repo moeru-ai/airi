@@ -594,12 +594,48 @@ export async function setupPluginHostHostService(
       if (!entry) {
         throw new Error(`Plugin not found: ${payload.pluginName}`)
       }
-      const manifest = entry.manifest as { config?: { schema?: Record<string, Record<string, unknown>> } }
+      interface ConfigFieldSchema {
+        type: 'string' | 'secret' | 'number' | 'boolean'
+        required?: boolean
+      }
+      const manifest = entry.manifest as { config?: { schema?: Record<string, ConfigFieldSchema> } }
       const configDecl = manifest.config
       if (configDecl?.schema) {
-        for (const key of Object.keys(payload.config)) {
-          if (!(key in configDecl.schema)) {
+        const schema = configDecl.schema
+
+        for (const [fieldName, fieldDecl] of Object.entries(schema)) {
+          if (fieldDecl.required) {
+            if (!(fieldName in payload.config)) {
+              throw new Error(`Missing required config field: ${fieldName}`)
+            }
+            if (fieldDecl.type === 'string' && payload.config[fieldName] === '') {
+              throw new Error(`Required string config field "${fieldName}" must not be empty`)
+            }
+          }
+        }
+
+        for (const [key, value] of Object.entries(payload.config)) {
+          const fieldDecl = schema[key]
+          if (!fieldDecl) {
             throw new Error(`Unknown config key: ${key}`)
+          }
+          switch (fieldDecl.type) {
+            case 'string':
+            case 'secret':
+              if (typeof value !== 'string') {
+                throw new Error(`Config field "${key}" must be a string, got ${typeof value}`)
+              }
+              break
+            case 'number':
+              if (typeof value !== 'number') {
+                throw new Error(`Config field "${key}" must be a number, got ${typeof value}`)
+              }
+              break
+            case 'boolean':
+              if (typeof value !== 'boolean') {
+                throw new Error(`Config field "${key}" must be a boolean, got ${typeof value}`)
+              }
+              break
           }
         }
       }
