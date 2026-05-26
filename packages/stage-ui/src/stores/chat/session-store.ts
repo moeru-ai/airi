@@ -1223,7 +1223,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       index.value = cloneDeep(snapshot.index)
     }
     sessionGenerations.value = Object.fromEntries(
-      Object.keys(snapshot.sessionMessages).map(sessionId => [sessionId, sessionGenerations.value[sessionId] ?? snapshot.sessionMetas[sessionId]?.generation ?? 0]),
+      Object.keys(snapshot.sessionMessages).map(sessionId => [sessionId, snapshot.sessionMetas[sessionId]?.generation ?? 0]),
     )
     loadedSessions.clear()
     for (const sessionId of Object.keys(snapshot.sessionMessages)) {
