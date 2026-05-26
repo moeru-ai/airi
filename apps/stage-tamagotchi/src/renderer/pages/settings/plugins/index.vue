@@ -22,6 +22,7 @@ interface PluginConfigEditorState {
   configSnapshot?: PluginConfigSnapshot
   values: Record<string, unknown>
   savedValues: Record<string, unknown>
+  error?: string
 }
 
 const configEditors = ref<Record<string, PluginConfigEditorState>>({})
@@ -65,6 +66,7 @@ function isDirty(name: string): boolean {
 function cancelConfig(name: string) {
   const state = getEditorState(name)
   state.values = { ...state.savedValues }
+  state.error = undefined
 }
 
 async function loadConfig(name: string) {
@@ -84,14 +86,9 @@ async function loadConfig(name: string) {
   }
 }
 
-async function loadAllConfigs() {
-  for (const plugin of plugins.value) {
-    loadConfig(plugin.name)
-  }
-}
-
 async function saveConfig(name: string) {
   const state = getEditorState(name)
+  state.error = undefined
   const newConfig: Record<string, unknown> = {}
   if (state.configSnapshot) {
     for (const key of Object.keys(state.configSnapshot.schema)) {
@@ -99,12 +96,15 @@ async function saveConfig(name: string) {
       const field = state.configSnapshot.schema[key]
       if (value !== undefined) {
         if (field.type === 'number') {
-          if (value !== '') {
-            const num = Number(value)
-            if (!Number.isNaN(num)) {
-              newConfig[key] = num
-            }
+          if (value === '') {
+            continue
           }
+          const num = Number(value)
+          if (Number.isNaN(num)) {
+            state.error = `${field.label}: invalid number "${value}"`
+            return
+          }
+          newConfig[key] = num
         }
         else if (field.type === 'boolean') {
           newConfig[key] = value === true || value === 'true'
@@ -117,7 +117,7 @@ async function saveConfig(name: string) {
   }
   try {
     await pluginSettingsStore.savePluginConfig(name, newConfig)
-    state.savedValues = { ...state.values }
+    await loadConfig(name)
   }
   catch (err) {
     console.warn('[plugin-settings] failed to save config:', err)
@@ -128,14 +128,30 @@ onMounted(() => {
   pluginSettingsStore.refresh()
 })
 
-watch(plugins, () => {
-  configEditors.value = {}
-  loadAllConfigs()
+watch(plugins, (newPlugins, oldPlugins) => {
+  const oldNames = new Set(oldPlugins?.map(p => p.name) ?? [])
+
+  const newNames = new Set(newPlugins.map(p => p.name))
+  for (const name of Object.keys(configEditors.value)) {
+    if (!newNames.has(name)) {
+      delete configEditors.value[name]
+    }
+  }
+
+  for (const plugin of newPlugins) {
+    if (!oldNames.has(plugin.name)) {
+      loadConfig(plugin.name)
+    }
+  }
 })
 
 watch(loading, (isLoading) => {
   if (!isLoading && plugins.value.length > 0) {
-    loadAllConfigs()
+    for (const plugin of plugins.value) {
+      if (!configEditors.value[plugin.name]?.configSnapshot) {
+        loadConfig(plugin.name)
+      }
+    }
   }
 })
 </script>
@@ -246,6 +262,12 @@ watch(loading, (isLoading) => {
             :label="field.label"
             :placeholder="field.placeholder"
           />
+        </div>
+        <div
+          v-if="getEditorState(plugin.name).error"
+          :class="['text-sm', 'text-red-500', 'dark:text-red-400']"
+        >
+          {{ getEditorState(plugin.name).error }}
         </div>
         <div :class="['flex', 'items-center', 'gap-2']">
           <Button
