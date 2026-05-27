@@ -6,7 +6,7 @@
 
 ## Completed Fixes
 
-### 1. VAD buffer over-read in `processSpeechSegment` ✅
+### 1. VAD buffer over-read in `processSpeechSegment`
 
 **Files changed:**
 - `apps/stage-web/src/workers/vad/vad.ts`
@@ -21,7 +21,7 @@
 
 ---
 
-### 2. `detectSpeech` crash when model is `undefined` ✅
+### 2. `detectSpeech` crash when model is `undefined`
 
 **Files changed:**
 - `apps/stage-web/src/workers/vad/vad.ts`
@@ -38,7 +38,7 @@ if (!this.model) {
 
 ---
 
-### 3. Characters page infinite spinner vs empty state ✅
+### 3. Characters page infinite spinner vs empty state
 
 **File changed:** `apps/stage-web/src/pages/settings/characters/index.vue`
 
@@ -51,7 +51,7 @@ if (!this.model) {
 
 ---
 
-### 4. `filteredCharacters` crash on undefined description ✅
+### 4. `filteredCharacters` crash on undefined description
 
 **File changed:** `apps/stage-web/src/pages/settings/characters/index.vue`
 
@@ -61,7 +61,7 @@ if (!this.model) {
 
 ---
 
-### 5. Character "Activate" button was a stub ✅
+### 5. Character "Activate" button was a stub
 
 **Files changed:**
 - `packages/stage-ui/src/stores/characters.ts`
@@ -76,7 +76,7 @@ if (!this.model) {
 
 ---
 
-### 6. Character edit dialog silently discarded changes ✅
+### 6. Character edit dialog silently discarded changes
 
 **Files changed:**
 - `packages/stage-ui/src/types/character.ts`
@@ -92,7 +92,7 @@ if (!this.model) {
 
 ---
 
-### 7. Hardcoded empty `apiKey` in CharacterDialog ✅
+### 7. Hardcoded empty `apiKey` in CharacterDialog
 
 **File changed:** `apps/stage-web/src/pages/settings/characters/components/CharacterDialog.vue`
 
@@ -105,7 +105,7 @@ if (!this.model) {
 
 ---
 
-### 8. No user-visible error on CharacterDialog submit failure ✅
+### 8. No user-visible error on CharacterDialog submit failure
 
 **File changed:** `apps/stage-web/src/pages/settings/characters/components/CharacterDialog.vue`
 
@@ -118,7 +118,7 @@ toast.error('Failed to save character', { description: errorMessageFrom(err) })
 
 ---
 
-### 9. `getInputByteFrequencyData()` crash before `start()` ✅
+### 9. `getInputByteFrequencyData()` crash before `start()`
 
 **File changed:** `packages/stage-shared/src/beat-sync/detector.ts`
 
@@ -128,7 +128,7 @@ toast.error('Failed to save character', { description: errorMessageFrom(err) })
 
 ---
 
-### 10. Web Speech API lifecycle `console.info` spam ✅
+### 10. Web Speech API lifecycle `console.info` spam
 
 **File changed:** `packages/stage-ui/src/stores/providers/web-speech-api/index.ts`
 
@@ -137,8 +137,7 @@ toast.error('Failed to save character', { description: errorMessageFrom(err) })
 **Fix:** Removed all 8 debug-only handlers and the preceding `// Add event listeners for debugging before starting` comment. Functional handlers (`onerror`, `onresult`, `onend`) were preserved.
 
 ---
-
-### 11. Leftover `console.debug` in `tts.ts` ✅
+### 11. Leftover `console.debug` in `tts.ts`
 
 **File changed:** `packages/stage-ui/src/utils/tts.ts`
 
@@ -148,7 +147,7 @@ toast.error('Failed to save character', { description: errorMessageFrom(err) })
 
 ---
 
-### 12. Duplicate `WIP` export in `misc/index.ts` ✅
+### 12. Duplicate `WIP` export in `misc/index.ts`
 
 **File:** `packages/stage-ui/src/components/misc/index.ts`
 
@@ -156,7 +155,7 @@ toast.error('Failed to save character', { description: errorMessageFrom(err) })
 
 ---
 
-### 13. `haveStreamingCallbacksChanged` missed callback-removal case ✅
+### 13. `haveStreamingCallbacksChanged` missed callback-removal case
 
 **File changed:** `packages/stage-ui/src/stores/modules/hearing.ts`
 
@@ -170,9 +169,54 @@ return next.onSentenceEnd !== previous?.onSentenceEnd
 
 ---
 
+### 15. Secure API Key Storage
+
+**Files changed:**
+- `packages/stage-ui/src/composables/use-secure-storage.ts` (new)
+- `packages/stage-ui/src/stores/providers.ts`
+
+**What was wrong:** API keys for providers were stored in `localStorage` in plain text, making them vulnerable to XSS attacks.
+
+**Fix:** Introduced `useSecureStorage` which generates and persists an AES-GCM encryption key via `IndexedDB` and transparently encrypts data before persisting it to `localStorage`. `providerCredentials` was migrated to use this new composable.
+
+---
+
+### 16. Do Not Persist Character API Keys in Public Capabilities
+
+**Files changed:**
+- `packages/stage-ui/src/types/character.ts`
+- `apps/server/src/routes/characters/schema.ts`
+- `packages/stage-ui/src/services/characters.ts`
+
+**What was wrong:** The `apiKey` field in `CharacterCapabilityConfigSchema` was required and persisted to the community remote database, leaking user API keys if characters were published.
+
+**Fix:** Made `apiKey` optional in both client and server schemas. Modified `createRemote` and `updateRemote` in `characters.ts` service to strip `apiKey` from all capability configurations before sending the payload.
+
+---
+
+### 17. Unnecessary `STORAGE_PREFIX` iteration
+
+**File changed:** `packages/stage-layouts/src/stores/background.ts`
+
+**What was wrong:** The background store iterated through the entire default `localforage` instance looking for `background-` prefixed keys, which was unmaintainable and added complexity.
+
+**Fix:** Created a dedicated `localforage` instance named `backgrounds` for isolated storage, including an automatic migration path for legacy data.
+
+---
+
+### 18. Extraneous type casting in `background-picker.vue`
+
+**File changed:** `packages/stage-ui/src/components/scenarios/dialogs/background-picker/background-picker.vue`
+
+**What was wrong:** `emit` was being awkwardly cast to `any` `(emit as any)('import', payload)`.
+
+**Fix:** Removed the cast and let TypeScript natively resolve the `defineEmits` typings.
+
+---
+
 ## Remaining / In Progress
 
-### 14. Replace `window.confirm()` delete dialog with in-app confirmation
+### 19. Replace `window.confirm()` delete dialog with in-app confirmation
 
 **File:** `apps/stage-web/src/pages/settings/characters/index.vue`
 
@@ -190,9 +234,15 @@ return next.onSentenceEnd !== previous?.onSentenceEnd
 | `packages/stage-ui/src/workers/vad/vad.test.ts` | New regression tests |
 | `apps/stage-web/src/pages/settings/characters/index.vue` | isLoading, empty state, optional chaining, activate wiring |
 | `packages/stage-ui/src/stores/characters.ts` | `activeCharacterId`, `setActive`, `useLocalStorage`, i18n/capabilities in update |
-| `packages/stage-ui/src/types/character.ts` | Extended `UpdateCharacterSchema` |
+| `packages/stage-ui/src/types/character.ts` | Extended `UpdateCharacterSchema`, made `apiKey` optional |
 | `apps/stage-web/src/pages/settings/characters/components/CharacterDialog.vue` | Full edit path, API key fields, toast error feedback |
 | `packages/stage-shared/src/beat-sync/detector.ts` | Safe `getInputByteFrequencyData` |
 | `packages/stage-ui/src/stores/providers/web-speech-api/index.ts` | Removed debug lifecycle handlers |
 | `packages/stage-ui/src/utils/tts.ts` | Removed leftover `console.debug` |
 | `packages/stage-ui/src/stores/modules/hearing.ts` | Fixed `haveStreamingCallbacksChanged` |
+| `packages/stage-ui/src/composables/use-secure-storage.ts` | New AES-GCM composable |
+| `packages/stage-ui/src/stores/providers.ts` | Replaced `useLocalStorage` with `useSecureStorage` |
+| `apps/server/src/routes/characters/schema.ts` | Made `apiKey` optional |
+| `packages/stage-ui/src/services/characters.ts` | Payload sanitization |
+| `packages/stage-layouts/src/stores/background.ts` | Refactored `localforage` |
+| `packages/stage-ui/src/components/scenarios/dialogs/background-picker/background-picker.vue` | Fixed `emit` typing |

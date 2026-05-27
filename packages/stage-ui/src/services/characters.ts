@@ -180,7 +180,14 @@ export function createCharactersService(): CharactersService {
 
   async function createRemote(client: CharactersRemoteClient, payload: CreateCharacterPayload, options?: CharacterServiceOptions): Promise<Character> {
     options?.abortSignal?.throwIfAborted()
-    const res = await client.api.v1.characters.$post({ json: payload }, requestOptions(options))
+    const safePayload = {
+      ...payload,
+      capabilities: payload.capabilities?.map(cap => ({
+        ...cap,
+        config: { ...cap.config, apiKey: undefined },
+      })),
+    }
+    const res = await client.api.v1.characters.$post({ json: safePayload }, requestOptions(options))
     if (!res.ok)
       throw new Error('Failed to create character')
 
@@ -191,9 +198,16 @@ export function createCharactersService(): CharactersService {
 
   async function updateRemote(client: CharactersRemoteClient, id: string, payload: UpdateCharacterPayload, options?: CharacterServiceOptions): Promise<Character> {
     options?.abortSignal?.throwIfAborted()
+    const safePayload = {
+      ...payload,
+      capabilities: payload.capabilities?.map(cap => ({
+        ...cap,
+        config: { ...cap.config, apiKey: undefined },
+      })),
+    }
     const res = await client.api.v1.characters[':id'].$patch({
       param: { id },
-      json: payload,
+      json: safePayload,
     }, requestOptions(options))
     if (!res.ok)
       throw new Error('Failed to update character')
