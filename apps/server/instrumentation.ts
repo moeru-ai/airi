@@ -34,6 +34,7 @@ import { HttpInstrumentation } from '@opentelemetry/instrumentation-http'
 import { IORedisInstrumentation } from '@opentelemetry/instrumentation-ioredis'
 import { PgInstrumentation } from '@opentelemetry/instrumentation-pg'
 import { RuntimeNodeInstrumentation } from '@opentelemetry/instrumentation-runtime-node'
+import { UndiciInstrumentation } from '@opentelemetry/instrumentation-undici'
 import { resourceFromAttributes } from '@opentelemetry/resources'
 import { BatchLogRecordProcessor } from '@opentelemetry/sdk-logs'
 import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics'
@@ -155,6 +156,8 @@ else {
       }),
       new IORedisInstrumentation(),
       new RuntimeNodeInstrumentation(),
+      // Outbound fetch — HttpInstrumentation only patches node:http/https, not undici.
+      new UndiciInstrumentation(),
     ],
   })
 
