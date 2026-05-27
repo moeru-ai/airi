@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ChatAssistantMessage, ChatHistoryItem, ChatSlices, ChatSlicesText, ChatSlicesToolCallResult } from '../../../../types/chat'
+import type { ChatHistoryItem, ChatSlices, ChatSlicesText, ChatSlicesToolCallResult, StreamingAssistantMessage } from '../../../../types/chat'
 import type { ChatToolCallRendererRegistry } from './tool-call-renderer'
 
 import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
@@ -15,7 +15,7 @@ import { ChatActionMenu } from './action-menu'
 import { createToolCallResultLookup, resolveToolCallBlockState } from './tool-call-results'
 
 const props = withDefaults(defineProps<{
-  message: ChatAssistantMessage
+  message: StreamingAssistantMessage
   label: string
   showPlaceholder?: boolean
   variant?: 'desktop' | 'mobile'

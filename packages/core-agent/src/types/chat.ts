@@ -31,14 +31,6 @@ export interface ChatAssistantMessage extends AssistantMessage {
     speech: string
     reasoning: string
   }
-  /**
-   * Marks an assistant turn that was interrupted by the user via the stop
-   * button. The partial content (slices, categorization, tool_results) is
-   * preserved so the user can see what was produced before the cancel; the
-   * UI renders a "Stopped" badge and the message remains a valid retry
-   * target.
-   */
-  stopped?: boolean
 }
 
 export type ChatMessage = ChatAssistantMessage | SystemMessage | ToolMessage | UserMessage
@@ -75,4 +67,17 @@ export type ChatStreamEvent
     | { type: 'assistant-end', message: string, sessionId: string, context: ChatStreamEventContext }
     | { type: 'assistant-message', message: ChatAssistantMessage, sessionId: string, messageText: string, context: ChatStreamEventContext }
 
-export type StreamingAssistantMessage = ChatAssistantMessage & { context?: ContextMessage } & { createdAt?: number, id?: string }
+export type StreamingAssistantMessage = ChatAssistantMessage & {
+  context?: ContextMessage
+  createdAt?: number
+  id?: string
+  /**
+   * Marks an assistant turn that was interrupted by the user via the stop
+   * button. The partial content (slices, categorization, tool_results) is
+   * preserved so the user can see what was produced before the cancel; the
+   * UI renders a "Stopped" badge and the message remains a valid retry
+   * target. Kept off the wire shape (`ChatAssistantMessage`) so it can't
+   * leak into provider requests.
+   */
+  stopped?: boolean
+}

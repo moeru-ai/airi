@@ -3,7 +3,7 @@ import type { CommonContentPart, Message, ToolMessage } from '@xsai/shared-chat'
 
 import type { AgentContextPort } from '../contracts/context-port'
 import type { AgentForegroundStreamPort } from '../contracts/stream-port'
-import type { ChatAssistantMessage, ChatHistoryItem, ChatSlices, ChatStreamEventContext, ContextMessage, StreamingAssistantMessage } from '../types/chat'
+import type { ChatHistoryItem, ChatSlices, ChatStreamEventContext, ContextMessage, StreamingAssistantMessage } from '../types/chat'
 import type { StreamEvent, StreamOptions } from '../types/llm'
 
 import { createQueue } from '@proj-airi/stream-kit'
@@ -253,8 +253,6 @@ export interface ChatOrchestratorRuntime {
   ingest: (sendingMessage: string, options: ChatOrchestratorSendOptions, targetSessionId?: string) => Promise<void>
   /** Rejects queued sends that have not started yet. */
   cancelPendingSends: (sessionId?: string) => void
-  /** Aborts the in-flight stream for the given session (or any session when omitted). */
-  cancelActiveSend: (sessionId?: string) => void
   /** Aborts the in-flight stream and rejects every queued send. */
   stopSending: (sessionId?: string) => void
   /** Returns serializable snapshots of currently queued sends. */
@@ -347,9 +345,12 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       }
 
       if (rawMessage.role === 'assistant') {
-        // NOTICE: `stopped` is UI/next-turn session-state, not a wire field;
-        // strip it so strict OpenAI-compatible gateways accept the request.
-        const { slices: _slices, tool_results: _toolResults, categorization: _categorization, stopped: _stopped, ...rest } = rawMessage as ChatAssistantMessage
+        // NOTICE: `stopped` lives on `StreamingAssistantMessage` (UI/next-turn
+        // session state), not on the wire-shaped `ChatAssistantMessage`.
+        // It only appears here when the session contains an interrupted turn;
+        // strip it alongside the other runtime fields so strict
+        // OpenAI-compatible gateways accept the request.
+        const { slices: _slices, tool_results: _toolResults, categorization: _categorization, stopped: _stopped, ...rest } = rawMessage as StreamingAssistantMessage
         return unwrapMessage(rest)
       }
 
@@ -845,30 +846,24 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   }
 
   /**
-   * Aborts the in-flight stream, if any.
+   * Aborts the in-flight stream (if any) and rejects every queued send.
    *
    * Use when:
-   * - The user clicks a stop button to cancel the current assistant response.
-   * - A session-scoped cancel is needed; passing `sessionId` will only abort when
-   *   the running send belongs to that session.
+   * - The user clicks the stop button to cancel the current assistant response.
+   * - A session-scoped stop is needed; passing `sessionId` will only abort when
+   *   the running send belongs to that session, while queued sends for that
+   *   session are dropped.
    *
    * Expects:
-   * - The active send loop will see the AbortSignal via `deps.llm.stream`, throw,
-   *   land in the catch block, and discard partial content.
+   * - The active send loop will see the AbortSignal via `deps.llm.stream`, land
+   *   in the catch block, and persist the partial draft with `stopped: true`.
    *
    * Returns:
    * - Nothing. State updates are emitted via `onStateChange` once the send settles.
    */
-  function cancelActiveSend(sessionId?: string) {
-    if (!activeSendController)
-      return
-    if (sessionId && activeSendSessionId !== sessionId)
-      return
-    activeSendController.abort()
-  }
-
   function stopSending(sessionId?: string) {
-    cancelActiveSend(sessionId)
+    if (activeSendController && (!sessionId || activeSendSessionId === sessionId))
+      activeSendController.abort()
     cancelPendingSends(sessionId)
   }
 
@@ -886,7 +881,6 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   return {
     ingest,
     cancelPendingSends,
-    cancelActiveSend,
     stopSending,
     getPendingQueuedSendSnapshot,
     getPendingQueuedSendCount: () => pendingQueuedSends.length,

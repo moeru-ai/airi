@@ -708,16 +708,10 @@ describe('createChatOrchestratorRuntime', () => {
    * @example
    * A previous assistant turn was cancelled and persisted with
    * `stopped: true`. When the next user message is sent, the runtime must
-   * strip `stopped` from the provider-bound message so strict OpenAI-style
-   * gateways do not reject the request on unknown properties.
+   * strip `stopped` (along with the other runtime-only fields) from the
+   * provider-bound message so strict OpenAI-style gateways do not reject
+   * the request on unknown properties.
    */
-  // ROOT CAUSE:
-  //
-  // buildProviderMessages() in chat-orchestrator-runtime.ts only stripped
-  // `slices`, `tool_results`, and `categorization` from assistant
-  // messages. `stopped` is session-state (UI badge, retry, "this turn
-  // was cancelled" context), not a wire-protocol field, so it must also
-  // be stripped before the message goes to the provider.
   it('strips `stopped` from provider-bound assistant messages', async () => {
     const harness = createHarness()
     harness.sessionMessages['session-1'].push({
