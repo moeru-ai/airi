@@ -173,24 +173,26 @@ return next.onSentenceEnd !== previous?.onSentenceEnd
 
 **Files changed:**
 - `packages/stage-ui/src/composables/use-secure-storage.ts` (new)
+- `packages/stage-ui/src/composables/use-secure-storage.test.ts` (new)
 - `packages/stage-ui/src/stores/providers.ts`
 
 **What was wrong:** API keys for providers were stored in `localStorage` in plain text, making them vulnerable to XSS attacks.
 
-**Fix:** Introduced `useSecureStorage` which generates and persists an AES-GCM encryption key via `IndexedDB` and transparently encrypts data before persisting it to `localStorage`. `providerCredentials` was migrated to use this new composable.
+**Fix:** Introduced `useSecureStorage` which generates and persists an AES-GCM encryption key via `IndexedDB` and transparently encrypts data before persisting it to `localStorage`. `providerCredentials` was migrated to use this new composable. Implemented detection and migration logic for plaintext JSON configurations left behind by the older `useLocalStorage` to prevent API key loss on upgrade. Added full Vitest coverage in `use-secure-storage.test.ts` verifying normal operation and plaintext JSON migration.
 
 ---
 
-### 16. Do Not Persist Character API Keys in Public Capabilities
+### 16. Do Not Persist Character API Keys in Public Capabilities (Secure Character Credentials)
 
 **Files changed:**
 - `packages/stage-ui/src/types/character.ts`
 - `apps/server/src/routes/characters/schema.ts`
 - `packages/stage-ui/src/services/characters.ts`
+- `packages/stage-ui/src/stores/characters.ts`
 
-**What was wrong:** The `apiKey` field in `CharacterCapabilityConfigSchema` was required and persisted to the community remote database, leaking user API keys if characters were published.
+**What was wrong:** The `apiKey` field in `CharacterCapabilityConfigSchema` was required and persisted to the community remote database, leaking user API keys if characters were published. When modified to sanitize the server payload, character capability API keys were completely discarded, causing password inputs to be silently discarded after save/reload.
 
-**Fix:** Made `apiKey` optional in both client and server schemas. Modified `createRemote` and `updateRemote` in `characters.ts` service to strip `apiKey` from all capability configurations before sending the payload.
+**Fix:** Made `apiKey` optional in both client and server schemas. Modified `createRemote` and `updateRemote` in `characters.ts` service to strip `apiKey` from all capability configurations before sending the payload. Added client-side secure persistence: `useCharacterStore` stores and retrieves character-specific API keys securely using `useSecureStorage` under `settings/credentials/characters`, preserving the keys locally on the device across saves and reloads while keeping server payloads sanitized.
 
 ---
 
@@ -240,9 +242,11 @@ return next.onSentenceEnd !== previous?.onSentenceEnd
 | `packages/stage-ui/src/stores/providers/web-speech-api/index.ts` | Removed debug lifecycle handlers |
 | `packages/stage-ui/src/utils/tts.ts` | Removed leftover `console.debug` |
 | `packages/stage-ui/src/stores/modules/hearing.ts` | Fixed `haveStreamingCallbacksChanged` |
-| `packages/stage-ui/src/composables/use-secure-storage.ts` | New AES-GCM composable |
+| `packages/stage-ui/src/composables/use-secure-storage.ts` | New AES-GCM composable with plaintext migration |
+| `packages/stage-ui/src/composables/use-secure-storage.test.ts` | Unit tests for AES-GCM and migration |
 | `packages/stage-ui/src/stores/providers.ts` | Replaced `useLocalStorage` with `useSecureStorage` |
 | `apps/server/src/routes/characters/schema.ts` | Made `apiKey` optional |
 | `packages/stage-ui/src/services/characters.ts` | Payload sanitization |
+| `packages/stage-ui/src/stores/characters.ts` | Local secure character API key storage & restoration |
 | `packages/stage-layouts/src/stores/background.ts` | Refactored `localforage` |
 | `packages/stage-ui/src/components/scenarios/dialogs/background-picker/background-picker.vue` | Fixed `emit` typing |
