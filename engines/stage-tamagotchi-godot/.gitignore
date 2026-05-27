@@ -2,6 +2,10 @@
 .godot/
 /android/
 
+# .NET build artifacts
+bin/
+obj/
+
 # Developer-provided local VRM fixtures for editor preview scenes.
 assets/fixtures/vrm/*
 !assets/fixtures/vrm/.gitkeep
