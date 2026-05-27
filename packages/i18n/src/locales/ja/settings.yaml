@@ -1584,8 +1584,6 @@ theme:
 title: 設定
 voices: 音声
 vrm:
-  render-scale:
-    title: レンダリングスケール
   change-model:
     from-file: ファイルから読み込む
     from-file-select: 選択

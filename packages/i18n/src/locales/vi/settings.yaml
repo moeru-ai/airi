@@ -1584,8 +1584,6 @@ theme:
 title: Cài Đặt
 voices: Giọng Nói
 vrm:
-  render-scale:
-    title: Render scale
   change-model:
     from-file: Tải từ Tệp
     from-file-select: Chọn
