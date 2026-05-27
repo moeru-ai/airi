@@ -173,30 +173,29 @@ export async function signOut() {
   // persistence (applyOIDCTokens started saving id_token in this branch);
   // without it, those legacy sessions would skip server cleanup and hit
   // exactly the silent-re-login bug described above.
-  try {
-    if (idTokenHint && clientId) {
-      const url = new URL('/api/auth/oauth2/end-session', SERVER_URL)
-      url.searchParams.set('id_token_hint', idTokenHint)
-      url.searchParams.set('client_id', clientId)
-      await fetchWithTimeout(url.toString(), { method: 'GET' })
-    }
-    else if (bearerToken) {
-      const url = new URL('/api/auth/sign-out', SERVER_URL)
-      await fetchWithTimeout(url.toString(), {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${bearerToken}` },
-      })
-    }
-  }
-  catch {
-    // Network failure or timeout: still clear local state below. Server-side
-    // rows will expire by TTL; the local refreshToken/idToken/clientId are
-    // about to be wiped, so the local user has no way to spend them in the
-    // meantime.
-  }
-  finally {
+  if (idTokenHint && clientId) {
+    const url = new URL('/api/auth/oauth2/end-session', SERVER_URL)
+    url.searchParams.set('id_token_hint', idTokenHint)
+    url.searchParams.set('client_id', clientId)
+    await fetchWithTimeout(url.toString(), { method: 'GET' })
     authStore.clearAllAuthState()
+    return
   }
+
+  if (bearerToken) {
+    const url = new URL('/api/auth/sign-out', SERVER_URL)
+    await fetchWithTimeout(url.toString(), {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${bearerToken}` },
+    })
+    authStore.clearAllAuthState()
+    return
+  }
+
+  // No server-side credential material is available, so there is no
+  // authoritative remote session we can invalidate from this client. In that
+  // legacy/local-only state, local cleanup is still the only available action.
+  authStore.clearAllAuthState()
 }
 
 /**

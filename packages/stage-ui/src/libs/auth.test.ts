@@ -44,7 +44,7 @@ describe('signOut', () => {
     vi.useRealTimers()
   })
 
-  it('clears local auth state after aborting a hung OIDC end-session request', async () => {
+  it('keeps local auth state after aborting a hung OIDC end-session request', async () => {
     vi.useFakeTimers()
 
     const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
@@ -67,8 +67,8 @@ describe('signOut', () => {
     expect(mocks.authStore.clearAllAuthState).not.toHaveBeenCalled()
 
     await vi.advanceTimersByTimeAsync(1)
-    await expect(promise).resolves.toBeUndefined()
-    expect(mocks.authStore.clearAllAuthState).toHaveBeenCalledTimes(1)
+    await expect(promise).rejects.toThrow('sign-out timed out')
+    expect(mocks.authStore.clearAllAuthState).not.toHaveBeenCalled()
     expect((fetchMock.mock.calls[0]?.[1] as RequestInit).signal?.aborted).toBe(true)
   })
 
@@ -85,6 +85,42 @@ describe('signOut', () => {
     resolveFetch()
     await promise
 
+    expect(mocks.authStore.clearAllAuthState).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps local auth state when the bearer sign-out fallback times out', async () => {
+    vi.useFakeTimers()
+    mocks.authStore.idToken = ''
+    mocks.authStore.oidcClientId = ''
+
+    const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+      return new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          reject(new DOMException('sign-out timed out', 'AbortError'))
+        })
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const promise = signOut()
+
+    await vi.advanceTimersByTimeAsync(SIGN_OUT_REQUEST_TIMEOUT_MS)
+    await expect(promise).rejects.toThrow('sign-out timed out')
+    expect(mocks.authStore.clearAllAuthState).not.toHaveBeenCalled()
+    expect((fetchMock.mock.calls[0]?.[1] as RequestInit).signal?.aborted).toBe(true)
+  })
+
+  it('clears local auth state when no server sign-out credential is available', async () => {
+    mocks.authStore.idToken = ''
+    mocks.authStore.oidcClientId = ''
+    mocks.authStore.token = ''
+
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await signOut()
+
+    expect(fetchMock).not.toHaveBeenCalled()
     expect(mocks.authStore.clearAllAuthState).toHaveBeenCalledTimes(1)
   })
 
