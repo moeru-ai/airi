@@ -130,9 +130,6 @@ jobs:
           node-version: lts/*
           cache: pnpm
 
-      - name: Setup Playwright
-        run: pnpm exec playwright install chromium --with-deps
-
       # # Setup .NET and Godot
       # - name: Setup .NET
       #   if: matrix.app_name == 'stage-tamagotchi-godot'
@@ -149,6 +146,10 @@ jobs:
       #     include-templates: true
 
       - run: pnpm install --frozen-lockfile
+
+      - name: Setup Playwright
+        run: pnpm exec playwright install chromium --with-deps
+
       - run: pnpm run build:packages
       - run: pnpm run test:run
 
