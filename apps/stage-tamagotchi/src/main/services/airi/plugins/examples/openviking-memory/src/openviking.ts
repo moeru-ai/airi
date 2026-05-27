@@ -1,3 +1,7 @@
+import type { FindResultItem } from './ranking'
+
+import { pickMemoriesForInjection } from './ranking'
+
 export interface Memory {
   id: string
   content: string
@@ -37,6 +41,7 @@ export interface OpenVikingClientConfig {
 export interface OpenVikingClient {
   searchMemories: (query: string, limit?: number) => Promise<Record<string, unknown>[]>
   recallMemories: (query: string, limit?: number) => Promise<Record<string, unknown>[]>
+  recallCandidateMultiplier: number
   readMemory: (uri: string) => Promise<{ uri: string, content: string }>
   addSessionMessage: (sessionId: string, role: string, content: string, createdAt?: string) => Promise<void>
   getSession: (sessionId: string) => Promise<SessionInfo>
@@ -96,6 +101,7 @@ export function createOpenVikingClient(config: OpenVikingClientConfig): OpenViki
   const { baseUrl, apiKey } = config
   const commitTokenThreshold = config.commitTokenThreshold ?? 20_000
   const commitKeepRecentCount = config.commitKeepRecentCount ?? 10
+  const recallCandidateMultiplier = 3
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   }
@@ -115,6 +121,7 @@ export function createOpenVikingClient(config: OpenVikingClientConfig): OpenViki
   }
 
   return {
+    recallCandidateMultiplier,
     async searchMemories(query: string, limit = 5): Promise<Record<string, unknown>[]> {
       const response = await apiFetch('/api/v1/search/find', {
         method: 'POST',
@@ -134,7 +141,8 @@ export function createOpenVikingClient(config: OpenVikingClientConfig): OpenViki
     },
 
     async recallMemories(query: string, limit = 5): Promise<Record<string, unknown>[]> {
-      return await this.searchMemories(query, limit)
+      const raw = await this.searchMemories(query, limit * this.recallCandidateMultiplier)
+      return pickMemoriesForInjection(raw as unknown as FindResultItem[], limit, query) as unknown as Record<string, unknown>[]
     },
 
     async readMemory(uri: string): Promise<{ uri: string, content: string }> {
