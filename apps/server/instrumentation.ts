@@ -141,7 +141,14 @@ else {
       // Keep HttpInstrumentation for OUTBOUND traces only — LLM gateway,
       // Stripe, Resend, OIDC discovery — so we still get spans on egress.
       new HttpInstrumentation({
-        ignoreIncomingRequestHook: () => true,
+        // NOTICE:
+        // Do not use `ignoreIncomingRequestHook: () => true` here. In
+        // @opentelemetry/instrumentation-http@0.215.0, ignored incoming
+        // requests run the whole Node `request` listener inside
+        // `suppressTracing(...)`, which also suppresses @hono/otel middleware
+        // spans and hand-written route spans. Disabling incoming patching keeps
+        // outbound http/https spans without touching Hono's request context.
+        disableIncomingRequestInstrumentation: true,
       }),
       new PgInstrumentation({
         enhancedDatabaseReporting: true,
