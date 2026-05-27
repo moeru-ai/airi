@@ -347,12 +347,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       }
 
       if (rawMessage.role === 'assistant') {
-        // NOTICE:
-        // `stopped` is session-state for UI (badge, retry, "this turn was
-        // cancelled" context for the next prompt). It is not a wire-protocol
-        // field. Strip it before the provider sees it so strict
-        // OpenAI-compatible gateways do not reject the request on unknown
-        // properties.
+        // NOTICE: `stopped` is UI/next-turn session-state, not a wire field;
+        // strip it so strict OpenAI-compatible gateways accept the request.
         const { slices: _slices, tool_results: _toolResults, categorization: _categorization, stopped: _stopped, ...rest } = rawMessage as ChatAssistantMessage
         return unwrapMessage(rest)
       }
@@ -702,14 +698,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         latencyMs: Math.round(monotonicNow() - llmRequestStartedAt),
       })
 
-      // NOTICE:
-      // Past this point the stream has drained successfully. If the user
-      // presses Stop in the microseconds between parser.end() resolving and
-      // this guard, we still treat the turn as a complete response (no
-      // `stopped` marker, turn-complete hooks fire as normal). Rationale:
-      // every token already arrived, so the response is whole; the abort
-      // signal only reaches here when there is nothing left to cancel. The
-      // catch block below owns the genuine mid-stream cancellation path.
+      // NOTICE: stream drained successfully. A Stop pressed in the gap
+      // between parser.end() and this guard is treated as a completed turn
+      // (no `stopped` marker, turn-complete hooks fire) because every token
+      // already arrived. The catch block owns mid-stream cancellation.
       if (!isStaleGeneration() && buildingMessage.slices.length > 0) {
         const finalAssistant = buildingMessage
         deps.session.appendSessionMessage(sessionId, finalAssistant)
@@ -744,17 +736,12 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       })
     }
     catch (error) {
-      // User-initiated cancellation surfaces as an AbortError from xsai/fetch.
-      // We swallow it here so the caller does not see a synthetic error.
-      //
-      // Persist the partial draft with a `stopped` marker so the UI can
-      // acknowledge the cancellation visibly (badge + retry affordance) and
-      // include the partial assistant turn in the next-turn LLM context.
-      //
-      // Turn-complete hooks are intentionally NOT fired on a stop: downstream
-      // observers (cloud sync, analytics, turn-complete listeners) treat
-      // those as "a full assistant turn landed", which is not what happened
-      // here. The stopped marker is the contract for that state.
+      // Swallow xsai/fetch AbortError so the caller doesn't see a synthetic
+      // error, and persist the partial draft with `stopped: true` for the
+      // UI badge/retry and next-turn context. Turn-complete hooks
+      // deliberately do NOT fire on stop: subscribers (cloud sync,
+      // analytics) treat those as a landed turn, which this isn't. The
+      // stopped marker is the contract for "user cancelled this turn".
       if (sendController.signal.aborted) {
         if (!isStaleGeneration() && buildingMessage.slices.length > 0) {
           const stoppedAssistant: StreamingAssistantMessage = {
@@ -775,22 +762,15 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       throw error
     }
     finally {
-      // NOTICE:
-      // Reset the streaming bubble on every abort path, not just the catch
-      // block. `shouldAbort()` checkpoints between setSending(true) and the
-      // LLM stream call can early-return without entering catch, which would
-      // otherwise leave the empty assistant bubble painted.
+      // NOTICE: reset the bubble on every abort path. Pre-stream
+      // `shouldAbort()` checkpoints can early-return without entering
+      // catch, leaving an empty assistant bubble painted.
       if (sendController.signal.aborted)
         resetForegroundStream(sessionId)
-      // NOTICE:
-      // Fire `onAssistantStop` from `finally` so the lifecycle contract holds
-      // for every abort path, not just the catch from `deps.llm.stream()`.
-      // Early `shouldAbort()` returns at the pre-stream checkpoints (after
-      // `emitBeforeMessageComposedHooks` has already opened TTS/caption
-      // sessions, after prompt projection, after `emitBeforeSendHooks`) used
-      // to bypass this emission entirely, leaking those subscribers'
-      // resources. Subscribers must be able to tear down even when the user
-      // stops faster than the model's first byte.
+      // NOTICE: emit `onAssistantStop` from `finally` so the contract holds
+      // for every abort path. Pre-stream `shouldAbort()` returns (after the
+      // before-message-composed / before-send hooks already opened TTS and
+      // caption sessions) used to bypass this, leaking those resources.
       if (sendController.signal.aborted)
         await hooks.emitAssistantStopHooks(fullText, streamingMessageContext)
       if (activeSendController === sendController) {
