@@ -91,6 +91,7 @@ function setupController() {
     removeMutation: createMutation<string, void>(id => service.removeRemote({} as CharactersRemoteClient, id)),
     service,
     updateMutation: createMutation<{ id: string, data: UpdateCharacterPayload }, Character>(vars => service.updateRemote({} as CharactersRemoteClient, vars.id, vars.data)),
+    activeCharacterId: ref(''),
   })
 
   return { controller, listQuery, model, service }

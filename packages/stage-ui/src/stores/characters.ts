@@ -3,6 +3,7 @@ import type { Ref } from 'vue'
 import type { Character, CreateCharacterPayload, UpdateCharacterPayload } from '../types/character'
 
 import { useMutation, useQuery, useQueryCache } from '@pinia/colada'
+import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
@@ -53,6 +54,7 @@ export function createCharacterStoreController(params: {
   removeMutation: StoreMutation<string, void>
   service: typeof service
   updateMutation: StoreMutation<{ id: string, data: UpdateCharacterPayload }, Character>
+  activeCharacterId: Ref<string>
 }) {
   const {
     auth,
@@ -66,6 +68,7 @@ export function createCharacterStoreController(params: {
     removeMutation,
     service,
     updateMutation,
+    activeCharacterId,
   } = params
   const mutationError = computed(() =>
     createMutation.error.value
@@ -137,6 +140,8 @@ export function createCharacterStoreController(params: {
       ...(payload.version !== undefined ? { version: payload.version } : {}),
       ...(payload.coverUrl !== undefined ? { coverUrl: payload.coverUrl } : {}),
       ...(payload.characterId !== undefined ? { characterId: payload.characterId } : {}),
+      ...(payload.i18n !== undefined ? { i18n: payload.i18n.map(entry => ({ ...entry, id: '', characterId: id, tagline: undefined, createdAt: new Date(), updatedAt: new Date() })) } : {}),
+      ...(payload.capabilities !== undefined ? { capabilities: payload.capabilities.map(cap => ({ ...cap, id: '', characterId: id })) } : {}),
       updatedAt: new Date(),
     }
     characters.value.set(localCharacter.id, localCharacter)
@@ -223,8 +228,13 @@ export function createCharacterStoreController(params: {
     return characters.value.get(id)
   }
 
+  function setActive(id: string) {
+    activeCharacterId.value = id
+  }
+
   return {
     characters,
+    activeCharacterId,
     isLoading: computed(() => listQuery.isLoading.value),
     error: computed(() => listQuery.error.value),
     mutationError,
@@ -237,12 +247,14 @@ export function createCharacterStoreController(params: {
     like,
     bookmark,
     getCharacter,
+    setActive,
   }
 }
 
 export const useCharacterStore = defineStore('characters', () => {
   const characters = ref<Map<string, Character>>(new Map())
   const listAll = ref(false)
+  const activeCharacterId = useLocalStorage<string>('airi:active-character-id', '')
   const auth = useAuthStore()
   const queryCache = useQueryCache()
 
@@ -287,5 +299,6 @@ export const useCharacterStore = defineStore('characters', () => {
     removeMutation,
     service,
     updateMutation,
+    activeCharacterId,
   })
 })

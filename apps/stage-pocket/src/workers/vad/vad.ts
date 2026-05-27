@@ -209,9 +209,13 @@ export class VAD implements BaseVAD {
     const duration = (this.bufferPointer / this.config.sampleRate) * 1000
     const overflowLength = overflow?.length ?? 0
 
-    // Create the final buffer with padding
+    // Create the final buffer with padding.
+    // Clamp the speech segment end to avoid allocating and reading past the
+    // buffer boundary, which would silently zero-pad the tail of the emitted
+    // audio segment when the buffer is nearly full.
+    const speechSegmentEnd = Math.min(this.bufferPointer + speechPadSamples, this.buffer.length)
     const prevLength = this.prevBuffers.reduce((acc, b) => acc + b.length, 0)
-    const finalBuffer = new Float32Array(prevLength + this.bufferPointer + speechPadSamples)
+    const finalBuffer = new Float32Array(prevLength + speechSegmentEnd)
 
     // Add previous buffers for pre-speech padding
     let offset = 0
@@ -221,7 +225,7 @@ export class VAD implements BaseVAD {
     }
 
     // Add the main speech segment
-    finalBuffer.set(this.buffer.slice(0, this.bufferPointer + speechPadSamples), offset)
+    finalBuffer.set(this.buffer.slice(0, speechSegmentEnd), offset)
 
     // Emit the speech segment
     this.emit('speech-end', undefined)
