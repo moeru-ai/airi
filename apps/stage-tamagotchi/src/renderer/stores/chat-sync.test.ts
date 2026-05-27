@@ -130,11 +130,6 @@ vi.mock('@proj-airi/stage-ui/stores/chat', () => ({
   useChatOrchestratorStore: () => ({
     sending: ref(false),
     ingest: mockState.ingest,
-    // The authority watcher subscribes to onAssistantStop so it can
-    // broadcast stop signals to follower windows; the unsubscribe is
-    // pushed into stopSyncWatchers, so the mock returns a no-op disposer.
-    onAssistantStop: vi.fn(() => () => {}),
-    emitAssistantStopHooks: vi.fn(async () => {}),
   }),
 }))
 

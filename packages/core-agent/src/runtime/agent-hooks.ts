@@ -14,7 +14,6 @@ export function createChatHooks(): ChatHookRegistry {
   const onAssistantResponseEndHooks: Array<(message: string, context: ChatStreamEventContext) => Promise<void>> = []
   const onAssistantMessageHooks: Array<(message: StreamingAssistantMessage, messageText: string, context: ChatStreamEventContext) => Promise<void>> = []
   const onChatTurnCompleteHooks: Array<(chat: { output: StreamingAssistantMessage, outputText: string, toolCalls: ToolMessage[] }, context: ChatStreamEventContext) => Promise<void>> = []
-  const onAssistantStopHooks: Array<(messageText: string, context: ChatStreamEventContext) => Promise<void>> = []
 
   function onBeforeMessageComposed(cb: (message: string, context: Omit<ChatStreamEventContext, 'composedMessage'>) => Promise<void>) {
     onBeforeMessageComposedHooks.push(cb)
@@ -106,15 +105,6 @@ export function createChatHooks(): ChatHookRegistry {
     }
   }
 
-  function onAssistantStop(cb: (messageText: string, context: ChatStreamEventContext) => Promise<void>) {
-    onAssistantStopHooks.push(cb)
-    return () => {
-      const index = onAssistantStopHooks.indexOf(cb)
-      if (index >= 0)
-        onAssistantStopHooks.splice(index, 1)
-    }
-  }
-
   function clearHooks() {
     onBeforeMessageComposedHooks.length = 0
     onAfterMessageComposedHooks.length = 0
@@ -126,7 +116,6 @@ export function createChatHooks(): ChatHookRegistry {
     onAssistantResponseEndHooks.length = 0
     onAssistantMessageHooks.length = 0
     onChatTurnCompleteHooks.length = 0
-    onAssistantStopHooks.length = 0
   }
 
   async function emitBeforeMessageComposedHooks(message: string, context: Omit<ChatStreamEventContext, 'composedMessage'>) {
@@ -179,11 +168,6 @@ export function createChatHooks(): ChatHookRegistry {
       await hook(chat, context)
   }
 
-  async function emitAssistantStopHooks(messageText: string, context: ChatStreamEventContext) {
-    for (const hook of onAssistantStopHooks)
-      await hook(messageText, context)
-  }
-
   return {
     onBeforeMessageComposed,
     onAfterMessageComposed,
@@ -195,7 +179,6 @@ export function createChatHooks(): ChatHookRegistry {
     onAssistantResponseEnd,
     onAssistantMessage,
     onChatTurnComplete,
-    onAssistantStop,
     emitBeforeMessageComposedHooks,
     emitAfterMessageComposedHooks,
     emitBeforeSendHooks,
@@ -206,7 +189,6 @@ export function createChatHooks(): ChatHookRegistry {
     emitAssistantResponseEndHooks,
     emitAssistantMessageHooks,
     emitChatTurnCompleteHooks,
-    emitAssistantStopHooks,
     clearHooks,
   }
 }
@@ -222,7 +204,6 @@ export function createAgentHooks<TContext, TAssistantMessage, TToolCall>(): Agen
   const onAssistantResponseEndHooks: Array<(message: string, context: TContext) => Promise<void>> = []
   const onAssistantMessageHooks: Array<(message: TAssistantMessage, messageText: string, context: TContext) => Promise<void>> = []
   const onChatTurnCompleteHooks: Array<(chat: { output: TAssistantMessage, outputText: string, toolCalls: TToolCall[] }, context: TContext) => Promise<void>> = []
-  const onAssistantStopHooks: Array<(messageText: string, context: TContext) => Promise<void>> = []
 
   function createSubscribe<T>(bucket: T[], cb: T) {
     bucket.push(cb)
@@ -244,7 +225,6 @@ export function createAgentHooks<TContext, TAssistantMessage, TToolCall>(): Agen
     onAssistantResponseEndHooks.length = 0
     onAssistantMessageHooks.length = 0
     onChatTurnCompleteHooks.length = 0
-    onAssistantStopHooks.length = 0
   }
 
   async function emitHooks<T extends any[]>(hooks: Array<(...args: T) => Promise<void>>, ...args: T) {
@@ -263,7 +243,6 @@ export function createAgentHooks<TContext, TAssistantMessage, TToolCall>(): Agen
     onAssistantResponseEnd: cb => createSubscribe(onAssistantResponseEndHooks, cb),
     onAssistantMessage: cb => createSubscribe(onAssistantMessageHooks, cb),
     onChatTurnComplete: cb => createSubscribe(onChatTurnCompleteHooks, cb),
-    onAssistantStop: cb => createSubscribe(onAssistantStopHooks, cb),
 
     emitBeforeMessageComposedHooks: (message, context) => emitHooks(onBeforeMessageComposedHooks, message, context),
     emitAfterMessageComposedHooks: (message, context) => emitHooks(onAfterMessageComposedHooks, message, context),
@@ -275,7 +254,6 @@ export function createAgentHooks<TContext, TAssistantMessage, TToolCall>(): Agen
     emitAssistantResponseEndHooks: (message, context) => emitHooks(onAssistantResponseEndHooks, message, context),
     emitAssistantMessageHooks: (message, messageText, context) => emitHooks(onAssistantMessageHooks, message, messageText, context),
     emitChatTurnCompleteHooks: (chat, context) => emitHooks(onChatTurnCompleteHooks, chat, context),
-    emitAssistantStopHooks: (messageText, context) => emitHooks(onAssistantStopHooks, messageText, context),
     clearHooks,
   }
 }

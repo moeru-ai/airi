@@ -490,8 +490,6 @@ describe('createChatOrchestratorRuntime', () => {
   it('persists partial assistant turn with stopped marker when user aborts mid-stream', async () => {
     const harness = createHarness()
     const postStreamHooks: string[] = []
-    const stopHookMessages: string[] = []
-    let appendedCountAtStop = -1
 
     harness.runtime.hooks.onStreamEnd(async () => {
       postStreamHooks.push('stream-end')
@@ -507,14 +505,6 @@ describe('createChatOrchestratorRuntime', () => {
     })
     harness.runtime.hooks.onChatTurnComplete(async () => {
       postStreamHooks.push('turn-complete')
-    })
-    harness.runtime.hooks.onAssistantStop(async (messageText) => {
-      // Capture how many assistant persists happened by the time the stop
-      // hook fires; the orchestrator persists the stopped turn FIRST and
-      // only then emits onAssistantStop, so Stage.vue/captions/mods always
-      // see the persisted partial before they reset their side effects.
-      appendedCountAtStop = harness.assistantAppended.length
-      stopHookMessages.push(messageText)
     })
 
     harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
@@ -562,34 +552,22 @@ describe('createChatOrchestratorRuntime', () => {
     expect(postStreamHooks).toEqual([])
     expect(harness.telemetry.assistantResponseRendered).toEqual([])
     expect(harness.foregroundResets.length).toBeGreaterThan(0)
-    expect(stopHookMessages).toHaveLength(1)
-    expect(stopHookMessages[0]).toBe('partial assistant reply before the user pressed stop')
-    expect(appendedCountAtStop).toBe(1)
   })
 
   /**
    * @example
    * The user clicks Stop before any token has flushed (network slow, or
    * cancelling right after pressing Send). No partial assistant message is
-   * persisted because the slice buffer is empty, but `onAssistantStop`
-   * still fires so the TTS session opened in `onBeforeMessageComposed`
-   * can tear down.
+   * persisted because the slice buffer is empty, and the foreground bubble is
+   * cleared when the send settles.
    */
-  it('still fires onAssistantStop even when no slices have flushed', async () => {
+  it('clears foreground stream without persisting assistant turn when no slices have flushed', async () => {
     const harness = createHarness()
-
-    let stopHookCount = 0
-    let stopMessageText: string | undefined
-    harness.runtime.hooks.onAssistantStop(async (messageText) => {
-      stopHookCount += 1
-      stopMessageText = messageText
-    })
 
     // NOTICE:
     // Mock the stream to hang on the abort signal without ever emitting a
     // text-delta. The orchestrator's guard at the abort branch suppresses
-    // persistence when buildingMessage.slices is empty, so this exercises
-    // the path where onAssistantStop fires alone (no onAssistantMessageAppended).
+    // persistence when buildingMessage.slices is empty.
     harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
       await new Promise<void>((_resolve, reject) => {
         const signal = (options as { abortSignal?: AbortSignal })?.abortSignal
@@ -615,58 +593,7 @@ describe('createChatOrchestratorRuntime', () => {
     expect(harness.assistantAppended).toHaveLength(0)
     const lastMessage = harness.sessionMessages['session-1']?.at(-1)
     expect((lastMessage as ChatHistoryItem | undefined)?.role).not.toBe('assistant')
-    expect(stopHookCount).toBe(1)
-    expect(stopMessageText).toBe('')
-  })
-
-  /**
-   * @example
-   * A normally-completed assistant turn must NOT trigger `onAssistantStop`.
-   * `onAssistantStop` is reserved for user-initiated cancellation; firing
-   * it on success would make subscribers (TTS, captions, motion) reset
-   * mid-finalize.
-   */
-  it('does not fire onAssistantStop on a normally-completed turn', async () => {
-    const harness = createHarness()
-
-    let stopHookCount = 0
-    harness.runtime.hooks.onAssistantStop(async () => {
-      stopHookCount += 1
-    })
-
-    await harness.runtime.ingest('hello', {
-      model: 'gpt-test',
-      chatProvider: provider,
-    })
-
-    expect(stopHookCount).toBe(0)
-    expect(harness.assistantAppended).toHaveLength(1)
-  })
-
-  /**
-   * @example
-   * `clearHooks()` must drop every bucket, including the newly-added
-   * `onAssistantStop` bucket. If it leaked, subscribers from a previous
-   * Stage.vue mount or a torn-down mods plugin would keep firing on the
-   * next stop.
-   */
-  it('clearHooks drops the onAssistantStop subscriber', async () => {
-    const harness = createHarness()
-
-    let stopHookCount = 0
-    harness.runtime.hooks.onAssistantStop(async () => {
-      stopHookCount += 1
-    })
-
-    harness.runtime.hooks.clearHooks()
-
-    await harness.runtime.hooks.emitAssistantStopHooks('any text', {
-      message: { role: 'assistant', content: '', slices: [], tool_results: [] } as StreamingAssistantMessage,
-      contexts: {},
-      composedMessage: [],
-    })
-
-    expect(stopHookCount).toBe(0)
+    expect(harness.foregroundResets.length).toBeGreaterThan(0)
   })
 
   /**
@@ -751,31 +678,12 @@ describe('createChatOrchestratorRuntime', () => {
 
   /**
    * @example
-   * The user presses Stop after `onBeforeMessageComposed` has already opened
-   * a TTS session but before `deps.llm.stream()` is invoked. The pre-stream
-   * `shouldAbort()` checkpoint must still fire `onAssistantStop` so the
-   * leaked TTS session, captions, and any other subscriber resources can
-   * tear down.
+   * The user presses Stop before `deps.llm.stream()` is invoked. The
+   * pre-stream `shouldAbort()` checkpoint should skip the provider call and
+   * clear the foreground assistant bubble.
    */
-  // ROOT CAUSE:
-  //
-  // Pre-stream `shouldAbort()` returns at lines 397/452/614 of
-  // chat-orchestrator-runtime.ts used to `return` without firing
-  // `emitAssistantStopHooks`. The hook was only fired from inside the
-  // catch block, which is only entered when `deps.llm.stream()` itself
-  // throws AbortError. If the stop landed before that call, every
-  // resource opened by `emitBeforeMessageComposedHooks` (TTS session,
-  // captions, motion) was leaked.
-  //
-  // Fix: move `emitAssistantStopHooks` into the `finally` block, gated
-  // by `sendController.signal.aborted`, so every abort path notifies.
-  it('fires onAssistantStop even when stop is pressed before the LLM stream call', async () => {
+  it('skips the LLM stream call when stop is pressed before the provider request', async () => {
     const harness = createHarness()
-
-    let stopHookCount = 0
-    harness.runtime.hooks.onAssistantStop(async () => {
-      stopHookCount += 1
-    })
 
     // NOTICE:
     // Trigger the stop from inside `onBeforeSend`, which fires after
@@ -791,8 +699,9 @@ describe('createChatOrchestratorRuntime', () => {
     })
 
     expect(harness.stream).not.toHaveBeenCalled()
-    expect(stopHookCount).toBe(1)
     expect(harness.assistantAppended).toHaveLength(0)
+    expect(harness.foregroundResets.length).toBeGreaterThan(0)
+    expect(harness.runtime.getSending()).toBe(false)
   })
 
   /**

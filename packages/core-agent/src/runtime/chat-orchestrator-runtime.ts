@@ -767,12 +767,6 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       // catch, leaving an empty assistant bubble painted.
       if (sendController.signal.aborted)
         resetForegroundStream(sessionId)
-      // NOTICE: emit `onAssistantStop` from `finally` so the contract holds
-      // for every abort path. Pre-stream `shouldAbort()` returns (after the
-      // before-message-composed / before-send hooks already opened TTS and
-      // caption sessions) used to bypass this, leaking those resources.
-      if (sendController.signal.aborted)
-        await hooks.emitAssistantStopHooks(fullText, streamingMessageContext)
       if (activeSendController === sendController) {
         activeSendController = undefined
         activeSendSessionId = undefined

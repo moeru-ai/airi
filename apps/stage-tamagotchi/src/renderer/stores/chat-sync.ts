@@ -79,7 +79,6 @@ type ChatSyncMessage
     | { type: 'request-snapshot', requestId: string, senderId: string }
     | { type: 'session-snapshot', authorityId: string, snapshot: SessionSnapshotPayload }
     | { type: 'stream-snapshot', authorityId: string, snapshot: StreamSnapshotPayload }
-    | { type: 'assistant-stop', authorityId: string }
     | ChatCommandMessage<'ingest', IngestCommandPayload>
     | ChatCommandMessage<'spotlight-ingest', SpotlightIngestPayload>
     | ChatCommandMessage<'retry', RetryCommandPayload>
@@ -241,16 +240,6 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     })
   }
 
-  function broadcastAssistantStop() {
-    if (mode.value !== 'authority')
-      return
-
-    post({
-      type: 'assistant-stop',
-      authorityId: instanceId,
-    })
-  }
-
   function stopWatchers() {
     while (stopSyncWatchers.length > 0) {
       const stop = stopSyncWatchers.pop()
@@ -273,9 +262,6 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       watch([sending, streamingMessage], () => {
         broadcastStreamSnapshot()
       }, { deep: true, immediate: true }),
-      chatOrchestrator.onAssistantStop(async () => {
-        broadcastAssistantStop()
-      }),
     )
 
     broadcastAuthorityAnnouncement()
@@ -541,20 +527,6 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
           return
         authorityId.value = message.authorityId
         applyStreamSnapshot(message.snapshot)
-        return
-      case 'assistant-stop':
-        if (mode.value !== 'follower')
-          return
-        authorityId.value = message.authorityId
-        // NOTICE: re-emit locally so follower-side subscribers receive the
-        // stop signal (the orchestrator only emits on the authority). The
-        // context payload is synthetic because no subscriber on this path
-        // reads contexts/composedMessage.
-        void chatOrchestrator.emitAssistantStopHooks('', {
-          message: streamingMessage.value as ChatHistoryItem,
-          contexts: {},
-          composedMessage: [],
-        })
         return
       case 'command':
         void handleCommand(message)

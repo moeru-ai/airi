@@ -13,15 +13,6 @@ export interface ChatHookRegistry {
   onAssistantResponseEnd: (cb: (message: string, context: ChatStreamEventContext) => Promise<void>) => () => void
   onAssistantMessage: (cb: (message: StreamingAssistantMessage, messageText: string, context: ChatStreamEventContext) => Promise<void>) => () => void
   onChatTurnComplete: (cb: (chat: { output: StreamingAssistantMessage, outputText: string, toolCalls: ToolMessage[] }, context: ChatStreamEventContext) => Promise<void>) => () => void
-  /**
-   * Fires when the user cancels an in-flight assistant turn via the Stop
-   * button. Distinct from `onAssistantResponseEnd` (which signals a
-   * completed turn). Subscribers should clean up any in-flight side
-   * effects bound to the assistant's expression (TTS playback, live
-   * captions, "thinking" motion) but must NOT treat the partial as a
-   * finalized turn.
-   */
-  onAssistantStop: (cb: (messageText: string, context: ChatStreamEventContext) => Promise<void>) => () => void
   emitBeforeMessageComposedHooks: (message: string, context: Omit<ChatStreamEventContext, 'composedMessage'>) => Promise<void>
   emitAfterMessageComposedHooks: (message: string, context: ChatStreamEventContext) => Promise<void>
   emitBeforeSendHooks: (message: string, context: ChatStreamEventContext) => Promise<void>
@@ -32,7 +23,6 @@ export interface ChatHookRegistry {
   emitAssistantResponseEndHooks: (message: string, context: ChatStreamEventContext) => Promise<void>
   emitAssistantMessageHooks: (message: StreamingAssistantMessage, messageText: string, context: ChatStreamEventContext) => Promise<void>
   emitChatTurnCompleteHooks: (chat: { output: StreamingAssistantMessage, outputText: string, toolCalls: ToolMessage[] }, context: ChatStreamEventContext) => Promise<void>
-  emitAssistantStopHooks: (messageText: string, context: ChatStreamEventContext) => Promise<void>
   clearHooks: () => void
 }
 export interface HookUnsubscribe {
@@ -50,7 +40,6 @@ export interface AgentHookRegistry<TContext, TAssistantMessage, TToolCall> {
   onAssistantResponseEnd: (cb: (message: string, context: TContext) => Promise<void>) => HookUnsubscribe
   onAssistantMessage: (cb: (message: TAssistantMessage, messageText: string, context: TContext) => Promise<void>) => HookUnsubscribe
   onChatTurnComplete: (cb: (chat: { output: TAssistantMessage, outputText: string, toolCalls: TToolCall[] }, context: TContext) => Promise<void>) => HookUnsubscribe
-  onAssistantStop: (cb: (messageText: string, context: TContext) => Promise<void>) => HookUnsubscribe
 
   emitBeforeMessageComposedHooks: (message: string, context: Omit<TContext, 'composedMessage'>) => Promise<void>
   emitAfterMessageComposedHooks: (message: string, context: TContext) => Promise<void>
@@ -62,6 +51,5 @@ export interface AgentHookRegistry<TContext, TAssistantMessage, TToolCall> {
   emitAssistantResponseEndHooks: (message: string, context: TContext) => Promise<void>
   emitAssistantMessageHooks: (message: TAssistantMessage, messageText: string, context: TContext) => Promise<void>
   emitChatTurnCompleteHooks: (chat: { output: TAssistantMessage, outputText: string, toolCalls: TToolCall[] }, context: TContext) => Promise<void>
-  emitAssistantStopHooks: (messageText: string, context: TContext) => Promise<void>
   clearHooks: () => void
 }

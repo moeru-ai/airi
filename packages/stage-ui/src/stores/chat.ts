@@ -284,7 +284,6 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     emitAssistantResponseEndHooks: runtime.hooks.emitAssistantResponseEndHooks,
     emitAssistantMessageHooks: runtime.hooks.emitAssistantMessageHooks,
     emitChatTurnCompleteHooks: runtime.hooks.emitChatTurnCompleteHooks,
-    emitAssistantStopHooks: runtime.hooks.emitAssistantStopHooks,
 
     onBeforeMessageComposed: runtime.hooks.onBeforeMessageComposed,
     onAfterMessageComposed: runtime.hooks.onAfterMessageComposed,
@@ -296,6 +295,5 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     onAssistantResponseEnd: runtime.hooks.onAssistantResponseEnd,
     onAssistantMessage: runtime.hooks.onAssistantMessage,
     onChatTurnComplete: runtime.hooks.onChatTurnComplete,
-    onAssistantStop: runtime.hooks.onAssistantStop,
   }
 })
