@@ -103,7 +103,9 @@ async function resolveTools(options?: StreamOptions) {
   return tools ?? []
 }
 
-function isAbortError(error: unknown): boolean {
+function isAbortError(error: unknown, signal?: AbortSignal): boolean {
+  if (signal?.aborted)
+    return true
   return typeof error === 'object'
     && error !== null
     && (error as { name?: unknown }).name === 'AbortError'
@@ -235,53 +237,30 @@ export async function streamFrom({
         onEvent,
       })
 
-      // NOTICE: Consume underlying promises to prevent unhandled rejections from
-      // @xsai/stream-text's SSE parser surfacing as faulted app state.
       // NOTICE:
-      // `streamText(...).steps` is the authoritative completion signal for the
-      // full streamed interaction, including tool-call rounds.
-      // Resolving only from `onEvent({ type: 'finish' })` is incorrect when
-      // `options?.waitForTools === true`, because providers can emit
-      // `finishReason: 'tool_calls'` or `finishReason: 'tool-calls'` before the
-      // tool round has fully settled.
-      // That misuse leaves the outer promise pending, which makes provider-backed
-      // eval tasks look like they stop mid-run and prevents later scheduled evals
-      // from starting.
-      // Keep `steps.then(resolveOnce)` so evaluation runners observe the real end
-      // of the stream lifecycle instead of an intermediate tool boundary.
-      //
-      // NOTICE:
-      // When the user presses Stop, every side-channel promise rejects with an
-      // AbortError ("BodyStreamBuffer was aborted"). That is the intended
-      // cancellation path, not a fault: the orchestrator already branches on
-      // `sendController.signal.aborted` to persist the partial turn. Suppress
-      // the console.error in that case so a routine stop does not paint four
-      // red lines in devtools. We still propagate the rejection via
-      // `rejectOnce(error)` on the `steps` catch so the orchestrator's outer
-      // catch block runs and persists the `stopped` marker.
-      const isAbortError = (error: unknown): boolean => {
-        if (options?.abortSignal?.aborted)
-          return true
-        return error instanceof Error && error.name === 'AbortError'
+      // Consume every side-channel promise from `@xsai/stream-text` to swallow
+      // unhandled rejections from its SSE parser. `steps` is the authoritative
+      // completion signal (covers tool-call rounds); resolving only from
+      // `onEvent({ type: 'finish' })` misses `waitForTools` cases where
+      // `finishReason: 'tool_calls'` fires before the round settles.
+      // On Stop these all reject with AbortError; we suppress the console.error
+      // for that path but still `rejectOnce` on `steps` so the orchestrator's
+      // outer catch persists the `stopped` marker.
+      const sideChannels: Array<readonly [string, Promise<unknown>, boolean]> = [
+        ['steps', streamResult.steps, true],
+        ['messages', streamResult.messages, false],
+        ['usage', streamResult.usage, false],
+        ['totalUsage', streamResult.totalUsage, false],
+      ]
+      for (const [label, promise, isPrimary] of sideChannels) {
+        const handled = isPrimary ? promise.then(resolveOnce) : promise
+        void handled.catch((error) => {
+          if (isPrimary)
+            rejectOnce(error)
+          if (!isAbortError(error, options?.abortSignal))
+            console.error(`Stream ${label} error:`, error)
+        })
       }
-
-      void streamResult.steps.then(resolveOnce).catch((error) => {
-        rejectOnce(error)
-        if (!isAbortError(error))
-          console.error('Stream steps error:', error)
-      })
-      void streamResult.messages.catch((error) => {
-        if (!isAbortError(error))
-          console.error('Stream messages error:', error)
-      })
-      void streamResult.usage.catch((error) => {
-        if (!isAbortError(error))
-          console.error('Stream usage error:', error)
-      })
-      void streamResult.totalUsage.catch((error) => {
-        if (!isAbortError(error))
-          console.error('Stream totalUsage error:', error)
-      })
     }
     catch (error) {
       rejectOnce(error)

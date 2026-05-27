@@ -675,9 +675,9 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     })
   }
 
-  async function requestStop(payload: { sessionId?: string } = {}) {
+  async function requestStop(sessionId?: string) {
     if (mode.value === 'authority') {
-      chatOrchestrator.stopSending(payload.sessionId)
+      chatOrchestrator.stopSending(sessionId)
       return
     }
 
@@ -686,7 +686,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       requestId: createRequestId(),
       senderId: instanceId,
       command: 'stop',
-      payload,
+      payload: { sessionId },
     })
   }
 
