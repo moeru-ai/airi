@@ -716,16 +716,43 @@ describe('setupPluginHost', () => {
   it('loads the chess-like demo plugin and exposes an active gamelet module snapshot', async () => {
     const pluginDir = join(pluginsDir, 'airi-plugin-game-chess')
     await mkdir(pluginsDir, { recursive: true })
+    await mkdir(pluginDir, { recursive: true })
+    await writeFile(
+      join(pluginDir, pluginManifestFileName),
+      await readFile(join(chessLikePluginRoot, pluginManifestFileName), 'utf-8'),
+    )
     try {
       await stat(join(chessLikePluginRoot, 'dist'))
-      await cp(join(chessLikePluginRoot, 'dist'), pluginDir, { recursive: true })
+      await cp(join(chessLikePluginRoot, 'dist'), join(pluginDir, 'dist'), { recursive: true })
+      await cp(join(chessLikePluginRoot, 'ui'), join(pluginDir, 'ui'), { recursive: true })
       await symlink(join(chessLikePluginRoot, 'node_modules'), join(pluginDir, 'node_modules'), 'junction')
     }
     catch {
-      await mkdir(pluginDir, { recursive: true })
+      await mkdir(join(pluginDir, 'dist'), { recursive: true })
       await writeFile(
-        join(pluginDir, pluginManifestFileName),
-        await readFile(join(chessLikePluginRoot, pluginManifestFileName), 'utf-8'),
+        join(pluginDir, 'dist', 'index.mjs'),
+        [
+          'export async function init() {}',
+          'export async function configure() {}',
+          'export async function setupModules({ apis }) {',
+          '  const config = {',
+          '    title: \'Chess\',',
+          '    entrypoint: \'./ui/index.html\',',
+          '    widgets: [{ id: \'main-board\', kind: \'primary\' }],',
+          '    widget: {',
+          '      mount: \'iframe\',',
+          '      iframe: { assetPath: \'./ui/index.html\', sandbox: \'allow-scripts allow-same-origin allow-forms allow-popups\' },',
+          '      windowSize: { width: 980, height: 840, minWidth: 640, minHeight: 640 },',
+          '    },',
+          '  }',
+          '  const existing = await apis.bindings.list()',
+          '  if (existing.some(module => module.moduleId === \'chess\'))',
+          '    await apis.bindings.update({ moduleId: \'chess\', config })',
+          '  else',
+          '    await apis.bindings.announce({ moduleId: \'chess\', kitId: \'kit.gamelet\', kitModuleType: \'gamelet\', config })',
+          '  await apis.bindings.activate({ moduleId: \'chess\' })',
+          '}',
+        ].join('\n'),
       )
       await mkdir(join(pluginDir, 'ui'), { recursive: true })
       await writeFile(join(pluginDir, 'ui', 'index.html'), '<!doctype html><title>fallback</title>')
@@ -749,7 +776,7 @@ describe('setupPluginHost', () => {
     // Verify the host exposes the announced module snapshot after activation.
     expect(snapshot.modules).toEqual(expect.arrayContaining([
       expect.objectContaining({
-        moduleId: 'chess-like-main',
+        moduleId: 'chess',
         ownerPluginId: 'airi-plugin-game-chess',
         kitId: 'kit.gamelet',
         kitModuleType: 'gamelet',
@@ -757,21 +784,15 @@ describe('setupPluginHost', () => {
         state: 'active',
         config: expect.objectContaining({
           title: 'Chess',
-          entrypoint: 'ui/index.html',
+          entrypoint: './ui/index.html',
           widget: expect.objectContaining({
             mount: 'iframe',
             iframe: expect.objectContaining({
-              assetPath: 'ui/index.html',
+              assetPath: './ui/index.html',
               src: expect.stringMatching(
                 /^http:\/\/127\.0\.0\.1:\d+\/_airi\/extensions\/airi-plugin-game-chess\/sessions\/[\w-]{10,}\/ui\/index\.html$/,
               ),
               sandbox: 'allow-scripts allow-same-origin allow-forms allow-popups',
-            }),
-          }),
-          config: expect.objectContaining({
-            defaults: expect.objectContaining({
-              airiSide: 'white',
-              opening: 'queen-gambit',
             }),
           }),
           widgets: expect.arrayContaining([

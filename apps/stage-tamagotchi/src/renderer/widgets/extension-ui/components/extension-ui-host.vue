@@ -13,6 +13,7 @@ import { electronPluginGetAssetBaseUrl } from '../../../../shared/eventa/plugin/
 import { electronPluginInspect } from '../../../../shared/eventa/plugin/host'
 import { publishWidgetSparkNotifyReaction } from '../composables/use-bridge-spark'
 import { useExtensionUIForModule } from '../composables/use-extension-ui-for-module'
+import { useGameletAiTurns } from '../composables/use-gamelet-ai-turns'
 import { useIframeMessagePort } from '../composables/use-iframe-message-port'
 import { canRenderExtensionUi, sanitizeExtensionUiRenderProps } from '../host'
 
@@ -61,6 +62,7 @@ function omitControlFields(record: Record<string, any>) {
 const inspectPluginHost = useElectronEventaInvoke(electronPluginInspect)
 const getPluginAssetBaseUrl = useElectronEventaInvoke(electronPluginGetAssetBaseUrl)
 const publishWidgetIframeEvent = useElectronEventaInvoke(widgetsIframePublish)
+const gameletAiTurns = useGameletAiTurns()
 const contextBridgeStore = useContextBridgeStore()
 
 const model = computed<PluginModuleWidgetPayload & Record<string, unknown>>(() => (
@@ -104,6 +106,10 @@ const { context: iframeContext, iframeLoadError, onIframeError, onIframeLoad } =
     moduleConfig,
     propsPayload: resolvedWidgetProps,
     onPublish: async (event) => {
+      // A gamelet may ask the character to react; this stays generic across
+      // gamelets — the gamelet owns any domain-specific wording.
+      gameletAiTurns.handlePublish(event)
+
       if (!moduleId.value) {
         return
       }
