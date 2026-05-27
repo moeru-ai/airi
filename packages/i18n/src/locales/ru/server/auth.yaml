@@ -60,7 +60,7 @@ signIn:
   error:
     fallback: Войти не удалось
     unknown: Произошла неизвестная ошибка
-    authFailed: Аутентификация не пройдена. Пожалуйста, попробуйте снова.
+    socialOnlyNoPassword: This email was registered with Google or GitHub. Sign in with a button below; you can add a password in account settings after signing in.
     passwordMismatch: Пароли не совпадают.
     invalidEmail: Пожалуйста, введите действительный email.
   footer:

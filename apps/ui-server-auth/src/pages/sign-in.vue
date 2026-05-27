@@ -149,7 +149,7 @@ async function handleIdentify(event: Event) {
     if (result.exists && !result.hasPassword) {
       // User signed up via a social provider only. Stay on the identifier step
       // so the OAuth buttons remain visible, and steer them there with a hint.
-      errorMessage.value = t('server.auth.signIn.error.authFailed')
+      errorMessage.value = t('server.auth.signIn.error.socialOnlyNoPassword')
       // NOTICE:
       // We avoid disclosing *which* social provider they used here. The
       // generic OAuth button row is right below; users who registered via
@@ -277,7 +277,7 @@ async function handleEmailSignUp(event: Event) {
          when there's nothing to show; the role swaps to alert when populated. -->
     <div
       :class="[
-        'mb-2 max-w-xs w-full min-h-[1.25rem] text-center text-sm',
+        'mb-2 max-w-sm w-full min-h-[1.25rem] text-center text-sm',
         errorMessage ? 'text-red-500' : 'text-transparent select-none',
       ]"
       :role="errorMessage ? 'alert' : undefined"
