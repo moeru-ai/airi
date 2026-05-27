@@ -308,7 +308,12 @@ describe('createAdminRouterConfigService', () => {
         overrideModel: 'openai/gpt-4o-mini',
         plaintextKey: 'sk-or-secret',
       }],
-      defaults: { chatModel: 'chat-default' },
+      defaults: {
+        chatModel: 'chat-default',
+        ttsVoices: {
+          'alibaba/cosyvoice-v2': { 'zh-CN': 'longxiaochun_v2' },
+        },
+      },
     })
 
     expect(kv.store.size).toBe(0)
@@ -323,6 +328,9 @@ describe('createAdminRouterConfigService', () => {
     expect(ct).not.toContain('sk-or-secret')
 
     expect(result.preview.DEFAULT_CHAT_MODEL).toBe('chat-default')
+    expect(result.preview.DEFAULT_TTS_VOICES).toEqual({
+      'alibaba/cosyvoice-v2': { 'zh-CN': 'longxiaochun_v2' },
+    })
   })
 
   it('writes LLM_ROUTER_CONFIG, DEFAULT_CHAT_MODEL, and publishes invalidation', async () => {
@@ -343,6 +351,40 @@ describe('createAdminRouterConfigService', () => {
     expect(kv.store.get('DEFAULT_CHAT_MODEL')).toBe('chat-default')
     expect(result.invalidatedKeys.sort()).toEqual(['DEFAULT_CHAT_MODEL', 'LLM_ROUTER_CONFIG'])
     expect(captured.map(p => JSON.parse(p.payload).key).sort()).toEqual(['DEFAULT_CHAT_MODEL', 'LLM_ROUTER_CONFIG'])
+  })
+
+  it('writes DEFAULT_TTS_VOICES without requiring provider slices', async () => {
+    const service = createAdminRouterConfigService({ configKV: kv.service, envelope, redis })
+    const result = await service.apply({
+      mode: 'merge',
+      dryRun: false,
+      slices: [],
+      defaults: {
+        ttsVoices: {
+          'alibaba/cosyvoice-v2': {
+            'zh-CN': 'longxiaochun_v2',
+            'en-US': 'loongava_v2',
+          },
+          'volcengine/seed-tts-2.0': {
+            'zh-CN': 'zh_female_vv_uranus_bigtts',
+          },
+        },
+      },
+    })
+
+    expect(kv.store.get('DEFAULT_TTS_VOICES')).toEqual({
+      'alibaba/cosyvoice-v2': {
+        'zh-CN': 'longxiaochun_v2',
+        'en-US': 'loongava_v2',
+      },
+      'volcengine/seed-tts-2.0': {
+        'zh-CN': 'zh_female_vv_uranus_bigtts',
+      },
+    })
+    expect(kv.store.has('LLM_ROUTER_CONFIG')).toBe(false)
+    expect(result.preview.DEFAULT_TTS_VOICES).toEqual(kv.store.get('DEFAULT_TTS_VOICES'))
+    expect(result.invalidatedKeys).toEqual(['DEFAULT_TTS_VOICES'])
+    expect(captured.map(p => JSON.parse(p.payload).key)).toEqual(['DEFAULT_TTS_VOICES'])
   })
 
   it('writes UNSPEECH_UPSTREAM and publishes invalidation when an unspeech slice is included', async () => {
