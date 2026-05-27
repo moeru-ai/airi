@@ -285,16 +285,23 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   }
 
   function initialize() {
-    if (cards.value.has('default'))
-      return
-    cards.value.set('default', newAiriCard({
-      name: 'ReLU',
-      version: '1.0.0',
-      description: SystemPromptV2(
-        t('base.prompt.prefix'),
-        t('base.prompt.suffix'),
-      ).content,
-    }))
+    if (cards.value.has('default')) {
+      const card = cards.value.get('default')
+      // Only refresh the description if it lacks the ACT token instruction,
+      // so user-customized prompts are not overwritten on startup.
+      if (card && typeof card.description === 'string' && !card.description.includes('You MUST control')) {
+        const description = SystemPromptV2(t('base.prompt.prefix'), t('base.prompt.suffix')).content
+        cards.value.set('default', { ...card, description })
+      }
+    }
+    else {
+      const description = SystemPromptV2(t('base.prompt.prefix'), t('base.prompt.suffix')).content
+      cards.value.set('default', newAiriCard({
+        name: 'ReLU',
+        version: '1.0.0',
+        description,
+      }))
+    }
     if (!activeCardId.value)
       activeCardId.value = 'default'
   }

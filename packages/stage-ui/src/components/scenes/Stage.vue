@@ -11,7 +11,7 @@ import { sleep } from '@moeru/std'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import { createPlaybackManager, createSpeechPipeline, normalizeActPayload } from '@proj-airi/pipelines-audio'
-import { Live2DScene, useLive2dParams } from '@proj-airi/stage-ui-live2d'
+import { Live2DScene, useExpressionStore, useLive2dParams } from '@proj-airi/stage-ui-live2d'
 import { SpineScene } from '@proj-airi/stage-ui-spine'
 import { ThreeScene } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
@@ -31,6 +31,7 @@ import { useDuckDb } from '../../composables/use-duck-db'
 import { useIOTraceBridge } from '../../composables/use-io-trace-bridge'
 import { initIOTracer } from '../../composables/use-io-tracer'
 import { useSpeechPipelineAnalytics } from '../../composables/use-speech-pipeline-analytics'
+import { EMOTION_EXPRESSION_MAPPINGS, STANDARD_EXP_CONVENTION } from '../../constants/emotion-expression-mappings'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { getDefaultStreamingModel, getDefinedProvider } from '../../libs/providers/providers'
 import { createStageTtsSession } from '../../libs/speech/tts-session'
@@ -135,6 +136,7 @@ const backgroundStore = useBackgroundStore()
 const { activeBackgroundUrl } = storeToRefs(backgroundStore)
 
 const { currentMotion } = storeToRefs(useLive2dParams())
+const expressionStore = useExpressionStore()
 
 const emotionsQueue = createQueue<EmotionPayload>({
   handlers: [
@@ -148,6 +150,13 @@ const emotionsQueue = createQueue<EmotionPayload>({
         await vrmViewerRef.value!.setExpression(value, ctx.data.intensity)
       }
       else if (stageModelRenderer.value === 'live2d') {
+        // Resolve expression group name: per-model override → standard convention → skip
+        const perModelOverride = EMOTION_EXPRESSION_MAPPINGS[stageModelSelected.value]
+        const exprName = (perModelOverride && perModelOverride[ctx.data.name])
+          ?? STANDARD_EXP_CONVENTION[ctx.data.name]
+        if (exprName && expressionStore.expressionGroups.has(exprName)) {
+          expressionStore.set(exprName, true)
+        }
         currentMotion.value = { group: EMOTION_EmotionMotionName_value[ctx.data.name] }
       }
       else if (stageModelRenderer.value === 'spine') {
@@ -189,15 +198,13 @@ chatHookCleanups.push(streamingControl.onSignal(async (signal) => {
     const act = normalizeActPayload(signal.payload)
     if (act.motion && stageModelRenderer.value === 'live2d') {
       currentMotion.value = { group: act.motion }
-      return
     }
     if (act.emotion) {
       const emotion = toStageEmotionPayload(act.emotion)
-      if (!emotion)
+      if (!emotion) {
         return
+      }
 
-      // eslint-disable-next-line no-console
-      console.debug('emotion detected', emotion)
       emotionsQueue.enqueue(emotion)
     }
     return
