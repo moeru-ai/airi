@@ -423,6 +423,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     // Hoisted out of the try block so the abort path in catch can persist
     // the partial transcript captured up to the stop point.
     let fullText = ''
+    let finalFlushInProgress = false
+    let parser: ReturnType<typeof useLlmmarkerParser> | undefined
 
     try {
       await hooks.emitBeforeMessageComposedHooks(sendingMessage, streamingMessageContext)
@@ -481,9 +483,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       const categorizer = createStreamingCategorizer(deps.getActiveProvider())
       let streamPosition = 0
 
-      const parser = useLlmmarkerParser({
+      parser = useLlmmarkerParser({
         onLiteral: async (literal) => {
-          if (shouldAbort())
+          // Stale generations always reject; the abort-aborted check yields only
+          // during a final flush so the residual buffer can land.
+          if (isStaleGeneration())
+            return
+          if (sendController.signal.aborted && !finalFlushInProgress)
             return
 
           categorizer.consume(literal)
@@ -494,7 +500,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           if (speechOnly.trim()) {
             buildingMessage.content += speechOnly
 
-            await hooks.emitTokenLiteralHooks(speechOnly, streamingMessageContext)
+            // Final flush does not re-feed token hooks: Stop halts downstream tokens.
+            if (!finalFlushInProgress)
+              await hooks.emitTokenLiteralHooks(speechOnly, streamingMessageContext)
 
             const lastSlice = buildingMessage.slices.at(-1)
             if (lastSlice?.type === 'text') {
@@ -666,7 +674,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
                 })
               }
               fullText += event.text
-              await parser.consume(event.text)
+              await parser!.consume(event.text)
               break
             case 'reasoning-delta': {
               if (shouldAbort())
@@ -693,7 +701,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         },
       })
 
-      await parser.end()
+      await parser!.end()
       deps.onAssistantResponseRendered?.({
         model: options.model,
         latencyMs: Math.round(monotonicNow() - llmRequestStartedAt),
@@ -744,6 +752,24 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       // analytics) treat those as a landed turn, which this isn't. The
       // stopped marker is the contract for "user cancelled this turn".
       if (sendController.signal.aborted) {
+        // NOTICE:
+        // Drain the marker parser's residual buffer and let onEnd compute final
+        // categorization before testing the persistence gate. Try/finally so a
+        // categorization failure can't leave finalFlushInProgress stuck. Skip
+        // when stop fires before the parser is built (pre-compose abort).
+        if (parser) {
+          finalFlushInProgress = true
+          try {
+            await parser.end()
+          }
+          catch (flushError) {
+            console.error('parser.end() on stop failed:', flushError)
+          }
+          finally {
+            finalFlushInProgress = false
+          }
+        }
+
         if (!isStaleGeneration() && buildingMessage.slices.length > 0) {
           const stoppedAssistant: StreamingAssistantMessage = {
             ...buildingMessage,

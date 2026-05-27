@@ -508,12 +508,6 @@ describe('createChatOrchestratorRuntime', () => {
     })
 
     harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
-      // NOTICE:
-      // Text length must exceed STREAMING_UI_FLUSH_CHUNK_SIZE (24) so the
-      // marker parser flushes a slice synchronously before we hang on the
-      // abort signal. Without that flush, buildingMessage.slices is empty
-      // and the abort path correctly skips persistence, which would not
-      // exercise the stopped-marker contract under test.
       await options?.onStreamEvent?.({
         type: 'text-delta',
         text: 'partial assistant reply before the user pressed stop',
@@ -594,6 +588,207 @@ describe('createChatOrchestratorRuntime', () => {
     const lastMessage = harness.sessionMessages['session-1']?.at(-1)
     expect((lastMessage as ChatHistoryItem | undefined)?.role).not.toBe('assistant')
     expect(harness.foregroundResets.length).toBeGreaterThan(0)
+  })
+
+  /**
+   * @example
+   * The assistant emits a short text-delta that stays under the parser's
+   * streaming flush threshold. On Stop, the catch-path flush drains the
+   * parser buffer so the full short reply persists with stopped: true.
+   */
+  it('persists short stopped reply by flushing parser buffer on abort', async () => {
+    const harness = createHarness()
+
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'short reply' })
+      await new Promise<void>((_resolve, reject) => {
+        const signal = (options as { abortSignal?: AbortSignal })?.abortSignal
+        signal?.addEventListener('abort', () => {
+          reject(new DOMException('aborted', 'AbortError'))
+        })
+      })
+    })
+
+    const send = harness.runtime.ingest('hello', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    await vi.waitFor(() => {
+      expect(harness.stream).toHaveBeenCalledTimes(1)
+    })
+
+    harness.runtime.stopSending('session-1')
+    await send
+
+    const lastMessage = harness.sessionMessages['session-1']?.at(-1) as StreamingAssistantMessage
+    expect(lastMessage).toMatchObject({
+      role: 'assistant',
+      stopped: true,
+      content: 'short reply',
+    })
+    expect(lastMessage.slices).toEqual([
+      { type: 'text', text: 'short reply' },
+    ])
+  })
+
+  /**
+   * @example
+   * A reply exceeding the streaming flush threshold leaves a short tail in the
+   * parser's lookahead buffer (retained for partial-marker detection). The
+   * catch-path flush emits that tail so the persisted message is byte-complete.
+   */
+  it('persists the buffered tail of a stopped reply that exceeds the flush threshold', async () => {
+    const harness = createHarness()
+
+    const fullReply = 'this reply is long enough to cross the streaming flush threshold and leave a tail'
+
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: fullReply })
+      await new Promise<void>((_resolve, reject) => {
+        const signal = (options as { abortSignal?: AbortSignal })?.abortSignal
+        signal?.addEventListener('abort', () => {
+          reject(new DOMException('aborted', 'AbortError'))
+        })
+      })
+    })
+
+    const send = harness.runtime.ingest('hello', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    await vi.waitFor(() => {
+      expect(harness.stream).toHaveBeenCalledTimes(1)
+    })
+
+    harness.runtime.stopSending('session-1')
+    await send
+
+    const lastMessage = harness.sessionMessages['session-1']?.at(-1) as StreamingAssistantMessage
+    expect(lastMessage.content).toBe(fullReply)
+    const concatenated = lastMessage.slices
+      .filter((slice): slice is { type: 'text', text: string } => slice.type === 'text')
+      .map(slice => slice.text)
+      .join('')
+    expect(concatenated).toBe(fullReply)
+  })
+
+  /**
+   * @example
+   * onEnd computes the categorization (speech vs reasoning split). The flush
+   * runs end() inside the abort branch so stopped messages carry the same
+   * categorization shape as completed ones.
+   */
+  it('populates categorization on stopped messages', async () => {
+    const harness = createHarness()
+
+    const reply = 'short reply'
+
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: reply })
+      await new Promise<void>((_resolve, reject) => {
+        const signal = (options as { abortSignal?: AbortSignal })?.abortSignal
+        signal?.addEventListener('abort', () => {
+          reject(new DOMException('aborted', 'AbortError'))
+        })
+      })
+    })
+
+    const send = harness.runtime.ingest('hello', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    await vi.waitFor(() => {
+      expect(harness.stream).toHaveBeenCalledTimes(1)
+    })
+
+    harness.runtime.stopSending('session-1')
+    await send
+
+    const lastMessage = harness.sessionMessages['session-1']?.at(-1) as StreamingAssistantMessage
+    expect(lastMessage.categorization).toBeDefined()
+    expect(lastMessage.categorization?.speech).toBe(reply)
+  })
+
+  /**
+   * @example
+   * Stop arrives while the parser is mid-marker (inside `<|...`). The marker
+   * parser's end() only flushes when not in a tag, so the partial-tag bytes
+   * stay out of the persisted slice list while the speech prefix before the
+   * opening marker is preserved.
+   */
+  it('drops in-progress tag fragment when stopped mid-marker', async () => {
+    const harness = createHarness()
+
+    const prefix = 'speech before the marker '
+    const partialMarker = '<|incomplete'
+
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: prefix + partialMarker })
+      await new Promise<void>((_resolve, reject) => {
+        const signal = (options as { abortSignal?: AbortSignal })?.abortSignal
+        signal?.addEventListener('abort', () => {
+          reject(new DOMException('aborted', 'AbortError'))
+        })
+      })
+    })
+
+    const send = harness.runtime.ingest('hello', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    await vi.waitFor(() => {
+      expect(harness.stream).toHaveBeenCalledTimes(1)
+    })
+
+    harness.runtime.stopSending('session-1')
+    await send
+
+    const lastMessage = harness.sessionMessages['session-1']?.at(-1) as StreamingAssistantMessage
+    expect(lastMessage.content).not.toContain(partialMarker)
+    const concatenated = lastMessage.slices
+      .filter((slice): slice is { type: 'text', text: string } => slice.type === 'text')
+      .map(slice => slice.text)
+      .join('')
+    expect(concatenated).not.toContain(partialMarker)
+    expect(concatenated).toBe(prefix)
+  })
+
+  /**
+   * @example
+   * Stop fires before any text-delta lands. The flush has no buffered content,
+   * the slice gate skips persistence, and assistantResponseRendered (success-
+   * path-only) does not fire.
+   */
+  it('leaves no message persisted and no rendered-telemetry when stop fires before any text-delta', async () => {
+    const harness = createHarness()
+
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      await new Promise<void>((_resolve, reject) => {
+        const signal = (options as { abortSignal?: AbortSignal })?.abortSignal
+        signal?.addEventListener('abort', () => {
+          reject(new DOMException('aborted', 'AbortError'))
+        })
+      })
+    })
+
+    const send = harness.runtime.ingest('hello', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    await vi.waitFor(() => {
+      expect(harness.stream).toHaveBeenCalledTimes(1)
+    })
+
+    harness.runtime.stopSending('session-1')
+    await send
+
+    expect(harness.assistantAppended).toHaveLength(0)
+    expect(harness.telemetry.assistantResponseRendered).toEqual([])
   })
 
   /**
