@@ -17,16 +17,29 @@ export interface ConversationTurn {
 export interface ConversationSaveResult {
   id: string
   sessionId: string
+  committed?: boolean
+}
+
+export interface SessionInfo {
+  sessionId: string
+  pendingTokens?: number
+  totalTokens?: number
+  messageCount?: number
 }
 
 export interface OpenVikingClientConfig {
   baseUrl: string
   apiKey: string
+  commitTokenThreshold?: number
+  commitKeepRecentCount?: number
 }
 
 export interface OpenVikingClient {
   searchMemories: (query: string, limit?: number) => Promise<Record<string, unknown>[]>
   readMemory: (uri: string) => Promise<{ uri: string, content: string }>
+  addSessionMessage: (sessionId: string, role: string, content: string, createdAt?: string) => Promise<void>
+  getSession: (sessionId: string) => Promise<SessionInfo>
+  commitSession: (sessionId: string, keepRecentCount?: number) => Promise<void>
   saveConversation: (conversation: ConversationTurn) => Promise<ConversationSaveResult>
   saveMemory: (content: string, tags?: string[]) => Promise<{ id: string }>
   deleteMemory: (id: string) => Promise<void>
@@ -80,6 +93,8 @@ export function extractTimestampFromUri(uri: unknown): string {
 
 export function createOpenVikingClient(config: OpenVikingClientConfig): OpenVikingClient {
   const { baseUrl, apiKey } = config
+  const commitTokenThreshold = config.commitTokenThreshold ?? 20_000
+  const commitKeepRecentCount = config.commitKeepRecentCount ?? 10
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   }
@@ -129,36 +144,83 @@ export function createOpenVikingClient(config: OpenVikingClientConfig): OpenViki
       return { uri, content: data.result ?? '' }
     },
 
+    async addSessionMessage(sessionId: string, role: string, content: string, createdAt?: string): Promise<void> {
+      const payload: Record<string, unknown> = { role, content }
+      if (createdAt) {
+        payload.created_at = createdAt
+      }
+      const response = await apiFetch(`/api/v1/sessions/${sessionId}/messages`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      })
+      if (!response.ok) {
+        throw new Error(`add session message failed: HTTP ${response.status}`)
+      }
+    },
+
+    async getSession(sessionId: string): Promise<SessionInfo> {
+      const response = await apiFetch(`/api/v1/sessions/${sessionId}`, {
+        method: 'GET',
+      })
+      if (!response.ok) {
+        throw new Error(`get session failed: HTTP ${response.status}`)
+      }
+      const body = await response.json() as {
+        status: string
+        result?: {
+          session_id?: string
+          pending_tokens?: number
+          total_tokens?: number
+          message_count?: number
+        }
+        error?: string | null
+      }
+      if (body.status !== 'ok' || !body.result) {
+        throw new Error(`get session failed: ${body.error ?? 'unknown error'}`)
+      }
+      const r = body.result
+      return {
+        sessionId: r.session_id ?? sessionId,
+        pendingTokens: r.pending_tokens,
+        totalTokens: r.total_tokens,
+        messageCount: r.message_count,
+      }
+    },
+
+    async commitSession(sessionId: string, keepRecentCount?: number): Promise<void> {
+      const response = await apiFetch(`/api/v1/sessions/${sessionId}/commit`, {
+        method: 'POST',
+        body: JSON.stringify({
+          keep_recent_count: keepRecentCount ?? commitKeepRecentCount,
+        }),
+      })
+      if (!response.ok) {
+        throw new Error(`commit session failed: HTTP ${response.status}`)
+      }
+    },
+
     async saveConversation(conversation: ConversationTurn): Promise<ConversationSaveResult> {
       const sessionId = conversation.sessionId || crypto.randomUUID()
 
-      const userPayload = {
-        role: 'user',
-        content: conversation.userMessage || '(empty)',
-        created_at: conversation.timestamp,
+      await this.addSessionMessage(sessionId, 'user', conversation.userMessage || '(empty)', conversation.timestamp)
+      await this.addSessionMessage(sessionId, 'assistant', conversation.assistantResponse || '(empty)', conversation.timestamp)
+
+      let committed = false
+      try {
+        const session = await this.getSession(sessionId)
+        const pendingTokens = session.pendingTokens ?? 0
+        if (pendingTokens >= commitTokenThreshold) {
+          await this.commitSession(sessionId, commitKeepRecentCount)
+          committed = true
+        }
       }
-      const msgRes = await apiFetch(`/api/v1/sessions/${sessionId}/messages`, {
-        method: 'POST',
-        body: JSON.stringify(userPayload),
-      })
-      if (!msgRes.ok) {
-        throw new Error(`save message failed: HTTP ${msgRes.status}`)
+      catch {
+        // NOTICE:
+        // getSession or commitSession may fail (e.g. session auto-creation timing).
+        // Do not block the conversation save result; the messages are already persisted.
       }
 
-      const assistantPayload = {
-        role: 'assistant',
-        content: conversation.assistantResponse || '(empty)',
-        created_at: conversation.timestamp,
-      }
-      const assistRes = await apiFetch(`/api/v1/sessions/${sessionId}/messages`, {
-        method: 'POST',
-        body: JSON.stringify(assistantPayload),
-      })
-      if (!assistRes.ok) {
-        throw new Error(`save assistant message failed: HTTP ${assistRes.status}`)
-      }
-
-      return { id: sessionId, sessionId }
+      return { id: sessionId, sessionId, committed }
     },
 
     async deleteMemory(id: string): Promise<void> {
