@@ -14,8 +14,8 @@ import { electronPluginList } from '../../shared/eventa/plugin/host'
 import { electronPluginInvokeTool, electronPluginListXsaiTools } from '../../shared/eventa/plugin/tools'
 
 const PLUGIN_CONTEXT_ID_PREFIX = 'system:plugin:'
-const MEMORY_SAVE_CONVERSATION_TOOL = 'memory_save_conversation'
-const MEMORY_SEARCH_TOOL = 'memory_search'
+const MEMORY_SAVE_TURN = 'memory_save_turn'
+const MEMORY_RECALL_TOOL = 'memory_recall'
 const MEMORY_CONTEXT_TIMEOUT_MS = 3_000
 
 function generateId(): string {
@@ -86,10 +86,10 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
           pluginsWithMemorySaveTool.clear()
           pluginsWithMemorySearchTool.clear()
           for (const tool of definitions.tools) {
-            if (tool.name === MEMORY_SAVE_CONVERSATION_TOOL) {
+            if (tool.name === MEMORY_SAVE_TURN) {
               pluginsWithMemorySaveTool.add(tool.ownerPluginId)
             }
-            if (tool.name === MEMORY_SEARCH_TOOL) {
+            if (tool.name === MEMORY_RECALL_TOOL) {
               pluginsWithMemorySearchTool.add(tool.ownerPluginId)
             }
           }
@@ -141,7 +141,7 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
       loadedPlugins.map(async (plugin) => {
         const result = await invokePluginTool({
           ownerPluginId: plugin.name,
-          name: MEMORY_SEARCH_TOOL,
+          name: MEMORY_RECALL_TOOL,
           input: { query: sendingMessage },
         }, { signal: AbortSignal.timeout(MEMORY_CONTEXT_TIMEOUT_MS) })
 
@@ -220,7 +220,7 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
         for (const plugin of loadedPlugins) {
           invokePluginTool({
             ownerPluginId: plugin.name,
-            name: MEMORY_SAVE_CONVERSATION_TOOL,
+            name: MEMORY_SAVE_TURN,
             input: turn,
           }).catch((err: unknown) => console.warn(`[plugin-tools] failed to save turn to plugin "${plugin.name}"`, err))
         }

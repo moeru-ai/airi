@@ -51,8 +51,20 @@
 
 - **读取记忆**（`memory_read`）：根据 URI 读取一条记忆的完整内容
 - **保存记忆**（`memory_save`）：将重要信息保存到长期记忆
-- **保存对话记录**（`memory_save_conversation`）：将一轮对话（用户消息 + 助手回复 + 工具调用）保存到长期记忆
+- **保存对话记录**（`memory_save_turn`）：将一轮对话（用户消息 + 助手回复 + 工具调用）保存到长期记忆。此工具由系统自动触发，AI 助手不应主动调用。
+- **召回记忆**（`memory_recall`）：自动召回与当前对话相关的长期记忆，用于上下文注入。此工具由系统自动触发，AI 助手不应主动调用。
 - **删除记忆**（`memory_delete`）：删除指定的记忆条目
+
+> `memory_recall` 和 `memory_save_turn` 为系统级工具，由框架在对话处理流程中自动调用，用于上下文注入和对话持久化。AI 助手不会在工具选择列表中看到它们，开发者也不应手动调用。
+
+### Session 记忆处理
+
+对话通过 `memory_save_turn` 保存到 Session 后，系统会按以下规则决定是否将对话内容转化为可检索的记忆：
+
+- **短对话**（累计 pending tokens < 20,000）：仅保存到 Session，不参与记忆搜索
+- **长对话**（累计 pending tokens ≥ 20,000）：自动提交并做 embedding 处理，之后可通过记忆注入（`memory_recall`）或 Agent 主动搜索（`memory_search`）找到
+
+例如，一个持续数小时的长对话（如聊了一整晚）达到阈值后会被 embedding，后续用户提问时系统会自动召回相关记忆片段作为上下文注入。
 
 ## 安装
 
@@ -119,11 +131,12 @@
 
 加载成功后，AIRI 将获得以下工具能力：
 
-- `memory_search` — 搜索长期记忆
-- `memory_read` — 根据 URI 读取记忆完整内容
-- `memory_save` — 保存记忆
-- `memory_save_conversation` — 保存对话记录
-- `memory_delete` — 删除记忆
+- `memory_search` — 搜索长期记忆（Agent 主动调用）
+- `memory_read` — 根据 URI 读取记忆完整内容（Agent 主动调用）
+- `memory_save` — 保存记忆（Agent 主动调用）
+- `memory_save_turn` — 保存对话记录（系统自动触发）
+- `memory_recall` — 召回记忆（系统自动触发）
+- `memory_delete` — 删除记忆（Agent 主动调用）
 
 ## 开发
 

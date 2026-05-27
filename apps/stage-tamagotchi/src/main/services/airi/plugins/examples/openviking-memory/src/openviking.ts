@@ -36,11 +36,12 @@ export interface OpenVikingClientConfig {
 
 export interface OpenVikingClient {
   searchMemories: (query: string, limit?: number) => Promise<Record<string, unknown>[]>
+  recallMemories: (query: string, limit?: number) => Promise<Record<string, unknown>[]>
   readMemory: (uri: string) => Promise<{ uri: string, content: string }>
   addSessionMessage: (sessionId: string, role: string, content: string, createdAt?: string) => Promise<void>
   getSession: (sessionId: string) => Promise<SessionInfo>
   commitSession: (sessionId: string, keepRecentCount?: number) => Promise<void>
-  saveConversation: (conversation: ConversationTurn) => Promise<ConversationSaveResult>
+  saveTurn: (turn: ConversationTurn) => Promise<ConversationSaveResult>
   saveMemory: (content: string, tags?: string[]) => Promise<{ id: string }>
   deleteMemory: (id: string) => Promise<void>
   healthCheck: () => Promise<boolean>
@@ -132,6 +133,10 @@ export function createOpenVikingClient(config: OpenVikingClientConfig): OpenViki
       return data.result?.memories ?? []
     },
 
+    async recallMemories(query: string, limit = 5): Promise<Record<string, unknown>[]> {
+      return await this.searchMemories(query, limit)
+    },
+
     async readMemory(uri: string): Promise<{ uri: string, content: string }> {
       const params = new URLSearchParams({ uri })
       const response = await apiFetch(`/api/v1/content/read?${params}`, {
@@ -199,11 +204,11 @@ export function createOpenVikingClient(config: OpenVikingClientConfig): OpenViki
       }
     },
 
-    async saveConversation(conversation: ConversationTurn): Promise<ConversationSaveResult> {
-      const sessionId = conversation.sessionId || crypto.randomUUID()
+    async saveTurn(turn: ConversationTurn): Promise<ConversationSaveResult> {
+      const sessionId = turn.sessionId || crypto.randomUUID()
 
-      await this.addSessionMessage(sessionId, 'user', conversation.userMessage || '(empty)', conversation.timestamp)
-      await this.addSessionMessage(sessionId, 'assistant', conversation.assistantResponse || '(empty)', conversation.timestamp)
+      await this.addSessionMessage(sessionId, 'user', turn.userMessage || '(empty)', turn.timestamp)
+      await this.addSessionMessage(sessionId, 'assistant', turn.assistantResponse || '(empty)', turn.timestamp)
 
       let committed = false
       try {

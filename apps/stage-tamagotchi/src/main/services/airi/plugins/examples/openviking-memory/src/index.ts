@@ -27,17 +27,17 @@ export async function setupModules({ apis }: ContextInit): Promise<void> {
   await apis.tools.register({
     tool: {
       id: 'memory_search',
-      title: '搜索记忆',
-      description: '搜索长期记忆中的相关信息',
+      title: 'Search Memory',
+      description: 'Retrieve specific memory entries from long-term storage by contextual keywords, time references, or event descriptions. Use this when you need to recall factual details (what happened, how something was done), temporal information (specific dates, years, months, days, weekends, weeks, or relative timeframes like "last week" or "yesterday"), or scheduled events (appointments, arrangements, calendar entries, or planned activities). Returns matching memory entries with relevance scores and metadata.',
       activation: {
-        keywords: ['记忆', '回忆', '搜索'],
+        keywords: ['search', 'find', 'recall', 'look up', 'what', 'when', 'did', 'remember', 'tell me about'],
         patterns: [],
       },
       parameters: {
         type: 'object',
         properties: {
-          query: { type: 'string', description: '搜索查询' },
-          limit: { type: 'number', description: '返回结果数量', default: 5 },
+          query: { type: 'string', description: 'Natural language search query describing the information to recall, including keywords, time references, event descriptions, or contextual details' },
+          limit: { type: 'number', description: 'Maximum number of memory results to return', default: 5 },
         },
         required: ['query'],
       },
@@ -52,16 +52,16 @@ export async function setupModules({ apis }: ContextInit): Promise<void> {
   await apis.tools.register({
     tool: {
       id: 'memory_read',
-      title: '读取记忆',
-      description: '根据 URI 读取一条记忆的完整内容',
+      title: 'Read Memory',
+      description: 'Retrieve the full detailed content of a specific memory entry identified by its URI. Use this when you need to access complete context and details of a previously identified memory item, such as viewing the entire content found through memory_search. This provides the full text and metadata of a single memory entry, as opposed to performing a broader search across memories.',
       activation: {
-        keywords: ['读取', '查看', '阅读'],
+        keywords: ['read', 'show', 'view', 'get details', 'open', 'display', 'see'],
         patterns: [],
       },
       parameters: {
         type: 'object',
         properties: {
-          uri: { type: 'string', description: '记忆的 URI（如 viking://user/default/...）' },
+          uri: { type: 'string', description: 'The URI of the memory entry to read (e.g. viking://user/default/...). Obtain this from memory_search results.' },
         },
         required: ['uri'],
       },
@@ -76,19 +76,19 @@ export async function setupModules({ apis }: ContextInit): Promise<void> {
     tool: {
       id: 'memory_save',
       title: '保存记忆',
-      description: '保存一条重要信息到长期记忆',
+      description: 'Store a piece of important information into long-term memory for future recall. Use this when you need to remember factual details, user preferences, key decisions, follow-up tasks, or any information that should be persisted beyond the current conversation. The saved content can later be retrieved using memory_search. Optionally attach tags for better organization and retrieval.',
       activation: {
-        keywords: ['记住', '保存', '记忆'],
+        keywords: ['save', 'remember', 'store', 'keep', 'record', 'note', 'add', 'learn'],
         patterns: [],
       },
       parameters: {
         type: 'object',
         properties: {
-          content: { type: 'string', description: '要记忆的内容' },
+          content: { type: 'string', description: 'The information content to store in long-term memory' },
           tags: {
             type: 'array',
             items: { type: 'string' },
-            description: '标签',
+            description: 'Optional tags for categorizing and organizing memory entries for easier retrieval',
           },
         },
         required: ['content'],
@@ -102,44 +102,69 @@ export async function setupModules({ apis }: ContextInit): Promise<void> {
 
   await apis.tools.register({
     tool: {
-      id: 'memory_save_conversation',
-      title: '保存对话记录',
-      description: '将一轮对话（用户消息 + 助手回复 + 工具调用）保存到长期记忆',
+      id: 'memory_recall',
+      title: 'Recall Memory',
+      description: 'Automatically recall long-term memories relevant to the current conversation for context injection. NOTICE: This tool is triggered by the system only and should not be invoked by the AI assistant.',
       activation: {
-        keywords: ['保存对话', '记录对话', '记住对话', '保存聊天', '保存'],
+        keywords: [],
         patterns: [],
       },
       parameters: {
         type: 'object',
         properties: {
-          sessionId: { type: 'string', description: '对话会话 ID，同一对话应使用相同 ID。首次不传会自动创建' },
-          userMessage: { type: 'string', description: '用户消息' },
-          assistantResponse: { type: 'string', description: '助手回复' },
-          toolCalls: { type: 'object', description: '工具调用记录' },
-          timestamp: { type: 'string', description: '时间戳' },
+          query: { type: 'string', description: 'Search query describing the context to recall from long-term memory' },
+          limit: { type: 'number', description: 'Maximum number of memory results to return', default: 5 },
+        },
+        required: ['query'],
+      },
+    },
+    execute: async (input: unknown) => {
+      const { query, limit } = input as { query: string, limit?: number }
+      const results = await client!.recallMemories(query, limit)
+      return { results }
+    },
+  })
+
+  await apis.tools.register({
+    tool: {
+      id: 'memory_save_turn',
+      title: 'Save Conversation Turn',
+      description: 'Save a conversation turn (user message + assistant response + tool calls) into long-term memory. NOTICE: This tool is triggered by the system only and should not be invoked by the AI assistant.',
+      activation: {
+        keywords: [],
+        patterns: [],
+      },
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: { type: 'string', description: 'Conversation session ID. Use the same ID for the same conversation; auto-created if not provided' },
+          userMessage: { type: 'string', description: 'The user message content' },
+          assistantResponse: { type: 'string', description: 'The assistant response content' },
+          toolCalls: { type: 'object', description: 'Record of tool calls made during the conversation turn' },
+          timestamp: { type: 'string', description: 'ISO 8601 timestamp of the conversation turn' },
         },
         required: ['userMessage', 'assistantResponse', 'timestamp'],
       },
     },
     execute: async (input: unknown) => {
       const turn = input as { sessionId?: string, userMessage: string, assistantResponse: string, toolCalls?: unknown[], timestamp: string }
-      return await client!.saveConversation(turn)
+      return await client!.saveTurn(turn)
     },
   })
 
   await apis.tools.register({
     tool: {
       id: 'memory_delete',
-      title: '删除记忆',
-      description: '删除一条记忆',
+      title: 'Delete Memory',
+      description: 'Permanently and irreversibly remove a specific memory entry from long-term storage. Use this only when you have explicit intent to discard particular information. This action cannot be undone — the deleted memory entry and all its associated data will be erased permanently.',
       activation: {
-        keywords: ['删除', '移除', '清除'],
+        keywords: ['delete', 'remove', 'erase', 'forget', 'discard', 'clear'],
         patterns: [],
       },
       parameters: {
         type: 'object',
         properties: {
-          id: { type: 'string', description: '要删除的记忆 ID' },
+          id: { type: 'string', description: 'The unique identifier of the memory entry to permanently delete' },
         },
         required: ['id'],
       },
