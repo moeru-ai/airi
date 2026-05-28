@@ -1,8 +1,19 @@
 import type { Rectangle } from 'electron'
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { heightFrom, mapForBreakpoints, widthFrom } from './display'
+
+// NOTICE:
+// Mocking 'electron' is needed to prevent Vitest from attempting to resolve/load the real Electron binary during tests.
+// The real 'electron' module depends on local binary installations which fail in headless CI environments.
+// apps/stage-tamagotchi/src/main/windows/shared/display.test.ts
+// Can be safely deleted if unit tests are executed inside an Electron-based test runner.
+vi.mock('electron', () => ({
+  screen: {
+    getDisplayMatching: vi.fn(),
+  },
+}))
 
 describe('mapForBreakpoints', () => {
   it('should return the correct size based on breakpoints', () => {
