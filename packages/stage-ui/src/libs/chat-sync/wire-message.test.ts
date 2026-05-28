@@ -77,6 +77,25 @@ describe('isCloudSyncableMessage', () => {
     expect(isCloudSyncableMessage({ role: 'user', content: 'x' })).toBe(true)
     expect(isCloudSyncableMessage({ role: 'assistant', content: 'x', slices: [], tool_results: [] })).toBe(true)
   })
+
+  /**
+   * @example
+   * The reconcile loop in session-store iterates local history and enqueues
+   * every syncable message into the outbox when a cloud chat first binds.
+   * Stopped partials must stay local-only because the wire format does not
+   * carry the `stopped` flag; uploading them would server-side them as
+   * normal completed turns.
+   */
+  it('rejects assistant turns marked stopped so they never reach the cloud outbox', () => {
+    const stoppedAssistant = {
+      role: 'assistant',
+      content: 'partial reply',
+      slices: [{ type: 'text', text: 'partial reply' }],
+      tool_results: [],
+      stopped: true,
+    } as unknown as ChatHistoryItem
+    expect(isCloudSyncableMessage(stoppedAssistant)).toBe(false)
+  })
 })
 
 describe('wireMessageToLocal', () => {

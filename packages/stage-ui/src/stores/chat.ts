@@ -199,11 +199,6 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       }
     },
     onAssistantMessageAppended: ({ sessionId, message }) => {
-      // Skip cloud push for stopped partials: the orchestrator emits this
-      // callback for both branches so local persistence is symmetric, but
-      // cloud sync treats appended messages as landed turns.
-      if (message.stopped)
-        return
       if (isCloudSyncableMessage(message) && message.id) {
         void chatSession.pushMessageToCloud(sessionId, {
           id: message.id,

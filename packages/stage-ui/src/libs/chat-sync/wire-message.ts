@@ -1,4 +1,4 @@
-import type { ChatAssistantMessage, ChatHistoryItem } from '@proj-airi/core-agent'
+import type { ChatAssistantMessage, ChatHistoryItem, StreamingAssistantMessage } from '@proj-airi/core-agent'
 import type { NewMessagesPayload, WireMessage } from '@proj-airi/server-sdk-shared'
 
 /**
@@ -54,7 +54,10 @@ export function extractMessageText(message: ChatHistoryItem): string {
  * Use when:
  * - Filtering messages right before `sendMessages`. Tool call / tool result
  *   exchanges are intentionally not synced in v1; system prompts also stay
- *   local since they are recomputed from settings on every device.
+ *   local since they are recomputed from settings on every device. Stopped
+ *   assistant turns are local-only: the `stopped` flag does not ride the wire
+ *   format, so uploading them would server-side them as completed turns and
+ *   silently lose the cancellation signal.
  *
  * Expects:
  * - The caller has already validated the message has an `id`.
@@ -63,6 +66,7 @@ export function extractMessageText(message: ChatHistoryItem): string {
  * - `true` when the message is one of `user` / `assistant`. `tool` / `system`
  *   / `error` roles are filtered out — error messages are local-only since
  *   they describe a per-device runtime failure, not a server-acknowledged turn.
+ *   Assistant messages with `stopped: true` are also filtered out.
  */
 export function isCloudSyncableMessage(message: ChatHistoryItem): boolean {
   if (message.role === 'tool')
@@ -70,6 +74,8 @@ export function isCloudSyncableMessage(message: ChatHistoryItem): boolean {
   if (message.role === 'system')
     return false
   if (message.role === 'error')
+    return false
+  if (message.role === 'assistant' && (message as StreamingAssistantMessage).stopped)
     return false
   return true
 }
