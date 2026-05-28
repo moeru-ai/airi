@@ -148,7 +148,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Setup Playwright
-        run: pnpm exec playwright install chromium --with-deps
+        run: pnpm --filter @proj-airi/stage-ui exec playwright install chromium --with-deps
 
       - run: pnpm run build:packages
       - run: pnpm run test:run
