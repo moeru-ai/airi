@@ -141,7 +141,7 @@ export interface ProviderMetadata {
     listModels?: (config: Record<string, unknown>) => Promise<ModelInfo[]>
     listVoices?: (
       config: Record<string, unknown>,
-      options?: string | { model?: string, searchTerm?: string },
+      options?: string | { model?: string, searchTerm?: string, id?: string },
     ) => Promise<VoiceInfo[]>
     voiceSearchMode?: 'local' | 'remote'
     loadModel?: (config: Record<string, unknown>, hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void }) => Promise<void>

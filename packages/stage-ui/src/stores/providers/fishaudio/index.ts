@@ -277,6 +277,7 @@ interface FishAudioVoiceQueryOptions {
   pageSize?: number
   query?: string
   searchTerm?: string
+  id?: string
 }
 
 interface FishAudioModelListResult {
@@ -314,6 +315,19 @@ async function requestFishAudioModels(options: FishAudioVoiceQueryOptions = {}):
     items: Array.isArray(payload.items) ? payload.items : [],
     status: response.status,
   }
+}
+
+async function requestFishAudioModelById(id: string, options: FishAudioVoiceQueryOptions = {}): Promise<FishAudioVoiceItem> {
+  const apiKey = getFishAudioApiKey(options.apiKey)
+  const response = await globalThis.fetch(`${resolveModelsEndpoint(options.baseUrl)}/${id}`, {
+    headers: buildFishAudioHeaders(apiKey),
+  })
+
+  if (!response.ok) {
+    throw await buildErrorFromResponse(response)
+  }
+
+  return await response.json() as FishAudioVoiceItem
 }
 
 async function fetchVoiceOptions(options: FishAudioVoiceQueryOptions = {}): Promise<FishAudioVoiceOption[]> {
@@ -361,9 +375,27 @@ function extractErrorStatus(error: unknown): number | undefined {
  */
 export async function listVoices(options: string | FishAudioVoiceQueryOptions = ''): Promise<FishAudioVoiceOption[]> {
   const queryOptions = typeof options === 'string' ? { searchTerm: options } : options
-  const searchTerm = normalizeString(queryOptions.searchTerm ?? queryOptions.query)
   const apiKey = getFishAudioApiKey(queryOptions.apiKey)
   const baseUrl = normalizeBaseUrl(queryOptions.baseUrl)
+
+  if (queryOptions.id) {
+    const cacheKey = `id:${apiKey}:${baseUrl}:${queryOptions.id}`
+    if (voiceCache.has(cacheKey)) {
+      return voiceCache.get(cacheKey)!
+    }
+    try {
+      const item = await requestFishAudioModelById(queryOptions.id, queryOptions)
+      const results = [{ value: item._id, label: item.title }]
+      voiceCache.set(cacheKey, results)
+      return results
+    }
+    catch (error) {
+      console.error(`Failed to fetch Fish Audio voice by ID ${queryOptions.id}:`, error)
+      return []
+    }
+  }
+
+  const searchTerm = normalizeString(queryOptions.searchTerm ?? queryOptions.query)
   const cacheKey = `${apiKey}:${baseUrl}:${searchTerm}`
 
   if (voiceCache.has(cacheKey)) {
@@ -492,6 +524,7 @@ export function buildFishAudioSpeechProvider(
           apiKey: config.apiKey,
           baseUrl: config.baseUrl,
           searchTerm: parsedOptions.searchTerm || '',
+          id: parsedOptions.id,
         })
         return voices.map(voice => ({
           id: voice.value,

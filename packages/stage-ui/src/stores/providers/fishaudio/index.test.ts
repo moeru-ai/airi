@@ -206,4 +206,49 @@ describe('fish audio speech provider', () => {
       },
     })
   })
+
+  /**
+   * @example
+   * it('fetches a single voice model by ID when options.id is provided', async () => {
+   *   const voices = await listVoices({ apiKey: 'fish-key', id: 'voice-by-id' })
+   *   expect(voices).toEqual([{ value: 'voice-by-id', label: 'Voice By ID' }])
+   * })
+   */
+  it('fetches a single voice model by ID when options.id is provided', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
+      return new Response(JSON.stringify({
+        _id: 'voice-by-id',
+        title: 'Voice By ID',
+      }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+    })
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    const voices = await listVoices({ apiKey: 'fish-key', id: 'voice-by-id' })
+
+    const firstCall = fetchMock.mock.calls[0]
+    if (!firstCall) {
+      throw new Error('Expected fetch to be called')
+    }
+
+    const [requestUrl, requestInit] = firstCall
+
+    expect(requestUrl).toBe('/api-fish/model/voice-by-id')
+    expect(requestInit).toMatchObject({
+      headers: {
+        Authorization: 'Bearer fish-key',
+      },
+    })
+    expect(voices).toEqual([
+      {
+        value: 'voice-by-id',
+        label: 'Voice By ID',
+      },
+    ])
+  })
 })

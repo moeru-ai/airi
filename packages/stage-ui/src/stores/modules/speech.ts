@@ -86,7 +86,7 @@ export const useSpeechStore = defineStore('speech', () => {
 
   async function loadVoicesForProvider(
     provider: string,
-    modelOrOptions?: string | { model?: string, searchTerm?: string, shouldApply?: () => boolean },
+    modelOrOptions?: string | { model?: string, searchTerm?: string, id?: string, shouldApply?: () => boolean },
   ) {
     const options = typeof modelOrOptions === 'object' && modelOrOptions !== null
       ? modelOrOptions
@@ -109,7 +109,7 @@ export const useSpeechStore = defineStore('speech', () => {
     try {
       const voices = await providersStore.getProviderMetadata(provider).capabilities.listVoices?.(
         providersStore.getProviderConfig(provider),
-        { model: options.model, searchTerm: options.searchTerm },
+        { model: options.model, searchTerm: options.searchTerm, id: options.id },
       ) || []
       if (options.shouldApply && !options.shouldApply()) {
         return voices

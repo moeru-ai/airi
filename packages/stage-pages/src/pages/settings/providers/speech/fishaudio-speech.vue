@@ -109,10 +109,31 @@ async function loadVoiceOptions(searchTerm: string) {
       return
     }
 
-    voiceOptions.value = voices.map(voice => ({
+    const mappedVoices = voices.map(voice => ({
       value: voice.id,
       label: voice.name,
     }))
+
+    const selectedVoiceId = voice.value
+    if (selectedVoiceId && !mappedVoices.some(v => v.value === selectedVoiceId)) {
+      try {
+        const idVoices = await providerMetadata.value.capabilities.listVoices?.(
+          providerConfig,
+          { id: selectedVoiceId },
+        ) || []
+        if (idVoices.length > 0) {
+          mappedVoices.unshift(...idVoices.map(v => ({
+            value: v.id,
+            label: v.name,
+          })))
+        }
+      }
+      catch (error) {
+        console.error('Failed to hydrate selected voice by ID:', error)
+      }
+    }
+
+    voiceOptions.value = mappedVoices
   }
   catch (error) {
     if (requestId !== latestVoiceSearchRequestId) {
@@ -260,12 +281,19 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
             label="Voice"
             description="Select the Fish Audio reference voice to use by default"
             :options="voiceOptions"
-            :disabled="!apiKeyConfigured || isLoadingVoices"
+            :disabled="!apiKeyConfigured"
             placeholder="Search Fish Audio voices..."
             @search="handleVoiceSearch"
             @update:search-value="handleVoiceSearch"
             @input="handleVoiceSearch"
-          />
+          >
+            <template #label>
+              <div :class="['flex', 'items-center', 'gap-2']">
+                <span>Voice</span>
+                <span v-if="isLoadingVoices" :class="['i-lucide:loader-2', 'animate-spin', 'text-neutral-400']" />
+              </div>
+            </template>
+          </FieldCombobox>
           <p v-if="voiceSearchError" class="text-sm text-red-500">
             {{ voiceSearchError }}
           </p>
