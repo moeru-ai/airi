@@ -61,21 +61,21 @@ describe('getAdapter', () => {
 })
 
 describe('dashscopeCosyvoiceAdapter.getVoiceCatalog', () => {
-  it('calls unspeech with provider=alibaba (no Bearer)', async () => {
+  it('calls unspeech with provider=alibaba + model (no Bearer)', async () => {
     const adapter = getAdapter('dashscope-cosyvoice')
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
       voices: [{ id: 'longxiaochun_v2', name: 'Longxiaochun v2' }],
     }), { status: 200 })) as unknown as typeof fetch
 
     const voices = await adapter.getVoiceCatalog({
-      adapterParams: {},
+      adapterParams: { model: 'cosyvoice-v2' },
       unspeechBaseURL: 'http://unspeech.local',
       fetchImpl,
     })
 
     expect(voices).toEqual([{ id: 'longxiaochun_v2', name: 'Longxiaochun v2' }])
     const [calledUrl, init] = (fetchImpl as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0]
-    expect(calledUrl).toBe('http://unspeech.local/api/voices?provider=alibaba')
+    expect(calledUrl).toBe('http://unspeech.local/api/voices?provider=alibaba&model=cosyvoice-v2')
     const headers = (init.headers ?? {}) as Record<string, string>
     expect(headers.Authorization).toBeUndefined()
   })
