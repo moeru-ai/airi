@@ -92,6 +92,7 @@ ensure_gitcode_release() {
   fi
 
   echo "::error::Failed to create GitCode release ${RELEASE_TAG}; HTTP ${http_status}."
+  jq -c '{ error_code, error_code_name, error_message, message }' "${response_json}" || true
   exit 1
 }
 

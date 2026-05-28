@@ -40,6 +40,7 @@ on:
           - windows
           - macos
           - linux
+          - mirror-only
   schedule:
     - cron: '0 0 * * *'
 
@@ -592,8 +593,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
-          GITCODE_OWNER: ${{ secrets.GITCODE_OWNER }}
-          GITCODE_REPO: ${{ secrets.GITCODE_REPO }}
+          GITCODE_OWNER: Miku_233
+          GITCODE_REPO: airi
           GITCODE_RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
         run: bash .github/scripts/publish-gitcode-release.sh
 
