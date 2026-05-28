@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { PluginConfigSnapshot } from '../../../../shared/eventa/plugin/config'
 
+import { errorMessageFrom } from '@moeru/std'
 import { Button, Callout, FieldInput } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -120,6 +121,7 @@ async function saveConfig(name: string) {
     await loadConfig(name)
   }
   catch (err) {
+    state.error = errorMessageFrom(err) ?? 'Unknown error saving config'
     console.warn('[plugin-settings] failed to save config:', err)
   }
 }

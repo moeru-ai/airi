@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsdown",
     "dev": "pnpm run build",
-    "pack": "pnpm run build && tar -czf dist/openviking-memory.tar.gz plugin.airi.json -C dist/dist index.mjs"
+    "pack": "pnpm run build && cp plugin.airi.json dist/openviking-memory/ && tar -czf dist/openviking-memory.tar.gz -C dist openviking-memory"
   },
   "dependencies": {
     "@proj-airi/plugin-protocol": "workspace:*"

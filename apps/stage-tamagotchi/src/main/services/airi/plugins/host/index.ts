@@ -640,13 +640,7 @@ export async function setupPluginHostHostService(
         }
       }
       const currentConfig = getConfig()
-      pluginConfig.update({
-        ...currentConfig,
-        configs: {
-          ...currentConfig.configs,
-          [payload.pluginName]: payload.config as Record<string, string | number | boolean>,
-        },
-      })
+      const previousPluginConfig = currentConfig.configs[payload.pluginName]
 
       const sessionId = loadedSessionIds.get(payload.pluginName)
       if (sessionId) {
@@ -666,8 +660,23 @@ export async function setupPluginHostHostService(
           loadedSessionIds.delete(payload.pluginName)
           clearModuleAssetSessionCacheByOwnerSessionId(oldSessionId)
           await pluginAssetService.revokeByOwnerSessionId(oldSessionId)
+          pluginConfig.update({
+            ...currentConfig,
+            configs: {
+              ...currentConfig.configs,
+              [payload.pluginName]: previousPluginConfig,
+            },
+          })
           throw error
         }
+
+        pluginConfig.update({
+          ...currentConfig,
+          configs: {
+            ...currentConfig.configs,
+            [payload.pluginName]: payload.config as Record<string, string | number | boolean>,
+          },
+        })
 
         try {
           clearModuleAssetSessionCacheByOwnerSessionId(oldSessionId)
@@ -680,6 +689,15 @@ export async function setupPluginHostHostService(
         if (session) {
           loadedSessionIds.set(payload.pluginName, session.id)
         }
+      }
+      else {
+        pluginConfig.update({
+          ...currentConfig,
+          configs: {
+            ...currentConfig.configs,
+            [payload.pluginName]: payload.config as Record<string, string | number | boolean>,
+          },
+        })
       }
 
       return listSnapshot()

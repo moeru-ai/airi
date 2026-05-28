@@ -148,7 +148,7 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
         const data = result as { results?: Array<Record<string, unknown>> }
 
         const contextText = (data.results ?? [])
-          .map(item => `[${item.uri}]\n${String(item.abstract ?? '')}`)
+          .map(item => `[${item.uri}]\n${String(item.abstract ?? item.overview ?? '')}`)
           .join('\n\n')
 
         return contextText ? { text: contextText, pluginName: plugin.name } : null
