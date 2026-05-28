@@ -375,6 +375,7 @@ export interface ApplyInput {
   defaults?: {
     chatModel?: string
     ttsModel?: string
+    ttsVoices?: Record<string, Record<string, string>>
   }
   /** Admin user id for audit logging only. Not part of the persisted config. */
   actorUserId?: string
@@ -396,6 +397,7 @@ export interface ApplyResult {
     UNSPEECH_UPSTREAM?: unknown
     DEFAULT_CHAT_MODEL?: string
     DEFAULT_TTS_MODEL?: string
+    DEFAULT_TTS_VOICES?: Record<string, Record<string, string>>
   }
 }
 
@@ -488,6 +490,8 @@ export function createAdminRouterConfigService(deps: AdminRouterConfigDeps) {
       preview.DEFAULT_CHAT_MODEL = input.defaults.chatModel
     if (input.defaults?.ttsModel)
       preview.DEFAULT_TTS_MODEL = input.defaults.ttsModel
+    if (input.defaults?.ttsVoices)
+      preview.DEFAULT_TTS_VOICES = input.defaults.ttsVoices
 
     const applied: AppliedSummary[] = built.map(s => s.target === 'unspeech'
       ? { kind: s.kind, target: s.target, keyEntryId: s.keyEntryId }
@@ -521,6 +525,10 @@ export function createAdminRouterConfigService(deps: AdminRouterConfigDeps) {
     if (input.defaults?.ttsModel) {
       await deps.configKV.set('DEFAULT_TTS_MODEL', input.defaults.ttsModel)
       invalidatedKeys.push('DEFAULT_TTS_MODEL')
+    }
+    if (input.defaults?.ttsVoices) {
+      await deps.configKV.set('DEFAULT_TTS_VOICES', input.defaults.ttsVoices)
+      invalidatedKeys.push('DEFAULT_TTS_VOICES')
     }
 
     // Step 5: cross-instance invalidation. audio-speech-ws reads
