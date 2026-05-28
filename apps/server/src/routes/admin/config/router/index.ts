@@ -7,12 +7,12 @@ import {
   boolean,
   literal,
   maxLength,
-  minLength,
   nonEmpty,
   object,
   optional,
   picklist,
   pipe,
+  record,
   regex,
   safeParse,
   string,
@@ -109,14 +109,23 @@ const SliceSchema = variant('kind', [
 const BodySchema = object({
   mode: optional(picklist(['merge', 'reset']), 'merge'),
   dryRun: optional(boolean(), false),
-  slices: pipe(
-    array(SliceSchema),
-    minLength(1, 'slices must not be empty'),
-    maxLength(MAX_SLICES_PER_REQUEST, `slices must be at most ${MAX_SLICES_PER_REQUEST} entries`),
+  slices: optional(
+    pipe(
+      array(SliceSchema),
+      maxLength(MAX_SLICES_PER_REQUEST, `slices must be at most ${MAX_SLICES_PER_REQUEST} entries`),
+    ),
+    [],
   ),
   defaults: optional(object({
     chatModel: optional(pipe(string(), nonEmpty('defaults.chatModel must not be empty'), maxLength(200))),
     ttsModel: optional(pipe(string(), nonEmpty('defaults.ttsModel must not be empty'), maxLength(200))),
+    ttsVoices: optional(record(
+      pipe(string(), nonEmpty('defaults.ttsVoices model id must not be empty'), maxLength(200)),
+      record(
+        pipe(string(), nonEmpty('defaults.ttsVoices locale must not be empty'), maxLength(50)),
+        pipe(string(), nonEmpty('defaults.ttsVoices voice id must not be empty'), maxLength(200)),
+      ),
+    )),
   })),
 })
 
@@ -132,7 +141,7 @@ const BodySchema = object({
  *     "mode": "merge" | "reset",        // defaults to "merge"
  *     "dryRun": false,                  // when true, returns redacted preview
  *                                       // and skips writes + invalidation
- *     "slices": [
+ *     "slices": [                      // optional when only defaults change
  *       { "kind": "openrouter", "modelName": "chat-default",
  *         "overrideModel": "openai/gpt-4o-mini", "plaintextKey": "..." },
  *       { "kind": "azure", "modelName": "microsoft/v1",
@@ -149,7 +158,12 @@ const BodySchema = object({
  *     ],
  *     "defaults": {
  *       "chatModel": "chat-default",    // writes DEFAULT_CHAT_MODEL
- *       "ttsModel":  "alibaba/cosyvoice-v2"  // writes DEFAULT_TTS_MODEL
+ *       "ttsModel":  "alibaba/cosyvoice-v2", // writes DEFAULT_TTS_MODEL
+ *       "ttsVoices": {                  // writes DEFAULT_TTS_VOICES
+ *         "alibaba/cosyvoice-v2": {
+ *           "zh-CN": "longxiaochun_v2"
+ *         }
+ *       }
  *     }
  *   }
  *
@@ -162,7 +176,8 @@ const BodySchema = object({
  *       "LLM_ROUTER_CONFIG":     { ... },
  *       "UNSPEECH_UPSTREAM":     { ... },
  *       "DEFAULT_CHAT_MODEL":    "chat-default",
- *       "DEFAULT_TTS_MODEL":     "alibaba/cosyvoice-v2"
+ *       "DEFAULT_TTS_MODEL":     "alibaba/cosyvoice-v2",
+ *       "DEFAULT_TTS_VOICES":    { ... }
  *     }
  *   }
  *
@@ -198,6 +213,10 @@ export function createAdminRouterConfigRoutes(
       }
 
       const body = parsed.output
+      const hasDefaults = body.defaults != null && Object.keys(body.defaults).length > 0
+      if (body.slices.length === 0 && !hasDefaults)
+        throw createBadRequestError('Request body must include at least one slice or defaults entry', 'INVALID_BODY')
+
       const result = await service.apply({
         mode: body.mode,
         dryRun: body.dryRun,

@@ -34,6 +34,12 @@ export async function startSceneViteServer(sceneAppRoot: string): Promise<Manage
       host: '127.0.0.1',
       port: 41731,
       strictPort: false,
+      // NOTICE:
+      // Disabling the file watcher prevents asynchronous file unlink/add events from firing.
+      // During test teardown, deleting temporary fixture roots triggers file watcher events after server shutdown.
+      // packages/vishot-runner-browser/src/runtime/vite-server.ts
+      // Can be safely removed if scene capture runs in a persistent environment without rapid cleanup.
+      watch: null,
     },
   })
 
