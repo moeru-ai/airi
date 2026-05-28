@@ -284,17 +284,43 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }
   }
 
+  // Key used to persist the last auto-generated default-card description so we can
+  // distinguish it from a user-customized description on the next startup.
+  const LAST_AUTO_DESCRIPTION_KEY = 'airi-default-card-last-auto-description'
+
   function initialize() {
-    if (cards.value.has('default'))
-      return
-    cards.value.set('default', newAiriCard({
-      name: 'ReLU',
-      version: '1.0.0',
-      description: SystemPromptV2(
-        t('base.prompt.prefix'),
-        t('base.prompt.suffix'),
-      ).content,
-    }))
+    if (cards.value.has('default')) {
+      const card = cards.value.get('default')
+      if (card && typeof card.description === 'string') {
+        const freshDescription = SystemPromptV2(t('base.prompt.prefix'), t('base.prompt.suffix')).content
+        const lastAutoDescription = localStorage.getItem(LAST_AUTO_DESCRIPTION_KEY)
+        // NOTICE:
+        // Exact string reconstruction of the pre-migration stock prompt is not feasible:
+        // the old system-v2.ts (before d7a132bc9) used a different Emotion enum format
+        // (<|EMOTE_*|> values) that has since changed, making any reconstructed baseline
+        // unreliable. Instead we use a feature-string sentinel: the ACT token instruction
+        // block introduced in d7a132bc9 always contains "<|ACT ", which was never present
+        // in any prior stock prompt. A stored description lacking this sentinel is either
+        // an old stock prompt or a user prompt written before ACT tokens existed; we only
+        // skip migration when lastAutoDescription is set AND matches the stored description,
+        // meaning the user has already seen and customized the new-format prompt.
+        const alreadyMigrated = lastAutoDescription !== null && card.description === lastAutoDescription
+        const hasActInstructions = card.description.includes('<|ACT ')
+        if (!alreadyMigrated && !hasActInstructions) {
+          cards.value.set('default', { ...card, description: freshDescription })
+          localStorage.setItem(LAST_AUTO_DESCRIPTION_KEY, freshDescription)
+        }
+      }
+    }
+    else {
+      const description = SystemPromptV2(t('base.prompt.prefix'), t('base.prompt.suffix')).content
+      cards.value.set('default', newAiriCard({
+        name: 'ReLU',
+        version: '1.0.0',
+        description,
+      }))
+      localStorage.setItem(LAST_AUTO_DESCRIPTION_KEY, description)
+    }
     if (!activeCardId.value)
       activeCardId.value = 'default'
   }

@@ -61,4 +61,6 @@ export const EMOTION_SpineAnimationName_value = {
 export interface EmotionPayload {
   name: Emotion
   intensity: number
+  /** When true, the queue handler must not overwrite currentMotion with the emotion-derived group. */
+  skipMotion?: boolean
 }
