@@ -17,7 +17,7 @@
     "@moeru/std": "catalog:",
     "@proj-airi/server-sdk": "workspace:*",
     "h3": "2.0.1-rc.20",
-    "playwright": "^1.59.1",
+    "playwright": "^1.60.0",
     "zod": "^4.3.6"
   }
 }
