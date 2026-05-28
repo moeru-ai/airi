@@ -183,7 +183,7 @@ jobs:
           if-no-files-found: error
 
       - name: Package macOS Steam content
-        if: ${{ github.event_name != 'schedule' && matrix.os == 'macos-15-intel' }}
+        if: ${{ github.event_name != 'schedule' && matrix.os == 'macos-26' }}
         run: |
           app_path="$(find apps/stage-tamagotchi/dist dist -name '*.app' -type d 2>/dev/null | sort | head -n 1)"
           if [ -z "$app_path" ]; then
@@ -198,12 +198,18 @@ jobs:
             exit 1
           fi
 
+          if ! file "$executable_path" | grep -q 'arm64'; then
+            echo "Expected macOS Steam executable to be arm64, but received:"
+            file "$executable_path"
+            exit 1
+          fi
+
           mkdir -p steam-content/macos
           ditto "$app_path" steam-content/macos/AIRI.app
           tar -cf steam-content-macos.tar -C steam-content macos
 
       - name: Upload macOS Steam content
-        if: ${{ github.event_name != 'schedule' && matrix.os == 'macos-15-intel' }}
+        if: ${{ github.event_name != 'schedule' && matrix.os == 'macos-26' }}
         uses: actions/upload-artifact@v7
         with:
           name: steam-content-macos
