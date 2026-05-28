@@ -11,7 +11,7 @@ import {
   buildDashscopeSlice,
   buildNextRouterConfig,
   buildOpenRouterSlice,
-  buildStreamingTtsSlice,
+  buildUnspeechSlice,
   createAdminRouterConfigService,
   redactCiphertext,
 } from '..'
@@ -185,21 +185,38 @@ describe('buildDashscopeSlice', () => {
   })
 })
 
-describe('buildStreamingTtsSlice', () => {
-  it('encrypts under the streaming-tts AAD model label (must match audio-speech-ws decrypt)', () => {
+describe('buildUnspeechSlice', () => {
+  it('writes restBaseURL with no streaming subtree when the slice omits streaming', () => {
     const envelope = freshEnvelope()
-    const built = buildStreamingTtsSlice({
-      kind: 'streaming-tts',
-      upstreamURL: 'ws://airi-unspeech.railway.internal:5933/v1/audio/speech/stream',
-      plaintextKey: 'volc-key',
+    const built = buildUnspeechSlice({
+      kind: 'unspeech',
+      restBaseURL: 'http://unspeech.example:5933',
     }, envelope)
 
-    expect(built.target).toBe('streaming-tts')
-    expect(built.value.baseURL).toBe('ws://airi-unspeech.railway.internal:5933/v1/audio/speech/stream')
+    expect(built.target).toBe('unspeech')
+    expect(built.value.restBaseURL).toBe('http://unspeech.example:5933')
+    expect(built.value.streaming).toBeUndefined()
+    expect(built.keyEntryId).toBeNull()
+  })
+
+  it('encrypts streaming.plaintextKey under the streaming-tts AAD model label (must match audio-speech-ws decrypt)', () => {
+    const envelope = freshEnvelope()
+    const built = buildUnspeechSlice({
+      kind: 'unspeech',
+      restBaseURL: 'http://unspeech.example:5933',
+      streaming: {
+        upstreamURL: 'ws://unspeech.example:5933/v1/audio/speech/stream',
+        plaintextKey: 'volc-key',
+      },
+    }, envelope)
+
+    expect(built.target).toBe('unspeech')
+    expect(built.value.streaming?.baseURL).toBe('ws://unspeech.example:5933/v1/audio/speech/stream')
 
     // The AAD modelName MUST be the literal 'streaming-tts' — anything else
     // surfaces as DECRYPT_FAILED at session start in audio-speech-ws.
-    const decrypted = envelope.decryptKey(built.value.keys[0].ciphertext, {
+    const ct = built.value.streaming!.keys[0].ciphertext
+    const decrypted = envelope.decryptKey(ct, {
       modelName: 'streaming-tts',
       keyEntryId: 'volcengine-prod-1',
     })
@@ -291,7 +308,12 @@ describe('createAdminRouterConfigService', () => {
         overrideModel: 'openai/gpt-4o-mini',
         plaintextKey: 'sk-or-secret',
       }],
-      defaults: { chatModel: 'chat-default' },
+      defaults: {
+        chatModel: 'chat-default',
+        ttsVoices: {
+          'alibaba/cosyvoice-v2': { 'zh-CN': 'longxiaochun_v2' },
+        },
+      },
     })
 
     expect(kv.store.size).toBe(0)
@@ -306,6 +328,9 @@ describe('createAdminRouterConfigService', () => {
     expect(ct).not.toContain('sk-or-secret')
 
     expect(result.preview.DEFAULT_CHAT_MODEL).toBe('chat-default')
+    expect(result.preview.DEFAULT_TTS_VOICES).toEqual({
+      'alibaba/cosyvoice-v2': { 'zh-CN': 'longxiaochun_v2' },
+    })
   })
 
   it('writes LLM_ROUTER_CONFIG, DEFAULT_CHAT_MODEL, and publishes invalidation', async () => {
@@ -328,34 +353,83 @@ describe('createAdminRouterConfigService', () => {
     expect(captured.map(p => JSON.parse(p.payload).key).sort()).toEqual(['DEFAULT_CHAT_MODEL', 'LLM_ROUTER_CONFIG'])
   })
 
-  it('writes STREAMING_TTS_UPSTREAM and publishes invalidation when a streaming-tts slice is included', async () => {
+  it('writes DEFAULT_TTS_VOICES without requiring provider slices', async () => {
+    const service = createAdminRouterConfigService({ configKV: kv.service, envelope, redis })
+    const result = await service.apply({
+      mode: 'merge',
+      dryRun: false,
+      slices: [],
+      defaults: {
+        ttsVoices: {
+          'alibaba/cosyvoice-v2': {
+            'zh-CN': 'longxiaochun_v2',
+            'en-US': 'loongava_v2',
+          },
+          'volcengine/seed-tts-2.0': {
+            'zh-CN': 'zh_female_vv_uranus_bigtts',
+          },
+        },
+      },
+    })
+
+    expect(kv.store.get('DEFAULT_TTS_VOICES')).toEqual({
+      'alibaba/cosyvoice-v2': {
+        'zh-CN': 'longxiaochun_v2',
+        'en-US': 'loongava_v2',
+      },
+      'volcengine/seed-tts-2.0': {
+        'zh-CN': 'zh_female_vv_uranus_bigtts',
+      },
+    })
+    expect(kv.store.has('LLM_ROUTER_CONFIG')).toBe(false)
+    expect(result.preview.DEFAULT_TTS_VOICES).toEqual(kv.store.get('DEFAULT_TTS_VOICES'))
+    expect(result.invalidatedKeys).toEqual(['DEFAULT_TTS_VOICES'])
+    expect(captured.map(p => JSON.parse(p.payload).key)).toEqual(['DEFAULT_TTS_VOICES'])
+  })
+
+  it('writes UNSPEECH_UPSTREAM and publishes invalidation when an unspeech slice is included', async () => {
     const service = createAdminRouterConfigService({ configKV: kv.service, envelope, redis })
     const result = await service.apply({
       mode: 'merge',
       dryRun: false,
       slices: [{
-        kind: 'streaming-tts',
-        upstreamURL: 'wss://unspeech.example/v1/audio/speech/stream',
-        plaintextKey: 'volc',
+        kind: 'unspeech',
+        restBaseURL: 'http://unspeech.example:5933',
+        streaming: {
+          upstreamURL: 'wss://unspeech.example/v1/audio/speech/stream',
+          plaintextKey: 'volc',
+          models: [
+            { id: 'volcengine/seed-tts-2.0', name: 'Seed-TTS 2.0', description: 'Low-latency streaming TTS' },
+          ],
+          defaultModel: 'volcengine/seed-tts-2.0',
+        },
       }],
     })
 
-    expect(kv.store.has('STREAMING_TTS_UPSTREAM')).toBe(true)
+    expect(kv.store.has('UNSPEECH_UPSTREAM')).toBe(true)
+    expect(kv.store.get('UNSPEECH_UPSTREAM')).toMatchObject({
+      streaming: {
+        models: [
+          { id: 'volcengine/seed-tts-2.0', name: 'Seed-TTS 2.0', description: 'Low-latency streaming TTS' },
+        ],
+        defaultModel: 'volcengine/seed-tts-2.0',
+      },
+    })
     expect(kv.store.has('LLM_ROUTER_CONFIG')).toBe(false)
-    expect(result.invalidatedKeys).toEqual(['STREAMING_TTS_UPSTREAM'])
-    expect(captured.map(p => JSON.parse(p.payload).key)).toEqual(['STREAMING_TTS_UPSTREAM'])
+    expect(result.invalidatedKeys).toEqual(['UNSPEECH_UPSTREAM'])
+    expect(captured.map(p => JSON.parse(p.payload).key)).toEqual(['UNSPEECH_UPSTREAM'])
   })
 
-  it('rejects multiple streaming-tts slices', async () => {
+  it('rejects multiple unspeech slices', async () => {
     const service = createAdminRouterConfigService({ configKV: kv.service, envelope, redis })
     await expect(service.apply({
       mode: 'merge',
       dryRun: true,
       slices: [
-        { kind: 'streaming-tts', upstreamURL: 'ws://a/x', plaintextKey: 'a' },
-        { kind: 'streaming-tts', upstreamURL: 'ws://b/x', plaintextKey: 'b' },
+        { kind: 'unspeech', restBaseURL: 'http://a' },
+        { kind: 'unspeech', restBaseURL: 'http://b' },
       ],
-    })).rejects.toThrow(/At most one streaming-tts/i)
+    })).rejects.toThrow(/At most one unspeech/i)
   })
 
   it('merge mode reads existing LLM_ROUTER_CONFIG and preserves untouched models', async () => {

@@ -34,7 +34,7 @@
 
 <p float="left" align="center">
   <!-- readme-section:release-binary-windows -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0/AIRI-0.9.0-windows-x64-setup.exe">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.10.2/AIRI-0.10.2-windows-x64-setup.exe">
     <picture>
       <source
         width="33%"
@@ -50,7 +50,7 @@
     </picture>
   </a>
   <!-- readme-section:release-binary-macos -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0/AIRI-0.9.0-darwin-arm64.dmg">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.10.2/AIRI-0.10.2-darwin-arm64.dmg">
     <picture>
       <source
         width="33%"
@@ -169,7 +169,7 @@ Ainsi, ce projet AIRI offre une autre possibilité : **vous permettre de posséd
 - [DevLog @ 05.08.2025](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.05/) du 5 août 2025
 - [DevLog @ 01.08.2025](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.01/) du 1er août 2025
 - [DevLog @ 18.07.2025](https://airi.moeru.ai/docs/en/blog/DevLog-2025.07.18/) du 18 juillet 2025
-- [DreamLog 0x1](https://airi.moeru.ai/docs/en/blog/dreamlog-0x1/) du 16 juin 2025
+- [DreamLog 0x1](https://airi.moeru.ai/docs/en/blog/DreamLog-0x1/) du 16 juin 2025
 - ...plus sur le [site de documentation](https://airi.moeru.ai/docs)
 
 ## Qu’est-ce qui rend ce projet spécial ?

@@ -321,6 +321,9 @@ catalogs:
     tsx:
       specifier: ^4.21.0
       version: 4.21.0
+    uiohook-napi:
+      specifier: ^1.5.5
+      version: 1.5.5
     uncrypto:
       specifier: ^0.1.3
       version: 0.1.3
@@ -348,9 +351,6 @@ catalogs:
     vite-plugin-mkcert:
       specifier: ^2.0.0
       version: 2.0.0
-    vitest:
-      specifier: ^4.1.4
-      version: 4.1.4
     vitest-browser-vue:
       specifier: ^2.1.0
       version: 2.1.0
@@ -431,6 +431,9 @@ patchedDependencies:
   sponsorkit@17.1.0:
     hash: f5887da52a29ae85732e01644d05c0c274231fe76b95aebeafbfab6dc4444f88
     path: patches/sponsorkit@17.1.0.patch
+  uiohook-napi@1.5.5:
+    hash: 012c5e5ad881d5ae40fc0af58832e31a0772ab0a74c038c8f4dfe51efaf398dd
+    path: patches/uiohook-napi@1.5.5.patch
 
 importers:
 
@@ -496,6 +499,9 @@ importers:
       oxlint:
         specifier: ^1.60.0
         version: 1.60.0
+      playwright:
+        specifier: ^1.59.1
+        version: 1.59.1
       posthog-js:
         specifier: 'catalog:'
         version: 1.306.1
@@ -680,6 +686,9 @@ importers:
       '@opentelemetry/instrumentation-runtime-node':
         specifier: ^0.28.0
         version: 0.28.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/instrumentation-undici':
+        specifier: ^0.25.0
+        version: 0.25.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/resources':
         specifier: ^2.7.0
         version: 2.7.0(@opentelemetry/api@1.9.1)
@@ -1420,6 +1429,9 @@ importers:
       three:
         specifier: ^0.184.0
         version: 0.184.0
+      uiohook-napi:
+        specifier: 'catalog:'
+        version: 1.5.5(patch_hash=012c5e5ad881d5ae40fc0af58832e31a0772ab0a74c038c8f4dfe51efaf398dd)
       unified:
         specifier: ^11.0.5
         version: 11.0.5
@@ -1730,6 +1742,9 @@ importers:
       '@proj-airi/stage-ui':
         specifier: workspace:^
         version: link:../../packages/stage-ui
+      '@proj-airi/stage-ui-live2d':
+        specifier: workspace:^
+        version: link:../../packages/stage-ui-live2d
       '@proj-airi/stage-ui-three':
         specifier: workspace:^
         version: link:../../packages/stage-ui-three
@@ -3004,7 +3019,7 @@ importers:
         specifier: 'catalog:'
         version: 1.3.2(esbuild@0.27.2)(rollup@4.60.1)(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
       vitest:
-        specifier: 'catalog:'
+        specifier: catalog:vitest
         version: 4.1.4(@opentelemetry/api@1.9.1)(@types/node@25.6.0)(@vitest/browser-playwright@4.1.4)(@vitest/coverage-v8@4.1.4)(jsdom@29.1.1(@noble/hashes@2.0.1)(canvas@3.2.3))(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
       vue-tsc:
         specifier: ^3.2.6
@@ -3695,7 +3710,7 @@ importers:
         specifier: ^0.184.0
         version: 0.184.0
       vitest:
-        specifier: 'catalog:'
+        specifier: catalog:vitest
         version: 4.1.4(@opentelemetry/api@1.9.1)(@types/node@25.6.0)(@vitest/browser-playwright@4.1.4)(@vitest/coverage-v8@4.1.4)(jsdom@29.1.1(@noble/hashes@2.0.1)(canvas@3.2.3))(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
       vue-tsc:
         specifier: ^3.2.6
@@ -3704,7 +3719,7 @@ importers:
   packages/stage-ui-spine:
     dependencies:
       '@esotericsoftware/spine-webgl':
-        specifier: ^4.2.0
+        specifier: ~4.2.0
         version: 4.2.114
       '@esotericsoftware/spine-webgl-4-0':
         specifier: npm:@esotericsoftware/spine-webgl@~4.0.31
@@ -3808,7 +3823,7 @@ importers:
         specifier: ^0.184.0
         version: 0.184.0
       vitest:
-        specifier: 'catalog:'
+        specifier: catalog:vitest
         version: 4.1.4(@opentelemetry/api@1.9.1)(@types/node@25.6.0)(@vitest/browser-playwright@4.1.4)(@vitest/coverage-v8@4.1.4)(jsdom@29.1.1(@noble/hashes@2.0.1)(canvas@3.2.3))(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
       vue-tsc:
         specifier: ^3.2.6
@@ -15122,8 +15137,8 @@ packages:
     resolution: {integrity: sha512-zsFhmbkAzwhTft6nd3VxcG0cvJsT70rL+BIGHWVq5fi6MwGrHwzqKaxXE+Hl2GmnGItnDKPPkO5/LQqjVkIdFg==}
     engines: {node: '>=10'}
 
-  node-abi@4.24.0:
-    resolution: {integrity: sha512-u2EC1CeNe25uVtX3EZbdQ275c74zdZmmpzrHEQh2aIYqoVjlglfUpOX9YY85x1nlBydEKDVaSmMNhR7N82Qj8A==}
+  node-abi@4.31.0:
+    resolution: {integrity: sha512-Erq5w/t3syw3s4sDsUaX4QttIdBPsGKTT1DTRsCkTonGggczhlDKm/wDX3o+HPJpQ41EjXCbcmXf0tgr5YZJXw==}
     engines: {node: '>=22.12.0'}
 
   node-addon-api@1.7.2:
@@ -17212,6 +17227,10 @@ packages:
 
   uint4@0.1.2:
     resolution: {integrity: sha512-lhEx78gdTwFWG+mt6cWAZD/R6qrIj0TTBeH5xwyuDJyswLNlGe+KVlUPQ6+mx5Ld332pS0AMUTo9hIly7YsWxQ==}
+
+  uiohook-napi@1.5.5:
+    resolution: {integrity: sha512-oSlTdnECw2GBfsJPTbBQBeE4v/EXP0EZmX6BJq5nzH/JgFaBE8JpFwEA/kLhiEP7HxQw28FViWiYgdIZzWuuJQ==}
+    engines: {node: '>= 16'}
 
   unbash@2.2.0:
     resolution: {integrity: sha512-X2wH19RAPZE3+ldGicOkoj/SIA83OIxcJ6Cuaw23hf8Xc6fQpvZXY0SftE2JgS0QhYLUG4uwodSI3R53keyh7w==}
@@ -20028,7 +20047,7 @@ snapshots:
       detect-libc: 2.1.2
       got: 11.8.6
       graceful-fs: 4.2.11
-      node-abi: 4.24.0
+      node-abi: 4.31.0
       node-api-version: 0.2.1
       node-gyp: 11.5.0
       ora: 5.4.1
@@ -30257,7 +30276,7 @@ snapshots:
     dependencies:
       semver: 7.7.4
 
-  node-abi@4.24.0:
+  node-abi@4.31.0:
     dependencies:
       semver: 7.7.4
 
@@ -32808,6 +32827,10 @@ snapshots:
   uhyphen@0.2.0: {}
 
   uint4@0.1.2: {}
+
+  uiohook-napi@1.5.5(patch_hash=012c5e5ad881d5ae40fc0af58832e31a0772ab0a74c038c8f4dfe51efaf398dd):
+    dependencies:
+      node-gyp-build: 4.8.4
 
   unbash@2.2.0: {}
 

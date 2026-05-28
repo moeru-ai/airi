@@ -11,8 +11,6 @@ import { afterAll, describe, expect, it, vi } from 'vitest'
 import { createV1Routes } from '.'
 import { ApiError } from '../../../utils/error'
 
-// --- Mock helpers ---
-
 function createMockFluxService(flux = 100): FluxService {
   return {
     getFlux: vi.fn(async () => ({ userId: 'user-1', flux })),
@@ -110,6 +108,7 @@ function createMockLlmRouter(impl?: Partial<LlmRouterService>): LlmRouterService
     }),
     listTtsVoices: vi.fn(async () => []),
     invalidateConfig: vi.fn(),
+    invalidateTtsVoicesCache: vi.fn(async () => undefined),
     ...impl,
   } as LlmRouterService
 }
@@ -163,8 +162,6 @@ function createTestApp(
 }
 
 const testUser = { id: 'user-1', name: 'Test User', email: 'test@example.com' }
-
-// --- Tests ---
 
 describe('v1CompletionsRoutes', () => {
   const originalFetch = globalThis.fetch
@@ -318,12 +315,10 @@ describe('v1CompletionsRoutes', () => {
       const data = await res.json() as { id: string }
       expect(data.id).toBe('chatcmpl-1')
 
-      // Verify flux was debited via billingService
       expect(billingService.consumeFluxForLLM).toHaveBeenCalledWith(
         expect.objectContaining({ userId: 'user-1', amount: 1 }),
       )
 
-      // Verify upstream was called with correct URL and resolved model
       expect(globalThis.fetch).toHaveBeenCalledWith(
         'http://mock-gateway/chat/completions',
         expect.objectContaining({
@@ -405,13 +400,11 @@ describe('v1CompletionsRoutes', () => {
       )
 
       expect(res.status).toBe(500)
-      // Post-billing: no charge on failed requests
       expect(billingService.consumeFluxForLLM).not.toHaveBeenCalled()
     })
 
     it('should return 503 when config keys are missing', async () => {
       const configKV = createMockConfigKV()
-      // Override getOptional to return null for required keys
       configKV.getOptional = vi.fn(async () => null)
 
       const app = createTestApp(createMockFluxService(), configKV)
@@ -747,10 +740,20 @@ describe('v1CompletionsRoutes', () => {
   })
 
   describe('gET /api/v1/audio/models', () => {
-    it('exposes only the auto routing alias regardless of DEFAULT_TTS_MODEL', async () => {
+    it('exposes every configured tts model id', async () => {
       const app = createTestApp(
         createMockFluxService(),
-        createMockConfigKV({ DEFAULT_TTS_MODEL: 'microsoft/v1' }),
+        createMockConfigKV({
+          LLM_ROUTER_CONFIG: {
+            llm: { models: {} },
+            tts: {
+              models: {
+                'microsoft/v1': { provider: 'azure', upstreams: [] as unknown[] },
+                'alibaba/cosyvoice-v2': { provider: 'dashscope-cosyvoice', upstreams: [] as unknown[] },
+              },
+            },
+          },
+        }),
       )
 
       const res = await app.fetch(
@@ -760,7 +763,28 @@ describe('v1CompletionsRoutes', () => {
 
       expect(res.status).toBe(200)
       const data = await res.json() as { models: { id: string, name: string }[] }
-      expect(data.models).toEqual([{ id: 'auto', name: 'Auto' }])
+      expect(data.models.map(m => m.id)).toEqual([
+        'alibaba/cosyvoice-v2',
+        'microsoft/v1',
+      ])
+    })
+
+    it('returns an empty list when no tts models are configured', async () => {
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV({
+          LLM_ROUTER_CONFIG: { llm: { models: {} }, tts: { models: {} } },
+        }),
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/models', { method: 'GET' }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(200)
+      const data = await res.json() as { models: { id: string, name: string }[] }
+      expect(data.models).toEqual([])
     })
 
     it('should return 401 when unauthenticated', async () => {
@@ -771,8 +795,114 @@ describe('v1CompletionsRoutes', () => {
     })
   })
 
+  describe('gET /api/v1/audio/models/streaming', () => {
+    it('returns the operator-configured streaming model catalog + default', async () => {
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV({
+          UNSPEECH_UPSTREAM: {
+            restBaseURL: 'http://unspeech.local:5933',
+            streaming: {
+              baseURL: 'wss://unspeech.local',
+              keys: [{ id: 'k1', ciphertext: 'enc' }],
+              models: [
+                { id: 'volcengine/seed-tts-2.0', name: 'Volcengine Seed-TTS 2.0', description: 'TTS 2.0' },
+                { id: 'volcengine/seed-tts-1.0' },
+              ],
+              defaultModel: 'volcengine/seed-tts-2.0',
+            },
+          },
+        }),
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/models/streaming', { method: 'GET' }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(200)
+      const data = await res.json() as { available: boolean, models: { id: string, name: string, description?: string }[], default: string | null }
+      expect(data.available).toBe(true)
+      expect(data.models).toEqual([
+        { id: 'volcengine/seed-tts-2.0', name: 'Volcengine Seed-TTS 2.0', description: 'TTS 2.0' },
+        { id: 'volcengine/seed-tts-1.0', name: 'volcengine/seed-tts-1.0' },
+      ])
+      expect(data.default).toBe('volcengine/seed-tts-2.0')
+    })
+
+    it('returns default: null when operator has not set a streaming default', async () => {
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV({
+          UNSPEECH_UPSTREAM: {
+            restBaseURL: 'http://unspeech.local:5933',
+            streaming: {
+              baseURL: 'wss://unspeech.local',
+              keys: [{ id: 'k1', ciphertext: 'enc' }],
+              models: [{ id: 'volcengine/seed-tts-2.0', name: 'Vol' }],
+            },
+          },
+        }),
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/models/streaming', { method: 'GET' }),
+        { user: testUser } as any,
+      )
+
+      const data = await res.json() as { default: string | null }
+      expect(data.default).toBeNull()
+    })
+
+    it('returns an empty list when UNSPEECH_UPSTREAM is unset', async () => {
+      const app = createTestApp(createMockFluxService(), createMockConfigKV())
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/models/streaming', { method: 'GET' }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(200)
+      const data = await res.json() as { available: boolean, models: unknown[] }
+      expect(data.available).toBe(false)
+      expect(data.models).toEqual([])
+    })
+
+    it('reports available: true with empty models when streaming subtree has no models', async () => {
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV({
+          UNSPEECH_UPSTREAM: {
+            restBaseURL: 'http://unspeech.local:5933',
+            streaming: {
+              baseURL: 'wss://unspeech.local',
+              keys: [{ id: 'k1', ciphertext: 'enc' }],
+            },
+          },
+        }),
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/models/streaming', { method: 'GET' }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(200)
+      const data = await res.json() as { available: boolean, models: unknown[] }
+      expect(data.available).toBe(true)
+      expect(data.models).toEqual([])
+    })
+
+    it('should return 401 when unauthenticated', async () => {
+      const app = createTestApp(createMockFluxService(), createMockConfigKV())
+
+      const res = await app.request('/api/v1/audio/models/streaming', { method: 'GET' })
+      expect(res.status).toBe(401)
+    })
+  })
+
   describe('gET /api/v1/audio/voices', () => {
-    it('returns the recommended bucket scoped to the resolved model', async () => {
+    it('returns the recommended bucket scoped to the explicit model id', async () => {
       const voices = [
         { id: 'en-US-JennyNeural', name: 'Jenny', provider: 'azure', locale: 'en-US', gender: 'Female' },
         { id: 'en-US-AvaMultilingualNeural', name: 'Ava', provider: 'azure', locale: 'en-US', gender: 'Female' },
@@ -782,7 +912,7 @@ describe('v1CompletionsRoutes', () => {
       })
       const configKV = createMockConfigKV({
         DEFAULT_TTS_VOICES: {
-          'tts-1': { 'en-US': 'en-US-AvaMultilingualNeural' },
+          'microsoft/v1': { 'en-US': 'en-US-AvaMultilingualNeural' },
           'other-model': { 'en-US': 'should-not-leak' },
         },
       })
@@ -790,7 +920,7 @@ describe('v1CompletionsRoutes', () => {
       const app = createTestApp(createMockFluxService(), configKV, undefined, undefined, undefined, llmRouter)
 
       const res = await app.fetch(
-        new Request('http://localhost/api/v1/audio/voices', { method: 'GET' }),
+        new Request('http://localhost/api/v1/audio/voices?model=microsoft/v1', { method: 'GET' }),
         { user: testUser } as any,
       )
 
@@ -798,7 +928,7 @@ describe('v1CompletionsRoutes', () => {
       const data = await res.json() as { voices: typeof voices, recommended: Record<string, string> }
       expect(data.voices).toEqual(voices)
       expect(data.recommended).toEqual({ 'en-US': 'en-US-AvaMultilingualNeural' })
-      expect(llmRouter.listTtsVoices).toHaveBeenCalledWith('tts-1')
+      expect(llmRouter.listTtsVoices).toHaveBeenCalledWith('microsoft/v1')
     })
 
     it('returns an empty recommended map when the resolved model has no bucket', async () => {
@@ -845,6 +975,40 @@ describe('v1CompletionsRoutes', () => {
       await app.fetch(new Request('http://localhost/api/v1/audio/voices?model=auto'), { user: testUser } as any)
       expect(llmRouter.listTtsVoices).toHaveBeenCalledWith('microsoft/v1')
     })
+
+    it('returns 400 MISSING_MODEL when ?model= is omitted (no implicit fallback)', async () => {
+      const llmRouter = createMockLlmRouter({
+        listTtsVoices: vi.fn(async () => []) as any,
+      })
+
+      const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, undefined, undefined, llmRouter)
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/voices', { method: 'GET' }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(400)
+      const body = await res.json() as { error?: string, message?: string }
+      expect(body.error).toBe('MISSING_MODEL')
+      expect(llmRouter.listTtsVoices).not.toHaveBeenCalled()
+    })
+
+    it('returns 400 MISSING_MODEL when ?model= is empty string', async () => {
+      const llmRouter = createMockLlmRouter({
+        listTtsVoices: vi.fn(async () => []) as any,
+      })
+
+      const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, undefined, undefined, llmRouter)
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/voices?model=', { method: 'GET' }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(400)
+      expect(llmRouter.listTtsVoices).not.toHaveBeenCalled()
+    })
   })
 
   describe('gET /api/v1/audio/voices/streaming', () => {
@@ -855,10 +1019,14 @@ describe('v1CompletionsRoutes', () => {
       })) as any
     }
 
+    function mockUnspeechFailure(status: number, body = 'boom') {
+      globalThis.fetch = vi.fn(async () => new Response(body, { status })) as any
+    }
+
     it('returns the streaming-model bucket of DEFAULT_TTS_VOICES when ?model= matches', async () => {
       mockUnspeechVoices([{ id: 'zh_female_vv_uranus_bigtts', name: 'Vivi 2.0' }])
       const configKV = createMockConfigKV({
-        STREAMING_TTS_UPSTREAM: { baseURL: 'http://unspeech.local' },
+        UNSPEECH_UPSTREAM: { restBaseURL: 'http://unspeech.local:5933', streaming: { baseURL: 'ws://unspeech.local:5933/v1/audio/speech/stream', keys: [{ id: 'k1', ciphertext: 'enc' }] } },
         DEFAULT_TTS_VOICES: {
           'seed-tts-2.0': { 'zh-cn': 'zh_female_vv_uranus_bigtts' },
           'seed-tts-1.0': { 'zh-cn': 'should-not-leak' },
@@ -880,7 +1048,7 @@ describe('v1CompletionsRoutes', () => {
     it('returns empty recommended when ?model= is omitted', async () => {
       mockUnspeechVoices([])
       const configKV = createMockConfigKV({
-        STREAMING_TTS_UPSTREAM: { baseURL: 'http://unspeech.local' },
+        UNSPEECH_UPSTREAM: { restBaseURL: 'http://unspeech.local:5933', streaming: { baseURL: 'ws://unspeech.local:5933/v1/audio/speech/stream', keys: [{ id: 'k1', ciphertext: 'enc' }] } },
         DEFAULT_TTS_VOICES: { 'seed-tts-2.0': { 'zh-cn': 'x' } },
       })
 
@@ -898,7 +1066,7 @@ describe('v1CompletionsRoutes', () => {
     it('returns empty recommended when the requested model has no configKV bucket', async () => {
       mockUnspeechVoices([])
       const configKV = createMockConfigKV({
-        STREAMING_TTS_UPSTREAM: { baseURL: 'http://unspeech.local' },
+        UNSPEECH_UPSTREAM: { restBaseURL: 'http://unspeech.local:5933', streaming: { baseURL: 'ws://unspeech.local:5933/v1/audio/speech/stream', keys: [{ id: 'k1', ciphertext: 'enc' }] } },
         DEFAULT_TTS_VOICES: { 'seed-tts-2.0': { 'zh-cn': 'x' } },
       })
 
@@ -911,6 +1079,60 @@ describe('v1CompletionsRoutes', () => {
 
       const data = await res.json() as { recommended: Record<string, string> }
       expect(data.recommended).toEqual({})
+    })
+
+    it('returns 503 STREAMING_TTS_NOT_CONFIGURED when UNSPEECH_UPSTREAM.streaming is absent', async () => {
+      mockUnspeechVoices([])
+      const configKV = createMockConfigKV({
+        UNSPEECH_UPSTREAM: { restBaseURL: 'http://unspeech.local:5933' },
+      })
+
+      const app = createTestApp(createMockFluxService(), configKV)
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/voices/streaming'),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(503)
+      const body = await res.json() as { error?: string }
+      expect(body.error).toBe('STREAMING_TTS_NOT_CONFIGURED')
+    })
+
+    it('returns 502 BAD_GATEWAY when unspeech responds non-2xx', async () => {
+      mockUnspeechFailure(503, 'unspeech is sleeping')
+      const configKV = createMockConfigKV({
+        UNSPEECH_UPSTREAM: { restBaseURL: 'http://unspeech.local:5933', streaming: { baseURL: 'ws://unspeech.local:5933/v1/audio/speech/stream', keys: [{ id: 'k1', ciphertext: 'enc' }] } },
+      })
+
+      const app = createTestApp(createMockFluxService(), configKV)
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/voices/streaming?model=seed-tts-2.0'),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(502)
+      const body = await res.json() as { error?: string }
+      expect(body.error).toBe('BAD_GATEWAY')
+    })
+
+    it('returns 502 BAD_GATEWAY when unspeech fetch throws', async () => {
+      globalThis.fetch = vi.fn(async () => {
+        throw new Error('ECONNREFUSED')
+      }) as any
+      const configKV = createMockConfigKV({
+        UNSPEECH_UPSTREAM: { restBaseURL: 'http://unspeech.local:5933', streaming: { baseURL: 'ws://unspeech.local:5933/v1/audio/speech/stream', keys: [{ id: 'k1', ciphertext: 'enc' }] } },
+      })
+
+      const app = createTestApp(createMockFluxService(), configKV)
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/voices/streaming?model=seed-tts-2.0'),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(502)
     })
   })
 

@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import type { ModelSettingsRuntimeSnapshot } from './runtime'
 
-import { defaultModelParameters, useExpressionStore, useLive2d } from '@proj-airi/stage-ui-live2d'
+import { defaultModelParameters, useExpressionStore, useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
 import { OPFSCache } from '@proj-airi/stage-ui-live2d/utils/opfs-loader'
 import { Button, Checkbox, FieldCheckbox, FieldCombobox, FieldRange, SelectTab } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { useSettings } from '../../../../stores/settings'
+import { PropertyPoint } from '../../../data-pane'
 import { Section } from '../../../layouts'
 import { ColorPalette } from '../../../widgets'
 
@@ -25,9 +25,10 @@ defineEmits<{
 
 const { t } = useI18n()
 
-const settings = useSettings()
+const settings = useSettingsLive2d()
 const {
-  live2dDisableFocus,
+  live2dEyeTracking,
+  live2dModelEyeOffset,
   live2dIdleAnimationEnabled,
   live2dAutoBlinkEnabled,
   live2dForceAutoBlinkEnabled,
@@ -35,9 +36,10 @@ const {
   live2dShadowEnabled,
   live2dMaxFps,
   live2dRenderScale,
+  live2dForceIdleEyeAnimation,
 } = storeToRefs(settings)
 
-const live2d = useLive2d()
+const live2d = useLive2dParams()
 const {
   scale,
   position,
@@ -65,16 +67,47 @@ function isGroupActive(group: { parameters: { parameterId: string, value: number
 const selectedRuntimeMotion = ref<string>('')
 const runtimeMotions = ref<Array<{ name: string, displayPath: string, group: string, index: number }>>([])
 const canExtractColors = computed(() => props.runtimeSnapshot.canCapturePreview)
-const runtimeMotionOptions = computed(() => runtimeMotions.value.map(motion => ({
-  label: motion.name,
-  value: motion.displayPath,
-  description: motion.displayPath,
-})))
+const runtimeMotionOptions = computed(() => {
+  const options = runtimeMotions.value.map(motion => ({
+    label: motion.name,
+    value: motion.displayPath,
+    description: motion.displayPath,
+  }))
+  if (options.length > 0) {
+    options.unshift({
+      label: t('settings.live2d.animation.idle-motion.disable-motion'),
+      value: '<motion disabled>',
+      description: t('settings.live2d.animation.idle-motion.disable-motion-description'),
+    })
+  }
+  return options
+})
 const fpsOptions = computed(() => [
-  { value: 0, label: t('settings.live2d.fps.options.unlimited') },
-  { value: 60, label: '60' },
   { value: 30, label: '30' },
+  { value: 60, label: '60' },
+  { value: 0, label: t('settings.live2d.parameters.fps.options.unlimited') },
 ])
+const blinkModeOptions = computed(() => [
+  {
+    value: 'auto',
+    label: t('settings.live2d.animation.auto-blink.title'),
+    description: t('settings.live2d.animation.auto-blink.description'),
+  },
+  {
+    value: 'force',
+    label: t('settings.live2d.animation.force-auto-blink.title'),
+    description: t('settings.live2d.animation.force-auto-blink.description'),
+  },
+])
+const live2dBlinkMode = computed<'auto' | 'force'>({
+  get() {
+    return live2dForceAutoBlinkEnabled.value ? 'force' : 'auto'
+  },
+  set(mode) {
+    live2dAutoBlinkEnabled.value = true
+    live2dForceAutoBlinkEnabled.value = mode === 'force'
+  },
+})
 
 watch(() => live2d.availableMotions, (motions) => {
   runtimeMotions.value = motions.map(m => ({
@@ -87,11 +120,11 @@ watch(() => live2d.availableMotions, (motions) => {
   console.info('Available motions:', runtimeMotions.value)
 }, { immediate: true })
 
-const llmModeOptions = [
-  { value: 'none', label: 'None' },
-  { value: 'all', label: 'All' },
-  { value: 'custom', label: 'Custom' },
-]
+const llmModeOptions = computed(() => [
+  { value: 'none', label: t('settings.live2d.expressions.expose-to-llm-options.none') },
+  { value: 'all', label: t('settings.live2d.expressions.expose-to-llm-options.all') },
+  { value: 'custom', label: t('settings.live2d.expressions.expose-to-llm-options.custom') },
+])
 
 // Get available runtime motions from the model
 onMounted(() => {
@@ -126,6 +159,7 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
 
   const motion = runtimeMotions.value.find(item => item.displayPath === selectedMotionPath)
   if (!motion) {
+    live2dIdleAnimationEnabled.value = false
     return
   }
 
@@ -245,6 +279,9 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
     size="sm"
     :expand="false"
   >
+    <p text="neutral-500 dark:neutral-400">
+      {{ t('settings.live2d.theme-color-from-model.description') }}
+    </p>
     <ColorPalette class="mb-4 mt-2" :colors="palette.map(hex => ({ hex, name: hex }))" mx-auto />
     <Button variant="secondary" :disabled="!canExtractColors" @click="$emit('extractColorsFromModel')">
       {{ t('settings.live2d.theme-color-from-model.button-extract.title') }}
@@ -291,7 +328,7 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
     </a>
   </Section> -->
   <Section
-    title="Parameters"
+    :title="t('settings.live2d.animation.title')"
     icon="i-solar:settings-bold-duotone"
     :class="[
       'rounded-xl',
@@ -302,64 +339,101 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
     :expand="false"
   >
     <FieldCheckbox
-      v-model="live2dDisableFocus"
-      :label="t('settings.live2d.focus.button-disable.title')"
+      v-model="live2dEyeTracking"
+      :label="t('settings.live2d.animation.focus.title')"
+      :description="t('settings.live2d.animation.focus.description')"
       placement="right"
     />
+    <div v-if="live2dEyeTracking" class="grid grid-cols-4">
+      <PropertyPoint
+        v-model:x="live2dModelEyeOffset.x"
+        v-model:y="live2dModelEyeOffset.y"
 
+        :x-config="{ min: -100, max: 100, step: 0.01, label: 'X', formatValue: (val: number) => val?.toFixed(2) }"
+        :y-config="{ min: -100, max: 100, step: 0.01, label: 'Y', formatValue: (val: number) => val?.toFixed(2) }"
+      >
+        <template #label>
+          <p class="text-xs text-neutral-500 dark:text-neutral-400">
+            {{ t('settings.live2d.animation.focus.offset') }}
+          </p>
+        </template>
+      </PropertyPoint>
+    </div>
+    <FieldCheckbox
+      v-model="live2dForceIdleEyeAnimation"
+      :label="t('settings.live2d.animation.force-idle-eye-animation.title')"
+      :description="t('settings.live2d.animation.force-idle-eye-animation.description')"
+      placement="right"
+    />
+    <FieldCheckbox
+      v-model="live2dAutoBlinkEnabled"
+      :label="t('settings.live2d.animation.blink-enable.title')"
+      :description="t('settings.live2d.animation.blink-enable.description')"
+      placement="right"
+    />
+    <label v-if="live2dAutoBlinkEnabled" class="flex flex-wrap gap-4">
+      <div class="flex-1">
+        <div class="flex items-center gap-1 text-sm font-medium">
+          {{ t('settings.live2d.animation.blink-mode.title') }}
+        </div>
+        <div class="text-xs text-neutral-500 dark:text-neutral-400">
+          {{ t('settings.live2d.animation.blink-mode.description') }}
+        </div>
+      </div>
+      <SelectTab v-model="live2dBlinkMode" :options="blinkModeOptions" size="sm" :class="['shrink-0']" />
+    </label>
+    <FieldCombobox
+      v-model="selectedRuntimeMotion"
+      :label="t('settings.live2d.animation.idle-motion.title')"
+      :options="runtimeMotionOptions"
+      :placeholder="t('settings.live2d.animation.idle-motion.placeholder')"
+      :select-class="['w-full']"
+      :content-min-width="256"
+      @update:model-value="handleMotionSelect"
+    >
+      <template #empty>
+        {{ t('settings.live2d.animation.idle-motion.no-motion') }}
+      </template>
+    </FieldCombobox>
+  </Section>
+  <Section
+    :title="t('settings.live2d.parameters.title')"
+    icon="i-solar:settings-bold-duotone"
+    :class="[
+      'rounded-xl',
+      'bg-white/80  dark:bg-black/75',
+      'backdrop-blur-lg',
+    ]"
+    size="sm"
+    :expand="false"
+  >
     <FieldRange
       v-model="live2dRenderScale"
       as="div"
       :min="0.5"
       :max="2"
       :step="0.25"
-      :label="t('settings.live2d.render-scale.title')"
+      :label="t('settings.live2d.parameters.render-scale.title')"
     />
 
-    <FieldCombobox
-      v-model="selectedRuntimeMotion"
-      label="Idle Animation"
-      :options="runtimeMotionOptions"
-      placeholder="Select Motion"
-      :select-class="['w-full']"
-      :content-min-width="256"
-      @update:model-value="handleMotionSelect"
-    >
-      <template #empty>
-        No motions available
-      </template>
-    </FieldCombobox>
-
-    <label class="flex flex-col gap-4">
-      <div :class="['flex items-center gap-2', 'flex-row']">
-        <div class="flex-1">
-          <div class="flex items-center gap-1 text-sm font-medium">
-            <slot name="label">
-              {{ t('settings.live2d.fps.title') }}
-            </slot>
-          </div>
-          <div class="text-xs text-neutral-500 dark:text-neutral-400">
-            <slot name="description">
-              {{ t('settings.live2d.fps.description') }}
-            </slot>
-          </div>
+    <label class="flex flex-wrap gap-4">
+      <div class="flex-1">
+        <div class="flex items-center gap-1 text-sm font-medium">
+          <slot name="label">
+            {{ t('settings.live2d.parameters.fps.title') }}
+          </slot>
         </div>
-        <SelectTab v-model="live2dMaxFps" :options="fpsOptions" size="sm" :class="['shrink-0']" />
+        <div class="text-xs text-neutral-500 dark:text-neutral-400">
+          <slot name="description">
+            {{ t('settings.live2d.parameters.fps.description') }}
+          </slot>
+        </div>
       </div>
+      <SelectTab v-model="live2dMaxFps" :options="fpsOptions" size="sm" :class="['shrink-0']" />
     </label>
 
     <div mt-4 flex items-center justify-between>
-      <span text-sm text-neutral-600 dark:text-neutral-400>Auto Blink</span>
-      <Checkbox v-model="live2dAutoBlinkEnabled" />
-    </div>
-
-    <div mt-3 flex items-center justify-between>
-      <span text-sm text-neutral-600 dark:text-neutral-400>Force Auto Blink (fallback timer)</span>
-      <Checkbox v-model="live2dForceAutoBlinkEnabled" />
-    </div>
-
-    <div mt-4 flex items-center justify-between>
-      <span text-sm text-neutral-600 dark:text-neutral-400>Shadow</span>
+      <span text-sm>{{ t('settings.live2d.parameters.shadow') }}</span>
       <Checkbox v-model="live2dShadowEnabled" />
     </div>
 
@@ -368,7 +442,7 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
       class="mt-4 w-full"
       @click="resetToDefaultParameters"
     >
-      Reset To Default Parameters
+      {{ t('settings.live2d.parameters.reset-parameters') }}
     </Button>
 
     <Button
@@ -378,7 +452,7 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
       :loading="clearingCache"
       @click="clearModelCache"
     >
-      Clear Model Cache
+      {{ t('settings.live2d.clear-model-cache') }}
     </Button>
 
     <!-- Head Rotation -->
@@ -632,7 +706,7 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
     </FieldRange>
   </Section>
   <Section
-    title="Expressions"
+    :title="t('settings.live2d.expressions.title')"
     icon="i-solar:face-scan-circle-bold-duotone"
     :class="[
       'rounded-xl',
@@ -643,15 +717,15 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
     :expand="false"
   >
     <div flex items-center justify-between>
-      <span text-sm text-neutral-600 dark:text-neutral-400>Expression System</span>
+      <span text-sm text-neutral-600 dark:text-neutral-400>{{ t('settings.live2d.expressions.override-toggle') }}</span>
       <Checkbox v-model="live2dExpressionEnabled" />
     </div>
     <div v-if="!live2dExpressionEnabled" py-2 text-xs text-neutral-500 dark:text-neutral-400>
-      SDK expression manager and eye blink are preserved when disabled.
+      {{ t('settings.live2d.expressions.sdk-preset-preserved-notice') }}
     </div>
     <template v-else-if="expressionGroups.size === 0">
       <div py-2 text-sm text-neutral-500 dark:text-neutral-400>
-        No expressions available for this model.
+        {{ t('settings.live2d.expressions.no-expression') }}
       </div>
     </template>
     <template v-else>
@@ -670,8 +744,8 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
         </div>
       </div>
 
-      <div mt-4 flex items-center gap-3>
-        <span whitespace-nowrap text-sm text-neutral-600 dark:text-neutral-400>Expose to LLM</span>
+      <div mt-4 flex flex-wrap items-center gap-3>
+        <span whitespace-nowrap text-sm text-neutral-600 dark:text-neutral-400>{{ t('settings.live2d.expressions.expose-to-llm-toggle') }}</span>
         <SelectTab
           :model-value="expressionStore.llmMode"
           :options="llmModeOptions"
@@ -680,7 +754,7 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
         />
       </div>
       <span v-if="expressionStore.llmMode !== 'none'" text-xs text-neutral-500 dark:text-neutral-400>
-        LLM tool integration is not yet wired up.
+        {{ t('settings.live2d.expressions.llm-integration-wip') }}
       </span>
 
       <!-- Custom per-expression LLM toggles (only when mode = 'custom') -->
@@ -701,10 +775,10 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
       <!-- Action buttons -->
       <div mt-4 flex gap-2>
         <Button variant="secondary" @click="expressionStore.saveDefaults()">
-          Save Expression Defaults
+          {{ t('settings.live2d.expressions.save-default') }}
         </Button>
         <Button variant="secondary" @click="expressionStore.resetAll()">
-          Reset All Expressions
+          {{ t('settings.live2d.expressions.reset') }}
         </Button>
       </div>
     </template>

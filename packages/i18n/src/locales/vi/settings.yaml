@@ -105,6 +105,20 @@ analytics:
     description: Turn this off to opt out of analytics collection.
   disabled:
     title: Analytics disabled for this development build
+model-select:
+  panel-callout:
+    support-status-header: We support both 2D and 3D models
+    support-status: >
+      Click {select-button} to select or import models. Currently, {zip} (for Live2D models) and {vrm} (for VRM models) are supported.
+    model-type-example: >
+      Neuro-sama uses 2D model driven by framework developed by Live2D Inc, while Grok Ani (in Grok Companion) uses 3D model driven by VRM / MMD open formats.
+  select-model:
+    title: Model Selector
+    button: Select model
+    select: Pick
+    import: Import
+    remove: Remove
+    confirm: Confirm
 live2d:
   change-model:
     from-file: Tải từ tệp
@@ -129,19 +143,63 @@ live2d:
     change-to-vrm: Bấm vào đây để đổi sang cài đặt mô hình 3D (VRM)
   theme-color-from-model:
     title: Trích xuất màu từ mô hình
+    description: >
+      Extract prominent colors from current rendering canvas. Click on the color to apply it to AIRI. Try to extract multiple times, with the model in different poses, if the colors are not desirable.
     button-extract:
       title: Trích xuất
-  focus:
-    title: Tắt theo dõi chuột cho mô hình
-    button-disable:
-      title: Disable model mouse tracking
-  render-scale:
-    title: Render scale
-  fps:
-    title: FPS
-    description: Giới hạn tốc độ khung hình hiển thị
-    options:
-      unlimited: '∞'
+  animation:
+    title: Animation
+    focus:
+      title: Enable mouse tracking
+      description: Look at the cursor while it is moving. Idle eye movement resumes after the cursor stops.
+      offset: Eye offset(%)
+    force-idle-eye-animation:
+      title: Idle eye movement
+      description: Randomly look around when there is no active cursor focus.
+    blink-enable:
+      title: Enable blink
+      description: Let the model blink.
+    auto-blink:
+      title: Auto
+      description: Use default blinking animation of the model
+    force-auto-blink:
+      title: Force
+      description: Force blinking animation with external timer
+    blink-mode:
+      title: Blink mode
+      description: Choose the model built-in blink or AIRI's forced blink timer.
+    idle-motion:
+      title: Idle animation
+      no-motion: No animation available
+      placeholder: Select animation
+      disable-motion: Disabled
+      disable-motion-description: Disable idle animation
+  parameters:
+    title: Model Parameters
+    render-scale:
+      title: Render scale
+    fps:
+      title: FPS
+      description: Limit rendering frame rate
+      options:
+        unlimited: '∞'
+    shadow: Drop shadow
+    reset-parameters: Reset to default parameters
+  clear-model-cache: Clear model cache
+  expressions:
+    title: Expressions
+    override-toggle: Expression system
+    sdk-preset-preserved-notice: >
+      SDK expression manager and eye blink are preserved when disabled.
+    no-expression: No expressions available for this model.
+    llm-integration-wip: LLM tool integration is not yet wired up.
+    save-default: Save expression defaults
+    reset: Reset all expressions
+    expose-to-llm-toggle: Expose to LLM
+    expose-to-llm-options:
+      none: None
+      all: All
+      custom: Custom
 microphone: Micro
 models: Mô hình
 pages:
@@ -1288,6 +1346,8 @@ pages:
         description: Official AI provider by AIRI.
         speech-title: Official Speech Provider
         speech-description: Official text-to-speech provider by AIRI.
+        speech-streaming-title: Official Streaming Speech Provider
+        speech-streaming-description: Official low-latency text-to-speech provider by AIRI (bidirectional WebSocket).
         transcription-title: Official Transcription Provider
         transcription-description: Official speech-to-text provider by AIRI.
       transcriptions:
@@ -1524,8 +1584,6 @@ theme:
 title: Cài Đặt
 voices: Giọng Nói
 vrm:
-  render-scale:
-    title: Render scale
   change-model:
     from-file: Tải từ Tệp
     from-file-select: Chọn
@@ -1565,6 +1623,35 @@ vrm:
   skybox:
     skybox-intensity: Cường Độ SkyBox
     skybox-specular-mix: Độ Trộn Phản Chiếu
+spine:
+  title: Spine Settings
+  scale-and-position:
+    title: Scale And Position
+    scale: Scale
+    x: X
+    'y': 'Y'
+  theme-color-from-model:
+    title: Extract colors from model
+    button-extract:
+      title: Extract
+  animation:
+    title: Animation
+    idle-animation: Idle Animation
+    mix-duration: Mix Duration (seconds)
+    speed: Animation Speed
+  variant:
+    title: Variant
+    current-variant: Active Variant
+  skin:
+    title: Skin
+    current-skin: Current Skin
+  rendering:
+    title: Rendering
+    max-fps: Maximum FPS
+    render-scale: Render Scale
+  fps:
+    options:
+      unlimited: Unlimited
 websocket-secure-enabled:
   title: Bật WebSocket bảo mật (WSS)
   description: >-

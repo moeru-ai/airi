@@ -20,7 +20,7 @@ import { rateLimiter } from '../../middlewares/rate-limit'
 import { captureSafe } from '../../services/adapters/posthog'
 import { createBadRequestError, createServiceUnavailableError } from '../../utils/error'
 import { errorMessageFromUnknown } from '../../utils/error-message'
-import { resolveTrustedRequestOrigin } from '../../utils/origin'
+import { resolveCheckoutRedirectBase } from '../../utils/origin'
 import { createRedisKey } from '../../utils/redis-keys'
 import { CheckoutBodySchema } from './schema'
 
@@ -177,10 +177,7 @@ export function createStripeRoutes(
       const customer = await stripeService.getCustomerByUserId(user.id)
       const stripeCustomerId = customer?.stripeCustomerId
 
-      const redirectBase = resolveTrustedRequestOrigin(c.req.raw, env.ADDITIONAL_TRUSTED_ORIGINS)
-      if (!redirectBase) {
-        throw createBadRequestError('Missing trusted request origin', 'INVALID_ORIGIN')
-      }
+      const redirectBase = resolveCheckoutRedirectBase(c.req.raw, env.ADDITIONAL_TRUSTED_ORIGINS, env.WEB_APP_URL)
 
       const paymentMethods = await configKV.getOptional('STRIPE_PAYMENT_METHODS')
       const paymentMethodOptions = await configKV.getOptional('STRIPE_PAYMENT_METHOD_OPTIONS') ?? {}
@@ -252,10 +249,7 @@ export function createStripeRoutes(
       if (!customer)
         throw createBadRequestError('No billing account found', 'NO_CUSTOMER')
 
-      const portalReturnBase = resolveTrustedRequestOrigin(c.req.raw, env.ADDITIONAL_TRUSTED_ORIGINS)
-      if (!portalReturnBase) {
-        throw createBadRequestError('Missing trusted request origin', 'INVALID_ORIGIN')
-      }
+      const portalReturnBase = resolveCheckoutRedirectBase(c.req.raw, env.ADDITIONAL_TRUSTED_ORIGINS, env.WEB_APP_URL)
 
       const portalSession = await stripe.billingPortal.sessions.create({
         customer: customer.stripeCustomerId,

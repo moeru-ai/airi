@@ -8,6 +8,7 @@ import type { OtelInstance } from './otel'
 import type { ConfigKVService } from './services/adapters/config-kv'
 import type { AdminFluxGrantsService } from './services/domain/admin/flux-grants'
 import type { AdminRouterConfigService } from './services/domain/admin/router-config'
+import type { AdminUsersService } from './services/domain/admin/users'
 import type { BillingService } from './services/domain/billing/billing-service'
 import type { FluxMeter } from './services/domain/billing/flux-meter'
 import type { CharacterService } from './services/domain/characters'
@@ -49,6 +50,7 @@ import { registerActiveSessionsGauge } from './otel/gauges/active-sessions'
 import { registerDistinctActiveUsersGauge } from './otel/gauges/distinct-active-users'
 import { createAdminRouterConfigRoutes } from './routes/admin/config/router'
 import { createAdminFluxGrantsRoutes } from './routes/admin/flux-grants'
+import { createAdminUsersRoutes } from './routes/admin/users'
 import { createAudioSpeechWsHandlers } from './routes/audio-speech-ws'
 import { createAuthRoutes } from './routes/auth'
 import { createCharacterRoutes } from './routes/characters'
@@ -63,6 +65,7 @@ import { createEmailService } from './services/adapters/email'
 import { createPostHogClient } from './services/adapters/posthog'
 import { createAdminFluxGrantsService } from './services/domain/admin/flux-grants'
 import { createAdminRouterConfigService } from './services/domain/admin/router-config'
+import { createAdminUsersService } from './services/domain/admin/users'
 import { createBillingService } from './services/domain/billing/billing-service'
 import { createFluxMeter } from './services/domain/billing/flux-meter'
 import { createCharacterService } from './services/domain/characters'
@@ -91,6 +94,7 @@ interface AppDeps {
   billingService: BillingService
   adminFluxGrantsService: AdminFluxGrantsService
   adminRouterConfigService: AdminRouterConfigService
+  adminUsersService: AdminUsersService
   ttsMeter: FluxMeter
   requestLogService: RequestLogService
   configKV: ConfigKVService
@@ -338,18 +342,26 @@ export async function buildApp(deps: AppDeps) {
     .route('/api/v1/stripe', createStripeRoutes(deps.fluxService, deps.stripeService, deps.billingService, deps.configKV, deps.env, deps.redis, deps.otel?.revenue, deps.otel?.rateLimit, deps.posthog))
 
     /**
-     * Admin routes — guarded by `ADMIN_EMAILS` allowlist + verified email.
-     * v1 only includes synchronous one-shot promo flux grants.
+     * Admin routes — guarded by the `adminGuard` role check (`role === 'admin'`,
+     * better-auth `admin` plugin). v1 only includes synchronous one-shot promo
+     * flux grants.
      */
-    .route('/api/admin/flux-grants', createAdminFluxGrantsRoutes(deps.adminFluxGrantsService, deps.env))
+    .route('/api/admin/flux-grants', createAdminFluxGrantsRoutes(deps.adminFluxGrantsService))
+
+    /**
+     * Admin per-user balance override (set balance, incl. 0 for testing).
+     * Account ban/unban live under the better-auth admin plugin at
+     * `/api/auth/admin/ban-user` / `/api/auth/admin/unban-user`.
+     */
+    .route('/api/admin/users', createAdminUsersRoutes(deps.adminUsersService))
 
     /**
      * Admin LLM router config seeding/patching. Single entry point for
-     * writing `LLM_ROUTER_CONFIG`, `STREAMING_TTS_UPSTREAM`, and the
+     * writing `LLM_ROUTER_CONFIG`, `UNSPEECH_UPSTREAM`, and the
      * `DEFAULT_{CHAT,TTS}_MODEL` aliases — see
      * `routes/admin/config/router/index.ts` for the body shape.
      */
-    .route('/api/admin/config/router', createAdminRouterConfigRoutes(deps.adminRouterConfigService, deps.env))
+    .route('/api/admin/config/router', createAdminRouterConfigRoutes(deps.adminRouterConfigService))
 
     /**
      * Catch-all 404 in JSON. Replaces hono's default `text/html` "404 Not
@@ -590,6 +602,16 @@ export async function createApp() {
     }),
   })
 
+  // Per-user admin operations (balance override). Delegates the balance write
+  // to billingService.setFlux so the ledger stays single-sourced.
+  const adminUsersService = injeca.provide('services:adminUsers', {
+    dependsOn: { db, billingService },
+    build: ({ dependsOn }) => createAdminUsersService({
+      db: dependsOn.db,
+      billingService: dependsOn.billingService,
+    }),
+  })
+
   const ttsMeter = injeca.provide('services:ttsMeter', {
     dependsOn: { redis, billingService, configKV, otel },
     build: ({ dependsOn }) => createFluxMeter(dependsOn.redis, dependsOn.billingService, {
@@ -635,11 +657,12 @@ export async function createApp() {
   // LLM_ROUTER_MASTER_KEY is required at env-parse time, so this provider
   // always builds a real router — the legacy `null` fallback path is gone.
   const llmRouter = injeca.provide('services:llmRouter', {
-    dependsOn: { configKV, envelopeCrypto, otel },
+    dependsOn: { configKV, envelopeCrypto, otel, redis },
     build: ({ dependsOn }) => createLlmRouterService({
       configKV: dependsOn.configKV,
       envelopeCrypto: dependsOn.envelopeCrypto,
       gatewayMetrics: dependsOn.otel?.gateway ?? null,
+      redis: dependsOn.redis,
     }),
   })
 
@@ -657,6 +680,7 @@ export async function createApp() {
     billingService,
     adminFluxGrantsService,
     adminRouterConfigService,
+    adminUsersService,
     ttsMeter,
     configKV,
     envelopeCrypto,
@@ -693,6 +717,7 @@ export async function createApp() {
     billingService: resolved.billingService,
     adminFluxGrantsService: resolved.adminFluxGrantsService,
     adminRouterConfigService: resolved.adminRouterConfigService,
+    adminUsersService: resolved.adminUsersService,
     ttsMeter: resolved.ttsMeter,
     requestLogService: resolved.requestLogService,
     configKV: resolved.configKV,

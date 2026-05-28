@@ -123,6 +123,7 @@
     "shiki": "^4.0.2",
     "splitpanes": "catalog:",
     "three": "^0.184.0",
+    "uiohook-napi": "catalog:",
     "unified": "^11.0.5",
     "unspeech": "catalog:xsai",
     "uqr": "catalog:",

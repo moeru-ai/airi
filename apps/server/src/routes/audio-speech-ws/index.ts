@@ -56,8 +56,8 @@ export interface AudioSpeechWsHandlersOptions {
  * Expects:
  * - The route handler has already resolved auth via the `?token=` query
  *   (see app.ts wiring) and passes a verified `userId` in.
- * - `STREAMING_TTS_UPSTREAM` configKV entry is populated with at least one
- *   key; absent config rejects the upgrade with policy-violation close.
+ * - `UNSPEECH_UPSTREAM.streaming` configKV subtree is populated with at least
+ *   one key; absent config rejects the upgrade with policy-violation close.
  *
  * Returns:
  * - A function that takes `userId` and returns hono `WSEvents`. Each call
@@ -126,16 +126,17 @@ function createSessionState(userId: string, opts: AudioSpeechWsHandlersOptions) 
   }
 
   async function dialUpstream() {
-    let upstreamConfig: Awaited<ReturnType<ConfigKVService['getOptional']>>
+    let unspeech: Awaited<ReturnType<ConfigKVService['getOptional']>>
     try {
-      upstreamConfig = await opts.configKV.getOptional('STREAMING_TTS_UPSTREAM')
+      unspeech = await opts.configKV.getOptional('UNSPEECH_UPSTREAM')
     }
     catch (err) {
-      log.withError(err).error('STREAMING_TTS_UPSTREAM read failed')
+      log.withError(err).error('UNSPEECH_UPSTREAM read failed')
       closeWithError(1011, 'config_unavailable')
       return
     }
 
+    const upstreamConfig = unspeech?.streaming
     if (!upstreamConfig || !upstreamConfig.baseURL || upstreamConfig.keys.length === 0) {
       closeWithError(1008, 'streaming_tts_not_configured')
       return

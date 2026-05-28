@@ -39,8 +39,20 @@ export interface TtsInput {
 export interface TtsAdapterContext {
   /** Decrypted upstream credential. Plain text — keep in-memory only. */
   keyPlaintext: Buffer
-  /** Upstream HTTP base URL (no trailing slash). */
+  /**
+   * Per-upstream baseURL from `LLM_ROUTER_CONFIG.tts.upstreams[i].baseURL`.
+   *
+   * Historically the upstream provider URL (e.g.
+   * `https://eastasia.tts.speech.microsoft.com/cognitiveservices/v1`). After
+   * the Phase-B unspeech migration, adapters no longer call upstreams
+   * directly — every `send()` forwards through unspeech REST — so this field
+   * is informational only and adapters MAY ignore it. Kept on the context so
+   * existing operator configs continue to validate (the schema requires a
+   * non-empty string).
+   */
   baseURL: string
+  /** unspeech REST base URL (no trailing slash) — adapters POST to `<this>/v1/audio/speech`. */
+  unspeechBaseURL: string
   /** Free-form adapter-specific params from `tts.upstreams[i].adapterParams` (e.g. Volcengine `appid` / `cluster`). */
   adapterParams: Record<string, unknown>
   /** Fetch implementation. Tests inject a `vi.fn()`; production passes `globalThis.fetch`. */
@@ -73,6 +85,34 @@ export interface TtsResult {
 export type TtsAdapterId = 'azure' | 'dashscope-cosyvoice' | 'volcengine'
 
 /**
+ * Per-call context for {@link TtsAdapter.getVoiceCatalog}.
+ *
+ * `keyPlaintext` and `region` are mandatory for live providers (Azure) that
+ * proxy through unspeech and call the upstream provider with a subscription
+ * key; the router decrypts the envelope key and forwards `adapterParams.region`
+ * verbatim. Providers with static, credential-less catalogs (DashScope
+ * cosyvoice, Volcengine) ignore both fields.
+ *
+ * `unspeechBaseURL` is `UNSPEECH_UPSTREAM.restBaseURL` resolved by the
+ * router. Passing it through the context keeps adapters free of configKV
+ * coupling — they receive a fully-resolved URL string.
+ */
+export interface TtsVoiceCatalogContext {
+  /** Decrypted upstream credential (live providers only). */
+  keyPlaintext?: Buffer
+  /** Provider region (live providers only). */
+  region?: string
+  /** Free-form adapter-specific params (mirrors `tts.upstreams[i].adapterParams`). */
+  adapterParams: Record<string, unknown>
+  /** unspeech REST base URL, no trailing slash. */
+  unspeechBaseURL: string
+  /** Fetch implementation. Tests inject `vi.fn()`; production passes `globalThis.fetch`. */
+  fetchImpl: typeof fetch
+  /** Caller-side abort signal — propagated to the upstream fetch. */
+  abortSignal?: AbortSignal
+}
+
+/**
  * Pure protocol translator between OpenAI-shaped `/v1/audio/speech` requests
  * and one upstream TTS provider.
  *
@@ -97,10 +137,12 @@ export interface TtsAdapter {
   /** Dispatches one TTS request and resolves with the audio payload. */
   send: (input: TtsInput, ctx: TtsAdapterContext) => Promise<TtsResult>
   /**
-   * Returns the committed voice catalog for the provider.
+   * Returns the voice catalog for the provider.
    *
-   * U5 stub returns `[]`; U6 wires per-provider static JSON files under
-   * `./voices/<id>.json`.
+   * Live providers (Azure) call upstream via unspeech using the supplied
+   * region + plaintext key. Static providers (dashscope-cosyvoice, volcengine)
+   * return their compiled-in JSON and ignore the context fields. Adapters
+   * MUST throw on upstream failure — no empty-array fallback.
    */
-  getVoiceCatalog: () => Voice[]
+  getVoiceCatalog: (ctx: TtsVoiceCatalogContext) => Promise<Voice[]>
 }

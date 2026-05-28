@@ -33,7 +33,7 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@esotericsoftware/spine-webgl": "^4.2.0",
+    "@esotericsoftware/spine-webgl": "~4.2.0",
     "@esotericsoftware/spine-webgl-4-0": "npm:@esotericsoftware/spine-webgl@~4.0.31",
     "@esotericsoftware/spine-webgl-4-1": "npm:@esotericsoftware/spine-webgl@~4.1.56",
     "@moeru/std": "catalog:",

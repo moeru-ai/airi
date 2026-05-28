@@ -21,8 +21,6 @@ describe('configKVService', () => {
     service = createConfigKVService(redis as any)
   })
 
-  // --- get ---
-
   it('get should throw 503 when key is not set', async () => {
     await expect(service.getOrThrow('FLUX_PER_1K_CHARS_TTS'))
       .rejects
@@ -43,8 +41,6 @@ describe('configKVService', () => {
     expect(redis.get).toHaveBeenCalledWith(configRedisKey('FLUX_PER_REQUEST'))
   })
 
-  // --- getOptional ---
-
   it('getOptional should return schema default when key has one', async () => {
     const value = await service.getOptional('FLUX_PER_REQUEST')
     expect(value).toBe(5)
@@ -62,7 +58,35 @@ describe('configKVService', () => {
     expect(value).toBe(200)
   })
 
-  // --- set ---
+  it('getOptional should throw CONFIG_INVALID when Redis contains malformed JSON', async () => {
+    // ROOT CAUSE:
+    //
+    // If an operator edits config:LLM_ROUTER_CONFIG directly with invalid JSON,
+    // JSON.parse used to throw SyntaxError through the request handler and log
+    // it as an unhandled 500.
+    //
+    // We fixed this by translating stored config parse/validation failures into
+    // a stable API error at the configKV boundary.
+    redis._store.set(configRedisKey('LLM_ROUTER_CONFIG'), '{"llm":{}')
+
+    await expect(service.getOptional('LLM_ROUTER_CONFIG'))
+      .rejects
+      .toMatchObject({
+        statusCode: 503,
+        errorCode: 'CONFIG_INVALID',
+      })
+  })
+
+  it('getOptional should throw CONFIG_INVALID when Redis contains schema-invalid JSON', async () => {
+    redis._store.set(configRedisKey('FLUX_PER_REQUEST'), JSON.stringify('5'))
+
+    await expect(service.getOptional('FLUX_PER_REQUEST'))
+      .rejects
+      .toMatchObject({
+        statusCode: 503,
+        errorCode: 'CONFIG_INVALID',
+      })
+  })
 
   it('set should write value to Redis with prefix', async () => {
     await service.set('FLUX_PER_REQUEST', 10)

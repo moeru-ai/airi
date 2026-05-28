@@ -20,7 +20,7 @@ import { configGuard } from '../../../middlewares/config-guard'
 import { rateLimiter } from '../../../middlewares/rate-limit'
 import { captureSafe } from '../../../services/adapters/posthog'
 import { calculateFluxFromUsage, extractUsageFromBody } from '../../../services/domain/billing/billing'
-import { createPaymentRequiredError } from '../../../utils/error'
+import { createBadGatewayError, createBadRequestError, createPaymentRequiredError, createServiceUnavailableError } from '../../../utils/error'
 import { nanoid } from '../../../utils/id'
 import {
   AIRI_ATTR_BILLING_FLUX_CONSUMED,
@@ -290,7 +290,6 @@ export function createV1Routes(
               logger.withError(err).warn('Failed to close stream writer')
             }
 
-            // Extract usage from final SSE data lines
             let usage: UsageInfo = {}
             try {
               const lines = tailBuffer.split('\n').filter(l => l.startsWith('data: ') && !l.includes('[DONE]'))
@@ -615,14 +614,21 @@ export function createV1Routes(
   }
 
   async function handleListVoices(c: Context<HonoEnv>) {
-    // Voice catalogs are per-model (different TTS models expose different
-    // voices). Catalog content comes from the adapter's compiled-in JSON
-    // (apps/server/src/services/tts-adapters/voices/*.json), so there's
-    // nothing to fetch and the Redis upstream cache is no longer needed —
-    // adapter-side JSON is already in-process. Recommended map stays in
-    // configKV so operators can edit it without a deploy.
+    // Voice catalogs are per-model. Live providers (Azure) call upstream
+    // via unspeech; static providers (cosyvoice, volcengine) return their
+    // bundled JSON. The Redis cache + invalidation lives one layer down
+    // in the router so route-level changes don't leak into the cache
+    // contract. Recommended map stays in configKV so operators can edit it
+    // without a deploy.
+    //
+    // No implicit fallback: an empty `?model=` is a client bug (the UI is
+    // expected to pass either an explicit model id or the `auto` alias) and
+    // returns 400 instead of silently resolving to DEFAULT_TTS_MODEL.
     const requested = c.req.query('model')
-    const model = (!requested || requested === 'auto')
+    if (requested === undefined || requested === '')
+      throw createBadRequestError('audio voices: ?model= is required (use `auto` to defer to DEFAULT_TTS_MODEL)', 'MISSING_MODEL')
+
+    const model = requested === 'auto'
       ? await configKV.getOrThrow('DEFAULT_TTS_MODEL')
       : requested
 
@@ -638,19 +644,14 @@ export function createV1Routes(
   /**
    * Voice catalog for the streaming TTS provider (`/audio/speech/ws`).
    *
-   * The HTTP `/audio/voices?model=…` endpoint above queries
-   * `LLM_ROUTER_CONFIG.tts.models` and is unaware of the streaming
-   * surface. Streaming uses `STREAMING_TTS_UPSTREAM` (a single unspeech
-   * instance) instead, and unspeech ships an embed-time voice catalog
-   * for Volcengine that doesn't require credentials — so we proxy
-   * straight to it. Falls back to an empty list if streaming isn't
-   * configured yet so the client can render "no voices" instead of
-   * exploding.
+   * Errors propagate verbatim: missing config → 503, malformed upstream
+   * URL → 502, unspeech network failure → 502, unspeech non-2xx → 502.
+   * No empty-array fallback — the UI surfaces a real failure state.
    */
   async function handleListStreamingVoices(c: Context<HonoEnv>) {
-    const upstream = await configKV.getOptional('STREAMING_TTS_UPSTREAM')
-    if (!upstream || !upstream.baseURL)
-      return Response.json({ voices: [], recommended: {} })
+    const unspeech = await configKV.getOptional('UNSPEECH_UPSTREAM')
+    if (!unspeech?.streaming?.baseURL)
+      throw createServiceUnavailableError('streaming tts upstream not configured', 'STREAMING_TTS_NOT_CONFIGURED')
 
     // Pass through the api_resource_id (e.g. `seed-tts-2.0`). unspeech
     // filters the embedded Volcengine catalogue server-side; absent model
@@ -659,10 +660,7 @@ export function createV1Routes(
 
     let voicesURL: string
     try {
-      const u = new URL(upstream.baseURL)
-      // ws:// → http://, wss:// → https://. unspeech serves both the WS
-      // stream and the REST voices endpoint on the same listener.
-      u.protocol = u.protocol === 'wss:' ? 'https:' : 'http:'
+      const u = new URL(unspeech.restBaseURL)
       u.pathname = '/api/voices'
       const params = new URLSearchParams({ provider: 'volcengine' })
       if (model)
@@ -671,8 +669,8 @@ export function createV1Routes(
       voicesURL = u.toString()
     }
     catch (err) {
-      logger.withError(err).withFields({ baseURL: upstream.baseURL }).warn('streaming-voices: bad upstream URL')
-      return Response.json({ voices: [], recommended: {} })
+      logger.withError(err).withFields({ restBaseURL: unspeech.restBaseURL }).warn('streaming-voices: bad UNSPEECH_UPSTREAM.restBaseURL')
+      throw createBadGatewayError('UNSPEECH_UPSTREAM.restBaseURL is malformed')
     }
 
     let res: Response
@@ -683,39 +681,62 @@ export function createV1Routes(
     }
     catch (err) {
       logger.withError(err).withFields({ voicesURL }).warn('streaming-voices: unspeech fetch failed')
-      return Response.json({ voices: [], recommended: {} })
+      throw createBadGatewayError('streaming voices upstream fetch failed')
     }
 
     if (!res.ok) {
-      logger.withFields({ voicesURL, status: res.status }).warn('streaming-voices: unspeech non-2xx')
-      return Response.json({ voices: [], recommended: {} })
+      const snippet = await res.text().catch(() => '')
+      logger.withFields({ voicesURL, status: res.status, snippet: snippet.slice(0, 256) }).warn('streaming-voices: unspeech non-2xx')
+      throw createBadGatewayError(`streaming voices upstream ${res.status}`, { lastStatusCode: res.status })
     }
 
-    const data = await res.json().catch(() => ({})) as { voices?: unknown[] }
+    const data = await res.json() as { voices: unknown[] }
+    if (!Array.isArray(data.voices))
+      throw createBadGatewayError('streaming voices upstream missing voices[]')
+
     const recommended = model
       ? ((await configKV.getOptional('DEFAULT_TTS_VOICES'))?.[model] ?? {})
       : {}
-    return Response.json({
-      voices: Array.isArray(data.voices) ? data.voices : [],
-      recommended,
-    })
+    return Response.json({ voices: data.voices, recommended })
   }
 
   async function handleListTTSModels(_c: Context<HonoEnv>) {
-    // Mirror the chat provider: expose a single 'auto' routing alias instead
-    // of the concrete DEFAULT_TTS_MODEL id. Keeps clients insulated from
-    // backend model swaps and stays symmetric with /chat listModels.
-    // /audio/speech and /audio/voices already translate 'auto' into the
-    // configKV DEFAULT_TTS_MODEL alias before hitting upstream.
+    // Surface the concrete TTS models the operator has configured. The UI
+    // should select an explicit model id so voice catalog requests stay
+    // model-scoped instead of hiding behind DEFAULT_TTS_MODEL.
+    const config = await configKV.getOrThrow('LLM_ROUTER_CONFIG')
+    // `LLM_ROUTER_CONFIG` is `optional()` at the schema, so its inferred type
+    // tolerates `undefined`. `getOrThrow` already throws on missing entries,
+    // so by this line we know `config` is present — the `?.` here is purely
+    // a TS narrowing aid.
+    const modelIds = Object.keys(config?.tts?.models ?? {}).sort()
     return Response.json({
-      models: [{ id: 'auto', name: 'Auto' }],
+      models: modelIds.map(id => ({ id, name: id })),
+    })
+  }
+
+  async function handleListStreamingTTSModels(_c: Context<HonoEnv>) {
+    const unspeech = await configKV.getOptional('UNSPEECH_UPSTREAM')
+    const models = unspeech?.streaming?.models ?? []
+    // `available` is the operator-controlled visibility switch the client gates
+    // the streaming provider on. It tracks whether `UNSPEECH_UPSTREAM.streaming`
+    // is configured at all — not whether `models[]` happens to be empty — so an
+    // operator who has wired the upstream but not yet curated models still
+    // surfaces the provider rather than silently hiding it.
+    return Response.json({
+      available: !!unspeech?.streaming?.baseURL,
+      models: models.map(m => ({
+        id: m.id,
+        name: m.name ?? m.id,
+        description: m.description,
+      })),
+      default: unspeech?.streaming?.defaultModel ?? null,
     })
   }
 
   const chatGuard = configGuard(configKV, ['FLUX_PER_REQUEST'], 'Service is not available yet')
   const ttsGuard = configGuard(configKV, ['FLUX_PER_1K_CHARS_TTS'], 'TTS service is not available yet')
 
-  // 60 requests per minute per user for LLM completions
   const completionsRateLimit = rateLimiter({ max: 60, windowSec: 60, metrics: rateLimitMetrics, routeLabel: 'openai.completions' })
 
   // OpenAI-compatible surface (mounted at /api/v1/openai). Only routes that
@@ -739,6 +760,7 @@ export function createV1Routes(
     .get('/voices', handleListVoices)
     .get('/voices/streaming', handleListStreamingVoices)
     .get('/models', handleListTTSModels)
+    .get('/models/streaming', handleListStreamingTTSModels)
 
   return { openaiRoutes, audioRoutes }
 }

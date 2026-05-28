@@ -11,7 +11,7 @@ import { sleep } from '@moeru/std'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import { createPlaybackManager, createSpeechPipeline, normalizeActPayload } from '@proj-airi/pipelines-audio'
-import { Live2DScene, useLive2d } from '@proj-airi/stage-ui-live2d'
+import { Live2DScene, useLive2dParams } from '@proj-airi/stage-ui-live2d'
 import { SpineScene } from '@proj-airi/stage-ui-spine'
 import { ThreeScene } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
@@ -25,13 +25,14 @@ import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
+import { useSettingsLive2d } from '../../../../stage-ui-live2d/src/composables/live2d/live2d'
 import { useAuthProviderSync } from '../../composables/use-auth-provider-sync'
 import { useDuckDb } from '../../composables/use-duck-db'
 import { useIOTraceBridge } from '../../composables/use-io-trace-bridge'
 import { initIOTracer } from '../../composables/use-io-tracer'
 import { useSpeechPipelineAnalytics } from '../../composables/use-speech-pipeline-analytics'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
-import { getDefinedProvider } from '../../libs/providers/providers'
+import { getDefaultStreamingModel, getDefinedProvider } from '../../libs/providers/providers'
 import { createStageTtsSession } from '../../libs/speech/tts-session'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useBackgroundStore } from '../../stores/background'
@@ -44,9 +45,13 @@ import { useSettings } from '../../stores/settings'
 import { useSpeechRuntimeStore } from '../../stores/speech-runtime'
 
 const props = withDefaults(defineProps<{
+  cursorPosition?: { x: number, y: number }
+  enableOrbitControls?: boolean
   paused?: boolean
-  focusAt: { x: number, y: number }
-}>(), { paused: false, scale: 1 })
+}>(), {
+  enableOrbitControls: true,
+  paused: false,
+})
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
 
@@ -61,18 +66,18 @@ const settingsStore = useSettings()
 const {
   stageModelRenderer,
   stageViewControlsEnabled,
-  live2dDisableFocus,
   stageModelSelectedUrl,
   stageModelSelected,
   themeColorsHue,
   themeColorsHueDynamic,
-  live2dIdleAnimationEnabled,
-  live2dAutoBlinkEnabled,
-  live2dForceAutoBlinkEnabled,
-  live2dExpressionEnabled,
+
+} = storeToRefs(settingsStore)
+const {
   live2dShadowEnabled,
   live2dMaxFps,
   live2dRenderScale,
+} = storeToRefs(useSettingsLive2d())
+const {
   spinePremultipliedAlpha,
   spineDefaultMixDuration,
   spineIdleAnimationEnabled,
@@ -91,7 +96,7 @@ const chatHookCleanups: Array<() => void> = []
 
 const providersStore = useProvidersStore()
 useAuthProviderSync()
-const live2dStore = useLive2d()
+const live2dStore = useLive2dParams()
 const showStage = ref(true)
 const viewUpdateCleanups: Array<() => void> = []
 
@@ -129,7 +134,7 @@ const speechRuntimeStore = useSpeechRuntimeStore()
 const backgroundStore = useBackgroundStore()
 const { activeBackgroundUrl } = storeToRefs(backgroundStore)
 
-const { currentMotion } = storeToRefs(useLive2d())
+const { currentMotion } = storeToRefs(useLive2dParams())
 
 const emotionsQueue = createQueue<EmotionPayload>({
   handlers: [
@@ -570,8 +575,17 @@ function buildStreamingSnapshot(): StreamingSessionSnapshot | null {
   const voiceId = activeSpeechVoice.value?.id
   if (!voiceId)
     return null
-  const sessionModel = (activeSpeechModel.value as string | undefined) || 'volcengine/seed-tts-2.0'
-  const apiResourceId = sessionModel.includes('/') ? sessionModel.split('/', 2)[1] : 'seed-tts-2.0'
+  // Resolve the concrete streaming model id. The active speech model is only
+  // valid here when it carries the `<backend>/<api_resource_id>` shape the ws
+  // upstream expects — the HTTP TTS `auto` alias (and an empty selection after
+  // a provider switch) must NOT reach the bridge, so fall back to the
+  // server-curated default instead of a hardcoded id. Returns null (segmenter
+  // fallback) when neither resolves, rather than guessing a resource id.
+  const activeModel = activeSpeechModel.value as string | undefined
+  const sessionModel = activeModel?.includes('/') ? activeModel : getDefaultStreamingModel()
+  if (!sessionModel?.includes('/'))
+    return null
+  const apiResourceId = sessionModel.split('/', 2)[1]
   // TTS 2.0 / ICL 2.0 ship subtitles asynchronously relative to audio
   // (per the wire spec), so chunk-on-sentence-end would drop frames.
   // Buffer the entire session and decode at session.finished instead.
@@ -867,17 +881,12 @@ defineExpose({
         h-full w-full flex-1
         :model-src="stageModelSelectedUrl"
         :model-id="stageModelSelected"
-        :focus-at="focusAt"
+        :cursor-position="cursorPosition"
         :mouth-open-size="mouthOpenSize"
         :now-speaking="nowSpeaking"
         :paused="paused"
-        :disable-focus-at="live2dDisableFocus"
         :theme-colors-hue="themeColorsHue"
         :theme-colors-hue-dynamic="themeColorsHueDynamic"
-        :live2d-idle-animation-enabled="live2dIdleAnimationEnabled"
-        :live2d-auto-blink-enabled="live2dAutoBlinkEnabled"
-        :live2d-force-auto-blink-enabled="live2dForceAutoBlinkEnabled"
-        :live2d-expression-enabled="live2dExpressionEnabled"
         :live2d-shadow-enabled="live2dShadowEnabled"
         :live2d-max-fps="live2dMaxFps"
         :live2d-render-scale="live2dRenderScale"
@@ -888,9 +897,11 @@ defineExpose({
         v-model:state="componentState"
         min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
         :model-src="stageModelSelectedUrl"
+        :cursor-position="cursorPosition"
         :idle-animation="animations.idleLoop.toString()"
         :paused="paused"
         :show-axes="stageViewControlsEnabled"
+        :enable-orbit-controls="props.enableOrbitControls"
         :current-audio-source="currentAudioSource"
         @error="console.error"
       />

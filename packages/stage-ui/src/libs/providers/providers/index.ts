@@ -35,6 +35,11 @@ import './azure-ai-foundry'
 import './official'
 
 export {
+  getDefaultStreamingModel,
+  getStreamingTtsAvailable,
+} from './official'
+
+export {
   getDefinedProvider,
   listProviders,
 } from './registry'

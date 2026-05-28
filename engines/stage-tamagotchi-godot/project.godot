@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="stage-tamagotchi-godot"
-run/main_scene="uid://c4t68p7ibkjxg"
+run/main_scene="res://scenes/stage-root.tscn"
 config/features=PackedStringArray("4.6", "C#", "Forward Plus")
 config/icon="res://icon.svg"
 
@@ -30,3 +30,4 @@ enabled=PackedStringArray("res://addons/Godot-MToon-Shader/plugin.cfg", "res://a
 [rendering]
 
 rendering_device/driver.windows="d3d12"
+textures/vram_compression/import_etc2_astc=true

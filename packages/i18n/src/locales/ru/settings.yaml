@@ -105,6 +105,20 @@ analytics:
     description: Отключите эту опцию, чтобы отказаться от сбора аналитики.
   disabled:
     title: Аналитика отключена для этой разрабатываемой сборки
+model-select:
+  panel-callout:
+    support-status-header: Мы поддерживаем 2D и 3D модели
+    support-status: >
+      Нажмите {select-button}, чтобы выбрать или импортировать модели. В настоящее время поддерживаются {zip} (для моделей Live2D) и {vrm} (для моделей VRM).
+    model-type-example: >
+      Neuro-sama использует 2D модель, основанную на фреймворк, разработанной компанией Live2D Inc, В то время как Grok Ani (в компании Grok) использует 3D-модели, основанные на открытых форматах VRM / MMD.
+  select-model:
+    title: Выбор модели
+    button: Выбрать модель
+    select: Выбрать
+    import: Импорт
+    remove: Удалить
+    confirm: Подтвердить
 live2d:
   change-model:
     from-file: Загрузить из файла
@@ -129,19 +143,63 @@ live2d:
     change-to-vrm: Нажмите здесь, чтобы переключиться на настройки 3D-аватара (VRM)
   theme-color-from-model:
     title: Извлечь цвета из модели
+    description: >
+      Извлечь видимые цвета из холста текущего рендеринга. Нажмите на цвет, чтобы применить его к AIRI. Попытаться извлечь несколько раз, используя модель в разных позах, если цвета не желательны.
     button-extract:
       title: Извлечь
-  focus:
-    title: Отключить слежение за мышью
-    button-disable:
-      title: Отключить отслеживание мыши модели
-  render-scale:
-    title: Масштаб рендеринга
-  fps:
-    title: ФПС
-    description: Ограничить скорость рендеринга кадров
-    options:
-      unlimited: '∞'
+  animation:
+    title: Анимация
+    focus:
+      title: Включить отслеживание мыши
+      description: Посмотрите на курсор во время движения. Изысканное движение глаз возобновляется после остановки курсора.
+      offset: Смещение глаз (%)
+    force-idle-eye-animation:
+      title: Легкое движение глаз
+      description: Случайно смотреть вокруг когда нет активного курсора фокуса.
+    blink-enable:
+      title: Включить моргание
+      description: Пусть модель моргает
+    auto-blink:
+      title: Авто
+      description: Использовать стандартную анимацию моргания модели
+    force-auto-blink:
+      title: Сила
+      description: Принудительная анимация моргания с внешним таймером
+    blink-mode:
+      title: Режим моргания
+      description: Выберите модель встроенного моргания или принудительного моргания AIRI.
+    idle-motion:
+      title: Анимация бездействия
+      no-motion: Нет доступных анимаций
+      placeholder: Выбрать анимацию
+      disable-motion: Отключено
+      disable-motion-description: Отключить анимацию бездействия
+  parameters:
+    title: Параметры модели
+    render-scale:
+      title: Масштаб рендеринга
+    fps:
+      title: FPS
+      description: Ограничить скорость рендеринга кадров
+      options:
+        unlimited: '∞'
+    shadow: Отбрасывать тень
+    reset-parameters: Сброс к параметрам по умолчанию
+  clear-model-cache: Очистка кеша
+  expressions:
+    title: Выражения
+    override-toggle: Система выражений
+    sdk-preset-preserved-notice: >
+      Диспетчер выражений SDK и моргание глаз сохраняются, если выключены
+    no-expression: Нет выражений для этой модели
+    llm-integration-wip: Интеграция инструментов LLM еще не завершена
+    save-default: Сохранить выражение по умолчанию
+    reset: Сбросить все выражения
+    expose-to-llm-toggle: Распространять в LLM
+    expose-to-llm-options:
+      none: Отсутствует
+      all: Все
+      custom: Пользовательский
 microphone: Микрофон
 models: Модель
 pages:
@@ -1288,6 +1346,8 @@ pages:
         description: Официальный ИИ провайдер AIRI.
         speech-title: Официальный провайдер синтеза речи
         speech-description: Официальный text-to-speech провайдер AIRI.
+        speech-streaming-title: Official Streaming Speech Provider
+        speech-streaming-description: Official low-latency text-to-speech provider by AIRI (bidirectional WebSocket).
         transcription-title: Официальный провайдер транскрипции
         transcription-description: Официальный speech-to-text провайдер AIRI.
       transcriptions:
@@ -1524,8 +1584,6 @@ theme:
 title: Настройки
 voices: Голос
 vrm:
-  render-scale:
-    title: Масштаб рендеринга
   change-model:
     from-file: Загрузить из файла
     from-file-select: Выбрать
@@ -1565,6 +1623,35 @@ vrm:
   skybox:
     skybox-intensity: Интенсивность SkyBox
     skybox-specular-mix: Причудливый микс
+spine:
+  title: Spine Settings
+  scale-and-position:
+    title: Масштаб и позиция
+    scale: Масштаб
+    x: X
+    'y': 'Y'
+  theme-color-from-model:
+    title: Извлечь цвета из модели
+    button-extract:
+      title: Извлечь
+  animation:
+    title: Анимация
+    idle-animation: Idle Animation
+    mix-duration: Mix Duration (seconds)
+    speed: Скорость анимации
+  variant:
+    title: Вариация
+    current-variant: Active Variant
+  skin:
+    title: Облик
+    current-skin: Текущий облик
+  rendering:
+    title: Рендеринг
+    max-fps: Ограничение кадров в секунду
+    render-scale: Масштаб рендеринга
+  fps:
+    options:
+      unlimited: Без ограничений
 websocket-secure-enabled:
   title: Включить безопасный WebSocket (WSS)
   description: >-
