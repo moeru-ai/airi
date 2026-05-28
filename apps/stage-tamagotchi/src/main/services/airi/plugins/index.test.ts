@@ -725,7 +725,69 @@ describe('setupPluginHost', () => {
       await mkdir(pluginDir, { recursive: true })
       await writeFile(
         join(pluginDir, pluginManifestFileName),
-        await readFile(join(chessLikePluginRoot, pluginManifestFileName), 'utf-8'),
+        JSON.stringify({
+          apiVersion: 'v1',
+          kind: 'manifest.plugin.airi.moeru.ai',
+          name: 'airi-plugin-game-chess',
+          permissions: {
+            apis: [
+              { key: 'proj-airi:plugin-sdk:apis:protocol:capabilities:wait', actions: ['invoke'] },
+              { key: 'proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers', actions: ['invoke'] },
+              { key: 'proj-airi:plugin-sdk:apis:client:kits:list', actions: ['invoke'] },
+              { key: 'proj-airi:plugin-sdk:apis:client:bindings:list', actions: ['invoke'] },
+              { key: 'proj-airi:plugin-sdk:apis:client:bindings:announce', actions: ['invoke'] },
+              { key: 'proj-airi:plugin-sdk:apis:client:bindings:activate', actions: ['invoke'] },
+            ],
+            resources: [
+              { key: 'proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers', actions: ['read'] },
+              { key: 'proj-airi:plugin-sdk:resources:kits', actions: ['read'] },
+              { key: 'proj-airi:plugin-sdk:resources:bindings', actions: ['read'] },
+              { key: 'proj-airi:plugin-sdk:resources:kits:kit.gamelet:bindings', actions: ['read', 'write'] },
+            ],
+            capabilities: [
+              { key: 'proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers', actions: ['wait'] },
+            ],
+          },
+          entrypoints: {
+            electron: './index.ts',
+          },
+        }, null, 2),
+      )
+      await writeFile(
+        join(pluginDir, 'index.ts'),
+        `
+        export async function init(ctx) {
+          await ctx.apis.bindings.announce({
+            moduleId: 'chess-like-main',
+            kitId: 'kit.gamelet',
+            kitModuleType: 'gamelet',
+            config: {
+              title: 'Chess',
+              entrypoint: 'ui/index.html',
+              widget: {
+                mount: 'iframe',
+                iframe: {
+                  assetPath: 'ui/index.html',
+                  sandbox: 'allow-scripts allow-same-origin allow-forms allow-popups',
+                },
+              },
+              config: {
+                defaults: {
+                  airiSide: 'white',
+                  opening: 'queen-gambit',
+                },
+              },
+              widgets: [
+                {
+                  id: 'main-board',
+                  kind: 'primary',
+                },
+              ],
+            },
+          })
+          await ctx.apis.bindings.activate({ moduleId: 'chess-like-main' })
+        }
+        `,
       )
       await mkdir(join(pluginDir, 'ui'), { recursive: true })
       await writeFile(join(pluginDir, 'ui', 'index.html'), '<!doctype html><title>fallback</title>')
