@@ -165,8 +165,22 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
       }
     }
 
-    if (gathered.length === 0)
-      return undefined
+    if (gathered.length === 0) {
+      return {
+        id: generateId(),
+        contextId: PLUGIN_CONTEXT_ID_PREFIX,
+        strategy: ContextUpdateStrategy.ReplaceSelf,
+        text: '',
+        createdAt: Date.now(),
+        metadata: {
+          source: {
+            id: 'plugin-memory',
+            kind: 'plugin' as const,
+            plugin: { id: 'plugin-memory' },
+          },
+        },
+      }
+    }
 
     const combinedText = gathered
       .map(ctx => `[Plugin: ${ctx.pluginName}]\n${ctx.text}`)
