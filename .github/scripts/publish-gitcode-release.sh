@@ -231,8 +231,8 @@ is_stale_gitcode_asset() {
   [[ -s "${stale_names}" ]] && grep -Fxq "${filename}" "${stale_names}"
 }
 
-# Downloads GitHub release assets that are missing from GitCode or stale there.
-download_missing_github_release_assets() {
+# Writes GitHub release asset names that are missing from GitCode or stale there.
+write_github_release_assets_to_upload() {
   local missing_names="${WORK_DIR}/missing-before-upload.txt"
   local stale_names="${WORK_DIR}/stale-gitcode-asset-names.txt"
   local upload_names="${WORK_DIR}/asset-names-to-upload.txt"
@@ -250,19 +250,21 @@ download_missing_github_release_assets() {
 
   if [[ ! -s "${upload_names}" ]]; then
     echo "GitCode release ${RELEASE_TAG} already has every mirrored asset."
-    : > "${WORK_DIR}/assets-to-upload.txt"
     return
   fi
+}
 
-  while IFS= read -r filename; do
-    gh release download "${RELEASE_TAG}" \
-      --repo "${GITHUB_REPOSITORY_NAME}" \
-      --pattern "${filename}" \
-      --dir "${ASSETS_DIR}" \
-      --clobber
-  done < "${upload_names}"
+# Downloads one GitHub release asset before immediately uploading it to GitCode.
+download_github_release_asset() {
+  local filename="$1"
 
-  find "${ASSETS_DIR}" -maxdepth 1 -type f -print | sort > "${WORK_DIR}/assets-to-upload.txt"
+  echo "Downloading GitHub release asset: ${filename}"
+
+  timeout 30m gh release download "${RELEASE_TAG}" \
+    --repo "${GITHUB_REPOSITORY_NAME}" \
+    --pattern "${filename}" \
+    --dir "${ASSETS_DIR}" \
+    --clobber
 }
 
 # Uploads one local asset through GitCode's pre-signed OBS upload URL.
@@ -331,6 +333,9 @@ upload_asset() {
 
   http_status="$(
     curl --retry 3 --retry-all-errors -sS \
+      --connect-timeout 30 \
+      --speed-time 300 \
+      --speed-limit 10240 \
       -o "${response_body}" \
       -w '%{http_code}' \
       -X PUT \
@@ -352,6 +357,8 @@ upload_asset() {
     echo "::error::Failed to upload ${filename} to GitCode; HTTP ${http_status}."
     exit 1
   fi
+
+  echo "Uploaded GitCode asset: ${filename}"
 }
 
 # Verifies every downloaded GitHub release asset is visible in the GitCode
@@ -389,11 +396,13 @@ main() {
   write_existing_gitcode_asset_names
   write_expected_github_asset_metadata
   verify_gitcode_asset_digests warn
-  download_missing_github_release_assets
+  write_github_release_assets_to_upload
 
-  while IFS= read -r file; do
-    upload_asset "${file}"
-  done < "${WORK_DIR}/assets-to-upload.txt"
+  while IFS= read -r filename; do
+    download_github_release_asset "${filename}"
+    upload_asset "${ASSETS_DIR}/${filename}"
+    rm -f "${ASSETS_DIR:?}/${filename}"
+  done < "${WORK_DIR}/asset-names-to-upload.txt"
 
   verify_gitcode_release_assets
 }
