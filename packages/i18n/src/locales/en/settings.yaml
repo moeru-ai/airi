@@ -1653,8 +1653,6 @@ theme:
 title: Settings
 voices: Voice
 vrm:
-  render-scale:
-    title: Render scale
   change-model:
     from-file: Load from File
     from-file-select: Select

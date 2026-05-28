@@ -58,6 +58,25 @@ let disposeControlsChange: (() => void) | undefined
 
 const { cameraPosition, cameraFOV, cameraDistance } = useThreeCamera()
 
+interface OrbitDistanceBounds {
+  maxDistance: number
+  minDistance: number
+}
+
+const MIN_MODEL_DEPTH_FOR_DISTANCE_BOUNDS = 1e-6
+
+function resolveModelDistanceBounds(modelSize: Vec3): OrbitDistanceBounds | undefined {
+  const modelDepth = modelSize.z
+
+  if (!Number.isFinite(modelDepth) || modelDepth <= MIN_MODEL_DEPTH_FOR_DISTANCE_BOUNDS)
+    return undefined
+
+  return {
+    maxDistance: modelDepth * 20,
+    minDistance: modelDepth,
+  }
+}
+
 // Initialisation on onMounted
 function registerInfoFlow() {
   /*
@@ -68,8 +87,12 @@ function registerInfoFlow() {
   watch(modelSize, (newSize) => {
     if (!controls.value)
       return
-    controls.value.minDistance = newSize.z
-    controls.value.maxDistance = newSize.z * 20
+    const distanceBounds = resolveModelDistanceBounds(newSize)
+    if (!distanceBounds)
+      return
+
+    controls.value.minDistance = distanceBounds.minDistance
+    controls.value.maxDistance = distanceBounds.maxDistance
     controls.value.update()
   }, { immediate: true, deep: true })
   // Get camera position => update position
