@@ -2,6 +2,7 @@
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 
+import { errorMessageFrom } from '@moeru/std'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { ChatHistory, HearingConfigDialog } from '@proj-airi/stage-ui/components'
@@ -119,12 +120,17 @@ async function handleSend() {
     })
   }
   catch (error) {
+    // Genuine send failures only: a Stop-cancelled queued send resolves (see
+    // ChatOrchestratorRuntime.cancelPendingSends), so it never reaches here.
+    // Preserve the input and append an error bubble; never drop the last turn.
     messageInput.value = textToSend
-    messages.value.pop()
-    messages.value.push({
-      role: 'error',
-      content: (error as Error).message,
-    })
+    chatSession.setSessionMessages(chatSession.activeSessionId, [
+      ...messages.value,
+      {
+        role: 'error',
+        content: errorMessageFrom(error) ?? 'Failed to send message',
+      },
+    ])
   }
 }
 

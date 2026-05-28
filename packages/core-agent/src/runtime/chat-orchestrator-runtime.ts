@@ -82,7 +82,7 @@ export interface QueuedSendSnapshot {
   sessionId: string
   /** Session generation captured when the send was enqueued. */
   generation: number
-  /** Whether the queued send has been rejected before execution. */
+  /** Whether the queued send was cancelled (resolved without running) before execution. */
   cancelled: boolean
   /** First 120 characters of the pending user message. */
   messagePreview: string
@@ -251,9 +251,9 @@ export interface ChatOrchestratorRuntimeDeps {
 export interface ChatOrchestratorRuntime {
   /** Enqueues a user send for the target session, preserving FIFO order. */
   ingest: (sendingMessage: string, options: ChatOrchestratorSendOptions, targetSessionId?: string) => Promise<void>
-  /** Rejects queued sends that have not started yet. */
+  /** Resolves queued sends that have not started yet as cancelled (a no-op for the awaiting caller). */
   cancelPendingSends: (sessionId?: string) => void
-  /** Aborts the in-flight stream and rejects every queued send. */
+  /** Aborts the in-flight stream and resolves every queued send as cancelled. */
   stopSending: (sessionId?: string) => void
   /** Returns serializable snapshots of currently queued sends. */
   getPendingQueuedSendSnapshot: () => QueuedSendSnapshot[]
@@ -500,8 +500,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           if (speechOnly.trim()) {
             buildingMessage.content += speechOnly
 
-            // Final flush does not re-feed token hooks: Stop halts downstream tokens.
-            if (!finalFlushInProgress)
+            // Don't re-feed token hooks for content flushed after a Stop: Stop
+            // halts downstream tokens (TTS/captions). On a clean finish the abort
+            // signal is not set, so the residual tail still feeds hooks normally.
+            if (!sendController.signal.aborted)
               await hooks.emitTokenLiteralHooks(speechOnly, streamingMessageContext)
 
             const lastSlice = buildingMessage.slices.at(-1)
@@ -701,7 +703,18 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         },
       })
 
-      await parser!.end()
+      // Drain the parser's residual lookahead under finalFlushInProgress, the
+      // same guard the abort path uses. A Stop in the gap between the stream
+      // draining and this flush sets sendController.signal.aborted; the guard
+      // keeps the onLiteral abort check from dropping the final buffered tail of
+      // an already-complete reply.
+      finalFlushInProgress = true
+      try {
+        await parser!.end()
+      }
+      finally {
+        finalFlushInProgress = false
+      }
       deps.onAssistantResponseRendered?.({
         model: options.model,
         latencyMs: Math.round(monotonicNow() - llmRequestStartedAt),
@@ -811,8 +824,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         if (cancelled)
           return
 
+        // A queued send made stale by a generation bump (session reset/fork
+        // while it waited) was discarded deliberately, not failed. Resolve so
+        // the awaiting caller's failure UI never runs. See cancelPendingSends.
         if (deps.session.getSessionGeneration(sessionId) !== generation) {
-          deferred.reject(new Error('Chat session was reset before send could start'))
+          deferred.resolve()
           return
         }
 
@@ -861,8 +877,14 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (sessionId && queued.sessionId !== sessionId)
         continue
 
+      // Cancellation is a deliberate user/system action (Stop button, session
+      // delete, clear-data), not a failure. Resolve rather than reject so the
+      // awaiting ingest() caller's send-failure UI never runs for it: that catch
+      // is shared with genuine send errors and mutates chat history. A plain
+      // resolve is also the only signal that survives the tamagotchi
+      // BroadcastChannel relay, which cannot carry a typed cancellation error.
       queued.cancelled = true
-      queued.deferred.reject(new Error('Chat session was reset before send could start'))
+      queued.deferred.resolve()
     }
 
     pendingQueuedSends = sessionId
@@ -872,17 +894,21 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   }
 
   /**
-   * Aborts the in-flight stream (if any) and rejects every queued send.
+   * Aborts the in-flight stream (if any) and resolves every queued send as
+   * cancelled.
    *
    * Use when:
    * - The user clicks the stop button to cancel the current assistant response.
    * - A session-scoped stop is needed; passing `sessionId` will only abort when
    *   the running send belongs to that session, while queued sends for that
-   *   session are dropped.
+   *   session are dropped (their awaiting `ingest()` promises resolve without
+   *   running `performSend`).
    *
    * Expects:
    * - The active send loop will see the AbortSignal via `deps.llm.stream`, land
    *   in the catch block, and persist the partial draft with `stopped: true`.
+   * - Queued, not-yet-started sends are a no-op for the caller: they resolve so
+   *   the consumer's send-failure UI never fires for a deliberate cancellation.
    *
    * Returns:
    * - Nothing. State updates are emitted via `onStateChange` once the send settles.

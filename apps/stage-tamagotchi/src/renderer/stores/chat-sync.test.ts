@@ -100,6 +100,7 @@ interface MockState {
   setSessionMessages: ReturnType<typeof vi.fn>
   getSessionMessages: ReturnType<typeof vi.fn>
   ingest: ReturnType<typeof vi.fn>
+  stopSending: ReturnType<typeof vi.fn>
 }
 
 let mockState: MockState
@@ -130,6 +131,7 @@ vi.mock('@proj-airi/stage-ui/stores/chat', () => ({
   useChatOrchestratorStore: () => ({
     sending: ref(false),
     ingest: mockState.ingest,
+    stopSending: mockState.stopSending,
   }),
 }))
 
@@ -216,6 +218,7 @@ describe('useChatSyncStore', async () => {
       setSessionMessages,
       getSessionMessages,
       ingest,
+      stopSending: vi.fn(),
     }
 
     vi.stubGlobal('BroadcastChannel', MockBroadcastChannel)
@@ -460,5 +463,82 @@ describe('useChatSyncStore', async () => {
 
     store.dispose()
     vi.useRealTimers()
+  })
+
+  /**
+   * @example
+   * it('stops the active stream when handling a stop command as authority', async () => {
+   *   // follower forwards a stop -> authority aborts its in-flight orchestrator send
+   * })
+   */
+  it('invokes stopSending with the payload session when handling a stop command as authority', async () => {
+    const store = useChatSyncStore()
+    store.initialize('authority')
+
+    const peer = new MockBroadcastChannel('airi:stage-tamagotchi:chat-sync')
+    peer.postMessage({
+      type: 'command',
+      requestId: 'req-stop',
+      senderId: 'peer',
+      command: 'stop',
+      payload: { sessionId: 'session-1' },
+    })
+
+    await vi.waitFor(() => {
+      expect(mockState.stopSending).toHaveBeenCalledWith('session-1')
+    })
+
+    peer.close()
+    store.dispose()
+  })
+
+  /**
+   * @example
+   * await store.requestStop('session-1') // authority short-circuits to stopSending
+   */
+  it('calls stopSending directly when requestStop runs as authority', async () => {
+    const store = useChatSyncStore()
+    store.initialize('authority')
+
+    await store.requestStop('session-1')
+
+    expect(mockState.stopSending).toHaveBeenCalledWith('session-1')
+
+    store.dispose()
+  })
+
+  /**
+   * @example
+   * Follower window: requestStop must travel the command bus as a `stop`
+   * message so the authority window performs the abort.
+   */
+  it('routes a follower requestStop as a stop command and resolves on authority ack', async () => {
+    const store = useChatSyncStore()
+    store.initialize('follower')
+
+    const authority = new MockBroadcastChannel('airi:stage-tamagotchi:chat-sync')
+    const received: Array<{ command: string, payload: { sessionId?: string } }> = []
+    authority.addEventListener('message', (event) => {
+      const message = (event as MessageEvent).data as { type: string, command?: string, requestId?: string, payload?: { sessionId?: string } }
+      if (message.type === 'command' && message.command === 'stop') {
+        received.push({ command: message.command, payload: message.payload ?? {} })
+        authority.postMessage({
+          type: 'response',
+          requestId: message.requestId,
+          authorityId: 'authority',
+          ok: true,
+        })
+      }
+    })
+
+    await store.requestStop('session-1')
+
+    expect(received).toHaveLength(1)
+    expect(received[0]?.payload).toEqual({ sessionId: 'session-1' })
+    // A follower must not run the abort locally; the authority owns the stream.
+    expect(mockState.stopSending).not.toHaveBeenCalled()
+
+    authority.close()
+    store.dispose()
   })
 })

@@ -81,10 +81,13 @@ async function handleSend() {
     })
   }
   catch (error) {
-    // preserve any user input when failed to send the message
+    // Genuine send failures only: a Stop-cancelled queued send resolves (see
+    // ChatOrchestratorRuntime.cancelPendingSends), so it never reaches here.
+    // Preserve the user's input and append an error bubble; never drop the last
+    // persisted turn.
     messageInput.value = [textToSend, messageInput.value.trim()].filter(Boolean).join(' ')
     chatSession.setSessionMessages(chatSession.activeSessionId, [
-      ...messages.value.slice(0, -1),
+      ...messages.value,
       {
         role: 'error',
         content: errorMessageFrom(error) ?? 'Failed to send message',
@@ -266,7 +269,12 @@ watch(sendMode, () => {
           </DropdownMenuPortal>
         </DropdownMenuRoot>
 
-        <!-- Stop streaming button: only visible while a send is in flight -->
+        <!--
+          Stop streaming button: only visible while a send is in flight. Drives
+          the orchestrator directly rather than going through chat-sync (unlike
+          the tamagotchi InteractiveArea's requestStop()), mirroring how this
+          surface sends via ingest() rather than requestIngest().
+        -->
         <button
           v-if="sending"
           :class="[

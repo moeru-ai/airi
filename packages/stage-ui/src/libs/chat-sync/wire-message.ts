@@ -1,5 +1,7 @@
-import type { ChatAssistantMessage, ChatHistoryItem, StreamingAssistantMessage } from '@proj-airi/core-agent'
+import type { ChatAssistantMessage, ChatHistoryItem } from '@proj-airi/core-agent'
 import type { NewMessagesPayload, WireMessage } from '@proj-airi/server-sdk-shared'
+
+import { isStoppedAssistant } from '@proj-airi/core-agent'
 
 /**
  * Extract a plain-text payload from a local `ChatHistoryItem` for upload.
@@ -75,7 +77,7 @@ export function isCloudSyncableMessage(message: ChatHistoryItem): boolean {
     return false
   if (message.role === 'error')
     return false
-  if (message.role === 'assistant' && (message as StreamingAssistantMessage).stopped)
+  if (isStoppedAssistant(message))
     return false
   return true
 }

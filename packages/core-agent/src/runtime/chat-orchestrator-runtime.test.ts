@@ -327,9 +327,15 @@ describe('createChatOrchestratorRuntime', () => {
 
   /**
    * @example
-   * Cancelling a queued send rejects only pending work that has not started.
+   * Cancelling a queued send resolves it as a no-op (not a rejection) so the
+   * UI send-failure path never fires for a deliberate cancellation.
+   *
+   * A cancelled queued send must resolve, never reject: the awaiting ingest()
+   * caller (handleSend in the chat surfaces) shares one catch with genuine send
+   * failures, and that catch mutates chat history. The send must also never
+   * reach the provider.
    */
-  it('rejects cancelled queued sends before they start', async () => {
+  it('resolves cancelled queued sends as a no-op before they start', async () => {
     const harness = createHarness()
     let releaseFirstSend: (() => void) | undefined
     harness.stream.mockImplementationOnce(async () => {
@@ -356,15 +362,18 @@ describe('createChatOrchestratorRuntime', () => {
     harness.runtime.cancelPendingSends('session-1')
     releaseFirstSend?.()
 
-    await expect(secondSend).rejects.toThrow('Chat session was reset before send could start')
+    await expect(secondSend).resolves.toBeUndefined()
+    // The cancelled send never invoked the provider.
+    expect(harness.stream).toHaveBeenCalledTimes(1)
     await firstSend
   })
 
   /**
    * @example
-   * A queued send rejects if its captured session generation becomes stale.
+   * A queued send made stale by a generation bump (session reset/fork while it
+   * waited) is discarded deliberately: it resolves and never streams.
    */
-  it('rejects stale generation sends before they start', async () => {
+  it('resolves stale generation sends as a no-op before they start', async () => {
     const harness = createHarness()
     let releaseFirstSend: (() => void) | undefined
     harness.stream.mockImplementationOnce(async () => {
@@ -392,8 +401,206 @@ describe('createChatOrchestratorRuntime', () => {
     releaseFirstSend?.()
 
     await firstSend
-    await expect(secondSend).rejects.toThrow('Chat session was reset before send could start')
+    await expect(secondSend).resolves.toBeUndefined()
     expect(harness.stream).toHaveBeenCalledTimes(1)
+  })
+
+  /**
+   * @example
+   * Pressing Stop with a backlog: the active send aborts (persisting a stopped
+   * partial) AND the queued send resolves as cancelled, in one stopSending()
+   * call. History keeps only the stopped partial: no error turn, nothing dropped.
+   */
+  it('aborts the active send and resolves a queued send without corrupting history when stop fires with a backlog', async () => {
+    const harness = createHarness()
+
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      await options?.onStreamEvent?.({
+        type: 'text-delta',
+        text: 'partial reply before stop',
+      })
+      await new Promise<void>((_resolve, reject) => {
+        const signal = (options as { abortSignal?: AbortSignal })?.abortSignal
+        signal?.addEventListener('abort', () => {
+          reject(new DOMException('aborted', 'AbortError'))
+        })
+      })
+    })
+
+    const firstSend = harness.runtime.ingest('hello', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+    const queuedSend = harness.runtime.ingest('queued during stream', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    await vi.waitFor(() => {
+      expect(harness.stream).toHaveBeenCalledTimes(1)
+    })
+    await vi.waitFor(() => {
+      expect(harness.runtime.getPendingQueuedSendCount()).toBe(1)
+    })
+
+    harness.runtime.stopSending('session-1')
+
+    await expect(queuedSend).resolves.toBeUndefined()
+    await firstSend
+
+    // The queued send never streamed; only the active send reached the provider.
+    expect(harness.stream).toHaveBeenCalledTimes(1)
+    expect(harness.runtime.getPendingQueuedSendCount()).toBe(0)
+
+    // The only assistant turn appended is the stopped partial; no error turn.
+    const lastMessage = harness.sessionMessages['session-1']?.at(-1)
+    expect(lastMessage).toMatchObject({ role: 'assistant', stopped: true })
+    expect(harness.assistantAppended).toHaveLength(1)
+    expect(harness.sessionMessages['session-1']?.some(message => message.role === 'error')).toBe(false)
+  })
+
+  /**
+   * @example
+   * Multiple queued sends behind the active one all resolve as cancelled on a
+   * single Stop, with none reaching the provider. Guards the N-queued cascade.
+   */
+  it('resolves every queued send as cancelled when stop fires with multiple queued', async () => {
+    const harness = createHarness()
+    let releaseFirstSend: (() => void) | undefined
+    harness.stream.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        releaseFirstSend = resolve
+      })
+    })
+
+    const firstSend = harness.runtime.ingest('hold queue', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+    const secondSend = harness.runtime.ingest('queued b', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+    const thirdSend = harness.runtime.ingest('queued c', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    await vi.waitFor(() => {
+      expect(harness.stream).toHaveBeenCalledTimes(1)
+    })
+    await vi.waitFor(() => {
+      expect(harness.runtime.getPendingQueuedSendCount()).toBe(2)
+    })
+
+    harness.runtime.stopSending('session-1')
+    releaseFirstSend?.()
+
+    await expect(secondSend).resolves.toBeUndefined()
+    await expect(thirdSend).resolves.toBeUndefined()
+    await firstSend
+    expect(harness.runtime.getPendingQueuedSendCount()).toBe(0)
+    expect(harness.stream).toHaveBeenCalledTimes(1)
+  })
+
+  /**
+   * @example
+   * A session-scoped stop targeting a different session must NOT abort the
+   * in-flight send. Guards the `activeSendSessionId === sessionId` filter.
+   */
+  it('does not abort the in-flight send when stop targets a different session', async () => {
+    const harness = createHarness()
+    let releaseSend: (() => void) | undefined
+    let aborted = false
+
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      const signal = (options as { abortSignal?: AbortSignal })?.abortSignal
+      signal?.addEventListener('abort', () => {
+        aborted = true
+      })
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'reply' })
+      await new Promise<void>((resolve) => {
+        releaseSend = resolve
+      })
+      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+    })
+
+    const send = harness.runtime.ingest('hello', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    await vi.waitFor(() => {
+      expect(harness.stream).toHaveBeenCalledTimes(1)
+    })
+
+    // Stop a different session: the in-flight send belongs to session-1, so the
+    // session-scoped guard must leave it running.
+    harness.runtime.stopSending('session-2')
+    expect(aborted).toBe(false)
+
+    releaseSend?.()
+    await send
+
+    const lastMessage = harness.sessionMessages['session-1']?.at(-1) as StreamingAssistantMessage
+    expect(lastMessage).toMatchObject({ role: 'assistant' })
+    expect(lastMessage.stopped).toBeUndefined()
+  })
+
+  /**
+   * @example
+   * Stop lands in the gap after the stream drains but before the success guard.
+   * The turn is treated as completed (no `stopped` marker, turn-complete hooks
+   * fire) and the parser's residual lookahead tail is preserved: a late abort
+   * during the final flush must not truncate an already-complete reply.
+   */
+  it('persists a completed turn with the full text when stop lands in the post-stream gap', async () => {
+    const harness = createHarness()
+    const turnCompleteHooks: string[] = []
+    harness.runtime.hooks.onChatTurnComplete(async () => {
+      turnCompleteHooks.push('turn-complete')
+    })
+    const tokenLiteralHooks: string[] = []
+    harness.runtime.hooks.onTokenLiteral(async (literal) => {
+      tokenLiteralHooks.push(literal)
+    })
+
+    const fullReply = 'this reply is long enough to cross the streaming flush threshold and leave a tail'
+
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: fullReply })
+      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+      // Stop fires in the gap after the stream drains but before parser.end().
+      harness.runtime.stopSending('session-1')
+    })
+
+    await harness.runtime.ingest('hello', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    const lastMessage = harness.sessionMessages['session-1']?.at(-1) as StreamingAssistantMessage
+    expect(lastMessage.role).toBe('assistant')
+    // Treated as a completed turn: no stopped marker, turn-complete hooks fired,
+    // rendered telemetry recorded.
+    expect(lastMessage.stopped).toBeUndefined()
+    expect(turnCompleteHooks).toEqual(['turn-complete'])
+    expect(harness.telemetry.assistantResponseRendered).toHaveLength(1)
+    // The buffered lookahead tail is preserved.
+    expect(lastMessage.content).toBe(fullReply)
+    const concatenated = lastMessage.slices
+      .filter((slice): slice is { type: 'text', text: string } => slice.type === 'text')
+      .map(slice => slice.text)
+      .join('')
+    expect(concatenated).toBe(fullReply)
+
+    // The tail flushed after the abort lands in the persisted message but is NOT
+    // re-fed to token hooks (TTS/captions): the streamed prefix reached the
+    // hooks, the post-abort tail did not.
+    const streamedToHooks = tokenLiteralHooks.join('')
+    expect(streamedToHooks.length).toBeGreaterThan(0)
+    expect(streamedToHooks).not.toBe(fullReply)
+    expect(fullReply.startsWith(streamedToHooks)).toBe(true)
   })
 
   /**
@@ -477,7 +684,7 @@ describe('createChatOrchestratorRuntime', () => {
     harness.runtime.cancelPendingSends('session-1')
     releaseFirstSend?.()
 
-    await expect(secondSend).rejects.toThrow('Chat session was reset before send could start')
+    await expect(secondSend).resolves.toBeUndefined()
     await firstSend
   })
 

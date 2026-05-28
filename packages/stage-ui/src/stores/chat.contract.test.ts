@@ -412,7 +412,7 @@ describe('chat orchestrator contract', () => {
     })
   })
 
-  it('rejects cancelled queued sends before they start', async () => {
+  it('resolves cancelled queued sends as a no-op before they start', async () => {
     let releaseFirstSend: (() => void) | undefined
     llmStreamMock.mockImplementationOnce(async () => {
       await new Promise<void>((resolve) => {
@@ -439,7 +439,10 @@ describe('chat orchestrator contract', () => {
     store.cancelPendingSends('session-1')
     releaseFirstSend?.()
 
-    await expect(secondSend).rejects.toThrow('Chat session was reset before send could start')
+    // Cancellation is not a failure: the facade promise resolves so the UI
+    // send-failure path never fires. The cancelled send never streams.
+    await expect(secondSend).resolves.toBeUndefined()
+    expect(llmStreamMock).toHaveBeenCalledTimes(1)
     await firstSend
   })
 
@@ -501,11 +504,11 @@ describe('chat orchestrator contract', () => {
     store.cancelPendingSends('session-1')
     releaseFirstSend?.()
 
-    await expect(secondSend).rejects.toThrow('Chat session was reset before send could start')
+    await expect(secondSend).resolves.toBeUndefined()
     await firstSend
   })
 
-  it('rejects stale generation sends before performSend starts', async () => {
+  it('resolves stale generation sends as a no-op before performSend starts', async () => {
     let releaseFirstSend: (() => void) | undefined
     llmStreamMock.mockImplementationOnce(async () => {
       await new Promise<void>((resolve) => {
@@ -533,7 +536,8 @@ describe('chat orchestrator contract', () => {
     releaseFirstSend?.()
 
     await firstSend
-    await expect(secondSend).rejects.toThrow('Chat session was reset before send could start')
+    // A stale queued send is discarded, not failed: it resolves and never streams.
+    await expect(secondSend).resolves.toBeUndefined()
     expect(llmStreamMock).toHaveBeenCalledTimes(1)
   })
 

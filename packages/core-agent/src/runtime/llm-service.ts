@@ -103,9 +103,7 @@ async function resolveTools(options?: StreamOptions) {
   return tools ?? []
 }
 
-function isAbortError(error: unknown, signal?: AbortSignal): boolean {
-  if (signal?.aborted)
-    return true
+function isAbortError(error: unknown): boolean {
   return typeof error === 'object'
     && error !== null
     && (error as { name?: unknown }).name === 'AbortError'
@@ -237,27 +235,36 @@ export async function streamFrom({
         onEvent,
       })
 
+      // Suppress the SSE-parser's expected rejection noise on Stop: when we
+      // aborted, or the error itself is an AbortError, the rejection is the
+      // cancellation we asked for, not a fault worth logging.
+      const isExpectedAbortNoise = (error: unknown) => !!options?.abortSignal?.aborted || isAbortError(error)
+
       // NOTICE:
-      // Consume every side-channel promise from `@xsai/stream-text` to swallow
-      // unhandled rejections from its SSE parser. `steps` is the authoritative
-      // completion signal (covers tool-call rounds); resolving only from
-      // `onEvent({ type: 'finish' })` misses `waitForTools` cases where
-      // `finishReason: 'tool_calls'` fires before the round settles.
-      // On Stop these all reject with AbortError; we suppress the console.error
-      // for that path but still `rejectOnce` on `steps` so the orchestrator's
-      // outer catch persists the `stopped` marker.
-      const sideChannels: Array<readonly [string, Promise<unknown>, boolean]> = [
-        ['steps', streamResult.steps, true],
-        ['messages', streamResult.messages, false],
-        ['usage', streamResult.usage, false],
-        ['totalUsage', streamResult.totalUsage, false],
-      ]
-      for (const [label, promise, isPrimary] of sideChannels) {
-        const handled = isPrimary ? promise.then(resolveOnce) : promise
-        void handled.catch((error) => {
-          if (isPrimary)
-            rejectOnce(error)
-          if (!isAbortError(error, options?.abortSignal))
+      // `steps` is the authoritative completion signal (covers tool-call rounds
+      // that `onEvent({ type: 'finish' })` misses when `waitForTools` holds the
+      // round open past `finishReason: 'tool_calls'`). It drives the outer
+      // resolve/reject contract, so it is handled explicitly. On Stop it rejects
+      // with AbortError; we still `rejectOnce` so the orchestrator's outer catch
+      // persists the `stopped` marker, but suppress the console noise.
+      void streamResult.steps
+        .then(resolveOnce)
+        .catch((error) => {
+          rejectOnce(error)
+          if (!isExpectedAbortNoise(error))
+            console.error('Stream steps error:', error)
+        })
+
+      // The remaining promises are pure side-channels: we only consume them to
+      // swallow `@xsai/stream-text`'s unhandled SSE-parser rejections. They never
+      // settle the outer contract.
+      for (const [label, promise] of [
+        ['messages', streamResult.messages],
+        ['usage', streamResult.usage],
+        ['totalUsage', streamResult.totalUsage],
+      ] as const) {
+        void promise.catch((error) => {
+          if (!isExpectedAbortNoise(error))
             console.error(`Stream ${label} error:`, error)
         })
       }

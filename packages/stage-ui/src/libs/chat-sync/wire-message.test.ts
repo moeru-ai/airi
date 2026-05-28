@@ -1,4 +1,4 @@
-import type { ChatAssistantMessage, ChatHistoryItem } from '@proj-airi/core-agent'
+import type { ChatAssistantMessage, ChatHistoryItem, StreamingAssistantMessage } from '@proj-airi/core-agent'
 import type { WireMessage } from '@proj-airi/server-sdk-shared'
 
 import { describe, expect, it } from 'vitest'
@@ -80,20 +80,20 @@ describe('isCloudSyncableMessage', () => {
 
   /**
    * @example
-   * The reconcile loop in session-store iterates local history and enqueues
-   * every syncable message into the outbox when a cloud chat first binds.
-   * Stopped partials must stay local-only because the wire format does not
-   * carry the `stopped` flag; uploading them would server-side them as
-   * normal completed turns.
+   * Predicate-level guard: a stopped assistant turn is not cloud-syncable.
+   * The `stopped` flag does not ride the wire format, so syncing such a turn
+   * would server-side it as a normal completed turn. The session-store reconcile
+   * loop stubs isCloudSyncableMessage, so this predicate test is the
+   * authoritative check that stopped turns are excluded from the cloud outbox.
    */
   it('rejects assistant turns marked stopped so they never reach the cloud outbox', () => {
-    const stoppedAssistant = {
+    const stoppedAssistant: StreamingAssistantMessage = {
       role: 'assistant',
       content: 'partial reply',
       slices: [{ type: 'text', text: 'partial reply' }],
       tool_results: [],
       stopped: true,
-    } as unknown as ChatHistoryItem
+    }
     expect(isCloudSyncableMessage(stoppedAssistant)).toBe(false)
   })
 })

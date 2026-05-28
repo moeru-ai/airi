@@ -81,3 +81,24 @@ export type StreamingAssistantMessage = ChatAssistantMessage & {
    */
   stopped?: boolean
 }
+
+/**
+ * Whether a history item is an assistant turn the user interrupted via Stop.
+ *
+ * Use when:
+ * - Reading the `stopped` flag off a generic {@link ChatHistoryItem} (e.g. the
+ *   cloud-sync predicate) without sprinkling `as StreamingAssistantMessage`
+ *   casts at every call site.
+ *
+ * Expects:
+ * - The flag lives only on {@link StreamingAssistantMessage} (the session/UI
+ *   shape), deliberately kept off the wire-bound {@link ChatAssistantMessage}
+ *   so it can't leak into provider requests; this predicate owns the single
+ *   narrowing cast required to read it.
+ *
+ * Returns:
+ * - `true` only for `role: 'assistant'` items carrying a truthy `stopped` flag.
+ */
+export function isStoppedAssistant(message: ChatHistoryItem): boolean {
+  return message.role === 'assistant' && !!(message as StreamingAssistantMessage).stopped
+}
