@@ -394,14 +394,26 @@ export async function setupPluginHostHostService(
   }
 
   const buildPluginConfigEnvelope = (name: string): ModuleConfigEnvelope | undefined => {
-    const userConfig = getConfig().configs[name]
-    if (!userConfig)
+    const entry = pluginRegistry.findManifestEntry(name)
+    if (!entry)
       return undefined
+
+    const manifestDefaults: Record<string, string | number | boolean> = {}
+    const configDecl = entry.manifest.config
+    if (configDecl?.schema) {
+      for (const [key, field] of Object.entries(configDecl.schema)) {
+        if (field.default !== undefined) {
+          manifestDefaults[key] = field.default
+        }
+      }
+    }
+
+    const userConfig = getConfig().configs[name] ?? {}
     return {
       configId: `${name}:config`,
       revision: 1,
       schemaVersion: 1,
-      full: userConfig,
+      full: { ...manifestDefaults, ...userConfig },
     }
   }
 
