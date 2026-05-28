@@ -1584,8 +1584,6 @@ theme:
 title: Configuración
 voices: Voz
 vrm:
-  render-scale:
-    title: Escala de renderizado
   change-model:
     from-file: Cargar desde Archivo
     from-file-select: Seleccionar
