@@ -2402,6 +2402,9 @@ export const useProvidersStore = defineStore('providers', () => {
       if (!providerMetadata[providerId] || intervalMs <= 0)
         continue
 
+      if (!shouldListProvider(providerId))
+        continue
+
       if (providerRevalidationLoops.has(providerId)) {
         continue
       }
@@ -2414,11 +2417,10 @@ export const useProvidersStore = defineStore('providers', () => {
     }
   }
 
-  // Update configuration status for all configured providers
+  // Update configuration status for listed providers only.
   async function updateConfigurationStatus() {
     await Promise.all(Object.entries(providerMetadata)
-      // TODO: ignore un-configured provider
-      // .filter(([_, provider]) => provider.configured)
+      .filter(([providerId]) => shouldListProvider(providerId))
       .map(async ([providerId]) => {
         try {
           if (providerRuntimeState.value[providerId]) {
