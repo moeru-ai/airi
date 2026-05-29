@@ -3,10 +3,10 @@
 <p align="center">
   <a href="https://bafybeigwwctpv37xdcwacqxvekr6e4kaemqsrv34em6glkbiceo3fcy4si.ipfs.inbrowser.link/"><img src="https://api.visitorbadge.io/api/visitors?path=https%3A%2F%2Fgithub.com%2Fvi70x3%2Fairi&label=%F0%9F%92%93%20awesome%20people%20counter&countColor=%23263759&style=flat" /></a>
   <a href="https://discord.gg/TgQ3Cu2F7A"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fdiscord.com%2Fapi%2Finvites%2FTgQ3Cu2F7A%3Fwith_counts%3Dtrue&query=%24.approximate_member_count&suffix=%20members&logo=discord&logoColor=white&label=%20&color=7389D8&labelColor=6A7EC2"></a>
-  <a href="https://app.deepsource.com/gh/vi70x3/airiOS/" target="_blank"><img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/vi70x3/airiOS.svg/?label=code+coverage&show_trend=true&token=O2sp1SX3FmVsFAAVoblq8GBt"/></a>
+  <a href="https://app.deepsource.com/gh/vi70x3/airiOS/" target="_blank"><img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/vi70x3/airiOS.svg/?label=code+coverage&show_trend=true&token=KdX5anL-Ef3VD1ZhVGuhkZDp"/></a>
   <br>
-  <a href="https://app.deepsource.com/gh/vi70x3/airiOS/" target="_blank"><img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/vi70x3/airiOS.svg/?label=active+issues&show_trend=true&token=O2sp1SX3FmVsFAAVoblq8GBt"/></a>
-  <a href="https://app.deepsource.com/gh/vi70x3/airiOS/" target="_blank"><img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/vi70x3/airiOS.svg/?label=resolved+issues&show_trend=true&token=O2sp1SX3FmVsFAAVoblq8GBt"/></a>
+  <a href="https://app.deepsource.com/gh/vi70x3/airiOS/" target="_blank"><img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/vi70x3/airiOS.svg/?label=active+issues&show_trend=true&token=KdX5anL-Ef3VD1ZhVGuhkZDp"/></a>
+  <a href="https://app.deepsource.com/gh/vi70x3/airiOS/" target="_blank"><img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/vi70x3/airiOS.svg/?label=resolved+issues&show_trend=true&token=KdX5anL-Ef3VD1ZhVGuhkZDp"/></a>
 </p>
 
 <p align="center">A container of souls - cyber livings, waifu, digital humans - brought into your Linux machine.</p>
