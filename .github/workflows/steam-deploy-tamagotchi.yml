@@ -46,16 +46,28 @@ jobs:
             description="AIRI desktop Steam artifacts from Release Tamagotchi run $RELEASE_RUN_ID"
           fi
 
-          delimiter="build_description_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}_${RANDOM}"
-          while grep -Fxq "$delimiter" <<< "$description"; do
-            delimiter="build_description_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}_${RANDOM}"
-          done
+          # NOTICE: game-ci/steam-deploy writes buildDescription into SteamPipe VDF.
+          # Keep manual input single-line and quote-safe so it cannot break the
+          # generated manifest syntax.
+          description="$(
+            RAW_BUILD_DESCRIPTION="$description" python3 <<'PY'
+          import os
+          import re
 
-          {
-            echo "build_description<<$delimiter"
-            printf '%s\n' "$description"
-            echo "$delimiter"
-          } >> "$GITHUB_OUTPUT"
+          value = os.environ['RAW_BUILD_DESCRIPTION']
+          value = re.sub(r'[\r\n\t]+', ' ', value)
+          value = re.sub(r'[\x00-\x1f\x7f]+', ' ', value)
+          value = value.replace('\\', '/').replace('"', "'")
+          value = re.sub(r' {2,}', ' ', value).strip()
+          print(value[:512])
+          PY
+          )"
+
+          if [ -z "$description" ]; then
+            description="AIRI desktop Steam artifacts from Release Tamagotchi run $RELEASE_RUN_ID"
+          fi
+
+          echo "build_description=$description" >> "$GITHUB_OUTPUT"
 
   deploy-steam:
     name: Upload to Steam
@@ -81,6 +93,13 @@ jobs:
             echo "release_branch must not be empty."
             exit 1
           fi
+
+          case "$STEAM_RELEASE_BRANCH" in
+            *[!A-Za-z0-9._-]*)
+              echo "release_branch may only contain ASCII letters, numbers, dots, underscores, and hyphens."
+              exit 1
+              ;;
+          esac
 
           if [ -z "$STEAM_USERNAME" ]; then
             echo "Missing STEAM_USERNAME secret."
@@ -170,6 +189,13 @@ jobs:
           test -f steam-build/windows/airi.exe
           test -x steam-build/macos/AIRI.app/Contents/MacOS/airi
           test -x steam-build/linux/airi
+
+          if ! file steam-build/macos/AIRI.app/Contents/MacOS/airi | grep -q 'arm64'; then
+            echo "Steam macOS content currently supports Apple Silicon only."
+            file steam-build/macos/AIRI.app/Contents/MacOS/airi
+            exit 1
+          fi
+
           find steam-build -maxdepth 2 -type d -print
 
       - name: Deploy desktop builds to Steam
