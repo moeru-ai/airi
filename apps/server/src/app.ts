@@ -49,6 +49,7 @@ import { sessionMiddleware } from './middlewares/auth'
 import { emitOtelLog, initOtel } from './otel'
 import { registerActiveSessionsGauge } from './otel/gauges/active-sessions'
 import { registerDistinctActiveUsersGauge } from './otel/gauges/distinct-active-users'
+import { registerRollingActiveUsersGauge } from './otel/gauges/rolling-active-users'
 import { createAdminRouterConfigRoutes } from './routes/admin/config/router'
 import { createAdminFluxGrantsRoutes } from './routes/admin/flux-grants'
 import { createAdminUsersRoutes } from './routes/admin/users'
@@ -712,6 +713,7 @@ export async function createApp() {
   if (resolved.otel) {
     registerActiveSessionsGauge(resolved.otel.auth.activeSessions, resolved.db, resolved.otel.observability.metricReadErrors)
     registerDistinctActiveUsersGauge(resolved.otel.auth.distinctActiveUsers, resolved.db, resolved.otel.observability.metricReadErrors)
+    registerRollingActiveUsersGauge(resolved.otel.auth.rollingActiveUsers, resolved.db, resolved.otel.observability.metricReadErrors)
   }
 
   const { app, injectWebSocket } = await buildApp({

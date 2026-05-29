@@ -211,6 +211,16 @@ span name 目前允许保留业务可读格式，例如：
 
 历史教训：`user.active_sessions` 最早是 UpDownCounter，登录 +1 / 登出 -1。但 Better Auth 的 session TTL 过期不会调 delete hook，counter 单实例就漂；多副本登录在 A、登出在 B 直接撕裂。改成 `ObservableGauge` 后由 [apps/server/src/app.ts](/apps/server/src/app.ts) 的 `registerActiveSessionsGauge` 通过 `SELECT COUNT(*) FROM session WHERE expires_at > NOW()` 在 scrape 时按需查 DB，带 10s 内存缓存避免 hammer。
 
+三个 DB-backed user gauge 的语义区分（都是 cluster-wide，dashboard 用 `max()` / `avg()`）：
+
+| Metric | 含义 | 来源 | 注册位置 |
+|---|---|---|---|
+| `user.active_sessions` | 当前未过期的 session **行数**（含 OIDC token 刷新产生的行，会膨胀） | `COUNT(*) FROM session WHERE expires_at > now()` | `registerActiveSessionsGauge` |
+| `user.distinct_active` | 当前持有 ≥1 个未过期 session 的**去重用户数**（"此刻在线"） | `COUNT(DISTINCT user_id) FROM session WHERE expires_at > now()` | `registerDistinctActiveUsersGauge` |
+| `user.active_rolling` | 滚动窗口去重活跃用户 DAU/WAU/MAU（"近 N 天回来过"），按 `window="24h"\|"7d"\|"30d"` 打 label | `COUNT(*) FILTER (WHERE last_seen_at > now()-window) FROM user` | `registerRollingActiveUsersGauge` |
+
+`user.active_rolling` 用 `user.last_seen_at`（登录 + 每次 OIDC token 刷新约每小时 touch 一次，是 per-user 的「最后活跃」时间戳），不依赖 session 是否过期，所以能回答「本周回来过多少人」。一次 query 用三个 `FILTER` 把三个窗口算完，缓存 60s（窗口变化慢且要全表扫 `user`，TTL 比 session gauge 长）。
+
 ### Dashboard 查询模板
 
 加新 panel 时按这个清单核对：
