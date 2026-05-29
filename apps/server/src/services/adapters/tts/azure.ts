@@ -228,7 +228,7 @@ export const azureAdapter: TtsAdapter = {
     if (!ctx.keyPlaintext)
       throw createServiceUnavailableError('azure tts key not configured', 'AZURE_TTS_NOT_CONFIGURED')
 
-    const url = `${ctx.unspeechBaseURL.replace(/\/+$/, '')}/api/voices?backend=microsoft&region=${encodeURIComponent(ctx.region)}`
+    const url = `${ctx.unspeechBaseURL.replace(/\/+$/, '')}/api/voices?provider=microsoft&region=${encodeURIComponent(ctx.region)}`
 
     let response: Response
     try {

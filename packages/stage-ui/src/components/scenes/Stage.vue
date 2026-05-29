@@ -32,7 +32,7 @@ import { useIOTraceBridge } from '../../composables/use-io-trace-bridge'
 import { initIOTracer } from '../../composables/use-io-tracer'
 import { useSpeechPipelineAnalytics } from '../../composables/use-speech-pipeline-analytics'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
-import { getDefinedProvider } from '../../libs/providers/providers'
+import { getDefaultStreamingModel, getDefinedProvider } from '../../libs/providers/providers'
 import { createStageTtsSession } from '../../libs/speech/tts-session'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useBackgroundStore } from '../../stores/background'
@@ -575,8 +575,17 @@ function buildStreamingSnapshot(): StreamingSessionSnapshot | null {
   const voiceId = activeSpeechVoice.value?.id
   if (!voiceId)
     return null
-  const sessionModel = (activeSpeechModel.value as string | undefined) || 'volcengine/seed-tts-2.0'
-  const apiResourceId = sessionModel.includes('/') ? sessionModel.split('/', 2)[1] : 'seed-tts-2.0'
+  // Resolve the concrete streaming model id. The active speech model is only
+  // valid here when it carries the `<backend>/<api_resource_id>` shape the ws
+  // upstream expects — the HTTP TTS `auto` alias (and an empty selection after
+  // a provider switch) must NOT reach the bridge, so fall back to the
+  // server-curated default instead of a hardcoded id. Returns null (segmenter
+  // fallback) when neither resolves, rather than guessing a resource id.
+  const activeModel = activeSpeechModel.value as string | undefined
+  const sessionModel = activeModel?.includes('/') ? activeModel : getDefaultStreamingModel()
+  if (!sessionModel?.includes('/'))
+    return null
+  const apiResourceId = sessionModel.split('/', 2)[1]
   // TTS 2.0 / ICL 2.0 ship subtitles asynchronously relative to audio
   // (per the wire spec), so chunk-on-sentence-end would drop frames.
   // Buffer the entire session and decode at session.finished instead.

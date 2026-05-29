@@ -290,7 +290,6 @@ export function createV1Routes(
               logger.withError(err).warn('Failed to close stream writer')
             }
 
-            // Extract usage from final SSE data lines
             let usage: UsageInfo = {}
             try {
               const lines = tailBuffer.split('\n').filter(l => l.startsWith('data: ') && !l.includes('[DONE]'))
@@ -702,14 +701,9 @@ export function createV1Routes(
   }
 
   async function handleListTTSModels(_c: Context<HonoEnv>) {
-    // Surface the concrete TTS models the operator has configured plus the
-    // `auto` alias. Clients need real model ids to pass `?model=<id>` to
-    // `/audio/voices`, otherwise the voice catalog endpoint can never resolve
-    // anything beyond the DEFAULT_TTS_MODEL catalog — which is the bug that
-    // hid the Azure voices from the UI.
-    //
-    // `auto` is kept on top as an explicit "use the operator default" knob
-    // for clients that don't care which concrete model handles them.
+    // Surface the concrete TTS models the operator has configured. The UI
+    // should select an explicit model id so voice catalog requests stay
+    // model-scoped instead of hiding behind DEFAULT_TTS_MODEL.
     const config = await configKV.getOrThrow('LLM_ROUTER_CONFIG')
     // `LLM_ROUTER_CONFIG` is `optional()` at the schema, so its inferred type
     // tolerates `undefined`. `getOrThrow` already throws on missing entries,
@@ -717,29 +711,32 @@ export function createV1Routes(
     // a TS narrowing aid.
     const modelIds = Object.keys(config?.tts?.models ?? {}).sort()
     return Response.json({
-      models: [
-        { id: 'auto', name: 'Auto' },
-        ...modelIds.map(id => ({ id, name: id })),
-      ],
+      models: modelIds.map(id => ({ id, name: id })),
     })
   }
 
   async function handleListStreamingTTSModels(_c: Context<HonoEnv>) {
     const unspeech = await configKV.getOptional('UNSPEECH_UPSTREAM')
     const models = unspeech?.streaming?.models ?? []
+    // `available` is the operator-controlled visibility switch the client gates
+    // the streaming provider on. It tracks whether `UNSPEECH_UPSTREAM.streaming`
+    // is configured at all — not whether `models[]` happens to be empty — so an
+    // operator who has wired the upstream but not yet curated models still
+    // surfaces the provider rather than silently hiding it.
     return Response.json({
+      available: !!unspeech?.streaming?.baseURL,
       models: models.map(m => ({
         id: m.id,
         name: m.name ?? m.id,
         description: m.description,
       })),
+      default: unspeech?.streaming?.defaultModel ?? null,
     })
   }
 
   const chatGuard = configGuard(configKV, ['FLUX_PER_REQUEST'], 'Service is not available yet')
   const ttsGuard = configGuard(configKV, ['FLUX_PER_1K_CHARS_TTS'], 'TTS service is not available yet')
 
-  // 60 requests per minute per user for LLM completions
   const completionsRateLimit = rateLimiter({ max: 60, windowSec: 60, metrics: rateLimitMetrics, routeLabel: 'openai.completions' })
 
   // OpenAI-compatible surface (mounted at /api/v1/openai). Only routes that

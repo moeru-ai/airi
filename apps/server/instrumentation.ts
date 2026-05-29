@@ -34,6 +34,7 @@ import { HttpInstrumentation } from '@opentelemetry/instrumentation-http'
 import { IORedisInstrumentation } from '@opentelemetry/instrumentation-ioredis'
 import { PgInstrumentation } from '@opentelemetry/instrumentation-pg'
 import { RuntimeNodeInstrumentation } from '@opentelemetry/instrumentation-runtime-node'
+import { UndiciInstrumentation } from '@opentelemetry/instrumentation-undici'
 import { resourceFromAttributes } from '@opentelemetry/resources'
 import { BatchLogRecordProcessor } from '@opentelemetry/sdk-logs'
 import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics'
@@ -141,13 +142,22 @@ else {
       // Keep HttpInstrumentation for OUTBOUND traces only — LLM gateway,
       // Stripe, Resend, OIDC discovery — so we still get spans on egress.
       new HttpInstrumentation({
-        ignoreIncomingRequestHook: () => true,
+        // NOTICE:
+        // Do not use `ignoreIncomingRequestHook: () => true` here. In
+        // @opentelemetry/instrumentation-http@0.215.0, ignored incoming
+        // requests run the whole Node `request` listener inside
+        // `suppressTracing(...)`, which also suppresses @hono/otel middleware
+        // spans and hand-written route spans. Disabling incoming patching keeps
+        // outbound http/https spans without touching Hono's request context.
+        disableIncomingRequestInstrumentation: true,
       }),
       new PgInstrumentation({
         enhancedDatabaseReporting: true,
       }),
       new IORedisInstrumentation(),
       new RuntimeNodeInstrumentation(),
+      // Outbound fetch — HttpInstrumentation only patches node:http/https, not undici.
+      new UndiciInstrumentation(),
     ],
   })
 

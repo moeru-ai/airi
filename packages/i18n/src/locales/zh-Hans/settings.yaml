@@ -1584,8 +1584,6 @@ theme:
 title: 设置
 voices: 声线
 vrm:
-  render-scale:
-    title: 渲染精度
   change-model:
     from-file: 从文件加载
     from-file-select: 选择

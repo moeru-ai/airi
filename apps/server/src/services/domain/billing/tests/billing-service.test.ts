@@ -30,6 +30,10 @@ function createMockRedis(): Redis {
       store.set(key, value)
       return 'OK'
     }),
+    del: vi.fn(async (key: string) => {
+      const existed = store.delete(key)
+      return existed ? 1 : 0
+    }),
   } as unknown as Redis
 }
 
@@ -354,6 +358,73 @@ describe('billingService', () => {
         eq(schema.fluxTransaction.requestId, requestId),
       ))
       expect(txRecords).toHaveLength(1)
+    })
+  })
+
+  describe('setFlux', () => {
+    it('sets the balance to an absolute value and records an admin_set ledger row', async () => {
+      // Start from a known balance so the delta direction is observable.
+      await billingService.creditFlux({ userId: 'user-billing-1', amount: 100, description: 'seed', source: 'test' })
+
+      const result = await billingService.setFlux({
+        userId: 'user-billing-1',
+        balance: 250,
+        description: 'admin top-up',
+        issuedByUserId: 'admin-1',
+      })
+
+      expect(result.balanceBefore).toBe(100)
+      expect(result.balanceAfter).toBe(250)
+
+      const [fluxRow] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-billing-1'))
+      expect(fluxRow!.flux).toBe(250)
+
+      const [tx] = await db.select().from(schema.fluxTransaction).where(eq(schema.fluxTransaction.id, result.fluxTransactionId))
+      expect(tx!.type).toBe('admin_set')
+      expect(tx!.amount).toBe(150)
+      expect(tx!.balanceBefore).toBe(100)
+      expect(tx!.balanceAfter).toBe(250)
+      expect(tx!.metadata).toMatchObject({ source: 'admin_set', direction: 'credit', requestedBalance: 250, issuedByUserId: 'admin-1' })
+    })
+
+    it('can zero out a balance and records the debit direction (the primary testing use case)', async () => {
+      await billingService.creditFlux({ userId: 'user-billing-1', amount: 500, description: 'seed', source: 'test' })
+
+      const result = await billingService.setFlux({
+        userId: 'user-billing-1',
+        balance: 0,
+        description: 'admin zero',
+        issuedByUserId: 'admin-1',
+      })
+
+      expect(result.balanceBefore).toBe(500)
+      expect(result.balanceAfter).toBe(0)
+
+      const [fluxRow] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-billing-1'))
+      expect(fluxRow!.flux).toBe(0)
+
+      const [tx] = await db.select().from(schema.fluxTransaction).where(eq(schema.fluxTransaction.id, result.fluxTransactionId))
+      expect(tx!.type).toBe('admin_set')
+      expect(tx!.amount).toBe(500)
+      expect(tx!.metadata).toMatchObject({ direction: 'debit', requestedBalance: 0 })
+    })
+
+    it('initializes a user_flux row when none exists and invalidates the Redis cache', async () => {
+      // Pre-warm the cache with a stale value to prove setFlux drops it.
+      await redis.set(userFluxRedisKey('user-billing-1'), '999')
+
+      const result = await billingService.setFlux({
+        userId: 'user-billing-1',
+        balance: 42,
+        description: 'admin set from zero',
+        issuedByUserId: 'admin-1',
+      })
+
+      expect(result.balanceBefore).toBe(0)
+      expect(result.balanceAfter).toBe(42)
+      // Invalidate, not write: next getFlux miss reloads truth from Postgres.
+      expect(redis.del).toHaveBeenCalledWith(userFluxRedisKey('user-billing-1'))
+      expect(await redis.get(userFluxRedisKey('user-billing-1'))).toBeNull()
     })
   })
 })

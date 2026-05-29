@@ -1584,8 +1584,6 @@ theme:
 title: 설정
 voices: 음성
 vrm:
-  render-scale:
-    title: Render scale
   change-model:
     from-file: 파일로부터 불러오기
     from-file-select: 선택

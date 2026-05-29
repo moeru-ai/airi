@@ -87,13 +87,13 @@ function syncOpenAICompatibleSettings() {
 
 onMounted(async () => {
   await providersStore.loadModelsForConfiguredProviders()
-  await speechStore.loadVoicesForProvider(activeSpeechProvider.value)
+  speechStore.ensureActiveSpeechModel()
+  await speechStore.loadVoicesForProvider(activeSpeechProvider.value, activeSpeechModel.value || undefined)
   syncOpenAICompatibleSettings()
 })
 
 watch(activeSpeechProvider, async (newProvider, oldProvider) => {
   await providersStore.loadModelsForConfiguredProviders()
-  await speechStore.loadVoicesForProvider(newProvider)
 
   // Reset model and voice when switching providers (but not on initial load)
   if (oldProvider !== undefined && oldProvider !== newProvider) {
@@ -102,12 +102,18 @@ watch(activeSpeechProvider, async (newProvider, oldProvider) => {
     activeSpeechVoice.value = undefined
   }
 
+  // Re-seed the streaming default model after the reset above so its voices
+  // load model-scoped (the server only returns recommended voices for an
+  // explicit ?model=). No-op for other providers / when a model is selected.
+  speechStore.ensureActiveSpeechModel()
+  await speechStore.loadVoicesForProvider(newProvider, activeSpeechModel.value || undefined)
+
   syncOpenAICompatibleSettings()
 })
 
 watch(activeSpeechModel, async () => {
   if (activeSpeechProvider.value) {
-    await speechStore.loadVoicesForProvider(activeSpeechProvider.value)
+    await speechStore.loadVoicesForProvider(activeSpeechProvider.value, activeSpeechModel.value || undefined)
   }
 })
 

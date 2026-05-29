@@ -4,7 +4,7 @@
 // Covers the three user paths from the verification doc:
 //   Path 1: admin POST /api/admin/flux-grants → 200 + granted array, ledger row written
 //   Path 2: ?dryRun=true → preview returned, ledger unchanged
-//   Path 3: adminGuard rejects (401 no session / 403 not in allowlist / 403 unverified)
+//   Path 3: adminGuard rejects (401 no session / 403 non-admin role)
 
 import type { Harness } from './_harness'
 
@@ -19,9 +19,9 @@ describe('verification: admin-flux-grants', () => {
   let ctx: Harness
 
   beforeEach(async () => {
-    ctx = await startVerificationContext({ adminEmails: ADMIN_EMAIL })
+    ctx = await startVerificationContext()
     ctx.setConfig({ INITIAL_USER_FLUX: 0 })
-    // Admin user (caller). emailVerified is required by adminGuard.
+    // Admin user (caller). Admin access is role-based (`role === 'admin'`).
     await ctx.seedUser({ id: 'admin-1', email: ADMIN_EMAIL, balance: 0 })
   })
 
@@ -33,7 +33,7 @@ describe('verification: admin-flux-grants', () => {
     it('credits 100 flux to each existing recipient and returns the per-email outcome buckets', async () => {
       await ctx.seedUser({ id: 'recipient-1', email: 'rec1@example.com', balance: 0 })
       await ctx.seedUser({ id: 'recipient-2', email: 'rec2@example.com', balance: 25 })
-      ctx.setSessionUser({ id: 'admin-1', email: ADMIN_EMAIL })
+      ctx.setSessionUser({ id: 'admin-1', email: ADMIN_EMAIL, role: 'admin' })
 
       const res = await ctx.app.request('/api/admin/flux-grants', {
         method: 'POST',
@@ -85,7 +85,7 @@ describe('verification: admin-flux-grants', () => {
   describe('path 2: dry-run preview', () => {
     it('reports willGrant / notFound / duplicateInInput without writing a ledger row', async () => {
       await ctx.seedUser({ id: 'recipient-1', email: 'rec1@example.com', balance: 0 })
-      ctx.setSessionUser({ id: 'admin-1', email: ADMIN_EMAIL })
+      ctx.setSessionUser({ id: 'admin-1', email: ADMIN_EMAIL, role: 'admin' })
 
       const res = await ctx.app.request('/api/admin/flux-grants?dryRun=true', {
         method: 'POST',
@@ -138,24 +138,9 @@ describe('verification: admin-flux-grants', () => {
       expect(res.status).toBe(401)
     })
 
-    it('returns 403 when the session user is not in ADMIN_EMAILS', async () => {
+    it('returns 403 when the session user has no admin role', async () => {
       await ctx.seedUser({ id: 'normie', email: 'normie@example.com', balance: 0 })
-      ctx.setSessionUser({ id: 'normie', email: 'normie@example.com', emailVerified: true })
-
-      const res = await ctx.app.request('/api/admin/flux-grants', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description: 'x', amount: 1, emails: ['a@b.com'] }),
-      })
-
-      expect(res.status).toBe(403)
-    })
-
-    it('returns 403 when the admin email is in the allowlist but not yet verified', async () => {
-      // Same email as ADMIN_EMAIL but emailVerified=false. Guards against a
-      // fresh signup with an admin's address slipping past before they prove
-      // ownership.
-      ctx.setSessionUser({ id: 'admin-1', email: ADMIN_EMAIL, emailVerified: false })
+      ctx.setSessionUser({ id: 'normie', email: 'normie@example.com', role: 'user' })
 
       const res = await ctx.app.request('/api/admin/flux-grants', {
         method: 'POST',

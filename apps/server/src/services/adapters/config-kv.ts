@@ -1,6 +1,7 @@
 import type Redis from 'ioredis'
 import type { InferOutput } from 'valibot'
 
+import { errorMessageFrom } from '@moeru/std'
 import { any, array, boolean, check, nonEmpty, number, object, optional, parse, picklist, pipe, record, regex, string } from 'valibot'
 
 import { createServiceUnavailableError } from '../../utils/error'
@@ -71,6 +72,7 @@ export const streamingTtsUpstreamSchema = object({
     })),
     [],
   ),
+  defaultModel: optional(string()),
 })
 
 export const unspeechUpstreamSchema = object({
@@ -158,7 +160,19 @@ type ConfigDefinitions = {
 type ConfigKey = keyof ConfigDefinitions
 
 function parseValue<K extends ConfigKey>(key: K, raw: string): ConfigDefinitions[K] {
-  return parse(ConfigEntrySchemas[key], JSON.parse(raw)) as ConfigDefinitions[K]
+  try {
+    return parse(ConfigEntrySchemas[key], JSON.parse(raw)) as ConfigDefinitions[K]
+  }
+  catch (error) {
+    throw createServiceUnavailableError(
+      'Service configuration is invalid',
+      'CONFIG_INVALID',
+      {
+        key,
+        message: errorMessageFrom(error) ?? 'Unknown config parse error',
+      },
+    )
+  }
 }
 
 function serializeValue<K extends ConfigKey>(key: K, value: ConfigDefinitions[K]): string {

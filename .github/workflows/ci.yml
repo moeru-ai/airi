@@ -52,7 +52,7 @@ jobs:
 
           - app_name: stage-tamagotchi
             command: pnpm -F @proj-airi/stage-tamagotchi run build
-            
+
           - app_name: stage-tamagotchi-godot
             command: cd engines/stage-tamagotchi-godot && dotnet restore && dotnet build -c ExportRelease
 
@@ -108,6 +108,50 @@ jobs:
         run: |
           mkdir -p build/linux
           godot --headless --export-release "Linux x64" build/linux/godot-stage
+
+  unit-test:
+    name: Unit Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      # Turborepo
+      - name: Cache turbo build setup
+        uses: actions/cache@v5
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+
+      # # Setup .NET and Godot
+      # - name: Setup .NET
+      #   if: matrix.app_name == 'stage-tamagotchi-godot'
+      #   uses: actions/setup-dotnet@v4
+      #   with:
+      #     dotnet-version: '8.0.x'
+
+      # - name: Setup Godot
+      #   if: matrix.app_name == 'stage-tamagotchi-godot'
+      #   uses: chickensoft-games/setup-godot@v2
+      #   with:
+      #     version: 4.6.2
+      #     use-dotnet: true
+      #     include-templates: true
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Setup Playwright
+        run: npx playwright install chromium
+
+      - run: pnpm run build:packages
+      - run: pnpm run test:run
 
   typecheck:
     name: Type Check

@@ -754,5 +754,48 @@ describe('createLlmRouterService', () => {
       // adapter's `Error & { status }` was read as undefined.
       expect(fallbackCalls[0][1]).toMatchObject({ reason: '401' })
     })
+
+    it('listTtsVoices deduplicates concurrent cold-cache upstream fetches per model', async () => {
+      // ROOT CAUSE:
+      //
+      // Azure voice catalogs are cached after a successful fetch, but concurrent
+      // cold-cache requests used to miss Redis together and each hit unspeech's
+      // microsoft voices endpoint. That can amplify one settings-page open into
+      // several Azure voices/list calls and trigger upstream 429.
+      //
+      // We fixed this by sharing the in-flight catalog load for the same
+      // provider/model cache key. Failures are still returned to every caller and
+      // are not cached.
+      const { config, crypto } = makeTtsConfig({
+        upstreams: [{ baseURL: 'https://az.example', keyIds: ['kA1'], adapterParams: { region: 'eastasia' } }],
+      })
+
+      let resolveFetch!: () => void
+      const fetchImpl = vi.fn(() => new Promise<Response>((resolve) => {
+        resolveFetch = () => resolve(happyResponse({
+          voices: [{ id: 'en-US-AvaMultilingualNeural', name: 'Ava' }],
+        }))
+      }))
+
+      const router = createLlmRouterService({
+        configKV: makeConfigKV(config),
+        envelopeCrypto: crypto,
+        gatewayMetrics: null,
+        fetchImpl,
+        redis: makeRedisStub(),
+      })
+
+      const first = router.listTtsVoices('tts-test')
+      const second = router.listTtsVoices('tts-test')
+
+      await vi.waitFor(() => {
+        expect(fetchImpl).toHaveBeenCalledTimes(1)
+      })
+      resolveFetch()
+
+      const [firstVoices, secondVoices] = await Promise.all([first, second])
+      expect(firstVoices.map(voice => voice.id)).toEqual(['en-US-AvaMultilingualNeural'])
+      expect(secondVoices.map(voice => voice.id)).toEqual(['en-US-AvaMultilingualNeural'])
+    })
   })
 })

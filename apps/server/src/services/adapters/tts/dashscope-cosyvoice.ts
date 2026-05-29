@@ -4,17 +4,7 @@ import type { TtsAdapter, TtsAdapterContext, TtsInput, TtsResult, TtsVoiceCatalo
 
 import { errorMessageFrom } from '@moeru/std'
 
-import { createBadGatewayError, createInternalError } from '../../../utils/error'
-
-/**
- * Default DashScope cosyvoice voice id. v2 voice ids carry an explicit `_v2`
- * suffix; `longxiaochun_v2` is the general-purpose Chinese assistant voice
- * called out in Alibaba's voice list.
- *
- * NOTICE:
- * Hardcoded near use; promote when ops want per-tenant defaults.
- */
-const DEFAULT_COSYVOICE_VOICE = 'longxiaochun_v2'
+import { createBadGatewayError, createBadRequestError, createInternalError } from '../../../utils/error'
 
 /**
  * Default cosyvoice audio format. Mirrors the OpenAI `mp3` default expected by
@@ -28,8 +18,8 @@ const DEFAULT_COSYVOICE_FORMAT = 'mp3'
  * v2 is the most conservative current default and shares a request body shape
  * with v3/v3.5 so ops can retarget via `adapterParams.model` without code.
  * NOTICE:
- * If you bump this past v2, verify the chosen `DEFAULT_COSYVOICE_VOICE` exists
- * for that model — voice catalogs differ between v2 (`*_v2`) and v3 (`*_v3`).
+ * If you bump this past v2, verify the configured default voice exists for
+ * that model — voice catalogs differ between v2 (`*_v2`) and v3 (`*_v3`).
  */
 const DEFAULT_COSYVOICE_MODEL = 'cosyvoice-v2'
 
@@ -63,7 +53,9 @@ export const dashscopeCosyvoiceAdapter: TtsAdapter = {
     const model = typeof ctx.adapterParams.model === 'string'
       ? ctx.adapterParams.model
       : DEFAULT_COSYVOICE_MODEL
-    const voice = input.voice ?? DEFAULT_COSYVOICE_VOICE
+    if (!input.voice)
+      throw createBadRequestError('dashscope-cosyvoice voice is required', 'BAD_REQUEST')
+    const voice = input.voice
     const format = input.responseFormat ?? DEFAULT_COSYVOICE_FORMAT
 
     const body = JSON.stringify({
@@ -109,7 +101,10 @@ export const dashscopeCosyvoiceAdapter: TtsAdapter = {
     // (unspeech/pkg/backend/alibaba/voices.go `//go:embed voices.json`),
     // so this call is in-memory on unspeech's side and only crosses a TCP
     // hop. No upstream credential is required.
-    const url = `${ctx.unspeechBaseURL.replace(/\/+$/, '')}/api/voices?backend=alibaba`
+    const params = new URLSearchParams({ provider: 'alibaba' })
+    if (typeof ctx.adapterParams.model === 'string')
+      params.set('model', ctx.adapterParams.model)
+    const url = `${ctx.unspeechBaseURL.replace(/\/+$/, '')}/api/voices?${params.toString()}`
 
     let response: Response
     try {

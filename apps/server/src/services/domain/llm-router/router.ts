@@ -1,6 +1,7 @@
 import type { Buffer } from 'node:buffer'
 
 import type Redis from 'ioredis'
+import type { Voice } from 'unspeech'
 
 import type { GatewayMetrics } from '../../../otel'
 import type { EnvelopeCrypto } from '../../../utils/envelope-crypto'
@@ -176,6 +177,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
   const logger = useLogger('llm-router').useGlobalConfig()
   const fetchImpl = options.fetchImpl ?? globalThis.fetch
   const configLoader = createConfigLoader({ configKV: options.configKV, ttlMs: options.configCacheTtlMs })
+  const ttsVoiceCatalogLoads = new Map<string, Promise<Voice[]>>()
 
   /**
    * Run one upstream's key list in order, returning either:
@@ -652,44 +654,55 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       }
     }
 
-    const unspeechBaseURL = (await options.configKV.getOrThrow('UNSPEECH_UPSTREAM')).restBaseURL
+    const existingLoad = ttsVoiceCatalogLoads.get(cacheKey)
+    if (existingLoad != null)
+      return existingLoad
 
-    // Live providers (Azure) need the decrypted Azure subscription key + region;
-    // static-catalog providers (alibaba, volcengine) ignore both. The router
-    // decrypts unconditionally so the adapter doesn't have to know which
-    // category it's in — adapters that don't need creds just won't read them.
-    const region = typeof upstream.adapterParams?.region === 'string'
-      ? upstream.adapterParams.region
-      : undefined
+    const load = (async () => {
+      const unspeechBaseURL = (await options.configKV.getOrThrow('UNSPEECH_UPSTREAM')).restBaseURL
 
-    const keyEntry = upstream.keys[0]
-    const plaintext = slice.model.provider === 'azure'
-      ? options.envelopeCrypto.decryptKey(keyEntry.ciphertext, { modelName, keyEntryId: keyEntry.id })
-      : undefined
+      // Live providers (Azure) need the decrypted Azure subscription key + region;
+      // static-catalog providers (alibaba, volcengine) ignore both. The router
+      // decrypts unconditionally so the adapter doesn't have to know which
+      // category it's in — adapters that don't need creds just won't read them.
+      const region = typeof upstream.adapterParams?.region === 'string'
+        ? upstream.adapterParams.region
+        : undefined
 
-    try {
-      const voices = await adapter.getVoiceCatalog({
-        keyPlaintext: plaintext,
-        region,
-        adapterParams: upstream.adapterParams ?? {},
-        unspeechBaseURL,
-        fetchImpl,
-      })
+      const keyEntry = upstream.keys[0]
+      const plaintext = slice.model.provider === 'azure'
+        ? options.envelopeCrypto.decryptKey(keyEntry.ciphertext, { modelName, keyEntryId: keyEntry.id })
+        : undefined
 
-      // Cache only on success — failure responses must NOT be persisted or
-      // the next admin reconfigure would have to wait out the TTL even after
-      // fixing credentials.
-      const ttl = options.ttsVoiceCacheTtlSeconds ?? ttsVoicesCacheTtl(slice.model.provider)
-      await options.redis.set(cacheKey, JSON.stringify(voices), 'EX', ttl)
-        .catch((err) => {
-          logger.withError(err).withFields({ cacheKey }).warn('failed to write tts voices cache')
+      try {
+        const voices = await adapter.getVoiceCatalog({
+          keyPlaintext: plaintext,
+          region,
+          adapterParams: upstream.adapterParams ?? {},
+          unspeechBaseURL,
+          fetchImpl,
         })
 
-      return voices
-    }
-    finally {
-      plaintext?.fill(0)
-    }
+        // Cache only on success — failure responses must NOT be persisted or
+        // the next admin reconfigure would have to wait out the TTL even after
+        // fixing credentials.
+        const ttl = options.ttsVoiceCacheTtlSeconds ?? ttsVoicesCacheTtl(slice.model.provider)
+        await options.redis.set(cacheKey, JSON.stringify(voices), 'EX', ttl)
+          .catch((err) => {
+            logger.withError(err).withFields({ cacheKey }).warn('failed to write tts voices cache')
+          })
+
+        return voices
+      }
+      finally {
+        plaintext?.fill(0)
+      }
+    })().finally(() => {
+      ttsVoiceCatalogLoads.delete(cacheKey)
+    })
+
+    ttsVoiceCatalogLoads.set(cacheKey, load)
+    return load
   }
 
   /**
