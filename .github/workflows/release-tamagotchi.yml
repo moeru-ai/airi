@@ -227,6 +227,10 @@ jobs:
       - name: Package macOS Steam content
         if: ${{ github.event_name != 'schedule' && matrix.os == 'macos-26' }}
         run: |
+          # NOTICE: Steam macOS content is intentionally Apple Silicon-only for
+          # the first Steam release. Intel macOS support should be added later
+          # with a separate packaging decision instead of accidentally shipping
+          # the slower Rosetta path to Apple Silicon users.
           app_path="$(find apps/stage-tamagotchi/dist dist -name '*.app' -type d 2>/dev/null | sort | head -n 1)"
           if [ -z "$app_path" ]; then
             echo "Expected macOS .app bundle was not found."
