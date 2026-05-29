@@ -2436,11 +2436,15 @@ export const useProvidersStore = defineStore('providers', () => {
       }))
   }
 
-  // Call initially and watch for changes
-  watch(providerCredentials, updateConfigurationStatus, { deep: true, immediate: true })
-  startPeriodicRuntimeValidation()
+  async function refreshListedProviderValidation() {
+    await updateConfigurationStatus()
+    startPeriodicRuntimeValidation()
+  }
 
-  watch(() => authState.isAuthenticated, updateConfigurationStatus)
+  // Call initially and watch for changes
+  watch(providerCredentials, refreshListedProviderValidation, { deep: true, immediate: true })
+  watch(addedProviders, refreshListedProviderValidation, { deep: true })
+  watch(() => authState.isAuthenticated, refreshListedProviderValidation)
 
   // Available providers (only those that are properly configured)
   const availableProviders = computed(() => Object.keys(providerMetadata).filter(providerId => providerRuntimeState.value[providerId]?.isConfigured))
