@@ -12,7 +12,7 @@
   },
   "license": "MIT",
   "scripts": {
-    "postinstall": "pnpm exec simple-git-hooks && pnpm run build:packages",
+    "postinstall": "pnpm exec simple-git-hooks && bash scripts/symlink-system-electron.sh && pnpm run build:packages",
     "dev": "pnpm -r -F @proj-airi/stage-web dev",
     "dev:docs": "pnpm -rF @proj-airi/docs run dev",
     "dev:ui": "pnpm -rF @proj-airi/stage-ui run story:dev",
@@ -97,11 +97,6 @@
   },
   "workspaces": [
     "packages/**",
-    "plugins/**",
-    "services/**",
-    "examples/**",
-    "docs/**",
-    "engines/**",
     "apps/**"
   ],
   "simple-git-hooks": {

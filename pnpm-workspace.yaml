@@ -88,7 +88,7 @@ catalog:
   drizzle-kit: ^0.31.10
   drizzle-orm: ^0.45.2
   drizzle-valibot: ^0.4.2
-  electron: ^41.2.1
+  electron: ^42.3.0
   embla-carousel-vue: 9.0.0-rc02
   es-toolkit: 1.43.0
   get-port-please: ^3.2.0
@@ -165,7 +165,6 @@ onlyBuiltDependencies:
   - bufferutil
   - canvas
   - core-js
-  - electron
   - electron-click-drag-plugin
   - electron-winstaller
   - es5-ext
