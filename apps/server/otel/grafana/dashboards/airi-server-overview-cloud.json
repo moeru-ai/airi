@@ -54,7 +54,7 @@
             "transformations": []
           }
         },
-        "description": "Rolling 24h `increase(user.registered)` — counts the Better Auth `databaseHooks.user.create.after` fires over the last 24 hours. Operational signup signal; for DAU / WAU / MAU query PostHog (`event = session_started`).",
+        "description": "Rolling 24h `increase(user.registered)` — counts the Better Auth `databaseHooks.user.create.after` fires over the last 24 hours. The signup half of the funnel; the returning-user half is DAU / WAU / MAU in the Users & Engagement row.",
         "id": 1,
         "links": [],
         "title": "New Users 24h",
@@ -65,18 +65,16 @@
             "fieldConfig": {
               "defaults": {
                 "color": {
-                  "mode": "thresholds"
+                  "mode": "fixed",
+                  "fixedColor": "blue"
                 },
+                "fieldMinMax": false,
                 "thresholds": {
                   "mode": "absolute",
                   "steps": [
                     {
-                      "color": "green",
+                      "color": "blue",
                       "value": 0
-                    },
-                    {
-                      "color": "yellow",
-                      "value": 1000
                     }
                   ]
                 },
@@ -85,7 +83,7 @@
               "overrides": []
             },
             "options": {
-              "colorMode": "value",
+              "colorMode": "none",
               "graphMode": "area",
               "justifyMode": "auto",
               "orientation": "auto",
@@ -97,8 +95,8 @@
                 "fields": "",
                 "values": false
               },
-              "showPercentChange": false,
-              "textMode": "auto",
+              "showPercentChange": true,
+              "textMode": "value_and_name",
               "wideLayout": true
             }
           },
@@ -137,7 +135,7 @@
             "transformations": []
           }
         },
-        "description": "COUNT(*) over the Better Auth `session` table where `expires_at > now()`. Counts session **rows**, not users — divide by panel-1 to spot row inflation.",
+        "description": "COUNT(*) over the Better Auth `session` table where `expires_at > now()`, aggregated with `avg()` (cluster-wide gauge). Counts session **rows**, not users — compare against DAU to spot session-row inflation.",
         "id": 15,
         "links": [],
         "title": "Active Sessions",
@@ -148,18 +146,16 @@
             "fieldConfig": {
               "defaults": {
                 "color": {
-                  "mode": "thresholds"
+                  "mode": "fixed",
+                  "fixedColor": "blue"
                 },
+                "fieldMinMax": false,
                 "thresholds": {
                   "mode": "absolute",
                   "steps": [
                     {
-                      "color": "green",
+                      "color": "blue",
                       "value": 0
-                    },
-                    {
-                      "color": "yellow",
-                      "value": 5000
                     }
                   ]
                 },
@@ -168,7 +164,7 @@
               "overrides": []
             },
             "options": {
-              "colorMode": "value",
+              "colorMode": "none",
               "graphMode": "area",
               "justifyMode": "auto",
               "orientation": "auto",
@@ -180,8 +176,8 @@
                 "fields": "",
                 "values": false
               },
-              "showPercentChange": false,
-              "textMode": "auto",
+              "showPercentChange": true,
+              "textMode": "value_and_name",
               "wideLayout": true
             }
           },
@@ -445,7 +441,7 @@
         }
       }
     },
-    "panel-6": {
+    "panel-80": {
       "kind": "Panel",
       "spec": {
         "data": {
@@ -463,8 +459,8 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "100 * sum(rate(airi_email_failures_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[5m])) / clamp_min(sum(rate(airi_email_send_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[5m])) + sum(rate(airi_email_failures_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[5m])), 1)",
-                      "legendFormat": "fail %"
+                      "expr": "max(user_active_rolling{service_name=~\"$service\", deployment_environment=~\"$env\", window=\"24h\"})",
+                      "legendFormat": "DAU"
                     },
                     "version": "v0"
                   },
@@ -476,48 +472,41 @@
             "transformations": []
           }
         },
-        "description": "Email failures ÷ total attempts over the last 5m. >5% means Resend / DNS / suppression-list problems blocking auth flows.",
-        "id": 6,
+        "description": "Daily active users — distinct users with activity in the last 24h. Sourced from `user.last_seen_at` (touched on sign-in and every OIDC token refresh) via the `user.active_rolling` gauge. Cluster-wide gauge aggregated with `max()`.",
+        "id": 80,
         "links": [],
-        "title": "Email Failure %",
+        "title": "DAU",
         "vizConfig": {
-          "group": "gauge",
+          "group": "stat",
           "kind": "VizConfig",
           "spec": {
             "fieldConfig": {
               "defaults": {
                 "color": {
-                  "mode": "thresholds"
+                  "mode": "fixed",
+                  "fixedColor": "blue"
                 },
+                "fieldMinMax": false,
                 "thresholds": {
                   "mode": "absolute",
                   "steps": [
                     {
-                      "color": "green",
+                      "color": "blue",
                       "value": 0
-                    },
-                    {
-                      "color": "yellow",
-                      "value": 1
-                    },
-                    {
-                      "color": "red",
-                      "value": 5
                     }
                   ]
                 },
-                "unit": "percent",
-                "decimals": 1,
-                "noValue": "0",
-                "min": 0,
-                "max": 20
+                "unit": "short",
+                "noValue": "0"
               },
               "overrides": []
             },
             "options": {
-              "minVizHeight": 75,
-              "minVizWidth": 75,
+              "colorMode": "none",
+              "graphMode": "area",
+              "justifyMode": "auto",
               "orientation": "auto",
+              "percentChangeColorMode": "standard",
               "reduceOptions": {
                 "calcs": [
                   "lastNotNull"
@@ -525,9 +514,371 @@
                 "fields": "",
                 "values": false
               },
-              "showThresholdLabels": false,
-              "showThresholdMarkers": true,
-              "sizing": "auto"
+              "showPercentChange": true,
+              "textMode": "value_and_name",
+              "wideLayout": true
+            }
+          },
+          "version": "13.0.0-23630096546"
+        }
+      }
+    },
+    "panel-81": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "grafanacloud-projairi-prom"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "expr": "max(user_active_rolling{service_name=~\"$service\", deployment_environment=~\"$env\", window=\"7d\"})",
+                      "legendFormat": "WAU"
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "Weekly active users — distinct users with activity in the last 7d. Sourced from `user.last_seen_at` (touched on sign-in and every OIDC token refresh) via the `user.active_rolling` gauge. Cluster-wide gauge aggregated with `max()`.",
+        "id": 81,
+        "links": [],
+        "title": "WAU",
+        "vizConfig": {
+          "group": "stat",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                },
+                "fieldMinMax": false,
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "blue",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short",
+                "noValue": "0"
+              },
+              "overrides": []
+            },
+            "options": {
+              "colorMode": "none",
+              "graphMode": "area",
+              "justifyMode": "auto",
+              "orientation": "auto",
+              "percentChangeColorMode": "standard",
+              "reduceOptions": {
+                "calcs": [
+                  "lastNotNull"
+                ],
+                "fields": "",
+                "values": false
+              },
+              "showPercentChange": true,
+              "textMode": "value_and_name",
+              "wideLayout": true
+            }
+          },
+          "version": "13.0.0-23630096546"
+        }
+      }
+    },
+    "panel-82": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "grafanacloud-projairi-prom"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "expr": "max(user_active_rolling{service_name=~\"$service\", deployment_environment=~\"$env\", window=\"30d\"})",
+                      "legendFormat": "MAU"
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "Monthly active users — distinct users with activity in the last 30d. Sourced from `user.last_seen_at` (touched on sign-in and every OIDC token refresh) via the `user.active_rolling` gauge. Cluster-wide gauge aggregated with `max()`.",
+        "id": 82,
+        "links": [],
+        "title": "MAU",
+        "vizConfig": {
+          "group": "stat",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                },
+                "fieldMinMax": false,
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "blue",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short",
+                "noValue": "0"
+              },
+              "overrides": []
+            },
+            "options": {
+              "colorMode": "none",
+              "graphMode": "area",
+              "justifyMode": "auto",
+              "orientation": "auto",
+              "percentChangeColorMode": "standard",
+              "reduceOptions": {
+                "calcs": [
+                  "lastNotNull"
+                ],
+                "fields": "",
+                "values": false
+              },
+              "showPercentChange": true,
+              "textMode": "value_and_name",
+              "wideLayout": true
+            }
+          },
+          "version": "13.0.0-23630096546"
+        }
+      }
+    },
+    "panel-93": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "grafanacloud-projairi-prom"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "expr": "sum(ws_connections_active{service_name=~\"$service\", deployment_environment=~\"$env\"})",
+                      "legendFormat": "online"
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "Current concurrent WebSocket connections across all replicas (`sum` — each replica holds its own connections). The live-presence counterpart to the rolling DAU/WAU windows.",
+        "id": 93,
+        "links": [],
+        "title": "WS Online",
+        "vizConfig": {
+          "group": "stat",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "fixed",
+                  "fixedColor": "purple"
+                },
+                "fieldMinMax": false,
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "purple",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short",
+                "noValue": "0"
+              },
+              "overrides": []
+            },
+            "options": {
+              "colorMode": "none",
+              "graphMode": "area",
+              "justifyMode": "auto",
+              "orientation": "auto",
+              "percentChangeColorMode": "standard",
+              "reduceOptions": {
+                "calcs": [
+                  "lastNotNull"
+                ],
+                "fields": "",
+                "values": false
+              },
+              "showPercentChange": true,
+              "textMode": "value_and_name",
+              "wideLayout": true
+            }
+          },
+          "version": "13.0.0-23630096546"
+        }
+      }
+    },
+    "panel-92": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "grafanacloud-projairi-prom"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "expr": "sum(ws_connections_active{service_name=~\"$service\", deployment_environment=~\"$env\"})",
+                      "legendFormat": "connections"
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "Concurrent WebSocket connections over time (`sum` across replicas). A cliff to zero with no matching deploy = mass disconnect (LB drop, network blackhole); a slow ramp without disconnects = connection leak.",
+        "id": 92,
+        "links": [],
+        "title": "WS Connections",
+        "vizConfig": {
+          "group": "timeseries",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "barWidthFactor": 0.6,
+                  "drawStyle": "line",
+                  "fillOpacity": 30,
+                  "gradientMode": "none",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 1,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "auto",
+                  "showValues": false,
+                  "spanNulls": false,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short"
+              },
+              "overrides": []
+            },
+            "options": {
+              "annotations": {
+                "clustering": -1,
+                "multiLane": false
+              },
+              "legend": {
+                "calcs": [
+                  "lastNotNull",
+                  "max"
+                ],
+                "displayMode": "table",
+                "placement": "right",
+                "showLegend": true
+              },
+              "tooltip": {
+                "hideZeros": false,
+                "mode": "multi",
+                "sort": "desc"
+              }
             }
           },
           "version": "13.0.0-23630096546"
@@ -634,31 +985,12 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "100 * sum(rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\", http_response_status_code=~\"4..\"}[$__rate_interval])) / clamp_min(sum(rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\"}[$__rate_interval])), 1)",
-                      "legendFormat": "4xx %"
+                      "expr": "sum by (http_response_status_code) (rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\"}[$__rate_interval]))",
+                      "legendFormat": "{{http_response_status_code}}"
                     },
                     "version": "v0"
                   },
                   "refId": "A"
-                }
-              },
-              {
-                "kind": "PanelQuery",
-                "spec": {
-                  "hidden": false,
-                  "query": {
-                    "datasource": {
-                      "name": "grafanacloud-projairi-prom"
-                    },
-                    "group": "prometheus",
-                    "kind": "DataQuery",
-                    "spec": {
-                      "expr": "100 * sum(rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\", http_response_status_code=~\"5..\"}[$__rate_interval])) / clamp_min(sum(rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\"}[$__rate_interval])), 1)",
-                      "legendFormat": "5xx %"
-                    },
-                    "version": "v0"
-                  },
-                  "refId": "B"
                 }
               }
             ],
@@ -666,63 +998,27 @@
             "transformations": []
           }
         },
-        "description": "Error rate as a percentage of total non-OPTIONS HTTP traffic — 4xx (client-side: validation, auth, missing routes) and 5xx (server-side) over the same denominator.",
+        "description": "HTTP status-code mix over time, one row per status code, colour = request rate in each time bucket. The 200 row dominates in steady state; a 5xx / 4xx row suddenly lighting up flags an incident at a glance. Non-OPTIONS traffic only.",
         "id": 40,
         "links": [],
         "title": "Error Rate %",
         "vizConfig": {
-          "group": "timeseries",
+          "group": "heatmap",
           "kind": "VizConfig",
           "spec": {
             "fieldConfig": {
               "defaults": {
-                "color": {
-                  "mode": "palette-classic"
-                },
                 "custom": {
-                  "axisBorderShow": false,
-                  "axisCenteredZero": false,
-                  "axisColorMode": "text",
-                  "axisLabel": "",
-                  "axisPlacement": "auto",
-                  "barAlignment": 0,
-                  "barWidthFactor": 0.6,
-                  "drawStyle": "line",
-                  "fillOpacity": 20,
-                  "gradientMode": "none",
                   "hideFrom": {
                     "legend": false,
                     "tooltip": false,
                     "viz": false
                   },
-                  "insertNulls": false,
-                  "lineInterpolation": "smooth",
-                  "lineWidth": 1,
-                  "pointSize": 5,
                   "scaleDistribution": {
                     "type": "linear"
-                  },
-                  "showPoints": "auto",
-                  "showValues": false,
-                  "spanNulls": false,
-                  "stacking": {
-                    "group": "A",
-                    "mode": "none"
-                  },
-                  "thresholdsStyle": {
-                    "mode": "off"
                   }
                 },
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": 0
-                    }
-                  ]
-                },
-                "unit": "percent"
+                "unit": "short"
               },
               "overrides": []
             },
@@ -731,19 +1027,37 @@
                 "clustering": -1,
                 "multiLane": false
               },
+              "calculate": false,
+              "cellGap": 1,
+              "color": {
+                "exponent": 0.5,
+                "fill": "dark-orange",
+                "mode": "scheme",
+                "reverse": false,
+                "scale": "exponential",
+                "scheme": "RdYlBu",
+                "steps": 64
+              },
+              "exemplars": {
+                "color": "rgba(255,0,255,0.7)"
+              },
+              "filterValues": {
+                "le": 1e-9
+              },
               "legend": {
-                "calcs": [
-                  "lastNotNull",
-                  "max"
-                ],
-                "displayMode": "table",
-                "placement": "right",
-                "showLegend": true
+                "show": false
+              },
+              "rowsFrame": {
+                "layout": "auto"
               },
               "tooltip": {
-                "hideZeros": false,
-                "mode": "multi",
-                "sort": "desc"
+                "mode": "single",
+                "showColorScale": false,
+                "yHistogram": false
+              },
+              "yAxis": {
+                "axisPlacement": "left",
+                "reverse": false
               }
             }
           },
@@ -839,6 +1153,122 @@
                   ]
                 },
                 "unit": "s"
+              },
+              "overrides": []
+            },
+            "options": {
+              "annotations": {
+                "clustering": -1,
+                "multiLane": false
+              },
+              "legend": {
+                "calcs": [
+                  "lastNotNull",
+                  "max"
+                ],
+                "displayMode": "table",
+                "placement": "right",
+                "showLegend": true
+              },
+              "tooltip": {
+                "hideZeros": false,
+                "mode": "multi",
+                "sort": "desc"
+              }
+            }
+          },
+          "version": "13.0.0-23630096546"
+        }
+      }
+    },
+    "panel-94": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "grafanacloud-projairi-prom"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "expr": "sum by (http_route, http_response_status_code) (increase(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\", http_response_status_code!~\"2..|3..|401|402|404\"}[$__rate_interval]))",
+                      "legendFormat": "{{http_response_status_code}} {{http_route}}"
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "Error responses per route, broken out by status code. Excludes success (2xx/3xx) and the expected-client-error codes 401/402/404 (auth-required / payment-required / not-found noise) so the curve isolates real failures: 4xx like 400/403/422/429 and all 5xx. The per-route companion to the aggregate Error Rate % stat.",
+        "id": 94,
+        "links": [],
+        "title": "Errors by Route",
+        "vizConfig": {
+          "group": "timeseries",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "barWidthFactor": 0.6,
+                  "drawStyle": "line",
+                  "fillOpacity": 20,
+                  "gradientMode": "none",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 1,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "auto",
+                  "showValues": false,
+                  "spanNulls": false,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short"
               },
               "overrides": []
             },
@@ -1295,13 +1725,15 @@
             "fieldConfig": {
               "defaults": {
                 "color": {
-                  "mode": "thresholds"
+                  "mode": "fixed",
+                  "fixedColor": "blue"
                 },
+                "fieldMinMax": false,
                 "thresholds": {
                   "mode": "absolute",
                   "steps": [
                     {
-                      "color": "green",
+                      "color": "blue",
                       "value": 0
                     }
                   ]
@@ -1312,7 +1744,7 @@
               "overrides": []
             },
             "options": {
-              "colorMode": "value",
+              "colorMode": "none",
               "graphMode": "none",
               "justifyMode": "auto",
               "orientation": "auto",
@@ -1324,8 +1756,8 @@
                 "fields": "",
                 "values": false
               },
-              "showPercentChange": false,
-              "textMode": "auto",
+              "showPercentChange": true,
+              "textMode": "value_and_name",
               "wideLayout": true
             }
           },
@@ -2055,8 +2487,10 @@
             "fieldConfig": {
               "defaults": {
                 "color": {
-                  "mode": "thresholds"
+                  "mode": "fixed",
+                  "fixedColor": "green"
                 },
+                "fieldMinMax": false,
                 "thresholds": {
                   "mode": "absolute",
                   "steps": [
@@ -2073,7 +2507,7 @@
               "overrides": []
             },
             "options": {
-              "colorMode": "value",
+              "colorMode": "none",
               "graphMode": "area",
               "justifyMode": "auto",
               "orientation": "auto",
@@ -2085,8 +2519,8 @@
                 "fields": "",
                 "values": false
               },
-              "showPercentChange": false,
-              "textMode": "auto",
+              "showPercentChange": true,
+              "textMode": "value_and_name",
               "wideLayout": true
             }
           },
@@ -2225,13 +2659,15 @@
             "fieldConfig": {
               "defaults": {
                 "color": {
-                  "mode": "thresholds"
+                  "mode": "fixed",
+                  "fixedColor": "blue"
                 },
+                "fieldMinMax": false,
                 "thresholds": {
                   "mode": "absolute",
                   "steps": [
                     {
-                      "color": "green",
+                      "color": "blue",
                       "value": 0
                     }
                   ]
@@ -2242,7 +2678,7 @@
               "overrides": []
             },
             "options": {
-              "colorMode": "value",
+              "colorMode": "none",
               "graphMode": "none",
               "justifyMode": "auto",
               "orientation": "auto",
@@ -2254,8 +2690,8 @@
                 "fields": "",
                 "values": false
               },
-              "showPercentChange": false,
-              "textMode": "auto",
+              "showPercentChange": true,
+              "textMode": "value_and_name",
               "wideLayout": true
             }
           },
@@ -2850,21 +3286,8 @@
                         "name": "panel-1"
                       },
                       "height": 4,
-                      "width": 4,
+                      "width": 6,
                       "x": 0,
-                      "y": 0
-                    }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-15"
-                      },
-                      "height": 4,
-                      "width": 4,
-                      "x": 4,
                       "y": 0
                     }
                   },
@@ -2876,8 +3299,8 @@
                         "name": "panel-3"
                       },
                       "height": 4,
-                      "width": 4,
-                      "x": 8,
+                      "width": 6,
+                      "x": 6,
                       "y": 0
                     }
                   },
@@ -2889,9 +3312,35 @@
                         "name": "panel-4"
                       },
                       "height": 4,
-                      "width": 4,
+                      "width": 6,
                       "x": 12,
                       "y": 0
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-40"
+                      },
+                      "height": 8,
+                      "width": 6,
+                      "x": 18,
+                      "y": 0
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-15"
+                      },
+                      "height": 4,
+                      "width": 6,
+                      "x": 0,
+                      "y": 4
                     }
                   },
                   {
@@ -2902,9 +3351,9 @@
                         "name": "panel-5"
                       },
                       "height": 4,
-                      "width": 4,
-                      "x": 16,
-                      "y": 0
+                      "width": 6,
+                      "x": 6,
+                      "y": 4
                     }
                   },
                   {
@@ -2912,12 +3361,25 @@
                     "spec": {
                       "element": {
                         "kind": "ElementReference",
-                        "name": "panel-6"
+                        "name": "panel-93"
                       },
                       "height": 4,
-                      "width": 4,
-                      "x": 20,
-                      "y": 0
+                      "width": 6,
+                      "x": 12,
+                      "y": 4
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-92"
+                      },
+                      "height": 5,
+                      "width": 24,
+                      "x": 0,
+                      "y": 8
                     }
                   }
                 ]
@@ -2939,9 +3401,9 @@
                     "spec": {
                       "element": {
                         "kind": "ElementReference",
-                        "name": "panel-16"
+                        "name": "panel-80"
                       },
-                      "height": 8,
+                      "height": 4,
                       "width": 8,
                       "x": 0,
                       "y": 0
@@ -2952,9 +3414,9 @@
                     "spec": {
                       "element": {
                         "kind": "ElementReference",
-                        "name": "panel-40"
+                        "name": "panel-81"
                       },
-                      "height": 8,
+                      "height": 4,
                       "width": 8,
                       "x": 8,
                       "y": 0
@@ -2965,12 +3427,65 @@
                     "spec": {
                       "element": {
                         "kind": "ElementReference",
-                        "name": "panel-20"
+                        "name": "panel-82"
                       },
-                      "height": 8,
+                      "height": 4,
                       "width": 8,
                       "x": 16,
                       "y": 0
+                    }
+                  }
+                ]
+              }
+            },
+            "title": "User Engagement"
+          }
+        },
+        {
+          "kind": "RowsLayoutRow",
+          "spec": {
+            "collapse": false,
+            "layout": {
+              "kind": "GridLayout",
+              "spec": {
+                "items": [
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-94"
+                      },
+                      "height": 8,
+                      "width": 24,
+                      "x": 0,
+                      "y": 0
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-16"
+                      },
+                      "height": 11,
+                      "width": 7,
+                      "x": 0,
+                      "y": 8
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-20"
+                      },
+                      "height": 11,
+                      "width": 17,
+                      "x": 7,
+                      "y": 8
                     }
                   }
                 ]
@@ -2992,10 +3507,10 @@
                     "spec": {
                       "element": {
                         "kind": "ElementReference",
-                        "name": "panel-11"
+                        "name": "panel-72"
                       },
                       "height": 8,
-                      "width": 8,
+                      "width": 13,
                       "x": 0,
                       "y": 0
                     }
@@ -3008,8 +3523,8 @@
                         "name": "panel-21"
                       },
                       "height": 8,
-                      "width": 8,
-                      "x": 8,
+                      "width": 11,
+                      "x": 13,
                       "y": 0
                     }
                   },
@@ -3018,12 +3533,12 @@
                     "spec": {
                       "element": {
                         "kind": "ElementReference",
-                        "name": "panel-72"
+                        "name": "panel-11"
                       },
                       "height": 8,
-                      "width": 8,
-                      "x": 16,
-                      "y": 0
+                      "width": 24,
+                      "x": 0,
+                      "y": 8
                     }
                   }
                 ]
