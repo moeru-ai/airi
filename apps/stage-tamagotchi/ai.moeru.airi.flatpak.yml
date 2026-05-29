@@ -1,0 +1,76 @@
+app-id: ai.moeru.airi
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+base: org.electronjs.Electron2.BaseApp
+base-version: '24.08'
+command: airi.sh
+
+finish-args:
+  # GUI environment
+  - --share=network
+  - --socket=x11
+  - --socket=wayland
+  - --device=all
+  - --socket=pulseaudio
+  - --socket=system-bus
+  - --socket=session-bus
+  - --share=ipc
+
+  # DBus
+  - --talk-name=org.freedesktop.Notifications
+  - --talk-name=org.freedesktop.portal.Desktop
+  - --system-talk-name=org.freedesktop.login1
+  - --system-talk-name=org.freedesktop.UPower
+  - --filesystem=home:rw
+
+modules:
+  - name: AIRI-App
+    buildsystem: simple
+    build-commands:
+      - mkdir -p /app/bin
+      - mkdir -p /app/bin/airi
+      - cp -r ./* /app/bin/airi/
+      - install airi.sh /app/bin/airi.sh
+      - chmod +x /app/bin/airi/airi.sh
+      - chmod +x /app/bin/airi/airi
+    sources:
+      - type: dir
+        only-arches: [x86_64]
+        path: dist/linux-unpacked
+      - type: dir
+        only-arches: [aarch64]
+        path: dist/linux-arm64-unpacked
+      # First discovered by [@gg582](https://github.com/gg582) in https://github.com/moeru-ai/airi/pull/647
+      #
+      # Without the correct zypak-wrapper, application launch will result in this error:
+      # content/browser/zygote_host/zygote_host_impl_linux.cc:132] No usable sandbox! ... If you want to live
+      # dangerously and need an immediate workaround, you can try using --no-sandbox.
+      #
+      # Though https://github.com/refi64/chromium-tar/blob/82ebd6a0473341fa75dd3bbb2f584da99f5ac92c/content/browser/zygote_host/zygote_host_impl_linux.cc#L104-L131
+      # suggests that the error is related to missing switch of service_manager::switches::kDisableNamespaceSandbox and
+      # service_manager::switches::kDisableSetuidSandbox, even if we add --no-sandbox to the command, the application basically
+      # exits immediately without any error message and traces.
+      #
+      # When searching for solutions, I spotted the session-desktop issue below looks exactly the same and
+      # they managed to resolve it by renaming the executable command with -app suffix, however the wrapper
+      # called zypak-wrapper is the key to resolve this issue:
+      # https://github.com/session-foundation/session-desktop/issues/795
+      # https://github.com/flathub/network.loki.Session/pull/32
+      #
+      # Similar keywords appears in the official docs of Flatpak as well:
+      # https://docs.flatpak.org/en/latest/electron.html#launching-the-app
+      #
+      # With the correct way to research, I found several examples of Electron apps using zypak-wrapper:
+      # https://github.com/chaiNNer-org/chaiNNer/issues/1597#issuecomment-3272020725
+      # https://github.com/vendillah/app.Chainner.chainner/blob/main/app.chainner.Chainner.yaml
+      #
+      # and bitwarden, as the most popular password manager app, it's architecture and bundle workflow looked
+      # almost the same as ours, most of the structure of this manifest is based on bitwarden's:
+      # https://github.com/bitwarden/clients/blob/b8d55c4db178de67f1778bc307f7c22aad01f4a9/apps/desktop/resources/com.bitwarden.desktop.devel.yaml
+      - type: script
+        dest-filename: airi.sh
+        commands:
+          - ulimit -c 0
+          - export TMPDIR="$XDG_RUNTIME_DIR/app/$FLATPAK_ID"
+          - exec zypak-wrapper /app/bin/airi/airi "$@"

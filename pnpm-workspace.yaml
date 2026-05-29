@@ -121,6 +121,7 @@ catalog:
   tinyexec: ^1.1.1
   tsdown: ^0.21.9
   tsx: ^4.21.0
+  uiohook-napi: ^1.5.5
   uncrypto: ^0.1.3
   unplugin-info: ^1.3.2
   unstorage: ^1.17.5
