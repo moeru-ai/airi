@@ -1,1 +1,0 @@
-ALTER TABLE "chat_completions_history" ADD COLUMN "task" text NOT NULL;

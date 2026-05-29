@@ -1,8 +1,0 @@
-<Project Sdk="Godot.NET.Sdk/4.6.2">
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <TargetFramework Condition=" '$(GodotTargetPlatform)' == 'android' ">net9.0</TargetFramework>
-    <EnableDynamicLoading>true</EnableDynamicLoading>
-    <RootNamespace>StageTamagotchiGodot</RootNamespace>
-  </PropertyGroup>
-</Project>
