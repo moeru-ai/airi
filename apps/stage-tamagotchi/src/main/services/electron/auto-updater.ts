@@ -17,7 +17,9 @@ import { is } from '@electron-toolkit/utils'
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom, tryCatch } from '@moeru/std'
-import { committerDate } from '~build/git'
+// NOTE: committerDate was previously injected by ~build/git at build time.
+// Using runtime date as fallback since build-time injection is not available.
+const committerDate = new Date().toISOString()
 import { app } from 'electron'
 import { Semaphore } from 'es-toolkit'
 import { isWindows } from 'std-env'
