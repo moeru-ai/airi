@@ -5,6 +5,7 @@ import type { Env } from '../../libs/env'
 import type { RateLimitMetrics, RevenueMetrics } from '../../otel'
 import type { ConfigKVService } from '../../services/adapters/config-kv'
 import type { BillingService } from '../../services/domain/billing/billing-service'
+import type { CommunitySurveyService } from '../../services/domain/community-survey'
 import type { FluxService } from '../../services/domain/flux'
 import type { StripeService } from '../../services/domain/stripe'
 import type { HonoEnv } from '../../types/hono'
@@ -53,6 +54,7 @@ export function createStripeRoutes(
   metrics?: RevenueMetrics | null,
   rateLimitMetrics?: RateLimitMetrics | null,
   posthog?: PostHog | null,
+  communitySurveyService?: CommunitySurveyService | null,
 ) {
   const stripe = env.STRIPE_SECRET_KEY ? new Stripe(env.STRIPE_SECRET_KEY) : null
 
@@ -299,8 +301,10 @@ export function createStripeRoutes(
           // is the Better Auth user id so it merges with the browser's
           // `posthog.identify(userId)` and the prior `checkout_started`
           // event lines up. See docs/ai-context/metrics-ownership.md.
-          if (result.processed)
+          if (result.processed) {
+            await sendPaidSurveyInviteSafely(communitySurveyService, event.data.object)
             await capturePaymentCompleted(posthog, event.data.object)
+          }
           break
         }
         case 'customer.created':
@@ -428,6 +432,24 @@ async function handleCheckoutSessionCompleted(
   }
 
   return { processed: true }
+}
+
+/**
+ * Send the paid survey invite without failing the Stripe fulfillment webhook.
+ */
+async function sendPaidSurveyInviteSafely(
+  communitySurveyService: CommunitySurveyService | null | undefined,
+  session: Stripe.Checkout.Session,
+): Promise<void> {
+  if (!communitySurveyService)
+    return
+
+  try {
+    await communitySurveyService.sendPaidSurveyInviteForCheckout(session)
+  }
+  catch (error) {
+    logger.withFields({ sessionId: session.id }).warn(`Paid survey invite failed after checkout fulfillment: ${errorMessageFromUnknown(error)}`)
+  }
 }
 
 async function capturePaymentCompleted(
