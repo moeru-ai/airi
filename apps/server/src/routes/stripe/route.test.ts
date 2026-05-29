@@ -5,6 +5,8 @@ import type { FluxService } from '../../services/domain/flux'
 import type { StripeService } from '../../services/domain/stripe'
 import type { HonoEnv } from '../../types/hono'
 
+import Stripe from 'stripe'
+
 import { Hono } from 'hono'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -60,6 +62,12 @@ function createMockBillingService(): BillingService {
     creditFluxFromStripeCheckout: vi.fn(async () => ({ applied: true, balanceAfter: 500 })),
     creditFluxFromInvoice: vi.fn(async () => ({ applied: true, balanceAfter: 500 })),
   } as any
+}
+
+function createMockCommunitySurveyService() {
+  return {
+    sendPaidSurveyInviteForCheckout: vi.fn(async () => ({ sent: true })),
+  }
 }
 
 function createMockConfigKV(overrides: Record<string, any> = {}): ConfigKVService {
@@ -153,8 +161,9 @@ function createTestApp(
   billingService: BillingService,
   configKV: ConfigKVService,
   envOverrides: Record<string, any> = {},
+  communitySurveyService = createMockCommunitySurveyService(),
 ) {
-  const routes = createStripeRoutes(fluxService, stripeService, billingService, configKV, { ...testEnv, ...envOverrides }, createMockRedis())
+  const routes = createStripeRoutes(fluxService, stripeService, billingService, configKV, { ...testEnv, ...envOverrides }, createMockRedis(), undefined, undefined, undefined, communitySurveyService as any)
   const app = new Hono<HonoEnv>()
 
   app.onError((err, c) => {
@@ -179,6 +188,16 @@ function createTestApp(
 
   app.route('/api/v1/stripe', routes)
   return app
+}
+
+function createSignedStripeWebhookPayload(event: Record<string, any>) {
+  const payload = JSON.stringify(event)
+  const signature = Stripe.webhooks.generateTestHeaderString({
+    payload,
+    secret: testEnv.STRIPE_WEBHOOK_SECRET,
+  })
+
+  return { payload, signature }
 }
 
 // --- Tests ---
@@ -417,6 +436,116 @@ describe('stripeRoutes', () => {
   })
 
   describe('pOST /api/v1/stripe/webhook', () => {
+    it('sends the paid survey invite after checkout fulfillment succeeds', async () => {
+      const communitySurveyService = createMockCommunitySurveyService()
+      const billingService = createMockBillingService()
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockStripeService(),
+        billingService,
+        createMockConfigKV(),
+        {},
+        communitySurveyService,
+      )
+
+      const { payload, signature } = createSignedStripeWebhookPayload({
+        id: 'evt_checkout_completed',
+        object: 'event',
+        type: 'checkout.session.completed',
+        created: 1710000000,
+        data: {
+          object: {
+            id: 'cs_paid_survey',
+            object: 'checkout.session',
+            mode: 'payment',
+            status: 'complete',
+            payment_status: 'paid',
+            amount_total: 500,
+            currency: 'usd',
+            customer: 'cus_paid_survey',
+            customer_email: 'paid@example.com',
+            customer_details: { email: 'paid@example.com' },
+            metadata: {
+              userId: 'user-1',
+              fluxAmount: '50',
+            },
+          },
+        },
+      })
+
+      const res = await app.request('/api/v1/stripe/webhook', {
+        method: 'POST',
+        headers: { 'stripe-signature': signature },
+        body: payload,
+      })
+
+      expect(res.status).toBe(200)
+      expect(billingService.creditFluxFromStripeCheckout).toHaveBeenCalledWith(expect.objectContaining({
+        stripeEventId: 'evt_checkout_completed',
+        userId: 'user-1',
+        stripeSessionId: 'cs_paid_survey',
+      }))
+      expect(communitySurveyService.sendPaidSurveyInviteForCheckout).toHaveBeenCalledWith(expect.objectContaining({
+        id: 'cs_paid_survey',
+        customer_email: 'paid@example.com',
+      }))
+    })
+
+    it('does not fail the Stripe webhook when the paid survey invite fails', async () => {
+      const communitySurveyService = {
+        sendPaidSurveyInviteForCheckout: vi.fn(async () => {
+          throw new Error('resend unavailable')
+        }),
+      }
+      const billingService = createMockBillingService()
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockStripeService(),
+        billingService,
+        createMockConfigKV(),
+        {},
+        communitySurveyService,
+      )
+
+      const { payload, signature } = createSignedStripeWebhookPayload({
+        id: 'evt_checkout_completed_survey_failure',
+        object: 'event',
+        type: 'checkout.session.completed',
+        created: 1710000000,
+        data: {
+          object: {
+            id: 'cs_paid_survey_failure',
+            object: 'checkout.session',
+            mode: 'payment',
+            status: 'complete',
+            payment_status: 'paid',
+            amount_total: 500,
+            currency: 'usd',
+            customer: 'cus_paid_survey_failure',
+            customer_email: 'paid@example.com',
+            customer_details: { email: 'paid@example.com' },
+            metadata: {
+              userId: 'user-1',
+              fluxAmount: '50',
+            },
+          },
+        },
+      })
+
+      const res = await app.request('/api/v1/stripe/webhook', {
+        method: 'POST',
+        headers: { 'stripe-signature': signature },
+        body: payload,
+      })
+
+      expect(res.status).toBe(200)
+      expect(billingService.creditFluxFromStripeCheckout).toHaveBeenCalledWith(expect.objectContaining({
+        stripeEventId: 'evt_checkout_completed_survey_failure',
+        stripeSessionId: 'cs_paid_survey_failure',
+      }))
+      expect(communitySurveyService.sendPaidSurveyInviteForCheckout).toHaveBeenCalledOnce()
+    })
+
     it('returns 400 when signature is missing', async () => {
       const app = createTestApp(
         createMockFluxService(),
