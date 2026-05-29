@@ -1,6 +1,8 @@
 import { Format, LogLevelString } from '@guiiai/logg'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { isIPv4LinkLocalAddress, isLinkLocalAddress, isLoopbackAddress } from './server'
+
 const serveMocks = vi.hoisted(() => {
   let resolveServe: (() => void) | null = null
   let rejectServe: ((error: Error) => void) | null = null
@@ -134,5 +136,85 @@ describe('createServer', async () => {
         },
       },
     }))
+  })
+})
+
+describe('isLoopbackAddress', () => {
+  it('returns true for 127.0.0.1', () => {
+    expect(isLoopbackAddress('127.0.0.1')).toBe(true)
+  })
+
+  it('returns true for loopback aliases in 127/8 range', () => {
+    // https://github.com/moeru-ai/airi/pull/1893
+    // Hosts may expose loopback aliases like 127.0.1.1 via networkInterfaces().
+    expect(isLoopbackAddress('127.0.1.1')).toBe(true)
+    expect(isLoopbackAddress('127.255.255.255')).toBe(true)
+  })
+
+  it('returns true for IPv6 loopback ::1', () => {
+    expect(isLoopbackAddress('::1')).toBe(true)
+  })
+
+  it('returns false for a normal LAN address', () => {
+    expect(isLoopbackAddress('192.168.1.100')).toBe(false)
+  })
+
+  it('returns false for 10.x.x.x', () => {
+    expect(isLoopbackAddress('10.0.0.1')).toBe(false)
+  })
+})
+
+describe('isLinkLocalAddress', () => {
+  it('returns true for a fe80:: link-local address', () => {
+    expect(isLinkLocalAddress('fe80::1')).toBe(true)
+  })
+
+  it('returns true for addresses across the full fe80::/10 range', () => {
+    // fe80::/10 covers fe80:: through febf::
+    // https://github.com/moeru-ai/airi/pull/1893
+    expect(isLinkLocalAddress('fe80::1')).toBe(true)
+    expect(isLinkLocalAddress('fe90::1')).toBe(true)
+    expect(isLinkLocalAddress('fea0::1')).toBe(true)
+    expect(isLinkLocalAddress('feb0::1')).toBe(true)
+  })
+
+  it('returns false for a global unicast address', () => {
+    expect(isLinkLocalAddress('2001:db8::1')).toBe(false)
+  })
+
+  it('returns false for IPv6 loopback ::1', () => {
+    expect(isLinkLocalAddress('::1')).toBe(false)
+  })
+
+  it('returns false for an IPv4 address', () => {
+    expect(isLinkLocalAddress('192.168.1.100')).toBe(false)
+  })
+})
+
+describe('isIPv4LinkLocalAddress', () => {
+  it('returns true for a 169.254.x.x APIPA address', () => {
+    expect(isIPv4LinkLocalAddress('169.254.0.1')).toBe(true)
+  })
+
+  it('returns true for addresses across the full 169.254.0.0/16 range', () => {
+    expect(isIPv4LinkLocalAddress('169.254.0.0')).toBe(true)
+    expect(isIPv4LinkLocalAddress('169.254.1.1')).toBe(true)
+    expect(isIPv4LinkLocalAddress('169.254.255.255')).toBe(true)
+  })
+
+  it('returns false for a normal LAN address', () => {
+    expect(isIPv4LinkLocalAddress('192.168.1.100')).toBe(false)
+  })
+
+  it('returns false for 10.x.x.x', () => {
+    expect(isIPv4LinkLocalAddress('10.0.0.1')).toBe(false)
+  })
+
+  it('returns false for a loopback address', () => {
+    expect(isIPv4LinkLocalAddress('127.0.0.1')).toBe(false)
+  })
+
+  it('returns false for an IPv6 address', () => {
+    expect(isIPv4LinkLocalAddress('fe80::1')).toBe(false)
   })
 })

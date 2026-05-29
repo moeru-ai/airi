@@ -2888,6 +2888,9 @@ importers:
       h3:
         specifier: 2.0.1-rc.20
         version: 2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15))
+      multicast-dns:
+        specifier: ^7.2.5
+        version: 7.2.5
       nanoid:
         specifier: 'catalog:'
         version: 5.1.6
@@ -2897,6 +2900,13 @@ importers:
       superjson:
         specifier: 'catalog:'
         version: 2.2.6
+    devDependencies:
+      '@types/dns-packet':
+        specifier: ^5.6.5
+        version: 5.6.5
+      '@types/multicast-dns':
+        specifier: ^7.2.4
+        version: 7.2.4
 
   packages/server-schema:
     devDependencies:
@@ -6964,6 +6974,9 @@ packages:
     peerDependencies:
       typescript: ^5.9.3
 
+  '@leichtgewicht/ip-codec@2.0.5':
+    resolution: {integrity: sha512-Vo+PSpZG2/fmgmiNzYK9qWRh8h/CHrwD0mo1h1DzL4yzHNSfWYujGTYsWGreD000gcgmZ7K4Ys6Tx9TxtsKdDw==}
+
   '@lemonneko/crop-empty-pixels@0.1.1':
     resolution: {integrity: sha512-4Mp6gBN3XbXw5OXyN0rF5bhWWISmrU4DRCGUWDnyWWFCERE2SZwvv2w4hoPhg804BcI0wXLPk5lHf/v15AFXSA==}
 
@@ -9754,6 +9767,9 @@ packages:
   '@types/deep-eql@4.0.2':
     resolution: {integrity: sha512-c9h9dVVMigMPc4bwTvC5dxqtqJZwQPePsWjPlpSOnojbor6pGqdk541lfA7AqFQr5pB1BRdq0juY9db81BwyFw==}
 
+  '@types/dns-packet@5.6.5':
+    resolution: {integrity: sha512-qXOC7XLOEe43ehtWJCMnQXvgcIpv6rPmQ1jXT98Ad8A3TB1Ue50jsCbSSSyuazScEuZ/Q026vHbrOTVkmwA+7Q==}
+
   '@types/dom-mediacapture-transform@0.1.11':
     resolution: {integrity: sha512-Y2p+nGf1bF2XMttBnsVPHUWzRRZzqUoJAKmiP10b5umnO6DDrWI0BrGDJy1pOHoOULVmGSfFNkQrAlC5dcj6nQ==}
 
@@ -9837,6 +9853,9 @@ packages:
 
   '@types/ms@2.1.0':
     resolution: {integrity: sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==}
+
+  '@types/multicast-dns@7.2.4':
+    resolution: {integrity: sha512-ib5K4cIDR4Ro5SR3Sx/LROkMDa0BHz0OPaCBL/OSPDsAXEGZ3/KQeS6poBKYVN7BfjXDL9lWNwzyHVgt/wkyCw==}
 
   '@types/mysql@2.15.27':
     resolution: {integrity: sha512-YfWiV16IY0OeBfBCk8+hXKmdTKrKlwKN1MNKAPBu5JYxLwBEZl7QzeEpGnlZb3VMGJrrGmB84gXiH+ofs/TezA==}
@@ -12230,6 +12249,10 @@ packages:
     engines: {node: '>=8'}
     os: [darwin]
     hasBin: true
+
+  dns-packet@5.6.1:
+    resolution: {integrity: sha512-l4gcSouhcgIKRvyy99RNVOgxXiicE+2jZoNmaNmZ6JXiGajBOJAesk1OBlJuM5k2c+eudGdLxDqXuPCKIj6kpw==}
+    engines: {node: '>=6'}
 
   dom-serializer@1.4.1:
     resolution: {integrity: sha512-VHwB3KfrcOOkelEG2ZOfxqLZdfkil8PtJi4P8N2MMXucZq2yLp75ClViUlOVwyoHEDjYU433Aq+5zWP61+RGag==}
@@ -15093,6 +15116,10 @@ packages:
   muggle-string@0.4.1:
     resolution: {integrity: sha512-VNTrAak/KhO2i8dqqnqnAHOa3cYBwXEZe9h+D5h/1ZqFSTEFHdM65lR7RoIqq3tBBYavsOXV84NoHXZ0AkPyqQ==}
 
+  multicast-dns@7.2.5:
+    resolution: {integrity: sha512-2eznPJP8z2BFLX50tf0LuODrpINqP1RVIm/CObbTcBRITQgmC/TjcREF1NeTBzIcR5XO/ukWo+YHOjBbFwIupg==}
+    hasBin: true
+
   multimatch@6.0.0:
     resolution: {integrity: sha512-I7tSVxHGPlmPN/enE3mS1aOSo6bWBfls+3HmuEeCUBCE7gWnm3cBXCBkpurzFjVRwC6Kld8lLaZ1Iv5vOcjvcQ==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
@@ -16998,6 +17025,9 @@ packages:
 
   through@2.3.8:
     resolution: {integrity: sha512-w89qg7PI8wAdvX60bMDP+bFoD5Dvhm9oLheFp5O4a2QF0cSBGsBX4qZmadPMvVqlLJBBci+WqGGOAPvcDeNSVg==}
+
+  thunky@1.1.0:
+    resolution: {integrity: sha512-eHY7nBftgThBqOyHGVN+l8gF0BucP09fMo0oO/Lb0w1OF80dJv+lDVpXG60WMQvkcxAkNybKsrEIE3ZtKGmPrA==}
 
   timm@1.7.1:
     resolution: {integrity: sha512-IjZc9KIotudix8bMaBW6QvMuq64BrJWFs1+4V0lXwWGQZwH+LnX87doAYhem4caOEusRP9/g6jVDQmZ8XOk1nw==}
@@ -21208,6 +21238,8 @@ snapshots:
     dependencies:
       typescript: 5.9.3
 
+  '@leichtgewicht/ip-codec@2.0.5': {}
+
   '@lemonneko/crop-empty-pixels@0.1.1': {}
 
   '@lezer/common@1.5.0': {}
@@ -23766,6 +23798,10 @@ snapshots:
 
   '@types/deep-eql@4.0.2': {}
 
+  '@types/dns-packet@5.6.5':
+    dependencies:
+      '@types/node': 24.12.2
+
   '@types/dom-mediacapture-transform@0.1.11':
     dependencies:
       '@types/dom-webcodecs': 0.1.13
@@ -23845,6 +23881,11 @@ snapshots:
   '@types/minimatch@3.0.5': {}
 
   '@types/ms@2.1.0': {}
+
+  '@types/multicast-dns@7.2.4':
+    dependencies:
+      '@types/dns-packet': 5.6.5
+      '@types/node': 24.12.2
 
   '@types/mysql@2.15.27':
     dependencies:
@@ -26804,6 +26845,10 @@ snapshots:
       smart-buffer: 4.2.0
       verror: 1.10.1
     optional: true
+
+  dns-packet@5.6.1:
+    dependencies:
+      '@leichtgewicht/ip-codec': 2.0.5
 
   dom-serializer@1.4.1:
     dependencies:
@@ -30254,6 +30299,11 @@ snapshots:
 
   muggle-string@0.4.1: {}
 
+  multicast-dns@7.2.5:
+    dependencies:
+      dns-packet: 5.6.1
+      thunky: 1.1.0
+
   multimatch@6.0.0:
     dependencies:
       '@types/minimatch': 3.0.5
@@ -32646,6 +32696,8 @@ snapshots:
       readable-stream: 3.6.2
 
   through@2.3.8: {}
+
+  thunky@1.1.0: {}
 
   timm@1.7.1: {}
 

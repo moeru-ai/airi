@@ -13,7 +13,7 @@ import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { errorMessageFrom } from '@moeru/std'
-import { createServer, getLocalIPs } from '@proj-airi/server-runtime/server'
+import { createServer, getLocalIPs, isIPv4LinkLocalAddress, isLinkLocalAddress, isLoopbackAddress } from '@proj-airi/server-runtime/server'
 import { createServerChannelQrPayload } from '@proj-airi/stage-shared/server-channel-qr'
 import { Mutex } from 'async-mutex'
 import { app, ipcMain, session } from 'electron'
@@ -78,16 +78,14 @@ function getServerChannelPort() {
   return env.SERVER_CHANNEL_PORT ? Number.parseInt(env.SERVER_CHANNEL_PORT) : 6121
 }
 
-const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1'])
-
-function isLoopbackHost(host: string) {
-  return LOOPBACK_HOSTS.has(host)
+function isLoopbackHost(host: string): boolean {
+  return host === 'localhost' || isLoopbackAddress(host)
 }
 
 function getServerChannelQrHosts(config: ElectronServerChannelConfig, serverChannel: Server) {
   if (config.hostname === '0.0.0.0') {
     return Array.from(new Set(serverChannel.getConnectionHost()))
-      .filter(host => !isLoopbackHost(host))
+      .filter(host => !isLoopbackHost(host) && !isLinkLocalAddress(host) && !isIPv4LinkLocalAddress(host))
       .sort()
   }
 

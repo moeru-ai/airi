@@ -44,8 +44,13 @@
     "@proj-airi/server-shared": "workspace:^",
     "crossws": "^0.4.5",
     "h3": "2.0.1-rc.20",
+    "multicast-dns": "^7.2.5",
     "nanoid": "catalog:",
     "srvx": "^0.11.15",
     "superjson": "catalog:"
+  },
+  "devDependencies": {
+    "@types/dns-packet": "^5.6.5",
+    "@types/multicast-dns": "^7.2.4"
   }
 }
