@@ -30,8 +30,6 @@
   <a href="https://qun.qq.com/universal-share/share?ac=1&authKey=9g00d%2BZS7nORzcJugNNddJ7rCghZTIR7fhXabGwch2S%2BG%2BKGIKwlN1N2nIqkh2jg&busi_data=eyJncm91cENvZGUiOiIxMDU4MTU2Njk3IiwidG9rZW4iOiJmcnkra1hWNFIxNytEcG0zcHRUdVJIaldlRDFxN0dzK080QWtvTEdOQjJkNEY2eUFta1g1clNpbkxSMS9FQWFYIiwidWluIjoiMTI2MDkwNzMzNSJ9&data=b1eJrwn3GVOUh7YIxZ7l9vHQo99HPmRxKPpMKlDCmfzx8Y57IXb2EZCMaOC9rVTd2U558qpNjwUYUWlPHxVHvg&svctype=4&tempid=h5_group_info"><img src="https://img.shields.io/badge/QQ-%2312B7F5?logo=qq&labelColor=FFFFFF"></a>
 </p>
 
-
-
 <p float="left" align="center">
   <!-- readme-section:release-binary-windows -->
   <a href="https://github.com/moeru-ai/airi/releases/download/v0.10.2/AIRI-0.10.2-windows-x64-setup.exe">
@@ -135,6 +133,20 @@
 </p>
 
 > Fortement inspiré par [Neuro-sama](https://www.youtube.com/@Neurosama)
+
+> [!TIP]
+> Sous Windows, vous pouvez également installer AIRI avec [Scoop](https://scoop.sh/) :
+>
+> ```powershell
+> scoop bucket add airi https://github.com/moeru-ai/airi
+> scoop install airi/airi
+> ```
+>
+> Sous macOS, vous pouvez installer AIRI avec [Homebrew Cask](https://brew.sh/) sans ajouter de tap personnalisé :
+>
+> ```sh
+> brew install --cask airi
+> ```
 
 > [!WARNING]
 > **Attention :** Nous **n'avons pas** de crypto-monnaie ou de token officiel associé à ce projet. Veuillez vérifier les informations et procéder avec prudence.
@@ -273,6 +285,42 @@ Un package Nix pour Tamagotchi est inclus. Pour lancer AIRI avec Nix, assurez-vo
 nix run github:moeru-ai/airi
 ```
 
+### Stage Pocket (version mobile)
+
+Lancez le serveur de développement de la version Web Capacitor :
+
+```shell
+pnpm dev:pocket
+```
+
+Vérifiez l'adresse IP dans la sortie de cette commande :
+
+```shell
+  ROLLDOWN-VITE v7.3.0  ready in 1073 ms
+
+  ➜  Local:   https://localhost:5273/
+  ➜  Network: https://<ip-will-be-here>:5273/
+  ➜  Vue DevTools: Open https://localhost:5273/__devtools__/ as a separate window
+  ➜  Vue DevTools: Press Option(⌥)+Shift(⇧)+D in App to toggle the Vue DevTools
+  ➜  UnoCSS Inspector: https://localhost:5273/__unocss/
+```
+
+Ouvrez le projet Xcode :
+
+```shell
+CAPACITOR_DEV_SERVER_URL=https://<your-ip-address>:5273 pnpm open:ios
+```
+
+Xcode s'ouvrira ensuite, et vous pourrez cliquer sur le bouton "Run" pour lancer l'application sur un iPhone.
+
+Si vous devez connecter le canal serveur de Pocket en mode sans fil, vous devez lancer Tamagotchi avec les droits root :
+
+```shell
+sudo pnpm dev:tamagotchi
+```
+
+Activez ensuite le websocket sécurisé dans `settings/system/general` de Tamagotchi.
+
 ### Site de la Documentation
 
 ```shell
@@ -315,6 +363,7 @@ npx bumpp --no-commit --no-tag
 - [x] [Baichuan](https://platform.baichuan-ai.com)
 - [x] [Minimax](https://api.minimax.chat/)
 - [x] [Moonshot AI](https://platform.moonshot.cn/)
+- [x] [ModelScope](https://modelscope.cn/docs/model-service/API-Inference/intro)
 - [x] [Player2](https://player2.game/)
 - [x] [Tencent Cloud](https://cloud.tencent.com/document/product/1729)
 - [ ] [Sparks](https://www.xfyun.cn/doc/spark/Web.html) (PR bienvenue)
@@ -445,8 +494,7 @@ flowchart TD
 
 ### Non open source
 
-- https://clips.twitch.tv/WanderingCaringDeerDxCat-Qt55xtiGDSoNmDDr
-  https://www.youtube.com/watch?v=8Giv5mupJNE
+- https://clips.twitch.tv/WanderingCaringDeerDxCat-Qt55xtiGDSoNmDDr https://www.youtube.com/watch?v=8Giv5mupJNE
 - https://clips.twitch.tv/TriangularAthleticBunnySoonerLater-SXpBk1dFso21VcWD
 - https://www.youtube.com/@NOWA_Mirai
 
