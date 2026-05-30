@@ -329,6 +329,9 @@ void fragment() {
 	ALPHA = alpha;
 #elif defined(ALPHA_CUTOUT)
 	if (_AlphaCutoutEnable > 0.5) {
+		// NOTICE: Godot's alpha scissor path reads the sampled alpha from ALPHA.
+		// This can route cutout shaders through the transparent pipeline; AIRI
+		// accepts that tradeoff for alpha-to-coverage AA. See docs/vendor-patches.md.
 		ALPHA = alpha;
 		ALPHA_SCISSOR_THRESHOLD = _Cutoff;
 		ALPHA_ANTIALIASING_EDGE = min(_Cutoff * 0.6, 0.3);

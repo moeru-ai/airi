@@ -43,8 +43,10 @@ Files:
 
 - Local change: enable `render_mode ambient_light_disabled` for the shared MToon
   shader include.
-- Local change: route MToon cutout materials through Godot's
-  `alpha_to_coverage` shader path instead of using a hard fragment `discard`.
+- Local change: route MToon cutout materials through Godot's alpha scissor
+  antialiasing path by writing `ALPHA`, setting `ALPHA_SCISSOR_THRESHOLD`,
+  `ALPHA_ANTIALIASING_EDGE`, and `ALPHA_TEXTURE_COORDINATE`, and enabling
+  `render_mode alpha_to_coverage`.
 - Reason: AIRI's stage preset owns sky, ground, and environment presentation, but
   avatar toon materials need stable character color. Godot's default ambient
   light and radiance contribution can wash out MToon avatars as the stage
@@ -52,8 +54,13 @@ Files:
   WorldEnvironment ambient while keeping direct light handling in the shader.
 - Reason: VRM hair, lashes, accessories, and outline cutout passes use hard alpha
   edges. At distance, those edges collapse into visible stair-step or dashed
-  pixels. Godot's alpha-to-coverage path works with 3D MSAA and preserves the
-  cutout material model without switching these materials to alpha blending.
+  pixels. Godot's alpha-to-coverage path works with 3D MSAA, and Godot's shader
+  alpha scissor path requires `ALPHA` to receive the sampled texture alpha.
+  Writing `ALPHA` may route these shaders through Godot's transparent pipeline,
+  which can introduce sorting or shadow-casting regressions. AIRI accepts that
+  tradeoff for the current visual baseline and should revisit it if those
+  regressions appear or upstream exposes a cutout antialiasing path that
+  preserves opaque shadow semantics.
 - Validation: `tests/material-rendering-check/materialRenderingCheck.tscn`
   imports AvatarSample A/B and still detects MToon, cutout, transparent,
   outline, and shadow-caster materials after the patch.
