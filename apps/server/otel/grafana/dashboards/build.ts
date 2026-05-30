@@ -447,9 +447,12 @@ const elements: Record<string, unknown> = {}
 // range the viewer picked. Trends live in their own rows below.
 elements['panel-1'] = statPanel(
   1,
-  'New Users 24h',
-  'Rolling 24h `increase(user.registered)` — counts the Better Auth `databaseHooks.user.create.after` fires over the last 24 hours. The signup half of the funnel; the returning-user half is DAU / WAU / MAU in the Users & Engagement row.',
-  [query(`sum(increase(user_registered_total{${SERVICE_FILTER}}[24h]))`, 'new users')],
+  'Total Users',
+  'Current Better Auth user table size from `user.total` (cluster-wide DB gauge, aggregate with `max()`) plus rolling 24h signup delta from `increase(user.registered)`. Use the delta as today/new-user growth, and DAU / WAU / MAU below for returning-user engagement.',
+  [
+    query(`max(user_total{${SERVICE_FILTER}})`, 'total users', 'A'),
+    query(`sum(increase(user_registered_total{${SERVICE_FILTER}}[24h]))`, 'new today', 'B'),
+  ],
   { unit: 'short', variant: 'count' },
 )
 

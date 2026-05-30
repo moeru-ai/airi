@@ -41,12 +41,31 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "sum(increase(user_registered_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[24h]))",
-                      "legendFormat": "new users"
+                      "expr": "max(user_total{service_name=~\"$service\", deployment_environment=~\"$env\"})",
+                      "legendFormat": "total users"
                     },
                     "version": "v0"
                   },
                   "refId": "A"
+                }
+              },
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "grafanacloud-projairi-prom"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "expr": "sum(increase(user_registered_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[24h]))",
+                      "legendFormat": "new today"
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "B"
                 }
               }
             ],
@@ -54,10 +73,10 @@
             "transformations": []
           }
         },
-        "description": "Rolling 24h `increase(user.registered)` — counts the Better Auth `databaseHooks.user.create.after` fires over the last 24 hours. The signup half of the funnel; the returning-user half is DAU / WAU / MAU in the Users & Engagement row.",
+        "description": "Current Better Auth user table size from `user.total` (cluster-wide DB gauge, aggregate with `max()`) plus rolling 24h signup delta from `increase(user.registered)`. Use the delta as today/new-user growth, and DAU / WAU / MAU below for returning-user engagement.",
         "id": 1,
         "links": [],
-        "title": "New Users 24h",
+        "title": "Total Users",
         "vizConfig": {
           "group": "stat",
           "kind": "VizConfig",
