@@ -162,9 +162,9 @@ AvatarSample A/B fixtures:
 
 ```powershell
 & $env:GODOT4 --headless --path . `
-  --scene res://tests/material-rendering-check/materialRenderingCheck.tscn `
   --quit-after 5 `
-  --log-file material-check.log
+  --log-file material-check.log `
+  tests/material-rendering-check/materialRenderingCheck.tscn
 ```
 
 This check imports both samples through `VrmRuntimeImporter.gd` and verifies the
