@@ -76,9 +76,9 @@ function classifyError(
   toolName: string,
 ): InvalidToolCallError | InvalidToolInputError | ToolExecutionError {
   if (
-    error instanceof InvalidToolCallError ||
-    error instanceof InvalidToolInputError ||
-    error instanceof ToolExecutionError
+    InvalidToolCallError.isInstance(error) ||
+    InvalidToolInputError.isInstance(error) ||
+    ToolExecutionError.isInstance(error)
   ) {
     return error
   }
@@ -100,6 +100,10 @@ function classifyError(
 
 function createCapturedErrorContent(toolName: string, error: unknown): string {
   return `Tool call error for "${toolName}": ${errorMessageFrom(error) ?? String(error)}`
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 /**
@@ -129,46 +133,11 @@ function createCapturedErrorContent(toolName: string, error: unknown): string {
 export async function executeTool(options: ExecuteToolOptions): Promise<ExecuteToolResult> {
   const { messages, toolCall, tools, captureToolErrors, repairToolCall, onToolCallStart, onToolCallFinish } = options
 
-  const toolName = toolCall.function.name!
-
-  // Try to find the tool and parse arguments before calling upstream
+  const toolName = toolCall.function?.name ?? ''
   const tool = tools.find((t) => t.function.name === toolName)
-  let parsedInput: Record<string, unknown> | undefined
 
-  try {
-    parsedInput = JSON.parse(toolCall.function.arguments!) as Record<string, unknown>
-  } catch {
-    // Invalid JSON — handle as InvalidToolInputError
-    const error = new InvalidToolInputError(`Invalid input for tool "${toolName}"`, {
-      toolInput: toolCall.function.arguments,
-      toolName,
-    })
-
-    if (captureToolErrors) {
-      const result = createCapturedErrorContent(toolName, error)
-      const message: ToolMessage = {
-        role: 'tool',
-        content: result,
-        tool_call_id: toolCall.id,
-      }
-
-      onToolCallFinish?.({
-        toolName,
-        toolCallId: toolCall.id,
-        error,
-        durationMs: 0,
-      })
-
-      return {
-        completionToolResult: { args: {}, isError: true, error, result, toolCallId: toolCall.id, toolName },
-        message,
-      }
-    }
-
-    throw error
-  }
-
-  // If no tool found, handle as InvalidToolCallError
+  // If no tool found, handle as InvalidToolCallError (before JSON parsing so
+  // repairToolCall can still run for unknown-tool scenarios).
   if (!tool) {
     const error = new InvalidToolCallError(`Unknown tool "${toolName}"`, {
       reason: 'unknown_tool',
@@ -211,14 +180,83 @@ export async function executeTool(options: ExecuteToolOptions): Promise<ExecuteT
       if (repaired) {
         return executeTool({ ...options, toolCall: repaired, repairToolCall: undefined })
       }
-      throw new InvalidToolCallError(`Unknown tool "${toolName}" and repair returned null`, {
+      const repairError = new InvalidToolCallError(`Unknown tool "${toolName}" and repair returned null`, {
         reason: 'unknown_tool',
         toolCall,
         toolName,
       })
+      onToolCallFinish?.({
+        toolName,
+        toolCallId: toolCall.id,
+        error: repairError,
+        durationMs: 0,
+      })
+      throw repairError
     }
 
+    onToolCallFinish?.({
+      toolName,
+      toolCallId: toolCall.id,
+      error,
+      durationMs: 0,
+    })
     throw error
+  }
+
+  // Tool found — parse arguments
+  let parsedInput: Record<string, unknown>
+
+  try {
+    const raw = JSON.parse(toolCall.function?.arguments ?? '{}')
+    if (!isPlainObject(raw)) {
+      throw new InvalidToolInputError(
+        `Invalid input for tool "${toolName}": expected object, got ${Array.isArray(raw) ? 'array' : typeof raw}`,
+        { toolInput: raw, toolName },
+      )
+    }
+    parsedInput = raw
+  } catch (error) {
+    // Re-throw if it's already an InvalidToolInputError from the plain-object check
+    if (InvalidToolInputError.isInstance(error)) {
+      if (captureToolErrors) {
+        const result = createCapturedErrorContent(toolName, error)
+        const message: ToolMessage = {
+          role: 'tool',
+          content: result,
+          tool_call_id: toolCall.id,
+        }
+        onToolCallFinish?.({ toolName, toolCallId: toolCall.id, error, durationMs: 0 })
+        return {
+          completionToolResult: { args: {}, isError: true, error, result, toolCallId: toolCall.id, toolName },
+          message,
+        }
+      }
+      onToolCallFinish?.({ toolName, toolCallId: toolCall.id, error, durationMs: 0 })
+      throw error
+    }
+
+    // JSON parse failure — handle as InvalidToolInputError
+    const inputError = new InvalidToolInputError(`Invalid input for tool "${toolName}"`, {
+      toolInput: toolCall.function?.arguments,
+      toolName,
+    })
+
+    if (captureToolErrors) {
+      const result = createCapturedErrorContent(toolName, inputError)
+      const message: ToolMessage = {
+        role: 'tool',
+        content: result,
+        tool_call_id: toolCall.id,
+      }
+      onToolCallFinish?.({ toolName, toolCallId: toolCall.id, error: inputError, durationMs: 0 })
+      return {
+        completionToolResult: { args: {}, isError: true, error: inputError, result, toolCallId: toolCall.id, toolName },
+        message,
+      }
+    }
+
+    onToolCallFinish?.({ toolName, toolCallId: toolCall.id, error: inputError, durationMs: 0 })
+    throw inputError
   }
 
   // Tool found and arguments parsed — execute with lifecycle callbacks
@@ -262,11 +300,13 @@ export async function executeTool(options: ExecuteToolOptions): Promise<ExecuteT
 
     return { completionToolResult, message }
   } catch (error) {
+    const durationMs = performance.now() - startTime
+
     if (isAbortError(error)) {
+      onToolCallFinish?.({ toolName, toolCallId: toolCall.id, durationMs })
       throw error
     }
 
-    const durationMs = performance.now() - startTime
     const classifiedError = classifyError(error, toolName)
 
     if (captureToolErrors) {
