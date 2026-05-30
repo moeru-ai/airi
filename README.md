@@ -35,18 +35,17 @@ Our goal is a Linux desktop experience where your AI companion acts as the cente
 
 ## 🐧 Features & Architecture
 
-We build directly upon the core strengths of the original project and rebase `dasilva333/airi` changes on latest upstream:
+We build directly upon the core strengths of the original project and selectively rebase `dasilva333/airi` changes on latest upstream:
 
-*   **Native Wayland Support:** Out-of-the-box integration using Ozone platform flags, PipeWire screen capture, and window decorations.
-*   **AIRI Card System:** High-fidelity character management. Import/export native JSON or SillyTavern-compatible `chara_card_v2` PNGs. Features per-card model configurations and stage preferences.
-*   **Multi-Tab Card Editor:**
+*   - [ ] **Native Wayland Support:** Out-of-the-box integration using Ozone platform flags, PipeWire screen capture, and window decorations.
+*   - [ ] **AIRI Card System:** High-fidelity character management. Import/export native JSON or SillyTavern-compatible `chara_card_v2` PNGs. Features per-card model configurations and stage preferences.
+*   [ ] **Multi-Tab Card Editor:**
     *   *Acting:* Manage model expressions, speech mannerisms, and ACT tokens.
     *   *Modules:* Set specific speech engines, avatars, and models per character.
     *   *Artistry:* Native image generation pipelines (Replicate, ComfyUI).
     *   *Proactivity:* Define triggers for autonomous companion interactions.
-*   **Hybrid Memory System:** Combines short-term context rebuilding with a long-term journal (`text_journal` tool), scoped individually per character.
-*   **Dynamic Stage Widgets:** Spawns and controls floating desktop widgets (weather, maps, or generic JSON payloads).
-*   **Optimized Audio Pipeline:** Low-latency speech path supporting OpenAI-compatible voice discovery.
+*   [ ] **Dynamic Stage Widgets:** Spawns and controls floating desktop widgets (weather, maps, or generic JSON payloads).
+*   [ ] **Optimized Audio Pipeline:** Low-latency speech path supporting OpenAI-compatible voice discovery.
 
 ---
 
@@ -83,9 +82,10 @@ pnpm approve-builds # Select 'electron' and confirm
 
 ## 🚙 Roadmap
 
+- [ ] **Multi-character rendering**
 - [x] **Brain**
-  - [ ] Multi-tier memory (short-term & long-term journal)
-  - [ ] Per-character memory scoping
+  - [ ] Multi-tier memory based on [openvault](https://github.com/vadash/openvault) design
+  - [ ] Per-character memory scoping that works for multiple-character being preset at the stage, not gated by character card
 - [x] **Ears**
   - [x] Client-side speech recognition & talking detection
 - [x] **Mouth**
