@@ -24,12 +24,12 @@ public static class StageVisualPreset
     private const string GroundPlaneNodeName = "StageGroundPlane";
     private const string CenterMarkerNodeName = "StageCenterT";
 
-    private const float GroundExtent = 96.0f;
+    private const float GroundExtent = 180.0f;
     private const float LightShadowMaxDistance = 24.0f;
     private const float CenterMarkerElevation = 0.008f;
     private const string FadingGridShaderCode = """
         shader_type spatial;
-        render_mode unshaded, cull_disabled;
+        render_mode unshaded, cull_disabled, blend_mix;
 
         uniform vec4 ground_color : source_color;
         uniform vec4 horizon_mist_color : source_color;
@@ -38,8 +38,8 @@ public static class StageVisualPreset
         uniform vec4 center_grid_color : source_color;
         uniform float minor_spacing = 0.25;
         uniform float major_spacing = 1.0;
-        uniform float fade_start = 14.0;
-        uniform float fade_end = 38.0;
+        uniform float fade_start = 8.0;
+        uniform float fade_end = 22.0;
         uniform float minor_line_width = 0.34;
         uniform float major_line_width = 0.58;
         uniform float axis_width_world = 0.018;
@@ -65,7 +65,7 @@ public static class StageVisualPreset
         void fragment() {
             float distance_to_camera = distance(CAMERA_POSITION_WORLD.xz, world_position.xz);
             float horizon_fade = smoothstep(fade_start, fade_end, distance_to_camera);
-            float grid_fade = 1.0 - horizon_fade;
+            float grid_fade = pow(1.0 - horizon_fade, 3.2);
 
             float minor_line = grid_line(world_position.xz, minor_spacing, minor_line_width);
             float major_line = grid_line(world_position.xz, major_spacing, major_line_width);
@@ -86,16 +86,17 @@ public static class StageVisualPreset
             line_alpha = max(line_alpha, axis_line_alpha * center_grid_color.a) * grid_fade;
 
             ALBEDO = mix(base_color, grid_color, line_alpha);
+            ALPHA = 1.0 - horizon_fade;
             ROUGHNESS = 0.88;
         }
         """;
 
-    private static readonly Color GroundColor = new(0.42f, 0.45f, 0.48f, 1.0f);
-    private static readonly Color HorizonMistColor = new(0.58f, 0.62f, 0.66f, 0.72f);
-    private static readonly Color MinorGridColor = new(0.78f, 0.82f, 0.86f, 0.26f);
-    private static readonly Color MajorGridColor = new(0.88f, 0.91f, 0.94f, 0.48f);
-    private static readonly Color CenterGridColor = new(0.95f, 0.98f, 1.0f, 0.76f);
-    private static readonly Color CenterMarkerColor = new(0.13f, 0.82f, 0.88f, 1.0f);
+    private static readonly Color GroundColor = new(0.27f, 0.34f, 0.37f, 1.0f);
+    private static readonly Color HorizonMistColor = new(0.62f, 0.73f, 0.76f, 0.82f);
+    private static readonly Color MinorGridColor = new(1.0f, 1.0f, 1.0f, 0.20f);
+    private static readonly Color MajorGridColor = new(1.0f, 1.0f, 1.0f, 0.38f);
+    private static readonly Color CenterGridColor = new(1.0f, 1.0f, 1.0f, 0.72f);
+    private static readonly Color CenterMarkerColor = new(0.08f, 0.90f, 0.96f, 1.0f);
 
     /// <summary>
     /// Applies the stage visual preset under the provided root node.
@@ -146,7 +147,7 @@ public static class StageVisualPreset
     {
         var skyMaterial = new PanoramaSkyMaterial
         {
-            EnergyMultiplier = 0.85f,
+            EnergyMultiplier = 1.0f,
             Panorama = LoadSkyTexture(),
         };
         var sky = new Sky
@@ -156,16 +157,24 @@ public static class StageVisualPreset
         };
         var environment = new GodotEnvironment
         {
-            AmbientLightEnergy = 0.42f,
-            AmbientLightSkyContribution = 0.72f,
+            AmbientLightEnergy = 0.26f,
+            AmbientLightSkyContribution = 0.48f,
             AmbientLightSource = GodotEnvironment.AmbientSource.Sky,
-            BackgroundEnergyMultiplier = 0.82f,
+            BackgroundEnergyMultiplier = 1.06f,
             BackgroundMode = GodotEnvironment.BGMode.Sky,
             ReflectedLightSource = GodotEnvironment.ReflectionSource.Sky,
             Sky = sky,
+            // Keep MToon/NPR avatars out of filmic tone mapping, then apply a small
+            // stylized display grade. The VRM materials already use source_color
+            // texture inputs; the remaining gap to three-stage is presentation color,
+            // not importer-side texture conversion.
+            // Three-stage disables tone mapping per MToon material; Godot applies
+            // environment tone mapping globally, so filmic curves wash avatar colors out.
+            AdjustmentContrast = 1.03f,
+            AdjustmentEnabled = true,
+            AdjustmentSaturation = 1.24f,
             TonemapExposure = 1.0f,
-            TonemapMode = GodotEnvironment.ToneMapper.Agx,
-            TonemapWhite = 4.0f,
+            TonemapMode = GodotEnvironment.ToneMapper.Linear,
         };
 
         return new WorldEnvironment
@@ -285,24 +294,24 @@ public static class StageVisualPreset
         rig.AddChild(CreateDirectionalLight(
             "KeyLight",
             new Vector3(-48.0f, -34.0f, 0.0f),
-            new Color(1.0f, 0.93f, 0.84f),
-            1.28f,
+            new Color(1.0f, 1.0f, 1.0f),
+            0.76f,
             1.1f,
             true
         ));
         rig.AddChild(CreateDirectionalLight(
             "FillLight",
             new Vector3(-20.0f, 122.0f, 0.0f),
-            new Color(0.62f, 0.76f, 1.0f),
-            0.22f,
+            new Color(1.0f, 1.0f, 1.0f),
+            0.06f,
             0.0f,
             false
         ));
         rig.AddChild(CreateDirectionalLight(
             "RimLight",
             new Vector3(-18.0f, 205.0f, 0.0f),
-            new Color(0.82f, 0.92f, 1.0f),
-            0.46f,
+            new Color(1.0f, 1.0f, 1.0f),
+            0.20f,
             0.0f,
             false
         ));

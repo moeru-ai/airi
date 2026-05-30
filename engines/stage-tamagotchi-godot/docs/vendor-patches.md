@@ -32,6 +32,28 @@ whenever vendored add-on files differ from their upstream source.
   lookup fix or otherwise handles missing `secondary` nodes before parsing
   spring bones.
 
+### `addons/Godot-MToon-Shader/mtoon_common.gdshaderinc` and `mtoon_cutout*.gdshader`
+
+- Local change: enable `render_mode ambient_light_disabled` for the shared MToon
+  shader include.
+- Local change: route MToon cutout materials through Godot's
+  `alpha_to_coverage` shader path instead of using a hard fragment `discard`.
+- Reason: AIRI's stage preset owns sky, ground, and environment presentation, but
+  avatar toon materials need stable character color. Godot's default ambient
+  light and radiance contribution can wash out MToon avatars as the stage
+  environment changes, so AIRI isolates avatar MToon materials from implicit
+  WorldEnvironment ambient while keeping direct light handling in the shader.
+- Reason: VRM hair, lashes, accessories, and outline cutout passes use hard alpha
+  edges. At distance, those edges collapse into visible stair-step or dashed
+  pixels. Godot's alpha-to-coverage path works with 3D MSAA and preserves the
+  cutout material model without switching these materials to alpha blending.
+- Validation: `materialRenderingCheck.tscn` imports AvatarSample A/B and still
+  detects MToon, cutout, transparent, outline, and shadow-caster materials after
+  the patch.
+- Removal condition: remove this patch if AIRI moves to an owned MToon shader
+  variant, or if upstream exposes a supported way to opt MToon materials out of
+  Godot environment ambient/radiance while preserving VRM import compatibility.
+
 ## Generated Metadata Differences
 
 These files differ from the upstream commit after opening/importing the add-on
