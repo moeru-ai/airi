@@ -293,6 +293,7 @@ watch(sendMode, () => {
           >
             <HearingConfig
               v-model:auto-send="autoSendEnabled"
+              :show-auto-send="true"
               :transcription="isListening"
               :granted="true"
               @toggle-transcription="() => isListening ? stopStreamingTranscription() : startStreamingTranscription()"

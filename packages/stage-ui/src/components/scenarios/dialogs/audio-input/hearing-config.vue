@@ -10,12 +10,18 @@ import { useHearingStore } from '../../../../stores/modules/hearing'
 // NOTICE: The "Transcription" toggle button stays removed (recording is driven by push-to-talk /
 // VAD, not a manual transcription toggle here). The "Auto send" toggle is restored, but it only
 // governs continuous-listening (VAD) auto-send and is hidden in push-to-talk mode, where the key
-// release is itself the send intent so auto-send does not apply. It renders only when a parent
-// binds `v-model:auto-send` (e.g. ChatArea); otherwise the model stays undefined and stays hidden.
+// release is itself the send intent so auto-send does not apply.
+//
+// Visibility is gated by an explicit `showAutoSend` prop, NOT by `autoSend !== undefined`: a
+// `defineModel<boolean>` whose `v-model:auto-send` is unbound is Boolean-coerced to `false` (not
+// undefined) by Vue, so a `!== undefined` guard would render a dead toggle in consumers that don't
+// bind it (e.g. the desktop HearingConfigDialog). Only ChatArea opts in via `:show-auto-send`.
 const props = withDefaults(defineProps<{
   granted?: boolean // permission status on OS level
+  showAutoSend?: boolean // opt-in: render the auto-send toggle (consumers that bind v-model:auto-send)
 }>(), {
   granted: false,
+  showAutoSend: false,
 })
 
 const autoSend = defineModel<boolean>('autoSend')
@@ -92,7 +98,7 @@ function toggleHearingEnabled() {
     </div>
 
     <!-- Auto-send toggle (continuous-listening / VAD mode only; hidden in push-to-talk) -->
-    <div v-if="autoSend !== undefined && !pushToTalk" class="flex flex-wrap gap-2">
+    <div v-if="props.showAutoSend && !pushToTalk" class="flex flex-wrap gap-2">
       <Button
         label="Auto send"
         :variant="autoSend ? 'primary' : 'secondary'"
