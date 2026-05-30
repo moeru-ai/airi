@@ -4,15 +4,18 @@ import type { Database } from '../../../libs/db'
 import type { VoicePack } from '../../../schemas/voice-packs'
 
 import { and, eq } from 'drizzle-orm'
-import { boolean, maxLength, nonEmpty, null_, number, object, optional, picklist, pipe, record, string, union } from 'valibot'
+import { boolean, maxLength, minValue, nonEmpty, null_, number, object, optional, pipe, record, string, union } from 'valibot'
 
 import * as schema from '../../../schemas/voice-packs'
-
-export const VoicePackTierSchema = picklist(['lite', 'standard', 'pro', 'premium'])
 
 export const VoicePackParamsSchema = record(
   pipe(string(), nonEmpty('params keys must not be empty'), maxLength(100)),
   union([string(), number(), boolean(), null_()]),
+)
+
+export const VoicePackCostMultiplierSchema = pipe(
+  number(),
+  minValue(0, 'costMultiplier must not be negative'),
 )
 
 export const CreateVoicePackInputSchema = object({
@@ -23,7 +26,7 @@ export const CreateVoicePackInputSchema = object({
   voiceId: pipe(string(), nonEmpty('voiceId is required'), maxLength(200)),
   ttsModelId: pipe(string(), nonEmpty('ttsModelId is required'), maxLength(200)),
   params: optional(VoicePackParamsSchema, {}),
-  tier: VoicePackTierSchema,
+  costMultiplier: VoicePackCostMultiplierSchema,
   enabled: optional(boolean(), true),
 })
 
@@ -35,7 +38,7 @@ export const UpdateVoicePackInputSchema = object({
   voiceId: optional(pipe(string(), nonEmpty('voiceId must not be empty'), maxLength(200))),
   ttsModelId: optional(pipe(string(), nonEmpty('ttsModelId must not be empty'), maxLength(200))),
   params: optional(VoicePackParamsSchema),
-  tier: optional(VoicePackTierSchema),
+  costMultiplier: optional(VoicePackCostMultiplierSchema),
   enabled: optional(boolean()),
 })
 
@@ -73,7 +76,7 @@ export function createVoicePackService(db: Database) {
         voiceId: input.voiceId,
         ttsModelId: input.ttsModelId,
         params: input.params,
-        tier: input.tier,
+        costMultiplier: input.costMultiplier,
         enabled: input.enabled,
       }).returning()
 

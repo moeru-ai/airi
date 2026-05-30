@@ -20,7 +20,7 @@ describe('voicePackService', () => {
     await db.delete(schema.voicePacks)
   })
 
-  it('creates a Voice Pack with provider, model, voice, params, tier, and tts model pin', async () => {
+  it('creates a Voice Pack with provider, model, voice, params, cost multiplier, and tts model pin', async () => {
     // @example create one curated cloud voice -> row stores the resolved routing pin.
     const pack = await service.create({
       name: 'Neuro Sama',
@@ -29,7 +29,7 @@ describe('voicePackService', () => {
       voiceId: 'voice-neuro',
       ttsModelId: 'volcengine/neuro-pool',
       params: { pitch: '+20%', volume: '+5%' },
-      tier: 'premium',
+      costMultiplier: 1.5,
       enabled: true,
     })
 
@@ -39,7 +39,7 @@ describe('voicePackService', () => {
     expect(pack.voiceId).toBe('voice-neuro')
     expect(pack.ttsModelId).toBe('volcengine/neuro-pool')
     expect(pack.params).toEqual({ pitch: '+20%', volume: '+5%' })
-    expect(pack.tier).toBe('premium')
+    expect(pack.costMultiplier).toBe(1.5)
     expect(pack.enabled).toBe(true)
   })
 
@@ -52,7 +52,7 @@ describe('voicePackService', () => {
       voiceId: 'voice-a',
       ttsModelId: 'volcengine/pool',
       params: {},
-      tier: 'standard',
+      costMultiplier: 1,
       enabled: true,
     })
     await service.create({
@@ -62,7 +62,7 @@ describe('voicePackService', () => {
       voiceId: 'voice-a',
       ttsModelId: 'volcengine/pool',
       params: { pitch: '+20%' },
-      tier: 'standard',
+      costMultiplier: 1,
       enabled: true,
     })
 
@@ -80,20 +80,20 @@ describe('voicePackService', () => {
       voiceId: 'en-US-AvaMultilingualNeural',
       ttsModelId: 'microsoft/v1',
       params: {},
-      tier: 'lite',
+      costMultiplier: 1,
       enabled: true,
     })
 
     const updated = await service.update(pack.id, {
       name: 'New',
       params: { rate: '+10%' },
-      tier: 'pro',
+      costMultiplier: 2,
     })
 
     expect(updated?.id).toBe(pack.id)
     expect(updated?.name).toBe('New')
     expect(updated?.params).toEqual({ rate: '+10%' })
-    expect(updated?.tier).toBe('pro')
+    expect(updated?.costMultiplier).toBe(2)
   })
 
   it('soft-disables a pack and excludes it from listEnabled', async () => {
@@ -105,7 +105,7 @@ describe('voicePackService', () => {
       voiceId: 'longxiaochun_v2',
       ttsModelId: 'alibaba/cosyvoice-v2',
       params: {},
-      tier: 'standard',
+      costMultiplier: 1,
       enabled: true,
     })
 

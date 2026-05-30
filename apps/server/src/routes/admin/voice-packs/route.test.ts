@@ -26,7 +26,7 @@ function createService() {
     voiceId: 'voice-neuro',
     ttsModelId: 'volcengine/neuro-pool',
     params: {},
-    tier: 'premium',
+    costMultiplier: 1.5,
     enabled: true,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -109,7 +109,7 @@ describe('admin voice packs — CRUD', () => {
       voiceId: 'voice-neuro',
       ttsModelId: 'volcengine/neuro-pool',
       params: { pitch: '+20%' },
-      tier: 'premium',
+      costMultiplier: 1.5,
     }
     const res = await jsonRequest(app, 'POST', '/api/admin/voice-packs', body)
 
@@ -117,8 +117,8 @@ describe('admin voice packs — CRUD', () => {
     expect(service.create).toHaveBeenCalledWith({ ...body, enabled: true })
   })
 
-  it('rejects invalid tier on create', async () => {
-    // @example unknown tier -> 400 before service call.
+  it('rejects invalid cost multiplier on create', async () => {
+    // @example negative cost multiplier -> 400 before service call.
     const service = createService()
     const app = createTestApp(service, ADMIN)
     const res = await jsonRequest(app, 'POST', '/api/admin/voice-packs', {
@@ -128,7 +128,7 @@ describe('admin voice packs — CRUD', () => {
       voiceId: 'voice-neuro',
       ttsModelId: 'volcengine/neuro-pool',
       params: {},
-      tier: 'ultra',
+      costMultiplier: -1,
     })
 
     expect(res.status).toBe(400)

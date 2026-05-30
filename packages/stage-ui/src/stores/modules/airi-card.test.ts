@@ -103,7 +103,7 @@ describe('airi-card store', () => {
       voiceId: 'voice-neuro',
       ttsModelId: 'volcengine/neuro-pool',
       params: { pitch: '+20%', volume: '+5%' },
-      tier: 'premium' as const,
+      costMultiplier: 1.5,
     }
 
     const bound = cardStore.bindVoicePackToActiveCard(pack)
@@ -121,7 +121,7 @@ describe('airi-card store', () => {
         voiceId: 'voice-neuro',
         ttsModelId: 'volcengine/neuro-pool',
         params: { pitch: '+20%', volume: '+5%' },
-        tier: 'premium',
+        costMultiplier: 1.5,
       },
     })
   })
@@ -143,7 +143,7 @@ describe('airi-card store', () => {
       voiceId: 'voice-a',
       ttsModelId: 'volcengine/pool-a',
       params,
-      tier: 'standard',
+      costMultiplier: 1,
     })
 
     params.pitch = '-10%'

@@ -17,8 +17,6 @@ import { useArtistryStore } from './artistry'
 import { useConsciousnessStore } from './consciousness'
 import { useSpeechStore } from './speech'
 
-export type VoicePackTier = 'lite' | 'standard' | 'pro' | 'premium'
-
 export type VoicePackParams = Record<string, string | number | boolean | null>
 
 export interface VoicePackBindingInput {
@@ -29,7 +27,7 @@ export interface VoicePackBindingInput {
   voiceId: string
   ttsModelId: string
   params: VoicePackParams
-  tier: VoicePackTier
+  costMultiplier: number
 }
 
 export interface VoicePackSnapshot {
@@ -40,7 +38,7 @@ export interface VoicePackSnapshot {
   voiceId: string
   ttsModelId: string
   params: VoicePackParams
-  tier: VoicePackTier
+  costMultiplier: number
 }
 
 export interface AiriExtension {
@@ -328,7 +326,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       voiceId: pack.voiceId,
       ttsModelId: pack.ttsModelId,
       params: { ...pack.params },
-      tier: pack.tier,
+      costMultiplier: pack.costMultiplier,
     }
 
     const speech: AiriExtension['modules']['speech'] = {

@@ -78,6 +78,10 @@ function createVoicePackVoice(voicePack: VoicePackSnapshot): VoiceInfo {
   }
 }
 
+function formatCostMultiplier(multiplier: number) {
+  return `${Number.isInteger(multiplier) ? multiplier : multiplier.toFixed(2).replace(/\.?0+$/, '')}x`
+}
+
 // Sync OpenAI Compatible model and voice from provider config
 function syncOpenAICompatibleSettings() {
   if (activeSpeechProvider.value !== 'openai-compatible-audio-speech')
@@ -356,8 +360,8 @@ function handleDeleteProvider(providerId: string) {
                   {{ pack.ttsModelId }} / {{ pack.voiceId }}
                 </div>
               </div>
-              <span :class="['shrink-0 rounded bg-neutral-100 px-2 py-1 text-xs text-neutral-500 uppercase dark:bg-neutral-800 dark:text-neutral-400']">
-                {{ pack.tier }}
+              <span :class="['shrink-0 rounded bg-neutral-100 px-2 py-1 text-xs text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400']">
+                {{ formatCostMultiplier(pack.costMultiplier) }}
               </span>
             </div>
           </button>

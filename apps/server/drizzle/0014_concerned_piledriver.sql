@@ -7,7 +7,7 @@ CREATE TABLE "voice_packs" (
 	"voice_id" text NOT NULL,
 	"tts_model_id" text NOT NULL,
 	"params" jsonb DEFAULT '{}'::jsonb NOT NULL,
-	"tier" text NOT NULL,
+	"cost_multiplier" real DEFAULT 1 NOT NULL,
 	"enabled" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL

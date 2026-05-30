@@ -2830,11 +2830,12 @@
           "notNull": true,
           "default": "'{}'::jsonb"
         },
-        "tier": {
-          "name": "tier",
-          "type": "text",
+        "cost_multiplier": {
+          "name": "cost_multiplier",
+          "type": "real",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "default": 1
         },
         "enabled": {
           "name": "enabled",
