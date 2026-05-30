@@ -8,6 +8,7 @@ import type { BillingService } from '../../../services/domain/billing/billing-se
 import type { FluxMeter } from '../../../services/domain/billing/flux-meter'
 import type { FluxService } from '../../../services/domain/flux'
 import type { LlmRouteContext, LlmRouterService } from '../../../services/domain/llm-router'
+import type { ChatGenerationTrace, TtsGenerationTrace } from '../../../services/domain/llm-tracing'
 import type { RequestLogService } from '../../../services/domain/request-log'
 import type { HonoEnv } from '../../../types/hono'
 
@@ -35,6 +36,11 @@ import {
 } from '../../../utils/observability'
 
 const tracer = trace.getTracer('v1-completions')
+
+interface LlmTracingDeps {
+  startChatGeneration: (input: Parameters<typeof startChatGeneration>[0]) => ChatGenerationTrace
+  startTtsGeneration: (input: Parameters<typeof startTtsGeneration>[0]) => TtsGenerationTrace
+}
 
 const SAFE_RESPONSE_HEADERS = new Set([
   'content-type',
@@ -94,6 +100,7 @@ export function createV1Routes(
   revenue?: RevenueMetrics | null,
   rateLimitMetrics?: RateLimitMetrics | null,
   posthog?: PostHog | null,
+  llmTracing: LlmTracingDeps = { startChatGeneration, startTtsGeneration },
 ) {
   const logger = useLogger('v1-completions').useGlobalConfig()
   // TODO: Extract this compat route into smaller facades/modules.
@@ -178,20 +185,6 @@ export function createV1Routes(
       },
     })
 
-    // Langfuse LLM-native generation: per-request prompt/completion record
-    // (input/output/model/usage) powering prompt trace, eval, and per-user/
-    // session cost. The llm-tracing module hides the enable gate, SDK shape, SSE
-    // assembly, and lifecycle — this is a no-op handle when tracing is off, and
-    // succeed/fail are idempotent, so every exit branch below can close it.
-    const generationTrace = startChatGeneration({
-      input: body.messages,
-      model: requestModel,
-      requestId,
-      stream,
-      userId: user.id,
-      sessionId: c.req.header('x-airi-session-id'),
-    })
-
     const startedAt = Date.now()
 
     // Router throws ApiError (502/503/504/400) on full exhaustion or unknown
@@ -213,13 +206,35 @@ export function createV1Routes(
     catch (err) {
       span.setStatus({ code: SpanStatusCode.ERROR, message: 'Router exhausted or unknown model' })
       span.end()
-      generationTrace.fail('Router exhausted or unknown model')
+      llmTracing.startChatGeneration({
+        input: body.messages,
+        model: routeCtx.upstreamModel ?? requestModel,
+        requestId,
+        stream,
+        userId: user.id,
+        sessionId: c.req.header('x-airi-session-id'),
+      }).fail('Router exhausted or unknown model')
       recordMetrics({ model: requestModel, status: 502, type: 'chat', provider: routeCtx.provider, durationMs: Date.now() - startedAt, fluxConsumed: 0 })
       throw err
     }
 
     const durationMs = Date.now() - startedAt
     span.setAttribute('http.response.status_code', response.status)
+    const langfuseModel = routeCtx.upstreamModel ?? requestModel
+
+    // Langfuse LLM-native generation: per-request prompt/completion record
+    // (input/output/model/usage) powering prompt trace, eval, and per-user/
+    // session cost. Use the router-resolved upstream model, not the client
+    // alias (`auto` / `chat-auto`), so Langfuse model-cost grouping matches the
+    // provider model that actually generated the tokens.
+    const generationTrace = llmTracing.startChatGeneration({
+      input: body.messages,
+      model: langfuseModel,
+      requestId,
+      stream,
+      userId: user.id,
+      sessionId: c.req.header('x-airi-session-id'),
+    })
 
     if (!response.ok) {
       span.setStatus({ code: SpanStatusCode.ERROR, message: `Gateway ${response.status}` })
@@ -590,7 +605,7 @@ export function createV1Routes(
       speed: typeof body.speed === 'number' ? body.speed : undefined,
       responseFormat: typeof body.response_format === 'string' ? body.response_format : undefined,
     }
-    const generationTrace = startTtsGeneration({
+    const generationTrace = llmTracing.startTtsGeneration({
       input: ttsInput,
       model: requestModel,
       requestId,

@@ -5,7 +5,7 @@ import type Redis from 'ioredis'
 
 import type { GatewayMetrics } from '../../../../otel'
 import type { ConfigKVService } from '../../../adapters/config-kv'
-import type { RouterConfig } from '../types'
+import type { LlmRouteContext, RouterConfig } from '../types'
 
 import { randomBytes } from 'node:crypto'
 
@@ -174,7 +174,7 @@ describe('createLlmRouterService', () => {
       redis: makeRedisStub(),
     })
 
-    const ctx = { provider: 'unknown', triedUpstreams: 0, triedKeys: 0, lastStatus: null }
+    const ctx: LlmRouteContext = { provider: 'unknown', triedUpstreams: 0, triedKeys: 0, lastStatus: null }
     const res = await router.route({ modelName: 'openai/gpt-5-mini', body: { messages: [] } }, ctx)
     expect(res.status).toBe(200)
     // deriveProviderTag = URL hostname.
@@ -205,7 +205,7 @@ describe('createLlmRouterService', () => {
       redis: makeRedisStub(),
     })
 
-    const ctx = { provider: 'unknown', triedUpstreams: 0, triedKeys: 0, lastStatus: null }
+    const ctx: LlmRouteContext = { provider: 'unknown', triedUpstreams: 0, triedKeys: 0, lastStatus: null }
     const res = await router.route({ modelName: 'openai/gpt-5-mini', body: {} }, ctx)
     expect(res.status).toBe(200)
     expect(ctx.provider).toBe('up-b.example')
@@ -248,10 +248,12 @@ describe('createLlmRouterService', () => {
       redis: makeRedisStub(),
     })
 
-    await router.route({ modelName: 'openai/gpt-5-mini', body: { messages: [] } })
+    const ctx: LlmRouteContext = { provider: 'unknown', triedUpstreams: 0, triedKeys: 0, lastStatus: null }
+    await router.route({ modelName: 'openai/gpt-5-mini', body: { messages: [] } }, ctx)
     const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls
     const init = calls[0][1] as { body: string }
     expect((JSON.parse(init.body) as { model: string }).model).toBe('real/upstream-id')
+    expect(ctx.upstreamModel).toBe('real/upstream-id')
   })
 
   it('multi-key fallback: k1=401 then k2=200 → returns 200 and records fallbackCount once', async () => {
