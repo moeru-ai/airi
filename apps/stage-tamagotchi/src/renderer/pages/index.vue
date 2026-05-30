@@ -26,8 +26,8 @@ import {
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useAudioRecorder } from '@proj-airi/stage-ui/composables/audio/audio-recorder'
 import { useCanvasPixelIsTransparentAtPoint } from '@proj-airi/stage-ui/composables/canvas-alpha'
-import { useCharacterStore } from '@proj-airi/stage-ui/stores/character'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
+import { useCharacterStore } from '@proj-airi/stage-ui/stores/character'
 import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
@@ -47,6 +47,7 @@ import {
   electronShortcutUnregister,
 } from '../../shared/eventa'
 import { modelSettingsRuntimeSnapshotChannelName } from '../../shared/model-settings-runtime'
+import { useVoiceInputDraft } from '../composables/voice-draft'
 import { useChatSyncStore } from '../stores/chat-sync'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
@@ -65,6 +66,7 @@ const shouldFadeOnCursorWithin = ref(false)
 
 const onboardingStore = useOnboardingStore()
 const openOnboarding = useElectronEventaInvoke(electronOpenOnboarding)
+const openChat = useElectronEventaInvoke(electronOpenChat)
 
 const { isOutside: isOutsideWindow } = useElectronMouseInWindow()
 const { isOutside } = useElectronMouseInElement(controlsIslandRef)
@@ -249,9 +251,12 @@ const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const hearingPipeline = useHearingSpeechInputPipeline()
 const { transcribeForRecording, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
-const { vadSpeechThreshold, listeningMode } = storeToRefs(useHearingStore())
+const { vadSpeechThreshold, listeningMode, autoSendEnabled } = storeToRefs(useHearingStore())
 const chatSyncStore = useChatSyncStore()
 const characterStore = useCharacterStore()
+// Shared, cross-window voice-input draft. When VAD capture has auto-send OFF, transcriptions are
+// staged here for the chat window to consume instead of being sent immediately.
+const voiceInputDraft = useVoiceInputDraft()
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
 
 // Spoken feedback when STT yields nothing (empty/non-Chinese/hallucination filtered server-side).
@@ -411,14 +416,25 @@ async function startAudioInteraction() {
         // Update caption overlay speaker text via BroadcastChannel
         postCaption({ type: 'caption-speaker', text })
 
-        // Any recorded clip is sent: in PTT mode the key release is the explicit send intent;
-        // VAD mode is opt-in and equally treated as an intentional utterance. The auto-send UI
-        // toggle has been removed in favor of this simpler "captured = sent" contract.
-        try {
-          await chatSyncStore.requestIngest({ text })
+        // PTT release is an explicit send intent, so a push-to-talk clip is always sent. In VAD
+        // (continuous-listening) mode we honor the auto-send toggle: when it is off, stage the
+        // transcription as a chat-input draft for manual review instead of sending it. The
+        // recording's origin is unambiguous from listeningMode — PTT only records in 'ptt' mode and
+        // VAD only runs in 'vad' mode — so no separate origin flag is needed.
+        const shouldSend = listeningMode.value === 'ptt' || autoSendEnabled.value
+        if (shouldSend) {
+          try {
+            await chatSyncStore.requestIngest({ text })
+          }
+          catch (err) {
+            console.error('Failed to send chat from voice:', err)
+          }
         }
-        catch (err) {
-          console.error('Failed to send chat from voice:', err)
+        else {
+          // VAD + auto-send off: append to the cross-window draft and surface the chat window so
+          // the user can review and send manually.
+          voiceInputDraft.value = voiceInputDraft.value ? `${voiceInputDraft.value} ${text}` : text
+          void openChat()
         }
       })
     }
@@ -456,7 +472,6 @@ watch(enabled, async (val) => {
 // These go through the app's global-shortcut service. `receiveKeyUps: true` routes push-to-talk
 // through the uiohook driver so we get both key-down and key-up (true hold-to-talk), and it works
 // even while another app (e.g. Minecraft) is focused.
-const openChat = useElectronEventaInvoke(electronOpenChat)
 const registerShortcut = useElectronEventaInvoke(electronShortcutRegister)
 const unregisterShortcut = useElectronEventaInvoke(electronShortcutUnregister)
 const shortcutContext = useElectronEventaContext()

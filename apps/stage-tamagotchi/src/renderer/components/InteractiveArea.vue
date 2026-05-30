@@ -22,6 +22,7 @@ import { useRouter } from 'vue-router'
 
 import JournalToolCallBlock from './chat-tool-renderers/journal-tool-call-block.vue'
 
+import { useVoiceInputDraft } from '../composables/voice-draft'
 import { useChatSyncStore } from '../stores/chat-sync'
 
 const router = useRouter()
@@ -44,6 +45,22 @@ const { activeCardId } = storeToRefs(airiCardStore)
 const { t } = useI18n()
 const { openImagePreview } = journalPreviewStore
 const isComposing = ref(false)
+
+// Voice-input draft hand-off: when the desktop stage captures speech in VAD mode with auto-send
+// off, it stages the transcription in a cross-window draft. Pull it into the input for manual
+// review/send — on mount (chat opened fresh with a pending draft) and live (chat already open when
+// a new draft arrives). Consuming clears the draft so it is not re-applied.
+const voiceInputDraft = useVoiceInputDraft()
+function pullVoiceInputDraft() {
+  const draft = voiceInputDraft.value
+  if (!draft || !draft.trim())
+    return
+  messageInput.value = messageInput.value ? `${messageInput.value} ${draft}` : draft
+  voiceInputDraft.value = ''
+}
+onMounted(pullVoiceInputDraft)
+watch(voiceInputDraft, pullVoiceInputDraft)
+
 const DOUBLE_ENTER_INTERVAL_MS = 300
 const TRAILING_NEWLINES_REGEX = /[\r\n]+$/
 const SEND_MODES = ['enter', 'ctrl-enter', 'double-enter'] as const
