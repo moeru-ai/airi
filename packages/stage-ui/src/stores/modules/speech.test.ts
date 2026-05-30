@@ -32,6 +32,99 @@ describe('speech store helpers', () => {
 
   /**
    * @example
+   * speechStore.resolveVoicePackSpeechInput({ text, voice, params: { rate: '+20%' } })
+   */
+  it('maps Voice Pack rate params to provider speed', () => {
+    const speechStore = useSpeechStore()
+    const voice = {
+      id: 'voice-1',
+      name: 'Voice 1',
+      provider: OFFICIAL_SPEECH_PROVIDER_ID,
+      languages: [{ code: 'en-US', title: 'English' }],
+    }
+
+    const request = speechStore.resolveVoicePackSpeechInput({
+      text: 'hello',
+      voice,
+      params: { rate: '+20%' },
+    })
+
+    expect(request.input).toBe('hello')
+    expect(request.providerConfig.speed).toBe(1.2)
+  })
+
+  /**
+   * @example
+   * speechStore.resolveVoicePackSpeechInput({ text, voice, params: { pitch: '+20%' }, supportsSSML: true })
+   */
+  it('applies Voice Pack prosody params through SSML when supported', () => {
+    const speechStore = useSpeechStore()
+    const voice = {
+      id: 'voice-1',
+      name: 'Voice 1',
+      provider: OFFICIAL_SPEECH_PROVIDER_ID,
+      languages: [{ code: 'en-US', title: 'English' }],
+      gender: 'neutral',
+    }
+
+    const request = speechStore.resolveVoicePackSpeechInput({
+      text: 'hello',
+      voice,
+      params: {
+        pitch: '+20%',
+        volume: '-5%',
+      },
+      supportsSSML: true,
+    })
+
+    expect(request.input).toContain('<prosody')
+    expect(request.input).toContain('pitch="+20%"')
+    expect(request.input).toContain('volume="-5%"')
+  })
+
+  /**
+   * @example
+   * speechStore.resolveVoicePackSpeechInput({ text, voice, params: { pitch: '+20%' }, supportsSSML: false })
+   */
+  it('fails fast when Voice Pack prosody params cannot be applied', () => {
+    const speechStore = useSpeechStore()
+    const voice = {
+      id: 'voice-1',
+      name: 'Voice 1',
+      provider: OFFICIAL_SPEECH_PROVIDER_ID,
+      languages: [{ code: 'en-US', title: 'English' }],
+    }
+
+    expect(() => speechStore.resolveVoicePackSpeechInput({
+      text: 'hello',
+      voice,
+      params: { pitch: '+20%' },
+      supportsSSML: false,
+    })).toThrow('SSML-capable speech provider')
+  })
+
+  /**
+   * @example
+   * speechStore.resolveVoicePackSpeechInput({ text, voice, params: { emotion: 'happy' } })
+   */
+  it('fails fast on unsupported Voice Pack params', () => {
+    const speechStore = useSpeechStore()
+    const voice = {
+      id: 'voice-1',
+      name: 'Voice 1',
+      provider: OFFICIAL_SPEECH_PROVIDER_ID,
+      languages: [{ code: 'en-US', title: 'English' }],
+    }
+
+    expect(() => speechStore.resolveVoicePackSpeechInput({
+      text: 'hello',
+      voice,
+      params: { emotion: 'happy' },
+    })).toThrow('Unsupported Voice Pack parameter "emotion"')
+  })
+
+  /**
+   * @example
    * await speechStore.loadVoicesForProvider(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, 'volcengine/seed-tts-2.0')
    */
   it('does not load streaming voices before server availability is confirmed', async () => {

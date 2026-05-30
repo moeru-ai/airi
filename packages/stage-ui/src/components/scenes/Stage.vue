@@ -6,6 +6,8 @@ import type { UnElevenLabsOptions } from 'unspeech'
 
 import type { EmotionPayload } from '../../constants/emotions'
 import type { SpeechTransport, StageTtsSession, StreamingSessionSnapshot } from '../../libs/speech/tts-session'
+import type { VoicePackSnapshot } from '../../stores/modules/airi-card'
+import type { VoiceInfo } from '../../stores/providers'
 
 import { sleep } from '@moeru/std'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
@@ -306,6 +308,18 @@ const playbackManager = createPlaybackManager<AudioBuffer>({
   ownerOverflowPolicy: 'steal-oldest',
 })
 
+function createVoicePackVoice(voicePack: VoicePackSnapshot): VoiceInfo {
+  return {
+    id: voicePack.voiceId,
+    name: voicePack.name,
+    description: voicePack.name,
+    previewURL: '',
+    languages: [{ code: 'en', title: 'English' }],
+    provider: activeSpeechProvider.value,
+    gender: 'neutral',
+  }
+}
+
 const speechPipeline = createSpeechPipeline<AudioBuffer>({
   tts: async (request, signal) => {
     if (signal.aborted)
@@ -387,20 +401,35 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
       }
     }
 
+    const voicePack = activeCard.value?.extensions.airi.modules.speech.voicePack
+    if (voicePack) {
+      model = voicePack.ttsModelId
+      if (!voice || voice.id !== voicePack.voiceId)
+        voice = createVoicePackVoice(voicePack)
+    }
+
     if (!model || !voice)
       return null
 
-    const input = ssmlEnabled.value
-      ? speechStore.generateSSML(request.text, voice, { ...providerConfig, pitch: pitch.value })
-      : request.text
-
     try {
+      const speechRequest = speechStore.resolveVoicePackSpeechInput({
+        text: request.text,
+        voice,
+        providerConfig: {
+          ...providerConfig,
+          pitch: ssmlEnabled.value ? pitch.value : undefined,
+        },
+        params: voicePack?.params,
+        forceSSML: ssmlEnabled.value,
+        supportsSSML: speechStore.supportsSSML,
+      })
+
       // Non-streaming providers only: synth via REST. Streaming provider
       // was already early-returned above; it owns its own ws path opened
       // in `onBeforeMessageComposed`.
       const res = await generateSpeech({
-        ...provider.speech(model, providerConfig),
-        input,
+        ...provider.speech(model, speechRequest.providerConfig),
+        input: speechRequest.input,
         voice: voice.id,
       })
 

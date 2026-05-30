@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { VoicePackSnapshot } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import type { VoiceInfo } from '@proj-airi/stage-ui/stores/providers'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import { errorMessageFrom } from '@moeru/std'
@@ -33,6 +35,7 @@ const speechStore = useSpeechStore()
 const airiCardStore = useAiriCardStore()
 const voicePacksStore = useVoicePacksStore()
 const { configuredSpeechProvidersMetadata } = storeToRefs(providersStore)
+const { activeCard } = storeToRefs(airiCardStore)
 const { packs: voicePacks, loading: isLoadingVoicePacks, error: voicePacksError } = storeToRefs(voicePacksStore)
 const {
   activeSpeechProvider,
@@ -61,6 +64,18 @@ const isGenerating = ref(false)
 const audioUrl = ref('')
 const audioPlayer = ref<HTMLAudioElement | null>(null)
 const errorMessage = ref('')
+
+function createVoicePackVoice(voicePack: VoicePackSnapshot): VoiceInfo {
+  return {
+    id: voicePack.voiceId,
+    name: voicePack.name,
+    description: voicePack.name,
+    previewURL: '',
+    languages: [{ code: 'en', title: 'English' }],
+    provider: activeSpeechProvider.value,
+    gender: 'neutral',
+  }
+}
 
 // Sync OpenAI Compatible model and voice from provider config
 function syncOpenAICompatibleSettings() {
@@ -166,6 +181,13 @@ async function generateTestSpeech() {
     }
   }
 
+  const voicePack = activeCard.value?.extensions.airi.modules.speech.voicePack
+  if (voicePack) {
+    model = voicePack.ttsModelId
+    if (!voice || voice.id !== voicePack.voiceId)
+      voice = createVoicePackVoice(voicePack)
+  }
+
   if (!model) {
     console.error('No model selected')
     return
@@ -185,15 +207,26 @@ async function generateTestSpeech() {
       stopTestAudio()
     }
 
-    const input = useSSML.value
-      ? ssmlText.value
-      : ssmlEnabled.value && speechStore.supportsSSML
-        ? speechStore.generateSSML(testText.value, voice, { ...providerConfig, pitch: pitch.value })
-        : testText.value
+    const speechRequest = useSSML.value
+      ? {
+          input: ssmlText.value,
+          providerConfig,
+        }
+      : speechStore.resolveVoicePackSpeechInput({
+          text: testText.value,
+          voice,
+          providerConfig: {
+            ...providerConfig,
+            pitch: ssmlEnabled.value ? pitch.value : undefined,
+          },
+          params: voicePack?.params,
+          forceSSML: ssmlEnabled.value,
+          supportsSSML: speechStore.supportsSSML,
+        })
 
     const response = await generateSpeech({
-      ...provider.speech(model, providerConfig),
-      input,
+      ...provider.speech(model, speechRequest.providerConfig),
+      input: speechRequest.input,
       voice: voice.id,
     })
 
