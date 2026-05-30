@@ -47,12 +47,19 @@ export const METRIC_AUTH_ATTEMPTS = 'auth.attempts'
 export const METRIC_AUTH_FAILURES = 'auth.failures'
 export const METRIC_USER_REGISTERED = 'user.registered'
 export const METRIC_USER_LOGIN = 'user.login'
+export const METRIC_USER_TOTAL = 'user.total'
 export const METRIC_USER_ACTIVE_SESSIONS = 'user.active_sessions'
 // Distinct users with at least one non-expired session row. Pair with
 // USER_ACTIVE_SESSIONS to detect "session row inflation" (Better Auth
 // creates a new row per sign-in / per OIDC token refresh and never GCs)
 // vs real user growth.
 export const METRIC_USER_DISTINCT_ACTIVE = 'user.distinct_active'
+// Rolling-window distinct active users (DAU / WAU / MAU), sourced from
+// `user.last_seen_at` (touched on sign-in and every OIDC token refresh).
+// Single gauge, observed once per window with a `window="24h"|"7d"|"30d"`
+// attribute. Unlike USER_DISTINCT_ACTIVE (live-session count) this measures
+// activity over a trailing time window, not "currently signed in".
+export const METRIC_USER_ACTIVE_ROLLING = 'user.active_rolling'
 
 // Engagement (AIRI custom)
 export const METRIC_CHAT_MESSAGES = 'chat.messages'

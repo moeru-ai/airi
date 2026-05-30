@@ -11,7 +11,7 @@
 | **System / API observability** | Grafana Cloud + Prometheus + OTel | 系统健康、延迟、错误率、SRE on-call 告警 |
 | **Product analytics** | PostHog Cloud | 用户行为、漏斗、retention、cohort、A/B、feature adoption |
 | **Financial truth source** | Postgres (`flux_transaction` / Stripe webhook 持久化) | 收入与扣费 ledger，任何展示都视作近似 |
-| **LLM-native observability**（预留） | Langfuse / Helicone（未接入） | token cost、prompt eval、provider trace — 后续按需引入 |
+| **LLM-native observability** | Langfuse Cloud（已接入：chat completion + TTS speech） | 逐条 prompt/completion trace、TTS text trace、token/字符用量、按 user/session 成本归因、eval。真实 staging HTTP E2E 与 model 定价匹配待做 |
 
 **业界没有权威的判定 framework**（参见下方"参考来源"），这份文档落实成项目内的可执行规则。
 
@@ -47,7 +47,8 @@
 | HTTP / WS / DB / Stripe webhook **计数** | **Grafana**（OTel counter） | 系统事件，PostHog 看不到 |
 | 用户去重 DAU / WAU / retention | **PostHog** | 需要 distinctId 去重，session table 计数不准 |
 | 收入展示（MRR / ARR / churn revenue） | **Postgres → 两边展示** | 真相在 Postgres，Grafana 取系统侧切片（panel-30），PostHog 取用户维度切片 |
-| LLM token / cost | **Grafana**（短期） | 后续若引入 Langfuse 则迁过去 |
+| LLM token / cost（聚合速率、按模型） | **Grafana**（OTel counter） | 系统侧聚合，SRE 视角 |
+| LLM 逐条 prompt / completion / TTS text / eval / 按 user-session 成本 | **Langfuse** | 已接入 chat completion + TTS speech，正文级 trace + eval |
 | 用户行为漏斗各步骤 | **PostHog**（必须） | 第一步通常是前端事件，Grafana 拿不到 |
 
 ### Better Auth session table 与活跃用户

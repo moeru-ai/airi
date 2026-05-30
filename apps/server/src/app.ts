@@ -48,6 +48,8 @@ import { sessionMiddleware } from './middlewares/auth'
 import { emitOtelLog, initOtel } from './otel'
 import { registerActiveSessionsGauge } from './otel/gauges/active-sessions'
 import { registerDistinctActiveUsersGauge } from './otel/gauges/distinct-active-users'
+import { registerRollingActiveUsersGauge } from './otel/gauges/rolling-active-users'
+import { registerTotalUsersGauge } from './otel/gauges/total-users'
 import { createAdminRouterConfigRoutes } from './routes/admin/config/router'
 import { createAdminFluxGrantsRoutes } from './routes/admin/flux-grants'
 import { createAdminUsersRoutes } from './routes/admin/users'
@@ -692,8 +694,9 @@ export async function createApp() {
     posthog,
   })
   // Register the cluster-wide ObservableGauges for sessions / users. Each
-  // replica polls the same DB (cached 10s, in-flight coalesced); dashboards
-  // aggregate with avg(), not sum(). See observability-conventions.md.
+  // replica polls the same DB (cached inside each gauge, in-flight coalesced);
+  // dashboards aggregate with avg()/max(), not sum(). See
+  // observability-conventions.md.
   //
   // Both gauges share the same `session` table: `user.active_sessions` is
   // `COUNT(*)` (row inflation prone), `user.distinct_active` is
@@ -701,8 +704,10 @@ export async function createApp() {
   // surfaces session-row leakage from missing GC + per-OIDC-token row
   // creation.
   if (resolved.otel) {
+    registerTotalUsersGauge(resolved.otel.auth.totalUsers, resolved.db, resolved.otel.observability.metricReadErrors)
     registerActiveSessionsGauge(resolved.otel.auth.activeSessions, resolved.db, resolved.otel.observability.metricReadErrors)
     registerDistinctActiveUsersGauge(resolved.otel.auth.distinctActiveUsers, resolved.db, resolved.otel.observability.metricReadErrors)
+    registerRollingActiveUsersGauge(resolved.otel.auth.rollingActiveUsers, resolved.db, resolved.otel.observability.metricReadErrors)
   }
 
   const { app, injectWebSocket } = await buildApp({

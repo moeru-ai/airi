@@ -75,6 +75,12 @@ catalogs:
     '@intlify/core':
       specifier: ^11.3.2
       version: 11.3.2
+    '@langfuse/otel':
+      specifier: ^5.4.0
+      version: 5.4.0
+    '@langfuse/tracing':
+      specifier: ^5.4.0
+      version: 5.4.0
     '@modelcontextprotocol/sdk':
       specifier: ^1.29.0
       version: 1.29.0
@@ -474,7 +480,7 @@ importers:
         version: 66.6.8
       '@vitest/browser-playwright':
         specifier: catalog:vitest
-        version: 4.1.4(bufferutil@4.1.0)(playwright@1.59.1)(utf-8-validate@5.0.10)(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.4)
+        version: 4.1.4(bufferutil@4.1.0)(playwright@1.60.0)(utf-8-validate@5.0.10)(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.4)
       '@vitest/coverage-v8':
         specifier: catalog:vitest
         version: 4.1.4(@vitest/browser@4.1.4)(vitest@4.1.4)
@@ -500,8 +506,8 @@ importers:
         specifier: ^1.60.0
         version: 1.60.0
       playwright:
-        specifier: ^1.59.1
-        version: 1.59.1
+        specifier: ^1.60.0
+        version: 1.60.0
       posthog-js:
         specifier: 'catalog:'
         version: 1.306.1
@@ -650,6 +656,12 @@ importers:
       '@hono/otel':
         specifier: ^1.1.2
         version: 1.1.2(hono@4.11.3)
+      '@langfuse/otel':
+        specifier: 'catalog:'
+        version: 5.4.0(@opentelemetry/api@1.9.1)(@opentelemetry/core@2.7.0(@opentelemetry/api@1.9.1))(@opentelemetry/exporter-trace-otlp-http@0.215.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.7.0(@opentelemetry/api@1.9.1))
+      '@langfuse/tracing':
+        specifier: 'catalog:'
+        version: 5.4.0(@opentelemetry/api@1.9.1)
       '@moeru/eventa':
         specifier: 'catalog:'
         version: 1.0.0-beta.5(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
@@ -3954,8 +3966,8 @@ importers:
         specifier: 'catalog:'
         version: 14.1.0
       playwright:
-        specifier: ^1.59.1
-        version: 1.59.1
+        specifier: ^1.60.0
+        version: 1.60.0
 
   packages/vishot-runner-electron:
     devDependencies:
@@ -3969,8 +3981,8 @@ importers:
         specifier: 'catalog:'
         version: 14.1.0
       playwright:
-        specifier: ^1.59.1
-        version: 1.59.1
+        specifier: ^1.60.0
+        version: 1.60.0
 
   packages/vishot-runtime:
     dependencies:
@@ -4534,8 +4546,8 @@ importers:
         specifier: 2.0.1-rc.20
         version: 2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15))
       playwright:
-        specifier: ^1.59.1
-        version: 1.59.1
+        specifier: ^1.60.0
+        version: 1.60.0
       zod:
         specifier: ^4.3.6
         version: 4.3.6
@@ -6909,6 +6921,26 @@ packages:
 
   '@kwsites/promise-deferred@1.1.1':
     resolution: {integrity: sha512-GaHYm+c0O9MjZRu0ongGBRbinu8gVAMd2UZjji6jVmqKtZluZnptXGWhz1E8j8D2HJ3f/yMxKAUC0b+57wncIw==}
+
+  '@langfuse/core@5.4.0':
+    resolution: {integrity: sha512-E9gggJOpIZONUiN9V+FNC8Lz8GNb4RQj2HArtdJDtQ6MVEXqLERwTMO+DUx9+9Hf8nX7CaVTa7KIdmgYwMk7Ew==}
+    peerDependencies:
+      '@opentelemetry/api': ^1.9.0
+
+  '@langfuse/otel@5.4.0':
+    resolution: {integrity: sha512-oC6YDspXdUTznNEmzNcy+rD5/Z3Zgt2VGCX2bpaEpACzQNyhq/0eF2BZ/5zvOevCG9RwbZiA2K025kS2ef+Dag==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      '@opentelemetry/api': ^1.9.0
+      '@opentelemetry/core': ^2.0.1
+      '@opentelemetry/exporter-trace-otlp-http': '>=0.202.0 <1.0.0'
+      '@opentelemetry/sdk-trace-base': ^2.0.1
+
+  '@langfuse/tracing@5.4.0':
+    resolution: {integrity: sha512-dUptGzKk2HxE+p7761VdSVK3rtyXRAIUuKamYGzFSEJGxmBe3gzz/injyKKMldH561RVnIADmIbwmPMrTU1DBg==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      '@opentelemetry/api': ^1.9.0
 
   '@laplace.live/event-bridge-sdk@1.0.22':
     resolution: {integrity: sha512-15A668PA1vWyS8coj5lI/IA9zqDKPGJO2v+J2YROBpOWuDXFhLCaMS0mNd3IYGT8NkmgU3l9GXg2y333r8VY2g==}
@@ -15671,13 +15703,13 @@ packages:
   platform@1.3.6:
     resolution: {integrity: sha512-fnWVljUchTro6RiCFvCXBbNhJc2NijN7oIQxbwsyL0buWJPG85v81ehlHI9fXrJsMNgTofEoWIQeClKpgxFLrg==}
 
-  playwright-core@1.59.1:
-    resolution: {integrity: sha512-HBV/RJg81z5BiiZ9yPzIiClYV/QMsDCKUyogwH9p3MCP6IYjUFu/MActgYAvK0oWyV9NlwM3GLBjADyWgydVyg==}
+  playwright-core@1.60.0:
+    resolution: {integrity: sha512-9bW6zvX/m0lEbgTKJ6YppOKx8H3VOPBMOCFh2irXFOT4BbHgrx5hPjwJYLT40Lu+4qtD36qKc/Hn56StUW57IA==}
     engines: {node: '>=18'}
     hasBin: true
 
-  playwright@1.59.1:
-    resolution: {integrity: sha512-C8oWjPR3F81yljW9o5OxcWzfh6avkVwDD2VYdwIGqTkl+OGFISgypqzfu7dOe4QNLL2aqcWBmI3PMtLIK233lw==}
+  playwright@1.60.0:
+    resolution: {integrity: sha512-hheHdokM8cdqCb0lcE3s+zT4t4W+vvjpGxsZlDnikarzx8tSzMebh3UiFtgqwFwnTnjYQcsyMF8ei2mCO/tpeA==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -21134,6 +21166,23 @@ snapshots:
 
   '@kwsites/promise-deferred@1.1.1': {}
 
+  '@langfuse/core@5.4.0(@opentelemetry/api@1.9.1)':
+    dependencies:
+      '@opentelemetry/api': 1.9.1
+
+  '@langfuse/otel@5.4.0(@opentelemetry/api@1.9.1)(@opentelemetry/core@2.7.0(@opentelemetry/api@1.9.1))(@opentelemetry/exporter-trace-otlp-http@0.215.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.7.0(@opentelemetry/api@1.9.1))':
+    dependencies:
+      '@langfuse/core': 5.4.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/api': 1.9.1
+      '@opentelemetry/core': 2.7.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/exporter-trace-otlp-http': 0.215.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/sdk-trace-base': 2.7.0(@opentelemetry/api@1.9.1)
+
+  '@langfuse/tracing@5.4.0(@opentelemetry/api@1.9.1)':
+    dependencies:
+      '@langfuse/core': 5.4.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/api': 1.9.1
+
   '@laplace.live/event-bridge-sdk@1.0.22(typescript@5.9.3)':
     dependencies:
       '@laplace.live/event-types': 2.0.14(typescript@5.9.3)
@@ -24493,11 +24542,11 @@ snapshots:
       vite: 8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
       vue: 3.5.32(typescript@5.9.3)
 
-  '@vitest/browser-playwright@4.1.4(bufferutil@4.1.0)(playwright@1.59.1)(utf-8-validate@5.0.10)(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.4)':
+  '@vitest/browser-playwright@4.1.4(bufferutil@4.1.0)(playwright@1.60.0)(utf-8-validate@5.0.10)(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.4)':
     dependencies:
       '@vitest/browser': 4.1.4(bufferutil@4.1.0)(utf-8-validate@5.0.10)(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.4)
       '@vitest/mocker': 4.1.4(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
-      playwright: 1.59.1
+      playwright: 1.60.0
       tinyrainbow: 3.1.0
       vitest: 4.1.4(@opentelemetry/api@1.9.1)(@types/node@24.12.2)(@vitest/browser-playwright@4.1.4)(@vitest/coverage-v8@4.1.4)(jsdom@29.1.1(@noble/hashes@2.0.1)(canvas@3.2.3))(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
     transitivePeerDependencies:
@@ -24506,11 +24555,11 @@ snapshots:
       - utf-8-validate
       - vite
 
-  '@vitest/browser-playwright@4.1.4(bufferutil@4.1.0)(playwright@1.59.1)(utf-8-validate@5.0.10)(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.4)':
+  '@vitest/browser-playwright@4.1.4(bufferutil@4.1.0)(playwright@1.60.0)(utf-8-validate@5.0.10)(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.4)':
     dependencies:
       '@vitest/browser': 4.1.4(bufferutil@4.1.0)(utf-8-validate@5.0.10)(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.4)
       '@vitest/mocker': 4.1.4(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
-      playwright: 1.59.1
+      playwright: 1.60.0
       tinyrainbow: 3.1.0
       vitest: 4.1.4(@opentelemetry/api@1.9.1)(@types/node@25.6.0)(@vitest/browser-playwright@4.1.4)(@vitest/coverage-v8@4.1.4)(jsdom@29.1.1(@noble/hashes@2.0.1)(canvas@3.2.3))(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
     transitivePeerDependencies:
@@ -30948,11 +30997,11 @@ snapshots:
 
   platform@1.3.6: {}
 
-  playwright-core@1.59.1: {}
+  playwright-core@1.60.0: {}
 
-  playwright@1.59.1:
+  playwright@1.60.0:
     dependencies:
-      playwright-core: 1.59.1
+      playwright-core: 1.60.0
     optionalDependencies:
       fsevents: 2.3.2
 
@@ -33826,7 +33875,7 @@ snapshots:
     optionalDependencies:
       '@opentelemetry/api': 1.9.1
       '@types/node': 24.12.2
-      '@vitest/browser-playwright': 4.1.4(bufferutil@4.1.0)(playwright@1.59.1)(utf-8-validate@5.0.10)(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.4)
+      '@vitest/browser-playwright': 4.1.4(bufferutil@4.1.0)(playwright@1.60.0)(utf-8-validate@5.0.10)(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.4)
       '@vitest/coverage-v8': 4.1.4(@vitest/browser@4.1.4)(vitest@4.1.4)
       jsdom: 29.1.1(@noble/hashes@2.0.1)(canvas@3.2.3)
     transitivePeerDependencies:
@@ -33857,7 +33906,7 @@ snapshots:
     optionalDependencies:
       '@opentelemetry/api': 1.9.1
       '@types/node': 25.6.0
-      '@vitest/browser-playwright': 4.1.4(bufferutil@4.1.0)(playwright@1.59.1)(utf-8-validate@5.0.10)(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.4)
+      '@vitest/browser-playwright': 4.1.4(bufferutil@4.1.0)(playwright@1.60.0)(utf-8-validate@5.0.10)(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.4)
       '@vitest/coverage-v8': 4.1.4(@vitest/browser@4.1.4)(vitest@4.1.4)
       jsdom: 29.1.1(@noble/hashes@2.0.1)(canvas@3.2.3)
     transitivePeerDependencies:

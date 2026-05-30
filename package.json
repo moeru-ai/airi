@@ -70,7 +70,7 @@
     "nano-staged": "catalog:",
     "oxc-minify": "catalog:",
     "oxlint": "^1.60.0",
-    "playwright": "^1.59.1",
+    "playwright": "^1.60.0",
     "posthog-js": "catalog:",
     "publint": "^0.3.18",
     "rollup": "^4.60.1",

@@ -65,6 +65,21 @@ export default defineConfig({
     'markdown/require-alt-text': 'off',
   },
 }, {
+  files: ['apps/server/**/*.ts'],
+  rules: {
+    'no-restricted-syntax': [
+      'error',
+      {
+        selector: 'CallExpression[callee.type=\'MemberExpression\'][callee.object.name=\'vi\'][callee.property.name=/^(mock|doMock)$/][arguments.0.type=\'Literal\'][arguments.0.value=/^(\\.|@proj-airi\\/|~)/]',
+        message: 'Do not mock internal project modules with vi.mock or vi.doMock. Inject the collaborator through the route, service, or factory boundary and pass a fake or spy in tests.',
+      },
+      {
+        selector: 'CallExpression[callee.type=\'MemberExpression\'][callee.object.name=\'vi\'][callee.property.name=\'hoisted\']',
+        message: 'Do not use vi.hoisted. If a test needs a collaborator spy, expose an explicit dependency injection point instead of hoisting module mocks.',
+      },
+    ],
+  },
+}, {
   ignores: [
     '**/*.md',
   ],
