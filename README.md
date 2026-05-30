@@ -14,9 +14,9 @@
 > [!TIP]
 > This fork's focus is turning the Project AIRI vision into **the ultimate dream of creating baremetal desktop agentic OS centered around your AI companion**.
 
-The original AIRI project provides a feature-rich foundation. This fork adopts a strict **KISS philosophy** to keep the codebase clean and cloud linter-friendly, with plans to transition to TDD. As a result, VRM, plugins, and certain non-core systems have been temporarily removed.
+The original AIRI project provides a feature-rich foundation. This fork adopts a strict **KISS philosophy** to keep the codebase clean and cloud linter-friendly, with plans to transition to TDD.
 
-While multi-platform compatibility is maintained, our primary optimization target is a lightweight Linux build. If you require VRM support or broader cross-platform stability, please refer to [`dasilva333/airi`](https://github.com/dasilva333/airi) or [`moeru-ai/airi`](https://github.com/moeru-ai/airi).
+While multi-platform compatibility is maintained, our primary optimization target is a lightweight Linux build. If you require broader cross-platform stability, please refer to [`dasilva333/airi`](https://github.com/dasilva333/airi) or [`moeru-ai/airi`](https://github.com/moeru-ai/airi).
 
 <sup>**Note:** We aim to render AIRI directly as a desktop wallpaper on supported Linux compositors. If you have experience implementing desktop wallpapers for Windows or macOS (e.g., via Wallpaper Engine), contributions or issues are highly welcome!</sup>
 
@@ -125,7 +125,7 @@ pnpm approve-builds # Select 'electron' and confirm
 
 ## 🤖 LLM API Providers
 
-### Supported providers: everything xsai supports
+### Supported providers: everything [xsai](https://github.com/vi70x3/xsai) supports
 
 ---
 
