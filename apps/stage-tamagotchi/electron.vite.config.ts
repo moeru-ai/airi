@@ -26,6 +26,7 @@ export default defineConfig({
         include: [
           // Native modules that have `__dirname` usages. Externalize to avoid bundling
           // them into ESM and causing issues in runtime.
+          'electron',
           'electron-click-drag-plugin',
           'uiohook-napi',
         ],
