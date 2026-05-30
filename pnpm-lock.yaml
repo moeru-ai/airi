@@ -142,7 +142,7 @@ catalogs:
       specifier: ^0.45.2
       version: 0.45.2
     electron:
-      specifier: ^41.2.1
+      specifier: ^42.3.0
       version: 41.2.1
     embla-carousel-vue:
       specifier: 9.0.0-rc02
@@ -169,7 +169,7 @@ catalogs:
       specifier: ^1.3.1
       version: 1.3.1
     jsdom:
-      specifier: ^29.0.2
+      specifier: ^29.1.1
       version: 29.1.1
     knip:
       specifier: ^6.4.1
@@ -210,6 +210,9 @@ catalogs:
     uiohook-napi:
       specifier: ^1.5.5
       version: 1.5.5
+    unocss:
+      specifier: ^66.6.8
+      version: 66.6.8
     unplugin-info:
       specifier: ^1.3.2
       version: 1.3.2
@@ -425,9 +428,6 @@ importers:
 
   apps/stage-tamagotchi:
     dependencies:
-      '@date-fns/utc':
-        specifier: ^2.1.1
-        version: 2.1.1
       '@fontsource-variable/comfortaa':
         specifier: ^5.2.8
         version: 5.2.8
@@ -656,9 +656,6 @@ importers:
       popmotion:
         specifier: ^11.0.5
         version: 11.0.5
-      posthog-js:
-        specifier: 'catalog:'
-        version: 1.306.1
       rehype-stringify:
         specifier: ^10.0.1
         version: 10.0.1
@@ -885,6 +882,9 @@ importers:
       h3:
         specifier: 2.0.1-rc.20
         version: 2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15))
+      jsdom:
+        specifier: 'catalog:'
+        version: 29.1.1(@noble/hashes@2.0.1)(canvas@3.2.3)
       less:
         specifier: ^4.6.4
         version: 4.6.4
@@ -897,6 +897,9 @@ importers:
       superjson:
         specifier: 'catalog:'
         version: 2.2.6
+      unocss:
+        specifier: 'catalog:'
+        version: 66.6.8(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
       unocss-preset-scrollbar:
         specifier: ^4.0.0
         version: 4.0.0(unocss@66.6.8(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)))
@@ -1297,15 +1300,9 @@ importers:
       '@xsai/stream-transcription':
         specifier: 'catalog:'
         version: 0.5.0-beta.2
-      animejs:
-        specifier: ^4.3.6
-        version: 4.3.6
       colorjs.io:
         specifier: ^0.6.1
         version: 0.6.1
-      dompurify:
-        specifier: ^3.4.0
-        version: 3.4.0
       localforage:
         specifier: ^1.10.0
         version: 1.10.0
@@ -1318,9 +1315,6 @@ importers:
       pinia:
         specifier: ^3.0.4
         version: 3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3))
-      posthog-js:
-        specifier: 'catalog:'
-        version: 1.306.1
       reka-ui:
         specifier: ^2.9.6
         version: 2.9.6(vue@3.5.32(typescript@5.9.3))
@@ -1427,9 +1421,6 @@ importers:
       animejs:
         specifier: ^4.3.6
         version: 4.3.6
-      d3:
-        specifier: 'catalog:'
-        version: 7.9.0
       dompurify:
         specifier: ^3.4.0
         version: 3.4.0
@@ -1442,9 +1433,6 @@ importers:
       pinia:
         specifier: ^3.0.4
         version: 3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3))
-      posthog-js:
-        specifier: 'catalog:'
-        version: 1.306.1
       reka-ui:
         specifier: ^2.9.6
         version: 2.9.6(vue@3.5.32(typescript@5.9.3))
@@ -1934,6 +1922,9 @@ importers:
       is-network-error:
         specifier: 'catalog:'
         version: 1.3.1
+      jsdom:
+        specifier: 'catalog:'
+        version: 29.1.1(@noble/hashes@2.0.1)(canvas@3.2.3)
       unocss:
         specifier: ^66.6.8
         version: 66.6.8(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(vite@6.4.2(@types/node@25.6.0)(jiti@2.6.1)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
@@ -2220,6 +2211,9 @@ importers:
       '@vitejs/plugin-vue':
         specifier: ^6.0.6
         version: 6.0.6(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vue@3.5.32(typescript@5.9.3))
+      unocss:
+        specifier: 'catalog:'
+        version: 66.6.8(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
       vite:
         specifier: 'catalog:'
         version: 8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)

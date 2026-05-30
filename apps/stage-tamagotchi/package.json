@@ -36,7 +36,6 @@
     "update-test:matrix": "bash scripts/update-test/run-matrix.sh"
   },
   "dependencies": {
-    "@date-fns/utc": "^2.1.1",
     "@fontsource-variable/comfortaa": "^5.2.8",
     "@fontsource-variable/dm-sans": "^5.2.8",
     "@fontsource-variable/jura": "^5.2.7",
@@ -113,7 +112,6 @@
     "onnxruntime-web": "^1.24.3",
     "pinia": "^3.0.4",
     "popmotion": "^11.0.5",
-    "posthog-js": "catalog:",
     "rehype-stringify": "^10.0.1",
     "reka-ui": "^2.9.6",
     "remark-parse": "^11.0.0",
@@ -191,10 +189,12 @@
     "electron-vite": "^5.0.0",
     "get-port-please": "catalog:",
     "h3": "2.0.1-rc.20",
+    "jsdom": "catalog:",
     "less": "^4.6.4",
     "mkcert": "catalog:",
     "std-env": "^4.1.0",
     "superjson": "catalog:",
+    "unocss": "catalog:",
     "unocss-preset-scrollbar": "^4.0.0",
     "unplugin-info": "^1.3.2",
     "unplugin-yaml": "^4.1.0",

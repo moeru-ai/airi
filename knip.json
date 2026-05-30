@@ -5,17 +5,56 @@
   ],
   "workspaces": {
     ".": {},
-    "packages/stage-ui": {
+    "apps/stage-tamagotchi": {
       "entry": [
-        "src/index.ts!",
-        "src/**/*.story.vue",
-        "stories/setup.ts"
+        "src/main/index.ts",
+        "src/preload/index.ts",
+        "src/renderer/main.ts",
+        "src/renderer/beat-sync.main.ts"
+      ],
+      "project": [
+        "src/**/*.ts",
+        "src/**/*.vue"
+      ]
+    },
+    "packages/stage-ui": {
+      "project": [
+        "src/**/*.ts",
+        "src/**/*.vue"
       ]
     },
     "packages/ui-transitions": {
-      "entry": [
-        "src/index.ts!",
-        "playground/src/main.ts"
+      "project": [
+        "src/**/*.ts",
+        "src/**/*.vue",
+        "playground/src/**/*.ts"
+      ]
+    },
+    "packages/stage-ui-three": {
+      "project": [
+        "src/**/*.ts",
+        "src/**/*.vue"
+      ]
+    },
+    "packages/plugin-sdk": {
+      "project": [
+        "src/**/*.ts"
+      ]
+    },
+    "packages/core-agent": {
+      "project": [
+        "src/**/*.ts"
+      ]
+    },
+    "packages/ccc": {
+      "project": [
+        "src/**/*.ts"
+      ]
+    },
+    "packages/stage-layouts": {
+      "project": [
+        "src/**/*.ts",
+        "src/**/*.vue"
       ]
     }
   }
