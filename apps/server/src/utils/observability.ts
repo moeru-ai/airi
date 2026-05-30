@@ -47,6 +47,7 @@ export const METRIC_AUTH_ATTEMPTS = 'auth.attempts'
 export const METRIC_AUTH_FAILURES = 'auth.failures'
 export const METRIC_USER_REGISTERED = 'user.registered'
 export const METRIC_USER_LOGIN = 'user.login'
+export const METRIC_USER_TOTAL = 'user.total'
 export const METRIC_USER_ACTIVE_SESSIONS = 'user.active_sessions'
 // Distinct users with at least one non-expired session row. Pair with
 // USER_ACTIVE_SESSIONS to detect "session row inflation" (Better Auth

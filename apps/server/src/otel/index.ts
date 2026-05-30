@@ -57,6 +57,7 @@ import {
   METRIC_USER_DISTINCT_ACTIVE,
   METRIC_USER_LOGIN,
   METRIC_USER_REGISTERED,
+  METRIC_USER_TOTAL,
   METRIC_WS_CONNECTIONS_ACTIVE,
   METRIC_WS_MESSAGES_RECEIVED,
   METRIC_WS_MESSAGES_SENT,
@@ -69,6 +70,19 @@ export interface AuthMetrics {
   failures: Counter
   userRegistered: Counter
   userLogin: Counter
+  /**
+   * Pull-based gauge for total registered users.
+   *
+   * Use when:
+   * - Reporting current account-base size. Pair with
+   *   {@link AuthMetrics.userRegistered} for signup deltas over a time window.
+   *
+   * Expects:
+   * - Backed by `SELECT COUNT(*) FROM "user"`. Same cluster-wide truth as the
+   *   other DB-backed gauges; dashboards MUST aggregate with `max()`/`avg()`,
+   *   not `sum()`.
+   */
+  totalUsers: ObservableGauge
   /**
    * Cluster-wide active session count, sourced from Postgres (Better Auth
    * `session` table where `expires_at > NOW()`).
@@ -334,6 +348,9 @@ export function initOtel(env: Env): OtelInstance | null {
     }),
     userLogin: meter.createCounter(METRIC_USER_LOGIN, {
       description: 'Number of user sign-ins',
+    }),
+    totalUsers: meter.createObservableGauge(METRIC_USER_TOTAL, {
+      description: 'Total registered users sourced from Postgres (cluster-wide; dashboard must use max(), not sum())',
     }),
     activeSessions: meter.createObservableGauge(METRIC_USER_ACTIVE_SESSIONS, {
       description: 'Active user sessions sourced from Postgres (cluster-wide; dashboard must use avg(), not sum())',
