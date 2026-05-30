@@ -53,6 +53,8 @@ catalog:
   '@iconify-json/ph': ^1.2.2
   '@iconify-json/tabler': ^1.2.33
   '@intlify/core': ^11.3.2
+  '@langfuse/otel': ^5.4.0
+  '@langfuse/tracing': ^5.4.0
   '@modelcontextprotocol/sdk': ^1.29.0
   '@moeru/eslint-config': 0.1.0-beta.15
   '@moeru/eventa': 1.0.0-beta.5

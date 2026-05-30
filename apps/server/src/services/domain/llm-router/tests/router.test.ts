@@ -156,6 +156,61 @@ describe('createLlmRouterService', () => {
     expect((metrics.keyExhaustedCount.add as ReturnType<typeof vi.fn>).mock.calls.length).toBe(0)
   })
 
+  it('reports the winning upstream via ctx.provider (happy path)', async () => {
+    // ROOT CAUSE:
+    //
+    // The success-path gen_ai metrics (operation count/duration/tokens) were
+    // labelled by model only, so a per-provider rollup in Grafana was
+    // impossible — the route layer never learned which upstream served the
+    // request. We thread an out-param `ctx` the router fills with the upstream
+    // it used so those metrics can carry a `provider` label.
+    const { config, crypto } = makeConfig({ upstreams: [{ baseURL: 'https://up.example/v1', keyIds: ['kA1'] }] })
+    const fetchImpl = vi.fn(async () => happyResponse({ ok: 1 }))
+    const router = createLlmRouterService({
+      configKV: makeConfigKV(config),
+      envelopeCrypto: crypto,
+      gatewayMetrics: null,
+      fetchImpl,
+      redis: makeRedisStub(),
+    })
+
+    const ctx = { provider: 'unknown', triedUpstreams: 0, triedKeys: 0, lastStatus: null }
+    const res = await router.route({ modelName: 'openai/gpt-5-mini', body: { messages: [] } }, ctx)
+    expect(res.status).toBe(200)
+    // deriveProviderTag = URL hostname.
+    expect(ctx.provider).toBe('up.example')
+  })
+
+  it('ctx.provider reflects the upstream that actually succeeded after fallback', async () => {
+    // ROOT CAUSE:
+    //
+    // With a fallback chain the winning provider is whichever upstream finally
+    // returned 200, not the first one tried. ctx.provider must be the winner
+    // (up-b), else per-provider success metrics would mis-attribute the request
+    // to the failing upstream.
+    const { config, crypto } = makeConfig({
+      upstreams: [
+        { baseURL: 'https://up-a.example/v1', keyIds: ['kA1'] },
+        { baseURL: 'https://up-b.example/v1', keyIds: ['kB1'] },
+      ],
+    })
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(failResponse(401))
+      .mockResolvedValueOnce(happyResponse({ ok: 1 }))
+    const router = createLlmRouterService({
+      configKV: makeConfigKV(config),
+      envelopeCrypto: crypto,
+      gatewayMetrics: makeMetrics(),
+      fetchImpl,
+      redis: makeRedisStub(),
+    })
+
+    const ctx = { provider: 'unknown', triedUpstreams: 0, triedKeys: 0, lastStatus: null }
+    const res = await router.route({ modelName: 'openai/gpt-5-mini', body: {} }, ctx)
+    expect(res.status).toBe(200)
+    expect(ctx.provider).toBe('up-b.example')
+  })
+
   it('happy path injects Bearer + model + url correctly', async () => {
     const { config, crypto } = makeConfig({ upstreams: [{ baseURL: 'https://up.example/v1/', keyIds: ['kA1'] }] })
     const fetchImpl: typeof fetch = vi.fn(async () => happyResponse({ ok: 1 })) as unknown as typeof fetch
