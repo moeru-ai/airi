@@ -89,16 +89,19 @@ pnpm approve-builds # Select 'electron' and confirm
 - [x] **Ears**
   - [x] Client-side speech recognition & talking detection
 - [x] **Mouth**
-  - [x] OpenAI-compatible speech providers with voice discovery
+  - [x] OpenAI-compatible speech providers
+    - [ ] with voice discovery
 - [x] **Body**
-  - [x] VRM support with expression controls, auto-blink, and auto-look-at
-  - [x] Live2D support with expression-oriented tools
+  - [x] VRM support
+    - [ ] with expression controls, auto-blink, and auto-look-at
+  - [x] Live2D support
+    - [ ] with expression-oriented tools
 - [x] **Desktop Stage**
-  - [x] Control Island with emotions, favorites, and idle-loop cycling
-  - [x] Widget system (weather, map, generic JSON) (to be converted to GTK)
-  - [x] Scene/background management per character
+  - [ ] Control Island with emotions, favorites, and idle-loop cycling
+  - [ ] Widget system (weather, map, generic JSON) (to be converted to GTK)
+  - [ ] Scene/background management per character
   - [ ] Window snapping and position persistence (this fork adapts single-window philosophy)
-  - [x] Native Wayland support
+  - [ ] Native Wayland support
 - [ ] **airiOS (WIP)**
   - [x] System tray & screen capture integration
   - [ ] Generate and open native GTK3/4 windows instead of web widgets
