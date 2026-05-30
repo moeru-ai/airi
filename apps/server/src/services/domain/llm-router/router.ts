@@ -7,6 +7,7 @@ import type { GatewayMetrics } from '../../../otel'
 import type { EnvelopeCrypto } from '../../../utils/envelope-crypto'
 import type { ConfigKVService } from '../../adapters/config-kv'
 import type { TtsAdapterId, TtsInput } from '../../adapters/tts/types'
+import type { ConcurrencyLedger } from './concurrency-ledger'
 import type { LlmRouteRequest, LlmUpstream, TtsUpstream } from './types'
 
 import { Buffer as NodeBuffer } from 'node:buffer'
@@ -14,7 +15,7 @@ import { Buffer as NodeBuffer } from 'node:buffer'
 import { useLogger } from '@guiiai/logg'
 import { trace } from '@opentelemetry/api'
 
-import { ApiError } from '../../../utils/error'
+import { ApiError, createServiceUnavailableError } from '../../../utils/error'
 import { errorMessageFromUnknown } from '../../../utils/error-message'
 import {
   AIRI_ATTR_GEN_AI_GATEWAY_FALLBACK_DEPTH,
@@ -91,6 +92,18 @@ function deriveProviderTag(baseURL: string): string {
   }
 }
 
+/**
+ * Identity of the pool (concurrency pool) one TTS upstream belongs to. One
+ * upstream == one app_id, so the Volcengine `adapterParams.appid` is the pool
+ * key when present; the baseURL is a stable fallback for providers without an
+ * app_id concept. Two upstreams sharing an app_id would (correctly) share one
+ * concurrency budget, though thetypical config gives each app_id its own upstream.
+ */
+function ttsPoolId(upstream: TtsUpstream): string {
+  const appid = upstream.adapterParams?.appid
+  return typeof appid === 'string' && appid.length > 0 ? appid : upstream.baseURL
+}
+
 export interface CreateLlmRouterServiceOptions {
   /** ConfigKV used to read `LLM_ROUTER_CONFIG`. */
   configKV: ConfigKVService
@@ -104,6 +117,20 @@ export interface CreateLlmRouterServiceOptions {
    * picker open while keeping freshness within {@link TTS_VOICES_CACHE_TTL_S}.
    */
   redis: Redis
+  /**
+   * Per-pool concurrency ledger backing capacity-aware TTS routing. When a TTS
+   * model has any upstream with `maxConcurrency` set, the router acquires a slot
+   * here before dispatching and releases it after, spreading load across app_ids
+   * instead of hammering the first upstream.
+   */
+  concurrencyLedger: ConcurrencyLedger
+  /**
+   * Cool-down (seconds) a pool is skipped after exhausting with a 429 (app_id
+   * concurrency exceeded upstream-side). Separate from the ledger's in-flight
+   * TTL: this is a reactive circuit-breaker window, not a leak bound.
+   * @default 15
+   */
+  ttsPoolSaturationTtlSeconds?: number
   /**
    * Fetch implementation. Defaults to `globalThis.fetch`. Tests inject a
    * `vi.fn` so we never touch the real network.
@@ -177,6 +204,8 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
   const logger = useLogger('llm-router').useGlobalConfig()
   const fetchImpl = options.fetchImpl ?? globalThis.fetch
   const configLoader = createConfigLoader({ configKV: options.configKV, ttlMs: options.configCacheTtlMs })
+  const ledger = options.concurrencyLedger
+  const ttsPoolSaturationTtlSeconds = options.ttsPoolSaturationTtlSeconds ?? 15
   const ttsVoiceCatalogLoads = new Map<string, Promise<Voice[]>>()
 
   /**
@@ -534,6 +563,102 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     return { kind: 'exhausted', failures }
   }
 
+  /**
+   * Capacity-awarelayer over {@link dispatchOneTtsUpstream}: spreads one TTS
+   * request across the model'spool (one app_id per upstream) by least-loaded
+   * ordering, gating each dispatch on an atomic concurrency-slot acquire.
+   *
+   * Returns:
+   * - the 2xx `Response` on success,
+   * - `null` when every dispatched upstream exhausted (caller maps the recorded
+   *   failures to an upstream error via the shared exhaustion path),
+   * - throws 503 `TTS_POOL_SATURATED` when every pool was at capacity or in a
+   *   429 cool-down so nothing was dispatched — fail-fast with context, never a
+   *   silent stall (origin R3).
+   */
+  async function routeTtsAcrossPools(
+    upstreams: readonly TtsUpstream[],
+    modelName: string,
+    attemptUpstream: (upstream: TtsUpstream, index: number) => Promise<
+      | { kind: 'ok', response: Response }
+      | { kind: 'exhausted', sawTooManyRequests: boolean }
+    >,
+  ): Promise<Response | null> {
+    async function markSaturated(upstream: TtsUpstream, poolId: string): Promise<void> {
+      await ledger.markSaturated(poolId, ttsPoolSaturationTtlSeconds)
+      options.gatewayMetrics?.poolSaturationMarked.add(1, {
+        provider: deriveProviderTag(upstream.baseURL),
+        app_id: poolId,
+      })
+    }
+
+    // Best-effort pre-read: order pools least-loaded-first (spreads load) and
+    // drop pools already full or in a saturation cool-down. tryAcquire below is
+    // the authoritative gate against the cross-replica race — ordering only
+    // decides *preference*, not correctness.
+    const ranked = (await Promise.all(upstreams.map(async (upstream, index) => {
+      const poolId = ttsPoolId(upstream)
+      const maxConcurrency = typeof upstream.maxConcurrency === 'number' ? upstream.maxConcurrency : null
+      if (maxConcurrency == null)
+        return { upstream, index, poolId, maxConcurrency, remaining: Number.POSITIVE_INFINITY, eligible: true }
+
+      const [saturated, inflight] = await Promise.all([
+        ledger.isSaturated(poolId),
+        ledger.currentInflight(poolId),
+      ])
+      const remaining = maxConcurrency - inflight
+      return { upstream, index, poolId, maxConcurrency, remaining, eligible: !saturated && remaining > 0 }
+    })))
+      .filter(c => c.eligible)
+      .sort((a, b) => b.remaining - a.remaining)
+
+    let dispatchedAny = false
+    for (const { upstream, index, poolId, maxConcurrency } of ranked) {
+      if (maxConcurrency == null) {
+        // Unlimited pool — dispatch without occupying a slot.
+        dispatchedAny = true
+        const result = await attemptUpstream(upstream, index)
+        if (result.kind === 'ok')
+          return result.response
+        if (result.sawTooManyRequests)
+          await markSaturated(upstream, poolId)
+        continue
+      }
+
+      const acquired = await ledger.tryAcquire(poolId, maxConcurrency)
+      if (!acquired) {
+        // Pool filled between the snapshot and now — skip without dispatching.
+        options.gatewayMetrics?.poolSlotRejected.add(1, {
+          provider: deriveProviderTag(upstream.baseURL),
+          app_id: poolId,
+        })
+        continue
+      }
+
+      dispatchedAny = true
+      try {
+        const result = await attemptUpstream(upstream, index)
+        if (result.kind === 'ok')
+          return result.response
+        if (result.sawTooManyRequests)
+          await markSaturated(upstream, poolId)
+      }
+      finally {
+        await ledger.release(poolId)
+      }
+    }
+
+    if (!dispatchedAny) {
+      throw createServiceUnavailableError(
+        `ttspool capacity exhausted for model ${modelName}: all pools at concurrency limit or in saturation cool-down`,
+        'TTS_POOL_SATURATED',
+        { modelName, pools: upstreams.length },
+      )
+    }
+
+    return null
+  }
+
   async function routeTts(req: { modelName: string, input: TtsInput, abortSignal?: AbortSignal }): Promise<Response> {
     if (req.abortSignal?.aborted)
       throw req.abortSignal.reason ?? new Error('aborted')
@@ -545,8 +670,13 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       throw new Error(`Expected tts model slice for ${req.modelName}, got ${slice.kind}`)
     }
 
+    // Capture the narrowed TTS model: the `slice.kind` narrowing above does not
+    // flow into the nested `attemptUpstream` closure below, so reference this
+    // local instead of `slice.model` to keep `provider`/`upstreams` typed.
+    const ttsModel = slice.model
+
     const defaults = slice.defaults ?? { perAttemptTimeoutMs: 30000, fullChainTimeoutMs: 60000, fallbackHttpCodes: [401, 402, 403, 429, 500, 502, 503, 504] }
-    const fallbackHttpCodes = slice.model.fallbackTriggers?.httpCodes ?? defaults.fallbackHttpCodes ?? [401, 402, 403, 429, 500, 502, 503, 504]
+    const fallbackHttpCodes = ttsModel.fallbackTriggers?.httpCodes ?? defaults.fallbackHttpCodes ?? [401, 402, 403, 429, 500, 502, 503, 504]
 
     // Adapters POST to unspeech `/v1/audio/speech`; resolve the base URL once
     // per request rather than per upstream attempt so a single configKV miss
@@ -556,19 +686,24 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     const allFailures: Array<{ provider: string, keyId: string, status: number | 'timeout', errorMessage?: string }> = []
     let triedUpstreams = 0
 
-    for (let i = 0; i < slice.model.upstreams.length; i += 1) {
-      const upstream = slice.model.upstreams[i]
+    // tts upstream schema has no per-upstream timeoutMs (see ttsUpstreamSchema);
+    // the defaults bucket alone governs per-attempt timeout.
+    const perAttemptTimeoutMs = defaults.perAttemptTimeoutMs ?? 30000
+
+    // Dispatch one upstream and fold its outcome into the shared failure log.
+    // Returns the 2xx Response on success, or an exhaustion marker carrying
+    // whether the upstream saw a 429 (app_id concurrency exceeded upstream-side)
+    // so the caller can circuit-break thatpool.
+    async function attemptUpstream(upstream: TtsUpstream, index: number): Promise<
+      | { kind: 'ok', response: Response }
+      | { kind: 'exhausted', sawTooManyRequests: boolean }
+    > {
       const providerTag = deriveProviderTag(upstream.baseURL)
       triedUpstreams += 1
-
-      // tts upstream schema has no per-upstream timeoutMs (see ttsUpstreamSchema);
-      // we use the defaults bucket alone here.
-      const perAttemptTimeoutMs = defaults.perAttemptTimeoutMs ?? 30000
-
       const result = await dispatchOneTtsUpstream(
         upstream,
-        i,
-        slice.model.provider,
+        index,
+        ttsModel.provider,
         req.input,
         req.modelName,
         req.abortSignal,
@@ -579,13 +714,32 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       )
 
       if (result.kind === 'ok') {
-        return new Response(result.body, {
-          status: 200,
-          headers: { 'content-type': result.contentType },
-        })
+        return {
+          kind: 'ok',
+          response: new Response(result.body, { status: 200, headers: { 'content-type': result.contentType } }),
+        }
       }
 
       options.gatewayMetrics?.keyExhaustedCount.add(1, { provider: providerTag })
+      return { kind: 'exhausted', sawTooManyRequests: result.failures.some(f => f.status === 429) }
+    }
+
+    // A model "uses the pool" when any upstream declares a concurrency cap. Models
+    // without one keep the original fixed-order fallback and make zero Redis
+    // calls — no behavior change for existing single-app configs.
+    const poolingEnabled = ttsModel.upstreams.some(u => typeof u.maxConcurrency === 'number')
+
+    if (!poolingEnabled) {
+      for (let i = 0; i < ttsModel.upstreams.length; i += 1) {
+        const result = await attemptUpstream(ttsModel.upstreams[i], i)
+        if (result.kind === 'ok')
+          return result.response
+      }
+    }
+    else {
+      const served = await routeTtsAcrossPools(ttsModel.upstreams, req.modelName, attemptUpstream)
+      if (served != null)
+        return served
     }
 
     const lastFailure = allFailures.at(-1)

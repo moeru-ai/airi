@@ -144,6 +144,18 @@ export const METRIC_AIRI_GEN_AI_GATEWAY_DECRYPT_FAILURES = 'airi.gen_ai.gateway.
 export const METRIC_AIRI_GEN_AI_GATEWAY_SUBSCRIBER_STATE = 'airi.gen_ai.gateway.subscriber_state'
 export const METRIC_AIRI_GEN_AI_GATEWAY_CONFIG_WRITE = 'airi.gen_ai.gateway.config.write'
 export const METRIC_AIRI_GEN_AI_GATEWAY_CONFIG_INVALID_HMAC = 'airi.gen_ai.gateway.config.invalid_hmac'
+// TTSpool (per app_id concurrency pool) load-balancer signals.
+// pool_slot_rejected — capacity-aware routing skipped a pool because its app_id
+//                      was already at the concurrency cap (labels: provider, app_id).
+// pool_saturation_marked
+//                    — a pool was circuit-broken after exhausting with a 429
+//                      (labels: provider, app_id).
+// pool_inflight      — cluster-wide gauge of current in-flight requests per pool,
+//                      sourced from Redis (label: app_id). Dashboard must avg(),
+//                      not sum() — every replica reports the same value.
+export const METRIC_AIRI_GEN_AI_GATEWAY_POOL_SLOT_REJECTED = 'airi.gen_ai.gateway.pool.slot_rejected'
+export const METRIC_AIRI_GEN_AI_GATEWAY_POOL_SATURATION_MARKED = 'airi.gen_ai.gateway.pool.saturation_marked'
+export const METRIC_AIRI_GEN_AI_GATEWAY_POOL_INFLIGHT = 'airi.gen_ai.gateway.pool.inflight'
 
 // ---------------------------------------------------------------------------
 // Canonical gen_ai.system values

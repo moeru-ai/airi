@@ -1,3 +1,6 @@
+export { createConcurrencyLedger } from './concurrency-ledger'
+
+export type { ConcurrencyLedger } from './concurrency-ledger'
 export { createConfigSyncSubscriber } from './config-sync-subscriber'
 
 export { createLlmRouterService } from './router'

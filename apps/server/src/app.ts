@@ -49,6 +49,7 @@ import { emitOtelLog, initOtel } from './otel'
 import { registerActiveSessionsGauge } from './otel/gauges/active-sessions'
 import { registerDistinctActiveUsersGauge } from './otel/gauges/distinct-active-users'
 import { registerRollingActiveUsersGauge } from './otel/gauges/rolling-active-users'
+import { registerTtsPoolGauge } from './otel/gauges/tts-pool'
 import { createAdminRouterConfigRoutes } from './routes/admin/config/router'
 import { createAdminFluxGrantsRoutes } from './routes/admin/flux-grants'
 import { createAdminUsersRoutes } from './routes/admin/users'
@@ -73,7 +74,7 @@ import { createCharacterService } from './services/domain/characters'
 import { createChatService } from './services/domain/chats'
 import { createFluxService } from './services/domain/flux'
 import { createFluxTransactionService } from './services/domain/flux-transaction'
-import { createConfigSyncSubscriber, createLlmRouterService } from './services/domain/llm-router'
+import { createConcurrencyLedger, createConfigSyncSubscriber, createLlmRouterService } from './services/domain/llm-router'
 import { createProviderService } from './services/domain/providers'
 import { createRequestLogService } from './services/domain/request-log'
 import { createStripeService } from './services/domain/stripe'
@@ -657,13 +658,21 @@ export async function createApp() {
   // LLM router (KTD-5 in-process replacement for the knoway sidecar).
   // LLM_ROUTER_MASTER_KEY is required at env-parse time, so this provider
   // always builds a real router — the legacy `null` fallback path is gone.
+  // Shared by the TTS router (acquires slots) and the pool watermark gauge
+  // (reads the snapshot). Cluster-wide Redis state — the server is multi-instance.
+  const ttsConcurrencyLedger = injeca.provide('services:ttsConcurrencyLedger', {
+    dependsOn: { redis },
+    build: ({ dependsOn }) => createConcurrencyLedger(dependsOn.redis),
+  })
+
   const llmRouter = injeca.provide('services:llmRouter', {
-    dependsOn: { configKV, envelopeCrypto, otel, redis },
+    dependsOn: { configKV, envelopeCrypto, otel, redis, ttsConcurrencyLedger },
     build: ({ dependsOn }) => createLlmRouterService({
       configKV: dependsOn.configKV,
       envelopeCrypto: dependsOn.envelopeCrypto,
       gatewayMetrics: dependsOn.otel?.gateway ?? null,
       redis: dependsOn.redis,
+      concurrencyLedger: dependsOn.ttsConcurrencyLedger,
     }),
   })
 
@@ -690,6 +699,7 @@ export async function createApp() {
     otel,
     userDeletionService,
     llmRouter,
+    ttsConcurrencyLedger,
     posthog,
   })
   // Register the cluster-wide ObservableGauges for sessions / users. Each
@@ -705,6 +715,7 @@ export async function createApp() {
     registerActiveSessionsGauge(resolved.otel.auth.activeSessions, resolved.db, resolved.otel.observability.metricReadErrors)
     registerDistinctActiveUsersGauge(resolved.otel.auth.distinctActiveUsers, resolved.db, resolved.otel.observability.metricReadErrors)
     registerRollingActiveUsersGauge(resolved.otel.auth.rollingActiveUsers, resolved.db, resolved.otel.observability.metricReadErrors)
+    registerTtsPoolGauge(resolved.otel.gateway.poolInflight, resolved.ttsConcurrencyLedger, resolved.otel.observability.metricReadErrors)
   }
 
   const { app, injectWebSocket } = await buildApp({

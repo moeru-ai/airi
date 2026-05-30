@@ -25,6 +25,9 @@ import {
   METRIC_AIRI_GEN_AI_GATEWAY_DECRYPT_FAILURES,
   METRIC_AIRI_GEN_AI_GATEWAY_FALLBACK_COUNT,
   METRIC_AIRI_GEN_AI_GATEWAY_KEY_EXHAUSTED_COUNT,
+  METRIC_AIRI_GEN_AI_GATEWAY_POOL_INFLIGHT,
+  METRIC_AIRI_GEN_AI_GATEWAY_POOL_SATURATION_MARKED,
+  METRIC_AIRI_GEN_AI_GATEWAY_POOL_SLOT_REJECTED,
   METRIC_AIRI_GEN_AI_GATEWAY_SAME_STATUS_EXHAUSTION,
   METRIC_AIRI_GEN_AI_GATEWAY_SUBSCRIBER_STATE,
   METRIC_AIRI_GEN_AI_GATEWAY_UPSTREAM_ERRORS,
@@ -261,6 +264,27 @@ export interface GatewayMetrics {
    * >0 = forged or replayed message — investigate Redis access boundary.
    */
   configInvalidHmac: Counter
+  /**
+   * Capacity-aware TTS routing skipped a pool because its app_id was already at
+   * the concurrency cap (the pre-read said free but the atomic acquire lost the
+   * race, or every pool was full). Labels: `provider`, `app_id`.
+   *
+   * Recommended alert: sustained rate relative to TTS request volume means the
+   *pool is undersized — add app_ids or raise the cap.
+   */
+  poolSlotRejected: Counter
+  /**
+   * Apool was circuit-broken after exhausting with a 429 (app_id concurrency
+   * exceeded upstream-side). Labels: `provider`, `app_id`. A pool with a high
+   * mark rate is being driven past its real upstream limit.
+   */
+  poolSaturationMarked: Counter
+  /**
+   * Cluster-wide gauge of current in-flight requests per pool, sourced from
+   * Redis. Label: `app_id`. Every replica reports the same value — dashboards
+   * MUST aggregate with `avg()`, NOT `sum()` (see observability-conventions.md).
+   */
+  poolInflight: ObservableGauge
 }
 
 export interface EmailMetrics {
@@ -466,6 +490,15 @@ export function initOtel(env: Env): OtelInstance | null {
     }),
     configInvalidHmac: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_CONFIG_INVALID_HMAC, {
       description: 'Pub/Sub invalidation messages dropped due to HMAC mismatch (forged or replayed)',
+    }),
+    poolSlotRejected: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_POOL_SLOT_REJECTED, {
+      description: 'Capacity-aware TTS routing skipped a pool already at its app_id concurrency cap',
+    }),
+    poolSaturationMarked: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_POOL_SATURATION_MARKED, {
+      description: 'TTSpool circuit-broken after exhausting with a 429 (app_id concurrency exceeded)',
+    }),
+    poolInflight: meter.createObservableGauge(METRIC_AIRI_GEN_AI_GATEWAY_POOL_INFLIGHT, {
+      description: 'In-flight TTS requests per pool sourced from Redis (cluster-wide; dashboard must use avg(), not sum())',
     }),
   }
 

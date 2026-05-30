@@ -5,6 +5,7 @@ import type Redis from 'ioredis'
 
 import type { GatewayMetrics } from '../../../../otel'
 import type { ConfigKVService } from '../../../adapters/config-kv'
+import type { ConcurrencyLedger } from '../concurrency-ledger'
 import type { RouterConfig } from '../types'
 
 import { randomBytes } from 'node:crypto'
@@ -50,7 +51,27 @@ function makeMetrics(): GatewayMetrics {
     subscriberState: makeCounter(),
     configWrite: makeCounter(),
     configInvalidHmac: makeCounter(),
-  } as GatewayMetrics
+    poolSlotRejected: makeCounter(),
+    poolSaturationMarked: makeCounter(),
+    poolInflight: { addCallback: vi.fn(), removeCallback: vi.fn() },
+  } as unknown as GatewayMetrics
+}
+
+/**
+ * Stub concurrency ledger. Defaults model an always-free pool (tryAcquire grants,
+ * nothing saturated) so the existing fixed-order LLM/TTS tests never engage the
+ * pooling branch. Pooling tests pass `overrides` to drive capacity decisions.
+ */
+function makeLedger(overrides: Partial<ConcurrencyLedger> = {}): ConcurrencyLedger {
+  return {
+    tryAcquire: vi.fn(async () => true),
+    release: vi.fn(async () => {}),
+    markSaturated: vi.fn(async () => {}),
+    isSaturated: vi.fn(async () => false),
+    currentInflight: vi.fn(async () => 0),
+    snapshot: vi.fn(async () => []),
+    ...overrides,
+  }
 }
 
 function makeConfigKV(config: RouterConfig | null): ConfigKVService {
@@ -147,6 +168,7 @@ describe('createLlmRouterService', () => {
       gatewayMetrics: metrics,
       fetchImpl,
       redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
     })
 
     const res = await router.route({ modelName: 'openai/gpt-5-mini', body: { messages: [] } })
@@ -166,6 +188,7 @@ describe('createLlmRouterService', () => {
       gatewayMetrics: null,
       fetchImpl,
       redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
     })
 
     await router.route({ modelName: 'openai/gpt-5-mini', body: { messages: [{ role: 'user', content: 'hi' }] } })
@@ -191,6 +214,7 @@ describe('createLlmRouterService', () => {
       gatewayMetrics: null,
       fetchImpl,
       redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
     })
 
     await router.route({ modelName: 'openai/gpt-5-mini', body: { messages: [] } })
@@ -212,6 +236,7 @@ describe('createLlmRouterService', () => {
       gatewayMetrics: metrics,
       fetchImpl,
       redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
     })
 
     const res = await router.route({ modelName: 'openai/gpt-5-mini', body: {} })
@@ -246,6 +271,7 @@ describe('createLlmRouterService', () => {
       gatewayMetrics: metrics,
       fetchImpl,
       redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
     })
 
     const res = await router.route({ modelName: 'openai/gpt-5-mini', body: {} })
@@ -272,6 +298,7 @@ describe('createLlmRouterService', () => {
       gatewayMetrics: metrics,
       fetchImpl,
       redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
     })
 
     try {
@@ -317,6 +344,7 @@ describe('createLlmRouterService', () => {
       gatewayMetrics: null,
       fetchImpl,
       redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
     })
 
     try {
@@ -362,6 +390,7 @@ describe('createLlmRouterService', () => {
       gatewayMetrics: metrics,
       fetchImpl,
       redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
     })
 
     await expect(router.route({ modelName: 'openai/gpt-5-mini', body: {} })).rejects.toMatchObject({ statusCode: 503, errorCode: 'SERVICE_UNAVAILABLE' })
@@ -391,6 +420,7 @@ describe('createLlmRouterService', () => {
       gatewayMetrics: null,
       fetchImpl,
       redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
     })
 
     try {
@@ -437,6 +467,7 @@ describe('createLlmRouterService', () => {
       gatewayMetrics: null,
       fetchImpl,
       redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
     })
 
     const res = await router.route({ modelName: 'openai/gpt-5-mini', body: {} })
@@ -467,6 +498,7 @@ describe('createLlmRouterService', () => {
       gatewayMetrics: null,
       fetchImpl,
       redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
     })
 
     try {
@@ -492,6 +524,7 @@ describe('createLlmRouterService', () => {
       gatewayMetrics: metrics,
       fetchImpl,
       redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
     })
 
     try {
@@ -517,6 +550,7 @@ describe('createLlmRouterService', () => {
       gatewayMetrics: null,
       fetchImpl,
       redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
     })
 
     await expect(router.route({ modelName: 'whatever', body: {} })).rejects.toMatchObject({ statusCode: 503, errorCode: 'CONFIG_NOT_SET' })
@@ -535,6 +569,7 @@ describe('createLlmRouterService', () => {
       gatewayMetrics: null,
       fetchImpl,
       redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
     })
 
     await expect(router.route({ modelName: 'openai/gpt-5-mini', body: {}, abortSignal: ctrl.signal })).rejects.toThrow(/client-disconnected/)
@@ -566,6 +601,7 @@ describe('createLlmRouterService', () => {
       gatewayMetrics: null,
       fetchImpl,
       redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
     })
 
     await expect(router.route({ modelName: 'openai/gpt-5-mini', body: {}, abortSignal: ctrl.signal })).rejects.toThrow(/client-disconnected/)
@@ -584,6 +620,7 @@ describe('createLlmRouterService', () => {
       gatewayMetrics: null,
       fetchImpl,
       redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
     })
 
     await router.route({ modelName: 'openai/gpt-5-mini', body: {} })
@@ -660,6 +697,7 @@ describe('createLlmRouterService', () => {
         gatewayMetrics: metrics,
         fetchImpl,
         redis: makeRedisStub(),
+        concurrencyLedger: makeLedger(),
       })
 
       let caught: unknown
@@ -703,6 +741,7 @@ describe('createLlmRouterService', () => {
         gatewayMetrics: metrics,
         fetchImpl,
         redis: makeRedisStub(),
+        concurrencyLedger: makeLedger(),
       })
 
       const res = await router.routeTts({
@@ -738,6 +777,7 @@ describe('createLlmRouterService', () => {
         gatewayMetrics: metrics,
         fetchImpl,
         redis: makeRedisStub(),
+        concurrencyLedger: makeLedger(),
       })
 
       const res = await router.routeTts({
@@ -783,6 +823,7 @@ describe('createLlmRouterService', () => {
         gatewayMetrics: null,
         fetchImpl,
         redis: makeRedisStub(),
+        concurrencyLedger: makeLedger(),
       })
 
       const first = router.listTtsVoices('tts-test')
@@ -796,6 +837,219 @@ describe('createLlmRouterService', () => {
       const [firstVoices, secondVoices] = await Promise.all([first, second])
       expect(firstVoices.map(voice => voice.id)).toEqual(['en-US-AvaMultilingualNeural'])
       expect(secondVoices.map(voice => voice.id)).toEqual(['en-US-AvaMultilingualNeural'])
+    })
+  })
+
+  describe('routeTtspool capacity-aware routing', () => {
+    // One app_id == one upstream (Volcengine `adapterParams.appid`), each capped
+    // at `maxConcurrency`. The router spreads load least-loaded-first across pools
+    // and circuit-breaks a pool on 429 (app_id concurrency exceeded upstream-side).
+    function makePoolConfig(
+      upstreams: Array<{ baseURL: string, appid: string, maxConcurrency?: number }>,
+    ): { config: RouterConfig, crypto: ReturnType<typeof createEnvelopeCrypto> } {
+      const crypto = createEnvelopeCrypto({ masterKey: freshMasterKey() })
+      const modelName = 'tts-pool'
+      const upstreamConfigs = upstreams.map((u, i) => {
+        const id = `k${i}`
+        const ct = crypto.encryptKey(`sk-${id}`, { modelName, keyEntryId: id })
+        return {
+          baseURL: u.baseURL,
+          keys: [{ id, ciphertext: ct }],
+          adapterParams: { appid: u.appid },
+          ...(u.maxConcurrency != null ? { maxConcurrency: u.maxConcurrency } : {}),
+        }
+      })
+      const config = {
+        llm: { models: {} },
+        tts: {
+          models: {
+            [modelName]: {
+              provider: 'volcengine',
+              upstreams: upstreamConfigs,
+              fallbackTriggers: { httpCodes: [401, 429, 500, 502, 503, 504], onTimeout: true },
+            },
+          },
+        },
+        defaults: { perAttemptTimeoutMs: 5000, fullChainTimeoutMs: 10000, fallbackHttpCodes: [401, 429, 500, 502, 503, 504] },
+      } as RouterConfig
+      return { config, crypto }
+    }
+
+    // Stateful in-memory ledger so least-loaded ordering and capacity gating are
+    // observable. `seed` pre-loads inflight counts to drive deterministic ranking.
+    function makeStatefulLedger(seed: Record<string, number> = {}, saturatedSeed: string[] = []) {
+      const inflight = new Map<string, number>(Object.entries(seed))
+      const saturated = new Set<string>(saturatedSeed)
+      const tryAcquire = vi.fn(async (poolId: string, max: number) => {
+        const cur = inflight.get(poolId) ?? 0
+        if (saturated.has(poolId) || cur >= max)
+          return false
+        inflight.set(poolId, cur + 1)
+        return true
+      })
+      const release = vi.fn(async (poolId: string) => {
+        inflight.set(poolId, Math.max(0, (inflight.get(poolId) ?? 0) - 1))
+      })
+      const markSaturated = vi.fn(async (poolId: string) => {
+        saturated.add(poolId)
+      })
+      const ledger: ConcurrencyLedger = {
+        tryAcquire,
+        release,
+        markSaturated,
+        isSaturated: vi.fn(async (poolId: string) => saturated.has(poolId)),
+        currentInflight: vi.fn(async (poolId: string) => inflight.get(poolId) ?? 0),
+        snapshot: vi.fn(async () => [...inflight].map(([poolId, n]) => ({ poolId, inflight: n }))),
+      }
+      return { ledger, inflight, saturated, tryAcquire, release, markSaturated }
+    }
+
+    function makePoolRouter(config: RouterConfig, crypto: ReturnType<typeof createEnvelopeCrypto>, ledger: ConcurrencyLedger, fetchImpl: typeof fetch) {
+      return createLlmRouterService({
+        configKV: makeConfigKV(config),
+        envelopeCrypto: crypto,
+        gatewayMetrics: makeMetrics(),
+        fetchImpl,
+        redis: makeRedisStub(),
+        concurrencyLedger: ledger,
+      })
+    }
+
+    it('routes to the least-loadedpool (covers AE1 — load spread, not first-fill)', async () => {
+      // @example two app_ids cap 10, seeded 8 vs 2 in-flight -> the new request
+      // goes to the freer pool (app-2), not the config-first pool (app-1).
+      const { config, crypto } = makePoolConfig([
+        { baseURL: 'https://up-a.example', appid: 'app-1', maxConcurrency: 10 },
+        { baseURL: 'https://up-b.example', appid: 'app-2', maxConcurrency: 10 },
+      ])
+      const { ledger, tryAcquire } = makeStatefulLedger({ 'app-1': 8, 'app-2': 2 })
+      const fetchImpl = vi.fn(async () => happyResponse({ ok: 1 })) as unknown as typeof fetch
+
+      const router = makePoolRouter(config, crypto, ledger, fetchImpl)
+      const res = await router.routeTts({ modelName: 'tts-pool', input: { text: 'hi' } })
+
+      expect(res.status).toBe(200)
+      expect(tryAcquire).toHaveBeenCalledTimes(1)
+      expect(tryAcquire.mock.calls[0][0]).toBe('app-2')
+    })
+
+    it('skips a fullpool and dispatches to one with capacity', async () => {
+      // @example app-1 at cap (10/10) -> filtered out; app-2 (0/10) serves.
+      const { config, crypto } = makePoolConfig([
+        { baseURL: 'https://up-a.example', appid: 'app-1', maxConcurrency: 10 },
+        { baseURL: 'https://up-b.example', appid: 'app-2', maxConcurrency: 10 },
+      ])
+      const { ledger, tryAcquire } = makeStatefulLedger({ 'app-1': 10, 'app-2': 0 })
+      const fetchImpl = vi.fn(async () => happyResponse({ ok: 1 })) as unknown as typeof fetch
+
+      const router = makePoolRouter(config, crypto, ledger, fetchImpl)
+      const res = await router.routeTts({ modelName: 'tts-pool', input: { text: 'hi' } })
+
+      expect(res.status).toBe(200)
+      expect(tryAcquire.mock.calls.every(([poolId]) => poolId !== 'app-1')).toBe(true)
+      expect(tryAcquire.mock.calls.some(([poolId]) => poolId === 'app-2')).toBe(true)
+    })
+
+    it('fails fast with 503 TTS_POOL_SATURATED when everypool is full (covers AE2 — no silent stall)', async () => {
+      // @example both app_ids at cap -> 503, upstream is never dispatched.
+      const { config, crypto } = makePoolConfig([
+        { baseURL: 'https://up-a.example', appid: 'app-1', maxConcurrency: 10 },
+        { baseURL: 'https://up-b.example', appid: 'app-2', maxConcurrency: 10 },
+      ])
+      const { ledger } = makeStatefulLedger({ 'app-1': 10, 'app-2': 10 })
+      const fetchImpl = vi.fn(async () => happyResponse({ ok: 1 })) as unknown as typeof fetch
+
+      const router = makePoolRouter(config, crypto, ledger, fetchImpl)
+      let caught: unknown
+      try {
+        await router.routeTts({ modelName: 'tts-pool', input: { text: 'hi' } })
+      }
+      catch (err) {
+        caught = err
+      }
+
+      expect(caught).toBeInstanceOf(ApiError)
+      expect((caught as ApiError).statusCode).toBe(503)
+      expect((caught as ApiError).errorCode).toBe('TTS_POOL_SATURATED')
+      expect(fetchImpl).not.toHaveBeenCalled()
+    })
+
+    it('releases the slot after a successful dispatch', async () => {
+      // @example acquire then release leaves the pool's inflight back at baseline.
+      const { config, crypto } = makePoolConfig([
+        { baseURL: 'https://up-a.example', appid: 'app-1', maxConcurrency: 10 },
+      ])
+      const { ledger, release, inflight } = makeStatefulLedger({ 'app-1': 3 })
+      const fetchImpl = vi.fn(async () => happyResponse({ ok: 1 })) as unknown as typeof fetch
+
+      const router = makePoolRouter(config, crypto, ledger, fetchImpl)
+      await router.routeTts({ modelName: 'tts-pool', input: { text: 'hi' } })
+
+      expect(release).toHaveBeenCalledWith('app-1')
+      expect(inflight.get('app-1')).toBe(3)
+    })
+
+    it('makes zero ledger calls when no upstream declares maxConcurrency (no regression)', async () => {
+      // @example a model without any concurrency cap keeps the original
+      // fixed-order path and never touches Redis.
+      const { config, crypto } = makePoolConfig([
+        { baseURL: 'https://up-a.example', appid: 'app-1' },
+      ])
+      const { ledger, tryAcquire } = makeStatefulLedger()
+      const fetchImpl = vi.fn(async () => happyResponse({ ok: 1 })) as unknown as typeof fetch
+
+      const router = makePoolRouter(config, crypto, ledger, fetchImpl)
+      const res = await router.routeTts({ modelName: 'tts-pool', input: { text: 'hi' } })
+
+      expect(res.status).toBe(200)
+      expect(tryAcquire).not.toHaveBeenCalled()
+    })
+
+    it('marks a pool saturated when it exhausts with a 429 (covers AE3 — bad-pool circuit break)', async () => {
+      // @example single pool returns 429 (app_id concurrency exceeded) -> the
+      // pool is circuit-broken so later requests skip it during the cool-down.
+      const { config, crypto } = makePoolConfig([
+        { baseURL: 'https://up-a.example', appid: 'app-1', maxConcurrency: 10 },
+      ])
+      const { ledger, markSaturated } = makeStatefulLedger()
+      const fetchImpl = vi.fn(async () => failResponse(429)) as unknown as typeof fetch
+
+      const router = makePoolRouter(config, crypto, ledger, fetchImpl)
+      await expect(router.routeTts({ modelName: 'tts-pool', input: { text: 'hi' } })).rejects.toBeInstanceOf(ApiError)
+
+      expect(markSaturated).toHaveBeenCalledWith('app-1', expect.any(Number))
+    })
+
+    it('does NOT mark saturated when a pool exhausts with a non-429 status', async () => {
+      // @example a 500 is a server error, not a concurrency signal — the pool
+      // must stay eligible rather than being circuit-broken.
+      const { config, crypto } = makePoolConfig([
+        { baseURL: 'https://up-a.example', appid: 'app-1', maxConcurrency: 10 },
+      ])
+      const { ledger, markSaturated } = makeStatefulLedger()
+      const fetchImpl = vi.fn(async () => failResponse(500)) as unknown as typeof fetch
+
+      const router = makePoolRouter(config, crypto, ledger, fetchImpl)
+      await expect(router.routeTts({ modelName: 'tts-pool', input: { text: 'hi' } })).rejects.toBeInstanceOf(ApiError)
+
+      expect(markSaturated).not.toHaveBeenCalled()
+    })
+
+    it('skips a pool already in a saturation cool-down', async () => {
+      // @example app-1 flagged saturated -> filtered out; app-2 serves.
+      const { config, crypto } = makePoolConfig([
+        { baseURL: 'https://up-a.example', appid: 'app-1', maxConcurrency: 10 },
+        { baseURL: 'https://up-b.example', appid: 'app-2', maxConcurrency: 10 },
+      ])
+      const { ledger, tryAcquire } = makeStatefulLedger({}, ['app-1'])
+      const fetchImpl = vi.fn(async () => happyResponse({ ok: 1 })) as unknown as typeof fetch
+
+      const router = makePoolRouter(config, crypto, ledger, fetchImpl)
+      const res = await router.routeTts({ modelName: 'tts-pool', input: { text: 'hi' } })
+
+      expect(res.status).toBe(200)
+      expect(tryAcquire.mock.calls.every(([poolId]) => poolId !== 'app-1')).toBe(true)
+      expect(tryAcquire.mock.calls.some(([poolId]) => poolId === 'app-2')).toBe(true)
     })
   })
 })
