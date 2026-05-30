@@ -126,4 +126,4 @@ pnpm approve-builds # Select 'electron' and confirm
 
 *   Original [moeru-ai/airi](https://github.com/moeru-ai/airi) project and [dasilva333/airi](https://github.com/dasilva333/airi) fork
 *   [Reka UI](https://github.com/unovue/reka-ui) - UI components
-*   [litellm](https://github.com/BerriAI/litellm) - LLM interaction layer
+*   [xsai](https://github.com/moeru-ai/xsai) - LLM interaction layer
