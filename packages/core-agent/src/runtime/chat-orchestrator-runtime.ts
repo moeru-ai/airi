@@ -668,6 +668,14 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
               break
             case 'text-delta':
+              // After Stop, an SSE/fetch adapter can still surface deltas it
+              // read off the socket before the abort propagated. Dropping them
+              // here keeps post-Stop tokens out of fullText and the parser
+              // buffer, so the catch-path flush persists a partial that ends
+              // exactly where the user cancelled.
+              if (shouldAbort())
+                return
+
               if (!llmFirstTokenEmitted) {
                 llmFirstTokenEmitted = true
                 deps.onLlmFirstToken?.({

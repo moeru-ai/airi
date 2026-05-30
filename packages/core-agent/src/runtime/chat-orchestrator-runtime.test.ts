@@ -757,6 +757,75 @@ describe('createChatOrchestratorRuntime', () => {
 
   /**
    * @example
+   * Stop aborts the request, but an SSE/fetch adapter can still dispatch text
+   * deltas it had already read off the socket before the stream promise
+   * rejects. Those post-Stop tokens must stay out of `fullText` and the parser,
+   * so the persisted partial ends exactly where the user cancelled instead of
+   * absorbing tokens that landed after the click.
+   */
+  it('drops text deltas that arrive after stop so the persisted partial ends at the cancel point', async () => {
+    const harness = createHarness()
+
+    const beforeStop = 'reply tokens that arrived before the user pressed stop'
+    const afterStop = ' EXTRA TOKENS AFTER STOP'
+
+    // Resolves once the pre-Stop token has been fed to the parser and the
+    // stream is parked, so the test aborts strictly after that point.
+    let reachedStopPoint: () => void
+    const atStopPoint = new Promise<void>((resolve) => {
+      reachedStopPoint = resolve
+    })
+
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      const signal = (options as { abortSignal?: AbortSignal })?.abortSignal
+      await options?.onStreamEvent?.({ type: 'text-delta', text: beforeStop })
+      reachedStopPoint()
+
+      // Park until Stop aborts the request.
+      await new Promise<void>((resolve) => {
+        if (signal?.aborted)
+          resolve()
+        else
+          signal?.addEventListener('abort', () => resolve())
+      })
+
+      // The adapter surfaces a delta that was buffered before the abort
+      // propagated, after the signal is already aborted.
+      await options?.onStreamEvent?.({ type: 'text-delta', text: afterStop })
+
+      // The stream finally tears down and surfaces the cancellation.
+      throw new DOMException('aborted', 'AbortError')
+    })
+
+    const send = harness.runtime.ingest('hello', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    await atStopPoint
+    harness.runtime.stopSending('session-1')
+
+    await send
+
+    const lastMessage = harness.sessionMessages['session-1']?.at(-1) as StreamingAssistantMessage
+    expect(lastMessage.role).toBe('assistant')
+    expect(lastMessage.stopped).toBe(true)
+    // The persisted partial carries the pre-Stop content only.
+    expect(lastMessage.content).toBe(beforeStop)
+    expect(lastMessage.content).not.toContain('AFTER STOP')
+    const concatenated = lastMessage.slices
+      .filter((slice): slice is { type: 'text', text: string } => slice.type === 'text')
+      .map(slice => slice.text)
+      .join('')
+    expect(concatenated).toBe(beforeStop)
+    // The text reported to subscribers (cloud sync, analytics) also stops at
+    // the cancel point.
+    const appended = harness.assistantAppended.at(-1) as { messageText: string }
+    expect(appended.messageText).toBe(beforeStop)
+  })
+
+  /**
+   * @example
    * The user clicks Stop before any token has flushed (network slow, or
    * cancelling right after pressing Send). No partial assistant message is
    * persisted because the slice buffer is empty, and the foreground bubble is
