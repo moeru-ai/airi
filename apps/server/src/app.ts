@@ -20,6 +20,7 @@ import type { ProviderService } from './services/domain/providers'
 import type { RequestLogService } from './services/domain/request-log'
 import type { StripeService } from './services/domain/stripe'
 import type { UserDeletionService } from './services/domain/user-deletion'
+import type { VoicePackService } from './services/domain/voice-packs'
 import type { HonoEnv } from './types/hono'
 import type { EnvelopeCrypto } from './utils/envelope-crypto'
 
@@ -53,6 +54,7 @@ import { registerTtsPoolGauge } from './otel/gauges/tts-pool'
 import { createAdminRouterConfigRoutes } from './routes/admin/config/router'
 import { createAdminFluxGrantsRoutes } from './routes/admin/flux-grants'
 import { createAdminUsersRoutes } from './routes/admin/users'
+import { createAdminVoicePackRoutes } from './routes/admin/voice-packs'
 import { createAudioSpeechWsHandlers } from './routes/audio-speech-ws'
 import { createAuthRoutes } from './routes/auth'
 import { createCharacterRoutes } from './routes/characters'
@@ -62,6 +64,7 @@ import { createFluxRoutes } from './routes/flux'
 import { createV1Routes } from './routes/openai/v1'
 import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
+import { createVoicePackRoutes } from './routes/voice-packs'
 import { createConfigKVService } from './services/adapters/config-kv'
 import { createEmailService } from './services/adapters/email'
 import { createPostHogClient } from './services/adapters/posthog'
@@ -79,6 +82,7 @@ import { createProviderService } from './services/domain/providers'
 import { createRequestLogService } from './services/domain/request-log'
 import { createStripeService } from './services/domain/stripe'
 import { createUserDeletionService } from './services/domain/user-deletion'
+import { createVoicePackService } from './services/domain/voice-packs'
 import { createEnvelopeCrypto } from './utils/envelope-crypto'
 import { ApiError, createInternalError } from './utils/error'
 import { nanoid } from './utils/id'
@@ -99,6 +103,7 @@ interface AppDeps {
   adminUsersService: AdminUsersService
   ttsMeter: FluxMeter
   requestLogService: RequestLogService
+  voicePackService: VoicePackService
   configKV: ConfigKVService
   envelopeCrypto: EnvelopeCrypto
   redis: Redis
@@ -320,6 +325,11 @@ export async function buildApp(deps: AppDeps) {
     .route('/api/v1/providers', createProviderRoutes(deps.providerService))
 
     /**
+     * Voice Pack routes expose the enabled curated library for binding.
+     */
+    .route('/api/v1/voice-packs', createVoicePackRoutes(deps.voicePackService))
+
+    /**
      * Chat routes are handled by the chat service.
      */
     .route('/api/v1/chats', createChatRoutes(deps.chatService))
@@ -356,6 +366,11 @@ export async function buildApp(deps: AppDeps) {
      * `/api/auth/admin/ban-user` / `/api/auth/admin/unban-user`.
      */
     .route('/api/admin/users', createAdminUsersRoutes(deps.adminUsersService))
+
+    /**
+     * Admin Voice Pack curation routes.
+     */
+    .route('/api/admin/voice-packs', createAdminVoicePackRoutes(deps.voicePackService))
 
     /**
      * Admin LLM router config seeding/patching. Single entry point for
@@ -591,6 +606,11 @@ export async function createApp() {
     build: ({ dependsOn }) => createRequestLogService(dependsOn.db),
   })
 
+  const voicePackService = injeca.provide('services:voicePack', {
+    dependsOn: { db },
+    build: ({ dependsOn }) => createVoicePackService(dependsOn.db),
+  })
+
   const billingService = injeca.provide('services:billing', {
     dependsOn: { db, redis, configKV, otel },
     build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.redis, dependsOn.configKV, dependsOn.otel?.revenue),
@@ -686,6 +706,7 @@ export async function createApp() {
     fluxService,
     fluxTransactionService,
     requestLogService,
+    voicePackService,
     stripeService,
     billingService,
     adminFluxGrantsService,
@@ -727,6 +748,7 @@ export async function createApp() {
     fluxService: resolved.fluxService,
     fluxTransactionService: resolved.fluxTransactionService,
     stripeService: resolved.stripeService,
+    voicePackService: resolved.voicePackService,
     billingService: resolved.billingService,
     adminFluxGrantsService: resolved.adminFluxGrantsService,
     adminRouterConfigService: resolved.adminRouterConfigService,

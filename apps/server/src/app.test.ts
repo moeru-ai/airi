@@ -51,6 +51,7 @@ function createTestDeps() {
     adminUsersService: {} as any,
     ttsMeter: {} as any,
     requestLogService: {} as any,
+    voicePackService: {} as any,
     configKV: {
       getOrThrow: vi.fn(async (key: string) => {
         switch (key) {
