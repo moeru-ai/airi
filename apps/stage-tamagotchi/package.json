@@ -21,6 +21,7 @@
     "dev": "electron-vite dev",
     "dev:xwayland": "electron-vite dev -- --ozone-platform=x11",
     "build": "electron-vite build",
+    "postinstall": "node scripts/ensure-electron.mjs",
     "build:unpack": "pnpm run build && electron-builder --dir",
     "build:win": "pnpm run build && electron-builder --win",
     "build:mac": "pnpm run build && electron-builder --mac",
