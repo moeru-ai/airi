@@ -552,9 +552,9 @@ describe('v1CompletionsRoutes', () => {
 
     /**
      * @example
-     * POST /api/v1/audio/speech { "speed": 1.2 }
+     * POST /api/v1/audio/speech { "speed": 1.2, "extra_body": { "voice_pack": { "pitch": 20 } } }
      */
-    it('forwards TTS speed to the router input', async () => {
+    it('forwards TTS speed and Voice Pack prosody options to the router input', async () => {
       const routeTts = vi.fn(async () => new Response(new Uint8Array([1]), {
         status: 200,
         headers: { 'Content-Type': 'audio/mpeg' },
@@ -573,7 +573,18 @@ describe('v1CompletionsRoutes', () => {
         new Request('http://localhost/api/v1/audio/speech', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model: 'auto', input: 'test', voice: 'en-US-AvaMultilingualNeural', speed: 1.2 }),
+          body: JSON.stringify({
+            model: 'auto',
+            input: 'test',
+            voice: 'en-US-AvaMultilingualNeural',
+            speed: 1.2,
+            extra_body: {
+              voice_pack: {
+                pitch: 20,
+                volume: 5,
+              },
+            },
+          }),
         }),
         { user: testUser } as any,
       )
@@ -584,6 +595,10 @@ describe('v1CompletionsRoutes', () => {
           text: 'test',
           voice: 'en-US-AvaMultilingualNeural',
           speed: 1.2,
+          extraOptions: {
+            pitch: 20,
+            volume: 5,
+          },
         }),
       }))
     })

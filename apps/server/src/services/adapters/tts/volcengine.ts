@@ -4,7 +4,7 @@ import type { TtsAdapter, TtsAdapterContext, TtsInput, TtsResult, TtsVoiceCatalo
 
 import { errorMessageFrom } from '@moeru/std'
 
-import { createBadGatewayError, createInternalError } from '../../../utils/error'
+import { createBadGatewayError, createBadRequestError, createInternalError } from '../../../utils/error'
 import { nanoid } from '../../../utils/id'
 
 /**
@@ -59,6 +59,12 @@ export const volcengineAdapter: TtsAdapter = {
       : undefined
 
     const voice = input.voice ?? DEFAULT_VOLCENGINE_VOICE
+    if (typeof input.extraOptions?.pitch === 'number' || typeof input.extraOptions?.volume === 'number') {
+      throw createBadRequestError(
+        'volcengine does not support Voice Pack pitch or volume parameters',
+        'BAD_REQUEST',
+      )
+    }
     const encoding = input.responseFormat ?? DEFAULT_VOLCENGINE_FORMAT
     const speed = input.speed ?? 1
 

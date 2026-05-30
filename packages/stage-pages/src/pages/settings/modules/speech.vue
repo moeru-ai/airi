@@ -13,6 +13,7 @@ import {
   VoiceCardManySelect,
 } from '@proj-airi/stage-ui/components'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
+import { OFFICIAL_SPEECH_PROVIDER_ID } from '@proj-airi/stage-ui/libs/providers/providers/official'
 import { useAiriCardStore, useVoicePacksStore } from '@proj-airi/stage-ui/stores'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
@@ -222,6 +223,7 @@ async function generateTestSpeech() {
           params: voicePack?.params,
           forceSSML: ssmlEnabled.value,
           supportsSSML: speechStore.supportsSSML,
+          supportsAdapterProsody: activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID,
         })
 
     const response = await generateSpeech({

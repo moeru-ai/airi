@@ -35,6 +35,7 @@ import { initIOTracer } from '../../composables/use-io-tracer'
 import { useSpeechPipelineAnalytics } from '../../composables/use-speech-pipeline-analytics'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { getDefaultStreamingModel, getDefinedProvider } from '../../libs/providers/providers'
+import { OFFICIAL_SPEECH_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { createStageTtsSession } from '../../libs/speech/tts-session'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useBackgroundStore } from '../../stores/background'
@@ -422,6 +423,7 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
         params: voicePack?.params,
         forceSSML: ssmlEnabled.value,
         supportsSSML: speechStore.supportsSSML,
+        supportsAdapterProsody: activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID,
       })
 
       // Non-streaming providers only: synth via REST. Streaming provider

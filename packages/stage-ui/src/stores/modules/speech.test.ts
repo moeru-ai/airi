@@ -84,6 +84,38 @@ describe('speech store helpers', () => {
 
   /**
    * @example
+   * speechStore.resolveVoicePackSpeechInput({ text, voice, params: { pitch: '+20%' }, supportsAdapterProsody: true })
+   */
+  it('passes Voice Pack prosody params through adapter options when supported', () => {
+    const speechStore = useSpeechStore()
+    const voice = {
+      id: 'voice-1',
+      name: 'Voice 1',
+      provider: OFFICIAL_SPEECH_PROVIDER_ID,
+      languages: [{ code: 'en-US', title: 'English' }],
+    }
+
+    const request = speechStore.resolveVoicePackSpeechInput({
+      text: 'hello',
+      voice,
+      params: {
+        pitch: '+20%',
+        volume: '+5%',
+      },
+      supportsAdapterProsody: true,
+    })
+
+    expect(request.input).toBe('hello')
+    expect(request.providerConfig.extraBody).toEqual({
+      voicePack: {
+        pitch: 20,
+        volume: 5,
+      },
+    })
+  })
+
+  /**
+   * @example
    * speechStore.resolveVoicePackSpeechInput({ text, voice, params: { pitch: '+20%' }, supportsSSML: false })
    */
   it('fails fast when Voice Pack prosody params cannot be applied', () => {

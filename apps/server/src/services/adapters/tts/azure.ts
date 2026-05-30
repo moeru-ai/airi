@@ -92,6 +92,29 @@ function speedToProsodyRate(speed: number | undefined): string {
 }
 
 /**
+ * Normalizes a percent delta into an Azure SSML prosody value.
+ *
+ * Before:
+ * - 20
+ * - -5
+ * - 0
+ *
+ * After:
+ * - "+20%"
+ * - "-5%"
+ * - "0%"
+ */
+function percentToProsodyValue(value: number | undefined): string {
+  if (value == null)
+    return ''
+  if (value > 0)
+    return `+${value}%`
+  if (value < 0)
+    return `${value}%`
+  return '0%'
+}
+
+/**
  * Minimal XML escape for text injected into SSML. Azure rejects malformed XML
  * (raw `<`, `&`, etc.) — we escape only the five XML-mandated entities and
  * leave the rest of the text intact.
@@ -119,11 +142,26 @@ function escapeForSsml(text: string): string {
  * - A self-contained `<speak>` document string Azure accepts as
  *   `Content-Type: application/ssml+xml`.
  */
-function buildAzureSsml(text: string, voice: string, speed: number | undefined): string {
+function buildAzureSsml(
+  text: string,
+  voice: string,
+  speed: number | undefined,
+  options?: {
+    pitch?: number
+    volume?: number
+  },
+): string {
   const safe = escapeForSsml(text)
   const rate = speedToProsodyRate(speed)
-  const inner = rate
-    ? `<prosody rate='${rate}'>${safe}</prosody>`
+  const pitch = percentToProsodyValue(options?.pitch)
+  const volume = percentToProsodyValue(options?.volume)
+  const prosodyAttrs = [
+    rate ? `rate='${rate}'` : undefined,
+    pitch ? `pitch='${pitch}'` : undefined,
+    volume ? `volume='${volume}'` : undefined,
+  ].filter(Boolean).join(' ')
+  const inner = prosodyAttrs
+    ? `<prosody ${prosodyAttrs}>${safe}</prosody>`
     : safe
   // xml:lang on <speak> is required by Azure; voice's own language wins for
   // pronunciation, but the root attribute must still be present.
@@ -166,7 +204,10 @@ export const azureAdapter: TtsAdapter = {
     // in the `input` field and forwards it verbatim.
     const ssml = disableSsml
       ? input.text
-      : buildAzureSsml(input.text, voice, input.speed)
+      : buildAzureSsml(input.text, voice, input.speed, {
+          pitch: typeof input.extraOptions?.pitch === 'number' ? input.extraOptions.pitch : undefined,
+          volume: typeof input.extraOptions?.volume === 'number' ? input.extraOptions.volume : undefined,
+        })
 
     const region = ctx.adapterParams?.region
     if (typeof region !== 'string' || !region)

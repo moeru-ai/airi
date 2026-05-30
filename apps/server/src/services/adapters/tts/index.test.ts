@@ -201,7 +201,15 @@ describe('azureAdapter.send', () => {
     })) as unknown as typeof fetch
 
     await adapter.send(
-      { text: 'hi there', voice: 'en-US-AvaMultilingualNeural', speed: 1.2 },
+      {
+        text: 'hi there',
+        voice: 'en-US-AvaMultilingualNeural',
+        speed: 1.2,
+        extraOptions: {
+          pitch: 20,
+          volume: 5,
+        },
+      },
       {
         keyPlaintext: Buffer.from('azure-sub-key', 'utf8'),
         baseURL: 'https://eastasia.tts.speech.microsoft.com/cognitiveservices/v1',
@@ -219,7 +227,7 @@ describe('azureAdapter.send', () => {
     expect((body.extra_body as { region?: string }).region).toBe('eastasia')
     // SSML is built on our side so speed survives — verify the prosody tag is in
     // the input field unspeech receives.
-    expect(body.input).toContain('<prosody rate=\'+20%\'>')
+    expect(body.input).toContain('<prosody rate=\'+20%\' pitch=\'+20%\' volume=\'+5%\'>')
     expect(body.input).toContain('hi there')
     const headers = init.headers as Record<string, string>
     expect(headers.Authorization).toBe('Bearer azure-sub-key')
@@ -278,6 +286,34 @@ describe('volcengineAdapter.send', () => {
 
     expect(result.contentType).toBe('audio/mpeg')
     expect(result.body).toBeInstanceOf(ArrayBuffer)
+  })
+
+  /**
+   * @example
+   * volcengineAdapter.send({ text: 'hi', extraOptions: { pitch: 20 } }, ctx)
+   */
+  it('fails fast when Voice Pack pitch or volume params reach Volcengine', async () => {
+    const adapter = getAdapter('volcengine')
+    const fetchImpl = vi.fn(async () => new Response(new Uint8Array([0x49]))) as unknown as typeof fetch
+
+    await expect(adapter.send(
+      {
+        text: 'hi',
+        voice: 'BV001_streaming',
+        extraOptions: {
+          pitch: 20,
+        },
+      },
+      {
+        keyPlaintext: Buffer.from('volc-token', 'utf8'),
+        baseURL: 'https://openspeech.bytedance.com/api/v1/tts',
+        unspeechBaseURL: 'http://unspeech.local:5933',
+        adapterParams: { appid: 'APP-123' },
+        fetchImpl,
+      },
+    )).rejects.toMatchObject({ statusCode: 400 })
+
+    expect(fetchImpl).not.toHaveBeenCalled()
   })
 
   it('rejects when adapterParams.appid is missing', async () => {

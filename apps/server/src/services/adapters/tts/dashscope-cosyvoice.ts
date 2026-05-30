@@ -55,6 +55,12 @@ export const dashscopeCosyvoiceAdapter: TtsAdapter = {
       : DEFAULT_COSYVOICE_MODEL
     if (!input.voice)
       throw createBadRequestError('dashscope-cosyvoice voice is required', 'BAD_REQUEST')
+    if (typeof input.extraOptions?.pitch === 'number' || typeof input.extraOptions?.volume === 'number') {
+      throw createBadRequestError(
+        'dashscope-cosyvoice does not support Voice Pack pitch or volume parameters',
+        'BAD_REQUEST',
+      )
+    }
     const voice = input.voice
     const format = input.responseFormat ?? DEFAULT_COSYVOICE_FORMAT
 

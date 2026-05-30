@@ -67,6 +67,19 @@ function getLlmMetricAttributes(opts: { model: string, type: string, status: num
   }
 }
 
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  if (typeof value !== 'object' || value == null || Array.isArray(value))
+    return undefined
+  return value as Record<string, unknown>
+}
+
+function readOptionalNumber(record: Record<string, unknown> | undefined, key: string): number | undefined {
+  const value = record?.[key]
+  return typeof value === 'number' && Number.isFinite(value)
+    ? value
+    : undefined
+}
+
 export function createV1Routes(
   fluxService: FluxService,
   billingService: BillingService,
@@ -520,11 +533,20 @@ export function createV1Routes(
     // Map OpenAI-shaped /audio/speech body → adapter-neutral TtsInput. Speed
     // / response_format / extra fields stay in adapterParams for adapters that
     // care (Azure SSML rate, Volcengine audio_params, etc.).
+    const extraBody = asRecord(body.extra_body)
+    const voicePackOptions = asRecord(extraBody?.voice_pack)
+    const pitch = readOptionalNumber(voicePackOptions, 'pitch')
+    const volume = readOptionalNumber(voicePackOptions, 'volume')
+    const extraOptions = pitch != null || volume != null
+      ? { pitch, volume }
+      : undefined
+
     const ttsInput = {
       text: inputText,
       voice: typeof body.voice === 'string' ? body.voice : undefined,
       speed: typeof body.speed === 'number' ? body.speed : undefined,
       responseFormat: typeof body.response_format === 'string' ? body.response_format : undefined,
+      extraOptions,
     }
 
     const span = tracer.startSpan('llm.gateway.tts', {

@@ -31,6 +31,7 @@ interface VoicePackSpeechInputOptions {
   params?: VoicePackParams
   forceSSML?: boolean
   supportsSSML?: boolean
+  supportsAdapterProsody?: boolean
 }
 
 interface VoicePackSpeechInput {
@@ -466,11 +467,19 @@ export const useSpeechStore = defineStore('speech', () => {
     if (speed != null)
       providerConfig.speed = speed
 
-    if (needsProsody && !options.forceSSML && !options.supportsSSML) {
+    if (needsProsody && options.supportsAdapterProsody) {
+      providerConfig.extraBody = {
+        voicePack: {
+          pitch,
+          volume,
+        },
+      }
+    }
+    else if (needsProsody && !options.forceSSML && !options.supportsSSML) {
       throw new Error('Voice Pack pitch and volume parameters require an SSML-capable speech provider.')
     }
 
-    if (!options.forceSSML && !needsProsody) {
+    if (!options.forceSSML && (!needsProsody || options.supportsAdapterProsody)) {
       return {
         input: options.text,
         providerConfig,
