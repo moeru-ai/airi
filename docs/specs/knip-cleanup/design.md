@@ -7,6 +7,7 @@ This is a configuration and dependency cleanup task — no application architect
 1. `knip.json` (root workspace Knip configuration)
 2. `packages/stage-layouts/package.json` (exports field)
 3. Multiple `package.json` files (adding/removing dependencies)
+4. `pnpm-workspace.yaml` (pruning unused catalog entries)
 
 ## Change Flow
 
@@ -20,13 +21,16 @@ This is a configuration and dependency cleanup task — no application architect
 │                                                         │
 │  2. Remove ui-transitions entries (redundant,           │
 │     auto-detected)                                      │
+│                                                         │
+│  3. Add uno.css to ignoreDependencies (virtual module   │
+│     provided by unocss Vite plugin)                     │
 └─────────────────────────────────────────────────────────┘
                           │
                           ▼
 ┌─────────────────────────────────────────────────────────┐
 │              packages/stage-layouts/package.json         │
 │                                                         │
-│  3. Verify exports field — the ViewControls glob        │
+│  4. Verify exports field — the ViewControls glob        │
 │     pattern is valid but may need adjustment            │
 │     if Knip misinterprets it                            │
 └─────────────────────────────────────────────────────────┘
@@ -35,27 +39,35 @@ This is a configuration and dependency cleanup task — no application architect
 ┌─────────────────────────────────────────────────────────┐
 │              Dependency Additions (pnpm add -D)          │
 │                                                         │
-│  4a. stage-tamagotchi: jsdom                            │
-│  4b. stage-ui: jsdom, unocss                            │
-│  4c. ui-transitions: unocss                             │
+│  5a. stage-tamagotchi: jsdom                            │
+│  5b. stage-ui: jsdom, unocss                            │
+│  5c. ui-transitions: unocss                             │
 └─────────────────────────────────────────────────────────┘
                           │
                           ▼
 ┌─────────────────────────────────────────────────────────┐
 │              Dependency Removals (pnpm remove)           │
 │                                                         │
-│  5a. stage-tamagotchi: @date-fns/utc,                   │
+│  6a. stage-tamagotchi: @date-fns/utc,                   │
 │      @formkit/auto-animate, replicate, nprogress,       │
 │      posthog-js                                         │
-│  5b. stage-layouts: animejs, posthog-js, dompurify      │
-│  5c. stage-pages: posthog-js, d3                        │
+│  6b. stage-layouts: animejs, posthog-js, dompurify      │
+│  6c. stage-pages: posthog-js, d3                        │
+└─────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│         Prune pnpm-workspace.yaml Catalog               │
+│                                                         │
+│  7. Remove 41 unused catalog entries (dependencies      │
+│     never referenced by any workspace package)          │
 └─────────────────────────────────────────────────────────┘
                           │
                           ▼
 ┌─────────────────────────────────────────────────────────┐
 │              Verification                               │
 │                                                         │
-│  6. pnpm install → pnpm knip → confirm reduction       │
+│  8. pnpm install → pnpm knip → confirm reduction       │
 │     from 172 unused files                               │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -121,10 +133,22 @@ All listed dependencies have been confirmed as having zero imports in their resp
 
 **Note on `posthog-js`:** This appears in three workspaces (`stage-tamagotchi`, `stage-layouts`, `stage-pages`) and is flagged as unused in all three. However, `packages/stage-ui` also has `posthog-js` in its dependencies — verify it's actually unused there too before removing (it may be used transitively through `stores/analytics/posthog`).
 
-### D6: Verification Strategy
+### D6: Prune Unused Catalog Entries
+
+The `pnpm-workspace.yaml` catalog currently defines 82 entries. 41 of these are never referenced by any `package.json` in the monorepo via the `catalog:` or `catalog:<name>` protocol. These unused entries create unnecessary metadata overhead and can confuse contributors browsing available dependencies.
+
+**Approach:** Delete each unused entry from the `catalog:` section. The `catalogs:` named sections (`vitest`, `xsai`) are both used and should be kept. The `catalogMode: prefer` setting and `ignoredBuiltDependencies` / `onlyBuiltDependencies` / `overrides` / `packageExtensions` sections are unrelated to the catalog and must not be touched.
+
+**Verification:** After pruning, run `pnpm install` to confirm no workspace package fails to resolve its dependencies.
+
+### D7: Verification Strategy
 
 After all changes:
 
-1. Run `pnpm install` to update the lockfile.
-2. Run `pnpm knip` and compare the unused file count against the baseline of 172.
+1. Run `pnpm install` to update the lockfile and verify no dependency resolution errors.
+2. Run `pnpm knip` and confirm:
+   - Unused file count has decreased from the baseline of 172.
+   - No `uno.css` unlisted dependency warning.
+   - No `ViewControls/**/*.vue` package entry error.
+   - No new Knip hints or errors are introduced.
 3. Run `pnpm lint` and `pnpm typecheck` on affected workspaces to ensure no regressions.

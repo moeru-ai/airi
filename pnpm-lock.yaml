@@ -192,9 +192,6 @@ catalogs:
     posthog-js:
       specifier: 1.306.1
       version: 1.306.1
-    replicate:
-      specifier: ^1.4.0
-      version: 1.4.0
     splitpanes:
       specifier: ^4.0.4
       version: 4.0.4
@@ -461,9 +458,6 @@ importers:
       '@fontsource/m-plus-rounded-1c':
         specifier: ^5.2.10
         version: 5.2.10
-      '@formkit/auto-animate':
-        specifier: ^0.9.0
-        version: 0.9.0(vue@3.5.32(typescript@5.9.3))
       '@guiiai/logg':
         specifier: 'catalog:'
         version: 1.2.11
@@ -644,9 +638,6 @@ importers:
       node-vibrant:
         specifier: ^4.0.4
         version: 4.0.4(encoding@0.1.13)
-      nprogress:
-        specifier: ^0.2.0
-        version: 0.2.0
       onnxruntime-web:
         specifier: npm:onnxruntime-web@^1.24.3
         version: 1.24.3
@@ -668,9 +659,6 @@ importers:
       remark-rehype:
         specifier: ^11.1.2
         version: 11.1.2
-      replicate:
-        specifier: 'catalog:'
-        version: 1.4.0
       semver:
         specifier: ^7.7.4
         version: 7.7.4
@@ -1926,7 +1914,7 @@ importers:
         specifier: 'catalog:'
         version: 29.1.1(@noble/hashes@2.0.1)(canvas@3.2.3)
       unocss:
-        specifier: ^66.6.8
+        specifier: 'catalog:'
         version: 66.6.8(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(vite@6.4.2(@types/node@25.6.0)(jiti@2.6.1)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
       unplugin-basemove:
         specifier: 0.0.1
@@ -10046,9 +10034,6 @@ packages:
     resolution: {integrity: sha512-DlL+XwOy3NxAQ8xuC0okPgK46iuVNAK01YN7RueYBqqFeGsBjV9XmCAzAdgt+667bCl5kPh9EqKKDwnaPG1I7A==}
     engines: {node: '>=10'}
 
-  nprogress@0.2.0:
-    resolution: {integrity: sha512-I19aIingLgR1fmhftnbWWO3dXc0hSxqHQHQb3H8m+K3TnEn/iSeTZZOyvKXWqQESMwuUVnatlCnZdLBZZt2VSA==}
-
   nth-check@2.1.1:
     resolution: {integrity: sha512-lqjrjmaOoAnWfMmBPL+XNnynZh2+swxiX3WUE0s4yEHI6m+AwrK2UZOimIRl3X/4QctVqS8AiZjFqyOGrMXb/w==}
 
@@ -10737,10 +10722,6 @@ packages:
 
   remark-rehype@11.1.2:
     resolution: {integrity: sha512-Dh7l57ianaEoIpzbp0PC9UKAdCSVklD8E5Rpw7ETfbTl3FqcOOgq5q2LVDhgGCkaBv7p24JXikPdvhhmHvKMsw==}
-
-  replicate@1.4.0:
-    resolution: {integrity: sha512-1ufKejfUVz/azy+5TnzQP7U1+MHVWZ6psnQ06az8byUUnRhT+DZ/MvewzB1NQYBVMgNKR7xPDtTwlcP5nv/5+w==}
-    engines: {git: '>=2.11.0', node: '>=18.0.0', npm: '>=7.19.0', yarn: '>=1.7.0'}
 
   request@2.88.2:
     resolution: {integrity: sha512-MsvtOrfG9ZcrOwAW+Qi+F6HbD0CWXEh9ou77uOb7FM2WPhwT7smM833PzanhJLsgXjN89Ir6V2PczXNnMpwKhw==}
@@ -20857,8 +20838,6 @@ snapshots:
 
   normalize-url@6.1.0: {}
 
-  nprogress@0.2.0: {}
-
   nth-check@2.1.1:
     dependencies:
       boolbase: 1.0.0
@@ -21742,10 +21721,6 @@ snapshots:
       mdast-util-to-hast: 13.2.1
       unified: 11.0.5
       vfile: 6.0.3
-
-  replicate@1.4.0:
-    optionalDependencies:
-      readable-stream: 4.7.0
 
   request@2.88.2:
     dependencies:

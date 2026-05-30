@@ -3,6 +3,9 @@
   "tags": [
     "-lintignore"
   ],
+  "ignoreDependencies": [
+    "uno.css"
+  ],
   "workspaces": {
     ".": {},
     "apps/stage-tamagotchi": {
