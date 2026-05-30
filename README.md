@@ -52,8 +52,6 @@ We build directly upon the core strengths of the original upstream project and [
 
 ## 🖥️ Development
 
-![Alt](https://repobeats.axiom.co/api/embed/30d3825941402ebcdc6dd5f21a116bb68fb2f4a3.svg "Repobeats analytics image")
-
 ### ☕ Prerequisites
 
 *   Node.js >= 20.14.0
@@ -86,14 +84,14 @@ pnpm approve-builds # Select 'electron' and confirm
 ## 🚙 Roadmap
 
 - [x] **Brain**
-  - [x] Multi-tier memory (short-term & long-term journal)
-  - [x] Per-character memory scoping
+  - [ ] Multi-tier memory (short-term & long-term journal)
+  - [ ] Per-character memory scoping
 - [x] **Ears**
   - [x] Client-side speech recognition & talking detection
 - [x] **Mouth**
   - [x] OpenAI-compatible speech providers with voice discovery
 - [x] **Body**
-  - [ ] VRM support with expression controls, auto-blink, and auto-look-at
+  - [x] VRM support with expression controls, auto-blink, and auto-look-at
   - [x] Live2D support with expression-oriented tools
 - [x] **Desktop Stage**
   - [x] Control Island with emotions, favorites, and idle-loop cycling
@@ -103,17 +101,17 @@ pnpm approve-builds # Select 'electron' and confirm
   - [x] Native Wayland support
 - [ ] **airiOS (WIP)**
   - [x] System tray & screen capture integration
-  - [ ] Global shortcuts
   - [ ] Generate and open native GTK3/4 windows instead of web widgets
   - [ ] [computer-use-linux](https://github.com/vi70x3/computer-use-linux) integration
   - [ ] [AiRoo Code](https://github.com/vi70x3/airoo) integration
     - [ ] Send recent AiRoo context snapshot with each AIRI heartbeat
-    - [ ] Render AiRoo as a window separate from VSCode (might use code-server)
   - [ ] Render AIRI as wlroots wallpaper if compatible compositor detected
   - [ ] AIRI chatbox integration as a system terminal with natural language detection
 - [ ] **Misc**
+  - [ ] DeepSource pass with 0 issues
+  - [ ] LCov > 90% -> switch to TDD
   - [ ] Natural terminal command detection (similar to Warp terminal)
-  - [ ] Replace xsai with direct litellm integration for maximum provider flexibility
+  - [ ] Add more providers to xsai
   - [ ] Add providers/mcp/skills via natural language prompts
 
 ---
