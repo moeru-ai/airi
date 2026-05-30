@@ -8,6 +8,7 @@ import workletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&u
 import { tryCatch } from '@moeru/std'
 import { electron } from '@proj-airi/electron-eventa'
 import {
+  useElectronEventaContext,
   useElectronEventaInvoke,
   useElectronMouseAroundWindowBorder,
   useElectronMouseInElement,
@@ -15,6 +16,7 @@ import {
   useElectronRelativeMouse,
 } from '@proj-airi/electron-vueuse'
 import { IS_DEV } from '@proj-airi/stage-shared'
+import { parseAccelerator } from '@proj-airi/stage-shared/global-shortcut'
 import { useModelStore, useThreeSceneIsTransparentAtPoint } from '@proj-airi/stage-ui-three'
 import { HoloCoupon } from '@proj-airi/stage-ui/components'
 import {
@@ -24,8 +26,9 @@ import {
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useAudioRecorder } from '@proj-airi/stage-ui/composables/audio/audio-recorder'
 import { useCanvasPixelIsTransparentAtPoint } from '@proj-airi/stage-ui/composables/canvas-alpha'
+import { useCharacterStore } from '@proj-airi/stage-ui/stores/character'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
-import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { refDebounced, useBroadcastChannel } from '@vueuse/core'
@@ -36,7 +39,13 @@ import ControlsIsland from '../components/stage-islands/controls-island/index.vu
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
 import StatusIsland from '../components/stage-islands/status-island/index.vue'
 
-import { electronOpenOnboarding } from '../../shared/eventa'
+import {
+  electronOpenChat,
+  electronOpenOnboarding,
+  electronShortcutRegister,
+  electronShortcutTriggered,
+  electronShortcutUnregister,
+} from '../../shared/eventa'
 import { modelSettingsRuntimeSnapshotChannelName } from '../../shared/model-settings-runtime'
 import { useChatSyncStore } from '../stores/chat-sync'
 import { useControlsIslandStore } from '../stores/controls-island'
@@ -240,11 +249,28 @@ const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const hearingPipeline = useHearingSpeechInputPipeline()
 const { transcribeForRecording, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
+const { vadSpeechThreshold, listeningMode } = storeToRefs(useHearingStore())
 const chatSyncStore = useChatSyncStore()
+const characterStore = useCharacterStore()
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
 
+// Spoken feedback when STT yields nothing (empty/non-Chinese/hallucination filtered server-side).
+// This bypasses the LLM entirely — it just voices a fixed line so the user knows to retry, instead
+// of the previous silent drop where nothing happened and the user couldn't tell recognition failed.
+const STT_FAILURE_PROMPT = '语音识别未成功,请重新说话'
+let lastSttFailureAnnouncedAt = 0
+function announceSttFailure() {
+  // Light throttle so rapid empty captures don't stack the same line repeatedly.
+  const nowMs = performance.now()
+  if (nowMs - lastSttFailureAnnouncedAt < 4000)
+    return
+  lastSttFailureAnnouncedAt = nowMs
+  void characterStore.emitTextOutput(STT_FAILURE_PROMPT)
+}
+
 const { init: initVAD, dispose: disposeVAD, start: startVAD, loaded: vadLoaded } = useVAD(workletUrl, {
-  threshold: ref(0.6),
+  // Shared, persisted sensitivity (lower = more sensitive). Tuned from the settings page.
+  threshold: vadSpeechThreshold,
   onSpeechStart: () => {
     void handleSpeechStart()
   },
@@ -322,14 +348,18 @@ async function startAudioInteraction() {
   try {
     console.info('[Main Page] Starting audio interaction...')
 
-    initVAD().then(() => {
-      if (stream.value) {
-        console.info('[Main Page] VAD initialized successfully, starting with stream input')
-        return startVAD(stream.value)
-      }
-    }).catch((err) => {
-      console.warn('[Main Page] VAD initialization failed (non-critical for Web Speech API):', err)
-    })
+    // Only run always-on voice-activity detection in VAD mode. In push-to-talk mode the mic stream
+    // stays live but we do not auto-detect speech — recording is driven by the PTT key (CapsLock).
+    if (listeningMode.value === 'vad') {
+      initVAD().then(() => {
+        if (stream.value) {
+          console.info('[Main Page] VAD initialized successfully, starting with stream input')
+          return startVAD(stream.value)
+        }
+      }).catch((err) => {
+        console.warn('[Main Page] VAD initialization failed (non-critical for Web Speech API):', err)
+      })
+    }
 
     if (shouldUseStreamInput.value) {
       console.info('[Main Page] Starting streaming transcription...', {
@@ -372,12 +402,18 @@ async function startAudioInteraction() {
           return
 
         const text = await transcribeForRecording(recording)
-        if (!text || !text.trim())
+        if (!text || !text.trim()) {
+          // STT returned nothing (filtered/empty) — voice a fixed retry prompt, no LLM involved.
+          announceSttFailure()
           return
+        }
 
         // Update caption overlay speaker text via BroadcastChannel
         postCaption({ type: 'caption-speaker', text })
 
+        // Any recorded clip is sent: in PTT mode the key release is the explicit send intent;
+        // VAD mode is opt-in and equally treated as an intentional utterance. The auto-send UI
+        // toggle has been removed in favor of this simpler "captured = sent" contract.
         try {
           await chatSyncStore.requestIngest({ text })
         }
@@ -416,6 +452,96 @@ watch(enabled, async (val) => {
   }
 }, { immediate: true })
 
+// ── Global hotkeys: open chat (Ctrl+Shift+A) + push-to-talk (hold CapsLock) ──
+// These go through the app's global-shortcut service. `receiveKeyUps: true` routes push-to-talk
+// through the uiohook driver so we get both key-down and key-up (true hold-to-talk), and it works
+// even while another app (e.g. Minecraft) is focused.
+const openChat = useElectronEventaInvoke(electronOpenChat)
+const registerShortcut = useElectronEventaInvoke(electronShortcutRegister)
+const unregisterShortcut = useElectronEventaInvoke(electronShortcutUnregister)
+const shortcutContext = useElectronEventaContext()
+
+// Ctrl+Shift+A is grabbed by Arc browser system-wide ("Arc Search"), so Electron's globalShortcut
+// register returns false and ours silently loses. Alt+` is essentially never taken by other apps.
+const OPEN_CHAT_ACCELERATOR = 'Alt+Backquote'
+const PTT_ACCELERATOR = 'CapsLock'
+let pttRecording = false
+
+function startPushToTalk() {
+  // Begin capturing only while held, in PTT mode, with a live mic stream.
+  if (pttRecording || !enabled.value || listeningMode.value !== 'ptt')
+    return
+  pttRecording = true
+  startRecord()
+}
+
+function stopPushToTalk() {
+  if (!pttRecording)
+    return
+  pttRecording = false
+  // onStopRecord (registered in startAudioInteraction) transcribes + ingests the recorded clip.
+  stopRecord()
+}
+
+async function applyPushToTalkBinding(mode: 'vad' | 'ptt') {
+  console.warn('[Main Page][PTT-DIAG] applyPushToTalkBinding called with mode =', mode)
+  try {
+    if (mode === 'ptt') {
+      const result = await registerShortcut({ id: 'hearing-ptt', scope: 'global', accelerator: parseAccelerator(PTT_ACCELERATOR), receiveKeyUps: true })
+      console.warn('[Main Page][PTT-DIAG] PTT shortcut register result:', result)
+    }
+    else {
+      const result = await unregisterShortcut({ id: 'hearing-ptt' })
+      console.warn('[Main Page][PTT-DIAG] PTT shortcut UNregister result:', result)
+    }
+  }
+  catch (err) {
+    console.warn('[Main Page][PTT-DIAG] Failed to (un)register PTT:', err)
+  }
+}
+
+onMounted(async () => {
+  console.warn('[Main Page][PTT-DIAG] onMounted: listeningMode at mount =', listeningMode.value, 'enabled =', enabled.value)
+  try {
+    await registerShortcut({ id: 'open-chat', scope: 'global', accelerator: parseAccelerator(OPEN_CHAT_ACCELERATOR), receiveKeyUps: false })
+  }
+  catch (err) {
+    console.warn('[Main Page] Failed to register open-chat shortcut:', err)
+  }
+  await applyPushToTalkBinding(listeningMode.value)
+
+  if (!shortcutContext.value) {
+    console.warn('[Main Page][PTT-DIAG] shortcutContext is NULL — trigger listener NOT attached!')
+  }
+  shortcutContext.value?.on(electronShortcutTriggered, (event) => {
+    const payload = event?.body
+    console.warn('[Main Page][PTT-DIAG] trigger received:', payload)
+    if (!payload)
+      return
+    if (payload.id === 'open-chat') {
+      if (payload.phase === 'down')
+        void openChat()
+    }
+    else if (payload.id === 'hearing-ptt') {
+      if (payload.phase === 'down')
+        startPushToTalk()
+      else if (payload.phase === 'up')
+        stopPushToTalk()
+    }
+  })
+})
+
+// Switching listening mode: (un)register the PTT key and re-apply the audio pipeline so VAD
+// starts (vad) or stops (ptt) to match.
+watch(listeningMode, async (mode) => {
+  console.warn('[Main Page][PTT-DIAG] listeningMode WATCH fired, new mode =', mode)
+  await applyPushToTalkBinding(mode)
+  if (enabled.value) {
+    stopAudioInteraction()
+    await startAudioInteraction()
+  }
+})
+
 onMounted(() => {
   if (onboardingStore.needsOnboarding) {
     openOnboarding()
@@ -428,6 +554,8 @@ onUnmounted(() => {
     ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
   })
   stopAudioInteraction()
+  void unregisterShortcut({ id: 'open-chat' }).catch(() => {})
+  void unregisterShortcut({ id: 'hearing-ptt' }).catch(() => {})
 })
 
 watch(stream, async (currentStream) => {
@@ -443,7 +571,7 @@ watch(stream, async (currentStream) => {
 })
 
 watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
-  if (enabled.value && loaded && s) {
+  if (enabled.value && loaded && s && listeningMode.value === 'vad') {
     try {
       await startVAD(s)
     }

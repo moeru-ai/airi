@@ -1,25 +1,27 @@
 <script setup lang="ts">
-import { Button, Callout, FieldCombobox } from '@proj-airi/ui'
+import { Callout, FieldCombobox } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 
 import { useAudioAnalyzer, useAudioDevice } from '../../../../composables'
 import { useSettingsAudioDevice } from '../../../../stores'
 
+// NOTICE: Transcription/Auto-send buttons were removed from this dialog — the desktop drives
+// recording via push-to-talk (CapsLock) and always sends, so the manual toggles were both unused
+// and broken (Vue boolean-prop coercion made the v-if="!== undefined" guards render them anyway
+// even when no parent bound them). Kept the props on the API for ChatArea, which used them via
+// its own UI before the buttons were removed there too.
 const props = withDefaults(defineProps<{
   granted?: boolean // permission status on OS level
-  transcription?: boolean
 }>(), {
   granted: false,
 })
 
-const emit = defineEmits(['toggleTranscription'])
 const deviceStore = useSettingsAudioDevice()
 const { enabled, selectedAudioInput } = storeToRefs(deviceStore)
 const { audioInputs, permissionGranted, askPermission } = useAudioDevice()
 const { volumeLevel } = useAudioAnalyzer()
 
-const autoSend = defineModel<boolean>('autoSend')
 const ringEnabledClass = computed(() => enabled.value
   ? 'bg-primary-500/15 dark:bg-primary-600/20'
   : 'bg-neutral-300/20 dark:bg-neutral-700/20',
@@ -82,22 +84,6 @@ function toggleHearingEnabled() {
       </div>
     </div>
 
-    <div class="flex flex-wrap gap-2">
-      <Button
-        v-if="props.transcription !== undefined"
-        label="Transcription"
-        :variant="props.transcription ? 'primary' : 'secondary'"
-        flex-1
-        @click="() => emit('toggleTranscription')"
-      />
-      <Button
-        v-if="autoSend !== undefined"
-        label="Auto send"
-        :variant="autoSend ? 'primary' : 'secondary'"
-        flex-1
-        @click="autoSend = !autoSend"
-      />
-    </div>
 
     <!-- Always-visible device selector -->
     <div class="mt-3 w-full">

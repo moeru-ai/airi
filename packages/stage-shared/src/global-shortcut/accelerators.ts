@@ -115,6 +115,10 @@ const NAMED_KEYS: ReadonlySet<ShortcutKey> = new Set([
   'Comma',
   'Period',
   'Slash',
+  // Lock keys — commonly chosen as push-to-talk keys (don't conflict with games)
+  'CapsLock',
+  'NumLock',
+  'ScrollLock',
 ])
 
 /**
