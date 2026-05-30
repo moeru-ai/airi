@@ -195,7 +195,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     fallbackHttpCodes: number[],
     onAttemptFailure: (failure: { keyId: string, status: number | 'timeout', bodySnippet?: string, errorMessage?: string }) => void,
   ): Promise<
-    | { kind: 'ok', response: Response, attemptIndex: number }
+    | { kind: 'ok', response: Response, attemptIndex: number, upstreamModel: string }
     | { kind: 'exhausted', failures: Array<{ keyId: string, status: number | 'timeout', bodySnippet?: string, errorMessage?: string }> }
   > {
     const provider = deriveProviderTag(upstream.baseURL)
@@ -256,7 +256,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
             [AIRI_ATTR_GEN_AI_GATEWAY_KEY_ID]: key.id,
             [AIRI_ATTR_GEN_AI_GATEWAY_FALLBACK_DEPTH]: attemptIndex,
           })
-          return { kind: 'ok', response, attemptIndex }
+          return { kind: 'ok', response, attemptIndex, upstreamModel: effectiveModel }
         }
 
         const status = response.status
@@ -365,8 +365,11 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         (failure) => { allFailures.push({ provider, ...failure }) },
       )
 
-      if (result.kind === 'ok')
+      if (result.kind === 'ok') {
+        if (ctx)
+          ctx.upstreamModel = result.upstreamModel
         return result.response
+      }
 
       // This upstream exhausted; record and continue.
       options.gatewayMetrics?.keyExhaustedCount.add(1, { provider })

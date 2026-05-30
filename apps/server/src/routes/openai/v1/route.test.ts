@@ -6,10 +6,27 @@ import type { RequestLogService } from '../../../services/domain/request-log'
 import type { HonoEnv } from '../../../types/hono'
 
 import { Hono } from 'hono'
-import { afterAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createV1Routes } from '.'
 import { ApiError } from '../../../utils/error'
+
+const tracingSpies = vi.hoisted(() => ({
+  startChatGeneration: vi.fn(() => ({
+    appendStreamChunk: vi.fn(),
+    succeed: vi.fn(),
+    fail: vi.fn(),
+  })),
+  startTtsGeneration: vi.fn(() => ({
+    succeed: vi.fn(),
+    fail: vi.fn(),
+  })),
+}))
+
+vi.mock('../../../services/domain/llm-tracing', () => ({
+  startChatGeneration: tracingSpies.startChatGeneration,
+  startTtsGeneration: tracingSpies.startTtsGeneration,
+}))
 
 function createMockFluxService(flux = 100): FluxService {
   return {
@@ -165,6 +182,11 @@ const testUser = { id: 'user-1', name: 'Test User', email: 'test@example.com' }
 
 describe('v1CompletionsRoutes', () => {
   const originalFetch = globalThis.fetch
+
+  beforeEach(() => {
+    tracingSpies.startChatGeneration.mockClear()
+    tracingSpies.startTtsGeneration.mockClear()
+  })
 
   afterAll(() => {
     globalThis.fetch = originalFetch
@@ -377,6 +399,42 @@ describe('v1CompletionsRoutes', () => {
         'http://mock-gateway/chat/completions',
         expect.objectContaining({
           body: expect.stringContaining('"model":"openai/gpt-5-mini"'),
+        }),
+      )
+    })
+
+    it('records Langfuse chat generation with the router-resolved upstream model', async () => {
+      const llmRouter = createMockLlmRouter({
+        route: vi.fn(async (_req, ctx) => {
+          if (ctx) {
+            ctx.provider = 'openrouter'
+            ctx.upstreamModel = 'openai/gpt-4o-mini'
+          }
+          return new Response(JSON.stringify({
+            choices: [],
+            usage: { prompt_tokens: 1, completion_tokens: 2, total_tokens: 3 },
+          }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        }) as any,
+      })
+      const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, undefined, undefined, llmRouter)
+
+      await app.fetch(
+        new Request('http://localhost/api/v1/openai/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'chat-auto', messages: [{ role: 'user', content: 'hi' }] }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(tracingSpies.startChatGeneration).toHaveBeenCalledWith(
+        expect.objectContaining({
+          model: 'openai/gpt-4o-mini',
+          requestId: expect.any(String),
+          userId: 'user-1',
         }),
       )
     })

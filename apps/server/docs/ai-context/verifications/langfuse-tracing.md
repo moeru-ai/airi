@@ -112,6 +112,24 @@ Langfuse 隔离 live smoke(覆盖 `NODE_ENV=codex-langfuse-smoke`, `OTEL_SERVICE
 
 仍未做真实 server HTTP E2E:本地 `.env.local` 里的 DB/Redis 仍指向生产实例。当前已验证的是同一 `instrumentation.ts` + `llm-tracing` generation SDK 写入链路;真实 HTTP 请求还需要 staging DB/Redis/router/auth token 后补跑。
 
+## 模型归因修正(chat-auto alias → 上游模型)
+
+Langfuse Model costs 页面曾出现 `chat-auto`。这不是 Langfuse pricing 配置问题,而是 route 在调用 `llmRouter.route(...)` 前就用 client/request model 创建 `chat.completion` generation;如果 router config 通过 `upstream.overrideModel` 把 `chat-auto` 改写成真实上游模型,Langfuse 仍记录 alias。
+
+修正:
+
+- `LlmRouteContext.upstreamModel`:router 成功命中上游时写入实际发给上游的 `overrideModel ?? modelName`。
+- `handleCompletion`:router 返回后再创建 Langfuse generation,`model` 使用 `routeCtx.upstreamModel ?? requestModel`。
+- route 里的 billing/request-log/本地 OTel metric 仍保持原有 `requestModel` 语义;本次只修 Langfuse model-cost 归因。
+
+复测:
+
+- `apps/server/src/services/domain/llm-router/tests/router.test.ts`:覆盖 `upstream.overrideModel` 同时写入 `ctx.upstreamModel`。
+- `apps/server/src/routes/openai/v1/route.test.ts`:覆盖请求 `model=chat-auto`、router context 返回 `openai/gpt-4o-mini` 时,`startChatGeneration({ model })` 使用 `openai/gpt-4o-mini`。
+- `pnpm exec vitest run apps/server/src/services/domain/llm-router/tests/router.test.ts apps/server/src/routes/openai/v1/route.test.ts apps/server/src/services/domain/llm-tracing/index.test.ts`:3 files / 78 tests passed。
+- `pnpm -F @proj-airi/server typecheck`:0 错误。
+- `pnpm exec eslint apps/server/src/routes/openai/v1/index.ts apps/server/src/routes/openai/v1/route.test.ts apps/server/src/services/domain/llm-router/router.ts apps/server/src/services/domain/llm-router/types.ts apps/server/src/services/domain/llm-router/tests/router.test.ts`:0 输出。
+
 ## 环境
 
 - base commit: `dc1037f34`(本次改动未提交,工作树状态)
