@@ -22,6 +22,23 @@ function generateId(): string {
   return `plugin_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
 }
 
+function createEmptyMemoryContext() {
+  return {
+    id: generateId(),
+    contextId: PLUGIN_CONTEXT_ID_PREFIX,
+    strategy: ContextUpdateStrategy.ReplaceSelf,
+    text: '',
+    createdAt: Date.now(),
+    metadata: {
+      source: {
+        id: 'plugin-memory',
+        kind: 'plugin' as const,
+        plugin: { id: 'plugin-memory' },
+      },
+    },
+  }
+}
+
 /**
  * Registers Electron-backed plugin xsai tools into the shared LLM tools store.
  *
@@ -134,7 +151,7 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
       (p: { loaded: boolean, enabled: boolean, name: string }) => p.loaded && p.enabled && pluginsWithMemorySearchTool.has(p.name),
     )
     if (loadedPlugins.length === 0) {
-      return undefined
+      return createEmptyMemoryContext()
     }
 
     const results = await Promise.allSettled(
@@ -166,20 +183,7 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
     }
 
     if (gathered.length === 0) {
-      return {
-        id: generateId(),
-        contextId: PLUGIN_CONTEXT_ID_PREFIX,
-        strategy: ContextUpdateStrategy.ReplaceSelf,
-        text: '',
-        createdAt: Date.now(),
-        metadata: {
-          source: {
-            id: 'plugin-memory',
-            kind: 'plugin' as const,
-            plugin: { id: 'plugin-memory' },
-          },
-        },
-      }
+      return createEmptyMemoryContext()
     }
 
     const combinedText = gathered
