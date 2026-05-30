@@ -118,9 +118,7 @@ pnpm approve-builds # Select 'electron' and confirm
 
 ## 🤖 LLM API Providers
 
-### Supported providers: everything LiteLLM supports
-
-<p align="right"><sup><a href="https://github.com/vadash/litellm_loader">list of curated free providers for LiteLLM</a></sup></p>
+### Supported providers: everything xsai supports
 
 ---
 
