@@ -54,9 +54,9 @@ Files:
   edges. At distance, those edges collapse into visible stair-step or dashed
   pixels. Godot's alpha-to-coverage path works with 3D MSAA and preserves the
   cutout material model without switching these materials to alpha blending.
-- Validation: `materialRenderingCheck.tscn` imports AvatarSample A/B and still
-  detects MToon, cutout, transparent, outline, and shadow-caster materials after
-  the patch.
+- Validation: `tests/material-rendering-check/materialRenderingCheck.tscn`
+  imports AvatarSample A/B and still detects MToon, cutout, transparent,
+  outline, and shadow-caster materials after the patch.
 - Removal condition: remove this patch if AIRI moves to an owned MToon shader
   variant, or if upstream exposes a supported way to opt MToon materials out of
   Godot environment ambient/radiance while preserving VRM import compatibility.

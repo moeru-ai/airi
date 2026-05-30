@@ -162,7 +162,7 @@ AvatarSample A/B fixtures:
 
 ```powershell
 & $env:GODOT4 --headless --path . `
-  --scene res://scenes/verification/materialRenderingCheck.tscn `
+  --scene res://tests/material-rendering-check/materialRenderingCheck.tscn `
   --quit-after 5 `
   --log-file material-check.log
 ```
