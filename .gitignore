@@ -5,6 +5,8 @@
 # Node.js
 node_modules
 
+#Graphify
+graphify-out/
 # Logs
 *.log
 *.logs

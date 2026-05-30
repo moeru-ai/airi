@@ -1,10 +1,17 @@
 ---
 name: vue
-description: Vue 3 Composition API, script setup macros, reactivity system, and built-in components. Use when writing Vue SFCs, defineProps/defineEmits/defineModel, watchers, or using Transition/Teleport/Suspense/KeepAlive.
+description: >-
+  Vue 3 Composition API, script setup macros, reactivity system, and built-in
+  components. Use when writing Vue SFCs, defineProps/defineEmits/defineModel,
+  watchers, or using Transition/Teleport/Suspense/KeepAlive.
 metadata:
   author: Anthony Fu
-  version: '2026.1.31'
-  source: Generated from https://github.com/vuejs/docs, scripts at https://github.com/antfu/skills
+  version: 2026.1.31
+  source: >-
+    Generated from https://github.com/vuejs/docs, scripts at
+    https://github.com/antfu/skills
+modeSlugs:
+  - spec
 ---
 
 # Vue

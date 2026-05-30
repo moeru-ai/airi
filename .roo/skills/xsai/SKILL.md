@@ -1,6 +1,12 @@
 ---
 name: xsai
-description: Use this skill when the user is building with `xsai` or any `@xsai/*` package, or is evaluating xsAI for a small OpenAI-compatible workflow with text generation, streaming, tool calling, structured output, embeddings, image generation, speech synthesis, or transcription.
+description: >-
+  Use this skill when the user is building with `xsai` or any `@xsai/*` package,
+  or is evaluating xsAI for a small OpenAI-compatible workflow with text
+  generation, streaming, tool calling, structured output, embeddings, image
+  generation, speech synthesis, or transcription.
+modeSlugs:
+  - spec
 ---
 
 # xsAI

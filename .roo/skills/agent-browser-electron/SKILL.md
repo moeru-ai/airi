@@ -1,6 +1,15 @@
 ---
 name: agent-browser-electron
-description: Use when Codex needs to inspect, debug, or automate an Electron app through `agent-browser` and Chrome DevTools Protocol, especially when the app has multiple `BrowserWindow` instances, lazy-created windows, duplicate URLs, or misleading `agent-browser tab list` output. Covers mapping Electron windows to raw CDP targets, identifying routes like `/#/chat`, and attaching `agent-browser` to the correct target by `webSocketDebuggerUrl`.
+description: >-
+  Use when Codex needs to inspect, debug, or automate an Electron app through
+  `agent-browser` and Chrome DevTools Protocol, especially when the app has
+  multiple `BrowserWindow` instances, lazy-created windows, duplicate URLs, or
+  misleading `agent-browser tab list` output. Covers mapping Electron windows to
+  raw CDP targets, identifying routes like `/#/chat`, and attaching
+  `agent-browser` to the correct target by `webSocketDebuggerUrl`.
+modeSlugs:
+  - ask
+  - debug
 ---
 
 # Agent Browser Electron

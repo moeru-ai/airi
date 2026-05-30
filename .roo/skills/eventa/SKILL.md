@@ -1,17 +1,21 @@
 ---
 name: eventa
 description: >-
-  Guide for using @moeru/eventa — a transport-aware event library powering ergonomic RPC
-  and streaming flows. Use this skill whenever the user imports from '@moeru/eventa',
-  mentions eventa, needs cross-process/cross-thread event communication (Electron IPC,
-  Web Workers, WebSocket, BroadcastChannel, EventEmitter, EventTarget, Worker Threads),
-  wants to define type-safe events with RPC invoke patterns, needs streaming RPC
-  (server-streaming, client-streaming, or bidirectional), or asks about transport-agnostic
-  event abstractions. Also use when the user discusses alternatives to birpc or async-call-rpc.
+  Guide for using @moeru/eventa — a transport-aware event library powering
+  ergonomic RPC and streaming flows. Use this skill whenever the user imports
+  from '@moeru/eventa', mentions eventa, needs cross-process/cross-thread event
+  communication (Electron IPC, Web Workers, WebSocket, BroadcastChannel,
+  EventEmitter, EventTarget, Worker Threads), wants to define type-safe events
+  with RPC invoke patterns, needs streaming RPC (server-streaming,
+  client-streaming, or bidirectional), or asks about transport-agnostic event
+  abstractions. Also use when the user discusses alternatives to birpc or
+  async-call-rpc.
 license: MIT
 metadata:
   author: moeru-ai
-  version: '1.0.0'
+  version: 1.0.0
+modeSlugs:
+  - spec
 ---
 
 # @moeru/eventa
