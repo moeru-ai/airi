@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { ChatToolCallState } from './tool-call-renderer'
+
 import { Collapsible, ContainerError } from '@proj-airi/ui'
 import { computed } from 'vue'
 
@@ -7,7 +9,7 @@ import { createToolResultError } from './tool-call-display'
 const props = defineProps<{
   toolName: string
   args: string
-  state?: 'executing' | 'done' | 'error' | 'cancelled'
+  state?: ChatToolCallState
   result?: unknown
 }>()
 

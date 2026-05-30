@@ -258,16 +258,18 @@ export async function streamFrom({
       // The remaining promises are pure side-channels: we only consume them to
       // swallow `@xsai/stream-text`'s unhandled SSE-parser rejections. They never
       // settle the outer contract.
-      for (const [label, promise] of [
-        ['messages', streamResult.messages],
-        ['usage', streamResult.usage],
-        ['totalUsage', streamResult.totalUsage],
-      ] as const) {
-        void promise.catch((error) => {
-          if (!isExpectedAbortNoise(error))
-            console.error(`Stream ${label} error:`, error)
-        })
-      }
+      void streamResult.messages.catch((error) => {
+        if (!isExpectedAbortNoise(error))
+          console.error('Stream messages error:', error)
+      })
+      void streamResult.usage.catch((error) => {
+        if (!isExpectedAbortNoise(error))
+          console.error('Stream usage error:', error)
+      })
+      void streamResult.totalUsage.catch((error) => {
+        if (!isExpectedAbortNoise(error))
+          console.error('Stream totalUsage error:', error)
+      })
     }
     catch (error) {
       rejectOnce(error)

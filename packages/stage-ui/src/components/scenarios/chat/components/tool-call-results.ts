@@ -1,4 +1,5 @@
 import type { ChatAssistantMessage, ChatSlices, ChatSlicesToolCallResult } from '../../../../types/chat'
+import type { ChatToolCallState } from './tool-call-renderer'
 
 /**
  * Creates a lookup from tool-call id to its latest result slice.
@@ -52,7 +53,7 @@ export function createToolCallResultLookup(
 export function resolveToolCallBlockState(
   result: ChatSlicesToolCallResult | undefined,
   options?: { stopped?: boolean },
-): 'executing' | 'done' | 'error' | 'cancelled' {
+): ChatToolCallState {
   if (!result) {
     return options?.stopped ? 'cancelled' : 'executing'
   }

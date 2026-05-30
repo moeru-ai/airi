@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { ChatToolCallState } from '@proj-airi/stage-ui/components/scenarios/chat'
+
 import { createToolResultError, MarkdownRenderer, normalizeToolResultText } from '@proj-airi/stage-ui/components'
 import { useJournalPreviewStore } from '@proj-airi/stage-ui/stores/journal-preview'
 import { Collapsible, ContainerError } from '@proj-airi/ui'
@@ -7,7 +9,7 @@ import { computed } from 'vue'
 const props = defineProps<{
   toolName: string
   args: string
-  state?: 'executing' | 'done' | 'error' | 'cancelled'
+  state?: ChatToolCallState
   result?: unknown
 }>()
 

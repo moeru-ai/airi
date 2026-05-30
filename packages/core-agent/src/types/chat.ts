@@ -91,10 +91,8 @@ export type StreamingAssistantMessage = ChatAssistantMessage & {
  *   casts at every call site.
  *
  * Expects:
- * - The flag lives only on {@link StreamingAssistantMessage} (the session/UI
- *   shape), deliberately kept off the wire-bound {@link ChatAssistantMessage}
- *   so it can't leak into provider requests; this predicate owns the single
- *   narrowing cast required to read it.
+ * - The `stopped` flag lives only on {@link StreamingAssistantMessage}; this
+ *   predicate owns the single narrowing cast required to read it.
  *
  * Returns:
  * - `true` only for `role: 'assistant'` items carrying a truthy `stopped` flag.

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ChatHistoryItem, ChatSlices, ChatSlicesText, ChatSlicesToolCallResult, StreamingAssistantMessage } from '../../../../types/chat'
-import type { ChatToolCallRendererRegistry } from './tool-call-renderer'
+import type { ChatToolCallRendererRegistry, ChatToolCallState } from './tool-call-renderer'
 
 import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
 import { computed } from 'vue'
@@ -61,7 +61,7 @@ function getToolCallResult(slice: ChatSlices): ChatSlicesToolCallResult | undefi
   return toolResultById.value.get(slice.toolCall.toolCallId)
 }
 
-function getToolCallState(slice: ChatSlices): 'executing' | 'done' | 'error' | 'cancelled' {
+function getToolCallState(slice: ChatSlices): ChatToolCallState {
   return resolveToolCallBlockState(getToolCallResult(slice), { stopped: props.message.stopped })
 }
 
