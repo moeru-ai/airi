@@ -35,7 +35,7 @@ Our goal is a Linux desktop experience where your AI companion acts as the cente
 
 ## 🐧 Features & Architecture
 
-We build directly upon the core strengths of the original upstream project and [`dasilva333/airi`](https://github.com/dasilva333/airi):
+We build directly upon the core strengths of the original project and rebase `dasilva333/airi` changes on latest upstream:
 
 *   **Native Wayland Support:** Out-of-the-box integration using Ozone platform flags, PipeWire screen capture, and window decorations.
 *   **AIRI Card System:** High-fidelity character management. Import/export native JSON or SillyTavern-compatible `chara_card_v2` PNGs. Features per-card model configurations and stage preferences.
