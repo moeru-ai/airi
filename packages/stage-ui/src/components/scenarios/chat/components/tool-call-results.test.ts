@@ -15,6 +15,15 @@ describe('tool call result lookup', () => {
 
   /**
    * @example
+   * expect(resolveToolCallBlockState(undefined, { stopped: true })).toBe('cancelled')
+   */
+  it('marks an unresolved tool call in a stopped turn as cancelled, not executing', () => {
+    expect(resolveToolCallBlockState(undefined, { stopped: true })).toBe('cancelled')
+    expect(resolveToolCallBlockState(undefined, { stopped: false })).toBe('executing')
+  })
+
+  /**
+   * @example
    * expect(resolveToolCallBlockState(result)).toBe('done')
    */
   it('marks a successful tool result as done', () => {

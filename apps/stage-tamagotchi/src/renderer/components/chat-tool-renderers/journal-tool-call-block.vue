@@ -7,7 +7,7 @@ import { computed } from 'vue'
 const props = defineProps<{
   toolName: string
   args: string
-  state?: 'executing' | 'done' | 'error'
+  state?: 'executing' | 'done' | 'error' | 'cancelled'
   result?: unknown
 }>()
 
@@ -149,6 +149,10 @@ function openGeneratedImagePreview() {
         <div
           v-else-if="state === 'done'"
           i-ph:check-circle-duotone class="mr-1 inline-block translate-y-0.5 text-emerald-500"
+        />
+        <div
+          v-else-if="state === 'cancelled'"
+          i-solar:stop-circle-bold-duotone class="mr-1 inline-block translate-y-0.5 op-50"
         />
         <div
           v-else

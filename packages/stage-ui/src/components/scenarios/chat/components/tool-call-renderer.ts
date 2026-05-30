@@ -17,7 +17,7 @@ import type { Component } from 'vue'
 export interface ChatToolCallRendererProps {
   toolName: string
   args: string
-  state?: 'executing' | 'done' | 'error'
+  state?: 'executing' | 'done' | 'error' | 'cancelled'
   result?: unknown
 }
 

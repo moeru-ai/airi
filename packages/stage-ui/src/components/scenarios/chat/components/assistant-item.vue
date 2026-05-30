@@ -61,8 +61,8 @@ function getToolCallResult(slice: ChatSlices): ChatSlicesToolCallResult | undefi
   return toolResultById.value.get(slice.toolCall.toolCallId)
 }
 
-function getToolCallState(slice: ChatSlices): 'executing' | 'done' | 'error' {
-  return resolveToolCallBlockState(getToolCallResult(slice))
+function getToolCallState(slice: ChatSlices): 'executing' | 'done' | 'error' | 'cancelled' {
+  return resolveToolCallBlockState(getToolCallResult(slice), { stopped: props.message.stopped })
 }
 
 function getToolCallRenderer(slice: ChatSlices) {

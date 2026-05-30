@@ -43,14 +43,18 @@ export function createToolCallResultLookup(
  * - Tool call UI needs to show success or failure without replacing the assistant message
  *
  * Expects:
- * - Missing result means the call is still running
+ * - A missing result means the call is still running (`executing`), or `cancelled`
+ *   when `options.stopped` is set because the user stopped the turn before it finished
  *
  * Returns:
- * - `executing` for missing results, `error` for failed results, or `done` for successful results
+ * - `executing`/`cancelled` for missing results, `error` for failed results, `done` for successful results
  */
-export function resolveToolCallBlockState(result: ChatSlicesToolCallResult | undefined): 'executing' | 'done' | 'error' {
+export function resolveToolCallBlockState(
+  result: ChatSlicesToolCallResult | undefined,
+  options?: { stopped?: boolean },
+): 'executing' | 'done' | 'error' | 'cancelled' {
   if (!result) {
-    return 'executing'
+    return options?.stopped ? 'cancelled' : 'executing'
   }
 
   return result.isError ? 'error' : 'done'

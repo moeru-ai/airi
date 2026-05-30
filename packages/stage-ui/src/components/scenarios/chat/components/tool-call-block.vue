@@ -7,7 +7,7 @@ import { createToolResultError } from './tool-call-display'
 const props = defineProps<{
   toolName: string
   args: string
-  state?: 'executing' | 'done' | 'error'
+  state?: 'executing' | 'done' | 'error' | 'cancelled'
   result?: unknown
 }>()
 
@@ -50,6 +50,10 @@ const formattedArgs = computed(() => {
         <div
           v-else-if="state === 'done'"
           i-solar:check-circle-bold-duotone class="mr-1 inline-block text-emerald-500"
+        />
+        <div
+          v-else-if="state === 'cancelled'"
+          i-solar:stop-circle-bold-duotone class="mr-1 inline-block op-50"
         />
         <div
           v-else
