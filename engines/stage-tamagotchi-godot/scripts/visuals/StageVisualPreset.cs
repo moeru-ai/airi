@@ -96,7 +96,7 @@ public static class StageVisualPreset
     private static readonly Color MinorGridColor = new(1.0f, 1.0f, 1.0f, 0.20f);
     private static readonly Color MajorGridColor = new(1.0f, 1.0f, 1.0f, 0.38f);
     private static readonly Color CenterGridColor = new(1.0f, 1.0f, 1.0f, 0.72f);
-    private static readonly Color CenterMarkerColor = new(0.08f, 0.90f, 0.96f, 1.0f);
+    private static readonly Color CenterMarkerColor = new(0.72f, 0.94f, 1.0f, 0.92f);
 
     /// <summary>
     /// Applies the stage visual preset under the provided root node.
@@ -250,14 +250,14 @@ public static class StageVisualPreset
 
         root.AddChild(CreateCenterMarkerBar(
             "Top",
-            new Vector3(0.0f, CenterMarkerElevation, 0.30f),
-            new Vector3(0.72f, 0.012f, 0.055f),
+            new Vector3(0.0f, CenterMarkerElevation, 0.15f),
+            new Vector3(0.36f, 0.012f, 0.0275f),
             material
         ));
         root.AddChild(CreateCenterMarkerBar(
             "Stem",
-            new Vector3(0.0f, CenterMarkerElevation, -0.04f),
-            new Vector3(0.055f, 0.012f, 0.68f),
+            new Vector3(0.0f, CenterMarkerElevation, -0.02f),
+            new Vector3(0.0275f, 0.012f, 0.34f),
             material
         ));
 

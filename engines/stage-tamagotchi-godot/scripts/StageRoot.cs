@@ -5,17 +5,7 @@ using Godot;
 
 /// <summary>
 /// Root node for the Godot sidecar stage runtime.
-///
-/// Use when:
-/// - Running the desktop Godot stage through Electron main.
-/// - Receiving scene input from the current stage settings model selection.
-///
-/// Expects:
-/// - Electron launches Godot with <c>--airi-ws-url=&lt;runtime-url&gt;</c>.
-/// - The scene contains or can create an avatar root node.
-///
-/// Returns:
-/// - A running stage process that reports ready/applied/error envelopes to Electron main.
+/// </summary>
 ///
 /// Call stack:
 ///
@@ -25,7 +15,6 @@ using Godot;
 ///   -> <see cref="_Process"/>
 ///     -> <see cref="StageBridge.Poll"/>
 ///       -> <see cref="HandleMessage"/>
-/// </summary>
 public partial class StageRoot : Node3D
 {
     private const string AvatarRootNodeName = "AvatarRoot";

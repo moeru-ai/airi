@@ -171,7 +171,9 @@ internal static class Program
         var currentDirectory = startDirectory;
         while (!string.IsNullOrWhiteSpace(currentDirectory))
         {
-            if (Directory.Exists(Path.Combine(currentDirectory, ".git")))
+            var gitMarkerPath = Path.Combine(currentDirectory, ".git");
+            // Git worktrees store .git as a file that points to the real common directory.
+            if (Directory.Exists(gitMarkerPath) || File.Exists(gitMarkerPath))
             {
                 return currentDirectory;
             }

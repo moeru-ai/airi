@@ -32,7 +32,14 @@ whenever vendored add-on files differ from their upstream source.
   lookup fix or otherwise handles missing `secondary` nodes before parsing
   spring bones.
 
-### `addons/Godot-MToon-Shader/mtoon_common.gdshaderinc` and `mtoon_cutout*.gdshader`
+### MToon ambient and cutout shader patch
+
+Files:
+
+- `addons/Godot-MToon-Shader/mtoon_common.gdshaderinc`
+- `addons/Godot-MToon-Shader/mtoon_cutout.gdshader`
+- `addons/Godot-MToon-Shader/mtoon_cutout_cull_off.gdshader`
+- `addons/Godot-MToon-Shader/mtoon_outline_cutout.gdshader`
 
 - Local change: enable `render_mode ambient_light_disabled` for the shared MToon
   shader include.
