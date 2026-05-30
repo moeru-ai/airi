@@ -20,6 +20,7 @@ import { formatTimePrefix } from '../messages/datetime-prefix'
 import { createChatHooks } from './agent-hooks'
 import { useLlmmarkerParser } from './llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from './response-categoriser'
+import { stripMarkdownFromSpeech } from './markdown-stripper'
 
 const STREAMING_UI_FLUSH_CHUNK_SIZE = 24
 
@@ -450,7 +451,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
           categorizer.consume(literal)
 
-          const speechOnly = categorizer.filterToSpeech(literal, streamPosition)
+          const speechOnly = stripMarkdownFromSpeech(categorizer.filterToSpeech(literal, streamPosition))
           streamPosition += literal.length
 
           if (speechOnly.trim()) {
@@ -482,7 +483,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
           const reasoningContentField = buildingMessage.categorization?.reasoning?.trim()
           buildingMessage.categorization = {
-            speech: finalCategorization.speech,
+            speech: stripMarkdownFromSpeech(finalCategorization.speech),
             reasoning: reasoningContentField || finalCategorization.reasoning,
           }
           patchForegroundStream(sessionId, buildingMessage)

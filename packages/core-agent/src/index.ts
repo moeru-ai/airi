@@ -34,6 +34,7 @@ export {
 } from './runtime/llm-service'
 export { categorizeResponse, createStreamingCategorizer } from './runtime/response-categoriser'
 export type { CategorizedResponse, CategorizedSegment, ResponseCategory } from './runtime/response-categoriser'
+export { stripMarkdownFromSpeech } from './runtime/markdown-stripper'
 export { mergeLoadedSessionMessages } from './session/merge-loaded-session-messages'
 export type {
   ChatAssistantMessage,
