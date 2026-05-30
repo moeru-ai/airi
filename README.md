@@ -82,7 +82,6 @@ pnpm approve-builds # Select 'electron' and confirm
 
 ## 🚙 Roadmap
 
-- [ ] **Multi-character rendering**
 - [x] **Brain**
   - [ ] Multi-tier memory based on [openvault](https://github.com/vadash/openvault) design
   - [ ] Per-character memory scoping that works for multiple-character being preset at the stage, not gated by character card
@@ -99,6 +98,7 @@ pnpm approve-builds # Select 'electron' and confirm
   - [x] Live2D support
     - [ ] with expression-oriented tools
 - [x] **Desktop Stage**
+  - [ ] *Multiple characters sharing the stage*
   - [ ] Control Island with emotions, favorites, and idle-loop cycling
   - [ ] Widget system (weather, map, generic JSON) (to be converted to GTK)
   - [ ] Scene/background management per character
