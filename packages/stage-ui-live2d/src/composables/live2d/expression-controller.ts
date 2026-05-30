@@ -71,10 +71,7 @@ export function useExpressionController(options: ExpressionControllerOptions) {
    *                         exp3.json file given its path (relative to the
    *                         model root inside the ZIP / OPFS).
    */
-  async function initialise(
-    expressionRefs: Model3ExpressionRef[],
-    readExpFile: (path: string) => Promise<string>,
-  ) {
+  async function initialise(expressionRefs: Model3ExpressionRef[], readExpFile: (path: string) => Promise<string>) {
     const groups: ExpressionGroupDefinition[] = []
     const entryMap = new Map<string, ExpressionEntry>()
 
@@ -107,8 +104,7 @@ export function useExpressionController(options: ExpressionControllerOptions) {
               modelDefault,
               targetValue: param.Value,
             })
-          }
-          else if (param.Value !== 0) {
+          } else if (param.Value !== 0) {
             // Update targetValue if this group has a non-zero value
             // (prefer non-zero over zero as the "intended activation value")
             const existing = entryMap.get(param.Id)!
@@ -119,17 +115,12 @@ export function useExpressionController(options: ExpressionControllerOptions) {
         }
 
         groups.push({ name: expRef.Name, parameters: groupParams })
-      }
-      catch (err) {
+      } catch (err) {
         console.warn(`[expression-controller] Failed to parse exp3 for "${expRef.Name}" (${expRef.File}):`, err)
       }
     }
 
-    store.registerExpressions(
-      options.modelId ?? 'unknown',
-      groups,
-      Array.from(entryMap.values()),
-    )
+    store.registerExpressions(options.modelId ?? 'unknown', groups, Array.from(entryMap.values()))
   }
 
   // ---- Per-frame application -----------------------------------------------
@@ -155,8 +146,7 @@ export function useExpressionController(options: ExpressionControllerOptions) {
     const activeThisFrame = new Set<string>()
 
     for (const entry of store.expressions.values()) {
-      if (isNoopValue(entry))
-        continue
+      if (isNoopValue(entry)) continue
 
       const blendedValue = computeTargetValue(entry, coreModel)
 
@@ -169,14 +159,12 @@ export function useExpressionController(options: ExpressionControllerOptions) {
     for (const paramId of activeLastFrame) {
       if (!activeThisFrame.has(paramId)) {
         const entry = findEntryByParameterId(paramId)
-        if (entry)
-          coreModel.setParameterValueById(paramId, entry.modelDefault)
+        if (entry) coreModel.setParameterValueById(paramId, entry.modelDefault)
       }
     }
 
     activeLastFrame.clear()
-    for (const id of activeThisFrame)
-      activeLastFrame.add(id)
+    for (const id of activeThisFrame) activeLastFrame.add(id)
   }
 
   /**
@@ -222,8 +210,7 @@ export function useExpressionController(options: ExpressionControllerOptions) {
   /** Look up an entry by its Live2D parameter ID. */
   function findEntryByParameterId(paramId: string): ExpressionEntry | undefined {
     for (const entry of store.expressions.values()) {
-      if (entry.parameterId === paramId)
-        return entry
+      if (entry.parameterId === paramId) return entry
     }
     return undefined
   }
@@ -254,22 +241,19 @@ export function useExpressionController(options: ExpressionControllerOptions) {
    */
   function getModelParameterDefault(parameterId: string): number {
     const im = options.internalModel.value
-    if (!im)
-      return 0
+    if (!im) return 0
 
     try {
       // Prefer the dedicated default-value API when available (Cubism 4+).
       const defaultApi = (im.coreModel as any).getParameterDefaultValueById
       if (typeof defaultApi === 'function') {
         const val = defaultApi.call(im.coreModel, parameterId)
-        if (val != null)
-          return val as number
+        if (val != null) return val as number
       }
       // Fall back to the current value which, right after model load, IS
       // the default.
       return (im.coreModel.getParameterValueById(parameterId) as number) ?? 0
-    }
-    catch {
+    } catch {
       return 0
     }
   }

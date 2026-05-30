@@ -80,10 +80,17 @@ export interface ElectronPluginXsaiToolsetDefinition {
   prompts: ElectronPluginToolsetPromptDefinition[]
 }
 
-export const electronPluginListAgentTools = defineInvokeEventa<ElectronPluginToolDescriptor[]>('eventa:invoke:electron:plugins:tools:list')
-export const electronPluginListXsaiTools = defineInvokeEventa<ElectronPluginXsaiToolsetDefinition>('eventa:invoke:electron:plugins:tools:list-xsai')
-export const electronPluginInvokeTool = defineInvokeEventa<unknown, {
-  ownerPluginId: string
-  name: string
-  input: unknown
-}>('eventa:invoke:electron:plugins:tools:invoke')
+export const electronPluginListAgentTools = defineInvokeEventa<ElectronPluginToolDescriptor[]>(
+  'eventa:invoke:electron:plugins:tools:list',
+)
+export const electronPluginListXsaiTools = defineInvokeEventa<ElectronPluginXsaiToolsetDefinition>(
+  'eventa:invoke:electron:plugins:tools:list-xsai',
+)
+export const electronPluginInvokeTool = defineInvokeEventa<
+  unknown,
+  {
+    ownerPluginId: string
+    name: string
+    input: unknown
+  }
+>('eventa:invoke:electron:plugins:tools:invoke')

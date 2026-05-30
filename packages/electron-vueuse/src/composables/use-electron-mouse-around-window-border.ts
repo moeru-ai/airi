@@ -14,9 +14,7 @@ export interface UseElectronMouseAroundWindowBorderOptions {
  * Detect when the cursor is near the window border using window-relative mouse coords.
  * Fast path: no extra listeners; reuses existing mouse and window bounds streams.
  */
-export function useElectronMouseAroundWindowBorder(
-  options: UseElectronMouseAroundWindowBorderOptions = {},
-) {
+export function useElectronMouseAroundWindowBorder(options: UseElectronMouseAroundWindowBorderOptions = {}) {
   const threshold = options.threshold ?? 8
   const overshoot = options.overshoot ?? threshold
 
@@ -25,22 +23,25 @@ export function useElectronMouseAroundWindowBorder(
 
   // Helpers to determine proximity to each edge. We allow a small overshoot so
   // users hovering slightly outside still get feedback to find the edge.
-  const nearLeft = computed(() => Math.abs(x.value) <= threshold && y.value > -overshoot && y.value < height.value + overshoot)
-  const nearRight = computed(() => Math.abs(x.value - width.value) <= threshold && y.value > -overshoot && y.value < height.value + overshoot)
-  const nearTop = computed(() => Math.abs(y.value) <= threshold && x.value > -overshoot && x.value < width.value + overshoot)
-  const nearBottom = computed(() => Math.abs(y.value - height.value) <= threshold && x.value > -overshoot && x.value < width.value + overshoot)
+  const nearLeft = computed(
+    () => Math.abs(x.value) <= threshold && y.value > -overshoot && y.value < height.value + overshoot,
+  )
+  const nearRight = computed(
+    () => Math.abs(x.value - width.value) <= threshold && y.value > -overshoot && y.value < height.value + overshoot,
+  )
+  const nearTop = computed(
+    () => Math.abs(y.value) <= threshold && x.value > -overshoot && x.value < width.value + overshoot,
+  )
+  const nearBottom = computed(
+    () => Math.abs(y.value - height.value) <= threshold && x.value > -overshoot && x.value < width.value + overshoot,
+  )
 
   const nearTopLeft = computed(() => nearTop.value && nearLeft.value)
   const nearTopRight = computed(() => nearTop.value && nearRight.value)
   const nearBottomLeft = computed(() => nearBottom.value && nearLeft.value)
   const nearBottomRight = computed(() => nearBottom.value && nearRight.value)
 
-  const isNearAnyBorder = computed(() =>
-    nearLeft.value
-    || nearRight.value
-    || nearTop.value
-    || nearBottom.value,
-  )
+  const isNearAnyBorder = computed(() => nearLeft.value || nearRight.value || nearTop.value || nearBottom.value)
 
   return {
     x,

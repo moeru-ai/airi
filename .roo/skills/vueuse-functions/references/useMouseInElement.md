@@ -30,9 +30,7 @@ const { x, y, isOutside } = useMouseInElement(target)
 ```vue
 <template>
   <UseMouseInElement v-slot="{ elementX, elementY, isOutside }">
-    x: {{ elementX }}
-    y: {{ elementY }}
-    Is Outside: {{ isOutside }}
+    x: {{ elementX }} y: {{ elementY }} Is Outside: {{ isOutside }}
   </UseMouseInElement>
 </template>
 ```
@@ -58,10 +56,32 @@ interface MouseInElementType {
 }
 
 const options = {
-  handleOutside: true
+  handleOutside: true,
 }
-function onMouseInElement({ x, y, sourceType, elementX, elementY, elementPositionX, elementPositionY, elementHeight, elementWidth, isOutside }: MouseInElementType) {
-  console.log(x, y, sourceType, elementX, elementY, elementPositionX, elementPositionY, elementHeight, elementWidth, isOutside)
+function onMouseInElement({
+  x,
+  y,
+  sourceType,
+  elementX,
+  elementY,
+  elementPositionX,
+  elementPositionY,
+  elementHeight,
+  elementWidth,
+  isOutside,
+}: MouseInElementType) {
+  console.log(
+    x,
+    y,
+    sourceType,
+    elementX,
+    elementY,
+    elementPositionX,
+    elementPositionY,
+    elementHeight,
+    elementWidth,
+    isOutside,
+  )
 }
 </script>
 

@@ -29,9 +29,6 @@ export default defineConfig({
       scale: 1.2,
     }),
   ],
-  transformers: [
-    transformerDirectives(),
-    transformerVariantGroup(),
-  ],
+  transformers: [transformerDirectives(), transformerVariantGroup()],
   safelist: 'prose prose-sm m-auto text-left'.split(' '),
 })

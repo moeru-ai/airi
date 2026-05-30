@@ -28,10 +28,10 @@ function makeIntentStub(overrides: Partial<{ intentId: string }> = {}) {
 
 function makePlaybackManagerStub<TAudio = AudioBuffer>(): PlaybackManagerSubset<TAudio> & {
   scheduled: Array<PlaybackItem<TAudio>>
-  cancellations: Array<{ intentId: string, reason: string }>
+  cancellations: Array<{ intentId: string; reason: string }>
 } {
   const scheduled: Array<PlaybackItem<TAudio>> = []
-  const cancellations: Array<{ intentId: string, reason: string }> = []
+  const cancellations: Array<{ intentId: string; reason: string }> = []
   return {
     schedule: vi.fn((item: PlaybackItem<TAudio>) => {
       scheduled.push(item)
@@ -60,7 +60,7 @@ function makeStreamingSnapshot(overrides: Partial<StreamingSessionSnapshot> = {}
 // test can drive `onSentence` / `onError` / `onDone` directly. Tracks
 // `appendText` / `finish` / `cancel` invocations.
 function makePipelineStub() {
-  const calls: { appendText: string[], finish: number, cancel: number } = {
+  const calls: { appendText: string[]; finish: number; cancel: number } = {
     appendText: [],
     finish: 0,
     cancel: 0,
@@ -83,7 +83,9 @@ function makePipelineStub() {
   return {
     factory,
     calls,
-    get options() { return captured },
+    get options() {
+      return captured
+    },
   }
 }
 
@@ -99,7 +101,7 @@ describe('createStageTtsSession (factory)', () => {
       audioContext: dummyAudioContext,
       playbackManager: playback,
       openIntent: vi.fn(() => intent),
-      intentOptions: () => ({ ownerId: 'card-1', priority: 'normal', behavior: 'queue' } as IntentOptions),
+      intentOptions: () => ({ ownerId: 'card-1', priority: 'normal', behavior: 'queue' }) as IntentOptions,
     })
 
     session.appendText('hello')
@@ -125,7 +127,7 @@ describe('createStageTtsSession (factory)', () => {
       audioContext: dummyAudioContext,
       playbackManager: makePlaybackManagerStub(),
       openIntent: vi.fn(() => intent),
-      intentOptions: () => ({ ownerId: 'card-1', priority: 'normal', behavior: 'queue' } as IntentOptions),
+      intentOptions: () => ({ ownerId: 'card-1', priority: 'normal', behavior: 'queue' }) as IntentOptions,
     })
 
     expect(session.intentId).toBe('segmenter-default')
@@ -140,7 +142,7 @@ describe('createStageTtsSession (factory)', () => {
       audioContext: dummyAudioContext,
       playbackManager: playback,
       openIntent: vi.fn(() => intent),
-      intentOptions: () => ({ ownerId: 'card-1', priority: 'normal', behavior: 'queue' } as IntentOptions),
+      intentOptions: () => ({ ownerId: 'card-1', priority: 'normal', behavior: 'queue' }) as IntentOptions,
     })
 
     expect(session.intentId).toBe('segmenter-fallback')
@@ -156,7 +158,7 @@ describe('createStageTtsSession (factory)', () => {
       audioContext: undefined,
       playbackManager: makePlaybackManagerStub(),
       openIntent: vi.fn(() => intent),
-      intentOptions: () => ({ ownerId: 'card-1', priority: 'normal', behavior: 'queue' } as IntentOptions),
+      intentOptions: () => ({ ownerId: 'card-1', priority: 'normal', behavior: 'queue' }) as IntentOptions,
     })
 
     expect(session.intentId).toBe('segmenter-no-ctx')
@@ -170,7 +172,7 @@ describe('createStageTtsSession (factory)', () => {
       audioContext: dummyAudioContext,
       playbackManager: makePlaybackManagerStub(),
       openIntent: vi.fn(() => intent),
-      intentOptions: () => ({ ownerId: 'card-1', priority: 'normal', behavior: 'queue' } as IntentOptions),
+      intentOptions: () => ({ ownerId: 'card-1', priority: 'normal', behavior: 'queue' }) as IntentOptions,
     })
 
     expect(session.intentId).toBe('segmenter-no-voice')
@@ -267,9 +269,7 @@ describe('createStreamingTtsSession (adapter)', () => {
     session.cancel('user-aborted')
 
     expect(pipe.calls.cancel).toBe(1)
-    expect(playback.cancellations).toEqual([
-      { intentId: 'stream-cancel', reason: 'user-aborted' },
-    ])
+    expect(playback.cancellations).toEqual([{ intentId: 'stream-cancel', reason: 'user-aborted' }])
   })
 
   it('cancel after pipeline terminated still drains playback', () => {
@@ -290,9 +290,7 @@ describe('createStreamingTtsSession (adapter)', () => {
     session.cancel('post-done-cancel')
 
     expect(pipe.calls.cancel).toBe(0)
-    expect(playback.cancellations).toEqual([
-      { intentId: 'stream-late', reason: 'post-done-cancel' },
-    ])
+    expect(playback.cancellations).toEqual([{ intentId: 'stream-late', reason: 'post-done-cancel' }])
   })
 
   it('onSentence is dropped after pipeline terminated', () => {

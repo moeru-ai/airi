@@ -34,12 +34,6 @@ import './cloudflare-workers-ai'
 import './azure-ai-foundry'
 import './official'
 
-export {
-  getDefaultStreamingModel,
-  getStreamingTtsAvailable,
-} from './official'
+export { getDefaultStreamingModel, getStreamingTtsAvailable } from './official'
 
-export {
-  getDefinedProvider,
-  listProviders,
-} from './registry'
+export { getDefinedProvider, listProviders } from './registry'

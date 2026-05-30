@@ -11,8 +11,7 @@ const modelValue = defineModel<number>({ required: true })
 const sliderValue = computed({
   get: () => modelValue.value,
   set: (value: number) => {
-    if (Number.isNaN(value))
-      return
+    if (Number.isNaN(value)) return
 
     modelValue.value = value
   },
@@ -22,7 +21,10 @@ const sliderValue = computed({
 <template>
   <input
     v-model.number="sliderValue"
-    type="range" min="0" max="360" step="0.01"
+    type="range"
+    min="0"
+    max="360"
+    step="0.01"
     :disabled="props.disabled"
     :class="[
       'color-hue-range',
@@ -30,7 +32,7 @@ const sliderValue = computed({
       props.disabled ? 'opacity-25 cursor-not-allowed' : 'cursor-pointer',
       props.class || '',
     ]"
-  >
+  />
 </template>
 
 <style scoped>
@@ -48,23 +50,31 @@ const sliderValue = computed({
   );
 
   &::-webkit-slider-thumb {
-    --at-apply: w-1 h-12 hover:w-2 hover:h-13 appearance-none rounded-md bg-neutral-600 cursor-pointer shadow-lg border-2 border-neutral-500
-      hover: bg-neutral-800 transition-colors,transform,width,height duration-200 cursor-col-resize;
+    --at-apply:
+      w-1 h-12 hover: w-2 hover: h-13 appearance-none rounded-md bg-neutral-600 cursor-pointer shadow-lg border-2
+        border-neutral-500 hover: bg-neutral-800 transition-colors,
+      transform, width, height duration-200 cursor-col-resize;
   }
 
   .dark &::-webkit-slider-thumb {
-    --at-apply: w-1 h-12 hover:w-2 hover:h-13 appearance-none rounded-md bg-neutral-100 cursor-pointer shadow-md border-2 border-white
-      hover: bg-neutral-300 transition-colors,transform,width,height duration-200 cursor-col-resize;
+    --at-apply:
+      w-1 h-12 hover: w-2 hover: h-13 appearance-none rounded-md bg-neutral-100 cursor-pointer shadow-md border-2
+        border-white hover: bg-neutral-300 transition-colors,
+      transform, width, height duration-200 cursor-col-resize;
   }
 
   &::-moz-range-thumb {
-    --at-apply: w-1 h-12 hover:w-2 hover:h-13 appearance-none rounded-md bg-neutral-600 cursor-pointer shadow-lg border-2 border-neutral-500
-      hover: bg-neutral-800 transition-colors,transform,width,height duration-200 cursor-col-resize;
+    --at-apply:
+      w-1 h-12 hover: w-2 hover: h-13 appearance-none rounded-md bg-neutral-600 cursor-pointer shadow-lg border-2
+        border-neutral-500 hover: bg-neutral-800 transition-colors,
+      transform, width, height duration-200 cursor-col-resize;
   }
 
   .dark &::-moz-range-thumb {
-    --at-apply: w-1 h-12 hover:w-2 hover:h-13 appearance-none rounded-md bg-neutral-100 cursor-pointer shadow-md border-2 border-white
-      hover: bg-neutral-300 transition-colors,transform,width,height duration-200 cursor-col-resize;
+    --at-apply:
+      w-1 h-12 hover: w-2 hover: h-13 appearance-none rounded-md bg-neutral-100 cursor-pointer shadow-md border-2
+        border-white hover: bg-neutral-300 transition-colors,
+      transform, width, height duration-200 cursor-col-resize;
   }
 }
 </style>

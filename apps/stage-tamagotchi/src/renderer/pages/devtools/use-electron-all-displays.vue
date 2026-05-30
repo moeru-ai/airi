@@ -9,8 +9,7 @@ const { x: cursorX, y: cursorY } = useElectronMouse()
 const windowSize = useWindowSize()
 
 const displayBounds = computed(() => {
-  if (!allDisplays.value.length)
-    return { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 }
+  if (!allDisplays.value.length) return { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 }
 
   let minX = Infinity
   let minY = Infinity
@@ -38,8 +37,7 @@ const displayBounds = computed(() => {
 const scale = computed(() => {
   const { width: totalWidth, height: totalHeight } = displayBounds.value
 
-  if (totalWidth === 0 || totalHeight === 0)
-    return 0.2
+  if (totalWidth === 0 || totalHeight === 0) return 0.2
 
   // Use window size with some padding for responsive scaling
   const padding = 100

@@ -49,7 +49,7 @@ export async function clipFromVRMAnimation(vrm?: VRMCore, animation?: VRMAnimati
 
 // Set initial positions for animation
 export function reAnchorRootPositionTrack(clip: AnimationClip, _vrm: VRMCore) {
-// Get the hips node to re-anchor the root position track
+  // Get the hips node to re-anchor the root position track
   const hipNode = _vrm.humanoid?.getNormalizedBoneNode('hips')
   if (!hipNode) {
     console.warn('No hips node found in VRM model.')
@@ -60,20 +60,15 @@ export function reAnchorRootPositionTrack(clip: AnimationClip, _vrm: VRMCore) {
   hipNode.getWorldPosition(defaultHipPos)
 
   // Calculate the offset from the hips node to the hips's first frame position
-  const hipsTrack = clip.tracks.find(track =>
-    track instanceof VectorKeyframeTrack
-    && track.name === `${hipNode.name}.position`,
+  const hipsTrack = clip.tracks.find(
+    (track) => track instanceof VectorKeyframeTrack && track.name === `${hipNode.name}.position`,
   )
   if (!(hipsTrack instanceof VectorKeyframeTrack)) {
     console.warn('No Hips.position track of type VectorKeyframeTrack found in animation.')
     return
   }
 
-  const animeHipPos = new Vector3(
-    hipsTrack.values[0],
-    hipsTrack.values[1],
-    hipsTrack.values[2],
-  )
+  const animeHipPos = new Vector3(hipsTrack.values[0], hipsTrack.values[1], hipsTrack.values[2])
   const animeDelta = new Vector3().subVectors(animeHipPos, defaultHipPos)
 
   clip.tracks.forEach((track) => {
@@ -101,8 +96,7 @@ export function useBlink() {
 
   // Function to handle blinking animation
   function update(vrm: VRMCore | undefined, delta: number) {
-    if (!vrm?.expressionManager)
-      return
+    if (!vrm?.expressionManager) return
 
     timeSinceLastBlink.value += delta
 
@@ -146,7 +140,7 @@ export function useIdleEyeSaccades() {
   let timeSinceLastSaccade = 0
 
   // Just a naive vector generator - Simulating random content on a 27in monitor at 65cm distance
-  function updateFixationTarget(lookAtTarget: Ref<{ x: number, y: number, z: number }>) {
+  function updateFixationTarget(lookAtTarget: Ref<{ x: number; y: number; z: number }>) {
     fixationTarget.set(
       lookAtTarget.value.x + randFloat(-0.25, 0.25),
       lookAtTarget.value.y + randFloat(-0.25, 0.25),
@@ -155,16 +149,14 @@ export function useIdleEyeSaccades() {
   }
 
   // Function to handle idle eye saccades
-  function update(vrm: VRMCore | undefined, lookAtTarget: Ref<{ x: number, y: number, z: number }>, delta: number) {
-    if (!vrm?.expressionManager || !vrm.lookAt)
-      return
+  function update(vrm: VRMCore | undefined, lookAtTarget: Ref<{ x: number; y: number; z: number }>, delta: number) {
+    if (!vrm?.expressionManager || !vrm.lookAt) return
 
     if (timeSinceLastSaccade >= nextSaccadeAfter) {
       updateFixationTarget(lookAtTarget)
       timeSinceLastSaccade = 0
       nextSaccadeAfter = randomSaccadeInterval() / 1000
-    }
-    else if (!fixationTarget) {
+    } else if (!fixationTarget) {
       updateFixationTarget(lookAtTarget)
     }
 
@@ -203,14 +195,9 @@ export function useIdleEyeSaccades() {
     timeSinceLastSaccade += delta
   }
 
-  function instantUpdate(vrm: VRMCore | undefined, lookAtTarget: { x: number, y: number, z: number }) {
-    fixationTarget.set(
-      lookAtTarget.x,
-      lookAtTarget.y,
-      lookAtTarget.z,
-    )
-    if (!vrm?.expressionManager || !vrm.lookAt)
-      return
+  function instantUpdate(vrm: VRMCore | undefined, lookAtTarget: { x: number; y: number; z: number }) {
+    fixationTarget.set(lookAtTarget.x, lookAtTarget.y, lookAtTarget.z)
+    if (!vrm?.expressionManager || !vrm.lookAt) return
     if (!vrm.lookAt.target) {
       // TODO: after bumping up to three 0.180.0 with @types/three 0.180.0,
       //   Argument of type 'Object3D<Object3DEventMap>' is not assignable to parameter of type 'Object3D<Object3DEventMap>'.

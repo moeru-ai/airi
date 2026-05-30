@@ -22,14 +22,7 @@ objects listening to the channel.
 import { useBroadcastChannel } from '@vueuse/core'
 import { shallowRef } from 'vue'
 
-const {
-  isSupported,
-  channel,
-  post,
-  close,
-  error,
-  isClosed,
-} = useBroadcastChannel({ name: 'vueuse-demo-channel' })
+const { isSupported, channel, post, close, error, isClosed } = useBroadcastChannel({ name: 'vueuse-demo-channel' })
 
 const message = shallowRef('')
 
@@ -59,9 +52,7 @@ export interface UseBroadcastChannelOptions extends ConfigurableWindow {
  * @param options
  *
  */
-export declare function useBroadcastChannel<D, P>(
-  options: UseBroadcastChannelOptions,
-): UseBroadcastChannelReturn<D, P>
+export declare function useBroadcastChannel<D, P>(options: UseBroadcastChannelOptions): UseBroadcastChannelReturn<D, P>
 export interface UseBroadcastChannelReturn<D, P> extends Supportable {
   channel: Ref<BroadcastChannel | undefined>
   data: Ref<D>

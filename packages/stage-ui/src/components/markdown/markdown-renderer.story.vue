@@ -10,15 +10,8 @@ This is a sample markdown content with a code block.
 </script>
 
 <template>
-  <Story
-    title="MarkdownRenderer"
-    group="widgets"
-    :layout="{ type: 'grid', width: '100%' }"
-  >
-    <Variant
-      id="markdown-renderer"
-      title="MarkdownRenderer"
-    >
+  <Story title="MarkdownRenderer" group="widgets" :layout="{ type: 'grid', width: '100%' }">
+    <Variant id="markdown-renderer" title="MarkdownRenderer">
       <div h-auto w-full p-4>
         <MarkdownRenderer :content="markdownContent" />
       </div>

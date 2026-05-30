@@ -45,7 +45,7 @@ export default defineConfig({
     // Vite version, wait until Histoire updates to support Vite 7
     Yaml() as Plugin,
     Vue(),
-    ...Unocss() as Plugin[],
+    ...(Unocss() as Plugin[]),
     // TODO: Type wrong for `unplugin-yaml` in Histoire required
     // Vite version, wait until Histoire updates to support Vite 7
     Inspect() as Plugin,
@@ -58,7 +58,7 @@ export default defineConfig({
     //
     // they are too large to be able to put into deployments like Cloudflare Workers or Pages,
     // we need to upload them to external storage and use renderBuiltUrl to rewrite their URLs.
-    ...((!env.S3_ENDPOINT || !env.S3_ACCESS_KEY_ID || !env.S3_SECRET_ACCESS_KEY)
+    ...(!env.S3_ENDPOINT || !env.S3_ACCESS_KEY_ID || !env.S3_SECRET_ACCESS_KEY
       ? []
       : [
           Basemove({

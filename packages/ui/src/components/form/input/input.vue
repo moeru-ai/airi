@@ -1,7 +1,10 @@
 <script
   setup
   lang="ts"
-  generic="InputType extends 'number' | InputTypeHTMLAttribute | string, T = InputType extends 'number' ? (number | undefined) : ((string | undefined))"
+  generic="
+    InputType extends 'number' | InputTypeHTMLAttribute | string,
+    T = InputType extends 'number' ? number | undefined : string | undefined
+  "
 >
 import type { InputTypeHTMLAttribute } from 'vue'
 
@@ -13,29 +16,38 @@ type InputTheme = 'default'
 // Define size options for better flexibility
 type InputSize = 'sm' | 'md' | 'lg'
 
-const props = withDefaults(defineProps<{
-  type?: InputType
-  variant?: InputVariant // Button style variant
-  size?: InputSize // Button size variant
-  theme?: InputTheme // Button theme
-  /**
-   * Forwarded to the underlying `<input>` element so the browser participates
-   * in form validation (HTML5 `:invalid` styling and submit blocking) without
-   * the consumer having to drop down to raw HTML.
-   */
-  required?: boolean
-}>(), {
-  variant: 'primary',
-  size: 'md',
-  theme: 'default',
-})
+const props = withDefaults(
+  defineProps<{
+    type?: InputType
+    variant?: InputVariant // Button style variant
+    size?: InputSize // Button size variant
+    theme?: InputTheme // Button theme
+    /**
+     * Forwarded to the underlying `<input>` element so the browser participates
+     * in form validation (HTML5 `:invalid` styling and submit blocking) without
+     * the consumer having to drop down to raw HTML.
+     */
+    required?: boolean
+  }>(),
+  {
+    variant: 'primary',
+    size: 'md',
+    theme: 'default',
+  },
+)
 
 const modelValue = defineModel<T>({ required: false })
 
-const variantClasses: Record<InputVariant, Record<InputTheme, {
-  default: string[]
-}>> = {
-  'primary': {
+const variantClasses: Record<
+  InputVariant,
+  Record<
+    InputTheme,
+    {
+      default: string[]
+    }
+  >
+> = {
+  primary: {
     default: {
       default: [
         'w-full rounded-lg px-2 py-1 text-nowrap text-sm outline-none',
@@ -46,7 +58,7 @@ const variantClasses: Record<InputVariant, Record<InputTheme, {
       ],
     },
   },
-  'secondary': {
+  secondary: {
     default: {
       default: [
         'w-full rounded-lg px-2 py-1 text-nowrap text-sm outline-none',
@@ -81,7 +93,7 @@ const variantClasses: Record<InputVariant, Record<InputTheme, {
         'cursor-disabled:not-allowed',
         ...variantClasses[props.variant][props.theme].default,
       ]"
-    >
+    />
   </template>
   <template v-else>
     <input
@@ -93,6 +105,6 @@ const variantClasses: Record<InputVariant, Record<InputTheme, {
         'cursor-disabled:not-allowed',
         ...variantClasses[props.variant][props.theme].default,
       ]"
-    >
+    />
   </template>
 </template>

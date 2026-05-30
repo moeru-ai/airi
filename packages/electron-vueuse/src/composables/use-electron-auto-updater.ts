@@ -1,9 +1,6 @@
 import type { AutoUpdaterState } from '@proj-airi/electron-eventa/electron-updater'
 
-import {
-  autoUpdater,
-  electronAutoUpdaterStateChanged,
-} from '@proj-airi/electron-eventa/electron-updater'
+import { autoUpdater, electronAutoUpdaterStateChanged } from '@proj-airi/electron-eventa/electron-updater'
 import { computed, onMounted, ref } from 'vue'
 
 import { useElectronEventaContext, useElectronEventaInvoke } from './use-electron-eventa-context'
@@ -25,18 +22,14 @@ export function useElectronAutoUpdater() {
   onMounted(async () => {
     try {
       const current = await getState()
-      if (current)
-        state.value = current
-    }
-    catch {}
+      if (current) state.value = current
+    } catch {}
 
     try {
       context.value.on(electronAutoUpdaterStateChanged, (evt) => {
-        if (evt.body)
-          state.value = evt.body
+        if (evt.body) state.value = evt.body
       })
-    }
-    catch {}
+    } catch {}
   })
 
   return {

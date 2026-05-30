@@ -18,12 +18,14 @@ tags: [vue3, animation, css, class-binding, state]
 - Consider using `setTimeout` to auto-remove animation classes
 
 **When to Use Class-based Animations:**
+
 - User feedback (shake on error, pulse on success)
 - Attention-grabbing effects (highlight changes)
 - Hover/focus states that need more than CSS transitions
 - Any animation where the element stays mounted
 
 **When to Use Transition Component:**
+
 - Elements entering/leaving the DOM (v-if/v-show)
 - Route transitions
 - List item additions/removals
@@ -51,9 +53,7 @@ function submitForm() {
 
 <template>
   <div :class="{ shake: showError }">
-    <button @click="submitForm">
-      Submit
-    </button>
+    <button @click="submitForm">Submit</button>
     <span v-if="showError">This feature is disabled!</span>
   </div>
 </template>
@@ -61,14 +61,27 @@ function submitForm() {
 <style>
 .shake {
   animation: shake 0.82s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-  transform: translate3d(0, 0, 0);  /* Enable GPU acceleration */
+  transform: translate3d(0, 0, 0); /* Enable GPU acceleration */
 }
 
 @keyframes shake {
-  10%, 90% { transform: translate3d(-1px, 0, 0); }
-  20%, 80% { transform: translate3d(2px, 0, 0); }
-  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
-  40%, 60% { transform: translate3d(4px, 0, 0); }
+  10%,
+  90% {
+    transform: translate3d(-1px, 0, 0);
+  }
+  20%,
+  80% {
+    transform: translate3d(2px, 0, 0);
+  }
+  30%,
+  50%,
+  70% {
+    transform: translate3d(-4px, 0, 0);
+  }
+  40%,
+  60% {
+    transform: translate3d(4px, 0, 0);
+  }
 }
 </style>
 ```
@@ -86,15 +99,12 @@ const saved = ref(false)
 async function save() {
   await saveData()
   saved.value = true
-  setTimeout(() => saved.value = false, 1000)
+  setTimeout(() => (saved.value = false), 1000)
 }
 </script>
 
 <template>
-  <button
-    :class="{ pulse: saved }"
-    @click="save"
-  >
+  <button :class="{ pulse: saved }" @click="save">
     {{ saved ? 'Saved!' : 'Save' }}
   </button>
 </template>
@@ -105,8 +115,13 @@ async function save() {
 }
 
 @keyframes pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
 }
 </style>
 ```
@@ -122,16 +137,12 @@ const justUpdated = ref(false)
 
 watch(value, () => {
   justUpdated.value = true
-  setTimeout(() => justUpdated.value = false, 1000)
+  setTimeout(() => (justUpdated.value = false), 1000)
 })
 </script>
 
 <template>
-  <div
-    :class="{ highlight: justUpdated }"
-  >
-    Value: {{ value }}
-  </div>
+  <div :class="{ highlight: justUpdated }">Value: {{ value }}</div>
 </template>
 
 <style>
@@ -140,8 +151,12 @@ watch(value, () => {
 }
 
 @keyframes highlight {
-  0% { background-color: yellow; }
-  100% { background-color: transparent; }
+  0% {
+    background-color: yellow;
+  }
+  100% {
+    background-color: transparent;
+  }
 }
 </style>
 ```
@@ -161,10 +176,7 @@ function notifyUser() {
 </script>
 
 <template>
-  <div
-    :class="{ bounce: needsAttention }"
-    @animationend="needsAttention = false"
-  >
+  <div :class="{ bounce: needsAttention }" @animationend="needsAttention = false">
     <BellIcon />
   </div>
 </template>
@@ -175,8 +187,13 @@ function notifyUser() {
 }
 
 @keyframes bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
 }
 </style>
 ```
@@ -198,12 +215,7 @@ function triggerAnimation() {
 </script>
 
 <template>
-  <div
-    :class="{ animate: isAnimating }"
-    @animationend="isAnimating = false"
-  >
-    Content
-  </div>
+  <div :class="{ animate: isAnimating }" @animationend="isAnimating = false">Content</div>
 </template>
 ```
 
@@ -225,7 +237,7 @@ export function useAnimation(duration = 500) {
 
   return {
     isAnimating,
-    trigger
+    trigger,
   }
 }
 ```
@@ -239,18 +251,8 @@ const pulse = useAnimation(500)
 </script>
 
 <template>
-  <button
-    :class="{ shake: shake.isAnimating.value }"
-    @click="shake.trigger()"
-  >
-    Shake me
-  </button>
+  <button :class="{ shake: shake.isAnimating.value }" @click="shake.trigger()">Shake me</button>
 
-  <button
-    :class="{ pulse: pulse.isAnimating.value }"
-    @click="pulse.trigger()"
-  >
-    Pulse me
-  </button>
+  <button :class="{ pulse: pulse.isAnimating.value }" @click="pulse.trigger()">Pulse me</button>
 </template>
 ```

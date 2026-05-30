@@ -49,24 +49,21 @@ function notifyListeners() {
   listeners.forEach((listener) => {
     try {
       listener(state)
-    }
-    catch (err) {
+    } catch (err) {
       console.error('AudioContext state listener error:', err)
     }
   })
 }
 
 async function loadWorklets() {
-  if (!context || workletLoaded)
-    return
+  if (!context || workletLoaded) return
 
   try {
     await context.audioWorklet.addModule(ProcessorWorkletURL)
     await context.audioWorklet.addModule(LibsamplerateWorkletURL)
 
     workletLoaded = true
-  }
-  catch (err) {
+  } catch (err) {
     console.error('Failed to load AudioWorklets:', err)
     throw new Error(`Worklet loading failed: ${err}`)
   }
@@ -86,12 +83,10 @@ export async function initializeAudioContext(requestedSampleRate: number = 48000
         if (!isInitializing) {
           if (context && isReady && workletLoaded) {
             resolve(context)
-          }
-          else {
+          } else {
             reject(new Error(error || 'AudioContext initialization failed'))
           }
-        }
-        else {
+        } else {
           setTimeout(checkReady, 10)
         }
       }
@@ -126,16 +121,14 @@ export async function initializeAudioContext(requestedSampleRate: number = 48000
     isReady = true
     notifyListeners()
     return context
-  }
-  catch (err) {
+  } catch (err) {
     error = err instanceof Error ? err.message : String(err)
     isReady = false
     workletLoaded = false
     notifyListeners()
     console.error('Failed to initialize AudioContext:', err)
     throw err
-  }
-  finally {
+  } finally {
     isInitializing = false
     notifyListeners()
   }
@@ -151,27 +144,26 @@ export function createAudioSource(mediaStream: MediaStream): MediaStreamAudioSou
   return source
 }
 
-export function createAudioAnalyser(options?: Partial<{
-  fftSize: number
-  smoothingTimeConstant: number
-  minDecibels: number
-  maxDecibels: number
-}>): AnalyserNode {
+export function createAudioAnalyser(
+  options?: Partial<{
+    fftSize: number
+    smoothingTimeConstant: number
+    minDecibels: number
+    maxDecibels: number
+  }>,
+): AnalyserNode {
   if (!context || !isReady) {
     throw new Error('AudioContext not initialized')
   }
 
   const analyser = context.createAnalyser()
 
-  if (options?.fftSize)
-    analyser.fftSize = options.fftSize
+  if (options?.fftSize) analyser.fftSize = options.fftSize
   if (options?.smoothingTimeConstant !== undefined) {
     analyser.smoothingTimeConstant = options.smoothingTimeConstant
   }
-  if (options?.minDecibels !== undefined)
-    analyser.minDecibels = options.minDecibels
-  if (options?.maxDecibels !== undefined)
-    analyser.maxDecibels = options.maxDecibels
+  if (options?.minDecibels !== undefined) analyser.minDecibels = options.minDecibels
+  if (options?.maxDecibels !== undefined) analyser.maxDecibels = options.maxDecibels
 
   activeAnalyzers.add(analyser)
   return analyser
@@ -217,10 +209,7 @@ export async function resumeAudioContext() {
   }
 }
 
-export function createResamplingWorkletNode(
-  inputNode: AudioNode,
-  options: WorkletOptions = {},
-): AudioWorkletNode {
+export function createResamplingWorkletNode(inputNode: AudioNode, options: WorkletOptions = {}): AudioWorkletNode {
   if (!context || !isReady || !workletLoaded) {
     throw new Error('AudioContext or worklets not ready')
   }
@@ -256,10 +245,10 @@ export function removeWorkletNode(node: AudioWorkletNode) {
 
 export async function cleanupAudioContext() {
   // Disconnect all active nodes
-  activeSources.forEach(source => source.disconnect())
-  activeGainNodes.forEach(gainNode => gainNode.disconnect())
-  activeAnalyzers.forEach(analyser => analyser.disconnect())
-  activeWorkletNodes.forEach(worklet => worklet.disconnect())
+  activeSources.forEach((source) => source.disconnect())
+  activeGainNodes.forEach((gainNode) => gainNode.disconnect())
+  activeAnalyzers.forEach((analyser) => analyser.disconnect())
+  activeWorkletNodes.forEach((worklet) => worklet.disconnect())
 
   // Clear sets
   activeSources.clear()

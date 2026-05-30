@@ -48,18 +48,14 @@ export function createStreamingControlParser(options: LlmStreamingControlOptions
   const callManifests = new Map<string, LlmStreamingControlCallManifest>()
   const turns = new Map<string, StreamingControlTurnState>()
   const signalHandlers = new Set<LlmStreamingControlSignalHandler>()
-  const parsers = options.parsers ?? [
-    tokenAct(),
-    tokenDelay(),
-    tokenCall(),
-  ]
+  const parsers = options.parsers ?? [tokenAct(), tokenDelay(), tokenCall()]
 
   return {
     match(special) {
-      return parsers.some(parser => parser.match(special))
+      return parsers.some((parser) => parser.match(special))
     },
     async dispatchWith(special, context) {
-      const parser = parsers.find(item => item.match(special))
+      const parser = parsers.find((item) => item.match(special))
       if (!parser) {
         context?.observer?.({ type: 'rejected', reason: 'no-matching-parser' })
         return false
@@ -85,8 +81,7 @@ export function createStreamingControlParser(options: LlmStreamingControlOptions
       for (const handler of signalHandlers) {
         try {
           await handler(parsed, signalContext)
-        }
-        catch (error) {
+        } catch (error) {
           context?.observer?.({ type: 'signal-handler-error', tokenType: parsed.type, error })
           console.warn('[llm-streaming-control] signal handler failed', error)
         }
@@ -99,9 +94,7 @@ export function createStreamingControlParser(options: LlmStreamingControlOptions
         ? turns.get(dispatchContext.turnId)?.handlers.get(parsed.name)
         : undefined
       const globalHandlers = handlers.get(parsed.name)
-      const registeredHandlers = turnHandlers?.size
-        ? [...turnHandlers]
-        : [...(globalHandlers ?? [])]
+      const registeredHandlers = turnHandlers?.size ? [...turnHandlers] : [...(globalHandlers ?? [])]
 
       context?.observer?.({ type: 'call-handler-count', count: registeredHandlers.length })
       if (!registeredHandlers.length) {
@@ -114,8 +107,7 @@ export function createStreamingControlParser(options: LlmStreamingControlOptions
           context?.observer?.({ type: 'call-handler-start', callName: parsed.name })
           await handler(parsed.payload, signalContext)
           context?.observer?.({ type: 'call-handler-end', callName: parsed.name })
-        }
-        catch (error) {
+        } catch (error) {
           context?.observer?.({ type: 'call-handler-error', callName: parsed.name, error })
           console.warn('[llm-streaming-control] handler failed', error)
         }
@@ -188,8 +180,7 @@ export function createStreamingControlParser(options: LlmStreamingControlOptions
       let settled = false
       const done = new Promise<LlmStreamingControlTurnDone>((resolve) => {
         settle = (result) => {
-          if (settled)
-            return
+          if (settled) return
           settled = true
           resolve(result)
         }
@@ -223,15 +214,13 @@ export function createStreamingControlParser(options: LlmStreamingControlOptions
     },
     completeTurn(turnId) {
       const turn = turns.get(turnId)
-      if (!turn)
-        return
+      if (!turn) return
       turn.settle({ type: 'completed' })
       turns.delete(turnId)
     },
     cancelTurn(turnId) {
       const turn = turns.get(turnId)
-      if (!turn)
-        return
+      if (!turn) return
       turn.settle({ type: 'cancelled' })
       turns.delete(turnId)
     },

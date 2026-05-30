@@ -41,18 +41,20 @@ export async function validateSpineZip(file: File): Promise<SpineValidationRepor
   try {
     const zip = new JSZip()
     const archive = await zip.loadAsync(file)
-    const files = Object.keys(archive.files).filter(name => !archive.files[name].dir)
+    const files = Object.keys(archive.files).filter((name) => !archive.files[name].dir)
 
-    const atlasCandidates = files.filter(name => /\.atlas(?:\.txt)?$/i.test(name))
+    const atlasCandidates = files.filter((name) => /\.atlas(?:\.txt)?$/i.test(name))
     if (atlasCandidates.length === 0) {
       errors.push('No texture atlas (`.atlas` or `.atlas.txt`) found in the ZIP. A Spine export must include one.')
       return { status: 'INVALID', errors, warnings, detected }
     }
     if (atlasCandidates.length > 1)
-      warnings.push(`Multiple atlas files detected (${atlasCandidates.length}). The import will pick the one paired with a same-named skeleton.`)
+      warnings.push(
+        `Multiple atlas files detected (${atlasCandidates.length}). The import will pick the one paired with a same-named skeleton.`,
+      )
 
-    const skelCandidates = files.filter(name => name.toLowerCase().endsWith('.skel'))
-    const jsonCandidates = files.filter(name => /\.json$/i.test(name) && !/(?:package|manifest)\.json$/i.test(name))
+    const skelCandidates = files.filter((name) => name.toLowerCase().endsWith('.skel'))
+    const jsonCandidates = files.filter((name) => /\.json$/i.test(name) && !/(?:package|manifest)\.json$/i.test(name))
 
     if (skelCandidates.length === 0 && jsonCandidates.length === 0) {
       errors.push('No skeleton (`.skel` or `.json`) found in the ZIP.')
@@ -63,20 +65,18 @@ export async function validateSpineZip(file: File): Promise<SpineValidationRepor
     if (skelCandidates.length > 0) {
       detected.skeletonPath = skelCandidates[0]
       detected.skeletonFormat = 'binary'
-    }
-    else {
+    } else {
       detected.skeletonPath = jsonCandidates[0]
       detected.skeletonFormat = 'json'
     }
 
-    const textures = files.filter(name => /\.(?:png|webp|jpg|jpeg)$/i.test(name))
+    const textures = files.filter((name) => /\.(?:png|webp|jpg|jpeg)$/i.test(name))
     if (textures.length === 0) {
       errors.push('No texture pages (`.png`/`.webp`/`.jpg`) found in the ZIP.')
       return { status: 'INVALID', errors, warnings, detected }
     }
     detected.texturePaths = textures
-  }
-  catch (err) {
+  } catch (err) {
     errors.push(`Failed to read ZIP: ${errorMessageFrom(err) ?? 'Unknown error'}`)
     return { status: 'INVALID', errors, warnings, detected }
   }

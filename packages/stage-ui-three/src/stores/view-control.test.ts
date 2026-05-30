@@ -53,7 +53,7 @@ describe('useThreeViewControl', () => {
     })
 
     it('should clamp values to max', () => {
-      supportedControl.forEach(key => composable.set(key, Number.MAX_VALUE))
+      supportedControl.forEach((key) => composable.set(key, Number.MAX_VALUE))
       expect(composable.modelOffset.value.x).toBe(defaultControlConfig.x.max)
       expect(composable.modelOffset.value.y).toBe(defaultControlConfig.y.max)
       expect(composable.modelOffset.value.z).toBe(defaultControlConfig.z.max)
@@ -62,7 +62,7 @@ describe('useThreeViewControl', () => {
     })
 
     it('should clamp values to min', () => {
-      supportedControl.forEach(key => composable.set(key, -Number.MAX_VALUE))
+      supportedControl.forEach((key) => composable.set(key, -Number.MAX_VALUE))
       expect(composable.modelOffset.value.x).toBe(defaultControlConfig.x.min)
       expect(composable.modelOffset.value.y).toBe(defaultControlConfig.y.min)
       expect(composable.modelOffset.value.z).toBe(defaultControlConfig.z.min)
@@ -71,8 +71,8 @@ describe('useThreeViewControl', () => {
     })
 
     it('should reset to default when value is omitted', () => {
-      supportedControl.forEach(k => composable.set(k, defaultControlConfig[k].default + 1))
-      supportedControl.forEach(k => composable.set(k))
+      supportedControl.forEach((k) => composable.set(k, defaultControlConfig[k].default + 1))
+      supportedControl.forEach((k) => composable.set(k))
       expect(composable.modelOffset.value.x).toBe(defaultControlConfig.x.default)
       expect(composable.modelOffset.value.y).toBe(defaultControlConfig.y.default)
       expect(composable.modelOffset.value.z).toBe(defaultControlConfig.z.default)

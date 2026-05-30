@@ -15,31 +15,30 @@ defineProps<{
 }>()
 
 function formatAge(now: number, timestamp?: number) {
-  if (!timestamp)
-    return 'never'
+  if (!timestamp) return 'never'
 
   const ageMs = Math.max(0, now - timestamp)
-  if (ageMs < 1000)
-    return 'now'
-  if (ageMs < 60_000)
-    return `${Math.floor(ageMs / 1000)}s ago`
+  if (ageMs < 1000) return 'now'
+  if (ageMs < 60_000) return `${Math.floor(ageMs / 1000)}s ago`
   return `${Math.floor(ageMs / 60_000)}m ago`
 }
 </script>
 
 <template>
-  <Section
-    title="Runtime Coordination"
-    icon="i-solar:radar-2-bold-duotone"
-    inner-class="gap-3"
-    :expand="false"
-  >
+  <Section title="Runtime Coordination" icon="i-solar:radar-2-bold-duotone" inner-class="gap-3" :expand="false">
     <div :class="['grid', 'gap-3', 'sm:grid-cols-2', 'xl:grid-cols-4']">
       <div :class="['rounded-xl', 'bg-white/80', 'p-4', 'dark:bg-neutral-950/60']">
         <div :class="['text-[11px]', 'uppercase', 'tracking-[0.08em]', 'text-neutral-400', 'dark:text-neutral-500']">
           WebSocket
         </div>
-        <div :class="['mt-2', connected ? 'text-emerald-600 dark:text-emerald-300' : 'text-rose-600 dark:text-rose-300', 'text-sm', 'font-semibold']">
+        <div
+          :class="[
+            'mt-2',
+            connected ? 'text-emerald-600 dark:text-emerald-300' : 'text-rose-600 dark:text-rose-300',
+            'text-sm',
+            'font-semibold',
+          ]"
+        >
           {{ connected ? 'connected' : 'disconnected' }}
         </div>
       </div>
@@ -98,9 +97,7 @@ function formatAge(now: number, timestamp?: number) {
             </div>
           </div>
         </div>
-        <div v-else :class="['mt-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
-          No queued sends.
-        </div>
+        <div v-else :class="['mt-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">No queued sends.</div>
       </div>
     </div>
   </Section>

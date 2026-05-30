@@ -1,5 +1,14 @@
 import type { WebSocketEventOf } from '@proj-airi/server-sdk'
-import type { ChatProvider, ChatProviderWithExtraOptions, EmbedProvider, EmbedProviderWithExtraOptions, SpeechProvider, SpeechProviderWithExtraOptions, TranscriptionProvider, TranscriptionProviderWithExtraOptions } from '@xsai-ext/providers/utils'
+import type {
+  ChatProvider,
+  ChatProviderWithExtraOptions,
+  EmbedProvider,
+  EmbedProviderWithExtraOptions,
+  SpeechProvider,
+  SpeechProviderWithExtraOptions,
+  TranscriptionProvider,
+  TranscriptionProviderWithExtraOptions,
+} from '@xsai-ext/providers/utils'
 import type { Message, Tool, ToolChoice } from '@xsai/shared-chat'
 
 import type { StreamEvent } from '../../types/llm'
@@ -187,12 +196,16 @@ function renderSparkNotifyUserMessage(input: {
   }
 
   const sections = [
-    JSON.stringify({
-      notify: input.event.data,
-      source: input.event.source,
-    }, null, 2),
+    JSON.stringify(
+      {
+        notify: input.event.data,
+        source: input.event.source,
+      },
+      null,
+      2,
+    ),
     ...(input.messageOverride?.appendUserSections ?? []),
-  ].filter(section => section.trim().length > 0)
+  ].filter((section) => section.trim().length > 0)
 
   return sections.join('\n\n')
 }
@@ -219,16 +232,18 @@ export interface SparkNotifyAgentDeps extends SparkNotifyTracingHooks {
   /** Returns the currently selected model name, if any. */
   getActiveModel: () => string | undefined
   /** Resolves the provider instance used for the active model call. */
-  getProviderInstance: <R extends
-  | ChatProvider
-  | ChatProviderWithExtraOptions
-  | EmbedProvider
-  | EmbedProviderWithExtraOptions
-  | SpeechProvider
-  | SpeechProviderWithExtraOptions
-  | TranscriptionProvider
-  | TranscriptionProviderWithExtraOptions,
-  >(name: string,
+  getProviderInstance: <
+    R extends
+      | ChatProvider
+      | ChatProviderWithExtraOptions
+      | EmbedProvider
+      | EmbedProviderWithExtraOptions
+      | SpeechProvider
+      | SpeechProviderWithExtraOptions
+      | TranscriptionProvider
+      | TranscriptionProviderWithExtraOptions,
+  >(
+    name: string,
   ) => Promise<R>
   /** Receives incremental text deltas while the reaction is streaming. */
   onReactionDelta: (eventId: string, text: string) => void
@@ -261,17 +276,19 @@ export interface SparkNotifyAgentDeps extends SparkNotifyTracingHooks {
  */
 export function getSparkNotifyHandlingAgentInstruction(moduleName: string) {
   return [
-    'This is AIRI system, the life pod hosting your consciousness. You don\'t need to respond to me or every spark:notify event directly.',
+    "This is AIRI system, the life pod hosting your consciousness. You don't need to respond to me or every spark:notify event directly.",
     `Another module "${moduleName}" triggered spark:notify event for you to checkout.`,
     'You may call the built-in tool "builtIn_sparkCommand" to issue spark:command to sub-agents as needed.',
-    'For any of the output that is not a tool call, it will be streamed to user\'s interface and maybe processed with text to speech system ',
+    "For any of the output that is not a tool call, it will be streamed to user's interface and maybe processed with text to speech system ",
     'to be played out loud as your actual reaction to the spark:notify event.',
   ].join('\n')
 }
 
 function resolveSparkNotifyRuntimePolicy(control?: SparkNotifyResponseControl): SparkNotifyRuntimePolicy {
   if (control?.forceTextResponse && control?.forceSparkCommandResponse) {
-    console.warn('[spark:notify] forceTextResponse and forceSparkCommandResponse were both set; preferring forceTextResponse')
+    console.warn(
+      '[spark:notify] forceTextResponse and forceSparkCommandResponse were both set; preferring forceTextResponse',
+    )
   }
 
   if (control?.forceTextResponse) {
@@ -346,7 +363,10 @@ function traceSpark(deps: SparkNotifyTracingHooks, event: SparkTraceEvent) {
  *         -> `deps.onReactionDelta`/`deps.onReactionEnd`
  */
 export function setupAgentSparkNotifyHandler(deps: SparkNotifyAgentDeps): {
-  handle: (event: WebSocketEventOf<'spark:notify'>, control?: SparkNotifyResponseControl) => Promise<SparkNotifyHandleResult | undefined>
+  handle: (
+    event: WebSocketEventOf<'spark:notify'>,
+    control?: SparkNotifyResponseControl,
+  ) => Promise<SparkNotifyHandleResult | undefined>
 } {
   async function runNotifyAgent(event: WebSocketEventOf<'spark:notify'>, control?: SparkNotifyResponseControl) {
     const activeProvider = deps.getActiveProvider()
@@ -365,7 +385,7 @@ export function setupAgentSparkNotifyHandler(deps: SparkNotifyAgentDeps): {
       onNoResponse: () => {
         noResponse = true
       },
-      onCommands: commands => commandDrafts.push(...commands),
+      onCommands: (commands) => commandDrafts.push(...commands),
       onTrace: deps.onTrace,
       allowNoResponse: runtimePolicy.allowNoResponse,
       allowSparkCommand: runtimePolicy.allowSparkCommand,
@@ -377,7 +397,9 @@ export function setupAgentSparkNotifyHandler(deps: SparkNotifyAgentDeps): {
         deps.getSystemPrompt(),
         getSparkNotifyHandlingAgentInstruction(getEventSourceKey(event)),
         ...(control?.messageOverride?.appendSystemInstructions ?? []),
-      ].filter(Boolean).join('\n\n'),
+      ]
+        .filter(Boolean)
+        .join('\n\n'),
     }
 
     const userMessage: Message = {
@@ -410,13 +432,14 @@ export function setupAgentSparkNotifyHandler(deps: SparkNotifyAgentDeps): {
         }),
         toolExposure: tools.flatMap((tool) => {
           const name = tool.function?.name
-          if (!name)
-            return []
+          if (!name) return []
 
-          return [{
-            name,
-            description: tool.function?.description,
-          }]
+          return [
+            {
+              name,
+              description: tool.function?.description,
+            },
+          ]
         }),
         allowNoResponse: runtimePolicy.allowNoResponse,
         allowSparkCommand: runtimePolicy.allowSparkCommand,
@@ -446,8 +469,7 @@ export function setupAgentSparkNotifyHandler(deps: SparkNotifyAgentDeps): {
       toolChoice: runtimePolicy.toolChoice,
       onStreamEvent: async (streamEvent: StreamEvent) => {
         if (streamEvent.type === 'text-delta') {
-          if (runtimePolicy.ignoreTextOutput || noResponse)
-            return
+          if (runtimePolicy.ignoreTextOutput || noResponse) return
 
           const nextText = `${fullText}${streamEvent.text}`
           traceSpark(deps, {
@@ -487,8 +509,7 @@ export function setupAgentSparkNotifyHandler(deps: SparkNotifyAgentDeps): {
         if (streamEvent.type === 'finish') {
           if (noResponse) {
             deps.onReactionEnd(event.data.id, '')
-          }
-          else {
+          } else {
             deps.onReactionEnd(event.data.id, fullText)
           }
         }
@@ -521,7 +542,10 @@ export function setupAgentSparkNotifyHandler(deps: SparkNotifyAgentDeps): {
     } satisfies SparkNotifyResponse
   }
 
-  async function handle(event: WebSocketEventOf<'spark:notify'>, control?: SparkNotifyResponseControl): Promise<SparkNotifyHandleResult | undefined> {
+  async function handle(
+    event: WebSocketEventOf<'spark:notify'>,
+    control?: SparkNotifyResponseControl,
+  ): Promise<SparkNotifyHandleResult | undefined> {
     if (event.data.urgency !== 'immediate' && deps.getPending().length > 0) {
       deps.setPending([...deps.getPending(), event])
       return undefined
@@ -535,30 +559,31 @@ export function setupAgentSparkNotifyHandler(deps: SparkNotifyAgentDeps): {
 
     try {
       const response = await runNotifyAgent(event, control)
-      if (!response)
-        return undefined
+      if (!response) return undefined
 
       const commands = (response.commands ?? [])
-        .map(command => ({
-          id: nanoid(),
-          eventId: nanoid(),
-          parentEventId: event.data.id,
-          commandId: nanoid(),
-          interrupt: (command.interrupt === true ? 'force' : command.interrupt) ?? false,
-          priority: command.priority ?? 'normal',
-          intent: command.intent ?? 'action',
-          ack: command.ack,
-          guidance: command.guidance,
-          contexts: command.contexts,
-          destinations: command.destinations ?? [],
-        } satisfies SparkNotifyCommandEvent))
-        .filter(command => command.destinations.length > 0)
+        .map(
+          (command) =>
+            ({
+              id: nanoid(),
+              eventId: nanoid(),
+              parentEventId: event.data.id,
+              commandId: nanoid(),
+              interrupt: (command.interrupt === true ? 'force' : command.interrupt) ?? false,
+              priority: command.priority ?? 'normal',
+              intent: command.intent ?? 'action',
+              ack: command.ack,
+              guidance: command.guidance,
+              contexts: command.contexts,
+              destinations: command.destinations ?? [],
+            }) satisfies SparkNotifyCommandEvent,
+        )
+        .filter((command) => command.destinations.length > 0)
 
       return {
         commands,
       }
-    }
-    finally {
+    } finally {
       deps.setProcessing(false)
     }
   }

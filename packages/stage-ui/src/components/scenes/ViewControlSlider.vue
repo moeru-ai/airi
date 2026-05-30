@@ -22,34 +22,26 @@ const three = useThreeViewControl()
 const { sceneMutationLocked } = storeToRefs(useModelStore())
 
 const activeRenderer = computed<'live2d' | 'vrm' | null>(() => {
-  if (stageModelRenderer.value === 'live2d')
-    return 'live2d'
-  if (stageModelRenderer.value === 'vrm')
-    return 'vrm'
+  if (stageModelRenderer.value === 'live2d') return 'live2d'
+  if (stageModelRenderer.value === 'vrm') return 'vrm'
   return null
 })
 
 const controlEnabled = computed(() => {
-  if (activeRenderer.value === 'live2d')
-    return live2d.viewControlsEnabled.value
-  if (activeRenderer.value === 'vrm')
-    return three.viewControlsEnabled.value
+  if (activeRenderer.value === 'live2d') return live2d.viewControlsEnabled.value
+  if (activeRenderer.value === 'vrm') return three.viewControlsEnabled.value
   return false
 })
 
 const activeControlKey = computed(() => {
-  if (activeRenderer.value === 'live2d')
-    return live2d.viewControlMode.value
-  if (activeRenderer.value === 'vrm')
-    return three.viewControlMode.value
+  if (activeRenderer.value === 'live2d') return live2d.viewControlMode.value
+  if (activeRenderer.value === 'vrm') return three.viewControlMode.value
   return null
 })
 
 const activeControlConfig = computed(() => {
-  if (activeRenderer.value === 'live2d')
-    return live2dControlConfig[live2d.viewControlMode.value]
-  if (activeRenderer.value === 'vrm')
-    return threeControlConfig[three.viewControlMode.value]
+  if (activeRenderer.value === 'live2d') return live2dControlConfig[live2d.viewControlMode.value]
+  if (activeRenderer.value === 'vrm') return threeControlConfig[three.viewControlMode.value]
   return null
 })
 
@@ -90,18 +82,15 @@ const controlledValue = computed({
     }
 
     if (activeRenderer.value === 'vrm') {
-      if (sceneMutationLocked.value)
-        return
+      if (sceneMutationLocked.value) return
       three.set(three.viewControlMode.value, value)
     }
   },
 })
 
 const formattedValue = computed(() => {
-  if (activeRenderer.value === 'live2d')
-    return live2dFormatter[live2d.viewControlMode.value](controlledValue.value)
-  if (activeRenderer.value === 'vrm')
-    return threeFormatter[three.viewControlMode.value](controlledValue.value)
+  if (activeRenderer.value === 'live2d') return live2dFormatter[live2d.viewControlMode.value](controlledValue.value)
+  if (activeRenderer.value === 'vrm') return threeFormatter[three.viewControlMode.value](controlledValue.value)
   return ''
 })
 
@@ -129,9 +118,12 @@ onUnmounted(() => {
           />
           <div
             class="round-range-tooltip"
-            absolute left-10 top="50%"
+            absolute
+            left-10
+            top="50%"
             translate-y="[-50%]"
-            font-mono op-0
+            font-mono
+            op-0
             transition="all duration-200 ease-in-out"
           >
             {{ formattedValue }}

@@ -7,7 +7,10 @@
 
 import type { McpCallToolResult } from '@proj-airi/stage-ui/stores/mcp-tool-bridge'
 
-import { desktopOverlayPollHeartbeatMarker, desktopOverlayPollHeartbeatQueryParam } from '../../shared/desktop-overlay-heartbeat'
+import {
+  desktopOverlayPollHeartbeatMarker,
+  desktopOverlayPollHeartbeatQueryParam,
+} from '../../shared/desktop-overlay-heartbeat'
 
 // ---------------------------------------------------------------------------
 // Types — minimal shapes matching RunState fields the overlay consumes
@@ -18,12 +21,12 @@ export interface OverlayTargetCandidate {
   source: string
   role: string
   label: string
-  bounds: { x: number, y: number, width: number, height: number }
+  bounds: { x: number; y: number; width: number; height: number }
   confidence: number
 }
 
 export interface OverlayPointerIntent {
-  snappedPoint: { x: number, y: number }
+  snappedPoint: { x: number; y: number }
   candidateId?: string
   source: string
   confidence: number
@@ -104,12 +107,10 @@ export function extractOverlayState(runState: Record<string, unknown>): OverlayS
  * Returns undefined if the result is an error or has no structured content.
  */
 export function extractRunStateFromResult(result: McpCallToolResult): Record<string, unknown> | undefined {
-  if (result.isError)
-    return undefined
+  if (result.isError) return undefined
 
   const sc = result.structuredContent
-  if (!sc || typeof sc !== 'object')
-    return undefined
+  if (!sc || typeof sc !== 'object') return undefined
 
   // desktop_get_state returns { runState: { ... } } or the state directly
   if ('runState' in sc && sc.runState && typeof sc.runState === 'object') {
@@ -120,8 +121,7 @@ export function extractRunStateFromResult(result: McpCallToolResult): Record<str
 }
 
 export function createOverlayPollHeartbeat(state: OverlayState): OverlayPollHeartbeat | undefined {
-  if (!state.hasSnapshot || !state.snapshotId)
-    return undefined
+  if (!state.hasSnapshot || !state.snapshotId) return undefined
 
   return {
     snapshotId: state.snapshotId,
@@ -139,15 +139,17 @@ export function formatOverlayPollHeartbeat(heartbeat: OverlayPollHeartbeat): str
   ].join(' ')
 }
 
-export function isOverlayPollHeartbeatEnabled(locationLike: Pick<Location, 'hash' | 'search'> = window.location): boolean {
-  const hashQuery = locationLike.hash.includes('?')
-    ? locationLike.hash.slice(locationLike.hash.indexOf('?') + 1)
-    : ''
+export function isOverlayPollHeartbeatEnabled(
+  locationLike: Pick<Location, 'hash' | 'search'> = window.location,
+): boolean {
+  const hashQuery = locationLike.hash.includes('?') ? locationLike.hash.slice(locationLike.hash.indexOf('?') + 1) : ''
   const hashParams = new URLSearchParams(hashQuery)
   const searchParams = new URLSearchParams(locationLike.search)
 
-  return hashParams.get(desktopOverlayPollHeartbeatQueryParam) === '1'
-    || searchParams.get(desktopOverlayPollHeartbeatQueryParam) === '1'
+  return (
+    hashParams.get(desktopOverlayPollHeartbeatQueryParam) === '1' ||
+    searchParams.get(desktopOverlayPollHeartbeatQueryParam) === '1'
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -171,7 +173,7 @@ export interface OverlayPollConfig {
   /** Optional debug-only callback with a small heartbeat marker. */
   onHeartbeat?: (heartbeat: OverlayPollHeartbeat) => void
   /** Function to ping main process readiness contract via Eventa. */
-  getReadiness: () => Promise<{ state: 'booting' | 'ready' | 'degraded', error?: string }>
+  getReadiness: () => Promise<{ state: 'booting' | 'ready' | 'degraded'; error?: string }>
   /** Normal poll interval in ms. Default: 250. */
   intervalMs?: number
   /** Fallback interval on error in ms. Default: 500. */
@@ -226,26 +228,23 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
   }
 
   function removeHungCall(call: Promise<McpCallToolResult>) {
-    backgroundHungCalls = backgroundHungCalls.filter(slot => slot.call !== call)
+    backgroundHungCalls = backgroundHungCalls.filter((slot) => slot.call !== call)
     if (backgroundHungCalls.length < MAX_BACKGROUND_HUNG_CALLS) {
       lastHungRecoveryProbeAt = null
     }
   }
 
   function canStartPoll(now: number) {
-    if (inFlightCall)
-      return false
+    if (inFlightCall) return false
 
-    if (backgroundHungCalls.length < MAX_BACKGROUND_HUNG_CALLS)
-      return true
+    if (backgroundHungCalls.length < MAX_BACKGROUND_HUNG_CALLS) return true
 
     if (lastHungRecoveryProbeAt === null) {
       lastHungRecoveryProbeAt = now
       return false
     }
 
-    if ((now - lastHungRecoveryProbeAt) < HUNG_CALL_RECOVERY_INTERVAL_MS)
-      return false
+    if (now - lastHungRecoveryProbeAt < HUNG_CALL_RECOVERY_INTERVAL_MS) return false
 
     // NOTICE: Eventa does not expose abort semantics for callTool here. If all
     // tracked calls are permanently hung, waiting for settlement also makes the
@@ -262,20 +261,17 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
       const res = await config.getReadiness()
       currentBootstrapState = res.state
       currentBootstrapError = res.error
-    }
-    catch (e) {
+    } catch (e) {
       currentBootstrapState = 'degraded'
       currentBootstrapError = e instanceof Error ? e.message : String(e)
     }
 
-    if (!running)
-      return
+    if (!running) return
 
     if (currentBootstrapState === 'ready') {
       emitEmptyState()
       poll()
-    }
-    else {
+    } else {
       emitEmptyState()
       bootstrapTimer = setTimeout(bootstrapPoll, fallbackInterval)
     }
@@ -301,36 +297,41 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
       let timedOut = false
       const currentCall = config.callTool(MCP_TOOL_NAME)
       inFlightCall = currentCall
-      currentCall.then(() => {
-        if (timedOut) {
-          removeHungCall(currentCall)
-        }
-        else if (inFlightCall === currentCall) {
-          inFlightCall = null
-        }
-      }, () => {
-        if (timedOut) {
-          removeHungCall(currentCall)
-        }
-        else if (inFlightCall === currentCall) {
-          inFlightCall = null
-        }
-      })
+      currentCall.then(
+        () => {
+          if (timedOut) {
+            removeHungCall(currentCall)
+          } else if (inFlightCall === currentCall) {
+            inFlightCall = null
+          }
+        },
+        () => {
+          if (timedOut) {
+            removeHungCall(currentCall)
+          } else if (inFlightCall === currentCall) {
+            inFlightCall = null
+          }
+        },
+      )
 
       const result = await Promise.race([
         currentCall,
-        new Promise<never>((_, reject) =>
-          timeoutId = setTimeout(() => {
-            timedOut = true
-            backgroundHungCalls = [...backgroundHungCalls, {
-              call: currentCall,
-              timedOutAt: Date.now(),
-            }]
-            if (inFlightCall === currentCall) {
-              inFlightCall = null
-            }
-            reject(new Error('callTool timeout'))
-          }, config.callTimeoutMs ?? DEFAULT_CALL_TIMEOUT),
+        new Promise<never>(
+          (_, reject) =>
+            (timeoutId = setTimeout(() => {
+              timedOut = true
+              backgroundHungCalls = [
+                ...backgroundHungCalls,
+                {
+                  call: currentCall,
+                  timedOutAt: Date.now(),
+                },
+              ]
+              if (inFlightCall === currentCall) {
+                inFlightCall = null
+              }
+              reject(new Error('callTool timeout'))
+            }, config.callTimeoutMs ?? DEFAULT_CALL_TIMEOUT)),
         ),
       ])
       const runState = extractRunStateFromResult(result)
@@ -344,16 +345,13 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
         if (heartbeat && config.onHeartbeat) {
           config.onHeartbeat(heartbeat)
         }
-      }
-      else {
+      } else {
         nextInterval = fallbackInterval
       }
-    }
-    catch {
+    } catch {
       // MCP server not running, bridge disconnected, or timeout — graceful degradation
       nextInterval = fallbackInterval
-    }
-    finally {
+    } finally {
       if (timeoutId !== undefined) {
         clearTimeout(timeoutId)
       }
@@ -364,8 +362,7 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
 
   return {
     start() {
-      if (running)
-        return
+      if (running) return
       running = true
       // First handshake with the host before starting actual MCP polling
       bootstrapPoll()

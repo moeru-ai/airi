@@ -69,12 +69,7 @@ onBeforeUnmount(() => {
     <div class="sakura-bg" />
     <div class="pattern-overlay" />
     <div class="petals-container">
-      <div
-        v-for="petal in petals"
-        :key="petal.id"
-        class="sakura-petal"
-        :style="petal.style"
-      />
+      <div v-for="petal in petals" :key="petal.id" class="sakura-petal" :style="petal.style" />
     </div>
     <slot />
   </div>

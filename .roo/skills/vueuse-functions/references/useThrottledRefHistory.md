@@ -29,10 +29,7 @@ export type UseThrottledRefHistoryOptions<Raw, Serialized = Raw> = Omit<
   throttle?: MaybeRef<number>
   trailing?: boolean
 }
-export type UseThrottledRefHistoryReturn<
-  Raw,
-  Serialized = Raw,
-> = UseRefHistoryReturn<Raw, Serialized>
+export type UseThrottledRefHistoryReturn<Raw, Serialized = Raw> = UseRefHistoryReturn<Raw, Serialized>
 /**
  * Shorthand for [useRefHistory](https://vueuse.org/useRefHistory) with throttled filter.
  *

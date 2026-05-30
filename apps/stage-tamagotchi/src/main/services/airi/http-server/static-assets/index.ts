@@ -9,10 +9,7 @@ import { H3 } from 'h3'
 
 import { HttpError } from '../errors'
 import { createH3Server } from '../server'
-import {
-  normalizeStaticAssetPath,
-  resolveStaticAssetFilePath,
-} from './paths'
+import { normalizeStaticAssetPath, resolveStaticAssetFilePath } from './paths'
 import { createStaticAssetRoute } from './route'
 import { createStaticAssetSessionStore } from './session-store'
 
@@ -129,8 +126,7 @@ export function createStaticAssetService(options: {
       if (!filePath) {
         try {
           await stat(candidatePath)
-        }
-        catch {
+        } catch {
           return {
             ok: false,
             error: new HttpError({
@@ -173,8 +169,7 @@ export function createStaticAssetService(options: {
           size: fileStats.size,
           mtime: fileStats.mtimeMs,
         }
-      }
-      catch {
+      } catch {
         return {
           ok: false,
           error: new HttpError({
@@ -188,7 +183,7 @@ export function createStaticAssetService(options: {
     },
   })
 
-  app.use('/_airi/extensions/**', event => manifestEntryRequestCache.run(new Map(), () => staticAssetRoute(event)))
+  app.use('/_airi/extensions/**', (event) => manifestEntryRequestCache.run(new Map(), () => staticAssetRoute(event)))
 
   return {
     key: 'static-assets',

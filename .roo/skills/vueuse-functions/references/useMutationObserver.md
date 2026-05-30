@@ -16,26 +16,26 @@ import { ref, useTemplateRef } from 'vue'
 const el = useTemplateRef('el')
 const messages = ref([])
 
-useMutationObserver(el, (mutations) => {
-  if (mutations[0])
-    messages.value.push(mutations[0].attributeName)
-}, {
-  attributes: true,
-})
+useMutationObserver(
+  el,
+  (mutations) => {
+    if (mutations[0]) messages.value.push(mutations[0].attributeName)
+  },
+  {
+    attributes: true,
+  },
+)
 </script>
 
 <template>
-  <div ref="el">
-    Hello VueUse
-  </div>
+  <div ref="el">Hello VueUse</div>
 </template>
 ```
 
 ## Type Declarations
 
 ```ts
-export interface UseMutationObserverOptions
-  extends MutationObserverInit, ConfigurableWindow {}
+export interface UseMutationObserverOptions extends MutationObserverInit, ConfigurableWindow {}
 export interface UseMutationObserverReturn extends Supportable {
   stop: () => void
   takeRecords: () => MutationRecord[] | undefined
@@ -50,10 +50,7 @@ export interface UseMutationObserverReturn extends Supportable {
  * @param options
  */
 export declare function useMutationObserver(
-  target:
-    | MaybeComputedElementRef
-    | MaybeComputedElementRef[]
-    | MaybeRefOrGetter<MaybeElement[]>,
+  target: MaybeComputedElementRef | MaybeComputedElementRef[] | MaybeRefOrGetter<MaybeElement[]>,
   callback: MutationCallback,
   options?: UseMutationObserverOptions,
 ): UseMutationObserverReturn

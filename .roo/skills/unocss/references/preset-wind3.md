@@ -13,9 +13,7 @@ The Tailwind CSS / Windi CSS compatible preset. Most commonly used preset for Un
 import { defineConfig, presetWind3 } from 'unocss'
 
 export default defineConfig({
-  presets: [
-    presetWind3(),
-  ],
+  presets: [presetWind3()],
 })
 ```
 
@@ -34,7 +32,7 @@ export default defineConfig({
 ### Class-based (default)
 
 ```html
-<div class="dark:bg-gray-800">
+<div class="dark:bg-gray-800"></div>
 ```
 
 Generates: `.dark .dark\:bg-gray-800 { ... }`
@@ -43,7 +41,7 @@ Generates: `.dark .dark\:bg-gray-800 { ... }`
 
 ```ts
 presetWind3({
-  dark: 'media'
+  dark: 'media',
 })
 ```
 
@@ -54,7 +52,7 @@ Generates: `@media (prefers-color-scheme: dark) { ... }`
 Use `@dark:` regardless of config:
 
 ```html
-<div class="@dark:bg-gray-800">
+<div class="@dark:bg-gray-800"></div>
 ```
 
 ## Options
@@ -110,9 +108,9 @@ Template quotes don't work due to extractor:
 ```html
 <!-- Won't work -->
 <div class="before:content-['']">
-
-<!-- Use shortcut instead -->
-<div class="before:content-empty">
+  <!-- Use shortcut instead -->
+  <div class="before:content-empty"></div>
+</div>
 ```
 
 ### Background Position
@@ -122,9 +120,9 @@ Use `position:` prefix for custom values:
 ```html
 <!-- Tailwind -->
 <div class="bg-[center_top_1rem]">
-
-<!-- UnoCSS -->
-<div class="bg-[position:center_top_1rem]">
+  <!-- UnoCSS -->
+  <div class="bg-[position:center_top_1rem]"></div>
+</div>
 ```
 
 ### Animations
@@ -157,20 +155,20 @@ theme: {
 
 ## Differences from Windi CSS
 
-| Windi CSS | UnoCSS |
-|-----------|--------|
+| Windi CSS | UnoCSS      |
+| --------- | ----------- |
 | `<sm:p-1` | `lt-sm:p-1` |
 | `@lg:p-1` | `at-lg:p-1` |
-| `>xl:p-1` | `xl:p-1` |
+| `>xl:p-1` | `xl:p-1`    |
 
 Bracket syntax uses `_` instead of `,`:
 
 ```html
 <!-- Windi CSS -->
 <div class="grid-cols-[1fr,10px,max-content]">
-
-<!-- UnoCSS -->
-<div class="grid-cols-[1fr_10px_max-content]">
+  <!-- UnoCSS -->
+  <div class="grid-cols-[1fr_10px_max-content]"></div>
+</div>
 ```
 
 ## Experimental: Media Hover
@@ -178,10 +176,11 @@ Bracket syntax uses `_` instead of `,`:
 Addresses sticky hover on touch devices:
 
 ```html
-<div class="@hover-text-red">
+<div class="@hover-text-red"></div>
 ```
 
 Generates:
+
 ```css
 @media (hover: hover) and (pointer: fine) {
   .\@hover-text-red:hover { ... }

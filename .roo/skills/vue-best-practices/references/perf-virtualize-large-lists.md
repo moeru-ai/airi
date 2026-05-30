@@ -22,14 +22,15 @@ Use a virtualization library when dealing with lists that could exceed 50-100 it
 
 ## Recommended Libraries
 
-| Library | Best For | Notes |
-|---------|----------|-------|
-| `vue-virtual-scroller` | General use, easy setup | Most popular, good defaults |
-| `@tanstack/vue-virtual` | Complex layouts, headless | Framework-agnostic, flexible |
-| `vue-virtual-scroll-grid` | Grid layouts | 2D virtualization |
-| `vueuc/VVirtualList` | Naive UI projects | Part of Naive UI ecosystem |
+| Library                   | Best For                  | Notes                        |
+| ------------------------- | ------------------------- | ---------------------------- |
+| `vue-virtual-scroller`    | General use, easy setup   | Most popular, good defaults  |
+| `@tanstack/vue-virtual`   | Complex layouts, headless | Framework-agnostic, flexible |
+| `vue-virtual-scroll-grid` | Grid layouts              | 2D virtualization            |
+| `vueuc/VVirtualList`      | Naive UI projects         | Part of Naive UI ecosystem   |
 
 **BAD:**
+
 ```vue
 <script setup>
 import { onMounted, ref } from 'vue'
@@ -47,16 +48,13 @@ onMounted(async () => {
 <template>
   <!-- BAD: Renders ALL 10,000 items immediately -->
   <div class="user-list">
-    <UserCard
-      v-for="user in users"
-      :key="user.id"
-      :user="user"
-    />
+    <UserCard v-for="user in users" :key="user.id" :user="user" />
   </div>
 </template>
 ```
 
 **GOOD:**
+
 ```vue
 <script setup>
 import { onMounted, ref } from 'vue'
@@ -76,13 +74,7 @@ onMounted(async () => {
 
 <template>
   <!-- GOOD: Only renders ~20 visible items at a time -->
-  <RecycleScroller
-    v-slot="{ item }"
-    class="user-list"
-    :items="users"
-    :item-size="80"
-    key-field="id"
-  >
+  <RecycleScroller v-slot="{ item }" class="user-list" :items="users" :item-size="80" key-field="id">
     <UserCard :user="item" />
   </RecycleScroller>
 </template>
@@ -101,14 +93,16 @@ onMounted(async () => {
 import { useVirtualizer } from '@tanstack/vue-virtual'
 import { ref } from 'vue'
 
-const users = ref([/* 10,000 users */])
+const users = ref([
+  /* 10,000 users */
+])
 const parentRef = ref(null)
 
 const rowVirtualizer = useVirtualizer({
   count: users.value.length,
   getScrollElement: () => parentRef.value,
   estimateSize: () => 80, // Estimated row height
-  overscan: 5 // Render 5 extra items above/below viewport
+  overscan: 5, // Render 5 extra items above/below viewport
 })
 </script>
 
@@ -155,17 +149,9 @@ import { DynamicScroller, DynamicScrollerItem } from 'vue-virtual-scroller'
 
 <template>
   <!-- For variable height items, use DynamicScroller -->
-  <DynamicScroller
-    :items="messages"
-    :min-item-size="54"
-    key-field="id"
-  >
+  <DynamicScroller :items="messages" :min-item-size="54" key-field="id">
     <template #default="{ item, index, active }">
-      <DynamicScrollerItem
-        :item="item"
-        :active="active"
-        :data-index="index"
-      >
+      <DynamicScrollerItem :item="item" :active="active" :data-index="index">
         <ChatMessage :message="item" />
       </DynamicScrollerItem>
     </template>
@@ -175,12 +161,12 @@ import { DynamicScroller, DynamicScrollerItem } from 'vue-virtual-scroller'
 
 ## Performance Comparison
 
-| Approach | 100 Items | 1,000 Items | 10,000 Items |
-|----------|-----------|-------------|--------------|
-| Regular v-for | ~100 DOM nodes | ~1,000 DOM nodes | ~10,000 DOM nodes |
-| Virtualized | ~20 DOM nodes | ~20 DOM nodes | ~20 DOM nodes |
-| Initial render | Fast | Slow | Very slow / crashes |
-| Virtualized render | Fast | Fast | Fast |
+| Approach           | 100 Items      | 1,000 Items      | 10,000 Items        |
+| ------------------ | -------------- | ---------------- | ------------------- |
+| Regular v-for      | ~100 DOM nodes | ~1,000 DOM nodes | ~10,000 DOM nodes   |
+| Virtualized        | ~20 DOM nodes  | ~20 DOM nodes    | ~20 DOM nodes       |
+| Initial render     | Fast           | Slow             | Very slow / crashes |
+| Virtualized render | Fast           | Fast             | Fast                |
 
 ## When NOT to Virtualize
 

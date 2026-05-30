@@ -8,23 +8,15 @@ import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
 
 const minimaxCnConfigSchema = z.object({
-  apiKey: z
-    .string('API Key'),
-  baseUrl: z
-    .string('Base URL')
-    .optional()
-    .default('https://api.minimaxi.com/v1/'),
+  apiKey: z.string('API Key'),
+  baseUrl: z.string('Base URL').optional().default('https://api.minimaxi.com/v1/'),
 })
 
 type MinimaxCnConfig = z.input<typeof minimaxCnConfigSchema>
 
 const minimaxGlobalConfigSchema = z.object({
-  apiKey: z
-    .string('API Key'),
-  baseUrl: z
-    .string('Base URL')
-    .optional()
-    .default('https://api.minimax.io/v1/'),
+  apiKey: z.string('API Key'),
+  baseUrl: z.string('Base URL').optional().default('https://api.minimax.io/v1/'),
 })
 
 type MinimaxGlobalConfig = z.input<typeof minimaxGlobalConfigSchema>
@@ -90,19 +82,24 @@ export const providerMinimax = defineProvider<MinimaxCnConfig>({
   icon: 'i-lobe-icons:minimax',
   iconColor: 'i-lobe-icons:minimax-color',
 
-  createProviderConfig: ({ t }) => minimaxCnConfigSchema.extend({
-    apiKey: minimaxCnConfigSchema.shape.apiKey.meta({
-      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
-      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
-      type: 'password',
+  createProviderConfig: ({ t }) =>
+    minimaxCnConfigSchema.extend({
+      apiKey: minimaxCnConfigSchema.shape.apiKey.meta({
+        labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
+        descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
+        placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
+        type: 'password',
+      }),
+      baseUrl: minimaxCnConfigSchema.shape.baseUrl.meta({
+        labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
+        descriptionLocalized: t(
+          'settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description',
+        ),
+        placeholderLocalized: t(
+          'settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder',
+        ),
+      }),
     }),
-    baseUrl: minimaxCnConfigSchema.shape.baseUrl.meta({
-      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
-      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
-    }),
-  }),
   createProvider(config) {
     return createMinimaxCn(config.apiKey, config.baseUrl)
   },
@@ -130,25 +127,30 @@ export const providerMinimaxGlobal = defineProvider<MinimaxGlobalConfig>({
   icon: 'i-lobe-icons:minimax',
   iconColor: 'i-lobe-icons:minimax-color',
 
-  createProviderConfig: ({ t }) => minimaxGlobalConfigSchema.extend({
-    apiKey: minimaxGlobalConfigSchema.shape.apiKey.meta({
-      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
-      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
-      type: 'password',
+  createProviderConfig: ({ t }) =>
+    minimaxGlobalConfigSchema.extend({
+      apiKey: minimaxGlobalConfigSchema.shape.apiKey.meta({
+        labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
+        descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
+        placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
+        type: 'password',
+      }),
+      baseUrl: minimaxGlobalConfigSchema.shape.baseUrl.meta({
+        labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
+        descriptionLocalized: t(
+          'settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description',
+        ),
+        placeholderLocalized: t(
+          'settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder',
+        ),
+      }),
     }),
-    baseUrl: minimaxGlobalConfigSchema.shape.baseUrl.meta({
-      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
-      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
-    }),
-  }),
   createProvider(config) {
     return createMinimax(config.apiKey, config.baseUrl)
   },
 
   extraMethods: {
-    listModels: async () => minimaxModels.map(m => ({ ...m, provider: 'minimax-global' })),
+    listModels: async () => minimaxModels.map((m) => ({ ...m, provider: 'minimax-global' })),
   },
   validationRequiredWhen(config) {
     return !!config.apiKey?.trim()

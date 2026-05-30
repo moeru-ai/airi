@@ -51,19 +51,12 @@ const groupedOptions = [
 </script>
 
 <template>
-  <Story
-    title="Field Select"
-    group="form"
-    :layout="{ type: 'grid', width: '100%' }"
-  >
+  <Story title="Field Select" group="form" :layout="{ type: 'grid', width: '100%' }">
     <template #controls>
       <ThemeColorsHueControl />
     </template>
 
-    <Variant
-      id="simple"
-      title="Simple (Plain Value)"
-    >
+    <Variant id="simple" title="Simple (Plain Value)">
       <div :class="['max-w-110', 'w-full', 'flex', 'flex-col', 'gap-3']">
         <FieldSelect
           v-model="simpleValue"
@@ -78,10 +71,7 @@ const groupedOptions = [
       </div>
     </Variant>
 
-    <Variant
-      id="grouped"
-      title="Complex (Grouped Options, Plain Value)"
-    >
+    <Variant id="grouped" title="Complex (Grouped Options, Plain Value)">
       <div :class="['max-w-110', 'w-full', 'flex', 'flex-col', 'gap-3']">
         <FieldSelect
           v-model="groupedValue"
@@ -97,10 +87,7 @@ const groupedOptions = [
       </div>
     </Variant>
 
-    <Variant
-      id="custom-render"
-      title="Complex (Custom Value And Option Rendering)"
-    >
+    <Variant id="custom-render" title="Complex (Custom Value And Option Rendering)">
       <div :class="['max-w-110', 'w-full', 'flex', 'flex-col', 'gap-3']">
         <FieldSelect
           v-model="customValue"
@@ -113,24 +100,30 @@ const groupedOptions = [
         >
           <template #value="slotProps">
             <div :class="['min-w-0', 'flex', 'items-center', 'gap-2', 'px-2', 'py-1']">
-              <span
-                :class="[
-                  'size-4 shrink-0',
-                  slotProps.option?.icon ?? 'i-solar:question-circle-linear',
-                ]"
-              />
+              <span :class="['size-4 shrink-0', slotProps.option?.icon ?? 'i-solar:question-circle-linear']" />
               <div :class="['min-w-0', 'flex', 'flex-1', 'items-center', 'justify-between', 'gap-2']">
                 <span
                   :class="[
                     'truncate',
-                    slotProps.option ? 'text-neutral-700 dark:text-neutral-200' : 'text-neutral-400 dark:text-neutral-500',
+                    slotProps.option
+                      ? 'text-neutral-700 dark:text-neutral-200'
+                      : 'text-neutral-400 dark:text-neutral-500',
                   ]"
                 >
                   {{ slotProps.option?.label ?? slotProps.placeholder }}
                 </span>
                 <span
                   v-if="slotProps.option"
-                  :class="['rounded-full', 'bg-primary-400/12', 'dark:bg-primary-400/18', 'px-2', 'py-0.5', 'text-xs', 'text-primary-700', 'dark:text-primary-200']"
+                  :class="[
+                    'rounded-full',
+                    'bg-primary-400/12',
+                    'dark:bg-primary-400/18',
+                    'px-2',
+                    'py-0.5',
+                    'text-xs',
+                    'text-primary-700',
+                    'dark:text-primary-200',
+                  ]"
                 >
                   {{ slotProps.option.value }}
                 </span>
@@ -143,11 +136,7 @@ const groupedOptions = [
               <div :class="['min-w-0', 'flex', 'items-center', 'gap-2']">
                 <span
                   v-if="slotProps.option.icon"
-                  :class="[
-                    'size-4 shrink-0',
-                    'text-current',
-                    slotProps.option.icon,
-                  ]"
+                  :class="['size-4 shrink-0', 'text-current', slotProps.option.icon]"
                 />
                 <div :class="['min-w-0', 'flex', 'flex-col']">
                   <span :class="['truncate']">{{ slotProps.option.label }}</span>
@@ -159,7 +148,18 @@ const groupedOptions = [
                   </span>
                 </div>
               </div>
-              <span :class="['rounded-full', 'bg-primary-400/12', 'dark:bg-primary-400/18', 'px-2', 'py-0.5', 'text-xs', 'text-primary-700', 'dark:text-primary-200']">
+              <span
+                :class="[
+                  'rounded-full',
+                  'bg-primary-400/12',
+                  'dark:bg-primary-400/18',
+                  'px-2',
+                  'py-0.5',
+                  'text-xs',
+                  'text-primary-700',
+                  'dark:text-primary-200',
+                ]"
+              >
                 {{ slotProps.option.value }}
               </span>
             </div>

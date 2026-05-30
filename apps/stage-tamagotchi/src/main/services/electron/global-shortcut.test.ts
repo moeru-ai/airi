@@ -40,8 +40,7 @@ function createMockWindow(): MockWindow {
   let closedHandler: (() => void) | undefined
   return {
     on: vi.fn((event: string, handler: () => void) => {
-      if (event === 'closed')
-        closedHandler = handler
+      if (event === 'closed') closedHandler = handler
     }),
     close() {
       closedHandler?.()
@@ -62,7 +61,10 @@ function asBrowserWindow(window: MockWindow): BrowserWindow {
   return window as unknown as BrowserWindow
 }
 
-function registerMockWindow(service: { registerWindow: (params: { context: EventaContext, window: BrowserWindow }) => void }, ctx: MockContext): MockWindow {
+function registerMockWindow(
+  service: { registerWindow: (params: { context: EventaContext; window: BrowserWindow }) => void },
+  ctx: MockContext,
+): MockWindow {
   const window = createMockWindow()
   service.registerWindow({
     context: asEventaContext(ctx),
@@ -120,7 +122,11 @@ async function setupMocks() {
     const actual = await importOriginal<typeof import('@moeru/eventa')>()
     return {
       ...actual,
-      defineInvokeHandler: (context: MockContext, eventa: { sendEvent: { id: string } }, handler: (payload: unknown) => unknown) => {
+      defineInvokeHandler: (
+        context: MockContext,
+        eventa: { sendEvent: { id: string } },
+        handler: (payload: unknown) => unknown,
+      ) => {
         // `defineInvokeEventa('foo')` returns `{ sendEvent: { id: 'foo-send' }, ... }`;
         // strip the `-send` suffix so test lookups match the contract name.
         const id = eventa.sendEvent.id.replace(/-send$/, '')
@@ -170,7 +176,7 @@ describe('setupGlobalShortcutService', () => {
     const handler = ctx.invokeHandlers.get('eventa:invoke:electron:shortcut:register')
     expect(handler).toBeDefined()
 
-    const result = handler!(exampleBinding('toggle')) as { id: string, ok: boolean }
+    const result = handler!(exampleBinding('toggle')) as { id: string; ok: boolean }
     expect(result).toEqual({ id: 'toggle', ok: true })
     expect(m.registerMock).toHaveBeenCalledWith('CmdOrCtrl+Shift+K', expect.any(Function))
   })
@@ -182,7 +188,7 @@ describe('setupGlobalShortcutService', () => {
     registerMockWindow(service, ctx)
 
     const handler = ctx.invokeHandlers.get('eventa:invoke:electron:shortcut:register')!
-    const result = handler({ ...exampleBinding('ptt'), receiveKeyUps: true }) as { id: string, ok: boolean }
+    const result = handler({ ...exampleBinding('ptt'), receiveKeyUps: true }) as { id: string; ok: boolean }
     expect(result).toEqual({ id: 'ptt', ok: true })
     expect(m.registerMock).not.toHaveBeenCalled()
   })
@@ -195,7 +201,7 @@ describe('setupGlobalShortcutService', () => {
     registerMockWindow(service, ctx)
 
     const handler = ctx.invokeHandlers.get('eventa:invoke:electron:shortcut:register')!
-    const result = handler(exampleBinding('toggle')) as { id: string, ok: boolean, reason?: string }
+    const result = handler(exampleBinding('toggle')) as { id: string; ok: boolean; reason?: string }
     expect(result).toEqual({ id: 'toggle', ok: false, reason: ShortcutFailureReasons.Conflict })
   })
 
@@ -211,7 +217,7 @@ describe('setupGlobalShortcutService', () => {
 
     const handler = ctx.invokeHandlers.get('eventa:invoke:electron:shortcut:register')!
     const first = handler(exampleBinding('toggle', 'KeyK')) as { ok: boolean }
-    const second = handler(exampleBinding('toggle', 'KeyZ')) as { id: string, ok: boolean, reason?: string }
+    const second = handler(exampleBinding('toggle', 'KeyZ')) as { id: string; ok: boolean; reason?: string }
 
     expect(first.ok).toBe(true)
     expect(second).toEqual({ id: 'toggle', ok: false, reason: ShortcutFailureReasons.DuplicateId })
@@ -287,7 +293,7 @@ describe('setupGlobalShortcutService', () => {
 
     const list = ctx.invokeHandlers.get('eventa:invoke:electron:shortcut:list')!
     const result = list(undefined) as ShortcutBinding[]
-    expect(result.map(b => b.id).sort()).toEqual(['a', 'b'])
+    expect(result.map((b) => b.id).sort()).toEqual(['a', 'b'])
   })
 
   it('unregisterAll only unregisters bindings owned by this service', async () => {

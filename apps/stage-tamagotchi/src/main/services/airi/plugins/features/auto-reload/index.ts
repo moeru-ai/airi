@@ -82,29 +82,33 @@ export function createPluginAutoReloadFeature(options: PluginAutoReloadFeatureOp
     try {
       await options.reload(name, changedPath)
       options.log.log('plugin auto-reloaded after file change', { plugin: name, path: changedPath })
-    }
-    catch (error) {
+    } catch (error) {
       options.log.withError(error).withFields({ plugin: name, path: changedPath }).error('plugin auto-reload failed')
-    }
-    finally {
+    } finally {
       autoReloadInFlight.delete(name)
     }
   }
 
   const scheduleReload = (name: string, changedPath: string) => {
     clearTimer(name)
-    autoReloadTimers.set(name, setTimeout(() => {
-      autoReloadTimers.delete(name)
-      void reloadPluginByName(name, changedPath)
-    }, 180))
+    autoReloadTimers.set(
+      name,
+      setTimeout(() => {
+        autoReloadTimers.delete(name)
+        void reloadPluginByName(name, changedPath)
+      }, 180),
+    )
   }
 
   return {
     sync() {
       const enabledNames = new Set(options.getConfig().autoReload)
-      const desiredNames = new Set(options.listEntries()
-        .map(entry => entry.manifest.name)
-        .filter(name => enabledNames.has(name) && options.isLoaded(name)))
+      const desiredNames = new Set(
+        options
+          .listEntries()
+          .map((entry) => entry.manifest.name)
+          .filter((name) => enabledNames.has(name) && options.isLoaded(name)),
+      )
 
       for (const name of autoReloadWatchers.keys()) {
         if (!desiredNames.has(name)) {
@@ -128,12 +132,17 @@ export function createPluginAutoReloadFeature(options: PluginAutoReloadFeatureOp
           try {
             const watcher = watchFile(watchPath, { persistent: false }, () => scheduleReload(name, watchPath))
             watcher.on('error', (error) => {
-              options.log.withError(error).withFields({ plugin: name, path: watchPath }).warn('plugin auto-reload watcher error')
+              options.log
+                .withError(error)
+                .withFields({ plugin: name, path: watchPath })
+                .warn('plugin auto-reload watcher error')
             })
             watchers.push(watcher)
-          }
-          catch (error) {
-            options.log.withError(error).withFields({ plugin: name, path: watchPath }).warn('failed to watch plugin file for auto-reload')
+          } catch (error) {
+            options.log
+              .withError(error)
+              .withFields({ plugin: name, path: watchPath })
+              .warn('failed to watch plugin file for auto-reload')
           }
         }
 
@@ -147,10 +156,7 @@ export function createPluginAutoReloadFeature(options: PluginAutoReloadFeatureOp
       closeWatchers(name)
     },
     dispose() {
-      const managedNames = new Set([
-        ...autoReloadTimers.keys(),
-        ...autoReloadWatchers.keys(),
-      ])
+      const managedNames = new Set([...autoReloadTimers.keys(), ...autoReloadWatchers.keys()])
 
       for (const name of managedNames) {
         clearTimer(name)

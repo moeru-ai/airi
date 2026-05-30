@@ -72,14 +72,12 @@ export function useDataMaintenance() {
   }
 
   function isChatSessionsPayload(payload: unknown): payload is ChatSessionsExport {
-    if (!payload || typeof payload !== 'object')
-      return false
+    if (!payload || typeof payload !== 'object') return false
     return (payload as { format?: string }).format === 'chat-sessions-index:v1'
   }
 
   async function importChatSessions(payload: Record<string, unknown>) {
-    if (!isChatSessionsPayload(payload))
-      throw new Error('Invalid chat session export format')
+    if (!isChatSessionsPayload(payload)) throw new Error('Invalid chat session export format')
     await chatStore.importSessions(payload)
   }
 
@@ -103,8 +101,7 @@ export function useDataMaintenance() {
   }
 
   async function resetDesktopApplicationState() {
-    if (!isStageTamagotchi())
-      return
+    if (!isStageTamagotchi()) return
 
     await resetSettingsState()
     resetModulesSettings()

@@ -5,10 +5,13 @@ const serveMocks = vi.hoisted(() => {
   let resolveServe: (() => void) | null = null
   let rejectServe: ((error: Error) => void) | null = null
 
-  const serveCall = vi.fn(() => new Promise<void>((resolve, reject) => {
-    resolveServe = resolve
-    rejectServe = reject
-  }))
+  const serveCall = vi.fn(
+    () =>
+      new Promise<void>((resolve, reject) => {
+        resolveServe = resolve
+        rejectServe = reject
+      }),
+  )
 
   const closeCall = vi.fn(async () => {})
   const disposeCall = vi.fn(() => {})
@@ -34,7 +37,7 @@ vi.mock('h3', () => ({
   H3: class {
     get = vi.fn()
   },
-  defineWebSocketHandler: vi.fn(handler => handler),
+  defineWebSocketHandler: vi.fn((handler) => handler),
   serve: vi.fn(() => ({
     serve: serveMocks.serveCall,
     close: serveMocks.closeCall,
@@ -123,16 +126,18 @@ describe('createServer', async () => {
     serveMocks.resolveServe()
     await startTask
 
-    expect(serveMocks.setupAppCall).toHaveBeenCalledWith(expect.objectContaining({
-      logger: {
-        app: {
-          level: LogLevelString.Log,
-          format: Format.Pretty,
+    expect(serveMocks.setupAppCall).toHaveBeenCalledWith(
+      expect.objectContaining({
+        logger: {
+          app: {
+            level: LogLevelString.Log,
+            format: Format.Pretty,
+          },
+          websocket: {
+            format: Format.Pretty,
+          },
         },
-        websocket: {
-          format: Format.Pretty,
-        },
-      },
-    }))
+      }),
+    )
   })
 })

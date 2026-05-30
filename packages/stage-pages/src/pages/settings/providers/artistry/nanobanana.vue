@@ -8,16 +8,21 @@ import { useI18n } from 'vue-i18n'
 const artistryStore = useArtistryStore()
 const { t } = useI18n()
 
-const {
-  nanobananaApiKey,
-  nanobananaModel,
-  nanobananaResolution,
-} = storeToRefs(artistryStore)
+const { nanobananaApiKey, nanobananaModel, nanobananaResolution } = storeToRefs(artistryStore)
 
 const modelOptions = computed(() => [
-  { label: t('settings.pages.providers.provider.nanobanana.settings.model_options.nano_banana_2'), value: 'gemini-3.1-flash-image-preview' },
-  { label: t('settings.pages.providers.provider.nanobanana.settings.model_options.nano_banana_pro'), value: 'gemini-3-pro-image-preview' },
-  { label: t('settings.pages.providers.provider.nanobanana.settings.model_options.nano_banana'), value: 'gemini-2.5-flash-image' },
+  {
+    label: t('settings.pages.providers.provider.nanobanana.settings.model_options.nano_banana_2'),
+    value: 'gemini-3.1-flash-image-preview',
+  },
+  {
+    label: t('settings.pages.providers.provider.nanobanana.settings.model_options.nano_banana_pro'),
+    value: 'gemini-3-pro-image-preview',
+  },
+  {
+    label: t('settings.pages.providers.provider.nanobanana.settings.model_options.nano_banana'),
+    value: 'gemini-2.5-flash-image',
+  },
 ])
 
 const resolutionOptions = computed(() => [

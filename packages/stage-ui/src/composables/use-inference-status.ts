@@ -15,14 +15,7 @@ import { computed, reactive } from 'vue'
 // Types
 // ---------------------------------------------------------------------------
 
-export type InferenceModelState
-  = | 'idle'
-    | 'downloading'
-    | 'compiling'
-    | 'warming-up'
-    | 'ready'
-    | 'running'
-    | 'error'
+export type InferenceModelState = 'idle' | 'downloading' | 'compiling' | 'warming-up' | 'ready' | 'running' | 'error'
 
 export interface InferenceModelStatus {
   modelId: string
@@ -46,15 +39,11 @@ const statusMap = reactive(new Map<string, InferenceModelStatus>())
  * Update the status of an inference model.
  * Called by adapters to push state changes into the shared status map.
  */
-export function updateInferenceStatus(
-  modelId: string,
-  update: Partial<Omit<InferenceModelStatus, 'modelId'>>,
-): void {
+export function updateInferenceStatus(modelId: string, update: Partial<Omit<InferenceModelStatus, 'modelId'>>): void {
   const existing = statusMap.get(modelId)
   if (existing) {
     Object.assign(existing, update)
-  }
-  else {
+  } else {
     statusMap.set(modelId, {
       modelId,
       state: 'idle',
@@ -76,26 +65,17 @@ export function removeInferenceStatus(modelId: string): void {
 // ---------------------------------------------------------------------------
 
 export function useInferenceStatus() {
-  const models = computed<InferenceModelStatus[]>(() =>
-    Array.from(statusMap.values()),
-  )
+  const models = computed<InferenceModelStatus[]>(() => Array.from(statusMap.values()))
 
   const isAnyLoading = computed(() =>
-    models.value.some(m =>
-      m.state === 'downloading'
-      || m.state === 'compiling'
-      || m.state === 'warming-up',
-    ),
+    models.value.some((m) => m.state === 'downloading' || m.state === 'compiling' || m.state === 'warming-up'),
   )
 
   const totalProgress = computed(() => {
-    const loadingModels = models.value.filter(m =>
-      m.state === 'downloading'
-      || m.state === 'compiling'
-      || m.state === 'warming-up',
+    const loadingModels = models.value.filter(
+      (m) => m.state === 'downloading' || m.state === 'compiling' || m.state === 'warming-up',
     )
-    if (loadingModels.length === 0)
-      return 100
+    if (loadingModels.length === 0) return 100
 
     const sum = loadingModels.reduce((acc, m) => {
       const p = m.progress?.percent ?? 0

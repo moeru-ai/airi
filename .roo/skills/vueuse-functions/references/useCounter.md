@@ -72,11 +72,7 @@ export declare function useCounter(
   initialValue?: MaybeRef<number>,
   options?: UseCounterOptions,
 ): {
-  count: Readonly<
-    | Ref<number, number>
-    | ShallowRef<number, number>
-    | WritableComputedRef<number, number>
-  >
+  count: Readonly<Ref<number, number> | ShallowRef<number, number> | WritableComputedRef<number, number>>
   inc: (delta?: number) => number
   dec: (delta?: number) => number
   get: () => number

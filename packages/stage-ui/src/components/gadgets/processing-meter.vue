@@ -38,21 +38,18 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const resolvedProcessingMax = computed(() => {
-  const historyMax = props.processingHistory.length > 0
-    ? Math.max(...props.processingHistory)
-    : 0
+  const historyMax = props.processingHistory.length > 0 ? Math.max(...props.processingHistory) : 0
   return Math.max(1, props.processingMax || 0, historyMax)
 })
 
 const processingValueResolved = computed(() => {
-  if (props.processingValue !== null && props.processingValue !== undefined)
-    return props.processingValue
+  if (props.processingValue !== null && props.processingValue !== undefined) return props.processingValue
   return props.processingHistory.at(-1) ?? 0
 })
 
 const normalizedProcessingHistory = computed(() => {
   const maxValue = resolvedProcessingMax.value
-  return props.processingHistory.map(value => Math.min(1, value / maxValue))
+  return props.processingHistory.map((value) => Math.min(1, value / maxValue))
 })
 
 const normalizedProcessingValue = computed(() => {
@@ -65,7 +62,9 @@ const formattedProcessingValue = computed(() => {
 </script>
 
 <template>
-  <div :class="['flex', 'flex-col', 'gap-4', 'rounded-2xl', 'bg-white/70', 'p-4', 'shadow-sm', 'dark:bg-neutral-900/50']">
+  <div
+    :class="['flex', 'flex-col', 'gap-4', 'rounded-2xl', 'bg-white/70', 'p-4', 'shadow-sm', 'dark:bg-neutral-900/50']"
+  >
     <div :class="['flex', 'items-center', 'justify-between']">
       <div :class="['flex', 'flex-col', 'gap-1']">
         <div :class="['text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">
@@ -95,13 +94,7 @@ const formattedProcessingValue = computed(() => {
     />
 
     <div :class="['grid', 'gap-4', 'md:grid-cols-2']">
-      <LevelMeter
-        :level="rateValue"
-        :min="0"
-        :max="rateMax"
-        :label="rateLabel"
-        :unit="rateUnit"
-      />
+      <LevelMeter :level="rateValue" :min="0" :max="rateMax" :label="rateLabel" :unit="rateUnit" />
 
       <LevelMeter
         v-if="secondaryRateValue !== undefined"

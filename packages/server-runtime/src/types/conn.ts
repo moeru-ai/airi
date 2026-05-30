@@ -5,9 +5,12 @@ export interface Peer {
    * Unique random [uuid v4](https://developer.mozilla.org/en-US/docs/Glossary/UUID) identifier for the peer.
    */
   get id(): string
-  send: (data: unknown, options?: {
-    compress?: boolean
-  }) => number | void | undefined
+  send: (
+    data: unknown,
+    options?: {
+      compress?: boolean
+    },
+  ) => number | void | undefined
   close?: () => void
   /**
    * WebSocket lifecycle state (mirrors WebSocket.readyState)

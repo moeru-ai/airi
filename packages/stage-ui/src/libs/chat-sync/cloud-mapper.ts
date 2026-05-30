@@ -80,10 +80,9 @@ interface ApiErrorBody {
 
 async function readErrorDetail(res: Response): Promise<string> {
   try {
-    const body = await res.json() as ApiErrorBody
+    const body = (await res.json()) as ApiErrorBody
     return body.message ?? body.error ?? res.statusText
-  }
-  catch {
+  } catch {
     // Non-JSON body — keep statusText.
     return res.statusText
   }
@@ -100,8 +99,7 @@ async function readJsonOrThrow<T>(res: Response, schema: v.BaseSchema<unknown, T
 }
 
 async function throwOnError(res: Response): Promise<void> {
-  if (res.ok)
-    return
+  if (res.ok) return
   throw new Error(`HTTP ${res.status}: ${await readErrorDetail(res)}`)
 }
 
@@ -170,9 +168,8 @@ export function createCloudChatMapper(options: CreateCloudChatMapperOptions): Cl
           signal: timeoutSignal(),
         })
         const all = await readJsonOrThrow(allRes, ListChatsResponseSchema)
-        const found = all.chats.find(chat => chat.id === input.id)
-        if (found)
-          return found
+        const found = all.chats.find((chat) => chat.id === input.id)
+        if (found) return found
         // 409 with no matching record → server inconsistency; surface the
         // original error rather than pretending it succeeded.
       }
@@ -201,8 +198,8 @@ export function createCloudChatMapper(options: CreateCloudChatMapperOptions): Cl
  *   a local session shell so future `pullMessages` can populate it.
  */
 export interface ReconcilePlan {
-  claim: Array<{ sessionId: string, cloudChatId: string }>
-  create: Array<{ sessionId: string, characterId: string }>
+  claim: Array<{ sessionId: string; cloudChatId: string }>
+  create: Array<{ sessionId: string; characterId: string }>
   adopt: RemoteChat[]
 }
 
@@ -222,18 +219,13 @@ export interface ReconcilePlan {
  * - A plan of three lists. The caller applies them in any order; `create`
  *   actions need the network, `claim` / `adopt` are pure store mutations.
  */
-export function reconcileLocalAndRemote(
-  localSessions: ChatSessionMeta[],
-  remoteChats: RemoteChat[],
-): ReconcilePlan {
+export function reconcileLocalAndRemote(localSessions: ChatSessionMeta[], remoteChats: RemoteChat[]): ReconcilePlan {
   const remoteById = new Map<string, RemoteChat>()
-  for (const chat of remoteChats)
-    remoteById.set(chat.id, chat)
+  for (const chat of remoteChats) remoteById.set(chat.id, chat)
 
   const localByCloudId = new Map<string, ChatSessionMeta>()
   for (const meta of localSessions) {
-    if (meta.cloudChatId)
-      localByCloudId.set(meta.cloudChatId, meta)
+    if (meta.cloudChatId) localByCloudId.set(meta.cloudChatId, meta)
   }
 
   const claim: ReconcilePlan['claim'] = []
@@ -263,10 +255,8 @@ export function reconcileLocalAndRemote(
 
   const adopt: RemoteChat[] = []
   for (const chat of remoteChats) {
-    if (localByCloudId.has(chat.id))
-      continue
-    if (claimedRemoteIds.has(chat.id))
-      continue
+    if (localByCloudId.has(chat.id)) continue
+    if (claimedRemoteIds.has(chat.id)) continue
     adopt.push(chat)
   }
 
@@ -294,21 +284,22 @@ export function reconcileLocalAndRemote(
 export async function applyCreateActions(
   mapper: CloudChatMapper,
   actions: ReconcilePlan['create'],
-): Promise<Array<{ sessionId: string, cloudChatId?: string, error?: string }>> {
-  return await Promise.all(actions.map(async (action) => {
-    try {
-      const remote = await mapper.createChat({
-        // Reuse local sessionId as cloud chat id so subsequent reconciles
-        // can claim instead of create — even if a different device beats
-        // us to the punch.
-        id: action.sessionId,
-        type: 'bot',
-        members: [{ type: 'character', characterId: action.characterId }],
-      })
-      return { sessionId: action.sessionId, cloudChatId: remote.id }
-    }
-    catch (err) {
-      return { sessionId: action.sessionId, error: errorMessageFrom(err) ?? 'unknown' }
-    }
-  }))
+): Promise<Array<{ sessionId: string; cloudChatId?: string; error?: string }>> {
+  return await Promise.all(
+    actions.map(async (action) => {
+      try {
+        const remote = await mapper.createChat({
+          // Reuse local sessionId as cloud chat id so subsequent reconciles
+          // can claim instead of create — even if a different device beats
+          // us to the punch.
+          id: action.sessionId,
+          type: 'bot',
+          members: [{ type: 'character', characterId: action.characterId }],
+        })
+        return { sessionId: action.sessionId, cloudChatId: remote.id }
+      } catch (err) {
+        return { sessionId: action.sessionId, error: errorMessageFrom(err) ?? 'unknown' }
+      }
+    }),
+  )
 }

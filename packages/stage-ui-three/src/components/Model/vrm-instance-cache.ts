@@ -23,12 +23,15 @@ const hotData = import.meta.hot?.data as { managedVrmCacheState?: ManagedVrmCach
 
 const managedVrmCacheState = hotData?.managedVrmCacheState ?? { detachedByScope: {} }
 
-if (import.meta.hot)
-  import.meta.hot.data.managedVrmCacheState = managedVrmCacheState
+if (import.meta.hot) import.meta.hot.data.managedVrmCacheState = managedVrmCacheState
 
-function emitCacheTrace(action: 'clear' | 'stash' | 'take', scopeKey: string, result: 'empty' | 'evicted' | 'hit' | 'miss' | 'stored', modelSrc?: string) {
-  if (!isStageThreeRuntimeTraceEnabled())
-    return
+function emitCacheTrace(
+  action: 'clear' | 'stash' | 'take',
+  scopeKey: string,
+  result: 'empty' | 'evicted' | 'hit' | 'miss' | 'stored',
+  modelSrc?: string,
+) {
+  if (!isStageThreeRuntimeTraceEnabled()) return
   getStageThreeRuntimeTraceContext().emit(stageThreeTraceVrmCacheEvent, {
     action,
     modelSrc,

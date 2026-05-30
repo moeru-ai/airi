@@ -27,8 +27,7 @@ const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<R
 const apiKey = computed({
   get: () => providers.value[providerId]?.apiKey || '',
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
+    if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].apiKey = value
   },
 })
@@ -36,8 +35,7 @@ const apiKey = computed({
 const baseUrl = computed({
   get: () => providers.value[providerId]?.baseUrl || '',
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
+    if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].baseUrl = value
   },
 })
@@ -45,8 +43,7 @@ const baseUrl = computed({
 const model = computed({
   get: () => providers.value[providerId]?.model || 'mimo-v2-omni',
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
+    if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].model = value
   },
 })
@@ -63,29 +60,15 @@ onMounted(async () => {
 })
 
 async function handleGenerateTranscription(file: File) {
-  const provider = await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, any>>(providerId)
-  if (!provider)
-    throw new Error('Failed to initialize transcription provider')
+  const provider =
+    await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, any>>(providerId)
+  if (!provider) throw new Error('Failed to initialize transcription provider')
 
-  return await hearingStore.transcription(
-    providerId,
-    provider,
-    model.value,
-    file,
-    'json',
-  )
+  return await hearingStore.transcription(providerId, provider, model.value, file, 'json')
 }
 
-const {
-  t,
-  router,
-  providerMetadata,
-  isValidating,
-  isValid,
-  validationMessage,
-  handleResetSettings,
-  forceValid,
-} = useProviderValidation(providerId)
+const { t, router, providerMetadata, isValidating, isValid, validationMessage, handleResetSettings, forceValid } =
+  useProviderValidation(providerId)
 </script>
 
 <template>
@@ -108,7 +91,7 @@ const {
         <FieldCombobox
           v-model="model"
           :label="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_name')"
-          :options="providerModels.map(m => ({ value: m.id, label: m.name }))"
+          :options="providerModels.map((m) => ({ value: m.id, label: m.name }))"
           :disabled="isLoadingModels || providerModels.length === 0"
           placeholder="Select a model..."
         />
@@ -117,7 +100,7 @@ const {
       <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
         <ProviderBaseUrlInput
           v-model="baseUrl"
-          :placeholder="providerMetadata?.defaultOptions?.().baseUrl as string || 'https://api.xiaomimimo.com/v1/'"
+          :placeholder="(providerMetadata?.defaultOptions?.().baseUrl as string) || 'https://api.xiaomimimo.com/v1/'"
         />
       </ProviderAdvancedSettings>
 

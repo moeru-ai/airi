@@ -16,7 +16,7 @@ export function createFadeAnimator(options: CreateAnimatorOptions): Animator {
       .add(elements, {
         opacity: [0, 1],
         ...options,
-        delay: (_, i) => options.duration / elements.length * (i + 1),
+        delay: (_, i) => (options.duration / elements.length) * (i + 1),
       })
 
     return () => {

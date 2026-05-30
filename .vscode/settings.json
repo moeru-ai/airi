@@ -1,13 +1,9 @@
 {
   "i18n-ally.keystyle": "nested",
-  "i18n-ally.localesPaths": [
-    "packages/i18n/src/locales"
-  ],
+  "i18n-ally.localesPaths": ["packages/i18n/src/locales"],
   "i18n-ally.pathMatcher": "{locale}/{namespaces}.{ext}",
   "i18n-ally.namespace": true,
-  "i18n-ally.enabledFrameworks": [
-    "vue"
-  ],
+  "i18n-ally.enabledFrameworks": ["vue"],
 
   // Disable the default formatter
   "prettier.enable": false,
@@ -53,9 +49,6 @@
   "js/ts.tsdk.path": "node_modules/typescript/lib",
   "js/ts.preferences.includePackageJsonAutoImports": "off",
   "js/ts.suggest.autoImports": false,
-  "cSpell.words": [
-    "appimage",
-    "localforage"
-  ],
+  "cSpell.words": ["appimage", "localforage"],
   "vitest.disableWorkspaceWarning": true
 }

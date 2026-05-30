@@ -18,31 +18,34 @@ describe('publishWidgetSparkNotifyReaction', () => {
     const dispatchSparkNotifyReaction = vi.fn(async () => 'Nice tactic.')
     const emit = vi.fn()
 
-    const result = await publishWidgetSparkNotifyReaction({
-      route: {
-        namespace: 'airi.plugin.game.chess.commentary',
-        name: 'request',
-      },
-      payload: {
-        requestId: 'req-1',
-        fallbackResponseText: 'Fallback text.',
-        sparkNotify: {
-          kind: 'ping',
-          urgency: 'immediate',
-          forceTextResponse: true,
-          headline: 'AIRI move',
-          note: 'Explain the chess move.',
-          destinations: ['character'],
-          source: 'plugin:airi-plugin-game-chess',
-          payload: {
-            moveSan: 'Nf3',
+    const result = await publishWidgetSparkNotifyReaction(
+      {
+        route: {
+          namespace: 'airi.plugin.game.chess.commentary',
+          name: 'request',
+        },
+        payload: {
+          requestId: 'req-1',
+          fallbackResponseText: 'Fallback text.',
+          sparkNotify: {
+            kind: 'ping',
+            urgency: 'immediate',
+            forceTextResponse: true,
+            headline: 'AIRI move',
+            note: 'Explain the chess move.',
+            destinations: ['character'],
+            source: 'plugin:airi-plugin-game-chess',
+            payload: {
+              moveSan: 'Nf3',
+            },
           },
         },
       },
-    }, {
-      dispatchSparkNotifyReaction,
-      emit,
-    })
+      {
+        dispatchSparkNotifyReaction,
+        emit,
+      },
+    )
 
     expect(result).toBe(true)
     expect(dispatchSparkNotifyReaction).toHaveBeenCalledWith({
@@ -79,18 +82,21 @@ describe('publishWidgetSparkNotifyReaction', () => {
     const dispatchSparkNotifyReaction = vi.fn(async () => 'unused')
     const emit = vi.fn()
 
-    const result = await publishWidgetSparkNotifyReaction({
-      route: {
-        namespace: 'airi.plugin.game.chess.gamelet',
-        name: 'response',
+    const result = await publishWidgetSparkNotifyReaction(
+      {
+        route: {
+          namespace: 'airi.plugin.game.chess.gamelet',
+          name: 'response',
+        },
+        payload: {
+          requestId: 'req-1',
+        },
       },
-      payload: {
-        requestId: 'req-1',
+      {
+        dispatchSparkNotifyReaction,
+        emit,
       },
-    }, {
-      dispatchSparkNotifyReaction,
-      emit,
-    })
+    )
 
     expect(result).toBe(false)
     expect(dispatchSparkNotifyReaction).not.toHaveBeenCalled()
@@ -105,29 +111,34 @@ describe('publishWidgetSparkNotifyReaction', () => {
     const dispatchSparkNotifyReaction = vi.fn(async () => '')
     const emit = vi.fn()
 
-    const result = await publishWidgetSparkNotifyReaction({
-      route: {
-        namespace: 'airi.plugin.game.chess.commentary',
-        name: 'request',
-      },
-      payload: {
-        requestId: 'req-quick',
-        fallbackResponseText: '',
-        sparkNotify: {
-          headline: 'Quick move',
-          forceTextResponse: true,
+    const result = await publishWidgetSparkNotifyReaction(
+      {
+        route: {
+          namespace: 'airi.plugin.game.chess.commentary',
+          name: 'request',
+        },
+        payload: {
+          requestId: 'req-quick',
+          fallbackResponseText: '',
+          sparkNotify: {
+            headline: 'Quick move',
+            forceTextResponse: true,
+          },
         },
       },
-    }, {
-      dispatchSparkNotifyReaction,
-      emit,
-    })
+      {
+        dispatchSparkNotifyReaction,
+        emit,
+      },
+    )
 
     expect(result).toBe(true)
-    expect(dispatchSparkNotifyReaction).toHaveBeenCalledWith(expect.objectContaining({
-      fallbackResponseText: '',
-      headline: 'Quick move',
-    }))
+    expect(dispatchSparkNotifyReaction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fallbackResponseText: '',
+        headline: 'Quick move',
+      }),
+    )
   })
 
   /**
@@ -144,65 +155,69 @@ describe('publishWidgetSparkNotifyReaction', () => {
     }))
     const emit = vi.fn()
 
-    const result = await publishWidgetSparkNotifyReaction({
-      route: {
-        namespace: 'airi.plugin.game.chess.commentary',
-        name: 'request',
-      },
-      payload: {
-        requestId: 'req-call',
-        fallbackResponseText: 'fallback',
-        calls: [
-          {
-            name: 'chess.play',
-            prompt: 'Play the prepared chess reply.',
-            examples: [
-              '<|CALL ["chess.play", {"move":"Nf3"}]|>',
-            ],
+    const result = await publishWidgetSparkNotifyReaction(
+      {
+        route: {
+          namespace: 'airi.plugin.game.chess.commentary',
+          name: 'request',
+        },
+        payload: {
+          requestId: 'req-call',
+          fallbackResponseText: 'fallback',
+          calls: [
+            {
+              name: 'chess.play',
+              prompt: 'Play the prepared chess reply.',
+              examples: ['<|CALL ["chess.play", {"move":"Nf3"}]|>'],
+            },
+          ],
+          timeoutMs: 15000,
+          sparkNotify: {
+            kind: 'ping',
+            urgency: 'immediate',
+            headline: 'A move is ready',
+            destinations: ['character'],
           },
-        ],
-        timeoutMs: 15000,
-        sparkNotify: {
-          kind: 'ping',
-          urgency: 'immediate',
-          headline: 'A move is ready',
-          destinations: ['character'],
         },
       },
-    }, {
-      dispatchSparkNotifyReaction,
-      dispatchSparkNotifyPerformance,
-      emit,
-    })
+      {
+        dispatchSparkNotifyReaction,
+        dispatchSparkNotifyPerformance,
+        emit,
+      },
+    )
 
     expect(result).toBe(true)
     expect(dispatchSparkNotifyReaction).not.toHaveBeenCalled()
-    expect(dispatchSparkNotifyPerformance).toHaveBeenCalledWith(expect.objectContaining({
-      headline: 'A move is ready',
-      fallbackResponseText: 'fallback',
-      timeoutMs: 15000,
-      calls: [
-        {
-          manifest: {
-            name: 'chess.play',
-            prompt: 'Play the prepared chess reply.',
-            examples: [
-              '<|CALL ["chess.play", {"move":"Nf3"}]|>',
-            ],
+    expect(dispatchSparkNotifyPerformance).toHaveBeenCalledWith(
+      expect.objectContaining({
+        headline: 'A move is ready',
+        fallbackResponseText: 'fallback',
+        timeoutMs: 15000,
+        calls: [
+          {
+            manifest: {
+              name: 'chess.play',
+              prompt: 'Play the prepared chess reply.',
+              examples: ['<|CALL ["chess.play", {"move":"Nf3"}]|>'],
+            },
+            handler: expect.any(Function),
           },
-          handler: expect.any(Function),
-        },
-      ],
-    }))
-    expect(emit).toHaveBeenCalledWith(widgetsIframeBroadcastEvent, expect.objectContaining({
-      payload: expect.objectContaining({
-        requestId: 'req-call',
-        text: 'Played.',
-        performance: {
-          type: 'called',
-          name: 'chess.play',
-        },
+        ],
       }),
-    }))
+    )
+    expect(emit).toHaveBeenCalledWith(
+      widgetsIframeBroadcastEvent,
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          requestId: 'req-call',
+          text: 'Played.',
+          performance: {
+            type: 'called',
+            name: 'chess.play',
+          },
+        }),
+      }),
+    )
   })
 })

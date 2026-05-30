@@ -3,7 +3,12 @@ import type { WireMessage } from '@proj-airi/server-sdk-shared'
 
 import { describe, expect, it } from 'vitest'
 
-import { extractMessageText, isCloudSyncableMessage, mergeCloudMessagesIntoLocal, wireMessageToLocal } from './wire-message'
+import {
+  extractMessageText,
+  isCloudSyncableMessage,
+  mergeCloudMessagesIntoLocal,
+  wireMessageToLocal,
+} from './wire-message'
 
 function makeWire(partial: Partial<WireMessage> & Pick<WireMessage, 'id' | 'seq'>): WireMessage {
   return {
@@ -155,14 +160,10 @@ describe('mergeCloudMessagesIntoLocal', () => {
    */
   it('drops echoes of locally-authored messages by id, keeps cursor in sync', () => {
     const localUser: ChatHistoryItem = { role: 'user', content: 'hi', id: 'm1', createdAt: 0 }
-    const result = mergeCloudMessagesIntoLocal(
-      [localUser],
-      0,
-      {
-        messages: [makeWire({ id: 'm1', role: 'user', content: 'hi', seq: 5 })],
-        toSeq: 5,
-      },
-    )
+    const result = mergeCloudMessagesIntoLocal([localUser], 0, {
+      messages: [makeWire({ id: 'm1', role: 'user', content: 'hi', seq: 5 })],
+      toSeq: 5,
+    })
     expect(result.dirty).toBe(true)
     expect(result.maxSeq).toBe(5)
     // Echo deduped: the message list reference is the same, no duplicate.
@@ -177,20 +178,16 @@ describe('mergeCloudMessagesIntoLocal', () => {
    */
   it('appends genuinely new wire messages to the end of the list', () => {
     const localUser: ChatHistoryItem = { role: 'user', content: 'hi', id: 'm1', createdAt: 0 }
-    const result = mergeCloudMessagesIntoLocal(
-      [localUser],
-      5,
-      {
-        messages: [
-          makeWire({ id: 'm2', role: 'assistant', content: 'hello', seq: 6 }),
-          makeWire({ id: 'm3', role: 'assistant', content: 'world', seq: 7 }),
-        ],
-        toSeq: 7,
-      },
-    )
+    const result = mergeCloudMessagesIntoLocal([localUser], 5, {
+      messages: [
+        makeWire({ id: 'm2', role: 'assistant', content: 'hello', seq: 6 }),
+        makeWire({ id: 'm3', role: 'assistant', content: 'world', seq: 7 }),
+      ],
+      toSeq: 7,
+    })
     expect(result.dirty).toBe(true)
     expect(result.maxSeq).toBe(7)
-    expect(result.messages.map(m => m.id)).toEqual(['m1', 'm2', 'm3'])
+    expect(result.messages.map((m) => m.id)).toEqual(['m1', 'm2', 'm3'])
   })
 
   /**
@@ -200,11 +197,10 @@ describe('mergeCloudMessagesIntoLocal', () => {
    * the same range again next time.
    */
   it('honours toSeq when no new messages arrive', () => {
-    const result = mergeCloudMessagesIntoLocal(
-      [{ role: 'user', content: 'hi', id: 'm1', createdAt: 0 }],
-      5,
-      { messages: [], toSeq: 9 },
-    )
+    const result = mergeCloudMessagesIntoLocal([{ role: 'user', content: 'hi', id: 'm1', createdAt: 0 }], 5, {
+      messages: [],
+      toSeq: 9,
+    })
     expect(result.dirty).toBe(true)
     expect(result.maxSeq).toBe(9)
   })
@@ -232,10 +228,13 @@ describe('mergeCloudMessagesIntoLocal', () => {
     const wireMessages = [makeWire({ id: 'm2', role: 'assistant', content: 'reply', seq: 6 })]
 
     const afterPush = mergeCloudMessagesIntoLocal(initial, 5, { messages: wireMessages, toSeq: 6 })
-    expect(afterPush.messages.map(m => m.id)).toEqual(['m1', 'm2'])
+    expect(afterPush.messages.map((m) => m.id)).toEqual(['m1', 'm2'])
 
     // Same payload arriving again via pullMessages → no-op.
-    const afterPull = mergeCloudMessagesIntoLocal(afterPush.messages, afterPush.maxSeq, { messages: wireMessages, toSeq: 6 })
+    const afterPull = mergeCloudMessagesIntoLocal(afterPush.messages, afterPush.maxSeq, {
+      messages: wireMessages,
+      toSeq: 6,
+    })
     expect(afterPull.dirty).toBe(false)
     expect(afterPull.messages).toBe(afterPush.messages)
   })
@@ -249,19 +248,11 @@ describe('mergeCloudMessagesIntoLocal', () => {
    * cursor still advances and subsequent pulls do not re-fix it.
    */
   it('sorts incoming wire messages by seq before appending', () => {
-    const result = mergeCloudMessagesIntoLocal(
-      [],
-      0,
-      {
-        messages: [
-          makeWire({ id: 'm3', seq: 9 }),
-          makeWire({ id: 'm1', seq: 7 }),
-          makeWire({ id: 'm2', seq: 8 }),
-        ],
-        toSeq: 9,
-      },
-    )
-    expect(result.messages.map(m => m.id)).toEqual(['m1', 'm2', 'm3'])
+    const result = mergeCloudMessagesIntoLocal([], 0, {
+      messages: [makeWire({ id: 'm3', seq: 9 }), makeWire({ id: 'm1', seq: 7 }), makeWire({ id: 'm2', seq: 8 })],
+      toSeq: 9,
+    })
+    expect(result.messages.map((m) => m.id)).toEqual(['m1', 'm2', 'm3'])
     expect(result.maxSeq).toBe(9)
   })
 })

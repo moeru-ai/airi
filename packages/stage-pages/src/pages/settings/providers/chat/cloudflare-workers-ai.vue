@@ -22,8 +22,7 @@ const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<R
 const apiKey = computed({
   get: () => providers.value[providerId]?.apiKey || '',
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
+    if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].apiKey = value
   },
 })
@@ -31,8 +30,7 @@ const apiKey = computed({
 const accountId = computed({
   get: () => providers.value[providerId]?.accountId || '',
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
+    if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].accountId = value
   },
 })
@@ -77,8 +75,12 @@ const {
         <ProviderAccountIdInput
           v-model="accountId"
           :label="t('settings.pages.providers.provider.cloudflare-workers-ai.fields.field.account-id.label')"
-          :description="t('settings.pages.providers.provider.cloudflare-workers-ai.fields.field.account-id.description')"
-          :placeholder="t('settings.pages.providers.provider.cloudflare-workers-ai.fields.field.account-id.placeholder')"
+          :description="
+            t('settings.pages.providers.provider.cloudflare-workers-ai.fields.field.account-id.description')
+          "
+          :placeholder="
+            t('settings.pages.providers.provider.cloudflare-workers-ai.fields.field.account-id.placeholder')
+          "
         />
       </ProviderBasicSettings>
 

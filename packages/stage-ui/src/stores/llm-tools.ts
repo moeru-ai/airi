@@ -41,18 +41,22 @@ export const useLlmToolsStore = defineStore('llm-tools', () => {
 
     const registration = Promise.resolve(tools)
       .then((resolvedTools) => {
-        if (providerRegistrationTokens.get(provider) !== registrationToken)
-          return resolvedTools
+        if (providerRegistrationTokens.get(provider) !== registrationToken) return resolvedTools
 
         assignTools(provider, resolvedTools)
         return resolvedTools
       })
       .finally(() => {
-        if (providerRegistrationTokens.get(provider) === registrationToken)
-          pendingRegistrations.delete(provider)
+        if (providerRegistrationTokens.get(provider) === registrationToken) pendingRegistrations.delete(provider)
       })
 
-    pendingRegistrations.set(provider, registration.then(() => undefined, () => undefined))
+    pendingRegistrations.set(
+      provider,
+      registration.then(
+        () => undefined,
+        () => undefined,
+      ),
+    )
     return registration
   }
 
@@ -64,8 +68,7 @@ export const useLlmToolsStore = defineStore('llm-tools', () => {
   }
 
   async function awaitPendingRegistrations() {
-    while (pendingRegistrations.size > 0)
-      await Promise.all(pendingRegistrations.values())
+    while (pendingRegistrations.size > 0) await Promise.all(pendingRegistrations.values())
   }
 
   const activeTools = computed(() => Object.values(toolsByProvider.value).flat())

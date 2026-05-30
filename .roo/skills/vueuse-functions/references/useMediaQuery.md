@@ -23,7 +23,7 @@ If you are using `useMediaQuery` with SSR enabled, then you need to specify whic
 import { useMediaQuery } from '@vueuse/core'
 
 const isLarge = useMediaQuery('(min-width: 1024px)', {
-  ssrWidth: 768 // Will enable SSR mode and render like if the screen was 768px wide
+  ssrWidth: 768, // Will enable SSR mode and render like if the screen was 768px wide
 })
 
 console.log(isLarge.value) // always false because ssrWidth of 768px is smaller than 1024px

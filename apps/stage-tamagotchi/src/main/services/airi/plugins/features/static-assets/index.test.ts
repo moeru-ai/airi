@@ -24,13 +24,15 @@ function createSession(assetSessionId: string, extensionId = 'airi-plugin-game-c
   }
 }
 
-function createFakeServer(options: {
-  baseUrl?: string
-  createSessionResult?: StaticAssetSession
-  revokeByOwnerSessionIdResult?: StaticAssetSession[]
-  revokeByExtensionIdResult?: StaticAssetSession[]
-  revokeAllResult?: StaticAssetSession[]
-} = {}) {
+function createFakeServer(
+  options: {
+    baseUrl?: string
+    createSessionResult?: StaticAssetSession
+    revokeByOwnerSessionIdResult?: StaticAssetSession[]
+    revokeByExtensionIdResult?: StaticAssetSession[]
+    revokeAllResult?: StaticAssetSession[]
+  } = {},
+) {
   return {
     key: 'static-assets',
     start: vi.fn(async () => {}),
@@ -127,14 +129,16 @@ describe('createPluginAssetService', () => {
       cookieAdapter: adapter,
     })
 
-    await expect(service.createAssetSession({
-      pluginId: 'airi-plugin-game-chess',
-      version: '1.0.0',
-      ownerSessionId: 'owner-session-1',
-      routeAssetPath: 'assets/app.js',
-      pathPrefix: 'assets/',
-      ttlMs: 60_000,
-    })).rejects.toThrow('Plugin asset server base URL is unavailable')
+    await expect(
+      service.createAssetSession({
+        pluginId: 'airi-plugin-game-chess',
+        version: '1.0.0',
+        ownerSessionId: 'owner-session-1',
+        routeAssetPath: 'assets/app.js',
+        pathPrefix: 'assets/',
+        ttlMs: 60_000,
+      }),
+    ).rejects.toThrow('Plugin asset server base URL is unavailable')
 
     expect(server.revokeSession).toHaveBeenCalledWith('asset-session-2')
     expect(adapter.setCookie).not.toHaveBeenCalled()
@@ -153,14 +157,16 @@ describe('createPluginAssetService', () => {
       cookieAdapter: adapter,
     })
 
-    await expect(service.createAssetSession({
-      pluginId: 'airi-plugin-game-chess',
-      version: '1.0.0',
-      ownerSessionId: 'owner-session-1',
-      routeAssetPath: '../secret.txt',
-      pathPrefix: '',
-      ttlMs: 60_000,
-    })).rejects.toThrow('Plugin asset session routeAssetPath must be a safe plugin asset path')
+    await expect(
+      service.createAssetSession({
+        pluginId: 'airi-plugin-game-chess',
+        version: '1.0.0',
+        ownerSessionId: 'owner-session-1',
+        routeAssetPath: '../secret.txt',
+        pathPrefix: '',
+        ttlMs: 60_000,
+      }),
+    ).rejects.toThrow('Plugin asset session routeAssetPath must be a safe plugin asset path')
 
     expect(server.revokeSession).toHaveBeenCalledWith('asset-session-3')
     expect(adapter.setCookie).not.toHaveBeenCalled()
@@ -168,14 +174,16 @@ describe('createPluginAssetService', () => {
     server.createSession.mockReturnValue(createSession('asset-session-4'))
     adapter.setCookie.mockRejectedValueOnce(new Error('cookie jar unavailable'))
 
-    await expect(service.createAssetSession({
-      pluginId: 'airi-plugin-game-chess',
-      version: '1.0.0',
-      ownerSessionId: 'owner-session-1',
-      routeAssetPath: 'assets/app.js',
-      pathPrefix: 'assets/',
-      ttlMs: 60_000,
-    })).rejects.toThrow('cookie jar unavailable')
+    await expect(
+      service.createAssetSession({
+        pluginId: 'airi-plugin-game-chess',
+        version: '1.0.0',
+        ownerSessionId: 'owner-session-1',
+        routeAssetPath: 'assets/app.js',
+        pathPrefix: 'assets/',
+        ttlMs: 60_000,
+      }),
+    ).rejects.toThrow('cookie jar unavailable')
 
     expect(server.revokeSession).toHaveBeenCalledWith('asset-session-4')
   })

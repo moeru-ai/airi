@@ -13,12 +13,16 @@ export function useLocalStorageManualReset<T>(
   const localStorageState = useLocalStorage<T>(key, value, options)
   const state = refManualReset<T>(localStorageState)
 
-  const { resume, pause } = watch(state, newValue => localStorageState.value = newValue, options)
-  watch(localStorageState, (newValue) => {
-    pause()
-    state.value = newValue
-    resume()
-  }, options)
+  const { resume, pause } = watch(state, (newValue) => (localStorageState.value = newValue), options)
+  watch(
+    localStorageState,
+    (newValue) => {
+      pause()
+      state.value = newValue
+      resume()
+    },
+    options,
+  )
 
   return state
 }

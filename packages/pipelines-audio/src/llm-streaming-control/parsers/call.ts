@@ -1,8 +1,4 @@
-import type {
-  LlmStreamingControlCallManifest,
-  LlmStreamingControlParser,
-  LlmStreamingControlTokenCall,
-} from '../types'
+import type { LlmStreamingControlCallManifest, LlmStreamingControlParser, LlmStreamingControlTokenCall } from '../types'
 
 const callTokenPrefix = '<|CALL '
 const markerSuffix = '|>'
@@ -16,9 +12,7 @@ function renderCallManifestExamples(manifest: LlmStreamingControlCallManifest): 
     return manifest.examples
   }
 
-  return [
-    `<|CALL ["${manifest.name}"]|>`,
-  ]
+  return [`<|CALL ["${manifest.name}"]|>`]
 }
 
 /**
@@ -85,8 +79,7 @@ export function tokenCall(): LlmStreamingControlParser<LlmStreamingControlTokenC
       let parsed: unknown
       try {
         parsed = JSON.parse(rawPayload)
-      }
-      catch {
+      } catch {
         return undefined
       }
 

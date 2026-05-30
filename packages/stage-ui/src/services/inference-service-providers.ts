@@ -20,18 +20,24 @@ export interface InferenceServiceProvidersRemoteClient {
   api: {
     v1: {
       providers: {
-        '$get': (params?: undefined, options?: RequestOptions) => Promise<RemoteResponse<unknown[]>>
-        '$post': (params: { json: InferenceServiceProvider }, options?: RequestOptions) => Promise<RemoteResponse<unknown>>
+        $get: (params?: undefined, options?: RequestOptions) => Promise<RemoteResponse<unknown[]>>
+        $post: (
+          params: { json: InferenceServiceProvider },
+          options?: RequestOptions,
+        ) => Promise<RemoteResponse<unknown>>
         ':id': {
           $delete: (params: { param: { id: string } }, options?: RequestOptions) => Promise<{ ok: boolean }>
-          $patch: (params: {
-            json: {
-              config: Record<string, unknown>
-              validated: boolean
-              validationBypassed: boolean
-            }
-            param: { id: string }
-          }, options?: RequestOptions) => Promise<RemoteResponse<unknown>>
+          $patch: (
+            params: {
+              json: {
+                config: Record<string, unknown>
+                validated: boolean
+                validationBypassed: boolean
+              }
+              param: { id: string }
+            },
+            options?: RequestOptions,
+          ) => Promise<RemoteResponse<unknown>>
         }
       }
     }
@@ -69,11 +75,22 @@ export interface InferenceServiceProvidersService {
   /** Builds an optimistic local provider config. */
   buildLocal: (definitionId: string, initialConfig?: Record<string, unknown>) => InferenceServiceProvider
   /** Fetches and indexes remote provider configs. */
-  fetchRemote: (client: InferenceServiceProvidersRemoteClient, options?: InferenceServiceProviderServiceOptions) => Promise<InferenceServiceProviders>
+  fetchRemote: (
+    client: InferenceServiceProvidersRemoteClient,
+    options?: InferenceServiceProviderServiceOptions,
+  ) => Promise<InferenceServiceProviders>
   /** Creates and normalizes one remote provider config. */
-  createRemote: (client: InferenceServiceProvidersRemoteClient, provider: InferenceServiceProvider, options?: InferenceServiceProviderServiceOptions) => Promise<InferenceServiceProvider>
+  createRemote: (
+    client: InferenceServiceProvidersRemoteClient,
+    provider: InferenceServiceProvider,
+    options?: InferenceServiceProviderServiceOptions,
+  ) => Promise<InferenceServiceProvider>
   /** Deletes one remote provider config. */
-  deleteRemote: (client: InferenceServiceProvidersRemoteClient, providerId: string, options?: InferenceServiceProviderServiceOptions) => Promise<void>
+  deleteRemote: (
+    client: InferenceServiceProvidersRemoteClient,
+    providerId: string,
+    options?: InferenceServiceProviderServiceOptions,
+  ) => Promise<void>
   /** Patches and normalizes one remote provider config. */
   patchConfigRemote: (
     client: InferenceServiceProvidersRemoteClient,
@@ -112,8 +129,7 @@ export function createInferenceServiceProvidersService(): InferenceServiceProvid
 
   function buildLocal(definitionId: string, initialConfig: Record<string, unknown> = {}): InferenceServiceProvider {
     const definition = getDefinition(definitionId)
-    if (!definition)
-      throw new Error(`Provider definition with id "${definitionId}" not found.`)
+    if (!definition) throw new Error(`Provider definition with id "${definitionId}" not found.`)
 
     return {
       id: nanoid(),
@@ -137,13 +153,15 @@ export function createInferenceServiceProvidersService(): InferenceServiceProvid
     }
   }
 
-  async function fetchRemote(client: InferenceServiceProvidersRemoteClient, options?: InferenceServiceProviderServiceOptions): Promise<InferenceServiceProviders> {
+  async function fetchRemote(
+    client: InferenceServiceProvidersRemoteClient,
+    options?: InferenceServiceProviderServiceOptions,
+  ): Promise<InferenceServiceProviders> {
     options?.abortSignal?.throwIfAborted()
     const res = await client.api.v1.providers.$get(undefined, requestOptions(options))
-    if (!res.ok)
-      throw new Error('Failed to fetch providers')
+    if (!res.ok) throw new Error('Failed to fetch providers')
 
-    const data = await res.json() as unknown[]
+    const data = (await res.json()) as unknown[]
     options?.abortSignal?.throwIfAborted()
 
     const providers: InferenceServiceProviders = {}
@@ -154,33 +172,45 @@ export function createInferenceServiceProvidersService(): InferenceServiceProvid
     return providers
   }
 
-  async function createRemote(client: InferenceServiceProvidersRemoteClient, provider: InferenceServiceProvider, options?: InferenceServiceProviderServiceOptions): Promise<InferenceServiceProvider> {
+  async function createRemote(
+    client: InferenceServiceProvidersRemoteClient,
+    provider: InferenceServiceProvider,
+    options?: InferenceServiceProviderServiceOptions,
+  ): Promise<InferenceServiceProvider> {
     options?.abortSignal?.throwIfAborted()
-    const res = await client.api.v1.providers.$post({
-      json: {
-        id: provider.id,
-        definitionId: provider.definitionId,
-        name: provider.name,
-        config: provider.config,
-        validated: provider.validated,
-        validationBypassed: provider.validationBypassed,
+    const res = await client.api.v1.providers.$post(
+      {
+        json: {
+          id: provider.id,
+          definitionId: provider.definitionId,
+          name: provider.name,
+          config: provider.config,
+          validated: provider.validated,
+          validationBypassed: provider.validationBypassed,
+        },
       },
-    }, requestOptions(options))
-    if (!res.ok)
-      throw new Error('Failed to add provider')
+      requestOptions(options),
+    )
+    if (!res.ok) throw new Error('Failed to add provider')
 
     const item = await res.json()
     options?.abortSignal?.throwIfAborted()
     return normalize(item)
   }
 
-  async function deleteRemote(client: InferenceServiceProvidersRemoteClient, providerId: string, options?: InferenceServiceProviderServiceOptions): Promise<void> {
+  async function deleteRemote(
+    client: InferenceServiceProvidersRemoteClient,
+    providerId: string,
+    options?: InferenceServiceProviderServiceOptions,
+  ): Promise<void> {
     options?.abortSignal?.throwIfAborted()
-    const res = await client.api.v1.providers[':id'].$delete({
-      param: { id: providerId },
-    }, requestOptions(options))
-    if (!res.ok)
-      throw new Error('Failed to remove provider')
+    const res = await client.api.v1.providers[':id'].$delete(
+      {
+        param: { id: providerId },
+      },
+      requestOptions(options),
+    )
+    if (!res.ok) throw new Error('Failed to remove provider')
     options?.abortSignal?.throwIfAborted()
   }
 
@@ -192,16 +222,18 @@ export function createInferenceServiceProvidersService(): InferenceServiceProvid
     options?: InferenceServiceProviderServiceOptions,
   ): Promise<InferenceServiceProvider> {
     options?.abortSignal?.throwIfAborted()
-    const res = await client.api.v1.providers[':id'].$patch({
-      param: { id: providerId },
-      json: {
-        config,
-        validated: params.validated,
-        validationBypassed: params.validationBypassed,
+    const res = await client.api.v1.providers[':id'].$patch(
+      {
+        param: { id: providerId },
+        json: {
+          config,
+          validated: params.validated,
+          validationBypassed: params.validationBypassed,
+        },
       },
-    }, requestOptions(options))
-    if (!res.ok)
-      throw new Error('Failed to update provider config')
+      requestOptions(options),
+    )
+    if (!res.ok) throw new Error('Failed to update provider config')
 
     const item = await res.json()
     options?.abortSignal?.throwIfAborted()

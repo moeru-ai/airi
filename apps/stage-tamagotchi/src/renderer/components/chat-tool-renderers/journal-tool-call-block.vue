@@ -34,14 +34,12 @@ function parseObject<T extends object>(value: unknown): T | null {
   if (typeof value === 'string') {
     try {
       return JSON.parse(value) as T
-    }
-    catch {
+    } catch {
       return null
     }
   }
 
-  if (value && typeof value === 'object')
-    return value as T
+  if (value && typeof value === 'object') return value as T
 
   return null
 }
@@ -49,20 +47,19 @@ function parseObject<T extends object>(value: unknown): T | null {
 const parsedArgs = computed(() => parseObject<TextJournalArgs & ImageJournalArgs>(props.args))
 
 const isTextJournalCreate = computed(() => {
-  return props.toolName === 'text_journal'
-    && parsedArgs.value?.action === 'create'
-    && !!parsedArgs.value?.content?.trim()
+  return (
+    props.toolName === 'text_journal' && parsedArgs.value?.action === 'create' && !!parsedArgs.value?.content?.trim()
+  )
 })
 
 const isImageJournalCreate = computed(() => {
-  return props.toolName === 'image_journal'
-    && parsedArgs.value?.action === 'create'
-    && !!parsedArgs.value?.prompt?.trim()
+  return (
+    props.toolName === 'image_journal' && parsedArgs.value?.action === 'create' && !!parsedArgs.value?.prompt?.trim()
+  )
 })
 
 const textJournalMarkdown = computed(() => {
-  if (!isTextJournalCreate.value)
-    return ''
+  if (!isTextJournalCreate.value) return ''
 
   const title = parsedArgs.value?.title?.trim() || 'Journal Entry'
   const content = parsedArgs.value?.content?.trim() || ''
@@ -70,46 +67,44 @@ const textJournalMarkdown = computed(() => {
 })
 
 const imageJournalMarkdown = computed(() => {
-  if (!isImageJournalCreate.value)
-    return ''
+  if (!isImageJournalCreate.value) return ''
 
   const title = parsedArgs.value?.title?.trim() || 'Untitled Image'
   const prompt = parsedArgs.value?.prompt?.trim() || ''
   const mode = parsedArgs.value?.mode || 'inline'
 
   let footer = ''
-  if (mode === 'bg')
-    footer = '\n\n> **Scene Shift**: Setting this as the active background...'
-  else if (mode === 'widget')
-    footer = '\n\n> **Canvas Created**: Spawning an artistry widget for you...'
-  else
-    footer = '\n\n> **Sharing**: Sending a quick sketch to our chat history...'
+  if (mode === 'bg') footer = '\n\n> **Scene Shift**: Setting this as the active background...'
+  else if (mode === 'widget') footer = '\n\n> **Canvas Created**: Spawning an artistry widget for you...'
+  else footer = '\n\n> **Sharing**: Sending a quick sketch to our chat history...'
 
   return `### ${title}\n\n*${prompt}*${footer}`
 })
 
 const imageJournalResult = computed(() => {
-  if (props.toolName !== 'image_journal' || !props.result)
-    return null
+  if (props.toolName !== 'image_journal' || !props.result) return null
 
   return parseObject<ImageJournalResult>(props.result)
 })
 
 const resultText = computed(() => normalizeToolResultText(props.result))
-const resultError = computed(() => props.state === 'error' ? createToolResultError(props.result) : undefined)
+const resultError = computed(() => (props.state === 'error' ? createToolResultError(props.result) : undefined))
 const formattedArgs = computed(() => {
   try {
     const parsed = JSON.parse(props.args)
     return JSON.stringify(parsed, null, 2).trim()
-  }
-  catch {
+  } catch {
     return props.args
   }
 })
 
 const imageMode = computed(() => parsedArgs.value?.mode || 'inline')
-const imageStatusLabel = computed(() => imageMode.value === 'bg' ? 'Updating Scene' : 'Generating image')
-const imageStatusIconClass = computed(() => imageMode.value === 'bg' ? 'i-solar:gallery-wide-bold-duotone text-emerald-500' : 'i-solar:camera-bold-duotone text-violet-500')
+const imageStatusLabel = computed(() => (imageMode.value === 'bg' ? 'Updating Scene' : 'Generating image'))
+const imageStatusIconClass = computed(() =>
+  imageMode.value === 'bg'
+    ? 'i-solar:gallery-wide-bold-duotone text-emerald-500'
+    : 'i-solar:camera-bold-duotone text-violet-500',
+)
 const imageStatusBadgeClass = computed(() => {
   return imageMode.value === 'bg'
     ? 'bg-emerald-500/12 text-emerald-700 dark:text-emerald-300'
@@ -126,38 +121,24 @@ function openGeneratedImagePreview() {
 
 <template>
   <Collapsible
-    :class="[
-      'bg-primary-100/40 dark:bg-primary-900/60 rounded-lg px-2 pb-2 pt-2',
-      'flex flex-col gap-2 items-start',
-    ]"
+    :class="['bg-primary-100/40 dark:bg-primary-900/60 rounded-lg px-2 pb-2 pt-2', 'flex flex-col gap-2 items-start']"
   >
     <template #trigger="{ visible, setVisible }">
-      <button
-        :class="[
-          'w-full text-start',
-        ]"
-        @click="setVisible(!visible)"
-      >
-        <div
-          v-if="state === 'executing'"
-          i-eos-icons:loading class="mr-1 inline-block translate-y-0.5 op-50"
-        />
+      <button :class="['w-full text-start']" @click="setVisible(!visible)">
+        <div v-if="state === 'executing'" i-eos-icons:loading class="mr-1 inline-block translate-y-0.5 op-50" />
         <div
           v-else-if="state === 'error'"
-          i-ph:warning-circle-duotone class="mr-1 inline-block translate-y-0.5 text-red-500"
+          i-ph:warning-circle-duotone
+          class="mr-1 inline-block translate-y-0.5 text-red-500"
         />
         <div
           v-else-if="state === 'done'"
-          i-ph:check-circle-duotone class="mr-1 inline-block translate-y-0.5 text-emerald-500"
+          i-ph:check-circle-duotone
+          class="mr-1 inline-block translate-y-0.5 text-emerald-500"
         />
-        <div
-          v-else
-          i-solar:sledgehammer-bold-duotone class="mr-1 inline-block translate-y-1 op-50"
-        />
+        <div v-else i-solar:sledgehammer-bold-duotone class="mr-1 inline-block translate-y-1 op-50" />
         <code>{{ toolName }}</code>
-        <span v-if="state === 'error' && resultText" class="ml-2 text-xs text-red-500 op-80">
-          (failed)
-        </span>
+        <span v-if="state === 'error' && resultText" class="ml-2 text-xs text-red-500 op-80">(failed)</span>
       </button>
     </template>
     <div
@@ -173,11 +154,7 @@ function openGeneratedImagePreview() {
           :show-feedback-button="false"
           height-preset="auto"
         />
-        <div
-          :class="[
-            'mt-2 whitespace-pre-wrap break-words font-mono',
-          ]"
-        >
+        <div :class="['mt-2 whitespace-pre-wrap break-words font-mono']">
           {{ formattedArgs }}
         </div>
       </template>
@@ -193,12 +170,7 @@ function openGeneratedImagePreview() {
       <template v-else-if="isImageJournalCreate">
         <div class="mb-2 flex items-center gap-2">
           <div :class="[imageStatusIconClass, 'text-base']" />
-          <div
-            :class="[
-              'rounded-full px-2.5 py-1 text-xs',
-              imageStatusBadgeClass,
-            ]"
-          >
+          <div :class="['rounded-full px-2.5 py-1 text-xs', imageStatusBadgeClass]">
             {{ imageStatusLabel }}
           </div>
         </div>
@@ -212,7 +184,7 @@ function openGeneratedImagePreview() {
             :src="imageJournalResult.imageUrl"
             class="w-full cursor-pointer object-contain transition-all active:scale-[0.98] hover:ring-2 hover:ring-primary-500/50"
             @click="openGeneratedImagePreview"
-          >
+          />
         </div>
       </template>
       <div v-else class="whitespace-pre-wrap break-words font-mono">

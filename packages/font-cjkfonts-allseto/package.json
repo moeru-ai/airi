@@ -15,11 +15,21 @@
     "directory": "packages/font-cjkfonts-allseto"
   },
   "exports": {
-    ".": { "default": "./dist/index.css" },
-    "./index.css": { "default": "./dist/index.css" },
-    "./files/*": { "default": "./dist/files/*" },
-    "./files/*.ttf": { "default": "./dist/files/*.ttf" },
-    "./*": { "default": "./*.css" }
+    ".": {
+      "default": "./dist/index.css"
+    },
+    "./index.css": {
+      "default": "./dist/index.css"
+    },
+    "./files/*": {
+      "default": "./dist/files/*"
+    },
+    "./files/*.ttf": {
+      "default": "./dist/files/*.ttf"
+    },
+    "./*": {
+      "default": "./*.css"
+    }
   },
   "main": "./dist/index.css",
   "scripts": {

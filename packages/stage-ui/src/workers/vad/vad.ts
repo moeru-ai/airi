@@ -49,12 +49,14 @@ export class VAD implements BaseVAD {
       this.emit('status', { type: 'info', message: 'Loading VAD model...' })
 
       // Full-precision
-      this.model = await AutoModel.from_pretrained('onnx-community/silero-vad', { config: { model_type: 'custom' } as any, dtype: 'fp32' })
+      this.model = await AutoModel.from_pretrained('onnx-community/silero-vad', {
+        config: { model_type: 'custom' } as any,
+        dtype: 'fp32',
+      })
       this.isReady = true
 
       this.emit('status', { type: 'info', message: 'VAD model loaded successfully' })
-    }
-    catch (error) {
+    } catch (error) {
       this.emit('status', { type: 'error', message: `Failed to load VAD model: ${error}` })
       throw error
     }
@@ -74,17 +76,15 @@ export class VAD implements BaseVAD {
    * Remove event listener
    */
   public off<K extends keyof VADEvents>(event: K, callback: VADEventCallback<K>): void {
-    if (!this.eventListeners[event])
-      return
-    this.eventListeners[event] = this.eventListeners[event]!.filter(cb => cb !== callback)
+    if (!this.eventListeners[event]) return
+    this.eventListeners[event] = this.eventListeners[event]!.filter((cb) => cb !== callback)
   }
 
   /**
    * Emit event
    */
   private emit<K extends keyof VADEvents>(event: K, data: VADEvents[K]): void {
-    if (!this.eventListeners[event])
-      return
+    if (!this.eventListeners[event]) return
     for (const callback of this.eventListeners[event]!) {
       callback(data)
     }
@@ -134,8 +134,7 @@ export class VAD implements BaseVAD {
       this.processSpeechSegment(overflow)
 
       return
-    }
-    else {
+    } else {
       // Add input to the buffer
       this.buffer.set(inputBuffer, this.bufferPointer)
       this.bufferPointer += inputBuffer.length
@@ -196,10 +195,7 @@ export class VAD implements BaseVAD {
     this.emit('debug', { message: 'VAD score', data: { probability: speechProb } })
 
     // Apply thresholds
-    return (
-      speechProb > this.config.speechThreshold
-      || (this.isRecording && speechProb >= this.config.exitThreshold)
-    )
+    return speechProb > this.config.speechThreshold || (this.isRecording && speechProb >= this.config.exitThreshold)
   }
 
   /**

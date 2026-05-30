@@ -36,9 +36,7 @@ const { pressed } = useMousePressed({ target: el })
 </script>
 
 <template>
-  <div ref="el">
-    Only clicking on this element will trigger the update.
-  </div>
+  <div ref="el">Only clicking on this element will trigger the update.</div>
 </template>
 ```
 
@@ -46,9 +44,7 @@ const { pressed } = useMousePressed({ target: el })
 
 ```vue
 <template>
-  <UseMousePressed v-slot="{ pressed }">
-    Is Pressed: {{ pressed }}
-  </UseMousePressed>
+  <UseMousePressed v-slot="{ pressed }">Is Pressed: {{ pressed }}</UseMousePressed>
 </template>
 ```
 
@@ -110,7 +106,5 @@ export interface UseMousePressedReturn {
  * @see https://vueuse.org/useMousePressed
  * @param options
  */
-export declare function useMousePressed(
-  options?: UseMousePressedOptions,
-): UseMousePressedReturn
+export declare function useMousePressed(options?: UseMousePressedOptions): UseMousePressedReturn
 ```

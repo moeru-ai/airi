@@ -18,7 +18,11 @@ export interface EventStream<T> {
   close: () => void
 }
 
-export function createEvent<TPayload>(type: string, payload: TPayload, options?: { priority?: EventPriority, source?: string, tags?: string[], id?: string, time?: number }): EventEnvelope<string, TPayload> {
+export function createEvent<TPayload>(
+  type: string,
+  payload: TPayload,
+  options?: { priority?: EventPriority; source?: string; tags?: string[]; id?: string; time?: number },
+): EventEnvelope<string, TPayload> {
   return {
     id: options?.id ?? nanoid(),
     type,

@@ -55,7 +55,7 @@ You can pass a custom function to determine which keys should trigger the handle
 import { onKeyStroke } from '@vueuse/core'
 
 onKeyStroke(
-  e => e.key === 'A' && e.shiftKey,
+  (e) => e.key === 'A' && e.shiftKey,
   (e) => {
     console.log('Shift+A pressed')
   },
@@ -67,9 +67,13 @@ onKeyStroke(
 ```ts
 import { onKeyStroke } from '@vueuse/core'
 
-onKeyStroke('A', (e) => {
-  console.log('Key A pressed on document')
-}, { target: document })
+onKeyStroke(
+  'A',
+  (e) => {
+    console.log('Key A pressed on document')
+  },
+  { target: document },
+)
 ```
 
 ### Ignore Repeated Events
@@ -79,9 +83,13 @@ The callback will trigger only once when pressing `A` and **holding down**. The 
 ```ts
 import { onKeyStroke } from '@vueuse/core'
 
-onKeyStroke('A', (e) => {
-  console.log('Key A pressed')
-}, { dedupe: true })
+onKeyStroke(
+  'A',
+  (e) => {
+    console.log('Key A pressed')
+  },
+  { dedupe: true },
+)
 ```
 
 Reference: [KeyboardEvent.repeat](https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/repeat)
@@ -108,9 +116,9 @@ function onUpdate(e: KeyboardEvent) {
 </script>
 
 <template>
-  <input v-on-key-stroke:c,v="onUpdate" type="text">
+  <input v-on-key-stroke:c,v="onUpdate" type="text" />
   <!-- with options -->
-  <input v-on-key-stroke:c,v="[onUpdate, { eventName: 'keyup' }]" type="text">
+  <input v-on-key-stroke:c,v="[onUpdate, { eventName: 'keyup' }]" type="text" />
 </template>
 ```
 
@@ -119,9 +127,13 @@ function onUpdate(e: KeyboardEvent) {
 ```ts
 import { onKeyStroke } from '@vueuse/core'
 // ---cut---
-onKeyStroke('Shift', (e) => {
-  console.log('Shift key up')
-}, { eventName: 'keyup' })
+onKeyStroke(
+  'Shift',
+  (e) => {
+    console.log('Shift key up')
+  },
+  { eventName: 'keyup' },
+)
 ```
 
 Or
@@ -165,10 +177,7 @@ export declare function onKeyStroke(
   handler: (event: KeyboardEvent) => void,
   options?: OnKeyStrokeOptions,
 ): () => void
-export declare function onKeyStroke(
-  handler: (event: KeyboardEvent) => void,
-  options?: OnKeyStrokeOptions,
-): () => void
+export declare function onKeyStroke(handler: (event: KeyboardEvent) => void, options?: OnKeyStrokeOptions): () => void
 /**
  * Listen to the keydown event of the given key.
  *

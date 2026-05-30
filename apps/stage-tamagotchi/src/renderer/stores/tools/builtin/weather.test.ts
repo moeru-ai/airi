@@ -62,10 +62,13 @@ describe('weather tool helpers', () => {
 
   describe('geocodeCity', () => {
     it('throws on empty results', async () => {
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ results: [] }),
-      }))
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: () => Promise.resolve({ results: [] }),
+        }),
+      )
 
       await expect(geocodeCity('NonexistentCity')).rejects.toThrow('City not found')
 
@@ -73,12 +76,18 @@ describe('weather tool helpers', () => {
     })
 
     it('returns first result', async () => {
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({
-          results: [{ name: 'Tokyo', latitude: 35.68, longitude: 139.69, country: 'Japan', timezone: 'Asia/Tokyo' }],
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              results: [
+                { name: 'Tokyo', latitude: 35.68, longitude: 139.69, country: 'Japan', timezone: 'Asia/Tokyo' },
+              ],
+            }),
         }),
-      }))
+      )
 
       const result = await geocodeCity('Tokyo')
       expect(result.name).toBe('Tokyo')
@@ -88,10 +97,13 @@ describe('weather tool helpers', () => {
     })
 
     it('throws on HTTP error', async () => {
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-        ok: false,
-        status: 500,
-      }))
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: false,
+          status: 500,
+        }),
+      )
 
       await expect(geocodeCity('Tokyo')).rejects.toThrow('Geocoding request failed: 500')
 

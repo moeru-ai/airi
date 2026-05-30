@@ -20,7 +20,7 @@ const detector = createBeatSyncDetector({
   env: StageEnvironment.Tamagotchi,
 })
 
-detector.on('stateChange', state => changeState(state))
+detector.on('stateChange', (state) => changeState(state))
 detector.on('beat', (e) => {
   // eslint-disable-next-line no-console
   console.debug('[beat]', e) // This could be noisy.
@@ -32,8 +32,7 @@ defineInvokeHandler(context, beatSyncToggleInvokeEventa, async (enabled) => {
   console.log('[toggle]', enabled)
   if (enabled) {
     detector.startScreenCapture()
-  }
-  else {
+  } else {
     detector.stop()
   }
 })

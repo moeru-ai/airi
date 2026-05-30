@@ -4,16 +4,12 @@ import { defineConfig } from 'tsdown'
 
 export default defineConfig({
   entry: {
-    'index': 'src/index.ts',
+    index: 'src/index.ts',
     'locales/index': 'src/locales/index.ts',
     'locales/en/index': 'src/locales/en/index.ts',
     'locales/zh-Hans/index': 'src/locales/zh-Hans/index.ts',
   },
-  copy: [
-    { from: 'src/locales', to: 'dist/locales' },
-  ],
+  copy: [{ from: 'src/locales', to: 'dist/locales' }],
   unbundle: true,
-  plugins: [
-    Yaml(),
-  ],
+  plugins: [Yaml()],
 })

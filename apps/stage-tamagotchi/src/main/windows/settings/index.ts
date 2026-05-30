@@ -82,8 +82,7 @@ export function setupSettingsWindowReusableFunc(params: {
     await load(window, withHashRoute(rendererBase, currentRoute))
 
     window.on('closed', () => {
-      if (settingsContext)
-        settingsContext = undefined
+      if (settingsContext) settingsContext = undefined
     })
 
     initScreenCaptureForWindow(window)

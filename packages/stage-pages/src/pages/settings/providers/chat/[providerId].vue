@@ -29,8 +29,7 @@ const { activeProvider } = storeToRefs(consciousnessStore)
 const apiKey = computed({
   get: () => providers.value[providerId]?.apiKey || '',
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
+    if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].apiKey = value
   },
 })
@@ -38,8 +37,7 @@ const apiKey = computed({
 const baseUrl = computed({
   get: () => providers.value[providerId]?.baseUrl || '',
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
+    if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].baseUrl = value
   },
 })
@@ -63,14 +61,12 @@ const {
 
 const apiKeyPlaceholder = computed(() => {
   const definition = getDefinedProvider(providerId)
-  if (!definition?.createProviderConfig)
-    return 'sk-...'
+  if (!definition?.createProviderConfig) return 'sk-...'
 
   const schema = definition.createProviderConfig({ t }) as any
   const shape = typeof schema?.shape === 'function' ? schema.shape() : schema?.shape
   const apiKeySchema = shape?.apiKey
-  if (!apiKeySchema)
-    return 'sk-...'
+  if (!apiKeySchema) return 'sk-...'
 
   const meta = typeof apiKeySchema.meta === 'function' ? apiKeySchema.meta() : undefined
   return typeof meta?.placeholderLocalized === 'string' ? meta.placeholderLocalized : 'sk-...'
@@ -105,7 +101,7 @@ function goToModelSelection() {
       <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
         <ProviderBaseUrlInput
           v-model="baseUrl"
-          :placeholder="providerMetadata?.defaultOptions?.().baseUrl as string || 'Base URL of your provider'"
+          :placeholder="(providerMetadata?.defaultOptions?.().baseUrl as string) || 'Base URL of your provider'"
         />
       </ProviderAdvancedSettings>
 

@@ -11,7 +11,11 @@ import { supportedControl, useThreeViewControl } from './view-control'
 
 // TODO: this is for future type injection features
 // TODO: make a separate type.ts
-export interface Vec3 { x: number, y: number, z: number }
+export interface Vec3 {
+  x: number
+  y: number
+  z: number
+}
 export interface SceneBootstrap {
   cacheHit: boolean
   cameraDistance: number
@@ -49,25 +53,28 @@ export type ColorField = FieldBase<HexColor> & {
 }
 export type SelectField<T extends string = string> = FieldBase<T> & {
   type: 'select'
-  options: readonly { label: string, value: T }[]
+  options: readonly { label: string; value: T }[]
 }
 
 export interface FieldKindMap {
-  number: { def: NumberField, value: number }
-  vec3: { def: Vec3Field, value: Vector3 }
-  color: { def: ColorField, value: HexColor }
-  select: { def: SelectField<any>, value: string }
+  number: { def: NumberField; value: number }
+  vec3: { def: Vec3Field; value: Vector3 }
+  color: { def: ColorField; value: HexColor }
+  select: { def: SelectField<any>; value: string }
 }
 // type of Field
 export type FieldDef = FieldKindMap[keyof FieldKindMap]['def']
 // type of value
-export type FieldValueOf<D> = D extends SelectField<infer T> ? T
-  : D extends { type: infer K }
-    ? K extends keyof FieldKindMap ? FieldKindMap[K]['value'] : never
-    : never
+export type FieldValueOf<D> =
+  D extends SelectField<infer T>
+    ? T
+    : D extends { type: infer K }
+      ? K extends keyof FieldKindMap
+        ? FieldKindMap[K]['value']
+        : never
+      : never
 
-type BroadcastChannelEvents
-  = | BroadcastChannelEventShouldUpdateView
+type BroadcastChannelEvents = BroadcastChannelEventShouldUpdateView
 
 interface BroadcastChannelEventShouldUpdateView {
   type: 'vrm-should-update-view'
@@ -87,7 +94,9 @@ const modelRotationY = useLocalStorage('settings/stage-ui-three/modelRotationY',
 const trackingMode = useLocalStorage<TrackingMode>('settings/stage-ui-three/trackingMode', 'none')
 
 export const useModelStore = defineStore('modelStore', () => {
-  const { post, data } = useBroadcastChannel<BroadcastChannelEvents, BroadcastChannelEvents>({ name: 'airi-stores-stage-ui-three-vrm' })
+  const { post, data } = useBroadcastChannel<BroadcastChannelEvents, BroadcastChannelEvents>({
+    name: 'airi-stores-stage-ui-three-vrm',
+  })
   const shouldUpdateViewHooks = ref(new Set<() => void>())
 
   const onShouldUpdateView = (hook: () => void) => {
@@ -108,12 +117,12 @@ export const useModelStore = defineStore('modelStore', () => {
     }
 
     post(event)
-    shouldUpdateViewHooks.value.forEach(hook => hook())
+    shouldUpdateViewHooks.value.forEach((hook) => hook())
   }
 
   watch(data, (event) => {
     if (event?.type === 'vrm-should-update-view') {
-      shouldUpdateViewHooks.value.forEach(hook => hook())
+      shouldUpdateViewHooks.value.forEach((hook) => hook())
     }
   })
 
@@ -162,7 +171,7 @@ export const useModelStore = defineStore('modelStore', () => {
     modelRotationY.value = 0
 
     cameraPosition.value = { ...DEFAULT_CAMERA_POSITION }
-    supportedControl.forEach(c => setViewControl(c))
+    supportedControl.forEach((c) => setViewControl(c))
 
     lookAtTarget.value = { x: 0, y: 0, z: 0 }
     trackingMode.value = 'none'
@@ -170,9 +179,21 @@ export const useModelStore = defineStore('modelStore', () => {
   }
 
   // === Environment / lighting / render settings ===
-  const directionalLightPosition = useLocalStorage('settings/stage-ui-three/scenes/scene/directional-light/position', { x: 0, y: 0, z: -1 })
-  const directionalLightTarget = useLocalStorage('settings/stage-ui-three/scenes/scene/directional-light/target', { x: 0, y: 0, z: 0 })
-  const directionalLightRotation = useLocalStorage('settings/stage-ui-three/scenes/scene/directional-light/rotation', { x: 0, y: 0, z: 0 })
+  const directionalLightPosition = useLocalStorage('settings/stage-ui-three/scenes/scene/directional-light/position', {
+    x: 0,
+    y: 0,
+    z: -1,
+  })
+  const directionalLightTarget = useLocalStorage('settings/stage-ui-three/scenes/scene/directional-light/target', {
+    x: 0,
+    y: 0,
+    z: 0,
+  })
+  const directionalLightRotation = useLocalStorage('settings/stage-ui-three/scenes/scene/directional-light/rotation', {
+    x: 0,
+    y: 0,
+    z: 0,
+  })
   // TODO: Manual directional light intensity will not work for other
   //       scenes with different lighting setups. But since the model
   //       is possible to have MeshToonMaterial, and MeshBasicMaterial
@@ -185,13 +206,28 @@ export const useModelStore = defineStore('modelStore', () => {
   //             harsh shadows and bright highlights.
   // REVIEW: This is a temporary solution, and will be replaced with
   //         a more flexible lighting system in the future.
-  const directionalLightIntensity = useLocalStorage('settings/stage-ui-three/scenes/scene/directional-light/intensity', 2.02)
+  const directionalLightIntensity = useLocalStorage(
+    'settings/stage-ui-three/scenes/scene/directional-light/intensity',
+    2.02,
+  )
   // TODO: color are the same
-  const directionalLightColor = useLocalStorage('settings/stage-ui-three/scenes/scene/directional-light/color', '#fffbf5')
+  const directionalLightColor = useLocalStorage(
+    'settings/stage-ui-three/scenes/scene/directional-light/color',
+    '#fffbf5',
+  )
 
-  const hemisphereSkyColor = useLocalStorage('settings/stage-ui-three/scenes/scene/hemisphere-light/sky-color', '#FFFFFF')
-  const hemisphereGroundColor = useLocalStorage('settings/stage-ui-three/scenes/scene/hemisphere-light/ground-color', '#222222')
-  const hemisphereLightIntensity = useLocalStorage('settings/stage-ui-three/scenes/scene/hemisphere-light/intensity', 0.4)
+  const hemisphereSkyColor = useLocalStorage(
+    'settings/stage-ui-three/scenes/scene/hemisphere-light/sky-color',
+    '#FFFFFF',
+  )
+  const hemisphereGroundColor = useLocalStorage(
+    'settings/stage-ui-three/scenes/scene/hemisphere-light/ground-color',
+    '#222222',
+  )
+  const hemisphereLightIntensity = useLocalStorage(
+    'settings/stage-ui-three/scenes/scene/hemisphere-light/intensity',
+    0.4,
+  )
 
   const ambientLightColor = useLocalStorage('settings/stage-ui-three/scenes/scene/ambient-light/color', '#FFFFFF')
   const ambientLightIntensity = useLocalStorage('settings/stage-ui-three/scenes/scene/ambient-light/intensity', 0.6)

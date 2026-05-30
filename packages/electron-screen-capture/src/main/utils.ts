@@ -23,7 +23,8 @@ export function toSerializableDesktopCapturerSource(source: DesktopCapturerSourc
     id: source.id,
     name: source.name,
     display_id: source.display_id,
-    appIcon: source.appIcon != null && !source.appIcon.isEmpty() ? new Uint8Array(source.appIcon.toPNG().buffer) : undefined,
+    appIcon:
+      source.appIcon != null && !source.appIcon.isEmpty() ? new Uint8Array(source.appIcon.toPNG().buffer) : undefined,
     thumbnail: source.thumbnail != null ? new Uint8Array(source.thumbnail.toJPEG(90).buffer) : undefined,
   }
 }

@@ -26,9 +26,7 @@ const { x, y, top, right, bottom, left, width, height } = useElementBounding(el)
 
 ```vue
 <template>
-  <UseElementBounding v-slot="{ width, height }">
-    Width: {{ width }} Height: {{ height }}
-  </UseElementBounding>
+  <UseElementBounding v-slot="{ width, height }">Width: {{ width }} Height: {{ height }}</UseElementBounding>
 </template>
 ```
 

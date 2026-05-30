@@ -25,7 +25,5 @@ const result = useCeil(value) // 1
  *
  * @__NO_SIDE_EFFECTS__
  */
-export declare function useCeil(
-  value: MaybeRefOrGetter<number>,
-): ComputedRef<number>
+export declare function useCeil(value: MaybeRefOrGetter<number>): ComputedRef<number>
 ```

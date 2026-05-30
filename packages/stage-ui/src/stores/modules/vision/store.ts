@@ -15,8 +15,7 @@ export const useVisionStore = defineStore('vision', () => {
   const modelSearchQuery = refManualReset('')
 
   const providerMetadata = computed(() => {
-    if (!activeProvider.value)
-      return null
+    if (!activeProvider.value) return null
 
     return providersStore.providerMetadata[activeProvider.value] ?? null
   })
@@ -26,22 +25,19 @@ export const useVisionStore = defineStore('vision', () => {
   })
 
   const providerModels = computed(() => {
-    if (!activeProvider.value)
-      return []
+    if (!activeProvider.value) return []
 
     return providersStore.getModelsForProvider(activeProvider.value)
   })
 
   const isLoadingActiveProviderModels = computed(() => {
-    if (!activeProvider.value)
-      return false
+    if (!activeProvider.value) return false
 
     return providersStore.isLoadingModels[activeProvider.value] || false
   })
 
   const activeProviderModelError = computed(() => {
-    if (!activeProvider.value)
-      return null
+    if (!activeProvider.value) return null
 
     return providersStore.modelLoadError[activeProvider.value] || null
   })

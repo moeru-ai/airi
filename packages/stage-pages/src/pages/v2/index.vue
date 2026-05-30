@@ -8,12 +8,14 @@ const characterStore = useCharacterStore()
 const authStore = useAuthStore()
 
 const coverImage = new URL('../../../../stage-ui/src/components/menu/relu.avif', import.meta.url).href
-const characterAvatarImage = new URL('../../../../stage-ui/src/assets/live2d/models/hiyori/preview.png', import.meta.url).href
+const characterAvatarImage = new URL(
+  '../../../../stage-ui/src/assets/live2d/models/hiyori/preview.png',
+  import.meta.url,
+).href
 
 function formatCount(value: number | string) {
   const num = typeof value === 'string' ? Number.parseInt(value) : value
-  if (Number.isNaN(num))
-    return '0'
+  if (Number.isNaN(num)) return '0'
 
   const units = [
     { suffix: 'Q', value: 1_000_000_000_000_000 },
@@ -38,27 +40,31 @@ onMounted(() => {
   characterStore.fetchList(true)
 })
 
-const characters = computed(() => Array.from(characterStore.characters.values()).map((char) => {
-  const i18n = char.i18n?.[0] || { name: 'Unknown', tagline: '', description: '' }
+const characters = computed(() =>
+  Array.from(characterStore.characters.values()).map((char) => {
+    const i18n = char.i18n?.[0] || { name: 'Unknown', tagline: '', description: '' }
 
-  return {
-    id: char.id,
-    name: i18n.name,
-    tagline: i18n.tagline || i18n.description,
-    avatarUrl: char.avatarUrl || 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=200&q=80',
-    characterAvatarUrl: char.characterAvatarUrl || characterAvatarImage,
-    coverUrl: char.coverUrl || coverImage,
-    coverBackgroundUrl: char.coverBackgroundUrl,
-    usedBy: char.interactionsCount,
-    interactions: char.interactionsCount,
-    likes: char.likesCount,
-    bookmarks: char.bookmarksCount,
-    forks: char.forksCount,
-    liked: char.likes?.some(l => l.userId === authStore.user?.id),
-    bookmarked: char.bookmarks?.some(b => b.userId === authStore.user?.id),
-    priceCredit: char.priceCredit,
-  }
-}))
+    return {
+      id: char.id,
+      name: i18n.name,
+      tagline: i18n.tagline || i18n.description,
+      avatarUrl:
+        char.avatarUrl ||
+        'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=200&q=80',
+      characterAvatarUrl: char.characterAvatarUrl || characterAvatarImage,
+      coverUrl: char.coverUrl || coverImage,
+      coverBackgroundUrl: char.coverBackgroundUrl,
+      usedBy: char.interactionsCount,
+      interactions: char.interactionsCount,
+      likes: char.likesCount,
+      bookmarks: char.bookmarksCount,
+      forks: char.forksCount,
+      liked: char.likes?.some((l) => l.userId === authStore.user?.id),
+      bookmarked: char.bookmarks?.some((b) => b.userId === authStore.user?.id),
+      priceCredit: char.priceCredit,
+    }
+  }),
+)
 </script>
 
 <template>
@@ -80,20 +86,9 @@ const characters = computed(() => Array.from(characterStore.characters.values())
               v-if="character.coverBackgroundUrl"
               :src="character.coverBackgroundUrl"
               :alt="character.name"
-              :class="[
-                'absolute inset-0 z-5',
-                'w-full h-full',
-                'object-cover',
-              ]"
-            >
-            <div
-              v-else
-              :class="[
-                'absolute inset-0 z-5',
-                'w-full h-full',
-                'bg-white',
-              ]"
+              :class="['absolute inset-0 z-5', 'w-full h-full', 'object-cover']"
             />
+            <div v-else :class="['absolute inset-0 z-5', 'w-full h-full', 'bg-white']" />
             <img
               :src="character.coverUrl"
               :alt="character.name"
@@ -103,7 +98,7 @@ const characters = computed(() => Array.from(characterStore.characters.values())
                 'object-cover',
                 'transition duration-300 ease-in-out',
               ]"
-            >
+            />
             <!-- Dropdown -->
             <button
               type="button"
@@ -146,17 +141,12 @@ const characters = computed(() => Array.from(characterStore.characters.values())
                       :src="character.characterAvatarUrl"
                       :alt="character.name"
                       :class="['h-7 w-7 rounded-full object-cover']"
-                    >
+                    />
                     <div :class="['text-lg font-semibold line-clamp-1']">
                       {{ character.name }}
                     </div>
                   </div>
-                  <button
-                    aria-label="Connect"
-                    :class="[
-                      'px-2 py-1 flex flex-row items-center gap-1',
-                    ]"
-                  >
+                  <button aria-label="Connect" :class="['px-2 py-1 flex flex-row items-center gap-1']">
                     <div class="flex flex items-center gap-1">
                       <div i-tabler:coins />
                       <div :class="['text-xs']">
@@ -165,12 +155,19 @@ const characters = computed(() => Array.from(characterStore.characters.values())
                     </div>
                   </button>
                 </div>
-                <div :class="['flex-1 text-xs text-ellipsis text-neutral-500 line-clamp-3 max-h-[3rem] overflow-hidden']">
+                <div
+                  :class="['flex-1 text-xs text-ellipsis text-neutral-500 line-clamp-3 max-h-[3rem] overflow-hidden']"
+                >
                   {{ character.tagline }}
                 </div>
                 <div :class="['grid grid-cols-3 items-center']">
                   <div :class="['flex items-center justify-start']">
-                    <Button variant="ghost" size="sm" aria-label="Bookmark" @click="characterStore.bookmark(character.id)">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label="Bookmark"
+                      @click="characterStore.bookmark(character.id)"
+                    >
                       <div
                         :class="[
                           character.bookmarked ? 'i-solar-star-bold' : 'i-solar-star-linear',
@@ -198,10 +195,7 @@ const characters = computed(() => Array.from(characterStore.characters.values())
                         ]"
                       />
                       <span
-                        :class="[
-                          'text-xs',
-                          character.liked ? 'text-rose-500 dark:text-rose-400' : 'text-neutral-500',
-                        ]"
+                        :class="['text-xs', character.liked ? 'text-rose-500 dark:text-rose-400' : 'text-neutral-500']"
                       >
                         {{ formatCount(character.likes) }}
                       </span>
@@ -216,20 +210,9 @@ const characters = computed(() => Array.from(characterStore.characters.values())
                       ]"
                     >
                       <div
-                        :class="[
-                          'i-ph:plus-bold',
-                          'text-xs inline-block',
-                          'text-neutral-100 dark:text-neutral-900',
-                        ]"
+                        :class="['i-ph:plus-bold', 'text-xs inline-block', 'text-neutral-100 dark:text-neutral-900']"
                       />
-                      <span
-                        :class="[
-                          'text-xs',
-                          'text-neutral-100 dark:text-neutral-900',
-                        ]"
-                      >
-                        Chat
-                      </span>
+                      <span :class="['text-xs', 'text-neutral-100 dark:text-neutral-900']">Chat</span>
                     </div>
                   </div>
                 </div>
@@ -249,7 +232,7 @@ const characters = computed(() => Array.from(characterStore.characters.values())
                 'transition duration-300 ease-in-out',
                 'scale-300 group-hover:scale-350',
               ]"
-            >
+            />
           </div>
         </article>
       </div>

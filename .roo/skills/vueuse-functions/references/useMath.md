@@ -26,13 +26,9 @@ console.log(root.value) // 2
 
 ```ts
 export type UseMathKeys = keyof {
-  [K in keyof Math as Math[K] extends (...args: any) => any
-    ? K
-    : never]: unknown
+  [K in keyof Math as Math[K] extends (...args: any) => any ? K : never]: unknown
 }
-export type UseMathReturn<K extends keyof Math> = ReturnType<
-  Reactified<Math[K], true>
->
+export type UseMathReturn<K extends keyof Math> = ReturnType<Reactified<Math[K], true>>
 /**
  * Reactive `Math` methods.
  *

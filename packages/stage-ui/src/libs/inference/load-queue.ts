@@ -42,12 +42,7 @@ export interface LoadQueue {
    * the loader completes. If another load is in progress, this
    * one waits in a priority queue.
    */
-  enqueue: <T>(
-    modelId: string,
-    priority: number,
-    loader: () => Promise<T>,
-    options?: EnqueueOptions,
-  ) => Promise<T>
+  enqueue: <T>(modelId: string, priority: number, loader: () => Promise<T>, options?: EnqueueOptions) => Promise<T>
 
   /** Model IDs waiting in the queue */
   readonly pending: string[]
@@ -73,8 +68,7 @@ export function createLoadQueue(): LoadQueue {
   }
 
   async function processQueue(): Promise<void> {
-    if (running)
-      return
+    if (running) return
     running = true
 
     while (queue.length > 0) {
@@ -97,8 +91,7 @@ export function createLoadQueue(): LoadQueue {
         const result = await entry.loader()
         detachAbortHandler(entry)
         entry.resolve(result)
-      }
-      catch (error) {
+      } catch (error) {
         detachAbortHandler(entry)
         entry.reject(error)
       }
@@ -151,8 +144,12 @@ export function createLoadQueue(): LoadQueue {
 
   return {
     enqueue,
-    get pending() { return queue.map(e => e.modelId) },
-    get active() { return active },
+    get pending() {
+      return queue.map((e) => e.modelId)
+    },
+    get active() {
+      return active
+    },
   }
 }
 

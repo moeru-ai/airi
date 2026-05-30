@@ -1,11 +1,7 @@
 <script setup lang="ts">
 import type { SpeechProvider } from '@xsai-ext/providers/utils'
 
-import {
-  Alert,
-  SpeechPlaygroundOpenAICompatible,
-  SpeechProviderSettings,
-} from '@proj-airi/stage-ui/components'
+import { Alert, SpeechPlaygroundOpenAICompatible, SpeechProviderSettings } from '@proj-airi/stage-ui/components'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
 import { getDefinedProvider } from '@proj-airi/stage-ui/libs'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
@@ -31,9 +27,9 @@ const defaultVoice = 'alloy'
 
 // Initialize speed from provider config or default
 const speed = ref<number>(
-  (providers.value[providerId] as any)?.voiceSettings?.speed
-  || (providers.value[providerId] as any)?.speed
-  || defaultVoiceSettings.speed,
+  (providers.value[providerId] as any)?.voiceSettings?.speed ||
+    (providers.value[providerId] as any)?.speed ||
+    defaultVoiceSettings.speed,
 )
 
 // Model selection (store raw string; empty string is valid while editing — default is applied only at API call)
@@ -43,8 +39,7 @@ const model = computed({
     return raw ?? ''
   },
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
+    if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].model = value
   },
 })
@@ -55,8 +50,7 @@ const voice = computed({
     return raw ?? ''
   },
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
+    if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].voice = value
   },
 })
@@ -70,18 +64,16 @@ watch(
       // Sync speed from voiceSettings or direct speed property
       const config = newConfig as any
       const newSpeed = config.voiceSettings?.speed || config.speed || defaultVoiceSettings.speed
-      if (Math.abs(speed.value - newSpeed) > 0.001) // Use small epsilon for float comparison
+      if (Math.abs(speed.value - newSpeed) > 0.001)
+        // Use small epsilon for float comparison
         speed.value = newSpeed
 
       // Sync model if property was cleared externally (undefined/null), not when user sets empty string
-      if (config.model == null && model.value !== defaultModel)
-        model.value = defaultModel
+      if (config.model == null && model.value !== defaultModel) model.value = defaultModel
 
       // Sync voice if property was cleared externally (undefined/null), not when user sets empty string
-      if (config.voice == null && voice.value !== defaultVoice)
-        voice.value = defaultVoice
-    }
-    else {
+      if (config.voice == null && voice.value !== defaultVoice) voice.value = defaultVoice
+    } else {
       // Provider config was reset, reset our local refs to defaults
       speed.value = defaultVoiceSettings.speed
       model.value = defaultModel
@@ -115,43 +107,29 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   // Use the reactive model computed property (not a local variable)
   const modelToUse = modelId || model.value || defaultModel
 
-  return await speechStore.speech(
-    provider,
-    modelToUse,
-    input,
-    voiceId || voice.value || defaultVoice,
-    {
-      ...providerConfig,
-      ...defaultVoiceSettings,
-      speed: speed.value,
-    },
-  )
+  return await speechStore.speech(provider, modelToUse, input, voiceId || voice.value || defaultVoice, {
+    ...providerConfig,
+    ...defaultVoiceSettings,
+    speed: speed.value,
+  })
 }
 
 watch(speed, async () => {
-  if (!providers.value[providerId])
-    providers.value[providerId] = {}
+  if (!providers.value[providerId]) providers.value[providerId] = {}
   providers.value[providerId].speed = speed.value
 })
 
 // Use the composable to get validation logic and state
-const {
-  isValidating,
-  isValid,
-  validationMessage,
-  forceValid,
-} = useProviderValidation(providerId)
+const { isValidating, isValid, validationMessage, forceValid } = useProviderValidation(providerId)
 
 const apiKeyPlaceholder = computed(() => {
   const definition = getDefinedProvider(providerId)
-  if (!definition?.createProviderConfig)
-    return 'sk-...'
+  if (!definition?.createProviderConfig) return 'sk-...'
 
   const schema = definition.createProviderConfig({ t }) as any
   const shape = typeof schema?.shape === 'function' ? schema.shape() : schema?.shape
   const apiKeySchema = shape?.apiKey
-  if (!apiKeySchema)
-    return 'sk-...'
+  if (!apiKeySchema) return 'sk-...'
 
   const meta = typeof apiKeySchema.meta === 'function' ? apiKeySchema.meta() : undefined
   return typeof meta?.placeholderLocalized === 'string' ? meta.placeholderLocalized : 'sk-...'
@@ -180,7 +158,8 @@ const apiKeyPlaceholder = computed(() => {
         :label="t('settings.pages.providers.provider.common.fields.field.speed.label')"
         :description="t('settings.pages.providers.provider.common.fields.field.speed.description')"
         :min="0.5"
-        :max="2.0" :step="0.01"
+        :max="2.0"
+        :step="0.01"
       />
     </template>
 

@@ -2,14 +2,20 @@ import { useLocalStorage } from '@vueuse/core'
 import { ref } from 'vue'
 
 export const supportedControl = ['x', 'y', 'scale'] as const
-type SupportedControl = typeof supportedControl[number]
-interface ControlConfig { min: number, max: number, step: number, default: number, format: (val: number) => string }
+type SupportedControl = (typeof supportedControl)[number]
+interface ControlConfig {
+  min: number
+  max: number
+  step: number
+  default: number
+  format: (val: number) => string
+}
 
 const viewControlsEnabled = ref(false)
 const viewControlMode = ref<SupportedControl>('scale')
 
 /** model position relative to the centre of the screen, in pixels */
-const position = useLocalStorage<{ x: number, y: number }>('settings/spine/position', { x: 0, y: 0 })
+const position = useLocalStorage<{ x: number; y: number }>('settings/spine/position', { x: 0, y: 0 })
 /** uniform model scaling. `1` means no scaling. */
 const scale = useLocalStorage('settings/spine/scale', 1)
 

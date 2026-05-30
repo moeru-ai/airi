@@ -59,7 +59,7 @@ const state = useStorage(
   'my-store',
   { hello: 'hi', greeting: 'hello' },
   localStorage,
-  { mergeDefaults: true } // <--
+  { mergeDefaults: true }, // <--
 )
 
 console.log(state.value.hello) // 'nihao', from storage
@@ -75,7 +75,7 @@ const state = useStorage(
   'my-store',
   { hello: 'hi', greeting: 'hello' },
   localStorage,
-  { mergeDefaults: (storageValue, defaults) => deepMerge(defaults, storageValue) } // <--
+  { mergeDefaults: (storageValue, defaults) => deepMerge(defaults, storageValue) }, // <--
 )
 ```
 
@@ -88,17 +88,12 @@ You can also provide your own serialization function to `useStorage`:
 ```ts
 import { useStorage } from '@vueuse/core'
 
-useStorage(
-  'key',
-  {},
-  undefined,
-  {
-    serializer: {
-      read: (v: any) => v ? JSON.parse(v) : null,
-      write: (v: any) => JSON.stringify(v),
-    },
+useStorage('key', {}, undefined, {
+  serializer: {
+    read: (v: any) => (v ? JSON.parse(v) : null),
+    write: (v: any) => JSON.stringify(v),
   },
-)
+})
 ```
 
 Please note when you provide `null` as the default value, `useStorage` can't assume the data type from it. In this case, you can provide a custom serializer or reuse the built-in ones explicitly.
@@ -148,7 +143,7 @@ useStorage('key', defaults, storage, {
   // Initialize only after component is mounted (default: false)
   initOnMounted: false,
   // Custom error handler (default: console.error)
-  onError: e => console.error(e),
+  onError: (e) => console.error(e),
   // Watch flush timing (default: 'pre')
   flush: 'pre',
 })
@@ -162,10 +157,7 @@ The storage key can be a ref or getter, and the data will be updated when the ke
 import { useStorage } from '@vueuse/core'
 
 const userId = ref('user-1')
-const userData = useStorage(
-  () => `user-data-${userId.value}`,
-  { name: '' },
-)
+const userData = useStorage(() => `user-data-${userId.value}`, { name: '' })
 
 // Changing the key will read from the new storage location
 userId.value = 'user-2'
@@ -193,8 +185,7 @@ export interface StorageEventLike {
   oldValue: StorageEvent['oldValue']
   newValue: StorageEvent['newValue']
 }
-export interface UseStorageOptions<T>
-  extends ConfigurableEventFilter, ConfigurableWindow, ConfigurableFlush {
+export interface UseStorageOptions<T> extends ConfigurableEventFilter, ConfigurableWindow, ConfigurableFlush {
   /**
    * Watch for deep changes
    *

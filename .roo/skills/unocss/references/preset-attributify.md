@@ -13,10 +13,7 @@ Group utilities in HTML attributes for better readability.
 import { defineConfig, presetAttributify, presetWind3 } from 'unocss'
 
 export default defineConfig({
-  presets: [
-    presetWind3(),
-    presetAttributify(),
-  ],
+  presets: [presetWind3(), presetAttributify()],
 })
 ```
 
@@ -25,7 +22,9 @@ export default defineConfig({
 Instead of long class strings:
 
 ```html
-<button class="bg-blue-400 hover:bg-blue-500 text-sm text-white font-mono font-light py-2 px-4 rounded border-2 border-blue-200">
+<button
+  class="bg-blue-400 hover:bg-blue-500 text-sm text-white font-mono font-light py-2 px-4 rounded border-2 border-blue-200"
+>
   Button
 </button>
 ```
@@ -33,13 +32,7 @@ Instead of long class strings:
 Group by prefix in attributes:
 
 ```html
-<button
-  bg="blue-400 hover:blue-500"
-  text="sm white"
-  font="mono light"
-  p="y-2 x-4"
-  border="2 rounded blue-200"
->
+<button bg="blue-400 hover:blue-500" text="sm white" font="mono light" p="y-2 x-4" border="2 rounded blue-200">
   Button
 </button>
 ```
@@ -102,10 +95,14 @@ presetAttributify({
 ```ts
 // html.d.ts
 declare module '@vue/runtime-dom' {
-  interface HTMLAttributes { [key: string]: any }
+  interface HTMLAttributes {
+    [key: string]: any
+  }
 }
 declare module '@vue/runtime-core' {
-  interface AllowedComponentProps { [key: string]: any }
+  interface AllowedComponentProps {
+    [key: string]: any
+  }
 }
 export {}
 ```
@@ -128,9 +125,7 @@ For JSX where `<div foo>` becomes `<div foo={true}>`:
 import { transformerAttributifyJsx } from 'unocss'
 
 export default defineConfig({
-  transformers: [
-    transformerAttributifyJsx(),
-  ],
+  transformers: [transformerAttributifyJsx()],
 })
 ```
 

@@ -12,7 +12,8 @@ const props = withDefaults(defineProps<Props>(), {
   searchNoResultsDescription: 'Try a different search term',
   searchResultsText: '{count} of {total} voices',
   unsupportedVoiceWarningTitle: 'No voices',
-  unsupportedVoiceWarningContent: 'Try a different model or provider. We are working on supporting all the voice for this model as quickly as possible. If you need it urgently, please let us know on GitHub.',
+  unsupportedVoiceWarningContent:
+    'Try a different model or provider. We are working on supporting all the voice for this model as quickly as possible. If you need it urgently, please let us know on GitHub.',
   customInputPlaceholder: 'Enter custom voice name',
   expandButtonText: 'Show more',
   collapseButtonText: 'Show less',
@@ -87,8 +88,7 @@ const voiceId = defineModel<string>('voice-id', { required: false, default: '' }
 
 // Filter voices based on search query
 const filteredVoices = computed(() => {
-  if (!searchQuery.value)
-    return props.voices
+  if (!searchQuery.value) return props.voices
 
   const query = searchQuery.value.toLowerCase()
   return props.voices.filter((voice) => {
@@ -97,17 +97,17 @@ const filteredVoices = computed(() => {
     const descMatch = voice.description && voice.description.toLowerCase().includes(query)
 
     // Search in tags
-    const tagMatch = voice.tags && voice.tags.some(tag => tag.toLowerCase().includes(query))
+    const tagMatch = voice.tags && voice.tags.some((tag) => tag.toLowerCase().includes(query))
 
     // Search in labels
-    const labelMatch = voice.labels && Object.values(voice.labels).some(
-      value => typeof value === 'string' && value.toLowerCase().includes(query),
-    )
+    const labelMatch =
+      voice.labels &&
+      Object.values(voice.labels).some((value) => typeof value === 'string' && value.toLowerCase().includes(query))
 
     // Search in languages
-    const langMatch = voice.languages && voice.languages.some(
-      lang => lang.name.toLowerCase().includes(query) || lang.code.toLowerCase().includes(query),
-    )
+    const langMatch =
+      voice.languages &&
+      voice.languages.some((lang) => lang.name.toLowerCase().includes(query) || lang.code.toLowerCase().includes(query))
 
     return nameMatch || descMatch || tagMatch || labelMatch || langMatch
   })
@@ -125,8 +125,7 @@ function getPreviewUrl(voice: Voice): string | undefined {
 // Create or get audio element for a voice
 function getAudioElement(voice: Voice): HTMLAudioElement | null {
   const previewUrl = getPreviewUrl(voice)
-  if (!previewUrl)
-    return null
+  if (!previewUrl) return null
 
   if (audioElements.value.has(voice.id)) {
     return audioElements.value.get(voice.id) || null
@@ -139,8 +138,7 @@ function getAudioElement(voice: Voice): HTMLAudioElement | null {
   // host (e.g. Azure CDN) doesn't return Access-Control-Allow-Origin, the
   // load is rejected with NotSupportedError. Skip it when the visualizer is
   // off so plain playback works regardless of origin headers.
-  if (props.showVisualizer)
-    audio.crossOrigin = 'anonymous'
+  if (props.showVisualizer) audio.crossOrigin = 'anonymous'
   audio.preload = 'auto' // Preload the audio
 
   audio.addEventListener('ended', () => {
@@ -150,7 +148,7 @@ function getAudioElement(voice: Voice): HTMLAudioElement | null {
       // Clean up the stream when audio ends
       const stream = audioStreams.value.get(voice.id)
       if (stream) {
-        stream.getTracks().forEach(track => track.stop())
+        stream.getTracks().forEach((track) => track.stop())
         audioStreams.value.delete(voice.id)
       }
     }
@@ -196,8 +194,7 @@ function createAudioStream(audio: HTMLAudioElement, voiceId: string): MediaStrea
     const stream = destination.stream
     audioStreams.value.set(voiceId, stream)
     return stream
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Failed to create audio stream for visualizer:', error)
     return null
   }
@@ -207,12 +204,10 @@ function createAudioStream(audio: HTMLAudioElement, voiceId: string): MediaStrea
 function togglePlayback(voice: Voice) {
   try {
     const previewUrl = getPreviewUrl(voice)
-    if (!previewUrl)
-      return
+    if (!previewUrl) return
 
     const audio = getAudioElement(voice)
-    if (!audio)
-      return
+    if (!audio) return
 
     // If this voice is currently playing, pause it
     if (currentlyPlayingId.value === voice.id) {
@@ -222,7 +217,7 @@ function togglePlayback(voice: Voice) {
       // Clean up the stream
       const stream = audioStreams.value.get(voice.id)
       if (stream) {
-        stream.getTracks().forEach(track => track.stop())
+        stream.getTracks().forEach((track) => track.stop())
         audioStreams.value.delete(voice.id)
       }
       return
@@ -238,7 +233,7 @@ function togglePlayback(voice: Voice) {
       // Clean up the previous stream
       const stream = audioStreams.value.get(currentlyPlayingId.value)
       if (stream) {
-        stream.getTracks().forEach(track => track.stop())
+        stream.getTracks().forEach((track) => track.stop())
         audioStreams.value.delete(currentlyPlayingId.value)
       }
     }
@@ -255,8 +250,7 @@ function togglePlayback(voice: Voice) {
     })
 
     currentlyPlayingId.value = voice.id
-  }
-  catch (err) {
+  } catch (err) {
     console.error(err)
     currentlyPlayingId.value = undefined
   }
@@ -272,7 +266,7 @@ function cleanup() {
 
   // Clean up all streams
   audioStreams.value.forEach((stream) => {
-    stream.getTracks().forEach(track => track.stop())
+    stream.getTracks().forEach((track) => track.stop())
   })
   audioStreams.value.clear()
 
@@ -299,7 +293,7 @@ watch(searchQuery, () => {
     // Clean up the stream
     const stream = audioStreams.value.get(currentlyPlayingId.value)
     if (stream) {
-      stream.getTracks().forEach(track => track.stop())
+      stream.getTracks().forEach((track) => track.stop())
       audioStreams.value.delete(currentlyPlayingId.value)
     }
 
@@ -329,14 +323,18 @@ const customVoiceName = ref('')
         transition="all duration-200 ease-in-out"
         bg="white dark:neutral-900"
         :placeholder="searchPlaceholder"
-      >
+      />
     </div>
 
     <!-- Items list with search results info -->
     <div class="mt-4 space-y-2">
       <!-- Search results info -->
       <div v-if="searchQuery" class="text-sm text-neutral-500 dark:text-neutral-400">
-        {{ searchResultsText.replace('{count}', filteredVoices.length.toString()).replace('{total}', voices.length.toString()) }}
+        {{
+          searchResultsText
+            .replace('{count}', filteredVoices.length.toString())
+            .replace('{total}', voices.length.toString())
+        }}
       </div>
 
       <!-- No search results -->
@@ -359,14 +357,12 @@ const customVoiceName = ref('')
               ? 'grid-cols-1 md:grid-cols-[repeat(var(--cols),minmax(0,1fr))] snap-y snap-proximity'
               : 'grid-flow-col auto-cols-[calc((100%-(var(--cols)-1)*1rem)/var(--cols))] overflow-x-auto scrollbar-none snap-x snap-proximity',
             ...(props.listClass
-              ? (typeof props.listClass === 'string'
+              ? typeof props.listClass === 'string'
                 ? [props.listClass]
                 : props.listClass
-              )
               : isListExpanded
                 ? ['max-h-[calc(100dvh-7lh)] overflow-y-auto']
-                : []
-            ),
+                : []),
           ]"
           transition="all duration-200 ease-in-out"
           :style="{ '--cols': props.columns }"
@@ -403,22 +399,29 @@ const customVoiceName = ref('')
           v-if="showExpandCollapseBtn"
           bg="neutral-100 dark:[rgba(0,0,0,0.3)]"
           rounded-xl
-          :class="[
-            isListExpanded ? 'w-full' : 'mt-4 w-full rounded-lg',
-          ]"
+          :class="[isListExpanded ? 'w-full' : 'mt-4 w-full rounded-lg']"
         >
           <button
             w-full
-            flex items-center justify-center gap-2 rounded-lg py-2 transition="all duration-200 ease-in-out"
+            flex
+            items-center
+            justify-center
+            gap-2
+            rounded-lg
+            py-2
+            transition="all duration-200 ease-in-out"
             :class="[
-              isListExpanded ? 'bg-primary-500 hover:bg-primary-600 text-white' : 'bg-white dark:bg-neutral-900 hover:bg-neutral-100 dark:hover:bg-neutral-800',
+              isListExpanded
+                ? 'bg-primary-500 hover:bg-primary-600 text-white'
+                : 'bg-white dark:bg-neutral-900 hover:bg-neutral-100 dark:hover:bg-neutral-800',
             ]"
             @click="isListExpanded = !isListExpanded"
           >
             <span>{{ isListExpanded ? collapseButtonText : expandButtonText }}</span>
             <div
               :class="isListExpanded ? 'rotate-180' : ''"
-              i-solar:alt-arrow-down-linear transition="transform duration-200 ease-in-out"
+              i-solar:alt-arrow-down-linear
+              transition="transform duration-200 ease-in-out"
               class="text-lg"
             />
           </button>

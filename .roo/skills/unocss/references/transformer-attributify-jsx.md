@@ -24,19 +24,11 @@ The `={true}` breaks UnoCSS attributify detection.
 ## Installation
 
 ```ts
-import {
-  defineConfig,
-  presetAttributify,
-  transformerAttributifyJsx
-} from 'unocss'
+import { defineConfig, presetAttributify, transformerAttributifyJsx } from 'unocss'
 
 export default defineConfig({
-  presets: [
-    presetAttributify(),
-  ],
-  transformers: [
-    transformerAttributifyJsx(),
-  ],
+  presets: [presetAttributify()],
+  transformers: [transformerAttributifyJsx()],
 })
 ```
 
@@ -67,6 +59,7 @@ transformerAttributifyJsx({
 ## When to Use
 
 Required when using:
+
 - React
 - Preact
 - Solid
@@ -101,21 +94,11 @@ export default {
 
 ```ts
 // uno.config.ts
-import {
-  defineConfig,
-  presetAttributify,
-  presetWind3,
-  transformerAttributifyJsx
-} from 'unocss'
+import { defineConfig, presetAttributify, presetWind3, transformerAttributifyJsx } from 'unocss'
 
 export default defineConfig({
-  presets: [
-    presetWind3(),
-    presetAttributify(),
-  ],
-  transformers: [
-    transformerAttributifyJsx(),
-  ],
+  presets: [presetWind3(), presetAttributify()],
+  transformers: [transformerAttributifyJsx()],
 })
 ```
 
@@ -130,10 +113,7 @@ import UnoCSS from 'unocss/vite'
 import solidPlugin from 'vite-plugin-solid'
 
 export default {
-  plugins: [
-    UnoCSS(),
-    solidPlugin(),
-  ],
+  plugins: [UnoCSS(), solidPlugin()],
 }
 ```
 

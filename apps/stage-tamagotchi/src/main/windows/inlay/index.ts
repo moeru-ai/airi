@@ -13,10 +13,7 @@ import { currentDisplayBounds, mapForBreakpoints, resolutionBreakpoints, widthFr
 import { spotlightLikeWindowConfig } from '../shared/window'
 import { setupInlayWindowInvokes } from './rpc/index.electron'
 
-export async function setupInlayWindow(params: {
-  serverChannel: ServerChannel
-  i18n: I18n
-}) {
+export async function setupInlayWindow(params: { serverChannel: ServerChannel; i18n: I18n }) {
   const window = new BrowserWindow({
     title: 'Inlay',
     width: 450,
@@ -51,14 +48,11 @@ export async function setupInlayWindow(params: {
     width,
     height: width / 4,
     x: displayBounds.x + (displayBounds.width - width) / 2, // Center horizontally
-    y: mapForBreakpoints(
-      displayBounds.height,
-      {
-        sm: displayBounds.height / 4 * 3 - height, // Bottom quarter, minus window height
-        md: displayBounds.height / 5 * 4 - height, // Center vertically
-        lg: displayBounds.height / 6 * 5 - height, // Top quarter, minus half window height
-      },
-    ),
+    y: mapForBreakpoints(displayBounds.height, {
+      sm: (displayBounds.height / 4) * 3 - height, // Bottom quarter, minus window height
+      md: (displayBounds.height / 5) * 4 - height, // Center vertically
+      lg: (displayBounds.height / 6) * 5 - height, // Top quarter, minus half window height
+    }),
   })
 
   window.on('ready-to-show', () => window.show())

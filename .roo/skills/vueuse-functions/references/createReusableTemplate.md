@@ -192,7 +192,7 @@ const [DefineTemplate, ReuseTemplate] = createReusableTemplate({
   props: {
     msg: String,
     enable: Boolean,
-  }
+  },
 })
 ```
 
@@ -250,9 +250,7 @@ const [DefineTemplate, ReuseTemplate] = createReusableTemplate<{
 </script>
 
 <template>
-  <DefineTemplate v-slot="{ value }">
-    {{ typeof value }}: {{ value }}
-  </DefineTemplate>
+  <DefineTemplate v-slot="{ value }">{{ typeof value }}: {{ value }}</DefineTemplate>
 
   <ReuseTemplate :value="true" />
   <!-- boolean: true -->
@@ -284,13 +282,8 @@ Alternative Approaches:
 ## Type Declarations
 
 ```ts
-type ObjectLiteralWithPotentialObjectLiterals = Record<
-  string,
-  Record<string, any> | undefined
->
-type GenerateSlotsFromSlotMap<
-  T extends ObjectLiteralWithPotentialObjectLiterals,
-> = {
+type ObjectLiteralWithPotentialObjectLiterals = Record<string, Record<string, any> | undefined>
+type GenerateSlotsFromSlotMap<T extends ObjectLiteralWithPotentialObjectLiterals> = {
   [K in keyof T]: Slot<T[K]>
 }
 export type DefineTemplateComponent<
@@ -325,9 +318,7 @@ export type ReusableTemplatePair<
   define: DefineTemplateComponent<Bindings, MapSlotNameToSlotProps>
   reuse: ReuseTemplateComponent<Bindings, MapSlotNameToSlotProps>
 }
-export interface CreateReusableTemplateOptions<
-  Props extends Record<string, any>,
-> {
+export interface CreateReusableTemplateOptions<Props extends Record<string, any>> {
   /**
    * Inherit attrs from reuse component.
    *
@@ -350,7 +341,5 @@ export interface CreateReusableTemplateOptions<
 export declare function createReusableTemplate<
   Bindings extends Record<string, any>,
   MapSlotNameToSlotProps extends ObjectLiteralWithPotentialObjectLiterals = Record<'default', undefined>,
->(
-  options?: CreateReusableTemplateOptions<Bindings>,
-): ReusableTemplatePair<Bindings, MapSlotNameToSlotProps>
+>(options?: CreateReusableTemplateOptions<Bindings>): ReusableTemplatePair<Bindings, MapSlotNameToSlotProps>
 ```

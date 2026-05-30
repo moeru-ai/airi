@@ -5,10 +5,7 @@ import type {
   WebSocketEvent,
 } from '@proj-airi/server-shared/types'
 
-import type {
-  RouteMiddleware,
-  RoutingPolicy,
-} from './middlewares'
+import type { RouteMiddleware, RoutingPolicy } from './middlewares'
 import type { ServerWsConsumerSelectionCandidate, ServerWsStickyAssignment } from './server-ws/core'
 import type { AuthenticatedPeer, Peer } from './types'
 
@@ -17,24 +14,13 @@ import { timingSafeEqual } from 'node:crypto'
 
 import { availableLogLevelStrings, Format, LogLevelString, logLevelStringToLogLevelMap, useLogg } from '@guiiai/logg'
 import { errorMessageFrom } from '@moeru/std'
-import {
-  createInvalidJsonServerErrorMessage,
-  ServerErrorMessages,
-} from '@proj-airi/server-shared'
-import {
-  MessageHeartbeat,
-  MessageHeartbeatKind,
-} from '@proj-airi/server-shared/types'
+import { createInvalidJsonServerErrorMessage, ServerErrorMessages } from '@proj-airi/server-shared'
+import { MessageHeartbeat, MessageHeartbeatKind } from '@proj-airi/server-shared/types'
 import { defineWebSocketHandler, H3 } from 'h3'
 import { nanoid } from 'nanoid'
 
 import { optionOrEnv } from './config'
-import {
-  collectDestinations,
-  createPolicyMiddleware,
-  isDevtoolsPeer,
-  matchesDestinations,
-} from './middlewares'
+import { collectDestinations, createPolicyMiddleware, isDevtoolsPeer, matchesDestinations } from './middlewares'
 import {
   createEventMetadata,
   createGateway,
@@ -59,10 +45,7 @@ import {
   serverWsHealthCheckMissesUnhealthy,
 } from './server-ws/core'
 
-export {
-  heartbeatFrameFrom,
-  resolveEventDelivery,
-}
+export { heartbeatFrameFrom, resolveEventDelivery }
 
 /**
  * Candidate peer metadata used for consumer selection.
@@ -170,17 +153,9 @@ function timingSafeCompare(a: string, b: string): boolean {
   // so timingSafeEqual always performs a real comparison.
   const paddedA = Buffer.alloc(bufB.length)
 
-  bufA.copy(
-    paddedA,
-    0,
-    0,
-    Math.min(bufA.length, bufB.length),
-  )
+  bufA.copy(paddedA, 0, 0, Math.min(bufA.length, bufB.length))
 
-  return (
-    timingSafeEqual(paddedA, bufB)
-    && bufA.length === bufB.length
-  )
+  return timingSafeEqual(paddedA, bufB) && bufA.length === bufB.length
 }
 
 /**
@@ -198,8 +173,8 @@ export interface AppOptions {
     token: string
   }
   logger?: {
-    app?: { level?: LogLevelString, format?: Format }
-    websocket?: { level?: LogLevelString, format?: Format }
+    app?: { level?: LogLevelString; format?: Format }
+    websocket?: { level?: LogLevelString; format?: Format }
   }
   routing?: {
     middleware?: RouteMiddleware[]
@@ -226,8 +201,12 @@ export interface AppOptions {
  * - The resolved app and websocket logger configuration
  */
 export function normalizeLoggerConfig(options?: AppOptions) {
-  const appLogLevel = optionOrEnv(options?.logger?.app?.level, 'LOG_LEVEL', LogLevelString.Log, { validator: (value): value is LogLevelString => availableLogLevelStrings.includes(value as LogLevelString) })
-  const appLogFormat = optionOrEnv(options?.logger?.app?.format, 'LOG_FORMAT', Format.Pretty, { validator: (value): value is Format => Object.values(Format).includes(value as Format) })
+  const appLogLevel = optionOrEnv(options?.logger?.app?.level, 'LOG_LEVEL', LogLevelString.Log, {
+    validator: (value): value is LogLevelString => availableLogLevelStrings.includes(value as LogLevelString),
+  })
+  const appLogFormat = optionOrEnv(options?.logger?.app?.format, 'LOG_FORMAT', Format.Pretty, {
+    validator: (value): value is Format => Object.values(Format).includes(value as Format),
+  })
   const websocketLogLevel = options?.logger?.websocket?.level || appLogLevel || LogLevelString.Log
   const websocketLogFormat = options?.logger?.websocket?.format || appLogFormat || Format.Pretty
 
@@ -267,18 +246,22 @@ export function normalizeLoggerConfig(options?: AppOptions) {
  * - Owns all timers and intervals created during setup
  * - Consumer orchestrator state is isolated within this function scope
  */
-export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => void, dispose: () => void } {
+export function setupApp(options?: AppOptions): { app: H3; closeAllPeers: () => void; dispose: () => void } {
   // === Configuration & State Initialization ===
   const instanceId = options?.instanceId || optionOrEnv(undefined, 'SERVER_INSTANCE_ID', nanoid())
   const authToken = optionOrEnv(options?.auth?.token, 'AUTHENTICATION_TOKEN', '')
 
   const { appLogLevel, appLogFormat, websocketLogLevel, websocketLogFormat } = normalizeLoggerConfig(options)
 
-  const appLogger = useLogg('@proj-airi/server-runtime').withLogLevel(logLevelStringToLogLevelMap[appLogLevel]).withFormat(appLogFormat)
-  const logger = useLogg('@proj-airi/server-runtime:websocket').withLogLevel(logLevelStringToLogLevelMap[websocketLogLevel]).withFormat(websocketLogFormat)
+  const appLogger = useLogg('@proj-airi/server-runtime')
+    .withLogLevel(logLevelStringToLogLevelMap[appLogLevel])
+    .withFormat(appLogFormat)
+  const logger = useLogg('@proj-airi/server-runtime:websocket')
+    .withLogLevel(logLevelStringToLogLevelMap[websocketLogLevel])
+    .withFormat(websocketLogFormat)
 
   const app = new H3({
-    onError: error => appLogger.withError(error).error('an error occurred'),
+    onError: (error) => appLogger.withError(error).error('an error occurred'),
   })
 
   // === Registries & Orchestrators ===
@@ -310,13 +293,15 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
     })
   }
 
-  function markPeerAlive(peerInfo: AuthenticatedPeer, options?: { parentId?: string, logMessage?: string }) {
+  function markPeerAlive(peerInfo: AuthenticatedPeer, options?: { parentId?: string; logMessage?: string }) {
     peerInfo.lastHeartbeatAt = Date.now()
     peerInfo.missedHeartbeats = 0
 
     if (peerInfo.healthy === false && peerInfo.authenticated) {
       peerInfo.healthy = true
-      logger.withFields({ peer: peerInfo.peer.id, peerName: peerInfo.name }).debug(options?.logMessage ?? 'peer activity recovered, marking healthy')
+      logger
+        .withFields({ peer: peerInfo.peer.id, peerName: peerInfo.name })
+        .debug(options?.logMessage ?? 'peer activity recovered, marking healthy')
       broadcastPeerHealthy(peerInfo, options?.parentId)
     }
   }
@@ -341,28 +326,37 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
       const elapsed = now - peerInfo.lastHeartbeatAt
       if (elapsed > healthCheckIntervalMs) {
         peerInfo.missedHeartbeats = (peerInfo.missedHeartbeats ?? 0) + 1
-      }
-      else {
+      } else {
         peerInfo.missedHeartbeats = 0
       }
 
       if (peerInfo.missedHeartbeats >= serverWsHealthCheckMissesDead) {
         // 10 consecutive misses — completely dead, drop the peer
-        logger.withFields({ peer: id, peerName: peerInfo.name, missedHeartbeats: peerInfo.missedHeartbeats }).debug('heartbeat expired after max misses, dropping peer')
+        logger
+          .withFields({ peer: id, peerName: peerInfo.name, missedHeartbeats: peerInfo.missedHeartbeats })
+          .debug('heartbeat expired after max misses, dropping peer')
         try {
           peerInfo.peer.close?.()
-        }
-        catch (error) {
-          logger.withFields({ peer: id, peerName: peerInfo.name }).withError(error as Error).debug('failed to close expired peer')
+        } catch (error) {
+          logger
+            .withFields({ peer: id, peerName: peerInfo.name })
+            .withError(error as Error)
+            .debug('failed to close expired peer')
         }
 
         peers.delete(id)
         unregisterModulePeer(peerInfo, 'heartbeat expired')
-      }
-      else if (peerInfo.missedHeartbeats >= serverWsHealthCheckMissesUnhealthy && peerInfo.healthy !== false && peerInfo.name && peerInfo.identity) {
+      } else if (
+        peerInfo.missedHeartbeats >= serverWsHealthCheckMissesUnhealthy &&
+        peerInfo.healthy !== false &&
+        peerInfo.name &&
+        peerInfo.identity
+      ) {
         // 5 consecutive misses — mark unhealthy
         peerInfo.healthy = false
-        logger.withFields({ peer: id, peerName: peerInfo.name, missedHeartbeats: peerInfo.missedHeartbeats }).debug('heartbeat late, marking unhealthy')
+        logger
+          .withFields({ peer: id, peerName: peerInfo.name, missedHeartbeats: peerInfo.missedHeartbeats })
+          .debug('heartbeat late, marking unhealthy')
         broadcastToAuthenticated({
           type: 'registry:modules:health:unhealthy',
           data: { name: peerInfo.name, index: peerInfo.index, identity: peerInfo.identity, reason: 'heartbeat late' },
@@ -392,11 +386,22 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
     broadcastRegistrySync()
   }
 
-  function registerConsumer(peerId: string, event: string, mode: ReturnType<typeof normalizeConsumerMode>, group?: string, priority?: number) {
+  function registerConsumer(
+    peerId: string,
+    event: string,
+    mode: ReturnType<typeof normalizeConsumerMode>,
+    group?: string,
+    priority?: number,
+  ) {
     consumers.register({ peerId, event, mode, group, priority })
   }
 
-  function unregisterConsumer(peerId: string, event: string, mode: ReturnType<typeof normalizeConsumerMode>, group?: string) {
+  function unregisterConsumer(
+    peerId: string,
+    event: string,
+    mode: ReturnType<typeof normalizeConsumerMode>,
+    group?: string,
+  ) {
     consumers.unregister({ peerId, event, mode, group })
   }
 
@@ -413,17 +418,19 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
       eventType: event.type,
       fromPeerId,
       delivery,
-      candidates: consumers.listFor({
-        event: event.type,
-        mode: delivery?.mode,
-        group: delivery?.group,
-      }).map(entry => ({
-        peerId: entry.peerId,
-        priority: entry.priority,
-        registeredAt: entry.registeredAt,
-        authenticated: Boolean(peers.get(entry.peerId)?.authenticated),
-        healthy: peers.get(entry.peerId)?.healthy,
-      })),
+      candidates: consumers
+        .listFor({
+          event: event.type,
+          mode: delivery?.mode,
+          group: delivery?.group,
+        })
+        .map((entry) => ({
+          peerId: entry.peerId,
+          priority: entry.priority,
+          registeredAt: entry.registeredAt,
+          authenticated: Boolean(peers.get(entry.peerId)?.authenticated),
+          healthy: peers.get(entry.peerId)?.healthy,
+        })),
     })
 
     if (!selectedPeerId) {
@@ -435,14 +442,13 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
 
   function unregisterModuleRegistration(
     peerInfo: AuthenticatedPeer,
-    options?: { reason?: string, unregisterConsumers?: boolean },
+    options?: { reason?: string; unregisterConsumers?: boolean },
   ) {
     if (options?.unregisterConsumers !== false) {
       unregisterPeerConsumers(peerInfo.peer.id)
     }
 
-    if (!peerInfo.name)
-      return
+    if (!peerInfo.name) return
 
     const group = peersByModule.get(peerInfo.name)
     if (group) {
@@ -474,8 +480,8 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
 
   function listKnownModules() {
     return Array.from(peers.values())
-      .filter(peerInfo => peerInfo.name && peerInfo.identity)
-      .map(peerInfo => ({
+      .filter((peerInfo) => peerInfo.name && peerInfo.identity)
+      .map((peerInfo) => ({
         name: peerInfo.name,
         index: peerInfo.index,
         identity: peerInfo.identity!,
@@ -514,8 +520,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
       open: (peer) => {
         if (authToken) {
           peers.set(peer.id, { peer, authenticated: false, name: '', lastHeartbeatAt: Date.now() })
-        }
-        else {
+        } else {
           send(peer, RESPONSES.authenticated())
           peers.set(peer.id, { peer, authenticated: true, name: '', lastHeartbeatAt: Date.now() })
           sendRegistrySync(peer)
@@ -543,8 +548,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
           }
 
           event = parseEvent(text)
-        }
-        catch (err) {
+        } catch (err) {
           if (isAiriWebSocketEventFormatError(err)) {
             send(peer, RESPONSES.error(ServerErrorMessages.invalidEventFormat))
             return
@@ -556,12 +560,14 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
           return
         }
 
-        logger.withFields({
-          peer: peer.id,
-          peerAuthenticated: authenticatedPeer?.authenticated,
-          peerModule: authenticatedPeer?.name,
-          peerModuleIndex: authenticatedPeer?.index,
-        }).debug('received event')
+        logger
+          .withFields({
+            peer: peer.id,
+            peerAuthenticated: authenticatedPeer?.authenticated,
+            peerModule: authenticatedPeer?.name,
+            peerModuleIndex: authenticatedPeer?.index,
+          })
+          .debug('received event')
 
         if (authenticatedPeer) {
           markPeerAlive(authenticatedPeer, { parentId: event.metadata?.event.id })
@@ -580,7 +586,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
                 logMessage: 'heartbeat recovered, marking healthy',
               })
 
-            // recover from unhealthy → healthy
+              // recover from unhealthy → healthy
             }
 
             if (event.data.kind === MessageHeartbeatKind.Ping) {
@@ -593,7 +599,9 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
           case 'module:authenticate': {
             const clientToken = typeof event.data.token === 'string' ? event.data.token : ''
             if (authToken && !timingSafeCompare(clientToken, authToken)) {
-              logger.withFields({ peer: peer.id, peerRemote: peer.remoteAddress, peerRequest: peer.request?.url }).log('authentication failed')
+              logger
+                .withFields({ peer: peer.id, peerRemote: peer.remoteAddress, peerRequest: peer.request?.url })
+                .log('authentication failed')
               send(peer, RESPONSES.error(ServerErrorMessages.invalidToken, event.metadata?.event.id))
 
               return
@@ -616,7 +624,11 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
               return
             }
 
-            const { name, index, identity } = event.data as { name: string, index?: number, identity?: MetadataEventSource }
+            const { name, index, identity } = event.data as {
+              name: string
+              index?: number
+              identity?: MetadataEventSource
+            }
             if (!name || typeof name !== 'string') {
               send(peer, RESPONSES.error(ServerErrorMessages.moduleAnnounceNameInvalid))
 
@@ -653,9 +665,9 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
 
             // broadcast module:announced to all authenticated peers
             for (const other of peers.values()) {
-            // only send to
-            // 1. authenticated peers
-            // 2. other peers except the announcing peer itself
+              // only send to
+              // 1. authenticated peers
+              // 2. other peers except the announcing peer itself
               if (other.authenticated && !(other.peer.id === peer.id)) {
                 send(other.peer, {
                   type: 'module:announced',
@@ -700,8 +712,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
                 // NOTICE: this will forward the original event metadata as-is
                 metadata: event.metadata,
               })
-            }
-            else {
+            } else {
               send(peer, RESPONSES.error(ServerErrorMessages.moduleNotFound))
             }
 
@@ -763,7 +774,14 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
         // default case
         const p = peers.get(peer.id)
         if (!p?.authenticated) {
-          logger.withFields({ peer: peer.id, peerName: p?.name, peerRemote: peer.remoteAddress, peerRequest: peer.request?.url }).debug('not authenticated')
+          logger
+            .withFields({
+              peer: peer.id,
+              peerName: p?.name,
+              peerRemote: peer.remoteAddress,
+              peerRequest: peer.request?.url,
+            })
+            .debug('not authenticated')
           send(peer, RESPONSES.notAuthenticated(event.metadata?.event.id))
 
           return
@@ -791,7 +809,9 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
         const selectedConsumer = selectConsumer(event, peer.id, delivery)
         if (delivery && (delivery.mode === 'consumer' || delivery.mode === 'consumer-group')) {
           if (!selectedConsumer) {
-            logger.withFields({ peer: peer.id, peerName: p.name, event, delivery }).warn('no consumer registered for event delivery')
+            logger
+              .withFields({ peer: peer.id, peerName: p.name, event, delivery })
+              .warn('no consumer registered for event delivery')
             if (delivery.required) {
               send(peer, RESPONSES.error(ServerErrorMessages.noConsumerRegistered, event.metadata?.event.id))
             }
@@ -799,26 +819,30 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
           }
 
           try {
-            logger.withFields({
-              fromPeer: peer.id,
-              fromPeerName: p.name,
-              toPeer: selectedConsumer.peer.id,
-              toPeerName: selectedConsumer.name,
-              event,
-              delivery,
-            }).debug('sending event to selected consumer')
+            logger
+              .withFields({
+                fromPeer: peer.id,
+                fromPeerName: p.name,
+                toPeer: selectedConsumer.peer.id,
+                toPeerName: selectedConsumer.name,
+                event,
+                delivery,
+              })
+              .debug('sending event to selected consumer')
 
             selectedConsumer.peer.send(payload)
-          }
-          catch (err) {
-            logger.withFields({
-              fromPeer: peer.id,
-              fromPeerName: p.name,
-              toPeer: selectedConsumer.peer.id,
-              toPeerName: selectedConsumer.name,
-              event,
-              delivery,
-            }).withError(err).error('failed to send event to selected consumer, removing peer')
+          } catch (err) {
+            logger
+              .withFields({
+                fromPeer: peer.id,
+                fromPeerName: p.name,
+                toPeer: selectedConsumer.peer.id,
+                toPeerName: selectedConsumer.name,
+                event,
+                delivery,
+              })
+              .withError(err)
+              .error('failed to send event to selected consumer, removing peer')
 
             peers.delete(selectedConsumer.peer.id)
             unregisterModulePeer(selectedConsumer, 'consumer send failed')
@@ -838,7 +862,9 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
           }
 
           if (!other.authenticated) {
-            logger.withFields({ fromPeer: peer.id, toPeer: other.peer.id, toPeerName: other.name, event }).debug('not sending event to unauthenticated peer')
+            logger
+              .withFields({ fromPeer: peer.id, toPeer: other.peer.id, toPeerName: other.name, event })
+              .debug('not sending event to unauthenticated peer')
             continue
           }
 
@@ -851,11 +877,27 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
           }
 
           try {
-            logger.withFields({ fromPeer: peer.id, fromPeerName: p.name, toPeer: other.peer.id, toPeerName: other.name, event }).debug('sending event to peer')
+            logger
+              .withFields({
+                fromPeer: peer.id,
+                fromPeerName: p.name,
+                toPeer: other.peer.id,
+                toPeerName: other.name,
+                event,
+              })
+              .debug('sending event to peer')
             other.peer.send(payload)
-          }
-          catch (err) {
-            logger.withFields({ fromPeer: peer.id, fromPeerName: p.name, toPeer: other.peer.id, toPeerName: other.name, event }).withError(err).error('failed to send event to peer, removing peer')
+          } catch (err) {
+            logger
+              .withFields({
+                fromPeer: peer.id,
+                fromPeerName: p.name,
+                toPeer: other.peer.id,
+                toPeerName: other.name,
+                event,
+              })
+              .withError(err)
+              .error('failed to send event to peer, removing peer')
             logger.withFields({ peer: peer.id, peerName: other.name }).debug('removing closed peer')
             peers.delete(id)
 
@@ -876,15 +918,14 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
         const safeDetails = details ?? {}
         const closeCode = typeof safeDetails.code === 'number' ? safeDetails.code : undefined
         const closeReason = typeof safeDetails.reason === 'string' ? safeDetails.reason : undefined
-        const closeWasClean = typeof (safeDetails as { wasClean?: unknown }).wasClean === 'boolean'
-          ? (safeDetails as { wasClean?: unknown }).wasClean
-          : undefined
+        const closeWasClean =
+          typeof (safeDetails as { wasClean?: unknown }).wasClean === 'boolean'
+            ? (safeDetails as { wasClean?: unknown }).wasClean
+            : undefined
         const heartbeatLastSeenAt = p?.lastHeartbeatAt
         const heartbeatSilentForMs = heartbeatLastSeenAt ? now - heartbeatLastSeenAt : undefined
         const likelyHeartbeatExpiry = Boolean(
-          p
-          && typeof heartbeatSilentForMs === 'number'
-          && heartbeatSilentForMs > heartbeatTtlMs,
+          p && typeof heartbeatSilentForMs === 'number' && heartbeatSilentForMs > heartbeatTtlMs,
         )
         const likelySilentNetworkClose = closeCode === 1005
 
@@ -893,26 +934,28 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
           unregisterModulePeer(p, 'connection closed')
         }
 
-        logger.withFields({
-          peer: peer.id,
-          peerRemote: peer.remoteAddress,
-          details,
-          closeCode,
-          closeReason,
-          closeWasClean,
-          activePeers: peers.size,
-          peerAuthenticated: p?.authenticated,
-          peerName,
-          peerIndex,
-          peerHealthy,
-          peerMissedHeartbeats,
-          heartbeatLastSeenAt,
-          heartbeatSilentForMs,
-          heartbeatTtlMs,
-          healthCheckIntervalMs,
-          likelyHeartbeatExpiry,
-          likelySilentNetworkClose,
-        }).log('closed')
+        logger
+          .withFields({
+            peer: peer.id,
+            peerRemote: peer.remoteAddress,
+            details,
+            closeCode,
+            closeReason,
+            closeWasClean,
+            activePeers: peers.size,
+            peerAuthenticated: p?.authenticated,
+            peerName,
+            peerIndex,
+            peerHealthy,
+            peerMissedHeartbeats,
+            heartbeatLastSeenAt,
+            heartbeatSilentForMs,
+            heartbeatTtlMs,
+            healthCheckIntervalMs,
+            likelyHeartbeatExpiry,
+            likelySilentNetworkClose,
+          })
+          .log('closed')
       },
     },
     dispose: () => {
@@ -928,15 +971,16 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
     logger.withFields({ totalPeers: peers.size }).log('closing all peers')
 
     for (const peerInfo of Array.from(peers.values())) {
-      logger.withFields({
-        peer: peerInfo.peer.id,
-        peerName: peerInfo.name,
-      }).debug('closing peer')
+      logger
+        .withFields({
+          peer: peerInfo.peer.id,
+          peerName: peerInfo.name,
+        })
+        .debug('closing peer')
 
       try {
         peerInfo.peer.close?.()
-      }
-      catch (error) {
+      } catch (error) {
         logger
           .withFields({
             peer: peerInfo.peer.id,
@@ -957,8 +1001,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
 
       try {
         unregisterModulePeer(peerInfo, 'server shutdown')
-      }
-      catch (error) {
+      } catch (error) {
         logger
           .withFields({
             peer: peerInfo.peer.id,

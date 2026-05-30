@@ -40,11 +40,7 @@ const sum = useArrayReduce(list, (sum, val) => sum + val.num, 0)
 ## Type Declarations
 
 ```ts
-export type UseArrayReducer<PV, CV, R> = (
-  previousValue: PV,
-  currentValue: CV,
-  currentIndex: number,
-) => R
+export type UseArrayReducer<PV, CV, R> = (previousValue: PV, currentValue: CV, currentIndex: number) => R
 export type UseArrayReduceReturn<T = any> = ComputedRef<T>
 /**
  * Reactive `Array.reduce`

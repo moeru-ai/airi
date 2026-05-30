@@ -24,13 +24,7 @@ function leave(el: any, done: any) {
 </script>
 
 <template>
-  <Transition
-    name="slide-fade"
-    :css="false"
-    @enter="enter"
-    @leave="leave"
-    @before-leave="beforeLeave"
-  >
+  <Transition name="slide-fade" :css="false" @enter="enter" @leave="leave" @before-leave="beforeLeave">
     <slot />
   </Transition>
 </template>

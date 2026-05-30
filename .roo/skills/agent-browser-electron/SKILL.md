@@ -18,6 +18,7 @@ Use raw CDP target discovery because `agent-browser` is operating as a convenien
 Raw `/json/list` is the source of truth for CDP target discovery because it exposes Chromium's target inventory without extra interpretation. It is not the same thing as Electron's `BrowserWindow.getAllWindows()`.
 
 In Electron, that distinction matters because:
+
 - multiple `BrowserWindow` instances can share the same URL
 - some windows are created lazily and appear only after an app action
 - a visible Electron window is inspectable only after its renderer/webContents exists and is exposed as a CDP target
@@ -26,6 +27,7 @@ In Electron, that distinction matters because:
 - session state inside `agent-browser` can keep you attached to a previous renderer unless you reset and verify
 
 In practice, the higher-level `tab list` view is useful for quick browsing, but not reliable enough for window-to-target mapping when:
+
 - two Electron windows both look like `http://localhost:5173/#/`
 - the title is empty or collapsed
 - a chat or settings window exists in CDP but is not obvious in the simplified tab output
@@ -73,6 +75,7 @@ curl -sS http://127.0.0.1:<port>/json/list
 ```
 
 Read these fields:
+
 - `title`
 - `url`
 - `type`
@@ -87,6 +90,7 @@ curl -sS http://127.0.0.1:<port>/json/version
 4. Match the target to the Electron window.
 
 Common patterns:
+
 - Distinct route: chat may be `http://localhost:5173/#/chat` while the main window is `http://localhost:5173/#/`.
 - Distinct title: Electron window titles may surface in the target list.
 - Duplicate URLs: two windows may both report `http://localhost:5173/#/`; in that case use screenshots, snapshots, and Electron app knowledge to disambiguate.
@@ -152,12 +156,14 @@ APP_REMOTE_DEBUG=true APP_REMOTE_DEBUG_PORT=9250 pnpm dev:tamagotchi
 That port is not intrinsic to AIRI or Electron. It depends on the current command and environment. Most stage-tamagotchi code lives under `apps/stage-tamagotchi`; inspect that app's Electron startup and window code when the port, routes, or remote-debug behavior differ.
 
 Relevant files:
+
 - `apps/stage-tamagotchi/src/main/windows/chat/index.ts`
 - `apps/stage-tamagotchi/src/main/windows/main/index.ts`
 - `apps/stage-tamagotchi/src/main/libs/electron/window-manager/reusable.ts`
 - `apps/stage-tamagotchi/src/renderer/components/stage-islands/controls-island/index.vue`
 
 That means:
+
 - chat does not exist in CDP until something calls `chatWindow()`
 - settings and chat can be opened from the main window controls
 - once created, raw CDP target discovery will show page targets such as `http://localhost:5173/#/settings` and `http://localhost:5173/#/chat`
@@ -208,10 +214,12 @@ agent-browser --cdp 9250 eval '(() => {
 ```
 
 Expected verification for chat:
+
 - `agent-browser --cdp 9250 get url` returns `http://localhost:5173/#/chat`
 - the snapshot exposes chat UI controls such as the message textbox or send button
 
 Expected verification for settings:
+
 - `agent-browser --cdp 9250 get url` returns `http://localhost:5173/#/settings`
 - the snapshot exposes settings navigation or configuration controls
 

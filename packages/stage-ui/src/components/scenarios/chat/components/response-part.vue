@@ -14,9 +14,7 @@ const props = defineProps<{
 const reasoningContent = computed(() => props.message.categorization?.reasoning?.trim() ?? '')
 const hasReasoning = computed(() => reasoningContent.value.length > 0)
 
-const containerClasses = computed(() => [
-  props.variant === 'mobile' ? 'text-xs' : 'text-sm',
-])
+const containerClasses = computed(() => [props.variant === 'mobile' ? 'text-xs' : 'text-sm'])
 </script>
 
 <template>

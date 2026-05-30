@@ -61,8 +61,7 @@ class ResamplingAudioWorkletProcessor extends AudioWorkletProcessor {
       )
       this.isInitialized = true
       this.port.postMessage({ type: 'initialized', success: true })
-    }
-    catch (error) {
+    } catch (error) {
       console.error('Failed to initialize sample rate converter:', error)
 
       this.port.postMessage({
@@ -74,11 +73,11 @@ class ResamplingAudioWorkletProcessor extends AudioWorkletProcessor {
   }
 
   private async updateOptions(newOptions: Partial<ProcessorOptions>) {
-    const needsReinitialize
-      = newOptions.inputSampleRate !== this.options.inputSampleRate
-        || newOptions.outputSampleRate !== this.options.outputSampleRate
-        || newOptions.channels !== this.options.channels
-        || newOptions.converterType !== this.options.converterType
+    const needsReinitialize =
+      newOptions.inputSampleRate !== this.options.inputSampleRate ||
+      newOptions.outputSampleRate !== this.options.outputSampleRate ||
+      newOptions.channels !== this.options.channels ||
+      newOptions.converterType !== this.options.converterType
 
     Object.assign(this.options, newOptions)
 
@@ -136,8 +135,7 @@ class ResamplingAudioWorkletProcessor extends AudioWorkletProcessor {
           }
         }
       }
-    }
-    catch (error) {
+    } catch (error) {
       console.error('Resampling error in worklet:', error)
 
       this.port.postMessage({

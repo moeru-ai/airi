@@ -18,11 +18,10 @@ const count = ref(0)
 
 // useSubscription call unsubscribe method before unmount the component
 useSubscription(
-  interval(1000)
-    .subscribe(() => {
-      count.value++
-      console.log(count)
-    }),
+  interval(1000).subscribe(() => {
+    count.value++
+    console.log(count)
+  }),
 )
 ```
 

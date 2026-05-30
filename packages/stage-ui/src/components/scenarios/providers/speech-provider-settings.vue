@@ -31,7 +31,7 @@ defineSlots<{
   'basic-settings': (props: any) => any
   'voice-settings': (props: any) => any
   'advanced-settings': (props: any) => any
-  'playground': (props: any) => any
+  playground: (props: any) => any
 }>()
 const { t } = useI18n()
 const router = useRouter()
@@ -44,20 +44,21 @@ const providerMetadata = computed(() => providersStore.getProviderMetadata(props
 
 // Common provider settings
 const apiKey = computed({
-  get: () => providers.value[props.providerId]?.apiKey as string | undefined || '',
+  get: () => (providers.value[props.providerId]?.apiKey as string | undefined) || '',
   set: (value) => {
-    if (!providers.value[props.providerId])
-      providers.value[props.providerId] = {}
+    if (!providers.value[props.providerId]) providers.value[props.providerId] = {}
 
     providers.value[props.providerId].apiKey = value
   },
 })
 
 const baseUrl = computed({
-  get: () => providers.value[props.providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultOptions?.().baseUrl as string | undefined || '',
+  get: () =>
+    (providers.value[props.providerId]?.baseUrl as string | undefined) ||
+    (providerMetadata.value?.defaultOptions?.().baseUrl as string | undefined) ||
+    '',
   set: (value) => {
-    if (!providers.value[props.providerId])
-      providers.value[props.providerId] = {}
+    if (!providers.value[props.providerId]) providers.value[props.providerId] = {}
 
     providers.value[props.providerId].baseUrl = value
   },
@@ -70,8 +71,7 @@ const voiceSettings = ref<Record<string, any>>({})
 function initializeVoiceSettings() {
   if (providers.value[props.providerId]?.voiceSettings) {
     voiceSettings.value = { ...(providers.value[props.providerId].voiceSettings as Record<string, any> | undefined) }
-  }
-  else {
+  } else {
     // Default values that most providers use
     voiceSettings.value = {
       pitch: 0,
@@ -87,8 +87,11 @@ onMounted(() => {
   providersStore.initializeProvider(props.providerId)
 
   // Initialize refs with current values
-  apiKey.value = providers.value[props.providerId]?.apiKey as string | undefined || ''
-  baseUrl.value = providers.value[props.providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultOptions?.().baseUrl as string | undefined || ''
+  apiKey.value = (providers.value[props.providerId]?.apiKey as string | undefined) || ''
+  baseUrl.value =
+    (providers.value[props.providerId]?.baseUrl as string | undefined) ||
+    (providerMetadata.value?.defaultOptions?.().baseUrl as string | undefined) ||
+    ''
 
   // Initialize voice settings
   initializeVoiceSettings()
@@ -135,7 +138,11 @@ function handleResetVoiceSettings() {
           :description="t('settings.pages.providers.common.section.basic.description')"
           :on-reset="handleResetVoiceSettings"
         >
-          <ProviderApiKeyInput v-model="apiKey" :provider-name="providerMetadata?.localizedName" :placeholder="props.placeholder || 'API Key'" />
+          <ProviderApiKeyInput
+            v-model="apiKey"
+            :provider-name="providerMetadata?.localizedName"
+            :placeholder="props.placeholder || 'API Key'"
+          />
           <!-- Slot for provider-specific basic settings -->
           <slot name="basic-settings" />
         </ProviderBasicSettings>
@@ -155,7 +162,8 @@ function handleResetVoiceSettings() {
         <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
           <ProviderBaseUrlInput
             v-model="baseUrl"
-            :placeholder="providerMetadata?.defaultOptions?.().baseUrl as string || ''" required
+            :placeholder="(providerMetadata?.defaultOptions?.().baseUrl as string) || ''"
+            required
           />
           <!-- Slot for provider-specific advanced settings -->
           <slot name="advanced-settings" />

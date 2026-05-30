@@ -6,11 +6,7 @@ const input = ref('')
 </script>
 
 <template>
-  <Story
-    title="Textarea"
-    group="form"
-    :layout="{ type: 'grid', width: '100%' }"
-  >
+  <Story title="Textarea" group="form" :layout="{ type: 'grid', width: '100%' }">
     <template #controls>
       <ThemeColorsHueControl />
     </template>

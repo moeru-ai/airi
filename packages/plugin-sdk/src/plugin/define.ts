@@ -12,7 +12,11 @@ import type { Plugin } from './shared'
  * Returns:
  * - A serializable plugin definition that loaders can recognize and execute
  */
-export function definePlugin(name: string, version: string, setup: () => Promise<Plugin> | Plugin): {
+export function definePlugin(
+  name: string,
+  version: string,
+  setup: () => Promise<Plugin> | Plugin,
+): {
   name: string
   version: string
   setup: () => Promise<Plugin> | Plugin

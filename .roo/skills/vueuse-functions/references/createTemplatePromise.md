@@ -24,9 +24,7 @@ async function open() {
 <template>
   <TemplatePromise v-slot="{ promise, resolve, reject, args }">
     <!-- your UI -->
-    <button @click="resolve('ok')">
-      OK
-    </button>
+    <button @click="resolve('ok')">OK</button>
   </TemplatePromise>
 </template>
 ```
@@ -58,9 +56,7 @@ In template, use `v-slot` to access the promise and resolve functions.
 <template>
   <TemplatePromise v-slot="{ promise, resolve, reject, args }">
     <!-- you can have anything -->
-    <button @click="resolve('ok')">
-      OK
-    </button>
+    <button @click="resolve('ok')">OK</button>
   </TemplatePromise>
   <MyPromise v-slot="{ promise, resolve, reject, args }">
     <!-- another one -->
@@ -103,9 +99,7 @@ And in the template slot, you can access the arguments via `args` property.
     <!-- hello -->
     <div>{{ args[1] }}</div>
     <!-- 123 -->
-    <button @click="resolve(true)">
-      OK
-    </button>
+    <button @click="resolve(true)">OK</button>
   </TemplatePromise>
 </template>
 ```
@@ -143,9 +137,7 @@ const TemplatePromise = createTemplatePromise<ReturnType>({
 <template>
   <TemplatePromise v-slot="{ resolve }">
     <!-- your UI -->
-    <button @click="resolve('ok')">
-      OK
-    </button>
+    <button @click="resolve('ok')">OK</button>
   </TemplatePromise>
 </template>
 
@@ -179,16 +171,10 @@ The slot provides the following props:
 ```vue
 <template>
   <TemplatePromise v-slot="{ promise, resolve, reject, args, isResolving }">
-    <div v-if="isResolving">
-      Loading...
-    </div>
+    <div v-if="isResolving">Loading...</div>
     <div v-else>
-      <button @click="resolve('ok')">
-        OK
-      </button>
-      <button @click="reject('cancelled')">
-        Cancel
-      </button>
+      <button @click="resolve('ok')">OK</button>
+      <button @click="reject('cancelled')">Cancel</button>
     </div>
   </TemplatePromise>
 </template>
@@ -281,10 +267,7 @@ export interface TemplatePromiseOptions {
    */
   transition?: TransitionGroupProps
 }
-export type TemplatePromise<
-  Return,
-  Args extends any[] = [],
-> = DefineComponent<object> & {
+export type TemplatePromise<Return, Args extends any[] = []> = DefineComponent<object> & {
   new (): {
     $slots: {
       default: (_: TemplatePromiseProps<Return, Args>) => any

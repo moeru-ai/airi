@@ -17,23 +17,19 @@ export class NanoBananaProvider implements ArtistryProvider {
   setJobCallback(jobId: string, callback: (status: ArtistryJobStatus) => void) {
     this.callbacks.set(jobId, callback)
     const result = this.jobResults.get(jobId)
-    if (result)
-      callback(result)
+    if (result) callback(result)
   }
 
   private updateStatus(jobId: string, status: ArtistryJobStatus) {
     this.jobResults.set(jobId, status)
     const callback = this.callbacks.get(jobId)
-    if (callback)
-      callback(status)
+    if (callback) callback(status)
   }
 
   async initialize(config: any) {
     this.apiKey = config.nanobananaApiKey || config.apiKey || ''
-    if (config.nanobananaModel)
-      this.defaultModel = config.nanobananaModel
-    if (config.nanobananaResolution)
-      this.defaultResolution = config.nanobananaResolution
+    if (config.nanobananaModel) this.defaultModel = config.nanobananaModel
+    if (config.nanobananaResolution) this.defaultResolution = config.nanobananaResolution
     log.log(`[Nano Banana] Initialized. API Key present: ${!!this.apiKey}`)
   }
 
@@ -48,8 +44,7 @@ export class NanoBananaProvider implements ArtistryProvider {
 
     // Robust image extraction & cleansing
     let base64Image = request.extra?.image || request.extra?.providerOptions?.image || ''
-    if (base64Image.includes('base64,'))
-      base64Image = base64Image.split('base64,')[1]
+    if (base64Image.includes('base64,')) base64Image = base64Image.split('base64,')[1]
 
     this.runGeneration(jobId, model, resolution, request.prompt, base64Image)
 
@@ -91,16 +86,13 @@ export class NanoBananaProvider implements ArtistryProvider {
       if (inlineData?.data) {
         const dataUrl = `data:${inlineData.mimeType};base64,${inlineData.data}`
         this.updateStatus(jobId, { status: 'succeeded', progress: 100, imageUrl: dataUrl })
-      }
-      else {
+      } else {
         throw new Error('No image data returned from Nano Banana')
       }
-    }
-    catch (e: any) {
+    } catch (e: any) {
       log.error(`[Nano Banana] Generation failed: ${e.message}`)
       this.updateStatus(jobId, { status: 'failed', error: e.message })
-    }
-    finally {
+    } finally {
       // Clean up callback and job result after completion to prevent memory leaks
       setTimeout(() => {
         this.callbacks.delete(jobId)

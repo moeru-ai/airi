@@ -1,18 +1,16 @@
-import type { DeliveryConfig, MessageHeartbeat, MetadataEventSource, WebSocketBaseEvent, WebSocketEvent } from '@proj-airi/server-shared/types'
-
 import type {
-  RouteContext,
-  RouteDecision,
-  RouteMiddleware,
-} from '../../middlewares'
+  DeliveryConfig,
+  MessageHeartbeat,
+  MetadataEventSource,
+  WebSocketBaseEvent,
+  WebSocketEvent,
+} from '@proj-airi/server-shared/types'
+
+import type { RouteContext, RouteDecision, RouteMiddleware } from '../../middlewares'
 import type { Peer } from '../../types'
 
 import { ServerErrorMessages } from '@proj-airi/server-shared'
-import {
-  getProtocolEventMetadata,
-  MessageHeartbeatKind,
-  WebSocketEventSource,
-} from '@proj-airi/server-shared/types'
+import { getProtocolEventMetadata, MessageHeartbeatKind, WebSocketEventSource } from '@proj-airi/server-shared/types'
 import { nanoid } from 'nanoid'
 import { parse, stringify } from 'superjson'
 
@@ -96,7 +94,7 @@ export function createGateway(input: {
 export function createEventMetadata(
   serverInstanceId: string,
   parentId?: string,
-): { source: MetadataEventSource, event: { id: string, parentId?: string } } {
+): { source: MetadataEventSource; event: { id: string; parentId?: string } } {
   return {
     event: {
       id: nanoid(),
@@ -216,24 +214,21 @@ export function parseEvent(text: string): WebSocketEvent {
   let parsed: WebSocketEvent | undefined
   try {
     parsed = parse<WebSocketEvent>(text)
-  }
-  catch {
+  } catch {
     parsed = undefined
   }
 
-  const potentialEvent = (parsed && typeof parsed === 'object' && 'type' in parsed)
-    ? parsed
-    : JSON.parse(text)
+  const potentialEvent = parsed && typeof parsed === 'object' && 'type' in parsed ? parsed : JSON.parse(text)
 
   if (
-    !potentialEvent
-    || typeof potentialEvent !== 'object'
-    || !('type' in potentialEvent)
-    || typeof potentialEvent.type !== 'string'
-    || !('data' in potentialEvent)
-    || !potentialEvent.data
-    || typeof potentialEvent.data !== 'object'
-    || Array.isArray(potentialEvent.data)
+    !potentialEvent ||
+    typeof potentialEvent !== 'object' ||
+    !('type' in potentialEvent) ||
+    typeof potentialEvent.type !== 'string' ||
+    !('data' in potentialEvent) ||
+    !potentialEvent.data ||
+    typeof potentialEvent.data !== 'object' ||
+    Array.isArray(potentialEvent.data)
   ) {
     throw new AiriWebSocketEventFormatError()
   }

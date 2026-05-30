@@ -36,18 +36,14 @@ const waitingForRequest = computed(() => !requestId.value)
 
 onMounted(async () => {
   try {
-    const id = typeof route.query.id === 'string'
-      ? route.query.id
-      : Array.isArray(route.query.id)
-        ? route.query.id[0]
-        : null
+    const id =
+      typeof route.query.id === 'string' ? route.query.id : Array.isArray(route.query.id) ? route.query.id[0] : null
 
     const pending = await notifyMounted({ id: id ?? undefined })
     if (pending?.id && pending.type === 'fade-on-hover') {
       requestId.value = pending.id
     }
-  }
-  catch (error) {
+  } catch (error) {
     console.warn('Failed to notify notice window mounted:', error)
   }
 })
@@ -55,8 +51,7 @@ onMounted(async () => {
 onBeforeUnmount(async () => {
   try {
     await notifyUnmounted({ id: undefined })
-  }
-  catch {
+  } catch {
     /* noop */
   }
 })
@@ -69,15 +64,12 @@ async function handleAction(action: 'confirm' | 'cancel' | 'close') {
   }
 
   try {
-    if (action === 'confirm')
-      dontShowItAgainNoticeFadeOnHover.value = dontShowItAgainNoticeFadeOnHoverPending.value
+    if (action === 'confirm') dontShowItAgainNoticeFadeOnHover.value = dontShowItAgainNoticeFadeOnHoverPending.value
 
     await sendAction({ id, action })
-  }
-  catch (error) {
+  } catch (error) {
     console.warn('Failed to notify main process of notice action:', error)
-  }
-  finally {
+  } finally {
     window.close()
   }
 }
@@ -87,15 +79,15 @@ async function handleAction(action: 'confirm' | 'cancel' | 'close') {
   <div class="h-100dvh w-100dvw">
     <div class="relative h-full w-full flex flex-col gap-4 text-neutral-900 dark:text-neutral-100">
       <div class="absolute inset-0 z-0 h-full w-full overflow-hidden text-xs text-neutral-600 dark:text-neutral-400">
-        <video :src="isDark ? VideoTutorialFadeOnHoverDark : VideoTutorialFadeOnHoverLight" autoplay muted loop class="h-full w-full object-cover" />
+        <video
+          :src="isDark ? VideoTutorialFadeOnHoverDark : VideoTutorialFadeOnHoverLight"
+          autoplay
+          muted
+          loop
+          class="h-full w-full object-cover"
+        />
       </div>
-      <div
-        :class="[
-          'pointer-events-none absolute left-0 top-0',
-          'h-100dvh w-100dvw',
-        ]"
-        class="heading-backdrop"
-      />
+      <div :class="['pointer-events-none absolute left-0 top-0', 'h-100dvh w-100dvw']" class="heading-backdrop" />
       <div class="relative z-1 h-full w-full flex flex-col">
         <div class="mb-2 flex items-center justify-between gap-2 px-4 pt-4">
           <div
@@ -176,11 +168,7 @@ async function handleAction(action: 'confirm' | 'cancel' | 'close') {
                     </i18n-t>
                   </template>
                 </div>
-                <Button
-                  v-if="!descriptionOpen"
-                  size="sm"
-                  :label="t('tamagotchi.stage.notice.fade-on-hover.confirm')"
-                />
+                <Button v-if="!descriptionOpen" size="sm" :label="t('tamagotchi.stage.notice.fade-on-hover.confirm')" />
               </div>
               <TransitionVertical>
                 <div v-if="descriptionOpen" class="overflow-hidden space-y-2">

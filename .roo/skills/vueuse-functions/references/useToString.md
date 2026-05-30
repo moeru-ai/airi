@@ -28,7 +28,5 @@ str.value // '3.14'
  *
  * @__NO_SIDE_EFFECTS__
  */
-export declare function useToString(
-  value: MaybeRefOrGetter<unknown>,
-): ComputedRef<string>
+export declare function useToString(value: MaybeRefOrGetter<unknown>): ComputedRef<string>
 ```

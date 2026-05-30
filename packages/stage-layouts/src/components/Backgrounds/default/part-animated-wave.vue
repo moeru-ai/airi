@@ -59,7 +59,7 @@ function generateSineWavePath(
   points.push(`M 0 ${baseY}`)
 
   // Generate points for the sine wave
-  const factor = Math.PI * 2 / waveLength
+  const factor = (Math.PI * 2) / waveLength
   for (let x = 0; x <= totalWavesWidth; x += step) {
     const deltaY = amplitude * Math.sin(factor * x)
     const y = direction === 'up' ? baseY - deltaY : baseY + deltaY
@@ -105,10 +105,10 @@ watch(
       <div
         class="colored-area wave"
         :style="{
-          'background': waveFillColor,
-          'height': `${fullHeight}px`,
+          background: waveFillColor,
+          height: `${fullHeight}px`,
           maskImage,
-          'WebkitMaskImage': maskImage,
+          WebkitMaskImage: maskImage,
           '--wave-translate': `${-waveLength}px`,
           '--animation-duration': `${waveLength / animationSpeed}s`,
           'animation-direction': movementDirection === 'left' ? 'normal' : 'reverse',

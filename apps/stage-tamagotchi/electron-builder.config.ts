@@ -7,18 +7,15 @@ import { execSync } from 'node:child_process'
 import { isMacOS } from 'std-env'
 
 function hasXcode26OrAbove() {
-  if (!isMacOS)
-    return false
+  if (!isMacOS) return false
   try {
     const output = execSync('xcodebuild -version')
       .toString()
 
       .match(/Xcode (\d+)/)
-    if (!output)
-      return false
+    if (!output) return false
     return Number.parseInt(output[1], 10) >= 26
-  }
-  catch {
+  } catch {
     return false
   }
 }
@@ -31,8 +28,7 @@ function hasXcode26OrAbove() {
 const useIconFormattedMacAppIcon = hasXcode26OrAbove()
 if (!useIconFormattedMacAppIcon) {
   console.warn('[electron-builder/config] Warning: Xcode version is below 26. Using .icns format for macOS app icon.')
-}
-else {
+} else {
   // NOTICE: This success-path message intentionally uses stderr via `console.warn`.
   // The artifact metadata CLI imports this config and is used in GitHub Actions
   // command substitution for `GITHUB_ENV`; writing this log to stdout would break
@@ -89,14 +85,12 @@ export default {
     '!electron.vite.config.{js,ts,mjs,cjs}',
     '!vite.config.{js,ts,mjs,cjs}',
     '!uno.config.{js,ts,mjs,cjs}',
-    '!{.eslintcache,eslint.config.ts,.yaml,dev-app-update.yml,CHANGELOG.md,README.md}',
+    '!.yaml,dev-app-update.yml,CHANGELOG.md,README.md',
     '!{.env,.env.*,.npmrc,pnpm-lock.yaml}',
     '!{tsconfig.json}',
   ],
   asar: true,
-  asarUnpack: [
-    '**/*.node',
-  ],
+  asarUnpack: ['**/*.node'],
   extraResources: [
     {
       from: '../../engines/stage-tamagotchi-godot/build/${os}',
@@ -228,10 +222,7 @@ export default {
     artifactName: '${productName}-${version}-darwin-${arch}.${ext}',
   },
   linux: {
-    target: [
-      'deb',
-      'rpm',
-    ],
+    target: ['deb', 'rpm'],
     // NOTICE: Same channel rule as Windows/macOS. Keep `${arch}` to avoid x64/arm64 feed collisions on Linux.
     publish: {
       provider: 'github',
@@ -241,7 +232,8 @@ export default {
     },
     category: 'Utility',
     synopsis: 'AI VTuber/Waifu chatbot app inspired by Neuro-sama.',
-    description: 'AIRI is an AI VTuber/Waifu chatbot supporting Live2D/VRM avatars, featuring human-like interactions and modular stage-based rendering.',
+    description:
+      'AIRI is an AI VTuber/Waifu chatbot supporting Live2D/VRM avatars, featuring human-like interactions and modular stage-based rendering.',
     executableName: 'airi',
     artifactName: '${productName}-${version}-linux-${arch}.${ext}',
     icon: 'build/icons/icon.png',
@@ -250,5 +242,4 @@ export default {
     artifactName: '${productName}-${version}-linux-${arch}.${ext}',
   },
   npmRebuild: false,
-
 } satisfies Configuration

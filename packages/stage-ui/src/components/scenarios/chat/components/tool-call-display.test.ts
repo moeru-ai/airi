@@ -22,7 +22,9 @@ describe('tool call display helpers', () => {
    * expect(createToolResultError('Tool failed')?.message).toBe('Tool failed')
    */
   it('creates an Error wrapper for failed tool results', () => {
-    const error = createToolResultError('Tool call error for "play_chess": Focus mode does not accept game-state mutation inputs.')
+    const error = createToolResultError(
+      'Tool call error for "play_chess": Focus mode does not accept game-state mutation inputs.',
+    )
 
     expect(error).toBeInstanceOf(Error)
     expect(error?.message).toContain('Focus mode does not accept game-state mutation inputs.')

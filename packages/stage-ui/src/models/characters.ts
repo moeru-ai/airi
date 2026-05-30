@@ -66,7 +66,7 @@ export function createCharactersModel(params: CreateCharactersModelParams): Char
 
   async function list(options?: CharacterModelOptions): Promise<Character[]> {
     options?.abortSignal?.throwIfAborted()
-    const characters = await store.getItemRaw<Character[]>(STORAGE_KEY) || []
+    const characters = (await store.getItemRaw<Character[]>(STORAGE_KEY)) || []
     options?.abortSignal?.throwIfAborted()
     return characters
   }
@@ -81,12 +81,11 @@ export function createCharactersModel(params: CreateCharactersModelParams): Char
     options?.abortSignal?.throwIfAborted()
     const all = await list(options)
     options?.abortSignal?.throwIfAborted()
-    const index = all.findIndex(item => item.id === character.id)
+    const index = all.findIndex((item) => item.id === character.id)
 
     if (index > -1) {
       all[index] = character
-    }
-    else {
+    } else {
       all.push(character)
     }
 
@@ -97,7 +96,10 @@ export function createCharactersModel(params: CreateCharactersModelParams): Char
     options?.abortSignal?.throwIfAborted()
     const all = await list(options)
     options?.abortSignal?.throwIfAborted()
-    await saveAll(all.filter(character => character.id !== id), options)
+    await saveAll(
+      all.filter((character) => character.id !== id),
+      options,
+    )
   }
 
   return {

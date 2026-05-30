@@ -30,9 +30,7 @@
       // Useful to see console.logs
       // "console": "integratedTerminal",
       // "internalConsoleOptions": "neverOpen",
-      "skipFiles": [
-        "<node_internals>/**"
-      ]
+      "skipFiles": ["<node_internals>/**"]
     },
     {
       "name": "Debug Renderer Process",
@@ -49,12 +47,8 @@
       "name": "Debug VSCode Extension",
       "type": "extensionHost",
       "request": "launch",
-      "args": [
-        "--extensionDevelopmentPath=${workspaceFolder}/plugins/airi-plugin-vscode"
-      ],
-      "outFiles": [
-        "${workspaceFolder}/plugins/airi-plugin-vscode/dist/**/*.cjs"
-      ]
+      "args": ["--extensionDevelopmentPath=${workspaceFolder}/plugins/airi-plugin-vscode"],
+      "outFiles": ["${workspaceFolder}/plugins/airi-plugin-vscode/dist/**/*.cjs"]
     }
   ],
   "compounds": [

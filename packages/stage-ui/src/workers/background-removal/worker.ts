@@ -105,12 +105,10 @@ function clearCancelled(requestId: string): void {
  */
 async function detectWebGPUInWorker(): Promise<boolean> {
   try {
-    if (typeof navigator === 'undefined' || !navigator.gpu)
-      return false
+    if (typeof navigator === 'undefined' || !navigator.gpu) return false
     const adapter = await navigator.gpu.requestAdapter()
     return adapter != null
-  }
-  catch {
+  } catch {
     return false
   }
 }
@@ -170,12 +168,9 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
       device: resolvedDevice,
     }
     globalThis.postMessage(ready)
-  }
-  catch (error) {
-    if (isCancelled(requestId))
-      clearCancelled(requestId)
-    else
-      sendError(requestId, error, 'load')
+  } catch (error) {
+    if (isCancelled(requestId)) clearCancelled(requestId)
+    else sendError(requestId, error, 'load')
   }
 }
 
@@ -202,9 +197,7 @@ async function runInference(request: RunInferenceRequest<BackgroundRemovalInput>
     const { output } = await model({ input: pixel_values })
 
     // Extract mask and resize to original dimensions
-    const mask = await RawImage.fromTensor(
-      output[0].mul(255).to('uint8'),
-    ).resize(width, height)
+    const mask = await RawImage.fromTensor(output[0].mul(255).to('uint8')).resize(width, height)
 
     if (isCancelled(requestId)) {
       clearCancelled(requestId)
@@ -220,12 +213,9 @@ async function runInference(request: RunInferenceRequest<BackgroundRemovalInput>
     }
     // Transfer the buffer to avoid copying
     ;(globalThis as any).postMessage(result, [maskData.buffer])
-  }
-  catch (error) {
-    if (isCancelled(requestId))
-      clearCancelled(requestId)
-    else
-      sendError(requestId, error, 'inference')
+  } catch (error) {
+    if (isCancelled(requestId)) clearCancelled(requestId)
+    else sendError(requestId, error, 'inference')
   }
 }
 

@@ -9,9 +9,5 @@ export function withBase(url: string) {
     return url
   }
 
-  return url.startsWith('/')
-    ? `.${url}`
-    : url.startsWith('./')
-      ? url
-      : `./${url}`
+  return url.startsWith('/') ? `.${url}` : url.startsWith('./') ? url : `./${url}`
 }

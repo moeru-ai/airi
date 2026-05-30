@@ -48,7 +48,7 @@ async function generateReport(zipPath: string) {
   })
 
   // 2. Identify Entry Point
-  const settingsFiles = allFiles.filter(f => f.endsWith('.model3.json'))
+  const settingsFiles = allFiles.filter((f) => f.endsWith('.model3.json'))
   if (settingsFiles.length > 0) {
     report.entryPoint = settingsFiles[0]
     report.structureType = 'Standard (model3.json)'
@@ -56,14 +56,12 @@ async function generateReport(zipPath: string) {
       report.issues.push(`Multiple .model3.json files found. Using: ${settingsFiles[0]}`)
     }
     report.checks.push(`Entry point identified: ${report.entryPoint}`)
-  }
-  else {
+  } else {
     report.structureType = 'Heuristic (Loose Files)'
-    const mocFiles = allFiles.filter(f => f.endsWith('.moc3'))
+    const mocFiles = allFiles.filter((f) => f.endsWith('.moc3'))
     if (mocFiles.length === 1) {
       report.checks.push(`Heuristic match found: Unique MOC file ${mocFiles[0]}`)
-    }
-    else {
+    } else {
       report.issues.push(`Heuristic failure: Found ${mocFiles.length} .moc3 files (Exactly 1 required)`)
     }
   }
@@ -84,8 +82,7 @@ async function generateReport(zipPath: string) {
         if (allFiles.includes(mocPath)) {
           report.metadata.moc = mocPath
           report.checks.push(`MOC file exists: ${mocPath}`)
-        }
-        else {
+        } else {
           report.issues.push(`Missing MOC file: ${mocPath} (referenced in JSON)`)
         }
       }
@@ -96,8 +93,7 @@ async function generateReport(zipPath: string) {
           const texPath = path.posix.join(baseDir, tex)
           if (allFiles.includes(texPath)) {
             report.metadata.textures.push(texPath)
-          }
-          else {
+          } else {
             report.issues.push(`Missing Texture ${i}: ${texPath} (referenced in JSON)`)
           }
         })
@@ -110,8 +106,7 @@ async function generateReport(zipPath: string) {
         if (allFiles.includes(physPath)) {
           report.metadata.physics = physPath
           report.checks.push(`Physics file exists: ${physPath}`)
-        }
-        else {
+        } else {
           report.issues.push(`Missing Physics file: ${physPath} (referenced in JSON)`)
         }
       }
@@ -122,8 +117,7 @@ async function generateReport(zipPath: string) {
         if (allFiles.includes(cdiPath)) {
           report.metadata.cdi = cdiPath
           report.checks.push(`CDI file exists: ${cdiPath}`)
-        }
-        else {
+        } else {
           report.issues.push(`Missing CDI file: ${cdiPath} (referenced in JSON)`)
         }
       }
@@ -135,25 +129,23 @@ async function generateReport(zipPath: string) {
           const expPath = path.posix.join(baseDir, expFile)
           if (allFiles.includes(expPath)) {
             report.metadata.expressions.push(expPath)
-          }
-          else {
+          } else {
             report.issues.push(`Missing Expression: ${expPath} (referenced in JSON)`)
           }
         })
       }
-    }
-    catch (e: any) {
+    } catch (e: any) {
       report.issues.push(`Failed to parse ${report.entryPoint}: ${e.message}`)
     }
   }
 
   // 4. Global Discovery (ZIP-wide scanning as per ZipLoader)
-  const cdiFiles = allFiles.filter(f => f.toLowerCase().endsWith('.cdi3.json'))
+  const cdiFiles = allFiles.filter((f) => f.toLowerCase().endsWith('.cdi3.json'))
   if (cdiFiles.length > 0 && !report.metadata.cdi) {
     report.checks.push(`Auto-discovered CDI: ${cdiFiles[0]}`)
   }
 
-  const expFiles = allFiles.filter(f => f.toLowerCase().endsWith('.exp3.json'))
+  const expFiles = allFiles.filter((f) => f.toLowerCase().endsWith('.exp3.json'))
   expFiles.forEach((f) => {
     if (!report.metadata.expressions.includes(f)) {
       report.metadata.expressions.push(f)
@@ -161,7 +153,9 @@ async function generateReport(zipPath: string) {
   })
   report.checks.push(`Total Expressions found: ${report.metadata.expressions.length}`)
 
-  const motionFiles = allFiles.filter(f => f.toLowerCase().endsWith('.motion3.json') || f.toLowerCase().endsWith('.mtn'))
+  const motionFiles = allFiles.filter(
+    (f) => f.toLowerCase().endsWith('.motion3.json') || f.toLowerCase().endsWith('.mtn'),
+  )
   report.metadata.motions = motionFiles
   report.checks.push(`Total Motions found: ${report.metadata.motions.length}`)
 
@@ -172,12 +166,12 @@ async function generateReport(zipPath: string) {
 
   if (report.checks.length > 0) {
     console.log(`\n[3] CHECKS PASSED:`)
-    report.checks.forEach(c => console.log(`    [V] ${c}`))
+    report.checks.forEach((c) => console.log(`    [V] ${c}`))
   }
 
   if (report.issues.length > 0) {
     console.log(`\n[4] ISSUES FOUND:`)
-    report.issues.forEach(i => console.log(`    [X] ${i}`))
+    report.issues.forEach((i) => console.log(`    [X] ${i}`))
   }
 
   console.log(`\n================================================================\n`)
@@ -186,7 +180,6 @@ async function generateReport(zipPath: string) {
 const target = process.argv[2]
 if (!target) {
   console.log('Usage: node_modules/.bin/tsx packages/stage-ui-live2d/src/utils/live2d-structure-report.ts <zip-path>')
-}
-else {
+} else {
   generateReport(target).catch(console.error)
 }

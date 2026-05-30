@@ -54,69 +54,72 @@ export function useExtensionUIForModule(options: {
   async function refreshPluginAssetBaseUrl() {
     try {
       pluginAssetBaseUrl.value = await options.getPluginAssetBaseUrl()
-    }
-    catch {
+    } catch {
       pluginAssetBaseUrl.value = undefined
     }
   }
 
-  watch(options.moduleId, async (nextModuleId) => {
-    const currentRequestVersion = ++requestVersion
+  watch(
+    options.moduleId,
+    async (nextModuleId) => {
+      const currentRequestVersion = ++requestVersion
 
-    loading.value = true
-    error.value = undefined
-    moduleSnapshot.value = undefined
+      loading.value = true
+      error.value = undefined
+      moduleSnapshot.value = undefined
 
-    await refreshPluginAssetBaseUrl()
+      await refreshPluginAssetBaseUrl()
 
-    if (!nextModuleId) {
-      if (currentRequestVersion === requestVersion) {
-        loading.value = false
-        error.value = 'Missing extension UI module id.'
-      }
-      return
-    }
-
-    try {
-      const snapshot = await options.inspectPluginHost()
-      if (currentRequestVersion !== requestVersion) {
+      if (!nextModuleId) {
+        if (currentRequestVersion === requestVersion) {
+          loading.value = false
+          error.value = 'Missing extension UI module id.'
+        }
         return
       }
 
-      moduleSnapshot.value = snapshot.modules.find(module => module.moduleId === nextModuleId)
-      if (!moduleSnapshot.value) {
-        error.value = `Extension UI module "${nextModuleId}" is not registered.`
+      try {
+        const snapshot = await options.inspectPluginHost()
+        if (currentRequestVersion !== requestVersion) {
+          return
+        }
+
+        moduleSnapshot.value = snapshot.modules.find((module) => module.moduleId === nextModuleId)
+        if (!moduleSnapshot.value) {
+          error.value = `Extension UI module "${nextModuleId}" is not registered.`
+        }
+      } catch (cause) {
+        if (currentRequestVersion !== requestVersion) {
+          return
+        }
+
+        error.value = errorMessageFrom(cause) || 'Failed to inspect extension UI modules.'
+      } finally {
+        if (currentRequestVersion === requestVersion) {
+          loading.value = false
+        }
       }
-    }
-    catch (cause) {
-      if (currentRequestVersion !== requestVersion) {
-        return
-      }
+    },
+    { immediate: true },
+  )
 
-      error.value = errorMessageFrom(cause) || 'Failed to inspect extension UI modules.'
-    }
-    finally {
-      if (currentRequestVersion === requestVersion) {
-        loading.value = false
-      }
-    }
-  }, { immediate: true })
+  const moduleConfig = computed(() =>
+    isPlainObject(moduleSnapshot.value?.config) ? (moduleSnapshot.value.config as Record<string, unknown>) : {},
+  )
+  const widgetConfig = computed(() =>
+    isPlainObject(moduleConfig.value.widget) ? (moduleConfig.value.widget as Record<string, unknown>) : {},
+  )
+  const iframeConfig = computed(() =>
+    isPlainObject(widgetConfig.value.iframe) ? (widgetConfig.value.iframe as Record<string, unknown>) : {},
+  )
 
-  const moduleConfig = computed(() => isPlainObject(moduleSnapshot.value?.config) ? moduleSnapshot.value.config as Record<string, unknown> : {})
-  const widgetConfig = computed(() => isPlainObject(moduleConfig.value.widget) ? moduleConfig.value.widget as Record<string, unknown> : {})
-  const iframeConfig = computed(() => isPlainObject(widgetConfig.value.iframe) ? widgetConfig.value.iframe as Record<string, unknown> : {})
+  const iframeSrc = computed(() =>
+    firstString(iframeConfig.value.src, widgetConfig.value.iframeSrc, moduleConfig.value.iframeSrc),
+  )
 
-  const iframeSrc = computed(() => firstString(
-    iframeConfig.value.src,
-    widgetConfig.value.iframeSrc,
-    moduleConfig.value.iframeSrc,
-  ))
-
-  const iframeSrcdoc = computed(() => firstString(
-    iframeConfig.value.srcdoc,
-    widgetConfig.value.iframeSrcdoc,
-    moduleConfig.value.iframeSrcdoc,
-  ))
+  const iframeSrcdoc = computed(() =>
+    firstString(iframeConfig.value.srcdoc, widgetConfig.value.iframeSrcdoc, moduleConfig.value.iframeSrcdoc),
+  )
 
   const resolvedIframeSrc = computed(() => {
     const src = iframeSrc.value

@@ -13,9 +13,7 @@ Compiles multiple utility classes into a single hashed class for smaller HTML.
 import { defineConfig, transformerCompileClass } from 'unocss'
 
 export default defineConfig({
-  transformers: [
-    transformerCompileClass(),
-  ],
+  transformers: [transformerCompileClass()],
 })
 ```
 
@@ -94,6 +92,7 @@ Enforce compile class usage across project:
 ```
 
 This rule:
+
 - Warns when class attribute doesn't start with `:uno:`
 - Auto-fixes by adding the prefix
 
@@ -102,10 +101,13 @@ Options:
 ```json
 {
   "rules": {
-    "@unocss/enforce-class-compile": ["warn", {
-      "prefix": ":uno:",
-      "enableFix": true
-    }]
+    "@unocss/enforce-class-compile": [
+      "warn",
+      {
+        "prefix": ":uno:",
+        "enableFix": true
+      }
+    ]
   }
 }
 ```

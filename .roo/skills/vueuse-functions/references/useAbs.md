@@ -25,7 +25,5 @@ const absValue = useAbs(value) // Ref<23>
  *
  * @__NO_SIDE_EFFECTS__
  */
-export declare function useAbs(
-  value: MaybeRefOrGetter<number>,
-): ComputedRef<number>
+export declare function useAbs(value: MaybeRefOrGetter<number>): ComputedRef<number>
 ```

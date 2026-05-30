@@ -6,8 +6,7 @@ interface EventSourcePayload {
 }
 
 function formatMetadataSource(source?: MetadataEventSource) {
-  if (!source?.plugin)
-    return undefined
+  if (!source?.plugin) return undefined
 
   const pluginId = source.plugin.id
   const instanceId = source.id
@@ -27,9 +26,5 @@ function formatMetadataSource(source?: MetadataEventSource) {
  * - `"p:i"`
  */
 export function getEventSourceKey(event: EventSourcePayload, fallback = 'unknown') {
-  return (
-    formatMetadataSource(event.metadata?.source)
-    ?? event.source
-    ?? fallback
-  )
+  return formatMetadataSource(event.metadata?.source) ?? event.source ?? fallback
 }

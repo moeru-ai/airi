@@ -8,8 +8,15 @@ import { powerMonitor } from 'electron'
 
 import { onAppBeforeQuit } from '../../libs/bootkit/lifecycle'
 
-export function createPowerMonitorService(params: { context: ReturnType<typeof createContext>['context'], window: BrowserWindow }) {
-  function onOff<EM extends EventEmitter, E extends string>(eventEmitter: EM, event: E, listener: Parameters<EM['on']>[1]) {
+export function createPowerMonitorService(params: {
+  context: ReturnType<typeof createContext>['context']
+  window: BrowserWindow
+}) {
+  function onOff<EM extends EventEmitter, E extends string>(
+    eventEmitter: EM,
+    event: E,
+    listener: Parameters<EM['on']>[1],
+  ) {
     eventEmitter.on(event, listener)
     onAppBeforeQuit(() => {
       eventEmitter.off(event, listener)

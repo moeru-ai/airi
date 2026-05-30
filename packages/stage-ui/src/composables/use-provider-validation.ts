@@ -23,8 +23,7 @@ export function useProviderValidation(providerId: string) {
   const apiKey = computed({
     get: () => credentials.value.apiKey || '',
     set: (value) => {
-      if (!providers.value[providerId])
-        providers.value[providerId] = {}
+      if (!providers.value[providerId]) providers.value[providerId] = {}
       providers.value[providerId].apiKey = value
     },
   })
@@ -32,8 +31,7 @@ export function useProviderValidation(providerId: string) {
   const baseUrl = computed({
     get: () => credentials.value.baseUrl || '',
     set: (value) => {
-      if (!providers.value[providerId])
-        providers.value[providerId] = {}
+      if (!providers.value[providerId]) providers.value[providerId] = {}
       providers.value[providerId].baseUrl = value
     },
   })
@@ -41,8 +39,7 @@ export function useProviderValidation(providerId: string) {
   const accountId = computed({
     get: () => credentials.value.accountId || '',
     set: (value) => {
-      if (!providers.value[providerId])
-        providers.value[providerId] = {}
+      if (!providers.value[providerId]) providers.value[providerId] = {}
       providers.value[providerId].accountId = value
     },
   })
@@ -60,8 +57,7 @@ export function useProviderValidation(providerId: string) {
   const manualTestMessage = ref('')
 
   async function validateConfiguration() {
-    if (!providerMetadata.value)
-      return
+    if (!providerMetadata.value) return
 
     isValidating.value++
     validationMessage.value = ''
@@ -70,10 +66,8 @@ export function useProviderValidation(providerId: string) {
 
     try {
       const config = { ...credentials.value }
-      if (config.apiKey)
-        config.apiKey = config.apiKey.trim()
-      if (config.baseUrl)
-        config.baseUrl = config.baseUrl.trim()
+      if (config.apiKey) config.apiKey = config.apiKey.trim()
+      if (config.baseUrl) config.baseUrl = config.baseUrl.trim()
 
       // Settings pages always skip chat ping check during automatic validation
       // to avoid unexpected API billing. Users can trigger it manually.
@@ -82,8 +76,7 @@ export function useProviderValidation(providerId: string) {
       })
       isValid.value = validationResult.valid
 
-      if (!isValid.value)
-        finalValidationMessage = validationResult.reason
+      if (!isValid.value) finalValidationMessage = validationResult.reason
 
       // When a provider validates successfully on its settings page,
       // mark it as added so it appears in the model selector (e.g. Consciousness module).
@@ -92,47 +85,42 @@ export function useProviderValidation(providerId: string) {
       if (isValid.value) {
         providersStore.markProviderAdded(providerId)
       }
-    }
-    catch (error) {
+    } catch (error) {
       isValid.value = false
       finalValidationMessage = t('settings.dialogs.onboarding.validationError', {
         error: errorMessageFrom(error) ?? 'Generic error (993b5ad7)',
       })
-    }
-    finally {
-      setTimeout(() => {
-        isValidating.value--
-        validationMessage.value = finalValidationMessage
-      }, Math.max(0, debounceTime - (performance.now() - startValidationTimestamp)))
+    } finally {
+      setTimeout(
+        () => {
+          isValidating.value--
+          validationMessage.value = finalValidationMessage
+        },
+        Math.max(0, debounceTime - (performance.now() - startValidationTimestamp)),
+      )
     }
   }
 
   async function runManualTest() {
-    if (!providerMetadata.value)
-      return
+    if (!providerMetadata.value) return
 
     isManualTesting.value = true
     manualTestMessage.value = ''
 
     try {
       const config = { ...credentials.value }
-      if (config.apiKey)
-        config.apiKey = config.apiKey.trim()
-      if (config.baseUrl)
-        config.baseUrl = config.baseUrl.trim()
+      if (config.apiKey) config.apiKey = config.apiKey.trim()
+      if (config.baseUrl) config.baseUrl = config.baseUrl.trim()
 
       const result = await providerMetadata.value.validators.validateProviderConfig(config, {
         onlyChatPingCheck: true,
       })
       manualTestPassed.value = result.valid
-      if (!result.valid)
-        manualTestMessage.value = result.reason
-    }
-    catch (error) {
+      if (!result.valid) manualTestMessage.value = result.reason
+    } catch (error) {
       manualTestPassed.value = false
       manualTestMessage.value = errorMessageFrom(error) ?? 'Generic error (e56ae24f)'
-    }
-    finally {
+    } finally {
       isManualTesting.value = false
     }
   }
@@ -158,20 +146,26 @@ export function useProviderValidation(providerId: string) {
   onMounted(() => {
     providersStore.initializeProvider(providerId)
     const config = credentials.value as Record<string, unknown>
-    if (AUTH_FIELDS.some((field) => {
-      const v = config[field]
-      return v !== null && v !== undefined && String(v).trim() !== ''
-    })) {
+    if (
+      AUTH_FIELDS.some((field) => {
+        const v = config[field]
+        return v !== null && v !== undefined && String(v).trim() !== ''
+      })
+    ) {
       validateConfiguration()
     }
   })
 
-  watch(credentials, () => {
-    debouncedValidateConfiguration()
-    // Reset manual test state when credentials change
-    manualTestPassed.value = false
-    manualTestMessage.value = ''
-  }, { deep: true })
+  watch(
+    credentials,
+    () => {
+      debouncedValidateConfiguration()
+      // Reset manual test state when credentials change
+      manualTestPassed.value = false
+      manualTestMessage.value = ''
+    },
+    { deep: true },
+  )
 
   function handleResetSettings() {
     const defaultOptions = providerMetadata.value?.defaultOptions ? providerMetadata.value.defaultOptions() : {}

@@ -36,20 +36,12 @@ const slots = useSlots()
       <div
         v-else
         class="flex flex-col items-center"
-        :class="[
-          isDragging ? 'text-primary-500 dark:text-primary-400' : 'text-neutral-400 dark:text-neutral-500',
-        ]"
+        :class="[isDragging ? 'text-primary-500 dark:text-primary-400' : 'text-neutral-400 dark:text-neutral-500']"
       >
         <div i-solar:upload-square-line-duotone mb-2 text-5xl />
-        <p font-medium text="center lg">
-          Upload
-        </p>
-        <p v-if="isDragging" text="center" text-sm>
-          Release to upload
-        </p>
-        <p v-else text="center" text-sm>
-          Click or drag and drop a file here
-        </p>
+        <p font-medium text="center lg">Upload</p>
+        <p v-if="isDragging" text="center" text-sm>Release to upload</p>
+        <p v-else text="center" text-sm>Click or drag and drop a file here</p>
       </div>
     </template>
   </BasicInputFile>

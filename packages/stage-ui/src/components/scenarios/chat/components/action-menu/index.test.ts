@@ -23,7 +23,7 @@ describe('createChatActionMenuItems', () => {
       canDelete: true,
     })
 
-    expect(items.map(item => item.action)).toEqual(['copy', 'retry', 'delete'])
+    expect(items.map((item) => item.action)).toEqual(['copy', 'retry', 'delete'])
     expect(items[1]?.label).toBe('Retry')
   })
 
@@ -41,7 +41,7 @@ describe('createChatActionMenuItems', () => {
       canDelete: true,
     })
 
-    expect(items.map(item => item.action)).toEqual(['copy', 'delete'])
+    expect(items.map((item) => item.action)).toEqual(['copy', 'delete'])
   })
 })
 

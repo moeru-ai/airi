@@ -39,7 +39,7 @@ function toWidgetsIframePostMessageValue(value: unknown, seen = new WeakSet<obje
   seen.add(raw)
 
   if (Array.isArray(raw)) {
-    const arrayValue = raw.map(item => toWidgetsIframePostMessageValue(item, seen))
+    const arrayValue = raw.map((item) => toWidgetsIframePostMessageValue(item, seen))
     seen.delete(raw)
     return arrayValue
   }
@@ -70,7 +70,7 @@ function toWidgetsIframePostMessageValue(value: unknown, seen = new WeakSet<obje
 export function toWidgetsIframePostMessageRecord(value: unknown): Record<string, unknown> {
   const normalized = toWidgetsIframePostMessageValue(value)
   return normalized && typeof normalized === 'object' && !Array.isArray(normalized)
-    ? normalized as Record<string, unknown>
+    ? (normalized as Record<string, unknown>)
     : {}
 }
 
@@ -129,8 +129,7 @@ export function useIframeMessagePort(
   function emitInitPayload() {
     try {
       iframeRuntime.context.emit(widgetsIframeInitEvent, createInitPayload())
-    }
-    catch (error) {
+    } catch (error) {
       const message = errorMessageFrom(error) ?? 'Failed to send extension UI iframe init payload.'
       iframeLoadError.value = message
       console.error('[extension-ui] Failed to emit iframe init payload', {
@@ -162,9 +161,13 @@ export function useIframeMessagePort(
     void options.onPublish?.(event.body as Record<string, unknown>)
   })
 
-  watch(options.moduleId, () => {
-    emitInitPayload()
-  }, { immediate: true })
+  watch(
+    options.moduleId,
+    () => {
+      emitInitPayload()
+    },
+    { immediate: true },
+  )
 
   watch(options.propsPayload, () => {
     emitInitPayload()

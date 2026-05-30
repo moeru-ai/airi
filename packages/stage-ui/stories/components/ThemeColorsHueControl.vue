@@ -24,14 +24,7 @@ watch(themeColorsHue, () => {
 
 <template>
   <div px-4 py-2 flex="~ col">
-    <input
-      v-model="themeColorsHue"
-      type="range"
-      min="0"
-      max="360"
-      step="0.01"
-      class="chromatic-hue-slider"
-    >
+    <input v-model="themeColorsHue" type="range" min="0" max="360" step="0.01" class="chromatic-hue-slider" />
     <button
       class="mt-2 rounded-md px-2 py-1 text-xs transition-colors"
       bg="neutral-200 dark:neutral-800 hover:neutral-200 dark:hover:neutral-700"

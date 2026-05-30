@@ -19,7 +19,7 @@ const injectedValue = injectLocal('MyInjectionKey') // injectedValue === 1
 
 ## Type Declarations
 
-```ts
+````ts
 /**
  * On the basis of `inject`, it is allowed to directly call inject to obtain the value after call provide in the same component.
  *
@@ -32,4 +32,4 @@ const injectedValue = injectLocal('MyInjectionKey') // injectedValue === 1
  * @__NO_SIDE_EFFECTS__
  */
 export declare const injectLocal: typeof inject
-```
+````

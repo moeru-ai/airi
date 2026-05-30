@@ -17,17 +17,14 @@ export function isStageThreeRuntimeTraceEnabled() {
 }
 
 export function releaseStageThreeRuntimeTrace(token?: string) {
-  if (!token)
-    return
+  if (!token) return
 
   const current = tokenLeaseCount.get(token)
-  if (!current)
-    return
+  if (!current) return
 
   if (current <= 1) {
     tokenLeaseCount.delete(token)
-  }
-  else {
+  } else {
     tokenLeaseCount.set(token, current - 1)
   }
 
@@ -40,8 +37,7 @@ export function acquireStageThreeRuntimeTrace(token = createTraceToken()) {
 
   let released = false
   return () => {
-    if (released)
-      return
+    if (released) return
     released = true
     releaseStageThreeRuntimeTrace(token)
   }

@@ -16,6 +16,6 @@ const { options, selectedOption } = storeToRefs(backgroundStore)
     :selected="selectedOption"
     :options="options"
     @apply="backgroundStore.applyPickerSelection"
-    @remove="option => backgroundStore.removeOption(option.id)"
+    @remove="(option) => backgroundStore.removeOption(option.id)"
   />
 </template>

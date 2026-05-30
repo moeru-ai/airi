@@ -100,17 +100,15 @@ export interface GPUResourceCoordinator {
 // Constants
 // ---------------------------------------------------------------------------
 
-const WARNING_THRESHOLD = 0.80
+const WARNING_THRESHOLD = 0.8
 const CRITICAL_THRESHOLD = 0.95
-const BUDGET_SAFETY_FACTOR = 0.70
+const BUDGET_SAFETY_FACTOR = 0.7
 
 // ---------------------------------------------------------------------------
 // Factory
 // ---------------------------------------------------------------------------
 
-export function createGPUResourceCoordinator(
-  estimatedVRAM: number,
-): GPUResourceCoordinator {
+export function createGPUResourceCoordinator(estimatedVRAM: number): GPUResourceCoordinator {
   const budget = estimatedVRAM > 0 ? estimatedVRAM * BUDGET_SAFETY_FACTOR : Number.POSITIVE_INFINITY
   const allocations = new Map<string, AllocationToken>()
   const pressureHandlers = new Set<(level: MemoryPressureLevel) => void>()
@@ -121,23 +119,18 @@ export function createGPUResourceCoordinator(
 
   function getAllocated(): number {
     let total = 0
-    for (const token of allocations.values())
-      total += token.bytes
+    for (const token of allocations.values()) total += token.bytes
     return total
   }
 
   function checkPressure(): void {
-    if (budget === Number.POSITIVE_INFINITY)
-      return
+    if (budget === Number.POSITIVE_INFINITY) return
 
     const ratio = getAllocated() / budget
     if (ratio >= CRITICAL_THRESHOLD) {
-      for (const handler of pressureHandlers)
-        handler('critical')
-    }
-    else if (ratio >= WARNING_THRESHOLD) {
-      for (const handler of pressureHandlers)
-        handler('warning')
+      for (const handler of pressureHandlers) handler('critical')
+    } else if (ratio >= WARNING_THRESHOLD) {
+      for (const handler of pressureHandlers) handler('warning')
     }
   }
 
@@ -168,8 +161,7 @@ export function createGPUResourceCoordinator(
 
   function touch(modelId: string): void {
     const token = allocations.get(modelId)
-    if (token)
-      token.lastUsedAt = Date.now()
+    if (token) token.lastUsedAt = Date.now()
   }
 
   function getUsage(): GPUResourceUsage {
@@ -183,8 +175,7 @@ export function createGPUResourceCoordinator(
   function getLRUModel(): string | null {
     let oldest: AllocationToken | null = null
     for (const token of allocations.values()) {
-      if (!oldest || token.lastUsedAt < oldest.lastUsedAt)
-        oldest = token
+      if (!oldest || token.lastUsedAt < oldest.lastUsedAt) oldest = token
     }
     return oldest?.modelId ?? null
   }
@@ -198,8 +189,7 @@ export function createGPUResourceCoordinator(
     deviceLossTotal++
     deviceLossByModel.set(event.modelId, (deviceLossByModel.get(event.modelId) ?? 0) + 1)
     lastDeviceLossEvent = event
-    for (const handler of deviceLossHandlers)
-      handler(event)
+    for (const handler of deviceLossHandlers) handler(event)
   }
 
   function getDeviceLossMetrics(): DeviceLossMetrics {

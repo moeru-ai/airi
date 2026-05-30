@@ -40,10 +40,9 @@ export default defineConfig({
 ```
 
 Responsive:
+
 ```html
-<article class="prose prose-sm md:prose-base lg:prose-lg">
-  Responsive typography
-</article>
+<article class="prose prose-sm md:prose-base lg:prose-lg">Responsive typography</article>
 ```
 
 ## Colors
@@ -57,9 +56,7 @@ Responsive:
 ## Dark Mode
 
 ```html
-<article class="prose dark:prose-invert">
-  Dark mode typography
-</article>
+<article class="prose dark:prose-invert">Dark mode typography</article>
 ```
 
 ## Excluding Elements
@@ -83,7 +80,7 @@ presetTypography({
   cssVarPrefix: '--un-prose', // CSS variable prefix
   important: false, // Make !important
   cssExtend: {
-    'code': { color: '#8b5cf6' },
+    code: { color: '#8b5cf6' },
     'a:hover': { color: '#f43f5e' },
   },
 })

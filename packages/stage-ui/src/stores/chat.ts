@@ -1,4 +1,9 @@
-import type { ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
+import type {
+  ChatOrchestratorRuntimeState,
+  ChatOrchestratorSendOptions,
+  StreamEvent,
+  StreamOptions,
+} from '@proj-airi/core-agent'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message } from '@xsai/shared-chat'
 
@@ -111,8 +116,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       })
 
       llmSpan.setAttribute(IOAttributes.LLMTextLength, llmTextLength)
-    }
-    finally {
+    } finally {
       llmSpan.end()
     }
   }
@@ -123,24 +127,22 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   }
 
   function settleOwnedActiveTurnSpan() {
-    if (!ownedActiveTurnSpan)
-      return
+    if (!ownedActiveTurnSpan) return
 
     ownedActiveTurnSpan.end()
-    if (activeTurnSpan.value === ownedActiveTurnSpan)
-      activeTurnSpan.value = undefined
+    if (activeTurnSpan.value === ownedActiveTurnSpan) activeTurnSpan.value = undefined
     ownedActiveTurnSpan = undefined
   }
 
   const runtime = createChatOrchestratorRuntime({
     session: {
-      ensureSession: sessionId => chatSession.ensureSession(sessionId),
-      getSessionMessages: sessionId => chatSession.getSessionMessages(sessionId).map(message => toRaw(message)),
+      ensureSession: (sessionId) => chatSession.ensureSession(sessionId),
+      getSessionMessages: (sessionId) => chatSession.getSessionMessages(sessionId).map((message) => toRaw(message)),
       appendSessionMessage: (sessionId, message) => chatSession.appendSessionMessage(sessionId, message),
-      getSessionGeneration: sessionId => chatSession.getSessionGeneration(sessionId),
+      getSessionGeneration: (sessionId) => chatSession.getSessionGeneration(sessionId),
     },
     context: {
-      ingest: envelope => chatContext.ingestContextMessage(envelope),
+      ingest: (envelope) => chatContext.ingestContextMessage(envelope),
       snapshot: () => chatContext.getContextsSnapshot(),
     },
     foregroundStream: {
@@ -157,38 +159,41 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     getActiveSessionId: () => activeSessionId.value,
     getActiveProvider: () => activeProvider.value,
     getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
-    runtimeContextProviders: [
-      createMinecraftContext,
-    ],
+    runtimeContextProviders: [createMinecraftContext],
     createId: nanoid,
-    unwrapMessage: message => toRaw(message),
+    unwrapMessage: (message) => toRaw(message),
     onStateChange: syncRuntimeState,
     onSendSettled: settleOwnedActiveTurnSpan,
     onTrackFirstMessage: trackFirstMessage,
-    onMessageSendStarted: ({ source, model }) => trackMessageSendStarted({
-      source,
-      model,
-    }),
-    onLlmRequestStarted: ({ model, provider, hasVoice }) => trackLlmRequestStarted({
-      model,
-      provider,
-      has_voice: hasVoice,
-    }),
-    onLlmFirstToken: ({ model, ttfbMs }) => trackLlmFirstToken({
-      model,
-      ttfb_ms: ttfbMs,
-    }),
-    onAssistantResponseRendered: ({ model, latencyMs }) => trackAssistantResponseRendered({
-      model,
-      latency_ms: latencyMs,
-    }),
-    onMessageRound: ({ durationMs, hasVoice, model }) => trackMessageRound({
-      duration_ms: durationMs,
-      has_voice: hasVoice,
-      model,
-    }),
-    onLifecycle: record => contextObservability.recordLifecycle(record),
-    onPromptProjection: payload => contextObservability.capturePromptProjection(payload),
+    onMessageSendStarted: ({ source, model }) =>
+      trackMessageSendStarted({
+        source,
+        model,
+      }),
+    onLlmRequestStarted: ({ model, provider, hasVoice }) =>
+      trackLlmRequestStarted({
+        model,
+        provider,
+        has_voice: hasVoice,
+      }),
+    onLlmFirstToken: ({ model, ttfbMs }) =>
+      trackLlmFirstToken({
+        model,
+        ttfb_ms: ttfbMs,
+      }),
+    onAssistantResponseRendered: ({ model, latencyMs }) =>
+      trackAssistantResponseRendered({
+        model,
+        latency_ms: latencyMs,
+      }),
+    onMessageRound: ({ durationMs, hasVoice, model }) =>
+      trackMessageRound({
+        duration_ms: durationMs,
+        has_voice: hasVoice,
+        model,
+      }),
+    onLifecycle: (record) => contextObservability.recordLifecycle(record),
+    onPromptProjection: (payload) => contextObservability.capturePromptProjection(payload),
     onUserMessageAppended: ({ sessionId, message, messageText }) => {
       if (isCloudSyncableMessage(message)) {
         void chatSession.pushMessageToCloud(sessionId, {
@@ -220,26 +225,16 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   })
 
   watch(sending, (next) => {
-    if (runtime.getSending() !== next)
-      runtime.setSending(next)
+    if (runtime.getSending() !== next) runtime.setSending(next)
   })
 
-  async function ingest(
-    sendingMessage: string,
-    options: ChatOrchestratorSendOptions,
-    targetSessionId?: string,
-  ) {
+  async function ingest(sendingMessage: string, options: ChatOrchestratorSendOptions, targetSessionId?: string) {
     return runtime.ingest(sendingMessage, options, targetSessionId)
   }
 
-  async function ingestOnFork(
-    sendingMessage: string,
-    options: ChatOrchestratorSendOptions,
-    forkOptions?: ForkOptions,
-  ) {
+  async function ingestOnFork(sendingMessage: string, options: ChatOrchestratorSendOptions, forkOptions?: ForkOptions) {
     const baseSessionId = forkOptions?.fromSessionId ?? activeSessionId.value
-    if (!forkOptions)
-      return ingest(sendingMessage, options, baseSessionId)
+    if (!forkOptions) return ingest(sendingMessage, options, baseSessionId)
 
     const forkSessionId = await chatSession.forkSession({
       fromSessionId: baseSessionId,

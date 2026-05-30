@@ -9,13 +9,7 @@ import { SERVER_URL } from '../server'
  * envelope.
  */
 export interface StreamingTtsServerEvent {
-  event:
-    | 'session.started'
-    | 'sentence.start'
-    | 'sentence.end'
-    | 'subtitle'
-    | 'session.finished'
-    | 'error'
+  event: 'session.started' | 'sentence.start' | 'sentence.end' | 'subtitle' | 'session.finished' | 'error'
   text?: string
   code?: string
   message?: string
@@ -30,7 +24,7 @@ export interface StreamingTtsServerEvent {
 export interface StreamingTtsSessionResult {
   audio: ArrayBuffer
   /** Sentence-level events received from the gateway, in arrival order. */
-  sentences: Array<{ kind: 'start' | 'end' | 'subtitle', payload?: Record<string, unknown> }>
+  sentences: Array<{ kind: 'start' | 'end' | 'subtitle'; payload?: Record<string, unknown> }>
   /** Total bytes accumulated across all binary audio frames. */
   byteLength: number
 }
@@ -81,8 +75,7 @@ const DEFAULT_RESPONSE_FORMAT = 'mp3' as const
  */
 export async function streamingSynthesize(options: StreamingTtsSessionOptions): Promise<StreamingTtsSessionResult> {
   const token = options.token ?? getAuthToken()
-  if (!token)
-    throw new Error('streaming-tts: not authenticated')
+  if (!token) throw new Error('streaming-tts: not authenticated')
 
   const baseUrl = options.serverUrl ?? SERVER_URL
   const wsUrl = toWebSocketUrl(baseUrl, '/api/v1/audio/speech/ws', token)
@@ -97,20 +90,15 @@ export async function streamingSynthesize(options: StreamingTtsSessionOptions): 
 
     let settled = false
     function settle(action: () => void) {
-      if (settled)
-        return
+      if (settled) return
       settled = true
       try {
         action()
-      }
-      finally {
+      } finally {
         try {
-          if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)
-            ws.close()
-        }
-        catch {}
-        if (options.signal != null)
-          options.signal.removeEventListener('abort', onAbort)
+          if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) ws.close()
+        } catch {}
+        if (options.signal != null) options.signal.removeEventListener('abort', onAbort)
       }
     }
 
@@ -118,8 +106,7 @@ export async function streamingSynthesize(options: StreamingTtsSessionOptions): 
       settle(() => {
         try {
           ws.send(JSON.stringify({ event: 'cancel' }))
-        }
-        catch {}
+        } catch {}
         reject(options.signal?.reason ?? new DOMException('aborted', 'AbortError'))
       })
     }
@@ -159,8 +146,7 @@ export async function streamingSynthesize(options: StreamingTtsSessionOptions): 
         let evt: StreamingTtsServerEvent
         try {
           evt = JSON.parse(e.data) as StreamingTtsServerEvent
-        }
-        catch {
+        } catch {
           return
         }
 
@@ -233,10 +219,8 @@ function toWebSocketUrl(httpBase: string, path: string, token: string): string {
 }
 
 function concatArrayBuffers(parts: ArrayBuffer[]): ArrayBuffer {
-  if (parts.length === 0)
-    return new ArrayBuffer(0)
-  if (parts.length === 1)
-    return parts[0]
+  if (parts.length === 0) return new ArrayBuffer(0)
+  if (parts.length === 1) return parts[0]
   const total = parts.reduce((acc, p) => acc + p.byteLength, 0)
   const out = new Uint8Array(total)
   let offset = 0

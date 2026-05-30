@@ -67,8 +67,7 @@ export function useScrollToHash(
   let retryTimer: number | undefined
 
   const getScrollContainer = (): Window | HTMLElement => {
-    if (!scrollContainer)
-      return window
+    if (!scrollContainer) return window
     if (typeof scrollContainer === 'string') {
       const el = document.querySelector(scrollContainer)
       return el instanceof HTMLElement ? el : window
@@ -77,8 +76,7 @@ export function useScrollToHash(
   }
 
   const scrollToHash = (hash?: string, attempt = 0) => {
-    if (!hash)
-      return
+    if (!hash) return
 
     // Cancel any existing retry loop
     if (retryTimer) {
@@ -94,8 +92,7 @@ export function useScrollToHash(
         if (container instanceof Window) {
           const top = el.getBoundingClientRect().top + window.scrollY - offset
           window.scrollTo({ top, behavior })
-        }
-        else {
+        } else {
           const containerRect = container.getBoundingClientRect()
           const elRect = el.getBoundingClientRect()
           const scrollTop = elRect.top - containerRect.top + container.scrollTop - offset
@@ -115,16 +112,14 @@ export function useScrollToHash(
     watch(
       () => (typeof hashRef === 'function' ? hashRef() : unref(hashRef)),
       (newHash) => {
-        if (newHash)
-          scrollToHash(newHash)
+        if (newHash) scrollToHash(newHash)
       },
       { immediate: true },
     )
   }
 
   onBeforeUnmount(() => {
-    if (retryTimer)
-      clearTimeout(retryTimer)
+    if (retryTimer) clearTimeout(retryTimer)
   })
 
   return { scrollToHash }

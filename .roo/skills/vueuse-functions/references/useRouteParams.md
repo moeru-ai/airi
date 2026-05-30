@@ -24,13 +24,8 @@ userId.value = '100' // router.replace({ params: { userId: '100' } })
 ## Type Declarations
 
 ```ts
-export declare function useRouteParams(
-  name: string,
-): Ref<null | string | string[]>
-export declare function useRouteParams<
-  T extends RouteParamValueRaw = RouteParamValueRaw,
-  K = T,
->(
+export declare function useRouteParams(name: string): Ref<null | string | string[]>
+export declare function useRouteParams<T extends RouteParamValueRaw = RouteParamValueRaw, K = T>(
   name: string,
   defaultValue?: MaybeRefOrGetter<T>,
   options?: ReactiveRouteOptionsWithTransform<T, K>,

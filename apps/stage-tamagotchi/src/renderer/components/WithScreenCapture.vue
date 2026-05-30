@@ -22,14 +22,8 @@ const hasPermissions = ref(false)
 const showDialog = ref(false)
 
 const { t } = useI18n()
-const {
-  getSources,
-  setSource,
-  resetSource,
-  selectWithSource,
-  checkMacOSPermission,
-  requestMacOSPermission,
-} = useElectronScreenCapture(window.electron.ipcRenderer, sourcesOptions)
+const { getSources, setSource, resetSource, selectWithSource, checkMacOSPermission, requestMacOSPermission } =
+  useElectronScreenCapture(window.electron.ipcRenderer, sourcesOptions)
 
 const focused = useWindowFocus()
 
@@ -37,8 +31,7 @@ async function checkPermissions() {
   if (window.platform === 'darwin') {
     const status = await checkMacOSPermission()
     hasPermissions.value = status === 'granted'
-  }
-  else {
+  } else {
     hasPermissions.value = true
   }
   if (!hasPermissions.value) {
@@ -84,8 +77,13 @@ watch(hasPermissions, (nextHasPermissions, previousHasPermissions) => {
 
   <DialogRoot :open="showDialog">
     <DialogPortal>
-      <DialogOverlay class="fixed inset-0 z-9999 bg-black/50 backdrop-blur-sm data-[state=closed]:animate-fadeOut data-[state=open]:animate-fadeIn" />
-      <DialogContent flex="~ col items-start gap-4" class="fixed left-1/2 top-1/2 z-9999 max-h-full max-w-2xl w-[92dvw] transform overflow-y-scroll rounded-2xl bg-white p-6 shadow-xl outline-none backdrop-blur-md scrollbar-none -translate-x-1/2 -translate-y-1/2 data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow dark:bg-neutral-900">
+      <DialogOverlay
+        class="fixed inset-0 z-9999 bg-black/50 backdrop-blur-sm data-[state=closed]:animate-fadeOut data-[state=open]:animate-fadeIn"
+      />
+      <DialogContent
+        flex="~ col items-start gap-4"
+        class="fixed left-1/2 top-1/2 z-9999 max-h-full max-w-2xl w-[92dvw] transform overflow-y-scroll rounded-2xl bg-white p-6 shadow-xl outline-none backdrop-blur-md scrollbar-none -translate-x-1/2 -translate-y-1/2 data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow dark:bg-neutral-900"
+      >
         <DialogTitle class="m-0 text-lg font-semibold">
           {{ t('tamagotchi.settings.screen-capture.permissions-prompt.title') }}
         </DialogTitle>
@@ -99,7 +97,7 @@ watch(hasPermissions, (nextHasPermissions, previousHasPermissions) => {
             </li>
             <li>
               {{ t('tamagotchi.settings.screen-capture.permissions-prompt.instructions.step-2') }}
-              <br>
+              <br />
               <span class="text-neutral-500">
                 {{ t('tamagotchi.settings.screen-capture.permissions-prompt.instructions.step-2-note') }}
               </span>
@@ -108,10 +106,7 @@ watch(hasPermissions, (nextHasPermissions, previousHasPermissions) => {
         </DialogDescription>
 
         <div flex="~ row gap-2 mt-4 justify-end" w-full>
-          <Button
-            variant="secondary"
-            @click="showDialog = false"
-          >
+          <Button variant="secondary" @click="showDialog = false">
             {{ t('tamagotchi.settings.screen-capture.permissions-prompt.dismiss') }}
           </Button>
           <Button @click="requestMacOSPermission()">

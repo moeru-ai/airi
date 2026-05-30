@@ -53,7 +53,7 @@ describe('setupDesktopOverlayElectronInvokes', () => {
   })
 
   it('publishes ready after the base window invokes and MCP services are wired', async () => {
-    let readinessHandler: (() => Promise<{ state: 'booting' | 'ready' | 'degraded', error?: string }>) | undefined
+    let readinessHandler: (() => Promise<{ state: 'booting' | 'ready' | 'degraded'; error?: string }>) | undefined
 
     defineInvokeHandlerMock.mockImplementation((_context, _contract, handler) => {
       readinessHandler = handler
@@ -77,7 +77,7 @@ describe('setupDesktopOverlayElectronInvokes', () => {
   })
 
   it('publishes degraded when the base window invokes fail', async () => {
-    let readinessHandler: (() => Promise<{ state: 'booting' | 'ready' | 'degraded', error?: string }>) | undefined
+    let readinessHandler: (() => Promise<{ state: 'booting' | 'ready' | 'degraded'; error?: string }>) | undefined
 
     defineInvokeHandlerMock.mockImplementation((_context, _contract, handler) => {
       readinessHandler = handler

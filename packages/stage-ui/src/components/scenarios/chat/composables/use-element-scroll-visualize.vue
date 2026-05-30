@@ -35,8 +35,7 @@ const bottomSentinelVisible = useElementVisibility(bottomSentinelRef, {
 
 const floatingInMiddle = computed(() => !topSentinelVisible.value && !bottomSentinelVisible.value)
 const floatingTop = computed(() => {
-  if (!hasMeasuredElement.value || !isVisible.value || !floatingInMiddle.value)
-    return 0
+  if (!hasMeasuredElement.value || !isVisible.value || !floatingInMiddle.value) return 0
 
   const buttonSize = 32
   const relativeInnerMiddle = innerTop.value - elementTop.value + innerHeight.value / 2 - buttonSize / 2
@@ -45,7 +44,9 @@ const floatingTop = computed(() => {
 </script>
 
 <template>
-  <div class="h-[30rem] w-full flex flex-col border border-neutral-200/70 rounded-2xl bg-white/70 p-4 dark:border-neutral-800 dark:bg-neutral-950/70">
+  <div
+    class="h-[30rem] w-full flex flex-col border border-neutral-200/70 rounded-2xl bg-white/70 p-4 dark:border-neutral-800 dark:bg-neutral-950/70"
+  >
     <div class="grid grid-cols-2 mb-3 gap-2 text-xs text-neutral-500 md:grid-cols-4 dark:text-neutral-400">
       <div>scrollOffset: {{ scrollOffset }}</div>
       <div>viewportHeight: {{ viewportHeight }}</div>
@@ -61,7 +62,9 @@ const floatingTop = computed(() => {
       ref="scrollerRef"
       class="relative min-h-0 flex-1 overflow-y-auto border border-primary-200/70 rounded-xl bg-primary-50/50 p-6 dark:border-primary-900/70 dark:bg-primary-950/20"
     >
-      <div class="h-32 border border-neutral-300/70 rounded-xl border-dashed bg-white/70 p-4 text-sm text-neutral-500 dark:border-neutral-700 dark:bg-neutral-900/50 dark:text-neutral-400">
+      <div
+        class="h-32 border border-neutral-300/70 rounded-xl border-dashed bg-white/70 p-4 text-sm text-neutral-500 dark:border-neutral-700 dark:bg-neutral-900/50 dark:text-neutral-400"
+      >
         Scroll down until the top sentinel leaves the viewport, then the marker should stay in the visible middle.
       </div>
 
@@ -84,12 +87,10 @@ const floatingTop = computed(() => {
         </div>
 
         <div class="space-y-4">
-          <p
-            v-for="index in 20"
-            :key="index"
-            class="text-sm text-neutral-600 leading-7 dark:text-neutral-300"
-          >
-            Visualizer paragraph {{ index }}. This tall block exists only to inspect the visible slice inside the scroll container and verify that the action position tracks the middle while the top and bottom sentinels switch state.
+          <p v-for="index in 20" :key="index" class="text-sm text-neutral-600 leading-7 dark:text-neutral-300">
+            Visualizer paragraph {{ index }}. This tall block exists only to inspect the visible slice inside the scroll
+            container and verify that the action position tracks the middle while the top and bottom sentinels switch
+            state.
           </p>
         </div>
       </div>

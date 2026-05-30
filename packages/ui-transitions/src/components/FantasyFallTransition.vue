@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 
-const props = defineProps <{
+const props = defineProps<{
   stageTransition?: {
     primaryColor?: string
     duration?: number
@@ -23,9 +23,18 @@ onMounted(() => {
   document.documentElement.style.setProperty('--fantasy-fall-color', props.stageTransition?.primaryColor || '#eee')
   document.documentElement.style.setProperty('--fantasy-fall-duration', `${props.stageTransition?.duration || 0.6}s`)
   document.documentElement.style.setProperty('--fantasy-fall-delay', `${props.stageTransition?.delay || 0}s`)
-  document.documentElement.style.setProperty('--fantasy-fall-radius-sm', `${props.stageTransition?.borderRadius?.sm || '14rem'}`)
-  document.documentElement.style.setProperty('--fantasy-fall-radius-md', `${props.stageTransition?.borderRadius?.md || '14rem'}`)
-  document.documentElement.style.setProperty('--fantasy-fall-radius-lg', `${props.stageTransition?.borderRadius?.lg || '50%'}`)
+  document.documentElement.style.setProperty(
+    '--fantasy-fall-radius-sm',
+    `${props.stageTransition?.borderRadius?.sm || '14rem'}`,
+  )
+  document.documentElement.style.setProperty(
+    '--fantasy-fall-radius-md',
+    `${props.stageTransition?.borderRadius?.md || '14rem'}`,
+  )
+  document.documentElement.style.setProperty(
+    '--fantasy-fall-radius-lg',
+    `${props.stageTransition?.borderRadius?.lg || '50%'}`,
+  )
 })
 </script>
 

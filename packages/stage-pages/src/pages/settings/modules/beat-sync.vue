@@ -32,17 +32,23 @@ const spectrumScaleOptions = [
 
 const { t } = useI18n()
 
-const beatsHistory = ref<Array<{
-  id: string
-  energy: number
-  normalizedEnergy: number
-}>>([])
+const beatsHistory = ref<
+  Array<{
+    id: string
+    energy: number
+    normalizedEnergy: number
+  }>
+>([])
 
-watch([state, parameters], ([newState, newParameters]) => {
-  if (newState?.isActive) {
-    updateBeatSyncParameters(toRaw(newParameters))
-  }
-}, { deep: true, immediate: true })
+watch(
+  [state, parameters],
+  ([newState, newParameters]) => {
+    if (newState?.isActive) {
+      updateBeatSyncParameters(toRaw(newParameters))
+    }
+  },
+  { deep: true, immediate: true },
+)
 
 function normalizeEnergy(energy: number) {
   const base = 2
@@ -64,12 +70,10 @@ function onRippleEnter(el: Element, done: () => void) {
       delay: 0,
       ease: 'out(5)',
       onComplete: () => {
-        if (!beatId)
-          return
+        if (!beatId) return
 
-        const idx = beatsHistory.value.findIndex(b => b.id === beatId)
-        if (idx >= 0)
-          beatsHistory.value.splice(idx, 1)
+        const idx = beatsHistory.value.findIndex((b) => b.id === beatId)
+        if (idx >= 0) beatsHistory.value.splice(idx, 1)
 
         done()
       },
@@ -84,42 +88,41 @@ async function updateFrequencies() {
   frequencies.value = Array.from(await getBeatSyncInputByteFrequencyData())
   totalFreqHistory.value.push(frequencies.value.reduce((a, b) => a + b, 0))
 
-  while (totalFreqHistory.value.length > 50)
-    totalFreqHistory.value.shift()
+  while (totalFreqHistory.value.length > 50) totalFreqHistory.value.shift()
 
   if (isUpdatingFrequencies.value) {
     requestAnimationFrame(updateFrequencies)
-  }
-  else {
+  } else {
     frequencies.value = frequencies.value.map(() => 0)
     totalFreqHistory.value = []
   }
 }
 
 const noAudioDetected = computed(() => {
-  if (!isUpdatingFrequencies.value)
-    return false
+  if (!isUpdatingFrequencies.value) return false
 
-  if (totalFreqHistory.value.length < 50)
-    return false
+  if (totalFreqHistory.value.length < 50) return false
 
   return totalFreqHistory.value.reduce((a, b) => a + b, 0) === 0
 })
 
-watch(state, async (newState) => {
-  if (newState?.isActive) {
-    if (!isUpdatingFrequencies.value) {
-      isUpdatingFrequencies.value = true
-      updateFrequencies()
+watch(
+  state,
+  async (newState) => {
+    if (newState?.isActive) {
+      if (!isUpdatingFrequencies.value) {
+        isUpdatingFrequencies.value = true
+        updateFrequencies()
+      }
+    } else {
+      isUpdatingFrequencies.value = false
     }
-  }
-  else {
-    isUpdatingFrequencies.value = false
-  }
-}, { immediate: true, deep: true })
+  },
+  { immediate: true, deep: true },
+)
 
 onMounted(() => {
-  getBeatSyncState().then(initialState => state.value = initialState)
+  getBeatSyncState().then((initialState) => (state.value = initialState))
 
   const removeHandlerFns = [
     listenBeatSyncStateChange((newState) => {
@@ -134,7 +137,7 @@ onMounted(() => {
     }),
   ]
 
-  const removeHandlers = () => removeHandlerFns.forEach(fn => fn())
+  const removeHandlers = () => removeHandlerFns.forEach((fn) => fn())
   onUnmounted(() => removeHandlers())
 })
 
@@ -172,13 +175,8 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <Alert
-          v-if="noAudioDetected"
-          type="warning"
-        >
-          <template #title>
-            No audio detected
-          </template>
+        <Alert v-if="noAudioDetected" type="warning">
+          <template #title>No audio detected</template>
           <template #content>
             Please make sure that the correct permissions are granted and the audio source is playing sound.
           </template>
@@ -197,7 +195,11 @@ onUnmounted(() => {
 
             <button
               title="Reset settings"
-              flex items-center justify-center rounded-full p-2
+              flex
+              items-center
+              justify-center
+              rounded-full
+              p-2
               transition="all duration-250 ease-in-out"
               text="neutral-500 dark:neutral-400"
               bg="transparent dark:transparent hover:neutral-200 dark:hover:neutral-800 active:neutral-300 dark:active:neutral-700"
@@ -214,17 +216,19 @@ onUnmounted(() => {
               :min="0"
               :max="1"
               :step="0.01"
-              :format-value="value => value.toFixed(1)"
+              :format-value="(value) => value.toFixed(1)"
             />
 
             <FieldRange
               v-model="parameters.minBeatInterval"
               :label="t('settings.pages.modules.beat_sync.sections.parameters.parameters.min_beat_interval.label')"
-              :description="t('settings.pages.modules.beat_sync.sections.parameters.parameters.min_beat_interval.description')"
+              :description="
+                t('settings.pages.modules.beat_sync.sections.parameters.parameters.min_beat_interval.description')
+              "
               :min="0.05"
               :max="1"
               :step="0.01"
-              :format-value="value => `${(60 / value).toFixed(1)} BPM / ${value.toFixed(2)} s`"
+              :format-value="(value) => `${(60 / value).toFixed(1)} BPM / ${value.toFixed(2)} s`"
             />
 
             <div>
@@ -235,32 +239,50 @@ onUnmounted(() => {
 
             <FieldRange
               v-model="parameters.lowpassFilterFrequency"
-              :label="t('settings.pages.modules.beat_sync.sections.parameters.parameters.lowpass_filter_frequency.label')"
-              :description="t('settings.pages.modules.beat_sync.sections.parameters.parameters.lowpass_filter_frequency.description')"
+              :label="
+                t('settings.pages.modules.beat_sync.sections.parameters.parameters.lowpass_filter_frequency.label')
+              "
+              :description="
+                t(
+                  'settings.pages.modules.beat_sync.sections.parameters.parameters.lowpass_filter_frequency.description',
+                )
+              "
               :min="20"
               :max="600"
               :step="10"
-              :format-value="value => `${value.toFixed(0)} Hz`"
+              :format-value="(value) => `${value.toFixed(0)} Hz`"
             />
 
             <FieldRange
               v-model="parameters.highpassFilterFrequency"
-              :label="t('settings.pages.modules.beat_sync.sections.parameters.parameters.highpass_filter_frequency.label')"
-              :description="t('settings.pages.modules.beat_sync.sections.parameters.parameters.highpass_filter_frequency.description')"
+              :label="
+                t('settings.pages.modules.beat_sync.sections.parameters.parameters.highpass_filter_frequency.label')
+              "
+              :description="
+                t(
+                  'settings.pages.modules.beat_sync.sections.parameters.parameters.highpass_filter_frequency.description',
+                )
+              "
               :min="150"
               :max="2000"
               :step="10"
-              :format-value="value => `${value.toFixed(0)} Hz`"
+              :format-value="(value) => `${value.toFixed(0)} Hz`"
             />
 
             <FieldRange
               v-model="parameters.envelopeFilterFrequency"
-              :label="t('settings.pages.modules.beat_sync.sections.parameters.parameters.envelope_filter_frequency.label')"
-              :description="t('settings.pages.modules.beat_sync.sections.parameters.parameters.envelope_filter_frequency.description')"
+              :label="
+                t('settings.pages.modules.beat_sync.sections.parameters.parameters.envelope_filter_frequency.label')
+              "
+              :description="
+                t(
+                  'settings.pages.modules.beat_sync.sections.parameters.parameters.envelope_filter_frequency.description',
+                )
+              "
               :min="20"
               :max="200"
               :step="10"
-              :format-value="value => `${value.toFixed(0)} Hz`"
+              :format-value="(value) => `${value.toFixed(0)} Hz`"
             />
 
             <FieldCheckbox
@@ -272,23 +294,29 @@ onUnmounted(() => {
             <FieldCheckbox
               v-model="parameters.adaptiveThreshold"
               :label="t('settings.pages.modules.beat_sync.sections.parameters.parameters.adaptive_threshold.label')"
-              :description="t('settings.pages.modules.beat_sync.sections.parameters.parameters.adaptive_threshold.description')"
+              :description="
+                t('settings.pages.modules.beat_sync.sections.parameters.parameters.adaptive_threshold.description')
+              "
             />
 
             <FieldCheckbox
               v-model="parameters.spectralFlux"
               :label="t('settings.pages.modules.beat_sync.sections.parameters.parameters.spectral_flux.label')"
-              :description="t('settings.pages.modules.beat_sync.sections.parameters.parameters.spectral_flux.description')"
+              :description="
+                t('settings.pages.modules.beat_sync.sections.parameters.parameters.spectral_flux.description')
+              "
             />
 
             <FieldRange
               v-model="parameters.bufferDuration"
               :label="t('settings.pages.modules.beat_sync.sections.parameters.parameters.buffer_duration.label')"
-              :description="t('settings.pages.modules.beat_sync.sections.parameters.parameters.buffer_duration.description')"
+              :description="
+                t('settings.pages.modules.beat_sync.sections.parameters.parameters.buffer_duration.description')
+              "
               :min="2"
               :max="10"
               :step="0.5"
-              :format-value="value => `${value.toFixed(1)} s`"
+              :format-value="(value) => `${value.toFixed(1)} s`"
             />
           </div>
         </div>
@@ -308,22 +336,27 @@ onUnmounted(() => {
             v-if="isUpdatingFrequencies"
             :frequencies="frequencies"
             :scale="spectrumScale"
-            h-full w-full gap-0
+            h-full
+            w-full
+            gap-0
             bars-class="bg-primary-400/50 dark:bg-primary-500/50 rounded-none"
           />
         </div>
 
-        <SelectTab
-          v-model="spectrumScale"
-          size="sm"
-          :options="spectrumScaleOptions"
-        />
+        <SelectTab v-model="spectrumScale" size="sm" :options="spectrumScaleOptions" />
       </div>
 
       <TransitionGroup
         tag="div"
         bg="neutral/10"
-        relative box-border aspect-square h-full max-h-400px max-w-400px w-full rounded-2xl
+        relative
+        box-border
+        aspect-square
+        h-full
+        max-h-400px
+        max-w-400px
+        w-full
+        rounded-2xl
         flex="~ row gap-2 wrap items-center"
         :css="false"
         @enter="onRippleEnter"
@@ -332,8 +365,11 @@ onUnmounted(() => {
           v-for="beat in beatsHistory"
           :key="beat.id"
           :data-beat-id="beat.id"
-          absolute h-full w-full
-          rounded-full bg="primary/50"
+          absolute
+          h-full
+          w-full
+          rounded-full
+          bg="primary/50"
         />
       </TransitionGroup>
     </div>

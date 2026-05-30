@@ -11,15 +11,11 @@ function BuildInfoTestPlugin() {
   return {
     name: 'stage-ui-test-build-info',
     resolveId(id: string) {
-      if (id === '~build/git' || id === '~build/time')
-        return `\0${id}`
+      if (id === '~build/git' || id === '~build/time') return `\0${id}`
     },
     load(id: string) {
       if (id === '\0~build/git') {
-        return [
-          'export const abbreviatedSha = "test-sha"',
-          'export const branch = "test-branch"',
-        ].join('\n')
+        return ['export const abbreviatedSha = "test-sha"', 'export const branch = "test-branch"'].join('\n')
       }
 
       if (id === '\0~build/time') {
@@ -32,9 +28,7 @@ function BuildInfoTestPlugin() {
 export default defineConfig(({ mode }) => {
   return {
     root: import.meta.dirname,
-    plugins: [
-      BuildInfoTestPlugin(),
-    ],
+    plugins: [BuildInfoTestPlugin()],
     test: {
       projects: [
         {
@@ -48,9 +42,7 @@ export default defineConfig(({ mode }) => {
         },
         {
           extends: true,
-          plugins: [
-            Vue(),
-          ],
+          plugins: [Vue()],
           test: {
             name: 'browser',
             include: ['**/*.browser.{spec,test}.ts'],
@@ -58,9 +50,7 @@ export default defineConfig(({ mode }) => {
             browser: {
               enabled: true,
               provider: playwright(),
-              instances: [
-                { browser: 'chromium' },
-              ],
+              instances: [{ browser: 'chromium' }],
             },
           },
         },

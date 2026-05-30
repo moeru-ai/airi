@@ -3,7 +3,7 @@ import type { Profile } from 'wlipsync'
 import { createWLipSyncNode } from 'wlipsync'
 
 const RAW_KEYS = ['A', 'E', 'I', 'O', 'U', 'S'] as const
-const RAW_TO_VOWEL: Record<typeof RAW_KEYS[number], VowelKey> = {
+const RAW_TO_VOWEL: Record<(typeof RAW_KEYS)[number], VowelKey> = {
   A: 'A',
   E: 'E',
   I: 'I',
@@ -142,8 +142,7 @@ export async function createLive2DLipSync(
   const connectSource = (source: AudioNode) => {
     try {
       source.connect(node)
-    }
-    catch (error) {
+    } catch (error) {
       console.error('[model-driver-lipsync] failed to connect source to lip sync node', error)
     }
   }

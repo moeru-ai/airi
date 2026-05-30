@@ -16,16 +16,14 @@ const PROCESSING_HISTORY_LIMIT = 240
 
 function trimHistoryByAge(history: number[], maxAgeMs: number) {
   const cutoff = Date.now() - maxAgeMs
-  while (history.length > 0 && history[0] < cutoff)
-    history.shift()
+  while (history.length > 0 && history[0] < cutoff) history.shift()
 }
 
 function countInWindow(history: number[], windowMs: number) {
   const cutoff = Date.now() - windowMs
   let count = 0
   for (let index = history.length - 1; index >= 0; index -= 1) {
-    if (history[index] < cutoff)
-      break
+    if (history[index] < cutoff) break
     count += 1
   }
   return count
@@ -60,8 +58,7 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
   const contextUpdateRatePerMinute = computed(() => countInWindow(contextUpdateHistory.value, 60_000))
 
   const averageProcessingMs = computed(() => {
-    if (processingHistoryMs.value.length === 0)
-      return 0
+    if (processingHistoryMs.value.length === 0) return 0
     const total = processingHistoryMs.value.reduce((sum, value) => sum + value, 0)
     return total / processingHistoryMs.value.length
   })
@@ -79,19 +76,16 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
   }
 
   function recordContextUpdates(count = 1, updatedAt = Date.now()) {
-    if (count <= 0)
-      return
+    if (count <= 0) return
 
     contextUpdateCount.value += count
     lastContextUpdateAt.value = updatedAt
-    for (let index = 0; index < count; index += 1)
-      contextUpdateHistory.value.push(updatedAt)
+    for (let index = 0; index < count; index += 1) contextUpdateHistory.value.push(updatedAt)
     trimHistoryByAge(contextUpdateHistory.value, HISTORY_MAX_AGE_MS)
   }
 
   async function runTick() {
-    if (!tickHandler.value)
-      return
+    if (!tickHandler.value) return
     if (isProcessing.value) {
       skippedTicks.value += 1
       return
@@ -107,15 +101,11 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
       const outcome = await tickHandler.value()
       lastError.value = null
 
-      if (outcome?.capturedAt)
-        recordCapture(outcome.capturedAt)
-      if (outcome?.contextUpdates)
-        recordContextUpdates(outcome.contextUpdates)
-    }
-    catch (error) {
+      if (outcome?.capturedAt) recordCapture(outcome.capturedAt)
+      if (outcome?.contextUpdates) recordContextUpdates(outcome.contextUpdates)
+    } catch (error) {
       lastError.value = errorMessageFrom(error) || 'Unknown error'
-    }
-    finally {
+    } finally {
       recordProcessingDuration(performance.now() - start)
       isProcessing.value = false
     }
@@ -123,12 +113,10 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
 
   function startTicker(handler: VisionTickHandler) {
     tickHandler.value = handler
-    if (isRunning.value)
-      return
+    if (isRunning.value) return
 
     isRunning.value = true
-    if (intervalHandle)
-      clearInterval(intervalHandle)
+    if (intervalHandle) clearInterval(intervalHandle)
 
     void runTick()
     intervalHandle = setInterval(() => {
@@ -138,8 +126,7 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
 
   function stopTicker() {
     isRunning.value = false
-    if (intervalHandle)
-      clearInterval(intervalHandle)
+    if (intervalHandle) clearInterval(intervalHandle)
     intervalHandle = null
   }
 
@@ -165,13 +152,10 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
   }
 
   watch(captureIntervalMs, (next, previous) => {
-    if (!isRunning.value)
-      return
-    if (next === previous)
-      return
+    if (!isRunning.value) return
+    if (next === previous) return
 
-    if (intervalHandle)
-      clearInterval(intervalHandle)
+    if (intervalHandle) clearInterval(intervalHandle)
     intervalHandle = setInterval(() => {
       void runTick()
     }, next)

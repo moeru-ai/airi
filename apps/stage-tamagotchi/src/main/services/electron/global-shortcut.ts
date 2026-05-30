@@ -36,7 +36,7 @@ export interface GlobalShortcutService {
 }
 
 type ActiveBinding = { binding: ShortcutBinding } & (
-  | { driver: 'electron', electronAccelerator: string }
+  | { driver: 'electron'; electronAccelerator: string }
   | { driver: 'uiohook' }
 )
 
@@ -50,8 +50,7 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
     for (const context of contexts) {
       try {
         context.emit(electronShortcutTriggered, { id, phase })
-      }
-      catch (error) {
+      } catch (error) {
         log.withError(error).warn(`Failed to emit shortcut trigger for "${id}"`)
       }
     }
@@ -81,8 +80,7 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
 
   function tryRegisterUiohook(binding: ShortcutBinding): ShortcutRegistrationResult {
     const result = uiohookDriver.tryRegister(binding)
-    if (result.ok)
-      active.set(binding.id, { binding, driver: 'uiohook' })
+    if (result.ok) active.set(binding.id, { binding, driver: 'uiohook' })
     return result
   }
 
@@ -91,25 +89,20 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
       return { id: binding.id, ok: false, reason: ShortcutFailureReasons.DuplicateId }
     }
 
-    return binding.receiveKeyUps
-      ? tryRegisterUiohook(binding)
-      : tryRegisterElectron(binding)
+    return binding.receiveKeyUps ? tryRegisterUiohook(binding) : tryRegisterElectron(binding)
   }
 
   function unregisterById(id: string): void {
     const entry = active.get(id)
-    if (!entry)
-      return
+    if (!entry) return
 
     if (entry.driver === 'electron') {
       try {
         globalShortcut.unregister(entry.electronAccelerator)
-      }
-      catch (error) {
+      } catch (error) {
         log.withError(error).warn(`Failed to unregister accelerator for "${id}"`)
       }
-    }
-    else {
+    } else {
       uiohookDriver.unregisterById(id)
     }
     active.delete(id)
@@ -117,12 +110,10 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
 
   function unregisterAll(): void {
     for (const [id, entry] of active) {
-      if (entry.driver !== 'electron')
-        continue
+      if (entry.driver !== 'electron') continue
       try {
         globalShortcut.unregister(entry.electronAccelerator)
-      }
-      catch (error) {
+      } catch (error) {
         log.withError(error).warn(`Failed to unregister accelerator for "${id}"`)
       }
     }
@@ -144,8 +135,7 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
     })
 
     defineInvokeHandler(context, electronShortcutUnregister, (payload) => {
-      if (!payload.id)
-        return
+      if (!payload.id) return
       unregisterById(payload.id)
     })
 
@@ -154,7 +144,7 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
     })
 
     defineInvokeHandler(context, electronShortcutList, () => {
-      return Array.from(active.values(), entry => entry.binding)
+      return Array.from(active.values(), (entry) => entry.binding)
     })
   }
 

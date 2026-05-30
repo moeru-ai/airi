@@ -7,7 +7,15 @@ import { SERVER_URL } from '@proj-airi/stage-ui/libs/server'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Button, FieldInput } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { DialogClose, DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
+import {
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogOverlay,
+  DialogPortal,
+  DialogRoot,
+  DialogTitle,
+} from 'reka-ui'
 import { computed, reactive, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
@@ -32,12 +40,9 @@ const userAvatar = computed(() => user.value?.image ?? null)
 // surface small. If the avatar source ever changes, both this constant
 // and apps/server/src/libs/gravatar.ts must move together.
 const GRAVATAR_AVATAR_PREFIX = 'https://www.gravatar.com/avatar/'
-const usingGravatarFallback = computed(
-  () => userAvatar.value?.startsWith(GRAVATAR_AVATAR_PREFIX) ?? false,
-)
+const usingGravatarFallback = computed(() => userAvatar.value?.startsWith(GRAVATAR_AVATAR_PREFIX) ?? false)
 const gravatarProfileUrl = computed(() => {
-  if (!usingGravatarFallback.value || !userEmail.value)
-    return null
+  if (!usingGravatarFallback.value || !userEmail.value) return null
   return `https://gravatar.com/${encodeURIComponent(userEmail.value.trim().toLowerCase())}`
 })
 
@@ -45,7 +50,9 @@ const gravatarProfileUrl = computed(() => {
 // instead of rendering an alt-text overflow inside the circle. Resets when
 // the URL changes so a fixed URL re-attempts loading.
 const avatarLoadError = ref(false)
-watch(userAvatar, () => { avatarLoadError.value = false })
+watch(userAvatar, () => {
+  avatarLoadError.value = false
+})
 
 // Locale-aware thousand separator. Bare 5–6 digit numbers are noisy to scan
 // (e.g. "44965" reads as one block); Intl.NumberFormat respects user locale
@@ -75,11 +82,9 @@ const profileError = shallowRef<string | null>(null)
 const profileSuccess = shallowRef<string | null>(null)
 
 const profileDirty = computed(() => {
-  if (!user.value)
-    return false
+  if (!user.value) return false
   const name = profileForm.name.trim()
-  if (!name)
-    return false
+  if (!name) return false
   return name !== (user.value.name ?? '')
 })
 
@@ -143,54 +148,49 @@ const {
 } = useLinkedAccounts({
   client: authClient,
   isAuthenticated,
-  describeError: error => errorMessageFrom(error) ?? '',
+  describeError: (error) => errorMessageFrom(error) ?? '',
   messages: {
     listFailed: t('settings.pages.account.connections.error.listFailed'),
     unlinkFailed: t('settings.pages.account.connections.error.unlinkFailed'),
     linkFailed: t('settings.pages.account.connections.error.linkFailed'),
     lastAccount: t('settings.pages.account.connections.error.lastAccount'),
-    unlinked: provider => t('settings.pages.account.connections.message.unlinked', { provider }),
-    linkStarted: provider => t('settings.pages.account.connections.message.linkStarted', { provider }),
+    unlinked: (provider) => t('settings.pages.account.connections.message.unlinked', { provider }),
+    linkStarted: (provider) => t('settings.pages.account.connections.message.linkStarted', { provider }),
   },
 })
 
 const connectionsDateFormatter = computed(() => {
   try {
     return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' })
-  }
-  catch {
+  } catch {
     return null
   }
 })
 
 function formatLinkedSince(iso: string): string {
-  if (!iso)
-    return ''
+  if (!iso) return ''
   const formatter = connectionsDateFormatter.value
-  if (!formatter)
-    return iso
+  if (!formatter) return iso
   try {
     return formatter.format(new Date(iso))
-  }
-  catch {
+  } catch {
     return iso
   }
 }
 
 function handleUnlinkProvider(providerId: string) {
-  const providerName = defaultSignInProviders.find(p => p.id === providerId)?.name ?? providerId
+  const providerName = defaultSignInProviders.find((p) => p.id === providerId)?.name ?? providerId
   return unlinkLinkedProvider(providerId, providerName)
 }
 
 function handleLinkProvider(providerId: 'github' | 'google') {
-  const providerName = defaultSignInProviders.find(p => p.id === providerId)?.name ?? providerId
+  const providerName = defaultSignInProviders.find((p) => p.id === providerId)?.name ?? providerId
   return linkLinkedProvider(providerId, providerName)
 }
 
 async function handleSaveProfile(event: Event) {
   event.preventDefault()
-  if (profileLoading.value || !profileDirty.value)
-    return
+  if (profileLoading.value || !profileDirty.value) return
 
   profileError.value = null
   profileSuccess.value = null
@@ -202,8 +202,7 @@ async function handleSaveProfile(event: Event) {
     const { error } = await authClient.updateUser({
       name: trimmedName,
     })
-    if (error)
-      throw new Error(error.message ?? 'updateUser failed')
+    if (error) throw new Error(error.message ?? 'updateUser failed')
 
     if (user.value) {
       authStore.user = {
@@ -213,19 +212,16 @@ async function handleSaveProfile(event: Event) {
     }
     profileForm.name = trimmedName
     profileSuccess.value = t('settings.pages.account.profile.message.saved')
-  }
-  catch (error) {
+  } catch (error) {
     profileError.value = errorMessageFrom(error) ?? t('settings.pages.account.profile.error.fallback')
-  }
-  finally {
+  } finally {
     profileLoading.value = false
   }
 }
 
 async function handleChangePassword(event: Event) {
   event.preventDefault()
-  if (passwordLoading.value)
-    return
+  if (passwordLoading.value) return
 
   passwordError.value = null
   passwordSuccess.value = null
@@ -246,26 +242,22 @@ async function handleChangePassword(event: Event) {
       newPassword: passwordForm.next,
       revokeOtherSessions: true,
     })
-    if (error)
-      throw new Error(error.message ?? 'changePassword failed')
+    if (error) throw new Error(error.message ?? 'changePassword failed')
 
     passwordForm.current = ''
     passwordForm.next = ''
     passwordForm.confirm = ''
     passwordSuccess.value = t('settings.pages.account.security.message.changed')
-  }
-  catch (error) {
+  } catch (error) {
     passwordError.value = errorMessageFrom(error) ?? t('settings.pages.account.security.error.fallback')
-  }
-  finally {
+  } finally {
     passwordLoading.value = false
   }
 }
 
 async function handleSendSetPasswordLink() {
   const email = userEmail.value
-  if (setPasswordLoading.value || !email)
-    return
+  if (setPasswordLoading.value || !email) return
 
   setPasswordLoading.value = true
   setPasswordError.value = null
@@ -287,14 +279,11 @@ async function handleSendSetPasswordLink() {
     // node_modules/better-auth/dist/api/routes/password.mjs L152-158.
     const redirectTo = new URL('/auth/reset-password', SERVER_URL).toString()
     const { error } = await authClient.requestPasswordReset({ email, redirectTo })
-    if (error)
-      throw new Error(error.message ?? 'requestPasswordReset failed')
+    if (error) throw new Error(error.message ?? 'requestPasswordReset failed')
     setPasswordSuccess.value = t('settings.pages.account.security.message.setLinkSent', { email })
-  }
-  catch (error) {
+  } catch (error) {
     setPasswordError.value = errorMessageFrom(error) ?? t('settings.pages.account.security.error.setLinkFailed')
-  }
-  finally {
+  } finally {
     setPasswordLoading.value = false
   }
 }
@@ -344,8 +333,7 @@ watch(deleteDialogOpen, (open) => {
 
 async function handleConfirmDelete(event: Event) {
   event.preventDefault()
-  if (deleteLoading.value || !deleteEmailMatches.value)
-    return
+  if (deleteLoading.value || !deleteEmailMatches.value) return
 
   deleteError.value = null
   deleteLoading.value = true
@@ -359,16 +347,13 @@ async function handleConfirmDelete(event: Event) {
     // request came from.
     const callbackURL = new URL('/auth/delete-account', SERVER_URL).toString()
     const { error } = await authClient.deleteUser({ callbackURL })
-    if (error)
-      throw new Error(error.message ?? 'deleteUser failed')
+    if (error) throw new Error(error.message ?? 'deleteUser failed')
 
     deleteSent.value = true
     deleteDialogOpen.value = false
-  }
-  catch (error) {
+  } catch (error) {
     deleteError.value = errorMessageFrom(error) ?? t('settings.pages.account.danger.deleteAccount.error.fallback')
-  }
-  finally {
+  } finally {
     deleteLoading.value = false
   }
 }
@@ -435,14 +420,20 @@ async function handleConfirmDelete(event: Event) {
                about the same account, not a separate concern. -->
           <section :class="['flex flex-col gap-3 pb-6 border-b border-neutral-200/70 dark:border-neutral-800/60']">
             <div :class="['flex items-center gap-4 py-2']">
-              <div :class="['size-16 sm:size-20 rounded-full overflow-hidden flex-shrink-0', 'bg-neutral-100 dark:bg-neutral-800', 'flex items-center justify-center']">
+              <div
+                :class="[
+                  'size-16 sm:size-20 rounded-full overflow-hidden flex-shrink-0',
+                  'bg-neutral-100 dark:bg-neutral-800',
+                  'flex items-center justify-center',
+                ]"
+              >
                 <img
                   v-if="userAvatar && !avatarLoadError"
                   :src="userAvatar"
                   :alt="userName"
                   :class="['size-full object-cover']"
                   @error="avatarLoadError = true"
-                >
+                />
                 <div v-else :class="['i-solar:user-circle-bold-duotone', 'size-10 text-neutral-400']" />
               </div>
               <div :class="['flex flex-col gap-0.5 min-w-0']">
@@ -452,16 +443,10 @@ async function handleConfirmDelete(event: Event) {
                 <h2 :class="['text-lg sm:text-xl font-semibold truncate']">
                   {{ userName || t('settings.pages.account.profile.name.placeholder') }}
                 </h2>
-                <p
-                  v-if="userEmail"
-                  :class="['text-sm text-neutral-500 dark:text-neutral-400 truncate']"
-                >
+                <p v-if="userEmail" :class="['text-sm text-neutral-500 dark:text-neutral-400 truncate']">
                   {{ userEmail }}
                 </p>
-                <p
-                  v-if="usingGravatarFallback"
-                  :class="['text-xs text-neutral-500 dark:text-neutral-400 mt-1']"
-                >
+                <p v-if="usingGravatarFallback" :class="['text-xs text-neutral-500 dark:text-neutral-400 mt-1']">
                   <span>{{ t('settings.pages.account.profile.avatar.gravatarNotice') }}</span>
                   <a
                     v-if="gravatarProfileUrl"
@@ -526,12 +511,7 @@ async function handleConfirmDelete(event: Event) {
                 :placeholder="t('settings.pages.account.profile.name.placeholder')"
               />
 
-              <div
-                v-if="profileError"
-                :class="['text-sm text-red-500']"
-                role="alert"
-                aria-live="polite"
-              >
+              <div v-if="profileError" :class="['text-sm text-red-500']" role="alert" aria-live="polite">
                 {{ profileError }}
               </div>
               <div
@@ -609,12 +589,7 @@ async function handleConfirmDelete(event: Event) {
                 autocomplete="new-password"
               />
 
-              <div
-                v-if="passwordError"
-                :class="['text-sm text-red-500']"
-                role="alert"
-                aria-live="polite"
-              >
+              <div v-if="passwordError" :class="['text-sm text-red-500']" role="alert" aria-live="polite">
                 {{ passwordError }}
               </div>
               <div
@@ -634,20 +609,12 @@ async function handleConfirmDelete(event: Event) {
               </div>
             </form>
 
-            <div
-              v-else-if="linkedAccountsLoaded"
-              :class="['flex flex-col gap-3 max-w-md']"
-            >
+            <div v-else-if="linkedAccountsLoaded" :class="['flex flex-col gap-3 max-w-md']">
               <p :class="['text-sm text-neutral-500 dark:text-neutral-400']">
                 {{ t('settings.pages.account.security.setDescription') }}
               </p>
 
-              <div
-                v-if="setPasswordError"
-                :class="['text-sm text-red-500']"
-                role="alert"
-                aria-live="polite"
-              >
+              <div v-if="setPasswordError" :class="['text-sm text-red-500']" role="alert" aria-live="polite">
                 {{ setPasswordError }}
               </div>
               <div
@@ -686,10 +653,7 @@ async function handleConfirmDelete(event: Event) {
               </p>
             </header>
 
-            <div
-              v-if="linkedAccountsLoading"
-              :class="['text-sm text-neutral-500 dark:text-neutral-400']"
-            >
+            <div v-if="linkedAccountsLoading" :class="['text-sm text-neutral-500 dark:text-neutral-400']">
               {{ t('settings.pages.account.connections.message.loading') }}
             </div>
 
@@ -740,12 +704,7 @@ async function handleConfirmDelete(event: Event) {
               </li>
             </ul>
 
-            <div
-              v-if="linkedAccountsError"
-              :class="['text-sm text-red-500']"
-              role="alert"
-              aria-live="polite"
-            >
+            <div v-if="linkedAccountsError" :class="['text-sm text-red-500']" role="alert" aria-live="polite">
               {{ linkedAccountsError }}
             </div>
             <div
@@ -795,11 +754,7 @@ async function handleConfirmDelete(event: Event) {
               </div>
             </div>
 
-            <p
-              v-if="deleteSent"
-              :class="['text-sm text-green-600 dark:text-green-400 max-w-md']"
-              aria-live="polite"
-            >
+            <p v-if="deleteSent" :class="['text-sm text-green-600 dark:text-green-400 max-w-md']" aria-live="polite">
               {{ t('settings.pages.account.danger.deleteAccount.message.emailSent', { email: userEmail }) }}
             </p>
           </section>
@@ -840,14 +795,11 @@ async function handleConfirmDelete(event: Event) {
                     type="email"
                     autocomplete="off"
                     :label="t('settings.pages.account.danger.deleteAccount.modal.confirmEmail.label')"
-                    :placeholder="userEmail ?? t('settings.pages.account.danger.deleteAccount.modal.confirmEmail.placeholder')"
+                    :placeholder="
+                      userEmail ?? t('settings.pages.account.danger.deleteAccount.modal.confirmEmail.placeholder')
+                    "
                   />
-                  <div
-                    v-if="deleteError"
-                    :class="['text-sm text-red-500']"
-                    role="alert"
-                    aria-live="polite"
-                  >
+                  <div v-if="deleteError" :class="['text-sm text-red-500']" role="alert" aria-live="polite">
                     {{ deleteError }}
                   </div>
                   <div :class="['flex justify-end gap-2 pt-1']">

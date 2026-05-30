@@ -23,8 +23,7 @@ const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<R
 const baseUrl = computed({
   get: () => providers.value[providerId]?.baseUrl || 'http://localhost:11434/v1/',
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
+    if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].baseUrl = value
   },
 })
@@ -46,60 +45,73 @@ const {
   runManualTest,
 } = useProviderValidation(providerId)
 
-const headers = ref<{ key: string, value: string }[]>(Object.entries(providers.value[providerId]?.headers || {}).map(([key, value]) => ({ key, value } as { key: string, value: string })) || [{ key: '', value: '' }])
+const headers = ref<{ key: string; value: string }[]>(
+  Object.entries(providers.value[providerId]?.headers || {}).map(
+    ([key, value]) => ({ key, value }) as { key: string; value: string },
+  ) || [{ key: '', value: '' }],
+)
 const thinkingMode = computed({
   get: () => providers.value[providerId]?.thinkingMode || 'auto',
   set: (value: string) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
+    if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].thinkingMode = value
   },
 })
 
-function addKeyValue(headers: { key: string, value: string }[], key: string, value: string) {
-  if (!headers)
-    return
+function addKeyValue(headers: { key: string; value: string }[], key: string, value: string) {
+  if (!headers) return
 
   headers.push({ key, value })
 }
 
-function removeKeyValue(index: number, headers: { key: string, value: string }[]) {
-  if (!headers)
-    return
+function removeKeyValue(index: number, headers: { key: string; value: string }[]) {
+  if (!headers) return
 
   if (headers.length === 1) {
     headers[0].key = ''
     headers[0].value = ''
-  }
-  else {
+  } else {
     headers.splice(index, 1)
   }
 }
 
-watch(headers, (headers) => {
-  if (headers.length > 0 && (headers.at(-1)!.key !== '' || headers.at(-1)!.value !== '')) {
-    headers.push({ key: '', value: '' })
-  }
-  if (!providers.value[providerId])
-    return
-  providers.value[providerId].headers = headers.filter(header => header.key !== '').reduce((acc, header) => {
-    acc[header.key] = header.value
-    return acc
-  }, {} as Record<string, string>)
-}, {
-  deep: true,
-  immediate: true,
-})
+watch(
+  headers,
+  (headers) => {
+    if (headers.length > 0 && (headers.at(-1)!.key !== '' || headers.at(-1)!.value !== '')) {
+      headers.push({ key: '', value: '' })
+    }
+    if (!providers.value[providerId]) return
+    providers.value[providerId].headers = headers
+      .filter((header) => header.key !== '')
+      .reduce(
+        (acc, header) => {
+          acc[header.key] = header.value
+          return acc
+        },
+        {} as Record<string, string>,
+      )
+  },
+  {
+    deep: true,
+    immediate: true,
+  },
+)
 
 async function refetch() {
   try {
     const validationResult = await providerMetadata.value.validators.validateProviderConfig({
       baseUrl: baseUrl.value,
       thinkingMode: thinkingMode.value,
-      headers: headers.value.filter(header => header.key !== '').reduce((acc, header) => {
-        acc[header.key] = header.value
-        return acc
-      }, {} as Record<string, string>),
+      headers: headers.value
+        .filter((header) => header.key !== '')
+        .reduce(
+          (acc, header) => {
+            acc[header.key] = header.value
+            return acc
+          },
+          {} as Record<string, string>,
+        ),
     })
 
     if (!validationResult.valid) {
@@ -107,8 +119,7 @@ async function refetch() {
         error: validationResult.reason,
       })
     }
-  }
-  catch (error) {
+  } catch (error) {
     validationMessage.value = t('settings.dialogs.onboarding.validationError', {
       error: error instanceof Error ? error.message : String(error),
     })
@@ -148,10 +159,7 @@ onMounted(() => {
         :description="t('settings.pages.providers.common.section.basic.description')"
         :on-reset="handleResetSettings"
       >
-        <ProviderBaseUrlInput
-          v-model="baseUrl"
-          placeholder="http://localhost:11434/v1/"
-        />
+        <ProviderBaseUrlInput v-model="baseUrl" placeholder="http://localhost:11434/v1/" />
       </ProviderBasicSettings>
 
       <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
@@ -160,12 +168,32 @@ onMounted(() => {
           :label="t('settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.label')"
           :description="t('settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.description')"
           :options="[
-            { label: t('settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.options.auto'), value: 'auto' },
-            { label: t('settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.options.disable'), value: 'disable' },
-            { label: t('settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.options.enable'), value: 'enable' },
-            { label: t('settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.options.low'), value: 'low' },
-            { label: t('settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.options.medium'), value: 'medium' },
-            { label: t('settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.options.high'), value: 'high' },
+            {
+              label: t('settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.options.auto'),
+              value: 'auto',
+            },
+            {
+              label: t(
+                'settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.options.disable',
+              ),
+              value: 'disable',
+            },
+            {
+              label: t('settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.options.enable'),
+              value: 'enable',
+            },
+            {
+              label: t('settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.options.low'),
+              value: 'low',
+            },
+            {
+              label: t('settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.options.medium'),
+              value: 'medium',
+            },
+            {
+              label: t('settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.options.high'),
+              value: 'high',
+            },
           ]"
         />
 
@@ -174,7 +202,9 @@ onMounted(() => {
           :label="t('settings.pages.providers.common.section.advanced.fields.field.headers.label')"
           :description="t('settings.pages.providers.common.section.advanced.fields.field.headers.description')"
           :key-placeholder="t('settings.pages.providers.common.section.advanced.fields.field.headers.key.placeholder')"
-          :value-placeholder="t('settings.pages.providers.common.section.advanced.fields.field.headers.value.placeholder')"
+          :value-placeholder="
+            t('settings.pages.providers.common.section.advanced.fields.field.headers.value.placeholder')
+          "
           @add="(key: string, value: string) => addKeyValue(headers, key, value)"
           @remove="(index: number) => removeKeyValue(index, headers)"
         />

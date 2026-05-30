@@ -6,10 +6,12 @@ import { isAbsolute, join } from 'node:path'
 import { cwd } from 'node:process'
 
 function isPluginDefinition(value: unknown): value is ReturnType<typeof definePlugin> {
-  return typeof value === 'object'
-    && value !== null
-    && 'setup' in value
-    && typeof (value as { setup?: unknown }).setup === 'function'
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'setup' in value &&
+    typeof (value as { setup?: unknown }).setup === 'function'
+  )
 }
 
 async function coercePluginFromModule(moduleValue: unknown): Promise<Plugin> {
@@ -35,7 +37,9 @@ async function coercePluginFromModule(moduleValue: unknown): Promise<Plugin> {
     }
   }
 
-  throw new Error('Failed to resolve plugin module. The entrypoint must export either definePlugin(...) or Plugin hooks.')
+  throw new Error(
+    'Failed to resolve plugin module. The entrypoint must export either definePlugin(...) or Plugin hooks.',
+  )
 }
 
 /**
@@ -63,16 +67,14 @@ export class FileSystemLoader {
   resolveEntrypointFor(manifest: ManifestV1, options?: PluginLoadOptions) {
     const runtime = options?.runtime ?? 'electron'
     const root = options?.cwd ?? cwd()
-    const entrypoint
-      = manifest.entrypoints[runtime]
-        ?? manifest.entrypoints.default
-        ?? manifest.entrypoints.electron
+    const entrypoint = manifest.entrypoints[runtime] ?? manifest.entrypoints.default ?? manifest.entrypoints.electron
 
     if (!entrypoint) {
-      throw new Error(''
-        + `Plugin entrypoint is required for runtime \`${runtime}\`. `
-        + 'Define one of `entrypoints.<runtime>`, `entrypoints.default`, '
-        + 'or `entrypoints.electron` in the plugin manifest.',
+      throw new Error(
+        '' +
+          `Plugin entrypoint is required for runtime \`${runtime}\`. ` +
+          'Define one of `entrypoints.<runtime>`, `entrypoints.default`, ' +
+          'or `entrypoints.electron` in the plugin manifest.',
       )
     }
 

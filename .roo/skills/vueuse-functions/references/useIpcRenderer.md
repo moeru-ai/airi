@@ -73,19 +73,13 @@ export interface UseIpcRendererReturn {
    *
    * @see https://www.electronjs.org/docs/api/ipc-renderer#ipcrendereroncechannel-listener
    */
-  once: (
-    channel: string,
-    listener: (event: IpcRendererEvent, ...args: any[]) => void,
-  ) => IpcRenderer
+  once: (channel: string, listener: (event: IpcRendererEvent, ...args: any[]) => void) => IpcRenderer
   /**
    * Removes the specified listener from the listener array for the specified channel.
    *
    * @see https://www.electronjs.org/docs/api/ipc-renderer#ipcrendererremovelistenerchannel-listener
    */
-  removeListener: (
-    channel: string,
-    listener: (...args: any[]) => void,
-  ) => IpcRenderer
+  removeListener: (channel: string, listener: (...args: any[]) => void) => IpcRenderer
   /**
    * Removes all listeners, or those of the specified channel.
    *
@@ -138,7 +132,5 @@ export interface UseIpcRendererReturn {
  * @see https://www.electronjs.org/docs/api/ipc-renderer#ipcrenderersendtohostchannel-args
  * @see https://vueuse.org/useIpcRenderer
  */
-export declare function useIpcRenderer(
-  ipcRenderer?: IpcRenderer,
-): UseIpcRendererReturn
+export declare function useIpcRenderer(ipcRenderer?: IpcRenderer): UseIpcRendererReturn
 ```

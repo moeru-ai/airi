@@ -35,10 +35,7 @@ watchEffect(() => {
 import { useDevicesList, useUserMedia } from '@vueuse/core'
 import { computed, reactive } from 'vue'
 
-const {
-  videoInputs: cameras,
-  audioInputs: microphones,
-} = useDevicesList({
+const { videoInputs: cameras, audioInputs: microphones } = useDevicesList({
   requestPermissions: true,
 })
 const currentCamera = computed(() => cameras.value[0]?.deviceId)
@@ -47,8 +44,8 @@ const currentMicrophone = computed(() => microphones.value[0]?.deviceId)
 const { stream } = useUserMedia({
   constraints: reactive({
     video: { deviceId: currentCamera },
-    audio: { deviceId: currentMicrophone, }
-  })
+    audio: { deviceId: currentMicrophone },
+  }),
 })
 ```
 
@@ -90,7 +87,5 @@ export interface UseUserMediaReturn extends Supportable {
  * @see https://vueuse.org/useUserMedia
  * @param options
  */
-export declare function useUserMedia(
-  options?: UseUserMediaOptions,
-): UseUserMediaReturn
+export declare function useUserMedia(options?: UseUserMediaOptions): UseUserMediaReturn
 ```

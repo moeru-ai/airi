@@ -2,10 +2,7 @@
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { UnElevenLabsOptions } from 'unspeech'
 
-import {
-  SpeechPlayground,
-  SpeechProviderSettings,
-} from '@proj-airi/stage-ui/components'
+import { SpeechPlayground, SpeechProviderSettings } from '@proj-airi/stage-ui/components'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { FieldRange } from '@proj-airi/ui'
@@ -40,7 +37,10 @@ const availableVoices = computed(() => {
 
 // Generate speech with ElevenLabs-specific parameters
 async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: boolean) {
-  const provider = await providersStore.getProviderInstance(providerId) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
+  const provider = (await providersStore.getProviderInstance(providerId)) as SpeechProviderWithExtraOptions<
+    string,
+    UnElevenLabsOptions
+  >
   if (!provider) {
     throw new Error('Failed to initialize speech provider')
   }
@@ -49,19 +49,13 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   const providerConfig = providersStore.getProviderConfig(providerId)
 
   // Get model from configuration or use default
-  const model = providerConfig.model as string | undefined || defaultModel
+  const model = (providerConfig.model as string | undefined) || defaultModel
 
   // ElevenLabs doesn't need SSML conversion, but if SSML is provided, use it directly
-  return await speechStore.speech(
-    provider,
-    model,
-    input,
-    voiceId,
-    {
-      ...providerConfig,
-      ...defaultVoiceSettings,
-    },
-  )
+  return await speechStore.speech(provider, model, input, voiceId, {
+    ...providerConfig,
+    ...defaultVoiceSettings,
+  })
 }
 
 onMounted(async () => {
@@ -69,8 +63,7 @@ onMounted(async () => {
   const providerMetadata = providersStore.getProviderMetadata(providerId)
   if (await providerMetadata.validators.validateProviderConfig(providerConfig)) {
     await speechStore.loadVoicesForProvider(providerId)
-  }
-  else {
+  } else {
     console.error('Failed to validate provider config', providerConfig)
   }
 })
@@ -90,18 +83,21 @@ watch(volume, async () => {
   providerConfig.volume = volume.value
 })
 
-watch(providers, async () => {
-  const providerConfig = providersStore.getProviderConfig(providerId)
-  const providerMetadata = providersStore.getProviderMetadata(providerId)
-  if (await providerMetadata.validators.validateProviderConfig(providerConfig)) {
-    await speechStore.loadVoicesForProvider(providerId)
-  }
-  else {
-    console.error('Failed to validate provider config', providerConfig)
-  }
-}, {
-  immediate: true,
-})
+watch(
+  providers,
+  async () => {
+    const providerConfig = providersStore.getProviderConfig(providerId)
+    const providerMetadata = providersStore.getProviderMetadata(providerId)
+    if (await providerMetadata.validators.validateProviderConfig(providerConfig)) {
+      await speechStore.loadVoicesForProvider(providerId)
+    } else {
+      console.error('Failed to validate provider config', providerConfig)
+    }
+  },
+  {
+    immediate: true,
+  },
+)
 </script>
 
 <template>
@@ -119,7 +115,9 @@ watch(providers, async () => {
           :label="t('settings.pages.providers.provider.common.fields.field.pitch.label')"
           :description="t('settings.pages.providers.provider.common.fields.field.pitch.description')"
           :min="-100"
-          :max="100" :step="1" :format-value="value => `${value}%`"
+          :max="100"
+          :step="1"
+          :format-value="(value) => `${value}%`"
         />
 
         <!-- Speed control - common to most providers -->
@@ -128,7 +126,8 @@ watch(providers, async () => {
           :label="t('settings.pages.providers.provider.common.fields.field.speed.label')"
           :description="t('settings.pages.providers.provider.common.fields.field.speed.description')"
           :min="0.5"
-          :max="2.0" :step="0.01"
+          :max="2.0"
+          :step="0.01"
         />
 
         <!-- Volume control - available in some providers -->
@@ -137,7 +136,9 @@ watch(providers, async () => {
           :label="t('settings.pages.providers.provider.common.fields.field.volume.label')"
           :description="t('settings.pages.providers.provider.common.fields.field.volume.description')"
           :min="-100"
-          :max="100" :step="1" :format-value="value => `${value}%`"
+          :max="100"
+          :step="1"
+          :format-value="(value) => `${value}%`"
         />
       </div>
     </template>
@@ -155,8 +156,8 @@ watch(providers, async () => {
 </template>
 
 <route lang="yaml">
-  meta:
-    layout: settings
-    stageTransition:
-      name: slide
-  </route>
+meta:
+  layout: settings
+  stageTransition:
+    name: slide
+</route>

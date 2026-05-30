@@ -15,13 +15,7 @@ Provide a CSS string, then `useStyleTag` will automatically generate an id and i
 ```ts
 import { useStyleTag } from '@vueuse/core'
 
-const {
-  id,
-  css,
-  load,
-  unload,
-  isLoaded,
-} = useStyleTag('.foo { margin-top: 32px; }')
+const { id, css, load, unload, isLoaded } = useStyleTag('.foo { margin-top: 32px; }')
 
 // Later you can modify styles
 css.value = '.foo { margin-top: 64px; }'
@@ -124,8 +118,5 @@ export interface UseStyleTagReturn {
  * @param css
  * @param options
  */
-export declare function useStyleTag(
-  css: MaybeRef<string>,
-  options?: UseStyleTagOptions,
-): UseStyleTagReturn
+export declare function useStyleTag(css: MaybeRef<string>, options?: UseStyleTagOptions): UseStyleTagReturn
 ```

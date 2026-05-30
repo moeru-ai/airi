@@ -26,18 +26,23 @@ import { setupBaseWindowElectronInvokes, transparentWindowConfig } from '../shar
 
 const captionConfigSchema = object({
   isFollowing: boolean(),
-  matrices: record(string(), object({
-    bounds: object({
-      x: number(),
-      y: number(),
-      width: number(),
-      height: number(),
+  matrices: record(
+    string(),
+    object({
+      bounds: object({
+        x: number(),
+        y: number(),
+        width: number(),
+        height: number(),
+      }),
+      relativeToMain: optional(
+        object({
+          dx: number(),
+          dy: number(),
+        }),
+      ),
     }),
-    relativeToMain: optional(object({
-      dx: number(),
-      dy: number(),
-    })),
-  })),
+  ),
 })
 type CaptionConfig = InferOutput<typeof captionConfigSchema>
 
@@ -45,8 +50,8 @@ function computeDisplayMatrixHash(): string {
   const displays = screen.getAllDisplays()
   const signature = displays
     .slice()
-    .sort((a, b) => (a.bounds.x - b.bounds.x) || (a.bounds.y - b.bounds.y))
-    .map(d => [d.bounds.x, d.bounds.y, d.bounds.width, d.bounds.height, d.scaleFactor ?? 1].join(','))
+    .sort((a, b) => a.bounds.x - b.bounds.x || a.bounds.y - b.bounds.y)
+    .map((d) => [d.bounds.x, d.bounds.y, d.bounds.width, d.bounds.height, d.scaleFactor ?? 1].join(','))
     .join('|')
 
   return createHash('sha256').update(signature).digest('hex').slice(0, 16)
@@ -58,7 +63,10 @@ function clampBoundsWithinRect(bounds: Rectangle, rect: Rectangle): Rectangle {
   return { x, y, width: bounds.width, height: bounds.height }
 }
 
-function computeInitialCaptionBounds(params: { mainWindow: BrowserWindow, captionOptions?: Partial<Rectangle> }): Rectangle {
+function computeInitialCaptionBounds(params: {
+  mainWindow: BrowserWindow
+  captionOptions?: Partial<Rectangle>
+}): Rectangle {
   const mainBounds = params.mainWindow.getBounds()
   const displayWorkArea = screen.getDisplayMatching(mainBounds).workArea
 
@@ -89,7 +97,7 @@ function computeInitialCaptionBounds(params: { mainWindow: BrowserWindow, captio
   }
 
   // If still out of bounds horizontally, fallback to bottom center
-  if (x < displayWorkArea.x || (x + width) > displayRight) {
+  if (x < displayWorkArea.x || x + width > displayRight) {
     x = displayWorkArea.x + Math.floor((displayWorkArea.width - width) / 2)
   }
 
@@ -173,7 +181,7 @@ export function setupCaptionWindowManager(params: {
   // Note: when following window, we compute and persist the current relative offset
   // and start following without docking, so no immediate reposition is needed here.
 
-  function computeRelativeOffset(win: BrowserWindow): { dx: number, dy: number } {
+  function computeRelativeOffset(win: BrowserWindow): { dx: number; dy: number } {
     const caption = win.getBounds()
     const main = params.mainWindow.getBounds()
     return { dx: caption.x - main.x, dy: caption.y - main.y }
@@ -192,10 +200,8 @@ export function setupCaptionWindowManager(params: {
     const state = { x: 0, y: 0 }
 
     const settleTo = (toX: number, toY: number) => {
-      if (win.isDestroyed())
-        return
-      if (!Number.isFinite(toX) || !Number.isFinite(toY))
-        return
+      if (win.isDestroyed()) return
+      if (!Number.isFinite(toX) || !Number.isFinite(toY)) return
 
       const b = win.getBounds()
       state.x = Number.isFinite(b.x) ? b.x : 0
@@ -208,10 +214,8 @@ export function setupCaptionWindowManager(params: {
         ease: 'outCubic',
         modifier: utils.round(0),
         onRender: () => {
-          if (win.isDestroyed())
-            return
-          if (!Number.isFinite(state.x) || !Number.isFinite(state.y))
-            return
+          if (win.isDestroyed()) return
+          if (!Number.isFinite(state.x) || !Number.isFinite(state.y)) return
 
           const toX = Math.round(state.x)
           const toY = Math.round(state.y)
@@ -227,8 +231,7 @@ export function setupCaptionWindowManager(params: {
     let lastAppliedTy = Number.NaN
 
     const moveThrottled = throttle(() => {
-      if (win.isDestroyed())
-        return
+      if (win.isDestroyed()) return
 
       const stored = getConfig()?.matrices[matrixHash]?.relativeToMain ?? initialOffset
       const main = params.mainWindow.getBounds()
@@ -242,8 +245,7 @@ export function setupCaptionWindowManager(params: {
       ty = clamped.y
       lastTx = tx
       lastTy = ty
-      if (Math.abs(lastAppliedTx - tx) <= 0 && Math.abs(lastAppliedTy - ty) <= 0)
-        return
+      if (Math.abs(lastAppliedTx - tx) <= 0 && Math.abs(lastAppliedTy - ty) <= 0) return
       lastAppliedTx = tx
       lastAppliedTy = ty
       // Animate towards target at throttled cadence for visible easing
@@ -282,20 +284,15 @@ export function setupCaptionWindowManager(params: {
     for (const listener of visibilityListeners) {
       try {
         listener()
-      }
-      catch {
-      }
+      } catch {}
     }
   }
 
   function applyIgnoreMouseEvents(win: BrowserWindow, ignore: boolean) {
     try {
-      if (ignore)
-        win.setIgnoreMouseEvents(true, { forward: true })
-      else
-        win.setIgnoreMouseEvents(false)
-    }
-    catch {
+      if (ignore) win.setIgnoreMouseEvents(true, { forward: true })
+      else win.setIgnoreMouseEvents(false)
+    } catch {
       // ignore failures during early window lifecycle
     }
   }
@@ -322,8 +319,7 @@ export function setupCaptionWindowManager(params: {
       const workArea = screen.getDisplayMatching(saved).workArea
       const clamped = clampBoundsWithinRect(saved, workArea)
       window.setBounds(clamped)
-    }
-    else {
+    } else {
       const initialBounds = computeInitialCaptionBounds({ mainWindow: params.mainWindow })
       window.setBounds(initialBounds)
     }
@@ -351,10 +347,7 @@ export function setupCaptionWindowManager(params: {
 
     try {
       context.emit(captionIsFollowingWindowChanged, isFollowing)
-    }
-    catch {
-
-    }
+    } catch {}
 
     if (isFollowing) {
       followMainWindow(window)
@@ -364,9 +357,7 @@ export function setupCaptionWindowManager(params: {
       detachFromMain()
       try {
         cleanupGetAttached()
-      }
-      catch {
-      }
+      } catch {}
 
       if (currentWindow === window) {
         currentWindow = undefined
@@ -397,8 +388,7 @@ export function setupCaptionWindowManager(params: {
 
       // Start following main without re-docking; keep current position
       followMainWindow(window)
-    }
-    else {
+    } else {
       detachFromMain()
 
       const config = getConfig() ?? { isFollowing, matrices: {} }
@@ -412,10 +402,7 @@ export function setupCaptionWindowManager(params: {
     // Notify renderer for UI state (handle visibility)
     try {
       eventaContext?.emit(captionIsFollowingWindowChanged, isFollowing)
-    }
-    catch {
-
-    }
+    } catch {}
   }
 
   async function toggleFollowWindow() {

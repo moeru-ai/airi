@@ -3,11 +3,7 @@ import { BasicTextarea } from '@proj-airi/ui'
 </script>
 
 <template>
-  <Story
-    title="Textarea (basic)"
-    group="form"
-    :layout="{ type: 'grid', width: '100%' }"
-  >
+  <Story title="Textarea (basic)" group="form" :layout="{ type: 'grid', width: '100%' }">
     <template #controls>
       <ThemeColorsHueControl />
     </template>

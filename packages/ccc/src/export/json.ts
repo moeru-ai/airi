@@ -47,12 +47,9 @@ function createCardData(data: Card): CharacterCardV3['data'] {
  * @returns Formatted message example string
  */
 function formatMessageExample(messageExample: string[][] | undefined): string {
-  if (!messageExample)
-    return ''
+  if (!messageExample) return ''
 
-  return messageExample
-    .map(arr => `<START>\n${arr.join('\n')}`)
-    .join('\n')
+  return messageExample.map((arr) => `<START>\n${arr.join('\n')}`).join('\n')
 }
 
 /**

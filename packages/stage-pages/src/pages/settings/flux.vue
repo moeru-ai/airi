@@ -21,8 +21,7 @@ const { trackPricingViewed, trackPlanSelected, trackCheckoutStarted } = useAnaly
 // the app never receives the success_url redirect that web/mobile use to refresh.
 // Re-pull the FLUX balance whenever the window regains focus; the balance source
 // of truth is the server (credited by the Stripe webhook).
-if (isStageTamagotchi())
-  useEventListener(window, 'focus', () => authStore.updateCredits())
+if (isStageTamagotchi()) useEventListener(window, 'focus', () => authStore.updateCredits())
 
 interface FluxPackage {
   stripePriceId: string
@@ -33,18 +32,17 @@ interface FluxPackage {
 }
 
 const loadingPriceId = ref<string | null>(null)
-const message = ref<{ type: 'success' | 'error', text: string } | null>(null)
+const message = ref<{ type: 'success' | 'error'; text: string } | null>(null)
 const packages = ref<FluxPackage[]>([])
 const selectedCurrency = ref<string>('usd')
 
 const currencyOptions = computed(() => {
-  if (packages.value.length === 0)
-    return []
+  if (packages.value.length === 0) return []
   // Currencies supported by all packages
   const first = Object.keys(packages.value[0].currencies)
   return first
-    .filter(c => packages.value.every(p => c in p.currencies))
-    .map(c => ({ label: c.toUpperCase(), value: c }))
+    .filter((c) => packages.value.every((p) => c in p.currencies))
+    .map((c) => ({ label: c.toUpperCase(), value: c }))
 })
 
 // NOTICE: Manual interface instead of hono InferResponseType because hono client
@@ -97,8 +95,7 @@ const AUDIT_PAGE_SIZE = 20
 const capacity = ref(0)
 
 const fluxPercentage = computed(() => {
-  if (capacity.value <= 0)
-    return credits.value > 0 ? 100 : 0
+  if (capacity.value <= 0) return credits.value > 0 ? 100 : 0
   return Math.min(100, Math.round((credits.value / capacity.value) * 100))
 })
 
@@ -109,8 +106,7 @@ async function fetchStats() {
       const data = await res.json()
       capacity.value = data.capacity
     }
-  }
-  catch {
+  } catch {
     // silently fail
   }
 }
@@ -123,21 +119,18 @@ async function fetchAuditHistory(loadMore = false) {
       query: { limit: String(AUDIT_PAGE_SIZE), offset: String(offset) },
     })
     if (res.ok) {
-      const data = await res.json() as { records: AuditRecord[], hasMore: boolean }
+      const data = (await res.json()) as { records: AuditRecord[]; hasMore: boolean }
       if (loadMore) {
         auditRecords.value.push(...data.records)
-      }
-      else {
+      } else {
         auditRecords.value = data.records
       }
       auditHasMore.value = data.hasMore
       auditOffset.value = offset + data.records.length
     }
-  }
-  catch {
+  } catch {
     // silently fail
-  }
-  finally {
+  } finally {
     auditLoading.value = false
   }
 }
@@ -147,28 +140,28 @@ function formatDate(iso: string): string {
 }
 
 // Group consecutive TTS debit records into collapsible rows
-type GroupedRow = {
-  type: 'single'
-  record: AuditRecord
-} | {
-  type: 'group'
-  key: string
-  description: string
-  model: string
-  count: number
-  totalAmount: number
-  firstTime: string
-  lastTime: string
-  records: AuditRecord[]
-}
+type GroupedRow =
+  | {
+      type: 'single'
+      record: AuditRecord
+    }
+  | {
+      type: 'group'
+      key: string
+      description: string
+      model: string
+      count: number
+      totalAmount: number
+      firstTime: string
+      lastTime: string
+      records: AuditRecord[]
+    }
 
 const expandedGroups = ref<Set<string>>(new Set())
 
 function toggleGroup(key: string) {
-  if (expandedGroups.value.has(key))
-    expandedGroups.value.delete(key)
-  else
-    expandedGroups.value.add(key)
+  if (expandedGroups.value.has(key)) expandedGroups.value.delete(key)
+  else expandedGroups.value.add(key)
 }
 
 const groupedRows = computed<GroupedRow[]>(() => {
@@ -181,9 +174,11 @@ const groupedRows = computed<GroupedRow[]>(() => {
     if (record.type === 'debit' && record.description?.startsWith('tts:')) {
       // Collect consecutive TTS records with the same description
       const group: AuditRecord[] = [record]
-      while (i + 1 < records.length
-        && records[i + 1].type === 'debit'
-        && records[i + 1].description === record.description) {
+      while (
+        i + 1 < records.length &&
+        records[i + 1].type === 'debit' &&
+        records[i + 1].description === record.description
+      ) {
         i++
         group.push(records[i])
       }
@@ -200,12 +195,10 @@ const groupedRows = computed<GroupedRow[]>(() => {
           lastTime: group[0].createdAt,
           records: group,
         })
-      }
-      else {
+      } else {
         rows.push({ type: 'single', record })
       }
-    }
-    else {
+    } else {
       rows.push({ type: 'single', record })
     }
     i++
@@ -218,13 +211,11 @@ async function fetchPackages() {
   try {
     const res = await client.api.v1.stripe.packages.$get()
     if (res.ok) {
-      const data = await res.json() as FluxPackage[]
+      const data = (await res.json()) as FluxPackage[]
       packages.value = data
-      if (data.length > 0)
-        selectedCurrency.value = data[0].defaultCurrency
+      if (data.length > 0) selectedCurrency.value = data[0].defaultCurrency
     }
-  }
-  catch {
+  } catch {
     message.value = { type: 'error', text: t('settings.pages.flux.packagesError') }
   }
 }
@@ -241,8 +232,7 @@ onMounted(async () => {
   if (route.query.success === 'true') {
     message.value = { type: 'success', text: t('settings.pages.flux.checkout.success') }
     router.replace({ query: {} })
-  }
-  else if (route.query.canceled === 'true') {
+  } else if (route.query.canceled === 'true') {
     message.value = { type: 'error', text: t('settings.pages.flux.checkout.canceled') }
     router.replace({ query: {} })
   }
@@ -259,7 +249,7 @@ async function handleBuy(stripePriceId: string) {
   try {
     const res = await client.api.v1.stripe.checkout.$post({ json: { stripePriceId, currency: selectedCurrency.value } })
     if (!res.ok) {
-      const data = await res.json() as { error?: string, message?: string }
+      const data = (await res.json()) as { error?: string; message?: string }
       message.value = { type: 'error', text: data.message || t('settings.pages.flux.checkout.error') }
       return
     }
@@ -273,16 +263,12 @@ async function handleBuy(stripePriceId: string) {
       // (the settings window would load checkout.stripe.com and never come back).
       // window.open routes through setWindowOpenHandler -> shell.openExternal, so the
       // system browser handles payment. Web keeps the in-window redirect.
-      if (isStageTamagotchi())
-        window.open(data.url, '_blank')
-      else
-        window.location.href = data.url
+      if (isStageTamagotchi()) window.open(data.url, '_blank')
+      else window.location.href = data.url
     }
-  }
-  catch {
+  } catch {
     message.value = { type: 'error', text: t('settings.pages.flux.checkout.error') }
-  }
-  finally {
+  } finally {
     loadingPriceId.value = null
   }
 }
@@ -293,10 +279,14 @@ async function handleBuy(stripePriceId: string) {
     <!-- Message banner -->
     <div
       v-if="message"
-      rounded-lg p-3 text-sm
-      :class="message.type === 'success'
-        ? 'bg-green-500/10 text-green-600 dark:text-green-400'
-        : 'bg-red-500/10 text-red-600 dark:text-red-400'"
+      rounded-lg
+      p-3
+      text-sm
+      :class="
+        message.type === 'success'
+          ? 'bg-green-500/10 text-green-600 dark:text-green-400'
+          : 'bg-red-500/10 text-red-600 dark:text-red-400'
+      "
     >
       {{ message.text }}
     </div>
@@ -304,12 +294,16 @@ async function handleBuy(stripePriceId: string) {
     <!-- Battery Card -->
     <div relative overflow-hidden rounded-2xl bg="neutral-100 dark:neutral-800" p-6 sm:p-8>
       <!-- Background Progress -->
-      <div
-        class="flux-progress-bar absolute inset-y-0 left-0 bg-primary-500/20 dark:bg-primary-400/20"
-      />
+      <div class="flux-progress-bar absolute inset-y-0 left-0 bg-primary-500/20 dark:bg-primary-400/20" />
 
       <!-- Content -->
-      <div relative z-1 flex="~ items-center justify-start sm:col sm:justify-center gap-4 sm:gap-2" text-left sm:text-center>
+      <div
+        relative
+        z-1
+        flex="~ items-center justify-start sm:col sm:justify-center gap-4 sm:gap-2"
+        text-left
+        sm:text-center
+      >
         <div i-solar:battery-charge-bold-duotone size-12 shrink-0 text-primary-500 sm:mx-auto sm:size-14 />
         <div flex="~ col gap-1">
           <h2 text-3xl font-bold tracking-tight sm:text-4xl>
@@ -325,25 +319,26 @@ async function handleBuy(stripePriceId: string) {
     <div flex="~ col gap-4">
       <!-- Currency selector -->
       <div v-if="currencyOptions.length > 1" flex="~ justify-start sm:justify-end">
-        <SelectTab
-          v-model="selectedCurrency"
-          :options="currencyOptions"
-          size="sm"
-        />
+        <SelectTab v-model="selectedCurrency" :options="currencyOptions" size="sm" />
       </div>
 
       <div grid="~ cols-1 sm:cols-3 gap-4">
         <button
-          v-for="(pkg, index) in packages" :key="pkg.stripePriceId"
+          v-for="(pkg, index) in packages"
+          :key="pkg.stripePriceId"
           :disabled="loadingPriceId !== null"
           :class="[
             'group relative flex flex-row sm:flex-col items-center justify-between sm:justify-center overflow-hidden text-left sm:text-center gap-4 sm:gap-2',
             'rounded-2xl border-2 bg-white p-6 transition-all duration-300 ease-out',
-            pkg.recommended ? 'border-primary-400 dark:border-primary-500 shadow-sm' : 'border-neutral-200 dark:border-neutral-800',
+            pkg.recommended
+              ? 'border-primary-400 dark:border-primary-500 shadow-sm'
+              : 'border-neutral-200 dark:border-neutral-800',
             'dark:bg-neutral-900',
             'hover:-translate-y-1 hover:border-primary-400 hover:shadow-md dark:hover:border-primary-500',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
-            loadingPriceId !== null && loadingPriceId !== pkg.stripePriceId ? 'opacity-50 grayscale-50 cursor-not-allowed' : 'cursor-pointer',
+            loadingPriceId !== null && loadingPriceId !== pkg.stripePriceId
+              ? 'opacity-50 grayscale-50 cursor-not-allowed'
+              : 'cursor-pointer',
           ]"
           @click="handleBuy(pkg.stripePriceId)"
         >
@@ -365,7 +360,12 @@ async function handleBuy(stripePriceId: string) {
           </div>
 
           <div flex="~ col sm:items-center gap-1" relative z-1 w-full>
-            <div text="sm neutral-500 dark:neutral-400" font-medium transition-colors class="group-hover:text-primary-600 dark:group-hover:text-primary-400">
+            <div
+              text="sm neutral-500 dark:neutral-400"
+              font-medium
+              transition-colors
+              class="group-hover:text-primary-600 dark:group-hover:text-primary-400"
+            >
               {{ pkg.label }}
             </div>
             <div flex="~ items-baseline justify-start sm:justify-center gap-1">
@@ -376,9 +376,15 @@ async function handleBuy(stripePriceId: string) {
           </div>
 
           <!-- Battery Icons (Mobile Only) -->
-          <div flex="~ items-center gap-1" relative z-1 class="text-primary-200 transition-colors dark:text-primary-800/60 group-hover:text-primary-300 sm:hidden dark:group-hover:text-primary-700">
+          <div
+            flex="~ items-center gap-1"
+            relative
+            z-1
+            class="text-primary-200 transition-colors dark:text-primary-800/60 group-hover:text-primary-300 sm:hidden dark:group-hover:text-primary-700"
+          >
             <div
-              v-for="i in Math.min(index + 1, 3)" :key="i"
+              v-for="i in Math.min(index + 1, 3)"
+              :key="i"
               class="i-solar:battery-charge-bold-duotone size-8 sm:size-10"
             />
           </div>
@@ -427,40 +433,48 @@ async function handleBuy(stripePriceId: string) {
           <tbody>
             <template v-for="row in groupedRows" :key="row.type === 'single' ? row.record.id : row.key">
               <!-- Single record -->
-              <tr
-                v-if="row.type === 'single'"
-                border="b neutral-100 dark:neutral-800/50 last:none"
-              >
+              <tr v-if="row.type === 'single'" border="b neutral-100 dark:neutral-800/50 last:none">
                 <td whitespace-nowrap px-4 py-3 text="neutral-500">
                   {{ formatDate(row.record.createdAt) }}
                 </td>
                 <td px-4 py-3>
                   <span
-                    inline-block rounded-full px-2 py-0.5 text-xs font-medium
-                    :class="row.record.type === 'debit'
-                      ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
-                      : 'bg-green-500/10 text-green-600 dark:text-green-400'"
+                    inline-block
+                    rounded-full
+                    px-2
+                    py-0.5
+                    text-xs
+                    font-medium
+                    :class="
+                      row.record.type === 'debit'
+                        ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
+                        : 'bg-green-500/10 text-green-600 dark:text-green-400'
+                    "
                   >
                     {{ typeLabel(row.record.type) }}
                   </span>
                 </td>
                 <td px-4 py-3>
                   <span>{{ row.record.description }}</span>
-                  <span
-                    v-if="row.record.metadata?.promptTokens != null"
-                    ml-1 text="xs neutral-400"
-                  >
+                  <span v-if="row.record.metadata?.promptTokens != null" ml-1 text="xs neutral-400">
                     ({{ row.record.metadata.promptTokens }}+{{ row.record.metadata.completionTokens }} tokens)
                   </span>
                   <span
                     v-else-if="row.record.description?.startsWith('tts:') && row.record.metadata?.model"
-                    ml-1 text="xs neutral-400"
+                    ml-1
+                    text="xs neutral-400"
                   >
                     ({{ row.record.metadata.model }})
                   </span>
                 </td>
                 <td px-4 py-3 text-right font-mono>
-                  <span :class="isPositive(row.record) ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'">
+                  <span
+                    :class="
+                      isPositive(row.record)
+                        ? 'text-green-600 dark:text-green-400'
+                        : 'text-orange-600 dark:text-orange-400'
+                    "
+                  >
                     {{ displayAmount(row.record) }}
                   </span>
                 </td>
@@ -478,8 +492,17 @@ async function handleBuy(stripePriceId: string) {
                 </td>
                 <td px-4 py-3>
                   <span
-                    :class="['inline-block', 'rounded-full', 'px-2', 'py-0.5', 'text-xs', 'font-medium',
-                             'bg-orange-500/10', 'text-orange-600', 'dark:text-orange-400']"
+                    :class="[
+                      'inline-block',
+                      'rounded-full',
+                      'px-2',
+                      'py-0.5',
+                      'text-xs',
+                      'font-medium',
+                      'bg-orange-500/10',
+                      'text-orange-600',
+                      'dark:text-orange-400',
+                    ]"
                   >
                     {{ t('settings.pages.flux.audit.typeConsumption') }}
                   </span>
@@ -487,8 +510,14 @@ async function handleBuy(stripePriceId: string) {
                 <td px-4 py-3>
                   <span flex="~ items-center gap-1">
                     <span
-                      :class="expandedGroups.has(row.key) ? 'i-solar:alt-arrow-down-line-duotone' : 'i-solar:alt-arrow-right-line-duotone'"
-                      inline-block size-4 text="neutral-400"
+                      :class="
+                        expandedGroups.has(row.key)
+                          ? 'i-solar:alt-arrow-down-line-duotone'
+                          : 'i-solar:alt-arrow-right-line-duotone'
+                      "
+                      inline-block
+                      size-4
+                      text="neutral-400"
                     />
                     {{ row.description }}
                     <span ml-1 text="xs neutral-400">
@@ -497,17 +526,16 @@ async function handleBuy(stripePriceId: string) {
                   </span>
                 </td>
                 <td px-4 py-3 text-right font-mono>
-                  <span text="orange-600 dark:orange-400">
-                    -{{ row.totalAmount }}
-                  </span>
+                  <span text="orange-600 dark:orange-400">-{{ row.totalAmount }}</span>
                 </td>
               </tr>
 
               <!-- Expanded group children -->
               <tr
-                v-for="child in (row.type === 'group' && expandedGroups.has(row.key) ? row.records : [])"
+                v-for="child in row.type === 'group' && expandedGroups.has(row.key) ? row.records : []"
                 :key="child.id"
-                border="b neutral-100 dark:neutral-800/50 last:none" bg="neutral-50/50 dark:neutral-800/20"
+                border="b neutral-100 dark:neutral-800/50 last:none"
+                bg="neutral-50/50 dark:neutral-800/20"
               >
                 <td whitespace-nowrap px-4 py-2 pl-8 text="xs neutral-400">
                   {{ formatDate(child.createdAt) }}
@@ -516,9 +544,7 @@ async function handleBuy(stripePriceId: string) {
                 <td px-4 py-2 text="xs neutral-400">
                   {{ child.description }}
                 </td>
-                <td px-4 py-2 text-right font-mono text="xs orange-500 dark:orange-400">
-                  -{{ child.amount }}
-                </td>
+                <td px-4 py-2 text-right font-mono text="xs orange-500 dark:orange-400">-{{ child.amount }}</td>
               </tr>
             </template>
           </tbody>
@@ -531,32 +557,48 @@ async function handleBuy(stripePriceId: string) {
           <!-- Single record card -->
           <div
             v-if="row.type === 'single'"
-            border="1 neutral-200 dark:neutral-800" flex="~ col gap-1.5" rounded-lg px-3 py-2.5
+            border="1 neutral-200 dark:neutral-800"
+            flex="~ col gap-1.5"
+            rounded-lg
+            px-3
+            py-2.5
           >
             <div flex="~ items-center justify-between">
               <span
-                inline-block rounded-full px-2 py-0.5 text-xs font-medium
-                :class="row.record.type === 'debit'
-                  ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
-                  : 'bg-green-500/10 text-green-600 dark:text-green-400'"
+                inline-block
+                rounded-full
+                px-2
+                py-0.5
+                text-xs
+                font-medium
+                :class="
+                  row.record.type === 'debit'
+                    ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
+                    : 'bg-green-500/10 text-green-600 dark:text-green-400'
+                "
               >
                 {{ typeLabel(row.record.type) }}
               </span>
-              <span text-sm font-semibold font-mono :class="isPositive(row.record) ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'">
+              <span
+                text-sm
+                font-semibold
+                font-mono
+                :class="
+                  isPositive(row.record) ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'
+                "
+              >
                 {{ displayAmount(row.record) }}
               </span>
             </div>
             <div text="sm neutral-600 dark:neutral-300" truncate>
               {{ row.record.description }}
-              <span
-                v-if="row.record.metadata?.promptTokens != null"
-                ml-1 text="xs neutral-400"
-              >
+              <span v-if="row.record.metadata?.promptTokens != null" ml-1 text="xs neutral-400">
                 ({{ row.record.metadata.promptTokens }}+{{ row.record.metadata.completionTokens }} tokens)
               </span>
               <span
                 v-else-if="row.record.description?.startsWith('tts:') && row.record.metadata?.model"
-                ml-1 text="xs neutral-400"
+                ml-1
+                text="xs neutral-400"
               >
                 ({{ row.record.metadata.model }})
               </span>
@@ -569,24 +611,42 @@ async function handleBuy(stripePriceId: string) {
           <!-- Grouped TTS card -->
           <div
             v-else
-            border="1 neutral-200 dark:neutral-800" flex="~ col gap-1.5" cursor-pointer rounded-lg px-3 py-2.5
+            border="1 neutral-200 dark:neutral-800"
+            flex="~ col gap-1.5"
+            cursor-pointer
+            rounded-lg
+            px-3
+            py-2.5
             @click="toggleGroup(row.key)"
           >
             <div flex="~ items-center justify-between">
               <span
-                :class="['inline-block', 'rounded-full', 'px-2', 'py-0.5', 'text-xs', 'font-medium',
-                         'bg-orange-500/10', 'text-orange-600', 'dark:text-orange-400']"
+                :class="[
+                  'inline-block',
+                  'rounded-full',
+                  'px-2',
+                  'py-0.5',
+                  'text-xs',
+                  'font-medium',
+                  'bg-orange-500/10',
+                  'text-orange-600',
+                  'dark:text-orange-400',
+                ]"
               >
                 {{ t('settings.pages.flux.audit.typeConsumption') }}
               </span>
-              <span text-sm font-semibold font-mono text="orange-600 dark:orange-400">
-                -{{ row.totalAmount }}
-              </span>
+              <span text-sm font-semibold font-mono text="orange-600 dark:orange-400">-{{ row.totalAmount }}</span>
             </div>
             <div flex="~ items-center gap-1" text="sm neutral-600 dark:neutral-300">
               <span
-                :class="expandedGroups.has(row.key) ? 'i-solar:alt-arrow-down-line-duotone' : 'i-solar:alt-arrow-right-line-duotone'"
-                inline-block size-4 text="neutral-400"
+                :class="
+                  expandedGroups.has(row.key)
+                    ? 'i-solar:alt-arrow-down-line-duotone'
+                    : 'i-solar:alt-arrow-right-line-duotone'
+                "
+                inline-block
+                size-4
+                text="neutral-400"
               />
               {{ row.description }}
               <span text="xs neutral-400">({{ row.count }} {{ t('settings.pages.flux.audit.ttsRequests') }})</span>
@@ -596,10 +656,18 @@ async function handleBuy(stripePriceId: string) {
             </div>
 
             <!-- Expanded children -->
-            <div v-if="row.type === 'group' && expandedGroups.has(row.key)" flex="~ col gap-1" mt-1 border="t neutral-200 dark:neutral-700" pt-2>
+            <div
+              v-if="row.type === 'group' && expandedGroups.has(row.key)"
+              flex="~ col gap-1"
+              mt-1
+              border="t neutral-200 dark:neutral-700"
+              pt-2
+            >
               <div
-                v-for="child in row.records" :key="child.id"
-                flex="~ items-center justify-between" text="xs neutral-400"
+                v-for="child in row.records"
+                :key="child.id"
+                flex="~ items-center justify-between"
+                text="xs neutral-400"
               >
                 <span>{{ formatDate(child.createdAt) }}</span>
                 <span font-mono>-{{ child.amount }}</span>

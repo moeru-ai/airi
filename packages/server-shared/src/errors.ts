@@ -2,32 +2,32 @@ export const ServerErrorMessages = {
   invalidEventFormat: 'invalid event format',
   invalidToken: 'invalid token',
   mustAuthenticateBeforeAnnouncing: 'must authenticate before announcing',
-  moduleAnnounceIdentityInvalid: 'module identity must include kind=plugin and a plugin id for event \'module:announce\'',
-  moduleAnnounceIndexInvalid: 'the field \'index\' must be a non-negative integer for event \'module:announce\'',
-  moduleAnnounceNameInvalid: 'the field \'name\' must be a non-empty string for event \'module:announce\'',
-  moduleConsumerEventInvalid: 'the field \'event\' must be a non-empty string for event consumer registration',
-  moduleNotFound: 'module not found, it hasn\'t announced itself or the name is incorrect',
+  moduleAnnounceIdentityInvalid: "module identity must include kind=plugin and a plugin id for event 'module:announce'",
+  moduleAnnounceIndexInvalid: "the field 'index' must be a non-negative integer for event 'module:announce'",
+  moduleAnnounceNameInvalid: "the field 'name' must be a non-empty string for event 'module:announce'",
+  moduleConsumerEventInvalid: "the field 'event' must be a non-empty string for event consumer registration",
+  moduleNotFound: "module not found, it hasn't announced itself or the name is incorrect",
   noConsumerRegistered: 'no consumer registered for requested event delivery',
   notAuthenticated: 'not authenticated',
-  uiConfigureModuleIndexInvalid: 'the field \'moduleIndex\' must be a non-negative integer for event \'ui:configure\'',
-  uiConfigureModuleNameInvalid: 'the field \'moduleName\' can\'t be empty for event \'ui:configure\'',
+  uiConfigureModuleIndexInvalid: "the field 'moduleIndex' must be a non-negative integer for event 'ui:configure'",
+  uiConfigureModuleNameInvalid: "the field 'moduleName' can't be empty for event 'ui:configure'",
 } as const
 
-export type ServerErrorCode
-  = | 'invalid-event-format'
-    | 'invalid-json'
-    | 'invalid-token'
-    | 'module-announce-identity-invalid'
-    | 'module-announce-index-invalid'
-    | 'module-announce-name-invalid'
-    | 'module-consumer-event-invalid'
-    | 'module-not-found'
-    | 'must-authenticate-before-announcing'
-    | 'no-consumer-registered'
-    | 'not-authenticated'
-    | 'ui-configure-module-index-invalid'
-    | 'ui-configure-module-name-invalid'
-    | 'unknown'
+export type ServerErrorCode =
+  | 'invalid-event-format'
+  | 'invalid-json'
+  | 'invalid-token'
+  | 'module-announce-identity-invalid'
+  | 'module-announce-index-invalid'
+  | 'module-announce-name-invalid'
+  | 'module-consumer-event-invalid'
+  | 'module-not-found'
+  | 'must-authenticate-before-announcing'
+  | 'no-consumer-registered'
+  | 'not-authenticated'
+  | 'ui-configure-module-index-invalid'
+  | 'ui-configure-module-name-invalid'
+  | 'unknown'
 
 export interface ParsedServerErrorMessage {
   authentication: boolean
@@ -136,9 +136,7 @@ const errorMetadataRegistry: Record<string, Omit<ParsedServerErrorMessage, 'mess
  * - Parsed error with classification (code, authentication, recoverable, terminal)
  */
 export function parseServerErrorMessage(message: string): ParsedServerErrorMessage {
-  const metadata = Object.hasOwn(errorMetadataRegistry, message)
-    ? errorMetadataRegistry[message]
-    : undefined
+  const metadata = Object.hasOwn(errorMetadataRegistry, message) ? errorMetadataRegistry[message] : undefined
   if (metadata) {
     return { ...metadata, message }
   }

@@ -13,17 +13,7 @@ Reactive [SpeechSynthesis](https://developer.mozilla.org/en-US/docs/Web/API/Spee
 ```ts
 import { useSpeechSynthesis } from '@vueuse/core'
 
-const {
-  isSupported,
-  isPlaying,
-  status,
-  voiceInfo,
-  utterance,
-  error,
-  stop,
-  toggle,
-  speak,
-} = useSpeechSynthesis()
+const { isSupported, isPlaying, status, voiceInfo, utterance, error, stop, toggle, speak } = useSpeechSynthesis()
 ```
 
 ### Options

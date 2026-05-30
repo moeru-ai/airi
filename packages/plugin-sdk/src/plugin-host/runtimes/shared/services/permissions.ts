@@ -184,10 +184,7 @@ function intersectPermissions(
  * - combining persisted grants with new grants
  * - extending requested declarations with newly runtime-declared scopes
  */
-function mergePermissionScopes<T extends PermissionScope>(
-  current: T[] | undefined,
-  incoming: T[] | undefined,
-): T[] {
+function mergePermissionScopes<T extends PermissionScope>(current: T[] | undefined, incoming: T[] | undefined): T[] {
   const map = new Map<string, T>()
 
   for (const list of [current ?? [], incoming ?? []]) {
@@ -337,9 +334,6 @@ export class PermissionService {
     }
 
     const scopes = snapshot.granted[area] ?? []
-    return scopes.some(scope =>
-      matchKey(scope.key, key)
-      && hasAction(scope.actions, action),
-    )
+    return scopes.some((scope) => matchKey(scope.key, key) && hasAction(scope.actions, action))
   }
 }

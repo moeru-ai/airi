@@ -27,7 +27,5 @@ const result2 = useTrunc(value2) // -2
  *
  * @__NO_SIDE_EFFECTS__
  */
-export declare function useTrunc(
-  value: MaybeRefOrGetter<number>,
-): ComputedRef<number>
+export declare function useTrunc(value: MaybeRefOrGetter<number>): ComputedRef<number>
 ```

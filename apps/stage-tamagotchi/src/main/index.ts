@@ -108,169 +108,217 @@ if (shouldStartMainProcess) {
 let fileLogger: FileLoggerHandle = nullFileLoggerHandle
 let skipFileLogging = false
 
-app.whenReady().then(async () => {
-  if (!shouldStartMainProcess) {
-    return
-  }
-
-  // Initialize file logger and register the hook
-  fileLogger = await setupFileLogger()
-
-  // Register the global hook for file logging
-  setGlobalHookPostLog((_, formatted) => {
-    if (skipFileLogging || fileLogger.logFileFd === null)
+app
+  .whenReady()
+  .then(async () => {
+    if (!shouldStartMainProcess) {
       return
-    void fileLogger.appendLog(formatted)
-  })
+    }
 
-  injeca.setLogger(createLoggLogger(useLogg('injeca').useGlobalConfig()))
+    // Initialize file logger and register the hook
+    fileLogger = await setupFileLogger()
 
-  const appConfig = injeca.provide('configs:app', () => createGlobalAppConfig())
-  const artistryConfig = injeca.provide('configs:artistry', () => createArtistryConfig())
-  const electronApp = injeca.provide('host:electron:app', () => app)
-  const autoUpdater = injeca.provide('services:auto-updater', {
-    dependsOn: { appConfig },
-    build: ({ dependsOn }) => setupAutoUpdater({
-      getStoredUpdateLane: () => dependsOn.appConfig.get()?.updateChannel,
-      setStoredUpdateLane: (lane) => {
-        const currentConfig = dependsOn.appConfig.get()
-        dependsOn.appConfig.update({
-          language: currentConfig?.language ?? 'en',
-          updateChannel: lane,
+    // Register the global hook for file logging
+    setGlobalHookPostLog((_, formatted) => {
+      if (skipFileLogging || fileLogger.logFileFd === null) return
+      void fileLogger.appendLog(formatted)
+    })
+
+    injeca.setLogger(createLoggLogger(useLogg('injeca').useGlobalConfig()))
+
+    const appConfig = injeca.provide('configs:app', () => createGlobalAppConfig())
+    const artistryConfig = injeca.provide('configs:artistry', () => createArtistryConfig())
+    const electronApp = injeca.provide('host:electron:app', () => app)
+    const autoUpdater = injeca.provide('services:auto-updater', {
+      dependsOn: { appConfig },
+      build: ({ dependsOn }) =>
+        setupAutoUpdater({
+          getStoredUpdateLane: () => dependsOn.appConfig.get()?.updateChannel,
+          setStoredUpdateLane: (lane) => {
+            const currentConfig = dependsOn.appConfig.get()
+            dependsOn.appConfig.update({
+              language: currentConfig?.language ?? 'en',
+              updateChannel: lane,
+            })
+          },
+        }),
+    })
+
+    const i18n = injeca.provide('libs:i18n', {
+      dependsOn: { appConfig },
+      build: ({ dependsOn }) => createI18n({ messages, locale: dependsOn.appConfig.get()?.language }),
+    })
+
+    const serverChannel = injeca.provide('modules:channel-server', {
+      dependsOn: { app: electronApp, lifecycle },
+      build: async ({ dependsOn }) => setupServerChannel(dependsOn),
+    })
+
+    const airiHttpServer = injeca.provide('modules:airi-http-server', {
+      build: async () => setupBuiltInServer({ servers: [] }),
+    })
+
+    const godotStageManager = injeca.provide('modules:godot-stage-manager', {
+      build: async () => setupGodotStageManager(),
+    })
+
+    const mcpStdioManager = injeca.provide('modules:mcp-stdio-manager', {
+      build: async () => setupMcpStdioManager(),
+    })
+
+    const widgetsManager = injeca.provide('windows:widgets', {
+      dependsOn: { serverChannel, i18n },
+      build: ({ dependsOn }) => setupWidgetsWindowManager(dependsOn),
+    })
+
+    const pluginHost = injeca.provide('modules:plugin-host', {
+      dependsOn: { serverChannel, widgetsManager },
+      build: ({ dependsOn }) => setupPluginHost(dependsOn),
+    })
+
+    const windowAuthManager = injeca.provide('services:window-auth-manager', () => createWindowAuthManagerService())
+
+    const globalShortcut = injeca.provide('services:global-shortcut', () => setupGlobalShortcutService())
+
+    // BeatSync will create a background window to capture and process audio.
+    const beatSync = injeca.provide('windows:beat-sync', () => setupBeatSync())
+
+    const devtoolsMarkdownStressWindow = injeca.provide('windows:devtools:markdown-stress', () => setupDevtoolsWindow())
+
+    const onboardingWindowManager = injeca.provide('windows:onboarding', {
+      dependsOn: { serverChannel, i18n, windowAuthManager },
+      build: ({ dependsOn }) => setupOnboardingWindowManager(dependsOn),
+    })
+
+    const noticeWindow = injeca.provide('windows:notice', {
+      dependsOn: { i18n, serverChannel },
+      build: ({ dependsOn }) => setupNoticeWindowManager(dependsOn),
+    })
+
+    const aboutWindow = injeca.provide('windows:about', {
+      dependsOn: { autoUpdater, i18n, serverChannel },
+      build: ({ dependsOn }) => setupAboutWindowReusable(dependsOn),
+    })
+
+    const chatWindow = injeca.provide('windows:chat', {
+      dependsOn: { widgetsManager, serverChannel, mcpStdioManager, i18n },
+      build: ({ dependsOn }) => setupChatWindowReusableFunc(dependsOn),
+    })
+
+    const settingsWindow = injeca.provide('windows:settings', {
+      dependsOn: {
+        widgetsManager,
+        beatSync,
+        autoUpdater,
+        devtoolsWindow: devtoolsMarkdownStressWindow,
+        serverChannel,
+        godotStageManager,
+        mcpStdioManager,
+        i18n,
+        windowAuthManager,
+        globalShortcut,
+      },
+      build: async ({ dependsOn }) => setupSettingsWindowReusableFunc(dependsOn),
+    })
+
+    const mainWindow = injeca.provide('windows:main', {
+      dependsOn: {
+        settingsWindow,
+        chatWindow,
+        widgetsManager,
+        noticeWindow,
+        beatSync,
+        autoUpdater,
+        serverChannel,
+        godotStageManager,
+        mcpStdioManager,
+        i18n,
+        onboardingWindowManager,
+        windowAuthManager,
+      },
+      build: async ({ dependsOn }) =>
+        setupMainWindow({
+          ...dependsOn,
+          onWindowCreated: (window) => {
+            userFacingMainWindow = window
+          },
+        }),
+    })
+
+    const captionWindow = injeca.provide('windows:caption', {
+      dependsOn: { mainWindow, serverChannel, i18n },
+      build: async ({ dependsOn }) => setupCaptionWindowManager(dependsOn),
+    })
+
+    const tray = injeca.provide('app:tray', {
+      dependsOn: {
+        mainWindow,
+        settingsWindow,
+        captionWindow,
+        widgetsWindow: widgetsManager,
+        serverChannel,
+        beatSyncBgWindow: beatSync,
+        aboutWindow,
+        i18n,
+      },
+      build: async ({ dependsOn }) => setupTray(dependsOn),
+    })
+
+    // Desktop grounding overlay — gated by AIRI_DESKTOP_OVERLAY=1
+    if (isDesktopOverlayEnabled()) {
+      const desktopOverlay = injeca.provide('windows:desktop-overlay', {
+        dependsOn: { mcpStdioManager, serverChannel, i18n },
+        build: async ({ dependsOn }) => setupDesktopOverlayWindow(dependsOn),
+      })
+
+      // NOTICE: Separate invoke ensures the overlay is eagerly built.
+      // Without this, injeca.start() would skip it because no other
+      // provider depends on 'windows:desktop-overlay'.
+      injeca.invoke({
+        dependsOn: { desktopOverlay },
+        callback: noop,
+      })
+    }
+
+    injeca.invoke({
+      dependsOn: {
+        mainWindow,
+        tray,
+        serverChannel,
+        airiHttpServer,
+        godotStageManager,
+        pluginHost,
+        mcpStdioManager,
+        onboardingWindow: onboardingWindowManager,
+        widgetsWindow: widgetsManager,
+        artistryConfig,
+      },
+      callback: async (deps) => {
+        const { context } = createContext(ipcMain)
+        await setupArtistryBridge({
+          widgetsManager: deps.widgetsWindow,
+          context,
+          artistryConfig: deps.artistryConfig,
         })
       },
-    }),
-  })
-
-  const i18n = injeca.provide('libs:i18n', {
-    dependsOn: { appConfig },
-    build: ({ dependsOn }) => createI18n({ messages, locale: dependsOn.appConfig.get()?.language }),
-  })
-
-  const serverChannel = injeca.provide('modules:channel-server', {
-    dependsOn: { app: electronApp, lifecycle },
-    build: async ({ dependsOn }) => setupServerChannel(dependsOn),
-  })
-
-  const airiHttpServer = injeca.provide('modules:airi-http-server', {
-    build: async () => setupBuiltInServer({ servers: [] }),
-  })
-
-  const godotStageManager = injeca.provide('modules:godot-stage-manager', {
-    build: async () => setupGodotStageManager(),
-  })
-
-  const mcpStdioManager = injeca.provide('modules:mcp-stdio-manager', {
-    build: async () => setupMcpStdioManager(),
-  })
-
-  const widgetsManager = injeca.provide('windows:widgets', {
-    dependsOn: { serverChannel, i18n },
-    build: ({ dependsOn }) => setupWidgetsWindowManager(dependsOn),
-  })
-
-  const pluginHost = injeca.provide('modules:plugin-host', {
-    dependsOn: { serverChannel, widgetsManager },
-    build: ({ dependsOn }) => setupPluginHost(dependsOn),
-  })
-
-  const windowAuthManager = injeca.provide('services:window-auth-manager', () => createWindowAuthManagerService())
-
-  const globalShortcut = injeca.provide('services:global-shortcut', () => setupGlobalShortcutService())
-
-  // BeatSync will create a background window to capture and process audio.
-  const beatSync = injeca.provide('windows:beat-sync', () => setupBeatSync())
-
-  const devtoolsMarkdownStressWindow = injeca.provide('windows:devtools:markdown-stress', () => setupDevtoolsWindow())
-
-  const onboardingWindowManager = injeca.provide('windows:onboarding', {
-    dependsOn: { serverChannel, i18n, windowAuthManager },
-    build: ({ dependsOn }) => setupOnboardingWindowManager(dependsOn),
-  })
-
-  const noticeWindow = injeca.provide('windows:notice', {
-    dependsOn: { i18n, serverChannel },
-    build: ({ dependsOn }) => setupNoticeWindowManager(dependsOn),
-  })
-
-  const aboutWindow = injeca.provide('windows:about', {
-    dependsOn: { autoUpdater, i18n, serverChannel },
-    build: ({ dependsOn }) => setupAboutWindowReusable(dependsOn),
-  })
-
-  const chatWindow = injeca.provide('windows:chat', {
-    dependsOn: { widgetsManager, serverChannel, mcpStdioManager, i18n },
-    build: ({ dependsOn }) => setupChatWindowReusableFunc(dependsOn),
-  })
-
-  const settingsWindow = injeca.provide('windows:settings', {
-    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, serverChannel, godotStageManager, mcpStdioManager, i18n, windowAuthManager, globalShortcut },
-    build: async ({ dependsOn }) => setupSettingsWindowReusableFunc(dependsOn),
-  })
-
-  const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, godotStageManager, mcpStdioManager, i18n, onboardingWindowManager, windowAuthManager },
-    build: async ({ dependsOn }) => setupMainWindow({
-      ...dependsOn,
-      onWindowCreated: (window) => {
-        userFacingMainWindow = window
-      },
-    }),
-  })
-
-  const captionWindow = injeca.provide('windows:caption', {
-    dependsOn: { mainWindow, serverChannel, i18n },
-    build: async ({ dependsOn }) => setupCaptionWindowManager(dependsOn),
-  })
-
-  const tray = injeca.provide('app:tray', {
-    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, serverChannel, beatSyncBgWindow: beatSync, aboutWindow, i18n },
-    build: async ({ dependsOn }) => setupTray(dependsOn),
-  })
-
-  // Desktop grounding overlay — gated by AIRI_DESKTOP_OVERLAY=1
-  if (isDesktopOverlayEnabled()) {
-    const desktopOverlay = injeca.provide('windows:desktop-overlay', {
-      dependsOn: { mcpStdioManager, serverChannel, i18n },
-      build: async ({ dependsOn }) => setupDesktopOverlayWindow(dependsOn),
     })
 
-    // NOTICE: Separate invoke ensures the overlay is eagerly built.
-    // Without this, injeca.start() would skip it because no other
-    // provider depends on 'windows:desktop-overlay'.
-    injeca.invoke({
-      dependsOn: { desktopOverlay },
-      callback: noop,
-    })
-  }
+    injeca.start().catch((err) => console.error(err))
 
-  injeca.invoke({
-    dependsOn: { mainWindow, tray, serverChannel, airiHttpServer, godotStageManager, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager, widgetsWindow: widgetsManager, artistryConfig },
-    callback: async (deps) => {
-      const { context } = createContext(ipcMain)
-      await setupArtistryBridge({
-        widgetsManager: deps.widgetsWindow,
-        context,
-        artistryConfig: deps.artistryConfig,
-      })
-    },
+    // Lifecycle
+    emitAppReady()
+
+    // Extra
+    openDebugger()
+
+    // Default open or close DevTools by F12 in development
+    // and ignore CommandOrControl + R in production.
+    // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
+    app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))
   })
-
-  injeca.start().catch(err => console.error(err))
-
-  // Lifecycle
-  emitAppReady()
-
-  // Extra
-  openDebugger()
-
-  // Default open or close DevTools by F12 in development
-  // and ignore CommandOrControl + R in production.
-  // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
-  app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))
-}).catch((err) => {
-  log.withError(err).error('Error during app initialization')
-})
+  .catch((err) => {
+    log.withError(err).error('Error during app initialization')
+  })
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
@@ -287,8 +335,7 @@ let appExiting = false
 
 // Clean up server and intervals when app quits
 async function handleAppExit() {
-  if (appExiting)
-    return
+  if (appExiting) return
 
   appExiting = true
 
@@ -305,8 +352,7 @@ async function handleAppExit() {
   async function logIfError(operation: string, fn: () => unknown): Promise<void> {
     try {
       await fn()
-    }
-    catch (error) {
+    } catch (error) {
       exitedNormally = false
       log.withError(error).error(`[app-exit] Failed to ${operation}:`)
     }

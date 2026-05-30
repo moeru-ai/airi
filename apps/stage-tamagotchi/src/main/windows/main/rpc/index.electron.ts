@@ -15,7 +15,12 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { ipcMain } from 'electron'
 
-import { electronOpenChat, electronOpenMainDevtools, electronOpenSettings, noticeWindowEventa } from '../../../../shared/eventa'
+import {
+  electronOpenChat,
+  electronOpenMainDevtools,
+  electronOpenSettings,
+  noticeWindowEventa,
+} from '../../../../shared/eventa'
 import { createAuthService } from '../../../services/airi/auth'
 import { createGodotStageService } from '../../../services/airi/godot-stage'
 import { createMcpServersService } from '../../../services/airi/mcp-servers'
@@ -46,16 +51,27 @@ export async function setupMainWindowElectronInvokes(params: {
 
   const { context } = createContext(ipcMain, params.window)
 
-  await setupBaseWindowElectronInvokes({ context, window: params.window, serverChannel: params.serverChannel, i18n: params.i18n })
+  await setupBaseWindowElectronInvokes({
+    context,
+    window: params.window,
+    serverChannel: params.serverChannel,
+    i18n: params.i18n,
+  })
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.window })
   createAutoUpdaterService({ context, window: params.window, service: params.autoUpdater })
   createMcpServersService({ context, manager: params.mcpStdioManager })
   createGodotStageService({ context, manager: params.godotStageManager, window: params.window })
-  createOnboardingService({ context, onboardingWindowManager: params.onboardingWindowManager, mainWindow: params.window })
+  createOnboardingService({
+    context,
+    onboardingWindowManager: params.onboardingWindowManager,
+    mainWindow: params.window,
+  })
   createAuthService({ context, window: params.window, windowAuthManager: params.windowAuthManager })
 
-  defineInvokeHandler(context, electronOpenMainDevtools, () => params.window.webContents.openDevTools({ mode: 'detach' }))
-  defineInvokeHandler(context, electronOpenSettings, payload => params.settingsWindow.openWindow(payload?.route))
+  defineInvokeHandler(context, electronOpenMainDevtools, () =>
+    params.window.webContents.openDevTools({ mode: 'detach' }),
+  )
+  defineInvokeHandler(context, electronOpenSettings, (payload) => params.settingsWindow.openWindow(payload?.route))
   defineInvokeHandler(context, electronOpenChat, async () => toggleWindowShow(await params.chatWindow()))
-  defineInvokeHandler(context, noticeWindowEventa.openWindow, payload => params.noticeWindow.open(payload))
+  defineInvokeHandler(context, noticeWindowEventa.openWindow, (payload) => params.noticeWindow.open(payload))
 }

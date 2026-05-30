@@ -91,8 +91,7 @@ async function ensureLogsDirectory(): Promise<string | null> {
     const logsDir = join(app.getPath('userData'), 'logs')
     await mkdir(logsDir, { recursive: true })
     return logsDir
-  }
-  catch (error) {
+  } catch (error) {
     const message = getErrorMessage(error)
     console.error(`[FileLogger] Failed to create logs directory: ${message}`)
     return null
@@ -106,8 +105,7 @@ async function getLogFileSize(filePath: string): Promise<number | null> {
   try {
     const stats = await stat(filePath)
     return stats.size
-  }
-  catch {
+  } catch {
     return null
   }
 }
@@ -158,8 +156,7 @@ export async function setupFileLogger(): Promise<FileLoggerHandle> {
 
       try {
         await fileHandle.appendFile(normalizedContent)
-      }
-      catch (error) {
+      } catch (error) {
         const message = getErrorMessage(error)
         console.error(`[FileLogger] Failed to write log: ${message}`)
       }
@@ -174,8 +171,7 @@ export async function setupFileLogger(): Promise<FileLoggerHandle> {
         await fileHandle.close()
         isFileClosed = true
         console.info('[FileLogger] File closed successfully')
-      }
-      catch (error) {
+      } catch (error) {
         const message = getErrorMessage(error)
         console.error(`[FileLogger] Failed to close log file: ${message}`)
       }
@@ -186,8 +182,7 @@ export async function setupFileLogger(): Promise<FileLoggerHandle> {
     }
 
     return { logFilePath, logFileFd, appendLog, close }
-  }
-  catch (error) {
+  } catch (error) {
     const message = getErrorMessage(error)
     console.error(`[FileLogger] Failed to create log file - logging to console only: ${message}`)
     return nullFileLoggerHandle

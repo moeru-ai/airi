@@ -23,10 +23,7 @@ You can define named events with the second parameter
 ```ts
 import { useEventSource } from '@vueuse/core'
 // ---cut---
-const { event, data } = useEventSource(
-  'https://event-source-url',
-  ['notice', 'update']
-)
+const { event, data } = useEventSource('https://event-source-url', ['notice', 'update'])
 ```
 
 ### immediate
@@ -48,13 +45,9 @@ Reconnect on errors automatically (disabled by default).
 ```ts
 import { useEventSource } from '@vueuse/core'
 // ---cut---
-const { status, data, close } = useEventSource(
-  'https://event-source-url',
-  [],
-  {
-    autoReconnect: true,
-  }
-)
+const { status, data, close } = useEventSource('https://event-source-url', [], {
+  autoReconnect: true,
+})
 ```
 
 Or with more controls over its behavior:
@@ -62,19 +55,15 @@ Or with more controls over its behavior:
 ```ts
 import { useEventSource } from '@vueuse/core'
 // ---cut---
-const { status, data, close } = useEventSource(
-  'https://event-source-url',
-  [],
-  {
-    autoReconnect: {
-      retries: 3,
-      delay: 1000,
-      onFailed() {
-        alert('Failed to connect EventSource after 3 retries')
-      },
+const { status, data, close } = useEventSource('https://event-source-url', [], {
+  autoReconnect: {
+    retries: 3,
+    delay: 1000,
+    onFailed() {
+      alert('Failed to connect EventSource after 3 retries')
     },
-  }
-)
+  },
+})
 ```
 
 ### Data Serialization
@@ -84,15 +73,11 @@ Apply custom transformations to incoming data using a serialization function.
 ```ts
 import { useEventSource } from '@vueuse/core'
 // ---cut---
-const { data } = useEventSource(
-  'https://event-source-url',
-  [],
-  {
-    serializer: {
-      read: rawData => JSON.parse(rawData),
-    },
-  }
-)
+const { data } = useEventSource('https://event-source-url', [], {
+  serializer: {
+    read: (rawData) => JSON.parse(rawData),
+  },
+})
 
 // If server sends: '{"name":"John","age":30}'
 // data.value will be: { name: 'John', age: 30 }
@@ -111,25 +96,25 @@ export interface UseEventSourceOptions<Data> extends EventSourceInit {
   autoReconnect?:
     | boolean
     | {
-      /**
-       * Maximum retry times.
-       *
-       * Or you can pass a predicate function (which returns true if you want to retry).
-       *
-       * @default -1
-       */
-      retries?: number | (() => boolean)
-      /**
-       * Delay for reconnect, in milliseconds
-       *
-       * @default 1000
-       */
-      delay?: number
-      /**
-       * On maximum retry times reached.
-       */
-      onFailed?: Fn
-    }
+        /**
+         * Maximum retry times.
+         *
+         * Or you can pass a predicate function (which returns true if you want to retry).
+         *
+         * @default -1
+         */
+        retries?: number | (() => boolean)
+        /**
+         * Delay for reconnect, in milliseconds
+         *
+         * @default 1000
+         */
+        delay?: number
+        /**
+         * On maximum retry times reached.
+         */
+        onFailed?: Fn
+      }
   /**
    * Immediately open the connection when calling this composable
    *

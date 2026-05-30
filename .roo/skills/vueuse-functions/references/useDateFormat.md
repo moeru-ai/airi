@@ -87,8 +87,8 @@ const formatted = useDateFormat(useNow(), 'YYYY-MM-DD (ddd)', { locales: 'en-US'
 import { useDateFormat } from '@vueuse/core'
 
 function customMeridiem(hours: number, minutes: number, isLowercase?: boolean, hasPeriod?: boolean) {
-  const m = hours > 11 ? (isLowercase ? 'μμ' : 'ΜΜ') : (isLowercase ? 'πμ' : 'ΠΜ')
-  return hasPeriod ? m.split('').reduce((acc, current) => acc += `${current}.`, '') : m
+  const m = hours > 11 ? (isLowercase ? 'μμ' : 'ΜΜ') : isLowercase ? 'πμ' : 'ΠΜ'
+  return hasPeriod ? m.split('').reduce((acc, current) => (acc += `${current}.`), '') : m
 }
 
 const am = useDateFormat('2022-01-01 05:05:05', 'hh:mm:ss A', { customMeridiem })
@@ -113,18 +113,9 @@ export interface UseDateFormatOptions {
    * A custom function to re-modify the way to display meridiem
    *
    */
-  customMeridiem?: (
-    hours: number,
-    minutes: number,
-    isLowercase?: boolean,
-    hasPeriod?: boolean,
-  ) => string
+  customMeridiem?: (hours: number, minutes: number, isLowercase?: boolean, hasPeriod?: boolean) => string
 }
-export declare function formatDate(
-  date: Date,
-  formatStr: string,
-  options?: UseDateFormatOptions,
-): string
+export declare function formatDate(date: Date, formatStr: string, options?: UseDateFormatOptions): string
 export declare function normalizeDate(date: DateLike): Date
 export type UseDateFormatReturn = ComputedRef<string>
 /**

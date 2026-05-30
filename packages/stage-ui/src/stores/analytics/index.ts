@@ -36,8 +36,7 @@ export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
   const firstModelSelectedTracked = ref(false)
 
   watch(analyticsEnabled, (enabled, previousEnabled) => {
-    if (!isInitialized.value)
-      return
+    if (!isInitialized.value) return
 
     const shouldCapture = syncPosthogCapture(enabled)
     if (shouldCapture) {
@@ -57,14 +56,12 @@ export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
       // (keyed by Better Auth user id) won't merge with the browser's
       // anonymous funnel events.
       const authStore = useAuthStore()
-      if (authStore.isAuthenticated && authStore.user?.id)
-        identifyPosthogUser(authStore.user.id)
+      if (authStore.isAuthenticated && authStore.user?.id) identifyPosthogUser(authStore.user.id)
     }
   })
 
   function initialize() {
-    if (isInitialized.value)
-      return
+    if (isInitialized.value) return
 
     appStartTime.value = Date.now()
 
@@ -72,12 +69,11 @@ export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
       const shouldCapture = syncPosthogCapture(analyticsEnabled.value)
       if (shouldCapture) {
         registerPosthogBuildInfo(buildInfo.value)
-        const platform: 'web' | 'desktop' | 'mobile'
-          = isStageTamagotchi()
-            ? 'desktop'
-            : isStageCapacitor()
-              ? 'mobile'
-              : 'web'
+        const platform: 'web' | 'desktop' | 'mobile' = isStageTamagotchi()
+          ? 'desktop'
+          : isStageCapacitor()
+            ? 'mobile'
+            : 'web'
         capturePosthogEvent('app_loaded', {
           platform,
           version: buildInfo.value.version,
@@ -91,12 +87,10 @@ export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
     // different person profiles and the funnel never joins. See
     // `apps/server/docs/ai-context/metrics-ownership.md`.
     const authStore = useAuthStore()
-    if (authStore.isAuthenticated && authStore.user?.id)
-      identifyPosthogUser(authStore.user.id)
+    if (authStore.isAuthenticated && authStore.user?.id) identifyPosthogUser(authStore.user.id)
 
     authStore.onAuthenticated(() => {
-      if (authStore.user?.id)
-        identifyPosthogUser(authStore.user.id)
+      if (authStore.user?.id) identifyPosthogUser(authStore.user.id)
     })
     authStore.onLogout(() => {
       resetPosthog()
@@ -118,8 +112,7 @@ export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
     watch(
       () => ({ provider: consciousness.activeProvider, model: consciousness.activeModel }),
       (next, prev) => {
-        if (!next.provider || !next.model)
-          return
+        if (!next.provider || !next.model) return
 
         // Baseline on first watcher tick (oldVal undefined when the watcher
         // mounts with already-restored localStorage state).
@@ -131,22 +124,25 @@ export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
             // when the capture actually went out (PostHog initialised + user
             // not opted out); otherwise an early opt-in or delayed init
             // would never get the chance to emit `first_model_selected`.
-            const captured = capturePosthogEvent('first_model_selected', { model_id: next.model, provider: next.provider })
-            if (captured)
-              firstModelSelectedTracked.value = true
+            const captured = capturePosthogEvent('first_model_selected', {
+              model_id: next.model,
+              provider: next.provider,
+            })
+            if (captured) firstModelSelectedTracked.value = true
           }
           return
         }
 
-        if (prev.provider === next.provider && prev.model === next.model)
-          return
+        if (prev.provider === next.provider && prev.model === next.model) return
 
         if (!firstModelSelectedTracked.value) {
           // Same gating as the baseline branch: only mark first-selection
           // as tracked when capture actually shipped.
-          const captured = capturePosthogEvent('first_model_selected', { model_id: next.model, provider: next.provider })
-          if (captured)
-            firstModelSelectedTracked.value = true
+          const captured = capturePosthogEvent('first_model_selected', {
+            model_id: next.model,
+            provider: next.provider,
+          })
+          if (captured) firstModelSelectedTracked.value = true
           return
         }
 
@@ -173,8 +169,7 @@ export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
       (next, prev) => {
         // Boot-time watcher tick (no previous value) is the baseline,
         // not a switch — skip emit; the first real A→B will fire.
-        if (!next || !prev || prev === next)
-          return
+        if (!next || !prev || prev === next) return
         capturePosthogEvent('character_switched', {
           from_character_id: prev,
           to_character_id: next,

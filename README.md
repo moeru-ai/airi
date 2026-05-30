@@ -14,7 +14,7 @@
 > [!TIP]
 > This fork's focus is turning the Project AIRI vision into **the ultimate dream of creating baremetal desktop agentic OS centered around your AI companion**.
 
-The original AIRI project provides a feature-rich foundation. This fork adopts a strict **KISS philosophy** to keep the codebase clean and cloud linter-friendly, with plans to transition to TDD. As a result, VRM, plugins, and certain non-core systems have been temporarily removed. 
+The original AIRI project provides a feature-rich foundation. This fork adopts a strict **KISS philosophy** to keep the codebase clean and cloud linter-friendly, with plans to transition to TDD. As a result, VRM, plugins, and certain non-core systems have been temporarily removed.
 
 While multi-platform compatibility is maintained, our primary optimization target is a lightweight Linux build. If you require VRM support or broader cross-platform stability, please refer to [`dasilva333/airi`](https://github.com/dasilva333/airi) or [`moeru-ai/airi`](https://github.com/moeru-ai/airi).
 
@@ -26,10 +26,10 @@ While multi-platform compatibility is maintained, our primary optimization targe
 
 Our goal is a Linux desktop experience where your AI companion acts as the center of your desktop environment (aka wallpaper):
 
-*   **Always-Present Stage:** Your character lives on your desktop, not in a floating window or browser tab.
-*   **System Integration:** Hooks into notifications, screen capture, and global shortcuts.
-*   **Context Awareness:** Your companion observes desktop activity to respond and interact proactively.
-*   **Modular Stage Layouts:** GTK3/4 widgets, interactive backgrounds, and window layouts composed dynamically by the character.
+- **Always-Present Stage:** Your character lives on your desktop, not in a floating window or browser tab.
+- **System Integration:** Hooks into notifications, screen capture, and global shortcuts.
+- **Context Awareness:** Your companion observes desktop activity to respond and interact proactively.
+- **Modular Stage Layouts:** GTK3/4 widgets, interactive backgrounds, and window layouts composed dynamically by the character.
 
 ---
 
@@ -37,15 +37,15 @@ Our goal is a Linux desktop experience where your AI companion acts as the cente
 
 We build directly upon the core strengths of the original project and selectively rebase `dasilva333/airi` changes on latest upstream:
 
-*   - [ ] **Native Wayland Support:** Out-of-the-box integration using Ozone platform flags, PipeWire screen capture, and window decorations.
-*   - [ ] **AIRI Card System:** High-fidelity character management. Import/export native JSON or SillyTavern-compatible `chara_card_v2` PNGs. Features per-card model configurations and stage preferences.
-*   [ ] **Multi-Tab Card Editor:**
-    *   *Acting:* Manage model expressions, speech mannerisms, and ACT tokens.
-    *   *Modules:* Set specific speech engines, avatars, and models per character.
-    *   *Artistry:* Native image generation pipelines (Replicate, ComfyUI).
-    *   *Proactivity:* Define triggers for autonomous companion interactions.
-*   [ ] **Dynamic Stage Widgets:** Spawns and controls floating desktop widgets (weather, maps, or generic JSON payloads).
-*   [ ] **Optimized Audio Pipeline:** Low-latency speech path supporting OpenAI-compatible voice discovery.
+- - [ ] **Native Wayland Support:** Out-of-the-box integration using Ozone platform flags, PipeWire screen capture, and window decorations.
+- - [ ] **AIRI Card System:** High-fidelity character management. Import/export native JSON or SillyTavern-compatible `chara_card_v2` PNGs. Features per-card model configurations and stage preferences.
+- [ ] **Multi-Tab Card Editor:**
+  - _Acting:_ Manage model expressions, speech mannerisms, and ACT tokens.
+  - _Modules:_ Set specific speech engines, avatars, and models per character.
+  - _Artistry:_ Native image generation pipelines (Replicate, ComfyUI).
+  - _Proactivity:_ Define triggers for autonomous companion interactions.
+- [ ] **Dynamic Stage Widgets:** Spawns and controls floating desktop widgets (weather, maps, or generic JSON payloads).
+- [ ] **Optimized Audio Pipeline:** Low-latency speech path supporting OpenAI-compatible voice discovery.
 
 ---
 
@@ -53,8 +53,8 @@ We build directly upon the core strengths of the original project and selectivel
 
 ### ☕ Prerequisites
 
-*   Node.js >= 20.14.0
-*   pnpm >= 10.0.0
+- Node.js >= 20.14.0
+- pnpm >= 10.0.0
 
 ### 🖱️ Quick Start
 
@@ -69,11 +69,13 @@ pnpm dev:tamagotchi
 cd apps/stage-tamagotchi
 ./build.sh           # Builds the .deb package in dist/
 ```
-*(An optional PKGBUILD is located in `apps/stage-tamagotchi` to repackage the `.deb` into `.zst` for Arch/Manjaro/CachyOS).*
+
+_(An optional PKGBUILD is located in `apps/stage-tamagotchi` to repackage the `.deb` into `.zst` for Arch/Manjaro/CachyOS)._
 
 ### ❔ Troubleshooting
 
 **Electron build approvals (pnpm 10+):**
+
 ```shell
 pnpm approve-builds # Select 'electron' and confirm
 ```
@@ -98,7 +100,7 @@ pnpm approve-builds # Select 'electron' and confirm
   - [x] Live2D support
     - [ ] with expression-oriented tools
 - [x] **Desktop Stage**
-  - [ ] *Multiple characters sharing the stage*
+  - [ ] _Multiple characters sharing the stage_
   - [ ] Control Island with emotions, favorites, and idle-loop cycling
   - [ ] Widget system (weather, map, generic JSON) (to be converted to GTK)
   - [ ] Scene/background management per character
@@ -129,6 +131,6 @@ pnpm approve-builds # Select 'electron' and confirm
 
 ## 🙏 Acknowledgements
 
-*   Original [moeru-ai/airi](https://github.com/moeru-ai/airi) project and [dasilva333/airi](https://github.com/dasilva333/airi) fork
-*   [Reka UI](https://github.com/unovue/reka-ui) - UI components
-*   [xsai](https://github.com/moeru-ai/xsai) - LLM interaction layer
+- Original [moeru-ai/airi](https://github.com/moeru-ai/airi) project and [dasilva333/airi](https://github.com/dasilva333/airi) fork
+- [Reka UI](https://github.com/unovue/reka-ui) - UI components
+- [xsai](https://github.com/moeru-ai/xsai) - LLM interaction layer

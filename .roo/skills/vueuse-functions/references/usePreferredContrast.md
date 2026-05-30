@@ -18,9 +18,7 @@ const preferredContrast = usePreferredContrast()
 
 ```vue
 <template>
-  <UsePreferredContrast v-slot="{ contrast }">
-    Preferred Contrast: {{ contrast }}
-  </UsePreferredContrast>
+  <UsePreferredContrast v-slot="{ contrast }">Preferred Contrast: {{ contrast }}</UsePreferredContrast>
 </template>
 ```
 
@@ -36,7 +34,5 @@ export type ContrastType = 'more' | 'less' | 'custom' | 'no-preference'
  *
  * @__NO_SIDE_EFFECTS__
  */
-export declare function usePreferredContrast(
-  options?: ConfigurableWindow,
-): ComputedRef<ContrastType>
+export declare function usePreferredContrast(options?: ConfigurableWindow): ComputedRef<ContrastType>
 ```

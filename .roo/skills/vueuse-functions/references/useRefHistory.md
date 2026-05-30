@@ -205,8 +205,7 @@ Another option is to avoid mutating the original ref value using `arr.value = [.
 ## Type Declarations
 
 ```ts
-export interface UseRefHistoryOptions<Raw, Serialized = Raw>
-  extends ConfigurableEventFilter, ConfigurableFlush {
+export interface UseRefHistoryOptions<Raw, Serialized = Raw> extends ConfigurableEventFilter, ConfigurableFlush {
   /**
    * Watch for deep changes, default to false
    *
@@ -242,10 +241,7 @@ export interface UseRefHistoryOptions<Raw, Serialized = Raw>
    */
   shouldCommit?: (oldValue: Raw | undefined, newValue: Raw) => boolean
 }
-export interface UseRefHistoryReturn<
-  Raw,
-  Serialized,
-> extends UseManualRefHistoryReturn<Raw, Serialized> {
+export interface UseRefHistoryReturn<Raw, Serialized> extends UseManualRefHistoryReturn<Raw, Serialized> {
   /**
    * A ref representing if the tracking is enabled
    */

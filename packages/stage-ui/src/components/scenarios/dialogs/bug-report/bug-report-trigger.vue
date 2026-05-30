@@ -50,28 +50,10 @@ function onSubmit(payload: BugReportDialogSubmitPayload) {
 </script>
 
 <template>
-  <div
-    :class="[
-      'flex flex-col gap-3',
-    ]"
-  >
-    <Button
-      variant="danger"
-      :class="[
-        'w-fit',
-      ]"
-      @click="showDialog = true"
-    >
-      <span
-        :class="[
-          'flex items-center gap-2',
-        ]"
-      >
-        <span
-          :class="[
-            'i-solar:danger-circle-outline h-4 w-4',
-          ]"
-        />
+  <div :class="['flex flex-col gap-3']">
+    <Button variant="danger" :class="['w-fit']" @click="showDialog = true">
+      <span :class="['flex items-center gap-2']">
+        <span :class="['i-solar:danger-circle-outline h-4 w-4']" />
         {{ resolvedTriggerLabel }}
       </span>
     </Button>
@@ -83,18 +65,10 @@ function onSubmit(payload: BugReportDialogSubmitPayload) {
         'text-neutral-600 leading-relaxed dark:border-neutral-700/60 dark:bg-neutral-900/50 dark:text-neutral-300',
       ]"
     >
-      <div
-        :class="[
-          'mb-2 text-xs font-semibold text-neutral-800 dark:text-neutral-200',
-        ]"
-      >
+      <div :class="['mb-2 text-xs font-semibold text-neutral-800 dark:text-neutral-200']">
         {{ t('settings.dialogs.bug-report.last-submitted-preview') }}
       </div>
-      <pre
-        :class="[
-          'max-h-40 overflow-auto whitespace-pre-wrap break-words',
-        ]"
-      >{{ submittedReport }}</pre>
+      <pre :class="['max-h-40 overflow-auto whitespace-pre-wrap break-words']">{{ submittedReport }}</pre>
     </div>
 
     <BugReportDialog

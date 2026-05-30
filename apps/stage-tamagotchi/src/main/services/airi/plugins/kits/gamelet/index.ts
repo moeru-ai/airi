@@ -183,9 +183,7 @@ export function registerGameletPluginKit(host: PluginHost): KitDescriptor {
  * Returns:
  * - A contribution plus an attach step that binds it to the constructed host instance
  */
-export function createGameletHostContribution(options: {
-  widgetsManager: PluginHostGameletWidgetsManager
-}): {
+export function createGameletHostContribution(options: { widgetsManager: PluginHostGameletWidgetsManager }): {
   attachHost: (host: PluginHost) => void
   contribution: PluginHostContribution
 } {
@@ -232,12 +230,12 @@ export function createGameletHostContribution(options: {
           }
 
           const widgetIdsToRemove = [...widgetIds]
-          const cleanupPromise = Promise
-            .allSettled(widgetIdsToRemove.map(widgetId => options.widgetsManager.removeWidget(widgetId)))
-            .then(() => {
-              openWidgetIdsBySession.delete(session.sessionId)
-              cleanupPromisesBySession.delete(session.sessionId)
-            })
+          const cleanupPromise = Promise.allSettled(
+            widgetIdsToRemove.map((widgetId) => options.widgetsManager.removeWidget(widgetId)),
+          ).then(() => {
+            openWidgetIdsBySession.delete(session.sessionId)
+            cleanupPromisesBySession.delete(session.sessionId)
+          })
 
           cleanupPromisesBySession.set(session.sessionId, cleanupPromise)
           void cleanupPromise.catch(() => {})

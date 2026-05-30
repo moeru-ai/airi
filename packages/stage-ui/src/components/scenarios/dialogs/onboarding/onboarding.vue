@@ -25,11 +25,14 @@ interface Emits {
   (e: 'skipped'): void
 }
 
-const props = withDefaults(defineProps<{
-  extraSteps?: OnboardingStep[]
-}>(), {
-  extraSteps: () => [],
-})
+const props = withDefaults(
+  defineProps<{
+    extraSteps?: OnboardingStep[]
+  }>(),
+  {
+    extraSteps: () => [],
+  },
+)
 const emit = defineEmits<Emits>()
 const step = ref(0)
 const direction = ref<'next' | 'previous'>('next')
@@ -38,15 +41,26 @@ const pendingProviderConfig = ref<ProviderConfigData | null>(null)
 const providersStore = useProvidersStore()
 const { providers, allChatProvidersMetadata } = storeToRefs(providersStore)
 const consciousnessStore = useConsciousnessStore()
-const {
-  activeProvider,
-} = storeToRefs(consciousnessStore)
+const { activeProvider } = storeToRefs(consciousnessStore)
 
 // Popular providers for first-time setup
 const popularProviders = computed(() => {
-  const popular = ['openai', 'azure-openai', 'anthropic', 'amazon-bedrock', 'google-generative-ai', 'groq', 'nvidia', 'openrouter-ai', 'ollama', 'deepseek', 'player2', 'openai-compatible']
+  const popular = [
+    'openai',
+    'azure-openai',
+    'anthropic',
+    'amazon-bedrock',
+    'google-generative-ai',
+    'groq',
+    'nvidia',
+    'openrouter-ai',
+    'ollama',
+    'deepseek',
+    'player2',
+    'openai-compatible',
+  ]
   return allChatProvidersMetadata.value
-    .filter(provider => popular.includes(provider.id))
+    .filter((provider) => popular.includes(provider.id))
     .sort((a, b) => popular.indexOf(a.id) - popular.indexOf(b.id))
 })
 
@@ -55,7 +69,7 @@ const selectedProviderId = ref('')
 
 // Computed selected provider
 const selectedProvider = computed(() => {
-  return allChatProvidersMetadata.value.find(p => p.id === selectedProviderId.value) || null
+  return allChatProvidersMetadata.value.find((p) => p.id === selectedProviderId.value) || null
 })
 
 // Reset validation state when provider changes
@@ -73,21 +87,16 @@ const requestNextStep: OnboardingStepNextHandler = async (configData?: ProviderC
 }
 
 async function saveProviderConfiguration(data: ProviderConfigData) {
-  if (!selectedProvider.value)
-    return
+  if (!selectedProvider.value) return
 
   const config: Record<string, unknown> = {}
 
-  if (data.apiKey)
-    config.apiKey = data.apiKey.trim()
-  if (data.baseUrl)
-    config.baseUrl = data.baseUrl.trim()
-  if (data.accountId)
-    config.accountId = data.accountId.trim()
+  if (data.apiKey) config.apiKey = data.apiKey.trim()
+  if (data.baseUrl) config.baseUrl = data.baseUrl.trim()
+  if (data.accountId) config.accountId = data.accountId.trim()
   if (data.customFields) {
     for (const [key, value] of Object.entries(data.customFields)) {
-      if (value)
-        config[key] = value.trim()
+      if (value) config[key] = value.trim()
     }
   }
 
@@ -102,8 +111,7 @@ async function saveProviderConfiguration(data: ProviderConfigData) {
 
   try {
     await consciousnessStore.loadModelsForProvider(selectedProvider.value.id)
-  }
-  catch (err) {
+  } catch (err) {
     console.error('[onboarding] Failed to load models for provider:', err)
   }
 }
@@ -136,15 +144,14 @@ const allSteps = computed<OnboardingStep[]>(() => {
         selectedProvider: selectedProvider.value,
       }),
       beforeNext: async () => {
-        if (!pendingProviderConfig.value)
-          return false
+        if (!pendingProviderConfig.value) return false
 
         await saveProviderConfiguration(pendingProviderConfig.value)
         pendingProviderConfig.value = null
         return true
       },
     },
-    ...props.extraSteps.map(step => ({
+    ...props.extraSteps.map((step) => ({
       ...step,
       props: () => ({
         ...step.props?.(),
@@ -164,18 +171,15 @@ const isLastStep = computed(() => step.value === allSteps.value.length - 1)
 const currentStepProps = computed(() => currentStep.value?.props?.() ?? {})
 
 async function canPassGuard(guard?: OnboardingStepGuard) {
-  if (!guard)
-    return true
+  if (!guard) return true
 
   return await guard()
 }
 
 async function navigateNext() {
-  if (!currentStep.value)
-    return
+  if (!currentStep.value) return
 
-  if (!(await canPassGuard(currentStep.value.beforeNext)))
-    return
+  if (!(await canPassGuard(currentStep.value.beforeNext))) return
 
   if (isLastStep.value) {
     await handleSave()
@@ -188,11 +192,9 @@ async function navigateNext() {
 }
 
 async function navigatePrevious() {
-  if (!currentStep.value || step.value <= 0)
-    return
+  if (!currentStep.value || step.value <= 0) return
 
-  if (!(await canPassGuard(currentStep.value.beforePrev)))
-    return
+  if (!(await canPassGuard(currentStep.value.beforePrev))) return
 
   direction.value = 'previous'
   step.value--

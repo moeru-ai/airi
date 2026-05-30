@@ -19,7 +19,7 @@ describe('useLlmToolsStore', () => {
     store.registerTools('plugin-tools', [pluginTool])
 
     expect(store.toolsByProvider).toEqual({
-      'mcp': [mcpTool],
+      mcp: [mcpTool],
       'plugin-tools': [pluginTool],
     })
     expect(store.activeTools).toEqual([mcpTool, pluginTool])

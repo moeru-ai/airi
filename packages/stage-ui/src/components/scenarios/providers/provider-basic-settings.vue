@@ -20,7 +20,11 @@ defineProps<{
       <button
         v-if="onReset"
         title="Reset settings"
-        flex items-center justify-center rounded-full p-2
+        flex
+        items-center
+        justify-center
+        rounded-full
+        p-2
         transition="all duration-250 ease-in-out"
         text="neutral-500 dark:neutral-400"
         bg="transparent dark:transparent hover:neutral-200 dark:hover:neutral-800 active:neutral-300 dark:active:neutral-700"

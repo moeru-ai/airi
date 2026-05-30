@@ -16,17 +16,15 @@ export function useAudioAnalyzer() {
     onAnalyzerUpdateHooks.value.push(callback)
     return () => {
       // optional cleanup if consumer wants to unsubscribe
-      onAnalyzerUpdateHooks.value = onAnalyzerUpdateHooks.value.filter(cb => cb !== callback)
+      onAnalyzerUpdateHooks.value = onAnalyzerUpdateHooks.value.filter((cb) => cb !== callback)
     }
   }
 
   function start() {
-    if (animationFrame.value)
-      return // prevent multiple loops
+    if (animationFrame.value) return // prevent multiple loops
 
     const analyze = () => {
-      if (!analyzer.value || !dataArray.value)
-        return
+      if (!analyzer.value || !dataArray.value) return
 
       // Get frequency data for volume visualization
       analyzer.value.getByteFrequencyData(dataArray.value)
@@ -68,8 +66,7 @@ export function useAudioAnalyzer() {
       start()
 
       return analyzer.value
-    }
-    catch (err) {
+    } catch (err) {
       console.error('Error setting up audio monitoring:', err)
       error.value = err instanceof Error ? err.message : String(err)
     }

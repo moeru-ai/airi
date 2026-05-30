@@ -29,8 +29,7 @@ const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<R
 const apiKey = computed({
   get: () => providers.value[providerId]?.apiKey || '',
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
+    if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].apiKey = value
   },
 })
@@ -38,8 +37,7 @@ const apiKey = computed({
 const baseUrl = computed({
   get: () => providers.value[providerId]?.baseUrl || '',
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
+    if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].baseUrl = value
   },
 })
@@ -47,8 +45,7 @@ const baseUrl = computed({
 const model = computed({
   get: () => providers.value[providerId]?.model || '',
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
+    if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].model = value
   },
 })
@@ -58,41 +55,25 @@ const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 
 // Generate transcription
 async function handleGenerateTranscription(file: File) {
-  const provider = await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, any>>(providerId)
-  if (!provider)
-    throw new Error('Failed to initialize transcription provider')
+  const provider =
+    await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, any>>(providerId)
+  if (!provider) throw new Error('Failed to initialize transcription provider')
 
-  return await hearingStore.transcription(
-    providerId,
-    provider,
-    model.value,
-    file,
-    'json',
-  )
+  return await hearingStore.transcription(providerId, provider, model.value, file, 'json')
 }
 
 // Use the composable to get validation logic and state
-const {
-  t,
-  router,
-  providerMetadata,
-  isValidating,
-  isValid,
-  validationMessage,
-  handleResetSettings,
-  forceValid,
-} = useProviderValidation(providerId)
+const { t, router, providerMetadata, isValidating, isValid, validationMessage, handleResetSettings, forceValid } =
+  useProviderValidation(providerId)
 
 const apiKeyPlaceholder = computed(() => {
   const definition = getDefinedProvider(providerId)
-  if (!definition?.createProviderConfig)
-    return 'sk-...'
+  if (!definition?.createProviderConfig) return 'sk-...'
 
   const schema = definition.createProviderConfig({ t }) as any
   const shape = typeof schema?.shape === 'function' ? schema.shape() : schema?.shape
   const apiKeySchema = shape?.apiKey
-  if (!apiKeySchema)
-    return 'sk-...'
+  if (!apiKeySchema) return 'sk-...'
 
   const meta = typeof apiKeySchema.meta === 'function' ? apiKeySchema.meta() : undefined
   return typeof meta?.placeholderLocalized === 'string' ? meta.placeholderLocalized : 'sk-...'
@@ -119,14 +100,16 @@ const apiKeyPlaceholder = computed(() => {
         <FieldInput
           v-model="model"
           :label="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_name')"
-          :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
+          :placeholder="
+            t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')
+          "
         />
       </ProviderBasicSettings>
 
       <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
         <ProviderBaseUrlInput
           v-model="baseUrl"
-          :placeholder="providerMetadata?.defaultOptions?.().baseUrl as string || 'https://api.cometapi.com/v1/'"
+          :placeholder="(providerMetadata?.defaultOptions?.().baseUrl as string) || 'https://api.cometapi.com/v1/'"
         />
       </ProviderAdvancedSettings>
 

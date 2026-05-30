@@ -5,11 +5,7 @@ export type {
   ReconcilePlan,
   RemoteChat,
 } from './cloud-mapper'
-export {
-  applyCreateActions,
-  createCloudChatMapper,
-  reconcileLocalAndRemote,
-} from './cloud-mapper'
+export { applyCreateActions, createCloudChatMapper, reconcileLocalAndRemote } from './cloud-mapper'
 
 export type { CloudMergeResult } from './wire-message'
 export {

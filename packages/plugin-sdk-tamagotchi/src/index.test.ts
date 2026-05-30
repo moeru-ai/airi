@@ -136,20 +136,22 @@ describe('plugin-sdk-tamagotchi', () => {
       moduleId: 'chess',
     })
     expect(registerTool).toHaveBeenCalled()
-    expect(registerTool).toHaveBeenCalledWith(expect.objectContaining({
-      tool: expect.objectContaining({
-        id: 'play_chess',
-        parameters: expect.objectContaining({
-          type: 'object',
-          properties: expect.objectContaining({
-            opening: expect.objectContaining({
-              type: ['string', 'null'],
+    expect(registerTool).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tool: expect.objectContaining({
+          id: 'play_chess',
+          parameters: expect.objectContaining({
+            type: 'object',
+            properties: expect.objectContaining({
+              opening: expect.objectContaining({
+                type: ['string', 'null'],
+              }),
             }),
+            required: ['opening'],
           }),
-          required: ['opening'],
         }),
       }),
-    }))
+    )
 
     await registerTool.mock.calls[0]?.[0].execute({})
 
@@ -272,25 +274,30 @@ describe('plugin-sdk-tamagotchi', () => {
   it('fails with a clear error when the tamagotchi gamelet API is not available', async () => {
     const registerTool = vi.fn()
 
-    await expect(defineToolset({
-      apis: {
-        tools: {
-          register: registerTool,
-        },
-      },
-    } as never, {
-      tools: [
+    await expect(
+      defineToolset(
         {
-          id: 'drive_chess',
-          title: 'Drive Chess',
-          description: 'Drive a host-backed chess gamelet.',
-          inputSchema: object({}),
-          async execute() {
-            return { ok: true }
+          apis: {
+            tools: {
+              register: registerTool,
+            },
           },
+        } as never,
+        {
+          tools: [
+            {
+              id: 'drive_chess',
+              title: 'Drive Chess',
+              description: 'Drive a host-backed chess gamelet.',
+              inputSchema: object({}),
+              async execute() {
+                return { ok: true }
+              },
+            },
+          ],
         },
-      ],
-    })).rejects.toThrow(/gamelet API/i)
+      ),
+    ).rejects.toThrow(/gamelet API/i)
 
     expect(registerTool).not.toHaveBeenCalled()
   })

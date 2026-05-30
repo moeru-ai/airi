@@ -581,7 +581,7 @@ pages:
             no_models: 사용 가능한 모델 없음
             no_models_description: 이 제공자에 대한 모델을 찾을 수 없습니다
             no_search_results: 일치하는 모델 없음
-            no_search_results_description: '''{query}''와 일치하는 모델이 없습니다. 다른 검색어를 사용해 보세요.'
+            no_search_results_description: "'{query}'와 일치하는 모델이 없습니다. 다른 검색어를 사용해 보세요."
             not_supported: 모델 목록이 지원되지 않습니다
             not_supported_description: 이 제공자는 모델 목록 기능을 지원하지 않습니다
             search_placeholder: 모델 검색...
@@ -743,7 +743,7 @@ pages:
         empty: Nothing here yet. Add one below!
       add:
         title: New
-        description: "Fill in a new server, then click \"Save and restart\" — it'll move into \"Configured\" above."
+        description: 'Fill in a new server, then click "Save and restart" — it''ll move into "Configured" above.'
         pending-badge: Unsaved
       status:
         unknown: not loaded

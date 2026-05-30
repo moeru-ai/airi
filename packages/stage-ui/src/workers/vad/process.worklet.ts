@@ -18,14 +18,12 @@ const globalBuffer = new Float32Array(MIN_CHUNK_SIZE)
 class VADProcessor extends AudioWorkletProcessor {
   process(inputs: Float32Array[][], _outputs: Float32Array[][], _parameters: Record<string, Float32Array>) {
     const buffer = inputs[0][0]
-    if (!buffer)
-      return true // buffer is null when the stream ends
+    if (!buffer) return true // buffer is null when the stream ends
 
     if (buffer.length > MIN_CHUNK_SIZE) {
       // If the buffer is larger than the minimum chunk size, send the entire buffer
       this.port.postMessage({ buffer })
-    }
-    else {
+    } else {
       const remaining = MIN_CHUNK_SIZE - globalPointer
       if (buffer.length >= remaining) {
         // If the buffer is larger than (or equal to) the remaining space in the global buffer, copy the remaining space
@@ -38,8 +36,7 @@ class VADProcessor extends AudioWorkletProcessor {
         globalBuffer.fill(0)
         globalBuffer.set(buffer.subarray(remaining), 0)
         globalPointer = buffer.length - remaining
-      }
-      else {
+      } else {
         // If the buffer is smaller than the remaining space in the global buffer, copy the buffer to the global buffer
         globalBuffer.set(buffer, globalPointer)
         globalPointer += buffer.length

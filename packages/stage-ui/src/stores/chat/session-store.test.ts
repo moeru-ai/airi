@@ -114,8 +114,7 @@ beforeEach(() => {
 })
 
 async function flushMicrotasks(rounds = 8) {
-  for (let i = 0; i < rounds; i++)
-    await Promise.resolve()
+  for (let i = 0; i < rounds; i++) await Promise.resolve()
 }
 
 describe('chat-session-store · user swap during in-flight ensureActiveSessionForCharacter', () => {
@@ -176,10 +175,8 @@ describe('chat-session-store · user swap during in-flight ensureActiveSessionFo
 
     let resolveASessionGet: ((rec: ChatSessionRecord | null) => void) | undefined
     getIndexMock.mockImplementation((uid: string) => {
-      if (uid === 'A')
-        return Promise.resolve(aIndex)
-      if (uid === 'B')
-        return Promise.resolve(bIndex)
+      if (uid === 'A') return Promise.resolve(aIndex)
+      if (uid === 'B') return Promise.resolve(bIndex)
       return Promise.resolve(null)
     })
     getSessionMock.mockImplementation((id: string) => {
@@ -190,8 +187,7 @@ describe('chat-session-store · user swap during in-flight ensureActiveSessionFo
           resolveASessionGet = resolve
         })
       }
-      if (id === 'sess-B')
-        return Promise.resolve({ meta: bSessionMeta, messages: [] })
+      if (id === 'sess-B') return Promise.resolve({ meta: bSessionMeta, messages: [] })
       return Promise.resolve(null)
     })
 

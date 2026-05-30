@@ -24,12 +24,8 @@ export interface GodotViewPatchQueueOptions {
   onError?: (error: unknown) => void
 }
 
-function mergeVec3Patch(
-  current: Partial<StageViewVec3> | undefined,
-  next: Partial<StageViewVec3> | undefined,
-) {
-  if (!next)
-    return current
+function mergeVec3Patch(current: Partial<StageViewVec3> | undefined, next: Partial<StageViewVec3> | undefined) {
+  if (!next) return current
 
   return {
     ...current,
@@ -50,18 +46,16 @@ function mergeVec3Patch(
  * Returns:
  * - A patch containing the newest value for each touched model and camera field
  */
-export function mergeGodotViewPatch(
-  current: StageViewPatch | undefined,
-  next: StageViewPatch,
-): StageViewPatch {
+export function mergeGodotViewPatch(current: StageViewPatch | undefined, next: StageViewPatch): StageViewPatch {
   return {
-    camera: current?.camera || next.camera
-      ? {
-          ...current?.camera,
-          ...next.camera,
-          position: mergeVec3Patch(current?.camera?.position, next.camera?.position),
-        }
-      : undefined,
+    camera:
+      current?.camera || next.camera
+        ? {
+            ...current?.camera,
+            ...next.camera,
+            position: mergeVec3Patch(current?.camera?.position, next.camera?.position),
+          }
+        : undefined,
   }
 }
 
@@ -80,9 +74,7 @@ export function mergeGodotViewPatch(
  * - A small queue API that sends the first patch immediately and later sends the latest
  *   merged patch after the throttle interval or after the current send finishes
  */
-export function createGodotViewPatchQueue(
-  options: GodotViewPatchQueueOptions,
-): GodotViewPatchQueue {
+export function createGodotViewPatchQueue(options: GodotViewPatchQueueOptions): GodotViewPatchQueue {
   let disposed = false
   let generation = 0
   let hasSentPatch = false
@@ -92,20 +84,16 @@ export function createGodotViewPatchQueue(
   let timer: ReturnType<typeof setTimeout> | undefined
 
   function clearTimer() {
-    if (!timer)
-      return
+    if (!timer) return
 
     clearTimeout(timer)
     timer = undefined
   }
 
   function schedule() {
-    if (disposed || inFlight || !pendingPatch || timer)
-      return
+    if (disposed || inFlight || !pendingPatch || timer) return
 
-    const waitMs = hasSentPatch
-      ? Math.max(0, options.intervalMs - (Date.now() - lastSentAt))
-      : 0
+    const waitMs = hasSentPatch ? Math.max(0, options.intervalMs - (Date.now() - lastSentAt)) : 0
 
     if (waitMs <= 0) {
       void sendPendingPatch()
@@ -119,15 +107,13 @@ export function createGodotViewPatchQueue(
   }
 
   async function sendPendingPatch() {
-    if (disposed || inFlight)
-      return
+    if (disposed || inFlight) return
 
     const sendGeneration = generation
     const patch = pendingPatch
     pendingPatch = undefined
 
-    if (!patch)
-      return
+    if (!patch) return
 
     inFlight = true
     hasSentPatch = true
@@ -135,12 +121,9 @@ export function createGodotViewPatchQueue(
 
     try {
       await options.applyPatch(patch)
-    }
-    catch (error) {
-      if (generation === sendGeneration)
-        options.onError?.(error)
-    }
-    finally {
+    } catch (error) {
+      if (generation === sendGeneration) options.onError?.(error)
+    } finally {
       if (!disposed && generation === sendGeneration) {
         inFlight = false
         schedule()
@@ -163,8 +146,7 @@ export function createGodotViewPatchQueue(
       reset()
     },
     enqueue(patch) {
-      if (disposed)
-        return
+      if (disposed) return
 
       pendingPatch = mergeGodotViewPatch(pendingPatch, patch)
       schedule()

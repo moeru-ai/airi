@@ -19,7 +19,11 @@ function toggleVisible() {
     <template #trigger="slotProps">
       <button
         transition="all ease-in-out duration-250"
-        w-full flex items-center gap-1.5 outline-none
+        w-full
+        flex
+        items-center
+        gap-1.5
+        outline-none
         class="[&_.provider-icon]:grayscale-100 [&_.provider-icon]:hover:grayscale-0"
         @click="() => slotProps.setVisible(!slotProps.visible) && toggleVisible()"
       >

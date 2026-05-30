@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { defineInvoke } from '@moeru/eventa'
-import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
+import {
+  useElectronEventaContext,
+  useElectronEventaInvoke,
+  useElectronMouseInElement,
+} from '@proj-airi/electron-vueuse'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { refDebounced, useIntervalFn } from '@vueuse/core'
@@ -52,8 +56,12 @@ function setOverlay(key: string, active: boolean) {
 
 // Expose for parent (e.g. to disable click-through when a dialog is open)
 defineExpose({
-  get hearingDialogOpen() { return blockingOverlays.has('hearing') },
-  set hearingDialogOpen(v: boolean) { setOverlay('hearing', v) },
+  get hearingDialogOpen() {
+    return blockingOverlays.has('hearing')
+  },
+  set hearingDialogOpen(v: boolean) {
+    setOverlay('hearing', v)
+  },
 })
 
 const { isOutside } = useElectronMouseInElement(islandRef)
@@ -78,9 +86,13 @@ useIntervalFn(() => {
 }, 1500)
 
 // Apply alwaysOnTop on mount and when it changes
-watch(alwaysOnTop, (val) => {
-  setAlwaysOnTop(val)
-}, { immediate: true })
+watch(
+  alwaysOnTop,
+  (val) => {
+    setAlwaysOnTop(val)
+  },
+  { immediate: true },
+)
 
 function toggleAlwaysOnTop() {
   alwaysOnTop.value = !alwaysOnTop.value
@@ -135,16 +147,28 @@ function refreshWindow() {
         enter-from-class="opacity-0 translate-y-8 scale-90 blur-sm"
         leave-to-class="opacity-0 translate-y-8 scale-90 blur-sm"
       >
-        <div v-if="expanded" border="1 neutral-200 dark:neutral-800" mb-2 flex flex-col gap-1 rounded-2xl p-2 backdrop-blur-xl class="bg-neutral-100/80 shadow-2xl shadow-black/20 dark:bg-neutral-900/80">
-          <ControlsIslandAuthButton
-            :button-style="adjustStyleClasses.button"
-            :icon-class="adjustStyleClasses.icon"
-          />
+        <div
+          v-if="expanded"
+          border="1 neutral-200 dark:neutral-800"
+          mb-2
+          flex
+          flex-col
+          gap-1
+          rounded-2xl
+          p-2
+          backdrop-blur-xl
+          class="bg-neutral-100/80 shadow-2xl shadow-black/20 dark:bg-neutral-900/80"
+        >
+          <ControlsIslandAuthButton :button-style="adjustStyleClasses.button" :icon-class="adjustStyleClasses.icon" />
 
           <div grid grid-cols-3 gap-2>
             <ControlButtonTooltip disable-hoverable-content>
               <ControlButton :button-style="adjustStyleClasses.button" @click="openSettings({ route: '/settings' })">
-                <div i-solar:settings-minimalistic-outline :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+                <div
+                  i-solar:settings-minimalistic-outline
+                  :class="adjustStyleClasses.icon"
+                  text="neutral-800 dark:neutral-300"
+                />
               </ControlButton>
               <template #tooltip>
                 {{ t('tamagotchi.stage.controls-island.open-settings') }}
@@ -152,10 +176,18 @@ function refreshWindow() {
             </ControlButtonTooltip>
 
             <ControlButtonTooltip disable-hoverable-content>
-              <ControlsIslandProfilePicker placement="up" :open="blockingOverlays.has('profile-picker')" @update:open="setOverlay('profile-picker', $event)">
+              <ControlsIslandProfilePicker
+                placement="up"
+                :open="blockingOverlays.has('profile-picker')"
+                @update:open="setOverlay('profile-picker', $event)"
+              >
                 <template #default="{ toggle }">
                   <ControlButton :button-style="adjustStyleClasses.button" @click="toggle">
-                    <div i-solar:emoji-funny-square-broken :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+                    <div
+                      i-solar:emoji-funny-square-broken
+                      :class="adjustStyleClasses.icon"
+                      text="neutral-800 dark:neutral-300"
+                    />
                   </ControlButton>
                 </template>
               </ControlsIslandProfilePicker>
@@ -166,7 +198,11 @@ function refreshWindow() {
 
             <ControlButtonTooltip disable-hoverable-content>
               <ControlButton :button-style="adjustStyleClasses.button" @click="openChat">
-                <div i-solar:chat-line-line-duotone :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+                <div
+                  i-solar:chat-line-line-duotone
+                  :class="adjustStyleClasses.icon"
+                  text="neutral-800 dark:neutral-300"
+                />
               </ControlButton>
               <template #tooltip>
                 {{ t('tamagotchi.stage.controls-island.open-chat') }}
@@ -185,29 +221,65 @@ function refreshWindow() {
             <ControlButtonTooltip disable-hoverable-content>
               <ControlButton :button-style="adjustStyleClasses.button" @click="toggleDark()">
                 <Transition name="fade" mode="out-in">
-                  <div v-if="isDark" i-solar:moon-outline :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
-                  <div v-else i-solar:sun-2-outline :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+                  <div
+                    v-if="isDark"
+                    i-solar:moon-outline
+                    :class="adjustStyleClasses.icon"
+                    text="neutral-800 dark:neutral-300"
+                  />
+                  <div
+                    v-else
+                    i-solar:sun-2-outline
+                    :class="adjustStyleClasses.icon"
+                    text="neutral-800 dark:neutral-300"
+                  />
                 </Transition>
               </ControlButton>
               <template #tooltip>
-                {{ isDark ? t('tamagotchi.stage.controls-island.switch-to-light-mode') : t('tamagotchi.stage.controls-island.switch-to-dark-mode') }}
+                {{
+                  isDark
+                    ? t('tamagotchi.stage.controls-island.switch-to-light-mode')
+                    : t('tamagotchi.stage.controls-island.switch-to-dark-mode')
+                }}
               </template>
             </ControlButtonTooltip>
 
             <ControlButtonTooltip disable-hoverable-content>
               <ControlButton :button-style="adjustStyleClasses.button" @click="toggleAlwaysOnTop()">
-                <div v-if="alwaysOnTop" i-solar:pin-bold :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
-                <div v-else i-solar:pin-linear :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300 opacity-50" />
+                <div
+                  v-if="alwaysOnTop"
+                  i-solar:pin-bold
+                  :class="adjustStyleClasses.icon"
+                  text="neutral-800 dark:neutral-300"
+                />
+                <div
+                  v-else
+                  i-solar:pin-linear
+                  :class="adjustStyleClasses.icon"
+                  text="neutral-800 dark:neutral-300 opacity-50"
+                />
               </ControlButton>
               <template #tooltip>
-                {{ alwaysOnTop ? t('tamagotchi.stage.controls-island.unpin-from-top') : t('tamagotchi.stage.controls-island.pin-on-top') }}
+                {{
+                  alwaysOnTop
+                    ? t('tamagotchi.stage.controls-island.unpin-from-top')
+                    : t('tamagotchi.stage.controls-island.pin-on-top')
+                }}
               </template>
             </ControlButtonTooltip>
 
-            <ControlsIslandFadeOnHover :icon-class="adjustStyleClasses.icon" :button-style="adjustStyleClasses.button" />
+            <ControlsIslandFadeOnHover
+              :icon-class="adjustStyleClasses.icon"
+              :button-style="adjustStyleClasses.button"
+            />
 
             <ControlButtonTooltip disable-hoverable-content>
-              <ControlButton :button-style="adjustStyleClasses.button" hover:bg-red-500 hover:text-white @click="closeWindow()">
+              <ControlButton
+                :button-style="adjustStyleClasses.button"
+                hover:bg-red-500
+                hover:text-white
+                @click="closeWindow()"
+              >
                 <div i-solar:close-circle-outline :class="adjustStyleClasses.icon" />
               </ControlButton>
               <template #tooltip>
@@ -224,22 +296,35 @@ function refreshWindow() {
           <ControlButton :button-style="adjustStyleClasses.button" @click="expanded = !expanded">
             <div
               :class="[adjustStyleClasses.icon, expanded ? 'rotate-180' : 'rotate-0']"
-              i-solar:alt-arrow-up-line-duotone scale-110 transition-all duration-300
+              i-solar:alt-arrow-up-line-duotone
+              scale-110
+              transition-all
+              duration-300
               text="neutral-800 dark:neutral-300"
             />
           </ControlButton>
           <template #tooltip>
-            {{ expanded ? t('tamagotchi.stage.controls-island.collapse') : t('tamagotchi.stage.controls-island.expand') }}
+            {{
+              expanded ? t('tamagotchi.stage.controls-island.collapse') : t('tamagotchi.stage.controls-island.expand')
+            }}
           </template>
         </ControlButtonTooltip>
 
         <ControlButtonTooltip side="left">
-          <ControlsIslandHearingConfig :show="blockingOverlays.has('hearing')" @update:show="setOverlay('hearing', $event)">
+          <ControlsIslandHearingConfig
+            :show="blockingOverlays.has('hearing')"
+            @update:show="setOverlay('hearing', $event)"
+          >
             <div class="relative">
               <ControlButton :button-style="adjustStyleClasses.button">
                 <Transition name="fade" mode="out-in">
                   <IndicatorMicVolume v-if="enabled" :class="adjustStyleClasses.icon" />
-                  <div v-else i-ph:microphone-slash :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+                  <div
+                    v-else
+                    i-ph:microphone-slash
+                    :class="adjustStyleClasses.icon"
+                    text="neutral-800 dark:neutral-300"
+                  />
                 </Transition>
               </ControlButton>
             </div>
@@ -250,7 +335,12 @@ function refreshWindow() {
         </ControlButtonTooltip>
 
         <ControlButtonTooltip side="left">
-          <ControlButton :button-style="adjustStyleClasses.button" cursor-move :class="{ 'drag-region': isLinux }" @mousedown="startDraggingWindow?.()">
+          <ControlButton
+            :button-style="adjustStyleClasses.button"
+            cursor-move
+            :class="{ 'drag-region': isLinux }"
+            @mousedown="startDraggingWindow?.()"
+          >
             <div i-ph:arrows-out-cardinal :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
           </ControlButton>
           <template #tooltip>

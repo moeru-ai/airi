@@ -31,7 +31,7 @@ safelist: [
   () => ['m-1', 'm-2'],
   (context) => {
     const colors = Object.keys(context.theme.colors || {})
-    return colors.map(c => `bg-${c}-500`)
+    return colors.map((c) => `bg-${c}-500`)
   },
 ]
 ```
@@ -41,17 +41,13 @@ safelist: [
 ```ts
 safelist: [
   // Dynamic colors from CMS
-  () => ['primary', 'secondary'].flatMap(c => [
-    `bg-${c}`,
-    `text-${c}`,
-    `border-${c}`,
-  ]),
+  () => ['primary', 'secondary'].flatMap((c) => [`bg-${c}`, `text-${c}`, `border-${c}`]),
 
   // Component variants
   () => {
     const variants = ['primary', 'danger']
     const sizes = ['sm', 'md', 'lg']
-    return variants.flatMap(v => sizes.map(s => `btn-${v}-${s}`))
+    return variants.flatMap((v) => sizes.map((s) => `btn-${v}-${s}`))
   },
 ]
 ```
@@ -78,12 +74,12 @@ blocklist: [
 
 ## Safelist vs Blocklist
 
-| Feature | Safelist | Blocklist |
-|---------|----------|-----------|
-| Purpose | Always include | Always exclude |
-| Strings | ✅ | ✅ |
-| Regex | ❌ | ✅ |
-| Functions | ✅ | ❌ |
+| Feature   | Safelist       | Blocklist      |
+| --------- | -------------- | -------------- |
+| Purpose   | Always include | Always exclude |
+| Strings   | ✅             | ✅             |
+| Regex     | ❌             | ✅             |
+| Functions | ✅             | ❌             |
 
 **Note:** Blocklist wins if utility is in both.
 

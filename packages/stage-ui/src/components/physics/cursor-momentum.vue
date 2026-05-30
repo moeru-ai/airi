@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, toRef } from 'vue'
 
-const props = withDefaults(defineProps<{
-  baseSpeed?: number
-  friction?: number
-  momentumFactor?: number
-}>(), {
-  baseSpeed: 0.1,
-  friction: 0.95,
-  momentumFactor: 0.005,
-})
+const props = withDefaults(
+  defineProps<{
+    baseSpeed?: number
+    friction?: number
+    momentumFactor?: number
+  }>(),
+  {
+    baseSpeed: 0.1,
+    friction: 0.95,
+    momentumFactor: 0.005,
+  },
+)
 
 const momentum = ref(1) // Base momentum
 const currentValue = ref(0)
@@ -21,8 +24,7 @@ const BASE_SPEED = toRef(() => props.baseSpeed)
 const MOMENTUM_FACTOR = toRef(() => props.momentumFactor)
 
 function updateMomentum(timestamp: number) {
-  if (!lastTimestamp)
-    lastTimestamp = timestamp
+  if (!lastTimestamp) lastTimestamp = timestamp
   const deltaTime = timestamp - lastTimestamp
   lastTimestamp = timestamp
 
@@ -37,10 +39,7 @@ function updateMomentum(timestamp: number) {
 
 function handleMouseMove(event: MouseEvent) {
   // Calculate movement speed
-  const speed = Math.sqrt(
-    event.movementX ** 2
-    + event.movementY ** 2,
-  )
+  const speed = Math.sqrt(event.movementX ** 2 + event.movementY ** 2)
 
   // Add to current momentum
   momentum.value += speed * MOMENTUM_FACTOR.value
@@ -63,8 +62,5 @@ defineExpose({
 </script>
 
 <template>
-  <slot
-    :momentum="momentum"
-    :current-value="currentValue"
-  />
+  <slot :momentum="momentum" :current-value="currentValue" />
 </template>

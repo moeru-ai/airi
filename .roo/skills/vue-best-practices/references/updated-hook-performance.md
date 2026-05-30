@@ -22,6 +22,7 @@ Use `updated`/`onUpdated` sparingly for post-DOM-update operations that cannot b
 - Reserve updated for low-level DOM synchronization tasks
 
 **BAD:**
+
 ```javascript
 // BAD: API call in updated - fires on every re-render
 export default {
@@ -32,9 +33,9 @@ export default {
     // This runs after every single state change!
     fetch('/api/sync', {
       method: 'POST',
-      body: JSON.stringify(this.items)
+      body: JSON.stringify(this.items),
     })
-  }
+  },
 }
 ```
 
@@ -47,7 +48,7 @@ export default {
   updated() {
     // This causes another update, which triggers updated again!
     this.renderCount++ // Infinite loop
-  }
+  },
 }
 ```
 
@@ -58,11 +59,12 @@ export default {
     // Expensive operation runs on every keystroke, every state change
     this.processedData = this.heavyComputation(this.rawData)
     this.analytics = this.calculateMetrics(this.allData)
-  }
+  },
 }
 ```
 
 **GOOD:**
+
 ```javascript
 import debounce from 'lodash-es/debounce'
 
@@ -77,17 +79,17 @@ export default {
       handler(newItems) {
         this.syncToServer(newItems)
       },
-      deep: true
-    }
+      deep: true,
+    },
   },
   methods: {
     syncToServer: debounce((items) => {
       fetch('/api/sync', {
         method: 'POST',
-        body: JSON.stringify(items)
+        body: JSON.stringify(items),
       })
-    }, 500)
-  }
+    }, 500),
+  },
 }
 ```
 
@@ -101,9 +103,13 @@ const items = ref([])
 const scrollContainer = ref(null)
 
 // Watch specific data - not all updates
-watch(items, (newItems) => {
-  syncToServer(newItems)
-}, { deep: true })
+watch(
+  items,
+  (newItems) => {
+    syncToServer(newItems)
+  },
+  { deep: true },
+)
 
 const syncToServer = useDebounceFn((items) => {
   fetch('/api/sync', { method: 'POST', body: JSON.stringify(items) })
@@ -125,7 +131,7 @@ export default {
   data() {
     return {
       content: '',
-      lastSyncedContent: ''
+      lastSyncedContent: '',
     }
   },
   updated() {
@@ -138,8 +144,8 @@ export default {
   methods: {
     syncContent: debounce(() => {
       // Sync logic
-    }, 300)
-  }
+    }, 300),
+  },
 }
 ```
 
@@ -156,7 +162,7 @@ export default {
     this.$nextTick(() => {
       this.maintainScrollPosition()
     })
-  }
+  },
 }
 ```
 

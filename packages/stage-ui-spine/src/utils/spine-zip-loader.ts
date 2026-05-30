@@ -51,7 +51,7 @@ const TEXTURE_EXTS = ['.png', '.webp', '.jpg', '.jpeg']
 
 function isTexturePath(name: string) {
   const lower = name.toLowerCase()
-  return TEXTURE_EXTS.some(ext => lower.endsWith(ext))
+  return TEXTURE_EXTS.some((ext) => lower.endsWith(ext))
 }
 
 function isAtlasPath(name: string) {
@@ -67,11 +67,9 @@ function isSkeletonJsonPath(name: string) {
   // Filter out package manifests / settings — only treat as a skeleton if it
   // sits next to an atlas with the same base name. The caller validates.
   const lower = name.toLowerCase()
-  if (!lower.endsWith(SKELETON_JSON_EXT))
-    return false
+  if (!lower.endsWith(SKELETON_JSON_EXT)) return false
   // Exclude obvious non-skeleton JSON.
-  if (lower.endsWith('package.json') || lower.endsWith('manifest.json'))
-    return false
+  if (lower.endsWith('package.json') || lower.endsWith('manifest.json')) return false
 
   return true
 }
@@ -100,7 +98,10 @@ function dirname(path: string) {
  * 2. For each pair, walk the atlas to extract texture page filenames.
  * 3. Return the first matched pair as the primary layout.
  */
-export function detectSpineLayout(entries: Record<string, string>, atlasText: Record<string, string>): SpineModelLayout {
+export function detectSpineLayout(
+  entries: Record<string, string>,
+  atlasText: Record<string, string>,
+): SpineModelLayout {
   const variants = detectAllSpineLayouts(entries, atlasText)
   if (variants.length === 0)
     throw new Error('Spine ZIP must contain a .skel or .json skeleton file paired with a .atlas')
@@ -112,11 +113,13 @@ export function detectSpineLayout(entries: Record<string, string>, atlasText: Re
  * variants. Useful for ZIPs containing multiple outfits/characters in
  * separate folders.
  */
-export function detectAllSpineLayouts(entries: Record<string, string>, atlasText: Record<string, string>): SpineModelVariant[] {
+export function detectAllSpineLayouts(
+  entries: Record<string, string>,
+  atlasText: Record<string, string>,
+): SpineModelVariant[] {
   const allFiles = Object.keys(entries)
   const atlasCandidates = allFiles.filter(isAtlasPath)
-  if (atlasCandidates.length === 0)
-    throw new Error('Spine ZIP must contain a .atlas (or .atlas.txt) file')
+  if (atlasCandidates.length === 0) throw new Error('Spine ZIP must contain a .atlas (or .atlas.txt) file')
 
   const variants: SpineModelVariant[] = []
   const usedAtlases = new Set<string>()
@@ -135,14 +138,12 @@ export function detectAllSpineLayouts(entries: Record<string, string>, atlasText
     if (entries[binaryPath] !== undefined) {
       skeletonPath = binaryPath
       skeletonFormat = 'binary'
-    }
-    else if (entries[jsonPath] !== undefined) {
+    } else if (entries[jsonPath] !== undefined) {
       skeletonPath = jsonPath
       skeletonFormat = 'json'
     }
 
-    if (!skeletonPath)
-      continue
+    if (!skeletonPath) continue
 
     usedAtlases.add(candidate)
     const texturePaths = resolveAtlasTextures(candidate, entries, atlasText)
@@ -152,14 +153,13 @@ export function detectAllSpineLayouts(entries: Record<string, string>, atlasText
 
   // Fallback: unmatched atlases paired with any skeleton in the same directory.
   for (const candidate of atlasCandidates) {
-    if (usedAtlases.has(candidate))
-      continue
+    if (usedAtlases.has(candidate)) continue
 
     const dir = dirname(candidate)
-    const skel = allFiles.find(f => f.startsWith(dir) && isSkeletonBinaryPath(f))
-      ?? allFiles.find(f => f.startsWith(dir) && isSkeletonJsonPath(f))
-    if (!skel)
-      continue
+    const skel =
+      allFiles.find((f) => f.startsWith(dir) && isSkeletonBinaryPath(f)) ??
+      allFiles.find((f) => f.startsWith(dir) && isSkeletonJsonPath(f))
+    if (!skel) continue
 
     const skeletonFormat: SpineModelLayout['skeletonFormat'] = isSkeletonBinaryPath(skel) ? 'binary' : 'json'
     const texturePaths = resolveAtlasTextures(candidate, entries, atlasText)
@@ -171,7 +171,11 @@ export function detectAllSpineLayouts(entries: Record<string, string>, atlasText
   return variants
 }
 
-function resolveAtlasTextures(atlasPath: string, entries: Record<string, string>, atlasText: Record<string, string>): string[] {
+function resolveAtlasTextures(
+  atlasPath: string,
+  entries: Record<string, string>,
+  atlasText: Record<string, string>,
+): string[] {
   const allFiles = Object.keys(entries)
 
   // Atlas page lines start at column 0 with the texture file name.
@@ -180,37 +184,30 @@ function resolveAtlasTextures(atlasPath: string, entries: Record<string, string>
   const texturePaths: string[] = []
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
-    if (!line)
-      continue
+    if (!line) continue
 
     // First non-empty, non-property line is a texture page name. After that
     // continued page-property lines start with whitespace; a blank line ends
     // the page block, and a new page starts with a non-empty, non-indented
     // line that does not contain ':' (atlas property) or ',' (region prop).
-    if (line.trim().length === 0)
-      continue
-    if (line[0] === ' ' || line[0] === '\t')
-      continue
-    if (line.includes(':'))
-      continue
+    if (line.trim().length === 0) continue
+    if (line[0] === ' ' || line[0] === '\t') continue
+    if (line.includes(':')) continue
 
     // Heuristic: candidate page name; verify against entries (handles relative path).
     const dir = dirname(atlasPath)
     const candidate = `${dir}${line.trim()}`
-    if (entries[candidate] !== undefined && isTexturePath(candidate))
-      texturePaths.push(candidate)
+    if (entries[candidate] !== undefined && isTexturePath(candidate)) texturePaths.push(candidate)
 
     // After the first valid page, skip property lines until next blank line.
-    while (i + 1 < lines.length && lines[i + 1].length > 0)
-      i++
+    while (i + 1 < lines.length && lines[i + 1].length > 0) i++
   }
 
   // Fallback: if atlas parsing missed pages, accept every PNG sibling.
   if (texturePaths.length === 0) {
     const dir = dirname(atlasPath)
     for (const file of allFiles) {
-      if (file.startsWith(dir) && isTexturePath(file))
-        texturePaths.push(file)
+      if (file.startsWith(dir) && isTexturePath(file)) texturePaths.push(file)
     }
   }
 
@@ -233,20 +230,19 @@ export async function loadSpineZip(file: File | Blob | ArrayBuffer): Promise<Spi
   const blobUrls: Record<string, string> = {}
 
   // Pass 1: inventory file paths and read atlas text bodies.
-  await Promise.all(Object.keys(archive.files).map(async (name) => {
-    const entry = archive.files[name]
-    if (entry.dir)
-      return
+  await Promise.all(
+    Object.keys(archive.files).map(async (name) => {
+      const entry = archive.files[name]
+      if (entry.dir) return
 
-    entries[name] = name
+      entries[name] = name
 
-    if (isAtlasPath(name))
-      atlasTexts[name] = await entry.async('string')
-  }))
+      if (isAtlasPath(name)) atlasTexts[name] = await entry.async('string')
+    }),
+  )
 
   const variants = detectAllSpineLayouts(entries, atlasTexts)
-  if (variants.length === 0)
-    throw new Error('Spine ZIP must contain at least one skeleton+atlas pair')
+  if (variants.length === 0) throw new Error('Spine ZIP must contain at least one skeleton+atlas pair')
   const layout = variants[0].layout
 
   // Pass 2: materialize assets for ALL variants.
@@ -267,18 +263,18 @@ export async function loadSpineZip(file: File | Blob | ArrayBuffer): Promise<Spi
   for (const v of variants) {
     allSkeletonPaths.add(v.layout.skeletonPath)
     allAtlasPaths.add(v.layout.atlasPath)
-    for (const t of v.layout.texturePaths)
-      allTexturePaths.add(t)
+    for (const t of v.layout.texturePaths) allTexturePaths.add(t)
   }
 
   // Textures → blob URLs (used by image.src in loadTexture).
-  await Promise.all(Array.from(allTexturePaths).map(async (path) => {
-    const entry = archive.files[path]
-    if (!entry)
-      return
-    const buffer = await entry.async('blob')
-    blobUrls[path] = URL.createObjectURL(buffer)
-  }))
+  await Promise.all(
+    Array.from(allTexturePaths).map(async (path) => {
+      const entry = archive.files[path]
+      if (!entry) return
+      const buffer = await entry.async('blob')
+      blobUrls[path] = URL.createObjectURL(buffer)
+    }),
+  )
 
   // Skeletons → raw decoded data
   // NOTICE:
@@ -287,23 +283,23 @@ export async function loadSpineZip(file: File | Blob | ArrayBuffer): Promise<Spi
   // ArrayBuffer. We copy via `.slice(0)` which produces a zero-offset buffer.
   // Source: spine-core/SkeletonBinary.js BinaryInput constructor.
   // Removal condition: Spine fixes BinaryInput to use byteOffset/byteLength.
-  await Promise.all(Array.from(allSkeletonPaths).map(async (path) => {
-    const entry = archive.files[path]
-    if (!entry)
-      return
-    const variant = variants.find(v => v.layout.skeletonPath === path)!
-    if (variant.layout.skeletonFormat === 'binary') {
-      const ab = await entry.async('arraybuffer')
-      rawData[path] = new Uint8Array(ab.slice(0))
-    }
-    else {
-      rawData[path] = await entry.async('string')
-    }
-  }))
+  await Promise.all(
+    Array.from(allSkeletonPaths).map(async (path) => {
+      const entry = archive.files[path]
+      if (!entry) return
+      const variant = variants.find((v) => v.layout.skeletonPath === path)!
+      if (variant.layout.skeletonFormat === 'binary') {
+        const ab = await entry.async('arraybuffer')
+        rawData[path] = new Uint8Array(ab.slice(0))
+      } else {
+        rawData[path] = await entry.async('string')
+      }
+    }),
+  )
 
   // Atlases → raw text with page references rewritten to bare filenames
   for (const atlasPath of allAtlasPaths) {
-    const variantForAtlas = variants.find(v => v.layout.atlasPath === atlasPath)!
+    const variantForAtlas = variants.find((v) => v.layout.atlasPath === atlasPath)!
     const finalAtlasText = rewriteAtlasPageReferences(atlasTexts[atlasPath] ?? '', variantForAtlas.layout, blobUrls)
     rawData[atlasPath] = finalAtlasText
   }
@@ -318,8 +314,7 @@ export async function loadSpineZip(file: File | Blob | ArrayBuffer): Promise<Spi
         if (url.startsWith('blob:')) {
           try {
             URL.revokeObjectURL(url)
-          }
-          catch {}
+          } catch {}
         }
       }
     },
@@ -344,8 +339,7 @@ function rewriteAtlasPageReferences(atlasText: string, layout: SpineModelLayout,
       // reader joins the prefix with the page name. Instead, leave the
       // bare filename and let the AssetManager resolver handle the lookup.
       out.push(basename(candidate))
-    }
-    else {
+    } else {
       out.push(line)
     }
   }

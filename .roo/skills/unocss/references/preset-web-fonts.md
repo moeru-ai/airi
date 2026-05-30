@@ -81,7 +81,7 @@ presetWebFonts({
     cacheDir: 'node_modules/.cache/unocss/fonts',
     fontAssetsDir: 'public/assets/fonts',
     fontServeBaseUrl: '/assets/fonts',
-  })
+  }),
 })
 ```
 

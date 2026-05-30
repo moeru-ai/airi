@@ -1,12 +1,6 @@
-import type {
-  KitDescriptor,
-  PluginHost,
-} from '@proj-airi/plugin-sdk/plugin-host'
+import type { KitDescriptor, PluginHost } from '@proj-airi/plugin-sdk/plugin-host'
 
-export {
-  resolveWidgetAssetRoute,
-  rewriteWidgetModuleAssetUrl,
-} from './asset-url'
+export { resolveWidgetAssetRoute, rewriteWidgetModuleAssetUrl } from './asset-url'
 
 /**
  * Declares the built-in widget kit exposed by `stage-tamagotchi`.
@@ -25,9 +19,7 @@ export const widgetPluginKitDescriptor = {
   kitId: 'kit.widget',
   version: '1.0.0',
   runtimes: ['electron', 'web'],
-  capabilities: [
-    { key: 'kit.widget.module', actions: ['announce', 'activate', 'update', 'withdraw'] },
-  ],
+  capabilities: [{ key: 'kit.widget.module', actions: ['announce', 'activate', 'update', 'withdraw'] }],
 } satisfies KitDescriptor
 
 /**

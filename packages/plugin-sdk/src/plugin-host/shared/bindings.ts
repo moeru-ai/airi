@@ -58,7 +58,7 @@ export const bindingRecordSchema = object({
  * Returns:
  * - The union of valid binding state literals
  */
-export type BindingState = typeof bindingStateValues[number]
+export type BindingState = (typeof bindingStateValues)[number]
 /**
  * Describes one host-managed binding record.
  *

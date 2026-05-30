@@ -23,8 +23,7 @@ const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<R
 const apiKey = computed({
   get: () => providers.value[providerId]?.apiKey || '',
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
+    if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].apiKey = value
   },
 })
@@ -32,8 +31,7 @@ const apiKey = computed({
 const resourceName = computed({
   get: () => providers.value[providerId]?.resourceName || '',
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
+    if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].resourceName = value
   },
 })
@@ -41,8 +39,7 @@ const resourceName = computed({
 const apiVersion = computed({
   get: () => providers.value[providerId]?.apiVersion || '',
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
+    if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].apiVersion = value
   },
 })
@@ -50,8 +47,7 @@ const apiVersion = computed({
 const modelId = computed({
   get: () => providers.value[providerId]?.modelId || '',
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
+    if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].modelId = value
   },
 })
@@ -134,8 +130,8 @@ const {
 </template>
 
 <route lang="yaml">
-  meta:
-    layout: settings
-    stageTransition:
-      name: slide
-  </route>
+meta:
+  layout: settings
+  stageTransition:
+    name: slide
+</route>

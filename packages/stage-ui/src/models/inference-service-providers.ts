@@ -79,23 +79,31 @@ export interface CreateInferenceServiceProvidersModelParams {
  * Returns:
  * - A provider model that reads and writes the existing `local:providers` key.
  */
-export function createInferenceServiceProvidersModel(params: CreateInferenceServiceProvidersModelParams): InferenceServiceProvidersModel {
+export function createInferenceServiceProvidersModel(
+  params: CreateInferenceServiceProvidersModelParams,
+): InferenceServiceProvidersModel {
   const { storage: store } = params
 
   async function list(options?: InferenceServiceProviderModelOptions): Promise<InferenceServiceProviders> {
     options?.abortSignal?.throwIfAborted()
-    const providers = await store.getItemRaw<InferenceServiceProviders>(STORAGE_KEY) || {}
+    const providers = (await store.getItemRaw<InferenceServiceProviders>(STORAGE_KEY)) || {}
     options?.abortSignal?.throwIfAborted()
     return providers
   }
 
-  async function saveAll(providers: InferenceServiceProviders, options?: InferenceServiceProviderModelOptions): Promise<void> {
+  async function saveAll(
+    providers: InferenceServiceProviders,
+    options?: InferenceServiceProviderModelOptions,
+  ): Promise<void> {
     options?.abortSignal?.throwIfAborted()
     await store.setItemRaw(STORAGE_KEY, providers)
     options?.abortSignal?.throwIfAborted()
   }
 
-  async function upsert(provider: InferenceServiceProvider, options?: InferenceServiceProviderModelOptions): Promise<void> {
+  async function upsert(
+    provider: InferenceServiceProvider,
+    options?: InferenceServiceProviderModelOptions,
+  ): Promise<void> {
     options?.abortSignal?.throwIfAborted()
     const all = await list(options)
     options?.abortSignal?.throwIfAborted()

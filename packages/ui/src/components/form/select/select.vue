@@ -31,25 +31,28 @@ interface SelectOptionGroupItem<T extends AcceptableValue> {
   children?: SelectOptionItem<T>[]
 }
 
-const props = withDefaults(defineProps<{
-  options: SelectOptionItem<T>[] | SelectOptionGroupItem<T>[]
-  placeholder?: string
-  disabled?: boolean
-  by?: string | ((a: T, b: T) => boolean)
-  contentMinWidth?: string | number
-  contentWidth?: string | number
-  shape?: 'rounded' | 'default'
-  variant?: 'blurry' | 'default'
-  class?: string | string[]
-}>(), {
-  placeholder: 'Select an option',
-  disabled: false,
-  by: undefined,
-  contentMinWidth: 160,
-  contentWidth: undefined,
-  shape: 'default',
-  variant: 'default',
-})
+const props = withDefaults(
+  defineProps<{
+    options: SelectOptionItem<T>[] | SelectOptionGroupItem<T>[]
+    placeholder?: string
+    disabled?: boolean
+    by?: string | ((a: T, b: T) => boolean)
+    contentMinWidth?: string | number
+    contentWidth?: string | number
+    shape?: 'rounded' | 'default'
+    variant?: 'blurry' | 'default'
+    class?: string | string[]
+  }>(),
+  {
+    placeholder: 'Select an option',
+    disabled: false,
+    by: undefined,
+    contentMinWidth: 160,
+    contentWidth: undefined,
+    shape: 'default',
+    variant: 'default',
+  },
+)
 
 const modelValue = defineModel<T>({ required: false })
 
@@ -72,11 +75,11 @@ const normalizedOptions = computed<SelectOptionGroupItem<T>[]>(() => {
 })
 
 const flattenedOptions = computed<SelectOptionItem<T>[]>(() =>
-  normalizedOptions.value.flatMap(group => group.children ?? []),
+  normalizedOptions.value.flatMap((group) => group.children ?? []),
 )
 
 const selectedOption = computed<SelectOptionItem<T> | undefined>(() =>
-  flattenedOptions.value.find(option => isSelectedOption(option.value, modelValue.value)),
+  flattenedOptions.value.find((option) => isSelectedOption(option.value, modelValue.value)),
 )
 
 function isSelectedOption(a: T, b: T | undefined): boolean {
@@ -105,20 +108,20 @@ function toCssSize(value?: string | number): string | undefined {
 </script>
 
 <template>
-  <SelectRoot
-    v-model="modelValue"
-    :by="props.by"
-    :disabled="props.disabled"
-  >
+  <SelectRoot v-model="modelValue" :by="props.by" :disabled="props.disabled">
     <SelectTrigger
       :class="[
         'group',
-        ...Array.isArray(props.class) ? props.class : [props.class],
+        ...(Array.isArray(props.class) ? props.class : [props.class]),
         'w-full inline-flex items-center justify-between border px-3 leading-none h-9 gap-[5px] outline-none',
         props.shape === 'rounded' ? 'rounded-full' : 'rounded-lg',
         'text-sm text-neutral-700 dark:text-neutral-200 data-[placeholder]:text-neutral-400 dark:data-[placeholder]:text-neutral-500',
-        props.variant === 'default' ? 'bg-white dark:bg-neutral-900 disabled:bg-neutral-100 hover:bg-neutral-50 dark:disabled:bg-neutral-900 dark:hover:bg-neutral-700' : '',
-        props.variant === 'blurry' ? 'bg-neutral-50/70 dark:bg-neutral-800/70 disabled:bg-neutral-100 hover:bg-neutral-100 dark:disabled:bg-neutral-900 dark:hover:bg-neutral-800' : '',
+        props.variant === 'default'
+          ? 'bg-white dark:bg-neutral-900 disabled:bg-neutral-100 hover:bg-neutral-50 dark:disabled:bg-neutral-900 dark:hover:bg-neutral-700'
+          : '',
+        props.variant === 'blurry'
+          ? 'bg-neutral-50/70 dark:bg-neutral-800/70 disabled:bg-neutral-100 hover:bg-neutral-100 dark:disabled:bg-neutral-900 dark:hover:bg-neutral-800'
+          : '',
         props.variant === 'blurry' ? 'backdrop-blur-md' : '',
         'border-2 border-solid focus:border-primary-300 dark:focus:border-primary-400/50',
         props.variant === 'default' ? 'border-neutral-200 dark:border-neutral-800' : '',
@@ -143,10 +146,7 @@ function toCssSize(value?: string | number): string | undefined {
             {{ selectedOption?.label ?? props.placeholder }}
           </span>
         </slot>
-        <SelectValue
-          v-else
-          v-model="modelValue"
-        />
+        <SelectValue v-else v-model="modelValue" />
       </div>
       <SelectIcon as-child>
         <div
@@ -184,17 +184,8 @@ function toCssSize(value?: string | number): string | undefined {
           minWidth: toCssSize(props.contentMinWidth),
         }"
       >
-        <SelectViewport
-          :class="[
-            'p-[2px]',
-            'max-h-50dvh',
-            'overflow-y-auto',
-          ]"
-        >
-          <template
-            v-for="(group, groupIndex) in normalizedOptions"
-            :key="group.groupLabel || `group-${groupIndex}`"
-          >
+        <SelectViewport :class="['p-[2px]', 'max-h-50dvh', 'overflow-y-auto']">
+          <template v-for="(group, groupIndex) in normalizedOptions" :key="group.groupLabel || `group-${groupIndex}`">
             <SelectGroup :class="['overflow-x-hidden']">
               <SelectSeparator
                 v-if="groupIndex !== 0"
@@ -217,26 +208,15 @@ function toCssSize(value?: string | number): string | undefined {
                 :key="`${group.groupLabel || groupIndex}-${option.label}-${optionIndex}`"
                 :option="option"
               >
-                <template
-                  v-if="$slots.option"
-                  #default="{ option: slotOption }"
-                >
-                  <slot
-                    name="option"
-                    v-bind="{ option: slotOption }"
-                  />
+                <template v-if="$slots.option" #default="{ option: slotOption }">
+                  <slot name="option" v-bind="{ option: slotOption }" />
                 </template>
               </SelectOption>
             </SelectGroup>
           </template>
         </SelectViewport>
 
-        <SelectArrow
-          :class="[
-            'fill-white dark:fill-neutral-900',
-            'stroke-neutral-200 dark:stroke-neutral-800',
-          ]"
-        />
+        <SelectArrow :class="['fill-white dark:fill-neutral-900', 'stroke-neutral-200 dark:stroke-neutral-800']" />
       </SelectContent>
     </SelectPortal>
   </SelectRoot>

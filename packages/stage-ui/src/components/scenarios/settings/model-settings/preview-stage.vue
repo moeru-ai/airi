@@ -9,10 +9,7 @@ import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
 import { useSettings } from '../../../../stores/settings'
-import {
-  createEmptyModelSettingsRuntimeSnapshot,
-  resolveComponentStateToRuntimePhase,
-} from './runtime'
+import { createEmptyModelSettingsRuntimeSnapshot, resolveComponentStateToRuntimePhase } from './runtime'
 
 const props = defineProps<{
   live2dSceneClass?: string | string[]
@@ -33,21 +30,10 @@ const live2dComponentState = ref<'pending' | 'loading' | 'mounted'>('pending')
 const spineComponentState = ref<'pending' | 'loading' | 'mounted'>('pending')
 const vrmPreviewStageInstanceId = `model-settings-preview-stage:${Math.random().toString(36).slice(2, 10)}`
 
-const {
-  stageModelSelected,
-  stageModelSelectedUrl,
-  stageModelRenderer,
-  themeColorsHue,
-  themeColorsHueDynamic,
-
-} = storeToRefs(settingsStore)
-const {
-  spinePremultipliedAlpha,
-  spineDefaultMixDuration,
-  spineIdleAnimationEnabled,
-  spineMaxFps,
-  spineRenderScale,
-} = storeToRefs(settingsStore)
+const { stageModelSelected, stageModelSelectedUrl, stageModelRenderer, themeColorsHue, themeColorsHueDynamic } =
+  storeToRefs(settingsStore)
+const { spinePremultipliedAlpha, spineDefaultMixDuration, spineIdleAnimationEnabled, spineMaxFps, spineRenderScale } =
+  storeToRefs(settingsStore)
 const { sceneMutationLocked, scenePhase } = storeToRefs(modelStore)
 
 const live2dSceneClassList = computed(() => normalizeClassList(props.live2dSceneClass))
@@ -55,30 +41,25 @@ const vrmSceneClassList = computed(() => normalizeClassList(props.vrmSceneClass)
 const spineSceneClassList = computed(() => normalizeClassList(props.spineSceneClass))
 
 function normalizeClassList(value?: string | string[]) {
-  if (!value)
-    return []
+  if (!value) return []
 
   return typeof value === 'string' ? [value] : value
 }
 
 function captureCanvasFrame(canvas?: HTMLCanvasElement) {
   return new Promise<Blob | undefined>((resolve) => {
-    if (!canvas)
-      return resolve(undefined)
+    if (!canvas) return resolve(undefined)
 
-    canvas.toBlob(blob => resolve(blob ?? undefined))
+    canvas.toBlob((blob) => resolve(blob ?? undefined))
   })
 }
 
 async function capturePreviewFrame() {
-  if (stageModelRenderer.value === 'live2d')
-    return captureCanvasFrame(live2dSceneRef.value?.canvasElement())
+  if (stageModelRenderer.value === 'live2d') return captureCanvasFrame(live2dSceneRef.value?.canvasElement())
 
-  if (stageModelRenderer.value === 'vrm')
-    return captureCanvasFrame(vrmSceneRef.value?.canvasElement())
+  if (stageModelRenderer.value === 'vrm') return captureCanvasFrame(vrmSceneRef.value?.canvasElement())
 
-  if (stageModelRenderer.value === 'spine')
-    return captureCanvasFrame(spineSceneRef.value?.canvasElement())
+  if (stageModelRenderer.value === 'spine') return captureCanvasFrame(spineSceneRef.value?.canvasElement())
 
   return undefined
 }
@@ -144,7 +125,7 @@ const runtimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() => {
   })
 })
 
-watch(runtimeSnapshot, snapshot => emit('runtimeSnapshotChanged', snapshot), { immediate: true })
+watch(runtimeSnapshot, (snapshot) => emit('runtimeSnapshotChanged', snapshot), { immediate: true })
 
 defineExpose({
   capturePreviewFrame,

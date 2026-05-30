@@ -16,12 +16,9 @@ import { shallowRef, useTemplateRef } from 'vue'
 const target = useTemplateRef('target')
 const targetIsVisible = shallowRef(false)
 
-const { stop } = useIntersectionObserver(
-  target,
-  ([entry], observerElement) => {
-    targetIsVisible.value = entry?.isIntersecting || false
-  },
-)
+const { stop } = useIntersectionObserver(target, ([entry], observerElement) => {
+  targetIsVisible.value = entry?.isIntersecting || false
+})
 </script>
 
 <template>
@@ -49,9 +46,7 @@ function onIntersectionObserver([entry]: IntersectionObserverEntry[]) {
 
 <template>
   <div>
-    <p>
-      Scroll me down!
-    </p>
+    <p>Scroll me down!</p>
     <div v-intersection-observer="onIntersectionObserver">
       <p>Hello world!</p>
     </div>
@@ -59,9 +54,7 @@ function onIntersectionObserver([entry]: IntersectionObserverEntry[]) {
 
   <!-- with options -->
   <div ref="root">
-    <p>
-      Scroll me down!
-    </p>
+    <p>Scroll me down!</p>
     <div v-intersection-observer="[onIntersectionObserver, { root }]">
       <p>Hello world!</p>
     </div>
@@ -107,10 +100,7 @@ export interface UseIntersectionObserverReturn extends Supportable, Pausable {
  * @param options
  */
 export declare function useIntersectionObserver(
-  target:
-    | MaybeComputedElementRef
-    | MaybeRefOrGetter<MaybeElement[]>
-    | MaybeComputedElementRef[],
+  target: MaybeComputedElementRef | MaybeRefOrGetter<MaybeElement[]> | MaybeComputedElementRef[],
   callback: IntersectionObserverCallback,
   options?: UseIntersectionObserverOptions,
 ): UseIntersectionObserverReturn

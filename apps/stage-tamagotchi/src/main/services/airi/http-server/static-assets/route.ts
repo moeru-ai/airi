@@ -22,7 +22,7 @@ export interface StaticAssetRouteOptions {
     cookieValue: string | undefined
   }) => Promise<StaticAssetSessionValidationResult>
   refreshSession: (assetSessionId: string) => StaticAssetSession | undefined
-  resolveAsset: (params: { extensionId: string, assetPath: string }) => Promise<StaticAssetResolveResult>
+  resolveAsset: (params: { extensionId: string; assetPath: string }) => Promise<StaticAssetResolveResult>
   getType?: (ext: string) => string | undefined
 }
 
@@ -110,8 +110,7 @@ export function createStaticAssetRoute(options: StaticAssetRouteOptions) {
           }
         },
       })
-    }
-    catch (error) {
+    } catch (error) {
       if (error instanceof HttpError) {
         throw toH3HttpError(error, {
           headers: staticAssetSecurityHeaders,

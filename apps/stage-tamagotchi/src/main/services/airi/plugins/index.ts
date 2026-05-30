@@ -1,21 +1,10 @@
-import type {
-  PluginHostService,
-  SetupPluginHostOptions,
-} from './types'
+import type { PluginHostService, SetupPluginHostOptions } from './types'
 
-import {
-  defineInvoke,
-  defineInvokeHandler,
-} from '@moeru/eventa'
+import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
-import {
-  app,
-  ipcMain,
-} from 'electron'
+import { app, ipcMain } from 'electron'
 
-import {
-  electronPluginGetAssetBaseUrl,
-} from '../../../../shared/eventa/plugin/assets'
+import { electronPluginGetAssetBaseUrl } from '../../../../shared/eventa/plugin/assets'
 import {
   electronPluginUpdateCapability,
   pluginProtocolListProviders,

@@ -6,7 +6,7 @@ export interface SpineAnimationManager {
   /** Set the looping idle animation on track 0. */
   setIdle: (name: string) => TrackEntry | null
   /** Play a one-shot emotion animation on track 1. */
-  playEmotion: (name: string, options?: { loop?: boolean, mixDuration?: number }) => TrackEntry | null
+  playEmotion: (name: string, options?: { loop?: boolean; mixDuration?: number }) => TrackEntry | null
   /** Stop the emotion track and re-empty back to the idle state. */
   clearEmotion: (mixDuration?: number) => void
   /** Resolve the closest matching animation name. Case-insensitive substring match. */
@@ -34,36 +34,31 @@ export interface SpineAnimationManager {
 export function useSpineAnimationManager(
   animationState: AnimationState,
   skeleton: Skeleton,
-  defaults: { mixDuration: number, idleAnimationEnabled: boolean },
+  defaults: { mixDuration: number; idleAnimationEnabled: boolean },
 ): SpineAnimationManager {
   function listAnimations() {
-    return skeleton.data.animations.map(animation => animation.name)
+    return skeleton.data.animations.map((animation) => animation.name)
   }
 
   function resolveAnimation(preferred: string) {
     const animations = listAnimations()
-    if (animations.length === 0)
-      return undefined
+    if (animations.length === 0) return undefined
 
     // 1. exact match
-    const exact = animations.find(name => name === preferred)
-    if (exact)
-      return exact
+    const exact = animations.find((name) => name === preferred)
+    if (exact) return exact
 
     // 2. case-insensitive exact match
-    const ci = animations.find(name => name.toLowerCase() === preferred.toLowerCase())
-    if (ci)
-      return ci
+    const ci = animations.find((name) => name.toLowerCase() === preferred.toLowerCase())
+    if (ci) return ci
 
     // 3. substring contains preferred
-    const contains = animations.find(name => name.toLowerCase().includes(preferred.toLowerCase()))
-    if (contains)
-      return contains
+    const contains = animations.find((name) => name.toLowerCase().includes(preferred.toLowerCase()))
+    if (contains) return contains
 
     // 4. preferred contains animation name
-    const reverse = animations.find(name => preferred.toLowerCase().includes(name.toLowerCase()))
-    if (reverse)
-      return reverse
+    const reverse = animations.find((name) => preferred.toLowerCase().includes(name.toLowerCase()))
+    if (reverse) return reverse
 
     return undefined
   }
@@ -75,16 +70,14 @@ export function useSpineAnimationManager(
     }
 
     const resolved = resolveAnimation(name) ?? listAnimations()[0]
-    if (!resolved)
-      return null
+    if (!resolved) return null
 
     return animationState.setAnimation(SPINE_IDLE_TRACK, resolved, true)
   }
 
-  function playEmotion(name: string, options?: { loop?: boolean, mixDuration?: number }): TrackEntry | null {
+  function playEmotion(name: string, options?: { loop?: boolean; mixDuration?: number }): TrackEntry | null {
     const resolved = resolveAnimation(name)
-    if (!resolved)
-      return null
+    if (!resolved) return null
 
     const entry = animationState.setAnimation(SPINE_EMOTION_TRACK, resolved, options?.loop ?? false)
     entry.mixDuration = options?.mixDuration ?? defaults.mixDuration
@@ -96,8 +89,7 @@ export function useSpineAnimationManager(
           if (completed === entry) {
             try {
               animationState.setEmptyAnimation(SPINE_EMOTION_TRACK, defaults.mixDuration)
-            }
-            finally {
+            } finally {
               animationState.removeListener(listener)
             }
           }

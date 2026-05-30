@@ -10,7 +10,12 @@ import { isMacOS } from 'std-env'
 
 import { createServerChannelService } from '../../services/airi/channel-server'
 import { createI18nService } from '../../services/airi/i18n'
-import { createAppService, createPowerMonitorService, createScreenService, createWindowService } from '../../services/electron'
+import {
+  createAppService,
+  createPowerMonitorService,
+  createScreenService,
+  createWindowService,
+} from '../../services/electron'
 
 export function toggleWindowShow(window?: BrowserWindow | null): void {
   if (!window) {

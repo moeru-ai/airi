@@ -4,7 +4,9 @@ import type { AgentHookRegistry, ChatHookRegistry } from '../contracts/hook-type
 import type { ChatStreamEventContext, StreamingAssistantMessage } from '../types/chat'
 
 export function createChatHooks(): ChatHookRegistry {
-  const onBeforeMessageComposedHooks: Array<(message: string, context: Omit<ChatStreamEventContext, 'composedMessage'>) => Promise<void>> = []
+  const onBeforeMessageComposedHooks: Array<
+    (message: string, context: Omit<ChatStreamEventContext, 'composedMessage'>) => Promise<void>
+  > = []
   const onAfterMessageComposedHooks: Array<(message: string, context: ChatStreamEventContext) => Promise<void>> = []
   const onBeforeSendHooks: Array<(message: string, context: ChatStreamEventContext) => Promise<void>> = []
   const onAfterSendHooks: Array<(message: string, context: ChatStreamEventContext) => Promise<void>> = []
@@ -12,15 +14,23 @@ export function createChatHooks(): ChatHookRegistry {
   const onTokenSpecialHooks: Array<(special: string, context: ChatStreamEventContext) => Promise<void>> = []
   const onStreamEndHooks: Array<(context: ChatStreamEventContext) => Promise<void>> = []
   const onAssistantResponseEndHooks: Array<(message: string, context: ChatStreamEventContext) => Promise<void>> = []
-  const onAssistantMessageHooks: Array<(message: StreamingAssistantMessage, messageText: string, context: ChatStreamEventContext) => Promise<void>> = []
-  const onChatTurnCompleteHooks: Array<(chat: { output: StreamingAssistantMessage, outputText: string, toolCalls: ToolMessage[] }, context: ChatStreamEventContext) => Promise<void>> = []
+  const onAssistantMessageHooks: Array<
+    (message: StreamingAssistantMessage, messageText: string, context: ChatStreamEventContext) => Promise<void>
+  > = []
+  const onChatTurnCompleteHooks: Array<
+    (
+      chat: { output: StreamingAssistantMessage; outputText: string; toolCalls: ToolMessage[] },
+      context: ChatStreamEventContext,
+    ) => Promise<void>
+  > = []
 
-  function onBeforeMessageComposed(cb: (message: string, context: Omit<ChatStreamEventContext, 'composedMessage'>) => Promise<void>) {
+  function onBeforeMessageComposed(
+    cb: (message: string, context: Omit<ChatStreamEventContext, 'composedMessage'>) => Promise<void>,
+  ) {
     onBeforeMessageComposedHooks.push(cb)
     return () => {
       const index = onBeforeMessageComposedHooks.indexOf(cb)
-      if (index >= 0)
-        onBeforeMessageComposedHooks.splice(index, 1)
+      if (index >= 0) onBeforeMessageComposedHooks.splice(index, 1)
     }
   }
 
@@ -28,8 +38,7 @@ export function createChatHooks(): ChatHookRegistry {
     onAfterMessageComposedHooks.push(cb)
     return () => {
       const index = onAfterMessageComposedHooks.indexOf(cb)
-      if (index >= 0)
-        onAfterMessageComposedHooks.splice(index, 1)
+      if (index >= 0) onAfterMessageComposedHooks.splice(index, 1)
     }
   }
 
@@ -37,8 +46,7 @@ export function createChatHooks(): ChatHookRegistry {
     onBeforeSendHooks.push(cb)
     return () => {
       const index = onBeforeSendHooks.indexOf(cb)
-      if (index >= 0)
-        onBeforeSendHooks.splice(index, 1)
+      if (index >= 0) onBeforeSendHooks.splice(index, 1)
     }
   }
 
@@ -46,8 +54,7 @@ export function createChatHooks(): ChatHookRegistry {
     onAfterSendHooks.push(cb)
     return () => {
       const index = onAfterSendHooks.indexOf(cb)
-      if (index >= 0)
-        onAfterSendHooks.splice(index, 1)
+      if (index >= 0) onAfterSendHooks.splice(index, 1)
     }
   }
 
@@ -55,8 +62,7 @@ export function createChatHooks(): ChatHookRegistry {
     onTokenLiteralHooks.push(cb)
     return () => {
       const index = onTokenLiteralHooks.indexOf(cb)
-      if (index >= 0)
-        onTokenLiteralHooks.splice(index, 1)
+      if (index >= 0) onTokenLiteralHooks.splice(index, 1)
     }
   }
 
@@ -64,8 +70,7 @@ export function createChatHooks(): ChatHookRegistry {
     onTokenSpecialHooks.push(cb)
     return () => {
       const index = onTokenSpecialHooks.indexOf(cb)
-      if (index >= 0)
-        onTokenSpecialHooks.splice(index, 1)
+      if (index >= 0) onTokenSpecialHooks.splice(index, 1)
     }
   }
 
@@ -73,8 +78,7 @@ export function createChatHooks(): ChatHookRegistry {
     onStreamEndHooks.push(cb)
     return () => {
       const index = onStreamEndHooks.indexOf(cb)
-      if (index >= 0)
-        onStreamEndHooks.splice(index, 1)
+      if (index >= 0) onStreamEndHooks.splice(index, 1)
     }
   }
 
@@ -82,26 +86,30 @@ export function createChatHooks(): ChatHookRegistry {
     onAssistantResponseEndHooks.push(cb)
     return () => {
       const index = onAssistantResponseEndHooks.indexOf(cb)
-      if (index >= 0)
-        onAssistantResponseEndHooks.splice(index, 1)
+      if (index >= 0) onAssistantResponseEndHooks.splice(index, 1)
     }
   }
 
-  function onAssistantMessage(cb: (message: StreamingAssistantMessage, messageText: string, context: ChatStreamEventContext) => Promise<void>) {
+  function onAssistantMessage(
+    cb: (message: StreamingAssistantMessage, messageText: string, context: ChatStreamEventContext) => Promise<void>,
+  ) {
     onAssistantMessageHooks.push(cb)
     return () => {
       const index = onAssistantMessageHooks.indexOf(cb)
-      if (index >= 0)
-        onAssistantMessageHooks.splice(index, 1)
+      if (index >= 0) onAssistantMessageHooks.splice(index, 1)
     }
   }
 
-  function onChatTurnComplete(cb: (chat: { output: StreamingAssistantMessage, outputText: string, toolCalls: ToolMessage[] }, context: ChatStreamEventContext) => Promise<void>) {
+  function onChatTurnComplete(
+    cb: (
+      chat: { output: StreamingAssistantMessage; outputText: string; toolCalls: ToolMessage[] },
+      context: ChatStreamEventContext,
+    ) => Promise<void>,
+  ) {
     onChatTurnCompleteHooks.push(cb)
     return () => {
       const index = onChatTurnCompleteHooks.indexOf(cb)
-      if (index >= 0)
-        onChatTurnCompleteHooks.splice(index, 1)
+      if (index >= 0) onChatTurnCompleteHooks.splice(index, 1)
     }
   }
 
@@ -118,54 +126,54 @@ export function createChatHooks(): ChatHookRegistry {
     onChatTurnCompleteHooks.length = 0
   }
 
-  async function emitBeforeMessageComposedHooks(message: string, context: Omit<ChatStreamEventContext, 'composedMessage'>) {
-    for (const hook of onBeforeMessageComposedHooks)
-      await hook(message, context)
+  async function emitBeforeMessageComposedHooks(
+    message: string,
+    context: Omit<ChatStreamEventContext, 'composedMessage'>,
+  ) {
+    for (const hook of onBeforeMessageComposedHooks) await hook(message, context)
   }
 
   async function emitAfterMessageComposedHooks(message: string, context: ChatStreamEventContext) {
-    for (const hook of onAfterMessageComposedHooks)
-      await hook(message, context)
+    for (const hook of onAfterMessageComposedHooks) await hook(message, context)
   }
 
   async function emitBeforeSendHooks(message: string, context: ChatStreamEventContext) {
-    for (const hook of onBeforeSendHooks)
-      await hook(message, context)
+    for (const hook of onBeforeSendHooks) await hook(message, context)
   }
 
   async function emitAfterSendHooks(message: string, context: ChatStreamEventContext) {
-    for (const hook of onAfterSendHooks)
-      await hook(message, context)
+    for (const hook of onAfterSendHooks) await hook(message, context)
   }
 
   async function emitTokenLiteralHooks(literal: string, context: ChatStreamEventContext) {
-    for (const hook of onTokenLiteralHooks)
-      await hook(literal, context)
+    for (const hook of onTokenLiteralHooks) await hook(literal, context)
   }
 
   async function emitTokenSpecialHooks(special: string, context: ChatStreamEventContext) {
-    for (const hook of onTokenSpecialHooks)
-      await hook(special, context)
+    for (const hook of onTokenSpecialHooks) await hook(special, context)
   }
 
   async function emitStreamEndHooks(context: ChatStreamEventContext) {
-    for (const hook of onStreamEndHooks)
-      await hook(context)
+    for (const hook of onStreamEndHooks) await hook(context)
   }
 
   async function emitAssistantResponseEndHooks(message: string, context: ChatStreamEventContext) {
-    for (const hook of onAssistantResponseEndHooks)
-      await hook(message, context)
+    for (const hook of onAssistantResponseEndHooks) await hook(message, context)
   }
 
-  async function emitAssistantMessageHooks(message: StreamingAssistantMessage, messageText: string, context: ChatStreamEventContext) {
-    for (const hook of onAssistantMessageHooks)
-      await hook(message, messageText, context)
+  async function emitAssistantMessageHooks(
+    message: StreamingAssistantMessage,
+    messageText: string,
+    context: ChatStreamEventContext,
+  ) {
+    for (const hook of onAssistantMessageHooks) await hook(message, messageText, context)
   }
 
-  async function emitChatTurnCompleteHooks(chat: { output: StreamingAssistantMessage, outputText: string, toolCalls: ToolMessage[] }, context: ChatStreamEventContext) {
-    for (const hook of onChatTurnCompleteHooks)
-      await hook(chat, context)
+  async function emitChatTurnCompleteHooks(
+    chat: { output: StreamingAssistantMessage; outputText: string; toolCalls: ToolMessage[] },
+    context: ChatStreamEventContext,
+  ) {
+    for (const hook of onChatTurnCompleteHooks) await hook(chat, context)
   }
 
   return {
@@ -193,8 +201,14 @@ export function createChatHooks(): ChatHookRegistry {
   }
 }
 
-export function createAgentHooks<TContext, TAssistantMessage, TToolCall>(): AgentHookRegistry<TContext, TAssistantMessage, TToolCall> {
-  const onBeforeMessageComposedHooks: Array<(message: string, context: Omit<TContext, 'composedMessage'>) => Promise<void>> = []
+export function createAgentHooks<TContext, TAssistantMessage, TToolCall>(): AgentHookRegistry<
+  TContext,
+  TAssistantMessage,
+  TToolCall
+> {
+  const onBeforeMessageComposedHooks: Array<
+    (message: string, context: Omit<TContext, 'composedMessage'>) => Promise<void>
+  > = []
   const onAfterMessageComposedHooks: Array<(message: string, context: TContext) => Promise<void>> = []
   const onBeforeSendHooks: Array<(message: string, context: TContext) => Promise<void>> = []
   const onAfterSendHooks: Array<(message: string, context: TContext) => Promise<void>> = []
@@ -202,15 +216,21 @@ export function createAgentHooks<TContext, TAssistantMessage, TToolCall>(): Agen
   const onTokenSpecialHooks: Array<(special: string, context: TContext) => Promise<void>> = []
   const onStreamEndHooks: Array<(context: TContext) => Promise<void>> = []
   const onAssistantResponseEndHooks: Array<(message: string, context: TContext) => Promise<void>> = []
-  const onAssistantMessageHooks: Array<(message: TAssistantMessage, messageText: string, context: TContext) => Promise<void>> = []
-  const onChatTurnCompleteHooks: Array<(chat: { output: TAssistantMessage, outputText: string, toolCalls: TToolCall[] }, context: TContext) => Promise<void>> = []
+  const onAssistantMessageHooks: Array<
+    (message: TAssistantMessage, messageText: string, context: TContext) => Promise<void>
+  > = []
+  const onChatTurnCompleteHooks: Array<
+    (
+      chat: { output: TAssistantMessage; outputText: string; toolCalls: TToolCall[] },
+      context: TContext,
+    ) => Promise<void>
+  > = []
 
   function createSubscribe<T>(bucket: T[], cb: T) {
     bucket.push(cb)
     return () => {
       const index = bucket.indexOf(cb)
-      if (index >= 0)
-        bucket.splice(index, 1)
+      if (index >= 0) bucket.splice(index, 1)
     }
   }
 
@@ -228,21 +248,20 @@ export function createAgentHooks<TContext, TAssistantMessage, TToolCall>(): Agen
   }
 
   async function emitHooks<T extends any[]>(hooks: Array<(...args: T) => Promise<void>>, ...args: T) {
-    for (const hook of hooks)
-      await hook(...args)
+    for (const hook of hooks) await hook(...args)
   }
 
   return {
-    onBeforeMessageComposed: cb => createSubscribe(onBeforeMessageComposedHooks, cb),
-    onAfterMessageComposed: cb => createSubscribe(onAfterMessageComposedHooks, cb),
-    onBeforeSend: cb => createSubscribe(onBeforeSendHooks, cb),
-    onAfterSend: cb => createSubscribe(onAfterSendHooks, cb),
-    onTokenLiteral: cb => createSubscribe(onTokenLiteralHooks, cb),
-    onTokenSpecial: cb => createSubscribe(onTokenSpecialHooks, cb),
-    onStreamEnd: cb => createSubscribe(onStreamEndHooks, cb),
-    onAssistantResponseEnd: cb => createSubscribe(onAssistantResponseEndHooks, cb),
-    onAssistantMessage: cb => createSubscribe(onAssistantMessageHooks, cb),
-    onChatTurnComplete: cb => createSubscribe(onChatTurnCompleteHooks, cb),
+    onBeforeMessageComposed: (cb) => createSubscribe(onBeforeMessageComposedHooks, cb),
+    onAfterMessageComposed: (cb) => createSubscribe(onAfterMessageComposedHooks, cb),
+    onBeforeSend: (cb) => createSubscribe(onBeforeSendHooks, cb),
+    onAfterSend: (cb) => createSubscribe(onAfterSendHooks, cb),
+    onTokenLiteral: (cb) => createSubscribe(onTokenLiteralHooks, cb),
+    onTokenSpecial: (cb) => createSubscribe(onTokenSpecialHooks, cb),
+    onStreamEnd: (cb) => createSubscribe(onStreamEndHooks, cb),
+    onAssistantResponseEnd: (cb) => createSubscribe(onAssistantResponseEndHooks, cb),
+    onAssistantMessage: (cb) => createSubscribe(onAssistantMessageHooks, cb),
+    onChatTurnComplete: (cb) => createSubscribe(onChatTurnCompleteHooks, cb),
 
     emitBeforeMessageComposedHooks: (message, context) => emitHooks(onBeforeMessageComposedHooks, message, context),
     emitAfterMessageComposedHooks: (message, context) => emitHooks(onAfterMessageComposedHooks, message, context),
@@ -250,9 +269,10 @@ export function createAgentHooks<TContext, TAssistantMessage, TToolCall>(): Agen
     emitAfterSendHooks: (message, context) => emitHooks(onAfterSendHooks, message, context),
     emitTokenLiteralHooks: (literal, context) => emitHooks(onTokenLiteralHooks, literal, context),
     emitTokenSpecialHooks: (special, context) => emitHooks(onTokenSpecialHooks, special, context),
-    emitStreamEndHooks: context => emitHooks(onStreamEndHooks, context),
+    emitStreamEndHooks: (context) => emitHooks(onStreamEndHooks, context),
     emitAssistantResponseEndHooks: (message, context) => emitHooks(onAssistantResponseEndHooks, message, context),
-    emitAssistantMessageHooks: (message, messageText, context) => emitHooks(onAssistantMessageHooks, message, messageText, context),
+    emitAssistantMessageHooks: (message, messageText, context) =>
+      emitHooks(onAssistantMessageHooks, message, messageText, context),
     emitChatTurnCompleteHooks: (chat, context) => emitHooks(onChatTurnCompleteHooks, chat, context),
     clearHooks,
   }

@@ -93,7 +93,7 @@ export class ResourceService {
   async get<T>(key: string, fallback?: T): Promise<T | undefined> {
     const resolver = this.resolvers.get(key)
     if (resolver) {
-      return await resolver() as T
+      return (await resolver()) as T
     }
 
     if (this.values.has(key)) {

@@ -44,11 +44,7 @@ If you must wait multiple storages, put them into a `Promise.allSettled()`
 
 ```ts
 router.onReady(async () => {
-  await Promise.allSettled([
-    accessToken,
-    refreshToken,
-    userData,
-  ])
+  await Promise.allSettled([accessToken, refreshToken, userData])
 
   app.mount('app')
 })
@@ -65,7 +61,7 @@ const { promise, resolve } = Promise.withResolvers()
 const accessToken = useStorageAsync('access.token', '', SomeAsyncStorage, {
   onReady(value) {
     resolve(value)
-  }
+  },
 })
 
 // At main.ts
@@ -83,17 +79,14 @@ Simply use `resolve` as callback:
 
 ```ts
 const accessToken = useStorageAsync('access.token', '', SomeAsyncStorage, {
-  onReady: resolve
+  onReady: resolve,
 })
 ```
 
 ## Type Declarations
 
 ```ts
-export interface UseStorageAsyncOptions<T> extends Omit<
-  UseStorageOptions<T>,
-  'serializer'
-> {
+export interface UseStorageAsyncOptions<T> extends Omit<UseStorageOptions<T>, 'serializer'> {
   /**
    * Custom data serialization
    */

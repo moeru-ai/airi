@@ -18,9 +18,7 @@ const isDark = usePreferredDark()
 
 ```vue
 <template>
-  <UsePreferredDark v-slot="{ prefersDark }">
-    Prefers Dark: {{ prefersDark }}
-  </UsePreferredDark>
+  <UsePreferredDark v-slot="{ prefersDark }">Prefers Dark: {{ prefersDark }}</UsePreferredDark>
 </template>
 ```
 
@@ -35,7 +33,5 @@ const isDark = usePreferredDark()
  *
  * @__NO_SIDE_EFFECTS__
  */
-export declare function usePreferredDark(
-  options?: ConfigurableWindow,
-): ComputedRef<boolean>
+export declare function usePreferredDark(options?: ConfigurableWindow): ComputedRef<boolean>
 ```

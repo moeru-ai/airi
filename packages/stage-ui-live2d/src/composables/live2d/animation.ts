@@ -19,15 +19,21 @@ export function useLive2DIdleEyeFocus() {
     if (now >= nextSaccadeAfter || now < lastSaccadeAt) {
       focusTarget = [MathUtils.randFloat(-1, 1), MathUtils.randFloat(-1, 0.7)]
       lastSaccadeAt = now
-      nextSaccadeAfter = now + (randomSaccadeInterval() / 1000)
+      nextSaccadeAfter = now + randomSaccadeInterval() / 1000
       model.focusController.focus(focusTarget![0] * 0.5, focusTarget![1] * 0.5, false)
     }
 
     model.focusController.update(now - lastSaccadeAt)
     const coreModel = model.coreModel as any
     // TODO: After emotion mapper, stage editor, eye related parameters should be take cared to be dynamical instead of hardcoding
-    coreModel.setParameterValueById('ParamEyeBallX', MathUtils.lerp(coreModel.getParameterValueById('ParamEyeBallX'), focusTarget![0], 0.3))
-    coreModel.setParameterValueById('ParamEyeBallY', MathUtils.lerp(coreModel.getParameterValueById('ParamEyeBallY'), focusTarget![1], 0.3))
+    coreModel.setParameterValueById(
+      'ParamEyeBallX',
+      MathUtils.lerp(coreModel.getParameterValueById('ParamEyeBallX'), focusTarget![0], 0.3),
+    )
+    coreModel.setParameterValueById(
+      'ParamEyeBallY',
+      MathUtils.lerp(coreModel.getParameterValueById('ParamEyeBallY'), focusTarget![1], 0.3),
+    )
   }
 
   return { update }

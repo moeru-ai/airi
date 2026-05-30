@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 
-const props = withDefaults(defineProps<{
-  width: number
-  height: number
-  resolution?: number
-}>(), {
-  resolution: 1,
-})
+const props = withDefaults(
+  defineProps<{
+    width: number
+    height: number
+    resolution?: number
+  }>(),
+  {
+    resolution: 1,
+  },
+)
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
 
@@ -33,8 +36,7 @@ function initCanvas(parent: HTMLDivElement) {
 }
 
 function handleResize() {
-  if (!canvasRef.value)
-    return
+  if (!canvasRef.value) return
 
   canvasRef.value.width = Math.max(1, Math.floor(props.width * props.resolution))
   canvasRef.value.height = Math.max(1, Math.floor(props.height * props.resolution))
@@ -43,21 +45,18 @@ function handleResize() {
 watch([() => props.width, () => props.height, () => props.resolution], handleResize)
 
 onMounted(() => {
-  if (containerRef.value)
-    initCanvas(containerRef.value)
+  if (containerRef.value) initCanvas(containerRef.value)
 })
 
 onUnmounted(() => {
-  if (canvasRef.value && canvasRef.value.parentElement)
-    canvasRef.value.parentElement.removeChild(canvasRef.value)
+  if (canvasRef.value && canvasRef.value.parentElement) canvasRef.value.parentElement.removeChild(canvasRef.value)
   canvasRef.value = undefined
   isCanvasReady.value = false
 })
 
 async function captureFrame() {
   return new Promise<Blob | null>((resolve) => {
-    if (!canvasRef.value)
-      return resolve(null)
+    if (!canvasRef.value) return resolve(null)
     canvasRef.value.toBlob(resolve, 'image/png')
   })
 }

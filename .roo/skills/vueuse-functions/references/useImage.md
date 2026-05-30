@@ -18,7 +18,7 @@ const { isLoading } = useImage({ src: avatarUrl })
 
 <template>
   <span v-if="isLoading">Loading</span>
-  <img v-else :src="avatarUrl">
+  <img v-else :src="avatarUrl" />
 </template>
 ```
 
@@ -27,13 +27,9 @@ const { isLoading } = useImage({ src: avatarUrl })
 ```vue
 <template>
   <UseImage src="https://place.dog/300/200">
-    <template #loading>
-      Loading..
-    </template>
+    <template #loading>Loading..</template>
 
-    <template #error>
-      Failed
-    </template>
+    <template #error>Failed</template>
   </UseImage>
 </template>
 ```
@@ -71,11 +67,7 @@ export interface UseImageOptions {
   /** The partial URL (starting with #) of an image map associated with the element */
   usemap?: HTMLImageElement['useMap']
 }
-export type UseImageReturn = UseAsyncStateReturn<
-  HTMLImageElement | undefined,
-  any[],
-  true
->
+export type UseImageReturn = UseAsyncStateReturn<HTMLImageElement | undefined, any[], true>
 /**
  * Reactive load an image in the browser, you can wait the result to display it or show a fallback.
  *

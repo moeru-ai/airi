@@ -59,7 +59,7 @@ const { system, store } = useColorMode()
 system.value // 'dark' | 'light'
 store.value // 'dark' | 'light' | 'auto'
 
-const myColorMode = computed(() => store.value === 'auto' ? system.value : store.value)
+const myColorMode = computed(() => (store.value === 'auto' ? system.value : store.value))
 ```
 
 ## Component Usage
@@ -67,9 +67,7 @@ const myColorMode = computed(() => store.value === 'auto' ? system.value : store
 ```vue
 <template>
   <UseColorMode v-slot="color">
-    <button @click="color.mode = color.mode === 'dark' ? 'light' : 'dark'">
-      Mode {{ color.mode }}
-    </button>
+    <button @click="color.mode = color.mode === 'dark' ? 'light' : 'dark'">Mode {{ color.mode }}</button>
   </UseColorMode>
 </template>
 ```
@@ -79,9 +77,7 @@ const myColorMode = computed(() => store.value === 'auto' ? system.value : store
 ```ts
 export type BasicColorMode = 'light' | 'dark'
 export type BasicColorSchema = BasicColorMode | 'auto'
-export interface UseColorModeOptions<
-  T extends string = BasicColorMode,
-> extends UseStorageOptions<T | BasicColorMode> {
+export interface UseColorModeOptions<T extends string = BasicColorMode> extends UseStorageOptions<T | BasicColorMode> {
   /**
    * CSS Selector for the target element applying to
    *
@@ -110,10 +106,7 @@ export interface UseColorModeOptions<
    *
    * @default undefined
    */
-  onChanged?: (
-    mode: T | BasicColorMode,
-    defaultHandler: (mode: T | BasicColorMode) => void,
-  ) => void
+  onChanged?: (mode: T | BasicColorMode, defaultHandler: (mode: T | BasicColorMode) => void) => void
   /**
    * Custom storage ref
    *
@@ -153,9 +146,7 @@ export interface UseColorModeOptions<
    */
   disableTransition?: boolean
 }
-export type UseColorModeReturn<T extends string = BasicColorMode> = Ref<
-  T | BasicColorSchema
-> & {
+export type UseColorModeReturn<T extends string = BasicColorMode> = Ref<T | BasicColorSchema> & {
   store: Ref<T | BasicColorSchema>
   system: ComputedRef<BasicColorMode>
   state: ComputedRef<T | BasicColorMode>

@@ -22,7 +22,7 @@ export function createCutePopupAnimator(options: CreateAnimatorOptions): Animato
         translateY: ['1.1em', 0],
         translateZ: 0,
         ...options,
-        delay: (_, i) => options.duration / elements.length * i,
+        delay: (_, i) => (options.duration / elements.length) * i,
         ease: createSpring(),
       })
 

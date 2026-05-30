@@ -20,7 +20,9 @@ const dropdownRef = ref(null)
 // which looks worse than the explicit placeholder we already ship.
 // Reset on URL change so a fixed URL re-attempts loading.
 const avatarLoadError = ref(false)
-watch(userAvatar, () => { avatarLoadError.value = false })
+watch(userAvatar, () => {
+  avatarLoadError.value = false
+})
 
 const formattedCredits = computed(() => credits.value.toLocaleString())
 
@@ -37,7 +39,13 @@ onClickOutside(dropdownRef, () => {
       <RouterLink
         border="2 solid neutral-100/60 dark:neutral-800/30"
         bg="neutral-50/70 dark:neutral-800/70"
-        w-fit flex items-center justify-center rounded-xl p-2 backdrop-blur-md
+        w-fit
+        flex
+        items-center
+        justify-center
+        rounded-xl
+        p-2
+        backdrop-blur-md
         title="Settings"
         to="/settings"
       >
@@ -47,7 +55,13 @@ onClickOutside(dropdownRef, () => {
       <button
         border="2 solid neutral-100/60 dark:neutral-800/30"
         bg="neutral-50/70 dark:neutral-800/70"
-        w-fit flex items-center justify-center rounded-xl p-2 backdrop-blur-md
+        w-fit
+        flex
+        items-center
+        justify-center
+        rounded-xl
+        p-2
+        backdrop-blur-md
         title="Sign in"
         type="button"
         @click="authStore.needsLogin = true"
@@ -72,7 +86,7 @@ onClickOutside(dropdownRef, () => {
           :alt="userName"
           class="h-7 w-7 rounded-full object-cover"
           @error="avatarLoadError = true"
-        >
+        />
         <div
           v-else
           class="h-7 w-7 flex items-center justify-center rounded-full bg-neutral-200 text-neutral-500 dark:bg-neutral-700 dark:text-neutral-400"
@@ -80,7 +94,10 @@ onClickOutside(dropdownRef, () => {
           <div class="i-solar:user-bold-duotone text-lg" />
         </div>
 
-        <span v-if="userName" class="max-w-[100px] truncate text-sm text-neutral-700 font-medium hidden sm:block dark:text-neutral-200">
+        <span
+          v-if="userName"
+          class="max-w-[100px] truncate text-sm text-neutral-700 font-medium hidden sm:block dark:text-neutral-200"
+        >
           {{ userName }}
         </span>
         <div
@@ -102,9 +119,7 @@ onClickOutside(dropdownRef, () => {
           class="absolute right-0 top-full z-50 mt-2 w-60 origin-top-right border border-neutral-200/60 rounded-xl bg-white/90 p-1 shadow-xl backdrop-blur-xl divide-y divide-neutral-100 dark:border-neutral-800/60 dark:bg-neutral-900/90 dark:divide-neutral-800"
         >
           <div class="px-3 py-2">
-            <p class="text-xs text-neutral-500 dark:text-neutral-400">
-              Signed in as
-            </p>
+            <p class="text-xs text-neutral-500 dark:text-neutral-400">Signed in as</p>
             <p class="truncate text-sm text-neutral-900 font-medium dark:text-white">
               {{ userName }}
             </p>
@@ -120,7 +135,9 @@ onClickOutside(dropdownRef, () => {
               class="group w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-700 transition hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
               @click="showDropdown = false"
             >
-              <div class="i-solar:user-id-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
+              <div
+                class="i-solar:user-id-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500"
+              />
               Profile
             </RouterLink>
 
@@ -129,7 +146,9 @@ onClickOutside(dropdownRef, () => {
               class="group w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-700 transition hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
               @click="showDropdown = false"
             >
-              <div class="i-solar:battery-charge-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
+              <div
+                class="i-solar:battery-charge-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500"
+              />
               Flux
             </RouterLink>
 
@@ -138,7 +157,9 @@ onClickOutside(dropdownRef, () => {
               class="group w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-700 transition hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
               @click="showDropdown = false"
             >
-              <div class="i-solar:settings-minimalistic-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
+              <div
+                class="i-solar:settings-minimalistic-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500"
+              />
               Settings
             </RouterLink>
           </div>
@@ -148,7 +169,9 @@ onClickOutside(dropdownRef, () => {
               class="group w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
               @click="signOut"
             >
-              <div class="i-solar:logout-3-bold-duotone text-lg transition group-hover:text-red-600 dark:group-hover:text-red-400" />
+              <div
+                class="i-solar:logout-3-bold-duotone text-lg transition group-hover:text-red-600 dark:group-hover:text-red-400"
+              />
               Sign out
             </button>
           </div>

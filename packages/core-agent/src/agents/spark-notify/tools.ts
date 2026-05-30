@@ -1,20 +1,14 @@
 import type { ContextUpdate } from '@proj-airi/server-sdk'
 import type { Tool } from '@xsai/shared-chat'
 
-import type {
-  SparkNotifyTracingHooks,
-  SparkTraceEvent,
-} from './types'
+import type { SparkNotifyTracingHooks, SparkTraceEvent } from './types'
 
 import { errorMessageFrom } from '@moeru/std'
 import { rawTool } from '@xsai/tool'
 import { toJsonSchema, validate } from 'xsschema'
 import { z } from 'zod'
 
-import {
-  normalizeNullableAnyOf,
-  sparkNotifyCommandSchema,
-} from './schema'
+import { normalizeNullableAnyOf, sparkNotifyCommandSchema } from './schema'
 
 /**
  * Normalized `builtIn_sparkCommand` payload forwarded to downstream orchestrators.
@@ -95,11 +89,15 @@ function normalizeSparkNotifyCommand(
     guidance: command.guidance
       ? {
           type: command.guidance.type,
-          persona: command.guidance.persona?.reduce((acc, curr) => {
-            acc[curr.traits] = curr.strength
-            return acc
-          }, {} as Record<string, 'very-high' | 'high' | 'medium' | 'low' | 'very-low'>) || undefined,
-          options: command.guidance.options.map(option => ({
+          persona:
+            command.guidance.persona?.reduce(
+              (acc, curr) => {
+                acc[curr.traits] = curr.strength
+                return acc
+              },
+              {} as Record<string, 'very-high' | 'high' | 'medium' | 'low' | 'very-low'>,
+            ) || undefined,
+          options: command.guidance.options.map((option) => ({
             ...option,
             rationale: option.rationale ?? undefined,
             possibleOutcome: option.possibleOutcome?.length ? option.possibleOutcome : undefined,
@@ -140,7 +138,7 @@ export async function createSparkNotifyTools(options: CreateSparkNotifyToolsOpti
   const sparkNoResponseTool = rawTool({
     name: 'builtIn_sparkNoResponse',
     description: 'Indicate that no response or action is needed for the current spark:notify event.',
-    parameters: normalizeNullableAnyOf(await toJsonSchema(z.object({}).strict()) as any),
+    parameters: normalizeNullableAnyOf((await toJsonSchema(z.object({}).strict())) as any),
     execute: async (_rawPayload, context) => {
       options.onTrace?.({
         type: 'model-output-tool-call',
@@ -161,13 +159,12 @@ export async function createSparkNotifyTools(options: CreateSparkNotifyToolsOpti
       return 'AIRI System: Acknowledged, no response or action will be processed.'
     },
   })
-  if (allowNoResponse)
-    tools.push(sparkNoResponseTool)
+  if (allowNoResponse) tools.push(sparkNoResponseTool)
 
   const sparkCommandTool = rawTool({
     name: 'builtIn_sparkCommand',
     description: 'Issue a spark:command to sub-agents. You can call this tool multiple times.',
-    parameters: normalizeNullableAnyOf(await toJsonSchema(sparkNotifyCommandSchema) as any),
+    parameters: normalizeNullableAnyOf((await toJsonSchema(sparkNotifyCommandSchema)) as any),
     execute: async (rawPayload, context) => {
       options.onTrace?.({
         type: 'model-output-tool-call',
@@ -190,8 +187,7 @@ export async function createSparkNotifyTools(options: CreateSparkNotifyToolsOpti
             commandCount: validated.commands.length,
           },
         } satisfies SparkTraceEvent)
-      }
-      catch (error) {
+      } catch (error) {
         options.onTrace?.({
           type: 'tool-execution',
           payload: {
@@ -207,31 +203,31 @@ export async function createSparkNotifyTools(options: CreateSparkNotifyToolsOpti
       return 'AIRI System: Acknowledged, command fired.'
     },
   })
-  if (allowSparkCommand)
-    tools.push(sparkCommandTool)
+  if (allowSparkCommand) tools.push(sparkCommandTool)
 
   return {
     tools,
   }
 
   if (allowSparkCommand) {
-    tools.push(rawTool({
-      name: 'builtIn_sparkCommand',
-      description: 'Issue a spark:command to sub-agents. You can call this tool multiple times.',
-      parameters: normalizeNullableAnyOf(await toJsonSchema(sparkNotifyCommandSchema) as any),
-      execute: async (rawPayload) => {
-        try {
-          const payload = rawPayload as z.infer<typeof sparkNotifyCommandSchema>
-          const validated = await validate(sparkNotifyCommandSchema, payload)
-          options.onCommands(validated.commands.map(normalizeSparkNotifyCommand))
-        }
-        catch (error) {
-          return `AIRI System: Error - invalid spark_command parameters: ${errorMessageFrom(error)}`
-        }
+    tools.push(
+      rawTool({
+        name: 'builtIn_sparkCommand',
+        description: 'Issue a spark:command to sub-agents. You can call this tool multiple times.',
+        parameters: normalizeNullableAnyOf((await toJsonSchema(sparkNotifyCommandSchema)) as any),
+        execute: async (rawPayload) => {
+          try {
+            const payload = rawPayload as z.infer<typeof sparkNotifyCommandSchema>
+            const validated = await validate(sparkNotifyCommandSchema, payload)
+            options.onCommands(validated.commands.map(normalizeSparkNotifyCommand))
+          } catch (error) {
+            return `AIRI System: Error - invalid spark_command parameters: ${errorMessageFrom(error)}`
+          }
 
-        return 'AIRI System: Acknowledged, command fired.'
-      },
-    }))
+          return 'AIRI System: Acknowledged, command fired.'
+        },
+      }),
+    )
   }
 
   return { tools }

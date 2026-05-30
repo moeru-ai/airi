@@ -5,60 +5,61 @@ import { array, date, literal, number, object, optional, pipe, string, transform
 // --- Enums & Configs ---
 
 export const AvatarModelConfigSchema = object({
-  vrm: optional(object({
-    urls: array(string()),
-  })),
-  live2d: optional(object({
-    urls: array(string()),
-  })),
-  spine: optional(object({
-    urls: array(string()),
-  })),
+  vrm: optional(
+    object({
+      urls: array(string()),
+    }),
+  ),
+  live2d: optional(
+    object({
+      urls: array(string()),
+    }),
+  ),
+  spine: optional(
+    object({
+      urls: array(string()),
+    }),
+  ),
 })
 
 export const CharacterCapabilityConfigSchema = object({
   apiKey: string(),
   apiBaseUrl: string(),
-  llm: optional(object({
-    temperature: number(),
-    model: string(),
-  })),
-  tts: optional(object({
-    ssml: string(),
-    voiceId: string(),
-    speed: number(),
-    pitch: number(),
-  })),
-  vlm: optional(object({
-    image: string(),
-  })),
-  asr: optional(object({
-    audio: string(),
-  })),
+  llm: optional(
+    object({
+      temperature: number(),
+      model: string(),
+    }),
+  ),
+  tts: optional(
+    object({
+      ssml: string(),
+      voiceId: string(),
+      speed: number(),
+      pitch: number(),
+    }),
+  ),
+  vlm: optional(
+    object({
+      image: string(),
+    }),
+  ),
+  asr: optional(
+    object({
+      audio: string(),
+    }),
+  ),
 })
 
-const CharacterCapabilityTypeSchema = union([
-  literal('llm'),
-  literal('tts'),
-  literal('vlm'),
-  literal('asr'),
-])
+const CharacterCapabilityTypeSchema = union([literal('llm'), literal('tts'), literal('vlm'), literal('asr')])
 
-const AvatarModelTypeSchema = union([
-  literal('vrm'),
-  literal('live2d'),
-  literal('spine'),
-])
+const AvatarModelTypeSchema = union([literal('vrm'), literal('live2d'), literal('spine')])
 
-const PromptTypeSchema = union([
-  literal('system'),
-  literal('personality'),
-  literal('greetings'),
-])
+const PromptTypeSchema = union([literal('system'), literal('personality'), literal('greetings')])
 
 const DateSchema = pipe(
   union([string(), date()]),
-  transform(v => new Date(v)),
+  transform((v) => new Date(v)),
 )
 
 // --- Base Entities (mimicking database tables) ---
@@ -144,27 +145,43 @@ export const CreateCharacterSchema = object({
     characterId: string(),
     // creatorId & ownerId are handled by server
   }),
-  capabilities: optional(array(object({
-    type: CharacterCapabilityTypeSchema,
-    config: CharacterCapabilityConfigSchema,
-  }))),
-  avatarModels: optional(array(object({
-    name: string(),
-    type: AvatarModelTypeSchema,
-    description: string(),
-    config: AvatarModelConfigSchema,
-  }))),
-  i18n: optional(array(object({
-    language: string(),
-    name: string(),
-    description: string(),
-    tags: array(string()),
-  }))),
-  prompts: optional(array(object({
-    language: string(),
-    type: PromptTypeSchema,
-    content: string(),
-  }))),
+  capabilities: optional(
+    array(
+      object({
+        type: CharacterCapabilityTypeSchema,
+        config: CharacterCapabilityConfigSchema,
+      }),
+    ),
+  ),
+  avatarModels: optional(
+    array(
+      object({
+        name: string(),
+        type: AvatarModelTypeSchema,
+        description: string(),
+        config: AvatarModelConfigSchema,
+      }),
+    ),
+  ),
+  i18n: optional(
+    array(
+      object({
+        language: string(),
+        name: string(),
+        description: string(),
+        tags: array(string()),
+      }),
+    ),
+  ),
+  prompts: optional(
+    array(
+      object({
+        language: string(),
+        type: PromptTypeSchema,
+        content: string(),
+      }),
+    ),
+  ),
 })
 
 export const UpdateCharacterSchema = object({

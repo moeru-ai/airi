@@ -16,9 +16,7 @@ class MockWindow {
       this.listeners.set(type, new Map())
     }
 
-    const handler = typeof listener === 'function'
-      ? listener
-      : (event: Event) => listener.handleEvent(event)
+    const handler = typeof listener === 'function' ? listener : (event: Event) => listener.handleEvent(event)
 
     this.listeners.get(type)?.set(listener, handler)
   }
@@ -94,9 +92,11 @@ describe('createContext', () => {
       props: {},
     })
 
-    await expect(initPayload).resolves.toEqual(expect.objectContaining({
-      moduleId: 'module-chess',
-    }))
+    await expect(initPayload).resolves.toEqual(
+      expect.objectContaining({
+        moduleId: 'module-chess',
+      }),
+    )
 
     const publishedPayload = new Promise<Record<string, unknown>>((resolve) => {
       host.context.on(widgetsIframePublishEvent, (event) => {
@@ -118,11 +118,13 @@ describe('createContext', () => {
       },
     })
 
-    await expect(publishedPayload).resolves.toEqual(expect.objectContaining({
-      payload: expect.objectContaining({
-        requestId: 'req-1',
+    await expect(publishedPayload).resolves.toEqual(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          requestId: 'req-1',
+        }),
       }),
-    }))
+    )
 
     host.dispose()
     iframe.dispose()

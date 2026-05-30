@@ -8,7 +8,7 @@ export interface LlmToolsetPromptContribution {
 }
 
 function renderToolsetPrompts(prompts: LlmToolsetPromptContribution[]) {
-  const activePrompts = prompts.filter(prompt => prompt.content.trim().length > 0)
+  const activePrompts = prompts.filter((prompt) => prompt.content.trim().length > 0)
   if (activePrompts.length === 0) {
     return ''
   }

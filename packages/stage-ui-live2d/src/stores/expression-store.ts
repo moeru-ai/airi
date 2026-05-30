@@ -82,11 +82,9 @@ function persistenceKey(modelId: string): string {
 function loadPersistedDefaults(modelId: string): Record<string, number> | null {
   try {
     const raw = localStorage.getItem(persistenceKey(modelId))
-    if (!raw)
-      return null
+    if (!raw) return null
     return JSON.parse(raw) as Record<string, number>
-  }
-  catch {
+  } catch {
     return null
   }
 }
@@ -94,8 +92,7 @@ function loadPersistedDefaults(modelId: string): Record<string, number> | null {
 function savePersistedDefaults(modelId: string, defaults: Record<string, number>): void {
   try {
     localStorage.setItem(persistenceKey(modelId), JSON.stringify(defaults))
-  }
-  catch (err) {
+  } catch (err) {
     console.warn('[expression-store] Failed to persist defaults:', err)
   }
 }
@@ -156,11 +153,7 @@ export const useExpressionStore = defineStore('live2d-expressions', () => {
    * Register all expression entries parsed from the model.
    * Called by the expression-controller after parsing exp3 data.
    */
-  function registerExpressions(
-    id: string,
-    groups: ExpressionGroupDefinition[],
-    parameterEntries: ExpressionEntry[],
-  ) {
+  function registerExpressions(id: string, groups: ExpressionGroupDefinition[], parameterEntries: ExpressionEntry[]) {
     clearAllTimers()
     expressions.value = new Map()
     expressionGroups.value = new Map()
@@ -193,14 +186,14 @@ export const useExpressionStore = defineStore('live2d-expressions', () => {
    * Resolve a name to either an expression group or a direct parameter entry.
    * Returns `'group'`, `'param'`, or `null`.
    */
-  function resolve(name: string): { kind: 'group', group: ExpressionGroupDefinition } | { kind: 'param', entry: ExpressionEntry } | null {
+  function resolve(
+    name: string,
+  ): { kind: 'group'; group: ExpressionGroupDefinition } | { kind: 'param'; entry: ExpressionEntry } | null {
     const group = expressionGroups.value.get(name)
-    if (group)
-      return { kind: 'group', group }
+    if (group) return { kind: 'group', group }
 
     const entry = expressions.value.get(name)
-    if (entry)
-      return { kind: 'param', entry }
+    if (entry) return { kind: 'param', entry }
 
     return null
   }
@@ -264,8 +257,7 @@ export const useExpressionStore = defineStore('live2d-expressions', () => {
       const states: ExpressionState[] = []
       for (const param of resolved.group.parameters) {
         const entry = expressions.value.get(param.parameterId)
-        if (entry)
-          states.push(toState(entry))
+        if (entry) states.push(toState(entry))
       }
       return { success: true, state: states }
     }
@@ -291,8 +283,7 @@ export const useExpressionStore = defineStore('live2d-expressions', () => {
       // params is currently set to the exp3 value.  Zero-valued params are
       // "reset" instructions and are excluded from the active check.
       const isActive = resolved.group.parameters.some((p) => {
-        if (p.value === 0)
-          return false
+        if (p.value === 0) return false
         const entry = expressions.value.get(p.parameterId)
         return entry && entry.currentValue === p.value
       })
@@ -370,10 +361,8 @@ export const useExpressionStore = defineStore('live2d-expressions', () => {
 
   /** Check if a specific expression group is exposed to LLM tools. */
   function isExposedToLlm(name: string): boolean {
-    if (llmMode.value === 'all')
-      return true
-    if (llmMode.value === 'none')
-      return false
+    if (llmMode.value === 'all') return true
+    if (llmMode.value === 'none') return false
     return llmExposed.value.get(name) ?? false
   }
 

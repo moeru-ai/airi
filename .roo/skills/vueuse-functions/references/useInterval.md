@@ -91,9 +91,7 @@ export interface UseIntervalControls {
   counter: ShallowRef<number>
   reset: () => void
 }
-export type UseIntervalReturn
-  = | Readonly<ShallowRef<number>>
-    | Readonly<UseIntervalControls & Pausable>
+export type UseIntervalReturn = Readonly<ShallowRef<number>> | Readonly<UseIntervalControls & Pausable>
 /**
  * Reactive counter increases on every interval
  *

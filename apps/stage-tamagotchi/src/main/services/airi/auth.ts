@@ -4,11 +4,7 @@ import type { BrowserWindow } from 'electron'
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
-import {
-  generateCodeChallenge,
-  generateCodeVerifier,
-  generateState,
-} from '@proj-airi/stage-shared/auth'
+import { generateCodeChallenge, generateCodeVerifier, generateState } from '@proj-airi/stage-shared/auth'
 import { shell } from 'electron'
 
 import {
@@ -35,7 +31,7 @@ let closeLoopback: (() => void) | null = null
 let signingInFlight = false
 
 export interface WindowAuthManager {
-  registerWindow: (params: { context: MainContext, window: BrowserWindow }) => void
+  registerWindow: (params: { context: MainContext; window: BrowserWindow }) => void
   broadcastAuthCallback: (tokens: TokenExchangeResult) => void
   broadcastAuthError: (error: string) => void
 }
@@ -88,7 +84,9 @@ export function createAuthService(params: {
     }
 
     if (signingInFlight) {
-      log.withFields({ windowId: params.window.webContents.id }).warn('Replacing in-flight OIDC login attempt with a new request')
+      log
+        .withFields({ windowId: params.window.webContents.id })
+        .warn('Replacing in-flight OIDC login attempt with a new request')
       closeLoopback?.()
       closeLoopback = null
       signingInFlight = false
@@ -153,8 +151,7 @@ export function createAuthService(params: {
           closeLoopback = null
           signingInFlight = false
         })
-    }
-    catch (err) {
+    } catch (err) {
       closeLoopback = null
       signingInFlight = false
       log.withError(err).error('Failed to start OIDC signing in flow')
@@ -203,7 +200,7 @@ async function exchangeCode(code: string, codeVerifier: string, redirectUri: str
     throw new Error(`Token exchange failed (${response.status}): ${text}`)
   }
 
-  const data = await response.json() as Record<string, unknown>
+  const data = (await response.json()) as Record<string, unknown>
   return {
     accessToken: data.access_token as string,
     refreshToken: data.refresh_token as string | undefined,

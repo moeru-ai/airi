@@ -15,8 +15,7 @@ function serialize(result: SpineToolResult): string {
 
 function ensureModelLoaded(): SpineToolResult | null {
   const store = useSpine()
-  if (store.availableAnimations.length === 0)
-    return { success: false, error: 'No Spine model is currently loaded.' }
+  if (store.availableAnimations.length === 0) return { success: false, error: 'No Spine model is currently loaded.' }
   return null
 }
 
@@ -40,8 +39,7 @@ export const tools = [
     ].join(' '),
     execute: async ({ name, oneShot, loop }) => {
       const err = ensureModelLoaded()
-      if (err)
-        return serialize(err)
+      if (err) return serialize(err)
 
       const store = useSpine()
       if (oneShot) {
@@ -64,7 +62,9 @@ export const tools = [
       return serialize({ success: true, data: { idle: name, loop: loop ?? true } })
     },
     parameters: z.object({
-      name: z.string().describe('Spine animation name (e.g. "idle", "walk", "celebrate"). Case-insensitive partial match accepted.'),
+      name: z
+        .string()
+        .describe('Spine animation name (e.g. "idle", "walk", "celebrate"). Case-insensitive partial match accepted.'),
       loop: z.boolean().optional().describe('Whether the animation should loop. Defaults to true.'),
       oneShot: z.boolean().optional().describe('Play once on the emotion track instead of replacing the idle loop.'),
     }),
@@ -75,8 +75,7 @@ export const tools = [
     description: 'List every animation available on the currently loaded Spine skeleton.',
     execute: async () => {
       const err = ensureModelLoaded()
-      if (err)
-        return serialize(err)
+      if (err) return serialize(err)
       const store = useSpine()
       return serialize({ success: true, data: store.availableAnimations })
     },
@@ -88,15 +87,14 @@ export const tools = [
     description: 'Switch the active skin. Skins are model-defined variants (different costumes/colours).',
     execute: async ({ name }) => {
       const err = ensureModelLoaded()
-      if (err)
-        return serialize(err)
+      if (err) return serialize(err)
 
       const store = useSpine()
-      const exists = store.availableSkins.some(skin => skin.name === name)
+      const exists = store.availableSkins.some((skin) => skin.name === name)
       if (!exists) {
         return serialize({
           success: false,
-          error: `Skin "${name}" not found. Available: ${store.availableSkins.map(skin => skin.name).join(', ')}`,
+          error: `Skin "${name}" not found. Available: ${store.availableSkins.map((skin) => skin.name).join(', ')}`,
         })
       }
       store.currentSkin = name
@@ -112,8 +110,7 @@ export const tools = [
     description: 'List every skin defined on the currently loaded Spine skeleton.',
     execute: async () => {
       const err = ensureModelLoaded()
-      if (err)
-        return serialize(err)
+      if (err) return serialize(err)
       const store = useSpine()
       return serialize({ success: true, data: store.availableSkins })
     },

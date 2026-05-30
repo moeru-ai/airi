@@ -55,14 +55,14 @@ export function sanitizeMessages(messages: unknown[], supportsContentArray: bool
     // arrays uniformly (no longer realistic for the OpenAI-compatible
     // ecosystem, so this is effectively load-bearing).
     if (message && Array.isArray(message.content)) {
-      const contentParts = message.content as { type?: string, text?: string }[]
-      const hasNonTextPart = contentParts.some(part => part?.type && part.type !== 'text')
+      const contentParts = message.content as { type?: string; text?: string }[]
+      const hasNonTextPart = contentParts.some((part) => part?.type && part.type !== 'text')
       // When the provider supports arrays, only flatten pure-text arrays so we
       // never silently drop image / audio / file parts on a vision-capable
       // model. When it doesn't, flatten unconditionally; non-text parts are
       // dropped because the provider can't carry them anyway.
       if (!supportsContentArray || !hasNonTextPart) {
-        return { ...message, content: contentParts.map(part => part?.text ?? '').join('') } as Message
+        return { ...message, content: contentParts.map((part) => part?.text ?? '').join('') } as Message
       }
     }
 
@@ -74,9 +74,12 @@ export function modelKey(model: string, chatProvider: ChatProvider): string {
   return `${chatProvider.chat(model).baseURL}-${model}`
 }
 
-export function streamOptionsToolsCompatibilityOk(model: string, chatProvider: ChatProvider, options?: StreamOptions): boolean {
-  if (options?.supportsTools !== undefined)
-    return options.supportsTools
+export function streamOptionsToolsCompatibilityOk(
+  model: string,
+  chatProvider: ChatProvider,
+  options?: StreamOptions,
+): boolean {
+  if (options?.supportsTools !== undefined) return options.supportsTools
   const key = modelKey(model, chatProvider)
   return options?.toolsCompatibility?.get(key) !== false
 }
@@ -88,43 +91,37 @@ export function streamOptionsToolsCompatibilityOk(model: string, chatProvider: C
  * model key and the caller has cached the degrade in
  * {@link StreamOptions.contentArrayCompatibility}.
  */
-export function streamOptionsContentArrayCompatibilityOk(model: string, chatProvider: ChatProvider, options?: StreamOptions): boolean {
-  if (options?.supportsContentArray !== undefined)
-    return options.supportsContentArray
+export function streamOptionsContentArrayCompatibilityOk(
+  model: string,
+  chatProvider: ChatProvider,
+  options?: StreamOptions,
+): boolean {
+  if (options?.supportsContentArray !== undefined) return options.supportsContentArray
   const key = modelKey(model, chatProvider)
   return options?.contentArrayCompatibility?.get(key) !== false
 }
 
 async function resolveTools(options?: StreamOptions) {
-  const tools = typeof options?.tools === 'function'
-    ? await options.tools()
-    : options?.tools
+  const tools = typeof options?.tools === 'function' ? await options.tools() : options?.tools
   return tools ?? []
 }
 
 function isAbortError(error: unknown): boolean {
-  return typeof error === 'object'
-    && error !== null
-    && (error as { name?: unknown }).name === 'AbortError'
+  return typeof error === 'object' && error !== null && (error as { name?: unknown }).name === 'AbortError'
 }
 
 function createCapturedToolErrorResult(toolName: string, error: unknown): string {
   return `Tool call error for "${toolName}": ${errorMessageFrom(error) ?? String(error)}`
 }
 
-function withCapturedToolErrors(
-  tools: Tool[],
-  capturedToolErrorByCallId: Map<string, string>,
-): Tool[] {
-  return tools.map(tool => ({
+function withCapturedToolErrors(tools: Tool[], capturedToolErrorByCallId: Map<string, string>): Tool[] {
+  return tools.map((tool) => ({
     ...tool,
     execute: async (input, executeOptions) => {
       try {
         return await tool.execute(input, executeOptions)
-      }
-      catch (error) {
-        if (isAbortError(error))
-          throw error
+      } catch (error) {
+        if (isAbortError(error)) throw error
 
         const result = createCapturedToolErrorResult(tool.function.name, error)
         capturedToolErrorByCallId.set(executeOptions.toolCallId, result)
@@ -134,23 +131,19 @@ function withCapturedToolErrors(
   }))
 }
 
-function resolveCapturedToolErrorEvent(
-  event: unknown,
-  capturedToolErrorByCallId: Map<string, string>,
-) {
+function resolveCapturedToolErrorEvent(event: unknown, capturedToolErrorByCallId: Map<string, string>) {
   if (
-    typeof event !== 'object'
-    || event === null
-    || (event as { type?: unknown }).type !== 'tool-result'
-    || typeof (event as { toolCallId?: unknown }).toolCallId !== 'string'
+    typeof event !== 'object' ||
+    event === null ||
+    (event as { type?: unknown }).type !== 'tool-result' ||
+    typeof (event as { toolCallId?: unknown }).toolCallId !== 'string'
   ) {
     return event
   }
 
   const toolCallId = (event as { toolCallId: string }).toolCallId
   const result = capturedToolErrorByCallId.get(toolCallId)
-  if (result == null)
-    return event
+  if (result == null) return event
 
   capturedToolErrorByCallId.delete(toolCallId)
   return {
@@ -161,40 +154,29 @@ function resolveCapturedToolErrorEvent(
   }
 }
 
-export async function streamFrom({
-  model,
-  chatProvider,
-  messages,
-  options,
-  builtinToolsResolver,
-}: StreamFromOptions) {
+export async function streamFrom({ model, chatProvider, messages, options, builtinToolsResolver }: StreamFromOptions) {
   const chatConfig = chatProvider.chat(model)
   const supportsContentArray = streamOptionsContentArrayCompatibilityOk(model, chatProvider, options)
   const sanitized = sanitizeMessages(messages as unknown[], supportsContentArray)
 
   const supportedTools = streamOptionsToolsCompatibilityOk(model, chatProvider, options)
-  const builtinTools = supportedTools
-    ? await (builtinToolsResolver?.(model, chatProvider) ?? Promise.resolve([]))
-    : []
+  const builtinTools = supportedTools ? await (builtinToolsResolver?.(model, chatProvider) ?? Promise.resolve([])) : []
   const customTools = supportedTools ? await resolveTools(options) : []
   const mergedTools = supportedTools ? [...builtinTools, ...customTools] : []
   const tools = mergedTools.length > 0 ? mergedTools : undefined
   const capturedToolErrorByCallId = new Map<string, string>()
-  const streamTools = options?.captureToolErrors && tools != null
-    ? withCapturedToolErrors(tools, capturedToolErrorByCallId)
-    : tools
+  const streamTools =
+    options?.captureToolErrors && tools != null ? withCapturedToolErrors(tools, capturedToolErrorByCallId) : tools
 
   return new Promise<void>((resolve, reject) => {
     let settled = false
     const resolveOnce = () => {
-      if (settled)
-        return
+      if (settled) return
       settled = true
       resolve()
     }
     const rejectOnce = (error: unknown) => {
-      if (settled)
-        return
+      if (settled) return
       settled = true
       reject(error)
     }
@@ -206,14 +188,11 @@ export async function streamFrom({
         if (event && (event as any).type === 'finish') {
           const finishReason = (event as any).finishReason
           const waitingForToolRound = finishReason === 'tool_calls' || finishReason === 'tool-calls'
-          if (!waitingForToolRound || !options?.waitForTools)
-            resolveOnce()
-        }
-        else if (event && (event as any).type === 'error') {
+          if (!waitingForToolRound || !options?.waitForTools) resolveOnce()
+        } else if (event && (event as any).type === 'error') {
           rejectOnce((event as any).error ?? new Error('Stream error'))
         }
-      }
-      catch (error) {
+      } catch (error) {
         rejectOnce(error)
       }
     }
@@ -252,11 +231,10 @@ export async function streamFrom({
         rejectOnce(error)
         console.error('Stream steps error:', error)
       })
-      void streamResult.messages.catch(error => console.error('Stream messages error:', error))
-      void streamResult.usage.catch(error => console.error('Stream usage error:', error))
-      void streamResult.totalUsage.catch(error => console.error('Stream totalUsage error:', error))
-    }
-    catch (error) {
+      void streamResult.messages.catch((error) => console.error('Stream messages error:', error))
+      void streamResult.usage.catch((error) => console.error('Stream usage error:', error))
+      void streamResult.totalUsage.catch((error) => console.error('Stream totalUsage error:', error))
+    } catch (error) {
       rejectOnce(error)
     }
   })
@@ -278,7 +256,7 @@ const TOOLS_RELATED_ERROR_PATTERNS: RegExp[] = [
 
 export function isToolRelatedError(error: unknown): boolean {
   const message = String(error)
-  return TOOLS_RELATED_ERROR_PATTERNS.some(pattern => pattern.test(message))
+  return TOOLS_RELATED_ERROR_PATTERNS.some((pattern) => pattern.test(message))
 }
 
 // Runtime auto-degrade: patterns that indicate the provider rejected
@@ -316,5 +294,5 @@ const CONTENT_ARRAY_RELATED_ERROR_PATTERNS: RegExp[] = [
  */
 export function isContentArrayRelatedError(error: unknown): boolean {
   const message = String(error)
-  return CONTENT_ARRAY_RELATED_ERROR_PATTERNS.some(pattern => pattern.test(message))
+  return CONTENT_ARRAY_RELATED_ERROR_PATTERNS.some((pattern) => pattern.test(message))
 }

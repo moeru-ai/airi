@@ -6,7 +6,8 @@ import { computed, toValue } from 'vue'
 
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const startingOffsetY = computed(() => {
-  if (isStageWeb()) // showing upper half of the body in landscape, 3/4 in portrait, in web targets
+  if (isStageWeb())
+    // showing upper half of the body in landscape, 3/4 in portrait, in web targets
     return breakpoints.smallerOrEqual('md').value ? 0.75 : 1
   return 1 // upper half
 })
@@ -17,15 +18,15 @@ const startingOffsetY = computed(() => {
  *  showing upper half of the body when `position.y == 0`
  */
 export function useFitModel(
-  canvasDim: MaybeRefOrGetter<{ width: number, height: number }>,
-  modelDim: MaybeRefOrGetter<{ width: number, height: number }>,
+  canvasDim: MaybeRefOrGetter<{ width: number; height: number }>,
+  modelDim: MaybeRefOrGetter<{ width: number; height: number }>,
 ) {
   const normalizedParam = computed(() => {
     const canvas = toValue(canvasDim)
     const model = toValue(modelDim)
 
-    const heightScale = (canvas.height / model.height * 2)
-    const widthScale = (canvas.width / model.width * 2)
+    const heightScale = (canvas.height / model.height) * 2
+    const widthScale = (canvas.width / model.width) * 2
     let minScale = Math.min(heightScale, widthScale)
 
     if (Number.isNaN(minScale) || minScale <= 0) {

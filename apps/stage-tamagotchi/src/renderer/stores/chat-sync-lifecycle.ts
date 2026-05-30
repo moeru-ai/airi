@@ -14,10 +14,8 @@ export function resolveInitialChatSyncRoutePath(routePath: string, hash = global
 
 function resolveChatSyncWindowRole(routePath: string): ChatSyncWindowRole | null {
   const path = normalizeRoutePath(routePath)
-  if (path === '/')
-    return 'authority'
-  if (path === '/chat')
-    return 'follower'
+  if (path === '/') return 'authority'
+  if (path === '/chat') return 'follower'
   return null
 }
 
@@ -35,12 +33,10 @@ export function createChatSyncWindowLifecycle(routePath: string, hash?: string) 
   return {
     role,
     initialize() {
-      if (role)
-        chatSyncStore.initialize(role)
+      if (role) chatSyncStore.initialize(role)
     },
     dispose() {
-      if (role)
-        chatSyncStore.dispose()
+      if (role) chatSyncStore.dispose()
     },
   }
 }

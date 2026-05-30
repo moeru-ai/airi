@@ -42,7 +42,7 @@ describe('message types', () => {
     ]
 
     const segments: Array<
-      SegmentText
+      | SegmentText
       | SegmentInstruction
       | SegmentTaggedText
       | SegmentDomainEvent

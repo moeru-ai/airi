@@ -81,8 +81,7 @@ import { refWithControl } from '@vueuse/core'
 const num = refWithControl(0, {
   onBeforeChange(value, oldValue) {
     // disallow changes larger then ±5 in one operation
-    if (Math.abs(value - oldValue) > 5)
-      return false // returning `false` to dismiss the change
+    if (Math.abs(value - oldValue) > 5) return false // returning `false` to dismiss the change
   },
 })
 
@@ -139,8 +138,8 @@ export declare function refWithControl<T>(
   silentSet: (v: T) => void
   peek: () => T
   lay: (v: T) => void
-}>
-& Ref<T, T>
+}> &
+  Ref<T, T>
 /** @deprecated use `refWithControl` instead */
 export declare const controlledRef: typeof refWithControl
 ```

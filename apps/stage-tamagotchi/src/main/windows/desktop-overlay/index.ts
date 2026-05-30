@@ -27,7 +27,10 @@ import { join, resolve } from 'node:path'
 
 import { BrowserWindow, screen } from 'electron'
 
-import { desktopOverlayPollHeartbeatMarker, desktopOverlayPollHeartbeatQueryParam } from '../../../shared/desktop-overlay-heartbeat'
+import {
+  desktopOverlayPollHeartbeatMarker,
+  desktopOverlayPollHeartbeatQueryParam,
+} from '../../../shared/desktop-overlay-heartbeat'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { setupDesktopOverlayElectronInvokes } from './rpc/index.electron'
 import {
@@ -76,15 +79,16 @@ export async function setupDesktopOverlayWindow(params: {
   const primaryDisplay = screen.getPrimaryDisplay()
   const preloadPath = join(getElectronMainDirname(), '../preload/index.mjs')
 
-  overlayWindow = new BrowserWindow(createDesktopOverlayWindowOptions({
-    bounds: primaryDisplay.bounds,
-    preloadPath,
-  }))
+  overlayWindow = new BrowserWindow(
+    createDesktopOverlayWindowOptions({
+      bounds: primaryDisplay.bounds,
+      preloadPath,
+    }),
+  )
   applyDesktopOverlayInputIsolation(overlayWindow)
 
   overlayWindow.on('ready-to-show', () => {
-    if (overlayWindow)
-      showDesktopOverlayWithoutFocus(overlayWindow)
+    if (overlayWindow) showDesktopOverlayWithoutFocus(overlayWindow)
   })
 
   overlayWindow.on('closed', () => {

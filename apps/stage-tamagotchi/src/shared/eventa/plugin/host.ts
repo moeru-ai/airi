@@ -187,9 +187,23 @@ export interface PluginHostDebugSnapshot {
 }
 
 export const electronPluginList = defineInvokeEventa<PluginRegistrySnapshot>('eventa:invoke:electron:plugins:list')
-export const electronPluginSetEnabled = defineInvokeEventa<PluginRegistrySnapshot, { name: string, enabled: boolean, path?: string }>('eventa:invoke:electron:plugins:set-enabled')
-export const electronPluginSetAutoReload = defineInvokeEventa<PluginRegistrySnapshot, { name: string, enabled: boolean }>('eventa:invoke:electron:plugins:set-auto-reload')
-export const electronPluginLoadEnabled = defineInvokeEventa<PluginRegistrySnapshot>('eventa:invoke:electron:plugins:load-enabled')
-export const electronPluginLoad = defineInvokeEventa<PluginRegistrySnapshot, { name: string }>('eventa:invoke:electron:plugins:load')
-export const electronPluginUnload = defineInvokeEventa<PluginRegistrySnapshot, { name: string }>('eventa:invoke:electron:plugins:unload')
-export const electronPluginInspect = defineInvokeEventa<PluginHostDebugSnapshot>('eventa:invoke:electron:plugins:inspect')
+export const electronPluginSetEnabled = defineInvokeEventa<
+  PluginRegistrySnapshot,
+  { name: string; enabled: boolean; path?: string }
+>('eventa:invoke:electron:plugins:set-enabled')
+export const electronPluginSetAutoReload = defineInvokeEventa<
+  PluginRegistrySnapshot,
+  { name: string; enabled: boolean }
+>('eventa:invoke:electron:plugins:set-auto-reload')
+export const electronPluginLoadEnabled = defineInvokeEventa<PluginRegistrySnapshot>(
+  'eventa:invoke:electron:plugins:load-enabled',
+)
+export const electronPluginLoad = defineInvokeEventa<PluginRegistrySnapshot, { name: string }>(
+  'eventa:invoke:electron:plugins:load',
+)
+export const electronPluginUnload = defineInvokeEventa<PluginRegistrySnapshot, { name: string }>(
+  'eventa:invoke:electron:plugins:unload',
+)
+export const electronPluginInspect = defineInvokeEventa<PluginHostDebugSnapshot>(
+  'eventa:invoke:electron:plugins:inspect',
+)

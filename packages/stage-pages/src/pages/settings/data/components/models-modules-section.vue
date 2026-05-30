@@ -16,8 +16,7 @@ async function deleteModels() {
   try {
     await deleteAllModels()
     emitStatus(t('settings.pages.data.status.models_deleted'))
-  }
-  catch (error) {
+  } catch (error) {
     handleActionError(error)
   }
 }
@@ -26,15 +25,19 @@ function resetModules() {
   try {
     resetModulesSettings()
     emitStatus(t('settings.pages.data.status.modules_reset'))
-  }
-  catch (error) {
+  } catch (error) {
     handleActionError(error)
   }
 }
 </script>
 
 <template>
-  <div :class="['border-2 border-neutral-200/50 rounded-xl bg-white/70 p-4 shadow-sm', 'dark:border-neutral-800/60 dark:bg-neutral-900/60']">
+  <div
+    :class="[
+      'border-2 border-neutral-200/50 rounded-xl bg-white/70 p-4 shadow-sm',
+      'dark:border-neutral-800/60 dark:bg-neutral-900/60',
+    ]"
+  >
     <div :class="['flex flex-col gap-3']">
       <div :class="['grid grid-cols-1 items-start gap-3 md:grid-cols-[minmax(0,1fr)_auto]']">
         <div :class="['flex flex-col gap-1 md:max-w-[560px]']">

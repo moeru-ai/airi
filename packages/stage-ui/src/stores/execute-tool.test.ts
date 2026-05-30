@@ -4,9 +4,11 @@ import { InvalidToolCallError, InvalidToolInputError, ToolExecutionError } from 
 import { executeTool } from '@xsai/shared-chat'
 import { describe, expect, it, vi } from 'vitest'
 
-function createToolCall(overrides: Partial<ToolCall> & {
-  function?: Partial<ToolCall['function']> & { name?: string, arguments?: string }
-} = {}): ToolCall {
+function createToolCall(
+  overrides: Partial<ToolCall> & {
+    function?: Partial<ToolCall['function']> & { name?: string; arguments?: string }
+  } = {},
+): ToolCall {
   const fn = overrides.function ?? {}
   return {
     id: 'call_1',
@@ -125,9 +127,7 @@ describe('executeTool (patched @xsai/shared-chat)', () => {
   })
 
   it('repairs invalid tool call when repairToolCall returns a valid call', async () => {
-    const tools = [
-      createTool('goodTool', async () => 'repaired'),
-    ]
+    const tools = [createTool('goodTool', async () => 'repaired')]
     const toolCall = createToolCall({ function: { name: 'badTool', arguments: '{}' } })
 
     const out = await executeTool({
@@ -222,8 +222,7 @@ describe('executeTool (patched @xsai/shared-chat)', () => {
           tools,
         })
         expect.fail('expected executeTool to throw')
-      }
-      catch (error) {
+      } catch (error) {
         thrown = error
       }
       expect(InvalidToolCallError.isInstance(thrown)).toBe(true)
@@ -241,8 +240,7 @@ describe('executeTool (patched @xsai/shared-chat)', () => {
           tools,
         })
         expect.fail('expected executeTool to throw')
-      }
-      catch (error) {
+      } catch (error) {
         thrown = error
       }
       expect(InvalidToolInputError.isInstance(thrown)).toBe(true)
@@ -264,8 +262,7 @@ describe('executeTool (patched @xsai/shared-chat)', () => {
           tools,
         })
         expect.fail('expected executeTool to throw')
-      }
-      catch (error) {
+      } catch (error) {
         thrown = error
       }
       expect(ToolExecutionError.isInstance(thrown)).toBe(true)
@@ -284,8 +281,7 @@ describe('executeTool (patched @xsai/shared-chat)', () => {
           tools,
         })
         expect.fail('expected executeTool to throw')
-      }
-      catch (error) {
+      } catch (error) {
         thrown = error
       }
       expect(InvalidToolCallError.isInstance(thrown)).toBe(true)

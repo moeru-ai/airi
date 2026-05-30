@@ -2,15 +2,21 @@ import { useLocalStorage } from '@vueuse/core'
 import { ref } from 'vue'
 
 export const supportedControl = ['x', 'y', 'scale'] as const
-type SupportedControl = typeof supportedControl[number]
-interface ControlConfig { min: number, max: number, step: number, default: number, buttonText: string }
+type SupportedControl = (typeof supportedControl)[number]
+interface ControlConfig {
+  min: number
+  max: number
+  step: number
+  default: number
+  buttonText: string
+}
 
 /** show or hide the control element(slider) on stage */
 const viewControlsEnabled = ref(false)
 /** what value to control for the control element */
 const viewControlMode = ref<SupportedControl>('scale')
 /** model position relative to the center of the screen, in percentages */
-const position = useLocalStorage<{ x: number, y: number }>('settings/live2d/position', { x: 0, y: 0 })
+const position = useLocalStorage<{ x: number; y: number }>('settings/live2d/position', { x: 0, y: 0 })
 /** model scaling factor. `1` means no scaling. */
 const scale = useLocalStorage('settings/live2d/scale', 1)
 
@@ -55,7 +61,8 @@ export function useL2dViewControl() {
    *  @param value optional, will reset the value to its default if not provided
    */
   function set(key: SupportedControl, value?: number) {
-    const clamped = value !== undefined ? clampMinMax(value, defaultControlConfig[key].min, defaultControlConfig[key].max) : undefined
+    const clamped =
+      value !== undefined ? clampMinMax(value, defaultControlConfig[key].min, defaultControlConfig[key].max) : undefined
     switch (key) {
       case 'x':
         position.value.x = clamped ?? defaultControlConfig.x.default

@@ -12,17 +12,14 @@ export function createPriorityResolver(levels?: Partial<Record<PriorityLevel, nu
 
   return {
     resolve(priority?: PriorityLevel | number) {
-      if (priority == null)
-        return resolved.normal
-      if (typeof priority === 'number')
-        return priority
+      if (priority == null) return resolved.normal
+      if (typeof priority === 'number') return priority
       return resolved[priority] ?? resolved.normal
     },
   }
 }
 
 export function comparePriority(a: number, b: number) {
-  if (a === b)
-    return 0
+  if (a === b) return 0
   return a > b ? 1 : -1
 }

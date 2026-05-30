@@ -16,7 +16,9 @@ import { watchThrottled } from '@vueuse/core'
 
 watchThrottled(
   source,
-  () => { console.log('changed!') },
+  () => {
+    console.log('changed!')
+  },
   { throttle: 500 },
 )
 ```
@@ -62,7 +64,9 @@ import { throttleFilter, watchWithFilter } from '@vueuse/core'
 
 watchWithFilter(
   source,
-  () => { console.log('changed!') },
+  () => {
+    console.log('changed!')
+  },
   {
     eventFilter: throttleFilter(500),
   },
@@ -72,9 +76,7 @@ watchWithFilter(
 ## Type Declarations
 
 ```ts
-export interface WatchThrottledOptions<
-  Immediate,
-> extends WatchOptions<Immediate> {
+export interface WatchThrottledOptions<Immediate> extends WatchOptions<Immediate> {
   throttle?: MaybeRefOrGetter<number>
   trailing?: boolean
   leading?: boolean
@@ -87,18 +89,12 @@ export declare function watchThrottled<
   cb: WatchCallback<MapSources<T>, MapOldSources<T, Immediate>>,
   options?: WatchThrottledOptions<Immediate>,
 ): WatchHandle
-export declare function watchThrottled<
-  T,
-  Immediate extends Readonly<boolean> = false,
->(
+export declare function watchThrottled<T, Immediate extends Readonly<boolean> = false>(
   source: WatchSource<T>,
   cb: WatchCallback<T, Immediate extends true ? T | undefined : T>,
   options?: WatchThrottledOptions<Immediate>,
 ): WatchHandle
-export declare function watchThrottled<
-  T extends object,
-  Immediate extends Readonly<boolean> = false,
->(
+export declare function watchThrottled<T extends object, Immediate extends Readonly<boolean> = false>(
   source: T,
   cb: WatchCallback<T, Immediate extends true ? T | undefined : T>,
   options?: WatchThrottledOptions<Immediate>,

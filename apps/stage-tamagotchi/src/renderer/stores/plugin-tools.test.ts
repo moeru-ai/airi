@@ -72,16 +72,19 @@ describe('useTamagotchiPluginToolsStore', async () => {
     await store.refresh()
 
     const pluginTools = llmToolsStore.toolsByProvider['plugin-tools']
-    const playChessTool = pluginTools?.find(tool => tool.function.name === 'play_chess')
+    const playChessTool = pluginTools?.find((tool) => tool.function.name === 'play_chess')
 
     expect(pluginTools).toEqual([
       expect.objectContaining({ function: expect.objectContaining({ name: 'play_chess' }) }),
     ])
     expect(llmToolsetPromptsStore.activeToolsetPrompt).toContain('Do not pass fen or pgn when mode is "new".')
 
-    const executionResult = await playChessTool?.execute({
-      move: 'e2e4',
-    }, toolOptions)
+    const executionResult = await playChessTool?.execute(
+      {
+        move: 'e2e4',
+      },
+      toolOptions,
+    )
 
     expect(invokeMocks.invokePluginTool).toHaveBeenCalledWith({
       ownerPluginId: 'plugin-chess',
@@ -113,11 +116,18 @@ describe('useTamagotchiPluginToolsStore', async () => {
   it('falls back to empty plugin tools when listing xsai tools never resolves during cold start', async () => {
     vi.useFakeTimers()
     vi.spyOn(console, 'warn').mockImplementation(() => {})
-    invokeMocks.listPluginXsaiTools.mockImplementationOnce((_req?: undefined, options?: { signal?: AbortSignal }) => new Promise((_, reject) => {
-      options?.signal?.addEventListener('abort', () => {
-        reject(options.signal?.reason)
-      }, { once: true })
-    }))
+    invokeMocks.listPluginXsaiTools.mockImplementationOnce(
+      (_req?: undefined, options?: { signal?: AbortSignal }) =>
+        new Promise((_, reject) => {
+          options?.signal?.addEventListener(
+            'abort',
+            () => {
+              reject(options.signal?.reason)
+            },
+            { once: true },
+          )
+        }),
+    )
 
     const llmToolsStore = useLlmToolsStore()
     const store = useTamagotchiPluginToolsStore()

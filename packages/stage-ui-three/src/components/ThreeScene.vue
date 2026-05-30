@@ -1,11 +1,11 @@
 <script setup lang="ts">
 /*
-  * - Root vue component of stage-ui-three package
-  * - This scene component the root for all the sub components in the 3d scene
-  * - This package, stage-ui-three, is a stateful package
-  * - Pinia store is used to store the data/configuration of the model, camera, lighting, etc.
-  * - Src of model is obtained from stage-ui via props, which is NOT a part of stage-ui-three package
-*/
+ * - Root vue component of stage-ui-three package
+ * - This scene component the root for all the sub components in the 3d scene
+ * - This package, stage-ui-three, is a stateful package
+ * - Pinia store is used to store the data/configuration of the model, camera, lighting, etc.
+ * - Src of model is obtained from stage-ui via props, which is NOT a part of stage-ui-three package
+ */
 
 import type { VRM } from '@pixiv/three-vrm'
 import type { TresContext } from '@tresjs/core'
@@ -20,13 +20,7 @@ import { EffectComposerPmndrs, HueSaturationPmndrs } from '@tresjs/post-processi
 import { formatHex } from 'culori'
 import { storeToRefs } from 'pinia'
 import { BlendFunction } from 'postprocessing'
-import {
-  ACESFilmicToneMapping,
-  Euler,
-  MathUtils,
-  PerspectiveCamera,
-  Vector3,
-} from 'three'
+import { ACESFilmicToneMapping, Euler, MathUtils, PerspectiveCamera, Vector3 } from 'three'
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 
 // From stage-ui-three package
@@ -47,35 +41,38 @@ import { OrbitControls } from './Controls'
 import { SkyBox } from './Environment'
 import { VRMModel } from './Model'
 
-const props = withDefaults(defineProps<{
-  currentAudioSource?: AudioBufferSourceNode
-  cursorPosition?: { x: number, y: number }
-  modelSrc?: string
-  skyBoxSrc?: string
-  /**
-   * Enables user-driven OrbitControls camera rotation and zoom.
-   *
-   * This is controlled by the app shell because orbit gestures conflict with
-   * mobile view-control overlays, while desktop/tamagotchi stages still expect
-   * direct scene manipulation.
-   *
-   * | Surface | Expected value | Reason |
-   * | --- | --- | --- |
-   * | stage-web desktop | `true` | Mouse orbit is the primary camera control. |
-   * | stage-web mobile | `false` | Touch input is reserved for mobile view controls and chat UI. |
-   * | stage-pocket mobile | `false` | Touch input is reserved for mobile view controls and chat UI. |
-   * | stage-tamagotchi | `true` | The transparent desktop stage has no mobile view-control overlay. |
-   */
-  enableOrbitControls?: boolean
-  showAxes?: boolean
-  idleAnimation?: string
-  paused?: boolean
-}>(), {
-  enableOrbitControls: true,
-  showAxes: false,
-  idleAnimation: new URL('../assets/vrm/animations/idle_loop.vrma', import.meta.url).href,
-  paused: false,
-})
+const props = withDefaults(
+  defineProps<{
+    currentAudioSource?: AudioBufferSourceNode
+    cursorPosition?: { x: number; y: number }
+    modelSrc?: string
+    skyBoxSrc?: string
+    /**
+     * Enables user-driven OrbitControls camera rotation and zoom.
+     *
+     * This is controlled by the app shell because orbit gestures conflict with
+     * mobile view-control overlays, while desktop/tamagotchi stages still expect
+     * direct scene manipulation.
+     *
+     * | Surface | Expected value | Reason |
+     * | --- | --- | --- |
+     * | stage-web desktop | `true` | Mouse orbit is the primary camera control. |
+     * | stage-web mobile | `false` | Touch input is reserved for mobile view controls and chat UI. |
+     * | stage-pocket mobile | `false` | Touch input is reserved for mobile view controls and chat UI. |
+     * | stage-tamagotchi | `true` | The transparent desktop stage has no mobile view-control overlay. |
+     */
+    enableOrbitControls?: boolean
+    showAxes?: boolean
+    idleAnimation?: string
+    paused?: boolean
+  }>(),
+  {
+    enableOrbitControls: true,
+    showAxes: false,
+    idleAnimation: new URL('../assets/vrm/animations/idle_loop.vrma', import.meta.url).href,
+    paused: false,
+  },
+)
 
 const emit = defineEmits<{
   (e: 'loadModelProgress', value: number): void
@@ -83,29 +80,32 @@ const emit = defineEmits<{
 }>()
 
 type ModelPhase = 'no-model' | 'loading' | 'ready' | 'error'
-type SceneTracePhaseCause
-  = | 'binding:complete'
-    | 'binding:start'
-    | 'component:unmount'
-    | 'controls-ready'
-    | 'controls-ref:detached'
-    | 'model-ref:detached'
-    | 'props:model-src'
-    | 'tres:ready'
-    | 'vrm:error'
-    | 'vrm:load-start'
-    | 'vrm:loaded'
-type SceneTraceTransactionReason = 'component-unmount' | 'initial-load' | 'model-reload' | 'model-switch' | 'no-model' | 'subtree-remount' | 'unknown'
+type SceneTracePhaseCause =
+  | 'binding:complete'
+  | 'binding:start'
+  | 'component:unmount'
+  | 'controls-ready'
+  | 'controls-ref:detached'
+  | 'model-ref:detached'
+  | 'props:model-src'
+  | 'tres:ready'
+  | 'vrm:error'
+  | 'vrm:load-start'
+  | 'vrm:loaded'
+type SceneTraceTransactionReason =
+  | 'component-unmount'
+  | 'initial-load'
+  | 'model-reload'
+  | 'model-switch'
+  | 'no-model'
+  | 'subtree-remount'
+  | 'unknown'
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
 
 const modelStore = useModelStore()
-const {
-  beginSceneBindingTransaction,
-  endSceneBindingTransaction,
-  resetSceneBindingTransactions,
-  setScenePhase,
-} = modelStore
+const { beginSceneBindingTransaction, endSceneBindingTransaction, resetSceneBindingTransactions, setScenePhase } =
+  modelStore
 const {
   sceneMutationLocked,
   scenePhase,
@@ -165,10 +165,8 @@ const pendingCommittedModelRevision = ref<number>()
 const pendingSceneBootstrap = shallowRef<SceneBootstrap>()
 
 function emitThreeSceneTrace(label: string, event: any, payload: Record<string, unknown>) {
-  if (isStageThreeRuntimeTraceEnabled())
-    stageThreeRuntimeTraceContext.emit(event, payload)
-  if (import.meta.env.DEV)
-    console.info(`[stage-ui-three][trace][three-scene][${label}]`, payload)
+  if (isStageThreeRuntimeTraceEnabled()) stageThreeRuntimeTraceContext.emit(event, payload)
+  if (import.meta.env.DEV) console.info(`[stage-ui-three][trace][three-scene][${label}]`, payload)
 }
 
 function emitScenePhaseTrace(cause: SceneTracePhaseCause, from: ScenePhase | undefined, to: ScenePhase) {
@@ -183,7 +181,10 @@ function emitScenePhaseTrace(cause: SceneTracePhaseCause, from: ScenePhase | und
   })
 }
 
-function emitSceneSubtreeTrace(key: 'controlsRef' | 'dirLightRef' | 'modelRef' | 'tresCanvasRef', action: 'attached' | 'detached') {
+function emitSceneSubtreeTrace(
+  key: 'controlsRef' | 'dirLightRef' | 'modelRef' | 'tresCanvasRef',
+  action: 'attached' | 'detached',
+) {
   emitThreeSceneTrace('subtree', stageThreeTraceThreeSceneSubtreeEvent, {
     action,
     key,
@@ -277,11 +278,12 @@ function applySceneBootstrap(value: SceneBootstrap) {
   const effectiveCameraDistance = cameraDistance.value > 1e-6 ? cameraDistance.value : value.cameraDistance
   cameraDistance.value = effectiveCameraDistance
 
-  const nextCameraDirection = previousCameraOffset.lengthSq() > 1e-6
-    ? previousCameraOffset.normalize()
-    : bootstrapCameraOffset.lengthSq() > 1e-6
-      ? bootstrapCameraOffset.normalize()
-      : new Vector3(0, 0, -1)
+  const nextCameraDirection =
+    previousCameraOffset.lengthSq() > 1e-6
+      ? previousCameraOffset.normalize()
+      : bootstrapCameraOffset.lengthSq() > 1e-6
+        ? bootstrapCameraOffset.normalize()
+        : new Vector3(0, 0, -1)
 
   cameraPosition.value = toVec3(nextOrigin.clone().addScaledVector(nextCameraDirection, effectiveCameraDistance))
 
@@ -301,25 +303,23 @@ const { readRenderTargetRegionAtClientPoint, disposeRenderTarget } = useRenderTa
 })
 
 /*
-  * Pinia store definition
-  * - Lilia: We highly recommend you gather all the store data definition here
-  * - Only this root component (ThreeScene) can directly access pinia store
-*/
+ * Pinia store definition
+ * - Lilia: We highly recommend you gather all the store data definition here
+ * - Only this root component (ThreeScene) can directly access pinia store
+ */
 // TODO: remove the hard-coded pinia store and inject the data from here
 
 /*
-  * Handle upward info flow
-  * - Sub components emit info => update pinia store
-*/
+ * Handle upward info flow
+ * - Sub components emit info => update pinia store
+ */
 // === OrbitControls ===
 // Get camera update => update camera info in pinia
-function onOrbitControlsCameraChanged(value: {
-  newCameraPosition: Vec3
-  newCameraDistance: number
-}) {
-  const posChanged = Math.abs(cameraPosition.value.x - value.newCameraPosition.x) > 1e-6
-    || Math.abs(cameraPosition.value.y - value.newCameraPosition.y) > 1e-6
-    || Math.abs(cameraPosition.value.z - value.newCameraPosition.z) > 1e-6
+function onOrbitControlsCameraChanged(value: { newCameraPosition: Vec3; newCameraDistance: number }) {
+  const posChanged =
+    Math.abs(cameraPosition.value.x - value.newCameraPosition.x) > 1e-6 ||
+    Math.abs(cameraPosition.value.y - value.newCameraPosition.y) > 1e-6 ||
+    Math.abs(cameraPosition.value.z - value.newCameraPosition.z) > 1e-6
   if (posChanged) {
     cameraPosition.value = value.newCameraPosition
   }
@@ -363,20 +363,15 @@ function setScenePhaseWithTrace(phase: ScenePhase, cause: SceneTracePhaseCause) 
 }
 
 function commitLastCommittedModelSrc(expectedRevision: number, nextPhase: ScenePhase) {
-  if (nextPhase !== 'mounted')
-    return
+  if (nextPhase !== 'mounted') return
 
-  if (expectedRevision !== bindingRevision.value)
-    return
+  if (expectedRevision !== bindingRevision.value) return
 
-  if (!pendingCommittedModelSrc.value || pendingCommittedModelRevision.value !== expectedRevision)
-    return
+  if (!pendingCommittedModelSrc.value || pendingCommittedModelRevision.value !== expectedRevision) return
 
-  if (!activeModelSrc.value || pendingCommittedModelSrc.value !== activeModelSrc.value)
-    return
+  if (!activeModelSrc.value || pendingCommittedModelSrc.value !== activeModelSrc.value) return
 
-  if (props.modelSrc !== activeModelSrc.value)
-    return
+  if (props.modelSrc !== activeModelSrc.value) return
 
   lastCommittedModelSrc.value = pendingCommittedModelSrc.value
   clearPendingCommittedModel()
@@ -394,24 +389,19 @@ function toSceneLoadTransactionReason(reason: VrmLifecycleReason): SceneTraceTra
 }
 
 function resolveScenePhaseAfterBinding(): ScenePhase {
-  if (!canvasReady.value)
-    return 'pending'
+  if (!canvasReady.value) return 'pending'
 
-  if (!props.modelSrc)
-    return 'no-model'
+  if (!props.modelSrc) return 'no-model'
 
-  if (modelPhase.value === 'error')
-    return 'error'
+  if (modelPhase.value === 'error') return 'error'
 
-  if (modelPhase.value === 'ready')
-    return 'mounted'
+  if (modelPhase.value === 'ready') return 'mounted'
 
   return 'loading'
 }
 
 async function completeSceneBinding(expectedRevision = bindingRevision.value) {
-  if (isCompletingBinding.value)
-    return
+  if (isCompletingBinding.value) return
   isCompletingBinding.value = true
 
   try {
@@ -424,8 +414,7 @@ async function completeSceneBinding(expectedRevision = bindingRevision.value) {
 
     await nextTick()
 
-    if (expectedRevision !== bindingRevision.value)
-      return
+    if (expectedRevision !== bindingRevision.value) return
 
     controlsRef.value?.update()
 
@@ -437,8 +426,7 @@ async function completeSceneBinding(expectedRevision = bindingRevision.value) {
     const nextPhase = resolveScenePhaseAfterBinding()
     setScenePhaseWithTrace(nextPhase, 'binding:complete')
     commitLastCommittedModelSrc(expectedRevision, nextPhase)
-  }
-  finally {
+  } finally {
     isCompletingBinding.value = false
   }
 }
@@ -446,15 +434,11 @@ async function completeSceneBinding(expectedRevision = bindingRevision.value) {
 function onOrbitControlsReady() {
   controlsReady.value = true
 
-  if (modelPhase.value === 'ready' && scenePhase.value !== 'mounted')
-    void completeSceneBinding()
+  if (modelPhase.value === 'ready' && scenePhase.value !== 'mounted') void completeSceneBinding()
 }
 
 const controlEnable = computed(() => {
-  return props.enableOrbitControls
-    && controlsReady.value
-    && modelPhase.value === 'ready'
-    && !sceneMutationLocked.value
+  return props.enableOrbitControls && controlsReady.value && modelPhase.value === 'ready' && !sceneMutationLocked.value
 })
 function onVRMModelLoadStart(reason: VrmLifecycleReason) {
   modelPhase.value = 'loading'
@@ -503,12 +487,10 @@ function onTresReady(context: TresContext) {
 }
 
 function onTresRender() {
-  if (!isStageThreeRuntimeTraceEnabled())
-    return
+  if (!isStageThreeRuntimeTraceEnabled()) return
 
   const renderer = tresContextRef.value?.renderer.instance
-  if (!renderer)
-    return
+  if (!renderer) return
 
   stageThreeRuntimeTraceContext.emit(stageThreeTraceRenderInfoEvent, {
     drawCalls: renderer.info.render.calls,
@@ -529,8 +511,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   invalidateBindingRevision()
-  if (tresContextRef.value)
-    emitSceneSubtreeTrace('tresCanvasRef', 'detached')
+  if (tresContextRef.value) emitSceneSubtreeTrace('tresCanvasRef', 'detached')
 
   canvasReady.value = false
   tresContextRef.value = undefined
@@ -552,62 +533,71 @@ function applyVrmFrameRuntimeHook() {
   modelRef.value?.setVrmFrameHook(vrmFrameRuntimeHook.value)
 }
 
-watch(() => props.modelSrc, (modelSrc) => {
-  modelPhase.value = modelSrc ? 'loading' : 'no-model'
+watch(
+  () => props.modelSrc,
+  (modelSrc) => {
+    modelPhase.value = modelSrc ? 'loading' : 'no-model'
 
-  if (!modelSrc) {
-    invalidateBindingRevision()
-    activeModelSrc.value = undefined
-    pendingSceneBootstrap.value = undefined
-    resetSceneBindingTransactions()
-    emitSceneTransactionTrace('reset', 'no-model')
-  }
+    if (!modelSrc) {
+      invalidateBindingRevision()
+      activeModelSrc.value = undefined
+      pendingSceneBootstrap.value = undefined
+      resetSceneBindingTransactions()
+      emitSceneTransactionTrace('reset', 'no-model')
+    }
 
-  setScenePhaseWithTrace(resolveScenePhaseAfterBinding(), 'props:model-src')
-}, { immediate: true })
+    setScenePhaseWithTrace(resolveScenePhaseAfterBinding(), 'props:model-src')
+  },
+  { immediate: true },
+)
 
-watch(modelRef, (next, prev) => {
-  if (!prev && next)
-    emitSceneSubtreeTrace('modelRef', 'attached')
+watch(
+  modelRef,
+  (next, prev) => {
+    if (!prev && next) emitSceneSubtreeTrace('modelRef', 'attached')
 
-  if (next)
-    applyVrmFrameRuntimeHook()
+    if (next) applyVrmFrameRuntimeHook()
 
-  if (prev && !next) {
-    emitSceneSubtreeTrace('modelRef', 'detached')
-    modelPhase.value = props.modelSrc ? 'loading' : 'no-model'
-    setScenePhaseWithTrace(props.modelSrc ? 'loading' : 'no-model', 'model-ref:detached')
-  }
-}, { flush: 'sync' })
+    if (prev && !next) {
+      emitSceneSubtreeTrace('modelRef', 'detached')
+      modelPhase.value = props.modelSrc ? 'loading' : 'no-model'
+      setScenePhaseWithTrace(props.modelSrc ? 'loading' : 'no-model', 'model-ref:detached')
+    }
+  },
+  { flush: 'sync' },
+)
 
-watch(controlsRef, (next, prev) => {
-  if (!prev && next)
-    emitSceneSubtreeTrace('controlsRef', 'attached')
+watch(
+  controlsRef,
+  (next, prev) => {
+    if (!prev && next) emitSceneSubtreeTrace('controlsRef', 'attached')
 
-  if (prev && !next) {
-    emitSceneSubtreeTrace('controlsRef', 'detached')
-    controlsReady.value = false
+    if (prev && !next) {
+      emitSceneSubtreeTrace('controlsRef', 'detached')
+      controlsReady.value = false
 
-    if (props.modelSrc && !!activeModelSrc.value)
-      beginSceneRebind()
-  }
-}, { flush: 'sync' })
+      if (props.modelSrc && !!activeModelSrc.value) beginSceneRebind()
+    }
+  },
+  { flush: 'sync' },
+)
 
-watch(dirLightRef, (next, prev) => {
-  if (!prev && next)
-    emitSceneSubtreeTrace('dirLightRef', 'attached')
+watch(
+  dirLightRef,
+  (next, prev) => {
+    if (!prev && next) emitSceneSubtreeTrace('dirLightRef', 'attached')
 
-  if (prev && !next)
-    emitSceneSubtreeTrace('dirLightRef', 'detached')
-}, { flush: 'sync' })
+    if (prev && !next) emitSceneSubtreeTrace('dirLightRef', 'detached')
+  },
+  { flush: 'sync' },
+)
 
 // === Directional Light ===
 // Directional light setup moved inline, no ready event needed
 watch(
   [modelPhase, dirLightRef],
   ([phase, dirLight]) => {
-    if (phase !== 'ready' || !dirLight)
-      return
+    if (phase !== 'ready' || !dirLight) return
 
     try {
       // setup initial target of directional light
@@ -618,45 +608,53 @@ watch(
         directionalLightTarget.value.z,
       )
       dirLight.target.updateMatrixWorld()
-    }
-    catch (error) {
+    } catch (error) {
       console.error('[ThreeScene] Failed to setup directional light:', error)
     }
   },
   { immediate: true },
 )
 
-watch(scenePhase, (to, from) => {
-  emitScenePhaseTrace(latestScenePhaseTraceCause.value, from, to)
-}, { immediate: true })
+watch(
+  scenePhase,
+  (to, from) => {
+    emitScenePhaseTrace(latestScenePhaseTraceCause.value, from, to)
+  },
+  { immediate: true },
+)
 
-watch(sceneMutationLocked, (locked) => {
-  emitSceneMutationLockTrace(locked)
-}, { immediate: true })
+watch(
+  sceneMutationLocked,
+  (locked) => {
+    emitSceneMutationLockTrace(locked)
+  },
+  { immediate: true },
+)
 
 const resolvedComponentState = computed<'pending' | 'loading' | 'mounted'>(() => {
-  if (scenePhase.value === 'pending')
-    return 'pending'
+  if (scenePhase.value === 'pending') return 'pending'
 
-  if (scenePhase.value === 'loading' || scenePhase.value === 'binding')
-    return 'loading'
+  if (scenePhase.value === 'loading' || scenePhase.value === 'binding') return 'loading'
 
   return 'mounted'
 })
 
-watch(resolvedComponentState, (to, from) => {
-  componentState.value = to
-  emitSceneComponentStateTrace(from, to, {
-    canvasReady: canvasReady.value,
-    controlsReady: controlsReady.value,
-    modelPhase: modelPhase.value,
-  })
-}, { immediate: true })
+watch(
+  resolvedComponentState,
+  (to, from) => {
+    componentState.value = to
+    emitSceneComponentStateTrace(from, to, {
+      canvasReady: canvasReady.value,
+      controlsReady: controlsReady.value,
+      modelPhase: modelPhase.value,
+    })
+  },
+  { immediate: true },
+)
 
-function updateDirLightTarget(newRotation: { x: number, y: number, z: number }) {
+function updateDirLightTarget(newRotation: { x: number; y: number; z: number }) {
   const light = dirLightRef.value
-  if (!light)
-    return
+  if (!light) return
 
   const { x: rx, y: ry, z: rz } = newRotation
   const lightPosition = new Vector3(
@@ -665,12 +663,7 @@ function updateDirLightTarget(newRotation: { x: number, y: number, z: number }) 
     directionalLightPosition.value.z,
   )
   const origin = new Vector3(0, 0, 0)
-  const euler = new Euler(
-    MathUtils.degToRad(rx),
-    MathUtils.degToRad(ry),
-    MathUtils.degToRad(rz),
-    'XYZ',
-  )
+  const euler = new Euler(MathUtils.degToRad(rx), MathUtils.degToRad(ry), MathUtils.degToRad(rz), 'XYZ')
   const initialForward = origin.clone().sub(lightPosition).normalize()
   const newForward = initialForward.applyEuler(euler).normalize()
   const distance = lightPosition.distanceTo(origin)
@@ -683,11 +676,16 @@ function updateDirLightTarget(newRotation: { x: number, y: number, z: number }) 
   directionalLightTarget.value = { x: target.x, y: target.y, z: target.z }
 }
 
-const getScreenBBox = () => screenRef.value?.containerRef?.getBoundingClientRect() ?? { top: 0, left: 0, width: 500, height: 500 }
+const getScreenBBox = () =>
+  screenRef.value?.containerRef?.getBoundingClientRect() ?? { top: 0, left: 0, width: 500, height: 500 }
 
-watch(directionalLightRotation, (newRotation) => {
-  updateDirLightTarget(newRotation)
-}, { deep: true })
+watch(
+  directionalLightRotation,
+  (newRotation) => {
+    updateDirLightTarget(newRotation)
+  },
+  { deep: true },
+)
 
 defineExpose({
   setExpression: (expression: string, intensity = 1) => {
@@ -708,8 +706,7 @@ defineExpose({
   scene: () => modelRef.value?.scene,
   readRenderTargetRegionAtClientPoint,
   captureFrame: async () => {
-    if (!tresContextRef.value)
-      return null
+    if (!tresContextRef.value) return null
 
     const { renderer, scene } = tresContextRef.value
     renderer.instance.render(scene.value, camera.value)
@@ -758,11 +755,7 @@ defineExpose({
         :intensity="hemisphereLightIntensity"
         cast-shadow
       />
-      <TresAmbientLight
-        :color="formatHex(ambientLightColor)"
-        :intensity="ambientLightIntensity"
-        cast-shadow
-      />
+      <TresAmbientLight :color="formatHex(ambientLightColor)" :intensity="ambientLightIntensity" cast-shadow />
       <TresDirectionalLight
         ref="dirLightRef"
         :color="formatHex(directionalLightColor)"

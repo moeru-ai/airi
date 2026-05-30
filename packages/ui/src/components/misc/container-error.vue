@@ -49,7 +49,7 @@ function indentLines(content: string, indent = 2): string {
   const spaces = ' '.repeat(indent)
   return content
     .split('\n')
-    .map(line => `${spaces}${line}`)
+    .map((line) => `${spaces}${line}`)
     .join('\n')
 }
 
@@ -59,12 +59,10 @@ const resolvedErrorName = computed(() => {
 
 const resolvedMessage = computed(() => {
   const fromProp = props.message?.trim()
-  if (fromProp)
-    return fromProp
+  if (fromProp) return fromProp
 
   const normalizedMessage = errorMessageFrom(props.error)
-  if (normalizedMessage)
-    return normalizedMessage.trim()
+  if (normalizedMessage) return normalizedMessage.trim()
 
   return props.error == null ? '' : String(props.error).trim()
 })
@@ -73,28 +71,23 @@ const resolvedStack = computed(() => {
   const fromProp = props.stack?.trim()
   if (fromProp) {
     const index = fromProp.indexOf(resolvedMessage.value)
-    if (index >= 0)
-      return fromProp.slice(index + resolvedMessage.value.length).trim()
+    if (index >= 0) return fromProp.slice(index + resolvedMessage.value.length).trim()
   }
 
-  if (!props.includeStack)
-    return ''
+  if (!props.includeStack) return ''
 
   const resolved = (errorStackFrom(props.error) ?? '').trim()
   const index = resolved.indexOf(resolvedMessage.value)
-  if (index >= 0)
-    return resolved.slice(index + resolvedMessage.value.length).trim()
+  if (index >= 0) return resolved.slice(index + resolvedMessage.value.length).trim()
 
   return resolved
 })
 
 const resolvedCause = computed(() => {
-  if (props.error == null)
-    return ''
+  if (props.error == null) return ''
 
   const cause = errorCauseFrom(props.error)
-  if (cause == null)
-    return ''
+  if (cause == null) return ''
 
   if (cause instanceof Error) {
     const name = errorNameFrom(cause) ?? cause.name ?? 'Error'
@@ -102,8 +95,7 @@ const resolvedCause = computed(() => {
     const stack = (errorStackFrom(cause) ?? cause.stack ?? '').trim()
 
     const header = message ? `${name}: ${message}` : name
-    if (!stack)
-      return header
+    if (!stack) return header
 
     return `${header}\n${indentLines(stack, 2)}`
   }
@@ -116,50 +108,42 @@ const panelContent = computed(() => {
 
   if (resolvedErrorName.value || resolvedMessage.value) {
     const header = resolvedErrorName.value
-      ? (resolvedMessage.value ? `${resolvedErrorName.value}: ${resolvedMessage.value}` : resolvedErrorName.value)
+      ? resolvedMessage.value
+        ? `${resolvedErrorName.value}: ${resolvedMessage.value}`
+        : resolvedErrorName.value
       : resolvedMessage.value
-    if (header)
-      sections.push(header)
+    if (header) sections.push(header)
   }
 
-  if (resolvedStack.value)
-    sections.push(`Stack:\n${resolvedStack.value}`)
+  if (resolvedStack.value) sections.push(`Stack:\n${resolvedStack.value}`)
 
-  if (resolvedCause.value)
-    sections.push(`Cause:\n${resolvedCause.value}`)
+  if (resolvedCause.value) sections.push(`Cause:\n${resolvedCause.value}`)
 
   return sections.join('\n\n')
 })
 
 async function copyContent() {
-  if (!panelContent.value)
-    return
+  if (!panelContent.value) return
 
   emit('copy', panelContent.value)
 
   try {
     const clipboard = globalThis.navigator?.clipboard
-    if (!clipboard)
-      return
+    if (!clipboard) return
 
     await clipboard.writeText(panelContent.value)
     copied.value = true
     globalThis.setTimeout(() => {
       copied.value = false
     }, 1200)
-  }
-  catch {
+  } catch {
     // Ignore clipboard failures and still keep emitted copy payload.
   }
 }
 </script>
 
 <template>
-  <div
-    :class="[
-      'relative w-full rounded-lg bg-red-50/60 dark:bg-red-950/25 backdrop-blur-md p-1',
-    ]"
-  >
+  <div :class="['relative w-full rounded-lg bg-red-50/60 dark:bg-red-950/25 backdrop-blur-md p-1']">
     <div :class="['absolute right-2 -translate-x-full top-2 z-10']">
       <Button
         v-if="showCopyButton"
@@ -186,21 +170,28 @@ async function copyContent() {
 
     <ScrollAreaRoot
       type="auto"
-      :class="[
-        'relative w-full overflow-hidden rounded-xl',
-        ...heightPresetClasses[heightPreset],
-      ]"
+      :class="['relative w-full overflow-hidden rounded-xl', ...heightPresetClasses[heightPreset]]"
     >
       <ScrollAreaViewport :class="['h-full w-full']">
         <div :class="['flex flex-col gap-2 p-3 text-xs']">
-          <div v-if="resolvedErrorName || resolvedMessage" :class="['font-mono text-red-700 leading-relaxed dark:text-red-300']">
+          <div
+            v-if="resolvedErrorName || resolvedMessage"
+            :class="['font-mono text-red-700 leading-relaxed dark:text-red-300']"
+          >
             {{ resolvedErrorName || 'Error' }}
-            <span v-if="resolvedMessage">
-              : {{ resolvedMessage }}
-            </span>
+            <span v-if="resolvedMessage">: {{ resolvedMessage }}</span>
           </div>
-          <pre v-if="resolvedStack" :class="['whitespace-pre-wrap break-words text-neutral-700 leading-relaxed dark:text-neutral-200']">    {{ resolvedStack }}</pre>
-          <pre v-if="resolvedCause" :class="['whitespace-pre-wrap break-words text-neutral-700 leading-relaxed dark:text-neutral-200']">{{ `Cause:\n${resolvedCause}` }}</pre>
+          <pre
+            v-if="resolvedStack"
+            :class="['whitespace-pre-wrap break-words text-neutral-700 leading-relaxed dark:text-neutral-200']"
+          >
+    {{ resolvedStack }}</pre
+          >
+          <pre
+            v-if="resolvedCause"
+            :class="['whitespace-pre-wrap break-words text-neutral-700 leading-relaxed dark:text-neutral-200']"
+            >{{ `Cause:\n${resolvedCause}` }}</pre
+          >
           <div v-if="!panelContent" :class="['text-neutral-600 dark:text-neutral-300']">
             No error details available.
           </div>

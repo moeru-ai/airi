@@ -29,12 +29,9 @@ vi.mock('@proj-airi/electron-vueuse', () => ({
 
 vi.mock('@vueuse/core', () => ({
   useLocalStorage: <T>(key: string, initialValue: T) => {
-    if (key === 'settings/server-channel/hostname')
-      return ref('127.0.0.1')
-    if (key === 'settings/server-channel/auth-token')
-      return ref('existing-token')
-    if (key === 'settings/server-channel/websocket-tls-config')
-      return ref(null)
+    if (key === 'settings/server-channel/hostname') return ref('127.0.0.1')
+    if (key === 'settings/server-channel/auth-token') return ref('existing-token')
+    if (key === 'settings/server-channel/websocket-tls-config') return ref(null)
 
     return ref(initialValue)
   },

@@ -17,7 +17,10 @@ import {
 import { onAppBeforeQuit, onAppWindowAllClosed } from '../../libs/bootkit/lifecycle'
 import { resizeWindowByDelta } from '../../windows/shared/window'
 
-export function createWindowService(params: { context: ReturnType<typeof createContext>['context'], window: BrowserWindow }) {
+export function createWindowService(params: {
+  context: ReturnType<typeof createContext>['context']
+  window: BrowserWindow
+}) {
   function getWindowLifecycleState(reason: ElectronWindowLifecycleState['reason']): ElectronWindowLifecycleState {
     return {
       focused: params.window.isFocused(),
@@ -43,8 +46,7 @@ export function createWindowService(params: { context: ReturnType<typeof createC
   onAppBeforeQuit(() => stop())
   defineInvokeHandler(params.context, startLoopGetBounds, () => start())
   defineInvokeHandler(params.context, electronGetWindowLifecycleState, (_, options) => {
-    if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id)
-      return getWindowLifecycleState('snapshot')
+    if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) return getWindowLifecycleState('snapshot')
   })
 
   params.window.on('show', () => emitWindowLifecycle('show'))
@@ -83,8 +85,7 @@ export function createWindowService(params: { context: ReturnType<typeof createC
     if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
       if (flag) {
         params.window.setAlwaysOnTop(true, 'screen-saver', 1)
-      }
-      else {
+      } else {
         params.window.setAlwaysOnTop(false)
       }
     }

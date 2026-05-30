@@ -53,10 +53,7 @@ export interface FormatTimeAgoIntlOptions {
    *
    * If provided, it will be used instead of the default join logic.
    */
-  joinParts?: (
-    parts: Intl.RelativeTimeFormatPart[],
-    locale?: Intl.UnicodeBCP47LocaleIdentifier | Intl.Locale,
-  ) => string
+  joinParts?: (parts: Intl.RelativeTimeFormatPart[], locale?: Intl.UnicodeBCP47LocaleIdentifier | Intl.Locale) => string
   /**
    * Custom units
    */
@@ -80,9 +77,9 @@ export interface UseTimeAgoIntlOptions<Controls extends boolean>
 }
 type UseTimeAgoReturn<Controls extends boolean = false> = Controls extends true
   ? {
-    timeAgoIntl: ComputedRef<string>
-    parts: ComputedRef<Intl.RelativeTimeFormatPart[]>
-  } & Pausable
+      timeAgoIntl: ComputedRef<string>
+      parts: ComputedRef<Intl.RelativeTimeFormatPart[]>
+    } & Pausable
   : ComputedRef<string>
 export interface TimeAgoUnit {
   name: Intl.RelativeTimeFormatUnit
@@ -102,11 +99,7 @@ export declare function useTimeAgoIntl(
 /**
  * Non-reactive version of useTimeAgoIntl
  */
-export declare function formatTimeAgoIntl(
-  from: Date,
-  options?: FormatTimeAgoIntlOptions,
-  now?: Date | number,
-): string
+export declare function formatTimeAgoIntl(from: Date, options?: FormatTimeAgoIntlOptions, now?: Date | number): string
 /**
  * Format parts into a string
  */

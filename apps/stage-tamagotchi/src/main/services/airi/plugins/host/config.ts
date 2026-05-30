@@ -7,9 +7,12 @@ import { createConfig } from '../../../../libs/electron/persistence'
 const pluginConfigSchema = object({
   enabled: array(string()),
   autoReload: array(string()),
-  known: record(string(), object({
-    path: string(),
-  })),
+  known: record(
+    string(),
+    object({
+      path: string(),
+    }),
+  ),
 })
 
 function createDefaultPluginConfig(): PluginConfig {

@@ -3,7 +3,12 @@ import type { WebSocketEvents } from '@proj-airi/server-sdk'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message, Tool } from '@xsai/shared-chat'
 
-import { streamFrom as coreStreamFrom, isContentArrayRelatedError, isToolRelatedError, modelKey } from '@proj-airi/core-agent'
+import {
+  streamFrom as coreStreamFrom,
+  isContentArrayRelatedError,
+  isToolRelatedError,
+  modelKey,
+} from '@proj-airi/core-agent'
 import { listModels } from '@xsai/model'
 import { uniqBy } from 'es-toolkit'
 import { defineStore } from 'pinia'
@@ -57,31 +62,31 @@ export const useLLM = defineStore('llm', () => {
       // Reverse twice so later runtime registrations win while original tool order stays stable.
       return uniqBy(
         [
-          ...await mcp(),
-          ...await debug(),
-          ...await createSparkCommandTool({ sendSparkCommand }),
-          ...await llmToolsStore.activeTools,
+          ...(await mcp()),
+          ...(await debug()),
+          ...(await createSparkCommandTool({ sendSparkCommand })),
+          ...(await llmToolsStore.activeTools),
         ].toReversed(),
-        tool => toolNameFrom(tool) ?? tool,
+        (tool) => toolNameFrom(tool) ?? tool,
       ).toReversed()
     }
 
-    const runStream = () => coreStreamFrom({
-      model,
-      chatProvider,
-      messages,
-      options: {
-        ...options,
-        toolsCompatibility: toolsCompatibility.value,
-        contentArrayCompatibility: contentArrayCompatibility.value,
-      },
-      builtinToolsResolver,
-    })
+    const runStream = () =>
+      coreStreamFrom({
+        model,
+        chatProvider,
+        messages,
+        options: {
+          ...options,
+          toolsCompatibility: toolsCompatibility.value,
+          contentArrayCompatibility: contentArrayCompatibility.value,
+        },
+        builtinToolsResolver,
+      })
 
     try {
       await runStream()
-    }
-    catch (err) {
+    } catch (err) {
       if (isToolRelatedError(err)) {
         console.warn(`[llm] Auto-disabling tools for "${key}" due to tool-related error`)
         toolsCompatibility.value.set(key, false)
@@ -103,18 +108,15 @@ export const useLLM = defineStore('llm', () => {
   }
 
   async function models(apiUrl: string, apiKey: string) {
-    if (apiUrl === '')
-      return []
+    if (apiUrl === '') return []
 
     try {
       return await listModels({
         baseURL: (apiUrl.endsWith('/') ? apiUrl : `${apiUrl}/`) as `${string}/`,
         apiKey,
       })
-    }
-    catch (err) {
-      if (String(err).includes(`Failed to construct 'URL': Invalid URL`))
-        return []
+    } catch (err) {
+      if (String(err).includes(`Failed to construct 'URL': Invalid URL`)) return []
       throw err
     }
   }

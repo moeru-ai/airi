@@ -33,7 +33,7 @@ export function useLive2DEyeFocusFor(options: {
     modelHeight: number
   }>
   source: MaybeRefOrGetter<Live2DEyeFocusSource | null | undefined>
-}): ComputedRef<{ x: number, y: number }> {
+}): ComputedRef<{ x: number; y: number }> {
   const { live2dRenderScale, live2dModelEyeOffset } = storeToRefs(useSettingsLive2d())
   const { scale } = useL2dViewControl()
 
@@ -42,12 +42,12 @@ export function useLive2DEyeFocusFor(options: {
     const renderScale = live2dRenderScale.value
     const trackingSource = toValue(options.source)
     const canvasRect = toValue(options.canvas)?.getBoundingClientRect()
-    if (!trackingSource || !(canvasRect)) {
+    if (!trackingSource || !canvasRect) {
       return { x: 1000, y: 1000 }
     }
     const eyeOffset = {
-      x: live2dModelEyeOffset.value.x / 100 * modelWidth * normalizedScale * scale.value,
-      y: live2dModelEyeOffset.value.y / 100 * modelHeight * normalizedScale * scale.value,
+      x: (live2dModelEyeOffset.value.x / 100) * modelWidth * normalizedScale * scale.value,
+      y: (live2dModelEyeOffset.value.y / 100) * modelHeight * normalizedScale * scale.value,
     }
     return {
       x: (trackingSource.x - canvasRect.left + eyeOffset.x) * renderScale,

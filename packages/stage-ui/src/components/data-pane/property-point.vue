@@ -43,19 +43,17 @@ const xNormalized = ref(postProcessValue(x.value, props.xConfig))
 const yNormalized = ref(postProcessValue(y.value, props.yConfig))
 const zNormalized = ref(postProcessValue(z.value, props.zConfig))
 
-watch(x, () => xNormalized.value = postProcessValue(x.value, props.xConfig))
-watch(y, () => yNormalized.value = postProcessValue(y.value, props.yConfig))
-watch(z, () => zNormalized.value = postProcessValue(z.value, props.zConfig))
+watch(x, () => (xNormalized.value = postProcessValue(x.value, props.xConfig)))
+watch(y, () => (yNormalized.value = postProcessValue(y.value, props.yConfig)))
+watch(z, () => (zNormalized.value = postProcessValue(z.value, props.zConfig)))
 
 function handleChange(axis: 'x' | 'y' | 'z', event: Event) {
-  if (props.disabled)
-    return
+  if (props.disabled) return
 
   const input = event.target as HTMLInputElement
   const value = Number.parseFloat(input.value)
 
-  if (Number.isNaN(value))
-    return
+  if (Number.isNaN(value)) return
 
   updateValue(axis, value)
 }
@@ -64,10 +62,8 @@ function updateValue(axis: 'x' | 'y' | 'z', value: number) {
   const config = axis === 'x' ? props.xConfig : axis === 'y' ? props.yConfig : props.zConfig
 
   // Apply min/max constraints
-  if (config?.min !== undefined)
-    value = Math.max(config.min, value)
-  if (config?.max !== undefined)
-    value = Math.min(config.max, value)
+  if (config?.min !== undefined) value = Math.max(config.min, value)
+  if (config?.max !== undefined) value = Math.min(config.max, value)
 
   switch (axis) {
     case 'x':
@@ -86,18 +82,13 @@ function updateValue(axis: 'x' | 'y' | 'z', value: number) {
 }
 
 function startDrag(axis: 'x' | 'y' | 'z', event: MouseEvent) {
-  if (props.disabled)
-    return
+  if (props.disabled) return
 
   event.preventDefault()
   isDragging.value = axis
   dragStartX.value = event.clientX
 
-  const currentValue = axis === 'x'
-    ? x.value
-    : axis === 'y'
-      ? y.value
-      : z.value
+  const currentValue = axis === 'x' ? x.value : axis === 'y' ? y.value : z.value
 
   dragStartValue.value = currentValue
 
@@ -106,16 +97,13 @@ function startDrag(axis: 'x' | 'y' | 'z', event: MouseEvent) {
 }
 
 function onDrag(event: MouseEvent) {
-  if (!isDragging.value)
-    return
+  if (!isDragging.value) return
 
   const deltaX = event.clientX - dragStartX.value
-  const config = isDragging.value === 'x'
-    ? props.xConfig
-    : isDragging.value === 'y' ? props.yConfig : props.zConfig
+  const config = isDragging.value === 'x' ? props.xConfig : isDragging.value === 'y' ? props.yConfig : props.zConfig
 
   const sensitivity = config?.step || 0.01
-  const newValue = dragStartValue.value + (deltaX * sensitivity)
+  const newValue = dragStartValue.value + deltaX * sensitivity
 
   updateValue(isDragging.value, newValue)
 }
@@ -137,15 +125,21 @@ function stopDrag() {
   <div />
   <label
     v-if="props.xConfig !== undefined"
-    h-fit w-full inline-flex items-center rounded-md px="1.5" py="0.5"
-    :class="[isDragging === 'x' ? 'bg-red-100/50 dark:bg-red-900/50' : 'bg-neutral-100 dark:bg-neutral-900', props.disabled ? 'opacity-60' : '']"
+    h-fit
+    w-full
+    inline-flex
+    items-center
+    rounded-md
+    px="1.5"
+    py="0.5"
+    :class="[
+      isDragging === 'x' ? 'bg-red-100/50 dark:bg-red-900/50' : 'bg-neutral-100 dark:bg-neutral-900',
+      props.disabled ? 'opacity-60' : '',
+    ]"
     transition="colors duration-200 ease-in-out"
   >
     <span h-fit inline-flex items-center text="[12px]" gap-1>
-      <span
-        cursor-col-resize select-none text-red-500
-        @mousedown="(e) => startDrag('x', e)"
-      >|</span>
+      <span cursor-col-resize select-none text-red-500 @mousedown="(e) => startDrag('x', e)">|</span>
       <input
         :value="xNormalized"
         type="number"
@@ -153,23 +147,34 @@ function stopDrag() {
         :min="props.xConfig.min"
         :max="props.xConfig.max"
         :step="props.xConfig.step"
-        max-w-4lh w-full appearance-none bg-transparent text-right font-mono outline-none
+        max-w-4lh
+        w-full
+        appearance-none
+        bg-transparent
+        text-right
+        font-mono
+        outline-none
         class="[&::-webkit-inner-spin-button]:(m-0 appearance-none)"
         @change="(e) => handleChange('x', e)"
-      >
+      />
     </span>
   </label>
   <label
     v-if="props.yConfig !== undefined"
-    h-fit inline-flex items-center rounded-md px="1.5" py="0.5"
-    :class="[isDragging === 'y' ? 'bg-blue-100/50 dark:bg-blue-900/50' : 'bg-neutral-100 dark:bg-neutral-900', props.disabled ? 'opacity-60' : '']"
+    h-fit
+    inline-flex
+    items-center
+    rounded-md
+    px="1.5"
+    py="0.5"
+    :class="[
+      isDragging === 'y' ? 'bg-blue-100/50 dark:bg-blue-900/50' : 'bg-neutral-100 dark:bg-neutral-900',
+      props.disabled ? 'opacity-60' : '',
+    ]"
     transition="colors duration-200 ease-in-out"
   >
     <span h-fit inline-flex items-center text="[12px]" gap-1>
-      <span
-        cursor-col-resize select-none text-blue-500
-        @mousedown="(e) => startDrag('y', e)"
-      >|</span>
+      <span cursor-col-resize select-none text-blue-500 @mousedown="(e) => startDrag('y', e)">|</span>
       <input
         :value="yNormalized"
         type="number"
@@ -177,23 +182,34 @@ function stopDrag() {
         :min="props.yConfig.min"
         :max="props.yConfig.max"
         :step="props.yConfig.step"
-        max-w-4lh w-full appearance-none bg-transparent text-right font-mono outline-none
+        max-w-4lh
+        w-full
+        appearance-none
+        bg-transparent
+        text-right
+        font-mono
+        outline-none
         class="[&::-webkit-inner-spin-button]:(m-0 appearance-none)"
         @change="(e) => handleChange('y', e)"
-      >
+      />
     </span>
   </label>
   <label
     v-if="props.zConfig !== undefined"
-    h-fit inline-flex items-center rounded-md px="1.5" py="0.5"
-    :class="[isDragging === 'z' ? 'bg-green-100/50 dark:bg-green-900/50' : 'bg-neutral-100 dark:bg-neutral-900', props.disabled ? 'opacity-60' : '']"
+    h-fit
+    inline-flex
+    items-center
+    rounded-md
+    px="1.5"
+    py="0.5"
+    :class="[
+      isDragging === 'z' ? 'bg-green-100/50 dark:bg-green-900/50' : 'bg-neutral-100 dark:bg-neutral-900',
+      props.disabled ? 'opacity-60' : '',
+    ]"
     transition="colors duration-200 ease-in-out"
   >
     <span h-fit inline-flex items-center text="[12px]" gap-1>
-      <span
-        cursor-col-resize select-none text-green-500
-        @mousedown="(e) => startDrag('z', e)"
-      >|</span>
+      <span cursor-col-resize select-none text-green-500 @mousedown="(e) => startDrag('z', e)">|</span>
       <input
         :value="zNormalized"
         type="number"
@@ -201,10 +217,16 @@ function stopDrag() {
         :min="props.zConfig.min"
         :max="props.zConfig.max"
         :step="props.zConfig.step"
-        max-w-4lh w-full appearance-none bg-transparent text-right font-mono outline-none
+        max-w-4lh
+        w-full
+        appearance-none
+        bg-transparent
+        text-right
+        font-mono
+        outline-none
         class="[&::-webkit-inner-spin-button]:(m-0 appearance-none)"
         @change="(e) => handleChange('z', e)"
-      >
+      />
     </span>
   </label>
 </template>

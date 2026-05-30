@@ -32,9 +32,7 @@ whenever(logicAnd(a, b), () => {
  *
  * @__NO_SIDE_EFFECTS__
  */
-export declare function logicAnd(
-  ...args: MaybeRefOrGetter<any>[]
-): ComputedRef<boolean>
+export declare function logicAnd(...args: MaybeRefOrGetter<any>[]): ComputedRef<boolean>
 /** @deprecated use `logicAnd` instead */
 export declare const and: typeof logicAnd
 ```

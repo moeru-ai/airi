@@ -146,12 +146,14 @@ describe('channel-server store reconnect', () => {
 
     expect(store.connected).toBe(true)
     expect(store.pendingSendCount).toBe(0)
-    expect(client.sent).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        type: 'spark:notify',
-        data: { message: 'before-init' },
-      }),
-    ]))
+    expect(client.sent).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'spark:notify',
+          data: { message: 'before-init' },
+        }),
+      ]),
+    )
 
     client.simulateTransientDisconnect()
 
@@ -168,12 +170,14 @@ describe('channel-server store reconnect', () => {
 
     expect(store.connected).toBe(true)
     expect(store.pendingSendCount).toBe(0)
-    expect(client.sent).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        type: 'spark:notify',
-        data: { message: 'queued-during-disconnect' },
-      }),
-    ]))
+    expect(client.sent).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'spark:notify',
+          data: { message: 'queued-during-disconnect' },
+        }),
+      ]),
+    )
   })
 
   it('uses explicit heartbeat settings to avoid client/server timeout mismatch', async () => {
@@ -342,12 +346,14 @@ describe('channel-server store reconnect', () => {
 
     expect(store.connected).toBe(true)
     expect(store.pendingSendCount).toBe(0)
-    expect(client.sent).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        type: 'spark:notify',
-        data: { message: 'reconnect-authenticated-queued' },
-      }),
-    ]))
+    expect(client.sent).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'spark:notify',
+          data: { message: 'reconnect-authenticated-queued' },
+        }),
+      ]),
+    )
   })
 
   it('does not reconnect while the url scheme is not valid', async () => {

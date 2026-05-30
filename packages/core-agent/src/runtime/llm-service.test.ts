@@ -56,34 +56,35 @@ describe('streamFrom tool error capture', () => {
       }),
     } satisfies Tool
 
-    streamTextMock.mockImplementationOnce((options: {
-      captureToolErrors?: boolean
-      onEvent: (event: unknown) => Promise<void>
-      tools?: Tool[]
-    }) => {
-      const steps = new Promise<unknown[]>((resolve) => {
-        resolveSteps = resolve
-      })
-
-      queueMicrotask(async () => {
-        const result = await options.tools?.[0]?.execute({}, {
-          messages: [],
-          toolCallId: 'call-1',
+    streamTextMock.mockImplementationOnce(
+      (options: { captureToolErrors?: boolean; onEvent: (event: unknown) => Promise<void>; tools?: Tool[] }) => {
+        const steps = new Promise<unknown[]>((resolve) => {
+          resolveSteps = resolve
         })
 
-        await options.onEvent({
-          type: 'tool-result',
-          args: {},
-          result,
-          toolCallId: 'call-1',
-          toolName: 'play_chess',
-        })
-        await options.onEvent({ type: 'finish', finishReason: 'stop' })
-        resolveSteps?.([])
-      })
+        queueMicrotask(async () => {
+          const result = await options.tools?.[0]?.execute(
+            {},
+            {
+              messages: [],
+              toolCallId: 'call-1',
+            },
+          )
 
-      return createMockStreamResult(steps)
-    })
+          await options.onEvent({
+            type: 'tool-result',
+            args: {},
+            result,
+            toolCallId: 'call-1',
+            toolName: 'play_chess',
+          })
+          await options.onEvent({ type: 'finish', finishReason: 'stop' })
+          resolveSteps?.([])
+        })
+
+        return createMockStreamResult(steps)
+      },
+    )
 
     await streamFrom({
       model: 'model-a',
@@ -102,13 +103,15 @@ describe('streamFrom tool error capture', () => {
     expect(streamOptions.captureToolErrors).toBeUndefined()
     expect(streamOptions.tools?.[0]).not.toBe(failingTool)
     expect(failingTool.execute).toHaveBeenCalledTimes(1)
-    expect(events).toContainEqual(expect.objectContaining({
-      type: 'tool-error',
-      isError: true,
-      toolCallId: 'call-1',
-      toolName: 'play_chess',
-      result: expect.stringContaining('Focus mode does not accept game-state mutation inputs.'),
-    }))
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: 'tool-error',
+        isError: true,
+        toolCallId: 'call-1',
+        toolName: 'play_chess',
+        result: expect.stringContaining('Focus mode does not accept game-state mutation inputs.'),
+      }),
+    )
   })
 })
 
@@ -120,9 +123,7 @@ describe('sanitizeMessages', () => {
      * // -> [{ role: 'user', content: 'User encountered error: Remote sent 400' }]
      */
     const out = sanitizeMessages([{ role: 'error', content: 'Remote sent 400' }])
-    expect(out).toEqual([
-      { role: 'user', content: 'User encountered error: Remote sent 400' },
-    ])
+    expect(out).toEqual([{ role: 'user', content: 'User encountered error: Remote sent 400' }])
   })
 
   it('flattens text-only content arrays to a string by default', () => {
@@ -134,13 +135,15 @@ describe('sanitizeMessages', () => {
      * }])
      * // -> [{ role: 'user', content: 'hi there' }]
      */
-    const out = sanitizeMessages([{
-      role: 'user',
-      content: [
-        { type: 'text', text: 'hi' },
-        { type: 'text', text: ' there' },
-      ],
-    }])
+    const out = sanitizeMessages([
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: 'hi' },
+          { type: 'text', text: ' there' },
+        ],
+      },
+    ])
     expect(out).toEqual([{ role: 'user', content: 'hi there' }])
   })
 
@@ -183,15 +186,18 @@ describe('sanitizeMessages', () => {
      * sanitizeMessages([{ role:'user', content: [{type:'text',text:'hi'},{type:'image_url',...}] }], false)
      * // -> [{ role: 'user', content: 'hi' }]
      */
-    const out = sanitizeMessages([
-      {
-        role: 'user',
-        content: [
-          { type: 'text', text: 'hi' },
-          { type: 'image_url', image_url: { url: 'data:image/png;base64,AAA' } },
-        ],
-      },
-    ], false)
+    const out = sanitizeMessages(
+      [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: 'hi' },
+            { type: 'image_url', image_url: { url: 'data:image/png;base64,AAA' } },
+          ],
+        },
+      ],
+      false,
+    )
     expect(out).toEqual([{ role: 'user', content: 'hi' }])
   })
 
@@ -201,24 +207,25 @@ describe('sanitizeMessages', () => {
      * sanitizeMessages([{ role:'user', content: [{type:'text',text:'q'},{type:'input_audio',...},{type:'file',...}] }], false)
      * // -> [{ role: 'user', content: 'q' }]
      */
-    const out = sanitizeMessages([
-      {
-        role: 'user',
-        content: [
-          { type: 'text', text: 'q' },
-          { type: 'input_audio', input_audio: { data: 'AAA', format: 'wav' } },
-          { type: 'file', file: { file_id: 'f_1' } },
-        ],
-      },
-    ], false)
+    const out = sanitizeMessages(
+      [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: 'q' },
+            { type: 'input_audio', input_audio: { data: 'AAA', format: 'wav' } },
+            { type: 'file', file: { file_id: 'f_1' } },
+          ],
+        },
+      ],
+      false,
+    )
     expect(out).toEqual([{ role: 'user', content: 'q' }])
   })
 
   it('passes string content through untouched regardless of the flag', () => {
-    expect(sanitizeMessages([{ role: 'user', content: 'plain' }], true))
-      .toEqual([{ role: 'user', content: 'plain' }])
-    expect(sanitizeMessages([{ role: 'user', content: 'plain' }], false))
-      .toEqual([{ role: 'user', content: 'plain' }])
+    expect(sanitizeMessages([{ role: 'user', content: 'plain' }], true)).toEqual([{ role: 'user', content: 'plain' }])
+    expect(sanitizeMessages([{ role: 'user', content: 'plain' }], false)).toEqual([{ role: 'user', content: 'plain' }])
   })
 })
 
@@ -231,7 +238,8 @@ describe('isContentArrayRelatedError', () => {
      * )
      * // -> true
      */
-    const wire = 'Remote sent 400 response: {"error":{"message":"Failed to deserialize the JSON body into the target type: messages[7]: invalid type: sequence, expected a string at line 1 column 5603","type":"invalid_request_error","param":null,"code":"invalid_request_error"}}'
+    const wire =
+      'Remote sent 400 response: {"error":{"message":"Failed to deserialize the JSON body into the target type: messages[7]: invalid type: sequence, expected a string at line 1 column 5603","type":"invalid_request_error","param":null,"code":"invalid_request_error"}}'
     expect(isContentArrayRelatedError(wire)).toBe(true)
     expect(isContentArrayRelatedError(new Error(wire))).toBe(true)
   })
@@ -242,10 +250,8 @@ describe('isContentArrayRelatedError', () => {
      * isContentArrayRelatedError('messages.0.content: Input should be a valid string')
      * // -> true
      */
-    expect(isContentArrayRelatedError('messages.0.content: Input should be a valid string'))
-      .toBe(true)
-    expect(isContentArrayRelatedError('messages.3.content expected string, got list'))
-      .toBe(true)
+    expect(isContentArrayRelatedError('messages.0.content: Input should be a valid string')).toBe(true)
+    expect(isContentArrayRelatedError('messages.3.content expected string, got list')).toBe(true)
   })
 
   it('does not false-positive on unrelated 400s', () => {

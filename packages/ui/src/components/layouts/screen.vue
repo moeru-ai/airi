@@ -13,14 +13,12 @@ const isTablet = computed(() => breakpoints.between('md', 'lg').value)
 const isDesktop = computed(() => breakpoints.greaterOrEqual('lg').value)
 
 const canvasWidth = computed(() => {
-  if (isDesktop.value)
-    return containerElementBounding.width.value
+  if (isDesktop.value) return containerElementBounding.width.value
   else if (isMobile.value)
-    return (width.value - 16) // padding
+    return width.value - 16 // padding
   else if (isTablet.value)
-    return (width.value - 16) // padding
-  else
-    return containerElementBounding.width.value
+    return width.value - 16 // padding
+  else return containerElementBounding.width.value
 })
 
 const canvasHeight = ref(0)
@@ -30,14 +28,11 @@ watch([width, height, containerRef], () => {
 
   if (isDesktop.value) {
     canvasHeight.value = bounding?.height || 0
-  }
-  else if (isMobile.value) {
+  } else if (isMobile.value) {
     canvasHeight.value = bounding?.height || 0
-  }
-  else if (isTablet.value) {
+  } else if (isTablet.value) {
     canvasHeight.value = bounding?.height || 0
-  }
-  else {
+  } else {
     canvasHeight.value = 600
   }
 })
@@ -45,21 +40,17 @@ watch([width, height, containerRef], () => {
 watch([containerElementBounding.width, containerElementBounding.height], () => {
   if (isDesktop.value) {
     canvasHeight.value = containerElementBounding.height.value
-  }
-  else if (isMobile.value) {
+  } else if (isMobile.value) {
     canvasHeight.value = containerElementBounding.height.value
-  }
-  else if (isTablet.value) {
+  } else if (isTablet.value) {
     canvasHeight.value = containerElementBounding.height.value
-  }
-  else {
+  } else {
     canvasHeight.value = 600
   }
 })
 
 onMounted(async () => {
-  if (!containerRef.value)
-    return
+  if (!containerRef.value) return
 
   containerElementBounding.update()
 })

@@ -42,7 +42,7 @@ export function createH3Server(options: {
           return address
         }
 
-        const port = options.port ?? await getRandomPort(host)
+        const port = options.port ?? (await getRandomPort(host))
         server = serve(options.app, { hostname: host, port, silent })
 
         address = {

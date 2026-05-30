@@ -12,18 +12,15 @@ const cardStore = useAiriCardStore()
 const fileInputRef = ref<HTMLInputElement>()
 
 const sceneEntries = computed(() => {
-  return backgroundStore.availableBackgrounds
-    .filter(e => e.type === 'scene' || e.type === 'builtin')
+  return backgroundStore.availableBackgrounds.filter((e) => e.type === 'scene' || e.type === 'builtin')
 })
 
 const activeBackgroundId = computed({
   get: () => cardStore.activeCard?.extensions?.airi?.modules?.activeBackgroundId || 'none',
   set: (val: string) => {
-    if (!cardStore.activeCard)
-      return
+    if (!cardStore.activeCard) return
     const extension = JSON.parse(JSON.stringify(cardStore.activeCard.extensions))
-    if (!extension.airi.modules)
-      extension.airi.modules = {}
+    if (!extension.airi.modules) extension.airi.modules = {}
 
     extension.airi.modules.activeBackgroundId = val
 
@@ -40,8 +37,7 @@ function triggerUpload() {
 
 async function handleFileChange(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0]
-  if (!file)
-    return
+  if (!file) return
 
   await backgroundStore.addBackground('scene', file, file.name)
 }
@@ -63,11 +59,7 @@ function clearDefault() {
 
 <template>
   <div :class="['flex flex-col gap-6', 'mx-auto max-w-2xl', 'p-4 pb-20']">
-    <Callout
-      :label="t('settings.pages.scene.beta_label')"
-      theme="orange"
-      icon="i-solar:star-fall-bold-duotone"
-    >
+    <Callout :label="t('settings.pages.scene.beta_label')" theme="orange" icon="i-solar:star-fall-bold-duotone">
       <div>
         {{ t('settings.pages.scene.beta_description') }}
       </div>
@@ -81,26 +73,12 @@ function clearDefault() {
       <div :class="['flex flex-col gap-4', 'p-4']">
         <!-- Upload Controls -->
         <div :class="['flex gap-2']">
-          <input
-            ref="fileInputRef"
-            type="file"
-            accept="image/*"
-            hidden
-            @change="handleFileChange"
-          >
-          <Button
-            variant="primary"
-            class="flex-1"
-            @click="triggerUpload"
-          >
+          <input ref="fileInputRef" type="file" accept="image/*" hidden @change="handleFileChange" />
+          <Button variant="primary" class="flex-1" @click="triggerUpload">
             <div :class="['i-solar:upload-bold-duotone', 'mr-2']" />
             {{ t('settings.pages.scene.background_image.upload') }}
           </Button>
-          <Button
-            v-if="activeBackgroundId !== 'none'"
-            variant="secondary"
-            @click="clearDefault"
-          >
+          <Button v-if="activeBackgroundId !== 'none'" variant="secondary" @click="clearDefault">
             <div :class="['i-solar:trash-bin-trash-bold-duotone', 'mr-2']" />
             {{ t('settings.pages.scene.background_image.clear') }}
           </Button>
@@ -113,7 +91,9 @@ function clearDefault() {
             :key="bg.id"
             :class="[
               'relative aspect-square overflow-hidden rounded-xl border-2 group transition-all',
-              bg.id === activeBackgroundId ? 'border-primary shadow-lg' : 'border-transparent bg-neutral-100 dark:bg-neutral-900',
+              bg.id === activeBackgroundId
+                ? 'border-primary shadow-lg'
+                : 'border-transparent bg-neutral-100 dark:bg-neutral-900',
             ]"
           >
             <!-- Background Image -->
@@ -154,12 +134,7 @@ function clearDefault() {
                 'flex items-center justify-center gap-2',
               ]"
             >
-              <Button
-                v-if="bg.id !== activeBackgroundId"
-                size="sm"
-                variant="primary"
-                @click="setAsBackground(bg.id)"
-              >
+              <Button v-if="bg.id !== activeBackgroundId" size="sm" variant="primary" @click="setAsBackground(bg.id)">
                 <div :class="['i-solar:check-read-bold-duotone']" />
               </Button>
               <Button
@@ -178,7 +153,10 @@ function clearDefault() {
         <!-- Empty State -->
         <div
           v-else
-          :class="['border-2 border-dashed border-neutral-200 dark:border-neutral-800', 'p-12 text-center text-neutral-400 rounded-xl']"
+          :class="[
+            'border-2 border-dashed border-neutral-200 dark:border-neutral-800',
+            'p-12 text-center text-neutral-400 rounded-xl',
+          ]"
         >
           <div :class="['i-solar:gallery-wide-bold-duotone', 'mx-auto mb-2 text-4xl opacity-50']" />
           <p :class="['text-sm']">

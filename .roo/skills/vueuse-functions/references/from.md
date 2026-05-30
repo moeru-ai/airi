@@ -24,10 +24,12 @@ useSubscription(
     .pipe(
       mapTo(1),
       takeUntil(fromEvent(button, 'click')),
-      withLatestFrom(from(count, {
-        immediate: true,
-        deep: false,
-      })),
+      withLatestFrom(
+        from(count, {
+          immediate: true,
+          deep: false,
+        }),
+      ),
       map(([curr, total]) => curr + total),
     )
     .subscribe(toObserver(count)), // same as ).subscribe(val => (count.value = val))
@@ -62,19 +64,13 @@ const button = useTemplateRef('buttonRef')
 useSubscription(
   fromEvent(button, 'click').subscribe(() => {
     console.log('clicked!')
-  })
+  }),
 )
 ```
 
 ## Type Declarations
 
 ```ts
-export declare function from<T>(
-  value: ObservableInput<T> | Ref<T>,
-  watchOptions?: WatchOptions,
-): Observable<T>
-export declare function fromEvent<T extends HTMLElement | null>(
-  value: MaybeRef<T>,
-  event: string,
-): Observable<Event>
+export declare function from<T>(value: ObservableInput<T> | Ref<T>, watchOptions?: WatchOptions): Observable<T>
+export declare function fromEvent<T extends HTMLElement | null>(value: MaybeRef<T>, event: string): Observable<Event>
 ```

@@ -54,7 +54,5 @@ export declare function useWebWorker<T = any>(
  *
  * @see https://vueuse.org/useWebWorker
  */
-export declare function useWebWorker<T = any>(
-  worker: Worker | WorkerFn,
-): UseWebWorkerReturn<T>
+export declare function useWebWorker<T = any>(worker: Worker | WorkerFn): UseWebWorkerReturn<T>
 ```

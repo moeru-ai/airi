@@ -1,46 +1,39 @@
 <script setup lang="ts">
 import { ComboboxSelect } from '../combobox-select'
 
-const props = withDefaults(defineProps<{
-  label: string
-  description?: string
-  options?: {
+const props = withDefaults(
+  defineProps<{
     label: string
-    value: string | number
     description?: string
+    options?: {
+      label: string
+      value: string | number
+      description?: string
+      disabled?: boolean
+      icon?: string
+    }[]
+    placeholder?: string
     disabled?: boolean
-    icon?: string
-  }[]
-  placeholder?: string
-  disabled?: boolean
-  openOnClick?: boolean
-  layout?: 'horizontal' | 'vertical'
-  selectClass?: string | string[]
-  contentMinWidth?: string | number
-  contentWidth?: string | number
-}>(), {
-  layout: 'horizontal',
-  disabled: false,
-  openOnClick: true,
-})
+    openOnClick?: boolean
+    layout?: 'horizontal' | 'vertical'
+    selectClass?: string | string[]
+    contentMinWidth?: string | number
+    contentWidth?: string | number
+  }>(),
+  {
+    layout: 'horizontal',
+    disabled: false,
+    openOnClick: true,
+  },
+)
 
 const modelValue = defineModel<string>({ required: false })
 </script>
 
 <template>
   <label :class="['flex', 'flex-col', 'gap-4']">
-    <div
-      :class="[
-        'items-center',
-        props.layout === 'horizontal' ? 'grid grid-cols-4 gap-2' : 'grid grid-rows-2 gap-2',
-      ]"
-    >
-      <div
-        :class="[
-          'w-full',
-          props.layout === 'horizontal' ? 'col-span-2' : 'row-span-2',
-        ]"
-      >
+    <div :class="['items-center', props.layout === 'horizontal' ? 'grid grid-cols-4 gap-2' : 'grid grid-rows-2 gap-2']">
+      <div :class="['w-full', props.layout === 'horizontal' ? 'col-span-2' : 'row-span-2']">
         <div :class="['flex', 'items-center', 'gap-1', 'break-words', 'text-sm', 'font-medium', 'text-left']">
           <slot name="label">
             {{ props.label }}
@@ -55,7 +48,7 @@ const modelValue = defineModel<string>({ required: false })
       <slot>
         <ComboboxSelect
           v-model="modelValue"
-          :options="props.options?.filter(option => option.label && option.value) || []"
+          :options="props.options?.filter((option) => option.label && option.value) || []"
           :placeholder="props.placeholder"
           :disabled="props.disabled"
           :open-on-click="props.openOnClick"
@@ -64,25 +57,18 @@ const modelValue = defineModel<string>({ required: false })
           :title="label"
           :class="[
             ...(props.selectClass
-              ? (typeof props.selectClass === 'string' ? [props.selectClass] : props.selectClass)
+              ? typeof props.selectClass === 'string'
+                ? [props.selectClass]
+                : props.selectClass
               : []),
             props.layout === 'horizontal' ? 'col-span-2' : 'row-span-2',
           ]"
         >
-          <template
-            v-if="$slots.option"
-            #option="{ option }"
-          >
-            <slot
-              name="option"
-              v-bind="{ option }"
-            />
+          <template v-if="$slots.option" #option="{ option }">
+            <slot name="option" v-bind="{ option }" />
           </template>
 
-          <template
-            v-if="$slots.empty"
-            #empty
-          >
+          <template v-if="$slots.empty" #empty>
             <slot name="empty" />
           </template>
         </ComboboxSelect>

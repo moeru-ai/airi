@@ -2,26 +2,29 @@
 import { Input, TransitionVertical } from '@proj-airi/ui'
 import { ref } from 'vue'
 
-withDefaults(defineProps<{
-  id: string
-  name: string
-  value: string
-  title: string
-  description?: string
-  deprecated?: boolean
-  showExpandCollapse?: boolean
-  expandCollapseThreshold?: number
-  customInputValue?: string
-  customInputPlaceholder?: string
-  showCustomInput?: boolean
-}>(), {
-  deprecated: false,
-  showExpandCollapse: true,
-  expandCollapseThreshold: 100,
-  customInputValue: '',
-  customInputPlaceholder: '',
-  showCustomInput: false,
-})
+withDefaults(
+  defineProps<{
+    id: string
+    name: string
+    value: string
+    title: string
+    description?: string
+    deprecated?: boolean
+    showExpandCollapse?: boolean
+    expandCollapseThreshold?: number
+    customInputValue?: string
+    customInputPlaceholder?: string
+    showCustomInput?: boolean
+  }>(),
+  {
+    deprecated: false,
+    showExpandCollapse: true,
+    expandCollapseThreshold: 100,
+    customInputValue: '',
+    customInputPlaceholder: '',
+    showCustomInput: false,
+  },
+)
 
 const modelValue = defineModel<string>({ required: true })
 
@@ -44,9 +47,7 @@ function toggleExpansion() {
       modelValue === value
         ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-100 dark:border-primary-900 hover:border-primary-500/30 dark:hover:border-primary-400/30'
         : 'bg-white dark:bg-neutral-900/20 border-neutral-100 dark:border-neutral-900 hover:border-primary-500/30 dark:hover:border-primary-400/30',
-      modelValue === value
-        ? 'form_radio-card-detail-active'
-        : '',
+      modelValue === value ? 'form_radio-card-detail-active' : '',
       deprecated ? 'opacity-60' : '',
     ]"
   >
@@ -57,7 +58,7 @@ function toggleExpansion() {
       :name="name"
       :value="value"
       class="absolute opacity-0"
-    >
+    />
     <div class="relative mr-3 mt-0.5 flex-shrink-0">
       <div
         class="size-5 border-2 rounded-full transition-colors duration-200"
@@ -69,11 +70,7 @@ function toggleExpansion() {
       >
         <div
           class="absolute left-1/2 top-1/2 size-3 rounded-full transition-opacity duration-200 -translate-x-1/2 -translate-y-1/2"
-          :class="[
-            modelValue === value
-              ? 'opacity-100 bg-primary-500 dark:bg-primary-400'
-              : 'opacity-0',
-          ]"
+          :class="[modelValue === value ? 'opacity-100 bg-primary-500 dark:bg-primary-400' : 'opacity-0']"
         />
       </div>
     </div>
@@ -82,9 +79,7 @@ function toggleExpansion() {
         <span
           class="line-clamp-1 font-normal"
           :class="[
-            modelValue === value
-              ? 'text-neutral-700 dark:text-neutral-300'
-              : 'text-neutral-700 dark:text-neutral-400',
+            modelValue === value ? 'text-neutral-700 dark:text-neutral-300' : 'text-neutral-700 dark:text-neutral-400',
           ]"
         >
           {{ title }}
@@ -131,10 +126,7 @@ function toggleExpansion() {
           @click.prevent="toggleExpansion"
         >
           <span>{{ isExpanded ? 'Show less' : 'Show more' }}</span>
-          <div
-            :class="{ 'rotate-180': isExpanded }"
-            class="transition-transform duration-200"
-          >
+          <div :class="{ 'rotate-180': isExpanded }" class="transition-transform duration-200">
             <div i-solar:alt-arrow-down-linear ml-0.5 text-xs />
           </div>
         </button>

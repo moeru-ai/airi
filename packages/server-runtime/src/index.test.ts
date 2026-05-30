@@ -39,15 +39,17 @@ describe('resolveEventDelivery', () => {
   })
 
   it('allows route delivery to override protocol defaults', () => {
-    const delivery = resolveEventDelivery(createInputTextEvent({
-      route: {
-        delivery: {
-          required: true,
-          selection: 'sticky',
-          stickyKey: 'discord-dm-user-1',
+    const delivery = resolveEventDelivery(
+      createInputTextEvent({
+        route: {
+          delivery: {
+            required: true,
+            selection: 'sticky',
+            stickyKey: 'discord-dm-user-1',
+          },
         },
-      },
-    }))
+      }),
+    )
 
     expect(delivery).toEqual({
       mode: 'consumer-group',

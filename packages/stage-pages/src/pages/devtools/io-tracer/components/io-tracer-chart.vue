@@ -32,18 +32,17 @@ const minimapRef = ref<HTMLDivElement>()
 const { width: containerWidth } = useElementSize(containerRef)
 const { left: containerLeft } = useElementBounding(containerRef)
 const { left: minimapLeft } = useElementBounding(minimapRef)
-const hoveredSpan = ref<{ span: IOSpan, turn: IOTurn, x: number, y: number } | null>(null)
+const hoveredSpan = ref<{ span: IOSpan; turn: IOTurn; x: number; y: number } | null>(null)
 
 const turns = computed(() => {
   return props.turns.toSorted((a, b) => a.startTs - b.startTs)
 })
 
 const visibleSpans = computed(() => {
-  const result: { span: IOSpan, turn: IOTurn }[] = []
+  const result: { span: IOSpan; turn: IOTurn }[] = []
   for (const turn of turns.value) {
     for (const span of turn.spans) {
-      if (!props.hiddenSubsystems.has(span.subsystem))
-        result.push({ span, turn })
+      if (!props.hiddenSubsystems.has(span.subsystem)) result.push({ span, turn })
     }
   }
   return result
@@ -53,16 +52,14 @@ const viewStart = ref(0)
 const viewEnd = ref(1000)
 
 const globalRange = computed(() => {
-  if (visibleSpans.value.length === 0)
-    return { min: props.timeOrigin, max: props.timeOrigin + 1000 }
+  if (visibleSpans.value.length === 0) return { min: props.timeOrigin, max: props.timeOrigin + 1000 }
   let min = Infinity
   let max = -Infinity
   for (const { span } of visibleSpans.value) {
     min = Math.min(min, span.startTs)
     max = Math.max(max, span.endTs ?? performance.now())
   }
-  if (min === Infinity)
-    return { min: props.timeOrigin, max: props.timeOrigin + 1000 }
+  if (min === Infinity) return { min: props.timeOrigin, max: props.timeOrigin + 1000 }
   const pad = (max - min) * 0.05 || 50
   return { min: min - pad, max: max + pad }
 })
@@ -73,13 +70,11 @@ const minViewDuration = computed(() => globalRange.value.max - globalRange.value
 const maxViewDuration = computed(() => Math.max(minViewDuration.value, 10))
 const minZoomDuration = 1
 
-function clampViewport(start: number, end: number): { start: number, end: number } {
+function clampViewport(start: number, end: number): { start: number; end: number } {
   let dur = end - start
 
-  if (dur > maxViewDuration.value)
-    dur = maxViewDuration.value
-  if (dur < minZoomDuration)
-    dur = minZoomDuration
+  if (dur > maxViewDuration.value) dur = maxViewDuration.value
+  if (dur < minZoomDuration) dur = minZoomDuration
 
   const range = globalRange.value
 
@@ -91,8 +86,7 @@ function clampViewport(start: number, end: number): { start: number, end: number
     end = range.max
     start = end - dur
   }
-  if (start < range.min)
-    start = range.min
+  if (start < range.min) start = range.min
 
   return { start, end }
 }
@@ -137,9 +131,8 @@ const layout = computed(() => {
   let isFirstTurn = true
 
   for (const turn of turns.value) {
-    const turnSpans = turn.spans.filter(s => !props.hiddenSubsystems.has(s.subsystem))
-    if (turnSpans.length === 0)
-      continue
+    const turnSpans = turn.spans.filter((s) => !props.hiddenSubsystems.has(s.subsystem))
+    if (turnSpans.length === 0) continue
 
     if (!isFirstTurn) {
       rows.push({ type: 'turn-separator', y })
@@ -147,11 +140,11 @@ const layout = computed(() => {
     }
     isFirstTurn = false
 
-    const llmSpans = turnSpans.filter(s => s.subsystem === IOSubsystems.LLM).sort((a, b) => a.startTs - b.startTs)
+    const llmSpans = turnSpans.filter((s) => s.subsystem === IOSubsystems.LLM).sort((a, b) => a.startTs - b.startTs)
     const auxiliarySpans = turnSpans
-      .filter(s => s.subsystem !== IOSubsystems.LLM && !ttsSubsystems.has(s.subsystem))
+      .filter((s) => s.subsystem !== IOSubsystems.LLM && !ttsSubsystems.has(s.subsystem))
       .sort((a, b) => a.startTs - b.startTs)
-    const ttsSpanList = turnSpans.filter(s => ttsSubsystems.has(s.subsystem))
+    const ttsSpanList = turnSpans.filter((s) => ttsSubsystems.has(s.subsystem))
 
     const segmentGroups = new Map<string, IOSpan[]>()
     for (const span of ttsSpanList) {
@@ -166,8 +159,7 @@ const layout = computed(() => {
     for (const group of segmentGroups.values())
       group.sort((a, b) => subsystemOrder.indexOf(a.subsystem) - subsystemOrder.indexOf(b.subsystem))
 
-    const sortedSegments = [...segmentGroups.values()]
-      .sort((a, b) => a[0].startTs - b[0].startTs)
+    const sortedSegments = [...segmentGroups.values()].sort((a, b) => a[0].startTs - b[0].startTs)
 
     for (const span of llmSpans) {
       rows.push({ type: 'span', span, turn, subsystem: IOSubsystems.LLM, y })
@@ -192,8 +184,7 @@ const layout = computed(() => {
 
 function timeToX(ts: number): number {
   const duration = viewEnd.value - viewStart.value
-  if (duration <= 0)
-    return 0
+  if (duration <= 0) return 0
   return ((ts - viewStart.value) / duration) * chartWidth.value
 }
 
@@ -235,15 +226,13 @@ const edgeIndicators = computed(() => {
   const vEnd = viewEnd.value
 
   for (const row of layout.value.rows) {
-    if (row.type !== 'span')
-      continue
+    if (row.type !== 'span') continue
     const span = row.span
     const spanEnd = span.endTs ?? performance.now()
 
     if (spanEnd < vStart) {
       indicators.push({ subsystem: span.subsystem, side: 'left', y: row.y, spanId: span.id })
-    }
-    else if (span.startTs > vEnd) {
+    } else if (span.startTs > vEnd) {
       indicators.push({ subsystem: span.subsystem, side: 'right', y: row.y, spanId: span.id })
     }
   }
@@ -252,27 +241,22 @@ const edgeIndicators = computed(() => {
 
 const ticks = computed(() => {
   const width = chartWidth.value
-  if (width <= 0)
-    return []
+  if (width <= 0) return []
   const vStart = viewStart.value
   const vEnd = viewEnd.value
   const duration = vEnd - vStart
-  if (duration <= 0)
-    return []
+  if (duration <= 0) return []
 
   const targetCount = Math.max(4, Math.floor(width / 120))
   let interval = duration / targetCount
   const mag = 10 ** Math.floor(Math.log10(interval))
   const norm = interval / mag
-  if (norm < 1.5)
-    interval = mag
-  else if (norm < 3.5)
-    interval = 2 * mag
-  else if (norm < 7.5)
-    interval = 5 * mag
+  if (norm < 1.5) interval = mag
+  else if (norm < 3.5) interval = 2 * mag
+  else if (norm < 7.5) interval = 5 * mag
   else interval = 10 * mag
 
-  const result: { x: number, label: string }[] = []
+  const result: { x: number; label: string }[] = []
   const start = Math.ceil(vStart / interval) * interval
   for (let ts = start; ts <= vEnd; ts += interval) {
     result.push({ x: timeToX(ts), label: fmtMs(ts - props.timeOrigin) })
@@ -283,16 +267,14 @@ const ticks = computed(() => {
 function minimapSpanX(span: IOSpan): number {
   const range = globalRange.value
   const dur = range.max - range.min
-  if (dur <= 0)
-    return 0
+  if (dur <= 0) return 0
   return ((span.startTs - range.min) / dur) * chartWidth.value
 }
 
 function minimapSpanW(span: IOSpan): number {
   const range = globalRange.value
   const dur = range.max - range.min
-  if (dur <= 0)
-    return 0
+  if (dur <= 0) return 0
   const end = span.endTs ?? performance.now()
   return Math.max(((end - span.startTs) / dur) * chartWidth.value, 1)
 }
@@ -300,16 +282,14 @@ function minimapSpanW(span: IOSpan): number {
 const minimapViewportX = computed(() => {
   const range = globalRange.value
   const dur = range.max - range.min
-  if (dur <= 0)
-    return 0
+  if (dur <= 0) return 0
   return ((viewStart.value - range.min) / dur) * chartWidth.value
 })
 
 const minimapViewportW = computed(() => {
   const range = globalRange.value
   const dur = range.max - range.min
-  if (dur <= 0)
-    return chartWidth.value
+  if (dur <= 0) return chartWidth.value
   return ((viewEnd.value - viewStart.value) / dur) * chartWidth.value
 })
 
@@ -339,15 +319,13 @@ function onChartMouseDown(e: MouseEvent) {
 }
 
 function onChartMouseMove(e: MouseEvent) {
-  if (!isDragging.value)
-    return
+  if (!isDragging.value) return
   const dx = e.clientX - dragStartX
   const timeDelta = -(dx / chartWidth.value) * (dragViewEnd - dragViewStart)
   setViewport(dragViewStart + timeDelta, dragViewEnd + timeDelta)
 
   const dy = e.clientY - dragStartY
-  if (scrollAreaRef.value)
-    scrollAreaRef.value.scrollTop = dragStartScrollTop - dy
+  if (scrollAreaRef.value) scrollAreaRef.value.scrollTop = dragStartScrollTop - dy
 }
 
 function onChartMouseUp() {
@@ -376,10 +354,7 @@ function onChartWheel(e: WheelEvent) {
     const factor = e.deltaY > 0 ? 1.15 : 1 / 1.15
     const mouseX = e.clientX - containerLeft.value - LABEL_COL_WIDTH
     const pivot = xToTime(mouseX)
-    setViewport(
-      pivot - (pivot - viewStart.value) * factor,
-      pivot + (viewEnd.value - pivot) * factor,
-    )
+    setViewport(pivot - (pivot - viewStart.value) * factor, pivot + (viewEnd.value - pivot) * factor)
   }
 }
 
@@ -397,10 +372,8 @@ const HANDLE_HIT_WIDTH = 8
 function minimapHitTest(offsetX: number): 'left-handle' | 'right-handle' | 'area-select' {
   const leftEdge = minimapViewportX.value
   const rightEdge = minimapViewportX.value + minimapViewportW.value
-  if (Math.abs(offsetX - leftEdge) <= HANDLE_HIT_WIDTH)
-    return 'left-handle'
-  if (Math.abs(offsetX - rightEdge) <= HANDLE_HIT_WIDTH)
-    return 'right-handle'
+  if (Math.abs(offsetX - leftEdge) <= HANDLE_HIT_WIDTH) return 'left-handle'
+  if (Math.abs(offsetX - rightEdge) <= HANDLE_HIT_WIDTH) return 'right-handle'
   return 'area-select'
 }
 
@@ -425,8 +398,7 @@ function onMinimapMouseDown(e: MouseEvent) {
 }
 
 function onMinimapMouseMove(e: MouseEvent) {
-  if (!minimapDragMode)
-    return
+  if (!minimapDragMode) return
   const x = Math.max(0, Math.min(e.clientX - minimapLeft.value, chartWidth.value))
   const range = globalRange.value
   const dur = range.max - range.min
@@ -434,11 +406,9 @@ function onMinimapMouseMove(e: MouseEvent) {
 
   if (minimapDragMode === 'left-handle') {
     setViewport(Math.min(t, minimapDragStartViewEnd - minZoomDuration), minimapDragStartViewEnd)
-  }
-  else if (minimapDragMode === 'right-handle') {
+  } else if (minimapDragMode === 'right-handle') {
     setViewport(minimapDragStartViewStart, Math.max(t, minimapDragStartViewStart + minZoomDuration))
-  }
-  else {
+  } else {
     const t1 = range.min + (minimapDragStartX / chartWidth.value) * dur
     setViewport(Math.min(t1, t), Math.max(t1, t))
   }
@@ -446,8 +416,7 @@ function onMinimapMouseMove(e: MouseEvent) {
 
 function onMinimapMouseUp() {
   if (minimapDragMode) {
-    if (minimapDragMode === 'area-select' && viewEnd.value - viewStart.value < 1)
-      autoFit()
+    if (minimapDragMode === 'area-select' && viewEnd.value - viewStart.value < 1) autoFit()
     minimapDragMode = null
   }
   stopMinimapMove?.()
@@ -458,15 +427,13 @@ function onMinimapMouseUp() {
 
 const minimapCursor = ref<string>('crosshair')
 function onMinimapHover(e: MouseEvent) {
-  if (minimapDragMode)
-    return
+  if (minimapDragMode) return
   const hit = minimapHitTest(e.offsetX)
   minimapCursor.value = hit === 'left-handle' || hit === 'right-handle' ? 'ew-resize' : 'crosshair'
 }
 
 const tooltipStyle = computed(() => {
-  if (!hoveredSpan.value)
-    return {}
+  if (!hoveredSpan.value) return {}
   const { x, y } = hoveredSpan.value
   const maxX = (typeof globalThis.window !== 'undefined' ? globalThis.window.innerWidth : 1920) - 300
   const maxY = (typeof globalThis.window !== 'undefined' ? globalThis.window.innerHeight : 1080) - 120
@@ -494,26 +461,24 @@ function autoFit() {
   hasUserInteracted = false
 }
 
-watch(() => visibleSpans.value.length, (count) => {
-  if (count > 0 && !hasUserInteracted)
-    autoFit()
-})
+watch(
+  () => visibleSpans.value.length,
+  (count) => {
+    if (count > 0 && !hasUserInteracted) autoFit()
+  },
+)
 
 defineExpose({ autoFit })
 
 function fmtMs(ms: number): string {
-  if (ms < 0.01)
-    return '0ms'
-  if (ms < 1)
-    return `${(ms * 1000).toFixed(0)}µs`
-  if (ms < 1000)
-    return `${ms.toFixed(ms < 10 ? 1 : 0)}ms`
+  if (ms < 0.01) return '0ms'
+  if (ms < 1) return `${(ms * 1000).toFixed(0)}µs`
+  if (ms < 1000) return `${ms.toFixed(ms < 10 ? 1 : 0)}ms`
   return `${(ms / 1000).toFixed(2)}s`
 }
 
 function spanDuration(span: IOSpan): string {
-  if (!span.endTs)
-    return 'live'
+  if (!span.endTs) return 'live'
   return fmtMs(span.endTs - span.startTs)
 }
 
@@ -523,10 +488,8 @@ function spanLabel(span: IOSpan): string {
 }
 
 function formatMetaValue(value: unknown): string {
-  if (value == null)
-    return ''
-  if (typeof value === 'object')
-    return JSON.stringify(value)
+  if (value == null) return ''
+  if (typeof value === 'object') return JSON.stringify(value)
   return String(value)
 }
 
@@ -536,7 +499,7 @@ function tooltipMetaEntries(span: IOSpan) {
     : []
 
   return tooltipKeys
-    .map(key => [key, span.meta[key]] as const)
+    .map((key) => [key, span.meta[key]] as const)
     .filter(([, value]) => value !== undefined && value !== '')
     .map(([key, value]) => ({
       label: key,
@@ -546,10 +509,7 @@ function tooltipMetaEntries(span: IOSpan) {
 </script>
 
 <template>
-  <div
-    ref="containerRef"
-    :class="['flex-1 flex flex-col overflow-hidden', 'select-none']"
-  >
+  <div ref="containerRef" :class="['flex-1 flex flex-col overflow-hidden', 'select-none']">
     <!-- ═══ Minimap ═══ -->
     <div
       ref="minimapRef"
@@ -706,7 +666,9 @@ function tooltipMetaEntries(span: IOSpan) {
                 <!-- Duration inside bar -->
                 <span
                   v-if="spanBarWidth(row.span) > 44"
-                  :class="['absolute inset-0 flex items-center px-1.5 text-2.5 text-white font-medium truncate pointer-events-none']"
+                  :class="[
+                    'absolute inset-0 flex items-center px-1.5 text-2.5 text-white font-medium truncate pointer-events-none',
+                  ]"
                 >
                   {{ spanDuration(row.span) }}
                 </span>
@@ -714,13 +676,17 @@ function tooltipMetaEntries(span: IOSpan) {
                 <div
                   v-if="isClippedLeft(row.span)"
                   :class="['absolute left-0 top-0 bottom-0 w-4 pointer-events-none']"
-                  :style="{ background: `linear-gradient(to right, ${SUBSYSTEM_CONFIG_MAP.get(row.subsystem)?.color ?? '#888'}, transparent)` }"
+                  :style="{
+                    background: `linear-gradient(to right, ${SUBSYSTEM_CONFIG_MAP.get(row.subsystem)?.color ?? '#888'}, transparent)`,
+                  }"
                 />
                 <!-- Fade gradient on right edge when clipped -->
                 <div
                   v-if="isClippedRight(row.span)"
                   :class="['absolute right-0 top-0 bottom-0 w-4 pointer-events-none']"
-                  :style="{ background: `linear-gradient(to left, ${SUBSYSTEM_CONFIG_MAP.get(row.subsystem)?.color ?? '#888'}, transparent)` }"
+                  :style="{
+                    background: `linear-gradient(to left, ${SUBSYSTEM_CONFIG_MAP.get(row.subsystem)?.color ?? '#888'}, transparent)`,
+                  }"
                 />
               </div>
 
@@ -847,17 +813,26 @@ function tooltipMetaEntries(span: IOSpan) {
         :style="tooltipStyle"
       >
         <div :class="['flex items-center gap-1.5 mb-1']">
-          <div :class="['w-2 h-2 rounded-sm']" :style="{ backgroundColor: SUBSYSTEM_CONFIG_MAP.get(hoveredSpan.span.subsystem)?.color }" />
+          <div
+            :class="['w-2 h-2 rounded-sm']"
+            :style="{ backgroundColor: SUBSYSTEM_CONFIG_MAP.get(hoveredSpan.span.subsystem)?.color }"
+          />
           <span :class="['font-medium']">{{ SUBSYSTEM_CONFIG_MAP.get(hoveredSpan.span.subsystem)?.label }}</span>
           <span :class="['text-neutral-400']">{{ hoveredSpan.span.name }}</span>
         </div>
         <div :class="['flex items-center gap-2 text-neutral-300']">
           <span v-if="hoveredSpan.span.endTs">{{ fmtMs(hoveredSpan.span.endTs - hoveredSpan.span.startTs) }}</span>
           <span v-else :class="['text-amber-400']">In progress...</span>
-          <span v-if="hoveredSpan.span.meta.ttftMs" :class="['text-purple-300']">TTFT {{ fmtMs(hoveredSpan.span.meta.ttftMs) }}</span>
+          <span v-if="hoveredSpan.span.meta.ttftMs" :class="['text-purple-300']">
+            TTFT {{ fmtMs(hoveredSpan.span.meta.ttftMs) }}
+          </span>
         </div>
         <div v-if="hoveredSpan.span.meta.text" :class="['text-neutral-400 mt-1 break-words']">
-          {{ hoveredSpan.span.meta.text.length > 80 ? `${hoveredSpan.span.meta.text.slice(0, 80)}…` : hoveredSpan.span.meta.text }}
+          {{
+            hoveredSpan.span.meta.text.length > 80
+              ? `${hoveredSpan.span.meta.text.slice(0, 80)}…`
+              : hoveredSpan.span.meta.text
+          }}
         </div>
         <div v-if="hoveredSpan.span.meta.chunk_reason" :class="['text-amber-300/80 mt-0.5']">
           chunk: {{ hoveredSpan.span.meta.chunk_reason }}

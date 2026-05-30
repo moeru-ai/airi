@@ -16,13 +16,12 @@ import { useTemplateRef } from 'vue'
 const input = useTemplateRef('input')
 
 onStartTyping(() => {
-  if (!input.value.active)
-    input.value.focus()
+  if (!input.value.active) input.value.focus()
 })
 </script>
 
 <template>
-  <input ref="input" type="text" placeholder="Start typing to focus">
+  <input ref="input" type="text" placeholder="Start typing to focus" />
 </template>
 ```
 
@@ -46,8 +45,5 @@ This allows users to start typing anywhere on the page without accidentally trig
  * @param callback
  * @param options
  */
-export declare function onStartTyping(
-  callback: (event: KeyboardEvent) => void,
-  options?: ConfigurableDocument,
-): void
+export declare function onStartTyping(callback: (event: KeyboardEvent) => void, options?: ConfigurableDocument): void
 ```

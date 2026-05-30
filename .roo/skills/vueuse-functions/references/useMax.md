@@ -27,10 +27,6 @@ const max = useMax(a, b, 2) // Ref<3>
 ## Type Declarations
 
 ```ts
-export declare function useMax(
-  array: MaybeRefOrGetter<MaybeRefOrGetter<number>[]>,
-): ComputedRef<number>
-export declare function useMax(
-  ...args: MaybeRefOrGetter<number>[]
-): ComputedRef<number>
+export declare function useMax(array: MaybeRefOrGetter<MaybeRefOrGetter<number>[]>): ComputedRef<number>
+export declare function useMax(...args: MaybeRefOrGetter<number>[]): ComputedRef<number>
 ```

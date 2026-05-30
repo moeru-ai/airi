@@ -9,24 +9,24 @@ const invokeMocks = vi.hoisted(() => ({
     content: [{ type: 'text', text: 'ok' }],
     isError: false,
   })),
-  listMcpTools: vi.fn(async () => [{
-    serverName: 'filesystem',
-    name: 'filesystem::search',
-    toolName: 'search',
-    description: 'Search files.',
-    inputSchema: {
-      type: 'object',
-      properties: {},
+  listMcpTools: vi.fn(async () => [
+    {
+      serverName: 'filesystem',
+      name: 'filesystem::search',
+      toolName: 'search',
+      description: 'Search files.',
+      inputSchema: {
+        type: 'object',
+        properties: {},
+      },
     },
-  }]),
+  ]),
 }))
 
 vi.mock('@proj-airi/electron-vueuse', () => ({
   useElectronEventaInvoke: (event: { receiveEvent?: { id?: string } }) => {
-    if (event?.receiveEvent?.id === 'eventa:invoke:electron:mcp:list-tools-receive')
-      return invokeMocks.listMcpTools
-    if (event?.receiveEvent?.id === 'eventa:invoke:electron:mcp:call-tool-receive')
-      return invokeMocks.callMcpTool
+    if (event?.receiveEvent?.id === 'eventa:invoke:electron:mcp:list-tools-receive') return invokeMocks.listMcpTools
+    if (event?.receiveEvent?.id === 'eventa:invoke:electron:mcp:call-tool-receive') return invokeMocks.callMcpTool
 
     throw new Error(`Unexpected eventa invoke: ${JSON.stringify(event)}`)
   },
@@ -54,8 +54,8 @@ describe('useTamagotchiMcpToolsStore', async () => {
     await store.refresh()
 
     const mcpTools = llmToolsStore.toolsByProvider.mcp
-    const listTools = mcpTools?.find(tool => tool.function.name === 'builtIn_mcpListTools')
-    const callTool = mcpTools?.find(tool => tool.function.name === 'builtIn_mcpCallTool')
+    const listTools = mcpTools?.find((tool) => tool.function.name === 'builtIn_mcpListTools')
+    const callTool = mcpTools?.find((tool) => tool.function.name === 'builtIn_mcpCallTool')
 
     expect(mcpTools).toEqual([
       expect.objectContaining({ function: expect.objectContaining({ name: 'builtIn_mcpListTools' }) }),
@@ -63,26 +63,31 @@ describe('useTamagotchiMcpToolsStore', async () => {
     ])
 
     const listResult = await listTools?.execute({}, toolOptions)
-    const callResult = await callTool?.execute({
-      name: 'filesystem::search',
-      arguments: JSON.stringify({ query: 'hello', limit: 10 }),
-    }, toolOptions)
+    const callResult = await callTool?.execute(
+      {
+        name: 'filesystem::search',
+        arguments: JSON.stringify({ query: 'hello', limit: 10 }),
+      },
+      toolOptions,
+    )
 
     expect(invokeMocks.listMcpTools).toHaveBeenCalledTimes(1)
     expect(invokeMocks.callMcpTool).toHaveBeenCalledWith({
       name: 'filesystem::search',
       arguments: { query: 'hello', limit: 10 },
     })
-    expect(listResult).toEqual([{
-      serverName: 'filesystem',
-      name: 'filesystem::search',
-      toolName: 'search',
-      description: 'Search files.',
-      inputSchema: {
-        type: 'object',
-        properties: {},
+    expect(listResult).toEqual([
+      {
+        serverName: 'filesystem',
+        name: 'filesystem::search',
+        toolName: 'search',
+        description: 'Search files.',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+        },
       },
-    }])
+    ])
     expect(callResult).toEqual({
       content: [{ type: 'text', text: 'ok' }],
       isError: false,

@@ -1,4 +1,9 @@
-import type { RouteTargetExpression, WebSocketBaseEvent, WebSocketEventOf, WebSocketEvents } from '@proj-airi/server-shared/types'
+import type {
+  RouteTargetExpression,
+  WebSocketBaseEvent,
+  WebSocketEventOf,
+  WebSocketEvents,
+} from '@proj-airi/server-shared/types'
 
 import type { AuthenticatedPeer } from '../types'
 
@@ -24,13 +29,16 @@ function createPeer(options: {
     },
     authenticated: options.authenticated ?? true,
     name: options.name,
-    identity: options.plugin && options.instanceId
-      ? { kind: 'plugin', plugin: { id: options.plugin }, id: options.instanceId, labels: options.labels }
-      : undefined,
+    identity:
+      options.plugin && options.instanceId
+        ? { kind: 'plugin', plugin: { id: options.plugin }, id: options.instanceId, labels: options.labels }
+        : undefined,
   }
 }
 
-function createSparkNotifyEvent(overrides: Partial<WebSocketEventOf<'spark:notify'>> = {}): WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify'], any> {
+function createSparkNotifyEvent(
+  overrides: Partial<WebSocketEventOf<'spark:notify'>> = {},
+): WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify'], any> {
   const data: WebSocketEvents['spark:notify'] = {
     id: 'evt-1',
     eventId: 'spark-1',
@@ -160,8 +168,26 @@ describe('route middleware', () => {
 
   it('policy middleware filters targets', () => {
     const peers = new Map<string, AuthenticatedPeer>([
-      ['peer-1', createPeer({ id: 'peer-1', name: 'telegram', plugin: 'telegram-bot', instanceId: 'telegram-1', labels: { env: 'prod' } })],
-      ['peer-2', createPeer({ id: 'peer-2', name: 'stage-ui', plugin: 'stage-ui', instanceId: 'stage-ui-1', labels: { env: 'dev' } })],
+      [
+        'peer-1',
+        createPeer({
+          id: 'peer-1',
+          name: 'telegram',
+          plugin: 'telegram-bot',
+          instanceId: 'telegram-1',
+          labels: { env: 'prod' },
+        }),
+      ],
+      [
+        'peer-2',
+        createPeer({
+          id: 'peer-2',
+          name: 'stage-ui',
+          plugin: 'stage-ui',
+          instanceId: 'stage-ui-1',
+          labels: { env: 'dev' },
+        }),
+      ],
     ])
 
     const policy = createPolicyMiddleware({ allowLabels: ['env=prod'] })
@@ -173,20 +199,37 @@ describe('route middleware', () => {
     })
 
     expect(decision).toBeDefined()
-    if (!decision)
-      return
+    if (!decision) return
 
     expect(decision?.type).toBe('targets')
-    if (decision.type !== 'targets')
-      return
+    if (decision.type !== 'targets') return
 
     expect([...decision!.targetIds]).toEqual(['peer-1'])
   })
 
   it('policy middleware excludes unauthenticated peers', () => {
     const peers = new Map<string, AuthenticatedPeer>([
-      ['peer-1', createPeer({ id: 'peer-1', name: 'telegram', plugin: 'telegram-bot', instanceId: 'telegram-1', labels: { env: 'prod' } })],
-      ['peer-2', createPeer({ id: 'peer-2', name: 'stage-ui', plugin: 'stage-ui', instanceId: 'stage-ui-1', labels: { env: 'prod' }, authenticated: false })],
+      [
+        'peer-1',
+        createPeer({
+          id: 'peer-1',
+          name: 'telegram',
+          plugin: 'telegram-bot',
+          instanceId: 'telegram-1',
+          labels: { env: 'prod' },
+        }),
+      ],
+      [
+        'peer-2',
+        createPeer({
+          id: 'peer-2',
+          name: 'stage-ui',
+          plugin: 'stage-ui',
+          instanceId: 'stage-ui-1',
+          labels: { env: 'prod' },
+          authenticated: false,
+        }),
+      ],
     ])
 
     const policy = createPolicyMiddleware({ allowLabels: ['env=prod'] })
@@ -198,16 +241,33 @@ describe('route middleware', () => {
     })
 
     expect(decision).toBeDefined()
-    if (!decision || decision.type !== 'targets')
-      return
+    if (!decision || decision.type !== 'targets') return
 
     expect([...decision.targetIds]).toEqual(['peer-1'])
   })
 
   it('policy middleware does not authorize bypass by itself', () => {
     const peers = new Map<string, AuthenticatedPeer>([
-      ['peer-1', createPeer({ id: 'peer-1', name: 'telegram', plugin: 'telegram-bot', instanceId: 'telegram-1', labels: { env: 'prod' } })],
-      ['peer-2', createPeer({ id: 'peer-2', name: 'stage-ui', plugin: 'stage-ui', instanceId: 'stage-ui-1', labels: { env: 'dev' } })],
+      [
+        'peer-1',
+        createPeer({
+          id: 'peer-1',
+          name: 'telegram',
+          plugin: 'telegram-bot',
+          instanceId: 'telegram-1',
+          labels: { env: 'prod' },
+        }),
+      ],
+      [
+        'peer-2',
+        createPeer({
+          id: 'peer-2',
+          name: 'stage-ui',
+          plugin: 'stage-ui',
+          instanceId: 'stage-ui-1',
+          labels: { env: 'dev' },
+        }),
+      ],
     ])
 
     const policy = createPolicyMiddleware({ allowLabels: ['env=prod'] })
@@ -219,8 +279,7 @@ describe('route middleware', () => {
     })
 
     expect(decision).toBeDefined()
-    if (!decision || decision.type !== 'targets')
-      return
+    if (!decision || decision.type !== 'targets') return
 
     expect([...decision.targetIds]).toEqual(['peer-1'])
   })

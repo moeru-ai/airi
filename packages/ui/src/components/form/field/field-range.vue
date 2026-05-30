@@ -1,17 +1,20 @@
 <script setup lang="ts">
 import { Range } from '../range'
 
-const props = withDefaults(defineProps<{
-  min?: number
-  max?: number
-  step?: number
-  label?: string
-  description?: string
-  formatValue?: (value: number) => string
-  as?: 'label' | 'div'
-}>(), {
-  as: 'label',
-})
+const props = withDefaults(
+  defineProps<{
+    min?: number
+    max?: number
+    step?: number
+    label?: string
+    description?: string
+    formatValue?: (value: number) => string
+    as?: 'label' | 'div'
+  }>(),
+  {
+    as: 'label',
+  },
+)
 
 const modelValue = defineModel<number>({ required: true })
 </script>
@@ -34,13 +37,7 @@ const modelValue = defineModel<number>({ required: true })
       <span :class="['font-mono']">{{ props.formatValue?.(modelValue) || modelValue }}</span>
     </div>
     <div :class="['flex', 'flex-row', 'items-center', 'gap-2']">
-      <Range
-        v-model="modelValue"
-        :min="min ?? 0"
-        :max="max ?? 1"
-        :step="step ?? 0.01"
-        :class="['w-full']"
-      />
+      <Range v-model="modelValue" :min="min ?? 0" :max="max ?? 1" :step="step ?? 0.01" :class="['w-full']" />
     </div>
   </props.as>
 </template>

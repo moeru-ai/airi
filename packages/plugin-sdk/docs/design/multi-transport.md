@@ -63,12 +63,12 @@ Transport-aware contexts for isolated multi-plugin hosts.
 Define a small transport config type owned by the Plugin Host:
 
 ```ts
-export type PluginTransport
-  = | { kind: 'in-memory' }
-    | { kind: 'websocket', url: string, protocols?: string[] }
-    | { kind: 'web-worker', worker: Worker }
-    | { kind: 'node-worker', worker: import('node:worker_threads').Worker }
-    | { kind: 'electron', target: 'main' | 'renderer', webContentsId?: number }
+export type PluginTransport =
+  | { kind: 'in-memory' }
+  | { kind: 'websocket'; url: string; protocols?: string[] }
+  | { kind: 'web-worker'; worker: Worker }
+  | { kind: 'node-worker'; worker: import('node:worker_threads').Worker }
+  | { kind: 'electron'; target: 'main' | 'renderer'; webContentsId?: number }
 ```
 
 `createPluginContext(transport)` creates and returns an Eventa context based on the transport adapter (in-memory, WebSocket, worker, electron).

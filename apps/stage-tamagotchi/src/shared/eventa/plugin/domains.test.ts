@@ -16,9 +16,7 @@ import {
   pluginProtocolListProviders,
   pluginProtocolListProvidersEventName,
 } from '../index'
-import {
-  electronPluginGetAssetBaseUrl as electronPluginGetAssetBaseUrlFromAssets,
-} from './assets'
+import { electronPluginGetAssetBaseUrl as electronPluginGetAssetBaseUrlFromAssets } from './assets'
 import {
   electronPluginUpdateCapability as electronPluginUpdateCapabilityFromCapabilities,
   pluginProtocolListProvidersEventName as pluginProtocolListProvidersEventNameFromCapabilities,

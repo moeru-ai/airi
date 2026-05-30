@@ -313,12 +313,9 @@ export function applySnapshotRecord(
     history: pushTraceHistory(current.history, record),
   }
 
-  if (record.phase === 'after-load')
-    next.lastAfterLoad = record
-  else if (record.phase === 'before-dispose')
-    next.lastBeforeDispose = record
-  else if (record.phase === 'after-dispose')
-    next.lastAfterDispose = record
+  if (record.phase === 'after-load') next.lastAfterLoad = record
+  else if (record.phase === 'before-dispose') next.lastBeforeDispose = record
+  else if (record.phase === 'after-dispose') next.lastAfterDispose = record
 
   return next
 }
@@ -329,7 +326,9 @@ export const useStageThreeRuntimeDiagnosticsStore = defineStore('stageThreeRunti
   const vrmUpdate = ref<StageThreeRuntimeVrmUpdateDiagnostics>(createDefaultStageVrmUpdateDiagnostics())
   const hitTest = ref<StageThreeRuntimeHitTestDiagnostics>(createDefaultStageHitTestDiagnostics())
   const vrmLifecycle = ref<StageThreeRuntimeVrmLifecycleDiagnostics>(createDefaultStageVrmLifecycleDiagnostics())
-  const resourceSnapshots = ref<StageThreeRuntimeResourceSnapshotDiagnostics>(createDefaultStageResourceSnapshotDiagnostics())
+  const resourceSnapshots = ref<StageThreeRuntimeResourceSnapshotDiagnostics>(
+    createDefaultStageResourceSnapshotDiagnostics(),
+  )
 
   const localTraceContext = getStageThreeRuntimeTraceContext()
   const remoteTraceContext = getStageThreeRuntimeTraceBroadcastContext()
@@ -375,17 +374,22 @@ export const useStageThreeRuntimeDiagnosticsStore = defineStore('stageThreeRunti
 
   function applyVrmDisposeStartPayload(payload: VrmDisposeStartTracePayload) {
     vrmLifecycle.value = applyDisposeStartPayload(vrmLifecycle.value, payload)
-    resourceSnapshots.value = applySnapshotRecord(resourceSnapshots.value, createSnapshotRecord('before-dispose', payload))
+    resourceSnapshots.value = applySnapshotRecord(
+      resourceSnapshots.value,
+      createSnapshotRecord('before-dispose', payload),
+    )
   }
 
   function applyVrmDisposeEndPayload(payload: VrmDisposeEndTracePayload) {
     vrmLifecycle.value = applyDisposeEndPayload(vrmLifecycle.value, payload)
-    resourceSnapshots.value = applySnapshotRecord(resourceSnapshots.value, createSnapshotRecord('after-dispose', payload))
+    resourceSnapshots.value = applySnapshotRecord(
+      resourceSnapshots.value,
+      createSnapshotRecord('after-dispose', payload),
+    )
   }
 
   function applyForwardedTraceEnvelope(payload: StageThreeRuntimeTraceForwardedPayload) {
-    if (payload.origin === remoteTraceOriginId)
-      return
+    if (payload.origin === remoteTraceOriginId) return
 
     const envelope: StageThreeRuntimeTraceEnvelope = payload.envelope
 
@@ -421,22 +425,39 @@ export const useStageThreeRuntimeDiagnosticsStore = defineStore('stageThreeRunti
 
   function subscribeLocalEvents() {
     stopLocalSubscriptions = [
-      localTraceContext.on(stageThreeTraceRenderInfoEvent, event => event?.body && applyRenderPayload(event.body)),
-      localTraceContext.on(stageThreeTraceHitTestReadEvent, event => event?.body && applyHitTestPayload(event.body)),
-      localTraceContext.on(stageThreeTraceVrmUpdateFrameEvent, event => event?.body && applyVrmUpdatePayload(event.body)),
-      localTraceContext.on(stageThreeTraceVrmLoadStartEvent, event => event?.body && applyVrmLoadStartPayload(event.body)),
-      localTraceContext.on(stageThreeTraceVrmLoadEndEvent, event => event?.body && applyVrmLoadEndPayload(event.body)),
-      localTraceContext.on(stageThreeTraceVrmLoadErrorEvent, event => event?.body && applyVrmLoadErrorPayload(event.body)),
-      localTraceContext.on(stageThreeTraceVrmDisposeStartEvent, event => event?.body && applyVrmDisposeStartPayload(event.body)),
-      localTraceContext.on(stageThreeTraceVrmDisposeEndEvent, event => event?.body && applyVrmDisposeEndPayload(event.body)),
+      localTraceContext.on(stageThreeTraceRenderInfoEvent, (event) => event?.body && applyRenderPayload(event.body)),
+      localTraceContext.on(stageThreeTraceHitTestReadEvent, (event) => event?.body && applyHitTestPayload(event.body)),
+      localTraceContext.on(
+        stageThreeTraceVrmUpdateFrameEvent,
+        (event) => event?.body && applyVrmUpdatePayload(event.body),
+      ),
+      localTraceContext.on(
+        stageThreeTraceVrmLoadStartEvent,
+        (event) => event?.body && applyVrmLoadStartPayload(event.body),
+      ),
+      localTraceContext.on(
+        stageThreeTraceVrmLoadEndEvent,
+        (event) => event?.body && applyVrmLoadEndPayload(event.body),
+      ),
+      localTraceContext.on(
+        stageThreeTraceVrmLoadErrorEvent,
+        (event) => event?.body && applyVrmLoadErrorPayload(event.body),
+      ),
+      localTraceContext.on(
+        stageThreeTraceVrmDisposeStartEvent,
+        (event) => event?.body && applyVrmDisposeStartPayload(event.body),
+      ),
+      localTraceContext.on(
+        stageThreeTraceVrmDisposeEndEvent,
+        (event) => event?.body && applyVrmDisposeEndPayload(event.body),
+      ),
     ]
   }
 
   function subscribeRemoteEvents() {
     stopRemoteSubscriptions = [
       remoteTraceContext.on(stageThreeRuntimeTraceForwardedEvent, (event) => {
-        if (!event?.body)
-          return
+        if (!event?.body) return
 
         applyForwardedTraceEnvelope(event.body)
       }),
@@ -444,8 +465,7 @@ export const useStageThreeRuntimeDiagnosticsStore = defineStore('stageThreeRunti
   }
 
   function startTracing() {
-    if (tracing.value)
-      return
+    if (tracing.value) return
 
     initializeStageThreeRuntimeTraceBridge()
     resetSamples()
@@ -459,13 +479,10 @@ export const useStageThreeRuntimeDiagnosticsStore = defineStore('stageThreeRunti
   }
 
   function stopTracing() {
-    if (!tracing.value)
-      return
+    if (!tracing.value) return
 
-    for (const stopSubscription of stopLocalSubscriptions)
-      stopSubscription()
-    for (const stopSubscription of stopRemoteSubscriptions)
-      stopSubscription()
+    for (const stopSubscription of stopLocalSubscriptions) stopSubscription()
+    for (const stopSubscription of stopRemoteSubscriptions) stopSubscription()
 
     stopLocalSubscriptions = []
     stopRemoteSubscriptions = []

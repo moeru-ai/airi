@@ -12,11 +12,7 @@ import { createHash } from 'node:crypto'
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
-import {
-  artistryGenerateHeadless,
-  artistrySyncConfig,
-  artistryTestComfyUIConnection,
-} from '@proj-airi/stage-shared'
+import { artistryGenerateHeadless, artistrySyncConfig, artistryTestComfyUIConnection } from '@proj-airi/stage-shared'
 import { injeca } from 'injeca'
 
 import { ComfyUIProvider } from './providers/comfyui'
@@ -44,18 +40,17 @@ interface TriggerConfig {
 }
 
 function robustParse(input: unknown, context?: string): Record<string, unknown> {
-  if (typeof input === 'object' && input !== null)
-    return input as Record<string, unknown>
+  if (typeof input === 'object' && input !== null) return input as Record<string, unknown>
   if (typeof input === 'string' && input.trim()) {
     try {
       const parsed = JSON.parse(input)
-      if (typeof parsed === 'object' && parsed !== null)
-        return parsed as Record<string, unknown>
+      if (typeof parsed === 'object' && parsed !== null) return parsed as Record<string, unknown>
       log.warn(`[Artistry Bridge] robustParse(${context || 'unknown'}): Parsed JSON is not an object: ${typeof parsed}`)
       return {}
-    }
-    catch (e) {
-      log.warn(`[Artistry Bridge] robustParse(${context || 'unknown'}): JSON parse failed: ${errorMessageFrom(e)} | Input: ${input.slice(0, 100)}`)
+    } catch (e) {
+      log.warn(
+        `[Artistry Bridge] robustParse(${context || 'unknown'}): JSON parse failed: ${errorMessageFrom(e)} | Input: ${input.slice(0, 100)}`,
+      )
       return {}
     }
   }
@@ -85,20 +80,20 @@ async function downloadImageAsBase64(url: string): Promise<string> {
   try {
     log.log(`[Artistry Bridge] Downloading image from: ${url}`)
     const response = await fetch(url)
-    if (!response.ok)
-      throw new Error(`Failed to fetch image: ${response.statusText}`)
+    if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`)
     const buffer = await response.arrayBuffer()
     const base64 = Buffer.from(buffer).toString('base64')
     // NOTICE: Downstream renderer paths consume this via fetch(), which requires a data URL.
     return `data:image/png;base64,${base64}`
-  }
-  catch (error: unknown) {
+  } catch (error: unknown) {
     log.error(`[Artistry Bridge] Failed to download image: ${errorMessageFrom(error)}`)
     throw error
   }
 }
 
-function supportsJobCallback(provider: ArtistryProvider): provider is ArtistryProvider & Required<Pick<ArtistryProvider, 'setJobCallback'>> {
+function supportsJobCallback(
+  provider: ArtistryProvider,
+): provider is ArtistryProvider & Required<Pick<ArtistryProvider, 'setJobCallback'>> {
   return typeof provider.setJobCallback === 'function'
 }
 
@@ -109,7 +104,7 @@ artistryProviders.set('replicate', new ReplicateProvider())
 artistryProviders.set('nanobanana', new NanoBananaProvider())
 
 // Deduplication map for headless requests
-const pendingHeadlessRequests = new Map<string, Promise<{ imageUrl?: string, base64?: string, error?: string }>>()
+const pendingHeadlessRequests = new Map<string, Promise<{ imageUrl?: string; base64?: string; error?: string }>>()
 
 export async function generateHeadless(params: {
   prompt: string
@@ -117,16 +112,16 @@ export async function generateHeadless(params: {
   provider?: string
   options?: Record<string, any>
   globals?: Record<string, any>
-}): Promise<{ imageUrl?: string, base64?: string, error?: string }> {
+}): Promise<{ imageUrl?: string; base64?: string; error?: string }> {
   // Resolve config and effective globals early to secure the deduplication fingerprint
-  const { config: artistryConfig } = await injeca.resolve({ config: 'configs:artistry' } as { config: ProvidedBy<Config<typeof artistryConfigSchema>> })
+  const { config: artistryConfig } = await injeca.resolve({ config: 'configs:artistry' } as {
+    config: ProvidedBy<Config<typeof artistryConfigSchema>>
+  })
   const activeGlobals = (params.globals || artistryConfig.get()?.artistryGlobals || {}) as Record<string, any>
 
   // Create a fingerprint for deduplication
   const sourceImage = activeGlobals?.image
-  const imageHash = typeof sourceImage === 'string'
-    ? createHash('sha256').update(sourceImage).digest('hex')
-    : 'NONE'
+  const imageHash = typeof sourceImage === 'string' ? createHash('sha256').update(sourceImage).digest('hex') : 'NONE'
 
   // We hash the globals (excluding the heavy image already covered by imageHash)
   // to ensure that changing a workflow or provider setting triggers a unique execution.
@@ -148,9 +143,11 @@ export async function generateHeadless(params: {
   }
 
   const executionPromise = (async () => {
-    const requestedProvider = (params.provider || artistryConfig.get()?.artistryProvider || DEFAULT_ARTISTRY_PROVIDER).trim().toLowerCase()
+    const requestedProvider = (params.provider || artistryConfig.get()?.artistryProvider || DEFAULT_ARTISTRY_PROVIDER)
+      .trim()
+      .toLowerCase()
     if (requestedProvider === 'none') {
-      log.log('[Headless] Provider is \'none\'. Bypassing generation.')
+      log.log("[Headless] Provider is 'none'. Bypassing generation.")
       throw new Error('Artistry provider is disabled.')
     }
 
@@ -167,8 +164,7 @@ export async function generateHeadless(params: {
     }
 
     log.log(`[Headless] Globals keys: ${Object.keys(activeGlobals || {}).join(', ')}`)
-    if (activeGlobals?.image)
-      log.log(`[Headless] Source image length: ${activeGlobals.image.length}`)
+    if (activeGlobals?.image) log.log(`[Headless] Source image length: ${activeGlobals.image.length}`)
 
     const request: ArtistryRequest = {
       prompt: params.prompt,
@@ -208,7 +204,7 @@ export async function generateHeadless(params: {
           isDone = true
         }
         if (!isDone) {
-          await new Promise(resolve => setTimeout(resolve, 2000))
+          await new Promise((resolve) => setTimeout(resolve, 2000))
         }
       }
 
@@ -220,11 +216,10 @@ export async function generateHeadless(params: {
       log.log(`[Headless] Job ${job.jobId} succeeded. Image URL: ${lastStatus.imageUrl}`)
       const base64 = lastStatus.imageUrl ? await downloadImageAsBase64(lastStatus.imageUrl) : undefined
       return { imageUrl: lastStatus.imageUrl, base64 }
-    }
-    else {
+    } else {
       // For providers with callbacks (like ComfyUI), we wait for the result via the callback
       log.log(`[Headless] Using callback-based wait logic for provider: ${requestedProvider}`)
-      return new Promise<{ imageUrl?: string, base64?: string }>((resolve, reject) => {
+      return new Promise<{ imageUrl?: string; base64?: string }>((resolve, reject) => {
         const timeout = 1000 * 60 * 5 // 5 minutes timeout
         const timer = setTimeout(() => {
           reject(new Error('Image generation timed out after 5 minutes.'))
@@ -236,12 +231,10 @@ export async function generateHeadless(params: {
             try {
               const base64 = status.imageUrl ? await downloadImageAsBase64(status.imageUrl) : undefined
               resolve({ imageUrl: status.imageUrl, base64 })
-            }
-            catch (e) {
+            } catch (e) {
               reject(e)
             }
-          }
-          else if (status.status === 'failed') {
+          } else if (status.status === 'failed') {
             clearTimeout(timer)
             reject(new Error(status.error || 'Generation failed'))
           }
@@ -254,11 +247,9 @@ export async function generateHeadless(params: {
 
   try {
     return await executionPromise
-  }
-  catch (err) {
+  } catch (err) {
     return { error: errorMessageFrom(err) ?? String(err) }
-  }
-  finally {
+  } finally {
     // Remove from map after completion so it can be re-triggered later
     pendingHeadlessRequests.delete(fingerprint)
   }
@@ -270,8 +261,7 @@ async function handleArtistryTrigger(params: {
   componentProps?: unknown
   widgetsManager: WidgetsWindowManager
 }) {
-  if (params.componentName !== 'comfy' && params.componentName !== 'artistry')
-    return
+  if (params.componentName !== 'comfy' && params.componentName !== 'artistry') return
 
   log.log(`🔍 Intercepted widget update [${params.id}] for component: ${params.componentName}`)
 
@@ -294,10 +284,16 @@ async function handleArtistryTrigger(params: {
     },
     // NOTICE: Keep legacy `Globals` fallback while standardizing on `globals`.
     // Older widget payloads can still send `Globals`, and dropping it now would break them.
-    globals: robustParse(artistryConfigOverrides.globals || artistryConfigOverrides.Globals || cardDefaults.globals, 'artistryGlobals'),
+    globals: robustParse(
+      artistryConfigOverrides.globals || artistryConfigOverrides.Globals || cardDefaults.globals,
+      'artistryGlobals',
+    ),
   }
-  const { config: artistryConfig } = await injeca.resolve({ config: 'configs:artistry' } as { config: ProvidedBy<Config<typeof artistryConfigSchema>> })
-  const providerId = config.provider || cardDefaults.provider || artistryConfig.get()?.artistryProvider || DEFAULT_ARTISTRY_PROVIDER
+  const { config: artistryConfig } = await injeca.resolve({ config: 'configs:artistry' } as {
+    config: ProvidedBy<Config<typeof artistryConfigSchema>>
+  })
+  const providerId =
+    config.provider || cardDefaults.provider || artistryConfig.get()?.artistryProvider || DEFAULT_ARTISTRY_PROVIDER
 
   // [BY DESIGN]: Short-circuit if artistry is explicitly disabled (provider: 'none').
   // This prevents noisy "Provider not found" errors when the feature is intentionally bypassed.
@@ -309,8 +305,9 @@ async function handleArtistryTrigger(params: {
   // Extract options and remix ID fallback
   const options = config.options || {}
   // TODO: move remix defaults into per-card/provider config to remove this fallback heuristic.
-  const remixId = (payload.remixId || props.remixId || options.remixId) as string | undefined
-    || (props.status === 'generating' && !prompt ? DEFAULT_REMIX_ID : undefined)
+  const remixId =
+    ((payload.remixId || props.remixId || options.remixId) as string | undefined) ||
+    (props.status === 'generating' && !prompt ? DEFAULT_REMIX_ID : undefined)
 
   const mode = props.mode || (remixId ? 'remix' : 'generate')
   const triggerFingerprint = `${mode}:${remixId || ''}:${prompt || ''}`
@@ -341,14 +338,16 @@ async function handleArtistryTrigger(params: {
     // Initialize the provider with global config fallback
     const activeGlobals = config.globals || artistryConfig.get()?.artistryGlobals
     if (provider.initialize && activeGlobals) {
-      log.log(`[Artistry Bridge] Initializing provider ${providerId} with ${config.globals ? 'provided' : 'fallback'} globals...`)
+      log.log(
+        `[Artistry Bridge] Initializing provider ${providerId} with ${config.globals ? 'provided' : 'fallback'} globals...`,
+      )
       await provider.initialize(activeGlobals)
     }
 
     try {
       // Build the abstract request
       const request: ArtistryRequest = {
-        prompt: config.promptPrefix ? `${config.promptPrefix} ${prompt}` : (prompt || ''),
+        prompt: config.promptPrefix ? `${config.promptPrefix} ${prompt}` : prompt || '',
         model: config.model,
         extra: {
           ...options,
@@ -362,8 +361,7 @@ async function handleArtistryTrigger(params: {
       const updateIfActive = (statusUpdate: Record<string, any>) => {
         // NOTICE: the same widget can kick off another generation before the previous one fully
         // settles. Only the most recent run is allowed to keep updating the widget state.
-        if (activeRunMap.get(params.id) !== runId)
-          return
+        if (activeRunMap.get(params.id) !== runId) return
 
         // [BY DESIGN]: Merging status updates into existing props preserves fields like imageUrl
         // that would otherwise be lost when the final 'done' status is sent.
@@ -384,8 +382,7 @@ async function handleArtistryTrigger(params: {
           if (statusUpdate.status === 'succeeded') {
             log.log(`🎉 Job complete (via callback) for ${params.id}. Sending final status: done`)
             updateIfActive({ status: 'done', progress: 100, actionLabel: undefined })
-          }
-          else if (statusUpdate.status === 'failed') {
+          } else if (statusUpdate.status === 'failed') {
             log.log(`🔴 Job failed (via callback) for ${params.id}. Preserving error status.`)
             // [BY DESIGN]: Don't send status: 'done' here to avoid clearing the error message (Issue #56)
           }
@@ -423,7 +420,7 @@ async function handleArtistryTrigger(params: {
           updateIfActive(status as Record<string, any>)
 
           if (!isDone) {
-            await new Promise(resolve => setTimeout(resolve, 2000))
+            await new Promise((resolve) => setTimeout(resolve, 2000))
           }
         }
 
@@ -432,14 +429,12 @@ async function handleArtistryTrigger(params: {
           if (finalStatus.status === 'succeeded') {
             log.log(`🎉 Job complete (via polling) for ${params.id}. Sending final status: done`)
             updateIfActive({ status: 'done', progress: 100, actionLabel: undefined })
-          }
-          else {
+          } else {
             log.log(`🔴 Job failed (via polling) for ${params.id}. Preserving error status.`)
           }
         }
       }
-    }
-    catch (error: unknown) {
+    } catch (error: unknown) {
       const message = errorMessageFrom(error) ?? 'Unknown generation error'
       log.error(`🔴 Generation failed: ${message}`)
       if (activeRunMap.get(params.id) === runId) {
@@ -469,19 +464,21 @@ export async function setupArtistryBridge(params: {
     defineInvokeHandler(params.context, artistrySyncConfig, (payload) => {
       log.log(`🔄 Syncing artistry config to main. Provider: ${payload.provider}`)
       params.artistryConfig.update({
-        artistryProvider: payload.provider || params.artistryConfig.get()?.artistryProvider || DEFAULT_ARTISTRY_PROVIDER,
-        artistryGlobals: payload.globals || params.artistryConfig.get()?.artistryGlobals || {
-          comfyuiServerUrl: 'http://localhost:8188',
-          comfyuiSavedWorkflows: [],
-          comfyuiActiveWorkflow: '',
-          replicateApiKey: '',
-          replicateDefaultModel: 'black-forest-labs/flux-schnell',
-          replicateAspectRatio: '16:9',
-          replicateInferenceSteps: 4,
-          nanobananaApiKey: '',
-          nanobananaModel: 'gemini-3.1-flash-image-preview',
-          nanobananaResolution: '1K',
-        },
+        artistryProvider:
+          payload.provider || params.artistryConfig.get()?.artistryProvider || DEFAULT_ARTISTRY_PROVIDER,
+        artistryGlobals: payload.globals ||
+          params.artistryConfig.get()?.artistryGlobals || {
+            comfyuiServerUrl: 'http://localhost:8188',
+            comfyuiSavedWorkflows: [],
+            comfyuiActiveWorkflow: '',
+            replicateApiKey: '',
+            replicateDefaultModel: 'black-forest-labs/flux-schnell',
+            replicateAspectRatio: '16:9',
+            replicateInferenceSteps: 4,
+            nanobananaApiKey: '',
+            nanobananaModel: 'gemini-3.1-flash-image-preview',
+            nanobananaResolution: '1K',
+          },
       })
 
       // Update character-level defaults (volatile only)
@@ -501,18 +498,16 @@ export async function setupArtistryBridge(params: {
         const resp = await fetch(`${url}/system_stats`, { signal: controller.signal })
         clearTimeout(id)
 
-        if (!resp.ok)
-          throw new Error(`HTTP ${resp.status}`)
-        const data = await resp.json() as { devices?: Array<{ name?: string, vram_total?: number }> }
-        const gpus = data.devices?.map(d => d.name).join(', ') || 'Unknown GPU'
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+        const data = (await resp.json()) as { devices?: Array<{ name?: string; vram_total?: number }> }
+        const gpus = data.devices?.map((d) => d.name).join(', ') || 'Unknown GPU'
         const vram = data.devices?.[0]?.vram_total
         const vramStr = vram ? `${(vram / 1024 / 1024 / 1024).toFixed(1)} GB` : ''
         return {
           ok: true,
           info: `Connected — ${gpus}${vramStr ? ` (${vramStr} VRAM)` : ''}`,
         }
-      }
-      catch (e: unknown) {
+      } catch (e: unknown) {
         const message = errorMessageFrom(e) ?? 'Unknown connection error'
         log.error(`🔌 ComfyUI connection test failed: ${message}`)
         return {
@@ -538,7 +533,9 @@ export async function setupArtistryBridge(params: {
   const originalPushWidget = params.widgetsManager.pushWidget
   params.widgetsManager.pushWidget = async (payload) => {
     if (payload.componentName === 'comfy' || payload.componentName === 'artistry') {
-      log.log(`🖼️  Enabling 'Living Wall' mode for ${payload.id}. Forcing infinite TTL. (Component: ${payload.componentName})`)
+      log.log(
+        `🖼️  Enabling 'Living Wall' mode for ${payload.id}. Forcing infinite TTL. (Component: ${payload.componentName})`,
+      )
       payload.ttlMs = 0
     }
 

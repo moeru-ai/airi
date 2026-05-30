@@ -11,8 +11,7 @@ export function createMinecraftContext(): ContextMessage | null {
   const minecraftStore = useMinecraftStore()
   minecraftStore.initialize()
 
-  if (!minecraftStore.configured)
-    return null
+  if (!minecraftStore.configured) return null
 
   const serviceStatus = minecraftStore.serviceConnected ? 'online' : 'offline'
   const runtimeContextText = minecraftStore.latestRuntimeContextText.trim()

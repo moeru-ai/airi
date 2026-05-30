@@ -167,7 +167,7 @@ const openDevtoolsWindow = useElectronEventaInvoke(electronOpenDevtoolsWindow)
       :enter="{ opacity: 1, y: 0 }"
       :duration="250"
       :style="{
-        transitionDelay: `${(index) * 50}ms`, // delay between each item, unocss doesn't support dynamic generation of classes now
+        transitionDelay: `${index * 50}ms`, // delay between each item, unocss doesn't support dynamic generation of classes now
       }"
       :title="item.title"
       :description="item.description"
@@ -178,12 +178,18 @@ const openDevtoolsWindow = useElectronEventaInvoke(electronOpenDevtoolsWindow)
 
   <div
     v-motion
-    text="neutral-200/50 dark:neutral-600/20" pointer-events-none
-    fixed top="[65dvh]" right--15 z--1
+    text="neutral-200/50 dark:neutral-600/20"
+    pointer-events-none
+    fixed
+    top="[65dvh]"
+    right--15
+    z--1
     :initial="{ scale: 0.9, opacity: 0, rotate: 30 }"
     :enter="{ scale: 1, opacity: 1, rotate: 0 }"
     :duration="250"
-    flex items-center justify-center
+    flex
+    items-center
+    justify-center
   >
     <div text="60" i-solar:code-bold-duotone />
   </div>

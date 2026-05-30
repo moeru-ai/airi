@@ -17,7 +17,13 @@ defineProps<{
     drop-shadow="none hover:[0px_4px_4px_rgba(220,220,220,0.4)] active:[0px_0px_0px_rgba(220,220,220,0.25)] dark:hover:none"
     class="menu-icon-item"
     transition="all ease-in-out duration-400"
-    relative w-full items-center overflow-hidden rounded-lg p-5 text-left
+    relative
+    w-full
+    items-center
+    overflow-hidden
+    rounded-lg
+    p-5
+    text-left
     cursor="pointer"
     :to="to"
   >
@@ -37,7 +43,9 @@ defineProps<{
       <div
         class="menu-icon-item-icon"
         transition="all ease-in-out duration-400"
-        absolute right-0 size-24
+        absolute
+        right-0
+        size-24
         translate-y-4
         text="neutral-400/50 dark:neutral-600/50"
         :class="[icon]"

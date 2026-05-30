@@ -24,7 +24,7 @@ function onFileChange(event) {
 </script>
 
 <template>
-  <input type="file" @change="onFileChange">
+  <input type="file" @change="onFileChange" />
 
   <a :href="url">Open file</a>
 </template>

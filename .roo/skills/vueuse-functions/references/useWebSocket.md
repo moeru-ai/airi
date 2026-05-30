@@ -101,7 +101,7 @@ const { status, data, close } = useWebSocket('ws://websocketurl', {
   autoReconnect: {
     retries: 5,
     // Exponential backoff: 1s, 2s, 4s, 8s, 16s
-    delay: retries => Math.min(1000 * 2 ** (retries - 1), 30000),
+    delay: (retries) => Math.min(1000 * 2 ** (retries - 1), 30000),
   },
 })
 ```
@@ -113,7 +113,7 @@ const { status, data, close } = useWebSocket('ws://websocketurl', {
   autoReconnect: {
     retries: 5,
     // Linear backoff: 1s, 2s, 3s, 4s, 5s
-    delay: retries => retries * 1000,
+    delay: (retries) => retries * 1000,
   },
 })
 ```
@@ -140,7 +140,7 @@ import { useWebSocket } from '@vueuse/core'
 const { status, data, close } = useWebSocket('ws://websocketurl', {
   heartbeat: {
     message: 'ping',
-    scheduler: cb => useIntervalFn(cb, 2000),
+    scheduler: (cb) => useIntervalFn(cb, 2000),
     pongTimeout: 1000,
   },
 })
@@ -176,30 +176,30 @@ export interface UseWebSocketOptions {
   heartbeat?:
     | boolean
     | (ConfigurableScheduler & {
-      /**
-       * Message for the heartbeat
-       *
-       * @default 'ping'
-       */
-      message?: MaybeRefOrGetter<WebSocketHeartbeatMessage>
-      /**
-       * Response message for the heartbeat, if undefined the message will be used
-       */
-      responseMessage?: MaybeRefOrGetter<WebSocketHeartbeatMessage>
-      /**
-       * Interval, in milliseconds
-       *
-       * @deprecated Please use `scheduler` option instead
-       * @default 1000
-       */
-      interval?: number
-      /**
-       * Heartbeat response timeout, in milliseconds
-       *
-       * @default 1000
-       */
-      pongTimeout?: number
-    })
+        /**
+         * Message for the heartbeat
+         *
+         * @default 'ping'
+         */
+        message?: MaybeRefOrGetter<WebSocketHeartbeatMessage>
+        /**
+         * Response message for the heartbeat, if undefined the message will be used
+         */
+        responseMessage?: MaybeRefOrGetter<WebSocketHeartbeatMessage>
+        /**
+         * Interval, in milliseconds
+         *
+         * @deprecated Please use `scheduler` option instead
+         * @default 1000
+         */
+        interval?: number
+        /**
+         * Heartbeat response timeout, in milliseconds
+         *
+         * @default 1000
+         */
+        pongTimeout?: number
+      })
   /**
    * Enabled auto reconnect
    *
@@ -208,27 +208,27 @@ export interface UseWebSocketOptions {
   autoReconnect?:
     | boolean
     | {
-      /**
-       * Maximum retry times.
-       *
-       * Or you can pass a predicate function (which returns true if you want to retry).
-       *
-       * @default -1
-       */
-      retries?: number | ((retried: number) => boolean)
-      /**
-       * Delay for reconnect, in milliseconds
-       *
-       * Or you can pass a function to calculate the delay based on the number of retries.
-       *
-       * @default 1000
-       */
-      delay?: number | ((retries: number) => number)
-      /**
-       * On maximum retry times reached.
-       */
-      onFailed?: Fn
-    }
+        /**
+         * Maximum retry times.
+         *
+         * Or you can pass a predicate function (which returns true if you want to retry).
+         *
+         * @default -1
+         */
+        retries?: number | ((retried: number) => boolean)
+        /**
+         * Delay for reconnect, in milliseconds
+         *
+         * Or you can pass a function to calculate the delay based on the number of retries.
+         *
+         * @default 1000
+         */
+        delay?: number | ((retries: number) => number)
+        /**
+         * On maximum retry times reached.
+         */
+        onFailed?: Fn
+      }
   /**
    * Immediately open the connection when calling this composable
    *

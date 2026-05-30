@@ -17,19 +17,17 @@ const target = ref()
 const { focused } = useFocusWithin(target)
 
 watch(focused, (focused) => {
-  if (focused)
-    console.log('Target contains the focused element')
-  else
-    console.log('Target does NOT contain the focused element')
+  if (focused) console.log('Target contains the focused element')
+  else console.log('Target does NOT contain the focused element')
 })
 </script>
 
 <template>
   <form ref="target">
-    <input type="text" placeholder="First Name">
-    <input type="text" placeholder="Last Name">
-    <input type="text" placeholder="Email">
-    <input type="text" placeholder="Password">
+    <input type="text" placeholder="First Name" />
+    <input type="text" placeholder="Last Name" />
+    <input type="text" placeholder="Email" />
+    <input type="text" placeholder="Password" />
   </form>
 </template>
 ```
@@ -50,8 +48,5 @@ export interface UseFocusWithinReturn {
  * @param target The target element to track
  * @param options Focus within options
  */
-export declare function useFocusWithin(
-  target: MaybeElementRef,
-  options?: ConfigurableWindow,
-): UseFocusWithinReturn
+export declare function useFocusWithin(target: MaybeElementRef, options?: ConfigurableWindow): UseFocusWithinReturn
 ```

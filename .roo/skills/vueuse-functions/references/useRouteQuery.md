@@ -40,8 +40,8 @@ import { useRouteQuery } from '@vueuse/router'
 
 const filters = useRouteQuery('filters', [], {
   transform: {
-    get: v => v ? v.split(',') : [],
-    set: v => v.join(','),
+    get: (v) => (v ? v.split(',') : []),
+    set: (v) => v.join(','),
   },
 })
 
@@ -65,13 +65,8 @@ page.value = '1' // URL: (no page param, since it equals default)
 ## Type Declarations
 
 ```ts
-export declare function useRouteQuery(
-  name: string,
-): Ref<undefined | null | string | string[]>
-export declare function useRouteQuery<
-  T extends RouteQueryValueRaw = RouteQueryValueRaw,
-  K = T,
->(
+export declare function useRouteQuery(name: string): Ref<undefined | null | string | string[]>
+export declare function useRouteQuery<T extends RouteQueryValueRaw = RouteQueryValueRaw, K = T>(
   name: string,
   defaultValue?: MaybeRefOrGetter<T>,
   options?: ReactiveRouteOptionsWithTransform<T, K>,

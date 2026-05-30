@@ -6,12 +6,8 @@ import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
 
 const mimoConfigSchema = z.object({
-  apiKey: z
-    .string('API Key'),
-  baseUrl: z
-    .string('Base URL')
-    .optional()
-    .default('https://api.xiaomimimo.com/v1/'),
+  apiKey: z.string('API Key'),
+  baseUrl: z.string('Base URL').optional().default('https://api.xiaomimimo.com/v1/'),
 })
 
 type MimoConfig = z.input<typeof mimoConfigSchema>
@@ -26,19 +22,24 @@ export const providerMimo = defineProvider<MimoConfig>({
   tasks: ['chat'],
   icon: 'i-simple-icons:xiaomi',
 
-  createProviderConfig: ({ t }) => mimoConfigSchema.extend({
-    apiKey: mimoConfigSchema.shape.apiKey.meta({
-      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
-      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
-      type: 'password',
+  createProviderConfig: ({ t }) =>
+    mimoConfigSchema.extend({
+      apiKey: mimoConfigSchema.shape.apiKey.meta({
+        labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
+        descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
+        placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
+        type: 'password',
+      }),
+      baseUrl: mimoConfigSchema.shape.baseUrl.meta({
+        labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
+        descriptionLocalized: t(
+          'settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description',
+        ),
+        placeholderLocalized: t(
+          'settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder',
+        ),
+      }),
     }),
-    baseUrl: mimoConfigSchema.shape.baseUrl.meta({
-      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
-      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
-    }),
-  }),
   createProvider(config) {
     return createXiaomi(config.apiKey, config.baseUrl)
   },
@@ -48,7 +49,11 @@ export const providerMimo = defineProvider<MimoConfig>({
   },
   validators: {
     ...createOpenAICompatibleValidators({
-      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ModelList, ProviderValidationCheck.ChatCompletions],
+      checks: [
+        ProviderValidationCheck.Connectivity,
+        ProviderValidationCheck.ModelList,
+        ProviderValidationCheck.ChatCompletions,
+      ],
     }),
   },
 })

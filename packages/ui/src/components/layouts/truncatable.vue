@@ -44,14 +44,14 @@ const isOverflowing = shallowRef(false)
 const closeClampTimer = shallowRef<number>()
 
 const normalizedLineClamp = computed(() => Math.max(1, Math.floor(props.lineClamp)))
-const visibleHeight = computed(() => expanded.value ? openedHeight.value : closedHeight.value)
+const visibleHeight = computed(() => (expanded.value ? openedHeight.value : closedHeight.value))
 const contentStyle = computed(() => ({
   '--truncatable-line-clamp': String(normalizedLineClamp.value),
   '--truncatable-transition-duration': `${transitionDurationMs}ms`,
-  'maxHeight': visibleHeight.value > 0 ? `${visibleHeight.value}px` : undefined,
+  maxHeight: visibleHeight.value > 0 ? `${visibleHeight.value}px` : undefined,
 }))
-const containerRole = computed(() => isOverflowing.value ? 'button' : undefined)
-const containerTabindex = computed(() => isOverflowing.value ? 0 : undefined)
+const containerRole = computed(() => (isOverflowing.value ? 'button' : undefined))
+const containerTabindex = computed(() => (isOverflowing.value ? 0 : undefined))
 
 function measureClampedHeight(element: HTMLElement) {
   const previousDisplay = element.style.display
@@ -80,8 +80,7 @@ async function measureHeights() {
   await nextTick()
 
   const element = contentRef.value
-  if (!element)
-    return
+  if (!element) return
 
   const nextClosedHeight = measureClampedHeight(element)
   const nextOpenedHeight = element.scrollHeight
@@ -97,11 +96,9 @@ async function measureHeights() {
 }
 
 function toggleExpanded() {
-  if (!isOverflowing.value)
-    return
+  if (!isOverflowing.value) return
 
-  if (closeClampTimer.value != null)
-    window.clearTimeout(closeClampTimer.value)
+  if (closeClampTimer.value != null) window.clearTimeout(closeClampTimer.value)
 
   if (expanded.value) {
     expanded.value = false
@@ -117,8 +114,7 @@ function toggleExpanded() {
 }
 
 function handleContainerKeydown(event: KeyboardEvent) {
-  if (event.key !== 'Enter' && event.key !== ' ')
-    return
+  if (event.key !== 'Enter' && event.key !== ' ') return
 
   event.preventDefault()
   toggleExpanded()
@@ -126,8 +122,7 @@ function handleContainerKeydown(event: KeyboardEvent) {
 
 onMounted(measureHeights)
 onBeforeUnmount(() => {
-  if (closeClampTimer.value != null)
-    window.clearTimeout(closeClampTimer.value)
+  if (closeClampTimer.value != null) window.clearTimeout(closeClampTimer.value)
 })
 useResizeObserver(contentRef, measureHeights)
 </script>
@@ -143,11 +138,7 @@ useResizeObserver(contentRef, measureHeights)
     @click="toggleExpanded"
     @keydown="handleContainerKeydown"
   >
-    <div
-      ref="content"
-      class="truncatable__inner"
-      :class="{ 'truncatable__inner--line-clamped': lineClamped }"
-    >
+    <div ref="content" class="truncatable__inner" :class="{ 'truncatable__inner--line-clamped': lineClamped }">
       <slot />
     </div>
   </div>

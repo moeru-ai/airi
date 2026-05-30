@@ -38,8 +38,12 @@ const showDesktopServerControls = computed(() => isStageTamagotchi())
 const authTokenInput = shallowRef(authToken.value)
 const authTokenInputDebounced = refDebounced(authTokenInput, 500)
 const authTokenVisible = shallowRef(false)
-const { copied: authTokenCopied, copy: copyAuthToken, isSupported: isClipboardSupported } = useClipboard({ source: authTokenInput, legacy: true })
-const authTokenInputType = computed(() => authTokenVisible.value ? 'text' : 'password')
+const {
+  copied: authTokenCopied,
+  copy: copyAuthToken,
+  isSupported: isClipboardSupported,
+} = useClipboard({ source: authTokenInput, legacy: true })
+const authTokenInputType = computed(() => (authTokenVisible.value ? 'text' : 'password'))
 const canCopyAuthToken = computed(() => isClipboardSupported.value && authTokenInput.value.length > 0)
 
 const exposureModeOptions = computed(() => [
@@ -58,23 +62,17 @@ const exposureModeOptions = computed(() => [
 ])
 
 watch(authToken, (value) => {
-  if (value !== authTokenInput.value)
-    authTokenInput.value = value
+  if (value !== authTokenInput.value) authTokenInput.value = value
 })
 
 watch(authTokenInputDebounced, (value) => {
-  if (value !== authToken.value)
-    authToken.value = value
+  if (value !== authToken.value) authToken.value = value
 })
 </script>
 
 <template>
   <div>
-    <Callout
-      v-if="lastApplyError"
-      theme="orange"
-      :label="t('settings.websocket-secure-enabled.title')"
-    >
+    <Callout v-if="lastApplyError" theme="orange" :label="t('settings.websocket-secure-enabled.title')">
       {{ lastApplyError }}
     </Callout>
     <ConnectionSettings>
@@ -86,21 +84,14 @@ watch(authTokenInputDebounced, (value) => {
           :description="t('settings.websocket-secure-enabled.description')"
         />
 
-        <div
-          v-if="showDesktopServerControls"
-          :class="['flex', 'flex-col', 'gap-2']"
-        >
+        <div v-if="showDesktopServerControls" :class="['flex', 'flex-col', 'gap-2']">
           <div :class="['text-sm', 'font-medium', 'text-neutral-900', 'dark:text-neutral-100']">
             {{ t('settings.pages.connection.server-hostname.label') }}
           </div>
           <div :class="['text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
             {{ t('settings.pages.connection.server-hostname.description') }}
           </div>
-          <SelectTab
-            v-model="exposureMode"
-            size="sm"
-            :options="exposureModeOptions"
-          />
+          <SelectTab v-model="exposureMode" size="sm" :options="exposureModeOptions" />
         </div>
 
         <FieldInput
@@ -111,10 +102,7 @@ watch(authTokenInputDebounced, (value) => {
           placeholder="192.168.1.25"
         />
 
-        <div
-          v-if="showDesktopServerControls"
-          :class="['max-w-full']"
-        >
+        <div v-if="showDesktopServerControls" :class="['max-w-full']">
           <label :class="['flex', 'flex-col', 'gap-4']">
             <div>
               <div :class="['flex', 'items-center', 'gap-1', 'text-sm', 'font-medium']">

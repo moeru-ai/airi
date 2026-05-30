@@ -9,8 +9,12 @@ export function currentDisplayBounds(window: BrowserWindow) {
   return nearbyDisplay.bounds
 }
 
-interface SizeActual { actual: number }
-interface SizePercentage { percentage: number }
+interface SizeActual {
+  actual: number
+}
+interface SizePercentage {
+  percentage: number
+}
 type Size = SizeActual | SizePercentage | number
 
 function evaluateSize(basedOn: number, size: Size) {
@@ -43,10 +47,10 @@ function evaluateSize(basedOn: number, size: Size) {
  * 10xl 224rem (3584px) @media (width >= 224rem) { ... }
  */
 export const tailwindBreakpoints = {
-  'sm': { min: 640, max: 767 },
-  'md': { min: 768, max: 1023 },
-  'lg': { min: 1024, max: 1279 },
-  'xl': { min: 1280, max: 1535 },
+  sm: { min: 640, max: 767 },
+  md: { min: 768, max: 1023 },
+  lg: { min: 1024, max: 1279 },
+  xl: { min: 1280, max: 1535 },
   '2xl': { min: 1536, max: 1791 },
   '3xl': { min: 1792, max: 2047 },
   '4xl': { min: 2048, max: 2303 },
@@ -84,9 +88,7 @@ export const resolutionBreakpoints = {
  * Achieve responsive sizes based on screen width breakpoints.
  * @see {@link https://tailwindcss.com/docs/responsive-design#overview}
  */
-export function mapForBreakpoints<
-  B extends Record<string, { min: number, max: number }> = typeof tailwindBreakpoints,
->(
+export function mapForBreakpoints<B extends Record<string, { min: number; max: number }> = typeof tailwindBreakpoints>(
   basedOn: number,
   sizes: { [key in keyof B]?: number } | number,
   options?: { breakpoints: B },
@@ -113,7 +115,7 @@ export function mapForBreakpoints<
     .map(([key, value]) => ({ key, value, min: breakpoints[key as keyof typeof breakpoints]?.min ?? 0 }))
     .sort((a, b) => b.min - a.min) // Sort descending by min width
 
-  const fallback = sortedSizes.find(s => s.min <= basedOn)
+  const fallback = sortedSizes.find((s) => s.min <= basedOn)
 
   return fallback?.value ?? Object.values(sizes)?.[0] ?? 0
 }
@@ -125,7 +127,7 @@ export function mapForBreakpoints<
  * @param sizeOptions
  * @returns width in pixels
  */
-export function widthFrom(bounds: Rectangle, sizeOptions: Size & { min?: Size, max?: Size }) {
+export function widthFrom(bounds: Rectangle, sizeOptions: Size & { min?: Size; max?: Size }) {
   const val = evaluateSize(bounds.width, sizeOptions)
   const min = sizeOptions.min ? evaluateSize(bounds.width, sizeOptions.min) : undefined
   const max = sizeOptions.max ? evaluateSize(bounds.width, sizeOptions.max) : undefined
@@ -160,9 +162,9 @@ export interface AdjacentPositionResult {
  */
 export function computeAdjacentPosition(
   anchorBounds: Rectangle,
-  targetSize: { width: number, height: number },
+  targetSize: { width: number; height: number },
   workArea: Rectangle,
-  options?: { margin?: number, minScale?: number },
+  options?: { margin?: number; minScale?: number },
 ): AdjacentPositionResult {
   const margin = options?.margin ?? 16
   const minScale = options?.minScale ?? 0.5
@@ -174,13 +176,12 @@ export function computeAdjacentPosition(
   const leftSpace = { w: anchorBounds.x - workArea.x - margin, h: workArea.height }
   const bottomSpace = { w: workArea.width, h: waBottom - (anchorBounds.y + anchorBounds.height + margin) }
 
-  function maxScale(space: { w: number, h: number }): number {
-    if (space.w <= 0 || space.h <= 0)
-      return 0
+  function maxScale(space: { w: number; h: number }): number {
+    if (space.w <= 0 || space.h <= 0) return 0
     return Math.min(space.w / targetSize.width, space.h / targetSize.height, 1)
   }
 
-  const candidates: { side: 'right' | 'left' | 'bottom', scale: number }[] = [
+  const candidates: { side: 'right' | 'left' | 'bottom'; scale: number }[] = [
     { side: 'right', scale: maxScale(rightSpace) },
     { side: 'left', scale: maxScale(leftSpace) },
     { side: 'bottom', scale: maxScale(bottomSpace) },
@@ -222,7 +223,7 @@ export function computeAdjacentPosition(
  * @param sizeOptions
  * @returns height in pixels
  */
-export function heightFrom(bounds: Rectangle, sizeOptions: Size & { min?: Size, max?: Size }) {
+export function heightFrom(bounds: Rectangle, sizeOptions: Size & { min?: Size; max?: Size }) {
   const val = evaluateSize(bounds.height, sizeOptions)
   const min = sizeOptions.min ? evaluateSize(bounds.height, sizeOptions.min) : undefined
   const max = sizeOptions.max ? evaluateSize(bounds.height, sizeOptions.max) : undefined

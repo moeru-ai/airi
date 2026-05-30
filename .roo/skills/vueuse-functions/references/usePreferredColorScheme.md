@@ -18,9 +18,7 @@ const preferredColor = usePreferredColorScheme()
 
 ```vue
 <template>
-  <UsePreferredColorScheme v-slot="{ colorScheme }">
-    Preferred Color Scheme: {{ colorScheme }}
-  </UsePreferredColorScheme>
+  <UsePreferredColorScheme v-slot="{ colorScheme }">Preferred Color Scheme: {{ colorScheme }}</UsePreferredColorScheme>
 </template>
 ```
 
@@ -36,7 +34,5 @@ export type ColorSchemeType = 'dark' | 'light' | 'no-preference'
  *
  * @__NO_SIDE_EFFECTS__
  */
-export declare function usePreferredColorScheme(
-  options?: ConfigurableWindow,
-): ComputedRef<ColorSchemeType>
+export declare function usePreferredColorScheme(options?: ConfigurableWindow): ComputedRef<ColorSchemeType>
 ```

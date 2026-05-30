@@ -5,8 +5,7 @@ import { ref, watch } from 'vue'
 
 import { supportedControl, useL2dViewControl } from './view-control'
 
-type BroadcastChannelEvents
-  = | BroadcastChannelEventShouldUpdateView
+type BroadcastChannelEvents = BroadcastChannelEventShouldUpdateView
 
 interface BroadcastChannelEventShouldUpdateView {
   type: 'live2d-should-update-view'
@@ -38,7 +37,9 @@ export const defaultModelParameters = {
 }
 
 export const useLive2dParams = defineStore('live2d', () => {
-  const { post, data } = useBroadcastChannel<BroadcastChannelEvents, BroadcastChannelEvents>({ name: 'airi-stores-stage-ui-live2d' })
+  const { post, data } = useBroadcastChannel<BroadcastChannelEvents, BroadcastChannelEvents>({
+    name: 'airi-stores-stage-ui-live2d',
+  })
   const shouldUpdateViewHooks = ref(new Set<() => void>())
 
   const onShouldUpdateView = (hook: () => void) => {
@@ -50,25 +51,34 @@ export const useLive2dParams = defineStore('live2d', () => {
 
   function shouldUpdateView() {
     post({ type: 'live2d-should-update-view' })
-    shouldUpdateViewHooks.value.forEach(hook => hook())
+    shouldUpdateViewHooks.value.forEach((hook) => hook())
   }
 
   watch(data, (event) => {
     if (event?.type === 'live2d-should-update-view') {
-      shouldUpdateViewHooks.value.forEach(hook => hook())
+      shouldUpdateViewHooks.value.forEach((hook) => hook())
     }
   })
 
-  const currentMotion = useLocalStorageManualReset<{ group: string, index?: number }>('settings/live2d/current-motion', () => ({ group: 'Idle', index: 0 }))
-  const availableMotions = useLocalStorageManualReset<{ motionName: string, motionIndex: number, fileName: string }[]>('settings/live2d/available-motions', () => [])
+  const currentMotion = useLocalStorageManualReset<{ group: string; index?: number }>(
+    'settings/live2d/current-motion',
+    () => ({ group: 'Idle', index: 0 }),
+  )
+  const availableMotions = useLocalStorageManualReset<{ motionName: string; motionIndex: number; fileName: string }[]>(
+    'settings/live2d/available-motions',
+    () => [],
+  )
   const motionMap = useLocalStorageManualReset<Record<string, string>>('settings/live2d/motion-map', {})
   const { position, scale, set: setViewControl } = useL2dViewControl()
 
   // Live2D model parameters
-  const modelParameters = useLocalStorageManualReset<Record<string, number>>('settings/live2d/parameters', defaultModelParameters)
+  const modelParameters = useLocalStorageManualReset<Record<string, number>>(
+    'settings/live2d/parameters',
+    defaultModelParameters,
+  )
 
   function resetState() {
-    supportedControl.forEach(c => setViewControl(c))
+    supportedControl.forEach((c) => setViewControl(c))
     currentMotion.reset()
     availableMotions.reset()
     motionMap.reset()

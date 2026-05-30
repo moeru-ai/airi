@@ -11,19 +11,25 @@ interface GLTFUserdata extends Record<string, any> {
   vrmCore?: VRMCore
 }
 
-export async function loadVrm(model: string, options?: {
-  scene?: Scene
-  lookAt?: boolean
-  onProgress?: (progress: ProgressEvent<EventTarget>) => void | Promise<void>
-}): Promise<{
-  _vrm: VRM
-  _vrmGroup: Group
-  modelCenter: Vector3
-  modelSize: Vector3
-  initialCameraOffset: Vector3
-} | undefined> {
+export async function loadVrm(
+  model: string,
+  options?: {
+    scene?: Scene
+    lookAt?: boolean
+    onProgress?: (progress: ProgressEvent<EventTarget>) => void | Promise<void>
+  },
+): Promise<
+  | {
+      _vrm: VRM
+      _vrmGroup: Group
+      modelCenter: Vector3
+      modelSize: Vector3
+      initialCameraOffset: Vector3
+    }
+  | undefined
+> {
   const loader = useVRMLoader()
-  const gltf = await loader.loadAsync(model, progress => options?.onProgress?.(progress))
+  const gltf = await loader.loadAsync(model, (progress) => options?.onProgress?.(progress))
 
   const userData = gltf.userData as GLTFUserdata
   if (!userData.vrm) {
@@ -64,11 +70,10 @@ export async function loadVrm(model: string, options?: {
     quaternion.setFromUnitVectors(facingDirection.normalize(), targetDirection.normalize())
     _vrmGroup.quaternion.premultiply(quaternion)
     _vrmGroup.updateMatrixWorld(true)
-  }
-  else {
+  } else {
     console.warn('No look-at target found in VRM model')
   }
-  (_vrm as VRM).springBoneManager?.reset()
+  ;(_vrm as VRM).springBoneManager?.reset()
   _vrmGroup.updateMatrixWorld(true)
 
   function computeBoundingBox(vrm: Object3D) {
@@ -78,19 +83,15 @@ export async function loadVrm(model: string, options?: {
     vrm.updateMatrixWorld(true)
 
     vrm.traverse((obj) => {
-      if (!obj.visible)
-        return
+      if (!obj.visible) return
       const mesh = obj as Mesh
-      if (!mesh.isMesh)
-        return
-      if (!mesh.geometry)
-        return
+      if (!mesh.isMesh) return
+      if (!mesh.geometry) return
       // This traverse mesh console print will be important for future debugging
       // console.debug("mesh node: ", mesh)
 
       // Selectively filter out VRM spring bone colliders
-      if (mesh.name.startsWith('VRMC_springBone_collider'))
-        return
+      if (mesh.name.startsWith('VRMC_springBone_collider')) return
 
       const geometry = mesh.geometry
       if (!geometry.boundingBox) {
@@ -116,7 +117,7 @@ export async function loadVrm(model: string, options?: {
   // Compute the initial camera position (once per loaded model)
   // In order to see the up-2/3 part fo the model, z = (y/3) / tan(fov/2)
   const fov = 40 // default fov = 40 degrees
-  const radians = (fov / 2 * Math.PI) / 180
+  const radians = ((fov / 2) * Math.PI) / 180
   const initialCameraOffset = new Vector3(
     modelSize.x / 16,
     modelSize.y / 8, // default y value

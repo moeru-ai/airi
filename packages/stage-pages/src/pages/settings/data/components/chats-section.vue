@@ -12,11 +12,7 @@ const emit = defineEmits<DataSettingsStatusEmits>()
 const { t } = useI18n()
 const importFileInput = useTemplateRef<HTMLInputElement>('importFileInput')
 const importError = shallowRef('')
-const {
-  deleteAllChatSessions,
-  exportChatSessions,
-  importChatSessions,
-} = useDataMaintenance()
+const { deleteAllChatSessions, exportChatSessions, importChatSessions } = useDataMaintenance()
 const { emitStatus, handleActionError } = createDataSettingsStatusHelpers(emit)
 
 function triggerImportPicker() {
@@ -33,8 +29,7 @@ async function triggerExport() {
     anchor.click()
     URL.revokeObjectURL(url)
     emitStatus(t('settings.pages.data.status.exported'))
-  }
-  catch (error) {
+  } catch (error) {
     handleActionError(error)
   }
 }
@@ -43,8 +38,7 @@ function deleteChats() {
   try {
     deleteAllChatSessions()
     emitStatus(t('settings.pages.data.status.chats_deleted'))
-  }
-  catch (error) {
+  } catch (error) {
     handleActionError(error)
   }
 }
@@ -52,8 +46,7 @@ function deleteChats() {
 async function handleImport(event: Event) {
   const target = event.target as HTMLInputElement
   const file = target.files?.[0]
-  if (!file)
-    return
+  if (!file) return
 
   try {
     const raw = await file.text()
@@ -61,19 +54,22 @@ async function handleImport(event: Event) {
     await importChatSessions(parsed)
     importError.value = ''
     emitStatus(t('settings.pages.data.status.imported'))
-  }
-  catch (error) {
+  } catch (error) {
     importError.value = t('settings.pages.data.status.import_error')
     handleActionError(error)
-  }
-  finally {
+  } finally {
     target.value = ''
   }
 }
 </script>
 
 <template>
-  <div :class="['border-2 border-neutral-200/50 rounded-xl bg-white/70 p-4 shadow-sm', 'dark:border-neutral-800/60 dark:bg-neutral-900/60']">
+  <div
+    :class="[
+      'border-2 border-neutral-200/50 rounded-xl bg-white/70 p-4 shadow-sm',
+      'dark:border-neutral-800/60 dark:bg-neutral-900/60',
+    ]"
+  >
     <div :class="['grid grid-cols-1 items-start gap-3 md:grid-cols-[minmax(0,1fr)_auto]']">
       <div :class="['flex flex-col gap-1 md:max-w-[560px]']">
         <div :class="['text-lg font-medium']">
@@ -103,7 +99,7 @@ async function handleImport(event: Event) {
         </DoubleCheckButton>
       </div>
     </div>
-    <input ref="importFileInput" type="file" accept="application/json" :class="['hidden']" @change="handleImport">
+    <input ref="importFileInput" type="file" accept="application/json" :class="['hidden']" @change="handleImport" />
     <p v-if="importError" :class="['text-sm text-red-500']">
       {{ importError }}
     </p>

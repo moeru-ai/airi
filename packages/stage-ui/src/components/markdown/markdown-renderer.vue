@@ -23,8 +23,7 @@ async function processContent() {
 
   try {
     processedContent.value = DOMPurify.sanitize(await process(props.content))
-  }
-  catch (error) {
+  } catch (error) {
     console.warn('Failed to process markdown with syntax highlighting, using fallback:', error)
     processedContent.value = DOMPurify.sanitize(processSync(props.content))
   }
@@ -39,11 +38,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div
-    :class="props.class"
-    class="markdown-content"
-    v-html="processedContent"
-  />
+  <div :class="props.class" class="markdown-content" v-html="processedContent" />
 </template>
 
 <style scoped>
@@ -95,11 +90,11 @@ onMounted(() => {
   color: var(--shiki-dark, #e6edf3) !important;
 }
 
-.dark .markdown-content :deep(.shiki span[style*="--shiki-dark"]) {
+.dark .markdown-content :deep(.shiki span[style*='--shiki-dark']) {
   color: var(--shiki-dark, inherit) !important;
 }
 
-.dark .markdown-content :deep(.shiki span[style*="--shiki-dark-background"]) {
+.dark .markdown-content :deep(.shiki span[style*='--shiki-dark-background']) {
   background-color: var(--shiki-dark-background, var(--shiki-dark-bg, transparent)) !important;
 }
 </style>

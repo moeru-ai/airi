@@ -1,16 +1,7 @@
 import type { VRM } from '@pixiv/three-vrm'
 import type { WebGLRenderer } from 'three'
 
-import {
-  Bone,
-  BoxGeometry,
-  Mesh,
-  MeshStandardMaterial,
-  Scene,
-  Skeleton,
-  SkinnedMesh,
-  Texture,
-} from 'three'
+import { Bone, BoxGeometry, Mesh, MeshStandardMaterial, Scene, Skeleton, SkinnedMesh, Texture } from 'three'
 import { describe, expect, it } from 'vitest'
 
 import { createThreeRendererMemorySnapshot, createVrmSceneSummarySnapshot } from './snapshots'

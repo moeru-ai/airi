@@ -33,9 +33,7 @@ export interface UseTimeoutFnOptions {
    */
   immediateCallback?: boolean
 }
-export type UseTimeoutFnReturn<CallbackFn extends AnyFn> = Stoppable<
-  Parameters<CallbackFn> | []
->
+export type UseTimeoutFnReturn<CallbackFn extends AnyFn> = Stoppable<Parameters<CallbackFn> | []>
 /**
  * Wrapper for `setTimeout` with controls.
  *

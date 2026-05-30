@@ -38,10 +38,11 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     }
 
     const query = modelSearchQuery.value.toLowerCase().trim()
-    return providerModels.value.filter(model =>
-      model.name.toLowerCase().includes(query)
-      || model.id.toLowerCase().includes(query)
-      || (model.description && model.description.toLowerCase().includes(query)),
+    return providerModels.value.filter(
+      (model) =>
+        model.name.toLowerCase().includes(query) ||
+        model.id.toLowerCase().includes(query) ||
+        (model.description && model.description.toLowerCase().includes(query)),
     )
   })
 

@@ -17,8 +17,7 @@ export const useWebSocketInspectorStore = defineStore('devtools:websocket-inspec
   const maxHistory = ref(1000)
 
   function add(direction: 'incoming' | 'outgoing', event: WebSocketEvent) {
-    if (!isEnabled.value)
-      return
+    if (!isEnabled.value) return
 
     history.value.unshift({
       id: nanoid(),

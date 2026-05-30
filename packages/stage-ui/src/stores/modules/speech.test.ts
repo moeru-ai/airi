@@ -1,7 +1,10 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '../../libs/providers/providers/official'
+import {
+  OFFICIAL_SPEECH_PROVIDER_ID,
+  OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
+} from '../../libs/providers/providers/official'
 import { useProvidersStore } from '../providers'
 import { toSignedPercent, useSpeechStore } from './speech'
 

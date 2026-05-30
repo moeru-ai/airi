@@ -40,7 +40,9 @@ function handleConfirm() {
 <template>
   <AlertDialogRoot :open="modelValue" @update:open="emit('update:modelValue', $event)">
     <AlertDialogPortal>
-      <AlertDialogOverlay class="fixed inset-0 z-100 bg-black/50 data-[state=closed]:animate-fadeOut data-[state=open]:animate-fadeIn" />
+      <AlertDialogOverlay
+        class="fixed inset-0 z-100 bg-black/50 data-[state=closed]:animate-fadeOut data-[state=open]:animate-fadeIn"
+      />
       <AlertDialogContent
         class="fixed left-1/2 top-1/2 z-100 max-w-md w-full border border-neutral-200 rounded-xl bg-white p-6 shadow-xl -translate-x-1/2 -translate-y-1/2 data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow dark:border-neutral-700 dark:bg-neutral-800"
         @interact-outside.prevent
@@ -49,23 +51,16 @@ function handleConfirm() {
           {{ t('settings.pages.card.delete_card') }}
         </AlertDialogTitle>
         <AlertDialogDescription class="mb-6">
-          {{ t('settings.pages.card.delete_confirmation') }} <b>"{{ cardName || '' }}"</b>
+          {{ t('settings.pages.card.delete_confirmation') }}
+          <b>"{{ cardName || '' }}"</b>
         </AlertDialogDescription>
 
         <div class="flex flex-row justify-end gap-3">
           <AlertDialogCancel as-child>
-            <Button
-              variant="secondary"
-              :label="t('settings.pages.card.cancel')"
-              @click="handleCancel"
-            />
+            <Button variant="secondary" :label="t('settings.pages.card.cancel')" @click="handleCancel" />
           </AlertDialogCancel>
           <AlertDialogAction as-child>
-            <Button
-              variant="danger"
-              :label="t('settings.pages.card.delete')"
-              @click="handleConfirm"
-            />
+            <Button variant="danger" :label="t('settings.pages.card.delete')" @click="handleConfirm" />
           </AlertDialogAction>
         </div>
       </AlertDialogContent>
