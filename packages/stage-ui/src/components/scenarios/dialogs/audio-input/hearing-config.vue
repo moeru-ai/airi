@@ -1,26 +1,33 @@
 <script setup lang="ts">
-import { Callout, FieldCombobox } from '@proj-airi/ui'
+import { Button, Callout, FieldCombobox } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 
 import { useAudioAnalyzer, useAudioDevice } from '../../../../composables'
 import { useSettingsAudioDevice } from '../../../../stores'
+import { useHearingStore } from '../../../../stores/modules/hearing'
 
-// NOTICE: Transcription/Auto-send buttons were removed from this dialog — the desktop drives
-// recording via push-to-talk (CapsLock) and always sends, so the manual toggles were both unused
-// and broken (Vue boolean-prop coercion made the v-if="!== undefined" guards render them anyway
-// even when no parent bound them). Kept the props on the API for ChatArea, which used them via
-// its own UI before the buttons were removed there too.
+// NOTICE: The "Transcription" toggle button stays removed (recording is driven by push-to-talk /
+// VAD, not a manual transcription toggle here). The "Auto send" toggle is restored, but it only
+// governs continuous-listening (VAD) auto-send and is hidden in push-to-talk mode, where the key
+// release is itself the send intent so auto-send does not apply. It renders only when a parent
+// binds `v-model:auto-send` (e.g. ChatArea); otherwise the model stays undefined and stays hidden.
 const props = withDefaults(defineProps<{
   granted?: boolean // permission status on OS level
 }>(), {
   granted: false,
 })
 
+const autoSend = defineModel<boolean>('autoSend')
+
 const deviceStore = useSettingsAudioDevice()
 const { enabled, selectedAudioInput } = storeToRefs(deviceStore)
+const { listeningMode } = storeToRefs(useHearingStore())
 const { audioInputs, permissionGranted, askPermission } = useAudioDevice()
 const { volumeLevel } = useAudioAnalyzer()
+
+// Auto-send only applies to continuous-listening (VAD) mode; hide the toggle in push-to-talk.
+const pushToTalk = computed(() => listeningMode.value === 'ptt')
 
 const ringEnabledClass = computed(() => enabled.value
   ? 'bg-primary-500/15 dark:bg-primary-600/20'
@@ -84,6 +91,15 @@ function toggleHearingEnabled() {
       </div>
     </div>
 
+    <!-- Auto-send toggle (continuous-listening / VAD mode only; hidden in push-to-talk) -->
+    <div v-if="autoSend !== undefined && !pushToTalk" class="flex flex-wrap gap-2">
+      <Button
+        label="Auto send"
+        :variant="autoSend ? 'primary' : 'secondary'"
+        flex-1
+        @click="autoSend = !autoSend"
+      />
+    </div>
 
     <!-- Always-visible device selector -->
     <div class="mt-3 w-full">
