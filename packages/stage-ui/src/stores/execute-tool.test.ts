@@ -1,7 +1,7 @@
 import type { Message, Tool, ToolCall } from '@xsai/shared-chat'
 
 import { InvalidToolCallError, InvalidToolInputError, ToolExecutionError } from '@xsai/shared'
-import { executeTool } from '@xsai/shared-chat'
+import { executeTool } from './execute-tool'
 import { describe, expect, it, vi } from 'vitest'
 
 function createToolCall(
