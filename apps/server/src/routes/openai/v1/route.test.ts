@@ -550,6 +550,44 @@ describe('v1CompletionsRoutes', () => {
       )
     })
 
+    /**
+     * @example
+     * POST /api/v1/audio/speech { "speed": 1.2 }
+     */
+    it('forwards TTS speed to the router input', async () => {
+      const routeTts = vi.fn(async () => new Response(new Uint8Array([1]), {
+        status: 200,
+        headers: { 'Content-Type': 'audio/mpeg' },
+      }))
+
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV({ DEFAULT_TTS_MODEL: 'microsoft/v1' }),
+        undefined,
+        undefined,
+        undefined,
+        createMockLlmRouter({ routeTts }),
+      )
+
+      await app.fetch(
+        new Request('http://localhost/api/v1/audio/speech', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'auto', input: 'test', voice: 'en-US-AvaMultilingualNeural', speed: 1.2 }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(routeTts).toHaveBeenCalledWith(expect.objectContaining({
+        modelName: 'microsoft/v1',
+        input: expect.objectContaining({
+          text: 'test',
+          voice: 'en-US-AvaMultilingualNeural',
+          speed: 1.2,
+        }),
+      }))
+    })
+
     it('should bill per character with minimum charge', async () => {
       globalThis.fetch = vi.fn(async () => new Response(new Uint8Array([1]), {
         status: 200,
