@@ -86,6 +86,8 @@ pnpm approve-builds # Select 'electron' and confirm
 - [x] **Brain**
   - [ ] Multi-tier memory based on [openvault](https://github.com/vadash/openvault) design
   - [ ] Per-character memory scoping that works for multiple-character being preset at the stage, not gated by character card
+- [x] **Heart**
+  - [ ] Heartbeat (proactivity)
 - [x] **Ears**
   - [x] Client-side speech recognition & talking detection
 - [x] **Mouth**
