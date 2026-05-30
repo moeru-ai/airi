@@ -8,6 +8,7 @@ import type { BillingService } from '../../../services/domain/billing/billing-se
 import type { FluxMeter } from '../../../services/domain/billing/flux-meter'
 import type { FluxService } from '../../../services/domain/flux'
 import type { LlmRouteContext, LlmRouterService } from '../../../services/domain/llm-router'
+import type { ChatGenerationTrace, TtsGenerationTrace } from '../../../services/domain/llm-tracing'
 import type { RequestLogService } from '../../../services/domain/request-log'
 import type { HonoEnv } from '../../../types/hono'
 
@@ -35,6 +36,11 @@ import {
 } from '../../../utils/observability'
 
 const tracer = trace.getTracer('v1-completions')
+
+interface LlmTracingDeps {
+  startChatGeneration: (input: Parameters<typeof startChatGeneration>[0]) => ChatGenerationTrace
+  startTtsGeneration: (input: Parameters<typeof startTtsGeneration>[0]) => TtsGenerationTrace
+}
 
 const SAFE_RESPONSE_HEADERS = new Set([
   'content-type',
@@ -94,6 +100,7 @@ export function createV1Routes(
   revenue?: RevenueMetrics | null,
   rateLimitMetrics?: RateLimitMetrics | null,
   posthog?: PostHog | null,
+  llmTracing: LlmTracingDeps = { startChatGeneration, startTtsGeneration },
 ) {
   const logger = useLogger('v1-completions').useGlobalConfig()
   // TODO: Extract this compat route into smaller facades/modules.
@@ -199,7 +206,7 @@ export function createV1Routes(
     catch (err) {
       span.setStatus({ code: SpanStatusCode.ERROR, message: 'Router exhausted or unknown model' })
       span.end()
-      startChatGeneration({
+      llmTracing.startChatGeneration({
         input: body.messages,
         model: routeCtx.upstreamModel ?? requestModel,
         requestId,
@@ -220,7 +227,7 @@ export function createV1Routes(
     // session cost. Use the router-resolved upstream model, not the client
     // alias (`auto` / `chat-auto`), so Langfuse model-cost grouping matches the
     // provider model that actually generated the tokens.
-    const generationTrace = startChatGeneration({
+    const generationTrace = llmTracing.startChatGeneration({
       input: body.messages,
       model: langfuseModel,
       requestId,
@@ -598,7 +605,7 @@ export function createV1Routes(
       speed: typeof body.speed === 'number' ? body.speed : undefined,
       responseFormat: typeof body.response_format === 'string' ? body.response_format : undefined,
     }
-    const generationTrace = startTtsGeneration({
+    const generationTrace = llmTracing.startTtsGeneration({
       input: ttsInput,
       model: requestModel,
       requestId,

@@ -2,6 +2,7 @@ import type { ConfigKVService } from '../../../services/adapters/config-kv'
 import type { BillingService } from '../../../services/domain/billing/billing-service'
 import type { FluxService } from '../../../services/domain/flux'
 import type { LlmRouterService } from '../../../services/domain/llm-router'
+import type { ChatGenerationTrace, TtsGenerationTrace } from '../../../services/domain/llm-tracing'
 import type { RequestLogService } from '../../../services/domain/request-log'
 import type { HonoEnv } from '../../../types/hono'
 
@@ -10,23 +11,6 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createV1Routes } from '.'
 import { ApiError } from '../../../utils/error'
-
-const tracingSpies = vi.hoisted(() => ({
-  startChatGeneration: vi.fn(() => ({
-    appendStreamChunk: vi.fn(),
-    succeed: vi.fn(),
-    fail: vi.fn(),
-  })),
-  startTtsGeneration: vi.fn(() => ({
-    succeed: vi.fn(),
-    fail: vi.fn(),
-  })),
-}))
-
-vi.mock('../../../services/domain/llm-tracing', () => ({
-  startChatGeneration: tracingSpies.startChatGeneration,
-  startTtsGeneration: tracingSpies.startTtsGeneration,
-}))
 
 function createMockFluxService(flux = 100): FluxService {
   return {
@@ -101,6 +85,20 @@ function createMockTtsMeter(unitsPerFlux = 1000) {
   } as any
 }
 
+function createMockLlmTracing() {
+  return {
+    startChatGeneration: vi.fn((): ChatGenerationTrace => ({
+      appendStreamChunk: vi.fn(),
+      succeed: vi.fn(),
+      fail: vi.fn(),
+    })),
+    startTtsGeneration: vi.fn((): TtsGenerationTrace => ({
+      succeed: vi.fn(),
+      fail: vi.fn(),
+    })),
+  }
+}
+
 function createMockLlmRouter(impl?: Partial<LlmRouterService>): LlmRouterService {
   return {
     // Default: forward to globalThis.fetch so existing chat tests that mock
@@ -137,6 +135,7 @@ function createTestApp(
   requestLogService?: RequestLogService,
   ttsMeter?: ReturnType<typeof createMockTtsMeter>,
   llmRouter?: LlmRouterService,
+  llmTracing = createMockLlmTracing(),
 ) {
   const { openaiRoutes, audioRoutes } = createV1Routes(
     fluxService,
@@ -146,6 +145,10 @@ function createTestApp(
     ttsMeter ?? createMockTtsMeter(),
     llmRouter ?? createMockLlmRouter(),
     null,
+    null,
+    null,
+    null,
+    llmTracing,
   )
   const app = new Hono<HonoEnv>()
 
@@ -184,8 +187,7 @@ describe('v1CompletionsRoutes', () => {
   const originalFetch = globalThis.fetch
 
   beforeEach(() => {
-    tracingSpies.startChatGeneration.mockClear()
-    tracingSpies.startTtsGeneration.mockClear()
+    globalThis.fetch = originalFetch
   })
 
   afterAll(() => {
@@ -419,7 +421,8 @@ describe('v1CompletionsRoutes', () => {
           })
         }) as any,
       })
-      const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, undefined, undefined, llmRouter)
+      const llmTracing = createMockLlmTracing()
+      const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, undefined, undefined, llmRouter, llmTracing)
 
       await app.fetch(
         new Request('http://localhost/api/v1/openai/chat/completions', {
@@ -430,7 +433,7 @@ describe('v1CompletionsRoutes', () => {
         { user: testUser } as any,
       )
 
-      expect(tracingSpies.startChatGeneration).toHaveBeenCalledWith(
+      expect(llmTracing.startChatGeneration).toHaveBeenCalledWith(
         expect.objectContaining({
           model: 'openai/gpt-4o-mini',
           requestId: expect.any(String),
@@ -742,6 +745,11 @@ describe('v1CompletionsRoutes', () => {
     // billing-failed request without a fluxConsumed value), but the
     // failure is now observable instead of hidden by a leaked span.
     it('tTS billing failure closes the span and surfaces error to onError (regression)', async () => {
+      globalThis.fetch = vi.fn(async () => new Response(new Uint8Array([1]), {
+        status: 200,
+        headers: { 'Content-Type': 'audio/mpeg' },
+      }))
+
       const requestLogService = createMockRequestLogService()
       const ttsMeter = createMockTtsMeter()
       // Override accumulate to simulate a Redis INCRBY failure mid-billing.
