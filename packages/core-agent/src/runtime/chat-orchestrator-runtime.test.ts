@@ -868,6 +868,99 @@ describe('createChatOrchestratorRuntime', () => {
 
   /**
    * @example
+   * A reasoning model streams only reasoning tokens, then the user stops before
+   * any speech or tool slice flushes. The partial persists with stopped: true
+   * and the reasoning preserved, rather than vanishing.
+   */
+  it('persists a reasoning-only partial with stopped marker when stop fires before any slice', async () => {
+    const harness = createHarness()
+
+    let reachedStopPoint: () => void
+    const atStopPoint = new Promise<void>((resolve) => {
+      reachedStopPoint = resolve
+    })
+
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      const signal = (options as { abortSignal?: AbortSignal })?.abortSignal
+      await options?.onStreamEvent?.({ type: 'reasoning-delta', text: 'weighing the options before answering' })
+      reachedStopPoint()
+      await new Promise<void>((resolve) => {
+        if (signal?.aborted)
+          resolve()
+        else
+          signal?.addEventListener('abort', () => resolve())
+      })
+      throw new DOMException('aborted', 'AbortError')
+    })
+
+    const send = harness.runtime.ingest('hello', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    await atStopPoint
+    harness.runtime.stopSending('session-1')
+    await send
+
+    const lastMessage = harness.sessionMessages['session-1']?.at(-1) as StreamingAssistantMessage
+    expect(lastMessage.role).toBe('assistant')
+    expect(lastMessage.stopped).toBe(true)
+    expect(lastMessage.slices).toEqual([])
+    expect(lastMessage.categorization?.reasoning).toContain('weighing the options')
+  })
+
+  /**
+   * @example
+   * The user stops mid tool call, after the tool-call slice rendered but before
+   * its result. The partial persists with stopped: true and the tool-call slice
+   * intact (no result), so the UI can render it as cancelled.
+   */
+  it('persists a tool-call-only partial with stopped marker when stop fires mid tool call', async () => {
+    const harness = createHarness()
+
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      const signal = (options as { abortSignal?: AbortSignal })?.abortSignal
+      await options?.onStreamEvent?.({
+        type: 'tool-call',
+        toolCallId: 'call-1',
+        toolCallType: 'function',
+        toolName: 'search',
+        args: JSON.stringify({ query: 'weather' }),
+      })
+      await new Promise<void>((resolve) => {
+        if (signal?.aborted)
+          resolve()
+        else
+          signal?.addEventListener('abort', () => resolve())
+      })
+      throw new DOMException('aborted', 'AbortError')
+    })
+
+    const send = harness.runtime.ingest('hello', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    // The tool-call slice drains through the async queue; wait until it lands in
+    // the foreground bubble before stopping.
+    await vi.waitFor(() => {
+      const patched = harness.foregroundPatches.some(message => message.slices?.some(slice => slice.type === 'tool-call'))
+      expect(patched).toBe(true)
+    })
+
+    harness.runtime.stopSending('session-1')
+    await send
+
+    const lastMessage = harness.sessionMessages['session-1']?.at(-1) as StreamingAssistantMessage
+    expect(lastMessage.role).toBe('assistant')
+    expect(lastMessage.stopped).toBe(true)
+    const toolCallSlices = lastMessage.slices.filter(slice => slice.type === 'tool-call')
+    expect(toolCallSlices).toHaveLength(1)
+    expect(lastMessage.tool_results).toEqual([])
+  })
+
+  /**
+   * @example
    * The assistant emits a short text-delta that stays under the parser's
    * streaming flush threshold. On Stop, the catch-path flush drains the
    * parser buffer so the full short reply persists with stopped: true.

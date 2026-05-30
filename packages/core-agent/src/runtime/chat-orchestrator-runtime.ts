@@ -420,11 +420,14 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     })
     const roundStartedAt = monotonicNow()
 
-    // Hoisted out of the try block so the abort path in catch can persist
-    // the partial transcript captured up to the stop point.
+    // Declared outside the try block so the catch (abort) path can persist the
+    // partial transcript captured up to the stop point.
     let fullText = ''
     let finalFlushInProgress = false
     let parser: ReturnType<typeof useLlmmarkerParser> | undefined
+    // True once the success path has appended the turn, so a post-stream hook
+    // that throws during a late Stop cannot make the catch path append it again.
+    let landed = false
 
     try {
       await hooks.emitBeforeMessageComposedHooks(sendingMessage, streamingMessageContext)
@@ -544,13 +547,20 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       const toolCallQueue = createQueue<ChatSlices>({
         handlers: [
           async (ctx) => {
-            if (shouldAbort())
-              return
             if (ctx.data.type === 'tool-call') {
+              // Record the slice even when a Stop is racing the drain, so an
+              // interrupted call persists and renders as cancelled instead of
+              // vanishing. Only paint the live bubble while the send is active.
               buildingMessage.slices.push(ctx.data)
-              patchForegroundStream(sessionId, buildingMessage)
+              if (!shouldAbort())
+                patchForegroundStream(sessionId, buildingMessage)
               return
             }
+
+            // A result arriving after Stop must not flip a cancelled call to
+            // done/error, so drop it once the send is aborting or stale.
+            if (shouldAbort())
+              return
 
             if (ctx.data.type === 'tool-call-result') {
               buildingMessage.tool_results.push(ctx.data)
@@ -728,13 +738,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         latencyMs: Math.round(monotonicNow() - llmRequestStartedAt),
       })
 
-      // NOTICE: stream drained successfully. A Stop pressed in the gap
-      // between parser.end() and this guard is treated as a completed turn
-      // (no `stopped` marker, turn-complete hooks fire) because every token
-      // already arrived. The catch block owns mid-stream cancellation.
+      // NOTICE: a Stop in this gap counts as a completed turn (no `stopped`
+      // marker, turn-complete hooks fire); the catch block owns mid-stream
+      // cancellation.
       if (!isStaleGeneration() && buildingMessage.slices.length > 0) {
         const finalAssistant = buildingMessage
         deps.session.appendSessionMessage(sessionId, finalAssistant)
+        landed = true
         deps.onAssistantMessageAppended?.({
           sessionId,
           message: finalAssistant,
@@ -791,7 +801,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           }
         }
 
-        if (!isStaleGeneration() && buildingMessage.slices.length > 0) {
+        // Reasoning-only turns (reasoning models that stop before any speech or
+        // tool slice) carry their partial in categorization.reasoning, so persist
+        // those too rather than dropping the turn.
+        const hasReasoning = !!buildingMessage.categorization?.reasoning?.trim()
+        if (!landed && !isStaleGeneration() && (buildingMessage.slices.length > 0 || hasReasoning)) {
           const stoppedAssistant: StreamingAssistantMessage = {
             ...buildingMessage,
             stopped: true,
