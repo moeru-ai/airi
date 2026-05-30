@@ -30,8 +30,6 @@
   <a href="https://qun.qq.com/universal-share/share?ac=1&authKey=9g00d%2BZS7nORzcJugNNddJ7rCghZTIR7fhXabGwch2S%2BG%2BKGIKwlN1N2nIqkh2jg&busi_data=eyJncm91cENvZGUiOiIxMDU4MTU2Njk3IiwidG9rZW4iOiJmcnkra1hWNFIxNytEcG0zcHRUdVJIaldlRDFxN0dzK080QWtvTEdOQjJkNEY2eUFta1g1clNpbkxSMS9FQWFYIiwidWluIjoiMTI2MDkwNzMzNSJ9&data=b1eJrwn3GVOUh7YIxZ7l9vHQo99HPmRxKPpMKlDCmfzx8Y57IXb2EZCMaOC9rVTd2U558qpNjwUYUWlPHxVHvg&svctype=4&tempid=h5_group_info"><img src="https://img.shields.io/badge/QQ%E7%BE%A4-%2312B7F5?logo=qq&labelColor=FFFFFF"></a>
 </p>
 
-
-
 <p float="left" align="center">
   <!-- readme-section:release-binary-windows -->
   <a href="https://github.com/moeru-ai/airi/releases/download/v0.10.2/AIRI-0.10.2-windows-x64-setup.exe">
@@ -136,9 +134,22 @@
 
 > 深受 [Neuro-sama](https://www.youtube.com/@Neurosama) 启发
 
+> [!TIP]
+> 在 Windows 上，你也可以使用 [Scoop](https://scoop.sh/) 安装 AIRI：
+>
+> ```powershell
+> scoop bucket add airi https://github.com/moeru-ai/airi
+> scoop install airi/airi
+> ```
+>
+> 在 macOS 上，你无需添加自定义 tap，即可通过 [Homebrew Cask](https://brew.sh/) 安装 AIRI：
+>
+> ```sh
+> brew install --cask airi
+> ```
+
 > [!WARNING]
-> **注意：**
-> 我们**没有发行任何**与本项目关联的加密货币或代币，请注意判断资讯并谨慎行事。
+> **注意：** 我们**没有发行任何**与本项目关联的加密货币或代币，请注意判断资讯并谨慎行事。
 
 > [!NOTE]
 >
@@ -213,6 +224,7 @@
 ## 当前进度
 
 目前已经能做到：
+
 - [x] 大脑
   - [x] 玩 [Minecraft](https://www.minecraft.net)
   - [x] 玩 [Factorio](https://www.factorio.com)（进行中，但已提供 [PoC 和 demo](https://github.com/moeru-ai/airi-factorio)）
@@ -272,6 +284,42 @@ pnpm dev:tamagotchi
 ```shell
 nix run github:moeru-ai/airi
 ```
+
+### Stage Pocket（移动版）
+
+启动 Capacitor Web 版本的开发服务器：
+
+```shell
+pnpm dev:pocket
+```
+
+从上述命令的输出中查看 IP 地址：
+
+```shell
+  ROLLDOWN-VITE v7.3.0  ready in 1073 ms
+
+  ➜  Local:   https://localhost:5273/
+  ➜  Network: https://<ip-will-be-here>:5273/
+  ➜  Vue DevTools: Open https://localhost:5273/__devtools__/ as a separate window
+  ➜  Vue DevTools: Press Option(⌥)+Shift(⇧)+D in App to toggle the Vue DevTools
+  ➜  UnoCSS Inspector: https://localhost:5273/__unocss/
+```
+
+打开 Xcode 项目：
+
+```shell
+CAPACITOR_DEV_SERVER_URL=https://<your-ip-address>:5273 pnpm open:ios
+```
+
+随后 Xcode 会打开，你可以点击 "Run" 按钮在 iPhone 上运行应用。
+
+如果需要在无线模式下连接 Pocket 的 server channel，需要以 root 权限启动 Tamagotchi：
+
+```shell
+sudo pnpm dev:tamagotchi
+```
+
+然后在 Tamagotchi 的 `settings/connections` 中启用 secure websocket。
 
 ### 文档站
 
@@ -455,7 +503,6 @@ flowchart TD
 ![Repobeats analytics image](https://repobeats.axiom.co/api/embed/a1d6fe2c13ea2bb53a5154435a71e2431f70c2ee.svg 'Repobeats analytics image')
 
 ## 鸣谢
-
 - [AtomGit](https://gitcode.com/moeru-ai/airi): 在国内托管 AIRI，帮助中国大陆用户更快访问项目与下载 Release。
 - [Reka UI](https://github.com/unovue/reka-ui): 文档站的设计，新的 landing page 也基于此，并感谢他们实现了大量 UI 组件。（shadcn-vue 使用 Reka UI 作为 headless 组件，去看看！）
 - [pixiv/ChatVRM](https://github.com/pixiv/ChatVRM)

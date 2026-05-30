@@ -142,6 +142,12 @@
 > scoop bucket add airi https://github.com/moeru-ai/airi
 > scoop install airi/airi
 > ```
+>
+> On macOS, you can install AIRI with [Homebrew Cask](https://brew.sh/) without adding a custom tap:
+>
+> ```sh
+> brew install --cask airi
+> ```
 
 > [!WARNING]
 > **Attention:** We **do not** have any officially minted cryptocurrency or token associated with this project. Please check the information and proceed with caution.
