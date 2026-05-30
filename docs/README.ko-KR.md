@@ -319,7 +319,7 @@ CAPACITOR_DEV_SERVER_URL=https://<your-ip-address>:5273 pnpm open:ios
 sudo pnpm dev:tamagotchi
 ```
 
-그런 다음 Tamagotchi의 `settings/system/general`에서 보안 웹소켓을 활성화하세요.
+그런 다음 Tamagotchi의 `settings/connections`에서 보안 웹소켓을 활성화하세요.
 
 ### 문서 사이트
 

@@ -319,7 +319,7 @@ Si vous devez connecter le canal serveur de Pocket en mode sans fil, vous devez 
 sudo pnpm dev:tamagotchi
 ```
 
-Activez ensuite le websocket sécurisé dans `settings/system/general` de Tamagotchi.
+Activez ensuite le websocket sécurisé dans `settings/connections` de Tamagotchi.
 
 ### Site de la Documentation
 

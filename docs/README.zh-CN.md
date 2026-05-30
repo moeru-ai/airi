@@ -319,7 +319,7 @@ CAPACITOR_DEV_SERVER_URL=https://<your-ip-address>:5273 pnpm open:ios
 sudo pnpm dev:tamagotchi
 ```
 
-然后在 Tamagotchi 的 `settings/system/general` 中启用 secure websocket。
+然后在 Tamagotchi 的 `settings/connections` 中启用 secure websocket。
 
 ### 文档站
 

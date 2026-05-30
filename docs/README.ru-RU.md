@@ -319,7 +319,7 @@ CAPACITOR_DEV_SERVER_URL=https://<your-ip-address>:5273 pnpm open:ios
 sudo pnpm dev:tamagotchi
 ```
 
-Затем включите secure websocket в `settings/system/general` Tamagotchi.
+Затем включите secure websocket в `settings/connections` Tamagotchi.
 
 ### Сайт документации
 

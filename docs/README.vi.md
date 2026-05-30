@@ -319,7 +319,7 @@ Nếu cần kết nối server channel trên Pocket ở chế độ không dây,
 sudo pnpm dev:tamagotchi
 ```
 
-Sau đó bật secure websocket trong `settings/system/general` của Tamagotchi.
+Sau đó bật secure websocket trong `settings/connections` của Tamagotchi.
 
 ### Trang tài liệu
 

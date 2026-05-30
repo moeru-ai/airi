@@ -319,7 +319,7 @@ Xcode が開いたら、"Run" ボタンをクリックして iPhone 上でアプ
 sudo pnpm dev:tamagotchi
 ```
 
-その後、Tamagotchi の `settings/system/general` で secure websocket を有効にしてください。
+その後、Tamagotchi の `settings/connections` で secure websocket を有効にしてください。
 
 ### ドキュメントサイト
 
