@@ -2,80 +2,78 @@
 import { FieldKeyValues } from '@proj-airi/ui'
 import { ref, watch } from 'vue'
 
-const emptyHeaders = ref<{ key: string, value: string }[]>([
-  { key: '', value: '' },
-])
-const singleHeader = ref<{ key: string, value: string }[]>([
-  { key: 'Content-Type', value: 'application/json' },
-])
-const multipleHeaders = ref<{ key: string, value: string }[]>([
+const emptyHeaders = ref<{ key: string; value: string }[]>([{ key: '', value: '' }])
+const singleHeader = ref<{ key: string; value: string }[]>([{ key: 'Content-Type', value: 'application/json' }])
+const multipleHeaders = ref<{ key: string; value: string }[]>([
   { key: 'Authorization', value: 'Bearer token123' },
   { key: 'Accept', value: 'application/json' },
   { key: 'X-API-Key', value: 'abc123xyz456' },
 ])
 
-function addKeyValue(headers: { key: string, value: string }[], key: string, value: string) {
-  if (!headers)
-    return
+function addKeyValue(headers: { key: string; value: string }[], key: string, value: string) {
+  if (!headers) return
 
   headers.push({ key, value })
 }
 
-function removeKeyValue(index: number, headers: { key: string, value: string }[]) {
-  if (!headers)
-    return
+function removeKeyValue(index: number, headers: { key: string; value: string }[]) {
+  if (!headers) return
 
   if (headers.length === 1) {
     headers[0].key = ''
     headers[0].value = ''
-  }
-  else {
+  } else {
     headers.splice(index, 1)
   }
 }
 
-watch(emptyHeaders, (headers) => {
-  if (headers.length > 0 && (headers.at(-1)!.key !== '' || headers.at(-1)!.value !== '')) {
-    emptyHeaders.value.push({ key: '', value: '' })
-  }
-}, {
-  deep: true,
-  immediate: true,
-})
+watch(
+  emptyHeaders,
+  (headers) => {
+    if (headers.length > 0 && (headers.at(-1)!.key !== '' || headers.at(-1)!.value !== '')) {
+      emptyHeaders.value.push({ key: '', value: '' })
+    }
+  },
+  {
+    deep: true,
+    immediate: true,
+  },
+)
 
-watch(singleHeader, (headers) => {
-  if (headers.length > 0 && (headers.at(-1)!.key !== '' || headers.at(-1)!.value !== '')) {
-    singleHeader.value.push({ key: '', value: '' })
-  }
-}, {
-  deep: true,
-  immediate: true,
-})
+watch(
+  singleHeader,
+  (headers) => {
+    if (headers.length > 0 && (headers.at(-1)!.key !== '' || headers.at(-1)!.value !== '')) {
+      singleHeader.value.push({ key: '', value: '' })
+    }
+  },
+  {
+    deep: true,
+    immediate: true,
+  },
+)
 
-watch(multipleHeaders, (headers) => {
-  if (headers.length > 0 && (headers.at(-1)!.key !== '' || headers.at(-1)!.value !== '')) {
-    multipleHeaders.value.push({ key: '', value: '' })
-  }
-}, {
-  deep: true,
-  immediate: true,
-})
+watch(
+  multipleHeaders,
+  (headers) => {
+    if (headers.length > 0 && (headers.at(-1)!.key !== '' || headers.at(-1)!.value !== '')) {
+      multipleHeaders.value.push({ key: '', value: '' })
+    }
+  },
+  {
+    deep: true,
+    immediate: true,
+  },
+)
 </script>
 
 <template>
-  <Story
-    title="Field Key Values"
-    group="form"
-    :layout="{ type: 'grid', width: '100%' }"
-  >
+  <Story title="Field Key Values" group="form" :layout="{ type: 'grid', width: '100%' }">
     <template #controls>
       <ThemeColorsHueControl />
     </template>
 
-    <Variant
-      id="empty"
-      title="Empty"
-    >
+    <Variant id="empty" title="Empty">
       <div>
         <FieldKeyValues
           v-model="emptyHeaders"
@@ -89,10 +87,7 @@ watch(multipleHeaders, (headers) => {
       </div>
     </Variant>
 
-    <Variant
-      id="single-header"
-      title="Single Header"
-    >
+    <Variant id="single-header" title="Single Header">
       <div>
         <FieldKeyValues
           v-model="singleHeader"
@@ -106,10 +101,7 @@ watch(multipleHeaders, (headers) => {
       </div>
     </Variant>
 
-    <Variant
-      id="multiple-headers"
-      title="Multiple Headers"
-    >
+    <Variant id="multiple-headers" title="Multiple Headers">
       <div>
         <FieldKeyValues
           v-model="multipleHeaders"
@@ -123,10 +115,7 @@ watch(multipleHeaders, (headers) => {
       </div>
     </Variant>
 
-    <Variant
-      id="with-provider"
-      title="With Provider Name"
-    >
+    <Variant id="with-provider" title="With Provider Name">
       <div>
         <FieldKeyValues
           v-model="emptyHeaders"
@@ -141,10 +130,7 @@ watch(multipleHeaders, (headers) => {
       </div>
     </Variant>
 
-    <Variant
-      id="required"
-      title="Required Field"
-    >
+    <Variant id="required" title="Required Field">
       <div>
         <FieldKeyValues
           v-model="emptyHeaders"
@@ -159,10 +145,7 @@ watch(multipleHeaders, (headers) => {
       </div>
     </Variant>
 
-    <Variant
-      id="optional"
-      title="Optional Field"
-    >
+    <Variant id="optional" title="Optional Field">
       <div>
         <FieldKeyValues
           v-model="emptyHeaders"

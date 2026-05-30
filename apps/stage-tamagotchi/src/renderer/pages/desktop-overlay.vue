@@ -20,18 +20,29 @@ import { electron } from '@proj-airi/electron-eventa'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
-import { electronMcpApplyAndRestart, electronMcpCallTool, electronMcpGetRuntimeStatus, electronMcpListTools, getDesktopOverlayReadinessContract } from '../../shared/eventa'
+import {
+  electronMcpApplyAndRestart,
+  electronMcpCallTool,
+  electronMcpGetRuntimeStatus,
+  electronMcpListTools,
+  getDesktopOverlayReadinessContract,
+} from '../../shared/eventa'
 import { pointInOverlay, rectIntersectsOverlay, screenRectToLocal, screenToLocal } from './desktop-overlay-coordinates'
-import { createEmptyOverlayState, createOverlayPollController, formatOverlayPollHeartbeat, isOverlayPollHeartbeatEnabled } from './desktop-overlay-polling'
+import {
+  createEmptyOverlayState,
+  createOverlayPollController,
+  formatOverlayPollHeartbeat,
+  isOverlayPollHeartbeatEnabled,
+} from './desktop-overlay-polling'
 
 declare global {
   interface Window {
     __AIRI_DESKTOP_OVERLAY_SMOKE__?: {
       applyAndRestartMcp: () => Promise<unknown>
-      callMcpTool: (payload: { name: string, arguments?: Record<string, unknown> }) => Promise<unknown>
+      callMcpTool: (payload: { name: string; arguments?: Record<string, unknown> }) => Promise<unknown>
       getMcpRuntimeStatus: () => Promise<unknown>
       getOverlayState: () => OverlayState
-      getReadiness: () => Promise<{ state: 'booting' | 'ready' | 'degraded', error?: string }>
+      getReadiness: () => Promise<{ state: 'booting' | 'ready' | 'degraded'; error?: string }>
       listMcpTools: () => Promise<unknown>
     }
   }
@@ -58,12 +69,11 @@ const state = ref<OverlayState>(createEmptyOverlayState())
 
 // Filtered & mapped candidates: only those intersecting the overlay, with local coords
 const visibleCandidates = computed(() => {
-  if (!overlayBounds.value || !state.value.hasSnapshot)
-    return []
+  if (!overlayBounds.value || !state.value.hasSnapshot) return []
   const ob = overlayBounds.value
   return state.value.candidates
-    .filter(c => rectIntersectsOverlay(c.bounds, ob))
-    .map(c => ({
+    .filter((c) => rectIntersectsOverlay(c.bounds, ob))
+    .map((c) => ({
       ...c,
       localBounds: screenRectToLocal(c.bounds, ob),
     }))
@@ -71,17 +81,14 @@ const visibleCandidates = computed(() => {
 
 const pointerIntent = computed(() => state.value.pointerIntent)
 const hasSnapshot = computed(() => state.value.hasSnapshot)
-const isStale = computed(() =>
-  state.value.staleFlags.screenshot
-  || state.value.staleFlags.ax
-  || state.value.staleFlags.chromeSemantic,
+const isStale = computed(
+  () => state.value.staleFlags.screenshot || state.value.staleFlags.ax || state.value.staleFlags.chromeSemantic,
 )
 
 // Match candidate for pointer intent bounding box
 const matchedCandidate = computed(() => {
-  if (!pointerIntent.value?.candidateId)
-    return null
-  return visibleCandidates.value.find(c => c.id === pointerIntent.value!.candidateId) ?? null
+  if (!pointerIntent.value?.candidateId) return null
+  return visibleCandidates.value.find((c) => c.id === pointerIntent.value!.candidateId) ?? null
 })
 
 // ---------------------------------------------------------------------------
@@ -89,14 +96,12 @@ const matchedCandidate = computed(() => {
 // ---------------------------------------------------------------------------
 
 const controller = createOverlayPollController({
-  callTool: name => callMcpTool({ name }),
+  callTool: (name) => callMcpTool({ name }),
   getReadiness: async () => getReadiness(),
   onState: (newState) => {
     state.value = newState
   },
-  onHeartbeat: pollHeartbeatEnabled
-    ? heartbeat => console.info(formatOverlayPollHeartbeat(heartbeat))
-    : undefined,
+  onHeartbeat: pollHeartbeatEnabled ? (heartbeat) => console.info(formatOverlayPollHeartbeat(heartbeat)) : undefined,
 })
 
 // ---------------------------------------------------------------------------
@@ -105,23 +110,31 @@ const controller = createOverlayPollController({
 
 function sourceColor(source: string): string {
   switch (source) {
-    case 'chrome_dom': return '#22c55e'
-    case 'ax': return '#f59e0b'
-    case 'vision': return '#8b5cf6'
-    default: return '#6b7280'
+    case 'chrome_dom':
+      return '#22c55e'
+    case 'ax':
+      return '#f59e0b'
+    case 'vision':
+      return '#8b5cf6'
+    default:
+      return '#6b7280'
   }
 }
 
 const pointerPhase = computed(() => pointerIntent.value?.phase ?? 'preview')
 const executionResult = computed(() => pointerIntent.value?.executionResult)
 
-function phaseColor(phase: string, result?: string): { bg: string, shadow: string } {
+function phaseColor(phase: string, result?: string): { bg: string; shadow: string } {
   if (phase === 'completed') {
     switch (result) {
-      case 'success': return { bg: '#22c55e', shadow: 'rgba(34, 197, 94, 0.5)' }
-      case 'fallback': return { bg: '#f59e0b', shadow: 'rgba(245, 158, 11, 0.5)' }
-      case 'error': return { bg: '#ef4444', shadow: 'rgba(239, 68, 68, 0.5)' }
-      default: return { bg: '#6b7280', shadow: 'rgba(107, 114, 128, 0.5)' }
+      case 'success':
+        return { bg: '#22c55e', shadow: 'rgba(34, 197, 94, 0.5)' }
+      case 'fallback':
+        return { bg: '#f59e0b', shadow: 'rgba(245, 158, 11, 0.5)' }
+      case 'error':
+        return { bg: '#ef4444', shadow: 'rgba(239, 68, 68, 0.5)' }
+      default:
+        return { bg: '#6b7280', shadow: 'rgba(107, 114, 128, 0.5)' }
     }
   }
   if (phase === 'executing') {
@@ -132,12 +145,10 @@ function phaseColor(phase: string, result?: string): { bg: string, shadow: strin
 }
 
 const pointerStyle = computed(() => {
-  if (!pointerIntent.value || !overlayBounds.value)
-    return { display: 'none' }
+  if (!pointerIntent.value || !overlayBounds.value) return { display: 'none' }
   const ob = overlayBounds.value
   const screenPoint = pointerIntent.value.snappedPoint
-  if (!pointInOverlay(screenPoint, ob))
-    return { display: 'none' }
+  if (!pointInOverlay(screenPoint, ob)) return { display: 'none' }
   const local = screenToLocal(screenPoint, ob)
   const phase = pointerPhase.value
   const colors = phaseColor(phase, executionResult.value)
@@ -153,12 +164,10 @@ const pointerStyle = computed(() => {
 // Click ripple — shown briefly when phase transitions to 'completed'
 const showRipple = ref(false)
 const rippleStyle = computed(() => {
-  if (!pointerIntent.value || !overlayBounds.value || !showRipple.value)
-    return { display: 'none' }
+  if (!pointerIntent.value || !overlayBounds.value || !showRipple.value) return { display: 'none' }
   const ob = overlayBounds.value
   const screenPoint = pointerIntent.value.snappedPoint
-  if (!pointInOverlay(screenPoint, ob))
-    return { display: 'none' }
+  if (!pointInOverlay(screenPoint, ob)) return { display: 'none' }
   const local = screenToLocal(screenPoint, ob)
   const colors = phaseColor('completed', executionResult.value)
   return {
@@ -173,13 +182,14 @@ const rippleStyle = computed(() => {
 watch(pointerPhase, (newPhase) => {
   if (newPhase === 'completed') {
     showRipple.value = true
-    setTimeout(() => { showRipple.value = false }, 600)
+    setTimeout(() => {
+      showRipple.value = false
+    }, 600)
   }
 })
 
 const targetBoxStyle = computed(() => {
-  if (!matchedCandidate.value)
-    return { display: 'none' }
+  if (!matchedCandidate.value) return { display: 'none' }
   const { localBounds } = matchedCandidate.value
   return {
     left: `${localBounds.x}px`,
@@ -199,8 +209,7 @@ onMounted(async () => {
   try {
     const bounds = await getWindowBounds()
     overlayBounds.value = bounds
-  }
-  catch {
+  } catch {
     // Fallback: assume bounds start at (0,0) with window inner size
     overlayBounds.value = {
       x: 0,
@@ -233,12 +242,7 @@ onUnmounted(() => {
 <template>
   <div :class="['desktop-overlay']">
     <!-- Stale badge -->
-    <div
-      v-if="hasSnapshot && isStale"
-      :class="['stale-badge']"
-    >
-      ⚠ STALE
-    </div>
+    <div v-if="hasSnapshot && isStale" :class="['stale-badge']">⚠ STALE</div>
 
     <!-- Ghost pointer dot -->
     <div
@@ -252,26 +256,13 @@ onUnmounted(() => {
     />
 
     <!-- Click ripple (brief expanding ring on click completion) -->
-    <div
-      v-if="showRipple"
-      :class="['click-ripple']"
-      :style="rippleStyle"
-    />
+    <div v-if="showRipple" :class="['click-ripple']" :style="rippleStyle" />
 
     <!-- Target bounding box (matched candidate from pointer intent) -->
-    <div
-      v-if="matchedCandidate"
-      :class="['target-box']"
-      :style="targetBoxStyle"
-    >
-      <span
-        :class="['target-label']"
-        :style="{ borderColor: sourceColor(matchedCandidate.source) }"
-      >
+    <div v-if="matchedCandidate" :class="['target-box']" :style="targetBoxStyle">
+      <span :class="['target-label']" :style="{ borderColor: sourceColor(matchedCandidate.source) }">
         {{ matchedCandidate.source }} · {{ matchedCandidate.label }}
-        <span :class="['confidence-badge']">
-          {{ Math.round(matchedCandidate.confidence * 100) }}%
-        </span>
+        <span :class="['confidence-badge']">{{ Math.round(matchedCandidate.confidence * 100) }}%</span>
       </span>
     </div>
 
@@ -310,7 +301,9 @@ onUnmounted(() => {
   position: fixed;
   top: 8px;
   right: 8px;
-  font: bold 11px/1 system-ui, sans-serif;
+  font:
+    bold 11px/1 system-ui,
+    sans-serif;
   color: #fbbf24;
   background: rgba(0, 0, 0, 0.7);
   padding: 4px 8px;
@@ -324,7 +317,11 @@ onUnmounted(() => {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  transition: left 0.15s ease, top 0.15s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    left 0.15s ease,
+    top 0.15s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
   z-index: 10;
 }
 
@@ -339,14 +336,30 @@ onUnmounted(() => {
 }
 
 @keyframes ghost-pulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.4); opacity: 0.7; }
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.4);
+    opacity: 0.7;
+  }
 }
 
 @keyframes ghost-fadeout {
-  0% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.2); opacity: 0.6; }
-  100% { transform: scale(0.8); opacity: 0; }
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
 }
 
 /* Expanding ring ripple on click */
@@ -362,8 +375,14 @@ onUnmounted(() => {
 }
 
 @keyframes ripple-expand {
-  0% { transform: scale(0.5); opacity: 1; }
-  100% { transform: scale(2); opacity: 0; }
+  0% {
+    transform: scale(0.5);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
 }
 
 .target-box {
@@ -378,7 +397,9 @@ onUnmounted(() => {
   position: absolute;
   top: -24px;
   left: 0;
-  font: 11px/1.2 system-ui, sans-serif;
+  font:
+    11px/1.2 system-ui,
+    sans-serif;
   color: #fff;
   background: rgba(0, 0, 0, 0.7);
   padding: 2px 6px;

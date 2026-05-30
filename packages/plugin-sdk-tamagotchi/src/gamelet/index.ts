@@ -141,7 +141,7 @@ export async function defineGamelet<TDefaults extends HostDataRecord = HostDataR
   definition: GameletDefinition<TDefaults>,
 ): Promise<DefinedGamelet> {
   const kits = await ctx.apis.kits.list()
-  const supported = kits.some(kit => kit.kitId === 'kit.gamelet')
+  const supported = kits.some((kit) => kit.kitId === 'kit.gamelet')
 
   if (!supported) {
     return {
@@ -153,7 +153,7 @@ export async function defineGamelet<TDefaults extends HostDataRecord = HostDataR
   }
 
   const existingModules = await ctx.apis.bindings.list()
-  const existingModule = existingModules.find(module => module.moduleId === definition.id)
+  const existingModule = existingModules.find((module) => module.moduleId === definition.id)
   const config = buildModuleConfig(definition)
 
   if (!existingModule) {
@@ -163,8 +163,7 @@ export async function defineGamelet<TDefaults extends HostDataRecord = HostDataR
       kitModuleType: 'gamelet',
       config,
     })
-  }
-  else {
+  } else {
     await ctx.apis.bindings.update({
       moduleId: definition.id,
       config,

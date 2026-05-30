@@ -3,10 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { PluginSessionService } from './sessions'
 
 vi.mock('nanoid/non-secure', () => ({
-  nanoid: vi
-    .fn()
-    .mockReturnValueOnce('session-a')
-    .mockReturnValueOnce('session-b'),
+  nanoid: vi.fn().mockReturnValueOnce('session-a').mockReturnValueOnce('session-b'),
 }))
 
 interface TestSession {

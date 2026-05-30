@@ -29,7 +29,8 @@ function setVisible(value: boolean) {
       >
         <span>
           {{ props.label ?? 'Collapsable' }}
-        </span> <span op50>{{ visible ? '▲' : '▼' }}</span>
+        </span>
+        <span op50>{{ visible ? '▲' : '▼' }}</span>
       </button>
     </slot>
     <TransitionVertical>

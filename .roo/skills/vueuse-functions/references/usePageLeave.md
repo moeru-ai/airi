@@ -18,9 +18,7 @@ const isLeft = usePageLeave()
 
 ```vue
 <template>
-  <UsePageLeave v-slot="{ isLeft }">
-    Has Left Page: {{ isLeft }}
-  </UsePageLeave>
+  <UsePageLeave v-slot="{ isLeft }">Has Left Page: {{ isLeft }}</UsePageLeave>
 </template>
 ```
 
@@ -37,7 +35,5 @@ export type UsePageLeaveReturn = ShallowRef<boolean>
  *
  * @__NO_SIDE_EFFECTS__
  */
-export declare function usePageLeave(
-  options?: UsePageLeaveOptions,
-): UsePageLeaveReturn
+export declare function usePageLeave(options?: UsePageLeaveOptions): UsePageLeaveReturn
 ```

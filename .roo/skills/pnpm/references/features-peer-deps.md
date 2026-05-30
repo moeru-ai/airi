@@ -28,6 +28,7 @@ strict-peer-dependencies=true
 ```
 
 When strict, pnpm will fail if:
+
 - Peer dependency is missing
 - Installed version doesn't match required range
 
@@ -57,17 +58,14 @@ Suppress warnings for missing peer dependencies:
 {
   "pnpm": {
     "peerDependencyRules": {
-      "ignoreMissing": [
-        "@babel/*",
-        "eslint",
-        "webpack"
-      ]
+      "ignoreMissing": ["@babel/*", "eslint", "webpack"]
     }
   }
 }
 ```
 
 Use patterns:
+
 - `"react"` - exact package name
 - `"@babel/*"` - all packages in scope
 - `"*"` - all packages (not recommended)
@@ -115,7 +113,7 @@ function readPackage(pkg, context) {
   if (pkg.name === 'problematic-package') {
     pkg.peerDependencies = {
       ...pkg.peerDependencies,
-      react: '*'
+      react: '*',
     }
   }
   return pkg
@@ -123,8 +121,8 @@ function readPackage(pkg, context) {
 
 module.exports = {
   hooks: {
-    readPackage
-  }
+    readPackage,
+  },
 }
 ```
 
@@ -187,10 +185,7 @@ catalog:
 {
   "pnpm": {
     "peerDependencyRules": {
-      "ignoreMissing": [
-        "eslint",
-        "@typescript-eslint/parser"
-      ]
+      "ignoreMissing": ["eslint", "@typescript-eslint/parser"]
     }
   }
 }
@@ -233,6 +228,7 @@ pnpm list --depth=Infinity
 3. **Document suppressed warnings** explaining why they're safe
 
 4. **Keep peer deps ranges wide** in libraries:
+
    ```json
    {
      "peerDependencies": {

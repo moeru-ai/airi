@@ -48,27 +48,28 @@ export function useRenderTargetRegionAtClientPoint(context: {
     return renderTargetRef.value
   }
 
-  function readRenderTargetRegionAtClientPoint(clientX: number, clientY: number, radius: number): RenderTargetRegionRead | null {
+  function readRenderTargetRegionAtClientPoint(
+    clientX: number,
+    clientY: number,
+    radius: number,
+  ): RenderTargetRegionRead | null {
     const traceStart = isStageThreeRuntimeTraceEnabled() ? performance.now() : 0
     const renderer = context.getRenderer()
     const scene = context.getScene()
     const camera = context.getCamera()
     const canvas = context.getCanvas()
-    if (!renderer || !scene || !camera || !canvas)
-      return null
+    if (!renderer || !scene || !camera || !canvas) return null
 
     const rect = canvas.getBoundingClientRect()
     const xIn = clientX - rect.left
     const yIn = clientY - rect.top
     const inCanvas = xIn >= 0 && yIn >= 0 && xIn < rect.width && yIn < rect.height
-    if (!inCanvas)
-      return null
+    if (!inCanvas) return null
 
     const renderTarget = ensureRenderTarget(renderer)
     const scaleX = renderTarget.width / rect.width
     const scaleY = renderTarget.height / rect.height
-    if (!Number.isFinite(scaleX) || !Number.isFinite(scaleY))
-      return null
+    if (!Number.isFinite(scaleX) || !Number.isFinite(scaleY)) return null
 
     const centerX = Math.floor(xIn * scaleX)
     const centerY = Math.floor(renderTarget.height - 1 - yIn * scaleY)

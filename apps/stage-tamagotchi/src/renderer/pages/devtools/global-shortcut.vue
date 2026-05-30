@@ -57,8 +57,7 @@ const listShortcuts = useElectronEventaInvoke(electronShortcutList)
 async function refreshList() {
   try {
     active.value = await listShortcuts()
-  }
-  catch (error) {
+  } catch (error) {
     lastError.value = errorMessageFrom(error) ?? 'Failed to list bindings'
   }
 }
@@ -66,8 +65,7 @@ async function refreshList() {
 function tryParseAccelerator(): ShortcutAccelerator | null {
   try {
     return parseAccelerator(form.acceleratorText)
-  }
-  catch (error) {
+  } catch (error) {
     lastError.value = errorMessageFrom(error) ?? 'Invalid accelerator'
     return null
   }
@@ -80,8 +78,7 @@ async function handleRegister() {
     return
   }
   const accelerator = tryParseAccelerator()
-  if (!accelerator)
-    return
+  if (!accelerator) return
 
   busy.value = true
   try {
@@ -93,11 +90,9 @@ async function handleRegister() {
       description: form.description.trim() || undefined,
     })
     await refreshList()
-  }
-  catch (error) {
+  } catch (error) {
     lastError.value = errorMessageFrom(error) ?? 'Register failed'
-  }
-  finally {
+  } finally {
     busy.value = false
   }
 }
@@ -107,11 +102,9 @@ async function handleUnregister(id: string) {
   try {
     await unregisterShortcut({ id })
     await refreshList()
-  }
-  catch (error) {
+  } catch (error) {
     lastError.value = errorMessageFrom(error) ?? `Unregister failed for "${id}"`
-  }
-  finally {
+  } finally {
     busy.value = false
   }
 }
@@ -121,11 +114,9 @@ async function handleUnregisterAll() {
   try {
     await unregisterAllShortcuts()
     await refreshList()
-  }
-  catch (error) {
+  } catch (error) {
     lastError.value = errorMessageFrom(error) ?? 'Unregister all failed'
-  }
-  finally {
+  } finally {
     busy.value = false
   }
 }
@@ -136,8 +127,7 @@ function clearLog() {
 
 function pushTrigger(entry: TriggerLogEntry) {
   triggers.value.unshift(entry)
-  if (triggers.value.length > TRIGGER_LOG_LIMIT)
-    triggers.value.length = TRIGGER_LOG_LIMIT
+  if (triggers.value.length > TRIGGER_LOG_LIMIT) triggers.value.length = TRIGGER_LOG_LIMIT
 }
 
 function formatTime(ms: number) {
@@ -146,12 +136,10 @@ function formatTime(ms: number) {
 
 function deltaForTrigger(index: number): string {
   const current = triggers.value[index]
-  if (!current)
-    return ''
+  if (!current) return ''
   for (let i = index + 1; i < triggers.value.length; i++) {
     const prev = triggers.value[i]
-    if (prev.id === current.id)
-      return String(current.time - prev.time)
+    if (prev.id === current.id) return String(current.time - prev.time)
   }
   return ''
 }
@@ -162,8 +150,7 @@ onMounted(async () => {
   const context = getElectronEventaContext()
   disposeTriggerListener = context.on(electronShortcutTriggered, (event) => {
     const payload = event?.body
-    if (!payload)
-      return
+    if (!payload) return
     pushTrigger({ time: Date.now(), id: payload.id, phase: payload.phase })
   })
   await refreshList()
@@ -178,8 +165,8 @@ onUnmounted(() => {
 <template>
   <div class="pb-6 space-y-6">
     <p class="text-sm text-neutral-500 dark:text-neutral-300">
-      Register a global shortcut, watch trigger events fire, exercise the
-      driver's refusal paths (duplicate id, conflict, unsupported).
+      Register a global shortcut, watch trigger events fire, exercise the driver's refusal paths (duplicate id,
+      conflict, unsupported).
     </p>
 
     <div class="space-y-3">
@@ -211,37 +198,20 @@ onUnmounted(() => {
         />
       </div>
       <div class="flex flex-wrap gap-3">
-        <Button variant="primary" :disabled="busy" @click="handleRegister">
-          Register
-        </Button>
-        <Button variant="secondary" :disabled="busy" @click="refreshList">
-          Refresh List
-        </Button>
-        <Button
-          class="ml-auto"
-          variant="danger"
-          :disabled="busy"
-          @click="handleUnregisterAll"
-        >
-          Unregister All
-        </Button>
+        <Button variant="primary" :disabled="busy" @click="handleRegister">Register</Button>
+        <Button variant="secondary" :disabled="busy" @click="refreshList">Refresh List</Button>
+        <Button class="ml-auto" variant="danger" :disabled="busy" @click="handleUnregisterAll">Unregister All</Button>
       </div>
       <div v-if="lastError" class="text-danger-200/90 text-sm">
         {{ lastError }}
       </div>
       <div
         v-if="lastResult"
-        :class="[
-          'rounded p-3 space-y-1',
-          'text-xs font-mono',
-          'bg-neutral-100 dark:bg-neutral-800',
-        ]"
+        :class="['rounded p-3 space-y-1', 'text-xs font-mono', 'bg-neutral-100 dark:bg-neutral-800']"
       >
         <div>id: {{ lastResult.id }}</div>
         <div>ok: {{ lastResult.ok }}</div>
-        <div v-if="!lastResult.ok">
-          reason: {{ lastResult.reason }}
-        </div>
+        <div v-if="!lastResult.ok">reason: {{ lastResult.reason }}</div>
       </div>
     </div>
 
@@ -259,37 +229,19 @@ onUnmounted(() => {
       >
         No bindings registered yet.
       </div>
-      <div
-        v-else
-        :class="[
-          'overflow-hidden rounded-lg',
-          'border border-neutral-200 dark:border-neutral-800',
-        ]"
-      >
+      <div v-else :class="['overflow-hidden rounded-lg', 'border border-neutral-200 dark:border-neutral-800']">
         <table class="w-full text-sm">
           <thead class="bg-neutral-100 dark:bg-neutral-900">
             <tr>
-              <th class="px-3 py-2 text-left">
-                Id
-              </th>
-              <th class="px-3 py-2 text-left">
-                Accelerator
-              </th>
-              <th class="px-3 py-2 text-left">
-                Receive Key-Ups
-              </th>
-              <th class="px-3 py-2 text-left">
-                Description
-              </th>
+              <th class="px-3 py-2 text-left">Id</th>
+              <th class="px-3 py-2 text-left">Accelerator</th>
+              <th class="px-3 py-2 text-left">Receive Key-Ups</th>
+              <th class="px-3 py-2 text-left">Description</th>
               <th class="px-3 py-2" />
             </tr>
           </thead>
           <tbody>
-            <tr
-              v-for="b in active"
-              :key="b.id"
-              class="border-t border-neutral-200 dark:border-neutral-800"
-            >
+            <tr v-for="b in active" :key="b.id" class="border-t border-neutral-200 dark:border-neutral-800">
               <td class="px-3 py-2 font-mono">
                 {{ b.id }}
               </td>
@@ -303,12 +255,7 @@ onUnmounted(() => {
                 {{ b.description || '—' }}
               </td>
               <td class="px-3 py-2 text-right">
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  :disabled="busy"
-                  @click="handleUnregister(b.id)"
-                >
+                <Button size="sm" variant="secondary" :disabled="busy" @click="handleUnregister(b.id)">
                   Unregister
                 </Button>
               </td>
@@ -323,14 +270,7 @@ onUnmounted(() => {
         <h3 class="text-sm text-neutral-700 font-semibold dark:text-neutral-200">
           Trigger log ({{ triggers.length }})
         </h3>
-        <Button
-          size="sm"
-          variant="secondary"
-          :disabled="triggers.length === 0"
-          @click="clearLog"
-        >
-          Clear log
-        </Button>
+        <Button size="sm" variant="secondary" :disabled="triggers.length === 0" @click="clearLog">Clear log</Button>
       </div>
       <div
         v-if="triggers.length === 0"
@@ -342,28 +282,14 @@ onUnmounted(() => {
       >
         No triggers yet. Register a shortcut and press the combo.
       </div>
-      <div
-        v-else
-        :class="[
-          'overflow-hidden rounded-lg',
-          'border border-neutral-200 dark:border-neutral-800',
-        ]"
-      >
+      <div v-else :class="['overflow-hidden rounded-lg', 'border border-neutral-200 dark:border-neutral-800']">
         <table class="w-full text-sm">
           <thead class="bg-neutral-100 dark:bg-neutral-900">
             <tr>
-              <th class="px-3 py-2 text-left">
-                Time
-              </th>
-              <th class="px-3 py-2 text-left">
-                Id
-              </th>
-              <th class="px-3 py-2 text-left">
-                Phase
-              </th>
-              <th class="px-3 py-2 text-left">
-                Δ ms
-              </th>
+              <th class="px-3 py-2 text-left">Time</th>
+              <th class="px-3 py-2 text-left">Id</th>
+              <th class="px-3 py-2 text-left">Phase</th>
+              <th class="px-3 py-2 text-left">Δ ms</th>
             </tr>
           </thead>
           <tbody>

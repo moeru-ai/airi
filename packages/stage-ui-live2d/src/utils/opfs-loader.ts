@@ -18,8 +18,7 @@ export class OPFSCache {
       for await (const entry of root.values()) {
         await root.removeEntry(entry.name, { recursive: true })
       }
-    }
-    catch (e) {
+    } catch (e) {
       console.error('[OPFS] Failed to clear cache:', e)
     }
   }
@@ -30,15 +29,13 @@ export class OPFSCache {
       if (entry.kind === 'file') {
         const fileHandle = entry as FileSystemFileHandle
         const file = await fileHandle.getFile()
-        if (file.name === '__meta.json')
-          continue
+        if (file.name === '__meta.json') continue
         // live2d-display expects this
         Object.defineProperty(file, 'webkitRelativePath', {
           value: pathPrefix + file.name,
         })
         files.push(file)
-      }
-      else if (entry.kind === 'directory') {
+      } else if (entry.kind === 'directory') {
         const newPrefix = `${pathPrefix + entry.name}/`
         const subFiles = await OPFSCache.readDirectoryRecursive(entry as FileSystemDirectoryHandle, newPrefix)
         files.push(...subFiles)
@@ -49,10 +46,9 @@ export class OPFSCache {
 
   static async resolveDirectory(root: FileSystemDirectoryHandle, path: string): Promise<FileSystemDirectoryHandle> {
     let currentDir = root
-    if (!path || path === '.' || path === './')
-      return currentDir
+    if (!path || path === '.' || path === './') return currentDir
 
-    const parts = path.split('/').filter(p => p && p !== '.')
+    const parts = path.split('/').filter((p) => p && p !== '.')
     for (const part of parts) {
       currentDir = await currentDir.getDirectoryHandle(part, { create: true })
     }
@@ -77,8 +73,7 @@ export class OPFSCache {
       const metaFile = await metaHandle.getFile()
       const metaText = await metaFile.text()
       return JSON.parse(metaText) as { sourceUrl?: string }
-    }
-    catch {
+    } catch {
       return null
     }
   }
@@ -105,8 +100,7 @@ export class OPFSCache {
       if (files.length > 0) {
         return files
       }
-    }
-    catch {
+    } catch {
       // Cache Miss
     }
     return null
@@ -133,8 +127,7 @@ export class OPFSCache {
       }
       // eslint-disable-next-line no-console
       console.debug(`[OPFS] Saved to cache`)
-    }
-    catch (e) {
+    } catch (e) {
       console.error('[OPFS] Failed to save to cache:', e)
     }
   }
@@ -146,16 +139,10 @@ export class OPFSCache {
     let blobUrl: string | undefined
 
     // In Model.vue, we pass {id, url} to the loader, extract them here
-    if (
-      typeof source === 'object'
-      && source !== null
-      && 'id' in source
-      && 'url' in source
-    ) {
+    if (typeof source === 'object' && source !== null && 'id' in source && 'url' in source) {
       key = source.id
       blobUrl = source.url
-    }
-    else {
+    } else {
       return next()
     }
 
@@ -184,8 +171,7 @@ export class OPFSCache {
       const blob = await res.blob()
       const fileName = `${key}.zip`
       context.source = [new File([blob], fileName)]
-    }
-    catch (e) {
+    } catch (e) {
       console.error(`[OPFS] Failed to fetch blob for ${key}`, e)
       throw e
     }
@@ -205,7 +191,7 @@ export class OPFSCache {
       return next()
     }
 
-    const settingsFile = files.find(f => f.name.endsWith('.model.json') || f.name.endsWith('.model3.json'))
+    const settingsFile = files.find((f) => f.name.endsWith('.model.json') || f.name.endsWith('.model3.json'))
     if (!settingsFile) {
       // reconstruct settings files from ModelSettings
       const settings: ModelSettings = (files as any).settings
@@ -235,10 +221,8 @@ function encodeProperty(obj: any, path: string) {
   while (propPath.length > 1 && cursor != null && typeof cursor === 'object' && propPath[0] in cursor) {
     cursor = cursor[propPath.shift()!]
   }
-  if (cursor == null || cursor[propPath[0]] == null)
-    return
-  if (typeof cursor[propPath[0]] === 'string')
-    cursor[propPath[0]] = encodeURI(cursor[propPath[0]])
+  if (cursor == null || cursor[propPath[0]] == null) return
+  if (typeof cursor[propPath[0]] === 'string') cursor[propPath[0]] = encodeURI(cursor[propPath[0]])
   if (Array.isArray(cursor[propPath[0]]) && typeof cursor[propPath[0]][0] === 'string') {
     cursor[propPath[0]] = cursor[propPath[0]].map((s: string) => encodeURI(s))
   }
@@ -253,14 +237,13 @@ function encodeModelSettings(input: any): string {
     'FileReferences.Physics',
     'url',
   ]
-  propertyToEncode.forEach(k => encodeProperty(settings, k))
-  settings?.FileReferences?.Expressions?.map((exp: { Name: string, File: string }) => {
+  propertyToEncode.forEach((k) => encodeProperty(settings, k))
+  settings?.FileReferences?.Expressions?.map((exp: { Name: string; File: string }) => {
     exp.File = encodeURI(exp.File)
     return exp
   })
   Object.keys(settings?.FileReferences?.Motions ?? {}).forEach((k) => {
-    if (!Array.isArray(settings?.FileReferences?.Motions[k]))
-      return // not sure whether 'Motions' is of type Record<string,[]>, assume it is for now.
+    if (!Array.isArray(settings?.FileReferences?.Motions[k])) return // not sure whether 'Motions' is of type Record<string,[]>, assume it is for now.
     settings?.FileReferences?.Motions[k].map((exp: { File: string }) => {
       exp.File = encodeURI(exp.File)
       return exp

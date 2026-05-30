@@ -50,8 +50,7 @@ export function useLanguage(
         if (typeof mainLocale === 'string' && mainLocale && mainLocale !== language.value) {
           language.value = mainLocale
         }
-      }
-      catch (error) {
+      } catch (error) {
         console.warn('[useLanguage] Failed to get locale from main process, using fallback:', error)
       }
     }

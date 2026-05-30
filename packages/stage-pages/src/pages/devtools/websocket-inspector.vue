@@ -13,14 +13,10 @@ const streamContainer = ref<HTMLDivElement>()
 const showingDetails = ref<string>('')
 const filteredHistory = computed(() => {
   return store.history.filter((item) => {
-    if (!showIncoming.value && item.direction === 'incoming')
-      return false
-    if (!showOutgoing.value && item.direction === 'outgoing')
-      return false
-    if (!showHeartbeats.value && item.event.type === 'transport:connection:heartbeat')
-      return false
-    if (filter.value && !JSON.stringify(item.event).toLowerCase().includes(filter.value.toLowerCase()))
-      return false
+    if (!showIncoming.value && item.direction === 'incoming') return false
+    if (!showOutgoing.value && item.direction === 'outgoing') return false
+    if (!showHeartbeats.value && item.event.type === 'transport:connection:heartbeat') return false
+    if (filter.value && !JSON.stringify(item.event).toLowerCase().includes(filter.value.toLowerCase())) return false
     return true
   })
 })
@@ -31,8 +27,7 @@ function formatTime(ts: number) {
 
 async function scrollToTop() {
   await nextTick()
-  if (streamContainer.value)
-    streamContainer.value.scrollTop = 0
+  if (streamContainer.value) streamContainer.value.scrollTop = 0
 }
 
 watch(() => filteredHistory.value.length, scrollToTop)
@@ -89,18 +84,8 @@ function cardClasses(direction: 'incoming' | 'outgoing') {
 }
 
 const payloadClassMap: Record<'incoming' | 'outgoing', string[]> = {
-  incoming: [
-    'bg-pink-100',
-    'border-pink-300 border-1 border-solid',
-    'dark:bg-pink-900',
-    'dark:border-pink-700',
-  ],
-  outgoing: [
-    'bg-blue-100',
-    'border-blue-300 border-1 border-solid',
-    'dark:bg-blue-900',
-    'dark:border-blue-700',
-  ],
+  incoming: ['bg-pink-100', 'border-pink-300 border-1 border-solid', 'dark:bg-pink-900', 'dark:border-pink-700'],
+  outgoing: ['bg-blue-100', 'border-blue-300 border-1 border-solid', 'dark:bg-blue-900', 'dark:border-blue-700'],
 }
 
 function payloadClasses(direction: 'incoming' | 'outgoing') {
@@ -119,11 +104,7 @@ function payloadClasses(direction: 'incoming' | 'outgoing') {
       </div>
 
       <div class="flex gap-2">
-        <Input
-          v-model="filter"
-          placeholder="Filter payload..."
-          class="w-64"
-        />
+        <Input v-model="filter" placeholder="Filter payload..." class="w-64" />
         <Button
           label="Clear"
           icon="i-solar:trash-bin-trash-bold-duotone"
@@ -138,14 +119,8 @@ function payloadClasses(direction: 'incoming' | 'outgoing') {
     </div>
 
     <!-- Stream -->
-    <div
-      ref="streamContainer"
-      class="flex-1 overflow-y-auto rounded-xl bg-white/70 dark:bg-neutral-950/50"
-    >
-      <div
-        v-if="filteredHistory.length === 0"
-        class="h-full w-full flex justify-center p-3 text-sm"
-      >
+    <div ref="streamContainer" class="flex-1 overflow-y-auto rounded-xl bg-white/70 dark:bg-neutral-950/50">
+      <div v-if="filteredHistory.length === 0" class="h-full w-full flex justify-center p-3 text-sm">
         No messages found.
       </div>
       <div v-else v-auto-animate class="grid gap-3">
@@ -157,7 +132,19 @@ function payloadClasses(direction: 'incoming' | 'outgoing') {
         >
           <div class="flex items-start justify-between gap-3">
             <div class="flex flex-wrap items-center gap-2 text-sm">
-              <span :class="['rounded-full', 'border', 'px-2', 'py-0.5', 'text-xs', 'flex', 'items-center', 'justify-center', ...directionBadgeClasses(item.direction)]">
+              <span
+                :class="[
+                  'rounded-full',
+                  'border',
+                  'px-2',
+                  'py-0.5',
+                  'text-xs',
+                  'flex',
+                  'items-center',
+                  'justify-center',
+                  ...directionBadgeClasses(item.direction),
+                ]"
+              >
                 <span :class="['size-3.5', directionIconClass(item.direction)]" :aria-label="item.direction" />
                 <span class="ml-1 font-bold tracking-wider uppercase">{{ item.direction }}</span>
               </span>
@@ -171,13 +158,17 @@ function payloadClasses(direction: 'incoming' | 'outgoing') {
           </div>
 
           <details class="group mt-2" :open="showingDetails === item.id">
-            <summary class="cursor-pointer select-none text-sm font-medium" @click="showingDetails = showingDetails === item.id ? '' : item.id">
+            <summary
+              class="cursor-pointer select-none text-sm font-medium"
+              @click="showingDetails = showingDetails === item.id ? '' : item.id"
+            >
               Payload
             </summary>
             <pre
               class="mt-2 w-full overflow-auto whitespace-pre-wrap rounded-lg p-3 text-sm"
               :class="payloadClasses(item.direction)"
-            >{{ JSON.stringify(item.event, null, 2) }}</pre>
+              >{{ JSON.stringify(item.event, null, 2) }}</pre
+            >
           </details>
         </div>
       </div>

@@ -48,28 +48,35 @@ overrides:
 ## Override Patterns
 
 ### Override all instances
+
 ```yaml
 overrides:
   lodash: ^4.17.21
 ```
+
 Forces all lodash installations to use ^4.17.21.
 
 ### Override specific parent version
+
 ```yaml
 overrides:
   'foo@^1.0.0': ^1.2.3
 ```
+
 Only override foo when the requested version matches ^1.0.0.
 
 ### Override nested dependency
+
 ```yaml
 overrides:
   'express>cookie': ^0.6.0
   'foo@1.x>bar@^2.0.0>qux': ^1.0.0
 ```
+
 Override cookie only when it's a dependency of express.
 
 ### Replace with different package
+
 ```yaml
 overrides:
   # Replace underscore with lodash
@@ -83,10 +90,12 @@ overrides:
 ```
 
 ### Remove a dependency
+
 ```yaml
 overrides:
   'unwanted-pkg': '-'
 ```
+
 The `-` removes the package entirely.
 
 ## Common Use Cases
@@ -142,7 +151,7 @@ function readPackage(pkg, context) {
   if (pkg.name === 'some-package') {
     pkg.peerDependencies = {
       ...pkg.peerDependencies,
-      react: '*'
+      react: '*',
     }
   }
 
@@ -151,19 +160,19 @@ function readPackage(pkg, context) {
 
 module.exports = {
   hooks: {
-    readPackage
-  }
+    readPackage,
+  },
 }
 ```
 
 ## Overrides vs Catalogs
 
-| Feature | Overrides | Catalogs |
-|---------|-----------|----------|
-| Affects | All dependencies (including transitive) | Direct dependencies only |
-| Usage | Automatic | Explicit `catalog:` reference |
-| Purpose | Force versions, fix issues | Version management |
-| Granularity | Can target specific parents | Package-wide only |
+| Feature     | Overrides                               | Catalogs                      |
+| ----------- | --------------------------------------- | ----------------------------- |
+| Affects     | All dependencies (including transitive) | Direct dependencies only      |
+| Usage       | Automatic                               | Explicit `catalog:` reference |
+| Purpose     | Force versions, fix issues              | Version management            |
+| Granularity | Can target specific parents             | Package-wide only             |
 
 ## Debugging
 

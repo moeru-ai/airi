@@ -13,7 +13,9 @@ import { useRTDB } from '@vueuse/firebase/useRTDB'
 import { initializeApp } from 'firebase/app'
 import { getDatabase } from 'firebase/database'
 
-const app = initializeApp({ /* config */ })
+const app = initializeApp({
+  /* config */
+})
 const db = getDatabase(app)
 
 // in setup()
@@ -48,9 +50,7 @@ or use `createGlobalState` from the core package
 import { createGlobalState } from '@vueuse/core'
 import { useRTDB } from '@vueuse/firebase/useRTDB'
 
-export const useTodos = createGlobalState(
-  () => useRTDB(db.ref('todos')),
-)
+export const useTodos = createGlobalState(() => useRTDB(db.ref('todos')))
 ```
 
 ```vue

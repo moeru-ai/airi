@@ -30,8 +30,7 @@ function updatePreviewVrmMaterials(vrm: VRM | undefined, delta: number) {
   // through material.update(delta). The preview path renders a one-shot offscreen frame instead of
   // using VRM.update(delta), so we need to forward material updates manually before rendering.
   vrm?.materials?.forEach((material) => {
-    if (hasMaterialUpdate(material))
-      material.update(delta)
+    if (hasMaterialUpdate(material)) material.update(delta)
   })
 }
 
@@ -54,8 +53,8 @@ export async function loadVrmModelPreview(file: File) {
 
   const scene = new Scene()
   const camera = new PerspectiveCamera(40, offscreenCanvas.width / offscreenCanvas.height, 0.01, 1000)
-  const ambientLight = new AmbientLight(0xFFFFFF, 0.8)
-  const directionalLight = new DirectionalLight(0xFFFFFF, 0.8)
+  const ambientLight = new AmbientLight(0xffffff, 0.8)
+  const directionalLight = new DirectionalLight(0xffffff, 0.8)
   directionalLight.position.set(1, 1, 1)
   scene.add(ambientLight, directionalLight)
 
@@ -67,8 +66,7 @@ export async function loadVrmModelPreview(file: File) {
 
   try {
     const vrmData = await loadVrm(objUrl, { scene, lookAt: true })
-    if (!vrmData)
-      return
+    if (!vrmData) return
 
     vrmInstance = vrmData._vrm
     vrmGroup = vrmData._vrmGroup
@@ -88,8 +86,7 @@ export async function loadVrmModelPreview(file: File) {
         action.play()
         mixer.update(previewDelta)
       }
-    }
-    catch (err) {
+    } catch (err) {
       console.warn('Failed to load VRM animation for preview:', err)
     }
 
@@ -98,8 +95,7 @@ export async function loadVrmModelPreview(file: File) {
 
     const dataUrl = offscreenCanvas.toDataURL()
     return dataUrl
-  }
-  finally {
+  } finally {
     mixer?.stopAllAction()
     disposePreviewVrm(vrmInstance, vrmGroup)
     scene.clear()

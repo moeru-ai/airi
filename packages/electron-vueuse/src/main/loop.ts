@@ -20,8 +20,7 @@ export function useLoop(fn: () => Promise<void> | void, options?: LoopOptions) {
     await mutex.acquire()
     try {
       await fn()
-    }
-    finally {
+    } finally {
       mutex.release()
     }
   }

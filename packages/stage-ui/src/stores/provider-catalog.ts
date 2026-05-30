@@ -40,7 +40,10 @@ export function createProviderCatalogListQueryOptions(params: {
 
 export function createProviderCatalogStoreController(params: {
   addProviderMutation: StoreMutation<InferenceServiceProvider, InferenceServiceProvider>
-  commitProviderConfigMutation: StoreMutation<{ providerId: string, config: Record<string, unknown>, options: PatchConfigParams }, InferenceServiceProvider>
+  commitProviderConfigMutation: StoreMutation<
+    { providerId: string; config: Record<string, unknown>; options: PatchConfigParams },
+    InferenceServiceProvider
+  >
   configs: Ref<Record<string, InferenceServiceProvider>>
   model: typeof model
   providersQuery: StoreQuery<Record<string, InferenceServiceProvider>>
@@ -57,23 +60,20 @@ export function createProviderCatalogStoreController(params: {
     service,
   } = params
   const defs = computed(() => service.listDefinitions())
-  const mutationError = computed(() =>
-    addProviderMutation.error.value
-    ?? removeProviderMutation.error.value
-    ?? commitProviderConfigMutation.error.value)
+  const mutationError = computed(
+    () =>
+      addProviderMutation.error.value ?? removeProviderMutation.error.value ?? commitProviderConfigMutation.error.value,
+  )
 
   async function fetchList() {
     const cached = await model.list()
-    if (Object.keys(cached).length > 0)
-      configs.value = cached
+    if (Object.keys(cached).length > 0) configs.value = cached
 
     try {
       const state = await providersQuery.refetch(true)
-      if (state.data)
-        configs.value = state.data
+      if (state.data) configs.value = state.data
       return state.data ?? cached
-    }
-    catch {
+    } catch {
       return cached
     }
   }
@@ -90,31 +90,31 @@ export function createProviderCatalogStoreController(params: {
       configs.value[remote.id] = remote
       await model.upsert(remote)
       return remote
-    }
-    catch {
+    } catch {
       return provider
     }
   }
 
   async function removeProvider(providerId: string) {
-    if (!configs.value[providerId])
-      return
+    if (!configs.value[providerId]) return
 
     delete configs.value[providerId]
     await model.remove(providerId)
 
     try {
       await removeProviderMutation.mutateAsync(providerId)
-    }
-    catch {
+    } catch {
       // Keep current local-first behavior: local removal is retained on remote failure.
     }
   }
 
-  async function commitProviderConfig(providerId: string, newConfig: Record<string, unknown>, options: PatchConfigParams) {
+  async function commitProviderConfig(
+    providerId: string,
+    newConfig: Record<string, unknown>,
+    options: PatchConfigParams,
+  ) {
     const provider = configs.value[providerId]
-    if (!provider)
-      return
+    if (!provider) return
 
     const localProvider = {
       ...provider,
@@ -130,8 +130,7 @@ export function createProviderCatalogStoreController(params: {
       configs.value[remote.id] = remote
       await model.upsert(remote)
       return remote
-    }
-    catch {
+    } catch {
       return localProvider
     }
   }
@@ -155,11 +154,13 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
   const queryCache = useQueryCache()
   const configs = ref<Record<string, InferenceServiceProvider>>({})
 
-  const providersQuery = useQuery(createProviderCatalogListQueryOptions({
-    client,
-    model,
-    service,
-  }))
+  const providersQuery = useQuery(
+    createProviderCatalogListQueryOptions({
+      client,
+      model,
+      service,
+    }),
+  )
 
   const addProviderMutation = useMutation({
     mutation: async (provider: InferenceServiceProvider) => service.createRemote(client, provider),
@@ -176,11 +177,8 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
   })
 
   const commitProviderConfigMutation = useMutation({
-    mutation: async (payload: {
-      providerId: string
-      config: Record<string, unknown>
-      options: PatchConfigParams
-    }) => service.patchConfigRemote(client, payload.providerId, payload.config, payload.options),
+    mutation: async (payload: { providerId: string; config: Record<string, unknown>; options: PatchConfigParams }) =>
+      service.patchConfigRemote(client, payload.providerId, payload.config, payload.options),
     async onSettled() {
       await queryCache.invalidateQueries({ key: ['inference-service-providers'] })
     },

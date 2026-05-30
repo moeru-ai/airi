@@ -52,10 +52,12 @@ const settingsStore = useSettings()
 const airiCardStore = useAiriCardStore()
 const { stageModelRenderer, stageModelSelected, stageModelSelectedDisplayModel } = storeToRefs(settingsStore)
 
-const effectiveRenderer = computed(() => resolveModelSettingsPanelRenderer({
-  settingsRenderer: stageModelRenderer.value,
-  runtimeRenderer: props.runtimeSnapshot.renderer,
-}))
+const effectiveRenderer = computed(() =>
+  resolveModelSettingsPanelRenderer({
+    settingsRenderer: stageModelRenderer.value,
+    runtimeRenderer: props.runtimeSnapshot.renderer,
+  }),
+)
 
 async function handleModelPick(selectedModel: DisplayModel | undefined) {
   stageModelSelected.value = selectedModel?.id ?? ''
@@ -65,13 +67,7 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
 </script>
 
 <template>
-  <div
-    :class="[
-      'flex flex-col gap-2',
-      'z-10 overflow-y-scroll p-2',
-      settingsClass,
-    ]"
-  >
+  <div :class="['flex flex-col gap-2', 'z-10 overflow-y-scroll p-2', settingsClass]">
     <Callout :label="t('settings.model-select.panel-callout.support-status-header')">
       <i18n-t keypath="settings.model-select.panel-callout.support-status" tag="p">
         <template #select-button>
@@ -89,7 +85,11 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
       </p>
     </Callout>
     <div :class="['flex flex-wrap items-center gap-2']">
-      <ModelSelectorDialog v-model:show="modelSelectorOpen" :selected-model="stageModelSelectedDisplayModel" @pick="handleModelPick">
+      <ModelSelectorDialog
+        v-model:show="modelSelectorOpen"
+        :selected-model="stageModelSelectedDisplayModel"
+        @pick="handleModelPick"
+      >
         <Button variant="secondary">
           {{ t('settings.model-select.select-model.button') }}
         </Button>

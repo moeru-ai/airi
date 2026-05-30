@@ -7,7 +7,7 @@ vi.mock('@vueuse/core', async () => {
   const vue = await import('vue')
 
   return {
-    toRef: (value: unknown) => vue.isRef(value) ? value : vue.ref(value),
+    toRef: (value: unknown) => (vue.isRef(value) ? value : vue.ref(value)),
     unrefElement: (value: unknown) => vue.unref(value),
     useElementBounding: () => ({
       left: vue.ref(10),

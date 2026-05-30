@@ -51,7 +51,5 @@ export type UseNavigatorLanguageReturn = Readonly<NavigatorLanguageState>
  *
  * @__NO_SIDE_EFFECTS__
  */
-export declare function useNavigatorLanguage(
-  options?: UseNavigatorLanguageOptions,
-): UseNavigatorLanguageReturn
+export declare function useNavigatorLanguage(options?: UseNavigatorLanguageOptions): UseNavigatorLanguageReturn
 ```

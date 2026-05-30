@@ -40,7 +40,6 @@ catalog:
   '@iconify-json/tabler': ^1.2.33
   '@intlify/core': ^11.3.2
   '@modelcontextprotocol/sdk': ^1.29.0
-  '@moeru/eslint-config': 0.1.0-beta.15
   '@moeru/eventa': 1.0.0-beta.5
   '@moeru/std': 0.1.0-beta.17
   '@napi-rs/image': ^1.12.0
@@ -101,8 +100,8 @@ catalog:
   isolated-vm: ^6.1.2
   jose: ^6.2.2
   jsdom: ^29.0.2
-  knip: ^6.4.1
   meow: ^14.1.0
+  prettier: ^3.6.2
   mkcert: ^3.2.0
   nano-staged: ^1.0.2
   nanoid: 5.1.6

@@ -20,10 +20,7 @@ export interface NoticeWindowManager {
   open: (payload: RequestWindowPayload) => Promise<boolean>
 }
 
-export function setupNoticeWindowManager(params: {
-  i18n: I18n
-  serverChannel: ServerChannel
-}): NoticeWindowManager {
+export function setupNoticeWindowManager(params: { i18n: I18n; serverChannel: ServerChannel }): NoticeWindowManager {
   const rendererBase = baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'))
 
   function createWindow(_id: string): BrowserWindow {
@@ -65,8 +62,7 @@ export function setupNoticeWindowManager(params: {
       const handle = await manager.open(payload)
       return await new Promise<boolean>((resolve) => {
         defineInvokeHandler(handle.context, noticeWindowEventa.windowAction, (action) => {
-          if (!action?.id || action.id !== handle.id)
-            return
+          if (!action?.id || action.id !== handle.id) return
           resolve(action.action === 'confirm')
           safeClose(handle.window)
         })

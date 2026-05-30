@@ -64,7 +64,7 @@ For objects, arrays, maps and sets, you can provide a custom serializer. Otherwi
 const data = shallowRef({ foo: 'bar' })
 
 const { base64 } = useBase64(data, {
-  serializer: v => JSON.stringify(v, null, 2),
+  serializer: (v) => JSON.stringify(v, null, 2),
 })
 ```
 

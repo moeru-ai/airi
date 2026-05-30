@@ -8,9 +8,6 @@ Extended [`toRefs`](https://vuejs.org/api/reactivity-utilities.html#torefs) that
 
 ## Usage
 
-
-
-
 ```ts
 import { toRefs } from '@vueuse/core'
 import { reactive, ref } from 'vue'
@@ -44,14 +41,14 @@ export default {
     refs.a.value = 'a' // emit('update:data', { ...props.data, a: 'a' })
 
     return { ...refs }
-  }
+  },
 }
 </script>
 
 <template>
   <div>
-    <input v-model="a" type="text">
-    <input v-model="b" type="text">
+    <input v-model="a" type="text" />
+    <input v-model="b" type="text" />
   </div>
 </template>
 ```
@@ -74,8 +71,5 @@ export interface ToRefsOptions {
  * @param objectRef A ref or normal object or array.
  * @param options Options
  */
-export declare function toRefs<T extends object>(
-  objectRef: MaybeRef<T>,
-  options?: ToRefsOptions,
-): ToRefs<T>
+export declare function toRefs<T extends object>(objectRef: MaybeRef<T>, options?: ToRefsOptions): ToRefs<T>
 ```

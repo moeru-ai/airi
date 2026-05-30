@@ -18,9 +18,7 @@ const { isSwiping, direction } = useSwipe(el)
 </script>
 
 <template>
-  <div ref="el">
-    Swipe here
-  </div>
+  <div ref="el">Swipe here</div>
 </template>
 ```
 

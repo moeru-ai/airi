@@ -47,8 +47,7 @@ function hexToRgb(hex: string) {
 }
 
 function parseColor(color: string) {
-  if (!color)
-    return { h: 0, s: 0, v: 0, a: 1 }
+  if (!color) return { h: 0, s: 0, v: 0, a: 1 }
 
   // Create a temporary element to parse any CSS color
   const temp = document.createElement('div')
@@ -60,7 +59,7 @@ function parseColor(color: string) {
   // Parse rgb/rgba
   const rgbMatch = computed.match(/rgba?\(([^)]+)\)/)
   if (rgbMatch) {
-    const values = rgbMatch[1].split(',').map(v => Number.parseFloat(v.trim()))
+    const values = rgbMatch[1].split(',').map((v) => Number.parseFloat(v.trim()))
     const rgb = {
       r: values[0] / 255,
       g: values[1] / 255,
@@ -141,8 +140,7 @@ const alphaSliderBackground = computed(() => {
 
 // Interaction handlers
 function updateColorFromMap(x: number, y: number) {
-  if (!colorMapRef.value)
-    return
+  if (!colorMapRef.value) return
 
   const rect = colorMapRef.value.getBoundingClientRect()
   const newSaturation = Math.max(0, Math.min(100, (x / rect.width) * 100))
@@ -153,8 +151,7 @@ function updateColorFromMap(x: number, y: number) {
 }
 
 function updateHue(x: number) {
-  if (!hueSliderRef.value)
-    return
+  if (!hueSliderRef.value) return
 
   const rect = hueSliderRef.value.getBoundingClientRect()
   const newHue = Math.max(0, Math.min(360, (x / rect.width) * 360))
@@ -162,8 +159,7 @@ function updateHue(x: number) {
 }
 
 function updateAlpha(x: number) {
-  if (!alphaSliderRef.value)
-    return
+  if (!alphaSliderRef.value) return
 
   const rect = alphaSliderRef.value.getBoundingClientRect()
   const newAlpha = Math.max(0, Math.min(1, x / rect.width))
@@ -172,8 +168,7 @@ function updateAlpha(x: number) {
 
 // Event handlers
 function handleColorMapStart(event: MouseEvent | TouchEvent) {
-  if (props.disabled)
-    return
+  if (props.disabled) return
 
   isDragging.value = true
   dragType.value = 'map'
@@ -187,8 +182,7 @@ function handleColorMapStart(event: MouseEvent | TouchEvent) {
 }
 
 function handleHueStart(event: MouseEvent | TouchEvent) {
-  if (props.disabled)
-    return
+  if (props.disabled) return
 
   isDragging.value = true
   dragType.value = 'hue'
@@ -201,8 +195,7 @@ function handleHueStart(event: MouseEvent | TouchEvent) {
 }
 
 function handleAlphaStart(event: MouseEvent | TouchEvent) {
-  if (props.disabled)
-    return
+  if (props.disabled) return
 
   isDragging.value = true
   dragType.value = 'alpha'
@@ -216,8 +209,7 @@ function handleAlphaStart(event: MouseEvent | TouchEvent) {
 
 // Global event handlers
 function handleGlobalMove(event: MouseEvent | TouchEvent) {
-  if (!isDragging.value)
-    return
+  if (!isDragging.value) return
 
   event.preventDefault()
 
@@ -252,22 +244,25 @@ function handleGlobalEnd() {
 }
 
 // Watch for external color changes
-watch(modelValue, (newValue) => {
-  if (newValue && !isDragging.value) {
-    const parsed = parseColor(newValue)
-    hue.value = parsed.h
-    saturation.value = parsed.s
-    value.value = parsed.v
-    alphaValue.value = parsed.a
-  }
-}, { immediate: true })
+watch(
+  modelValue,
+  (newValue) => {
+    if (newValue && !isDragging.value) {
+      const parsed = parseColor(newValue)
+      hue.value = parsed.h
+      saturation.value = parsed.s
+      value.value = parsed.v
+      alphaValue.value = parsed.a
+    }
+  },
+  { immediate: true },
+)
 
 // Handle cursor during drag
 watch(isDragging, (dragging) => {
   if (dragging) {
     document.body.style.cursor = 'none'
-  }
-  else {
+  } else {
     document.body.style.cursor = ''
   }
 })
@@ -330,16 +325,20 @@ function handleAlphaInput(val: number) {
   alphaValue.value = Math.max(0, Math.min(1, val / 100))
 }
 
-watch([hue, saturation, value, alphaValue], () => {
-  const rgb = convertHsvToRgb({
-    h: hue.value,
-    s: saturation.value / 100,
-    v: value.value / 100,
-    alpha: alphaValue.value,
-  })
+watch(
+  [hue, saturation, value, alphaValue],
+  () => {
+    const rgb = convertHsvToRgb({
+      h: hue.value,
+      s: saturation.value / 100,
+      v: value.value / 100,
+      alpha: alphaValue.value,
+    })
 
-  modelValue.value = formatHex8(rgb)
-}, { immediate: true })
+    modelValue.value = formatHex8(rgb)
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -358,15 +357,12 @@ watch([hue, saturation, value, alphaValue], () => {
             <div
               ref="colorMapRef"
               class="relative h-full w-full cursor-crosshair"
-              :style="[
-                colorMapBackground,
-                { cursor: isDragging && dragType === 'map' ? 'none' : 'crosshair' },
-              ]"
+              :style="[colorMapBackground, { cursor: isDragging && dragType === 'map' ? 'none' : 'crosshair' }]"
               @mousedown="handleColorMapStart"
               @touchstart="handleColorMapStart"
             >
               <!-- Brightness overlay -->
-              <div class="absolute inset-0" style="background: linear-gradient(to bottom, transparent, black);" />
+              <div class="absolute inset-0" style="background: linear-gradient(to bottom, transparent, black)" />
               <!-- Color picker circle -->
               <div
                 class="pointer-events-none absolute h-4 w-4 border-2 border-white rounded-full shadow-lg transition-transform"
@@ -386,7 +382,9 @@ watch([hue, saturation, value, alphaValue], () => {
             <div
               ref="hueSliderRef"
               class="hue-slider h-full w-full cursor-pointer"
-              style="background: linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000);"
+              style="
+                background: linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000);
+              "
               :style="{ cursor: isDragging && dragType === 'hue' ? 'none' : 'pointer' }"
               @mousedown="handleHueStart"
               @touchstart="handleHueStart"
@@ -410,21 +408,20 @@ watch([hue, saturation, value, alphaValue], () => {
               class="alpha-slider absolute inset-0 opacity-50"
               style="
                 background-image:
-                  linear-gradient(45deg, #ccc 25%, transparent 25%),
-                  linear-gradient(-45deg, #ccc 25%, transparent 25%),
-                  linear-gradient(45deg, transparent 75%, #ccc 75%),
-                  linear-gradient(-45deg, transparent 75%, #ccc 75%);
+                  linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%),
+                  linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%);
                 background-size: 8px 8px;
-                background-position: 0 0, 0 4px, 4px -4px, -4px 0px;
+                background-position:
+                  0 0,
+                  0 4px,
+                  4px -4px,
+                  -4px 0px;
               "
             />
             <div
               ref="alphaSliderRef"
               class="relative h-full w-full cursor-pointer"
-              :style="[
-                alphaSliderBackground,
-                { cursor: isDragging && dragType === 'alpha' ? 'none' : 'pointer' },
-              ]"
+              :style="[alphaSliderBackground, { cursor: isDragging && dragType === 'alpha' ? 'none' : 'pointer' }]"
               @mousedown="handleAlphaStart"
               @touchstart="handleAlphaStart"
             >
@@ -443,19 +440,10 @@ watch([hue, saturation, value, alphaValue], () => {
           <!-- Color Inputs -->
           <div class="flex justify-center gap-2">
             <div class="flex gap-2">
-              <select
-                v-model="colorSpace"
-                class="flex-shrink-0 border rounded-lg px-2 py-1 text-sm"
-              >
-                <option value="hex">
-                  HEX
-                </option>
-                <option value="rgb">
-                  RGB
-                </option>
-                <option value="hsv">
-                  HSV
-                </option>
+              <select v-model="colorSpace" class="flex-shrink-0 border rounded-lg px-2 py-1 text-sm">
+                <option value="hex">HEX</option>
+                <option value="rgb">RGB</option>
+                <option value="hsv">HSV</option>
               </select>
             </div>
 
@@ -466,7 +454,7 @@ watch([hue, saturation, value, alphaValue], () => {
                 class="flex-1 border rounded-lg px-2 py-1 text-sm font-mono"
                 placeholder="#000000"
                 @input="handleHexInput(($event?.target as HTMLInputElement).value)"
-              >
+              />
               <input
                 v-if="alpha"
                 type="number"
@@ -476,7 +464,7 @@ watch([hue, saturation, value, alphaValue], () => {
                 class="w-16 border border-neutral-200 rounded-lg px-2 py-1 text-sm dark:border-neutral-700"
                 placeholder="A%"
                 @input="handleAlphaInput(Number(($event?.target as HTMLInputElement).value))"
-              >
+              />
             </div>
 
             <!-- RGB Inputs -->
@@ -489,7 +477,7 @@ watch([hue, saturation, value, alphaValue], () => {
                 class="border border-neutral-200 rounded-lg px-2 py-1 text-sm dark:border-neutral-700"
                 placeholder="R"
                 @input="handleRgbInput('r', Number(($event?.target as HTMLInputElement).value))"
-              >
+              />
               <input
                 type="number"
                 :value="currentColorRgb.g"
@@ -498,7 +486,7 @@ watch([hue, saturation, value, alphaValue], () => {
                 class="border border-neutral-200 rounded-lg px-2 py-1 text-sm dark:border-neutral-700"
                 placeholder="G"
                 @input="handleRgbInput('g', Number(($event?.target as HTMLInputElement).value))"
-              >
+              />
               <input
                 type="number"
                 :value="currentColorRgb.b"
@@ -507,7 +495,7 @@ watch([hue, saturation, value, alphaValue], () => {
                 class="border border-neutral-200 rounded-lg px-2 py-1 text-sm dark:border-neutral-700"
                 placeholder="B"
                 @input="handleRgbInput('b', Number(($event?.target as HTMLInputElement).value))"
-              >
+              />
               <input
                 v-if="alpha"
                 type="number"
@@ -517,7 +505,7 @@ watch([hue, saturation, value, alphaValue], () => {
                 class="border border-neutral-200 rounded-lg px-2 py-1 text-sm dark:border-neutral-700"
                 placeholder="A%"
                 @input="handleAlphaInput(Number(($event?.target as HTMLInputElement).value))"
-              >
+              />
             </div>
 
             <!-- HSV Inputs -->
@@ -530,7 +518,7 @@ watch([hue, saturation, value, alphaValue], () => {
                 class="border border-neutral-200 rounded-lg px-2 py-1 text-sm dark:border-neutral-700"
                 placeholder="H°"
                 @input="handleHsvInput('h', Number(($event?.target as HTMLInputElement).value))"
-              >
+              />
               <input
                 type="number"
                 :value="Math.round(saturation)"
@@ -539,7 +527,7 @@ watch([hue, saturation, value, alphaValue], () => {
                 class="border border-neutral-200 rounded-lg px-2 py-1 text-sm dark:border-neutral-700"
                 placeholder="S%"
                 @input="handleHsvInput('s', Number(($event?.target as HTMLInputElement).value))"
-              >
+              />
               <input
                 type="number"
                 :value="Math.round(value)"
@@ -548,7 +536,7 @@ watch([hue, saturation, value, alphaValue], () => {
                 class="border border-neutral-200 rounded-lg px-2 py-1 text-sm dark:border-neutral-700"
                 placeholder="V%"
                 @input="handleHsvInput('v', Number(($event?.target as HTMLInputElement).value))"
-              >
+              />
               <input
                 v-if="alpha"
                 type="number"
@@ -558,7 +546,7 @@ watch([hue, saturation, value, alphaValue], () => {
                 class="border border-neutral-200 rounded-lg px-2 py-1 text-sm dark:border-neutral-700"
                 placeholder="A%"
                 @input="handleAlphaInput(Number(($event?.target as HTMLInputElement).value))"
-              >
+              />
             </div>
           </div>
         </div>
@@ -568,7 +556,7 @@ watch([hue, saturation, value, alphaValue], () => {
 </template>
 
 <style scoped>
-data-[data-reka-popper-content-wrapper=""] {
+data-[data-reka-popper-content-wrapper=''] {
   z-index: 20;
 }
 </style>
@@ -577,23 +565,31 @@ data-[data-reka-popper-content-wrapper=""] {
 .hue-slider,
 .alpha-slider {
   &::-webkit-slider-thumb {
-    --at-apply: w-1 h-12 hover:w-2 hover:h-13 appearance-none rounded-md bg-neutral-600 cursor-pointer shadow-lg border-2 border-neutral-500
-      hover: bg-neutral-800 transition-colors,transform,width,height duration-200 cursor-col-resize;
+    --at-apply:
+      w-1 h-12 hover: w-2 hover: h-13 appearance-none rounded-md bg-neutral-600 cursor-pointer shadow-lg border-2
+        border-neutral-500 hover: bg-neutral-800 transition-colors,
+      transform, width, height duration-200 cursor-col-resize;
   }
 
   .dark &::-webkit-slider-thumb {
-    --at-apply: w-1 h-12 hover:w-2 hover:h-13 appearance-none rounded-md bg-neutral-100 cursor-pointer shadow-md border-2 border-white
-      hover: bg-neutral-300 transition-colors,transform,width,height duration-200 cursor-col-resize;
+    --at-apply:
+      w-1 h-12 hover: w-2 hover: h-13 appearance-none rounded-md bg-neutral-100 cursor-pointer shadow-md border-2
+        border-white hover: bg-neutral-300 transition-colors,
+      transform, width, height duration-200 cursor-col-resize;
   }
 
   &::-moz-range-thumb {
-    --at-apply: w-1 h-12 hover:w-2 hover:h-13 appearance-none rounded-md bg-neutral-600 cursor-pointer shadow-lg border-2 border-neutral-500
-      hover: bg-neutral-800 transition-colors,transform,width,height duration-200 cursor-col-resize;
+    --at-apply:
+      w-1 h-12 hover: w-2 hover: h-13 appearance-none rounded-md bg-neutral-600 cursor-pointer shadow-lg border-2
+        border-neutral-500 hover: bg-neutral-800 transition-colors,
+      transform, width, height duration-200 cursor-col-resize;
   }
 
   .dark &::-moz-range-thumb {
-    --at-apply: w-1 h-12 hover:w-2 hover:h-13 appearance-none rounded-md bg-neutral-100 cursor-pointer shadow-md border-2 border-white
-      hover: bg-neutral-300 transition-colors,transform,width,height duration-200 cursor-col-resize;
+    --at-apply:
+      w-1 h-12 hover: w-2 hover: h-13 appearance-none rounded-md bg-neutral-100 cursor-pointer shadow-md border-2
+        border-white hover: bg-neutral-300 transition-colors,
+      transform, width, height duration-200 cursor-col-resize;
   }
 }
 </style>

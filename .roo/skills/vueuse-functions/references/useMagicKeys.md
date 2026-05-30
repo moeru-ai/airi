@@ -14,13 +14,11 @@ import { useMagicKeys } from '@vueuse/core'
 const { shift, space, a /* keys you want to monitor */ } = useMagicKeys()
 
 watch(space, (v) => {
-  if (v)
-    console.log('space has been pressed')
+  if (v) console.log('space has been pressed')
 })
 
 watchEffect(() => {
-  if (shift.value && a.value)
-    console.log('Shift + A have been pressed')
+  if (shift.value && a.value) console.log('Shift + A have been pressed')
 })
 ```
 
@@ -37,14 +35,12 @@ const { shift, space, a } = useMagicKeys()
 watch(
   () => space?.value,
   (v) => {
-    if (v)
-      console.log('space has been pressed')
+    if (v) console.log('space has been pressed')
   },
 )
 
 watchEffect(() => {
-  if (shift?.value && a?.value)
-    console.log('Shift + A have been pressed')
+  if (shift?.value && a?.value) console.log('Shift + A have been pressed')
 })
 ```
 
@@ -65,8 +61,7 @@ const keys = useMagicKeys()
 const shiftCtrlA = keys['Shift+Ctrl+A']
 
 watch(shiftCtrlA, (v) => {
-  if (v)
-    console.log('Shift + Ctrl + A have been pressed')
+  if (v) console.log('Shift + Ctrl + A have been pressed')
 })
 ```
 
@@ -76,8 +71,7 @@ import { useMagicKeys } from '@vueuse/core'
 const { Ctrl_A_B, space, alt_s /* ... */ } = useMagicKeys()
 
 watch(Ctrl_A_B, (v) => {
-  if (v)
-    console.log('Control+A+B have been pressed')
+  if (v) console.log('Control+A+B have been pressed')
 })
 ```
 
@@ -135,9 +129,9 @@ import { useActiveElement, useMagicKeys, whenever } from '@vueuse/core'
 import { logicAnd } from '@vueuse/math'
 
 const activeElement = useActiveElement()
-const notUsingInput = computed(() =>
-  activeElement.value?.tagName !== 'INPUT'
-  && activeElement.value?.tagName !== 'TEXTAREA',)
+const notUsingInput = computed(
+  () => activeElement.value?.tagName !== 'INPUT' && activeElement.value?.tagName !== 'TEXTAREA',
+)
 
 const { tab } = useMagicKeys()
 
@@ -154,8 +148,7 @@ import { useMagicKeys, whenever } from '@vueuse/core'
 const { ctrl_s } = useMagicKeys({
   passive: false,
   onEventFired(e) {
-    if (e.ctrlKey && e.key === 's' && e.type === 'keydown')
-      e.preventDefault()
+    if (e.ctrlKey && e.key === 's' && e.type === 'keydown') e.preventDefault()
   },
 })
 
@@ -176,9 +169,7 @@ const keys = useMagicKeys({ reactive: true })
 
 ```vue
 <template>
-  <div v-if="keys.shift">
-    You are holding the Shift key!
-  </div>
+  <div v-if="keys.shift">You are holding the Shift key!</div>
 </template>
 ```
 
@@ -230,16 +221,13 @@ export interface MagicKeysInternal {
   current: Set<string>
 }
 export type UseMagicKeysReturn<Reactive extends boolean> = Readonly<
-  Record<string, Reactive extends true ? boolean : ComputedRef<boolean>>
-  & MagicKeysInternal
+  Record<string, Reactive extends true ? boolean : ComputedRef<boolean>> & MagicKeysInternal
 >
 /**
  * Reactive keys pressed state, with magical keys combination support.
  *
  * @see https://vueuse.org/useMagicKeys
  */
-export declare function useMagicKeys<T extends boolean = false>(
-  options?: UseMagicKeysOptions<T>,
-): UseMagicKeysReturn<T>
+export declare function useMagicKeys<T extends boolean = false>(options?: UseMagicKeysOptions<T>): UseMagicKeysReturn<T>
 export { DefaultMagicKeysAliasMap } from './aliasMap'
 ```

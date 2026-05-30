@@ -2,15 +2,15 @@ import type { UpdateInfo } from 'builder-util-runtime'
 
 import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
 
-export type AutoUpdaterStatus
-  = | 'idle'
-    | 'disabled'
-    | 'checking'
-    | 'available'
-    | 'not-available'
-    | 'downloading'
-    | 'downloaded'
-    | 'error'
+export type AutoUpdaterStatus =
+  | 'idle'
+  | 'disabled'
+  | 'checking'
+  | 'available'
+  | 'not-available'
+  | 'downloading'
+  | 'downloaded'
+  | 'error'
 
 export interface AutoUpdaterProgress {
   percent: number
@@ -43,7 +43,9 @@ export interface AutoUpdaterState {
   diagnostics?: AutoUpdaterDiagnostics
 }
 
-export const electronAutoUpdaterStateChanged = defineEventa<AutoUpdaterState>('eventa:event:electron:auto-updater:state-changed')
+export const electronAutoUpdaterStateChanged = defineEventa<AutoUpdaterState>(
+  'eventa:event:electron:auto-updater:state-changed',
+)
 
 export const autoUpdater = {
   getState: defineInvokeEventa<AutoUpdaterState>('eventa:invoke:electron:auto-updater:get-state'),

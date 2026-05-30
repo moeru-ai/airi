@@ -66,11 +66,7 @@ For more complex easing, a custom function can be provided.
 import { useTransition } from '@vueuse/core'
 // ---cut---
 function easeOutElastic(n) {
-  return n === 0
-    ? 0
-    : n === 1
-      ? 1
-      : (2 ** (-10 * n)) * Math.sin((n * 10 - 0.75) * ((2 * Math.PI) / 3)) + 1
+  return n === 0 ? 0 : n === 1 ? 1 : 2 ** (-10 * n) * Math.sin((n * 10 - 0.75) * ((2 * Math.PI) / 3)) + 1
 }
 
 useTransition(source, {
@@ -88,7 +84,7 @@ import { Quaternion } from 'three'
 const source = ref(new Quaternion())
 
 const output = useTransition(source, {
-  interpolation: (q1, q2, t) => new Quaternion().slerpQuaternions(q1, q2, t)
+  interpolation: (q1, q2, t) => new Quaternion().slerpQuaternions(q1, q2, t),
 })
 ```
 
@@ -117,9 +113,8 @@ import { transition } from '@vueuse/core'
 
 await transition(source, from, to, {
   abort() {
-    if (shouldAbort)
-      return true
-  }
+    if (shouldAbort) return true
+  },
 })
 ```
 
@@ -213,10 +208,7 @@ declare const _TransitionPresets: {
  *
  * @see https://easings.net
  */
-export declare const TransitionPresets: Record<
-  keyof typeof _TransitionPresets,
-  CubicBezierPoints
-> & {
+export declare const TransitionPresets: Record<keyof typeof _TransitionPresets, CubicBezierPoints> & {
   linear: EasingFunction
 }
 /**
@@ -258,8 +250,5 @@ export declare function useTransition<T extends MaybeRefOrGetter<number[]>>(
   source: T,
   options?: UseTransitionOptions<T>,
 ): ComputedRef<number[]>
-export declare function useTransition<T>(
-  source: MaybeRefOrGetter<T>,
-  options?: UseTransitionOptions<T>,
-): ComputedRef<T>
+export declare function useTransition<T>(source: MaybeRefOrGetter<T>, options?: UseTransitionOptions<T>): ComputedRef<T>
 ```

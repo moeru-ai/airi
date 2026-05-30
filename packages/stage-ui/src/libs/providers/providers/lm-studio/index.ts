@@ -6,13 +6,8 @@ import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
 
 const lmStudioConfigSchema = z.object({
-  apiKey: z
-    .string('API Key')
-    .optional(),
-  baseUrl: z
-    .string('Base URL')
-    .optional()
-    .default('http://localhost:1234/v1/'),
+  apiKey: z.string('API Key').optional(),
+  baseUrl: z.string('Base URL').optional().default('http://localhost:1234/v1/'),
 })
 
 type LMStudioConfig = z.input<typeof lmStudioConfigSchema>
@@ -28,19 +23,24 @@ export const providerLmStudio = defineProvider<LMStudioConfig>({
   icon: 'i-lobe-icons:lmstudio',
   iconColor: 'i-lobe-icons:lmstudio',
 
-  createProviderConfig: ({ t }) => lmStudioConfigSchema.extend({
-    apiKey: lmStudioConfigSchema.shape.apiKey.meta({
-      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
-      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
-      type: 'password',
+  createProviderConfig: ({ t }) =>
+    lmStudioConfigSchema.extend({
+      apiKey: lmStudioConfigSchema.shape.apiKey.meta({
+        labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
+        descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
+        placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
+        type: 'password',
+      }),
+      baseUrl: lmStudioConfigSchema.shape.baseUrl.meta({
+        labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
+        descriptionLocalized: t(
+          'settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description',
+        ),
+        placeholderLocalized: t(
+          'settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder',
+        ),
+      }),
     }),
-    baseUrl: lmStudioConfigSchema.shape.baseUrl.meta({
-      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
-      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
-    }),
-  }),
   createProvider(config) {
     return merge(
       createChatProvider({ apiKey: config.apiKey, baseURL: config.baseUrl! }),
@@ -54,7 +54,11 @@ export const providerLmStudio = defineProvider<LMStudioConfig>({
   },
   validators: {
     ...createOpenAICompatibleValidators({
-      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ModelList, ProviderValidationCheck.ChatCompletions],
+      checks: [
+        ProviderValidationCheck.Connectivity,
+        ProviderValidationCheck.ModelList,
+        ProviderValidationCheck.ChatCompletions,
+      ],
       skipApiKeyCheck: true,
       schedule: {
         mode: 'interval',

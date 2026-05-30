@@ -133,7 +133,9 @@ export function useChatHistoryScroll<TMessage extends { role?: string }>({
   const isFollowingConversation = shallowRef(true)
   const isInspectingOlderMessage = shallowRef(false)
   const isSelectionInspectingHistory = shallowRef(false)
-  const isInspectingHistory = computed(() => !isFollowingTail.value || isInspectingOlderMessage.value || isSelectionInspectingHistory.value)
+  const isInspectingHistory = computed(
+    () => !isFollowingTail.value || isInspectingOlderMessage.value || isSelectionInspectingHistory.value,
+  )
   const pendingScrollKey = shallowRef<string | number | null>(null)
   const pendingStreamingFollow = shallowRef(false)
   const previousLastMessageKey = shallowRef<string | number | null>(null)
@@ -147,8 +149,7 @@ export function useChatHistoryScroll<TMessage extends { role?: string }>({
 
   function getLastMessageKey() {
     const lastIndex = messages.value.length - 1
-    if (lastIndex < 0)
-      return null
+    if (lastIndex < 0) return null
 
     return getKey(messages.value[lastIndex], lastIndex)
   }
@@ -189,21 +190,17 @@ export function useChatHistoryScroll<TMessage extends { role?: string }>({
   }
 
   function syncConversationFollowFromTail() {
-    if (isFollowingTail.value)
-      isFollowingConversation.value = true
+    if (isFollowingTail.value) isFollowingConversation.value = true
   }
 
   function findMessageElement(target: EventTarget | Node | null) {
-    if (!(target instanceof Node))
-      return null
+    if (!(target instanceof Node)) return null
 
     const container = getContainer()
-    if (!container)
-      return null
+    if (!container) return null
 
     const element = target instanceof Element ? target : target.parentElement
-    if (!element)
-      return null
+    if (!element) return null
 
     return element.closest<HTMLElement>('[data-chat-message-key]')
   }
@@ -230,8 +227,7 @@ export function useChatHistoryScroll<TMessage extends { role?: string }>({
 
   function scrollToBottom() {
     const container = getContainer()
-    if (!container)
-      return
+    if (!container) return
 
     isProgrammaticScroll.value = true
     container.scrollTo({ top: container.scrollHeight })
@@ -244,13 +240,11 @@ export function useChatHistoryScroll<TMessage extends { role?: string }>({
 
   function findMessageElementByKey(key: string | number) {
     const container = getContainer()
-    if (!container)
-      return null
+    if (!container) return null
 
     const messageElements = Array.from(container.querySelectorAll<HTMLElement>('[data-chat-message-key]'))
     for (const element of messageElements) {
-      if (element.dataset.chatMessageKey === `${key}`)
-        return element
+      if (element.dataset.chatMessageKey === `${key}`) return element
     }
 
     return null
@@ -259,13 +253,10 @@ export function useChatHistoryScroll<TMessage extends { role?: string }>({
   function bindContainer(container: HTMLDivElement) {
     const handleScroll = () => {
       updateFollowingTail()
-      if (!isFollowingTail.value && !isProgrammaticScroll.value)
-        disengageConversationFollow()
-      else
-        syncConversationFollowFromTail()
+      if (!isFollowingTail.value && !isProgrammaticScroll.value) disengageConversationFollow()
+      else syncConversationFollowFromTail()
 
-      if (isFollowingTail.value && !isSelectionInspectingHistory.value)
-        isInspectingOlderMessage.value = false
+      if (isFollowingTail.value && !isSelectionInspectingHistory.value) isInspectingOlderMessage.value = false
     }
 
     const handlePointerOver = (event: Event) => {
@@ -306,114 +297,126 @@ export function useChatHistoryScroll<TMessage extends { role?: string }>({
     }
   }
 
-  watch(containerRef, (container) => {
-    stopListening.value?.()
-    stopListening.value = null
+  watch(
+    containerRef,
+    (container) => {
+      stopListening.value?.()
+      stopListening.value = null
 
-    if (!container)
-      return
+      if (!container) return
 
-    bindContainer(container)
-    updateFollowingTail()
-    syncConversationFollowFromTail()
-    syncSelectionInspection()
+      bindContainer(container)
+      updateFollowingTail()
+      syncConversationFollowFromTail()
+      syncSelectionInspection()
 
-    if (!didInitialScroll.value) {
-      didInitialScroll.value = true
-      nextTick(() => {
-        scheduleAfterLayoutSettles(() => {
-          scrollToBottom()
+      if (!didInitialScroll.value) {
+        didInitialScroll.value = true
+        nextTick(() => {
+          scheduleAfterLayoutSettles(() => {
+            scrollToBottom()
+          })
         })
-      })
-    }
-  }, { immediate: true })
+      }
+    },
+    { immediate: true },
+  )
 
-  watch(messages, (currentMessages) => {
-    const currentLastIndex = currentMessages.length - 1
-    if (currentLastIndex < 0) {
-      previousLastMessageKey.value = null
-      pendingScrollKey.value = null
-      isInspectingOlderMessage.value = false
-      isSelectionInspectingHistory.value = false
-      return
-    }
+  watch(
+    messages,
+    (currentMessages) => {
+      const currentLastIndex = currentMessages.length - 1
+      if (currentLastIndex < 0) {
+        previousLastMessageKey.value = null
+        pendingScrollKey.value = null
+        isInspectingOlderMessage.value = false
+        isSelectionInspectingHistory.value = false
+        return
+      }
 
-    const currentLastMessage = currentMessages[currentLastIndex]
-    const currentLastKey = getKey(currentLastMessage, currentLastIndex)
-    const previousTailKey = previousLastMessageKey.value
-    previousLastMessageKey.value = currentLastKey
+      const currentLastMessage = currentMessages[currentLastIndex]
+      const currentLastKey = getKey(currentLastMessage, currentLastIndex)
+      const previousTailKey = previousLastMessageKey.value
+      previousLastMessageKey.value = currentLastKey
 
-    // The last key change is the boundary between "a new message arrived" and "the current tail
-    // is still streaming more content". Only the first case is allowed to move the viewport.
-    if (previousTailKey == null) {
-      pendingScrollKey.value = null
-      pendingStreamingFollow.value = false
-      return
-    }
-
-    if (previousTailKey === currentLastKey) {
-      pendingScrollKey.value = null
-      if (!isFollowingConversation.value || isInspectingOlderMessage.value || isSelectionInspectingHistory.value) {
+      // The last key change is the boundary between "a new message arrived" and "the current tail
+      // is still streaming more content". Only the first case is allowed to move the viewport.
+      if (previousTailKey == null) {
+        pendingScrollKey.value = null
         pendingStreamingFollow.value = false
         return
       }
 
-      pendingStreamingFollow.value = true
-      return
-    }
+      if (previousTailKey === currentLastKey) {
+        pendingScrollKey.value = null
+        if (!isFollowingConversation.value || isInspectingOlderMessage.value || isSelectionInspectingHistory.value) {
+          pendingStreamingFollow.value = false
+          return
+        }
 
-    if (!isFollowingConversation.value || isInspectingOlderMessage.value || isSelectionInspectingHistory.value) {
-      pendingScrollKey.value = null
+        pendingStreamingFollow.value = true
+        return
+      }
+
+      if (!isFollowingConversation.value || isInspectingOlderMessage.value || isSelectionInspectingHistory.value) {
+        pendingScrollKey.value = null
+        pendingStreamingFollow.value = false
+        return
+      }
+
+      const shouldScrollResult = shouldScroll?.({
+        reason: 'new-message',
+        messageKey: currentLastKey,
+        role: currentLastMessage.role,
+        isFollowingTail: isFollowingConversation.value,
+        isInspectingHistory: isInspectingOlderMessage.value || isSelectionInspectingHistory.value,
+      })
+      if (shouldScrollResult === false) {
+        pendingScrollKey.value = null
+        pendingStreamingFollow.value = false
+        return
+      }
+
+      pendingScrollKey.value = currentLastKey
       pendingStreamingFollow.value = false
-      return
-    }
+    },
+    { deep: false, immediate: true },
+  )
 
-    const shouldScrollResult = shouldScroll?.({
-      reason: 'new-message',
-      messageKey: currentLastKey,
-      role: currentLastMessage.role,
-      isFollowingTail: isFollowingConversation.value,
-      isInspectingHistory: isInspectingOlderMessage.value || isSelectionInspectingHistory.value,
-    })
-    if (shouldScrollResult === false) {
+  watch(
+    pendingScrollKey,
+    async (messageKey) => {
+      if (messageKey == null) return
+
+      await nextTick()
+
+      const target = findMessageElementByKey(messageKey)
       pendingScrollKey.value = null
+      if (!target) return
+
+      // Align to the top of the new message so the start of a long reply remains visible.
+      isProgrammaticScroll.value = true
+      target.scrollIntoView({ block: 'start' })
+      nextTick(() => {
+        isProgrammaticScroll.value = false
+        isFollowingConversation.value = true
+        updateFollowingTail()
+      })
+    },
+    { flush: 'post' },
+  )
+
+  watch(
+    pendingStreamingFollow,
+    async (shouldFollow) => {
+      if (!shouldFollow) return
+
+      await nextTick()
       pendingStreamingFollow.value = false
-      return
-    }
-
-    pendingScrollKey.value = currentLastKey
-    pendingStreamingFollow.value = false
-  }, { deep: false, immediate: true })
-
-  watch(pendingScrollKey, async (messageKey) => {
-    if (messageKey == null)
-      return
-
-    await nextTick()
-
-    const target = findMessageElementByKey(messageKey)
-    pendingScrollKey.value = null
-    if (!target)
-      return
-
-    // Align to the top of the new message so the start of a long reply remains visible.
-    isProgrammaticScroll.value = true
-    target.scrollIntoView({ block: 'start' })
-    nextTick(() => {
-      isProgrammaticScroll.value = false
-      isFollowingConversation.value = true
-      updateFollowingTail()
-    })
-  }, { flush: 'post' })
-
-  watch(pendingStreamingFollow, async (shouldFollow) => {
-    if (!shouldFollow)
-      return
-
-    await nextTick()
-    pendingStreamingFollow.value = false
-    scrollToBottom()
-  }, { flush: 'post' })
+      scrollToBottom()
+    },
+    { flush: 'post' },
+  )
 
   onScopeDispose(() => {
     stopListening.value?.()

@@ -4,9 +4,7 @@ import { z } from 'zod'
 import { convertProviderDefinitionToMetadata } from './converters'
 
 vi.mock('@xsai/model', () => ({
-  listModels: vi.fn(async () => [
-    { id: 'test-model', name: 'Test Model', context_length: 8192 },
-  ]),
+  listModels: vi.fn(async () => [{ id: 'test-model', name: 'Test Model', context_length: 8192 }]),
 }))
 
 describe('providers converters', () => {
@@ -18,10 +16,11 @@ describe('providers converters', () => {
       nameLocalize: ({ t }: { t: (input: string) => string }) => t('name.key'),
       description: 'test',
       descriptionLocalize: ({ t }: { t: (input: string) => string }) => t('description.key'),
-      createProviderConfig: () => z.object({
-        apiKey: z.string(),
-        baseUrl: z.string().optional().default('https://example.com/v1/'),
-      }),
+      createProviderConfig: () =>
+        z.object({
+          apiKey: z.string(),
+          baseUrl: z.string().optional().default('https://example.com/v1/'),
+        }),
       createProvider: () => ({}) as any,
     } as any
 
@@ -40,10 +39,11 @@ describe('providers converters', () => {
       nameLocalize: ({ t }: { t: (input: string) => string }) => t('name.key'),
       description: 'test',
       descriptionLocalize: ({ t }: { t: (input: string) => string }) => t('description.key'),
-      createProviderConfig: () => z.object({
-        apiKey: z.string(),
-        baseUrl: z.string().optional().default('https://example.com/v1/'),
-      }),
+      createProviderConfig: () =>
+        z.object({
+          apiKey: z.string(),
+          baseUrl: z.string().optional().default('https://example.com/v1/'),
+        }),
       createProvider: () => ({
         model: () => ({ baseURL: 'https://example.com/v1/', apiKey: 'k' }),
       }),
@@ -79,10 +79,11 @@ describe('providers converters', () => {
       nameLocalize: ({ t }: { t: (input: string) => string }) => t('name.key'),
       description: 'test',
       descriptionLocalize: ({ t }: { t: (input: string) => string }) => t('description.key'),
-      createProviderConfig: () => z.object({
-        apiKey: z.string(),
-        baseUrl: z.string().optional().default('https://example.com/v1/'),
-      }),
+      createProviderConfig: () =>
+        z.object({
+          apiKey: z.string(),
+          baseUrl: z.string().optional().default('https://example.com/v1/'),
+        }),
       createProvider: () => ({
         model: () => ({ baseURL: 'https://example.com/v1/', apiKey: 'k' }),
       }),
@@ -91,7 +92,12 @@ describe('providers converters', () => {
           () => ({
             id: 'openai-compatible:check-config',
             name: 'config',
-            validator: async () => ({ errors: [{ error: new Error('Base URL is required.') }], reason: 'Base URL is required.', reasonKey: '', valid: false }),
+            validator: async () => ({
+              errors: [{ error: new Error('Base URL is required.') }],
+              reason: 'Base URL is required.',
+              reasonKey: '',
+              valid: false,
+            }),
           }),
         ],
       },

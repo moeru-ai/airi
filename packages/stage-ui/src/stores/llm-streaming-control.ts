@@ -22,27 +22,17 @@ export const useLlmStreamingControlStore = defineStore('llm-streaming-control', 
   const controller = createStreamingControlParser()
   const instanceId = `streaming-control-${nanoid()}`
 
-  const { post: postRemoteCall, data: incomingRemoteCall } = useBroadcastChannel<RemoteCallMessage, RemoteCallMessage>({ name: 'airi-streaming-control-turn-calls' })
+  const { post: postRemoteCall, data: incomingRemoteCall } = useBroadcastChannel<RemoteCallMessage, RemoteCallMessage>({
+    name: 'airi-streaming-control-turn-calls',
+  })
 
-  const tooltipKeys = [
-    'token_type',
-    'call_name',
-    'parameter',
-    'handler_count',
-    'turn_id',
-    'reason',
-    'raw_token',
-  ]
+  const tooltipKeys = ['token_type', 'call_name', 'parameter', 'handler_count', 'turn_id', 'reason', 'raw_token']
 
   watch(incomingRemoteCall, (message) => {
-    if (!message || message.type !== 'turn-call')
-      return
-    if (message.fromInstanceId === instanceId)
-      return
+    if (!message || message.type !== 'turn-call') return
+    if (message.fromInstanceId === instanceId) return
 
-    const callPayload = message.payload === undefined
-      ? [message.callName]
-      : [message.callName, message.payload]
+    const callPayload = message.payload === undefined ? [message.callName] : [message.callName, message.payload]
     void dispatchWith(`<|CALL ${JSON.stringify(callPayload)}|>`, {
       turnId: message.turnId,
       remote: true,
@@ -78,10 +68,8 @@ export const useLlmStreamingControlStore = defineStore('llm-streaming-control', 
           span.setAttribute(IOAttributes.StreamingControlParsed, true)
           span.setAttribute(IOAttributes.StreamingControlParserName, event.parserName)
           span.setAttribute(IOAttributes.StreamingControlTokenType, event.tokenType)
-          if (event.callName)
-            span.setAttribute(IOAttributes.StreamingControlCallName, event.callName)
-          if (event.parameter)
-            span.setAttribute(IOAttributes.StreamingControlParameter, event.parameter)
+          if (event.callName) span.setAttribute(IOAttributes.StreamingControlCallName, event.callName)
+          if (event.parameter) span.setAttribute(IOAttributes.StreamingControlParameter, event.parameter)
           span.addEvent(IOEvents.StreamingControlParsed, {
             [IOAttributes.StreamingControlTokenType]: event.tokenType,
             ...(event.parameter ? { [IOAttributes.StreamingControlParameter]: event.parameter } : {}),
@@ -131,8 +119,7 @@ export const useLlmStreamingControlStore = defineStore('llm-streaming-control', 
         ...context,
         observer: observe,
       })
-    }
-    finally {
+    } finally {
       span.end()
     }
   }

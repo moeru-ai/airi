@@ -41,7 +41,8 @@ export interface ServerWsDeliveryConfig<TMode extends string = 'broadcast' | 'co
  *
  * @param TMode - Consumer delivery mode literals accepted by the adapter.
  */
-export type ServerWsConsumerDeliveryConfig<TMode extends string = 'consumer' | 'consumer-group'> = ServerWsDeliveryConfig<TMode>
+export type ServerWsConsumerDeliveryConfig<TMode extends string = 'consumer' | 'consumer-group'> =
+  ServerWsDeliveryConfig<TMode>
 
 /**
  * Candidate peer metadata used for consumer selection.
@@ -306,9 +307,7 @@ export function normalizeConsumerMode(mode: unknown, group?: string): 'consumer'
  * - 0
  */
 export function normalizeConsumerPriority(priority: unknown) {
-  return typeof priority === 'number' && Number.isFinite(priority)
-    ? priority
-    : 0
+  return typeof priority === 'number' && Number.isFinite(priority) ? priority : 0
 }
 
 function normalizeConsumerGroup(mode: ServerWsConsumerDeliveryConfig['mode'], group?: string) {
@@ -327,7 +326,9 @@ function getStickyRegistryKey(event: string, group: string, stickyKey: string) {
   return JSON.stringify([event, group, stickyKey])
 }
 
-function sortConsumers(entries: Array<Pick<ServerWsConsumerSelectionCandidate, 'peerId' | 'priority' | 'registeredAt'>>) {
+function sortConsumers(
+  entries: Array<Pick<ServerWsConsumerSelectionCandidate, 'peerId' | 'priority' | 'registeredAt'>>,
+) {
   return [...entries].sort((left, right) => {
     if (right.priority !== left.priority) {
       return right.priority - left.priority
@@ -367,8 +368,8 @@ export function selectConsumerPeerId(options: {
   const registryKey = getConsumerRegistryKey(eventType, normalizedGroup)
   const availableEntries = sortConsumers(
     candidates
-      .filter(entry => entry.peerId !== fromPeerId)
-      .filter(entry => entry.authenticated && entry.healthy !== false),
+      .filter((entry) => entry.peerId !== fromPeerId)
+      .filter((entry) => entry.authenticated && entry.healthy !== false),
   )
 
   if (availableEntries.length === 0) {
@@ -380,14 +381,18 @@ export function selectConsumerPeerId(options: {
     const stickyRegistryKey = getStickyRegistryKey(eventType, normalizedGroup, delivery.stickyKey)
     const stickyAssignment = options.stickyAssignments?.get(stickyRegistryKey)
     if (stickyAssignment && stickyAssignment.peerId !== fromPeerId) {
-      const stickyCandidate = availableEntries.find(entry => entry.peerId === stickyAssignment.peerId)
+      const stickyCandidate = availableEntries.find((entry) => entry.peerId === stickyAssignment.peerId)
       if (stickyCandidate) {
         return stickyAssignment.peerId
       }
     }
 
     const selected = availableEntries[0]
-    options.stickyAssignments?.set(stickyRegistryKey, { event: eventType, group: normalizedGroup, peerId: selected.peerId })
+    options.stickyAssignments?.set(stickyRegistryKey, {
+      event: eventType,
+      group: normalizedGroup,
+      peerId: selected.peerId,
+    })
     return selected.peerId
   }
 
@@ -432,7 +437,13 @@ export function createConsumerOrchestrator() {
   }
 
   return {
-    register(input: { peerId: string, event: string, mode: ServerWsConsumerDeliveryConfig['mode'], group?: string, priority?: number }) {
+    register(input: {
+      peerId: string
+      event: string
+      mode: ServerWsConsumerDeliveryConfig['mode']
+      group?: string
+      priority?: number
+    }) {
       const normalizedGroup = normalizeConsumerGroup(input.mode, input.group)
       const registryKey = getConsumerRegistryKey(input.event, normalizedGroup)
       let groups = consumerRegistry.get(input.event)
@@ -466,7 +477,7 @@ export function createConsumerOrchestrator() {
       }
       registrations.set(registryKey, { event: input.event, group: normalizedGroup })
     },
-    unregister(input: { peerId: string, event: string, mode: ServerWsConsumerDeliveryConfig['mode'], group?: string }) {
+    unregister(input: { peerId: string; event: string; mode: ServerWsConsumerDeliveryConfig['mode']; group?: string }) {
       const normalizedGroup = normalizeConsumerGroup(input.mode, input.group)
       const registryKey = getConsumerRegistryKey(input.event, normalizedGroup)
       const groups = consumerRegistry.get(input.event)
@@ -517,9 +528,9 @@ export function createConsumerOrchestrator() {
 
       consumerKeysByPeer.delete(peerId)
     },
-    listFor(input: { event: string, mode: ServerWsConsumerDeliveryConfig['mode'], group?: string }) {
+    listFor(input: { event: string; mode: ServerWsConsumerDeliveryConfig['mode']; group?: string }) {
       const normalizedGroup = normalizeConsumerGroup(input.mode, input.group)
-      return [...consumerRegistry.get(input.event)?.get(normalizedGroup)?.values() ?? []]
+      return [...(consumerRegistry.get(input.event)?.get(normalizedGroup)?.values() ?? [])]
     },
     select(input: {
       eventType: string

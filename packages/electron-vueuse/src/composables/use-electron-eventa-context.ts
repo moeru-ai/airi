@@ -14,7 +14,8 @@ function resolveIpcRenderer(ipcRenderer?: IpcRendererLike): IpcRendererLike {
     return ipcRenderer
   }
 
-  const globalIpcRenderer = (globalThis as { window?: { electron?: { ipcRenderer?: IpcRendererLike } } }).window?.electron?.ipcRenderer
+  const globalIpcRenderer = (globalThis as { window?: { electron?: { ipcRenderer?: IpcRendererLike } } }).window
+    ?.electron?.ipcRenderer
   if (!globalIpcRenderer) {
     throw new Error('Electron ipcRenderer is not available. Pass it explicitly to useElectronEventaContext().')
   }
@@ -31,7 +32,10 @@ export function useElectronEventaContext(ipcRenderer?: IpcRendererLike) {
   return ref(getElectronEventaContext(ipcRenderer))
 }
 
-export function useElectronEventaInvoke<Res, Req = undefined, ResErr = Error, ReqErr = Error>(invoke: InvokeEventa<Res, Req, ResErr, ReqErr>, context?: EventaContext) {
+export function useElectronEventaInvoke<Res, Req = undefined, ResErr = Error, ReqErr = Error>(
+  invoke: InvokeEventa<Res, Req, ResErr, ReqErr>,
+  context?: EventaContext,
+) {
   return defineInvoke(context ?? getElectronEventaContext(), invoke)
 }
 

@@ -15,7 +15,10 @@ import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/conte
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { usePerfTracerBridgeStore } from '@proj-airi/stage-ui/stores/perf-tracer-bridge'
-import { listProvidersForPluginHost, shouldPublishPluginHostCapabilities } from '@proj-airi/stage-ui/stores/plugin-host-capabilities'
+import {
+  listProvidersForPluginHost,
+  shouldPublishPluginHostCapabilities,
+} from '@proj-airi/stage-ui/stores/plugin-host-capabilities'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
@@ -77,7 +80,8 @@ const pluginToolsStore = useTamagotchiPluginToolsStore()
 const stageWindowLifecycleStore = useStageWindowLifecycleStore()
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const artistryStore = useArtistryStore()
-const { activeProvider, artistryGlobals, activeModel, defaultPromptPrefix, providerOptions } = storeToRefs(artistryStore)
+const { activeProvider, artistryGlobals, activeModel, defaultPromptPrefix, providerOptions } =
+  storeToRefs(artistryStore)
 const context = useElectronEventaContext()
 usePerfTracerBridgeStore()
 initializeStageThreeRuntimeTraceBridge()
@@ -115,15 +119,18 @@ function syncGodotStageRenderer(state: { state: 'stopped' | 'starting' | 'runnin
 async function refreshPluginRuntimeTools() {
   try {
     await pluginToolsStore.refresh()
-  }
-  catch (error) {
+  } catch (error) {
     console.warn('[App] Failed to refresh plugin runtime tools:', error)
   }
 }
 
-watch(() => route.path, () => {
-  contextBridgeStore.setSparkNotifyHostRole(isWidgetsWindowRoute() ? 'client' : 'main')
-}, { immediate: true })
+watch(
+  () => route.path,
+  () => {
+    contextBridgeStore.setSparkNotifyHostRole(isWidgetsWindowRoute() ? 'client' : 'main')
+  },
+  { immediate: true },
+)
 
 // NOTICE: register plugin host bridge during setup to avoid race with pages using it in immediate watchers.
 pluginHostInspectorStore.setBridge({
@@ -133,7 +140,7 @@ pluginHostInspectorStore.setBridge({
     await refreshPluginRuntimeTools()
     return result
   },
-  setAutoReload: payload => setPluginAutoReload(payload),
+  setAutoReload: (payload) => setPluginAutoReload(payload),
   loadEnabled: async () => {
     const result = await loadEnabledPlugins()
     await refreshPluginRuntimeTools()
@@ -161,17 +168,21 @@ void refreshPluginRuntimeTools()
 
 const { restore: restoreLocale } = useLanguage(language, getMainLocale, setLocale)
 
-watch([activeProvider, artistryGlobals, activeModel, defaultPromptPrefix, providerOptions], () => {
-  if (activeProvider.value) {
-    void syncArtistryConfig({
-      provider: activeProvider.value as string,
-      globals: JSON.parse(JSON.stringify(artistryGlobals.value)),
-      model: activeModel.value,
-      promptPrefix: defaultPromptPrefix.value,
-      options: providerOptions.value,
-    })
-  }
-}, { deep: true, immediate: true })
+watch(
+  [activeProvider, artistryGlobals, activeModel, defaultPromptPrefix, providerOptions],
+  () => {
+    if (activeProvider.value) {
+      void syncArtistryConfig({
+        provider: activeProvider.value as string,
+        globals: JSON.parse(JSON.stringify(artistryGlobals.value)),
+        model: activeModel.value,
+        promptPrefix: defaultPromptPrefix.value,
+        options: providerOptions.value,
+      })
+    }
+  },
+  { deep: true, immediate: true },
+)
 
 const { updateThemeColor } = useThemeColor(themeColorFromValue({ light: 'rgb(255 255 255)', dark: 'rgb(18 18 18)' }))
 watch(dark, () => updateThemeColor(), { immediate: true })
@@ -220,8 +231,7 @@ onMounted(async () => {
   if (isGodotStageRoute()) {
     try {
       syncGodotStageRenderer(await getGodotStageStatus())
-    }
-    catch (error) {
+    } catch (error) {
       console.warn('[App] Failed to fetch Godot stage status:', error)
     }
   }
@@ -231,10 +241,12 @@ onMounted(async () => {
   serverChannelSettingsStore.hostname = serverChannelConfig.hostname
   serverChannelSettingsStore.authToken = serverChannelConfig.authToken
 
-  await serverChannelStore.initialize({
-    token: serverChannelConfig.authToken || undefined,
-    possibleEvents: ['ui:configure'],
-  }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
+  await serverChannelStore
+    .initialize({
+      token: serverChannelConfig.authToken || undefined,
+      possibleEvents: ['ui:configure'],
+    })
+    .catch((err) => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
   if (!isChatWindowRoute()) {
     contextBridgeStore.initialize()
     if (!isWidgetsWindowRoute()) {
@@ -264,13 +276,21 @@ onUnmounted(() => {
   chatSyncLifecycle.dispose()
 })
 
-watch(themeColorsHue, () => {
-  document.documentElement.style.setProperty('--chromatic-hue', themeColorsHue.value.toString())
-}, { immediate: true })
+watch(
+  themeColorsHue,
+  () => {
+    document.documentElement.style.setProperty('--chromatic-hue', themeColorsHue.value.toString())
+  },
+  { immediate: true },
+)
 
-watch(themeColorsHueDynamic, () => {
-  document.documentElement.classList.toggle('dynamic-hue', themeColorsHueDynamic.value)
-}, { immediate: true })
+watch(
+  themeColorsHueDynamic,
+  () => {
+    document.documentElement.classList.toggle('dynamic-hue', themeColorsHueDynamic.value)
+  },
+  { immediate: true },
+)
 
 onUnmounted(() => {
   if (!isChatWindowRoute()) {
@@ -282,7 +302,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <ToasterRoot @close="id => toast.dismiss(id)">
+  <ToasterRoot @close="(id) => toast.dismiss(id)">
     <Toaster />
   </ToasterRoot>
   <ResizeHandler />

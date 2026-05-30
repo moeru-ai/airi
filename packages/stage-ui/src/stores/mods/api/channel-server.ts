@@ -33,8 +33,7 @@ function hasReconnectableWebSocketScheme(url: string | undefined) {
   try {
     const parsedUrl = new URL(url)
     return parsedUrl.protocol === 'ws:' || parsedUrl.protocol === 'wss:'
-  }
-  catch {
+  } catch {
     return false
   }
 }
@@ -92,23 +91,24 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     possibleEvents?: Array<keyof WebSocketEvents>
     websocketConstructor?: WebSocketLikeConstructor
   }) {
-    if (connected.value && client.value)
-      return Promise.resolve()
-    if (initializing.value)
-      return initializing.value
+    if (connected.value && client.value) return Promise.resolve()
+    if (initializing.value) return initializing.value
 
     if (options?.websocketConstructor) {
       websocketConstructor.value = options.websocketConstructor
     }
 
-    const possibleEvents = Array.from(new Set<keyof WebSocketEvents>([
-      ...basePossibleEvents,
-      ...(options?.possibleEvents ?? []),
-    ]))
+    const possibleEvents = Array.from(
+      new Set<keyof WebSocketEvents>([...basePossibleEvents, ...(options?.possibleEvents ?? [])]),
+    )
 
     initializing.value = new Promise<void>((resolve) => {
       client.value = new Client({
-        name: isStageWeb() ? WebSocketEventSource.StageWeb : isStageTamagotchi() ? WebSocketEventSource.StageTamagotchi : WebSocketEventSource.StageWeb,
+        name: isStageWeb()
+          ? WebSocketEventSource.StageWeb
+          : isStageTamagotchi()
+            ? WebSocketEventSource.StageTamagotchi
+            : WebSocketEventSource.StageWeb,
         url: websocketUrl.value || defaultWebSocketUrl,
         token: options?.token ?? (websocketAuthToken.value || undefined),
         websocketConstructor: websocketConstructor.value,
@@ -168,8 +168,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
             for (const callback of reconnectedCallbacks) {
               try {
                 callback()
-              }
-              catch (error) {
+              } catch (error) {
                 console.error('Error in reconnected callback:', error)
               }
             }
@@ -217,12 +216,10 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   }
 
   function initializeListeners() {
-    if (!client.value)
-      return
+    if (!client.value) return
 
     for (const listener of registeredListeners) {
-      if (listener.boundClient === client.value)
-        continue
+      if (listener.boundClient === client.value) continue
 
       listener.boundClient?.offEvent(listener.type, listener.callback as any)
       client.value.onEvent(listener.type, listener.callback as any)
@@ -234,8 +231,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     type: E,
     callback: (event: WebSocketBaseEvent<E, WebSocketEvents[E]>) => void | Promise<void>,
   ) {
-    if (!client.value && !initializing.value)
-      void initialize()
+    if (!client.value && !initializing.value) void initialize()
 
     const entry: ChannelListenerEntry = {
       type,
@@ -245,13 +241,11 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     initializeListeners()
 
     const replayableEvent = replayableEvents.get(type)
-    if (replayableEvent)
-      void Promise.resolve(callback(replayableEvent as WebSocketBaseEvent<E, WebSocketEvents[E]>))
+    if (replayableEvent) void Promise.resolve(callback(replayableEvent as WebSocketBaseEvent<E, WebSocketEvents[E]>))
 
     return () => {
       const index = registeredListeners.indexOf(entry)
-      if (index >= 0)
-        registeredListeners.splice(index, 1)
+      if (index >= 0) registeredListeners.splice(index, 1)
 
       entry.boundClient?.offEvent(type, callback as any)
       entry.boundClient = undefined
@@ -259,13 +253,11 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   }
 
   function send<C = undefined>(data: WebSocketEventOptionalSource<C>) {
-    if (!client.value && !initializing.value)
-      void initialize()
+    if (!client.value && !initializing.value) void initialize()
 
     if (client.value && connected.value) {
       client.value.send(data as WebSocketEvent)
-    }
-    else {
+    } else {
       pendingSend.value.push(data as WebSocketEvent)
     }
   }
@@ -280,7 +272,9 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     }
   }
 
-  function onContextUpdate(callback: (event: WebSocketBaseEvent<'context:update', ContextUpdate>) => void | Promise<void>) {
+  function onContextUpdate(
+    callback: (event: WebSocketBaseEvent<'context:update', ContextUpdate>) => void | Promise<void>,
+  ) {
     return registerListener('context:update', callback)
   }
 
@@ -322,11 +316,9 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   }
 
   watch([websocketUrl, websocketAuthToken], ([newUrl, newToken], [oldUrl, oldToken]) => {
-    if (newUrl === oldUrl && newToken === oldToken)
-      return
+    if (newUrl === oldUrl && newToken === oldToken) return
 
-    if (!hasReconnectableWebSocketScheme(newUrl))
-      return
+    if (!hasReconnectableWebSocketScheme(newUrl)) return
 
     if (client.value || initializing.value) {
       dispose()

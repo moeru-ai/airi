@@ -25,14 +25,8 @@ const strategyOptions = [
   <div :class="['flex', 'flex-col', 'gap-2']">
     <Section title="Send" icon="i-solar:plain-2-bold-duotone" inner-class="gap-3" :expand="false">
       <div :class="['flex', 'flex-col', 'gap-2']">
-        <div :class="['text-xs', 'font-medium', 'text-neutral-500', 'dark:text-neutral-400']">
-          Strategy
-        </div>
-        <SelectTab
-          v-model="testStrategy"
-          size="sm"
-          :options="strategyOptions"
-        />
+        <div :class="['text-xs', 'font-medium', 'text-neutral-500', 'dark:text-neutral-400']">Strategy</div>
+        <SelectTab v-model="testStrategy" size="sm" :options="strategyOptions" />
         <FieldTextArea
           v-model="testPayload"
           label="Payload"
@@ -40,7 +34,12 @@ const strategyOptions = [
           :input-class="['font-mono', 'min-h-32']"
         />
         <div :class="['flex', 'justify-end']">
-          <Button label="Send context update" icon="i-solar:plain-2-bold-duotone" size="sm" @click="emit('sendContextUpdate')" />
+          <Button
+            label="Send context update"
+            icon="i-solar:plain-2-bold-duotone"
+            size="sm"
+            @click="emit('sendContextUpdate')"
+          />
         </div>
       </div>
     </Section>

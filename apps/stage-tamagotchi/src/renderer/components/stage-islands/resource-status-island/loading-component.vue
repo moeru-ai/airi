@@ -13,7 +13,10 @@ const props = defineProps<{
     <div
       v-for="file in Array.from(props.component.files.values())"
       :key="file.filename"
-      max-w-full flex flex-col gap="1 sm:2"
+      max-w-full
+      flex
+      flex-col
+      gap="1 sm:2"
     >
       <div grid="~ cols-[85%_15%]" justify-between text="xs sm:sm neutral-600 dark:neutral-400">
         <div flex items-center gap-1>
@@ -23,14 +26,9 @@ const props = defineProps<{
             {{ file.filename }}
           </div>
         </div>
-        <div text-right>
-          {{ file.progress.toFixed(2) }}%
-        </div>
+        <div text-right>{{ file.progress.toFixed(2) }}%</div>
       </div>
-      <Progress
-        :progress="file.progress"
-        bar-class="bg-primary-300 dark:bg-primary-300/50"
-      />
+      <Progress :progress="file.progress" bar-class="bg-primary-300 dark:bg-primary-300/50" />
     </div>
   </div>
 </template>

@@ -34,6 +34,7 @@ This reference covers the core reactivity decisions for local state, external da
 ### Always use `shallowRef()` instead of `ref()` for primitive values (string, number, boolean, null, etc.) for better performance.
 
 **Incorrect:**
+
 ```ts
 import { ref } from 'vue'
 
@@ -41,6 +42,7 @@ const count = ref(0)
 ```
 
 **Correct:**
+
 ```ts
 import { shallowRef } from 'vue'
 
@@ -64,7 +66,7 @@ import { reactive } from 'vue'
 
 const state = reactive({
   count: 0,
-  user: { name: 'Alice', age: 30 }
+  user: { name: 'Alice', age: 30 },
 })
 
 state.count++ // ✅ reactive
@@ -97,7 +99,7 @@ import { shallowReactive } from 'vue'
 
 const state = shallowReactive({
   count: 0,
-  user: { name: 'Alice', age: 30 }
+  user: { name: 'Alice', age: 30 },
 })
 
 state.count++ // ✅ reactive
@@ -129,7 +131,9 @@ import { reactive, watch } from 'vue'
 const state = reactive({ count: 0 })
 
 // ❌ watch expects a getter, ref, reactive object, or array of these
-watch(state.count, () => { /* ... */ })
+watch(state.count, () => {
+  /* ... */
+})
 ```
 
 **GOOD:**
@@ -142,8 +146,15 @@ import { reactive, toRefs, watch } from 'vue'
 const state = reactive({ count: 0 })
 const { count } = toRefs(state) // ✅ count is a ref
 
-watch(count, () => { /* ... */ }) // ✅
-watch(() => state.count, () => { /* ... */ }) // ✅
+watch(count, () => {
+  /* ... */
+}) // ✅
+watch(
+  () => state.count,
+  () => {
+    /* ... */
+  },
+) // ✅
 ```
 
 ## Best practices for `computed`
@@ -151,6 +162,7 @@ watch(() => state.count, () => { /* ... */ }) // ✅
 ### Prefer `computed` over watcher-assigned derived refs
 
 **BAD:**
+
 ```ts
 import { ref, watchEffect } from 'vue'
 
@@ -163,25 +175,25 @@ watchEffect(() => {
 ```
 
 **GOOD:**
+
 ```ts
 import { computed, ref } from 'vue'
 
 const items = ref([{ price: 10 }, { price: 20 }])
-const total = computed(() =>
-  items.value.reduce((sum, item) => sum + item.price, 0)
-)
+const total = computed(() => items.value.reduce((sum, item) => sum + item.price, 0))
 ```
 
 ### Keep filtered/sorted derivations out of templates
 
 **BAD:**
+
 ```vue
 <script setup>
 import { ref } from 'vue'
 
 const items = ref([
   { id: 1, name: 'B', active: true },
-  { id: 2, name: 'A', active: false }
+  { id: 2, name: 'A', active: false },
 ])
 
 function getSortedItems() {
@@ -190,7 +202,7 @@ function getSortedItems() {
 </script>
 
 <template>
-  <li v-for="item in items.filter(item => item.active)" :key="item.id">
+  <li v-for="item in items.filter((item) => item.active)" :key="item.id">
     {{ item.name }}
   </li>
 
@@ -201,19 +213,18 @@ function getSortedItems() {
 ```
 
 **GOOD:**
+
 ```vue
 <script setup>
 import { computed, ref } from 'vue'
 
 const items = ref([
   { id: 1, name: 'B', active: true },
-  { id: 2, name: 'A', active: false }
+  { id: 2, name: 'A', active: false },
 ])
 
 const visibleItems = computed(() =>
-  items.value
-    .filter(item => item.active)
-    .sort((a, b) => a.name.localeCompare(b.name))
+  items.value.filter((item) => item.active).sort((a, b) => a.name.localeCompare(b.name)),
 )
 </script>
 
@@ -227,15 +238,17 @@ const visibleItems = computed(() =>
 ### Use `computed` for reusable class/style logic
 
 **BAD:**
+
 ```vue
 <template>
-  <button :class="{ 'btn': true, 'btn-primary': type === 'primary' && !disabled, 'btn-disabled': disabled }">
+  <button :class="{ btn: true, 'btn-primary': type === 'primary' && !disabled, 'btn-disabled': disabled }">
     {{ label }}
   </button>
 </template>
 ```
 
 **GOOD:**
+
 ```vue
 <script setup>
 import { computed } from 'vue'
@@ -243,13 +256,13 @@ import { computed } from 'vue'
 const props = defineProps({
   type: { type: String, default: 'primary' },
   disabled: Boolean,
-  label: String
+  label: String,
 })
 
 const buttonClasses = computed(() => ({
-  'btn': true,
+  btn: true,
   [`btn-${props.type}`]: !props.disabled,
-  'btn-disabled': props.disabled
+  'btn-disabled': props.disabled,
 }))
 </script>
 
@@ -274,8 +287,7 @@ const count = ref(0)
 
 const doubled = computed(() => {
   // ❌ side effect
-  if (count.value > 10)
-    console.warn('Too big!')
+  if (count.value > 10) console.warn('Too big!')
   return count.value * 2
 })
 ```
@@ -289,8 +301,7 @@ const count = ref(0)
 const doubled = computed(() => count.value * 2)
 
 watch(count, (value) => {
-  if (value > 10)
-    console.warn('Too big!')
+  if (value > 10) console.warn('Too big!')
 })
 ```
 
@@ -299,6 +310,7 @@ watch(count, (value) => {
 ### Use `immediate: true` instead of duplicate initial calls
 
 **BAD:**
+
 ```ts
 import { onMounted, ref, watch } from 'vue'
 
@@ -309,20 +321,17 @@ function loadUser(id) {
 }
 
 onMounted(() => loadUser(userId.value))
-watch(userId, id => loadUser(id))
+watch(userId, (id) => loadUser(id))
 ```
 
 **GOOD:**
+
 ```ts
 import { ref, watch } from 'vue'
 
 const userId = ref(1)
 
-watch(
-  userId,
-  id => loadUser(id),
-  { immediate: true }
-)
+watch(userId, (id) => loadUser(id), { immediate: true })
 ```
 
 ### Clean up async effects for watchers

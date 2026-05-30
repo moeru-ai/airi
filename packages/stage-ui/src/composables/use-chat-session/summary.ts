@@ -5,10 +5,8 @@ import type { ChatAssistantMessage, ChatHistoryItem } from '../../types/chat'
  */
 export function getAllReasoning(messages: ChatHistoryItem[]): string[] {
   return messages
-    .filter((msg): msg is ChatAssistantMessage =>
-      msg.role === 'assistant' && 'categorization' in msg,
-    )
-    .map(msg => msg.categorization?.reasoning)
+    .filter((msg): msg is ChatAssistantMessage => msg.role === 'assistant' && 'categorization' in msg)
+    .map((msg) => msg.categorization?.reasoning)
     .filter((reasoning): reasoning is string => !!reasoning?.trim())
 }
 
@@ -68,9 +66,6 @@ export function getSessionSummary(
 /**
  * Get reasoning from all sessions
  */
-export function getAllReasoningFromAllSessions(
-  allSessions: Record<string, ChatHistoryItem[]>,
-): string[] {
-  return Object.values(allSessions)
-    .flatMap(messages => getAllReasoning(messages))
+export function getAllReasoningFromAllSessions(allSessions: Record<string, ChatHistoryItem[]>): string[] {
+  return Object.values(allSessions).flatMap((messages) => getAllReasoning(messages))
 }

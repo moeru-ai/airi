@@ -9,8 +9,7 @@ function isWebSocketUrl(value: string) {
   try {
     const url = new URL(value)
     return (url.protocol === 'ws:' || url.protocol === 'wss:') && !!url.hostname
-  }
-  catch {
+  } catch {
     return false
   }
 }

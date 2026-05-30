@@ -29,42 +29,66 @@ describe('static asset paths', () => {
   })
 
   it('parses session-scoped mounted plugin request path and rejects malformed routes', () => {
-    expect(parseStaticAssetRequestPath('/_airi/extensions/airi-plugin-game-chess/sessions/asset-session-1/ui/dist/ui/index.html')).toEqual({
+    expect(
+      parseStaticAssetRequestPath(
+        '/_airi/extensions/airi-plugin-game-chess/sessions/asset-session-1/ui/dist/ui/index.html',
+      ),
+    ).toEqual({
       extensionId: 'airi-plugin-game-chess',
       assetSessionId: 'asset-session-1',
       assetPath: 'dist/ui/index.html',
     })
-    expect(parseStaticAssetRequestPath('/_airi/extensions/airi-plugin-game-chess/ui/dist/ui/index.html')).toBeUndefined()
-    expect(parseStaticAssetRequestPath('/_airi/extensions/airi-plugin-game-chess/sessions/asset-session-1/ui/../../etc/passwd')).toBeUndefined()
+    expect(
+      parseStaticAssetRequestPath('/_airi/extensions/airi-plugin-game-chess/ui/dist/ui/index.html'),
+    ).toBeUndefined()
+    expect(
+      parseStaticAssetRequestPath(
+        '/_airi/extensions/airi-plugin-game-chess/sessions/asset-session-1/ui/../../etc/passwd',
+      ),
+    ).toBeUndefined()
     expect(parseStaticAssetRequestPath('/_airi/extensions//sessions/asset-session-1/ui/index.html')).toBeUndefined()
-    expect(parseStaticAssetRequestPath('/_airi/extensions/airi-plugin-game-chess//sessions/asset-session-1/ui/index.html')).toBeUndefined()
-    expect(parseStaticAssetRequestPath('/_airi/extensions/airi-plugin-game-chess/sessions//ui/index.html')).toBeUndefined()
-    expect(parseStaticAssetRequestPath('/_airi/extensions/airi-plugin-game-chess/sessions/asset-session-1//ui/index.html')).toBeUndefined()
+    expect(
+      parseStaticAssetRequestPath('/_airi/extensions/airi-plugin-game-chess//sessions/asset-session-1/ui/index.html'),
+    ).toBeUndefined()
+    expect(
+      parseStaticAssetRequestPath('/_airi/extensions/airi-plugin-game-chess/sessions//ui/index.html'),
+    ).toBeUndefined()
+    expect(
+      parseStaticAssetRequestPath('/_airi/extensions/airi-plugin-game-chess/sessions/asset-session-1//ui/index.html'),
+    ).toBeUndefined()
     expect(parseStaticAssetRequestPath('/_airi/extensions/p/sessions/s/ui/safe%2F..%2Fsecret.txt')).toBeUndefined()
     expect(parseStaticAssetRequestPath('/_airi/extensions/p%/sessions/s/ui/index.html')).toBeUndefined()
   })
 
   it('builds session-scoped mounted asset path with encoded segments', () => {
-    expect(buildMountedStaticAssetPath({
-      extensionId: 'airi-plugin-game-chess',
-      assetSessionId: 'asset-session-1',
-      assetPath: 'dist/ui/index.html',
-    })).toBe('/_airi/extensions/airi-plugin-game-chess/sessions/asset-session-1/ui/dist/ui/index.html')
-    expect(buildMountedStaticAssetPath({
-      extensionId: 'airi-plugin-game-chess',
-      assetSessionId: 'asset-session-1',
-      assetPath: 'dist/ui/file name.html',
-    })).toBe('/_airi/extensions/airi-plugin-game-chess/sessions/asset-session-1/ui/dist/ui/file%20name.html')
-    expect(buildMountedStaticAssetPath({
-      extensionId: 'bad/id',
-      assetSessionId: 'asset-session-1',
-      assetPath: 'dist/ui/index.html',
-    })).toBeUndefined()
-    expect(buildMountedStaticAssetPath({
-      extensionId: 'airi-plugin-game-chess',
-      assetSessionId: 'bad session',
-      assetPath: 'dist/ui/index.html',
-    })).toBeUndefined()
+    expect(
+      buildMountedStaticAssetPath({
+        extensionId: 'airi-plugin-game-chess',
+        assetSessionId: 'asset-session-1',
+        assetPath: 'dist/ui/index.html',
+      }),
+    ).toBe('/_airi/extensions/airi-plugin-game-chess/sessions/asset-session-1/ui/dist/ui/index.html')
+    expect(
+      buildMountedStaticAssetPath({
+        extensionId: 'airi-plugin-game-chess',
+        assetSessionId: 'asset-session-1',
+        assetPath: 'dist/ui/file name.html',
+      }),
+    ).toBe('/_airi/extensions/airi-plugin-game-chess/sessions/asset-session-1/ui/dist/ui/file%20name.html')
+    expect(
+      buildMountedStaticAssetPath({
+        extensionId: 'bad/id',
+        assetSessionId: 'asset-session-1',
+        assetPath: 'dist/ui/index.html',
+      }),
+    ).toBeUndefined()
+    expect(
+      buildMountedStaticAssetPath({
+        extensionId: 'airi-plugin-game-chess',
+        assetSessionId: 'bad session',
+        assetPath: 'dist/ui/index.html',
+      }),
+    ).toBeUndefined()
   })
 
   it('resolves only files inside plugin root', async () => {

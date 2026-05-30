@@ -22,7 +22,7 @@ function getContentType(pathname: string) {
   return CONTENT_TYPES[extname(pathname)] ?? 'application/octet-stream'
 }
 
-export async function startUpdateTestServer(options: { port: number, rootDir: string }) {
+export async function startUpdateTestServer(options: { port: number; rootDir: string }) {
   const server = createServer(async (request, response) => {
     const pathname = request.url?.split('?')[0] || '/'
 
@@ -33,8 +33,7 @@ export async function startUpdateTestServer(options: { port: number, rootDir: st
       const body = await readFile(filePath)
       response.writeHead(200, { 'content-type': getContentType(filePath) })
       response.end(body)
-    }
-    catch {
+    } catch {
       response.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' })
       response.end(`Not found: ${pathname}`)
     }
@@ -66,7 +65,7 @@ async function main() {
 
   const close = async () => {
     await new Promise<void>((resolve, reject) => {
-      server.close(error => error ? reject(error) : resolve())
+      server.close((error) => (error ? reject(error) : resolve()))
     })
     exit(0)
   }

@@ -12,19 +12,12 @@ import PoppingSubtitles from './PoppingSubtitles.web.vue'
 </script>
 
 <template>
-  <Story
-    title="Popping Subtitles"
-    group="widgets"
-    :layout="{ type: 'grid', width: '100%' }"
-  >
+  <Story title="Popping Subtitles" group="widgets" :layout="{ type: 'grid', width: '100%' }">
     <template #controls>
       <ThemeColorsHueControl />
     </template>
 
-    <Variant
-      id="basic-english"
-      title="English Text"
-    >
+    <Variant id="basic-english" title="English Text">
       <div h-50 w-50 p-4>
         <PoppingSubtitles />
       </div>

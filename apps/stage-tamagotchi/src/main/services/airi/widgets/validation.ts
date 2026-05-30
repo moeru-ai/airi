@@ -1,36 +1,28 @@
-import type {
-  WidgetsAddPayload,
-  WidgetsUpdatePayload,
-} from '../../../../shared/eventa'
+import type { WidgetsAddPayload, WidgetsUpdatePayload } from '../../../../shared/eventa'
 
 import { isPlainObject } from 'es-toolkit'
 
 import { normalizeWidgetWindowSize } from '../../../../shared/utils/electron/windows/window-size'
 
 function normalizeWidgetId(value?: string): string | undefined {
-  if (!value)
-    return undefined
+  if (!value) return undefined
 
   const normalized = value.trim()
   return normalized || undefined
 }
 
 function normalizeTtlMs(ttlMs?: number): number {
-  if (ttlMs === undefined)
-    return 0
+  if (ttlMs === undefined) return 0
 
-  if (!Number.isFinite(ttlMs) || ttlMs < 0)
-    throw new Error('ttlMs must be a non-negative finite number.')
+  if (!Number.isFinite(ttlMs) || ttlMs < 0) throw new Error('ttlMs must be a non-negative finite number.')
 
   return Math.floor(ttlMs)
 }
 
 function normalizeComponentProps(componentProps?: Record<string, unknown>): Record<string, unknown> {
-  if (componentProps === undefined)
-    return {}
+  if (componentProps === undefined) return {}
 
-  if (!isPlainObject(componentProps))
-    throw new Error('componentProps must be a plain object.')
+  if (!isPlainObject(componentProps)) throw new Error('componentProps must be a plain object.')
 
   return componentProps
 }
@@ -50,16 +42,13 @@ function normalizeComponentProps(componentProps?: Record<string, unknown>): Reco
  * - A normalized payload safe to pass into the widgets manager
  */
 export function validateWidgetsAddPayload(payload?: WidgetsAddPayload): WidgetsAddPayload {
-  if (!payload)
-    throw new Error('widgets.add requires a payload.')
+  if (!payload) throw new Error('widgets.add requires a payload.')
 
   const componentName = payload.componentName?.trim()
-  if (!componentName)
-    throw new Error('componentName is required to spawn a widget.')
+  if (!componentName) throw new Error('componentName is required to spawn a widget.')
 
-  const normalizedWindowSize = payload.windowSize === undefined
-    ? undefined
-    : normalizeWidgetWindowSize(payload.windowSize)
+  const normalizedWindowSize =
+    payload.windowSize === undefined ? undefined : normalizeWidgetWindowSize(payload.windowSize)
 
   if (payload.windowSize !== undefined && !normalizedWindowSize)
     throw new Error('windowSize must contain a positive finite width and height.')
@@ -88,16 +77,13 @@ export function validateWidgetsAddPayload(payload?: WidgetsAddPayload): WidgetsA
  * - A normalized payload safe to pass into the widgets manager
  */
 export function validateWidgetsUpdatePayload(payload?: WidgetsUpdatePayload): WidgetsUpdatePayload {
-  if (!payload)
-    throw new Error('widgets.update requires a payload.')
+  if (!payload) throw new Error('widgets.update requires a payload.')
 
   const id = normalizeWidgetId(payload.id)
-  if (!id)
-    throw new Error('id is required to update a widget.')
+  if (!id) throw new Error('id is required to update a widget.')
 
-  const normalizedWindowSize = payload.windowSize === undefined
-    ? undefined
-    : normalizeWidgetWindowSize(payload.windowSize)
+  const normalizedWindowSize =
+    payload.windowSize === undefined ? undefined : normalizeWidgetWindowSize(payload.windowSize)
 
   if (payload.windowSize !== undefined && !normalizedWindowSize)
     throw new Error('windowSize must contain a positive finite width and height.')
@@ -105,12 +91,8 @@ export function validateWidgetsUpdatePayload(payload?: WidgetsUpdatePayload): Wi
   return {
     ...payload,
     id,
-    componentProps: payload.componentProps === undefined
-      ? undefined
-      : normalizeComponentProps(payload.componentProps),
-    ttlMs: payload.ttlMs === undefined
-      ? undefined
-      : normalizeTtlMs(payload.ttlMs),
+    componentProps: payload.componentProps === undefined ? undefined : normalizeComponentProps(payload.componentProps),
+    ttlMs: payload.ttlMs === undefined ? undefined : normalizeTtlMs(payload.ttlMs),
     windowSize: normalizedWindowSize,
   }
 }
@@ -129,8 +111,7 @@ export function validateWidgetsUpdatePayload(payload?: WidgetsUpdatePayload): Wi
  */
 export function normalizeRequiredWidgetId(id?: string, reason = 'id is required.'): string {
   const normalized = normalizeWidgetId(id)
-  if (!normalized)
-    throw new Error(reason)
+  if (!normalized) throw new Error(reason)
 
   return normalized
 }

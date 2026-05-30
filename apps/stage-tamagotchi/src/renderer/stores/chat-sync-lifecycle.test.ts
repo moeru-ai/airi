@@ -10,10 +10,7 @@ vi.mock('./chat-sync', () => ({
 }))
 
 describe('createChatSyncWindowLifecycle', async () => {
-  const {
-    createChatSyncWindowLifecycle,
-    resolveInitialChatSyncRoutePath,
-  } = await import('./chat-sync-lifecycle')
+  const { createChatSyncWindowLifecycle, resolveInitialChatSyncRoutePath } = await import('./chat-sync-lifecycle')
 
   beforeEach(() => {
     chatSyncStoreMock.dispose.mockClear()

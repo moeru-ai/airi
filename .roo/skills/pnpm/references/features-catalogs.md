@@ -87,12 +87,12 @@ Reference named catalogs:
 
 ## Catalog vs Overrides
 
-| Feature | Catalogs | Overrides |
-|---------|----------|-----------|
-| Purpose | Define versions for direct dependencies | Force versions for any dependency |
-| Scope | Direct dependencies only | All dependencies (including transitive) |
-| Usage | `"pkg": "catalog:"` | Applied automatically |
-| Opt-in | Explicit per package.json | Global to workspace |
+| Feature | Catalogs                                | Overrides                               |
+| ------- | --------------------------------------- | --------------------------------------- |
+| Purpose | Define versions for direct dependencies | Force versions for any dependency       |
+| Scope   | Direct dependencies only                | All dependencies (including transitive) |
+| Usage   | `"pkg": "catalog:"`                     | Applied automatically                   |
+| Opt-in  | Explicit per package.json               | Global to workspace                     |
 
 ## Publishing with Catalogs
 

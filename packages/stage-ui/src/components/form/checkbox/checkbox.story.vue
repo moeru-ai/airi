@@ -8,51 +8,33 @@ const interactiveValue = ref(false)
 </script>
 
 <template>
-  <Story
-    title="Checkbox"
-    group="form"
-    :layout="{ type: 'grid', width: 300 }"
-  >
+  <Story title="Checkbox" group="form" :layout="{ type: 'grid', width: 300 }">
     <template #controls>
       <ThemeColorsHueControl />
     </template>
 
-    <Variant
-      id="checked"
-      title="Checked"
-    >
+    <Variant id="checked" title="Checked">
       <div>
         <Checkbox v-model="checkedValue" />
       </div>
     </Variant>
 
-    <Variant
-      id="unchecked"
-      title="Unchecked"
-    >
+    <Variant id="unchecked" title="Unchecked">
       <div>
         <Checkbox v-model="uncheckedValue" />
       </div>
     </Variant>
 
-    <Variant
-      id="interactive"
-      title="Interactive"
-    >
+    <Variant id="interactive" title="Interactive">
       <div>
         <div class="flex items-center gap-4">
           <Checkbox v-model="interactiveValue" />
-          <div class="text-sm">
-            Current value: {{ interactiveValue ? 'On' : 'Off' }}
-          </div>
+          <div class="text-sm">Current value: {{ interactiveValue ? 'On' : 'Off' }}</div>
         </div>
       </div>
     </Variant>
 
-    <Variant
-      id="sizes"
-      title="Different Contexts"
-    >
+    <Variant id="sizes" title="Different Contexts">
       <div>
         <div class="flex flex-col gap-4">
           <div class="flex items-center gap-2">

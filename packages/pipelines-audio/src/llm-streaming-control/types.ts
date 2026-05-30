@@ -14,15 +14,21 @@ export interface LlmStreamingControlDispatchContext {
   observer?: LlmStreamingControlDispatchObserver
 }
 
-export type LlmStreamingControlDispatchEvent
-  = | { type: 'rejected', reason: 'no-matching-parser' | 'parse-failed', parserName?: string }
-    | { type: 'parsed', parserName: string, tokenType: LlmStreamingControlSignal['type'], callName?: string, parameter?: string }
-    | { type: 'call-handler-count', count: number }
-    | { type: 'call-handler-missing', callName: string, payload?: Record<string, unknown> }
-    | { type: 'call-handler-start', callName: string }
-    | { type: 'call-handler-end', callName: string }
-    | { type: 'call-handler-error', callName: string, error: unknown }
-    | { type: 'signal-handler-error', tokenType: LlmStreamingControlSignal['type'], error: unknown }
+export type LlmStreamingControlDispatchEvent =
+  | { type: 'rejected'; reason: 'no-matching-parser' | 'parse-failed'; parserName?: string }
+  | {
+      type: 'parsed'
+      parserName: string
+      tokenType: LlmStreamingControlSignal['type']
+      callName?: string
+      parameter?: string
+    }
+  | { type: 'call-handler-count'; count: number }
+  | { type: 'call-handler-missing'; callName: string; payload?: Record<string, unknown> }
+  | { type: 'call-handler-start'; callName: string }
+  | { type: 'call-handler-end'; callName: string }
+  | { type: 'call-handler-error'; callName: string; error: unknown }
+  | { type: 'signal-handler-error'; tokenType: LlmStreamingControlSignal['type']; error: unknown }
 
 export type LlmStreamingControlDispatchObserver = (event: LlmStreamingControlDispatchEvent) => void
 
@@ -42,9 +48,7 @@ export interface LlmStreamingControlSignalContext extends LlmStreamingControlDis
   createdAt: number
 }
 
-export type LlmStreamingControlCallHandler<
-  TPayload extends Record<string, unknown> = Record<string, unknown>,
-> = (
+export type LlmStreamingControlCallHandler<TPayload extends Record<string, unknown> = Record<string, unknown>> = (
   payload: TPayload | undefined,
   context: LlmStreamingControlCallContext,
 ) => void | Promise<void>
@@ -155,9 +159,7 @@ export interface LlmStreamingControlOptions {
  *
  * @param TPayload Payload object shape expected by one CALL name.
  */
-export interface LlmStreamingControlTokenCall<
-  TPayload extends Record<string, unknown> = Record<string, unknown>,
-> {
+export interface LlmStreamingControlTokenCall<TPayload extends Record<string, unknown> = Record<string, unknown>> {
   /** Parsed signal kind. */
   type: 'call'
   /** Plugin-owned call name. Stage UI treats this as opaque data. */
@@ -186,7 +188,7 @@ export interface LlmStreamingControlTokenDelay {
   seconds: number
 }
 
-export type LlmStreamingControlSignal
-  = | LlmStreamingControlTokenAct
-    | LlmStreamingControlTokenCall
-    | LlmStreamingControlTokenDelay
+export type LlmStreamingControlSignal =
+  | LlmStreamingControlTokenAct
+  | LlmStreamingControlTokenCall
+  | LlmStreamingControlTokenDelay

@@ -26,12 +26,8 @@ const { now, pause, resume } = useNow({ controls: true })
 <template>
   <UseNow v-slot="{ now, pause, resume }">
     Now: {{ now }}
-    <button @click="pause()">
-      Pause
-    </button>
-    <button @click="resume()">
-      Resume
-    </button>
+    <button @click="pause()">Pause</button>
+    <button @click="resume()">Resume</button>
   </UseNow>
 </template>
 ```
@@ -39,9 +35,7 @@ const { now, pause, resume } = useNow({ controls: true })
 ## Type Declarations
 
 ```ts
-export interface UseNowOptions<
-  Controls extends boolean,
-> extends ConfigurableScheduler {
+export interface UseNowOptions<Controls extends boolean> extends ConfigurableScheduler {
   /**
    * Expose more controls
    *
@@ -65,8 +59,8 @@ export interface UseNowOptions<
 }
 export type UseNowReturn<Controls extends boolean> = Controls extends true
   ? {
-    now: Ref<Date>
-  } & Pausable
+      now: Ref<Date>
+    } & Pausable
   : Ref<Date>
 /**
  * Reactive current Date instance.

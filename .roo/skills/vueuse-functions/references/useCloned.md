@@ -35,7 +35,7 @@ console.log(cloned.value.key) // 'value'
 
 sync()
 
-console.log(cloned.value.key)// 'manual'
+console.log(cloned.value.key) // 'manual'
 ```
 
 ## Custom Clone Function
@@ -84,8 +84,5 @@ export interface UseClonedReturn<T> {
 }
 export type CloneFn<F, T = F> = (x: F) => T
 export declare function cloneFnJSON<T>(source: T): T
-export declare function useCloned<T>(
-  source: MaybeRefOrGetter<T>,
-  options?: UseClonedOptions,
-): UseClonedReturn<T>
+export declare function useCloned<T>(source: MaybeRefOrGetter<T>, options?: UseClonedOptions): UseClonedReturn<T>
 ```

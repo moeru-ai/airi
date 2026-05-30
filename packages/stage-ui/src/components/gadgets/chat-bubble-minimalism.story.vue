@@ -23,8 +23,7 @@ function createStream(text: string) {
           if (index < bytes.length) {
             controller.enqueue(bytes.subarray(index, index + 1))
             index++
-          }
-          else {
+          } else {
             clearInterval(interval)
             doneFunc()
             controller.close()
@@ -52,7 +51,9 @@ onMounted(async () => {
 
   {
     // https://generator.lorem-ipsum.info/_japanese2
-    const textStreamRes = createStream(`もリソソンまら他差根課阿模舳素擢等れるのねはて素擢んり留等はさたによしみろ等離離樹派津夜きたせやれありゃ遊絵めゆたそそ屋御ユユソカフあゅえ樹れろは、こにとしむあまさももけ氏ひれしゅ雲差屋へ。`)
+    const textStreamRes = createStream(
+      `もリソソンまら他差根課阿模舳素擢等れるのねはて素擢んり留等はさたによしみろ等離離樹派津夜きたせやれありゃ遊絵めゆたそそ屋御ユユソカフあゅえ樹れろは、こにとしむあまさももけ氏ひれしゅ雲差屋へ。`,
+    )
 
     senderTextStream.value = textStreamRes.stream
     showSenderTextStream.value = true
@@ -66,7 +67,8 @@ onMounted(async () => {
 
   {
     // https://generator.lorem-ipsum.info/_japanese2
-    const textStreamRes = createStream(`無個阿巣やにせ手派しらいほね以、留絵離列知魔ヤツソセョノおやてすょほ離目津知舳露津んっそくり都阿いョシトヒツヤえょいね瀬保無区ッヤャか保津くるヌッ絵鵜んっらほ。露露、んセトフヘトターろ派津めん区等名ゅな魔絵手名もよろれ鵜以ゃゅ、ヤスカ離手つみ目根雲うちゆらめ区夜日保模舳露ラナョュあせ。
+    const textStreamRes =
+      createStream(`無個阿巣やにせ手派しらいほね以、留絵離列知魔ヤツソセョノおやてすょほ離目津知舳露津んっそくり都阿いョシトヒツヤえょいね瀬保無区ッヤャか保津くるヌッ絵鵜んっらほ。露露、んセトフヘトターろ派津めん区等名ゅな魔絵手名もよろれ鵜以ゃゅ、ヤスカ離手つみ目根雲うちゆらめ区夜日保模舳露ラナョュあせ。
 
 のこふえいれ絵差譜阿擢ゅょろひへちりえ、いろへね個日模手野いん留個夜御リヘヨヤトヘゅちハヤケュニオセ以個野つへぬけけゃとやなゃゆりるか目巣絵。あいっ区以差離きんそぬに絵根ょつみ離離派派津。むゆく。
 
@@ -79,36 +81,39 @@ onMounted(async () => {
 </script>
 
 <template>
-  <Story
-    title="Chat Bubble (Minimalism)"
-    group="gadgets"
-    :layout="{ type: 'grid', width: '100%' }"
-  >
+  <Story title="Chat Bubble (Minimalism)" group="gadgets" :layout="{ type: 'grid', width: '100%' }">
     <template #controls>
       <ThemeColorsHueControl />
     </template>
 
-    <Variant
-      id="default"
-      title="Default"
-    >
+    <Variant id="default" title="Default">
       <ChatBubbleMinimalism :text="stream" font-xiaolai w-100 />
     </Variant>
 
-    <Variant
-      id="loading"
-      title="Loading"
-    >
+    <Variant id="loading" title="Loading">
       <ChatBubbleMinimalism font-xiaolai w-100 side="left" :loading="true" />
     </Variant>
 
-    <Variant
-      id="chat"
-      title="Chat"
-    >
-      <div bg="neutral-50 dark:neutral-900" font-m-plus-rounded w-120 flex flex-col gap-2 overflow-y-scroll rounded-xl p-4>
+    <Variant id="chat" title="Chat">
+      <div
+        bg="neutral-50 dark:neutral-900"
+        font-m-plus-rounded
+        w-120
+        flex
+        flex-col
+        gap-2
+        overflow-y-scroll
+        rounded-xl
+        p-4
+      >
         <ChatBubbleMinimalism v-if="showSenderTextStream" :text="senderTextStream" side="left" w-100 self-start />
-        <ChatBubbleMinimalism v-if="showRecipientTextStream" :text="recipientTextStream" w-100 self-end :loading="recipientLoading" />
+        <ChatBubbleMinimalism
+          v-if="showRecipientTextStream"
+          :text="recipientTextStream"
+          w-100
+          self-end
+          :loading="recipientLoading"
+        />
       </div>
     </Variant>
   </Story>

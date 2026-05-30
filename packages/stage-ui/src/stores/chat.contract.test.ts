@@ -191,14 +191,16 @@ describe('chat orchestrator contract', () => {
     getContextsSnapshotMock.mockReturnValue(contextsSnapshot)
 
     let composedMessages: Message[] = []
-    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, messages: Message[], options: any) => {
-      composedMessages = messages
-      expect(options.waitForTools).toBe(true)
-      expect(options.captureToolErrors).toBe(true)
+    llmStreamMock.mockImplementation(
+      async (_model: string, _chatProvider: ChatProvider, messages: Message[], options: any) => {
+        composedMessages = messages
+        expect(options.waitForTools).toBe(true)
+        expect(options.captureToolErrors).toBe(true)
 
-      await options.onStreamEvent({ type: 'text-delta', text: 'hello' })
-      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
-    })
+        await options.onStreamEvent({ type: 'text-delta', text: 'hello' })
+        await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+      },
+    )
 
     const store = useChatOrchestratorStore()
     const hookOrder: string[] = []
@@ -266,7 +268,8 @@ describe('chat orchestrator contract', () => {
     // boundaries (the date now lives inside per-message timestamp prefixes
     // instead of a system anchor).
     const systemContent = (composedMessages[0] as any).content
-    const systemText = typeof systemContent === 'string' ? systemContent : systemContent.map((p: any) => p.text).join('')
+    const systemText =
+      typeof systemContent === 'string' ? systemContent : systemContent.map((p: any) => p.text).join('')
     expect(systemText).toContain('system prompt')
     expect(systemText).toContain('Plugin toolset guidance.')
 
@@ -300,9 +303,12 @@ describe('chat orchestrator contract', () => {
       model: 'mock-model',
     })
 
-    expect(specialHook).toHaveBeenCalledWith('<|CALL ["plugin.action"]|>', expect.objectContaining({
-      contexts: {},
-    }))
+    expect(specialHook).toHaveBeenCalledWith(
+      '<|CALL ["plugin.action"]|>',
+      expect.objectContaining({
+        contexts: {},
+      }),
+    )
   })
 
   /**
@@ -347,12 +353,11 @@ describe('chat orchestrator contract', () => {
       expect(store.sending).toBe(true)
     })
     await vi.waitFor(() => {
-      expect(ioTracerMocks.spans.some(span => span.name === IOSpanNames.InteractionTurn)).toBe(true)
+      expect(ioTracerMocks.spans.some((span) => span.name === IOSpanNames.InteractionTurn)).toBe(true)
     })
 
-    const turnSpan = ioTracerMocks.spans.find(span => span.name === IOSpanNames.InteractionTurn)
-    if (!turnSpan)
-      throw new Error('Expected the chat facade to create an interaction turn span')
+    const turnSpan = ioTracerMocks.spans.find((span) => span.name === IOSpanNames.InteractionTurn)
+    if (!turnSpan) throw new Error('Expected the chat facade to create an interaction turn span')
 
     store.sending = false
     await nextTick()
@@ -386,11 +391,13 @@ describe('chat orchestrator contract', () => {
     getContextsSnapshotMock.mockReturnValue({
       'system:minecraft': [minecraftContext],
     })
-    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, messages: Message[], options: any) => {
-      composedMessages = messages
-      await options.onStreamEvent({ type: 'text-delta', text: 'minecraft reply' })
-      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
-    })
+    llmStreamMock.mockImplementation(
+      async (_model: string, _chatProvider: ChatProvider, messages: Message[], options: any) => {
+        composedMessages = messages
+        await options.onStreamEvent({ type: 'text-delta', text: 'minecraft reply' })
+        await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+      },
+    )
 
     const store = useChatOrchestratorStore()
 
@@ -540,10 +547,12 @@ describe('chat orchestrator contract', () => {
   it('uses forked session id in ingestOnFork and keeps public store contract keys', async () => {
     getContextsSnapshotMock.mockReturnValue({})
     forkSessionMock.mockResolvedValue('session-forked')
-    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
-      await options.onStreamEvent({ type: 'text-delta', text: 'fork-reply' })
-      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
-    })
+    llmStreamMock.mockImplementation(
+      async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
+        await options.onStreamEvent({ type: 'text-delta', text: 'fork-reply' })
+        await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+      },
+    )
 
     const store = useChatOrchestratorStore()
 
@@ -554,15 +563,19 @@ describe('chat orchestrator contract', () => {
     expect(typeof store.onBeforeSend).toBe('function')
     expect(typeof store.emitBeforeSendHooks).toBe('function')
 
-    await store.ingestOnFork('fork me', {
-      model: 'gpt-test',
-      chatProvider: provider,
-    }, {
-      fromSessionId: 'session-1',
-      atIndex: 3,
-      reason: 'retry',
-      hidden: true,
-    })
+    await store.ingestOnFork(
+      'fork me',
+      {
+        model: 'gpt-test',
+        chatProvider: provider,
+      },
+      {
+        fromSessionId: 'session-1',
+        atIndex: 3,
+        reason: 'retry',
+        hidden: true,
+      },
+    )
 
     expect(forkSessionMock).toHaveBeenCalledWith({
       fromSessionId: 'session-1',

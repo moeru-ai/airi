@@ -30,7 +30,7 @@ describe('mapForBreakpoints', () => {
     const val1 = mapForBreakpoints(2000, { sm: 100, md: 200 }) // expected to be lg
     expect(val1).toBe(200)
 
-    const val2 = mapForBreakpoints(2000, { 'sm': 100, 'md': 200, '2xl': 500 }) // expected to be lg
+    const val2 = mapForBreakpoints(2000, { sm: 100, md: 200, '2xl': 500 }) // expected to be lg
     expect(val2).toBe(500)
   })
 })

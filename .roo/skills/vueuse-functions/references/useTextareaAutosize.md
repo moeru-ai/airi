@@ -18,12 +18,7 @@ const { textarea, input } = useTextareaAutosize()
 </script>
 
 <template>
-  <textarea
-    ref="textarea"
-    v-model="input"
-    class="resize-none"
-    placeholder="What's on your mind?"
-  />
+  <textarea ref="textarea" v-model="input" class="resize-none" placeholder="What's on your mind?" />
 </template>
 ```
 
@@ -56,13 +51,7 @@ const { textarea, input } = useTextareaAutosize({ styleProp: 'minHeight' })
 </script>
 
 <template>
-  <textarea
-    ref="textarea"
-    v-model="input"
-    class="resize-none"
-    placeholder="What's on your mind?"
-    rows="3"
-  />
+  <textarea ref="textarea" v-model="input" class="resize-none" placeholder="What's on your mind?" rows="3" />
 </template>
 ```
 
@@ -88,7 +77,5 @@ export interface UseTextareaAutosizeReturn {
   input: Ref<string>
   triggerResize: () => void
 }
-export declare function useTextareaAutosize(
-  options?: UseTextareaAutosizeOptions,
-): UseTextareaAutosizeReturn
+export declare function useTextareaAutosize(options?: UseTextareaAutosizeOptions): UseTextareaAutosizeReturn
 ```

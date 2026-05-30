@@ -33,20 +33,21 @@ const providerMetadata = computed(() => providersStore.getProviderMetadata(props
 
 // Common provider settings
 const apiKey = computed({
-  get: () => providers.value[props.providerId]?.apiKey as string | undefined || '',
+  get: () => (providers.value[props.providerId]?.apiKey as string | undefined) || '',
   set: (value) => {
-    if (!providers.value[props.providerId])
-      providers.value[props.providerId] = {}
+    if (!providers.value[props.providerId]) providers.value[props.providerId] = {}
 
     providers.value[props.providerId].apiKey = value
   },
 })
 
 const baseUrl = computed({
-  get: () => providers.value[props.providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultOptions?.().baseUrl as string | undefined || '',
+  get: () =>
+    (providers.value[props.providerId]?.baseUrl as string | undefined) ||
+    (providerMetadata.value?.defaultOptions?.().baseUrl as string | undefined) ||
+    '',
   set: (value) => {
-    if (!providers.value[props.providerId])
-      providers.value[props.providerId] = {}
+    if (!providers.value[props.providerId]) providers.value[props.providerId] = {}
 
     providers.value[props.providerId].baseUrl = value
   },
@@ -56,13 +57,16 @@ onMounted(() => {
   providersStore.initializeProvider(props.providerId)
 
   // Initialize refs with current values
-  apiKey.value = providers.value[props.providerId]?.apiKey as string | undefined || ''
-  baseUrl.value = providers.value[props.providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultOptions?.().baseUrl as string | undefined || ''
+  apiKey.value = (providers.value[props.providerId]?.apiKey as string | undefined) || ''
+  baseUrl.value =
+    (providers.value[props.providerId]?.baseUrl as string | undefined) ||
+    (providerMetadata.value?.defaultOptions?.().baseUrl as string | undefined) ||
+    ''
 })
 
 function handleResetTranscriptionSettings() {
   apiKey.value = ''
-  baseUrl.value = providerMetadata.value?.defaultOptions?.().baseUrl as string | undefined || ''
+  baseUrl.value = (providerMetadata.value?.defaultOptions?.().baseUrl as string | undefined) || ''
 }
 </script>
 
@@ -81,7 +85,11 @@ function handleResetTranscriptionSettings() {
           :description="t('settings.pages.providers.common.section.basic.description')"
           :on-reset="handleResetTranscriptionSettings"
         >
-          <ProviderApiKeyInput v-model="apiKey" :provider-name="providerMetadata?.localizedName" :placeholder="props.placeholder || 'API Key'" />
+          <ProviderApiKeyInput
+            v-model="apiKey"
+            :provider-name="providerMetadata?.localizedName"
+            :placeholder="props.placeholder || 'API Key'"
+          />
           <!-- Slot for provider-specific basic settings -->
           <slot name="basic-settings" />
         </ProviderBasicSettings>
@@ -90,7 +98,8 @@ function handleResetTranscriptionSettings() {
         <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
           <ProviderBaseUrlInput
             v-model="baseUrl"
-            :placeholder="providerMetadata?.defaultOptions?.().baseUrl as string || ''" required
+            :placeholder="(providerMetadata?.defaultOptions?.().baseUrl as string) || ''"
+            required
           />
           <!-- Slot for provider-specific advanced settings -->
           <slot name="advanced-settings" />

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const appMock = vi.hoisted(() => ({
   getVersion: vi.fn(() => '0.9.0-beta.4'),
-  getPath: vi.fn((name: string) => name === 'logs' ? '/tmp/airi/logs' : `/tmp/${name}`),
+  getPath: vi.fn((name: string) => (name === 'logs' ? '/tmp/airi/logs' : `/tmp/${name}`)),
   quit: vi.fn(),
   isPackaged: false,
 }))
@@ -91,9 +91,7 @@ describe('setupAutoUpdater', () => {
   const bundleVersions = ['0.9.0', '0.9.0-beta.4', '0.9.0-alpha.2'] as const
   const laneMatrix = ['latest', 'stable', 'beta', 'alpha', 'nightly'] as const
 
-  const defaultReleases = [
-    { tag_name: 'v0.9.0-beta.6', draft: false, prerelease: true },
-  ]
+  const defaultReleases = [{ tag_name: 'v0.9.0-beta.6', draft: false, prerelease: true }]
   const matrixReleases = [
     { tag_name: 'v0.9.7', draft: false, prerelease: false },
     { tag_name: 'v0.9.9', draft: false, prerelease: false },
@@ -121,7 +119,7 @@ describe('setupAutoUpdater', () => {
     vi.clearAllMocks()
     updaterState.instance = createUpdaterMock()
     appMock.getVersion.mockReturnValue('0.9.0-beta.4')
-    appMock.getPath.mockImplementation((name: string) => name === 'logs' ? '/tmp/airi/logs' : `/tmp/${name}`)
+    appMock.getPath.mockImplementation((name: string) => (name === 'logs' ? '/tmp/airi/logs' : `/tmp/${name}`))
     isDevState.value = false
     stdEnvState.isWindows = false
     delete process.env.UPDATE_SERVER_URL
@@ -210,27 +208,30 @@ describe('setupAutoUpdater', () => {
     })
   })
 
-  it.each(bundleVersions)('uses bundled version lane when no AIRI_UPDATE_CHANNEL (bundle=%s)', async (bundleVersion) => {
-    appMock.getVersion.mockReturnValue(bundleVersion)
-    mockGitHubReleasesFetch(matrixReleases)
+  it.each(bundleVersions)(
+    'uses bundled version lane when no AIRI_UPDATE_CHANNEL (bundle=%s)',
+    async (bundleVersion) => {
+      appMock.getVersion.mockReturnValue(bundleVersion)
+      mockGitHubReleasesFetch(matrixReleases)
 
-    const { setupAutoUpdater } = await import('./auto-updater')
-    const service = setupAutoUpdater()
-    await service.checkForUpdates()
+      const { setupAutoUpdater } = await import('./auto-updater')
+      const service = setupAutoUpdater()
+      await service.checkForUpdates()
 
-    const expectedLane = bundleVersion.includes('-beta')
-      ? 'beta'
-      : bundleVersion.includes('-alpha')
-        ? 'alpha'
-        : 'stable'
+      const expectedLane = bundleVersion.includes('-beta')
+        ? 'beta'
+        : bundleVersion.includes('-alpha')
+          ? 'alpha'
+          : 'stable'
 
-    expect(updaterState.instance.setFeedURL).toHaveBeenCalledWith({
-      provider: 'generic',
-      url: `https://github.com/moeru-ai/airi/releases/download/${laneReleaseTagMap[expectedLane]}`,
-    })
-  })
+      expect(updaterState.instance.setFeedURL).toHaveBeenCalledWith({
+        provider: 'generic',
+        url: `https://github.com/moeru-ai/airi/releases/download/${laneReleaseTagMap[expectedLane]}`,
+      })
+    },
+  )
 
-  it.each(bundleVersions.flatMap(bundleVersion => laneMatrix.map(lane => ({ bundleVersion, lane }))))(
+  it.each(bundleVersions.flatMap((bundleVersion) => laneMatrix.map((lane) => ({ bundleVersion, lane }))))(
     'matrix lane/feed/bundle works with UPDATE_SERVER_URL override (%o)',
     async ({ bundleVersion, lane }) => {
       appMock.getVersion.mockReturnValue(bundleVersion)
@@ -255,14 +256,16 @@ describe('setupAutoUpdater', () => {
     const { setupAutoUpdater } = await import('./auto-updater')
     const service = setupAutoUpdater()
 
-    expect(service.state.diagnostics).toEqual(expect.objectContaining({
-      platform: process.platform,
-      arch: process.arch,
-      channel: expectedChannelByArch,
-      executablePath: expect.any(String),
-      logFilePath: expect.stringMatching(/stage-tamagotchi-updater[\\/]updater-log\.txt$/),
-      isOverrideActive: false,
-    }))
+    expect(service.state.diagnostics).toEqual(
+      expect.objectContaining({
+        platform: process.platform,
+        arch: process.arch,
+        channel: expectedChannelByArch,
+        executablePath: expect.any(String),
+        logFilePath: expect.stringMatching(/stage-tamagotchi-updater[\\/]updater-log\.txt$/),
+        isOverrideActive: false,
+      }),
+    )
     expect(service.state.diagnostics).not.toHaveProperty('updaterCacheDir')
     expect(service.state.diagnostics).not.toHaveProperty('pendingDir')
     expect(service.state.diagnostics).not.toHaveProperty('uninstallPath')

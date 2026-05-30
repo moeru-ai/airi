@@ -28,7 +28,7 @@ const vFocus = {
   mounted(el, binding) {
     // binding.value is read-only
     el.focus()
-  }
+  },
 }
 ```
 
@@ -37,19 +37,21 @@ const vFocus = {
 Directives apply to DOM elements. When used on components, they attach to the root element and can break if the root changes.
 
 **BAD:**
+
 ```vue
 <MyInput v-focus />
 ```
 
 **GOOD:**
+
 ```vue
 <!-- MyInput.vue -->
 <script setup>
-const vFocus = el => el.focus()
+const vFocus = (el) => el.focus()
 </script>
 
 <template>
-  <input v-focus>
+  <input v-focus />
 </template>
 ```
 
@@ -66,7 +68,7 @@ const vResize = {
   },
   unmounted(el) {
     el._observer?.disconnect()
-  }
+  },
 }
 ```
 
@@ -75,18 +77,18 @@ const vResize = {
 If you only need `mounted`/`updated`, use the function form.
 
 ```ts
-const vAutofocus = el => el.focus()
+const vAutofocus = (el) => el.focus()
 ```
 
 ## Use the `v-` Prefix and Script Setup Registration
 
 ```vue
 <script setup>
-const vFocus = el => el.focus()
+const vFocus = (el) => el.focus()
 </script>
 
 <template>
-  <input v-focus>
+  <input v-focus />
 </template>
 ```
 
@@ -95,16 +97,18 @@ const vFocus = el => el.focus()
 Use `Directive<Element, ValueType>` so `binding.value` is typed, and augment Vue's template types so directives are recognized in SFC templates.
 
 **BAD:**
+
 ```ts
 // Untyped directive value and no template type augmentation
 export const vHighlight = {
   mounted(el, binding) {
     el.style.backgroundColor = binding.value
-  }
+  },
 }
 ```
 
 **GOOD:**
+
 ```ts
 import type { Directive } from 'vue'
 
@@ -113,7 +117,7 @@ type HighlightValue = string
 export const vHighlight = {
   mounted(el, binding) {
     el.style.backgroundColor = binding.value
-  }
+  },
 } satisfies Directive<HTMLElement, HighlightValue>
 
 declare module 'vue' {
@@ -128,16 +132,18 @@ declare module 'vue' {
 Directive hooks such as `mounted` and `updated` do not run during SSR. If a directive sets attributes/classes that affect rendered HTML, provide an SSR equivalent via `getSSRProps` to avoid hydration mismatches.
 
 **BAD:**
+
 ```ts
 const vTooltip = {
   mounted(el, binding) {
     el.setAttribute('data-tooltip', binding.value)
     el.classList.add('has-tooltip')
-  }
+  },
 }
 ```
 
 **GOOD:**
+
 ```ts
 const vTooltip = {
   mounted(el, binding) {
@@ -147,9 +153,9 @@ const vTooltip = {
   getSSRProps(binding) {
     return {
       'data-tooltip': binding.value,
-      'class': 'has-tooltip'
+      class: 'has-tooltip',
     }
-  }
+  },
 }
 ```
 

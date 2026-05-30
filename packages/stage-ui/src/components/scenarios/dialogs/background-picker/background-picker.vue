@@ -12,18 +12,21 @@ import { colorFromElement, patchThemeSamplingHtml2CanvasClone } from '../../../.
 import { useSettings } from '../../../../stores/settings'
 import { BackgroundGradientOverlay } from '../../../layouts/backgrounds'
 
-const props = withDefaults(defineProps<{
-  options: BackgroundOption[]
-  allowUpload?: boolean
-  idPrefix?: string
-}>(), {
-  allowUpload: false,
-  idPrefix: 'background-',
-})
+const props = withDefaults(
+  defineProps<{
+    options: BackgroundOption[]
+    allowUpload?: boolean
+    idPrefix?: string
+  }>(),
+  {
+    allowUpload: false,
+    idPrefix: 'background-',
+  },
+)
 
 const emit = defineEmits<{
-  (e: 'apply', payload: { option: BackgroundOption, color?: string }): void
-  (e: 'import', payload: { option: BackgroundOption, color?: string }): void
+  (e: 'apply', payload: { option: BackgroundOption; color?: string }): void
+  (e: 'import', payload: { option: BackgroundOption; color?: string }): void
   (e: 'change', payload: { option: BackgroundOption | undefined }): void
   (e: 'remove', option: BackgroundOption): void
 }>()
@@ -41,18 +44,20 @@ const selectedId = ref<string | undefined>(modelValue.value?.id)
 const busy = ref(false)
 
 const mergedOptions = computed(() => {
-  const propIds = new Set(props.options.map(o => o.id))
-  return [...props.options, ...customOptions.value.filter(o => !propIds.has(o.id))]
+  const propIds = new Set(props.options.map((o) => o.id))
+  return [...props.options, ...customOptions.value.filter((o) => !propIds.has(o.id))]
 })
-const selectedOption = computed(() => mergedOptions.value.find(option => option.id === selectedId.value))
+const selectedOption = computed(() => mergedOptions.value.find((option) => option.id === selectedId.value))
 const enableBlur = ref(modelValue.value?.blur ?? false)
 const previewColor = ref<string | undefined>(undefined)
 
-watch(() => modelValue.value?.id, (id) => {
-  if (id === undefined)
-    return
-  enableBlur.value = modelValue.value?.blur ?? false
-})
+watch(
+  () => modelValue.value?.id,
+  (id) => {
+    if (id === undefined) return
+    enableBlur.value = modelValue.value?.blur ?? false
+  },
+)
 
 function ensureObjectUrl(id: string, file: File) {
   let blobRef = blobRefs.get(id)
@@ -65,8 +70,7 @@ function ensureObjectUrl(id: string, file: File) {
     urlRefs.set(id, urlRef)
   }
 
-  if (blobRef.value !== file)
-    blobRef.value = file
+  if (blobRef.value !== file) blobRef.value = file
 
   return urlRef!.value!
 }
@@ -80,7 +84,7 @@ async function waitForPreviewReady() {
         image.addEventListener('load', () => resolve(), { once: true })
         image.addEventListener('error', () => reject(new Error('Preview image failed to load')), { once: true })
       }),
-      new Promise<void>(resolve => setTimeout(resolve, 3000)), // 3s timeout safety
+      new Promise<void>((resolve) => setTimeout(resolve, 3000)), // 3s timeout safety
     ])
   }
 }
@@ -102,12 +106,10 @@ watch(selectedOption, async (option) => {
   emit('change', { option })
   if (option?.kind === 'wave') {
     previewColor.value = themeColorsHue.toString()
-  }
-  else if (option?.kind === 'transparent') {
+  } else if (option?.kind === 'transparent') {
     enableBlur.value = false
     previewColor.value = 'transparent'
-  }
-  else if (option) {
+  } else if (option) {
     await waitForPreviewReady()
     const result = await colorFromElement(previewRef.value!, {
       mode: 'html2canvas',
@@ -125,17 +127,14 @@ watch(selectedOption, async (option) => {
         onclone: patchThemeSamplingHtml2CanvasClone,
       },
     })
-    if (token === previewSamplingToken)
-      previewColor.value = result.html2canvas?.average
-  }
-  else {
+    if (token === previewSamplingToken) previewColor.value = result.html2canvas?.average
+  } else {
     previewColor.value = undefined
   }
 })
 
 function getPreviewSrc(option?: BackgroundOption) {
-  if (!option)
-    return ''
+  if (!option) return ''
 
   if (option.file) {
     return ensureObjectUrl(option.id, option.file)
@@ -166,8 +165,7 @@ watch(uploadingFiles, (files) => {
 })
 
 async function applySelection(isImport = false) {
-  if (!selectedOption.value)
-    return
+  if (!selectedOption.value) return
 
   // If we are already sampling (from the watcher), wait for it or use the current previewColor
   // For auto-import, we might want to wait a bit to get a real color, or just use what we have.
@@ -182,17 +180,14 @@ async function applySelection(isImport = false) {
       const payload = { option: { ...selectedOption.value, blur }, color }
       if (isImport)
         (emit as any)('import', payload) // TODO: so ugly, need to fix the typing of emit
-      else
-        (emit as any)('apply', payload)
+      else (emit as any)('apply', payload)
       return
     }
 
     if (selectedOption.value.kind === 'transparent') {
       const payload = { option: { ...selectedOption.value, blur }, color: 'transparent' }
-      if (isImport)
-        (emit as any)('import', payload)
-      else
-        (emit as any)('apply', payload)
+      if (isImport) (emit as any)('import', payload)
+      else (emit as any)('apply', payload)
       return
     }
 
@@ -201,20 +196,15 @@ async function applySelection(isImport = false) {
     if (!previewColor.value) {
       await waitForPreviewReady()
       // Give it a tiny bit more time for the watcher's sampling to finish
-      if (!previewColor.value)
-        await new Promise(resolve => setTimeout(resolve, 300))
+      if (!previewColor.value) await new Promise((resolve) => setTimeout(resolve, 300))
     }
 
     const payload = { option: { ...selectedOption.value, blur }, color: previewColor.value }
-    if (isImport)
-      (emit as any)('import', payload)
-    else
-      (emit as any)('apply', payload)
-  }
-  catch (error) {
+    if (isImport) (emit as any)('import', payload)
+    else (emit as any)('apply', payload)
+  } catch (error) {
     console.error('Background application failed:', error)
-  }
-  finally {
+  } finally {
     busy.value = false
   }
 }
@@ -230,23 +220,28 @@ async function applySelection(isImport = false) {
             :key="option.id"
             type="button"
             class="background-option group relative border-2 rounded-xl bg-neutral-100/80 p-2 text-left transition-colors dark:bg-neutral-900/80"
-            :class="[option.id === selectedId ? 'selected border-primary-500/80 shadow-primary-500/10 shadow-lg' : 'border-neutral-200 dark:border-neutral-800']"
+            :class="[
+              option.id === selectedId
+                ? 'selected border-primary-500/80 shadow-primary-500/10 shadow-lg'
+                : 'border-neutral-200 dark:border-neutral-800',
+            ]"
             @click="selectedId = option.id"
           >
-            <div class="aspect-video w-full overflow-hidden border border-neutral-200 rounded-lg bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-800/70">
-              <component
-                :is="option.component"
-                v-if="option.component"
-                class="h-full w-full"
-              />
+            <div
+              class="aspect-video w-full overflow-hidden border border-neutral-200 rounded-lg bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-800/70"
+            >
+              <component :is="option.component" v-if="option.component" class="h-full w-full" />
               <img
                 v-else-if="getPreviewSrc(option)"
                 :src="getPreviewSrc(option)"
                 class="h-full w-full object-cover"
                 loading="lazy"
                 decoding="async"
+              />
+              <div
+                v-else
+                class="h-full w-full flex items-center justify-center text-sm text-neutral-500 dark:text-neutral-400"
               >
-              <div v-else class="h-full w-full flex items-center justify-center text-sm text-neutral-500 dark:text-neutral-400">
                 No preview
               </div>
             </div>
@@ -270,22 +265,24 @@ async function applySelection(isImport = false) {
 
         <div v-if="allowUpload" class="flex flex-wrap gap-2">
           <BasicInputFile v-model="uploadingFiles" class="cursor-pointer">
-            <div class="upload-button flex items-center gap-2 border border-neutral-300 rounded-lg border-dashed px-3 py-2 text-sm text-neutral-600 transition-colors dark:border-neutral-700 dark:text-neutral-300">
+            <div
+              class="upload-button flex items-center gap-2 border border-neutral-300 rounded-lg border-dashed px-3 py-2 text-sm text-neutral-600 transition-colors dark:border-neutral-700 dark:text-neutral-300"
+            >
               <div i-solar:add-square-linear />
               <span>Add custom background</span>
             </div>
           </BasicInputFile>
         </div>
 
-        <div class="border border-neutral-200 rounded-xl bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900/70">
-          <p class="mb-2 text-sm text-neutral-600 dark:text-neutral-300">
-            Preview
-          </p>
+        <div
+          class="border border-neutral-200 rounded-xl bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900/70"
+        >
+          <p class="mb-2 text-sm text-neutral-600 dark:text-neutral-300">Preview</p>
           <label
             v-if="selectedOption?.kind === 'image'"
             class="flex items-center gap-2 pb-2 text-sm text-neutral-700 dark:text-neutral-200"
           >
-            <input v-model="enableBlur" type="checkbox" class="accent-primary-500">
+            <input v-model="enableBlur" type="checkbox" class="accent-primary-500" />
             <span>Blur</span>
           </label>
           <div
@@ -294,18 +291,14 @@ async function applySelection(isImport = false) {
           >
             <div
               class="h-full w-full transition-all duration-300"
-              :class="[(enableBlur && selectedOption?.kind === 'image') ? 'blur-md scale-110' : '']"
+              :class="[enableBlur && selectedOption?.kind === 'image' ? 'blur-md scale-110' : '']"
             >
-              <component
-                :is="selectedOption?.component"
-                v-if="selectedOption?.component"
-                class="h-full w-full"
-              />
+              <component :is="selectedOption?.component" v-if="selectedOption?.component" class="h-full w-full" />
               <img
                 v-else-if="getPreviewSrc(selectedOption)"
                 :src="getPreviewSrc(selectedOption)"
                 class="h-full w-full object-cover"
-              >
+              />
               <div v-else class="h-full w-full flex items-center justify-center text-neutral-500 dark:text-neutral-400">
                 Select a background
               </div>
@@ -343,7 +336,7 @@ async function applySelection(isImport = false) {
   }
 
   .upload-button:hover {
-    --at-apply: border-primary-400 text-primary-500 dark:border-primary-400 dark:text-primary-400;
+    --at-apply: border-primary-400 text-primary-500 dark: border-primary-400 dark: text-primary-400;
   }
 
   .apply-button:hover:not(:disabled) {

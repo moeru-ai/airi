@@ -2,10 +2,7 @@
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { UnElevenLabsOptions } from 'unspeech'
 
-import {
-  SpeechPlayground,
-  SpeechProviderSettings,
-} from '@proj-airi/stage-ui/components'
+import { SpeechPlayground, SpeechProviderSettings } from '@proj-airi/stage-ui/components'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { FieldInput, FieldRange } from '@proj-airi/ui'
@@ -25,10 +22,9 @@ const { t } = useI18n()
 
 // Additional settings specific to Volcengine (appId)
 const appId = computed({
-  get: () => (providers.value[providerId]?.app as any)?.appId as string | undefined || '',
+  get: () => ((providers.value[providerId]?.app as any)?.appId as string | undefined) || '',
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
+    if (!providers.value[providerId]) providers.value[providerId] = {}
 
     providers.value[providerId].app = {
       appId: value,
@@ -46,7 +42,10 @@ const availableVoices = computed(() => {
 
 // Generate speech with ElevenLabs-specific parameters
 async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: boolean) {
-  const provider = await providersStore.getProviderInstance(providerId) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
+  const provider = (await providersStore.getProviderInstance(providerId)) as SpeechProviderWithExtraOptions<
+    string,
+    UnElevenLabsOptions
+  >
   if (!provider) {
     throw new Error('Failed to initialize speech provider')
   }
@@ -55,18 +54,12 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   const providerConfig = providersStore.getProviderConfig(providerId)
 
   // Get model from configuration or use default
-  const model = providerConfig.model as string | undefined || defaultModel
+  const model = (providerConfig.model as string | undefined) || defaultModel
 
   // ElevenLabs doesn't need SSML conversion, but if SSML is provided, use it directly
-  return await speechStore.speech(
-    provider,
-    model,
-    input,
-    voiceId,
-    {
-      ...providerConfig,
-    },
-  )
+  return await speechStore.speech(provider, model, input, voiceId, {
+    ...providerConfig,
+  })
 }
 
 onMounted(async () => {
@@ -74,8 +67,7 @@ onMounted(async () => {
   const providerMetadata = providersStore.getProviderMetadata(providerId)
   if (await providerMetadata.validators.validateProviderConfig(providerConfig)) {
     await speechStore.loadVoicesForProvider(providerId)
-  }
-  else {
+  } else {
     console.error('Failed to validate provider config', providerConfig)
   }
 })
@@ -86,28 +78,28 @@ watch(speedRatio, async () => {
     providerConfig.audio = {}
   }
 
-  (providerConfig.audio as any).speedRatio = speedRatio.value
+  ;(providerConfig.audio as any).speedRatio = speedRatio.value
 })
 
-watch([providers, appId], async () => {
-  const providerConfig = providersStore.getProviderConfig(providerId)
-  const providerMetadata = providersStore.getProviderMetadata(providerId)
-  if (await providerMetadata.validators.validateProviderConfig(providerConfig)) {
-    await speechStore.loadVoicesForProvider(providerId)
-  }
-  else {
-    console.error('Failed to validate provider config', providerConfig)
-  }
-}, {
-  immediate: true,
-})
+watch(
+  [providers, appId],
+  async () => {
+    const providerConfig = providersStore.getProviderConfig(providerId)
+    const providerMetadata = providersStore.getProviderMetadata(providerId)
+    if (await providerMetadata.validators.validateProviderConfig(providerConfig)) {
+      await speechStore.loadVoicesForProvider(providerId)
+    } else {
+      console.error('Failed to validate provider config', providerConfig)
+    }
+  },
+  {
+    immediate: true,
+  },
+)
 </script>
 
 <template>
-  <SpeechProviderSettings
-    :provider-id="providerId"
-    :default-model="defaultModel"
-  >
+  <SpeechProviderSettings :provider-id="providerId" :default-model="defaultModel">
     <!-- Voice settings specific to ElevenLabs -->
     <template #basic-settings>
       <div flex="~ col gap-4">
@@ -127,7 +119,8 @@ watch([providers, appId], async () => {
         :label="t('settings.pages.providers.provider.common.fields.field.speed.label')"
         :description="t('settings.pages.providers.provider.common.fields.field.speed.description')"
         :min="0.5"
-        :max="2.0" :step="0.01"
+        :max="2.0"
+        :step="0.01"
       />
     </template>
 
@@ -144,8 +137,8 @@ watch([providers, appId], async () => {
 </template>
 
 <route lang="yaml">
-  meta:
-    layout: settings
-    stageTransition:
-      name: slide
-  </route>
+meta:
+  layout: settings
+  stageTransition:
+    name: slide
+</route>

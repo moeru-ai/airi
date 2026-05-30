@@ -16,8 +16,7 @@ The results are not cleared automatically. Call `clear()` in case you no longer 
 import { useMemoize } from '@vueuse/core'
 
 const getUser = useMemoize(
-  async (userId: number): Promise<UserData> =>
-    axios.get(`users/${userId}`).then(({ data }) => data),
+  async (userId: number): Promise<UserData> => axios.get(`users/${userId}`).then(({ data }) => data),
 )
 
 const user1 = await getUser(1) // Request users/1
@@ -39,8 +38,7 @@ Combine with `computed` or `computedAsync` to achieve reactivity:
 import { computedAsync, useMemoize } from '@vueuse/core'
 
 const getUser = useMemoize(
-  async (userId: number): Promise<UserData> =>
-    axios.get(`users/${userId}`).then(({ data }) => data),
+  async (userId: number): Promise<UserData> => axios.get(`users/${userId}`).then(({ data }) => data),
 )
 // ---cut---
 const user1 = computedAsync(() => getUser(1))

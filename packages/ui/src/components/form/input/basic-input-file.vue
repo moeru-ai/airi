@@ -23,8 +23,7 @@ const isDraggingDebounced = useDebounce(isDragging, 150)
 
 function handleFileChange(e: Event) {
   const input = e.target as HTMLInputElement
-  if (!input.files)
-    return
+  if (!input.files) return
 
   files.value = []
 
@@ -52,8 +51,8 @@ function handleFileChange(e: Event) {
       'cursor-pointer',
       props.class,
       isDragging
-        ? [...Array.isArray(isDraggingClasses) ? isDraggingClasses : [isDraggingClasses]]
-        : [...Array.isArray(isNotDraggingClasses) ? isNotDraggingClasses : [isNotDraggingClasses]],
+        ? [...(Array.isArray(isDraggingClasses) ? isDraggingClasses : [isDraggingClasses])]
+        : [...(Array.isArray(isNotDraggingClasses) ? isNotDraggingClasses : [isNotDraggingClasses])],
     ]"
     @dragover="isDragging = true"
     @dragleave="isDragging = false"
@@ -64,7 +63,7 @@ function handleFileChange(e: Event) {
       :multiple="multiple"
       class="absolute inset-0 h-0 w-0 cursor-pointer appearance-none opacity-0"
       @change="handleFileChange"
-    >
+    />
     <slot :is-dragging="isDraggingDebounced" :first-file="firstFile" :files="files" />
   </label>
 </template>

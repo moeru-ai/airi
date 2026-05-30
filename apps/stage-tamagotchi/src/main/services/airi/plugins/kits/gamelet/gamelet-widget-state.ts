@@ -1,8 +1,4 @@
-import type {
-  BindingRecord,
-  HostDataRecord,
-  PluginHost,
-} from '@proj-airi/plugin-sdk/plugin-host'
+import type { BindingRecord, HostDataRecord, PluginHost } from '@proj-airi/plugin-sdk/plugin-host'
 
 import type { WidgetWindowSize } from '../../../../../../shared/eventa'
 
@@ -112,12 +108,14 @@ export function getGameletTitle(params: {
   moduleConfig: HostDataRecord
   existingComponentProps?: Record<string, unknown>
 }): string {
-  const configuredTitle = typeof params.moduleConfig.title === 'string' && params.moduleConfig.title.trim()
-    ? params.moduleConfig.title
-    : undefined
-  const currentTitle = typeof params.existingComponentProps?.title === 'string' && params.existingComponentProps.title.trim()
-    ? params.existingComponentProps.title
-    : undefined
+  const configuredTitle =
+    typeof params.moduleConfig.title === 'string' && params.moduleConfig.title.trim()
+      ? params.moduleConfig.title
+      : undefined
+  const currentTitle =
+    typeof params.existingComponentProps?.title === 'string' && params.existingComponentProps.title.trim()
+      ? params.existingComponentProps.title
+      : undefined
 
   return configuredTitle ?? currentTitle ?? params.moduleId
 }
@@ -152,10 +150,7 @@ export function getStoredGameletConfig(moduleConfig: HostDataRecord): HostDataRe
  * Returns:
  * - The merged `current` payload and the next full binding config record
  */
-export function mergeGameletConfigPatch(params: {
-  moduleConfig: HostDataRecord
-  patch: HostDataRecord
-}): {
+export function mergeGameletConfigPatch(params: { moduleConfig: HostDataRecord; patch: HostDataRecord }): {
   nextCurrentConfig: HostDataRecord
   nextConfig: HostDataRecord
 } {

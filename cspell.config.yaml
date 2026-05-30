@@ -1,4 +1,4 @@
-version: "0.2"
+version: '0.2'
 ignorePaths: []
 dictionaryDefinitions: []
 dictionaries: []
@@ -153,7 +153,6 @@ words:
   - keyup
   - Keyyable
   - kirakira
-  - knip
   - kwaa
   - Landmarker
   - lemonneko

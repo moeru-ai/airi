@@ -15,8 +15,7 @@ const target = shallowRef()
 const { focused } = useFocus(target)
 
 watch(focused, (focused) => {
-  if (focused)
-    console.log('input element has been focused')
+  if (focused) console.log('input element has been focused')
   else console.log('input element has lost focus')
 })
 ```
@@ -47,10 +46,8 @@ const { focused } = useFocus(input)
 
 <template>
   <div>
-    <button type="button" @click="focused = true">
-      Click me to focus input below
-    </button>
-    <input ref="input" type="text">
+    <button type="button" @click="focused = true">Click me to focus input below</button>
+    <input ref="input" type="text" />
   </div>
 </template>
 ```
@@ -92,8 +89,5 @@ export interface UseFocusReturn {
  * @param target The target element for the focus and blur events.
  * @param options
  */
-export declare function useFocus(
-  target: MaybeElementRef,
-  options?: UseFocusOptions,
-): UseFocusReturn
+export declare function useFocus(target: MaybeElementRef, options?: UseFocusOptions): UseFocusReturn
 ```

@@ -16,8 +16,7 @@ describe('parseAccelerator', () => {
 
   it('parses a typical accelerator with modifiers', () => {
     // @example "Mod+Shift+K" — common Cmd/Ctrl shortcut
-    expect(parseAccelerator('Mod+Shift+K'))
-      .toEqual({ modifiers: ['cmd-or-ctrl', 'shift'], key: 'KeyK' })
+    expect(parseAccelerator('Mod+Shift+K')).toEqual({ modifiers: ['cmd-or-ctrl', 'shift'], key: 'KeyK' })
   })
 
   it('treats Mod, CmdOrCtrl, and CommandOrControl as the same modifier', () => {
@@ -46,8 +45,7 @@ describe('parseAccelerator', () => {
 
   it('is case-insensitive on modifier tokens', () => {
     // @example "mod+shift+k" parses identically to "Mod+Shift+K"
-    expect(parseAccelerator('mod+shift+k'))
-      .toEqual(parseAccelerator('Mod+Shift+K'))
+    expect(parseAccelerator('mod+shift+k')).toEqual(parseAccelerator('Mod+Shift+K'))
   })
 
   it('expands single-letter shorthand to W3C key code', () => {
@@ -77,8 +75,7 @@ describe('parseAccelerator', () => {
   })
 
   it('tolerates whitespace around tokens', () => {
-    expect(parseAccelerator(' Mod + Shift + K '))
-      .toEqual(parseAccelerator('Mod+Shift+K'))
+    expect(parseAccelerator(' Mod + Shift + K ')).toEqual(parseAccelerator('Mod+Shift+K'))
   })
 
   it('throws on empty input', () => {
@@ -102,16 +99,13 @@ describe('parseAccelerator', () => {
 
   it('throws on duplicate modifier (alias-aware)', () => {
     // @example "Mod+CmdOrCtrl+K" — both alias to "cmd-or-ctrl"
-    expect(() => parseAccelerator('Mod+CmdOrCtrl+K'))
-      .toThrow(/duplicate modifier/)
-    expect(() => parseAccelerator('Shift+Shift+K'))
-      .toThrow(/duplicate modifier/)
+    expect(() => parseAccelerator('Mod+CmdOrCtrl+K')).toThrow(/duplicate modifier/)
+    expect(() => parseAccelerator('Shift+Shift+K')).toThrow(/duplicate modifier/)
   })
 
   it('throws on unknown key token', () => {
     // @example "Mod+Foo" — "Foo" is not a known key
-    expect(() => parseAccelerator('Mod+Foo'))
-      .toThrow(/unknown key/)
+    expect(() => parseAccelerator('Mod+Foo')).toThrow(/unknown key/)
   })
 })
 
@@ -135,8 +129,7 @@ describe('formatAccelerator', () => {
   it('emits canonical IR with modifier ordering normalized', () => {
     // @example modifiers given in author order ['shift', 'cmd-or-ctrl']
     // serialize as 'Mod+Shift+KeyK', not 'Shift+Mod+KeyK'
-    expect(formatAccelerator({ modifiers: ['shift', 'cmd-or-ctrl'], key: 'KeyK' }))
-      .toBe('Mod+Shift+KeyK')
+    expect(formatAccelerator({ modifiers: ['shift', 'cmd-or-ctrl'], key: 'KeyK' })).toBe('Mod+Shift+KeyK')
   })
 
   it('emits a bare key when there are no modifiers', () => {
@@ -144,29 +137,28 @@ describe('formatAccelerator', () => {
   })
 
   it('orders modifiers as cmd-or-ctrl, cmd, ctrl, alt, shift, super', () => {
-    expect(formatAccelerator({
-      modifiers: ['super', 'shift', 'alt', 'ctrl', 'cmd', 'cmd-or-ctrl'],
-      key: 'KeyK',
-    })).toBe('Mod+Cmd+Ctrl+Alt+Shift+Super+KeyK')
+    expect(
+      formatAccelerator({
+        modifiers: ['super', 'shift', 'alt', 'ctrl', 'cmd', 'cmd-or-ctrl'],
+        key: 'KeyK',
+      }),
+    ).toBe('Mod+Cmd+Ctrl+Alt+Shift+Super+KeyK')
   })
 })
 
 describe('formatElectronAccelerator', () => {
   it('rewrites cmd-or-ctrl to CmdOrCtrl', () => {
-    expect(formatElectronAccelerator({ modifiers: ['cmd-or-ctrl', 'shift'], key: 'KeyK' }))
-      .toBe('CmdOrCtrl+Shift+K')
+    expect(formatElectronAccelerator({ modifiers: ['cmd-or-ctrl', 'shift'], key: 'KeyK' })).toBe('CmdOrCtrl+Shift+K')
   })
 
   it('strips the Key prefix from letter keys', () => {
     // @example "KeyK" -> "K"
-    expect(formatElectronAccelerator({ modifiers: ['alt'], key: 'KeyA' }))
-      .toBe('Alt+A')
+    expect(formatElectronAccelerator({ modifiers: ['alt'], key: 'KeyA' })).toBe('Alt+A')
   })
 
   it('strips the Digit prefix from digit keys', () => {
     // @example "Digit1" -> "1"
-    expect(formatElectronAccelerator({ modifiers: ['cmd-or-ctrl'], key: 'Digit1' }))
-      .toBe('CmdOrCtrl+1')
+    expect(formatElectronAccelerator({ modifiers: ['cmd-or-ctrl'], key: 'Digit1' })).toBe('CmdOrCtrl+1')
   })
 
   it('rewrites arrow keys to Electron short names', () => {
@@ -191,12 +183,7 @@ describe('formatElectronAccelerator', () => {
 
 describe('round-trip parse -> format', () => {
   it('is idempotent on canonical IR strings', () => {
-    for (const input of [
-      'Mod+Shift+KeyK',
-      'Alt+F12',
-      'Escape',
-      'Mod+Alt+ArrowUp',
-    ]) {
+    for (const input of ['Mod+Shift+KeyK', 'Alt+F12', 'Escape', 'Mod+Alt+ArrowUp']) {
       expect(formatAccelerator(parseAccelerator(input))).toBe(input)
     }
   })
@@ -204,8 +191,7 @@ describe('round-trip parse -> format', () => {
   it('normalizes non-canonical inputs to canonical IR', () => {
     // @example "Shift+Mod+k" normalizes to "Mod+Shift+KeyK"
     expect(formatAccelerator(parseAccelerator('Shift+Mod+k'))).toBe('Mod+Shift+KeyK')
-    expect(formatAccelerator(parseAccelerator(' CmdOrCtrl + Shift + KeyK ')))
-      .toBe('Mod+Shift+KeyK')
+    expect(formatAccelerator(parseAccelerator(' CmdOrCtrl + Shift + KeyK '))).toBe('Mod+Shift+KeyK')
   })
 })
 

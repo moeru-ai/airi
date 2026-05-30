@@ -86,7 +86,7 @@ export class DependencyService {
   }
 
   async waitForMany(keys: string[], timeoutMs: number = 15000) {
-    await Promise.all(keys.map(async key => await this.waitFor(key, timeoutMs)))
+    await Promise.all(keys.map(async (key) => await this.waitFor(key, timeoutMs)))
   }
 
   async waitFor(key: string, timeoutMs: number = 15000) {

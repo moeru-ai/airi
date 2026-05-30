@@ -37,9 +37,7 @@ describe('createStaticAssetService', () => {
     const sessionStore = createStaticAssetSessionStore()
     const validateInputs: string[] = []
     const server = createStaticAssetService({
-      getManifestEntryByName: () => new Map([
-        [extensionId, { rootDir, version }],
-      ]),
+      getManifestEntryByName: () => new Map([[extensionId, { rootDir, version }]]),
       sessionStore: {
         ...sessionStore,
         validateRequest(input) {
@@ -62,11 +60,14 @@ describe('createStaticAssetService', () => {
     const baseUrl = server.getBaseUrl()
     expect(baseUrl).toBeTruthy()
 
-    const response = await fetch(`${baseUrl}/_airi/extensions/${extensionId}/sessions/${session.assetSessionId}/ui/assets/app.js`, {
-      headers: {
-        cookie: `${session.cookieName}=${session.cookieValue}`,
+    const response = await fetch(
+      `${baseUrl}/_airi/extensions/${extensionId}/sessions/${session.assetSessionId}/ui/assets/app.js`,
+      {
+        headers: {
+          cookie: `${session.cookieName}=${session.cookieValue}`,
+        },
       },
-    })
+    )
     const responseBody = await response.text()
     expect({
       status: response.status,
@@ -95,12 +96,15 @@ describe('createStaticAssetService', () => {
       ttlMs: 60_000,
     })
 
-    const response = await fetch(`${server.getBaseUrl()}/_airi/extensions/${extensionId}/sessions/${session.assetSessionId}/ui/assets/app.js`, {
-      headers: {
-        cookie: `${session.cookieName}=${session.cookieValue}`,
+    const response = await fetch(
+      `${server.getBaseUrl()}/_airi/extensions/${extensionId}/sessions/${session.assetSessionId}/ui/assets/app.js`,
+      {
+        headers: {
+          cookie: `${session.cookieName}=${session.cookieValue}`,
+        },
+        method: 'HEAD',
       },
-      method: 'HEAD',
-    })
+    )
 
     expect(response.status).toBe(200)
     expect(refreshedSessionId).toBe(session.assetSessionId)
@@ -113,9 +117,12 @@ describe('createStaticAssetService', () => {
   it('returns 405 with security headers for POST requests', async () => {
     const { extensionId, server } = await createStartedAssetServer()
 
-    const response = await fetch(`${server.getBaseUrl()}/_airi/extensions/${extensionId}/sessions/session-1/ui/assets/app.js`, {
-      method: 'POST',
-    })
+    const response = await fetch(
+      `${server.getBaseUrl()}/_airi/extensions/${extensionId}/sessions/session-1/ui/assets/app.js`,
+      {
+        method: 'POST',
+      },
+    )
 
     expect(response.status).toBe(405)
     expect(response.headers.get('cache-control')).toBe('no-store')
@@ -133,7 +140,9 @@ describe('createStaticAssetService', () => {
       ttlMs: 60_000,
     })
 
-    const response = await fetch(`${server.getBaseUrl()}/_airi/extensions/${extensionId}/sessions/${session.assetSessionId}/ui/assets/app.js`)
+    const response = await fetch(
+      `${server.getBaseUrl()}/_airi/extensions/${extensionId}/sessions/${session.assetSessionId}/ui/assets/app.js`,
+    )
 
     expect(response.status).toBe(401)
     expect(response.headers.get('cache-control')).toBe('no-store')
@@ -177,11 +186,14 @@ describe('createStaticAssetService', () => {
       ttlMs: 60_000,
     })
 
-    const response = await fetch(`${server.getBaseUrl()}/_airi/extensions/${extensionId}/sessions/${session.assetSessionId}/ui/assets/missing.js`, {
-      headers: {
-        cookie: `${session.cookieName}=${session.cookieValue}`,
+    const response = await fetch(
+      `${server.getBaseUrl()}/_airi/extensions/${extensionId}/sessions/${session.assetSessionId}/ui/assets/missing.js`,
+      {
+        headers: {
+          cookie: `${session.cookieName}=${session.cookieValue}`,
+        },
       },
-    })
+    )
 
     expect(response.status).toBe(404)
     expect(response.headers.get('cache-control')).toBe('no-store')
@@ -219,20 +231,25 @@ describe('createStaticAssetService', () => {
       ttlMs: 60_000,
     })
 
-    const response = await fetch(`${server.getBaseUrl()}/_airi/extensions/${extensionId}/sessions/${session.assetSessionId}/ui/assets/app.js`, {
-      headers: {
-        cookie: `${session.cookieName}=${session.cookieValue}`,
+    const response = await fetch(
+      `${server.getBaseUrl()}/_airi/extensions/${extensionId}/sessions/${session.assetSessionId}/ui/assets/app.js`,
+      {
+        headers: {
+          cookie: `${session.cookieName}=${session.cookieValue}`,
+        },
       },
-    })
+    )
 
     expect(response.status).toBe(200)
     expect(await response.text()).toBe('console.log("first")\n')
     expect(manifestReadCount).toBe(1)
   })
 
-  async function createStartedAssetServer(options: {
-    onRefreshSession?: (assetSessionId: string) => void
-  } = {}) {
+  async function createStartedAssetServer(
+    options: {
+      onRefreshSession?: (assetSessionId: string) => void
+    } = {},
+  ) {
     const rootDir = await mkdtemp(join(tmpdir(), 'airi-extension-static-assets-'))
     tempRoots.push(rootDir)
     await mkdir(join(rootDir, 'ui', 'assets'), { recursive: true })
@@ -242,9 +259,7 @@ describe('createStaticAssetService', () => {
     const version = '1.0.0'
     const sessionStore = createStaticAssetSessionStore()
     const server = createStaticAssetService({
-      getManifestEntryByName: () => new Map([
-        [extensionId, { rootDir, version }],
-      ]),
+      getManifestEntryByName: () => new Map([[extensionId, { rootDir, version }]]),
       sessionStore: {
         ...sessionStore,
         refreshSession(assetSessionId) {

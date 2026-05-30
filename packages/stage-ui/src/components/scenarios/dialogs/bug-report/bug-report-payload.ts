@@ -40,9 +40,10 @@ interface WindowLike {
   }
 }
 
-export function createBugReportPageContext(win: WindowLike | undefined = globalThis.window): BugReportPageContext | null {
-  if (!win)
-    return null
+export function createBugReportPageContext(
+  win: WindowLike | undefined = globalThis.window,
+): BugReportPageContext | null {
+  if (!win) return null
 
   const now = win.Date?.now?.() ?? Date.now()
   const timeZone = win.Intl?.DateTimeFormat?.()?.resolvedOptions?.()?.timeZone ?? 'unknown'
@@ -59,14 +60,9 @@ export function createBugReportPageContext(win: WindowLike | undefined = globalT
 }
 
 export function buildBugReportPayload(options: BuildBugReportPayloadOptions): string {
-  const sections: string[] = [
-    '## Bug Report',
-    '',
-    options.description.trim() || '_No description provided._',
-  ]
+  const sections: string[] = ['## Bug Report', '', options.description.trim() || '_No description provided._']
 
-  if (!options.includeTriageContext)
-    return sections.join('\n')
+  if (!options.includeTriageContext) return sections.join('\n')
 
   sections.push('', '## Triage Context')
 
@@ -80,8 +76,7 @@ export function buildBugReportPayload(options: BuildBugReportPayloadOptions): st
       `- Time Zone: ${options.context.timeZone}`,
       `- Captured At: ${options.context.timestamp}`,
     )
-  }
-  else {
+  } else {
     sections.push('- Page context unavailable')
   }
 

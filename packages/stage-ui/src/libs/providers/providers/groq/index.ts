@@ -6,12 +6,8 @@ import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
 
 const groqConfigSchema = z.object({
-  apiKey: z
-    .string('API Key'),
-  baseUrl: z
-    .string('Base URL')
-    .optional()
-    .default('https://api.groq.com/openai/v1/'),
+  apiKey: z.string('API Key'),
+  baseUrl: z.string('Base URL').optional().default('https://api.groq.com/openai/v1/'),
 })
 
 type GroqConfig = z.input<typeof groqConfigSchema>
@@ -25,19 +21,24 @@ export const providerGroq = defineProvider<GroqConfig>({
   tasks: ['chat'],
   icon: 'i-lobe-icons:groq',
 
-  createProviderConfig: ({ t }) => groqConfigSchema.extend({
-    apiKey: groqConfigSchema.shape.apiKey.meta({
-      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
-      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
-      type: 'password',
+  createProviderConfig: ({ t }) =>
+    groqConfigSchema.extend({
+      apiKey: groqConfigSchema.shape.apiKey.meta({
+        labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
+        descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
+        placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
+        type: 'password',
+      }),
+      baseUrl: groqConfigSchema.shape.baseUrl.meta({
+        labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
+        descriptionLocalized: t(
+          'settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description',
+        ),
+        placeholderLocalized: t(
+          'settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder',
+        ),
+      }),
     }),
-    baseUrl: groqConfigSchema.shape.baseUrl.meta({
-      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
-      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
-    }),
-  }),
   createProvider(config) {
     return createOpenAI(config.apiKey, config.baseUrl)
   },

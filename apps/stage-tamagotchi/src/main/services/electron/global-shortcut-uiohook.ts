@@ -87,10 +87,8 @@ function resolveModifierMask(modifiers: readonly ShortcutModifier[], platform: N
   for (const m of modifiers) {
     switch (m) {
       case 'cmd-or-ctrl':
-        if (platform === 'darwin')
-          mask.meta = true
-        else
-          mask.ctrl = true
+        if (platform === 'darwin') mask.meta = true
+        else mask.ctrl = true
         break
       case 'cmd':
       case 'super':
@@ -112,17 +110,19 @@ function resolveModifierMask(modifiers: readonly ShortcutModifier[], platform: N
   return mask
 }
 
-function buildPredicate(acc: ShortcutAccelerator, platform: NodeJS.Platform): { predicate: UiohookEntry['predicate'], expectedKeycode: number } | undefined {
+function buildPredicate(
+  acc: ShortcutAccelerator,
+  platform: NodeJS.Platform,
+): { predicate: UiohookEntry['predicate']; expectedKeycode: number } | undefined {
   const expectedKeycode = W3C_TO_UIOHOOK[acc.key]
-  if (expectedKeycode === undefined)
-    return undefined
+  if (expectedKeycode === undefined) return undefined
   const required = resolveModifierMask(acc.modifiers, platform)
-  const predicate: UiohookEntry['predicate'] = e =>
-    e.keycode === expectedKeycode
-    && e.ctrlKey === required.ctrl
-    && e.shiftKey === required.shift
-    && e.altKey === required.alt
-    && e.metaKey === required.meta
+  const predicate: UiohookEntry['predicate'] = (e) =>
+    e.keycode === expectedKeycode &&
+    e.ctrlKey === required.ctrl &&
+    e.shiftKey === required.shift &&
+    e.altKey === required.alt &&
+    e.metaKey === required.meta
   return { predicate, expectedKeycode }
 }
 
@@ -131,12 +131,10 @@ function isNativeWayland(platform: NodeJS.Platform, sessionType: string | undefi
 }
 
 function isMacAccessibilityTrusted(platform: NodeJS.Platform, prompt: boolean): boolean {
-  if (platform !== 'darwin')
-    return true
+  if (platform !== 'darwin') return true
   try {
     return systemPreferences.isTrustedAccessibilityClient(prompt)
-  }
-  catch {
+  } catch {
     return true
   }
 }
@@ -198,32 +196,27 @@ export function createUiohookDriver(options: UiohookDriverOptions): UiohookDrive
   let listenersInstalled = false
 
   function ensureListeners(): void {
-    if (listenersInstalled)
-      return
+    if (listenersInstalled) return
     listenersInstalled = true
     uIOhook.on('keydown', onKeydown)
     uIOhook.on('keyup', onKeyup)
   }
 
   function startIfNeeded(): void {
-    if (started || entries.size === 0)
-      return
+    if (started || entries.size === 0) return
     try {
       uIOhook.start()
       started = true
-    }
-    catch (error) {
+    } catch (error) {
       logger.withError(error).warn('Failed to start uIOhook')
     }
   }
 
   function stopIfIdle(): void {
-    if (!started || entries.size > 0)
-      return
+    if (!started || entries.size > 0) return
     try {
       uIOhook.stop()
-    }
-    catch (error) {
+    } catch (error) {
       logger.withError(error).warn('Failed to stop uIOhook')
     }
     started = false
@@ -231,13 +224,11 @@ export function createUiohookDriver(options: UiohookDriverOptions): UiohookDrive
 
   function onKeydown(event: UiohookKeyboardEvent): void {
     for (const entry of entries.values()) {
-      if (!entry.predicate(event))
-        continue
+      if (!entry.predicate(event)) continue
       // Auto-repeat suppression: OS may deliver repeated keydown
       // while the key stays physically held. Emit one `down` per
       // physical press until the matching keyup clears the flag.
-      if (entry.pressed)
-        continue
+      if (entry.pressed) continue
       entry.pressed = true
       broadcastTriggered(entry.binding.id, 'down')
     }
@@ -251,18 +242,15 @@ export function createUiohookDriver(options: UiohookDriverOptions): UiohookDrive
     // binding via the prior `pressed` state ensures every `down`
     // emits a matching `up`.
     for (const entry of entries.values()) {
-      if (!entry.pressed)
-        continue
-      if (event.keycode !== entry.expectedKeycode)
-        continue
+      if (!entry.pressed) continue
+      if (event.keycode !== entry.expectedKeycode) continue
       entry.pressed = false
       broadcastTriggered(entry.binding.id, 'up')
     }
   }
 
   function tryRegister(binding: ShortcutBinding): ShortcutRegistrationResult {
-    if (entries.has(binding.id))
-      return { id: binding.id, ok: false, reason: ShortcutFailureReasons.DuplicateId }
+    if (entries.has(binding.id)) return { id: binding.id, ok: false, reason: ShortcutFailureReasons.DuplicateId }
 
     if (isNativeWayland(platform, sessionType)) {
       // libuiohook hooks install but never receive events under
@@ -292,14 +280,12 @@ export function createUiohookDriver(options: UiohookDriverOptions): UiohookDrive
   }
 
   function unregisterById(id: string): void {
-    if (!entries.delete(id))
-      return
+    if (!entries.delete(id)) return
     stopIfIdle()
   }
 
   function unregisterAll(): void {
-    if (entries.size === 0)
-      return
+    if (entries.size === 0) return
     entries.clear()
     stopIfIdle()
   }

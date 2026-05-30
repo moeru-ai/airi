@@ -16,8 +16,7 @@ async function resetProviders() {
   try {
     await resetProvidersSettings()
     emitStatus(t('settings.pages.data.status.providers_reset'))
-  }
-  catch (error) {
+  } catch (error) {
     handleActionError(error)
   }
 }
@@ -26,15 +25,19 @@ async function deleteAll() {
   try {
     await deleteAllData()
     emitStatus(t('settings.pages.data.status.all_deleted'))
-  }
-  catch (error) {
+  } catch (error) {
     handleActionError(error)
   }
 }
 </script>
 
 <template>
-  <div :class="['border-2 border-red-300/10 rounded-xl bg-red-50/80 p-4 shadow-sm', 'dark:border-red-500/10 dark:bg-red-500/10']">
+  <div
+    :class="[
+      'border-2 border-red-300/10 rounded-xl bg-red-50/80 p-4 shadow-sm',
+      'dark:border-red-500/10 dark:bg-red-500/10',
+    ]"
+  >
     <div :class="['flex flex-col gap-3']">
       <div>
         <div :class="['text-lg text-red-600 font-semibold dark:text-red-300']">

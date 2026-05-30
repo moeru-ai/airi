@@ -21,22 +21,28 @@ const props = defineProps<{
     drop-shadow="none hover:[0px_4px_4px_rgba(220,220,220,0.4)] active:[0px_0px_0px_rgba(220,220,220,0.25)] dark:hover:none"
     class="menu-icon-status-item"
     transition="all ease-in-out duration-400"
-    w-full cursor-pointer of-hidden rounded-xl
+    w-full
+    cursor-pointer
+    of-hidden
+    rounded-xl
   >
     <RouterLink
       flex="~ row"
       class="menu-icon-status-item-link"
       bg="white dark:neutral-900"
       transition="all ease-in-out duration-400"
-      relative h-full w-full items-center overflow-hidden rounded-lg p-5 text-left
-      :to=" props.to"
+      relative
+      h-full
+      w-full
+      items-center
+      overflow-hidden
+      rounded-lg
+      p-5
+      text-left
+      :to="props.to"
     >
       <div z-1 flex-1>
-        <div
-          text-lg font-normal
-          class="menu-icon-status-item-title"
-          transition="all ease-in-out duration-400"
-        >
+        <div text-lg font-normal class="menu-icon-status-item-title" transition="all ease-in-out duration-400">
           {{ props.title }}
         </div>
         <div
@@ -50,19 +56,40 @@ const props = defineProps<{
         <div v-if="props.pricing || props.deployment || props.beginnerRecommended" mt-2 flex flex-wrap gap-1.5>
           <div
             v-if="props.beginnerRecommended"
-            text="[10px] white" rounded-md bg-green-500 px-1.5 py-0.5 font-bold tracking-wider uppercase
+            text="[10px] white"
+            rounded-md
+            bg-green-500
+            px-1.5
+            py-0.5
+            font-bold
+            tracking-wider
+            uppercase
           >
             {{ $t('settings.pages.providers.labels.recommended') }}
           </div>
           <div
             v-if="props.pricing"
-            text="[10px] neutral-600 dark:neutral-300" border="1 neutral-200 dark:neutral-700" rounded-md px-1.5 py-0.5 font-bold tracking-wider uppercase
+            text="[10px] neutral-600 dark:neutral-300"
+            border="1 neutral-200 dark:neutral-700"
+            rounded-md
+            px-1.5
+            py-0.5
+            font-bold
+            tracking-wider
+            uppercase
           >
             {{ $t(`settings.pages.providers.filters.${props.pricing}`) }}
           </div>
           <div
             v-if="props.deployment"
-            text="[10px] neutral-600 dark:neutral-300" border="1 neutral-200 dark:neutral-700" rounded-md px-1.5 py-0.5 font-bold tracking-wider uppercase
+            text="[10px] neutral-600 dark:neutral-300"
+            border="1 neutral-200 dark:neutral-700"
+            rounded-md
+            px-1.5
+            py-0.5
+            font-bold
+            tracking-wider
+            uppercase
           >
             {{ $t(`settings.pages.providers.filters.${props.deployment}`) }}
           </div>
@@ -72,7 +99,10 @@ const props = defineProps<{
         <div
           class="menu-icon-status-item-icon"
           transition="all ease-in-out duration-400"
-          absolute right-0 size-16 translate-y-2
+          absolute
+          right-0
+          size-16
+          translate-y-2
           text="neutral-400/50 dark:neutral-600/50"
           grayscale-100
           :class="props.icon"
@@ -82,7 +112,10 @@ const props = defineProps<{
         <div
           class="menu-icon-status-item-icon-color"
           transition="all ease-in-out duration-400"
-          absolute right-0 size-16 translate-y-2
+          absolute
+          right-0
+          size-16
+          translate-y-2
           text="neutral-400/50 dark:neutral-600/50"
           grayscale-100
           :class="[props.iconColor]"
@@ -93,9 +126,12 @@ const props = defineProps<{
           :src="props.iconImage"
           class="menu-icon-status-item-icon-image"
           transition="all ease-in-out duration-400"
-          absolute right-0 size-16 translate-y-2
+          absolute
+          right-0
+          size-16
+          translate-y-2
           grayscale-100
-        >
+        />
       </template>
     </RouterLink>
     <div p-2>

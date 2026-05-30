@@ -29,7 +29,7 @@ interface OpenMeteoWeather {
 // -- WMO Weather Code Mapping --
 // https://open-meteo.com/en/docs#weathervariables
 
-const wmoCodeToCondition: Record<number, { conditionCode: string, condition: string }> = {
+const wmoCodeToCondition: Record<number, { conditionCode: string; condition: string }> = {
   0: { conditionCode: 'clear-day', condition: 'Clear sky' },
   1: { conditionCode: 'clear-day', condition: 'Mainly clear' },
   2: { conditionCode: 'partly-cloudy-day', condition: 'Partly cloudy' },
@@ -75,7 +75,7 @@ export interface WeatherData {
   low?: string
 }
 
-export function mapWmoCode(code: number, isNight: boolean): { conditionCode: string, condition: string } {
+export function mapWmoCode(code: number, isNight: boolean): { conditionCode: string; condition: string } {
   const mapped = wmoCodeToCondition[code] ?? { conditionCode: 'clear-day', condition: 'Unknown' }
 
   if (isNight) {
@@ -92,17 +92,17 @@ export function mapWmoCode(code: number, isNight: boolean): { conditionCode: str
   return mapped
 }
 
-export async function geocodeCity(city: string): Promise<{ name: string, latitude: number, longitude: number, country: string }> {
+export async function geocodeCity(
+  city: string,
+): Promise<{ name: string; latitude: number; longitude: number; country: string }> {
   const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`
   const res = await fetch(url)
 
-  if (!res.ok)
-    throw new Error(`Geocoding request failed: ${res.status}`)
+  if (!res.ok) throw new Error(`Geocoding request failed: ${res.status}`)
 
   const data: GeocodingResult = await res.json()
 
-  if (!data.results?.length)
-    throw new Error(`City not found: "${city}"`)
+  if (!data.results?.length) throw new Error(`City not found: "${city}"`)
 
   const result = data.results[0]
   return { name: result.name, latitude: result.latitude, longitude: result.longitude, country: result.country }
@@ -114,15 +114,15 @@ export async function fetchWeather(city: string): Promise<WeatherData> {
   const params = new URLSearchParams({
     latitude: String(geo.latitude),
     longitude: String(geo.longitude),
-    current: 'temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,precipitation,is_day',
+    current:
+      'temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,precipitation,is_day',
     daily: 'temperature_2m_max,temperature_2m_min',
     forecast_days: '1',
   })
 
   const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`)
 
-  if (!res.ok)
-    throw new Error(`Weather request failed: ${res.status}`)
+  if (!res.ok) throw new Error(`Weather request failed: ${res.status}`)
 
   const data: OpenMeteoWeather = await res.json()
   const current = data.current

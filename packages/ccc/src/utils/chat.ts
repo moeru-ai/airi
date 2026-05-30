@@ -59,7 +59,4 @@ export const char = prefixAndSuffix<Message>('{{char}}: ', '')
  */
 export const user = prefixAndSuffix<Message>('{{user}}: ', '')
 
-export {
-  action as act,
-  message as msg,
-}
+export { action as act, message as msg }

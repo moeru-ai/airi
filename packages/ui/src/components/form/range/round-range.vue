@@ -2,18 +2,21 @@
 import { useElementHover, useKeyModifier } from '@vueuse/core'
 import { computed, onMounted, ref, watch } from 'vue'
 
-const props = withDefaults(defineProps<{
-  min?: number
-  max?: number
-  step?: number
-  disabled?: boolean
-  handleWheel?: boolean
-}>(), {
-  min: 0,
-  max: 100,
-  step: 1,
-  disabled: false,
-})
+const props = withDefaults(
+  defineProps<{
+    min?: number
+    max?: number
+    step?: number
+    disabled?: boolean
+    handleWheel?: boolean
+  }>(),
+  {
+    min: 0,
+    max: 100,
+    step: 1,
+    disabled: false,
+  },
+)
 
 const smoothingFactor = 10000
 
@@ -39,8 +42,7 @@ onMounted(() => updateTrackColor())
 watch(sliderValue, () => updateTrackColor(), { immediate: true })
 watch([scaledMin, scaledMax, scaledStep], () => updateTrackColor(), { immediate: true })
 watch(isHovered, (hovered: boolean) => {
-  if (!props.handleWheel)
-    return
+  if (!props.handleWheel) return
   if (hovered) {
     sliderRef.value?.addEventListener('wheel', onWheelInput)
     return
@@ -64,13 +66,10 @@ function handleInput(e: Event) {
 }
 
 function onWheelInput(ev: WheelEvent) {
-  if (ev.deltaY === 0)
-    return
+  if (ev.deltaY === 0) return
   let valueAfter = modelValue.value
-  if (ev.deltaY < 0)
-    valueAfter += props.step * (shiftPressed.value ? 50 : 1)
-  if (ev.deltaY > 0)
-    valueAfter -= props.step * (shiftPressed.value ? 50 : 1)
+  if (ev.deltaY < 0) valueAfter += props.step * (shiftPressed.value ? 50 : 1)
+  if (ev.deltaY > 0) valueAfter -= props.step * (shiftPressed.value ? 50 : 1)
   modelValue.value = Math.min(Math.max(valueAfter, props.min), props.max)
 }
 </script>
@@ -86,7 +85,7 @@ function onWheelInput(ev: WheelEvent) {
     :disabled="props.disabled"
     :class="['slider-progress', 'form_input-round-range', props.disabled ? 'opacity-60 pointer-events-none' : '']"
     @input="handleInput"
-  >
+  />
 </template>
 
 <style scoped>
@@ -119,7 +118,7 @@ https://toughengineer.github.io/demo/slider-styler*/
   --track-value-padding: 0px;
 }
 
-[data-direction="vertical"].form_input-round-range {
+[data-direction='vertical'].form_input-round-range {
   transform: rotate(180deg);
 }
 
@@ -176,7 +175,7 @@ https://toughengineer.github.io/demo/slider-styler*/
     width 0.2s cubic-bezier(0.165, 0.84, 0.44, 1);
 }
 
-[data-direction="vertical"]::-webkit-slider-thumb {
+[data-direction='vertical']::-webkit-slider-thumb {
   cursor: ns-resize;
 }
 
@@ -195,7 +194,7 @@ https://toughengineer.github.io/demo/slider-styler*/
     border-color 0.2s ease-in-out;
 }
 
-[data-direction="vertical"]::-webkit-slider-runnable-track {
+[data-direction='vertical']::-webkit-slider-runnable-track {
   cursor: ns-resize;
 }
 
@@ -205,7 +204,7 @@ https://toughengineer.github.io/demo/slider-styler*/
     var(--track-background);
 }
 
-[data-direction="vertical"].form_input-round-range.slider-progress::-webkit-slider-runnable-track {
+[data-direction='vertical'].form_input-round-range.slider-progress::-webkit-slider-runnable-track {
   background: linear-gradient(var(--track-value-background) var(--sx), var(--track-background) var(--sx)) no-repeat;
 }
 
@@ -227,7 +226,7 @@ https://toughengineer.github.io/demo/slider-styler*/
     width 0.2s cubic-bezier(0.165, 0.84, 0.44, 1);
 }
 
-[data-direction="vertical"]::-moz-range-thumb {
+[data-direction='vertical']::-moz-range-thumb {
   cursor: ns-resize;
 }
 
@@ -244,7 +243,7 @@ https://toughengineer.github.io/demo/slider-styler*/
   width: calc(100% - var(--track-value-padding) * 2);
 }
 
-[data-direction="vertical"]::-moz-range-track {
+[data-direction='vertical']::-moz-range-track {
   cursor: ns-resize;
 }
 
@@ -254,7 +253,7 @@ https://toughengineer.github.io/demo/slider-styler*/
     var(--track-background);
 }
 
-[data-direction="vertical"].form_input-round-range.slider-progress::-moz-range-track {
+[data-direction='vertical'].form_input-round-range.slider-progress::-moz-range-track {
   background: linear-gradient(var(--track-value-background) var(--sx), var(--track-background) var(--sx)) no-repeat;
 }
 
@@ -287,7 +286,7 @@ https://toughengineer.github.io/demo/slider-styler*/
     width 0.2s cubic-bezier(0.165, 0.84, 0.44, 1);
 }
 
-[data-direction="vertical"]::-ms-thumb {
+[data-direction='vertical']::-ms-thumb {
   cursor: ns-resize;
 }
 
@@ -303,7 +302,7 @@ https://toughengineer.github.io/demo/slider-styler*/
   overflow: hidden;
 }
 
-[data-direction="vertical"]::-ms-track {
+[data-direction='vertical']::-ms-track {
   cursor: ns-resize;
 }
 

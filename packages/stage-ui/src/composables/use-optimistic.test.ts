@@ -37,7 +37,7 @@ describe('useOptimistic', () => {
 
     // Wait for action to complete
     await nextTick()
-    await new Promise(resolve => setTimeout(resolve, 0))
+    await new Promise((resolve) => setTimeout(resolve, 0))
 
     expect(action).toHaveBeenCalled()
     expect(onSuccess).toHaveBeenCalledWith(actionResult)
@@ -72,7 +72,7 @@ describe('useOptimistic', () => {
 
     // Wait for failure
     await nextTick()
-    await new Promise(resolve => setTimeout(resolve, 0))
+    await new Promise((resolve) => setTimeout(resolve, 0))
 
     expect(rollback).toHaveBeenCalled()
     expect(state.value).toBe('initial')
@@ -84,10 +84,10 @@ describe('useOptimistic', () => {
     const state = ref('initial')
 
     const apply = async () => {
-      await new Promise(resolve => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 10))
       state.value = 'optimistic'
       return async () => {
-        await new Promise(resolve => setTimeout(resolve, 10))
+        await new Promise((resolve) => setTimeout(resolve, 10))
         state.value = 'initial'
       }
     }

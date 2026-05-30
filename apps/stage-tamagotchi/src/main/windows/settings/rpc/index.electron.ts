@@ -41,7 +41,12 @@ export async function setupSettingsWindowInvokes(params: {
 
   const { context } = createContext(ipcMain, params.settingsWindow)
 
-  await setupBaseWindowElectronInvokes({ context, window: params.settingsWindow, i18n: params.i18n, serverChannel: params.serverChannel })
+  await setupBaseWindowElectronInvokes({
+    context,
+    window: params.settingsWindow,
+    i18n: params.i18n,
+    serverChannel: params.serverChannel,
+  })
 
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.settingsWindow })
   createAutoUpdaterService({ context, window: params.settingsWindow, service: params.autoUpdater })
@@ -52,7 +57,9 @@ export async function setupSettingsWindowInvokes(params: {
   // Register the global shortcut service for the settings window.
   params.globalShortcut.registerWindow({ context, window: params.settingsWindow })
 
-  defineInvokeHandler(context, electronOpenSettingsDevtools, async () => params.settingsWindow.webContents.openDevTools({ mode: 'detach' }))
+  defineInvokeHandler(context, electronOpenSettingsDevtools, async () =>
+    params.settingsWindow.webContents.openDevTools({ mode: 'detach' }),
+  )
   defineInvokeHandler(context, electronOpenDevtoolsWindow, async (payload) => {
     await params.devtoolsWindow.openWindow(payload)
   })

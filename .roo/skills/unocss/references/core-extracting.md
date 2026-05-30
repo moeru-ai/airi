@@ -37,10 +37,7 @@ For files not in build pipeline:
 ```ts
 export default defineConfig({
   content: {
-    filesystem: [
-      'src/**/*.php',
-      'public/*.html',
-    ],
+    filesystem: ['src/**/*.php', 'public/*.html'],
   },
 })
 ```
@@ -50,10 +47,7 @@ export default defineConfig({
 ```ts
 export default defineConfig({
   content: {
-    inline: [
-      '<div class="p-4 text-red">Some text</div>',
-      async () => (await fetch('https://example.com')).text(),
-    ],
+    inline: ['<div class="p-4 text-red">Some text</div>', async () => (await fetch('https://example.com')).text()],
   },
 })
 ```

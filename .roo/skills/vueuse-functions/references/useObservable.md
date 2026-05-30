@@ -33,10 +33,7 @@ You can provide an initial value that will be used before the Observable emits i
 import { useObservable } from '@vueuse/rxjs'
 import { interval } from 'rxjs'
 
-const count = useObservable(
-  interval(1000),
-  { initialValue: 0 },
-)
+const count = useObservable(interval(1000), { initialValue: 0 })
 // count.value is 0 until the first emission
 ```
 
@@ -53,8 +50,7 @@ import { map } from 'rxjs/operators'
 const count = useObservable(
   interval(1000).pipe(
     map((n) => {
-      if (n === 10)
-        throw new Error('oops')
+      if (n === 10) throw new Error('oops')
 
       return n + n
     }),

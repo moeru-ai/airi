@@ -16,9 +16,5 @@
     "verbatimModuleSyntax": true,
     "skipLibCheck": true
   },
-  "exclude": [
-    "node_modules",
-    "**/dist/**",
-    "**/build/**"
-  ]
+  "exclude": ["node_modules", "**/dist/**", "**/build/**"]
 }

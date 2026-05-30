@@ -6,8 +6,7 @@ class MockWorker {
 
   listeners = new Map<string, Set<(event: any) => void>>()
   addEventListener = vi.fn((type: string, listener: (event: any) => void) => {
-    if (!this.listeners.has(type))
-      this.listeners.set(type, new Set())
+    if (!this.listeners.has(type)) this.listeners.set(type, new Set())
     this.listeners.get(type)!.add(listener)
   })
 
@@ -23,8 +22,7 @@ class MockWorker {
   }
 
   dispatch(type: string, event: any): void {
-    for (const listener of this.listeners.get(type) ?? [])
-      listener(event)
+    for (const listener of this.listeners.get(type) ?? []) listener(event)
   }
 }
 vi.stubGlobal('Worker', MockWorker)
@@ -92,7 +90,9 @@ describe('kokoro adapter - singleton recovery', () => {
     const { createKokoroAdapter } = await import('./kokoro')
     const adapter = createKokoroAdapter()
 
-    await expect(adapter.generate('hello', 'af_heart' as any)).rejects.toThrow('Model not loaded. Call loadModel() first.')
+    await expect(adapter.generate('hello', 'af_heart' as any)).rejects.toThrow(
+      'Model not loaded. Call loadModel() first.',
+    )
     expect(adapter.state).toBe('idle')
   })
 })
@@ -148,22 +148,21 @@ describe('kokoro adapter - device loss resilience', () => {
 
     await vi.waitFor(() => expect(enqueueMock).toHaveBeenCalled())
 
-    expect(enqueueMock).toHaveBeenCalledWith(
-      'kokoro-q4',
-      expect.any(Number),
-      expect.any(Function),
-      { signal: controller.signal },
-    )
+    expect(enqueueMock).toHaveBeenCalledWith('kokoro-q4', expect.any(Number), expect.any(Function), {
+      signal: controller.signal,
+    })
     const worker = MockWorker.instances.at(-1)!
     expect(worker.postMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'load-model' }))
 
     controller.abort('cancel preload')
 
     await expect(loading).rejects.toMatchObject({ name: 'AbortError' })
-    expect(worker.postMessage).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'cancel',
-      targetRequestId: expect.any(String),
-    }))
+    expect(worker.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'cancel',
+        targetRequestId: expect.any(String),
+      }),
+    )
   })
 
   it('should classify worker device-loss errors before restarting', async () => {
@@ -171,7 +170,7 @@ describe('kokoro adapter - device loss resilience', () => {
     const adapter = createKokoroAdapter()
 
     enqueueMock.mockImplementationOnce(() => new Promise(() => {}))
-    const loading = adapter.loadModel('q4', 'webgpu').catch(error => error)
+    const loading = adapter.loadModel('q4', 'webgpu').catch((error) => error)
 
     await vi.waitFor(() => expect(enqueueMock).toHaveBeenCalled())
 
@@ -179,11 +178,13 @@ describe('kokoro adapter - device loss resilience', () => {
     worker.dispatch('error', { error: new Error('WebGPU device lost while loading') })
 
     expect(adapter.deviceLossCount).toBe(1)
-    expect(recordDeviceLoss).toHaveBeenCalledWith(expect.objectContaining({
-      modelId: 'kokoro-q4',
-      reason: 'unknown',
-      occurredAt: expect.any(Number),
-    }))
+    expect(recordDeviceLoss).toHaveBeenCalledWith(
+      expect.objectContaining({
+        modelId: 'kokoro-q4',
+        reason: 'unknown',
+        occurredAt: expect.any(Number),
+      }),
+    )
 
     adapter.terminate()
     void loading

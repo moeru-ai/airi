@@ -1,16 +1,19 @@
 <script setup lang="ts">
 import { Textarea } from '../textarea'
 
-const props = withDefaults(defineProps<{
-  label?: string
-  description?: string
-  placeholder?: string
-  required?: boolean
-  textareaClass?: string
-  rows?: number
-}>(), {
-  rows: 6,
-})
+const props = withDefaults(
+  defineProps<{
+    label?: string
+    description?: string
+    placeholder?: string
+    required?: boolean
+    textareaClass?: string
+    rows?: number
+  }>(),
+  {
+    rows: 6,
+  },
+)
 
 const modelValue = defineModel<string>({ required: false })
 </script>
@@ -31,12 +34,7 @@ const modelValue = defineModel<string>({ required: false })
           </slot>
         </div>
       </div>
-      <Textarea
-        v-model="modelValue"
-        :rows="props.rows"
-        :placeholder="props.placeholder"
-        :class="props.textareaClass"
-      />
+      <Textarea v-model="modelValue" :rows="props.rows" :placeholder="props.placeholder" :class="props.textareaClass" />
     </label>
   </div>
 </template>

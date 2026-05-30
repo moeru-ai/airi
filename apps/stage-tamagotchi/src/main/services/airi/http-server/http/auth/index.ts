@@ -61,63 +61,79 @@ export async function startLoopbackServer(): Promise<{
     void loopbackServer.stop()
   }
 
-  app.options('/callback', eventHandler(async (event) => {
-    const corsResponse = handleCors(event, corsOptions)
-    if (corsResponse !== false) {
-      return corsResponse
-    }
+  app.options(
+    '/callback',
+    eventHandler(async (event) => {
+      const corsResponse = handleCors(event, corsOptions)
+      if (corsResponse !== false) {
+        return corsResponse
+      }
 
-    return new Response(null, { status: 204 })
-  }))
+      return new Response(null, { status: 204 })
+    }),
+  )
 
-  app.get('/callback', eventHandler(async (event) => {
-    const corsResponse = handleCors(event, corsOptions)
-    if (corsResponse !== false) {
-      return corsResponse
-    }
+  app.get(
+    '/callback',
+    eventHandler(async (event) => {
+      const corsResponse = handleCors(event, corsOptions)
+      if (corsResponse !== false) {
+        return corsResponse
+      }
 
-    const query = getQuery(event)
-    const error = typeof query.error === 'string' ? query.error : undefined
-    if (error) {
-      const description = typeof query.error_description === 'string' && query.error_description.length > 0
-        ? query.error_description
-        : error
+      const query = getQuery(event)
+      const error = typeof query.error === 'string' ? query.error : undefined
+      if (error) {
+        const description =
+          typeof query.error_description === 'string' && query.error_description.length > 0
+            ? query.error_description
+            : error
+        finish(() => {
+          rejectResult(new Error(description))
+        })
+        return new Response(
+          '<html><body><h2>Authentication failed</h2><p>You can close this window.</p></body></html>',
+          {
+            status: 200,
+            headers: { 'Content-Type': 'text/html; charset=utf-8' },
+          },
+        )
+      }
+
+      const code = typeof query.code === 'string' ? query.code : ''
+      const state = typeof query.state === 'string' ? query.state : ''
+
+      if (!code || !state) {
+        return new Response('<html><body><h2>Missing parameters</h2></body></html>', {
+          status: 400,
+          headers: { 'Content-Type': 'text/html; charset=utf-8' },
+        })
+      }
+
       finish(() => {
-        rejectResult(new Error(description))
+        resolveResult({ code, state })
       })
-      return new Response('<html><body><h2>Authentication failed</h2><p>You can close this window.</p></body></html>', {
-        status: 200,
-        headers: { 'Content-Type': 'text/html; charset=utf-8' },
-      })
-    }
 
-    const code = typeof query.code === 'string' ? query.code : ''
-    const state = typeof query.state === 'string' ? query.state : ''
-
-    if (!code || !state) {
-      return new Response('<html><body><h2>Missing parameters</h2></body></html>', {
-        status: 400,
-        headers: { 'Content-Type': 'text/html; charset=utf-8' },
-      })
-    }
-
-    finish(() => {
-      resolveResult({ code, state })
-    })
-
-    return new Response('<html><body><h2>Authentication successful!</h2><p>You can close this window and return to the app.</p></body></html>', {
-      status: 200,
-      headers: { 'Content-Type': 'text/html; charset=utf-8' },
-    })
-  }))
+      return new Response(
+        '<html><body><h2>Authentication successful!</h2><p>You can close this window and return to the app.</p></body></html>',
+        {
+          status: 200,
+          headers: { 'Content-Type': 'text/html; charset=utf-8' },
+        },
+      )
+    }),
+  )
 
   const address = await loopbackServer.start()
 
-  timeout = setTimeout(() => {
-    finish(() => {
-      rejectResult(new Error('Sign-in timed out — no callback received'))
-    })
-  }, 5 * 60 * 1000)
+  timeout = setTimeout(
+    () => {
+      finish(() => {
+        rejectResult(new Error('Sign-in timed out — no callback received'))
+      })
+    },
+    5 * 60 * 1000,
+  )
 
   return {
     port: address.port,

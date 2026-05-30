@@ -31,7 +31,7 @@ export const useSettingsGeneral = defineStore('settings-general', () => {
     websocketSecureEnabled.reset()
   }
 
-  onMounted(() => language.value = getLanguage())
+  onMounted(() => (language.value = getLanguage()))
 
   return {
     language,

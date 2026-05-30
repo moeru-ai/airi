@@ -17,23 +17,27 @@ const { buildPreviewItems } = useContextFlowFormatters()
       <div
         v-for="item in buildPreviewItems(entry)"
         :key="`${entry.id}-${item.label}`"
-        :class="[
-          'rounded-lg',
-          'bg-white/80',
-          'p-3',
-          'dark:bg-neutral-900/70',
-        ]"
+        :class="['rounded-lg', 'bg-white/80', 'p-3', 'dark:bg-neutral-900/70']"
       >
         <div :class="['text-[11px]', 'uppercase', 'tracking-[0.06em]', 'text-neutral-400', 'dark:text-neutral-500']">
           {{ item.label }}
         </div>
-        <pre :class="['mt-2', 'max-h-40', 'overflow-auto', 'whitespace-pre-wrap', 'break-words', 'text-xs', 'font-mono', 'text-neutral-800', 'dark:text-neutral-100']">
-{{ item.value || '-' }}
+        <pre
+          :class="[
+            'mt-2',
+            'max-h-40',
+            'overflow-auto',
+            'whitespace-pre-wrap',
+            'break-words',
+            'text-xs',
+            'font-mono',
+            'text-neutral-800',
+            'dark:text-neutral-100',
+          ]"
+          >{{ item.value || '-' }}
         </pre>
       </div>
     </div>
-    <div v-else :class="['text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
-      No preview available.
-    </div>
+    <div v-else :class="['text-xs', 'text-neutral-500', 'dark:text-neutral-400']">No preview available.</div>
   </div>
 </template>

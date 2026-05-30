@@ -7,23 +7,26 @@ import { ref, watch } from 'vue'
 import SpineCanvas from './spine/Canvas.vue'
 import SpineModel from './spine/Model.vue'
 
-withDefaults(defineProps<{
-  modelSrc?: string
-  modelId?: string
-  paused?: boolean
-  premultipliedAlpha?: boolean
-  defaultMixDuration?: number
-  idleAnimationEnabled?: boolean
-  maxFps?: number
-  renderScale?: number
-}>(), {
-  paused: false,
-  premultipliedAlpha: true,
-  defaultMixDuration: 0.2,
-  idleAnimationEnabled: true,
-  maxFps: 0,
-  renderScale: 1,
-})
+withDefaults(
+  defineProps<{
+    modelSrc?: string
+    modelId?: string
+    paused?: boolean
+    premultipliedAlpha?: boolean
+    defaultMixDuration?: number
+    idleAnimationEnabled?: boolean
+    maxFps?: number
+    renderScale?: number
+  }>(),
+  {
+    paused: false,
+    premultipliedAlpha: true,
+    defaultMixDuration: 0.2,
+    idleAnimationEnabled: true,
+    maxFps: 0,
+    renderScale: 1,
+  },
+)
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
 const componentStateCanvas = defineModel<'pending' | 'loading' | 'mounted'>('canvasState', { default: 'pending' })
@@ -33,9 +36,8 @@ const canvasRef = ref<InstanceType<typeof SpineCanvas>>()
 const modelRef = ref<InstanceType<typeof SpineModel>>()
 
 watch([componentStateModel, componentStateCanvas], () => {
-  componentState.value = (componentStateModel.value === 'mounted' && componentStateCanvas.value === 'mounted')
-    ? 'mounted'
-    : 'loading'
+  componentState.value =
+    componentStateModel.value === 'mounted' && componentStateCanvas.value === 'mounted' ? 'mounted' : 'loading'
 })
 
 defineExpose({

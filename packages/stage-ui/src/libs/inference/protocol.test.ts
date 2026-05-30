@@ -127,7 +127,7 @@ describe('throwIfAborted', () => {
     expect(() => throwIfAborted(controller.signal)).toThrow()
   })
 
-  it('should throw the signal\'s reason if it is an Error', () => {
+  it("should throw the signal's reason if it is an Error", () => {
     const controller = new AbortController()
     const reason = new Error('custom reason')
     controller.abort(reason)
@@ -139,8 +139,7 @@ describe('throwIfAborted', () => {
     controller.abort('cancelled by string')
     try {
       throwIfAborted(controller.signal)
-    }
-    catch (err) {
+    } catch (err) {
       expect((err as Error).name).toBe('AbortError')
       expect((err as Error).message).toBe('cancelled by string')
       return

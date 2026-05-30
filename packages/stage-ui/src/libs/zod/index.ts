@@ -5,8 +5,7 @@ import { ZodDefault } from 'zod'
 
 // https://github.com/colinhacks/zod/discussions/1953#discussioncomment-14098158
 export function getSchemaDefault<T>(schema: $ZodType<T> | null | undefined): Partial<T> {
-  if (!schema)
-    return {}
+  if (!schema) return {}
 
   const object = schema as unknown as ZodObject
 

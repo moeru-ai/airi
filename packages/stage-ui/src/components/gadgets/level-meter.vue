@@ -11,7 +11,7 @@ interface Props {
   height?: number // Height in pixels
   showHeader?: boolean // Show label and value
   animationSpeed?: number // Animation duration in ms
-  colorThresholds?: { value: number, color: string }[] // Custom color thresholds
+  colorThresholds?: { value: number; color: string }[] // Custom color thresholds
   formatValue?: (value: number) => string // Custom value formatter
 }
 

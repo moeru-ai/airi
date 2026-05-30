@@ -75,17 +75,26 @@ const chromaticShades = computed(() => chromaticPaletteFrom(chromaticHueOrDefaul
 const timeSeriesChartContainerBounding = useElementBounding(timeSeriesChartRef, { windowResize: true })
 
 const throttledWidth = ref(0)
-const updateWidth = useThrottleFn(() => {
-  throttledWidth.value = Math.max(0, Math.floor(timeSeriesChartContainerBounding.width.value || 0))
-}, 100, true, true)
+const updateWidth = useThrottleFn(
+  () => {
+    throttledWidth.value = Math.max(0, Math.floor(timeSeriesChartContainerBounding.width.value || 0))
+  },
+  100,
+  true,
+  true,
+)
 
 watch(() => timeSeriesChartContainerBounding.width.value, updateWidth, { immediate: true })
 
-watch([chromaticHueOrDefault, timeSeriesChartRef], () => {
-  if (timeSeriesChartRef.value) {
-    timeSeriesChartRef.value.style.setProperty('--chromatic-hue', chromaticHueOrDefault.value.toString())
-  }
-}, { immediate: true })
+watch(
+  [chromaticHueOrDefault, timeSeriesChartRef],
+  () => {
+    if (timeSeriesChartRef.value) {
+      timeSeriesChartRef.value.style.setProperty('--chromatic-hue', chromaticHueOrDefault.value.toString())
+    }
+  },
+  { immediate: true },
+)
 
 const lineColorProps = toRef(() => props.lineColor)
 const lineColor = computed(() => {
@@ -130,23 +139,19 @@ const gridPatternId = `grid-${componentId}`
 const areaGradientId = `area-gradient-${componentId}`
 const thresholdGradientId = `threshold-gradient-${componentId}`
 
-const normalizedThreshold = computed(() =>
-  props.threshold !== null ? Math.max(0, Math.min(1, props.threshold)) : 0,
-)
+const normalizedThreshold = computed(() => (props.threshold !== null ? Math.max(0, Math.min(1, props.threshold)) : 0))
 
 // Calculate threshold line Y position
 const thresholdLineY = computed(() => {
-  if (props.threshold === null)
-    return 0
-  return chartHeight.value - (normalizedThreshold.value * chartHeight.value)
+  if (props.threshold === null) return 0
+  return chartHeight.value - normalizedThreshold.value * chartHeight.value
 })
 
 const chartWidth = computed(() => throttledWidth.value)
 
 // Keep the number of rendered points close to the available pixels to avoid giant SVG paths
 function downsampleSeries(values: readonly number[], maxPoints: number) {
-  if (values.length <= maxPoints || maxPoints < 2)
-    return values
+  if (values.length <= maxPoints || maxPoints < 2) return values
 
   const result: number[] = []
   const bucketSize = (values.length - 1) / (maxPoints - 1)
@@ -160,8 +165,7 @@ function downsampleSeries(values: readonly number[], maxPoints: number) {
     }
 
     let sum = 0
-    for (let j = start; j < end; j++)
-      sum += values[j]
+    for (let j = start; j < end; j++) sum += values[j]
 
     result.push(sum / (end - start))
   }
@@ -179,25 +183,23 @@ const downsampledHistory = computed(() => {
 // Create smooth curve path
 const smoothPath = computed(() => {
   const history = downsampledHistory.value
-  if (history.length < 2 || chartWidth.value === 0)
-    return ''
+  if (history.length < 2 || chartWidth.value === 0) return ''
 
   const width = chartWidth.value
   const height = chartHeight.value
 
-  let path = `M0,${height - (history[0] * height)}`
+  let path = `M0,${height - history[0] * height}`
 
   for (let i = 1; i < history.length; i++) {
     const x = (i / (history.length - 1)) * width
-    const y = height - (history[i] * height)
+    const y = height - history[i] * height
 
     if (i === 1) {
-      path += ` Q${x / 2},${height - (history[0] * height)} ${x},${y}`
-    }
-    else {
+      path += ` Q${x / 2},${height - history[0] * height} ${x},${y}`
+    } else {
       const prevX = ((i - 1) / (history.length - 1)) * width
       const cpX = (prevX + x) / 2
-      const prevY = height - (history[i - 1] * height)
+      const prevY = height - history[i - 1] * height
       path += ` Q${cpX},${prevY} ${x},${y}`
     }
   }
@@ -208,25 +210,23 @@ const smoothPath = computed(() => {
 // Create filled area path
 const dataAreaPath = computed(() => {
   const history = downsampledHistory.value
-  if (history.length < 2 || chartWidth.value === 0)
-    return ''
+  if (history.length < 2 || chartWidth.value === 0) return ''
 
   const width = chartWidth.value
   const height = chartHeight.value
 
-  let path = `M0,${height} L0,${height - (history[0] * height)}`
+  let path = `M0,${height} L0,${height - history[0] * height}`
 
   for (let i = 1; i < history.length; i++) {
     const x = (i / (history.length - 1)) * width
-    const y = height - (history[i] * height)
+    const y = height - history[i] * height
 
     if (i === 1) {
-      path += ` Q${x / 2},${height - (history[0] * height)} ${x},${y}`
-    }
-    else {
+      path += ` Q${x / 2},${height - history[0] * height} ${x},${y}`
+    } else {
       const prevX = ((i - 1) / (history.length - 1)) * width
       const cpX = (prevX + x) / 2
-      const prevY = height - (history[i - 1] * height)
+      const prevY = height - history[i - 1] * height
       path += ` Q${cpX},${prevY} ${x},${y}`
     }
   }
@@ -308,11 +308,7 @@ const dataAreaPath = computed(() => {
         />
 
         <!-- Data area (filled under curve) -->
-        <path
-          v-if="dataAreaPath && showArea"
-          :d="dataAreaPath"
-          :fill="`url(#${areaGradientId})`"
-        />
+        <path v-if="dataAreaPath && showArea" :d="dataAreaPath" :fill="`url(#${areaGradientId})`" />
 
         <!-- Main data curve -->
         <path
@@ -333,7 +329,10 @@ const dataAreaPath = computed(() => {
         class="absolute right-2 top-2 border border-neutral-200 rounded-md bg-white px-2 py-1 shadow-sm transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-800"
         :class="isActive ? `bg-primary-50 dark:bg-primary-900 border-primary-200 dark:border-primary-800` : ''"
       >
-        <div class="text-xs font-medium" :class="isActive ? 'text-primary-700 dark:text-primary-300' : 'text-neutral-600 dark:text-neutral-400'">
+        <div
+          class="text-xs font-medium"
+          :class="isActive ? 'text-primary-700 dark:text-primary-300' : 'text-neutral-600 dark:text-neutral-400'"
+        >
           {{ formatValue ? formatValue(currentValue) : `${(currentValue * 100).toFixed(precision)}${unit}` }}
         </div>
       </div>
@@ -362,7 +361,9 @@ const dataAreaPath = computed(() => {
           {{ inactiveLegendLabel }}
         </span>
       </div>
-      <span v-if="threshold !== null" class="text-nowrap">{{ thresholdLabel }}: {{ formatThreshold ? formatThreshold(threshold) : `${(threshold * 100).toFixed(0)}%` }}</span>
+      <span v-if="threshold !== null" class="text-nowrap">
+        {{ thresholdLabel }}: {{ formatThreshold ? formatThreshold(threshold) : `${(threshold * 100).toFixed(0)}%` }}
+      </span>
     </div>
   </div>
 </template>

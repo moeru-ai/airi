@@ -18,9 +18,7 @@ Add to Nuxt config:
 ```ts
 // nuxt.config.ts
 export default defineNuxtConfig({
-  modules: [
-    '@unocss/nuxt',
-  ],
+  modules: ['@unocss/nuxt'],
 })
 ```
 
@@ -31,9 +29,7 @@ Create config file:
 import { defineConfig, presetWind3 } from 'unocss'
 
 export default defineConfig({
-  presets: [
-    presetWind3(),
-  ],
+  presets: [presetWind3()],
 })
 ```
 
@@ -41,12 +37,12 @@ export default defineConfig({
 
 ## Support Status
 
-| Build Tool | Nuxt 2 | Nuxt Bridge | Nuxt 3 |
-|------------|--------|-------------|--------|
-| Webpack Dev | ✅ | ✅ | 🚧 |
-| Webpack Build | ✅ | ✅ | ✅ |
-| Vite Dev | - | ✅ | ✅ |
-| Vite Build | - | ✅ | ✅ |
+| Build Tool    | Nuxt 2 | Nuxt Bridge | Nuxt 3 |
+| ------------- | ------ | ----------- | ------ |
+| Webpack Dev   | ✅     | ✅          | 🚧     |
+| Webpack Build | ✅     | ✅          | ✅     |
+| Vite Dev      | -      | ✅          | ✅     |
+| Vite Build    | -      | ✅          | ✅     |
 
 ## Configuration
 
@@ -59,10 +55,7 @@ Use a dedicated config file for best IDE support:
 import { defineConfig, presetIcons, presetWind3 } from 'unocss'
 
 export default defineConfig({
-  presets: [
-    presetWind3(),
-    presetIcons(),
-  ],
+  presets: [presetWind3(), presetIcons()],
   shortcuts: {
     btn: 'py-2 px-4 font-semibold rounded-lg',
   },
@@ -99,12 +92,15 @@ import { mergeConfigs } from '@unocss/core'
 
 import config from './.nuxt/uno.config.mjs'
 
-export default mergeConfigs([config, {
-  // Your overrides
-  shortcuts: {
-    custom: 'text-red-500',
+export default mergeConfigs([
+  config,
+  {
+    // Your overrides
+    shortcuts: {
+      custom: 'text-red-500',
+    },
   },
-}])
+])
 ```
 
 ## Common Setup Example
@@ -112,9 +108,7 @@ export default mergeConfigs([config, {
 ```ts
 // nuxt.config.ts
 export default defineNuxtConfig({
-  modules: [
-    '@unocss/nuxt',
-  ],
+  modules: ['@unocss/nuxt'],
 })
 ```
 
@@ -146,12 +140,12 @@ export default defineConfig({
       },
     }),
   ],
-  transformers: [
-    transformerDirectives(),
-    transformerVariantGroup(),
-  ],
+  transformers: [transformerDirectives(), transformerVariantGroup()],
   shortcuts: [
-    ['btn', 'px-4 py-1 rounded inline-block bg-teal-600 text-white cursor-pointer hover:bg-teal-700 disabled:cursor-default disabled:bg-gray-600 disabled:opacity-50'],
+    [
+      'btn',
+      'px-4 py-1 rounded inline-block bg-teal-600 text-white cursor-pointer hover:bg-teal-700 disabled:cursor-default disabled:bg-gray-600 disabled:opacity-50',
+    ],
   ],
 })
 ```
@@ -161,12 +155,8 @@ export default defineConfig({
 ```vue
 <template>
   <div class="p-4 text-center">
-    <h1 class="text-3xl text-blue-600 font-bold">
-      Hello UnoCSS!
-    </h1>
-    <button class="btn mt-4">
-      Click me
-    </button>
+    <h1 class="text-3xl text-blue-600 font-bold">Hello UnoCSS!</h1>
+    <button class="btn mt-4">Click me</button>
   </div>
 </template>
 ```
@@ -176,9 +166,7 @@ With attributify mode:
 ```vue
 <template>
   <div p="4" text="center">
-    <h1 text="3xl blue-600" font="bold">
-      Hello UnoCSS!
-    </h1>
+    <h1 text="3xl blue-600" font="bold">Hello UnoCSS!</h1>
   </div>
 </template>
 ```

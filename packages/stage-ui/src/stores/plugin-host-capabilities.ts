@@ -7,7 +7,7 @@ export interface PluginHostProviderSummary {
 }
 
 export function listProvidersForPluginHost(): PluginHostProviderSummary[] {
-  return listProviders().map(provider => ({ name: provider.name }))
+  return listProviders().map((provider) => ({ name: provider.name }))
 }
 
 export function shouldPublishPluginHostCapabilities() {

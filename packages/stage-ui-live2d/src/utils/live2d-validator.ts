@@ -32,25 +32,23 @@ export async function validateLive2DZip(file: File | Blob): Promise<Live2DValida
   }
 
   // 1. Entry Point Identification
-  const model3Files = allPaths.filter(p => p.endsWith('.model3.json'))
+  const model3Files = allPaths.filter((p) => p.endsWith('.model3.json'))
   if (model3Files.length > 0) {
     report.entryPoint = model3Files[0]
     report.structureType = 'Standard (model3.json)'
     report.checks.push(`Entry point identified: ${report.entryPoint}`)
-  }
-  else {
-    const mocFiles = allPaths.filter(p => p.endsWith('.moc3'))
+  } else {
+    const mocFiles = allPaths.filter((p) => p.endsWith('.moc3'))
     if (mocFiles.length === 1) {
       report.structureType = 'Heuristic (Loose Files)'
       report.checks.push(`Heuristic match found: Unique MOC file ${mocFiles[0]}`)
-    }
-    else {
+    } else {
       report.errors.push(`Invalid Structure: No .model3.json found and ${mocFiles.length} .moc3 files encountered.`)
     }
   }
 
   // 2. MOC Header & Size Audit
-  const mocPath = allPaths.find(p => p.endsWith('.moc3'))
+  const mocPath = allPaths.find((p) => p.endsWith('.moc3'))
   if (mocPath) {
     const buf = await zip.file(mocPath)!.async('uint8array')
     const header = String.fromCharCode(...buf.slice(0, 4))
@@ -61,33 +59,35 @@ export async function validateLive2DZip(file: File | Blob): Promise<Live2DValida
 
     if (header !== 'MOC3') {
       report.errors.push(`Invalid MOC Header: "${header}" (Expected MOC3)`)
-    }
-    else {
+    } else {
       report.checks.push(`MOC3 Header Valid (Sub-version: ${ver}, Size: ${sizeMb.toFixed(2)} MB)`)
     }
 
     if (sizeMb > 100) {
-      report.errors.push(`CRITICAL WEIGHT: MOC file is ${sizeMb.toFixed(2)} MB. This "Mega-Model" likely exceeds browser WASM memory limits.`)
-    }
-    else if (sizeMb > 30) {
-      report.warnings.push(`HEAVY RESOURCE: MOC file is ${sizeMb.toFixed(2)} MB. This may cause performance issues in web browsers.`)
+      report.errors.push(
+        `CRITICAL WEIGHT: MOC file is ${sizeMb.toFixed(2)} MB. This "Mega-Model" likely exceeds browser WASM memory limits.`,
+      )
+    } else if (sizeMb > 30) {
+      report.warnings.push(
+        `HEAVY RESOURCE: MOC file is ${sizeMb.toFixed(2)} MB. This may cause performance issues in web browsers.`,
+      )
     }
   }
 
   // 3. Basename Collision Audit (AIRI ZipLoader weakness)
   const basenames = new Map<string, string[]>()
   allPaths.forEach((p) => {
-    if (p.endsWith('/'))
-      return // Skip directories
+    if (p.endsWith('/')) return // Skip directories
     const base = p.split(/[\\/]/).pop()!
-    if (!basenames.has(base))
-      basenames.set(base, [])
+    if (!basenames.has(base)) basenames.set(base, [])
     basenames.get(base)!.push(p)
   })
 
   for (const [base, paths] of basenames.entries()) {
     if (paths.length > 1) {
-      report.errors.push(`BASENAME COLLISION: Filename "${base}" exists in multiple locations: ${paths.join(', ')}. This causes data loss in AIRI's loader.`)
+      report.errors.push(
+        `BASENAME COLLISION: Filename "${base}" exists in multiple locations: ${paths.join(', ')}. This causes data loss in AIRI's loader.`,
+      )
     }
   }
 
@@ -99,15 +99,12 @@ export async function validateLive2DZip(file: File | Blob): Promise<Live2DValida
       const baseDir = report.entryPoint.split(/[\\/]/).slice(0, -1).join('/')
 
       const resolve = (rel: string) => {
-        if (!rel)
-          return ''
+        if (!rel) return ''
         const parts = baseDir ? [...baseDir.split('/'), ...rel.split(/[\\/]/)] : rel.split(/[\\/]/)
         const stack: string[] = []
         for (const p of parts) {
-          if (p === '.' || p === '')
-            continue
-          if (p === '..')
-            stack.pop()
+          if (p === '.' || p === '') continue
+          if (p === '..') stack.pop()
           else stack.push(p)
         }
         return stack.join('/')
@@ -117,38 +114,34 @@ export async function validateLive2DZip(file: File | Blob): Promise<Live2DValida
         const full = resolve(rel)
         if (!allPaths.includes(full)) {
           // Check for case-insensitivity match to provide better error
-          const fuzzy = allPaths.find(p => p.toLowerCase() === full.toLowerCase())
+          const fuzzy = allPaths.find((p) => p.toLowerCase() === full.toLowerCase())
           if (fuzzy) {
-            report.errors.push(`CASE SENSITIVITY MISMATCH: "${rel}" expects "${full}" but ZIP contains "${fuzzy}". Browsers are case-sensitive.`)
-          }
-          else {
+            report.errors.push(
+              `CASE SENSITIVITY MISMATCH: "${rel}" expects "${full}" but ZIP contains "${fuzzy}". Browsers are case-sensitive.`,
+            )
+          } else {
             report.errors.push(`MISSING REFERENCE: ${type} "${rel}" (expected at "${full}") not found in ZIP.`)
           }
         }
       }
 
       const refs = json.FileReferences || {}
-      if (refs.Moc)
-        checkRef(refs.Moc, 'MOC')
+      if (refs.Moc) checkRef(refs.Moc, 'MOC')
       if (Array.isArray(refs.Textures)) {
         refs.Textures.forEach((t: string) => checkRef(t, 'Texture'))
       }
-      if (refs.Physics)
-        checkRef(refs.Physics, 'Physics')
+      if (refs.Physics) checkRef(refs.Physics, 'Physics')
       if (Array.isArray(refs.Expressions)) {
         refs.Expressions.forEach((e: any) => checkRef(typeof e === 'string' ? e : e.File, 'Expression'))
       }
-    }
-    catch (e: any) {
+    } catch (e: any) {
       report.errors.push(`JSON PARSE ERROR: Failed to parse ${report.entryPoint}: ${e.message}`)
     }
   }
 
   // 5. Final Status
-  if (report.errors.length > 0)
-    report.status = 'INVALID'
-  else if (report.warnings.length > 0)
-    report.status = 'WARNING'
+  if (report.errors.length > 0) report.status = 'INVALID'
+  else if (report.warnings.length > 0) report.status = 'WARNING'
   else report.status = 'VALID'
 
   return report

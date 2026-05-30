@@ -5,11 +5,14 @@ import { ref } from 'vue'
 import { useLlmStreamingControlStore } from '../../llm-streaming-control'
 import { useContextBridgeStore } from './context-bridge'
 
-type SparkNotifyReactionMock = (event: {
-  data?: {
-    id?: string
-  }
-}, options?: unknown) => Promise<string>
+type SparkNotifyReactionMock = (
+  event: {
+    data?: {
+      id?: string
+    }
+  },
+  options?: unknown,
+) => Promise<string>
 
 const handleSparkNotifyWithReaction = vi.fn<SparkNotifyReactionMock>(async () => 'reaction text')
 
@@ -94,9 +97,7 @@ describe('dispatchSparkNotifyPerformance', () => {
           manifest: {
             name: 'plugin.action',
             prompt: 'Run the plugin action when the model is ready.',
-            examples: [
-              '<|CALL ["plugin.action"]|>',
-            ],
+            examples: ['<|CALL ["plugin.action"]|>'],
           },
           handler,
         },
@@ -121,9 +122,7 @@ describe('dispatchSparkNotifyPerformance', () => {
       expect.anything(),
       expect.objectContaining({
         messageOverride: expect.objectContaining({
-          appendSystemInstructions: [
-            expect.stringContaining('<|CALL ["plugin.action"]|>'),
-          ],
+          appendSystemInstructions: [expect.stringContaining('<|CALL ["plugin.action"]|>')],
         }),
       }),
     )

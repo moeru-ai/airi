@@ -37,13 +37,61 @@ const isWindowsRef = useAsyncState(() => isWindows(), false)
   pointer-events: auto;
 }
 
-.handle.n { top: 0; left: 5px; right: 5px; height: 5px; cursor: n-resize; }
-.handle.s { bottom: 0; left: 5px; right: 5px; height: 5px; cursor: s-resize; }
-.handle.e { top: 5px; bottom: 5px; right: 0; width: 5px; cursor: e-resize; }
-.handle.w { top: 5px; bottom: 5px; left: 0; width: 5px; cursor: w-resize; }
+.handle.n {
+  top: 0;
+  left: 5px;
+  right: 5px;
+  height: 5px;
+  cursor: n-resize;
+}
+.handle.s {
+  bottom: 0;
+  left: 5px;
+  right: 5px;
+  height: 5px;
+  cursor: s-resize;
+}
+.handle.e {
+  top: 5px;
+  bottom: 5px;
+  right: 0;
+  width: 5px;
+  cursor: e-resize;
+}
+.handle.w {
+  top: 5px;
+  bottom: 5px;
+  left: 0;
+  width: 5px;
+  cursor: w-resize;
+}
 
-.handle.nw { top: 0; left: 0; width: 10px; height: 10px; cursor: nw-resize; }
-.handle.ne { top: 0; right: 0; width: 10px; height: 10px; cursor: ne-resize; }
-.handle.sw { bottom: 0; left: 0; width: 10px; height: 10px; cursor: sw-resize; }
-.handle.se { bottom: 0; right: 0; width: 10px; height: 10px; cursor: se-resize; }
+.handle.nw {
+  top: 0;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  cursor: nw-resize;
+}
+.handle.ne {
+  top: 0;
+  right: 0;
+  width: 10px;
+  height: 10px;
+  cursor: ne-resize;
+}
+.handle.sw {
+  bottom: 0;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  cursor: sw-resize;
+}
+.handle.se {
+  bottom: 0;
+  right: 0;
+  width: 10px;
+  height: 10px;
+  cursor: se-resize;
+}
 </style>

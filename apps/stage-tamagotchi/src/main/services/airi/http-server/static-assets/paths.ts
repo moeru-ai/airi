@@ -22,16 +22,13 @@ const segmentPattern = /^[\w.+-]+$/
 function decodePathSegment(segment: string): string | undefined {
   try {
     return decodeURIComponent(segment)
-  }
-  catch {
+  } catch {
     return undefined
   }
 }
 
 function isSafeRouteSegment(segment: string): boolean {
-  return !segment.includes('/')
-    && !segment.includes('\\')
-    && segmentPattern.test(segment)
+  return !segment.includes('/') && !segment.includes('\\') && segmentPattern.test(segment)
 }
 
 /**
@@ -63,9 +60,7 @@ export function normalizeStaticAssetPath(value: string): string | undefined {
   }
 
   const segments: string[] = []
-  for (const rawSegment of normalized
-    .split('/')
-  ) {
+  for (const rawSegment of normalized.split('/')) {
     const decodedSegment = decodePathSegment(rawSegment)?.trim()
     if (decodedSegment == null) {
       return undefined
@@ -86,7 +81,7 @@ export function normalizeStaticAssetPath(value: string): string | undefined {
     return undefined
   }
 
-  if (segments.some(segment => segment === '.' || segment === '..')) {
+  if (segments.some((segment) => segment === '.' || segment === '..')) {
     return undefined
   }
 
@@ -133,14 +128,14 @@ export function parseStaticAssetRequestPath(pathname: string): ParsedStaticAsset
   const rawAssetPath = segments.slice(4).join('/')
 
   if (
-    extensionId == null
-    || sessionsSegment == null
-    || assetSessionId == null
-    || mountSegment == null
-    || !isSafeRouteSegment(extensionId)
-    || sessionsSegment !== 'sessions'
-    || !isSafeRouteSegment(assetSessionId)
-    || mountSegment !== 'ui'
+    extensionId == null ||
+    sessionsSegment == null ||
+    assetSessionId == null ||
+    mountSegment == null ||
+    !isSafeRouteSegment(extensionId) ||
+    sessionsSegment !== 'sessions' ||
+    !isSafeRouteSegment(assetSessionId) ||
+    mountSegment !== 'ui'
   ) {
     return undefined
   }
@@ -183,8 +178,7 @@ export async function resolveStaticAssetFilePath(rootDir: string, assetPath: str
   let realCandidate: string
   try {
     realCandidate = await realpath(resolvedCandidate)
-  }
-  catch {
+  } catch {
     return undefined
   }
 
@@ -210,11 +204,7 @@ export async function resolveStaticAssetFilePath(rootDir: string, assetPath: str
  * Returns:
  * - Encoded mounted route path, or `undefined` when any input is unsafe
  */
-export function buildMountedStaticAssetPath(input: {
-  extensionId: string
-  assetSessionId: string
-  assetPath: string
-}) {
+export function buildMountedStaticAssetPath(input: { extensionId: string; assetSessionId: string; assetPath: string }) {
   if (!isSafeRouteSegment(input.extensionId) || !isSafeRouteSegment(input.assetSessionId)) {
     return undefined
   }
@@ -228,7 +218,7 @@ export function buildMountedStaticAssetPath(input: {
   const encodedAssetSessionId = encodeURIComponent(input.assetSessionId)
   const encodedAssetPath = normalizedAssetPath
     .split('/')
-    .map(segment => encodeURIComponent(segment))
+    .map((segment) => encodeURIComponent(segment))
     .join('/')
 
   return `${pathPrefix}${encodedExtensionId}/sessions/${encodedAssetSessionId}/ui/${encodedAssetPath}`

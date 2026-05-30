@@ -27,10 +27,12 @@ Access theme values in dynamic rules:
 
 ```ts
 rules: [
-  [/^text-(.*)$/, ([, c], { theme }) => {
-    if (theme.colors[c])
-      return { color: theme.colors[c] }
-  }],
+  [
+    /^text-(.*)$/,
+    ([, c], { theme }) => {
+      if (theme.colors[c]) return { color: theme.colors[c] }
+    },
+  ],
 ]
 ```
 
@@ -51,10 +53,12 @@ variants: [
 
 ```ts
 shortcuts: [
-  [/^badge-(.*)$/, ([, c], { theme }) => {
-    if (Object.keys(theme.colors).includes(c))
-      return `bg-${c}4:10 text-${c}5 rounded`
-  }],
+  [
+    /^badge-(.*)$/,
+    ([, c], { theme }) => {
+      if (Object.keys(theme.colors).includes(c)) return `bg-${c}4:10 text-${c}5 rounded`
+    },
+  ],
 ]
 ```
 
@@ -143,17 +147,17 @@ extendTheme: (theme) => {
 
 ### preset-wind3 vs preset-wind4
 
-| preset-wind3 | preset-wind4 |
-|--------------|--------------|
-| `fontFamily` | `font` |
-| `fontSize` | `text.fontSize` |
-| `lineHeight` | `text.lineHeight` or `leading` |
-| `letterSpacing` | `text.letterSpacing` or `tracking` |
-| `borderRadius` | `radius` |
-| `easing` | `ease` |
-| `breakpoints` | `breakpoint` |
-| `boxShadow` | `shadow` |
-| `transitionProperty` | `property` |
+| preset-wind3         | preset-wind4                       |
+| -------------------- | ---------------------------------- |
+| `fontFamily`         | `font`                             |
+| `fontSize`           | `text.fontSize`                    |
+| `lineHeight`         | `text.lineHeight` or `leading`     |
+| `letterSpacing`      | `text.letterSpacing` or `tracking` |
+| `borderRadius`       | `radius`                           |
+| `easing`             | `ease`                             |
+| `breakpoints`        | `breakpoint`                       |
+| `boxShadow`          | `shadow`                           |
+| `transitionProperty` | `property`                         |
 
 ## Common Theme Keys
 

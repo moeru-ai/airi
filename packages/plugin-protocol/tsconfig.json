@@ -1,10 +1,7 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "lib": [
-      "DOM",
-      "ESNext"
-    ],
+    "lib": ["DOM", "ESNext"],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "esModuleInterop": true,
@@ -13,7 +10,5 @@
     "verbatimModuleSyntax": true,
     "skipLibCheck": true
   },
-  "include": [
-    "src/**/*.ts"
-  ]
+  "include": ["src/**/*.ts"]
 }

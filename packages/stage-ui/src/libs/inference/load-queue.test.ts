@@ -12,7 +12,7 @@ describe('loadQueue', () => {
       running.push(id)
       // Only one should be running at a time
       expect(running.length - completed.length).toBeLessThanOrEqual(1)
-      await new Promise(r => setTimeout(r, delay))
+      await new Promise((r) => setTimeout(r, delay))
       completed.push(id)
       return id
     }
@@ -33,7 +33,7 @@ describe('loadQueue', () => {
 
     // Hold the queue with a slow loader
     const hold = queue.enqueue('hold', 0, async () => {
-      await new Promise(r => setTimeout(r, 50))
+      await new Promise((r) => setTimeout(r, 50))
       order.push('hold')
     })
 
@@ -80,11 +80,11 @@ describe('loadQueue', () => {
     expect(queue.pending).toEqual([])
 
     let resolve!: () => void
-    const blocker = new Promise<void>(r => resolve = r)
+    const blocker = new Promise<void>((r) => (resolve = r))
 
     const p = queue.enqueue('loading', 1, () => blocker)
     // After enqueue, the loader should be active
-    await new Promise(r => setTimeout(r, 5))
+    await new Promise((r) => setTimeout(r, 5))
     expect(queue.active).toBe('loading')
 
     resolve()
@@ -118,7 +118,7 @@ describe('loadQueue', () => {
 
       // Hold the queue with a slow loader
       let releaseHold!: () => void
-      const hold = queue.enqueue('hold', 10, () => new Promise<void>(r => releaseHold = r))
+      const hold = queue.enqueue('hold', 10, () => new Promise<void>((r) => (releaseHold = r)))
 
       const controller = new AbortController()
       let loaderCalled = false
@@ -142,7 +142,7 @@ describe('loadQueue', () => {
       await hold
     })
 
-    it('should not interrupt an active loader — that is the loader\'s responsibility', async () => {
+    it("should not interrupt an active loader — that is the loader's responsibility", async () => {
       const queue = createLoadQueue()
       const controller = new AbortController()
 
@@ -161,7 +161,7 @@ describe('loadQueue', () => {
       )
 
       // Give the loader a tick to start
-      await new Promise(r => setTimeout(r, 5))
+      await new Promise((r) => setTimeout(r, 5))
       expect(queue.active).toBe('active')
 
       controller.abort()
@@ -173,15 +173,10 @@ describe('loadQueue', () => {
 
       // Hold the queue
       let releaseHold!: () => void
-      const hold = queue.enqueue('hold', 10, () => new Promise<void>(r => releaseHold = r))
+      const hold = queue.enqueue('hold', 10, () => new Promise<void>((r) => (releaseHold = r)))
 
       const controller = new AbortController()
-      const cancelled = queue.enqueue(
-        'cancelled',
-        5,
-        async () => 'should-not-run',
-        { signal: controller.signal },
-      )
+      const cancelled = queue.enqueue('cancelled', 5, async () => 'should-not-run', { signal: controller.signal })
 
       const later = queue.enqueue('later', 5, async () => 'later-result')
 

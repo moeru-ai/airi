@@ -51,9 +51,7 @@ const targetIsVisible = useElementVisibility(target, {
 
 ```vue
 <template>
-  <UseElementVisibility v-slot="{ isVisible }">
-    Is Visible: {{ isVisible }}
-  </UseElementVisibility>
+  <UseElementVisibility v-slot="{ isVisible }">Is Visible: {{ isVisible }}</UseElementVisibility>
 </template>
 ```
 
@@ -90,9 +88,7 @@ function onElementVisibility(state) {
 
 ```ts
 export interface UseElementVisibilityOptions
-  extends
-  ConfigurableWindow,
-  Pick<UseIntersectionObserverOptions, 'rootMargin' | 'threshold'> {
+  extends ConfigurableWindow, Pick<UseIntersectionObserverOptions, 'rootMargin' | 'threshold'> {
   /**
    * Initial value.
    *

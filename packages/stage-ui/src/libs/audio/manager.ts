@@ -46,9 +46,7 @@ function updateFrame(manager: AudioManagerType) {
 
 export async function playAudio(manager: AudioManagerType, source: ArrayBuffer | string): Promise<void> {
   try {
-    const buffer = typeof source === 'string'
-      ? await (await fetch(source)).arrayBuffer()
-      : source
+    const buffer = typeof source === 'string' ? await (await fetch(source)).arrayBuffer() : source
 
     const audioBuffer = await manager.audioContext.decodeAudioData(buffer)
     const bufferSource = manager.audioContext.createBufferSource()
@@ -60,8 +58,7 @@ export async function playAudio(manager: AudioManagerType, source: ArrayBuffer |
     return new Promise((resolve) => {
       bufferSource.onended = () => resolve()
     })
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Error playing audio:', error)
     throw error
   }

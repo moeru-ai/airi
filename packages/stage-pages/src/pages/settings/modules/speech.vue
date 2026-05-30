@@ -13,13 +13,7 @@ import {
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import {
-  FieldCheckbox,
-  FieldInput,
-  FieldRange,
-  Skeleton,
-  Textarea,
-} from '@proj-airi/ui'
+import { FieldCheckbox, FieldInput, FieldRange, Skeleton, Textarea } from '@proj-airi/ui'
 import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
@@ -60,15 +54,13 @@ const errorMessage = ref('')
 
 // Sync OpenAI Compatible model and voice from provider config
 function syncOpenAICompatibleSettings() {
-  if (activeSpeechProvider.value !== 'openai-compatible-audio-speech')
-    return
+  if (activeSpeechProvider.value !== 'openai-compatible-audio-speech') return
 
   const providerConfig = providersStore.getProviderConfig(activeSpeechProvider.value)
   // Sync model from provider config (override any existing value from previous provider)
   if (providerConfig?.model) {
     activeSpeechModel.value = providerConfig.model as string
-  }
-  else {
+  } else {
     // If no model in provider config, use default
     activeSpeechModel.value = 'tts-1'
   }
@@ -77,8 +69,7 @@ function syncOpenAICompatibleSettings() {
   if (providerConfig?.voice) {
     activeSpeechVoiceId.value = providerConfig.voice as string
     updateCustomVoiceName(providerConfig.voice as string)
-  }
-  else {
+  } else {
     // If no voice in provider config, use default
     activeSpeechVoiceId.value = 'alloy'
     updateCustomVoiceName('alloy')
@@ -119,13 +110,13 @@ watch(activeSpeechModel, async () => {
 
 // Function to generate speech
 async function generateTestSpeech() {
-  if (!testText.value.trim() && !useSSML.value)
-    return
+  if (!testText.value.trim() && !useSSML.value) return
 
-  if (useSSML.value && !ssmlText.value.trim())
-    return
+  if (useSSML.value && !ssmlText.value.trim()) return
 
-  const provider = await providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, any>
+  const provider = (await providersStore.getProviderInstance(
+    activeSpeechProvider.value,
+  )) as SpeechProviderWithExtraOptions<string, any>
   if (!provider) {
     console.error('Failed to initialize speech provider')
     return
@@ -194,12 +185,10 @@ async function generateTestSpeech() {
         audioPlayer.value.play()
       }
     }, 100)
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Error generating speech:', error)
     errorMessage.value = errorMessageFrom(error) || 'An unknown error occurred'
-  }
-  finally {
+  } finally {
     isGenerating.value = false
   }
 }
@@ -276,8 +265,12 @@ function handleDeleteProvider(providerId: string) {
         </div>
         <div max-w-full>
           <fieldset
-            v-if="configuredSpeechProvidersMetadata.length > 0" flex="~ row gap-4"
-            min-w-0 of-x-auto scroll-smooth role="radiogroup"
+            v-if="configuredSpeechProvidersMetadata.length > 0"
+            flex="~ row gap-4"
+            min-w-0
+            of-x-auto
+            scroll-smooth
+            role="radiogroup"
           >
             <RadioCardSimple
               v-for="metadata in configuredSpeechProvidersMetadata"
@@ -307,26 +300,36 @@ function handleDeleteProvider(providerId: string) {
               class="border-neutral-100 bg-white dark:border-neutral-900 hover:border-primary-500/30 dark:bg-neutral-900/20 dark:hover:border-primary-400/30"
               flex="~ col items-center justify-center"
               transition="all duration-200 ease-in-out"
-              relative min-w-50 w-fit rounded-xl p-4
+              relative
+              min-w-50
+              w-fit
+              rounded-xl
+              p-4
             >
               <div i-solar:add-circle-line-duotone class="text-2xl text-neutral-500 dark:text-neutral-500" />
               <div
                 class="bg-dotted-neutral-200/80 dark:bg-dotted-neutral-700/50"
-                absolute inset-0 z--1
-                style="background-size: 10px 10px; mask-image: linear-gradient(165deg, white 30%, transparent 50%);"
+                absolute
+                inset-0
+                z--1
+                style="background-size: 10px 10px; mask-image: linear-gradient(165deg, white 30%, transparent 50%)"
               />
             </RouterLink>
           </fieldset>
           <div v-else>
             <RouterLink
-              class="flex items-center gap-3 rounded-lg p-4" border="2 dashed neutral-200 dark:neutral-800"
-              bg="neutral-50 dark:neutral-800" transition="colors duration-200 ease-in-out" to="/settings/providers"
+              class="flex items-center gap-3 rounded-lg p-4"
+              border="2 dashed neutral-200 dark:neutral-800"
+              bg="neutral-50 dark:neutral-800"
+              transition="colors duration-200 ease-in-out"
+              to="/settings/providers"
             >
               <div i-solar:warning-circle-line-duotone class="text-2xl text-amber-500 dark:text-amber-400" />
               <div class="flex flex-col">
                 <span class="font-medium">No Speech Providers Configured</span>
-                <span class="text-sm text-neutral-400 dark:text-neutral-500">Click here to set up your speech
-                  providers</span>
+                <span class="text-sm text-neutral-400 dark:text-neutral-500">
+                  Click here to set up your speech providers
+                </span>
               </div>
               <div i-solar:arrow-right-line-duotone class="ml-auto text-xl text-neutral-400 dark:text-neutral-500" />
             </RouterLink>
@@ -341,9 +344,20 @@ function handleDeleteProvider(providerId: string) {
             <h2 class="text-lg md:text-2xl">
               {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.title') }}
             </h2>
-            <div class="flex flex-col items-start gap-1 text-neutral-400 md:flex-row md:items-center md:justify-between dark:text-neutral-400">
-              <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.subtitle') }}</span>
-              <span v-if="activeSpeechModel" class="text-sm text-neutral-400 font-medium dark:text-neutral-400">{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.current_model_label') }} {{ activeSpeechModel }}</span>
+            <div
+              class="flex flex-col items-start gap-1 text-neutral-400 md:flex-row md:items-center md:justify-between dark:text-neutral-400"
+            >
+              <span>
+                {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.subtitle') }}
+              </span>
+              <span v-if="activeSpeechModel" class="text-sm text-neutral-400 font-medium dark:text-neutral-400">
+                {{
+                  t(
+                    'settings.pages.modules.consciousness.sections.section.provider-model-selection.current_model_label',
+                  )
+                }}
+                {{ activeSpeechModel }}
+              </span>
             </div>
           </div>
 
@@ -365,7 +379,9 @@ function handleDeleteProvider(providerId: string) {
               <div class="mr-2 animate-spin">
                 <div i-solar:spinner-line-duotone text-xl />
               </div>
-              <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.loading') }}</span>
+              <span>
+                {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.loading') }}
+              </span>
             </div>
 
             <!-- Error state -->
@@ -379,7 +395,11 @@ function handleDeleteProvider(providerId: string) {
                 :model-value="activeSpeechModel || ''"
                 label="Model"
                 description="Enter model name manually if model discovery fails"
-                :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
+                :placeholder="
+                  t(
+                    'settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder',
+                  )
+                "
                 @update:model-value="updateCustomModelName"
               />
             </template>
@@ -391,7 +411,11 @@ function handleDeleteProvider(providerId: string) {
                   {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models') }}
                 </template>
                 <template #content>
-                  {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}
+                  {{
+                    t(
+                      'settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description',
+                    )
+                  }}
                 </template>
               </Alert>
 
@@ -399,7 +423,11 @@ function handleDeleteProvider(providerId: string) {
                 :model-value="activeSpeechModel || ''"
                 label="Model"
                 description="Enter model name manually when no models are returned"
-                :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
+                :placeholder="
+                  t(
+                    'settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder',
+                  )
+                "
                 @update:model-value="updateCustomModelName"
               />
             </template>
@@ -411,13 +439,35 @@ function handleDeleteProvider(providerId: string) {
                 v-model:search-query="modelSearchQuery"
                 :items="providerModels"
                 :searchable="true"
-                :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
-                :search-no-results-title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results')"
-                :search-no-results-description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results_description', { query: modelSearchQuery })"
-                :search-results-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_results', { count: '{count}', total: '{total}' })"
-                :custom-input-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.custom_model_placeholder')"
-                :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
-                :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
+                :search-placeholder="
+                  t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')
+                "
+                :search-no-results-title="
+                  t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results')
+                "
+                :search-no-results-description="
+                  t(
+                    'settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results_description',
+                    { query: modelSearchQuery },
+                  )
+                "
+                :search-results-text="
+                  t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_results', {
+                    count: '{count}',
+                    total: '{total}',
+                  })
+                "
+                :custom-input-placeholder="
+                  t(
+                    'settings.pages.modules.consciousness.sections.section.provider-model-selection.custom_model_placeholder',
+                  )
+                "
+                :expand-button-text="
+                  t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')
+                "
+                :collapse-button-text="
+                  t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')
+                "
                 expanded-class="mb-12"
                 @update:custom-value="updateCustomModelName"
               />
@@ -430,9 +480,7 @@ function handleDeleteProvider(providerId: string) {
       <div v-if="activeSpeechProvider && activeSpeechProvider !== 'speech-noop'">
         <div flex="~ col gap-4">
           <div>
-            <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
-              Voice Configuration
-            </h2>
+            <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">Voice Configuration</h2>
             <div text="neutral-400 dark:neutral-500">
               <span>Customize how your AI assistant speaks</span>
             </div>
@@ -464,38 +512,73 @@ function handleDeleteProvider(providerId: string) {
           <!-- Error state -->
           <!-- Voice selection with RadioCardManySelect (skip for OpenAI Compatible) -->
           <div
-            v-else-if="activeSpeechProvider !== 'openai-compatible-audio-speech' && availableVoices[activeSpeechProvider] && availableVoices[activeSpeechProvider].length > 0"
+            v-else-if="
+              activeSpeechProvider !== 'openai-compatible-audio-speech' &&
+              availableVoices[activeSpeechProvider] &&
+              availableVoices[activeSpeechProvider].length > 0
+            "
             class="space-y-6"
           >
             <VoiceCardManySelect
               v-model:search-query="voiceSearchQuery"
               v-model:voice-id="activeSpeechVoiceId"
               :show-visualizer="false"
-              :voices="availableVoices[activeSpeechProvider]?.filter(voice => {
-                // If no model is selected, show all voices
-                if (!activeSpeechModel) {
-                  return true
-                }
-                // If a model is selected, filter by compatibility
-                return !voice.compatibleModels || voice.compatibleModels.includes(activeSpeechModel)
-              }).map(voice => ({
-                id: voice.id,
-                name: voice.name,
-                description: voice.description,
-                previewURL: voice.previewURL,
-                customizable: false,
-              }))"
+              :voices="
+                availableVoices[activeSpeechProvider]
+                  ?.filter((voice) => {
+                    // If no model is selected, show all voices
+                    if (!activeSpeechModel) {
+                      return true
+                    }
+                    // If a model is selected, filter by compatibility
+                    return !voice.compatibleModels || voice.compatibleModels.includes(activeSpeechModel)
+                  })
+                  .map((voice) => ({
+                    id: voice.id,
+                    name: voice.name,
+                    description: voice.description,
+                    previewURL: voice.previewURL,
+                    customizable: false,
+                  }))
+              "
               :searchable="true"
-              :search-placeholder="t('settings.pages.modules.speech.sections.section.provider-voice-selection.search_voices_placeholder')"
-              :search-no-results-title="t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices')"
-              :search-no-results-description="t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices_description')"
-              :search-results-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.search_voices_results', { count: '{count}', total: '{total}' })"
-              :unsupported-voice-warning-title="t('settings.pages.modules.speech.sections.section.provider-voice-selection.unsupported_voice_warning_title')"
-              :unsupported-voice-warning-content="t('settings.pages.modules.speech.sections.section.provider-voice-selection.unsupported_voice_warning_content')"
-              :custom-input-placeholder="t('settings.pages.modules.speech.sections.section.provider-voice-selection.custom_voice_placeholder')"
-              :expand-button-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.show_more')"
-              :collapse-button-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.show_less')"
-              :play-button-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.play_sample')"
+              :search-placeholder="
+                t('settings.pages.modules.speech.sections.section.provider-voice-selection.search_voices_placeholder')
+              "
+              :search-no-results-title="
+                t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices')
+              "
+              :search-no-results-description="
+                t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices_description')
+              "
+              :search-results-text="
+                t('settings.pages.modules.speech.sections.section.provider-voice-selection.search_voices_results', {
+                  count: '{count}',
+                  total: '{total}',
+                })
+              "
+              :unsupported-voice-warning-title="
+                t(
+                  'settings.pages.modules.speech.sections.section.provider-voice-selection.unsupported_voice_warning_title',
+                )
+              "
+              :unsupported-voice-warning-content="
+                t(
+                  'settings.pages.modules.speech.sections.section.provider-voice-selection.unsupported_voice_warning_content',
+                )
+              "
+              :custom-input-placeholder="
+                t('settings.pages.modules.speech.sections.section.provider-voice-selection.custom_voice_placeholder')
+              "
+              :expand-button-text="
+                t('settings.pages.modules.speech.sections.section.provider-voice-selection.show_more')
+              "
+              :collapse-button-text="
+                t('settings.pages.modules.speech.sections.section.provider-voice-selection.show_less')
+              "
+              :play-button-text="
+                t('settings.pages.modules.speech.sections.section.provider-voice-selection.play_sample')
+              "
               :pause-button-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.pause')"
               @update:custom-value="updateCustomVoiceName"
             />
@@ -509,12 +592,7 @@ function handleDeleteProvider(providerId: string) {
           />
 
           <!-- No voices available -->
-          <Alert
-            v-else
-            type="warning"
-            icon="i-solar:info-circle-line-duotone"
-            class="mb-2"
-          >
+          <Alert v-else type="warning" icon="i-solar:info-circle-line-duotone" class="mb-2">
             <template #title>
               {{ t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices') }}
             </template>
@@ -530,8 +608,10 @@ function handleDeleteProvider(providerId: string) {
               v-model="pitch"
               label="Pitch"
               description="Tune the pitch of the voice"
-              :min="-100" :max="100" :step="1"
-              :format-value="value => `${value}%`"
+              :min="-100"
+              :max="100"
+              :step="1"
+              :format-value="(value) => `${value}%`"
             />
             <!-- SSML Support -->
             <FieldCheckbox
@@ -543,7 +623,11 @@ function handleDeleteProvider(providerId: string) {
 
           <!-- Manual voice input when no voices are available or for OpenAI Compatible -->
           <div
-            v-if="activeSpeechProvider === 'openai-compatible-audio-speech' || !availableVoices[activeSpeechProvider] || availableVoices[activeSpeechProvider].length === 0"
+            v-if="
+              activeSpeechProvider === 'openai-compatible-audio-speech' ||
+              !availableVoices[activeSpeechProvider] ||
+              availableVoices[activeSpeechProvider].length === 0
+            "
             class="mt-2 space-y-6"
           >
             <FieldInput
@@ -557,22 +641,14 @@ function handleDeleteProvider(providerId: string) {
 
             <!-- Model selection for ElevenLabs -->
             <div v-if="activeSpeechProvider === 'elevenlabs'">
-              <label class="mb-1 block text-sm font-medium">
-                Model
-              </label>
+              <label class="mb-1 block text-sm font-medium">Model</label>
               <select
                 v-model="activeSpeechModel"
                 class="w-full border border-neutral-300 rounded bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
               >
-                <option value="eleven_monolingual_v1">
-                  Monolingual v1
-                </option>
-                <option value="eleven_multilingual_v1">
-                  Multilingual v1
-                </option>
-                <option value="eleven_multilingual_v2">
-                  Multilingual v2
-                </option>
+                <option value="eleven_monolingual_v1">Monolingual v1</option>
+                <option value="eleven_multilingual_v1">Multilingual v1</option>
+                <option value="eleven_multilingual_v2">Multilingual v2</option>
               </select>
             </div>
           </div>
@@ -599,7 +675,8 @@ function handleDeleteProvider(providerId: string) {
 
           <template v-if="!useSSML">
             <Textarea
-              v-model="testText" h-24
+              v-model="testText"
+              h-24
               w-full
               :placeholder="t('settings.pages.providers.provider.elevenlabs.playground.fields.field.input.placeholder')"
             />
@@ -611,26 +688,58 @@ function handleDeleteProvider(providerId: string) {
               border="neutral-100 dark:neutral-800 solid 2 focus:neutral-200 dark:focus:neutral-700"
               transition="all duration-250 ease-in-out"
               bg="neutral-100 dark:neutral-800 focus:neutral-50 dark:focus:neutral-900"
-              h-48 w-full rounded-lg px-3 py-2 text-sm font-mono outline-none
+              h-48
+              w-full
+              rounded-lg
+              px-3
+              py-2
+              text-sm
+              font-mono
+              outline-none
             />
           </template>
 
           <div flex="~ row" gap-4>
             <button
-              border="neutral-800 dark:neutral-200 solid 2" transition="border duration-250 ease-in-out"
-              rounded-lg px-4 text="neutral-100 dark:neutral-900" py-2 text-sm
-              :disabled="isGenerating || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !activeSpeechVoice"
-              :class="{ 'opacity-50 cursor-not-allowed': isGenerating || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !activeSpeechVoice }"
-              bg="neutral-700 dark:neutral-300" @click="generateTestSpeech"
+              border="neutral-800 dark:neutral-200 solid 2"
+              transition="border duration-250 ease-in-out"
+              rounded-lg
+              px-4
+              text="neutral-100 dark:neutral-900"
+              py-2
+              text-sm
+              :disabled="
+                isGenerating || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !activeSpeechVoice
+              "
+              :class="{
+                'opacity-50 cursor-not-allowed':
+                  isGenerating || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !activeSpeechVoice,
+              }"
+              bg="neutral-700 dark:neutral-300"
+              @click="generateTestSpeech"
             >
               <div flex="~ row" items-center gap-2>
                 <div i-solar:play-circle-bold-duotone />
-                <span>{{ isGenerating ? t('settings.pages.providers.provider.elevenlabs.playground.buttons.button.test-voice.generating') : t('settings.pages.providers.provider.elevenlabs.playground.buttons.button.test-voice.label') }}</span>
+                <span>
+                  {{
+                    isGenerating
+                      ? t(
+                          'settings.pages.providers.provider.elevenlabs.playground.buttons.button.test-voice.generating',
+                        )
+                      : t('settings.pages.providers.provider.elevenlabs.playground.buttons.button.test-voice.label')
+                  }}
+                </span>
               </div>
             </button>
             <button
-              v-if="audioUrl" border="primary-300 dark:primary-800 solid 2"
-              transition="border duration-250 ease-in-out" rounded-lg px-4 py-2 text-sm @click="stopTestAudio"
+              v-if="audioUrl"
+              border="primary-300 dark:primary-800 solid 2"
+              transition="border duration-250 ease-in-out"
+              rounded-lg
+              px-4
+              py-2
+              text-sm
+              @click="stopTestAudio"
             >
               <div flex="~ row" items-center gap-2>
                 <div i-solar:stop-circle-bold-duotone />
@@ -646,13 +755,20 @@ function handleDeleteProvider(providerId: string) {
 
   <div
     v-motion
-    text="neutral-200/50 dark:neutral-600/20" pointer-events-none
-    fixed top="[calc(100dvh-15rem)]" bottom-0 right--5 z--1
+    text="neutral-200/50 dark:neutral-600/20"
+    pointer-events-none
+    fixed
+    top="[calc(100dvh-15rem)]"
+    bottom-0
+    right--5
+    z--1
     :initial="{ scale: 0.9, opacity: 0, x: 20 }"
     :enter="{ scale: 1, opacity: 1, x: 0 }"
     :duration="500"
     size-60
-    flex items-center justify-center
+    flex
+    items-center
+    justify-center
   >
     <div text="60" i-solar:user-speak-rounded-bold-duotone />
   </div>

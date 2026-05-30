@@ -79,7 +79,7 @@ export class ToolRegistryService {
     const items: RegisteredPluginToolDescriptor[] = []
 
     for (const record of this.tools.values()) {
-      if (await record.availability?.() === false) {
+      if ((await record.availability?.()) === false) {
         continue
       }
 
@@ -101,7 +101,7 @@ export class ToolRegistryService {
     const prompts: SerializedToolsetPromptDefinition[] = []
 
     for (const record of this.toolsetPrompts.values()) {
-      if (await record.availability?.() === false) {
+      if ((await record.availability?.()) === false) {
         continue
       }
 
@@ -119,7 +119,7 @@ export class ToolRegistryService {
     const items: SerializedXsaiToolDefinition[] = []
 
     for (const record of this.tools.values()) {
-      if (await record.availability?.() === false) {
+      if ((await record.availability?.()) === false) {
         continue
       }
 

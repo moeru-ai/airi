@@ -80,11 +80,9 @@ function hasPatchedState<T extends BufferGeometry | Material>(
   const registryState = registry.get(object)
   const userDataState = object.userData?.[key]
 
-  if (registryState?.version === version)
-    return true
+  if (registryState?.version === version) return true
 
-  if (userDataState?.version !== version)
-    return false
+  if (userDataState?.version !== version) return false
 
   return extraCheck ? extraCheck() : true
 }
@@ -225,8 +223,7 @@ function accumulateFaceNormals(geometry: BufferGeometry) {
     const faceNormalY = abz * acx - abx * acz
     const faceNormalZ = abx * acy - aby * acx
 
-    if (!Number.isFinite(faceNormalX) || !Number.isFinite(faceNormalY) || !Number.isFinite(faceNormalZ))
-      continue
+    if (!Number.isFinite(faceNormalX) || !Number.isFinite(faceNormalY) || !Number.isFinite(faceNormalZ)) continue
 
     addFaceNormal(accumulatedNormals, a, faceNormalX, faceNormalY, faceNormalZ)
     addFaceNormal(accumulatedNormals, b, faceNormalX, faceNormalY, faceNormalZ)
@@ -237,12 +234,10 @@ function accumulateFaceNormals(geometry: BufferGeometry) {
 }
 
 function ensureOutlineNormalAttribute(geometry: BufferGeometry) {
-  if (isOutlineGeometryPreprocessed(geometry))
-    return false
+  if (isOutlineGeometryPreprocessed(geometry)) return false
 
   const positionAttribute = geometry.getAttribute('position')
-  if (!positionAttribute || positionAttribute.itemSize < 3)
-    return false
+  if (!positionAttribute || positionAttribute.itemSize < 3) return false
 
   const weldedVertexGroups = buildWeldedVertexGroups(geometry)
   const accumulatedFaceNormals = accumulateFaceNormals(geometry)
@@ -348,19 +343,13 @@ function patchOutlineVertexShader(vertexShader: string) {
   const hasBeginNormalAnchor = vertexShader.includes(SHADER_BEGINNORMAL_ANCHOR)
   const hasOutlineBlockAnchor = vertexShader.includes(SHADER_OUTLINE_BLOCK_ANCHOR)
 
-  if (!hasCommonAnchor || !hasBeginNormalAnchor || !hasOutlineBlockAnchor)
-    return undefined
+  if (!hasCommonAnchor || !hasBeginNormalAnchor || !hasOutlineBlockAnchor) return undefined
 
-  return replaceOutlineExtrusionBlock(
-    replaceOutlineNormalSource(
-      injectOutlineNormalAttribute(vertexShader),
-    ),
-  )
+  return replaceOutlineExtrusionBlock(replaceOutlineNormalSource(injectOutlineNormalAttribute(vertexShader)))
 }
 
 function patchBuiltInOutlineMaterial(material: MToonMaterial) {
-  if (!material.isOutline || isOutlineMaterialPatched(material))
-    return false
+  if (!material.isOutline || isOutlineMaterialPatched(material)) return false
 
   const originalCustomProgramCacheKey = material.customProgramCacheKey.bind(material)
   const patchedVertexShader = patchOutlineVertexShader(material.vertexShader)
@@ -378,9 +367,7 @@ function patchBuiltInOutlineMaterial(material: MToonMaterial) {
   material.customProgramCacheKey = () => {
     const baseKey = originalCustomProgramCacheKey()
 
-    return baseKey
-      ? `${baseKey},${AIRI_OUTLINE_SHADER_PATCH_CACHE_KEY}`
-      : AIRI_OUTLINE_SHADER_PATCH_CACHE_KEY
+    return baseKey ? `${baseKey},${AIRI_OUTLINE_SHADER_PATCH_CACHE_KEY}` : AIRI_OUTLINE_SHADER_PATCH_CACHE_KEY
   }
 
   // NOTICE: @pixiv/three-vrm-materials-mtoon@3.5.1 hardcodes the MToon shader strings in
@@ -405,21 +392,17 @@ function resolveBuiltInOutlineMeshTarget(mesh: Mesh): VrmOutlineMeshTarget | und
   let builtInOutlineMaterialIndex = -1
 
   materials.forEach((material, materialIndex) => {
-    if (!isMToonMaterial(material))
-      return
+    if (!isMToonMaterial(material)) return
 
     if (material.isOutline === true) {
-      if (builtInOutlineMaterialIndex === -1)
-        builtInOutlineMaterialIndex = materialIndex
+      if (builtInOutlineMaterialIndex === -1) builtInOutlineMaterialIndex = materialIndex
       return
     }
 
-    if (surfaceMaterialIndex === -1)
-      surfaceMaterialIndex = materialIndex
+    if (surfaceMaterialIndex === -1) surfaceMaterialIndex = materialIndex
   })
 
-  if (surfaceMaterialIndex === -1 || builtInOutlineMaterialIndex === -1)
-    return undefined
+  if (surfaceMaterialIndex === -1 || builtInOutlineMaterialIndex === -1) return undefined
 
   return {
     builtInOutlineMaterial: materials[builtInOutlineMaterialIndex] as MToonMaterial,
@@ -451,13 +434,11 @@ function findVrmOutlineMeshTarget({
   vrm,
 }: Pick<VrmMaterialHookContext, 'material' | 'materialIndex' | 'mesh' | 'vrm'>) {
   const runtimeState = getVrmOutlineRuntimeState(vrm)
-  if (!runtimeState)
-    return undefined
+  if (!runtimeState) return undefined
 
-  return runtimeState.meshes.find(target =>
-    target.mesh === mesh
-    && target.surfaceMaterial === material
-    && target.surfaceMaterialIndex === materialIndex,
+  return runtimeState.meshes.find(
+    (target) =>
+      target.mesh === mesh && target.surfaceMaterial === material && target.surfaceMaterialIndex === materialIndex,
   )
 }
 
@@ -482,8 +463,7 @@ export function prepareVrmOutlineRuntime(vrm: VRM) {
 }
 
 export function disposeVrmOutlineRuntime(vrm?: VRM) {
-  if (!vrm)
-    return
+  if (!vrm) return
 
   clearVrmOutlineRuntime(vrm)
 }
@@ -499,12 +479,10 @@ export function createVrmOutlineHook(): VrmHook {
     onMaterial(context) {
       const { material } = context
 
-      if (!isMToonMaterial(material) || material.isOutline === true)
-        return
+      if (!isMToonMaterial(material) || material.isOutline === true) return
 
       const meshTarget = findVrmOutlineMeshTarget(context)
-      if (!meshTarget)
-        return
+      if (!meshTarget) return
 
       if (!meshTarget.geometry.getAttribute(AIRI_OUTLINE_NORMAL_ATTRIBUTE_NAME)) {
         console.warn(

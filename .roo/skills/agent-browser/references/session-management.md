@@ -33,6 +33,7 @@ agent-browser --session public get text body
 ## Session Isolation Properties
 
 Each session has independent:
+
 - Cookies
 - LocalStorage / SessionStorage
 - IndexedDB

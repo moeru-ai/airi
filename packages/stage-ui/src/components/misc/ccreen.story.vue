@@ -3,11 +3,7 @@ import { Screen } from '@proj-airi/ui'
 </script>
 
 <template>
-  <Story
-    title="Screen"
-    group="misc"
-    :layout="{ type: 'grid', width: '100%' }"
-  >
+  <Story title="Screen" group="misc" :layout="{ type: 'grid', width: '100%' }">
     <Variant id="default" title="Default">
       <div p="2">
         <div w="100" h="100" outline="offset-1 1 red solid">

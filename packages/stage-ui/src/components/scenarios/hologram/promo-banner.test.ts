@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  getPromoBannerFallbackLabelKey,
-  promoBannerVisuals,
-} from './promo-banner'
+import { getPromoBannerFallbackLabelKey, promoBannerVisuals } from './promo-banner'
 
 describe('promo banner visuals', () => {
   it('defines concrete actions for every promo banner item', () => {

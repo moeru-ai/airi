@@ -8,9 +8,7 @@ describe('permissionService', () => {
   it('normalizes declarations and intersects grants per area', () => {
     const service = new PermissionService()
     const requested: ModulePermissionDeclaration = {
-      apis: [
-        { key: 'plugin.api.users', actions: ['invoke', 'emit'], reason: 'requested-reason' },
-      ],
+      apis: [{ key: 'plugin.api.users', actions: ['invoke', 'emit'], reason: 'requested-reason' }],
     }
 
     const snapshot = service.initialize('plugin-a', requested, {
@@ -47,9 +45,7 @@ describe('permissionService', () => {
 
     const initialized = service.initialize('plugin-b', requested, {
       persisted: {
-        resources: [
-          { key: 'plugin.resource.settings', actions: ['read'] },
-        ],
+        resources: [{ key: 'plugin.resource.settings', actions: ['read'] }],
       },
       grant: {},
     })
@@ -64,9 +60,7 @@ describe('permissionService', () => {
     ])
 
     const updated = service.grant('plugin-b', {
-      resources: [
-        { key: 'plugin.resource.settings', actions: ['write'] },
-      ],
+      resources: [{ key: 'plugin.resource.settings', actions: ['write'] }],
     })
 
     expect(updated.granted.resources).toEqual([
@@ -82,9 +76,13 @@ describe('permissionService', () => {
 
   it('extends the requested baseline before granting runtime-declared permissions', () => {
     const service = new PermissionService()
-    const initialized = service.initialize('plugin-runtime', {}, {
-      grant: {},
-    })
+    const initialized = service.initialize(
+      'plugin-runtime',
+      {},
+      {
+        grant: {},
+      },
+    )
 
     expect(initialized.requested.apis).toEqual([])
 
@@ -145,9 +143,7 @@ describe('permissionService', () => {
     // only approved `plugin.resource.settings`.
     const snapshot = service.initialize('plugin-c', requested, {
       grant: {
-        resources: [
-          { key: 'plugin.resource.settings', actions: ['read'] },
-        ],
+        resources: [{ key: 'plugin.resource.settings', actions: ['read'] }],
       },
     })
 
@@ -168,9 +164,7 @@ describe('permissionService', () => {
   it('splits a broad request into per-grant scopes when the host approves disjoint keys', () => {
     const service = new PermissionService()
     const requested: ModulePermissionDeclaration = {
-      apis: [
-        { key: 'plugin.api.*', actions: ['invoke', 'emit'], reason: 'Use selected APIs' },
-      ],
+      apis: [{ key: 'plugin.api.*', actions: ['invoke', 'emit'], reason: 'Use selected APIs' }],
     }
 
     // This occurs when a plugin requests one broad API namespace, but the host grants a

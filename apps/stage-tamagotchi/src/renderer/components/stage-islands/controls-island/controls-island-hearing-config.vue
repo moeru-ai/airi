@@ -14,7 +14,10 @@ const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { enabled, stream } = storeToRefs(settingsAudioDeviceStore)
 
 const getMediaAccessStatus = useElectronEventaInvoke(electron.systemPreferences.getMediaAccessStatus)
-const { state: mediaAccessStatus, execute: refreshMediaAccessStatus } = useAsyncState(() => getMediaAccessStatus(['microphone']), 'not-determined')
+const { state: mediaAccessStatus, execute: refreshMediaAccessStatus } = useAsyncState(
+  () => getMediaAccessStatus(['microphone']),
+  'not-determined',
+)
 
 const { audioContext, initialize, dispose, pause } = useAudioContextFromStream(stream)
 const { volumeLevel, startAnalyzer, stopAnalyzer } = useAudioAnalyzer()
@@ -29,18 +32,20 @@ const { volumeLevel, startAnalyzer, stopAnalyzer } = useAudioAnalyzer()
 // That produced the "VAD still works, but no transcript arrives" failure after retoggling the mic.
 //
 // This component should only react to the current stream to drive analyzer UI state.
-watch([enabled, stream], ([isEnabled, currentStream]) => {
-  if (isEnabled && currentStream) {
-    initialize().then(() => {
-      if (audioContext.value)
-        return startAnalyzer(audioContext.value)
-    })
-  }
-  else {
-    stopAnalyzer()
-    pause()
-  }
-}, { immediate: true })
+watch(
+  [enabled, stream],
+  ([isEnabled, currentStream]) => {
+    if (isEnabled && currentStream) {
+      initialize().then(() => {
+        if (audioContext.value) return startAnalyzer(audioContext.value)
+      })
+    } else {
+      stopAnalyzer()
+      pause()
+    }
+  },
+  { immediate: true },
+)
 
 onMounted(async () => {
   await refreshMediaAccessStatus()

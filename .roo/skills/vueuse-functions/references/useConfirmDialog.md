@@ -22,25 +22,18 @@ Functions can be used on the template, and hooks are a handy skeleton for the bu
 <script setup lang="ts">
 import { useConfirmDialog } from '@vueuse/core'
 
-const { isRevealed, reveal, confirm, cancel, onReveal, onConfirm, onCancel }
-  = useConfirmDialog()
+const { isRevealed, reveal, confirm, cancel, onReveal, onConfirm, onCancel } = useConfirmDialog()
 </script>
 
 <template>
-  <button @click="reveal">
-    Reveal Modal
-  </button>
+  <button @click="reveal">Reveal Modal</button>
 
   <teleport to="body">
     <div v-if="isRevealed" class="modal-bg">
       <div class="modal">
         <h2>Confirm?</h2>
-        <button @click="confirm">
-          Yes
-        </button>
-        <button @click="cancel">
-          Cancel
-        </button>
+        <button @click="confirm">Yes</button>
+        <button @click="cancel">Cancel</button>
       </div>
     </div>
   </teleport>
@@ -55,35 +48,23 @@ If you prefer working with promises:
 <script setup lang="ts">
 import { useConfirmDialog } from '@vueuse/core'
 
-const {
-  isRevealed,
-  reveal,
-  confirm,
-  cancel,
-} = useConfirmDialog()
+const { isRevealed, reveal, confirm, cancel } = useConfirmDialog()
 
 async function openDialog() {
   const { data, isCanceled } = await reveal()
-  if (!isCanceled)
-    console.log(data)
+  if (!isCanceled) console.log(data)
 }
 </script>
 
 <template>
-  <button @click="openDialog">
-    Show Modal
-  </button>
+  <button @click="openDialog">Show Modal</button>
 
   <teleport to="body">
     <div v-if="isRevealed" class="modal-layout">
       <div class="modal">
         <h2>Confirm?</h2>
-        <button @click="confirm(true)">
-          Yes
-        </button>
-        <button @click="confirm(false)">
-          No
-        </button>
+        <button @click="confirm(true)">Yes</button>
+        <button @click="confirm(false)">No</button>
       </div>
     </div>
   </teleport>
@@ -93,15 +74,15 @@ async function openDialog() {
 ## Type Declarations
 
 ```ts
-export type UseConfirmDialogRevealResult<C, D>
-  = | {
-    data?: C
-    isCanceled: false
-  }
+export type UseConfirmDialogRevealResult<C, D> =
   | {
-    data?: D
-    isCanceled: true
-  }
+      data?: C
+      isCanceled: false
+    }
+  | {
+      data?: D
+      isCanceled: true
+    }
 export interface UseConfirmDialogReturn<RevealData, ConfirmData, CancelData> {
   /**
    * Revealing state
@@ -111,9 +92,7 @@ export interface UseConfirmDialogReturn<RevealData, ConfirmData, CancelData> {
    * Opens the dialog.
    * Create promise and return it. Triggers `onReveal` hook.
    */
-  reveal: (
-    data?: RevealData,
-  ) => Promise<UseConfirmDialogRevealResult<ConfirmData, CancelData>>
+  reveal: (data?: RevealData) => Promise<UseConfirmDialogRevealResult<ConfirmData, CancelData>>
   /**
    * Confirms and closes the dialog. Triggers a callback inside `onConfirm` hook.
    * Resolves promise from `reveal()` with `data` and `isCanceled` ref with `false` value.
@@ -149,11 +128,7 @@ export interface UseConfirmDialogReturn<RevealData, ConfirmData, CancelData> {
  *
  * @__NO_SIDE_EFFECTS__
  */
-export declare function useConfirmDialog<
-  RevealData = any,
-  ConfirmData = any,
-  CancelData = any,
->(
+export declare function useConfirmDialog<RevealData = any, ConfirmData = any, CancelData = any>(
   revealed?: ShallowRef<boolean>,
 ): UseConfirmDialogReturn<RevealData, ConfirmData, CancelData>
 ```

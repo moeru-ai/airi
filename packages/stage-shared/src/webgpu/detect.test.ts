@@ -29,15 +29,11 @@ interface MockAdapterInfo {
  * `maxBufferSize` drives the heuristic VRAM calculation.
  * `info` optionally populates adapterInfo.
  */
-function makeMockAdapter(options: {
-  maxBufferSize?: number
-  info?: MockAdapterInfo
-}): any {
-  const adapter: { limits: { maxBufferSize: number }, info?: MockAdapterInfo } = {
+function makeMockAdapter(options: { maxBufferSize?: number; info?: MockAdapterInfo }): any {
+  const adapter: { limits: { maxBufferSize: number }; info?: MockAdapterInfo } = {
     limits: { maxBufferSize: options.maxBufferSize ?? 0 },
   }
-  if (options.info)
-    adapter.info = options.info
+  if (options.info) adapter.info = options.info
   return adapter
 }
 

@@ -66,18 +66,12 @@ const { x: relativeMouseX, y: relativeMouseY } = useElectronRelativeMouse()
 // NOTICE: In real-world use cases of Fade on Hover feature, the cursor may move around the edge of the
 // model rapidly, causing flickering effects when checking pixel transparency strictly.
 // Here we use render-target pixel sampling to keep detection aligned with the actual render output.
-const isTransparentByPixels = useCanvasPixelIsTransparentAtPoint(
-  stageCanvas,
-  relativeMouseX,
-  relativeMouseY,
-  { regionRadius: 25 },
-)
-const isTransparentByThree = useThreeSceneIsTransparentAtPoint(
-  widgetStageRef,
-  relativeMouseX,
-  relativeMouseY,
-  { regionRadius: 25 },
-)
+const isTransparentByPixels = useCanvasPixelIsTransparentAtPoint(stageCanvas, relativeMouseX, relativeMouseY, {
+  regionRadius: 25,
+})
+const isTransparentByThree = useThreeSceneIsTransparentAtPoint(widgetStageRef, relativeMouseX, relativeMouseY, {
+  regionRadius: 25,
+})
 
 const settingsStore = useSettings()
 const { stageModelRenderer, stageModelSelectedUrl } = storeToRefs(settingsStore)
@@ -86,22 +80,25 @@ const { sceneMutationLocked, scenePhase } = storeToRefs(modelStore)
 const { stagePaused } = storeToRefs(useStageWindowLifecycleStore())
 const { fadeOnHoverEnabled } = storeToRefs(useControlsIslandStore())
 const modelSettingsRuntimeOwnerInstanceId = `tamagotchi-main-stage:${Math.random().toString(36).slice(2, 10)}`
-const { data: modelSettingsRuntimeChannelEvent, post: postModelSettingsRuntimeChannelEvent } = useBroadcastChannel<ModelSettingsRuntimeChannelEvent, ModelSettingsRuntimeChannelEvent>({ name: modelSettingsRuntimeSnapshotChannelName })
-const shouldUseThreeTransparencyHitTest = computed(() => shouldSampleStageTransparency({
-  componentState: componentStateStage.value,
-  fadeOnHoverEnabled: fadeOnHoverEnabled.value,
-  stageModelRenderer: stageModelRenderer.value,
-  stagePaused: stagePaused.value,
-}))
+const { data: modelSettingsRuntimeChannelEvent, post: postModelSettingsRuntimeChannelEvent } = useBroadcastChannel<
+  ModelSettingsRuntimeChannelEvent,
+  ModelSettingsRuntimeChannelEvent
+>({ name: modelSettingsRuntimeSnapshotChannelName })
+const shouldUseThreeTransparencyHitTest = computed(() =>
+  shouldSampleStageTransparency({
+    componentState: componentStateStage.value,
+    fadeOnHoverEnabled: fadeOnHoverEnabled.value,
+    stageModelRenderer: stageModelRenderer.value,
+    stagePaused: stagePaused.value,
+  }),
+)
 const isTransparent = computed(() => {
-  if (stagePaused.value || componentStateStage.value !== 'mounted' || !fadeOnHoverEnabled.value)
-    return true
+  if (stagePaused.value || componentStateStage.value !== 'mounted' || !fadeOnHoverEnabled.value) return true
 
   if (stageModelRenderer.value === 'vrm')
     return shouldUseThreeTransparencyHitTest.value ? isTransparentByThree.value : true
 
-  if (stageModelRenderer.value === 'live2d')
-    return isTransparentByPixels.value
+  if (stageModelRenderer.value === 'live2d') return isTransparentByPixels.value
 
   return true
 })
@@ -111,9 +108,13 @@ const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
 
 const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)
 
-const { pause, resume } = watch(isTransparent, (transparent) => {
-  shouldFadeOnCursorWithin.value = fadeOnHoverEnabled.value && !transparent
-}, { immediate: true })
+const { pause, resume } = watch(
+  isTransparent,
+  (transparent) => {
+    shouldFadeOnCursorWithin.value = fadeOnHoverEnabled.value && !transparent
+  },
+  { immediate: true },
+)
 
 const hearingDialogOpen = computed(() => controlsIslandRef.value?.hearingDialogOpen ?? false)
 
@@ -139,9 +140,7 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
       ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
       renderer: 'vrm',
       phase: hasModel ? scenePhase.value : 'no-model',
-      controlsLocked: hasModel
-        ? (!stageMounted.value || sceneMutationLocked.value)
-        : false,
+      controlsLocked: hasModel ? !stageMounted.value || sceneMutationLocked.value : false,
       previewAvailable: hasModel,
       canCapturePreview: false,
       updatedAt: Date.now(),
@@ -180,55 +179,67 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
   })
 })
 
-watch([isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, hearingDialogOpen, fadeOnHoverEnabled, stagePaused], () => {
-  if (stagePaused.value) {
-    isIgnoringMouseEvents.value = false
-    shouldFadeOnCursorWithin.value = false
-    setIgnoreMouseEvents([false, { forward: true }])
-    pause()
-    return
-  }
-
-  if (hearingDialogOpen.value) {
-    // Hearing dialog/drawer is open; keep window interactive
-    isIgnoringMouseEvents.value = false
-    shouldFadeOnCursorWithin.value = false
-    setIgnoreMouseEvents([false, { forward: true }])
-    pause()
-    return
-  }
-
-  const insideControls = !isOutsideFor250Ms.value || !isOutsideStatusIslandFor250Ms.value
-  const nearBorder = isAroundWindowBorderFor250Ms.value
-
-  if (insideControls || nearBorder) {
-    // Inside interactive controls or near resize border: do NOT ignore events
-    isIgnoringMouseEvents.value = false
-    shouldFadeOnCursorWithin.value = false
-    setIgnoreMouseEvents([false, { forward: true }])
-    pause()
-  }
-  else {
-    const fadeEnabled = fadeOnHoverEnabled.value
-    // Otherwise allow click-through while we fade UI based on transparency (when enabled)
-    isIgnoringMouseEvents.value = fadeEnabled
-    shouldFadeOnCursorWithin.value = fadeEnabled && !isOutsideWindow.value && !isTransparent.value
-    setIgnoreMouseEvents([fadeEnabled, { forward: true }])
-    if (fadeEnabled)
-      resume()
-    else
+watch(
+  [
+    isOutsideFor250Ms,
+    isOutsideStatusIslandFor250Ms,
+    isAroundWindowBorderFor250Ms,
+    isOutsideWindow,
+    isTransparent,
+    hearingDialogOpen,
+    fadeOnHoverEnabled,
+    stagePaused,
+  ],
+  () => {
+    if (stagePaused.value) {
+      isIgnoringMouseEvents.value = false
+      shouldFadeOnCursorWithin.value = false
+      setIgnoreMouseEvents([false, { forward: true }])
       pause()
-  }
-})
+      return
+    }
+
+    if (hearingDialogOpen.value) {
+      // Hearing dialog/drawer is open; keep window interactive
+      isIgnoringMouseEvents.value = false
+      shouldFadeOnCursorWithin.value = false
+      setIgnoreMouseEvents([false, { forward: true }])
+      pause()
+      return
+    }
+
+    const insideControls = !isOutsideFor250Ms.value || !isOutsideStatusIslandFor250Ms.value
+    const nearBorder = isAroundWindowBorderFor250Ms.value
+
+    if (insideControls || nearBorder) {
+      // Inside interactive controls or near resize border: do NOT ignore events
+      isIgnoringMouseEvents.value = false
+      shouldFadeOnCursorWithin.value = false
+      setIgnoreMouseEvents([false, { forward: true }])
+      pause()
+    } else {
+      const fadeEnabled = fadeOnHoverEnabled.value
+      // Otherwise allow click-through while we fade UI based on transparency (when enabled)
+      isIgnoringMouseEvents.value = fadeEnabled
+      shouldFadeOnCursorWithin.value = fadeEnabled && !isOutsideWindow.value && !isTransparent.value
+      setIgnoreMouseEvents([fadeEnabled, { forward: true }])
+      if (fadeEnabled) resume()
+      else pause()
+    }
+  },
+)
 
 // Emit runtime snapshot on change and on request from settings panel
-watch(modelSettingsRuntimeSnapshot, (snapshot) => {
-  postModelSettingsRuntimeChannelEvent({ type: 'snapshot', snapshot })
-}, { immediate: true })
+watch(
+  modelSettingsRuntimeSnapshot,
+  (snapshot) => {
+    postModelSettingsRuntimeChannelEvent({ type: 'snapshot', snapshot })
+  },
+  { immediate: true },
+)
 
 watch(modelSettingsRuntimeChannelEvent, (event) => {
-  if (event?.type !== 'request-current')
-    return
+  if (event?.type !== 'request-current') return
 
   postModelSettingsRuntimeChannelEvent({ type: 'snapshot', snapshot: modelSettingsRuntimeSnapshot.value })
 })
@@ -243,7 +254,12 @@ const { supportsStreamInput } = storeToRefs(hearingPipeline)
 const chatSyncStore = useChatSyncStore()
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
 
-const { init: initVAD, dispose: disposeVAD, start: startVAD, loaded: vadLoaded } = useVAD(workletUrl, {
+const {
+  init: initVAD,
+  dispose: disposeVAD,
+  start: startVAD,
+  loaded: vadLoaded,
+} = useVAD(workletUrl, {
   threshold: ref(0.6),
   onSpeechStart: () => {
     void handleSpeechStart()
@@ -257,10 +273,10 @@ let stopOnStopRecord: (() => void) | undefined
 const audioInteractionStarting = ref(false)
 
 // Caption overlay broadcast channel
-type CaptionChannelEvent
-  = | { type: 'caption-speaker', text: string }
-    | { type: 'caption-assistant', text: string }
-const { post: postCaption } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
+type CaptionChannelEvent = { type: 'caption-speaker'; text: string } | { type: 'caption-assistant'; text: string }
+const { post: postCaption } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({
+  name: 'airi-caption-overlay',
+})
 
 function handleStreamingSentenceEnd(delta: string) {
   console.info('[Main Page] Received transcription delta:', delta)
@@ -275,8 +291,7 @@ function handleStreamingSentenceEnd(delta: string) {
     try {
       console.info('[Main Page] Sending transcription to chat:', finalText)
       await chatSyncStore.requestIngest({ text: finalText })
-    }
-    catch (err) {
+    } catch (err) {
       console.error('[Main Page] Failed to send chat from voice:', err)
     }
   })()
@@ -306,8 +321,7 @@ async function handleSpeechEnd() {
 }
 
 async function startAudioInteraction() {
-  if (audioInteractionStarting.value)
-    return
+  if (audioInteractionStarting.value) return
 
   // NOTICE: `stopOnStopRecord` only tracks whether the non-stream recording hook was registered.
   //
@@ -322,14 +336,16 @@ async function startAudioInteraction() {
   try {
     console.info('[Main Page] Starting audio interaction...')
 
-    initVAD().then(() => {
-      if (stream.value) {
-        console.info('[Main Page] VAD initialized successfully, starting with stream input')
-        return startVAD(stream.value)
-      }
-    }).catch((err) => {
-      console.warn('[Main Page] VAD initialization failed (non-critical for Web Speech API):', err)
-    })
+    initVAD()
+      .then(() => {
+        if (stream.value) {
+          console.info('[Main Page] VAD initialized successfully, starting with stream input')
+          return startVAD(stream.value)
+        }
+      })
+      .catch((err) => {
+        console.warn('[Main Page] VAD initialization failed (non-critical for Web Speech API):', err)
+      })
 
     if (shouldUseStreamInput.value) {
       console.info('[Main Page] Starting streaming transcription...', {
@@ -349,8 +365,7 @@ async function startAudioInteraction() {
       })
 
       console.info('[Main Page] Streaming transcription started successfully')
-    }
-    else {
+    } else {
       console.warn('[Main Page] Not starting streaming transcription:', {
         shouldUseStreamInput: shouldUseStreamInput.value,
         hasStream: !!stream.value,
@@ -368,29 +383,24 @@ async function startAudioInteraction() {
     // Hook once for non-streaming providers.
     if (!stopOnStopRecord) {
       stopOnStopRecord = onStopRecord(async (recording) => {
-        if (shouldUseStreamInput.value)
-          return
+        if (shouldUseStreamInput.value) return
 
         const text = await transcribeForRecording(recording)
-        if (!text || !text.trim())
-          return
+        if (!text || !text.trim()) return
 
         // Update caption overlay speaker text via BroadcastChannel
         postCaption({ type: 'caption-speaker', text })
 
         try {
           await chatSyncStore.requestIngest({ text })
-        }
-        catch (err) {
+        } catch (err) {
           console.error('Failed to send chat from voice:', err)
         }
       })
     }
-  }
-  catch (e) {
+  } catch (e) {
     console.error('Audio interaction init failed:', e)
-  }
-  finally {
+  } finally {
     audioInteractionStarting.value = false
   }
 }
@@ -405,16 +415,19 @@ function stopAudioInteraction() {
   })
 }
 
-watch(enabled, async (val) => {
-  console.info('[Main Page] Audio enabled changed:', val, 'stream available:', !!stream.value)
-  if (val) {
-    await askPermission()
-    await startAudioInteraction()
-  }
-  else {
-    stopAudioInteraction()
-  }
-}, { immediate: true })
+watch(
+  enabled,
+  async (val) => {
+    console.info('[Main Page] Audio enabled changed:', val, 'stream available:', !!stream.value)
+    if (val) {
+      await askPermission()
+      await startAudioInteraction()
+    } else {
+      stopAudioInteraction()
+    }
+  },
+  { immediate: true },
+)
 
 onMounted(() => {
   if (onboardingStore.needsOnboarding) {
@@ -431,8 +444,7 @@ onUnmounted(() => {
 })
 
 watch(stream, async (currentStream) => {
-  if (!enabled.value || !currentStream || audioInteractionStarting.value)
-    return
+  if (!enabled.value || !currentStream || audioInteractionStarting.value) return
 
   // NOTICE: The controls-island mic toggle and device changes can replace the underlying MediaStream
   // without reloading the page. When that happens, VAD may successfully restart against the new stream,
@@ -446,8 +458,7 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
   if (enabled.value && loaded && s) {
     try {
       await startVAD(s)
-    }
-    catch (e) {
+    } catch (e) {
       console.error('Failed to start VAD with stream:', e)
     }
   }
@@ -466,16 +477,15 @@ const cursorPosition = computed(() => ({
     max-h="[100vh]"
     max-w="[100vw]"
     flex="~ col"
-    relative z-2 h-full overflow-hidden rounded-xl
+    relative
+    z-2
+    h-full
+    overflow-hidden
+    rounded-xl
     transition="opacity duration-500 ease-in-out"
   >
     <!-- Stage is always in DOM so TresCanvas can measure dimensions -->
-    <div
-      :class="[
-        'relative h-full w-full items-end gap-2',
-        'transition-opacity duration-250 ease-in-out',
-      ]"
-    >
+    <div :class="['relative h-full w-full items-end gap-2', 'transition-opacity duration-250 ease-in-out']">
       <div
         :class="[
           shouldFadeOnCursorWithin ? 'op-0' : 'op-100',
@@ -491,19 +501,21 @@ const cursorPosition = computed(() => ({
         <WidgetStage
           ref="widgetStageRef"
           v-model:state="componentStateStage"
-          h-full w-full
+          h-full
+          w-full
           flex-1
           :cursor-position="cursorPosition"
           :paused="stagePaused"
         />
         <HoloCoupon />
-        <ControlsIsland
-          ref="controlsIslandRef"
-        />
+        <ControlsIsland ref="controlsIslandRef" />
       </div>
     </div>
     <!-- Loading overlay sits on top, does not hide the stage -->
-    <div v-show="isLoading" class="absolute left-0 top-0 z-99 h-full w-full flex cursor-grab items-center justify-center overflow-hidden">
+    <div
+      v-show="isLoading"
+      class="absolute left-0 top-0 z-99 h-full w-full flex cursor-grab items-center justify-center overflow-hidden"
+    >
       <div
         :class="[
           'absolute h-24 w-full overflow-hidden rounded-xl',
@@ -541,10 +553,13 @@ const cursorPosition = computed(() => ({
     >
       <div
         class="absolute h-32 w-full flex items-center justify-center overflow-hidden rounded-xl"
-        bg="white/80 dark:neutral-950/80" backdrop-blur="md"
+        bg="white/80 dark:neutral-950/80"
+        backdrop-blur="md"
       >
         <div class="wall absolute top-0 h-8" />
-        <div class="absolute left-0 top-0 h-full w-full flex animate-flash animate-duration-5s animate-count-infinite select-none items-center justify-center text-1.5rem text-primary-400 font-normal drag-region">
+        <div
+          class="absolute left-0 top-0 h-full w-full flex animate-flash animate-duration-5s animate-count-infinite select-none items-center justify-center text-1.5rem text-primary-400 font-normal drag-region"
+        >
           DRAG HERE TO MOVE
         </div>
         <div class="wall absolute bottom-0 h-8 drag-region" />
@@ -559,7 +574,10 @@ const cursorPosition = computed(() => ({
     leave-from-class="opacity-100"
     leave-to-class="opacity-50"
   >
-    <div v-if="isAroundWindowBorderFor250Ms && !isLoading" class="pointer-events-none absolute left-0 top-0 z-999 h-full w-full">
+    <div
+      v-if="isAroundWindowBorderFor250Ms && !isLoading"
+      class="pointer-events-none absolute left-0 top-0 z-999 h-full w-full"
+    >
       <div
         :class="[
           'b-primary/50',

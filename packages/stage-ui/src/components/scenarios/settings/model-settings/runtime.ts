@@ -61,15 +61,10 @@ export function resolveGodotCameraPositionRange(options: {
   loadTimeState: StageViewState | null
 }): number {
   const maxDimension = options.avatarBounds?.maxDimension
-  const avatarRange = typeof maxDimension === 'number'
-    && Number.isFinite(maxDimension)
-    && maxDimension > 0
-    ? maxDimension * 4
-    : 0
+  const avatarRange =
+    typeof maxDimension === 'number' && Number.isFinite(maxDimension) && maxDimension > 0 ? maxDimension * 4 : 0
   const camera = options.loadTimeState?.camera.position
-  const loadTimeCameraRange = camera
-    ? Math.max(Math.abs(camera.x), Math.abs(camera.y), Math.abs(camera.z))
-    : 0
+  const loadTimeCameraRange = camera ? Math.max(Math.abs(camera.x), Math.abs(camera.y), Math.abs(camera.z)) : 0
 
   return Math.max(4, avatarRange, loadTimeCameraRange)
 }
@@ -79,8 +74,7 @@ export function resolveModelSettingsPanelRenderer(options: {
   settingsRenderer: StageModelRenderer
   runtimeRenderer: ModelSettingsRuntimeRenderer
 }): ModelSettingsRuntimeRenderer {
-  if (options.settingsRenderer === 'godot')
-    return 'godot'
+  if (options.settingsRenderer === 'godot') return 'godot'
 
   return options.runtimeRenderer
 }
@@ -92,8 +86,7 @@ export function resolveComponentStateToRuntimePhase(
     hasModel?: boolean
   } = {},
 ): ModelSettingsRuntimePhase {
-  if (options.hasModel === false)
-    return 'no-model'
+  if (options.hasModel === false) return 'no-model'
 
   return componentState
 }

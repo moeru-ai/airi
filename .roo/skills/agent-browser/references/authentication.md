@@ -278,17 +278,20 @@ fi
 ## Security Best Practices
 
 1. **Never commit state files** - They contain session tokens
+
    ```bash
    echo "*.auth-state.json" >> .gitignore
    ```
 
 2. **Use environment variables for credentials**
+
    ```bash
    agent-browser fill @e1 "$APP_USERNAME"
    agent-browser fill @e2 "$APP_PASSWORD"
    ```
 
 3. **Clean up after automation**
+
    ```bash
    agent-browser cookies clear
    rm -f ./auth-state.json

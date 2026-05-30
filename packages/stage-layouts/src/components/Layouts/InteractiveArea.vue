@@ -30,14 +30,22 @@ function handleDeleteMessage(index: number) {
   <div flex="col" items-center pt-4>
     <div h-full max-h="[85vh]" w-full py="4">
       <ChatContainer>
-        <div
-          v-if="isLoading"
-          absolute left-0 top-0 h-1 w-full overflow-hidden rounded-t-xl
-          class="bg-primary-500/20"
-        >
+        <div v-if="isLoading" absolute left-0 top-0 h-1 w-full overflow-hidden rounded-t-xl class="bg-primary-500/20">
           <div h-full w="1/3" origin-left bg-primary-500 class="animate-scan" />
         </div>
-        <div w="full" max-h="<md:[60%]" py="<sm:2" flex="~ col" rounded="lg" relative h-full flex-1 overflow-hidden px="2 <md:0" py-4>
+        <div
+          w="full"
+          max-h="<md:[60%]"
+          py="<sm:2"
+          flex="~ col"
+          rounded="lg"
+          relative
+          h-full
+          flex-1
+          overflow-hidden
+          px="2 <md:0"
+          py-4
+        >
           <ChatHistory
             v-if="isReady"
             :messages="historyMessages"

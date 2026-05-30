@@ -32,6 +32,5 @@ export function isGodotSceneInputSupportedDisplayModel(model: DisplayModel): boo
  * - Nothing when the model is supported
  */
 export function assertGodotSceneInputSupportedDisplayModel(model: DisplayModel): void {
-  if (!isGodotSceneInputSupportedDisplayModel(model))
-    throw new Error('Godot Stage currently supports VRM models only.')
+  if (!isGodotSceneInputSupportedDisplayModel(model)) throw new Error('Godot Stage currently supports VRM models only.')
 }

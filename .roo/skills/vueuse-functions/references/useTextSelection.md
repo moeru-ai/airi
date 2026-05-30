@@ -37,7 +37,5 @@ export interface UseTextSelectionReturn {
  *
  * @__NO_SIDE_EFFECTS__
  */
-export declare function useTextSelection(
-  options?: UseTextSelectionOptions,
-): UseTextSelectionReturn
+export declare function useTextSelection(options?: UseTextSelectionOptions): UseTextSelectionReturn
 ```

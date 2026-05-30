@@ -14,7 +14,10 @@ const colors = computed(() => props.stageTransition?.colors || ['#eee', '#ebcb8b
 
 onMounted(() => {
   document.documentElement.style.setProperty('--circle-expansion-delay', `${props.stageTransition?.delay || 0}s`)
-  document.documentElement.style.setProperty('--circle-expansion-duration', `${props.stageTransition?.duration || 0.4}s`)
+  document.documentElement.style.setProperty(
+    '--circle-expansion-duration',
+    `${props.stageTransition?.duration || 0.4}s`,
+  )
   colors.value.forEach((color, index) => {
     document.documentElement.style.setProperty(`--circle-expansion-color-${index + 1}`, color)
   })

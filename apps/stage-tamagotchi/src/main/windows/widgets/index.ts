@@ -1,11 +1,7 @@
 import type { BrowserWindow, Rectangle } from 'electron'
 import type { InferOutput } from 'valibot'
 
-import type {
-  WidgetsAddPayload,
-  WidgetSnapshot,
-  WidgetsUpdatePayload,
-} from '../../../shared/eventa'
+import type { WidgetsAddPayload, WidgetSnapshot, WidgetsUpdatePayload } from '../../../shared/eventa'
 import type { PluginModuleWidgetPayload } from '../../../shared/eventa/plugin/host'
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
@@ -139,7 +135,7 @@ export interface WidgetsWindowManager {
    */
   getWidgetSnapshot: (id: string) => WidgetSnapshot | undefined
   publishWidgetEvent: (id: string, event: Record<string, unknown>) => void
-  onWidgetEvent: (listener: (event: { id: string, event: Record<string, unknown> }) => void) => () => void
+  onWidgetEvent: (listener: (event: { id: string; event: Record<string, unknown> }) => void) => () => void
   /**
    * Reserves a widget id before content is pushed into the widgets window.
    *
@@ -156,12 +152,14 @@ export interface WidgetsWindowManager {
 }
 
 const widgetsWindowConfigSchema = object({
-  bounds: optional(object({
-    x: number(),
-    y: number(),
-    width: number(),
-    height: number(),
-  })),
+  bounds: optional(
+    object({
+      x: number(),
+      y: number(),
+      width: number(),
+      height: number(),
+    }),
+  ),
 })
 
 type WidgetsWindowConfig = InferOutput<typeof widgetsWindowConfigSchema>
@@ -175,13 +173,13 @@ function computeDefaultBounds(): Rectangle {
   return { x, y, width, height }
 }
 
-function resolveWindowSizeFromPayload(payload: Pick<WidgetsAddPayload, 'componentName' | 'componentProps' | 'windowSize'>) {
+function resolveWindowSizeFromPayload(
+  payload: Pick<WidgetsAddPayload, 'componentName' | 'componentProps' | 'windowSize'>,
+) {
   const explicitWindowSize = normalizeWidgetWindowSize(payload.windowSize)
-  if (explicitWindowSize)
-    return explicitWindowSize
+  if (explicitWindowSize) return explicitWindowSize
 
-  if (payload.componentName?.trim().toLowerCase() !== 'plugin-module')
-    return undefined
+  if (payload.componentName?.trim().toLowerCase() !== 'plugin-module') return undefined
 
   const pluginModulePayload = payload.componentProps as PluginModuleWidgetPayload | undefined
   return normalizeWidgetWindowSize(pluginModulePayload?.windowSize)
@@ -208,8 +206,7 @@ function createWidgetsWindow() {
   window.setAlwaysOnTop(true, 'screen-saver', 1)
   window.setFullScreenable(false)
   window.setVisibleOnAllWorkspaces(true)
-  if (isMacOS)
-    window.setWindowButtonVisibility(false)
+  if (isMacOS) window.setWindowButtonVisibility(false)
 
   window.on('ready-to-show', () => window.show())
   window.webContents.setWindowOpenHandler((details) => {
@@ -251,11 +248,12 @@ interface WidgetWindowContext {
  *     -> {@link setupWidgetsWindowInvokes}
  *       -> {@link createContext}
  */
-export function setupWidgetsWindowManager(params: {
-  serverChannel: ServerChannel
-  i18n: I18n
-}): WidgetsWindowManager {
-  const { setup, get: getConfigRaw, update } = createConfig('windows-widgets', 'config.json', widgetsWindowConfigSchema, {
+export function setupWidgetsWindowManager(params: { serverChannel: ServerChannel; i18n: I18n }): WidgetsWindowManager {
+  const {
+    setup,
+    get: getConfigRaw,
+    update,
+  } = createConfig('windows-widgets', 'config.json', widgetsWindowConfigSchema, {
     default: {},
     autoHeal: true,
   })
@@ -264,7 +262,7 @@ export function setupWidgetsWindowManager(params: {
 
   let eventaContext: ReturnType<typeof createContext>['context'] | undefined
   const widgetRecords = new Map<string, WidgetRecord>()
-  const widgetEventListeners = new Set<(event: { id: string, event: Record<string, unknown> }) => void>()
+  const widgetEventListeners = new Set<(event: { id: string; event: Record<string, unknown> }) => void>()
   const windowContexts = new Map<string, WidgetWindowContext>()
 
   const rendererBase = baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'))
@@ -298,14 +296,12 @@ export function setupWidgetsWindowManager(params: {
         height: Math.min(saved.height, work.height),
       }
       window.setBounds(clamped)
-    }
-    else {
+    } else {
       window.setBounds(computeDefaultBounds())
     }
 
     const persist = () => {
-      if (!persistWindowBounds)
-        return
+      if (!persistWindowBounds) return
       update({ bounds: window.getBounds() })
     }
     window.on('resize', persist)
@@ -326,11 +322,9 @@ export function setupWidgetsWindowManager(params: {
     window.on('closed', () => {
       eventaContext = undefined
       currentRoute = undefined
-      if (activeWidgetsWindow === window)
-        activeWidgetsWindow = undefined
+      if (activeWidgetsWindow === window) activeWidgetsWindow = undefined
       windowContexts.forEach((context) => {
-        if (context.window === window)
-          context.window = undefined
+        if (context.window === window) context.window = undefined
       })
     })
     return window
@@ -368,8 +362,7 @@ export function setupWidgetsWindowManager(params: {
 
   function upsertRecord(snapshot: WidgetSnapshot) {
     const existing = widgetRecords.get(snapshot.id)
-    if (existing?.timer)
-      clearTimeout(existing.timer)
+    if (existing?.timer) clearTimeout(existing.timer)
 
     const record: WidgetRecord = { ...snapshot }
 
@@ -382,11 +375,9 @@ export function setupWidgetsWindowManager(params: {
 
   function removeWidgetInternal(id: string, emitEvent = true) {
     const existing = widgetRecords.get(id)
-    if (!existing)
-      return
+    if (!existing) return
 
-    if (existing.timer)
-      clearTimeout(existing.timer)
+    if (existing.timer) clearTimeout(existing.timer)
 
     widgetRecords.delete(id)
     windowContexts.delete(id)
@@ -453,25 +444,25 @@ export function setupWidgetsWindowManager(params: {
   }
 
   async function getWindowFromContext(context?: WidgetWindowContext): Promise<BrowserWindow> {
-    if (!context)
-      return getWindow()
-    if (context.window && !context.window.isDestroyed())
-      return context.window
+    if (!context) return getWindow()
+    if (context.window && !context.window.isDestroyed()) return context.window
     const resolved = await context.windowBuilder()
     context.window = resolved
     return resolved
   }
 
-  async function showWindowWithRoute(route: string, context?: WidgetWindowContext, snapshot?: Pick<WidgetSnapshot, 'windowSize'>) {
+  async function showWindowWithRoute(
+    route: string,
+    context?: WidgetWindowContext,
+    snapshot?: Pick<WidgetSnapshot, 'windowSize'>,
+  ) {
     pendingRoute = route
     const window = await getWindowFromContext(context)
     pendingRoute = undefined
     applyWindowLayout(window, snapshot)
-    if (currentRoute !== route)
-      await loadWithRoute(window, route)
+    if (currentRoute !== route) await loadWithRoute(window, route)
     window.show()
-    if (context)
-      context.window = window
+    if (context) context.window = window
     return window
   }
 
@@ -554,12 +545,10 @@ export function setupWidgetsWindowManager(params: {
    * - Resolves after internal state and renderer events have been updated
    */
   async function updateWidget(payload: WidgetsUpdatePayload) {
-    if (!payload?.id)
-      return
+    if (!payload?.id) return
 
     const existing = widgetRecords.get(payload.id)
-    if (!existing)
-      return
+    if (!existing) return
 
     const nextSnapshot: WidgetSnapshot = {
       ...toSnapshot(existing),
@@ -573,8 +562,7 @@ export function setupWidgetsWindowManager(params: {
 
     const context = windowContexts.get(payload.id)
     const window = context?.window
-    if (window && !window.isDestroyed())
-      applyWindowLayout(window, nextSnapshot)
+    if (window && !window.isDestroyed()) applyWindowLayout(window, nextSnapshot)
 
     eventaContext?.emit(widgetsUpdateEvent, {
       id: nextSnapshot.id,
@@ -598,8 +586,7 @@ export function setupWidgetsWindowManager(params: {
    * - Resolves after the widget has been removed from memory and renderer state
    */
   async function removeWidget(id: string) {
-    if (!id)
-      return
+    if (!id) return
     removeWidgetInternal(id, false)
     eventaContext?.emit(widgetsRemoveEvent, { id })
   }
@@ -618,22 +605,18 @@ export function setupWidgetsWindowManager(params: {
    */
   async function clearWidgets() {
     const ids = [...widgetRecords.keys()]
-    for (const id of ids)
-      removeWidgetInternal(id, false)
+    for (const id of ids) removeWidgetInternal(id, false)
 
     eventaContext?.emit(widgetsClearEvent, undefined)
 
     const windowsToClose = new Set<BrowserWindow>()
-    if (activeWidgetsWindow && !activeWidgetsWindow.isDestroyed())
-      windowsToClose.add(activeWidgetsWindow)
+    if (activeWidgetsWindow && !activeWidgetsWindow.isDestroyed()) windowsToClose.add(activeWidgetsWindow)
 
     windowContexts.forEach((context) => {
-      if (context.window && !context.window.isDestroyed())
-        windowsToClose.add(context.window)
+      if (context.window && !context.window.isDestroyed()) windowsToClose.add(context.window)
     })
 
-    for (const window of windowsToClose)
-      safeClose(window)
+    for (const window of windowsToClose) safeClose(window)
 
     windowContexts.clear()
   }
@@ -652,8 +635,7 @@ export function setupWidgetsWindowManager(params: {
    */
   function getWidgetSnapshot(id: string) {
     const record = widgetRecords.get(id)
-    if (!record)
-      return undefined
+    if (!record) return undefined
 
     return toSnapshot(record)
   }
@@ -664,7 +646,7 @@ export function setupWidgetsWindowManager(params: {
     }
   }
 
-  function onWidgetEvent(listener: (event: { id: string, event: Record<string, unknown> }) => void) {
+  function onWidgetEvent(listener: (event: { id: string; event: Record<string, unknown> }) => void) {
     widgetEventListeners.add(listener)
     return () => {
       widgetEventListeners.delete(listener)
@@ -675,8 +657,7 @@ export function setupWidgetsWindowManager(params: {
     const id = params?.id
     const context = id ? windowContexts.get(id) : undefined
     const window = context?.window || activeWidgetsWindow
-    if (window && !window.isDestroyed())
-      window.hide()
+    if (window && !window.isDestroyed()) window.hide()
   }
 
   widgetsManager = {

@@ -46,17 +46,14 @@ function removeItem(index: number) {
       </div>
 
       <div v-auto-animate class="~ col gap-2">
-        <div
-          v-for="(_, index) in items"
-          :key="index"
-          :class="['w-full', 'flex', 'items-center', 'gap-2']"
-        >
-          <Input
-            v-model="items[index]"
-            :placeholder="props.valuePlaceholder"
-            :class="['w-90%']"
+        <div v-for="(_, index) in items" :key="index" :class="['w-full', 'flex', 'items-center', 'gap-2']">
+          <Input v-model="items[index]" :placeholder="props.valuePlaceholder" :class="['w-90%']" />
+          <button
+            i-solar:minus-circle-line-duotone
+            size="6"
+            :class="['min-w-20px', 'w-10%', 'flex', 'text-red-500']"
+            @click="removeItem(index)"
           />
-          <button i-solar:minus-circle-line-duotone size="6" :class="['min-w-20px', 'w-10%', 'flex', 'text-red-500']" @click="removeItem(index)" />
         </div>
 
         <div i-solar:add-circle-line-duotone size="6" :class="['mt-2', 'w-4/5', 'text-blue-500']" @click="addItem" />

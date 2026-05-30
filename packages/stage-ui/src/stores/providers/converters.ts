@@ -9,13 +9,15 @@ import { CHAT_COMPLETIONS_VALIDATOR_ID, isModelProvider } from '../../libs/provi
 import { getValidatorsOfProvider, validateProvider } from '../../libs/providers/validators/run'
 
 function getCategoryFromTasks(tasks: string[]): ProviderMetadata['category'] {
-  if (tasks.some(task => ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'].includes(task.toLowerCase()))) {
+  if (
+    tasks.some((task) => ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'].includes(task.toLowerCase()))
+  ) {
     return 'transcription'
   }
-  if (tasks.some(task => ['text-to-speech', 'speech', 'tts'].includes(task.toLowerCase()))) {
+  if (tasks.some((task) => ['text-to-speech', 'speech', 'tts'].includes(task.toLowerCase()))) {
     return 'speech'
   }
-  if (tasks.some(task => ['embed', 'embedding'].includes(task.toLowerCase()))) {
+  if (tasks.some((task) => ['embed', 'embedding'].includes(task.toLowerCase()))) {
     return 'embed'
   }
 
@@ -44,15 +46,13 @@ function extractSchemaDefaults(definition: ProviderDefinition<any>, t: ComposerT
     if (parsed?.success && typeof parsed.data === 'object' && parsed.data !== null) {
       Object.assign(defaults, parsed.data as Record<string, unknown>)
     }
-  }
-  catch {
-  }
+  } catch {}
 
   return defaults
 }
 
 function buildConfigValidationResult(plan: ProviderValidationPlan) {
-  const invalidSteps = plan.steps.filter(step => step.kind === 'config' && step.status === 'invalid')
+  const invalidSteps = plan.steps.filter((step) => step.kind === 'config' && step.status === 'invalid')
   if (invalidSteps.length === 0) {
     return {
       errors: [],
@@ -61,9 +61,9 @@ function buildConfigValidationResult(plan: ProviderValidationPlan) {
     }
   }
 
-  const reasons = invalidSteps.map(step => step.reason).filter(Boolean)
+  const reasons = invalidSteps.map((step) => step.reason).filter(Boolean)
   return {
-    errors: invalidSteps.map(step => new Error(step.reason || `${step.id} is invalid`)),
+    errors: invalidSteps.map((step) => new Error(step.reason || `${step.id} is invalid`)),
     reason: reasons.join('; '),
     valid: false,
   }
@@ -83,10 +83,8 @@ function mapModelsToMetadataModels(providerId: string, models: any[]) {
 }
 
 function appendUniqueReason(reasons: string[], next: string) {
-  if (!next)
-    return
-  if (!reasons.includes(next))
-    reasons.push(next)
+  if (!next) return
+  if (!reasons.includes(next)) reasons.push(next)
 }
 
 export function convertProviderDefinitionToMetadata(
@@ -121,72 +119,68 @@ export function convertProviderDefinitionToMetadata(
 
       return options.fallbackDefaultOptions?.() || {}
     },
-    createProvider: async config => await definition.createProvider(config as any) as any,
+    createProvider: async (config) => (await definition.createProvider(config as any)) as any,
     capabilities: {
       listModels: definition.extraMethods?.listModels
         ? async (config) => {
-          const provider = await definition.createProvider(config as any)
-          try {
-            const models = await definition.extraMethods!.listModels!(config as any, provider)
-            return mapModelsToMetadataModels(definition.id, models as any[])
-          }
-          finally {
-            await (provider as { dispose?: () => Promise<void> | void }).dispose?.()
-          }
-        }
-        : async (config) => {
-          const provider = await definition.createProvider(config as any)
-          try {
-            if (isModelProvider(provider)) {
-              const models = await listModels(provider.model())
+            const provider = await definition.createProvider(config as any)
+            try {
+              const models = await definition.extraMethods!.listModels!(config as any, provider)
               return mapModelsToMetadataModels(definition.id, models as any[])
+            } finally {
+              await (provider as { dispose?: () => Promise<void> | void }).dispose?.()
             }
+          }
+        : async (config) => {
+            const provider = await definition.createProvider(config as any)
+            try {
+              if (isModelProvider(provider)) {
+                const models = await listModels(provider.model())
+                return mapModelsToMetadataModels(definition.id, models as any[])
+              }
 
-            const baseUrl = typeof (config as any).baseUrl === 'string' ? (config as any).baseUrl.trim() : ''
-            const apiKey = typeof (config as any).apiKey === 'string' ? (config as any).apiKey.trim() : ''
-            if (!baseUrl)
+              const baseUrl = typeof (config as any).baseUrl === 'string' ? (config as any).baseUrl.trim() : ''
+              const apiKey = typeof (config as any).apiKey === 'string' ? (config as any).apiKey.trim() : ''
+              if (!baseUrl) return []
+
+              const models = await listModels({
+                baseURL: baseUrl,
+                ...(apiKey ? { apiKey } : {}),
+              })
+              return mapModelsToMetadataModels(definition.id, models as any[])
+            } catch {
               return []
-
-            const models = await listModels({
-              baseURL: baseUrl,
-              ...(apiKey ? { apiKey } : {}),
-            })
-            return mapModelsToMetadataModels(definition.id, models as any[])
-          }
-          catch {
-            return []
-          }
-          finally {
-            await (provider as { dispose?: () => Promise<void> | void }).dispose?.()
-          }
-        },
+            } finally {
+              await (provider as { dispose?: () => Promise<void> | void }).dispose?.()
+            }
+          },
       listVoices: definition.extraMethods?.listVoices
         ? async (config, model) => {
-          const provider = await definition.createProvider(config as any)
-          try {
-            return await definition.extraMethods!.listVoices!(config as any, provider, model)
+            const provider = await definition.createProvider(config as any)
+            try {
+              return await definition.extraMethods!.listVoices!(config as any, provider, model)
+            } finally {
+              await (provider as { dispose?: () => Promise<void> | void }).dispose?.()
+            }
           }
-          finally {
-            await (provider as { dispose?: () => Promise<void> | void }).dispose?.()
-          }
-        }
         : undefined,
       loadModel: definition.extraMethods?.loadModel
         ? async (config, hooks) => {
-          const provider = await definition.createProvider(config as any)
-          try {
-            await definition.extraMethods!.loadModel!(config as any, provider, hooks)
+            const provider = await definition.createProvider(config as any)
+            try {
+              await definition.extraMethods!.loadModel!(config as any, provider, hooks)
+            } finally {
+              await (provider as { dispose?: () => Promise<void> | void }).dispose?.()
+            }
           }
-          finally {
-            await (provider as { dispose?: () => Promise<void> | void }).dispose?.()
-          }
-        }
         : undefined,
     },
     validators: {
-      chatPingCheckAvailable: !definition.disableChatPingCheckUI
-        && (definition.validators?.validateProvider || [])
-          .some(creator => creator({ t }).id.includes(CHAT_COMPLETIONS_VALIDATOR_ID)),
+      chatPingCheckAvailable:
+        !definition.disableChatPingCheckUI &&
+        (definition.validators?.validateProvider || []).some((creator) =>
+          creator({ t }).id.includes(CHAT_COMPLETIONS_VALIDATOR_ID),
+        ),
       validateProviderConfig: async (config, options) => {
         // onlyChatPingCheck: skip all validators except chat completions.
         // Used by the manual "Test Generation" button on settings pages.
@@ -198,18 +192,21 @@ export function convertProviderDefinitionToMetadata(
             contextOptions: { t },
           })
           plan.configValidators = []
-          plan.providerValidators = plan.providerValidators.filter(v => v.id.includes(CHAT_COMPLETIONS_VALIDATOR_ID))
-          plan.steps = plan.steps.filter(s => s.id.includes(CHAT_COMPLETIONS_VALIDATOR_ID))
+          plan.providerValidators = plan.providerValidators.filter((v) => v.id.includes(CHAT_COMPLETIONS_VALIDATOR_ID))
+          plan.steps = plan.steps.filter((s) => s.id.includes(CHAT_COMPLETIONS_VALIDATOR_ID))
 
           if (plan.providerValidators.length === 0) {
             return { errors: [], reason: '', valid: true }
           }
 
           await validateProvider(plan, { t })
-          const invalidSteps = plan.steps.filter(step => step.status === 'invalid')
+          const invalidSteps = plan.steps.filter((step) => step.status === 'invalid')
           return {
-            errors: invalidSteps.map(step => new Error(step.reason || `${step.id} is invalid`)),
-            reason: invalidSteps.map(step => step.reason).filter(Boolean).join('; '),
+            errors: invalidSteps.map((step) => new Error(step.reason || `${step.id} is invalid`)),
+            reason: invalidSteps
+              .map((step) => step.reason)
+              .filter(Boolean)
+              .join('; '),
             valid: invalidSteps.length === 0,
           }
         }
@@ -222,15 +219,15 @@ export function convertProviderDefinitionToMetadata(
         })
 
         if (options?.skipChatPingCheck) {
-          plan.providerValidators = plan.providerValidators.filter(v => !v.id.includes(CHAT_COMPLETIONS_VALIDATOR_ID))
-          plan.steps = plan.steps.filter(s => !s.id.includes(CHAT_COMPLETIONS_VALIDATOR_ID))
+          plan.providerValidators = plan.providerValidators.filter((v) => !v.id.includes(CHAT_COMPLETIONS_VALIDATOR_ID))
+          plan.steps = plan.steps.filter((s) => !s.id.includes(CHAT_COMPLETIONS_VALIDATOR_ID))
         }
 
         // Run full validation pipeline (config + provider validators) only when required.
         // This preserves strict config checks while avoiding unnecessary network checks.
         if (plan.shouldValidate) {
           await validateProvider(plan, { t })
-          const invalidSteps = plan.steps.filter(step => step.status === 'invalid')
+          const invalidSteps = plan.steps.filter((step) => step.status === 'invalid')
           if (invalidSteps.length === 0) {
             return {
               errors: [],
@@ -239,23 +236,25 @@ export function convertProviderDefinitionToMetadata(
             }
           }
 
-          const reasons = invalidSteps.map(step => step.reason).filter(Boolean)
-          const hasMissingBaseUrlError = reasons.some(reason => reason.includes('Base URL is required'))
+          const reasons = invalidSteps.map((step) => step.reason).filter(Boolean)
+          const hasMissingBaseUrlError = reasons.some((reason) => reason.includes('Base URL is required'))
           const defaultBaseUrl = typeof schemaDefaults.baseUrl === 'string' ? schemaDefaults.baseUrl.trim() : ''
           if (hasMissingBaseUrlError && defaultBaseUrl) {
             appendUniqueReason(reasons, `Default to ${defaultBaseUrl}.`)
           }
 
-          const connectivityFailed = invalidSteps.some(step => step.id === 'openai-compatible:check-connectivity')
+          const connectivityFailed = invalidSteps.some((step) => step.id === 'openai-compatible:check-connectivity')
           if (connectivityFailed) {
-            const troubleshooting = definition.business?.({ t })?.troubleshooting?.validators?.openaiCompatibleCheckConnectivity?.content || ''
+            const troubleshooting =
+              definition.business?.({ t })?.troubleshooting?.validators?.openaiCompatibleCheckConnectivity?.content ||
+              ''
             if (troubleshooting) {
               appendUniqueReason(reasons, troubleshooting)
             }
           }
 
           return {
-            errors: invalidSteps.map(step => new Error(step.reason || `${step.id} is invalid`)),
+            errors: invalidSteps.map((step) => new Error(step.reason || `${step.id} is invalid`)),
             reason: reasons.join('; '),
             valid: false,
           }

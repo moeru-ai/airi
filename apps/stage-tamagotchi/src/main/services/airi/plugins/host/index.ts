@@ -1,16 +1,6 @@
-import type {
-  PluginHostDebugSnapshot,
-  PluginRegistrySnapshot,
-} from '../../../../../shared/eventa/plugin/host'
-import type {
-  PluginAssetCookie,
-  PluginAssetSession,
-  PluginAssetSnapshotService,
-} from '../features/static-assets'
-import type {
-  PluginHostService,
-  SetupPluginHostOptions,
-} from '../types'
+import type { PluginHostDebugSnapshot, PluginRegistrySnapshot } from '../../../../../shared/eventa/plugin/host'
+import type { PluginAssetCookie, PluginAssetSession, PluginAssetSnapshotService } from '../features/static-assets'
+import type { PluginHostService, SetupPluginHostOptions } from '../types'
 
 import { dirname, join } from 'node:path'
 
@@ -96,7 +86,7 @@ export interface PluginHostHostService extends PluginHostService {
    * Returns:
    * - The updated plugin registry snapshot after persistence
    */
-  setEnabled: (payload: { name: string, enabled: boolean, path?: string }) => Promise<PluginRegistrySnapshot>
+  setEnabled: (payload: { name: string; enabled: boolean; path?: string }) => Promise<PluginRegistrySnapshot>
 
   /**
    * Persists whether one loaded plugin should use auto-reload.
@@ -111,7 +101,7 @@ export interface PluginHostHostService extends PluginHostService {
    * Returns:
    * - The updated plugin registry snapshot after persistence
    */
-  setAutoReload: (payload: { name: string, enabled: boolean }) => Promise<PluginRegistrySnapshot>
+  setAutoReload: (payload: { name: string; enabled: boolean }) => Promise<PluginRegistrySnapshot>
 
   /**
    * Loads every plugin currently marked as enabled.
@@ -218,9 +208,7 @@ export interface PluginHostHostService extends PluginHostService {
  * Returns:
  * - The internal bootstrap service that powers the public plugin-host IPC facade
  */
-export async function setupPluginHostHostService(
-  options: SetupPluginHostOptions,
-): Promise<PluginHostHostService> {
+export async function setupPluginHostHostService(options: SetupPluginHostOptions): Promise<PluginHostHostService> {
   const log = useLogg('main/plugin-host').useGlobalConfig()
   const pluginsRoot = join(app.getPath('userData'), 'plugins', 'v1')
 
@@ -339,10 +327,7 @@ export async function setupPluginHostHostService(
     })
   }
 
-  const loadPluginByName = async (
-    name: string,
-    loadOptions: { cacheBustKey?: string } = {},
-  ) => {
+  const loadPluginByName = async (name: string, loadOptions: { cacheBustKey?: string } = {}) => {
     if (loaded.has(name)) {
       return
     }
@@ -391,7 +376,7 @@ export async function setupPluginHostHostService(
     log,
     getConfig,
     listEntries: () => pluginRegistry.listEntries(),
-    isLoaded: name => loaded.has(name),
+    isLoaded: (name) => loaded.has(name),
     resolveWatchPaths: resolveAutoReloadWatchPaths,
     reload: async (name) => {
       await stopLoadedPluginByName(name)
@@ -418,8 +403,7 @@ export async function setupPluginHostHostService(
 
       try {
         await loadPluginByName(name)
-      }
-      catch (error) {
+      } catch (error) {
         log.withError(error).withFields({ plugin: name }).error('plugin failed to start')
       }
     }
@@ -446,8 +430,7 @@ export async function setupPluginHostHostService(
       const enabled = new Set(config.enabled)
       if (payload.enabled) {
         enabled.add(payload.name)
-      }
-      else {
+      } else {
         enabled.delete(payload.name)
         clearModuleAssetSessionCacheByPluginId(payload.name)
         await pluginAssetService.revokeByPluginId(payload.name)
@@ -474,8 +457,7 @@ export async function setupPluginHostHostService(
       const autoReload = new Set(config.autoReload)
       if (payload.enabled) {
         autoReload.add(payload.name)
-      }
-      else {
+      } else {
         autoReload.delete(payload.name)
       }
 

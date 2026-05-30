@@ -44,8 +44,7 @@ export function useModelPreload(options: UseModelPreloadOptions = {}) {
    * in the given order after an idle delay.
    */
   function schedulePreload(tasks: PreloadTask[]): void {
-    if (tasks.length === 0)
-      return
+    if (tasks.length === 0) return
 
     // Fresh controller per scheduling — abort any prior in-flight preload first
     if (abortController && !abortController.signal.aborted)
@@ -54,14 +53,12 @@ export function useModelPreload(options: UseModelPreloadOptions = {}) {
     const signal = abortController.signal
 
     timeoutId = setTimeout(async () => {
-      if (signal.aborted)
-        return
+      if (signal.aborted) return
 
       preloading.value = true
 
       for (const task of tasks) {
-        if (signal.aborted)
-          break
+        if (signal.aborted) break
 
         try {
           // eslint-disable-next-line no-console
@@ -70,8 +67,7 @@ export function useModelPreload(options: UseModelPreloadOptions = {}) {
           preloadedModels.value.push(task.modelId)
           // eslint-disable-next-line no-console
           console.debug(`[Preload] ${task.modelId} ready`)
-        }
-        catch (error) {
+        } catch (error) {
           // AbortError is expected when the preload is cancelled — don't
           // treat it as a failure.
           if ((error as Error)?.name === 'AbortError') {
@@ -90,8 +86,7 @@ export function useModelPreload(options: UseModelPreloadOptions = {}) {
   }
 
   function cancelPreload(): void {
-    if (abortController && !abortController.signal.aborted)
-      abortController.abort(new Error('Preload cancelled'))
+    if (abortController && !abortController.signal.aborted) abortController.abort(new Error('Preload cancelled'))
     if (timeoutId !== undefined) {
       clearTimeout(timeoutId)
       timeoutId = undefined

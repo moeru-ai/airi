@@ -8,17 +8,18 @@ import PoppinText from './PoppinText.web.vue'
 type AnimatorMock = ReturnType<typeof vi.fn<Animator>>
 
 async function mountPoppinText(params: {
-  text: ReturnType<typeof ref<Array<{ key: string, text: string }>>>
+  text: ReturnType<typeof ref<Array<{ key: string; text: string }>>>
   animator: AnimatorMock
 }) {
   const host = document.createElement('div')
   document.body.appendChild(host)
 
   const app = createApp({
-    render: () => h(PoppinText, {
-      text: params.text.value,
-      animator: params.animator,
-    }),
+    render: () =>
+      h(PoppinText, {
+        text: params.text.value,
+        animator: params.animator,
+      }),
   })
 
   app.mount(host)

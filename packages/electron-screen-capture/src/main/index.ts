@@ -58,8 +58,7 @@ export function buildFeatureFlags({
 
   if (forceCoreAudioTap) {
     featureFlags.push(CoreAudioTapFeatureFlags.MacCoreAudioTapSystemAudioLoopbackOverride)
-  }
-  else {
+  } else {
     featureFlags.push(ScreenCaptureKitFeatureFlags.MacScreenCaptureKitSystemAudioLoopbackOverride)
   }
 
@@ -96,10 +95,7 @@ let screenCaptureSourceMutexHandle: string | undefined
 let setSourceMutexTimeoutHandle: NodeJS.Timeout | undefined
 
 export function initScreenCaptureForMain(options: InitMainOptions = {}): void {
-  const {
-    forceCoreAudioTap = false,
-    mutexAcquireTimeout = 5000,
-  } = options
+  const { forceCoreAudioTap = false, mutexAcquireTimeout = 5000 } = options
 
   let log = useLogg('screen-capture').useGlobalConfig()
   if (options?.loggerOptions?.logLevel) {
@@ -178,7 +174,9 @@ export function initScreenCaptureForWindow(window: BrowserWindow, options?: Init
     throw new Error('initScreenCaptureForMain must be called before calling initScreenCaptureForWindow')
   }
   if (initializedWindows.has(window)) {
-    log.withFields({ windowId, windowTitle: tryWindowTitle(window, windowTitle) }).warn('initScreenCaptureForWindow should only be called once per window')
+    log
+      .withFields({ windowId, windowTitle: tryWindowTitle(window, windowTitle) })
+      .warn('initScreenCaptureForWindow should only be called once per window')
     return
   }
 
@@ -197,13 +195,12 @@ export function initScreenCaptureForWindow(window: BrowserWindow, options?: Init
     // REVIEW(@sumimakito): This has nothing to do with out side, probably related to Electron Bug, you can
     // read more here https://github.com/electron/electron/issues/44504
     const sources = await desktopCapturer.getSources(sourcesOptions)
-    return sources.map(source => toSerializableDesktopCapturerSource(source))
+    return sources.map((source) => toSerializableDesktopCapturerSource(source))
   })
 
   defineInvokeHandler(context, screenCapture.setSource, async (request, eventaOptions) => {
     // FIXME: Would be better if `onlySameWindow` in `createContext` also filters out invocations here.
-    if (window.webContents.id !== eventaOptions?.raw.ipcMainEvent.sender.id)
-      return
+    if (window.webContents.id !== eventaOptions?.raw.ipcMainEvent.sender.id) return
 
     const { timeout } = request
     if (typeof timeout === 'number' && (timeout <= 0 || !Number.isFinite(timeout) || Number.isNaN(timeout))) {
@@ -221,7 +218,7 @@ export function initScreenCaptureForWindow(window: BrowserWindow, options?: Init
     try {
       session.setDisplayMediaRequestHandler(async (_request, callback) => {
         const sources = await desktopCapturer.getSources(request.options)
-        const source = sources.find(source => source.id === request.sourceId)
+        const source = sources.find((source) => source.id === request.sourceId)
         if (!source) {
           throw new Error(`Source with id ${request.sourceId} not found.`)
         }
@@ -233,8 +230,7 @@ export function initScreenCaptureForWindow(window: BrowserWindow, options?: Init
       })
 
       setSourceMutexTimeoutHandle = setTimeout(() => {
-        if (screenCaptureSourceMutexHandle !== handle)
-          return
+        if (screenCaptureSourceMutexHandle !== handle) return
 
         resetScreenCaptureSource()
         setSourceMutex.release()
@@ -242,14 +238,13 @@ export function initScreenCaptureForWindow(window: BrowserWindow, options?: Init
         log
           .withFields({ windowId, windowTitle: tryWindowTitle(window, windowTitle) })
           .warn(
-            `setSourceMutex released for window due to timeout. `
-            + 'Please make sure to invoke screenCaptureResetSource when getDisplayMedia is completed.',
+            `setSourceMutex released for window due to timeout. ` +
+              'Please make sure to invoke screenCaptureResetSource when getDisplayMedia is completed.',
           )
       }, timeout ?? 5000)
 
       return handle
-    }
-    catch (e) {
+    } catch (e) {
       log
         .withFields({ windowId, windowTitle: tryWindowTitle(window, windowTitle) })
         .withError(e)
@@ -262,12 +257,13 @@ export function initScreenCaptureForWindow(window: BrowserWindow, options?: Init
   })
 
   defineInvokeHandler(context, screenCapture.resetSource, async (mutexHandle) => {
-    if (screenCaptureSourceMutexHandle !== mutexHandle)
-      return
+    if (screenCaptureSourceMutexHandle !== mutexHandle) return
 
     resetScreenCaptureSource()
     setSourceMutex.release()
 
-    log.withFields({ windowId, windowTitle: tryWindowTitle(window, windowTitle) }).debug('setSourceMutex released by window')
+    log
+      .withFields({ windowId, windowTitle: tryWindowTitle(window, windowTitle) })
+      .debug('setSourceMutex released by window')
   })
 }

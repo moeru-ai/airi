@@ -2,10 +2,7 @@
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { UnMicrosoftOptions } from 'unspeech'
 
-import {
-  SpeechPlayground,
-  SpeechProviderSettings,
-} from '@proj-airi/stage-ui/components'
+import { SpeechPlayground, SpeechProviderSettings } from '@proj-airi/stage-ui/components'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { FieldInput, FieldRange } from '@proj-airi/ui'
@@ -35,10 +32,9 @@ const volume = ref(0)
 
 // Additional settings specific to Microsoft Speech (region)
 const region = computed({
-  get: () => providers.value[providerId]?.region as string | undefined || 'eastasia',
+  get: () => (providers.value[providerId]?.region as string | undefined) || 'eastasia',
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = { region: 'eastasia' }
+    if (!providers.value[providerId]) providers.value[providerId] = { region: 'eastasia' }
 
     providers.value[providerId].region = value
   },
@@ -57,10 +53,8 @@ onMounted(async () => {
     region.value = 'eastasia' // Default region
   }
   if (!providers.value[providerId]?.region) {
-    if (!providers.value[providerId])
-      providers.value[providerId] = { region: region.value }
-    else
-      providers.value[providerId].region = region.value
+    if (!providers.value[providerId]) providers.value[providerId] = { region: region.value }
+    else providers.value[providerId].region = region.value
   }
 
   await speechStore.loadVoicesForProvider(providerId)
@@ -72,7 +66,10 @@ watch([apiKeyConfigured, region], async () => {
 
 // Generate speech with Microsoft-specific parameters
 async function handleGenerateSpeech(input: string, voiceId: string, useSSML: boolean) {
-  const provider = await providersStore.getProviderInstance(providerId) as SpeechProviderWithExtraOptions<string, UnMicrosoftOptions>
+  const provider = (await providersStore.getProviderInstance(providerId)) as SpeechProviderWithExtraOptions<
+    string,
+    UnMicrosoftOptions
+  >
   if (!provider) {
     throw new Error('Failed to initialize speech provider')
   }
@@ -81,7 +78,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, useSSML: boo
   const providerConfig = providersStore.getProviderConfig(providerId)
 
   // Get model from configuration or use default
-  const model = providerConfig.model as string | undefined || defaultModel
+  const model = (providerConfig.model as string | undefined) || defaultModel
 
   // For Microsoft Speech, we need to ensure we're using the right region
   const options = {
@@ -92,31 +89,15 @@ async function handleGenerateSpeech(input: string, voiceId: string, useSSML: boo
 
   // If not using SSML and we have a voice, generate SSML
   if (!useSSML && voiceId) {
-    const voice = availableVoices.value.find(v => v.id === voiceId)
+    const voice = availableVoices.value.find((v) => v.id === voiceId)
     if (voice) {
-      const ssml = speechStore.generateSSML(
-        input,
-        voice,
-        { ...providerConfig, pitch: pitch.value },
-      )
-      return await speechStore.speech(
-        provider,
-        model,
-        ssml,
-        voiceId,
-        options,
-      )
+      const ssml = speechStore.generateSSML(input, voice, { ...providerConfig, pitch: pitch.value })
+      return await speechStore.speech(provider, model, ssml, voiceId, options)
     }
   }
 
   // Either using direct SSML or no voice found
-  return await speechStore.speech(
-    provider,
-    model,
-    input,
-    voiceId,
-    options,
-  )
+  return await speechStore.speech(provider, model, input, voiceId, options)
 }
 </script>
 
@@ -147,7 +128,9 @@ async function handleGenerateSpeech(input: string, voiceId: string, useSSML: boo
           :label="t('settings.pages.providers.provider.common.fields.field.pitch.label')"
           :description="t('settings.pages.providers.provider.common.fields.field.pitch.description')"
           :min="-100"
-          :max="100" :step="1" :format-value="value => `${value}%`"
+          :max="100"
+          :step="1"
+          :format-value="(value) => `${value}%`"
         />
 
         <!-- Speed control - common to most providers -->
@@ -156,7 +139,8 @@ async function handleGenerateSpeech(input: string, voiceId: string, useSSML: boo
           :label="t('settings.pages.providers.provider.common.fields.field.speed.label')"
           :description="t('settings.pages.providers.provider.common.fields.field.speed.description')"
           :min="0.5"
-          :max="2.0" :step="0.01"
+          :max="2.0"
+          :step="0.01"
         />
 
         <!-- Volume control - available in some providers -->
@@ -165,7 +149,9 @@ async function handleGenerateSpeech(input: string, voiceId: string, useSSML: boo
           :label="t('settings.pages.providers.provider.common.fields.field.volume.label')"
           :description="t('settings.pages.providers.provider.common.fields.field.volume.description')"
           :min="-100"
-          :max="100" :step="1" :format-value="value => `${value}%`"
+          :max="100"
+          :step="1"
+          :format-value="(value) => `${value}%`"
         />
       </div>
     </template>
@@ -183,8 +169,8 @@ async function handleGenerateSpeech(input: string, voiceId: string, useSSML: boo
 </template>
 
 <route lang="yaml">
-  meta:
-    layout: settings
-    stageTransition:
-      name: slide
-  </route>
+meta:
+  layout: settings
+  stageTransition:
+    name: slide
+</route>

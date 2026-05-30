@@ -158,14 +158,20 @@ function createPluginAssetCookie(baseUrl: string, session: StaticAssetSession): 
 
 function requireBaseUrl(baseUrl: string | undefined) {
   if (!baseUrl) {
-    throw new Error('Plugin asset server base URL is unavailable; start the asset server before creating asset sessions')
+    throw new Error(
+      'Plugin asset server base URL is unavailable; start the asset server before creating asset sessions',
+    )
   }
 
   return baseUrl
 }
 
-async function removeCookies(cookieAdapter: PluginAssetCookieAdapter, baseUrl: string, sessions: readonly StaticAssetSession[]) {
-  await Promise.all(sessions.map(session => cookieAdapter.removeCookie(createPluginAssetCookie(baseUrl, session))))
+async function removeCookies(
+  cookieAdapter: PluginAssetCookieAdapter,
+  baseUrl: string,
+  sessions: readonly StaticAssetSession[],
+) {
+  await Promise.all(sessions.map((session) => cookieAdapter.removeCookie(createPluginAssetCookie(baseUrl, session))))
 }
 
 /**
@@ -246,8 +252,7 @@ export function createPluginAssetService(options: {
           cookie,
           expiresAt: session.expiresAt,
         }
-      }
-      catch (error) {
+      } catch (error) {
         server.revokeSession(session.assetSessionId)
         throw error
       }

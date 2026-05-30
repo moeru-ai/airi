@@ -41,12 +41,19 @@ function createHarness() {
     assistantResponseRendered: [] as unknown[],
     messageRound: [] as unknown[],
   }
-  const stream = vi.fn(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options?: {
-    onStreamEvent?: (event: StreamEvent) => Promise<void> | void
-  }) => {
-    await options?.onStreamEvent?.({ type: 'text-delta', text: 'assistant reply' })
-    await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
-  })
+  const stream = vi.fn(
+    async (
+      _model: string,
+      _chatProvider: ChatProvider,
+      _messages: Message[],
+      options?: {
+        onStreamEvent?: (event: StreamEvent) => Promise<void> | void
+      },
+    ) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'assistant reply' })
+      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+    },
+  )
   const ids = ['stream-context', 'assistant-id', 'user-id', 'fallback-id']
   let systemPromptSupplement: string | undefined
   let nowValue = new Date(2026, 3, 25, 18, 47).getTime()
@@ -58,7 +65,7 @@ function createHarness() {
       ensureSession: (sessionId) => {
         sessionMessages[sessionId] ??= []
       },
-      getSessionMessages: sessionId => sessionMessages[sessionId] ?? [],
+      getSessionMessages: (sessionId) => sessionMessages[sessionId] ?? [],
       appendSessionMessage: (sessionId, message) => {
         sessionMessages[sessionId] ??= []
         sessionMessages[sessionId].push(message)
@@ -70,7 +77,7 @@ function createHarness() {
       snapshot: () => structuredClone(contextSnapshot),
     },
     foregroundStream: {
-      patch: message => foregroundPatches.push(message),
+      patch: (message) => foregroundPatches.push(message),
       reset: () => foregroundResets.push({ role: 'assistant', content: '', slices: [], tool_results: [] }),
     },
     llm: {
@@ -82,18 +89,18 @@ function createHarness() {
     now: () => nowValue,
     monotonicNow: () => monotonicNowValues.shift() ?? 1000,
     createId: () => ids.shift() ?? 'generated-id',
-    onLifecycle: record => lifecycleRecords.push(record),
-    onPromptProjection: payload => promptProjections.push(payload),
-    onUserMessageAppended: event => userAppended.push(event),
-    onAssistantMessageAppended: event => assistantAppended.push(event),
-    onUserTurnReady: event => userTurns.push(event),
-    onAssistantTurnReady: event => assistantTurns.push(event),
-    onStateChange: state => stateChanges.push(state),
-    onMessageSendStarted: event => telemetry.messageSendStarted.push(event),
-    onLlmRequestStarted: event => telemetry.llmRequestStarted.push(event),
-    onLlmFirstToken: event => telemetry.llmFirstToken.push(event),
-    onAssistantResponseRendered: event => telemetry.assistantResponseRendered.push(event),
-    onMessageRound: event => telemetry.messageRound.push(event),
+    onLifecycle: (record) => lifecycleRecords.push(record),
+    onPromptProjection: (payload) => promptProjections.push(payload),
+    onUserMessageAppended: (event) => userAppended.push(event),
+    onAssistantMessageAppended: (event) => assistantAppended.push(event),
+    onUserTurnReady: (event) => userTurns.push(event),
+    onAssistantTurnReady: (event) => assistantTurns.push(event),
+    onStateChange: (state) => stateChanges.push(state),
+    onMessageSendStarted: (event) => telemetry.messageSendStarted.push(event),
+    onLlmRequestStarted: (event) => telemetry.llmRequestStarted.push(event),
+    onLlmFirstToken: (event) => telemetry.llmFirstToken.push(event),
+    onAssistantResponseRendered: (event) => telemetry.assistantResponseRendered.push(event),
+    onMessageRound: (event) => telemetry.messageRound.push(event),
   })
 
   return {
@@ -220,11 +227,13 @@ describe('createChatOrchestratorRuntime', () => {
         text: '\n[Context]\n- system:weather: sunny',
       },
     ])
-    expect(harness.lifecycleRecords).toEqual(expect.arrayContaining([
-      expect.objectContaining({ phase: 'before-compose' }),
-      expect.objectContaining({ phase: 'prompt-context-built' }),
-      expect.objectContaining({ phase: 'after-compose' }),
-    ]))
+    expect(harness.lifecycleRecords).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ phase: 'before-compose' }),
+        expect.objectContaining({ phase: 'prompt-context-built' }),
+        expect.objectContaining({ phase: 'after-compose' }),
+      ]),
+    )
     expect(harness.promptProjections).toHaveLength(1)
   })
 
@@ -301,28 +310,38 @@ describe('createChatOrchestratorRuntime', () => {
       },
     })
 
-    expect(harness.telemetry.messageSendStarted).toEqual([{
-      source: 'voice',
-      model: 'gpt-test',
-    }])
-    expect(harness.telemetry.llmRequestStarted).toEqual([{
-      model: 'gpt-test',
-      provider: 'mock-provider',
-      hasVoice: true,
-    }])
-    expect(harness.telemetry.llmFirstToken).toEqual([{
-      model: 'gpt-test',
-      ttfbMs: 100,
-    }])
-    expect(harness.telemetry.assistantResponseRendered).toEqual([{
-      model: 'gpt-test',
-      latencyMs: 250,
-    }])
-    expect(harness.telemetry.messageRound).toEqual([{
-      durationMs: 360,
-      hasVoice: true,
-      model: 'gpt-test',
-    }])
+    expect(harness.telemetry.messageSendStarted).toEqual([
+      {
+        source: 'voice',
+        model: 'gpt-test',
+      },
+    ])
+    expect(harness.telemetry.llmRequestStarted).toEqual([
+      {
+        model: 'gpt-test',
+        provider: 'mock-provider',
+        hasVoice: true,
+      },
+    ])
+    expect(harness.telemetry.llmFirstToken).toEqual([
+      {
+        model: 'gpt-test',
+        ttfbMs: 100,
+      },
+    ])
+    expect(harness.telemetry.assistantResponseRendered).toEqual([
+      {
+        model: 'gpt-test',
+        latencyMs: 250,
+      },
+    ])
+    expect(harness.telemetry.messageRound).toEqual([
+      {
+        durationMs: 360,
+        hasVoice: true,
+        model: 'gpt-test',
+      },
+    ])
   })
 
   /**

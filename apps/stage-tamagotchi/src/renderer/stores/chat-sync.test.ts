@@ -17,8 +17,7 @@ class MockBroadcastChannel {
 
   static reset() {
     for (const peers of MockBroadcastChannel.channels.values()) {
-      for (const peer of peers)
-        peer.listeners.clear()
+      for (const peer of peers) peer.listeners.clear()
     }
     MockBroadcastChannel.channels.clear()
   }
@@ -28,8 +27,7 @@ class MockBroadcastChannel {
 
   constructor(name: string) {
     this.name = name
-    if (!MockBroadcastChannel.channels.has(name))
-      MockBroadcastChannel.channels.set(name, new Set())
+    if (!MockBroadcastChannel.channels.has(name)) MockBroadcastChannel.channels.set(name, new Set())
     MockBroadcastChannel.channels.get(name)?.add(this)
   }
 
@@ -43,15 +41,12 @@ class MockBroadcastChannel {
 
   postMessage(data: unknown) {
     const peers = MockBroadcastChannel.channels.get(this.name)
-    if (!peers)
-      return
+    if (!peers) return
 
     for (const peer of peers) {
-      if (peer === this)
-        continue
+      if (peer === this) continue
 
-      for (const listener of peer.listeners)
-        listener({ data })
+      for (const listener of peer.listeners) listener({ data })
     }
   }
 
@@ -59,14 +54,13 @@ class MockBroadcastChannel {
     const peers = MockBroadcastChannel.channels.get(this.name)
     peers?.delete(this)
     this.listeners.clear()
-    if (peers && peers.size === 0)
-      MockBroadcastChannel.channels.delete(this.name)
+    if (peers && peers.size === 0) MockBroadcastChannel.channels.delete(this.name)
   }
 }
 
 interface MockState {
   activeSessionId: Ref<string>
-  sessionMessages: Ref<Record<string, Array<{ role: string, content: string }>>>
+  sessionMessages: Ref<Record<string, Array<{ role: string; content: string }>>>
   sessionMetas: Ref<Record<string, unknown>>
   applyRemoteSnapshot: ReturnType<typeof vi.fn>
   setSessionMessages: ReturnType<typeof vi.fn>
@@ -147,28 +141,32 @@ describe('useChatSyncStore authority ingest failures', async () => {
     vi.restoreAllMocks()
 
     const activeSessionId = ref('session-1')
-    const sessionMessages = ref<Record<string, Array<{ role: string, content: string }>>>({
+    const sessionMessages = ref<Record<string, Array<{ role: string; content: string }>>>({
       'session-1': [{ role: 'system', content: 'init' }],
     })
     const sessionMetas = ref<Record<string, unknown>>({})
-    const applyRemoteSnapshot = vi.fn((snapshot: {
-      activeSessionId: string
-      sessionMessages: Record<string, Array<{ role: string, content: string }>>
-      sessionMetas: Record<string, unknown>
-    }) => {
-      activeSessionId.value = snapshot.activeSessionId
-      sessionMessages.value = snapshot.sessionMessages
-      sessionMetas.value = snapshot.sessionMetas
-    })
+    const applyRemoteSnapshot = vi.fn(
+      (snapshot: {
+        activeSessionId: string
+        sessionMessages: Record<string, Array<{ role: string; content: string }>>
+        sessionMetas: Record<string, unknown>
+      }) => {
+        activeSessionId.value = snapshot.activeSessionId
+        sessionMessages.value = snapshot.sessionMessages
+        sessionMetas.value = snapshot.sessionMetas
+      },
+    )
 
-    const setSessionMessages = vi.fn((sessionId: string, next: Array<{ role: string, content: string }>) => {
+    const setSessionMessages = vi.fn((sessionId: string, next: Array<{ role: string; content: string }>) => {
       sessionMessages.value[sessionId] = next
     })
 
     const getSessionMessages = vi.fn((sessionId: string) => sessionMessages.value[sessionId] ?? [])
 
     const ingest = vi.fn(async () => {
-      throw new Error('Remote sent 403 response: {"error":{"message":"This model is not available in your region.","code":403}}')
+      throw new Error(
+        'Remote sent 403 response: {"error":{"message":"This model is not available in your region.","code":403}}',
+      )
     })
 
     mockState = {
@@ -222,15 +220,18 @@ describe('useChatSyncStore authority ingest failures', async () => {
     expect(persistedMessages).toHaveLength(2)
     expect(persistedMessages[1]?.role).toBe('error')
     expect(persistedMessages[1]?.content).toContain('This model is not available in your region')
-    expect(consoleError).toHaveBeenCalledWith('[chat-sync] command failed', expect.objectContaining({
-      command: 'ingest',
-      requestId: 'req-1',
-      errorMessage: expect.stringContaining('This model is not available in your region'),
-      payload: expect.objectContaining({
-        text: 'hello',
-        sessionId: 'session-1',
+    expect(consoleError).toHaveBeenCalledWith(
+      '[chat-sync] command failed',
+      expect.objectContaining({
+        command: 'ingest',
+        requestId: 'req-1',
+        errorMessage: expect.stringContaining('This model is not available in your region'),
+        payload: expect.objectContaining({
+          text: 'hello',
+          sessionId: 'session-1',
+        }),
       }),
-    }))
+    )
 
     peer.close()
     store.dispose()
@@ -256,16 +257,19 @@ describe('useChatSyncStore authority ingest failures', async () => {
     await vi.advanceTimersByTimeAsync(30000)
 
     await expectedRejection
-    expect(consoleError).toHaveBeenCalledWith('[chat-sync] command timed out waiting for authority response', expect.objectContaining({
-      command: 'ingest',
-      mode: 'follower',
-      requestId: expect.any(String),
-      errorMessage: 'Timed out waiting for chat authority response',
-      payload: expect.objectContaining({
-        text: 'hello timeout',
-        sessionId: 'session-1',
+    expect(consoleError).toHaveBeenCalledWith(
+      '[chat-sync] command timed out waiting for authority response',
+      expect.objectContaining({
+        command: 'ingest',
+        mode: 'follower',
+        requestId: expect.any(String),
+        errorMessage: 'Timed out waiting for chat authority response',
+        payload: expect.objectContaining({
+          text: 'hello timeout',
+          sessionId: 'session-1',
+        }),
       }),
-    }))
+    )
 
     store.dispose()
     vi.useRealTimers()
@@ -395,7 +399,10 @@ describe('useChatSyncStore authority ingest failures', async () => {
         activeSessionId: 'session-1',
         sessionMessages: {
           'session-1': [{ role: 'system', content: 'main-window' }],
-          'session-2': [{ role: 'system', content: 'chat-window' }, { role: 'user', content: 'retry me' }],
+          'session-2': [
+            { role: 'system', content: 'chat-window' },
+            { role: 'user', content: 'retry me' },
+          ],
         },
         sessionMetas: {},
       },

@@ -24,14 +24,12 @@ import type { WidgetWindowSize } from '../../../eventa'
 export function normalizeWidgetWindowSize(
   windowSize?: WidgetWindowSize | Record<string, unknown>,
 ): WidgetWindowSize | undefined {
-  if (!windowSize || typeof windowSize !== 'object' || Array.isArray(windowSize))
-    return undefined
+  if (!windowSize || typeof windowSize !== 'object' || Array.isArray(windowSize)) return undefined
 
   const width = Number(windowSize.width)
   const height = Number(windowSize.height)
 
-  if (!Number.isFinite(width) || width <= 0 || !Number.isFinite(height) || height <= 0)
-    return undefined
+  if (!Number.isFinite(width) || width <= 0 || !Number.isFinite(height) || height <= 0) return undefined
 
   const normalized: WidgetWindowSize = {
     width: Math.floor(width),
@@ -40,12 +38,10 @@ export function normalizeWidgetWindowSize(
 
   for (const key of ['minWidth', 'minHeight', 'maxWidth', 'maxHeight'] as const) {
     const value = windowSize[key]
-    if (value === undefined)
-      continue
+    if (value === undefined) continue
 
     const numericValue = Number(value)
-    if (Number.isFinite(numericValue) && numericValue > 0)
-      normalized[key] = Math.floor(numericValue)
+    if (Number.isFinite(numericValue) && numericValue > 0) normalized[key] = Math.floor(numericValue)
   }
 
   return normalized

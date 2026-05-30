@@ -3,19 +3,12 @@ import IconStatusItem from './icon-status-item.vue'
 </script>
 
 <template>
-  <Story
-    title="Menu Icon Item (with Status)"
-    group="menu"
-    :layout="{ type: 'grid', width: 500 }"
-  >
+  <Story title="Menu Icon Item (with Status)" group="menu" :layout="{ type: 'grid', width: 500 }">
     <template #controls>
       <ThemeColorsHueControl />
     </template>
 
-    <Variant
-      id="global"
-      title="IconItem"
-    >
+    <Variant id="global" title="IconItem">
       <IconStatusItem
         title="Title"
         description="Description"
@@ -26,10 +19,7 @@ import IconStatusItem from './icon-status-item.vue'
       />
     </Variant>
 
-    <Variant
-      id="global-configured"
-      title="IconItem"
-    >
+    <Variant id="global-configured" title="IconItem">
       <IconStatusItem
         title="Title"
         description="Description"
@@ -40,10 +30,7 @@ import IconStatusItem from './icon-status-item.vue'
       />
     </Variant>
 
-    <Variant
-      id="global-hover"
-      title="IconItem"
-    >
+    <Variant id="global-hover" title="IconItem">
       <IconStatusItem
         title="Title"
         description="Description"
@@ -54,10 +41,7 @@ import IconStatusItem from './icon-status-item.vue'
       />
     </Variant>
 
-    <Variant
-      id="global-hover-configured"
-      title="IconItem"
-    >
+    <Variant id="global-hover-configured" title="IconItem">
       <IconStatusItem
         title="Title"
         description="Description"

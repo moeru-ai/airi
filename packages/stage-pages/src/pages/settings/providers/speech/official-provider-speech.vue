@@ -1,8 +1,5 @@
 <script setup lang="ts">
-import {
-  ProviderSettingsContainer,
-  ProviderSettingsLayout,
-} from '@proj-airi/stage-ui/components'
+import { ProviderSettingsContainer, ProviderSettingsLayout } from '@proj-airi/stage-ui/components'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { Callout } from '@proj-airi/ui'
@@ -82,9 +79,7 @@ function handleLogin() {
       </div>
     </ProviderSettingsContainer>
   </ProviderSettingsLayout>
-  <div v-else class="p-8 text-center text-neutral-500">
-    Provider is not available.
-  </div>
+  <div v-else class="p-8 text-center text-neutral-500">Provider is not available.</div>
 </template>
 
 <route lang="yaml">

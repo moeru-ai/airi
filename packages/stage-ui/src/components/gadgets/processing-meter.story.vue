@@ -27,14 +27,12 @@ function animate() {
 }
 
 onMounted(() => {
-  for (let i = 0; i < 20; i += 1)
-    pushHistory(120 + Math.random() * 50)
+  for (let i = 0; i < 20; i += 1) pushHistory(120 + Math.random() * 50)
   animate()
 })
 
 onUnmounted(() => {
-  if (animationFrame)
-    cancelAnimationFrame(animationFrame)
+  if (animationFrame) cancelAnimationFrame(animationFrame)
 })
 </script>
 

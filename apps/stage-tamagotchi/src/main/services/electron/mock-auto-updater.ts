@@ -9,7 +9,7 @@ export class MockAutoUpdater extends EventEmitter {
     this.emit('checking-for-update')
 
     // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    await new Promise((resolve) => setTimeout(resolve, 1500))
 
     // Simulate update available
     // We can toggle this based on some logic if needed, but for now let's assume update is always available in mock
@@ -37,8 +37,7 @@ export class MockAutoUpdater extends EventEmitter {
 
     const interval = setInterval(() => {
       transferred += speed / 10 // Update every 100ms
-      if (transferred > total)
-        transferred = total
+      if (transferred > total) transferred = total
 
       const progress = {
         total,

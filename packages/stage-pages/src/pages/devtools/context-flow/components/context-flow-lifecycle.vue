@@ -11,8 +11,7 @@ const props = defineProps<{
 
 const filteredRecords = computed(() => {
   const query = props.filterText.trim().toLowerCase()
-  if (!query)
-    return props.records
+  if (!query) return props.records
 
   return props.records.filter((record) => {
     const haystack = [
@@ -30,12 +29,14 @@ const filteredRecords = computed(() => {
       (() => {
         try {
           return JSON.stringify(record.details)
-        }
-        catch {
+        } catch {
           return ''
         }
       })(),
-    ].filter(Boolean).join(' ').toLowerCase()
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
 
     return haystack.includes(query)
   })
@@ -59,12 +60,7 @@ function phaseBadgeClass(phase: ContextLifecycleRecord['phase']) {
 </script>
 
 <template>
-  <Section
-    title="Context Lifecycle"
-    icon="i-solar:history-bold-duotone"
-    inner-class="gap-3"
-    :expand="false"
-  >
+  <Section title="Context Lifecycle" icon="i-solar:history-bold-duotone" inner-class="gap-3" :expand="false">
     <div :class="['text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
       {{ filteredRecords.length }} lifecycle record(s).
     </div>
@@ -92,10 +88,23 @@ function phaseBadgeClass(phase: ContextLifecycleRecord['phase']) {
             <span :class="['rounded-full', 'px-2', 'py-0.5', 'text-xs', ...phaseBadgeClass(record.phase)]">
               {{ record.phase }}
             </span>
-            <span :class="['rounded-full', 'bg-neutral-400/15', 'px-2', 'py-0.5', 'text-xs', 'text-neutral-600', 'dark:text-neutral-300']">
+            <span
+              :class="[
+                'rounded-full',
+                'bg-neutral-400/15',
+                'px-2',
+                'py-0.5',
+                'text-xs',
+                'text-neutral-600',
+                'dark:text-neutral-300',
+              ]"
+            >
               {{ record.channel }}
             </span>
-            <span v-if="record.sourceKey" :class="['font-mono', 'text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
+            <span
+              v-if="record.sourceKey"
+              :class="['font-mono', 'text-xs', 'text-neutral-500', 'dark:text-neutral-400']"
+            >
               {{ record.sourceKey }}
             </span>
           </div>
@@ -108,25 +117,27 @@ function phaseBadgeClass(phase: ContextLifecycleRecord['phase']) {
           <div v-if="record.textPreview">
             {{ record.textPreview }}
           </div>
-          <div v-if="record.contextId">
-            contextId={{ record.contextId }}
-          </div>
-          <div v-if="record.mutation">
-            mutation={{ record.mutation }}
-          </div>
-          <div v-if="record.sessionId">
-            session={{ record.sessionId }}
-          </div>
-          <div v-if="record.sourceLabel">
-            source={{ record.sourceLabel }}
-          </div>
+          <div v-if="record.contextId">contextId={{ record.contextId }}</div>
+          <div v-if="record.mutation">mutation={{ record.mutation }}</div>
+          <div v-if="record.sessionId">session={{ record.sessionId }}</div>
+          <div v-if="record.sourceLabel">source={{ record.sourceLabel }}</div>
         </div>
 
         <details :class="['mt-3']">
-          <summary :class="['cursor-pointer', 'text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
-            Details
-          </summary>
-          <pre :class="['mt-2', 'max-h-72', 'overflow-auto', 'rounded-lg', 'bg-neutral-900/90', 'p-3', 'text-xs', 'text-neutral-100']">{{ JSON.stringify(record, null, 2) }}</pre>
+          <summary :class="['cursor-pointer', 'text-xs', 'text-neutral-500', 'dark:text-neutral-400']">Details</summary>
+          <pre
+            :class="[
+              'mt-2',
+              'max-h-72',
+              'overflow-auto',
+              'rounded-lg',
+              'bg-neutral-900/90',
+              'p-3',
+              'text-xs',
+              'text-neutral-100',
+            ]"
+            >{{ JSON.stringify(record, null, 2) }}</pre
+          >
         </details>
       </div>
     </div>

@@ -26,8 +26,8 @@ function afterAllResolved(lockfile, context) {
 module.exports = {
   hooks: {
     readPackage,
-    afterAllResolved
-  }
+    afterAllResolved,
+  },
 }
 ```
 
@@ -42,7 +42,7 @@ function readPackage(pkg, context) {
   if (pkg.name === 'some-broken-package') {
     pkg.peerDependencies = {
       ...pkg.peerDependencies,
-      react: '*'
+      react: '*',
     }
     context.log(`Added react peer dep to ${pkg.name}`)
   }
@@ -99,8 +99,8 @@ function readPackage(pkg, context) {
     pkg.exports = {
       '.': {
         import: './dist/index.mjs',
-        require: './dist/index.cjs'
-      }
+        require: './dist/index.cjs',
+      },
     }
   }
   return pkg
@@ -152,8 +152,8 @@ function readPackage(pkg, context) {
 
 module.exports = {
   hooks: {
-    readPackage
-  }
+    readPackage,
+  },
 }
 ```
 
@@ -201,13 +201,14 @@ function readPackage(pkg, context) {
 
 ## Hooks vs Overrides
 
-| Feature | Hooks (.pnpmfile.cjs) | Overrides |
-|---------|----------------------|-----------|
-| Complexity | Can use JavaScript logic | Declarative only |
-| Scope | Any package metadata | Version only |
-| Use case | Complex fixes, conditional logic | Simple version pins |
+| Feature    | Hooks (.pnpmfile.cjs)            | Overrides           |
+| ---------- | -------------------------------- | ------------------- |
+| Complexity | Can use JavaScript logic         | Declarative only    |
+| Scope      | Any package metadata             | Version only        |
+| Use case   | Complex fixes, conditional logic | Simple version pins |
 
 **Prefer overrides** for simple version fixes. **Use hooks** when you need:
+
 - Conditional logic
 - Non-version modifications (exports, peer deps)
 - Logging/debugging

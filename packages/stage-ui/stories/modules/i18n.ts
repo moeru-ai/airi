@@ -6,7 +6,12 @@ import { createI18n } from 'vue-i18n'
 function getLocale() {
   let language = 'en'
   // NOTICE: histoire doesn't have localStorage during collection, directly accessing it causes error.
-  if ('localStorage' in globalThis && localStorage != null && 'getItem' in localStorage && typeof localStorage.getItem === 'function') {
+  if (
+    'localStorage' in globalThis &&
+    localStorage != null &&
+    'getItem' in localStorage &&
+    typeof localStorage.getItem === 'function'
+  ) {
     language = localStorage.getItem('settings/language') || 'en'
   }
 

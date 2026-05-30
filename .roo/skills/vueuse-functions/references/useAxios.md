@@ -126,8 +126,8 @@ const { data } = useAxios('/api/posts', config, instance, {
   // Initial data value
   initialData: [],
   // Callbacks
-  onSuccess: data => console.log('Success:', data),
-  onError: error => console.error('Error:', error),
+  onSuccess: (data) => console.log('Success:', data),
+  onError: (error) => console.error('Error:', error),
   onFinish: () => console.log('Finished'),
 })
 ```
@@ -135,12 +135,7 @@ const { data } = useAxios('/api/posts', config, instance, {
 ## Type Declarations
 
 ```ts
-export interface UseAxiosReturn<
-  T,
-  R = AxiosResponse<T>,
-  _D = any,
-  O extends UseAxiosOptions = UseAxiosOptions<T>,
-> {
+export interface UseAxiosReturn<T, R = AxiosResponse<T>, _D = any, O extends UseAxiosOptions = UseAxiosOptions<T>> {
   /**
    * Axios Response
    */
@@ -148,9 +143,7 @@ export interface UseAxiosReturn<
   /**
    * Axios response data
    */
-  data: O extends UseAxiosOptionsWithInitialData<T>
-    ? Ref<T>
-    : Ref<T | undefined>
+  data: O extends UseAxiosOptionsWithInitialData<T> ? Ref<T> : Ref<T | undefined>
   /**
    * Indicates if the request has finished
    */
@@ -180,12 +173,12 @@ export interface UseAxiosReturn<
    */
   isCanceled: Ref<boolean>
 }
-export interface StrictUseAxiosReturn<
+export interface StrictUseAxiosReturn<T, R, D, O extends UseAxiosOptions = UseAxiosOptions<T>> extends UseAxiosReturn<
   T,
   R,
   D,
-  O extends UseAxiosOptions = UseAxiosOptions<T>,
-> extends UseAxiosReturn<T, R, D, O> {
+  O
+> {
   /**
    * Manually call the axios request
    */
@@ -198,10 +191,7 @@ export interface EasyUseAxiosReturn<T, R, D> extends UseAxiosReturn<T, R, D> {
   /**
    * Manually call the axios request
    */
-  execute: (
-    url: string,
-    config?: AxiosRequestConfig<D>,
-  ) => Promise<EasyUseAxiosReturn<T, R, D>>
+  execute: (url: string, config?: AxiosRequestConfig<D>) => Promise<EasyUseAxiosReturn<T, R, D>>
 }
 export interface UseAxiosOptionsBase<T = any> {
   /**
@@ -238,17 +228,13 @@ export interface UseAxiosOptionsBase<T = any> {
    */
   onFinish?: () => void
 }
-export interface UseAxiosOptionsWithInitialData<
-  T,
-> extends UseAxiosOptionsBase<T> {
+export interface UseAxiosOptionsWithInitialData<T> extends UseAxiosOptionsBase<T> {
   /**
    * Initial data
    */
   initialData: T
 }
-export type UseAxiosOptions<T = any>
-  = | UseAxiosOptionsBase<T>
-    | UseAxiosOptionsWithInitialData<T>
+export type UseAxiosOptions<T = any> = UseAxiosOptionsBase<T> | UseAxiosOptionsWithInitialData<T>
 export declare function useAxios<
   T = any,
   R = AxiosResponse<T>,

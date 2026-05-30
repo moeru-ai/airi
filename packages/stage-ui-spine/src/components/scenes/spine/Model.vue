@@ -16,29 +16,35 @@ import { loadSpineRuntime } from '../../../utils/spine-runtime'
 import { detectSpineVersionFromBinary, detectSpineVersionFromJson } from '../../../utils/spine-version'
 import { loadSpineZip } from '../../../utils/spine-zip-loader'
 
-const props = withDefaults(defineProps<{
-  modelSrc?: string
-  modelId?: string
-  canvas?: HTMLCanvasElement
-  width: number
-  height: number
-  paused?: boolean
-  premultipliedAlpha?: boolean
-  defaultMixDuration?: number
-  idleAnimationEnabled?: boolean
-  maxFps?: number
-}>(), {
-  paused: false,
-  premultipliedAlpha: true,
-  defaultMixDuration: 0.2,
-  idleAnimationEnabled: true,
-  maxFps: 0,
-})
+const props = withDefaults(
+  defineProps<{
+    modelSrc?: string
+    modelId?: string
+    canvas?: HTMLCanvasElement
+    width: number
+    height: number
+    paused?: boolean
+    premultipliedAlpha?: boolean
+    defaultMixDuration?: number
+    idleAnimationEnabled?: boolean
+    maxFps?: number
+  }>(),
+  {
+    paused: false,
+    premultipliedAlpha: true,
+    defaultMixDuration: 0.2,
+    idleAnimationEnabled: true,
+    maxFps: 0,
+  },
+)
 
 const emits = defineEmits<{
   (e: 'modelLoaded'): void
   (e: 'error', error: Error): void
-  (e: 'animationsDiscovered', value: { animations: { name: string, duration: number }[], skins: { name: string }[] }): void
+  (
+    e: 'animationsDiscovered',
+    value: { animations: { name: string; duration: number }[]; skins: { name: string }[] },
+  ): void
 }>()
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
@@ -76,8 +82,7 @@ function disposeSpine() {
   if (spineCanvas) {
     try {
       spineCanvas.dispose()
-    }
-    catch (err) {
+    } catch (err) {
       console.warn('[Spine] Failed to dispose SpineCanvas:', err)
     }
     spineCanvas = undefined
@@ -112,7 +117,12 @@ async function loadModel() {
 
     disposeSpine()
 
-    let assetPaths: { skeletonPath: string, atlasPath: string, skeletonFormat: 'binary' | 'json', texturePaths: string[] }
+    let assetPaths: {
+      skeletonPath: string
+      atlasPath: string
+      skeletonFormat: 'binary' | 'json'
+      texturePaths: string[]
+    }
     let pathPrefix = ''
     let blobUrls: Record<string, string> | undefined
     let rawData: Record<string, Uint8Array | string> | undefined
@@ -126,19 +136,16 @@ async function loadModel() {
       loadedVariants = loaded.variants
 
       // Populate variant store.
-      availableVariants.value = loaded.variants.map(v => ({ name: v.name }))
+      availableVariants.value = loaded.variants.map((v) => ({ name: v.name }))
       // Select stored variant or default to first.
-      const selectedVariant = loaded.variants.find(v => v.name === currentVariant.value)
-        ?? loaded.variants[0]
-      if (selectedVariant && currentVariant.value !== selectedVariant.name)
-        currentVariant.value = selectedVariant.name
+      const selectedVariant = loaded.variants.find((v) => v.name === currentVariant.value) ?? loaded.variants[0]
+      if (selectedVariant && currentVariant.value !== selectedVariant.name) currentVariant.value = selectedVariant.name
 
       assetPaths = selectedVariant.layout
       blobUrls = loaded.blobUrls
       rawData = loaded.rawData
       assetCleanup = loaded.dispose
-    }
-    else {
+    } else {
       // Plain URL case: assume a sibling .skel/.json + .atlas next to the source.
       const baseUrl = new URL(modelSrc.value, window.location.href)
       pathPrefix = baseUrl.href.replace(/\/[^/]+$/, '/')
@@ -154,12 +161,11 @@ async function loadModel() {
 
     // Detect version from skeleton data to load the matching runtime.
     let detectedVersion = rawData
-      ? (assetPaths.skeletonFormat === 'binary'
-          ? detectSpineVersionFromBinary(rawData[assetPaths.skeletonPath] as Uint8Array)
-          : detectSpineVersionFromJson(rawData[assetPaths.skeletonPath] as string))
+      ? assetPaths.skeletonFormat === 'binary'
+        ? detectSpineVersionFromBinary(rawData[assetPaths.skeletonPath] as Uint8Array)
+        : detectSpineVersionFromJson(rawData[assetPaths.skeletonPath] as string)
       : undefined
-    if (!detectedVersion)
-      detectedVersion = '4.2'
+    if (!detectedVersion) detectedVersion = '4.2'
     const spine = await loadSpineRuntime(detectedVersion)
     console.log(`[Spine] Detected skeleton version: ${detectedVersion}`)
 
@@ -180,13 +186,10 @@ async function loadModel() {
           // loadTextureAtlas immediately dispatch XHRs. The downloader
           // checks rawDataUris at dispatch time — if we patch after the
           // constructor returns, requests already hit the dev server.
-          if (blobUrls)
-            patchAssetManagerForZipAssets(am, blobUrls, rawData!, assetPaths.texturePaths)
+          if (blobUrls) patchAssetManagerForZipAssets(am, blobUrls, rawData!, assetPaths.texturePaths)
 
-          if (assetPaths.skeletonFormat === 'binary')
-            am.loadBinary(assetPaths.skeletonPath)
-          else
-            am.loadJson(assetPaths.skeletonPath)
+          if (assetPaths.skeletonFormat === 'binary') am.loadBinary(assetPaths.skeletonPath)
+          else am.loadJson(assetPaths.skeletonPath)
 
           am.loadTextureAtlas(assetPaths.atlasPath)
         },
@@ -195,9 +198,14 @@ async function loadModel() {
             const am = sc.assetManager
             const atlas = am.require(assetPaths.atlasPath) as import('@esotericsoftware/spine-webgl').TextureAtlas
             const attachmentLoader = new spine.AtlasAttachmentLoader(atlas)
-            const skeletonData = assetPaths.skeletonFormat === 'binary'
-              ? new spine.SkeletonBinary(attachmentLoader).readSkeletonData(am.require(assetPaths.skeletonPath) as Uint8Array)
-              : new spine.SkeletonJson(attachmentLoader).readSkeletonData(am.require(assetPaths.skeletonPath) as string)
+            const skeletonData =
+              assetPaths.skeletonFormat === 'binary'
+                ? new spine.SkeletonBinary(attachmentLoader).readSkeletonData(
+                    am.require(assetPaths.skeletonPath) as Uint8Array,
+                  )
+                : new spine.SkeletonJson(attachmentLoader).readSkeletonData(
+                    am.require(assetPaths.skeletonPath) as string,
+                  )
 
             skeleton = new spine.Skeleton(skeletonData)
             skeleton.setToSetupPose()
@@ -213,8 +221,11 @@ async function loadModel() {
             })
 
             // Inventory animations and skins, populate the store.
-            const animations = skeletonData.animations.map(animation => ({ name: animation.name, duration: animation.duration }))
-            const skins = skeletonData.skins.map(s => ({ name: s.name }))
+            const animations = skeletonData.animations.map((animation) => ({
+              name: animation.name,
+              duration: animation.duration,
+            }))
+            const skins = skeletonData.skins.map((s) => ({ name: s.name }))
             availableAnimations.value = animations
             availableSkins.value = skins
             emits('animationsDiscovered', { animations, skins })
@@ -227,30 +238,25 @@ async function loadModel() {
 
             emits('modelLoaded')
             resolve()
-          }
-          catch (err) {
+          } catch (err) {
             const error = err instanceof Error ? err : new Error(String(err))
             emits('error', error)
             reject(error)
           }
         },
         update: (_sc, delta) => {
-          if (!skeleton || !animationState)
-            return
+          if (!skeleton || !animationState) return
           if (paused.value) {
             return
           }
           animationState.update(delta * animationSpeed.value)
           animationState.apply(skeleton)
           // Physics was added in Spine 4.2; older runtimes take no argument.
-          if (spine.Physics)
-            skeleton.updateWorldTransform(spine.Physics.update)
-          else
-            (skeleton as any).updateWorldTransform()
+          if (spine.Physics) skeleton.updateWorldTransform(spine.Physics.update)
+          else (skeleton as any).updateWorldTransform()
         },
         render: (sc) => {
-          if (!skeleton)
-            return
+          if (!skeleton) return
           const renderer = sc.renderer
           renderer.resize(spine.ResizeMode.Expand)
           sc.gl.clearColor(0, 0, 0, 0)
@@ -273,12 +279,10 @@ async function loadModel() {
         webglConfig: { alpha: true, premultipliedAlpha: false, preserveDrawingBuffer: true },
       })
     })
-  }
-  catch (err) {
+  } catch (err) {
     console.error('[Spine] Failed to load model:', err)
     emits('error', err instanceof Error ? err : new Error(String(err)))
-  }
-  finally {
+  } finally {
     modelLoading.value = false
     componentState.value = 'mounted'
     modelLoadMutex.release()
@@ -306,15 +310,24 @@ function patchAssetManagerForZipAssets(
   rawData: Record<string, Uint8Array | string>,
   texturePaths: string[],
 ) {
-  const downloader = (assetManager as unknown as {
-    downloader?: {
-      rawDataUris: Record<string, string>
-      downloadText: (url: string, success: (data: string) => void, error: (status: number, responseText: string) => void) => void
-      downloadBinary: (url: string, success: (data: Uint8Array) => void, error: (status: number, response: unknown) => void) => void
+  const downloader = (
+    assetManager as unknown as {
+      downloader?: {
+        rawDataUris: Record<string, string>
+        downloadText: (
+          url: string,
+          success: (data: string) => void,
+          error: (status: number, responseText: string) => void,
+        ) => void
+        downloadBinary: (
+          url: string,
+          success: (data: Uint8Array) => void,
+          error: (status: number, response: unknown) => void,
+        ) => void
+      }
     }
-  }).downloader
-  if (!downloader)
-    return
+  ).downloader
+  if (!downloader) return
 
   // Build a lookup keyed by both full path and bare filename.
   const textLookup = new Map<string, string>()
@@ -324,8 +337,7 @@ function patchAssetManagerForZipAssets(
     if (typeof data === 'string') {
       textLookup.set(path, data)
       textLookup.set(bare, data)
-    }
-    else {
+    } else {
       binaryLookup.set(path, data)
       binaryLookup.set(bare, data)
     }
@@ -355,18 +367,15 @@ function patchAssetManagerForZipAssets(
   // Texture blob URLs → rawDataUris for image.src resolution in loadTexture.
   for (const path of texturePaths) {
     const url = blobUrls[path]
-    if (!url)
-      continue
+    if (!url) continue
     downloader.rawDataUris[path] = url
     const slash = path.lastIndexOf('/')
-    if (slash !== -1)
-      downloader.rawDataUris[path.slice(slash + 1)] = url
+    if (slash !== -1) downloader.rawDataUris[path.slice(slash + 1)] = url
   }
 }
 
 function applyTransformFromStore() {
-  if (!skeleton || !canvas.value)
-    return
+  if (!skeleton || !canvas.value) return
 
   // Centre the skeleton roughly at the bottom-middle of the canvas, then
   // apply user offsets/scale on top. This mirrors the Live2D anchor.
@@ -379,15 +388,13 @@ function applyTransformFromStore() {
 }
 
 function applyCurrentAnimation() {
-  if (!animationManager)
-    return
+  if (!animationManager) return
   const desired = currentAnimation.value?.name ?? SpineAnimationName.Idle
   animationManager.setIdle(desired)
 }
 
 function applySkin(skinName: string) {
-  if (!skeleton)
-    return
+  if (!skeleton) return
 
   if (!skinName) {
     skeleton.setSkinByName(skeleton.data.defaultSkin?.name ?? skeleton.data.skins[0]?.name ?? 'default')
@@ -418,51 +425,57 @@ function applySkin(skinName: string) {
  * - The resolved animation name when one was found, otherwise `undefined`.
  */
 function setEmotion(emotion: Emotion, _intensity: number = 1): string | undefined {
-  if (!animationManager)
-    return undefined
+  if (!animationManager) return undefined
   const animationName = EMOTION_SpineAnimationName_value[emotion]
-  if (!animationName)
-    return undefined
+  if (!animationName) return undefined
   const entry = animationManager.playEmotion(animationName)
   return entry?.animation?.name
 }
 
 watch(modelSrc, async () => await loadModel(), { immediate: true })
 watch(canvas, async (next, prev) => {
-  if (next && next !== prev)
-    await loadModel()
+  if (next && next !== prev) await loadModel()
 })
 
-watch([() => props.width, () => props.height, position, scale], () => {
-  applyTransformFromStore()
-}, { deep: true })
+watch(
+  [() => props.width, () => props.height, position, scale],
+  () => {
+    applyTransformFromStore()
+  },
+  { deep: true },
+)
 
-watch(currentAnimation, () => {
-  applyCurrentAnimation()
-}, { deep: true })
+watch(
+  currentAnimation,
+  () => {
+    applyCurrentAnimation()
+  },
+  { deep: true },
+)
 
 watch(currentSkin, (skinName) => {
   applySkin(skinName)
 })
 
 watch(currentVariant, async () => {
-  if (loadedVariants.length > 1)
-    await loadModel()
+  if (loadedVariants.length > 1) await loadModel()
 })
 
-watch(() => props.idleAnimationEnabled, () => {
-  if (!animationManager || !skeleton || !animationState)
-    return
-  if (props.idleAnimationEnabled)
-    applyCurrentAnimation()
-  else
-    animationState.setEmptyAnimation(0, props.defaultMixDuration)
-})
+watch(
+  () => props.idleAnimationEnabled,
+  () => {
+    if (!animationManager || !skeleton || !animationState) return
+    if (props.idleAnimationEnabled) applyCurrentAnimation()
+    else animationState.setEmptyAnimation(0, props.defaultMixDuration)
+  },
+)
 
-watch(() => props.defaultMixDuration, (mix) => {
-  if (animationState)
-    animationState.data.defaultMix = mix
-})
+watch(
+  () => props.defaultMixDuration,
+  (mix) => {
+    if (animationState) animationState.data.defaultMix = mix
+  },
+)
 
 watch(paused, () => {
   // SpineCanvas does not expose a built-in pause; we toggle by stopping
@@ -483,7 +496,7 @@ onUnmounted(() => {
 defineExpose({
   setEmotion,
   listAnimations: () => animationManager?.listAnimations() ?? [],
-  listSkins: () => availableSkins.value.map(s => s.name),
+  listSkins: () => availableSkins.value.map((s) => s.name),
 })
 
 import.meta.hot?.dispose(() => {

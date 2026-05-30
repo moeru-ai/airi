@@ -25,7 +25,5 @@ const result = useRound(value) // 20
  *
  * @__NO_SIDE_EFFECTS__
  */
-export declare function useRound(
-  value: MaybeRefOrGetter<number>,
-): ComputedRef<number>
+export declare function useRound(value: MaybeRefOrGetter<number>): ComputedRef<number>
 ```

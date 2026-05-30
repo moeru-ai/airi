@@ -25,18 +25,21 @@ describe('createStreamingControlParser', () => {
   it('dispatches CALL tokens to registered handlers', async () => {
     const control = createStreamingControlParser()
     const handler = vi.fn()
-    const dispose = control.on({
-      name: 'plugin.action',
-      prompt: 'Run the plugin action when the model is ready.',
-      examples: [
-        '<|CALL ["plugin.action", {"value":1}]|>',
-      ],
-    }, handler)
+    const dispose = control.on(
+      {
+        name: 'plugin.action',
+        prompt: 'Run the plugin action when the model is ready.',
+        examples: ['<|CALL ["plugin.action", {"value":1}]|>'],
+      },
+      handler,
+    )
 
-    await expect(control.dispatchWith('<|CALL ["plugin.action", {"value":1}]|>', {
-      intentId: 'intent-1',
-      streamId: 'stream-1',
-    })).resolves.toBe(true)
+    await expect(
+      control.dispatchWith('<|CALL ["plugin.action", {"value":1}]|>', {
+        intentId: 'intent-1',
+        streamId: 'stream-1',
+      }),
+    ).resolves.toBe(true)
 
     expect(handler).toHaveBeenCalledWith(
       { value: 1 },
@@ -60,14 +63,19 @@ describe('createStreamingControlParser', () => {
     const control = createStreamingControlParser()
     const handler = vi.fn()
     const turn = control.beginTurn({ turnId: 'turn-1' })
-    turn.on({
-      name: 'plugin.action',
-      prompt: 'Run the plugin action when the turn reaches this point.',
-    }, handler)
+    turn.on(
+      {
+        name: 'plugin.action',
+        prompt: 'Run the plugin action when the turn reaches this point.',
+      },
+      handler,
+    )
 
-    await expect(control.dispatchWith('<|CALL ["plugin.action"]|>', {
-      turnId: 'turn-1',
-    })).resolves.toBe(true)
+    await expect(
+      control.dispatchWith('<|CALL ["plugin.action"]|>', {
+        turnId: 'turn-1',
+      }),
+    ).resolves.toBe(true)
 
     expect(handler).toHaveBeenCalledWith(
       undefined,
@@ -84,19 +92,27 @@ describe('createStreamingControlParser', () => {
     const control = createStreamingControlParser()
     const globalHandler = vi.fn()
     const turnHandler = vi.fn()
-    const disposeGlobal = control.on({
-      name: 'plugin.action',
-      prompt: 'Run the global plugin action.',
-    }, globalHandler)
+    const disposeGlobal = control.on(
+      {
+        name: 'plugin.action',
+        prompt: 'Run the global plugin action.',
+      },
+      globalHandler,
+    )
     const turn = control.beginTurn({ turnId: 'turn-1' })
-    const disposeTurn = turn.on({
-      name: 'plugin.action',
-      prompt: 'Run the turn-local plugin action.',
-    }, turnHandler)
+    const disposeTurn = turn.on(
+      {
+        name: 'plugin.action',
+        prompt: 'Run the turn-local plugin action.',
+      },
+      turnHandler,
+    )
 
-    await expect(control.dispatchWith('<|CALL ["plugin.action"]|>', {
-      turnId: 'turn-1',
-    })).resolves.toBe(true)
+    await expect(
+      control.dispatchWith('<|CALL ["plugin.action"]|>', {
+        turnId: 'turn-1',
+      }),
+    ).resolves.toBe(true)
 
     expect(turnHandler).toHaveBeenCalledTimes(1)
     expect(globalHandler).not.toHaveBeenCalled()
@@ -132,19 +148,21 @@ describe('createStreamingControlParser', () => {
     const control = createStreamingControlParser()
     let resolveHandler: (() => void) | undefined
     let settled = false
-    const dispose = control.on({
-      name: 'plugin.action',
-      prompt: 'Run the plugin action when the model is ready.',
-    }, async () => {
-      await new Promise<void>((resolve) => {
-        resolveHandler = resolve
-      })
-    })
+    const dispose = control.on(
+      {
+        name: 'plugin.action',
+        prompt: 'Run the plugin action when the model is ready.',
+      },
+      async () => {
+        await new Promise<void>((resolve) => {
+          resolveHandler = resolve
+        })
+      },
+    )
 
-    const dispatchPromise = control.dispatchWith('<|CALL ["plugin.action"]|>')
-      .then(() => {
-        settled = true
-      })
+    const dispatchPromise = control.dispatchWith('<|CALL ["plugin.action"]|>').then(() => {
+      settled = true
+    })
 
     await Promise.resolve()
     expect(settled).toBe(false)
@@ -163,10 +181,13 @@ describe('createStreamingControlParser', () => {
   it('rejects invalid CALL payload shapes', async () => {
     const control = createStreamingControlParser()
     const handler = vi.fn()
-    const dispose = control.on({
-      name: 'plugin.action',
-      prompt: 'Run the plugin action when the model is ready.',
-    }, handler)
+    const dispose = control.on(
+      {
+        name: 'plugin.action',
+        prompt: 'Run the plugin action when the model is ready.',
+      },
+      handler,
+    )
 
     await expect(control.dispatchWith('<|CALL {"name":"plugin.action"}|>')).resolves.toBe(false)
     await expect(control.dispatchWith('<|CALL []|>')).resolves.toBe(false)
@@ -190,7 +211,9 @@ describe('createStreamingControlParser', () => {
     const handler = vi.fn()
     const dispose = control.onSignal(handler)
 
-    await expect(control.dispatchWith('<|ACT {"emotion":{"name":"happy","intensity":0.8},"motion":"nod"}|>')).resolves.toBe(true)
+    await expect(
+      control.dispatchWith('<|ACT {"emotion":{"name":"happy","intensity":0.8},"motion":"nod"}|>'),
+    ).resolves.toBe(true)
 
     expect(handler).toHaveBeenCalledWith(
       {
@@ -261,7 +284,7 @@ describe('createStreamingControlParser', () => {
       parsers: [
         {
           name: 'CUSTOM',
-          match: special => special === '<|CUSTOM|>',
+          match: (special) => special === '<|CUSTOM|>',
           parse: () => ({
             type: 'call',
             name: 'plugin.action',
@@ -271,10 +294,13 @@ describe('createStreamingControlParser', () => {
       ],
     })
     const handler = vi.fn()
-    const dispose = control.on({
-      name: 'plugin.action',
-      prompt: 'Run the plugin action when the model is ready.',
-    }, handler)
+    const dispose = control.on(
+      {
+        name: 'plugin.action',
+        prompt: 'Run the plugin action when the model is ready.',
+      },
+      handler,
+    )
 
     await expect(control.dispatchWith('<|CUSTOM|>', { intentId: 'intent-custom' })).resolves.toBe(true)
     expect(handler).toHaveBeenCalledWith(
@@ -294,13 +320,14 @@ describe('createStreamingControlParser', () => {
    */
   it('renders registered CALL manifests as model instructions', () => {
     const control = createStreamingControlParser()
-    const dispose = control.on({
-      name: 'plugin.action',
-      prompt: 'Run the plugin action when the model is ready.',
-      examples: [
-        '<|CALL ["plugin.action"]|>',
-      ],
-    }, vi.fn())
+    const dispose = control.on(
+      {
+        name: 'plugin.action',
+        prompt: 'Run the plugin action when the model is ready.',
+        examples: ['<|CALL ["plugin.action"]|>'],
+      },
+      vi.fn(),
+    )
 
     expect(control.renderManifestPrompt()).toContain('Available streaming CALL tokens')
     expect(control.renderManifestPrompt()).toContain('plugin.action')

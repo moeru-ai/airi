@@ -46,17 +46,14 @@ const activeElement = useActiveElement({ triggerOnRemoval: true })
 
 ```vue
 <template>
-  <UseActiveElement v-slot="{ element }">
-    Active element is {{ element?.dataset.id }}
-  </UseActiveElement>
+  <UseActiveElement v-slot="{ element }">Active element is {{ element?.dataset.id }}</UseActiveElement>
 </template>
 ```
 
 ## Type Declarations
 
 ```ts
-export interface UseActiveElementOptions
-  extends ConfigurableWindow, ConfigurableDocumentOrShadowRoot {
+export interface UseActiveElementOptions extends ConfigurableWindow, ConfigurableDocumentOrShadowRoot {
   /**
    * Search active element deeply inside shadow dom
    *
@@ -70,8 +67,7 @@ export interface UseActiveElementOptions
    */
   triggerOnRemoval?: boolean
 }
-export type UseActiveElementReturn<T extends HTMLElement = HTMLElement>
-  = ShallowRef<T | null | undefined>
+export type UseActiveElementReturn<T extends HTMLElement = HTMLElement> = ShallowRef<T | null | undefined>
 /**
  * Reactive `document.activeElement`
  *

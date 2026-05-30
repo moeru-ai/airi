@@ -23,7 +23,12 @@ export async function setupWidgetsWindowInvokes(params: {
 
   const { context } = createContext(ipcMain, params.widgetWindow)
 
-  setupBaseWindowElectronInvokes({ context, window: params.widgetWindow, i18n: params.i18n, serverChannel: params.serverChannel })
+  setupBaseWindowElectronInvokes({
+    context,
+    window: params.widgetWindow,
+    i18n: params.i18n,
+    serverChannel: params.serverChannel,
+  })
 
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.widgetWindow })
 }

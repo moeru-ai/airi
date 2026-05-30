@@ -61,7 +61,5 @@ export interface UseDisplayMediaReturn extends Supportable {
  * @see https://vueuse.org/useDisplayMedia
  * @param options
  */
-export declare function useDisplayMedia(
-  options?: UseDisplayMediaOptions,
-): UseDisplayMediaReturn
+export declare function useDisplayMedia(options?: UseDisplayMediaOptions): UseDisplayMediaReturn
 ```

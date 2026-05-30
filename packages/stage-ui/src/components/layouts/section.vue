@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { Collapsible } from '@proj-airi/ui'
 
-withDefaults(defineProps<{
-  title: string
-  icon: string
-  innerClass?: string
-  expand?: boolean
-  size?: 'sm' | 'md'
-}>(), {
-  expand: true,
-})
+withDefaults(
+  defineProps<{
+    title: string
+    icon: string
+    innerClass?: string
+    expand?: boolean
+    size?: 'sm' | 'md'
+  }>(),
+  {
+    expand: true,
+  },
+)
 </script>
 
 <template>

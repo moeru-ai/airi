@@ -6,10 +6,7 @@ import type {
 } from '@proj-airi/stage-shared/godot-stage'
 import type { DisplayModel } from '@proj-airi/stage-ui/stores/display-models'
 
-import type {
-  ElectronGodotStageSceneInputPayload,
-  ElectronGodotStageStatus,
-} from '../../../../shared/eventa'
+import type { ElectronGodotStageSceneInputPayload, ElectronGodotStageStatus } from '../../../../shared/eventa'
 
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
@@ -34,10 +31,7 @@ import {
 import { useModelSettingsRuntimeSnapshot } from '../../../composables/model-settings-runtime-snapshot'
 import { assertGodotSceneInputSupportedDisplayModel } from './godot-scene-input'
 import { createGodotViewPatchQueue } from './godot-view-patch-queue'
-import {
-  resolveGodotViewSessionTransition,
-  shouldAcceptGodotViewSessionEvent,
-} from './godot-view-session'
+import { resolveGodotViewSessionTransition, shouldAcceptGodotViewSessionEvent } from './godot-view-session'
 
 const settingsStore = useSettings()
 const { stageModelRenderer, stageModelSelectedDisplayModel } = storeToRefs(settingsStore)
@@ -69,15 +63,13 @@ let disposeGodotViewSnapshotListener: (() => void) | undefined
 let disposeGodotViewErrorListener: (() => void) | undefined
 
 const usesGodotStage = computed(() => stageModelRenderer.value === 'godot')
-const godotToggleLabel = computed(() => usesGodotStage.value
-  ? 'Back to Built-in Stage'
-  : 'Switch to Godot Stage (Experimental)')
+const godotToggleLabel = computed(() =>
+  usesGodotStage.value ? 'Back to Built-in Stage' : 'Switch to Godot Stage (Experimental)',
+)
 const godotStatusMessage = computed(() => {
-  if (godotStageError.value)
-    return godotStageError.value
+  if (godotStageError.value) return godotStageError.value
 
-  if (godotStageStatus.value.state === 'error')
-    return godotStageStatus.value.lastError
+  if (godotStageStatus.value.state === 'error') return godotStageStatus.value.lastError
 
   return undefined
 })
@@ -94,27 +86,22 @@ function createStoppedGodotStageStatus(): ElectronGodotStageStatus {
 }
 
 function inferModelFileName(model: DisplayModel) {
-  if (model.type === 'file')
-    return model.file.name
+  if (model.type === 'file') return model.file.name
 
   try {
     const url = new URL(model.url)
     const parsedName = url.pathname.split('/').pop()
-    if (parsedName)
-      return parsedName
-  }
-  catch {}
+    if (parsedName) return parsedName
+  } catch {}
 
   return `${model.id}.vrm`
 }
 
 async function readSceneInputData(model: DisplayModel) {
-  if (model.type === 'file')
-    return new Uint8Array(await model.file.arrayBuffer())
+  if (model.type === 'file') return new Uint8Array(await model.file.arrayBuffer())
 
   const response = await fetch(model.url)
-  if (!response.ok)
-    throw new Error(`Failed to fetch model asset (${response.status} ${response.statusText})`)
+  if (!response.ok) throw new Error(`Failed to fetch model asset (${response.status} ${response.statusText})`)
 
   return new Uint8Array(await response.arrayBuffer())
 }
@@ -150,8 +137,7 @@ function setGodotViewError(error: unknown, fallbackMessage: string) {
 async function refreshGodotStageStatus() {
   try {
     applyGodotStageStatus(await getGodotStageStatus())
-  }
-  catch (error) {
+  } catch (error) {
     applyGodotStageStatus(createStoppedGodotStageStatus())
     godotStageError.value = errorMessageFrom(error) ?? 'Failed to query Godot stage status.'
   }
@@ -160,15 +146,12 @@ async function refreshGodotStageStatus() {
 async function refreshGodotViewSnapshot(epoch = godotSessionEpoch) {
   try {
     const snapshot = await getGodotStageViewSnapshot()
-    if (!isCurrentGodotSession(epoch))
-      return
+    if (!isCurrentGodotSession(epoch)) return
 
     godotViewSnapshot.value = snapshot
     godotViewError.value = undefined
-  }
-  catch (error) {
-    if (!isCurrentGodotSession(epoch))
-      return
+  } catch (error) {
+    if (!isCurrentGodotSession(epoch)) return
 
     setGodotViewError(error, 'Failed to query Godot stage view state.')
   }
@@ -179,14 +162,11 @@ async function applyGodotViewPatchNow(patch: StageViewPatch) {
 
   try {
     await applyGodotStageViewPatch(patch)
-    if (!isCurrentGodotSession(epoch))
-      return
+    if (!isCurrentGodotSession(epoch)) return
 
     godotViewError.value = undefined
-  }
-  catch (error) {
-    if (!isCurrentGodotSession(epoch))
-      return
+  } catch (error) {
+    if (!isCurrentGodotSession(epoch)) return
 
     setGodotViewError(error, 'Failed to apply Godot stage view patch.')
   }
@@ -224,8 +204,7 @@ function applyGodotStageStatus(next: ElectronGodotStageStatus) {
     return
   }
 
-  if (transition.begin)
-    beginGodotViewSession()
+  if (transition.begin) beginGodotViewSession()
 }
 
 function handleGodotViewPatch(patch: StageViewPatch) {
@@ -235,14 +214,11 @@ function handleGodotViewPatch(patch: StageViewPatch) {
 async function handleGodotViewSnapshotRequest(epoch = godotSessionEpoch) {
   try {
     await requestGodotStageViewSnapshot()
-    if (!isCurrentGodotSession(epoch))
-      return
+    if (!isCurrentGodotSession(epoch)) return
 
     godotViewError.value = undefined
-  }
-  catch (error) {
-    if (!isCurrentGodotSession(epoch))
-      return
+  } catch (error) {
+    if (!isCurrentGodotSession(epoch)) return
 
     setGodotViewError(error, 'Failed to request Godot stage view snapshot.')
   }
@@ -254,19 +230,15 @@ async function syncGodotSceneInput(model: DisplayModel) {
 
   try {
     const payload = await createSceneInputPayload(model)
-    if (syncGeneration !== sceneSyncGeneration || !isCurrentGodotSession(epoch))
-      return
+    if (syncGeneration !== sceneSyncGeneration || !isCurrentGodotSession(epoch)) return
 
     await applyGodotStageSceneInput(payload)
-    if (syncGeneration !== sceneSyncGeneration || !isCurrentGodotSession(epoch))
-      return
+    if (syncGeneration !== sceneSyncGeneration || !isCurrentGodotSession(epoch)) return
 
     void handleGodotViewSnapshotRequest(epoch)
     godotStageError.value = undefined
-  }
-  catch (error) {
-    if (syncGeneration !== sceneSyncGeneration || !isCurrentGodotSession(epoch))
-      return
+  } catch (error) {
+    if (syncGeneration !== sceneSyncGeneration || !isCurrentGodotSession(epoch)) return
 
     godotStageError.value = errorMessageFrom(error) ?? 'Failed to apply model input to Godot stage.'
   }
@@ -285,12 +257,10 @@ async function handleGodotStageToggle() {
 
     applyGodotStageStatus(await startGodotStage())
     settingsStore.setStageModelRenderer('godot')
-  }
-  catch (error) {
+  } catch (error) {
     godotStageError.value = errorMessageFrom(error) ?? 'Failed to switch Godot stage mode.'
     await refreshGodotStageStatus()
-  }
-  finally {
+  } finally {
     switchingGodotStage.value = false
   }
 }
@@ -298,8 +268,7 @@ async function handleGodotStageToggle() {
 watch(
   [stageModelRenderer, stageModelSelectedDisplayModel, () => godotStageStatus.value.state],
   ([renderer, model, stageState]) => {
-    if (renderer !== 'godot' || stageState !== 'running' || !model)
-      return
+    if (renderer !== 'godot' || stageState !== 'running' || !model) return
 
     void syncGodotSceneInput(model)
   },
@@ -308,29 +277,24 @@ watch(
 
 onMounted(async () => {
   disposeGodotStageStatusListener = context.value.on(electronGodotStageStatusChanged, (event) => {
-    if (!event.body)
-      return
+    if (!event.body) return
 
     applyGodotStageStatus(event.body)
   })
 
   disposeGodotViewSnapshotListener = context.value.on(electronGodotStageViewSnapshotChanged, (event) => {
-    if (!event.body)
-      return
+    if (!event.body) return
 
-    if (!shouldAcceptGodotViewSessionEvent(godotStageStatus.value.state))
-      return
+    if (!shouldAcceptGodotViewSessionEvent(godotStageStatus.value.state)) return
 
     godotViewSnapshot.value = event.body
     godotViewError.value = undefined
   })
 
   disposeGodotViewErrorListener = context.value.on(electronGodotStageViewStateError, (event) => {
-    if (!event.body)
-      return
+    if (!event.body) return
 
-    if (!shouldAcceptGodotViewSessionEvent(godotStageStatus.value.state))
-      return
+    if (!shouldAcceptGodotViewSessionEvent(godotStageStatus.value.state)) return
 
     godotViewError.value = event.body
   })
@@ -351,12 +315,7 @@ onUnmounted(() => {
 
 <template>
   <div :class="['relative', 'h-full', 'flex flex-col items-center gap-3']">
-    <Callout
-      v-if="godotStatusMessage"
-      :class="['w-full max-w-6xl']"
-      label="Godot Stage"
-      theme="orange"
-    >
+    <Callout v-if="godotStatusMessage" :class="['w-full max-w-6xl']" label="Godot Stage" theme="orange">
       <p>{{ godotStatusMessage }}</p>
     </Callout>
 
@@ -368,14 +327,7 @@ onUnmounted(() => {
         :godot-view-snapshot="godotViewSnapshot"
         :palette="palette"
         :runtime-snapshot="runtimeSnapshot"
-        :settings-class="[
-          'w-full',
-          'max-w-6xl',
-          'h-fit',
-          'sm:max-h-[80dvh]',
-          'overflow-y-scroll',
-          'relative',
-        ]"
+        :settings-class="['w-full', 'max-w-6xl', 'h-fit', 'sm:max-h-[80dvh]', 'overflow-y-scroll', 'relative']"
         @patch-godot-view-state="handleGodotViewPatch"
       >
         <template #actions>

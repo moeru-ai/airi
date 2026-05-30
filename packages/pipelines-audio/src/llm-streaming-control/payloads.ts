@@ -10,7 +10,7 @@ const emotionValues = [
   'neutral',
 ] as const
 
-export type StreamingControlEmotion = typeof emotionValues[number]
+export type StreamingControlEmotion = (typeof emotionValues)[number]
 
 export interface StreamingControlEmotionPayload {
   name: StreamingControlEmotion

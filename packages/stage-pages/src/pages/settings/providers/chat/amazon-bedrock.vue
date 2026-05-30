@@ -24,8 +24,7 @@ const { activeProvider } = storeToRefs(consciousnessStore)
 const apiKey = computed({
   get: () => providers.value[providerId]?.apiKey || '',
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
+    if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].apiKey = value
   },
 })
@@ -33,22 +32,13 @@ const apiKey = computed({
 const region = computed({
   get: () => providers.value[providerId]?.region || 'us-east-1',
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
+    if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].region = value
   },
 })
 
-const {
-  t,
-  router,
-  providerMetadata,
-  isValidating,
-  isValid,
-  validationMessage,
-  handleResetSettings,
-  forceValid,
-} = useProviderValidation(providerId)
+const { t, router, providerMetadata, isValidating, isValid, validationMessage, handleResetSettings, forceValid } =
+  useProviderValidation(providerId)
 
 function goToModelSelection() {
   activeProvider.value = providerId
@@ -110,7 +100,11 @@ function goToModelSelection() {
             <span>{{ t('settings.dialogs.onboarding.validationSuccess') }}</span>
             <button
               type="button"
-              :class="['ml-2 rounded px-2 py-0.5 text-xs font-medium transition-colors', 'bg-green-100 text-green-600 hover:bg-green-200', 'dark:bg-green-800/30 dark:text-green-300 dark:hover:bg-green-700/40']"
+              :class="[
+                'ml-2 rounded px-2 py-0.5 text-xs font-medium transition-colors',
+                'bg-green-100 text-green-600 hover:bg-green-200',
+                'dark:bg-green-800/30 dark:text-green-300 dark:hover:bg-green-700/40',
+              ]"
               @click="goToModelSelection"
             >
               {{ t('settings.pages.providers.common.goToModelSelection') }}

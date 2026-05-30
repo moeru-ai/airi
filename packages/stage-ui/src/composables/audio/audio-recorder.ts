@@ -6,14 +6,11 @@ import { ref, shallowRef, toRef } from 'vue'
 
 function getMediaStreamTrack(stream: MediaStream) {
   const tracks = stream.getAudioTracks()
-  if (!tracks.length)
-    throw new Error('No audio tracks found in stream')
+  if (!tracks.length) throw new Error('No audio tracks found in stream')
   return tracks[0]
 }
 
-export function useAudioRecorder(
-  media: MaybeRefOrGetter<MediaStream | undefined>,
-) {
+export function useAudioRecorder(media: MaybeRefOrGetter<MediaStream | undefined>) {
   const mediaRef = toRef(media)
   const recording = shallowRef<Blob>()
 
@@ -26,7 +23,7 @@ export function useAudioRecorder(
     onStopRecordHooks.value.push(callback)
     // Return unsubscribe function to prevent memory leaks
     return () => {
-      onStopRecordHooks.value = onStopRecordHooks.value.filter(h => h !== callback)
+      onStopRecordHooks.value = onStopRecordHooks.value.filter((h) => h !== callback)
     }
   }
 
@@ -60,8 +57,7 @@ export function useAudioRecorder(
     for (const hook of onStopRecordHooks.value) {
       try {
         await hook(audioBlob)
-      }
-      catch (err) {
+      } catch (err) {
         console.error('onStopRecord hook failed:', err)
       }
     }

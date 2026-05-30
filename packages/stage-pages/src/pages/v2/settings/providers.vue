@@ -22,7 +22,7 @@ const availableProviderSearchQuery = ref('')
 const availableProviderSearchQueryDebounced = refDebounced(availableProviderSearchQuery, 250)
 
 const availableProviders = computed(() => {
-  return listProviders().map(provider => ({
+  return listProviders().map((provider) => ({
     ...provider,
     nameLocalized: provider.nameLocalize({ t }),
   }))
@@ -33,7 +33,7 @@ const availableProvidersFiltered = computed(() => {
     return availableProviders.value
   }
 
-  return availableProviders.value.filter(provider =>
+  return availableProviders.value.filter((provider) =>
     provider.name.toLowerCase().includes(availableProviderSearchQueryDebounced.value.toLowerCase()),
   )
 })
@@ -41,8 +41,8 @@ const availableProvidersFiltered = computed(() => {
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const isSmallerThan2XL = breakpoints.smaller('2xl')
 
-const paneDatasourceListSize = computed(() => isSmallerThan2XL.value ? 30 : 20)
-const paneDatasourceEditSize = computed(() => isSmallerThan2XL.value ? 80 : 70)
+const paneDatasourceListSize = computed(() => (isSmallerThan2XL.value ? 30 : 20))
+const paneDatasourceEditSize = computed(() => (isSmallerThan2XL.value ? 80 : 70))
 
 function handleAdd(providerId: string) {
   providerCatalogStore.addProvider(providerId)
@@ -55,17 +55,10 @@ function handleClick(providerId: string) {
 
 <template>
   <div h-full w-full flex flex-col gap-2>
-    <h2 text="neutral-900 dark:neutral-100" mb-1 flex justify-between>
-      Provider Catalog
-    </h2>
+    <h2 text="neutral-900 dark:neutral-100" mb-1 flex justify-between>Provider Catalog</h2>
     <Splitpanes class="flex gap-0.8 bg-transparent">
       <Pane :min-size="10" :size="paneDatasourceListSize">
-        <PaneArea
-          :class="[
-            'flex flex-col gap-2',
-            'bg-neutral-50/90 dark:bg-neutral-900/90',
-          ]"
-        >
+        <PaneArea :class="['flex flex-col gap-2', 'bg-neutral-50/90 dark:bg-neutral-900/90']">
           <div relative h-full w-full flex flex-col gap-2>
             <div relative flex flex-1 flex-col gap-2>
               <div :class="['flex flex-row items-center gap-2']">
@@ -81,8 +74,10 @@ function handleClick(providerId: string) {
                   <DropdownMenuPortal>
                     <DropdownMenuContent
                       :class="[
-                        'bg-white', 'dark:bg-neutral-800/90',
-                        'shadow-md', 'dark:shadow-lg',
+                        'bg-white',
+                        'dark:bg-neutral-800/90',
+                        'shadow-md',
+                        'dark:shadow-lg',
                         'backdrop-blur-md',
                         'will-change-[opacity,transform] min-w-[300px] rounded-xl p-2 outline-none',
                         'data-[side=bottom]:animate-slideUpAndFade data-[side=left]:animate-slideRightAndFade data-[side=right]:animate-slideLeftAndFade data-[side=top]:animate-slideDownAndFade',
@@ -90,16 +85,38 @@ function handleClick(providerId: string) {
                       :side-offset="8"
                       align="start"
                     >
-                      <Input v-model="availableProviderSearchQuery" placeholder="Search supported providers..." class="mb-2" variant="primary-dimmed" />
+                      <Input
+                        v-model="availableProviderSearchQuery"
+                        placeholder="Search supported providers..."
+                        class="mb-2"
+                        variant="primary-dimmed"
+                      />
                       <div class="max-h-50dvh flex flex-col gap-1 overflow-y-auto">
-                        <div v-for="(provider) in availableProvidersFiltered" :key="provider.id" @click="() => handleAdd(provider.id)">
+                        <div
+                          v-for="provider in availableProvidersFiltered"
+                          :key="provider.id"
+                          @click="() => handleAdd(provider.id)"
+                        >
                           <div
                             bg="hover:neutral-200/80 dark:hover:neutral-700/80"
                             transition="all duration-100 ease-out"
-                            flex cursor-pointer select-none items-center gap-2 rounded-md px-2 py-1 text-sm
+                            flex
+                            cursor-pointer
+                            select-none
+                            items-center
+                            gap-2
+                            rounded-md
+                            px-2
+                            py-1
+                            text-sm
                           >
                             <div class="relative w-4">
-                              <div :class="[provider.iconColor || provider.icon, 'absolute left-50% top-50% -translate-x-1/2 -translate-y-1/2']" />
+                              <div
+                                :class="[
+                                  provider.iconColor || provider.icon,
+                                  'absolute left-50% top-50% -translate-x-1/2 -translate-y-1/2',
+                                ]"
+                              />
                             </div>
                             <div>{{ provider?.nameLocalized || provider.name }}</div>
                           </div>
@@ -110,7 +127,16 @@ function handleClick(providerId: string) {
                 </DropdownMenuRoot>
               </div>
 
-              <div v-if="Object.keys(providerCatalogStore.configs).length === 0" class="text-neutral-500 <lg:px-4" flex flex-1 flex-col items-center justify-center gap-2>
+              <div
+                v-if="Object.keys(providerCatalogStore.configs).length === 0"
+                class="text-neutral-500 <lg:px-4"
+                flex
+                flex-1
+                flex-col
+                items-center
+                justify-center
+                gap-2
+              >
                 <div i-ph:rectangle-dashed-light text-4xl />
                 <div flex items-center justify-center gap-2>
                   <span>No providers</span>
@@ -126,10 +152,24 @@ function handleClick(providerId: string) {
                   <div
                     bg="hover:neutral-200/80 dark:hover:neutral-700/80"
                     transition="all duration-100 ease-out"
-                    flex cursor-pointer select-none items-center gap-2 rounded-md px-2 py-1 text-sm
+                    flex
+                    cursor-pointer
+                    select-none
+                    items-center
+                    gap-2
+                    rounded-md
+                    px-2
+                    py-1
+                    text-sm
                   >
                     <div class="relative w-4">
-                      <div :class="[providerCatalogStore.getDefinedProvider(providerEntry[1].definitionId)?.iconColor || providerCatalogStore.getDefinedProvider(providerEntry[1].definitionId)?.icon, 'absolute left-50% top-50% -translate-x-1/2 -translate-y-1/2']" />
+                      <div
+                        :class="[
+                          providerCatalogStore.getDefinedProvider(providerEntry[1].definitionId)?.iconColor ||
+                            providerCatalogStore.getDefinedProvider(providerEntry[1].definitionId)?.icon,
+                          'absolute left-50% top-50% -translate-x-1/2 -translate-y-1/2',
+                        ]"
+                      />
                     </div>
                     <div>{{ providerEntry[1].name }}</div>
                   </div>

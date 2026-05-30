@@ -31,14 +31,18 @@ describe('regenerateWindowsLatest', () => {
     await mkdir(bundleDir, { recursive: true })
     await writeFile(join(workspaceRoot, 'pnpm-workspace.yaml'), 'packages:\n  - apps/*\n', 'utf8')
     await writeFile(join(bundleDir, 'AIRI-1.2.3-windows-x64-setup.exe'), 'signed-binary-content', 'utf8')
-    await writeFile(join(bundleDir, 'latest.yml'), yaml.stringify({
-      version: 'stale-version',
-      path: 'stale.exe',
-      sha512: 'stale-sha512',
-      releaseDate: '2026-01-02T03:04:05.000Z',
-      stagingPercentage: 25,
-      files: [{ url: 'stale.exe', sha512: 'stale-sha512', size: 10 }],
-    }), 'utf8')
+    await writeFile(
+      join(bundleDir, 'latest.yml'),
+      yaml.stringify({
+        version: 'stale-version',
+        path: 'stale.exe',
+        sha512: 'stale-sha512',
+        releaseDate: '2026-01-02T03:04:05.000Z',
+        stagingPercentage: 25,
+        files: [{ url: 'stale.exe', sha512: 'stale-sha512', size: 10 }],
+      }),
+      'utf8',
+    )
 
     process.chdir(packageDir)
 

@@ -94,12 +94,12 @@ export function createMcpTools(runtime: McpToolRuntime): Array<Promise<Tool>> {
   return [
     tool({
       name: 'builtIn_mcpListTools',
-      description: 'List all available MCP tools. Call this first to discover tool names before calling builtIn_mcpCallTool.',
+      description:
+        'List all available MCP tools. Call this first to discover tool names before calling builtIn_mcpCallTool.',
       execute: async () => {
         try {
           return await runtime.listTools()
-        }
-        catch (error) {
+        } catch (error) {
           console.warn('[builtIn_mcpListTools] failed to list tools:', error)
           return ''
         }
@@ -113,8 +113,7 @@ export function createMcpTools(runtime: McpToolRuntime): Array<Promise<Tool>> {
         try {
           const args = argsJson ? JSON.parse(argsJson) : {}
           return await runtime.callTool({ name, arguments: args })
-        }
-        catch (error) {
+        } catch (error) {
           return {
             isError: true,
             content: [{ type: 'text', text: errorMessageFrom(error) ?? String(error) }],
@@ -123,10 +122,12 @@ export function createMcpTools(runtime: McpToolRuntime): Array<Promise<Tool>> {
       },
       // NOTICE: `arguments` is z.string() (JSON) because z.unknown() produces `{}` (no `type` key)
       // and z.record() emits `propertyNames`, both rejected by OpenAI.
-      parameters: z.object({
-        name: z.string().describe('Tool name in "<serverName>::<toolName>" format'),
-        arguments: z.string().describe('JSON object of tool arguments, e.g. {"query":"hello","limit":10}'),
-      }).strict(),
+      parameters: z
+        .object({
+          name: z.string().describe('Tool name in "<serverName>::<toolName>" format'),
+          arguments: z.string().describe('JSON object of tool arguments, e.g. {"query":"hello","limit":10}'),
+        })
+        .strict(),
     }),
   ]
 }

@@ -45,12 +45,8 @@ useEventListener(element, 'keydown', (e) => {
 </script>
 
 <template>
-  <div v-if="cond" ref="element">
-    Div1
-  </div>
-  <div v-else ref="element">
-    Div2
-  </div>
+  <div v-if="cond" ref="element">Div1</div>
+  <div v-else ref="element">Div2</div>
 </template>
 ```
 
@@ -159,9 +155,7 @@ export declare function useEventListener<E extends keyof WindowEventMap>(
 export declare function useEventListener<E extends keyof DocumentEventMap>(
   target: Document,
   event: MaybeRefOrGetter<Arrayable<E>>,
-  listener: MaybeRef<
-    Arrayable<(this: Document, ev: DocumentEventMap[E]) => any>
-  >,
+  listener: MaybeRef<Arrayable<(this: Document, ev: DocumentEventMap[E]) => any>>,
   options?: MaybeRefOrGetter<boolean | AddEventListenerOptions>,
 ): Fn
 /**
@@ -174,9 +168,7 @@ export declare function useEventListener<E extends keyof DocumentEventMap>(
 export declare function useEventListener<E extends keyof ShadowRootEventMap>(
   target: MaybeRefOrGetter<Arrayable<ShadowRoot> | null | undefined>,
   event: MaybeRefOrGetter<Arrayable<E>>,
-  listener: MaybeRef<
-    Arrayable<(this: ShadowRoot, ev: ShadowRootEventMap[E]) => any>
-  >,
+  listener: MaybeRef<Arrayable<(this: ShadowRoot, ev: ShadowRootEventMap[E]) => any>>,
   options?: MaybeRefOrGetter<boolean | AddEventListenerOptions>,
 ): Fn
 /**
@@ -199,13 +191,8 @@ export declare function useEventListener<E extends keyof HTMLElementEventMap>(
  *
  * @see https://vueuse.org/useEventListener
  */
-export declare function useEventListener<
-  Names extends string,
-  EventType = Event,
->(
-  target: MaybeRefOrGetter<
-    Arrayable<InferEventTarget<Names>> | null | undefined
-  >,
+export declare function useEventListener<Names extends string, EventType = Event>(
+  target: MaybeRefOrGetter<Arrayable<InferEventTarget<Names>> | null | undefined>,
   event: MaybeRefOrGetter<Arrayable<Names>>,
   listener: MaybeRef<Arrayable<GeneralEventListener<EventType>>>,
   options?: MaybeRefOrGetter<boolean | AddEventListenerOptions>,

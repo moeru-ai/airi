@@ -18,7 +18,10 @@ interface UseVADOptions {
 const DEFAULT_VAD_THRESHOLD = 0.6
 const DEFAULT_VAD_MIN_SILENCE_DURATION_MS = 800
 
-export function resolveVADConfig(threshold?: number, minSilenceDurationMs?: number): Pick<BaseVADConfig, 'speechThreshold' | 'exitThreshold' | 'minSilenceDurationMs'> {
+export function resolveVADConfig(
+  threshold?: number,
+  minSilenceDurationMs?: number,
+): Pick<BaseVADConfig, 'speechThreshold' | 'exitThreshold' | 'minSilenceDurationMs'> {
   const resolvedThreshold = threshold ?? DEFAULT_VAD_THRESHOLD
 
   return {
@@ -52,8 +55,7 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
   const minSilenceDurationMs = toRef(options.minSilenceDurationMs)
 
   async function init() {
-    if (loaded.value || loading.value || manager.value)
-      return
+    if (loaded.value || loading.value || manager.value) return
 
     loading.value = true
     inferenceError.value = ''
@@ -109,18 +111,15 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
       await m.initialize()
       manager.value = m
       loaded.value = true
-    }
-    catch (error) {
+    } catch (error) {
       inferenceError.value = error instanceof Error ? error.message : String(error)
-    }
-    finally {
+    } finally {
       loading.value = false
     }
   }
 
   async function start(stream: MediaStream) {
-    if (manager.value)
-      await manager.value.start(stream)
+    if (manager.value) await manager.value.start(stream)
   }
 
   function dispose() {

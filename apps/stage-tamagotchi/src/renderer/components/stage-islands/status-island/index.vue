@@ -40,16 +40,12 @@ const iconClasses = computed(() => {
     connected.value ? 'i-ph:wifi-high' : `i-ph:wifi-slash ${lampFlickerAnimationClass}`,
     statusIslandSize.icon,
     'shrink-0 transition-colors duration-300 ease-in-out',
-    connected.value
-      ? 'text-emerald-600 dark:text-emerald-300'
-      : 'text-amber-600 dark:text-amber-300',
+    connected.value ? 'text-emerald-600 dark:text-emerald-300' : 'text-amber-600 dark:text-amber-300',
   ]
 })
 
 const buttonLabel = computed(() => {
-  return connected.value
-    ? t('stage.websocket-status.connected')
-    : t('stage.websocket-status.disconnected')
+  return connected.value ? t('stage.websocket-status.connected') : t('stage.websocket-status.disconnected')
 })
 
 const tooltipLabel = computed(() => {

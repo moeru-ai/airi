@@ -40,8 +40,7 @@ export function useElectronScreenCapture(ipcRenderer: IpcRenderer, sourcesOption
         timeout: request?.timeout,
       })
       return await useFn()
-    }
-    finally {
+    } finally {
       if (handle) {
         await resetSource(handle)
       }

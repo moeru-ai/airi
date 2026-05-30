@@ -44,10 +44,7 @@ level.value = 2 // zoom level will change
 
 ```ts
 export declare function useZoomLevel(level: MaybeRef<number>): Ref<number>
-export declare function useZoomLevel(
-  webFrame: WebFrame,
-  level: MaybeRef<number>,
-): Ref<number>
+export declare function useZoomLevel(webFrame: WebFrame, level: MaybeRef<number>): Ref<number>
 export declare function useZoomLevel(webFrame: WebFrame): Ref<number>
 export declare function useZoomLevel(): Ref<number>
 ```

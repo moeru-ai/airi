@@ -22,33 +22,31 @@ tags: [vue3, async-components, ssr, hydration, performance, ux]
 In Vue 3.5+, async components can delay hydration until idle time, visibility, media query match, or user interaction.
 
 **BAD:**
+
 ```vue
 <script setup lang="ts">
 import { defineAsyncComponent } from 'vue'
 
 const AsyncComments = defineAsyncComponent({
-  loader: () => import('./Comments.vue')
+  loader: () => import('./Comments.vue'),
 })
 </script>
 ```
 
 **GOOD:**
+
 ```vue
 <script setup lang="ts">
-import {
-  defineAsyncComponent,
-  hydrateOnIdle,
-  hydrateOnVisible
-} from 'vue'
+import { defineAsyncComponent, hydrateOnIdle, hydrateOnVisible } from 'vue'
 
 const AsyncComments = defineAsyncComponent({
   loader: () => import('./Comments.vue'),
-  hydrate: hydrateOnVisible({ rootMargin: '100px' })
+  hydrate: hydrateOnVisible({ rootMargin: '100px' }),
 })
 
 const AsyncFooter = defineAsyncComponent({
   loader: () => import('./Footer.vue'),
-  hydrate: hydrateOnIdle(5000)
+  hydrate: hydrateOnIdle(5000),
 })
 </script>
 ```
@@ -58,6 +56,7 @@ const AsyncFooter = defineAsyncComponent({
 Avoid showing loading UI immediately for components that usually resolve quickly.
 
 **BAD:**
+
 ```vue
 <script setup lang="ts">
 import { defineAsyncComponent } from 'vue'
@@ -67,12 +66,13 @@ import LoadingSpinner from './LoadingSpinner.vue'
 const AsyncDashboard = defineAsyncComponent({
   loader: () => import('./Dashboard.vue'),
   loadingComponent: LoadingSpinner,
-  delay: 0
+  delay: 0,
 })
 </script>
 ```
 
 **GOOD:**
+
 ```vue
 <script setup lang="ts">
 import { defineAsyncComponent } from 'vue'
@@ -85,15 +85,15 @@ const AsyncDashboard = defineAsyncComponent({
   loadingComponent: LoadingSpinner,
   errorComponent: ErrorDisplay,
   delay: 200,
-  timeout: 30000
+  timeout: 30000,
 })
 </script>
 ```
 
 ## Delay Guidelines
 
-| Scenario | Recommended Delay |
-|----------|-------------------|
-| Small component, fast network | `200ms` |
-| Known heavy component | `100ms` |
-| Background or non-critical UI | `300-500ms` |
+| Scenario                      | Recommended Delay |
+| ----------------------------- | ----------------- |
+| Small component, fast network | `200ms`           |
+| Known heavy component         | `100ms`           |
+| Background or non-critical UI | `300-500ms`       |

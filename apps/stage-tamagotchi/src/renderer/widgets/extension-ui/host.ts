@@ -8,15 +8,10 @@ const extensionUiDispatchReservedPropKeys = new Set([
   'module-config',
 ])
 
-const extensionUiRenderReservedPropKeys = new Set([
-  'title',
-  ...extensionUiDispatchReservedPropKeys,
-])
+const extensionUiRenderReservedPropKeys = new Set(['title', ...extensionUiDispatchReservedPropKeys])
 
 function sanitizeExtensionUiProps(record: Record<string, any>, reservedKeys: Set<string>) {
-  return Object.fromEntries(
-    Object.entries(record).filter(([key]) => !reservedKeys.has(key)),
-  )
+  return Object.fromEntries(Object.entries(record).filter(([key]) => !reservedKeys.has(key)))
 }
 
 export function sanitizeExtensionUiDispatchProps(record: Record<string, any>) {
@@ -37,11 +32,11 @@ export function canRenderExtensionUi(options: {
   iframeSrcdoc?: string
 }) {
   return Boolean(
-    options.moduleSnapshot
-    && (options.iframeSrc || options.iframeSrcdoc)
-    && !options.loading
-    && !options.error
-    && !options.iframeLoadError
-    && !options.iframeMountError,
+    options.moduleSnapshot &&
+    (options.iframeSrc || options.iframeSrcdoc) &&
+    !options.loading &&
+    !options.error &&
+    !options.iframeLoadError &&
+    !options.iframeMountError,
   )
 }

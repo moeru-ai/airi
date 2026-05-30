@@ -10,7 +10,7 @@ const defaultCreateSettings = ZipLoader.createSettings
 ZipLoader.createSettings = async (reader: JSZip) => {
   const filePaths = Object.keys(reader.files)
   const settings = await (async () => {
-    if (!filePaths.some(file => isSettingsFile(file))) {
+    if (!filePaths.some((file) => isSettingsFile(file))) {
       return createFakeSettings(filePaths)
     }
     return defaultCreateSettings(reader)
@@ -20,11 +20,11 @@ ZipLoader.createSettings = async (reader: JSZip) => {
   try {
     const metadataSettings = settings as ModelSettings & {
       _cdiData?: unknown
-      _expFiles?: Array<{ name: string, fileName: string, data: unknown }>
+      _expFiles?: Array<{ name: string; fileName: string; data: unknown }>
     }
 
     // Find and parse CDI file
-    const cdiPath = filePaths.find(f => f.toLowerCase().endsWith('.cdi3.json'))
+    const cdiPath = filePaths.find((f) => f.toLowerCase().endsWith('.cdi3.json'))
     if (cdiPath) {
       const cdiText = await reader.file(cdiPath)!.async('text')
       metadataSettings._cdiData = JSON.parse(cdiText)
@@ -32,9 +32,9 @@ ZipLoader.createSettings = async (reader: JSZip) => {
     }
 
     // Find and collect expression files
-    const expPaths = filePaths.filter(f => f.toLowerCase().endsWith('.exp3.json'))
+    const expPaths = filePaths.filter((f) => f.toLowerCase().endsWith('.exp3.json'))
     if (expPaths.length > 0) {
-      const expFiles: Array<{ name: string, fileName: string, data: unknown }> = []
+      const expFiles: Array<{ name: string; fileName: string; data: unknown }> = []
       for (const expPath of expPaths) {
         const expText = await reader.file(expPath)!.async('text')
         const baseName = expPath.split('/').pop()?.replace('.exp3.json', '') || expPath
@@ -47,8 +47,7 @@ ZipLoader.createSettings = async (reader: JSZip) => {
       metadataSettings._expFiles = expFiles
       console.info('[ZipLoader] Extracted', expFiles.length, 'expression files')
     }
-  }
-  catch (e) {
+  } catch (e) {
     console.warn('[ZipLoader] Failed to extract CDI/EXP metadata:', e)
   }
 
@@ -70,10 +69,10 @@ export function basename(path: string): string {
 
 // copy and modified from https://github.com/guansss/live2d-viewer-web/blob/f6060b2ce52c2e26b6b61fa903c837fe343f72d1/src/app/upload.ts#L81-L142
 function createFakeSettings(files: string[]): ModelSettings {
-  const mocFiles = files.filter(file => isMocFile(file))
+  const mocFiles = files.filter((file) => isMocFile(file))
 
   if (mocFiles.length !== 1) {
-    const fileList = mocFiles.length ? `(${mocFiles.map(f => `"${f}"`).join(',')})` : ''
+    const fileList = mocFiles.length ? `(${mocFiles.map((f) => `"${f}"`).join(',')})` : ''
 
     throw new Error(`Expected exactly one moc file, got ${mocFiles.length} ${fileList}`)
   }
@@ -81,15 +80,15 @@ function createFakeSettings(files: string[]): ModelSettings {
   const mocFile = mocFiles[0]
   const modelName = basename(mocFile).replace(/\.moc3?/, '')
 
-  const textures = files.filter(f => f.endsWith('.png'))
+  const textures = files.filter((f) => f.endsWith('.png'))
 
   if (!textures.length) {
     throw new Error('Textures not found')
   }
 
-  const motions = files.filter(f => f.endsWith('.mtn') || f.endsWith('.motion3.json'))
-  const physics = files.find(f => f.includes('physics'))
-  const pose = files.find(f => f.includes('pose'))
+  const motions = files.filter((f) => f.endsWith('.mtn') || f.endsWith('.motion3.json'))
+  const physics = files.find((f) => f.includes('physics'))
+  const pose = files.find((f) => f.includes('pose'))
 
   const settings = new Cubism4ModelSettings({
     url: `${modelName}.model3.json`,
@@ -101,7 +100,7 @@ function createFakeSettings(files: string[]): ModelSettings {
       Pose: pose,
       Motions: motions.length
         ? {
-            '': motions.map(motion => ({ File: motion })),
+            '': motions.map((motion) => ({ File: motion })),
           }
         : undefined,
     },
@@ -138,12 +137,12 @@ ZipLoader.getFilePaths = (jsZip: JSZip) => {
 }
 
 ZipLoader.getFiles = (jsZip: JSZip, paths: string[]) =>
-  Promise.all(paths.map(
-    async (path) => {
+  Promise.all(
+    paths.map(async (path) => {
       const fileName = path.slice(path.lastIndexOf('/') + 1)
 
       const blob = await jsZip.file(path)!.async('blob')
 
       return new File([blob], fileName)
-    },
-  ))
+    }),
+  )

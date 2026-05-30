@@ -28,9 +28,13 @@ import { useDebounceFn, useEventListener } from '@vueuse/core'
 
 // If no invokation after 5000ms due to repeated input,
 // the function will be called anyway.
-const debouncedFn = useDebounceFn(() => {
-  // do something
-}, 1000, { maxWait: 5000 })
+const debouncedFn = useDebounceFn(
+  () => {
+    // do something
+  },
+  1000,
+  { maxWait: 5000 },
+)
 
 useEventListener(window, 'resize', debouncedFn)
 ```

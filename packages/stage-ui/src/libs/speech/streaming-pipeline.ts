@@ -158,8 +158,7 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
   const bufferEntireSession = options.bufferEntireSession ?? false
 
   function safeSend(payload: string) {
-    if (closed)
-      return
+    if (closed) return
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(payload)
       return
@@ -175,8 +174,7 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
     sentenceChunkBytes: number,
     textOverride?: string,
   ) {
-    if (sentenceChunkBytes === 0)
-      return
+    if (sentenceChunkBytes === 0) return
     const merged = new Uint8Array(sentenceChunkBytes)
     let offset = 0
     for (const c of sentenceChunks) {
@@ -196,8 +194,7 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
       // not race on a buffer the decoder may detach.
       const audio = await options.audioContext.decodeAudioData(merged.buffer.slice(0))
       options.onSentence?.({ index: sentenceIndex++, text, audio })
-    }
-    catch (err) {
+    } catch (err) {
       options.onError?.(err instanceof Error ? err : new Error(String(err)))
     }
   }
@@ -211,13 +208,14 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
     // `.catch(() => {})` keeps a single decode failure from poisoning the
     // tail of the chain — failures already surface via `onError` inside
     // `flushAccumulatedAsSentence`.
-    pendingFlush = pendingFlush.then(() => flushAccumulatedAsSentence(sentenceChunks, sentenceChunkBytes, textOverride)).catch(() => {})
+    pendingFlush = pendingFlush
+      .then(() => flushAccumulatedAsSentence(sentenceChunks, sentenceChunkBytes, textOverride))
+      .catch(() => {})
     return pendingFlush
   }
 
   async function requestTerminate(err: Error | null) {
-    if (closed || terminationRequested)
-      return
+    if (closed || terminationRequested) return
     terminationRequested = true
     // Wait for every queued flush (and its `onSentence` dispatch) to drain
     // before flipping `closed`. Without this await, late-resolving decodes
@@ -237,8 +235,7 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
       ...(options.extraBody ? { extra_body: options.extraBody } : {}),
     }
     ws.send(JSON.stringify(startFrame))
-    for (const payload of beforeOpenQueue)
-      ws.send(payload)
+    for (const payload of beforeOpenQueue) ws.send(payload)
     beforeOpenQueue.length = 0
   })
 
@@ -255,11 +252,10 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
   })
 
   async function handleControlFrame(raw: string) {
-    let evt: { event?: string, payload?: Record<string, unknown>, text?: string, code?: string, message?: string }
+    let evt: { event?: string; payload?: Record<string, unknown>; text?: string; code?: string; message?: string }
     try {
       evt = JSON.parse(raw)
-    }
-    catch {
+    } catch {
       return
     }
 
@@ -269,13 +265,11 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
         // back-to-back `sentence.start`s (which shouldn't happen but
         // codex MEDIUM #4 noted the race) don't clobber each other.
         const text = readSentenceText(evt.payload)
-        if (text != null)
-          pendingSentenceTexts.push(text)
+        if (text != null) pendingSentenceTexts.push(text)
         break
       }
       case 'sentence.end': {
-        if (bufferEntireSession)
-          break
+        if (bufferEntireSession) break
         const text = readSentenceText(evt.payload) ?? pendingSentenceTexts.shift() ?? ''
         // Fire-and-forget into the serialized chain. We do NOT await here;
         // awaiting from the message handler does not block sibling handlers
@@ -292,8 +286,7 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
         // text via the queue but do NOT flush audio here — buffered mode
         // flushes once at session.finished instead.
         const text = readSentenceText(evt.payload)
-        if (text != null)
-          pendingSentenceTexts.push(text)
+        if (text != null) pendingSentenceTexts.push(text)
         break
       }
       case 'session.finished': {
@@ -312,8 +305,7 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
   }
 
   ws.addEventListener('close', (ev) => {
-    if (closed)
-      return
+    if (closed) return
     if (sawSessionFinished) {
       // Normal end after `session.finished`; the session.finished handler
       // already enqueued the tail flush and called requestTerminate. Just
@@ -334,13 +326,11 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
   })
 
   function terminate(err: Error | null) {
-    if (closed)
-      return
+    if (closed) return
     closed = true
 
     const triggerCallbacks = () => {
-      if (err != null)
-        options.onError?.(err)
+      if (err != null) options.onError?.(err)
       options.onDone?.()
     }
 
@@ -354,21 +344,18 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
         setTimeout(() => {
           try {
             ws.close()
-          }
-          catch {}
+          } catch {}
           triggerCallbacks()
         }, 0)
         return
       }
-    }
-    catch {}
+    } catch {}
     triggerCallbacks()
   }
 
   return {
     appendText(text: string) {
-      if (text.length === 0)
-        return
+      if (text.length === 0) return
       // Pure-whitespace chunks (e.g. the " " between two LLM tokens) ARE
       // forwarded verbatim. Dropping them would corrupt the text the
       // upstream model sees ("hello" + " " + "world" → "helloworld").
@@ -381,8 +368,7 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
       safeSend(JSON.stringify({ event: 'finish' }))
     },
     cancel() {
-      if (closed || terminationRequested)
-        return
+      if (closed || terminationRequested) return
       safeSend(JSON.stringify({ event: 'cancel' }))
       // Route through `requestTerminate` so any in-flight `decodeAudioData`
       // can still resolve and emit `onSentence` before `onDone` flips the
@@ -413,8 +399,7 @@ function toWebSocketUrl(httpBase: string, path: string, token: string): string {
  * (e.g. final upstream events with empty bodies).
  */
 function readSentenceText(payload: Record<string, unknown> | undefined): string | null {
-  if (!payload || typeof payload !== 'object')
-    return null
+  if (!payload || typeof payload !== 'object') return null
   const text = (payload as { text?: unknown }).text
   return typeof text === 'string' ? text : null
 }

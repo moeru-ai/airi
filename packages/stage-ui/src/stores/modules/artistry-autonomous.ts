@@ -83,8 +83,9 @@ export const useAutonomousArtistryStore = defineStore('artistry-autonomous', () 
       }
 
       // 1. Compose the "Director" prompt based on target
-      const systemPrompt = target === 'assistant'
-        ? `You are the Cinematic Director for AIRI. 
+      const systemPrompt =
+        target === 'assistant'
+          ? `You are the Cinematic Director for AIRI. 
 Your job is to analyze the character's response and reaction to the user, and decide if it warrants a visual manifestation (a generative image).
 Manifestation is warranted for:
 - Descriptions of beautiful scenery or environment changes in the response
@@ -102,7 +103,7 @@ Output EXACTLY this JSON format and nothing else:
   "prompt": "Highly detailed, illustrative prompt for the image generator capturing the character's reaction and scene. Use Mori's style (masterpiece, high quality, manga style, intricate details)",
   "title": "Short descriptive title for the scene"
 }`
-        : `You are the Cinematic Director for AIRI. 
+          : `You are the Cinematic Director for AIRI. 
 Your job is to analyze the user's input and decide if it warrants a visual manifestation (a generative image).
 Manifestation is warranted for:
 - Descriptions of beautiful scenery or environment changes
@@ -122,7 +123,9 @@ Output EXACTLY this JSON format and nothing else:
 
       // 2. Rollup history and text into a single prompt to help the LLM "see" the full context
       const recentHistory = history.slice(-3)
-      const historyText = recentHistory.map(m => `[${m.role === 'assistant' ? 'Companion' : 'User'}]: ${m.content}`).join('\n\n')
+      const historyText = recentHistory
+        .map((m) => `[${m.role === 'assistant' ? 'Companion' : 'User'}]: ${m.content}`)
+        .join('\n\n')
 
       const analysisPrompt = `Consider the recent history between the user and the character for context and inspiration, then analyze the latest ${target === 'assistant' ? 'response from the companion' : 'input from the user'} to decide if a visual manifestation is needed.
 
@@ -157,7 +160,7 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
         throw new Error(`Missing LLM configuration (Model: ${modelId}, Provider: ${providerId})`)
       }
 
-      const chatProvider = await providersStore.getProviderInstance(providerId) as any
+      const chatProvider = (await providersStore.getProviderInstance(providerId)) as any
       if (!chatProvider) {
         throw new Error(`Failed to resolve chat provider instance for: ${providerId}`)
       }
@@ -166,7 +169,7 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
       // Skipped for ASSISTANT target as the main response is already finalized.
       if (target === 'user') {
         artistLog('User target detected. Applying 10s safety delay...')
-        await new Promise(resolve => setTimeout(resolve, 10000))
+        await new Promise((resolve) => setTimeout(resolve, 10000))
       }
 
       // 2. Call LLM (Non-streaming for structured data)
@@ -208,7 +211,7 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
       })
 
       const thresholdMet = (analysis.intensity ?? 0) >= threshold
-      toast('Director\'s Decision', {
+      toast("Director's Decision", {
         description: `${thresholdMet ? '✅' : '❌'} Grade: ${analysis.intensity}/${threshold}\nReason: ${analysis.reasoning?.substring(0, 130)}${analysis.reasoning?.length > 130 ? '...' : ''}`,
         duration: 7000,
       })
@@ -255,13 +258,18 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
           if (result.base64) {
             const response = await fetch(result.base64)
             blob = await response.blob()
-          }
-          else {
+          } else {
             const response = await fetch(result.imageUrl!)
             blob = await response.blob()
           }
 
-          const entryId = await backgroundStore.addBackground('journal', blob, analysis.title || 'Autonomous Scene', analysis.prompt, cardId)
+          const entryId = await backgroundStore.addBackground(
+            'journal',
+            blob,
+            analysis.title || 'Autonomous Scene',
+            analysis.prompt,
+            cardId,
+          )
           artistLog('Generation complete and added to journal.', { entryId })
 
           // 5. Route based on spawnMode
@@ -313,8 +321,7 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
                   size: 'm',
                   ttlMs: 0,
                 })
-              }
-              catch (widgetErr) {
+              } catch (widgetErr) {
                 console.warn('[AutonomousArtist] Failed to spawn Result widget', widgetErr)
               }
               break
@@ -349,22 +356,18 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
                   size: 'm',
                   ttlMs: 0,
                 })
-              }
-              catch (widgetErr) {
+              } catch (widgetErr) {
                 console.warn('[AutonomousArtist] Failed to spawn Result widget', widgetErr)
               }
               break
           }
         }
-      }
-      else {
+      } else {
         artistLog(`Intensity (${analysis.intensity}) below threshold (${threshold}). No action taken.`)
       }
-    }
-    catch (err) {
+    } catch (err) {
       artistLog('Task failed with error:', err)
-    }
-    finally {
+    } finally {
       isProcessing.value = false
     }
   }

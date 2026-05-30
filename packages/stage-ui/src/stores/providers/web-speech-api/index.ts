@@ -23,10 +23,18 @@ function createDeferred<T>() {
     promise,
     resolve,
     reject,
-    get isResolved() { return _isResolved },
-    get isRejected() { return _isRejected },
-    set isResolved(value: boolean) { _isResolved = value },
-    set isRejected(value: boolean) { _isRejected = value },
+    get isResolved() {
+      return _isResolved
+    },
+    get isRejected() {
+      return _isRejected
+    },
+    set isResolved(value: boolean) {
+      _isResolved = value
+    },
+    set isRejected(value: boolean) {
+      _isRejected = value
+    },
   }
 }
 
@@ -52,11 +60,13 @@ export interface WebSpeechAPIExtraOptions {
  */
 export function createWebSpeechAPIProvider(): TranscriptionProviderWithExtraOptions<string, WebSpeechAPIExtraOptions> {
   // Check if Web Speech API is available
-  const isAvailable = typeof window !== 'undefined'
-    && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)
+  const isAvailable =
+    typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)
 
   if (!isAvailable) {
-    throw new Error('Web Speech API is not available in this environment. It requires a browser context with SpeechRecognition support (Chrome, Edge, Safari).')
+    throw new Error(
+      'Web Speech API is not available in this environment. It requires a browser context with SpeechRecognition support (Chrome, Edge, Safari).',
+    )
   }
 
   const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
@@ -74,7 +84,9 @@ export function createWebSpeechAPIProvider(): TranscriptionProviderWithExtraOpti
             // If body is a Blob/File, it's definitely a file
             const body = _init.body
             if (body instanceof FormData || body instanceof Blob || body instanceof File) {
-              const error = new Error('Web Speech API does not support file-based transcription. It only supports live streaming from a MediaStream. Please use the streaming transcription API or select a different provider that supports file-based transcription.')
+              const error = new Error(
+                'Web Speech API does not support file-based transcription. It only supports live streaming from a MediaStream. Please use the streaming transcription API or select a different provider that supports file-based transcription.',
+              )
               throw error
             }
           }
@@ -185,14 +197,13 @@ export function streamWebSpeechAPITranscription(
       if (recognitionInstance) {
         try {
           recognitionInstance.stop()
-        }
-        catch {}
+        } catch {}
       }
     },
   })
 
-  const isAvailable = typeof window !== 'undefined'
-    && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)
+  const isAvailable =
+    typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)
 
   if (!isAvailable) {
     const error = new Error('Web Speech API is not available in this environment.')
@@ -232,8 +243,7 @@ export function streamWebSpeechAPITranscription(
 
       if (result.isFinal) {
         finalTranscript = `${finalTranscript}${transcript} ` // Add space between final results
-      }
-      else if (recognition.interimResults) {
+      } else if (recognition.interimResults) {
         // Collect interim results but don't emit them as final yet
         interimTranscript += transcript
       }
@@ -284,7 +294,12 @@ export function streamWebSpeechAPITranscription(
   }
 
   recognition.onend = () => {
-    console.info('Web Speech API recognition ended. Continuous mode:', options?.continuous !== false, 'Aborted:', options?.abortSignal?.aborted)
+    console.info(
+      'Web Speech API recognition ended. Continuous mode:',
+      options?.continuous !== false,
+      'Aborted:',
+      options?.abortSignal?.aborted,
+    )
 
     // If continuous mode and not aborted, restart recognition
     if (options?.continuous !== false && !options?.abortSignal?.aborted) {
@@ -296,17 +311,17 @@ export function streamWebSpeechAPITranscription(
         try {
           currentRecognition.start()
           console.info('Web Speech API recognition restarted (continuous mode)')
-        }
-        catch (err) {
+        } catch (err) {
           console.warn('Web Speech API failed to restart, creating new instance:', err)
           // If restart fails, create a new instance
           try {
             createAndStartNewRecognitionInstance(recognition)
             console.info('Web Speech API created new instance and started')
-          }
-          catch (newErr) {
+          } catch (newErr) {
             console.error('Web Speech API failed to create new instance:', newErr)
-            const error = new Error(`Failed to restart recognition: ${newErr instanceof Error ? newErr.message : String(newErr)}`)
+            const error = new Error(
+              `Failed to restart recognition: ${newErr instanceof Error ? newErr.message : String(newErr)}`,
+            )
             fullStreamCtrl?.error(error)
             textStreamCtrl?.error(error)
             deferredText.reject(error)
@@ -314,8 +329,7 @@ export function streamWebSpeechAPITranscription(
           }
         }
       }, 100)
-    }
-    else {
+    } else {
       // Don't try to enqueue/close if the stream has already been aborted/errored
       if (options?.abortSignal?.aborted || deferredText.isRejected) {
         return
@@ -341,8 +355,7 @@ export function streamWebSpeechAPITranscription(
     options.abortSignal.addEventListener('abort', () => {
       try {
         recognition.stop()
-      }
-      catch {}
+      } catch {}
       const error = new DOMException('Aborted', 'AbortError')
       fullStreamCtrl?.error(error)
       textStreamCtrl?.error(error)
@@ -370,8 +383,7 @@ export function streamWebSpeechAPITranscription(
       recognition.start()
       console.info('Web Speech API recognition started successfully')
       return true
-    }
-    catch (error: any) {
+    } catch (error: any) {
       // Common errors:
       // - "already started": Recognition is already running
       // - "not-allowed": Microphone permission denied
@@ -402,9 +414,10 @@ export function streamWebSpeechAPITranscription(
         createAndStartNewRecognitionInstance(recognition)
         console.info('Web Speech API recognition restarted successfully with new instance')
         return true
-      }
-      catch (restartError: any) {
-        const err = new Error(`Failed to start Web Speech API recognition: ${restartError?.message || String(restartError)}`)
+      } catch (restartError: any) {
+        const err = new Error(
+          `Failed to start Web Speech API recognition: ${restartError?.message || String(restartError)}`,
+        )
         fullStreamCtrl?.error(err)
         textStreamCtrl?.error(err)
         deferredText.reject(err)

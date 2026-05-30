@@ -38,8 +38,7 @@ function createMockAudioStream() {
     // Start the oscillator
     oscillator.value.start()
     isPlaying.value = true
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Failed to create mock audio stream:', error)
   }
 }
@@ -63,8 +62,7 @@ function stopMockAudioStream() {
 function toggleAudio() {
   if (isPlaying.value) {
     stopMockAudioStream()
-  }
-  else {
+  } else {
     createMockAudioStream()
   }
 }
@@ -88,35 +86,26 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <Story
-    title="Audio Spectrum"
-    group="gadgets"
-    :layout="{ type: 'grid', width: '100%' }"
-  >
+  <Story title="Audio Spectrum" group="gadgets" :layout="{ type: 'grid', width: '100%' }">
     <template #controls>
       <ThemeColorsHueControl />
     </template>
 
-    <Variant
-      id="interactive-demo"
-      title="Interactive Demo"
-    >
+    <Variant id="interactive-demo" title="Interactive Demo">
       <div class="rounded-xl bg-neutral-100 p-6 dark:bg-neutral-800">
         <div class="mb-6 flex flex-col gap-4">
           <div flex="~ row" items-center justify-between>
             <div>
-              <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
-                Audio Spectrum
-              </h2>
+              <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">Audio Spectrum</h2>
               <div text="neutral-400 dark:neutral-500">
                 <span>Playground of Audio Spectrum component</span>
               </div>
             </div>
             <button
               class="rounded-lg px-4 py-2 font-medium transition-colors"
-              :class="isPlaying
-                ? 'bg-red-500 hover:bg-red-600 text-white'
-                : 'bg-primary-500 hover:bg-primary-600 text-white'"
+              :class="
+                isPlaying ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-primary-500 hover:bg-primary-600 text-white'
+              "
               @click="toggleAudio"
             >
               {{ isPlaying ? 'Stop Audio' : 'Start Audio' }}
@@ -125,13 +114,7 @@ onBeforeUnmount(() => {
 
           <!-- Controls -->
           <div class="flex flex-col gap-4">
-            <FieldRange
-              v-model.number="frequency"
-              :min="50"
-              :max="2000"
-              :step="1"
-              label="Frequency"
-            />
+            <FieldRange v-model.number="frequency" :min="50" :max="2000" :step="1" label="Frequency" />
 
             <div class="grid grid-cols-2 gap-2">
               <Radio
@@ -160,18 +143,13 @@ onBeforeUnmount(() => {
             :min-freq="20"
             :max-freq="2000"
           >
-            <AudioSpectrumVisualizer
-              :frequencies="frequencies"
-              bars-class="bg-primary-400 dark:bg-primary-500"
-            />
+            <AudioSpectrumVisualizer :frequencies="frequencies" bars-class="bg-primary-400 dark:bg-primary-500" />
           </AudioSpectrum>
         </div>
 
         <div class="mt-4 text-sm text-neutral-500">
           <p>This demo uses the Web Audio API to generate tones and visualize their frequency spectrum.</p>
-          <p class="mt-1">
-            Try changing the frequency and waveform to see how they affect the visualization.
-          </p>
+          <p class="mt-1">Try changing the frequency and waveform to see how they affect the visualization.</p>
         </div>
       </div>
     </Variant>

@@ -20,9 +20,11 @@ function createMockStore() {
 const mockTranscribedContent = 'test content'
 function createMockPipeline() {
   return {
-    transcribeForMediaStream: vi.fn().mockImplementation((_stream, options: { onSentenceEnd: (delta: string) => void }) => {
-      options.onSentenceEnd(mockTranscribedContent)
-    }),
+    transcribeForMediaStream: vi
+      .fn()
+      .mockImplementation((_stream, options: { onSentenceEnd: (delta: string) => void }) => {
+        options.onSentenceEnd(mockTranscribedContent)
+      }),
     stopStreamingTranscription: vi.fn().mockResolvedValue(undefined),
     supportsStreamInput: ref(true),
   }
@@ -97,7 +99,7 @@ describe('useTranscriptions', () => {
 
     // Mock SpeechRecognition for browser tests
     if (typeof window !== 'undefined') {
-      (window as any).SpeechRecognition = function () {
+      ;(window as any).SpeechRecognition = function () {
         this.start = vi.fn()
         this.stop = vi.fn()
         this.onresult = null
@@ -136,8 +138,7 @@ describe('useTranscriptions', () => {
       mockHearingStore.configured.value = false
       mockAudioDevice.enabled.value = true
 
-      const { startStreamingTranscription }
-        = useTranscriptions(createOptions())
+      const { startStreamingTranscription } = useTranscriptions(createOptions())
       await startStreamingTranscription()
 
       expect(mockProvidersStore.initializeProvider).toHaveBeenCalledWith('browser-web-speech-api')
@@ -155,8 +156,7 @@ describe('useTranscriptions', () => {
       mockAudioDevice.stream.value = { id: 'stream-1' } as any
       mockAudioDevice.enabled.value = true
 
-      const { isListening, startStreamingTranscription }
-        = useTranscriptions(createOptions())
+      const { isListening, startStreamingTranscription } = useTranscriptions(createOptions())
       await startStreamingTranscription()
 
       expect(isListening.value).toBe(false)
@@ -168,8 +168,7 @@ describe('useTranscriptions', () => {
       mockAudioDevice.stream.value = { id: 'stream-1' } as any
       mockAudioDevice.enabled.value = true
 
-      const { isListening, stopStreamingTranscription }
-        = useTranscriptions(createOptions(true))
+      const { isListening, stopStreamingTranscription } = useTranscriptions(createOptions(true))
       await stopStreamingTranscription()
       expect(isListening.value).toBe(false)
     })
@@ -213,10 +212,10 @@ describe('useTranscriptions', () => {
       mockHearingStore.configured.value = true
       mockAudioDevice.stream.value = null
       mockAudioDevice.enabled.value = true
-      mockHearingPipeline.supportsStreamInput.value = true;
+      mockHearingPipeline.supportsStreamInput.value = true
 
       // simulate failure (stream never appears)
-      (until as any).mockImplementation(() => ({
+      ;(until as any).mockImplementation(() => ({
         toBeTruthy: vi.fn().mockRejectedValue(new Error('Timeout')),
       }))
 
@@ -237,8 +236,7 @@ describe('useTranscriptions', () => {
       mockAudioDevice.enabled.value = true
       mockHearingPipeline.supportsStreamInput.value = true
 
-      const { startStreamingTranscription }
-        = useTranscriptions({ ...createOptions(), messageInputRef: mockInput })
+      const { startStreamingTranscription } = useTranscriptions({ ...createOptions(), messageInputRef: mockInput })
 
       await startStreamingTranscription()
       await nextTick()
@@ -254,8 +252,7 @@ describe('useTranscriptions', () => {
       mockAudioDevice.enabled.value = true
       mockHearingPipeline.supportsStreamInput.value = true
 
-      const { startStreamingTranscription }
-        = useTranscriptions({ ...createOptions(), messageInputRef: mockInput })
+      const { startStreamingTranscription } = useTranscriptions({ ...createOptions(), messageInputRef: mockInput })
 
       await startStreamingTranscription()
       await nextTick()
@@ -274,8 +271,11 @@ describe('useTranscriptions', () => {
       mockAudioDevice.enabled.value = true
       mockHearingPipeline.supportsStreamInput.value = true
 
-      const { startStreamingTranscription }
-        = useTranscriptions({ ...createOptions(), messageInputRef: mockInput, sendMessage: mockSendMessage })
+      const { startStreamingTranscription } = useTranscriptions({
+        ...createOptions(),
+        messageInputRef: mockInput,
+        sendMessage: mockSendMessage,
+      })
 
       await startStreamingTranscription()
       await nextTick()
@@ -298,8 +298,11 @@ describe('useTranscriptions', () => {
       mockAudioDevice.enabled.value = true
       mockHearingPipeline.supportsStreamInput.value = true
 
-      const { startStreamingTranscription }
-        = useTranscriptions({ ...createOptions(), messageInputRef: mockInput, sendMessage: mockSendMessage })
+      const { startStreamingTranscription } = useTranscriptions({
+        ...createOptions(),
+        messageInputRef: mockInput,
+        sendMessage: mockSendMessage,
+      })
 
       await startStreamingTranscription()
       await nextTick()
@@ -320,7 +323,8 @@ describe('useTranscriptions', () => {
       mockAudioDevice.enabled.value = true
       mockHearingPipeline.supportsStreamInput.value = true
 
-      const { isListening, startStreamingTranscription, stopStreamingTranscription } = useTranscriptions(createOptions())
+      const { isListening, startStreamingTranscription, stopStreamingTranscription } =
+        useTranscriptions(createOptions())
 
       await startStreamingTranscription()
       await nextTick()

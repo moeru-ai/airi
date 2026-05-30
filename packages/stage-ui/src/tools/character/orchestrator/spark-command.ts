@@ -24,7 +24,7 @@ export async function createSparkCommandTool(options: CreateSparkCommandToolOpti
   // NOTICE: We intentionally bypass `tool(...)` here so we can normalize the generated
   // JSON Schema before `strictJsonSchema(...)` finalizes it. This is required for providers
   // like Azure that reject some `anyOf` nullable forms and strict-object optional-field shapes.
-  const parameters = normalizeNullableAnyOf(await toJsonSchema(sparkCommandToolSchema) as any)
+  const parameters = normalizeNullableAnyOf((await toJsonSchema(sparkCommandToolSchema)) as any)
 
   return [
     rawTool({
@@ -49,7 +49,7 @@ export async function createSparkCommandTool(options: CreateSparkCommandToolOpti
                 options: normalizeSparkCommandGuidanceOptions(payload.guidance.options),
               }
             : undefined,
-          contexts: payload.contexts?.map(context => ({
+          contexts: payload.contexts?.map((context) => ({
             id: nanoid(),
             contextId: nanoid(),
             lane: normalizeSparkCommandStringValue(context.lane),

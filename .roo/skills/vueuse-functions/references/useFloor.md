@@ -25,7 +25,5 @@ const result = useFloor(value) // 45
  *
  * @__NO_SIDE_EFFECTS__
  */
-export declare function useFloor(
-  value: MaybeRefOrGetter<number>,
-): ComputedRef<number>
+export declare function useFloor(value: MaybeRefOrGetter<number>): ComputedRef<number>
 ```

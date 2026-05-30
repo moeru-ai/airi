@@ -7,31 +7,34 @@ interface MapPoint {
   label?: string
 }
 
-const props = withDefaults(defineProps<{
-  propsLoading?: boolean
-  title?: string
-  eta?: string
-  distance?: string
-  mode?: string
-  status?: string
-  originLabel?: string
-  destinationLabel?: string
-  origin?: MapPoint
-  destination?: MapPoint
-  route?: MapPoint[]
-  stops?: MapPoint[]
-  accent?: string
-}>(), {
-  propsLoading: false,
-  title: undefined,
-  eta: '--',
-  distance: '--',
-  mode: 'Transit',
-  status: 'Smooth ride',
-  originLabel: 'You',
-  destinationLabel: 'Airport',
-  accent: '#38bdf8',
-})
+const props = withDefaults(
+  defineProps<{
+    propsLoading?: boolean
+    title?: string
+    eta?: string
+    distance?: string
+    mode?: string
+    status?: string
+    originLabel?: string
+    destinationLabel?: string
+    origin?: MapPoint
+    destination?: MapPoint
+    route?: MapPoint[]
+    stops?: MapPoint[]
+    accent?: string
+  }>(),
+  {
+    propsLoading: false,
+    title: undefined,
+    eta: '--',
+    distance: '--',
+    mode: 'Transit',
+    status: 'Smooth ride',
+    originLabel: 'You',
+    destinationLabel: 'Airport',
+    accent: '#38bdf8',
+  },
+)
 
 const fallbackOrigin: MapPoint = { x: 22, y: 72 }
 const fallbackDestination: MapPoint = { x: 78, y: 26 }
@@ -70,13 +73,11 @@ const resolvedDestination = computed(() => clampPoint(props.destination ?? fallb
 
 const routePoints = computed(() => {
   const points = (props.route?.length ? props.route : fallbackRoute).map(clampPoint)
-  if (!points.length)
-    return [resolvedOrigin.value, resolvedDestination.value]
+  if (!points.length) return [resolvedOrigin.value, resolvedDestination.value]
 
   const first = points[0]
   const last = points.at(-1)!
-  if (first.x !== resolvedOrigin.value.x || first.y !== resolvedOrigin.value.y)
-    points.unshift(resolvedOrigin.value)
+  if (first.x !== resolvedOrigin.value.x || first.y !== resolvedOrigin.value.y) points.unshift(resolvedOrigin.value)
   if (last.x !== resolvedDestination.value.x || last.y !== resolvedDestination.value.y)
     points.push(resolvedDestination.value)
 
@@ -85,13 +86,16 @@ const routePoints = computed(() => {
 
 const stopPoints = computed(() => (props.stops?.length ? props.stops : fallbackStops).map(clampPoint))
 
-const routePath = computed(() => routePoints.value
-  .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
-  .join(' '))
+const routePath = computed(() =>
+  routePoints.value.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' '),
+)
 
-const mapStyle = computed(() => ({
-  '--map-accent': props.accent,
-} as Record<string, string>))
+const mapStyle = computed(
+  () =>
+    ({
+      '--map-accent': props.accent,
+    }) as Record<string, string>,
+)
 
 function pointStyle(point: MapPoint) {
   return {
@@ -102,7 +106,20 @@ function pointStyle(point: MapPoint) {
 </script>
 
 <template>
-  <div :class="['font-sans', 'relative', 'h-full', 'w-full', 'overflow-hidden', 'rounded-2xl', 'bg-neutral-950/65', 'text-neutral-100', 'shadow-[0_16px_40px_rgba(15,23,42,0.35)]']" :style="mapStyle">
+  <div
+    :class="[
+      'font-sans',
+      'relative',
+      'h-full',
+      'w-full',
+      'overflow-hidden',
+      'rounded-2xl',
+      'bg-neutral-950/65',
+      'text-neutral-100',
+      'shadow-[0_16px_40px_rgba(15,23,42,0.35)]',
+    ]"
+    :style="mapStyle"
+  >
     <div v-if="props.propsLoading" :class="['flex', 'h-full', 'w-full', 'items-center', 'justify-center']">
       <div :class="['grid', 'w-[85%]', 'gap-4']">
         <div :class="['h-4', 'w-40', 'rounded-full', 'bg-white/10', 'animate-pulse']" />
@@ -130,9 +147,7 @@ function pointStyle(point: MapPoint) {
           </div>
         </div>
         <div :class="['text-right']">
-          <div :class="['text-xs', 'uppercase', 'tracking-[0.2em]', 'text-neutral-400']">
-            ETA
-          </div>
+          <div :class="['text-xs', 'uppercase', 'tracking-[0.2em]', 'text-neutral-400']">ETA</div>
           <div :class="['text-3xl', 'font-semibold', 'leading-none']">
             {{ props.eta }}
           </div>
@@ -144,19 +159,9 @@ function pointStyle(point: MapPoint) {
         <div class="map-grid" />
         <div class="map-glow" />
 
-        <svg
-          :class="['absolute', 'inset-0', 'h-full', 'w-full']"
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-        >
-          <path
-            class="map-route map-route-shadow"
-            :d="routePath"
-          />
-          <path
-            class="map-route map-route-core"
-            :d="routePath"
-          />
+        <svg :class="['absolute', 'inset-0', 'h-full', 'w-full']" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <path class="map-route map-route-shadow" :d="routePath" />
+          <path class="map-route map-route-core" :d="routePath" />
           <g>
             <circle
               v-for="(stop, index) in stopPoints"
@@ -170,42 +175,57 @@ function pointStyle(point: MapPoint) {
         </svg>
 
         <div :class="['absolute', 'inset-0']">
-          <div
-            class="map-marker map-marker--origin"
-            :style="pointStyle(resolvedOrigin)"
-          >
+          <div class="map-marker map-marker--origin" :style="pointStyle(resolvedOrigin)">
             <span :class="['i-lucide-user', 'text-[0.55rem]']" />
           </div>
-          <div
-            class="map-marker map-marker--destination"
-            :style="pointStyle(resolvedDestination)"
-          >
+          <div class="map-marker map-marker--destination" :style="pointStyle(resolvedDestination)">
             <span :class="['i-lucide-plane', 'text-[0.55rem]']" />
           </div>
         </div>
       </div>
 
       <div :class="['grid', 'grid-cols-3', 'gap-2', 'text-xs']">
-        <div :class="['rounded-xl', 'bg-white/8', 'px-3', 'py-2', 'text-neutral-200', 'shadow-[inset_0_0_0_1px_rgba(148,163,184,0.15)]']">
-          <div :class="['text-[0.65rem]', 'uppercase', 'tracking-widest', 'text-neutral-400']">
-            Origin
-          </div>
+        <div
+          :class="[
+            'rounded-xl',
+            'bg-white/8',
+            'px-3',
+            'py-2',
+            'text-neutral-200',
+            'shadow-[inset_0_0_0_1px_rgba(148,163,184,0.15)]',
+          ]"
+        >
+          <div :class="['text-[0.65rem]', 'uppercase', 'tracking-widest', 'text-neutral-400']">Origin</div>
           <div :class="['mt-1', 'truncate', 'font-semibold']">
             {{ props.originLabel }}
           </div>
         </div>
-        <div :class="['rounded-xl', 'bg-white/8', 'px-3', 'py-2', 'text-neutral-200', 'shadow-[inset_0_0_0_1px_rgba(148,163,184,0.15)]']">
-          <div :class="['text-[0.65rem]', 'uppercase', 'tracking-widest', 'text-neutral-400']">
-            Destination
-          </div>
+        <div
+          :class="[
+            'rounded-xl',
+            'bg-white/8',
+            'px-3',
+            'py-2',
+            'text-neutral-200',
+            'shadow-[inset_0_0_0_1px_rgba(148,163,184,0.15)]',
+          ]"
+        >
+          <div :class="['text-[0.65rem]', 'uppercase', 'tracking-widest', 'text-neutral-400']">Destination</div>
           <div :class="['mt-1', 'truncate', 'font-semibold']">
             {{ props.destinationLabel }}
           </div>
         </div>
-        <div :class="['rounded-xl', 'bg-white/8', 'px-3', 'py-2', 'text-neutral-200', 'shadow-[inset_0_0_0_1px_rgba(148,163,184,0.15)]']">
-          <div :class="['text-[0.65rem]', 'uppercase', 'tracking-widest', 'text-neutral-400']">
-            Distance
-          </div>
+        <div
+          :class="[
+            'rounded-xl',
+            'bg-white/8',
+            'px-3',
+            'py-2',
+            'text-neutral-200',
+            'shadow-[inset_0_0_0_1px_rgba(148,163,184,0.15)]',
+          ]"
+        >
+          <div :class="['text-[0.65rem]', 'uppercase', 'tracking-widest', 'text-neutral-400']">Distance</div>
           <div :class="['mt-1', 'truncate', 'font-semibold']">
             {{ props.distance }}
           </div>

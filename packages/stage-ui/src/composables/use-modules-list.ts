@@ -166,14 +166,17 @@ export function useModulesList() {
   ])
 
   const categorizedModules = computed(() => {
-    return modulesList.value.reduce((categories, module) => {
-      const { category } = module
-      if (!categories[category]) {
-        categories[category] = []
-      }
-      categories[category].push(module)
-      return categories
-    }, {} as Record<string, Module[]>)
+    return modulesList.value.reduce(
+      (categories, module) => {
+        const { category } = module
+        if (!categories[category]) {
+          categories[category] = []
+        }
+        categories[category].push(module)
+        return categories
+      },
+      {} as Record<string, Module[]>,
+    )
   })
 
   // Define category display names
@@ -185,8 +188,8 @@ export function useModulesList() {
 
   // TODO(Makito): We can make this a reactive value from a synthetic store.
   onMounted(() => {
-    getBeatSyncState().then(initialState => beatSyncState.value = initialState)
-    const removeListener = listenBeatSyncStateChange(newState => beatSyncState.value = { ...newState })
+    getBeatSyncState().then((initialState) => (beatSyncState.value = initialState))
+    const removeListener = listenBeatSyncStateChange((newState) => (beatSyncState.value = { ...newState }))
     onUnmounted(() => removeListener())
   })
 

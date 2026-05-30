@@ -3,17 +3,20 @@ import { useMotion } from '@vueuse/motion'
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-const props = withDefaults(defineProps<{
-  title: string
-  subtitle?: string
-  showBackButton?: boolean
-  disableBackButton?: boolean
-  fallbackRoute?: string
-}>(), {
-  showBackButton: true,
-  disableBackButton: false,
-  fallbackRoute: '/settings',
-})
+const props = withDefaults(
+  defineProps<{
+    title: string
+    subtitle?: string
+    showBackButton?: boolean
+    disableBackButton?: boolean
+    fallbackRoute?: string
+  }>(),
+  {
+    showBackButton: true,
+    disableBackButton: false,
+    fallbackRoute: '/settings',
+  },
+)
 
 const router = useRouter()
 const route = useRoute()
@@ -34,8 +37,7 @@ function handleBack() {
   // The check for `window` handles non-browser environments (e.g., SSR).
   if (typeof window !== 'undefined' && window.history.length > 1) {
     router.back()
-  }
-  else {
+  } else {
     // Otherwise, navigate to the fallback route. This covers cases where:
     // - The page was opened directly (no history).
     // - The code is running in a non-browser environment.
@@ -75,14 +77,21 @@ watch([() => props.title, () => props.subtitle, route], async () => {
       right: 'env(safe-area-inset-right, 0px)',
       left: 'env(safe-area-inset-left, 0px)',
     }"
-    sticky inset-x-0 top-0 z-99 w-full pb-6 pt-10
+    sticky
+    inset-x-0
+    top-0
+    z-99
+    w-full
+    pb-6
+    pt-10
     flex="~ row items-center gap-2"
     bg="$bg-color"
   >
     <button @click="handleBack">
       <div
         v-if="!finalizedDisableBackButton"
-        i-solar:alt-arrow-left-line-duotone text-2xl
+        i-solar:alt-arrow-left-line-duotone
+        text-2xl
         :class="{ 'pointer-events-none op-0': !showBackButton }"
       />
     </button>

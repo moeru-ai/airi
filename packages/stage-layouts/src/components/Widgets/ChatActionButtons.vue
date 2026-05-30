@@ -22,8 +22,15 @@ const backgroundDialogOpen = ref(false)
       bg="neutral-100 dark:neutral-800"
       text="lg neutral-500 dark:neutral-400"
       hover:text="red-500 dark:red-400"
-      flex items-center justify-center rounded-md p-2 outline-none
-      transition-colors transition-transform active:scale-95
+      flex
+      items-center
+      justify-center
+      rounded-md
+      p-2
+      outline-none
+      transition-colors
+      transition-transform
+      active:scale-95
       @click="cleanupMessages()"
     >
       <div class="i-solar:trash-bin-2-bold-duotone" />
@@ -33,8 +40,15 @@ const backgroundDialogOpen = ref(false)
       class="max-h-[10lh] min-h-[1lh]"
       bg="neutral-100 dark:neutral-800"
       text="lg neutral-500 dark:neutral-400"
-      flex items-center justify-center rounded-md p-2 outline-none
-      transition-colors transition-transform active:scale-95
+      flex
+      items-center
+      justify-center
+      rounded-md
+      p-2
+      outline-none
+      transition-colors
+      transition-transform
+      active:scale-95
       @click="() => toggleDark()"
     >
       <Transition name="fade" mode="out-in">
@@ -46,8 +60,15 @@ const backgroundDialogOpen = ref(false)
       class="max-h-[10lh] min-h-[1lh]"
       bg="neutral-100 dark:neutral-800"
       text="lg neutral-500 dark:neutral-400"
-      flex items-center justify-center rounded-md p-2 outline-none
-      transition-colors transition-transform active:scale-95
+      flex
+      items-center
+      justify-center
+      rounded-md
+      p-2
+      outline-none
+      transition-colors
+      transition-transform
+      active:scale-95
       title="Background"
       @click="backgroundDialogOpen = true"
     >

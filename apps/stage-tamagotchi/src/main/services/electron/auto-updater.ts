@@ -29,7 +29,6 @@ import {
   electronAutoUpdaterStateChanged,
   electronGetUpdaterPreferences,
   electronSetUpdaterPreferences,
-
 } from '../../../shared/eventa'
 import { MockAutoUpdater } from './mock-auto-updater'
 
@@ -56,10 +55,7 @@ const UPDATER_DEBUG_CACHE_DIR = join(getCacheRoot(), 'stage-tamagotchi-updater')
 const UPDATER_LOG_FILE = join(UPDATER_DEBUG_CACHE_DIR, 'updater-log.txt')
 const OFFICIAL_UPDATER_CACHE_DIR = join(getCacheRoot(), 'ai.moeru.airi-updater')
 const LEGACY_OFFICIAL_UPDATER_CACHE_DIR = join(getLegacyCacheRoot(), 'ai.moeru.airi-updater')
-const OFFICIAL_UPDATER_CACHE_DIRS = Array.from(new Set([
-  OFFICIAL_UPDATER_CACHE_DIR,
-  LEGACY_OFFICIAL_UPDATER_CACHE_DIR,
-]))
+const OFFICIAL_UPDATER_CACHE_DIRS = Array.from(new Set([OFFICIAL_UPDATER_CACHE_DIR, LEGACY_OFFICIAL_UPDATER_CACHE_DIR]))
 
 async function logToFile(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', message: string) {
   await mkdir(UPDATER_DEBUG_CACHE_DIR, { recursive: true }).catch(() => {})
@@ -68,7 +64,9 @@ async function logToFile(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', message: st
 
 async function cleanupStaleUpdateFiles() {
   // Remove both current and legacy updater cache roots so stale installers do not linger.
-  await Promise.allSettled(OFFICIAL_UPDATER_CACHE_DIRS.map(cacheDir => rm(cacheDir, { recursive: true, force: true })))
+  await Promise.allSettled(
+    OFFICIAL_UPDATER_CACHE_DIRS.map((cacheDir) => rm(cacheDir, { recursive: true, force: true })),
+  )
   await logToFile('INFO', `Updater cache cleanup attempted: ${OFFICIAL_UPDATER_CACHE_DIRS.join(', ')}`)
 }
 
@@ -82,16 +80,14 @@ interface GitHubReleaseRecord {
 function getUpdateServerOverride() {
   // NOTICE: UPDATE_SERVER_URL is intentionally development-only for local update-test harness.
   // Production update routing must not depend on this variable.
-  if (!is.dev)
-    return undefined
+  if (!is.dev) return undefined
 
   const value = process.env.UPDATE_SERVER_URL?.trim()
   return value || undefined
 }
 
 function normalizeLane(value: string | undefined): UpdateLane | undefined {
-  if (!value)
-    return undefined
+  if (!value) return undefined
 
   switch (value.toLowerCase()) {
     case 'stable':
@@ -111,8 +107,10 @@ function laneFromVersion(version: string): UpdateLane {
   return normalizeLane(prerelease) ?? 'stable'
 }
 
-function getPreferredUpdateLane(params: { version: string, storedLane?: UpdateLane }): UpdateLane {
-  return normalizeLane(process.env[UPDATE_CHANNEL_ENV_KEY]?.trim()) ?? params.storedLane ?? laneFromVersion(params.version)
+function getPreferredUpdateLane(params: { version: string; storedLane?: UpdateLane }): UpdateLane {
+  return (
+    normalizeLane(process.env[UPDATE_CHANNEL_ENV_KEY]?.trim()) ?? params.storedLane ?? laneFromVersion(params.version)
+  )
 }
 
 function getSemverFromTag(tag: string) {
@@ -121,15 +119,12 @@ function getSemverFromTag(tag: string) {
 
 function isTagInLane(tag: string, lane: UpdateLane) {
   const version = getSemverFromTag(tag)
-  if (!version)
-    return false
+  if (!version) return false
 
-  if (lane === 'latest')
-    return true
+  if (lane === 'latest') return true
 
   const prerelease = semver.prerelease(version)?.[0]?.toString().toLowerCase()
-  if (lane === 'stable')
-    return !prerelease
+  if (lane === 'stable') return !prerelease
 
   return prerelease === lane
 }
@@ -150,26 +145,25 @@ function getWindowsProtectedInstallRoots() {
     process.env.windir,
   ]
     .filter((value): value is string => Boolean(value))
-    .map(value => normalize(value))
+    .map((value) => normalize(value))
 }
 
 function requiresAdminForInstallPath(executablePath: string) {
-  if (!isWindows)
-    return false
+  if (!isWindows) return false
 
   const installDirectory = dirname(executablePath)
-  return getWindowsProtectedInstallRoots().some(root => isPathInside(root, installDirectory))
+  return getWindowsProtectedInstallRoots().some((root) => isPathInside(root, installDirectory))
 }
 
 function selectLatestTagForLane(releases: GitHubReleaseRecord[], lane: UpdateLane) {
   const candidates = releases
-    .filter(release => !release.draft && typeof release.tag_name === 'string' && isTagInLane(release.tag_name, lane))
+    .filter((release) => !release.draft && typeof release.tag_name === 'string' && isTagInLane(release.tag_name, lane))
     .map((release) => {
       const tag = release.tag_name as string
       const version = getSemverFromTag(tag)
       return version ? { tag, version } : null
     })
-    .filter(Boolean) as Array<{ tag: string, version: string }>
+    .filter(Boolean) as Array<{ tag: string; version: string }>
 
   candidates.sort((a, b) => semver.rcompare(a.version, b.version))
   return candidates[0]?.tag
@@ -192,15 +186,13 @@ function extractReleaseTagsFromAtom(atom: string) {
 
   while (offset < atom.length) {
     const markerIndex = atom.indexOf(marker, offset)
-    if (markerIndex === -1)
-      break
+    if (markerIndex === -1) break
 
     const start = markerIndex + marker.length
     let end = start
     while (end < atom.length) {
       const char = atom[end]
-      if (char === '"' || char === '<' || char === '?' || char === '&')
-        break
+      if (char === '"' || char === '<' || char === '?' || char === '&') break
       end += 1
     }
 
@@ -209,8 +201,7 @@ function extractReleaseTagsFromAtom(atom: string) {
     // Atom encodes URLs, so decode in case future tags contain escaped characters.
     const decodedTag = decodeURIComponent(rawTag)
     // Feed entries can repeat across updates; keep a unique ordered tag list.
-    if (decodedTag && !tags.includes(decodedTag))
-      tags.push(decodedTag)
+    if (decodedTag && !tags.includes(decodedTag)) tags.push(decodedTag)
 
     offset = end + 1
   }
@@ -223,7 +214,7 @@ export interface AppUpdaterLike {
   checkForUpdates: () => Promise<any>
   downloadUpdate: () => Promise<any>
   quitAndInstall: (isSilent?: boolean, isForceRunAfter?: boolean) => Promise<void> | void
-  setFeedURL?: (options: { provider: 'generic', url: string }) => void
+  setFeedURL?: (options: { provider: 'generic'; url: string }) => void
   logger?: any
   allowPrerelease?: boolean
   autoDownload?: boolean
@@ -234,8 +225,7 @@ export interface AppUpdaterLike {
 // NOTICE: this part of code is copied from https://www.electron.build/auto-update
 // Or https://github.com/electron-userland/electron-builder/blob/b866e99ccd3ea9f85bc1e840f0f6a6a162fca388/pages/auto-update.md?plain=1#L57-L66
 export function fromImported(): AppUpdaterLike {
-  if (is.dev && !getUpdateServerOverride())
-    return new MockAutoUpdater()
+  if (is.dev && !getUpdateServerOverride()) return new MockAutoUpdater()
 
   const { autoUpdater } = electronUpdater
   return autoUpdater as unknown as AppUpdaterLike
@@ -278,8 +268,7 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
   autoUpdater.allowPrerelease = isPrereleaseBuild
   autoUpdater.autoDownload = false
   void cleanupStaleUpdateFiles()
-  if (activeFeedUrlOverride)
-    autoUpdater.channel = releaseChannelName
+  if (activeFeedUrlOverride) autoUpdater.channel = releaseChannelName
   autoUpdater.forceDevUpdateConfig = !!feedUrlOverride && !app.isPackaged
   autoUpdater.logger = {
     info: (message: string) => {
@@ -300,8 +289,7 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
     },
   }
 
-  if (activeFeedUrlOverride)
-    autoUpdater.setFeedURL?.({ provider: 'generic', url: activeFeedUrlOverride })
+  if (activeFeedUrlOverride) autoUpdater.setFeedURL?.({ provider: 'generic', url: activeFeedUrlOverride })
 
   const withDiagnostics = (next: AutoUpdaterState): AutoUpdaterState => ({
     ...next,
@@ -327,8 +315,7 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
     for (const listener of hooks) {
       try {
         listener(state)
-      }
-      catch (error) {
+      } catch (error) {
         log.withError(error).error('Failed to notify listener')
       }
     }
@@ -350,8 +337,7 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
   }
 
   function resetPreparedFeedForLaneChange() {
-    if (feedUrlOverride)
-      return
+    if (feedUrlOverride) return
 
     activeFeedUrlOverride = undefined
     resolvedReleaseTag = undefined
@@ -367,18 +353,14 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
         },
       })
 
-      if (!response.ok)
-        throw new Error(`Failed to fetch GitHub releases (${response.status} ${response.statusText})`)
+      if (!response.ok) throw new Error(`Failed to fetch GitHub releases (${response.status} ${response.statusText})`)
 
       const payload = await response.json()
-      if (!Array.isArray(payload))
-        throw new Error('Unexpected GitHub releases payload shape')
+      if (!Array.isArray(payload)) throw new Error('Unexpected GitHub releases payload shape')
 
       const tag = selectLatestTagForLane(payload as GitHubReleaseRecord[], lane)
-      if (tag)
-        return tag
-    }
-    catch (error) {
+      if (tag) return tag
+    } catch (error) {
       log.withError(error).warn('GitHub releases API lookup failed, trying releases.atom fallback')
     }
 
@@ -387,19 +369,16 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
       throw new Error(`Failed to fetch GitHub releases atom (${atomResponse.status} ${atomResponse.statusText})`)
 
     const atom = await atomResponse.text()
-    const releasesFromAtom = extractReleaseTagsFromAtom(atom).map(tag => ({ tag_name: tag }))
+    const releasesFromAtom = extractReleaseTagsFromAtom(atom).map((tag) => ({ tag_name: tag }))
     const tag = selectLatestTagForLane(releasesFromAtom, lane)
-    if (!tag)
-      throw new Error(`No GitHub release found for update lane "${lane}"`)
+    if (!tag) throw new Error(`No GitHub release found for update lane "${lane}"`)
 
     return tag
   }
 
   async function prepareGitHubGenericFeed() {
-    if (activeFeedUrlOverride)
-      return
-    if (resolvedReleaseTag)
-      return
+    if (activeFeedUrlOverride) return
+    if (resolvedReleaseTag) return
     if (prepareFeedPromise) {
       await prepareFeedPromise
       return
@@ -414,8 +393,7 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
 
     try {
       await prepareFeedPromise
-    }
-    finally {
+    } finally {
       prepareFeedPromise = undefined
     }
   }
@@ -425,31 +403,34 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
     await autoUpdater.checkForUpdates()
   }
 
-  autoUpdater.on('error', error => broadcastUpdaterError(error, 'autoUpdater error'))
+  autoUpdater.on('error', (error) => broadcastUpdaterError(error, 'autoUpdater error'))
   autoUpdater.on('checking-for-update', () => broadcast({ status: 'checking' }))
   autoUpdater.on('update-available', (info: UpdateInfo) => broadcast({ status: 'available', info }))
   autoUpdater.on('update-downloaded', (info: UpdateInfo) => broadcast({ status: 'downloaded', info }))
-  autoUpdater.on('update-not-available', () => broadcast({
-    status: 'not-available',
-    info: {
-      version: app.getVersion(),
-      files: [],
-      releaseDate: committerDate,
-    },
-  }))
-  autoUpdater.on('download-progress', progress => broadcast({
-    ...state,
-    status: 'downloading',
-    progress: {
-      percent: progress.percent,
-      bytesPerSecond: progress.bytesPerSecond,
-      transferred: progress.transferred,
-      total: progress.total,
-    },
-  }))
+  autoUpdater.on('update-not-available', () =>
+    broadcast({
+      status: 'not-available',
+      info: {
+        version: app.getVersion(),
+        files: [],
+        releaseDate: committerDate,
+      },
+    }),
+  )
+  autoUpdater.on('download-progress', (progress) =>
+    broadcast({
+      ...state,
+      status: 'downloading',
+      progress: {
+        percent: progress.percent,
+        bytesPerSecond: progress.bytesPerSecond,
+        transferred: progress.transferred,
+        total: progress.total,
+      },
+    }),
+  )
 
-  void checkForUpdatesWithPreparedFeed()
-    .catch(error => broadcastUpdaterError(error, 'checkForUpdates() failed'))
+  void checkForUpdatesWithPreparedFeed().catch((error) => broadcastUpdaterError(error, 'checkForUpdates() failed'))
 
   return {
     get state() {
@@ -457,18 +438,16 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
     },
     async checkForUpdates() {
       broadcast({ status: 'checking' })
-      await checkForUpdatesWithPreparedFeed().catch(error => broadcastUpdaterError(error, 'checkForUpdates() failed'))
+      await checkForUpdatesWithPreparedFeed().catch((error) => broadcastUpdaterError(error, 'checkForUpdates() failed'))
     },
     async downloadUpdate() {
-      if (state.status === 'downloading' || state.status === 'downloaded')
-        return
+      if (state.status === 'downloading' || state.status === 'downloaded') return
 
       await semaphore.acquire()
 
       try {
         await autoUpdater.downloadUpdate()
-      }
-      finally {
+      } finally {
         semaphore.release()
       }
     },
@@ -476,12 +455,9 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
       await semaphore.acquire()
 
       try {
-        if (isWindows)
-          autoUpdater.quitAndInstall(true, true)
-        else
-          autoUpdater.quitAndInstall()
-      }
-      finally {
+        if (isWindows) autoUpdater.quitAndInstall(true, true)
+        else autoUpdater.quitAndInstall()
+      } finally {
         semaphore.release()
       }
     },
@@ -489,8 +465,7 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
       return storedPreferredLane
     },
     async setPreferredUpdateLane(lane) {
-      if (storedPreferredLane === lane)
-        return
+      if (storedPreferredLane === lane) return
 
       storedPreferredLane = lane
       options.setStoredUpdateLane?.(lane)
@@ -504,8 +479,7 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
 
       try {
         callback(state)
-      }
-      catch {}
+      } catch {}
 
       return () => {
         hooks.delete(callback)
@@ -514,14 +488,17 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
   }
 }
 
-export function createAutoUpdaterService(params: { context: MainContext, window: BrowserWindow, service: AutoUpdater }) {
+export function createAutoUpdaterService(params: {
+  context: MainContext
+  window: BrowserWindow
+  service: AutoUpdater
+}) {
   const { context, window, service } = params
 
   const log = useLogg('auto-updater-service').useGlobalConfig()
 
   const unsubscribe = service.subscribe((state) => {
-    if (window.isDestroyed())
-      return
+    if (window.isDestroyed()) return
 
     tryCatch(() => context.emit(electronAutoUpdaterStateChanged, state))
   })
@@ -530,7 +507,7 @@ export function createAutoUpdaterService(params: { context: MainContext, window:
     unsubscribe,
     defineInvokeHandler(context, autoUpdaterEventa.getState, () => service.state),
     defineInvokeHandler(context, autoUpdaterEventa.checkForUpdates, async () => {
-      await service.checkForUpdates().catch(error => log.withError(error).error('checkForUpdates() failed'))
+      await service.checkForUpdates().catch((error) => log.withError(error).error('checkForUpdates() failed'))
       return service.state
     }),
     defineInvokeHandler(context, autoUpdaterEventa.downloadUpdate, async () => {
@@ -552,8 +529,7 @@ export function createAutoUpdaterService(params: { context: MainContext, window:
   ]
 
   const cleanup = () => {
-    for (const fn of cleanups)
-      fn()
+    for (const fn of cleanups) fn()
   }
 
   window.on('closed', cleanup)

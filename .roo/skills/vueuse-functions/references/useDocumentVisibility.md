@@ -20,9 +20,7 @@ const visibility = useDocumentVisibility()
 
 ```vue
 <template>
-  <UseDocumentVisibility v-slot="{ visibility }">
-    Document Visibility: {{ visibility }}
-  </UseDocumentVisibility>
+  <UseDocumentVisibility v-slot="{ visibility }">Document Visibility: {{ visibility }}</UseDocumentVisibility>
 </template>
 ```
 
@@ -38,7 +36,5 @@ export type UseDocumentVisibilityReturn = ShallowRef<DocumentVisibilityState>
  *
  * @__NO_SIDE_EFFECTS__
  */
-export declare function useDocumentVisibility(
-  options?: UseDocumentVisibilityOptions,
-): UseDocumentVisibilityReturn
+export declare function useDocumentVisibility(options?: UseDocumentVisibilityOptions): UseDocumentVisibilityReturn
 ```

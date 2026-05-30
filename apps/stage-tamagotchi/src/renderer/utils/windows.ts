@@ -1,5 +1,3 @@
-export async function startClickThrough() {
-}
+export async function startClickThrough() {}
 
-export async function stopClickThrough() {
-}
+export async function stopClickThrough() {}

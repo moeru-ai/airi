@@ -72,21 +72,13 @@ const allowedBindingTransitions: Record<BindingState, readonly BindingState[]> =
   withdrawn: ['withdrawn'],
 }
 
-function createOwnershipError(
-  moduleId: string,
-  expected: BindingOwnerIdentity,
-  actual: BindingOwnerIdentity,
-) {
+function createOwnershipError(moduleId: string, expected: BindingOwnerIdentity, actual: BindingOwnerIdentity) {
   return new Error(
     `Ownership violation for module \`${moduleId}\`: owned by \`${expected.ownerSessionId}/${expected.ownerPluginId}\`, not \`${actual.ownerSessionId}/${actual.ownerPluginId}\`.`,
   )
 }
 
-function createModuleCollisionError(
-  moduleId: string,
-  expected: BindingOwnerIdentity,
-  actual: BindingOwnerIdentity,
-) {
+function createModuleCollisionError(moduleId: string, expected: BindingOwnerIdentity, actual: BindingOwnerIdentity) {
   return new Error(
     `Module id collision for \`${moduleId}\`: owned by \`${expected.ownerSessionId}/${expected.ownerPluginId}\`, not \`${actual.ownerSessionId}/${actual.ownerPluginId}\`.`,
   )
@@ -190,10 +182,7 @@ export class BindingsRegistryService<C extends HostDataRecord = HostDataRecord> 
   bind(input: BindingInput<C>) {
     const current = this.bindings.get(input.moduleId)
     if (current) {
-      if (
-        current.ownerSessionId !== input.ownerSessionId
-        || current.ownerPluginId !== input.ownerPluginId
-      ) {
+      if (current.ownerSessionId !== input.ownerSessionId || current.ownerPluginId !== input.ownerPluginId) {
         throw createModuleCollisionError(
           input.moduleId,
           {
@@ -289,7 +278,7 @@ export class BindingsRegistryService<C extends HostDataRecord = HostDataRecord> 
    * - All binding records whose owner session matches the input
    */
   listByOwner(ownerSessionId: string) {
-    return this.list().filter(binding => binding.ownerSessionId === ownerSessionId)
+    return this.list().filter((binding) => binding.ownerSessionId === ownerSessionId)
   }
 
   /**
@@ -306,7 +295,7 @@ export class BindingsRegistryService<C extends HostDataRecord = HostDataRecord> 
    * - All binding records attached to the requested kit
    */
   listByKit(kitId: string) {
-    return this.list().filter(binding => binding.kitId === kitId)
+    return this.list().filter((binding) => binding.kitId === kitId)
   }
 
   /**
@@ -388,21 +377,13 @@ export class BindingsRegistryService<C extends HostDataRecord = HostDataRecord> 
    * Returns:
    * - The next canonical binding record written back into the registry
    */
-  transition(
-    owner: BindingOwnerIdentity,
-    moduleId: string,
-    state?: BindingState,
-    patch: BindingUpdatePatch<C> = {},
-  ) {
+  transition(owner: BindingOwnerIdentity, moduleId: string, state?: BindingState, patch: BindingUpdatePatch<C> = {}) {
     const current = this.bindings.get(moduleId)
     if (!current) {
       throw new Error(`Module \`${moduleId}\` was not found.`)
     }
 
-    if (
-      current.ownerSessionId !== owner.ownerSessionId
-      || current.ownerPluginId !== owner.ownerPluginId
-    ) {
+    if (current.ownerSessionId !== owner.ownerSessionId || current.ownerPluginId !== owner.ownerPluginId) {
       throw createOwnershipError(
         moduleId,
         {
@@ -450,10 +431,7 @@ export class BindingsRegistryService<C extends HostDataRecord = HostDataRecord> 
       return undefined
     }
 
-    if (
-      current.ownerSessionId !== ownerSessionId
-      || current.ownerPluginId !== ownerPluginId
-    ) {
+    if (current.ownerSessionId !== ownerSessionId || current.ownerPluginId !== ownerPluginId) {
       throw createOwnershipError(
         moduleId,
         {

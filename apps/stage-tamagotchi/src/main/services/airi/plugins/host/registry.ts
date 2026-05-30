@@ -3,10 +3,7 @@ import type { Dirent } from 'node:fs'
 import type { useLogg } from '@guiiai/logg'
 import type { ManifestV1 } from '@proj-airi/plugin-sdk/plugin-host'
 
-import type {
-  PluginManifestSummary,
-  PluginRegistrySnapshot,
-} from '../../../../../shared/eventa/plugin/host'
+import type { PluginManifestSummary, PluginRegistrySnapshot } from '../../../../../shared/eventa/plugin/host'
 import type { ManifestEntry, PluginConfig } from '../types'
 
 import { mkdir, readdir, readFile, realpath, stat } from 'node:fs/promises'
@@ -21,7 +18,10 @@ function isManifestV1(value: unknown): value is ManifestV1 {
   return safeParse(manifestV1Schema, value).success
 }
 
-async function realPathOf(entry: Dirent<string>, options?: { cwd?: string }): Promise<{ resolved: false, path?: string, error?: unknown } | { resolved: true, path: string, error?: unknown }> {
+async function realPathOf(
+  entry: Dirent<string>,
+  options?: { cwd?: string },
+): Promise<{ resolved: false; path?: string; error?: unknown } | { resolved: true; path: string; error?: unknown }> {
   if (!entry.isSymbolicLink()) {
     return { resolved: false }
   }
@@ -34,8 +34,7 @@ async function realPathOf(entry: Dirent<string>, options?: { cwd?: string }): Pr
     }
 
     return { resolved: false }
-  }
-  catch (error) {
+  } catch (error) {
     return { resolved: false, error }
   }
 }
@@ -55,14 +54,11 @@ async function realPathOf(entry: Dirent<string>, options?: { cwd?: string }): Pr
  * Returns:
  * - Array of validated manifest entries with resolved paths and version metadata
  */
-export async function loadManifestsFrom(
-  dir: string,
-  log: ReturnType<typeof useLogg>,
-): Promise<ManifestEntry[]> {
+export async function loadManifestsFrom(dir: string, log: ReturnType<typeof useLogg>): Promise<ManifestEntry[]> {
   await mkdir(dir, { recursive: true })
   const entries = await readdir(dir, { withFileTypes: true })
   const manifests: ManifestEntry[] = []
-  const manifestPaths: Array<{ path: string, rootDir: string }> = []
+  const manifestPaths: Array<{ path: string; rootDir: string }> = []
 
   for (const entry of entries) {
     if (!entry.isDirectory()) {
@@ -76,8 +72,7 @@ export async function loadManifestsFrom(
           log.withFields({ name: entry.name }).warn('found symlink that does not resolve to a file, skipping')
           continue
         }
-      }
-      else {
+      } else {
         continue
       }
     }
@@ -87,15 +82,14 @@ export async function loadManifestsFrom(
       const { path, resolved } = await realPathOf(entry, { cwd: dir })
       if (resolved) {
         pluginDir = path
-      }
-      else {
+      } else {
         log.withFields({ name: entry.name }).warn('found symlink that does not resolve to a file, skipping')
         continue
       }
     }
 
     const pluginEntries = await readdir(pluginDir, { withFileTypes: true })
-    const manifestEntry = pluginEntries.find(candidate => candidate.name === pluginManifestFileName)
+    const manifestEntry = pluginEntries.find((candidate) => candidate.name === pluginManifestFileName)
     if (!manifestEntry) {
       continue
     }
@@ -116,8 +110,7 @@ export async function loadManifestsFrom(
         continue
       }
       manifestPaths.push({ path: manifestPath, rootDir: pluginDir })
-    }
-    catch (error) {
+    } catch (error) {
       log.withError(error).withFields({ name: manifestEntry.name }).warn('failed to resolve symlink, skipping')
     }
   }
@@ -138,8 +131,7 @@ export async function loadManifestsFrom(
         if (typeof packageJson.version === 'string' && packageJson.version.trim()) {
           version = packageJson.version.trim()
         }
-      }
-      catch {
+      } catch {
         // Ignore package.json read failures; plugin manifests without package metadata
         // still load with a deterministic fallback version.
       }
@@ -150,8 +142,7 @@ export async function loadManifestsFrom(
         rootDir: manifestPath.rootDir,
         version,
       })
-    }
-    catch (error) {
+    } catch (error) {
       log.withError(error).withFields({ path: manifestPath.path }).error('failed to read plugin manifest')
     }
   }
@@ -211,7 +202,7 @@ export function buildPluginRegistrySnapshot(options: {
 }): PluginRegistrySnapshot {
   return {
     root: options.pluginsRoot,
-    plugins: options.entries.map(entry => createPluginSummary(entry, options.config, options.loaded)),
+    plugins: options.entries.map((entry) => createPluginSummary(entry, options.config, options.loaded)),
   }
 }
 
@@ -257,10 +248,7 @@ function appendCacheBustKey(entrypoint: string, cacheBustKey: string): string {
  * Returns:
  * - Original manifest or cloned manifest with cache-busted runtime entrypoint
  */
-export function createManifestForLoad(
-  entry: ManifestEntry,
-  options: { cacheBustKey?: string },
-): ManifestV1 {
+export function createManifestForLoad(entry: ManifestEntry, options: { cacheBustKey?: string }): ManifestV1 {
   if (!options.cacheBustKey) {
     return entry.manifest
   }
@@ -268,8 +256,7 @@ export function createManifestForLoad(
   const manifest = structuredClone(entry.manifest)
   if (manifest.entrypoints.electron) {
     manifest.entrypoints.electron = appendCacheBustKey(manifest.entrypoints.electron, options.cacheBustKey)
-  }
-  else if (manifest.entrypoints.default) {
+  } else if (manifest.entrypoints.default) {
     manifest.entrypoints.default = appendCacheBustKey(manifest.entrypoints.default, options.cacheBustKey)
   }
   return manifest
@@ -330,7 +317,7 @@ export function createPluginHostRegistry(options: {
           manifestEntryByName.set(entry.manifest.name, entry)
         }
       }
-      manifests = entries.map(entry => entry.manifest)
+      manifests = entries.map((entry) => entry.manifest)
       return entries
     },
     listEntries() {

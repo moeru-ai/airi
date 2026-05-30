@@ -56,10 +56,7 @@ const availableProviders = computed(() => [
       </div>
 
       <div class="max-w-full">
-        <fieldset
-          flex="~ row gap-4"
-          min-w-0 of-x-auto scroll-smooth role="radiogroup"
-        >
+        <fieldset flex="~ row gap-4" min-w-0 of-x-auto scroll-smooth role="radiogroup">
           <RadioCardSimple
             v-for="provider in availableProviders"
             :id="provider.id"

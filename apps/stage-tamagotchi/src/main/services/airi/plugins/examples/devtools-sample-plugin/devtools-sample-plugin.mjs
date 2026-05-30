@@ -17,6 +17,6 @@ export async function setupModules({ apis }) {
   console.info('[devtools-sample-plugin] setupModules', {
     at: nowIso(),
     providerCount: providers.length,
-    providerNames: providers.map(provider => provider.name),
+    providerNames: providers.map((provider) => provider.name),
   })
 }

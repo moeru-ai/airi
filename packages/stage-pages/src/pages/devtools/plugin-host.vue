@@ -17,20 +17,18 @@ const selectedPluginName = ref('')
 const discoveredPlugins = computed(() => {
   const query = filter.value.trim().toLowerCase()
   const plugins = store.discoveredPlugins.slice().sort((left, right) => left.name.localeCompare(right.name))
-  if (!query)
-    return plugins
-  return plugins.filter(plugin =>
-    plugin.name.toLowerCase().includes(query)
-    || plugin.path.toLowerCase().includes(query),
+  if (!query) return plugins
+  return plugins.filter(
+    (plugin) => plugin.name.toLowerCase().includes(query) || plugin.path.toLowerCase().includes(query),
   )
 })
 
 const enabledPlugins = computed(() => {
-  return discoveredPlugins.value.filter(plugin => plugin.enabled)
+  return discoveredPlugins.value.filter((plugin) => plugin.enabled)
 })
 
 const loadedPlugins = computed(() => {
-  return discoveredPlugins.value.filter(plugin => plugin.loaded)
+  return discoveredPlugins.value.filter((plugin) => plugin.loaded)
 })
 
 const sessionByPluginName = computed(() => {
@@ -42,7 +40,7 @@ const sessionByPluginName = computed(() => {
 })
 
 const readyCapabilitiesCount = computed(() => {
-  return store.capabilities.filter(capability => capability.state === 'ready').length
+  return store.capabilities.filter((capability) => capability.state === 'ready').length
 })
 
 function chipClasses(theme: 'neutral' | 'emerald' | 'amber') {
@@ -79,20 +77,16 @@ function chipClasses(theme: 'neutral' | 'emerald' | 'amber') {
 }
 
 function phaseChipTheme(phase: string) {
-  if (phase === 'ready')
-    return 'emerald'
-  if (phase === 'failed')
-    return 'amber'
-  if (phase === 'loading' || phase === 'authenticating' || phase === 'preparing')
-    return 'amber'
+  if (phase === 'ready') return 'emerald'
+  if (phase === 'failed') return 'amber'
+  if (phase === 'loading' || phase === 'authenticating' || phase === 'preparing') return 'amber'
   return 'neutral'
 }
 
 async function refresh() {
   try {
     await store.refreshAll()
-  }
-  catch (error) {
+  } catch (error) {
     toast.error(error instanceof Error ? error.message : 'Failed to refresh plugin host debug state.')
   }
 }
@@ -100,8 +94,7 @@ async function refresh() {
 async function loadEnabled() {
   try {
     await store.loadEnabled()
-  }
-  catch (error) {
+  } catch (error) {
     toast.error(error instanceof Error ? error.message : 'Failed to load enabled plugins.')
   }
 }
@@ -112,8 +105,7 @@ async function setAutoReload(plugin: PluginManifestSummary, enabled: boolean) {
       name: plugin.name,
       enabled,
     })
-  }
-  catch (error) {
+  } catch (error) {
     toast.error(error instanceof Error ? error.message : `Failed to update auto-reload state for ${plugin.name}.`)
   }
 }
@@ -125,8 +117,7 @@ async function setEnabled(plugin: PluginManifestSummary, enabled: boolean) {
       enabled,
       path: plugin.path,
     })
-  }
-  catch (error) {
+  } catch (error) {
     toast.error(error instanceof Error ? error.message : `Failed to update enabled state for ${plugin.name}.`)
   }
 }
@@ -134,8 +125,7 @@ async function setEnabled(plugin: PluginManifestSummary, enabled: boolean) {
 async function loadPlugin(plugin: PluginManifestSummary) {
   try {
     await store.load({ name: plugin.name })
-  }
-  catch (error) {
+  } catch (error) {
     toast.error(error instanceof Error ? error.message : `Failed to load plugin ${plugin.name}.`)
   }
 }
@@ -143,8 +133,7 @@ async function loadPlugin(plugin: PluginManifestSummary) {
 async function unloadPlugin(plugin: PluginManifestSummary) {
   try {
     await store.unload({ name: plugin.name })
-  }
-  catch (error) {
+  } catch (error) {
     toast.error(error instanceof Error ? error.message : `Failed to unload plugin ${plugin.name}.`)
   }
 }
@@ -158,8 +147,7 @@ async function loadSelectedPlugin() {
 
   try {
     await store.load({ name })
-  }
-  catch (error) {
+  } catch (error) {
     toast.error(error instanceof Error ? error.message : `Failed to load plugin ${name}.`)
   }
 }
@@ -178,50 +166,33 @@ onMounted(async () => {
       description="Open this page from Stage Tamagotchi renderer to use Electron plugin host controls."
     />
 
-    <Callout
-      v-if="store.error"
-      theme="orange"
-      label="Last Error"
-      :description="store.error"
-    />
+    <Callout v-if="store.error" theme="orange" label="Last Error" :description="store.error" />
 
     <div :class="['grid', 'gap-2', 'sm:grid-cols-2', 'xl:grid-cols-6']">
       <div :class="['rounded-xl', 'bg-neutral-100', 'p-3', 'dark:bg-neutral-900/70']">
-        <div :class="['text-xs', 'uppercase', 'opacity-70']">
-          Discovered
-        </div>
+        <div :class="['text-xs', 'uppercase', 'opacity-70']">Discovered</div>
         <div :class="['text-2xl', 'font-semibold']">
           {{ store.discoveredPlugins.length }}
         </div>
       </div>
       <div :class="['rounded-xl', 'bg-neutral-100', 'p-3', 'dark:bg-neutral-900/70']">
-        <div :class="['text-xs', 'uppercase', 'opacity-70']">
-          Enabled
-        </div>
+        <div :class="['text-xs', 'uppercase', 'opacity-70']">Enabled</div>
         <div :class="['text-2xl', 'font-semibold']">
           {{ store.enabledPlugins.length }}
         </div>
       </div>
       <div :class="['rounded-xl', 'bg-neutral-100', 'p-3', 'dark:bg-neutral-900/70']">
-        <div :class="['text-xs', 'uppercase', 'opacity-70']">
-          Loaded
-        </div>
+        <div :class="['text-xs', 'uppercase', 'opacity-70']">Loaded</div>
         <div :class="['text-2xl', 'font-semibold']">
           {{ store.loadedPlugins.length }}
         </div>
       </div>
       <div :class="['rounded-xl', 'bg-neutral-100', 'p-3', 'dark:bg-neutral-900/70']">
-        <div :class="['text-xs', 'uppercase', 'opacity-70']">
-          Capabilities
-        </div>
-        <div :class="['text-2xl', 'font-semibold']">
-          {{ readyCapabilitiesCount }} / {{ store.capabilities.length }}
-        </div>
+        <div :class="['text-xs', 'uppercase', 'opacity-70']">Capabilities</div>
+        <div :class="['text-2xl', 'font-semibold']">{{ readyCapabilitiesCount }} / {{ store.capabilities.length }}</div>
       </div>
       <div :class="['rounded-xl', 'bg-neutral-100', 'p-3', 'dark:bg-neutral-900/70']">
-        <div :class="['text-xs', 'uppercase', 'opacity-70']">
-          Kits
-        </div>
+        <div :class="['text-xs', 'uppercase', 'opacity-70']">Kits</div>
         <div :class="['text-2xl', 'font-semibold']">
           {{ store.kits.length }}
         </div>
@@ -229,18 +200,8 @@ onMounted(async () => {
     </div>
 
     <div :class="['flex', 'flex-wrap', 'items-center', 'gap-2']">
-      <Input
-        v-model="filter"
-        placeholder="Filter discovered plugins..."
-        class="max-w-[440px] min-w-[280px]"
-      />
-      <Button
-        label="Refresh"
-        icon="i-solar:refresh-bold-duotone"
-        size="sm"
-        :loading="store.loading"
-        @click="refresh"
-      />
+      <Input v-model="filter" placeholder="Filter discovered plugins..." class="max-w-[440px] min-w-[280px]" />
+      <Button label="Refresh" icon="i-solar:refresh-bold-duotone" size="sm" :loading="store.loading" @click="refresh" />
       <Button
         label="Load Enabled"
         icon="i-solar:play-bold-duotone"
@@ -266,11 +227,7 @@ onMounted(async () => {
       />
     </div>
 
-    <Section
-      title="Discovered Plugins"
-      icon="i-solar:list-check-bold-duotone"
-      inner-class="gap-3"
-    >
+    <Section title="Discovered Plugins" icon="i-solar:list-check-bold-duotone" inner-class="gap-3">
       <div
         v-if="discoveredPlugins.length === 0"
         :class="['rounded-xl', 'border', 'border-dashed', 'border-neutral-400/50', 'p-4', 'text-sm', 'opacity-70']"
@@ -282,23 +239,61 @@ onMounted(async () => {
         <div
           v-for="plugin in discoveredPlugins"
           :key="plugin.path"
-          :class="['rounded-xl', 'border', 'border-neutral-300', 'bg-white/70', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-950/60']"
+          :class="[
+            'rounded-xl',
+            'border',
+            'border-neutral-300',
+            'bg-white/70',
+            'p-3',
+            'dark:border-neutral-800',
+            'dark:bg-neutral-950/60',
+          ]"
         >
           <div :class="['flex', 'flex-wrap', 'items-center', 'justify-between', 'gap-2']">
             <div :class="['flex', 'flex-wrap', 'items-center', 'gap-2']">
               <div :class="['font-semibold']">
                 {{ plugin.name }}
               </div>
-              <span :class="['rounded-full', 'border', 'px-2', 'py-0.5', 'text-xs', ...chipClasses(plugin.enabled ? 'emerald' : 'neutral')]">
+              <span
+                :class="[
+                  'rounded-full',
+                  'border',
+                  'px-2',
+                  'py-0.5',
+                  'text-xs',
+                  ...chipClasses(plugin.enabled ? 'emerald' : 'neutral'),
+                ]"
+              >
                 {{ plugin.enabled ? 'enabled' : 'disabled' }}
               </span>
-              <span :class="['rounded-full', 'border', 'px-2', 'py-0.5', 'text-xs', ...chipClasses(plugin.autoReload ? 'amber' : 'neutral')]">
+              <span
+                :class="[
+                  'rounded-full',
+                  'border',
+                  'px-2',
+                  'py-0.5',
+                  'text-xs',
+                  ...chipClasses(plugin.autoReload ? 'amber' : 'neutral'),
+                ]"
+              >
                 {{ plugin.autoReload ? 'auto reload on' : 'auto reload off' }}
               </span>
-              <span :class="['rounded-full', 'border', 'px-2', 'py-0.5', 'text-xs', ...chipClasses(plugin.loaded ? 'emerald' : 'neutral')]">
+              <span
+                :class="[
+                  'rounded-full',
+                  'border',
+                  'px-2',
+                  'py-0.5',
+                  'text-xs',
+                  ...chipClasses(plugin.loaded ? 'emerald' : 'neutral'),
+                ]"
+              >
                 {{ plugin.loaded ? 'loaded' : 'not loaded' }}
               </span>
-              <span v-if="plugin.isNew" :class="['rounded-full', 'border', 'px-2', 'py-0.5', 'text-xs', ...chipClasses('amber')]">
+              <span
+                v-if="plugin.isNew"
+                :class="['rounded-full', 'border', 'px-2', 'py-0.5', 'text-xs', ...chipClasses('amber')]"
+              >
                 new
               </span>
             </div>
@@ -315,7 +310,11 @@ onMounted(async () => {
                 size="sm"
                 variant="secondary"
                 :label="plugin.enabled ? 'Disable' : 'Enable'"
-                :icon="plugin.enabled ? 'i-solar:lock-keyhole-minimalistic-unlocked-bold-duotone' : 'i-solar:lock-keyhole-bold-duotone'"
+                :icon="
+                  plugin.enabled
+                    ? 'i-solar:lock-keyhole-minimalistic-unlocked-bold-duotone'
+                    : 'i-solar:lock-keyhole-bold-duotone'
+                "
                 :loading="store.loading"
                 @click="setEnabled(plugin, !plugin.enabled)"
               />
@@ -343,15 +342,22 @@ onMounted(async () => {
           <div :class="['mt-2', 'text-xs', 'opacity-70', 'font-mono', 'break-all']">
             {{ plugin.path }}
           </div>
-          <div :class="['mt-2', 'text-xs', 'opacity-70']">
-            entrypoints: {{ JSON.stringify(plugin.entrypoints) }}
-          </div>
+          <div :class="['mt-2', 'text-xs', 'opacity-70']">entrypoints: {{ JSON.stringify(plugin.entrypoints) }}</div>
           <div
             v-if="sessionByPluginName.get(plugin.name)"
             :class="['mt-2', 'flex', 'items-center', 'gap-2', 'text-sm']"
           >
             <span>phase:</span>
-            <span :class="['rounded-full', 'border', 'px-2', 'py-0.5', 'text-xs', ...chipClasses(phaseChipTheme(sessionByPluginName.get(plugin.name)!.phase))]">
+            <span
+              :class="[
+                'rounded-full',
+                'border',
+                'px-2',
+                'py-0.5',
+                'text-xs',
+                ...chipClasses(phaseChipTheme(sessionByPluginName.get(plugin.name)!.phase)),
+              ]"
+            >
               {{ sessionByPluginName.get(plugin.name)!.phase }}
             </span>
             <span :class="['opacity-70', 'font-mono']">{{ sessionByPluginName.get(plugin.name)!.moduleId }}</span>
@@ -360,14 +366,8 @@ onMounted(async () => {
       </div>
     </Section>
 
-    <Section
-      title="Enabled Plugins"
-      icon="i-solar:check-circle-bold-duotone"
-      inner-class="gap-2"
-    >
-      <div :class="['text-sm', 'opacity-80']">
-        {{ enabledPlugins.length }} plugin(s) enabled in registry.
-      </div>
+    <Section title="Enabled Plugins" icon="i-solar:check-circle-bold-duotone" inner-class="gap-2">
+      <div :class="['text-sm', 'opacity-80']">{{ enabledPlugins.length }} plugin(s) enabled in registry.</div>
       <div :class="['flex', 'flex-wrap', 'gap-2']">
         <span
           v-for="plugin in enabledPlugins"
@@ -379,11 +379,7 @@ onMounted(async () => {
       </div>
     </Section>
 
-    <Section
-      title="Loaded Plugins"
-      icon="i-solar:play-circle-bold-duotone"
-      inner-class="gap-2"
-    >
+    <Section title="Loaded Plugins" icon="i-solar:play-circle-bold-duotone" inner-class="gap-2">
       <div :class="['text-sm', 'opacity-80']">
         {{ loadedPlugins.length }} plugin(s) currently loaded in host sessions.
       </div>
@@ -395,7 +391,16 @@ onMounted(async () => {
         >
           <div :class="['flex', 'items-center', 'justify-between', 'gap-2']">
             <span :class="['font-semibold']">{{ plugin.name }}</span>
-            <span :class="['rounded-full', 'border', 'px-2', 'py-0.5', 'text-xs', ...chipClasses(phaseChipTheme(sessionByPluginName.get(plugin.name)?.phase ?? 'unknown'))]">
+            <span
+              :class="[
+                'rounded-full',
+                'border',
+                'px-2',
+                'py-0.5',
+                'text-xs',
+                ...chipClasses(phaseChipTheme(sessionByPluginName.get(plugin.name)?.phase ?? 'unknown')),
+              ]"
+            >
               {{ sessionByPluginName.get(plugin.name)?.phase ?? 'unknown' }}
             </span>
           </div>
@@ -403,22 +408,21 @@ onMounted(async () => {
       </div>
     </Section>
 
-    <Section
-      title="Kits"
-      icon="i-solar:box-bold-duotone"
-      inner-class="gap-2"
-    >
-      <div
-        v-if="store.kits.length === 0"
-        :class="['text-sm', 'opacity-70']"
-      >
-        No kits registered.
-      </div>
+    <Section title="Kits" icon="i-solar:box-bold-duotone" inner-class="gap-2">
+      <div v-if="store.kits.length === 0" :class="['text-sm', 'opacity-70']">No kits registered.</div>
       <div v-else :class="['grid', 'gap-2']">
         <div
           v-for="kit in store.kits"
           :key="kit.kitId"
-          :class="['rounded-lg', 'border', 'border-neutral-300', 'bg-white/60', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-950/60']"
+          :class="[
+            'rounded-lg',
+            'border',
+            'border-neutral-300',
+            'bg-white/60',
+            'p-3',
+            'dark:border-neutral-800',
+            'dark:bg-neutral-950/60',
+          ]"
         >
           <div :class="['flex', 'flex-wrap', 'items-center', 'justify-between', 'gap-2']">
             <span :class="['font-mono', 'text-xs', 'sm:text-sm']">{{ kit.kitId }}</span>
@@ -426,41 +430,69 @@ onMounted(async () => {
               v{{ kit.version }}
             </span>
           </div>
-          <div :class="['mt-2', 'text-xs', 'opacity-70']">
-            runtimes: {{ kit.runtimes.join(', ') || '-' }}
-          </div>
-          <pre :class="['mt-2', 'overflow-auto', 'rounded-lg', 'bg-neutral-100', 'p-2', 'text-xs', 'dark:bg-neutral-900/70']">{{ JSON.stringify(kit.capabilities, null, 2) }}</pre>
+          <div :class="['mt-2', 'text-xs', 'opacity-70']">runtimes: {{ kit.runtimes.join(', ') || '-' }}</div>
+          <pre
+            :class="[
+              'mt-2',
+              'overflow-auto',
+              'rounded-lg',
+              'bg-neutral-100',
+              'p-2',
+              'text-xs',
+              'dark:bg-neutral-900/70',
+            ]"
+            >{{ JSON.stringify(kit.capabilities, null, 2) }}</pre
+          >
         </div>
       </div>
     </Section>
 
-    <Section
-      title="Capabilities"
-      icon="i-solar:widget-2-bold-duotone"
-      inner-class="gap-2"
-    >
-      <div
-        v-if="store.capabilities.length === 0"
-        :class="['text-sm', 'opacity-70']"
-      >
-        No capabilities announced.
-      </div>
+    <Section title="Capabilities" icon="i-solar:widget-2-bold-duotone" inner-class="gap-2">
+      <div v-if="store.capabilities.length === 0" :class="['text-sm', 'opacity-70']">No capabilities announced.</div>
       <div v-else :class="['grid', 'gap-2']">
         <div
           v-for="capability in store.capabilities"
           :key="capability.key"
-          :class="['rounded-lg', 'border', 'border-neutral-300', 'bg-white/60', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-950/60']"
+          :class="[
+            'rounded-lg',
+            'border',
+            'border-neutral-300',
+            'bg-white/60',
+            'p-3',
+            'dark:border-neutral-800',
+            'dark:bg-neutral-950/60',
+          ]"
         >
           <div :class="['flex', 'flex-wrap', 'items-center', 'justify-between', 'gap-2']">
             <span :class="['font-mono', 'text-xs', 'sm:text-sm']">{{ capability.key }}</span>
-            <span :class="['rounded-full', 'border', 'px-2', 'py-0.5', 'text-xs', ...chipClasses(capability.state === 'ready' ? 'emerald' : 'amber')]">
+            <span
+              :class="[
+                'rounded-full',
+                'border',
+                'px-2',
+                'py-0.5',
+                'text-xs',
+                ...chipClasses(capability.state === 'ready' ? 'emerald' : 'amber'),
+              ]"
+            >
               {{ capability.state }}
             </span>
           </div>
           <div :class="['mt-2', 'text-xs', 'opacity-70']">
             updated: {{ new Date(capability.updatedAt).toLocaleString() }}
           </div>
-          <pre :class="['mt-2', 'overflow-auto', 'rounded-lg', 'bg-neutral-100', 'p-2', 'text-xs', 'dark:bg-neutral-900/70']">{{ JSON.stringify(capability.metadata ?? {}, null, 2) }}</pre>
+          <pre
+            :class="[
+              'mt-2',
+              'overflow-auto',
+              'rounded-lg',
+              'bg-neutral-100',
+              'p-2',
+              'text-xs',
+              'dark:bg-neutral-900/70',
+            ]"
+            >{{ JSON.stringify(capability.metadata ?? {}, null, 2) }}</pre
+          >
         </div>
       </div>
     </Section>

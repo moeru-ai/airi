@@ -35,10 +35,13 @@ describe('useLlmStreamingControlStore', () => {
     const store = useLlmStreamingControlStore()
     const handler = vi.fn()
 
-    store.on({
-      name: 'plugin.action',
-      prompt: 'Run the plugin action.',
-    }, handler)
+    store.on(
+      {
+        name: 'plugin.action',
+        prompt: 'Run the plugin action.',
+      },
+      handler,
+    )
 
     await expect(store.dispatchWith('<|CALL ["plugin.action"]|>')).resolves.toBe(true)
 

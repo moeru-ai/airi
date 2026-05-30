@@ -37,7 +37,9 @@ const doubled = computed(() => count.value * 2)
 // Writable computed
 const plusOne = computed({
   get: () => count.value + 1,
-  set: (val) => { count.value = val - 1 }
+  set: (val) => {
+    count.value = val - 1
+  },
 })
 ```
 
@@ -72,8 +74,8 @@ watch(count, (newVal, oldVal) => {
 // Watch getter
 watch(
   () => props.id,
-  id => fetchData(id),
-  { immediate: true }
+  (id) => fetchData(id),
+  { immediate: true },
 )
 
 // Watch multiple sources
@@ -138,7 +140,7 @@ import {
   onMounted,
   onServerPrefetch, // SSR only
   onUnmounted,
-  onUpdated
+  onUpdated,
 } from 'vue'
 
 onMounted(() => {
@@ -231,8 +233,7 @@ export function useFetch(url: MaybeRefOrGetter<string>) {
     try {
       const res = await fetch(toValue(url))
       data.value = await res.json()
-    }
-    catch (e) {
+    } catch (e) {
       error.value = e
     }
   })

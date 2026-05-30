@@ -45,8 +45,5 @@ export declare function useIpcRendererOn(
  * @see https://www.electronjs.org/docs/api/ipc-renderer#ipcrendereronchannel-listener
  * @see https://vueuse.org/useIpcRendererOn
  */
-export declare function useIpcRendererOn(
-  channel: string,
-  listener: IpcRendererListener,
-): IpcRenderer
+export declare function useIpcRendererOn(channel: string, listener: IpcRendererListener): IpcRenderer
 ```

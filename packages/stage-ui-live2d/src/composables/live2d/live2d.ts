@@ -6,27 +6,38 @@ const live2dEyeTracking = useLocalStorageManualReset<boolean>('settings/live2d/e
 const live2dModelEyeOffset = useLocalStorageManualReset('settings/live2d/model-eye-offset', { x: 0, y: 0 })
 const live2dIdleAnimationEnabled = useLocalStorageManualReset<boolean>('settings/live2d/idle-animation-enabled', true)
 /** Let the avatar look around while no cursor tracking source is active. */
-const live2dForceIdleEyeAnimation = useLocalStorageManualReset<boolean>('settings/live2d/idle-eye-animation-enabled', true)
-const live2dAutoBlinkEnabled = useVersionedLocalStorageManualReset<boolean>('settings/live2d/auto-blink-enabled', true, {
-  defaultVersion: '2.0.0',
-  satisfiesVersionBy(beforeVersion, afterVersion) {
-    if (beforeVersion === afterVersion) {
-      return true
-    }
+const live2dForceIdleEyeAnimation = useLocalStorageManualReset<boolean>(
+  'settings/live2d/idle-eye-animation-enabled',
+  true,
+)
+const live2dAutoBlinkEnabled = useVersionedLocalStorageManualReset<boolean>(
+  'settings/live2d/auto-blink-enabled',
+  true,
+  {
+    defaultVersion: '2.0.0',
+    satisfiesVersionBy(beforeVersion, afterVersion) {
+      if (beforeVersion === afterVersion) {
+        return true
+      }
 
-    return false
+      return false
+    },
   },
-})
-const live2dForceAutoBlinkEnabled = useVersionedLocalStorageManualReset<boolean>('settings/live2d/force-auto-blink-enabled', true, {
-  defaultVersion: '2.0.0',
-  satisfiesVersionBy(beforeVersion, afterVersion) {
-    if (beforeVersion === afterVersion) {
-      return true
-    }
+)
+const live2dForceAutoBlinkEnabled = useVersionedLocalStorageManualReset<boolean>(
+  'settings/live2d/force-auto-blink-enabled',
+  true,
+  {
+    defaultVersion: '2.0.0',
+    satisfiesVersionBy(beforeVersion, afterVersion) {
+      if (beforeVersion === afterVersion) {
+        return true
+      }
 
-    return false
+      return false
+    },
   },
-})
+)
 const live2dExpressionEnabled = useLocalStorageManualReset<boolean>('settings/live2d/expression-enabled', false)
 const live2dShadowEnabled = useLocalStorageManualReset<boolean>('settings/live2d/shadow-enabled', true)
 const live2dMaxFps = useLocalStorageManualReset<number>('settings/live2d/max-fps', 0)

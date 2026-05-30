@@ -9,8 +9,7 @@ export function useElectronWindowResize() {
   const resizeWindow = useElectronEventaInvoke(electron.window.resize)
 
   const handleResizeStart = async (e: MouseEvent, direction: ResizeDirection) => {
-    if (!await isWindows())
-      return
+    if (!(await isWindows())) return
 
     e.preventDefault()
     e.stopPropagation()

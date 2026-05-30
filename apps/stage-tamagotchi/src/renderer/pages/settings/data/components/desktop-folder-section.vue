@@ -15,23 +15,26 @@ const { t } = useI18n()
 const { handleActionError } = createDataSettingsStatusHelpers(emit)
 
 async function triggerOpenDesktopUserDataFolder() {
-  if (typeof window === 'undefined' || !isElectronWindow(window))
-    return
+  if (typeof window === 'undefined' || !isElectronWindow(window)) return
 
   try {
     const { context } = createContext(window.electron.ipcRenderer)
     const openUserDataFolder = defineInvoke(context, electronAppOpenUserDataFolder)
 
     await openUserDataFolder()
-  }
-  catch (error) {
+  } catch (error) {
     handleActionError(error)
   }
 }
 </script>
 
 <template>
-  <div :class="['border-2 border-neutral-200/50 rounded-xl bg-white/70 p-4 shadow-sm', 'dark:border-neutral-800/60 dark:bg-neutral-900/60']">
+  <div
+    :class="[
+      'border-2 border-neutral-200/50 rounded-xl bg-white/70 p-4 shadow-sm',
+      'dark:border-neutral-800/60 dark:bg-neutral-900/60',
+    ]"
+  >
     <div :class="['grid grid-cols-1 items-start gap-3 md:grid-cols-[minmax(0,1fr)_auto]']">
       <div :class="['flex flex-col gap-1 md:max-w-[560px]']">
         <div :class="['text-lg font-medium']">

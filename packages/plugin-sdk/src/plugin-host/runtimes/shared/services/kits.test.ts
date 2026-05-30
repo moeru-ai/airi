@@ -9,9 +9,7 @@ describe('kitRegistryService', () => {
     const widgetKit = service.register({
       kitId: 'kit.widget',
       version: '1.0.0',
-      capabilities: [
-        { key: 'kit.widget.module', actions: ['announce', 'activate'] },
-      ],
+      capabilities: [{ key: 'kit.widget.module', actions: ['announce', 'activate'] }],
       runtimes: ['electron', 'web'],
     })
     service.register({

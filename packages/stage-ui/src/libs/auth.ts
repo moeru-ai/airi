@@ -36,8 +36,7 @@ export const authClient = createAuthClient({
 let initialized = false
 
 export async function initializeAuth() {
-  if (initialized)
-    return
+  if (initialized) return
 
   // NOTICE: OIDC callback is handled by the dedicated callback page
   // (e.g. /auth/callback). initializeAuth() only restores existing
@@ -60,8 +59,7 @@ export async function initializeAuth() {
   // fresh OIDC login prompt via the standard 401→needsLogin path.
   const hasRefreshToken = !!authStore.refreshToken
   const hasClientId = !!authStore.oidcClientId
-  if (hasRefreshToken !== hasClientId)
-    authStore.clearAllAuthState()
+  if (hasRefreshToken !== hasClientId) authStore.clearAllAuthState()
 
   // NOTICE: restoreRefreshSchedule must complete BEFORE fetchSession when
   // the persisted access token is already expired. Otherwise fetchSession
@@ -83,19 +81,16 @@ export async function initializeAuth() {
 export async function applyOIDCTokens(tokens: TokenResponse, clientId: string): Promise<void> {
   const authStore = useAuthStore()
   authStore.token = tokens.access_token
-  if (tokens.refresh_token)
-    authStore.refreshToken = tokens.refresh_token
+  if (tokens.refresh_token) authStore.refreshToken = tokens.refresh_token
   // Persist the ID token so signOut() can drive RP-Initiated Logout via
   // `id_token_hint`. Token rotation does not refresh the ID token, so the
   // value captured here at sign-in time is the one we use for the lifetime
   // of the local session.
-  if (tokens.id_token)
-    authStore.idToken = tokens.id_token
+  if (tokens.id_token) authStore.idToken = tokens.id_token
 
   // Persist client info for refresh after page reload
   authStore.oidcClientId = clientId
-  if (tokens.expires_in)
-    authStore.tokenExpiry = Date.now() + tokens.expires_in * 1000
+  if (tokens.expires_in) authStore.tokenExpiry = Date.now() + tokens.expires_in * 1000
 
   authStore.scheduleTokenRefresh(tokens.expires_in)
 }
@@ -160,16 +155,14 @@ export async function signOut() {
       url.searchParams.set('id_token_hint', idTokenHint)
       url.searchParams.set('client_id', clientId)
       await fetch(url.toString(), { method: 'GET' })
-    }
-    else if (bearerToken) {
+    } else if (bearerToken) {
       const url = new URL('/api/auth/sign-out', SERVER_URL)
       await fetch(url.toString(), {
         method: 'POST',
         headers: { Authorization: `Bearer ${bearerToken}` },
       })
     }
-  }
-  catch {
+  } catch {
     // Network failure: still clear local state below. Server-side row will
     // expire by TTL; the local refreshToken/idToken/clientId are about to
     // be wiped, so the local user has no way to spend it in the meantime.

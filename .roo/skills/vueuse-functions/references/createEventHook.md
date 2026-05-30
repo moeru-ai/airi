@@ -18,8 +18,8 @@ export function useMyFetch(url) {
   const fetchError = createEventHook<any>()
 
   fetch(url)
-    .then(result => fetchResult.trigger(result))
-    .catch(error => fetchError.trigger(error.message))
+    .then((result) => fetchResult.trigger(result))
+    .catch((error) => fetchError.trigger(error.message))
 
   return {
     onResult: fetchResult.on,
@@ -53,21 +53,19 @@ onError((error) => {
  * The source code for this function was inspired by vue-apollo's `useEventHook` util
  * https://github.com/vuejs/vue-apollo/blob/v4/packages/vue-apollo-composable/src/util/useEventHook.ts
  */
-type Callback<T>
-  = IsAny<T> extends true
+type Callback<T> =
+  IsAny<T> extends true
     ? (...param: any) => void
     : [T] extends [void]
-        ? (...param: unknown[]) => void
-        : [T] extends [any[]]
-            ? (...param: T) => void
-            : (...param: [T, ...unknown[]]) => void
+      ? (...param: unknown[]) => void
+      : [T] extends [any[]]
+        ? (...param: T) => void
+        : (...param: [T, ...unknown[]]) => void
 export type EventHookOn<T = any> = (fn: Callback<T>) => {
   off: () => void
 }
 export type EventHookOff<T = any> = (fn: Callback<T>) => void
-export type EventHookTrigger<T = any> = (
-  ...param: Parameters<Callback<T>>
-) => Promise<unknown[]>
+export type EventHookTrigger<T = any> = (...param: Parameters<Callback<T>>) => Promise<unknown[]>
 export interface EventHook<T = any> {
   on: EventHookOn<T>
   off: EventHookOff<T>

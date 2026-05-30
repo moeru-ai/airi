@@ -37,14 +37,18 @@ import { transparentWindowConfig } from '../shared'
 import { setupMainWindowElectronInvokes } from './rpc/index.electron'
 
 const appConfigSchema = object({
-  windows: optional(array(object({
-    title: optional(string()),
-    tag: string(),
-    x: optional(number()),
-    y: optional(number()),
-    width: optional(number()),
-    height: optional(number()),
-  }))),
+  windows: optional(
+    array(
+      object({
+        title: optional(string()),
+        tag: string(),
+        x: optional(number()),
+        y: optional(number()),
+        width: optional(number()),
+        height: optional(number()),
+      }),
+    ),
+  ),
 })
 
 type AppConfig = InferOutput<typeof appConfigSchema>
@@ -75,7 +79,7 @@ export async function setupMainWindow(params: {
 
   setupConfig()
 
-  const mainWindowConfig = getConfig().windows?.find(w => w.title === 'AIRI' && w.tag === 'main')
+  const mainWindowConfig = getConfig().windows?.find((w) => w.title === 'AIRI' && w.tag === 'main')
 
   const window = new BrowserWindow({
     title: 'AIRI',
@@ -110,8 +114,7 @@ export async function setupMainWindow(params: {
   if (is.dev || env.MAIN_APP_DEBUG || env.APP_DEBUG) {
     try {
       window.webContents.openDevTools({ mode: 'detach' })
-    }
-    catch (err) {
+    } catch (err) {
       console.error('failed to open devtools:', err)
     }
   }
@@ -122,7 +125,7 @@ export async function setupMainWindow(params: {
       config.windows = []
     }
 
-    const existingConfigIndex = config.windows.findIndex(w => w.title === 'AIRI' && w.tag === 'main')
+    const existingConfigIndex = config.windows.findIndex((w) => w.title === 'AIRI' && w.tag === 'main')
 
     if (existingConfigIndex === -1) {
       config.windows.push({
@@ -133,8 +136,7 @@ export async function setupMainWindow(params: {
         width: newBounds.width,
         height: newBounds.height,
       })
-    }
-    else {
+    } else {
       const mainWindowConfig = defu(config.windows[existingConfigIndex], { title: 'AIRI', tag: 'main' })
 
       mainWindowConfig.x = newBounds.x
@@ -205,8 +207,7 @@ export async function setupMainWindow(params: {
       try {
         const windowId = window.getNativeWindowHandle()
         clickDragPlugin.startDrag(windowId)
-      }
-      catch (error) {
+      } catch (error) {
         console.error(error)
       }
     }
@@ -217,7 +218,11 @@ export async function setupMainWindow(params: {
     ipcMain.setMaxListeners(0)
 
     const { context } = createContext(ipcMain, window)
-    const cleanUpWindowDraggingInvokeHandler = defineInvokeHandler(context, electronStartDraggingWindow, handleStartDraggingWindow)
+    const cleanUpWindowDraggingInvokeHandler = defineInvokeHandler(
+      context,
+      electronStartDraggingWindow,
+      handleStartDraggingWindow,
+    )
 
     window.on('closed', () => {
       cleanUpWindowDraggingInvokeHandler()

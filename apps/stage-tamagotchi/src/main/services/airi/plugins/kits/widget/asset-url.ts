@@ -3,10 +3,7 @@ import type { ManifestEntry } from '../../types'
 
 import { isPlainObject } from 'es-toolkit'
 
-import {
-  buildMountedStaticAssetPath,
-  normalizeStaticAssetPath,
-} from '../../../http-server/static-assets/paths'
+import { buildMountedStaticAssetPath, normalizeStaticAssetPath } from '../../../http-server/static-assets/paths'
 
 /**
  * Describes one widget iframe asset as seen from the mounted `/ui` route.
@@ -33,9 +30,7 @@ function normalizeWidgetAssetPath(assetPath: string): string | undefined {
     return undefined
   }
 
-  const withoutRelativePrefix = trimmed.startsWith('./')
-    ? trimmed.slice(2)
-    : trimmed
+  const withoutRelativePrefix = trimmed.startsWith('./') ? trimmed.slice(2) : trimmed
 
   return normalizeStaticAssetPath(withoutRelativePrefix)
 }
@@ -60,9 +55,7 @@ export function resolveWidgetAssetRoute(assetPath: string): WidgetAssetRoute | u
     return undefined
   }
 
-  const routeAssetPath = normalized.startsWith('ui/')
-    ? normalized.slice(3)
-    : normalized
+  const routeAssetPath = normalized.startsWith('ui/') ? normalized.slice(3) : normalized
   if (!routeAssetPath) {
     return undefined
   }
@@ -107,7 +100,7 @@ export function rewriteWidgetModuleAssetUrl(
       sessionId: string
       routeAssetPath: string
       sessionPathPrefix: string
-    }) => Promise<{ assetSessionId: string, url?: string }>
+    }) => Promise<{ assetSessionId: string; url?: string }>
   },
 ): Promise<PluginHostModuleSummary> | PluginHostModuleSummary {
   const entry = manifestEntryByName.get(module.ownerPluginId)
@@ -115,9 +108,9 @@ export function rewriteWidgetModuleAssetUrl(
     return module
   }
 
-  const config = isPlainObject(module.config) ? module.config as Record<string, unknown> : {}
-  const widgetConfig = isPlainObject(config.widget) ? config.widget as Record<string, unknown> : {}
-  const iframeConfig = isPlainObject(widgetConfig.iframe) ? widgetConfig.iframe as Record<string, unknown> : {}
+  const config = isPlainObject(module.config) ? (module.config as Record<string, unknown>) : {}
+  const widgetConfig = isPlainObject(config.widget) ? (config.widget as Record<string, unknown>) : {}
+  const iframeConfig = isPlainObject(widgetConfig.iframe) ? (widgetConfig.iframe as Record<string, unknown>) : {}
   const iframeSrc = typeof iframeConfig.src === 'string' ? iframeConfig.src.trim() : ''
   if (iframeSrc) {
     return module
@@ -145,35 +138,37 @@ export function rewriteWidgetModuleAssetUrl(
     return module
   }
 
-  return options.createAssetSession({
-    extensionId: module.ownerPluginId,
-    version: entry.version,
-    sessionId: module.ownerSessionId,
-    routeAssetPath: widgetAssetRoute.routeAssetPath,
-    sessionPathPrefix: widgetAssetRoute.sessionPathPrefix,
-  }).then((session) => {
-    const mountedPath = buildMountedStaticAssetPath({
+  return options
+    .createAssetSession({
       extensionId: module.ownerPluginId,
-      assetSessionId: session.assetSessionId,
-      assetPath: widgetAssetRoute.routeAssetPath,
+      version: entry.version,
+      sessionId: module.ownerSessionId,
+      routeAssetPath: widgetAssetRoute.routeAssetPath,
+      sessionPathPrefix: widgetAssetRoute.sessionPathPrefix,
     })
-    const iframeUrl = session.url ?? (mountedPath ? new URL(mountedPath, options.pluginAssetBaseUrl).toString() : '')
-    if (!iframeUrl) {
-      return module
-    }
+    .then((session) => {
+      const mountedPath = buildMountedStaticAssetPath({
+        extensionId: module.ownerPluginId,
+        assetSessionId: session.assetSessionId,
+        assetPath: widgetAssetRoute.routeAssetPath,
+      })
+      const iframeUrl = session.url ?? (mountedPath ? new URL(mountedPath, options.pluginAssetBaseUrl).toString() : '')
+      if (!iframeUrl) {
+        return module
+      }
 
-    return {
-      ...module,
-      config: {
-        ...config,
-        widget: {
-          ...widgetConfig,
-          iframe: {
-            ...iframeConfig,
-            src: iframeUrl,
+      return {
+        ...module,
+        config: {
+          ...config,
+          widget: {
+            ...widgetConfig,
+            iframe: {
+              ...iframeConfig,
+              src: iframeUrl,
+            },
           },
         },
-      },
-    }
-  })
+      }
+    })
 }

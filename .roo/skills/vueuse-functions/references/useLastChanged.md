@@ -44,9 +44,7 @@ export interface UseLastChangedOptions<
 > extends WatchOptions<Immediate> {
   initialValue?: InitialValue
 }
-export type UseLastChangedReturn
-  = | Readonly<ShallowRef<number | null>>
-    | Readonly<ShallowRef<number>>
+export type UseLastChangedReturn = Readonly<ShallowRef<number | null>> | Readonly<ShallowRef<number>>
 /**
  * Records the timestamp of the last change
  *

@@ -5,19 +5,12 @@ import ProviderSettingsContainer from './provider-settings-container.vue'
 </script>
 
 <template>
-  <Story
-    title="Settings Container"
-    group="providers"
-    :layout="{ type: 'grid', width: 800 }"
-  >
+  <Story title="Settings Container" group="providers" :layout="{ type: 'grid', width: 800 }">
     <template #controls>
       <ThemeColorsHueControl />
     </template>
 
-    <Variant
-      id="empty"
-      title="Empty"
-    >
+    <Variant id="empty" title="Empty">
       <div>
         <ProviderSettingsContainer>
           <div class="p-4">
@@ -27,16 +20,10 @@ import ProviderSettingsContainer from './provider-settings-container.vue'
       </div>
     </Variant>
 
-    <Variant
-      id="with-sections"
-      title="With Sections"
-    >
+    <Variant id="with-sections" title="With Sections">
       <div>
         <ProviderSettingsContainer>
-          <ProviderBasicSettings
-            title="Basic"
-            description="Essential settings"
-          >
+          <ProviderBasicSettings title="Basic" description="Essential settings">
             <div class="border border-neutral-200 rounded p-4 dark:border-neutral-800">
               <p>Basic settings content</p>
             </div>

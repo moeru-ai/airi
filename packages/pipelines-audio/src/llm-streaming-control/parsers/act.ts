@@ -33,8 +33,7 @@ export function tokenAct(): LlmStreamingControlParser<LlmStreamingControlTokenAc
       let parsed: unknown
       try {
         parsed = JSON.parse(rawPayload)
-      }
-      catch {
+      } catch {
         return undefined
       }
 

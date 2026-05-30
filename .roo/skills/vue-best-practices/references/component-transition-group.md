@@ -23,6 +23,7 @@ tags: [vue3, transition-group, animation, lists, keys]
 `<TransitionGroup>` is designed for list items. Use `tag` to control the wrapper element when needed.
 
 **BAD:**
+
 ```vue
 <template>
   <TransitionGroup name="fade">
@@ -33,6 +34,7 @@ tags: [vue3, transition-group, animation, lists, keys]
 ```
 
 **GOOD:**
+
 ```vue
 <template>
   <TransitionGroup name="list" tag="ul">
@@ -48,6 +50,7 @@ tags: [vue3, transition-group, animation, lists, keys]
 Keys are required. Without stable keys, Vue cannot track item positions and animations break.
 
 **BAD:**
+
 ```vue
 <template>
   <TransitionGroup name="list" tag="ul">
@@ -59,6 +62,7 @@ Keys are required. Without stable keys, Vue cannot track item positions and anim
 ```
 
 **GOOD:**
+
 ```vue
 <template>
   <TransitionGroup name="list" tag="ul">
@@ -74,6 +78,7 @@ Keys are required. Without stable keys, Vue cannot track item positions and anim
 `mode` is only for `<Transition>` because it swaps a single element. Use `<Transition>` if you need in/out sequencing.
 
 **BAD:**
+
 ```vue
 <template>
   <TransitionGroup name="list" tag="div" mode="out-in">
@@ -85,6 +90,7 @@ Keys are required. Without stable keys, Vue cannot track item positions and anim
 ```
 
 **GOOD:**
+
 ```vue
 <template>
   <Transition name="fade" mode="out-in">
@@ -116,12 +122,7 @@ function onEnter(el, done) {
 </script>
 
 <template>
-  <TransitionGroup
-    tag="ul"
-    :css="false"
-    @before-enter="onBeforeEnter"
-    @enter="onEnter"
-  >
+  <TransitionGroup tag="ul" :css="false" @before-enter="onBeforeEnter" @enter="onEnter">
     <li v-for="(item, index) in items" :key="item.id" :data-index="index">
       {{ item.name }}
     </li>

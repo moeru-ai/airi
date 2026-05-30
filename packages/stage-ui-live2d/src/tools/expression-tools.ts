@@ -37,8 +37,7 @@ const tools = [
     ].join(' '),
     execute: async ({ name, value, duration }) => {
       const err = ensureModelLoaded()
-      if (err)
-        return serialize(err)
+      if (err) return serialize(err)
 
       const store = useExpressionStore()
       const numericValue = typeof value === 'boolean' ? (value ? 1 : 0) : value
@@ -61,8 +60,7 @@ const tools = [
     ].join(' '),
     execute: async ({ name }) => {
       const err = ensureModelLoaded()
-      if (err)
-        return serialize(err)
+      if (err) return serialize(err)
 
       const store = useExpressionStore()
       const result = store.get(name ?? undefined)
@@ -82,8 +80,7 @@ const tools = [
     ].join(' '),
     execute: async ({ name, duration }) => {
       const err = ensureModelLoaded()
-      if (err)
-        return serialize(err)
+      if (err) return serialize(err)
 
       const store = useExpressionStore()
       const result = store.toggle(name, duration ?? undefined)
@@ -101,8 +98,7 @@ const tools = [
     description: 'Save the current expression state as the new defaults. Persists across app restarts.',
     execute: async () => {
       const err = ensureModelLoaded()
-      if (err)
-        return serialize(err)
+      if (err) return serialize(err)
 
       const store = useExpressionStore()
       const result = store.saveDefaults()
@@ -117,8 +113,7 @@ const tools = [
     description: 'Reset all expressions to their default values.',
     execute: async () => {
       const err = ensureModelLoaded()
-      if (err)
-        return serialize(err)
+      if (err) return serialize(err)
 
       const store = useExpressionStore()
       const result = store.resetAll()

@@ -29,15 +29,11 @@ const { hasFocus, activate, deactivate } = useFocusTrap(target)
 
 <template>
   <div>
-    <button @click="activate()">
-      Activate
-    </button>
+    <button @click="activate()">Activate</button>
     <div ref="target">
       <span>Has Focus: {{ hasFocus }}</span>
-      <input type="text">
-      <button @click="deactivate()">
-        Deactivate
-      </button>
+      <input type="text" />
+      <button @click="deactivate()">Deactivate</button>
     </div>
   </div>
 </template>
@@ -57,20 +53,16 @@ const { hasFocus, activate, deactivate } = useFocusTrap([targetOne, targetTwo])
 
 <template>
   <div>
-    <button @click="activate()">
-      Activate
-    </button>
+    <button @click="activate()">Activate</button>
     <div ref="targetOne">
       <span>Has Focus: {{ hasFocus }}</span>
-      <input type="text">
+      <input type="text" />
     </div>
     ...
     <div ref="targetTow">
       <p>Another target here</p>
-      <input type="text">
-      <button @click="deactivate()">
-        Deactivate
-      </button>
+      <input type="text" />
+      <button @click="deactivate()">Deactivate</button>
     </div>
   </div>
 </template>
@@ -87,25 +79,15 @@ const left = useTemplateRef('left')
 const right = useTemplateRef('right')
 const currentRef = shallowRef<'left' | 'right'>('left')
 
-const target = computed(() =>
-  currentRef.value === 'left'
-    ? left
-    : currentRef.value === 'right'
-      ? right
-      : null,
-)
+const target = computed(() => (currentRef.value === 'left' ? left : currentRef.value === 'right' ? right : null))
 
 const { activate } = useFocusTrap(target)
 </script>
 
 <template>
   <div>
-    <div ref="left" class="left">
-      ...
-    </div>
-    <div ref="right" class="right">
-      ...
-    </div>
+    <div ref="left" class="left">...</div>
+    <div ref="right" class="right">...</div>
   </div>
 </template>
 ```
@@ -123,9 +105,7 @@ const { hasFocus, activate, deactivate } = useFocusTrap(target, { immediate: tru
 
 <template>
   <div>
-    <div ref="target">
-      ...
-    </div>
+    <div ref="target">...</div>
   </div>
 </template>
 ```
@@ -154,13 +134,9 @@ async function reveal() {
 
 <template>
   <div>
-    <div v-if="show" ref="target">
-      ...
-    </div>
+    <div v-if="show" ref="target">...</div>
 
-    <button @click="reveal">
-      Reveal and Focus
-    </button>
+    <button @click="reveal">Reveal and Focus</button>
   </div>
 </template>
 ```
@@ -179,9 +155,7 @@ const show = shallowRef(false)
 
 <template>
   <UseFocusTrap v-if="show" :options="{ immediate: true }">
-    <div class="modal">
-      ...
-    </div>
+    <div class="modal">...</div>
   </UseFocusTrap>
 </template>
 ```
@@ -237,9 +211,7 @@ export interface UseFocusTrapReturn {
  * @see https://vueuse.org/useFocusTrap
  */
 export declare function useFocusTrap(
-  target: MaybeRefOrGetter<
-    Arrayable<MaybeRefOrGetter<string> | MaybeComputedElementRef>
-  >,
+  target: MaybeRefOrGetter<Arrayable<MaybeRefOrGetter<string> | MaybeComputedElementRef>>,
   options?: UseFocusTrapOptions,
 ): UseFocusTrapReturn
 ```

@@ -11,21 +11,9 @@ import { getElectronBuilderConfig, getFilenames, getVersion } from './utils'
 
 async function main() {
   const cli = cac('rename-artifact')
-    .option(
-      '--release',
-      'Rename with version from package.json',
-      { default: false },
-    )
-    .option(
-      '--auto-tag',
-      'Automatically tag the release with the latest git ref',
-      { default: false },
-    )
-    .option(
-      '--tag <tag>',
-      'Tag to use for the release',
-      { default: '', type: [String] },
-    )
+    .option('--release', 'Rename with version from package.json', { default: false })
+    .option('--auto-tag', 'Automatically tag the release with the latest git ref', { default: false })
+    .option('--tag <tag>', 'Tag to use for the release', { default: '', type: [String] })
 
   const args = cli.parse()
 

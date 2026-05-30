@@ -69,8 +69,8 @@ export interface PluginHostDebugSnapshot {
 
 interface PluginHostDebugBridge {
   list: () => Promise<PluginRegistrySnapshot>
-  setEnabled: (payload: { name: string, enabled: boolean, path?: string }) => Promise<PluginRegistrySnapshot>
-  setAutoReload: (payload: { name: string, enabled: boolean }) => Promise<PluginRegistrySnapshot>
+  setEnabled: (payload: { name: string; enabled: boolean; path?: string }) => Promise<PluginRegistrySnapshot>
+  setAutoReload: (payload: { name: string; enabled: boolean }) => Promise<PluginRegistrySnapshot>
   loadEnabled: () => Promise<PluginRegistrySnapshot>
   load: (payload: { name: string }) => Promise<PluginRegistrySnapshot>
   unload: (payload: { name: string }) => Promise<PluginRegistrySnapshot>
@@ -96,8 +96,8 @@ export const usePluginHostInspectorStore = defineStore('devtools:plugin-host-deb
   const loading = ref(false)
 
   const discoveredPlugins = computed(() => registry.value?.plugins ?? [])
-  const enabledPlugins = computed(() => discoveredPlugins.value.filter(plugin => plugin.enabled))
-  const loadedPlugins = computed(() => discoveredPlugins.value.filter(plugin => plugin.loaded))
+  const enabledPlugins = computed(() => discoveredPlugins.value.filter((plugin) => plugin.enabled))
+  const loadedPlugins = computed(() => discoveredPlugins.value.filter((plugin) => plugin.loaded))
   const isAvailable = computed(() => Boolean(bridge.value))
 
   function setBridge(nextBridge: PluginHostDebugBridge) {
@@ -144,24 +144,22 @@ export const usePluginHostInspectorStore = defineStore('devtools:plugin-host-deb
     clearError()
     try {
       return await run(bridge.value)
-    }
-    catch (cause) {
+    } catch (cause) {
       error.value = cause instanceof Error ? cause.message : 'Plugin host debug request failed.'
       throw cause
-    }
-    finally {
+    } finally {
       loading.value = false
     }
   }
 
   async function refreshRegistry() {
-    const nextRegistry = await withBridge(activeBridge => activeBridge.list())
+    const nextRegistry = await withBridge((activeBridge) => activeBridge.list())
     assignRegistry(nextRegistry)
     return nextRegistry
   }
 
   async function refreshInspection() {
-    const snapshot = await withBridge(activeBridge => activeBridge.inspect())
+    const snapshot = await withBridge((activeBridge) => activeBridge.inspect())
     assignInspection(snapshot)
     return snapshot
   }
@@ -170,36 +168,36 @@ export const usePluginHostInspectorStore = defineStore('devtools:plugin-host-deb
     return refreshInspection()
   }
 
-  async function setEnabled(payload: { name: string, enabled: boolean, path?: string }) {
-    const nextRegistry = await withBridge(activeBridge => activeBridge.setEnabled(payload))
+  async function setEnabled(payload: { name: string; enabled: boolean; path?: string }) {
+    const nextRegistry = await withBridge((activeBridge) => activeBridge.setEnabled(payload))
     assignRegistry(nextRegistry)
     await refreshInspection()
     return nextRegistry
   }
 
-  async function setAutoReload(payload: { name: string, enabled: boolean }) {
-    const nextRegistry = await withBridge(activeBridge => activeBridge.setAutoReload(payload))
+  async function setAutoReload(payload: { name: string; enabled: boolean }) {
+    const nextRegistry = await withBridge((activeBridge) => activeBridge.setAutoReload(payload))
     assignRegistry(nextRegistry)
     await refreshInspection()
     return nextRegistry
   }
 
   async function loadEnabled() {
-    const nextRegistry = await withBridge(activeBridge => activeBridge.loadEnabled())
+    const nextRegistry = await withBridge((activeBridge) => activeBridge.loadEnabled())
     assignRegistry(nextRegistry)
     await refreshInspection()
     return nextRegistry
   }
 
   async function load(payload: { name: string }) {
-    const nextRegistry = await withBridge(activeBridge => activeBridge.load(payload))
+    const nextRegistry = await withBridge((activeBridge) => activeBridge.load(payload))
     assignRegistry(nextRegistry)
     await refreshInspection()
     return nextRegistry
   }
 
   async function unload(payload: { name: string }) {
-    const nextRegistry = await withBridge(activeBridge => activeBridge.unload(payload))
+    const nextRegistry = await withBridge((activeBridge) => activeBridge.unload(payload))
     assignRegistry(nextRegistry)
     await refreshInspection()
     return nextRegistry

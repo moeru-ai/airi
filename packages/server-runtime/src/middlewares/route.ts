@@ -4,10 +4,7 @@ import type { AuthenticatedPeer } from '../types'
 
 import { matchesDestinations, matchesLabelSelectors } from './route/match-expression'
 
-export type RouteDecision
-  = | { type: 'drop' }
-    | { type: 'broadcast' }
-    | { type: 'targets', targetIds: Set<string> }
+export type RouteDecision = { type: 'drop' } | { type: 'broadcast' } | { type: 'targets'; targetIds: Set<string> }
 
 export interface RoutingPolicy {
   allowPlugins?: string[]

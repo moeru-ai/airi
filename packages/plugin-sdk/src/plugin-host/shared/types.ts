@@ -57,7 +57,7 @@ export const pluginRuntimeValues = ['electron', 'node', 'web'] as const
  * Returns:
  * - The union of valid runtime literals
  */
-export type PluginRuntime = typeof pluginRuntimeValues[number]
+export type PluginRuntime = (typeof pluginRuntimeValues)[number]
 /**
  * Validates one runtime literal from {@link pluginRuntimeValues}.
  *
@@ -114,13 +114,7 @@ export interface HostDataRecord {
  * Returns:
  * - The recursive union used across shared host data structures
  */
-export type HostDataValue
-  = | null
-    | string
-    | number
-    | boolean
-    | HostDataArray
-    | HostDataRecord
+export type HostDataValue = null | string | number | boolean | HostDataArray | HostDataRecord
 
 /**
  * Creates the recursive Valibot schema used for one {@link HostDataValue}.
@@ -214,14 +208,14 @@ export type ModulePhase = ProtocolModulePhase
  * Returns:
  * - The full plugin-session lifecycle union
  */
-export type PluginSessionPhase
-  = | 'loading'
-    | 'loaded'
-    | 'authenticating'
-    | 'authenticated'
-    | 'waiting-deps'
-    | ModulePhase
-    | 'stopped'
+export type PluginSessionPhase =
+  | 'loading'
+  | 'loaded'
+  | 'authenticating'
+  | 'authenticated'
+  | 'waiting-deps'
+  | ModulePhase
+  | 'stopped'
 
 /**
  * Re-exports the protocol plugin identity model used by the host.
@@ -382,41 +376,61 @@ export const manifestV1Schema = object({
   kind: literal('manifest.plugin.airi.moeru.ai'),
   name: string(),
   permissions: object({
-    apis: optional(array(object({
-      key: string(),
-      actions: array(picklist(['invoke', 'emit'])),
-      reason: optional(localizableSchema),
-      label: optional(localizableSchema),
-      required: optional(boolean()),
-    }))),
-    resources: optional(array(object({
-      key: string(),
-      actions: array(picklist(['read', 'write', 'subscribe'])),
-      reason: optional(localizableSchema),
-      label: optional(localizableSchema),
-      required: optional(boolean()),
-    }))),
-    capabilities: optional(array(object({
-      key: string(),
-      actions: array(picklist(['wait', 'snapshot'])),
-      reason: optional(localizableSchema),
-      label: optional(localizableSchema),
-      required: optional(boolean()),
-    }))),
-    processors: optional(array(object({
-      key: string(),
-      actions: array(picklist(['register', 'execute', 'manage'])),
-      reason: optional(localizableSchema),
-      label: optional(localizableSchema),
-      required: optional(boolean()),
-    }))),
-    pipelines: optional(array(object({
-      key: string(),
-      actions: array(picklist(['hook', 'process', 'emit', 'manage'])),
-      reason: optional(localizableSchema),
-      label: optional(localizableSchema),
-      required: optional(boolean()),
-    }))),
+    apis: optional(
+      array(
+        object({
+          key: string(),
+          actions: array(picklist(['invoke', 'emit'])),
+          reason: optional(localizableSchema),
+          label: optional(localizableSchema),
+          required: optional(boolean()),
+        }),
+      ),
+    ),
+    resources: optional(
+      array(
+        object({
+          key: string(),
+          actions: array(picklist(['read', 'write', 'subscribe'])),
+          reason: optional(localizableSchema),
+          label: optional(localizableSchema),
+          required: optional(boolean()),
+        }),
+      ),
+    ),
+    capabilities: optional(
+      array(
+        object({
+          key: string(),
+          actions: array(picklist(['wait', 'snapshot'])),
+          reason: optional(localizableSchema),
+          label: optional(localizableSchema),
+          required: optional(boolean()),
+        }),
+      ),
+    ),
+    processors: optional(
+      array(
+        object({
+          key: string(),
+          actions: array(picklist(['register', 'execute', 'manage'])),
+          reason: optional(localizableSchema),
+          label: optional(localizableSchema),
+          required: optional(boolean()),
+        }),
+      ),
+    ),
+    pipelines: optional(
+      array(
+        object({
+          key: string(),
+          actions: array(picklist(['hook', 'process', 'emit', 'manage'])),
+          reason: optional(localizableSchema),
+          label: optional(localizableSchema),
+          required: optional(boolean()),
+        }),
+      ),
+    ),
   }),
   entrypoints: object({
     default: optional(string()),

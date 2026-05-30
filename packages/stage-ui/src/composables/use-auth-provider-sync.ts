@@ -12,7 +12,7 @@ import { useProvidersStore } from '../stores/providers'
  * Provider IDs to auto-activate on sign-in.
  * Edit this list to enable/disable official providers.
  */
-const AUTH_ACTIVATED_PROVIDERS: Array<{ id: string, module: 'consciousness' | 'speech' | 'hearing' }> = [
+const AUTH_ACTIVATED_PROVIDERS: Array<{ id: string; module: 'consciousness' | 'speech' | 'hearing' }> = [
   { id: 'official-provider', module: 'consciousness' },
   { id: 'official-provider-speech', module: 'speech' },
 ]
@@ -44,13 +44,10 @@ export function useAuthProviderSync() {
   let hasSynced = false
 
   authStore.onAuthenticated(async () => {
-    if (hasSynced)
-      return
+    if (hasSynced) return
     hasSynced = true
 
-    const toActivate = AUTH_ACTIVATED_PROVIDERS.filter(
-      p => providersStore.getProviderMetadata(p.id) != null,
-    )
+    const toActivate = AUTH_ACTIVATED_PROVIDERS.filter((p) => providersStore.getProviderMetadata(p.id) != null)
 
     for (const { id } of toActivate) {
       providersStore.forceProviderConfigured(id)
@@ -90,8 +87,7 @@ export function useAuthProviderSync() {
             : providersStore.fetchModelsForProvider(id),
         ),
       )
-    }
-    catch (err) {
+    } catch (err) {
       console.error('error loading models for official providers', err)
     }
 
@@ -105,8 +101,7 @@ export function useAuthProviderSync() {
   // settings card + picker); force-configure makes it selectable. It is never
   // set as the active speech provider — the HTTP TTS provider stays default.
   async function syncStreamingSpeechProvider() {
-    if (providersStore.getProviderMetadata(STREAMING_SPEECH_PROVIDER_ID) == null)
-      return
+    if (providersStore.getProviderMetadata(STREAMING_SPEECH_PROVIDER_ID) == null) return
 
     await providersStore.fetchModelsForProvider(STREAMING_SPEECH_PROVIDER_ID)
 
@@ -121,7 +116,10 @@ export function useAuthProviderSync() {
       // it's confirmed available.
       if (speechStore.activeSpeechProvider === STREAMING_SPEECH_PROVIDER_ID) {
         speechStore.ensureStreamingDefaultModel()
-        await speechStore.loadVoicesForProvider(STREAMING_SPEECH_PROVIDER_ID, speechStore.activeSpeechModel || undefined)
+        await speechStore.loadVoicesForProvider(
+          STREAMING_SPEECH_PROVIDER_ID,
+          speechStore.activeSpeechModel || undefined,
+        )
       }
       return
     }
@@ -135,8 +133,7 @@ export function useAuthProviderSync() {
   }
 
   function clearActiveStreamingSelection() {
-    if (speechStore.activeSpeechProvider !== STREAMING_SPEECH_PROVIDER_ID)
-      return
+    if (speechStore.activeSpeechProvider !== STREAMING_SPEECH_PROVIDER_ID) return
     speechStore.activeSpeechProvider = ''
     speechStore.activeSpeechModel = ''
     speechStore.activeSpeechVoiceId = ''

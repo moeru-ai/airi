@@ -102,21 +102,14 @@ console.log(dumped.value) // '{"foo":"bar"}'
 ## Type Declarations
 
 ```ts
-export type Reactified<T, Computed extends boolean> = T extends (
-  ...args: infer A
-) => infer R
+export type Reactified<T, Computed extends boolean> = T extends (...args: infer A) => infer R
   ? (
       ...args: {
-        [K in keyof A]: Computed extends true
-          ? MaybeRefOrGetter<A[K]>
-          : MaybeRef<A[K]>
+        [K in keyof A]: Computed extends true ? MaybeRefOrGetter<A[K]> : MaybeRef<A[K]>
       }
     ) => ComputedRef<R>
   : never
-export type ReactifyReturn<
-  T extends AnyFn = AnyFn,
-  K extends boolean = true,
-> = Reactified<T, K>
+export type ReactifyReturn<T extends AnyFn = AnyFn, K extends boolean = true> = Reactified<T, K>
 export interface ReactifyOptions<T extends boolean> {
   /**
    * Accept passing a function as a reactive getter

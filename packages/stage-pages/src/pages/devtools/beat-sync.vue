@@ -7,8 +7,17 @@ import { Button, Callout, FieldCheckbox, FieldCombobox, FieldRange } from '@proj
 import { useRafFn } from '@vueuse/core'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 
-interface TrailPoint { x: number, y: number, t: number }
-interface ScalarSample { t: number, x: number, y: number, z: number }
+interface TrailPoint {
+  x: number
+  y: number
+  t: number
+}
+interface ScalarSample {
+  t: number
+  x: number
+  y: number
+  z: number
+}
 
 const baseAngleX = ref(0)
 const baseAngleY = ref(0)
@@ -40,15 +49,15 @@ const scalars = ref<ScalarSample[]>([])
 const canvasXY = ref<HTMLCanvasElement>()
 const debugState = computed(() => controller.debugState())
 const nowTs = ref(performance.now())
-const styleOptions: Array<{ label: string, value: BeatSyncStyleName }> = [
+const styleOptions: Array<{ label: string; value: BeatSyncStyleName }> = [
   { label: 'Punchy V (10/8/4)', value: 'punchy-v' },
   { label: 'Balanced V (6/0/6)', value: 'balanced-v' },
   { label: 'Swing L/R (A-shape side-to-side)', value: 'swing-lr' },
   { label: 'Sway Sine (lifted arc between sides)', value: 'sway-sine' },
 ]
 
-watch(style, val => controller.setStyle(val))
-watch(autoStyleShift, enabled => controller.setAutoStyleShift(enabled))
+watch(style, (val) => controller.setStyle(val))
+watch(autoStyleShift, (enabled) => controller.setAutoStyleShift(enabled))
 
 const currentPose = computed(() => ({
   x: controller.targetX.value,
@@ -62,8 +71,7 @@ const formatFade = (value: number) => value.toFixed(2)
 
 function springTowardTarget(now: number) {
   const dt = now - state.last
-  if (!Number.isFinite(dt))
-    return
+  if (!Number.isFinite(dt)) return
   state.last = now
 
   controller.updateTargets(now)
@@ -105,22 +113,18 @@ function springTowardTarget(now: number) {
 }
 
 function pushSamples(now: number) {
-  if (!Number.isFinite(state.angleX) || !Number.isFinite(state.angleZ))
-    return
+  if (!Number.isFinite(state.angleX) || !Number.isFinite(state.angleZ)) return
 
   trail.value.push({ x: state.angleX, y: state.angleZ, t: now })
   scalars.value.push({ t: now, x: state.angleX, y: state.angleY, z: state.angleZ })
   const cutoff = now - timeWindowMs
-  while (trail.value.length && trail.value[0].t < cutoff)
-    trail.value.shift()
-  while (scalars.value.length && scalars.value[0].t < cutoff)
-    scalars.value.shift()
+  while (trail.value.length && trail.value[0].t < cutoff) trail.value.shift()
+  while (scalars.value.length && scalars.value[0].t < cutoff) scalars.value.shift()
 }
 
 function drawXY() {
   const canvas = canvasXY.value
-  if (!canvas)
-    return
+  if (!canvas) return
 
   const dpr = window.devicePixelRatio || 1
   const { clientWidth, clientHeight } = canvas
@@ -130,8 +134,7 @@ function drawXY() {
   }
 
   const ctx = canvas.getContext('2d')
-  if (!ctx)
-    return
+  if (!ctx) return
 
   ctx.save()
   ctx.scale(dpr, dpr)
@@ -158,10 +161,8 @@ function drawXY() {
   trail.value.forEach((p, idx) => {
     const x = centerX + p.x * scale.value
     const y = centerY - p.y * scale.value
-    if (idx === 0)
-      ctx.moveTo(x, y)
-    else
-      ctx.lineTo(x, y)
+    if (idx === 0) ctx.moveTo(x, y)
+    else ctx.lineTo(x, y)
   })
   ctx.stroke()
 
@@ -175,7 +176,13 @@ function drawXY() {
   // Current target marker
   ctx.fillStyle = 'rgba(244,114,182,0.8)'
   ctx.beginPath()
-  ctx.arc(centerX + controller.targetY.value * scale.value, centerY - controller.targetZ.value * scale.value, 4, 0, Math.PI * 2)
+  ctx.arc(
+    centerX + controller.targetY.value * scale.value,
+    centerY - controller.targetZ.value * scale.value,
+    4,
+    0,
+    Math.PI * 2,
+  )
   ctx.fill()
 
   ctx.restore()
@@ -210,11 +217,7 @@ function hitVSequence() {
 
 <template>
   <div class="grid gap-4 p-4 lg:grid-cols-[2fr_1fr]">
-    <Section
-      title="Beat sync driver"
-      icon="i-solar:cursor-linear"
-      inner-class="gap-4"
-    >
+    <Section title="Beat sync driver" icon="i-solar:cursor-linear" inner-class="gap-4">
       <div class="flex flex-wrap items-center gap-3">
         <Button label="Hit beat" icon="i-solar:flash-bold-duotone" size="sm" @click="hitBeat" />
         <Button
@@ -245,9 +248,7 @@ function hitVSequence() {
           <div class="text-sm text-neutral-800 dark:text-neutral-100">
             X/Y/Z: {{ currentPose.x.toFixed(2) }} / {{ currentPose.y.toFixed(2) }} / {{ currentPose.z.toFixed(2) }}
           </div>
-          <div class="text-xs text-neutral-500 dark:text-neutral-400">
-            Live targets fed into the spring solver.
-          </div>
+          <div class="text-xs text-neutral-500 dark:text-neutral-400">Live targets fed into the spring solver.</div>
         </Callout>
       </div>
 
@@ -307,16 +308,14 @@ function hitVSequence() {
         </Callout>
       </div>
 
-      <div class="h-80 w-full overflow-hidden border border-neutral-200/70 rounded-xl bg-neutral-900/80 dark:border-neutral-800/60">
+      <div
+        class="h-80 w-full overflow-hidden border border-neutral-200/70 rounded-xl bg-neutral-900/80 dark:border-neutral-800/60"
+      >
         <canvas ref="canvasXY" class="h-full w-full" />
       </div>
     </Section>
 
-    <Section
-      title="Signals & debug"
-      icon="i-solar:chart-2-bold-duotone"
-      inner-class="gap-4"
-    >
+    <Section title="Signals & debug" icon="i-solar:chart-2-bold-duotone" inner-class="gap-4">
       <div class="space-y-3">
         <div class="text-sm text-neutral-500 dark:text-neutral-400">
           Scalars (Y / Z over time, last {{ (timeWindowMs / 1000).toFixed(1) }}s)
@@ -336,8 +335,9 @@ function hitVSequence() {
         <div>Pattern started: {{ debugState.patternStarted }}</div>
         <div>Segments: {{ debugState.segments.length }}</div>
         <div v-if="debugState.segments.length">
-          Next segment: toY {{ debugState.segments[0].toY.toFixed(2) }}, toZ {{ debugState.segments[0].toZ.toFixed(2) }},
-          starts in {{ Math.max(0, debugState.segments[0].start - nowTs).toFixed(0) }} ms
+          Next segment: toY {{ debugState.segments[0].toY.toFixed(2) }}, toZ
+          {{ debugState.segments[0].toZ.toFixed(2) }}, starts in
+          {{ Math.max(0, debugState.segments[0].start - nowTs).toFixed(0) }} ms
         </div>
       </div>
     </Section>

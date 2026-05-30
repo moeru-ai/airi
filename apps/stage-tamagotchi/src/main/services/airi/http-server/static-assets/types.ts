@@ -56,9 +56,9 @@ export interface StaticAssetSessionValidateInput {
 /**
  * Result of validating a cookie-backed static asset request.
  */
-export type StaticAssetSessionValidationResult
-  = | { ok: true, session: StaticAssetSession }
-    | { ok: false, error: HttpError }
+export type StaticAssetSessionValidationResult =
+  | { ok: true; session: StaticAssetSession }
+  | { ok: false; error: HttpError }
 
 /**
  * In-memory store for cookie-backed extension static asset sessions.
@@ -80,6 +80,6 @@ export interface StaticAssetSessionStore {
   revokeAll: () => StaticAssetSession[]
 }
 
-export type StaticAssetResolveResult
-  = | { ok: true, filePath: string, size: number, mtime: number }
-    | { ok: false, error: HttpError }
+export type StaticAssetResolveResult =
+  | { ok: true; filePath: string; size: number; mtime: number }
+  | { ok: false; error: HttpError }

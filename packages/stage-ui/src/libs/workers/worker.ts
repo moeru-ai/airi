@@ -75,12 +75,10 @@ const MODEL_ID = MODEL_IDS.WHISPER
  */
 async function detectWebGPUInWorker(): Promise<boolean> {
   try {
-    if (typeof navigator === 'undefined' || !navigator.gpu)
-      return false
+    if (typeof navigator === 'undefined' || !navigator.gpu) return false
     const adapter = await navigator.gpu.requestAdapter()
     return adapter != null
-  }
-  catch {
+  } catch {
     return false
   }
 }
@@ -129,8 +127,7 @@ class AutomaticSpeechRecognitionPipeline {
           device: actualDevice,
           progress_callback,
         })
-      }
-      catch (error) {
+      } catch (error) {
         console.warn(
           '[Whisper Worker] fp16 encoder failed, falling back to fp32:',
           error instanceof Error ? error.message : error,
@@ -210,7 +207,13 @@ function clearCancelled(requestId: string): void {
   cancelledRequestIds.delete(requestId)
 }
 
-function sendProgress(requestId: string, phase: 'download' | 'compile' | 'warmup' | 'inference', percent: number, message?: string, extra?: Record<string, unknown>): void {
+function sendProgress(
+  requestId: string,
+  phase: 'download' | 'compile' | 'warmup' | 'inference',
+  percent: number,
+  message?: string,
+  extra?: Record<string, unknown>,
+): void {
   const msg: ProgressResponse = {
     type: 'progress',
     requestId,
@@ -253,21 +256,29 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
   try {
     sendProgress(requestId, 'download', -1, 'Loading model...')
 
-    const [_tokenizer, _processor, model] = await AutomaticSpeechRecognitionPipeline.getInstance((x: any) => {
-      // Forward transformers.js progress events
-      if (currentLoadRequestId) {
-        if (x.status === 'progress') {
-          sendProgress(currentLoadRequestId, 'download', x.progress != null ? Math.round(x.progress * 100) : -1, undefined, {
-            file: x.file,
-            loaded: x.loaded,
-            total: x.total,
-          })
+    const [_tokenizer, _processor, model] = await AutomaticSpeechRecognitionPipeline.getInstance(
+      (x: any) => {
+        // Forward transformers.js progress events
+        if (currentLoadRequestId) {
+          if (x.status === 'progress') {
+            sendProgress(
+              currentLoadRequestId,
+              'download',
+              x.progress != null ? Math.round(x.progress * 100) : -1,
+              undefined,
+              {
+                file: x.file,
+                loaded: x.loaded,
+                total: x.total,
+              },
+            )
+          } else if (x.status === 'initiate') {
+            sendProgress(currentLoadRequestId, 'download', 0, `Loading ${x.file}`, { file: x.file })
+          }
         }
-        else if (x.status === 'initiate') {
-          sendProgress(currentLoadRequestId, 'download', 0, `Loading ${x.file}`, { file: x.file })
-        }
-      }
-    }, device as 'webgpu' | 'wasm' | 'cpu')
+      },
+      device as 'webgpu' | 'wasm' | 'cpu',
+    )
 
     sendProgress(requestId, 'warmup', -1, 'Compiling shaders and warming up model...')
 
@@ -282,8 +293,7 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
     if (isCancelled(requestId)) {
       // Adapter already received a CANCELLED error; drop the stale result.
       clearCancelled(requestId)
-    }
-    else {
+    } else {
       const ready: ModelReadyResponse = {
         type: 'model-ready',
         requestId,
@@ -292,14 +302,10 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
       }
       globalThis.postMessage(ready)
     }
-  }
-  catch (error) {
-    if (isCancelled(requestId))
-      clearCancelled(requestId)
-    else
-      sendError(requestId, error, 'load')
-  }
-  finally {
+  } catch (error) {
+    if (isCancelled(requestId)) clearCancelled(requestId)
+    else sendError(requestId, error, 'load')
+  } finally {
     currentLoadRequestId = null
   }
 }
@@ -322,7 +328,7 @@ async function runInference(request: RunInferenceRequest<WhisperInput>): Promise
   try {
     sendProgress(requestId, 'inference', 0, 'Starting transcription...')
 
-    const audioData = input.audioFloat32 ?? await base64ToFeatures(input.audio!)
+    const audioData = input.audioFloat32 ?? (await base64ToFeatures(input.audio!))
     const [tokenizer, processor, model] = await AutomaticSpeechRecognitionPipeline.getInstance()
 
     let startTime: number | undefined
@@ -332,7 +338,7 @@ async function runInference(request: RunInferenceRequest<WhisperInput>): Promise
 
       let tps: number | undefined
       if (numTokens++ > 0) {
-        tps = numTokens / (performance.now() - startTime!) * 1000
+        tps = (numTokens / (performance.now() - startTime!)) * 1000
       }
 
       // Send streaming updates as progress messages with inference phase
@@ -358,8 +364,7 @@ async function runInference(request: RunInferenceRequest<WhisperInput>): Promise
 
     if (isCancelled(requestId)) {
       clearCancelled(requestId)
-    }
-    else {
+    } else {
       const result: InferenceResultResponse<WhisperOutput> = {
         type: 'inference-result',
         requestId,
@@ -367,14 +372,10 @@ async function runInference(request: RunInferenceRequest<WhisperInput>): Promise
       }
       globalThis.postMessage(result)
     }
-  }
-  catch (error) {
-    if (isCancelled(requestId))
-      clearCancelled(requestId)
-    else
-      sendError(requestId, error, 'inference')
-  }
-  finally {
+  } catch (error) {
+    if (isCancelled(requestId)) clearCancelled(requestId)
+    else sendError(requestId, error, 'inference')
+  } finally {
     processing = false
   }
 }

@@ -6,11 +6,14 @@ describe('ensureServerChannelConfigDefaults', () => {
   it('keeps an existing auth token', () => {
     const generateToken = vi.fn(() => 'generated-token')
 
-    const result = ensureServerChannelConfigDefaults({
-      authToken: 'existing-token',
-      hostname: '0.0.0.0',
-      tlsConfig: null,
-    }, generateToken)
+    const result = ensureServerChannelConfigDefaults(
+      {
+        authToken: 'existing-token',
+        hostname: '0.0.0.0',
+        tlsConfig: null,
+      },
+      generateToken,
+    )
 
     expect(result.changed).toBe(false)
     expect(result.config).toEqual({
@@ -24,11 +27,14 @@ describe('ensureServerChannelConfigDefaults', () => {
   it('generates a token when the config is missing one', () => {
     const generateToken = vi.fn(() => 'generated-token')
 
-    const result = ensureServerChannelConfigDefaults({
-      authToken: '',
-      hostname: '',
-      tlsConfig: null,
-    }, generateToken)
+    const result = ensureServerChannelConfigDefaults(
+      {
+        authToken: '',
+        hostname: '',
+        tlsConfig: null,
+      },
+      generateToken,
+    )
 
     expect(result.changed).toBe(true)
     expect(result.config).toEqual({

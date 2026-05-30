@@ -24,9 +24,7 @@ import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream
 import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
 import { getCachedWebGPUCapabilities, isWebGPUSupported } from '@proj-airi/stage-shared/webgpu'
 import { computedAsync, useIntervalFn, useLocalStorage } from '@vueuse/core'
-import {
-  createOpenAI,
-} from '@xsai-ext/providers/create'
+import { createOpenAI } from '@xsai-ext/providers/create'
 import { createPlayer2 } from '@xsai-ext/providers/special/create'
 import {
   createModelProvider,
@@ -49,7 +47,11 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { getKokoroAdapter } from '../libs/inference/adapters/kokoro'
-import { getProviderValidationIntervalMs, listProviders as listDefinedProviders, ProviderValidationCheck } from '../libs/providers'
+import {
+  getProviderValidationIntervalMs,
+  listProviders as listDefinedProviders,
+  ProviderValidationCheck,
+} from '../libs/providers'
 import { getDefaultKokoroModel, KOKORO_MODELS, kokoroModelsToModelInfo } from '../workers/kokoro/constants'
 import { useAuthStore } from './auth'
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
@@ -68,7 +70,7 @@ const ALIYUN_NLS_REGIONS = [
   'cn-shenzhen-internal',
 ] as const
 
-type AliyunNlsRegion = typeof ALIYUN_NLS_REGIONS[number]
+type AliyunNlsRegion = (typeof ALIYUN_NLS_REGIONS)[number]
 
 export interface ProviderMetadata {
   id: string
@@ -138,7 +140,10 @@ export interface ProviderMetadata {
   capabilities: {
     listModels?: (config: Record<string, unknown>) => Promise<ModelInfo[]>
     listVoices?: (config: Record<string, unknown>, model?: string) => Promise<VoiceInfo[]>
-    loadModel?: (config: Record<string, unknown>, hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void }) => Promise<void>
+    loadModel?: (
+      config: Record<string, unknown>,
+      hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void },
+    ) => Promise<void>
   }
   validators: {
     /**
@@ -148,15 +153,20 @@ export interface ProviderMetadata {
      * (if present) may send a real `generateText("ping")` request that consumes
      * API tokens. All automatic/background callers may consider pass `skipChatPingCheck: true`.
      */
-    validateProviderConfig: (config: Record<string, unknown>, options?: { skipChatPingCheck?: boolean, onlyChatPingCheck?: boolean }) => Promise<{
-      errors: unknown[]
-      reason: string
-      valid: boolean
-    }> | {
-      errors: unknown[]
-      reason: string
-      valid: boolean
-    }
+    validateProviderConfig: (
+      config: Record<string, unknown>,
+      options?: { skipChatPingCheck?: boolean; onlyChatPingCheck?: boolean },
+    ) =>
+      | Promise<{
+          errors: unknown[]
+          reason: string
+          valid: boolean
+        }>
+      | {
+          errors: unknown[]
+          reason: string
+          valid: boolean
+        }
     /**
      * Whether the "skip chat ping check" checkbox should be shown in the UI.
      *
@@ -214,7 +224,10 @@ export interface ProviderRuntimeState {
 }
 
 export const useProvidersStore = defineStore('providers', () => {
-  const providerCredentials = useLocalStorage<Record<string, Record<string, unknown>>>('settings/credentials/providers', {})
+  const providerCredentials = useLocalStorage<Record<string, Record<string, unknown>>>(
+    'settings/credentials/providers',
+    {},
+  )
   const addedProviders = useLocalStorage<Record<string, boolean>>('settings/providers/added', {})
   const providerInstanceCache = ref<Record<string, unknown>>({})
   const { t } = useI18n()
@@ -222,14 +235,11 @@ export const useProvidersStore = defineStore('providers', () => {
     let msg = ''
     if (!baseUrl) {
       msg = 'Base URL is required.'
-    }
-    else if (typeof baseUrl !== 'string') {
+    } else if (typeof baseUrl !== 'string') {
       msg = 'Base URL must be a string.'
-    }
-    else if (!isUrl(baseUrl) || new URL(baseUrl).host.length === 0) {
+    } else if (!isUrl(baseUrl) || new URL(baseUrl).host.length === 0) {
       msg = 'Base URL is not absolute. Try to include a scheme (http:// or https://).'
-    }
-    else if (!baseUrl.endsWith('/')) {
+    } else if (!baseUrl.endsWith('/')) {
       msg = 'Base URL must end with a trailing slash (/).'
     }
     if (msg) {
@@ -243,15 +253,19 @@ export const useProvidersStore = defineStore('providers', () => {
   })
 
   async function isBrowserAndMemoryEnough() {
-    if (isStageTamagotchi())
-      return false
+    if (isStageTamagotchi()) return false
 
     const webGPUAvailable = await isWebGPUSupported()
     if (webGPUAvailable) {
       return true
     }
 
-    if ('navigator' in globalThis && globalThis.navigator != null && 'deviceMemory' in globalThis.navigator && typeof globalThis.navigator.deviceMemory === 'number') {
+    if (
+      'navigator' in globalThis &&
+      globalThis.navigator != null &&
+      'deviceMemory' in globalThis.navigator &&
+      typeof globalThis.navigator.deviceMemory === 'number'
+    ) {
       const memory = globalThis.navigator.deviceMemory
       // Check if the device has at least 8GB of RAM
       if (memory >= 8) {
@@ -312,7 +326,8 @@ export const useProvidersStore = defineStore('providers', () => {
           if (!config.baseUrl) {
             return {
               errors: [new Error('Base URL is required.')],
-              reason: 'Base URL is required. This is likely a bug, report to developers on https://github.com/moeru-ai/airi/issues.',
+              reason:
+                'Base URL is required. This is likely a bug, report to developers on https://github.com/moeru-ai/airi/issues.',
               valid: false,
             }
           }
@@ -343,7 +358,8 @@ export const useProvidersStore = defineStore('providers', () => {
           if (!config.baseUrl) {
             return {
               errors: [new Error('Base URL is required.')],
-              reason: 'Base URL is required. This is likely a bug, report to developers on https://github.com/moeru-ai/airi/issues.',
+              reason:
+                'Base URL is required. This is likely a bug, report to developers on https://github.com/moeru-ai/airi/issues.',
               valid: false,
             }
           }
@@ -374,7 +390,8 @@ export const useProvidersStore = defineStore('providers', () => {
           if (!config.baseUrl) {
             return {
               errors: [new Error('Base URL is required.')],
-              reason: 'Base URL is required. This is likely a bug, report to developers on https://github.com/moeru-ai/airi/issues.',
+              reason:
+                'Base URL is required. This is likely a bug, report to developers on https://github.com/moeru-ai/airi/issues.',
               valid: false,
             }
           }
@@ -405,7 +422,8 @@ export const useProvidersStore = defineStore('providers', () => {
           if (!config.baseUrl) {
             return {
               errors: [new Error('Base URL is required.')],
-              reason: 'Base URL is required. This is likely a bug, report to developers on https://github.com/moeru-ai/airi/issues.',
+              reason:
+                'Base URL is required. This is likely a bug, report to developers on https://github.com/moeru-ai/airi/issues.',
               valid: false,
             }
           }
@@ -578,7 +596,8 @@ export const useProvidersStore = defineStore('providers', () => {
         validateProviderConfig: (config) => {
           const errors = [
             !config.apiKey && new Error('API Key is required'),
-            !config.baseUrl && new Error('Base URL is required. Default to https://api.openai.com/v1/ for official OpenAI API.'),
+            !config.baseUrl &&
+              new Error('Base URL is required. Default to https://api.openai.com/v1/ for official OpenAI API.'),
           ].filter(Boolean)
 
           const res = baseUrlValidator.value(config.baseUrl)
@@ -588,7 +607,11 @@ export const useProvidersStore = defineStore('providers', () => {
 
           return {
             errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            reason:
+              errors
+                .filter((e) => e)
+                .map((e) => String(e))
+                .join(', ') || '',
             valid: !!config.apiKey && !!config.baseUrl,
           }
         },
@@ -612,8 +635,7 @@ export const useProvidersStore = defineStore('providers', () => {
           const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
           let baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
 
-          if (!baseUrl.endsWith('/'))
-            baseUrl += '/'
+          if (!baseUrl.endsWith('/')) baseUrl += '/'
 
           if (!apiKey || !baseUrl) {
             return []
@@ -714,7 +736,8 @@ export const useProvidersStore = defineStore('providers', () => {
         validateProviderConfig: (config) => {
           const errors = [
             !config.apiKey && new Error('API Key is required'),
-            !config.baseUrl && new Error('Base URL is required. Default to https://api.openai.com/v1/ for official OpenAI API.'),
+            !config.baseUrl &&
+              new Error('Base URL is required. Default to https://api.openai.com/v1/ for official OpenAI API.'),
           ].filter(Boolean)
 
           const res = baseUrlValidator.value(config.baseUrl)
@@ -724,7 +747,11 @@ export const useProvidersStore = defineStore('providers', () => {
 
           return {
             errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            reason:
+              errors
+                .filter((e) => e)
+                .map((e) => String(e))
+                .join(', ') || '',
             valid: !!config.apiKey && !!config.baseUrl,
           }
         },
@@ -770,31 +797,33 @@ export const useProvidersStore = defineStore('providers', () => {
         supportsStreamInput: true,
       },
       createProvider: async (config) => {
-        const toString = (value: unknown) => typeof value === 'string' ? value.trim() : ''
+        const toString = (value: unknown) => (typeof value === 'string' ? value.trim() : '')
 
         const accessKeyId = toString(config.accessKeyId)
         const accessKeySecret = toString(config.accessKeySecret)
         const appKey = toString(config.appKey)
         const region = toString(config.region)
-        const resolvedRegion = ALIYUN_NLS_REGIONS.includes(region as AliyunNlsRegion) ? region as AliyunNlsRegion : 'cn-shanghai'
+        const resolvedRegion = ALIYUN_NLS_REGIONS.includes(region as AliyunNlsRegion)
+          ? (region as AliyunNlsRegion)
+          : 'cn-shanghai'
 
-        if (!accessKeyId || !accessKeySecret || !appKey)
-          throw new Error('Aliyun NLS credentials are incomplete.')
+        if (!accessKeyId || !accessKeySecret || !appKey) throw new Error('Aliyun NLS credentials are incomplete.')
 
         const provider = createAliyunNlsStreamProvider(accessKeyId, accessKeySecret, appKey, { region: resolvedRegion })
 
         return {
-          transcription: (model: string, extraOptions?: AliyunRealtimeSpeechExtraOptions) => provider.speech(model, {
-            ...extraOptions,
-            sessionOptions: {
-              format: 'pcm',
-              sample_rate: 16000,
-              enable_punctuation_prediction: true,
-              enable_intermediate_result: true,
-              enable_words: true,
-              ...extraOptions?.sessionOptions,
-            },
-          }),
+          transcription: (model: string, extraOptions?: AliyunRealtimeSpeechExtraOptions) =>
+            provider.speech(model, {
+              ...extraOptions,
+              sessionOptions: {
+                format: 'pcm',
+                sample_rate: 16000,
+                enable_punctuation_prediction: true,
+                enable_intermediate_result: true,
+                enable_words: true,
+                ...extraOptions?.sessionOptions,
+              },
+            }),
         } as TranscriptionProviderWithExtraOptions<string, AliyunRealtimeSpeechExtraOptions>
       },
       capabilities: {
@@ -815,25 +844,22 @@ export const useProvidersStore = defineStore('providers', () => {
         chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           const errors: Error[] = []
-          const toString = (value: unknown) => typeof value === 'string' ? value.trim() : ''
+          const toString = (value: unknown) => (typeof value === 'string' ? value.trim() : '')
 
           const accessKeyId = toString(config.accessKeyId)
           const accessKeySecret = toString(config.accessKeySecret)
           const appKey = toString(config.appKey)
           const region = toString(config.region)
 
-          if (!accessKeyId)
-            errors.push(new Error('Access Key ID is required.'))
-          if (!accessKeySecret)
-            errors.push(new Error('Access Key Secret is required.'))
-          if (!appKey)
-            errors.push(new Error('App Key is required.'))
+          if (!accessKeyId) errors.push(new Error('Access Key ID is required.'))
+          if (!accessKeySecret) errors.push(new Error('Access Key Secret is required.'))
+          if (!appKey) errors.push(new Error('App Key is required.'))
           if (region && !ALIYUN_NLS_REGIONS.includes(region as AliyunNlsRegion))
             errors.push(new Error('Region is invalid.'))
 
           return {
             errors,
-            reason: errors.length > 0 ? errors.map(error => error.message).join(', ') : '',
+            reason: errors.length > 0 ? errors.map((error) => error.message).join(', ') : '',
             valid: errors.length === 0,
           }
         },
@@ -863,12 +889,10 @@ export const useProvidersStore = defineStore('providers', () => {
         // Web Speech API is only available in browser contexts, NOT in Electron
         // Even though Electron uses Chromium, Web Speech API requires Google's embedded API keys
         // which are not available in Electron, causing it to fail at runtime
-        if (typeof window === 'undefined')
-          return false
+        if (typeof window === 'undefined') return false
 
         // Explicitly exclude Electron - Web Speech API doesn't work there
-        if (isStageTamagotchi())
-          return false
+        if (isStageTamagotchi()) return false
 
         // Check if API is available in browser
         return 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window
@@ -896,12 +920,16 @@ export const useProvidersStore = defineStore('providers', () => {
         validateProviderConfig: () => {
           // Web Speech API requires no configuration, just browser support
           // Always return valid if browser supports it, so it auto-configures
-          const isAvailable = typeof window !== 'undefined'
-            && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)
+          const isAvailable =
+            typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)
 
           if (!isAvailable) {
             return {
-              errors: [new Error('Web Speech API is not available. It requires a browser context with SpeechRecognition support (Chrome, Edge, Safari).')],
+              errors: [
+                new Error(
+                  'Web Speech API is not available. It requires a browser context with SpeechRecognition support (Chrome, Edge, Safari).',
+                ),
+              ],
               reason: 'Web Speech API is not available in this environment.',
               valid: false,
             }
@@ -916,7 +944,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
-    'elevenlabs': {
+    elevenlabs: {
       id: 'elevenlabs',
       category: 'speech',
       tasks: ['text-to-speech'],
@@ -932,7 +960,11 @@ export const useProvidersStore = defineStore('providers', () => {
           stability: 0.5,
         },
       }),
-      createProvider: async config => createUnElevenLabs((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>,
+      createProvider: async (config) =>
+        createUnElevenLabs(
+          (config.apiKey as string).trim(),
+          (config.baseUrl as string).trim(),
+        ) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>,
       capabilities: {
         listModels: async () => {
           return elevenLabsModels.map((model) => {
@@ -947,7 +979,10 @@ export const useProvidersStore = defineStore('providers', () => {
           })
         },
         listVoices: async (config) => {
-          const provider = createUnElevenLabs((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as VoiceProviderWithExtraOptions<UnElevenLabsOptions>
+          const provider = createUnElevenLabs(
+            (config.apiKey as string).trim(),
+            (config.baseUrl as string).trim(),
+          ) as VoiceProviderWithExtraOptions<UnElevenLabsOptions>
 
           const voices = await listVoices({
             ...provider.voice(),
@@ -958,8 +993,8 @@ export const useProvidersStore = defineStore('providers', () => {
           }
 
           // Find indices of Aria and Bill
-          const ariaIndex = voices.findIndex(voice => voice.name.includes('Aria'))
-          const billIndex = voices.findIndex(voice => voice.name.includes('Bill'))
+          const ariaIndex = voices.findIndex((voice) => voice.name.includes('Aria'))
+          const billIndex = voices.findIndex((voice) => voice.name.includes('Bill'))
 
           // Determine the range to move (ensure valid indices and proper order)
           const startIndex = ariaIndex !== -1 ? ariaIndex : 0
@@ -1000,7 +1035,11 @@ export const useProvidersStore = defineStore('providers', () => {
 
           return {
             errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            reason:
+              errors
+                .filter((e) => e)
+                .map((e) => String(e))
+                .join(', ') || '',
             valid: !!config.apiKey && !!config.baseUrl,
           }
         },
@@ -1019,7 +1058,10 @@ export const useProvidersStore = defineStore('providers', () => {
         baseUrl: 'https://unspeech.hyp3r.link/v1/',
       }),
       createProvider: async (config) => {
-        const provider = createUnDeepgram((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as SpeechProviderWithExtraOptions<string, UnDeepgramOptions>
+        const provider = createUnDeepgram(
+          (config.apiKey as string).trim(),
+          (config.baseUrl as string).trim(),
+        ) as SpeechProviderWithExtraOptions<string, UnDeepgramOptions>
         return provider
       },
       capabilities: {
@@ -1052,7 +1094,10 @@ export const useProvidersStore = defineStore('providers', () => {
           ]
         },
         listVoices: async (config) => {
-          const provider = createUnDeepgram((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as VoiceProviderWithExtraOptions<UnDeepgramOptions>
+          const provider = createUnDeepgram(
+            (config.apiKey as string).trim(),
+            (config.baseUrl as string).trim(),
+          ) as VoiceProviderWithExtraOptions<UnDeepgramOptions>
 
           const voices = await listVoices({
             ...provider.voice(),
@@ -1085,7 +1130,7 @@ export const useProvidersStore = defineStore('providers', () => {
 
           return {
             errors,
-            reason: errors.map(e => e.message).join(', '),
+            reason: errors.map((e) => e.message).join(', '),
             valid: errors.length === 0,
           }
         },
@@ -1103,7 +1148,11 @@ export const useProvidersStore = defineStore('providers', () => {
       defaultOptions: () => ({
         baseUrl: 'https://unspeech.hyp3r.link/v1/',
       }),
-      createProvider: async config => createUnMicrosoft((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as SpeechProviderWithExtraOptions<string, UnMicrosoftOptions>,
+      createProvider: async (config) =>
+        createUnMicrosoft(
+          (config.apiKey as string).trim(),
+          (config.baseUrl as string).trim(),
+        ) as SpeechProviderWithExtraOptions<string, UnMicrosoftOptions>,
       capabilities: {
         listModels: async () => {
           return [
@@ -1118,7 +1167,10 @@ export const useProvidersStore = defineStore('providers', () => {
           ]
         },
         listVoices: async (config) => {
-          const provider = createUnMicrosoft((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as VoiceProviderWithExtraOptions<UnMicrosoftOptions>
+          const provider = createUnMicrosoft(
+            (config.apiKey as string).trim(),
+            (config.baseUrl as string).trim(),
+          ) as VoiceProviderWithExtraOptions<UnMicrosoftOptions>
 
           const voices = await listVoices({
             ...provider.voice({ region: config.region as string }),
@@ -1151,7 +1203,11 @@ export const useProvidersStore = defineStore('providers', () => {
 
           return {
             errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            reason:
+              errors
+                .filter((e) => e)
+                .map((e) => String(e))
+                .join(', ') || '',
             valid: !!config.apiKey && !!config.baseUrl,
           }
         },
@@ -1208,7 +1264,10 @@ export const useProvidersStore = defineStore('providers', () => {
               name: voice,
               provider: 'index-tts-vllm',
               // previewURL: voice.preview_audio_url,
-              languages: [{ code: 'cn', title: 'Chinese' }, { code: 'en', title: 'English' }],
+              languages: [
+                { code: 'cn', title: 'Chinese' },
+                { code: 'en', title: 'English' },
+              ],
             }
           })
         },
@@ -1235,15 +1294,18 @@ export const useProvidersStore = defineStore('providers', () => {
               const reason = `IndexTTS unreachable: HTTP ${response.status} ${response.statusText}`
               return { errors: [new Error(reason)], reason, valid: false }
             }
-          }
-          catch (err) {
+          } catch (err) {
             const reason = `IndexTTS connection failed: ${String(err)}`
             return { errors: [err as Error], reason, valid: false }
           }
 
           return {
             errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            reason:
+              errors
+                .filter((e) => e)
+                .map((e) => String(e))
+                .join(', ') || '',
             valid: errors.length === 0,
           }
         },
@@ -1261,10 +1323,14 @@ export const useProvidersStore = defineStore('providers', () => {
       defaultOptions: () => ({
         baseUrl: 'https://unspeech.hyp3r.link/v1/',
       }),
-      createProvider: async config => createUnAlibabaCloud((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
+      createProvider: async (config) =>
+        createUnAlibabaCloud((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listVoices: async (config) => {
-          const provider = createUnAlibabaCloud((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as VoiceProviderWithExtraOptions<UnAlibabaCloudOptions>
+          const provider = createUnAlibabaCloud(
+            (config.apiKey as string).trim(),
+            (config.baseUrl as string).trim(),
+          ) as VoiceProviderWithExtraOptions<UnAlibabaCloudOptions>
 
           const voices = await listVoices({
             ...provider.voice(),
@@ -1318,13 +1384,17 @@ export const useProvidersStore = defineStore('providers', () => {
 
           return {
             errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            reason:
+              errors
+                .filter((e) => e)
+                .map((e) => String(e))
+                .join(', ') || '',
             valid: !!config.apiKey && !!config.baseUrl,
           }
         },
       },
     },
-    'volcengine': {
+    volcengine: {
       id: 'volcengine',
       category: 'speech',
       tasks: ['text-to-speech'],
@@ -1336,10 +1406,14 @@ export const useProvidersStore = defineStore('providers', () => {
       defaultOptions: () => ({
         baseUrl: 'https://unspeech.hyp3r.link/v1/',
       }),
-      createProvider: async config => createUnVolcengine((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
+      createProvider: async (config) =>
+        createUnVolcengine((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listVoices: async (config) => {
-          const provider = createUnVolcengine((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as VoiceProviderWithExtraOptions<UnVolcengineOptions>
+          const provider = createUnVolcengine(
+            (config.apiKey as string).trim(),
+            (config.baseUrl as string).trim(),
+          ) as VoiceProviderWithExtraOptions<UnVolcengineOptions>
 
           const voices = await listVoices({
             ...provider.voice(),
@@ -1375,7 +1449,7 @@ export const useProvidersStore = defineStore('providers', () => {
           const errors = [
             !config.apiKey && new Error('API key is required.'),
             !config.baseUrl && new Error('Base URL is required.'),
-            !((config.app as any)?.appId) && new Error('App ID is required.'),
+            !(config.app as any)?.appId && new Error('App ID is required.'),
           ].filter(Boolean)
 
           const res = baseUrlValidator.value(config.baseUrl)
@@ -1385,7 +1459,11 @@ export const useProvidersStore = defineStore('providers', () => {
 
           return {
             errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            reason:
+              errors
+                .filter((e) => e)
+                .map((e) => String(e))
+                .join(', ') || '',
             valid: !!config.apiKey && !!config.baseUrl && !!config.app && !!(config.app as any).appId,
           }
         },
@@ -1427,7 +1505,7 @@ export const useProvidersStore = defineStore('providers', () => {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${apiKey}`,
+                  Authorization: `Bearer ${apiKey}`,
                 },
                 body: JSON.stringify({
                   model,
@@ -1460,17 +1538,14 @@ export const useProvidersStore = defineStore('providers', () => {
 
               while (true) {
                 const { done, value } = await reader.read()
-                if (done)
-                  break
+                if (done) break
                 buffer += decoder.decode(value, { stream: true })
                 const lines = buffer.split('\n')
                 buffer = lines.pop() || ''
                 for (const line of lines) {
-                  if (!line.startsWith('data:'))
-                    continue
+                  if (!line.startsWith('data:')) continue
                   const jsonStr = line.slice(5).trim()
-                  if (!jsonStr || jsonStr === '[DONE]')
-                    continue
+                  if (!jsonStr || jsonStr === '[DONE]') continue
                   try {
                     const eventData = JSON.parse(jsonStr)
                     const audio = eventData?.data?.audio
@@ -1483,8 +1558,7 @@ export const useProvidersStore = defineStore('providers', () => {
                       }
                       audioChunks.push(bytes)
                     }
-                  }
-                  catch {
+                  } catch {
                     // ignore malformed SSE events
                   }
                 }
@@ -1527,34 +1601,96 @@ export const useProvidersStore = defineStore('providers', () => {
           },
         ],
         listVoices: async () => [
-          { id: 'English_Graceful_Lady', name: 'Graceful Lady', provider: 'minimax-speech', gender: 'female', languages: [{ code: 'en', title: 'English' }] },
-          { id: 'English_Insightful_Speaker', name: 'Insightful Speaker', provider: 'minimax-speech', gender: 'male', languages: [{ code: 'en', title: 'English' }] },
-          { id: 'English_radiant_girl', name: 'Radiant Girl', provider: 'minimax-speech', gender: 'female', languages: [{ code: 'en', title: 'English' }] },
-          { id: 'English_Persuasive_Man', name: 'Persuasive Man', provider: 'minimax-speech', gender: 'male', languages: [{ code: 'en', title: 'English' }] },
-          { id: 'English_Lucky_Robot', name: 'Lucky Robot', provider: 'minimax-speech', gender: 'neutral', languages: [{ code: 'en', title: 'English' }] },
-          { id: 'English_expressive_narrator', name: 'Expressive Narrator', provider: 'minimax-speech', gender: 'neutral', languages: [{ code: 'en', title: 'English' }] },
-          { id: 'Mandarin_Gentle_Woman', name: 'Gentle Woman', provider: 'minimax-speech', gender: 'female', languages: [{ code: 'zh', title: 'Chinese' }] },
-          { id: 'Mandarin_Steadfast_Man', name: 'Steadfast Man', provider: 'minimax-speech', gender: 'male', languages: [{ code: 'zh', title: 'Chinese' }] },
-          { id: 'Mandarin_Sweet_Girl', name: 'Sweet Girl', provider: 'minimax-speech', gender: 'female', languages: [{ code: 'zh', title: 'Chinese' }] },
-          { id: 'Mandarin_Magnetic_Gentleman', name: 'Magnetic Gentleman', provider: 'minimax-speech', gender: 'male', languages: [{ code: 'zh', title: 'Chinese' }] },
+          {
+            id: 'English_Graceful_Lady',
+            name: 'Graceful Lady',
+            provider: 'minimax-speech',
+            gender: 'female',
+            languages: [{ code: 'en', title: 'English' }],
+          },
+          {
+            id: 'English_Insightful_Speaker',
+            name: 'Insightful Speaker',
+            provider: 'minimax-speech',
+            gender: 'male',
+            languages: [{ code: 'en', title: 'English' }],
+          },
+          {
+            id: 'English_radiant_girl',
+            name: 'Radiant Girl',
+            provider: 'minimax-speech',
+            gender: 'female',
+            languages: [{ code: 'en', title: 'English' }],
+          },
+          {
+            id: 'English_Persuasive_Man',
+            name: 'Persuasive Man',
+            provider: 'minimax-speech',
+            gender: 'male',
+            languages: [{ code: 'en', title: 'English' }],
+          },
+          {
+            id: 'English_Lucky_Robot',
+            name: 'Lucky Robot',
+            provider: 'minimax-speech',
+            gender: 'neutral',
+            languages: [{ code: 'en', title: 'English' }],
+          },
+          {
+            id: 'English_expressive_narrator',
+            name: 'Expressive Narrator',
+            provider: 'minimax-speech',
+            gender: 'neutral',
+            languages: [{ code: 'en', title: 'English' }],
+          },
+          {
+            id: 'Mandarin_Gentle_Woman',
+            name: 'Gentle Woman',
+            provider: 'minimax-speech',
+            gender: 'female',
+            languages: [{ code: 'zh', title: 'Chinese' }],
+          },
+          {
+            id: 'Mandarin_Steadfast_Man',
+            name: 'Steadfast Man',
+            provider: 'minimax-speech',
+            gender: 'male',
+            languages: [{ code: 'zh', title: 'Chinese' }],
+          },
+          {
+            id: 'Mandarin_Sweet_Girl',
+            name: 'Sweet Girl',
+            provider: 'minimax-speech',
+            gender: 'female',
+            languages: [{ code: 'zh', title: 'Chinese' }],
+          },
+          {
+            id: 'Mandarin_Magnetic_Gentleman',
+            name: 'Magnetic Gentleman',
+            provider: 'minimax-speech',
+            gender: 'male',
+            languages: [{ code: 'zh', title: 'Chinese' }],
+          },
         ],
       },
       validators: {
         chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
-          const errors = [
-            !config.apiKey && new Error('API key is required.'),
-          ].filter(Boolean)
+          const errors = [!config.apiKey && new Error('API key is required.')].filter(Boolean)
 
           return {
             errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            reason:
+              errors
+                .filter((e) => e)
+                .map((e) => String(e))
+                .join(', ') || '',
             valid: !!config.apiKey,
           }
         },
       },
     },
-    'openrouter-audio-speech': buildOpenRouterAudioSpeechProvider(v => baseUrlValidator.value(v)),
+    'openrouter-audio-speech': buildOpenRouterAudioSpeechProvider((v) => baseUrlValidator.value(v)),
     'mimo-audio-speech': {
       id: 'mimo-audio-speech',
       category: 'speech',
@@ -1590,20 +1726,23 @@ export const useProvidersStore = defineStore('providers', () => {
               const text = body.input as string
               const modelId = (body.model as string) || defaultModel
               const format = (body.response_format as string) || defaultFormat
-              const stylePrompt = typeof body.style_prompt === 'string'
-                ? body.style_prompt.trim()
-                : typeof config.stylePrompt === 'string'
-                  ? config.stylePrompt.trim()
-                  : ''
-              const voiceSample = typeof body.voice_sample === 'string'
-                ? body.voice_sample.trim()
-                : typeof config.voiceSample === 'string'
-                  ? config.voiceSample.trim()
-                  : ''
+              const stylePrompt =
+                typeof body.style_prompt === 'string'
+                  ? body.style_prompt.trim()
+                  : typeof config.stylePrompt === 'string'
+                    ? config.stylePrompt.trim()
+                    : ''
+              const voiceSample =
+                typeof body.voice_sample === 'string'
+                  ? body.voice_sample.trim()
+                  : typeof config.voiceSample === 'string'
+                    ? config.voiceSample.trim()
+                    : ''
 
-              const userPrompt = modelId === 'mimo-v2.5-tts-voiceclone'
-                ? stylePrompt
-                : stylePrompt || 'Use a natural, clear speaking style.'
+              const userPrompt =
+                modelId === 'mimo-v2.5-tts-voiceclone'
+                  ? stylePrompt
+                  : stylePrompt || 'Use a natural, clear speaking style.'
 
               const audio: Record<string, string> = { format }
               if (modelId === 'mimo-v2.5-tts-voiceclone') {
@@ -1611,8 +1750,7 @@ export const useProvidersStore = defineStore('providers', () => {
                   throw new Error('MiMo voice clone requires a base64 audio sample in data URI format.')
                 }
                 audio.voice = voiceSample
-              }
-              else if (modelId === 'mimo-v2.5-tts') {
+              } else if (modelId === 'mimo-v2.5-tts') {
                 audio.voice = (body.voice as string) || defaultVoice
               }
 
@@ -1690,15 +1828,72 @@ export const useProvidersStore = defineStore('providers', () => {
           },
         ],
         listVoices: async () => [
-          { id: 'mimo_default', name: 'MiMo-默认', provider: 'mimo-audio-speech', gender: 'female', languages: [{ code: 'en', title: 'English' }, { code: 'zh', title: 'Chinese' }] },
-          { id: '冰糖', name: '冰糖', provider: 'mimo-audio-speech', gender: 'female', languages: [{ code: 'zh', title: 'Chinese' }] },
-          { id: '茉莉', name: '茉莉', provider: 'mimo-audio-speech', gender: 'female', languages: [{ code: 'zh', title: 'Chinese' }] },
-          { id: '苏打', name: '苏打', provider: 'mimo-audio-speech', gender: 'male', languages: [{ code: 'zh', title: 'Chinese' }] },
-          { id: '白桦', name: '白桦', provider: 'mimo-audio-speech', gender: 'male', languages: [{ code: 'zh', title: 'Chinese' }] },
-          { id: 'Mia', name: 'Mia', provider: 'mimo-audio-speech', gender: 'female', languages: [{ code: 'en', title: 'English' }] },
-          { id: 'Chloe', name: 'Chloe', provider: 'mimo-audio-speech', gender: 'female', languages: [{ code: 'en', title: 'English' }] },
-          { id: 'Milo', name: 'Milo', provider: 'mimo-audio-speech', gender: 'male', languages: [{ code: 'en', title: 'English' }] },
-          { id: 'Dean', name: 'Dean', provider: 'mimo-audio-speech', gender: 'male', languages: [{ code: 'en', title: 'English' }] },
+          {
+            id: 'mimo_default',
+            name: 'MiMo-默认',
+            provider: 'mimo-audio-speech',
+            gender: 'female',
+            languages: [
+              { code: 'en', title: 'English' },
+              { code: 'zh', title: 'Chinese' },
+            ],
+          },
+          {
+            id: '冰糖',
+            name: '冰糖',
+            provider: 'mimo-audio-speech',
+            gender: 'female',
+            languages: [{ code: 'zh', title: 'Chinese' }],
+          },
+          {
+            id: '茉莉',
+            name: '茉莉',
+            provider: 'mimo-audio-speech',
+            gender: 'female',
+            languages: [{ code: 'zh', title: 'Chinese' }],
+          },
+          {
+            id: '苏打',
+            name: '苏打',
+            provider: 'mimo-audio-speech',
+            gender: 'male',
+            languages: [{ code: 'zh', title: 'Chinese' }],
+          },
+          {
+            id: '白桦',
+            name: '白桦',
+            provider: 'mimo-audio-speech',
+            gender: 'male',
+            languages: [{ code: 'zh', title: 'Chinese' }],
+          },
+          {
+            id: 'Mia',
+            name: 'Mia',
+            provider: 'mimo-audio-speech',
+            gender: 'female',
+            languages: [{ code: 'en', title: 'English' }],
+          },
+          {
+            id: 'Chloe',
+            name: 'Chloe',
+            provider: 'mimo-audio-speech',
+            gender: 'female',
+            languages: [{ code: 'en', title: 'English' }],
+          },
+          {
+            id: 'Milo',
+            name: 'Milo',
+            provider: 'mimo-audio-speech',
+            gender: 'male',
+            languages: [{ code: 'en', title: 'English' }],
+          },
+          {
+            id: 'Dean',
+            name: 'Dean',
+            provider: 'mimo-audio-speech',
+            gender: 'male',
+            languages: [{ code: 'en', title: 'English' }],
+          },
         ],
       },
       validators: {
@@ -1716,7 +1911,7 @@ export const useProvidersStore = defineStore('providers', () => {
 
           return {
             errors,
-            reason: errors.map(e => (e as Error).message).join(', ') || '',
+            reason: errors.map((e) => (e as Error).message).join(', ') || '',
             valid: !!config.apiKey && !!config.baseUrl,
           }
         },
@@ -1732,10 +1927,8 @@ export const useProvidersStore = defineStore('providers', () => {
       category: 'speech',
       tasks: ['text-to-speech'],
       defaultBaseUrl: 'https://api.cometapi.com/v1/',
-      creator: (apiKey, baseURL = 'https://api.cometapi.com/v1/') => merge(
-        createModelProvider({ apiKey, baseURL }),
-        createSpeechProvider({ apiKey, baseURL }),
-      ),
+      creator: (apiKey, baseURL = 'https://api.cometapi.com/v1/') =>
+        merge(createModelProvider({ apiKey, baseURL }), createSpeechProvider({ apiKey, baseURL })),
       validation: [ProviderValidationCheck.ModelList],
     }),
     'comet-api-transcription': buildOpenAICompatibleProvider({
@@ -1748,10 +1941,8 @@ export const useProvidersStore = defineStore('providers', () => {
       category: 'transcription',
       tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
       defaultBaseUrl: 'https://api.cometapi.com/v1/',
-      creator: (apiKey, baseURL = 'https://api.cometapi.com/v1/') => merge(
-        createModelProvider({ apiKey, baseURL }),
-        createTranscriptionProvider({ apiKey, baseURL }),
-      ),
+      creator: (apiKey, baseURL = 'https://api.cometapi.com/v1/') =>
+        merge(createModelProvider({ apiKey, baseURL }), createTranscriptionProvider({ apiKey, baseURL })),
       validation: [ProviderValidationCheck.ModelList],
     }),
     'mimo-audio-transcription': {
@@ -1773,7 +1964,7 @@ export const useProvidersStore = defineStore('providers', () => {
         const defaultModel = (config.model as string) || 'mimo-v2-omni'
 
         const provider: TranscriptionProvider = {
-          transcription: model => ({
+          transcription: (model) => ({
             baseURL: rawBaseUrl,
             model: model || defaultModel,
             headers: {},
@@ -1801,13 +1992,14 @@ export const useProvidersStore = defineStore('providers', () => {
               const base64Data = base64DataUri.split(',')[1]
 
               // Map MIME sub-type to MiMo supported audio format
-              const audioFormat = formatFromMime === 'webm'
-                ? 'webm'
-                : formatFromMime === 'mp4'
-                  ? 'mp4'
-                  : formatFromMime === 'mpeg' || formatFromMime === 'mp3'
-                    ? 'mp3'
-                    : 'wav'
+              const audioFormat =
+                formatFromMime === 'webm'
+                  ? 'webm'
+                  : formatFromMime === 'mp4'
+                    ? 'mp4'
+                    : formatFromMime === 'mpeg' || formatFromMime === 'mp3'
+                      ? 'mp3'
+                      : 'wav'
 
               // MiMo audio understanding uses chat completions with input_audio,
               // not a dedicated transcription endpoint
@@ -1898,7 +2090,7 @@ export const useProvidersStore = defineStore('providers', () => {
 
           return {
             errors,
-            reason: errors.map(e => (e as Error).message).join(', ') || '',
+            reason: errors.map((e) => (e as Error).message).join(', ') || '',
             valid: !!config.apiKey && !!config.baseUrl,
           }
         },
@@ -1916,7 +2108,7 @@ export const useProvidersStore = defineStore('providers', () => {
       defaultOptions: () => ({
         baseUrl: 'http://localhost:4315/v1/',
       }),
-      createProvider: async config => createPlayer2((config.baseUrl as string).trim(), 'airi'),
+      createProvider: async (config) => createPlayer2((config.baseUrl as string).trim(), 'airi'),
       capabilities: {
         listModels: async () => {
           return [
@@ -1931,57 +2123,76 @@ export const useProvidersStore = defineStore('providers', () => {
           ]
         },
         listVoices: async (config) => {
-          const baseUrl = (config.baseUrl as string).endsWith('/') ? (config.baseUrl as string).slice(0, -1) : config.baseUrl as string
-          return await fetch(`${baseUrl}/tts/voices`).then(res => res.json()).then(({ voices }) => (voices as { id: string, language: 'american_english' | 'british_english' | 'japanese' | 'mandarin_chinese' | 'spanish' | 'french' | 'hindi' | 'italian' | 'brazilian_portuguese', name: string, gender: string }[]).map(({ id, language, name, gender }) => (
-            {
+          const baseUrl = (config.baseUrl as string).endsWith('/')
+            ? (config.baseUrl as string).slice(0, -1)
+            : (config.baseUrl as string)
+          return await fetch(`${baseUrl}/tts/voices`)
+            .then((res) => res.json())
+            .then(({ voices }) =>
+              (
+                voices as {
+                  id: string
+                  language:
+                    | 'american_english'
+                    | 'british_english'
+                    | 'japanese'
+                    | 'mandarin_chinese'
+                    | 'spanish'
+                    | 'french'
+                    | 'hindi'
+                    | 'italian'
+                    | 'brazilian_portuguese'
+                  name: string
+                  gender: string
+                }[]
+              ).map(({ id, language, name, gender }) => ({
+                id,
+                name,
+                provider: 'player2-speech',
+                gender,
+                languages: [
+                  {
+                    american_english: {
+                      code: 'en',
+                      title: 'English',
+                    },
+                    british_english: {
+                      code: 'en',
+                      title: 'English',
+                    },
+                    japanese: {
+                      code: 'ja',
+                      title: 'Japanese',
+                    },
+                    mandarin_chinese: {
+                      code: 'zh',
+                      title: 'Chinese',
+                    },
+                    spanish: {
+                      code: 'es',
+                      title: 'Spanish',
+                    },
+                    french: {
+                      code: 'fr',
+                      title: 'French',
+                    },
+                    hindi: {
+                      code: 'hi',
+                      title: 'Hindi',
+                    },
 
-              id,
-              name,
-              provider: 'player2-speech',
-              gender,
-              languages: [{
-                american_english: {
-                  code: 'en',
-                  title: 'English',
-                },
-                british_english: {
-                  code: 'en',
-                  title: 'English',
-                },
-                japanese: {
-                  code: 'ja',
-                  title: 'Japanese',
-                },
-                mandarin_chinese: {
-                  code: 'zh',
-                  title: 'Chinese',
-                },
-                spanish: {
-                  code: 'es',
-                  title: 'Spanish',
-                },
-                french: {
-                  code: 'fr',
-                  title: 'French',
-                },
-                hindi: {
-                  code: 'hi',
-                  title: 'Hindi',
-                },
-
-                italian: {
-                  code: 'it',
-                  title: 'Italian',
-                },
-                brazilian_portuguese:
-                {
-                  code: 'pt',
-                  title: 'Portuguese',
-                },
-
-              }[language]],
-            }
-          )))
+                    italian: {
+                      code: 'it',
+                      title: 'Italian',
+                    },
+                    brazilian_portuguese: {
+                      code: 'pt',
+                      title: 'Portuguese',
+                    },
+                  }[language],
+                ],
+              })),
+            )
         },
       },
       validators: {
@@ -1992,8 +2203,7 @@ export const useProvidersStore = defineStore('providers', () => {
           ].filter(Boolean)
 
           const res = baseUrlValidator.value(config.baseUrl)
-          if (res)
-            return res
+          if (res) return res
 
           try {
             const controller = new AbortController()
@@ -2011,15 +2221,18 @@ export const useProvidersStore = defineStore('providers', () => {
               const reason = `Player2 speech unreachable: HTTP ${response.status} ${response.statusText}`
               return { errors: [new Error(reason)], reason, valid: false }
             }
-          }
-          catch (err) {
+          } catch (err) {
             const reason = `Player2 speech connection failed: ${String(err)}`
             return { errors: [err as Error], reason, valid: false }
           }
 
           return {
             errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            reason:
+              errors
+                .filter((e) => e)
+                .map((e) => String(e))
+                .join(', ') || '',
             valid: errors.length === 0,
           }
         },
@@ -2078,8 +2291,7 @@ export const useProvidersStore = defineStore('providers', () => {
                       'Content-Type': 'audio/wav',
                     },
                   })
-                }
-                catch (error) {
+                } catch (error) {
                   console.error('Kokoro TTS generation failed:', error)
                   throw error
                 }
@@ -2099,21 +2311,25 @@ export const useProvidersStore = defineStore('providers', () => {
           return kokoroModelsToModelInfo(hasWebGPU, t, fp16Supported)
         },
 
-        loadModel: async (config: Record<string, unknown>, _hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void }) => {
+        loadModel: async (
+          config: Record<string, unknown>,
+          _hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void },
+        ) => {
           const modelId = config.model as string
 
           if (!modelId) {
             throw new Error('No model specified')
           }
 
-          const modelDef = KOKORO_MODELS.find(m => m.id === modelId)
+          const modelDef = KOKORO_MODELS.find((m) => m.id === modelId)
           if (!modelDef) {
-            throw new Error(`Invalid model: ${modelId}. Must be one of: ${KOKORO_MODELS.map(m => m.id).join(', ')}`)
+            throw new Error(`Invalid model: ${modelId}. Must be one of: ${KOKORO_MODELS.map((m) => m.id).join(', ')}`)
           }
 
           // Validate platform requirements
           if (modelDef.platform === 'webgpu') {
-            const hasWebGPU = getCachedWebGPUCapabilities()?.supported ?? (typeof navigator !== 'undefined' && !!navigator.gpu)
+            const hasWebGPU =
+              getCachedWebGPUCapabilities()?.supported ?? (typeof navigator !== 'undefined' && !!navigator.gpu)
             if (!hasWebGPU) {
               throw new Error('WebGPU is required for this model but is not available in your browser')
             }
@@ -2137,8 +2353,7 @@ export const useProvidersStore = defineStore('providers', () => {
                   }
                 : undefined,
             })
-          }
-          catch (error) {
+          } catch (error) {
             console.error('Failed to load Kokoro model:', error)
             throw error
           }
@@ -2154,10 +2369,12 @@ export const useProvidersStore = defineStore('providers', () => {
               // Reload the model if it hasn't been loaded yet or if the model ID changed
               if (workerManager.state !== 'ready' || (modelId && modelId !== lastLoadedModelId)) {
                 if (modelId) {
-                  const modelDef = KOKORO_MODELS.find(m => m.id === modelId)
+                  const modelDef = KOKORO_MODELS.find((m) => m.id === modelId)
                   if (modelDef) {
                     if (modelDef.platform === 'webgpu') {
-                      const hasWebGPU = getCachedWebGPUCapabilities()?.supported ?? (typeof navigator !== 'undefined' && !!navigator.gpu)
+                      const hasWebGPU =
+                        getCachedWebGPUCapabilities()?.supported ??
+                        (typeof navigator !== 'undefined' && !!navigator.gpu)
                       if (!hasWebGPU) {
                         throw new Error('WebGPU is required for this model but is not available in your browser')
                       }
@@ -2172,33 +2389,34 @@ export const useProvidersStore = defineStore('providers', () => {
               const modelVoices = workerManager.getVoices()
 
               // Language code mapping
-              const languageMap: Record<string, { code: string, title: string }> = {
+              const languageMap: Record<string, { code: string; title: string }> = {
                 'en-us': { code: 'en-US', title: 'English (US)' },
                 'en-gb': { code: 'en-GB', title: 'English (UK)' },
-                'ja': { code: 'ja', title: 'Japanese' },
+                ja: { code: 'ja', title: 'Japanese' },
                 'zh-cn': { code: 'zh-CN', title: 'Chinese (Mandarin)' },
-                'es': { code: 'es', title: 'Spanish' },
-                'fr': { code: 'fr', title: 'French' },
-                'hi': { code: 'hi', title: 'Hindi' },
-                'it': { code: 'it', title: 'Italian' },
+                es: { code: 'es', title: 'Spanish' },
+                fr: { code: 'fr', title: 'French' },
+                hi: { code: 'hi', title: 'Hindi' },
+                it: { code: 'it', title: 'Italian' },
                 'pt-br': { code: 'pt-BR', title: 'Portuguese (Brazil)' },
               }
 
               // Transform the voices object to the expected array format
-              return Object.entries(modelVoices).map(([id, voice]: [string, { language: string, name: string, gender: string }]) => {
-                const languageCode = voice.language.toLowerCase()
-                const languageInfo = languageMap[languageCode] || { code: languageCode, title: voice.language }
+              return Object.entries(modelVoices).map(
+                ([id, voice]: [string, { language: string; name: string; gender: string }]) => {
+                  const languageCode = voice.language.toLowerCase()
+                  const languageInfo = languageMap[languageCode] || { code: languageCode, title: voice.language }
 
-                return {
-                  id,
-                  name: `${voice.name} (${voice.gender}, ${languageInfo.title.split('(')[0].trim()})`,
-                  provider: 'kokoro-local',
-                  languages: [languageInfo],
-                  gender: voice.gender.toLowerCase(),
-                }
-              })
-            }
-            catch (error) {
+                  return {
+                    id,
+                    name: `${voice.name} (${voice.gender}, ${languageInfo.title.split('(')[0].trim()})`,
+                    provider: 'kokoro-local',
+                    languages: [languageInfo],
+                    gender: voice.gender.toLowerCase(),
+                  }
+                },
+              )
+            } catch (error) {
               console.error('Failed to fetch Kokoro voices:', error)
               // Return empty array if model not loaded yet
               return []
@@ -2220,10 +2438,10 @@ export const useProvidersStore = defineStore('providers', () => {
             }
           }
 
-          if (!KOKORO_MODELS.some(m => m.id === model)) {
+          if (!KOKORO_MODELS.some((m) => m.id === model)) {
             return {
               errors: [new Error(`Invalid model: ${model}`)],
-              reason: `Invalid model. Must be one of: ${KOKORO_MODELS.map(m => m.id).join(', ')}`,
+              reason: `Invalid model. Must be one of: ${KOKORO_MODELS.map((m) => m.id).join(', ')}`,
               valid: false,
             }
           }
@@ -2243,11 +2461,7 @@ export const useProvidersStore = defineStore('providers', () => {
   // Existing metadata remains as fallback for providers not yet migrated.
   const definedProviders = listDefinedProviders()
 
-  const translatedProviderMetadata = convertProviderDefinitionsToMetadata(
-    definedProviders,
-    t,
-    providerMetadata,
-  )
+  const translatedProviderMetadata = convertProviderDefinitionsToMetadata(definedProviders, t, providerMetadata)
 
   const providerValidationIntervalMsById = new Map<string, number>()
   for (const definition of definedProviders) {
@@ -2308,8 +2522,7 @@ export const useProvidersStore = defineStore('providers', () => {
   // Configuration validation functions
   async function validateProvider(providerId: string, options: { force?: boolean } = {}): Promise<boolean> {
     const metadata = providerMetadata[providerId]
-    if (!metadata)
-      return false
+    if (!metadata) return false
 
     // Web Speech API doesn't require credentials - use empty config if not present
     if (providerId === 'browser-web-speech-api') {
@@ -2319,15 +2532,18 @@ export const useProvidersStore = defineStore('providers', () => {
     }
 
     const config = providerCredentials.value[providerId]
-    if (!config && providerId !== 'browser-web-speech-api')
-      return false
+    if (!config && providerId !== 'browser-web-speech-api') return false
 
     const configString = JSON.stringify(config || {})
     const runtimeState = providerRuntimeState.value[providerId]
     const cacheKey = `${providerId}:${configString}`
     const forceValidation = options.force === true
 
-    if (!forceValidation && runtimeState?.validatedCredentialHash === configString && typeof runtimeState.isConfigured === 'boolean')
+    if (
+      !forceValidation &&
+      runtimeState?.validatedCredentialHash === configString &&
+      typeof runtimeState.isConfigured === 'boolean'
+    )
       return runtimeState.isConfigured
 
     if (!forceValidation) {
@@ -2399,16 +2615,19 @@ export const useProvidersStore = defineStore('providers', () => {
 
   function startPeriodicRuntimeValidation() {
     for (const [providerId, intervalMs] of providerValidationIntervalMsById.entries()) {
-      if (!providerMetadata[providerId] || intervalMs <= 0)
-        continue
+      if (!providerMetadata[providerId] || intervalMs <= 0) continue
 
       if (providerRevalidationLoops.has(providerId)) {
         continue
       }
 
-      const loop = useIntervalFn(() => {
-        void validateProvider(providerId, { force: true })
-      }, intervalMs, { immediate: false, immediateCallback: false })
+      const loop = useIntervalFn(
+        () => {
+          void validateProvider(providerId, { force: true })
+        },
+        intervalMs,
+        { immediate: false, immediateCallback: false },
+      )
       loop.resume()
       providerRevalidationLoops.set(providerId, loop)
     }
@@ -2416,22 +2635,23 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Update configuration status for all configured providers
   async function updateConfigurationStatus() {
-    await Promise.all(Object.entries(providerMetadata)
-      // TODO: ignore un-configured provider
-      // .filter(([_, provider]) => provider.configured)
-      .map(async ([providerId]) => {
-        try {
-          if (providerRuntimeState.value[providerId]) {
-            const isValid = await validateProvider(providerId)
-            providerRuntimeState.value[providerId].isConfigured = isValid
+    await Promise.all(
+      Object.entries(providerMetadata)
+        // TODO: ignore un-configured provider
+        // .filter(([_, provider]) => provider.configured)
+        .map(async ([providerId]) => {
+          try {
+            if (providerRuntimeState.value[providerId]) {
+              const isValid = await validateProvider(providerId)
+              providerRuntimeState.value[providerId].isConfigured = isValid
+            }
+          } catch {
+            if (providerRuntimeState.value[providerId]) {
+              providerRuntimeState.value[providerId].isConfigured = false
+            }
           }
-        }
-        catch {
-          if (providerRuntimeState.value[providerId]) {
-            providerRuntimeState.value[providerId].isConfigured = false
-          }
-        }
-      }))
+        }),
+    )
   }
 
   // Call initially and watch for changes
@@ -2441,7 +2661,9 @@ export const useProvidersStore = defineStore('providers', () => {
   watch(() => authState.isAuthenticated, updateConfigurationStatus)
 
   // Available providers (only those that are properly configured)
-  const availableProviders = computed(() => Object.keys(providerMetadata).filter(providerId => providerRuntimeState.value[providerId]?.isConfigured))
+  const availableProviders = computed(() =>
+    Object.keys(providerMetadata).filter((providerId) => providerRuntimeState.value[providerId]?.isConfigured),
+  )
 
   // Store available models for each provider
   const availableModels = computed(() => {
@@ -2506,12 +2728,10 @@ export const useProvidersStore = defineStore('providers', () => {
   // Function to fetch models for a specific provider
   async function fetchModelsForProvider(providerId: string) {
     const metadata = providerMetadata[providerId]
-    if (!metadata)
-      return []
+    if (!metadata) return []
 
     const config = providerCredentials.value[providerId]
-    if (!config && metadata.requiresCredentials !== false)
-      return []
+    if (!config && metadata.requiresCredentials !== false) return []
 
     const runtimeState = providerRuntimeState.value[providerId]
     if (runtimeState) {
@@ -2524,27 +2744,27 @@ export const useProvidersStore = defineStore('providers', () => {
 
       // Transform and store the models
       if (runtimeState) {
-        runtimeState.models = uniqBy(models.filter(model => !!model.id), m => m.id)
-          .map(model => ({
-            id: model.id,
-            name: model.name,
-            description: model.description,
-            contextLength: model.contextLength,
-            deprecated: model.deprecated,
-            provider: providerId,
-          }))
+        runtimeState.models = uniqBy(
+          models.filter((model) => !!model.id),
+          (m) => m.id,
+        ).map((model) => ({
+          id: model.id,
+          name: model.name,
+          description: model.description,
+          contextLength: model.contextLength,
+          deprecated: model.deprecated,
+          provider: providerId,
+        }))
         return runtimeState.models
       }
       return []
-    }
-    catch (error) {
+    } catch (error) {
       console.error(`Error fetching models for ${providerId}:`, error)
       if (runtimeState) {
         runtimeState.modelLoadError = error instanceof Error ? error.message : 'Unknown error'
       }
       return []
-    }
-    finally {
+    } finally {
       if (runtimeState) {
         runtimeState.isLoadingModels = false
       }
@@ -2576,37 +2796,43 @@ export const useProvidersStore = defineStore('providers', () => {
   const previousCredentialHashes = ref<Record<string, string>>({})
 
   // Watch for credential changes and refetch models accordingly
-  watch(providerCredentials, (newCreds) => {
-    const changedProviders: string[] = []
+  watch(
+    providerCredentials,
+    (newCreds) => {
+      const changedProviders: string[] = []
 
-    for (const providerId in newCreds) {
-      const currentConfig = newCreds[providerId]
-      const currentHash = JSON.stringify(currentConfig)
-      const previousHash = previousCredentialHashes.value[providerId]
+      for (const providerId in newCreds) {
+        const currentConfig = newCreds[providerId]
+        const currentHash = JSON.stringify(currentConfig)
+        const previousHash = previousCredentialHashes.value[providerId]
 
-      if (currentHash !== previousHash) {
-        changedProviders.push(providerId)
-        previousCredentialHashes.value[providerId] = currentHash
+        if (currentHash !== previousHash) {
+          changedProviders.push(providerId)
+          previousCredentialHashes.value[providerId] = currentHash
+        }
       }
-    }
 
-    for (const providerId of changedProviders) {
-      // Since credentials changed, dispose the cached instance so new creds take effect.
-      void disposeProviderInstance(providerId)
+      for (const providerId of changedProviders) {
+        // Since credentials changed, dispose the cached instance so new creds take effect.
+        void disposeProviderInstance(providerId)
 
-      // If the provider is configured and has the capability, refetch its models
-      if (providerRuntimeState.value[providerId]?.isConfigured && providerMetadata[providerId]?.capabilities.listModels) {
-        fetchModelsForProvider(providerId)
+        // If the provider is configured and has the capability, refetch its models
+        if (
+          providerRuntimeState.value[providerId]?.isConfigured &&
+          providerMetadata[providerId]?.capabilities.listModels
+        ) {
+          fetchModelsForProvider(providerId)
+        }
       }
-    }
-  }, { deep: true, immediate: true })
+    },
+    { deep: true, immediate: true },
+  )
 
   // Function to get localized provider metadata
   function getProviderMetadata(providerId: string) {
     const metadata = providerMetadata[providerId]
 
-    if (!metadata)
-      throw new Error(`Provider metadata for ${providerId} not found`)
+    if (!metadata) throw new Error(`Provider metadata for ${providerId} not found`)
 
     return {
       ...metadata,
@@ -2617,7 +2843,7 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Get all providers metadata (for settings page).
   // Order: defined providers first (already sorted by order in registry), then legacy-only providers.
-  const definedProviderIds = new Set(definedProviders.map(d => d.id))
+  const definedProviderIds = new Set(definedProviders.map((d) => d.id))
 
   const allProvidersMetadata = computed(() => {
     const localize = (metadata: ProviderMetadata) => ({
@@ -2627,12 +2853,10 @@ export const useProvidersStore = defineStore('providers', () => {
       configured: providerRuntimeState.value[metadata.id]?.isConfigured || false,
     })
 
-    const ordered = definedProviders
-      .filter(d => providerMetadata[d.id])
-      .map(d => localize(providerMetadata[d.id]))
+    const ordered = definedProviders.filter((d) => providerMetadata[d.id]).map((d) => localize(providerMetadata[d.id]))
 
     const legacy = Object.values(providerMetadata)
-      .filter(m => !definedProviderIds.has(m.id))
+      .filter((m) => !definedProviderIds.has(m.id))
       .map(localize)
 
     return [...ordered, ...legacy]
@@ -2650,23 +2874,22 @@ export const useProvidersStore = defineStore('providers', () => {
   }
 
   // Function to get provider object by provider id
-  async function getProviderInstance<R extends
-  | ChatProvider
-  | ChatProviderWithExtraOptions
-  | EmbedProvider
-  | EmbedProviderWithExtraOptions
-  | SpeechProvider
-  | SpeechProviderWithExtraOptions
-  | TranscriptionProvider
-  | TranscriptionProviderWithExtraOptions,
+  async function getProviderInstance<
+    R extends
+      | ChatProvider
+      | ChatProviderWithExtraOptions
+      | EmbedProvider
+      | EmbedProviderWithExtraOptions
+      | SpeechProvider
+      | SpeechProviderWithExtraOptions
+      | TranscriptionProvider
+      | TranscriptionProviderWithExtraOptions,
   >(providerId: string): Promise<R> {
     const cached = providerInstanceCache.value[providerId] as R | undefined
-    if (cached)
-      return cached
+    if (cached) return cached
 
     const metadata = providerMetadata[providerId]
-    if (!metadata)
-      throw new Error(`Provider metadata for ${providerId} not found`)
+    if (!metadata) throw new Error(`Provider metadata for ${providerId} not found`)
 
     // Providers that don't require credentials use empty config
     let config = providerCredentials.value[providerId]
@@ -2676,15 +2899,13 @@ export const useProvidersStore = defineStore('providers', () => {
       providerCredentials.value[providerId] = config
     }
 
-    if (!config && !noCredentials)
-      throw new Error(`Provider credentials for ${providerId} not found`)
+    if (!config && !noCredentials) throw new Error(`Provider credentials for ${providerId} not found`)
 
     try {
-      const instance = await metadata.createProvider(config || {}) as R
+      const instance = (await metadata.createProvider(config || {})) as R
       providerInstanceCache.value[providerId] = instance
       return instance
-    }
-    catch (error) {
+    } catch (error) {
       console.error(`Error creating provider instance for ${providerId}:`, error)
       throw error
     }
@@ -2692,8 +2913,7 @@ export const useProvidersStore = defineStore('providers', () => {
 
   async function disposeProviderInstance(providerId: string) {
     const instance = providerInstanceCache.value[providerId] as { dispose?: () => Promise<void> | void } | undefined
-    if (instance?.dispose)
-      await instance.dispose()
+    if (instance?.dispose) await instance.dispose()
 
     delete providerInstanceCache.value[providerId]
   }
@@ -2707,8 +2927,7 @@ export const useProvidersStore = defineStore('providers', () => {
     const providers: ProviderMetadata[] = []
 
     for (const provider of allProvidersMetadata.value) {
-      if (overrides[provider.id] === false)
-        continue
+      if (overrides[provider.id] === false) continue
 
       const p = getProviderMetadata(provider.id)
       const isAvailableBy = p.isAvailableBy || (() => true)
@@ -2723,33 +2942,32 @@ export const useProvidersStore = defineStore('providers', () => {
   }, [])
 
   const allChatProvidersMetadata = computed(() => {
-    return availableProvidersMetadata.value.filter(metadata => metadata.category === 'chat')
+    return availableProvidersMetadata.value.filter((metadata) => metadata.category === 'chat')
   })
 
   const allAudioSpeechProvidersMetadata = computed(() => {
-    return availableProvidersMetadata.value.filter(metadata => metadata.category === 'speech')
+    return availableProvidersMetadata.value.filter((metadata) => metadata.category === 'speech')
   })
 
   const allAudioTranscriptionProvidersMetadata = computed(() => {
-    return availableProvidersMetadata.value.filter(metadata => metadata.category === 'transcription')
+    return availableProvidersMetadata.value.filter((metadata) => metadata.category === 'transcription')
   })
 
   const configuredChatProvidersMetadata = computed(() => {
-    return allChatProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
+    return allChatProvidersMetadata.value.filter((metadata) => configuredProviders.value[metadata.id])
   })
 
   const configuredSpeechProvidersMetadata = computed(() => {
-    return allAudioSpeechProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
+    return allAudioSpeechProvidersMetadata.value.filter((metadata) => configuredProviders.value[metadata.id])
   })
 
   const configuredTranscriptionProvidersMetadata = computed(() => {
-    return allAudioTranscriptionProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
+    return allAudioTranscriptionProvidersMetadata.value.filter((metadata) => configuredProviders.value[metadata.id])
   })
 
   function isProviderConfigDirty(providerId: string) {
     const config = providerCredentials.value[providerId]
-    if (!config)
-      return false
+    if (!config) return false
 
     const defaultOptions = getDefaultProviderConfig(providerId)
     return JSON.stringify(config) !== JSON.stringify(defaultOptions)
@@ -2760,19 +2978,19 @@ export const useProvidersStore = defineStore('providers', () => {
   }
 
   const persistedProvidersMetadata = computed(() => {
-    return availableProvidersMetadata.value.filter(metadata => shouldListProvider(metadata.id))
+    return availableProvidersMetadata.value.filter((metadata) => shouldListProvider(metadata.id))
   })
 
   const persistedChatProvidersMetadata = computed(() => {
-    return persistedProvidersMetadata.value.filter(metadata => metadata.category === 'chat')
+    return persistedProvidersMetadata.value.filter((metadata) => metadata.category === 'chat')
   })
 
   const persistedSpeechProvidersMetadata = computed(() => {
-    return persistedProvidersMetadata.value.filter(metadata => metadata.category === 'speech')
+    return persistedProvidersMetadata.value.filter((metadata) => metadata.category === 'speech')
   })
 
   const persistedTranscriptionProvidersMetadata = computed(() => {
-    return persistedProvidersMetadata.value.filter(metadata => metadata.category === 'transcription')
+    return persistedProvidersMetadata.value.filter((metadata) => metadata.category === 'transcription')
   })
 
   function getProviderConfig(providerId: string) {

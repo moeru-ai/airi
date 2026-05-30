@@ -1,5 +1,13 @@
-import type { InferenceServiceProvider, InferenceServiceProviders, InferenceServiceProvidersModel } from '../models/inference-service-providers'
-import type { InferenceServiceProvidersRemoteClient, InferenceServiceProvidersService, PatchConfigParams } from '../services/inference-service-providers'
+import type {
+  InferenceServiceProvider,
+  InferenceServiceProviders,
+  InferenceServiceProvidersModel,
+} from '../models/inference-service-providers'
+import type {
+  InferenceServiceProvidersRemoteClient,
+  InferenceServiceProvidersService,
+  PatchConfigParams,
+} from '../services/inference-service-providers'
 
 import { describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
@@ -31,8 +39,7 @@ function createMutation<TVars, TData>(mutation: (vars: TVars) => Promise<TData>)
     async mutateAsync(vars: TVars) {
       try {
         return await mutation(vars)
-      }
-      catch (error) {
+      } catch (error) {
         this.error.value = error as Error
         throw error
       }
@@ -66,14 +73,26 @@ function setupController() {
     })),
   }
   const controller = createProviderCatalogStoreController({
-    addProviderMutation: createMutation<InferenceServiceProvider, InferenceServiceProvider>(provider => service.createRemote({} as InferenceServiceProvidersRemoteClient, provider)),
-    commitProviderConfigMutation: createMutation<{ providerId: string, config: Record<string, unknown>, options: PatchConfigParams }, InferenceServiceProvider>(
-      vars => service.patchConfigRemote({} as InferenceServiceProvidersRemoteClient, vars.providerId, vars.config, vars.options),
+    addProviderMutation: createMutation<InferenceServiceProvider, InferenceServiceProvider>((provider) =>
+      service.createRemote({} as InferenceServiceProvidersRemoteClient, provider),
+    ),
+    commitProviderConfigMutation: createMutation<
+      { providerId: string; config: Record<string, unknown>; options: PatchConfigParams },
+      InferenceServiceProvider
+    >((vars) =>
+      service.patchConfigRemote(
+        {} as InferenceServiceProvidersRemoteClient,
+        vars.providerId,
+        vars.config,
+        vars.options,
+      ),
     ),
     configs: ref<Record<string, InferenceServiceProvider>>({}),
     model,
     providersQuery,
-    removeProviderMutation: createMutation<string, void>(id => service.deleteRemote({} as InferenceServiceProvidersRemoteClient, id)),
+    removeProviderMutation: createMutation<string, void>((id) =>
+      service.deleteRemote({} as InferenceServiceProvidersRemoteClient, id),
+    ),
     service,
   })
 
@@ -122,7 +141,11 @@ describe('store provider-catalog controller', () => {
     const { controller, model, service } = setupController()
     controller.configs.value[localProvider.id] = localProvider
 
-    await controller.commitProviderConfig(localProvider.id, { apiKey: 'sk-test' }, { validated: true, validationBypassed: false })
+    await controller.commitProviderConfig(
+      localProvider.id,
+      { apiKey: 'sk-test' },
+      { validated: true, validationBypassed: false },
+    )
     await controller.removeProvider(localProvider.id)
 
     expect(service.patchConfigRemote).toHaveBeenCalled()

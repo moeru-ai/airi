@@ -5,15 +5,18 @@ import { Ticker, TickerPlugin } from '@pixi/ticker'
 import { Live2DModel } from 'pixi-live2d-display/cubism4'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 
-const props = withDefaults(defineProps<{
-  width: number
-  height: number
-  resolution?: number
-  maxFps?: number
-}>(), {
-  resolution: 2,
-  maxFps: 0,
-})
+const props = withDefaults(
+  defineProps<{
+    width: number
+    height: number
+    resolution?: number
+    maxFps?: number
+  }>(),
+  {
+    resolution: 2,
+    maxFps: 0,
+  },
+)
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
 
@@ -23,8 +26,7 @@ const pixiApp = ref<Application>()
 const pixiAppCanvas = ref<HTMLCanvasElement>()
 
 function resolveMaxFps(limit?: number) {
-  if (!limit || limit <= 0)
-    return 0
+  if (!limit || limit <= 0) return 0
 
   return Math.max(1, Math.round(limit))
 }
@@ -33,8 +35,7 @@ function installRenderGuard(app: Application) {
   const guardedRender = () => {
     try {
       app.render()
-    }
-    catch (error) {
+    } catch (error) {
       console.error('[Live2D] Pixi render error.', error)
       app.ticker.stop()
     }
@@ -92,23 +93,23 @@ function handleResize() {
 }
 
 watch([() => props.width, () => props.height, () => props.resolution], handleResize)
-watch(() => props.maxFps, (limit) => {
-  if (pixiApp.value)
-    pixiApp.value.ticker.maxFPS = resolveMaxFps(limit)
-})
+watch(
+  () => props.maxFps,
+  (limit) => {
+    if (pixiApp.value) pixiApp.value.ticker.maxFPS = resolveMaxFps(limit)
+  },
+)
 
-onMounted(async () => containerRef.value && await initLive2DPixiStage(containerRef.value))
+onMounted(async () => containerRef.value && (await initLive2DPixiStage(containerRef.value)))
 onUnmounted(() => pixiApp.value?.destroy())
 
 async function captureFrame() {
   const frame = new Promise<Blob | null>((resolve) => {
-    if (!pixiAppCanvas.value || !pixiApp.value)
-      return resolve(null)
+    if (!pixiAppCanvas.value || !pixiApp.value) return resolve(null)
 
     try {
       pixiApp.value.render()
-    }
-    catch (error) {
+    } catch (error) {
       console.error('[Live2D] Pixi render error during capture.', error)
       return resolve(null)
     }

@@ -17,16 +17,16 @@ import { errorMessageFrom, sleep } from '@moeru/std'
 import { isTerminalAuthenticationServerErrorMessage, parseServerErrorMessage } from '@proj-airi/server-shared'
 import { MessageHeartbeat, MessageHeartbeatKind } from '@proj-airi/server-shared/types'
 
-export type ClientStatus
-  = | 'idle'
-    | 'connecting'
-    | 'authenticating'
-    | 'announcing'
-    | 'ready'
-    | 'reconnecting'
-    | 'closing'
-    | 'closed'
-    | 'failed'
+export type ClientStatus =
+  | 'idle'
+  | 'connecting'
+  | 'authenticating'
+  | 'announcing'
+  | 'ready'
+  | 'reconnecting'
+  | 'closing'
+  | 'closed'
+  | 'failed'
 
 export interface ClientHeartbeatOptions {
   pingInterval?: number
@@ -126,9 +126,10 @@ export class Client<C = undefined> {
   private readonly heartbeat: Required<ClientHeartbeatOptions>
   private readonly websocketConstructor: WebSocketLikeConstructor
 
-  private readonly opts:
-    & Required<Omit<ClientOptions<C>, 'token' | 'heartbeat' | 'websocketConstructor' | 'configSchema'>>
-    & Pick<ClientOptions<C>, 'token' | 'heartbeat' | 'configSchema'>
+  private readonly opts: Required<
+    Omit<ClientOptions<C>, 'token' | 'heartbeat' | 'websocketConstructor' | 'configSchema'>
+  > &
+    Pick<ClientOptions<C>, 'token' | 'heartbeat' | 'configSchema'>
 
   private readonly eventListeners = new Map<
     keyof WebSocketEvents<C>,
@@ -259,8 +260,7 @@ export class Client<C = undefined> {
       if (!listeners.size) {
         this.eventListeners.delete(event)
       }
-    }
-    else {
+    } else {
       this.eventListeners.delete(event)
     }
   }
@@ -302,7 +302,11 @@ export class Client<C = undefined> {
     const websocket = this.websocket
     this.websocket = undefined
 
-    if (websocket && websocket.readyState !== this.websocketConstructor.CLOSED && websocket.readyState !== this.websocketConstructor.CLOSING) {
+    if (
+      websocket &&
+      websocket.readyState !== this.websocketConstructor.CLOSED &&
+      websocket.readyState !== this.websocketConstructor.CLOSING
+    ) {
       websocket.close()
     }
 
@@ -320,9 +324,9 @@ export class Client<C = undefined> {
         await this.connectOnce()
         this.reconnectAttempts = 0
         return
-      }
-      catch (error) {
-        const normalizedError = error instanceof Error ? error : new Error(errorMessageFrom(error) ?? 'Failed to connect websocket client')
+      } catch (error) {
+        const normalizedError =
+          error instanceof Error ? error : new Error(errorMessageFrom(error) ?? 'Failed to connect websocket client')
         this.failureReason = normalizedError
         this.opts.onError?.(normalizedError)
 
@@ -404,13 +408,10 @@ export class Client<C = undefined> {
       }
 
       // Extract error from WebSocket error event which may vary in shape
-      const error = (event as any)?.error instanceof Error
-        ? (event as any).error
-        : new Error('WebSocket error')
+      const error = (event as any)?.error instanceof Error ? (event as any).error : new Error('WebSocket error')
       if (this.connectionAttempt) {
         this.handleSocketFailure(error, ws)
-      }
-      else {
+      } else {
         this.opts.onError?.(error)
         void this.reconnectAfterProtocolError(error)
       }
@@ -454,8 +455,7 @@ export class Client<C = undefined> {
         attempt.authenticated = false
         this.transitionTo('authenticating')
         this.tryAuthenticate()
-      }
-      else {
+      } else {
         attempt.authenticated = true
         this.transitionTo('announcing')
         this.tryAnnounce()
@@ -473,7 +473,11 @@ export class Client<C = undefined> {
     const currentSocket = socket ?? this.websocket
     this.cleanupSocket(socket)
 
-    if (currentSocket && currentSocket.readyState !== this.websocketConstructor.CLOSED && currentSocket.readyState !== this.websocketConstructor.CLOSING) {
+    if (
+      currentSocket &&
+      currentSocket.readyState !== this.websocketConstructor.CLOSED &&
+      currentSocket.readyState !== this.websocketConstructor.CLOSING
+    ) {
       currentSocket.close()
     }
 
@@ -574,8 +578,7 @@ export class Client<C = undefined> {
           }
         }),
       ])
-    }
-    finally {
+    } finally {
       if (timeoutHandle) {
         clearTimeout(timeoutHandle)
       }
@@ -617,9 +620,9 @@ export class Client<C = undefined> {
 
       await this.handleControlMessage(data)
       await this.dispatchMessage(data)
-    }
-    catch (error) {
-      const normalizedError = error instanceof Error ? error : new Error(errorMessageFrom(error) ?? 'Failed to handle websocket message')
+    } catch (error) {
+      const normalizedError =
+        error instanceof Error ? error : new Error(errorMessageFrom(error) ?? 'Failed to handle websocket message')
       this.opts.onError?.(normalizedError)
 
       if (this.connectionAttempt && this.status !== 'ready') {
@@ -634,8 +637,7 @@ export class Client<C = undefined> {
       if (parsed && typeof parsed === 'object' && 'type' in parsed) {
         return parsed
       }
-    }
-    catch {
+    } catch {
       // Try standard JSON next.
     }
 
@@ -718,18 +720,17 @@ export class Client<C = undefined> {
           return
         }
 
-        const syncData = data.data as {
-          modules?: Array<{
-            name: string
-            identity?: { id?: string }
-          }>
-        } | unknown
+        const syncData = data.data as
+          | {
+              modules?: Array<{
+                name: string
+                identity?: { id?: string }
+              }>
+            }
+          | unknown
         const modules = Array.isArray((syncData as any)?.modules) ? (syncData as any).modules : []
 
-        const selfRegistered = modules.some(
-          m => m.name === this.opts.name
-            && m.identity?.id === this.identity.id,
-        )
+        const selfRegistered = modules.some((m) => m.name === this.opts.name && m.identity?.id === this.identity.id)
 
         if (!selfRegistered) {
           return
@@ -767,7 +768,9 @@ export class Client<C = undefined> {
     // Cast is necessary here because the Set stores callbacks from potentially different event types,
     // but we're only calling listeners registered for this specific event type
     const results = await Promise.allSettled(
-      Array.from(listeners).map(listener => Promise.resolve((listener as (data: WebSocketEvent<C>) => void | Promise<void>)(data))),
+      Array.from(listeners).map((listener) =>
+        Promise.resolve((listener as (data: WebSocketEvent<C>) => void | Promise<void>)(data)),
+      ),
     )
 
     for (const result of results) {
@@ -835,8 +838,7 @@ export class Client<C = undefined> {
 
     if (kind === 'ping') {
       websocket.ping?.()
-    }
-    else {
+    } else {
       websocket.pong?.()
     }
   }
@@ -882,7 +884,11 @@ export class Client<C = undefined> {
     this.cleanupSocket(websocket)
     this.rejectAttempt(error)
 
-    if (websocket && websocket.readyState !== this.websocketConstructor.CLOSED && websocket.readyState !== this.websocketConstructor.CLOSING) {
+    if (
+      websocket &&
+      websocket.readyState !== this.websocketConstructor.CLOSED &&
+      websocket.readyState !== this.websocketConstructor.CLOSING
+    ) {
       websocket.close()
     }
 

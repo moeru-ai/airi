@@ -21,8 +21,8 @@ export interface SerializedSpan {
   startTimeNano: string
   endTimeNano: string
   attributes: Record<string, unknown>
-  events: { name: string, timeNano: string, attributes: Record<string, unknown> }[]
-  status: { code: number, message: string }
+  events: { name: string; timeNano: string; attributes: Record<string, unknown> }[]
+  status: { code: number; message: string }
   ended: boolean
 }
 
@@ -73,7 +73,7 @@ export function deserializeSpan(s: SerializedSpan): ReadableSpan {
     status: { code: s.status.code as SpanStatusCode, message: s.status.message },
     attributes: s.attributes as Record<string, string | number | boolean>,
     links: [],
-    events: s.events.map(e => ({
+    events: s.events.map((e) => ({
       name: e.name,
       time: nanoToHr(e.timeNano),
       attributes: e.attributes as Record<string, string | number | boolean>,
@@ -114,11 +114,9 @@ export function createCallbackSpanExporter(): SpanExporter {
 }
 
 export function initIOTracer() {
-  if (!broadcastChannel)
-    broadcastChannel = new BroadcastChannel(BROADCAST_CHANNEL)
+  if (!broadcastChannel) broadcastChannel = new BroadcastChannel(BROADCAST_CHANNEL)
 
-  if (provider)
-    return
+  if (provider) return
 
   provider = new BasicTracerProvider({
     spanProcessors: [new SimpleSpanProcessor(createCallbackSpanExporter())],
@@ -127,8 +125,7 @@ export function initIOTracer() {
 }
 
 export function getIOTracer() {
-  if (provider)
-    return provider.getTracer(TRACER_NAME)
+  if (provider) return provider.getTracer(TRACER_NAME)
   return trace.getTracer(TRACER_NAME)
 }
 

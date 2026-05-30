@@ -32,8 +32,22 @@ describe('extractOverlayState', () => {
       lastGroundingSnapshot: {
         snapshotId: 'dg_42',
         targetCandidates: [
-          { id: 't_0', source: 'chrome_dom', role: 'button', label: 'Submit', bounds: { x: 100, y: 200, width: 80, height: 30 }, confidence: 0.95 },
-          { id: 't_1', source: 'ax', role: 'link', label: 'Help', bounds: { x: 300, y: 100, width: 40, height: 20 }, confidence: 0.7 },
+          {
+            id: 't_0',
+            source: 'chrome_dom',
+            role: 'button',
+            label: 'Submit',
+            bounds: { x: 100, y: 200, width: 80, height: 30 },
+            confidence: 0.95,
+          },
+          {
+            id: 't_1',
+            source: 'ax',
+            role: 'link',
+            label: 'Help',
+            bounds: { x: 300, y: 100, width: 40, height: 20 },
+            confidence: 0.7,
+          },
         ],
         staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
       },
@@ -147,7 +161,14 @@ describe('createEmptyOverlayState', () => {
     expect(a.bootstrapState).toBe('booting')
 
     // Should not be the same reference (no shared mutation)
-    a.candidates.push({ id: 'x', source: 'raw', role: 'button', label: 'X', bounds: { x: 0, y: 0, width: 10, height: 10 }, confidence: 1 })
+    a.candidates.push({
+      id: 'x',
+      source: 'raw',
+      role: 'button',
+      label: 'X',
+      bounds: { x: 0, y: 0, width: 10, height: 10 },
+      confidence: 1,
+    })
     expect(b.candidates).toHaveLength(0)
   })
 })
@@ -170,7 +191,14 @@ describe('createOverlayPollController', () => {
           lastGroundingSnapshot: {
             snapshotId: 'dg_poll',
             targetCandidates: [
-              { id: 't_0', source: 'chrome_dom', role: 'button', label: 'OK', bounds: { x: 10, y: 20, width: 50, height: 25 }, confidence: 0.9 },
+              {
+                id: 't_0',
+                source: 'chrome_dom',
+                role: 'button',
+                label: 'OK',
+                bounds: { x: 10, y: 20, width: 50, height: 25 },
+                confidence: 0.9,
+              },
             ],
             staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
           },
@@ -178,8 +206,7 @@ describe('createOverlayPollController', () => {
       },
     }
 
-    const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>()
-      .mockResolvedValue(mockResult)
+    const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>().mockResolvedValue(mockResult)
 
     const received: OverlayState[] = []
 
@@ -188,7 +215,9 @@ describe('createOverlayPollController', () => {
     const controller = createOverlayPollController({
       callTool,
       getReadiness,
-      onState: (s) => { received.push(s) },
+      onState: (s) => {
+        received.push(s)
+      },
       intervalMs: 100,
       fallbackIntervalMs: 200,
     })
@@ -211,8 +240,7 @@ describe('createOverlayPollController', () => {
   it('stops polling after stop() is called', async () => {
     vi.useFakeTimers()
 
-    const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>()
-      .mockResolvedValue({ structuredContent: {} })
+    const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>().mockResolvedValue({ structuredContent: {} })
 
     const getReadiness = vi.fn().mockResolvedValue({ state: 'ready' })
 
@@ -238,7 +266,8 @@ describe('createOverlayPollController', () => {
   it('continues polling after a single failure', async () => {
     vi.useFakeTimers()
 
-    const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>()
+    const callTool = vi
+      .fn<(name: string) => Promise<McpCallToolResult>>()
       .mockRejectedValueOnce(new Error('MCP down'))
       .mockResolvedValue({
         structuredContent: {
@@ -259,7 +288,9 @@ describe('createOverlayPollController', () => {
     const controller = createOverlayPollController({
       callTool,
       getReadiness,
-      onState: (s) => { received.push(s) },
+      onState: (s) => {
+        received.push(s)
+      },
       intervalMs: 100,
       fallbackIntervalMs: 200,
     })
@@ -284,8 +315,7 @@ describe('createOverlayPollController', () => {
   it('is a no-op to call start() twice', async () => {
     vi.useFakeTimers()
 
-    const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>()
-      .mockResolvedValue({ structuredContent: {} })
+    const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>().mockResolvedValue({ structuredContent: {} })
 
     const getReadiness = vi.fn().mockResolvedValue({ state: 'ready' })
 
@@ -309,7 +339,8 @@ describe('createOverlayPollController', () => {
     vi.useFakeTimers()
 
     // First call hangs forever (simulates startup race when RPC not ready)
-    const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>()
+    const callTool = vi
+      .fn<(name: string) => Promise<McpCallToolResult>>()
       .mockImplementationOnce(() => new Promise(() => {})) // never resolves
       .mockResolvedValue({
         structuredContent: {
@@ -330,7 +361,9 @@ describe('createOverlayPollController', () => {
     const controller = createOverlayPollController({
       callTool,
       getReadiness,
-      onState: (s) => { received.push(s) },
+      onState: (s) => {
+        received.push(s)
+      },
       intervalMs: 100,
       fallbackIntervalMs: 200,
       callTimeoutMs: 500,
@@ -359,7 +392,8 @@ describe('createOverlayPollController', () => {
   it('caps outstanding timed-out polls to avoid unbounded buildup', async () => {
     vi.useFakeTimers()
 
-    const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>()
+    const callTool = vi
+      .fn<(name: string) => Promise<McpCallToolResult>>()
       .mockImplementation(() => new Promise<McpCallToolResult>(() => {}))
 
     const controller = createOverlayPollController({
@@ -390,7 +424,8 @@ describe('createOverlayPollController', () => {
   it('issues a low-frequency recovery probe when all tracked polls are permanently hung', async () => {
     vi.useFakeTimers()
 
-    const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>()
+    const callTool = vi
+      .fn<(name: string) => Promise<McpCallToolResult>>()
       .mockImplementation(() => new Promise<McpCallToolResult>(() => {}))
 
     const controller = createOverlayPollController({
@@ -425,10 +460,14 @@ describe('createOverlayPollController', () => {
     vi.useFakeTimers()
 
     let resolveFirst: (value: McpCallToolResult) => void = () => {}
-    const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>()
-      .mockImplementationOnce(() => new Promise<McpCallToolResult>((resolve) => {
-        resolveFirst = resolve
-      }))
+    const callTool = vi
+      .fn<(name: string) => Promise<McpCallToolResult>>()
+      .mockImplementationOnce(
+        () =>
+          new Promise<McpCallToolResult>((resolve) => {
+            resolveFirst = resolve
+          }),
+      )
       .mockImplementationOnce(() => new Promise<McpCallToolResult>(() => {}))
       .mockResolvedValue({
         structuredContent: {
@@ -483,7 +522,8 @@ describe('createOverlayPollController', () => {
   it('waits for readiness before entering main poll loop', async () => {
     vi.useFakeTimers()
     const callTool = vi.fn()
-    const getReadiness = vi.fn()
+    const getReadiness = vi
+      .fn()
       .mockResolvedValueOnce({ state: 'booting' })
       .mockResolvedValueOnce({ state: 'booting' })
       .mockResolvedValueOnce({ state: 'ready' })
@@ -492,7 +532,7 @@ describe('createOverlayPollController', () => {
     const controller = createOverlayPollController({
       callTool,
       getReadiness,
-      onState: s => received.push(s),
+      onState: (s) => received.push(s),
       intervalMs: 100,
       fallbackIntervalMs: 200,
     })
@@ -523,7 +563,7 @@ describe('createOverlayPollController', () => {
     const controller = createOverlayPollController({
       callTool,
       getReadiness,
-      onState: s => received.push(s),
+      onState: (s) => received.push(s),
       intervalMs: 100,
       fallbackIntervalMs: 200,
     })

@@ -54,7 +54,10 @@ export function createDesktopOverlayWindowOptions(params: {
  * - Nothing; mutates Electron window flags in place
  */
 export function applyDesktopOverlayInputIsolation(
-  window: Pick<BrowserWindow, 'setAlwaysOnTop' | 'setContentProtection' | 'setIgnoreMouseEvents' | 'setVisibleOnAllWorkspaces'>,
+  window: Pick<
+    BrowserWindow,
+    'setAlwaysOnTop' | 'setContentProtection' | 'setIgnoreMouseEvents' | 'setVisibleOnAllWorkspaces'
+  >,
 ): void {
   window.setIgnoreMouseEvents(true, { forward: true })
   window.setAlwaysOnTop(true, 'screen-saver')
@@ -75,8 +78,6 @@ export function applyDesktopOverlayInputIsolation(
  * Returns:
  * - Nothing; shows the window without stealing focus
  */
-export function showDesktopOverlayWithoutFocus(
-  window: Pick<BrowserWindow, 'showInactive'>,
-): void {
+export function showDesktopOverlayWithoutFocus(window: Pick<BrowserWindow, 'showInactive'>): void {
   window.showInactive()
 }

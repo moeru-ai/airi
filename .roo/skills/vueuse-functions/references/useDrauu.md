@@ -58,8 +58,5 @@ export interface UseDrauuReturn {
  * @param target The target svg element
  * @param options Drauu Options
  */
-export declare function useDrauu(
-  target: MaybeComputedElementRef,
-  options?: UseDrauuOptions,
-): UseDrauuReturn
+export declare function useDrauu(target: MaybeComputedElementRef, options?: UseDrauuOptions): UseDrauuReturn
 ```

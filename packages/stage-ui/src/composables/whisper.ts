@@ -17,15 +17,18 @@ export interface UseWhisperOptions {
 }
 
 export function useWhisper(url: string, options?: Partial<UseWhisperOptions>) {
-  const opts = merge<UseWhisperOptions>({
-    onLoading: () => {},
-    onProgress: () => {},
-    onReady: () => {},
-    onStart: () => {},
-    onUpdate: () => {},
-    onComplete: () => {},
-    onError: () => {},
-  }, options)
+  const opts = merge<UseWhisperOptions>(
+    {
+      onLoading: () => {},
+      onProgress: () => {},
+      onReady: () => {},
+      onStart: () => {},
+      onUpdate: () => {},
+      onComplete: () => {},
+      onError: () => {},
+    },
+    options,
+  )
 
   const adapter = createWhisperAdapter(url)
 
@@ -48,17 +51,15 @@ export function useWhisper(url: string, options?: Partial<UseWhisperOptions>) {
 
           if (payload.phase === 'download' && payload.file) {
             // Update or add file progress
-            const existing = loadingProgress.value.findIndex(p => p.file === payload.file)
+            const existing = loadingProgress.value.findIndex((p) => p.file === payload.file)
             if (existing >= 0) {
               loadingProgress.value[existing] = payload
-            }
-            else {
+            } else {
               loadingProgress.value.push(payload)
             }
           }
           opts.onProgress?.(payload)
-        }
-        else if (payload.phase === 'inference') {
+        } else if (payload.phase === 'inference') {
           // Streaming transcription updates
           const extra = payload as any
           if (extra.tps != null) {
@@ -94,18 +95,20 @@ export function useWhisper(url: string, options?: Partial<UseWhisperOptions>) {
   })
 
   return {
-    transcribe: (input: { audio?: string, audioFloat32?: Float32Array, language: string }) => {
+    transcribe: (input: { audio?: string; audioFloat32?: Float32Array; language: string }) => {
       transcribing.value = true
       opts.onStart?.()
-      adapter.transcribe({
-        audio: input.audio,
-        audioFloat32: input.audioFloat32,
-        language: input.language,
-      }).catch((err) => {
-        console.error('Whisper transcription error:', err)
-        transcribing.value = false
-        opts.onError?.(err instanceof Error ? err.message : String(err))
-      })
+      adapter
+        .transcribe({
+          audio: input.audio,
+          audioFloat32: input.audioFloat32,
+          language: input.language,
+        })
+        .catch((err) => {
+          console.error('Whisper transcription error:', err)
+          transcribing.value = false
+          opts.onError?.(err instanceof Error ? err.message : String(err))
+        })
     },
     status,
     loadingMessage,

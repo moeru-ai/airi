@@ -9,16 +9,16 @@ import { ref } from 'vue'
 
 import { formatContextPromptText } from '../chat/context-prompt'
 
-export type ContextLifecyclePhase
-  = | 'server-received'
-    | 'input-context-update'
-    | 'broadcast-posted'
-    | 'broadcast-received'
-    | 'store-ingested'
-    | 'store-ingest-rejected'
-    | 'before-compose'
-    | 'prompt-context-built'
-    | 'after-compose'
+export type ContextLifecyclePhase =
+  | 'server-received'
+  | 'input-context-update'
+  | 'broadcast-posted'
+  | 'broadcast-received'
+  | 'store-ingested'
+  | 'store-ingest-rejected'
+  | 'before-compose'
+  | 'prompt-context-built'
+  | 'after-compose'
 
 export interface ContextLifecycleRecord {
   id: string
@@ -50,16 +50,14 @@ export interface PromptProjectionSnapshot {
 const DEFAULT_MAX_HISTORY = 200
 
 function truncateText(value: string, limit = 220) {
-  if (value.length <= limit)
-    return value
+  if (value.length <= limit) return value
   return `${value.slice(0, limit)}...`
 }
 
 function cloneValue<T>(value: T): T {
   try {
     return structuredClone(value)
-  }
-  catch {
+  } catch {
     return JSON.parse(JSON.stringify(value)) as T
   }
 }
@@ -71,7 +69,9 @@ export const useContextObservabilityStore = defineStore('devtools:context-observ
   const lastBroadcastPostedAt = ref<number>()
   const lastBroadcastReceivedAt = ref<number>()
 
-  function recordLifecycle(record: Omit<ContextLifecycleRecord, 'id' | 'timestamp' | 'textPreview'> & { textPreview?: string }) {
+  function recordLifecycle(
+    record: Omit<ContextLifecycleRecord, 'id' | 'timestamp' | 'textPreview'> & { textPreview?: string },
+  ) {
     const nextRecord: ContextLifecycleRecord = {
       id: nanoid(),
       timestamp: Date.now(),
@@ -85,10 +85,8 @@ export const useContextObservabilityStore = defineStore('devtools:context-observ
       history.value.splice(maxHistory.value)
     }
 
-    if (record.phase === 'broadcast-posted')
-      lastBroadcastPostedAt.value = nextRecord.timestamp
-    if (record.phase === 'broadcast-received')
-      lastBroadcastReceivedAt.value = nextRecord.timestamp
+    if (record.phase === 'broadcast-posted') lastBroadcastPostedAt.value = nextRecord.timestamp
+    if (record.phase === 'broadcast-received') lastBroadcastReceivedAt.value = nextRecord.timestamp
 
     return nextRecord
   }

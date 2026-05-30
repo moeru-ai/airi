@@ -60,10 +60,10 @@ export function screenRectToLocal(rect: Rect, overlayOrigin: Point): Rect {
  */
 export function rectIntersectsOverlay(rect: Rect, overlayBounds: Rect): boolean {
   return (
-    rect.x < overlayBounds.x + overlayBounds.width
-    && rect.x + rect.width > overlayBounds.x
-    && rect.y < overlayBounds.y + overlayBounds.height
-    && rect.y + rect.height > overlayBounds.y
+    rect.x < overlayBounds.x + overlayBounds.width &&
+    rect.x + rect.width > overlayBounds.x &&
+    rect.y < overlayBounds.y + overlayBounds.height &&
+    rect.y + rect.height > overlayBounds.y
   )
 }
 
@@ -72,9 +72,9 @@ export function rectIntersectsOverlay(rect: Rect, overlayBounds: Rect): boolean 
  */
 export function pointInOverlay(point: Point, overlayBounds: Rect): boolean {
   return (
-    point.x >= overlayBounds.x
-    && point.x < overlayBounds.x + overlayBounds.width
-    && point.y >= overlayBounds.y
-    && point.y < overlayBounds.y + overlayBounds.height
+    point.x >= overlayBounds.x &&
+    point.x < overlayBounds.x + overlayBounds.width &&
+    point.y >= overlayBounds.y &&
+    point.y < overlayBounds.y + overlayBounds.height
   )
 }

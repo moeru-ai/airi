@@ -12,12 +12,16 @@ interface Step {
 
 const stepsData: Step[] = [
   { id: 1, title: 'アカウント作成', description: 'ユーザー情報を入力します。' }, // Account Creation - Enter user information.
-  { id: 2, title: 'プロフィール設定', description: '詳細なプロフィール情報を設定します。これは非常に長い説明文になる可能性があります。' }, // Profile Settings - Set detailed profile information. This could be a very long description.
+  {
+    id: 2,
+    title: 'プロフィール設定',
+    description: '詳細なプロフィール情報を設定します。これは非常に長い説明文になる可能性があります。',
+  }, // Profile Settings - Set detailed profile information. This could be a very long description.
   { id: 3, title: '確認', description: '入力内容を確認します。' }, // Confirmation - Confirm your input.
   { id: 4, title: '完了', description: 'プロセスが完了しました。' }, // Completion - The process is complete.
 ]
 
-function createStepperState(initialStep: number = 1): { currentStep: Ref<number>, totalSteps: number, steps: Step[] } {
+function createStepperState(initialStep: number = 1): { currentStep: Ref<number>; totalSteps: number; steps: Step[] } {
   return {
     currentStep: ref(initialStep),
     totalSteps: stepsData.length,
@@ -42,16 +46,56 @@ function isStepCompleted(state: { currentStep: Ref<number> }, stepId: number): b
 }
 
 const setupWorkflowSteps: Step[] = [
-  { id: 1, title: 'Welcome to StageWeb!', description: 'Let\'s get you set up. First, we need to configure at least one AI provider. Click "Next" to go to Provider Settings.' },
-  { id: 2, title: 'Configure Provider', description: 'You are now in Provider Settings. Click on a provider (e.g., OpenAI, Ollama) to add your credentials (like API Key or Base URL).' },
-  { id: 3, title: 'Set Up Consciousness', description: 'Great! Now head over to the "Consciousness" module in the settings.' },
-  { id: 4, title: 'Select Consciousness Provider', description: 'In the Consciousness module, select the provider you just configured from the list.' },
-  { id: 5, title: 'Select Consciousness Model', description: 'Now, choose a specific model from the list that this provider offers.' },
-  { id: 6, title: 'Configure Text-to-Speech (TTS)?', description: 'Do you want to enable speech output? If yes, we need to configure a Speech Provider next. If not, you can skip to the end.' },
-  { id: 7, title: 'Configure Speech Provider', description: '(Optional) Go back to Provider Settings and configure a provider that supports Speech (like ElevenLabs or Microsoft Speech).' },
+  {
+    id: 1,
+    title: 'Welcome to StageWeb!',
+    description:
+      'Let\'s get you set up. First, we need to configure at least one AI provider. Click "Next" to go to Provider Settings.',
+  },
+  {
+    id: 2,
+    title: 'Configure Provider',
+    description:
+      'You are now in Provider Settings. Click on a provider (e.g., OpenAI, Ollama) to add your credentials (like API Key or Base URL).',
+  },
+  {
+    id: 3,
+    title: 'Set Up Consciousness',
+    description: 'Great! Now head over to the "Consciousness" module in the settings.',
+  },
+  {
+    id: 4,
+    title: 'Select Consciousness Provider',
+    description: 'In the Consciousness module, select the provider you just configured from the list.',
+  },
+  {
+    id: 5,
+    title: 'Select Consciousness Model',
+    description: 'Now, choose a specific model from the list that this provider offers.',
+  },
+  {
+    id: 6,
+    title: 'Configure Text-to-Speech (TTS)?',
+    description:
+      'Do you want to enable speech output? If yes, we need to configure a Speech Provider next. If not, you can skip to the end.',
+  },
+  {
+    id: 7,
+    title: 'Configure Speech Provider',
+    description:
+      '(Optional) Go back to Provider Settings and configure a provider that supports Speech (like ElevenLabs or Microsoft Speech).',
+  },
   { id: 8, title: 'Set Up Speech Module', description: '(Optional) Navigate to the "Speech" module in settings.' },
-  { id: 9, title: 'Select Speech Provider & Voice', description: '(Optional) Select your configured Speech provider and choose a voice you like.' },
-  { id: 10, title: 'Setup Complete!', description: 'Excellent! Your core setup is complete. You can now return to the main page and start interacting.' },
+  {
+    id: 9,
+    title: 'Select Speech Provider & Voice',
+    description: '(Optional) Select your configured Speech provider and choose a voice you like.',
+  },
+  {
+    id: 10,
+    title: 'Setup Complete!',
+    description: 'Excellent! Your core setup is complete. You can now return to the main page and start interacting.',
+  },
 ]
 
 // Separate state for this specific tutorial variant
@@ -74,8 +118,7 @@ function nextSetupGuideStep() {
   const current = setupGuide.currentStep.value
   if (current === 6 && setupGuide.skippedTTS.value) {
     updateSetupGuideStep(10) // Skip TTS
-  }
-  else if (current < setupGuide.totalSteps) {
+  } else if (current < setupGuide.totalSteps) {
     updateSetupGuideStep(current + 1)
   }
 }
@@ -84,8 +127,7 @@ function prevSetupGuideStep() {
   const current = setupGuide.currentStep.value
   if (current === 10 && setupGuide.skippedTTS.value) {
     updateSetupGuideStep(6) // Go back to the skip question
-  }
-  else if (current > 1) {
+  } else if (current > 1) {
     updateSetupGuideStep(current - 1)
   }
 }
@@ -113,19 +155,29 @@ function skipTTSSetup() {
               <div
                 class="size-8 flex items-center justify-center border-2 rounded-full transition-all duration-300 ease-in-out"
                 :class="[
-                  isStepActive(stepper3, step.id) ? 'bg-primary-100 dark:bg-primary-900 border-primary-500 scale-110' : 'border-transparent',
+                  isStepActive(stepper3, step.id)
+                    ? 'bg-primary-100 dark:bg-primary-900 border-primary-500 scale-110'
+                    : 'border-transparent',
                   isStepCompleted(stepper3, step.id) ? 'bg-primary-500 dark:bg-primary-600 border-primary-500' : '',
-                  !isStepActive(stepper3, step.id) && !isStepCompleted(stepper3, step.id) ? 'bg-neutral-200 dark:bg-neutral-800 border-neutral-300 dark:border-neutral-700' : '',
+                  !isStepActive(stepper3, step.id) && !isStepCompleted(stepper3, step.id)
+                    ? 'bg-neutral-200 dark:bg-neutral-800 border-neutral-300 dark:border-neutral-700'
+                    : '',
                 ]"
               >
                 <!-- Placeholder for Icon -->
                 <div
-                  v-if="isStepCompleted(stepper3, step.id)" i-solar:check-read-bold-duotone
+                  v-if="isStepCompleted(stepper3, step.id)"
+                  i-solar:check-read-bold-duotone
                   class="text-white dark:text-black"
                 />
                 <span
-                  v-else class="text-sm font-semibold"
-                  :class="[isStepActive(stepper3, step.id) ? 'text-primary-700 dark:text-primary-200' : 'text-neutral-600 dark:text-neutral-300']"
+                  v-else
+                  class="text-sm font-semibold"
+                  :class="[
+                    isStepActive(stepper3, step.id)
+                      ? 'text-primary-700 dark:text-primary-200'
+                      : 'text-neutral-600 dark:text-neutral-300',
+                  ]"
                 >
                   {{ step.id }}
                 </span>
@@ -133,7 +185,11 @@ function skipTTSSetup() {
               <div class="mt-1">
                 <p
                   class="font-medium"
-                  :class="[isStepActive(stepper3, step.id) ? 'text-primary-700 dark:text-primary-200' : 'text-neutral-800 dark:text-neutral-200']"
+                  :class="[
+                    isStepActive(stepper3, step.id)
+                      ? 'text-primary-700 dark:text-primary-200'
+                      : 'text-neutral-800 dark:text-neutral-200',
+                  ]"
                 >
                   {{ step.title }}
                 </p>
@@ -152,9 +208,14 @@ function skipTTSSetup() {
       <div class="w-full flex flex-col gap-2 p-4">
         <template v-for="step in stepper8.steps" :key="step.id">
           <div
-            class="overflow-hidden border rounded-lg transition-all duration-300 ease-in-out" :class="[
-              isStepActive(stepper8, step.id) ? 'border-primary-300 dark:border-primary-700 shadow-md' : 'border-neutral-200 dark:border-neutral-800',
-              isStepCompleted(stepper8, step.id) ? 'bg-neutral-50 dark:bg-neutral-900/30' : 'bg-white dark:bg-neutral-900/20',
+            class="overflow-hidden border rounded-lg transition-all duration-300 ease-in-out"
+            :class="[
+              isStepActive(stepper8, step.id)
+                ? 'border-primary-300 dark:border-primary-700 shadow-md'
+                : 'border-neutral-200 dark:border-neutral-800',
+              isStepCompleted(stepper8, step.id)
+                ? 'bg-neutral-50 dark:bg-neutral-900/30'
+                : 'bg-white dark:bg-neutral-900/20',
             ]"
           >
             <div
@@ -166,9 +227,15 @@ function skipTTSSetup() {
                 <div
                   class="size-5 flex items-center justify-center border rounded-full text-xs font-medium transition-all duration-300 ease-in-out"
                   :class="[
-                    isStepActive(stepper8, step.id) ? 'bg-primary-100 dark:bg-primary-900 border-primary-500 text-primary-700 dark:text-primary-200' : '',
-                    isStepCompleted(stepper8, step.id) ? 'bg-primary-500 dark:bg-primary-600 border-primary-500 text-white dark:text-black' : '',
-                    !isStepActive(stepper8, step.id) && !isStepCompleted(stepper8, step.id) ? 'bg-neutral-200 dark:bg-neutral-800 border-neutral-300 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400' : '',
+                    isStepActive(stepper8, step.id)
+                      ? 'bg-primary-100 dark:bg-primary-900 border-primary-500 text-primary-700 dark:text-primary-200'
+                      : '',
+                    isStepCompleted(stepper8, step.id)
+                      ? 'bg-primary-500 dark:bg-primary-600 border-primary-500 text-white dark:text-black'
+                      : '',
+                    !isStepActive(stepper8, step.id) && !isStepCompleted(stepper8, step.id)
+                      ? 'bg-neutral-200 dark:bg-neutral-800 border-neutral-300 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400'
+                      : '',
                   ]"
                 >
                   <div v-if="isStepCompleted(stepper8, step.id)" i-solar:check-read-bold-duotone text-xs />
@@ -176,7 +243,11 @@ function skipTTSSetup() {
                 </div>
                 <span
                   class="text-sm font-medium"
-                  :class="[isStepActive(stepper8, step.id) ? 'text-primary-700 dark:text-primary-200' : 'text-neutral-700 dark:text-neutral-300']"
+                  :class="[
+                    isStepActive(stepper8, step.id)
+                      ? 'text-primary-700 dark:text-primary-200'
+                      : 'text-neutral-700 dark:text-neutral-300',
+                  ]"
                 >
                   {{ step.title }}
                 </span>
@@ -221,57 +292,69 @@ function skipTTSSetup() {
           <!-- Calculate relative position and apply dynamic styles for stacking -->
           <template v-for="step in stepper16.steps" :key="step.id">
             <div
-              :style="(() => {
-                const totalSteps = stepper16.totalSteps;
-                const currentStepValue = stepper16.currentStep.value;
-                // Calculate how many steps 'behind' the active card this one is (0 = active)
-                const relativePosition = (step.id - currentStepValue + totalSteps) % totalSteps;
-                const isActive = relativePosition === 0;
+              :style="
+                (() => {
+                  const totalSteps = stepper16.totalSteps
+                  const currentStepValue = stepper16.currentStep.value
+                  // Calculate how many steps 'behind' the active card this one is (0 = active)
+                  const relativePosition = (step.id - currentStepValue + totalSteps) % totalSteps
+                  const isActive = relativePosition === 0
 
-                // Define style properties based on relative position
-                const zIndex = totalSteps - relativePosition;
-                const scale = 1 - relativePosition * 0.04; // Decrease scale slightly for cards further back
-                const translateX = relativePosition * 12; // Offset X based on position
-                const translateY = relativePosition * 6; // Offset Y less than X
-                const rotateZ = relativePosition * 2; // Rotate slightly based on position
-                const opacity = 1 - relativePosition * 0.1; // Decrease opacity for cards further back
-                const filter = isActive ? 'none' : `blur(${relativePosition * 0.5}px)`; // Blur background cards
+                  // Define style properties based on relative position
+                  const zIndex = totalSteps - relativePosition
+                  const scale = 1 - relativePosition * 0.04 // Decrease scale slightly for cards further back
+                  const translateX = relativePosition * 12 // Offset X based on position
+                  const translateY = relativePosition * 6 // Offset Y less than X
+                  const rotateZ = relativePosition * 2 // Rotate slightly based on position
+                  const opacity = 1 - relativePosition * 0.1 // Decrease opacity for cards further back
+                  const filter = isActive ? 'none' : `blur(${relativePosition * 0.5}px)` // Blur background cards
 
-                return {
-                  zIndex,
-                  transform: `translateX(${translateX}px) translateY(${translateY}px) rotateZ(${rotateZ}deg) scale(${scale})`,
-                  opacity,
-                  filter,
-                };
-              })()"
+                  return {
+                    zIndex,
+                    transform: `translateX(${translateX}px) translateY(${translateY}px) rotateZ(${rotateZ}deg) scale(${scale})`,
+                    opacity,
+                    filter,
+                  }
+                })()
+              "
               class="absolute h-full w-full flex flex-col preserve-3d cursor-pointer justify-between border border-2 rounded-lg p-3 shadow-lg transition-all duration-500 ease-out"
               :class="[
                 // Simplified classes: Active vs Inactive styling
-                (stepper16.currentStep.value === step.id)
+                stepper16.currentStep.value === step.id
                   ? 'bg-primary-50 dark:bg-primary-900/50 border-primary-300 dark:border-primary-700'
                   : 'bg-neutral-50 dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800',
               ]"
-              @click="() => {
-                if (stepper16.currentStep.value === step.id) {
-                  // Clicked the active card: cycle it to the back by advancing the step
-                  const nextStepId = (stepper16.currentStep.value % stepper16.totalSteps) + 1;
-                  updateStep(stepper16, nextStepId);
+              @click="
+                () => {
+                  if (stepper16.currentStep.value === step.id) {
+                    // Clicked the active card: cycle it to the back by advancing the step
+                    const nextStepId = (stepper16.currentStep.value % stepper16.totalSteps) + 1
+                    updateStep(stepper16, nextStepId)
+                  } else {
+                    // Clicked an inactive card: bring it to the front
+                    updateStep(stepper16, step.id)
+                  }
                 }
-                else {
-                  // Clicked an inactive card: bring it to the front
-                  updateStep(stepper16, step.id);
-                }
-              }"
+              "
             >
               <div class="flex items-center justify-between">
                 <span
                   class="text-sm font-medium"
-                  :class="(stepper16.currentStep.value === step.id) ? 'text-primary-700 dark:text-primary-200' : 'text-neutral-600 dark:text-neutral-300'"
-                >{{
-                  step.title }}</span>
+                  :class="
+                    stepper16.currentStep.value === step.id
+                      ? 'text-primary-700 dark:text-primary-200'
+                      : 'text-neutral-600 dark:text-neutral-300'
+                  "
+                >
+                  {{ step.title }}
+                </span>
                 <span
                   class="rounded px-1.5 py-0.5 text-xs"
-                  :class="(stepper16.currentStep.value === step.id) ? 'bg-primary-100 dark:bg-primary-800 text-primary-700 dark:text-primary-200' : 'bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300'"
+                  :class="
+                    stepper16.currentStep.value === step.id
+                      ? 'bg-primary-100 dark:bg-primary-800 text-primary-700 dark:text-primary-200'
+                      : 'bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300'
+                  "
                 >
                   {{ step.id }} / {{ stepper16.totalSteps }}
                 </span>
@@ -294,12 +377,12 @@ function skipTTSSetup() {
     <!-- Tutorial Variant E: Multi-Page Workflow Guide -->
     <Variant title="E. Tutorial: Setup Workflow">
       <div class="w-full p-4">
-        <div class="dark:from-neutral-850 flex flex-col overflow-hidden rounded-xl from-white to-neutral-100 bg-gradient-to-b shadow-md dark:to-neutral-900">
+        <div
+          class="dark:from-neutral-850 flex flex-col overflow-hidden rounded-xl from-white to-neutral-100 bg-gradient-to-b shadow-md dark:to-neutral-900"
+        >
           <!-- Header -->
           <div class="bg-white/70 p-4 backdrop-blur-sm dark:bg-neutral-950/60">
-            <h4 class="text-base text-neutral-800 font-semibold dark:text-neutral-100">
-              StageWeb Setup Guide
-            </h4>
+            <h4 class="text-base text-neutral-800 font-semibold dark:text-neutral-100">StageWeb Setup Guide</h4>
           </div>
 
           <!-- Current Step Content -->
@@ -335,9 +418,13 @@ function skipTTSSetup() {
                 <div
                   class="size-2 cursor-pointer rounded-full transition-colors duration-200"
                   :class="[
-                    step.id === setupGuide.currentStep.value ? 'bg-primary-500 scale-110' : 'bg-neutral-300 dark:bg-neutral-600 hover:bg-neutral-400',
+                    step.id === setupGuide.currentStep.value
+                      ? 'bg-primary-500 scale-110'
+                      : 'bg-neutral-300 dark:bg-neutral-600 hover:bg-neutral-400',
                     step.id < setupGuide.currentStep.value ? 'bg-primary-300 dark:bg-primary-700' : '',
-                    (step.id >= 7 && step.id <= 9 && setupGuide.skippedTTS.value) ? 'bg-neutral-200 dark:bg-neutral-700 opacity-50' : '', // Visually indicate skipped steps
+                    step.id >= 7 && step.id <= 9 && setupGuide.skippedTTS.value
+                      ? 'bg-neutral-200 dark:bg-neutral-700 opacity-50'
+                      : '', // Visually indicate skipped steps
                   ]"
                   :title="`Step ${step.id}: ${step.title}`"
                   @click="updateSetupGuideStep(step.id)"

@@ -130,16 +130,16 @@ function isToolExecutionGameletApi(value: unknown): value is ToolExecutionGamele
 
   const candidate = value as Partial<Record<keyof ToolExecutionGameletApi, unknown>>
 
-  return typeof candidate.open === 'function'
-    && typeof candidate.configure === 'function'
-    && typeof candidate.request === 'function'
-    && typeof candidate.close === 'function'
-    && typeof candidate.isOpen === 'function'
+  return (
+    typeof candidate.open === 'function' &&
+    typeof candidate.configure === 'function' &&
+    typeof candidate.request === 'function' &&
+    typeof candidate.close === 'function' &&
+    typeof candidate.isOpen === 'function'
+  )
 }
 
-function getToolExecutionGameletApi(
-  ctx: Pick<ContextInit, 'apis'> | TamagotchiToolContext,
-): ToolExecutionGameletApi {
+function getToolExecutionGameletApi(ctx: Pick<ContextInit, 'apis'> | TamagotchiToolContext): ToolExecutionGameletApi {
   const gamelets = (ctx.apis as Record<string, unknown>).gamelets
 
   if (!isToolExecutionGameletApi(gamelets)) {
@@ -149,9 +149,7 @@ function getToolExecutionGameletApi(
   return gamelets
 }
 
-function createToolExecutionContext(
-  ctx: Pick<ContextInit, 'apis'> | TamagotchiToolContext,
-): ToolExecutionContext {
+function createToolExecutionContext(ctx: Pick<ContextInit, 'apis'> | TamagotchiToolContext): ToolExecutionContext {
   return {
     gamelets: getToolExecutionGameletApi(ctx),
   }
@@ -190,11 +188,7 @@ function isJsonSchemaRecord(inputSchema: unknown): inputSchema is JsonSchema {
  * - `true` when the value can be converted by {@link toJsonSchema}
  */
 function isStandardSchema(inputSchema: unknown): inputSchema is StandardSchemaV1 {
-  return Boolean(
-    inputSchema
-    && typeof inputSchema === 'object'
-    && '~standard' in inputSchema,
-  )
+  return Boolean(inputSchema && typeof inputSchema === 'object' && '~standard' in inputSchema)
 }
 
 /**
@@ -259,12 +253,7 @@ function normalizeStrictToolParameterSchema(schema: JsonSchema): JsonSchema {
         }
 
         const normalizedValue = normalizeStrictToolParameterSchema(value)
-        return [
-          key,
-          currentRequired.has(key)
-            ? normalizedValue
-            : withNullableValue(normalizedValue),
-        ]
+        return [key, currentRequired.has(key) ? normalizedValue : withNullableValue(normalizedValue)]
       }),
     )
 
@@ -273,22 +262,27 @@ function normalizeStrictToolParameterSchema(schema: JsonSchema): JsonSchema {
   }
 
   if (Array.isArray(next.items)) {
-    next.items = next.items.map(item => isJsonSchemaNode(item) ? normalizeStrictToolParameterSchema(item) : item)
-  }
-  else if (isJsonSchemaNode(next.items)) {
+    next.items = next.items.map((item) => (isJsonSchemaNode(item) ? normalizeStrictToolParameterSchema(item) : item))
+  } else if (isJsonSchemaNode(next.items)) {
     next.items = normalizeStrictToolParameterSchema(next.items)
   }
 
   if (next.anyOf) {
-    next.anyOf = next.anyOf.map(value => isJsonSchemaNode(value) ? normalizeStrictToolParameterSchema(value) : value)
+    next.anyOf = next.anyOf.map((value) =>
+      isJsonSchemaNode(value) ? normalizeStrictToolParameterSchema(value) : value,
+    )
   }
 
   if (next.oneOf) {
-    next.oneOf = next.oneOf.map(value => isJsonSchemaNode(value) ? normalizeStrictToolParameterSchema(value) : value)
+    next.oneOf = next.oneOf.map((value) =>
+      isJsonSchemaNode(value) ? normalizeStrictToolParameterSchema(value) : value,
+    )
   }
 
   if (next.allOf) {
-    next.allOf = next.allOf.map(value => isJsonSchemaNode(value) ? normalizeStrictToolParameterSchema(value) : value)
+    next.allOf = next.allOf.map((value) =>
+      isJsonSchemaNode(value) ? normalizeStrictToolParameterSchema(value) : value,
+    )
   }
 
   return next
@@ -350,14 +344,12 @@ export async function defineToolset(
         description: definition.description,
         activation: {
           keywords: definition.activation?.keywords ?? [],
-          patterns: (definition.activation?.patterns ?? []).map(pattern => pattern.source),
+          patterns: (definition.activation?.patterns ?? []).map((pattern) => pattern.source),
         },
         parameters: await serializeToolParameters(definition.inputSchema),
       },
-      availability: isAvailable
-        ? () => isAvailable(executionContext)
-        : undefined,
-      execute: input => definition.execute(input, executionContext),
+      availability: isAvailable ? () => isAvailable(executionContext) : undefined,
+      execute: (input) => definition.execute(input, executionContext),
     })
   }
 }

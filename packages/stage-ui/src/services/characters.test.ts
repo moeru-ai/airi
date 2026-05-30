@@ -46,8 +46,8 @@ describe('services characters', () => {
       api: {
         v1: {
           characters: {
-            '$get': vi.fn(async () => ({ ok: true, json: async () => [built] })),
-            '$post': vi.fn(async () => ({ ok: true, json: async () => built })),
+            $get: vi.fn(async () => ({ ok: true, json: async () => [built] })),
+            $post: vi.fn(async () => ({ ok: true, json: async () => built })),
             ':id': {
               $delete: vi.fn(async () => ({ ok: true })),
               $get: vi.fn(async () => ({ ok: true, json: async () => built })),
@@ -79,8 +79,8 @@ describe('services characters', () => {
       api: {
         v1: {
           characters: {
-            '$get': vi.fn(),
-            '$post': vi.fn(),
+            $get: vi.fn(),
+            $post: vi.fn(),
             ':id': {
               $delete: vi.fn(),
               $get: vi.fn(),

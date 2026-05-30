@@ -25,7 +25,7 @@ interface WindowsUpdateInfo {
   [key: string]: unknown
 }
 
-export async function hashFile(filePath: string): Promise<{ sha512: string, sha256: string }> {
+export async function hashFile(filePath: string): Promise<{ sha512: string; sha256: string }> {
   return await new Promise((resolveHash, reject) => {
     const sha512 = createHash('sha512')
     const sha256 = createHash('sha256')
@@ -49,8 +49,7 @@ export async function readExistingUpdateInfo(filePath: string): Promise<Partial<
   try {
     const raw = await readFile(filePath, 'utf8')
     return (yaml.parse(raw) ?? {}) as Partial<WindowsUpdateInfo>
-  }
-  catch {
+  } catch {
     return {}
   }
 }

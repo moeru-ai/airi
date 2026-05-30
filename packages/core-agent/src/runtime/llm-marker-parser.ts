@@ -1,7 +1,7 @@
 const TAG_OPEN = '<|'
 const TAG_CLOSE = '|>'
-const ESCAPED_TAG_OPEN = '<{\'|\'}'
-const ESCAPED_TAG_CLOSE = '{\'|\'}>'
+const ESCAPED_TAG_OPEN = "<{'|'}"
+const ESCAPED_TAG_CLOSE = "{'|'}>"
 
 interface MarkerToken {
   type: 'literal' | 'special'
@@ -35,19 +35,16 @@ function createPushStream<T>(): StreamController<T> {
   return {
     stream,
     write(value) {
-      if (!controller || closed)
-        return
+      if (!controller || closed) return
       controller.enqueue(value)
     },
     close() {
-      if (!controller || closed)
-        return
+      if (!controller || closed) return
       closed = true
       controller.close()
     },
     error(err) {
-      if (!controller || closed)
-        return
+      if (!controller || closed) return
       closed = true
       controller.error(err)
     },
@@ -59,12 +56,10 @@ async function readStream<T>(stream: ReadableStream<T>, handler: (value: T) => P
   try {
     while (true) {
       const { value, done } = await reader.read()
-      if (done)
-        break
+      if (done) break
       await handler(value as T)
     }
-  }
-  finally {
+  } finally {
     reader.releaseLock()
   }
 }
@@ -76,11 +71,13 @@ function createLlmMarkerParser(options?: MarkerParserOptions) {
   let inTag = false
 
   return {
-    async consume(textPart: string, onLiteral: (value: string) => Promise<void> | void, onSpecial: (value: string) => Promise<void> | void) {
+    async consume(
+      textPart: string,
+      onLiteral: (value: string) => Promise<void> | void,
+      onSpecial: (value: string) => Promise<void> | void,
+    ) {
       buffer += textPart
-      buffer = buffer
-        .replaceAll(ESCAPED_TAG_OPEN, TAG_OPEN)
-        .replaceAll(ESCAPED_TAG_CLOSE, TAG_CLOSE)
+      buffer = buffer.replaceAll(ESCAPED_TAG_OPEN, TAG_OPEN).replaceAll(ESCAPED_TAG_CLOSE, TAG_CLOSE)
 
       while (buffer.length > 0) {
         if (!inTag) {
@@ -100,11 +97,9 @@ function createLlmMarkerParser(options?: MarkerParserOptions) {
             await onLiteral(emit)
           }
           inTag = true
-        }
-        else {
+        } else {
           const closeTagIndex = buffer.indexOf(TAG_CLOSE)
-          if (closeTagIndex < 0)
-            break
+          if (closeTagIndex < 0) break
 
           const emit = buffer.slice(0, closeTagIndex + TAG_CLOSE.length)
           buffer = buffer.slice(closeTagIndex + TAG_CLOSE.length)
@@ -131,8 +126,7 @@ function createLlmMarkerStream(input: ReadableStream<string>, options?: MarkerPa
     await parser.consume(
       chunk,
       async (literal) => {
-        if (!literal)
-          return
+        if (!literal) return
         write({ type: 'literal', value: literal })
       },
       async (special) => {
@@ -142,8 +136,7 @@ function createLlmMarkerStream(input: ReadableStream<string>, options?: MarkerPa
   })
     .then(async () => {
       await parser.end(async (literal) => {
-        if (!literal)
-          return
+        if (!literal) return
         write({ type: 'literal', value: literal })
       })
       close()
@@ -188,10 +181,8 @@ export function useLlmmarkerParser(options: {
   const markerStream = createLlmMarkerStream(stream, { minLiteralEmitLength: options.minLiteralEmitLength })
 
   const processing = readStream(markerStream, async (token) => {
-    if (token.type === 'literal')
-      await options.onLiteral?.(token.value)
-    if (token.type === 'special')
-      await options.onSpecial?.(token.value)
+    if (token.type === 'literal') await options.onLiteral?.(token.value)
+    if (token.type === 'special') await options.onSpecial?.(token.value)
   })
 
   return {

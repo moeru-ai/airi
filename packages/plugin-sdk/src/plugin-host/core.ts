@@ -67,21 +67,14 @@ import {
   pluginKitApiListEventName,
   pluginKitRegistryResourceKey,
 } from '../plugin/apis/client/kits'
-import {
-  pluginToolApiRegisterEventName,
-  pluginToolRegistryResourceKey,
-
-} from '../plugin/apis/client/tools'
+import { pluginToolApiRegisterEventName, pluginToolRegistryResourceKey } from '../plugin/apis/client/tools'
 import {
   protocolCapabilitySnapshot,
   protocolCapabilitySnapshotEventName,
   protocolCapabilityWait,
   protocolCapabilityWaitEventName,
 } from '../plugin/apis/protocol'
-import {
-  protocolListProvidersEventName,
-  protocolProviders,
-} from '../plugin/apis/protocol/resources/providers'
+import { protocolListProvidersEventName, protocolProviders } from '../plugin/apis/protocol/resources/providers'
 import { createPluginContext } from './runtimes/node'
 import { FileSystemLoader } from './runtimes/node/loaders'
 import {
@@ -207,51 +200,51 @@ import {
  *     Plugin Host should treat the Module to be un-prepared status, the needed procedure will be called.
  */
 
-type PluginLifecycleEvent
-  = | { type: 'SESSION_LOADED' }
-    | { type: 'START_AUTHENTICATION' }
-    | { type: 'AUTHENTICATED' }
-    | { type: 'ANNOUNCED' }
-    | { type: 'START_PREPARING' }
-    | { type: 'WAITING_DEPENDENCIES' }
-    | { type: 'PREPARED' }
-    | { type: 'CONFIGURATION_NEEDED' }
-    | { type: 'CONFIGURED' }
-    | { type: 'READY' }
-    | { type: 'SESSION_FAILED' }
-    | { type: 'REANNOUNCE' }
-    | { type: 'STOP' }
+type PluginLifecycleEvent =
+  | { type: 'SESSION_LOADED' }
+  | { type: 'START_AUTHENTICATION' }
+  | { type: 'AUTHENTICATED' }
+  | { type: 'ANNOUNCED' }
+  | { type: 'START_PREPARING' }
+  | { type: 'WAITING_DEPENDENCIES' }
+  | { type: 'PREPARED' }
+  | { type: 'CONFIGURATION_NEEDED' }
+  | { type: 'CONFIGURED' }
+  | { type: 'READY' }
+  | { type: 'SESSION_FAILED' }
+  | { type: 'REANNOUNCE' }
+  | { type: 'STOP' }
 
 const pluginLifecycleMachine = createMachine({
   id: 'plugin-lifecycle',
   initial: 'loading',
   states: {
-    'loading': {
+    loading: {
       on: {
         SESSION_LOADED: 'loaded',
         SESSION_FAILED: 'failed',
       },
     },
-    'loaded': {
+    loaded: {
       on: {
         START_AUTHENTICATION: 'authenticating',
         STOP: 'stopped',
         SESSION_FAILED: 'failed',
       },
     },
-    'authenticating': {
+    authenticating: {
       on: {
         AUTHENTICATED: 'authenticated',
         SESSION_FAILED: 'failed',
       },
     },
-    'authenticated': {
+    authenticated: {
       on: {
         ANNOUNCED: 'announced',
         SESSION_FAILED: 'failed',
       },
     },
-    'announced': {
+    announced: {
       on: {
         START_PREPARING: 'preparing',
         CONFIGURATION_NEEDED: 'configuration-needed',
@@ -259,7 +252,7 @@ const pluginLifecycleMachine = createMachine({
         SESSION_FAILED: 'failed',
       },
     },
-    'preparing': {
+    preparing: {
       on: {
         WAITING_DEPENDENCIES: 'waiting-deps',
         PREPARED: 'prepared',
@@ -272,7 +265,7 @@ const pluginLifecycleMachine = createMachine({
         SESSION_FAILED: 'failed',
       },
     },
-    'prepared': {
+    prepared: {
       on: {
         CONFIGURATION_NEEDED: 'configuration-needed',
         CONFIGURED: 'configured',
@@ -285,13 +278,13 @@ const pluginLifecycleMachine = createMachine({
         SESSION_FAILED: 'failed',
       },
     },
-    'configured': {
+    configured: {
       on: {
         READY: 'ready',
         SESSION_FAILED: 'failed',
       },
     },
-    'ready': {
+    ready: {
       on: {
         REANNOUNCE: 'announced',
         CONFIGURATION_NEEDED: 'configuration-needed',
@@ -299,31 +292,44 @@ const pluginLifecycleMachine = createMachine({
         SESSION_FAILED: 'failed',
       },
     },
-    'failed': {
+    failed: {
       on: {
         STOP: 'stopped',
       },
     },
-    'stopped': {
+    stopped: {
       type: 'final',
     },
   },
 })
 
-const lifecycleTransitionEvents: Record<PluginSessionPhase, Partial<Record<PluginSessionPhase, PluginLifecycleEvent['type']>>> = {
-  'loading': { loaded: 'SESSION_LOADED', failed: 'SESSION_FAILED' },
-  'loaded': { authenticating: 'START_AUTHENTICATION', stopped: 'STOP', failed: 'SESSION_FAILED' },
-  'authenticating': { authenticated: 'AUTHENTICATED', failed: 'SESSION_FAILED' },
-  'authenticated': { announced: 'ANNOUNCED', failed: 'SESSION_FAILED' },
-  'announced': { 'preparing': 'START_PREPARING', 'configuration-needed': 'CONFIGURATION_NEEDED', 'failed': 'SESSION_FAILED', 'stopped': 'STOP' },
-  'preparing': { 'waiting-deps': 'WAITING_DEPENDENCIES', 'prepared': 'PREPARED', 'failed': 'SESSION_FAILED' },
+const lifecycleTransitionEvents: Record<
+  PluginSessionPhase,
+  Partial<Record<PluginSessionPhase, PluginLifecycleEvent['type']>>
+> = {
+  loading: { loaded: 'SESSION_LOADED', failed: 'SESSION_FAILED' },
+  loaded: { authenticating: 'START_AUTHENTICATION', stopped: 'STOP', failed: 'SESSION_FAILED' },
+  authenticating: { authenticated: 'AUTHENTICATED', failed: 'SESSION_FAILED' },
+  authenticated: { announced: 'ANNOUNCED', failed: 'SESSION_FAILED' },
+  announced: {
+    preparing: 'START_PREPARING',
+    'configuration-needed': 'CONFIGURATION_NEEDED',
+    failed: 'SESSION_FAILED',
+    stopped: 'STOP',
+  },
+  preparing: { 'waiting-deps': 'WAITING_DEPENDENCIES', prepared: 'PREPARED', failed: 'SESSION_FAILED' },
   'waiting-deps': { prepared: 'PREPARED', failed: 'SESSION_FAILED' },
-  'prepared': { 'configuration-needed': 'CONFIGURATION_NEEDED', 'configured': 'CONFIGURED', 'failed': 'SESSION_FAILED' },
+  prepared: { 'configuration-needed': 'CONFIGURATION_NEEDED', configured: 'CONFIGURED', failed: 'SESSION_FAILED' },
   'configuration-needed': { configured: 'CONFIGURED', failed: 'SESSION_FAILED' },
-  'configured': { ready: 'READY', failed: 'SESSION_FAILED' },
-  'ready': { 'announced': 'REANNOUNCE', 'configuration-needed': 'CONFIGURATION_NEEDED', 'failed': 'SESSION_FAILED', 'stopped': 'STOP' },
-  'failed': { stopped: 'STOP' },
-  'stopped': {},
+  configured: { ready: 'READY', failed: 'SESSION_FAILED' },
+  ready: {
+    announced: 'REANNOUNCE',
+    'configuration-needed': 'CONFIGURATION_NEEDED',
+    failed: 'SESSION_FAILED',
+    stopped: 'STOP',
+  },
+  failed: { stopped: 'STOP' },
+  stopped: {},
 }
 
 function assertTransition(session: PluginHostSession, to: PluginSessionPhase) {
@@ -358,19 +364,22 @@ function markFailedTransition(session: PluginHostSession) {
 
 // TODO: Maybe support more complex version formats.
 function normalizeVersionList(versions: string[]) {
-  return [...new Set(versions.map(version => version.trim()).filter(Boolean))]
+  return [...new Set(versions.map((version) => version.trim()).filter(Boolean))]
 }
 
 function resolveSupportedVersions(preferredVersion: string, supportedVersions?: string[]) {
   return normalizeVersionList([preferredVersion, ...(supportedVersions ?? [])])
 }
 
-function resolveNegotiatedVersion(preferredVersion: string, hostSupportedVersions: string[], peerSupportedVersions?: string[]) {
+function resolveNegotiatedVersion(
+  preferredVersion: string,
+  hostSupportedVersions: string[],
+  peerSupportedVersions?: string[],
+) {
   const normalizedPreferredVersion = preferredVersion.trim()
   const normalizedHostSupportedVersions = normalizeVersionList(hostSupportedVersions)
-  const normalizedPeerSupportedVersions = peerSupportedVersions && peerSupportedVersions.length > 0
-    ? normalizeVersionList(peerSupportedVersions)
-    : undefined
+  const normalizedPeerSupportedVersions =
+    peerSupportedVersions && peerSupportedVersions.length > 0 ? normalizeVersionList(peerSupportedVersions) : undefined
 
   if (!normalizedPeerSupportedVersions?.length) {
     if (normalizedHostSupportedVersions.includes(normalizedPreferredVersion)) {
@@ -386,8 +395,10 @@ function resolveNegotiatedVersion(preferredVersion: string, hostSupportedVersion
     }
   }
 
-  if (normalizedPeerSupportedVersions.includes(normalizedPreferredVersion)
-    && normalizedHostSupportedVersions.includes(normalizedPreferredVersion)) {
+  if (
+    normalizedPeerSupportedVersions.includes(normalizedPreferredVersion) &&
+    normalizedHostSupportedVersions.includes(normalizedPreferredVersion)
+  ) {
     return {
       acceptedVersion: normalizedPreferredVersion,
       exact: true,
@@ -409,7 +420,10 @@ function resolveNegotiatedVersion(preferredVersion: string, hostSupportedVersion
   }
 }
 
-function filterDeniedPermissions(requested: ModulePermissionDeclaration, granted: ModulePermissionGrant): ModulePermissionDeclaration {
+function filterDeniedPermissions(
+  requested: ModulePermissionDeclaration,
+  granted: ModulePermissionGrant,
+): ModulePermissionDeclaration {
   const denied: ModulePermissionDeclaration = {}
   const deniedApis = filterDeniedPermissionScopes(requested.apis, granted.apis)
   const deniedResources = filterDeniedPermissionScopes(requested.resources, granted.resources)
@@ -503,15 +517,17 @@ function filterDeniedPermissionScopes<
       }
     }
 
-    const deniedActions = requestedSpec.actions.filter(action => !grantedActions.has(action))
+    const deniedActions = requestedSpec.actions.filter((action) => !grantedActions.has(action))
     if (deniedActions.length === 0 || hasUnRepresentableOverlap) {
       return []
     }
 
-    return [{
-      ...requestedSpec,
-      actions: deniedActions,
-    }]
+    return [
+      {
+        ...requestedSpec,
+        actions: deniedActions,
+      },
+    ]
   })
 }
 
@@ -616,7 +632,7 @@ function omitModuleId<C extends HostDataRecord>(input: BoundUpdateBindingInput<C
 
 function cloneHostDataValue<T extends HostDataValue>(value: T): T {
   if (Array.isArray(value)) {
-    return value.map(item => cloneHostDataValue(item)) as T
+    return value.map((item) => cloneHostDataValue(item)) as T
   }
 
   if (value && typeof value === 'object') {
@@ -633,7 +649,7 @@ function cloneHostDataRecord<T extends HostDataRecord>(record: T): T {
 }
 
 function cloneKitCapabilities(capabilities: KitCapabilityDescriptor[]): KitCapabilityDescriptor[] {
-  return capabilities.map(capability => ({
+  return capabilities.map((capability) => ({
     key: capability.key,
     actions: [...capability.actions],
   }))
@@ -729,10 +745,7 @@ export class PluginHost {
     return session.id
   }
 
-  private assertPermission(
-    session: PluginHostSession,
-    input: PluginHostPermissionRequest,
-  ) {
+  private assertPermission(session: PluginHostSession, input: PluginHostPermissionRequest) {
     const allowed = this.permissions.isAllowed(this.getPermissionScopeKey(session), input.area, input.action, input.key)
     if (allowed) {
       return
@@ -792,8 +805,8 @@ export class PluginHost {
       registerLifecycleHook: (event, hook) => {
         this.lifecycleHooks[event].push(hook)
       },
-      registerKit: kit => this.registerKit(kit),
-      unregisterKit: kitId => this.unregisterKit(kitId),
+      registerKit: (kit) => this.registerKit(kit),
+      unregisterKit: (kitId) => this.unregisterKit(kitId),
       setResourceResolver: (key, resolver) => this.setResourceResolver(key, resolver),
       setResourceValue: (key, value) => this.setResourceValue(key, value),
       announceCapability: (key, metadata) => {
@@ -866,14 +879,14 @@ export class PluginHost {
 
           return this.listBindings({ ownerSessionId: session.id })
         },
-        announce: input => this.announceBinding(session.id, input),
-        activate: input => this.activateBinding(session.id, input.moduleId),
-        update: input => this.updateBinding(session.id, input.moduleId, input),
-        withdraw: input => this.withdrawBinding(session.id, input.moduleId),
+        announce: (input) => this.announceBinding(session.id, input),
+        activate: (input) => this.activateBinding(session.id, input.moduleId),
+        update: (input) => this.updateBinding(session.id, input.moduleId, input),
+        withdraw: (input) => this.withdrawBinding(session.id, input.moduleId),
       },
       tools: {
-        register: input => this.registerTool(session.id, input),
-        registerToolsetPrompt: input => this.registerToolsetPrompt(session.id, input),
+        register: (input) => this.registerTool(session.id, input),
+        registerToolsetPrompt: (input) => this.registerToolsetPrompt(session.id, input),
       },
     })
 
@@ -883,7 +896,7 @@ export class PluginHost {
         factory({
           host: this.installContext,
           session: this.createSessionContext(session),
-          assertPermission: input => this.assertPermission(session, input),
+          assertPermission: (input) => this.assertPermission(session, input),
         }),
       ]),
     )
@@ -911,8 +924,7 @@ export class PluginHost {
       const canStop = session.lifecycle.getSnapshot().can({ type: 'STOP' })
       if (canStop) {
         assertTransition(session, 'stopped')
-      }
-      else {
+      } else {
         session.phase = 'stopped'
       }
     }
@@ -924,8 +936,7 @@ export class PluginHost {
 
     try {
       this.runLifecycleHooks('session-stopped', session)
-    }
-    catch (error) {
+    } catch (error) {
       lifecycleHookError = error
     }
 
@@ -983,11 +994,9 @@ export class PluginHost {
   }
 
   listKits(runtime?: PluginRuntime) {
-    const kits = runtime
-      ? this.kits.listByRuntime(runtime)
-      : this.kits.list()
+    const kits = runtime ? this.kits.listByRuntime(runtime) : this.kits.list()
 
-    return kits.map(kit => cloneKitDescriptor(kit))
+    return kits.map((kit) => cloneKitDescriptor(kit))
   }
 
   getKitCapabilities(kitId: string): KitCapabilityDescriptor[] {
@@ -1009,17 +1018,20 @@ export class PluginHost {
   }
 
   listBindings(options: PluginHostBindingListOptions = {}) {
-    return this.modules.list().filter((module) => {
-      if (options.ownerSessionId && module.ownerSessionId !== options.ownerSessionId) {
-        return false
-      }
+    return this.modules
+      .list()
+      .filter((module) => {
+        if (options.ownerSessionId && module.ownerSessionId !== options.ownerSessionId) {
+          return false
+        }
 
-      if (options.kitId && module.kitId !== options.kitId) {
-        return false
-      }
+        if (options.kitId && module.kitId !== options.kitId) {
+          return false
+        }
 
-      return true
-    }).map(module => cloneBindingRecord(module))
+        return true
+      })
+      .map((module) => cloneBindingRecord(module))
   }
 
   async listAvailableToolDescriptors() {
@@ -1053,12 +1065,14 @@ export class PluginHost {
       reason: `Module announce requires write access to kit \`${kit.kitId}\`.`,
     })
 
-    return cloneBindingRecord(this.modules.bind({
-      ...input,
-      ownerSessionId: session.id,
-      ownerPluginId: session.identity.plugin.id,
-      runtime: session.runtime,
-    }) as BindingRecord<C>)
+    return cloneBindingRecord(
+      this.modules.bind({
+        ...input,
+        ownerSessionId: session.id,
+        ownerPluginId: session.identity.plugin.id,
+        runtime: session.runtime,
+      }) as BindingRecord<C>,
+    )
   }
 
   activateBinding(sessionId: string, moduleId: string) {
@@ -1166,7 +1180,7 @@ export class PluginHost {
           return false
         }
 
-        return await input.availability?.() ?? true
+        return (await input.availability?.()) ?? true
       },
       execute: async (toolInput) => {
         if (!this.getSession(session.id)) {
@@ -1225,13 +1239,9 @@ export class PluginHost {
     const lifecycle = createActor(pluginLifecycleMachine)
     lifecycle.start()
 
-    const permissionSnapshot = this.permissions.initialize(
-      id,
-      manifest.permissions,
-      {
-        persisted: this.persistedPermissionGrants.get(identity.plugin.id),
-      },
-    )
+    const permissionSnapshot = this.permissions.initialize(id, manifest.permissions, {
+      persisted: this.persistedPermissionGrants.get(identity.plugin.id),
+    })
 
     const session: PluginHostSession = {
       manifest,
@@ -1293,7 +1303,7 @@ export class PluginHost {
         action: 'read',
         key: protocolListProvidersEventName,
       })
-      return await this.resources.get<Array<{ name: string }>>(protocolListProvidersEventName, []) ?? []
+      return (await this.resources.get<Array<{ name: string }>>(protocolListProvidersEventName, [])) ?? []
     })
 
     // Register session before loading so failure paths still have observable state.
@@ -1312,8 +1322,7 @@ export class PluginHost {
       assertTransition(session, 'loaded')
       this.runLifecycleHooks('session-loaded', session)
       return session
-    }
-    catch (error) {
+    } catch (error) {
       // Load failure is terminal for this session (`loading` -> `failed`).
       // Emit status so Configurator/observers can show deterministic diagnostics.
       markFailedTransition(session)
@@ -1373,8 +1382,8 @@ export class PluginHost {
       )
 
       const rejectionReasons = [
-        ...protocolNegotiation.acceptedVersion ? [] : [`protocol: ${protocolNegotiation.reason}`],
-        ...apiNegotiation.acceptedVersion ? [] : [`api: ${apiNegotiation.reason}`],
+        ...(protocolNegotiation.acceptedVersion ? [] : [`protocol: ${protocolNegotiation.reason}`]),
+        ...(apiNegotiation.acceptedVersion ? [] : [`api: ${apiNegotiation.reason}`]),
       ]
 
       if (rejectionReasons.length > 0) {
@@ -1397,8 +1406,8 @@ export class PluginHost {
       // Step 4: broadcast currently known modules for dependency discovery/bootstrap.
       session.channels.host.emit(registryModulesSync, {
         modules: this.listSessions()
-          .filter(item => item.phase !== 'stopped')
-          .map(item => ({
+          .filter((item) => item.phase !== 'stopped')
+          .map((item) => ({
             name: item.manifest.name,
             index: item.index,
             identity: item.identity,
@@ -1411,17 +1420,22 @@ export class PluginHost {
         source: 'manifest',
       })
 
-      const resolvedGrant = await this.permissionResolver?.({
-        identity: session.identity,
-        manifest: session.manifest,
-        requested: session.permissions.requested,
-        persisted: this.persistedPermissionGrants.get(session.identity.plugin.id),
-      }) ?? session.permissions.requested
+      const resolvedGrant =
+        (await this.permissionResolver?.({
+          identity: session.identity,
+          manifest: session.manifest,
+          requested: session.permissions.requested,
+          persisted: this.persistedPermissionGrants.get(session.identity.plugin.id),
+        })) ?? session.permissions.requested
 
-      const grantedSnapshot = this.permissions.initialize(this.getPermissionScopeKey(session), session.permissions.requested, {
-        grant: resolvedGrant,
-        persisted: this.persistedPermissionGrants.get(session.identity.plugin.id),
-      })
+      const grantedSnapshot = this.permissions.initialize(
+        this.getPermissionScopeKey(session),
+        session.permissions.requested,
+        {
+          grant: resolvedGrant,
+          persisted: this.persistedPermissionGrants.get(session.identity.plugin.id),
+        },
+      )
       session.permissions = {
         requested: grantedSnapshot.requested,
         granted: grantedSnapshot.granted,
@@ -1435,7 +1449,7 @@ export class PluginHost {
         granted: grantedSnapshot.granted,
         revision: grantedSnapshot.revision,
       })
-      if (Object.values(deniedPermissions).some(value => Array.isArray(value) && value.length > 0)) {
+      if (Object.values(deniedPermissions).some((value) => Array.isArray(value) && value.length > 0)) {
         session.channels.host.emit(modulePermissionsDenied, {
           identity: session.identity,
           denied: deniedPermissions,
@@ -1473,7 +1487,7 @@ export class PluginHost {
       // Optional dependency gate before plugin-owned initialization.
       if (options.requiredCapabilities?.length) {
         const capabilityTimeoutMs = options.capabilityWaitTimeoutMs ?? 15000
-        const unresolvedCapabilities = options.requiredCapabilities.filter(key => !this.isCapabilityReady(key))
+        const unresolvedCapabilities = options.requiredCapabilities.filter((key) => !this.isCapabilityReady(key))
         assertTransition(session, 'waiting-deps')
         session.channels.host.emit(moduleStatus, {
           identity: session.identity,
@@ -1560,8 +1574,7 @@ export class PluginHost {
       this.runLifecycleHooks('session-ready', session)
 
       return session
-    }
-    catch (error) {
+    } catch (error) {
       // Any init failure is normalized into failed phase + status event for observability.
       markFailedTransition(session)
 

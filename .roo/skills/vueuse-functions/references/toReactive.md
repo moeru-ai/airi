@@ -35,7 +35,5 @@ console.log(state.bar) // => 'foo'
  * @see https://vueuse.org/toReactive
  * @param objectRef A ref of object
  */
-export declare function toReactive<T extends object>(
-  objectRef: MaybeRef<T>,
-): UnwrapNestedRefs<T>
+export declare function toReactive<T extends object>(objectRef: MaybeRef<T>): UnwrapNestedRefs<T>
 ```

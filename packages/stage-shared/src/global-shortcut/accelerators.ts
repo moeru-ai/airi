@@ -172,14 +172,7 @@ const MODIFIER_ALIASES: ReadonlyMap<string, ShortcutModifier> = new Map<string, 
  * same string regardless of the order in which the author wrote
  * modifiers.
  */
-const MODIFIER_CANONICAL_ORDER: readonly ShortcutModifier[] = [
-  'cmd-or-ctrl',
-  'cmd',
-  'ctrl',
-  'alt',
-  'shift',
-  'super',
-]
+const MODIFIER_CANONICAL_ORDER: readonly ShortcutModifier[] = ['cmd-or-ctrl', 'cmd', 'ctrl', 'alt', 'shift', 'super']
 
 /**
  * Title-case modifier tokens used by `formatAccelerator` (canonical
@@ -188,11 +181,11 @@ const MODIFIER_CANONICAL_ORDER: readonly ShortcutModifier[] = [
  */
 const MODIFIER_TO_CANONICAL_TOKEN: Readonly<Record<ShortcutModifier, string>> = {
   'cmd-or-ctrl': 'Mod',
-  'cmd': 'Cmd',
-  'ctrl': 'Ctrl',
-  'alt': 'Alt',
-  'shift': 'Shift',
-  'super': 'Super',
+  cmd: 'Cmd',
+  ctrl: 'Ctrl',
+  alt: 'Alt',
+  shift: 'Shift',
+  super: 'Super',
 }
 
 /**
@@ -201,11 +194,11 @@ const MODIFIER_TO_CANONICAL_TOKEN: Readonly<Record<ShortcutModifier, string>> = 
  */
 const MODIFIER_TO_ELECTRON_TOKEN: Readonly<Record<ShortcutModifier, string>> = {
   'cmd-or-ctrl': 'CmdOrCtrl',
-  'cmd': 'Cmd',
-  'ctrl': 'Ctrl',
-  'alt': 'Alt',
-  'shift': 'Shift',
-  'super': 'Super',
+  cmd: 'Cmd',
+  ctrl: 'Ctrl',
+  alt: 'Alt',
+  shift: 'Shift',
+  super: 'Super',
 }
 
 /**
@@ -229,7 +222,7 @@ const ELECTRON_KEY_OVERRIDES: Readonly<Record<string, string>> = {
   BracketRight: ']',
   Backslash: '\\',
   Semicolon: ';',
-  Quote: '\'',
+  Quote: "'",
   Comma: ',',
   Period: '.',
   Slash: '/',
@@ -248,23 +241,19 @@ const SINGLE_DIGIT_RE = /^\d$/
  * - `"KeyK"` / `"KeyK"` / `"KeyK"` / `"ArrowUp"` / `"Escape"`
  */
 function normalizeKeyToken(token: string): ShortcutKey {
-  if (KEY_NAMES.has(token))
-    return token
+  if (KEY_NAMES.has(token)) return token
 
   const aliased = KEY_ALIASES.get(token)
-  if (aliased !== undefined)
-    return aliased
+  if (aliased !== undefined) return aliased
 
   if (SINGLE_LETTER_RE.test(token)) {
     const candidate = `Key${token.toUpperCase()}`
-    if (LETTER_KEYS.has(candidate))
-      return candidate
+    if (LETTER_KEYS.has(candidate)) return candidate
   }
 
   if (SINGLE_DIGIT_RE.test(token)) {
     const candidate = `Digit${token}`
-    if (DIGIT_KEYS.has(candidate))
-      return candidate
+    if (DIGIT_KEYS.has(candidate)) return candidate
   }
 
   throw new Error(`Invalid accelerator: unknown key "${token}"`)
@@ -311,8 +300,7 @@ function lookupModifierToken(token: string): ShortcutModifier | undefined {
  */
 export function parseAccelerator(input: string): ShortcutAccelerator {
   const trimmed = input.trim()
-  if (trimmed.length === 0)
-    throw new Error('Invalid accelerator: empty string')
+  if (trimmed.length === 0) throw new Error('Invalid accelerator: empty string')
 
   const rawTokens = trimmed.split('+')
   const modifiers: ShortcutModifier[] = []
@@ -320,8 +308,7 @@ export function parseAccelerator(input: string): ShortcutAccelerator {
 
   for (const raw of rawTokens) {
     const token = raw.trim()
-    if (token.length === 0)
-      throw new Error(`Invalid accelerator "${input}": empty token`)
+    if (token.length === 0) throw new Error(`Invalid accelerator "${input}": empty token`)
 
     const modifier = lookupModifierToken(token)
     if (modifier !== undefined) {
@@ -336,8 +323,7 @@ export function parseAccelerator(input: string): ShortcutAccelerator {
     key = normalizeKeyToken(token)
   }
 
-  if (key === undefined)
-    throw new Error(`Invalid accelerator "${input}": no key token`)
+  if (key === undefined) throw new Error(`Invalid accelerator "${input}": no key token`)
 
   return { modifiers, key }
 }
@@ -355,8 +341,7 @@ export function isValidAccelerator(input: string): boolean {
   try {
     parseAccelerator(input)
     return true
-  }
-  catch {
+  } catch {
     return false
   }
 }
@@ -365,7 +350,7 @@ export function isValidAccelerator(input: string): boolean {
  * Returns the modifiers of `acc` sorted into canonical order.
  */
 function canonicalModifiers(acc: ShortcutAccelerator): ShortcutModifier[] {
-  return MODIFIER_CANONICAL_ORDER.filter(m => acc.modifiers.includes(m))
+  return MODIFIER_CANONICAL_ORDER.filter((m) => acc.modifiers.includes(m))
 }
 
 /**
@@ -386,7 +371,7 @@ function canonicalModifiers(acc: ShortcutAccelerator): ShortcutModifier[] {
  *   // => 'Mod+Shift+KeyK'
  */
 export function formatAccelerator(acc: ShortcutAccelerator): string {
-  const tokens = canonicalModifiers(acc).map(m => MODIFIER_TO_CANONICAL_TOKEN[m])
+  const tokens = canonicalModifiers(acc).map((m) => MODIFIER_TO_CANONICAL_TOKEN[m])
   tokens.push(acc.key)
   return tokens.join('+')
 }
@@ -402,12 +387,9 @@ export function formatAccelerator(acc: ShortcutAccelerator): string {
  * - `"K"` / `"1"` / `"Up"` / `"="` / `"F12"`
  */
 function toElectronKey(key: ShortcutKey): string {
-  if (LETTER_KEYS.has(key))
-    return key.slice(3)
-  if (DIGIT_KEYS.has(key))
-    return key.slice(5)
-  if (key in ELECTRON_KEY_OVERRIDES)
-    return ELECTRON_KEY_OVERRIDES[key]
+  if (LETTER_KEYS.has(key)) return key.slice(3)
+  if (DIGIT_KEYS.has(key)) return key.slice(5)
+  if (key in ELECTRON_KEY_OVERRIDES) return ELECTRON_KEY_OVERRIDES[key]
   return key
 }
 
@@ -429,7 +411,7 @@ function toElectronKey(key: ShortcutKey): string {
  *   // => 'CmdOrCtrl+Shift+K'
  */
 export function formatElectronAccelerator(acc: ShortcutAccelerator): string {
-  const tokens = canonicalModifiers(acc).map(m => MODIFIER_TO_ELECTRON_TOKEN[m])
+  const tokens = canonicalModifiers(acc).map((m) => MODIFIER_TO_ELECTRON_TOKEN[m])
   tokens.push(toElectronKey(acc.key))
   return tokens.join('+')
 }

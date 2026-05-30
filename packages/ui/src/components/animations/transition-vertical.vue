@@ -63,9 +63,7 @@ function prepareElement(element: HTMLElement, initialStyle: initialStyle) {
   element.style.visibility = initialStyle.visibility
   element.style.height = closed
   element.style.overflow = 'hidden'
-  return initialStyle.height && initialStyle.height !== closed
-    ? initialStyle.height
-    : height
+  return initialStyle.height && initialStyle.height !== closed ? initialStyle.height : height
 }
 
 function animateTransition(
@@ -111,12 +109,9 @@ function getEnterKeyframes(height: string, initialStyle: initialStyle) {
 }
 
 function cancelAnimation(HTMLElement: HTMLElement, overflow: string, done: () => void) {
-  if (HTMLElement !== lastElement)
-    return false
-  if (!animation)
-    return false
-  if (animation.playState !== 'running')
-    return false
+  if (HTMLElement !== lastElement) return false
+  if (!animation) return false
+  if (animation.playState !== 'running') return false
   animation.onfinish = () => {
     HTMLElement.style.overflow = overflow
     done()
@@ -128,8 +123,7 @@ function cancelAnimation(HTMLElement: HTMLElement, overflow: string, done: () =>
 function enterTransition(element: Element, done: () => void) {
   const HTMLElement = element as HTMLElement
   const initialStyle = getElementStyle(HTMLElement)
-  if (cancelAnimation(HTMLElement, initialStyle.overflow, done))
-    return
+  if (cancelAnimation(HTMLElement, initialStyle.overflow, done)) return
   const height = prepareElement(HTMLElement, initialStyle)
   const keyframes = getEnterKeyframes(height, initialStyle)
   const options = { duration: props.duration, easing: props.easingEnter }
@@ -139,8 +133,7 @@ function enterTransition(element: Element, done: () => void) {
 function leaveTransition(element: Element, done: () => void) {
   const HTMLElement = element as HTMLElement
   const initialStyle = getElementStyle(HTMLElement)
-  if (cancelAnimation(HTMLElement, initialStyle.overflow, done))
-    return
+  if (cancelAnimation(HTMLElement, initialStyle.overflow, done)) return
   const { height } = getComputedStyle(HTMLElement)
   HTMLElement.style.height = height
   HTMLElement.style.overflow = 'hidden'

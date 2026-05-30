@@ -34,13 +34,12 @@ async function startMockServer(handler: (ws: import('ws').WebSocket) => void): P
     activeWs = ws
     const u = new URL(req.url!, 'http://localhost')
     const token = u.searchParams.get('token')
-    if (token != null)
-      observedTokens.push(token)
+    if (token != null) observedTokens.push(token)
 
     handler(ws)
   })
 
-  await new Promise<void>(resolve => httpServer.listen(0, '127.0.0.1', resolve))
+  await new Promise<void>((resolve) => httpServer.listen(0, '127.0.0.1', resolve))
   const { port } = httpServer.address() as AddressInfo
 
   return {
@@ -51,7 +50,7 @@ async function startMockServer(handler: (ws: import('ws').WebSocket) => void): P
     },
     async stop() {
       wss.close()
-      await new Promise<void>(r => httpServer.close(() => r()))
+      await new Promise<void>((r) => httpServer.close(() => r()))
     },
   }
 }
@@ -76,26 +75,28 @@ describe('streamingSynthesize', () => {
         // subsequent text/finish frames are also sent by the streaming
         // session, but for this test we just want to flush the response
         // pipeline immediately.
-        if (isBinary)
-          return
+        if (isBinary) return
         const parsed = JSON.parse(data.toString()) as { event?: string }
-        if (parsed.event !== 'start')
-          return
+        if (parsed.event !== 'start') return
 
-        await new Promise(r => setTimeout(r, 5))
+        await new Promise((r) => setTimeout(r, 5))
         ws.send(JSON.stringify({ event: 'session.started' }))
-        await new Promise(r => setTimeout(r, 5))
+        await new Promise((r) => setTimeout(r, 5))
         ws.send(chunkA, { binary: true })
         ws.send(chunkB, { binary: true })
-        await new Promise(r => setTimeout(r, 5))
-        ws.send(JSON.stringify({
-          event: 'sentence.end',
-          payload: { text: 'hello', words: [{ word: 'hello', startTime: 0, endTime: 0.5 }] },
-        }))
-        ws.send(JSON.stringify({
-          event: 'session.finished',
-          payload: { usage: { text_words: 5 } },
-        }))
+        await new Promise((r) => setTimeout(r, 5))
+        ws.send(
+          JSON.stringify({
+            event: 'sentence.end',
+            payload: { text: 'hello', words: [{ word: 'hello', startTime: 0, endTime: 0.5 }] },
+          }),
+        )
+        ws.send(
+          JSON.stringify({
+            event: 'session.finished',
+            payload: { usage: { text_words: 5 } },
+          }),
+        )
       })
     })
 
@@ -106,10 +107,7 @@ describe('streamingSynthesize', () => {
       input: 'hello',
     })
 
-    expect(new Uint8Array(result.audio)).toEqual(new Uint8Array([
-      ...chunkA,
-      ...chunkB,
-    ]))
+    expect(new Uint8Array(result.audio)).toEqual(new Uint8Array([...chunkA, ...chunkB]))
     expect(result.byteLength).toBe(8)
     expect(result.sentences).toHaveLength(1)
     expect(result.sentences[0]).toMatchObject({ kind: 'end' })
@@ -123,67 +121,67 @@ describe('streamingSynthesize', () => {
     // truncated segment as if it were complete. Post-fix: must reject.
     server = await startMockServer((ws) => {
       ws.on('message', async (data, isBinary) => {
-        if (isBinary)
-          return
+        if (isBinary) return
         const parsed = JSON.parse(data.toString()) as { event?: string }
-        if (parsed.event !== 'start')
-          return
+        if (parsed.event !== 'start') return
 
-        await new Promise(r => setTimeout(r, 5))
+        await new Promise((r) => setTimeout(r, 5))
         ws.send(JSON.stringify({ event: 'session.started' }))
         ws.send(Buffer.from('PARTIAL_AUDIO', 'utf8'), { binary: true })
         // Drop the connection without session.finished. Code 1011 is a
         // valid server-side close indicating "server encountered an
         // error"; we cannot use 1006 because that's reserved for the
         // implicit abnormal-closure code (not legal in a close frame).
-        await new Promise(r => setTimeout(r, 5))
+        await new Promise((r) => setTimeout(r, 5))
         ws.close(1011, 'simulated_truncation')
       })
     })
 
-    await expect(streamingSynthesize({
-      serverUrl: server.url,
-      model: 'volcengine/seed-tts-2.0',
-      voice: 'mock',
-      input: 'hello',
-    })).rejects.toThrow(/streaming_tts_closed/)
+    await expect(
+      streamingSynthesize({
+        serverUrl: server.url,
+        model: 'volcengine/seed-tts-2.0',
+        voice: 'mock',
+        input: 'hello',
+      }),
+    ).rejects.toThrow(/streaming_tts_closed/)
   })
 
   it('rejects with the upstream code/message on an error event', async () => {
     server = await startMockServer((ws) => {
       ws.on('message', async (data, isBinary) => {
-        if (isBinary)
-          return
+        if (isBinary) return
         const parsed = JSON.parse(data.toString()) as { event?: string }
-        if (parsed.event !== 'start')
-          return
+        if (parsed.event !== 'start') return
 
-        await new Promise(r => setTimeout(r, 5))
-        ws.send(JSON.stringify({
-          event: 'error',
-          code: 'insufficient_flux',
-          message: 'go top up',
-        }))
+        await new Promise((r) => setTimeout(r, 5))
+        ws.send(
+          JSON.stringify({
+            event: 'error',
+            code: 'insufficient_flux',
+            message: 'go top up',
+          }),
+        )
       })
     })
 
-    await expect(streamingSynthesize({
-      serverUrl: server.url,
-      model: 'volcengine/seed-tts-2.0',
-      voice: 'mock',
-      input: 'hello',
-    })).rejects.toThrow(/insufficient_flux.*go top up/)
+    await expect(
+      streamingSynthesize({
+        serverUrl: server.url,
+        model: 'volcengine/seed-tts-2.0',
+        voice: 'mock',
+        input: 'hello',
+      }),
+    ).rejects.toThrow(/insufficient_flux.*go top up/)
   })
 
   it('aborts the session and rejects with AbortError on signal abort', async () => {
     let cancelObserved = false
     server = await startMockServer((ws) => {
       ws.on('message', (data, isBinary) => {
-        if (isBinary)
-          return
+        if (isBinary) return
         const parsed = JSON.parse(data.toString()) as { event?: string }
-        if (parsed.event === 'cancel')
-          cancelObserved = true
+        if (parsed.event === 'cancel') cancelObserved = true
       })
     })
 
@@ -197,13 +195,13 @@ describe('streamingSynthesize', () => {
     })
 
     // Fire abort after the ws is open and `start` was sent.
-    await new Promise(r => setTimeout(r, 50))
+    await new Promise((r) => setTimeout(r, 50))
     ctrl.abort()
 
     await expect(promise).rejects.toThrow(/aborted|AbortError|undefined/) // DOMException
 
     // Give the mock a tick to log the `cancel` frame.
-    await new Promise(r => setTimeout(r, 50))
+    await new Promise((r) => setTimeout(r, 50))
     expect(cancelObserved).toBe(true)
   })
 })

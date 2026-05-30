@@ -42,10 +42,7 @@ export declare type WatchArrayCallback<V = any, OV = any> = (
  *
  * @see https://vueuse.org/watchArray
  */
-export declare function watchArray<
-  T,
-  Immediate extends Readonly<boolean> = false,
->(
+export declare function watchArray<T, Immediate extends Readonly<boolean> = false>(
   source: WatchSource<T[]> | T[],
   cb: WatchArrayCallback<T[], Immediate extends true ? T[] | undefined : T[]>,
   options?: WatchOptions<Immediate>,

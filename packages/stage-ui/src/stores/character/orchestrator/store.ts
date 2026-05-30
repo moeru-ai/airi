@@ -24,15 +24,17 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
 
   const processing = ref(false)
   const pendingNotifies = ref<Array<WebSocketEventOf<'spark:notify'>>>([])
-  const scheduledNotifies = ref<Array<{
-    event: WebSocketEventOf<'spark:notify'>
-    control?: SparkNotifyResponseControl
-    enqueuedAt: number
-    nextRunAt: number
-    attempts: number
-    maxAttempts: number
-    reason?: string
-  }>>([])
+  const scheduledNotifies = ref<
+    Array<{
+      event: WebSocketEventOf<'spark:notify'>
+      control?: SparkNotifyResponseControl
+      enqueuedAt: number
+      nextRunAt: number
+      attempts: number
+      maxAttempts: number
+      reason?: string
+    }>
+  >([])
   const attentionConfig = ref({
     tickIntervalMs: 2_000,
     taskNotifyWindowMs: 60_000,
@@ -46,14 +48,14 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     stream,
     getActiveProvider: () => activeProvider.value,
     getActiveModel: () => activeModel.value,
-    getProviderInstance: name => providersStore.getProviderInstance(name),
+    getProviderInstance: (name) => providersStore.getProviderInstance(name),
     onReactionDelta: (eventId, text) => characterStore.onSparkNotifyReactionStreamEvent(eventId, text),
     onReactionEnd: (eventId, text) => characterStore.onSparkNotifyReactionStreamEnd(eventId, text),
     getSystemPrompt: () => systemPrompt.value,
     getProcessing: () => processing.value,
-    setProcessing: next => processing.value = next,
+    setProcessing: (next) => (processing.value = next),
     getPending: () => pendingNotifies.value,
-    setPending: next => pendingNotifies.value = next,
+    setPending: (next) => (pendingNotifies.value = next),
   })
 
   function computeNextRunAt(event: WebSocketEventOf<'spark:notify'>, attempts: number) {
@@ -71,11 +73,11 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
       }
     })()
 
-    return now + baseDelay + (attempts * attentionConfig.value.requeueDelayMs)
+    return now + baseDelay + attempts * attentionConfig.value.requeueDelayMs
   }
 
   function removePending(eventId: string) {
-    pendingNotifies.value = pendingNotifies.value.filter(item => item.data.id !== eventId)
+    pendingNotifies.value = pendingNotifies.value.filter((item) => item.data.id !== eventId)
   }
 
   function enqueueSparkNotify(
@@ -87,7 +89,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
       control?: SparkNotifyResponseControl
     },
   ) {
-    if (!pendingNotifies.value.some(item => item.data.id === event.data.id)) {
+    if (!pendingNotifies.value.some((item) => item.data.id === event.data.id)) {
       pendingNotifies.value.push(event)
     }
 
@@ -104,8 +106,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
 
   async function processSparkNotify(event: WebSocketEventOf<'spark:notify'>, control?: SparkNotifyResponseControl) {
     const result = await sparkNotifyAgent.handle(event, control)
-    if (!result?.commands?.length)
-      return result
+    if (!result?.commands?.length) return result
 
     for (const command of result.commands) {
       modsServerChannelStore.send({
@@ -117,7 +118,10 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     return result
   }
 
-  async function handleIncomingSparkNotify(event: WebSocketEventOf<'spark:notify'>, control?: SparkNotifyResponseControl) {
+  async function handleIncomingSparkNotify(
+    event: WebSocketEventOf<'spark:notify'>,
+    control?: SparkNotifyResponseControl,
+  ) {
     if (event.data.urgency === 'immediate' && !processing.value) {
       return await processSparkNotify(event, control)
     }
@@ -134,17 +138,15 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
 
     const reaction = [...characterStore.reactions]
       .reverse()
-      .find(item => item.sourceEventId === event.data.id)
-      ?.message
-      ?.trim()
+      .find((item) => item.sourceEventId === event.data.id)
+      ?.message?.trim()
 
     return reaction || options?.fallbackText || ''
   }
 
   function enqueueDueTasks(now: number) {
     const dueTasks = notebookStore.getDueTasks(now, attentionConfig.value.taskNotifyWindowMs)
-    if (!dueTasks.length)
-      return
+    if (!dueTasks.length) return
 
     for (const task of dueTasks) {
       const event: WebSocketEventOf<'spark:notify'> = {
@@ -172,40 +174,38 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   }
 
   async function tick() {
-    if (processing.value)
-      return
+    if (processing.value) return
 
     const now = Date.now()
     enqueueDueTasks(now)
 
-    const nextIndex = scheduledNotifies.value.findIndex(item => item.nextRunAt <= now)
-    if (nextIndex < 0)
-      return
+    const nextIndex = scheduledNotifies.value.findIndex((item) => item.nextRunAt <= now)
+    if (nextIndex < 0) return
 
     const [next] = scheduledNotifies.value.splice(nextIndex, 1)
     removePending(next.event.data.id)
 
     try {
       await processSparkNotify(next.event, next.control)
-    }
-    catch (error) {
+    } catch (error) {
       if (next.attempts + 1 < next.maxAttempts) {
-        scheduledNotifies.value = [...scheduledNotifies.value, {
-          ...next,
-          attempts: next.attempts + 1,
-          nextRunAt: computeNextRunAt(next.event, next.attempts + 1),
-        }]
+        scheduledNotifies.value = [
+          ...scheduledNotifies.value,
+          {
+            ...next,
+            attempts: next.attempts + 1,
+            nextRunAt: computeNextRunAt(next.event, next.attempts + 1),
+          },
+        ]
         pendingNotifies.value = [...pendingNotifies.value, next.event]
-      }
-      else {
+      } else {
         console.warn('Dropped spark:notify after max attempts:', error)
       }
     }
   }
 
   function startTicker() {
-    if (tickTimer)
-      return
+    if (tickTimer) return
 
     tickTimer = setInterval(() => {
       void tick()
@@ -213,8 +213,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   }
 
   function stopTicker() {
-    if (!tickTimer)
-      return
+    if (!tickTimer) return
 
     clearInterval(tickTimer)
     tickTimer = undefined
@@ -226,8 +225,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   }
 
   function initialize() {
-    if (initialized)
-      return
+    if (initialized) return
 
     initialized = true
 
@@ -235,8 +233,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
       modsServerChannelStore.onEvent('spark:notify', async (event) => {
         try {
           await handleIncomingSparkNotify(event)
-        }
-        catch (error) {
+        } catch (error) {
           console.warn('Failed to handle spark:notify event:', error)
         }
       }),
@@ -246,8 +243,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
       modsServerChannelStore.onEvent('spark:emit', async (event) => {
         try {
           await handleSparkEmit(event)
-        }
-        catch (error) {
+        } catch (error) {
           console.warn('Failed to handle spark:emit event:', error)
         }
       }),

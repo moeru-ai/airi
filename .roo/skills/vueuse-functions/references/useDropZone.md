@@ -37,9 +37,7 @@ const { isOverDropZone } = useDropZone(dropZoneRef, {
 </script>
 
 <template>
-  <div ref="dropZoneRef">
-    Drop files here
-  </div>
+  <div ref="dropZoneRef">Drop files here</div>
 </template>
 ```
 
@@ -55,9 +53,7 @@ export interface UseDropZoneOptions {
    * Allowed data types, if not set, all data types are allowed.
    * Also can be a function to check the data types.
    */
-  dataTypes?:
-    | MaybeRef<readonly string[]>
-    | ((types: readonly string[]) => boolean)
+  dataTypes?: MaybeRef<readonly string[]> | ((types: readonly string[]) => boolean)
   /**
    * Similar to dataTypes, but exposes the DataTransferItemList for custom validation.
    * If provided, this function takes precedence over dataTypes.

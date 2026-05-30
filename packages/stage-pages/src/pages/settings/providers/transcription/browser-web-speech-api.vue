@@ -40,8 +40,7 @@ const settings = computed({
 const language = computed({
   get: () => settings.value?.language || 'en-US',
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
+    if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].language = value
   },
 })
@@ -49,8 +48,7 @@ const language = computed({
 const continuous = computed({
   get: () => settings.value?.continuous ?? true,
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
+    if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].continuous = value
   },
 })
@@ -58,8 +56,7 @@ const continuous = computed({
 const interimResults = computed({
   get: () => settings.value?.interimResults ?? true,
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
+    if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].interimResults = value
   },
 })
@@ -100,8 +97,7 @@ function handleResetSettings() {
 
 // Check if Web Speech API is available
 const isWebSpeechAPIAvailable = computed(() => {
-  return typeof window !== 'undefined'
-    && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)
+  return typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)
 })
 
 onMounted(async () => {
@@ -140,7 +136,8 @@ async function startSTTTest() {
   }
 
   if (!isWebSpeechAPIAvailable.value) {
-    testTranscriptionError.value = 'Web Speech API is not available in this browser. Please use Chrome, Edge, or Safari.'
+    testTranscriptionError.value =
+      'Web Speech API is not available in this browser. Please use Chrome, Edge, or Safari.'
     return
   }
 
@@ -161,8 +158,7 @@ async function startSTTTest() {
       // Wait for the stream to become available with a 3-second timeout.
       try {
         await until(stream).toBeTruthy({ timeout: 3000, throwOnTimeout: true })
-      }
-      catch {
+      } catch {
         handleStreamStartError()
         return
       }
@@ -172,8 +168,7 @@ async function startSTTTest() {
         handleStreamStartError()
         return
       }
-    }
-    else {
+    } else {
       testStreamWasStarted.value = false
     }
 
@@ -214,8 +209,7 @@ async function startSTTTest() {
           testStatusMessage.value = 'Transcription complete!'
           isTranscribing.value = false
           console.info('Web Speech API test completed with text:', text)
-        }
-        else {
+        } else {
           testStatusMessage.value = 'Waiting for speech...'
           isTranscribing.value = false
         }
@@ -228,8 +222,7 @@ async function startSTTTest() {
 
     testStatusMessage.value = 'Listening for speech... (Web Speech API streaming mode)'
     isTranscribing.value = false // Not actively transcribing yet, just listening
-  }
-  catch (err) {
+  } catch (err) {
     testTranscriptionError.value = err instanceof Error ? err.message : String(err)
     testStatusMessage.value = `Error: ${testTranscriptionError.value}`
     isTranscribing.value = false
@@ -248,8 +241,9 @@ async function stopSTTTest() {
     if (testRecognitionInstance.value) {
       try {
         testRecognitionInstance.value.stop()
+      } catch (err) {
+        console.warn('Error stopping recognition instance:', err)
       }
-      catch (err) { console.warn('Error stopping recognition instance:', err) }
       testRecognitionInstance.value = null
     }
 
@@ -258,8 +252,7 @@ async function stopSTTTest() {
       testAbortController.value.abort()
       testAbortController.value = null
     }
-  }
-  catch (err) {
+  } catch (err) {
     console.error('Error stopping STT test:', err)
   }
 
@@ -273,8 +266,7 @@ async function stopSTTTest() {
     try {
       stopStream()
       testStreamWasStarted.value = false
-    }
-    catch (err) {
+    } catch (err) {
       console.error('Error stopping test stream:', err)
     }
   }
@@ -296,27 +288,19 @@ onUnmounted(() => {
   >
     <div flex="~ col md:row gap-6">
       <ProviderSettingsContainer class="w-full md:w-[40%] space-y-6">
-        <Alert
-          v-if="!isWebSpeechAPIAvailable"
-          type="error"
-        >
-          <template #title>
-            Web Speech API Not Available
-          </template>
+        <Alert v-if="!isWebSpeechAPIAvailable" type="error">
+          <template #title>Web Speech API Not Available</template>
           <template #content>
-            Web Speech API is not available in this browser. It requires Chrome, Edge, Safari, or other Chromium-based browsers. This provider cannot be used in your current environment.
+            Web Speech API is not available in this browser. It requires Chrome, Edge, Safari, or other Chromium-based
+            browsers. This provider cannot be used in your current environment.
           </template>
         </Alert>
 
-        <Alert
-          v-else
-          type="info"
-        >
-          <template #title>
-            Free, Browser-Native Transcription
-          </template>
+        <Alert v-else type="info">
+          <template #title>Free, Browser-Native Transcription</template>
           <template #content>
-            Web Speech API is a free, browser-native Speech-to-Text solution that requires no API keys or external services. It uses your browser's built-in speech recognition capabilities.
+            Web Speech API is a free, browser-native Speech-to-Text solution that requires no API keys or external
+            services. It uses your browser's built-in speech recognition capabilities.
           </template>
         </Alert>
 
@@ -329,7 +313,9 @@ onUnmounted(() => {
             <div class="border border-blue-200 rounded-lg bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20">
               <div class="flex items-center gap-2 text-blue-700 dark:text-blue-400">
                 <div i-solar:info-circle-line-duotone class="text-sm" />
-                <span class="text-xs font-medium">No API key required - Web Speech API is free and built into your browser</span>
+                <span class="text-xs font-medium">
+                  No API key required - Web Speech API is free and built into your browser
+                </span>
               </div>
             </div>
 
@@ -347,7 +333,7 @@ onUnmounted(() => {
                   v-model="continuous"
                   type="checkbox"
                   class="border-neutral-300 rounded text-primary-600 dark:border-neutral-700 dark:bg-neutral-900 focus:ring-primary-500"
-                >
+                />
                 <span class="text-sm font-medium">Continuous Recognition</span>
               </label>
               <p class="text-xs text-neutral-500 dark:text-neutral-400">
@@ -361,7 +347,7 @@ onUnmounted(() => {
                   v-model="interimResults"
                   type="checkbox"
                   class="border-neutral-300 rounded text-primary-600 dark:border-neutral-700 dark:bg-neutral-900 focus:ring-primary-500"
-                >
+                />
                 <span class="text-sm font-medium">Show Interim Results</span>
               </label>
               <p class="text-xs text-neutral-500 dark:text-neutral-400">
@@ -375,14 +361,16 @@ onUnmounted(() => {
       <!-- Speech-to-Text Test Section -->
       <div flex="~ col gap-6" class="w-full md:w-[60%]">
         <div w-full rounded-xl bg="neutral-50 dark:[rgba(0,0,0,0.3)]" p-4 flex="~ col gap-4">
-          <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
-            Speech-to-Text Test
-          </h2>
+          <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">Speech-to-Text Test</h2>
           <div text="sm neutral-400 dark:neutral-500" mb-2>
-            Test Web Speech API transcription with your selected audio device. This test will always use Web Speech API regardless of your default hearing provider.
+            Test Web Speech API transcription with your selected audio device. This test will always use Web Speech API
+            regardless of your default hearing provider.
           </div>
 
-          <div v-if="!isWebSpeechAPIAvailable" class="border border-amber-200 rounded-lg bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20">
+          <div
+            v-if="!isWebSpeechAPIAvailable"
+            class="border border-amber-200 rounded-lg bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20"
+          >
             <div class="flex items-center gap-2 text-amber-700 dark:text-amber-400">
               <div i-solar:warning-circle-line-duotone class="text-lg" />
               <span class="text-sm font-medium">Web Speech API is not available in this browser</span>
@@ -396,10 +384,12 @@ onUnmounted(() => {
                 v-model="selectedAudioInput"
                 label="Audio Input Device"
                 description="Select the audio input device for testing"
-                :options="audioInputs.map(input => ({
-                  label: input.label || input.deviceId,
-                  value: input.deviceId,
-                }))"
+                :options="
+                  audioInputs.map((input) => ({
+                    label: input.label || input.deviceId,
+                    value: input.deviceId,
+                  }))
+                "
                 placeholder="Select an audio input device"
                 layout="vertical"
                 class="flex-1"
@@ -407,7 +397,10 @@ onUnmounted(() => {
             </div>
 
             <!-- Warning if no device selected -->
-            <div v-if="!selectedAudioInput" class="border border-amber-200 rounded-lg bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20">
+            <div
+              v-if="!selectedAudioInput"
+              class="border border-amber-200 rounded-lg bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20"
+            >
               <div class="flex items-center gap-2 text-amber-700 dark:text-amber-400">
                 <div i-solar:warning-circle-line-duotone class="text-lg" />
                 <span class="text-sm font-medium">Please select an audio input device to test</span>
@@ -435,7 +428,10 @@ onUnmounted(() => {
 
             <ErrorContainer v-if="testTranscriptionError" title="Transcription Error" :error="testTranscriptionError" />
 
-            <div v-if="testStatusMessage" class="border border-primary-200 rounded-lg bg-primary-50 p-3 dark:border-primary-800 dark:bg-primary-900/20">
+            <div
+              v-if="testStatusMessage"
+              class="border border-primary-200 rounded-lg bg-primary-50 p-3 dark:border-primary-800 dark:bg-primary-900/20"
+            >
               <div class="flex items-center gap-2 text-primary-700 dark:text-primary-400">
                 <div v-if="isTranscribing" class="animate-spin text-sm" i-solar:spinner-line-duotone />
                 <div v-else class="text-sm" i-solar:info-circle-line-duotone />
@@ -446,7 +442,9 @@ onUnmounted(() => {
             <div class="border border-blue-200 rounded-lg bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20">
               <div class="flex items-center gap-2 text-blue-700 dark:text-blue-400">
                 <div i-solar:info-circle-line-duotone class="text-sm" />
-                <span class="text-xs">Streaming mode: Transcription will appear in real-time as you speak (Web Speech API)</span>
+                <span class="text-xs">
+                  Streaming mode: Transcription will appear in real-time as you speak (Web Speech API)
+                </span>
               </div>
             </div>
 
@@ -460,15 +458,16 @@ onUnmounted(() => {
                   class="min-h-[100px] border border-neutral-200 rounded-lg bg-white p-3 text-sm dark:border-neutral-700 dark:bg-neutral-900"
                 >
                   <div v-if="testStreamingText" class="text-neutral-600 dark:text-neutral-400">
-                    <div class="mb-2 font-medium">
-                      Current transcription (streaming):
-                    </div>
+                    <div class="mb-2 font-medium">Current transcription (streaming):</div>
                     <div class="whitespace-pre-wrap">
                       {{ testStreamingText }}
                     </div>
                   </div>
                   <div v-if="testTranscriptionText" class="text-neutral-700 dark:text-neutral-200">
-                    <div v-if="testStreamingText" class="mb-2 mt-3 border-t border-neutral-200 pt-2 font-medium dark:border-neutral-700">
+                    <div
+                      v-if="testStreamingText"
+                      class="mb-2 mt-3 border-t border-neutral-200 pt-2 font-medium dark:border-neutral-700"
+                    >
                       Final transcription:
                     </div>
                     <div class="whitespace-pre-wrap">
@@ -485,11 +484,26 @@ onUnmounted(() => {
               </div>
 
               <div class="text-xs text-neutral-500 dark:text-neutral-400">
-                <div>Provider: <span class="font-medium">Web Speech API</span></div>
-                <div>Language: <span class="font-medium">{{ language }}</span></div>
-                <div>Mode: <span class="font-medium">Streaming (real-time)</span></div>
-                <div>Continuous: <span class="font-medium">{{ continuous ? 'Yes' : 'No' }}</span></div>
-                <div>Interim Results: <span class="font-medium">{{ interimResults ? 'Yes' : 'No' }}</span></div>
+                <div>
+                  Provider:
+                  <span class="font-medium">Web Speech API</span>
+                </div>
+                <div>
+                  Language:
+                  <span class="font-medium">{{ language }}</span>
+                </div>
+                <div>
+                  Mode:
+                  <span class="font-medium">Streaming (real-time)</span>
+                </div>
+                <div>
+                  Continuous:
+                  <span class="font-medium">{{ continuous ? 'Yes' : 'No' }}</span>
+                </div>
+                <div>
+                  Interim Results:
+                  <span class="font-medium">{{ interimResults ? 'Yes' : 'No' }}</span>
+                </div>
               </div>
             </div>
           </div>

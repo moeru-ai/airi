@@ -779,7 +779,7 @@ pages:
         empty: Nothing here yet. Add one below!
       add:
         title: New
-        description: "Fill in a new server, then click \"Save and restart\" — it'll move into \"Configured\" above."
+        description: 'Fill in a new server, then click "Save and restart" — it''ll move into "Configured" above.'
         pending-badge: Unsaved
       status:
         unknown: not loaded

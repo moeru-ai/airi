@@ -14,20 +14,19 @@ const knownModels = [
   { id: 'Xenova/modnet', name: 'Background Removal' },
 ]
 
-const cachedModels = ref<{ id: string, name: string, cached: boolean }[]>([])
+const cachedModels = ref<{ id: string; name: string; cached: boolean }[]>([])
 
 async function refresh() {
   loading.value = true
   try {
     cacheSize.value = await getModelCacheSize()
     cachedModels.value = await Promise.all(
-      knownModels.map(async m => ({
+      knownModels.map(async (m) => ({
         ...m,
         cached: await isModelCached(m.id),
       })),
     )
-  }
-  finally {
+  } finally {
     loading.value = false
   }
 }
@@ -37,8 +36,7 @@ async function handleClearCache() {
   try {
     await clearModelCache()
     await refresh()
-  }
-  finally {
+  } finally {
     clearing.value = false
   }
 }
@@ -48,20 +46,12 @@ onMounted(refresh)
 
 <template>
   <div
-    :class="[
-      'flex flex-col gap-3',
-      'rounded-lg p-4',
-      'border border-solid border-neutral-200 dark:border-neutral-700',
-    ]"
+    :class="['flex flex-col gap-3', 'rounded-lg p-4', 'border border-solid border-neutral-200 dark:border-neutral-700']"
   >
     <div flex items-center justify-between>
       <div>
-        <h3 m-0 text-sm font-medium>
-          Model Cache
-        </h3>
-        <p m-0 text-xs text-neutral-500>
-          Downloaded inference models stored in browser cache
-        </p>
+        <h3 m-0 text-sm font-medium>Model Cache</h3>
+        <p m-0 text-xs text-neutral-500>Downloaded inference models stored in browser cache</p>
       </div>
       <div
         v-if="!loading"

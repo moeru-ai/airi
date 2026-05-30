@@ -29,45 +29,48 @@ import { useFitModel } from '../../../composables/live2d/fit-model'
 import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
 import { useL2dViewControl, useLive2dParams } from '../../../stores'
 
-const props = withDefaults(defineProps<{
-  modelSrc?: string
-  modelId?: string
+const props = withDefaults(
+  defineProps<{
+    modelSrc?: string
+    modelId?: string
 
-  app?: Application
-  mouthOpenSize?: number
-  nowSpeaking?: boolean
-  width: number
-  height: number
-  paused?: boolean
-  focusAt?: { x: number, y: number }
-  eyeTracking?: boolean
-  eyeFocusSourceActive?: boolean
-  themeColorsHue?: number
-  themeColorsHueDynamic?: boolean
-  live2dIdleAnimationEnabled?: boolean
-  live2dForceIdleEyeAnimation?: boolean
-  live2dAutoBlinkEnabled?: boolean
-  live2dForceAutoBlinkEnabled?: boolean
-  live2dExpressionEnabled?: boolean
-  live2dShadowEnabled?: boolean
-}>(), {
-  mouthOpenSize: 0,
-  nowSpeaking: false,
-  paused: false,
-  focusAt: () => ({ x: 0, y: 0 }),
-  eyeTracking: false,
-  eyeFocusSourceActive: false,
-  disableFocusAt: false,
-  scale: 1,
-  themeColorsHue: 220.44,
-  themeColorsHueDynamic: false,
-  live2dIdleAnimationEnabled: true,
-  live2dForceIdleEyeAnimation: true,
-  live2dAutoBlinkEnabled: true,
-  live2dForceAutoBlinkEnabled: false,
-  live2dExpressionEnabled: true,
-  live2dShadowEnabled: true,
-})
+    app?: Application
+    mouthOpenSize?: number
+    nowSpeaking?: boolean
+    width: number
+    height: number
+    paused?: boolean
+    focusAt?: { x: number; y: number }
+    eyeTracking?: boolean
+    eyeFocusSourceActive?: boolean
+    themeColorsHue?: number
+    themeColorsHueDynamic?: boolean
+    live2dIdleAnimationEnabled?: boolean
+    live2dForceIdleEyeAnimation?: boolean
+    live2dAutoBlinkEnabled?: boolean
+    live2dForceAutoBlinkEnabled?: boolean
+    live2dExpressionEnabled?: boolean
+    live2dShadowEnabled?: boolean
+  }>(),
+  {
+    mouthOpenSize: 0,
+    nowSpeaking: false,
+    paused: false,
+    focusAt: () => ({ x: 0, y: 0 }),
+    eyeTracking: false,
+    eyeFocusSourceActive: false,
+    disableFocusAt: false,
+    scale: 1,
+    themeColorsHue: 220.44,
+    themeColorsHueDynamic: false,
+    live2dIdleAnimationEnabled: true,
+    live2dForceIdleEyeAnimation: true,
+    live2dAutoBlinkEnabled: true,
+    live2dForceAutoBlinkEnabled: false,
+    live2dExpressionEnabled: true,
+    live2dShadowEnabled: true,
+  },
+)
 
 const emits = defineEmits<{
   (e: 'modelLoaded'): void
@@ -101,12 +104,14 @@ const nowSpeaking = toRef(() => props.nowSpeaking)
 const lastUpdateTime = ref(0)
 
 const { isDark: dark } = useTheme()
-const dropShadowFilter = shallowRef(new DropShadowFilter({
-  alpha: 0.2,
-  blur: 0,
-  distance: 20,
-  rotation: 45,
-}))
+const dropShadowFilter = shallowRef(
+  new DropShadowFilter({
+    alpha: 0.2,
+    blur: 0,
+    distance: 20,
+    rotation: 45,
+  }),
+)
 
 let resizeAnimation: ReturnType<typeof animate> | undefined
 
@@ -120,8 +125,7 @@ watch([offset, scale, modelNormalizeParams], () => {
 })
 
 function setScaleAndPosition(animated = false) {
-  if (!model.value)
-    return
+  if (!model.value) return
 
   const normalized = modelNormalizeParams.value
 
@@ -147,8 +151,7 @@ function setScaleAndPosition(animated = false) {
     duration: 200,
     ease: 'outQuad',
     onUpdate: () => {
-      if (!model.value)
-        return
+      if (!model.value) return
       model.value.scale.set(current.scale, current.scale)
       model.value.x = current.x
       model.value.y = current.y
@@ -157,12 +160,7 @@ function setScaleAndPosition(animated = false) {
 }
 
 const live2dStore = useLive2dParams()
-const {
-  currentMotion,
-  availableMotions,
-  motionMap,
-  modelParameters,
-} = storeToRefs(live2dStore)
+const { currentMotion, availableMotions, motionMap, modelParameters } = storeToRefs(live2dStore)
 
 const themeColorsHue = toRef(() => props.themeColorsHue)
 const themeColorsHueDynamic = toRef(() => props.themeColorsHueDynamic)
@@ -185,7 +183,7 @@ const expressionController = useExpressionController({
 const savedEyeBlink = shallowRef<any>(null)
 const savedExpressionManager = shallowRef<any>(null)
 
-const localCurrentMotion = ref<{ group: string, index: number }>({ group: 'Idle', index: 0 })
+const localCurrentMotion = ref<{ group: string; index: number }>({ group: 'Idle', index: 0 })
 const beatSync = createBeatSyncController({
   baseAngles: () => ({
     x: modelParameters.value.angleX,
@@ -213,8 +211,7 @@ async function loadModel() {
       // NOTICE: shouldUpdateView can fire while the canvas (pixiApp) is being torn down/recreated.
       // Wait briefly for the new stage instead of bailing out, otherwise we keep a blank screen.
       await until(() => !!pixiApp.value && !!pixiApp.value.stage).toBeTruthy({ timeout: 1500 })
-    }
-    catch {
+    } catch {
       modelLoading.value = false
       componentState.value = 'mounted'
       return
@@ -230,8 +227,7 @@ async function loadModel() {
     try {
       pixiApp.value.stage.removeChild(model.value)
       model.value.destroy()
-    }
-    catch (error) {
+    } catch (error) {
       console.warn('Error removing old model:', error)
     }
     model.value = undefined
@@ -251,12 +247,15 @@ async function loadModel() {
     }
 
     const live2DModel = new Live2DModel<PixiLive2DInternalModel>()
-    await Live2DFactory.setupLive2DModel(live2DModel, { url: modelSrcRef.value, id: props.modelId }, { autoInteract: false })
+    await Live2DFactory.setupLive2DModel(
+      live2DModel,
+      { url: modelSrcRef.value, id: props.modelId },
+      { autoInteract: false },
+    )
     availableMotions.value.forEach((motion) => {
       if (motion.motionName in Emotion) {
         motionMap.value[motion.fileName] = motion.motionName
-      }
-      else {
+      } else {
         motionMap.value[motion.fileName] = EmotionNeutralMotionName
       }
     })
@@ -274,8 +273,7 @@ async function loadModel() {
     // --- Interaction
 
     model.value.on('hit', (hitAreas) => {
-      if (model.value && hitAreas.includes('body'))
-        model.value.motion('tap_body')
+      if (model.value && hitAreas.includes('body')) model.value.motion('tap_body')
     })
 
     // --- Motion
@@ -285,13 +283,15 @@ async function loadModel() {
     const motionManager = internalModel.motionManager
     coreModel.setParameterValueById('ParamMouthOpenY', mouthOpenSize.value)
 
-    availableMotions.value = Object
-      .entries(motionManager.definitions)
-      .flatMap(([motionName, definition]) => (definition?.map((motion: any, index: number) => ({
-        motionName,
-        motionIndex: index,
-        fileName: motion.File,
-      })) || []))
+    availableMotions.value = Object.entries(motionManager.definitions)
+      .flatMap(
+        ([motionName, definition]) =>
+          definition?.map((motion: any, index: number) => ({
+            motionName,
+            motionIndex: index,
+            fileName: motion.File,
+          })) || [],
+      )
       .filter(Boolean)
 
     // Check if user has selected a runtime motion to play as idle
@@ -328,7 +328,7 @@ async function loadModel() {
     if (motionManager.groups.idle) {
       motionManager.motionGroups[motionManager.groups.idle]?.forEach((motion) => {
         motion._motionData.curves.forEach((curve: any) => {
-        // TODO: After emotion mapper, stage editor, eye related parameters should be take cared to be dynamical instead of hardcoding
+          // TODO: After emotion mapper, stage editor, eye related parameters should be take cared to be dynamical instead of hardcoding
           if (curve.id === 'ParamEyeBallX' || curve.id === 'ParamEyeBallY') {
             curve.id = `_${curve.id}`
           }
@@ -436,12 +436,10 @@ async function loadModel() {
     }
 
     emits('modelLoaded')
-  }
-  catch (error) {
+  } catch (error) {
     console.error('[Live2D] Failed to load model:', error)
     emits('error', error instanceof Error ? error : new Error(String(error)))
-  }
-  finally {
+  } finally {
     modelLoading.value = false
     componentState.value = 'mounted'
     await initExpressionController(internalModelRef.value).catch((err) => {
@@ -463,13 +461,11 @@ async function initExpressionController(internalModel?: PixiLive2DInternalModel)
   expressionController.dispose()
 
   const settings = internalModel?.settings as any
-  if (!settings)
-    return
+  if (!settings) return
 
   // model3.json stores expressions as { Name, File }[] under settings.expressions
-  const expressionRefs: { Name: string, File: string }[] = settings.expressions ?? []
-  if (expressionRefs.length === 0)
-    return
+  const expressionRefs: { Name: string; File: string }[] = settings.expressions ?? []
+  if (expressionRefs.length === 0) return
 
   // Build a function that can read exp3 files relative to the model root.
   // For URL-loaded models, resolveURL gives us the full URL. For ZIP-loaded
@@ -477,8 +473,7 @@ async function initExpressionController(internalModel?: PixiLive2DInternalModel)
   const readExpFile = async (filePath: string): Promise<string> => {
     const resolvedUrl: string = settings.resolveURL?.(filePath) ?? filePath
     const response = await fetch(resolvedUrl)
-    if (!response.ok)
-      throw new Error(`Failed to fetch exp3 file: ${filePath} (${response.status})`)
+    if (!response.ok) throw new Error(`Failed to fetch exp3 file: ${filePath} (${response.status})`)
     return response.text()
   }
 
@@ -496,8 +491,7 @@ async function setMotion(motionName: string, index?: number) {
   try {
     await model.value.motion(motionName, index, MotionPriority.FORCE)
     console.info('Motion started successfully:', motionName)
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Failed to start motion:', motionName, error)
   }
 }
@@ -506,16 +500,14 @@ const dropShadowColorComputer = ref<HTMLDivElement>()
 const dropShadowAnimationId = ref(0)
 
 function updateDropShadowFilter() {
-  if (!model.value)
-    return
+  if (!model.value) return
 
   if (!live2dShadowEnabled.value) {
     model.value.filters = []
     return
   }
 
-  if (!dropShadowColorComputer.value)
-    return
+  if (!dropShadowColorComputer.value) return
 
   const color = getComputedStyle(dropShadowColorComputer.value).backgroundColor
   dropShadowFilter.value.color = Number(formatHex(color)!.replace('#', '0x'))
@@ -538,160 +530,223 @@ function updateDropShadowFilterLoop() {
   dropShadowAnimationId.value = requestAnimationFrame(updateDropShadowFilterLoop)
 }
 
-watch([themeColorsHueDynamic, live2dShadowEnabled], ([dynamic, shadowEnabled]) => {
-  if (dynamic && shadowEnabled) {
-    dropShadowAnimationId.value = requestAnimationFrame(updateDropShadowFilterLoop)
-  }
-  else {
-    cancelAnimationFrame(dropShadowAnimationId.value)
-    dropShadowAnimationId.value = 0
-  }
-}, { immediate: true })
+watch(
+  [themeColorsHueDynamic, live2dShadowEnabled],
+  ([dynamic, shadowEnabled]) => {
+    if (dynamic && shadowEnabled) {
+      dropShadowAnimationId.value = requestAnimationFrame(updateDropShadowFilterLoop)
+    } else {
+      cancelAnimationFrame(dropShadowAnimationId.value)
+      dropShadowAnimationId.value = 0
+    }
+  },
+  { immediate: true },
+)
 
-watch(currentMotion, value => setMotion(value.group, value.index))
-watch(paused, value => value ? pixiApp.value?.stop() : pixiApp.value?.start())
+watch(currentMotion, (value) => setMotion(value.group, value.index))
+watch(paused, (value) => (value ? pixiApp.value?.stop() : pixiApp.value?.start()))
 
 // Watch and apply model parameters
-watch(() => modelParameters.value.angleX, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamAngleX', value)
-  }
-})
+watch(
+  () => modelParameters.value.angleX,
+  (value) => {
+    if (model.value) {
+      const internalModel = model.value.internalModel
+      internalModel.coreModel.setParameterValueById('ParamAngleX', value)
+    }
+  },
+)
 
-watch(() => modelParameters.value.angleY, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamAngleY', value)
-  }
-})
+watch(
+  () => modelParameters.value.angleY,
+  (value) => {
+    if (model.value) {
+      const internalModel = model.value.internalModel
+      internalModel.coreModel.setParameterValueById('ParamAngleY', value)
+    }
+  },
+)
 
-watch(() => modelParameters.value.angleZ, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamAngleZ', value)
-  }
-})
+watch(
+  () => modelParameters.value.angleZ,
+  (value) => {
+    if (model.value) {
+      const internalModel = model.value.internalModel
+      internalModel.coreModel.setParameterValueById('ParamAngleZ', value)
+    }
+  },
+)
 
-watch(() => modelParameters.value.leftEyeOpen, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamEyeLOpen', value)
-  }
-})
+watch(
+  () => modelParameters.value.leftEyeOpen,
+  (value) => {
+    if (model.value) {
+      const internalModel = model.value.internalModel
+      internalModel.coreModel.setParameterValueById('ParamEyeLOpen', value)
+    }
+  },
+)
 
-watch(() => modelParameters.value.rightEyeOpen, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamEyeROpen', value)
-  }
-})
+watch(
+  () => modelParameters.value.rightEyeOpen,
+  (value) => {
+    if (model.value) {
+      const internalModel = model.value.internalModel
+      internalModel.coreModel.setParameterValueById('ParamEyeROpen', value)
+    }
+  },
+)
 
-watch(() => modelParameters.value.mouthOpen, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamMouthOpenY', value)
-  }
-})
+watch(
+  () => modelParameters.value.mouthOpen,
+  (value) => {
+    if (model.value) {
+      const internalModel = model.value.internalModel
+      internalModel.coreModel.setParameterValueById('ParamMouthOpenY', value)
+    }
+  },
+)
 
-watch(() => modelParameters.value.mouthForm, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamMouthForm', value)
-  }
-})
+watch(
+  () => modelParameters.value.mouthForm,
+  (value) => {
+    if (model.value) {
+      const internalModel = model.value.internalModel
+      internalModel.coreModel.setParameterValueById('ParamMouthForm', value)
+    }
+  },
+)
 
-watch(() => modelParameters.value.cheek, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamCheek', value)
-  }
-})
+watch(
+  () => modelParameters.value.cheek,
+  (value) => {
+    if (model.value) {
+      const internalModel = model.value.internalModel
+      internalModel.coreModel.setParameterValueById('ParamCheek', value)
+    }
+  },
+)
 
-watch(() => modelParameters.value.bodyAngleX, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBodyAngleX', value)
-  }
-})
+watch(
+  () => modelParameters.value.bodyAngleX,
+  (value) => {
+    if (model.value) {
+      const internalModel = model.value.internalModel
+      internalModel.coreModel.setParameterValueById('ParamBodyAngleX', value)
+    }
+  },
+)
 
-watch(() => modelParameters.value.bodyAngleY, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBodyAngleY', value)
-  }
-})
+watch(
+  () => modelParameters.value.bodyAngleY,
+  (value) => {
+    if (model.value) {
+      const internalModel = model.value.internalModel
+      internalModel.coreModel.setParameterValueById('ParamBodyAngleY', value)
+    }
+  },
+)
 
-watch(() => modelParameters.value.bodyAngleZ, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBodyAngleZ', value)
-  }
-})
+watch(
+  () => modelParameters.value.bodyAngleZ,
+  (value) => {
+    if (model.value) {
+      const internalModel = model.value.internalModel
+      internalModel.coreModel.setParameterValueById('ParamBodyAngleZ', value)
+    }
+  },
+)
 
-watch(() => modelParameters.value.breath, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBreath', value)
-  }
-})
+watch(
+  () => modelParameters.value.breath,
+  (value) => {
+    if (model.value) {
+      const internalModel = model.value.internalModel
+      internalModel.coreModel.setParameterValueById('ParamBreath', value)
+    }
+  },
+)
 
 // Watch eyebrow parameters
-watch(() => modelParameters.value.leftEyebrowLR, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBrowLX', value)
-  }
-})
+watch(
+  () => modelParameters.value.leftEyebrowLR,
+  (value) => {
+    if (model.value) {
+      const internalModel = model.value.internalModel
+      internalModel.coreModel.setParameterValueById('ParamBrowLX', value)
+    }
+  },
+)
 
-watch(() => modelParameters.value.rightEyebrowLR, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBrowRX', value)
-  }
-})
+watch(
+  () => modelParameters.value.rightEyebrowLR,
+  (value) => {
+    if (model.value) {
+      const internalModel = model.value.internalModel
+      internalModel.coreModel.setParameterValueById('ParamBrowRX', value)
+    }
+  },
+)
 
-watch(() => modelParameters.value.leftEyebrowY, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBrowLY', value)
-  }
-})
+watch(
+  () => modelParameters.value.leftEyebrowY,
+  (value) => {
+    if (model.value) {
+      const internalModel = model.value.internalModel
+      internalModel.coreModel.setParameterValueById('ParamBrowLY', value)
+    }
+  },
+)
 
-watch(() => modelParameters.value.rightEyebrowY, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBrowRY', value)
-  }
-})
+watch(
+  () => modelParameters.value.rightEyebrowY,
+  (value) => {
+    if (model.value) {
+      const internalModel = model.value.internalModel
+      internalModel.coreModel.setParameterValueById('ParamBrowRY', value)
+    }
+  },
+)
 
-watch(() => modelParameters.value.leftEyebrowAngle, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBrowLAngle', value)
-  }
-})
+watch(
+  () => modelParameters.value.leftEyebrowAngle,
+  (value) => {
+    if (model.value) {
+      const internalModel = model.value.internalModel
+      internalModel.coreModel.setParameterValueById('ParamBrowLAngle', value)
+    }
+  },
+)
 
-watch(() => modelParameters.value.rightEyebrowAngle, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBrowRAngle', value)
-  }
-})
+watch(
+  () => modelParameters.value.rightEyebrowAngle,
+  (value) => {
+    if (model.value) {
+      const internalModel = model.value.internalModel
+      internalModel.coreModel.setParameterValueById('ParamBrowRAngle', value)
+    }
+  },
+)
 
-watch(() => modelParameters.value.leftEyebrowForm, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBrowLForm', value)
-  }
-})
+watch(
+  () => modelParameters.value.leftEyebrowForm,
+  (value) => {
+    if (model.value) {
+      const internalModel = model.value.internalModel
+      internalModel.coreModel.setParameterValueById('ParamBrowLForm', value)
+    }
+  },
+)
 
-watch(() => modelParameters.value.rightEyebrowForm, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBrowRForm', value)
-  }
-})
+watch(
+  () => modelParameters.value.rightEyebrowForm,
+  (value) => {
+    if (model.value) {
+      const internalModel = model.value.internalModel
+      internalModel.coreModel.setParameterValueById('ParamBrowRForm', value)
+    }
+  },
+)
 
 // Watch for idle animation setting changes and stop motions if disabled
 watch(live2dIdleAnimationEnabled, (enabled) => {
@@ -705,24 +760,22 @@ watch(live2dIdleAnimationEnabled, (enabled) => {
 
 // Watch for expression system toggle — nullify/restore SDK managers at runtime
 watch(live2dExpressionEnabled, (enabled) => {
-  if (!model.value)
-    return
+  if (!model.value) return
   const im = model.value.internalModel
   const mm = im.motionManager
   if (enabled) {
     if (mm.expressionManager) {
-      (mm as any).expressionManager = null
+      ;(mm as any).expressionManager = null
     }
     if (im.eyeBlink) {
-      (im as any).eyeBlink = null
+      ;(im as any).eyeBlink = null
     }
 
     internalModelRef.value = im
     initExpressionController(im).catch((err) => {
       console.warn('[Model.vue] Expression controller initialisation failed:', err)
     })
-  }
-  else {
+  } else {
     mm.expressionManager = savedExpressionManager.value
     im.eyeBlink = savedEyeBlink.value
     expressionController.dispose()
@@ -731,10 +784,8 @@ watch(live2dExpressionEnabled, (enabled) => {
 })
 
 watch(focusAt, (value) => {
-  if (!model.value)
-    return
-  if (!props.eyeTracking)
-    return
+  if (!model.value) return
+  if (!props.eyeTracking) return
 
   model.value.focus(value.x, value.y)
 })

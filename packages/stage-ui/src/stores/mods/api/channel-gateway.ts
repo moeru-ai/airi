@@ -33,39 +33,33 @@ export function createChannelGateway(): ChannelGateway {
   const readers = new Map<string, ReadableStreamDefaultReader<GatewayEvent>>()
 
   function dispatch(event: GatewayEvent, options?: DispatchOptions) {
-    const matchedRoutes = routes.filter(rule => rule.match(event))
+    const matchedRoutes = routes.filter((rule) => rule.match(event))
 
     if (matchedRoutes.length > 0) {
       for (const rule of matchedRoutes) {
         const targets = rule.to
-          .map(name => channels.get(name))
+          .map((name) => channels.get(name))
           .filter((channel): channel is GatewayChannel => !!channel)
 
         if (rule.mode === 'first') {
-          const target = targets.find(channel => channel.out)
-          if (target && target.name !== options?.origin)
-            target.out?.(event)
+          const target = targets.find((channel) => channel.out)
+          if (target && target.name !== options?.origin) target.out?.(event)
           continue
         }
 
         for (const target of targets) {
-          if (!target.out)
-            continue
-          if (target.name === options?.origin)
-            continue
+          if (!target.out) continue
+          if (target.name === options?.origin) continue
           target.out(event)
-          if (rule.mode === 'all')
-            continue
+          if (rule.mode === 'all') continue
         }
       }
       return
     }
 
     for (const channel of channels.values()) {
-      if (channel.name === options?.origin)
-        continue
-      if (channel.canHandle && !channel.canHandle(event))
-        continue
+      if (channel.name === options?.origin) continue
+      if (channel.canHandle && !channel.canHandle(event)) continue
       channel.out?.(event)
     }
   }
@@ -73,8 +67,7 @@ export function createChannelGateway(): ChannelGateway {
   function register(channel: GatewayChannel) {
     channels.set(channel.name, channel)
 
-    if (!channel.in)
-      return
+    if (!channel.in) return
 
     const reader = channel.in.getReader()
     readers.set(channel.name, reader)
@@ -83,12 +76,10 @@ export function createChannelGateway(): ChannelGateway {
       try {
         while (true) {
           const result = await reader.read()
-          if (result.done)
-            break
+          if (result.done) break
           dispatch(result.value, { origin: channel.name })
         }
-      }
-      catch (error) {
+      } catch (error) {
         console.warn('Channel gateway stream error:', channel.name, error)
       }
     }

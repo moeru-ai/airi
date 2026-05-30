@@ -1,10 +1,6 @@
 import type { ManifestV1, PluginHost } from '@proj-airi/plugin-sdk/plugin-host'
 
-import type {
-  WidgetsAddPayload,
-  WidgetSnapshot,
-  WidgetsUpdatePayload,
-} from '../../../../shared/eventa'
+import type { WidgetsAddPayload, WidgetSnapshot, WidgetsUpdatePayload } from '../../../../shared/eventa'
 
 /**
  * Runtime-facing plugin host service bundle returned by setup.
@@ -44,7 +40,7 @@ export interface PluginHostGameletWidgetsManager {
   removeWidget: (id: string) => Promise<void>
   getWidgetSnapshot: (id: string) => WidgetSnapshot | undefined
   publishWidgetEvent: (id: string, event: Record<string, unknown>) => void
-  onWidgetEvent: (listener: (event: { id: string, event: Record<string, unknown> }) => void) => () => void
+  onWidgetEvent: (listener: (event: { id: string; event: Record<string, unknown> }) => void) => () => void
 }
 
 /**

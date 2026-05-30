@@ -15,11 +15,9 @@ import {
 let posthogInitialized = false
 
 function getPosthogProjectKey(): string {
-  if (isStageTamagotchi())
-    return POSTHOG_PROJECT_KEY_DESKTOP
+  if (isStageTamagotchi()) return POSTHOG_PROJECT_KEY_DESKTOP
 
-  if (isStageCapacitor())
-    return POSTHOG_PROJECT_KEY_POCKET
+  if (isStageCapacitor()) return POSTHOG_PROJECT_KEY_POCKET
 
   return POSTHOG_PROJECT_KEY_WEB
 }
@@ -29,11 +27,9 @@ export function isPosthogAvailableInBuild(): boolean {
 }
 
 export function ensurePosthogInitialized(enabled: boolean): boolean {
-  if (!POSTHOG_ENABLED)
-    return false
+  if (!POSTHOG_ENABLED) return false
 
-  if (posthogInitialized)
-    return true
+  if (posthogInitialized) return true
 
   posthog.init(getPosthogProjectKey(), {
     ...DEFAULT_POSTHOG_CONFIG,
@@ -44,30 +40,26 @@ export function ensurePosthogInitialized(enabled: boolean): boolean {
 }
 
 export function syncPosthogCapture(enabled: boolean): boolean {
-  if (!POSTHOG_ENABLED)
-    return false
+  if (!POSTHOG_ENABLED) return false
 
   if (enabled) {
     ensurePosthogInitialized(true)
 
-    if (posthog.has_opted_out_capturing())
-      posthog.opt_in_capturing()
+    if (posthog.has_opted_out_capturing()) posthog.opt_in_capturing()
 
     return true
   }
 
-  if (posthogInitialized && !posthog.has_opted_out_capturing())
-    posthog.opt_out_capturing()
+  if (posthogInitialized && !posthog.has_opted_out_capturing()) posthog.opt_out_capturing()
 
   return false
 }
 
 export function registerPosthogBuildInfo(buildInfo: AboutBuildInfo): void {
-  if (!posthogInitialized)
-    return
+  if (!posthogInitialized) return
 
   posthog.register({
-    app_version: (buildInfo.version && buildInfo.version !== '0.0.0') ? buildInfo.version : 'dev',
+    app_version: buildInfo.version && buildInfo.version !== '0.0.0' ? buildInfo.version : 'dev',
     app_commit: buildInfo.commit,
     app_branch: buildInfo.branch,
     app_build_time: buildInfo.builtOn,
@@ -88,8 +80,7 @@ export function registerPosthogBuildInfo(buildInfo: AboutBuildInfo): void {
  *   `capturePaymentCompleted`.
  */
 export function identifyPosthogUser(userId: string): void {
-  if (!posthogInitialized || posthog.has_opted_out_capturing())
-    return
+  if (!posthogInitialized || posthog.has_opted_out_capturing()) return
   // PostHog's `identify` is idempotent and aliases the anonymous distinct
   // id, so calling it on every auth-state-change is safe.
   posthog.identify(userId)
@@ -102,8 +93,7 @@ export function identifyPosthogUser(userId: string): void {
  * signs in on the same device).
  */
 export function resetPosthog(): void {
-  if (!posthogInitialized)
-    return
+  if (!posthogInitialized) return
   posthog.reset()
 }
 
@@ -123,9 +113,12 @@ interface PosthogCaptureOptions {
  *   event. UI components should still prefer `useAnalytics()` composable
  *   for consistency with existing call sites.
  */
-export function capturePosthogEvent(name: string, properties: Record<string, unknown>, options?: PosthogCaptureOptions): boolean {
-  if (!posthogInitialized || posthog.has_opted_out_capturing())
-    return false
+export function capturePosthogEvent(
+  name: string,
+  properties: Record<string, unknown>,
+  options?: PosthogCaptureOptions,
+): boolean {
+  if (!posthogInitialized || posthog.has_opted_out_capturing()) return false
 
   posthog.capture(name, properties, options)
   return true

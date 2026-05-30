@@ -35,8 +35,8 @@ export async function init({ apis }: ContextInit): Promise<void> {
     moduleId: 'test-injected-host-apis-module',
     config: {
       route: '/widgets/injected-host-apis',
-      observedKitIds: kits.map(kit => kit.kitId),
-      observedCapabilityKeys: widgetCapabilities.map(capability => capability.key).sort(),
+      observedKitIds: kits.map((kit) => kit.kitId),
+      observedCapabilityKeys: widgetCapabilities.map((capability) => capability.key).sort(),
     },
   })
 }

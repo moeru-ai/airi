@@ -2,10 +2,7 @@ import type { PluginHost } from '@proj-airi/plugin-sdk/plugin-host'
 
 import type { SetupPluginHostOptions } from '../types'
 
-import {
-  createGameletHostContribution,
-  registerGameletPluginKit,
-} from './gamelet'
+import { createGameletHostContribution, registerGameletPluginKit } from './gamelet'
 import { registerWidgetPluginKit } from './widget'
 
 /**

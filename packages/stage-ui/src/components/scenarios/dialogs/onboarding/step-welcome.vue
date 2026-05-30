@@ -83,7 +83,7 @@ function handleLocalSetup() {
                 'transition-colors duration-150 ease-in-out',
                 lang.value === language ? 'text-primary-500 dark:text-primary-300' : '',
               ]"
-              @select="() => language = lang.value"
+              @select="() => (language = lang.value)"
             >
               {{ lang.label }}
             </DropdownMenuItem>
@@ -99,7 +99,7 @@ function handleLocalSetup() {
         :duration="500"
         :class="['mb-1', 'flex', 'justify-center', 'md:mb-4', 'md:pt-8', 'lg:pt-16']"
       >
-        <img :src="onboardingLogo" max-h="50" aspect-square h-auto w-auto object-cover>
+        <img :src="onboardingLogo" max-h="50" aspect-square h-auto w-auto object-cover />
       </div>
       <h2
         v-motion

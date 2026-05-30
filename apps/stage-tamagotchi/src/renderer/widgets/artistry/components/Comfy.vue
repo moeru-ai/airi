@@ -6,21 +6,24 @@ import { computed, ref, watch } from 'vue'
 
 import { widgetsHideWindow, widgetsRemove } from '../../../../shared/eventa'
 
-const props = withDefaults(defineProps<{
-  id?: string
-  status?: 'idle' | 'generating' | 'done' | 'error'
-  entryId?: string // Unified background ID
-  imageUrl?: string // Legacy/Fallback
-  prompt?: string
-  progress?: number
-  actionLabel?: string
-  remixId?: string | number
-  renderTime?: string
-  engineStats?: string
-}>(), {
-  status: 'idle',
-  progress: 0,
-})
+const props = withDefaults(
+  defineProps<{
+    id?: string
+    status?: 'idle' | 'generating' | 'done' | 'error'
+    entryId?: string // Unified background ID
+    imageUrl?: string // Legacy/Fallback
+    prompt?: string
+    progress?: number
+    actionLabel?: string
+    remixId?: string | number
+    renderTime?: string
+    engineStats?: string
+  }>(),
+  {
+    status: 'idle',
+    progress: 0,
+  },
+)
 
 const cardStore = useAiriCardStore()
 const backgroundStore = useBackgroundStore()
@@ -34,25 +37,32 @@ const history = computed(() => backgroundStore.getCharacterJournalEntries(cardSt
 const currentIndex = ref(0)
 
 // When entryId prop matches a new generation, jump to it in the gallery
-watch([() => props.entryId, history], ([newId, newHistory]) => {
-  if (newId) {
-    const index = newHistory.findIndex(e => e.id === newId)
-    if (index >= 0) {
-      currentIndex.value = index
+watch(
+  [() => props.entryId, history],
+  ([newId, newHistory]) => {
+    if (newId) {
+      const index = newHistory.findIndex((e) => e.id === newId)
+      if (index >= 0) {
+        currentIndex.value = index
+      }
     }
-  }
-}, { immediate: true })
+  },
+  { immediate: true },
+)
 
 const isFlipped = ref(false)
 const errorOccurred = ref(false)
 const isSettingBackground = ref(false)
 const isBrowsingGallery = ref(false)
 
-watch(() => props.status, (newStatus) => {
-  if (newStatus === 'generating') {
-    isBrowsingGallery.value = false
-  }
-})
+watch(
+  () => props.status,
+  (newStatus) => {
+    if (newStatus === 'generating') {
+      isBrowsingGallery.value = false
+    }
+  },
+)
 
 const hideWindow = useElectronEventaInvoke(widgetsHideWindow)
 const removeWidget = useElectronEventaInvoke(widgetsRemove)
@@ -65,10 +75,8 @@ const currentImage = computed(() => {
   return history.value[currentIndex.value]
 })
 const resolvedImageUrl = computed(() => {
-  if (currentImage.value)
-    return backgroundStore.getBackgroundUrl(currentImage.value.id)
-  if (props.entryId)
-    return backgroundStore.getBackgroundUrl(props.entryId)
+  if (currentImage.value) return backgroundStore.getBackgroundUrl(currentImage.value.id)
+  if (props.entryId) return backgroundStore.getBackgroundUrl(props.entryId)
   return props.imageUrl
 })
 
@@ -77,15 +85,13 @@ function handleImageError() {
 }
 
 function nextImage() {
-  if (history.value.length === 0)
-    return
+  if (history.value.length === 0) return
   errorOccurred.value = false
   currentIndex.value = (currentIndex.value + 1) % history.value.length
 }
 
 function prevImage() {
-  if (history.value.length === 0)
-    return
+  if (history.value.length === 0) return
   errorOccurred.value = false
   currentIndex.value = (currentIndex.value - 1 + history.value.length) % history.value.length
 }
@@ -95,8 +101,7 @@ function toggleFlip() {
 }
 
 async function handleSetAsBackground() {
-  if (!currentImage.value || !cardStore.activeCardId)
-    return
+  if (!currentImage.value || !cardStore.activeCardId) return
   isSettingBackground.value = true
   try {
     const entry = currentImage.value
@@ -105,20 +110,16 @@ async function handleSetAsBackground() {
     const card = cardStore.activeCard
     if (card) {
       const extension = JSON.parse(JSON.stringify(card.extensions || {}))
-      if (!extension.airi)
-        extension.airi = {}
-      if (!extension.airi.modules)
-        extension.airi.modules = {}
+      if (!extension.airi) extension.airi = {}
+      if (!extension.airi.modules) extension.airi.modules = {}
       extension.airi.modules.activeBackgroundId = entry.id
 
       await cardStore.updateCard(cardId, { ...card, extensions: extension })
       console.log(`[ComfyWidget] Set activeBackgroundId to ${entry.id} for ${cardId}`)
     }
-  }
-  catch (e) {
+  } catch (e) {
     console.error('[ComfyWidget] Failed to set background', e)
-  }
-  finally {
+  } finally {
     isSettingBackground.value = false
   }
 }
@@ -150,8 +151,12 @@ async function handleClose() {
           <template v-if="history.length === 0">
             <div class="z-minus-1 absolute inset-0 bg-black/60" />
             <div class="relative mb-6">
-              <div class="animate-spin-slow i-iconify-meteocons:clear-day-fill text-[5rem] text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]" />
-              <div class="absolute inset-0 flex items-center justify-center text-xl text-white font-bold drop-shadow-md">
+              <div
+                class="animate-spin-slow i-iconify-meteocons:clear-day-fill text-[5rem] text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]"
+              />
+              <div
+                class="absolute inset-0 flex items-center justify-center text-xl text-white font-bold drop-shadow-md"
+              >
                 {{ Math.round(progress) }}%
               </div>
             </div>
@@ -170,15 +175,15 @@ async function handleClose() {
 
           <!-- Slim Bottom Progress: If images exist -->
           <template v-else>
-            <div class="absolute inset-x-0 bottom-0 z-40 h-10 flex flex-col justify-end from-black/80 to-transparent bg-gradient-to-t px-4 pb-1">
+            <div
+              class="absolute inset-x-0 bottom-0 z-40 h-10 flex flex-col justify-end from-black/80 to-transparent bg-gradient-to-t px-4 pb-1"
+            >
               <div class="mb-1 flex items-center justify-between px-1">
                 <div class="flex items-center gap-1.5 text-[9px] text-white/50 font-mono">
                   <span class="size-1.5 animate-pulse rounded-full bg-yellow-400" />
                   <span class="tracking-widest uppercase opacity-80">{{ actionLabel || 'Manifesting...' }}</span>
                 </div>
-                <div class="text-[9px] text-yellow-400/80 font-bold font-mono">
-                  {{ Math.round(progress) }}%
-                </div>
+                <div class="text-[9px] text-yellow-400/80 font-bold font-mono">{{ Math.round(progress) }}%</div>
               </div>
               <div class="h-1 w-full overflow-hidden rounded-full bg-white/10">
                 <div
@@ -197,23 +202,24 @@ async function handleClose() {
             :src="resolvedImageUrl"
             class="h-full w-full object-cover transition-all duration-500"
             @error="handleImageError"
-          >
+          />
           <div v-else-if="errorOccurred" class="h-full w-full">
             <img
               src="https://placehold.co/600x400/991b1b/white?text=Error+Loading+Image&font=roboto"
               class="h-full w-full object-cover"
-            >
+            />
           </div>
           <div v-else-if="status !== 'generating'" class="p-8 text-center text-white/20">
             <div class="i-iconify-material-symbols:image-not-supported-outline mb-2 text-4xl" />
-            <div class="text-sm">
-              Awaiting first generation...
-            </div>
+            <div class="text-sm">Awaiting first generation...</div>
           </div>
         </div>
 
         <!-- Navigation Overlay -->
-        <div v-if="history.length > 1" class="pointer-events-none absolute inset-x-0 top-1/2 z-30 flex justify-between px-3 -translate-y-1/2">
+        <div
+          v-if="history.length > 1"
+          class="pointer-events-none absolute inset-x-0 top-1/2 z-30 flex justify-between px-3 -translate-y-1/2"
+        >
           <button
             class="pointer-events-auto size-14 flex items-center justify-center border border-white/20 rounded-full bg-black/50 text-white shadow-2xl backdrop-blur-md transition-all active:scale-95 hover:scale-110 hover:bg-black/80"
             @click.stop="prevImage"
@@ -238,7 +244,10 @@ async function handleClose() {
 
         <!-- Counter & Flip Toggle -->
         <div class="absolute inset-x-0 bottom-2 z-10 flex items-center justify-between px-3">
-          <div v-if="history.length > 0" class="rounded-full bg-black/40 px-2 py-0.5 text-[10px] text-white/70 font-mono backdrop-blur-sm">
+          <div
+            v-if="history.length > 0"
+            class="rounded-full bg-black/40 px-2 py-0.5 text-[10px] text-white/70 font-mono backdrop-blur-sm"
+          >
             {{ currentIndex + 1 }} / {{ history.length }}
           </div>
           <div v-else />
@@ -257,9 +266,7 @@ async function handleClose() {
         class="backface-hidden absolute inset-0 flex flex-col rotate-y-180 gap-3 overflow-hidden border border-white/20 rounded-2xl bg-[#0a0a0c] p-4 font-mono shadow-2xl"
       >
         <div class="flex items-center justify-between border-b border-white/10 pb-2">
-          <div class="text-xs text-yellow-500 font-bold tracking-tighter uppercase">
-            Engine.Cortex_V1
-          </div>
+          <div class="text-xs text-yellow-500 font-bold tracking-tighter uppercase">Engine.Cortex_V1</div>
           <button class="text-white/40 transition-colors hover:text-white" @click="toggleFlip">
             <div class="i-iconify-material-symbols:close text-lg" />
           </button>
@@ -267,9 +274,7 @@ async function handleClose() {
 
         <div class="custom-scrollbar flex-1 overflow-y-auto pr-1 text-[11px] space-y-4">
           <div class="space-y-1">
-            <div class="text-[9px] text-white/30 font-bold uppercase">
-              Generated Prompt
-            </div>
+            <div class="text-[9px] text-white/30 font-bold uppercase">Generated Prompt</div>
             <div class="border border-white/5 rounded bg-white/5 p-2 text-white/80 leading-relaxed italic">
               {{ currentImage?.prompt || prompt || 'No prompt available for this frame.' }}
             </div>
@@ -277,17 +282,11 @@ async function handleClose() {
 
           <div class="grid grid-cols-2 gap-2">
             <div class="border border-white/5 rounded bg-white/5 p-2">
-              <div class="mb-1 text-[8px] text-white/30 font-bold uppercase">
-                Remix ID
-              </div>
-              <div class="text-white/90">
-                #{{ currentImage?.remixId || remixId || '000000' }}
-              </div>
+              <div class="mb-1 text-[8px] text-white/30 font-bold uppercase">Remix ID</div>
+              <div class="text-white/90">#{{ currentImage?.remixId || remixId || '000000' }}</div>
             </div>
             <div class="border border-white/5 rounded bg-white/5 p-2">
-              <div class="mb-1 text-[8px] text-white/30 font-bold uppercase">
-                Time
-              </div>
+              <div class="mb-1 text-[8px] text-white/30 font-bold uppercase">Time</div>
               <div class="text-white/90">
                 {{ renderTime || '--.--s' }}
               </div>
@@ -335,8 +334,12 @@ async function handleClose() {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .custom-scrollbar::-webkit-scrollbar {

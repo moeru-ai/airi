@@ -47,12 +47,15 @@ const { title, count = 0 } = defineProps<{
 }>()
 
 // With defaults (Vue 3.4 and below)
-const props = withDefaults(defineProps<{
-  title: string
-  items?: string[]
-}>(), {
-  items: () => [] // Use factory for arrays/objects
-})
+const props = withDefaults(
+  defineProps<{
+    title: string
+    items?: string[]
+  }>(),
+  {
+    items: () => [], // Use factory for arrays/objects
+  },
+)
 ```
 
 ## defineEmits
@@ -92,12 +95,17 @@ if (modifiers.trim) {
 
 // With transformers
 const [value, modifiers] = defineModel({
-  get(val) { return val?.toLowerCase() },
-  set(val) { return modifiers.trim ? val?.trim() : val }
+  get(val) {
+    return val?.toLowerCase()
+  },
+  set(val) {
+    return modifiers.trim ? val?.trim() : val
+  },
 })
 ```
 
 Parent usage:
+
 ```vue
 <Child v-model="name" />
 
@@ -114,17 +122,20 @@ Explicitly expose properties to parent via template refs. Components are closed 
 import { ref } from 'vue'
 
 const count = ref(0)
-function reset() { count.value = 0 }
+function reset() {
+  count.value = 0
+}
 
 defineExpose({
   count,
-  reset
+  reset,
 })
 ```
 
 Parent access:
+
 ```ts
-const childRef = ref<{ count: number, reset: () => void }>()
+const childRef = ref<{ count: number; reset: () => void }>()
 childRef.value?.reset()
 ```
 
@@ -135,7 +146,7 @@ Declare component options without a separate `<script>` block. Available in Vue 
 ```ts
 defineOptions({
   inheritAttrs: false,
-  name: 'CustomName'
+  name: 'CustomName',
 })
 ```
 
@@ -145,7 +156,7 @@ Provide type hints for slot props. Available in Vue 3.3+.
 
 ```ts
 const slots = defineSlots<{
-  default: (props: { item: string, index: number }) => any
+  default: (props: { item: string; index: number }) => any
   header: (props: { title: string }) => any
 }>()
 ```
@@ -164,6 +175,7 @@ defineProps<{
 ```
 
 Multiple generics with constraints:
+
 ```vue
 <script setup lang="ts" generic="T, U extends Record<string, T>">
 import type { Item } from './types'
@@ -184,13 +196,13 @@ Use `vNameOfDirective` naming convention.
 import { myDirective as vMyDirective } from './directives'
 
 const vFocus = {
-  mounted: (el: HTMLElement) => el.focus()
+  mounted: (el: HTMLElement) => el.focus(),
 }
 ```
 
 ```vue
 <template>
-  <input v-focus>
+  <input v-focus />
 </template>
 ```
 
@@ -200,7 +212,7 @@ Use `await` directly in `<script setup>`. The component becomes async and must b
 
 ```vue
 <script setup lang="ts">
-const data = await fetch('/api/data').then(r => r.json())
+const data = await fetch('/api/data').then((r) => r.json())
 </script>
 ```
 

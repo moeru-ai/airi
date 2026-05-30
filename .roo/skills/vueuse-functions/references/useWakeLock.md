@@ -45,7 +45,5 @@ export interface UseWakeLockReturn extends Supportable {
  *
  * @__NO_SIDE_EFFECTS__
  */
-export declare function useWakeLock(
-  options?: UseWakeLockOptions,
-): UseWakeLockReturn
+export declare function useWakeLock(options?: UseWakeLockOptions): UseWakeLockReturn
 ```

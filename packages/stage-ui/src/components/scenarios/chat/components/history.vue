@@ -13,26 +13,29 @@ import { useChatHistoryScroll } from '../composables/use-chat-history-scroll'
 import { chatScrollContainerKey } from '../constants'
 import { getChatHistoryItemKey } from '../utils'
 
-const props = withDefaults(defineProps<{
-  messages: ChatHistoryItem[]
-  streamingMessage?: ChatAssistantMessage & { createdAt?: number }
-  sending?: boolean
-  assistantLabel?: string
-  userLabel?: string
-  errorLabel?: string
-  retryLabel?: string
-  variant?: 'desktop' | 'mobile'
-  toolCallRenderers?: ChatToolCallRendererRegistry
-}>(), {
-  sending: false,
-  variant: 'desktop',
-  toolCallRenderers: () => ({}),
-})
+const props = withDefaults(
+  defineProps<{
+    messages: ChatHistoryItem[]
+    streamingMessage?: ChatAssistantMessage & { createdAt?: number }
+    sending?: boolean
+    assistantLabel?: string
+    userLabel?: string
+    errorLabel?: string
+    retryLabel?: string
+    variant?: 'desktop' | 'mobile'
+    toolCallRenderers?: ChatToolCallRendererRegistry
+  }>(),
+  {
+    sending: false,
+    variant: 'desktop',
+    toolCallRenderers: () => ({}),
+  },
+)
 
 const emit = defineEmits<{
-  (e: 'copyMessage', payload: { message: ChatHistoryItem, index: number, key: string | number }): void
-  (e: 'deleteMessage', payload: { message: ChatHistoryItem, index: number, key: string | number }): void
-  (e: 'retryMessage', payload: { message: ChatHistoryItem, index: number, key: string | number }): void
+  (e: 'copyMessage', payload: { message: ChatHistoryItem; index: number; key: string | number }): void
+  (e: 'deleteMessage', payload: { message: ChatHistoryItem; index: number; key: string | number }): void
+  (e: 'retryMessage', payload: { message: ChatHistoryItem; index: number; key: string | number }): void
 }>()
 
 const chatHistoryRef = ref<HTMLDivElement>()
@@ -46,27 +49,27 @@ const labels = computed(() => ({
   retry: props.retryLabel ?? t('stage.chat.actions.retry'),
 }))
 
-const streaming = computed<ChatAssistantMessage & { context?: ContextMessage } & { createdAt?: number }>(() => props.streamingMessage ?? { role: 'assistant', content: '', slices: [], tool_results: [], createdAt: Date.now() })
+const streaming = computed<ChatAssistantMessage & { context?: ContextMessage } & { createdAt?: number }>(
+  () =>
+    props.streamingMessage ?? { role: 'assistant', content: '', slices: [], tool_results: [], createdAt: Date.now() },
+)
 const showStreamingPlaceholder = computed(() => (streaming.value.slices?.length ?? 0) === 0 && !streaming.value.content)
 const streamingTs = computed(() => streaming.value?.createdAt)
 function shouldShowPlaceholder(message: ChatHistoryItem) {
   const ts = streamingTs.value
-  if (ts == null)
-    return false
+  if (ts == null) return false
 
   return message.context?.createdAt === ts || message.createdAt === ts
 }
 const renderMessages = computed<ChatHistoryItem[]>(() => {
-  if (!props.sending)
-    return props.messages
+  if (!props.sending) return props.messages
 
   const streamTs = streamingTs.value
-  if (!streamTs)
-    return props.messages
+  if (!streamTs) return props.messages
 
-  const hasStreamAlready = streamTs && props.messages.some(msg => msg?.role === 'assistant' && msg?.createdAt === streamTs)
-  if (hasStreamAlready)
-    return props.messages
+  const hasStreamAlready =
+    streamTs && props.messages.some((msg) => msg?.role === 'assistant' && msg?.createdAt === streamTs)
+  if (hasStreamAlready) return props.messages
 
   return [...props.messages, streaming.value]
 })
@@ -103,7 +106,19 @@ function emitRetryMessage(message: ChatHistoryItem, index: number) {
 </script>
 
 <template>
-  <div ref="chatHistoryRef" v-auto-animate flex="~ col" relative h-full w-full overflow-y-auto rounded-xl px="<sm:2" py="<sm:2" :class="variant === 'mobile' ? 'gap-1' : 'gap-2'">
+  <div
+    ref="chatHistoryRef"
+    v-auto-animate
+    flex="~ col"
+    relative
+    h-full
+    w-full
+    overflow-y-auto
+    rounded-xl
+    px="<sm:2"
+    py="<sm:2"
+    :class="variant === 'mobile' ? 'gap-1' : 'gap-2'"
+  >
     <template v-for="(message, index) in renderMessages" :key="getChatHistoryItemKey(message, index)">
       <div
         :data-chat-message-index="index"

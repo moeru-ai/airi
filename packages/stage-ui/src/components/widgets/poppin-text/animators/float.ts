@@ -24,7 +24,7 @@ export function createFloatAnimator(options: CreateAnimatorOptions): Animator {
         translateZ: 0,
         rotateZ: [180, 0],
         ...options,
-        delay: (_, i) => options.duration / elements.length * i,
+        delay: (_, i) => (options.duration / elements.length) * i,
       })
 
     return () => {

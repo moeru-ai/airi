@@ -34,7 +34,7 @@ By default, it returns `rtl` direction when dir `rtl` is applied to the `html` t
 import { useTextDirection } from '@vueuse/core'
 
 const mode = useTextDirection({
-  selector: 'body'
+  selector: 'body',
 }) // Ref<'ltr' | 'rtl' | 'auto'>
 ```
 

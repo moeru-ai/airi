@@ -13,9 +13,7 @@ Use CSS utilities directly as HTML tag names.
 import { defineConfig, presetTagify } from 'unocss'
 
 export default defineConfig({
-  presets: [
-    presetTagify(),
-  ],
+  presets: [presetTagify()],
 })
 ```
 
@@ -43,7 +41,7 @@ Works exactly the same!
 
 ```ts
 presetTagify({
-  prefix: 'un-'
+  prefix: 'un-',
 })
 ```
 
@@ -62,9 +60,7 @@ Add CSS properties to matched tags:
 ```ts
 presetTagify({
   // Add display: inline-block to icons
-  extraProperties: matched => matched.startsWith('i-')
-    ? { display: 'inline-block' }
-    : {},
+  extraProperties: (matched) => (matched.startsWith('i-') ? { display: 'inline-block' } : {}),
 })
 ```
 
@@ -72,7 +68,7 @@ Or apply to all:
 
 ```ts
 presetTagify({
-  extraProperties: { display: 'block' }
+  extraProperties: { display: 'block' },
 })
 ```
 
@@ -97,6 +93,7 @@ presetTagify({
 ## Excluded Tags
 
 By default, these tags are excluded:
+
 - `b` (bold)
 - `h1` through `h6` (headings)
 - `table`

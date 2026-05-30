@@ -52,7 +52,8 @@ watch(selectedAudioInput, async () => {
 
 watch(audioInputs, () => {
   if (!selectedAudioInput.value && audioInputs.value.length > 0) {
-    selectedAudioInput.value = audioInputs.value.find(input => input.deviceId === 'default')?.deviceId || audioInputs.value[0].deviceId
+    selectedAudioInput.value =
+      audioInputs.value.find((input) => input.deviceId === 'default')?.deviceId || audioInputs.value[0].deviceId
   }
 })
 
@@ -72,8 +73,7 @@ async function setupAudioMonitoring() {
     // Set up data array for analysis
     const bufferLength = analyzer!.frequencyBinCount
     dataArray.value = new Uint8Array(bufferLength)
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Error setting up audio monitoring:', error)
     errorMessage.value = error instanceof Error ? error.message : String(error)
   }
@@ -86,7 +86,7 @@ async function stopAudioMonitoring() {
     animationFrame.value = undefined
   }
   if (stream.value) {
-    stream.value.getTracks().forEach(track => track.stop())
+    stream.value.getTracks().forEach((track) => track.stop())
     stream.value = undefined
   }
   if (audioContext.value) {
@@ -109,15 +109,12 @@ onStopRecord(async (recording) => {
       // Clear any previous error message
       errorMessage.value = ''
       const result = await props.generateTranscription(new File([recording], 'recording.wav'))
-      const text = result.mode === 'stream'
-        ? await result.text
-        : result.text
+      const text = result.mode === 'stream' ? await result.text : result.text
       transcriptions.value.push(text)
       // Clear error message on success
       errorMessage.value = ''
     }
-  }
-  catch (err) {
+  } catch (err) {
     errorMessage.value = err instanceof Error ? err.message : String(err)
     console.error('Error generating transcription:', errorMessage.value)
   }
@@ -128,7 +125,7 @@ async function toggleMonitoring() {
   if (!isMonitoring.value) {
     // Clear previous recordings and transcriptions when starting a new monitoring session
     // Clean up previous audio URLs
-    audioCleanups.value.forEach(cleanup => cleanup())
+    audioCleanups.value.forEach((cleanup) => cleanup())
     audioCleanups.value = []
     audios.value = []
     transcriptions.value = []
@@ -138,8 +135,7 @@ async function toggleMonitoring() {
     await setupAudioMonitoring()
     await startRecord()
     isMonitoring.value = true
-  }
-  else {
+  } else {
     await stopAudioMonitoring()
     await stopRecord()
 
@@ -177,13 +173,16 @@ onUnmounted(() => {
         v-model="selectedAudioInput"
         label="Audio Input Device"
         description="Select the audio input device for your hearing module."
-        :options="audioInputs.map(input => ({
-          label: input.label || input.deviceId,
-          value: input.deviceId,
-        }))"
+        :options="
+          audioInputs.map((input) => ({
+            label: input.label || input.deviceId,
+            value: input.deviceId,
+          }))
+        "
         placeholder="Select an audio input device"
         layout="vertical"
-        h-fit w-full
+        h-fit
+        w-full
       />
     </div>
 
@@ -192,7 +191,10 @@ onUnmounted(() => {
     </Button>
 
     <!-- Error message display -->
-    <div v-if="errorMessage" class="mb-4 border border-red-200 rounded-lg bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">
+    <div
+      v-if="errorMessage"
+      class="mb-4 border border-red-200 rounded-lg bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20"
+    >
       <div class="flex items-center gap-2 text-red-700 dark:text-red-400">
         <div i-solar:warning-circle-line-duotone class="text-lg" />
         <span class="text-sm font-medium">{{ errorMessage }}</span>
@@ -231,16 +233,13 @@ onUnmounted(() => {
           :min="1"
           :max="80"
           :step="1"
-          :format-value="value => `${value}%`"
+          :format-value="(value) => `${value}%`"
         />
       </div>
 
       <!-- Speaking Indicator -->
       <div class="flex items-center gap-3">
-        <div
-          class="h-4 w-4 rounded-full transition-all duration-200"
-          :class="speakingIndicatorClass"
-        />
+        <div class="h-4 w-4 rounded-full transition-all duration-200" :class="speakingIndicatorClass" />
         <span class="text-sm font-medium">
           {{ isSpeaking ? 'Speaking Detected' : 'Silence' }}
         </span>

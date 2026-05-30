@@ -11,7 +11,7 @@ description: >-
 license: MIT
 metadata:
   author: moeru-ai
-  version: "1.0.0"
+  version: '1.0.0'
 ---
 
 # @moeru/eventa
@@ -34,7 +34,7 @@ Eventa is built around three ideas:
 import { createContext, defineEventa } from '@moeru/eventa'
 
 // Define a typed event (the generic is the payload type)
-const move = defineEventa<{ x: number, y: number }>()
+const move = defineEventa<{ x: number; y: number }>()
 
 // Create a base context (in-memory, useful for same-process communication)
 const ctx = createContext()
@@ -65,13 +65,16 @@ const result = await invokeEcho({ input: 'hello' }) // { output: 'HELLO' }
 ### Streaming RPC (Server-Streaming)
 
 ```ts
-import { createContext, defineInvokeEventa, defineStreamInvoke, defineStreamInvokeHandler, toStreamHandler } from '@moeru/eventa'
+import {
+  createContext,
+  defineInvokeEventa,
+  defineStreamInvoke,
+  defineStreamInvokeHandler,
+  toStreamHandler,
+} from '@moeru/eventa'
 
 const ctx = createContext()
-const sync = defineInvokeEventa<
-  { type: 'progress' | 'result', value: number },
-  { jobId: string }
->('rpc:sync')
+const sync = defineInvokeEventa<{ type: 'progress' | 'result'; value: number }, { jobId: string }>('rpc:sync')
 
 // Generator-style handler
 defineStreamInvokeHandler(ctx, sync, async function* ({ jobId }) {
@@ -82,10 +85,14 @@ defineStreamInvokeHandler(ctx, sync, async function* ({ jobId }) {
 })
 
 // Or imperative style with toStreamHandler
-defineStreamInvokeHandler(ctx, sync, toStreamHandler(async ({ payload, emit }) => {
-  emit({ type: 'progress', value: 0 })
-  emit({ type: 'result', value: 100 })
-}))
+defineStreamInvokeHandler(
+  ctx,
+  sync,
+  toStreamHandler(async ({ payload, emit }) => {
+    emit({ type: 'progress', value: 0 })
+    emit({ type: 'result', value: 100 })
+  }),
+)
 
 // Consume as async iterator
 const stream = defineStreamInvoke(ctx, sync)
@@ -98,8 +105,8 @@ for await (const update of stream({ jobId: 'import' })) {
 
 ```ts
 const recordRoute = defineInvokeEventa<
-  { distance: number, points: number },
-  ReadableStream<{ lat: number, lng: number }>
+  { distance: number; points: number },
+  ReadableStream<{ lat: number; lng: number }>
 >('rpc:record-route')
 
 defineInvokeHandler(ctx, recordRoute, async (stream) => {
@@ -110,7 +117,11 @@ defineInvokeHandler(ctx, recordRoute, async (stream) => {
 
 const invoke = defineInvoke(ctx, recordRoute)
 const input = new ReadableStream({
-  start(c) { c.enqueue({ lat: 0, lng: 0 }); c.enqueue({ lat: 1, lng: 1 }); c.close() },
+  start(c) {
+    c.enqueue({ lat: 0, lng: 0 })
+    c.enqueue({ lat: 1, lng: 1 })
+    c.close()
+  },
 })
 await invoke(input)
 ```
@@ -118,10 +129,7 @@ await invoke(input)
 ### Bidirectional Streaming
 
 ```ts
-const routeChat = defineInvokeEventa<
-  { message: string },
-  ReadableStream<{ message: string }>
->('rpc:route-chat')
+const routeChat = defineInvokeEventa<{ message: string }, ReadableStream<{ message: string }>>('rpc:route-chat')
 
 defineStreamInvokeHandler(ctx, routeChat, async function* (incoming) {
   for await (const note of incoming) {
@@ -146,9 +154,14 @@ controller.abort('user cancelled')
 // Server-side abort awareness
 defineInvokeHandler(ctx, event, async ({ input }, options) => {
   const signal = options?.abortController?.signal
-  if (signal?.aborted)
-    return { output: 'aborted' }
-  signal?.addEventListener('abort', () => { /* cleanup */ }, { once: true })
+  if (signal?.aborted) return { output: 'aborted' }
+  signal?.addEventListener(
+    'abort',
+    () => {
+      /* cleanup */
+    },
+    { once: true },
+  )
   return { output: `done: ${input}` }
 })
 ```
@@ -162,8 +175,8 @@ const events = {
 }
 
 defineInvokeHandlers(ctx, events, {
-  double: input => input * 2,
-  append: input => `${input}!`,
+  double: (input) => input * 2,
+  append: (input) => `${input}!`,
 })
 
 const { double, append } = defineInvokes(ctx, events)
@@ -181,19 +194,19 @@ const { context } = createContext(transportInstance)
 
 ### Available Adapters
 
-| Adapter | Import Path | Transport |
-|---------|-------------|-----------|
-| Electron Main | `@moeru/eventa/adapters/electron/main` | `ipcMain` + `webContents` |
-| Electron Renderer | `@moeru/eventa/adapters/electron/renderer` | `ipcRenderer` |
-| Web Worker (main) | `@moeru/eventa/adapters/webworkers` | `Worker` instance |
-| Web Worker (worker) | `@moeru/eventa/adapters/webworkers/worker` | `self` (worker global) |
-| Worker Threads (main) | `@moeru/eventa/adapters/worker-threads` | Node.js `Worker` |
-| Worker Threads (worker) | `@moeru/eventa/adapters/worker-threads/worker` | `parentPort` |
-| WebSocket Client | `@moeru/eventa/adapters/websocket/native` | `WebSocket` |
-| WebSocket Server (H3) | `@moeru/eventa/adapters/websocket/h3` | H3 WebSocket hooks |
-| BroadcastChannel | `@moeru/eventa/adapters/broadcast-channel` | `BroadcastChannel` |
-| EventTarget | `@moeru/eventa/adapters/event-target` | `EventTarget` |
-| EventEmitter | `@moeru/eventa/adapters/event-emitter` | Node.js `EventEmitter` |
+| Adapter                 | Import Path                                    | Transport                 |
+| ----------------------- | ---------------------------------------------- | ------------------------- |
+| Electron Main           | `@moeru/eventa/adapters/electron/main`         | `ipcMain` + `webContents` |
+| Electron Renderer       | `@moeru/eventa/adapters/electron/renderer`     | `ipcRenderer`             |
+| Web Worker (main)       | `@moeru/eventa/adapters/webworkers`            | `Worker` instance         |
+| Web Worker (worker)     | `@moeru/eventa/adapters/webworkers/worker`     | `self` (worker global)    |
+| Worker Threads (main)   | `@moeru/eventa/adapters/worker-threads`        | Node.js `Worker`          |
+| Worker Threads (worker) | `@moeru/eventa/adapters/worker-threads/worker` | `parentPort`              |
+| WebSocket Client        | `@moeru/eventa/adapters/websocket/native`      | `WebSocket`               |
+| WebSocket Server (H3)   | `@moeru/eventa/adapters/websocket/h3`          | H3 WebSocket hooks        |
+| BroadcastChannel        | `@moeru/eventa/adapters/broadcast-channel`     | `BroadcastChannel`        |
+| EventTarget             | `@moeru/eventa/adapters/event-target`          | `EventTarget`             |
+| EventEmitter            | `@moeru/eventa/adapters/event-emitter`         | Node.js `EventEmitter`    |
 
 ### Adapter Usage Pattern (Electron Example)
 

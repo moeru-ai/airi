@@ -52,10 +52,6 @@ It's recommend to only use this function for components with **a single root ele
 export declare function useCurrentElement<
   T extends MaybeElement = MaybeElement,
   R extends VueInstance = VueInstance,
-  E extends MaybeElement = MaybeElement extends T
-    ? IsAny<R['$el']> extends false
-      ? R['$el']
-      : T
-    : T,
+  E extends MaybeElement = MaybeElement extends T ? (IsAny<R['$el']> extends false ? R['$el'] : T) : T,
 >(rootComponent?: MaybeElementRef<R>): ComputedRefWithControl<E>
 ```

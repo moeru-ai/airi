@@ -17,18 +17,14 @@ const chartRef = ref<InstanceType<typeof IOTracerChart>>()
 const hiddenSubsystems = ref(new Set<IOSubsystem>())
 
 function toggleRecording() {
-  if (isRecording.value)
-    store.stopRecording()
-  else
-    store.startRecording()
+  if (isRecording.value) store.stopRecording()
+  else store.startRecording()
 }
 
 function toggleSubsystem(subsystem: IOSubsystem) {
   const next = new Set(hiddenSubsystems.value)
-  if (next.has(subsystem))
-    next.delete(subsystem)
-  else
-    next.add(subsystem)
+  if (next.has(subsystem)) next.delete(subsystem)
+  else next.add(subsystem)
   hiddenSubsystems.value = next
 }
 

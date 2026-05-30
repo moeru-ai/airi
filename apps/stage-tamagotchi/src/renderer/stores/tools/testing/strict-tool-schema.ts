@@ -34,24 +34,27 @@ function collectSchemaIssues(schema: unknown, path: string, issues: StrictToolSc
 
   if (schema.properties) {
     const propertyKeys = Object.keys(schema.properties)
-    const required = Array.isArray(schema.required) ? schema.required.filter((value): value is string => typeof value === 'string') : []
+    const required = Array.isArray(schema.required)
+      ? schema.required.filter((value): value is string => typeof value === 'string')
+      : []
 
     if (!Array.isArray(schema.required)) {
       issues.push({
         path,
         message: '`required` must be supplied when `properties` is present.',
       })
-    }
-    else if (sorted(required).join('\0') !== sorted(propertyKeys).join('\0')) {
-      const missing = propertyKeys.filter(key => !required.includes(key))
-      const extra = required.filter(key => !propertyKeys.includes(key))
+    } else if (sorted(required).join('\0') !== sorted(propertyKeys).join('\0')) {
+      const missing = propertyKeys.filter((key) => !required.includes(key))
+      const extra = required.filter((key) => !propertyKeys.includes(key))
       issues.push({
         path,
         message: [
           '`required` must include every key in `properties`.',
           missing.length ? `Missing: ${missing.join(', ')}.` : '',
           extra.length ? `Extra: ${extra.join(', ')}.` : '',
-        ].filter(Boolean).join(' '),
+        ]
+          .filter(Boolean)
+          .join(' '),
       })
     }
 
@@ -69,8 +72,7 @@ function collectSchemaIssues(schema: unknown, path: string, issues: StrictToolSc
 
   if (Array.isArray(schema.items)) {
     schema.items.forEach((item, index) => collectSchemaIssues(item, `${path}.items[${index}]`, issues))
-  }
-  else if (schema.items) {
+  } else if (schema.items) {
     collectSchemaIssues(schema.items, `${path}.items`, issues)
   }
 
@@ -102,7 +104,7 @@ export function collectStrictToolSchemaIssues(tool: Tool): StrictToolSchemaIssue
 }
 
 function formatIssues(issues: StrictToolSchemaIssue[]): string {
-  return issues.map(issue => `- ${issue.path}: ${issue.message}`).join('\n')
+  return issues.map((issue) => `- ${issue.path}: ${issue.message}`).join('\n')
 }
 
 /**
@@ -125,19 +127,21 @@ export function installStrictToolSchemaMatchers(): void {
 
       return {
         pass: issues.length === 0,
-        message: () => issues.length
-          ? `Expected tool schema to satisfy strict provider rules:\n${formatIssues(issues)}`
-          : 'Expected tool schema not to satisfy strict provider rules.',
+        message: () =>
+          issues.length
+            ? `Expected tool schema to satisfy strict provider rules:\n${formatIssues(issues)}`
+            : 'Expected tool schema not to satisfy strict provider rules.',
       }
     },
     toSatisfyStrictToolSchemas(received: Tool[]) {
-      const issues = received.flatMap(tool => collectStrictToolSchemaIssues(tool))
+      const issues = received.flatMap((tool) => collectStrictToolSchemaIssues(tool))
 
       return {
         pass: issues.length === 0,
-        message: () => issues.length
-          ? `Expected tool schemas to satisfy strict provider rules:\n${formatIssues(issues)}`
-          : 'Expected tool schemas not to satisfy strict provider rules.',
+        message: () =>
+          issues.length
+            ? `Expected tool schemas to satisfy strict provider rules:\n${formatIssues(issues)}`
+            : 'Expected tool schemas not to satisfy strict provider rules.',
       }
     },
   })

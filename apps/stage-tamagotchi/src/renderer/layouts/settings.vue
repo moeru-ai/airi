@@ -16,28 +16,28 @@ const providersStore = useProvidersStore()
 const scrollContainer = ref<HTMLElement>()
 useRestoreScroll(scrollContainer)
 
-const routeMeta = computed(() => route.meta as {
-  titleKey?: string
-  subtitleKey?: string
-  title?: string
-  subtitle?: string
-})
+const routeMeta = computed(
+  () =>
+    route.meta as {
+      titleKey?: string
+      subtitleKey?: string
+      title?: string
+      subtitle?: string
+    },
+)
 
 const providerTitle = computed(() => {
-  if (!route.path.startsWith('/settings/providers/'))
-    return undefined
+  if (!route.path.startsWith('/settings/providers/')) return undefined
 
   const segments = route.path.split('/').filter(Boolean)
   const providerId = segments[3]
 
-  if (!providerId)
-    return undefined
+  if (!providerId) return undefined
 
   try {
     const metadata = providersStore.getProviderMetadata(providerId)
     return t(metadata.nameKey)
-  }
-  catch {
+  } catch {
     return undefined
   }
 })
@@ -76,8 +76,8 @@ const routeHeaderMetadata = computed(() => {
         paddingRight: 'env(safe-area-inset-right, 0px)',
         paddingLeft: 'env(safe-area-inset-left, 0px)',
       }"
-
-      min-h-0 flex-1
+      min-h-0
+      flex-1
     >
       <div ref="scrollContainer" relative h-full w-full overflow-y-auto scrollbar-none>
         <div flex="~ col" mx-auto h-full max-w-screen-xl>

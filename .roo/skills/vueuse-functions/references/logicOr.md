@@ -32,9 +32,7 @@ whenever(logicOr(a, b), () => {
  *
  * @__NO_SIDE_EFFECTS__
  */
-export declare function logicOr(
-  ...args: MaybeRefOrGetter<any>[]
-): ComputedRef<boolean>
+export declare function logicOr(...args: MaybeRefOrGetter<any>[]): ComputedRef<boolean>
 /** @deprecated use `logicOr` instead */
 export declare const or: typeof logicOr
 ```

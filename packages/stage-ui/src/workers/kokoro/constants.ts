@@ -82,7 +82,7 @@ export const KOKORO_MODELS = [
 /**
  * Type for Kokoro quantization options
  */
-export type KokoroQuantization = typeof KOKORO_MODELS[number]['id']
+export type KokoroQuantization = (typeof KOKORO_MODELS)[number]['id']
 
 /**
  * Convert Kokoro models to ModelInfo array
@@ -92,21 +92,17 @@ export type KokoroQuantization = typeof KOKORO_MODELS[number]['id']
  * @returns Array of ModelInfo objects
  */
 export function kokoroModelsToModelInfo(hasWebGPU: boolean, t?: (key: string) => string, fp16Supported?: boolean) {
-  return KOKORO_MODELS
-    .filter((model) => {
-      if (model.platform === 'webgpu' && !hasWebGPU)
-        return false
-      // Filter out fp16-webgpu when fp16 is not supported
-      if (model.id === 'fp16-webgpu' && !fp16Supported)
-        return false
-      return true
-    })
-    .map(model => ({
-      id: model.id,
-      name: model.name,
-      provider: 'kokoro-local',
-      description: t ? t(model.descriptionKey) : model.descriptionKey,
-    }))
+  return KOKORO_MODELS.filter((model) => {
+    if (model.platform === 'webgpu' && !hasWebGPU) return false
+    // Filter out fp16-webgpu when fp16 is not supported
+    if (model.id === 'fp16-webgpu' && !fp16Supported) return false
+    return true
+  }).map((model) => ({
+    id: model.id,
+    name: model.name,
+    provider: 'kokoro-local',
+    description: t ? t(model.descriptionKey) : model.descriptionKey,
+  }))
 }
 
 /**

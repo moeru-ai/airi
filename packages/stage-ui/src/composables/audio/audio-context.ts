@@ -3,9 +3,7 @@ import type { MaybeRefOrGetter } from 'vue'
 import { until } from '@vueuse/core'
 import { shallowRef, toRef } from 'vue'
 
-export function useAudioContextFromStream(
-  media: MaybeRefOrGetter<MediaStream | undefined>,
-) {
+export function useAudioContextFromStream(media: MaybeRefOrGetter<MediaStream | undefined>) {
   const mediaRef = toRef(media)
   const audioContext = shallowRef<AudioContext>()
 

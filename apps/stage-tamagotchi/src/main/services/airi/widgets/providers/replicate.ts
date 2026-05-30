@@ -22,32 +22,26 @@ export class ReplicateProvider implements ArtistryProvider {
   setJobCallback(jobId: string, callback: (status: ArtistryJobStatus) => void) {
     this.callbacks.set(jobId, callback)
     const result = this.jobResults.get(jobId)
-    if (result)
-      callback(result)
+    if (result) callback(result)
   }
 
   private updateStatus(jobId: string, status: ArtistryJobStatus) {
     this.jobResults.set(jobId, status)
     const callback = this.callbacks.get(jobId)
-    if (callback)
-      callback(status)
+    if (callback) callback(status)
   }
 
   async initialize(config: any): Promise<void> {
     if (config?.replicateApiKey) {
       this.apiKey = config.replicateApiKey
       this.replicate = new Replicate({ auth: this.apiKey })
-    }
-    else {
+    } else {
       this.apiKey = ''
       this.replicate = null
     }
-    if (config?.replicateDefaultModel)
-      this.defaultModel = config.replicateDefaultModel
-    if (config?.replicateAspectRatio)
-      this.aspectRatio = config.replicateAspectRatio
-    if (config?.replicateInferenceSteps)
-      this.inferenceSteps = config.replicateInferenceSteps
+    if (config?.replicateDefaultModel) this.defaultModel = config.replicateDefaultModel
+    if (config?.replicateAspectRatio) this.aspectRatio = config.replicateAspectRatio
+    if (config?.replicateInferenceSteps) this.inferenceSteps = config.replicateInferenceSteps
   }
 
   async generate(request: ArtistryRequest): Promise<ArtistryJob> {
@@ -97,12 +91,10 @@ export class ReplicateProvider implements ArtistryProvider {
         }
         return result
       }
-      if (Array.isArray(obj))
-        return obj.map(replacePlaceholders)
+      if (Array.isArray(obj)) return obj.map(replacePlaceholders)
       if (typeof obj === 'object' && obj !== null) {
         const newObj: any = {}
-        for (const key in obj)
-          newObj[key] = replacePlaceholders(obj[key])
+        for (const key in obj) newObj[key] = replacePlaceholders(obj[key])
         return newObj
       }
       return obj
@@ -150,7 +142,12 @@ export class ReplicateProvider implements ArtistryProvider {
           imageUrl = (first as any).url().href
         }
         // Case 2: Object with url property as a string
-        else if (typeof first === 'object' && first !== null && 'url' in first && typeof (first as any).url === 'string') {
+        else if (
+          typeof first === 'object' &&
+          first !== null &&
+          'url' in first &&
+          typeof (first as any).url === 'string'
+        ) {
           imageUrl = (first as any).url
         }
         // Case 3: Simple string (the URL itself)
@@ -161,17 +158,14 @@ export class ReplicateProvider implements ArtistryProvider {
         if (imageUrl && (imageUrl.startsWith('http') || imageUrl.startsWith('data:'))) {
           log.log(`[Replicate] EXTRACTED IMAGE: ${imageUrl.startsWith('data:') ? 'DATA_URL' : imageUrl}`)
           this.updateStatus(jobId, { status: 'succeeded', progress: 100, imageUrl })
-        }
-        else {
+        } else {
           log.error(`[Replicate] Failed to extract URL from output: ${JSON.stringify(first)}`)
           throw new Error('Output does not contain a recognizable image URL.')
         }
-      }
-      else {
+      } else {
         throw new Error('Replicate returned an empty output array.')
       }
-    }
-    catch (error: any) {
+    } catch (error: any) {
       const errorMessage = error.message || (typeof error === 'object' ? JSON.stringify(error) : String(error))
       log.error(`[Replicate] Generation Failed for ${jobId}: ${errorMessage}`)
       this.updateStatus(jobId, {
@@ -179,8 +173,7 @@ export class ReplicateProvider implements ArtistryProvider {
         error: errorMessage,
         actionLabel: `Error: ${errorMessage.slice(0, 50)}${errorMessage.length > 50 ? '...' : ''}`,
       })
-    }
-    finally {
+    } finally {
       // Clean up callback and job result after completion to prevent memory leaks
       setTimeout(() => {
         this.callbacks.delete(jobId)
@@ -194,8 +187,7 @@ export class ReplicateProvider implements ArtistryProvider {
   }
 
   private truncatePrompt(prompt: string, maxChars: number = 380): string {
-    if (prompt.length <= maxChars)
-      return prompt
+    if (prompt.length <= maxChars) return prompt
     log.log(`[Replicate] Truncating prompt from ${prompt.length} to ${maxChars} chars.`)
     return `${prompt.slice(0, maxChars)}...`
   }

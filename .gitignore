@@ -64,7 +64,6 @@ components.d.ts
 **/typed-router.d.ts
 
 # Cache
-.eslintcache
 **/.cache/
 **/.vitepress/cache/
 **/*.tsbuildinfo

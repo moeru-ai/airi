@@ -22,7 +22,11 @@ interface Item {
 
 export const ArrayKey: InjectionKey<Ref<Item[]>> = Symbol('symbol-key')
 
-const array = ref([{ key: 1, value: '1' }, { key: 2, value: '2' }, { key: 3, value: '3' }])
+const array = ref([
+  { key: 1, value: '1' },
+  { key: 2, value: '2' },
+  { key: 3, value: '3' },
+])
 
 provide(ArrayKey, array)
 ```
@@ -54,7 +58,7 @@ import { computedInject } from '@vueuse/core'
 const computedArray = computedInject(
   ArrayKey,
   (source) => {
-    return source.value.map(item => item.value)
+    return source.value.map((item) => item.value)
   },
   ref([]), // default source value
 )
@@ -70,7 +74,7 @@ import { computedInject } from '@vueuse/core'
 const computedArray = computedInject(
   ArrayKey,
   (source) => {
-    return source.value.map(item => item.value)
+    return source.value.map((item) => item.value)
   },
   () => ref([]), // factory function for default
   true, // treat default as factory
@@ -86,7 +90,7 @@ import { computedInject } from '@vueuse/core'
 
 const computedArray = computedInject(ArrayKey, {
   get(source) {
-    return source.value.map(item => item.value)
+    return source.value.map((item) => item.value)
   },
   set(value) {
     // handle setting the value
@@ -98,14 +102,8 @@ const computedArray = computedInject(ArrayKey, {
 ## Type Declarations
 
 ```ts
-export type ComputedInjectGetter<T, K> = (
-  source: T | undefined,
-  oldValue?: K,
-) => K
-export type ComputedInjectGetterWithDefault<T, K> = (
-  source: T,
-  oldValue?: K,
-) => K
+export type ComputedInjectGetter<T, K> = (source: T | undefined, oldValue?: K) => K
+export type ComputedInjectGetterWithDefault<T, K> = (source: T, oldValue?: K) => K
 export type ComputedInjectSetter<T> = (v: T) => void
 export interface WritableComputedInjectOptions<T, K> {
   get: ComputedInjectGetter<T, K>

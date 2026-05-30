@@ -51,8 +51,5 @@ export interface UseParallaxReturn {
  * @param target
  * @param options
  */
-export declare function useParallax(
-  target: MaybeElementRef,
-  options?: UseParallaxOptions,
-): UseParallaxReturn
+export declare function useParallax(target: MaybeElementRef, options?: UseParallaxOptions): UseParallaxReturn
 ```

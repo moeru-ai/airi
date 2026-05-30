@@ -147,7 +147,10 @@ export function createStaticAssetSessionStore(options: { now?: () => number } = 
     return true
   }
 
-  const readActiveRecord = (assetSessionId: string, expiredCode: string): { ok: false, result: { ok: false, error: HttpError } } | { ok: true, record: StaticAssetSessionRecord } => {
+  const readActiveRecord = (
+    assetSessionId: string,
+    expiredCode: string,
+  ): { ok: false; result: { ok: false; error: HttpError } } | { ok: true; record: StaticAssetSessionRecord } => {
     const record = records.get(assetSessionId)
     if (!record) {
       return {
@@ -209,7 +212,10 @@ export function createStaticAssetSessionStore(options: { now?: () => number } = 
     }
 
     if (record.extensionId !== input.extensionId) {
-      return unauthorized('EXTENSION_ASSET_EXTENSION_MISMATCH', 'asset session extensionId does not match request extensionId')
+      return unauthorized(
+        'EXTENSION_ASSET_EXTENSION_MISMATCH',
+        'asset session extensionId does not match request extensionId',
+      )
     }
 
     if (record.version !== input.version) {
@@ -273,10 +279,10 @@ export function createStaticAssetSessionStore(options: { now?: () => number } = 
       return createSessionSnapshot(record)
     },
     revokeByOwnerSessionId(ownerSessionId) {
-      return revokeWhere(record => record.ownerSessionId === ownerSessionId)
+      return revokeWhere((record) => record.ownerSessionId === ownerSessionId)
     },
     revokeByExtensionId(extensionId) {
-      return revokeWhere(record => record.extensionId === extensionId)
+      return revokeWhere((record) => record.extensionId === extensionId)
     },
     revokeAll() {
       return revokeWhere(() => true)

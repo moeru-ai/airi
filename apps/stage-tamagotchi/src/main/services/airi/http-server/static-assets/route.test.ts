@@ -34,28 +34,31 @@ describe('createStaticAssetRoute', () => {
 
   it('returns 401 when cookie is missing', async () => {
     const app = new H3()
-    app.get('/_airi/extensions/**', createStaticAssetRoute({
-      authorize: async () => ({
-        ok: false,
-        error: new HttpError({
-          status: 401,
-          code: 'COOKIE_MISSING',
-          message: 'Unauthorized',
+    app.get(
+      '/_airi/extensions/**',
+      createStaticAssetRoute({
+        authorize: async () => ({
+          ok: false,
+          error: new HttpError({
+            status: 401,
+            code: 'COOKIE_MISSING',
+            message: 'Unauthorized',
+          }),
+        }),
+        refreshSession: () => undefined,
+        resolveAsset: async () => ({
+          ok: false,
+          error: new HttpError({
+            status: 404,
+            code: 'NOT_FOUND',
+            message: 'Not Found',
+          }),
         }),
       }),
-      refreshSession: () => undefined,
-      resolveAsset: async () => ({
-        ok: false,
-        error: new HttpError({
-          status: 404,
-          code: 'NOT_FOUND',
-          message: 'Not Found',
-        }),
-      }),
-    }))
+    )
 
     server = createServer(toNodeHandler(app))
-    await new Promise<void>(resolve => server!.listen(0, '127.0.0.1', () => resolve()))
+    await new Promise<void>((resolve) => server!.listen(0, '127.0.0.1', () => resolve()))
     const address = server.address()
     const port = typeof address === 'object' && address ? address.port : 0
 
@@ -68,28 +71,31 @@ describe('createStaticAssetRoute', () => {
 
   it('returns 405 with security headers when method is not allowed', async () => {
     const app = new H3()
-    app.use('/_airi/extensions/**', createStaticAssetRoute({
-      authorize: async () => ({
-        ok: false,
-        error: new HttpError({
-          status: 401,
-          code: 'COOKIE_MISSING',
-          message: 'Unauthorized',
+    app.use(
+      '/_airi/extensions/**',
+      createStaticAssetRoute({
+        authorize: async () => ({
+          ok: false,
+          error: new HttpError({
+            status: 401,
+            code: 'COOKIE_MISSING',
+            message: 'Unauthorized',
+          }),
+        }),
+        refreshSession: () => undefined,
+        resolveAsset: async () => ({
+          ok: false,
+          error: new HttpError({
+            status: 404,
+            code: 'NOT_FOUND',
+            message: 'Not Found',
+          }),
         }),
       }),
-      refreshSession: () => undefined,
-      resolveAsset: async () => ({
-        ok: false,
-        error: new HttpError({
-          status: 404,
-          code: 'NOT_FOUND',
-          message: 'Not Found',
-        }),
-      }),
-    }))
+    )
 
     server = createServer(toNodeHandler(app))
-    await new Promise<void>(resolve => server!.listen(0, '127.0.0.1', () => resolve()))
+    await new Promise<void>((resolve) => server!.listen(0, '127.0.0.1', () => resolve()))
     const address = server.address()
     const port = typeof address === 'object' && address ? address.port : 0
 
@@ -113,36 +119,39 @@ describe('createStaticAssetRoute', () => {
     let authorizedCookieValue: string | undefined
     let refreshedSessionId: string | undefined
     const app = new H3()
-    app.get('/_airi/extensions/**', createStaticAssetRoute({
-      authorize: async ({ cookieValue }) => {
-        authorizeCalled = true
-        authorizedCookieValue = cookieValue
-        return {
+    app.get(
+      '/_airi/extensions/**',
+      createStaticAssetRoute({
+        authorize: async ({ cookieValue }) => {
+          authorizeCalled = true
+          authorizedCookieValue = cookieValue
+          return {
+            ok: true,
+            session: {
+              assetSessionId: 's1',
+              cookieName: createStaticAssetSessionCookieName('s1'),
+              cookieValue: 'test-token',
+              cookiePath: '/_airi/extensions/a/sessions/s1/ui',
+              expiresAt: Date.now() + 1000,
+            },
+          }
+        },
+        refreshSession: (assetSessionId) => {
+          refreshedSessionId = assetSessionId
+          return undefined
+        },
+        resolveAsset: async () => ({
           ok: true,
-          session: {
-            assetSessionId: 's1',
-            cookieName: createStaticAssetSessionCookieName('s1'),
-            cookieValue: 'test-token',
-            cookiePath: '/_airi/extensions/a/sessions/s1/ui',
-            expiresAt: Date.now() + 1000,
-          },
-        }
-      },
-      refreshSession: (assetSessionId) => {
-        refreshedSessionId = assetSessionId
-        return undefined
-      },
-      resolveAsset: async () => ({
-        ok: true,
-        filePath: wasmFilePath,
-        size: 4,
-        mtime: Date.now(),
+          filePath: wasmFilePath,
+          size: 4,
+          mtime: Date.now(),
+        }),
+        getType: (ext) => (ext === '.wasm' ? 'application/wasm' : undefined),
       }),
-      getType: ext => ext === '.wasm' ? 'application/wasm' : undefined,
-    }))
+    )
 
     server = createServer(toNodeHandler(app))
-    await new Promise<void>(resolve => server!.listen(0, '127.0.0.1', () => resolve()))
+    await new Promise<void>((resolve) => server!.listen(0, '127.0.0.1', () => resolve()))
     const address = server.address()
     const port = typeof address === 'object' && address ? address.port : 0
 
@@ -169,36 +178,39 @@ describe('createStaticAssetRoute', () => {
     let authorizeCalled = false
     let refreshedSessionId: string | undefined
     const app = new H3()
-    app.use('/_airi/extensions/**', createStaticAssetRoute({
-      authorize: async ({ cookieValue }) => {
-        authorizeCalled = true
-        expect(cookieValue).toBe('test-token')
-        return {
+    app.use(
+      '/_airi/extensions/**',
+      createStaticAssetRoute({
+        authorize: async ({ cookieValue }) => {
+          authorizeCalled = true
+          expect(cookieValue).toBe('test-token')
+          return {
+            ok: true,
+            session: {
+              assetSessionId: 's1',
+              cookieName: createStaticAssetSessionCookieName('s1'),
+              cookieValue: 'test-token',
+              cookiePath: '/_airi/extensions/a/sessions/s1/ui',
+              expiresAt: Date.now() + 1000,
+            },
+          }
+        },
+        refreshSession: (assetSessionId) => {
+          refreshedSessionId = assetSessionId
+          return undefined
+        },
+        resolveAsset: async () => ({
           ok: true,
-          session: {
-            assetSessionId: 's1',
-            cookieName: createStaticAssetSessionCookieName('s1'),
-            cookieValue: 'test-token',
-            cookiePath: '/_airi/extensions/a/sessions/s1/ui',
-            expiresAt: Date.now() + 1000,
-          },
-        }
-      },
-      refreshSession: (assetSessionId) => {
-        refreshedSessionId = assetSessionId
-        return undefined
-      },
-      resolveAsset: async () => ({
-        ok: true,
-        filePath: wasmFilePath,
-        size: 4,
-        mtime: Date.now(),
+          filePath: wasmFilePath,
+          size: 4,
+          mtime: Date.now(),
+        }),
+        getType: (ext) => (ext === '.wasm' ? 'application/wasm' : undefined),
       }),
-      getType: ext => ext === '.wasm' ? 'application/wasm' : undefined,
-    }))
+    )
 
     server = createServer(toNodeHandler(app))
-    await new Promise<void>(resolve => server!.listen(0, '127.0.0.1', () => resolve()))
+    await new Promise<void>((resolve) => server!.listen(0, '127.0.0.1', () => resolve()))
     const address = server.address()
     const port = typeof address === 'object' && address ? address.port : 0
 

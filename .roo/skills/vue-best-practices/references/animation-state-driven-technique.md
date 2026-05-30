@@ -28,16 +28,12 @@ const hue = ref(0)
 function onMousemove(e) {
   // Map mouse X position to hue (0-360)
   const rect = e.currentTarget.getBoundingClientRect()
-  hue.value = Math.round((e.clientX - rect.left) / rect.width * 360)
+  hue.value = Math.round(((e.clientX - rect.left) / rect.width) * 360)
 }
 </script>
 
 <template>
-  <div
-    :style="{ backgroundColor: `hsl(${hue}, 80%, 50%)` }"
-    class="interactive-area"
-    @mousemove="onMousemove"
-  >
+  <div :style="{ backgroundColor: `hsl(${hue}, 80%, 50%)` }" class="interactive-area" @mousemove="onMousemove">
     <p>Move your mouse across this div...</p>
     <p>Hue: {{ hue }}</p>
   </div>
@@ -74,10 +70,7 @@ function onMousemove(e) {
 </script>
 
 <template>
-  <div
-    class="container"
-    @mousemove="onMousemove"
-  >
+  <div class="container" @mousemove="onMousemove">
     <div
       class="follower"
       :style="{
@@ -118,17 +111,9 @@ const progress = ref(0)
 
 <template>
   <div class="progress-container">
-    <div
-      class="progress-bar"
-      :style="{ width: `${progress}%` }"
-    />
+    <div class="progress-bar" :style="{ width: `${progress}%` }" />
   </div>
-  <input
-    v-model.number="progress"
-    type="range"
-    min="0"
-    max="100"
-  >
+  <input v-model.number="progress" type="range" min="0" max="100" />
 </template>
 
 <style>
@@ -141,7 +126,7 @@ const progress = ref(0)
 
 .progress-bar {
   height: 100%;
-  background: linear-gradient(90deg, #4CAF50, #8BC34A);
+  background: linear-gradient(90deg, #4caf50, #8bc34a);
   transition: width 0.3s ease;
 }
 </style>
@@ -210,8 +195,8 @@ const isDark = ref(false)
 const themeStyles = computed(() => ({
   '--bg-color': isDark.value ? '#1a1a1a' : '#ffffff',
   '--text-color': isDark.value ? '#ffffff' : '#1a1a1a',
-  'backgroundColor': 'var(--bg-color)',
-  'color': 'var(--text-color)'
+  backgroundColor: 'var(--bg-color)',
+  color: 'var(--text-color)',
 }))
 
 function toggleTheme() {
@@ -220,13 +205,8 @@ function toggleTheme() {
 </script>
 
 <template>
-  <div
-    class="app"
-    :style="themeStyles"
-  >
-    <button @click="toggleTheme">
-      Toggle Theme
-    </button>
+  <div class="app" :style="themeStyles">
+    <button @click="toggleTheme">Toggle Theme</button>
     <p>Current theme: {{ isDark ? 'Dark' : 'Light' }}</p>
   </div>
 </template>
@@ -234,7 +214,9 @@ function toggleTheme() {
 <style>
 .app {
   min-height: 100vh;
-  transition: background-color 0.5s ease, color 0.5s ease;
+  transition:
+    background-color 0.5s ease,
+    color 0.5s ease;
 }
 </style>
 ```
@@ -259,14 +241,14 @@ watch(targetNumber, (newValue) => {
   gsap.to(tweened, {
     duration: 0.5,
     value: Number(newValue) || 0,
-    ease: 'power2.out'
+    ease: 'power2.out',
   })
 })
 </script>
 
 <template>
   <div>
-    <input v-model.number="targetNumber" type="number">
+    <input v-model.number="targetNumber" type="number" />
     <p class="counter">
       {{ displayNumber.toFixed(0) }}
     </p>
@@ -280,12 +262,17 @@ watch(targetNumber, (newValue) => {
 <style>
 /* GOOD: GPU-accelerated properties */
 .element {
-  transition: transform 0.3s ease, opacity 0.3s ease;
+  transition:
+    transform 0.3s ease,
+    opacity 0.3s ease;
 }
 
 /* AVOID: Properties that trigger layout recalculation */
 .element {
-  transition: width 0.3s ease, height 0.3s ease, margin 0.3s ease;
+  transition:
+    width 0.3s ease,
+    height 0.3s ease,
+    margin 0.3s ease;
 }
 
 /* For high-frequency updates, consider will-change */

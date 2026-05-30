@@ -5,8 +5,25 @@ import { computed, ref, watch } from 'vue'
 import { useAuthStore } from './auth'
 import { useProvidersStore } from './providers'
 
-const essentialProviderIds = ['openai', 'azure-openai', 'anthropic', 'google-generative-ai', 'openrouter-ai', 'ollama', 'deepseek', 'openai-compatible', 'official-provider'] as const
-const credentialBasedEssentialProviderIds = ['openai', 'azure-openai', 'anthropic', 'google-generative-ai', 'openrouter-ai', 'deepseek'] as const
+const essentialProviderIds = [
+  'openai',
+  'azure-openai',
+  'anthropic',
+  'google-generative-ai',
+  'openrouter-ai',
+  'ollama',
+  'deepseek',
+  'openai-compatible',
+  'official-provider',
+] as const
+const credentialBasedEssentialProviderIds = [
+  'openai',
+  'azure-openai',
+  'anthropic',
+  'google-generative-ai',
+  'openrouter-ai',
+  'deepseek',
+] as const
 
 function hasNonEmptyText(value: unknown): boolean {
   return typeof value === 'string' && value.trim().length > 0
@@ -25,7 +42,7 @@ export const useOnboardingStore = defineStore('onboarding', () => {
 
   // Check if any essential provider is configured
   const hasEssentialProviderConfigured = computed(() => {
-    return essentialProviderIds.some(providerId => providersStore.configuredProviders[providerId])
+    return essentialProviderIds.some((providerId) => providersStore.configuredProviders[providerId])
   })
 
   // Fallback for app startup timing:
@@ -44,12 +61,13 @@ export const useOnboardingStore = defineStore('onboarding', () => {
 
   // Check if first-time setup should be shown
   const skipOnboardingPath = ['/auth/callback']
-  const needsOnboarding = computed(() =>
-    !authStore.isAuthenticated
-    && !authStore.token
-    && !hasSkippedSetup.value
-    && !hasCompletedSetup.value
-    && !skipOnboardingPath.includes(document.location.pathname),
+  const needsOnboarding = computed(
+    () =>
+      !authStore.isAuthenticated &&
+      !authStore.token &&
+      !hasSkippedSetup.value &&
+      !hasCompletedSetup.value &&
+      !skipOnboardingPath.includes(document.location.pathname),
   )
 
   // Keep in-memory display flag aligned with persisted onboarding status

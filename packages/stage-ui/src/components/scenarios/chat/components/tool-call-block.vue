@@ -11,14 +11,13 @@ const props = defineProps<{
   result?: unknown
 }>()
 
-const resultError = computed(() => props.state === 'error' ? createToolResultError(props.result) : undefined)
+const resultError = computed(() => (props.state === 'error' ? createToolResultError(props.result) : undefined))
 
 const formattedArgs = computed(() => {
   try {
     const parsed = JSON.parse(props.args)
     return JSON.stringify(parsed, null, 2).trim()
-  }
-  catch {
+  } catch {
     return props.args
   }
 })
@@ -26,35 +25,18 @@ const formattedArgs = computed(() => {
 
 <template>
   <Collapsible
-    :class="[
-      'bg-primary-100/40 dark:bg-primary-900/60 rounded-lg px-1 pb-1 pt-1',
-      'flex flex-col gap-2 items-start',
-    ]"
+    :class="['bg-primary-100/40 dark:bg-primary-900/60 rounded-lg px-1 pb-1 pt-1', 'flex flex-col gap-2 items-start']"
   >
     <template #trigger="{ visible, setVisible }">
-      <button
-        :class="[
-          'w-full text-start',
-          'inline-flex items-center',
-        ]"
-        @click="setVisible(!visible)"
-      >
-        <div
-          v-if="state === 'executing'"
-          i-eos-icons:loading class="mr-1 inline-block op-50"
-        />
-        <div
-          v-else-if="state === 'error'"
-          i-solar:danger-circle-bold-duotone class="mr-1 inline-block text-red-500"
-        />
+      <button :class="['w-full text-start', 'inline-flex items-center']" @click="setVisible(!visible)">
+        <div v-if="state === 'executing'" i-eos-icons:loading class="mr-1 inline-block op-50" />
+        <div v-else-if="state === 'error'" i-solar:danger-circle-bold-duotone class="mr-1 inline-block text-red-500" />
         <div
           v-else-if="state === 'done'"
-          i-solar:check-circle-bold-duotone class="mr-1 inline-block text-emerald-500"
+          i-solar:check-circle-bold-duotone
+          class="mr-1 inline-block text-emerald-500"
         />
-        <div
-          v-else
-          i-solar:sledgehammer-bold-duotone class="mr-1 inline-block translate-y-1 op-50"
-        />
+        <div v-else i-solar:sledgehammer-bold-duotone class="mr-1 inline-block translate-y-1 op-50" />
         <code class="text-xs">{{ toolName }}</code>
       </button>
     </template>
@@ -71,11 +53,7 @@ const formattedArgs = computed(() => {
           :show-feedback-button="false"
           height-preset="auto"
         />
-        <div
-          :class="[
-            'mt-2 whitespace-pre-wrap break-words font-mono',
-          ]"
-        >
+        <div :class="['mt-2 whitespace-pre-wrap break-words font-mono']">
           {{ formattedArgs }}
         </div>
       </template>

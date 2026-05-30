@@ -15,11 +15,7 @@ const subtitleTextColor = ref('#6693b6')
 </script>
 
 <template>
-  <Story
-    title="Character Card"
-    group="menu"
-    :layout="{ type: 'grid', width: 500 }"
-  >
+  <Story title="Character Card" group="menu" :layout="{ type: 'grid', width: 500 }">
     <template #controls>
       <ThemeColorsHueControl />
       <CharacterCardColorControls
@@ -34,10 +30,7 @@ const subtitleTextColor = ref('#6693b6')
       />
     </template>
 
-    <Variant
-      id="default"
-      title="Character Card"
-    >
+    <Variant id="default" title="Character Card">
       <div p-4>
         <CharacterCard
           title="ReLU"
@@ -58,10 +51,7 @@ const subtitleTextColor = ref('#6693b6')
       </div>
     </Variant>
 
-    <Variant
-      id="default-without-image"
-      title="Character Card without image"
-    >
+    <Variant id="default-without-image" title="Character Card without image">
       <div p-4>
         <CharacterCard
           title="ReLU"
@@ -81,10 +71,7 @@ const subtitleTextColor = ref('#6693b6')
       </div>
     </Variant>
 
-    <Variant
-      id="poc-layout"
-      title="Proof of Concept Layout"
-    >
+    <Variant id="poc-layout" title="Proof of Concept Layout">
       <div flex="1 ~ items-center justify-center" h-full w-full bg-gray-500>
         <div h-180 w-100 rounded>
           <div h-full flex>

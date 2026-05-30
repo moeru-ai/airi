@@ -44,10 +44,7 @@ factor.value = 2 // zoom factor will change
 
 ```ts
 export declare function useZoomFactor(factor: MaybeRef<number>): Ref<number>
-export declare function useZoomFactor(
-  webFrame: WebFrame,
-  factor: MaybeRef<number>,
-): Ref<number>
+export declare function useZoomFactor(webFrame: WebFrame, factor: MaybeRef<number>): Ref<number>
 export declare function useZoomFactor(webFrame: WebFrame): Ref<number>
 export declare function useZoomFactor(): Ref<number>
 ```

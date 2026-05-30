@@ -36,8 +36,7 @@ const hasOnboardingFields = computed(() => (props.selectedProvider?.onboardingFi
 // Initialize form with default values when provider changes
 function initializeForm() {
   const provider = props.selectedProvider
-  if (!provider)
-    return
+  if (!provider) return
 
   const defaultOptions = provider.defaultOptions?.() ?? {}
   baseUrl.value = ('baseUrl' in defaultOptions ? String(defaultOptions.baseUrl) : '') || ''
@@ -60,29 +59,29 @@ function initializeForm() {
 // Watch for provider changes
 watch(() => props.selectedProvider?.id, initializeForm)
 
-watch([apiKey, baseUrl, accountId, customFieldValues], () => {
-  if (validation.value === 'failed' || validation.value === 'succeed') {
-    validation.value = 'unchecked'
-    validationError.value = undefined
-  }
-}, { deep: true })
+watch(
+  [apiKey, baseUrl, accountId, customFieldValues],
+  () => {
+    if (validation.value === 'failed' || validation.value === 'succeed') {
+      validation.value = 'unchecked'
+      validationError.value = undefined
+    }
+  },
+  { deep: true },
+)
 
 // Computed properties
 const needsApiKey = computed(() => {
-  if (!props.selectedProvider)
-    return false
+  if (!props.selectedProvider) return false
   // Providers with custom onboarding fields handle their own auth
-  if (hasOnboardingFields.value)
-    return false
+  if (hasOnboardingFields.value) return false
   return props.selectedProvider.id !== 'ollama' && props.selectedProvider.id !== 'player2'
 })
 
 const needsBaseUrl = computed(() => {
-  if (!props.selectedProvider)
-    return false
+  if (!props.selectedProvider) return false
   // Providers with custom onboarding fields handle their own endpoints
-  if (hasOnboardingFields.value)
-    return false
+  if (hasOnboardingFields.value) return false
   return props.selectedProvider.id !== 'cloudflare-workers-ai'
 })
 
@@ -91,17 +90,14 @@ const showChatCheckOption = computed(() => {
 })
 
 const canProceed = computed(() => {
-  if (!props.selectedProviderId)
-    return false
+  if (!props.selectedProviderId) return false
 
   if (hasOnboardingFields.value) {
     const fields = props.selectedProvider?.onboardingFields ?? []
     for (const field of fields) {
-      if (field.required && !customFieldValues.value[field.key]?.trim())
-        return false
+      if (field.required && !customFieldValues.value[field.key]?.trim()) return false
     }
-  }
-  else if (needsApiKey.value && !apiKey.value.trim()) {
+  } else if (needsApiKey.value && !apiKey.value.trim()) {
     return false
   }
 
@@ -109,14 +105,11 @@ const canProceed = computed(() => {
 })
 
 const primaryActionLabel = computed(() => {
-  return validation.value === 'failed'
-    ? t('settings.dialogs.onboarding.retry')
-    : t('settings.dialogs.onboarding.next')
+  return validation.value === 'failed' ? t('settings.dialogs.onboarding.retry') : t('settings.dialogs.onboarding.next')
 })
 
 async function validateConfiguration() {
-  if (!props.selectedProvider)
-    return
+  if (!props.selectedProvider) return
 
   validation.value = 'pending'
   validationError.value = undefined
@@ -127,17 +120,12 @@ async function validateConfiguration() {
 
     if (hasOnboardingFields.value) {
       for (const [key, value] of Object.entries(customFieldValues.value)) {
-        if (value)
-          config[key] = value.trim()
+        if (value) config[key] = value.trim()
       }
-    }
-    else {
-      if (needsApiKey.value)
-        config.apiKey = apiKey.value.trim()
-      if (needsBaseUrl.value)
-        config.baseUrl = baseUrl.value.trim()
-      if (props.selectedProvider.id === 'cloudflare-workers-ai')
-        config.accountId = accountId.value.trim()
+    } else {
+      if (needsApiKey.value) config.apiKey = apiKey.value.trim()
+      if (needsBaseUrl.value) config.baseUrl = baseUrl.value.trim()
+      if (props.selectedProvider.id === 'cloudflare-workers-ai') config.accountId = accountId.value.trim()
     }
 
     // Validate using provider's validator
@@ -149,8 +137,7 @@ async function validateConfiguration() {
     if (validation.value === 'failed') {
       validationError.value = validationResult.reason
     }
-  }
-  catch (error) {
+  } catch (error) {
     validation.value = 'failed'
     validationError.value = t('settings.dialogs.onboarding.validationError', {
       error: errorMessageFrom(error) ?? 'Unknown error',
@@ -170,8 +157,7 @@ async function handleNext() {
 }
 
 async function handleContinueAnyway() {
-  if (!props.selectedProvider)
-    return
+  if (!props.selectedProvider) return
 
   await props.onNext({
     apiKey: apiKey.value,
@@ -185,20 +171,20 @@ async function handleContinueAnyway() {
 // Placeholder helpers
 function getApiKeyPlaceholder(providerId: string): string {
   const placeholders: Record<string, string> = {
-    'openai': 'sk-...',
+    openai: 'sk-...',
     'azure-openai': 'Azure OpenAI API Key',
-    'anthropic': 'sk-ant-...',
+    anthropic: 'sk-ant-...',
     'google-generative-ai': 'AI...',
     'openrouter-ai': 'sk-or-...',
-    'deepseek': 'sk-...',
-    'xai': 'xai-...',
+    deepseek: 'sk-...',
+    xai: 'xai-...',
     'together-ai': 'togetherapi-...',
     'mistral-ai': 'mis-...',
     'moonshot-ai': 'ms-...',
-    'modelscope': 'ms-...',
+    modelscope: 'ms-...',
     'fireworks-ai': 'fw-...',
     'featherless-ai': 'fw-...',
-    'nvidia': 'nvapi-...',
+    nvidia: 'nvapi-...',
     'novita-ai': 'nvt-...',
   }
 
@@ -220,7 +206,9 @@ initializeForm()
       <button outline-none @click="props.onPrevious">
         <div i-solar:alt-arrow-left-line-duotone h-5 w-5 />
       </button>
-      <h2 class="flex-1 text-center text-xl text-neutral-800 font-semibold md:text-left md:text-2xl dark:text-neutral-100">
+      <h2
+        class="flex-1 text-center text-xl text-neutral-800 font-semibold md:text-left md:text-2xl dark:text-neutral-100"
+      >
         {{ t('settings.dialogs.onboarding.configureProvider', { provider: props.selectedProvider?.localizedName }) }}
       </h2>
       <div h-5 w-5 />
@@ -235,7 +223,16 @@ initializeForm()
             <i18n-t keypath="settings.dialogs.onboarding.credentialsSafeOpenSource" tag="span">
               <template #github>
                 <span inline-flex translate-y-1 items-center gap-1>
-                  <span i-simple-icons:github inline-block /><a decoration-underline decoration-dashed href="https://github.com/moeru-ai/airi" target="_blank" rel="noopener noreferrer">GitHub</a>
+                  <span i-simple-icons:github inline-block />
+                  <a
+                    decoration-underline
+                    decoration-dashed
+                    href="https://github.com/moeru-ai/airi"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    GitHub
+                  </a>
                 </span>
               </template>
             </i18n-t>

@@ -9,7 +9,8 @@ export const models = [
     can_use_speaker_boost: true,
     serves_pro_voices: false,
     token_cost_factor: 1,
-    description: 'Our most life-like, emotionally rich mode in 29 languages. Best for voice overs, audiobooks, post-production, or any other content creation needs.',
+    description:
+      'Our most life-like, emotionally rich mode in 29 languages. Best for voice overs, audiobooks, post-production, or any other content creation needs.',
     requires_alpha_access: false,
     max_characters_request_free_user: 10000,
     max_characters_request_subscribed_user: 10000,
@@ -297,7 +298,8 @@ export const models = [
     can_use_speaker_boost: false,
     serves_pro_voices: false,
     token_cost_factor: 1,
-    description: 'Our high quality, low latency model in 32 languages. Best for developer use cases where speed matters and you need non-English languages.',
+    description:
+      'Our high quality, low latency model in 32 languages. Best for developer use cases where speed matters and you need non-English languages.',
     requires_alpha_access: false,
     max_characters_request_free_user: 40000,
     max_characters_request_subscribed_user: 40000,
@@ -447,7 +449,8 @@ export const models = [
     can_use_speaker_boost: false,
     serves_pro_voices: false,
     token_cost_factor: 1,
-    description: 'Our English-only, low latency model. Best for developer use cases where speed matters and you only need English. Performance is on par with Turbo v2.5.',
+    description:
+      'Our English-only, low latency model. Best for developer use cases where speed matters and you only need English. Performance is on par with Turbo v2.5.',
     requires_alpha_access: false,
     max_characters_request_free_user: 30000,
     max_characters_request_subscribed_user: 30000,
@@ -499,7 +502,8 @@ export const models = [
     can_use_speaker_boost: true,
     serves_pro_voices: false,
     token_cost_factor: 1,
-    description: 'Our state-of-the-art speech to speech model suitable for scenarios where you need maximum control over the content and prosody of your generations.',
+    description:
+      'Our state-of-the-art speech to speech model suitable for scenarios where you need maximum control over the content and prosody of your generations.',
     requires_alpha_access: false,
     max_characters_request_free_user: 5000,
     max_characters_request_subscribed_user: 5000,
@@ -525,7 +529,8 @@ export const models = [
     can_use_speaker_boost: false,
     serves_pro_voices: false,
     token_cost_factor: 1,
-    description: 'Our first Multilingual model, capability of generating speech in 10 languages. Now outclassed by Multilingual v2 (for content creation) and Turbo v2.5 (for low latency use cases).',
+    description:
+      'Our first Multilingual model, capability of generating speech in 10 languages. Now outclassed by Multilingual v2 (for content creation) and Turbo v2.5 (for low latency use cases).',
     requires_alpha_access: false,
     max_characters_request_free_user: 10000,
     max_characters_request_subscribed_user: 10000,
@@ -583,7 +588,8 @@ export const models = [
     can_use_speaker_boost: true,
     serves_pro_voices: false,
     token_cost_factor: 1,
-    description: 'Our cutting-edge, multilingual speech-to-speech model is designed for situations that demand unparalleled control over both the content and the prosody of the generated speech across various languages.',
+    description:
+      'Our cutting-edge, multilingual speech-to-speech model is designed for situations that demand unparalleled control over both the content and the prosody of the generated speech across various languages.',
     requires_alpha_access: false,
     max_characters_request_free_user: 10000,
     max_characters_request_subscribed_user: 10000,
@@ -721,7 +727,8 @@ export const models = [
     can_use_speaker_boost: false,
     serves_pro_voices: false,
     token_cost_factor: 1,
-    description: 'Our first ever text to speech model. Now outclassed by Multilingual v2 (for content creation) and Turbo v2.5 (for low latency use cases).',
+    description:
+      'Our first ever text to speech model. Now outclassed by Multilingual v2 (for content creation) and Turbo v2.5 (for low latency use cases).',
     requires_alpha_access: false,
     max_characters_request_free_user: 10000,
     max_characters_request_subscribed_user: 10000,

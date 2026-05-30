@@ -46,43 +46,19 @@ function resetToDefault() {
 <template>
   <div px-4 py-2 flex="~ col">
     <div mb-4>
-      <h4 mb-2 font-medium>
-        Card Colors
-      </h4>
+      <h4 mb-2 font-medium>Card Colors</h4>
 
-      <ColorPickerControl
-        v-model:color="primaryColor"
-        label="Primary Color"
-        name="primaryColor"
-      />
+      <ColorPickerControl v-model:color="primaryColor" label="Primary Color" name="primaryColor" />
 
-      <ColorPickerControl
-        v-model:color="secondaryColor"
-        label="Secondary Color"
-        name="secondaryColor"
-      />
+      <ColorPickerControl v-model:color="secondaryColor" label="Secondary Color" name="secondaryColor" />
 
-      <ColorPickerControl
-        v-model:color="backgroundColor"
-        label="Background Color"
-        name="backgroundColor"
-      />
+      <ColorPickerControl v-model:color="backgroundColor" label="Background Color" name="backgroundColor" />
 
-      <h4 mb-2 mt-4 font-medium>
-        Text Colors
-      </h4>
+      <h4 mb-2 mt-4 font-medium>Text Colors</h4>
 
-      <ColorPickerControl
-        v-model:color="textColor"
-        label="Title Text Color"
-        name="textColor"
-      />
+      <ColorPickerControl v-model:color="textColor" label="Title Text Color" name="textColor" />
 
-      <ColorPickerControl
-        v-model:color="subtitleTextColor"
-        label="Subtitle Text Color"
-        name="subtitleTextColor"
-      />
+      <ColorPickerControl v-model:color="subtitleTextColor" label="Subtitle Text Color" name="subtitleTextColor" />
 
       <ColorPickerControl
         v-model:color="descriptionTextColor"
@@ -90,15 +66,9 @@ function resetToDefault() {
         name="descriptionTextColor"
       />
 
-      <h4 mb-2 mt-4 font-medium>
-        Text Shadow
-      </h4>
+      <h4 mb-2 mt-4 font-medium>Text Shadow</h4>
 
-      <ColorPickerControl
-        v-model:color="textShadowColor"
-        label="Shadow Color"
-        name="textShadowColor"
-      />
+      <ColorPickerControl v-model:color="textShadowColor" label="Shadow Color" name="textShadowColor" />
 
       <div mb-3>
         <div mb-1>
@@ -114,11 +84,7 @@ function resetToDefault() {
           bg="white dark:neutral-800"
           text="neutral-800 dark:neutral-200"
         >
-          <option
-            v-for="option in textShadowSizeOptions"
-            :key="option.value"
-            :value="option.value"
-          >
+          <option v-for="option in textShadowSizeOptions" :key="option.value" :value="option.value">
             {{ option.label }}
           </option>
         </select>

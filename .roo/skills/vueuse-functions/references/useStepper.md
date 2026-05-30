@@ -31,11 +31,7 @@ const {
   isCurrent,
   isBefore,
   isAfter,
-} = useStepper([
-  'billing-address',
-  'terms',
-  'payment',
-])
+} = useStepper(['billing-address', 'terms', 'payment'])
 
 // Access the step through `current`
 console.log(current.value) // 'billing-address'
@@ -71,10 +67,10 @@ const {
   'billing-address': {
     title: 'Billing address',
   },
-  'terms': {
+  terms: {
     title: 'Terms',
   },
-  'payment': {
+  payment: {
     title: 'Payment',
   },
 })

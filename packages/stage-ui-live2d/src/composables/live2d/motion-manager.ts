@@ -72,18 +72,14 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
   const finalPlugins: MotionManagerPlugin[] = []
 
   function register(plugin: MotionManagerPlugin, stage: 'pre' | 'post' | 'final' = 'pre') {
-    if (stage === 'pre')
-      prePlugins.push(plugin)
-    else if (stage === 'final')
-      finalPlugins.push(plugin)
-    else
-      postPlugins.push(plugin)
+    if (stage === 'pre') prePlugins.push(plugin)
+    else if (stage === 'final') finalPlugins.push(plugin)
+    else postPlugins.push(plugin)
   }
 
   function runPlugins(plugins: MotionManagerPlugin[], ctx: MotionManagerPluginContext) {
     for (const plugin of plugins) {
-      if (ctx.handled)
-        break
+      if (ctx.handled) break
       plugin(ctx)
     }
   }
@@ -91,9 +87,10 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
   function hookUpdate(model: CubismModel, now: number, hookedUpdate?: (model: CubismModel, now: number) => boolean) {
     const timeDelta = lastUpdateTime.value ? now - lastUpdateTime.value : 0
     const selectedMotionGroup = localStorage.getItem('selected-runtime-motion-group')
-    const isIdleMotion = !motionManager.state.currentGroup
-      || motionManager.state.currentGroup === motionManager.groups.idle
-      || (!!selectedMotionGroup && motionManager.state.currentGroup === selectedMotionGroup)
+    const isIdleMotion =
+      !motionManager.state.currentGroup ||
+      motionManager.state.currentGroup === motionManager.groups.idle ||
+      (!!selectedMotionGroup && motionManager.state.currentGroup === selectedMotionGroup)
 
     const ctx: MotionManagerPluginContext = {
       model,
@@ -120,8 +117,7 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
 
     if (!ctx.handled && ctx.hookedUpdate) {
       const result = ctx.hookedUpdate.call(motionManager, model, now)
-      if (result)
-        ctx.handled = true
+      if (result) ctx.handled = true
     }
 
     runPlugins(postPlugins, ctx)
@@ -211,14 +207,16 @@ export function useMotionUpdatePluginBeatSync(beatSync: BeatSyncController): Mot
 
 export function useMotionUpdatePluginIdleDisable(idleEyeFocus = useLive2DIdleEyeFocus()): MotionManagerPlugin {
   return (ctx) => {
-    if (ctx.handled)
-      return
+    if (ctx.handled) return
 
     // Stop idle motions if they're disabled
     if (!ctx.live2dIdleAnimationEnabled.value && ctx.isIdleMotion) {
       ctx.motionManager.stopAllMotions()
 
-      if (ctx.live2dForceIdleEyeAnimation.value && (!ctx.live2dEyeTrackingEnabled.value || !ctx.live2dEyeFocusSourceActive.value))
+      if (
+        ctx.live2dForceIdleEyeAnimation.value &&
+        (!ctx.live2dEyeTrackingEnabled.value || !ctx.live2dEyeFocusSourceActive.value)
+      )
         idleEyeFocus.update(ctx.internalModel, ctx.now)
       if (ctx.internalModel.eyeBlink != null) {
         ctx.internalModel.eyeBlink.updateParameters(ctx.model, ctx.timeDelta / 1000)
@@ -235,20 +233,15 @@ export function useMotionUpdatePluginIdleDisable(idleEyeFocus = useLive2DIdleEye
 
 export function useMotionUpdatePluginIdleFocus(idleEyeFocus = useLive2DIdleEyeFocus()): MotionManagerPlugin {
   return (ctx) => {
-    if (!ctx.isIdleMotion || ctx.handled)
-      return
-    if (!ctx.live2dForceIdleEyeAnimation.value)
-      return
-    if (ctx.live2dEyeTrackingEnabled.value && ctx.live2dEyeFocusSourceActive.value)
-      return
+    if (!ctx.isIdleMotion || ctx.handled) return
+    if (!ctx.live2dForceIdleEyeAnimation.value) return
+    if (ctx.live2dEyeTrackingEnabled.value && ctx.live2dEyeFocusSourceActive.value) return
 
     idleEyeFocus.update(ctx.internalModel, ctx.now)
   }
 }
 
-export function useMotionUpdatePluginAutoEyeBlink(
-  live2dExpressionEnabled?: Ref<boolean>,
-): MotionManagerPlugin {
+export function useMotionUpdatePluginAutoEyeBlink(live2dExpressionEnabled?: Ref<boolean>): MotionManagerPlugin {
   const blinkState = {
     phase: 'idle' as 'idle' | 'closing' | 'opening',
     progress: 0,
@@ -270,7 +263,8 @@ export function useMotionUpdatePluginAutoEyeBlink(
   const maxDelay = 8000
 
   const clamp01 = (value: number) => Math.min(1, Math.max(0, value))
-  const randomBlinkOpenDuration = () => minBlinkOpenDuration + Math.random() * (maxBlinkOpenDuration - minBlinkOpenDuration)
+  const randomBlinkOpenDuration = () =>
+    minBlinkOpenDuration + Math.random() * (maxBlinkOpenDuration - minBlinkOpenDuration)
 
   function resetBlinkState() {
     blinkState.phase = 'idle'
@@ -335,8 +329,7 @@ export function useMotionUpdatePluginAutoEyeBlink(
     // logic from main so that hookUpdate returns the same handled state and
     // the SDK eyeBlink/motion pipeline is not disrupted.
     if (!live2dExpressionEnabled?.value) {
-      if (!ctx.isIdleMotion || ctx.handled)
-        return
+      if (!ctx.isIdleMotion || ctx.handled) return
 
       const baseLeft = clamp01(ctx.modelParameters.value.leftEyeOpen)
       const baseRight = clamp01(ctx.modelParameters.value.rightEyeOpen)
@@ -372,8 +365,7 @@ export function useMotionUpdatePluginAutoEyeBlink(
 
     // ===== EXPRESSION ON: MULTIPLY-MODULATE BEHAVIOR =====
     // Run during idle motion only (non-idle motions control eyes via curves).
-    if (!ctx.isIdleMotion)
-      return
+    if (!ctx.isIdleMotion) return
 
     const baseLeft = clamp01(ctx.modelParameters.value.leftEyeOpen)
     const baseRight = clamp01(ctx.modelParameters.value.rightEyeOpen)
@@ -430,8 +422,7 @@ export function useMotionUpdatePluginAutoEyeBlink(
     }
 
     // Idle: don't write (avoids feedback-loop decay).
-    if (blinkState.phase === 'idle')
-      return
+    if (blinkState.phase === 'idle') return
 
     // Active blink: saved pre-blink values × blinkFactor.
     ctx.model.setParameterValueById('ParamEyeLOpen', clamp01(preBlinkLeft * blinkFactorL * baseLeft))
@@ -484,8 +475,7 @@ export function useMotionUpdatePluginLipSync(
       return
     }
 
-    if (releaseRemainingMs <= 0)
-      return
+    if (releaseRemainingMs <= 0) return
 
     releaseRemainingMs = Math.max(0, releaseRemainingMs - ctx.timeDelta * 1000)
     const blend = smoothstep(1 - releaseRemainingMs / RELEASE_DURATION_MS)

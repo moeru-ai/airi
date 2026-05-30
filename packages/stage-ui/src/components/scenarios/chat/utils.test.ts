@@ -9,7 +9,14 @@ describe('getChatHistoryItemKey', () => {
     const createdAt = 1700000000000
 
     const userMessage: ChatHistoryItem = { role: 'user', content: 'hi', createdAt, id: 'user-1' }
-    const assistantMessage: ChatHistoryItem = { role: 'assistant', content: 'hello', createdAt, id: 'assistant-1', slices: [], tool_results: [] }
+    const assistantMessage: ChatHistoryItem = {
+      role: 'assistant',
+      content: 'hello',
+      createdAt,
+      id: 'assistant-1',
+      slices: [],
+      tool_results: [],
+    }
 
     expect(getChatHistoryItemKey(userMessage, 0)).toBe('user-1')
     expect(getChatHistoryItemKey(assistantMessage, 1)).toBe('assistant-1')
@@ -19,7 +26,13 @@ describe('getChatHistoryItemKey', () => {
     const createdAt = 1700000000000
 
     const userMessage: ChatHistoryItem = { role: 'user', content: 'hi', createdAt }
-    const assistantMessage: ChatHistoryItem = { role: 'assistant', content: 'hello', createdAt, slices: [], tool_results: [] }
+    const assistantMessage: ChatHistoryItem = {
+      role: 'assistant',
+      content: 'hello',
+      createdAt,
+      slices: [],
+      tool_results: [],
+    }
 
     expect(getChatHistoryItemKey(userMessage, 0)).toBe('user:1700000000000:0')
     expect(getChatHistoryItemKey(assistantMessage, 1)).toBe('assistant:1700000000000:1')

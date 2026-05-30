@@ -62,8 +62,7 @@ interface CreateContextRegistryOptions {
 }
 
 function formatMetadataSource(source?: MetadataEventSource) {
-  if (!source?.plugin)
-    return undefined
+  if (!source?.plugin) return undefined
 
   const pluginId = source.plugin.id
   const instanceId = source.id
@@ -72,11 +71,7 @@ function formatMetadataSource(source?: MetadataEventSource) {
 }
 
 function defaultGetSourceKey(event: EventSourcePayload, fallback = 'unknown') {
-  return (
-    formatMetadataSource(event.metadata?.source)
-    ?? event.source
-    ?? fallback
-  )
+  return formatMetadataSource(event.metadata?.source) ?? event.source ?? fallback
 }
 
 /**
@@ -117,8 +112,7 @@ export function createContextRegistry(options: CreateContextRegistryOptions = {}
         mutation: 'replace',
         entryCount: currentActiveContexts.get(sourceKey)?.length ?? 0,
       }
-    }
-    else if (envelope.strategy === CONTEXT_UPDATE_APPEND_SELF) {
+    } else if (envelope.strategy === CONTEXT_UPDATE_APPEND_SELF) {
       currentActiveContexts.get(sourceKey)?.push(safeEnvelopeToStore)
       result = {
         sourceKey,
@@ -145,10 +139,7 @@ export function createContextRegistry(options: CreateContextRegistryOptions = {}
 
   function snapshot() {
     return Object.fromEntries(
-      Array.from(currentActiveContexts, ([sourceKey, messages]) => [
-        sourceKey,
-        structuredClone(messages),
-      ]),
+      Array.from(currentActiveContexts, ([sourceKey, messages]) => [sourceKey, structuredClone(messages)]),
     )
   }
 

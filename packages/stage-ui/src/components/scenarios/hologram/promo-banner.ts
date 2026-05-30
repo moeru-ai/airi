@@ -12,9 +12,7 @@ export interface PromoBannerItem {
 
 export type PromoBannerItemKey = 'signin' | 'build' | 'spring' | 'coupon' | 'home'
 
-export type PromoBannerAction
-  = | { type: 'login' }
-    | { type: 'route', to: string }
+export type PromoBannerAction = { type: 'login' } | { type: 'route'; to: string }
 
 export interface PromoBannerVisual {
   key: PromoBannerItemKey

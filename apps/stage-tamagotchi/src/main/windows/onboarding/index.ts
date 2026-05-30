@@ -76,7 +76,12 @@ export function setupOnboardingWindowManager(params: {
       safeClose(newWindow)
     })
 
-    await setupBaseWindowElectronInvokes({ context, window: newWindow, i18n: params.i18n, serverChannel: params.serverChannel })
+    await setupBaseWindowElectronInvokes({
+      context,
+      window: newWindow,
+      i18n: params.i18n,
+      serverChannel: params.serverChannel,
+    })
     createAuthService({ context, window: newWindow, windowAuthManager: params.windowAuthManager })
 
     await load(newWindow, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/onboarding'))
@@ -85,8 +90,9 @@ export function setupOnboardingWindowManager(params: {
       for (const cb of closeCallbacks) {
         try {
           cb()
+        } catch {
+          /* noop */
         }
-        catch { /* noop */ }
       }
     })
 

@@ -72,19 +72,29 @@ async function scrollToBottom() {
     <div
       ref="chatBubbleRef"
       transition="max-height,max-width,colors duration-500 ease-in-out"
-      relative overflow-y-auto will-change-max-height will-change-max-width scrollbar-none
+      relative
+      overflow-y-auto
+      will-change-max-height
+      will-change-max-width
+      scrollbar-none
       :class="[
-        props.side === 'left' ? 'rounded-tr-2xl rounded-br-2xl rounded-tl-2xl rounded-bl-sm' : 'rounded-tl-2xl rounded-bl-2xl rounded-tr-2xl rounded-br-sm',
+        props.side === 'left'
+          ? 'rounded-tr-2xl rounded-br-2xl rounded-tl-2xl rounded-bl-sm'
+          : 'rounded-tl-2xl rounded-bl-2xl rounded-tr-2xl rounded-br-sm',
         props.side === 'left' ? '' : 'float-right',
         ...(props.containerClass
-          ? (typeof props.containerClass === 'string' ? [props.containerClass] : props.containerClass)
+          ? typeof props.containerClass === 'string'
+            ? [props.containerClass]
+            : props.containerClass
           : [
-            'border-2 border-solid border-neutral-100 dark:border-neutral-900',
-            'bg-white/90 backdrop-blur-md dark:bg-neutral-950/90',
-            ...(props.containerClassExtra
-              ? (typeof props.containerClassExtra === 'string' ? [props.containerClassExtra] : props.containerClassExtra)
-              : []),
-          ]),
+              'border-2 border-solid border-neutral-100 dark:border-neutral-900',
+              'bg-white/90 backdrop-blur-md dark:bg-neutral-950/90',
+              ...(props.containerClassExtra
+                ? typeof props.containerClassExtra === 'string'
+                  ? [props.containerClassExtra]
+                  : props.containerClassExtra
+                : []),
+            ]),
       ]"
     >
       <div v-if="props.loading" i-svg-spinners:3-dots-scale />
@@ -92,7 +102,10 @@ async function scrollToBottom() {
         v-else
         min-h-0
         :text="props.text"
-        :text-class="[...(typeof props.textClass === 'string' ? [props.textClass] : (props.textClass || [])), 'vertical-middle']"
+        :text-class="[
+          ...(typeof props.textClass === 'string' ? [props.textClass] : props.textClass || []),
+          'vertical-middle',
+        ]"
         :animator="createFadeAnimator({ duration: 100 })"
         @text-split="handleOnTextSplit"
       />

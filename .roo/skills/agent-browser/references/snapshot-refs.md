@@ -17,11 +17,13 @@ Compact element references that reduce context usage dramatically for AI agents.
 ## How Refs Work
 
 Traditional approach:
+
 ```
 Full DOM/HTML → AI parses → CSS selector → Action (~3000-5000 tokens)
 ```
 
 agent-browser approach:
+
 ```
 Compact snapshot → @refs assigned → Direct interaction (~200-400 tokens)
 ```
@@ -182,6 +184,7 @@ agent-browser click @e5
 ```
 
 **Key details:**
+
 - Only one level of iframe nesting is expanded (iframes within iframes are not recursed)
 - Cross-origin iframes that block accessibility tree access are silently skipped
 - Empty iframes or iframes with no interactive content are omitted from the output

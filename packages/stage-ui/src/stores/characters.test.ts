@@ -48,8 +48,7 @@ function createMutation<TVars, TData>(mutation: (vars: TVars) => Promise<TData>)
     async mutateAsync(vars: TVars) {
       try {
         return await mutation(vars)
-      }
-      catch (error) {
+      } catch (error) {
         this.error.value = error as Error
         throw error
       }
@@ -81,16 +80,22 @@ function setupController() {
   }
   const controller = createCharacterStoreController({
     auth: { userId: 'user-1' },
-    bookmarkMutation: createMutation<string, Character>(id => service.bookmarkRemote({} as CharactersRemoteClient, id)),
+    bookmarkMutation: createMutation<string, Character>((id) =>
+      service.bookmarkRemote({} as CharactersRemoteClient, id),
+    ),
     characters: ref<Map<string, Character>>(new Map()),
-    createMutation: createMutation<CreateCharacterPayload, Character>(nextPayload => service.createRemote({} as CharactersRemoteClient, nextPayload)),
-    likeMutation: createMutation<string, Character>(id => service.likeRemote({} as CharactersRemoteClient, id)),
+    createMutation: createMutation<CreateCharacterPayload, Character>((nextPayload) =>
+      service.createRemote({} as CharactersRemoteClient, nextPayload),
+    ),
+    likeMutation: createMutation<string, Character>((id) => service.likeRemote({} as CharactersRemoteClient, id)),
     listAll: ref(false),
     listQuery,
     model,
-    removeMutation: createMutation<string, void>(id => service.removeRemote({} as CharactersRemoteClient, id)),
+    removeMutation: createMutation<string, void>((id) => service.removeRemote({} as CharactersRemoteClient, id)),
     service,
-    updateMutation: createMutation<{ id: string, data: UpdateCharacterPayload }, Character>(vars => service.updateRemote({} as CharactersRemoteClient, vars.id, vars.data)),
+    updateMutation: createMutation<{ id: string; data: UpdateCharacterPayload }, Character>((vars) =>
+      service.updateRemote({} as CharactersRemoteClient, vars.id, vars.data),
+    ),
   })
 
   return { controller, listQuery, model, service }

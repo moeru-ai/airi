@@ -13,14 +13,7 @@ Reactive [SpeechRecognition](https://developer.mozilla.org/en-US/docs/Web/API/Sp
 ```ts
 import { useSpeechRecognition } from '@vueuse/core'
 
-const {
-  isSupported,
-  isListening,
-  isFinal,
-  result,
-  start,
-  stop,
-} = useSpeechRecognition()
+const { isSupported, isListening, isFinal, result, start, stop } = useSpeechRecognition()
 ```
 
 ### Options
@@ -84,7 +77,5 @@ export interface UseSpeechRecognitionReturn extends Supportable {
  * @see https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition SpeechRecognition
  * @param options
  */
-export declare function useSpeechRecognition(
-  options?: UseSpeechRecognitionOptions,
-): UseSpeechRecognitionReturn
+export declare function useSpeechRecognition(options?: UseSpeechRecognitionOptions): UseSpeechRecognitionReturn
 ```

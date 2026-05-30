@@ -8,45 +8,24 @@ const filledApiKey = ref('sk-...')
 </script>
 
 <template>
-  <Story
-    title="API Key Input"
-    group="providers"
-    :layout="{ type: 'grid', width: '100%' }"
-  >
+  <Story title="API Key Input" group="providers" :layout="{ type: 'grid', width: '100%' }">
     <template #controls>
       <ThemeColorsHueControl />
     </template>
 
-    <Variant
-      id="empty"
-      title="Empty"
-    >
+    <Variant id="empty" title="Empty">
       <div>
-        <ProviderApiKeyInput
-          v-model="apiKey"
-          provider-name="OpenAI"
-          placeholder="sk-..."
-        />
+        <ProviderApiKeyInput v-model="apiKey" provider-name="OpenAI" placeholder="sk-..." />
       </div>
     </Variant>
 
-    <Variant
-      id="filled"
-      title="Filled"
-    >
+    <Variant id="filled" title="Filled">
       <div>
-        <ProviderApiKeyInput
-          v-model="filledApiKey"
-          provider-name="OpenAI"
-          placeholder="sk-..."
-        />
+        <ProviderApiKeyInput v-model="filledApiKey" provider-name="OpenAI" placeholder="sk-..." />
       </div>
     </Variant>
 
-    <Variant
-      id="custom-label"
-      title="Custom Label"
-    >
+    <Variant id="custom-label" title="Custom Label">
       <div>
         <ProviderApiKeyInput
           v-model="apiKey"
@@ -58,17 +37,9 @@ const filledApiKey = ref('sk-...')
       </div>
     </Variant>
 
-    <Variant
-      id="not-required"
-      title="Not Required"
-    >
+    <Variant id="not-required" title="Not Required">
       <div>
-        <ProviderApiKeyInput
-          v-model="apiKey"
-          provider-name="OpenAI"
-          :required="false"
-          placeholder="sk-..."
-        />
+        <ProviderApiKeyInput v-model="apiKey" provider-name="OpenAI" :required="false" placeholder="sk-..." />
       </div>
     </Variant>
   </Story>

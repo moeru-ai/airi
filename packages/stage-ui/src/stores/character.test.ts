@@ -38,11 +38,10 @@ describe('store character', () => {
     const pinia = createTestingPinia({ createSpy: vi.fn, stubActions: false })
     setActivePinia(pinia)
 
-    setCharacterLlmMarkerParserFactoryForTest(options => ({
+    setCharacterLlmMarkerParserFactoryForTest((options) => ({
       async consume(textPart: string) {
         parserConsumeSpy(textPart)
-        if (textPart)
-          await options.onLiteral?.(textPart)
+        if (textPart) await options.onLiteral?.(textPart)
       },
       async end() {
         parserEndSpy()

@@ -16,12 +16,7 @@ import HeaderLink from '../components/Layouts/HeaderLink.vue'
     h-full
   >
     <!-- Header -->
-    <div
-      v-if="!isStageTamagotchi()"
-      class="px-0 py-1 md:px-3 md:py-3"
-      w-full gap-2
-      bg="$bg-color"
-    >
+    <div v-if="!isStageTamagotchi()" class="px-0 py-1 md:px-3 md:py-3" w-full gap-2 bg="$bg-color">
       <HeaderLink />
     </div>
     <!-- Content -->

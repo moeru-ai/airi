@@ -23,15 +23,12 @@ const { workerFn } = useWebWorkerFn(() => {
 ```ts {7-9}
 import { useWebWorkerFn } from '@vueuse/core'
 
-const { workerFn, workerStatus, workerTerminate } = useWebWorkerFn(
-  dates => dates.sort(dateFns.compareAsc),
-  {
-    timeout: 50000,
-    dependencies: [
-      'https://cdnjs.cloudflare.com/ajax/libs/date-fns/1.30.1/date_fns.js', // dateFns
-    ],
-  },
-)
+const { workerFn, workerStatus, workerTerminate } = useWebWorkerFn((dates) => dates.sort(dateFns.compareAsc), {
+  timeout: 50000,
+  dependencies: [
+    'https://cdnjs.cloudflare.com/ajax/libs/date-fns/1.30.1/date_fns.js', // dateFns
+  ],
+})
 ```
 
 ### With local dependencies
@@ -41,13 +38,10 @@ import { useWebWorkerFn } from '@vueuse/core'
 
 const pow = (a: number) => a * a
 
-const { workerFn, workerStatus, workerTerminate } = useWebWorkerFn(
-  numbers => pow(numbers),
-  {
-    timeout: 50000,
-    localDependencies: [pow]
-  },
-)
+const { workerFn, workerStatus, workerTerminate } = useWebWorkerFn((numbers) => pow(numbers), {
+  timeout: 50000,
+  localDependencies: [pow],
+})
 ```
 
 ## Web Worker
@@ -61,12 +55,7 @@ This function is a Vue port of https://github.com/alewin/useWorker by Alessio Ko
 ## Type Declarations
 
 ```ts
-export type WebWorkerStatus
-  = | 'PENDING'
-    | 'SUCCESS'
-    | 'RUNNING'
-    | 'ERROR'
-    | 'TIMEOUT_EXPIRED'
+export type WebWorkerStatus = 'PENDING' | 'SUCCESS' | 'RUNNING' | 'ERROR' | 'TIMEOUT_EXPIRED'
 export interface UseWebWorkerOptions extends ConfigurableWindow {
   /**
    * Number of milliseconds before killing the worker

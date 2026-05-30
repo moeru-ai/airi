@@ -7,10 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ProviderValidationCheck } from '../types'
 import { createOpenAICompatibleValidators } from './openai-compatible'
 
-const {
-  generateTextMock,
-  listModelsMock,
-} = vi.hoisted(() => ({
+const { generateTextMock, listModelsMock } = vi.hoisted(() => ({
   generateTextMock: vi.fn(),
   listModelsMock: vi.fn(),
 }))
@@ -28,10 +25,13 @@ const mockT = vi.fn((key: string) => key) as unknown as ComposerTranslation
 function getProviderValidators(options?: Parameters<typeof createOpenAICompatibleValidators>[0]) {
   const validators = createOpenAICompatibleValidators(options)
 
-  return (validators?.validateProvider || []).map(create => create({ t: mockT }))
+  return (validators?.validateProvider || []).map((create) => create({ t: mockT }))
 }
 
-interface TestConfig { apiKey?: string, baseUrl?: string }
+interface TestConfig {
+  apiKey?: string
+  baseUrl?: string
+}
 
 describe('createOpenAICompatibleValidators', () => {
   const config: TestConfig = {
@@ -67,10 +67,7 @@ describe('createOpenAICompatibleValidators', () => {
 
     expect(result.valid).toBe(true)
     expect(generateTextMock).not.toHaveBeenCalled()
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://example.com/v1/models',
-      expect.objectContaining({ method: 'GET' }),
-    )
+    expect(fetchMock).toHaveBeenCalledWith('https://example.com/v1/models', expect.objectContaining({ method: 'GET' }))
   })
 
   it('connectivity check fails on network error', async () => {
@@ -121,7 +118,7 @@ describe('createOpenAICompatibleValidators', () => {
 
   it('default checks do not include chat_completions', () => {
     const validators = getProviderValidators()
-    const ids = validators.map(v => v.id)
+    const ids = validators.map((v) => v.id)
 
     expect(ids).toContain('openai-compatible:check-connectivity')
     expect(ids).toContain('openai-compatible:check-model-list')
@@ -129,20 +126,20 @@ describe('createOpenAICompatibleValidators', () => {
   })
 
   it('normalizes the selected model id before chat probing', async () => {
-    listModelsMock.mockResolvedValue([
-      { id: 'byteplus/seed-2-0-pro-260328' },
-    ])
+    listModelsMock.mockResolvedValue([{ id: 'byteplus/seed-2-0-pro-260328' }])
 
     const [, chatValidator] = getProviderValidators({
       checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ChatCompletions],
-      normalizeModelId: modelId => modelId.replace(/^byteplus\//, ''),
+      normalizeModelId: (modelId) => modelId.replace(/^byteplus\//, ''),
     })
 
     const result = await chatValidator.validator(config, provider, providerExtra, { t: mockT })
 
     expect(result.valid).toBe(true)
-    expect(generateTextMock).toHaveBeenCalledWith(expect.objectContaining({
-      model: 'seed-2-0-pro-260328',
-    }))
+    expect(generateTextMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: 'seed-2-0-pro-260328',
+      }),
+    )
   })
 })

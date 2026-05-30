@@ -29,7 +29,7 @@ const { reset } = useInfiniteScroll(
       // if (noMoreContent) return false
       return true // for demo purposes
     },
-  }
+  },
 )
 
 function resetList() {
@@ -44,9 +44,7 @@ function resetList() {
       {{ item }}
     </div>
   </div>
-  <button @click="resetList()">
-    Reset
-  </button>
+  <button @click="resetList()">Reset</button>
 </template>
 ```
 
@@ -104,13 +102,7 @@ function canLoadMore() {
 ## Type Declarations
 
 ```ts
-type InfiniteScrollElement
-  = | HTMLElement
-    | SVGElement
-    | Window
-    | Document
-    | null
-    | undefined
+type InfiniteScrollElement = HTMLElement | SVGElement | Window | Document | null | undefined
 export interface UseInfiniteScrollOptions<
   T extends InfiniteScrollElement = InfiniteScrollElement,
 > extends UseScrollOptions {

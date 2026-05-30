@@ -44,11 +44,15 @@ export async function setupDesktopOverlayElectronInvokes(params: {
   })
 
   try {
-    await setupBaseWindowElectronInvokes({ context, window: params.window, i18n: params.i18n, serverChannel: params.serverChannel })
+    await setupBaseWindowElectronInvokes({
+      context,
+      window: params.window,
+      i18n: params.i18n,
+      serverChannel: params.serverChannel,
+    })
     createMcpServersService({ context, manager: params.mcpStdioManager })
     readiness = { state: 'ready' }
-  }
-  catch (error) {
+  } catch (error) {
     readiness = {
       state: 'degraded',
       error: error instanceof Error ? error.message : String(error),
