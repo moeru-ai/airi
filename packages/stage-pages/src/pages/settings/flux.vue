@@ -320,7 +320,7 @@ async function handleBuy(stripePriceId: string) {
             {{ formatNumber(credits) }}
           </h2>
           <p text="sm neutral-500">
-            {{ t('settings.pages.flux.description') }}
+            {{ t(fluxPurchaseDisabled ? 'settings.pages.account.fluxBalance' : 'settings.pages.flux.description') }}
           </p>
         </div>
       </div>
