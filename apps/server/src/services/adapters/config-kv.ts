@@ -132,6 +132,10 @@ const ConfigEntrySchemas = {
   // The two key spaces do not overlap. Consumed by the client to preselect a
   // voice matching UI locale per active model.
   DEFAULT_TTS_VOICES: optional(record(string(), record(string(), string())), {}),
+  // Admin-managed routing hints for legacy upstream router surfaces.
+  // Kept intentionally loose because router backends may need provider-specific
+  // fields. The admin UI edits it as a list of JSON objects.
+  LLM_ROUTER: optional(array(record(string(), any())), []),
   // Server-side alias resolution for `model: 'auto'` in /chat/completions and
   // /audio/speech. The modelName written here must exist as a key in
   // LLM_ROUTER_CONFIG.{llm,tts}.models — the router itself doesn't understand

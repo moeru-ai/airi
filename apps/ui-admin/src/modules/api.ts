@@ -1,0 +1,160 @@
+import { defaultApiServerUrl, getServerAdminBootstrapContext } from './server-admin-context'
+
+export interface AdminUser {
+  id: string
+  name: string
+  email: string
+  emailVerified: boolean
+  image: string | null
+  createdAt: string
+  updatedAt: string
+  flux: number
+  stripeCustomerId: string | null
+}
+
+export interface AdminMe {
+  role: 'admin'
+  user: Pick<AdminUser, 'id' | 'name' | 'email' | 'emailVerified' | 'image'>
+}
+
+export interface AdminMetrics {
+  totalUsers: number
+  verifiedUsers: number
+  activeSessions: number
+  currentFlux: number
+  issuedFlux: number
+  llmRequests24h: number
+  llmFlux24h: number
+  adminSeats: number
+  grafanaEmbedUrl: string | null
+}
+
+export interface FluxTransaction {
+  id: string
+  type: string
+  amount: number
+  balanceBefore: number
+  balanceAfter: number
+  description: string
+  metadata: unknown
+  createdAt: string
+}
+
+export interface AdminUsersPage {
+  users: AdminUser[]
+  hasMore: boolean
+  nextOffset: number | null
+  total: number
+}
+
+export type LlmRouterEntry = Record<string, unknown>
+
+export class AdminApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly payload: unknown,
+  ) {
+    super(message)
+    this.name = 'AdminApiError'
+  }
+}
+
+export function apiServerUrl(): string {
+  return getServerAdminBootstrapContext()?.apiServerUrl ?? defaultApiServerUrl()
+}
+
+export function signInUrl(): string {
+  const url = new URL('/auth/sign-in', apiServerUrl())
+  url.searchParams.set('redirect', `${window.location.pathname}${window.location.search}`)
+  return url.toString()
+}
+
+async function adminFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const endpoint = new URL(`/api/admin${path}`, apiServerUrl())
+  const headers = new Headers(init.headers)
+
+  if (init.body && !headers.has('Content-Type'))
+    headers.set('Content-Type', 'application/json')
+
+  const response = await fetch(endpoint.toString(), {
+    ...init,
+    headers,
+    credentials: 'include',
+  })
+
+  let payload: unknown = null
+  try {
+    payload = await response.json()
+  }
+  catch {
+    payload = null
+  }
+
+  if (!response.ok) {
+    const message = extractErrorMessage(payload) ?? `Admin API request failed (${response.status})`
+    throw new AdminApiError(message, response.status, payload)
+  }
+
+  return payload as T
+}
+
+function extractErrorMessage(payload: unknown): string | null {
+  if (!payload || typeof payload !== 'object')
+    return null
+  const maybe = payload as { message?: unknown, error?: unknown }
+  if (typeof maybe.message === 'string')
+    return maybe.message
+  if (typeof maybe.error === 'string')
+    return maybe.error
+  return null
+}
+
+export const adminApi = {
+  me: () => adminFetch<AdminMe>('/me'),
+  metrics: () => adminFetch<AdminMetrics>('/metrics'),
+  users: (params: { query?: string, limit?: number, offset?: number, sortDirection?: string, sortKey?: string, status?: string }) => {
+    const query = new URLSearchParams()
+    if (params.query)
+      query.set('query', params.query)
+    if (params.limit != null)
+      query.set('limit', String(params.limit))
+    if (params.offset != null)
+      query.set('offset', String(params.offset))
+    if (params.sortDirection)
+      query.set('sortDirection', params.sortDirection)
+    if (params.sortKey)
+      query.set('sortKey', params.sortKey)
+    if (params.status)
+      query.set('status', params.status)
+    const suffix = query.toString() ? `?${query.toString()}` : ''
+    return adminFetch<AdminUsersPage>(`/users${suffix}`)
+  },
+  user: (id: string) => adminFetch<{ user: AdminUser, recentFluxTransactions: FluxTransaction[] }>(`/users/${encodeURIComponent(id)}`),
+  grantUserFlux: (id: string, body: { amount: number, description: string, idempotencyKey?: string }) =>
+    adminFetch<{ balanceBefore: number, balanceAfter: number, fluxTransactionId: string, idempotent: boolean }>(`/users/${encodeURIComponent(id)}/flux/grant`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  setUserFlux: (id: string, body: { balance: number, description: string }) =>
+    adminFetch<{ balanceBefore: number, balanceAfter: number, fluxTransactionId: string | null, changed: boolean }>(`/users/${encodeURIComponent(id)}/flux`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+  fluxGrantPreview: (body: { amount: number, description: string, emails: string[], idempotencyKey?: string }) =>
+    adminFetch<unknown>('/flux-grants?dryRun=true', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  fluxGrant: (body: { amount: number, description: string, emails: string[], idempotencyKey?: string }) =>
+    adminFetch<unknown>('/flux-grants', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  llmRouter: () => adminFetch<{ entries: LlmRouterEntry[] }>('/llm-router'),
+  saveLlmRouter: (entries: LlmRouterEntry[]) =>
+    adminFetch<{ entries: LlmRouterEntry[] }>('/llm-router', {
+      method: 'PUT',
+      body: JSON.stringify({ entries }),
+    }),
+}
