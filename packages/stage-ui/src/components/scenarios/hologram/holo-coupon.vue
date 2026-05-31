@@ -8,7 +8,7 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import { useAuthStore } from '../../../stores/auth'
-import { getPromoBannerFallbackLabelKey, getPromoBannerVisuals } from './promo-banner'
+import { getPromoBannerFallbackLabelKey, promoBannerVisuals } from './promo-banner'
 import { usePromoBannerLayout } from './use-promo-banner-layout'
 
 const router = useRouter()
@@ -30,7 +30,7 @@ function translateBannerItem(key: PromoBannerItemKey): PromoBannerItem {
 }
 
 const items = computed<(PromoBannerItem & PromoBannerVisual)[]>(() =>
-  getPromoBannerVisuals().map(item => ({
+  promoBannerVisuals.map(item => ({
     ...item,
     ...translateBannerItem(item.key),
   })),

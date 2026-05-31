@@ -232,19 +232,15 @@ async function fetchPackages() {
 }
 
 onMounted(async () => {
-  await Promise.allSettled([
-    authStore.updateCredits(),
-    fetchStats(),
-    fetchAuditHistory(),
-    ...(fluxPurchaseDisabled ? [] : [fetchPackages()]),
-  ])
+  Promise.allSettled([authStore.updateCredits(), fetchStats(), fetchAuditHistory(), ...(fluxPurchaseDisabled ? [] : [fetchPackages()])])
 
   // PostHog funnel step 1: pricing surface view. Today this is an in-app
   // settings page (already-authenticated users); when we add a public
   // pricing landing page the surface label changes but the event stays the
   // same, so the funnel definition in PostHog doesn't need re-wiring.
-  if (!fluxPurchaseDisabled)
+  if (!fluxPurchaseDisabled) {
     trackPricingViewed('settings_flux', 'one_time')
+  }
 
   if (route.query.success === 'true') {
     message.value = { type: 'success', text: t('settings.pages.flux.checkout.success') }
