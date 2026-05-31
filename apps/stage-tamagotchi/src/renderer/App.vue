@@ -197,9 +197,8 @@ function createFullStageRuntime() {
       cardStore.initialize()
 
       await displayModelsStore.loadDisplayModelsFromIndexedDB()
-      await settingsStore.initializeStageModel()
-      await settingsAudioDeviceStore.initialize()
-
+      // NOTICE: Restore the Godot renderer before model recovery so deleted custom VRM ids
+      // fall back to a VRM preset instead of the built-in Live2D preset.
       if (isGodotStageRoute()) {
         try {
           syncGodotStageRenderer(await getGodotStageStatus())
@@ -208,6 +207,8 @@ function createFullStageRuntime() {
           console.warn('[App] Failed to fetch Godot stage status:', error)
         }
       }
+      await settingsStore.initializeStageModel()
+      await settingsAudioDeviceStore.initialize()
 
       const serverChannelConfig = await getServerChannelConfig()
       serverChannelSettingsStore.tlsConfig = serverChannelConfig.tlsConfig ?? null
