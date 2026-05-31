@@ -14,6 +14,7 @@ import type { PatternRuntime } from './patterns/types'
 import { inspect } from 'node:util'
 
 import { errorMessageFrom } from '@moeru/std'
+import { Vec3 } from 'vec3'
 
 import { executeSandboxWorker } from './js-planner-sandbox-runner'
 import { createQueryRuntime } from './query-dsl'
@@ -134,6 +135,11 @@ class PlannerEntityQueryChain {
   whereType(typeOrTypes) {
     const types = new Set((Array.isArray(typeOrTypes) ? typeOrTypes : [typeOrTypes]).map(type => String(type).toLowerCase()))
     return this.clone({ predicates: [...this.state.predicates, entity => types.has(String(entity.name ?? entity.type).toLowerCase())] })
+  }
+
+  whereName(nameOrNames) {
+    const names = new Set((Array.isArray(nameOrNames) ? nameOrNames : [nameOrNames]).map(name => String(name).toLowerCase()))
+    return this.clone({ predicates: [...this.state.predicates, entity => names.has(String(entity.name).toLowerCase())] })
   }
 
   names() {
@@ -531,14 +537,153 @@ function copyForIsolate<T>(value: T): T {
   return deepFreeze(cloneStructured(value))
 }
 
+// NOTICE:
+// `bot`/`mineflayer` are live socket-backed objects that cannot cross the sandbox
+// boundary, so they are exposed to scripts only through the `botCall` bridge below.
+// This denylist blocks methods that would tear down the connection or hijack the
+// event bus; everything else on the bot is allowed (open-by-default).
+const BOT_METHOD_DENYLIST = new Set([
+  'end',
+  'quit',
+  'on',
+  'once',
+  'off',
+  'addListener',
+  'removeListener',
+  'removeAllListeners',
+  'emit',
+])
+
+/**
+ * Marshals one `botCall` argument from sandbox-serializable data into the value the
+ * mineflayer API expects.
+ *
+ * Before:
+ * - `{ x: 1, y: 2, z: 3 }`
+ *
+ * After:
+ * - `Vec3(1, 2, 3)`
+ *
+ * Non position-shaped values pass through unchanged.
+ */
+function marshalBotArg(value: unknown): unknown {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const record = value as Record<string, unknown>
+    if (typeof record.x === 'number' && typeof record.y === 'number' && typeof record.z === 'number')
+      return new Vec3(record.x, record.y, record.z)
+  }
+  return value
+}
+
+/**
+ * Invokes a method on the live mineflayer bot on behalf of sandboxed script code.
+ *
+ * Use when:
+ * - A script needs a low-level bot action that has no dedicated tool (e.g. `lookAt`).
+ *
+ * Expects:
+ * - `method` is not in {@link BOT_METHOD_DENYLIST} and resolves to a bot function.
+ * - `rawArgs` are sandbox-serializable; position-shaped args are marshaled to `Vec3`.
+ *
+ * Returns:
+ * - The method's result, defensively cloned to a sandbox-safe value (or `null` when
+ *   the result is a live object that cannot be serialized back).
+ */
+async function callBotMethod(mineflayer: Mineflayer, method: string, rawArgs: unknown): Promise<unknown> {
+  if (BOT_METHOD_DENYLIST.has(method))
+    throw new Error(`botCall: method "${method}" is not allowed`)
+
+  const bot = mineflayer.bot as unknown as Record<string, unknown>
+  const fn = bot[method]
+  if (typeof fn !== 'function')
+    throw new TypeError(`botCall: bot.${method} is not a function`)
+
+  const callArgs = Array.isArray(rawArgs) ? rawArgs.map(marshalBotArg) : []
+  const result = await (fn as (...a: unknown[]) => unknown).apply(bot, callArgs)
+
+  try {
+    return cloneStructured(result)
+  }
+  catch {
+    // Live objects (Entity/Block/etc.) are not serializable back into the sandbox.
+    return null
+  }
+}
+
 export function extractJavaScriptCandidate(input: string): string {
   const trimmed = input.trim()
+  // Prefer a fenced code block found ANYWHERE in the reply: chat-style models often add a short line
+  // of reasoning before the code. The previous `^...$` anchoring only matched a reply that was nothing
+  // but a fence, so any leading prose caused the entire prose+code to be executed as a script.
   // eslint-disable-next-line regexp/no-super-linear-backtracking
-  const fenced = trimmed.match(/^```(?:js|javascript|ts|typescript)?[^\S\r\n]*\r?\n?([\s\S]*?)\r?\n?```$/i)
+  const fenced = trimmed.match(/```(?:js|javascript|ts|typescript)?[^\S\r\n]*\r?\n?([\s\S]*?)```/i)
   if (fenced?.[1])
     return fenced[1].trim()
 
-  return trimmed
+  // No fence: the model often wraps un-fenced code in a Chinese intro/outro line (e.g.
+  // "好的,我来做:\n<code>\n这样就安全了"). Such a bare-word line is INSIDIOUS — CJK characters are
+  // valid JS identifiers, so a line like "然后我去做盔甲" PARSES as an identifier expression, sails
+  // past the syntax firewall, then throws "<那串中文> is not defined" at runtime (the real cause of the
+  // "X is not defined" failures). Strip those leading/trailing prose lines so the real code runs.
+  return stripEdgeProseLines(trimmed)
+}
+
+/** A leading/trailing line that is natural-language prose (CJK text with no JS structure), to drop. */
+function isEdgeProseLine(line: string): boolean {
+  const t = line.trim()
+  if (!t)
+    return false
+  // Any JS structure means it's code, keep it (covers chat strings, which carry the CJK inside `(...)`).
+  if (/[()[\]{}=;]/.test(t))
+    return false
+  // Otherwise treat a line containing CJK (Chinese/Japanese/Korean) as prose — conservative, so plain
+  // ASCII code lines are never stripped.
+  return /[\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF]/.test(t)
+}
+
+/**
+ * Drop natural-language prose lines wrapping un-fenced code.
+ *
+ * Before: "好的,我来做:\nawait craftRecipe({ item_name: \"diamond_helmet\" })\n这样就安全啦"
+ * After:  "await craftRecipe({ item_name: \"diamond_helmet\" })"
+ *
+ * Only strips from the edges (never the middle, so multi-line constructs are safe) and only CJK prose.
+ * If nothing executable would remain (a pure-prose reply), returns the original so the firewall still
+ * corrects the model instead of silently running an empty script.
+ */
+function stripEdgeProseLines(code: string): string {
+  const lines = code.split(/\r?\n/)
+  let start = 0
+  let end = lines.length
+  while (start < end && isEdgeProseLine(lines[start]))
+    start++
+  while (end > start && isEdgeProseLine(lines[end - 1]))
+    end--
+  const stripped = lines.slice(start, end).join('\n').trim()
+  return stripped || code
+}
+
+// NOTICE: Firewall between the LLM's natural-language space and the Minecraft action (JS) space.
+// The decision script is executed inside the sandbox as `return (async () => {\n<script>\n})()`
+// (see js-planner-worker.ts). When the model replies in prose instead of code, that prose lands on
+// line 2 and the isolate throws cryptic syntax errors ("Unexpected identifier 'me'", …), which fed a
+// death-spiral because the error handed back to the model never said "you wrote prose, not code".
+// We pre-compile with the SAME async wrapper (so top-level await/return are not false positives) to
+// detect non-code BEFORE wasting a sandbox turn, and turn it into a directive correction instead.
+// `new Function` only parses/compiles its body — it does NOT execute the candidate — so this is safe.
+function isSyntacticallyValidScript(candidate: string): boolean {
+  if (!candidate.trim())
+    return true // empty script == "observe / do nothing", not an error
+
+  try {
+    // eslint-disable-next-line no-new-func
+    void new Function(`return (async () => {\n${candidate}\n})()`)
+    return true
+  }
+  catch (err) {
+    // Only treat *syntax* errors as "not code". Anything else compiled fine.
+    return !(err instanceof SyntaxError)
+  }
 }
 
 export class JavaScriptPlanner {
@@ -567,6 +712,18 @@ export class JavaScriptPlanner {
     executeAction: (action: ActionInstruction) => Promise<unknown>,
   ): Promise<JavaScriptRunResult> {
     const script = extractJavaScriptCandidate(content)
+
+    // Firewall: reject natural-language replies before they reach the sandbox, with a directive
+    // correction the model can actually act on (instead of an opaque "Unexpected identifier" loop).
+    if (!isSyntacticallyValidScript(script)) {
+      throw new Error(
+        'Your last reply was natural language, not JavaScript, so nothing ran. '
+        + 'Reply with ONLY executable JavaScript that calls the action API — optionally inside a single '
+        + '```js code block (only the code inside runs). To say something to the player, that is also code: '
+        + 'call chat, e.g. await chat({ message: "..." }). Never reply in prose.',
+      )
+    }
+
     const run: ActivePlannerRun = {
       actionCount: 0,
       actionsByName: new Map(availableActions.map(action => [action.name, action])),
@@ -639,6 +796,7 @@ export class JavaScriptPlanner {
     return {
       bootstrapScript: this.buildBootstrapScript(),
       bridgeAvailability: {
+        botCall: Boolean(globals.mineflayer),
         forgetConversation: Boolean(globals.forgetConversation),
         getNoActionBudget: Boolean(globals.getNoActionBudget),
         notifyAiri: Boolean(globals.notifyAiri),
@@ -686,6 +844,15 @@ export class JavaScriptPlanner {
           view?: 'top-down' | 'cross-section'
           yLevel?: number
         }))
+      }
+
+      case 'bot.call': {
+        if (!globals.mineflayer)
+          return null
+        const [method, rawArgs] = args
+        if (typeof method !== 'string')
+          throw new TypeError('botCall requires a method name')
+        return await callBotMethod(globals.mineflayer, method, rawArgs)
       }
 
       case 'patterns.get':
@@ -803,11 +970,21 @@ export class JavaScriptPlanner {
       { name: 'updateAiriContext', kind: 'function', readonly: true },
     ]
 
+    // The sandbox `self` global comes from the reflex snapshot and only has `.location` for coords.
+    // The LLM very frequently writes `self.pos.x` / `self.position.x` (both undefined → recurring
+    // "Cannot read properties of undefined (reading 'x')" crashes). Expose `pos`/`position` as
+    // aliases of `location` so all three spellings work. (Note: this is the REAL `self` global —
+    // distinct from `query.self()` which returns a `.pos`-shaped record.)
+    const snapshotSelf = runtime.snapshot.self as Record<string, unknown> | undefined
+    const selfWithAliases = snapshotSelf && typeof snapshotSelf === 'object'
+      ? { ...snapshotSelf, pos: snapshotSelf.location, position: snapshotSelf.location }
+      : snapshotSelf
+
     const valueByName: Record<string, unknown> = {
       'snapshot': runtime.snapshot,
       'event': runtime.event,
       'now': Date.now(),
-      'self': runtime.snapshot.self,
+      'self': selfWithAliases,
       'environment': runtime.snapshot.environment,
       'social': runtime.snapshot.social,
       'threat': runtime.snapshot.threat,
@@ -977,7 +1154,7 @@ export class JavaScriptPlanner {
     const query = createQueryRuntime(mineflayer)
     return copyForIsolate({
       self: query.self() as unknown as Record<string, unknown>,
-      blocks: query.blocks().within(64).limit(500).list() as unknown as Array<Record<string, unknown>>,
+      blocks: query.blocks().within(96).limit(500).list() as unknown as Array<Record<string, unknown>>,
       entities: query.entities().within(128).limit(500).list() as unknown as Array<Record<string, unknown>>,
       inventory: query.inventory().list() as unknown as Array<Record<string, unknown>>,
       craftable: query.craftable().uniq().list(),
@@ -1005,6 +1182,9 @@ const __plannerQueryBlockAt = __plannerAvailability.queryBlockAt
   : null
 const __plannerQueryMap = __plannerAvailability.queryMap
   ? options => __plannerCallBridge('query.map', [options])
+  : null
+globalThis.botCall = __plannerAvailability.botCall
+  ? (method, args = []) => __plannerCallBridge('bot.call', [method, args])
   : null
 const __plannerPatternsAvailable = __plannerAvailability.patternGet
   || __plannerAvailability.patternFind
