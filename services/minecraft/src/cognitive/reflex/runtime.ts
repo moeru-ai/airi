@@ -6,6 +6,7 @@ import type { ReflexBehavior } from './types/behavior'
 
 import pathfinderModel from 'mineflayer-pathfinder'
 
+import { errorMessageFrom } from '@moeru/std'
 import { computed, effect, signal } from 'alien-signals'
 
 import { ReflexContext } from './context'
@@ -21,6 +22,7 @@ export class ReflexRuntime {
   private readonly activeBot = signal<MineflayerWithAgents | null>(null)
   private readonly followPlayer = computed(() => this.context.autonomy().followPlayer)
   private readonly followDistance = computed(() => this.context.autonomy().followDistance)
+  private readonly reflexEngaged = computed(() => this.context.autonomy().reflexEngaged)
   private readonly followTargetVisible = signal(false)
   private activeBehaviorUntil: number | null = null
   private activeAutoFollowPlayer: string | null = null
@@ -41,6 +43,7 @@ export class ReflexRuntime {
         this.followDistance(),
         this.mode(),
         this.followTargetVisible(),
+        this.reflexEngaged(),
       )
     })
   }
@@ -250,9 +253,20 @@ export class ReflexRuntime {
     followDistance: number,
     mode: ReflexModeId,
     targetVisible: boolean,
+    reflexEngaged: boolean,
   ): void {
     const { goals, Movements } = pathfinderModel
     const snapshot = this.context.getSnapshot()
+
+    // While the defend reflex is fighting a mob, it owns the pathfinder (pvp chase). Suppress
+    // auto-follow so its GoalFollow does not override the combat movement (same conflict class as the
+    // mining stutter). Follow re-engages automatically once combat ends and reflexEngaged flips back.
+    if (reflexEngaged) {
+      this.stopAutoFollow(bot)
+      if (snapshot.autonomy.followActive)
+        this.context.updateAutonomy({ followActive: false })
+      return
+    }
 
     if (!followPlayer) {
       this.stopAutoFollow(bot)
@@ -265,8 +279,15 @@ export class ReflexRuntime {
       return
     }
 
-    // Work-like modes always take priority over idle follow.
-    if (mode === 'work' || mode === 'wander' || mode === 'alert') {
+    // Explicit task modes (work/wander) take priority over idle follow and suppress it.
+    //
+    // NOTICE: 'alert' was previously here too, which meant any nearby threat (e.g. mobs in a cave)
+    // flipped the bot to 'alert' and SILENTLY cancelled auto-follow — so "follow me down the mine"
+    // left the bot standing still near hostiles. There is currently no alert/defend behavior that
+    // sets a competing pathfinder goal (the only reflex behavior is idle-gaze), so suppressing follow
+    // during alert gave the bot nothing useful to do. A companion should stay with its owner INTO
+    // danger, so alert no longer cancels follow.
+    if (mode === 'work' || mode === 'wander') {
       if (snapshot.autonomy.followActive)
         this.context.updateAutonomy({ followActive: false })
       this.stopAutoFollow(bot)
@@ -275,6 +296,10 @@ export class ReflexRuntime {
 
     if (!targetVisible) {
       this.stopAutoFollow(bot)
+      if (snapshot.autonomy.followActive || snapshot.autonomy.followLastError == null) {
+        // Log only on transition into the not-visible state to avoid per-tick spam.
+        this.deps.logger.withFields({ followPlayer, mode }).log('ReflexRuntime: auto-follow idle — target not visible (player out of entity range)')
+      }
       this.context.updateAutonomy({
         followActive: false,
         followLastError: `Player [${followPlayer}] is not currently visible`,
@@ -304,6 +329,7 @@ export class ReflexRuntime {
       bot.bot.pathfinder.setMovements(movements)
       bot.bot.pathfinder.setGoal(new goals.GoalFollow(target, followDistance), true)
       this.activeAutoFollowPlayer = followPlayer
+      this.deps.logger.withFields({ followPlayer, followDistance, mode }).log('ReflexRuntime: auto-follow engaged (GoalFollow set)')
       this.context.updateAutonomy({
         followActive: true,
         followLastError: null,
@@ -313,7 +339,7 @@ export class ReflexRuntime {
       this.stopAutoFollow(bot)
       this.context.updateAutonomy({
         followActive: false,
-        followLastError: error instanceof Error ? error.message : String(error),
+        followLastError: errorMessageFrom(error) ?? '',
       })
     }
   }

@@ -25,6 +25,7 @@ vi.mock('mineflayer-pathfinder', () => ({
 function createLogger() {
   const logger = {
     withError: vi.fn(),
+    withFields: vi.fn(),
     error: vi.fn(),
     warn: vi.fn(),
     log: vi.fn(),
@@ -32,6 +33,8 @@ function createLogger() {
     debug: vi.fn(),
   } as any
   logger.withError.mockReturnValue(logger)
+  // reconcileAutoFollow chains `logger.withFields({...}).log(...)`; return a chainable stub.
+  logger.withFields.mockReturnValue(logger)
   return logger
 }
 

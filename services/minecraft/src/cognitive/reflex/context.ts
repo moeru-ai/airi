@@ -42,6 +42,13 @@ export interface ReflexAutonomyState {
   followDistance: number
   followActive: boolean
   followLastError: string | null
+  /**
+   * True while a survival reflex is actively driving the bot's body — fighting a mob (defend) or
+   * escaping a hazard (escape-hazard). Suppresses auto-follow so its GoalFollow does not fight the
+   * reflex's movement (the conflict that caused the mining stutter), and suppresses auto-eat. Set by
+   * those behaviors; honoured in {@link ReflexRuntime}'s follow reconciliation.
+   */
+  reflexEngaged: boolean
 }
 
 export interface ReflexContextState {
@@ -96,6 +103,7 @@ export class ReflexContext {
     followDistance: 2,
     followActive: false,
     followLastError: null,
+    reflexEngaged: false,
   })
 
   public getSnapshot(): ReflexContextState {
