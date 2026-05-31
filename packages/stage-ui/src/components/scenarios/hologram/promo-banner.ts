@@ -1,3 +1,5 @@
+import { isFluxPurchaseDisabled } from '@proj-airi/stage-shared'
+
 import factorioPoster from '../../../assets/factorio-simple.png'
 import onboardingPoster from '../../../assets/onboarding.avif'
 
@@ -77,3 +79,10 @@ export const promoBannerVisuals: PromoBannerVisual[] = [
     fallbackClass: 'from-sky-300/25 via-indigo-300/14 to-violet-400/18',
   },
 ]
+
+export function getPromoBannerVisuals(): PromoBannerVisual[] {
+  if (isFluxPurchaseDisabled())
+    return promoBannerVisuals.filter(item => item.key !== 'spring' && item.key !== 'coupon')
+
+  return promoBannerVisuals
+}
