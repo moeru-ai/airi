@@ -10,12 +10,14 @@ import { DisplayModelFormat, useDisplayModelsStore } from '../display-models'
 export type StageModelRenderer = 'live2d' | 'vrm' | 'spine' | 'godot' | 'disabled' | undefined
 type BuiltInStageModelRenderer = Exclude<StageModelRenderer, 'godot'>
 
+const defaultStageModelId = 'preset-live2d-1'
+
 export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   const displayModelsStore = useDisplayModelsStore()
   let stageModelUpdateSequence = 0
   const stageModelStorageKey = 'settings/stage/model'
 
-  const stageModelSelectedState = useLocalStorageManualReset<string>(stageModelStorageKey, 'preset-live2d-1')
+  const stageModelSelectedState = useLocalStorageManualReset<string>(stageModelStorageKey, defaultStageModelId)
   const stageModelSelected = computed<string>({
     get: () => stageModelSelectedState.value,
     set: (value) => {
@@ -61,7 +63,7 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
 
   async function updateStageModel() {
     const requestId = ++stageModelUpdateSequence
-    const selectedModelId = stageModelSelectedState.value
+    let selectedModelId = stageModelSelectedState.value
 
     if (!selectedModelId) {
       replaceStageModelUrl(undefined)
@@ -72,7 +74,22 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
       return
     }
 
-    const model = await displayModelsStore.getDisplayModel(selectedModelId)
+    let model = await displayModelsStore.getDisplayModel(selectedModelId)
+    if (requestId !== stageModelUpdateSequence)
+      return
+
+    const shouldRestoreDefaultSelection = !model && selectedModelId !== defaultStageModelId
+    if (shouldRestoreDefaultSelection) {
+      const defaultModel = await displayModelsStore.getDisplayModel(defaultStageModelId)
+      if (requestId !== stageModelUpdateSequence)
+        return
+
+      if (defaultModel) {
+        selectedModelId = defaultStageModelId
+        model = defaultModel
+      }
+    }
+
     if (requestId !== stageModelUpdateSequence)
       return
 
@@ -104,6 +121,8 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     }
 
     stageModelSelectedDisplayModel.value = model
+    if (shouldRestoreDefaultSelection)
+      stageModelSelectedState.value = defaultStageModelId
   }
 
   function setStageModelRenderer(renderer: StageModelRenderer) {
