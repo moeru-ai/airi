@@ -532,4 +532,45 @@ describe('javaScriptPlanner', () => {
 
     expect(planned.returnValue).toContain('dssadg')
   })
+
+  // https://github.com/moeru-ai/airi/pull/1915 (Codex P2)
+  it('query.entities().whereType("player") still matches players after name is projected to username', async () => {
+    // ROOT CAUSE:
+    // Player records now expose `name` = username (e.g. "dssadg"), but the sandbox whereType()
+    // predicate only checked `entity.name ?? entity.type`, so whereType("player") computed "dssadg"
+    // and matched nothing. The TS EntityQueryChain was fixed to also check `entity.type`; the
+    // sandbox runtime must mirror it. Before the fix this returned "none".
+    const planner = new JavaScriptPlanner()
+    const mineflayer = {
+      bot: {
+        version: '1.21.1',
+        entity: { id: 0, position: { x: 0, y: 64, z: 0 } },
+        health: 20,
+        food: 20,
+        heldItem: null,
+        game: { gameMode: 'survival' },
+        isRaining: false,
+        time: { timeOfDay: 0 },
+        entities: {
+          1: { id: 1, name: 'dssadg', type: 'player', username: 'dssadg', position: { x: 3, y: 64, z: 0 } },
+        },
+        players: {},
+        findBlocks: () => [],
+        blockAt: () => null,
+        inventory: { items: () => [], emptySlotCount: () => 36 },
+        registry: { items: {}, itemsByName: {}, blocksByName: { crafting_table: { id: 58 } } },
+        recipesFor: () => [],
+      },
+    }
+    const executeAction = vi.fn(async action => `ok:${action.tool}`)
+
+    const planned = await planner.evaluate(
+      'const e = query.entities().whereType("player").first(); return e ? e.name : "none"',
+      actions,
+      { ...globals, mineflayer } as any,
+      executeAction,
+    )
+
+    expect(planned.returnValue).toContain('dssadg')
+  })
 })

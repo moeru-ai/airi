@@ -134,7 +134,12 @@ class PlannerEntityQueryChain {
 
   whereType(typeOrTypes) {
     const types = new Set((Array.isArray(typeOrTypes) ? typeOrTypes : [typeOrTypes]).map(type => String(type).toLowerCase()))
-    return this.clone({ predicates: [...this.state.predicates, entity => types.has(String(entity.name ?? entity.type).toLowerCase())] })
+    // NOTICE: this method lives inside the String.raw QUERY_BOOTSTRAP template, so NO backticks in
+    // comments here (they would terminate the template). Match the mineflayer type ("player"/"mob"/...)
+    // OR the species name ("zombie"/"cow"); must check type explicitly now that a player's projected
+    // name is its username (e.g. "dssadg"), so whereType("player") still matches players. Mirrors
+    // EntityQueryChain.whereType in query-dsl.ts.
+    return this.clone({ predicates: [...this.state.predicates, entity => types.has(String(entity.type ?? '').toLowerCase()) || types.has(String(entity.name ?? '').toLowerCase())] })
   }
 
   whereName(nameOrNames) {

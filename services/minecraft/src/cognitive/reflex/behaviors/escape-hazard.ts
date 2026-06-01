@@ -139,6 +139,9 @@ export const escapeHazardBehavior: ReflexBehavior = {
       bot.setControlState('forward', false)
       bot.setControlState('jump', false)
       api.context.updateAutonomy({ reflexEngaged: false })
+      // NOTICE: must release the in-flight guard here, otherwise `when()` stays false forever and the
+      // escape reflex never fires again after the first hazard (defend.ts resets combatInFlight the same way).
+      escapeInFlight = false
     }
   },
 }

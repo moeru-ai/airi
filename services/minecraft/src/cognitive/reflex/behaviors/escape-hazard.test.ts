@@ -1,6 +1,7 @@
+import { Vec3 } from 'vec3'
 import { describe, expect, it } from 'vitest'
 
-import { findNearestSafeStand } from './escape-hazard'
+import { escapeHazardBehavior, findNearestSafeStand } from './escape-hazard'
 
 const STONE = { name: 'stone', boundingBox: 'block' }
 const AIR = { name: 'air', boundingBox: 'empty' }
@@ -34,5 +35,40 @@ describe('findNearestSafeStand', () => {
   it('returns null when no safe stand is within range (all lava)', () => {
     const allLava = (_x: number, y: number, _z: number) => (y <= 64 ? LAVA : AIR)
     expect(findNearestSafeStand(allLava, { x: 0, y: 64, z: 0 }, 4)).toBeNull()
+  })
+})
+
+describe('escapeHazardBehavior re-entry guard', () => {
+  // https://github.com/moeru-ai/airi/pull/1915 (Codex P1)
+  it('re-arms after an escape completes so a later hazard still triggers the reflex', async () => {
+    // ROOT CAUSE:
+    // run() sets the module-level escapeInFlight=true, but the finally block never reset it. After the
+    // first lava/drown escape, when() therefore returned false forever and the reflex went dead for the
+    // rest of the process. Fixed by resetting escapeInFlight in finally (mirrors defend.ts/combatInFlight).
+    const state = { lava: true }
+    const bot: any = {
+      entity: {
+        get isInLava() {
+          return state.lava
+        },
+        isInWater: false,
+        position: new Vec3(0, 64, 0),
+      },
+      oxygenLevel: 20,
+      pathfinder: { stop() {} },
+      blockAt: () => null,
+      lookAt: async () => {
+        state.lava = false // simulate the bot climbing out partway through the attempt
+      },
+      setControlState: () => {},
+    }
+    const api: any = { bot: { bot }, context: { updateAutonomy: () => {} } }
+
+    // in a hazard -> reflex eligible
+    expect(escapeHazardBehavior.when(undefined as any, api)).toBe(true)
+    await escapeHazardBehavior.run(api)
+    // a fresh hazard after the first escape must STILL trigger (was false before the fix)
+    state.lava = true
+    expect(escapeHazardBehavior.when(undefined as any, api)).toBe(true)
   })
 })
