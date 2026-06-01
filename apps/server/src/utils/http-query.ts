@@ -1,19 +1,10 @@
+import { clamp } from 'es-toolkit'
 import { fallback, integer, object, optional, pipe, string, transform } from 'valibot'
 
 interface QueryIntegerSchemaOptions {
   defaultValue: number
   minimum?: number
   maximum?: number
-}
-
-function clampQueryInteger(value: number, minimum?: number, maximum?: number): number {
-  if (minimum != null && value < minimum)
-    return minimum
-
-  if (maximum != null && value > maximum)
-    return maximum
-
-  return value
 }
 
 /**
@@ -27,7 +18,7 @@ export function createQueryIntegerSchema(options: QueryIntegerSchemaOptions) {
       transform(input => input.trim()),
       transform(input => Number.parseInt(input, 10)),
       integer(),
-      transform(value => clampQueryInteger(value, options.minimum, options.maximum)),
+      transform(value => clamp(value, options.minimum ?? Number.NEGATIVE_INFINITY, options.maximum ?? Number.POSITIVE_INFINITY)),
     ),
     options.defaultValue,
   )

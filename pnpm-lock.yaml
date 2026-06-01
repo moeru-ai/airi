@@ -740,6 +740,9 @@ importers:
       drizzle-valibot:
         specifier: 'catalog:'
         version: 0.4.2(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))(valibot@1.2.0(typescript@5.9.3))
+      es-toolkit:
+        specifier: 'catalog:'
+        version: 1.43.0
       hono:
         specifier: 'catalog:'
         version: 4.11.3
