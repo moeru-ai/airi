@@ -37,6 +37,14 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
     DEFAULT_CAPTURE_INTERVAL_MS,
   )
 
+  // Master switch for headless background capture. When on, a resident driver
+  // (outside the devtools Vision page) runs the ticker and publishes context.
+  // Persisted so the choice survives restarts and the driver can auto-start.
+  const backgroundCaptureEnabled = useLocalStorageManualReset<boolean>(
+    'settings/vision/background-capture-enabled',
+    false,
+  )
+
   const isRunning = ref(false)
   const isProcessing = ref(false)
   const tickCount = ref(0)
@@ -162,6 +170,7 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
     stopTicker()
     resetMetrics()
     captureIntervalMs.reset()
+    backgroundCaptureEnabled.reset()
   }
 
   watch(captureIntervalMs, (next, previous) => {
@@ -179,6 +188,7 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
 
   return {
     captureIntervalMs,
+    backgroundCaptureEnabled,
     isRunning,
     isProcessing,
     tickCount,

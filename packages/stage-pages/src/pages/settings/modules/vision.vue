@@ -26,6 +26,7 @@ const {
 } = storeToRefs(visionStore)
 const {
   captureIntervalMs,
+  backgroundCaptureEnabled,
   captureCount,
   contextUpdateCount,
   lastCaptureAt,
@@ -338,6 +339,12 @@ function formatRelativeTime(timestamp: number | null) {
             Tune how frequently the vision ticker captures a frame.
           </div>
         </div>
+
+        <FieldCheckbox
+          v-model="backgroundCaptureEnabled"
+          label="Background capture"
+          description="Continuously capture the primary screen in the background (no devtools needed) and feed the latest frame into chat context. Requires a configured vision provider and model above."
+        />
 
         <FieldRange
           v-model="captureIntervalMs"
