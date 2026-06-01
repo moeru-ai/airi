@@ -2,7 +2,7 @@ import type Redis from 'ioredis'
 import type { InferOutput } from 'valibot'
 
 import { errorMessageFrom } from '@moeru/std'
-import { any, array, boolean, check, nonEmpty, number, object, optional, parse, picklist, pipe, record, regex, string } from 'valibot'
+import { any, array, boolean, check, nonEmpty, number, object, optional, parse, picklist, pipe, record, regex, string, url } from 'valibot'
 
 import { createServiceUnavailableError } from '../../utils/error'
 import { configRedisKey } from '../../utils/redis-keys'
@@ -126,6 +126,12 @@ const ConfigEntrySchemas = {
   // No default — absent lets Stripe auto-select payment methods via Dashboard config
   STRIPE_PAYMENT_METHODS: optional(array(string())),
   STRIPE_PAYMENT_METHOD_OPTIONS: optional(record(string(), any()), {}),
+  // Optional paid-user survey URL sent from the Stripe checkout webhook after
+  // fulfillment. Missing means the post-payment survey email is disabled.
+  COMMUNITY_SURVEY_URL: optional(pipe(string(), nonEmpty('COMMUNITY_SURVEY_URL must not be empty'), url('COMMUNITY_SURVEY_URL must be a valid URL'))),
+  COMMUNITY_SURVEY_EMAIL_SUBJECT: optional(pipe(string(), nonEmpty('COMMUNITY_SURVEY_EMAIL_SUBJECT must not be empty'))),
+  COMMUNITY_SURVEY_EMAIL_HTML: optional(pipe(string(), nonEmpty('COMMUNITY_SURVEY_EMAIL_HTML must not be empty'))),
+  COMMUNITY_SURVEY_EMAIL_TEXT: optional(pipe(string(), nonEmpty('COMMUNITY_SURVEY_EMAIL_TEXT must not be empty'))),
   // model id → (BCP-47 locale → recommended voice id). Outer key is either a
   // router TTS model id (LLM_ROUTER_CONFIG.tts.models key) for REST or a
   // streaming api_resource_id (e.g. `seed-tts-2.0`) for the streaming surface.

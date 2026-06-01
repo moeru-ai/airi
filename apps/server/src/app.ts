@@ -13,6 +13,7 @@ import type { BillingService } from './services/domain/billing/billing-service'
 import type { FluxMeter } from './services/domain/billing/flux-meter'
 import type { CharacterService } from './services/domain/characters'
 import type { ChatService } from './services/domain/chats'
+import type { CommunitySurveyService } from './services/domain/community-survey'
 import type { FluxService } from './services/domain/flux'
 import type { FluxTransactionService } from './services/domain/flux-transaction'
 import type { LlmRouterService } from './services/domain/llm-router'
@@ -72,6 +73,7 @@ import { createBillingService } from './services/domain/billing/billing-service'
 import { createFluxMeter } from './services/domain/billing/flux-meter'
 import { createCharacterService } from './services/domain/characters'
 import { createChatService } from './services/domain/chats'
+import { createCommunitySurveyService } from './services/domain/community-survey'
 import { createFluxService } from './services/domain/flux'
 import { createFluxTransactionService } from './services/domain/flux-transaction'
 import { createConfigSyncSubscriber, createLlmRouterService } from './services/domain/llm-router'
@@ -94,6 +96,7 @@ interface AppDeps {
   fluxTransactionService: FluxTransactionService
   stripeService: StripeService
   billingService: BillingService
+  communitySurveyService: CommunitySurveyService
   adminFluxGrantsService: AdminFluxGrantsService
   adminRouterConfigService: AdminRouterConfigService
   adminUsersService: AdminUsersService
@@ -341,7 +344,7 @@ export async function buildApp(deps: AppDeps) {
     /**
      * Stripe routes.
      */
-    .route('/api/v1/stripe', createStripeRoutes(deps.fluxService, deps.stripeService, deps.billingService, deps.configKV, deps.env, deps.redis, deps.otel?.revenue, deps.otel?.rateLimit, deps.posthog))
+    .route('/api/v1/stripe', createStripeRoutes(deps.fluxService, deps.stripeService, deps.billingService, deps.configKV, deps.env, deps.redis, deps.otel?.revenue, deps.otel?.rateLimit, deps.posthog, deps.communitySurveyService))
 
     /**
      * Admin routes — guarded by the `adminGuard` role check (`role === 'admin'`,
@@ -469,6 +472,11 @@ export async function createApp() {
       fromEmail: dependsOn.env.RESEND_FROM_EMAIL,
       fromName: dependsOn.env.RESEND_FROM_NAME,
     }, undefined, dependsOn.otel?.email),
+  })
+
+  const communitySurveyService = injeca.provide('services:communitySurvey', {
+    dependsOn: { db, configKV, emailService },
+    build: ({ dependsOn }) => createCommunitySurveyService(dependsOn.db, dependsOn.configKV, dependsOn.emailService),
   })
 
   // Webhook capture path goes through `captureSafe` → `captureImmediate`,
@@ -680,6 +688,7 @@ export async function createApp() {
     requestLogService,
     stripeService,
     billingService,
+    communitySurveyService,
     adminFluxGrantsService,
     adminRouterConfigService,
     adminUsersService,
@@ -720,6 +729,7 @@ export async function createApp() {
     fluxTransactionService: resolved.fluxTransactionService,
     stripeService: resolved.stripeService,
     billingService: resolved.billingService,
+    communitySurveyService: resolved.communitySurveyService,
     adminFluxGrantsService: resolved.adminFluxGrantsService,
     adminRouterConfigService: resolved.adminRouterConfigService,
     adminUsersService: resolved.adminUsersService,
