@@ -16,6 +16,7 @@ import type { ComputerUseServerRuntime } from './runtime'
 import { errorMessageFrom } from '@moeru/std'
 import { z } from 'zod'
 
+import { diagnoseBrowserActionError } from '../browser-dom/browser-repair-contract'
 import { getUnsupportedBrowserDomActions, isBrowserDomActionSupported } from '../browser-dom/capabilities'
 import { getRuntimePreflight } from '../preflight'
 import { summarizeRunState } from '../transparency'
@@ -100,6 +101,36 @@ function buildBrowserDomUnavailableResponse(runtime: ComputerUseServerRuntime, u
       status: 'unavailable',
       bridge: status,
       unsupportedActions,
+    },
+  }
+}
+
+function buildBrowserDomActionErrorResponse(params: {
+  runtime: ComputerUseServerRuntime
+  error: unknown
+  selector: string
+  actionKind: string
+}) {
+  const { runtime, error, selector, actionKind } = params
+  const message = errorMessageFrom(error) ?? 'unknown error'
+  const repairSuggestion = diagnoseBrowserActionError(error, selector, actionKind)
+
+  return {
+    isError: true,
+    content: [
+      textContent(
+        repairSuggestion
+          ? `${actionKind} failed for "${selector}": ${message}\n\n${repairSuggestion.reactionText}`
+          : `${actionKind} failed for "${selector}": ${message}`,
+      ),
+    ],
+    structuredContent: {
+      status: 'error',
+      selector,
+      actionKind,
+      error: message,
+      repairSuggestion: repairSuggestion ?? undefined,
+      bridge: runtime.browserDomBridge.getStatus(),
     },
   }
 }
@@ -569,11 +600,22 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       if (!isBrowserDomActionSupported(runtime.browserDomBridge, ...requiredActions))
         return buildBrowserDomUnavailableResponse(runtime, getUnsupportedBrowserDomActions(runtime.browserDomBridge, ...requiredActions))
 
-      const result = await runtime.browserDomBridge.clickSelector({
-        selector,
-        tabId,
-        frameIds,
-      })
+      let result: Awaited<ReturnType<typeof runtime.browserDomBridge.clickSelector>>
+      try {
+        result = await runtime.browserDomBridge.clickSelector({
+          selector,
+          tabId,
+          frameIds,
+        })
+      }
+      catch (error) {
+        return buildBrowserDomActionErrorResponse({
+          runtime,
+          error,
+          selector,
+          actionKind: 'browser_dom_click',
+        })
+      }
 
       // NOTICE: clickSelector resolves even when the clickAt step misses
       // (e.g. reflow between target lookup and click dispatch). Inspect
@@ -771,12 +813,23 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       if (!isBrowserDomActionSupported(runtime.browserDomBridge, ...requiredActions))
         return buildBrowserDomUnavailableResponse(runtime, getUnsupportedBrowserDomActions(runtime.browserDomBridge, ...requiredActions))
 
-      const results = await runtime.browserDomBridge.waitForElement({
-        selector,
-        timeoutMs,
-        tabId,
-        frameIds,
-      })
+      let results: Awaited<ReturnType<typeof runtime.browserDomBridge.waitForElement>>
+      try {
+        results = await runtime.browserDomBridge.waitForElement({
+          selector,
+          timeoutMs,
+          tabId,
+          frameIds,
+        })
+      }
+      catch (error) {
+        return buildBrowserDomActionErrorResponse({
+          runtime,
+          error,
+          selector,
+          actionKind: 'browser_dom_wait_for_element',
+        })
+      }
       return {
         content: [
           textContent(summarizeBrowserDomFrameResults(`wait_for_element for "${selector}"`, results)),
