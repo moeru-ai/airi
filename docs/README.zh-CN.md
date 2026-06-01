@@ -135,9 +135,10 @@
 > 深受 [Neuro-sama](https://www.youtube.com/@Neurosama) 启发
 
 > [!TIP]
-> 在 Windows 上，你也可以使用 [Scoop](https://scoop.sh/) 安装 AIRI：
+> 在 Windows 上，你也可以使用 [winget](https://learn.microsoft.com/windows/package-manager/winget/) 或 [Scoop](https://scoop.sh/) 安装 AIRI：
 >
 > ```powershell
+> winget install MoeruAI.AIRI
 > scoop bucket add airi https://github.com/moeru-ai/airi
 > scoop install airi/airi
 > ```

@@ -135,9 +135,10 @@
 > Сильно вдохновлено [Neuro-sama](https://www.youtube.com/@Neurosama)
 
 > [!TIP]
-> В Windows AIRI также можно установить с помощью [Scoop](https://scoop.sh/):
+> В Windows AIRI можно установить с помощью [winget](https://learn.microsoft.com/windows/package-manager/winget/) или [Scoop](https://scoop.sh/):
 >
 > ```powershell
+> winget install MoeruAI.AIRI
 > scoop bucket add airi https://github.com/moeru-ai/airi
 > scoop install airi/airi
 > ```
