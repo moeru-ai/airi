@@ -975,21 +975,13 @@ export class JavaScriptPlanner {
       { name: 'updateAiriContext', kind: 'function', readonly: true },
     ]
 
-    // The sandbox `self` global comes from the reflex snapshot and only has `.location` for coords.
-    // The LLM very frequently writes `self.pos.x` / `self.position.x` (both undefined → recurring
-    // "Cannot read properties of undefined (reading 'x')" crashes). Expose `pos`/`position` as
-    // aliases of `location` so all three spellings work. (Note: this is the REAL `self` global —
-    // distinct from `query.self()` which returns a `.pos`-shaped record.)
-    const snapshotSelf = runtime.snapshot.self as Record<string, unknown> | undefined
-    const selfWithAliases = snapshotSelf && typeof snapshotSelf === 'object'
-      ? { ...snapshotSelf, pos: snapshotSelf.location, position: snapshotSelf.location }
-      : snapshotSelf
-
     const valueByName: Record<string, unknown> = {
       'snapshot': runtime.snapshot,
       'event': runtime.event,
       'now': Date.now(),
-      'self': selfWithAliases,
+      // `self` already carries pos/position aliases (applied in buildRuntimeSnapshot), so the preview
+      // matches what the sandbox actually binds.
+      'self': runtime.snapshot.self,
       'environment': runtime.snapshot.environment,
       'social': runtime.snapshot.social,
       'threat': runtime.snapshot.threat,
@@ -1076,6 +1068,21 @@ export class JavaScriptPlanner {
     const llmLogEntries = this.buildLlmLogSeed(globals.llmLog)
     const llmInput = copyForIsolate(globals.llmInput ?? null)
 
+    // NOTICE: the sandbox binds `self` and `snapshot.self` straight from this snapshot (see the self
+    // binding in js-planner-worker.ts), but the raw reflex self only carries `.location` for coords.
+    // The LLM constantly writes self.pos.x / self.position.x, so alias pos/position -> location on the
+    // isolate copy here — otherwise those reads are undefined and scripts crash with
+    // "Cannot read properties of undefined (reading 'x')". (query.self() is a separate, .pos-shaped record.)
+    // copyForIsolate freezes its result, so build a fresh aliased `self` rather than mutating in place.
+    const rawSnapshot = copyForIsolate(globals.snapshot)
+    const rawSelf = (rawSnapshot as Record<string, unknown> | null)?.self as Record<string, unknown> | undefined
+    const snapshot = rawSelf && typeof rawSelf === 'object' && rawSelf.location != null
+      ? {
+          ...(rawSnapshot as Record<string, unknown>),
+          self: { ...rawSelf, pos: rawSelf.pos ?? rawSelf.location, position: rawSelf.position ?? rawSelf.location },
+        }
+      : rawSnapshot
+
     return {
       actionQueue: copyForIsolate(globals.actionQueue ?? null),
       currentInput: copyForIsolate(globals.currentInput ?? null),
@@ -1093,7 +1100,7 @@ export class JavaScriptPlanner {
       noActionBudget: copyForIsolate(globals.noActionBudget ?? null),
       prevRun: copyForIsolate(this.persistedLastRun),
       querySeed: this.buildQuerySeedSafely(globals.mineflayer ?? null),
-      snapshot: copyForIsolate(globals.snapshot),
+      snapshot,
     }
   }
 

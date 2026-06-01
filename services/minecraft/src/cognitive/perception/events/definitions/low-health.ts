@@ -37,9 +37,12 @@ export const lowHealthEvent = definePerceptionEvent<[], { health: number }>({
       if (!armed)
         return false
 
-      // Critical now. The auto-eat reflex transparently handles ready-to-eat food, so only escalate
-      // to the brain when it cannot — i.e. the only food is raw (needs cooking) or there is none.
-      if (hasReadyFood(ctx.bot))
+      // Critical now. The auto-eat reflex transparently handles ready-to-eat food — EXCEPT mid-fight,
+      // where it is suppressed (reflexEngaged) so the bot can commit to combat. mineflayer-pvp sets
+      // `bot.pvp.target` while attacking; in that case auto-eat cannot help, so escalate to the brain
+      // (retreat + eat) even when ready food exists. Otherwise the reflex eats it silently.
+      const inCombat = Boolean((ctx.bot as { pvp?: { target?: unknown } }).pvp?.target)
+      if (hasReadyFood(ctx.bot) && !inCombat)
         return false
 
       armed = false

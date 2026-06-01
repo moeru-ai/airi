@@ -5,9 +5,9 @@ import { lowHealthEvent } from './low-health'
 const filter = lowHealthEvent.mineflayer.filter!
 const extract = lowHealthEvent.mineflayer.extract
 
-/** Perception-context stub: drives the low-health filter with a health value and inventory. */
-function ctx(health: number, items: Array<{ name: string, foodPoints?: number }> = []): any {
-  return { bot: { health, inventory: { items: () => items } } }
+/** Perception-context stub: drives the low-health filter with a health value, inventory, and pvp state. */
+function ctx(health: number, items: Array<{ name: string, foodPoints?: number }> = [], pvpTarget: unknown = null): any {
+  return { bot: { health, inventory: { items: () => items }, pvp: { target: pvpTarget } } }
 }
 
 const bread = { name: 'bread', foodPoints: 5 }
@@ -28,6 +28,18 @@ describe('low_health perception event', () => {
     expect(filter(ctx(6, [bread]))).toBe(false)
     // raw-only food cannot be eaten by the reflex -> escalate to the brain to cook
     expect(filter(ctx(6, [rawBeef]))).toBe(true)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/1915 (Codex P1)
+  it('escalates at critical health WITH ready food while mid-fight (auto-eat is suppressed in combat)', () => {
+    // ROOT CAUSE:
+    // During a defend engagement reflexEngaged disables auto-eat, and damage signals are suppressed
+    // while attacking, so a critical bot holding ready food was never woken to retreat/eat — it kept
+    // fighting at <=6 health. bot.pvp.target marks active combat; escalate even with ready food then.
+    filter(ctx(20)) // arm
+    expect(filter(ctx(6, [bread], { id: 1 }))).toBe(true) // critical + ready food + in combat -> wake brain
+    filter(ctx(20)) // recover -> re-arm
+    expect(filter(ctx(6, [bread]))).toBe(false) // same but NOT in combat -> reflex eats it, stay quiet
   })
 
   it('extracts the current health for the signal', () => {
