@@ -1266,6 +1266,23 @@ pages:
           default-text: Hello! This is a test of the Kokoro text-to-speech system.
           title: Voice Playground
         title: Kokoro TTS (Local)
+      rwkv-local:
+        description: Local chat using RWKV models running entirely in your browser via WebGPU.
+        fields:
+          field:
+            model:
+              label: Model Selection
+              description: Smaller models load faster and use less GPU memory; larger models are more capable.
+        models:
+          rwkv7-world-100m-fp16:
+            description: RWKV-7 World 0.1B, full precision (FP16) - fastest to load, lowest quality
+          rwkv7-world-400m-fp16:
+            description: RWKV-7 World 0.4B, full precision (FP16)
+          rwkv7-world-1b5-int8:
+            description: RWKV-7 World 1.5B, Int8 quantized - balances quality and GPU memory
+          rwkv7-world-2b9-nf4:
+            description: RWKV-7 World 2.9B, NF4 quantized - most capable, highest GPU memory
+        title: RWKV (Local)
       fireworks:
         description: fireworks.ai
         title: Fireworks.ai

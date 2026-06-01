@@ -55,6 +55,7 @@ import { getKokoroAdapter } from '../libs/inference/adapters/kokoro'
 import { getProviderValidationIntervalMs, listProviders as listDefinedProviders, ProviderValidationCheck } from '../libs/providers'
 import { resolveProviderSourceMetadata } from '../libs/providers/source-metadata'
 import { getDefaultKokoroModel, KOKORO_MODELS, kokoroModelsToModelInfo } from '../workers/kokoro/constants'
+import { getDefaultRwkvModel, RWKV_MODELS, rwkvModelsToModelInfo } from '../workers/rwkv/constants'
 import { useAuthStore } from './auth'
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
 import { convertProviderDefinitionsToMetadata } from './providers/converters'
@@ -2223,6 +2224,95 @@ export const useProvidersStore = defineStore('providers', () => {
             return {
               errors: [new Error(`Invalid model: ${model}`)],
               reason: `Invalid model. Must be one of: ${KOKORO_MODELS.map(m => m.id).join(', ')}`,
+              valid: false,
+            }
+          }
+
+          return {
+            errors: [],
+            reason: '',
+            valid: true,
+          }
+        },
+      },
+    },
+    'rwkv-local': {
+      id: 'rwkv-local',
+      category: 'chat',
+      tasks: ['chat'],
+      nameKey: 'settings.pages.providers.provider.rwkv-local.title',
+      name: 'RWKV (Local)',
+      descriptionKey: 'settings.pages.providers.provider.rwkv-local.description',
+      description: 'Local chat using RWKV models running in-browser via WebGPU.',
+      icon: 'i-lobe-icons:rwkv',
+      deployment: 'local',
+      pricing: 'free',
+
+      // web-rwkv's compute path is WebGPU-only — there is no WASM/CPU fallback
+      // for inference — so without `navigator.gpu` nothing is runnable. Gate
+      // availability on real WebGPU support (mirrors isBrowserAndMemoryEnough's
+      // WebGPU probe, but RWKV cannot fall back to the deviceMemory path).
+      isAvailableBy: isWebGPUSupported,
+
+      defaultOptions: () => {
+        const capabilities = getCachedWebGPUCapabilities()
+        const hasWebGPU = capabilities?.supported ?? (typeof navigator !== 'undefined' && !!navigator.gpu)
+        return {
+          model: getDefaultRwkvModel(hasWebGPU) ?? '',
+        }
+      },
+
+      createProvider: async (_config) => {
+        // TODO(#1917): wire to the RWKV worker adapter once the inference-worker
+        // @moeru/eventa contract lands.
+        //
+        // NOTICE:
+        // This provider's contract-agnostic surface (metadata, model catalog,
+        // i18n, validation, WebGPU gating) is drafted here, but the actual
+        // in-browser generation requires a `workers/rwkv/worker.ts` + a
+        // `libs/inference/adapters/rwkv.ts` that speak the worker↔main wire
+        // contract. That contract is being rewritten from the hand-rolled
+        // postMessage protocol to an @moeru/eventa contract in PR #1917
+        // (deletes libs/inference/worker-manager.ts), so the adapter is
+        // deliberately built on top of that branch to avoid throwaway work.
+        // Until then `isAvailableBy` (WebGPU) keeps this selectable only where
+        // it could eventually run; selecting + invoking it surfaces this error.
+        // Removal condition: implement the worker + adapter on #1917's contract
+        // and return a ChatProvider whose `fetch` streams from the adapter.
+        throw new Error('RWKV local provider is not wired yet: the in-browser worker/adapter is pending the inference-worker contract migration (PR #1917).')
+      },
+
+      capabilities: {
+        listModels: async (_config: Record<string, unknown>) => {
+          const caps = getCachedWebGPUCapabilities()
+          const hasWebGPU = caps?.supported ?? (typeof navigator !== 'undefined' && !!navigator.gpu)
+          return rwkvModelsToModelInfo(hasWebGPU, t)
+        },
+
+        loadModel: async (_config: Record<string, unknown>) => {
+          // TODO(#1917): load the safetensors weights + vocab in the RWKV worker
+          // via the adapter once the eventa contract lands (see createProvider).
+          throw new Error('RWKV local provider is not wired yet: model loading is pending the inference-worker contract migration (PR #1917).')
+        },
+      },
+
+      validators: {
+        chatPingCheckAvailable: false,
+        validateProviderConfig: (config) => {
+          const model = config.model as string
+
+          if (!model) {
+            return {
+              errors: [new Error('No model selected')],
+              reason: 'Please select a model from the dropdown menu',
+              valid: false,
+            }
+          }
+
+          if (!RWKV_MODELS.some(m => m.id === model)) {
+            return {
+              errors: [new Error(`Invalid model: ${model}`)],
+              reason: `Invalid model. Must be one of: ${RWKV_MODELS.map(m => m.id).join(', ')}`,
               valid: false,
             }
           }
