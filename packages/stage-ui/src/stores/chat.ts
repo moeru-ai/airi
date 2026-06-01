@@ -23,6 +23,7 @@ import { useLlmToolsetPromptsStore } from './llm-toolset-prompts'
 import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
+import { useVisionProcessingStore, VISION_AWARENESS_PROMPT } from './modules/vision'
 
 interface ForkOptions {
   fromSessionId?: string
@@ -63,6 +64,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const chatContext = useChatContextStore()
   const cardStore = useAiriCardStore()
   const contextObservability = useContextObservabilityStore()
+  const visionProcessingStore = useVisionProcessingStore()
   const { activeSessionId } = storeToRefs(chatSession)
   const { streamingMessage } = storeToRefs(chatStream)
 
@@ -156,7 +158,14 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     },
     getActiveSessionId: () => activeSessionId.value,
     getActiveProvider: () => activeProvider.value,
-    getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
+    getSystemPromptSupplement: () => {
+      // Compose toolset usage prompt with vision self-awareness framing, the
+      // latter only while background capture is actually feeding screen context.
+      const parts = [llmToolsetPromptsStore.activeToolsetPrompt]
+      if (visionProcessingStore.backgroundCaptureEnabled)
+        parts.push(VISION_AWARENESS_PROMPT)
+      return parts.filter(Boolean).join('\n\n')
+    },
     runtimeContextProviders: [
       createMinecraftContext,
     ],

@@ -10,6 +10,21 @@ export interface VisionTickOutcome {
 
 type VisionTickHandler = () => Promise<VisionTickOutcome | void> | VisionTickOutcome | void
 
+/**
+ * System-prompt supplement that tells the chat backbone what the `vision:` /
+ * `screen:` context entries are, so it treats them as its own first-person
+ * screen perception instead of opaque side-channel data.
+ *
+ * Injected only while background capture is enabled (see `chat.ts`), so the
+ * persona is not told it can see a screen when no vision context is flowing.
+ */
+export const VISION_AWARENESS_PROMPT = [
+  '你具备屏幕视觉能力。',
+  '用户消息后附带的 [Context] 块中,以 vision: 或 screen: 开头的条目,是你此刻实际看到的主人屏幕的实时描述。',
+  '你可以自然地、以第一人称谈论你看到的内容(例如「我看到你在…」),但不要逐字复述这些标签或原文。',
+  '当没有相关条目时,不要假装看到屏幕。',
+].join('\n')
+
 const DEFAULT_CAPTURE_INTERVAL_MS = 3000
 const HISTORY_MAX_AGE_MS = 5 * 60 * 1000
 const PROCESSING_HISTORY_LIMIT = 240
