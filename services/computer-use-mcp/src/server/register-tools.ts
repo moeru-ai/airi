@@ -13,6 +13,7 @@ import type { WorkflowSuspension } from '../workflows'
 import type { ExecuteAction } from './action-executor'
 import type { ComputerUseServerRuntime } from './runtime'
 
+import { errorMessageFrom } from '@moeru/std'
 import { z } from 'zod'
 
 import { getUnsupportedBrowserDomActions, isBrowserDomActionSupported } from '../browser-dom/capabilities'
@@ -37,6 +38,7 @@ import {
 import { refreshRuntimeRunState } from './refresh-run-state'
 import { executeChromeEnsure } from './register-chrome-session'
 import { createAcquirePtyCallback, executeApprovedPtyCreate } from './register-pty'
+import { createToolLaneHygieneServer } from './tool-lane-hygiene'
 import { formatWorkflowStructuredContent } from './workflow-formatter'
 import { createWorkflowPrepToolExecutor } from './workflow-prep-tools'
 
@@ -103,7 +105,8 @@ function buildBrowserDomUnavailableResponse(runtime: ComputerUseServerRuntime, u
 }
 
 export function registerComputerUseTools(params: RegisterComputerUseToolsOptions) {
-  const { server, runtime, executeAction, enableTestTools } = params
+  const { runtime, executeAction, enableTestTools } = params
+  const server = createToolLaneHygieneServer(params.server, runtime.stateManager)
   const executePrepTool = createWorkflowPrepToolExecutor(runtime)
   const acquirePty = createAcquirePtyCallback(runtime)
 
@@ -445,15 +448,16 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         }
       }
       catch (error) {
+        const message = errorMessageFrom(error) ?? 'unknown error'
         return {
           isError: true,
           content: [
-            textContent(`Browser agent failed: ${error instanceof Error ? error.message : String(error)}`),
+            textContent(`Browser agent failed: ${message}`),
           ],
           structuredContent: {
             status: 'error',
             browserAgent: launchContext,
-            error: error instanceof Error ? error.message : String(error),
+            error: message,
           },
         }
       }
@@ -877,10 +881,11 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
           parsed = JSON.parse(optsJson) as unknown
         }
         catch (error) {
+          const message = errorMessageFrom(error) ?? 'unknown error'
           return {
             isError: true,
             content: [
-              textContent(`browser_dom_trigger_event expected optsJson to be valid JSON: ${error instanceof Error ? error.message : String(error)}`),
+              textContent(`browser_dom_trigger_event expected optsJson to be valid JSON: ${message}`),
             ],
             structuredContent: {
               status: 'invalid_params',
