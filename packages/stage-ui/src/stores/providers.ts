@@ -2267,19 +2267,22 @@ export const useProvidersStore = defineStore('providers', () => {
         // @moeru/eventa contract lands.
         //
         // NOTICE:
-        // This provider's contract-agnostic surface (metadata, model catalog,
-        // i18n, validation, WebGPU gating) is drafted here, but the actual
-        // in-browser generation requires a `workers/rwkv/worker.ts` + a
-        // `libs/inference/adapters/rwkv.ts` that speak the worker↔main wire
-        // contract. That contract is being rewritten from the hand-rolled
-        // postMessage protocol to an @moeru/eventa contract in PR #1917
-        // (deletes libs/inference/worker-manager.ts), so the adapter is
-        // deliberately built on top of that branch to avoid throwaway work.
+        // The worker side is now implemented: `workers/rwkv/worker.ts` runs the
+        // engine (`engine.ts`: load + Cache-Storage weight caching + web-rwkv
+        // prefix-state caching + streaming generate) behind a transport-agnostic
+        // port (`transport.ts`). The remaining gap is the *main-side* adapter:
+        // a transport client that drives that worker, plus chat-template
+        // formatting (messages -> RWKV `User:/Assistant:` prompt) and an
+        // xsai-compatible ChatProvider whose `fetch` streams token deltas.
+        // That adapter is deliberately built on PR #1917's eventa contract
+        // (which deletes libs/inference/worker-manager.ts) rather than the
+        // hand-rolled protocol, so only `transport.ts`'s postMessage binding is
+        // swapped — the engine and ops stay as-is.
         // Until then `isAvailableBy` (WebGPU) keeps this selectable only where
         // it could eventually run; selecting + invoking it surfaces this error.
-        // Removal condition: implement the worker + adapter on #1917's contract
+        // Removal condition: implement the main-side adapter on #1917's contract
         // and return a ChatProvider whose `fetch` streams from the adapter.
-        throw new Error('RWKV local provider is not wired yet: the in-browser worker/adapter is pending the inference-worker contract migration (PR #1917).')
+        throw new Error('RWKV local provider is not wired yet: the main-thread adapter is pending the inference-worker contract migration (PR #1917).')
       },
 
       capabilities: {

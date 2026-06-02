@@ -53,21 +53,20 @@ export interface RwkvModel {
  * Shared RWKV "World" tokenizer vocabulary.
  *
  * All RWKV World checkpoints share the same trie tokenizer vocab; web-rwkv's
- * `Tokenizer` is constructed from this JSON string.
+ * `Tokenizer` is constructed from this JSON string. This is the same
+ * `rwkv_vocab_v20230424.json` that powers the official `web-rwkv-puzzles`
+ * demos.
  */
-export const RWKV_VOCAB_URL = 'https://huggingface.co/cgisky/RWKV-safetensors-fp16/resolve/main/rwkv_vocab_v20230424.json'
+export const RWKV_VOCAB_URL = 'https://raw.githubusercontent.com/cryscan/web-rwkv-puzzles/main/assets/rwkv_vocab_v20230424.json'
 
 // NOTICE:
-// The `modelUrl`/`RWKV_VOCAB_URL` values below are provisional starting points
-// based on the web-rwkv / web-rwkv-puzzles demo checkpoints (f16 safetensors).
-// They MUST be confirmed against the canonical hosting the package author
-// recommends before this provider ships, because:
-//   - web-rwkv requires f16 `safetensors` (not the PyTorch `.pth` weights that
-//     BlinkDL publishes), so a conversion/mirror host is required;
-//   - exact filenames and the World vocab revision differ between releases.
-// Source/context: README of @cryscan/web-rwkv-wasm@0.10.20 ("Models are f16
-// safetensors files (RWKV v4/v5/v6/v7)") and https://github.com/cryscan/web-rwkv.
-// Removal condition: replace with the author-confirmed URLs and delete this note.
+// `quantization` here only reduces *VRAM*, not *download size*. web-rwkv reads
+// f16 `safetensors` and quantizes on-device at load time (`Session.from_reader`,
+// see workers/rwkv/engine.ts), so an `int8`/`nf4` entry still downloads the full
+// f16 weights below (~3 GB for 1.5B, ~5.9 GB for 3B) before quantizing in the GPU.
+// The catalog records the *intent*; the worker resolves layer counts at load.
+// Source/context: cgisky/RWKV-x070-Ai00 world_v3 f16 safetensors (the Ai00/web-rwkv
+// author's host) and https://github.com/cryscan/web-rwkv-puzzles.
 export const RWKV_MODELS = [
   // NOTICE:
   // Model ids are intentionally dot-free (`100m`, not `0.1b`). The
@@ -79,7 +78,7 @@ export const RWKV_MODELS = [
     name: 'RWKV-7 World 0.1B (FP16)',
     version: 'v7',
     params: '0.1B',
-    modelUrl: 'https://huggingface.co/cgisky/RWKV-safetensors-fp16/resolve/main/RWKV-x070-World-0.1B-v2.8.st',
+    modelUrl: 'https://huggingface.co/cgisky/RWKV-x070-Ai00/resolve/main/world_v3/0.1B/0.1B-20241210-ctx4096.st',
     quantization: 'fp16',
     descriptionKey: 'settings.pages.providers.provider.rwkv-local.models.rwkv7-world-100m-fp16.description',
   },
@@ -88,7 +87,7 @@ export const RWKV_MODELS = [
     name: 'RWKV-7 World 0.4B (FP16)',
     version: 'v7',
     params: '0.4B',
-    modelUrl: 'https://huggingface.co/cgisky/RWKV-safetensors-fp16/resolve/main/RWKV-x070-World-0.4B-v2.9.st',
+    modelUrl: 'https://huggingface.co/cgisky/RWKV-x070-Ai00/resolve/main/world_v3/0.4B/0.4B-20250107-ctx4096.st',
     quantization: 'fp16',
     descriptionKey: 'settings.pages.providers.provider.rwkv-local.models.rwkv7-world-400m-fp16.description',
   },
@@ -97,18 +96,18 @@ export const RWKV_MODELS = [
     name: 'RWKV-7 World 1.5B (Int8)',
     version: 'v7',
     params: '1.5B',
-    modelUrl: 'https://huggingface.co/cgisky/RWKV-safetensors-fp16/resolve/main/RWKV-x070-World-1.5B-v3.st',
+    modelUrl: 'https://huggingface.co/cgisky/RWKV-x070-Ai00/resolve/main/world_v3/1.5B/1.5B-20250127-ctx4096.st',
     quantization: 'int8',
     descriptionKey: 'settings.pages.providers.provider.rwkv-local.models.rwkv7-world-1b5-int8.description',
   },
   {
-    id: 'rwkv7-world-2b9-nf4',
-    name: 'RWKV-7 World 2.9B (NF4)',
+    id: 'rwkv7-world-3b-nf4',
+    name: 'RWKV-7 World 3B (NF4)',
     version: 'v7',
-    params: '2.9B',
-    modelUrl: 'https://huggingface.co/cgisky/RWKV-safetensors-fp16/resolve/main/RWKV-x070-World-2.9B-v3.st',
+    params: '3B',
+    modelUrl: 'https://huggingface.co/cgisky/RWKV-x070-Ai00/resolve/main/world_v3/3b/3B-20250210-ctx4k.st',
     quantization: 'nf4',
-    descriptionKey: 'settings.pages.providers.provider.rwkv-local.models.rwkv7-world-2b9-nf4.description',
+    descriptionKey: 'settings.pages.providers.provider.rwkv-local.models.rwkv7-world-3b-nf4.description',
   },
 ] as const satisfies readonly RwkvModel[]
 
