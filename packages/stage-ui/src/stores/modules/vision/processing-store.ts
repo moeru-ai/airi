@@ -19,10 +19,11 @@ type VisionTickHandler = () => Promise<VisionTickOutcome | void> | VisionTickOut
  * persona is not told it can see a screen when no vision context is flowing.
  */
 export const VISION_AWARENESS_PROMPT = [
-  '你具备屏幕视觉能力。',
-  '用户消息后附带的 [Context] 块中,以 vision: 或 screen: 开头的条目,是你此刻实际看到的主人屏幕的实时描述。',
-  '你可以自然地、以第一人称谈论你看到的内容(例如「我看到你在…」),但不要逐字复述这些标签或原文。',
-  '当没有相关条目时,不要假装看到屏幕。',
+  '你具备屏幕视觉能力,但它只是【辅助你判断主人处境的背景信息】,不是话题本身。',
+  '用户消息后 [Context] 块中以 vision:/screen: 开头的条目,是你此刻看到的主人屏幕的实时描述——把它当作背景参考,默默用来更好地理解主人在做什么、可能需要什么。',
+  '不要主动、反复地宣称"我能看到你的屏幕";不要逐帧复述或罗列屏幕内容;不要把"看到了什么"当成每次回复的开场白。',
+  '只有当屏幕信息对当前对话真正有帮助,或主人主动问起时,才自然、简短地提及一次即可。',
+  '没有相关条目时,不要假装看到屏幕。',
 ].join('\n')
 
 const DEFAULT_CAPTURE_INTERVAL_MS = 3000

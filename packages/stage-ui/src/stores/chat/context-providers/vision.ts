@@ -3,7 +3,7 @@ import type { ContextMessage } from '../../../types/chat'
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { nanoid } from 'nanoid'
 
-import { useVisionOrchestratorStore, useVisionProcessingStore } from '../../modules/vision'
+import { useVisionOrchestratorStore } from '../../modules/vision'
 
 // Prefix `vision:` so it matches the screen-vision awareness line added to the system prompt.
 const VISION_CONTEXT_ID = 'vision:screen'
@@ -26,14 +26,10 @@ const FRESHNESS_MS = 60_000
  * Returns null when background capture is off, or when no fresh frame is available.
  */
 export function createVisionContext(): ContextMessage | null {
-  const processing = useVisionProcessingStore()
   const orchestrator = useVisionOrchestratorStore()
   const text = orchestrator.lastResultText.trim()
   const at = orchestrator.lastResultAt
   const fresh = !!text && at != null && Date.now() - at <= FRESHNESS_MS
-
-  // DEBUG (temporary): trace the gate decision in the dev server stdout.
-  console.warn('[vision-ctx]', { bgEnabled: processing.backgroundCaptureEnabled, hasText: !!text, textLen: text.length, ageMs: at == null ? null : Date.now() - at, fresh })
 
   // Inject whenever a fresh screen description exists, regardless of how capture was started
   // (settings toggle or the devtools Vision page). Freshness alone discards stale frames.
@@ -44,7 +40,9 @@ export function createVisionContext(): ContextMessage | null {
     id: nanoid(),
     contextId: VISION_CONTEXT_ID,
     strategy: ContextUpdateStrategy.ReplaceSelf,
-    text: `Live screen view (what the master is looking at right now): ${text}`,
+    // Framed as background/auxiliary so the persona uses it to understand context rather than
+    // narrating it; the behavioural rules live in VISION_AWARENESS_PROMPT.
+    text: `Screen (background context, do not narrate verbatim): ${text}`,
     createdAt: Date.now(),
   }
 }
