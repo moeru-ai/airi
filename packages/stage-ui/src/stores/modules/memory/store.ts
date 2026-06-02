@@ -29,6 +29,17 @@ export const useMemoryStore = defineStore('memory', () => {
    */
   const embeddingDimension = useLocalStorageManualReset('settings/memory/embed-dimension', 1024)
 
+  /** Max memories pulled per recall before re-ranking. */
+  const topK = useLocalStorageManualReset('settings/memory/recall-top-k', 6)
+  /**
+   * Minimum cosine similarity for a memory to be recalled. Conservative by default (precision over
+   * recall): a low value floods the prompt with loosely-related memories, which is worse than missing
+   * one. Tuned per embed model.
+   */
+  const simThreshold = useLocalStorageManualReset('settings/memory/recall-sim-threshold', 0.6)
+  /** Half-life (days) of the recency factor in recall re-ranking. */
+  const recencyHalfLifeDays = useLocalStorageManualReset('settings/memory/recall-recency-half-life-days', 30)
+
   /** True once an embed provider and model are both selected — the embedder's precondition. */
   const configured = computed(() => Boolean(embedProvider.value) && Boolean(embedModel.value))
 
@@ -37,6 +48,9 @@ export const useMemoryStore = defineStore('memory', () => {
     embedProvider,
     embedModel,
     embeddingDimension,
+    topK,
+    simThreshold,
+    recencyHalfLifeDays,
     configured,
   }
 })

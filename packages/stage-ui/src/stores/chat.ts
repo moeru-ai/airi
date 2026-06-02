@@ -10,10 +10,10 @@ import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref, toRaw, watch } from 'vue'
 
-import { useAnalytics } from '../composables'
+import { useAnalytics, useMemoryRecall } from '../composables'
 import { activeTurnSpan, startSpan } from '../composables/use-io-tracer'
 import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
-import { createMinecraftContext } from './chat/context-providers'
+import { buildMemoryRecallContext, createMinecraftContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
@@ -257,6 +257,20 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   function getPendingQueuedSendSnapshot() {
     return runtime.getPendingQueuedSendSnapshot()
   }
+
+  // Long-term memory recall (read-only). Before each turn is composed, embed the last turn or two
+  // plus the current input, search memory, and inject a `[Memory]` block. Registered on the awaited
+  // before-compose hook so the context lands in the same-turn snapshot the prompt is built from.
+  // An empty result clears the previous turn's memory line (ReplaceSelf + blank text is skipped by
+  // formatContextPromptText). recallMemories never throws — a failure just yields no memory context.
+  const { recall: recallMemories } = useMemoryRecall()
+  runtime.hooks.onBeforeMessageComposed(async (messageText) => {
+    const recentMessages = chatSession.getSessionMessages(activeSessionId.value)
+    const tail = recentMessages.slice(-2).map(extractMessageText).filter(Boolean)
+    const query = [...tail, messageText].filter(Boolean).join('\n')
+    const memoryText = await recallMemories(query)
+    chatContext.ingestContextMessage(buildMemoryRecallContext(memoryText))
+  })
 
   return {
     sending,
