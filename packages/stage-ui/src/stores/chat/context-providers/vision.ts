@@ -27,13 +27,17 @@ const FRESHNESS_MS = 60_000
  */
 export function createVisionContext(): ContextMessage | null {
   const processing = useVisionProcessingStore()
-  if (!processing.backgroundCaptureEnabled)
-    return null
-
   const orchestrator = useVisionOrchestratorStore()
   const text = orchestrator.lastResultText.trim()
   const at = orchestrator.lastResultAt
-  if (!text || at == null || Date.now() - at > FRESHNESS_MS)
+  const fresh = !!text && at != null && Date.now() - at <= FRESHNESS_MS
+
+  // DEBUG (temporary): trace the gate decision in the dev server stdout.
+  console.warn('[vision-ctx]', { bgEnabled: processing.backgroundCaptureEnabled, hasText: !!text, textLen: text.length, ageMs: at == null ? null : Date.now() - at, fresh })
+
+  // Inject whenever a fresh screen description exists, regardless of how capture was started
+  // (settings toggle or the devtools Vision page). Freshness alone discards stale frames.
+  if (!fresh)
     return null
 
   return {
