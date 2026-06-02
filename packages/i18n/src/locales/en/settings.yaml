@@ -1274,14 +1274,14 @@ pages:
               label: Model Selection
               description: Smaller models load faster and use less GPU memory; larger models are more capable.
         models:
-          rwkv7-world-100m-fp16:
-            description: RWKV-7 World 0.1B, full precision (FP16) - fastest to load, lowest quality
-          rwkv7-world-400m-fp16:
-            description: RWKV-7 World 0.4B, full precision (FP16)
-          rwkv7-world-1b5-int8:
-            description: RWKV-7 World 1.5B, Int8 quantized - balances quality and GPU memory
-          rwkv7-world-3b-nf4:
-            description: RWKV-7 World 3B, NF4 quantized - most capable, highest GPU memory (downloads the full ~5.9 GB FP16 weights, then quantizes on-device)
+          rwkv7-g1-100m-fp16:
+            description: RWKV-7 G1 0.1B, full precision (FP16) - fastest to load, lowest quality
+          rwkv7-g1-400m-fp16:
+            description: RWKV-7 G1 0.4B, full precision (FP16)
+          rwkv7-g1-1b5-int8:
+            description: RWKV-7 G1 1.5B, Int8 quantized - balances quality and GPU memory
+          rwkv7-g1-2b9-nf4:
+            description: RWKV-7 G1 2.9B, NF4 quantized - most capable, highest GPU memory (downloads the full ~5.9 GB FP16 weights, then quantizes on-device)
         title: RWKV (Local)
       fireworks:
         description: fireworks.ai

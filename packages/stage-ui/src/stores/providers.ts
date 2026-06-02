@@ -2270,10 +2270,11 @@ export const useProvidersStore = defineStore('providers', () => {
         // The worker side is now implemented: `workers/rwkv/worker.ts` runs the
         // engine (`engine.ts`: load + Cache-Storage weight caching + web-rwkv
         // prefix-state caching + streaming generate) behind a transport-agnostic
-        // port (`transport.ts`). The remaining gap is the *main-side* adapter:
-        // a transport client that drives that worker, plus chat-template
-        // formatting (messages -> RWKV `User:/Assistant:` prompt) and an
-        // xsai-compatible ChatProvider whose `fetch` streams token deltas.
+        // port (`transport.ts`), and `prompt.ts` flattens an OpenAI `Message[]`
+        // into the G1 chat template. The remaining gap is the *main-side*
+        // adapter: a transport client that drives the worker and an
+        // xsai-compatible ChatProvider whose `fetch` reads the request
+        // `messages`, calls `formatG1Prompt`, and streams the token deltas back.
         // That adapter is deliberately built on PR #1917's eventa contract
         // (which deletes libs/inference/worker-manager.ts) rather than the
         // hand-rolled protocol, so only `transport.ts`'s postMessage binding is

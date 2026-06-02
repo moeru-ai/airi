@@ -39,12 +39,12 @@ describe('rwkvModelsToModelInfo', () => {
 describe('getDefaultRwkvModel', () => {
   /**
    * @example
-   * getDefaultRwkvModel(true) // -> 'rwkv7-world-100m-fp16'
+   * getDefaultRwkvModel(true) // -> 'rwkv7-g1-100m-fp16'
    */
   it('defaults to the smallest f16 checkpoint when WebGPU is available', () => {
     const id = getDefaultRwkvModel(true)
 
-    expect(id).toBe('rwkv7-world-100m-fp16')
+    expect(id).toBe('rwkv7-g1-100m-fp16')
     expect(RWKV_MODELS.some(m => m.id === id)).toBe(true)
   })
 

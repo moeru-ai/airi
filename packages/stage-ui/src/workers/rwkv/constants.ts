@@ -63,10 +63,16 @@ export const RWKV_VOCAB_URL = 'https://raw.githubusercontent.com/cryscan/web-rwk
 // `quantization` here only reduces *VRAM*, not *download size*. web-rwkv reads
 // f16 `safetensors` and quantizes on-device at load time (`Session.from_reader`,
 // see workers/rwkv/engine.ts), so an `int8`/`nf4` entry still downloads the full
-// f16 weights below (~3 GB for 1.5B, ~5.9 GB for 3B) before quantizing in the GPU.
+// f16 weights below (~3 GB for 1.5B, ~5.9 GB for 2.9B) before quantizing in the GPU.
 // The catalog records the *intent*; the worker resolves layer counts at load.
-// Source/context: cgisky/RWKV-x070-Ai00 world_v3 f16 safetensors (the Ai00/web-rwkv
-// author's host) and https://github.com/cryscan/web-rwkv-puzzles.
+//
+// These are the RWKV-7 "G1" reasoning-tuned checkpoints (the series the model
+// authors recommend for chat over the base World models), in web-rwkv-ready f16
+// safetensors. The lineup mixes the latest sub-iteration available per size
+// (g1d/g1/g1g) — exact checkpoint dates are encoded in the URLs. Prompting must
+// follow the G1x chat templates (see workers/rwkv/prompt.ts).
+// Source/context: mollysama/rwkv-mobile-models `WebRWKV/` (web-rwkv-prepared)
+// and https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v7/RWKV7-G1x-templates.txt.
 export const RWKV_MODELS = [
   // NOTICE:
   // Model ids are intentionally dot-free (`100m`, not `0.1b`). The
@@ -74,40 +80,40 @@ export const RWKV_MODELS = [
   // vue-i18n splits paths on `.`, so a dot in the id would resolve to a wrong
   // nested key. Human-readable sizes live in `name`/`params` instead.
   {
-    id: 'rwkv7-world-100m-fp16',
-    name: 'RWKV-7 World 0.1B (FP16)',
+    id: 'rwkv7-g1-100m-fp16',
+    name: 'RWKV-7 G1 0.1B (FP16)',
     version: 'v7',
     params: '0.1B',
-    modelUrl: 'https://huggingface.co/cgisky/RWKV-x070-Ai00/resolve/main/world_v3/0.1B/0.1B-20241210-ctx4096.st',
+    modelUrl: 'https://huggingface.co/mollysama/rwkv-mobile-models/resolve/main/WebRWKV/rwkv7-g1d-0.1b-20260129-ctx8192.st',
     quantization: 'fp16',
-    descriptionKey: 'settings.pages.providers.provider.rwkv-local.models.rwkv7-world-100m-fp16.description',
+    descriptionKey: 'settings.pages.providers.provider.rwkv-local.models.rwkv7-g1-100m-fp16.description',
   },
   {
-    id: 'rwkv7-world-400m-fp16',
-    name: 'RWKV-7 World 0.4B (FP16)',
+    id: 'rwkv7-g1-400m-fp16',
+    name: 'RWKV-7 G1 0.4B (FP16)',
     version: 'v7',
     params: '0.4B',
-    modelUrl: 'https://huggingface.co/cgisky/RWKV-x070-Ai00/resolve/main/world_v3/0.4B/0.4B-20250107-ctx4096.st',
+    modelUrl: 'https://huggingface.co/mollysama/rwkv-mobile-models/resolve/main/WebRWKV/rwkv7-g1-0.4b-20250324-ctx4096.st',
     quantization: 'fp16',
-    descriptionKey: 'settings.pages.providers.provider.rwkv-local.models.rwkv7-world-400m-fp16.description',
+    descriptionKey: 'settings.pages.providers.provider.rwkv-local.models.rwkv7-g1-400m-fp16.description',
   },
   {
-    id: 'rwkv7-world-1b5-int8',
-    name: 'RWKV-7 World 1.5B (Int8)',
+    id: 'rwkv7-g1-1b5-int8',
+    name: 'RWKV-7 G1 1.5B (Int8)',
     version: 'v7',
     params: '1.5B',
-    modelUrl: 'https://huggingface.co/cgisky/RWKV-x070-Ai00/resolve/main/world_v3/1.5B/1.5B-20250127-ctx4096.st',
+    modelUrl: 'https://huggingface.co/mollysama/rwkv-mobile-models/resolve/main/WebRWKV/rwkv7-g1g-1.5b-20260526-ctx8192.st',
     quantization: 'int8',
-    descriptionKey: 'settings.pages.providers.provider.rwkv-local.models.rwkv7-world-1b5-int8.description',
+    descriptionKey: 'settings.pages.providers.provider.rwkv-local.models.rwkv7-g1-1b5-int8.description',
   },
   {
-    id: 'rwkv7-world-3b-nf4',
-    name: 'RWKV-7 World 3B (NF4)',
+    id: 'rwkv7-g1-2b9-nf4',
+    name: 'RWKV-7 G1 2.9B (NF4)',
     version: 'v7',
-    params: '3B',
-    modelUrl: 'https://huggingface.co/cgisky/RWKV-x070-Ai00/resolve/main/world_v3/3b/3B-20250210-ctx4k.st',
+    params: '2.9B',
+    modelUrl: 'https://huggingface.co/mollysama/rwkv-mobile-models/resolve/main/WebRWKV/rwkv7-g1g-2.9b-20260526-ctx8192.st',
     quantization: 'nf4',
-    descriptionKey: 'settings.pages.providers.provider.rwkv-local.models.rwkv7-world-3b-nf4.description',
+    descriptionKey: 'settings.pages.providers.provider.rwkv-local.models.rwkv7-g1-2b9-nf4.description',
   },
 ] as const satisfies readonly RwkvModel[]
 
@@ -152,5 +158,5 @@ export function getDefaultRwkvModel(hasWebGPU: boolean): RwkvModelId | undefined
   if (!hasWebGPU)
     return undefined
 
-  return 'rwkv7-world-100m-fp16'
+  return 'rwkv7-g1-100m-fp16'
 }

@@ -32,7 +32,7 @@ function createFakeEndpoint() {
 const flush = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0))
 
 const READY = {
-  modelId: 'rwkv7-world-100m-fp16',
+  modelId: 'rwkv7-g1-100m-fp16',
   quantization: 'fp16',
   info: { numLayer: 2, numVocab: 10, numEmb: 4, version: 'v7' },
 } as const
@@ -55,7 +55,7 @@ describe('createMessagePortTransport', () => {
     }
 
     createMessagePortTransport(endpoint).serve(ops)
-    send({ kind: 'invoke', id: '1', op: 'load', payload: { modelId: 'rwkv7-world-100m-fp16' } })
+    send({ kind: 'invoke', id: '1', op: 'load', payload: { modelId: 'rwkv7-g1-100m-fp16' } })
     await flush()
 
     expect(posted[0]).toEqual({ kind: 'chunk', id: '1', chunk: { phase: 'compile', percent: 50 } })
@@ -124,7 +124,7 @@ describe('createMessagePortTransport', () => {
     }
 
     createMessagePortTransport(endpoint).serve(ops)
-    send({ kind: 'invoke', id: '4', op: 'load', payload: { modelId: 'rwkv7-world-100m-fp16' } })
+    send({ kind: 'invoke', id: '4', op: 'load', payload: { modelId: 'rwkv7-g1-100m-fp16' } })
     await flush()
 
     expect(posted).toContainEqual({ kind: 'error', id: '4', name: 'Error', message: 'model not found' })
