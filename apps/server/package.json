@@ -58,6 +58,7 @@
     "injeca": "catalog:",
     "ioredis": "^5.10.1",
     "jose": "catalog:",
+    "ofetch": "catalog:",
     "pg": "^8.20.0",
     "posthog-node": "catalog:",
     "resend": "^6.12.2",
