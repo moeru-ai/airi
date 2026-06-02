@@ -117,16 +117,22 @@ async function handleVisionTick() {
 
 // Pick the primary display and start the resident ticker. No-op when the
 // vision provider/model is not configured yet, or when already running.
+let starting = false
 async function start() {
   if (!backgroundCaptureEnabled.value || !configured.value)
     return
-  if (isRunning.value)
+  if (isRunning.value || starting)
     return
 
+  starting = true
   try {
     await refetchSources()
     const primaryScreen = sources.value.find(source => source.id.startsWith('screen:'))
     if (!primaryScreen) {
+      // This window cannot capture (e.g. no screen source / not a capture-capable window). Give up
+      // leadership so a capable window can take over instead of holding the lease and deadlocking.
+      releaseLeadership()
+      console.warn('[vision-leader]', INSTANCE_ID.slice(0, 6), 'start failed: no screen source -> released leadership')
       visionOrchestratorStore.recordError(new Error('No screen source available for background capture'))
       return
     }
@@ -134,9 +140,15 @@ async function start() {
 
     await ensureVideoStream()
     visionProcessingStore.startTicker(handleVisionTick)
+    console.warn('[vision-leader]', INSTANCE_ID.slice(0, 6), 'capture STARTED')
   }
   catch (error) {
+    releaseLeadership()
+    console.warn('[vision-leader]', INSTANCE_ID.slice(0, 6), 'start error -> released leadership', error)
     visionOrchestratorStore.recordError(error)
+  }
+  finally {
+    starting = false
   }
 }
 
@@ -184,9 +196,14 @@ function reconcile() {
   if (!backgroundCaptureEnabled.value || !configured.value) {
     releaseLeadership()
     stop()
+    // DEBUG (temporary)
+    console.warn('[vision-leader]', INSTANCE_ID.slice(0, 6), 'stand down: not enabled/configured', { en: backgroundCaptureEnabled.value, cfg: configured.value })
     return
   }
-  if (claimLeadershipIfAvailable())
+  const leader = claimLeadershipIfAvailable()
+  // DEBUG (temporary)
+  console.warn('[vision-leader]', INSTANCE_ID.slice(0, 6), { leader, running: isRunning.value, holder: captureLeader.value.id.slice(0, 6) })
+  if (leader)
     void start()
   else
     stop()
