@@ -18,9 +18,11 @@ import type {
   VoiceProviderWithExtraOptions,
 } from 'unspeech'
 
+import type { ProviderSourceDeployment, ProviderSourcePricing } from '../libs/providers/source-metadata'
 import type { ProviderOnboardingField } from '../libs/providers/types'
 import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream-transcription'
 
+import { errorMessageFrom } from '@moeru/std'
 import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
 import { getCachedWebGPUCapabilities, isWebGPUSupported } from '@proj-airi/stage-shared/webgpu'
 import { computedAsync, useIntervalFn, useLocalStorage } from '@vueuse/core'
@@ -50,6 +52,7 @@ import { useI18n } from 'vue-i18n'
 
 import { getKokoroAdapter } from '../libs/inference/adapters/kokoro'
 import { getProviderValidationIntervalMs, listProviders as listDefinedProviders, ProviderValidationCheck } from '../libs/providers'
+import { resolveProviderSourceMetadata } from '../libs/providers/source-metadata'
 import { getDefaultKokoroModel, KOKORO_MODELS, kokoroModelsToModelInfo } from '../workers/kokoro/constants'
 import { useAuthStore } from './auth'
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
@@ -175,8 +178,8 @@ export interface ProviderMetadata {
     supportsStreamOutput: boolean
     supportsStreamInput: boolean
   }
-  pricing?: 'free' | 'paid' | 'internal'
-  deployment?: 'local' | 'cloud'
+  pricing?: ProviderSourcePricing
+  deployment?: ProviderSourceDeployment
   beginnerRecommended?: boolean
 }
 
@@ -2242,6 +2245,7 @@ export const useProvidersStore = defineStore('providers', () => {
   // translate unified provider definitions from libs/providers to legacy store metadata.
   // Existing metadata remains as fallback for providers not yet migrated.
   const definedProviders = listDefinedProviders()
+  const definedProviderIds = new Set(definedProviders.map(d => d.id))
 
   const translatedProviderMetadata = convertProviderDefinitionsToMetadata(
     definedProviders,
@@ -2268,6 +2272,12 @@ export const useProvidersStore = defineStore('providers', () => {
   // and remove the hand-written metadata above entirely.
   for (const [providerId, translated] of Object.entries(translatedProviderMetadata)) {
     providerMetadata[providerId] = translated
+  }
+
+  for (const metadata of Object.values(providerMetadata)) {
+    if (definedProviderIds.has(metadata.id))
+      continue
+    Object.assign(metadata, resolveProviderSourceMetadata(metadata))
   }
 
   // const validatedCredentials = ref<Record<string, string>>({})
@@ -2540,7 +2550,7 @@ export const useProvidersStore = defineStore('providers', () => {
     catch (error) {
       console.error(`Error fetching models for ${providerId}:`, error)
       if (runtimeState) {
-        runtimeState.modelLoadError = error instanceof Error ? error.message : 'Unknown error'
+        runtimeState.modelLoadError = errorMessageFrom(error) ?? 'Unknown error'
       }
       return []
     }
@@ -2617,8 +2627,6 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Get all providers metadata (for settings page).
   // Order: defined providers first (already sorted by order in registry), then legacy-only providers.
-  const definedProviderIds = new Set(definedProviders.map(d => d.id))
-
   const allProvidersMetadata = computed(() => {
     const localize = (metadata: ProviderMetadata) => ({
       ...metadata,
