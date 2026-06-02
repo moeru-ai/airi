@@ -54,6 +54,7 @@ const AzureSliceSchema = object({
   kind: literal('azure'),
   modelName: pipe(string(), nonEmpty('modelName is required'), maxLength(200), NO_PIPE),
   region: pipe(string(), nonEmpty('region is required'), maxLength(64)),
+  defaultVoice: optional(pipe(string(), nonEmpty('defaultVoice must not be empty'), maxLength(200))),
   plaintextKey: pipe(string(), nonEmpty('plaintextKey is required'), maxLength(MAX_KEY_LENGTH)),
   keyEntryId: optional(pipe(string(), nonEmpty(), maxLength(200), NO_PIPE)),
 })

@@ -52,15 +52,19 @@
     "cac": "catalog:",
     "drizzle-orm": "catalog:",
     "drizzle-valibot": "catalog:",
+    "es-toolkit": "catalog:",
     "hono": "catalog:",
     "hono-rate-limiter": "catalog:",
     "injeca": "catalog:",
     "ioredis": "^5.10.1",
     "jose": "catalog:",
+    "nanoid": "catalog:",
+    "ofetch": "catalog:",
     "pg": "^8.20.0",
     "posthog-node": "catalog:",
     "resend": "^6.12.2",
     "stripe": "^22.0.2",
+    "unspeech": "catalog:xsai",
     "valibot": "catalog:",
     "ws": "catalog:",
     "zod": "catalog:"
@@ -69,7 +73,6 @@
     "@better-auth/cli": "^1.4.21",
     "@types/pg": "^8.20.0",
     "@types/ws": "^8.18.1",
-    "drizzle-kit": "catalog:",
-    "unspeech": "catalog:xsai"
+    "drizzle-kit": "catalog:"
   }
 }

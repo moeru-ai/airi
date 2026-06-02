@@ -135,7 +135,13 @@
 > [Neuro-sama](https://www.youtube.com/@Neurosama) に大きな影響を受けました
 
 > [!TIP]
-> Windows では、[Scoop](https://scoop.sh/) でも AIRI をインストールできます：
+> Windows では、[winget](https://learn.microsoft.com/windows/package-manager/winget/) で AIRI をインストールできます：
+>
+> ```powershell
+> winget install MoeruAI.AIRI
+> ```
+>
+> または、[Scoop](https://scoop.sh/) で AIRI をインストールできます：
 >
 > ```powershell
 > scoop bucket add airi https://github.com/moeru-ai/airi

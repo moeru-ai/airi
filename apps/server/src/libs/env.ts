@@ -110,6 +110,15 @@ const EnvSchema = object({
   AUTH_GITHUB_CLIENT_ID: pipe(string(), nonEmpty('AUTH_GITHUB_CLIENT_ID is required')),
   AUTH_GITHUB_CLIENT_SECRET: pipe(string(), nonEmpty('AUTH_GITHUB_CLIENT_SECRET is required')),
 
+  // Testing-only bearer token bypass. Keep unset in production. When set,
+  // Authorization: Bearer $TEST_AUTH_TOKEN resolves to the virtual user below
+  // through resolveRequestAuth without creating a better-auth session row.
+  TEST_AUTH_TOKEN: optional(string(), ''),
+  TEST_AUTH_USER_ID: optional(pipe(string(), nonEmpty('TEST_AUTH_USER_ID must not be empty when set')), 'test-user'),
+  TEST_AUTH_USER_EMAIL: optional(pipe(string(), nonEmpty('TEST_AUTH_USER_EMAIL must not be empty when set')), 'test@example.com'),
+  TEST_AUTH_USER_NAME: optional(pipe(string(), nonEmpty('TEST_AUTH_USER_NAME must not be empty when set')), 'Test User'),
+  TEST_AUTH_USER_ROLE: optional(string(), ''),
+
   // Resend transactional email. RESEND_API_KEY required when emailAndPassword
   // sign-up / forgot-password / change-email / magic-link is exercised. Service
   // boots without it but those flows will throw at send-time.
