@@ -1,9 +1,6 @@
-import type { ModelInfo } from '../../types'
-
 import { createMinimax, createMinimaxCn } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
-import { ProviderValidationCheck } from '../../types'
 import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
 
@@ -28,57 +25,6 @@ const minimaxGlobalConfigSchema = z.object({
 })
 
 type MinimaxGlobalConfig = z.input<typeof minimaxGlobalConfigSchema>
-
-const minimaxModels: ModelInfo[] = [
-  {
-    id: 'MiniMax-M2.7',
-    name: 'MiniMax M2.7',
-    provider: 'minimax',
-    description: 'Latest flagship model with enhanced reasoning and coding',
-  },
-  {
-    id: 'MiniMax-M2.7-highspeed',
-    name: 'MiniMax M2.7 Highspeed',
-    provider: 'minimax',
-    description: 'High-speed version of M2.7 for low-latency scenarios',
-  },
-  {
-    id: 'MiniMax-M2.5',
-    name: 'MiniMax M2.5',
-    provider: 'minimax',
-    description: 'Top performance and cost-effectiveness for complex tasks',
-  },
-  {
-    id: 'MiniMax-M2.5-highspeed',
-    name: 'MiniMax M2.5 Highspeed',
-    provider: 'minimax',
-    description: 'M2.5 high-speed version with same quality',
-  },
-  {
-    id: 'MiniMax-M2.1',
-    name: 'MiniMax M2.1',
-    provider: 'minimax',
-    description: 'Strong multilingual programming capabilities',
-  },
-  {
-    id: 'MiniMax-M2.1-highspeed',
-    name: 'MiniMax M2.1 Highspeed',
-    provider: 'minimax',
-    description: 'M2.1 high-speed version with same quality',
-  },
-  {
-    id: 'M2-her',
-    name: 'MiniMax M2-her',
-    provider: 'minimax',
-    description: 'Specialized for roleplay and multi-turn dialogue',
-  },
-  {
-    id: 'MiniMax-M2',
-    name: 'MiniMax M2',
-    provider: 'minimax',
-    description: 'Designed for efficient coding and agent workflows',
-  },
-]
 
 export const providerMinimax = defineProvider<MinimaxCnConfig>({
   id: 'minimax',
@@ -107,16 +53,11 @@ export const providerMinimax = defineProvider<MinimaxCnConfig>({
     return createMinimaxCn(config.apiKey, config.baseUrl)
   },
 
-  extraMethods: {
-    listModels: async () => minimaxModels,
-  },
   validationRequiredWhen(config) {
     return !!config.apiKey?.trim()
   },
   validators: {
-    ...createOpenAICompatibleValidators({
-      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ChatCompletions],
-    }),
+    ...createOpenAICompatibleValidators(),
   },
 })
 
@@ -147,15 +88,10 @@ export const providerMinimaxGlobal = defineProvider<MinimaxGlobalConfig>({
     return createMinimax(config.apiKey, config.baseUrl)
   },
 
-  extraMethods: {
-    listModels: async () => minimaxModels.map(m => ({ ...m, provider: 'minimax-global' })),
-  },
   validationRequiredWhen(config) {
     return !!config.apiKey?.trim()
   },
   validators: {
-    ...createOpenAICompatibleValidators({
-      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ChatCompletions],
-    }),
+    ...createOpenAICompatibleValidators(),
   },
 })
