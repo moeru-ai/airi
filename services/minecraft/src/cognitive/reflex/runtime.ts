@@ -12,6 +12,18 @@ import { computed, effect, signal } from 'alien-signals'
 import { ReflexContext } from './context'
 import { selectMode } from './modes'
 
+/**
+ * Deadlock breaker for the active-behavior slot lock.
+ *
+ * While an async reflex behavior's promise is in flight its slot stays locked, so a long
+ * survival action (e.g. the ~1.5s auto-eat equip+consume) cannot be preempted mid-animation
+ * by another reflex re-equipping (which would cancel `bot.consume()`) and drop the survival
+ * bite in exactly the low-health combat case auto-eat exists to handle. Normal completion
+ * releases the slot earlier via the promise's `.finally`; this cap only bounds a behavior
+ * whose promise never settles, so reflex selection can resume instead of locking forever.
+ */
+const BEHAVIOR_RUN_DEADLOCK_MS = 10_000
+
 export class ReflexRuntime {
   private readonly followMovementsByBot = new WeakMap<object, InstanceType<typeof pathfinderModel.Movements>>()
   private readonly context = new ReflexContext()
@@ -225,7 +237,10 @@ export class ReflexRuntime {
     try {
       const maybePromise = best.behavior.run(api)
       if (maybePromise && typeof (maybePromise as any).then === 'function') {
-        this.activeBehaviorUntil = now + Math.max(deltaMs, 50)
+        // Lock the slot for the whole async run (released early by `.finally` below), bounded
+        // only by the deadlock breaker. This was a 50ms cap, which released the slot mid-run
+        // and let another reflex preempt a long survival action (e.g. auto-eat). See #1915.
+        this.activeBehaviorUntil = now + Math.max(deltaMs, BEHAVIOR_RUN_DEADLOCK_MS)
         void (maybePromise as Promise<void>).finally(() => {
           // Behavior ends naturally; next tick can run a new one.
           this.activeBehaviorUntil = null
