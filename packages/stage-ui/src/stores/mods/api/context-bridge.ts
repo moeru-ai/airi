@@ -14,8 +14,6 @@ import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref, toRaw, watch } from 'vue'
 
-import { sanitizeCloneable } from './context-bridge-sanitize'
-
 import { getEventSourceKey } from '../../../utils/event-source'
 import { useCharacterOrchestratorStore } from '../../character'
 import { useChatOrchestratorStore } from '../../chat'
@@ -28,6 +26,7 @@ import { useLlmStreamingControlStore } from '../../llm-streaming-control'
 import { useConsciousnessStore } from '../../modules/consciousness'
 import { useProvidersStore } from '../../providers'
 import { useModsServerChannelStore } from './channel-server'
+import { sanitizeCloneable } from './context-bridge-sanitize'
 
 export function normalizeContextSnapshot<C extends Pick<ChatStreamEventContext, 'contexts'>>(contexts: C): C {
   return {
