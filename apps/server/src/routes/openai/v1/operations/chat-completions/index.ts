@@ -1,23 +1,28 @@
-import type { Context, Handler } from 'hono'
-
-import type { UsageInfo } from '../../../services/domain/billing/billing'
-import type { HonoEnv } from '../../../types/hono'
-import type { V1RouteDeps } from './types'
+import type { UsageInfo } from '../../../../../services/domain/billing/billing'
+import type { GatewayCallback } from '../../gateway'
+import type { V1RouteDeps } from '../../types'
 
 import { useLogger } from '@guiiai/logg'
 
-import { captureSafe } from '../../../services/adapters/posthog'
-import { extractUsageFromBody } from '../../../services/domain/billing/billing'
-import { nanoid } from '../../../utils/id'
-import { createOpenAiRouteBilling } from './billing'
-import { buildSafeResponseHeaders } from './response'
-import { createRouteTelemetry, newRouteContext } from './telemetry'
+import { captureSafe } from '../../../../../services/adapters/posthog'
+import { extractUsageFromBody } from '../../../../../services/domain/billing/billing'
+import { nanoid } from '../../../../../utils/id'
+import { buildSafeResponseHeaders } from '../../http/response'
+import { createOpenAiRouteBilling } from '../../middlewares/billing'
+import { createRouteTelemetry, newRouteContext } from '../../middlewares/telemetry'
 
 type ChatBilling = ReturnType<typeof createOpenAiRouteBilling>
 type ChatBillingPolicy = Awaited<ReturnType<ChatBilling['authorizeChat']>>
 type RouteTelemetry = ReturnType<typeof createRouteTelemetry>
 
-export function createChatCompletionHandler(deps: V1RouteDeps): Handler<HonoEnv> {
+export interface ChatCompletionsOperationRequest {
+  userId: string
+  body: Record<string, unknown>
+  sessionId?: string
+  abortSignal?: AbortSignal
+}
+
+export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.completions'> {
   const logger = useLogger('v1-completions').useGlobalConfig()
   const telemetry = createRouteTelemetry({
     genAi: deps.genAi,
@@ -25,18 +30,18 @@ export function createChatCompletionHandler(deps: V1RouteDeps): Handler<HonoEnv>
   })
   const billing = createOpenAiRouteBilling(deps)
 
-  return async function handleCompletion(c: Context<HonoEnv>) {
-    const user = c.get('user')!
+  return async (context) => {
+    const input = context.input
     // Generated up-front so incoming, completion, partial-debit, debit-failure,
     // and request-log entries all carry the same correlation id. Re-used as
     // the billing requestId (both streaming and non-streaming branches) for
     // DB-level idempotency.
     const requestId = nanoid()
 
-    const billingPolicy = await billing.authorizeChat(user.id)
+    const billingPolicy = await billing.authorizeChat(input.userId)
 
-    const body = await c.req.json()
-    let requestModel = body.model || 'auto'
+    const body = input.body
+    let requestModel = typeof body.model === 'string' && body.model.length > 0 ? body.model : 'auto'
 
     if (requestModel === 'auto') {
       requestModel = await deps.configKV.getOrThrow('DEFAULT_CHAT_MODEL')
@@ -45,7 +50,7 @@ export function createChatCompletionHandler(deps: V1RouteDeps): Handler<HonoEnv>
     const stream = !!body.stream
     logger.withFields({
       requestId,
-      userId: user.id,
+      userId: input.userId,
       model: requestModel,
       stream,
       messageCount: Array.isArray(body.messages) ? body.messages.length : undefined,
@@ -67,7 +72,7 @@ export function createChatCompletionHandler(deps: V1RouteDeps): Handler<HonoEnv>
     // caller hangs up. Without this the streaming-cancel path records
     // fluxConsumed: 0 while real cost was incurred — a silent revenue leak.
     // Source: codex review 2026-05-15 HIGH #1.
-    const clientAbort = c.req.raw.signal
+    const clientAbort = input.abortSignal
     const routeCtx = newRouteContext()
     let response: Response
     try {
@@ -81,8 +86,8 @@ export function createChatCompletionHandler(deps: V1RouteDeps): Handler<HonoEnv>
         model: routeCtx.upstreamModel ?? requestModel,
         requestId,
         stream,
-        userId: user.id,
-        sessionId: c.req.header('x-airi-session-id'),
+        userId: input.userId,
+        sessionId: input.sessionId,
       }).fail('Router exhausted or unknown model')
       telemetry.recordMetrics({ model: requestModel, status: 502, type: 'chat', provider: routeCtx.provider, durationMs: Date.now() - startedAt, fluxConsumed: 0 })
       throw err
@@ -102,8 +107,8 @@ export function createChatCompletionHandler(deps: V1RouteDeps): Handler<HonoEnv>
       model: langfuseModel,
       requestId,
       stream,
-      userId: user.id,
-      sessionId: c.req.header('x-airi-session-id'),
+      userId: input.userId,
+      sessionId: input.sessionId,
     })
 
     if (!response.ok) {
@@ -113,7 +118,7 @@ export function createChatCompletionHandler(deps: V1RouteDeps): Handler<HonoEnv>
       // Emit server-side so funnels see real HTTP status — the client only
       // ever observes "stream closed" and cannot tell 401 / 429 / 5xx apart.
       void captureSafe(deps.posthog ?? null, {
-        distinctId: user.id,
+        distinctId: input.userId,
         event: 'llm_request_failed',
         properties: {
           model: requestModel,
@@ -123,7 +128,7 @@ export function createChatCompletionHandler(deps: V1RouteDeps): Handler<HonoEnv>
         },
       })
 
-      logger.withFields({ requestId, userId: user.id, model: requestModel, status: response.status, durationMs })
+      logger.withFields({ requestId, userId: input.userId, model: requestModel, status: response.status, durationMs })
         .warn('chat completion delivered with upstream error status')
 
       return new Response(response.body, {
@@ -141,7 +146,7 @@ export function createChatCompletionHandler(deps: V1RouteDeps): Handler<HonoEnv>
         startedAt,
         durationMs,
         requestId,
-        userId: user.id,
+        userId: input.userId,
         requestModel,
         routeCtxProvider: routeCtx.provider,
         billing,
@@ -152,14 +157,13 @@ export function createChatCompletionHandler(deps: V1RouteDeps): Handler<HonoEnv>
     }
 
     return completeNonStreamingChat({
-      c,
       deps,
       response,
       generationTrace,
       span,
       durationMs,
       requestId,
-      userId: user.id,
+      userId: input.userId,
       requestModel,
       routeCtxProvider: routeCtx.provider,
       billing,
@@ -360,7 +364,6 @@ function streamChatCompletion(input: {
 }
 
 async function completeNonStreamingChat(input: {
-  c: Context<HonoEnv>
   deps: V1RouteDeps
   response: Response
   generationTrace: ReturnType<V1RouteDeps['llmTracing']['startChatGeneration']>
@@ -452,5 +455,5 @@ async function completeNonStreamingChat(input: {
     stream: false,
   }).log('chat completion delivered')
 
-  return input.c.json(responseBody)
+  return Response.json(responseBody)
 }
