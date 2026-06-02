@@ -45,10 +45,6 @@ import {
 } from './safetensors'
 import { fetchCached, fetchCachedText } from './weights'
 
-// ---------------------------------------------------------------------------
-// Public surface
-// ---------------------------------------------------------------------------
-
 /** Everything the engine needs to load one checkpoint. */
 export interface RwkvLoadDescriptor {
   /** URL of the f16 `safetensors` weights. */
@@ -80,10 +76,6 @@ export interface RwkvEngine {
   unload: () => Promise<void>
 }
 
-// ---------------------------------------------------------------------------
-// Module-level constants kept near usage
-// ---------------------------------------------------------------------------
-
 /**
  * The RWKV World end-of-text token. Generation stops when it is sampled.
  * (Token 0 in `rwkv_vocab_v20230424.json`.)
@@ -102,10 +94,6 @@ const SAMPLING_DEFAULTS = {
   penaltyDecay: 0.996,
 } as const
 
-// ---------------------------------------------------------------------------
-// wasm initialization (once per worker)
-// ---------------------------------------------------------------------------
-
 let wasmReady: Promise<unknown> | null = null
 
 /** Instantiate the wasm module exactly once; subsequent calls share the promise. */
@@ -114,10 +102,6 @@ function ensureWasm(): Promise<unknown> {
     wasmReady = init({ module_or_path: wasmUrl })
   return wasmReady
 }
-
-// ---------------------------------------------------------------------------
-// Engine
-// ---------------------------------------------------------------------------
 
 /**
  * Create a web-rwkv engine.
@@ -279,10 +263,6 @@ export function createRwkvEngine(): RwkvEngine {
 
   return { load, generate, unload }
 }
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 /** Build a web-rwkv `TensorReader` by slicing each tensor out of the buffer. */
 function buildReader(buffer: ArrayBuffer, header: SafetensorsHeader): TensorReader {

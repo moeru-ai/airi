@@ -39,10 +39,6 @@ import type {
 
 import { errorMessageFrom } from '@moeru/std'
 
-// ---------------------------------------------------------------------------
-// Transport-agnostic operation abstraction
-// ---------------------------------------------------------------------------
-
 /**
  * Per-operation handle passed to an {@link Operation}.
  *
@@ -83,9 +79,7 @@ export interface RwkvWorkerTransport {
   serve: (ops: RwkvWorkerOps) => void
 }
 
-// ---------------------------------------------------------------------------
-// postMessage binding (the seam PR #1917 swaps for an eventa binding)
-// ---------------------------------------------------------------------------
+// postMessage binding (the seam PR #1917 swaps for an eventa binding).
 
 /** Names of the streaming operations carried by the wire envelope. */
 type StreamingOpName = 'load' | 'generate'
@@ -151,7 +145,6 @@ export function createMessagePortTransport(endpoint: MessageEndpoint): RwkvWorke
         inflight.get(message.id)?.abort()
         return
       }
-      // kind === 'invoke'
       void dispatch(ops, message)
     })
   }
