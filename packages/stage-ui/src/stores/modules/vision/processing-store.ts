@@ -77,10 +77,15 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
   const lastProcessingDurationMs = ref<number | null>(null)
   const lastError = ref<string | null>(null)
 
-  // Cross-window "is capture actually happening" signal for the settings UI: true while a frame was
-  // captured within a few intervals, regardless of which window holds the ticker.
+  // Cross-window "is capture actually happening" signal for the settings UI, regardless of which
+  // window holds the ticker. Keyed on the context-update (completion) timestamp, not lastCaptureAt:
+  // the latter records the frame-grab time but is only written after the ~30-50s inference, so it is
+  // already stale on arrival. Gated on the toggle so it flips to Idle immediately when capture is
+  // turned off. The window is generous to span one slow inference+interval cycle.
   const captureActive = computed(() =>
-    lastCaptureAt.value != null && Date.now() - lastCaptureAt.value < Math.max(captureIntervalMs.value * 3, 30_000),
+    backgroundCaptureEnabled.value
+    && lastContextUpdateAt.value != null
+    && Date.now() - lastContextUpdateAt.value < Math.max(captureIntervalMs.value * 4, 120_000),
   )
 
   const processingHistoryMs = ref<number[]>([])
