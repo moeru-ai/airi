@@ -40,6 +40,15 @@ export const useMemoryStore = defineStore('memory', () => {
   /** Half-life (days) of the recency factor in recall re-ranking. */
   const recencyHalfLifeDays = useLocalStorageManualReset('settings/memory/recall-recency-half-life-days', 30)
 
+  /** Run memory extraction every this many completed turns (the "top-up" write trigger). */
+  const writeEveryNTurns = useLocalStorageManualReset('settings/memory/write-every-n-turns', 12)
+  /**
+   * Cosine similarity at/above which a new candidate is treated as a duplicate of an existing memory
+   * and reinforces it (salience +1) instead of inserting a near-identical row. High by default so
+   * only genuinely redundant facts merge.
+   */
+  const mergeThreshold = useLocalStorageManualReset('settings/memory/write-merge-threshold', 0.85)
+
   /** True once an embed provider and model are both selected — the embedder's precondition. */
   const configured = computed(() => Boolean(embedProvider.value) && Boolean(embedModel.value))
 
@@ -51,6 +60,8 @@ export const useMemoryStore = defineStore('memory', () => {
     topK,
     simThreshold,
     recencyHalfLifeDays,
+    writeEveryNTurns,
+    mergeThreshold,
     configured,
   }
 })
