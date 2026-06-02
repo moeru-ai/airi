@@ -21,12 +21,12 @@ import { captureSafe } from '../../services/adapters/posthog'
 import { createBadRequestError, createServiceUnavailableError } from '../../utils/error'
 import { errorMessageFromUnknown } from '../../utils/error-message'
 import { resolveCheckoutRedirectBase } from '../../utils/origin'
-import { createRedisKey } from '../../utils/redis-keys'
+import { redisKeyFrom } from '../../utils/redis-keys'
 import { CheckoutBodySchema } from './schema'
 
 const logger = useLogger('stripe')
 
-const PRICES_CACHE_KEY = createRedisKey('cache', 'stripe', 'prices')
+const PRICES_CACHE_KEY = redisKeyFrom('cache', 'stripe', 'prices')
 const PRICES_CACHE_TTL_SEC = 5 * 60
 
 interface CachedCurrencyOption {
