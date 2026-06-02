@@ -135,10 +135,15 @@
 > Lấy cảm hứng mạnh mẽ từ [Neuro-sama](https://www.youtube.com/@Neurosama)
 
 > [!TIP]
-> Trên Windows, bạn có thể cài AIRI bằng [winget](https://learn.microsoft.com/windows/package-manager/winget/) hoặc [Scoop](https://scoop.sh/):
+> Trên Windows, bạn có thể cài AIRI bằng [winget](https://learn.microsoft.com/windows/package-manager/winget/):
 >
 > ```powershell
 > winget install MoeruAI.AIRI
+> ```
+>
+> Hoặc cài AIRI bằng [Scoop](https://scoop.sh/):
+>
+> ```powershell
 > scoop bucket add airi https://github.com/moeru-ai/airi
 > scoop install airi/airi
 > ```
