@@ -65,13 +65,23 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
   const isProcessing = ref(false)
   const tickCount = ref(0)
   const skippedTicks = ref(0)
-  const captureCount = ref(0)
-  const contextUpdateCount = ref(0)
+  // These four mirror capture activity for the settings UI. They are persisted to localStorage so
+  // they reflect the actual capture leader window across the multi-window app — the settings page
+  // is usually a different window than the one elected to capture, and a plain ref would read 0/Idle
+  // there even while capture is running elsewhere.
+  const captureCount = useLocalStorageManualReset<number>('settings/vision/capture-count', 0)
+  const contextUpdateCount = useLocalStorageManualReset<number>('settings/vision/context-update-count', 0)
+  const lastCaptureAt = useLocalStorageManualReset<number | null>('settings/vision/last-capture-at', null)
+  const lastContextUpdateAt = useLocalStorageManualReset<number | null>('settings/vision/last-context-update-at', null)
   const lastTickAt = ref<number | null>(null)
-  const lastCaptureAt = ref<number | null>(null)
-  const lastContextUpdateAt = ref<number | null>(null)
   const lastProcessingDurationMs = ref<number | null>(null)
   const lastError = ref<string | null>(null)
+
+  // Cross-window "is capture actually happening" signal for the settings UI: true while a frame was
+  // captured within a few intervals, regardless of which window holds the ticker.
+  const captureActive = computed(() =>
+    lastCaptureAt.value != null && Date.now() - lastCaptureAt.value < Math.max(captureIntervalMs.value * 3, 30_000),
+  )
 
   const processingHistoryMs = ref<number[]>([])
   const captureHistory = ref<number[]>([])
@@ -211,6 +221,7 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
     skippedTicks,
     captureCount,
     contextUpdateCount,
+    captureActive,
     lastTickAt,
     lastCaptureAt,
     lastContextUpdateAt,

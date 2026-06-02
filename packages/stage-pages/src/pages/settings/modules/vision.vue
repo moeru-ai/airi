@@ -29,9 +29,9 @@ const {
   backgroundCaptureEnabled,
   captureCount,
   contextUpdateCount,
+  captureActive,
   lastCaptureAt,
   lastContextUpdateAt,
-  isRunning,
 } = storeToRefs(visionProcessingStore)
 
 const { t } = useI18n()
@@ -362,7 +362,7 @@ function formatRelativeTime(timestamp: number | null) {
               Ticker
             </div>
             <div :class="['text-sm', 'font-medium', 'text-neutral-600', 'dark:text-neutral-200']">
-              {{ isRunning ? 'Active' : 'Idle' }}
+              {{ captureActive ? 'Active' : 'Idle' }}
             </div>
             <div :class="['text-xs', 'text-neutral-400']">
               Last capture {{ formattedLastCapture }}
