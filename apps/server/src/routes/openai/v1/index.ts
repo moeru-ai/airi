@@ -1,58 +1,27 @@
-import type { PostHog } from 'posthog-node'
+import type { Context } from 'hono'
 
-import type { GenAiMetrics, RateLimitMetrics, RevenueMetrics } from '../../../otel'
-import type { ConfigKVService } from '../../../services/adapters/config-kv'
-import type { BillingService } from '../../../services/domain/billing/billing-service'
-import type { FluxMeter } from '../../../services/domain/billing/flux-meter'
-import type { FluxService } from '../../../services/domain/flux'
-import type { LlmRouterService } from '../../../services/domain/llm-router'
-import type { RequestLogService } from '../../../services/domain/request-log'
 import type { HonoEnv } from '../../../types/hono'
-import type { LlmTracingDeps } from './types'
+import type { LlmTracingDeps, V1RouteDeps } from './types'
 
-import { Hono } from 'hono'
-
-import { createAudioCatalogHandlers } from './catalog'
-import { createChatCompletionHandler } from './chat'
-import { createV1RouteGuards } from './guards'
-import { createSpeechHandler } from './speech'
+import { authGuard } from '../../../middlewares/auth'
+import { configGuard } from '../../../middlewares/config-guard'
+import { createV1Gateway } from './gateway'
+import { chatCompletionsRateLimit } from './middlewares'
+import { chatCompletions } from './operations/chat-completions'
+import { createSpeechCatalogOperation } from './operations/speech-catalog'
+import { speechGeneration } from './operations/speech-generation'
 import { defaultLlmTracing } from './types'
 
-export function createV1Routes(
-  fluxService: FluxService,
-  billingService: BillingService,
-  configKV: ConfigKVService,
-  requestLogService: RequestLogService,
-  ttsMeter: FluxMeter,
-  llmRouter: LlmRouterService,
-  genAi?: GenAiMetrics | null,
-  revenue?: RevenueMetrics | null,
-  rateLimitMetrics?: RateLimitMetrics | null,
-  posthog?: PostHog | null,
-  llmTracing: LlmTracingDeps = defaultLlmTracing,
-) {
-  const deps = {
-    fluxService,
-    billingService,
-    configKV,
-    requestLogService,
-    ttsMeter,
-    llmRouter,
-    genAi,
-    revenue,
-    rateLimitMetrics,
-    posthog,
-    llmTracing,
-  }
-  const guards = createV1RouteGuards(deps)
-  const handleCompletion = createChatCompletionHandler(deps)
-  const handleTTS = createSpeechHandler(deps)
-  const {
-    handleListStreamingTTSModels,
-    handleListStreamingVoices,
-    handleListTTSModels,
-    handleListVoices,
-  } = createAudioCatalogHandlers(deps)
+export interface CreateV1RoutesDeps extends Omit<V1RouteDeps, 'llmTracing'> {
+  llmTracing?: LlmTracingDeps
+}
+
+export function createV1Routes(input: CreateV1RoutesDeps) {
+  const deps: V1RouteDeps = { ...input, llmTracing: input.llmTracing ?? defaultLlmTracing }
+  const gateway = createV1Gateway(deps)
+    .useHono('*', '*', authGuard)
+    .useHono('openai', '/chat/*', configGuard(deps.configKV, ['FLUX_PER_REQUEST'], 'Service is not available yet'))
+    .useHono('audio', '/speech', configGuard(deps.configKV, ['FLUX_PER_1K_CHARS_TTS'], 'TTS service is not available yet'))
 
   // OpenAI-compatible surface (mounted at /api/v1/openai). Only routes that
   // mirror an actual OpenAI public endpoint belong here. Audio used to live
@@ -60,22 +29,58 @@ export function createV1Routes(
   // real OpenAI route and the streaming TTS protocol has nothing to do with
   // OpenAI — keeping them here mislabelled the surface, so audio now mounts
   // at /api/v1/audio (see `audioRoutes` below).
-  const openaiRoutes = new Hono<HonoEnv>()
-    .use('*', guards.authGuard)
-    .post('/chat/completions', guards.completionsRateLimit, guards.chatGuard, handleCompletion)
-    .post('/chat/completion', guards.completionsRateLimit, guards.chatGuard, handleCompletion)
+  const openai = gateway.route('openai')
+    .use('chat.completions', chatCompletionsRateLimit({ metrics: deps.rateLimitMetrics }))
+  const openaiRoutes = openai
+    .post('/chat/completions', openai.handler(
+      'chat.completions',
+      async (c) => {
+        const user = c.get('user')!
+        const body = await c.req.json() as Record<string, unknown>
+
+        return {
+          userId: user.id,
+          body,
+          sessionId: c.req.header('x-airi-session-id'),
+          abortSignal: c.req.raw.signal,
+        }
+      },
+      chatCompletions(deps),
+    ))
+    .route
+
+  const audio = gateway.route('audio')
+  const speechCatalog = createSpeechCatalogOperation(deps)
 
   // AIRI audio surface (mounted at /api/v1/audio). Lives outside /openai/ so
   // the `/voices`, `/voices/streaming`, and `/models` extensions aren't
   // misread as OpenAI-compatible. `/audio/speech/ws` is registered
   // separately in app.ts because it needs the WebSocket upgrade middleware.
-  const audioRoutes = new Hono<HonoEnv>()
-    .use('*', guards.authGuard)
-    .post('/speech', guards.ttsGuard, handleTTS)
-    .get('/voices', handleListVoices)
-    .get('/voices/streaming', handleListStreamingVoices)
-    .get('/models', handleListTTSModels)
-    .get('/models/streaming', handleListStreamingTTSModels)
+  const audioRoutes = audio
+    .post('/speech', audio.handler(
+      'speech.generate',
+      async (c) => {
+        const user = c.get('user')!
+        const body = await c.req.json() as Record<string, unknown>
+
+        return {
+          userId: user.id,
+          body,
+          sessionId: c.req.header('x-airi-session-id'),
+          abortSignal: c.req.raw.signal,
+        }
+      },
+      speechGeneration(deps),
+    ))
+    .get('/voices', (c: Context<HonoEnv>) => speechCatalog.listVoices({
+      requestedModel: c.req.query('model'),
+    }))
+    .get('/voices/streaming', (c: Context<HonoEnv>) => speechCatalog.listStreamingVoices({
+      model: c.req.query('model'),
+    }))
+    .get('/models', () => speechCatalog.listSpeechModels())
+    .get('/models/streaming', () => speechCatalog.listStreamingSpeechModels())
+    .route
 
   return { openaiRoutes, audioRoutes }
 }

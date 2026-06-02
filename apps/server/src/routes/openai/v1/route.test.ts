@@ -137,19 +137,19 @@ function createTestApp(
   llmRouter?: LlmRouterService,
   llmTracing = createMockLlmTracing(),
 ) {
-  const { openaiRoutes, audioRoutes } = createV1Routes(
+  const { openaiRoutes, audioRoutes } = createV1Routes({
     fluxService,
-    billingService ?? createMockBillingService(),
+    billingService: billingService ?? createMockBillingService(),
     configKV,
-    requestLogService ?? createMockRequestLogService(),
-    ttsMeter ?? createMockTtsMeter(),
-    llmRouter ?? createMockLlmRouter(),
-    null,
-    null,
-    null,
-    null,
+    requestLogService: requestLogService ?? createMockRequestLogService(),
+    ttsMeter: ttsMeter ?? createMockTtsMeter(),
+    llmRouter: llmRouter ?? createMockLlmRouter(),
+    genAi: null,
+    revenue: null,
+    rateLimitMetrics: null,
+    posthog: null,
     llmTracing,
-  )
+  })
   const app = new Hono<HonoEnv>()
 
   app.onError((err, c) => {
@@ -261,6 +261,50 @@ describe('v1CompletionsRoutes', () => {
       // Critical: upstream was never called — leak is closed before cost is incurred.
       expect(globalThis.fetch).not.toHaveBeenCalled()
       expect(billingService.consumeFluxForLLM).not.toHaveBeenCalled()
+    })
+
+    it('rate-limits chat completions at the gateway operation boundary', async () => {
+      globalThis.fetch = vi.fn(async () =>
+        Response.json({
+          id: 'chatcmpl-test',
+          choices: [{ message: { role: 'assistant', content: 'ok' } }],
+          usage: { prompt_tokens: 1, completion_tokens: 1 },
+        })) as any
+      const llmRouter = createMockLlmRouter()
+      const app = createTestApp(
+        createMockFluxService(1000),
+        createMockConfigKV(),
+        createMockBillingService(1000),
+        undefined,
+        undefined,
+        llmRouter,
+      )
+
+      for (let i = 0; i < 60; i += 1) {
+        const res = await app.fetch(
+          new Request('http://localhost/api/v1/openai/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: 'auto', messages: [{ role: 'user', content: `hi ${i}` }] }),
+          }),
+          { user: testUser } as any,
+        )
+        expect(res.status).toBe(200)
+      }
+
+      const limited = await app.fetch(
+        new Request('http://localhost/api/v1/openai/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'auto', messages: [{ role: 'user', content: 'blocked' }] }),
+        }),
+        { user: testUser } as any,
+      )
+      const body = await limited.json()
+
+      expect(limited.status).toBe(429)
+      expect(body).toEqual({ error: 'TOO_MANY_REQUESTS', message: 'Too many requests' })
+      expect(llmRouter.route).toHaveBeenCalledTimes(60)
     })
 
     // ROOT CAUSE:
@@ -1213,12 +1257,7 @@ describe('v1CompletionsRoutes', () => {
       expect(res.status).toBe(404)
     })
 
-    it('pOST /api/v1/openai/chat/completion (singular) should also work', async () => {
-      globalThis.fetch = vi.fn(async () => new Response('{}', {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      }))
-
+    it('pOST /api/v1/openai/chat/completion (singular) should return 404', async () => {
       const app = createTestApp(createMockFluxService(), createMockConfigKV())
 
       const res = await app.fetch(
@@ -1229,7 +1268,7 @@ describe('v1CompletionsRoutes', () => {
         }),
         { user: testUser } as any,
       )
-      expect(res.status).toBe(200)
+      expect(res.status).toBe(404)
     })
   })
 })

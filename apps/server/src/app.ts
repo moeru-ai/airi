@@ -216,7 +216,17 @@ export async function buildApp(deps: AppDeps) {
   // Built once so the OpenAI-compat and audio routers share the same closure
   // (helpers like recordMetrics / recordRequestLog cross both surfaces) but
   // mount at different prefixes — see the `.route` calls below.
-  const v1Routes = createV1Routes(deps.fluxService, deps.billingService, deps.configKV, deps.requestLogService, deps.ttsMeter, deps.llmRouter, deps.otel?.genAi, deps.otel?.revenue, deps.otel?.rateLimit)
+  const v1Routes = createV1Routes({
+    fluxService: deps.fluxService,
+    billingService: deps.billingService,
+    configKV: deps.configKV,
+    requestLogService: deps.requestLogService,
+    ttsMeter: deps.ttsMeter,
+    llmRouter: deps.llmRouter,
+    genAi: deps.otel?.genAi,
+    revenue: deps.otel?.revenue,
+    rateLimitMetrics: deps.otel?.rateLimit,
+  })
 
   const builtApp = app
     .use('*', sessionMiddleware(deps.auth, deps.env))
