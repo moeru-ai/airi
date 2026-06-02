@@ -1,6 +1,7 @@
 import { createMinimax, createMinimaxCn } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
+import { ProviderValidationCheck } from '../../types'
 import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
 
@@ -57,7 +58,9 @@ export const providerMinimax = defineProvider<MinimaxCnConfig>({
     return !!config.apiKey?.trim()
   },
   validators: {
-    ...createOpenAICompatibleValidators(),
+    ...createOpenAICompatibleValidators({
+      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ModelList, ProviderValidationCheck.ChatCompletions],
+    }),
   },
 })
 
@@ -92,6 +95,8 @@ export const providerMinimaxGlobal = defineProvider<MinimaxGlobalConfig>({
     return !!config.apiKey?.trim()
   },
   validators: {
-    ...createOpenAICompatibleValidators(),
+    ...createOpenAICompatibleValidators({
+      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ModelList, ProviderValidationCheck.ChatCompletions],
+    }),
   },
 })
