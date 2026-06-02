@@ -66,6 +66,8 @@ export interface AzureSliceInput {
   modelName: string
   /** Azure Speech region, used in baseURL and `adapterParams.region`. */
   region: string
+  /** Default Microsoft voice used when `/audio/speech` omits `voice`. */
+  defaultVoice?: string
   plaintextKey: string
   /** @default 'azure-tts-prod-1' */
   keyEntryId?: string
@@ -187,7 +189,10 @@ export function buildAzureSlice(input: AzureSliceInput, envelope: EnvelopeCrypto
       upstreams: [{
         baseURL: `https://${input.region}.tts.speech.microsoft.com/cognitiveservices/v1`,
         keys: [{ id: keyEntryId, ciphertext }],
-        adapterParams: { region: input.region },
+        adapterParams: {
+          region: input.region,
+          ...(input.defaultVoice ? { defaultVoice: input.defaultVoice } : {}),
+        },
       }],
     } as TtsModel,
   }

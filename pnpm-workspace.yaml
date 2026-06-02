@@ -163,7 +163,7 @@ catalogs:
     '@vitest/coverage-v8': ^4.1.4
     vitest: ^4.1.4
   xsai:
-    unspeech: ^0.1.13
+    unspeech: ^0.1.14
 
 ignoredBuiltDependencies:
   - '@ax-llm/ax'
