@@ -217,12 +217,54 @@ describe('azureAdapter.send', () => {
     expect(body.model).toBe('microsoft/v1')
     expect(body.voice).toBe('en-US-AvaMultilingualNeural')
     expect((body.extra_body as { region?: string }).region).toBe('eastasia')
+    expect((body.extra_body as { disable_ssml?: boolean }).disable_ssml).toBe(true)
     // SSML is built on our side so speed survives — verify the prosody tag is in
     // the input field unspeech receives.
     expect(body.input).toContain('<prosody rate=\'+20%\'>')
     expect(body.input).toContain('hi there')
     const headers = init.headers as Record<string, string>
     expect(headers.Authorization).toBe('Bearer azure-sub-key')
+  })
+
+  it('uses adapterParams.defaultVoice when the request omits voice', async () => {
+    const adapter = getAdapter('azure')
+    const fetchImpl = vi.fn(async () => new Response(new Uint8Array([1, 2, 3]), {
+      status: 200,
+      headers: { 'content-type': 'audio/mpeg' },
+    })) as unknown as typeof fetch
+
+    await adapter.send(
+      { text: 'hi there' },
+      {
+        keyPlaintext: Buffer.from('azure-sub-key', 'utf8'),
+        baseURL: 'https://eastasia.tts.speech.microsoft.com/cognitiveservices/v1',
+        unspeechBaseURL: 'http://unspeech.local:5933',
+        adapterParams: { region: 'eastasia', defaultVoice: 'en-US-AvaMultilingualNeural' },
+        fetchImpl,
+      },
+    )
+
+    const [, init] = (fetchImpl as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0]
+    const body = JSON.parse(init.body as string) as Record<string, unknown>
+    expect(body.voice).toBe('en-US-AvaMultilingualNeural')
+  })
+
+  it('rejects missing voice when adapterParams.defaultVoice is not configured', async () => {
+    const adapter = getAdapter('azure')
+    const fetchImpl = vi.fn() as unknown as typeof fetch
+
+    await expect(adapter.send(
+      { text: 'hi' },
+      {
+        keyPlaintext: Buffer.from('k', 'utf8'),
+        baseURL: 'https://eastasia.tts.speech.microsoft.com/cognitiveservices/v1',
+        unspeechBaseURL: 'http://unspeech.local:5933',
+        adapterParams: { region: 'eastasia' },
+        fetchImpl,
+      },
+    )).rejects.toMatchObject({ statusCode: 400 })
+
+    expect(fetchImpl).not.toHaveBeenCalled()
   })
 
   it('throws Error with .status when unspeech non-2xx', async () => {
