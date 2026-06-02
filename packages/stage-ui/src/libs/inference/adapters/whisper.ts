@@ -1,26 +1,30 @@
 /**
  * Whisper ASR inference adapter.
  *
- * Uses the unified inference protocol from protocol.ts.
- * Preserves the onMessage API for streaming UI updates by forwarding
- * unified protocol messages to subscribers.
+ * Talks to the Whisper worker over the Eventa inference contract
+ * (`libs/inference/contract.ts`): load and transcribe are both server-streaming
+ * invokes (load emits progress then a terminal `ready`; transcribe emits
+ * per-token progress then a terminal `result`). The `onMessage` API is
+ * preserved by re-emitting `WhisperEvent`s as the streams are consumed. All
+ * resilience policy (device-loss restart, load serialization, GPU accounting,
+ * mutex) lives here on the main thread.
  */
 
 import type { AllocationToken } from '../gpu-resource-coordinator'
 import type { ProgressPayload } from '../protocol'
 
+import { defineStreamInvoke } from '@moeru/eventa'
+import { createContext } from '@moeru/eventa/adapters/webworkers'
+import { errorMessageFrom } from '@moeru/std'
 import { defaultPerfTracer } from '@proj-airi/stage-shared'
 import { Mutex } from 'async-mutex'
 
 import { removeInferenceStatus, updateInferenceStatus } from '../../../composables/use-inference-status'
 import { DEVICE_LOSS_WASM_THRESHOLD, MAX_RESTARTS, MODEL_NAMES, RESTART_DELAY_MS, TIMEOUTS } from '../constants'
+import { consumeLoadStream, signalWithTimeout, whisperLoadEvent, whisperTranscribeEvent } from '../contract'
 import { getGPUCoordinator, getLoadQueue, MODEL_VRAM_ESTIMATES } from '../coordinator'
 import { LOAD_PRIORITY } from '../load-queue'
-import { classifyDeviceLossReason, classifyError, createRequestId, InferenceAbortError, throwIfAborted } from '../protocol'
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+import { classifyDeviceLossReason, classifyError, InferenceAbortError, throwIfAborted } from '../protocol'
 
 export type WhisperState
   = | 'idle'
@@ -87,24 +91,35 @@ export interface WhisperAdapter {
   readonly deviceLossCount: number
 }
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
 const LOAD_TIMEOUT = TIMEOUTS.WHISPER_LOAD
 const TRANSCRIBE_TIMEOUT = TIMEOUTS.WHISPER_TRANSCRIBE
 
-// ---------------------------------------------------------------------------
-// Factory
-// ---------------------------------------------------------------------------
+/**
+ * Bind the Eventa invoke clients to a freshly created worker. Returns the
+ * load and transcribe (both server-streaming) callables; the rpc type is
+ * inferred so call sites stay aligned with the library's option shapes.
+ */
+function createWhisperRpc(worker: Worker) {
+  const { context } = createContext(worker)
+  return {
+    load: defineStreamInvoke(context, whisperLoadEvent),
+    transcribe: defineStreamInvoke(context, whisperTranscribeEvent),
+  }
+}
+
+type WhisperRpc = ReturnType<typeof createWhisperRpc>
 
 export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
   let worker: Worker | null = null
+  let rpc: WhisperRpc | null = null
   let state: WhisperState = 'idle'
   let allocationToken: AllocationToken | null = null
   let restartAttempts = 0
-  let messageListener: ((event: MessageEvent) => void) | null = null
   let errorListener: ((event: ErrorEvent) => void) | null = null
+  // NOTICE: Re-entrancy guard for handleWorkerError. A single fatal worker
+  // ErrorEvent reaches the adapter twice (native 'error' listener + Eventa's
+  // worker.onerror rejecting the in-flight invoke); see handleWorkerError.
+  let handlingError = false
   const messageHandlers = new Set<(event: WhisperEvent) => void>()
 
   // NOTICE: Device-loss resilience state. See kokoro.ts for rationale.
@@ -113,16 +128,40 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
 
   const operationMutex = new Mutex()
 
+  function emit(event: WhisperEvent): void {
+    for (const handler of messageHandlers) handler(event)
+  }
+
   function handleWorkerError(event: ErrorEvent | Error): void {
+    // NOTICE:
+    // Idempotency guard: a single worker death must be handled exactly once.
+    // This adapter has two observers that can each call here — the native
+    // 'error' listener (ensureWorker) and the operation `.catch` (load) when an
+    // invoke rejects with a non-abort error. Under @moeru/eventa@1.0.0-beta.5,
+    // stream invokes (load/transcribe) do NOT reject on a fatal worker error
+    // (only the native listener fires), so the two paths don't currently
+    // overlap here. The guard keeps handleWorkerError idempotent regardless,
+    // mirroring kokoro.ts where the unary `generate` invoke DOES reject
+    // in-flight on a worker error and genuinely reaches here twice for one
+    // crash. Without it, one device loss would advance the restart counter and
+    // device-loss accounting twice, hitting MAX_RESTARTS after half the real
+    // failures. The flag is cleared when a fresh worker is created (ensureWorker).
+    // Removal condition: drop only if this adapter is guaranteed a single caller
+    // per worker death (e.g. the operation `.catch` stops routing here).
+    if (handlingError)
+      return
+    handlingError = true
+
     state = 'error'
     operationMutex.cancel()
 
-    const code = classifyError(event instanceof Error ? event : (event as ErrorEvent).error ?? event)
+    const error = event instanceof Error ? event : (event as ErrorEvent).error ?? event
+    const code = classifyError(error)
     if (code === 'DEVICE_LOST') {
       deviceLossCount++
       getGPUCoordinator().recordDeviceLoss({
         modelId: MODEL_NAMES.WHISPER,
-        reason: classifyDeviceLossReason(event instanceof Error ? event : (event as ErrorEvent).error ?? event),
+        reason: classifyDeviceLossReason(error),
         occurredAt: Date.now(),
       })
     }
@@ -133,15 +172,13 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
 
   function destroyWorker(): void {
     if (worker) {
-      if (messageListener)
-        worker.removeEventListener('message', messageListener)
       if (errorListener)
         worker.removeEventListener('error', errorListener)
-      messageListener = null
       errorListener = null
       worker.terminate()
       worker = null
     }
+    rpc = null
   }
 
   function scheduleRestart(): void {
@@ -169,104 +206,17 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
   function ensureWorker(): Worker {
     if (!worker) {
       worker = new Worker(workerUrl, { type: 'module' })
-      messageListener = (event: MessageEvent) => {
-        const data = event.data
-        // Forward unified protocol messages to subscribers
-        if (data.type === 'progress') {
-          const evt: WhisperEvent = { type: 'progress', payload: data.payload }
-          for (const handler of messageHandlers) handler(evt)
-        }
-        else if (data.type === 'model-ready') {
-          const evt: WhisperEvent = { type: 'model-ready' }
-          for (const handler of messageHandlers) handler(evt)
-        }
-        else if (data.type === 'inference-result') {
-          const evt: WhisperEvent = { type: 'inference-result', output: data.output }
-          for (const handler of messageHandlers) handler(evt)
-        }
-        else if (data.type === 'error') {
-          const evt: WhisperEvent = { type: 'error', payload: data.payload }
-          for (const handler of messageHandlers) handler(evt)
-        }
-      }
-      errorListener = (event: ErrorEvent) => {
-        handleWorkerError(event)
-      }
-      worker.addEventListener('message', messageListener)
+      rpc = createWhisperRpc(worker)
+      // Fresh worker lifecycle: re-arm the error guard so the next crash is handled.
+      handlingError = false
+      // NOTICE: device-loss telemetry + restart. Eventa already rejects in-flight
+      // invokes on a fatal worker error (it sets `worker.onerror`); this native
+      // 'error' listener coexists with it and owns the resilience policy the
+      // adapter is responsible for, mirroring the pre-Eventa error listener.
+      errorListener = (event: ErrorEvent) => handleWorkerError(event)
       worker.addEventListener('error', errorListener)
     }
     return worker
-  }
-
-  /**
-   * Wait for a specific unified protocol message type, filtered by requestId.
-   * If `signal` is provided and aborts, sends a `cancel` message to the
-   * worker and rejects with `InferenceAbortError`.
-   */
-  function waitForMessage<T = any>(
-    w: Worker,
-    requestId: string,
-    targetType: string,
-    timeout: number,
-    onOther?: (data: any) => void,
-    signal?: AbortSignal,
-  ): Promise<T> {
-    return new Promise((resolve, reject) => {
-      let timeoutId: ReturnType<typeof setTimeout> | undefined
-      let abortListener: (() => void) | null = null
-
-      const cleanup = (): void => {
-        if (timeoutId !== undefined)
-          clearTimeout(timeoutId)
-        w.removeEventListener('message', handler)
-        if (abortListener && signal)
-          signal.removeEventListener('abort', abortListener)
-      }
-
-      const handler = (event: MessageEvent): void => {
-        if (event.data.requestId !== requestId)
-          return
-
-        if (event.data.type === targetType) {
-          cleanup()
-          resolve(event.data as T)
-        }
-        else if (event.data.type === 'error') {
-          cleanup()
-          const code = event.data.payload?.code
-          if (code === 'CANCELLED')
-            reject(new InferenceAbortError(event.data.payload?.message))
-          else
-            reject(new Error(event.data.payload?.message ?? 'Worker error'))
-        }
-        else {
-          onOther?.(event.data)
-        }
-      }
-
-      w.addEventListener('message', handler)
-
-      timeoutId = setTimeout(() => {
-        cleanup()
-        reject(new Error(`Whisper: timeout after ${timeout}ms waiting for '${targetType}'`))
-      }, timeout)
-
-      if (signal) {
-        if (signal.aborted) {
-          cleanup()
-          w.postMessage({ type: 'cancel', requestId: createRequestId(), targetRequestId: requestId })
-          reject(new InferenceAbortError(typeof signal.reason === 'string' ? signal.reason : undefined))
-          return
-        }
-        abortListener = () => {
-          cleanup()
-          w.postMessage({ type: 'cancel', requestId: createRequestId(), targetRequestId: requestId })
-          const reason = signal.reason
-          reject(reason instanceof Error ? reason : new InferenceAbortError(typeof reason === 'string' ? reason : undefined))
-        }
-        signal.addEventListener('abort', abortListener)
-      }
-    })
   }
 
   async function load(
@@ -291,39 +241,49 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
 
       return getLoadQueue().enqueue(MODEL_NAMES.WHISPER, LOAD_PRIORITY.ASR, async () => {
         throwIfAborted(options?.signal)
-        const w = ensureWorker()
-        const requestId = createRequestId()
+        ensureWorker()
+        if (!rpc)
+          throw new Error('Whisper worker not initialized')
 
-        const readyPromise = waitForMessage(w, requestId, 'model-ready', LOAD_TIMEOUT, (data) => {
-          if (data.type === 'progress' && onProgress) {
-            const payload = data.payload
-            onProgress({
-              phase: payload.phase ?? 'download',
-              percent: payload.percent ?? -1,
-              message: payload.message,
-              file: payload.file,
-              loaded: payload.loaded,
-              total: payload.total,
-            })
-          }
-        }, options?.signal)
+        const stream = rpc.load(
+          { device: requestedDevice },
+          // NOTICE:
+          // `raw: {}` satisfies @moeru/eventa@1.0.0-beta.5's stream-invoke
+          // options type, which over-includes the inbound emit metadata (`raw`)
+          // as a required caller option (asymmetric with unary `defineInvoke`).
+          // It is ignored on the send path; only `signal` is consumed.
+          // Removal condition: drop when the upstream stream-invoke option type
+          // stops requiring `raw` (track @moeru/eventa releases past 1.0.0-beta.5).
+          { signal: signalWithTimeout(options?.signal, LOAD_TIMEOUT), raw: {} },
+        )
 
-        w.postMessage({ type: 'load-model', requestId, modelId: MODEL_NAMES.WHISPER, device: requestedDevice })
-
-        let readyResponse: any
+        let info
         try {
-          readyResponse = await readyPromise
+          info = await consumeLoadStream(stream, (progress) => {
+            updateInferenceStatus(MODEL_NAMES.WHISPER, { progress })
+            // Spread to satisfy the WhisperEvent progress variant's
+            // `ProgressPayload & Record<string, unknown>` (load progress carries
+            // no extras; transcribe progress rides the extras on the contract item).
+            emit({ type: 'progress', payload: { ...progress } })
+            onProgress?.(progress)
+          }).catch((error) => {
+            // Normalize caller-driven aborts to InferenceAbortError so the outer
+            // catch (and callers) see name === 'AbortError'.
+            if (options?.signal?.aborted)
+              throw new InferenceAbortError(typeof options.signal.reason === 'string' ? options.signal.reason : undefined)
+            throw error
+          })
         }
         catch (error) {
           state = 'error'
           updateInferenceStatus(MODEL_NAMES.WHISPER, { state: 'error' })
+          if ((error as Error)?.name !== 'AbortError')
+            emit({ type: 'error', payload: { code: classifyError(error, 'load'), message: errorMessageFrom(error) ?? 'Whisper load failed' } })
           throw error
         }
 
-        // Capture actual device reported by the worker (may fall back to WASM)
-        const actualDevice = readyResponse?.device ?? requestedDevice
+        const actualDevice = info.device
 
-        // Track GPU memory allocation
         const coordinator = getGPUCoordinator()
         if (allocationToken)
           coordinator.release(allocationToken)
@@ -335,8 +295,16 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
         lastManifest = { device: actualDevice }
         state = 'ready'
         updateInferenceStatus(MODEL_NAMES.WHISPER, { state: 'ready', device: actualDevice })
+        emit({ type: 'model-ready' })
         onSuccess()
       }, { signal: options?.signal })
+    }).catch((error) => {
+      // Don't route AbortError through handleWorkerError — cancellation is
+      // not a worker failure and shouldn't trigger restart logic.
+      if ((error as Error)?.name === 'AbortError')
+        throw error
+      handleWorkerError(error instanceof Error ? error : new Error(String(error)))
+      throw error
     })
   }
 
@@ -347,39 +315,63 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
     throwIfAborted(options?.signal)
     return defaultPerfTracer.withMeasure('inference', 'whisper-transcribe', () => operationMutex.runExclusive(async () => {
       throwIfAborted(options?.signal)
-      if (!worker || state !== 'ready')
+      if (!worker || !rpc || state !== 'ready')
         throw new Error('Model not loaded. Call load() first.')
 
       state = 'transcribing'
-      const requestId = createRequestId()
 
-      const resultPromise = waitForMessage<any>(
-        worker,
-        requestId,
-        'inference-result',
-        TRANSCRIBE_TIMEOUT,
-        undefined,
-        options?.signal,
-      )
-
-      worker.postMessage({
-        type: 'run-inference',
-        requestId,
-        input: {
+      const stream = rpc.transcribe(
+        {
           audio: input.audio,
           audioFloat32: input.audioFloat32,
           language: input.language,
         },
-      })
+        // NOTICE:
+        // `raw: {}` satisfies @moeru/eventa@1.0.0-beta.5's stream-invoke
+        // options type, which over-includes the inbound emit metadata (`raw`)
+        // as a required caller option (asymmetric with unary `defineInvoke`).
+        // It is ignored on the send path; only `signal` is consumed.
+        // Removal condition: drop when the upstream stream-invoke option type
+        // stops requiring `raw` (track @moeru/eventa releases past 1.0.0-beta.5).
+        { signal: signalWithTimeout(options?.signal, TRANSCRIBE_TIMEOUT), raw: {} },
+      )
 
       try {
-        const result = await resultPromise
+        let text: string[] = []
+        let sawResult = false
+        for await (const item of stream) {
+          if (item.kind === 'progress') {
+            emit({ type: 'progress', payload: item.payload })
+          }
+          else {
+            text = item.text
+            sawResult = true
+          }
+        }
+
+        // NOTICE: The transcribe contract guarantees exactly one terminal
+        // `result` item (see WhisperTranscribeItem in contract.ts). If the
+        // stream closes without it (worker-side cancel/early return, transport
+        // close), an empty `text` is a dropped result, NOT a valid blank
+        // transcription — resolving with '' would hide the failure. The
+        // pre-Eventa adapter rejected/timed out in this case rather than
+        // returning empty text. Mirrors consumeLoadStream's `ready` check.
+        if (!sawResult)
+          throw new Error('inference: whisper transcribe stream ended without a result')
+
+        const output = text[0] ?? ''
+        emit({ type: 'inference-result', output: { text } })
         state = 'ready'
         onSuccess()
-        return result.output?.text?.[0] ?? ''
+        return output
       }
       catch (error) {
+        // Match the pre-Eventa adapter: any transcribe failure (including
+        // abort) leaves the adapter in 'error' until the next load().
         state = 'error'
+        if (options?.signal?.aborted)
+          throw new InferenceAbortError(typeof options.signal.reason === 'string' ? options.signal.reason : undefined)
+        emit({ type: 'error', payload: { code: classifyError(error, 'inference'), message: errorMessageFrom(error) ?? 'Whisper transcribe failed' } })
         throw error
       }
     }), { language: input.language })

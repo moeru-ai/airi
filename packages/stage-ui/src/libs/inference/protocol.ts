@@ -1,9 +1,11 @@
 /**
- * Unified inference worker message protocol.
+ * Shared inference primitives: progress/error payload shapes plus the
+ * transport-agnostic helpers (error classification, device-loss detection,
+ * request ids, abort) used by every inference adapter.
  *
- * All inference workers (Kokoro, Whisper, background-removal, etc.)
- * communicate with the main thread through this typed protocol.
- * Each adapter maps its domain-specific messages to/from these types.
+ * The worker ↔ main-thread wire contract itself lives in `contract.ts`
+ * (`@moeru/eventa` invokes). This module deliberately holds only the pieces
+ * that are independent of how messages travel.
  *
  * ## Architecture Note: GPU Device Isolation
  *
@@ -16,10 +18,6 @@
  *   memory pressure events so the app can unload LRU models when nearing budget
  * - Workers auto-detect WebGPU availability and fall back to WASM when unavailable
  */
-
-// ---------------------------------------------------------------------------
-// Progress
-// ---------------------------------------------------------------------------
 
 export type ProgressPhase = 'download' | 'compile' | 'warmup' | 'inference'
 
@@ -43,10 +41,6 @@ export interface ProgressPayload {
   total?: number
 }
 
-// ---------------------------------------------------------------------------
-// Errors
-// ---------------------------------------------------------------------------
-
 export type InferenceErrorCode
   = | 'OOM'
     | 'TIMEOUT'
@@ -62,106 +56,6 @@ export interface ErrorPayload {
   /** Whether the operation can be retried (e.g. with WASM fallback) */
   recoverable: boolean
 }
-
-// ---------------------------------------------------------------------------
-// Main → Worker requests
-// ---------------------------------------------------------------------------
-
-export interface LoadModelRequest {
-  type: 'load-model'
-  requestId: string
-  modelId: string
-  device: 'webgpu' | 'wasm' | 'cpu'
-  dtype?: string
-  /** Adapter-specific options passed through opaquely */
-  options?: Record<string, unknown>
-}
-
-export interface RunInferenceRequest<TInput = unknown> {
-  type: 'run-inference'
-  requestId: string
-  input: TInput
-}
-
-export interface UnloadModelRequest {
-  type: 'unload-model'
-  requestId: string
-}
-
-/**
- * Cancel an in-flight or queued request. The worker should stop any
- * ongoing work tied to `targetRequestId` and must NOT send a normal
- * `model-ready` / `inference-result` response for that request; instead
- * it should send an `ErrorResponse` with code `'CANCELLED'` so the
- * adapter can reject the caller's promise deterministically.
- *
- * NOTE: Cancellation is best-effort. We cannot interrupt a synchronous
- * transformers.js / ONNX Runtime call that is already executing on the
- * worker thread. What the cancel signal does guarantee is that the
- * adapter stops waiting and the worker discards the result when it
- * eventually arrives.
- */
-export interface CancelRequest {
-  type: 'cancel'
-  requestId: string
-  /** The requestId of the operation to cancel */
-  targetRequestId: string
-}
-
-export type WorkerInboundMessage<TInput = unknown>
-  = | LoadModelRequest
-    | RunInferenceRequest<TInput>
-    | UnloadModelRequest
-    | CancelRequest
-
-// ---------------------------------------------------------------------------
-// Worker → Main responses
-// ---------------------------------------------------------------------------
-
-export interface ModelReadyResponse {
-  type: 'model-ready'
-  requestId: string
-  modelId: string
-  device: 'webgpu' | 'wasm' | 'cpu'
-  /** Domain-specific metadata (e.g. Kokoro voices) */
-  metadata?: Record<string, unknown>
-}
-
-export interface InferenceResultResponse<TOutput = unknown> {
-  type: 'inference-result'
-  requestId: string
-  output: TOutput
-  /** Worker-side timing in milliseconds */
-  durationMs?: number
-}
-
-export interface ProgressResponse {
-  type: 'progress'
-  requestId: string
-  payload: ProgressPayload
-}
-
-export interface ErrorResponse {
-  type: 'error'
-  requestId: string
-  payload: ErrorPayload
-}
-
-export interface ModelUnloadedResponse {
-  type: 'model-unloaded'
-  requestId: string
-}
-
-export type WorkerOutboundMessage<TOutput = unknown>
-  = | ModelReadyResponse
-    | InferenceResultResponse<TOutput>
-    | ProgressResponse
-    | ErrorResponse
-    | ModelUnloadedResponse
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 let counter = 0
 

@@ -1,26 +1,28 @@
 /**
  * Kokoro TTS inference adapter.
  *
- * Uses the unified inference protocol from protocol.ts.
- * The worker now speaks the same protocol — no translation layer needed.
+ * Talks to the Kokoro worker over the Eventa inference contract
+ * (`libs/inference/contract.ts`): load is a server-streaming invoke, generate
+ * is a unary invoke whose PCM buffer is transferred back zero-copy. All
+ * resilience policy (device-loss restart, load serialization, GPU accounting,
+ * mutex) lives here on the main thread.
  */
 
 import type { VoiceKey, Voices } from '../../../workers/kokoro/types'
 import type { AllocationToken } from '../gpu-resource-coordinator'
 import type { ProgressPayload } from '../protocol'
 
+import { defineInvoke, defineStreamInvoke } from '@moeru/eventa'
+import { createContext } from '@moeru/eventa/adapters/webworkers'
 import { defaultPerfTracer } from '@proj-airi/stage-shared'
 import { Mutex } from 'async-mutex'
 
 import { removeInferenceStatus, updateInferenceStatus } from '../../../composables/use-inference-status'
 import { DEVICE_LOSS_WASM_THRESHOLD, MAX_RESTARTS, MODEL_NAMES, RESTART_DELAY_MS, TIMEOUTS } from '../constants'
+import { consumeLoadStream, kokoroGenerateEvent, kokoroLoadEvent, signalWithTimeout } from '../contract'
 import { getGPUCoordinator, getLoadQueue, MODEL_VRAM_ESTIMATES } from '../coordinator'
 import { LOAD_PRIORITY } from '../load-queue'
-import { classifyDeviceLossReason, classifyError, createRequestId, InferenceAbortError, throwIfAborted } from '../protocol'
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+import { classifyDeviceLossReason, classifyError, InferenceAbortError, throwIfAborted } from '../protocol'
 
 export interface KokoroAdapter {
   /**
@@ -67,16 +69,8 @@ export interface KokoroAdapter {
   readonly deviceLossCount: number
 }
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
 const LOAD_MODEL_TIMEOUT = TIMEOUTS.KOKORO_LOAD
 const GENERATE_TIMEOUT = TIMEOUTS.KOKORO_GENERATE
-
-// ---------------------------------------------------------------------------
-// Audio Encoding
-// ---------------------------------------------------------------------------
 
 /**
  * Encode raw PCM Float32Array samples into a WAV ArrayBuffer.
@@ -90,26 +84,22 @@ function encodeWav(samples: Float32Array, sampleRate: number, numChannels = 1): 
   const buffer = new ArrayBuffer(headerLength + dataLength)
   const view = new DataView(buffer)
 
-  // RIFF header
   writeString(view, 0, 'RIFF')
   view.setUint32(4, 36 + dataLength, true)
   writeString(view, 8, 'WAVE')
 
-  // fmt chunk
   writeString(view, 12, 'fmt ')
-  view.setUint32(16, 16, true) // chunk size
-  view.setUint16(20, 1, true) // PCM format
+  view.setUint32(16, 16, true)
+  view.setUint16(20, 1, true)
   view.setUint16(22, numChannels, true)
   view.setUint32(24, sampleRate, true)
-  view.setUint32(28, sampleRate * numChannels * bytesPerSample, true) // byte rate
-  view.setUint16(32, numChannels * bytesPerSample, true) // block align
+  view.setUint32(28, sampleRate * numChannels * bytesPerSample, true)
+  view.setUint16(32, numChannels * bytesPerSample, true)
   view.setUint16(34, bitsPerSample, true)
 
-  // data chunk
   writeString(view, 36, 'data')
   view.setUint32(40, dataLength, true)
 
-  // Convert Float32 [-1, 1] to Int16
   const output = new Int16Array(buffer, headerLength)
   for (let i = 0; i < samples.length; i++) {
     const s = Math.max(-1, Math.min(1, samples[i]))
@@ -125,102 +115,45 @@ function writeString(view: DataView, offset: number, str: string): void {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Wait for a specific message type from the worker, filtered by requestId.
- * Calls `callback` for interleaved messages (e.g. progress).
- *
- * If `signal` is provided and aborts, the returned Promise rejects with
- * `InferenceAbortError` and a `cancel` message is sent to the worker so
- * it can discard the result when it eventually arrives.
- */
-function waitForWorkerMessage<T = any>(
-  worker: Worker,
-  requestId: string,
-  targetType: string,
-  timeout: number,
-  callback?: (data: any) => void,
-  signal?: AbortSignal,
-): Promise<T> {
-  return new Promise((resolve, reject) => {
-    let timeoutId: ReturnType<typeof setTimeout> | undefined
-    let abortListener: (() => void) | null = null
-
-    const cleanup = (): void => {
-      if (timeoutId !== undefined)
-        clearTimeout(timeoutId)
-      worker.removeEventListener('message', handler)
-      if (abortListener && signal)
-        signal.removeEventListener('abort', abortListener)
-    }
-
-    const handler = (event: MessageEvent): void => {
-      if (event.data.requestId !== requestId)
-        return
-
-      if (event.data.type === targetType) {
-        cleanup()
-        resolve(event.data as T)
-      }
-      else if (event.data.type === 'error') {
-        cleanup()
-        const code = event.data.payload?.code
-        if (code === 'CANCELLED')
-          reject(new InferenceAbortError(event.data.payload?.message))
-        else
-          reject(new Error(event.data.payload?.message ?? 'Worker error'))
-      }
-      else {
-        callback?.(event.data)
-      }
-    }
-
-    worker.addEventListener('message', handler)
-
-    timeoutId = setTimeout(() => {
-      cleanup()
-      reject(new Error(`Kokoro: timeout after ${timeout}ms waiting for '${targetType}'`))
-    }, timeout)
-
-    if (signal) {
-      if (signal.aborted) {
-        cleanup()
-        // Tell the worker to discard the result when it arrives
-        worker.postMessage({ type: 'cancel', requestId: createRequestId(), targetRequestId: requestId })
-        reject(new InferenceAbortError(typeof signal.reason === 'string' ? signal.reason : undefined))
-        return
-      }
-      abortListener = () => {
-        cleanup()
-        worker.postMessage({ type: 'cancel', requestId: createRequestId(), targetRequestId: requestId })
-        const reason = signal.reason
-        reject(reason instanceof Error ? reason : new InferenceAbortError(typeof reason === 'string' ? reason : undefined))
-      }
-      signal.addEventListener('abort', abortListener)
-    }
-  })
-}
-
-// ---------------------------------------------------------------------------
-// Factory
-// ---------------------------------------------------------------------------
-
 interface KokoroManifest {
   quantization: string
   device: string
 }
 
+/**
+ * Bind the Eventa invoke clients to a freshly created worker. Returns the
+ * load (server-streaming) and generate (unary) callables; the rpc type is
+ * inferred so call sites stay aligned with the library's option shapes.
+ */
+function createKokoroRpc(worker: Worker) {
+  const { context } = createContext(worker)
+  return {
+    load: defineStreamInvoke(context, kokoroLoadEvent),
+    generate: defineInvoke(context, kokoroGenerateEvent),
+  }
+}
+
+type KokoroRpc = ReturnType<typeof createKokoroRpc>
+
 export function createKokoroAdapter(): KokoroAdapter {
   let worker: Worker | null = null
+  let rpc: KokoroRpc | null = null
   let state: KokoroAdapter['state'] = 'idle'
   let voices: Voices | null = null
   let restartAttempts = 0
   let allocationToken: AllocationToken | null = null
   let currentModelStatusId: string | null = null
   let errorListener: ((event: ErrorEvent) => void) | null = null
+  // NOTICE: Re-entrancy guard for handleWorkerError. A single fatal worker
+  // ErrorEvent reaches the adapter twice (native 'error' listener + Eventa's
+  // worker.onerror rejecting the in-flight invoke); see handleWorkerError.
+  let handlingError = false
+  // NOTICE: Handle for the pending scheduleRestart() backoff timer so terminate()
+  // can cancel it. Without this, terminating (or replacing via getKokoroAdapter)
+  // an 'error' adapter mid-backoff drops the reference while the timer keeps
+  // ticking; it then fires ensureStarted() and spawns a Worker nobody owns or
+  // tears down (a leaked worker + GPUDevice).
+  let restartTimer: ReturnType<typeof setTimeout> | null = null
 
   // NOTICE: Device-loss resilience state. `lastManifest` records the last
   // successful load config so scheduleRestart can reconstruct context if the
@@ -237,22 +170,52 @@ export function createKokoroAdapter(): KokoroAdapter {
       new URL('../../../workers/kokoro/worker.ts', import.meta.url),
       { type: 'module' },
     )
+    rpc = createKokoroRpc(worker)
+    // Fresh worker lifecycle: re-arm the error guard so the next crash is handled.
+    handlingError = false
+    // NOTICE: device-loss telemetry + restart. Eventa already rejects in-flight
+    // invokes on a fatal worker error (it sets `worker.onerror`); this native
+    // 'error' listener coexists with it and owns the resilience policy the
+    // adapter is responsible for, mirroring the pre-Eventa error listener.
     errorListener = (event: ErrorEvent) => handleWorkerError(event)
     worker.addEventListener('error', errorListener)
   }
 
   function handleWorkerError(event: ErrorEvent | Error): void {
+    // NOTICE:
+    // Idempotency guard: a single worker death must be handled exactly once.
+    // A fatal worker ErrorEvent during an in-flight `generate` reaches here
+    // twice for the SAME crash:
+    //   1. the native 'error' listener (initializeWorker) -> handleWorkerError
+    //   2. Eventa's worker.onerror emits workerErrorEvent, which rejects the
+    //      in-flight unary `generate` invoke (defineInvoke honors
+    //      `abortOnEvents` in @moeru/eventa@1.0.0-beta.5); that rejection
+    //      surfaces in the `generate` `.catch` -> handleWorkerError again.
+    // Root cause: a native Worker 'error' dispatch fires both `onerror` and any
+    // addEventListener('error', …) handler for a single event.
+    // Without this guard, one device loss advances the restart counter and
+    // device-loss accounting twice, hitting MAX_RESTARTS after half the real
+    // failures. The flag is cleared when a fresh worker is created
+    // (initializeWorker). (Stream invokes like `load` do not reject on a fatal
+    // worker error in beta.5, so they reach here only via the native listener.)
+    // Removal condition: drop only if a single worker death can no longer reach
+    // here from more than one path.
+    if (handlingError)
+      return
+    handlingError = true
+
     state = 'error'
     operationMutex.cancel()
 
     // Record device-loss telemetry before teardown so the coordinator sees it
     // even if the adapter is never used again.
-    const code = classifyError(event instanceof Error ? event : (event as ErrorEvent).error ?? event)
+    const error = event instanceof Error ? event : (event as ErrorEvent).error ?? event
+    const code = classifyError(error)
     if (code === 'DEVICE_LOST') {
       deviceLossCount++
       getGPUCoordinator().recordDeviceLoss({
         modelId: currentModelStatusId ?? MODEL_NAMES.KOKORO,
-        reason: classifyDeviceLossReason(event instanceof Error ? event : (event as ErrorEvent).error ?? event),
+        reason: classifyDeviceLossReason(error),
         occurredAt: Date.now(),
       })
     }
@@ -269,6 +232,7 @@ export function createKokoroAdapter(): KokoroAdapter {
       worker.terminate()
       worker = null
     }
+    rpc = null
   }
 
   function scheduleRestart(): void {
@@ -290,7 +254,8 @@ export function createKokoroAdapter(): KokoroAdapter {
       + `(attempt ${restartAttempts}/${MAX_RESTARTS})`,
     )
 
-    setTimeout(() => {
+    restartTimer = setTimeout(() => {
+      restartTimer = null
       ensureStarted().catch((err) => {
         console.error('[KokoroAdapter] Restart failed:', err)
       })
@@ -309,8 +274,6 @@ export function createKokoroAdapter(): KokoroAdapter {
       }
     })
   }
-
-  // -- Public API -----------------------------------------------------------
 
   async function loadModel(
     quantization: string,
@@ -343,48 +306,42 @@ export function createKokoroAdapter(): KokoroAdapter {
       state = 'loading'
       const modelStatusId = `kokoro-${quantization}`
 
-      // Clear previous model status when switching models
       if (currentModelStatusId && currentModelStatusId !== modelStatusId)
         removeInferenceStatus(currentModelStatusId)
       currentModelStatusId = modelStatusId
 
       updateInferenceStatus(modelStatusId, { state: 'downloading', device: effectiveDevice as any })
 
-      // Use the global load queue to serialize model loads across all adapters
       return getLoadQueue().enqueue(modelStatusId, LOAD_PRIORITY.TTS, async () => {
         throwIfAborted(options?.signal)
-        const requestId = createRequestId()
-        // Signal is also passed to the queue below for pending-entry removal
+        if (!rpc)
+          throw new Error('Kokoro worker not initialized')
 
-        const readyPromise = waitForWorkerMessage<any>(worker!, requestId, 'model-ready', LOAD_MODEL_TIMEOUT, (data) => {
-          if (data.type === 'progress') {
-            const payload = data.payload
-            const progress: ProgressPayload = {
-              phase: payload.phase ?? 'download',
-              percent: payload.percent ?? -1,
-              message: payload.message,
-              file: payload.file,
-              loaded: payload.loaded,
-              total: payload.total,
-            }
-            // Update reactive inference status
-            updateInferenceStatus(modelStatusId, { progress })
-            options?.onProgress?.(progress)
-          }
-        }, options?.signal)
+        const stream = rpc.load(
+          { device: effectiveDevice as any, dtype: quantization },
+          // NOTICE:
+          // `raw: {}` satisfies @moeru/eventa@1.0.0-beta.5's stream-invoke
+          // options type, which over-includes the inbound emit metadata (`raw`)
+          // as a required caller option (asymmetric with unary `defineInvoke`).
+          // It is ignored on the send path; only `signal` is consumed.
+          // Removal condition: drop when the upstream stream-invoke option type
+          // stops requiring `raw` (track @moeru/eventa releases past 1.0.0-beta.5).
+          { signal: signalWithTimeout(options?.signal, LOAD_MODEL_TIMEOUT), raw: {} },
+        )
 
-        worker!.postMessage({
-          type: 'load-model',
-          requestId,
-          modelId: MODEL_NAMES.KOKORO,
-          device: effectiveDevice,
-          dtype: quantization,
+        const info = await consumeLoadStream(stream, (progress) => {
+          updateInferenceStatus(modelStatusId, { progress })
+          options?.onProgress?.(progress)
+        }).catch((error) => {
+          // Normalize caller-driven aborts to InferenceAbortError so the outer
+          // catch (and callers) see name === 'AbortError'.
+          if (options?.signal?.aborted)
+            throw new InferenceAbortError(typeof options.signal.reason === 'string' ? options.signal.reason : undefined)
+          throw error
         })
 
-        const response = await readyPromise
-        voices = (response.metadata?.voices as Voices) ?? null
+        voices = (info.metadata?.voices as Voices) ?? null
 
-        // Track GPU memory allocation
         const coordinator = getGPUCoordinator()
         if (allocationToken)
           coordinator.release(allocationToken)
@@ -394,10 +351,10 @@ export function createKokoroAdapter(): KokoroAdapter {
 
         // Record manifest so consumers can inspect how the adapter resolved
         // device selection after fallback / WASM promotion.
-        lastManifest = { quantization, device: (response.device ?? effectiveDevice) as string }
+        lastManifest = { quantization, device: info.device }
 
         state = 'ready'
-        updateInferenceStatus(modelStatusId, { state: 'ready', device: (response.device ?? effectiveDevice) as any })
+        updateInferenceStatus(modelStatusId, { state: 'ready', device: info.device as any })
         onSuccess()
         if (!voices)
           throw new Error('Kokoro worker did not return voice metadata')
@@ -423,44 +380,37 @@ export function createKokoroAdapter(): KokoroAdapter {
 
     return defaultPerfTracer.withMeasure('inference', 'kokoro-generate', () => operationMutex.runExclusive(async () => {
       throwIfAborted(options?.signal)
-      if (!worker || state !== 'ready')
+      if (!worker || !rpc || state !== 'ready')
         throw notReadyError
 
-      // Update LRU timestamp for memory pressure tracking
       if (allocationToken)
         getGPUCoordinator().touch(allocationToken.modelId)
 
       state = 'running'
-      const requestId = createRequestId()
 
-      const resultPromise = waitForWorkerMessage<any>(
-        worker,
-        requestId,
-        'inference-result',
-        GENERATE_TIMEOUT,
-        undefined,
-        options?.signal,
-      )
-
-      worker.postMessage({
-        type: 'run-inference',
-        requestId,
-        input: { action: 'generate', text, voice },
+      const result = await rpc.generate(
+        { text, voice },
+        { signal: signalWithTimeout(options?.signal, GENERATE_TIMEOUT) },
+      ).catch((error) => {
+        // A caller cancellation is request-level, not a worker death: restore
+        // 'ready' (the worker and loaded model are intact) and surface
+        // AbortError. Genuine failures (timeout, worker crash) fall through to
+        // the outer catch -> handleWorkerError.
+        if (options?.signal?.aborted) {
+          state = 'ready'
+          throw new InferenceAbortError(typeof options.signal.reason === 'string' ? options.signal.reason : undefined)
+        }
+        throw error
       })
 
-      const response = await resultPromise
-      const output = response.output
-
-      if (output.action === 'generate') {
-        state = 'ready'
-        onSuccess()
-        return encodeWav(output.samples as Float32Array, output.samplingRate as number)
-      }
-
-      const errorCode = classifyError(new Error('Unexpected output action'))
-      throw new Error(`[${errorCode}] Unexpected output action: ${output.action}`)
+      state = 'ready'
+      onSuccess()
+      return encodeWav(result.samples, result.samplingRate)
     }), { text: text.slice(0, 50), voice }).catch((error) => {
-      if (error === notReadyError)
+      // notReadyError and caller cancellation (AbortError) are request-level and
+      // must not tear the worker down or trigger restart logic — mirrors
+      // loadModel's guard above.
+      if (error === notReadyError || (error as Error)?.name === 'AbortError')
         throw error
 
       handleWorkerError(error instanceof Error ? error : new Error(String(error)))
@@ -475,6 +425,10 @@ export function createKokoroAdapter(): KokoroAdapter {
   }
 
   function terminateAdapter(): void {
+    if (restartTimer != null) {
+      clearTimeout(restartTimer)
+      restartTimer = null
+    }
     operationMutex.cancel()
     destroyWorker()
     if (allocationToken) {
@@ -497,10 +451,6 @@ export function createKokoroAdapter(): KokoroAdapter {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Singleton
-// ---------------------------------------------------------------------------
-
 let globalAdapter: KokoroAdapter | null = null
 const singletonMutex = new Mutex()
 
@@ -517,6 +467,10 @@ export async function getKokoroAdapter(): Promise<KokoroAdapter> {
       || globalAdapter.state === 'terminated'
       || globalAdapter.state === 'error'
     ) {
+      // Dispose the dead instance before replacing it: terminate() cancels any
+      // pending restart timer so the discarded adapter can't spawn an orphan
+      // worker after we drop our reference to it.
+      globalAdapter?.terminate()
       globalAdapter = createKokoroAdapter()
     }
     return globalAdapter
