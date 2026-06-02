@@ -1,5 +1,7 @@
 import JSZip from 'jszip'
 
+import { encodeArchivePathForFileLoader, isIgnoredPath, sanitizeModelSettingsJson } from './live2d-archive-paths'
+
 export interface Live2DValidationReport {
   fileName: string
   totalFiles: number
@@ -16,9 +18,32 @@ export interface Live2DValidationReport {
   }
 }
 
+function fileReferenceFrom(value: unknown): string | undefined {
+  if (typeof value === 'string')
+    return value
+
+  if (!value || typeof value !== 'object')
+    return undefined
+
+  const file = (value as { File?: unknown }).File
+  return typeof file === 'string' ? file : undefined
+}
+
+function messageFromUnknown(error: unknown): string {
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = (error as { message?: unknown }).message
+    if (typeof message === 'string')
+      return message
+  }
+
+  return String(error)
+}
+
 export async function validateLive2DZip(file: File | Blob): Promise<Live2DValidationReport> {
   const zip = await JSZip.loadAsync(file)
   const allPaths = Object.keys(zip.files)
+  const cleanPaths = allPaths.filter(p => !isIgnoredPath(p))
+  const encodedCleanPaths = new Map(cleanPaths.map(path => [encodeURI(path), path]))
 
   const report: Live2DValidationReport = {
     fileName: (file as File).name || 'live2d-model.zip',
@@ -32,14 +57,14 @@ export async function validateLive2DZip(file: File | Blob): Promise<Live2DValida
   }
 
   // 1. Entry Point Identification
-  const model3Files = allPaths.filter(p => p.endsWith('.model3.json'))
+  const model3Files = cleanPaths.filter(p => p.endsWith('.model3.json'))
   if (model3Files.length > 0) {
     report.entryPoint = model3Files[0]
     report.structureType = 'Standard (model3.json)'
     report.checks.push(`Entry point identified: ${report.entryPoint}`)
   }
   else {
-    const mocFiles = allPaths.filter(p => p.endsWith('.moc3'))
+    const mocFiles = cleanPaths.filter(p => p.endsWith('.moc3'))
     if (mocFiles.length === 1) {
       report.structureType = 'Heuristic (Loose Files)'
       report.checks.push(`Heuristic match found: Unique MOC file ${mocFiles[0]}`)
@@ -50,7 +75,7 @@ export async function validateLive2DZip(file: File | Blob): Promise<Live2DValida
   }
 
   // 2. MOC Header & Size Audit
-  const mocPath = allPaths.find(p => p.endsWith('.moc3'))
+  const mocPath = cleanPaths.find(p => p.endsWith('.moc3'))
   if (mocPath) {
     const buf = await zip.file(mocPath)!.async('uint8array')
     const header = String.fromCharCode(...buf.slice(0, 4))
@@ -76,7 +101,7 @@ export async function validateLive2DZip(file: File | Blob): Promise<Live2DValida
 
   // 3. Basename Collision Audit (AIRI ZipLoader weakness)
   const basenames = new Map<string, string[]>()
-  allPaths.forEach((p) => {
+  cleanPaths.forEach((p) => {
     if (p.endsWith('/'))
       return // Skip directories
     const base = p.split(/[\\/]/).pop()!
@@ -96,6 +121,7 @@ export async function validateLive2DZip(file: File | Blob): Promise<Live2DValida
     try {
       const content = await zip.file(report.entryPoint)!.async('text')
       const json = JSON.parse(content)
+      sanitizeModelSettingsJson(json)
       const baseDir = report.entryPoint.split(/[\\/]/).slice(0, -1).join('/')
 
       const resolve = (rel: string) => {
@@ -115,9 +141,10 @@ export async function validateLive2DZip(file: File | Blob): Promise<Live2DValida
 
       const checkRef = (rel: string, type: string) => {
         const full = resolve(rel)
-        if (!allPaths.includes(full)) {
+        const encodedFull = encodeArchivePathForFileLoader(full)
+        if (!encodedCleanPaths.has(encodedFull)) {
           // Check for case-insensitivity match to provide better error
-          const fuzzy = allPaths.find(p => p.toLowerCase() === full.toLowerCase())
+          const fuzzy = cleanPaths.find(p => encodeURI(p).toLowerCase() === encodedFull.toLowerCase())
           if (fuzzy) {
             report.errors.push(`CASE SENSITIVITY MISMATCH: "${rel}" expects "${full}" but ZIP contains "${fuzzy}". Browsers are case-sensitive.`)
           }
@@ -127,20 +154,32 @@ export async function validateLive2DZip(file: File | Blob): Promise<Live2DValida
         }
       }
 
-      const refs = json.FileReferences || {}
-      if (refs.Moc)
-        checkRef(refs.Moc, 'MOC')
+      const refs = json.FileReferences && typeof json.FileReferences === 'object'
+        ? json.FileReferences as Record<string, unknown>
+        : {}
+      const moc = fileReferenceFrom(refs.Moc)
+      if (moc)
+        checkRef(moc, 'MOC')
       if (Array.isArray(refs.Textures)) {
-        refs.Textures.forEach((t: string) => checkRef(t, 'Texture'))
+        refs.Textures.forEach((texture) => {
+          const textureFile = fileReferenceFrom(texture)
+          if (textureFile)
+            checkRef(textureFile, 'Texture')
+        })
       }
-      if (refs.Physics)
-        checkRef(refs.Physics, 'Physics')
+      const physics = fileReferenceFrom(refs.Physics)
+      if (physics)
+        checkRef(physics, 'Physics')
       if (Array.isArray(refs.Expressions)) {
-        refs.Expressions.forEach((e: any) => checkRef(typeof e === 'string' ? e : e.File, 'Expression'))
+        refs.Expressions.forEach((expression) => {
+          const expressionFile = fileReferenceFrom(expression)
+          if (expressionFile)
+            checkRef(expressionFile, 'Expression')
+        })
       }
     }
-    catch (e: any) {
-      report.errors.push(`JSON PARSE ERROR: Failed to parse ${report.entryPoint}: ${e.message}`)
+    catch (error: unknown) {
+      report.errors.push(`JSON PARSE ERROR: Failed to parse ${report.entryPoint}: ${messageFromUnknown(error)}`)
     }
   }
 

@@ -1,9 +1,27 @@
 import type { Live2DFactoryContext, Middleware, ModelSettings } from 'pixi-live2d-display/cubism4'
 
+import { encodeArchivePathForFileLoader, stringifyModelSettingsJsonForFileLoader } from './live2d-archive-paths'
+
 interface OPFSContext extends Live2DFactoryContext {
   opfsKey?: string
   opfsUrl?: string
 }
+
+interface OPFSCacheMeta {
+  sourceUrl?: string
+  version?: number
+}
+
+interface Live2DFileListWithSettings extends Array<File> {
+  settings?: ModelSettings
+}
+
+/**
+ * Cache schema version for reconstructed Live2D zip contents.
+ *
+ * Increment when cached settings files need to be regenerated from the source zip.
+ */
+const live2DOpfsCacheVersion = 2
 
 declare global {
   interface FileSystemDirectoryHandle {
@@ -76,7 +94,7 @@ export class OPFSCache {
       const metaHandle = await dirHandle.getFileHandle('__meta.json', { create: false })
       const metaFile = await metaHandle.getFile()
       const metaText = await metaFile.text()
-      return JSON.parse(metaText) as { sourceUrl?: string }
+      return JSON.parse(metaText) as OPFSCacheMeta
     }
     catch {
       return null
@@ -91,6 +109,17 @@ export class OPFSCache {
       console.debug(`[OPFS] Cache hit for ${key}`)
 
       const meta = await OPFSCache.readMeta(dirHandle)
+      if (meta?.version !== live2DOpfsCacheVersion) {
+        // NOTICE: Rebuild caches created before path encoding was made idempotent.
+        // Older reconstructed model3.json files may contain double-encoded paths.
+        // Source/context: OPFSCache.saveMiddleware settings reconstruction.
+        // Removal condition: old OPFS caches no longer need migration support.
+        // eslint-disable-next-line no-console
+        console.debug(`[OPFS] Cache mismatch for ${key}, schema version changed`)
+        await root.removeEntry(dirHandle.name, { recursive: true })
+        return null
+      }
+
       if (meta?.sourceUrl && meta.sourceUrl !== sourceUrl) {
         // NOTICE: Skip cache when the requested URL changes while the key stays the same.
         // This avoids serving a stale model when ids are reused or props are out of sync.
@@ -129,7 +158,10 @@ export class OPFSCache {
 
       await Promise.all(writePromises)
       if (sourceUrl) {
-        await OPFSCache.writeFile(dirHandle, '__meta.json', JSON.stringify({ sourceUrl }))
+        await OPFSCache.writeFile(dirHandle, '__meta.json', JSON.stringify({
+          sourceUrl,
+          version: live2DOpfsCacheVersion,
+        }))
       }
       // eslint-disable-next-line no-console
       console.debug(`[OPFS] Saved to cache`)
@@ -199,7 +231,7 @@ export class OPFSCache {
       return next()
     }
 
-    const files = context.source as File[]
+    const files = context.source as Live2DFileListWithSettings
 
     if (files.length === 0 || !(files[0] instanceof File)) {
       return next()
@@ -208,63 +240,22 @@ export class OPFSCache {
     const settingsFile = files.find(f => f.name.endsWith('.model.json') || f.name.endsWith('.model3.json'))
     if (!settingsFile) {
       // reconstruct settings files from ModelSettings
-      const settings: ModelSettings = (files as any).settings
+      const settings = files.settings
       if (settings) {
         // eslint-disable-next-line no-console
         console.debug('[OPFS] Reconstructing settings file...')
-        const settingsText = encodeModelSettings(settings.json)
-        const settingsFilePath = settings.url || 'model.model3.json'
+        const settingsText = stringifyModelSettingsJsonForFileLoader(settings.json)
+        const settingsFilePath = encodeArchivePathForFileLoader(settings.url || 'model.model3.json')
         const settingsFile = new File([settingsText], settingsFilePath)
         Object.defineProperty(settingsFile, 'webkitRelativePath', {
-          value: encodeURI(settingsFilePath),
+          value: settingsFilePath,
         })
         files.push(settingsFile)
       }
-      delete (context.source as any).settings // force the loader to read re-created settings file
+      delete files.settings // force the loader to read re-created settings file
     }
     await OPFSCache.save(context.opfsKey, files, context.opfsUrl)
 
     return next()
   }
-}
-
-function encodeProperty(obj: any, path: string) {
-  let cursor = obj
-  const propPath = path.split('.')
-  // will lose reference when access to the last level
-  while (propPath.length > 1 && cursor != null && typeof cursor === 'object' && propPath[0] in cursor) {
-    cursor = cursor[propPath.shift()!]
-  }
-  if (cursor == null || cursor[propPath[0]] == null)
-    return
-  if (typeof cursor[propPath[0]] === 'string')
-    cursor[propPath[0]] = encodeURI(cursor[propPath[0]])
-  if (Array.isArray(cursor[propPath[0]]) && typeof cursor[propPath[0]][0] === 'string') {
-    cursor[propPath[0]] = cursor[propPath[0]].map((s: string) => encodeURI(s))
-  }
-}
-// TODO: find all file paths and encode them by recursively visiting the settings
-function encodeModelSettings(input: any): string {
-  const settings = JSON.parse(JSON.stringify(input))
-  const propertyToEncode = [
-    'FileReferences.DisplayInfo',
-    'FileReferences.Moc',
-    'FileReferences.Textures',
-    'FileReferences.Physics',
-    'url',
-  ]
-  propertyToEncode.forEach(k => encodeProperty(settings, k))
-  settings?.FileReferences?.Expressions?.map((exp: { Name: string, File: string }) => {
-    exp.File = encodeURI(exp.File)
-    return exp
-  })
-  Object.keys(settings?.FileReferences?.Motions ?? {}).forEach((k) => {
-    if (!Array.isArray(settings?.FileReferences?.Motions[k]))
-      return // not sure whether 'Motions' is of type Record<string,[]>, assume it is for now.
-    settings?.FileReferences?.Motions[k].map((exp: { File: string }) => {
-      exp.File = encodeURI(exp.File)
-      return exp
-    })
-  })
-  return JSON.stringify(settings)
 }

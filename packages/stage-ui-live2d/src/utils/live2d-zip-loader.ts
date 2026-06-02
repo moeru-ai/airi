@@ -4,17 +4,20 @@ import JSZip from 'jszip'
 
 import { Cubism4ModelSettings, ZipLoader } from 'pixi-live2d-display/cubism4'
 
+import { encodeModelSettingsJsonPaths, encodeModelSettingsUrl, isIgnoredPath, sanitizeModelSettingsJson } from './live2d-archive-paths'
+
 ZipLoader.zipReader = (data: Blob, _url: string) => JSZip.loadAsync(data)
 
 const defaultCreateSettings = ZipLoader.createSettings
 ZipLoader.createSettings = async (reader: JSZip) => {
-  const filePaths = Object.keys(reader.files)
+  const filePaths = Object.keys(reader.files).filter(f => !isIgnoredPath(f))
   const settings = await (async () => {
     if (!filePaths.some(file => isSettingsFile(file))) {
       return createFakeSettings(filePaths)
     }
     return defaultCreateSettings(reader)
   })()
+  encodeModelSettingsUrl(settings)
 
   // Extract CDI data from the zip if available
   try {
@@ -56,7 +59,7 @@ ZipLoader.createSettings = async (reader: JSZip) => {
 }
 
 export function isSettingsFile(file: string) {
-  return file.endsWith('.model3.json') || file.endsWith('.model.json')
+  return !isIgnoredPath(file) && (file.endsWith('.model3.json') || file.endsWith('.model.json'))
 }
 
 export function isMocFile(file: string) {
@@ -70,7 +73,8 @@ export function basename(path: string): string {
 
 // copy and modified from https://github.com/guansss/live2d-viewer-web/blob/f6060b2ce52c2e26b6b61fa903c837fe343f72d1/src/app/upload.ts#L81-L142
 function createFakeSettings(files: string[]): ModelSettings {
-  const mocFiles = files.filter(file => isMocFile(file))
+  const cleanFiles = files.filter(f => !isIgnoredPath(f))
+  const mocFiles = cleanFiles.filter(file => isMocFile(file))
 
   if (mocFiles.length !== 1) {
     const fileList = mocFiles.length ? `(${mocFiles.map(f => `"${f}"`).join(',')})` : ''
@@ -81,17 +85,17 @@ function createFakeSettings(files: string[]): ModelSettings {
   const mocFile = mocFiles[0]
   const modelName = basename(mocFile).replace(/\.moc3?/, '')
 
-  const textures = files.filter(f => f.endsWith('.png'))
+  const textures = cleanFiles.filter(f => f.endsWith('.png'))
 
   if (!textures.length) {
     throw new Error('Textures not found')
   }
 
-  const motions = files.filter(f => f.endsWith('.mtn') || f.endsWith('.motion3.json'))
-  const physics = files.find(f => f.includes('physics'))
-  const pose = files.find(f => f.includes('pose'))
+  const motions = cleanFiles.filter(f => f.endsWith('.mtn') || f.endsWith('.motion3.json'))
+  const physics = cleanFiles.find(f => f.includes('physics'))
+  const pose = cleanFiles.find(f => f.includes('pose'))
 
-  const settings = new Cubism4ModelSettings({
+  const json = {
     url: `${modelName}.model3.json`,
     Version: 3,
     FileReferences: {
@@ -105,7 +109,10 @@ function createFakeSettings(files: string[]): ModelSettings {
           }
         : undefined,
     },
-  })
+  }
+  encodeModelSettingsJsonPaths(json)
+
+  const settings = new Cubism4ModelSettings(json)
 
   settings.name = modelName
 
@@ -115,21 +122,30 @@ function createFakeSettings(files: string[]): ModelSettings {
   return settings
 }
 
-ZipLoader.readText = (jsZip: JSZip, path: string) => {
+ZipLoader.readText = async (jsZip: JSZip, path: string) => {
   const file = jsZip.file(path)
 
   if (!file) {
     throw new Error(`Cannot find file: ${path}`)
   }
 
-  return file.async('text')
+  const text: string = await file.async('text')
+
+  if (isSettingsFile(path)) {
+    const json = JSON.parse(text)
+    sanitizeModelSettingsJson(json)
+    encodeModelSettingsJsonPaths(json)
+    return JSON.stringify(json)
+  }
+
+  return text
 }
 
 ZipLoader.getFilePaths = (jsZip: JSZip) => {
   const paths: string[] = []
 
   jsZip.forEach((relativePath, file) => {
-    if (!file.dir) {
+    if (!file.dir && !isIgnoredPath(relativePath)) {
       paths.push(relativePath)
     }
   })

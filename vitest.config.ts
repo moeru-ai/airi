@@ -15,6 +15,7 @@ export default defineConfig({
       'packages/server-runtime',
       'packages/server-sdk',
       'packages/stage-shared',
+      'packages/stage-ui-live2d',
     ],
   },
 })
