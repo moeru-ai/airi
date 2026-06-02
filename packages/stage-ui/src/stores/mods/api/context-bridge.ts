@@ -14,6 +14,8 @@ import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref, toRaw, watch } from 'vue'
 
+import { sanitizeCloneable } from './context-bridge-sanitize'
+
 import { getEventSourceKey } from '../../../utils/event-source'
 import { useCharacterOrchestratorStore } from '../../character'
 import { useChatOrchestratorStore } from '../../chat'
@@ -35,7 +37,9 @@ export function normalizeContextSnapshot<C extends Pick<ChatStreamEventContext, 
         .entries(toRaw(contexts.contexts))
         .map(([key, ctx]) => [
           key,
-          ctx.map(c => toRaw(c)),
+          ctx
+            .map(c => sanitizeCloneable(c))
+            .filter((value): value is NonNullable<typeof value> => value !== undefined),
         ]),
     ),
   }
