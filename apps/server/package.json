@@ -52,6 +52,7 @@
     "cac": "catalog:",
     "drizzle-orm": "catalog:",
     "drizzle-valibot": "catalog:",
+    "es-toolkit": "catalog:",
     "hono": "catalog:",
     "hono-rate-limiter": "catalog:",
     "injeca": "catalog:",
