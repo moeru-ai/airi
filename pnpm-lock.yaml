@@ -758,6 +758,9 @@ importers:
       jose:
         specifier: 'catalog:'
         version: 6.2.2
+      ofetch:
+        specifier: 'catalog:'
+        version: 1.5.1
       pg:
         specifier: ^8.20.0
         version: 8.20.0
