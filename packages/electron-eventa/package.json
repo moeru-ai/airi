@@ -28,7 +28,7 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "electron": ">=39 <41"
+    "electron": "catalog:electron-gte-39-lt-41"
   },
   "dependencies": {
     "@moeru/eventa": "catalog:",

@@ -91,6 +91,15 @@ export function createSessionState(userId: string, opts: AudioSpeechWsHandlersOp
   }
 
   async function dialUpstream() {
+    void opts.productEventService.track({
+      userId,
+      feature: 'tts',
+      action: 'speech_requested',
+      status: 'started',
+      source: 'audio.speech.ws',
+      model: modelLabel,
+    })
+
     let unspeech: Awaited<ReturnType<AudioSpeechWsHandlersOptions['configKV']['getOptional']>>
     try {
       unspeech = await opts.configKV.getOptional('UNSPEECH_UPSTREAM')
@@ -191,6 +200,18 @@ export function createSessionState(userId: string, opts: AudioSpeechWsHandlersOp
       log.withError(err).withFields({ userId }).warn('upstream ws error')
       span.recordException(err)
       span.setStatus({ code: SpanStatusCode.ERROR, message: err.message })
+      void opts.productEventService.track({
+        userId,
+        feature: 'tts',
+        action: 'speech_failed',
+        status: 'failed',
+        source: 'audio.speech.ws',
+        model: modelLabel,
+        reason: 'upstream_error',
+        metadata: {
+          duration_ms: Date.now() - startedAt,
+        },
+      })
       try {
         clientWs?.send(JSON.stringify({
           event: 'error',
@@ -383,6 +404,20 @@ export function createSessionState(userId: string, opts: AudioSpeechWsHandlersOp
       log.withError(err).warn('failed to write request log for streaming tts')
     }
 
+    void opts.productEventService.track({
+      userId,
+      feature: 'tts',
+      action: 'speech_succeeded',
+      status: 'succeeded',
+      source: 'audio.speech.ws',
+      model: modelLabel,
+      metadata: {
+        input_chars: units,
+        duration_ms: durationMs,
+        flux_consumed: fluxConsumed,
+      },
+    })
+
     finalize()
   }
 
@@ -405,6 +440,19 @@ export function createSessionState(userId: string, opts: AudioSpeechWsHandlersOp
     if (closed)
       return
     span.setStatus({ code: SpanStatusCode.ERROR, message: reason })
+    void opts.productEventService.track({
+      userId,
+      feature: 'tts',
+      action: 'speech_failed',
+      status: 'failed',
+      source: 'audio.speech.ws',
+      model: modelLabel,
+      reason,
+      metadata: {
+        close_code: code,
+        duration_ms: Date.now() - startedAt,
+      },
+    })
     if (clientWs) {
       try {
         clientWs.send(JSON.stringify({ event: 'error', code: reason, message: reason }))

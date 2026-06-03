@@ -4,8 +4,8 @@ import type { EngagementMetrics } from '../../otel'
 import type { ChatService } from '../../services/domain/chats'
 
 import { useLogger } from '@guiiai/logg'
+import { createPeerHooks, wsDisconnectedEvent } from '@moeru/eventa/adapters/websocket/hono'
 
-import { createPeerHooks, wsDisconnectedEvent } from '../../libs/eventa-hono-adapter'
 import { createChatBroadcastCoordinator } from './broadcast'
 import { createChatConnectionRegistry } from './connection-registry'
 import { registerChatRpcHandlers } from './rpc'

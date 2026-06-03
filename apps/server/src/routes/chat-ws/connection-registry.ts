@@ -1,4 +1,5 @@
-import type { HonoWsInvocableEventContext } from '../../libs/eventa-hono-adapter'
+import type { HonoWsInvocableEventContext } from '@moeru/eventa/adapters/websocket/hono'
+
 import type { ChatBroadcastPayload } from '../../utils/chat-broadcast'
 
 import { newMessages } from '@proj-airi/server-sdk-shared'
