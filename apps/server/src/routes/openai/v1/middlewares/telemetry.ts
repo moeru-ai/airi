@@ -1,7 +1,7 @@
-import type { GenAiMetrics } from '../../../otel'
-import type { UsageInfo } from '../../../services/domain/billing/billing'
-import type { LlmRouteContext } from '../../../services/domain/llm-router'
-import type { RequestLogService } from '../../../services/domain/request-log'
+import type { GenAiMetrics } from '../../../../otel'
+import type { UsageInfo } from '../../../../services/domain/billing/billing'
+import type { LlmRouteContext } from '../../../../services/domain/llm-router'
+import type { RequestLogService } from '../../../../services/domain/request-log'
 
 import { useLogger } from '@guiiai/logg'
 import { context, SpanStatusCode, trace } from '@opentelemetry/api'
@@ -15,7 +15,7 @@ import {
   GEN_AI_ATTR_REQUEST_MODEL,
   GEN_AI_ATTR_USAGE_INPUT_TOKENS,
   GEN_AI_ATTR_USAGE_OUTPUT_TOKENS,
-} from '../../../utils/observability'
+} from '../../../../utils/observability'
 
 export const tracer = trace.getTracer('v1-completions')
 

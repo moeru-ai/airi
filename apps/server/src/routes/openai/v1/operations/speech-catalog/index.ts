@@ -1,24 +1,29 @@
-import type { Context, Handler } from 'hono'
-
-import type { HonoEnv } from '../../../types/hono'
-import type { V1RouteDeps } from './types'
+import type { V1RouteDeps } from '../../types'
 
 import { useLogger } from '@guiiai/logg'
 import { ofetch } from 'ofetch'
 
-import { createBadGatewayError, createBadRequestError, createServiceUnavailableError } from '../../../utils/error'
+import { createBadGatewayError, createBadRequestError, createServiceUnavailableError } from '../../../../../utils/error'
 
-export interface AudioCatalogHandlers {
-  handleListStreamingTTSModels: Handler<HonoEnv>
-  handleListStreamingVoices: Handler<HonoEnv>
-  handleListTTSModels: Handler<HonoEnv>
-  handleListVoices: Handler<HonoEnv>
+export interface SpeechCatalogOperation {
+  listSpeechModels: () => Promise<Response>
+  listStreamingSpeechModels: () => Promise<Response>
+  listStreamingVoices: (input: ListStreamingVoicesInput) => Promise<Response>
+  listVoices: (input: ListVoicesInput) => Promise<Response>
 }
 
-export function createAudioCatalogHandlers(deps: V1RouteDeps): AudioCatalogHandlers {
+export interface ListStreamingVoicesInput {
+  model?: string
+}
+
+export interface ListVoicesInput {
+  requestedModel?: string
+}
+
+export function createSpeechCatalogOperation(deps: V1RouteDeps): SpeechCatalogOperation {
   const logger = useLogger('v1-completions').useGlobalConfig()
 
-  async function handleListVoices(c: Context<HonoEnv>) {
+  async function listVoices(input: ListVoicesInput) {
     // Voice catalogs are per-model. Live providers (Azure) call upstream
     // via unspeech; static providers (cosyvoice, volcengine) return their
     // bundled JSON. The Redis cache + invalidation lives one layer down
@@ -29,7 +34,7 @@ export function createAudioCatalogHandlers(deps: V1RouteDeps): AudioCatalogHandl
     // No implicit fallback: an empty `?model=` is a client bug (the UI is
     // expected to pass either an explicit model id or the `auto` alias) and
     // returns 400 instead of silently resolving to DEFAULT_TTS_MODEL.
-    const requested = c.req.query('model')
+    const requested = input.requestedModel
     if (requested === undefined || requested === '')
       throw createBadRequestError('audio voices: ?model= is required (use `auto` to defer to DEFAULT_TTS_MODEL)', 'MISSING_MODEL')
 
@@ -49,11 +54,11 @@ export function createAudioCatalogHandlers(deps: V1RouteDeps): AudioCatalogHandl
   /**
    * Voice catalog for the streaming TTS provider (`/audio/speech/ws`).
    *
-   * Errors propagate verbatim: missing config → 503, malformed upstream
-   * URL → 502, unspeech network failure → 502, unspeech non-2xx → 502.
-   * No empty-array fallback — the UI surfaces a real failure state.
+   * Errors propagate verbatim: missing config -> 503, malformed upstream
+   * URL -> 502, unspeech network failure -> 502, unspeech non-2xx -> 502.
+   * No empty-array fallback: the UI surfaces a real failure state.
    */
-  async function handleListStreamingVoices(c: Context<HonoEnv>) {
+  async function listStreamingVoices(input: ListStreamingVoicesInput) {
     const unspeech = await deps.configKV.getOptional('UNSPEECH_UPSTREAM')
     if (!unspeech?.streaming?.baseURL)
       throw createServiceUnavailableError('streaming tts upstream not configured', 'STREAMING_TTS_NOT_CONFIGURED')
@@ -61,7 +66,7 @@ export function createAudioCatalogHandlers(deps: V1RouteDeps): AudioCatalogHandl
     // Pass through the api_resource_id (e.g. `seed-tts-2.0`). unspeech
     // filters the embedded Volcengine catalogue server-side; absent model
     // means "return everything streaming-safe".
-    const model = c.req.query('model')
+    const model = input.model
 
     let voicesURL: string
     try {
@@ -117,7 +122,7 @@ export function createAudioCatalogHandlers(deps: V1RouteDeps): AudioCatalogHandl
     return Response.json({ voices: data.voices, recommended })
   }
 
-  async function handleListTTSModels(_c: Context<HonoEnv>) {
+  async function listSpeechModels() {
     // Surface the concrete TTS models the operator has configured. The UI
     // should select an explicit model id so voice catalog requests stay
     // model-scoped instead of hiding behind DEFAULT_TTS_MODEL.
@@ -132,7 +137,7 @@ export function createAudioCatalogHandlers(deps: V1RouteDeps): AudioCatalogHandl
     })
   }
 
-  async function handleListStreamingTTSModels(_c: Context<HonoEnv>) {
+  async function listStreamingSpeechModels() {
     const unspeech = await deps.configKV.getOptional('UNSPEECH_UPSTREAM')
     const models = unspeech?.streaming?.models ?? []
     // `available` is the operator-controlled visibility switch the client gates
@@ -152,9 +157,9 @@ export function createAudioCatalogHandlers(deps: V1RouteDeps): AudioCatalogHandl
   }
 
   return {
-    handleListStreamingTTSModels,
-    handleListStreamingVoices,
-    handleListTTSModels,
-    handleListVoices,
+    listSpeechModels,
+    listStreamingSpeechModels,
+    listStreamingVoices,
+    listVoices,
   }
 }
