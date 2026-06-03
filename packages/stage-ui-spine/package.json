@@ -33,21 +33,21 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@esotericsoftware/spine-webgl": "~4.2.0",
-    "@esotericsoftware/spine-webgl-4-0": "npm:@esotericsoftware/spine-webgl@~4.0.31",
-    "@esotericsoftware/spine-webgl-4-1": "npm:@esotericsoftware/spine-webgl@~4.1.56",
+    "@esotericsoftware/spine-webgl": "catalog:",
+    "@esotericsoftware/spine-webgl-4-0": "catalog:",
+    "@esotericsoftware/spine-webgl-4-1": "catalog:",
     "@moeru/std": "catalog:",
     "@proj-airi/stage-shared": "workspace:^",
     "@proj-airi/ui": "workspace:^",
-    "@vueuse/core": "^14.2.1",
+    "@vueuse/core": "catalog:vueuse-core-14-2-1",
     "@xsai/tool": "catalog:",
     "es-toolkit": "catalog:",
-    "jszip": "^3.10.1",
-    "pinia": "^3.0.4",
+    "jszip": "catalog:",
+    "pinia": "catalog:",
     "vue": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "vue-tsc": "^3.2.6"
+    "vue-tsc": "catalog:"
   }
 }

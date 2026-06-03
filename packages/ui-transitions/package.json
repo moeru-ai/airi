@@ -27,16 +27,16 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@vueuse/core": "^14.2.1",
-    "@vueuse/motion": "^3.0.3",
+    "@vueuse/core": "catalog:vueuse-core-14-2-1",
+    "@vueuse/motion": "catalog:",
     "vue": "catalog:"
   },
   "devDependencies": {
-    "@unocss/reset": "^66.6.8",
-    "@vitejs/plugin-vue": "^6.0.6",
+    "@unocss/reset": "catalog:",
+    "@vitejs/plugin-vue": "catalog:",
     "vite": "catalog:",
-    "vite-plugin-vue-devtools": "^8.1.1",
-    "vue-router": "^5.0.4",
-    "vue-tsc": "^3.2.6"
+    "vite-plugin-vue-devtools": "catalog:",
+    "vue-router": "catalog:",
+    "vue-tsc": "catalog:"
   }
 }

@@ -26,27 +26,27 @@
   },
   "dependencies": {
     "@moeru/eventa": "catalog:",
-    "@pixiv/three-vrm": "^3.5.2",
-    "@pixiv/three-vrm-animation": "^3.5.2",
-    "@pixiv/three-vrm-core": "^3.5.2",
+    "@pixiv/three-vrm": "catalog:",
+    "@pixiv/three-vrm-animation": "catalog:",
+    "@pixiv/three-vrm-core": "catalog:",
     "@proj-airi/stage-shared": "workspace:*",
     "@proj-airi/ui": "workspace:*",
-    "@tresjs/cientos": "^5.7.0",
-    "@tresjs/core": "^5.8.0",
-    "@tresjs/post-processing": "^3.7.1",
-    "@vueuse/core": "^14.2.1",
-    "culori": "^4.0.2",
+    "@tresjs/cientos": "catalog:",
+    "@tresjs/core": "catalog:",
+    "@tresjs/post-processing": "catalog:",
+    "@vueuse/core": "catalog:vueuse-core-14-2-1",
+    "culori": "catalog:",
     "es-toolkit": "catalog:",
-    "pinia": "^3.0.4",
-    "postprocessing": "^6.39.1",
-    "three": "^0.184.0",
+    "pinia": "catalog:",
+    "postprocessing": "catalog:",
+    "three": "catalog:",
     "vue": "catalog:",
-    "wlipsync": "^1.3.0"
+    "wlipsync": "catalog:"
   },
   "devDependencies": {
-    "@types/culori": "^4.0.1",
-    "@types/three": "^0.184.0",
+    "@types/culori": "catalog:",
+    "@types/three": "catalog:",
     "vitest": "catalog:vitest",
-    "vue-tsc": "^3.2.6"
+    "vue-tsc": "catalog:"
   }
 }

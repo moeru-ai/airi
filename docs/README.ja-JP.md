@@ -14,8 +14,7 @@
 
 <h1 align="center">Project AIRI</h1>
 
-<p align="center">Neuro-sama を再創造し、AI waifu / バーチャルキャラクターの魂の器をこの世界へ。</p>
-<p align="center">Neuro-sama のようなバーチャルパートナーも、私たちの暮らしの一部に。</p>
+<p align="center">Neuro-sama を再創造し、AI waifu / バーチャルキャラクターの魂の器をこの世界へ。/ Neuro-sama のようなバーチャルパートナーも、私たちの暮らしの一部に。</p>
 
 <p align="center">
   [<a href="https://discord.gg/TgQ3Cu2F7A">Discordサーバーに参加する</a>] [<a href="https://airi.moeru.ai">試してみる</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/README.md">English</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/docs/README.zh-CN.md">简体中文</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/docs/README.ru-RU.md">Русский</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/docs/README.vi.md">Tiếng Việt</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/docs/README.fr.md">Français</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/docs/README.ko-KR.md">한국어</a>]
@@ -30,8 +29,6 @@
   <a href="./wechat.md"><img src="https://img.shields.io/badge/WeChat-%2307C160?logo=wechat&logoColor=%2307C160&labelColor=FFFFFF"></a>
   <a href="https://qun.qq.com/universal-share/share?ac=1&authKey=9g00d%2BZS7nORzcJugNNddJ7rCghZTIR7fhXabGwch2S%2BG%2BKGIKwlN1N2nIqkh2jg&busi_data=eyJncm91cENvZGUiOiIxMDU4MTU2Njk3IiwidG9rZW4iOiJmcnkra1hWNFIxNytEcG0zcHRUdVJIaldlRDFxN0dzK080QWtvTEdOQjJkNEY2eUFta1g1clNpbkxSMS9FQWFYIiwidWluIjoiMTI2MDkwNzMzNSJ9&data=b1eJrwn3GVOUh7YIxZ7l9vHQo99HPmRxKPpMKlDCmfzx8Y57IXb2EZCMaOC9rVTd2U558qpNjwUYUWlPHxVHvg&svctype=4&tempid=h5_group_info"><img src="https://img.shields.io/badge/QQ-%2312B7F5?logo=qq&labelColor=FFFFFF"></a>
 </p>
-
-
 
 <p float="left" align="center">
   <!-- readme-section:release-binary-windows -->
@@ -137,9 +134,28 @@
 
 > [Neuro-sama](https://www.youtube.com/@Neurosama) に大きな影響を受けました
 
+> [!TIP]
+> Windows では、[winget](https://learn.microsoft.com/windows/package-manager/winget/) で AIRI をインストールできます：
+>
+> ```powershell
+> winget install MoeruAI.AIRI
+> ```
+>
+> または、[Scoop](https://scoop.sh/) で AIRI をインストールできます：
+>
+> ```powershell
+> scoop bucket add airi https://github.com/moeru-ai/airi
+> scoop install airi/airi
+> ```
+>
+> macOS では、カスタム tap を追加せずに [Homebrew Cask](https://brew.sh/) で AIRI をインストールできます：
+>
+> ```sh
+> brew install --cask airi
+> ```
+
 > [!WARNING]
-> **ご注意：**
-> 当プロジェクトでは、公式の暗号通貨やトークン等は**一切発行しておりません**。誤情報などにご注意ください。
+> **ご注意：** 当プロジェクトでは、公式の暗号通貨やトークン等は**一切発行しておりません**。誤情報などにご注意ください。
 
 > [!NOTE]
 >
@@ -274,6 +290,42 @@ pnpm dev:tamagotchi
 ```shell
 nix run github:moeru-ai/airi
 ```
+
+### Stage Pocket（モバイル版）
+
+Capacitor Web 版の開発サーバーを起動します：
+
+```shell
+pnpm dev:pocket
+```
+
+上記コマンドの出力から IP アドレスを確認してください：
+
+```shell
+  ROLLDOWN-VITE v7.3.0  ready in 1073 ms
+
+  ➜  Local:   https://localhost:5273/
+  ➜  Network: https://<ip-will-be-here>:5273/
+  ➜  Vue DevTools: Open https://localhost:5273/__devtools__/ as a separate window
+  ➜  Vue DevTools: Press Option(⌥)+Shift(⇧)+D in App to toggle the Vue DevTools
+  ➜  UnoCSS Inspector: https://localhost:5273/__unocss/
+```
+
+Xcode プロジェクトを開きます：
+
+```shell
+CAPACITOR_DEV_SERVER_URL=https://<your-ip-address>:5273 pnpm open:ios
+```
+
+Xcode が開いたら、"Run" ボタンをクリックして iPhone 上でアプリを実行できます。
+
+ワイヤレスモードで Pocket のサーバーチャンネルへ接続する必要がある場合は、Tamagotchi を root 権限で起動してください：
+
+```shell
+sudo pnpm dev:tamagotchi
+```
+
+その後、Tamagotchi の `settings/connections` で secure websocket を有効にしてください。
 
 ### ドキュメントサイト
 

@@ -41,12 +41,31 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "sum(increase(user_registered_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[24h]))",
-                      "legendFormat": "new users"
+                      "expr": "max(user_total{service_name=~\"$service\", deployment_environment=~\"$env\"})",
+                      "legendFormat": "total users"
                     },
                     "version": "v0"
                   },
                   "refId": "A"
+                }
+              },
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "grafanacloud-projairi-prom"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "expr": "sum(increase(user_registered_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[24h]))",
+                      "legendFormat": "new today"
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "B"
                 }
               }
             ],
@@ -54,10 +73,10 @@
             "transformations": []
           }
         },
-        "description": "Rolling 24h `increase(user.registered)` — counts the Better Auth `databaseHooks.user.create.after` fires over the last 24 hours. The signup half of the funnel; the returning-user half is DAU / WAU / MAU in the Users & Engagement row.",
+        "description": "Current Better Auth user table size from `user.total` (cluster-wide DB gauge, aggregate with `max()`) plus rolling 24h signup delta from `increase(user.registered)`. Use the delta as today/new-user growth, and DAU / WAU / MAU below for returning-user engagement.",
         "id": 1,
         "links": [],
-        "title": "New Users 24h",
+        "title": "Total Users",
         "vizConfig": {
           "group": "stat",
           "kind": "VizConfig",
@@ -1548,7 +1567,7 @@
         }
       }
     },
-    "panel-72": {
+    "panel-66": {
       "kind": "Panel",
       "spec": {
         "data": {
@@ -1566,8 +1585,8 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "sum by (gen_ai_request_model) (rate(airi_billing_flux_consumed_total{service_name=~\"$service\", deployment_environment=~\"$env\", gen_ai_request_model!=\"\"}[$__rate_interval]))",
-                      "legendFormat": "{{gen_ai_request_model}}"
+                      "expr": "sum by (provider) (rate(gen_ai_client_operation_count_total{service_name=~\"$service\", deployment_environment=~\"$env\", provider!=\"\"}[$__rate_interval]))",
+                      "legendFormat": "{{provider}}"
                     },
                     "version": "v0"
                   },
@@ -1579,10 +1598,358 @@
             "transformations": []
           }
         },
-        "description": "Normal flux debited per LLM request, by model (flux/sec). The billed-usage counterpart to panel-43 (⚠ Flux Unbilled): together they show what was charged vs what leaked. A model trending up here without matching request-rate growth means per-call cost rose.",
-        "id": 72,
+        "description": "Outbound request rate to each upstream provider (chat + tts), as our gateway sees it. The RPM / 调用次数 screens on the provider consoles, unified. provider = upstream hostname the router used.",
+        "id": 66,
         "links": [],
-        "title": "LLM Flux Consumed by Model",
+        "title": "Requests/s by Provider",
+        "vizConfig": {
+          "group": "timeseries",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "barWidthFactor": 0.6,
+                  "drawStyle": "line",
+                  "fillOpacity": 20,
+                  "gradientMode": "none",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 1,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "auto",
+                  "showValues": false,
+                  "spanNulls": false,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "reqps"
+              },
+              "overrides": []
+            },
+            "options": {
+              "annotations": {
+                "clustering": -1,
+                "multiLane": false
+              },
+              "legend": {
+                "calcs": [
+                  "lastNotNull",
+                  "max"
+                ],
+                "displayMode": "table",
+                "placement": "right",
+                "showLegend": true
+              },
+              "tooltip": {
+                "hideZeros": false,
+                "mode": "multi",
+                "sort": "desc"
+              }
+            }
+          },
+          "version": "13.0.0-23630096546"
+        }
+      }
+    },
+    "panel-67": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "grafanacloud-projairi-prom"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "expr": "histogram_quantile(0.95, sum by (le, provider) (rate(gen_ai_client_operation_duration_seconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\", provider!=\"\"}[$__rate_interval])))",
+                      "legendFormat": "{{provider}}"
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "P95 upstream call duration per provider (chat + tts), across models. Mirrors each provider console's 调用时长 p95/p99 panel — but here every provider is on one axis.",
+        "id": 67,
+        "links": [],
+        "title": "Provider Latency P95",
+        "vizConfig": {
+          "group": "timeseries",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "barWidthFactor": 0.6,
+                  "drawStyle": "line",
+                  "fillOpacity": 20,
+                  "gradientMode": "none",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 1,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "auto",
+                  "showValues": false,
+                  "spanNulls": false,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "s"
+              },
+              "overrides": []
+            },
+            "options": {
+              "annotations": {
+                "clustering": -1,
+                "multiLane": false
+              },
+              "legend": {
+                "calcs": [
+                  "lastNotNull",
+                  "max"
+                ],
+                "displayMode": "table",
+                "placement": "right",
+                "showLegend": true
+              },
+              "tooltip": {
+                "hideZeros": false,
+                "mode": "multi",
+                "sort": "desc"
+              }
+            }
+          },
+          "version": "13.0.0-23630096546"
+        }
+      }
+    },
+    "panel-68": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "grafanacloud-projairi-prom"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "expr": "100 * sum by (provider) (rate(gen_ai_client_operation_count_total{service_name=~\"$service\", deployment_environment=~\"$env\", provider!=\"\", http_response_status_code=~\"4..|5..\"}[$__rate_interval])) / clamp_min(sum by (provider) (rate(gen_ai_client_operation_count_total{service_name=~\"$service\", deployment_environment=~\"$env\", provider!=\"\"}[$__rate_interval])), 1)",
+                      "legendFormat": "{{provider}}"
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "4xx + 5xx ÷ all requests per provider, our side of the call. Matches each provider 失败率 panel. Pair with Upstream Errors by Status Code (LLM Router Health) to see which codes drive it.",
+        "id": 68,
+        "links": [],
+        "title": "Provider Failure %",
+        "vizConfig": {
+          "group": "timeseries",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "barWidthFactor": 0.6,
+                  "drawStyle": "line",
+                  "fillOpacity": 20,
+                  "gradientMode": "none",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 1,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "auto",
+                  "showValues": false,
+                  "spanNulls": false,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "percent"
+              },
+              "overrides": []
+            },
+            "options": {
+              "annotations": {
+                "clustering": -1,
+                "multiLane": false
+              },
+              "legend": {
+                "calcs": [
+                  "lastNotNull",
+                  "max"
+                ],
+                "displayMode": "table",
+                "placement": "right",
+                "showLegend": true
+              },
+              "tooltip": {
+                "hideZeros": false,
+                "mode": "multi",
+                "sort": "desc"
+              }
+            }
+          },
+          "version": "13.0.0-23630096546"
+        }
+      }
+    },
+    "panel-69": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "grafanacloud-projairi-prom"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "expr": "sum by (model) (rate(airi_billing_tts_chars_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
+                      "legendFormat": "{{model}}"
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "Billed TTS characters per second by model (from `airi.billing.tts.chars`). The 用量统计「字数」screen on the TTS consoles (豆包 / 阿里), unified. Integrate over the range for a window total.",
+        "id": 69,
+        "links": [],
+        "title": "TTS Characters/s by Model",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -3507,10 +3874,10 @@
                     "spec": {
                       "element": {
                         "kind": "ElementReference",
-                        "name": "panel-72"
+                        "name": "panel-11"
                       },
                       "height": 8,
-                      "width": 13,
+                      "width": 12,
                       "x": 0,
                       "y": 0
                     }
@@ -3523,8 +3890,35 @@
                         "name": "panel-21"
                       },
                       "height": 8,
-                      "width": 11,
-                      "x": 13,
+                      "width": 12,
+                      "x": 12,
+                      "y": 0
+                    }
+                  }
+                ]
+              }
+            },
+            "title": "LLM Gateway"
+          }
+        },
+        {
+          "kind": "RowsLayoutRow",
+          "spec": {
+            "collapse": false,
+            "layout": {
+              "kind": "GridLayout",
+              "spec": {
+                "items": [
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-66"
+                      },
+                      "height": 7,
+                      "width": 6,
+                      "x": 0,
                       "y": 0
                     }
                   },
@@ -3533,18 +3927,44 @@
                     "spec": {
                       "element": {
                         "kind": "ElementReference",
-                        "name": "panel-11"
+                        "name": "panel-67"
                       },
-                      "height": 8,
-                      "width": 24,
-                      "x": 0,
-                      "y": 8
+                      "height": 7,
+                      "width": 6,
+                      "x": 6,
+                      "y": 0
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-68"
+                      },
+                      "height": 7,
+                      "width": 6,
+                      "x": 12,
+                      "y": 0
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-69"
+                      },
+                      "height": 7,
+                      "width": 6,
+                      "x": 18,
+                      "y": 0
                     }
                   }
                 ]
               }
             },
-            "title": "LLM Gateway"
+            "title": "Provider Upstreams"
           }
         },
         {
@@ -3850,7 +4270,7 @@
     "grafana-cloud"
   ],
   "timeSettings": {
-    "autoRefresh": "",
+    "autoRefresh": "30s",
     "autoRefreshIntervals": [
       "5s",
       "10s",

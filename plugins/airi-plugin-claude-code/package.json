@@ -15,14 +15,14 @@
   "dependencies": {
     "@guiiai/logg": "catalog:",
     "@proj-airi/server-sdk": "workspace:*",
-    "cac": "^7.0.0",
-    "debug": "^4.4.3",
-    "destr": "^2.0.5",
+    "cac": "catalog:",
+    "debug": "catalog:",
+    "destr": "catalog:",
     "vue": "catalog:"
   },
   "devDependencies": {
-    "@anthropic-ai/claude-code": "^2.1.114",
-    "tsx": "^4.21.0",
-    "vue-tsc": "^3.2.6"
+    "@anthropic-ai/claude-code": "catalog:",
+    "tsx": "catalog:",
+    "vue-tsc": "catalog:"
   }
 }

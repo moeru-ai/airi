@@ -134,6 +134,26 @@
 <strong>Руководство от сообщества:</strong> Для более подробного пошагового руководства по настройке, включая получение ключей API и настройку среды, ознакомьтесь с этим замечательным <a href="https://docs.google.com/document/d/1AGs3Br_6mMbyQykbmSilczg4I56U6LTO-E9D3_Szk_I/edit?tab=t.0">руководством, написанным сообществом</a>.
 > Сильно вдохновлено [Neuro-sama](https://www.youtube.com/@Neurosama)
 
+> [!TIP]
+> В Windows AIRI можно установить с помощью [winget](https://learn.microsoft.com/windows/package-manager/winget/):
+>
+> ```powershell
+> winget install MoeruAI.AIRI
+> ```
+>
+> Или установить AIRI через [Scoop](https://scoop.sh/):
+>
+> ```powershell
+> scoop bucket add airi https://github.com/moeru-ai/airi
+> scoop install airi/airi
+> ```
+>
+> В macOS AIRI можно установить через [Homebrew Cask](https://brew.sh/) без добавления собственного tap:
+>
+> ```sh
+> brew install --cask airi
+> ```
+
 > [!WARNING]
 > **Внимание:** У нас **нет** официально выпущенной криптовалюты или токена, связанного с этим проектом. Пожалуйста, проверяйте информацию и действуйте с осторожностью.
 
@@ -246,9 +266,7 @@
 > Для подробных инструкций по разработке этого проекта следуйте [CONTRIBUTING.md](../.github/CONTRIBUTING.md)
 
 > [!NOTE]
-> По умолчанию `pnpm dev` запустит сервер разработки для Stage Web (версия для браузера).
-> Если вы хотите попробовать разработку десктопной версии, пожалуйста, убедитесь,
-> что вы прочитали [CONTRIBUTING.md](../.github/CONTRIBUTING.md), чтобы правильно настроить среду.
+> По умолчанию `pnpm dev` запустит сервер разработки для Stage Web (версия для браузера). Если вы хотите попробовать разработку десктопной версии, пожалуйста, убедитесь, что вы прочитали [CONTRIBUTING.md](../.github/CONTRIBUTING.md), чтобы правильно настроить среду.
 
 ```shell
 pnpm i
@@ -272,6 +290,42 @@ pnpm dev:tamagotchi
 ```shell
 nix run github:moeru-ai/airi
 ```
+
+### Stage Pocket (мобильная версия)
+
+Запустите сервер разработки веб-версии Capacitor:
+
+```shell
+pnpm dev:pocket
+```
+
+Найдите IP-адрес в выводе этой команды:
+
+```shell
+  ROLLDOWN-VITE v7.3.0  ready in 1073 ms
+
+  ➜  Local:   https://localhost:5273/
+  ➜  Network: https://<ip-will-be-here>:5273/
+  ➜  Vue DevTools: Open https://localhost:5273/__devtools__/ as a separate window
+  ➜  Vue DevTools: Press Option(⌥)+Shift(⇧)+D in App to toggle the Vue DevTools
+  ➜  UnoCSS Inspector: https://localhost:5273/__unocss/
+```
+
+Откройте проект Xcode:
+
+```shell
+CAPACITOR_DEV_SERVER_URL=https://<your-ip-address>:5273 pnpm open:ios
+```
+
+После этого откроется Xcode, и вы сможете нажать кнопку "Run", чтобы запустить приложение на iPhone.
+
+Если нужно подключить серверный канал Pocket в беспроводном режиме, запустите Tamagotchi с правами root:
+
+```shell
+sudo pnpm dev:tamagotchi
+```
+
+Затем включите secure websocket в `settings/connections` Tamagotchi.
 
 ### Сайт документации
 
@@ -315,6 +369,7 @@ npx bumpp --no-commit --no-tag
 - [x] [Baichuan](https://platform.baichuan-ai.com)
 - [x] [Minimax](https://api.minimax.chat/)
 - [x] [Moonshot AI](https://platform.moonshot.cn/)
+- [x] [ModelScope](https://modelscope.cn/docs/model-service/API-Inference/intro)
 - [x] [Player2](https://player2.game/)
 - [x] [Tencent Cloud](https://cloud.tencent.com/document/product/1729)
 - [ ] [Sparks](https://www.xfyun.cn/doc/spark/Web.html) (PR welcome)

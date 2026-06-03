@@ -136,11 +136,23 @@
 > Heavily inspired by [Neuro-sama](https://www.youtube.com/@Neurosama)
 
 > [!TIP]
-> On Windows, you can also install AIRI with [Scoop](https://scoop.sh/):
+> On Windows, you can also install AIRI with [winget](https://learn.microsoft.com/windows/package-manager/winget/):
+>
+> ```powershell
+> winget install MoeruAI.AIRI
+> ```
+>
+> Or install AIRI with [Scoop](https://scoop.sh/):
 >
 > ```powershell
 > scoop bucket add airi https://github.com/moeru-ai/airi
 > scoop install airi/airi
+> ```
+>
+> On macOS, you can install AIRI with [Homebrew Cask](https://brew.sh/) without adding a custom tap:
+>
+> ```sh
+> brew install --cask airi
 > ```
 
 > [!WARNING]

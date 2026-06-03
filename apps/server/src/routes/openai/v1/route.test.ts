@@ -2,11 +2,12 @@ import type { ConfigKVService } from '../../../services/adapters/config-kv'
 import type { BillingService } from '../../../services/domain/billing/billing-service'
 import type { FluxService } from '../../../services/domain/flux'
 import type { LlmRouterService } from '../../../services/domain/llm-router'
+import type { ChatGenerationTrace, TtsGenerationTrace } from '../../../services/domain/llm-tracing'
 import type { RequestLogService } from '../../../services/domain/request-log'
 import type { HonoEnv } from '../../../types/hono'
 
 import { Hono } from 'hono'
-import { afterAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createV1Routes } from '.'
 import { ApiError } from '../../../utils/error'
@@ -84,6 +85,20 @@ function createMockTtsMeter(unitsPerFlux = 1000) {
   } as any
 }
 
+function createMockLlmTracing() {
+  return {
+    startChatGeneration: vi.fn((): ChatGenerationTrace => ({
+      appendStreamChunk: vi.fn(),
+      succeed: vi.fn(),
+      fail: vi.fn(),
+    })),
+    startTtsGeneration: vi.fn((): TtsGenerationTrace => ({
+      succeed: vi.fn(),
+      fail: vi.fn(),
+    })),
+  }
+}
+
 function createMockLlmRouter(impl?: Partial<LlmRouterService>): LlmRouterService {
   return {
     // Default: forward to globalThis.fetch so existing chat tests that mock
@@ -120,16 +135,21 @@ function createTestApp(
   requestLogService?: RequestLogService,
   ttsMeter?: ReturnType<typeof createMockTtsMeter>,
   llmRouter?: LlmRouterService,
+  llmTracing = createMockLlmTracing(),
 ) {
-  const { openaiRoutes, audioRoutes } = createV1Routes(
+  const { openaiRoutes, audioRoutes } = createV1Routes({
     fluxService,
-    billingService ?? createMockBillingService(),
+    billingService: billingService ?? createMockBillingService(),
     configKV,
-    requestLogService ?? createMockRequestLogService(),
-    ttsMeter ?? createMockTtsMeter(),
-    llmRouter ?? createMockLlmRouter(),
-    null,
-  )
+    requestLogService: requestLogService ?? createMockRequestLogService(),
+    ttsMeter: ttsMeter ?? createMockTtsMeter(),
+    llmRouter: llmRouter ?? createMockLlmRouter(),
+    genAi: null,
+    revenue: null,
+    rateLimitMetrics: null,
+    posthog: null,
+    llmTracing,
+  })
   const app = new Hono<HonoEnv>()
 
   app.onError((err, c) => {
@@ -165,6 +185,10 @@ const testUser = { id: 'user-1', name: 'Test User', email: 'test@example.com' }
 
 describe('v1CompletionsRoutes', () => {
   const originalFetch = globalThis.fetch
+
+  beforeEach(() => {
+    globalThis.fetch = originalFetch
+  })
 
   afterAll(() => {
     globalThis.fetch = originalFetch
@@ -237,6 +261,50 @@ describe('v1CompletionsRoutes', () => {
       // Critical: upstream was never called — leak is closed before cost is incurred.
       expect(globalThis.fetch).not.toHaveBeenCalled()
       expect(billingService.consumeFluxForLLM).not.toHaveBeenCalled()
+    })
+
+    it('rate-limits chat completions at the gateway operation boundary', async () => {
+      globalThis.fetch = vi.fn(async () =>
+        Response.json({
+          id: 'chatcmpl-test',
+          choices: [{ message: { role: 'assistant', content: 'ok' } }],
+          usage: { prompt_tokens: 1, completion_tokens: 1 },
+        })) as any
+      const llmRouter = createMockLlmRouter()
+      const app = createTestApp(
+        createMockFluxService(1000),
+        createMockConfigKV(),
+        createMockBillingService(1000),
+        undefined,
+        undefined,
+        llmRouter,
+      )
+
+      for (let i = 0; i < 60; i += 1) {
+        const res = await app.fetch(
+          new Request('http://localhost/api/v1/openai/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: 'auto', messages: [{ role: 'user', content: `hi ${i}` }] }),
+          }),
+          { user: testUser } as any,
+        )
+        expect(res.status).toBe(200)
+      }
+
+      const limited = await app.fetch(
+        new Request('http://localhost/api/v1/openai/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'auto', messages: [{ role: 'user', content: 'blocked' }] }),
+        }),
+        { user: testUser } as any,
+      )
+      const body = await limited.json()
+
+      expect(limited.status).toBe(429)
+      expect(body).toEqual({ error: 'TOO_MANY_REQUESTS', message: 'Too many requests' })
+      expect(llmRouter.route).toHaveBeenCalledTimes(60)
     })
 
     // ROOT CAUSE:
@@ -377,6 +445,43 @@ describe('v1CompletionsRoutes', () => {
         'http://mock-gateway/chat/completions',
         expect.objectContaining({
           body: expect.stringContaining('"model":"openai/gpt-5-mini"'),
+        }),
+      )
+    })
+
+    it('records Langfuse chat generation with the router-resolved upstream model', async () => {
+      const llmRouter = createMockLlmRouter({
+        route: vi.fn(async (_req, ctx) => {
+          if (ctx) {
+            ctx.provider = 'openrouter'
+            ctx.upstreamModel = 'openai/gpt-4o-mini'
+          }
+          return new Response(JSON.stringify({
+            choices: [],
+            usage: { prompt_tokens: 1, completion_tokens: 2, total_tokens: 3 },
+          }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        }) as any,
+      })
+      const llmTracing = createMockLlmTracing()
+      const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, undefined, undefined, llmRouter, llmTracing)
+
+      await app.fetch(
+        new Request('http://localhost/api/v1/openai/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'chat-auto', messages: [{ role: 'user', content: 'hi' }] }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(llmTracing.startChatGeneration).toHaveBeenCalledWith(
+        expect.objectContaining({
+          model: 'openai/gpt-4o-mini',
+          requestId: expect.any(String),
+          userId: 'user-1',
         }),
       )
     })
@@ -684,6 +789,11 @@ describe('v1CompletionsRoutes', () => {
     // billing-failed request without a fluxConsumed value), but the
     // failure is now observable instead of hidden by a leaked span.
     it('tTS billing failure closes the span and surfaces error to onError (regression)', async () => {
+      globalThis.fetch = vi.fn(async () => new Response(new Uint8Array([1]), {
+        status: 200,
+        headers: { 'Content-Type': 'audio/mpeg' },
+      }))
+
       const requestLogService = createMockRequestLogService()
       const ttsMeter = createMockTtsMeter()
       // Override accumulate to simulate a Redis INCRBY failure mid-billing.
@@ -1147,12 +1257,7 @@ describe('v1CompletionsRoutes', () => {
       expect(res.status).toBe(404)
     })
 
-    it('pOST /api/v1/openai/chat/completion (singular) should also work', async () => {
-      globalThis.fetch = vi.fn(async () => new Response('{}', {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      }))
-
+    it('pOST /api/v1/openai/chat/completion (singular) should return 404', async () => {
       const app = createTestApp(createMockFluxService(), createMockConfigKV())
 
       const res = await app.fetch(
@@ -1163,7 +1268,7 @@ describe('v1CompletionsRoutes', () => {
         }),
         { user: testUser } as any,
       )
-      expect(res.status).toBe(200)
+      expect(res.status).toBe(404)
     })
   })
 })

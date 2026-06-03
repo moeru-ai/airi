@@ -134,9 +134,28 @@
 
 > [Neuro-sama](https://www.youtube.com/@Neurosama)에서 큰 영감을 받았습니다
 
+> [!TIP]
+> Windows에서는 [winget](https://learn.microsoft.com/windows/package-manager/winget/)으로 AIRI를 설치할 수 있습니다:
+>
+> ```powershell
+> winget install MoeruAI.AIRI
+> ```
+>
+> 또는 [Scoop](https://scoop.sh/)으로 AIRI를 설치할 수 있습니다:
+>
+> ```powershell
+> scoop bucket add airi https://github.com/moeru-ai/airi
+> scoop install airi/airi
+> ```
+>
+> macOS에서는 별도의 커스텀 tap을 추가하지 않고 [Homebrew Cask](https://brew.sh/)로 AIRI를 설치할 수 있습니다:
+>
+> ```sh
+> brew install --cask airi
+> ```
+
 > [!WARNING]
-> **주의:**
-> 본 프로젝트와 관련된 공식 암호화폐나 토큰은 **일절 발행하지 않았습니다**. 관련 정보에 주의하시고 신중하게 판단해 주세요.
+> **주의:** 본 프로젝트와 관련된 공식 암호화폐나 토큰은 **일절 발행하지 않았습니다**. 관련 정보에 주의하시고 신중하게 판단해 주세요.
 
 > [!NOTE]
 >
@@ -306,7 +325,7 @@ CAPACITOR_DEV_SERVER_URL=https://<your-ip-address>:5273 pnpm open:ios
 sudo pnpm dev:tamagotchi
 ```
 
-그런 다음 Tamagotchi의 `settings/system/general`에서 보안 웹소켓을 활성화하세요.
+그런 다음 Tamagotchi의 `settings/connections`에서 보안 웹소켓을 활성화하세요.
 
 ### 문서 사이트
 

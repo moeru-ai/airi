@@ -89,3 +89,24 @@ describe('oidc /oauth2/userinfo ban guard', () => {
     expect(handler).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('auth UI routes', () => {
+  it('redirects sign-in provider shortcut before the SPA fallback', async () => {
+    const { routes } = await buildRoutes({ id: 'uid_ok', email: 'ok@example.com', banned: false, banExpires: null })
+
+    const res = await routes.request('/auth/sign-in?provider=github&client_id=stage-web&prompt=login&redirect_uri=http%3A%2F%2Flocalhost%3A5173%2Fauth%2Fcallback')
+
+    expect(res.status).toBe(302)
+
+    const location = res.headers.get('location')
+    expect(location).toContain('http://localhost:3000/api/auth/sign-in/social?provider=github')
+    expect(location).toContain('callbackURL=')
+
+    const redirect = new URL(location!)
+    const callbackURL = redirect.searchParams.get('callbackURL')
+    expect(callbackURL).toContain('/api/auth/oauth2/authorize?')
+    expect(callbackURL).toContain('client_id=stage-web')
+    expect(callbackURL).not.toContain('provider=')
+    expect(callbackURL).not.toContain('prompt=')
+  })
+})

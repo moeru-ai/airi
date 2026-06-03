@@ -5,17 +5,7 @@ using Godot;
 
 /// <summary>
 /// Root node for the Godot sidecar stage runtime.
-///
-/// Use when:
-/// - Running the desktop Godot stage through Electron main.
-/// - Receiving scene input from the current stage settings model selection.
-///
-/// Expects:
-/// - Electron launches Godot with <c>--airi-ws-url=&lt;runtime-url&gt;</c>.
-/// - The scene contains or can create an avatar root node.
-///
-/// Returns:
-/// - A running stage process that reports ready/applied/error envelopes to Electron main.
+/// </summary>
 ///
 /// Call stack:
 ///
@@ -25,7 +15,6 @@ using Godot;
 ///   -> <see cref="_Process"/>
 ///     -> <see cref="StageBridge.Poll"/>
 ///       -> <see cref="HandleMessage"/>
-/// </summary>
 public partial class StageRoot : Node3D
 {
     private const string AvatarRootNodeName = "AvatarRoot";
@@ -42,7 +31,6 @@ public partial class StageRoot : Node3D
 
     private StageBridge _bridge = null!;
     private StageSceneController _sceneController = null!;
-    private Label3D _statusLabel = null!;
     private StageViewController _viewController = null!;
     private StageCameraInputController _viewInputController = null!;
     private StageViewRuntime _viewRuntime = null!;
@@ -53,8 +41,7 @@ public partial class StageRoot : Node3D
     public override void _Ready()
     {
         HideEditorPreviewRoot();
-        _statusLabel = CreateStatusLabel();
-        AddChild(_statusLabel);
+        StageVisualPreset.Apply(this);
 
         var avatarRoot = ResolveAvatarRoot();
         _sceneController = new StageSceneController(avatarRoot, new VrmAvatarLoader());
@@ -63,7 +50,6 @@ public partial class StageRoot : Node3D
         var webSocketUrl = ResolveWebSocketUrl();
         if (string.IsNullOrWhiteSpace(webSocketUrl))
         {
-            UpdateStatus("Missing Electron bridge URL.");
             GD.PushWarning("Godot stage missing --airi-ws-url argument.");
             return;
         }
@@ -76,13 +62,10 @@ public partial class StageRoot : Node3D
         var connectError = _bridge.Connect(webSocketUrl);
         if (connectError != Error.Ok)
         {
-            UpdateStatus("Failed to connect to Electron main.");
             GD.PushError($"Godot stage failed to connect to Electron main: {connectError}.");
             GetTree().Quit();
             return;
         }
-
-        UpdateStatus("Connecting to Electron main...");
     }
 
     /// <inheritdoc/>
@@ -107,7 +90,6 @@ public partial class StageRoot : Node3D
     private void HandleBridgeOpened()
     {
         _bridge.SendEnvelope("stage.ready");
-        UpdateStatus("Connected to Electron main.");
     }
 
     private void HandleBridgeClosed(string message)
@@ -118,7 +100,6 @@ public partial class StageRoot : Node3D
             return;
         }
 
-        UpdateStatus(message);
         GD.PushWarning(message);
         GetTree().Quit();
     }
@@ -168,19 +149,6 @@ public partial class StageRoot : Node3D
         editorPreviewRoot.ProcessMode = ProcessModeEnum.Disabled;
     }
 
-    private static Label3D CreateStatusLabel()
-    {
-        return new Label3D
-        {
-            Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
-            FontSize = 34,
-            Modulate = new Color(0.95f, 0.98f, 1.0f),
-            PixelSize = 0.0035f,
-            Position = new Vector3(-1.45f, 1.75f, 0.0f),
-            Text = "Godot Stage (experimental)",
-        };
-    }
-
     private void HandleMessage(string rawMessage)
     {
         try
@@ -204,7 +172,6 @@ public partial class StageRoot : Node3D
                     break;
                 case "host.shutdown":
                     _shutdownRequested = true;
-                    UpdateStatus("Shutdown requested by Electron main.");
                     GetTree().Quit();
                     break;
             }
@@ -212,7 +179,6 @@ public partial class StageRoot : Node3D
         catch (Exception error)
         {
             var message = $"Failed to parse Electron message: {error.Message}";
-            UpdateStatus(message);
             SendSceneError(message);
         }
     }
@@ -242,15 +208,13 @@ public partial class StageRoot : Node3D
             {
                 // TODO:
                 // Make avatar apply and view bootstrap one transaction. Today avatar apply commits
-                // before bootstrap, so a bootstrap failure reports scene.error with the new avatar loaded.
+                // before bootstrap. If bootstrap fails, scene.error is reported with the new
+                // avatar already loaded.
                 var avatar = _sceneController.Apply(payload);
                 _viewController?.UseAvatar(avatar);
                 _viewRuntime?.BootstrapForAvatar();
                 _activeSceneModelId = payload.ModelId;
             }
-
-            var fileName = System.IO.Path.GetFileName(payload.Path);
-            UpdateStatus($"Connected to Electron main.\nModel: {payload.Name}\nAsset: {fileName}");
 
             _bridge.SendEnvelope("scene.applied", new
             {
@@ -260,7 +224,6 @@ public partial class StageRoot : Node3D
         catch (Exception error)
         {
             var message = $"Failed to apply scene input: {error.Message}";
-            UpdateStatus(message);
             SendSceneError(message);
         }
     }
@@ -334,7 +297,8 @@ public partial class StageRoot : Node3D
         var cameraController = new StageCameraPoseController(ResolveCamera());
         _viewController = new StageViewController(avatarRoot, cameraController);
         _viewRuntime = new StageViewRuntime(_viewController);
-        _viewRuntime.SnapshotReady += payload => _bridge.SendEnvelope("stage.view.snapshot", payload);
+        _viewRuntime.SnapshotReady += payload =>
+            _bridge.SendEnvelope("stage.view.snapshot", payload);
         _viewRuntime.ErrorReady += payload => _bridge.SendEnvelope("stage.view.error", payload);
         _viewInputController = new StageCameraInputController(_viewRuntime, cameraController);
     }
@@ -346,7 +310,4 @@ public partial class StageRoot : Node3D
             message,
         });
     }
-
-    private void UpdateStatus(string message) =>
-        _statusLabel.Text = $"Godot Stage (experimental)\n{message}";
 }
