@@ -51,6 +51,7 @@ import {
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { useSecureStorage } from '../composables/use-secure-storage'
 import { getKokoroAdapter } from '../libs/inference/adapters/kokoro'
 import { getProviderValidationIntervalMs, listProviders as listDefinedProviders, ProviderValidationCheck } from '../libs/providers'
 import { resolveProviderSourceMetadata } from '../libs/providers/source-metadata'
@@ -223,7 +224,7 @@ export interface ProviderRuntimeState {
 }
 
 export const useProvidersStore = defineStore('providers', () => {
-  const providerCredentials = useLocalStorage<Record<string, Record<string, unknown>>>('settings/credentials/providers', {})
+  const providerCredentials = useSecureStorage<Record<string, Record<string, unknown>>>('settings/credentials/providers', {})
   const addedProviders = useLocalStorage<Record<string, boolean>>('settings/providers/added', {})
   const providerInstanceCache = ref<Record<string, unknown>>({})
   const { t } = useI18n()

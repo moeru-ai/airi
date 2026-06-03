@@ -181,18 +181,18 @@ async function applySelection(isImport = false) {
 
       const payload = { option: { ...selectedOption.value, blur }, color }
       if (isImport)
-        (emit as any)('import', payload) // TODO: so ugly, need to fix the typing of emit
+        emit('import', payload)
       else
-        (emit as any)('apply', payload)
+        emit('apply', payload)
       return
     }
 
     if (selectedOption.value.kind === 'transparent') {
       const payload = { option: { ...selectedOption.value, blur }, color: 'transparent' }
       if (isImport)
-        (emit as any)('import', payload)
+        emit('import', payload)
       else
-        (emit as any)('apply', payload)
+        emit('apply', payload)
       return
     }
 
@@ -207,9 +207,9 @@ async function applySelection(isImport = false) {
 
     const payload = { option: { ...selectedOption.value, blur }, color: previewColor.value }
     if (isImport)
-      (emit as any)('import', payload)
+      emit('import', payload)
     else
-      (emit as any)('apply', payload)
+      emit('apply', payload)
   }
   catch (error) {
     console.error('Background application failed:', error)

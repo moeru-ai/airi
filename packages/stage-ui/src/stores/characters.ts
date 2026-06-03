@@ -3,10 +3,12 @@ import type { Ref } from 'vue'
 import type { Character, CreateCharacterPayload, UpdateCharacterPayload } from '../types/character'
 
 import { useMutation, useQuery, useQueryCache } from '@pinia/colada'
+import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
 import { client } from '../composables/api'
+import { useSecureStorage } from '../composables/use-secure-storage'
 import { charactersModel as model } from '../models/characters'
 import { charactersService as service } from '../services/characters'
 import { useAuthStore } from './auth'
@@ -53,6 +55,8 @@ export function createCharacterStoreController(params: {
   removeMutation: StoreMutation<string, void>
   service: typeof service
   updateMutation: StoreMutation<{ id: string, data: UpdateCharacterPayload }, Character>
+  activeCharacterId: Ref<string>
+  characterCredentials: Ref<Record<string, string>>
 }) {
   const {
     auth,
@@ -66,6 +70,8 @@ export function createCharacterStoreController(params: {
     removeMutation,
     service,
     updateMutation,
+    activeCharacterId,
+    characterCredentials,
   } = params
   const mutationError = computed(() =>
     createMutation.error.value
@@ -74,60 +80,115 @@ export function createCharacterStoreController(params: {
     ?? likeMutation.error.value
     ?? bookmarkMutation.error.value)
 
+  function restoreCredentials(character: Character): Character {
+    if (!character.capabilities)
+      return character
+    return {
+      ...character,
+      capabilities: character.capabilities.map((cap) => {
+        const credKey = `${character.characterId}:${cap.type}`
+        const savedApiKey = characterCredentials.value[credKey]
+        if (savedApiKey) {
+          return {
+            ...cap,
+            config: {
+              ...cap.config,
+              apiKey: savedApiKey,
+            },
+          }
+        }
+        return cap
+      }),
+    }
+  }
+
   async function fetchList(all: boolean = false) {
     listAll.value = all
     const cached = await model.list()
     if (cached.length > 0)
-      setCharactersMap(characters.value, cached)
+      setCharactersMap(characters.value, cached.map(restoreCredentials))
 
     try {
       const state = await listQuery.refetch(true)
       if (state.data) {
-        await model.saveAll(state.data)
-        setCharactersMap(characters.value, state.data)
+        const restoredData = state.data.map(restoreCredentials)
+        await model.saveAll(restoredData)
+        setCharactersMap(characters.value, restoredData)
+        return restoredData
       }
-      return state.data ?? cached
+      return cached.map(restoreCredentials)
     }
     catch {
-      return cached
+      return cached.map(restoreCredentials)
     }
   }
 
   async function fetchById(id: string) {
     const cached = characters.value.get(id) ?? (await model.list()).find(character => character.id === id)
-    if (cached)
-      characters.value.set(cached.id, cached)
+    const restoredCached = cached ? restoreCredentials(cached) : undefined
+    if (restoredCached)
+      characters.value.set(restoredCached.id, restoredCached)
 
     try {
       const remote = await service.fetchRemoteById(client, id)
-      characters.value.set(remote.id, remote)
-      await model.upsert(remote)
-      return remote
+      const restoredRemote = restoreCredentials(remote)
+      characters.value.set(restoredRemote.id, restoredRemote)
+      await model.upsert(restoredRemote)
+      return restoredRemote
     }
     catch {
-      return cached
+      return restoredCached
     }
   }
 
   async function create(payload: CreateCharacterPayload) {
+    if (payload.capabilities) {
+      for (const cap of payload.capabilities) {
+        if (cap.config.apiKey) {
+          const credKey = `${payload.character.characterId}:${cap.type}`
+          characterCredentials.value[credKey] = cap.config.apiKey
+        }
+      }
+    }
+
     const localCharacter = service.buildLocal(auth.userId, payload)
-    characters.value.set(localCharacter.id, localCharacter)
-    await model.upsert(localCharacter)
+    const restoredLocal = restoreCredentials(localCharacter)
+    characters.value.set(restoredLocal.id, restoredLocal)
+    await model.upsert(restoredLocal)
 
     try {
       const remote = await createMutation.mutateAsync(payload)
+      const restoredRemote = restoreCredentials(remote)
       characters.value.delete(localCharacter.id)
       await model.remove(localCharacter.id)
-      characters.value.set(remote.id, remote)
-      await model.upsert(remote)
-      return remote
+      characters.value.set(restoredRemote.id, restoredRemote)
+      await model.upsert(restoredRemote)
+      return restoredRemote
     }
     catch {
-      return localCharacter
+      return restoredLocal
     }
   }
 
   async function update(id: string, payload: UpdateCharacterPayload) {
+    if (payload.capabilities) {
+      const character = characters.value.get(id)
+      const charId = payload.characterId ?? character?.characterId
+      if (charId) {
+        for (const cap of payload.capabilities) {
+          if (cap.config.apiKey !== undefined) {
+            const credKey = `${charId}:${cap.type}`
+            if (cap.config.apiKey) {
+              characterCredentials.value[credKey] = cap.config.apiKey
+            }
+            else {
+              delete characterCredentials.value[credKey]
+            }
+          }
+        }
+      }
+    }
+
     const character = characters.value.get(id)
     if (!character)
       return
@@ -137,19 +198,23 @@ export function createCharacterStoreController(params: {
       ...(payload.version !== undefined ? { version: payload.version } : {}),
       ...(payload.coverUrl !== undefined ? { coverUrl: payload.coverUrl } : {}),
       ...(payload.characterId !== undefined ? { characterId: payload.characterId } : {}),
+      ...(payload.i18n !== undefined ? { i18n: payload.i18n.map(entry => ({ ...entry, id: '', characterId: id, tagline: undefined, createdAt: new Date(), updatedAt: new Date() })) } : {}),
+      ...(payload.capabilities !== undefined ? { capabilities: payload.capabilities.map(cap => ({ ...cap, id: '', characterId: id })) } : {}),
       updatedAt: new Date(),
     }
-    characters.value.set(localCharacter.id, localCharacter)
-    await model.upsert(localCharacter)
+    const restoredLocal = restoreCredentials(localCharacter)
+    characters.value.set(restoredLocal.id, restoredLocal)
+    await model.upsert(restoredLocal)
 
     try {
       const remote = await updateMutation.mutateAsync({ id, data: payload })
-      characters.value.set(remote.id, remote)
-      await model.upsert(remote)
-      return remote
+      const restoredRemote = restoreCredentials(remote)
+      characters.value.set(restoredRemote.id, restoredRemote)
+      await model.upsert(restoredRemote)
+      return restoredRemote
     }
     catch {
-      return localCharacter
+      return restoredLocal
     }
   }
 
@@ -178,14 +243,16 @@ export function createCharacterStoreController(params: {
         likesCount: character.likesCount + 1,
         updatedAt: new Date(),
       }
-      characters.value.set(localCharacter.id, localCharacter)
-      await model.upsert(localCharacter)
+      const restoredLocal = restoreCredentials(localCharacter)
+      characters.value.set(restoredLocal.id, restoredLocal)
+      await model.upsert(restoredLocal)
     }
 
     try {
       const remote = await likeMutation.mutateAsync(id)
-      characters.value.set(remote.id, remote)
-      await model.upsert(remote)
+      const restoredRemote = restoreCredentials(remote)
+      characters.value.set(restoredRemote.id, restoredRemote)
+      await model.upsert(restoredRemote)
     }
     catch {
       // Keep local-first optimistic state.
@@ -205,14 +272,16 @@ export function createCharacterStoreController(params: {
         bookmarksCount: character.bookmarksCount + 1,
         updatedAt: new Date(),
       }
-      characters.value.set(localCharacter.id, localCharacter)
-      await model.upsert(localCharacter)
+      const restoredLocal = restoreCredentials(localCharacter)
+      characters.value.set(restoredLocal.id, restoredLocal)
+      await model.upsert(restoredLocal)
     }
 
     try {
       const remote = await bookmarkMutation.mutateAsync(id)
-      characters.value.set(remote.id, remote)
-      await model.upsert(remote)
+      const restoredRemote = restoreCredentials(remote)
+      characters.value.set(restoredRemote.id, restoredRemote)
+      await model.upsert(restoredRemote)
     }
     catch {
       // Keep local-first optimistic state.
@@ -223,8 +292,13 @@ export function createCharacterStoreController(params: {
     return characters.value.get(id)
   }
 
+  function setActive(id: string) {
+    activeCharacterId.value = id
+  }
+
   return {
     characters,
+    activeCharacterId,
     isLoading: computed(() => listQuery.isLoading.value),
     error: computed(() => listQuery.error.value),
     mutationError,
@@ -237,12 +311,15 @@ export function createCharacterStoreController(params: {
     like,
     bookmark,
     getCharacter,
+    setActive,
   }
 }
 
 export const useCharacterStore = defineStore('characters', () => {
   const characters = ref<Map<string, Character>>(new Map())
   const listAll = ref(false)
+  const activeCharacterId = useLocalStorage<string>('airi:active-character-id', '')
+  const characterCredentials = useSecureStorage<Record<string, string>>('settings/credentials/characters', {})
   const auth = useAuthStore()
   const queryCache = useQueryCache()
 
@@ -287,5 +364,7 @@ export const useCharacterStore = defineStore('characters', () => {
     removeMutation,
     service,
     updateMutation,
+    activeCharacterId,
+    characterCredentials,
   })
 })

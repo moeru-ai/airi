@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Character, CreateCharacterPayload } from '@proj-airi/stage-ui/types/character'
 
+import { errorMessageFrom } from '@moeru/std'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useCharacterStore } from '@proj-airi/stage-ui/stores/characters'
 import { CreateCharacterSchema } from '@proj-airi/stage-ui/types/character'
@@ -14,6 +15,7 @@ import {
 } from 'reka-ui'
 import { safeParse } from 'valibot'
 import { computed, reactive, ref, watch } from 'vue'
+import { toast } from 'vue-sonner'
 
 interface Props {
   modelValue: boolean
@@ -40,10 +42,12 @@ const form = reactive({
   // Capability: LLM
   llmModel: '',
   llmTemperature: 0.7,
+  llmApiKey: '',
 
   // Capability: TTS
   ttsVoiceId: '',
   ttsSpeed: 1.0,
+  ttsApiKey: '',
 })
 
 // Initialize form when character prop changes or dialog opens
@@ -61,9 +65,11 @@ watch(() => props.character, (char) => {
 
     form.llmModel = llm?.config.llm?.model || ''
     form.llmTemperature = llm?.config.llm?.temperature || 0.7
+    form.llmApiKey = llm?.config.apiKey || ''
 
     form.ttsVoiceId = tts?.config.tts?.voiceId || ''
     form.ttsSpeed = tts?.config.tts?.speed || 1.0
+    form.ttsApiKey = tts?.config.apiKey || ''
   }
   else {
     // Reset defaults
@@ -74,8 +80,10 @@ watch(() => props.character, (char) => {
     form.description = ''
     form.llmModel = 'gpt-4o-mini'
     form.llmTemperature = 0.7
+    form.llmApiKey = ''
     form.ttsVoiceId = ''
     form.ttsSpeed = 1.0
+    form.ttsApiKey = ''
   }
 }, { immediate: true })
 
@@ -100,30 +108,34 @@ async function handleSubmit() {
       tags: [],
     }],
     capabilities: [
-      {
-        type: 'llm',
-        config: {
-          apiKey: '', // TODO: Handle secrets
-          apiBaseUrl: '',
-          llm: {
-            model: form.llmModel,
-            temperature: form.llmTemperature,
-          },
-        },
-      },
-      {
-        type: 'tts',
-        config: {
-          apiKey: '',
-          apiBaseUrl: '',
-          tts: {
-            voiceId: form.ttsVoiceId,
-            speed: form.ttsSpeed,
-            ssml: '',
-            pitch: 1.0,
-          },
-        },
-      },
+      ...(form.llmModel || form.llmApiKey
+        ? [{
+            type: 'llm' as const,
+            config: {
+              apiKey: form.llmApiKey,
+              apiBaseUrl: '',
+              llm: {
+                model: form.llmModel,
+                temperature: form.llmTemperature,
+              },
+            },
+          }]
+        : []),
+      ...(form.ttsVoiceId || form.ttsApiKey
+        ? [{
+            type: 'tts' as const,
+            config: {
+              apiKey: form.ttsApiKey,
+              apiBaseUrl: '',
+              tts: {
+                voiceId: form.ttsVoiceId,
+                speed: form.ttsSpeed,
+                ssml: '',
+                pitch: 1.0,
+              },
+            },
+          }]
+        : []),
     ],
     avatarModels: [], // TODO: Add avatar model support
     prompts: [], // TODO: Add prompt support
@@ -143,24 +155,39 @@ async function handleSubmit() {
 
   try {
     if (props.character) {
-      // TODO: Implement update logic (requires diffing or full replacement strategy on backend)
-      // For now, we only support Create in this dialog fully or partial updates if we map correctly.
-      // Since UpdateCharacterSchema is partial, we'd need a separate flow.
-      // The current store.update takes UpdateCharacterPayload which is limited.
-      // Let's assume Create for now or minimal Update.
-      // Actually, let's just use create for new and warn for edit.
       await characterStore.update(props.character.id, {
         characterId: form.characterId,
         version: form.version,
         coverUrl: form.coverUrl,
+        i18n: [{
+          language: 'en',
+          name: form.name,
+          description: form.description,
+          tags: [],
+        }],
+        capabilities: [
+          ...(form.llmModel
+            ? [{
+                type: 'llm' as const,
+                config: {
+                  apiKey: form.llmApiKey || '',
+                  apiBaseUrl: '',
+                  llm: { model: form.llmModel, temperature: form.llmTemperature },
+                },
+              }]
+            : []),
+          ...(form.ttsVoiceId
+            ? [{
+                type: 'tts' as const,
+                config: {
+                  apiKey: form.ttsApiKey || '',
+                  apiBaseUrl: '',
+                  tts: { voiceId: form.ttsVoiceId, speed: form.ttsSpeed, ssml: '', pitch: 1.0 },
+                },
+              }]
+            : []),
+        ],
       })
-      // Capabilities/I18n update not supported in simple UpdateCharacterSchema yet?
-      // Checking types/character.ts: UpdateCharacterSchema only has version, coverUrl, characterId.
-      // So deep update is not supported by the simple endpoint yet?
-      // The plan said "update(id, payload)".
-      // The backend `update` endpoint only updates the `character` table fields.
-      // To update relations, we'd need specific endpoints or a smarter update endpoint.
-      // I will only update basic info for now.
     }
     else {
       await characterStore.create(payload)
@@ -178,8 +205,7 @@ async function handleSubmit() {
     emit('update:modelValue', false)
   }
   catch (err) {
-    console.error(err)
-    // Handle API errors
+    toast.error('Failed to save character', { description: errorMessageFrom(err) })
   }
   finally {
     isSubmitting.value = false
@@ -253,6 +279,7 @@ const isOpen = computed({
                     LLM Configuration
                   </h3>
                   <FieldInput v-model="form.llmModel" label="Model" placeholder="gpt-4o" />
+                  <FieldInput v-model="form.llmApiKey" label="API Key" type="password" placeholder="sk-..." />
                   <!-- Use number input for temperature properly -->
                   <div class="flex flex-col gap-1.5">
                     <label class="text-sm text-neutral-700 font-medium dark:text-neutral-300">Temperature</label>
@@ -272,6 +299,7 @@ const isOpen = computed({
                     TTS Configuration
                   </h3>
                   <FieldInput v-model="form.ttsVoiceId" label="Voice ID" placeholder="Voice ID" />
+                  <FieldInput v-model="form.ttsApiKey" label="API Key" type="password" placeholder="sk-..." />
                   <div class="flex flex-col gap-1.5">
                     <label class="text-sm text-neutral-700 font-medium dark:text-neutral-300">Speed</label>
                     <input

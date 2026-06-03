@@ -415,39 +415,6 @@ export function streamWebSpeechAPITranscription(
     }
   }
 
-  // Add event listeners for debugging before starting
-  recognition.onstart = () => {
-    console.info('Web Speech API recognition started (onstart event)')
-  }
-
-  recognition.onaudiostart = () => {
-    console.info('Web Speech API audio capture started')
-  }
-
-  recognition.onsoundstart = () => {
-    console.info('Web Speech API sound detected')
-  }
-
-  recognition.onspeechstart = () => {
-    console.info('Web Speech API speech detected')
-  }
-
-  recognition.onspeechend = () => {
-    console.info('Web Speech API speech ended')
-  }
-
-  recognition.onsoundend = () => {
-    console.info('Web Speech API sound ended')
-  }
-
-  recognition.onaudioend = () => {
-    console.info('Web Speech API audio capture ended')
-  }
-
-  recognition.onnomatch = () => {
-    console.info('Web Speech API: No speech match')
-  }
-
   const started = startRecognition()
   if (!started) {
     // If immediate start failed, it might be a permission issue

@@ -51,8 +51,8 @@ function haveStreamingCallbacksChanged(
   previous: { onSentenceEnd?: (delta: string) => void, onSpeechEnd?: (text: string) => void } | undefined,
   next: { onSentenceEnd?: (delta: string) => void, onSpeechEnd?: (text: string) => void },
 ): boolean {
-  return (next.onSentenceEnd !== undefined && next.onSentenceEnd !== previous?.onSentenceEnd)
-    || (next.onSpeechEnd !== undefined && next.onSpeechEnd !== previous?.onSpeechEnd)
+  return next.onSentenceEnd !== previous?.onSentenceEnd
+    || next.onSpeechEnd !== previous?.onSpeechEnd
 }
 
 export interface StreamTranscriptionFileInputOptions extends Omit<XSAIStreamTranscriptionOptions, 'file' | 'fileName'> {

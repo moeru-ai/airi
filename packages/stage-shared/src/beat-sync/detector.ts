@@ -218,8 +218,11 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
   }
 
   const getInputByteFrequencyData = () => {
-    inputAnalyserNode?.getByteFrequencyData(inputAnalyserBuffer!)
-    return inputAnalyserBuffer!
+    if (!inputAnalyserBuffer) {
+      return new Uint8Array(0)
+    }
+    inputAnalyserNode?.getByteFrequencyData(inputAnalyserBuffer)
+    return inputAnalyserBuffer
   }
 
   return {
