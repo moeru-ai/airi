@@ -60,6 +60,14 @@ OTel SDK 在导出到 Prometheus 时做两件事：
 | `ws.messages.sent` | Counter | 同上 | — |
 | `ws.messages.received` | Counter | [services/domain/chats.ts](../../src/services/domain/chats.ts) | — |
 
+## Product Analytics
+
+| Metric | 类型 | 落点 | Labels |
+|---|---|---|---|
+| `airi.product.events` | Counter | [services/domain/product-events.ts](../../src/services/domain/product-events.ts) `track` | `feature`、`action`、`status`、`source`（可选） |
+
+> **Prometheus 只看事件量，不看独立用户**：`airi.product.events` 的 labels 必须保持低基数，不能加 `user_id`、`session_id`、request id、raw error message 或 prompt。要回答"每个功能有多少独立用户"，查 Postgres `product_events`：`count(distinct user_id)`。
+
 ## Revenue & Billing
 
 ### Stripe lifecycle
@@ -134,12 +142,15 @@ OTel SDK 在导出到 Prometheus 时做两件事：
 
 | Row | viz | 关键 metric |
 |---|---|---|
-| Service Health | stat / gauge | `user.active_sessions`（`max()`）、`ws.connections.active`（`sum()`）、`http.server.request.duration_count`（req/s + 5xx%）、`gen_ai.client.operation.count`、`airi.email.{send,failures}` 失败率 |
-| Distribution (now) | donut | HTTP methods / LLM models / HTTP status codes — `increase([5m])` |
-| Traffic Trends | timeseries | 同 distribution 的数据 over time |
-| Latency | timeseries | `http.server.request.duration_bucket`（P95 by route）、`gen_ai.client.first_token.duration_bucket`（P95 by model） |
-| Errors / Quality | mix | 4xx/5xx stacked area、`airi.gen_ai.stream.interrupted`、`airi.rate_limit.blocked` |
-| Business | stat / gauge / donut | `airi.stripe.revenue`（by currency）、checkout conversion %、`stripe.events` 分布 |
+| Service Health | stat / gauge / heatmap | `user.total`（`max()`）、`user.active_sessions`（`avg()`）、`ws.connections.active`（`sum()`）、`http.server.request.duration_count`（req/s + 5xx%）、`gen_ai.client.operation.count` |
+| User Engagement | stat | `user.active_rolling`（DAU / WAU / MAU，`max()`） |
+| Product Analytics | stat / gauge / bargauge / timeseries | `airi.product.events`（Prom-safe event volume by `feature` / `action` / `status`；distinct users 仍查 Postgres `product_events`） |
+| HTTP | heatmap / bargauge / timeseries | `http.server.request.duration_count`（status mix、top routes、route errors）、`http.server.request.duration_bucket`（P95 by route） |
+| LLM Gateway | timeseries | `gen_ai.client.operation.count`（by model）、`gen_ai.client.first_token.duration_bucket` / `gen_ai.client.operation.duration_bucket`（TTFB + end-to-end P95） |
+| Provider Upstreams | timeseries | `gen_ai.client.operation.count` / `gen_ai.client.operation.duration_bucket` by `provider`、`airi.billing.tts.chars` |
+| LLM Tokens & Quality | stat / timeseries | `gen_ai.client.token.usage.{input,output}`、`airi.billing.flux.unbilled`、`airi.gen_ai.stream.interrupted` |
+| LLM Router Health | stat / gauge / timeseries | `airi.gen_ai.gateway.{key.exhausted,decrypt.failures,fallback.count,upstream.errors}` |
+| Business | stat / gauge | `airi.stripe.revenue`（by currency）、checkout conversion %、`stripe.events` 分布 |
 | Infrastructure (collapsed, **by `service_instance_id`**) | timeseries | `db_client_operation_duration` P95（cluster）、`db_client_connection_count`、`v8js_memory_heap_used_bytes` %、`nodejs_eventloop_delay_p99_seconds` |
 | Logs | logs | Loki，不是 Prometheus |
 
