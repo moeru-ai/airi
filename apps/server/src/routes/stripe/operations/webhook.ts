@@ -4,6 +4,7 @@ import type Stripe from 'stripe'
 import type { RevenueMetrics } from '../../../otel'
 import type { BillingService } from '../../../services/domain/billing/billing-service'
 import type { FluxService } from '../../../services/domain/flux'
+import type { ProductEventService } from '../../../services/domain/product-events'
 import type { StripeService } from '../../../services/domain/stripe'
 
 import { useLogger } from '@guiiai/logg'
@@ -22,6 +23,7 @@ export interface WebhookOperationDeps {
   billingService: BillingService
   metrics?: RevenueMetrics | null
   posthog?: PostHog | null
+  productEventService?: ProductEventService
 }
 
 export interface WebhookOperationInput {
@@ -80,8 +82,25 @@ export function createWebhookOperation(deps: WebhookOperationDeps) {
         // is the Better Auth user id so it merges with the browser's
         // `posthog.identify(userId)` and the prior `checkout_started`
         // event lines up. See docs/ai-context/metrics-ownership.md.
-        if (result.processed)
+        if (result.processed) {
+          const userId = event.data.object.metadata?.userId
+          if (userId) {
+            const fluxAmount = Number(event.data.object.metadata?.fluxAmount)
+            void deps.productEventService?.track({
+              userId,
+              feature: 'billing',
+              action: 'payment_completed',
+              status: 'succeeded',
+              source: 'stripe.webhook',
+              metadata: {
+                amount_total: event.data.object.amount_total,
+                currency: event.data.object.currency,
+                flux_amount: Number.isFinite(fluxAmount) ? fluxAmount : null,
+              },
+            })
+          }
           await capturePaymentCompleted(deps.posthog, event.data.object)
+        }
         break
       }
       case 'customer.created':

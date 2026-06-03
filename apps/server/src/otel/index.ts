@@ -30,6 +30,7 @@ import {
   METRIC_AIRI_GEN_AI_GATEWAY_UPSTREAM_ERRORS,
   METRIC_AIRI_GEN_AI_STREAM_INTERRUPTED,
   METRIC_AIRI_OBSERVABILITY_READ_ERRORS,
+  METRIC_AIRI_PRODUCT_EVENTS,
   METRIC_AIRI_RATE_LIMIT_BLOCKED,
   METRIC_AIRI_STRIPE_REVENUE,
   METRIC_AIRI_TTS_CHARS,
@@ -299,6 +300,21 @@ export interface ObservabilityMetrics {
   metricReadErrors: Counter
 }
 
+export interface ProductMetrics {
+  /**
+   * Low-cardinality product event counter.
+   *
+   * Use when:
+   * - Reporting feature/event volume in Prometheus and Grafana.
+   *
+   * Expects:
+   * - Labels stay bounded (`feature`, `action`, `status`, optional
+   *   `source`). Never attach `user_id`, `session_id`, request ids, models
+   *   with unbounded aliases, or free-form error messages here.
+   */
+  events: Counter
+}
+
 export interface OtelInstance {
   auth: AuthMetrics
   engagement: EngagementMetrics
@@ -308,6 +324,7 @@ export interface OtelInstance {
   email: EmailMetrics
   rateLimit: RateLimitMetrics
   observability: ObservabilityMetrics
+  product: ProductMetrics
 }
 
 /**
@@ -511,6 +528,12 @@ export function initOtel(env: Env): OtelInstance | null {
     }),
   }
 
+  const product: ProductMetrics = {
+    events: meter.createCounter(METRIC_AIRI_PRODUCT_EVENTS, {
+      description: 'Low-cardinality product event volume. Distinct users live in Postgres product_events, not Prometheus labels.',
+    }),
+  }
+
   // NOTICE:
   // OTel SDK only emits a Counter time series after .add() runs the first time.
   // Without this priming step, low-traffic counters (auth_failures_total,
@@ -560,10 +583,11 @@ export function initOtel(env: Env): OtelInstance | null {
     email.failures,
     rateLimit.blocked,
     observability.metricReadErrors,
+    product.events,
   ]
   for (const counter of counters) counter.add(0)
 
-  return { auth, engagement, revenue, genAi, gateway, email, rateLimit, observability }
+  return { auth, engagement, revenue, genAi, gateway, email, rateLimit, observability, product }
 }
 
 const severityMap: Record<string, SeverityNumber> = {

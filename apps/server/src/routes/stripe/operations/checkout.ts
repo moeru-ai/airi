@@ -3,6 +3,7 @@ import type Stripe from 'stripe'
 import type { Env } from '../../../libs/env'
 import type { RevenueMetrics } from '../../../otel'
 import type { ConfigKVService } from '../../../services/adapters/config-kv'
+import type { ProductEventService } from '../../../services/domain/product-events'
 import type { StripeService } from '../../../services/domain/stripe'
 import type { HonoEnv } from '../../../types/hono'
 import type { StripePriceCatalog } from '../price-catalog'
@@ -23,6 +24,7 @@ export interface CheckoutOperationDeps {
   configKV: ConfigKVService
   env: Env
   metrics?: RevenueMetrics | null
+  productEventService?: ProductEventService
 }
 
 export interface CheckoutOperationInput {
@@ -121,6 +123,18 @@ export function createCheckoutOperation(deps: CheckoutOperationDeps) {
     })
 
     deps.metrics?.stripeCheckoutCreated.add(1)
+    void deps.productEventService?.track({
+      userId: input.user.id,
+      feature: 'billing',
+      action: 'checkout_started',
+      status: 'succeeded',
+      source: 'stripe.checkout',
+      metadata: {
+        flux_amount: fluxAmount,
+        amount_total: session.amount_total,
+        currency: session.currency,
+      },
+    })
 
     return { url: session.url }
   }

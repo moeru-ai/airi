@@ -55,6 +55,18 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
       stream,
       messageCount: Array.isArray(body.messages) ? body.messages.length : undefined,
     }).log('chat completion request')
+    void deps.productEventService.track({
+      userId: input.userId,
+      feature: 'gen_ai_chat',
+      action: 'completion_requested',
+      status: 'started',
+      source: 'openai.chat.completions',
+      model: requestModel,
+      metadata: {
+        stream,
+        message_count: Array.isArray(body.messages) ? body.messages.length : null,
+      },
+    })
 
     // Server-connection attrs come from the router (which knows the actual
     // upstream baseURL it dispatched to) — it enriches the active span with
@@ -90,6 +102,20 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
         sessionId: input.sessionId,
       }).fail('Router exhausted or unknown model')
       telemetry.recordMetrics({ model: requestModel, status: 502, type: 'chat', provider: routeCtx.provider, durationMs: Date.now() - startedAt, fluxConsumed: 0 })
+      void deps.productEventService.track({
+        userId: input.userId,
+        feature: 'gen_ai_chat',
+        action: 'completion_failed',
+        status: 'failed',
+        source: 'openai.chat.completions',
+        model: requestModel,
+        provider: routeCtx.provider,
+        reason: 'router_exhausted',
+        metadata: {
+          duration_ms: Date.now() - startedAt,
+          stream,
+        },
+      })
       throw err
     }
 
@@ -115,6 +141,21 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
       telemetry.failSpan(span, `Gateway ${response.status}`)
       generationTrace.fail(`Gateway ${response.status}`)
       telemetry.recordMetrics({ model: requestModel, status: response.status, type: 'chat', provider: routeCtx.provider, durationMs, fluxConsumed: 0 })
+      void deps.productEventService.track({
+        userId: input.userId,
+        feature: 'gen_ai_chat',
+        action: 'completion_failed',
+        status: 'failed',
+        source: 'openai.chat.completions',
+        model: requestModel,
+        provider: routeCtx.provider,
+        reason: 'upstream_error',
+        metadata: {
+          http_status: response.status,
+          duration_ms: durationMs,
+          stream,
+        },
+      })
       // Emit server-side so funnels see real HTTP status — the client only
       // ever observes "stream closed" and cannot tell 401 / 429 / 5xx apart.
       void captureSafe(deps.posthog ?? null, {
@@ -254,6 +295,21 @@ function streamChatCompletion(input: {
         input.telemetry.endSpan(input.span)
         input.generationTrace.fail('Gateway stream interrupted')
         input.telemetry.recordMetrics({ model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: 0 })
+        void input.deps.productEventService.track({
+          userId: input.userId,
+          feature: 'gen_ai_chat',
+          action: 'completion_failed',
+          status: 'failed',
+          source: 'openai.chat.completions',
+          model: input.requestModel,
+          provider: input.routeCtxProvider,
+          reason: 'stream_interrupted',
+          metadata: {
+            http_status: input.response.status,
+            duration_ms: input.durationMs,
+            stream: true,
+          },
+        })
       }
       else if (streamCompleted) {
         try {
@@ -326,6 +382,23 @@ function streamChatCompletion(input: {
           promptTokens: usage.promptTokens,
           completionTokens: usage.completionTokens,
         })
+        void input.deps.productEventService.track({
+          userId: input.userId,
+          feature: 'gen_ai_chat',
+          action: 'completion_succeeded',
+          status: 'succeeded',
+          source: 'openai.chat.completions',
+          model: input.requestModel,
+          provider: input.routeCtxProvider,
+          metadata: {
+            http_status: input.response.status,
+            duration_ms: input.durationMs,
+            prompt_tokens: usage.promptTokens ?? 0,
+            completion_tokens: usage.completionTokens ?? 0,
+            flux_consumed: actualCharged,
+            stream: true,
+          },
+        })
 
         void captureSafe(input.deps.posthog ?? null, {
           distinctId: input.userId,
@@ -390,6 +463,21 @@ async function completeNonStreamingChat(input: {
     input.telemetry.failSpan(input.span, 'Failed to parse upstream response body')
     input.generationTrace.fail('Failed to parse upstream response body')
     input.telemetry.recordMetrics({ model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: 0 })
+    void input.deps.productEventService.track({
+      userId: input.userId,
+      feature: 'gen_ai_chat',
+      action: 'completion_failed',
+      status: 'failed',
+      source: 'openai.chat.completions',
+      model: input.requestModel,
+      provider: input.routeCtxProvider,
+      reason: 'malformed_upstream_response',
+      metadata: {
+        http_status: input.response.status,
+        duration_ms: input.durationMs,
+        stream: false,
+      },
+    })
     throw err
   }
   const usage = extractUsageFromBody(responseBody)
@@ -427,6 +515,23 @@ async function completeNonStreamingChat(input: {
     fluxConsumed: actualCharged,
     promptTokens: usage.promptTokens,
     completionTokens: usage.completionTokens,
+  })
+  void input.deps.productEventService.track({
+    userId: input.userId,
+    feature: 'gen_ai_chat',
+    action: 'completion_succeeded',
+    status: 'succeeded',
+    source: 'openai.chat.completions',
+    model: input.requestModel,
+    provider: input.routeCtxProvider,
+    metadata: {
+      http_status: input.response.status,
+      duration_ms: input.durationMs,
+      prompt_tokens: usage.promptTokens ?? 0,
+      completion_tokens: usage.completionTokens ?? 0,
+      flux_consumed: actualCharged,
+      stream: false,
+    },
   })
 
   void captureSafe(input.deps.posthog ?? null, {
