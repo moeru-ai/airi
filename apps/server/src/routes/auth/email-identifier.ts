@@ -1,16 +1,19 @@
 import type { Database } from '../../libs/db'
 
 import { and, eq } from 'drizzle-orm'
+import { email, nonEmpty, object, pipe, safeParse, string, transform } from 'valibot'
 
 import { account, user } from '../../schemas/accounts'
 import { createBadRequestError } from '../../utils/error'
 
-// NOTICE:
-// Loose RFC-5322-ish regex used to fail fast on obviously malformed input.
-// Authoritative validation happens in better-auth on sign-in/sign-up;
-// this is just a pre-flight gate for the email-first identifier step so we
-// avoid hitting the DB with garbage.
-const EMAIL_SHAPE_RE = /^[^\s@]+@[^\s@][^\s.@]*\.[^\s@]+$/
+const CheckEmailIdentifierBodySchema = object({
+  email: pipe(
+    string(),
+    transform(value => value.trim().toLowerCase()),
+    nonEmpty('email is required'),
+    email('email must be a valid email address'),
+  ),
+})
 
 export interface CheckEmailIdentifierDeps {
   /** Database used to inspect user and credential-account rows. */
@@ -41,16 +44,14 @@ export async function checkEmailIdentifier(
   deps: CheckEmailIdentifierDeps,
   body: { email?: unknown } | null,
 ): Promise<CheckEmailIdentifierResult> {
-  const raw = typeof body?.email === 'string' ? body.email.trim() : ''
-  const email = raw.toLowerCase()
-
-  if (!email || !EMAIL_SHAPE_RE.test(email))
+  const parsed = safeParse(CheckEmailIdentifierBodySchema, body)
+  if (!parsed.success)
     throw createBadRequestError('Invalid email', 'INVALID_EMAIL')
 
   const [matched] = await deps.db
     .select({ id: user.id })
     .from(user)
-    .where(eq(user.email, email))
+    .where(eq(user.email, parsed.output.email))
     .limit(1)
 
   if (!matched)

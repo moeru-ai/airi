@@ -1,4 +1,18 @@
+import type { RawData } from 'ws'
+
 import { Buffer } from 'node:buffer'
+
+import { finite, looseObject, minValue, number, optional, pipe, safeParse } from 'valibot'
+
+const UpstreamUsagePayloadSchema = looseObject({
+  usage: optional(looseObject({
+    text_words: optional(pipe(
+      number(),
+      finite(),
+      minValue(0),
+    )),
+  })),
+})
 
 /**
  * Normalizes websocket text payload chunks.
@@ -11,7 +25,7 @@ import { Buffer } from 'node:buffer'
  * - `"frame"`
  * - `"ab"`
  */
-export function bufferToString(data: Buffer | Buffer[] | ArrayBuffer): string {
+export function bufferToString(data: RawData): string {
   if (Array.isArray(data))
     return Buffer.concat(data).toString('utf8')
   if (data instanceof ArrayBuffer)
@@ -29,7 +43,7 @@ export function bufferToString(data: Buffer | Buffer[] | ArrayBuffer): string {
  * After:
  * - `ArrayBuffer`
  */
-export function toBufferLike(data: Buffer | Buffer[] | ArrayBuffer): ArrayBuffer {
+export function toBufferLike(data: RawData): ArrayBuffer {
   if (Array.isArray(data)) {
     const merged = Buffer.concat(data)
     return merged.buffer.slice(merged.byteOffset, merged.byteOffset + merged.byteLength) as ArrayBuffer
@@ -51,13 +65,7 @@ export function toBufferLike(data: Buffer | Buffer[] | ArrayBuffer): ArrayBuffer
  * - `null`
  */
 export function readUsageChars(payload: Record<string, unknown> | undefined): number | null {
-  if (!payload || typeof payload !== 'object')
-    return null
-  const usage = (payload as { usage?: unknown }).usage
-  if (!usage || typeof usage !== 'object')
-    return null
-  const textWords = (usage as { text_words?: unknown }).text_words
-  if (typeof textWords === 'number' && Number.isFinite(textWords) && textWords >= 0)
-    return Math.floor(textWords)
-  return null
+  const result = safeParse(UpstreamUsagePayloadSchema, payload)
+  const textWords = result.success ? result.output.usage?.text_words : undefined
+  return typeof textWords === 'number' ? Math.floor(textWords) : null
 }

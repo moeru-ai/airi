@@ -1,4 +1,5 @@
 import type { WSContext } from 'hono/ws'
+import type { RawData } from 'ws'
 
 import type { FluxService } from '../../services/domain/flux'
 import type { AudioSpeechWsHandlersOptions } from './types'
@@ -253,7 +254,7 @@ export function createSessionState(userId: string, opts: AudioSpeechWsHandlersOp
     finalize()
   }
 
-  function handleUpstreamMessage(data: Buffer | Buffer[] | ArrayBuffer, isBinary: boolean) {
+  function handleUpstreamMessage(data: RawData, isBinary: boolean) {
     if (!clientWs)
       return
     if (isBinary) {
