@@ -135,7 +135,7 @@ function formatNumber(value: number | null | undefined): string {
               Router Config
             </div>
             <RouterLink class="mt-2 inline-flex items-center gap-2 text-sm text-emerald-700 font-semibold" to="/llm-router">
-              Open LLM_ROUTER
+              Open Router Config
               <span class="i-lucide-arrow-right" />
             </RouterLink>
           </div>

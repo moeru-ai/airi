@@ -7,7 +7,7 @@ import type { HonoEnv } from '../../types/hono'
 
 import { and, asc, count, desc, eq, gt, ilike, isNull, or, sql } from 'drizzle-orm'
 import { Hono } from 'hono'
-import { any, array, integer, maxLength, maxValue, minValue, nonEmpty, number, object, optional, pipe, record, safeParse, string } from 'valibot'
+import { integer, maxLength, maxValue, minValue, nonEmpty, number, object, optional, pipe, safeParse, string } from 'valibot'
 
 import { adminGuard } from '../../middlewares/admin-guard'
 import { authGuard } from '../../middlewares/auth'
@@ -34,12 +34,6 @@ const ListUsersQuerySchema = object({
   status: optional(pipe(string(), maxLength(20)), 'all'),
   sortKey: optional(pipe(string(), maxLength(40)), 'createdAt'),
   sortDirection: optional(pipe(string(), maxLength(10)), 'desc'),
-})
-
-const LlmRouterEntrySchema = record(string(), any())
-
-const UpdateLlmRouterBodySchema = object({
-  entries: array(LlmRouterEntrySchema),
 })
 
 const GrantUserFluxBodySchema = object({
@@ -368,20 +362,5 @@ export function createAdminRoutes(deps: AdminRoutesDeps) {
         ...result,
         changed: result.balanceBefore !== result.balanceAfter,
       })
-    })
-
-    .get('/llm-router', async (c) => {
-      const entries = await deps.configKV.get('LLM_ROUTER')
-      return c.json({ entries })
-    })
-
-    .put('/llm-router', async (c) => {
-      const parsed = safeParse(UpdateLlmRouterBodySchema, await readJson(c))
-      if (!parsed.success) {
-        throw createBadRequestError('Invalid request body', 'INVALID_BODY', parsed.issues)
-      }
-
-      await deps.configKV.set('LLM_ROUTER', parsed.output.entries)
-      return c.json({ entries: parsed.output.entries })
     })
 }

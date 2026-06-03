@@ -47,7 +47,22 @@ export interface AdminUsersPage {
   total: number
 }
 
-export type LlmRouterEntry = Record<string, unknown>
+export interface AdminRouterConfigRequest {
+  mode?: 'merge' | 'reset'
+  dryRun?: boolean
+  slices?: Array<Record<string, unknown>>
+  defaults?: {
+    chatModel?: string
+    ttsModel?: string
+    ttsVoices?: Record<string, Record<string, string>>
+  }
+}
+
+export interface AdminRouterConfigResult {
+  applied: Array<Record<string, unknown>>
+  invalidatedKeys: string[]
+  preview: Record<string, unknown>
+}
 
 export class AdminApiError extends Error {
   constructor(
@@ -151,10 +166,9 @@ export const adminApi = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
-  llmRouter: () => adminFetch<{ entries: LlmRouterEntry[] }>('/llm-router'),
-  saveLlmRouter: (entries: LlmRouterEntry[]) =>
-    adminFetch<{ entries: LlmRouterEntry[] }>('/llm-router', {
-      method: 'PUT',
-      body: JSON.stringify({ entries }),
+  applyRouterConfig: (body: AdminRouterConfigRequest, dryRun: boolean) =>
+    adminFetch<AdminRouterConfigResult>('/config/router', {
+      method: 'POST',
+      body: JSON.stringify({ ...body, dryRun }),
     }),
 }
