@@ -42,3 +42,43 @@ describe('autoEatBehavior.when', () => {
     expect(autoEatBehavior.score(snapshot(6, 10), apiWith([bread]))).toBe(1_000)
   })
 })
+
+/** ReflexApi stub that records reflexEngaged at each step + runs equip/consume hooks. */
+function runApi(opts: { onEquip?: () => void, onConsume?: () => void | Promise<void> }) {
+  const autonomy = { reflexEngaged: false }
+  const seen: boolean[] = []
+  const api: any = {
+    bot: {
+      bot: {
+        inventory: { items: () => [bread] },
+        equip: async () => {
+          seen.push(autonomy.reflexEngaged)
+          opts.onEquip?.()
+        },
+        consume: async () => {
+          seen.push(autonomy.reflexEngaged)
+          await opts.onConsume?.()
+        },
+      },
+    },
+    context: { updateAutonomy: (p: { reflexEngaged: boolean }) => { autonomy.reflexEngaged = p.reflexEngaged } },
+  }
+  return { api, autonomy, seen }
+}
+
+describe('autoEatBehavior.run', () => {
+  // Regression: the bite must hold reflexEngaged across equip+consume so the defend reflex (which
+  // yields on reflexEngaged) cannot re-equip a weapon and cancel it mid-animation.
+  it('holds reflexEngaged across equip and consume, then releases it', async () => {
+    const { api, autonomy, seen } = runApi({})
+    await autoEatBehavior.run(api)
+    expect(seen).toEqual([true, true]) // reflexEngaged was set during both equip and consume
+    expect(autonomy.reflexEngaged).toBe(false) // released afterward
+  })
+
+  it('releases reflexEngaged even when consume throws', async () => {
+    const { api, autonomy } = runApi({ onConsume: () => Promise.reject(new Error('interrupted')) })
+    await expect(autoEatBehavior.run(api)).rejects.toThrow('interrupted')
+    expect(autonomy.reflexEngaged).toBe(false)
+  })
+})

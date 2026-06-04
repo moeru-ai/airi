@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { isEngageableMob } from './defend'
+import { defendBehavior, isEngageableMob } from './defend'
 
 // The defense reflex must fight hostile mobs but NEVER players — the master (or any player) attacking
 // the bot is handled by the master-identity rules / brain, not by the reflex swinging back.
@@ -23,5 +23,14 @@ describe('isEngageableMob', () => {
   it('ignores no/environmental attacker', () => {
     expect(isEngageableMob(null)).toBe(false)
     expect(isEngageableMob(undefined)).toBe(false)
+  })
+})
+
+describe('defendBehavior.when', () => {
+  // Regression: while another reflex owns the body (reflexEngaged) — e.g. an in-progress auto-eat
+  // survival bite — defend must yield. Otherwise its attackEntity re-equips a weapon and cancels the
+  // bite mid-animation in the low-health-in-combat case auto-eat is meant to handle.
+  it('yields while another reflex holds reflexEngaged', () => {
+    expect(defendBehavior.when({ autonomy: { reflexEngaged: true } } as any, undefined as any)).toBe(false)
   })
 })

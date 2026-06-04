@@ -45,8 +45,14 @@ export const defendBehavior: ReflexBehavior = {
   id: 'defend',
   // Survival overrides whatever else the bot is doing, in any mode.
   modes: ['idle', 'social', 'alert', 'wander', 'work'],
-  when: () => {
+  when: (ctx) => {
     if (combatInFlight)
+      return false
+    // Yield while another reflex already owns the body (e.g. an in-progress survival bite from
+    // auto-eat, or an escape-hazard climb): preempting it here would let attackEntity re-equip a weapon
+    // and cancel that reflex mid-action. The reflex releases reflexEngaged when it finishes, after which
+    // a still-active attacker re-triggers defend on the next tick.
+    if (ctx.autonomy.reflexEngaged)
       return false
     return isEngageableMob(recentAttacker(Date.now()))
   },
