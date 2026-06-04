@@ -133,6 +133,10 @@ async function loadVoiceOptions(searchTerm: string) {
       }
     }
 
+    if (requestId !== latestVoiceSearchRequestId) {
+      return
+    }
+
     voiceOptions.value = mappedVoices
   }
   catch (error) {

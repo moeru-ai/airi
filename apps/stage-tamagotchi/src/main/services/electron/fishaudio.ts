@@ -40,6 +40,11 @@ function buildHeaders(apiKey: string, model: string): Headers {
  */
 export function createFishAudioService(params: { context: ReturnType<typeof createContext>['context'] }) {
   defineInvokeHandler(params.context, electronFishAudioTTS, async (payload) => {
+    const url = new URL(payload.baseUrl)
+    if (url.host !== 'api.fish.audio') {
+      throw new Error(`Forbidden: base URL host must be api.fish.audio`)
+    }
+
     const response = await fetch(`${ensureTrailingSlash(payload.baseUrl)}${FISH_AUDIO_TTS_ENDPOINT}`, {
       method: 'POST',
       headers: buildHeaders(payload.apiKey, payload.model),

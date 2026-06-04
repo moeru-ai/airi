@@ -9,6 +9,7 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.json ./
 COPY patches/ ./patches/
 COPY apps/server apps/server
 COPY --from=ghcr.io/moeru-ai/airi/ui-server-auth:latest /app/airi/projects/ui/ui-server-auth apps/server/public/ui-server-auth
+COPY --from=ghcr.io/moeru-ai/airi/ui-admin:latest /app/airi/projects/ui/ui-admin apps/server/public/ui-admin
 COPY packages/server-schema packages/server-schema
 COPY packages/server-sdk-shared packages/server-sdk-shared
 

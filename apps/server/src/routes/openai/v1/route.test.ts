@@ -142,6 +142,10 @@ function createTestApp(
     billingService: billingService ?? createMockBillingService(),
     configKV,
     requestLogService: requestLogService ?? createMockRequestLogService(),
+    productEventService: {
+      track: vi.fn(async () => undefined),
+      countDistinctUsersByFeature: vi.fn(async () => []),
+    },
     ttsMeter: ttsMeter ?? createMockTtsMeter(),
     llmRouter: llmRouter ?? createMockLlmRouter(),
     genAi: null,

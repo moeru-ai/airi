@@ -74,4 +74,22 @@ describe('createFishAudioService', () => {
       statusText: 'OK',
     })
   })
+
+  it('throws an error if baseUrl host is not api.fish.audio', async () => {
+    const context = createContext()
+    createFishAudioService({ context: context as never })
+
+    const invokeTts = defineInvoke(context, electronFishAudioTTS)
+    await expect(invokeTts({
+      apiKey: 'fish-key',
+      baseUrl: 'https://malicious.domain.com/',
+      model: 's2-pro',
+      text: 'Hello from Electron',
+      referenceId: 'voice-123',
+      normalize: true,
+      latency: 'normal',
+      chunkLength: 200,
+      mp3Bitrate: 128,
+    })).rejects.toThrow('Forbidden: base URL host must be api.fish.audio')
+  })
 })

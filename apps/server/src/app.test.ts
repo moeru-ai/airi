@@ -51,6 +51,10 @@ function createTestDeps() {
     adminUsersService: {} as any,
     ttsMeter: {} as any,
     requestLogService: {} as any,
+    productEventService: {
+      track: vi.fn(async () => undefined),
+      countDistinctUsersByFeature: vi.fn(async () => []),
+    },
     configKV: {
       getOrThrow: vi.fn(async (key: string) => {
         switch (key) {

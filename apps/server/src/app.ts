@@ -16,6 +16,7 @@ import type { ChatService } from './services/domain/chats'
 import type { FluxService } from './services/domain/flux'
 import type { FluxTransactionService } from './services/domain/flux-transaction'
 import type { LlmRouterService } from './services/domain/llm-router'
+import type { ProductEventService } from './services/domain/product-events'
 import type { ProviderService } from './services/domain/providers'
 import type { RequestLogService } from './services/domain/request-log'
 import type { StripeService } from './services/domain/stripe'
@@ -50,6 +51,8 @@ import { registerActiveSessionsGauge } from './otel/gauges/active-sessions'
 import { registerDistinctActiveUsersGauge } from './otel/gauges/distinct-active-users'
 import { registerRollingActiveUsersGauge } from './otel/gauges/rolling-active-users'
 import { registerTotalUsersGauge } from './otel/gauges/total-users'
+import { createAdminRoutes } from './routes/admin'
+import { createAdminUiRoutes } from './routes/admin-ui'
 import { createAdminRouterConfigRoutes } from './routes/admin/config/router'
 import { createAdminFluxGrantsRoutes } from './routes/admin/flux-grants'
 import { createAdminUsersRoutes } from './routes/admin/users'
@@ -75,6 +78,7 @@ import { createChatService } from './services/domain/chats'
 import { createFluxService } from './services/domain/flux'
 import { createFluxTransactionService } from './services/domain/flux-transaction'
 import { createConfigSyncSubscriber, createLlmRouterService } from './services/domain/llm-router'
+import { createProductEventService } from './services/domain/product-events'
 import { createProviderService } from './services/domain/providers'
 import { createRequestLogService } from './services/domain/request-log'
 import { createStripeService } from './services/domain/stripe'
@@ -99,6 +103,7 @@ interface AppDeps {
   adminUsersService: AdminUsersService
   ttsMeter: FluxMeter
   requestLogService: RequestLogService
+  productEventService: ProductEventService
   configKV: ConfigKVService
   envelopeCrypto: EnvelopeCrypto
   redis: Redis
@@ -186,6 +191,7 @@ export async function buildApp(deps: AppDeps) {
     fluxService: deps.fluxService,
     ttsMeter: deps.ttsMeter,
     requestLogService: deps.requestLogService,
+    productEventService: deps.productEventService,
   })
   app.get('/api/v1/audio/speech/ws', upgradeWebSocket(async (c) => {
     const token = c.req.query('token')
@@ -221,11 +227,13 @@ export async function buildApp(deps: AppDeps) {
     billingService: deps.billingService,
     configKV: deps.configKV,
     requestLogService: deps.requestLogService,
+    productEventService: deps.productEventService,
     ttsMeter: deps.ttsMeter,
     llmRouter: deps.llmRouter,
     genAi: deps.otel?.genAi,
     revenue: deps.otel?.revenue,
     rateLimitMetrics: deps.otel?.rateLimit,
+    posthog: deps.posthog,
   })
 
   const builtApp = app
@@ -320,6 +328,12 @@ export async function buildApp(deps: AppDeps) {
     }))
 
     /**
+     * Admin dashboard SPA. Auth is enforced by `/api/admin/*`; the bundle
+     * itself is public so unauthenticated users can be redirected cleanly.
+     */
+    .route('/', createAdminUiRoutes(deps.env))
+
+    /**
      * Character routes are handled by the character service.
      */
     .route('/api/v1/characters', createCharacterRoutes(deps.characterService))
@@ -351,7 +365,7 @@ export async function buildApp(deps: AppDeps) {
     /**
      * Stripe routes.
      */
-    .route('/api/v1/stripe', createStripeRoutes(deps.fluxService, deps.stripeService, deps.billingService, deps.configKV, deps.env, deps.redis, deps.otel?.revenue, deps.otel?.rateLimit, deps.posthog))
+    .route('/api/v1/stripe', createStripeRoutes(deps.fluxService, deps.stripeService, deps.billingService, deps.configKV, deps.env, deps.redis, deps.otel?.revenue, deps.otel?.rateLimit, deps.posthog, deps.productEventService))
 
     /**
      * Admin routes — guarded by the `adminGuard` role check (`role === 'admin'`,
@@ -374,6 +388,16 @@ export async function buildApp(deps: AppDeps) {
      * `routes/admin/config/router/index.ts` for the body shape.
      */
     .route('/api/admin/config/router', createAdminRouterConfigRoutes(deps.adminRouterConfigService))
+
+    /**
+     * Admin dashboard support APIs: user search, balance adjustments, metrics,
+     * and editable LLM router config.
+     */
+    .route('/api/admin', createAdminRoutes({
+      db: deps.db,
+      billingService: deps.billingService,
+      configKV: deps.configKV,
+    }))
 
     /**
      * Catch-all 404 in JSON. Replaces hono's default `text/html` "404 Not
@@ -519,6 +543,11 @@ export async function createApp() {
     },
   })
 
+  const productEventService = injeca.provide('services:productEvents', {
+    dependsOn: { db, otel },
+    build: ({ dependsOn }) => createProductEventService(dependsOn.db, dependsOn.otel?.product),
+  })
+
   const characterService = injeca.provide('services:characters', {
     dependsOn: { db, otel },
     build: ({ dependsOn }) => createCharacterService(dependsOn.db, dependsOn.otel?.engagement),
@@ -530,8 +559,8 @@ export async function createApp() {
   })
 
   const chatService = injeca.provide('services:chats', {
-    dependsOn: { db, otel },
-    build: ({ dependsOn }) => createChatService(dependsOn.db, dependsOn.otel?.engagement),
+    dependsOn: { db, otel, productEventService },
+    build: ({ dependsOn }) => createChatService(dependsOn.db, dependsOn.otel?.engagement, dependsOn.productEventService),
   })
 
   const stripeService = injeca.provide('services:stripe', {
@@ -579,7 +608,7 @@ export async function createApp() {
   })
 
   const auth = injeca.provide('services:auth', {
-    dependsOn: { db, env: parsedEnv, otel, email: emailService, userDeletionService, posthog },
+    dependsOn: { db, env: parsedEnv, otel, email: emailService, userDeletionService, posthog, productEventService },
     build: async ({ dependsOn }) => {
       // Seed trusted OIDC clients into DB so FK constraints on oauth_access_token are satisfied
       await seedTrustedClients(dependsOn.db, dependsOn.env)
@@ -592,7 +621,7 @@ export async function createApp() {
           redirectUris: client.redirectUris.join(', '),
         }).log('OIDC trusted client ready')
       }
-      return createAuth(dependsOn.db, dependsOn.env, dependsOn.email, dependsOn.otel?.auth, dependsOn.userDeletionService, dependsOn.posthog)
+      return createAuth(dependsOn.db, dependsOn.env, dependsOn.email, dependsOn.otel?.auth, dependsOn.userDeletionService, dependsOn.posthog, dependsOn.productEventService)
     },
   })
 
@@ -688,6 +717,7 @@ export async function createApp() {
     fluxService,
     fluxTransactionService,
     requestLogService,
+    productEventService,
     stripeService,
     billingService,
     adminFluxGrantsService,
@@ -735,6 +765,7 @@ export async function createApp() {
     adminUsersService: resolved.adminUsersService,
     ttsMeter: resolved.ttsMeter,
     requestLogService: resolved.requestLogService,
+    productEventService: resolved.productEventService,
     configKV: resolved.configKV,
     envelopeCrypto: resolved.envelopeCrypto,
     redis: resolved.redis,
