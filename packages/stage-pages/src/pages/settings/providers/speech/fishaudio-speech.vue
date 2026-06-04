@@ -83,7 +83,7 @@ let latestVoiceSearchRequestId = 0
 const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
 const apiKey = computed(() => getFishAudioApiKey(config.value?.apiKey))
 const apiKeyConfigured = computed(() => {
-  return providerMetadata.value.configured && Boolean(apiKey.value)
+  return Boolean(providersStore.configuredProviders[providerId]) && Boolean(apiKey.value)
 })
 
 async function loadVoiceOptions(searchTerm: string) {
