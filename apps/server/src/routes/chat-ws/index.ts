@@ -1,172 +1,67 @@
 import type Redis from 'ioredis'
 
-import type { HonoWsInvocableEventContext } from '../../libs/eventa-hono-adapter'
 import type { EngagementMetrics } from '../../otel'
 import type { ChatService } from '../../services/domain/chats'
 
 import { useLogger } from '@guiiai/logg'
-import { defineInvokeHandler } from '@moeru/eventa'
-import { newMessages, pullMessages, sendMessages } from '@proj-airi/server-sdk-shared'
+import { createPeerHooks, wsDisconnectedEvent } from '@moeru/eventa/adapters/websocket/hono'
 
-import { createPeerHooks, wsDisconnectedEvent } from '../../libs/eventa-hono-adapter'
-import { createChatBroadcastMessage, parseChatBroadcastMessage } from '../../utils/chat-broadcast'
-import { userChatBroadcastRedisKey } from '../../utils/redis-keys'
+import { createChatBroadcastCoordinator } from './broadcast'
+import { createChatConnectionRegistry } from './connection-registry'
+import { registerChatRpcHandlers } from './rpc'
 
 const log = useLogger('chat-ws').useGlobalConfig()
 
-// ---------------------------------------------------------------------------
-// Local connection registry (per-process)
-// ---------------------------------------------------------------------------
-
-const userConnections = new Map<string, Set<HonoWsInvocableEventContext>>()
-
-function addConnection(userId: string, ctx: HonoWsInvocableEventContext) {
-  let conns = userConnections.get(userId)
-  if (!conns) {
-    conns = new Set()
-    userConnections.set(userId, conns)
-  }
-  conns.add(ctx)
-}
-
-function removeConnection(userId: string, ctx: HonoWsInvocableEventContext) {
-  const conns = userConnections.get(userId)
-  if (conns) {
-    conns.delete(ctx)
-    if (conns.size === 0)
-      userConnections.delete(userId)
-  }
-}
-
-function broadcastToLocalDevices(userId: string, excludeCtx: HonoWsInvocableEventContext | null, event: any, payload: any) {
-  const conns = userConnections.get(userId)
-  if (!conns)
-    return
-  for (const ctx of conns) {
-    if (ctx !== excludeCtx) {
-      ctx.emit(event, payload)
-    }
-  }
-}
-
+/**
+ * Creates websocket handlers for chat sync RPC and message fanout.
+ *
+ * Use when:
+ * - Mounting `/ws/chat` after bearer-token auth has resolved a user id.
+ *
+ * Expects:
+ * - `instanceId` is stable for this process so Redis echo suppression works.
+ * - Redis Pub/Sub is used only for best-effort cross-instance notification.
+ *
+ * Returns:
+ * - A per-user Hono websocket setup function.
+ */
 export function createChatWsHandlers(
   chatService: ChatService,
   redis: Redis,
   instanceId: string,
   metrics?: EngagementMetrics | null,
 ) {
-  // TODO: Separate connection lifecycle, cross-instance broadcast, and RPC orchestration into smaller modules.
-  // This file is still acting as both transport adapter and chat delivery coordinator.
-  // Dedicated subscriber connection (ioredis requires a separate connection for subscribe mode)
-  const sub = redis.duplicate()
+  const registry = createChatConnectionRegistry()
+  const broadcast = createChatBroadcastCoordinator({ redis, registry, instanceId })
 
   // Pull-based active-connection gauge: walk the local registry on each
   // export interval and report the actual live count. Registered exactly
   // once per process here (factory runs once via injeca); duplicate
   // registration would double-count.
   metrics?.wsConnectionsActive.addCallback((result) => {
-    let total = 0
-    for (const conns of userConnections.values())
-      total += conns.size
-    result.observe(total)
+    result.observe(registry.activeCount())
   })
-
-  sub.on('message', (_channel: string, message: string) => {
-    try {
-      const data = parseChatBroadcastMessage(message)
-      // Skip messages we ourselves published. ioredis pub/sub delivers to
-      // every subscriber, including the publishing connection — without
-      // this filter the publisher's local peers would receive each message
-      // twice (once via in-process broadcastToLocalDevices, once via the
-      // sub callback) and the sender's own ctx would receive an unwanted
-      // echo.
-      if (data.originInstanceId === instanceId)
-        return
-      // Cross-instance delivery: hand off to local peers of this user.
-      // No excludeCtx because the sender lives on a different instance.
-      broadcastToLocalDevices(data.userId, null, newMessages, data.payload)
-    }
-    catch (err) {
-      log.withError(err).error('Failed to parse broadcast message')
-    }
-  })
-
-  /** Subscribe to a user's broadcast channel when they first connect on this instance. */
-  function ensureSubscribed(userId: string) {
-    const channel = userChatBroadcastRedisKey(userId)
-    sub.subscribe(channel).catch((err) => {
-      log.withError(err).error('Failed to subscribe to broadcast channel')
-    })
-  }
-
-  /** Unsubscribe when the user has no more connections on this instance. */
-  function maybeUnsubscribe(userId: string) {
-    if (!userConnections.has(userId)) {
-      const channel = userChatBroadcastRedisKey(userId)
-      sub.unsubscribe(channel).catch((err) => {
-        log.withError(err).error('Failed to unsubscribe from broadcast channel')
-      })
-    }
-  }
-
-  /** Publish a broadcast message so other instances can deliver it. */
-  function publishBroadcast(userId: string, payload: Parameters<typeof createChatBroadcastMessage>[1]) {
-    const channel = userChatBroadcastRedisKey(userId)
-    const message = createChatBroadcastMessage(userId, payload, instanceId)
-    redis.publish(channel, JSON.stringify(message)).catch((err) => {
-      log.withError(err).error('Failed to publish broadcast message')
-    })
-  }
 
   return function setupPeer(userId: string) {
     const { hooks } = createPeerHooks({
       onContext: (ctx) => {
-        addConnection(userId, ctx)
-        ensureSubscribed(userId)
+        registry.add(userId, ctx)
+        broadcast.ensureSubscribed(userId)
         log.withFields({ userId }).log('WS connected')
 
         ctx.on(wsDisconnectedEvent, () => {
-          removeConnection(userId, ctx)
-          maybeUnsubscribe(userId)
+          registry.remove(userId, ctx)
+          broadcast.maybeUnsubscribe(userId)
           log.withFields({ userId }).log('WS disconnected')
         })
 
-        // RPC: send messages
-        defineInvokeHandler(ctx, sendMessages, async (req) => {
-          log.withFields({ userId, chatId: req!.chatId, count: req!.messages.length }).log('sendMessages')
-          const result = await chatService.pushMessages(userId, req!.chatId, req!.messages)
-
-          // Fetch the wire messages for broadcast
-          const wireMessages = await chatService.pullMessages(userId, req!.chatId, result.fromSeq - 1, result.toSeq - result.fromSeq + 1)
-          const broadcastPayload = {
-            chatId: req!.chatId,
-            messages: wireMessages.messages,
-            fromSeq: result.fromSeq,
-            toSeq: result.toSeq,
-          }
-
-          // Broadcast to all chat members (not just the sender)
-          const members = await chatService.getMembers(req!.chatId)
-          const memberUserIds = members
-            .filter(m => m.memberType === 'user' && m.userId != null)
-            .map(m => m.userId!)
-
-          for (const memberUserId of memberUserIds) {
-            // For the sender, exclude the current connection
-            const excludeCtx = memberUserId === userId ? ctx : null
-            broadcastToLocalDevices(memberUserId, excludeCtx, newMessages, broadcastPayload)
-            // Cross-instance broadcast via Redis pub/sub
-            publishBroadcast(memberUserId, broadcastPayload)
-          }
-
-          metrics?.wsMessagesSent.add(wireMessages.messages.length)
-          return { seq: result.seq }
-        })
-
-        // RPC: pull messages
-        defineInvokeHandler(ctx, pullMessages, async (req) => {
-          log.withFields({ userId, chatId: req!.chatId, afterSeq: req!.afterSeq }).log('pullMessages')
-          return chatService.pullMessages(userId, req!.chatId, req!.afterSeq, req!.limit)
+        registerChatRpcHandlers({
+          ctx,
+          userId,
+          chatService,
+          registry,
+          broadcast,
+          metrics,
         })
       },
     })

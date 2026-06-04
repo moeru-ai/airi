@@ -1,0 +1,34 @@
+{
+  "name": "@proj-airi/ui-admin",
+  "type": "module",
+  "private": true,
+  "description": "Admin dashboard for Project AIRI",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite --host",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@proj-airi/font-chillroundm": "workspace:^",
+    "@proj-airi/stage-shared": "workspace:^",
+    "@proj-airi/ui": "workspace:^",
+    "@vueuse/core": "^14.2.1",
+    "nprogress": "^0.2.0",
+    "pinia": "^3.0.4",
+    "vue": "catalog:",
+    "vue-router": "^5.0.4",
+    "vue-sonner": "^2.0.9"
+  },
+  "devDependencies": {
+    "@iconify-json/lucide": "^1.2.102",
+    "@types/nprogress": "^0.2.3",
+    "@unocss/reset": "^66.6.8",
+    "@vitejs/plugin-vue": "^6.0.6",
+    "@vue-macros/volar": "^3.1.2",
+    "unocss": "^66.6.8",
+    "vite": "catalog:",
+    "vue-macros": "^3.1.2",
+    "vue-tsc": "^3.2.6"
+  }
+}

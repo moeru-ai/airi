@@ -15,17 +15,17 @@
     "postinstall": "wxt prepare"
   },
   "devDependencies": {
-    "@iconify-json/solar": "^1.2.5",
-    "@iconify-json/svg-spinners": "^1.2.4",
+    "@iconify-json/solar": "catalog:",
+    "@iconify-json/svg-spinners": "catalog:",
     "@moeru/eventa": "catalog:",
     "@proj-airi/server-sdk": "workspace:^",
     "@proj-airi/ui": "workspace:^",
-    "@unocss/reset": "^66.6.8",
+    "@unocss/reset": "catalog:",
     "@vueuse/core": "catalog:",
-    "@wxt-dev/module-vue": "^1.0.3",
-    "nanoid": "^5.1.9",
+    "@wxt-dev/module-vue": "catalog:",
+    "nanoid": "catalog:nanoid-5-1-9",
     "vue": "catalog:",
-    "vue-tsc": "^3.2.6",
-    "wxt": "^0.20.24"
+    "vue-tsc": "catalog:",
+    "wxt": "catalog:"
   }
 }

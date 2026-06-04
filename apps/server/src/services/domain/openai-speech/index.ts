@@ -4,6 +4,7 @@ import type { FluxMeter } from '../billing/flux-meter'
 import type { FluxService } from '../flux'
 import type { LlmRouterService } from '../llm-router'
 import type { startTtsGeneration, TtsGenerationTrace } from '../llm-tracing'
+import type { ProductEventService } from '../product-events'
 import type { RequestLogService } from '../request-log'
 
 import { useLogger } from '@guiiai/logg'
@@ -32,6 +33,7 @@ export interface OpenAiSpeechServiceDeps {
   requestLogService: RequestLogService
   ttsMeter: FluxMeter
   llmRouter: LlmRouterService
+  productEventService: ProductEventService
   genAi?: GenAiMetrics | null
   llmTracing: {
     startTtsGeneration: (input: Parameters<typeof startTtsGeneration>[0]) => TtsGenerationTrace
@@ -77,6 +79,18 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
       inputChars: inputText.length,
       voice: typeof input.body.voice === 'string' ? input.body.voice : undefined,
     }).log('tts speech request')
+
+    void deps.productEventService.track({
+      userId: input.userId,
+      feature: 'tts',
+      action: 'speech_requested',
+      status: 'started',
+      source: 'audio.speech',
+      model: requestModel,
+      metadata: {
+        input_chars: inputText.length,
+      },
+    })
 
     const flux = await deps.fluxService.getFlux(input.userId)
     if (flux.flux <= 0)
@@ -127,6 +141,19 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
         provider: routeCtx.provider,
         status: 502,
       })
+      void deps.productEventService.track({
+        userId: input.userId,
+        feature: 'tts',
+        action: 'speech_failed',
+        status: 'failed',
+        source: 'audio.speech',
+        model: requestModel,
+        provider: routeCtx.provider,
+        reason: 'router_exhausted',
+        metadata: {
+          duration_ms: Date.now() - startedAt,
+        },
+      })
       throw err
     }
 
@@ -138,6 +165,20 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
       span.end()
       generationTrace.fail(`Gateway ${response.status}`)
       recordMetrics({ model: requestModel, status: response.status, provider: routeCtx.provider, durationMs, fluxConsumed: 0 })
+      void deps.productEventService.track({
+        userId: input.userId,
+        feature: 'tts',
+        action: 'speech_failed',
+        status: 'failed',
+        source: 'audio.speech',
+        model: requestModel,
+        provider: routeCtx.provider,
+        reason: 'upstream_error',
+        metadata: {
+          http_status: response.status,
+          duration_ms: durationMs,
+        },
+      })
       logger.withFields({ requestId, userId: input.userId, model: requestModel, status: response.status, durationMs })
         .warn('tts speech delivered with upstream error status')
       return new Response(response.body, {
@@ -172,6 +213,21 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
     }
 
     recordMetrics({ model: requestModel, status: response.status, provider: routeCtx.provider, durationMs, fluxConsumed })
+    void deps.productEventService.track({
+      userId: input.userId,
+      feature: 'tts',
+      action: 'speech_succeeded',
+      status: 'succeeded',
+      source: 'audio.speech',
+      model: requestModel,
+      provider: routeCtx.provider,
+      metadata: {
+        http_status: response.status,
+        input_chars: inputText.length,
+        duration_ms: durationMs,
+        flux_consumed: fluxConsumed,
+      },
+    })
     deps.requestLogService.logRequest({
       userId: input.userId,
       model: requestModel,

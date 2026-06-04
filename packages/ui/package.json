@@ -27,13 +27,13 @@
   },
   "dependencies": {
     "@moeru/std": "catalog:",
-    "@vueuse/core": "^14.2.1",
-    "floating-vue": "^5.2.2",
-    "reka-ui": "^2.9.6",
+    "@vueuse/core": "catalog:vueuse-core-14-2-1",
+    "floating-vue": "catalog:",
+    "reka-ui": "catalog:reka-ui-2-9-6",
     "vue": "catalog:"
   },
   "devDependencies": {
-    "@vue-macros/volar": "3.0.0-beta.8",
-    "vue-tsc": "^3.2.6"
+    "@vue-macros/volar": "catalog:vue-macros-volar-3-0-0-beta-8",
+    "vue-tsc": "catalog:"
   }
 }

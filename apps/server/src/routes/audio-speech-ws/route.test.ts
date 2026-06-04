@@ -166,6 +166,10 @@ function makeFakeDeps(overrides: {
   const requestLogService = {
     logRequest: vi.fn(async () => undefined),
   }
+  const productEventService = {
+    track: vi.fn(async () => undefined),
+    countDistinctUsersByFeature: vi.fn(async () => []),
+  }
   const configKV = {
     getOptional: vi.fn(async (key: string) => {
       if (key === 'UNSPEECH_UPSTREAM') {
@@ -185,7 +189,7 @@ function makeFakeDeps(overrides: {
     decryptKey: vi.fn(() => Buffer.from(overrides.decryptedKey ?? 'mock-upstream-token', 'utf8')),
   }
 
-  return { configKV, envelopeCrypto, fluxService, ttsMeter, requestLogService }
+  return { configKV, envelopeCrypto, fluxService, ttsMeter, requestLogService, productEventService }
 }
 
 /** Drives the WSEvents lifecycle as if a real client had connected. */

@@ -10,6 +10,6 @@
     "lint:fix": "eslint --fix ."
   },
   "dependencies": {
-    "meta-png": "^1.0.6"
+    "meta-png": "catalog:"
   }
 }
