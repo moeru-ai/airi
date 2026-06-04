@@ -10,20 +10,12 @@ on:
 
   workflow_dispatch:
 
-  workflow_call:
-    inputs:
-      ref:
-        required: true
-        type: string
-
 jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-        with:
-          ref: ${{ inputs.ref || github.ref }}
       - uses: pnpm/action-setup@v5
       - uses: actions/setup-node@v6
         with:
@@ -73,8 +65,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-        with:
-          ref: ${{ inputs.ref || github.ref }}
 
       # Turborepo
       - name: Cache turbo build setup
@@ -124,8 +114,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-        with:
-          ref: ${{ inputs.ref || github.ref }}
 
       # Turborepo
       - name: Cache turbo build setup
@@ -171,8 +159,6 @@ jobs:
     if: ${{ !(github.event_name == 'pull_request' && startsWith(github.event.pull_request.head.label, 'moeru-ai:i18n/')) }}
     steps:
       - uses: actions/checkout@v6
-        with:
-          ref: ${{ inputs.ref || github.ref }}
 
       # Node.js
       - uses: pnpm/action-setup@v5
@@ -190,7 +176,6 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.ref || github.ref }}
           fetch-depth: 0
       - uses: danielroe/provenance-action@main
         id: check

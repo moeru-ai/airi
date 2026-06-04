@@ -16,8 +16,6 @@ jobs:
   update:
     if: github.event_name == 'workflow_dispatch' || !github.event.repository.fork
     runs-on: ubuntu-latest
-    outputs:
-      has_changes: ${{ steps.changes.outputs.has_changes }}
     steps:
       # Why?
       #
@@ -31,6 +29,8 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: main # Use main regardless of workflow_dispatch branch
+          # Authenticate git with PAT so that pushing to head retriggers CI
+          token: ${{ secrets.HASH_UPDATE_TOKEN }}
 
       - uses: cachix/install-nix-action@v31
         with:
@@ -51,7 +51,8 @@ jobs:
       - name: Create PR
         if: steps.changes.outputs.has_changes == 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
+          # Create PR with PAT to trigger CI
+          GH_TOKEN: ${{ secrets.HASH_UPDATE_TOKEN }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -71,11 +72,3 @@ jobs:
 
           # Enable auto-merge so PR merges once checks pass
           gh pr merge --squash --auto --delete-branch chore/update-nix-pnpm-deps-hash
-
-  # Call CI as reusable workflow because bot PR doesn't trigger CI
-  ci:
-    needs: update
-    if: needs.update.outputs.has_changes == 'true'
-    uses: ./.github/workflows/ci.yml
-    with:
-      ref: chore/update-nix-pnpm-deps-hash
