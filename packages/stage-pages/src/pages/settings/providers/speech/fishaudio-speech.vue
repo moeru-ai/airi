@@ -81,10 +81,10 @@ const voiceSearchError = ref('')
 let latestVoiceSearchRequestId = 0
 
 const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
-const apiKeyConfigured = computed(() => {
-  return providerMetadata.value.configured || Boolean(getFishAudioApiKey(config.value?.apiKey))
-})
 const apiKey = computed(() => getFishAudioApiKey(config.value?.apiKey))
+const apiKeyConfigured = computed(() => {
+  return providerMetadata.value.configured && Boolean(apiKey.value)
+})
 
 async function loadVoiceOptions(searchTerm: string) {
   if (!apiKey.value) {
@@ -223,6 +223,7 @@ watch(apiKey, async (newApiKey, previousApiKey) => {
     voiceSearchError.value = ''
     speechStore.availableVoices[providerId] = []
     voiceOptions.value = []
+    providersStore.setProviderUnconfigured(providerId)
     return
   }
 
