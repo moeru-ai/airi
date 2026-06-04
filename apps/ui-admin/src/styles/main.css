@@ -1,0 +1,262 @@
+@import '@proj-airi/ui/main.css';
+
+:root {
+  --admin-accent: #059669;
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  background: #f7f8fa;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+#nprogress {
+  pointer-events: none;
+}
+
+#nprogress .bar {
+  background: var(--admin-accent);
+  height: 2px;
+  left: 0;
+  position: fixed;
+  top: 0;
+  width: 100%;
+  z-index: 50;
+}
+
+.admin-shell {
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.admin-sidebar {
+  background: #f4f5f7;
+  border-right: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px 14px;
+}
+
+.admin-main {
+  min-width: 0;
+}
+
+.admin-topbar {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.86);
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  height: 56px;
+  justify-content: space-between;
+  padding: 0 28px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.admin-content {
+  padding: 22px;
+}
+
+.quick-action {
+  align-items: center;
+  background: #059669;
+  border: 0;
+  border-radius: 7px;
+  color: white;
+  display: flex;
+  font-size: 13px;
+  font-weight: 600;
+  gap: 8px;
+  height: 34px;
+  justify-content: flex-start;
+  margin-top: 12px;
+  padding: 0 10px;
+}
+
+.nav-item {
+  align-items: center;
+  border-radius: 7px;
+  color: #27272a;
+  display: flex;
+  font-size: 13px;
+  gap: 9px;
+  height: 34px;
+  padding: 0 9px;
+  text-decoration: none;
+}
+
+.nav-item:hover {
+  background: #e9ecef;
+}
+
+.nav-item-active {
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+  font-weight: 600;
+}
+
+.panel {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.metric-card {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbfa 100%);
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  min-height: 132px;
+  padding: 20px;
+}
+
+.field {
+  background: #fff;
+  border: 1px solid #dfe3e8;
+  border-radius: 7px;
+  color: #171717;
+  min-height: 36px;
+  outline: none;
+  padding: 0 10px;
+  width: 100%;
+}
+
+.field:focus,
+.textarea:focus {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.14);
+}
+
+.textarea {
+  background: #fff;
+  border: 1px solid #dfe3e8;
+  border-radius: 7px;
+  color: #171717;
+  min-height: 112px;
+  outline: none;
+  padding: 10px;
+  resize: vertical;
+  width: 100%;
+}
+
+.btn {
+  align-items: center;
+  border: 1px solid #dfe3e8;
+  border-radius: 7px;
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 600;
+  gap: 8px;
+  height: 36px;
+  justify-content: center;
+  padding: 0 12px;
+}
+
+.btn-primary {
+  background: #059669;
+  border-color: #059669;
+  color: white;
+}
+
+.btn-secondary {
+  background: white;
+  color: #27272a;
+}
+
+.btn-danger {
+  background: #fff;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.table th,
+.table td {
+  border-bottom: 1px solid #edf0f2;
+  padding: 12px 14px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.table th {
+  background: #f8fafc;
+  color: #52525b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.table td {
+  color: #27272a;
+  font-size: 13px;
+}
+
+.badge {
+  align-items: center;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 600;
+  gap: 6px;
+  height: 24px;
+  padding: 0 8px;
+}
+
+.badge-green {
+  background: #ecfdf5;
+  border-color: #bbf7d0;
+  color: #047857;
+}
+
+.badge-amber {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #b45309;
+}
+
+.empty-state {
+  align-items: center;
+  color: #71717a;
+  display: flex;
+  flex-direction: column;
+  font-size: 14px;
+  gap: 10px;
+  justify-content: center;
+  min-height: 180px;
+}
+
+@media (max-width: 900px) {
+  .admin-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-sidebar {
+    border-bottom: 1px solid #e5e7eb;
+    border-right: 0;
+    min-height: auto;
+  }
+
+  .admin-content {
+    padding: 16px;
+  }
+}

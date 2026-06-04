@@ -51,6 +51,8 @@ import { registerActiveSessionsGauge } from './otel/gauges/active-sessions'
 import { registerDistinctActiveUsersGauge } from './otel/gauges/distinct-active-users'
 import { registerRollingActiveUsersGauge } from './otel/gauges/rolling-active-users'
 import { registerTotalUsersGauge } from './otel/gauges/total-users'
+import { createAdminRoutes } from './routes/admin'
+import { createAdminUiRoutes } from './routes/admin-ui'
 import { createAdminRouterConfigRoutes } from './routes/admin/config/router'
 import { createAdminFluxGrantsRoutes } from './routes/admin/flux-grants'
 import { createAdminUsersRoutes } from './routes/admin/users'
@@ -326,6 +328,12 @@ export async function buildApp(deps: AppDeps) {
     }))
 
     /**
+     * Admin dashboard SPA. Auth is enforced by `/api/admin/*`; the bundle
+     * itself is public so unauthenticated users can be redirected cleanly.
+     */
+    .route('/', createAdminUiRoutes(deps.env))
+
+    /**
      * Character routes are handled by the character service.
      */
     .route('/api/v1/characters', createCharacterRoutes(deps.characterService))
@@ -380,6 +388,16 @@ export async function buildApp(deps: AppDeps) {
      * `routes/admin/config/router/index.ts` for the body shape.
      */
     .route('/api/admin/config/router', createAdminRouterConfigRoutes(deps.adminRouterConfigService))
+
+    /**
+     * Admin dashboard support APIs: user search, balance adjustments, metrics,
+     * and editable LLM router config.
+     */
+    .route('/api/admin', createAdminRoutes({
+      db: deps.db,
+      billingService: deps.billingService,
+      configKV: deps.configKV,
+    }))
 
     /**
      * Catch-all 404 in JSON. Replaces hono's default `text/html` "404 Not

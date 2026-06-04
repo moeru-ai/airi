@@ -27,6 +27,8 @@ export function sessionMiddleware(auth: AuthInstance, env: Env): MiddlewareHandl
     // starts with `/api` and won't be matched by the `/auth/` startsWith.
     if (
       c.req.path.startsWith('/auth/')
+      || c.req.path.startsWith('/admin/')
+      || c.req.path === '/admin'
       || c.req.path.startsWith('/api/auth/')
       || c.req.path === '/.well-known/oauth-authorization-server/api/auth'
     ) {
