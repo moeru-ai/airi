@@ -4,6 +4,8 @@ WORKDIR /app
 
 RUN corepack enable
 
+RUN apk add --no-cache git
+
 COPY . .
 
 RUN pnpm install --frozen-lockfile --ignore-scripts
