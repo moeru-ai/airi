@@ -9,6 +9,16 @@ import { getAnalyticsPrivacyPolicyUrl } from '../stores/analytics/privacy-policy
 import { useSettingsAnalytics } from '../stores/settings/analytics'
 import { useSettingsGeneral } from '../stores/settings/general'
 
+/**
+ * User-facing chat surfaces that can emit product analytics.
+ */
+export type ConversationAnalyticsSurface = 'web' | 'mobile' | 'electron'
+
+/**
+ * Low-cardinality source names for conversation action events.
+ */
+export type ConversationAnalyticsSource = 'chat_controls' | 'history' | 'sessions_drawer'
+
 export function useAnalytics() {
   const analyticsStore = useSharedAnalyticsStore()
   const settingsAnalytics = useSettingsAnalytics()
@@ -207,6 +217,38 @@ export function useAnalytics() {
     posthog.capture('message_round', properties)
   }
 
+  // ─── Conversation action events ─────────────────────────────────────
+
+  function trackTtsStopClicked(properties: { surface: ConversationAnalyticsSurface, reason: 'manual-chat' }) {
+    if (!canCapture())
+      return
+    posthog.capture('tts_stop_clicked', properties)
+  }
+
+  function trackChatSessionSelected(properties: { surface: ConversationAnalyticsSurface, source: 'sessions_drawer', message_count: number, cloud_synced: boolean }) {
+    if (!canCapture())
+      return
+    posthog.capture('chat_session_selected', properties)
+  }
+
+  function trackChatMessageDeleted(properties: { surface: ConversationAnalyticsSurface, source: 'history', message_role: string }) {
+    if (!canCapture())
+      return
+    posthog.capture('chat_message_deleted', properties)
+  }
+
+  function trackChatMessagesCleared(properties: { surface: ConversationAnalyticsSurface, source: 'chat_controls', message_count: number }) {
+    if (!canCapture())
+      return
+    posthog.capture('chat_messages_cleared', properties)
+  }
+
+  function trackChatMessageRetried(properties: { surface: ConversationAnalyticsSurface, source: 'history' }) {
+    if (!canCapture())
+      return
+    posthog.capture('chat_message_retried', properties)
+  }
+
   // ─── STT events ──────────────────────────────────────────────────────
 
   function trackSttStarted(provider: string) {
@@ -362,6 +404,11 @@ export function useAnalytics() {
     trackLlmFirstToken,
     trackAssistantResponseRendered,
     trackMessageRound,
+    trackTtsStopClicked,
+    trackChatSessionSelected,
+    trackChatMessageDeleted,
+    trackChatMessagesCleared,
+    trackChatMessageRetried,
 
     trackSttStarted,
     trackSttSucceeded,

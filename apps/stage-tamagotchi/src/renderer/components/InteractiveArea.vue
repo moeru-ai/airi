@@ -5,6 +5,7 @@ import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 import { errorMessageFrom } from '@moeru/std'
 import { useStopSpeakingButton } from '@proj-airi/stage-layouts/composables/useStopSpeakingButton'
 import { ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
+import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
@@ -57,7 +58,12 @@ const sendModeLabels = computed<Record<SendMode, string>>(() => ({
   'ctrl-enter': t('stage.send-mode.ctrl-enter'),
   'double-enter': t('stage.send-mode.double-enter'),
 }))
-const { showStopSpeakingButton, stopSpeakingFromChat } = useStopSpeakingButton()
+const {
+  trackChatMessageDeleted,
+  trackChatMessageRetried,
+  trackChatMessagesCleared,
+} = useAnalytics()
+const { showStopSpeakingButton, stopSpeakingFromChat } = useStopSpeakingButton('electron')
 
 const latestImageEntries = computed(() => {
   if (!activeCardId.value)
@@ -198,7 +204,13 @@ watch(sendMode, () => {
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
 
 async function handleDeleteMessage(index: number) {
+  const message = messages.value[index]
   await chatSyncStore.requestDeleteMessage({ index })
+  trackChatMessageDeleted({
+    surface: 'electron',
+    source: 'history',
+    message_role: message?.role ?? 'unknown',
+  })
 }
 
 onMounted(() => {
@@ -209,6 +221,20 @@ async function handleRetryMessage(index: number) {
   await chatSyncStore.requestRetry({
     sessionId: chatSession.activeSessionId,
     index,
+  })
+  trackChatMessageRetried({
+    surface: 'electron',
+    source: 'history',
+  })
+}
+
+async function handleCleanupMessages() {
+  const messageCount = messages.value.filter(message => message.role !== 'system').length
+  await chatSyncStore.requestCleanup()
+  trackChatMessagesCleared({
+    surface: 'electron',
+    source: 'chat_controls',
+    message_count: messageCount,
   })
 }
 </script>
@@ -351,7 +377,7 @@ async function handleRetryMessage(index: number) {
         hover:text="red-500 dark:red-400"
         flex items-center justify-center rounded-md p-2 outline-none
         transition-colors transition-transform active:scale-95
-        @click="() => chatSyncStore.requestCleanup()"
+        @click="handleCleanupMessages"
       >
         <div class="i-solar:trash-bin-2-bold-duotone" />
       </button>

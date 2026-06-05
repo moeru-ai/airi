@@ -6,7 +6,7 @@ import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { ChatHistory, HearingConfigDialog } from '@proj-airi/stage-ui/components'
 import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components/scenarios/chat'
-import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
+import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/maintenance'
@@ -40,9 +40,26 @@ const { messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
 const { sending } = storeToRefs(chatOrchestrator)
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
+const { trackChatMessageDeleted, trackChatMessagesCleared } = useAnalytics()
 
 function handleDeleteMessage(index: number) {
+  const message = messages.value[index]
   messages.value = messages.value.filter((_, messageIndex) => messageIndex !== index)
+  trackChatMessageDeleted({
+    surface: 'mobile',
+    source: 'history',
+    message_role: message?.role ?? 'unknown',
+  })
+}
+
+function handleCleanupMessages() {
+  const messageCount = messages.value.filter(message => message.role !== 'system').length
+  cleanupMessages()
+  trackChatMessagesCleared({
+    surface: 'mobile',
+    source: 'chat_controls',
+    message_count: messageCount,
+  })
 }
 
 const messageInput = ref('')
@@ -77,7 +94,7 @@ const { isListening, startStreamingTranscription, stopStreamingTranscription } =
     isStageTamagotchi,
   },
 )
-const { showStopSpeakingButton, stopSpeakingFromChat } = useStopSpeakingButton()
+const { showStopSpeakingButton, stopSpeakingFromChat } = useStopSpeakingButton('mobile')
 const toggleTranscription = () => isListening.value ? stopStreamingTranscription() : startStreamingTranscription()
 
 async function handleSubmit() {
@@ -232,7 +249,7 @@ onMounted(() => {
             bg="neutral-50/70 dark:neutral-800/70"
             w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md
             title="Cleanup Messages"
-            @click="cleanupMessages()"
+            @click="handleCleanupMessages"
           >
             <div class="i-solar:trash-bin-2-bold-duotone" />
           </button>

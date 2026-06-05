@@ -60,7 +60,7 @@ const { isListening, startStreamingTranscription, stopStreamingTranscription, au
     isStageTamagotchi,
   },
 )
-const { showStopSpeakingButton, stopSpeakingFromChat } = useStopSpeakingButton()
+const { showStopSpeakingButton, stopSpeakingFromChat } = useStopSpeakingButton('web')
 
 async function handleSend() {
   if (!messageInput.value.trim() || isComposing.value) {

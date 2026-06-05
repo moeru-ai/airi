@@ -5,6 +5,7 @@ import { useStopSpeakingButton } from './useStopSpeakingButton'
 
 const nowSpeaking = ref(false)
 const requestStopSpeakingMock = vi.fn()
+const trackTtsStopClickedMock = vi.fn()
 
 vi.mock('@proj-airi/stage-ui/stores/audio', () => ({
   useSpeakingStore: () => ({
@@ -18,6 +19,12 @@ vi.mock('@proj-airi/stage-ui/stores/speech-output-control', () => ({
   }),
 }))
 
+vi.mock('@proj-airi/stage-ui/composables/use-analytics', () => ({
+  useAnalytics: () => ({
+    trackTtsStopClicked: trackTtsStopClickedMock,
+  }),
+}))
+
 vi.mock('pinia', () => ({
   storeToRefs: (store: object) => store,
 }))
@@ -26,7 +33,7 @@ describe('useStopSpeakingButton', () => {
   it('shows the manual stop button only while the assistant is speaking', () => {
     nowSpeaking.value = false
 
-    const { showStopSpeakingButton } = useStopSpeakingButton()
+    const { showStopSpeakingButton } = useStopSpeakingButton('web')
 
     expect(showStopSpeakingButton.value).toBe(false)
 
@@ -37,11 +44,16 @@ describe('useStopSpeakingButton', () => {
 
   it('requests a manual chat stop without touching chat input state', () => {
     requestStopSpeakingMock.mockClear()
+    trackTtsStopClickedMock.mockClear()
 
-    const { stopSpeakingFromChat } = useStopSpeakingButton()
+    const { stopSpeakingFromChat } = useStopSpeakingButton('mobile')
 
     stopSpeakingFromChat()
 
     expect(requestStopSpeakingMock).toHaveBeenCalledWith('manual-chat')
+    expect(trackTtsStopClickedMock).toHaveBeenCalledWith({
+      surface: 'mobile',
+      reason: 'manual-chat',
+    })
   })
 })

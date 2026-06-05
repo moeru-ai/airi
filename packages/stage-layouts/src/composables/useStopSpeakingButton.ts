@@ -1,3 +1,6 @@
+import type { ConversationAnalyticsSurface } from '@proj-airi/stage-ui/composables/use-analytics'
+
+import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useSpeakingStore } from '@proj-airi/stage-ui/stores/audio'
 import { useSpeechOutputControlStore } from '@proj-airi/stage-ui/stores/speech-output-control'
 import { storeToRefs } from 'pinia'
@@ -15,13 +18,15 @@ import { computed } from 'vue'
  * Returns:
  * - Visibility state for the button and a click handler for manual chat stops.
  */
-export function useStopSpeakingButton() {
+export function useStopSpeakingButton(surface: ConversationAnalyticsSurface) {
   const { nowSpeaking } = storeToRefs(useSpeakingStore())
   const speechOutputControlStore = useSpeechOutputControlStore()
+  const { trackTtsStopClicked } = useAnalytics()
 
   const showStopSpeakingButton = computed(() => nowSpeaking.value)
 
   function stopSpeakingFromChat() {
+    trackTtsStopClicked({ surface, reason: 'manual-chat' })
     speechOutputControlStore.requestStopSpeaking('manual-chat')
   }
 
