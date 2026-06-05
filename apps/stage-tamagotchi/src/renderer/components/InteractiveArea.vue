@@ -3,6 +3,7 @@ import type { ChatToolCallRendererRegistry } from '@proj-airi/stage-ui/component
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { errorMessageFrom } from '@moeru/std'
+import { useStopSpeakingButton } from '@proj-airi/stage-layouts/composables/useStopSpeakingButton'
 import { ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
@@ -56,6 +57,7 @@ const sendModeLabels = computed<Record<SendMode, string>>(() => ({
   'ctrl-enter': t('stage.send-mode.ctrl-enter'),
   'double-enter': t('stage.send-mode.double-enter'),
 }))
+const { showStopSpeakingButton, stopSpeakingFromChat } = useStopSpeakingButton()
 
 const latestImageEntries = computed(() => {
   if (!activeCardId.value)
@@ -321,6 +323,24 @@ async function handleRetryMessage(index: number) {
           </DropdownMenuContent>
         </DropdownMenuPortal>
       </DropdownMenuRoot>
+
+      <button
+        v-if="showStopSpeakingButton"
+        data-testid="stop-speaking-button"
+        :class="[
+          'max-h-[10lh] min-h-[1lh]',
+        ]"
+        bg="neutral-100 dark:neutral-800"
+        text="lg neutral-500 dark:neutral-400"
+        hover:text="primary-500 dark:primary-400"
+        flex items-center justify-center rounded-md p-2 outline-none
+        transition-colors transition-transform active:scale-95
+        title="Stop speaking"
+        aria-label="Stop speaking"
+        @click="stopSpeakingFromChat"
+      >
+        <div class="i-solar:stop-circle-bold-duotone" />
+      </button>
 
       <button
         :class="[

@@ -28,6 +28,7 @@ import IndicatorMicVolume from '../Widgets/IndicatorMicVolume.vue'
 import ActionAbout from './InteractiveArea/Actions/About.vue'
 
 import { useTranscriptions } from '../../composables/use-transcriptions'
+import { useStopSpeakingButton } from '../../composables/useStopSpeakingButton'
 import { BackgroundDialogPicker } from '../Backgrounds'
 
 const { isDark, toggleDark } = useTheme()
@@ -76,6 +77,7 @@ const { isListening, startStreamingTranscription, stopStreamingTranscription } =
     isStageTamagotchi,
   },
 )
+const { showStopSpeakingButton, stopSpeakingFromChat } = useStopSpeakingButton()
 const toggleTranscription = () => isListening.value ? stopStreamingTranscription() : startStreamingTranscription()
 
 async function handleSubmit() {
@@ -253,6 +255,19 @@ onMounted(() => {
           @compositionstart="isComposing = true"
           @compositionend="isComposing = false"
         />
+        <button
+          v-if="showStopSpeakingButton"
+          data-testid="stop-speaking-button"
+          w="[calc(1lh+4px+4px)]" h="[calc(1lh+4px+4px)]" aspect-square flex items-center self-end justify-center rounded-full outline-none backdrop-blur-md
+          text="neutral-500 hover:primary-600 dark:neutral-900 dark:hover:primary-700"
+          bg="primary-50/80 dark:neutral-100/80 hover:neutral-50"
+          transition="all duration-250 ease-in-out"
+          title="Stop speaking"
+          aria-label="Stop speaking"
+          @click="stopSpeakingFromChat"
+        >
+          <div i-solar:stop-circle-bold-duotone />
+        </button>
         <button
           v-if="messageInput.trim() || isComposing"
           w="[calc(1lh+4px+4px)]" h="[calc(1lh+4px+4px)]" aspect-square flex items-center self-end justify-center rounded-full outline-none backdrop-blur-md
