@@ -46,7 +46,6 @@ function handleDeleteMessage(index: number) {
   const message = messages.value[index]
   messages.value = messages.value.filter((_, messageIndex) => messageIndex !== index)
   trackChatMessageDeleted({
-    surface: 'mobile',
     source: 'history',
     message_role: message?.role ?? 'unknown',
   })
@@ -56,7 +55,6 @@ function handleCleanupMessages() {
   const messageCount = messages.value.filter(message => message.role !== 'system').length
   cleanupMessages()
   trackChatMessagesCleared({
-    surface: 'mobile',
     source: 'chat_controls',
     message_count: messageCount,
   })
@@ -94,7 +92,7 @@ const { isListening, startStreamingTranscription, stopStreamingTranscription } =
     isStageTamagotchi,
   },
 )
-const { showStopSpeakingButton, stopSpeakingFromChat } = useStopSpeakingButton('mobile')
+const { showStopSpeakingButton, stopSpeakingFromChat } = useStopSpeakingButton()
 const toggleTranscription = () => isListening.value ? stopStreamingTranscription() : startStreamingTranscription()
 
 async function handleSubmit() {

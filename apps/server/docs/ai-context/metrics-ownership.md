@@ -115,6 +115,7 @@
 - 前端 `posthog-js` 通过 `packages/stage-ui/src/stores/analytics/posthog.ts` 初始化，三个 app（web / desktop / pocket）按 `isStageTamagotchi()` 等选 project key
 - Server 不接入 `posthog-node`。后端产品事件写 `product_events`，Grafana 展示低基数聚合；需要 PostHog revenue/person analytics 时优先用 PostHog Stripe source connector 或离线导入，不允许在 API 请求路径同步发 PostHog。
 - 前端 identity：`useSharedAnalyticsStore.initialize()` watch `authStore.isAuthenticated` 自动调 `posthog.identify(user.id)` / `reset()`
+- Conversation controls 事件的 `surface` 由 `packages/stage-ui/src/composables/use-analytics.ts` 统一按 runtime 推断，UI 调用点只传业务字段。
 
 已埋点：
 

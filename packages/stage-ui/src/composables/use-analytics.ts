@@ -1,5 +1,6 @@
 import posthog from 'posthog-js'
 
+import { isStageCapacitor, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -18,6 +19,16 @@ export type ConversationAnalyticsSurface = 'web' | 'mobile' | 'electron'
  * Low-cardinality source names for conversation action events.
  */
 export type ConversationAnalyticsSource = 'chat_controls' | 'history' | 'sessions_drawer'
+
+function getConversationAnalyticsSurface(): ConversationAnalyticsSurface {
+  if (isStageTamagotchi())
+    return 'electron'
+
+  if (isStageCapacitor())
+    return 'mobile'
+
+  return 'web'
+}
 
 export function useAnalytics() {
   const analyticsStore = useSharedAnalyticsStore()
@@ -219,34 +230,49 @@ export function useAnalytics() {
 
   // ─── Conversation action events ─────────────────────────────────────
 
-  function trackTtsStopClicked(properties: { surface: ConversationAnalyticsSurface, reason: 'manual-chat' }) {
+  function trackTtsStopClicked(properties: { reason: 'manual-chat' }) {
     if (!canCapture())
       return
-    posthog.capture('tts_stop_clicked', properties)
+    posthog.capture('tts_stop_clicked', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
   }
 
-  function trackChatSessionSelected(properties: { surface: ConversationAnalyticsSurface, source: 'sessions_drawer', message_count: number, cloud_synced: boolean }) {
+  function trackChatSessionSelected(properties: { source: 'sessions_drawer', message_count: number, cloud_synced: boolean }) {
     if (!canCapture())
       return
-    posthog.capture('chat_session_selected', properties)
+    posthog.capture('chat_session_selected', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
   }
 
-  function trackChatMessageDeleted(properties: { surface: ConversationAnalyticsSurface, source: 'history', message_role: string }) {
+  function trackChatMessageDeleted(properties: { source: 'history', message_role: string }) {
     if (!canCapture())
       return
-    posthog.capture('chat_message_deleted', properties)
+    posthog.capture('chat_message_deleted', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
   }
 
-  function trackChatMessagesCleared(properties: { surface: ConversationAnalyticsSurface, source: 'chat_controls', message_count: number }) {
+  function trackChatMessagesCleared(properties: { source: 'chat_controls', message_count: number }) {
     if (!canCapture())
       return
-    posthog.capture('chat_messages_cleared', properties)
+    posthog.capture('chat_messages_cleared', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
   }
 
-  function trackChatMessageRetried(properties: { surface: ConversationAnalyticsSurface, source: 'history' }) {
+  function trackChatMessageRetried(properties: { source: 'history' }) {
     if (!canCapture())
       return
-    posthog.capture('chat_message_retried', properties)
+    posthog.capture('chat_message_retried', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
   }
 
   // ─── STT events ──────────────────────────────────────────────────────

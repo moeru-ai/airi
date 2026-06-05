@@ -63,7 +63,7 @@ const {
   trackChatMessageRetried,
   trackChatMessagesCleared,
 } = useAnalytics()
-const { showStopSpeakingButton, stopSpeakingFromChat } = useStopSpeakingButton('electron')
+const { showStopSpeakingButton, stopSpeakingFromChat } = useStopSpeakingButton()
 
 const latestImageEntries = computed(() => {
   if (!activeCardId.value)
@@ -207,7 +207,6 @@ async function handleDeleteMessage(index: number) {
   const message = messages.value[index]
   await chatSyncStore.requestDeleteMessage({ index })
   trackChatMessageDeleted({
-    surface: 'electron',
     source: 'history',
     message_role: message?.role ?? 'unknown',
   })
@@ -223,7 +222,6 @@ async function handleRetryMessage(index: number) {
     index,
   })
   trackChatMessageRetried({
-    surface: 'electron',
     source: 'history',
   })
 }
@@ -232,7 +230,6 @@ async function handleCleanupMessages() {
   const messageCount = messages.value.filter(message => message.role !== 'system').length
   await chatSyncStore.requestCleanup()
   trackChatMessagesCleared({
-    surface: 'electron',
     source: 'chat_controls',
     message_count: messageCount,
   })

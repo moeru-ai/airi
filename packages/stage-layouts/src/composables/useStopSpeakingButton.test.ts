@@ -33,7 +33,7 @@ describe('useStopSpeakingButton', () => {
   it('shows the manual stop button only while the assistant is speaking', () => {
     nowSpeaking.value = false
 
-    const { showStopSpeakingButton } = useStopSpeakingButton('web')
+    const { showStopSpeakingButton } = useStopSpeakingButton()
 
     expect(showStopSpeakingButton.value).toBe(false)
 
@@ -46,13 +46,12 @@ describe('useStopSpeakingButton', () => {
     requestStopSpeakingMock.mockClear()
     trackTtsStopClickedMock.mockClear()
 
-    const { stopSpeakingFromChat } = useStopSpeakingButton('mobile')
+    const { stopSpeakingFromChat } = useStopSpeakingButton()
 
     stopSpeakingFromChat()
 
     expect(requestStopSpeakingMock).toHaveBeenCalledWith('manual-chat')
     expect(trackTtsStopClickedMock).toHaveBeenCalledWith({
-      surface: 'mobile',
       reason: 'manual-chat',
     })
   })

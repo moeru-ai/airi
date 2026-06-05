@@ -21,7 +21,6 @@ function handleCleanupMessages() {
   const messageCount = messages.value.filter(message => message.role !== 'system').length
   cleanupMessages()
   trackChatMessagesCleared({
-    surface: 'web',
     source: 'chat_controls',
     message_count: messageCount,
   })

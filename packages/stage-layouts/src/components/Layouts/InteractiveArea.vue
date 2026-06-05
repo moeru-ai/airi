@@ -27,7 +27,6 @@ function handleDeleteMessage(index: number) {
   const message = messages.value[index]
   messages.value = messages.value.filter((_, messageIndex) => messageIndex !== index)
   trackChatMessageDeleted({
-    surface: 'web',
     source: 'history',
     message_role: message?.role ?? 'unknown',
   })

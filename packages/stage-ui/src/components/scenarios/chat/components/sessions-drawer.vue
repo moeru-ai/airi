@@ -157,7 +157,6 @@ async function selectSession(sessionId: string) {
   const selectedRow = rows.value.find(row => row.meta.sessionId === sessionId)
   if (sessionId !== activeSessionId.value && selectedRow) {
     trackChatSessionSelected({
-      surface: isDesktop.value ? 'web' : 'mobile',
       source: 'sessions_drawer',
       message_count: (sessionMessages.value[sessionId] ?? []).filter(message => message.role !== 'system').length,
       cloud_synced: !!selectedRow.meta.cloudChatId,
