@@ -1103,6 +1103,9 @@ pages:
       deepgram-tts:
         description: deepgram.com
         title: Deepgram
+      fishaudio-speech:
+        description: fish.audio
+        title: Fish Audio
       speech-noop:
         title: None
         description: No speech output.

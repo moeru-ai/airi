@@ -84,7 +84,14 @@ export const useSpeechStore = defineStore('speech', () => {
     return ['elevenlabs', 'microsoft-speech', 'azure-speech'].includes(activeSpeechProvider.value)
   })
 
-  async function loadVoicesForProvider(provider: string, model?: string) {
+  async function loadVoicesForProvider(
+    provider: string,
+    modelOrOptions?: string | { model?: string, searchTerm?: string, id?: string, shouldApply?: () => boolean },
+  ) {
+    const options = typeof modelOrOptions === 'object' && modelOrOptions !== null
+      ? modelOrOptions
+      : { model: modelOrOptions }
+
     if (!provider) {
       return []
     }
@@ -100,7 +107,13 @@ export const useSpeechStore = defineStore('speech', () => {
     speechProviderError.value = null
 
     try {
-      const voices = await providersStore.getProviderMetadata(provider).capabilities.listVoices?.(providersStore.getProviderConfig(provider), model) || []
+      const voices = await providersStore.getProviderMetadata(provider).capabilities.listVoices?.(
+        providersStore.getProviderConfig(provider),
+        { model: options.model, searchTerm: options.searchTerm, id: options.id },
+      ) || []
+      if (options.shouldApply && !options.shouldApply()) {
+        return voices
+      }
       // Reassign to trigger reactivity when adding/updating provider entries
       availableVoices.value = {
         ...availableVoices.value,
@@ -109,12 +122,18 @@ export const useSpeechStore = defineStore('speech', () => {
       return voices
     }
     catch (error) {
+      if (options.shouldApply && !options.shouldApply()) {
+        return []
+      }
+
       console.error(`Error fetching voices for ${provider}:`, error)
       speechProviderError.value = errorMessageFrom(error) ?? 'Unknown error'
       return []
     }
     finally {
-      isLoadingSpeechProviderVoices.value = false
+      if (!options.shouldApply || options.shouldApply()) {
+        isLoadingSpeechProviderVoices.value = false
+      }
     }
   }
 
