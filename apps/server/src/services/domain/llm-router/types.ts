@@ -104,6 +104,8 @@ export interface LlmRouteRequest {
 export interface LlmRouteContext {
   /** Provider tag for OTel labels (e.g. `openrouter`). */
   provider: string
+  /** Actual model id sent to the winning upstream after `overrideModel` rewrites. */
+  upstreamModel?: string
   /** Number of upstreams attempted so far. */
   triedUpstreams: number
   /** Number of keys attempted across all upstreams so far. */

@@ -32,6 +32,42 @@ whenever vendored add-on files differ from their upstream source.
   lookup fix or otherwise handles missing `secondary` nodes before parsing
   spring bones.
 
+### MToon ambient and cutout shader patch
+
+Files:
+
+- `addons/Godot-MToon-Shader/mtoon_common.gdshaderinc`
+- `addons/Godot-MToon-Shader/mtoon_cutout.gdshader`
+- `addons/Godot-MToon-Shader/mtoon_cutout_cull_off.gdshader`
+- `addons/Godot-MToon-Shader/mtoon_outline_cutout.gdshader`
+
+- Local change: enable `render_mode ambient_light_disabled` for the shared MToon
+  shader include.
+- Local change: route MToon cutout materials through Godot's alpha scissor
+  antialiasing path by writing `ALPHA`, setting `ALPHA_SCISSOR_THRESHOLD`,
+  `ALPHA_ANTIALIASING_EDGE`, and `ALPHA_TEXTURE_COORDINATE`, and enabling
+  `render_mode alpha_to_coverage`.
+- Reason: AIRI's stage preset owns sky, ground, and environment presentation, but
+  avatar toon materials need stable character color. Godot's default ambient
+  light and radiance contribution can wash out MToon avatars as the stage
+  environment changes, so AIRI isolates avatar MToon materials from implicit
+  WorldEnvironment ambient while keeping direct light handling in the shader.
+- Reason: VRM hair, lashes, accessories, and outline cutout passes use hard alpha
+  edges. At distance, those edges collapse into visible stair-step or dashed
+  pixels. Godot's alpha-to-coverage path works with 3D MSAA, and Godot's shader
+  alpha scissor path requires `ALPHA` to receive the sampled texture alpha.
+  Writing `ALPHA` may route these shaders through Godot's transparent pipeline,
+  which can introduce sorting or shadow-casting regressions. AIRI accepts that
+  tradeoff for the current visual baseline and should revisit it if those
+  regressions appear or upstream exposes a cutout antialiasing path that
+  preserves opaque shadow semantics.
+- Validation: `tests/material-rendering-check/materialRenderingCheck.tscn`
+  imports AvatarSample A/B and still detects MToon, cutout, transparent,
+  outline, and shadow-caster materials after the patch.
+- Removal condition: remove this patch if AIRI moves to an owned MToon shader
+  variant, or if upstream exposes a supported way to opt MToon materials out of
+  Godot environment ambient/radiance while preserving VRM import compatibility.
+
 ## Generated Metadata Differences
 
 These files differ from the upstream commit after opening/importing the add-on

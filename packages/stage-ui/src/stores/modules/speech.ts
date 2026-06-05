@@ -1,7 +1,7 @@
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import type { VoiceInfo } from '../providers'
-import type { VoicePackParams } from './airi-card'
+import type { VoicePackParams, VoicePackSnapshot } from './airi-card'
 
 import { errorMessageFrom } from '@moeru/std'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
@@ -29,6 +29,7 @@ interface VoicePackSpeechInputOptions {
   voice: VoiceInfo
   providerConfig?: Record<string, unknown>
   params?: VoicePackParams
+  voicePack?: Pick<VoicePackSnapshot, 'packId' | 'costMultiplier'>
   forceSSML?: boolean
   supportsSSML?: boolean
   supportsAdapterProsody?: boolean
@@ -467,12 +468,22 @@ export const useSpeechStore = defineStore('speech', () => {
     if (speed != null)
       providerConfig.speed = speed
 
-    if (needsProsody && options.supportsAdapterProsody) {
+    if (options.voicePack) {
       providerConfig.extraBody = {
-        voicePack: {
-          pitch,
-          volume,
+        ...(providerConfig.extraBody as Record<string, unknown> | undefined),
+        voice_pack: {
+          pack_id: options.voicePack.packId,
+          cost_multiplier: options.voicePack.costMultiplier,
+          ...(needsProsody && options.supportsAdapterProsody
+            ? { pitch, volume }
+            : {}),
         },
+      }
+    }
+    else if (needsProsody && options.supportsAdapterProsody) {
+      providerConfig.extraBody = {
+        ...(providerConfig.extraBody as Record<string, unknown> | undefined),
+        voice_pack: { pitch, volume },
       }
     }
     else if (needsProsody && !options.forceSSML && !options.supportsSSML) {

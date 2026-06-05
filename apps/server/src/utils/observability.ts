@@ -47,6 +47,7 @@ export const METRIC_AUTH_ATTEMPTS = 'auth.attempts'
 export const METRIC_AUTH_FAILURES = 'auth.failures'
 export const METRIC_USER_REGISTERED = 'user.registered'
 export const METRIC_USER_LOGIN = 'user.login'
+export const METRIC_USER_TOTAL = 'user.total'
 export const METRIC_USER_ACTIVE_SESSIONS = 'user.active_sessions'
 // Distinct users with at least one non-expired session row. Pair with
 // USER_ACTIVE_SESSIONS to detect "session row inflation" (Better Auth
@@ -95,6 +96,11 @@ export const METRIC_AIRI_TTS_PREFLIGHT_REJECTIONS = 'airi.billing.tts.preflight_
 
 // AIRI observability — self-monitoring for the metric pipeline
 export const METRIC_AIRI_OBSERVABILITY_READ_ERRORS = 'airi.observability.read_errors'
+
+// Product analytics — low-cardinality event volume only. User-level product
+// analytics live in Postgres `product_events`; never add user identifiers to
+// this metric's labels.
+export const METRIC_AIRI_PRODUCT_EVENTS = 'airi.product.events'
 
 // AIRI revenue — actual money in (smallest currency unit, e.g. cents)
 export const METRIC_AIRI_STRIPE_REVENUE = 'airi.stripe.revenue'

@@ -8,7 +8,7 @@ import type { EnvelopeCrypto } from '../../../utils/envelope-crypto'
 import type { ConfigKVService } from '../../adapters/config-kv'
 import type { TtsAdapterId, TtsInput } from '../../adapters/tts/types'
 import type { ConcurrencyLedger } from './concurrency-ledger'
-import type { LlmRouteRequest, LlmUpstream, TtsUpstream } from './types'
+import type { LlmRouteContext, LlmRouteRequest, LlmUpstream, TtsUpstream } from './types'
 
 import { Buffer as NodeBuffer } from 'node:buffer'
 
@@ -224,7 +224,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     fallbackHttpCodes: number[],
     onAttemptFailure: (failure: { keyId: string, status: number | 'timeout', bodySnippet?: string, errorMessage?: string }) => void,
   ): Promise<
-    | { kind: 'ok', response: Response, attemptIndex: number }
+    | { kind: 'ok', response: Response, attemptIndex: number, upstreamModel: string }
     | { kind: 'exhausted', failures: Array<{ keyId: string, status: number | 'timeout', bodySnippet?: string, errorMessage?: string }> }
   > {
     const provider = deriveProviderTag(upstream.baseURL)
@@ -285,7 +285,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
             [AIRI_ATTR_GEN_AI_GATEWAY_KEY_ID]: key.id,
             [AIRI_ATTR_GEN_AI_GATEWAY_FALLBACK_DEPTH]: attemptIndex,
           })
-          return { kind: 'ok', response, attemptIndex }
+          return { kind: 'ok', response, attemptIndex, upstreamModel: effectiveModel }
         }
 
         const status = response.status
@@ -354,7 +354,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     return { kind: 'exhausted', failures }
   }
 
-  async function route(req: LlmRouteRequest): Promise<Response> {
+  async function route(req: LlmRouteRequest, ctx?: LlmRouteContext): Promise<Response> {
     // Honor pre-flight cancellation before any work.
     if (req.abortSignal?.aborted)
       throw req.abortSignal.reason ?? new Error('aborted')
@@ -377,6 +377,11 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       const upstream = slice.model.upstreams[i]
       const provider = deriveProviderTag(upstream.baseURL)
       triedUpstreams += 1
+      // Surface the current upstream so the caller can label success metrics
+      // by provider. On `ok` this holds the winning provider; on full
+      // exhaustion it holds the last one tried.
+      if (ctx)
+        ctx.provider = provider
 
       const perAttemptTimeoutMs = upstream.timeoutMs ?? defaults.perAttemptTimeoutMs ?? 30000
 
@@ -389,8 +394,11 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         (failure) => { allFailures.push({ provider, ...failure }) },
       )
 
-      if (result.kind === 'ok')
+      if (result.kind === 'ok') {
+        if (ctx)
+          ctx.upstreamModel = result.upstreamModel
         return result.response
+      }
 
       // This upstream exhausted; record and continue.
       options.gatewayMetrics?.keyExhaustedCount.add(1, { provider })
@@ -564,8 +572,8 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
   }
 
   /**
-   * Capacity-awarelayer over {@link dispatchOneTtsUpstream}: spreads one TTS
-   * request across the model'spool (one app_id per upstream) by least-loaded
+   * Capacity-aware layer over {@link dispatchOneTtsUpstream}: spreads one TTS
+   * request across the model's pool (one app_id per upstream) by least-loaded
    * ordering, gating each dispatch on an atomic concurrency-slot acquire.
    *
    * Returns:
@@ -573,7 +581,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
    * - `null` when every dispatched upstream exhausted (caller maps the recorded
    *   failures to an upstream error via the shared exhaustion path),
    * - throws 503 `TTS_POOL_SATURATED` when every pool was at capacity or in a
-   *   429 cool-down so nothing was dispatched — fail-fast with context, never a
+   *   429 cool-down so nothing was dispatched - fail-fast with context, never a
    *   silent stall (origin R3).
    */
   async function routeTtsAcrossPools(
@@ -599,15 +607,23 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     const ranked = (await Promise.all(upstreams.map(async (upstream, index) => {
       const poolId = ttsPoolId(upstream)
       const maxConcurrency = typeof upstream.maxConcurrency === 'number' ? upstream.maxConcurrency : null
+      const saturated = await ledger.isSaturated(poolId)
+      if (saturated) {
+        return {
+          upstream,
+          index,
+          poolId,
+          maxConcurrency,
+          remaining: maxConcurrency == null ? Number.POSITIVE_INFINITY : 0,
+          eligible: false,
+        }
+      }
       if (maxConcurrency == null)
         return { upstream, index, poolId, maxConcurrency, remaining: Number.POSITIVE_INFINITY, eligible: true }
 
-      const [saturated, inflight] = await Promise.all([
-        ledger.isSaturated(poolId),
-        ledger.currentInflight(poolId),
-      ])
+      const inflight = await ledger.currentInflight(poolId)
       const remaining = maxConcurrency - inflight
-      return { upstream, index, poolId, maxConcurrency, remaining, eligible: !saturated && remaining > 0 }
+      return { upstream, index, poolId, maxConcurrency, remaining, eligible: remaining > 0 }
     })))
       .filter(c => c.eligible)
       .sort((a, b) => b.remaining - a.remaining)
@@ -659,7 +675,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     return null
   }
 
-  async function routeTts(req: { modelName: string, input: TtsInput, abortSignal?: AbortSignal }): Promise<Response> {
+  async function routeTts(req: { modelName: string, input: TtsInput, abortSignal?: AbortSignal }, ctx?: LlmRouteContext): Promise<Response> {
     if (req.abortSignal?.aborted)
       throw req.abortSignal.reason ?? new Error('aborted')
 
@@ -700,6 +716,10 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     > {
       const providerTag = deriveProviderTag(upstream.baseURL)
       triedUpstreams += 1
+      // Surface the current upstream so the caller can label success metrics
+      // by provider (winning provider on `ok`, last-tried on exhaustion).
+      if (ctx)
+        ctx.provider = providerTag
       const result = await dispatchOneTtsUpstream(
         upstream,
         index,

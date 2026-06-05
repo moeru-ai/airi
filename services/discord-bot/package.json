@@ -19,22 +19,22 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@discordjs/voice": "^0.19.2",
+    "@discordjs/voice": "catalog:",
     "@guiiai/logg": "catalog:",
-    "@huggingface/transformers": "^3.8.1",
+    "@huggingface/transformers": "catalog:",
     "@proj-airi/audio": "workspace:^",
     "@proj-airi/server-sdk": "workspace:^",
     "@proj-airi/server-shared": "workspace:^",
-    "@snazzah/davey": "^0.1.11",
+    "@snazzah/davey": "catalog:",
     "@xsai-ext/providers": "catalog:",
     "@xsai/generate-speech": "catalog:",
     "@xsai/generate-text": "catalog:",
     "@xsai/generate-transcription": "catalog:",
     "@xsai/shared-chat": "catalog:",
-    "discord.js": "^14.26.3",
-    "libsodium-wrappers": "^0.8.3",
-    "opusscript": "^0.1.1",
-    "tsx": "^4.21.0",
-    "wavefile": "^11.0.0"
+    "discord.js": "catalog:",
+    "libsodium-wrappers": "catalog:",
+    "opusscript": "catalog:",
+    "tsx": "catalog:",
+    "wavefile": "catalog:"
   }
 }

@@ -1,4 +1,5 @@
 import type { VoicePack } from '../../../schemas/voice-packs'
+import type { ProductEventService } from '../../../services/domain/product-events'
 import type { CreateVoicePackInput, UpdateVoicePackInput, VoicePackService } from '../../../services/domain/voice-packs'
 import type { HonoEnv } from '../../../types/hono'
 
@@ -43,13 +44,23 @@ function createService() {
   } satisfies VoicePackService
 }
 
-function createTestApp(service: VoicePackService, user: MockUser | null) {
+function createProductEventService(): ProductEventService {
+  return {
+    track: vi.fn(async () => undefined),
+    countDistinctUsersByFeature: vi.fn(async () => []),
+  }
+}
+
+function createTestApp(service: VoicePackService, user: MockUser | null, productEventService = createProductEventService()) {
   return new Hono<HonoEnv>()
     .use('*', async (c, next) => {
       c.set('user', user as HonoEnv['Variables']['user'])
       await next()
     })
-    .route('/api/admin/voice-packs', createAdminVoicePackRoutes(service))
+    .route('/api/admin/voice-packs', createAdminVoicePackRoutes({
+      productEventService,
+      service,
+    }))
     .onError((err, c) => {
       if (err instanceof ApiError)
         return c.json({ error: err.errorCode, details: err.details }, err.statusCode)
@@ -101,7 +112,8 @@ describe('admin voice packs — CRUD', () => {
   it('creates a pack with validated fields', async () => {
     // @example valid body -> route forwards normalized params and enabled default.
     const service = createService()
-    const app = createTestApp(service, ADMIN)
+    const productEventService = createProductEventService()
+    const app = createTestApp(service, ADMIN, productEventService)
     const body = {
       name: 'Neuro Sama',
       provider: 'volcengine',
@@ -115,6 +127,17 @@ describe('admin voice packs — CRUD', () => {
 
     expect(res.status).toBe(201)
     expect(service.create).toHaveBeenCalledWith({ ...body, enabled: true })
+    expect(productEventService.track).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'admin-1',
+      feature: 'voice_pack',
+      action: 'voice_pack_created',
+      status: 'succeeded',
+      source: 'admin.voice_packs',
+      metadata: expect.objectContaining({
+        voice_pack_id: 'vp-1',
+        cost_multiplier: 1.5,
+      }),
+    }))
   })
 
   it('rejects invalid cost multiplier on create', async () => {
@@ -152,11 +175,22 @@ describe('admin voice packs — CRUD', () => {
   it('soft-disables a pack', async () => {
     // @example disable endpoint does not delete; it returns the disabled row.
     const service = createService()
-    const app = createTestApp(service, ADMIN)
+    const productEventService = createProductEventService()
+    const app = createTestApp(service, ADMIN, productEventService)
     const res = await jsonRequest(app, 'POST', '/api/admin/voice-packs/vp-1/disable')
 
     expect(res.status).toBe(200)
     expect(service.disable).toHaveBeenCalledWith('vp-1')
+    expect(productEventService.track).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'admin-1',
+      feature: 'voice_pack',
+      action: 'voice_pack_disabled',
+      status: 'succeeded',
+      source: 'admin.voice_packs',
+      metadata: expect.objectContaining({
+        voice_pack_id: 'vp-1',
+      }),
+    }))
     expect(await res.json()).toMatchObject({ id: 'vp-1', enabled: false })
   })
 })

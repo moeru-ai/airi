@@ -107,9 +107,41 @@ describe('speech store helpers', () => {
 
     expect(request.input).toBe('hello')
     expect(request.providerConfig.extraBody).toEqual({
-      voicePack: {
+      voice_pack: {
         pitch: 20,
         volume: 5,
+      },
+    })
+  })
+
+  /**
+   * @example
+   * speechStore.resolveVoicePackSpeechInput({ text, voice, voicePack: { packId: 'vp-1', costMultiplier: 1.5 } })
+   */
+  it('passes Voice Pack snapshot billing metadata through adapter options', () => {
+    const speechStore = useSpeechStore()
+    const voice = {
+      id: 'voice-1',
+      name: 'Voice 1',
+      provider: OFFICIAL_SPEECH_PROVIDER_ID,
+      languages: [{ code: 'en-US', title: 'English' }],
+    }
+
+    const request = speechStore.resolveVoicePackSpeechInput({
+      text: 'hello',
+      voice,
+      params: {},
+      voicePack: {
+        packId: 'vp-1',
+        costMultiplier: 1.5,
+      },
+      supportsAdapterProsody: true,
+    })
+
+    expect(request.providerConfig.extraBody).toEqual({
+      voice_pack: {
+        pack_id: 'vp-1',
+        cost_multiplier: 1.5,
       },
     })
   })

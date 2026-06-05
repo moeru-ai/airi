@@ -7,7 +7,7 @@ import { providerOfficialSpeech } from './index'
 interface OfficialSpeechOptions {
   speed?: number
   extraBody?: {
-    voicePack?: {
+    voice_pack?: {
       pitch?: number
     }
   }
@@ -24,7 +24,7 @@ describe('official speech provider', () => {
     const request = provider.speech('microsoft/v1', {
       speed: 1.2,
       extraBody: {
-        voicePack: {
+        voice_pack: {
           pitch: 20,
         },
       },
@@ -33,7 +33,7 @@ describe('official speech provider', () => {
     expect(request.model).toBe('microsoft/v1')
     expect(request.speed).toBe(1.2)
     expect(request.extraBody).toEqual({
-      voicePack: {
+      voice_pack: {
         pitch: 20,
       },
     })

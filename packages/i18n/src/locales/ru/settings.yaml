@@ -743,7 +743,7 @@ pages:
         empty: Здесь пока ничего нет. Добавьте одно ниже!
       add:
         title: Новый
-        description: 'Заполните новый сервер, затем нажмите кнопку «Сохранить и перезапустить» — он будет перемещен в «Конфигурация» выше.'
+        description: Заполните новый сервер, затем нажмите кнопку «Сохранить и перезапустить» — он будет перемещен в «Конфигурация» выше.
         pending-badge: Не сохранено
       status:
         unknown: Не загружен
@@ -1346,8 +1346,8 @@ pages:
         description: Официальный ИИ провайдер AIRI.
         speech-title: Официальный провайдер синтеза речи
         speech-description: Официальный text-to-speech провайдер AIRI.
-        speech-streaming-title: Official Streaming Speech Provider
-        speech-streaming-description: Official low-latency text-to-speech provider by AIRI (bidirectional WebSocket).
+        speech-streaming-title: Официальный провайдер синтеза речи
+        speech-streaming-description: Официальный поставщик текстов и речи с низкими задержками AIRI (двунаправленный WebSocket).
         transcription-title: Официальный провайдер транскрипции
         transcription-description: Официальный speech-to-text провайдер AIRI.
       transcriptions:
@@ -1624,7 +1624,7 @@ vrm:
     skybox-intensity: Интенсивность SkyBox
     skybox-specular-mix: Причудливый микс
 spine:
-  title: Spine Settings
+  title: Настройки голоса
   scale-and-position:
     title: Масштаб и позиция
     scale: Масштаб
@@ -1636,12 +1636,12 @@ spine:
       title: Извлечь
   animation:
     title: Анимация
-    idle-animation: Idle Animation
+    idle-animation: Анимация бездействия
     mix-duration: Mix Duration (seconds)
     speed: Скорость анимации
   variant:
     title: Вариация
-    current-variant: Active Variant
+    current-variant: Активный вариант
   skin:
     title: Облик
     current-skin: Текущий облик

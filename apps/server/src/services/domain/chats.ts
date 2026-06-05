@@ -2,6 +2,7 @@ import type { MessageRole, WireMessage } from '@proj-airi/server-sdk-shared'
 
 import type { Database } from '../../libs/db'
 import type { EngagementMetrics } from '../../otel'
+import type { ProductEventService } from './product-events'
 
 import { useLogger } from '@guiiai/logg'
 import { and, eq, gt, inArray, isNull, sql } from 'drizzle-orm'
@@ -49,7 +50,7 @@ export function resolveSenderId(role: string, userId: string, characterId?: stri
 // Service factory
 // ---------------------------------------------------------------------------
 
-export function createChatService(db: Database, metrics?: EngagementMetrics | null) {
+export function createChatService(db: Database, metrics?: EngagementMetrics | null, productEventService?: ProductEventService) {
   // ---- internal helpers ---------------------------------------------------
 
   async function verifyMembership(tx: Parameters<Parameters<Database['transaction']>[0]>[0], chatId: string, userId: string) {
@@ -299,6 +300,17 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
 
       if (result.totalCount > 0) {
         metrics?.chatMessages.add(result.totalCount)
+        void productEventService?.track({
+          userId,
+          feature: 'chat',
+          action: 'message_pushed',
+          status: 'succeeded',
+          source: 'chat.ws.push_messages',
+          metadata: {
+            message_count: result.totalCount,
+            new_count: result.newCount,
+          },
+        })
       }
       metrics?.wsMessagesReceived.add(result.totalCount)
 

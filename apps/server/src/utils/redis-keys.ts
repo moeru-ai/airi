@@ -1,38 +1,36 @@
 type RedisKeyPart = string | number
 
-function normalizeRedisKeyPart(part: RedisKeyPart): string {
-  const value = String(part).trim()
-  if (value.length === 0)
-    throw new TypeError('Redis key segments must not be empty')
-
-  return value
-}
-
-export function createRedisKey(...parts: RedisKeyPart[]): string {
+export function redisKeyFrom(...parts: RedisKeyPart[]): string {
   if (parts.length === 0)
     throw new TypeError('Redis keys must contain at least one segment')
 
-  return parts.map(normalizeRedisKeyPart).join(':')
+  return parts.map((part) => {
+    const value = String(part).trim()
+    if (value.length === 0)
+      throw new TypeError('Redis key segments must not be empty')
+
+    return value
+  }).join(':')
 }
 
 export function configRedisKey(key: string): string {
-  return createRedisKey('config', key)
+  return redisKeyFrom('config', key)
 }
 
 export function userFluxRedisKey(userId: string): string {
-  return createRedisKey('user', userId, 'flux')
+  return redisKeyFrom('user', userId, 'flux')
 }
 
 export function userFluxMeterDebtRedisKey(userId: string, meterName: string): string {
-  return createRedisKey('user', userId, 'flux-meter', meterName, 'debt')
+  return redisKeyFrom('user', userId, 'flux-meter', meterName, 'debt')
 }
 
 export function userChatBroadcastRedisKey(userId: string): string {
-  return createRedisKey('user', userId, 'chat', 'broadcast')
+  return redisKeyFrom('user', userId, 'chat', 'broadcast')
 }
 
 export function lockRedisKey(domain: string, ...identifiers: RedisKeyPart[]): string {
-  return createRedisKey('lock', domain, ...identifiers)
+  return redisKeyFrom('lock', domain, ...identifiers)
 }
 
 /**
@@ -42,7 +40,7 @@ export function lockRedisKey(domain: string, ...identifiers: RedisKeyPart[]): st
  * leakage if a replica crashes between acquire and release.
  */
 export function ttsPoolInflightRedisKey(poolId: string): string {
-  return createRedisKey('tts', 'pool', 'inflight', poolId)
+  return redisKeyFrom('tts', 'pool', 'inflight', poolId)
 }
 
 /**
@@ -51,7 +49,7 @@ export function ttsPoolInflightRedisKey(poolId: string): string {
  * for a cool-down window instead of repeatedly hammering a known-full pool.
  */
 export function ttsPoolSaturatedRedisKey(poolId: string): string {
-  return createRedisKey('tts', 'pool', 'saturated', poolId)
+  return redisKeyFrom('tts', 'pool', 'saturated', poolId)
 }
 
 /**
@@ -60,5 +58,5 @@ export function ttsPoolSaturatedRedisKey(poolId: string): string {
  * parsing LLM_ROUTER_CONFIG inside the metric callback.
  */
 export function ttsPoolKnownRedisKey(): string {
-  return createRedisKey('tts', 'pool', 'known')
+  return redisKeyFrom('tts', 'pool', 'known')
 }

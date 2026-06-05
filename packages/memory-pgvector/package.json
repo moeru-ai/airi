@@ -23,9 +23,9 @@
     "@guiiai/logg": "catalog:",
     "@proj-airi/server-sdk": "workspace:^",
     "drizzle-orm": "catalog:",
-    "postgres": "^3.4.9"
+    "postgres": "catalog:"
   },
   "devDependencies": {
-    "tsx": "^4.21.0"
+    "tsx": "catalog:"
   }
 }

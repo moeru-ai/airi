@@ -1,5 +1,4 @@
 import type Redis from 'ioredis'
-import type { PostHog } from 'posthog-node'
 
 import type { AuthInstance } from './libs/auth'
 import type { Database } from './libs/db'
@@ -16,6 +15,7 @@ import type { ChatService } from './services/domain/chats'
 import type { FluxService } from './services/domain/flux'
 import type { FluxTransactionService } from './services/domain/flux-transaction'
 import type { LlmRouterService } from './services/domain/llm-router'
+import type { ProductEventService } from './services/domain/product-events'
 import type { ProviderService } from './services/domain/providers'
 import type { RequestLogService } from './services/domain/request-log'
 import type { StripeService } from './services/domain/stripe'
@@ -50,7 +50,10 @@ import { emitOtelLog, initOtel } from './otel'
 import { registerActiveSessionsGauge } from './otel/gauges/active-sessions'
 import { registerDistinctActiveUsersGauge } from './otel/gauges/distinct-active-users'
 import { registerRollingActiveUsersGauge } from './otel/gauges/rolling-active-users'
+import { registerTotalUsersGauge } from './otel/gauges/total-users'
 import { registerTtsPoolGauge } from './otel/gauges/tts-pool'
+import { createAdminRoutes } from './routes/admin'
+import { createAdminUiRoutes } from './routes/admin-ui'
 import { createAdminRouterConfigRoutes } from './routes/admin/config/router'
 import { createAdminFluxGrantsRoutes } from './routes/admin/flux-grants'
 import { createAdminUsersRoutes } from './routes/admin/users'
@@ -67,7 +70,6 @@ import { createStripeRoutes } from './routes/stripe'
 import { createVoicePackRoutes } from './routes/voice-packs'
 import { createConfigKVService } from './services/adapters/config-kv'
 import { createEmailService } from './services/adapters/email'
-import { createPostHogClient } from './services/adapters/posthog'
 import { createAdminFluxGrantsService } from './services/domain/admin/flux-grants'
 import { createAdminRouterConfigService } from './services/domain/admin/router-config'
 import { createAdminUsersService } from './services/domain/admin/users'
@@ -78,6 +80,7 @@ import { createChatService } from './services/domain/chats'
 import { createFluxService } from './services/domain/flux'
 import { createFluxTransactionService } from './services/domain/flux-transaction'
 import { createConcurrencyLedger, createConfigSyncSubscriber, createLlmRouterService } from './services/domain/llm-router'
+import { createProductEventService } from './services/domain/product-events'
 import { createProviderService } from './services/domain/providers'
 import { createRequestLogService } from './services/domain/request-log'
 import { createStripeService } from './services/domain/stripe'
@@ -104,6 +107,7 @@ interface AppDeps {
   ttsMeter: FluxMeter
   requestLogService: RequestLogService
   voicePackService: VoicePackService
+  productEventService: ProductEventService
   configKV: ConfigKVService
   envelopeCrypto: EnvelopeCrypto
   redis: Redis
@@ -111,7 +115,6 @@ interface AppDeps {
   otel: OtelInstance | null
   userDeletionService: UserDeletionService
   llmRouter: LlmRouterService
-  posthog: PostHog | null
 }
 
 export async function buildApp(deps: AppDeps) {
@@ -191,6 +194,7 @@ export async function buildApp(deps: AppDeps) {
     fluxService: deps.fluxService,
     ttsMeter: deps.ttsMeter,
     requestLogService: deps.requestLogService,
+    productEventService: deps.productEventService,
   })
   app.get('/api/v1/audio/speech/ws', upgradeWebSocket(async (c) => {
     const token = c.req.query('token')
@@ -221,7 +225,19 @@ export async function buildApp(deps: AppDeps) {
   // Built once so the OpenAI-compat and audio routers share the same closure
   // (helpers like recordMetrics / recordRequestLog cross both surfaces) but
   // mount at different prefixes — see the `.route` calls below.
-  const v1Routes = createV1Routes(deps.fluxService, deps.billingService, deps.configKV, deps.requestLogService, deps.ttsMeter, deps.llmRouter, deps.otel?.genAi, deps.otel?.revenue, deps.otel?.rateLimit)
+  const v1Routes = createV1Routes({
+    fluxService: deps.fluxService,
+    billingService: deps.billingService,
+    configKV: deps.configKV,
+    requestLogService: deps.requestLogService,
+    productEventService: deps.productEventService,
+    ttsMeter: deps.ttsMeter,
+    llmRouter: deps.llmRouter,
+    voicePackService: deps.voicePackService,
+    genAi: deps.otel?.genAi,
+    revenue: deps.otel?.revenue,
+    rateLimitMetrics: deps.otel?.rateLimit,
+  })
 
   const builtApp = app
     .use('*', sessionMiddleware(deps.auth, deps.env))
@@ -315,6 +331,12 @@ export async function buildApp(deps: AppDeps) {
     }))
 
     /**
+     * Admin dashboard SPA. Auth is enforced by `/api/admin/*`; the bundle
+     * itself is public so unauthenticated users can be redirected cleanly.
+     */
+    .route('/', createAdminUiRoutes(deps.env))
+
+    /**
      * Character routes are handled by the character service.
      */
     .route('/api/v1/characters', createCharacterRoutes(deps.characterService))
@@ -351,7 +373,7 @@ export async function buildApp(deps: AppDeps) {
     /**
      * Stripe routes.
      */
-    .route('/api/v1/stripe', createStripeRoutes(deps.fluxService, deps.stripeService, deps.billingService, deps.configKV, deps.env, deps.redis, deps.otel?.revenue, deps.otel?.rateLimit, deps.posthog))
+    .route('/api/v1/stripe', createStripeRoutes(deps.fluxService, deps.stripeService, deps.billingService, deps.configKV, deps.env, deps.redis, deps.otel?.revenue, deps.otel?.rateLimit, deps.productEventService))
 
     /**
      * Admin routes — guarded by the `adminGuard` role check (`role === 'admin'`,
@@ -370,7 +392,10 @@ export async function buildApp(deps: AppDeps) {
     /**
      * Admin Voice Pack curation routes.
      */
-    .route('/api/admin/voice-packs', createAdminVoicePackRoutes(deps.voicePackService))
+    .route('/api/admin/voice-packs', createAdminVoicePackRoutes({
+      productEventService: deps.productEventService,
+      service: deps.voicePackService,
+    }))
 
     /**
      * Admin LLM router config seeding/patching. Single entry point for
@@ -379,6 +404,16 @@ export async function buildApp(deps: AppDeps) {
      * `routes/admin/config/router/index.ts` for the body shape.
      */
     .route('/api/admin/config/router', createAdminRouterConfigRoutes(deps.adminRouterConfigService))
+
+    /**
+     * Admin dashboard support APIs: user search, balance adjustments, metrics,
+     * and editable LLM router config.
+     */
+    .route('/api/admin', createAdminRoutes({
+      db: deps.db,
+      billingService: deps.billingService,
+      configKV: deps.configKV,
+    }))
 
     /**
      * Catch-all 404 in JSON. Replaces hono's default `text/html` "404 Not
@@ -486,42 +521,9 @@ export async function createApp() {
     }, undefined, dependsOn.otel?.email),
   })
 
-  // Webhook capture path goes through `captureSafe` → `captureImmediate`,
-  // which awaits the HTTP send inline, so individual events never sit in
-  // the background queue. `flush()` + `_shutdown()` on SIGTERM is the belt-
-  // and-suspenders drain for any future call site that uses the regular
-  // `capture()` (which only enqueues).
-  //
-  // NOTICE:
-  // We use the underscore-prefixed `_shutdown` despite its "internal" naming
-  // because the public `shutdown(timeoutMs)` returns void (`types.d.ts:580`)
-  // — there is no way to await its completion. `_shutdown(timeoutMs)` returns
-  // `Promise<void>` (`client.d.ts:934`) and is the only way to ensure the
-  // process doesn't exit while PostHog cleanup is still running. Posthog's
-  // own examples show `await client._shutdown()` as the recommended pattern.
-  const posthog = injeca.provide('services:posthog', {
-    dependsOn: { env: parsedEnv, lifecycle },
-    build: ({ dependsOn }) => {
-      const client = createPostHogClient(dependsOn.env)
-      if (client) {
-        dependsOn.lifecycle.appHooks.onStop(async () => {
-          try {
-            await client.flush()
-          }
-          catch {
-            // Flush failures on shutdown are non-fatal; we lose at most a
-            // few queued events. Fall through to shutdown anyway.
-          }
-          try {
-            await client._shutdown(5000)
-          }
-          catch {
-            // Shutdown errors are also non-fatal during process exit.
-          }
-        })
-      }
-      return client
-    },
+  const productEventService = injeca.provide('services:productEvents', {
+    dependsOn: { db, otel },
+    build: ({ dependsOn }) => createProductEventService(dependsOn.db, dependsOn.otel?.product),
   })
 
   const characterService = injeca.provide('services:characters', {
@@ -535,8 +537,8 @@ export async function createApp() {
   })
 
   const chatService = injeca.provide('services:chats', {
-    dependsOn: { db, otel },
-    build: ({ dependsOn }) => createChatService(dependsOn.db, dependsOn.otel?.engagement),
+    dependsOn: { db, otel, productEventService },
+    build: ({ dependsOn }) => createChatService(dependsOn.db, dependsOn.otel?.engagement, dependsOn.productEventService),
   })
 
   const stripeService = injeca.provide('services:stripe', {
@@ -584,7 +586,7 @@ export async function createApp() {
   })
 
   const auth = injeca.provide('services:auth', {
-    dependsOn: { db, env: parsedEnv, otel, email: emailService, userDeletionService, posthog },
+    dependsOn: { db, env: parsedEnv, otel, email: emailService, userDeletionService, productEventService },
     build: async ({ dependsOn }) => {
       // Seed trusted OIDC clients into DB so FK constraints on oauth_access_token are satisfied
       await seedTrustedClients(dependsOn.db, dependsOn.env)
@@ -597,7 +599,7 @@ export async function createApp() {
           redirectUris: client.redirectUris.join(', '),
         }).log('OIDC trusted client ready')
       }
-      return createAuth(dependsOn.db, dependsOn.env, dependsOn.email, dependsOn.otel?.auth, dependsOn.userDeletionService, dependsOn.posthog)
+      return createAuth(dependsOn.db, dependsOn.env, dependsOn.email, dependsOn.otel?.auth, dependsOn.userDeletionService, dependsOn.productEventService)
     },
   })
 
@@ -707,6 +709,7 @@ export async function createApp() {
     fluxTransactionService,
     requestLogService,
     voicePackService,
+    productEventService,
     stripeService,
     billingService,
     adminFluxGrantsService,
@@ -721,11 +724,11 @@ export async function createApp() {
     userDeletionService,
     llmRouter,
     ttsConcurrencyLedger,
-    posthog,
   })
   // Register the cluster-wide ObservableGauges for sessions / users. Each
-  // replica polls the same DB (cached 10s, in-flight coalesced); dashboards
-  // aggregate with avg(), not sum(). See observability-conventions.md.
+  // replica polls the same DB (cached inside each gauge, in-flight coalesced);
+  // dashboards aggregate with avg()/max(), not sum(). See
+  // observability-conventions.md.
   //
   // Both gauges share the same `session` table: `user.active_sessions` is
   // `COUNT(*)` (row inflation prone), `user.distinct_active` is
@@ -733,6 +736,7 @@ export async function createApp() {
   // surfaces session-row leakage from missing GC + per-OIDC-token row
   // creation.
   if (resolved.otel) {
+    registerTotalUsersGauge(resolved.otel.auth.totalUsers, resolved.db, resolved.otel.observability.metricReadErrors)
     registerActiveSessionsGauge(resolved.otel.auth.activeSessions, resolved.db, resolved.otel.observability.metricReadErrors)
     registerDistinctActiveUsersGauge(resolved.otel.auth.distinctActiveUsers, resolved.db, resolved.otel.observability.metricReadErrors)
     registerRollingActiveUsersGauge(resolved.otel.auth.rollingActiveUsers, resolved.db, resolved.otel.observability.metricReadErrors)
@@ -755,6 +759,7 @@ export async function createApp() {
     adminUsersService: resolved.adminUsersService,
     ttsMeter: resolved.ttsMeter,
     requestLogService: resolved.requestLogService,
+    productEventService: resolved.productEventService,
     configKV: resolved.configKV,
     envelopeCrypto: resolved.envelopeCrypto,
     redis: resolved.redis,
@@ -762,7 +767,6 @@ export async function createApp() {
     otel: resolved.otel,
     userDeletionService: resolved.userDeletionService,
     llmRouter: resolved.llmRouter,
-    posthog: resolved.posthog,
   })
 
   logger.withFields({ hostname: resolved.env.HOST, port: resolved.env.PORT }).log('Server started')

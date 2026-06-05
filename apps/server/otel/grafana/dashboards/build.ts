@@ -39,6 +39,7 @@ const SCHEMA_VERSION = '13.0.0-23630096546'
 // Service / env filter applied to every Prom query. Pulled into a helper so
 // the variable name only appears once.
 const SERVICE_FILTER = 'service_name=~"$service", deployment_environment=~"$env"'
+const PRODUCT_EVENT_FILTER = `${SERVICE_FILTER}, feature!="", action!=""`
 
 // Build-script local types. Kept loose — Grafana owns the schema, and we
 // validate the rendered JSON by re-importing it into Grafana, not by typing.
@@ -447,9 +448,12 @@ const elements: Record<string, unknown> = {}
 // range the viewer picked. Trends live in their own rows below.
 elements['panel-1'] = statPanel(
   1,
-  'New Users 24h',
-  'Rolling 24h `increase(user.registered)` — counts the Better Auth `databaseHooks.user.create.after` fires over the last 24 hours. The signup half of the funnel; the returning-user half is DAU / WAU / MAU in the Users & Engagement row.',
-  [query(`sum(increase(user_registered_total{${SERVICE_FILTER}}[24h]))`, 'new users')],
+  'Total Users',
+  'Current Better Auth user table size from `user.total` (cluster-wide DB gauge, aggregate with `max()`) plus rolling 24h signup delta from `increase(user.registered)`. Use the delta as today/new-user growth, and DAU / WAU / MAU below for returning-user engagement.',
+  [
+    query(`max(user_total{${SERVICE_FILTER}})`, 'total users', 'A'),
+    query(`sum(increase(user_registered_total{${SERVICE_FILTER}}[24h]))`, 'new today', 'B'),
+  ],
   { unit: 'short', variant: 'count' },
 )
 
@@ -523,6 +527,56 @@ elements['panel-92'] = timeseriesPanel(
   { unit: 'short', fillOpacity: 30 },
 )
 
+// --- Product Analytics — event-volume view only ---------------------------
+// Prometheus deliberately does not carry user_id. These panels answer
+// "which product actions are happening and failing"; DB-side product_events
+// queries answer "how many distinct users used each feature".
+elements['panel-95'] = statPanel(
+  95,
+  'Product Events (range)',
+  'Total first-party product analytics events over the dashboard range. This is event volume, not distinct users — distinct-user counts come from the Postgres `product_events` table.',
+  [
+    query(`sum(increase(airi_product_events_total{${PRODUCT_EVENT_FILTER}}[$__range]))`, 'events'),
+  ],
+  { unit: 'short', variant: 'count', noValue: '0', graphMode: 'none' },
+)
+
+elements['panel-96'] = gaugePanel(
+  96,
+  'Product Failure %',
+  'Failed product events ÷ all product events over the dashboard range. Uses only bounded labels (`feature`, `action`, `status`, `source`); no user/session/request identifiers are present in Prometheus.',
+  [query(
+    `100 * sum(increase(airi_product_events_total{${PRODUCT_EVENT_FILTER}, status="failed"}[$__range])) / clamp_min(sum(increase(airi_product_events_total{${PRODUCT_EVENT_FILTER}}[$__range])), 1)`,
+    'failed %',
+  )],
+  { steps: [{ color: 'green', value: 0 }, { color: 'yellow', value: 2 }, { color: 'red', value: 10 }], max: 20, decimals: 2, noValue: '0' },
+)
+
+elements['panel-97'] = barGaugePanel(
+  97,
+  'Top Product Actions (range)',
+  'Top product actions by event count over the dashboard range. Use this to see which features are actually being exercised after deployment; pair with DB `count(distinct user_id)` for user counts.',
+  [query(
+    `topk(12, sum by (feature, action, status) (increase(airi_product_events_total{${PRODUCT_EVENT_FILTER}}[$__range])))`,
+    '{{feature}} · {{action}} · {{status}}',
+    'A',
+    PROM,
+    { instant: true },
+  )],
+  { unit: 'short', noValue: '0' },
+)
+
+elements['panel-98'] = timeseriesPanel(
+  98,
+  'Product Event Rate',
+  'Product event rate by feature/action/status. This is the Prometheus-safe trend view; user-level analysis remains in Postgres `product_events`.',
+  [query(
+    `sum by (feature, action, status) (rate(airi_product_events_total{${PRODUCT_EVENT_FILTER}}[$__rate_interval]))`,
+    '{{feature}} · {{action}} · {{status}}',
+  )],
+  { unit: 'eps', fillOpacity: 15 },
+)
+
 // --- Row 2: HTTP — traffic ranking, error trend, latency trend -------------
 elements['panel-16'] = barGaugePanel(
   16,
@@ -571,7 +625,7 @@ elements['panel-94'] = timeseriesPanel(
   { unit: 'short' },
 )
 
-// --- Row 3: LLM Gateway — request mix, latency, billed usage ---------------
+// --- Row 3: LLM Gateway — request mix + latency ----------------------------
 elements['panel-11'] = timeseriesPanel(
   11,
   'LLM Request Rate by Model',
@@ -594,13 +648,53 @@ elements['panel-21'] = timeseriesPanel(
   { unit: 's' },
 )
 
-elements['panel-72'] = timeseriesPanel(
-  72,
-  'LLM Flux Consumed by Model',
-  'Normal flux debited per LLM request, by model (flux/sec). The billed-usage counterpart to panel-43 (⚠ Flux Unbilled): together they show what was charged vs what leaked. A model trending up here without matching request-rate growth means per-call cost rose.',
+// --- Row: Provider Upstreams — our gateway's view of each upstream so the
+// per-provider consoles (OpenRouter / Volcengine 豆包 / DashScope 阿里) don't
+// have to be checked one by one. `provider` is the upstream the router
+// actually used (winning upstream on success, last-tried on exhaustion);
+// it's the URL hostname, so legends read e.g. `openrouter.ai`,
+// `dashscope.aliyuncs.com`. Note: provider-only truths (real $ spend, account
+// quota / balance) are NOT here — those need the provider billing APIs.
+elements['panel-66'] = timeseriesPanel(
+  66,
+  'Requests/s by Provider',
+  'Outbound request rate to each upstream provider (chat + tts), as our gateway sees it. The RPM / 调用次数 screens on the provider consoles, unified. provider = upstream hostname the router used.',
   [query(
-    `sum by (gen_ai_request_model) (rate(airi_billing_flux_consumed_total{${SERVICE_FILTER}, gen_ai_request_model!=""}[$__rate_interval]))`,
-    '{{gen_ai_request_model}}',
+    `sum by (provider) (rate(gen_ai_client_operation_count_total{${SERVICE_FILTER}, provider!=""}[$__rate_interval]))`,
+    '{{provider}}',
+  )],
+  { unit: 'reqps' },
+)
+
+elements['panel-67'] = timeseriesPanel(
+  67,
+  'Provider Latency P95',
+  'P95 upstream call duration per provider (chat + tts), across models. Mirrors each provider console\'s 调用时长 p95/p99 panel — but here every provider is on one axis.',
+  [query(
+    `histogram_quantile(0.95, sum by (le, provider) (rate(gen_ai_client_operation_duration_seconds_bucket{${SERVICE_FILTER}, provider!=""}[$__rate_interval])))`,
+    '{{provider}}',
+  )],
+  { unit: 's' },
+)
+
+elements['panel-68'] = timeseriesPanel(
+  68,
+  'Provider Failure %',
+  '4xx + 5xx ÷ all requests per provider, our side of the call. Matches each provider 失败率 panel. Pair with Upstream Errors by Status Code (LLM Router Health) to see which codes drive it.',
+  [query(
+    `100 * sum by (provider) (rate(gen_ai_client_operation_count_total{${SERVICE_FILTER}, provider!="", http_response_status_code=~"4..|5.."}[$__rate_interval])) / clamp_min(sum by (provider) (rate(gen_ai_client_operation_count_total{${SERVICE_FILTER}, provider!=""}[$__rate_interval])), 1)`,
+    '{{provider}}',
+  )],
+  { unit: 'percent' },
+)
+
+elements['panel-69'] = timeseriesPanel(
+  69,
+  'TTS Characters/s by Model',
+  'Billed TTS characters per second by model (from `airi.billing.tts.chars`). The 用量统计「字数」screen on the TTS consoles (豆包 / 阿里), unified. Integrate over the range for a window total.',
+  [query(
+    `sum by (model) (rate(airi_billing_tts_chars_total{${SERVICE_FILTER}}[$__rate_interval]))`,
+    '{{model}}',
   )],
   { unit: 'short' },
 )
@@ -814,6 +908,15 @@ const rows = [
     item('panel-81', 8, 0, 8, 4),
     item('panel-82', 16, 0, 8, 4),
   ]),
+  // Row 3: Product Analytics — Prom-safe event volume and failure trend.
+  // Distinct-user analytics stay in Postgres `product_events`; this row
+  // intentionally never uses user_id/session/request labels.
+  row('Product Analytics', [
+    item('panel-95', 0, 0, 6, 5),
+    item('panel-96', 6, 0, 6, 5),
+    item('panel-97', 12, 0, 12, 9),
+    item('panel-98', 0, 5, 12, 4),
+  ]),
   // Row 3: HTTP — full-width error breakdown on top, then traffic ranking +
   // latency trend side by side.
   row('HTTP', [
@@ -821,11 +924,18 @@ const rows = [
     item('panel-16', 0, 8, 7, 11),
     item('panel-20', 7, 8, 17, 11),
   ]),
-  // Row 4: LLM gateway — billed flux + latency side by side, request mix below.
+  // Row 4: LLM gateway — request mix + latency side by side.
   row('LLM Gateway', [
-    item('panel-72', 0, 0, 13, 8),
-    item('panel-21', 13, 0, 11, 8),
-    item('panel-11', 0, 8, 24, 8),
+    item('panel-11', 0, 0, 12, 8),
+    item('panel-21', 12, 0, 12, 8),
+  ]),
+  // Row 5: Provider Upstreams — per-provider rollup so the vendor consoles
+  // don't have to be opened one by one. Four wide, one screen line.
+  row('Provider Upstreams', [
+    item('panel-66', 0, 0, 6, 7),
+    item('panel-67', 6, 0, 6, 7),
+    item('panel-68', 12, 0, 6, 7),
+    item('panel-69', 18, 0, 6, 7),
   ]),
   // Row 4: token totals + throughput + the two revenue/quality alert stats.
   row('LLM Tokens & Quality', [
@@ -929,13 +1039,15 @@ const variables = [
  *   1. Service Health — signup/sessions/WS counts, req-rate, 5xx, status-code
  *      heatmap, live WS trend: "is anything broken right now?"
  *   2. User Engagement — rolling DAU/WAU/MAU from user.last_seen_at
- *   3. HTTP — error breakdown by route, request ranking, latency by route
- *   4. LLM Gateway — billed flux, latency (TTFB + end-to-end), request mix
- *   5. LLM Tokens & Quality — token totals/throughput, revenue-leak alerts
- *   6. LLM Router Health — key/decrypt/fallback "wake someone up" signals
- *   7. Business — Stripe / Flux money flow
- *   8. Infrastructure (collapsed) — DB / runtime health for triage
- *   9. Logs — Loki for live debugging
+ *   3. Product Analytics — Prom-safe product event volume + failure trend
+ *   4. HTTP — error breakdown by route, request ranking, latency by route
+ *   5. LLM Gateway — per-model request rate + latency (TTFB + end-to-end)
+ *   6. Provider Upstreams — per-provider rate/latency/failure + TTS chars
+ *   7. LLM Tokens & Quality — token totals/throughput, revenue-leak alerts
+ *   8. LLM Router Health — key/decrypt/fallback "wake someone up" signals
+ *   9. Business — Stripe / Flux money flow
+ *  10. Infrastructure (collapsed) — DB / runtime health for triage
+ *  11. Logs — Loki for live debugging
  *
  * One metric, one panel: we deliberately do not duplicate a metric across
  * stat/trend/bar/pie forms. Counter conventions: rate() for "now" trends,
@@ -973,7 +1085,7 @@ const dashboard = {
   preload: false,
   tags: ['airi', 'observability', 'grafana-cloud'],
   timeSettings: {
-    autoRefresh: '',
+    autoRefresh: '30s',
     autoRefreshIntervals: ['5s', '10s', '30s', '1m', '5m', '15m', '30m', '1h', '2h', '1d'],
     fiscalYearStartMonth: 0,
     from: 'now-1h',

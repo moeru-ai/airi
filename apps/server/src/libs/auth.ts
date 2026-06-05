@@ -1,7 +1,6 @@
-import type { PostHog } from 'posthog-node'
-
 import type { AuthMetrics } from '../otel'
 import type { EmailService } from '../services/adapters/email'
+import type { ProductEventService } from '../services/domain/product-events'
 import type { UserDeletionService } from '../services/domain/user-deletion'
 import type { Database } from './db'
 import type { Env } from './env'
@@ -9,6 +8,7 @@ import type { Env } from './env'
 import { Buffer } from 'node:buffer'
 
 import { oauthProvider } from '@better-auth/oauth-provider'
+import { useLogger } from '@guiiai/logg'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { createAuthMiddleware } from 'better-auth/api'
@@ -16,12 +16,13 @@ import { deleteSessionCookie } from 'better-auth/cookies'
 import { admin, bearer, jwt, magicLink } from 'better-auth/plugins'
 import { eq } from 'drizzle-orm'
 
-import { captureSafe } from '../services/adapters/posthog'
 import { ApiError } from '../utils/error'
 import { getAuthTrustedOrigins, getTrustedOrigin } from '../utils/origin'
 import { oidcJwtBearer } from './auth-plugins/oidc-jwt-bearer'
 
 import * as authSchema from '../schemas/accounts'
+
+const logger = useLogger('auth').useGlobalConfig()
 
 interface TrustedClientSeed {
   clientId: string
@@ -364,7 +365,7 @@ export function createAuth(
   email?: EmailService,
   metrics?: AuthMetrics | null,
   userDeletionService?: UserDeletionService,
-  posthog?: PostHog | null,
+  productEventService?: ProductEventService,
 ) {
   return betterAuth({
     secret: env.BETTER_AUTH_SECRET,
@@ -663,9 +664,12 @@ export function createAuth(
         create: {
           after: async (user) => {
             metrics?.userRegistered.add(1)
-            await captureSafe(posthog ?? null, {
-              event: 'user_signed_up',
-              distinctId: user.id,
+            void productEventService?.track({
+              userId: user.id,
+              feature: 'auth',
+              action: 'user_signed_up',
+              status: 'succeeded',
+              source: 'better-auth.user.create',
             })
           },
         },
@@ -697,13 +701,19 @@ export function createAuth(
           // `after` hook for last-seen / analytics.
           after: async (session) => {
             metrics?.userLogin.add(1)
-            await db
+            // Best-effort analytics: session creation must not fail because
+            // active-user reporting is degraded.
+            void db
               .update(authSchema.user)
               .set({ lastSeenAt: new Date() })
               .where(eq(authSchema.user.id, session.userId))
-            await captureSafe(posthog ?? null, {
-              event: 'session_started',
-              distinctId: session.userId,
+              .catch(err => logger.withError(err).withFields({ userId: session.userId }).warn('Failed to update user lastSeenAt; continuing session create'))
+            void productEventService?.track({
+              userId: session.userId,
+              feature: 'auth',
+              action: 'session_started',
+              status: 'succeeded',
+              source: 'better-auth.session.create',
             })
           },
         },

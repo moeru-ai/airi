@@ -6,6 +6,7 @@ on:
       - 'main'
     paths:
       - 'apps/ui-server-auth/**'
+      - 'apps/ui-admin/**'
   workflow_dispatch:
 
 jobs:
@@ -20,8 +21,14 @@ jobs:
         include:
           - assets_name: ui-server-auth
             build_directory: ./apps/server/public/ui-server-auth
+            dockerfile: ./apps/ui-server-auth/Dockerfile
             build_command: |
               pnpm -F @proj-airi/ui-server-auth run build
+          - assets_name: ui-admin
+            build_directory: ./apps/server/public/ui-admin
+            dockerfile: ./apps/ui-admin/Dockerfile
+            build_command: |
+              pnpm -F @proj-airi/ui-admin run build
     steps:
       # Why?
       #
@@ -68,8 +75,8 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/build-push-action@v6
         with:
-          context: ./apps/server/public/ui-server-auth
-          file: ./apps/ui-server-auth/Dockerfile
+          context: ${{ matrix.build_directory }}
+          file: ${{ matrix.dockerfile }}
           build-args: |
             VITE_ENABLE_POSTHOG=true
           platforms: linux/amd64,linux/arm64,linux/arm64/v8

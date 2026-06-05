@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://tests/material-rendering-check/materialRenderingCheck.gd" id="1_n1afi"]
+
+[node name="MaterialRenderingCheck" type="Node"]
+script = ExtResource("1_n1afi")

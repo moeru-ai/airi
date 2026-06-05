@@ -150,13 +150,17 @@ describe('buildAzureSlice', () => {
       kind: 'azure',
       modelName: 'microsoft/v1',
       region: 'eastasia',
+      defaultVoice: 'en-US-AvaMultilingualNeural',
       plaintextKey: 'azure-key',
     }, envelope)
 
     expect(built.kind).toBe('azure')
     expect(built.model.provider).toBe('azure')
     expect(built.model.upstreams[0].baseURL).toBe('https://eastasia.tts.speech.microsoft.com/cognitiveservices/v1')
-    expect(built.model.upstreams[0].adapterParams).toEqual({ region: 'eastasia' })
+    expect(built.model.upstreams[0].adapterParams).toEqual({
+      region: 'eastasia',
+      defaultVoice: 'en-US-AvaMultilingualNeural',
+    })
 
     const decrypted = envelope.decryptKey(built.model.upstreams[0].keys[0].ciphertext, {
       modelName: 'microsoft/v1',

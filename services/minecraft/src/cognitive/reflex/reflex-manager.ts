@@ -9,8 +9,32 @@ import type { ReflexContextState } from './context'
 import { computed, effect, signal } from 'alien-signals'
 
 import { DebugService } from '../../debug'
+import { autoEatBehavior } from './behaviors/auto-eat'
+import { defendBehavior } from './behaviors/defend'
+import { escapeHazardBehavior } from './behaviors/escape-hazard'
 import { idleGazeBehavior } from './behaviors/idle-gaze'
 import { ReflexRuntime } from './runtime'
+
+/**
+ * Whether a perception signal should wake the conscious brain.
+ *
+ * - `entity_attention` (movement/punch attention) is handled entirely by reflex behaviors → never
+ *   forwarded.
+ * - While the bot is actively attacking (`isAttacking`), routine `damage` signals are suppressed so
+ *   the brain does not re-plan on every incoming hit and `stop` its own attack — the combat-thrashing
+ *   that got it killed against a kiting pillager. Critical health still reaches the brain via the
+ *   separate `low_health` signal (action !== 'damage'), so it can still choose to retreat.
+ */
+export function shouldForwardSignalToConscious(
+  signal: Pick<PerceptionSignal, 'type' | 'metadata'>,
+  isAttacking: boolean,
+): boolean {
+  if (signal.type === 'entity_attention')
+    return false
+  if (isAttacking && signal.metadata?.action === 'damage')
+    return false
+  return true
+}
 
 export class ReflexManager {
   private bot: MineflayerWithAgents | null = null
@@ -32,6 +56,9 @@ export class ReflexManager {
       logger: this.deps.logger,
     })
 
+    this.runtime.registerBehavior(escapeHazardBehavior)
+    this.runtime.registerBehavior(defendBehavior)
+    this.runtime.registerBehavior(autoEatBehavior)
     this.runtime.registerBehavior(idleGazeBehavior)
 
     effect(() => {
@@ -188,8 +215,11 @@ export class ReflexManager {
   }
 
   private shouldForwardToConscious(signal: PerceptionSignal): boolean {
-    // Keep conscious layer focused on higher-level / decision-relevant signals.
-    // entity_attention (e.g. movement/punch attention) is handled by Reflex behaviors.
-    return signal.type !== 'entity_attention'
+    return shouldForwardSignalToConscious(signal, this.isAttacking())
+  }
+
+  /** mineflayer-pvp sets `bot.pvp.target` while the bot is actively attacking an entity. */
+  private isAttacking(): boolean {
+    return Boolean((this.bot?.bot as any)?.pvp?.target)
   }
 }

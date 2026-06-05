@@ -225,6 +225,7 @@ async function generateTestSpeech() {
             pitch: ssmlEnabled.value ? pitch.value : undefined,
           },
           params: voicePack?.params,
+          voicePack,
           forceSSML: ssmlEnabled.value,
           supportsSSML: speechStore.supportsSSML,
           supportsAdapterProsody: activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID,
