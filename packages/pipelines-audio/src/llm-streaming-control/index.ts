@@ -5,6 +5,20 @@ export type {
   StreamingControlEmotion,
   StreamingControlEmotionPayload,
 } from './payloads'
+export {
+  createStreamingControlTurnPlanner,
+  planStreamingControlTurn,
+} from './turn-plan'
+export type {
+  StreamingControlSourceRange,
+  StreamingControlTurnPlan,
+  StreamingControlTurnPlanDiagnostic,
+  StreamingControlTurnPlanner,
+  StreamingControlTurnPlanOptions,
+  StreamingControlTurnPlanSummary,
+  StreamingControlTurnSegment,
+  StreamingControlTurnSignal,
+} from './turn-plan'
 export type {
   LlmStreamingControl,
   LlmStreamingControlCallContext,
