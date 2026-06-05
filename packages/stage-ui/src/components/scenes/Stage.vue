@@ -11,7 +11,7 @@ import { sleep } from '@moeru/std'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import { createPlaybackManager, createSpeechPipeline, normalizeActPayload } from '@proj-airi/pipelines-audio'
-import { Live2DScene, useLive2dParams } from '@proj-airi/stage-ui-live2d'
+import { Live2DScene, useExpressionStore, useLive2dParams } from '@proj-airi/stage-ui-live2d'
 import { SpineScene } from '@proj-airi/stage-ui-spine'
 import { ThreeScene } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
@@ -31,6 +31,7 @@ import { useDuckDb } from '../../composables/use-duck-db'
 import { useIOTraceBridge } from '../../composables/use-io-trace-bridge'
 import { initIOTracer } from '../../composables/use-io-tracer'
 import { useSpeechPipelineAnalytics } from '../../composables/use-speech-pipeline-analytics'
+import { EMOTION_EXPRESSION_MAPPINGS, STANDARD_EXP_CONVENTION } from '../../constants/emotion-expression-mappings'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { getDefaultStreamingModel, getDefinedProvider } from '../../libs/providers/providers'
 import { createStageTtsSession } from '../../libs/speech/tts-session'
@@ -135,6 +136,8 @@ const backgroundStore = useBackgroundStore()
 const { activeBackgroundUrl } = storeToRefs(backgroundStore)
 
 const { currentMotion } = storeToRefs(useLive2dParams())
+const expressionStore = useExpressionStore()
+const currentExpressionGroup = ref<string | undefined>(undefined)
 
 const emotionsQueue = createQueue<EmotionPayload>({
   handlers: [
@@ -148,7 +151,25 @@ const emotionsQueue = createQueue<EmotionPayload>({
         await vrmViewerRef.value!.setExpression(value, ctx.data.intensity)
       }
       else if (stageModelRenderer.value === 'live2d') {
-        currentMotion.value = { group: EMOTION_EmotionMotionName_value[ctx.data.name] }
+        // Resolve expression group name: per-model override → standard convention → skip
+        const perModelOverride = EMOTION_EXPRESSION_MAPPINGS[stageModelSelected.value]
+        const exprName = (perModelOverride && perModelOverride[ctx.data.name])
+          ?? STANDARD_EXP_CONVENTION[ctx.data.name]
+        // Always clear the previous group first so stale parameters don't accumulate,
+        // even when the incoming emotion has no mapped group on this model.
+        if (currentExpressionGroup.value && currentExpressionGroup.value !== exprName) {
+          expressionStore.set(currentExpressionGroup.value, false)
+          currentExpressionGroup.value = undefined
+        }
+        if (exprName && expressionStore.expressionGroups.has(exprName)) {
+          // Pass intensity directly so subtle ACT expressions render at the requested
+          // strength rather than always at full value; mirrors VRM/Spine behaviour.
+          expressionStore.set(exprName, ctx.data.intensity)
+          currentExpressionGroup.value = exprName
+        }
+        // Only update motion when the ACT token did not carry an explicit motion cue.
+        if (!ctx.data.skipMotion)
+          currentMotion.value = { group: EMOTION_EmotionMotionName_value[ctx.data.name] }
       }
       else if (stageModelRenderer.value === 'spine') {
         spineSceneRef.value?.setEmotion(ctx.data.name, ctx.data.intensity)
@@ -187,18 +208,19 @@ function toStageEmotionPayload(payload: { name: string, intensity: number }): Em
 chatHookCleanups.push(streamingControl.onSignal(async (signal) => {
   if (signal.type === 'act') {
     const act = normalizeActPayload(signal.payload)
-    if (act.motion && stageModelRenderer.value === 'live2d') {
+    const hasExplicitMotion = !!(act.motion && stageModelRenderer.value === 'live2d')
+    if (hasExplicitMotion) {
       currentMotion.value = { group: act.motion }
-      return
     }
     if (act.emotion) {
       const emotion = toStageEmotionPayload(act.emotion)
-      if (!emotion)
+      if (!emotion) {
         return
+      }
 
-      // eslint-disable-next-line no-console
-      console.debug('emotion detected', emotion)
-      emotionsQueue.enqueue(emotion)
+      // When an explicit motion was already applied, tell the queue handler not to
+      // overwrite it with the emotion-derived motion group.
+      emotionsQueue.enqueue({ ...emotion, skipMotion: hasExplicitMotion })
     }
     return
   }
