@@ -197,7 +197,11 @@ interface ErrorBurstGuardState {
 }
 
 function truncateForPrompt(value: string, maxLength = 220): string {
-  return value.length <= maxLength ? value : `${value.slice(0, maxLength - 1)}...`
+  // NOTICE: callers can pass undefined despite the `string` type — a successful action with no return
+  // value hits `JSON.stringify(undefined) === undefined` upstream, which previously crashed the whole
+  // brain turn here with "Cannot read properties of undefined (reading 'length')". Coerce defensively.
+  const text = typeof value === 'string' ? value : String(value ?? '')
+  return text.length <= maxLength ? text : `${text.slice(0, maxLength - 1)}...`
 }
 
 function stringifyForLog(value: unknown): string {
@@ -236,6 +240,27 @@ const ERROR_BURST_WINDOW_TURNS = 5
 const MAX_EVENT_QUEUE_LENGTH = 256
 const MAX_CONSECUTIVE_HIGH_PRIORITY_TURNS = 8
 const PAUSE_ABORT_ERROR_NAME = 'AbortError'
+
+/**
+ * Turn a cryptic sandbox runtime error into actionable guidance the LLM can act on next turn.
+ *
+ * The dominant recurring failure is reading a coordinate (`.x`/`.y`/`.z`/`.pos`) off a query result
+ * that was `null` — e.g. `query.entities().whereName("pig").first().pos.x` when no pig was found.
+ * The raw message ("Cannot read properties of undefined (reading 'x')") gave the model nothing to
+ * fix, so it would repeat the same crash for several turns and then give up. Appending the concrete
+ * fix lets it recover in one turn.
+ *
+ * Before:
+ * - "Cannot read properties of undefined (reading 'x')"
+ * After:
+ * - "...reading 'x') — 你读取了不存在对象的坐标。query 的 .first() 找不到时是 null,先判空… "
+ */
+function augmentDecisionError(message: string): string {
+  if (/Cannot read properties of (?:undefined|null) \(reading '(?:[xyz]|pos|position|location)'\)/.test(message)) {
+    return `${message} — 你读取了一个不存在对象的坐标。query.entities()/query.blocks() 的 .first() 在没找到目标时返回 null,直接读它的 .pos/.x 就会这样崩。修法:先判空再读,例如 const t = query.entities().whereName("pig").first(); if (!t) { await chat({ message: "附近没有目标,我换个方向找找", feedback: false }) } else { await goToCoordinate({ x: t.pos.x, y: t.pos.y, z: t.pos.z, closeness: 1 }) }。提示:杀动物直接用 attack({ type: "pig" }) 击杀最近的,通常根本不用手动查坐标。`
+  }
+  return message
+}
 
 function getEventPriority(event: BotEvent): number {
   if (event.type === 'perception') {
@@ -1773,8 +1798,8 @@ export class Brain {
     // Update state after consuming difference
     this.lastContextView = contextView
 
-    // 2. Prepare System Prompt (static)
-    const systemPrompt = generateBrainSystemPrompt(this.deps.taskExecutor.getAvailableActions())
+    // 2. Prepare System Prompt (static + bound master identity)
+    const systemPrompt = generateBrainSystemPrompt(this.deps.taskExecutor.getAvailableActions(), { masterUsername: config.bot.masterUsername })
     this.currentInputEnvelope = {
       id: turnId,
       turnId,
@@ -2172,18 +2197,19 @@ export class Brain {
         },
       })
       this.maybeActivateErrorBurstGuard(bot, event, turnId)
+      const augmentedError = augmentDecisionError(toErrorMessage(err))
       this.debugService.emit('debug:repl_result', {
         source: 'llm',
         code: result,
         logs: [],
         actions: [],
-        error: toErrorMessage(err),
+        error: augmentedError,
         durationMs: 0,
         timestamp: Date.now(),
       })
       void this.enqueueEvent(bot, {
         type: 'feedback',
-        payload: { status: 'failure', error: toErrorMessage(err) },
+        payload: { status: 'failure', error: augmentedError },
         source: { type: 'system', id: 'brain' },
         timestamp: Date.now(),
       })
