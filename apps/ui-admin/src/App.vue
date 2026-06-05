@@ -19,6 +19,7 @@ const navItems = [
   { to: '/users', icon: 'i-lucide-users', label: 'Users' },
   { to: '/flux', icon: 'i-lucide-coins', label: 'Flux' },
   { to: '/llm-router', icon: 'i-lucide-route', label: 'LLM Router' },
+  { to: '/voice-packs', icon: 'i-lucide-volume-2', label: 'Voice Packs' },
 ]
 
 const currentTitle = computed(() => navItems.find(item => item.to === route.path)?.label ?? 'Overview')

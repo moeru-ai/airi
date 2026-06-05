@@ -6,6 +6,8 @@ import type { UnElevenLabsOptions } from 'unspeech'
 
 import type { EmotionPayload } from '../../constants/emotions'
 import type { SpeechTransport, StageTtsSession, StreamingSessionSnapshot } from '../../libs/speech/tts-session'
+import type { VoicePackSnapshot } from '../../stores/modules/airi-card'
+import type { VoiceInfo } from '../../stores/providers'
 
 import { sleep } from '@moeru/std'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
@@ -33,6 +35,7 @@ import { initIOTracer } from '../../composables/use-io-tracer'
 import { useSpeechPipelineAnalytics } from '../../composables/use-speech-pipeline-analytics'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { getDefaultStreamingModel, getDefinedProvider } from '../../libs/providers/providers'
+import { OFFICIAL_SPEECH_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { createStageTtsSession } from '../../libs/speech/tts-session'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useBackgroundStore } from '../../stores/background'
@@ -306,6 +309,18 @@ const playbackManager = createPlaybackManager<AudioBuffer>({
   ownerOverflowPolicy: 'steal-oldest',
 })
 
+function createVoicePackVoice(voicePack: VoicePackSnapshot): VoiceInfo {
+  return {
+    id: voicePack.voiceId,
+    name: voicePack.name,
+    description: voicePack.name,
+    previewURL: '',
+    languages: [{ code: 'en', title: 'English' }],
+    provider: activeSpeechProvider.value,
+    gender: 'neutral',
+  }
+}
+
 const speechPipeline = createSpeechPipeline<AudioBuffer>({
   tts: async (request, signal) => {
     if (signal.aborted)
@@ -387,20 +402,37 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
       }
     }
 
+    const voicePack = activeCard.value?.extensions.airi.modules.speech.voicePack
+    if (voicePack) {
+      model = voicePack.ttsModelId
+      if (!voice || voice.id !== voicePack.voiceId)
+        voice = createVoicePackVoice(voicePack)
+    }
+
     if (!model || !voice)
       return null
 
-    const input = ssmlEnabled.value
-      ? speechStore.generateSSML(request.text, voice, { ...providerConfig, pitch: pitch.value })
-      : request.text
-
     try {
+      const speechRequest = speechStore.resolveVoicePackSpeechInput({
+        text: request.text,
+        voice,
+        providerConfig: {
+          ...providerConfig,
+          pitch: ssmlEnabled.value ? pitch.value : undefined,
+        },
+        params: voicePack?.params,
+        voicePack,
+        forceSSML: ssmlEnabled.value,
+        supportsSSML: speechStore.supportsSSML,
+        supportsAdapterProsody: activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID,
+      })
+
       // Non-streaming providers only: synth via REST. Streaming provider
       // was already early-returned above; it owns its own ws path opened
       // in `onBeforeMessageComposed`.
       const res = await generateSpeech({
-        ...provider.speech(model, providerConfig),
-        input,
+        ...provider.speech(model, speechRequest.providerConfig),
+        input: speechRequest.input,
         voice: voice.id,
       })
 

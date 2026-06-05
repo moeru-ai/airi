@@ -64,6 +64,37 @@ export interface AdminRouterConfigResult {
   preview: Record<string, unknown>
 }
 
+export interface VoicePackParams {
+  [key: string]: string | number | boolean | null
+}
+
+export interface VoicePack {
+  id: string
+  name: string
+  description: string | null
+  provider: string
+  model: string
+  voiceId: string
+  ttsModelId: string
+  params: VoicePackParams
+  costMultiplier: number
+  enabled: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface VoicePackPayload {
+  name: string
+  description?: string
+  provider: string
+  model: string
+  voiceId: string
+  ttsModelId: string
+  params?: VoicePackParams
+  costMultiplier: number
+  enabled?: boolean
+}
+
 export class AdminApiError extends Error {
   constructor(
     message: string,
@@ -170,5 +201,20 @@ export const adminApi = {
     adminFetch<AdminRouterConfigResult>('/config/router', {
       method: 'POST',
       body: JSON.stringify({ ...body, dryRun }),
+    }),
+  voicePacks: () => adminFetch<VoicePack[]>('/voice-packs'),
+  createVoicePack: (body: VoicePackPayload) =>
+    adminFetch<VoicePack>('/voice-packs', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  updateVoicePack: (id: string, body: Partial<VoicePackPayload>) =>
+    adminFetch<VoicePack>(`/voice-packs/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+  disableVoicePack: (id: string) =>
+    adminFetch<VoicePack>(`/voice-packs/${encodeURIComponent(id)}/disable`, {
+      method: 'POST',
     }),
 }

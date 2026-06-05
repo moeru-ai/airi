@@ -10,6 +10,7 @@ import FluxPage from './pages/FluxPage.vue'
 import LlmRouterPage from './pages/LlmRouterPage.vue'
 import OverviewPage from './pages/OverviewPage.vue'
 import UsersPage from './pages/UsersPage.vue'
+import VoicePacksPage from './pages/VoicePacksPage.vue'
 
 import '@proj-airi/font-chillroundm/index.css'
 import '@unocss/reset/tailwind.css'
@@ -24,6 +25,7 @@ const router = createRouter({
     { path: '/users', component: UsersPage },
     { path: '/flux', component: FluxPage },
     { path: '/llm-router', component: LlmRouterPage },
+    { path: '/voice-packs', component: VoicePacksPage },
   ],
 })
 

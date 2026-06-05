@@ -2,7 +2,7 @@ import type { Voice } from 'unspeech'
 
 import type { TtsAdapter, TtsAdapterContext, TtsInput, TtsResult, TtsVoiceCatalogContext } from './types'
 
-import { createInternalError } from '../../../utils/error'
+import { createBadRequestError, createInternalError } from '../../../utils/error'
 import { nanoid } from '../../../utils/id'
 import { listVoicesViaUnSpeech, sendSpeechViaUnSpeech } from './unspeech'
 
@@ -58,6 +58,12 @@ export const volcengineAdapter: TtsAdapter = {
       : undefined
 
     const voice = input.voice ?? DEFAULT_VOLCENGINE_VOICE
+    if (typeof input.extraOptions?.pitch === 'number' || typeof input.extraOptions?.volume === 'number') {
+      throw createBadRequestError(
+        'volcengine does not support Voice Pack pitch or volume parameters',
+        'BAD_REQUEST',
+      )
+    }
     const encoding = input.responseFormat ?? DEFAULT_VOLCENGINE_FORMAT
     const speed = input.speed ?? 1
 

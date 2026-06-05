@@ -20,6 +20,7 @@ import type { ProviderService } from './services/domain/providers'
 import type { RequestLogService } from './services/domain/request-log'
 import type { StripeService } from './services/domain/stripe'
 import type { UserDeletionService } from './services/domain/user-deletion'
+import type { VoicePackService } from './services/domain/voice-packs'
 import type { HonoEnv } from './types/hono'
 import type { EnvelopeCrypto } from './utils/envelope-crypto'
 
@@ -50,11 +51,13 @@ import { registerActiveSessionsGauge } from './otel/gauges/active-sessions'
 import { registerDistinctActiveUsersGauge } from './otel/gauges/distinct-active-users'
 import { registerRollingActiveUsersGauge } from './otel/gauges/rolling-active-users'
 import { registerTotalUsersGauge } from './otel/gauges/total-users'
+import { registerTtsPoolGauge } from './otel/gauges/tts-pool'
 import { createAdminRoutes } from './routes/admin'
 import { createAdminUiRoutes } from './routes/admin-ui'
 import { createAdminRouterConfigRoutes } from './routes/admin/config/router'
 import { createAdminFluxGrantsRoutes } from './routes/admin/flux-grants'
 import { createAdminUsersRoutes } from './routes/admin/users'
+import { createAdminVoicePackRoutes } from './routes/admin/voice-packs'
 import { createAudioSpeechWsHandlers } from './routes/audio-speech-ws'
 import { createAuthRoutes } from './routes/auth'
 import { createCharacterRoutes } from './routes/characters'
@@ -64,6 +67,7 @@ import { createFluxRoutes } from './routes/flux'
 import { createV1Routes } from './routes/openai/v1'
 import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
+import { createVoicePackRoutes } from './routes/voice-packs'
 import { createConfigKVService } from './services/adapters/config-kv'
 import { createEmailService } from './services/adapters/email'
 import { createAdminFluxGrantsService } from './services/domain/admin/flux-grants'
@@ -75,12 +79,13 @@ import { createCharacterService } from './services/domain/characters'
 import { createChatService } from './services/domain/chats'
 import { createFluxService } from './services/domain/flux'
 import { createFluxTransactionService } from './services/domain/flux-transaction'
-import { createConfigSyncSubscriber, createLlmRouterService } from './services/domain/llm-router'
+import { createConcurrencyLedger, createConfigSyncSubscriber, createLlmRouterService } from './services/domain/llm-router'
 import { createProductEventService } from './services/domain/product-events'
 import { createProviderService } from './services/domain/providers'
 import { createRequestLogService } from './services/domain/request-log'
 import { createStripeService } from './services/domain/stripe'
 import { createUserDeletionService } from './services/domain/user-deletion'
+import { createVoicePackService } from './services/domain/voice-packs'
 import { createEnvelopeCrypto } from './utils/envelope-crypto'
 import { ApiError, createInternalError } from './utils/error'
 import { nanoid } from './utils/id'
@@ -101,6 +106,7 @@ interface AppDeps {
   adminUsersService: AdminUsersService
   ttsMeter: FluxMeter
   requestLogService: RequestLogService
+  voicePackService: VoicePackService
   productEventService: ProductEventService
   configKV: ConfigKVService
   envelopeCrypto: EnvelopeCrypto
@@ -227,6 +233,7 @@ export async function buildApp(deps: AppDeps) {
     productEventService: deps.productEventService,
     ttsMeter: deps.ttsMeter,
     llmRouter: deps.llmRouter,
+    voicePackService: deps.voicePackService,
     genAi: deps.otel?.genAi,
     revenue: deps.otel?.revenue,
     rateLimitMetrics: deps.otel?.rateLimit,
@@ -340,6 +347,11 @@ export async function buildApp(deps: AppDeps) {
     .route('/api/v1/providers', createProviderRoutes(deps.providerService))
 
     /**
+     * Voice Pack routes expose the enabled curated library for binding.
+     */
+    .route('/api/v1/voice-packs', createVoicePackRoutes(deps.voicePackService))
+
+    /**
      * Chat routes are handled by the chat service.
      */
     .route('/api/v1/chats', createChatRoutes(deps.chatService))
@@ -376,6 +388,14 @@ export async function buildApp(deps: AppDeps) {
      * `/api/auth/admin/ban-user` / `/api/auth/admin/unban-user`.
      */
     .route('/api/admin/users', createAdminUsersRoutes(deps.adminUsersService))
+
+    /**
+     * Admin Voice Pack curation routes.
+     */
+    .route('/api/admin/voice-packs', createAdminVoicePackRoutes({
+      productEventService: deps.productEventService,
+      service: deps.voicePackService,
+    }))
 
     /**
      * Admin LLM router config seeding/patching. Single entry point for
@@ -588,6 +608,11 @@ export async function createApp() {
     build: ({ dependsOn }) => createRequestLogService(dependsOn.db),
   })
 
+  const voicePackService = injeca.provide('services:voicePack', {
+    dependsOn: { db },
+    build: ({ dependsOn }) => createVoicePackService(dependsOn.db),
+  })
+
   const billingService = injeca.provide('services:billing', {
     dependsOn: { db, redis, configKV, otel },
     build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.redis, dependsOn.configKV, dependsOn.otel?.revenue),
@@ -655,13 +680,21 @@ export async function createApp() {
   // LLM router (KTD-5 in-process replacement for the knoway sidecar).
   // LLM_ROUTER_MASTER_KEY is required at env-parse time, so this provider
   // always builds a real router — the legacy `null` fallback path is gone.
+  // Shared by the TTS router (acquires slots) and the pool watermark gauge
+  // (reads the snapshot). Cluster-wide Redis state — the server is multi-instance.
+  const ttsConcurrencyLedger = injeca.provide('services:ttsConcurrencyLedger', {
+    dependsOn: { redis },
+    build: ({ dependsOn }) => createConcurrencyLedger(dependsOn.redis),
+  })
+
   const llmRouter = injeca.provide('services:llmRouter', {
-    dependsOn: { configKV, envelopeCrypto, otel, redis },
+    dependsOn: { configKV, envelopeCrypto, otel, redis, ttsConcurrencyLedger },
     build: ({ dependsOn }) => createLlmRouterService({
       configKV: dependsOn.configKV,
       envelopeCrypto: dependsOn.envelopeCrypto,
       gatewayMetrics: dependsOn.otel?.gateway ?? null,
       redis: dependsOn.redis,
+      concurrencyLedger: dependsOn.ttsConcurrencyLedger,
     }),
   })
 
@@ -675,6 +708,7 @@ export async function createApp() {
     fluxService,
     fluxTransactionService,
     requestLogService,
+    voicePackService,
     productEventService,
     stripeService,
     billingService,
@@ -689,6 +723,7 @@ export async function createApp() {
     otel,
     userDeletionService,
     llmRouter,
+    ttsConcurrencyLedger,
   })
   // Register the cluster-wide ObservableGauges for sessions / users. Each
   // replica polls the same DB (cached inside each gauge, in-flight coalesced);
@@ -705,6 +740,7 @@ export async function createApp() {
     registerActiveSessionsGauge(resolved.otel.auth.activeSessions, resolved.db, resolved.otel.observability.metricReadErrors)
     registerDistinctActiveUsersGauge(resolved.otel.auth.distinctActiveUsers, resolved.db, resolved.otel.observability.metricReadErrors)
     registerRollingActiveUsersGauge(resolved.otel.auth.rollingActiveUsers, resolved.db, resolved.otel.observability.metricReadErrors)
+    registerTtsPoolGauge(resolved.otel.gateway.poolInflight, resolved.ttsConcurrencyLedger, resolved.otel.observability.metricReadErrors)
   }
 
   const { app, injectWebSocket } = await buildApp({
@@ -716,6 +752,7 @@ export async function createApp() {
     fluxService: resolved.fluxService,
     fluxTransactionService: resolved.fluxTransactionService,
     stripeService: resolved.stripeService,
+    voicePackService: resolved.voicePackService,
     billingService: resolved.billingService,
     adminFluxGrantsService: resolved.adminFluxGrantsService,
     adminRouterConfigService: resolved.adminRouterConfigService,

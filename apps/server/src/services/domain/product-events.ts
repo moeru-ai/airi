@@ -9,7 +9,7 @@ import * as schema from '../../schemas/product-events'
 
 const logger = useLogger('product-events')
 
-export type ProductFeature = 'auth' | 'chat' | 'gen_ai_chat' | 'tts' | 'billing'
+export type ProductFeature = 'auth' | 'chat' | 'gen_ai_chat' | 'tts' | 'billing' | 'voice_pack'
 
 export type ProductEventStatus = 'started' | 'succeeded' | 'failed'
 
@@ -23,6 +23,9 @@ export type ProductAction
     | 'speech_requested'
     | 'speech_succeeded'
     | 'speech_failed'
+    | 'voice_pack_created'
+    | 'voice_pack_updated'
+    | 'voice_pack_disabled'
     | 'checkout_started'
     | 'payment_completed'
 

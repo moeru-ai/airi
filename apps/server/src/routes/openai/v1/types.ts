@@ -7,6 +7,7 @@ import type { LlmRouterService } from '../../../services/domain/llm-router'
 import type { ChatGenerationTrace, TtsGenerationTrace } from '../../../services/domain/llm-tracing'
 import type { ProductEventService } from '../../../services/domain/product-events'
 import type { RequestLogService } from '../../../services/domain/request-log'
+import type { VoicePackService } from '../../../services/domain/voice-packs'
 
 import { startChatGeneration, startTtsGeneration } from '../../../services/domain/llm-tracing'
 
@@ -23,6 +24,7 @@ export interface V1RouteDeps {
   productEventService: ProductEventService
   ttsMeter: FluxMeter
   llmRouter: LlmRouterService
+  voicePackService: VoicePackService
   genAi?: GenAiMetrics | null
   revenue?: RevenueMetrics | null
   rateLimitMetrics?: RateLimitMetrics | null

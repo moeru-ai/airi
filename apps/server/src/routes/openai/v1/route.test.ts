@@ -3,7 +3,9 @@ import type { BillingService } from '../../../services/domain/billing/billing-se
 import type { FluxService } from '../../../services/domain/flux'
 import type { LlmRouterService } from '../../../services/domain/llm-router'
 import type { ChatGenerationTrace, TtsGenerationTrace } from '../../../services/domain/llm-tracing'
+import type { ProductEventService } from '../../../services/domain/product-events'
 import type { RequestLogService } from '../../../services/domain/request-log'
+import type { VoicePackService } from '../../../services/domain/voice-packs'
 import type { HonoEnv } from '../../../types/hono'
 
 import { Hono } from 'hono'
@@ -128,6 +130,25 @@ function createMockLlmRouter(impl?: Partial<LlmRouterService>): LlmRouterService
   } as LlmRouterService
 }
 
+function createMockProductEventService(): ProductEventService {
+  return {
+    track: vi.fn(async () => undefined),
+    countDistinctUsersByFeature: vi.fn(async () => []),
+  }
+}
+
+function createMockVoicePackService(impl?: Partial<VoicePackService>): VoicePackService {
+  return {
+    listEnabled: vi.fn(async () => []),
+    list: vi.fn(async () => []),
+    create: vi.fn(),
+    update: vi.fn(),
+    disable: vi.fn(),
+    findById: vi.fn(async () => null),
+    ...impl,
+  } as unknown as VoicePackService
+}
+
 function createTestApp(
   fluxService: FluxService,
   configKV: ConfigKVService,
@@ -136,18 +157,18 @@ function createTestApp(
   ttsMeter?: ReturnType<typeof createMockTtsMeter>,
   llmRouter?: LlmRouterService,
   llmTracing = createMockLlmTracing(),
+  productEventService = createMockProductEventService(),
+  voicePackService = createMockVoicePackService(),
 ) {
   const { openaiRoutes, audioRoutes } = createV1Routes({
     fluxService,
     billingService: billingService ?? createMockBillingService(),
     configKV,
     requestLogService: requestLogService ?? createMockRequestLogService(),
-    productEventService: {
-      track: vi.fn(async () => undefined),
-      countDistinctUsersByFeature: vi.fn(async () => []),
-    },
+    productEventService,
     ttsMeter: ttsMeter ?? createMockTtsMeter(),
     llmRouter: llmRouter ?? createMockLlmRouter(),
+    voicePackService,
     genAi: null,
     revenue: null,
     rateLimitMetrics: null,
@@ -658,6 +679,82 @@ describe('v1CompletionsRoutes', () => {
       )
     })
 
+    /**
+     * @example
+     * POST /api/v1/audio/speech { "speed": 1.2, "extra_body": { "voice_pack": { "pitch": 20 } } }
+     */
+    it('forwards TTS speed and Voice Pack prosody options to the router input', async () => {
+      const routeTts = vi.fn(async () => new Response(new Uint8Array([1]), {
+        status: 200,
+        headers: { 'Content-Type': 'audio/mpeg' },
+      }))
+
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV({ DEFAULT_TTS_MODEL: 'microsoft/v1' }),
+        undefined,
+        undefined,
+        undefined,
+        createMockLlmRouter({ routeTts }),
+        createMockLlmTracing(),
+        createMockProductEventService(),
+        createMockVoicePackService({
+          findById: vi.fn(async () => ({
+            id: 'vp-azure',
+            name: 'Azure',
+            description: null,
+            provider: 'azure',
+            model: 'microsoft/v1',
+            voiceId: 'en-US-AvaMultilingualNeural',
+            ttsModelId: 'microsoft/v1',
+            params: {},
+            costMultiplier: 1.5,
+            enabled: true,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          })),
+        }),
+      )
+
+      await app.fetch(
+        new Request('http://localhost/api/v1/audio/speech', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'auto',
+            input: 'test',
+            voice: 'en-US-AvaMultilingualNeural',
+            speed: 1.2,
+            extra_body: {
+              voice_pack: {
+                pack_id: 'vp-azure',
+                cost_multiplier: 1.5,
+                pitch: 20,
+                volume: 5,
+              },
+            },
+          }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(routeTts).toHaveBeenCalledWith(
+        expect.objectContaining({
+          modelName: 'microsoft/v1',
+          input: expect.objectContaining({
+            text: 'test',
+            voice: 'en-US-AvaMultilingualNeural',
+            speed: 1.2,
+            extraOptions: {
+              pitch: 20,
+              volume: 5,
+            },
+          }),
+        }),
+        expect.any(Object),
+      )
+    })
+
     it('should bill per character with minimum charge', async () => {
       globalThis.fetch = vi.fn(async () => new Response(new Uint8Array([1]), {
         status: 200,
@@ -678,6 +775,73 @@ describe('v1CompletionsRoutes', () => {
       )
 
       expect(billingService.consumeFluxForLLM).not.toHaveBeenCalled()
+    })
+
+    /**
+     * @example
+     * POST /api/v1/audio/speech { "input": "hello", "extra_body": { "voice_pack": { "cost_multiplier": 2 } } }
+     */
+    it('uses Voice Pack cost multiplier for affordability and billing units', async () => {
+      globalThis.fetch = vi.fn(async () => new Response(new Uint8Array([1]), {
+        status: 200,
+        headers: { 'Content-Type': 'audio/mpeg' },
+      }))
+
+      const ttsMeter = createMockTtsMeter()
+      const voicePackService = createMockVoicePackService({
+        findById: vi.fn(async () => ({
+          id: 'vp-premium',
+          name: 'Premium',
+          description: null,
+          provider: 'azure',
+          model: 'microsoft/v1',
+          voiceId: 'alloy',
+          ttsModelId: 'tts-1',
+          params: {},
+          costMultiplier: 2,
+          enabled: false,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })),
+      })
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV(),
+        undefined,
+        undefined,
+        ttsMeter,
+        undefined,
+        createMockLlmTracing(),
+        createMockProductEventService(),
+        voicePackService,
+      )
+
+      await app.fetch(
+        new Request('http://localhost/api/v1/audio/speech', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'auto',
+            input: 'hello',
+            voice: 'alloy',
+            extra_body: {
+              voice_pack: {
+                pack_id: 'vp-premium',
+                cost_multiplier: 2,
+              },
+            },
+          }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(ttsMeter.assertCanAfford).toHaveBeenCalledWith('user-1', 10, 100)
+      expect(ttsMeter.accumulate).toHaveBeenCalledWith(expect.objectContaining({
+        units: 10,
+        metadata: expect.objectContaining({
+          costMultiplier: 2,
+        }),
+      }))
     })
 
     it('should not charge when routeTts upstream returns error', async () => {
@@ -701,6 +865,49 @@ describe('v1CompletionsRoutes', () => {
 
       expect(res.status).toBe(500)
       expect(billingService.consumeFluxForLLM).not.toHaveBeenCalled()
+    })
+
+    /**
+     * @example
+     * routeTts throws ApiError(429, 'TOO_MANY_REQUESTS', 'Too many requests')
+     */
+    it('records routeTts ApiError status and reason in product events', async () => {
+      const productEventService = createMockProductEventService()
+      const llmRouter = createMockLlmRouter({
+        routeTts: vi.fn(async () => {
+          throw new ApiError(429, 'TOO_MANY_REQUESTS', 'Too many requests')
+        }) as any,
+      })
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV(),
+        undefined,
+        undefined,
+        undefined,
+        llmRouter,
+        createMockLlmTracing(),
+        productEventService,
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/speech', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'auto', input: 'hello', voice: 'alloy' }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(429)
+      expect(productEventService.track).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'speech_failed',
+          reason: 'TOO_MANY_REQUESTS',
+          metadata: expect.objectContaining({
+            http_status: 429,
+          }),
+        }),
+      )
     })
 
     it('should return 402 when flux is insufficient', async () => {

@@ -58,6 +58,13 @@ export const ttsUpstreamSchema = object({
   baseURL: pipe(string(), nonEmpty('tts.upstreams[].baseURL must not be empty')),
   keys: pipe(array(keyEntrySchema), check(v => v.length >= 1, 'tts.upstreams[].keys must contain at least 1 entry')),
   adapterParams: optional(record(string(), any()), {}),
+  // Per-app_id concurrency cap for the pool load balancer. One upstream maps to
+  // one app_id (Volcengine `adapterParams.appid`), capped by the provider at a
+  // small number (e.g. 10). When set on any upstream of a model, the router
+  // switches from fixed-order fallback to capacity-aware routing across pools.
+  // Absent = unlimited: that model keeps the original fixed-order behavior and
+  // makes zero Redis calls (no regression for existing single-app configs).
+  maxConcurrency: optional(pipe(number(), check(v => v >= 1, 'tts.upstreams[].maxConcurrency must be >= 1 when set'))),
 })
 
 export const streamingTtsUpstreamSchema = object({
