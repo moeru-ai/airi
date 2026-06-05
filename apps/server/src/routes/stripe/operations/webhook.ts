@@ -1,4 +1,3 @@
-import type { PostHog } from 'posthog-node'
 import type Stripe from 'stripe'
 
 import type { RevenueMetrics } from '../../../otel'
@@ -9,7 +8,6 @@ import type { StripeService } from '../../../services/domain/stripe'
 
 import { useLogger } from '@guiiai/logg'
 
-import { captureSafe } from '../../../services/adapters/posthog'
 import { createBadRequestError, createServiceUnavailableError } from '../../../utils/error'
 import { errorMessageFromUnknown } from '../../../utils/error-message'
 
@@ -22,7 +20,6 @@ export interface WebhookOperationDeps {
   stripeService: StripeService
   billingService: BillingService
   metrics?: RevenueMetrics | null
-  posthog?: PostHog | null
   productEventService?: ProductEventService
 }
 
@@ -75,13 +72,9 @@ export function createWebhookOperation(deps: WebhookOperationDeps) {
             source: 'checkout',
           })
         }
-        // PostHog: funnel terminator. Only fire when the handler actually
-        // processed the checkout — malformed sessions (missing userId,
-        // invalid fluxAmount) take the early-return path above and would
-        // otherwise poison the funnel with phantom conversions. distinctId
-        // is the Better Auth user id so it merges with the browser's
-        // `posthog.identify(userId)` and the prior `checkout_started`
-        // event lines up. See docs/ai-context/metrics-ownership.md.
+        // Record the product conversion only after the handler actually
+        // processed the checkout. Malformed sessions (missing userId,
+        // invalid fluxAmount) take the early-return path above.
         if (result.processed) {
           const userId = event.data.object.metadata?.userId
           if (userId) {
@@ -99,7 +92,6 @@ export function createWebhookOperation(deps: WebhookOperationDeps) {
               },
             })
           }
-          await capturePaymentCompleted(deps.posthog, event.data.object)
         }
         break
       }
@@ -113,8 +105,6 @@ export function createWebhookOperation(deps: WebhookOperationDeps) {
       case 'customer.subscription.deleted': {
         await handleSubscriptionEvent(event.data.object, deps.stripeService)
         deps.metrics?.stripeSubscriptionEvent.add(1, { event_type: event.type.replace('customer.subscription.', '') })
-        if (event.type === 'customer.subscription.deleted')
-          await captureSubscriptionCancelled(deps.posthog, deps.stripeService, event.data.object)
         break
       }
       case 'invoice.created':
@@ -224,73 +214,6 @@ async function handleCheckoutSessionCompleted(
   }
 
   return { processed: true }
-}
-
-async function capturePaymentCompleted(
-  posthog: PostHog | null | undefined,
-  session: Stripe.Checkout.Session,
-): Promise<void> {
-  if (!posthog)
-    return
-
-  const userId = session.metadata?.userId
-  const email = session.customer_email
-    || (typeof session.customer_details?.email === 'string' ? session.customer_details.email : null)
-    || null
-
-  // distinctId fallback chain: userId (Better Auth, matches browser identify())
-  // > email (PostHog will merge on identify later) > stripe session id (last
-  // resort — orphan event but at least we count it).
-  const distinctId = userId || email || session.id
-
-  const fluxAmount = Number(session.metadata?.fluxAmount)
-  const stripeCustomerId = typeof session.customer === 'string' ? session.customer : session.customer?.id
-
-  await captureSafe(posthog, {
-    distinctId,
-    event: 'payment_completed',
-    properties: {
-      amount_total: session.amount_total,
-      currency: session.currency,
-      flux_amount: Number.isFinite(fluxAmount) ? fluxAmount : null,
-      mode: session.mode,
-      stripe_session_id: session.id,
-      stripe_customer_id: stripeCustomerId,
-      stripe_subscription_id: typeof session.subscription === 'string' ? session.subscription : session.subscription?.id,
-      ...(userId ? { user_id: userId } : {}),
-      // $set populates the PostHog person profile so funnel joins work even
-      // when a user pays via direct checkout link before ever loading the SPA.
-      ...(email ? { $set: { email } } : {}),
-    },
-  })
-}
-
-async function captureSubscriptionCancelled(
-  posthog: PostHog | null | undefined,
-  stripeService: StripeService,
-  subscription: Stripe.Subscription,
-): Promise<void> {
-  if (!posthog)
-    return
-
-  const stripeCustomerId = typeof subscription.customer === 'string' ? subscription.customer : subscription.customer.id
-  const customer = await stripeService.getCustomerByStripeId(stripeCustomerId)
-  const distinctId = customer?.userId || stripeCustomerId
-
-  await captureSafe(posthog, {
-    distinctId,
-    event: 'subscription_cancelled',
-    properties: {
-      stripe_subscription_id: subscription.id,
-      stripe_customer_id: stripeCustomerId,
-      cancel_at_period_end: subscription.cancel_at_period_end,
-      cancellation_reason: subscription.cancellation_details?.reason ?? null,
-      cancellation_comment: subscription.cancellation_details?.comment ?? null,
-      canceled_at: subscription.canceled_at,
-      ended_at: subscription.ended_at,
-      ...(customer?.userId ? { user_id: customer.userId } : {}),
-    },
-  })
 }
 
 async function handleCustomerEvent(

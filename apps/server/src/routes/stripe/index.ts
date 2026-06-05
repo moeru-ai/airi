@@ -1,5 +1,4 @@
 import type Redis from 'ioredis'
-import type { PostHog } from 'posthog-node'
 
 import type { Env } from '../../libs/env'
 import type { RateLimitMetrics, RevenueMetrics } from '../../otel'
@@ -47,7 +46,6 @@ export function createStripeRoutes(
   redis: Redis,
   metrics?: RevenueMetrics | null,
   rateLimitMetrics?: RateLimitMetrics | null,
-  posthog?: PostHog | null,
   productEventService?: ProductEventService,
 ) {
   const stripe = env.STRIPE_SECRET_KEY ? new Stripe(env.STRIPE_SECRET_KEY) : null
@@ -60,7 +58,6 @@ export function createStripeRoutes(
     stripeService,
     billingService,
     metrics,
-    posthog,
     productEventService,
   })
 

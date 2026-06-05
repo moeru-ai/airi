@@ -151,7 +151,6 @@ function createTestApp(
     genAi: null,
     revenue: null,
     rateLimitMetrics: null,
-    posthog: null,
     llmTracing,
   })
   const app = new Hono<HonoEnv>()

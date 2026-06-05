@@ -1,5 +1,4 @@
 import type Redis from 'ioredis'
-import type { PostHog } from 'posthog-node'
 
 import type { AuthInstance } from './libs/auth'
 import type { Database } from './libs/db'
@@ -67,7 +66,6 @@ import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
 import { createConfigKVService } from './services/adapters/config-kv'
 import { createEmailService } from './services/adapters/email'
-import { createPostHogClient } from './services/adapters/posthog'
 import { createAdminFluxGrantsService } from './services/domain/admin/flux-grants'
 import { createAdminRouterConfigService } from './services/domain/admin/router-config'
 import { createAdminUsersService } from './services/domain/admin/users'
@@ -111,7 +109,6 @@ interface AppDeps {
   otel: OtelInstance | null
   userDeletionService: UserDeletionService
   llmRouter: LlmRouterService
-  posthog: PostHog | null
 }
 
 export async function buildApp(deps: AppDeps) {
@@ -233,7 +230,6 @@ export async function buildApp(deps: AppDeps) {
     genAi: deps.otel?.genAi,
     revenue: deps.otel?.revenue,
     rateLimitMetrics: deps.otel?.rateLimit,
-    posthog: deps.posthog,
   })
 
   const builtApp = app
@@ -365,7 +361,7 @@ export async function buildApp(deps: AppDeps) {
     /**
      * Stripe routes.
      */
-    .route('/api/v1/stripe', createStripeRoutes(deps.fluxService, deps.stripeService, deps.billingService, deps.configKV, deps.env, deps.redis, deps.otel?.revenue, deps.otel?.rateLimit, deps.posthog, deps.productEventService))
+    .route('/api/v1/stripe', createStripeRoutes(deps.fluxService, deps.stripeService, deps.billingService, deps.configKV, deps.env, deps.redis, deps.otel?.revenue, deps.otel?.rateLimit, deps.productEventService))
 
     /**
      * Admin routes — guarded by the `adminGuard` role check (`role === 'admin'`,
@@ -505,44 +501,6 @@ export async function createApp() {
     }, undefined, dependsOn.otel?.email),
   })
 
-  // Webhook capture path goes through `captureSafe` → `captureImmediate`,
-  // which awaits the HTTP send inline, so individual events never sit in
-  // the background queue. `flush()` + `_shutdown()` on SIGTERM is the belt-
-  // and-suspenders drain for any future call site that uses the regular
-  // `capture()` (which only enqueues).
-  //
-  // NOTICE:
-  // We use the underscore-prefixed `_shutdown` despite its "internal" naming
-  // because the public `shutdown(timeoutMs)` returns void (`types.d.ts:580`)
-  // — there is no way to await its completion. `_shutdown(timeoutMs)` returns
-  // `Promise<void>` (`client.d.ts:934`) and is the only way to ensure the
-  // process doesn't exit while PostHog cleanup is still running. Posthog's
-  // own examples show `await client._shutdown()` as the recommended pattern.
-  const posthog = injeca.provide('services:posthog', {
-    dependsOn: { env: parsedEnv, lifecycle },
-    build: ({ dependsOn }) => {
-      const client = createPostHogClient(dependsOn.env)
-      if (client) {
-        dependsOn.lifecycle.appHooks.onStop(async () => {
-          try {
-            await client.flush()
-          }
-          catch {
-            // Flush failures on shutdown are non-fatal; we lose at most a
-            // few queued events. Fall through to shutdown anyway.
-          }
-          try {
-            await client._shutdown(5000)
-          }
-          catch {
-            // Shutdown errors are also non-fatal during process exit.
-          }
-        })
-      }
-      return client
-    },
-  })
-
   const productEventService = injeca.provide('services:productEvents', {
     dependsOn: { db, otel },
     build: ({ dependsOn }) => createProductEventService(dependsOn.db, dependsOn.otel?.product),
@@ -608,7 +566,7 @@ export async function createApp() {
   })
 
   const auth = injeca.provide('services:auth', {
-    dependsOn: { db, env: parsedEnv, otel, email: emailService, userDeletionService, posthog, productEventService },
+    dependsOn: { db, env: parsedEnv, otel, email: emailService, userDeletionService, productEventService },
     build: async ({ dependsOn }) => {
       // Seed trusted OIDC clients into DB so FK constraints on oauth_access_token are satisfied
       await seedTrustedClients(dependsOn.db, dependsOn.env)
@@ -621,7 +579,7 @@ export async function createApp() {
           redirectUris: client.redirectUris.join(', '),
         }).log('OIDC trusted client ready')
       }
-      return createAuth(dependsOn.db, dependsOn.env, dependsOn.email, dependsOn.otel?.auth, dependsOn.userDeletionService, dependsOn.posthog, dependsOn.productEventService)
+      return createAuth(dependsOn.db, dependsOn.env, dependsOn.email, dependsOn.otel?.auth, dependsOn.userDeletionService, dependsOn.productEventService)
     },
   })
 
@@ -731,7 +689,6 @@ export async function createApp() {
     otel,
     userDeletionService,
     llmRouter,
-    posthog,
   })
   // Register the cluster-wide ObservableGauges for sessions / users. Each
   // replica polls the same DB (cached inside each gauge, in-flight coalesced);
@@ -773,7 +730,6 @@ export async function createApp() {
     otel: resolved.otel,
     userDeletionService: resolved.userDeletionService,
     llmRouter: resolved.llmRouter,
-    posthog: resolved.posthog,
   })
 
   logger.withFields({ hostname: resolved.env.HOST, port: resolved.env.PORT }).log('Server started')

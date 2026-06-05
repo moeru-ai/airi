@@ -61,7 +61,6 @@
     "nanoid": "catalog:",
     "ofetch": "catalog:",
     "pg": "catalog:",
-    "posthog-node": "catalog:",
     "resend": "catalog:",
     "stripe": "catalog:",
     "unspeech": "catalog:xsai",

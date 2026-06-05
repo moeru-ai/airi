@@ -81,7 +81,6 @@ function createTestDeps() {
       encryptKey: vi.fn(),
       decryptKey: vi.fn(),
     } as any,
-    posthog: null,
   }
 
   return {

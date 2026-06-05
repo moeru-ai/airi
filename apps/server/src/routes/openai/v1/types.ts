@@ -1,5 +1,3 @@
-import type { PostHog } from 'posthog-node'
-
 import type { GenAiMetrics, RateLimitMetrics, RevenueMetrics } from '../../../otel'
 import type { ConfigKVService } from '../../../services/adapters/config-kv'
 import type { BillingService } from '../../../services/domain/billing/billing-service'
@@ -28,7 +26,6 @@ export interface V1RouteDeps {
   genAi?: GenAiMetrics | null
   revenue?: RevenueMetrics | null
   rateLimitMetrics?: RateLimitMetrics | null
-  posthog?: PostHog | null
   llmTracing: LlmTracingDeps
 }
 

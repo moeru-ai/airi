@@ -321,7 +321,6 @@ catalog:
   postcss: ^8.5.10
   postgres: ^3.4.9
   posthog-js: 1.306.1
-  posthog-node: ^5.34.1
   postprocessing: ^6.39.1
   prismarine-block: ^1.23.0
   prismarine-entity: ^2.6.0

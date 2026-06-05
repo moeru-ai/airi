@@ -131,11 +131,6 @@ const EnvSchema = object({
   STRIPE_SECRET_KEY: optional(string()),
   STRIPE_WEBHOOK_SECRET: optional(string()),
 
-  // PostHog server-side analytics. Optional — when unset the client is null
-  // and `captureSafe(...)` is a no-op so webhooks still complete.
-  POSTHOG_API_KEY: optional(string(), ''),
-  POSTHOG_HOST: optional(string(), 'https://us.i.posthog.com'),
-
   // LLM/TTS gateway is fully internalised by the in-process router; provider
   // baseURLs live per-upstream inside LLM_ROUTER_CONFIG, and the default chat /
   // tts model aliases moved to configKV (DEFAULT_CHAT_MODEL / DEFAULT_TTS_MODEL)

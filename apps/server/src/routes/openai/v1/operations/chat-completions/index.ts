@@ -4,7 +4,6 @@ import type { V1RouteDeps } from '../../types'
 
 import { useLogger } from '@guiiai/logg'
 
-import { captureSafe } from '../../../../../services/adapters/posthog'
 import { extractUsageFromBody } from '../../../../../services/domain/billing/billing'
 import { nanoid } from '../../../../../utils/id'
 import { buildSafeResponseHeaders } from '../../http/response'
@@ -156,19 +155,6 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
           stream,
         },
       })
-      // Emit server-side so funnels see real HTTP status — the client only
-      // ever observes "stream closed" and cannot tell 401 / 429 / 5xx apart.
-      void captureSafe(deps.posthog ?? null, {
-        distinctId: input.userId,
-        event: 'llm_request_failed',
-        properties: {
-          model: requestModel,
-          http_status: response.status,
-          duration_ms: durationMs,
-          stream: !!body.stream,
-        },
-      })
-
       logger.withFields({ requestId, userId: input.userId, model: requestModel, status: response.status, durationMs })
         .warn('chat completion delivered with upstream error status')
 
@@ -400,21 +386,6 @@ function streamChatCompletion(input: {
           },
         })
 
-        void captureSafe(input.deps.posthog ?? null, {
-          distinctId: input.userId,
-          event: 'llm_request_succeeded',
-          properties: {
-            model: input.requestModel,
-            http_status: input.response.status,
-            duration_ms: input.durationMs,
-            prompt_tokens: usage.promptTokens ?? 0,
-            completion_tokens: usage.completionTokens ?? 0,
-            flux_consumed: actualCharged,
-            stream: true,
-            stream_interrupted: streamInterrupted,
-          },
-        })
-
         input.logger.withFields({
           requestId: input.requestId,
           userId: input.userId,
@@ -525,20 +496,6 @@ async function completeNonStreamingChat(input: {
     model: input.requestModel,
     provider: input.routeCtxProvider,
     metadata: {
-      http_status: input.response.status,
-      duration_ms: input.durationMs,
-      prompt_tokens: usage.promptTokens ?? 0,
-      completion_tokens: usage.completionTokens ?? 0,
-      flux_consumed: actualCharged,
-      stream: false,
-    },
-  })
-
-  void captureSafe(input.deps.posthog ?? null, {
-    distinctId: input.userId,
-    event: 'llm_request_succeeded',
-    properties: {
-      model: input.requestModel,
       http_status: input.response.status,
       duration_ms: input.durationMs,
       prompt_tokens: usage.promptTokens ?? 0,
