@@ -258,15 +258,16 @@ onMounted(() => {
         <button
           v-if="showStopSpeakingButton"
           data-testid="stop-speaking-button"
-          w="[calc(1lh+4px+4px)]" h="[calc(1lh+4px+4px)]" aspect-square flex items-center self-end justify-center rounded-full outline-none backdrop-blur-md
-          text="neutral-500 hover:primary-600 dark:neutral-900 dark:hover:primary-700"
-          bg="primary-50/80 dark:neutral-100/80 hover:neutral-50"
-          transition="all duration-250 ease-in-out"
+          :class="[
+            'h-[calc(1lh+4px+4px)] w-[calc(1lh+4px+4px)] flex items-center justify-center self-end rounded-md outline-none',
+            'text-lg text-neutral-500 transition-all duration-200 active:scale-95 dark:text-neutral-400',
+            'hover:bg-primary-100/60 hover:text-primary-600 dark:hover:bg-primary-900/40 dark:hover:text-primary-300',
+          ]"
           title="Stop speaking"
           aria-label="Stop speaking"
           @click="stopSpeakingFromChat"
         >
-          <div i-solar:stop-circle-bold-duotone />
+          <div class="i-solar:stop-circle-bold-duotone h-5 w-5" />
         </button>
         <button
           v-if="messageInput.trim() || isComposing"
