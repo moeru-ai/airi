@@ -45,6 +45,7 @@ import { useAiriCardStore } from '../../stores/modules'
 import { useSpeechStore } from '../../stores/modules/speech'
 import { useProvidersStore } from '../../stores/providers'
 import { useSettings } from '../../stores/settings'
+import { useSpeechOutputControlStore } from '../../stores/speech-output-control'
 import { useSpeechRuntimeStore } from '../../stores/speech-runtime'
 
 const props = withDefaults(defineProps<{
@@ -90,6 +91,7 @@ const {
 const { mouthOpenSize, nowSpeaking } = storeToRefs(useSpeakingStore())
 const { audioContext } = useAudioContext()
 const currentAudioSource = ref<AudioBufferSourceNode>()
+const { latestStopRequest } = storeToRefs(useSpeechOutputControlStore())
 
 const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatOrchestratorStore()
 const chatHookCleanups: Array<() => void> = []
@@ -128,6 +130,26 @@ const lipSyncStarted = ref(false)
 const lipSyncLoopId = ref<number>()
 const live2dLipSync = ref<Live2DLipSync>()
 const live2dLipSyncOptions: Live2DLipSyncOptions = { mouthUpdateIntervalMs: 50, mouthLerpWindowMs: 50 }
+
+function resetAssistantSpeechSurface(source: string) {
+  nowSpeaking.value = false
+  mouthOpenSize.value = 0
+  assistantCaption.value = ''
+
+  try {
+    postCaption({ type: 'caption-assistant', text: '' })
+  }
+  catch (error) {
+    console.warn(`[Stage] Failed to post caption reset for ${source} (channel may be closed)`, { error })
+  }
+
+  try {
+    postPresent({ type: 'assistant-reset' })
+  }
+  catch (error) {
+    console.warn(`[Stage] Failed to post present reset for ${source} (channel may be closed)`, { error })
+  }
+}
 
 const { activeCard } = storeToRefs(useAiriCardStore())
 const speechStore = useSpeechStore()
@@ -609,6 +631,14 @@ function setupAnalyser() {
 // decision point. See `packages/stage-ui/src/libs/speech/tts-session.ts`.
 let currentSession: StageTtsSession | null = null
 
+function stopSpeechOutput(reason: string) {
+  currentSession?.cancel(reason)
+  currentSession = null
+  speechPipeline.stopAll(reason)
+  playbackManager.stopAll(reason)
+  resetAssistantSpeechSurface(reason)
+}
+
 function buildStreamingSnapshot(): StreamingSessionSnapshot | null {
   // Snapshotted once per session, so a mid-session provider/voice swap
   // does not corrupt an in-flight session — the watcher below detects
@@ -687,27 +717,19 @@ function openTtsSession(): StageTtsSession {
   })
 }
 
+watch(latestStopRequest, (request) => {
+  if (!request)
+    return
+
+  stopSpeechOutput(request.reason)
+})
+
 chatHookCleanups.push(onBeforeMessageComposed(async () => {
   playbackManager.stopAll('new-message')
 
   setupAnalyser()
   await setupLipSync()
-  // Reset assistant caption for a new message
-  assistantCaption.value = ''
-  try {
-    postCaption({ type: 'caption-assistant', text: '' })
-  }
-  catch (error) {
-    // BroadcastChannel may be closed if user navigated away - don't break flow
-    console.warn('[Stage] Failed to post caption reset (channel may be closed)', { error })
-  }
-  try {
-    postPresent({ type: 'assistant-reset' })
-  }
-  catch (error) {
-    // BroadcastChannel may be closed if user navigated away - don't break flow
-    console.warn('[Stage] Failed to post present reset (channel may be closed)', { error })
-  }
+  resetAssistantSpeechSurface('new-message')
 
   currentSession?.cancel('new-message')
   currentSession = openTtsSession()
