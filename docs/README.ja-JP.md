@@ -177,17 +177,18 @@
 
 そのため、このプロジェクトAIRIは、ここで別の可能性を提供します：**簡単に、どこでも、いつでも、あなた自身のデジタルライフ、サイバー生活を所有できるようにします**。
 
-## 投稿した DevLog と最近のアップデート
+## 最近の DevLog とストーリー
 
-- [DevLog @ 2026.03.23](https://airi.moeru.ai/docs/en/blog/DevLog-2026.03.23/) — 2026/03/23
-- [DevLog @ 2026.03.14](https://airi.moeru.ai/docs/en/blog/DevLog-2026.03.14/) — 2026/03/14
-- [DevLog @ 2026.02.16](https://airi.moeru.ai/docs/en/blog/DevLog-2026.02.16/) — 2026/02/16
-- [DevLog @ 2026.01.01](https://airi.moeru.ai/docs/en/blog/DevLog-2026.01.01/) — 2026/01/01
-- [DevLog @ 2025.10.20](https://airi.moeru.ai/docs/en/blog/DevLog-2025.10.20/) — 2025/10/20
-- [DevLog @ 2025.08.05](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.05/) — 2025/08/05
-- [DevLog @ 2025.08.01](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.01/) — 2025/08/01
-- [DevLog @ 2025.07.18](https://airi.moeru.ai/docs/en/blog/DevLog-2025.07.18/) — 2025/07/18
-- [DreamLog 0x1](https://airi.moeru.ai/docs/en/blog/DreamLog-0x1/) — 2025/06/16
+- [DevLog @ 2026.03.23：モバイル性能とゲームエンジンの検討](https://airi.moeru.ai/docs/en/blog/DevLog-2026.03.23/) - 2026/03/23
+- [DevLog @ 2026.03.14：VRM ステージのライフサイクル、キャッシュ、可観測性](https://airi.moeru.ai/docs/en/blog/DevLog-2026.03.14/) - 2026/03/14
+- [DevLog @ 2026.02.16：Dome Keeper のデータ収集と学習パイプライン](https://airi.moeru.ai/docs/en/blog/DevLog-2026.02.16/) - 2026/02/16
+- [DevLog @ 2026.01.01：AIRI Pocket と FlowChat のメモリ実験](https://airi.moeru.ai/docs/en/blog/DevLog-2026.01.01/) - 2026/01/01
+- [DevLog @ 2025.10.20：Electron 移行、新モデル、Moeru AI の更新](https://airi.moeru.ai/docs/en/blog/DevLog-2025.10.20/) - 2025/10/20
+- [DevLog @ 2025.08.26：airi-factorio の純粋な視覚方向の進捗](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.26/) - 2025/08/26
+- [DevLog @ 2025.08.05：AIRI v0.7 リリースのハイライト](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.05/) - 2025/08/05
+- [DevLog @ 2025.08.01：ストリーミングテキストアニメーションと書記素クラスタ](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.01/) - 2025/08/01
+- [DevLog @ 2025.07.18：Factorio Learning Environment から airi-factorio を考え直す](https://airi.moeru.ai/docs/en/blog/DevLog-2025.07.18/) - 2025/07/18
+- [DreamLog 0x1：Project AIRI のバックストーリー](https://airi.moeru.ai/docs/en/blog/DreamLog-0x1/) - 2025/06/16
 - ...そのほかは[ドキュメントサイト](https://airi.moeru.ai/docs/en/)で
 
 ## このプロジェクトの特別な点は？
@@ -227,13 +228,15 @@
 >
 > **興味があるなら、ここで自己紹介してみませんか？ [Would like to join part of us to build AIRI?](https://github.com/moeru-ai/airi/discussions/33)**
 
-## 現在の進捗
+## 現在の進捗とロードマップ
 
 可能なこと
 
 - [x] 脳
   - [x] [Minecraft](https://www.minecraft.net)をプレイ
   - [x] [Factorio](https://www.factorio.com)をプレイ（進行中ですが、[PoCとデモが利用可能](https://github.com/moeru-ai/airi-factorio)）
+  - [x] [Kerbal Space Program](https://www.kerbalspaceprogram.com/)をプレイ（発表予定）
+  - [ ] [Helldivers 2](https://www.playstation.com/en-hk/games/helldivers-2/pc/)を一緒にプレイ（進行中）
   - [x] [Telegram](https://telegram.org)でチャット
   - [x] [Discord](https://discord.com)でチャット
   - [ ] メモリ
@@ -246,7 +249,7 @@
   - [x] クライアント側の音声認識
   - [x] クライアント側の話し声検出
 - [x] 口
-  - [x] [ElevenLabs](https://elevenlabs.io/)音声合成
+  - [x] [ElevenLabs](https://elevenlabs.io/)、Microsoft/Azure Speech、OpenAI 互換 TTS、Alibaba Cloud Model Studio、ローカル Kokoro TTS などの複数プロバイダー音声合成
 - [x] 体
   - [x] VRMサポート
     - [x] VRMモデルの制御
@@ -352,7 +355,7 @@ npx bumpp --no-commit --no-tag
 - [x] [OpenAI](https://platform.openai.com/docs/guides/gpt/chat-completions-api)
   - [ ] [Azure OpenAI API](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference)（PR歓迎）
 - [x] [Anthropic Claude](https://anthropic.com)
-  - [ ] [AWS Claude](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference)（PR歓迎）
+  - [ ] [AWS Claude](https://docs.anthropic.com/en/api/claude-on-amazon-bedrock)（PR歓迎）
 - [x] [DeepSeek](https://www.deepseek.com/)
 - [x] [Qwen](https://help.aliyun.com/document_detail/2400395.html)
 - [x] [Google Gemini](https://developers.generativeai.google)
@@ -361,7 +364,7 @@ npx bumpp --no-commit --no-tag
 - [x] [Mistral](https://mistral.ai/)
 - [x] [Cloudflare Workers AI](https://developers.cloudflare.com/workers-ai/)
 - [x] [Together.ai](https://www.together.ai/)
-- [x] [Fireworks.ai](https://www.together.ai/)
+- [x] [Fireworks.ai](https://fireworks.ai/)
 - [x] [Novita](https://www.novita.ai/)
 - [x] [Zhipu](https://bigmodel.cn)
 - [x] [SiliconFlow](https://cloud.siliconflow.cn/i/rKXmRobW)
