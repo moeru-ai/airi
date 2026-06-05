@@ -11,6 +11,7 @@ COPY . .
 RUN --mount=type=cache,id=pnpm-store,target=/root/.pnpm-store \
     pnpm install --frozen-lockfile --ignore-scripts
 
+RUN pnpm -r -F @proj-airi/ui-server-auth^... -F @proj-airi/ui-admin^... --if-present run build
 RUN pnpm -F @proj-airi/ui-server-auth run build
 RUN pnpm -F @proj-airi/ui-admin run build
 
