@@ -93,8 +93,6 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
 
         // Resolve EventBus for message handling
         const eventBus = container.resolve('eventBus')
-        // Bridge for forwarding the bot's own in-game chat to the desktop (read aloud via TTS).
-        const airiBridge = container.resolve('airiBridge')
 
         // NOTICE: EventBus trace forwarding disabled - trace logs removed to reduce noise
         // All events from EventBus were being forwarded to DebugService as trace events,
@@ -105,11 +103,7 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
         const chatHandler = new ChatMessageHandler(bot.username)
         bot.bot.on('chat', (username, message) => {
           if (chatHandler.isBotMessage(username)) {
-            // The bot's OWN chat line (what it typed into the in-game chat box). Forward it to the
-            // desktop on a dedicated lane so it can be read aloud (TTS, Chinese-gated on the desktop
-            // so English skill/command echoes are skipped). Still return: the bot must not react to
-            // its own messages.
-            airiBridge.sendContextUpdate(message, undefined, 'minecraft:speech')
+            // The bot's own chat line — it must not react to its own messages.
             return
           }
 

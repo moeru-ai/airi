@@ -44,16 +44,15 @@ export class AiriBridge {
         },
       } as Parameters<typeof this.client.send>[0])
 
-      // A spark:command IS a command. The user requires that a desktop-relayed command carry the
-      // EXACT same weight as the master typing in the in-game chat — i.e. it must trigger a fresh
-      // decision (Conscious) cycle, never be silently filed into history. So we always route through
-      // handleActionIntent (→ signal:chat_message → enqueueEvent → decision cycle).
+      // A spark:command is high-level guidance from the AIRI server. It must carry enough weight to
+      // trigger a fresh decision (Conscious) cycle, never be silently filed into history — so we
+      // always route it through handleActionIntent (→ signal:chat_message → enqueueEvent → decision cycle).
       //
-      // We intentionally no longer special-case `intent === 'context'`: that branch used to emit
+      // We intentionally do not special-case `intent === 'context'`: that branch used to emit
       // signal:airi_context which Brain pushes to conversationHistory WITHOUT waking the loop, so a
-      // desktop LLM that mislabels its intent as "context" would have its command silently dropped
-      // from action. True passive context still has its own dedicated channel — `context:update`
-      // (see contextUpdateHandler) — which remains history-only and is unaffected by this change.
+      // command that mislabels its intent as "context" would be silently dropped from action. True
+      // passive context still has its own dedicated channel — `context:update` (see
+      // contextUpdateHandler) — which remains history-only and is unaffected by this routing.
       this.handleActionIntent(cmd)
     }
 
@@ -180,23 +179,24 @@ export class AiriBridge {
   }
 
   private handleActionIntent(cmd: SparkCommandData): void {
-    // Treat a desktop-AIRI spark:command as if the master typed it in the in-game chat:
-    // route through the SAME `signal:chat_message` path so brain handles it identically to
-    // a real player chat (resetNoActionFollowupBudget('player_chat'), normal Conscious wake
-    // up, no special "another agent" framing). User intent: "the desktop AIRI is just an
-    // extension of me — when she relays a command, the in-game bot should feel it as me."
+    // A spark:command is high-level guidance from the AIRI server. Route it through the SAME
+    // `signal:chat_message` path a real directive takes so the brain runs a fresh decision cycle
+    // (resetNoActionFollowupBudget('player_chat'), normal Conscious wake-up) instead of silently
+    // filing it into history. The directive is attributed to the AIRI server as a NEUTRAL source —
+    // not to any specific in-game player. Binding a relayed command to the master's in-game identity
+    // is desktop-relay policy and lives in the desktop Minecraft adapter, not in this bot service.
     const firstOption = cmd.guidance?.options?.[0]
     const label = firstOption?.label?.trim()
     const steps = firstOption?.steps ?? []
-    // Prefer the short label (closest to what the user actually said). Fall back to joined
-    // steps so brain still has detail when label is missing.
+    // Prefer the short label (closest to the original instruction). Fall back to joined steps so the
+    // brain still has detail when label is missing.
     const message = label && label.length > 0
       ? label
       : (steps.length > 0 ? steps.join(' / ') : `${cmd.intent} command received`)
 
-    const username = '主人'
+    const sourceId = 'airi'
 
-    this.logger.log('Relaying AIRI spark:command as in-game chat from master', {
+    this.logger.log('Routing spark:command as an AIRI directive', {
       commandId: cmd.commandId,
       message,
     })
@@ -205,18 +205,16 @@ export class AiriBridge {
       type: 'signal:chat_message',
       payload: Object.freeze({
         type: 'chat_message' as const,
-        description: `Chat from ${username}: "${message}"`,
-        sourceId: username,
+        description: `Directive from AIRI: "${message}"`,
+        sourceId,
         confidence: 1.0,
         timestamp: Date.now(),
         metadata: {
-          username,
+          username: sourceId,
           message,
-          // Keep the spark provenance for debugging / future special-casing, but the brain
-          // doesn't need to know — it just sees a chat_message from the master.
+          // Keep the spark provenance for debugging; the brain just sees a directive from AIRI.
           sparkCommandId: cmd.commandId,
           sparkIntent: cmd.intent,
-          relayedFrom: 'desktop-airi',
         },
       }),
       source: { component: 'airi', id: 'bridge' },
