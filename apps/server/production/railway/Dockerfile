@@ -1,3 +1,16 @@
+FROM node:24-alpine AS ui-assets
+
+WORKDIR /app
+
+RUN corepack enable
+
+COPY . .
+
+RUN pnpm install --frozen-lockfile --ignore-scripts
+
+RUN pnpm -F @proj-airi/ui-server-auth run build
+RUN pnpm -F @proj-airi/ui-admin run build
+
 FROM node:24-alpine
 
 WORKDIR /app
@@ -6,8 +19,8 @@ RUN corepack enable
 
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.json ./
 COPY patches/ ./patches/
-COPY --from=ghcr.io/moeru-ai/airi/ui-server-auth:latest /app/airi/projects/ui/ui-server-auth apps/server/public/ui-server-auth
-COPY --from=ghcr.io/moeru-ai/airi/ui-admin:latest /app/airi/projects/ui/ui-admin apps/server/public/ui-admin
+COPY --from=ui-assets /app/apps/server/public/ui-server-auth apps/server/public/ui-server-auth
+COPY --from=ui-assets /app/apps/server/public/ui-admin apps/server/public/ui-admin
 COPY apps/server apps/server
 COPY packages/server-schema packages/server-schema
 COPY packages/server-sdk-shared packages/server-sdk-shared
