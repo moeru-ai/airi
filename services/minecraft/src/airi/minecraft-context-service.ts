@@ -14,11 +14,18 @@ interface MinecraftStatusSnapshot {
   health: string
   gameMode: string
   otherPlayers: string[]
+  /** The owner's in-game username (from BOT_MASTER_USERNAME), if configured. */
+  masterUsername?: string
 }
 
 const STATUS_CONTEXT_ID = 'minecraft:status'
 const STATUS_LANE = 'minecraft:status'
 const STATUS_REFRESH_INTERVAL_MS = 5_000
+
+// NOTICE: hint prefix carrying the master's in-game username to the desktop. The desktop skips the
+// minecraft:status text for its runtime context, so the binding rides on `hints` instead, where the
+// desktop store extracts it (gaming-minecraft.ts). Keep this literal in sync with the desktop side.
+const MASTER_HINT_PREFIX = 'master:'
 
 function toPositionString(bot: MineflayerWithAgents) {
   const position = bot.bot.entity?.position
@@ -34,6 +41,7 @@ function buildStatusText(snapshot: MinecraftStatusSnapshot) {
     `Position: ${snapshot.position}`,
     `Health: ${snapshot.health}/20, Mode: ${snapshot.gameMode}`,
     `Other players online: ${snapshot.otherPlayers.length > 0 ? snapshot.otherPlayers.join(', ') : 'none'}`,
+    ...(snapshot.masterUsername ? [`Master (your owner) in-game username: ${snapshot.masterUsername}`] : []),
   ].join('\n')
 }
 
@@ -57,14 +65,18 @@ export class MinecraftContextService {
   private readonly serverHost: string
   private readonly serverPort: number
 
+  private readonly masterUsername?: string
+
   constructor(private readonly deps: {
     airiBridge: Pick<AiriBridge, 'onModuleAnnounced' | 'sendContextUpdate'>
     serverHost: string
     serverPort: number
+    masterUsername?: string
     refreshIntervalMs?: number
   }) {
     this.serverHost = deps.serverHost
     this.serverPort = deps.serverPort
+    this.masterUsername = deps.masterUsername
   }
 
   init() {
@@ -123,7 +135,11 @@ export class MinecraftContextService {
       contextId: STATUS_CONTEXT_ID,
       lane: STATUS_LANE,
       text,
-      hints: ['status', snapshot.botUsername],
+      hints: [
+        'status',
+        snapshot.botUsername,
+        ...(snapshot.masterUsername ? [`${MASTER_HINT_PREFIX}${snapshot.masterUsername}`] : []),
+      ],
       strategy: ContextUpdateStrategy.ReplaceSelf,
     }
 
@@ -162,6 +178,7 @@ export class MinecraftContextService {
       health: String(this.runtimeBot.bot.health ?? 20),
       gameMode: this.runtimeBot.bot.game?.gameMode ?? 'unknown',
       otherPlayers,
+      masterUsername: this.masterUsername,
     }
 
     return this.currentSnapshot

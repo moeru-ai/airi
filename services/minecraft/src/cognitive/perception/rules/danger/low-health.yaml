@@ -1,0 +1,18 @@
+name: low-health
+version: 1
+
+trigger:
+  modality: felt
+  kind: low_health
+
+detector:
+  threshold: 1
+  window: 500ms
+
+signal:
+  type: saliency_high
+  description: 'Health critical ({{ health }}/20). Get out of any lava/fire/water first. If you have ready-to-eat food, retreat to safety and eat it now with consume — do NOT keep fighting (auto-eat is paused while you attack). If you only have raw food (beef/porkchop/chicken/potato/etc.), cook it in a furnace with smeltItem for more saturation, then eat it with consume. If you have no food, retreat to safety and find food.'
+  confidence: 1.0
+  metadata:
+    action: low_health
+    health: '{{ health }}'

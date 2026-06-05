@@ -11,7 +11,7 @@ detector:
 
 signal:
   type: saliency_high
-  description: 'Taken damage (amount={{ amount }}, cause={{ damageSource.cause }}).'
+  description: 'Taken damage (amount={{ amount }}, cause={{ damageSource.cause }}, from={{ attacker }}).'
   confidence: 1.0
   metadata:
     action: damage
