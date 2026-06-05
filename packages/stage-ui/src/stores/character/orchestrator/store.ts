@@ -42,6 +42,26 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   let tickTimer: ReturnType<typeof setInterval> | undefined
   let initialized = false
   const eventUnsubscribes: Array<() => void> = []
+
+  // Generic notify-source muting. A module that already surfaces its own activity through a dedicated
+  // channel (e.g. a game adapter that reads bot reports aloud) can ask the orchestrator to skip
+  // auto-reacting to ITS spark:notify events — without the orchestrator carrying any module-specific
+  // knowledge. The owning adapter mutes/unmutes its source id around its lifecycle. Notifies from every
+  // other module/plugin still flow through the normal reaction path.
+  const mutedNotifySources = new Set<string>()
+
+  function notifySourceId(event: WebSocketEventOf<'spark:notify'>): string | undefined {
+    const source = event.metadata?.source
+    return source?.plugin?.id ?? source?.id
+  }
+
+  function muteNotifySource(sourceId: string) {
+    mutedNotifySources.add(sourceId)
+  }
+
+  function unmuteNotifySource(sourceId: string) {
+    mutedNotifySources.delete(sourceId)
+  }
   const sparkNotifyAgent = setupAgentSparkNotifyHandler({
     stream,
     getActiveProvider: () => activeProvider.value,
@@ -234,6 +254,10 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     eventUnsubscribes.push(
       modsServerChannelStore.onEvent('spark:notify', async (event) => {
         try {
+          const sourceId = notifySourceId(event)
+          if (sourceId && mutedNotifySources.has(sourceId))
+            return
+
           await handleIncomingSparkNotify(event)
         }
         catch (error) {
@@ -277,6 +301,9 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     startTicker,
     stopTicker,
     dispose,
+
+    muteNotifySource,
+    unmuteNotifySource,
 
     handleSparkNotify: handleIncomingSparkNotify,
     handleSparkNotifyWithReaction,

@@ -31,6 +31,7 @@
     "./libs/*": "./src/libs/*.ts",
     "./libs": "./src/libs/index.ts",
     "./tools/mcp": "./src/tools/mcp.ts",
+    "./tools/*": "./src/tools/*.ts",
     "./stores/providers/aliyun": "./src/stores/providers/aliyun/index.ts",
     "./stores/analytics": "./src/stores/analytics/index.ts",
     "./stores/analytics/posthog": "./src/stores/analytics/posthog.ts",

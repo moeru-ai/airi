@@ -43,6 +43,7 @@ import { useChatOrchestratorStore } from '../../stores/chat'
 import { useLlmStreamingControlStore } from '../../stores/llm-streaming-control'
 import { useAiriCardStore } from '../../stores/modules'
 import { useSpeechStore, voicePackForSpeechProvider } from '../../stores/modules/speech'
+import { useSystemSpeechStore } from '../../stores/modules/system-speech'
 import { useProvidersStore } from '../../stores/providers'
 import { useSettings } from '../../stores/settings'
 import { useSpeechOutputControlStore } from '../../stores/speech-output-control'
@@ -639,6 +640,12 @@ function stopSpeechOutput(reason: string) {
   resetAssistantSpeechSurface(reason)
 }
 
+// One-off "system speech" sessions (e.g. a game adapter reading a bot line aloud). They are opened
+// independently of `currentSession` (the chat reply session) so they never disturb it, but we still
+// track them so component teardown or a provider/voice swap can cancel them — otherwise an open
+// streaming ws could keep feeding playback into an unmounted component.
+const oneOffSessions = new Set<StageTtsSession>()
+
 function buildStreamingSnapshot(): StreamingSessionSnapshot | null {
   // Snapshotted once per session, so a mid-session provider/voice swap
   // does not corrupt an in-flight session — the watcher below detects
@@ -687,7 +694,7 @@ function resolveSpeechTransport(providerId: string | null | undefined): SpeechTr
   return getDefinedProvider(providerId)?.capabilities?.speech?.transport
 }
 
-function openTtsSession(): StageTtsSession {
+function openTtsSession(extra?: { onSettled?: () => void }): StageTtsSession {
   // A session must only clear the module-level `currentSession` if it IS that session. The previous
   // code cleared it whenever any `stream-` session completed, which is unsafe once sessions exist that
   // are not assigned to `currentSession` (e.g. one-off read-aloud sessions): one of those finishing
@@ -717,9 +724,11 @@ function openTtsSession(): StageTtsSession {
           error: err,
         })
         clearIfActive()
+        extra?.onSettled?.()
       },
       onDone: () => {
         clearIfActive()
+        extra?.onSettled?.()
       },
     },
   })
@@ -732,6 +741,27 @@ watch(latestStopRequest, (request) => {
 
   stopSpeechOutput(request.reason)
 })
+
+// Voice a single system line through the same TTS + lip-sync path as a chat reply, without it
+// becoming a chat message or waking the character's LLM. Producers (e.g. the Minecraft adapter)
+// request playback via useSystemSpeechStore.speak; this opens an independent session so the active
+// chat reply is never disturbed, and releases the tracking ref once the line finishes or errors.
+function speakSystemLine(text: string) {
+  const line = text.trim()
+  if (!line)
+    return
+
+  let session: StageTtsSession | null = null
+  session = openTtsSession({ onSettled: () => {
+    if (session)
+      oneOffSessions.delete(session)
+  } })
+  oneOffSessions.add(session)
+  session.appendText(line)
+  session.finishInput()
+}
+
+chatHookCleanups.push(useSystemSpeechStore().onSpeak(speakSystemLine).off)
 
 chatHookCleanups.push(onBeforeMessageComposed(async () => {
   playbackManager.stopAll('new-message')
@@ -786,9 +816,16 @@ chatHookCleanups.push(onAssistantResponseEnd(async (_message) => {
 watch(
   [activeSpeechProvider, () => activeSpeechVoice.value?.id, activeSpeechModel],
   ([provider, voiceId, model], [prevProvider, prevVoiceId, prevModel]) => {
-    if (!currentSession)
-      return
     if (provider === prevProvider && voiceId === prevVoiceId && model === prevModel)
+      return
+
+    // A real provider/voice/model swap: tear down sessions bound to the old adapter, including any
+    // one-off system-speech sessions still playing on it.
+    for (const session of oneOffSessions)
+      session.cancel('provider-or-voice-changed')
+    oneOffSessions.clear()
+
+    if (!currentSession)
       return
     console.warn('[Speech Pipeline] provider/voice/model changed mid-session, tearing down', {
       provider,
@@ -920,6 +957,9 @@ onUnmounted(() => {
   // #1 + MEDIUM #5.
   currentSession?.cancel('unmount')
   currentSession = null
+  for (const session of oneOffSessions)
+    session.cancel('unmount')
+  oneOffSessions.clear()
   playbackManager.stopAll('unmount')
 })
 
