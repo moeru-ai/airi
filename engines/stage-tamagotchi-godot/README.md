@@ -27,6 +27,9 @@ Godot-native desktop stage runtime project for `stage-tamagotchi`.
 - Current sidecar view state starts when the Godot stage process starts and ends
   when that process exits. The retained store code is not wired into the active
   runtime path yet.
+- G1.3 fixed stage presentation baseline: sky background, neutral grid ground,
+  center marker, direct light rig, neutral Godot environment post settings, and
+  avatar-only same-frame glow with the current toon color mapping.
 
 ## Directory Layout
 
@@ -154,6 +157,33 @@ separate follow-up.
 The grid ground is visual-only. It does not move the avatar root away from
 `(0, 0, 0)`, and its shader fades distant grid lines into the horizon color
 without enabling volumetric fog.
+
+The sky is visible as the viewport background, but it is not used as avatar or
+ground ambient/radiance input. `StageVisualPreset` sets ambient light to a fixed
+color, sets sky ambient contribution to `0`, disables reflected light, disables
+Godot Environment Glow, and leaves Godot tonemap/adjustment neutral. The current
+custom color mapping is applied by the stage compositor instead of Godot's
+Environment adjustment controls.
+
+## Avatar Glow And Color Mapping
+
+The current avatar presentation path uses a camera-local compositor:
+
+1. `StageAvatarGlowRuntime` assigns a `Compositor` to the active `Camera3D`.
+2. The runtime marks loaded avatar `GeometryInstance3D` nodes with a
+   depth-tested `MaterialOverlay` that writes stencil reference `1`.
+3. `StageAvatarGlowCompositorEffect` runs at `PostTransparent`, extracts
+   stencil-marked avatar pixels from the resolved scene color, builds the bloom
+   pyramid, composites avatar glare, and applies the current NAES/toon color
+   mapping before Godot's neutral output path.
+
+This is not Godot Environment Glow and does not use material emission as the
+avatar-style glow source. The color mapping currently lives in the same
+compositor effect as avatar glow; before adding more post effects such as rim
+light or screen-space outlines, pass orchestration and shared transient render
+textures should move behind a shared post-process owner.
+
+Design notes live in [`docs/rendering-effects.md`](docs/rendering-effects.md).
 
 ## Material Rendering Check
 
