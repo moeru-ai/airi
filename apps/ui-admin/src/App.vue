@@ -22,7 +22,12 @@ const navItems = [
   { to: '/voice-packs', icon: 'i-lucide-volume-2', label: 'Voice Packs' },
 ]
 
-const currentTitle = computed(() => navItems.find(item => item.to === route.path)?.label ?? 'Overview')
+const activeNavItem = computed(() => navItems.find(item =>
+  item.to === '/'
+    ? route.path === '/'
+    : route.path === item.to || route.path.startsWith(`${item.to}/`),
+))
+const currentTitle = computed(() => activeNavItem.value?.label ?? 'Overview')
 const initials = computed(() => {
   const source = me.value?.user.name || me.value?.user.email || 'A'
   return source.slice(0, 1).toUpperCase()
@@ -100,7 +105,7 @@ onMounted(async () => {
             :key="item.to"
             :to="item.to"
             class="nav-item"
-            :class="{ 'nav-item-active': route.path === item.to }"
+            :class="{ 'nav-item-active': activeNavItem?.to === item.to }"
           >
             <span :class="item.icon" />
             {{ item.label }}

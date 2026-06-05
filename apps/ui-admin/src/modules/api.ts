@@ -95,6 +95,36 @@ export interface VoicePackPayload {
   enabled?: boolean
 }
 
+export interface SpeechModel {
+  id: string
+  name: string
+}
+
+export interface SpeechVoice {
+  id: string
+  name: string
+  description?: string
+  labels?: Record<string, unknown>
+  tags?: string[]
+  languages?: { code: string, title: string }[]
+  preview_audio_url?: string
+}
+
+export interface SpeechVoicesResult {
+  voices: SpeechVoice[]
+  recommended: Record<string, string>
+}
+
+export interface SpeechTestPayload {
+  model: string
+  input: string
+  voice: string
+  speed?: number
+  extra_body?: {
+    voice_pack?: Record<string, unknown>
+  }
+}
+
 export class AdminApiError extends Error {
   constructor(
     message: string,
@@ -118,6 +148,15 @@ export function signInUrl(): string {
 
 async function adminFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const endpoint = new URL(`/api/admin${path}`, apiServerUrl())
+  return fetchJson<T>(endpoint, init)
+}
+
+async function publicFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const endpoint = new URL(`/api/v1${path}`, apiServerUrl())
+  return fetchJson<T>(endpoint, init)
+}
+
+async function fetchJson<T>(endpoint: URL, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers)
 
   if (init.body && !headers.has('Content-Type'))
@@ -143,6 +182,34 @@ async function adminFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
 
   return payload as T
+}
+
+async function publicFetchBlob(path: string, init: RequestInit = {}): Promise<Blob> {
+  const endpoint = new URL(`/api/v1${path}`, apiServerUrl())
+  const headers = new Headers(init.headers)
+
+  if (init.body && !headers.has('Content-Type'))
+    headers.set('Content-Type', 'application/json')
+
+  const response = await fetch(endpoint.toString(), {
+    ...init,
+    headers,
+    credentials: 'include',
+  })
+
+  if (!response.ok) {
+    let payload: unknown = null
+    try {
+      payload = await response.json()
+    }
+    catch {
+      payload = await response.text().catch(() => null)
+    }
+    const message = extractErrorMessage(payload) ?? `Audio API request failed (${response.status})`
+    throw new AdminApiError(message, response.status, payload)
+  }
+
+  return await response.blob()
 }
 
 function extractErrorMessage(payload: unknown): string | null {
@@ -201,6 +268,24 @@ export const adminApi = {
     adminFetch<AdminRouterConfigResult>('/config/router', {
       method: 'POST',
       body: JSON.stringify({ ...body, dryRun }),
+    }),
+  speechModels: async () => {
+    const data = await publicFetch<{ models?: SpeechModel[] }>('/audio/models')
+    return Array.isArray(data.models) ? data.models : []
+  },
+  speechVoices: async (model: string): Promise<SpeechVoicesResult> => {
+    const query = new URLSearchParams()
+    query.set('model', model)
+    const data = await publicFetch<Partial<SpeechVoicesResult>>(`/audio/voices?${query.toString()}`)
+    return {
+      voices: Array.isArray(data.voices) ? data.voices : [],
+      recommended: data.recommended && typeof data.recommended === 'object' ? data.recommended : {},
+    }
+  },
+  testSpeech: (body: SpeechTestPayload) =>
+    publicFetchBlob('/audio/speech', {
+      method: 'POST',
+      body: JSON.stringify(body),
     }),
   voicePacks: () => adminFetch<VoicePack[]>('/voice-packs'),
   createVoicePack: (body: VoicePackPayload) =>

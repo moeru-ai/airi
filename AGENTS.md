@@ -58,6 +58,7 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 - DI examples: `apps/stage-tamagotchi/src/main/index.ts` (injeca).
 - Styles: `uno.config.ts` (UnoCSS), `apps/stage-web/src/styles` (animations/reference).
 - Build pipeline refs: `.github/workflows`; lint rules in `eslint.config.js`.
+- Documented solutions: `docs/solutions/` records past fixes and workflow learnings, organized by category with YAML frontmatter (`module`, `tags`, `problem_type`); relevant when implementing, debugging, or verifying in documented areas.
 - Tailwind/UnoCSS: prefer UnoCSS; if standardizing styles, add shortcuts/rules/plugins in `uno.config.ts`.
 
 ## Commands (pnpm with filters)

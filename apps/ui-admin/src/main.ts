@@ -10,6 +10,7 @@ import FluxPage from './pages/FluxPage.vue'
 import LlmRouterPage from './pages/LlmRouterPage.vue'
 import OverviewPage from './pages/OverviewPage.vue'
 import UsersPage from './pages/UsersPage.vue'
+import VoicePackFormPage from './pages/VoicePackFormPage.vue'
 import VoicePacksPage from './pages/VoicePacksPage.vue'
 
 import '@proj-airi/font-chillroundm/index.css'
@@ -26,6 +27,8 @@ const router = createRouter({
     { path: '/flux', component: FluxPage },
     { path: '/llm-router', component: LlmRouterPage },
     { path: '/voice-packs', component: VoicePacksPage },
+    { path: '/voice-packs/new', name: 'voice-pack-new', component: VoicePackFormPage },
+    { path: '/voice-packs/:id/edit', name: 'voice-pack-edit', component: VoicePackFormPage },
   ],
 })
 
