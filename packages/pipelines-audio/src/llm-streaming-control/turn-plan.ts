@@ -430,7 +430,7 @@ function findMarkerEnd(source: string, start: number): number {
       continue
     }
 
-    if (char === '|' && next === '>' && braceDepth === 0 && bracketDepth === 0) {
+    if (char === '|' && next === '>') {
       return index
     }
   }
