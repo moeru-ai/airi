@@ -62,6 +62,13 @@ export interface OpenAiSpeechRequest {
   abortSignal?: AbortSignal
 }
 
+type TtsTrigger = 'auto' | 'manual'
+
+interface TtsAnalyticsContext {
+  trigger: TtsTrigger
+  source: 'audio.speech' | 'chat_auto_tts' | 'manual_preview' | 'settings_test'
+}
+
 /**
  * Runs the OpenAI-shaped text-to-speech gateway flow.
  *
@@ -83,6 +90,7 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
     const requestId = nanoid()
     let requestModel = typeof input.body.model === 'string' ? input.body.model : 'auto'
     const inputText = typeof input.body.input === 'string' ? input.body.input : ''
+    const analytics = ttsAnalyticsContext(input.body)
 
     if (requestModel === 'auto')
       requestModel = await deps.configKV.getOrThrow('DEFAULT_TTS_MODEL')
@@ -107,17 +115,50 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
       feature: 'tts',
       action: 'speech_requested',
       status: 'started',
-      source: 'audio.speech',
+      source: analytics.source,
       model: requestModel,
       metadata: {
         input_chars: inputText.length,
+        trigger: analytics.trigger,
       },
     })
 
     const flux = await deps.fluxService.getFlux(input.userId)
-    if (flux.flux <= 0)
+    try {
+      await deps.ttsMeter.assertCanAfford(input.userId, billingUnits, flux.flux)
+    }
+    catch (err) {
+      if (!(err instanceof ApiError) || err.statusCode !== 402)
+        throw err
+
+      void deps.productEventService.track({
+        userId: input.userId,
+        feature: 'tts',
+        action: 'speech_blocked',
+        status: 'blocked',
+        source: analytics.source,
+        model: requestModel,
+        reason: 'insufficient_balance',
+        metadata: {
+          input_chars: inputText.length,
+          billing_units: billingUnits,
+          balance_state: 'insufficient',
+          trigger: analytics.trigger,
+        },
+      })
+      logger.withError(err).withFields({
+        requestId,
+        userId: input.userId,
+        model: requestModel,
+        trigger: analytics.trigger,
+        source: analytics.source,
+      }).warn('tts speech blocked by pre-flight balance check')
+
+      if (analytics.trigger === 'auto')
+        return new Response(null, { status: 204 })
+
       throw createPaymentRequiredError('Insufficient flux')
-    await deps.ttsMeter.assertCanAfford(input.userId, billingUnits, flux.flux)
+    }
 
     const ttsInput = {
       text: inputText,
@@ -170,13 +211,14 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
         feature: 'tts',
         action: 'speech_failed',
         status: 'failed',
-        source: 'audio.speech',
+        source: analytics.source,
         model: requestModel,
         provider: routeCtx.provider,
         reason: failure.reason,
         metadata: {
           http_status: failure.status,
           duration_ms: Date.now() - startedAt,
+          trigger: analytics.trigger,
         },
       })
       throw err
@@ -195,13 +237,14 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
         feature: 'tts',
         action: 'speech_failed',
         status: 'failed',
-        source: 'audio.speech',
+        source: analytics.source,
         model: requestModel,
         provider: routeCtx.provider,
         reason: 'upstream_error',
         metadata: {
           http_status: response.status,
           duration_ms: durationMs,
+          trigger: analytics.trigger,
         },
       })
       logger.withFields({ requestId, userId: input.userId, model: requestModel, status: response.status, durationMs })
@@ -243,7 +286,7 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
       feature: 'tts',
       action: 'speech_succeeded',
       status: 'succeeded',
-      source: 'audio.speech',
+      source: analytics.source,
       model: requestModel,
       provider: routeCtx.provider,
       metadata: {
@@ -253,6 +296,7 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
         cost_multiplier: voicePackRequest.costMultiplier,
         duration_ms: durationMs,
         flux_consumed: fluxConsumed,
+        trigger: analytics.trigger,
       },
     })
     deps.requestLogService.logRequest({
@@ -298,6 +342,20 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
   }
 
   return { handleSpeechRequest }
+}
+
+function ttsAnalyticsContext(body: Record<string, unknown>): TtsAnalyticsContext {
+  const extraBody = asRecord(body.extra_body)
+  const analytics = asRecord(extraBody?.airi_analytics)
+  const trigger = analytics?.trigger === 'auto' ? 'auto' : 'manual'
+  const rawSource = analytics?.source
+  const source = rawSource === 'chat_auto_tts'
+    || rawSource === 'manual_preview'
+    || rawSource === 'settings_test'
+    ? rawSource
+    : 'audio.speech'
+
+  return { trigger, source }
 }
 
 async function voicePackRequestOptions(

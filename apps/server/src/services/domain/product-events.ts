@@ -11,7 +11,7 @@ const logger = useLogger('product-events')
 
 export type ProductFeature = 'auth' | 'chat' | 'gen_ai_chat' | 'tts' | 'billing' | 'voice_pack'
 
-export type ProductEventStatus = 'started' | 'succeeded' | 'failed'
+export type ProductEventStatus = 'started' | 'succeeded' | 'failed' | 'blocked'
 
 export type ProductAction
   = | 'user_signed_up'
@@ -23,6 +23,7 @@ export type ProductAction
     | 'speech_requested'
     | 'speech_succeeded'
     | 'speech_failed'
+    | 'speech_blocked'
     | 'voice_pack_created'
     | 'voice_pack_updated'
     | 'voice_pack_disabled'

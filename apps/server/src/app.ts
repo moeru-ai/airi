@@ -209,7 +209,10 @@ export async function buildApp(deps: AppDeps) {
     if (!session?.user)
       return createUnauthorizedWsEvents()
 
-    return audioSpeechWsSetup(session.user.id)
+    return audioSpeechWsSetup(session.user.id, {
+      trigger: c.req.query('tts_trigger') === 'auto' ? 'auto' : 'manual',
+      source: parseTtsSource(c.req.query('tts_source'), 'audio.speech.ws'),
+    })
   }))
 
   // Cross-instance config invalidation. The subscriber owns its own
@@ -427,6 +430,20 @@ export async function buildApp(deps: AppDeps) {
     }, 404))
 
   return { app: builtApp, injectWebSocket }
+}
+
+function parseTtsSource(
+  value: string | undefined,
+  fallback: 'audio.speech.ws',
+): 'audio.speech.ws' | 'chat_auto_tts' | 'manual_preview' | 'settings_test' {
+  switch (value) {
+    case 'chat_auto_tts':
+    case 'manual_preview':
+    case 'settings_test':
+      return value
+    default:
+      return fallback
+  }
 }
 
 export type AppType = Awaited<ReturnType<typeof buildApp>>['app']

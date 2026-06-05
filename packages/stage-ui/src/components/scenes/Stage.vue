@@ -430,8 +430,20 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
       // Non-streaming providers only: synth via REST. Streaming provider
       // was already early-returned above; it owns its own ws path opened
       // in `onBeforeMessageComposed`.
+      const providerConfigWithAnalytics = activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID
+        ? {
+            ...speechRequest.providerConfig,
+            extraBody: {
+              ...(speechRequest.providerConfig.extraBody as Record<string, unknown> | undefined),
+              airi_analytics: {
+                trigger: 'auto',
+                source: 'chat_auto_tts',
+              },
+            },
+          }
+        : speechRequest.providerConfig
       const res = await generateSpeech({
-        ...provider.speech(model, speechRequest.providerConfig),
+        ...provider.speech(model, providerConfigWithAnalytics),
         input: speechRequest.input,
         voice: voice.id,
       })

@@ -393,15 +393,33 @@ export const useSpeechStore = defineStore('speech', () => {
     voice: string,
     providerConfig: Record<string, any> = {},
   ): Promise<ArrayBuffer> {
+    const requestProviderConfig = activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID
+      || activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
+      ? withAiriTtsAnalytics(providerConfig, {
+          trigger: 'manual',
+          source: 'manual_preview',
+        })
+      : providerConfig
     const response = await generateSpeech({
-      ...provider.speech(model, {
-        ...providerConfig,
-      }),
+      ...provider.speech(model, requestProviderConfig),
       input,
       voice,
     })
 
     return response
+  }
+
+  function withAiriTtsAnalytics(
+    providerConfig: Record<string, any>,
+    analytics: { trigger: 'auto' | 'manual', source: 'chat_auto_tts' | 'manual_preview' | 'settings_test' },
+  ): Record<string, any> {
+    return {
+      ...providerConfig,
+      extraBody: {
+        ...(providerConfig.extraBody as Record<string, unknown> | undefined),
+        airi_analytics: analytics,
+      },
+    }
   }
 
   function generateSSML(

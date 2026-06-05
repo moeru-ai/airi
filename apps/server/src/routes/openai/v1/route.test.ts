@@ -75,7 +75,12 @@ function createMockRequestLogService(): RequestLogService {
 function createMockTtsMeter(unitsPerFlux = 1000) {
   let debt = 0
   return {
-    assertCanAfford: vi.fn(async () => undefined),
+    assertCanAfford: vi.fn(async (_userId: string, newUnits: number, currentBalance: number) => {
+      const projectedFlux = Math.floor((debt + newUnits) / unitsPerFlux)
+      const required = Math.max(projectedFlux, currentBalance <= 0 ? 1 : 0)
+      if (currentBalance < required)
+        throw new ApiError(402, 'PAYMENT_REQUIRED', 'Insufficient flux')
+    }),
     accumulate: vi.fn(async ({ units, currentBalance }: { units: number, currentBalance: number }) => {
       debt += units
       const fluxDebited = Math.floor(debt / unitsPerFlux)
@@ -910,10 +915,18 @@ describe('v1CompletionsRoutes', () => {
       )
     })
 
-    it('should return 402 when flux is insufficient', async () => {
+    it('returns 402 and records blocked event for manual TTS when flux is insufficient', async () => {
+      const productEventService = createMockProductEventService()
+      const llmRouter = createMockLlmRouter()
       const app = createTestApp(
         createMockFluxService(0),
         createMockConfigKV(),
+        undefined,
+        undefined,
+        undefined,
+        llmRouter,
+        createMockLlmTracing(),
+        productEventService,
       )
 
       const res = await app.fetch(
@@ -925,6 +938,63 @@ describe('v1CompletionsRoutes', () => {
         { user: testUser } as any,
       )
       expect(res.status).toBe(402)
+      expect(llmRouter.routeTts).not.toHaveBeenCalled()
+      expect(productEventService.track).toHaveBeenCalledWith(expect.objectContaining({
+        action: 'speech_blocked',
+        status: 'blocked',
+        source: 'audio.speech',
+        reason: 'insufficient_balance',
+        metadata: expect.objectContaining({
+          trigger: 'manual',
+          balance_state: 'insufficient',
+        }),
+      }))
+    })
+
+    it('returns 204 and records blocked event for auto TTS when flux is insufficient', async () => {
+      const productEventService = createMockProductEventService()
+      const llmRouter = createMockLlmRouter()
+      const app = createTestApp(
+        createMockFluxService(0),
+        createMockConfigKV(),
+        undefined,
+        undefined,
+        undefined,
+        llmRouter,
+        createMockLlmTracing(),
+        productEventService,
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/speech', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'auto',
+            input: 'hello',
+            voice: 'alloy',
+            extra_body: {
+              airi_analytics: {
+                trigger: 'auto',
+                source: 'chat_auto_tts',
+              },
+            },
+          }),
+        }),
+        { user: testUser } as any,
+      )
+      expect(res.status).toBe(204)
+      expect(llmRouter.routeTts).not.toHaveBeenCalled()
+      expect(productEventService.track).toHaveBeenCalledWith(expect.objectContaining({
+        action: 'speech_blocked',
+        status: 'blocked',
+        source: 'chat_auto_tts',
+        reason: 'insufficient_balance',
+        metadata: expect.objectContaining({
+          trigger: 'auto',
+          balance_state: 'insufficient',
+        }),
+      }))
     })
 
     it('should not charge when input is empty', async () => {
