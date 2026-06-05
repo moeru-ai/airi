@@ -632,19 +632,24 @@ function setupAnalyser() {
 // decision point. See `packages/stage-ui/src/libs/speech/tts-session.ts`.
 let currentSession: StageTtsSession | null = null
 
-function stopSpeechOutput(reason: string) {
-  currentSession?.cancel(reason)
-  currentSession = null
-  speechPipeline.stopAll(reason)
-  playbackManager.stopAll(reason)
-  resetAssistantSpeechSurface(reason)
-}
-
 // One-off "system speech" sessions (e.g. a game adapter reading a bot line aloud). They are opened
 // independently of `currentSession` (the chat reply session) so they never disturb it, but we still
 // track them so component teardown or a provider/voice swap can cancel them — otherwise an open
 // streaming ws could keep feeding playback into an unmounted component.
 const oneOffSessions = new Set<StageTtsSession>()
+
+function stopSpeechOutput(reason: string) {
+  currentSession?.cancel(reason)
+  currentSession = null
+  // A manual stop should silence everything, including any one-off system-speech session, so an
+  // open streaming ws does not keep feeding playback after the user asked it to stop.
+  for (const session of oneOffSessions)
+    session.cancel(reason)
+  oneOffSessions.clear()
+  speechPipeline.stopAll(reason)
+  playbackManager.stopAll(reason)
+  resetAssistantSpeechSurface(reason)
+}
 
 function buildStreamingSnapshot(): StreamingSessionSnapshot | null {
   // Snapshotted once per session, so a mid-session provider/voice swap
@@ -757,8 +762,12 @@ function speakSystemLine(text: string) {
       oneOffSessions.delete(session)
   } })
   oneOffSessions.add(session)
+  // The whole utterance is known up front: feed it, flush, then close the input. end() is required —
+  // on the REST/segmenter path finishInput() only flushes (writeFlush); without end() the speech
+  // pipeline's intent reader never exits and would block subsequent queued chat/TTS playback.
   session.appendText(line)
   session.finishInput()
+  session.end()
 }
 
 chatHookCleanups.push(useSystemSpeechStore().onSpeak(speakSystemLine).off)

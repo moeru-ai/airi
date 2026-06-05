@@ -52,8 +52,8 @@ describe('createRelayToMinecraftTool', () => {
     // The bot relays options[0].label to its brain — it MUST be the whole instruction, not truncated.
     expect(command.guidance?.options?.[0].label).toBe(task)
     expect(command.ack).toBe('好的主人~')
-    // Broadcast, consistent with the generic spark-command path.
-    expect(command.destinations).toEqual([])
+    // Targets the bot directly; an empty array would match no peer and drop the relay.
+    expect(command.destinations).toEqual(['minecraft-bot'])
     expect(onRelay).toHaveBeenCalledWith({ task, control: 'do', ack: '好的主人~' })
     expect(result).toContain('已把指令派给游戏里的 Airi')
   })

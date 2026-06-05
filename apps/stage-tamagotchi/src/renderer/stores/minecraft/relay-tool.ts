@@ -6,6 +6,14 @@ import { rawTool } from '@xsai/tool'
 import { toJsonSchema } from 'xsschema'
 import { z } from 'zod/v4'
 
+/**
+ * Module id the in-game bot registers under. Targeting the relay at it directly (rather than an empty
+ * destinations array) is required: the adapter sends straight over the channel, so an empty array
+ * would match no peer (`matchesDestinations([], peer)` is `[].some(...)` → false) and the command would
+ * be dropped before reaching the bot. The bare module id matches by name / plugin id / instance (glob).
+ */
+const MINECRAFT_BOT_DESTINATION = 'minecraft-bot'
+
 /** Control kind for a relay: perform the action, or stop the bot's current work. */
 export type RelayToMinecraftControl = 'do' | 'stop'
 
@@ -128,10 +136,9 @@ export async function createRelayToMinecraftTool(options: CreateRelayToMinecraft
             }]),
           },
           contexts: undefined,
-          // Broadcast, matching the generic spark-command path (stores/llm.ts sets destinations: []).
-          // The `[]`-vs-`undefined` broadcast convention is a pre-existing shared decision; the relay
-          // intentionally does not diverge from it.
-          destinations: [],
+          // Target the bot directly — see MINECRAFT_BOT_DESTINATION. An empty array would be preserved
+          // by the channel send and match no peer, silently dropping the relay.
+          destinations: [MINECRAFT_BOT_DESTINATION],
         } satisfies WebSocketEvents['spark:command']
 
         options.sendSparkCommand(command)
