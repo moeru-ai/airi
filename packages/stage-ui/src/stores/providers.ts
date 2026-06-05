@@ -52,6 +52,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { getKokoroAdapter } from '../libs/inference/adapters/kokoro'
+import { DEFAULT_WEB_RWKV_MODEL, DEFAULT_WHISPER_MODEL, WEB_RWKV_MODELS, WEB_RWKV_SAMPLING_DEFAULTS, WHISPER_MODELS } from '../libs/inference/constants'
 import { getProviderValidationIntervalMs, listProviders as listDefinedProviders, ProviderValidationCheck } from '../libs/providers'
 import { resolveProviderSourceMetadata } from '../libs/providers/source-metadata'
 import { getDefaultKokoroModel, KOKORO_MODELS, kokoroModelsToModelInfo } from '../workers/kokoro/constants'
@@ -61,7 +62,9 @@ import { convertProviderDefinitionsToMetadata } from './providers/converters'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
 import { buildOpenRouterAudioSpeechProvider } from './providers/openrouter/audio-speech'
+import { createWebRwkvChatProvider } from './providers/web-rwkv'
 import { createWebSpeechAPIProvider } from './providers/web-speech-api'
+import { createWhisperLocalTranscriptionProvider } from './providers/whisper-local'
 
 const ALIYUN_NLS_REGIONS = [
   'cn-shanghai',
@@ -2035,10 +2038,7 @@ export const useProvidersStore = defineStore('providers', () => {
       icon: 'i-lobe-icons:speaker',
 
       defaultOptions: () => {
-        const capabilities = getCachedWebGPUCapabilities()
-        const hasWebGPU = capabilities?.supported ?? (typeof navigator !== 'undefined' && !!navigator.gpu)
-        const fp16Supported = capabilities?.fp16Supported ?? false
-        const model = getDefaultKokoroModel(hasWebGPU, fp16Supported)
+        const model = getDefaultKokoroModel(getCachedWebGPUCapabilities())
         return {
           model,
           voiceId: '',
@@ -2092,10 +2092,7 @@ export const useProvidersStore = defineStore('providers', () => {
 
       capabilities: {
         listModels: async (_config: Record<string, unknown>) => {
-          const caps = getCachedWebGPUCapabilities()
-          const hasWebGPU = caps?.supported ?? (typeof navigator !== 'undefined' && !!navigator.gpu)
-          const fp16Supported = caps?.fp16Supported ?? false
-          return kokoroModelsToModelInfo(hasWebGPU, t, fp16Supported)
+          return kokoroModelsToModelInfo(getCachedWebGPUCapabilities(), t)
         },
 
         loadModel: async (config: Record<string, unknown>, _hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void }) => {
@@ -2235,6 +2232,120 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+    'whisper-local': {
+      id: 'whisper-local',
+      category: 'transcription',
+      tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
+      nameKey: 'settings.pages.providers.provider.whisper-local.title',
+      name: 'Whisper (Local)',
+      descriptionKey: 'settings.pages.providers.provider.whisper-local.description',
+      description: 'Local speech-to-text using Whisper, runs in your browser.',
+      icon: 'i-solar:microphone-3-bold-duotone',
+      // Local in-browser model — no API key. requiresCredentials:false lets the
+      // store list models and create the instance without persisted credentials.
+      requiresCredentials: false,
+      defaultOptions: () => ({
+        language: 'en',
+        model: DEFAULT_WHISPER_MODEL,
+      }),
+      // File/generate-based: the worker transcribes a complete utterance. The
+      // hearing store routes it through generateTranscription (transcribeForRecording).
+      transcriptionFeatures: {
+        supportsGenerate: true,
+        supportsStreamOutput: false,
+        supportsStreamInput: false,
+      },
+      createProvider: async config => createWhisperLocalTranscriptionProvider({
+        language: config.language as string | undefined,
+      }),
+      capabilities: {
+        // Model id is the Hugging Face repo, passed straight to the worker.
+        listModels: async () => WHISPER_MODELS.map(m => ({
+          id: m.id,
+          name: m.name,
+          provider: 'whisper-local',
+          description: m.description,
+          contextLength: 0,
+          deprecated: false,
+        })),
+      },
+      validators: {
+        chatPingCheckAvailable: false,
+        // No credentials and a built-in default model: always valid.
+        validateProviderConfig: () => ({ errors: [], reason: '', valid: true }),
+      },
+    },
+    'web-rwkv': {
+      id: 'web-rwkv',
+      category: 'chat',
+      tasks: ['text-generation'],
+      nameKey: 'settings.pages.providers.provider.web-rwkv.title',
+      name: 'RWKV (Local, WebGPU)',
+      descriptionKey: 'settings.pages.providers.provider.web-rwkv.description',
+      description: 'Local RWKV-7 language model running in your browser via WebGPU.',
+      icon: 'i-solar:cpu-bolt-bold-duotone',
+      // Local in-browser model — no API key.
+      requiresCredentials: false,
+      // WebGPU-only: web-rwkv has no WASM/CPU backend, so hide it where WebGPU
+      // is unavailable. Works in Electron (Chromium) as well as WebGPU browsers.
+      isAvailableBy: () => isWebGPUSupported(),
+      defaultOptions: () => ({
+        model: DEFAULT_WEB_RWKV_MODEL,
+        vocab: '',
+        ...WEB_RWKV_SAMPLING_DEFAULTS,
+      }),
+      createProvider: async config => createWebRwkvChatProvider({
+        model: (config.model as string) || undefined,
+        vocab: (config.vocab as string) || undefined,
+        temperature: config.temperature as number | undefined,
+        topP: config.topP as number | undefined,
+        topK: config.topK as number | undefined,
+        maxTokens: config.maxTokens as number | undefined,
+        presencePenalty: config.presencePenalty as number | undefined,
+        countPenalty: config.countPenalty as number | undefined,
+        penaltyDecay: config.penaltyDecay as number | undefined,
+      }),
+      capabilities: {
+        // Expose all preset web-rwkv models so the user can switch between them
+        // on the consciousness page. If a custom URL is configured that is not in
+        // the preset list, it is prepended so the current selection stays visible.
+        listModels: async (config) => {
+          const configured = (config.model as string) || DEFAULT_WEB_RWKV_MODEL
+          const presets = WEB_RWKV_MODELS.map(m => ({
+            id: m.id,
+            name: m.name,
+            provider: 'web-rwkv',
+            description: m.description,
+            contextLength: 0,
+            deprecated: false,
+          }))
+          if (WEB_RWKV_MODELS.some(m => m.id === configured))
+            return presets
+          return [
+            {
+              id: configured,
+              name: 'RWKV (custom URL)',
+              provider: 'web-rwkv',
+              description: 'Custom web-rwkv model URL.',
+              contextLength: 0,
+              deprecated: false,
+            },
+            ...presets,
+          ]
+        },
+      },
+      validators: {
+        chatPingCheckAvailable: false,
+        // No credentials; valid as long as a model URL is present.
+        validateProviderConfig: (config) => {
+          const url = (config.model as string) || DEFAULT_WEB_RWKV_MODEL
+          if (!url) {
+            return { errors: [new Error('No model URL configured')], reason: 'A model URL is required.', valid: false }
+          }
+          return { errors: [], reason: '', valid: true }
+        },
+      },
+    },
   }
 
   // Progressive migration bridge:
@@ -2354,8 +2465,11 @@ export const useProvidersStore = defineStore('providers', () => {
       if (providerRuntimeState.value[providerId]) {
         providerRuntimeState.value[providerId].isConfigured = validationResult.valid
         providerRuntimeState.value[providerId].validatedCredentialHash = configString
-        // Auto-mark Web Speech API as added if valid and available
-        if (validationResult.valid && ['browser-web-speech-api', 'player2'].includes(providerId)) {
+        // Auto-mark credential-free local providers as added once valid, so they
+        // surface in the "persisted" provider lists (e.g. the consciousness page,
+        // which only lists added chat providers) without a manual add step. These
+        // have no API key to enter, so there is nothing for the user to configure.
+        if (validationResult.valid && ['browser-web-speech-api', 'player2', 'web-rwkv'].includes(providerId)) {
           markProviderAdded(providerId)
         }
       }

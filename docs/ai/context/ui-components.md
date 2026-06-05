@@ -382,6 +382,8 @@ Searchable dropdown/autocomplete using reka-ui with grouping.
 | `openOnClick` | `boolean?` | `true` | Auto-open dropdown on click |
 | `contentMinWidth` | `string \| number?` | — | Dropdown min width |
 | `contentWidth` | `string \| number?` | — | Dropdown width |
+| `allowCustom` | `boolean?` | `false` | Commit typed text that matches no option as the value (string-valued fields, e.g. model id/URL) |
+| `customOptionDescription` | `string?` | — | Description shown on the synthetic custom-value item |
 
 **v-model**: `modelValue: T`
 **Slots**: `option({ option })`, `empty`
@@ -400,6 +402,8 @@ Simplified Combobox wrapper for string/number options.
 | `layout` | `'horizontal' \| 'vertical'?` | — | Layout direction |
 | `contentMinWidth` | `string \| number?` | — | Dropdown min width |
 | `contentWidth` | `string \| number?` | — | Dropdown width |
+| `allowCustom` | `boolean?` | `false` | Commit typed text that matches no option as the value (string-valued fields, e.g. model id/URL) |
+| `customOptionDescription` | `string?` | — | Description shown on the synthetic custom-value item |
 
 **v-model**: `modelValue: string | number`
 **Slots**: `option({ option })`, `empty`
@@ -531,6 +535,8 @@ All Field components wrap a base input with `label`, `description`, and consiste
 | `disabled` | `boolean?` | `false` | Disabled |
 | `openOnClick` | `boolean?` | `true` | Auto-open dropdown on click |
 | `layout` | `'horizontal' \| 'vertical'` | `'horizontal'` | Layout |
+| `allowCustom` | `boolean?` | `false` | Commit typed text that matches no option as the value (string-valued fields, e.g. model id/URL) |
+| `customOptionDescription` | `string?` | — | Description shown on the synthetic custom-value item when `allowCustom` is set |
 
 **v-model**: `modelValue: string`
 **Slots**: `label`, `description`, `option`, `empty`

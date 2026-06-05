@@ -353,6 +353,7 @@ pages:
         configuration will be used.
       use_default: Use default
       use_default_not_configured: Use default (not configured)
+      custom_value: Custom value
       fields_info:
         subtitle: >-
           You can put here some details about the character you are creating,
@@ -375,6 +376,18 @@ pages:
           a previous card.
         consciousness_model: Select the consciousness model (AI model) for this character.
         speech_model: Select the speech synthesis model and voice for this character.
+      prompt_settings:
+        title: Prompt Guidance
+        inject_markdown_guidance:
+          label: Markdown formatting hints
+          description: >-
+            Instructs the model to tag code fences with a language identifier and
+            use LaTeX syntax ($ … $) for math so the UI renders correctly.
+        prefix_user_timestamp:
+          label: Timestamp user messages
+          description: >-
+            Prefixes each message you send with the current time so the model is
+            aware of when you sent it.
       errors:
         name: Name should be valid or non-empty.
         version: 'Error: Invalid version number !'
@@ -1255,9 +1268,13 @@ pages:
               description: Smaller models load faster but may have slightly lower quality.
         models:
           fp32-webgpu:
-            description: >-
-              Full precision model using WebGPU - Recommended for supported
-              devices
+            description: Full precision model using WebGPU
+          fp16-webgpu:
+            description: Half precision model using WebGPU
+          q8-webgpu:
+            description: 8-bit quantized model using WebGPU
+          q4-webgpu:
+            description: 4-bit quantized model using WebGPU
           fp32:
             description: Full precision model
           fp16:
@@ -1401,6 +1418,67 @@ pages:
       browser-web-speech-api:
         description: Browser-native STT (requires Chrome/Edge/Safari)
         title: Web Speech API
+      whisper-local:
+        description: Local STT using Whisper (runs in your browser, no API key)
+        title: Whisper (Local)
+      web-rwkv:
+        description: Local RWKV-7 LLM in your browser via WebGPU (no API key)
+        title: RWKV (Local, WebGPU)
+        alert:
+          title: WebGPU-only, in-browser LLM
+          content: >-
+            RWKV runs entirely in your browser via WebGPU — no API key, no
+            server. The model downloads on first use and is cached; bf16/f32
+            weights are converted to f16 automatically while loading. Requires a
+            WebGPU-capable browser or Electron (there is no CPU/WASM fallback).
+        fields:
+          model:
+            label: Model URL
+            description: >-
+              A .safetensors URL with RWKV-native tensor names — either
+              web-rwkv-converted or raw HuggingFace (layout is auto-detected).
+              bf16/f32 are cast to f16 on load. PyTorch .pth is not supported;
+              convert it to safetensors first (convert_safetensors.py).
+          vocab:
+            label: Vocab URL (optional)
+            description: >-
+              Override the bundled RWKV World tokenizer vocab. Leave empty to use
+              the default.
+            placeholder: (bundled rwkv_vocab_v20230424.json)
+          temperature:
+            label: Temperature
+            description: >-
+              Randomness of sampling. Lower is more focused and deterministic;
+              higher is more varied.
+          top-p:
+            label: Top P
+            description: >-
+              Nucleus sampling: keep the smallest set of tokens whose probabilities
+              sum to this cutoff. Lower narrows the choices.
+          top-k:
+            label: Top K
+            description: >-
+              Keep only the K most likely tokens before sampling. Set to 0 to
+              disable and use top-p alone.
+            disabled: 'Off'
+          max-tokens:
+            label: Max tokens
+            description: Hard cap on the number of tokens generated per reply.
+          presence-penalty:
+            label: Presence penalty
+            description: >-
+              Penalize tokens that have already appeared at all, encouraging the
+              model to introduce new topics.
+          count-penalty:
+            label: Frequency penalty
+            description: >-
+              Penalize tokens in proportion to how often they have appeared,
+              reducing verbatim repetition.
+          penalty-decay:
+            label: Penalty decay
+            description: >-
+              Per-step decay applied to the accumulated penalties. Closer to 1
+              makes penalties persist longer across the reply.
       official:
         title: Official Provider
         description: Official AI provider by AIRI.

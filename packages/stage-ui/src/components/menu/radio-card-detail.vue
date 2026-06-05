@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { Input, TransitionVertical } from '@proj-airi/ui'
-import { ref } from 'vue'
+import { nextTick, onMounted, ref, watch } from 'vue'
 
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
   id: string
   name: string
   value: string
@@ -25,10 +25,26 @@ withDefaults(defineProps<{
 
 const modelValue = defineModel<string>({ required: true })
 
-// Track if description is expanded
 const isExpanded = ref(false)
+// Ref to the collapsed description element — used to check actual overflow.
+const descriptionEl = ref<HTMLElement | null>(null)
+// True only when line-clamp is actually clipping text in the collapsed state.
+const isDescriptionClamped = ref(false)
 
-// Toggle description expansion
+function checkClamped() {
+  const el = descriptionEl.value
+  if (el)
+    isDescriptionClamped.value = el.scrollHeight > el.clientHeight
+}
+
+onMounted(() => nextTick(checkClamped))
+watch(() => props.description, () => nextTick(checkClamped))
+// Re-measure after collapsing so the button disappears if the card grew wide enough.
+watch(isExpanded, (expanded) => {
+  if (!expanded)
+    nextTick(checkClamped)
+})
+
 function toggleExpansion() {
   isExpanded.value = !isExpanded.value
 }
@@ -97,6 +113,7 @@ function toggleExpansion() {
         <TransitionVertical>
           <div
             v-if="!isExpanded || !showExpandCollapse"
+            ref="descriptionEl"
             class="line-clamp-2 cursor-pointer text-xs"
             :class="[
               modelValue === value
@@ -124,9 +141,11 @@ function toggleExpansion() {
           </div>
         </TransitionVertical>
 
-        <!-- Expand/collapse button for long descriptions -->
+        <!-- Only render when text is actually clipped (collapsed) or already expanded so
+             the user can collapse it again. Character-count alone is unreliable because
+             a wide card can show the full text in ≤2 lines without any clipping. -->
         <button
-          v-if="showExpandCollapse && description.length > expandCollapseThreshold"
+          v-if="showExpandCollapse && (isDescriptionClamped || isExpanded)"
           class="mt-0.5 inline-flex items-center text-xs text-primary-500 dark:text-primary-600"
           @click.prevent="toggleExpansion"
         >

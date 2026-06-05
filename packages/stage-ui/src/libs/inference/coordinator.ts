@@ -6,17 +6,17 @@
  * their GPU memory allocations.
  */
 
+import type { GpuExecutor } from './gpu-executor'
 import type { GPUResourceCoordinator } from './gpu-resource-coordinator'
-import type { LoadQueue } from './load-queue'
 
 import { getCachedWebGPUCapabilities } from '@proj-airi/stage-shared/webgpu'
 
 import { MODEL_NAMES } from './constants'
+import { createGpuExecutor } from './gpu-executor'
 import { createGPUResourceCoordinator } from './gpu-resource-coordinator'
-import { createLoadQueue } from './load-queue'
 
 let coordinator: GPUResourceCoordinator | null = null
-let loadQueue: LoadQueue | null = null
+let gpuExecutor: GpuExecutor | null = null
 
 /**
  * Get the global GPU resource coordinator.
@@ -43,15 +43,15 @@ export function getGPUCoordinator(): GPUResourceCoordinator {
 }
 
 /**
- * Get the global model load queue.
- * Ensures only one model loads at a time to prevent
- * bandwidth competition and GPU memory spikes.
+ * Get the global GPU executor.
+ * Serializes GPU-bound loads and inference at concurrency 1 so overlapping
+ * VRAM-intensive kernels can't exhaust VRAM and crash a GPU context.
  */
-export function getLoadQueue(): LoadQueue {
-  if (!loadQueue) {
-    loadQueue = createLoadQueue()
+export function getGpuExecutor(): GpuExecutor {
+  if (!gpuExecutor) {
+    gpuExecutor = createGpuExecutor()
   }
-  return loadQueue
+  return gpuExecutor
 }
 
 // Rough VRAM estimates per model (in bytes) for allocation tracking
@@ -70,4 +70,8 @@ export const MODEL_VRAM_ESTIMATES: Record<string, number> = {
 
   // Xenova/modnet — small model
   [MODEL_NAMES.BG_REMOVAL]: 25 * 1024 * 1024, // ~25 MB
+
+  // web-rwkv (WebGPU RWKV) — varies widely by model; conservative estimate
+  // covering small chat models (0.1B–0.4B). Larger models under-estimate.
+  [MODEL_NAMES.WEB_RWKV]: 512 * 1024 * 1024, // ~512 MB
 }

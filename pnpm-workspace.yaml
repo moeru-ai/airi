@@ -45,6 +45,7 @@ catalog:
   '@capacitor/core': ^8.3.1
   '@capacitor/ios': ^8.3.1
   '@capacitor/local-notifications': ^8.0.2
+  '@cryscan/web-rwkv-wasm': ^0.10.20
   '@date-fns/utc': ^2.1.1
   '@discordjs/voice': ^0.19.2
   '@dotenvx/dotenvx': ^1.61.1

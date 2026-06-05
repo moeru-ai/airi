@@ -174,6 +174,8 @@ export interface ChatOrchestratorRuntimeDeps {
   getActiveProvider: () => string | undefined
   /** Returns optional prompt text appended to the provider system message for this send. */
   getSystemPromptSupplement?: () => string | undefined
+  /** When provided and returns false, the `[HH:MM]` timestamp prefix is omitted from user messages. @default true */
+  shouldPrefixUserTimestamp?: () => boolean
   /** Runtime context providers ingested immediately before prompt composition. */
   runtimeContextProviders?: Array<() => ContextMessage | null | undefined>
   /** Clock used for persisted message timestamps. @default Date.now */
@@ -337,7 +339,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       const rawMessage = unwrapMessage(withoutContext)
 
       if (rawMessage.role === 'user') {
-        return prependTextToContent(rawMessage, formatTimePrefix(createdAt ?? nowTs))
+        const prefixTs = deps.shouldPrefixUserTimestamp?.() ?? true
+        return prefixTs
+          ? prependTextToContent(rawMessage, formatTimePrefix(createdAt ?? nowTs))
+          : rawMessage
       }
 
       if (rawMessage.role === 'assistant') {

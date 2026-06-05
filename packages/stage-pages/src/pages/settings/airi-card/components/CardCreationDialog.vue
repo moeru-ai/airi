@@ -12,7 +12,7 @@ import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consci
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
-import { Button, FieldInput, FieldValues } from '@proj-airi/ui'
+import { Button, FieldCheckbox, FieldInput, FieldValues } from '@proj-airi/ui'
 import { ComboboxSelect } from '@proj-airi/ui/components/form'
 import { storeToRefs } from 'pinia'
 import {
@@ -90,6 +90,10 @@ const selectedArtistrySpawnMode = ref<'bg' | 'widget' | 'inline' | 'bg_widget'>(
 const selectedArtistryAutonomousEnabled = ref<boolean>(false)
 const selectedArtistryAutonomousThreshold = ref<number>(70)
 const selectedArtistryConfigStr = ref<string>('{\n  \n}')
+
+// Prompt guidance settings
+const selectedInjectMarkdownGuidance = ref<boolean>(true)
+const selectedPrefixUserTimestamp = ref<boolean>(true)
 
 // Computed: available display model options
 const displayModelOptions = computed(() =>
@@ -316,7 +320,7 @@ function saveCard(card: Card): boolean {
         throw new Error('Not an object')
       }
     }
-    catch (e) {
+    catch {
       showError.value = true
       errorMessage.value = t('settings.pages.card.creation.errors.invalid_artistry_json')
       return false
@@ -363,6 +367,10 @@ function saveCard(card: Card): boolean {
             options: artistryOptions,
             autonomousEnabled: selectedArtistryAutonomousEnabled.value,
             autonomousThreshold: selectedArtistryAutonomousThreshold.value,
+          },
+          prompt: {
+            injectMarkdownGuidance: selectedInjectMarkdownGuidance.value,
+            prefixUserTimestamp: selectedPrefixUserTimestamp.value,
           },
         },
         agents: {},
@@ -414,6 +422,9 @@ function initializeCard(): Card {
   catch {
     selectedArtistryConfigStr.value = '{\n  \n}'
   }
+
+  selectedInjectMarkdownGuidance.value = airiExt?.modules?.prompt?.injectMarkdownGuidance ?? true
+  selectedPrefixUserTimestamp.value = airiExt?.modules?.prompt?.prefixUserTimestamp ?? true
 
   // Return existing card data or defaults
   if (existingCard) {
@@ -585,6 +596,8 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                   :options="consciousnessModelOptions"
                   :placeholder="getDefaultPlaceholder(defaultConsciousnessModel)"
                   :disabled="!selectedConsciousnessProvider && !consciousnessProvider"
+                  :allow-custom="true"
+                  :custom-option-description="t('settings.pages.card.creation.custom_value')"
                   class="w-full"
                 />
               </div>
@@ -614,6 +627,8 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                   :options="speechModelOptions"
                   :placeholder="getDefaultPlaceholder(defaultSpeechModel)"
                   :disabled="!selectedSpeechProvider && !speechProvider"
+                  :allow-custom="true"
+                  :custom-option-description="t('settings.pages.card.creation.custom_value')"
                   class="w-full"
                 />
               </div>
@@ -654,6 +669,22 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
               <FieldInput v-model="cardSystemPrompt" :label="t('settings.pages.card.systemprompt')" :single-line="false" :required="true" :description="t('settings.pages.card.creation.fields_info.systemprompt')" />
               <FieldInput v-model="cardPostHistoryInstructions" :label="t('settings.pages.card.posthistoryinstructions')" :single-line="false" :required="true" :description="t('settings.pages.card.creation.fields_info.posthistoryinstructions')" />
               <FieldInput v-model="cardVersion" :label="t('settings.pages.card.creation.version')" :required="true" :description="t('settings.pages.card.creation.fields_info.version')" />
+            </div>
+
+            <div :class="['ml-auto', 'mr-auto', 'mt-6', 'w-90%', 'flex', 'flex-col', 'gap-3']">
+              <p :class="['text-sm', 'font-medium', 'text-neutral-600', 'dark:text-neutral-300']">
+                {{ t('settings.pages.card.creation.prompt_settings.title') }}
+              </p>
+              <FieldCheckbox
+                v-model="selectedInjectMarkdownGuidance"
+                :label="t('settings.pages.card.creation.prompt_settings.inject_markdown_guidance.label')"
+                :description="t('settings.pages.card.creation.prompt_settings.inject_markdown_guidance.description')"
+              />
+              <FieldCheckbox
+                v-model="selectedPrefixUserTimestamp"
+                :label="t('settings.pages.card.creation.prompt_settings.prefix_user_timestamp.label')"
+                :description="t('settings.pages.card.creation.prompt_settings.prefix_user_timestamp.description')"
+              />
             </div>
           </div>
           <!-- Artistry -->
