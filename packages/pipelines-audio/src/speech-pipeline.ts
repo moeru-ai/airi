@@ -360,11 +360,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
       stream,
       writeLiteral(text: string) {
         if (intent.canceled) return
-        console.log('[TTS PIPELINE] writeLiteral received:', JSON.stringify(text))
         const stripped = stripMarkdown ? stripMarkdownFromText(text) : text
-        if (stripped !== text) {
-          console.log('[TTS PIPELINE] writeLiteral stripped:', JSON.stringify(stripped))
-        }
         write({
           type: 'literal',
           value: stripped,
