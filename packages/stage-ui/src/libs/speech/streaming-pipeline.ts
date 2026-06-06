@@ -1,3 +1,4 @@
+import { buildStreamingTtsUrl } from './tts-analytics'
 import type { TtsSource, TtsTrigger } from './tts-analytics'
 
 import { getAuthToken } from '../auth'
@@ -121,7 +122,7 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
     return noopHandle()
   }
 
-  const wsUrl = toWebSocketUrl(options.serverUrl ?? SERVER_URL, '/api/v1/audio/speech/ws', token, {
+  const wsUrl = buildStreamingTtsUrl(options.serverUrl ?? SERVER_URL, '/api/v1/audio/speech/ws', token, {
     ttsTrigger: options.ttsTrigger ?? 'auto',
     ttsSource: options.ttsSource ?? 'chat_auto_tts',
   })
@@ -410,19 +411,6 @@ function noopHandle(): StreamingTtsPipelineHandle {
   return { appendText: () => {}, finish: () => {}, cancel: () => {} }
 }
 
-function toWebSocketUrl(
-  httpBase: string,
-  path: string,
-  token: string,
-  analytics: { ttsTrigger: TtsTrigger, ttsSource: TtsSource },
-): string {
-  const u = new URL(path, httpBase)
-  u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:'
-  u.searchParams.set('token', token)
-  u.searchParams.set('tts_trigger', analytics.ttsTrigger)
-  u.searchParams.set('tts_source', analytics.ttsSource)
-  return u.toString()
-}
 
 /**
  * Reads the sentence text from a `sentence.start` / `sentence.end` /

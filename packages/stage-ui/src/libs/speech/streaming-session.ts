@@ -1,3 +1,4 @@
+import { buildStreamingTtsUrl } from './tts-analytics'
 import type { TtsSource, TtsTrigger } from './tts-analytics'
 
 import { getAuthToken } from '../auth'
@@ -84,7 +85,7 @@ export async function streamingSynthesize(options: StreamingTtsSessionOptions): 
   if (!token) throw new Error('streaming-tts: not authenticated')
 
   const baseUrl = options.serverUrl ?? SERVER_URL
-  const wsUrl = toWebSocketUrl(baseUrl, '/api/v1/audio/speech/ws', token, {
+  const wsUrl = buildStreamingTtsUrl(baseUrl, '/api/v1/audio/speech/ws', token, {
     ttsTrigger: options.ttsTrigger ?? 'manual',
     ttsSource: options.ttsSource ?? 'manual_preview',
   })
@@ -227,19 +228,6 @@ export async function streamingSynthesize(options: StreamingTtsSessionOptions): 
   })
 }
 
-function toWebSocketUrl(
-  httpBase: string,
-  path: string,
-  token: string,
-  analytics: { ttsTrigger: TtsTrigger, ttsSource: TtsSource },
-): string {
-  const u = new URL(path, httpBase)
-  u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:'
-  u.searchParams.set('token', token)
-  u.searchParams.set('tts_trigger', analytics.ttsTrigger)
-  u.searchParams.set('tts_source', analytics.ttsSource)
-  return u.toString()
-}
 
 function concatArrayBuffers(parts: ArrayBuffer[]): ArrayBuffer {
   if (parts.length === 0) return new ArrayBuffer(0)
