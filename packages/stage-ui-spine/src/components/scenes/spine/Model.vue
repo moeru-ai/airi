@@ -167,6 +167,7 @@ async function loadModel() {
       : undefined
     if (!detectedVersion) detectedVersion = '4.2'
     const spine = await loadSpineRuntime(detectedVersion)
+    // eslint-disable-next-line no-console
     console.log(`[Spine] Detected skeleton version: ${detectedVersion}`)
 
     if (isUnmounted) {

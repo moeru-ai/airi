@@ -180,6 +180,7 @@ export function createInferenceWorkerManager(options: WorkerManagerOptions): Inf
 
   function scheduleRestart(): void {
     if (restartAttempts >= maxRestarts) {
+      // eslint-disable-next-line no-console -- Worker manager needs to log critical errors
       console.error(`[InferenceWorkerManager] Max restart attempts (${maxRestarts}) reached. Giving up.`)
       return
     }
@@ -187,12 +188,12 @@ export function createInferenceWorkerManager(options: WorkerManagerOptions): Inf
     restartAttempts++
     const delay = restartDelayMs * restartAttempts
 
-    console.warn(
-      `[InferenceWorkerManager] Restarting worker in ${delay}ms ` + `(attempt ${restartAttempts}/${maxRestarts})`,
-    )
+    // eslint-disable-next-line no-console -- Worker manager needs to log warnings
+    console.warn(`[InferenceWorkerManager] Restarting worker in ${delay}ms (attempt ${restartAttempts}/${maxRestarts})`)
 
     setTimeout(() => {
       ensureStarted().catch((err) => {
+        // eslint-disable-next-line no-console -- Worker manager needs to log errors
         console.error('[InferenceWorkerManager] Failed to restart:', errorMessageFrom(err))
       })
     }, delay)

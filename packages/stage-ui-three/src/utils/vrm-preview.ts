@@ -94,6 +94,7 @@ export async function loadVrmModelPreview(file: File) {
     renderer.render(scene, camera)
 
     const dataUrl = offscreenCanvas.toDataURL()
+    // eslint-disable-next-line consistent-return
     return dataUrl
   } finally {
     mixer?.stopAllAction()

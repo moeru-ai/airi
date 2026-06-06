@@ -56,6 +56,7 @@ export function useAuthProviderSync() {
     // Only set official provider as active when the user hasn't configured
     // any provider for that module yet.
     for (const { id, module } of toActivate) {
+      // eslint-disable-next-line default-case
       switch (module) {
         case 'consciousness':
           if (!consciousnessStore.activeProvider) {
@@ -157,6 +158,7 @@ export function useAuthProviderSync() {
 
     // Reset active provider/model if they belong to an auth-activated provider
     for (const { id, module } of AUTH_ACTIVATED_PROVIDERS) {
+      // eslint-disable-next-line default-case
       switch (module) {
         case 'consciousness':
           if (consciousnessStore.activeProvider === id) {

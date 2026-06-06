@@ -203,6 +203,7 @@ export class Client<C = undefined> {
     }
 
     if (this.connectTask) {
+      // eslint-disable-next-line consistent-return
       return this.waitForConnection(this.connectTask, options)
     }
 
@@ -210,6 +211,7 @@ export class Client<C = undefined> {
       this.connectTask = undefined
     })
 
+    // eslint-disable-next-line consistent-return
     return this.waitForConnection(this.connectTask, options)
   }
 
@@ -520,6 +522,7 @@ export class Client<C = undefined> {
     return this.opts.maxReconnectAttempts === -1 || this.reconnectAttempts < this.opts.maxReconnectAttempts
   }
 
+  // eslint-disable-next-line class-methods-use-this
   private getReconnectDelay(attempts: number) {
     return Math.min(2 ** attempts * 1_000, 30_000)
   }
@@ -540,6 +543,7 @@ export class Client<C = undefined> {
     }
   }
 
+  // eslint-disable-next-line consistent-return
   private async waitForConnection(connectPromise: Promise<void>, options?: ConnectOptions) {
     if (!options?.timeout && !options?.abortSignal) {
       return connectPromise
@@ -631,6 +635,7 @@ export class Client<C = undefined> {
     }
   }
 
+  // eslint-disable-next-line class-methods-use-this
   private parseMessage(raw: string): WebSocketEvent<C> {
     try {
       const parsed = superjson.parse<WebSocketEvent<C> | undefined>(raw)
@@ -650,6 +655,7 @@ export class Client<C = undefined> {
   }
 
   private async handleControlMessage(data: WebSocketEvent<C>) {
+    // eslint-disable-next-line default-case
     switch (data.type) {
       case 'error': {
         const message = data.data?.message

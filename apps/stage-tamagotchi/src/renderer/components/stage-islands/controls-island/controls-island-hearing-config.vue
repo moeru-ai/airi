@@ -37,7 +37,7 @@ watch(
   ([isEnabled, currentStream]) => {
     if (isEnabled && currentStream) {
       initialize().then(() => {
-        if (audioContext.value) return startAnalyzer(audioContext.value)
+        if (audioContext.value) startAnalyzer(audioContext.value)
       })
     } else {
       stopAnalyzer()

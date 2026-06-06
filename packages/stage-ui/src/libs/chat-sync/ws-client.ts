@@ -244,7 +244,10 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
       const dispose = contextDisposers.pop()!
       try {
         dispose()
-      } catch {}
+      // eslint-disable-next-line no-empty
+      } catch {
+        // noop
+      }
     }
     context.value = undefined
   }

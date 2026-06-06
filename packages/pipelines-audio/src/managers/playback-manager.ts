@@ -179,6 +179,7 @@ export function createPlaybackManager<TAudio>(options: PlaybackManagerOptions<TA
       }
     }
 
+    // eslint-disable-next-line default-case
     switch (overflowPolicy) {
       case 'reject':
         emitReject(item, 'overflow')

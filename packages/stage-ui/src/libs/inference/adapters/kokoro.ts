@@ -266,6 +266,7 @@ export function createKokoroAdapter(): KokoroAdapter {
 
   function scheduleRestart(): void {
     if (restartAttempts >= MAX_RESTARTS) {
+      // eslint-disable-next-line no-console -- Adapter needs to log critical errors
       console.error(`[KokoroAdapter] Max restart attempts (${MAX_RESTARTS}) reached.`)
       // NOTICE: Transition to 'terminated' so getKokoroAdapter() can detect
       // the dead singleton and create a fresh adapter on next access.
@@ -276,10 +277,12 @@ export function createKokoroAdapter(): KokoroAdapter {
     restartAttempts++
     const delay = RESTART_DELAY_MS * restartAttempts
 
-    console.warn(`[KokoroAdapter] Restarting in ${delay}ms ` + `(attempt ${restartAttempts}/${MAX_RESTARTS})`)
+    // eslint-disable-next-line no-console -- Adapter needs to log warnings
+    console.warn(`[KokoroAdapter] Restarting in ${delay}ms (attempt ${restartAttempts}/${MAX_RESTARTS})`)
 
     setTimeout(() => {
       ensureStarted().catch((err) => {
+        // eslint-disable-next-line no-console -- Adapter needs to log errors
         console.error('[KokoroAdapter] Restart failed:', err)
       })
     }, delay)
@@ -314,9 +317,8 @@ export function createKokoroAdapter(): KokoroAdapter {
     // chain handles transient failures; this guard handles persistent ones.
     let effectiveDevice = device
     if (device === 'webgpu' && deviceLossCount >= DEVICE_LOSS_WASM_THRESHOLD) {
-      console.warn(
-        `[KokoroAdapter] ${deviceLossCount} device-loss events recorded, ` + `promoting load from webgpu to wasm.`,
-      )
+      // eslint-disable-next-line no-console -- Adapter needs to log warnings
+      console.warn(`[KokoroAdapter] ${deviceLossCount} device-loss events recorded, promoting load from webgpu to wasm.`)
       effectiveDevice = 'wasm'
     }
     throwIfAborted(options?.signal)

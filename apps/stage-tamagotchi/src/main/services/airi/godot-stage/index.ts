@@ -264,7 +264,10 @@ async function resolveGodotProjectPath() {
     try {
       await access(join(projectPath, 'project.godot'))
       return projectPath
-    } catch {}
+    // eslint-disable-next-line no-empty
+    } catch {
+      // noop
+    }
 
     const parentDirectory = dirname(currentDirectory)
     if (parentDirectory === currentDirectory) {
@@ -333,7 +336,7 @@ async function resolveGodotBinary(): Promise<GodotBinaryResolution> {
     }
 
     throw new Error(
-      'Godot stage exported binary not found. ' + `Expected at: ${join(process.resourcesPath, 'godot-stage')}`,
+      `Godot stage exported binary not found. Expected at: ${join(process.resourcesPath, 'godot-stage')}`,
     )
   }
 

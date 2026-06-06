@@ -337,6 +337,7 @@ async function startAudioInteraction() {
     console.info('[Main Page] Starting audio interaction...')
 
     initVAD()
+      // eslint-disable-next-line consistent-return
       .then(() => {
         if (stream.value) {
           console.info('[Main Page] VAD initialized successfully, starting with stream input')

@@ -27,6 +27,7 @@ const ringEnabledClass = computed(() =>
   enabled.value ? 'bg-primary-500/15 dark:bg-primary-600/20' : 'bg-neutral-300/20 dark:bg-neutral-700/20',
 )
 
+// eslint-disable-next-line consistent-return
 function toggleHearingEnabled() {
   if (enabled.value) return (enabled.value = false)
   if (selectedAudioInput.value !== '' && permissionGranted.value) return (enabled.value = true)

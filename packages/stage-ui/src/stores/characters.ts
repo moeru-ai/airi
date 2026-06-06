@@ -77,7 +77,7 @@ export function createCharacterStoreController(params: {
       bookmarkMutation.error.value,
   )
 
-  async function fetchList(all: boolean = false) {
+  async function fetchList(all = false) {
     listAll.value = all
     const cached = await model.list()
     if (cached.length > 0) setCharactersMap(characters.value, cached)
@@ -143,8 +143,10 @@ export function createCharacterStoreController(params: {
       const remote = await updateMutation.mutateAsync({ id, data: payload })
       characters.value.set(remote.id, remote)
       await model.upsert(remote)
+      // eslint-disable-next-line consistent-return
       return remote
     } catch {
+      // eslint-disable-next-line consistent-return
       return localCharacter
     }
   }

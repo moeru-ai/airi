@@ -92,7 +92,10 @@ function inferModelFileName(model: DisplayModel) {
     const url = new URL(model.url)
     const parsedName = url.pathname.split('/').pop()
     if (parsedName) return parsedName
-  } catch {}
+  // eslint-disable-next-line no-empty
+  } catch {
+    // noop
+  }
 
   return `${model.id}.vrm`
 }

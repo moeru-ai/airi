@@ -124,6 +124,7 @@ export async function loadVrm(
     -(modelSize.y / 3) / Math.tan(radians), // default z value
   )
 
+  // eslint-disable-next-line consistent-return
   return {
     _vrm,
     _vrmGroup,

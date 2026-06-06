@@ -10,7 +10,7 @@ const props = defineProps<{
 const visible = defineModel<boolean>({ default: false })
 watchEffect(() => {
   if (props.default != null) {
-    visible.value = !!props.default
+    visible.value = Boolean(props.default)
   }
 })
 

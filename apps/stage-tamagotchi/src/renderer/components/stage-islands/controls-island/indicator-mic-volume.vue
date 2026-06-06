@@ -21,7 +21,10 @@ const normalized = computed(() => Math.min(1, (volumeLevel.value ?? 0) / 100))
 function teardown() {
   try {
     source?.disconnect()
-  } catch {}
+  // eslint-disable-next-line no-empty
+  } catch {
+    // noop
+  }
 
   source = undefined
   stopAnalyzer()

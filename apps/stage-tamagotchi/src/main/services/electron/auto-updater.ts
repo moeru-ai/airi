@@ -479,7 +479,10 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
 
       try {
         callback(state)
-      } catch {}
+      // eslint-disable-next-line no-empty
+      } catch {
+        // noop
+      }
 
       return () => {
         hooks.delete(callback)

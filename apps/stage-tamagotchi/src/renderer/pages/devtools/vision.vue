@@ -178,10 +178,12 @@ async function handleVisionTick() {
       publishContext: sendContextUpdates.value,
     })
 
+    // eslint-disable-next-line consistent-return
     return { capturedAt, contextUpdates: result.contextUpdates }
   } catch (error) {
     visionOrchestratorStore.recordError(error)
     errorMessage.value = `Failed to interpret frame: ${errorMessageFrom(error)}`
+    // eslint-disable-next-line consistent-return
     return { capturedAt: Date.now(), contextUpdates: 0 }
   }
 }

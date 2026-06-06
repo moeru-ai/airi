@@ -4,9 +4,9 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 
 ## Tech Stack (by surface)
 
-- **Desktop (stage-tamagotchi)**: Electron, Vue, Vite, TypeScript, Pinia, VueUse, Eventa (IPC/RPC), UnoCSS, Vitest, Prettier.
-- **Web (stage-web)**: Vue 3 + Vue Router, Vite, TypeScript, Pinia, VueUse, UnoCSS, Vitest, Prettier. Backend: WIP.
-- **Mobile (stage-pocket)**: Vue 3 + Vue Router, Vite, TypeScript, Pinia, VueUse, UnoCSS, Vitest, Prettier, Kotlin, Swift, Capacitor.
+- **Desktop (stage-tamagotchi)**: Electron, Vue, Vite, TypeScript, Pinia, VueUse, Eventa (IPC/RPC), UnoCSS, Vitest, ESLint.
+- **Web (stage-web)**: Vue 3 + Vue Router, Vite, TypeScript, Pinia, VueUse, UnoCSS, Vitest, ESLint. Backend: WIP.
+- **Mobile (stage-pocket)**: Vue 3 + Vue Router, Vite, TypeScript, Pinia, VueUse, UnoCSS, Vitest, ESLint, Kotlin, Swift, Capacitor.
 - **UI/Shared Packages**:
   - `packages/stage-ui`: Core business components, composables, stores shared by stage-web & stage-tamagotchi (heart of stage work).
   - `packages/stage-ui-three`: Three.js bindings + Vue components.
@@ -33,7 +33,7 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
   - Stories: `packages/stage-ui/stories`, `packages/stage-ui/histoire.config.ts` (e.g. `components/misc/Button.story.vue`).
 - **IPC/Eventa**: Always use `@moeru/eventa` for type-safe, framework/runtime-agnostic IPC/RPC. Define contracts centrally (e.g., `apps/stage-tamagotchi/src/shared`) and follow usage patterns in `apps/stage-tamagotchi/src/main/services/electron` for main/renderer integration.
 - **Dependency Injection**: Use `injeca` for services/electron modules/plugins/frontend; see `apps/stage-tamagotchi/src/main/index.ts` for composition patterns.
-- **Build/CI/Lint**: `.github/workflows` for pipelines; Prettier for formatting (pre-commit + `pnpm format`); DeepSource for cloud linting.
+- **Build/CI/Lint**: `.github/workflows` for pipelines; `eslint.config.js` for lint rules.
 - **Styles**: UnoCSS config at `uno.config.ts`; check `apps/stage-web/src/styles` for existing animations; prefer UnoCSS over Tailwind.
 
 ## Key Path Index (what lives where)
@@ -57,7 +57,8 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 - IPC/Eventa contracts/examples: `apps/stage-tamagotchi/src/shared`, `apps/stage-tamagotchi/src/main/services/electron`.
 - DI examples: `apps/stage-tamagotchi/src/main/index.ts` (injeca).
 - Styles: `uno.config.ts` (UnoCSS), `apps/stage-web/src/styles` (animations/reference).
-- Build pipeline refs: `.github/workflows`; formatting via Prettier (`.prettierrc.json`); linting via DeepSource cloud.
+- Build pipeline refs: `.github/workflows`; lint rules in `eslint.config.js`.
+- Documented solutions: `docs/solutions/` records past fixes and workflow learnings, organized by category with YAML frontmatter (`module`, `tags`, `problem_type`); relevant when implementing, debugging, or verifying in documented areas.
 - Tailwind/UnoCSS: prefer UnoCSS; if standardizing styles, add shortcuts/rules/plugins in `uno.config.ts`.
 
 ## Commands (pnpm with filters)
@@ -74,11 +75,9 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
     e.g. `pnpm -F @proj-airi/stage-tamagotchi exec vitest run`
   - Root `pnpm test:run`: runs all tests across registered projects. If no tests are found, check `vitest.config.ts` include patterns.
   - Root `vitest.config.ts` includes `apps/stage-tamagotchi` and other projects; each app/package can have its own `vitest.config`.
-- **Format**
-  - `pnpm format` and `pnpm format:check`
-  - Formatting is handled via Prettier; `pnpm format` writes, `pnpm format:check` verifies.
-  - Pre-commit hook runs `prettier --write` on staged files via `nano-staged`.
-  - Linting is handled by DeepSource in the cloud; no local lint tool is expected.
+- **Lint**
+  - `pnpm lint` and `pnpm lint:fix`
+  - Formatting is handled via ESLint; `pnpm lint:fix` applies formatting.
 - **Build**
   - `pnpm -F <package.json name> build`
   - Example: `pnpm -F @proj-airi/stage-tamagotchi build` (typecheck + electron-vite build).
@@ -186,7 +185,7 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 - Improve legacy you touch; avoid one-off patterns.
 - Keep changes scoped; use workspace filters (`pnpm -F <package> <script>`).
 - Maintain structured `README.md` documentation for each `packages/` and `apps/` entry, covering what it does, how to use it, when to use it, and when not to use it.
-- Always run `pnpm typecheck` and `pnpm format:check` after finishing a task.
+- Always run `pnpm type-check` and `pnpm lint` after finishing a task.
 - Use Conventional Commits for commit messages (e.g., `feat(<package name>): add runner reconnect backoff`).
 - For new feature requirements or requirement-related tasks involving `node:*` built-in modules, DOM operations, Vue composables, React hooks, Vite plugins, or GitHub Actions workflows, always do deep research for suitable existing libraries or open source modules first. Before choosing any library, always ask the user to choose and help judge which option is right. Never choose generalized utility libraries on your own (for example, `es-toolkit`, utilities from `github.com/unjs`, or tiny tools from `github.com/tinylib`) without explicit user confirmation. If the user is working spec-driven, list candidate choices in a clear and concise Markdown comparison table.
 - Before planning or writing new utilities/functions, always search for existing internal implementations first. If the logic could become shared utilities, proactively propose that shared approach to users and developers.
@@ -288,17 +287,3 @@ These guidelines apply to all TypeScript code across the monorepo:
 - Do not split modules into sections using separators like `========`; use cohesive private helper groups or split into modules only when the new module owns a distinct responsibility. Do not split files merely to reduce nesting, line count, or create test seams.
 - Do not overuse table-driven style. In many cases, keep table arrays inline and map directly with `.map(...)`.
 - Prefer early returns and keep functions simple. Limit nesting when it improves readability, but do not introduce pass-through helpers or shallow modules solely to reduce indentation.
-
-## graphify
-
-This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
-
-When the user types `/graphify`, invoke the `skill` tool with `skill: "graphify"` before doing anything else.
-
-Rules:
-
-- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
-- Dirty graphify-out/ files are expected after hooks or incremental updates; dirty graph files are not a reason to skip graphify. Only skip graphify if the task is about stale or incorrect graph output, or the user explicitly says not to use it.
-- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
-- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).

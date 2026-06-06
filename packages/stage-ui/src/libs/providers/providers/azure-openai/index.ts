@@ -41,7 +41,10 @@ function resolveProviderBaseUrl(input: string): string {
     if (DEPLOYMENT_CHAT_COMPLETIONS_PATH_REGEX.test(parsed.pathname) || OPENAI_PATH_REGEX.test(parsed.pathname)) {
       return `${parsed.origin}/openai/v1`
     }
-  } catch {}
+  // eslint-disable-next-line no-empty
+  } catch {
+    // noop
+  }
 
   return trimmed.endsWith('/') ? trimmed.slice(0, -1) : trimmed
 }

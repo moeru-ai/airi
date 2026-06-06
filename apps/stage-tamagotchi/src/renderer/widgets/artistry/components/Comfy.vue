@@ -115,6 +115,7 @@ async function handleSetAsBackground() {
       extension.airi.modules.activeBackgroundId = entry.id
 
       await cardStore.updateCard(cardId, { ...card, extensions: extension })
+      // eslint-disable-next-line no-console
       console.log(`[ComfyWidget] Set activeBackgroundId to ${entry.id} for ${cardId}`)
     }
   } catch (e) {

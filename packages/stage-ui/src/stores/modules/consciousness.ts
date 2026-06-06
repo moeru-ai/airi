@@ -68,7 +68,7 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
   }
 
   const configured = computed(() => {
-    return !!activeProvider.value && !!activeModel.value
+    return Boolean(activeProvider.value) && Boolean(activeModel.value)
   })
 
   function resetState() {

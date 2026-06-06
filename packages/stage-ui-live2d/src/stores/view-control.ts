@@ -63,6 +63,7 @@ export function useL2dViewControl() {
   function set(key: SupportedControl, value?: number) {
     const clamped =
       value !== undefined ? clampMinMax(value, defaultControlConfig[key].min, defaultControlConfig[key].max) : undefined
+    // eslint-disable-next-line default-case
     switch (key) {
       case 'x':
         position.value.x = clamped ?? defaultControlConfig.x.default

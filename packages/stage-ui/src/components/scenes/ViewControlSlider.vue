@@ -48,6 +48,7 @@ const activeControlConfig = computed(() => {
 const controlledValue = computed({
   get() {
     if (activeRenderer.value === 'live2d') {
+      // eslint-disable-next-line default-case
       switch (live2d.viewControlMode.value) {
         case 'x':
           return live2d.position.value.x
@@ -59,6 +60,7 @@ const controlledValue = computed({
     }
 
     if (activeRenderer.value === 'vrm') {
+      // eslint-disable-next-line default-case
       switch (three.viewControlMode.value) {
         case 'x':
           return three.modelOffset.value.x

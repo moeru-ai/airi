@@ -39,7 +39,7 @@
   "dependencies": {
     "@moeru/std": "catalog:",
     "@proj-airi/server-shared": "workspace:^",
-    "crossws": "^0.4.5",
+    "crossws": "catalog:",
     "superjson": "catalog:"
   }
 }

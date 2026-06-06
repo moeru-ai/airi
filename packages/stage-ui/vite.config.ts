@@ -65,6 +65,7 @@ export default defineConfig({
             prefix: env.STAGE_UI_WARP_DRIVE_PREFIX || 'proj-airi/stage-ui/main/',
             include: [/\.wasm$/i, /\.ttf$/i, /\.vrm$/i, /\.zip$/i], // in existing assets, wasm, ttf, vrm files are the largest ones
             manifest: true,
+            // eslint-disable-next-line consistent-return
             contentTypeBy: (filename: string) => {
               if (filename.endsWith('.wasm')) {
                 return 'application/wasm'

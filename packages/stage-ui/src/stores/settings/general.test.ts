@@ -25,9 +25,11 @@ describe('store settings-general', () => {
         store[key] = value
       }),
       removeItem: vi.fn((key: string) => {
+        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
         delete store[key]
       }),
       clear: vi.fn(() => {
+        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
         for (const key in store) delete store[key]
       }),
       length: 0,

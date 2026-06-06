@@ -28,8 +28,9 @@ function calculateVolume(manager: AudioManagerType): number {
 
   // Find peak volume
   let volume = 0.0
-  for (let i = 0; i < manager.dataBuffer.length; i++) {
-    volume = Math.max(volume, Math.abs(manager.dataBuffer[i]))
+  // eslint-disable-next-line no-restricted-syntax
+  for (const value of manager.dataBuffer) {
+    volume = Math.max(volume, Math.abs(value))
   }
 
   // Apply sigmoid normalization (from pixiv implementation)

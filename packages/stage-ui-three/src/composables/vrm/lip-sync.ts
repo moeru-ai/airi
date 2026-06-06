@@ -49,12 +49,18 @@ export function useVRMLipSync(audioNode: Ref<AudioBufferSourceNode | undefined, 
       if (oldAudioNode && oldAudioNode !== newAudioNode) {
         try {
           oldAudioNode.disconnect()
-        } catch {}
+        // eslint-disable-next-line no-empty
+        } catch {
+          // noop
+        }
       }
       if (!ready || !newAudioNode || !lipSyncNode.value) return
+      // eslint-disable-next-line no-empty
       try {
         newAudioNode.connect(lipSyncNode.value)
-      } catch {}
+      } catch {
+        // noop
+      }
     },
     { immediate: true },
   )

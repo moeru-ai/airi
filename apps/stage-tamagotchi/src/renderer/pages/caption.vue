@@ -61,13 +61,19 @@ onMounted(async () => {
   try {
     const isAttached = await getAttached()
     attached.value = Boolean(isAttached)
-  } catch {}
+  // eslint-disable-next-line no-empty
+  } catch {
+    // noop
+  }
 
   try {
     context.value.on(captionIsFollowingWindowChanged, (event) => {
+      // eslint-disable-next-line no-empty
       attached.value = Boolean(event?.body)
     })
-  } catch {}
+  } catch {
+    // noop
+  }
 
   try {
     // Update texts from broadcast channel
@@ -79,11 +85,14 @@ onMounted(async () => {
           addCaptionItem(event)
         } else if (event.type === 'caption-assistant') {
           addCaptionItem(event)
+        // eslint-disable-next-line no-empty
         }
       },
       { immediate: true },
     )
-  } catch {}
+  } catch {
+    // noop
+  }
 })
 
 onUnmounted(() => {

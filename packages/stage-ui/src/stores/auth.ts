@@ -30,7 +30,7 @@ export const useAuthStore = defineStore('auth', () => {
   // what lets the OIDC provider locate the server-side session row to delete
   // — without this we'd be back to relying on cross-site session cookies.
   const idToken = useLocalStorage<string | null>('auth/v1/oidc-id-token', null)
-  const isAuthenticated = computed(() => !!user.value && !!session.value)
+  const isAuthenticated = computed(() => Boolean(user.value) && Boolean(session.value))
   const userId = computed(() => user.value?.id ?? 'local')
 
   // --- OIDC token refresh state ---

@@ -53,12 +53,10 @@ function calculateVolumeWithMinMaxNormalize(analyser: AnalyserNode) {
 }
 
 function calculateVolume(analyser: AnalyserNode, mode: 'linear' | 'minmax' = 'linear') {
-  switch (mode) {
-    case 'linear':
-      return calculateVolumeWithLinearNormalize(analyser)
-    case 'minmax':
-      return calculateVolumeWithMinMaxNormalize(analyser)
-  }
+  if (mode === 'minmax')
+    return calculateVolumeWithMinMaxNormalize(analyser)
+
+  return calculateVolumeWithLinearNormalize(analyser)
 }
 
 export const useAudioContext = defineStore('audio-context', () => {

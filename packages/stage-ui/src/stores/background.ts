@@ -72,6 +72,7 @@ export const useBackgroundStore = defineStore('background-entries', () => {
       if (url) URL.revokeObjectURL(url)
     })
     for (const key in backgroundUrls) {
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
       delete backgroundUrls[key]
     }
   })
@@ -170,6 +171,7 @@ export const useBackgroundStore = defineStore('background-entries', () => {
           if (url) {
             URL.revokeObjectURL(url)
           }
+          // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
           delete backgroundUrls[id]
         }
       })
@@ -331,6 +333,7 @@ export const useBackgroundStore = defineStore('background-entries', () => {
       if (url) {
         URL.revokeObjectURL(url)
       }
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
       delete backgroundUrls[id]
       broadcastSync(Date.now())
     } catch (error) {

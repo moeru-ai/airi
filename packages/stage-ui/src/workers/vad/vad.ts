@@ -14,12 +14,12 @@ export class VAD implements BaseVAD {
   private sampleRateTensor: Tensor
   private buffer: Float32Array
   private bufferPointer: number = 0
-  private isRecording: boolean = false
+  private isRecording = false
   private postSpeechSamples: number = 0
   private prevBuffers: Float32Array[] = []
   private inferenceChain: Promise<any> = Promise.resolve()
   private eventListeners: Partial<Record<keyof VADEvents, VADEventCallback<any>[]>> = {}
-  private isReady: boolean = false
+  private isReady = false
 
   constructor(userConfig: Partial<BaseVADConfig> = {}) {
     // Default configuration

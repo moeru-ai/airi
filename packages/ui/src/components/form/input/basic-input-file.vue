@@ -27,8 +27,9 @@ function handleFileChange(e: Event) {
 
   files.value = []
 
-  for (let i = 0; i < input.files.length; i++) {
-    files.value.push(input.files[i])
+  // eslint-disable-next-line no-restricted-syntax
+  for (const file of input.files) {
+    files.value.push(file)
   }
 
   emit('update:modelValue', files.value)

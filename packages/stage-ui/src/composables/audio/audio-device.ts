@@ -1,7 +1,7 @@
 import { useDevicesList, useUserMedia } from '@vueuse/core'
 import { computed, nextTick, ref, watch } from 'vue'
 
-export function useAudioDevice(requestPermission: boolean = false) {
+export function useAudioDevice(requestPermission = false) {
   const { audioInputs, permissionGranted, ensurePermissions } = useDevicesList({
     constraints: { audio: true },
     requestPermissions: requestPermission,

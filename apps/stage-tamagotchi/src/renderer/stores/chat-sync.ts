@@ -401,6 +401,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     }
 
     try {
+      // eslint-disable-next-line default-case
       switch (message.command) {
         case 'ingest':
           await executeIngest(message.payload)
@@ -454,6 +455,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     const message = event.data
     if (!message) return
 
+    // eslint-disable-next-line default-case
     switch (message.type) {
       case 'authority-announcement':
         authorityId.value = message.authorityId
@@ -549,6 +551,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       return
     }
 
+    // eslint-disable-next-line consistent-return
     return await dispatchCommand({
       type: 'command',
       requestId: createRequestId(),
@@ -564,6 +567,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       return
     }
 
+    // eslint-disable-next-line consistent-return
     return await dispatchCommand({
       type: 'command',
       requestId: createRequestId(),
@@ -579,6 +583,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       return
     }
 
+    // eslint-disable-next-line consistent-return
     return await dispatchCommand({
       type: 'command',
       requestId: createRequestId(),
@@ -594,6 +599,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       return
     }
 
+    // eslint-disable-next-line consistent-return
     return await dispatchCommand({
       type: 'command',
       requestId: createRequestId(),

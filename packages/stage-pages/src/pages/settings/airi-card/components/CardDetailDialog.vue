@@ -210,7 +210,9 @@ async function handleSetAsBackground(entry: any) {
   activeBackgroundId.value = entry.id
 }
 
+// eslint-disable-next-line no-alert -- User confirmation before deletion
 async function handleDeleteEntry(id: string) {
+  // eslint-disable-next-line no-alert -- User confirmation before deletion
   if (confirm('Are you sure you want to delete this image from the journal?')) {
     await backgroundStore.removeBackground(id)
   }

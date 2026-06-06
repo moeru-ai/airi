@@ -15,22 +15,14 @@ import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/
 import { BasicTextarea } from '@proj-airi/ui'
 import { useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import {
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuPortal,
-  DropdownMenuRoot,
-  DropdownMenuTrigger,
-  PopoverContent,
-  PopoverRoot,
-  PopoverTrigger,
-} from 'reka-ui'
+import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger, PopoverContent, PopoverRoot, PopoverTrigger } from 'reka-ui'
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import IndicatorMicVolume from './IndicatorMicVolume.vue'
 
 import { useTranscriptions } from '../../composables/use-transcriptions'
+import { useStopSpeakingButton } from '../../composables/useStopSpeakingButton'
 
 const messageInput = ref<string>('')
 const hearingPopoverOpen = ref(false)
@@ -56,16 +48,19 @@ const { messages } = storeToRefs(chatSession)
 const { audioContext } = useAudioContext()
 const { t } = useI18n()
 const sendModeLabels = computed<Record<SendMode, string>>(() => ({
-  enter: t('stage.send-mode.enter'),
+  'enter': t('stage.send-mode.enter'),
   'ctrl-enter': t('stage.send-mode.ctrl-enter'),
   'double-enter': t('stage.send-mode.double-enter'),
 }))
 
-const { isListening, startStreamingTranscription, stopStreamingTranscription, autoSendEnabled } = useTranscriptions({
-  messageInputRef: messageInput,
-  sendMessage: handleSend,
-  isStageTamagotchi,
-})
+const { isListening, startStreamingTranscription, stopStreamingTranscription, autoSendEnabled } = useTranscriptions(
+  {
+    messageInputRef: messageInput,
+    sendMessage: handleSend,
+    isStageTamagotchi,
+  },
+)
+const { showStopSpeakingButton, stopSpeakingFromChat } = useStopSpeakingButton()
 
 async function handleSend() {
   if (!messageInput.value.trim() || isComposing.value) {
@@ -79,11 +74,12 @@ async function handleSend() {
     const providerConfig = providersStore.getProviderConfig(activeProvider.value)
 
     await ingest(textToSend, {
-      chatProvider: (await providersStore.getProviderInstance(activeProvider.value)) as ChatProvider,
+      chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
       model: activeModel.value,
       providerConfig,
     })
-  } catch (error) {
+  }
+  catch (error) {
     // preserve any user input when failed to send the message
     messageInput.value = [textToSend, messageInput.value.trim()].filter(Boolean).join(' ')
     chatSession.setSessionMessages(chatSession.activeSessionId, [
@@ -102,11 +98,13 @@ function sendFromKeyboard() {
 }
 
 function handleMessageInputKeydown(event: KeyboardEvent) {
-  if (isComposing.value || event.key !== 'Enter') return
+  if (isComposing.value || event.key !== 'Enter')
+    return
 
   const hasControl = event.ctrlKey || event.metaKey
   const hasShift = event.shiftKey
 
+  // eslint-disable-next-line default-case
   switch (sendMode.value) {
     case 'enter':
       if (!hasShift && !hasControl) {
@@ -127,7 +125,8 @@ function handleMessageInputKeydown(event: KeyboardEvent) {
           event.preventDefault()
           sendFromKeyboard()
           lastEnterTime.value = 0
-        } else {
+        }
+        else {
           lastEnterTime.value = now
         }
       }
@@ -140,7 +139,8 @@ watch(hearingPopoverOpen, async (value) => {
   }
 })
 
-onAfterMessageComposed(async () => {})
+onAfterMessageComposed(async () => {
+})
 
 const { startAnalyzer, stopAnalyzer } = useAudioAnalyzer()
 let analyzerSource: MediaStreamAudioSourceNode | undefined
@@ -148,28 +148,31 @@ let analyzerSource: MediaStreamAudioSourceNode | undefined
 function teardownAnalyzer() {
   try {
     analyzerSource?.disconnect()
-  } catch {}
+  }
+  // eslint-disable-next-line no-empty
+  catch {
+    // noop
+  }
   analyzerSource = undefined
   stopAnalyzer()
 }
 
 async function setupAnalyzer() {
   teardownAnalyzer()
-  if (!hearingPopoverOpen.value || !enabled.value || !stream.value) return
-  if (audioContext.state === 'suspended') await audioContext.resume()
+  if (!hearingPopoverOpen.value || !enabled.value || !stream.value)
+    return
+  if (audioContext.state === 'suspended')
+    await audioContext.resume()
   const analyser = startAnalyzer(audioContext)
-  if (!analyser) return
+  if (!analyser)
+    return
   analyzerSource = audioContext.createMediaStreamSource(stream.value)
   analyzerSource.connect(analyser)
 }
 
-watch(
-  [enabled],
-  () => {
-    setupAnalyzer()
-  },
-  { immediate: true },
-)
+watch([enabled], () => {
+  setupAnalyzer()
+}, { immediate: true })
 
 onUnmounted(() => {
   teardownAnalyzer()
@@ -182,22 +185,22 @@ watch(sendMode, () => {
 
 <template>
   <div h="<md:full" flex gap-2 class="ph-no-capture">
-    <div :class="['relative', 'w-full', 'bg-primary-200/20 dark:bg-primary-400/20']">
+    <div
+      :class="[
+        'relative',
+        'w-full',
+        'bg-primary-200/20 dark:bg-primary-400/20',
+      ]"
+    >
       <BasicTextarea
         v-model="messageInput"
         :submit-on-enter="false"
         :placeholder="t('stage.message')"
         text="primary-600 dark:primary-100  placeholder:primary-500 dark:placeholder:primary-200"
         bg="transparent"
-        min-h="[100px]"
-        max-h="[300px]"
-        w-full
-        rounded-t-xl
-        p-4
-        font-medium
-        pb="[60px]"
-        outline-none
-        transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
+        min-h="[100px]" max-h="[300px]" w-full
+        rounded-t-xl p-4 font-medium pb="[60px]"
+        outline-none transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
         :class="{
           'transition-colors-none placeholder:transition-colors-none': themeColorsHueDynamic,
         }"
@@ -207,7 +210,9 @@ watch(sendMode, () => {
       />
 
       <!-- Bottom-left action button: Microphone -->
-      <div absolute bottom-2 left-2 z-10 flex items-center gap-2>
+      <div
+        absolute bottom-2 left-2 z-10 flex items-center gap-2
+      >
         <!-- Conversations drawer trigger -->
         <button
           :class="[
@@ -251,9 +256,7 @@ watch(sendMode, () => {
                 :class="[
                   'w-full flex cursor-pointer items-center rounded-lg px-3 py-2 text-xs outline-none transition-colors',
                   'hover:bg-primary-100/60 dark:hover:bg-primary-900/40',
-                  sendMode === mode
-                    ? 'bg-primary-100/60 text-primary-600 font-medium dark:bg-primary-900/40 dark:text-primary-300'
-                    : 'text-neutral-600 dark:text-neutral-300',
+                  sendMode === mode ? 'bg-primary-100/60 text-primary-600 font-medium dark:bg-primary-900/40 dark:text-primary-300' : 'text-neutral-600 dark:text-neutral-300',
                 ]"
                 @select="sendMode = mode"
               >
@@ -278,11 +281,7 @@ watch(sendMode, () => {
               :title="t('settings.hearing.title')"
             >
               <Transition name="fade" mode="out-in">
-                <IndicatorMicVolume
-                  v-if="enabled"
-                  class="h-5 w-5"
-                  :color-class="isListening ? undefined : 'text-neutral-500 dark:text-neutral-400'"
-                />
+                <IndicatorMicVolume v-if="enabled" class="h-5 w-5" :color-class="isListening ? undefined : 'text-neutral-500 dark:text-neutral-400'" />
                 <div v-else class="i-ph:microphone-slash h-5 w-5" />
               </Transition>
             </button>
@@ -300,10 +299,29 @@ watch(sendMode, () => {
               v-model:auto-send="autoSendEnabled"
               :transcription="isListening"
               :granted="true"
-              @toggle-transcription="() => (isListening ? stopStreamingTranscription() : startStreamingTranscription())"
+              @toggle-transcription="() => isListening ? stopStreamingTranscription() : startStreamingTranscription()"
             />
           </PopoverContent>
         </PopoverRoot>
+      </div>
+
+      <div
+        absolute bottom-2 right-2 z-10 flex items-center
+      >
+        <button
+          v-if="showStopSpeakingButton"
+          data-testid="stop-speaking-button"
+          :class="[
+            'h-8 w-8 flex items-center justify-center rounded-md outline-none',
+            'text-lg text-neutral-500 transition-all duration-200 active:scale-95 dark:text-neutral-400',
+            'hover:bg-primary-100/60 hover:text-primary-600 dark:hover:bg-primary-900/40 dark:hover:text-primary-300',
+          ]"
+          title="Stop speaking"
+          aria-label="Stop speaking"
+          @click="stopSpeakingFromChat"
+        >
+          <div class="i-solar:stop-circle-bold-duotone h-5 w-5" />
+        </button>
       </div>
     </div>
   </div>

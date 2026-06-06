@@ -1,5 +1,6 @@
 import posthog from 'posthog-js'
 
+import { isStageCapacitor, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -8,6 +9,26 @@ import { ensurePosthogInitialized, isPosthogAvailableInBuild } from '../stores/a
 import { getAnalyticsPrivacyPolicyUrl } from '../stores/analytics/privacy-policy'
 import { useSettingsAnalytics } from '../stores/settings/analytics'
 import { useSettingsGeneral } from '../stores/settings/general'
+
+/**
+ * User-facing chat surfaces that can emit product analytics.
+ */
+export type ConversationAnalyticsSurface = 'web' | 'mobile' | 'electron'
+
+/**
+ * Low-cardinality source names for conversation action events.
+ */
+export type ConversationAnalyticsSource = 'chat_controls' | 'history' | 'sessions_drawer'
+
+function getConversationAnalyticsSurface(): ConversationAnalyticsSurface {
+  if (isStageTamagotchi())
+    return 'electron'
+
+  if (isStageCapacitor())
+    return 'mobile'
+
+  return 'web'
+}
 
 export function useAnalytics() {
   const analyticsStore = useSharedAnalyticsStore()
@@ -193,6 +214,53 @@ export function useAnalytics() {
     posthog.capture('message_round', properties)
   }
 
+  // ─── Conversation action events ─────────────────────────────────────
+
+  function trackTtsStopClicked(properties: { reason: 'manual-chat' }) {
+    if (!canCapture())
+      return
+    posthog.capture('tts_stop_clicked', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackChatSessionSelected(properties: { source: 'sessions_drawer', message_count: number, cloud_synced: boolean }) {
+    if (!canCapture())
+      return
+    posthog.capture('chat_session_selected', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackChatMessageDeleted(properties: { source: 'history', message_role: string }) {
+    if (!canCapture())
+      return
+    posthog.capture('chat_message_deleted', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackChatMessagesCleared(properties: { source: 'chat_controls', message_count: number }) {
+    if (!canCapture())
+      return
+    posthog.capture('chat_messages_cleared', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackChatMessageRetried(properties: { source: 'history' }) {
+    if (!canCapture())
+      return
+    posthog.capture('chat_message_retried', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
   // ─── STT events ──────────────────────────────────────────────────────
 
   function trackSttStarted(provider: string) {
@@ -338,6 +406,11 @@ export function useAnalytics() {
     trackLlmFirstToken,
     trackAssistantResponseRendered,
     trackMessageRound,
+    trackTtsStopClicked,
+    trackChatSessionSelected,
+    trackChatMessageDeleted,
+    trackChatMessagesCleared,
+    trackChatMessageRetried,
 
     trackSttStarted,
     trackSttSucceeded,

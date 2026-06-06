@@ -83,7 +83,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   ) {
     let llmTextLength = 0
 
-    const hadExistingTurn = !!activeTurnSpan.value
+    const hadExistingTurn = Boolean(activeTurnSpan.value)
     if (!hadExistingTurn) {
       const turnSpan = startSpan(IOSpanNames.InteractionTurn)
       activeTurnSpan.value = turnSpan

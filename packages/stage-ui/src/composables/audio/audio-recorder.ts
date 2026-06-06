@@ -64,6 +64,7 @@ export function useAudioRecorder(media: MaybeRefOrGetter<MediaStream | undefined
 
     mediaOutput.value = undefined
 
+    // eslint-disable-next-line consistent-return
     return audioBlob
   }
 

@@ -105,13 +105,17 @@ onUnmounted(() => pixiApp.value?.destroy())
 
 async function captureFrame() {
   const frame = new Promise<Blob | null>((resolve) => {
-    if (!pixiAppCanvas.value || !pixiApp.value) return resolve(null)
+    if (!pixiAppCanvas.value || !pixiApp.value) {
+      resolve(null)
+      return
+    }
 
     try {
       pixiApp.value.render()
     } catch (error) {
       console.error('[Live2D] Pixi render error during capture.', error)
-      return resolve(null)
+      resolve(null)
+      return
     }
 
     pixiAppCanvas.value.toBlob(resolve)

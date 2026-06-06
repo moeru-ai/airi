@@ -64,6 +64,7 @@ export class FileSystemLoader {
    * 2) `entrypoints.default`
    * 3) `entrypoints.electron` (legacy fallback for current local plugin manifests)
    */
+  // eslint-disable-next-line class-methods-use-this
   resolveEntrypointFor(manifest: ManifestV1, options?: PluginLoadOptions) {
     const runtime = options?.runtime ?? 'electron'
     const root = options?.cwd ?? cwd()

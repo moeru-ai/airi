@@ -58,9 +58,13 @@ async function main() {
 
   const server = await startUpdateTestServer({ port, rootDir })
 
+  // eslint-disable-next-line no-console
   console.log(`Update test server listening on http://127.0.0.1:${port}`)
+  // eslint-disable-next-line no-console
   console.log(`stable:  http://127.0.0.1:${port}/stable`)
+  // eslint-disable-next-line no-console
   console.log(`nightly: http://127.0.0.1:${port}/nightly`)
+  // eslint-disable-next-line no-console
   console.log(`canary:  http://127.0.0.1:${port}/canary`)
 
   const close = async () => {

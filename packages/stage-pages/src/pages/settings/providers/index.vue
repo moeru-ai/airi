@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import type { ProviderSourceDeployment, ProviderSourcePricing } from '@proj-airi/stage-ui/libs/providers/source-metadata'
+import type { Ref } from 'vue'
+
 import { IconStatusItem, RippleGrid } from '@proj-airi/stage-ui/components'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useRippleGridState } from '@proj-airi/stage-ui/composables/use-ripple-grid-state'
@@ -9,6 +12,31 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
+interface ProviderSourceCard {
+  id: string
+  category: string
+  to?: string
+  icon?: string
+  iconColor?: string
+  iconImage?: string
+  name?: string
+  description?: string
+  localizedName?: string
+  localizedDescription?: string
+  configured?: boolean
+  pricing?: ProviderSourcePricing
+  deployment?: ProviderSourceDeployment
+  beginnerRecommended?: boolean
+}
+
+interface ProviderBlockConfig {
+  id: string
+  icon: string
+  title: string
+  description: string
+  providersRef: Readonly<Ref<ProviderSourceCard[]>>
+}
+
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
@@ -17,10 +45,13 @@ const artistryStore = useArtistryStore()
 const { lastClickedIndex, setLastClickedIndex } = useRippleGridState()
 const { trackProviderClick } = useAnalytics()
 
-const { allChatProvidersMetadata, allAudioSpeechProvidersMetadata, allAudioTranscriptionProvidersMetadata } =
-  storeToRefs(providersStore)
+const {
+  allChatProvidersMetadata,
+  allAudioSpeechProvidersMetadata,
+  allAudioTranscriptionProvidersMetadata,
+} = storeToRefs(providersStore)
 
-const allArtistryProvidersMetadata = computed(() => {
+const allArtistryProvidersMetadata = computed<ProviderSourceCard[]>(() => {
   return [
     {
       id: 'comfyui',
@@ -31,7 +62,7 @@ const allArtistryProvidersMetadata = computed(() => {
       localizedName: 'ComfyUI',
       description: t('settings.pages.providers.categories.artistry.items.comfyui.description'),
       localizedDescription: t('settings.pages.providers.categories.artistry.items.comfyui.description'),
-      configured: !!artistryStore.comfyuiServerUrl,
+      configured: Boolean(artistryStore.comfyuiServerUrl),
       to: '/settings/providers/artistry/comfyui',
       pricing: 'free',
       deployment: 'local',
@@ -47,11 +78,10 @@ const allArtistryProvidersMetadata = computed(() => {
       localizedName: 'Replicate',
       description: t('settings.pages.providers.categories.artistry.items.replicate.description'),
       localizedDescription: t('settings.pages.providers.categories.artistry.items.replicate.description'),
-      configured: !!artistryStore.replicateApiKey,
+      configured: Boolean(artistryStore.replicateApiKey),
       to: '/settings/providers/artistry/replicate',
       pricing: 'paid',
       deployment: 'cloud',
-      beginnerRecommended: false,
       iconImage: undefined,
     },
     {
@@ -63,17 +93,16 @@ const allArtistryProvidersMetadata = computed(() => {
       localizedName: 'Nano Banana',
       description: t('settings.pages.providers.categories.artistry.items.nanobanana.description'),
       localizedDescription: t('settings.pages.providers.categories.artistry.items.nanobanana.description'),
-      configured: !!artistryStore.nanobananaApiKey,
+      configured: Boolean(artistryStore.nanobananaApiKey),
       to: '/settings/providers/artistry/nanobanana',
       pricing: 'free',
       deployment: 'cloud',
-      beginnerRecommended: false,
       iconImage: undefined,
     },
   ]
 })
 
-const providerBlocksConfig = [
+const providerBlocksConfig: ProviderBlockConfig[] = [
   {
     id: 'chat',
     icon: 'i-solar:chat-square-like-bold-duotone',
@@ -111,7 +140,7 @@ const filterDeployment = ref<'all' | 'local' | 'cloud'>('all')
 onMounted(() => {
   if (route.hash) {
     const hashId = route.hash.replace('#', '')
-    if (providerBlocksConfig.some((b) => b.id === hashId)) {
+    if (providerBlocksConfig.some(b => b.id === hashId)) {
       activeTabId.value = hashId
     }
   }
@@ -127,15 +156,17 @@ function setActiveTab(id: string) {
 const providerBlocks = computed(() => {
   let globalIndex = 0
   return providerBlocksConfig
-    .filter((block) => block.id === activeTabId.value)
+    .filter(block => block.id === activeTabId.value)
     .map((block) => {
       const filteredProviders = block.providersRef.value
-        .filter((p: any) => {
-          if (filterPricing.value !== 'all' && p.pricing !== filterPricing.value) return false
-          if (filterDeployment.value !== 'all' && p.deployment !== filterDeployment.value) return false
+        .filter((p) => {
+          if (filterPricing.value !== 'all' && p.pricing !== filterPricing.value)
+            return false
+          if (filterDeployment.value !== 'all' && p.deployment !== filterDeployment.value)
+            return false
           return true
         })
-        .map((provider) => ({
+        .map(provider => ({
           ...provider,
           renderIndex: globalIndex++,
         }))
@@ -160,16 +191,7 @@ const providerBlocks = computed(() => {
       <div text="primary-700 dark:primary-300">
         <i18n-t keypath="settings.pages.providers.helpinfo.description">
           <template #chat>
-            <div
-              bg="primary-500/10 dark:primary-800/25"
-              inline-flex
-              items-center
-              gap-1
-              rounded-lg
-              px-2
-              py-0.5
-              translate-y="[0.25lh]"
-            >
+            <div bg="primary-500/10 dark:primary-800/25" inline-flex items-center gap-1 rounded-lg px-2 py-0.5 translate-y="[0.25lh]">
               <div i-solar:chat-square-like-bold-duotone />
               <strong class="font-normal">Chat</strong>
             </div>
@@ -184,11 +206,7 @@ const providerBlocks = computed(() => {
         v-for="block in providerBlocksConfig"
         :key="block.id"
         class="flex items-center gap-2 rounded-xl px-4 py-2 outline-none transition-colors duration-200"
-        :class="
-          activeTabId === block.id
-            ? 'bg-primary-500/15 text-primary-700 dark:bg-primary-500/20 dark:text-primary-300 font-semibold'
-            : 'hover:bg-neutral-200/50 dark:hover:bg-neutral-800 text-neutral-500 dark:text-neutral-400'
-        "
+        :class="activeTabId === block.id ? 'bg-primary-500/15 text-primary-700 dark:bg-primary-500/20 dark:text-primary-300 font-semibold' : 'hover:bg-neutral-200/50 dark:hover:bg-neutral-800 text-neutral-500 dark:text-neutral-400'"
         @click="setActiveTab(block.id)"
       >
         <div :class="block.icon" class="text-xl" />
@@ -199,22 +217,13 @@ const providerBlocks = computed(() => {
     <!-- Filters Container -->
     <div flex="~ row items-center gap-4 wrap" pb-2 text-xs>
       <div flex="~ row items-center gap-2">
-        <span text="neutral-400 dark:neutral-500" font-medium>
-          {{ $t('settings.pages.providers.filters.pricing') }}:
-        </span>
+        <span text="neutral-400 dark:neutral-500" font-medium>{{ $t('settings.pages.providers.filters.pricing') }}:</span>
         <div flex="~ row items-center gap-1" bg="neutral-100 dark:neutral-800" rounded-lg p-0.5>
           <button
             v-for="opt in ['all', 'free', 'paid'] as const"
             :key="opt"
-            rounded-md
-            px-2
-            py-0.5
-            transition-all
-            :class="
-              filterPricing === opt
-                ? 'bg-white dark:bg-neutral-700 shadow-sm text-primary-600 dark:text-primary-400 font-semibold'
-                : 'text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'
-            "
+            rounded-md px-2 py-0.5 transition-all
+            :class="filterPricing === opt ? 'bg-white dark:bg-neutral-700 shadow-sm text-primary-600 dark:text-primary-400 font-semibold' : 'text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
             @click="filterPricing = opt"
           >
             {{ $t(`settings.pages.providers.filters.${opt}`) }}
@@ -223,22 +232,13 @@ const providerBlocks = computed(() => {
       </div>
 
       <div flex="~ row items-center gap-2">
-        <span text="neutral-400 dark:neutral-500" font-medium>
-          {{ $t('settings.pages.providers.filters.deployment') }}:
-        </span>
+        <span text="neutral-400 dark:neutral-500" font-medium>{{ $t('settings.pages.providers.filters.deployment') }}:</span>
         <div flex="~ row items-center gap-1" bg="neutral-100 dark:neutral-800" rounded-lg p-0.5>
           <button
             v-for="opt in ['all', 'local', 'cloud'] as const"
             :key="opt"
-            rounded-md
-            px-2
-            py-0.5
-            transition-all
-            :class="
-              filterDeployment === opt
-                ? 'bg-white dark:bg-neutral-700 shadow-sm text-primary-600 dark:text-primary-400 font-semibold'
-                : 'text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'
-            "
+            rounded-md px-2 py-0.5 transition-all
+            :class="filterDeployment === opt ? 'bg-white dark:bg-neutral-700 shadow-sm text-primary-600 dark:text-primary-400 font-semibold' : 'text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
             @click="filterDeployment = opt"
           >
             {{ $t(`settings.pages.providers.filters.${opt}`) }}
@@ -249,7 +249,7 @@ const providerBlocks = computed(() => {
 
     <RippleGrid
       :sections="providerBlocks"
-      :get-items="(block) => block.providers"
+      :get-items="block => block.providers"
       :columns="{ default: 1, sm: 2, xl: 3 }"
       :origin-index="lastClickedIndex"
       @item-click="({ globalIndex }) => setLastClickedIndex(globalIndex)"
@@ -277,10 +277,10 @@ const providerBlocks = computed(() => {
           :icon="provider.icon"
           :icon-color="provider.iconColor"
           :icon-image="provider.iconImage"
-          :to="`/settings/providers/${provider.category}/${provider.id}`"
+          :to="provider.to ?? `/settings/providers/${provider.category}/${provider.id}`"
           :configured="provider.configured"
-          :pricing="provider.pricing as any"
-          :deployment="provider.deployment as any"
+          :pricing="provider.pricing"
+          :deployment="provider.deployment"
           :beginner-recommended="provider.beginnerRecommended"
           @click="trackProviderClick(provider.id, provider.category)"
         />
@@ -289,20 +289,13 @@ const providerBlocks = computed(() => {
   </div>
   <div
     v-motion
-    text="neutral-500/5 dark:neutral-600/20"
-    pointer-events-none
-    fixed
-    top="[calc(100dvh-15rem)]"
-    bottom-0
-    right--5
-    z--1
+    text="neutral-500/5 dark:neutral-600/20" pointer-events-none
+    fixed top="[calc(100dvh-15rem)]" bottom-0 right--5 z--1
     :initial="{ scale: 0.9, opacity: 0, y: 20 }"
     :enter="{ scale: 1, opacity: 1, y: 0 }"
     :duration="500"
     size-60
-    flex
-    items-center
-    justify-center
+    flex items-center justify-center
   >
     <div text="60" i-solar:box-minimalistic-bold-duotone />
   </div>

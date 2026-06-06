@@ -86,6 +86,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     'ui:configure',
   ]
 
+  // eslint-disable-next-line consistent-return
   async function initialize(options?: {
     token?: string
     possibleEvents?: Array<keyof WebSocketEvents>
@@ -199,6 +200,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     })
   }
 
+  // eslint-disable-next-line consistent-return
   async function ensureConnected() {
     await initializing.value
     if (!connected.value) {

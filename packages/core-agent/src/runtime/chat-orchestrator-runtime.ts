@@ -587,6 +587,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         waitForTools: true,
         captureToolErrors: true,
         onStreamEvent: async (event: StreamEvent) => {
+          // eslint-disable-next-line default-case
           switch (event.type) {
             case 'tool-call':
               toolCallQueue.enqueue({

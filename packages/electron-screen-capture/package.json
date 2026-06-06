@@ -34,9 +34,9 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "@guiiai/logg": ">=1 <2",
-    "electron": ">=40 <42",
-    "vue": ">=3"
+    "@guiiai/logg": "catalog:guiiai-logg-gte-1-lt-2",
+    "electron": "catalog:electron-gte-40-lt-42",
+    "vue": "catalog:vue-gte-3"
   },
   "dependencies": {
     "std-env": "catalog:"
@@ -51,7 +51,7 @@
   },
   "inlinedDependencies": {
     "@electron-toolkit/preload": "3.0.2",
-    "@moeru/eventa": "1.0.0-beta.5",
+    "@moeru/eventa": "1.0.0-beta.8",
     "async-mutex": "0.5.0",
     "nanoid": [
       "5.1.11",
