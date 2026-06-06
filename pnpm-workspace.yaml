@@ -1,5 +1,3 @@
-catalogMode: prefer
-shellEmulator: true
 packages:
   - packages/**
   - plugins/**
@@ -10,25 +8,6 @@ packages:
   - engines/**
   - apps/**
   - '!**/dist/**'
-overrides:
-  array-flatten: npm:@nolyfill/array-flatten@^1.0.44
-  axios: npm:feaxios@^0.0.23
-  is-core-module: npm:@nolyfill/is-core-module@^1.0.39
-  isarray: npm:@nolyfill/isarray@^1.0.44
-  onnxruntime-web: npm:onnxruntime-web@^1.24.3
-  safe-buffer: npm:@nolyfill/safe-buffer@^1.0.44
-  safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
-  side-channel: npm:@nolyfill/side-channel@^1.0.44
-  string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
-patchedDependencies:
-  '@mediapipe/tasks-vision': patches/@mediapipe__tasks-vision.patch
-  '@xsai/generate-text@0.5.0-beta.2': patches/@xsai__generate-text@0.5.0-beta.2.patch
-  '@xsai/shared-chat@0.5.0-beta.2': patches/@xsai__shared-chat@0.5.0-beta.2.patch
-  '@xsai/stream-text@0.5.0-beta.2': patches/@xsai__stream-text@0.5.0-beta.2.patch
-  mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
-  pixi-live2d-display: patches/pixi-live2d-display.patch
-  sponsorkit@17.1.0: patches/sponsorkit@17.1.0.patch
-  uiohook-napi@1.5.5: patches/uiohook-napi@1.5.5.patch
 catalog:
   '@alexanderolsen/libsamplerate-js': ^2.1.2
   '@antfu/eslint-config': ^8.2.0
@@ -328,6 +307,7 @@ catalog:
   prismarine-recipe: ^1.5.0
   prismarine-viewer: ^1.33.0
   prismarine-windows: ^2.10.0
+  protobufjs: 7.5.5
   publint: ^0.3.18
   rehype-katex: ^7.0.1
   rehype-parse: ^9.0.1
@@ -412,6 +392,7 @@ catalog:
   yauzl: ^3.3.0
   zod: ^4.3.6
   zod-to-json-schema: ^3.25.2
+catalogMode: prefer
 catalogs:
   capacitor-cli-8-0-0:
     '@capacitor/cli': ^8.0.0
@@ -492,6 +473,16 @@ onlyBuiltDependencies:
   - uiohook-napi
   - utf-8-validate
   - vue-demi
+overrides:
+  array-flatten: npm:@nolyfill/array-flatten@^1.0.44
+  axios: npm:feaxios@^0.0.23
+  is-core-module: npm:@nolyfill/is-core-module@^1.0.39
+  isarray: npm:@nolyfill/isarray@^1.0.44
+  onnxruntime-web: npm:onnxruntime-web@^1.24.3
+  safe-buffer: npm:@nolyfill/safe-buffer@^1.0.44
+  safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
+  side-channel: npm:@nolyfill/side-channel@^1.0.44
+  string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
 packageExtensions:
   '@formkit/auto-animate':
     peerDependencies:
@@ -527,3 +518,13 @@ packageExtensions:
   'vue-sonner':
     peerDependencies:
       vue: '^3.2.0'
+patchedDependencies:
+  '@mediapipe/tasks-vision': patches/@mediapipe__tasks-vision.patch
+  '@xsai/generate-text@0.5.0-beta.2': patches/@xsai__generate-text@0.5.0-beta.2.patch
+  '@xsai/shared-chat@0.5.0-beta.2': patches/@xsai__shared-chat@0.5.0-beta.2.patch
+  '@xsai/stream-text@0.5.0-beta.2': patches/@xsai__stream-text@0.5.0-beta.2.patch
+  mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
+  pixi-live2d-display: patches/pixi-live2d-display.patch
+  sponsorkit@17.1.0: patches/sponsorkit@17.1.0.patch
+  uiohook-napi@1.5.5: patches/uiohook-napi@1.5.5.patch
+shellEmulator: true
