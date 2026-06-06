@@ -42,7 +42,7 @@ import { useBackgroundStore } from '../../stores/background'
 import { useChatOrchestratorStore } from '../../stores/chat'
 import { useLlmStreamingControlStore } from '../../stores/llm-streaming-control'
 import { useAiriCardStore } from '../../stores/modules'
-import { useSpeechStore } from '../../stores/modules/speech'
+import { useSpeechStore, voicePackForSpeechProvider } from '../../stores/modules/speech'
 import { useProvidersStore } from '../../stores/providers'
 import { useSettings } from '../../stores/settings'
 import { useSpeechOutputControlStore } from '../../stores/speech-output-control'
@@ -424,7 +424,7 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
       }
     }
 
-    const voicePack = activeCard.value?.extensions.airi.modules.speech.voicePack
+    const voicePack = voicePackForSpeechProvider(activeSpeechProvider.value, activeCard.value?.extensions.airi.modules.speech.voicePack)
     if (voicePack) {
       model = voicePack.ttsModelId
       if (!voice || voice.id !== voicePack.voiceId)

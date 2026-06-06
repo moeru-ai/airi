@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { useProvidersStore } from '../providers'
-import { toSignedPercent, useSpeechStore } from './speech'
+import { toSignedPercent, useSpeechStore, voicePackForSpeechProvider } from './speech'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -28,6 +28,50 @@ describe('speech store helpers', () => {
 
   it('formats zero as 0%', () => {
     expect(toSignedPercent(0)).toBe('0%')
+  })
+
+  /**
+   * @example
+   * speechStore.resolveVoicePackSpeechInput({ text, voice, providerConfig: { voice: 'plain' } })
+   */
+  it('leaves speech input unchanged when no Voice Pack is configured', () => {
+    const speechStore = useSpeechStore()
+    const voice = {
+      id: 'plain-voice',
+      name: 'Plain Voice',
+      provider: 'openai-compatible-audio-speech',
+      languages: [{ code: 'en-US', title: 'English' }],
+    }
+
+    const request = speechStore.resolveVoicePackSpeechInput({
+      text: 'hello',
+      voice,
+      providerConfig: { voice: 'plain-voice' },
+    })
+
+    expect(request.input).toBe('hello')
+    expect(request.providerConfig).toEqual({ voice: 'plain-voice' })
+  })
+
+  /**
+   * @example
+   * voicePackForSpeechProvider('openai-compatible-audio-speech', voicePack)
+   */
+  it('ignores Voice Pack snapshots for non-official speech providers', () => {
+    const voicePack = {
+      packId: 'vp-1',
+      name: 'Frozen',
+      provider: 'volcengine',
+      model: 'seed-tts-2.0',
+      voiceId: 'voice-a',
+      ttsModelId: 'volcengine/pool-a',
+      params: {},
+      costMultiplier: 1,
+    }
+
+    expect(voicePackForSpeechProvider('openai-compatible-audio-speech', voicePack)).toBeUndefined()
+    expect(voicePackForSpeechProvider(OFFICIAL_SPEECH_PROVIDER_ID, voicePack)).toBe(voicePack)
+    expect(voicePackForSpeechProvider(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, voicePack)).toBeUndefined()
   })
 
   /**

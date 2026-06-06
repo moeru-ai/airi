@@ -42,6 +42,13 @@ interface VoicePackSpeechInput {
 
 const voicePackSupportedParams = new Set(['pitch', 'rate', 'volume'])
 
+export function voicePackForSpeechProvider(
+  providerId: string | undefined,
+  voicePack: VoicePackSnapshot | undefined,
+): VoicePackSnapshot | undefined {
+  return providerId === OFFICIAL_SPEECH_PROVIDER_ID ? voicePack : undefined
+}
+
 /**
  * Normalizes a Voice Pack percent-style option.
  *

@@ -15,7 +15,7 @@ import {
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { OFFICIAL_SPEECH_PROVIDER_ID } from '@proj-airi/stage-ui/libs/providers/providers/official'
 import { useAiriCardStore, useVoicePacksStore } from '@proj-airi/stage-ui/stores'
-import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
+import { useSpeechStore, voicePackForSpeechProvider } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import {
   FieldCheckbox,
@@ -26,7 +26,7 @@ import {
 } from '@proj-airi/ui'
 import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
@@ -65,6 +65,12 @@ const isGenerating = ref(false)
 const audioUrl = ref('')
 const audioPlayer = ref<HTMLAudioElement | null>(null)
 const errorMessage = ref('')
+
+const supportsVoicePackSelection = computed(() => activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID)
+const shouldShowVoicePackSection = computed(() =>
+  supportsVoicePackSelection.value
+  && (isLoadingVoicePacks.value || voicePacksError.value != null || voicePacks.value.length > 0),
+)
 
 function createVoicePackVoice(voicePack: VoicePackSnapshot): VoiceInfo {
   return {
@@ -186,7 +192,7 @@ async function generateTestSpeech() {
     }
   }
 
-  const voicePack = activeCard.value?.extensions.airi.modules.speech.voicePack
+  const voicePack = voicePackForSpeechProvider(activeSpeechProvider.value, activeCard.value?.extensions.airi.modules.speech.voicePack)
   if (voicePack) {
     model = voicePack.ttsModelId
     if (!voice || voice.id !== voicePack.voiceId)
@@ -318,61 +324,57 @@ function handleDeleteProvider(providerId: string) {
   <div flex="~ col md:row gap-6">
     <div bg="neutral-100 dark:[rgba(0,0,0,0.3)]" rounded-xl p-4 flex="~ col gap-4" class="h-fit w-full md:w-[40%]">
       <div flex="~ col gap-4">
-        <div>
-          <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
-            {{ t('settings.pages.modules.speech.sections.section.voice-pack.title') }}
-          </h2>
-          <div text="neutral-400 dark:neutral-500">
-            <span>{{ t('settings.pages.modules.speech.sections.section.voice-pack.description') }}</span>
-          </div>
-        </div>
-
-        <div v-if="isLoadingVoicePacks" :class="['flex items-center gap-2', 'text-sm text-neutral-400 dark:text-neutral-500']">
-          <div i-solar:spinner-line-duotone class="animate-spin text-base" />
-          <span>{{ t('settings.pages.modules.speech.sections.section.voice-pack.loading') }}</span>
-        </div>
-
-        <ErrorContainer
-          v-else-if="voicePacksError"
-          :title="t('settings.pages.modules.speech.sections.section.voice-pack.error')"
-          :error="voicePacksError"
-        />
-
-        <div v-else-if="voicePacks.length > 0" :class="['grid grid-cols-1 gap-2']">
-          <button
-            v-for="pack in voicePacks"
-            :key="pack.id"
-            type="button"
-            :class="[
-              'w-full border rounded-lg px-3 py-2 text-left transition-colors',
-              'border-neutral-200 bg-white hover:border-primary-400 dark:border-neutral-800 dark:bg-neutral-900/60 dark:hover:border-primary-500',
-              airiCardStore.activeCard?.extensions.airi.modules.speech.voicePack?.packId === pack.id
-                ? 'border-primary-500 bg-primary-50 dark:border-primary-400 dark:bg-primary-950/30'
-                : '',
-            ]"
-            @click="bindVoicePack(pack)"
-          >
-            <div :class="['flex items-center justify-between gap-3']">
-              <div :class="['min-w-0']">
-                <div :class="['truncate text-sm font-medium text-neutral-700 dark:text-neutral-200']">
-                  {{ pack.name }}
-                </div>
-                <div :class="['truncate text-xs text-neutral-400 dark:text-neutral-500']">
-                  {{ pack.ttsModelId }} / {{ pack.voiceId }}
-                </div>
-              </div>
-              <span :class="['shrink-0 rounded bg-neutral-100 px-2 py-1 text-xs text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400']">
-                {{ formatCostMultiplier(pack.costMultiplier) }}
-              </span>
+        <template v-if="shouldShowVoicePackSection">
+          <div>
+            <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
+              {{ t('settings.pages.modules.speech.sections.section.voice-pack.title') }}
+            </h2>
+            <div text="neutral-400 dark:neutral-500">
+              <span>{{ t('settings.pages.modules.speech.sections.section.voice-pack.description') }}</span>
             </div>
-          </button>
-        </div>
+          </div>
 
-        <Alert v-else type="info" icon="i-solar:info-circle-line-duotone">
-          <template #title>
-            {{ t('settings.pages.modules.speech.sections.section.voice-pack.empty') }}
-          </template>
-        </Alert>
+          <div v-if="isLoadingVoicePacks" :class="['flex items-center gap-2', 'text-sm text-neutral-400 dark:text-neutral-500']">
+            <div i-solar:spinner-line-duotone class="animate-spin text-base" />
+            <span>{{ t('settings.pages.modules.speech.sections.section.voice-pack.loading') }}</span>
+          </div>
+
+          <ErrorContainer
+            v-else-if="voicePacksError"
+            :title="t('settings.pages.modules.speech.sections.section.voice-pack.error')"
+            :error="voicePacksError"
+          />
+
+          <div v-else-if="voicePacks.length > 0" :class="['grid grid-cols-1 gap-2']">
+            <button
+              v-for="pack in voicePacks"
+              :key="pack.id"
+              type="button"
+              :class="[
+                'w-full border rounded-lg px-3 py-2 text-left transition-colors',
+                'border-neutral-200 bg-white hover:border-primary-400 dark:border-neutral-800 dark:bg-neutral-900/60 dark:hover:border-primary-500',
+                airiCardStore.activeCard?.extensions.airi.modules.speech.voicePack?.packId === pack.id
+                  ? 'border-primary-500 bg-primary-50 dark:border-primary-400 dark:bg-primary-950/30'
+                  : '',
+              ]"
+              @click="bindVoicePack(pack)"
+            >
+              <div :class="['flex items-center justify-between gap-3']">
+                <div :class="['min-w-0']">
+                  <div :class="['truncate text-sm font-medium text-neutral-700 dark:text-neutral-200']">
+                    {{ pack.name }}
+                  </div>
+                  <div :class="['truncate text-xs text-neutral-400 dark:text-neutral-500']">
+                    {{ pack.ttsModelId }} / {{ pack.voiceId }}
+                  </div>
+                </div>
+                <span :class="['shrink-0 rounded bg-neutral-100 px-2 py-1 text-xs text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400']">
+                  {{ formatCostMultiplier(pack.costMultiplier) }}
+                </span>
+              </div>
+            </button>
+          </div>
+        </template>
 
         <div>
           <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
