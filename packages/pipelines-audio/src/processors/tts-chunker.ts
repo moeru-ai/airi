@@ -5,6 +5,7 @@ import type { TextSegment, TextToken } from '../types'
 import { readGraphemeClusters } from 'clustr'
 
 import { createPushStream } from '../stream'
+import { stripMarkdownFromText } from '../strip-markdown'
 
 export const TTS_FLUSH_INSTRUCTION = '\u200B'
 export const TTS_SPECIAL_TOKEN = '\u2063'
@@ -16,54 +17,6 @@ const hardPunctuations = new Set('.。?？!！…⋯～~\n\t\r')
 const softPunctuations = new Set(',，、–—:：;；《》「」')
 
 
-/**
- * Strips Markdown formatting from text for TTS output.
- * Only processes bold, italic, strikethrough, links, headings, bullet lists,
- * numbered lists, blockquotes, code fences, inline code, and horizontal rules.
- */
-function stripMarkdownFromText(text: string): string {
-  let result = text
-
-  // Code fences (```...```) — must run before inline code
-  result = result.replace(/^```.*\n([\s\S]*?)^```$/gm, '$1')
-
-  // Inline code (`code`) — preserve inner text
-  result = result.replace(/`([^`]+)`/g, '$1')
-
-  // Bold (**text**) — preserve inner text
-  result = result.replace(/\*\*([^*]+?)\*\*/g, '$1')
-
-  // Strikethrough (~~text~~) — preserve inner text
-  result = result.replace(/~~([^~]+?)~~/g, '$1')
-
-  // Headings (# Heading) — remove # markers at line start, preserve text
-  result = result.replace(/^#{1,6}\s+/gm, '')
-
-  // Bullet lists (- item or * item) — remove marker at line start, preserve text
-  result = result.replace(/^[-*]\s+/gm, '')
-
-  // Numbered lists (1. item) — remove number+dot at line start, preserve text
-  result = result.replace(/^\d+\.\s+/gm, '')
-
-  // Blockquotes (> quote) — remove > marker at line start, preserve text
-  result = result.replace(/^>\s+/gm, '')
-
-  // Italic (*text*) — preserve inner text
-  result = result.replace(/\*([^*]+?)\*/g, '$1')
-
-  // Italic (_text_) — preserve inner text
-  result = result.replace(/_([^_]+?)_/g, '$1')
-
-  // Links [text](url) — preserve link text only
-  result = result.replace(/\[([^\]]+?)\]\([^)]+?\)/g, '$1')
-
-  // Horizontal rules (---, ***, ___) — remove entirely
-  result = result.replace(/^---+$/gm, '')
-  result = result.replace(/^\*\*\*+$/gm, '')
-  result = result.replace(/^___+$/gm, '')
-
-  return result
-}
 export interface TtsInputChunk {
   text: string
   words: number
