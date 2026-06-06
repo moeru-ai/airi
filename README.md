@@ -14,16 +14,13 @@
 
 </p>
 
-<p align="center">A container of souls - cyber livings, waifu, digital humans - brought into your Linux machine.</p>
+<div align="center">
 
-> [!TIP]
-> This fork's focus is turning the Project AIRI vision into **the ultimate dream of creating baremetal desktop agentic OS centered around your AI companion**.
+A container of souls - cyber livings, waifu, digital humans - brought into your Linux machine.
 
-The original AIRI project provides a feature-rich foundation. This fork adopts a strict **KISS philosophy** to keep the codebase clean and cloud linter-friendly, with plans to transition to TDD.
+This fork's focus is **creating desktop-native agentic OS centered around your AI companion**.
 
-While multi-platform compatibility is maintained, our primary optimization target is a lightweight Linux build. If you require broader cross-platform stability, please refer to [`dasilva333/airi`](https://github.com/dasilva333/airi) or [`moeru-ai/airi`](https://github.com/moeru-ai/airi).
-
-<sup>**Note:** We aim to render AIRI directly as a desktop wallpaper on supported Linux compositors. If you have experience implementing desktop wallpapers for Windows or macOS (e.g., via Wallpaper Engine), contributions or issues are highly welcome!</sup>
+</div>
 
 ---
 
@@ -35,22 +32,6 @@ Our goal is a Linux desktop experience where your AI companion acts as the cente
 - **System Integration:** Hooks into notifications, screen capture, and global shortcuts.
 - **Context Awareness:** Your companion observes desktop activity to respond and interact proactively.
 - **Modular Stage Layouts:** GTK3/4 widgets, interactive backgrounds, and window layouts composed dynamically by the character.
-
----
-
-## 🐧 Features & Architecture
-
-We build directly upon the core strengths of the original project and selectively rebase `dasilva333/airi` changes on latest upstream:
-
-- - [ ] **Native Wayland Support:** Out-of-the-box integration using Ozone platform flags, PipeWire screen capture, and window decorations.
-- - [ ] **AIRI Card System:** High-fidelity character management. Import/export native JSON or SillyTavern-compatible `chara_card_v2` PNGs. Features per-card model configurations and stage preferences.
-- [ ] **Multi-Tab Card Editor:**
-  - _Acting:_ Manage model expressions, speech mannerisms, and ACT tokens.
-  - _Modules:_ Set specific speech engines, avatars, and models per character.
-  - _Artistry:_ Native image generation pipelines (Replicate, ComfyUI).
-  - _Proactivity:_ Define triggers for autonomous companion interactions.
-- [ ] **Dynamic Stage Widgets:** Spawns and controls floating desktop widgets (weather, maps, or generic JSON payloads).
-- [ ] **Optimized Audio Pipeline:** Low-latency speech path supporting OpenAI-compatible voice discovery.
 
 ---
 
@@ -68,7 +49,7 @@ pnpm i
 pnpm dev:tamagotchi
 ```
 
-### ⌨️ Building for Linux
+### ⌨️ Building for Linux (under construction)
 
 ```shell
 cd apps/stage-tamagotchi
@@ -90,52 +71,51 @@ pnpm approve-builds # Select 'electron' and confirm
 ## 🚙 Roadmap
 
 - [x] **Brain**
-  - [ ] Multi-tier memory based on [openvault](https://github.com/vadash/openvault) design
-  - [ ] Per-character memory scoping that works for multiple-character being preset at the stage, not gated by character card
-- [x] **Heart**
-  - [ ] Heartbeat (proactivity)
+  - [x] _Artistry:_ Native image generation pipelines (Replicate, ComfyUI).
+  - [ ] _Proactivity:_ Define triggers for autonomous companion interactions.
+  - [ ] _Multi-tier memory_ based on [openvault](https://github.com/vadash/openvault) design
+  - [ ] _Per-character memory scoping_ that works with multiple-character being preset at the stage (witnesses)
 - [x] **Ears**
-  - [x] Client-side speech recognition & talking detection
+  - [ ] Client-side speech recognition & talking detection
 - [x] **Mouth**
-  - [x] OpenAI-compatible speech providers
-    - [ ] with voice discovery
+  - [x] OpenAI-compatible speech providers with voice discovery
 - [x] **Body**
   - [x] VRM support
-    - [ ] with expression controls, auto-blink, and auto-look-at
+    - [ ] LLM-driven expression controls, auto-blink and auto-look-at
+    - [ ] LLM-driven emotions and idle-loops
   - [x] Live2D support
-    - [ ] with expression-oriented tools
+    - [ ] LLM-driven expression controls
 - [x] **Desktop Stage**
-  - [ ] _Multiple characters sharing the stage_
-  - [ ] Control Island with emotions, favorites, and idle-loop cycling
-  - [ ] Widget system (weather, map, generic JSON) (to be converted to GTK)
+  - [ ] Multiple characters sharing the stage (one window per character)
+  - [ ] Widget system (to be converted to GTK)
   - [ ] Scene/background management per character
-  - [ ] Window snapping and position persistence (this fork adapts single-window philosophy)
-  - [ ] Native Wayland support
 - [ ] **airiOS (WIP)**
   - [x] System tray & screen capture integration
   - [ ] Generate and open native GTK3/4 windows instead of web widgets
-  - [ ] [computer-use-linux](https://github.com/vi70x3/computer-use-linux) integration
-  - [ ] [AiRoo Code](https://github.com/vi70x3/airoo) integration
-    - [ ] Send recent AiRoo context snapshot with each AIRI heartbeat
-  - [ ] Render AIRI as wlroots wallpaper if compatible compositor detected
-  - [ ] AIRI chatbox integration as a system terminal with natural language detection
+  - [ ] [airiOS Linux API](https://github.com/airi-os/api-linux) integration
+  - [ ] [airiOS Code](https://github.com/airi-os/code) integration
+    - [ ] Send recent airiOS Code context snapshot with each AIRI heartbeat
+  - [ ] AIRI chatbox doubles as a system terminal with natural language detection
 - [ ] **Misc**
   - [ ] DeepSource pass with 0 issues
   - [ ] LCov > 90% -> switch to TDD
   - [ ] Natural terminal command detection (similar to Warp terminal)
-  - [ ] Add more providers to xsai
+  - [ ] Replace default AIRI LLM provider with [airiOS Localhost LLM Layer](https://github.com/airi-os/api-llm-localhost) + optional [airiOS Cloud LLM Layer](https://github.com/airi-os/api-llm-cloud)
+  - [ ] Replace default AIRI Speech provider with airiOS Localhost Speech Layer
   - [ ] Add providers/mcp/skills via natural language prompts
+  - [ ] Native Wayland Support using Ozone platform flags
+    - [ ] PipeWire screen capture
 
 ---
 
 ## 🤖 LLM API Providers
 
-### Supported providers: everything [xsai](https://github.com/vi70x3/xsai) supports
+### Supported providers: everything [xsai](https://github.com/moeru-ai/xsai) supports
 
 ---
 
 ## 🙏 Acknowledgements
 
-- Original [moeru-ai/airi](https://github.com/moeru-ai/airi) project and [dasilva333/airi](https://github.com/dasilva333/airi) fork
+- [`moeru-ai/airi`](https://github.com/moeru-ai/airi) project and [`dasilva333/airi`](https://github.com/dasilva333/airi) fork
 - [Reka UI](https://github.com/unovue/reka-ui) - UI components
 - [xsai](https://github.com/moeru-ai/xsai) - LLM interaction layer
