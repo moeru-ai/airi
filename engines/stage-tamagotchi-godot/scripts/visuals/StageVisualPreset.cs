@@ -91,12 +91,14 @@ public static class StageVisualPreset
         }
         """;
 
-    private static readonly Color GroundColor = new(0.27f, 0.34f, 0.37f, 1.0f);
-    private static readonly Color HorizonMistColor = new(0.62f, 0.73f, 0.76f, 0.82f);
+    private static readonly Color GroundColor = new(0.31f, 0.31f, 0.31f, 1.0f);
+    private static readonly Color HorizonMistColor = new(0.68f, 0.68f, 0.68f, 0.82f);
     private static readonly Color MinorGridColor = new(1.0f, 1.0f, 1.0f, 0.20f);
     private static readonly Color MajorGridColor = new(1.0f, 1.0f, 1.0f, 0.38f);
     private static readonly Color CenterGridColor = new(1.0f, 1.0f, 1.0f, 0.72f);
     private static readonly Color CenterMarkerColor = new(0.72f, 0.94f, 1.0f, 0.92f);
+    private static readonly Color AmbientLightColor = new(0.06f, 0.06f, 0.06f, 1.0f);
+    private static readonly Color StageBackgroundColor = new(0.015f, 0.014f, 0.018f, 1.0f);
 
     /// <summary>
     /// Applies the stage visual preset under the provided root node.
@@ -117,6 +119,7 @@ public static class StageVisualPreset
             throw new ArgumentNullException(nameof(stageRoot));
         }
 
+        ConfigureViewport(stageRoot.GetViewport());
         RemoveExistingPreset(stageRoot);
 
         var visualRoot = new Node3D
@@ -129,6 +132,17 @@ public static class StageVisualPreset
         visualRoot.AddChild(CreateGroundPlane());
         visualRoot.AddChild(CreateCenterMarker());
         visualRoot.AddChild(CreateLightingRig());
+    }
+
+    private static void ConfigureViewport(Viewport viewport)
+    {
+        if (viewport == null)
+        {
+            return;
+        }
+
+        viewport.UseHdr2D = true;
+        viewport.UseDebanding = true;
     }
 
     private static void RemoveExistingPreset(Node stageRoot)
@@ -157,24 +171,25 @@ public static class StageVisualPreset
         };
         var environment = new GodotEnvironment
         {
+            AmbientLightColor = AmbientLightColor,
             AmbientLightEnergy = 0.26f,
-            AmbientLightSkyContribution = 0.48f,
-            AmbientLightSource = GodotEnvironment.AmbientSource.Sky,
-            BackgroundEnergyMultiplier = 1.06f,
+            AmbientLightSkyContribution = 0.0f,
+            AmbientLightSource = GodotEnvironment.AmbientSource.Color,
+            AdjustmentBrightness = 1.0f,
+            AdjustmentColorCorrection = null,
+            AdjustmentContrast = 1.0f,
+            BackgroundColor = StageBackgroundColor,
+            BackgroundEnergyMultiplier = 1.0f,
+            // Show the sky as a background while keeping ambient and reflections neutral.
             BackgroundMode = GodotEnvironment.BGMode.Sky,
-            ReflectedLightSource = GodotEnvironment.ReflectionSource.Sky,
+            ReflectedLightSource = GodotEnvironment.ReflectionSource.Disabled,
             Sky = sky,
-            // Keep MToon/NPR avatars out of filmic tone mapping, then apply a small
-            // stylized display grade. The VRM materials already use source_color
-            // texture inputs; the remaining gap to three-stage is presentation color,
-            // not importer-side texture conversion.
-            // Three-stage disables tone mapping per MToon material; Godot applies
-            // environment tone mapping globally, so filmic curves wash avatar colors out.
-            AdjustmentContrast = 1.03f,
-            AdjustmentEnabled = true,
-            AdjustmentSaturation = 1.24f,
+            AdjustmentSaturation = 1.0f,
+            AdjustmentEnabled = false,
+            GlowEnabled = false,
             TonemapExposure = 1.0f,
             TonemapMode = GodotEnvironment.ToneMapper.Linear,
+            TonemapWhite = 1.0f,
         };
 
         return new WorldEnvironment
