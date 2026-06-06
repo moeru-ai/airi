@@ -127,13 +127,15 @@ export function stripUnreadableSymbols(
     }
 
     if (opts.stripDecorativeUnicode) {
-      // Arrows, box-drawing, block elements, geometric shapes, letterlike symbols
+      // Arrows, box-drawing, block elements, geometric shapes, letterlike symbols,
+      // general punctuation (em/en dashes, typographic quotes, ellipsis, etc.)
       ranges.push(
         '\\u{2190}-\\u{21FF}', // Arrows
         '\\u{2500}-\\u{257F}', // Box drawing
         '\\u{2580}-\\u{259F}', // Block elements
         '\\u{25A0}-\\u{25FF}', // Geometric shapes
         '\\u{2100}-\\u{214F}', // Letterlike symbols
+        '\\u{2000}-\\u{206F}', // General punctuation (em/en dashes, quotes, ellipsis, etc.)
         '\u00A9', '\u00AE', '\\u{2122}', // © ® ™
         '\\u{00A7}', '\\u{00B6}', '\\u{2020}', '\\u{2021}', // § ¶ † ‡
         '\\u{2022}', '\\u{2023}', '\\u{2043}', // • ‣ ⁃
