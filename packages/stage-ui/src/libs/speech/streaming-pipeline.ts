@@ -380,6 +380,7 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
   return {
     appendText(text: string) {
       if (text.length === 0) return
+      console.log('[TTS STREAMING] appendText:', JSON.stringify(text))
       // Pure-whitespace chunks (e.g. the " " between two LLM tokens) ARE
       // forwarded verbatim. Dropping them would corrupt the text the
       // upstream model sees ("hello" + " " + "world" → "helloworld").
