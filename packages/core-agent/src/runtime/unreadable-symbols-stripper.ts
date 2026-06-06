@@ -94,6 +94,10 @@ export function stripUnreadableSymbols(
   // Pass 1: Strip Markdown syntax (always run)
   let result = stripMarkdownFromSpeech(safeText)
 
+  // Aggressive star stripping for TTS: remove any ** that survived the markdown pass.
+  // This handles split markers like **bold + text** where neither chunk has complete **...**.
+  result = result.replace(/\*\*/g, '')
+
   // Pass 2: Strip emoji, pictographic symbols, and decorative Unicode.
   // Ranges are deduplicated: \u{1F300}-\u{1F9FF} already covers
   // \u{1F600}-\u{1F64F} (emoticons) and \u{1F680}-\u{1F6FF} (transport),
