@@ -94,40 +94,63 @@ export function stripUnreadableSymbols(
   // Pass 1: Strip Markdown syntax (always run)
   let result = stripMarkdownFromSpeech(safeText)
 
-  // Pass 2: Strip emoji and Unicode pictographic symbols
-  if (opts.stripEmoji) {
-    // Remove variation selectors, ZWJ, keycap combining chars first
-    result = result.replace(/\uFE0F/gu, '')
-    result = result.replace(/\u200D/gu, '')
-    result = result.replace(/\u20E3/gu, '')
+  // Pass 2: Strip emoji, pictographic symbols, and decorative Unicode.
+  // Ranges are deduplicated: \u{1F300}-\u{1F9FF} already covers
+  // \u{1F600}-\u{1F64F} (emoticons) and \u{1F680}-\u{1F6FF} (transport),
+  // so those subsets are omitted. \u{2600}-\u{26FF} covers \u{2614}-\u{2615},
+  // \u{2648}-\u{2653}, etc. Variation selectors and ZWJ are included in the
+  // same regex to minimize .replace() calls.
+  if (opts.stripEmoji || opts.stripDecorativeUnicode) {
+    // Build a combined character class from all needed ranges
+    const ranges: string[] = []
 
-    // Emoji ranges: emoticons, faces, transport, misc symbols, dingbats,
-    // skin tones, regional indicators, extended-A/B, supplemental symbols
-    result = result.replace(
-      /[\u{1F300}-\u{1F9FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1FA00}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F3FB}-\u{1F3FF}\u{1F1E0}-\u{1F1FF}\u{2702}-\u{27B0}\u{231A}-\u{231B}\u{23E9}-\u{23F3}\u{23F8}-\u{23FA}\u{25AA}-\u{25AB}\u{25B6}\u{25C0}\u{25FB}-\u{25FE}\u{2614}-\u{2615}\u{2648}-\u{2653}\u{267F}\u{2693}\u{26A1}\u{26AA}-\u{26AB}\u{26BD}-\u{26BE}\u{26C4}-\u{26C5}\u{26CE}\u{26D4}\u{26EA}\u{26F2}-\u{26F3}\u{26F5}\u{26FA}\u{26FD}\u{2934}-\u{2935}\u{2B05}-\u{2B07}\u{2B1B}-\u{2B1C}\u{2B50}\u{2B55}\u{3030}\u{303D}\u{3297}\u{3299}]/gu,
-      '',
-    )
+    if (opts.stripEmoji) {
+      // Variation selectors, ZWJ, keycap combining chars
+      ranges.push('\uFE0F', '\u200D', '\u20E3')
+      // Emoji & pictographic symbols (deduplicated — no subsets of the above)
+      ranges.push(
+        '\\u{1F300}-\\u{1F9FF}', // Misc symbols, emoticons, transport, supplemental
+        '\\u{1F1E0}-\\u{1F1FF}', // Regional indicator symbols (flags)
+        '\\u{1F3FB}-\\u{1F3FF}', // Skin tone modifiers
+        '\\u{1FA00}-\\u{1FAFF}', // Extended-A and beyond
+        '\\u{2600}-\\u{26FF}', // Misc symbols (covers \u{2614}-\u{2615}, \u{2648}-\u{2653}, etc.)
+        '\\u{2700}-\\u{27BF}', // Dingbats
+        '\\u{231A}-\\u{231B}', // Watch, hourglass
+        '\\u{23E9}-\\u{23F3}', // Media controls, clocks
+        '\\u{23F8}-\\u{23FA}', // Media controls
+        '\\u{25AA}-\\u{25AB}', '\\u{25B6}', '\\u{25C0}', '\\u{25FB}-\\u{25FE}', // Geometric shapes
+        '\\u{2934}-\\u{2935}', // Arrows
+        '\\u{2B05}-\\u{2B07}', // Arrows
+        '\\u{2B1B}-\\u{2B1C}', '\\u{2B50}', '\\u{2B55}', // Geometric shapes
+        '\\u{3030}', '\\u{303D}', '\\u{3297}', '\\u{3299}', // CJK symbols
+      )
+    }
+
+    if (opts.stripDecorativeUnicode) {
+      // Arrows, box-drawing, block elements, geometric shapes, letterlike symbols
+      ranges.push(
+        '\\u{2190}-\\u{21FF}', // Arrows
+        '\\u{2500}-\\u{257F}', // Box drawing
+        '\\u{2580}-\\u{259F}', // Block elements
+        '\\u{25A0}-\\u{25FF}', // Geometric shapes
+        '\\u{2100}-\\u{214F}', // Letterlike symbols
+        '\u00A9', '\u00AE', '\\u{2122}', // © ® ™
+        '\\u{00A7}', '\\u{00B6}', '\\u{2020}', '\\u{2021}', // § ¶ † ‡
+        '\\u{2022}', '\\u{2023}', '\\u{2043}', // • ‣ ⁃
+      )
+    }
+
+    result = result.replace(new RegExp(`[${ranges.join('')}]`, 'gu'), '')
   }
 
-  // Pass 3: Strip decorative Unicode (arrows, box-drawing, shapes, dingbats)
-  if (opts.stripDecorativeUnicode) {
-    // Arrows, box-drawing, block elements, geometric shapes, letterlike symbols
-    result = result.replace(
-      /[\u{2190}-\u{21FF}\u{2500}-\u{257F}\u{2580}-\u{259F}\u{25A0}-\u{25FF}\u{2100}-\u{214F}]/gu,
-      '',
-    )
-    // Specific decorative chars: © ® ™ § ¶ † ‡ • ‣ ⁃
-    result = result.replace(/[©®™§¶†‡•‣⁃]/g, '')
-  }
-
-  // Pass 4: Strip standalone special characters
+  // Pass 3: Strip standalone special characters
   if (opts.stripStandaloneSpecialChars) {
     // Matches standalone special chars surrounded by whitespace or at string boundaries.
     // Consumes the surrounding whitespace to avoid double spaces.
     result = result.replace(/(^|\s)[*#@|\\/~^`]+(?=\s|$)/g, '$1')
   }
 
-  // Pass 5: Strip standalone math/operator symbols
+  // Pass 4: Strip standalone math/operator symbols
   if (opts.stripMathOperators) {
     // Matches standalone operator sequences at string boundaries or surrounded by whitespace.
     // Uses explicit (^|\s) grouping for boundary matching — more portable than lookbehind.
@@ -135,7 +158,7 @@ export function stripUnreadableSymbols(
     result = result.replace(/(^|\s)[+=\-<>&^~|\\/%]+(?=\s|$)/g, '$1')
   }
 
-  // Pass 6: Collapse repeated punctuation
+  // Pass 5: Collapse repeated punctuation
   if (opts.collapseRepeatedPunctuation) {
     result = result.replace(/!{3,}/g, '!')
     result = result.replace(/\?{3,}/g, '?')
