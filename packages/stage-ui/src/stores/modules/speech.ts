@@ -499,7 +499,7 @@ export const useSpeechStore = defineStore('speech', () => {
 
     if (!options.params && !options.voicePack) {
       return {
-        input: options.forceSSML
+        input: options.forceSSML && options.supportsSSML
           ? generateSSML(options.text, options.voice, providerConfig)
           : options.text,
         providerConfig,

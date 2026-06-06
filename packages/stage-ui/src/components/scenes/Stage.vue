@@ -411,7 +411,7 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
       }
     }
 
-    const voicePack = activeCard.value?.extensions.airi.modules.speech.voicePack
+    const voicePack = activeCard.value?.extensions?.airi?.modules?.speech?.voicePack
     if (voicePack) {
       model = voicePack.ttsModelId
       if (!voice || voice.id !== voicePack.voiceId)

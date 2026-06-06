@@ -163,13 +163,6 @@ async function generateTestSpeech() {
     }
   }
 
-  const voicePack = activeCard.value?.extensions.airi.modules.speech.voicePack
-  if (voicePack) {
-    model = voicePack.ttsModelId
-    if (!voice || voice.id !== voicePack.voiceId)
-      voice = createVoicePackVoice(voicePack, activeSpeechProvider.value)
-  }
-
   if (!model) {
     console.error('No model selected')
     return
@@ -178,6 +171,13 @@ async function generateTestSpeech() {
   if (!voice) {
     console.error('No voice selected')
     return
+  }
+
+  const voicePack = activeCard.value?.extensions?.airi?.modules?.speech?.voicePack
+  if (voicePack) {
+    model = voicePack.ttsModelId
+    if (voice.id !== voicePack.voiceId)
+      voice = createVoicePackVoice(voicePack, activeSpeechProvider.value)
   }
 
   isGenerating.value = true
@@ -321,7 +321,7 @@ function handleDeleteProvider(providerId: string) {
             :class="[
               'w-full border rounded-lg px-3 py-2 text-left transition-colors',
               'border-neutral-200 bg-white hover:border-primary-400 dark:border-neutral-800 dark:bg-neutral-900/60 dark:hover:border-primary-500',
-              airiCardStore.activeCard?.extensions.airi.modules.speech.voicePack?.packId === pack.id
+              airiCardStore.activeCard?.extensions?.airi?.modules?.speech?.voicePack?.packId === pack.id
                 ? 'border-primary-500 bg-primary-50 dark:border-primary-400 dark:bg-primary-950/30'
                 : '',
             ]"
