@@ -15,6 +15,55 @@ const keptPunctuations = new Set('?？!！')
 const hardPunctuations = new Set('.。?？!！…⋯～~\n\t\r')
 const softPunctuations = new Set(',，、–—:：;；《》「」')
 
+
+/**
+ * Strips Markdown formatting from text for TTS output.
+ * Only processes bold, italic, strikethrough, links, headings, bullet lists,
+ * numbered lists, blockquotes, code fences, inline code, and horizontal rules.
+ */
+function stripMarkdownFromText(text: string): string {
+  let result = text
+
+  // Code fences (```...```) — must run before inline code
+  result = result.replace(/^```.*\n([\s\S]*?)^```$/gm, '$1')
+
+  // Inline code (`code`) — preserve inner text
+  result = result.replace(/`([^`]+)`/g, '$1')
+
+  // Bold (**text**) — preserve inner text
+  result = result.replace(/\*\*([^*]+?)\*\*/g, '$1')
+
+  // Strikethrough (~~text~~) — preserve inner text
+  result = result.replace(/~~([^~]+?)~~/g, '$1')
+
+  // Headings (# Heading) — remove # markers at line start, preserve text
+  result = result.replace(/^#{1,6}\s+/gm, '')
+
+  // Bullet lists (- item or * item) — remove marker at line start, preserve text
+  result = result.replace(/^[-*]\s+/gm, '')
+
+  // Numbered lists (1. item) — remove number+dot at line start, preserve text
+  result = result.replace(/^\d+\.\s+/gm, '')
+
+  // Blockquotes (> quote) — remove > marker at line start, preserve text
+  result = result.replace(/^>\s+/gm, '')
+
+  // Italic (*text*) — preserve inner text
+  result = result.replace(/\*([^*]+?)\*/g, '$1')
+
+  // Italic (_text_) — preserve inner text
+  result = result.replace(/_([^_]+?)_/g, '$1')
+
+  // Links [text](url) — preserve link text only
+  result = result.replace(/\[([^\]]+?)\]\([^)]+?\)/g, '$1')
+
+  // Horizontal rules (---, ***, ___) — remove entirely
+  result = result.replace(/^---+$/gm, '')
+  result = result.replace(/^\*\*\*+$/gm, '')
+  result = result.replace(/^___+$/gm, '')
+
+  return result
+}
 export interface TtsInputChunk {
   text: string
   words: number
@@ -26,6 +75,7 @@ export interface TtsInputChunkOptions {
   minimumWords?: number
   maximumWords?: number
   stripNarrative?: boolean
+  stripMarkdown?: boolean
   keepNarrativeText?: boolean
 }
 
@@ -371,7 +421,8 @@ export function createTtsSegmentStream(
 
         if (value.type === 'literal') {
           if (value.value) {
-            if (!options?.stripNarrative) {
+            // When neither stripNarrative nor stripMarkdown is set, write directly
+            if (!options?.stripNarrative && !options?.stripMarkdown) {
               writeBytes(encoder.encode(value.value))
               continue
             }
@@ -396,21 +447,27 @@ export function createTtsSegmentStream(
 
             const bracketsUnclosed = stack.length > 0
             const starMatch = pendingText.match(/\*([^*]*)$/)
-            const starsUnclosed =
-              (pendingText.match(/\*/g) || []).length % 2 !== 0 && starMatch !== null && !starMatch[1].startsWith(' ')
+            const italicUnclosed =
+              (pendingText.match(/\*/g) || []).length % 2 !== 0 && starMatch !== null && !starMatch[1].startsWith(" ")
+            // Detect unclosed ** (bold): count ** occurrences — odd means unclosed bold
+            const boldDoubleCount = (pendingText.match(/\*\*/g) || []).length
+            const boldUnclosed = boldDoubleCount % 2 !== 0
+            const starsUnclosed = italicUnclosed || boldUnclosed
             const hasUnclosed = bracketsUnclosed || starsUnclosed
             const hasNarrativeUnclosed = stack.some((char) => ['[', '【', '<', '（'].includes(char))
             const fallbackLimit = options?.stripNarrative && hasNarrativeUnclosed ? 800 : 200
 
             if (!hasUnclosed || pendingText.length > fallbackLimit) {
-              const textToEmit = processNarrative(pendingText, options)
+              let textToEmit = options?.stripMarkdown ? stripMarkdownFromText(pendingText) : pendingText
+              if (options?.stripNarrative) textToEmit = processNarrative(textToEmit, options)
               writeBytes(encoder.encode(textToEmit))
               pendingText = ''
             }
           }
         } else if (value.type === 'special' || value.type === 'flush') {
           if (pendingText) {
-            const textToEmit = processNarrative(pendingText, options)
+            let textToEmit = options?.stripMarkdown ? stripMarkdownFromText(pendingText) : pendingText
+            if (options?.stripNarrative) textToEmit = processNarrative(textToEmit, options)
             writeBytes(encoder.encode(textToEmit))
             pendingText = ''
           }
@@ -424,7 +481,7 @@ export function createTtsSegmentStream(
         }
       }
       if (pendingText) {
-        let finalPunt = pendingText
+        let finalPunt = options?.stripMarkdown ? stripMarkdownFromText(pendingText) : pendingText
         if (options?.stripNarrative) {
           finalPunt = processNarrative(finalPunt, options)
         }

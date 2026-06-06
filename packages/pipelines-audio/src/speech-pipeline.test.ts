@@ -301,4 +301,100 @@ describe('createSpeechPipeline', () => {
 
     expect(scheduled.map((item) => item.text)).toEqual(['first'])
   })
+
+  describe('stripMarkdown option', () => {
+    /**
+     * Helper: create a pipeline that captures TTS requests and uses the
+     * default segmenter (so writeLiteral text actually flows through).
+     */
+    async function runStripMarkdownTest(
+      texts: string[],
+      options: { stripMarkdown?: boolean },
+    ) {
+      const ttsRequests: TtsRequest[] = []
+      const { playback } = createPlaybackSpy()
+
+      const pipeline = createSpeechPipeline<string>({
+        ...options,
+        playback,
+        async tts(request) {
+          ttsRequests.push(request)
+          return request.text
+        },
+      })
+
+      const intentFinished = new Promise<void>((resolve) => {
+        pipeline.on('onIntentEnd', () => resolve())
+      })
+
+      const intent = pipeline.openIntent()
+      for (const text of texts) {
+        intent.writeLiteral(text)
+      }
+      intent.end()
+
+      await intentFinished
+      return ttsRequests
+    }
+
+    it('strips bold markers from writeLiteral text', async () => {
+      const ttsRequests = await runStripMarkdownTest(
+        ['Hello **world**!'],
+        { stripMarkdown: true },
+      )
+
+      const texts = ttsRequests.map((r) => r.text)
+      expect(texts.join('')).not.toContain('**')
+      expect(texts.join('')).toContain('Hello')
+      expect(texts.join('')).toContain('world')
+    })
+
+    it('strips bold markers split across writeLiteral calls', async () => {
+      // Simulate **bold** split across two streaming chunks
+      const ttsRequests = await runStripMarkdownTest(
+        ['**bold', ' text**'],
+        { stripMarkdown: true },
+      )
+
+      const texts = ttsRequests.map((r) => r.text)
+      expect(texts.join('')).not.toContain('**')
+      expect(texts.join('')).toContain('bold')
+      expect(texts.join('')).toContain('text')
+    })
+
+    it('strips headings, links, and italic markers', async () => {
+      const ttsRequests = await runStripMarkdownTest(
+        ['## Heading', 'Check [link](url) out', 'Some *italic* text'],
+        { stripMarkdown: true },
+      )
+
+      const fullText = ttsRequests.map((r) => r.text).join('')
+      expect(fullText).not.toContain('##')
+      expect(fullText).not.toContain('[')
+      expect(fullText).not.toContain('*')
+      expect(fullText).toContain('Heading')
+      expect(fullText).toContain('link')
+      expect(fullText).toContain('italic')
+    })
+
+    it('does not strip markdown when stripMarkdown is false', async () => {
+      const ttsRequests = await runStripMarkdownTest(
+        ['Hello **world**!'],
+        { stripMarkdown: false },
+      )
+
+      const texts = ttsRequests.map((r) => r.text)
+      expect(texts.join('')).toContain('**')
+    })
+
+    it('strips markdown by default when stripMarkdown is not specified', async () => {
+      const ttsRequests = await runStripMarkdownTest(
+        ['Hello **world**!'],
+        {},
+      )
+
+      const texts = ttsRequests.map((r) => r.text)
+      expect(texts.join('')).not.toContain('**')
+    })
+  })
 })

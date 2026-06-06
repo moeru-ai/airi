@@ -46,7 +46,12 @@ export interface SpeechPipelineOptions<TAudio> {
   segmenter?: (
     tokens: ReadableStream<TextToken>,
     meta: { streamId: string; intentId: string; turnId?: string },
+    options?: { stripMarkdown?: boolean },
   ) => ReadableStream<TextSegment>
+  /**
+   * Whether to strip Markdown formatting from text before TTS. Default is true.
+   */
+  stripMarkdown?: boolean
 }
 
 interface IntentState {
@@ -72,6 +77,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
   const priorityResolver = options.priority ?? createPriorityResolver()
   const segmenter = options.segmenter ?? createTtsSegmentStream
   const ttsMaxConcurrent = Math.max(1, options.ttsMaxConcurrent ?? 4)
+  const stripMarkdown = options.stripMarkdown ?? true
   const context = createContext()
   const timeline = createTimeline()
 
@@ -129,7 +135,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
       streamId: intent.streamId,
       intentId: intent.intentId,
       turnId: intent.turnId,
-    })
+    }, { stripMarkdown })
     const completedRequests = new Map<number, TtsResult<TAudio> | null>()
     const inFlightTasks = new Set<Promise<void>>()
     let nextRequestSequence = 0
