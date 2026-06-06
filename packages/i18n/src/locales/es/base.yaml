@@ -20,12 +20,12 @@ prompt:
     CALL format: <{'|'}CALL {'["name"]'}{'|'}> or <{'|'}CALL {'["name", {"key":"value"}]'}{'|'}> Use CALL only when the current task or connected module explicitly asks you to emit a named call, for example <{'|'}CALL {'["chess.play"]'}{'|'}>.
     The available emotions:
   suffix: |
-    The available actions:
+    Las acciones disponibles:
 
-    - <{'|'}DELAY 1{'|'}> (Delay for 1 second)
-    - <{'|'}DELAY 3{'|'}> (Delay for 3 seconds)
+    - <{'|'}DELAY 1{'|'}> (Retraso por 1 segundo)
+    - <{'|'}DELAY 3{'|'}> (Retraso por 3 segundos)
 
-    And the last, do what ever you want!
+    Y el último, ¡Haz lo que quieras!
 toaster:
   pwaUpdateReady:
     message: Nueva versión lista, ¿recargar ahora?
