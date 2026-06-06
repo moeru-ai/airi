@@ -19,7 +19,6 @@ import type {
   VoiceProviderWithExtraOptions,
 } from 'unspeech'
 
-import type { ProviderSourceDeployment, ProviderSourcePricing } from '../libs/providers/source-metadata'
 import type { ProviderOnboardingField } from '../libs/providers/types'
 import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream-transcription'
 
@@ -53,7 +52,6 @@ import { useI18n } from 'vue-i18n'
 
 import { getKokoroAdapter } from '../libs/inference/adapters/kokoro'
 import { getProviderValidationIntervalMs, listProviders as listDefinedProviders, ProviderValidationCheck } from '../libs/providers'
-import { resolveProviderSourceMetadata } from '../libs/providers/source-metadata'
 import { getDefaultKokoroModel, KOKORO_MODELS, kokoroModelsToModelInfo } from '../workers/kokoro/constants'
 import { useAuthStore } from './auth'
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
@@ -184,8 +182,8 @@ export interface ProviderMetadata {
     supportsStreamOutput: boolean
     supportsStreamInput: boolean
   }
-  pricing?: ProviderSourcePricing
-  deployment?: ProviderSourceDeployment
+  pricing?: 'free' | 'paid' | 'internal'
+  deployment?: 'local' | 'cloud'
   beginnerRecommended?: boolean
 }
 
@@ -2273,7 +2271,6 @@ export const useProvidersStore = defineStore('providers', () => {
   for (const metadata of Object.values(providerMetadata)) {
     if (definedProviderIds.has(metadata.id))
       continue
-    Object.assign(metadata, resolveProviderSourceMetadata(metadata))
   }
 
   // const validatedCredentials = ref<Record<string, string>>({})

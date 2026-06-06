@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import type { ProviderSourceDeployment, ProviderSourcePricing } from '../../libs/providers/source-metadata'
-
 const props = defineProps<{
   title: string
   description?: string
@@ -9,8 +7,8 @@ const props = defineProps<{
   iconImage?: string
   to: string
   configured?: boolean
-  pricing?: ProviderSourcePricing
-  deployment?: ProviderSourceDeployment
+  pricing?: 'free' | 'paid' | 'internal'
+  deployment?: 'local' | 'cloud'
   beginnerRecommended?: boolean
 }>()
 </script>

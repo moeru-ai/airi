@@ -5,7 +5,6 @@ import type { ProviderMetadata } from '../providers'
 
 import { listModels } from '@xsai/model'
 
-import { resolveProviderSourceMetadata } from '../../libs/providers/source-metadata'
 import { CHAT_COMPLETIONS_VALIDATOR_ID, isModelProvider } from '../../libs/providers/types'
 import { getValidatorsOfProvider, validateProvider } from '../../libs/providers/validators/run'
 
@@ -101,7 +100,6 @@ export function convertProviderDefinitionToMetadata(
   const keyExtractor = (input: string): string => input
   const category = getCategoryFromTasks(definition.tasks)
   const schemaDefaults = extractSchemaDefaults(definition, t)
-  const providerSourceMetadata = resolveProviderSourceMetadata(definition)
   return {
     id: definition.id,
     order: definition.order,
@@ -114,7 +112,6 @@ export function convertProviderDefinitionToMetadata(
     icon: definition.icon,
     iconColor: definition.iconColor,
     iconImage: definition.iconImage,
-    ...providerSourceMetadata,
     isAvailableBy: definition.isAvailableBy,
     requiresCredentials: definition.requiresCredentials,
     onboardingFields: definition.onboardingFields?.({ t }),
