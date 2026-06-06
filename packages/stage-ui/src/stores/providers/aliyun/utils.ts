@@ -5,6 +5,7 @@ export function nlsMetaEndpointFromRegion(region: string): URL {
 export function nlsWebSocketEndpointFromRegion(region: string = 'cn-shanghai'): URL {
   const websocketURL = new URL('/ws/v1', 'https://example.com')
 
+  // eslint-disable-next-line default-case
   switch (region) {
     case 'cn-shanghai':
     case 'cn-beijing':

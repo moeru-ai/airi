@@ -30,6 +30,7 @@ export const controlConfig: Record<SupportedControl, ControlConfig> = {
 
 export function useSpineViewControl() {
   function reset(key: SupportedControl) {
+    // eslint-disable-next-line default-case
     switch (key) {
       case 'x':
         position.value.x = controlConfig.x.default

@@ -111,7 +111,10 @@ onMounted(() => {
       if (!body || body.id !== widgetId.value) return
       applySnapshot(body)
     })
-  } catch {}
+  // eslint-disable-next-line no-empty
+  } catch {
+    // noop
+  }
 
   try {
     context.value.on(widgetsUpdateEvent, (evt) => {
@@ -129,27 +132,36 @@ onMounted(() => {
         size: body.size ?? widget.value.size,
         windowSize: body.windowSize ?? widget.value.windowSize,
         ttlMs: body.ttlMs ?? widget.value.ttlMs,
+      // eslint-disable-next-line no-empty
       })
     })
-  } catch {}
+  } catch {
+    // noop
+  }
 
   try {
     context.value.on(widgetsRemoveEvent, (evt) => {
       const body = evt?.body
       if (!body || body.id !== widgetId.value) return
+      // eslint-disable-next-line no-empty
       clearTtl()
       widget.value = null
       loading.value = false
     })
-  } catch {}
+  } catch {
+    // noop
+  }
 
+  // eslint-disable-next-line no-empty
   try {
     context.value.on(widgetsClearEvent, () => {
       clearTtl()
       widget.value = null
       loading.value = false
     })
-  } catch {}
+  } catch {
+    // noop
+  }
 })
 
 onBeforeUnmount(() => {

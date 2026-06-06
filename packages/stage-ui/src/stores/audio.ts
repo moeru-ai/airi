@@ -52,7 +52,9 @@ function calculateVolumeWithMinMaxNormalize(analyser: AnalyserNode) {
   return volumeSum / dataBuffer.length
 }
 
+// eslint-disable-next-line consistent-return
 function calculateVolume(analyser: AnalyserNode, mode: 'linear' | 'minmax' = 'linear') {
+  // eslint-disable-next-line default-case
   switch (mode) {
     case 'linear':
       return calculateVolumeWithLinearNormalize(analyser)

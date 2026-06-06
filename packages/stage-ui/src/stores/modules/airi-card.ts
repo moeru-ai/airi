@@ -10,11 +10,36 @@ import { useI18n } from 'vue-i18n'
 import SystemPromptV2 from '../../constants/prompts/system-v2'
 
 import { DEFAULT_ARTISTRY_WIDGET_SPAWNING_PROMPT } from '../../constants/prompts/character-defaults'
+import { OFFICIAL_SPEECH_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { capturePosthogEvent } from '../analytics/posthog'
 import { useSettingsStageModel } from '../settings/stage-model'
 import { useArtistryStore } from './artistry'
 import { useConsciousnessStore } from './consciousness'
 import { useSpeechStore } from './speech'
+
+export type VoicePackParams = Record<string, string | number | boolean | null>
+
+export interface VoicePackBindingInput {
+  id: string
+  name: string
+  provider: string
+  model: string
+  voiceId: string
+  ttsModelId: string
+  params: VoicePackParams
+  costMultiplier: number
+}
+
+export interface VoicePackSnapshot {
+  packId: string
+  name: string
+  provider: string
+  model: string
+  voiceId: string
+  ttsModelId: string
+  params: VoicePackParams
+  costMultiplier: number
+}
 
 export interface AiriExtension {
   modules: {
@@ -32,6 +57,7 @@ export interface AiriExtension {
       rate?: number
       ssml?: boolean
       language?: string
+      voicePack?: VoicePackSnapshot
     }
 
     vrm?: {
@@ -204,6 +230,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
           rate: existingExtension.modules?.speech?.rate,
           ssml: existingExtension.modules?.speech?.ssml,
           language: existingExtension.modules?.speech?.language,
+          voicePack: existingExtension.modules?.speech?.voicePack,
         },
         vrm: existingExtension.modules?.vrm,
         live2d: existingExtension.modules?.live2d,
@@ -307,6 +334,53 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }
   }
 
+  function bindVoicePackToActiveCard(pack: VoicePackBindingInput) {
+    const cardId = activeCardId.value
+    const card = cards.value.get(cardId)
+    if (!card)
+      return false
+
+    const extension = resolveAiriExtension(card)
+    const voicePack: VoicePackSnapshot = {
+      packId: pack.id,
+      name: pack.name,
+      provider: pack.provider,
+      model: pack.model,
+      voiceId: pack.voiceId,
+      ttsModelId: pack.ttsModelId,
+      params: { ...pack.params },
+      costMultiplier: pack.costMultiplier,
+    }
+
+    const speech: AiriExtension['modules']['speech'] = {
+      ...extension.modules.speech,
+      provider: OFFICIAL_SPEECH_PROVIDER_ID,
+      model: pack.ttsModelId,
+      voice_id: pack.voiceId,
+      voicePack,
+    }
+
+    cards.value.set(cardId, {
+      ...card,
+      extensions: {
+        ...card.extensions,
+        airi: {
+          ...extension,
+          modules: {
+            ...extension.modules,
+            speech,
+          },
+        },
+      },
+    })
+
+    activeSpeechProvider.value = OFFICIAL_SPEECH_PROVIDER_ID
+    activeSpeechModel.value = pack.ttsModelId
+    activeSpeechVoiceId.value = pack.voiceId
+
+    return true
+  }
+
   function initialize() {
     if (cards.value.has('default')) return
     cards.value.set(
@@ -368,6 +442,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     addCard,
     removeCard,
     updateCard,
+    bindVoicePackToActiveCard,
     updateActiveCardDisplayModel,
     getCard,
     resetState,
@@ -383,6 +458,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
           provider: activeSpeechProvider.value,
           model: activeSpeechModel.value,
           voice_id: activeSpeechVoiceId.value,
+          voicePack: activeCard.value?.extensions?.airi?.modules?.speech?.voicePack,
         },
         displayModelId: stageModelStore.stageModelSelected,
         activeBackgroundId: activeCard.value?.extensions?.airi?.modules?.activeBackgroundId,

@@ -9,7 +9,7 @@ import { createPushStream } from '../stream'
 export const TTS_FLUSH_INSTRUCTION = '\u200B'
 export const TTS_SPECIAL_TOKEN = '\u2063'
 
-const regexpAnySingleDigit = /\d/
+const regexpAnySingleDigit = /\d/u
 
 const keptPunctuations = new Set('?？!！')
 const hardPunctuations = new Set('.。?？!！…⋯～~\n\t\r')
@@ -80,6 +80,7 @@ export async function* chunkTtsInput(
     let afterNext: IteratorResult<string, any> | undefined
 
     if (flush || special || hard || soft) {
+      // eslint-disable-next-line default-case
       switch (value) {
         case '.':
         case ',': {
@@ -258,7 +259,7 @@ export function isProbablyAngleTag(index: number, text: string): boolean {
   // Lookahead: if followed by num, space or equals, not a label
   if (nextChar && /[0-9\s=]/.test(nextChar)) return false
 
-  if (prevChar && (isUnicodeLetter(prevChar) || /\d/.test(prevChar))) {
+  if (prevChar && (isUnicodeLetter(prevChar) || /\d/u.test(prevChar))) {
     // fix: check whether remainder is piefix with any keywords, or contains the whole keyword
     const isLikelyNarrative = NARRATIVE_KEYWORDS.some(
       (kw) => (remainder.length > 1 && kw.startsWith(remainder)) || remainder.startsWith(kw),
@@ -267,7 +268,7 @@ export function isProbablyAngleTag(index: number, text: string): boolean {
   }
 
   // Lookbehind: if before is non-empty/non-bracket character, then determine as code or any instead of a label
-  if (prevChar && /[^\s([{（【<\])}>）】.,!?;:，。！？；：'"\-_]/.test(prevChar)) return false
+  if (prevChar && /[^\s([{（【<\])}>）】.,!?;:，。！？；：'"\-_]/u.test(prevChar)) return false
 
   return true
 }
@@ -294,7 +295,7 @@ export function processNarrative(text: string, options?: TtsInputChunkOptions): 
         }
         starOpenIndex = -1
       } else {
-        if (!/\s/.test(text[i + 1] || '')) {
+        if (!/\s/u.test(text[i + 1] || '')) {
           starOpenIndex = i
         }
       }

@@ -44,6 +44,7 @@ class AiriMToonMaterialLoaderPlugin extends MToonMaterialLoaderPlugin {
     return pending
   }
 
+  // eslint-disable-next-line class-methods-use-this
   private _hasEnabledOutline(extension: NonNullable<ReturnType<MToonMaterialLoaderPlugin['_getMToonExtension']>>) {
     return (
       typeof extension.outlineWidthMode === 'string' &&

@@ -47,6 +47,7 @@ function normalizeClassList(value?: string | string[]) {
 }
 
 function captureCanvasFrame(canvas?: HTMLCanvasElement) {
+  // eslint-disable-next-line consistent-return
   return new Promise<Blob | undefined>((resolve) => {
     if (!canvas) return resolve(undefined)
 

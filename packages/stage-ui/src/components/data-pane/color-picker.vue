@@ -216,6 +216,7 @@ function handleGlobalMove(event: MouseEvent | TouchEvent) {
   const clientX = 'touches' in event ? event.touches[0].clientX : event.clientX
   const clientY = 'touches' in event ? event.touches[0].clientY : event.clientY
 
+  // eslint-disable-next-line default-case
   switch (dragType.value) {
     case 'map': {
       const rect = colorMapRef.value!.getBoundingClientRect()
@@ -308,6 +309,7 @@ function handleRgbInput(channel: 'r' | 'g' | 'b', val: number) {
 }
 
 function handleHsvInput(channel: 'h' | 's' | 'v', val: number) {
+  // eslint-disable-next-line default-case
   switch (channel) {
     case 'h':
       hue.value = Math.max(0, Math.min(360, val))

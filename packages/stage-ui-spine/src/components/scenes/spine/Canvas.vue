@@ -55,6 +55,7 @@ onUnmounted(() => {
 })
 
 async function captureFrame() {
+  // eslint-disable-next-line consistent-return
   return new Promise<Blob | null>((resolve) => {
     if (!canvasRef.value) return resolve(null)
     canvasRef.value.toBlob(resolve, 'image/png')

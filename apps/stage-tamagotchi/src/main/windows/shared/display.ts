@@ -160,6 +160,7 @@ export interface AdjacentPositionResult {
  * If the target doesn't fit at full size on the best side, it is scaled down
  * (preserving aspect ratio) to fit, respecting `minScale`.
  */
+// eslint-disable-next-line consistent-return
 export function computeAdjacentPosition(
   anchorBounds: Rectangle,
   targetSize: { width: number; height: number },
@@ -199,6 +200,7 @@ export function computeAdjacentPosition(
 
   const centerY = anchorBounds.y + Math.floor((anchorBounds.height - h) / 2)
 
+  // eslint-disable-next-line default-case
   switch (best.side) {
     case 'right': {
       const x = anchorBounds.x + anchorBounds.width + margin

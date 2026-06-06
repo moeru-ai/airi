@@ -7,12 +7,17 @@ import JSZip from 'jszip'
  * Enhanced reporting utility to analyze and validate Live2D ZIP structures.
  */
 
+// eslint-disable-next-line no-console -- CLI reporting tool needs console output
 async function generateReport(zipPath: string) {
+  // eslint-disable-next-line no-console -- CLI reporting tool needs console output
   console.log(`\n================================================================`)
+  // eslint-disable-next-line no-console -- CLI reporting tool needs console output
   console.log(`LIVE2D STRUCTURE REPORT: ${path.basename(zipPath)}`)
+  // eslint-disable-next-line no-console -- CLI reporting tool needs console output
   console.log(`================================================================\n`)
 
   if (!fs.existsSync(zipPath)) {
+    // eslint-disable-next-line no-console -- CLI reporting tool needs console output
     console.error(`Error: File not found at ${zipPath}`)
     process.exit(1)
   }
@@ -35,14 +40,16 @@ async function generateReport(zipPath: string) {
       pose: null as string | null,
       cdi: null as string | null,
       expressions: [] as string[],
+      // eslint-disable-next-line no-console
       motions: [] as string[],
     },
   }
 
   // 1. Enumerate Files and Check Non-ASCII
+  // eslint-disable-next-line no-console -- CLI reporting tool needs console output
   console.log(`[1] Enumerating ${allFiles.length} files...`)
   allFiles.forEach((f) => {
-    if (/[^\x00-\x7F]/.test(f)) {
+    if (/[^\x00-\x7F]/u.test(f)) {
       report.issues.push(`Non-ASCII filename detected: "${f}" (Ensure middleware handles this)`)
     }
   })
@@ -154,32 +161,54 @@ async function generateReport(zipPath: string) {
   report.checks.push(`Total Expressions found: ${report.metadata.expressions.length}`)
 
   const motionFiles = allFiles.filter(
+    // eslint-disable-next-line no-console
     (f) => f.toLowerCase().endsWith('.motion3.json') || f.toLowerCase().endsWith('.mtn'),
+  // eslint-disable-next-line no-console
   )
+  // eslint-disable-next-line no-console
   report.metadata.motions = motionFiles
   report.checks.push(`Total Motions found: ${report.metadata.motions.length}`)
 
+  // eslint-disable-next-line no-console
   // Final Summary
+  // eslint-disable-next-line no-console -- CLI reporting tool needs console output
   console.log(`[2] SUMMARY`)
+  // eslint-disable-next-line no-console -- CLI reporting tool needs console output
   console.log(`    Type: ${report.structureType}`)
+  // eslint-disable-next-line no-console -- CLI reporting tool needs console output
   console.log(`    Status: ${report.issues.length === 0 ? 'VALID' : 'INVALID'}`)
 
   if (report.checks.length > 0) {
+    // eslint-disable-next-line no-console -- CLI reporting tool needs console output
     console.log(`\n[3] CHECKS PASSED:`)
-    report.checks.forEach((c) => console.log(`    [V] ${c}`))
+    report.checks.forEach((c) => {
+      // eslint-disable-next-line no-console -- CLI reporting tool needs console output
+      console.log(`    [V] ${c}`)
+    // eslint-disable-next-line no-console
+    })
   }
 
   if (report.issues.length > 0) {
+    // eslint-disable-next-line no-console -- CLI reporting tool needs console output
     console.log(`\n[4] ISSUES FOUND:`)
-    report.issues.forEach((i) => console.log(`    [X] ${i}`))
+    report.issues.forEach((i) => {
+      // eslint-disable-next-line no-console -- CLI reporting tool needs console output
+      console.log(`    [X] ${i}`)
+    })
   }
 
+  // eslint-disable-next-line no-console -- CLI reporting tool needs console output
   console.log(`\n================================================================\n`)
 }
 
 const target = process.argv[2]
+// eslint-disable-next-line no-console -- CLI entry point needs console output
 if (!target) {
+  // eslint-disable-next-line no-console -- CLI entry point needs console output
   console.log('Usage: node_modules/.bin/tsx packages/stage-ui-live2d/src/utils/live2d-structure-report.ts <zip-path>')
 } else {
-  generateReport(target).catch(console.error)
+  generateReport(target).catch(
+    // eslint-disable-next-line no-console -- CLI entry point needs console output
+    console.error,
+  )
 }

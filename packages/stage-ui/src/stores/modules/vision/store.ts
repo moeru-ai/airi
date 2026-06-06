@@ -43,7 +43,7 @@ export const useVisionStore = defineStore('vision', () => {
   })
 
   const configured = computed(() => {
-    return !!activeProvider.value && !!activeModel.value
+    return Boolean(activeProvider.value) && Boolean(activeModel.value)
   })
 
   function resetModelSelection() {

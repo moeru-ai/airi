@@ -85,6 +85,7 @@ export function createProviderCatalogStoreController(params: {
 
     try {
       const remote = await addProviderMutation.mutateAsync(provider)
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
       delete configs.value[provider.id]
       await model.remove(provider.id)
       configs.value[remote.id] = remote
@@ -98,6 +99,7 @@ export function createProviderCatalogStoreController(params: {
   async function removeProvider(providerId: string) {
     if (!configs.value[providerId]) return
 
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
     delete configs.value[providerId]
     await model.remove(providerId)
 
@@ -129,8 +131,10 @@ export function createProviderCatalogStoreController(params: {
       const remote = await commitProviderConfigMutation.mutateAsync({ providerId, config: newConfig, options })
       configs.value[remote.id] = remote
       await model.upsert(remote)
+      // eslint-disable-next-line consistent-return
       return remote
     } catch {
+      // eslint-disable-next-line consistent-return
       return localProvider
     }
   }

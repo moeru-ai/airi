@@ -19,7 +19,7 @@ export const useDiscordStore = defineStore('discord', () => {
   }
 
   const configured = computed(() => {
-    return !!token.value.trim()
+    return Boolean(token.value.trim())
   })
 
   function resetState() {

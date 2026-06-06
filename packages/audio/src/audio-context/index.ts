@@ -6,10 +6,10 @@ import ProcessorWorkletURL from './processor.worklet?worker&url'
 
 let context: AudioContext | undefined
 let sampleRate: number = 48000 // High quality base sample rate
-let isReady: boolean = false
+let isReady = false
 let error: string = ''
-let isInitializing: boolean = false
-let workletLoaded: boolean = false
+let isInitializing = false
+let workletLoaded = false
 
 const activeSources = new Set<MediaStreamAudioSourceNode>()
 const activeGainNodes = new Set<GainNode>()

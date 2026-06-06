@@ -32,7 +32,7 @@ import { streamText } from '@xsai/stream-text'
  *   Defaults to `true` to preserve vision/multimodal payloads on capable
  *   providers.
  */
-export function sanitizeMessages(messages: unknown[], supportsContentArray: boolean = true): Message[] {
+export function sanitizeMessages(messages: unknown[], supportsContentArray = true): Message[] {
   return messages.map((message: any) => {
     if (message && message.role === 'error') {
       return {

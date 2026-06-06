@@ -109,15 +109,15 @@ export const useArtistryStore = defineStore('artistry', () => {
     if (activeProvider.value === 'none') return false
 
     if (activeProvider.value === 'replicate') {
-      return !!replicateApiKey.value
+      return Boolean(replicateApiKey.value)
     }
 
     if (activeProvider.value === 'comfyui') {
-      return !!comfyuiServerUrl.value
+      return Boolean(comfyuiServerUrl.value)
     }
 
     if (activeProvider.value === 'nanobanana') {
-      return !!nanobananaApiKey.value
+      return Boolean(nanobananaApiKey.value)
     }
 
     return true

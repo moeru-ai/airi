@@ -284,7 +284,10 @@ export function setupCaptionWindowManager(params: {
     for (const listener of visibilityListeners) {
       try {
         listener()
-      } catch {}
+      // eslint-disable-next-line no-empty
+      } catch {
+        // noop
+      }
     }
   }
 
@@ -345,19 +348,25 @@ export function setupCaptionWindowManager(params: {
 
     await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/caption'))
 
+    // eslint-disable-next-line no-empty
     try {
       context.emit(captionIsFollowingWindowChanged, isFollowing)
-    } catch {}
+    } catch {
+      // noop
+    }
 
     if (isFollowing) {
       followMainWindow(window)
     }
 
+    // eslint-disable-next-line no-empty
     window.on('closed', () => {
       detachFromMain()
       try {
         cleanupGetAttached()
-      } catch {}
+      } catch {
+        // noop
+      }
 
       if (currentWindow === window) {
         currentWindow = undefined
@@ -396,13 +405,16 @@ export function setupCaptionWindowManager(params: {
       updateConfig(config)
     }
 
+    // eslint-disable-next-line no-empty
     // Keep window visible after toggle
     window.show()
 
     // Notify renderer for UI state (handle visibility)
     try {
       eventaContext?.emit(captionIsFollowingWindowChanged, isFollowing)
-    } catch {}
+    } catch {
+      // noop
+    }
   }
 
   async function toggleFollowWindow() {

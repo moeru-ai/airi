@@ -114,7 +114,7 @@ export const useMinecraftStore = defineStore('minecraft', () => {
   ) {
     const moduleEntry = event.data.modules.find(isMinecraftModuleIdentity)
     const wasPresent = servicePresent.value
-    servicePresent.value = !!moduleEntry
+    servicePresent.value = Boolean(moduleEntry)
 
     if (!moduleEntry) {
       serviceHealthy.value = false

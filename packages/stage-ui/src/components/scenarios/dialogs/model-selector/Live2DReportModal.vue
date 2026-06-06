@@ -7,7 +7,7 @@ import { DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } f
 import { DrawerContent, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot } from 'vaul-vue'
 import { onMounted } from 'vue'
 
-const props = defineProps<{
+defineProps<{
   report: Live2DValidationReport | null
 }>()
 

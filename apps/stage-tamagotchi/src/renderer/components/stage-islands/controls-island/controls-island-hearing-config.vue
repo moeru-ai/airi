@@ -36,6 +36,7 @@ watch(
   [enabled, stream],
   ([isEnabled, currentStream]) => {
     if (isEnabled && currentStream) {
+      // eslint-disable-next-line consistent-return
       initialize().then(() => {
         if (audioContext.value) return startAnalyzer(audioContext.value)
       })

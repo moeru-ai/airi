@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/maintenance'
+import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useTheme } from '@proj-airi/ui'
+import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
 import ViewControls from '../Layouts/InteractiveArea/Actions/ViewControls.vue'
@@ -8,9 +11,20 @@ import ViewControls from '../Layouts/InteractiveArea/Actions/ViewControls.vue'
 import { BackgroundDialogPicker } from '../Backgrounds'
 
 const { cleanupMessages } = useChatMaintenanceStore()
+const { messages } = storeToRefs(useChatSessionStore())
+const { trackChatMessagesCleared } = useAnalytics()
 const { isDark, toggleDark } = useTheme()
 
 const backgroundDialogOpen = ref(false)
+
+function handleCleanupMessages() {
+  const messageCount = messages.value.filter(message => message.role !== 'system').length
+  cleanupMessages()
+  trackChatMessagesCleared({
+    source: 'chat_controls',
+    message_count: messageCount,
+  })
+}
 </script>
 
 <template>
@@ -22,16 +36,9 @@ const backgroundDialogOpen = ref(false)
       bg="neutral-100 dark:neutral-800"
       text="lg neutral-500 dark:neutral-400"
       hover:text="red-500 dark:red-400"
-      flex
-      items-center
-      justify-center
-      rounded-md
-      p-2
-      outline-none
-      transition-colors
-      transition-transform
-      active:scale-95
-      @click="cleanupMessages()"
+      flex items-center justify-center rounded-md p-2 outline-none
+      transition-colors transition-transform active:scale-95
+      @click="handleCleanupMessages"
     >
       <div class="i-solar:trash-bin-2-bold-duotone" />
     </button>
@@ -40,15 +47,8 @@ const backgroundDialogOpen = ref(false)
       class="max-h-[10lh] min-h-[1lh]"
       bg="neutral-100 dark:neutral-800"
       text="lg neutral-500 dark:neutral-400"
-      flex
-      items-center
-      justify-center
-      rounded-md
-      p-2
-      outline-none
-      transition-colors
-      transition-transform
-      active:scale-95
+      flex items-center justify-center rounded-md p-2 outline-none
+      transition-colors transition-transform active:scale-95
       @click="() => toggleDark()"
     >
       <Transition name="fade" mode="out-in">
@@ -60,15 +60,8 @@ const backgroundDialogOpen = ref(false)
       class="max-h-[10lh] min-h-[1lh]"
       bg="neutral-100 dark:neutral-800"
       text="lg neutral-500 dark:neutral-400"
-      flex
-      items-center
-      justify-center
-      rounded-md
-      p-2
-      outline-none
-      transition-colors
-      transition-transform
-      active:scale-95
+      flex items-center justify-center rounded-md p-2 outline-none
+      transition-colors transition-transform active:scale-95
       title="Background"
       @click="backgroundDialogOpen = true"
     >

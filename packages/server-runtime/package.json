@@ -42,10 +42,10 @@
     "@guiiai/logg": "catalog:",
     "@moeru/std": "catalog:",
     "@proj-airi/server-shared": "workspace:^",
-    "crossws": "^0.4.5",
-    "h3": "2.0.1-rc.20",
+    "crossws": "catalog:",
+    "h3": "catalog:",
     "nanoid": "catalog:",
-    "srvx": "^0.11.15",
+    "srvx": "catalog:",
     "superjson": "catalog:"
   }
 }

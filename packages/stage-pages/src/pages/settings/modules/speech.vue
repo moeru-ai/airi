@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { VoicePackSnapshot } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import type { VoiceInfo } from '@proj-airi/stage-ui/stores/providers'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import { errorMessageFrom } from '@moeru/std'
@@ -11,6 +13,8 @@ import {
   VoiceCardManySelect,
 } from '@proj-airi/stage-ui/components'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
+import { OFFICIAL_SPEECH_PROVIDER_ID } from '@proj-airi/stage-ui/libs/providers/providers/official'
+import { useAiriCardStore, useVoicePacksStore } from '@proj-airi/stage-ui/stores'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { FieldCheckbox, FieldInput, FieldRange, Skeleton, Textarea } from '@proj-airi/ui'
@@ -23,7 +27,11 @@ import { RouterLink } from 'vue-router'
 const { t } = useI18n()
 const providersStore = useProvidersStore()
 const speechStore = useSpeechStore()
+const airiCardStore = useAiriCardStore()
+const voicePacksStore = useVoicePacksStore()
 const { configuredSpeechProvidersMetadata } = storeToRefs(providersStore)
+const { activeCard } = storeToRefs(airiCardStore)
+const { packs: voicePacks, loading: isLoadingVoicePacks, error: voicePacksError } = storeToRefs(voicePacksStore)
 const {
   activeSpeechProvider,
   activeSpeechModel,
@@ -52,6 +60,22 @@ const audioUrl = ref('')
 const audioPlayer = ref<HTMLAudioElement | null>(null)
 const errorMessage = ref('')
 
+function createVoicePackVoice(voicePack: VoicePackSnapshot): VoiceInfo {
+  return {
+    id: voicePack.voiceId,
+    name: voicePack.name,
+    description: voicePack.name,
+    previewURL: '',
+    languages: [{ code: 'en', title: 'English' }],
+    provider: activeSpeechProvider.value,
+    gender: 'neutral',
+  }
+}
+
+function formatCostMultiplier(multiplier: number) {
+  return `${Number.isInteger(multiplier) ? multiplier : multiplier.toFixed(2).replace(/\.?0+$/, '')}x`
+}
+
 // Sync OpenAI Compatible model and voice from provider config
 function syncOpenAICompatibleSettings() {
   if (activeSpeechProvider.value !== 'openai-compatible-audio-speech') return
@@ -78,10 +102,18 @@ function syncOpenAICompatibleSettings() {
 
 onMounted(async () => {
   await providersStore.loadModelsForConfiguredProviders()
+  await voicePacksStore.load()
   speechStore.ensureActiveSpeechModel()
   await speechStore.loadVoicesForProvider(activeSpeechProvider.value, activeSpeechModel.value || undefined)
   syncOpenAICompatibleSettings()
 })
+
+async function bindVoicePack(pack: (typeof voicePacks.value)[number]) {
+  const bound = airiCardStore.bindVoicePackToActiveCard(pack)
+  if (!bound)
+    return
+  await speechStore.loadVoicesForProvider(activeSpeechProvider.value, activeSpeechModel.value || undefined)
+}
 
 watch(activeSpeechProvider, async (newProvider, oldProvider) => {
   await providersStore.loadModelsForConfiguredProviders()
@@ -145,6 +177,13 @@ async function generateTestSpeech() {
     }
   }
 
+  const voicePack = activeCard.value?.extensions.airi.modules.speech.voicePack
+  if (voicePack) {
+    model = voicePack.ttsModelId
+    if (!voice || voice.id !== voicePack.voiceId)
+      voice = createVoicePackVoice(voicePack)
+  }
+
   if (!model) {
     console.error('No model selected')
     return
@@ -164,15 +203,28 @@ async function generateTestSpeech() {
       stopTestAudio()
     }
 
-    const input = useSSML.value
-      ? ssmlText.value
-      : ssmlEnabled.value && speechStore.supportsSSML
-        ? speechStore.generateSSML(testText.value, voice, { ...providerConfig, pitch: pitch.value })
-        : testText.value
+    const speechRequest = useSSML.value
+      ? {
+          input: ssmlText.value,
+          providerConfig,
+        }
+      : speechStore.resolveVoicePackSpeechInput({
+          text: testText.value,
+          voice,
+          providerConfig: {
+            ...providerConfig,
+            pitch: ssmlEnabled.value ? pitch.value : undefined,
+          },
+          params: voicePack?.params,
+          voicePack,
+          forceSSML: ssmlEnabled.value,
+          supportsSSML: speechStore.supportsSSML,
+          supportsAdapterProsody: activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID,
+        })
 
     const response = await generateSpeech({
-      ...provider.speech(model, providerConfig),
-      input,
+      ...provider.speech(model, speechRequest.providerConfig),
+      input: speechRequest.input,
       voice: voice.id,
     })
 
@@ -255,6 +307,62 @@ function handleDeleteProvider(providerId: string) {
   <div flex="~ col md:row gap-6">
     <div bg="neutral-100 dark:[rgba(0,0,0,0.3)]" rounded-xl p-4 flex="~ col gap-4" class="h-fit w-full md:w-[40%]">
       <div flex="~ col gap-4">
+        <div>
+          <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
+            {{ t('settings.pages.modules.speech.sections.section.voice-pack.title') }}
+          </h2>
+          <div text="neutral-400 dark:neutral-500">
+            <span>{{ t('settings.pages.modules.speech.sections.section.voice-pack.description') }}</span>
+          </div>
+        </div>
+
+        <div v-if="isLoadingVoicePacks" :class="['flex items-center gap-2', 'text-sm text-neutral-400 dark:text-neutral-500']">
+          <div i-solar:spinner-line-duotone class="animate-spin text-base" />
+          <span>{{ t('settings.pages.modules.speech.sections.section.voice-pack.loading') }}</span>
+        </div>
+
+        <ErrorContainer
+          v-else-if="voicePacksError"
+          :title="t('settings.pages.modules.speech.sections.section.voice-pack.error')"
+          :error="voicePacksError"
+        />
+
+        <div v-else-if="voicePacks.length > 0" :class="['grid grid-cols-1 gap-2']">
+          <button
+            v-for="pack in voicePacks"
+            :key="pack.id"
+            type="button"
+            :class="[
+              'w-full border rounded-lg px-3 py-2 text-left transition-colors',
+              'border-neutral-200 bg-white hover:border-primary-400 dark:border-neutral-800 dark:bg-neutral-900/60 dark:hover:border-primary-500',
+              airiCardStore.activeCard?.extensions.airi.modules.speech.voicePack?.packId === pack.id
+                ? 'border-primary-500 bg-primary-50 dark:border-primary-400 dark:bg-primary-950/30'
+                : '',
+            ]"
+            @click="bindVoicePack(pack)"
+          >
+            <div :class="['flex items-center justify-between gap-3']">
+              <div :class="['min-w-0']">
+                <div :class="['truncate text-sm font-medium text-neutral-700 dark:text-neutral-200']">
+                  {{ pack.name }}
+                </div>
+                <div :class="['truncate text-xs text-neutral-400 dark:text-neutral-500']">
+                  {{ pack.ttsModelId }} / {{ pack.voiceId }}
+                </div>
+              </div>
+              <span :class="['shrink-0 rounded bg-neutral-100 px-2 py-1 text-xs text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400']">
+                {{ formatCostMultiplier(pack.costMultiplier) }}
+              </span>
+            </div>
+          </button>
+        </div>
+
+        <Alert v-else type="info" icon="i-solar:info-circle-line-duotone">
+          <template #title>
+            {{ t('settings.pages.modules.speech.sections.section.voice-pack.empty') }}
+          </template>
+        </Alert>
+
         <div>
           <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
             {{ t('settings.pages.modules.speech.sections.section.provider-voice-selection.title') }}

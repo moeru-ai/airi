@@ -39,7 +39,7 @@ export function createChannelGateway(): ChannelGateway {
       for (const rule of matchedRoutes) {
         const targets = rule.to
           .map((name) => channels.get(name))
-          .filter((channel): channel is GatewayChannel => !!channel)
+          .filter((channel): channel is GatewayChannel => Boolean(channel))
 
         if (rule.mode === 'first') {
           const target = targets.find((channel) => channel.out)

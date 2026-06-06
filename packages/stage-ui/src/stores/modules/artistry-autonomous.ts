@@ -250,7 +250,7 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
           throw new Error(result.error)
         }
 
-        artistLog('Headless Generation Success!', { hasUrl: !!result.imageUrl, hasBase64: !!result.base64 })
+        artistLog('Headless Generation Success!', { hasUrl: Boolean(result.imageUrl), hasBase64: Boolean(result.base64) })
 
         // 4. Save to journal
         if (result.base64 || result.imageUrl) {

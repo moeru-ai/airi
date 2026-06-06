@@ -102,8 +102,11 @@ export const providerOfficialSpeech = defineProvider({
   createProvider(_config) {
     const provider = createOfficialAudioProvider()
     const originalSpeech = provider.speech.bind(provider)
-    provider.speech = (model: string) => {
-      const result = originalSpeech(model)
+    provider.speech = (model: string, extraOptions?: Record<string, unknown>) => {
+      const result = {
+        ...originalSpeech(model),
+        ...extraOptions,
+      }
       result.fetch = withCredentials()
       return result
     }

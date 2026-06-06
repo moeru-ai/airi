@@ -169,6 +169,7 @@ describe('chat orchestrator contract', () => {
     currentGeneration = 1
 
     for (const key of Object.keys(sessionMessages)) {
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
       delete sessionMessages[key]
     }
 

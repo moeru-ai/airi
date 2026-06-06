@@ -10,6 +10,6 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
-    "meta-png": "^1.0.6"
+    "meta-png": "catalog:"
   }
 }

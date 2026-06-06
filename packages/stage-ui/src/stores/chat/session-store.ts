@@ -455,8 +455,11 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     // We fixed this by performing every in-memory and IDB mutation
     // synchronously up front, then firing the cloud DELETE as
     // fire-and-forget. Persistence races now read the post-deletion state.
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
     delete sessionMetas.value[sessionId]
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
     delete sessionMessages.value[sessionId]
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
     delete sessionGenerations.value[sessionId]
     loadedSessions.delete(sessionId)
     loadingSessions.delete(sessionId)
@@ -464,6 +467,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     if (index.value) {
       const characterIndex = index.value.characters[characterId]
       if (characterIndex) {
+        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
         delete characterIndex.sessions[sessionId]
         if (characterIndex.activeSessionId === sessionId) characterIndex.activeSessionId = ''
       }
@@ -523,6 +527,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
    * callers share a single in-flight promise so a rapid `[userId, characterId]`
    * change burst does not produce duplicate sessions.
    */
+  // eslint-disable-next-line consistent-return
   async function ensureActiveSessionForCharacter(): Promise<void> {
     if (ensureActivePromise) return ensureActivePromise
     const myEpoch = ensureActiveEpoch
@@ -1087,6 +1092,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       return
     }
     if (initializePromise) {
+      // eslint-disable-next-line consistent-return
       return initializePromise
     }
     initializing.value = true
@@ -1117,8 +1123,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
   function hasKnownSession(sessionId: string) {
     return (
-      !!sessionMetas.value[sessionId] ||
-      !!Object.values(index.value?.characters ?? {}).some((character) => character.sessions[sessionId])
+      Boolean(sessionMetas.value[sessionId]) ||
+      Object.values(index.value?.characters ?? {}).some((character) => character.sessions[sessionId])
     )
   }
 

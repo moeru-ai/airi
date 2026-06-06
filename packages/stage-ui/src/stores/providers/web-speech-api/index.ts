@@ -197,7 +197,10 @@ export function streamWebSpeechAPITranscription(
       if (recognitionInstance) {
         try {
           recognitionInstance.stop()
-        } catch {}
+        // eslint-disable-next-line no-empty
+        } catch {
+          // noop
+        }
       }
     },
   })
@@ -353,9 +356,12 @@ export function streamWebSpeechAPITranscription(
   // Handle abort signal
   if (options?.abortSignal) {
     options.abortSignal.addEventListener('abort', () => {
+      // eslint-disable-next-line no-empty
       try {
         recognition.stop()
-      } catch {}
+      } catch {
+        // noop
+      }
       const error = new DOMException('Aborted', 'AbortError')
       fullStreamCtrl?.error(error)
       textStreamCtrl?.error(error)

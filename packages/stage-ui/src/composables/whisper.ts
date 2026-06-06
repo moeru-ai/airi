@@ -41,6 +41,7 @@ export function useWhisper(url: string, options?: Partial<UseWhisperOptions>) {
 
   // Subscribe to unified protocol events for streaming UI updates
   adapter.onMessage((e: WhisperEvent) => {
+    // eslint-disable-next-line default-case
     switch (e.type) {
       case 'progress': {
         const payload = e.payload

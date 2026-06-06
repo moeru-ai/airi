@@ -104,6 +104,7 @@ onMounted(async () => containerRef.value && (await initLive2DPixiStage(container
 onUnmounted(() => pixiApp.value?.destroy())
 
 async function captureFrame() {
+  // eslint-disable-next-line consistent-return
   const frame = new Promise<Blob | null>((resolve) => {
     if (!pixiAppCanvas.value || !pixiApp.value) return resolve(null)
 

@@ -838,6 +838,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
         try {
           // Use the receiver's active session to avoid clobbering chat state when events come from other windows/devtools.
+          // eslint-disable-next-line default-case
           switch (event.type) {
             case 'before-compose':
               await chatOrchestrator.emitBeforeMessageComposedHooks(event.message, event.context)

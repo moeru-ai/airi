@@ -437,6 +437,7 @@ export function setupApp(options?: AppOptions): { app: H3; closeAllPeers: () => 
       return
     }
 
+    // eslint-disable-next-line consistent-return
     return peers.get(selectedPeerId)
   }
 
@@ -577,6 +578,7 @@ export function setupApp(options?: AppOptions): { app: H3; closeAllPeers: () => 
           }
         }
 
+        // eslint-disable-next-line default-case
         switch (event.type) {
           case 'transport:connection:heartbeat': {
             const p = peers.get(peer.id)

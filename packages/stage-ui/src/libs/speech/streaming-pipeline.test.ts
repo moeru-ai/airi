@@ -42,7 +42,10 @@ async function startMockServer(handler: (ws: import('ws').WebSocket) => void): P
         try {
           const ev = JSON.parse(decoded as string) as { event?: string }
           if (ev.event === 'start') resolveStartObserved()
-        } catch {}
+        // eslint-disable-next-line no-empty
+        } catch {
+          // noop
+        }
       }
     })
     handler(ws)

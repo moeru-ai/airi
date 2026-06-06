@@ -2,7 +2,7 @@ import type { InvokeEventa } from '@moeru/eventa'
 
 import { defineInvoke } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
-import { ref } from 'vue'
+import { shallowRef } from 'vue'
 
 type EventaContext = ReturnType<typeof createContext>['context']
 type IpcRendererLike = Parameters<typeof createContext>[0]
@@ -29,7 +29,7 @@ export function getElectronEventaContext(ipcRenderer?: IpcRendererLike): EventaC
 }
 
 export function useElectronEventaContext(ipcRenderer?: IpcRendererLike) {
-  return ref(getElectronEventaContext(ipcRenderer))
+  return shallowRef(getElectronEventaContext(ipcRenderer))
 }
 
 export function useElectronEventaInvoke<Res, Req = undefined, ResErr = Error, ReqErr = Error>(

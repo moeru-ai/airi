@@ -46,7 +46,9 @@ function setAsBackground(id: string) {
   activeBackgroundId.value = id
 }
 
+// eslint-disable-next-line no-alert -- User confirmation before deletion
 function removeBackground(id: string) {
+  // eslint-disable-next-line no-alert -- User confirmation before deletion
   if (confirm(t('settings.pages.scene.gallery.delete_confirm', 'Are you sure you want to delete this background?'))) {
     backgroundStore.removeBackground(id)
   }

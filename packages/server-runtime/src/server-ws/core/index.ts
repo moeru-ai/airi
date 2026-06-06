@@ -383,6 +383,7 @@ export function selectConsumerPeerId(options: {
     if (stickyAssignment && stickyAssignment.peerId !== fromPeerId) {
       const stickyCandidate = availableEntries.find((entry) => entry.peerId === stickyAssignment.peerId)
       if (stickyCandidate) {
+        // eslint-disable-next-line consistent-return
         return stickyAssignment.peerId
       }
     }
@@ -393,6 +394,7 @@ export function selectConsumerPeerId(options: {
       group: normalizedGroup,
       peerId: selected.peerId,
     })
+    // eslint-disable-next-line consistent-return
     return selected.peerId
   }
 
@@ -400,9 +402,11 @@ export function selectConsumerPeerId(options: {
     const cursor = options.roundRobinCursor?.get(registryKey) ?? 0
     const selected = availableEntries[cursor % availableEntries.length]
     options.roundRobinCursor?.set(registryKey, (cursor + 1) % availableEntries.length)
+    // eslint-disable-next-line consistent-return
     return selected.peerId
   }
 
+  // eslint-disable-next-line consistent-return
   return availableEntries[0].peerId
 }
 

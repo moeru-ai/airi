@@ -20,6 +20,7 @@ export class ComfyUIProvider implements ArtistryProvider {
   private jobResults = new Map<string, ArtistryJobStatus>()
   private callbacks = new Map<string, (status: ArtistryJobStatus) => void>()
 
+  // eslint-disable-next-line class-methods-use-this
   private async fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 30000) {
     const controller = new AbortController()
     const id = setTimeout(() => controller.abort(), timeoutMs)
@@ -253,6 +254,7 @@ export class ComfyUIProvider implements ArtistryProvider {
    * Matches nodes by _meta.title and overwrites exposed input fields.
    * Mirrors the logic from CUIPP's getComfyTemplate.js.
    */
+  // eslint-disable-next-line class-methods-use-this
   private applyOverrides(
     template: { workflow: Record<string, any>; exposedFields: Record<string, string[]> },
     request: ArtistryRequest,

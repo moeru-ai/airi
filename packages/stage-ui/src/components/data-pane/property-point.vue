@@ -65,6 +65,7 @@ function updateValue(axis: 'x' | 'y' | 'z', value: number) {
   if (config?.min !== undefined) value = Math.max(config.min, value)
   if (config?.max !== undefined) value = Math.min(config.max, value)
 
+  // eslint-disable-next-line default-case
   switch (axis) {
     case 'x':
       x.value = value

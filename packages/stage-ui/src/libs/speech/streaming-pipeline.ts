@@ -48,6 +48,10 @@ export interface StreamingTtsPipelineOptions extends StreamingTtsPipelineEvents 
   responseFormat?: 'mp3' | 'opus' | 'aac' | 'flac' | 'pcm'
   /** Backend-specific knobs forwarded as the `extra_body` of the `start` frame. */
   extraBody?: Record<string, unknown>
+  /** Business trigger hint sent to server-side product analytics. */
+  ttsTrigger?: 'auto' | 'manual'
+  /** Low-cardinality source hint sent to server-side product analytics. */
+  ttsSource?: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
   /**
    * Decoder context. The pipeline calls `decodeAudioData` on it for each
    * sentence (or once at session end in buffered mode). Reusing the page's
@@ -115,7 +119,10 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
     return noopHandle()
   }
 
-  const wsUrl = toWebSocketUrl(options.serverUrl ?? SERVER_URL, '/api/v1/audio/speech/ws', token)
+  const wsUrl = toWebSocketUrl(options.serverUrl ?? SERVER_URL, '/api/v1/audio/speech/ws', token, {
+    ttsTrigger: options.ttsTrigger ?? 'auto',
+    ttsSource: options.ttsSource ?? 'chat_auto_tts',
+  })
   const ws = new WebSocket(wsUrl)
   ws.binaryType = 'arraybuffer'
 
@@ -241,6 +248,7 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
 
   ws.addEventListener('message', (e) => {
     if (typeof e.data === 'string') {
+      // eslint-disable-next-line no-void
       void handleControlFrame(e.data)
       return
     }
@@ -259,6 +267,7 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
       return
     }
 
+    // eslint-disable-next-line default-case
     switch (evt.event) {
       case 'sentence.start': {
         // Append to the queue. `sentence.end` consumes from the head, so
@@ -277,6 +286,7 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
         // await would only delay this handler's own return without
         // preventing the session.finished race. The chain itself is what
         // enforces ordering.
+        // eslint-disable-next-line no-void
         void enqueueFlush(text)
         break
       }
@@ -291,13 +301,16 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
       }
       case 'session.finished': {
         sawSessionFinished = true
+        // eslint-disable-next-line no-void
         void enqueueFlush()
+        // eslint-disable-next-line no-void
         void requestTerminate(null)
         break
       }
       case 'error': {
         const code = evt.code ?? 'streaming_tts_error'
         const message = evt.message ?? code
+        // eslint-disable-next-line no-void
         void requestTerminate(new Error(`${code}: ${message}`))
         break
       }
@@ -311,12 +324,14 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
       // already enqueued the tail flush and called requestTerminate. Just
       // make sure termination happens even if that path somehow didn't
       // (idempotent — requestTerminate guards against re-entry).
+      // eslint-disable-next-line no-void
       void requestTerminate(null)
       return
     }
     // Closed before completion: surface as an error so callers don't
     // mistake truncated audio for a successful (short) sentence.
     const reason = ev.reason || `closed_${ev.code}`
+    // eslint-disable-next-line no-void
     void requestTerminate(new Error(`streaming_tts_closed: ${reason}`))
   })
 
@@ -344,12 +359,18 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
         setTimeout(() => {
           try {
             ws.close()
-          } catch {}
+          // eslint-disable-next-line no-empty
+          } catch {
+            // noop
+          }
           triggerCallbacks()
         }, 0)
+        // eslint-disable-next-line no-empty
         return
       }
-    } catch {}
+    } catch {
+      // noop
+    }
     triggerCallbacks()
   }
 
@@ -373,6 +394,7 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
       // Route through `requestTerminate` so any in-flight `decodeAudioData`
       // can still resolve and emit `onSentence` before `onDone` flips the
       // consumer's `terminated` flag. tts-session.ts then runs
+      // eslint-disable-next-line no-void
       // `stopByIntent` on the playback manager and drops whatever did
       // schedule, so this does NOT prolong playback — it just keeps the
       // termination semantics consistent across cancel / session.finished
@@ -386,10 +408,17 @@ function noopHandle(): StreamingTtsPipelineHandle {
   return { appendText: () => {}, finish: () => {}, cancel: () => {} }
 }
 
-function toWebSocketUrl(httpBase: string, path: string, token: string): string {
+function toWebSocketUrl(
+  httpBase: string,
+  path: string,
+  token: string,
+  analytics: { ttsTrigger: 'auto' | 'manual', ttsSource: 'chat_auto_tts' | 'manual_preview' | 'settings_test' },
+): string {
   const u = new URL(path, httpBase)
   u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:'
   u.searchParams.set('token', token)
+  u.searchParams.set('tts_trigger', analytics.ttsTrigger)
+  u.searchParams.set('tts_source', analytics.ttsSource)
   return u.toString()
 }
 
