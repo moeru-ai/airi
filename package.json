@@ -110,13 +110,5 @@
   },
   "nano-staged": {
     "*": "moeru-lint --fix"
-  },
-  "dependencies": {
-    "protobufjs": "catalog:"
-  },
-  "pnpm": {
-    "overrides": {
-      "protobufjs": "7.5.5"
-    }
   }
 }
