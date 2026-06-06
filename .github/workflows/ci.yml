@@ -33,9 +33,6 @@ jobs:
         working-directory: ./engines/stage-tamagotchi-godot
         run: dotnet format stage-tamagotchi-godot.sln --verify-no-changes
 
-      - run: docker run -v `pwd`:`pwd` -w `pwd` ghcr.io/realm/swiftlint:latest
-        working-directory: ./apps/stage-pocket
-
       - run: pnpm install --frozen-lockfile
       - run: pnpm run lint
       - run: docker run -v `pwd`:`pwd` -w `pwd` ghcr.io/realm/swiftlint:latest

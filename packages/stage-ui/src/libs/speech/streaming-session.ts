@@ -1,3 +1,5 @@
+import type { TtsSource, TtsTrigger } from './tts-analytics'
+
 import { getAuthToken } from '../auth'
 import { SERVER_URL } from '../server'
 
@@ -49,9 +51,9 @@ export interface StreamingTtsSessionOptions {
    */
   extraBody?: Record<string, unknown>
   /** Business trigger hint sent to server-side product analytics. */
-  ttsTrigger?: 'auto' | 'manual'
+  ttsTrigger?: TtsTrigger
   /** Low-cardinality source hint sent to server-side product analytics. */
-  ttsSource?: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
+  ttsSource?: TtsSource
   /** Caller-side abort signal. Closes the ws and rejects with `AbortError`. */
   signal?: AbortSignal
 }
@@ -229,7 +231,7 @@ function toWebSocketUrl(
   httpBase: string,
   path: string,
   token: string,
-  analytics: { ttsTrigger: 'auto' | 'manual', ttsSource: 'chat_auto_tts' | 'manual_preview' | 'settings_test' },
+  analytics: { ttsTrigger: TtsTrigger, ttsSource: TtsSource },
 ): string {
   const u = new URL(path, httpBase)
   u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:'

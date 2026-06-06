@@ -1,3 +1,5 @@
+import type { TtsSource, TtsTrigger } from './tts-analytics'
+
 import { getAuthToken } from '../auth'
 import { SERVER_URL } from '../server'
 
@@ -49,9 +51,9 @@ export interface StreamingTtsPipelineOptions extends StreamingTtsPipelineEvents 
   /** Backend-specific knobs forwarded as the `extra_body` of the `start` frame. */
   extraBody?: Record<string, unknown>
   /** Business trigger hint sent to server-side product analytics. */
-  ttsTrigger?: 'auto' | 'manual'
+  ttsTrigger?: TtsTrigger
   /** Low-cardinality source hint sent to server-side product analytics. */
-  ttsSource?: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
+  ttsSource?: TtsSource
   /**
    * Decoder context. The pipeline calls `decodeAudioData` on it for each
    * sentence (or once at session end in buffered mode). Reusing the page's
@@ -412,7 +414,7 @@ function toWebSocketUrl(
   httpBase: string,
   path: string,
   token: string,
-  analytics: { ttsTrigger: 'auto' | 'manual', ttsSource: 'chat_auto_tts' | 'manual_preview' | 'settings_test' },
+  analytics: { ttsTrigger: TtsTrigger, ttsSource: TtsSource },
 ): string {
   const u = new URL(path, httpBase)
   u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:'

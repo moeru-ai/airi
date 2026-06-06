@@ -73,8 +73,8 @@ const ALIYUN_NLS_REGIONS = [
 type AliyunNlsRegion = typeof ALIYUN_NLS_REGIONS[number]
 
 function toListVoicesOptions<T>(provider: VoiceProviderWithExtraOptions<T>, options?: T): ListVoicesOptions {
-  const { fetch: _fetch, ...voiceOptions } = provider.voice(options)
-  return voiceOptions
+  const { fetch, ...voiceOptions } = provider.voice(options)
+  return { ...voiceOptions, fetch: fetch ?? globalThis.fetch }
 }
 
 export interface ProviderMetadata {

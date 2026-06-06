@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { VoicePackSnapshot } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import type { VoiceInfo } from '@proj-airi/stage-ui/stores/providers'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
@@ -15,7 +14,7 @@ import {
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { OFFICIAL_SPEECH_PROVIDER_ID } from '@proj-airi/stage-ui/libs/providers/providers/official'
 import { useAiriCardStore, useVoicePacksStore } from '@proj-airi/stage-ui/stores'
-import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
+import { createVoicePackVoice, useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { FieldCheckbox, FieldInput, FieldRange, Skeleton, Textarea } from '@proj-airi/ui'
 import { generateSpeech } from '@xsai/generate-speech'
@@ -59,18 +58,6 @@ const isGenerating = ref(false)
 const audioUrl = ref('')
 const audioPlayer = ref<HTMLAudioElement | null>(null)
 const errorMessage = ref('')
-
-function createVoicePackVoice(voicePack: VoicePackSnapshot): VoiceInfo {
-  return {
-    id: voicePack.voiceId,
-    name: voicePack.name,
-    description: voicePack.name,
-    previewURL: '',
-    languages: [{ code: 'en', title: 'English' }],
-    provider: activeSpeechProvider.value,
-    gender: 'neutral',
-  }
-}
 
 function formatCostMultiplier(multiplier: number) {
   return `${Number.isInteger(multiplier) ? multiplier : multiplier.toFixed(2).replace(/\.?0+$/, '')}x`
@@ -181,7 +168,7 @@ async function generateTestSpeech() {
   if (voicePack) {
     model = voicePack.ttsModelId
     if (!voice || voice.id !== voicePack.voiceId)
-      voice = createVoicePackVoice(voicePack)
+      voice = createVoicePackVoice(voicePack, activeSpeechProvider.value)
   }
 
   if (!model) {

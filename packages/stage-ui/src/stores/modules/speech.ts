@@ -69,6 +69,9 @@ function normalizePercentOption(value: string | number | boolean | null | undefi
     throw new Error(`Voice Pack parameter "${name}" must be a number or percent string.`)
 
   const trimmed = value.trim()
+  if (trimmed === '')
+    return undefined
+
   const normalized = trimmed.endsWith('%') ? trimmed.slice(0, -1) : trimmed
   const parsed = Number(normalized)
   if (!Number.isFinite(parsed))
@@ -104,6 +107,9 @@ function normalizeRateOption(value: string | number | boolean | null | undefined
     throw new Error('Voice Pack parameter "rate" must be a positive finite number or percent string.')
 
   const trimmed = value.trim()
+  if (trimmed === '')
+    return undefined
+
   if (trimmed.endsWith('%')) {
     const percent = normalizePercentOption(trimmed, 'rate')
     const speed = 1 + (percent ?? 0) / 100
@@ -129,6 +135,27 @@ function assertSupportedVoicePackParams(params: VoicePackParams | undefined) {
 
     if (!voicePackSupportedParams.has(key))
       throw new Error(`Unsupported Voice Pack parameter "${key}".`)
+  }
+}
+
+/**
+ * Creates a VoiceInfo from a Voice Pack snapshot for use in voice selection UI.
+ *
+ * Use when:
+ * - Settings pages or stage scenes need to present a Voice Pack as a selectable voice.
+ *
+ * Expects:
+ * - `activeSpeechProvider` is the currently selected speech provider id.
+ */
+export function createVoicePackVoice(voicePack: VoicePackSnapshot, activeSpeechProvider: string): VoiceInfo {
+  return {
+    id: voicePack.voiceId,
+    name: voicePack.name,
+    description: voicePack.name,
+    previewURL: '',
+    languages: [{ code: 'en', title: 'English' }],
+    provider: activeSpeechProvider,
+    gender: 'neutral',
   }
 }
 
@@ -467,7 +494,7 @@ export const useSpeechStore = defineStore('speech', () => {
   function resolveVoicePackSpeechInput(options: VoicePackSpeechInputOptions): VoicePackSpeechInput {
     const providerConfig = { ...options.providerConfig }
 
-    if (!options.params) {
+    if (!options.params && !options.voicePack) {
       return {
         input: options.forceSSML
           ? generateSSML(options.text, options.voice, providerConfig)
@@ -478,9 +505,9 @@ export const useSpeechStore = defineStore('speech', () => {
 
     assertSupportedVoicePackParams(options.params)
 
-    const pitch = normalizePercentOption(options.params.pitch, 'pitch')
-    const volume = normalizePercentOption(options.params.volume, 'volume')
-    const speed = normalizeRateOption(options.params.rate)
+    const pitch = normalizePercentOption(options.params?.pitch, 'pitch')
+    const volume = normalizePercentOption(options.params?.volume, 'volume')
+    const speed = normalizeRateOption(options.params?.rate)
     const needsProsody = pitch != null || volume != null
 
     if (speed != null)

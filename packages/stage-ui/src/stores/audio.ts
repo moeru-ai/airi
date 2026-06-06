@@ -52,15 +52,11 @@ function calculateVolumeWithMinMaxNormalize(analyser: AnalyserNode) {
   return volumeSum / dataBuffer.length
 }
 
-// eslint-disable-next-line consistent-return
 function calculateVolume(analyser: AnalyserNode, mode: 'linear' | 'minmax' = 'linear') {
-  // eslint-disable-next-line default-case
-  switch (mode) {
-    case 'linear':
-      return calculateVolumeWithLinearNormalize(analyser)
-    case 'minmax':
-      return calculateVolumeWithMinMaxNormalize(analyser)
-  }
+  if (mode === 'minmax')
+    return calculateVolumeWithMinMaxNormalize(analyser)
+
+  return calculateVolumeWithLinearNormalize(analyser)
 }
 
 export const useAudioContext = defineStore('audio-context', () => {

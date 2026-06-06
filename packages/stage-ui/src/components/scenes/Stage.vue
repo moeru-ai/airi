@@ -6,7 +6,6 @@ import type { UnElevenLabsOptions } from 'unspeech'
 
 import type { EmotionPayload } from '../../constants/emotions'
 import type { SpeechTransport, StageTtsSession, StreamingSessionSnapshot } from '../../libs/speech/tts-session'
-import type { VoicePackSnapshot } from '../../stores/modules/airi-card'
 import type { VoiceInfo } from '../../stores/providers'
 
 import { sleep } from '@moeru/std'
@@ -42,7 +41,7 @@ import { useBackgroundStore } from '../../stores/background'
 import { useChatOrchestratorStore } from '../../stores/chat'
 import { useLlmStreamingControlStore } from '../../stores/llm-streaming-control'
 import { useAiriCardStore } from '../../stores/modules'
-import { useSpeechStore } from '../../stores/modules/speech'
+import { createVoicePackVoice, useSpeechStore } from '../../stores/modules/speech'
 import { useProvidersStore } from '../../stores/providers'
 import { useSettings } from '../../stores/settings'
 import { useSpeechOutputControlStore } from '../../stores/speech-output-control'
@@ -335,18 +334,6 @@ const playbackManager = createPlaybackManager<AudioBuffer>({
   ownerOverflowPolicy: 'steal-oldest',
 })
 
-function createVoicePackVoice(voicePack: VoicePackSnapshot): VoiceInfo {
-  return {
-    id: voicePack.voiceId,
-    name: voicePack.name,
-    description: voicePack.name,
-    previewURL: '',
-    languages: [{ code: 'en', title: 'English' }],
-    provider: activeSpeechProvider.value,
-    gender: 'neutral',
-  }
-}
-
 const speechPipeline = createSpeechPipeline<AudioBuffer>({
   tts: async (request, signal) => {
     if (signal.aborted)
@@ -432,7 +419,7 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
     if (voicePack) {
       model = voicePack.ttsModelId
       if (!voice || voice.id !== voicePack.voiceId)
-        voice = createVoicePackVoice(voicePack)
+        voice = createVoicePackVoice(voicePack, activeSpeechProvider.value)
     }
 
     if (!model || !voice)
