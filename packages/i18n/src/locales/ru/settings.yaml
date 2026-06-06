@@ -1624,7 +1624,7 @@ vrm:
     skybox-intensity: Интенсивность SkyBox
     skybox-specular-mix: Причудливый микс
 spine:
-  title: Настройки голоса
+  title: Настройки Spine
   scale-and-position:
     title: Масштаб и позиция
     scale: Масштаб

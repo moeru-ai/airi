@@ -17,7 +17,7 @@ import { useArtistryStore } from './artistry'
 import { useConsciousnessStore } from './consciousness'
 import { useSpeechStore } from './speech'
 
-export type VoicePackParams = Record<string, string | number | boolean | null>
+export type VoicePackParams = Record<string, string | number | null>
 
 export interface VoicePackBindingInput {
   id: string

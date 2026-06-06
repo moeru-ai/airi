@@ -6,7 +6,6 @@ import type { UnElevenLabsOptions } from 'unspeech'
 
 import type { EmotionPayload } from '../../constants/emotions'
 import type { SpeechTransport, StageTtsSession, StreamingSessionSnapshot } from '../../libs/speech/tts-session'
-import type { VoiceInfo } from '../../stores/providers'
 
 import { sleep } from '@moeru/std'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
@@ -73,20 +72,17 @@ const {
   stageModelSelected,
   themeColorsHue,
   themeColorsHueDynamic,
-
-} = storeToRefs(settingsStore)
-const {
-  live2dShadowEnabled,
-  live2dMaxFps,
-  live2dRenderScale,
-} = storeToRefs(useSettingsLive2d())
-const {
   spinePremultipliedAlpha,
   spineDefaultMixDuration,
   spineIdleAnimationEnabled,
   spineMaxFps,
   spineRenderScale,
 } = storeToRefs(settingsStore)
+const {
+  live2dShadowEnabled,
+  live2dMaxFps,
+  live2dRenderScale,
+} = storeToRefs(useSettingsLive2d())
 const { mouthOpenSize, nowSpeaking } = storeToRefs(useSpeakingStore())
 const { audioContext } = useAudioContext()
 const currentAudioSource = ref<AudioBufferSourceNode>()

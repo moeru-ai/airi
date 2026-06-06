@@ -55,7 +55,7 @@ const voicePackSupportedParams = new Set(['pitch', 'rate', 'volume'])
  * - -10
  * - 15
  */
-function normalizePercentOption(value: string | number | boolean | null | undefined, name: string): number | undefined {
+function normalizePercentOption(value: string | number | null | undefined, name: string): number | undefined {
   if (value == null)
     return undefined
 
@@ -72,7 +72,10 @@ function normalizePercentOption(value: string | number | boolean | null | undefi
   if (trimmed === '')
     return undefined
 
-  const normalized = trimmed.endsWith('%') ? trimmed.slice(0, -1) : trimmed
+  const normalized = trimmed.endsWith('%') ? trimmed.slice(0, -1).trim() : trimmed
+  if (normalized === '')
+    throw new Error(`Voice Pack parameter "${name}" must be a number or percent string.`)
+
   const parsed = Number(normalized)
   if (!Number.isFinite(parsed))
     throw new Error(`Voice Pack parameter "${name}" must be a number or percent string.`)
@@ -93,7 +96,7 @@ function normalizePercentOption(value: string | number | boolean | null | undefi
  * - 0.9
  * - 1.2
  */
-function normalizeRateOption(value: string | number | boolean | null | undefined): number | undefined {
+function normalizeRateOption(value: string | number | null | undefined): number | undefined {
   if (value == null)
     return undefined
 
@@ -513,6 +516,10 @@ export const useSpeechStore = defineStore('speech', () => {
     if (speed != null)
       providerConfig.speed = speed
 
+    if (needsProsody && !options.supportsAdapterProsody && !options.forceSSML && !options.supportsSSML) {
+      throw new Error('Voice Pack pitch and volume parameters require an SSML-capable speech provider.')
+    }
+
     if (options.voicePack) {
       providerConfig.extraBody = {
         ...(providerConfig.extraBody as Record<string, unknown> | undefined),
@@ -530,9 +537,6 @@ export const useSpeechStore = defineStore('speech', () => {
         ...(providerConfig.extraBody as Record<string, unknown> | undefined),
         voice_pack: { pitch, volume },
       }
-    }
-    else if (needsProsody && !options.forceSSML && !options.supportsSSML) {
-      throw new Error('Voice Pack pitch and volume parameters require an SSML-capable speech provider.')
     }
 
     if (!options.forceSSML && (!needsProsody || options.supportsAdapterProsody)) {

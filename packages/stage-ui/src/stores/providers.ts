@@ -2268,11 +2268,6 @@ export const useProvidersStore = defineStore('providers', () => {
     providerMetadata[providerId] = translated
   }
 
-  for (const metadata of Object.values(providerMetadata)) {
-    if (definedProviderIds.has(metadata.id))
-      continue
-  }
-
   // const validatedCredentials = ref<Record<string, string>>({})
   const providerRuntimeState = ref<Record<string, ProviderRuntimeState>>({})
   const providerValidationInFlight = new Map<string, Promise<boolean>>()
