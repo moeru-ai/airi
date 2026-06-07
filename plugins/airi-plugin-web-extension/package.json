@@ -23,7 +23,7 @@
     "@unocss/reset": "catalog:",
     "@vueuse/core": "catalog:",
     "@wxt-dev/module-vue": "catalog:",
-    "nanoid": "catalog:nanoid-5-1-9",
+    "nanoid": "catalog:",
     "vue": "catalog:",
     "vue-tsc": "catalog:",
     "wxt": "catalog:"

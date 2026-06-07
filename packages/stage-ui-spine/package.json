@@ -39,7 +39,7 @@
     "@moeru/std": "catalog:",
     "@proj-airi/stage-shared": "workspace:^",
     "@proj-airi/ui": "workspace:^",
-    "@vueuse/core": "catalog:vueuse-core-14-2-1",
+    "@vueuse/core": "catalog:",
     "@xsai/tool": "catalog:",
     "es-toolkit": "catalog:",
     "jszip": "catalog:",

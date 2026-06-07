@@ -34,7 +34,7 @@
     "@tresjs/cientos": "catalog:",
     "@tresjs/core": "catalog:",
     "@tresjs/post-processing": "catalog:",
-    "@vueuse/core": "catalog:vueuse-core-14-2-1",
+    "@vueuse/core": "catalog:",
     "culori": "catalog:",
     "es-toolkit": "catalog:",
     "pinia": "catalog:",
