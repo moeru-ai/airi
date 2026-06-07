@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useAlayaMemoryStore } from '@proj-airi/stage-ui/stores/modules/alaya-memory'
+import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Button } from '@proj-airi/ui'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -8,12 +9,13 @@ import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 const alaya = useAlayaMemoryStore()
 const airiCard = useAiriCardStore()
+const auth = useAuthStore()
 
 const activeCharacterId = computed(() => airiCard.activeCardId)
 
 watch(activeCharacterId, (id) => {
   if (id)
-    alaya.connect({ characterId: id })
+    alaya.connect({ characterId: id, userId: auth.userId })
 }, { immediate: true })
 
 const memoryCount = computed(() => alaya.totalCount)

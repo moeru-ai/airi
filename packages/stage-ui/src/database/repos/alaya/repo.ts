@@ -45,13 +45,19 @@ function withLock<T>(userId: string, characterId: string, fn: () => Promise<T>):
 
   const next = prev.then(fn, fn) // run even if previous rejected
 
-  // Clean up the Map entry once this lock settles, preventing unbounded
-  // memory growth for every (userId, characterId) pair ever used.
-  const settled = next
-    .then(() => { locks.delete(lockKey) })
-    .catch(() => { locks.delete(lockKey) })
+  // Create a marker that resolves (to void) when `next` settles.
+  // The next caller chains onto this marker so writes are serialised
+  // even if the underlying fn rejects.
+  const marker = next.then(() => {}, () => {})
+  locks.set(lockKey, marker)
 
-  locks.set(lockKey, settled)
+  // Fire-and-forget cleanup: delete the entry only when it still
+  // points to OUR marker.  If a subsequent lock has already replaced
+  // it, we leave the Map untouched so that lock's caller can chain.
+  const cleanup = () => {
+    if (locks.get(lockKey) === marker) locks.delete(lockKey)
+  }
+  void next.then(cleanup, cleanup)
 
   return next
 }

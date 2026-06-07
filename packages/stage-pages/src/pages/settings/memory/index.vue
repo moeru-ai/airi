@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useAlayaMemoryStore } from '@proj-airi/stage-ui/stores/modules/alaya-memory'
+import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Button, FieldInput, FieldTextArea } from '@proj-airi/ui'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -8,6 +9,7 @@ import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 const alaya = useAlayaMemoryStore()
 const airiCard = useAiriCardStore()
+const auth = useAuthStore()
 
 // ------------------------------------------------------------------
 // Connection
@@ -18,7 +20,7 @@ const activeCharacterId = computed(() => airiCard.activeCardId)
 // Auto-connect when active character changes
 watch(activeCharacterId, (id) => {
   if (id) {
-    alaya.connect({ characterId: id })
+    alaya.connect({ characterId: id, userId: auth.userId })
   }
 }, { immediate: true })
 
@@ -299,7 +301,7 @@ const expandedEntry = computed(() => {
             flex="~ col gap-2"
           >
             <p text="sm neutral-600 dark:neutral-300" whitespace-pre-wrap>
-              {{ result.entry.content }}
+              {{ result.entry.content || result.entry.summary }}
             </p>
             <div v-if="result.entry.accessCount > 0" text="xs neutral-400">
               {{ t('settings.pages.memory.accessed') }} {{ result.entry.accessCount }} {{ t('settings.pages.memory.times') }}

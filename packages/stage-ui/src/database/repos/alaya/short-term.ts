@@ -115,11 +115,12 @@ export class ShortTermMemory {
   }
 
   /**
-   * Returns the most recent N turns (default: all), newest first.
+   * Returns the most recent N turns (default: all), in chronological order
+   * (oldest first).  This is the standard order for LLM context injection
+   * and matches the insertion order of the underlying buffer.
    */
   getRecentTurns(n?: number): ShortTermTurn[] {
-    const slice = n != null ? this.#turns.slice(-n) : this.#turns
-    return [...slice].reverse() // newest first for LLM context injection
+    return n != null ? this.#turns.slice(-n) : [...this.#turns]
   }
 
   /** Total turns currently in the buffer. */
