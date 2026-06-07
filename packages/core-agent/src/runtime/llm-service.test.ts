@@ -112,6 +112,56 @@ describe('streamFrom tool error capture', () => {
   })
 })
 
+describe('streamFrom maxTokens forwarding', () => {
+  function mockImmediateFinish() {
+    streamTextMock.mockImplementationOnce((options: { onEvent: (event: unknown) => Promise<void> }) => {
+      const steps = Promise.resolve([]).then(async (value) => {
+        await options.onEvent({ type: 'finish', finishReason: 'stop' })
+        return value
+      })
+      return createMockStreamResult(steps)
+    })
+  }
+
+  /**
+   * @example
+   * await streamFrom({ model, chatProvider, messages, options: { maxTokens: 1024 } })
+   * // -> streamText receives `maxTokens: 1024`, serialized to the `max_tokens` body field
+   */
+  it('forwards options.maxTokens into the streamText call', async () => {
+    mockImmediateFinish()
+
+    await streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [{ role: 'user', content: 'hi' }] as Message[],
+      options: { maxTokens: 1024 },
+    })
+
+    const streamOptions = streamTextMock.mock.calls.at(-1)?.[0]
+    expect(streamOptions.maxTokens).toBe(1024)
+  })
+
+  /**
+   * @example
+   * await streamFrom({ model, chatProvider, messages })
+   * // -> streamText receives `maxTokens: undefined`; xsAI's requestBody strips
+   * //    undefined values, so the request body omits `max_tokens` entirely
+   */
+  it('leaves maxTokens undefined when no cap is configured', async () => {
+    mockImmediateFinish()
+
+    await streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [{ role: 'user', content: 'hi' }] as Message[],
+    })
+
+    const streamOptions = streamTextMock.mock.calls.at(-1)?.[0]
+    expect(streamOptions.maxTokens).toBeUndefined()
+  })
+})
+
 describe('sanitizeMessages', () => {
   it('rewrites internal `error`-role messages as user-role narrations', () => {
     /**

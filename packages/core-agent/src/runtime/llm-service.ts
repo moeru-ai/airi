@@ -225,6 +225,11 @@ export async function streamFrom({
         abortSignal: options?.abortSignal,
         messages: sanitized,
         headers: options?.headers,
+        // NOTICE:
+        // xsAI's `requestBody` camel→snake-cases every option key into the chat
+        // body and strips `undefined`, so this lands as the standard OpenAI
+        // `max_tokens` field — and is omitted entirely when unset.
+        maxTokens: options?.maxTokens,
         stopWhen: stepCountAtLeast(10),
         // NOTICE:
         // Do not pass xsAI's `captureToolErrors` option here. In the installed

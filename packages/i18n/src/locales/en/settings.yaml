@@ -616,6 +616,17 @@ pages:
             show_more: Show more
             subtitle: Select a default model from the provider
             title: Model
+          response-limits:
+            title: Response Length
+            description: Keep replies short and snappy — or leave both off for unlimited responses
+            max-tokens:
+              label: Max output tokens
+              description: Hard cap sent to the provider as max_tokens. 0 disables the cap.
+              unlimited: Unlimited
+            length-hint:
+              label: Reply length guideline (characters)
+              description: Adds a soft instruction asking the character to keep replies within this many characters. 0 disables it.
+              off: 'Off'
       title: Consciousness
     description: Thinking, vision, speech synthesis, gaming, etc.
     gaming-factorio:
