@@ -1,21 +1,23 @@
 <script setup lang="ts">
 import { all } from '@proj-airi/i18n'
+import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { isPosthogAvailableInBuild } from '@proj-airi/stage-ui/stores/analytics'
-import { useSettings } from '@proj-airi/stage-ui/stores/settings'
-import { FieldCheckbox, FieldCombobox, useTheme } from '@proj-airi/ui'
+import { useSettings, useSettingsControlsIsland } from '@proj-airi/stage-ui/stores/settings'
+import { FieldCheckbox, FieldCombobox, FieldRange, useTheme } from '@proj-airi/ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const props = withDefaults(defineProps<{
-  needsControlsIslandIconSizeSetting?: boolean
+  needsAutoHideControlsIslandSetting?: boolean
 }>(), {
-  needsControlsIslandIconSizeSetting: import.meta.env.RUNTIME_ENVIRONMENT === 'electron',
+  needsAutoHideControlsIslandSetting: isStageTamagotchi(),
 })
 
 const settings = useSettings()
+const settingsControlsIsland = useSettingsControlsIsland()
 
-const showControlsIsland = computed(() => props.needsControlsIslandIconSizeSetting)
+const showAutoHideControlsIsland = computed(() => props.needsAutoHideControlsIslandSetting)
 const showAnalyticsSettings = computed(() => isPosthogAvailableInBuild())
 const analyticsToggleValue = computed({
   get: () => showAnalyticsSettings.value ? settings.analyticsEnabled : false,
@@ -59,23 +61,61 @@ const languages = computed(() => {
       :options="languages"
     />
 
-    <FieldCombobox
-      v-if="showControlsIsland"
-      v-model="settings.controlsIslandIconSize"
+    <FieldCheckbox
+      v-if="showAutoHideControlsIsland"
+      v-model="settingsControlsIsland.autoHideControlsIsland"
       v-motion
       :initial="{ opacity: 0, y: 10 }"
       :enter="{ opacity: 1, y: 0 }"
-      :duration="250 + (4 * 10)"
-      :delay="4 * 50"
-      :class="['transition-all', 'ease-in-out', 'duration-250']"
-      :label="t('settings.controls-island.icon-size.title')"
-      :description="t('settings.controls-island.icon-size.description')"
-      :options="[
-        { value: 'auto', label: t('settings.controls-island.icon-size.auto') },
-        { value: 'large', label: t('settings.controls-island.icon-size.large') },
-        { value: 'small', label: t('settings.controls-island.icon-size.small') },
-      ]"
+      :duration="250 + (5 * 10)"
+      :delay="5 * 50"
+      :label="t('settings.controls-island.auto-hide.title')"
+      :description="t('settings.controls-island.auto-hide.description')"
     />
+
+    <template v-if="showAutoHideControlsIsland && settingsControlsIsland.autoHideControlsIsland">
+      <FieldRange
+        v-model.number="settingsControlsIsland.autoHideDelay"
+        v-motion
+        :initial="{ opacity: 0, y: 10 }"
+        :enter="{ opacity: 1, y: 0 }"
+        :duration="250 + (6 * 10)"
+        :delay="6 * 50"
+        :min="0"
+        :max="5"
+        :step="0.1"
+        :format-value="v => `${v}s`"
+        :label="t('settings.controls-island.hide-delay.title')"
+      />
+
+      <FieldRange
+        v-model.number="settingsControlsIsland.autoShowDelay"
+        v-motion
+        :initial="{ opacity: 0, y: 10 }"
+        :enter="{ opacity: 1, y: 0 }"
+        :duration="250 + (7 * 10)"
+        :delay="7 * 50"
+        :min="0"
+        :max="5"
+        :step="0.1"
+        :format-value="v => `${v}s`"
+        :label="t('settings.controls-island.show-delay.title')"
+      />
+
+      <FieldRange
+        v-model.number="settingsControlsIsland.autoHideOpacity"
+        v-motion
+        :initial="{ opacity: 0, y: 10 }"
+        :enter="{ opacity: 1, y: 0 }"
+        :duration="250 + (8 * 10)"
+        :delay="8 * 50"
+        :min="0"
+        :max="100"
+        :step="1"
+        :format-value="v => `${v}%`"
+        :label="t('settings.controls-island.hidden-opacity.title')"
+      />
+    </template>
 
     <FieldCheckbox
       v-model="analyticsToggleValue"
