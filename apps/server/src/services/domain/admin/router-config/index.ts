@@ -25,6 +25,11 @@ const DEFAULT_KEY_ENTRY_IDS = {
   'unspeech': 'volcengine-prod-1',
 } as const
 
+const DEFAULT_FALLBACK_TRIGGERS = {
+  httpCodes: [401, 402, 403, 429, 500, 502, 503, 504],
+  onTimeout: true,
+}
+
 type LlmRouterConfig = InferOutput<typeof llmRouterConfigSchema>
 type LlmModel = InferOutput<typeof llmModelSchema>
 type TtsModel = InferOutput<typeof ttsModelSchema>
@@ -162,7 +167,8 @@ export function buildOpenRouterSlice(input: OpenRouterSliceInput, envelope: Enve
         keys: [{ id: keyEntryId, ciphertext }],
         headerTemplate: input.headerTemplate ?? 'Bearer {KEY}',
       }],
-    } as LlmModel,
+      fallbackTriggers: DEFAULT_FALLBACK_TRIGGERS,
+    },
   }
 }
 
@@ -194,7 +200,8 @@ export function buildAzureSlice(input: AzureSliceInput, envelope: EnvelopeCrypto
           ...(input.defaultVoice ? { defaultVoice: input.defaultVoice } : {}),
         },
       }],
-    } as TtsModel,
+      fallbackTriggers: DEFAULT_FALLBACK_TRIGGERS,
+    },
   }
 }
 
@@ -232,7 +239,8 @@ export function buildDashscopeSlice(input: DashscopeSliceInput, envelope: Envelo
         keys: [{ id: keyEntryId, ciphertext }],
         adapterParams: { model: input.upstreamModel },
       }],
-    } as TtsModel,
+      fallbackTriggers: DEFAULT_FALLBACK_TRIGGERS,
+    },
   }
 }
 
