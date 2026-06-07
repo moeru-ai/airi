@@ -26,12 +26,12 @@ This fork's focus is **creating desktop-native agentic OS centered around your A
 
 ## 🌙 The Vision: airiOS
 
-Our goal is a Linux desktop experience where your AI companion acts as the center of your desktop environment (aka wallpaper):
+Our goal is a Linux desktop experience where your AI companion acts as the center of your desktop environment:
 
-- **Always-Present Stage:** Your character lives on your desktop, not in a floating window or browser tab.
-- **System Integration:** Hooks into notifications, screen capture, and global shortcuts.
-- **Context Awareness:** Your companion observes desktop activity to respond and interact proactively.
-- **Modular Stage Layouts:** GTK3/4 widgets, interactive backgrounds, and window layouts composed dynamically by the character.
+- **Always-Present Stage:** Your character lives on your desktop so she is always in control! She can open, close and switch between windows and most importantly read text in those windows through accessibility tools, not just rely on screenshotting everything~
+- **System Integration:** Hooks into system fully, from basic stuff like notifications and global shortcuts to fully managing your terminal!
+- **Context Awareness:** Your companion observes desktop activity to respond and interact proactively and she might even take control if you let her (agentic mode)
+- **Modular Stage Layouts:** GTK3/4 widgets, interactively generated backgrounds through artistry module, and window layouts composed dynamically by the character (she will always be on screen most of time)
 
 ---
 
@@ -48,7 +48,7 @@ Our goal is a Linux desktop experience where your AI companion acts as the cente
 pnpm i
 pnpm dev:tamagotchi
 ```
-
+<!--
 ### ⌨️ Building for Linux (under construction)
 
 ```shell
@@ -57,7 +57,7 @@ cd apps/stage-tamagotchi
 ```
 
 _(An optional PKGBUILD is located in `apps/stage-tamagotchi` to repackage the `.deb` into `.zst` for Arch/Manjaro/CachyOS)._
-
+-->
 ### ❔ Troubleshooting
 
 **Electron build approvals (pnpm 10+):**
@@ -100,8 +100,6 @@ pnpm approve-builds # Select 'electron' and confirm
   - [ ] DeepSource pass with 0 issues
   - [ ] LCov > 90% -> switch to TDD
   - [ ] Natural terminal command detection (similar to Warp terminal)
-  - [ ] Replace default AIRI LLM provider with [airiOS Localhost LLM Layer](https://github.com/airi-os/api-llm-localhost) + optional [airiOS Cloud LLM Layer](https://github.com/airi-os/api-llm-cloud)
-  - [ ] Replace default AIRI Speech provider with airiOS Localhost Speech Layer
   - [ ] Add providers/mcp/skills via natural language prompts
   - [ ] Native Wayland Support using Ozone platform flags
     - [ ] PipeWire screen capture
@@ -110,12 +108,12 @@ pnpm approve-builds # Select 'electron' and confirm
 
 ## 🤖 LLM API Providers
 
-### Supported providers: everything [xsai](https://github.com/moeru-ai/xsai) supports
+- [x] Supported providers: everything [xsai](https://github.com/moeru-ai/xsai) supports
+- [ ] Planned airiOS [localhost](https://github.com/airi-os/api-llm-localhost) and [cloud](https://github.com/airi-os/api-llm-cloud) LLM API layers integration to replace default AIRI provider, good source of almost limitless free yummy tokens for your cyber waifus~
 
 ---
 
 ## 🙏 Acknowledgements
 
 - [`moeru-ai/airi`](https://github.com/moeru-ai/airi) project and [`dasilva333/airi`](https://github.com/dasilva333/airi) fork
-- [Reka UI](https://github.com/unovue/reka-ui) - UI components
-- [xsai](https://github.com/moeru-ai/xsai) - LLM interaction layer
+
