@@ -4,6 +4,7 @@ import type {
   PluginManifestSummary,
 } from '@proj-airi/stage-ui/stores/devtools/plugin-host-debug'
 
+import { errorMessageFrom } from '@moeru/std'
 import { Section } from '@proj-airi/stage-ui/components'
 import { usePluginHostInspectorStore } from '@proj-airi/stage-ui/stores/devtools/plugin-host-debug'
 import { Button, Callout, Input } from '@proj-airi/ui'
@@ -93,7 +94,7 @@ async function refresh() {
     await store.refreshAll()
   }
   catch (error) {
-    toast.error(error instanceof Error ? error.message : 'Failed to refresh plugin host debug state.')
+    toast.error(errorMessageFrom(error) ?? 'Failed to refresh plugin host debug state.')
   }
 }
 
@@ -102,7 +103,7 @@ async function loadEnabled() {
     await store.loadEnabled()
   }
   catch (error) {
-    toast.error(error instanceof Error ? error.message : 'Failed to load enabled plugins.')
+    toast.error(errorMessageFrom(error) ?? 'Failed to load enabled plugins.')
   }
 }
 
@@ -114,7 +115,7 @@ async function setAutoReload(plugin: PluginManifestSummary, enabled: boolean) {
     })
   }
   catch (error) {
-    toast.error(error instanceof Error ? error.message : `Failed to update auto-reload state for ${plugin.name}.`)
+    toast.error(errorMessageFrom(error) ?? `Failed to update auto-reload state for ${plugin.name}.`)
   }
 }
 
@@ -127,7 +128,7 @@ async function setEnabled(plugin: PluginManifestSummary, enabled: boolean) {
     })
   }
   catch (error) {
-    toast.error(error instanceof Error ? error.message : `Failed to update enabled state for ${plugin.name}.`)
+    toast.error(errorMessageFrom(error) ?? `Failed to update enabled state for ${plugin.name}.`)
   }
 }
 
@@ -136,7 +137,7 @@ async function loadPlugin(plugin: PluginManifestSummary) {
     await store.load({ name: plugin.name })
   }
   catch (error) {
-    toast.error(error instanceof Error ? error.message : `Failed to load plugin ${plugin.name}.`)
+    toast.error(errorMessageFrom(error) ?? `Failed to load plugin ${plugin.name}.`)
   }
 }
 
@@ -145,7 +146,7 @@ async function unloadPlugin(plugin: PluginManifestSummary) {
     await store.unload({ name: plugin.name })
   }
   catch (error) {
-    toast.error(error instanceof Error ? error.message : `Failed to unload plugin ${plugin.name}.`)
+    toast.error(errorMessageFrom(error) ?? `Failed to unload plugin ${plugin.name}.`)
   }
 }
 
@@ -160,7 +161,7 @@ async function loadSelectedPlugin() {
     await store.load({ name })
   }
   catch (error) {
-    toast.error(error instanceof Error ? error.message : `Failed to load plugin ${name}.`)
+    toast.error(errorMessageFrom(error) ?? `Failed to load plugin ${name}.`)
   }
 }
 

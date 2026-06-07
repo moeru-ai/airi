@@ -15,6 +15,7 @@ import { errorMessageFrom } from '@moeru/std'
 import { z } from 'zod'
 
 import { evaluateActionPolicy } from '../policy'
+import { errorMessageFromValue } from '../utils/error-message'
 import { textContent } from './content'
 import { refreshRuntimeRunState } from './refresh-run-state'
 import {
@@ -92,7 +93,7 @@ export async function executeChromeEnsure(
     }
     catch (cdpError) {
       // Non-fatal: agent can still work via os_input / extension bridge
-      cdpStatus = `connect failed: ${cdpError instanceof Error ? cdpError.message : String(cdpError)}`
+      cdpStatus = `connect failed: ${errorMessageFromValue(cdpError)}`
     }
   }
 

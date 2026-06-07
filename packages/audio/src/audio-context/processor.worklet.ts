@@ -4,6 +4,8 @@ import type { ConverterTypeValue } from '@alexanderolsen/libsamplerate-js/dist/c
 
 import { ConverterType, create } from '@alexanderolsen/libsamplerate-js'
 
+import { errorMessageFromValue } from '../utils/error-message'
+
 interface ProcessorOptions {
   inputSampleRate: number
   outputSampleRate: number
@@ -68,7 +70,7 @@ class ResamplingAudioWorkletProcessor extends AudioWorkletProcessor {
       this.port.postMessage({
         type: 'initialized',
         success: false,
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessageFromValue(error),
       })
     }
   }
@@ -142,7 +144,7 @@ class ResamplingAudioWorkletProcessor extends AudioWorkletProcessor {
 
       this.port.postMessage({
         type: 'error',
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessageFromValue(error),
       })
 
       // Pass through original data on error

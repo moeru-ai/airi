@@ -16,7 +16,8 @@ import semver from 'semver'
 import { is } from '@electron-toolkit/utils'
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
-import { errorMessageFrom, tryCatch } from '@moeru/std'
+import { tryCatch } from '@moeru/std'
+import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import { committerDate } from '~build/git'
 import { app } from 'electron'
 import { Semaphore } from 'es-toolkit'
@@ -335,7 +336,7 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
   function broadcastUpdaterError(error: unknown, reason: string) {
     broadcast({
       status: 'error',
-      error: { message: errorMessageFrom(error) ?? String(error) },
+      error: { message: errorMessageFromValue(error) },
     })
     log.withError(error).error(reason)
   }

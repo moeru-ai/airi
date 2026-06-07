@@ -41,6 +41,7 @@
   },
   "dependencies": {
     "@moeru/eventa": "catalog:",
+    "@moeru/std": "catalog:",
     "@proj-airi/plugin-protocol": "workspace:*",
     "@proj-airi/server-shared": "workspace:*",
     "nanoid": "catalog:",

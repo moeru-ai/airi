@@ -3312,6 +3312,9 @@ importers:
       '@capacitor/cli':
         specifier: ^8.0.0
         version: 8.3.1
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.17
       cac:
         specifier: 'catalog:'
         version: 7.0.0
@@ -3586,6 +3589,9 @@ importers:
       '@moeru/eventa':
         specifier: 'catalog:'
         version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.17
       '@proj-airi/plugin-protocol':
         specifier: workspace:*
         version: link:../plugin-protocol
@@ -4693,6 +4699,9 @@ importers:
 
   packages/ui-loading-screens:
     dependencies:
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.17
       '@proj-airi/font-departure-mono':
         specifier: workspace:^
         version: link:../font-departure-mono
@@ -4977,6 +4986,9 @@ importers:
       '@moeru/eventa':
         specifier: 'catalog:'
         version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.17
       '@proj-airi/server-sdk':
         specifier: workspace:^
         version: link:../../packages/server-sdk

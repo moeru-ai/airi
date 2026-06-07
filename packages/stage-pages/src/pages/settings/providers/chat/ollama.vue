@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { RemovableRef } from '@vueuse/core'
 
+import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import {
   ProviderAdvancedSettings,
   ProviderBaseUrlInput,
@@ -110,7 +111,7 @@ async function refetch() {
   }
   catch (error) {
     validationMessage.value = t('settings.dialogs.onboarding.validationError', {
-      error: error instanceof Error ? error.message : String(error),
+      error: errorMessageFromValue(error),
     })
   }
 }

@@ -20,6 +20,7 @@ import {
   prioritizeInspectableAiriTargets,
 } from '../e2e/debug-targets'
 import { getProviderBootstrapConfig, resolvePreferredChatProviderId } from '../e2e/provider-bootstrap'
+import { errorMessageFromValue } from '../utils/error-message'
 
 interface DebugTarget extends DebugTargetLike {
   webSocketDebuggerUrl?: string
@@ -748,7 +749,7 @@ async function main() {
     catch (error) {
       addTimeline('chat-open-fallback', {
         mode: 'same-window-route',
-        reason: error instanceof Error ? error.message : String(error),
+        reason: errorMessageFromValue(error),
       })
 
       await mainTargetClient.close().catch(() => {})
@@ -1207,7 +1208,7 @@ async function main() {
   }
   catch (error) {
     report.status = 'failed'
-    report.error = error instanceof Error ? error.stack || error.message : String(error)
+    report.error = errorMessageFromValue(error)
     addTimeline('failure', { error: report.error })
     await writeReport()
     console.error(report.error)
