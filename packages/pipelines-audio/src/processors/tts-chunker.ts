@@ -5,6 +5,7 @@ import type { TextSegment, TextToken } from '../types'
 import { readGraphemeClusters } from 'clustr'
 
 import { createPushStream } from '../stream'
+import { stripMarkdownFromText } from '../strip-markdown'
 
 export const TTS_FLUSH_INSTRUCTION = '\u200B'
 export const TTS_SPECIAL_TOKEN = '\u2063'
@@ -14,6 +15,7 @@ const regexpAnySingleDigit = /\d/u
 const keptPunctuations = new Set('?？!！')
 const hardPunctuations = new Set('.。?？!！…⋯～~\n\t\r')
 const softPunctuations = new Set(',，、–—:：;；《》「」')
+
 
 export interface TtsInputChunk {
   text: string
@@ -26,6 +28,7 @@ export interface TtsInputChunkOptions {
   minimumWords?: number
   maximumWords?: number
   stripNarrative?: boolean
+  stripMarkdown?: boolean
   keepNarrativeText?: boolean
 }
 
@@ -371,7 +374,8 @@ export function createTtsSegmentStream(
 
         if (value.type === 'literal') {
           if (value.value) {
-            if (!options?.stripNarrative) {
+            // When neither stripNarrative nor stripMarkdown is set, write directly
+            if (!options?.stripNarrative && !options?.stripMarkdown) {
               writeBytes(encoder.encode(value.value))
               continue
             }
@@ -396,21 +400,27 @@ export function createTtsSegmentStream(
 
             const bracketsUnclosed = stack.length > 0
             const starMatch = pendingText.match(/\*([^*]*)$/)
-            const starsUnclosed =
-              (pendingText.match(/\*/g) || []).length % 2 !== 0 && starMatch !== null && !starMatch[1].startsWith(' ')
+            const italicUnclosed =
+              (pendingText.match(/\*/g) || []).length % 2 !== 0 && starMatch !== null && !starMatch[1].startsWith(" ")
+            // Detect unclosed ** (bold): count ** occurrences — odd means unclosed bold
+            const boldDoubleCount = (pendingText.match(/\*\*/g) || []).length
+            const boldUnclosed = boldDoubleCount % 2 !== 0
+            const starsUnclosed = italicUnclosed || boldUnclosed
             const hasUnclosed = bracketsUnclosed || starsUnclosed
             const hasNarrativeUnclosed = stack.some((char) => ['[', '【', '<', '（'].includes(char))
             const fallbackLimit = options?.stripNarrative && hasNarrativeUnclosed ? 800 : 200
 
             if (!hasUnclosed || pendingText.length > fallbackLimit) {
-              const textToEmit = processNarrative(pendingText, options)
+              let textToEmit = options?.stripMarkdown ? stripMarkdownFromText(pendingText) : pendingText
+              if (options?.stripNarrative) textToEmit = processNarrative(textToEmit, options)
               writeBytes(encoder.encode(textToEmit))
               pendingText = ''
             }
           }
         } else if (value.type === 'special' || value.type === 'flush') {
           if (pendingText) {
-            const textToEmit = processNarrative(pendingText, options)
+            let textToEmit = options?.stripMarkdown ? stripMarkdownFromText(pendingText) : pendingText
+            if (options?.stripNarrative) textToEmit = processNarrative(textToEmit, options)
             writeBytes(encoder.encode(textToEmit))
             pendingText = ''
           }
@@ -424,7 +434,7 @@ export function createTtsSegmentStream(
         }
       }
       if (pendingText) {
-        let finalPunt = pendingText
+        let finalPunt = options?.stripMarkdown ? stripMarkdownFromText(pendingText) : pendingText
         if (options?.stripNarrative) {
           finalPunt = processNarrative(finalPunt, options)
         }

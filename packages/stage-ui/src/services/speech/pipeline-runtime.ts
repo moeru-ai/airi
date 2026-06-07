@@ -64,6 +64,7 @@ export function createSpeechPipelineRuntime(): SpeechPipelineRuntime {
 
     const applyToken = (payload: SpeechIntentTokenPayload, writer: (intent: IntentHandle, value?: string) => void) => {
       if (!payload || payload.originId === originId) return
+      console.log('[TTS PIPELINE] applyToken:', JSON.stringify(payload.value))
       const intent = remoteIntentMap.get(payload.intentId)
       if (!intent) {
         if (!hostPipeline) return

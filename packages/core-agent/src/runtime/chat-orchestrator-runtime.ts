@@ -21,6 +21,7 @@ import { createChatHooks } from './agent-hooks'
 import { useLlmmarkerParser } from './llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from './response-categoriser'
 import { stripMarkdownFromSpeech } from './markdown-stripper'
+import { stripUnreadableSymbols } from './unreadable-symbols-stripper'
 
 const STREAMING_UI_FLUSH_CHUNK_SIZE = 24
 
@@ -449,9 +450,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         onLiteral: async (literal) => {
           if (shouldAbort()) return
 
+          console.log('[TTS DEBUG] onLiteral received:', JSON.stringify(literal))
           categorizer.consume(literal)
 
-          const speechOnly = stripMarkdownFromSpeech(categorizer.filterToSpeech(literal, streamPosition))
+          const filtered = categorizer.filterToSpeech(literal, streamPosition)
+          console.log('[TTS DEBUG] after filterToSpeech:', JSON.stringify(filtered))
+          const speechOnly = stripUnreadableSymbols(filtered)
+          console.log('[TTS DEBUG] after stripUnreadableSymbols:', JSON.stringify(speechOnly))
           streamPosition += literal.length
 
           if (speechOnly.trim()) {
@@ -483,7 +488,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
           const reasoningContentField = buildingMessage.categorization?.reasoning?.trim()
           buildingMessage.categorization = {
-            speech: stripMarkdownFromSpeech(finalCategorization.speech),
+            speech: stripUnreadableSymbols(finalCategorization.speech),
             reasoning: reasoningContentField || finalCategorization.reasoning,
           }
           patchForegroundStream(sessionId, buildingMessage)

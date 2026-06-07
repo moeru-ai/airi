@@ -19,6 +19,10 @@
     ".": {
       "types": "./dist/index.d.mts",
       "default": "./dist/index.mjs"
+    },
+    "./strip-markdown": {
+      "types": "./dist/strip-markdown.d.mts",
+      "default": "./dist/strip-markdown.mjs"
     }
   },
   "main": "./dist/index.mjs",

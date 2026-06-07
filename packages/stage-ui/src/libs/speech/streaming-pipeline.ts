@@ -1,4 +1,5 @@
 import { buildStreamingTtsUrl } from './tts-analytics'
+import { stripMarkdownFromText } from '@proj-airi/pipelines-audio/strip-markdown'
 import type { TtsSource, TtsTrigger } from './tts-analytics'
 
 import { getAuthToken } from '../auth'
@@ -380,6 +381,10 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
   return {
     appendText(text: string) {
       if (text.length === 0) return
+      const stripped = stripMarkdownFromText(text)
+      if (stripped !== text) {
+          text = stripped
+      }
       // Pure-whitespace chunks (e.g. the " " between two LLM tokens) ARE
       // forwarded verbatim. Dropping them would corrupt the text the
       // upstream model sees ("hello" + " " + "world" → "helloworld").

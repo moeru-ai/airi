@@ -57,7 +57,10 @@ type IntentHandleSubset = Pick<
 function fromIntent(intent: IntentHandleSubset): StageTtsSession {
   return {
     intentId: intent.intentId,
-    appendText: intent.writeLiteral,
+    appendText: (text) => {
+      console.log('[TTS SESSION] appendText (segmenter path):', JSON.stringify(text))
+      intent.writeLiteral(text)
+    },
     appendSpecial: intent.writeSpecial,
     finishInput: intent.writeFlush,
     end: intent.end,
