@@ -44,7 +44,14 @@ function withLock<T>(userId: string, characterId: string, fn: () => Promise<T>):
   const prev = locks.get(lockKey) ?? Promise.resolve()
 
   const next = prev.then(fn, fn) // run even if previous rejected
-  locks.set(lockKey, next.then(() => {}, () => {})) // clear on settle
+
+  // Clean up the Map entry once this lock settles, preventing unbounded
+  // memory growth for every (userId, characterId) pair ever used.
+  const settled = next
+    .then(() => { locks.delete(lockKey) })
+    .catch(() => { locks.delete(lockKey) })
+
+  locks.set(lockKey, settled)
 
   return next
 }
@@ -59,11 +66,15 @@ async function getAll(userId: string, characterId: string): Promise<MemoryEntry[
 }
 
 async function saveAll(userId: string, characterId: string, entries: MemoryEntry[]): Promise<void> {
-  await storage.setItemRaw(scope(userId, characterId), entries)
-  await storage.setItemRaw(countKey(userId, characterId), entries.length)
+  // Write both keys in parallel. If one fails the error propagates;
+  // healCount() serves as the recovery path for count drift.
+  await Promise.all([
+    storage.setItemRaw(scope(userId, characterId), entries),
+    storage.setItemRaw(countKey(userId, characterId), entries.length),
+  ])
 }
 
-async function create(input: MemoryInput, userId: string): Promise<MemoryEntry> {
+async function create(input: MemoryInput, userId: string, presetScore?: { importance?: number, recency?: number }): Promise<MemoryEntry> {
   return withLock(userId, input.characterId, async () => {
     const now = Date.now()
 
@@ -71,8 +82,8 @@ async function create(input: MemoryInput, userId: string): Promise<MemoryEntry> 
       id: crypto.randomUUID(),
       characterId: input.characterId,
       content: input.content,
-      importance: 0.5,
-      recency: 1.0,
+      importance: presetScore?.importance ?? 0.5,
+      recency: presetScore?.recency ?? 1.0,
       source: input.source ?? 'chat',
       type: input.type,
       tags: input.tags ?? [],
@@ -150,8 +161,8 @@ async function bulkCreate(inputs: MemoryInput[], userId: string): Promise<Memory
         id: crypto.randomUUID(),
         characterId: input.characterId,
         content: input.content,
-        importance: 0.5,
-        recency: 1.0,
+        importance: input.presetImportance ?? 0.5,
+        recency: input.presetRecency ?? 1.0,
         source: input.source ?? 'chat',
         type: input.type,
         tags: input.tags ?? [],
@@ -222,8 +233,10 @@ async function bulkUpdate(
 }
 
 async function clear(userId: string, characterId: string): Promise<void> {
-  await storage.removeItem(scope(userId, characterId))
-  await storage.removeItem(countKey(userId, characterId))
+  return withLock(userId, characterId, async () => {
+    await storage.removeItem(scope(userId, characterId))
+    await storage.removeItem(countKey(userId, characterId))
+  })
 }
 
 /**
@@ -236,13 +249,67 @@ async function count(userId: string, characterId: string): Promise<number> {
 }
 
 /**
+ * Atomically writes back a cleaned set of entries under lock.
+ *
+ * Used by the housekeeping pipeline to prevent lost-write races where
+ * entries added between read and write would be silently dropped.
+ */
+async function replaceAll(
+  userId: string,
+  characterId: string,
+  cleaned: MemoryEntry[],
+): Promise<void> {
+  return withLock(userId, characterId, async () => {
+    await Promise.all([
+      storage.setItemRaw(scope(userId, characterId), cleaned),
+      storage.setItemRaw(countKey(userId, characterId), cleaned.length),
+    ])
+  })
+}
+
+/**
  * Heals the count key by recomputing from the full entry array.
  * Called after migrations or when the count drifts.
  */
 async function healCount(userId: string, characterId: string): Promise<number> {
-  const all = await getAll(userId, characterId)
-  await storage.setItemRaw(countKey(userId, characterId), all.length)
-  return all.length
+  return withLock(userId, characterId, async () => {
+    const all = await getAll(userId, characterId)
+    await storage.setItemRaw(countKey(userId, characterId), all.length)
+    return all.length
+  })
+}
+
+/**
+ * Touch retrieved entries: increment accessCount and update lastAccessedAt.
+ * Done in a single lock-protected read-modify-write so the deltas are
+ * always computed against the latest stored values.
+ */
+async function touch(
+  userId: string,
+  characterId: string,
+  entryIds: string[],
+): Promise<void> {
+  return withLock(userId, characterId, async () => {
+    const all = await getAll(userId, characterId)
+    const now = Date.now()
+    let changed = false
+
+    for (const e of all) {
+      if (entryIds.includes(e.id)) {
+        e.lastAccessedAt = now
+        e.accessCount += 1
+        e.updatedAt = now
+        changed = true
+      }
+    }
+
+    if (changed) {
+      await Promise.all([
+        storage.setItemRaw(scope(userId, characterId), all),
+        storage.setItemRaw(countKey(userId, characterId), all.length),
+      ])
+    }
+  })
 }
 
 export const alayaRepo = {
@@ -255,5 +322,7 @@ export const alayaRepo = {
   bulkUpdate,
   clear,
   count,
+  replaceAll,
   healCount,
+  touch,
 }

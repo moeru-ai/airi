@@ -93,6 +93,10 @@ export interface MemoryInput {
   source?: MemorySource
   tags?: string[]
   type?: MemoryEntry['type']
+  /** Pre-computed importance score — avoids a write-after-create round-trip. */
+  presetImportance?: number
+  /** Pre-computed recency score. */
+  presetRecency?: number
 }
 
 /**

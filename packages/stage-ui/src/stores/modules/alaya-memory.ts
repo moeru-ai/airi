@@ -316,7 +316,7 @@ export const useAlayaMemoryStore = defineStore('alaya-memory', () => {
    *
    * Should be called at session end or periodically for long sessions.
    */
-  async function compactSession(sessionId?: string): Promise<CompactResult> {
+  async function compactSession(): Promise<CompactResult> {
     const st = ensureShortTerm()
     const result = st.compact()
 

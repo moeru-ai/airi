@@ -60,8 +60,9 @@ function keywordRelevance(entry: MemoryEntry, queryText: string): number {
  * 6. Sort descending by score
  * 7. Cap results at `query.limit`
  *
- * Side effect: updates each retrieved entry's `lastAccessedAt` and
- * `accessCount` via the provided `touchEntry` callback.
+ * NOTE: Access-tracking updates (lastAccessedAt / accessCount) are NOT
+ * performed here — the caller is responsible for touching retrieved
+ * entries via `alayaRepo.touch` if needed.
  */
 export async function retrieve(
   entries: MemoryEntry[],

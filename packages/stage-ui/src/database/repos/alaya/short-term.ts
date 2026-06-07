@@ -77,6 +77,8 @@ export class ShortTermMemory {
   #turns: ShortTermTurn[] = []
   #maxTurns: number
   #digestThreshold: number
+  /** Monotonic counter tracking the absolute turn index across evictions. */
+  #turnCounter = 0
 
   constructor(options: ShortTermMemoryOptions = {}) {
     this.#maxTurns = options.maxTurns ?? 20
@@ -98,7 +100,7 @@ export class ShortTermMemory {
     const entry: ShortTermTurn = {
       id: crypto.randomUUID(),
       timestamp: Date.now(),
-      turnIndex: this.#turns.length,
+      turnIndex: this.#turnCounter++,
       ...turn,
     }
 
@@ -164,10 +166,9 @@ export class ShortTermMemory {
       }
     }
 
-    const remainingCount = this.#turns.length
     this.#turns = []
 
-    return { digestCandidates, evictedCount, remainingCount }
+    return { digestCandidates, evictedCount, remainingCount: 0 }
   }
 
   /**

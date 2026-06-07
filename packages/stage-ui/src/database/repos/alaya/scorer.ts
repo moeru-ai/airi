@@ -1,4 +1,23 @@
-import type { AlayaOptions, MemoryEntry } from './types'
+import type { AlayaOptions, MemoryEntry, MemorySource } from './types'
+
+// ------------------------------------------------------------------
+// Minimal scoring input — avoids requiring a full MemoryEntry
+// ------------------------------------------------------------------
+
+/** Minimal fields needed to compute an importance score. */
+export interface ImportanceInput {
+  content: string
+  summary?: string
+  source: MemorySource
+  tags: string[]
+  type?: string
+  accessCount: number
+}
+
+/** Minimal fields needed to compute a recency score. */
+export interface RecencyInput {
+  lastAccessedAt: number
+}
 
 /**
  * Shared configuration constants for the Alaya memory system.
@@ -31,7 +50,7 @@ export const RECENCY_HALF_LIFE_MS = 7 * 24 * 60 * 60 * 1000
  *
  * Returns a score in [0, 1].
  */
-export function scoreImportance(entry: MemoryEntry): number {
+export function scoreImportance(entry: ImportanceInput): number {
   const content = entry.content || entry.summary || ''
   let score = 0.5
 
@@ -93,7 +112,7 @@ export function scoreImportance(entry: MemoryEntry): number {
  * near 1.0 and very old accesses asymptote towards 0.
  */
 export function scoreRecency(
-  entry: MemoryEntry,
+  entry: RecencyInput,
   now: number = Date.now(),
   halfLifeMs: number = RECENCY_HALF_LIFE_MS,
 ): number {

@@ -73,18 +73,22 @@ export class AlayaMemory {
    * then runs housekeeping.
    */
   async ingest(input: MemoryInput): Promise<MemoryEntry> {
-    // Create and score in one step — no need for a separate read-back
-    const entry = await alayaRepo.create(input, this.#userId)
-
-    // Score and update using the same lock (repo.update is lock-protected)
-    const scored = await alayaRepo.update(this.#userId, entry, {
-      importance: scoreImportance(entry),
-      recency: scoreRecency(entry),
+    // Pre-compute scores so we can create+score in a single write pass
+    const now = Date.now()
+    const importance = scoreImportance({
+      content: input.content,
+      source: input.source ?? 'chat',
+      tags: input.tags ?? [],
+      type: input.type,
+      accessCount: 0,
     })
+    const recency = scoreRecency({ lastAccessedAt: now })
+
+    const entry = await alayaRepo.create(input, this.#userId, { importance, recency })
 
     await this.#housekeep(input.characterId)
 
-    return scored
+    return entry
   }
 
   /**
@@ -95,18 +99,21 @@ export class AlayaMemory {
     if (inputs.length === 0)
       return []
 
-    const entries = await alayaRepo.bulkCreate(inputs, this.#userId)
-
-    // Batch-score all entries in one update pass
-    const patches = entries.map(entry => ({
-      entry,
-      patch: {
-        importance: scoreImportance(entry),
-        recency: scoreRecency(entry),
-      },
+    // Pre-compute scores so we can create+score in a single write pass
+    const now = Date.now()
+    const scoredInputs = inputs.map(input => ({
+      ...input,
+      presetImportance: scoreImportance({
+        content: input.content,
+        source: input.source ?? 'chat',
+        tags: input.tags ?? [],
+        type: input.type,
+        accessCount: 0,
+      }),
+      presetRecency: scoreRecency({ lastAccessedAt: now }),
     }))
 
-    const scored = await alayaRepo.bulkUpdate(this.#userId, patches)
+    const entries = await alayaRepo.bulkCreate(scoredInputs, this.#userId)
 
     // Housekeep each affected character once
     const affectedCharacters = new Set(inputs.map(i => i.characterId))
@@ -114,7 +121,7 @@ export class AlayaMemory {
       await this.#housekeep(characterId)
     }
 
-    return scored
+    return entries
   }
 
   async update(
@@ -144,16 +151,9 @@ export class AlayaMemory {
       recencyWeight: this.#recencyWeight,
     })
 
-    // Touch retrieved entries (batch update for performance)
+    // Touch retrieved entries (atomic read-modify-write under lock)
     if (results.length > 0) {
-      const patches = results.map(({ entry }) => ({
-        entry,
-        patch: {
-          lastAccessedAt: Date.now(),
-          accessCount: entry.accessCount + 1,
-        },
-      }))
-      await alayaRepo.bulkUpdate(this.#userId, patches)
+      await alayaRepo.touch(this.#userId, query.characterId, results.map(r => r.entry.id))
     }
 
     return results
@@ -161,7 +161,14 @@ export class AlayaMemory {
 
   async getRecent(characterId: string, n = 10): Promise<MemorySearchResult[]> {
     const entries = await alayaRepo.getAll(this.#userId, characterId)
-    return recent(entries, characterId, n)
+    const results = await recent(entries, characterId, n)
+
+    // Touch retrieved entries so access tracking is consistent with query()
+    if (results.length > 0) {
+      await alayaRepo.touch(this.#userId, characterId, results.map(r => r.entry.id))
+    }
+
+    return results
   }
 
   async getAll(characterId: string): Promise<MemoryEntry[]> {
@@ -208,7 +215,7 @@ export class AlayaMemory {
 
     // Only persist when something actually changed
     if (modified.length > 0 || cleaned.length !== entries.length) {
-      await alayaRepo.saveAll(this.#userId, characterId, cleaned)
+      await alayaRepo.replaceAll(this.#userId, characterId, cleaned)
     }
   }
 
