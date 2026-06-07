@@ -17,7 +17,7 @@ export const AvatarModelConfigSchema = object({
 })
 
 export const CharacterCapabilityConfigSchema = object({
-  apiKey: string(),
+  apiKey: optional(string()),
   apiBaseUrl: string(),
   llm: optional(object({
     temperature: number(),
@@ -171,6 +171,16 @@ export const UpdateCharacterSchema = object({
   version: optional(string()),
   coverUrl: optional(string()),
   characterId: optional(string()),
+  i18n: optional(array(object({
+    language: string(),
+    name: string(),
+    description: string(),
+    tags: array(string()),
+  }))),
+  capabilities: optional(array(object({
+    type: CharacterCapabilityTypeSchema,
+    config: CharacterCapabilityConfigSchema,
+  }))),
 })
 
 // --- Type Exports ---

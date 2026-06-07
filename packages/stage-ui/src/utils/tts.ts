@@ -221,9 +221,6 @@ export async function* chunkTTSInput(
     current = next
   }
 
-  // TODO: remove later
-  // eslint-disable-next-line no-console
-  console.debug('while loop ends, chunk/buffer:', chunk, buffer)
   if (chunk.length > 0 || buffer.length > 0) {
     const text = (chunk + buffer).trim()
     yield {
@@ -247,8 +244,6 @@ export async function chunkEmitter(
 
   try {
     for await (const chunk of chunkTTSInput(reader)) {
-      // TODO: remove later
-
       if (chunk.reason === 'special') {
         const specialToken = pendingSpecials.shift()
         // console.debug("special yield:", specialToken)

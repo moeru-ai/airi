@@ -10,7 +10,7 @@ import CharacterDialog from './components/CharacterDialog.vue'
 import CharacterItem from './components/CharacterItem.vue'
 
 const characterStore = useCharacterStore()
-const { characters } = storeToRefs(characterStore)
+const { characters, isLoading, activeCharacterId } = storeToRefs(characterStore)
 
 // Fetch on mount
 onMounted(() => {
@@ -23,7 +23,7 @@ const filteredCharacters = computed(() => {
   const query = searchQuery.value.toLowerCase()
   return Array.from(characters.value.values()).filter((char) => {
     const i18n = char.i18n?.find(i => i.language === 'en') || char.i18n?.[0]
-    return i18n?.name.toLowerCase().includes(query) || i18n?.description.toLowerCase().includes(query)
+    return i18n?.name.toLowerCase().includes(query) || i18n?.description?.toLowerCase().includes(query)
   })
 })
 
@@ -50,9 +50,7 @@ function handleDelete(id: string) {
 }
 
 function handleActivate(char: Character) {
-  // TODO: Implement activation logic (global store for active character)
-  // eslint-disable-next-line no-console
-  console.log('Activate', char.id)
+  characterStore.setActive(char.id)
 }
 </script>
 
@@ -83,8 +81,14 @@ function handleActivate(char: Character) {
     </div>
 
     <!-- Content -->
-    <div v-if="characters.size === 0" class="flex flex-1 items-center justify-center">
+    <div v-if="isLoading" class="flex flex-1 items-center justify-center">
       <div class="i-svg-spinners:90-ring-with-bg text-4xl text-primary-500" />
+    </div>
+
+    <div v-else-if="characters.size === 0" class="flex flex-1 items-center justify-center">
+      <p class="text-neutral-500 dark:text-neutral-400">
+        No characters yet. Create one to get started.
+      </p>
     </div>
 
     <div
@@ -107,7 +111,7 @@ function handleActivate(char: Character) {
         v-for="char in filteredCharacters"
         :key="char.id"
         :character="char"
-        :is-active="false"
+        :is-active="activeCharacterId === char.id"
         :is-selected="selectedCharacter?.id === char.id"
         @select="handleEdit(char)"
         @activate="handleActivate(char)"

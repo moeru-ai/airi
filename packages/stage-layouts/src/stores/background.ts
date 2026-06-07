@@ -27,8 +27,10 @@ type PersistedBackgroundItem = Omit<BackgroundItem, 'file'> & {
 type BackgroundPreferenceRecord = Record<string, Pick<BackgroundOption, 'id' | 'blur'>>
 
 export const useBackgroundStore = defineStore('background', () => {
-  // TODO: STORAGE_PREFIX used with multiple less maintainable `localforage` and `key.startsWith(...)` call that creates complexity.
-  const STORAGE_PREFIX = 'background-'
+  const backgroundsDb = localforage.createInstance({
+    name: 'airi',
+    storeName: 'backgrounds',
+  })
   const presets: BackgroundItem[] = [
     {
       id: 'colorful-wave',
@@ -123,7 +125,7 @@ export const useBackgroundStore = defineStore('background', () => {
         file: blob,
       }
 
-      await localforage.setItem<PersistedBackgroundItem>(key, payload)
+      await backgroundsDb.setItem<PersistedBackgroundItem>(key, payload)
     }
     catch (error) {
       console.error('Failed to migrate background data URL to Blob', error)
@@ -178,10 +180,19 @@ export const useBackgroundStore = defineStore('background', () => {
 
     const stored: BackgroundItem[] = []
     try {
-      await localforage.iterate<PersistedBackgroundItem, void>((val, key) => {
-        if (!key.startsWith(STORAGE_PREFIX))
-          return
+      // Migrate existing data from default store
+      const keysToMigrate: string[] = []
+      await localforage.iterate<any, void>((val, key) => {
+        if (key.startsWith('background-'))
+          keysToMigrate.push(key)
+      })
+      for (const key of keysToMigrate) {
+        const val = await localforage.getItem(key)
+        await backgroundsDb.setItem(key, val)
+        await localforage.removeItem(key)
+      }
 
+      await backgroundsDb.iterate<PersistedBackgroundItem, void>((val, key) => {
         const storedBlob = val.file instanceof Blob ? val.file : undefined
         const storedSrc = typeof val.src === 'string' && val.src.length > 0 ? val.src : undefined
 
@@ -229,7 +240,7 @@ export const useBackgroundStore = defineStore('background', () => {
   void loadFromIndexedDb()
 
   async function addOption(option: BackgroundItem): Promise<BackgroundItem> {
-    const normalizedId = option.file ? (option.id.startsWith(STORAGE_PREFIX) ? option.id : `${STORAGE_PREFIX}${option.id}`) : option.id
+    const normalizedId = option.file ? (option.id.startsWith('background-') ? option.id : `background-${option.id}`) : option.id
 
     const hasUploadedFile = option.file instanceof Blob
     const storedBlob = hasUploadedFile ? option.file : undefined
@@ -254,7 +265,7 @@ export const useBackgroundStore = defineStore('background', () => {
     if (existingIndex >= 0) {
       storedOptions.value.splice(existingIndex, 1, normalizedOption)
     }
-    else if (normalizedId.startsWith(STORAGE_PREFIX)) {
+    else if (normalizedId.startsWith('background-')) {
       storedOptions.value = [...storedOptions.value, normalizedOption]
     }
 
@@ -264,13 +275,13 @@ export const useBackgroundStore = defineStore('background', () => {
       const payload: PersistedBackgroundItem = {
         ...normalizedOption,
         // ensure we store under prefix for consistency
-        id: normalizedId.startsWith(STORAGE_PREFIX) ? normalizedId : `${STORAGE_PREFIX}${normalizedId}`,
+        id: normalizedId.startsWith('background-') ? normalizedId : `background-${normalizedId}`,
         src: undefined,
         file: storedBlob,
         removable: true,
       }
       try {
-        await localforage.setItem<PersistedBackgroundItem>(payload.id, payload)
+        await backgroundsDb.setItem<PersistedBackgroundItem>(payload.id, payload)
       }
       catch (error) {
         console.error('Failed to persist background', error)
@@ -289,8 +300,8 @@ export const useBackgroundStore = defineStore('background', () => {
 
     // Remove from localforage
     try {
-      if (option.id.startsWith(STORAGE_PREFIX)) {
-        await localforage.removeItem(option.id)
+      if (option.id.startsWith('background-')) {
+        await backgroundsDb.removeItem(option.id)
       }
     }
     catch (error) {

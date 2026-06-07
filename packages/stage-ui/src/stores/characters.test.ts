@@ -91,6 +91,8 @@ function setupController() {
     removeMutation: createMutation<string, void>(id => service.removeRemote({} as CharactersRemoteClient, id)),
     service,
     updateMutation: createMutation<{ id: string, data: UpdateCharacterPayload }, Character>(vars => service.updateRemote({} as CharactersRemoteClient, vars.id, vars.data)),
+    activeCharacterId: ref(''),
+    characterCredentials: ref<Record<string, string>>({}),
   })
 
   return { controller, listQuery, model, service }
@@ -129,6 +131,53 @@ describe('store characters controller', () => {
 
     expect(controller.characters.value.get('local-character')).toBeDefined()
     expect(controller.mutationError.value).toBe(error)
+  })
+
+  /**
+   * @example
+   * await controller.create(payloadWithKeys)
+   */
+  it('stores capability API keys in characterCredentials during create/update and restores them', async () => {
+    const { controller, service } = setupController()
+
+    // Setup service.createRemote to return a character without API key (simulating server sanitization)
+    vi.mocked(service.createRemote).mockResolvedValueOnce({
+      ...character,
+      id: 'remote-character',
+      characterId: 'airi',
+      capabilities: [
+        {
+          id: 'llm-cap',
+          characterId: 'remote-character',
+          type: 'llm',
+          config: {
+            apiBaseUrl: 'https://api.openai.com/v1',
+            // apiKey is missing from remote response
+          },
+        },
+      ],
+    } as unknown as Character)
+
+    const payloadWithKeys: CreateCharacterPayload = {
+      character: { version: '1', coverUrl: 'cover.png', characterId: 'airi' },
+      capabilities: [
+        {
+          type: 'llm',
+          config: {
+            apiKey: 'sk-test-secret-key',
+            apiBaseUrl: 'https://api.openai.com/v1',
+          },
+        },
+      ],
+      avatarModels: [],
+      i18n: [],
+      prompts: [],
+    }
+
+    const createdChar = await controller.create(payloadWithKeys)
+
+    // The returned character should have the API key restored from local secure storage
+    expect(createdChar.capabilities?.[0]?.config.apiKey).toBe('sk-test-secret-key')
   })
 
   /**

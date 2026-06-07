@@ -13,7 +13,7 @@ export const AvatarModelConfigSchema = object({
 })
 
 export const CharacterCapabilityConfigSchema = object({
-  apiKey: string(),
+  apiKey: optional(string()),
   apiBaseUrl: string(),
   llm: optional(object({
     temperature: number(),
