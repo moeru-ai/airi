@@ -71,12 +71,12 @@ pnpm approve-builds # Select 'electron' and confirm
 ## 🚙 Roadmap
 
 - [x] **Brain**
-  - [x] _Artistry:_ Native image generation pipelines (Replicate, ComfyUI).
-  - [ ] _Proactivity:_ Define triggers for autonomous companion interactions.
+  - [x] _Artistry:_ Native image generation pipelines (Replicate, ComfyUI)
+  - [ ] _Proactivity:_ Define triggers for autonomous companion interactions (heartbeat)
   - [ ] _Multi-tier memory_ based on [openvault](https://github.com/vadash/openvault) design
   - [ ] _Per-character memory scoping_ that works with multiple-character being preset at the stage (witnesses)
 - [x] **Ears**
-  - [ ] Client-side speech recognition & talking detection
+  - [x] Client-side speech recognition & talking detection
 - [x] **Mouth**
   - [x] OpenAI-compatible speech providers with voice discovery
 - [x] **Body**
@@ -102,7 +102,6 @@ pnpm approve-builds # Select 'electron' and confirm
   - [ ] Natural terminal command detection (similar to Warp terminal)
   - [ ] Add providers/mcp/skills via natural language prompts
   - [ ] Native Wayland Support using Ozone platform flags
-    - [ ] PipeWire screen capture
 
 ---
 
