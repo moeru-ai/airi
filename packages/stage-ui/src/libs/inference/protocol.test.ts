@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest'
 
-import { classifyDeviceLossReason, classifyError, InferenceAbortError, isRecoverable, throwIfAborted } from './protocol'
+import { classifyDeviceLossReason, classifyError, createRequestId, InferenceAbortError, isRecoverable, throwIfAborted } from './protocol'
+
+describe('createRequestId', () => {
+  it('should produce ids prefixed with "req_"', () => {
+    expect(createRequestId().startsWith('req_')).toBe(true)
+  })
+
+  it('should produce unique ids across successive calls', () => {
+    const ids = Array.from({ length: 100 }, () => createRequestId())
+    expect(new Set(ids).size).toBe(ids.length)
+  })
+})
 
 describe('classifyError', () => {
   it('should classify OOM errors', () => {

@@ -94,6 +94,8 @@ const providerSourceMetadataById = {
   'together-ai': paidCloud,
   'volcengine': paidCloud,
   'volcengine-coding-plan': paidCloud,
+  'web-rwkv': freeLocal,
+  'whisper-local': freeLocal,
   'xai': paidCloud,
   'zai': paidCloud,
 } satisfies Record<string, ProviderSourceMetadata | false>

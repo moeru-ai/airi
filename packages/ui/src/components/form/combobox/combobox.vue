@@ -16,7 +16,7 @@ import {
   ComboboxTrigger,
   ComboboxViewport,
 } from 'reka-ui'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 interface ComboboxOptionItem<T extends AcceptableValue> {
   label: string
@@ -38,12 +38,28 @@ const props = withDefaults(defineProps<{
   openOnClick?: boolean
   contentMinWidth?: string | number
   contentWidth?: string | number
+  /**
+   * Allow committing the typed text as the value even when it matches no
+   * option. The current term is offered as a synthetic, selectable item and a
+   * non-listed `modelValue` is kept visible. Enable for fields where the source
+   * cannot enumerate every valid value (e.g. a model URL / id for a local
+   * provider that lists only its default).
+   * @default false
+   */
+  allowCustom?: boolean
+  /** Description shown on the synthetic custom-value item. */
+  customOptionDescription?: string
 }>(), {
   disabled: false,
   openOnClick: true,
+  allowCustom: false,
 })
 
 const modelValue = defineModel<T>({ required: false })
+
+// Mirrors the combobox input text so a typed-but-unlisted value can be offered
+// as a custom item (reka tracks the term internally; we surface it for that).
+const searchTerm = ref('')
 
 const normalizedOptions = computed<ComboboxOptionGroupItem<T>[]>(() => {
   if (!props.options.length) {
@@ -63,13 +79,81 @@ const normalizedOptions = computed<ComboboxOptionGroupItem<T>[]>(() => {
   return props.options as ComboboxOptionGroupItem<T>[]
 })
 
-const flattenedOptions = computed<ComboboxOptionItem<T>[]>(() =>
+const listedOptions = computed<ComboboxOptionItem<T>[]>(() =>
   normalizedOptions.value.flatMap(group => group.children ?? []),
+)
+
+/**
+ * The custom-value item to render, or undefined. Sourced from the typed term
+ * (so it can be selected) and falling back to a non-listed `modelValue` (so a
+ * previously-entered custom value stays visible after the term resets).
+ */
+const customOption = computed<ComboboxOptionItem<T> | undefined>(() => {
+  if (!props.allowCustom)
+    return undefined
+
+  const term = searchTerm.value.trim()
+  const current = typeof modelValue.value === 'string' ? modelValue.value.trim() : ''
+  const candidate = term || current
+  if (!candidate)
+    return undefined
+
+  const alreadyListed = listedOptions.value.some(option => String(option.value) === candidate || option.label === candidate)
+  if (alreadyListed)
+    return undefined
+
+  return {
+    label: candidate,
+    // NOTICE:
+    // Custom entry only makes sense for string-valued comboboxes (model ids / URLs).
+    // T is generic for non-custom callers, so the string candidate is cast here.
+    // Removal condition: Combobox constrains T to string when allowCustom is set.
+    value: candidate as unknown as T,
+    description: props.customOptionDescription,
+  }
+})
+
+// Groups actually rendered: listed options plus the custom item (own group).
+const renderOptionGroups = computed<ComboboxOptionGroupItem<T>[]>(() => {
+  if (!customOption.value)
+    return normalizedOptions.value
+  return [...normalizedOptions.value, { groupLabel: '', children: [customOption.value] }]
+})
+
+const flattenedOptions = computed<ComboboxOptionItem<T>[]>(() =>
+  renderOptionGroups.value.flatMap(group => group.children ?? []),
 )
 
 function toDisplayValue(value: T): string {
   const option = flattenedOptions.value.find(option => option.value === value)
-  return option?.label ?? props.placeholder ?? ''
+  if (option)
+    return option.label
+  // A custom value may not be listed yet at display time; show it verbatim.
+  if (props.allowCustom && (typeof value === 'string' || typeof value === 'number'))
+    return String(value)
+  return props.placeholder ?? ''
+}
+
+/**
+ * reka-ui's default filter runs on the textValue strings with whatever is
+ * currently in the ComboboxInput — including the displayValue of the selected
+ * item shown on first open. That hides every option whose label does not contain
+ * the selected label as a substring (e.g. 'base-extra-small' hides 'base-small').
+ *
+ * When the term equals the display label of the current selection the user has
+ * not typed anything new, so we pass all options through and let them see the
+ * full list. Once they type something different, normal substring filtering
+ * applies so the combobox still acts as a live search.
+ */
+function filterOptions(options: string[], term: string): string[] {
+  if (!term)
+    return options
+
+  const displayedValue = modelValue.value != null ? toDisplayValue(modelValue.value) : ''
+  if (term === displayedValue)
+    return options
+
+  return options.filter(option => option.toLowerCase().includes(term.toLowerCase()))
 }
 
 function toCssSize(value?: string | number): string | undefined {
@@ -86,6 +170,7 @@ function toCssSize(value?: string | number): string | undefined {
     v-model="modelValue"
     :disabled="props.disabled"
     :open-on-click="props.openOnClick"
+    :filter-function="filterOptions"
     :class="['relative', 'w-full', 'h-fit']"
   >
     <ComboboxAnchor
@@ -108,6 +193,7 @@ function toCssSize(value?: string | number): string | undefined {
         :disabled="props.disabled"
         :placeholder="props.placeholder"
         :display-value="(val) => toDisplayValue(val)"
+        @input="searchTerm = ($event.target as HTMLInputElement).value"
       />
       <ComboboxTrigger>
         <div
@@ -156,7 +242,7 @@ function toCssSize(value?: string | number): string | undefined {
           </ComboboxEmpty>
 
           <template
-            v-for="(group, groupIndex) in normalizedOptions"
+            v-for="(group, groupIndex) in renderOptionGroups"
             :key="group.groupLabel || `group-${groupIndex}`"
           >
             <ComboboxGroup :class="['overflow-x-hidden']">

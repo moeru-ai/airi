@@ -17,6 +17,8 @@ export default defineConfig({
     'crowdin.yml',
     '**/assets/js/**',
     '**/assets/live2d/models/**',
+    // Bundled RWKV World tokenizer vocab — a large third-party data asset, not source.
+    '**/workers/web-rwkv/*.json',
     'apps/stage-tamagotchi/out/**',
     'apps/stage-tamagotchi/src/bindings/**',
     'apps/stage-tamagotchi-electron/out/**',

@@ -1,26 +1,27 @@
 /**
  * Background removal inference adapter.
  *
- * Offloads Xenova/modnet inference to a Web Worker so the main
- * thread is not blocked during image processing.
- * Uses the unified inference protocol from protocol.ts.
+ * Talks to the Xenova/modnet worker over the Eventa inference contract
+ * (`libs/inference/contract.ts`): load is a server-streaming invoke (progress
+ * then a terminal `ready`); process is a unary invoke whose mask buffer is
+ * transferred back zero-copy. Worker lifecycle and device-loss resilience are
+ * delegated to {@link createGpuWorkerHost}; this module owns the background
+ * removal contract, the mask → alpha compositing, and UI status emission.
  */
 
-import type { AllocationToken } from '../gpu-resource-coordinator'
 import type { ProgressPayload } from '../protocol'
 
+import { defineInvoke, defineStreamInvoke } from '@moeru/eventa'
+import { createContext } from '@moeru/eventa/adapters/webworkers'
 import { defaultPerfTracer } from '@proj-airi/stage-shared'
-import { Mutex } from 'async-mutex'
 
 import { removeInferenceStatus, updateInferenceStatus } from '../../../composables/use-inference-status'
-import { MODEL_IDS, MODEL_NAMES, TIMEOUTS } from '../constants'
-import { getGPUCoordinator, getLoadQueue, MODEL_VRAM_ESTIMATES } from '../coordinator'
-import { LOAD_PRIORITY } from '../load-queue'
-import { createRequestId, InferenceAbortError, throwIfAborted } from '../protocol'
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+import { MODEL_NAMES, TIMEOUTS } from '../constants'
+import { backgroundRemovalLoadEvent, backgroundRemovalProcessEvent, consumeLoadStream, signalWithTimeout } from '../contract'
+import { MODEL_VRAM_ESTIMATES } from '../coordinator'
+import { GPU_PRIORITY } from '../gpu-executor'
+import { createGpuWorkerHost } from '../gpu-worker-host'
+import { InferenceAbortError, throwIfAborted } from '../protocol'
 
 export interface BackgroundRemovalAdapter {
   /**
@@ -48,179 +49,94 @@ export interface BackgroundRemovalAdapter {
 
   /** Current state */
   readonly state: 'idle' | 'loading' | 'ready' | 'processing' | 'error' | 'terminated'
-}
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
+  /** Number of WebGPU device-loss events observed by this adapter */
+  readonly deviceLossCount: number
+}
 
 const LOAD_TIMEOUT = TIMEOUTS.BG_REMOVAL_LOAD
 const PROCESS_TIMEOUT = TIMEOUTS.BG_REMOVAL_PROCESS
 
-// ---------------------------------------------------------------------------
-// Factory
-// ---------------------------------------------------------------------------
+/**
+ * Bind the Eventa invoke clients to a freshly created worker. Returns the
+ * load (server-streaming) and process (unary) callables; the rpc type is
+ * inferred so call sites stay aligned with the library's option shapes.
+ */
+function createBgRemovalRpc(worker: Worker) {
+  const { context } = createContext(worker)
+  return {
+    load: defineStreamInvoke(context, backgroundRemovalLoadEvent),
+    process: defineInvoke(context, backgroundRemovalProcessEvent),
+  }
+}
+
+type BgRemovalRpc = ReturnType<typeof createBgRemovalRpc>
 
 export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
-  let worker: Worker | null = null
-  let state: BackgroundRemovalAdapter['state'] = 'idle'
-  let allocationToken: AllocationToken | null = null
-  let errorListener: ((event: Event) => void) | null = null
-
-  const operationMutex = new Mutex()
-
-  function destroyWorker(): void {
-    if (worker) {
-      if (errorListener)
-        worker.removeEventListener('error', errorListener)
-      errorListener = null
-      worker.terminate()
-      worker = null
-    }
-  }
-
-  function ensureWorker(): Worker {
-    if (!worker) {
-      worker = new Worker(
-        new URL('../../../workers/background-removal/worker.ts', import.meta.url),
-        { type: 'module' },
-      )
-      errorListener = (_event: Event) => {
-        state = 'error'
-        operationMutex.cancel()
-      }
-      worker.addEventListener('error', errorListener)
-    }
-    return worker
-  }
-
-  /**
-   * Wait for a specific message type from the worker, filtered by requestId.
-   * Uses the unified protocol message types. Honors `signal` to cancel the
-   * wait (and notify the worker to discard the result).
-   */
-  function waitForMessage<T = any>(
-    w: Worker,
-    requestId: string,
-    targetType: string,
-    timeout: number,
-    onOther?: (data: any) => void,
-    signal?: AbortSignal,
-  ): Promise<T> {
-    return new Promise((resolve, reject) => {
-      let timeoutId: ReturnType<typeof setTimeout> | undefined
-      let abortListener: (() => void) | null = null
-
-      const cleanup = (): void => {
-        if (timeoutId !== undefined)
-          clearTimeout(timeoutId)
-        w.removeEventListener('message', handler)
-        if (abortListener && signal)
-          signal.removeEventListener('abort', abortListener)
-      }
-
-      const handler = (event: MessageEvent): void => {
-        if (event.data.requestId !== requestId)
-          return
-
-        if (event.data.type === targetType) {
-          cleanup()
-          resolve(event.data as T)
-        }
-        else if (event.data.type === 'error') {
-          cleanup()
-          const code = event.data.payload?.code
-          if (code === 'CANCELLED')
-            reject(new InferenceAbortError(event.data.payload?.message))
-          else
-            reject(new Error(event.data.payload?.message ?? 'Worker error'))
-        }
-        else {
-          onOther?.(event.data)
-        }
-      }
-
-      w.addEventListener('message', handler)
-
-      timeoutId = setTimeout(() => {
-        cleanup()
-        reject(new Error(`Background removal: timeout after ${timeout}ms`))
-      }, timeout)
-
-      if (signal) {
-        if (signal.aborted) {
-          cleanup()
-          w.postMessage({ type: 'cancel', requestId: createRequestId(), targetRequestId: requestId })
-          reject(new InferenceAbortError(typeof signal.reason === 'string' ? signal.reason : undefined))
-          return
-        }
-        abortListener = () => {
-          cleanup()
-          w.postMessage({ type: 'cancel', requestId: createRequestId(), targetRequestId: requestId })
-          const reason = signal.reason
-          reject(reason instanceof Error ? reason : new InferenceAbortError(typeof reason === 'string' ? reason : undefined))
-        }
-        signal.addEventListener('abort', abortListener)
-      }
-    })
-  }
+  const host = createGpuWorkerHost<BgRemovalRpc>({
+    modelId: MODEL_NAMES.BG_REMOVAL,
+    createWorker: () => new Worker(
+      new URL('../../../workers/background-removal/worker.ts', import.meta.url),
+      { type: 'module' },
+    ),
+    createRpc: createBgRemovalRpc,
+    onTerminate: () => removeInferenceStatus(MODEL_NAMES.BG_REMOVAL),
+  })
 
   async function load(
     onProgress?: (p: ProgressPayload) => void,
     options?: { signal?: AbortSignal },
   ): Promise<void> {
+    // NOTICE: Proactive WASM promotion after repeated device-loss events.
+    // Background removal always requests 'webgpu' from the caller today.
+    const requestedDevice = host.promoteDevice('webgpu')
     throwIfAborted(options?.signal)
-    return operationMutex.runExclusive(async () => {
+    return host.runExclusive(async () => {
       throwIfAborted(options?.signal)
-      state = 'loading'
-      updateInferenceStatus(MODEL_NAMES.BG_REMOVAL, { state: 'downloading', device: 'webgpu' })
+      host.setPhase('loading')
+      updateInferenceStatus(MODEL_NAMES.BG_REMOVAL, { state: 'downloading', device: requestedDevice as any })
 
-      return getLoadQueue().enqueue(MODEL_NAMES.BG_REMOVAL, LOAD_PRIORITY.BACKGROUND_REMOVAL, async () => {
+      return host.runOnGpu(MODEL_NAMES.BG_REMOVAL, GPU_PRIORITY.BG_REMOVAL_LOAD, options?.signal, async ({ crashSignal }) => {
         throwIfAborted(options?.signal)
-        const w = ensureWorker()
-        const requestId = createRequestId()
+        const rpc = host.ensure()
 
-        const loadedPromise = waitForMessage(w, requestId, 'model-ready', LOAD_TIMEOUT, (data) => {
-          if (data.type === 'progress' && onProgress) {
-            const payload = data.payload
-            onProgress({
-              phase: payload.phase ?? 'download',
-              percent: payload.percent ?? -1,
-              message: payload.message,
-              file: payload.file,
-              loaded: payload.loaded,
-              total: payload.total,
-            })
-          }
-        }, options?.signal)
+        const stream = rpc.load(
+          { device: requestedDevice },
+          { signal: AbortSignal.any([signalWithTimeout(options?.signal, LOAD_TIMEOUT), crashSignal]) },
+        )
 
-        w.postMessage({ type: 'load-model', requestId, modelId: MODEL_IDS.BG_REMOVAL, device: 'webgpu' })
-
-        let loadedResponse: any
+        let info
         try {
-          loadedResponse = await loadedPromise
+          info = await consumeLoadStream(stream, (progress) => {
+            updateInferenceStatus(MODEL_NAMES.BG_REMOVAL, { progress })
+            onProgress?.(progress)
+          }).catch((error) => {
+            // Normalize caller-driven aborts to InferenceAbortError so callers
+            // see name === 'AbortError'.
+            if (options?.signal?.aborted)
+              throw new InferenceAbortError(typeof options.signal.reason === 'string' ? options.signal.reason : undefined)
+            throw error
+          })
         }
         catch (error) {
-          state = 'error'
+          host.setPhase('error')
           updateInferenceStatus(MODEL_NAMES.BG_REMOVAL, { state: 'error' })
           throw error
         }
 
-        // Capture actual device reported by the worker (may fall back to WASM)
-        const actualDevice = loadedResponse?.device ?? 'webgpu'
+        host.allocate(MODEL_NAMES.BG_REMOVAL, MODEL_VRAM_ESTIMATES[MODEL_NAMES.BG_REMOVAL] ?? 25 * 1024 * 1024)
 
-        // Track GPU memory allocation
-        const coordinator = getGPUCoordinator()
-        if (allocationToken)
-          coordinator.release(allocationToken)
-        allocationToken = coordinator.requestAllocation(
-          MODEL_NAMES.BG_REMOVAL,
-          MODEL_VRAM_ESTIMATES.modnet ?? 25 * 1024 * 1024,
-        )
-
-        state = 'ready'
-        updateInferenceStatus(MODEL_NAMES.BG_REMOVAL, { state: 'ready', device: actualDevice })
-      }, { signal: options?.signal })
+        host.setPhase('ready')
+        updateInferenceStatus(MODEL_NAMES.BG_REMOVAL, { state: 'ready', device: info.device as any })
+        host.recordSuccess()
+      })
+    }).catch((error) => {
+      // Don't route AbortError through handleWorkerError — cancellation is
+      // not a worker failure and shouldn't trigger restart logic.
+      if ((error as Error)?.name === 'AbortError')
+        throw error
+      host.handleWorkerError(error instanceof Error ? error : new Error(String(error)))
+      throw error
     })
   }
 
@@ -229,78 +145,70 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
     options?: { signal?: AbortSignal },
   ): Promise<ImageData> {
     throwIfAborted(options?.signal)
-    return defaultPerfTracer.withMeasure('inference', 'bg-removal-process', () => operationMutex.runExclusive(async () => {
+    // Model-not-loaded is a request-level rejection, not a worker death: sentinel
+    // it so the outer catch rejects without tearing the worker down (mirrors
+    // kokoro/whisper's not-ready guard).
+    const notReadyError = new Error('Model not loaded. Call load() first.')
+
+    return defaultPerfTracer.withMeasure('inference', 'bg-removal-process', () => host.runExclusive(async () => {
       throwIfAborted(options?.signal)
-      if (!worker || (state !== 'ready' && state !== 'processing'))
-        throw new Error('Model not loaded. Call load() first.')
+      if (!host.rpc || host.phase !== 'ready')
+        throw notReadyError
 
-      state = 'processing'
-      const requestId = createRequestId()
+      host.touch()
+      host.setPhase('busy')
 
-      const resultPromise = waitForMessage<any>(
-        worker,
-        requestId,
-        'inference-result',
-        PROCESS_TIMEOUT,
-        undefined,
-        options?.signal,
-      )
-
-      // Send raw pixel data (transferable copy)
       const pixelsCopy = new Uint8ClampedArray(imageData.data)
-      worker.postMessage(
-        {
-          type: 'run-inference',
-          requestId,
-          input: {
-            imageData: pixelsCopy,
-            width: imageData.width,
-            height: imageData.height,
-          },
-        },
-        [pixelsCopy.buffer],
-      )
-
-      let result: any
+      let result
       try {
-        result = await resultPromise
+        // `crashSignal` aborts the in-flight process on worker death so the GPU
+        // slot frees immediately; see {@link GpuWorkerHost.runOnGpu}.
+        result = await host.runOnGpu(MODEL_NAMES.BG_REMOVAL, GPU_PRIORITY.BG_REMOVAL_PROCESS, options?.signal, ({ crashSignal }) => host.rpc!.process(
+          { imageData: pixelsCopy, width: imageData.width, height: imageData.height },
+          { signal: AbortSignal.any([signalWithTimeout(options?.signal, PROCESS_TIMEOUT), crashSignal]), transfer: [pixelsCopy.buffer] },
+        ))
       }
       catch (error) {
-        state = 'ready'
+        // A caller cancellation is request-level, not a worker death: the worker
+        // and loaded model are intact, so restore 'ready' and surface
+        // AbortError. Genuine failures (timeout, worker crash) fall through to
+        // the outer catch -> host.handleWorkerError.
+        if (options?.signal?.aborted) {
+          host.setPhase('ready')
+          throw new InferenceAbortError(typeof options.signal.reason === 'string' ? options.signal.reason : undefined)
+        }
         throw error
       }
 
-      // Apply mask to original image alpha channel
       const output = new ImageData(
         new Uint8ClampedArray(imageData.data),
         imageData.width,
         imageData.height,
       )
-      const maskData = result.output.maskData as Uint8Array
+      const maskData = result.maskData
       for (let i = 0; i < maskData.length; i++) {
         output.data[4 * i + 3] = maskData[i]
       }
 
-      state = 'ready'
+      host.setPhase('ready')
+      host.recordSuccess()
       return output
-    }), { width: imageData.width, height: imageData.height })
-  }
-
-  function terminateAdapter(): void {
-    operationMutex.cancel()
-    destroyWorker()
-    if (allocationToken) {
-      removeInferenceStatus(MODEL_NAMES.BG_REMOVAL)
-      getGPUCoordinator().release(allocationToken)
-      allocationToken = null
-    }
-    state = 'terminated'
+    }), { width: imageData.width, height: imageData.height }).catch((error) => {
+      // notReadyError and caller cancellation (AbortError) are request-level and
+      // must not tear the worker down or trigger restart logic — mirrors load's
+      // guard above.
+      if (error === notReadyError || (error as Error)?.name === 'AbortError')
+        throw error
+      host.handleWorkerError(error instanceof Error ? error : new Error(String(error)))
+      throw error
+    })
   }
 
   return {
     load,
     processImage,
-    terminate: terminateAdapter,
-    get state() { return state },
+    terminate: host.terminate,
+    get state() { return host.phase === 'busy' ? 'processing' : host.phase },
+    get deviceLossCount() { return host.deviceLossCount },
   }
 }

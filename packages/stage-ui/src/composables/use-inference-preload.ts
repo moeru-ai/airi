@@ -2,16 +2,18 @@
  * Inference model preloading composable.
  *
  * Reads the user's provider configuration and preloads local inference
- * models (Kokoro TTS, Whisper ASR) in the background after a delay.
+ * models (Kokoro TTS, RWKV chat) in the background after a delay.
  * Only preloads models whose providers are configured and added by the user.
  *
  * Call `triggerPreload()` once during app initialization (e.g. in App.vue
  * onMounted, after stores are initialized).
  */
 
-import { detectWebGPU, getCachedWebGPUCapabilities } from '@proj-airi/stage-shared/webgpu'
+import { detectWebGPU, getCachedWebGPUCapabilities, isWebGPUSupported } from '@proj-airi/stage-shared/webgpu'
 
 import { getKokoroAdapter } from '../libs/inference/adapters/kokoro'
+import { getWebRwkvAdapter } from '../libs/inference/adapters/web-rwkv'
+import { DEFAULT_WEB_RWKV_MODEL } from '../libs/inference/constants'
 import { useProvidersStore } from '../stores/providers'
 import { getDefaultKokoroModel, KOKORO_MODELS } from '../workers/kokoro/constants'
 import { useModelPreload } from './use-model-preload'
@@ -42,12 +44,9 @@ export function useInferencePreload(options: UseInferencePreloadOptions = {}) {
     // Check if Kokoro TTS is configured
     if (providersStore.configuredProviders['kokoro-local']) {
       const config = providersStore.getProviderConfig('kokoro-local')
-      const capabilities = getCachedWebGPUCapabilities()
-      const hasWebGPU = capabilities?.supported ?? false
-      const fp16Supported = capabilities?.fp16Supported ?? false
 
       // Determine which model to preload
-      const modelId = (config?.model as string) || getDefaultKokoroModel(hasWebGPU, fp16Supported)
+      const modelId = (config?.model as string) || getDefaultKokoroModel(getCachedWebGPUCapabilities())
       const modelDef = KOKORO_MODELS.find(m => m.id === modelId)
 
       if (modelDef) {
@@ -59,6 +58,25 @@ export function useInferencePreload(options: UseInferencePreloadOptions = {}) {
           },
         })
       }
+    }
+
+    // Check if RWKV (local, WebGPU) is configured. web-rwkv is WebGPU-only (no
+    // WASM/CPU fallback), so skip the preload where WebGPU is unavailable rather
+    // than spawning a worker that can only fail. Preloading here loads the model
+    // outside any chat request — so it completes, populates the OPFS weight cache,
+    // and reaches `ready` before the first message instead of loading lazily mid-request.
+    if (providersStore.configuredProviders['web-rwkv'] && await isWebGPUSupported()) {
+      const config = providersStore.getProviderConfig('web-rwkv')
+      const modelUrl = (config?.model as string) || DEFAULT_WEB_RWKV_MODEL
+      const vocab = (config?.vocab as string) || undefined
+
+      tasks.push({
+        modelId: `web-rwkv-${modelUrl}`,
+        loader: async (signal) => {
+          const adapter = await getWebRwkvAdapter()
+          await adapter.loadModel(modelUrl, vocab, { signal })
+        },
+      })
     }
 
     // NOTICE: Whisper preloading is intentionally omitted here.

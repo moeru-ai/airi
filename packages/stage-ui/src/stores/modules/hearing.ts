@@ -102,6 +102,15 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const providersStore = useProvidersStore()
   const { allAudioTranscriptionProvidersMetadata } = storeToRefs(providersStore)
 
+  // NOTICE: Resolve the analytics trackers here at store setup, not lazily inside
+  // transcription(). useAnalytics() calls useI18n(), which throws "Must be called
+  // at the top of a `setup` function" when there is no active component instance —
+  // e.g. when transcription() runs from a setTimeout / async callback (the STT
+  // test page does exactly this). This is the same setup scope where
+  // useProvidersStore() already calls useI18n(), so the trackers are captured
+  // once and stay callable from any later async context.
+  const { trackSttStarted, trackSttSucceeded, trackSttFailed } = useAnalytics()
+
   // State
   const activeTranscriptionProvider = useLocalStorageManualReset('settings/hearing/active-provider', '')
   const activeTranscriptionModel = useLocalStorageManualReset('settings/hearing/active-model', '')
@@ -195,7 +204,6 @@ export const useHearingStore = defineStore('hearing-store', () => {
     const features = providersStore.getTranscriptionFeatures(providerId)
     const streamExecutor = STREAM_TRANSCRIPTION_EXECUTORS[providerId]
 
-    const { trackSttStarted, trackSttSucceeded, trackSttFailed } = useAnalytics()
     const sttStartedAt = performance.now()
     trackSttStarted(providerId)
 

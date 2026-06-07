@@ -113,6 +113,12 @@ export default defineConfig({
         '@proj-airi/drizzle-duckdb-wasm/*',
         '@proj-airi/electron-screen-capture',
 
+        // wasm-bindgen package: esbuild's dep pre-bundle mangles the wasm glue
+        // (Firefox: NS_ERROR_CORRUPTED_CONTENT on the optimized module), which
+        // kills the web-rwkv worker before it registers its load handler. Serve
+        // the original ESM so the `?url` wasm asset resolves correctly.
+        '@cryscan/web-rwkv-wasm',
+
         // Static Assets: Models, Images, etc.
         'src/renderer/public/assets/*',
 

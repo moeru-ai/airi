@@ -157,6 +157,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     getActiveSessionId: () => activeSessionId.value,
     getActiveProvider: () => activeProvider.value,
     getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
+    shouldPrefixUserTimestamp: () => cardStore.promptSettings.prefixUserTimestamp,
     runtimeContextProviders: [
       createMinecraftContext,
     ],

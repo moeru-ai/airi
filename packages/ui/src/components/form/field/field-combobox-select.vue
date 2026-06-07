@@ -18,10 +18,19 @@ const props = withDefaults(defineProps<{
   selectClass?: string | string[]
   contentMinWidth?: string | number
   contentWidth?: string | number
+  /**
+   * Allow committing typed text that matches no option as the value. See
+   * {@link ComboboxSelect} `allowCustom`.
+   * @default false
+   */
+  allowCustom?: boolean
+  /** Description shown on the synthetic custom-value item when `allowCustom` is set. */
+  customOptionDescription?: string
 }>(), {
   layout: 'horizontal',
   disabled: false,
   openOnClick: true,
+  allowCustom: false,
 })
 
 const modelValue = defineModel<string>({ required: false })
@@ -61,6 +70,8 @@ const modelValue = defineModel<string>({ required: false })
           :open-on-click="props.openOnClick"
           :content-min-width="props.contentMinWidth"
           :content-width="props.contentWidth"
+          :allow-custom="props.allowCustom"
+          :custom-option-description="props.customOptionDescription"
           :title="label"
           :class="[
             ...(props.selectClass

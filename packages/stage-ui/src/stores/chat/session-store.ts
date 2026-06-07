@@ -49,7 +49,7 @@ const OUTBOX_MAX_ATTEMPTS = 5
 
 export const useChatSessionStore = defineStore('chat-session', () => {
   const { userId, token: authToken } = storeToRefs(useAuthStore())
-  const { activeCardId, systemPrompt } = storeToRefs(useAiriCardStore())
+  const { activeCardId, systemPrompt, promptSettings } = storeToRefs(useAiriCardStore())
 
   const activeSessionId = ref<string>('')
   const sessionMessages = ref<Record<string, ChatHistoryItem[]>>({})
@@ -100,6 +100,12 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   // I know this nu uh, better than loading all language on rehypeShiki
   const codeBlockSystemPrompt = '- For any programming code block, always specify the programming language that supported on @shikijs/rehype on the rendered markdown, eg. ```python ... ```\n'
   const mathSyntaxSystemPrompt = '- For any math equation, use LaTeX format, eg: $ x^3 $, always escape dollar sign outside math equation\n'
+
+  function buildGuidancePrefix() {
+    if (!promptSettings.value.injectMarkdownGuidance)
+      return ''
+    return codeBlockSystemPrompt + mathSyntaxSystemPrompt
+  }
 
   function getCurrentUserId() {
     return userId.value || 'local'
@@ -164,7 +170,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 
   function generateInitialMessageFromPrompt(prompt: string) {
-    const content = codeBlockSystemPrompt + mathSyntaxSystemPrompt + prompt
+    const content = buildGuidancePrefix() + prompt
 
     return {
       role: 'system',

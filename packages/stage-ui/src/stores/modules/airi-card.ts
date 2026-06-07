@@ -89,6 +89,25 @@ export interface AiriExtension {
       autonomousThreshold?: number
       autonomousTarget?: 'user' | 'assistant'
     }
+
+    /**
+     * Per-card prompt-shaping settings that control which guidance fragments
+     * are prepended to the system message and how user messages are formatted.
+     */
+    prompt?: {
+      /**
+       * Prepend markdown formatting guidance (code-fence language tags + LaTeX
+       * math syntax) to the system message so the model renders correctly in the UI.
+       * @default true
+       */
+      injectMarkdownGuidance?: boolean
+      /**
+       * Prefix each user message with a `[YYYY-MM-DD HH:MM]` timestamp so the
+       * model is aware of when each message was sent.
+       * @default true
+       */
+      prefixUserTimestamp?: boolean
+    }
   }
 
   agents: {
@@ -214,6 +233,10 @@ export const useAiriCardStore = defineStore('airi-card', () => {
         autonomousThreshold: 70,
         autonomousTarget: 'assistant' as const,
       },
+      prompt: {
+        injectMarkdownGuidance: true,
+        prefixUserTimestamp: true,
+      },
     } as const
 
     // Return default if no extension exists
@@ -257,6 +280,10 @@ export const useAiriCardStore = defineStore('airi-card', () => {
           autonomousEnabled: existingExtension.modules?.artistry?.autonomousEnabled ?? (existingExtension as any).artistry?.autonomousEnabled ?? defaultModules.artistry.autonomousEnabled,
           autonomousThreshold: existingExtension.modules?.artistry?.autonomousThreshold ?? (existingExtension as any).artistry?.autonomousThreshold ?? defaultModules.artistry.autonomousThreshold,
           autonomousTarget: existingExtension.modules?.artistry?.autonomousTarget ?? (existingExtension as any).artistry?.autonomousTarget ?? defaultModules.artistry.autonomousTarget,
+        },
+        prompt: {
+          injectMarkdownGuidance: existingExtension.modules?.prompt?.injectMarkdownGuidance ?? defaultModules.prompt.injectMarkdownGuidance,
+          prefixUserTimestamp: existingExtension.modules?.prompt?.prefixUserTimestamp ?? defaultModules.prompt.prefixUserTimestamp,
         },
       },
       agents: existingExtension.agents ?? {},
@@ -458,6 +485,19 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       ].filter(Boolean)
 
       return components.join('\n\n')
+    }),
+
+    /**
+     * Per-card prompt-shaping flags that control which guidance fragments
+     * are injected into the system message. Both default to `true` so
+     * existing cards without the field keep their current behavior.
+     */
+    promptSettings: computed(() => {
+      const prompt = activeCard.value?.extensions?.airi?.modules?.prompt
+      return {
+        injectMarkdownGuidance: prompt?.injectMarkdownGuidance ?? true,
+        prefixUserTimestamp: prompt?.prefixUserTimestamp ?? true,
+      }
     }),
   }
 })

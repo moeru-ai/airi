@@ -9,6 +9,7 @@ import { nextTick, ref } from 'vue'
 const userIdRef = ref<string>('local')
 const activeCardIdRef = ref<string>('default')
 const systemPromptRef = ref<string>('')
+const promptSettingsRef = ref({ injectMarkdownGuidance: true, prefixUserTimestamp: true })
 
 const getIndexMock = vi.fn<(uid: string) => Promise<ChatSessionsIndex | null>>()
 const saveIndexMock = vi.fn<(idx: ChatSessionsIndex) => Promise<void>>()
@@ -36,6 +37,7 @@ vi.mock('../modules/airi-card', () => ({
   useAiriCardStore: () => ({
     activeCardId: activeCardIdRef,
     systemPrompt: systemPromptRef,
+    promptSettings: promptSettingsRef,
   }),
 }))
 

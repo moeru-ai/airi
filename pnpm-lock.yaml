@@ -55,6 +55,9 @@ catalogs:
     '@capacitor/local-notifications':
       specifier: ^8.0.2
       version: 8.0.2
+    '@cryscan/web-rwkv-wasm':
+      specifier: ^0.10.20
+      version: 0.10.20
     '@date-fns/utc':
       specifier: ^2.1.1
       version: 2.1.1
@@ -4105,6 +4108,9 @@ importers:
 
   packages/stage-ui:
     dependencies:
+      '@cryscan/web-rwkv-wasm':
+        specifier: 'catalog:'
+        version: 0.10.20
       '@date-fns/utc':
         specifier: 'catalog:'
         version: 2.1.1
@@ -6453,6 +6459,9 @@ packages:
 
   '@cryptography/aes@0.1.1':
     resolution: {integrity: sha512-PcYz4FDGblO6tM2kSC+VzhhK62vml6k6/YAkiWtyPvrgJVfnDRoHGDtKn5UiaRRUrvUTTocBpvc2rRgTCqxjsg==}
+
+  '@cryscan/web-rwkv-wasm@0.10.20':
+    resolution: {integrity: sha512-mpM+d4EE66tlhghZ+oO8edaZvpznPBbbEBOYOEbzXQhhNNeFiAVSHtz3LeKDORhcUA+vrSfLWddClLwRnPCSEw==}
 
   '@csstools/color-helpers@5.1.0':
     resolution: {integrity: sha512-S11EXWJyy0Mz5SYvRmY8nJYTFFd1LCNV+7cXyAgQtOOuzb4EsgfqDufL+9esx72/eLhsRdGZwaldu/h+E4t4BA==}
@@ -20696,6 +20705,8 @@ snapshots:
       w3c-keyname: 2.2.8
 
   '@cryptography/aes@0.1.1': {}
+
+  '@cryscan/web-rwkv-wasm@0.10.20': {}
 
   '@csstools/color-helpers@5.1.0': {}
 

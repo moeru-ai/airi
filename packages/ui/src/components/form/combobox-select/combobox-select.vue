@@ -16,9 +16,18 @@ const props = withDefaults(defineProps<{
   layout?: 'horizontal' | 'vertical'
   contentMinWidth?: string | number
   contentWidth?: string | number
+  /**
+   * Allow committing typed text that matches no option as the value. See
+   * {@link Combobox} `allowCustom`.
+   * @default false
+   */
+  allowCustom?: boolean
+  /** Description shown on the synthetic custom-value item. */
+  customOptionDescription?: string
 }>(), {
   disabled: false,
   openOnClick: true,
+  allowCustom: false,
 })
 
 const modelValue = defineModel<string | number>({ required: false })
@@ -33,6 +42,8 @@ const modelValue = defineModel<string | number>({ required: false })
     :content-min-width="props.contentMinWidth"
     :content-width="props.contentWidth"
     :placeholder="props.placeholder"
+    :allow-custom="props.allowCustom"
+    :custom-option-description="props.customOptionDescription"
   >
     <template
       v-if="$slots.option"

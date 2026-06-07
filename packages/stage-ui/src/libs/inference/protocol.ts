@@ -1,9 +1,11 @@
 /**
- * Unified inference worker message protocol.
+ * Shared inference primitives: progress/error payload shapes plus the
+ * transport-agnostic helpers (error classification, device-loss detection,
+ * request ids, abort) used by every inference adapter.
  *
- * All inference workers (Kokoro, Whisper, background-removal, etc.)
- * communicate with the main thread through this typed protocol.
- * Each adapter maps its domain-specific messages to/from these types.
+ * The worker ↔ main-thread wire contract itself lives in `contract.ts`
+ * (`@moeru/eventa` invokes). This module deliberately holds only the pieces
+ * that are independent of how messages travel.
  *
  * ## Architecture Note: GPU Device Isolation
  *
@@ -11,15 +13,13 @@
  * WebGPU does not support sharing a GPUDevice across workers — this is a platform
  * limitation, not a design choice. To mitigate the cost of multiple device contexts:
  *
- * - **LoadQueue** ensures only one model loads at a time (prevents bandwidth/VRAM spikes)
+ * - **GPU executor** serializes GPU-bound loads and inference at concurrency 1 (prevents overlapping kernels from exhausting VRAM / crashing a GPU context)
  * - **GPUResourceCoordinator** tracks estimated VRAM across all models and emits
  *   memory pressure events so the app can unload LRU models when nearing budget
  * - Workers auto-detect WebGPU availability and fall back to WASM when unavailable
  */
 
-// ---------------------------------------------------------------------------
-// Progress
-// ---------------------------------------------------------------------------
+import { errorMessageFrom } from '@moeru/std'
 
 export type ProgressPhase = 'download' | 'compile' | 'warmup' | 'inference'
 
@@ -43,10 +43,6 @@ export interface ProgressPayload {
   total?: number
 }
 
-// ---------------------------------------------------------------------------
-// Errors
-// ---------------------------------------------------------------------------
-
 export type InferenceErrorCode
   = | 'OOM'
     | 'TIMEOUT'
@@ -62,106 +58,6 @@ export interface ErrorPayload {
   /** Whether the operation can be retried (e.g. with WASM fallback) */
   recoverable: boolean
 }
-
-// ---------------------------------------------------------------------------
-// Main → Worker requests
-// ---------------------------------------------------------------------------
-
-export interface LoadModelRequest {
-  type: 'load-model'
-  requestId: string
-  modelId: string
-  device: 'webgpu' | 'wasm' | 'cpu'
-  dtype?: string
-  /** Adapter-specific options passed through opaquely */
-  options?: Record<string, unknown>
-}
-
-export interface RunInferenceRequest<TInput = unknown> {
-  type: 'run-inference'
-  requestId: string
-  input: TInput
-}
-
-export interface UnloadModelRequest {
-  type: 'unload-model'
-  requestId: string
-}
-
-/**
- * Cancel an in-flight or queued request. The worker should stop any
- * ongoing work tied to `targetRequestId` and must NOT send a normal
- * `model-ready` / `inference-result` response for that request; instead
- * it should send an `ErrorResponse` with code `'CANCELLED'` so the
- * adapter can reject the caller's promise deterministically.
- *
- * NOTE: Cancellation is best-effort. We cannot interrupt a synchronous
- * transformers.js / ONNX Runtime call that is already executing on the
- * worker thread. What the cancel signal does guarantee is that the
- * adapter stops waiting and the worker discards the result when it
- * eventually arrives.
- */
-export interface CancelRequest {
-  type: 'cancel'
-  requestId: string
-  /** The requestId of the operation to cancel */
-  targetRequestId: string
-}
-
-export type WorkerInboundMessage<TInput = unknown>
-  = | LoadModelRequest
-    | RunInferenceRequest<TInput>
-    | UnloadModelRequest
-    | CancelRequest
-
-// ---------------------------------------------------------------------------
-// Worker → Main responses
-// ---------------------------------------------------------------------------
-
-export interface ModelReadyResponse {
-  type: 'model-ready'
-  requestId: string
-  modelId: string
-  device: 'webgpu' | 'wasm' | 'cpu'
-  /** Domain-specific metadata (e.g. Kokoro voices) */
-  metadata?: Record<string, unknown>
-}
-
-export interface InferenceResultResponse<TOutput = unknown> {
-  type: 'inference-result'
-  requestId: string
-  output: TOutput
-  /** Worker-side timing in milliseconds */
-  durationMs?: number
-}
-
-export interface ProgressResponse {
-  type: 'progress'
-  requestId: string
-  payload: ProgressPayload
-}
-
-export interface ErrorResponse {
-  type: 'error'
-  requestId: string
-  payload: ErrorPayload
-}
-
-export interface ModelUnloadedResponse {
-  type: 'model-unloaded'
-  requestId: string
-}
-
-export type WorkerOutboundMessage<TOutput = unknown>
-  = | ModelReadyResponse
-    | InferenceResultResponse<TOutput>
-    | ProgressResponse
-    | ErrorResponse
-    | ModelUnloadedResponse
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 let counter = 0
 
@@ -199,8 +95,7 @@ const DEVICE_LOSS_PATTERNS = [
  * determines whether the code is `LOAD_FAILED` or `INFERENCE_FAILED`.
  */
 export function classifyError(error: unknown, phase?: 'load' | 'inference'): InferenceErrorCode {
-  const msg = error instanceof Error ? error.message : String(error)
-  const lower = msg.toLowerCase()
+  const lower = (errorMessageFrom(error) ?? String(error)).toLowerCase()
 
   if (lower.includes('out of memory') || lower.includes('allocation failed'))
     return 'OOM'
@@ -235,8 +130,7 @@ export function classifyDeviceLossReason(error: unknown): DeviceLossReason {
     return 'unknown'
   }
 
-  const msg = error instanceof Error ? error.message : String(error)
-  const lower = msg.toLowerCase()
+  const lower = (errorMessageFrom(error) ?? String(error)).toLowerCase()
   if (lower.includes('destroyed'))
     return 'destroyed'
   return 'unknown'
@@ -261,6 +155,27 @@ export class InferenceAbortError extends Error {
   readonly code = 'CANCELLED' as const
 
   constructor(message = 'The operation was aborted') {
+    super(message)
+  }
+}
+
+/**
+ * Error thrown when a streaming inference op produces no output for its
+ * inactivity window — the worker is presumed wedged.
+ *
+ * Deliberately NOT an `AbortError`: adapters exempt caller-driven aborts
+ * (`name === 'AbortError'`) from worker-restart logic, but a wedged-worker
+ * timeout is exactly the case that SHOULD restart. The distinct
+ * `name === 'TimeoutError'` lets the outer catch route a timeout through
+ * `handleWorkerError` while a caller cancellation flows past it untouched.
+ * The `'timeout'` in the message makes {@link classifyError} resolve `TIMEOUT`
+ * (not `DEVICE_LOST`), so a wedge does not pollute device-loss accounting.
+ */
+export class InferenceTimeoutError extends Error {
+  override readonly name = 'TimeoutError'
+  readonly code = 'TIMEOUT' as const
+
+  constructor(message = 'inference: stream idle timeout (worker presumed wedged)') {
     super(message)
   }
 }
