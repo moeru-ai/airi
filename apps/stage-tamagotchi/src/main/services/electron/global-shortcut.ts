@@ -24,6 +24,11 @@ export interface RegisterWindowParams {
   window: BrowserWindow
 }
 
+export interface RegisterMainShortcutParams {
+  binding: ShortcutBinding
+  onTriggered: () => void
+}
+
 export interface GlobalShortcutService {
   /**
    * Register a per-window eventa context. Invoke handlers are installed
@@ -32,10 +37,22 @@ export interface GlobalShortcutService {
    * `window.on('closed')`.
    */
   registerWindow: (params: RegisterWindowParams) => void
+  /**
+   * Register a main-process-owned global shortcut that invokes
+   * `onTriggered` directly instead of broadcasting to renderers.
+   *
+   * Use when a fixed shortcut must stay alive regardless of which
+   * renderer is loaded (e.g. Spotlight). Main-owned bindings are
+   * skipped by the renderer-facing `unregisterAll`; only `dispose`
+   * releases them.
+   */
+  registerMainShortcut: (params: RegisterMainShortcutParams) => ShortcutRegistrationResult
   dispose: () => void
 }
 
-type ActiveBinding = { binding: ShortcutBinding } & (
+type ShortcutOwner = 'renderer' | 'main'
+
+type ActiveBinding = { binding: ShortcutBinding, owner: ShortcutOwner } & (
   | { driver: 'electron', electronAccelerator: string }
   | { driver: 'uiohook' }
 )
@@ -75,15 +92,30 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
       return { id: binding.id, ok: false, reason: ShortcutFailureReasons.Conflict }
     }
 
-    active.set(binding.id, { binding, driver: 'electron', electronAccelerator })
+    active.set(binding.id, { binding, owner: 'renderer', driver: 'electron', electronAccelerator })
     return { id: binding.id, ok: true }
   }
 
   function tryRegisterUiohook(binding: ShortcutBinding): ShortcutRegistrationResult {
     const result = uiohookDriver.tryRegister(binding)
     if (result.ok)
-      active.set(binding.id, { binding, driver: 'uiohook' })
+      active.set(binding.id, { binding, owner: 'renderer', driver: 'uiohook' })
     return result
+  }
+
+  // Main-owned shortcuts bypass the renderer broadcast and call `onTriggered`
+  // directly, so a fixed entry like Spotlight does not depend on any renderer
+  // being loaded to register or receive its trigger.
+  function registerMainShortcut({ binding, onTriggered }: RegisterMainShortcutParams): ShortcutRegistrationResult {
+    if (active.has(binding.id))
+      return { id: binding.id, ok: false, reason: ShortcutFailureReasons.DuplicateId }
+
+    const electronAccelerator = formatElectronAccelerator(binding.accelerator)
+    if (!globalShortcut.register(electronAccelerator, onTriggered))
+      return { id: binding.id, ok: false, reason: ShortcutFailureReasons.Conflict }
+
+    active.set(binding.id, { binding, owner: 'main', driver: 'electron', electronAccelerator })
+    return { id: binding.id, ok: true }
   }
 
   function tryRegister(binding: ShortcutBinding): ShortcutRegistrationResult {
@@ -115,19 +147,26 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
     active.delete(id)
   }
 
-  function unregisterAll(): void {
+  // `includeMainOwned` stays false for the renderer-facing invoke so a renderer
+  // reset cannot drop main-owned shortcuts (e.g. Spotlight); `dispose` passes
+  // true to release everything on shutdown.
+  function unregisterAll(includeMainOwned = false): void {
     for (const [id, entry] of active) {
-      if (entry.driver !== 'electron')
+      if (!includeMainOwned && entry.owner === 'main')
         continue
-      try {
-        globalShortcut.unregister(entry.electronAccelerator)
+      if (entry.driver === 'electron') {
+        try {
+          globalShortcut.unregister(entry.electronAccelerator)
+        }
+        catch (error) {
+          log.withError(error).warn(`Failed to unregister accelerator for "${id}"`)
+        }
       }
-      catch (error) {
-        log.withError(error).warn(`Failed to unregister accelerator for "${id}"`)
+      else {
+        uiohookDriver.unregisterById(id)
       }
+      active.delete(id)
     }
-    uiohookDriver.unregisterAll()
-    active.clear()
   }
 
   const registerWindow: GlobalShortcutService['registerWindow'] = ({ context, window }) => {
@@ -159,12 +198,12 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
   }
 
   const dispose: GlobalShortcutService['dispose'] = () => {
-    unregisterAll()
+    unregisterAll(true)
     uiohookDriver.dispose()
     contexts.clear()
   }
 
   onAppBeforeQuit(() => dispose())
 
-  return { registerWindow, dispose }
+  return { registerWindow, registerMainShortcut, dispose }
 }
