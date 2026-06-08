@@ -68,13 +68,17 @@ export function mergeLoadedSessionMessages(storedMessages: ChatHistoryItem[], cu
   const rest = restBase.concat(extraMessages)
 
   // Order the body by createdAt. It is optional (some error rows lack one), so
-  // carry the previous key forward instead of coercing missing to 0, which would
-  // jump keyless rows to the front and persist that as a reorder. The index
-  // tiebreak keeps equal-createdAt pairs in arrival order deterministically.
+  // carry the previous key forward for a keyless row rather than coercing it to
+  // 0, which would jump every keyless row to the front and persist that as a
+  // reorder. Seed from 0 (not the pinned system head's createdAt, which can be
+  // regenerated with a fresh timestamp and would otherwise bleed into body
+  // order). Reject non-finite keys: NaN is `typeof 'number'`, so one bad row
+  // would otherwise poison every later key. The index tiebreak keeps
+  // equal-createdAt pairs in arrival order deterministically.
   const sortKeys: number[] = []
-  let carry = head[0]?.createdAt ?? 0
+  let carry = 0
   for (const message of rest) {
-    if (typeof message.createdAt === 'number')
+    if (typeof message.createdAt === 'number' && Number.isFinite(message.createdAt))
       carry = message.createdAt
     sortKeys.push(carry)
   }

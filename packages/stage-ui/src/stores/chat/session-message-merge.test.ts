@@ -156,6 +156,25 @@ describe('mergeLoadedSessionMessages', () => {
     expect(mergeLoadedSessionMessages(storedMessages, currentMessages)).toEqual([system, reply, errorRow, laterUser])
   })
 
+  it('does not let a regenerated system timestamp push a leading keyless row to the tail', () => {
+    // The pinned system message is regenerated with a fresh createdAt when the
+    // prompt changes, so its key can exceed every body row's. A keyless row at
+    // the head of the body must not inherit that future timestamp (seeding the
+    // carry from the system key would sort it AFTER older keyed rows). The carry
+    // seeds from 0 instead, keeping the keyless row in its on-disk position.
+    const system: ChatHistoryItem = { role: 'system', content: 'system', createdAt: 9999, id: 'system' }
+    const errorRow: ChatHistoryItem = { role: 'error', content: 'a failure', id: 'err-lead' }
+    const olderUser: ChatHistoryItem = { role: 'user', content: 'older prompt', createdAt: 100, id: 'u-old' }
+    const laterUser: ChatHistoryItem = { role: 'user', content: 'later prompt', createdAt: 200, id: 'u-later' }
+
+    // Disk: the keyless error row is the first body message, ahead of an older keyed turn.
+    const storedMessages: ChatHistoryItem[] = [system, errorRow, olderUser]
+    // Memory adds a newer message, forcing the merge to rebuild + sort.
+    const currentMessages: ChatHistoryItem[] = [system, errorRow, olderUser, laterUser]
+
+    expect(mergeLoadedSessionMessages(storedMessages, currentMessages)).toEqual([system, errorRow, olderUser, laterUser])
+  })
+
   it('uses flattened array text for deduplication fingerprints', () => {
     const storedMessages: ChatHistoryItem[] = [
       { role: 'system', content: 'system', createdAt: 1, id: 'system' },
