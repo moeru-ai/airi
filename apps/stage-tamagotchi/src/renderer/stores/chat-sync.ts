@@ -1,6 +1,5 @@
 import type { WebSocketEventInputs } from '@proj-airi/server-sdk'
-import type { SendOutcome } from '@proj-airi/stage-ui/stores/chat'
-import type { ChatHistoryItem, StreamingAssistantMessage } from '@proj-airi/stage-ui/types/chat'
+import type { ChatHistoryItem, SendOutcome, StreamingAssistantMessage } from '@proj-airi/stage-ui/types/chat'
 import type { ChatSessionMeta } from '@proj-airi/stage-ui/types/chat-session'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 
