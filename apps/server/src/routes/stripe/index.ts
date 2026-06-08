@@ -114,7 +114,7 @@ export function createStripeRoutes(
       if (!customer)
         throw createBadRequestError('No billing account found', 'NO_CUSTOMER')
 
-      const portalReturnBase = resolveCheckoutRedirectBase(c.req.raw, env.ADDITIONAL_TRUSTED_ORIGINS, env.WEB_APP_URL)
+      const portalReturnBase = resolveCheckoutRedirectBase(c.req.raw, env.ADDITIONAL_TRUSTED_ORIGIN, env.WEB_APP_URL)
 
       const portalSession = await stripe.billingPortal.sessions.create({
         customer: customer.stripeCustomerId,

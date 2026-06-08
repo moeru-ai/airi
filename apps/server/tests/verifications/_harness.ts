@@ -171,7 +171,7 @@ export async function startVerificationContext() {
   const env: any = {
     API_SERVER_URL: 'http://localhost:3000',
     OTEL_SERVICE_NAME: 'airi-server-test',
-    ADDITIONAL_TRUSTED_ORIGINS: '',
+    ADDITIONAL_TRUSTED_ORIGIN: '',
     HOST: '127.0.0.1',
     PORT: 0,
   }

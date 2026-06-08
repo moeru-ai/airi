@@ -71,7 +71,7 @@ export function createCheckoutOperation(deps: CheckoutOperationDeps) {
     const customer = await deps.stripeService.getCustomerByUserId(input.user.id)
     const stripeCustomerId = customer?.stripeCustomerId
 
-    const redirectBase = resolveCheckoutRedirectBase(input.request, deps.env.ADDITIONAL_TRUSTED_ORIGINS, deps.env.WEB_APP_URL)
+    const redirectBase = resolveCheckoutRedirectBase(input.request, deps.env.ADDITIONAL_TRUSTED_ORIGIN, deps.env.WEB_APP_URL)
 
     const paymentMethods = await deps.configKV.getOptional('STRIPE_PAYMENT_METHODS')
     const paymentMethodOptions = await deps.configKV.getOptional('STRIPE_PAYMENT_METHOD_OPTIONS') ?? {}

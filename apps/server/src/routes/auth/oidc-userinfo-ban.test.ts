@@ -41,7 +41,7 @@ async function buildRoutes(currentUser: SessionUser) {
       api: { getSession: vi.fn(async () => sessionFor(currentUser)) },
     } as any,
     db: {} as any, // userinfo path never queries the DB
-    env: { API_SERVER_URL: 'http://localhost:3000', ADDITIONAL_TRUSTED_ORIGINS: [] } as any,
+    env: { API_SERVER_URL: 'http://localhost:3000', ADDITIONAL_TRUSTED_ORIGIN: '' } as any,
     configKV: createConfigKV(),
     rateLimitMetrics: null,
   }

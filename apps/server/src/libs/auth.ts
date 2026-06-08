@@ -93,13 +93,13 @@ function buildWebRedirectUris(env: Env): string[] {
   return [...uris]
 }
 
-function buildTrustedWebRedirectUri(redirectUri: string, additionalTrustedOrigins: readonly string[]): string | null {
+function buildTrustedWebRedirectUri(redirectUri: string, additionalTrustedOrigin: string): string | null {
   try {
     const parsed = new URL(redirectUri)
     if (parsed.pathname !== '/auth/callback')
       return null
 
-    const trustedOrigin = getTrustedOrigin(parsed.origin, additionalTrustedOrigins)
+    const trustedOrigin = getTrustedOrigin(parsed.origin, additionalTrustedOrigin)
     if (!trustedOrigin)
       return null
 
@@ -206,7 +206,7 @@ export function getTrustedOIDCClientIds(): string[] {
 export async function ensureDynamicFirstPartyRedirectUri(
   db: Database,
   request: Request,
-  additionalTrustedOrigins: readonly string[],
+  additionalTrustedOrigin: string,
 ): Promise<void> {
   const url = new URL(request.url)
   const clientId = url.searchParams.get('client_id')
@@ -219,7 +219,7 @@ export async function ensureDynamicFirstPartyRedirectUri(
 
   switch (clientId) {
     case OIDC_CLIENT_ID_WEB:
-      normalizedRedirectUri = buildTrustedWebRedirectUri(redirectUri, additionalTrustedOrigins)
+      normalizedRedirectUri = buildTrustedWebRedirectUri(redirectUri, additionalTrustedOrigin)
       break
     case OIDC_CLIENT_ID_ELECTRON:
       normalizedRedirectUri = buildTrustedElectronRedirectUri(request, redirectUri)
