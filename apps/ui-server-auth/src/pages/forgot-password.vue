@@ -4,6 +4,7 @@ import { Button, FieldInput } from '@proj-airi/ui'
 import { reactive, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { buildCurrentOriginAuthUiUrl } from '../modules/auth-ui-base'
 import { describeAuthError, requestPasswordReset } from '../modules/email-password'
 import { getServerAuthBootstrapContext } from '../modules/server-auth-context'
 
@@ -14,7 +15,7 @@ const apiServerUrl = bootstrapContext?.apiServerUrl ?? SERVER_URL
 
 // Reset link must redirect back into ui-server-auth itself. Use the current
 // origin so dev (localhost) and prod (auth.airi…) both resolve correctly.
-const resetRedirect = `${window.location.origin}/auth/reset-password`
+const resetRedirect = buildCurrentOriginAuthUiUrl('/reset-password')
 
 const form = reactive({ email: '' })
 const errorMessage = shallowRef<string | null>(null)

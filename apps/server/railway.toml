@@ -4,7 +4,6 @@ dockerfilePath = "/apps/server/production/railway/Dockerfile"
 watchPatterns = [
   "apps/server/**",
   "apps/ui-admin/**",
-  "apps/ui-server-auth/**",
   "packages/**",
   "pnpm-lock.yaml"
 ]

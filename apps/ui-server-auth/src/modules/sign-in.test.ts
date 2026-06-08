@@ -5,7 +5,7 @@ import { createServerSignInContext, requestSocialSignInRedirect } from './sign-i
 describe('ui-server-auth sign-in flow helpers', () => {
   it('rebuilds the OIDC callback URL without provider and prompt query params', () => {
     expect(createServerSignInContext(
-      'https://auth.airi.test/sign-in?client_id=airi-stage-web&provider=github&prompt=login&response_type=code&scope=openid',
+      'https://auth.airi.test/sign-in?api_server_url=https%3A%2F%2Fairi-server-dev.up.railway.app&client_id=airi-stage-web&provider=github&prompt=login&response_type=code&scope=openid',
       'https://api.airi.test',
     )).toEqual({
       callbackURL: 'https://api.airi.test/api/auth/oauth2/authorize?client_id=airi-stage-web&response_type=code&scope=openid',
@@ -54,6 +54,24 @@ describe('ui-server-auth sign-in flow helpers', () => {
       'https://api.airi.test',
     )).toEqual({
       callbackURL: '/',
+      requestedProvider: null,
+    })
+  })
+
+  it('normalizes standalone UI redirects under the deployed /ui base', () => {
+    expect(createServerSignInContext(
+      'https://auth.airi.test/ui/sign-in?redirect=%2Fprofile%3Ftab%3Dsecurity',
+      'https://api.airi.test',
+    )).toEqual({
+      callbackURL: 'https://auth.airi.test/ui/profile?tab=security',
+      requestedProvider: null,
+    })
+
+    expect(createServerSignInContext(
+      'https://auth.airi.test/ui/sign-in?redirect=%2Fauth%2Freset-password%3Ftoken%3Dold-link',
+      'https://api.airi.test',
+    )).toEqual({
+      callbackURL: 'https://auth.airi.test/ui/reset-password?token=old-link',
       requestedProvider: null,
     })
   })
