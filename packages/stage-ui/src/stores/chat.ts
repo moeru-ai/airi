@@ -41,7 +41,7 @@ function isTextDelta(event: StreamEvent): event is Extract<StreamEvent, { type: 
   return event.type === 'text-delta'
 }
 
-export type { QueuedSendSnapshot, ChatOrchestratorSendOptions as SendOptions } from '@proj-airi/core-agent'
+export type { QueuedSendSnapshot, ChatOrchestratorSendOptions as SendOptions, SendOutcome } from '@proj-airi/core-agent'
 
 export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const llmStore = useLLM()
@@ -137,6 +137,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       ensureSession: sessionId => chatSession.ensureSession(sessionId),
       getSessionMessages: sessionId => chatSession.getSessionMessages(sessionId).map(message => toRaw(message)),
       appendSessionMessage: (sessionId, message) => chatSession.appendSessionMessage(sessionId, message),
+      removeSessionMessage: (sessionId, messageId) => chatSession.removeSessionMessage(sessionId, messageId),
       getSessionGeneration: sessionId => chatSession.getSessionGeneration(sessionId),
     },
     context: {
@@ -189,15 +190,6 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     }),
     onLifecycle: record => contextObservability.recordLifecycle(record),
     onPromptProjection: payload => contextObservability.capturePromptProjection(payload),
-    onUserMessageAppended: ({ sessionId, message, messageText }) => {
-      if (isCloudSyncableMessage(message)) {
-        void chatSession.pushMessageToCloud(sessionId, {
-          id: message.id,
-          role: 'user',
-          content: messageText,
-        })
-      }
-    },
     onAssistantMessageAppended: ({ sessionId, message }) => {
       if (isCloudSyncableMessage(message) && message.id) {
         void chatSession.pushMessageToCloud(sessionId, {
@@ -207,7 +199,17 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         })
       }
     },
-    onUserTurnReady: ({ messageText, sessionMessages }) => {
+    onUserTurnCommitted: ({ sessionId, message, messageText, sessionMessages }) => {
+      // Deferred to commit so a retracted turn never reaches the cloud or kicks
+      // off an autonomous artist task on text the user took back.
+      if (isCloudSyncableMessage(message)) {
+        void chatSession.pushMessageToCloud(sessionId, {
+          id: message.id,
+          role: 'user',
+          content: messageText,
+        })
+      }
+
       const autonomousTarget = cardStore.activeCard?.extensions?.airi?.modules?.artistry?.autonomousTarget || 'user'
       if (autonomousTarget === 'user')
         void artistryAutonomousStore.runArtistTask(messageText, toProviderHistory(sessionMessages))

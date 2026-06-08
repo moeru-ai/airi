@@ -1,4 +1,5 @@
 import type { WebSocketEventInputs } from '@proj-airi/server-sdk'
+import type { SendOutcome } from '@proj-airi/stage-ui/stores/chat'
 import type { ChatHistoryItem, StreamingAssistantMessage } from '@proj-airi/stage-ui/types/chat'
 import type { ChatSessionMeta } from '@proj-airi/stage-ui/types/chat-session'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
@@ -45,6 +46,8 @@ interface IngestCommandPayload {
   input?: WebSocketEventInputs
   sessionId?: string
   toolset?: ToolsetId
+  /** Forwarded to the orchestrator; see ChatOrchestratorSendOptions.rescuable. */
+  rescuable?: boolean
 }
 
 interface SpotlightIngestPayload {
@@ -85,7 +88,7 @@ type ChatSyncMessage
     | ChatCommandMessage<'cleanup', { sessionId?: string }>
     | ChatCommandMessage<'delete-message', { sessionId?: string, messageId?: string, index?: number }>
     | ChatCommandMessage<'stop', { sessionId?: string }>
-    | ({ type: 'response', requestId: string, authorityId: string } & ChatResponsePayload)
+    | ({ type: 'response', requestId: string, authorityId: string, outcome?: SendOutcome } & ChatResponsePayload)
 
 interface PendingRequest {
   resolve: (result?: unknown) => void
@@ -321,7 +324,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     return assistant ? extractMessageText(assistant) : ''
   }
 
-  async function executeIngest(payload: IngestCommandPayload): Promise<void> {
+  async function executeIngest(payload: IngestCommandPayload): Promise<SendOutcome> {
     const providerId = activeProvider.value
     const modelId = activeModel.value
     if (!providerId || !modelId) {
@@ -333,12 +336,13 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       throw new Error(`Failed to resolve chat provider "${providerId}"`)
     }
 
-    await chatOrchestrator.ingest(payload.text, {
+    return await chatOrchestrator.ingest(payload.text, {
       model: modelId,
       chatProvider,
       attachments: payload.attachments,
       input: payload.input,
       tools: resolveTools(payload.toolset),
+      rescuable: payload.rescuable,
     }, payload.sessionId)
   }
 
@@ -425,7 +429,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     if (mode.value !== 'authority')
       return
 
-    const respond = (response: ChatResponsePayload) => {
+    const respond = (response: ChatResponsePayload & { outcome?: SendOutcome }) => {
       post({
         type: 'response',
         requestId: message.requestId,
@@ -435,9 +439,11 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     }
 
     try {
+      // Only `ingest` produces an outcome the composer can act on.
+      let outcome: SendOutcome | undefined
       switch (message.command) {
         case 'ingest':
-          await executeIngest(message.payload)
+          outcome = await executeIngest(message.payload)
           break
         case 'spotlight-ingest':
           respond({ ok: true, result: await executeSpotlightIngest(message.payload) })
@@ -456,7 +462,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
           break
       }
 
-      respond({ ok: true })
+      respond({ ok: true, outcome })
     }
     catch (error) {
       const errorMessage = errorMessageFrom(error) ?? 'Unknown chat sync command failure'
@@ -494,7 +500,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       return
 
     if (message.ok) {
-      pending.resolve('result' in message ? message.result : undefined)
+      pending.resolve('result' in message ? message.result : message.outcome)
       return
     }
 
@@ -602,13 +608,12 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     })
   }
 
-  async function requestIngest(payload: IngestCommandPayload) {
+  async function requestIngest(payload: IngestCommandPayload): Promise<SendOutcome | undefined> {
     if (mode.value === 'authority') {
-      await executeIngest(payload)
-      return
+      return await executeIngest(payload)
     }
 
-    return await dispatch<void>({
+    return await dispatch<SendOutcome>({
       type: 'command',
       requestId: createRequestId(),
       senderId: instanceId,
@@ -681,7 +686,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       return
     }
 
-    return await dispatchCommand({
+    return await dispatch<void>({
       type: 'command',
       requestId: createRequestId(),
       senderId: instanceId,

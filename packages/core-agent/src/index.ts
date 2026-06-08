@@ -21,6 +21,7 @@ export type {
   ChatOrchestratorSendOptions,
   ChatOrchestratorSessionPort,
   QueuedSendSnapshot,
+  SendOutcome,
 } from './runtime/chat-orchestrator-runtime'
 export { createChatOrchestratorRuntime } from './runtime/chat-orchestrator-runtime'
 export type { ContextHistoryEntry, ContextIngestResult, ContextRegistry } from './runtime/context-registry'

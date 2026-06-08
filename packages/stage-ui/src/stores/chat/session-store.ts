@@ -273,6 +273,20 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 
   /**
+   * Remove a message by id, persisting and broadcasting the change. No-op when
+   * the session or message is absent so a redundant retract skips re-persist.
+   */
+  function removeSessionMessage(sessionId: string, messageId: string) {
+    const current = sessionMessages.value[sessionId]
+    if (!current)
+      return
+    const next = current.filter(message => message.id !== messageId)
+    if (next.length === current.length)
+      return
+    replaceSessionMessages(sessionId, next)
+  }
+
+  /**
    * Hydrate a single session's messages from IDB into memory. Idempotent —
    * subsequent calls for the same id are no-ops.
    *
@@ -1416,6 +1430,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     ensureSession,
     setSessionMessages,
     appendSessionMessage,
+    removeSessionMessage,
     persistSessionMessages,
     getSessionMessages,
     sessionMessages,

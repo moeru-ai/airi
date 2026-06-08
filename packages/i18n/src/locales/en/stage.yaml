@@ -17,6 +17,10 @@ chat:
     new-chat-fallback: New chat
     delete: Delete conversation
 message: Say something...
+unsent-draft:
+  label: 'Unsent: {text}'
+  restore: Restore
+  discard: Discard
 send-mode:
   title: Send key
   enter: Enter

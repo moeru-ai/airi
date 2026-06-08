@@ -441,7 +441,7 @@ describe('chat orchestrator contract', () => {
 
     // Cancellation is not a failure: the facade promise resolves so the UI
     // send-failure path never fires. The cancelled send never streams.
-    await expect(secondSend).resolves.toBeUndefined()
+    await expect(secondSend).resolves.toEqual({ rolledBack: false })
     expect(llmStreamMock).toHaveBeenCalledTimes(1)
     await firstSend
   })
@@ -504,7 +504,7 @@ describe('chat orchestrator contract', () => {
     store.cancelPendingSends('session-1')
     releaseFirstSend?.()
 
-    await expect(secondSend).resolves.toBeUndefined()
+    await expect(secondSend).resolves.toEqual({ rolledBack: false })
     await firstSend
   })
 
@@ -537,7 +537,7 @@ describe('chat orchestrator contract', () => {
 
     await firstSend
     // A stale queued send is discarded, not failed: it resolves and never streams.
-    await expect(secondSend).resolves.toBeUndefined()
+    await expect(secondSend).resolves.toEqual({ rolledBack: false })
     expect(llmStreamMock).toHaveBeenCalledTimes(1)
   })
 

@@ -60,6 +60,22 @@ export interface ChatOrchestratorSendOptions {
   tools?: StreamOptions['tools']
   /** Original transport input metadata used by bridge/devtools observers. */
   input?: ChatStreamEventContext['input']
+  /**
+   * Set only by the composer, which restores the typed text on `rolledBack`.
+   * When unset, a stop before any output keeps the user turn rather than
+   * deleting text no caller would catch (retry, voice, transport).
+   * @default false
+   */
+  rescuable?: boolean
+}
+
+/**
+ * Result of one send, letting the caller react to a retracted turn (e.g. rescue
+ * the typed text back into the composer instead of losing it).
+ */
+export interface SendOutcome {
+  /** True when the user turn was retracted: stopped before any assistant output. */
+  rolledBack: boolean
 }
 
 interface QueuedSend {
@@ -68,6 +84,8 @@ interface QueuedSend {
   generation: number
   sessionId: string
   cancelled?: boolean
+  /** Mutated by `performSend` (in its `finally`) and handed back to the caller. */
+  outcome: SendOutcome
   deferred: {
     resolve: () => void
     reject: (error: unknown) => void
@@ -102,6 +120,8 @@ export interface ChatOrchestratorSessionPort {
   getSessionMessages: (sessionId: string) => ChatHistoryItem[]
   /** Appends a finalized user/assistant/tool history item. */
   appendSessionMessage: (sessionId: string, message: ChatHistoryItem) => void
+  /** Removes a history item by id (persisted + broadcast) to retract a stopped user turn. */
+  removeSessionMessage: (sessionId: string, messageId: string) => void
   /** Returns a monotonic generation used to reject stale queued sends. */
   getSessionGeneration: (sessionId: string) => number
 }
@@ -221,25 +241,25 @@ export interface ChatOrchestratorRuntimeDeps {
   onLifecycle?: (record: ChatOrchestratorLifecycleRecord) => void
   /** Called with the final provider prompt projection. */
   onPromptProjection?: (payload: ChatOrchestratorPromptProjection) => void
-  /** Called after the user message has been appended to session history. */
-  onUserMessageAppended?: (event: {
-    sessionId: string
-    message: Extract<ChatHistoryItem, { role: 'user' }> & { id: string }
-    messageText: string
-  }) => void
   /** Called after the assistant message has been finalized into session history. */
   onAssistantMessageAppended?: (event: {
     sessionId: string
     message: StreamingAssistantMessage
     messageText: string
   }) => void
-  /** Called after user turn persistence, before provider prompt composition. */
-  onUserTurnReady?: (event: {
+  /** Called after assistant streaming and hook finalization. */
+  onAssistantTurnReady?: (event: {
     messageText: string
     sessionMessages: ChatHistoryItem[]
   }) => void
-  /** Called after assistant streaming and hook finalization. */
-  onAssistantTurnReady?: (event: {
+  /**
+   * Called once per send when the user turn commits (produced output, or settled
+   * without retraction). Side effects that must not run on a cancelled turn,
+   * cloud upload and autonomous tasks, belong here rather than at append time.
+   */
+  onUserTurnCommitted?: (event: {
+    sessionId: string
+    message: Extract<ChatHistoryItem, { role: 'user' }> & { id: string }
     messageText: string
     sessionMessages: ChatHistoryItem[]
   }) => void
@@ -249,8 +269,12 @@ export interface ChatOrchestratorRuntimeDeps {
  * Platform-agnostic chat orchestrator runtime API.
  */
 export interface ChatOrchestratorRuntime {
-  /** Enqueues a user send for the target session, preserving FIFO order. */
-  ingest: (sendingMessage: string, options: ChatOrchestratorSendOptions, targetSessionId?: string) => Promise<void>
+  /**
+   * Enqueues a user send for the target session, preserving FIFO order.
+   * Resolves once the send settles with its {@link SendOutcome}, so callers can
+   * rescue the typed text when a turn was retracted (stopped before any output).
+   */
+  ingest: (sendingMessage: string, options: ChatOrchestratorSendOptions, targetSessionId?: string) => Promise<SendOutcome>
   /** Resolves queued sends that have not started yet as cancelled (a no-op for the awaiting caller). */
   cancelPendingSends: (sessionId?: string) => void
   /** Aborts the in-flight stream and resolves every queued send as cancelled. */
@@ -363,6 +387,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     options: ChatOrchestratorSendOptions,
     generation: number,
     sessionId: string,
+    outcome: SendOutcome,
   ) {
     if (!sendingMessage && !options.attachments?.length)
       return
@@ -428,6 +453,26 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     // True once the success path has appended the turn, so a post-stream hook
     // that throws during a late Stop cannot make the catch path append it again.
     let landed = false
+    // The user message is appended before the stream so it shows immediately,
+    // but only commits (cloud upload, autonomous tasks) once the turn settles.
+    // The `finally` decides commit vs retract; a set `appendedUserMessage` marks
+    // that a provisional turn exists.
+    let appendedUserMessage: (Extract<ChatHistoryItem, { role: 'user' }> & { id: string }) | undefined
+    let userTurnSessionMessages: ChatHistoryItem[] = []
+
+    // Idempotent: fires at most once, from the success path and the `finally`.
+    let committed = false
+    const commitUserTurn = () => {
+      if (!appendedUserMessage || committed)
+        return
+      committed = true
+      deps.onUserTurnCommitted?.({
+        sessionId,
+        message: appendedUserMessage,
+        messageText: sendingMessage,
+        sessionMessages: userTurnSessionMessages,
+      })
+    }
 
     try {
       await hooks.emitBeforeMessageComposedHooks(sendingMessage, streamingMessageContext)
@@ -468,20 +513,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         id: userMessageId,
       }
       deps.session.appendSessionMessage(sessionId, userMessage)
-
-      // Cloud sync v1: only the raw text part round-trips; image attachments
-      // and other non-text parts stay local.
-      deps.onUserMessageAppended?.({
-        sessionId,
-        message: userMessage,
-        messageText: sendingMessage,
-      })
+      appendedUserMessage = userMessage
 
       const sessionMessagesForSend = deps.session.getSessionMessages(sessionId)
-      deps.onUserTurnReady?.({
-        messageText: sendingMessage,
-        sessionMessages: sessionMessagesForSend,
-      })
+      userTurnSessionMessages = sessionMessagesForSend
 
       const categorizer = createStreamingCategorizer(deps.getActiveProvider())
       let streamPosition = 0
@@ -742,6 +777,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       // marker, turn-complete hooks fire); the catch block owns mid-stream
       // cancellation.
       if (!isStaleGeneration() && buildingMessage.slices.length > 0) {
+        // Commit before appending the assistant so the user's cloud upload is
+        // enqueued first (the server orders by arrival; the wire carries no
+        // timestamp). TODO: move this ordering into the sync layer so commit
+        // timing stops being load-bearing.
+        commitUserTurn()
         const finalAssistant = buildingMessage
         deps.session.appendSessionMessage(sessionId, finalAssistant)
         landed = true
@@ -824,6 +864,25 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       throw error
     }
     finally {
+      // Decide commit vs retract for every exit path (stale generations are left
+      // to session reset/fork). A rescuable send stopped before any output
+      // retracts the turn and reports `rolledBack` so the composer can rescue the
+      // text; this also covers a stop before the user row was even appended.
+      // Everything else commits (idempotent), so a non-rescuable stop keeps its
+      // turn rather than deleting text no caller would catch.
+      if (!isStaleGeneration()) {
+        const producedOutput = buildingMessage.slices.length > 0
+          || !!buildingMessage.categorization?.reasoning?.trim()
+        if (options.rescuable && sendController.signal.aborted && !producedOutput) {
+          if (appendedUserMessage)
+            deps.session.removeSessionMessage(sessionId, appendedUserMessage.id)
+          outcome.rolledBack = true
+        }
+        else {
+          commitUserTurn()
+        }
+      }
+
       // NOTICE: reset the bubble on every abort path. Pre-stream
       // `shouldAbort()` checkpoints can early-return without entering
       // catch, leaving an empty assistant bubble painted.
@@ -841,7 +900,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   const sendQueue = createQueue<QueuedSend>({
     handlers: [
       async ({ data }) => {
-        const { sendingMessage, options, generation, deferred, sessionId, cancelled } = data
+        const { sendingMessage, options, generation, deferred, sessionId, cancelled, outcome } = data
 
         if (cancelled)
           return
@@ -855,7 +914,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         }
 
         try {
-          await performSend(sendingMessage, options, generation, sessionId)
+          await performSend(sendingMessage, options, generation, sessionId, outcome)
           deferred.resolve()
         }
         catch (error) {
@@ -879,22 +938,24 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     sendingMessage: string,
     options: ChatOrchestratorSendOptions,
     targetSessionId?: string,
-  ) {
+  ): Promise<SendOutcome> {
     const sessionId = targetSessionId || deps.getActiveSessionId()
     const generation = deps.session.getSessionGeneration(sessionId)
+    const outcome: SendOutcome = { rolledBack: false }
 
-    return new Promise<void>((resolve, reject) => {
+    return new Promise<SendOutcome>((resolve, reject) => {
       sendQueue.enqueue({
         sendingMessage,
         options,
         generation,
         sessionId,
-        deferred: { resolve, reject },
+        outcome,
+        deferred: { resolve: () => resolve(outcome), reject },
       })
     })
   }
 
-  function cancelPendingSends(sessionId?: string) {
+  function cancelPendingSends(sessionId?: string, options?: { retract?: boolean }) {
     for (const queued of pendingQueuedSends) {
       if (sessionId && queued.sessionId !== sessionId)
         continue
@@ -906,6 +967,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       // resolve is also the only signal that survives the tamagotchi
       // BroadcastChannel relay, which cannot carry a typed cancellation error.
       queued.cancelled = true
+      // Stop retracts the queued turn (report it so the composer rescues the
+      // text). Session delete / clear-data leave `retract` unset.
+      if (options?.retract)
+        queued.outcome.rolledBack = true
       queued.deferred.resolve()
     }
 
@@ -938,7 +1003,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   function stopSending(sessionId?: string) {
     if (activeSendController && (!sessionId || activeSendSessionId === sessionId))
       activeSendController.abort()
-    cancelPendingSends(sessionId)
+    cancelPendingSends(sessionId, { retract: true })
   }
 
   function getPendingQueuedSendSnapshot() {

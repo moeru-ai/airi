@@ -29,10 +29,12 @@ function createHarness() {
   const foregroundResets: StreamingAssistantMessage[] = []
   const lifecycleRecords: unknown[] = []
   const promptProjections: unknown[] = []
-  const userAppended: unknown[] = []
   const assistantAppended: unknown[] = []
-  const userTurns: unknown[] = []
+  const userCommits: unknown[] = []
   const assistantTurns: unknown[] = []
+  // Relative fire order of the user commit vs the assistant append, used to
+  // assert the user's cloud upload is enqueued before the assistant's.
+  const commitOrder: string[] = []
   const stateChanges: unknown[] = []
   const telemetry = {
     messageSendStarted: [] as unknown[],
@@ -63,6 +65,12 @@ function createHarness() {
         sessionMessages[sessionId] ??= []
         sessionMessages[sessionId].push(message)
       },
+      removeSessionMessage: (sessionId, messageId) => {
+        const list = sessionMessages[sessionId]
+        if (!list)
+          return
+        sessionMessages[sessionId] = list.filter(message => message.id !== messageId)
+      },
       getSessionGeneration: () => generation,
     },
     context: {
@@ -84,9 +92,14 @@ function createHarness() {
     createId: () => ids.shift() ?? 'generated-id',
     onLifecycle: record => lifecycleRecords.push(record),
     onPromptProjection: payload => promptProjections.push(payload),
-    onUserMessageAppended: event => userAppended.push(event),
-    onAssistantMessageAppended: event => assistantAppended.push(event),
-    onUserTurnReady: event => userTurns.push(event),
+    onAssistantMessageAppended: (event) => {
+      assistantAppended.push(event)
+      commitOrder.push('assistant')
+    },
+    onUserTurnCommitted: (event) => {
+      userCommits.push(event)
+      commitOrder.push('user-commit')
+    },
     onAssistantTurnReady: event => assistantTurns.push(event),
     onStateChange: state => stateChanges.push(state),
     onMessageSendStarted: event => telemetry.messageSendStarted.push(event),
@@ -129,8 +142,8 @@ function createHarness() {
       },
     },
     telemetry,
-    userAppended,
-    userTurns,
+    userCommits,
+    commitOrder,
   }
 }
 
@@ -362,7 +375,7 @@ describe('createChatOrchestratorRuntime', () => {
     harness.runtime.cancelPendingSends('session-1')
     releaseFirstSend?.()
 
-    await expect(secondSend).resolves.toBeUndefined()
+    await expect(secondSend).resolves.toEqual({ rolledBack: false })
     // The cancelled send never invoked the provider.
     expect(harness.stream).toHaveBeenCalledTimes(1)
     await firstSend
@@ -401,7 +414,7 @@ describe('createChatOrchestratorRuntime', () => {
     releaseFirstSend?.()
 
     await firstSend
-    await expect(secondSend).resolves.toBeUndefined()
+    await expect(secondSend).resolves.toEqual({ rolledBack: false })
     expect(harness.stream).toHaveBeenCalledTimes(1)
   })
 
@@ -445,7 +458,9 @@ describe('createChatOrchestratorRuntime', () => {
 
     harness.runtime.stopSending('session-1')
 
-    await expect(queuedSend).resolves.toBeUndefined()
+    // A Stop-cancelled queued send reports rolledBack so the composer rescues
+    // the typed text rather than losing it.
+    await expect(queuedSend).resolves.toEqual({ rolledBack: true })
     await firstSend
 
     // The queued send never streamed; only the active send reached the provider.
@@ -496,8 +511,9 @@ describe('createChatOrchestratorRuntime', () => {
     harness.runtime.stopSending('session-1')
     releaseFirstSend?.()
 
-    await expect(secondSend).resolves.toBeUndefined()
-    await expect(thirdSend).resolves.toBeUndefined()
+    // Stop-cancelled queued sends report rolledBack so each composer rescues.
+    await expect(secondSend).resolves.toEqual({ rolledBack: true })
+    await expect(thirdSend).resolves.toEqual({ rolledBack: true })
     await firstSend
     expect(harness.runtime.getPendingQueuedSendCount()).toBe(0)
     expect(harness.stream).toHaveBeenCalledTimes(1)
@@ -684,7 +700,7 @@ describe('createChatOrchestratorRuntime', () => {
     harness.runtime.cancelPendingSends('session-1')
     releaseFirstSend?.()
 
-    await expect(secondSend).resolves.toBeUndefined()
+    await expect(secondSend).resolves.toEqual({ rolledBack: false })
     await firstSend
   })
 
@@ -1158,6 +1174,137 @@ describe('createChatOrchestratorRuntime', () => {
 
     expect(harness.assistantAppended).toHaveLength(0)
     expect(harness.telemetry.assistantResponseRendered).toEqual([])
+  })
+
+  /**
+   * @example
+   * Stop fires before any slice or reasoning lands. The user turn is provisional
+   * until output arrives, so it is retracted rather than left as a reply-less
+   * orphan, `ingest` resolves with `rolledBack: true`, and the deferred commit
+   * side effects never fire.
+   */
+  it('retracts the provisional user turn and reports rolledBack when a rescuable send is stopped before any output', async () => {
+    const harness = createHarness()
+
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      await new Promise<void>((_resolve, reject) => {
+        const signal = (options as { abortSignal?: AbortSignal })?.abortSignal
+        signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+      })
+    })
+
+    // `rescuable` mirrors a composer send: the caller restores the text, so the
+    // turn may be retracted on a stop-before-output.
+    const send = harness.runtime.ingest('a stopped prompt', {
+      model: 'gpt-test',
+      chatProvider: provider,
+      rescuable: true,
+    })
+
+    await vi.waitFor(() => {
+      expect(harness.stream).toHaveBeenCalledTimes(1)
+    })
+
+    harness.runtime.stopSending('session-1')
+    const outcome = await send
+
+    expect(outcome.rolledBack).toBe(true)
+    // The user message is gone; only the seeded system message remains.
+    expect(harness.sessionMessages['session-1']?.map(message => message.role)).toEqual(['system'])
+    expect(harness.assistantAppended).toHaveLength(0)
+    // A retracted turn must not run the deferred cloud/autonomous side effects.
+    expect(harness.userCommits).toHaveLength(0)
+  })
+
+  /**
+   * @example
+   * A non-rescuable send (retry / voice / transport: callers that ignore the
+   * outcome) stopped before any output KEEPS its user turn instead of deleting
+   * text no caller would rescue.
+   */
+  it('keeps the user turn (no retract) when a non-rescuable send is stopped before any output', async () => {
+    const harness = createHarness()
+
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      await new Promise<void>((_resolve, reject) => {
+        const signal = (options as { abortSignal?: AbortSignal })?.abortSignal
+        signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+      })
+    })
+
+    // No `rescuable`: mirrors retry/voice, which do not consume the outcome.
+    const send = harness.runtime.ingest('a stopped prompt', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    await vi.waitFor(() => {
+      expect(harness.stream).toHaveBeenCalledTimes(1)
+    })
+
+    harness.runtime.stopSending('session-1')
+    const outcome = await send
+
+    expect(outcome.rolledBack).toBe(false)
+    // The user turn survives the stop rather than being silently deleted.
+    expect(harness.sessionMessages['session-1']?.some(message => message.role === 'user')).toBe(true)
+    expect(harness.userCommits).toHaveLength(1)
+  })
+
+  /**
+   * @example
+   * A normal completion keeps the user turn and reports `rolledBack: false`, and
+   * the commit hook fires exactly once so cloud upload / autonomous tasks run.
+   */
+  it('commits the user turn on a clean finish', async () => {
+    const harness = createHarness()
+
+    const outcome = await harness.runtime.ingest('hello', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    expect(outcome.rolledBack).toBe(false)
+    expect(harness.sessionMessages['session-1']?.some(message => message.role === 'user')).toBe(true)
+    expect(harness.userCommits).toHaveLength(1)
+    // The user turn commits BEFORE the assistant is appended, so the user's
+    // cloud upload is enqueued ahead of the assistant's (preserving order).
+    expect(harness.commitOrder).toEqual(['user-commit', 'assistant'])
+  })
+
+  /**
+   * @example
+   * A reasoning-only stop still produces output (the stopped partial), so the
+   * user turn commits rather than retracting.
+   */
+  it('commits the user turn when a stop still produced a reasoning-only partial', async () => {
+    const harness = createHarness()
+
+    let reachedStopPoint: () => void
+    const atStopPoint = new Promise<void>((resolve) => {
+      reachedStopPoint = resolve
+    })
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      await options?.onStreamEvent?.({ type: 'reasoning-delta', text: 'thinking' })
+      reachedStopPoint()
+      await new Promise<void>((_resolve, reject) => {
+        const signal = (options as { abortSignal?: AbortSignal })?.abortSignal
+        signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+      })
+    })
+
+    const send = harness.runtime.ingest('hello', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    await atStopPoint
+    harness.runtime.stopSending('session-1')
+    const outcome = await send
+
+    expect(outcome.rolledBack).toBe(false)
+    expect(harness.sessionMessages['session-1']?.some(message => message.role === 'user')).toBe(true)
+    expect(harness.userCommits).toHaveLength(1)
   })
 
   /**
