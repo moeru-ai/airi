@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { BasicTextarea } from '@proj-airi/ui'
-import { shallowRef } from 'vue'
+import { useWindowFocus } from '@vueuse/core'
+import { ref, shallowRef, watch } from 'vue'
 
 import {
   electronSpotlightHide,
@@ -13,10 +13,19 @@ import { useChatSyncStore } from '../stores/chat-sync'
 const messageInput = shallowRef('')
 const isComposing = shallowRef(false)
 const sending = shallowRef(false)
+const inputRef = ref<HTMLInputElement>()
 
 const chatSyncStore = useChatSyncStore()
 const hideSpotlightWindow = useElectronEventaInvoke(electronSpotlightHide)
 const showResultNotification = useElectronEventaInvoke(electronSpotlightShowResultNotification)
+
+watch(useWindowFocus(), (focused) => {
+  if (!focused) {
+    messageInput.value = ''
+    return
+  }
+  requestAnimationFrame(() => inputRef.value?.focus())
+})
 
 async function handleSend() {
   if (isComposing.value || sending.value)
@@ -32,8 +41,6 @@ async function handleSend() {
   try {
     await hideSpotlightWindow()
     const result = await chatSyncStore.requestSpotlightIngest({ text })
-    // The OS notification center truncates the body itself; clicking opens the
-    // full reply in the Chat window, so we hand it the whole visible text.
     await showResultNotification({
       body: result.visibleText.trim(),
     })
@@ -48,18 +55,14 @@ async function handleSend() {
   }
 }
 
-async function handleHide() {
-  await hideSpotlightWindow()
-}
-
 function handleKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') {
     event.preventDefault()
-    void handleHide()
+    void hideSpotlightWindow()
     return
   }
 
-  if (event.key !== 'Enter' || event.shiftKey || isComposing.value)
+  if (event.key !== 'Enter' || isComposing.value)
     return
 
   event.preventDefault()
@@ -70,49 +73,40 @@ function handleKeydown(event: KeyboardEvent) {
 <template>
   <main
     :class="[
-      'h-full w-full overflow-hidden',
-      'flex items-center gap-3',
-      'px-5 py-4',
-      'bg-white/82 text-neutral-900',
-      'dark:bg-neutral-950/78 dark:text-neutral-50',
+      'h-full w-full',
+      'flex items-center justify-center',
+      'bg-transparent px-5 py-5',
     ]"
   >
     <div
       :class="[
-        'h-10 w-10 shrink-0',
-        'flex items-center justify-center',
-        'rounded-lg',
-        'bg-primary-500/12 text-primary-600',
-        'dark:bg-primary-400/16 dark:text-primary-200',
+        'min-h-14 w-full',
+        'flex items-center px-6',
+        'rounded-full',
+        'bg-white/88 dark:bg-neutral-900/88',
+        'backdrop-blur-3xl backdrop-saturate-150',
+        'shadow-lg shadow-black/20',
+        'ring-1 ring-black/5 dark:ring-white/10',
       ]"
     >
-      <div class="i-solar:chat-round-dots-bold-duotone text-6" />
+      <input
+        ref="inputRef"
+        v-model="messageInput"
+        :disabled="sending"
+        autofocus
+        type="text"
+        placeholder="Ask AIRI…"
+        :class="[
+          'w-full bg-transparent',
+          'text-lg outline-none',
+          'text-neutral-900 dark:text-neutral-50',
+          'placeholder:text-neutral-400 dark:placeholder:text-neutral-500',
+        ]"
+        @compositionstart="isComposing = true"
+        @compositionend="isComposing = false"
+        @keydown="handleKeydown"
+      >
     </div>
-
-    <BasicTextarea
-      v-model="messageInput"
-      :submit-on-enter="false"
-      :disabled="sending"
-      autofocus
-      default-height="52px"
-      placeholder="AIRI"
-      :class="[
-        'h-full min-h-13 max-h-24 w-full',
-        'resize-none overflow-y-auto',
-        'rounded-md border border-neutral-300/70',
-        'bg-white/70 px-3 py-2',
-        'text-base text-neutral-900 outline-none',
-        'placeholder:text-neutral-400',
-        'transition-colors',
-        'focus:border-primary-400 focus:bg-white/92',
-        'dark:border-neutral-700/80 dark:bg-neutral-900/72',
-        'dark:text-neutral-50 dark:placeholder:text-neutral-500',
-        'dark:focus:border-primary-300 dark:focus:bg-neutral-900/92',
-      ]"
-      @compositionstart="isComposing = true"
-      @compositionend="isComposing = false"
-      @keydown="handleKeydown"
-    />
   </main>
 </template>
 

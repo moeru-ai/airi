@@ -18,10 +18,10 @@ import {
 } from '../../../shared/eventa'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
-import { setupBaseWindowElectronInvokes, spotlightLikeWindowConfig } from '../shared/window'
+import { setupBaseWindowElectronInvokes, transparentWindowConfig } from '../shared/window'
 
 const SPOTLIGHT_WINDOW_WIDTH = 720
-const SPOTLIGHT_WINDOW_HEIGHT = 140
+const SPOTLIGHT_WINDOW_HEIGHT = 100
 
 export interface SpotlightWindowManager {
   show: () => Promise<void>
@@ -83,7 +83,8 @@ export function setupSpotlightWindowManager(params: {
 
   const reusable = createReusableWindow(async () => {
     const window = new BrowserWindow({
-      ...spotlightLikeWindowConfig(),
+      ...transparentWindowConfig(),
+      titleBarStyle: undefined,
       title: 'Spotlight',
       width: SPOTLIGHT_WINDOW_WIDTH,
       height: SPOTLIGHT_WINDOW_HEIGHT,
@@ -137,6 +138,7 @@ export function setupSpotlightWindowManager(params: {
     window.setBounds(resolveSpotlightBounds())
     window.show()
     window.focus()
+    window.webContents.focus()
   }
 
   // The global-shortcut service owns registration and release lifecycle; this
