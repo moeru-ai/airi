@@ -257,19 +257,15 @@ export async function streamFrom({
 
       // The remaining promises are pure side-channels: we only consume them to
       // swallow `@xsai/stream-text`'s unhandled SSE-parser rejections. They never
-      // settle the outer contract.
-      void streamResult.messages.catch((error) => {
+      // settle the outer contract, so each just logs unless the error is the
+      // cancellation we asked for.
+      const logUnlessAbort = (label: string) => (error: unknown) => {
         if (!isExpectedAbortNoise(error))
-          console.error('Stream messages error:', error)
-      })
-      void streamResult.usage.catch((error) => {
-        if (!isExpectedAbortNoise(error))
-          console.error('Stream usage error:', error)
-      })
-      void streamResult.totalUsage.catch((error) => {
-        if (!isExpectedAbortNoise(error))
-          console.error('Stream totalUsage error:', error)
-      })
+          console.error(`Stream ${label} error:`, error)
+      }
+      void streamResult.messages.catch(logUnlessAbort('messages'))
+      void streamResult.usage.catch(logUnlessAbort('usage'))
+      void streamResult.totalUsage.catch(logUnlessAbort('totalUsage'))
     }
     catch (error) {
       rejectOnce(error)

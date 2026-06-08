@@ -444,9 +444,11 @@ describe('createChatOrchestratorRuntime', () => {
       model: 'gpt-test',
       chatProvider: provider,
     })
+    // A composer send (rescuable) queued behind the active one.
     const queuedSend = harness.runtime.ingest('queued during stream', {
       model: 'gpt-test',
       chatProvider: provider,
+      rescuable: true,
     })
 
     await vi.waitFor(() => {
@@ -458,8 +460,8 @@ describe('createChatOrchestratorRuntime', () => {
 
     harness.runtime.stopSending('session-1')
 
-    // A Stop-cancelled queued send reports rolledBack so the composer rescues
-    // the typed text rather than losing it.
+    // A Stop-cancelled rescuable queued send reports rolledBack so the composer
+    // rescues the typed text rather than losing it.
     await expect(queuedSend).resolves.toEqual({ rolledBack: true })
     await firstSend
 
@@ -492,13 +494,16 @@ describe('createChatOrchestratorRuntime', () => {
       model: 'gpt-test',
       chatProvider: provider,
     })
+    // Both queued sends are composer sends (rescuable), so each reports rolledBack.
     const secondSend = harness.runtime.ingest('queued b', {
       model: 'gpt-test',
       chatProvider: provider,
+      rescuable: true,
     })
     const thirdSend = harness.runtime.ingest('queued c', {
       model: 'gpt-test',
       chatProvider: provider,
+      rescuable: true,
     })
 
     await vi.waitFor(() => {
@@ -514,6 +519,48 @@ describe('createChatOrchestratorRuntime', () => {
     // Stop-cancelled queued sends report rolledBack so each composer rescues.
     await expect(secondSend).resolves.toEqual({ rolledBack: true })
     await expect(thirdSend).resolves.toEqual({ rolledBack: true })
+    await firstSend
+    expect(harness.runtime.getPendingQueuedSendCount()).toBe(0)
+    expect(harness.stream).toHaveBeenCalledTimes(1)
+  })
+
+  /**
+   * @example
+   * A non-rescuable queued send (retry / voice / transport) cancelled by Stop
+   * settles WITHOUT reporting rolledBack, matching the active-send gate: only a
+   * rescuable caller is told its turn was retracted. Guards the queued path from
+   * the active path drifting to a different retract rule.
+   */
+  it('settles a non-rescuable queued send without rollback when stop fires with a backlog', async () => {
+    const harness = createHarness()
+    let releaseFirstSend: (() => void) | undefined
+    harness.stream.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        releaseFirstSend = resolve
+      })
+    })
+
+    const firstSend = harness.runtime.ingest('hold queue', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+    // No `rescuable`: mirrors retry/voice/transport, which ignore the outcome.
+    const queuedSend = harness.runtime.ingest('queued non-rescuable', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    await vi.waitFor(() => {
+      expect(harness.stream).toHaveBeenCalledTimes(1)
+    })
+    await vi.waitFor(() => {
+      expect(harness.runtime.getPendingQueuedSendCount()).toBe(1)
+    })
+
+    harness.runtime.stopSending('session-1')
+    releaseFirstSend?.()
+
+    await expect(queuedSend).resolves.toEqual({ rolledBack: false })
     await firstSend
     expect(harness.runtime.getPendingQueuedSendCount()).toBe(0)
     expect(harness.stream).toHaveBeenCalledTimes(1)

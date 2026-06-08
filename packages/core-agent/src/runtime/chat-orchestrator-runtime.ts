@@ -474,6 +474,34 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       })
     }
 
+    // True once the turn produced something worth persisting: a content slice or
+    // a reasoning-only partial. Gates both the stopped-partial persist (catch)
+    // and the commit-vs-retract decision (finally).
+    const hasProducedOutput = () => buildingMessage.slices.length > 0
+      || !!buildingMessage.categorization?.reasoning?.trim()
+
+    // Flush the marker parser's residual lookahead so onEnd computes final
+    // categorization. Holds finalFlushInProgress across it so a Stop in the gap
+    // does not let the onLiteral abort check drop the buffered tail. No-op when
+    // stop fired before the parser was built. The success path lets a flush error
+    // propagate (a real failure); the abort path swallows it (already unwinding).
+    const drainParserResidual = async (swallowErrors: boolean) => {
+      if (!parser)
+        return
+      finalFlushInProgress = true
+      try {
+        await parser.end()
+      }
+      catch (flushError) {
+        if (!swallowErrors)
+          throw flushError
+        console.error('parser.end() on stop failed:', flushError)
+      }
+      finally {
+        finalFlushInProgress = false
+      }
+    }
+
     try {
       await hooks.emitBeforeMessageComposedHooks(sendingMessage, streamingMessageContext)
 
@@ -756,18 +784,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         },
       })
 
-      // Drain the parser's residual lookahead under finalFlushInProgress, the
-      // same guard the abort path uses. A Stop in the gap between the stream
-      // draining and this flush sets sendController.signal.aborted; the guard
-      // keeps the onLiteral abort check from dropping the final buffered tail of
-      // an already-complete reply.
-      finalFlushInProgress = true
-      try {
-        await parser!.end()
-      }
-      finally {
-        finalFlushInProgress = false
-      }
+      // Drain the residual tail of an already-complete reply before finalizing.
+      await drainParserResidual(false)
       deps.onAssistantResponseRendered?.({
         model: options.model,
         latencyMs: Math.round(monotonicNow() - llmRequestStartedAt),
@@ -823,29 +841,14 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       // analytics) treat those as a landed turn, which this isn't. The
       // stopped marker is the contract for "user cancelled this turn".
       if (sendController.signal.aborted) {
-        // NOTICE:
-        // Drain the marker parser's residual buffer and let onEnd compute final
-        // categorization before testing the persistence gate. Try/finally so a
-        // categorization failure can't leave finalFlushInProgress stuck. Skip
-        // when stop fires before the parser is built (pre-compose abort).
-        if (parser) {
-          finalFlushInProgress = true
-          try {
-            await parser.end()
-          }
-          catch (flushError) {
-            console.error('parser.end() on stop failed:', flushError)
-          }
-          finally {
-            finalFlushInProgress = false
-          }
-        }
+        // Drain residual + compute final categorization before the persistence
+        // gate, swallowing a flush error since we are already unwinding on Stop.
+        await drainParserResidual(true)
 
         // Reasoning-only turns (reasoning models that stop before any speech or
-        // tool slice) carry their partial in categorization.reasoning, so persist
-        // those too rather than dropping the turn.
-        const hasReasoning = !!buildingMessage.categorization?.reasoning?.trim()
-        if (!landed && !isStaleGeneration() && (buildingMessage.slices.length > 0 || hasReasoning)) {
+        // tool slice) carry their partial in categorization.reasoning, which
+        // hasProducedOutput() counts, so they persist rather than being dropped.
+        if (!landed && !isStaleGeneration() && hasProducedOutput()) {
           const stoppedAssistant: StreamingAssistantMessage = {
             ...buildingMessage,
             stopped: true,
@@ -871,9 +874,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       // Everything else commits (idempotent), so a non-rescuable stop keeps its
       // turn rather than deleting text no caller would catch.
       if (!isStaleGeneration()) {
-        const producedOutput = buildingMessage.slices.length > 0
-          || !!buildingMessage.categorization?.reasoning?.trim()
-        if (options.rescuable && sendController.signal.aborted && !producedOutput) {
+        if (options.rescuable && sendController.signal.aborted && !hasProducedOutput()) {
           if (appendedUserMessage)
             deps.session.removeSessionMessage(sessionId, appendedUserMessage.id)
           outcome.rolledBack = true
@@ -967,9 +968,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       // resolve is also the only signal that survives the tamagotchi
       // BroadcastChannel relay, which cannot carry a typed cancellation error.
       queued.cancelled = true
-      // Stop retracts the queued turn (report it so the composer rescues the
-      // text). Session delete / clear-data leave `retract` unset.
-      if (options?.retract)
+      // Stop retracts a rescuable queued turn (the composer) so its text is
+      // rescued, matching the active-send gate. Non-rescuable sends (retry,
+      // voice, transport) and session delete / clear-data settle without
+      // rollback so no text the caller would not catch is reported as lost.
+      if (options?.retract && queued.options.rescuable)
         queued.outcome.rolledBack = true
       queued.deferred.resolve()
     }
