@@ -31,14 +31,14 @@
     "@proj-airi/stage-shared": "workspace:^",
     "@proj-airi/stage-ui": "workspace:^",
     "@proj-airi/ui": "workspace:^",
-    "@vueuse/core": "catalog:vueuse-core-14-2-1",
+    "@vueuse/core": "catalog:",
     "@vueuse/shared": "catalog:",
     "animejs": "catalog:",
     "better-auth": "catalog:",
     "colorjs.io": "catalog:",
     "culori": "catalog:",
     "date-fns": "catalog:",
-    "nanoid": "catalog:nanoid-5-1-9",
+    "nanoid": "catalog:",
     "nprogress": "catalog:",
     "pinia": "catalog:",
     "posthog-js": "catalog:",
@@ -47,7 +47,7 @@
     "vue": "catalog:",
     "vue-i18n": "catalog:",
     "vue-router": "catalog:",
-    "vue-sonner": "catalog:vue-sonner-2-0-9"
+    "vue-sonner": "catalog:"
   },
   "devDependencies": {
     "@iconify-json/carbon": "catalog:",

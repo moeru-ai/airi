@@ -161,7 +161,7 @@ async function loadModel() {
     if (!detectedVersion)
       detectedVersion = '4.2'
     const spine = await loadSpineRuntime(detectedVersion)
-    console.log(`[Spine] Detected skeleton version: ${detectedVersion}`)
+    console.info(`[Spine] Detected skeleton version: ${detectedVersion}`)
 
     if (isUnmounted) {
       assetCleanup?.()

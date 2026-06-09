@@ -2279,7 +2279,7 @@ export const useProvidersStore = defineStore('providers', () => {
   // const validatedCredentials = ref<Record<string, string>>({})
   const providerRuntimeState = ref<Record<string, ProviderRuntimeState>>({})
   const providerValidationInFlight = new Map<string, Promise<boolean>>()
-  const providerRevalidationLoops = new Map<string, { resume: () => void }>()
+  const providerRevalidationLoops = new Map<string, { pause: () => void, resume: () => void }>()
 
   // Server-driven availability overrides for providers whose visibility can
   // only be decided at runtime from the backend (e.g. the streaming TTS
@@ -2403,9 +2403,33 @@ export const useProvidersStore = defineStore('providers', () => {
   // Initialize all providers
   Object.keys(providerMetadata).forEach(initializeProvider)
 
+  function stopRevalidationLoop(providerId: string) {
+    const loop = providerRevalidationLoops.get(providerId)
+    if (!loop)
+      return
+    loop.pause()
+    providerRevalidationLoops.delete(providerId)
+  }
+
+  function reconcileUnlistedProviders() {
+    for (const providerId of Object.keys(providerMetadata)) {
+      if (shouldListProvider(providerId))
+        continue
+      stopRevalidationLoop(providerId)
+      const runtimeState = providerRuntimeState.value[providerId]
+      if (!runtimeState)
+        continue
+      runtimeState.isConfigured = false
+      runtimeState.validatedCredentialHash = undefined
+    }
+  }
+
   function startPeriodicRuntimeValidation() {
     for (const [providerId, intervalMs] of providerValidationIntervalMsById.entries()) {
       if (!providerMetadata[providerId] || intervalMs <= 0)
+        continue
+
+      if (!shouldListProvider(providerId))
         continue
 
       if (providerRevalidationLoops.has(providerId)) {
@@ -2420,11 +2444,10 @@ export const useProvidersStore = defineStore('providers', () => {
     }
   }
 
-  // Update configuration status for all configured providers
+  // Update configuration status for listed providers only.
   async function updateConfigurationStatus() {
     await Promise.all(Object.entries(providerMetadata)
-      // TODO: ignore un-configured provider
-      // .filter(([_, provider]) => provider.configured)
+      .filter(([providerId]) => shouldListProvider(providerId) || providerId === 'browser-web-speech-api')
       .map(async ([providerId]) => {
         try {
           if (providerRuntimeState.value[providerId]) {
@@ -2440,11 +2463,16 @@ export const useProvidersStore = defineStore('providers', () => {
       }))
   }
 
-  // Call initially and watch for changes
-  watch(providerCredentials, updateConfigurationStatus, { deep: true, immediate: true })
-  startPeriodicRuntimeValidation()
+  async function refreshListedProviderValidation() {
+    reconcileUnlistedProviders()
+    await updateConfigurationStatus()
+    startPeriodicRuntimeValidation()
+  }
 
-  watch(() => authState.isAuthenticated, updateConfigurationStatus)
+  // Call initially and watch for changes
+  watch(providerCredentials, refreshListedProviderValidation, { deep: true, immediate: true })
+  watch(addedProviders, refreshListedProviderValidation, { deep: true })
+  watch(() => authState.isAuthenticated, refreshListedProviderValidation)
 
   // Available providers (only those that are properly configured)
   const availableProviders = computed(() => Object.keys(providerMetadata).filter(providerId => providerRuntimeState.value[providerId]?.isConfigured))
@@ -2506,7 +2534,9 @@ export const useProvidersStore = defineStore('providers', () => {
     providerRuntimeState.value = {}
 
     Object.keys(providerMetadata).forEach(initializeProvider)
-    await updateConfigurationStatus()
+    providerRevalidationLoops.forEach(loop => loop.pause())
+    providerRevalidationLoops.clear()
+    await refreshListedProviderValidation()
   }
 
   // Function to fetch models for a specific provider

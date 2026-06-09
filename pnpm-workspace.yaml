@@ -187,7 +187,6 @@ catalog:
   '@types/ws': ^8.18.1
   '@types/xast': ^2.0.4
   '@types/yauzl': ^2.10.3
-  '@unocss/core': '>=66'
   '@unocss/eslint-config': ^66.6.8
   '@unocss/eslint-plugin': ^66.6.8
   '@unocss/preset-mini': ^66.6.8
@@ -199,7 +198,7 @@ catalog:
   '@vue-macros/volar': ^3.1.2
   '@vue/test-utils': ^2.4.6
   '@vue/tsconfig': ^0.9.1
-  '@vueuse/core': 14.1.0
+  '@vueuse/core': ^14.2.1
   '@vueuse/motion': ^3.0.3
   '@vueuse/shared': ^14.2.1
   '@webgpu/types': ^0.1.69
@@ -254,7 +253,7 @@ catalog:
   electron-vite: ^5.0.0
   embla-carousel-autoplay: 9.0.0-rc01
   embla-carousel-vue: 9.0.0-rc02
-  es-toolkit: 1.43.0
+  es-toolkit: ^1.45.1
   eslint: ^10.2.1
   eslint-plugin-oxlint: ^1.60.0
   eventemitter3: ^5.0.4
@@ -301,7 +300,7 @@ catalog:
   mkcert: ^3.2.0
   motion-v: ^2.2.1
   nano-staged: ^1.0.2
-  nanoid: 5.1.6
+  nanoid: ^5.1.9
   node-pty: ^1.1.0
   node-vibrant: ^4.0.4
   nprogress: ^0.2.0
@@ -332,7 +331,7 @@ catalog:
   rehype-katex: ^7.0.1
   rehype-parse: ^9.0.1
   rehype-stringify: ^10.0.1
-  reka-ui: ^2.9.2
+  reka-ui: ^2.9.6
   remark-math: ^6.0.0
   remark-parse: ^11.0.0
   remark-rehype: ^11.1.2
@@ -376,7 +375,7 @@ catalog:
   unstorage: ^1.17.5
   uqr: ^0.1.3
   uuid: ^13.0.0
-  valibot: 1.2.0
+  valibot: ^1.3.1
   vaul-vue: ^0.4.1
   vec3: ^0.2.0
   vieval: ^0.0.5
@@ -395,7 +394,7 @@ catalog:
   vue-i18n: ^11.3.2
   vue-macros: ^3.1.2
   vue-router: ^5.0.4
-  vue-sonner: 2.0.9
+  vue-sonner: ^2.0.9
   vue-tsc: ^3.2.6
   wavefile: ^11.0.0
   web-haptics: ^0.0.6
@@ -413,49 +412,10 @@ catalog:
   zod: ^4.3.6
   zod-to-json-schema: ^3.25.2
 catalogs:
-  capacitor-cli-8-0-0:
-    '@capacitor/cli': ^8.0.0
-  electron-gte-39-lt-41:
-    electron: '>=39 <41'
-  electron-gte-40-lt-42:
-    electron: '>=40 <42'
-  es-toolkit-1-45-1:
-    es-toolkit: ^1.45.1
-  guiiai-logg-gte-1-lt-2:
-    '@guiiai/logg': '>=1 <2'
-  nanoid-5-1-9:
-    nanoid: ^5.1.9
-  proj-airi-unocss-preset-chromatic-1-0-2:
-    '@proj-airi/unocss-preset-chromatic': ^1.0.2
-  reka-ui-2-9-6:
-    reka-ui: ^2.9.6
-  unocss-66-6-7:
-    unocss: ^66.6.7
-  unocss-preset-web-fonts-gte-66:
-    '@unocss/preset-web-fonts': '>=66'
-  unocss-reset-66-6-7:
-    '@unocss/reset': ^66.6.7
-  valibot-1-3-1:
-    valibot: ^1.3.1
-  vite-6-4-2:
-    vite: ^6.4.2
-  vite-7-0-0-or-8-0-0-beta-0:
-    vite: ^7.0.0 || ^8.0.0-beta.0
-  vitejs-plugin-vue-6-0-5:
-    '@vitejs/plugin-vue': ^6.0.5
   vitest:
     '@vitest/browser-playwright': ^4.1.4
     '@vitest/coverage-v8': ^4.1.4
     vitest: ^4.1.4
-  vue-gte-3:
-    vue: '>=3'
-
-  vue-macros-volar-3-0-0-beta-8:
-    '@vue-macros/volar': 3.0.0-beta.8
-  vue-sonner-2-0-9:
-    vue-sonner: ^2.0.9
-  vueuse-core-14-2-1:
-    '@vueuse/core': ^14.2.1
   xsai:
     unspeech: ^0.1.14
 ignoredBuiltDependencies:

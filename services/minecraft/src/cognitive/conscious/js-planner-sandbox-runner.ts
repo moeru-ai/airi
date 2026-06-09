@@ -11,8 +11,7 @@ import { createRequire } from 'node:module'
 import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { errorMessageFrom } from '@moeru/std'
-
+import { errorMessageFromValue } from '../../utils/error-message'
 import {
   createWorkerError,
   serializeWorkerError,
@@ -149,7 +148,7 @@ export async function executeSandboxWorker(
     child.stderr?.on('data', chunk => stderrChunks.push(String(chunk)))
 
     child.on('error', (error) => {
-      finalize(() => reject(createWorkerError(withCapturedStderr(errorMessageFrom(error) ?? String(error)), undefined, error)))
+      finalize(() => reject(createWorkerError(withCapturedStderr(errorMessageFromValue(error)), undefined, error)))
     })
 
     child.on('exit', (code, signal) => {

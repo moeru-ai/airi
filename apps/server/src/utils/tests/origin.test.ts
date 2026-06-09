@@ -12,6 +12,13 @@ describe('origin utils', () => {
     expect(getTrustedOrigin('https://127.0.0.1:5273')).toBe('https://127.0.0.1:5273')
   })
 
+  it('allows the standalone auth and admin UI origins', () => {
+    expect(getTrustedOrigin('https://accounts.airi.build')).toBe('https://accounts.airi.build')
+    expect(getTrustedOrigin('https://server-dev.airi-server-auth.pages.dev')).toBe('https://server-dev.airi-server-auth.pages.dev')
+    expect(getTrustedOrigin('https://admin.airi.build')).toBe('https://admin.airi.build')
+    expect(getTrustedOrigin('https://server-dev.airi-server-admin.pages.dev')).toBe('https://server-dev.airi-server-admin.pages.dev')
+  })
+
   it('rejects private LAN Vite dev origins unless listed in ADDITIONAL_TRUSTED_ORIGINS', () => {
     expect(getTrustedOrigin('https://10.0.0.129:5273')).toBe('')
     expect(getTrustedOrigin('https://198.18.0.1:5273')).toBe('')

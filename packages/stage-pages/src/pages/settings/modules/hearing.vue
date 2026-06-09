@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import workletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
+import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import { Alert, ErrorContainer, LevelMeter, RadioCardManySelect, RadioCardSimple, TestDummyMarker, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
 import { useAnalytics, useAudioAnalyzer, useAudioRecorder } from '@proj-airi/stage-ui/composables'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
@@ -176,7 +177,7 @@ async function setupAudioMonitoring() {
   }
   catch (error) {
     console.error('Error setting up audio monitoring:', error)
-    vadModelError.value = error instanceof Error ? error.message : String(error)
+    vadModelError.value = errorMessageFromValue(error)
   }
 }
 
@@ -284,7 +285,7 @@ onStopRecord(async (recording) => {
       }
     }
     catch (err) {
-      testTranscriptionError.value = err instanceof Error ? err.message : String(err)
+      testTranscriptionError.value = errorMessageFromValue(err)
       testStatusMessage.value = `Error: ${testTranscriptionError.value}`
       console.error('STT test transcription error:', err)
     }
@@ -402,7 +403,7 @@ async function startSTTTest() {
     }
   }
   catch (err) {
-    testTranscriptionError.value = err instanceof Error ? err.message : String(err)
+    testTranscriptionError.value = errorMessageFromValue(err)
     testStatusMessage.value = `Error: ${testTranscriptionError.value}`
     isTranscribing.value = false
     isTestingSTT.value = false

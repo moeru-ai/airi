@@ -9,6 +9,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { getUnsupportedBrowserDomActions, isBrowserDomActionSupported } from '../browser-dom/capabilities'
 import { RunStateManager } from '../state'
+import { errorMessageFromValue } from '../utils/error-message'
 
 // ---------------------------------------------------------------------------
 // Test grounding state management through RunStateManager
@@ -359,7 +360,7 @@ describe('desktop_click_target handler integration', () => {
           }
           catch (browserError) {
             executionRoute = 'os_input'
-            routeNote = `browser-dom failed: ${browserError instanceof Error ? browserError.message : String(browserError)}`
+            routeNote = `browser-dom failed: ${errorMessageFromValue(browserError)}`
             await executor.click({
               x: snap.snappedPoint.x,
               y: snap.snappedPoint.y,
@@ -400,7 +401,7 @@ describe('desktop_click_target handler integration', () => {
       return { isError: false, text: lines.join('\n'), executionRoute, routeNote, routeReason }
     }
     catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
+      const message = errorMessageFromValue(error)
       return { isError: true, text: `desktop_click_target failed: ${message}` }
     }
   }

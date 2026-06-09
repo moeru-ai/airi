@@ -3,9 +3,10 @@ import type { Message, Tool } from '@xsai/shared-chat'
 
 import type { StreamFromOptions, StreamOptions } from '../types/llm'
 
-import { errorMessageFrom } from '@moeru/std'
 import { stepCountAtLeast } from '@xsai/shared-chat'
 import { streamText } from '@xsai/stream-text'
+
+import { errorMessageFromValue } from '../utils/error-message'
 
 /**
  * Normalize chat messages so they match the wire format the active provider
@@ -109,7 +110,7 @@ function isAbortError(error: unknown): boolean {
 }
 
 function createCapturedToolErrorResult(toolName: string, error: unknown): string {
-  return `Tool call error for "${toolName}": ${errorMessageFrom(error) ?? String(error)}`
+  return `Tool call error for "${toolName}": ${errorMessageFromValue(error)}`
 }
 
 function withCapturedToolErrors(

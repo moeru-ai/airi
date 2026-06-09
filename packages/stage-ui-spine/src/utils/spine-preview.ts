@@ -131,11 +131,12 @@ export async function loadSpineModelPreview(file: File): Promise<string | undefi
           config: { app: import('@esotericsoftware/spine-webgl').SpineCanvasApp, pathPrefix?: string, webglConfig?: WebGLContextAttributes },
         ) => import('@esotericsoftware/spine-webgl').SpineCanvas
 
-        new SpineCanvasCtor(canvas!, {
+        const spineCanvas = new SpineCanvasCtor(canvas!, {
           app,
           pathPrefix: '',
           webglConfig: { alpha: true, premultipliedAlpha: false, preserveDrawingBuffer: true },
         })
+        void spineCanvas
       }
       catch (err) {
         console.error('[Spine] Preview generation failed:', err)

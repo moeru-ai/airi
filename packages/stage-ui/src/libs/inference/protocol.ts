@@ -1,3 +1,4 @@
+import { errorMessageFromValue } from '@proj-airi/stage-shared'
 /**
  * Unified inference worker message protocol.
  *
@@ -199,7 +200,7 @@ const DEVICE_LOSS_PATTERNS = [
  * determines whether the code is `LOAD_FAILED` or `INFERENCE_FAILED`.
  */
 export function classifyError(error: unknown, phase?: 'load' | 'inference'): InferenceErrorCode {
-  const msg = error instanceof Error ? error.message : String(error)
+  const msg = errorMessageFromValue(error)
   const lower = msg.toLowerCase()
 
   if (lower.includes('out of memory') || lower.includes('allocation failed'))
@@ -235,7 +236,7 @@ export function classifyDeviceLossReason(error: unknown): DeviceLossReason {
     return 'unknown'
   }
 
-  const msg = error instanceof Error ? error.message : String(error)
+  const msg = errorMessageFromValue(error)
   const lower = msg.toLowerCase()
   if (lower.includes('destroyed'))
     return 'destroyed'

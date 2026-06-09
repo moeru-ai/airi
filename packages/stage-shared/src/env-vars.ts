@@ -8,3 +8,7 @@ export function isEnvTruthy(value: string | undefined | null): boolean {
     return false
   return /^(?:1|true|t|yes|y|on)$/i.test(value.trim())
 }
+
+export function isFluxPurchaseDisabled(): boolean {
+  return isEnvTruthy(import.meta.env.VITE_DISABLE_FLUX_PURCHASE)
+}

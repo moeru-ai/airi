@@ -20,7 +20,7 @@ import './styles/main.css'
 import 'uno.css'
 
 const router = createRouter({
-  history: createWebHistory('/admin/'),
+  history: createWebHistory('/'),
   routes: [
     { path: '/', component: OverviewPage },
     { path: '/users', component: UsersPage },
