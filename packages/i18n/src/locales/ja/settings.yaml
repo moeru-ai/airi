@@ -64,8 +64,8 @@ dialogs:
       stateGranted: 許可済み
       stateNotGranted: 許可されていません
   bug-report:
-    title: バク報告　(´;ω;`)ヾ(･∀･`)
-    subtitle: "予期せぬエラーが発生しました　\n何が起こったか報告してくれませんか？"
+    title: バク報告(´;ω;`)ヾ(･∀･`)
+    subtitle: "予期せぬエラーが発生しました\n何が起こったか報告してくれませんか？"
     trigger-label: バグを報告
     submit-label: バグ報告を送信
     triage-description: この問題の解決のためにページ内容とスクリーンショットを含める。
