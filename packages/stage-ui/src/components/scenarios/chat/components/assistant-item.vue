@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import type { ChatHistoryItem, ChatSlices, ChatSlicesText, ChatSlicesToolCallResult, StreamingAssistantMessage } from '../../../../types/chat'
+import type { Component } from 'vue'
+
+import type { ChatHistoryItem, ChatSlices, ChatSlicesText, StreamingAssistantMessage } from '../../../../types/chat'
 import type { ChatToolCallRendererRegistry, ChatToolCallState } from './tool-call-renderer'
 
 import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
@@ -53,25 +55,31 @@ const toolResultById = computed(() => {
   return createToolCallResultLookup(resolvedSlices.value, props.message.tool_results)
 })
 
-function getToolCallResult(slice: ChatSlices): ChatSlicesToolCallResult | undefined {
-  if (slice.type !== 'tool-call') {
-    return undefined
+type SliceView
+  = | { kind: 'tool-call', renderer: Component, toolName: string, args: string, state: ChatToolCallState, result: unknown }
+    | { kind: 'text', text: string }
+    | { kind: 'tool-call-result' }
+
+// One view-model per slice, resolved once per message change. The message prop
+// is replaced on every foreground stream patch, so template-level method calls
+// here would re-run renderer/state/result resolution for every slice on every
+// re-render (including unrelated ones).
+const sliceViews = computed<SliceView[]>(() => resolvedSlices.value.map((slice) => {
+  if (slice.type === 'tool-call') {
+    const result = toolResultById.value.get(slice.toolCall.toolCallId)
+    return {
+      kind: 'tool-call',
+      renderer: props.toolCallRenderers[slice.toolCall.toolName] ?? ChatToolCallBlock,
+      toolName: slice.toolCall.toolName,
+      args: slice.toolCall.args,
+      state: resolveToolCallBlockState(result, { stopped: props.message.stopped }),
+      result: result?.result,
+    }
   }
-
-  return toolResultById.value.get(slice.toolCall.toolCallId)
-}
-
-function getToolCallState(slice: ChatSlices): ChatToolCallState {
-  return resolveToolCallBlockState(getToolCallResult(slice), { stopped: props.message.stopped })
-}
-
-function getToolCallRenderer(slice: ChatSlices) {
-  if (slice.type !== 'tool-call') {
-    return ChatToolCallBlock
-  }
-
-  return props.toolCallRenderers[slice.toolCall.toolName] ?? ChatToolCallBlock
-}
+  if (slice.type === 'text')
+    return { kind: 'text', text: slice.text }
+  return { kind: 'tool-call-result' }
+}))
 
 const showLoader = computed(() => props.showPlaceholder && resolvedSlices.value.length === 0)
 const containerClass = computed(() => props.variant === 'mobile' ? 'mr-0' : 'mr-12')
@@ -109,19 +117,18 @@ const { t } = useI18n()
           <div class="<sm:hidden">
             <span text-sm text="black/60 dark:white/65" font-normal>{{ label }}</span>
           </div>
-          <div v-if="resolvedSlices.length > 0" class="flex flex-col gap-2 break-words" text="primary-700 dark:primary-100">
-            <template v-for="(slice, sliceIndex) in resolvedSlices" :key="sliceIndex">
+          <div v-if="sliceViews.length > 0" class="flex flex-col gap-2 break-words" text="primary-700 dark:primary-100">
+            <template v-for="(view, sliceIndex) in sliceViews" :key="sliceIndex">
               <component
-                :is="getToolCallRenderer(slice)"
-                v-if="slice.type === 'tool-call'"
-                :tool-name="slice.toolCall.toolName"
-                :args="slice.toolCall.args"
-                :state="getToolCallState(slice)"
-                :result="getToolCallResult(slice)?.result"
+                :is="view.renderer"
+                v-if="view.kind === 'tool-call'"
+                :tool-name="view.toolName"
+                :args="view.args"
+                :state="view.state"
+                :result="view.result"
               />
-              <template v-else-if="slice.type === 'tool-call-result'" />
-              <template v-else-if="slice.type === 'text'">
-                <MarkdownRenderer :content="slice.text" />
+              <template v-else-if="view.kind === 'text'">
+                <MarkdownRenderer :content="view.text" />
               </template>
             </template>
           </div>
