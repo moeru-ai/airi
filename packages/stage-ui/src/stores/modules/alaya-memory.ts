@@ -90,20 +90,17 @@ export const useAlayaMemoryStore = defineStore('alaya-memory', () => {
     if (opts.userId)
       userId.value = opts.userId
 
-    characterId.value = opts.characterId
-
-    // ensureDriver after userId is set so it uses the right namespace
+    // Initialize driver and short-term memory before setting characterId
     ensureDriver(userId.value)
 
     // Create a fresh short-term buffer for the new session
     shortTerm = new ShortTermMemory({ maxTurns: 20, digestThreshold: 0.6 })
     shortTermTurnCount.value = 0
     shortTermTurns.value = []
-
-    // reset request id for new session
     latestSearchRequestId = 0
 
-    await refresh()
+    // Now set characterId, which triggers watch and calls refresh with driver ready
+    characterId.value = opts.characterId
   }
 
   async function refresh() {
@@ -346,28 +343,31 @@ export const useAlayaMemoryStore = defineStore('alaya-memory', () => {
   async function compactSession(): Promise<CompactResult> {
     const st = ensureShortTerm()
 
-    // Step 1: Get the compact result without clearing the buffer?
-    // If ShortTermMemory.compact() does clear, we need to back up turns.
-    // Assume compact() returns { digestCandidates, removedTurns } but we only have digestCandidates.
-    // We'll store the current turns before compaction so we can restore on failure.
-    const beforeTurns = st.getRecentTurns() // backup
-
-    const result = st.compact() // This may clear the buffer internally
+    const beforeTurns = st.getRecentTurns()
+    const result = st.compact()
 
     // Auto-digest: write high-scoring candidates to long-term memory
     if (result.digestCandidates.length > 0 && driver) {
       try {
         await driver.ingestAll(result.digestCandidates)
-        await refresh()
+        // Refresh only after successful ingestion, not inside the catch
       }
       catch (e) {
-        // Restore the compacted turns into short-term buffer
-        // We need an "uncompact" method or manual re-add
+        // Restore short-term buffer only if ingestion failed
         for (const turn of beforeTurns) {
           st.addTurn({ ...turn, sessionId: turn.sessionId ?? 'default' })
         }
         error.value = `Auto-digest failed, short-term buffer restored: ${String(e)}`
         throw e
+      }
+      // Now refresh, but if it fails we should not restore (memories already committed)
+      try {
+        await refresh()
+      }
+      catch (refreshErr) {
+        error.value = `Failed to refresh after digest: ${String(refreshErr)}`
+        // Do not restore short-term buffer here
+        throw refreshErr
       }
     }
 
