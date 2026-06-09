@@ -575,6 +575,11 @@ export function createAuth(
     // https://github.com/better-auth/better-auth/issues/5892
     account: {
       skipStateCookieCheck: true,
+      accountLinking: {
+        // Product requirement: signed-in users may attach OAuth identities
+        // whose provider email differs from their AIRI account email.
+        allowDifferentEmails: true,
+      },
     },
 
     socialProviders: {
