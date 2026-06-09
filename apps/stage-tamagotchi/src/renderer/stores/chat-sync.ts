@@ -471,6 +471,8 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     if (mode.value !== 'authority')
       return
 
+    const sessionId = activeSessionId.value
+
     try {
       const result = await executeSpotlightIngest(message.payload)
       post({
@@ -489,6 +491,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       appendIngestErrorMessage({
         text: message.payload.text,
         toolset: 'artistry',
+        sessionId,
       }, errorMessage)
 
       post({

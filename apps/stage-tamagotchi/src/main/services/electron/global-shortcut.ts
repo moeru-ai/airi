@@ -130,7 +130,7 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
 
   function unregisterById(id: string): void {
     const entry = active.get(id)
-    if (!entry)
+    if (!entry || entry.owner === 'main')
       return
 
     if (entry.driver === 'electron') {
