@@ -97,7 +97,6 @@ export const useAlayaMemoryStore = defineStore('alaya-memory', () => {
     shortTerm = new ShortTermMemory({ maxTurns: 20, digestThreshold: 0.6 })
     shortTermTurnCount.value = 0
     shortTermTurns.value = []
-    latestSearchRequestId = 0
 
     // Now set characterId, which triggers watch and calls refresh with driver ready
     characterId.value = opts.characterId
