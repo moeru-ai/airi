@@ -5,7 +5,9 @@ import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 import { errorMessageFrom } from '@moeru/std'
 import { useStopSpeakingButton } from '@proj-airi/stage-layouts/composables/useStopSpeakingButton'
 import { ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
+import { ChatStopButton } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
+import { isUserTurnWithText } from '@proj-airi/stage-ui/libs/chat-sync/index'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
@@ -114,16 +116,36 @@ async function handleSend() {
       revokeAttachmentUrls(attachmentsToSend)
   }
   catch (error) {
-    // restore on failure
-    messageInput.value = textToSend
-    attachments.value = attachmentsToSend
-    chatSession.setSessionMessages(chatSession.activeSessionId, [
-      ...messages.value,
-      {
-        role: 'error',
-        content: errorMessageFrom(error) ?? 'Failed to send message',
-      },
-    ])
+    // Genuine send failures only: cancellations resolve with an outcome. A
+    // committed turn keeps its text in the transcript where retry can resend
+    // it; restoring it into the composer too would duplicate the turn on the
+    // next send. Only a send that never reached history (provider resolution,
+    // relay timeout, pre-append failure) gets its draft rescued.
+    const lastUserTurn = messages.value.findLast(message => message.role === 'user')
+    if (isUserTurnWithText(lastUserTurn, textToSend))
+      revokeAttachmentUrls(attachmentsToSend)
+    else
+      rescueRetractedDraft(textToSend, attachmentsToSend)
+    appendLocalErrorMessage(errorMessageFrom(error) ?? 'Failed to send message')
+  }
+}
+
+function appendLocalErrorMessage(content: string) {
+  chatSession.appendSessionMessage(chatSession.activeSessionId, {
+    role: 'error',
+    content,
+  })
+}
+
+// Chat-sync commands travel the BroadcastChannel in follower windows and can
+// reject (authority gone, 30s timeout, channel disposed); surface that as an
+// error row instead of leaving an unhandled rejection.
+async function runChatSyncCommand(command: () => Promise<unknown>, fallbackMessage: string) {
+  try {
+    await command()
+  }
+  catch (error) {
+    appendLocalErrorMessage(errorMessageFrom(error) ?? fallbackMessage)
   }
 }
 
@@ -152,11 +174,16 @@ function restoreUnsentDraft() {
   const draft = unsentDraft.value
   if (!draft)
     return
-  // Release the URLs of whatever is currently staged before it is replaced.
-  revokeAttachmentUrls(attachments.value)
+  // Swap rather than overwrite: whatever is currently staged moves into the
+  // chip slot (its object URLs move with it), so restore never destroys
+  // content in either direction.
+  const displacedText = messageInput.value
+  const displacedAttachments = attachments.value
   messageInput.value = draft.text
   attachments.value = draft.attachments
-  unsentDraft.value = null
+  unsentDraft.value = (displacedText.trim() || displacedAttachments.length > 0)
+    ? { text: displacedText, attachments: displacedAttachments }
+    : null
 }
 
 function discardUnsentDraft() {
@@ -260,7 +287,7 @@ const historyMessages = computed(() => messages.value as unknown as ChatHistoryI
 
 async function handleDeleteMessage(index: number) {
   const message = messages.value[index]
-  await chatSyncStore.requestDeleteMessage({ index })
+  await runChatSyncCommand(() => chatSyncStore.requestDeleteMessage({ index }), 'Failed to delete message')
   trackChatMessageDeleted({
     source: 'history',
     message_role: message?.role ?? 'unknown',
@@ -272,18 +299,22 @@ onMounted(() => {
 })
 
 async function handleRetryMessage(index: number) {
-  await chatSyncStore.requestRetry({
+  await runChatSyncCommand(() => chatSyncStore.requestRetry({
     sessionId: chatSession.activeSessionId,
     index,
-  })
+  }), 'Failed to retry message')
   trackChatMessageRetried({
     source: 'history',
   })
 }
 
-async function handleCleanupMessages() {
+async function handleStop() {
+  await runChatSyncCommand(() => chatSyncStore.requestStop(chatSession.activeSessionId), 'Failed to stop the response')
+}
+
+async function handleCleanup() {
   const messageCount = messages.value.filter(message => message.role !== 'system').length
-  await chatSyncStore.requestCleanup()
+  await runChatSyncCommand(() => chatSyncStore.requestCleanup(chatSession.activeSessionId), 'Failed to clear messages')
   trackChatMessagesCleared({
     source: 'chat_controls',
     message_count: messageCount,
@@ -355,20 +386,11 @@ async function handleCleanupMessages() {
     </div>
     <div :class="['flex items-center justify-end gap-2 py-1']">
       <!-- Stop streaming button: only visible while a send is in flight -->
-      <button
+      <ChatStopButton
         v-if="sending"
-        :class="[
-          'max-h-[10lh] min-h-[1lh] flex items-center justify-center rounded-md p-2 outline-none',
-          'transition-colors transition-transform active:scale-95',
-          'bg-red-100 text-red-500 dark:bg-red-900/30 dark:text-red-400',
-          'hover:bg-red-200 dark:hover:bg-red-900/50',
-        ]"
-        :title="t('stage.chat.actions.stop')"
-        :aria-label="t('stage.chat.actions.stop')"
-        @click="() => chatSyncStore.requestStop()"
-      >
-        <div class="i-solar:stop-circle-bold-duotone text-lg" />
-      </button>
+        class="max-h-[10lh] min-h-[1lh] p-2 text-lg"
+        @stop="handleStop"
+      />
 
       <DropdownMenuRoot>
         <DropdownMenuTrigger as-child>
@@ -445,7 +467,7 @@ async function handleCleanupMessages() {
         hover:text="red-500 dark:red-400"
         flex items-center justify-center rounded-md p-2 outline-none
         transition-colors transition-transform active:scale-95
-        @click="handleCleanupMessages"
+        @click="handleCleanup"
       >
         <div class="i-solar:trash-bin-2-bold-duotone" />
       </button>
