@@ -32,7 +32,7 @@ docker compose -f apps/server/docker-compose.otel.yml up -d
 
 Default:
 
-`AUTH_UI_URL=https://auth.airi.build/ui`
+`AUTH_UI_URL=https://accounts.airi.build/ui`
 
 Set this when previewing or deploying auth UI to a different Cloudflare URL.
 

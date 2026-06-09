@@ -7,17 +7,17 @@ import { getServerAuthBootstrapContext, resolveStandaloneServerAuthContext } fro
 describe('ui-server-auth bootstrap context', () => {
   it('uses the trusted API server origin carried by standalone server redirects', () => {
     expect(resolveStandaloneServerAuthContext(
-      'https://auth.airi.build/ui/sign-in?api_server_url=https%3A%2F%2Fairi-server-dev.up.railway.app%2Fapi%2Fauth&client_id=airi-stage-web',
+      'https://accounts.airi.build/ui/sign-in?api_server_url=https%3A%2F%2Fairi-server-dev.up.railway.app%2Fapi%2Fauth&client_id=airi-stage-web',
       'https://api.airi.build',
     )).toEqual({
       apiServerUrl: 'https://airi-server-dev.up.railway.app',
-      currentUrl: 'https://auth.airi.build/ui/sign-in?api_server_url=https%3A%2F%2Fairi-server-dev.up.railway.app%2Fapi%2Fauth&client_id=airi-stage-web',
+      currentUrl: 'https://accounts.airi.build/ui/sign-in?api_server_url=https%3A%2F%2Fairi-server-dev.up.railway.app%2Fapi%2Fauth&client_id=airi-stage-web',
     })
   })
 
   it('ignores untrusted API server origins from crafted standalone auth URLs', () => {
     expect(resolveStandaloneServerAuthContext(
-      'https://auth.airi.build/ui/sign-in?api_server_url=https%3A%2F%2Fevil.example&client_id=airi-stage-web',
+      'https://accounts.airi.build/ui/sign-in?api_server_url=https%3A%2F%2Fevil.example&client_id=airi-stage-web',
       'https://api.airi.build',
     )).toBeNull()
   })

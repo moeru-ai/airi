@@ -1,6 +1,6 @@
 export const SERVER_AUTH_UI_BASE_PATH = '/auth'
 export const AUTH_UI_API_SERVER_URL_QUERY_PARAM = 'api_server_url'
-export const DEFAULT_AUTH_UI_URL = 'https://auth.airi.build/ui'
+export const DEFAULT_AUTH_UI_URL = 'https://accounts.airi.build/ui'
 export const SERVER_DEV_API_SERVER_URL = 'https://airi-server-dev.up.railway.app'
 export const SERVER_DEV_AUTH_UI_URL = 'https://server-dev.airi-server-auth.pages.dev/ui'
 

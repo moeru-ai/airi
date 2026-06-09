@@ -4,16 +4,16 @@ import { buildAuthUiRedirectUrl, buildAuthUiUrl, resolveAuthUiUrl } from '../aut
 
 describe('auth UI URL helpers', () => {
   it('builds auth UI URLs under the configured auth base path', () => {
-    expect(buildAuthUiUrl('https://auth.airi.build/ui', '/sign-in', '?client_id=web')).toBe(
-      'https://auth.airi.build/ui/sign-in?client_id=web',
+    expect(buildAuthUiUrl('https://accounts.airi.build/ui', '/sign-in', '?client_id=web')).toBe(
+      'https://accounts.airi.build/ui/sign-in?client_id=web',
     )
   })
 
   it('maps server /auth requests to the standalone auth UI while preserving queries', () => {
     expect(buildAuthUiRedirectUrl(
-      'https://auth.airi.build/ui/',
+      'https://accounts.airi.build/ui/',
       'https://api.airi.build/auth/verify-email?verified=true',
-    )).toBe('https://auth.airi.build/ui/verify-email?verified=true')
+    )).toBe('https://accounts.airi.build/ui/verify-email?verified=true')
   })
 
   it('adds the API server origin for standalone auth UI cross-environment redirects', () => {
@@ -28,7 +28,7 @@ describe('auth UI URL helpers', () => {
 
   it('routes server-dev default auth UI redirects to the matching Pages branch', () => {
     expect(buildAuthUiRedirectUrl(
-      'https://auth.airi.build/ui',
+      'https://accounts.airi.build/ui',
       'https://airi-server-dev.up.railway.app/auth/sign-in?client_id=airi-stage-web',
       'https://airi-server-dev.up.railway.app',
     )).toBe(

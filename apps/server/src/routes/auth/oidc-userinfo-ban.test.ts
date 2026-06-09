@@ -43,7 +43,7 @@ async function buildRoutes(currentUser: SessionUser) {
     db: {} as any, // userinfo path never queries the DB
     env: {
       API_SERVER_URL: 'http://localhost:3000',
-      AUTH_UI_URL: 'https://auth.airi.build/ui',
+      AUTH_UI_URL: 'https://accounts.airi.build/ui',
       ADDITIONAL_TRUSTED_ORIGINS: [],
     } as any,
     configKV: createConfigKV(),
@@ -103,7 +103,7 @@ describe('auth UI routes', () => {
     expect(res.status).toBe(302)
 
     const location = res.headers.get('location')
-    expect(location).toBe('https://auth.airi.build/ui/sign-in?provider=github&client_id=stage-web&prompt=login&redirect_uri=http%3A%2F%2Flocalhost%3A5173%2Fauth%2Fcallback&api_server_url=http%3A%2F%2Flocalhost%3A3000')
+    expect(location).toBe('https://accounts.airi.build/ui/sign-in?provider=github&client_id=stage-web&prompt=login&redirect_uri=http%3A%2F%2Flocalhost%3A5173%2Fauth%2Fcallback&api_server_url=http%3A%2F%2Flocalhost%3A3000')
   })
 
   it('redirects Electron OIDC callback queries to the standalone auth UI relay', async () => {
@@ -112,6 +112,6 @@ describe('auth UI routes', () => {
     const res = await routes.request('/api/auth/oidc/electron-callback?code=sample-code&state=43123%3Aopaque-state')
 
     expect(res.status).toBe(302)
-    expect(res.headers.get('location')).toBe('https://auth.airi.build/ui/api/auth/oidc/electron-callback?code=sample-code&state=43123%3Aopaque-state')
+    expect(res.headers.get('location')).toBe('https://accounts.airi.build/ui/api/auth/oidc/electron-callback?code=sample-code&state=43123%3Aopaque-state')
   })
 })

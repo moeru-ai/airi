@@ -83,7 +83,7 @@ const EnvSchema = object({
   // Standalone auth UI base URL. The server keeps `/auth/*` as the historical
   // entrypoint and redirects those requests here after ui-server-auth moved out
   // of the server image.
-  AUTH_UI_URL: optional(string(), 'https://auth.airi.build/ui'),
+  AUTH_UI_URL: optional(string(), 'https://accounts.airi.build/ui'),
 
   // Standalone admin UI base URL. The server keeps `/admin/*` as the historical
   // entrypoint and redirects those requests here after ui-admin moved out of

@@ -13,7 +13,7 @@ const TRUSTED_EXACT_ORIGINS = [
   'capacitor://localhost', // Capacitor mobile (iOS)
   'ai.moeru.airi-pocket://links', // Android deep link
   'https://airi.moeru.ai', // Production
-  'https://auth.airi.build', // Standalone auth UI
+  'https://accounts.airi.build', // Standalone auth UI
   'https://server-dev.airi-server-auth.pages.dev', // Server-dev standalone auth UI
   'https://admin.airi.build', // Standalone admin UI
   'https://server-dev.airi-server-admin.pages.dev', // Server-dev standalone admin UI

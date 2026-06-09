@@ -58,7 +58,7 @@ export function getServerAuthBootstrapContext(): ServerAuthBootstrapContext | nu
  *
  * Use when:
  * - The standalone auth UI serves more than one AIRI environment from the same
- *   Pages deployment, such as production `auth.airi.build` handling server-dev
+ *   Pages deployment, such as production `accounts.airi.build` handling server-dev
  *   OIDC redirects.
  *
  * Expects:

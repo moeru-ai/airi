@@ -1,3 +1,6 @@
+import type { Database } from '../db'
+import type { Env } from '../env'
+
 import { describe, expect, it, vi } from 'vitest'
 
 import { createAuth, ensureDynamicFirstPartyRedirectUri, seedTrustedClients } from '../auth'
@@ -31,7 +34,7 @@ function createMockDb(existingRowsByCall: unknown[][] = []) {
 
 describe('createAuth', () => {
   it('allows signed-in users to link OAuth accounts that use a different email', () => {
-    const auth = createAuth({} as any, {
+    const auth = createAuth({} as unknown as Database, {
       API_SERVER_URL: 'http://localhost:3000',
       AUTH_GOOGLE_CLIENT_ID: 'google-client',
       AUTH_GOOGLE_CLIENT_SECRET: 'google-secret',
@@ -39,7 +42,7 @@ describe('createAuth', () => {
       AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
       BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
       ADDITIONAL_TRUSTED_ORIGINS: [],
-    } as any)
+    } as unknown as Env)
 
     expect(auth.options.account?.accountLinking?.allowDifferentEmails).toBe(true)
   })

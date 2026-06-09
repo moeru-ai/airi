@@ -24,7 +24,7 @@ describe('useLinkedAccounts', () => {
           },
           isAuthenticated: ref(false),
           describeError: () => '',
-          buildCallbackURL: () => 'https://auth.airi.build/ui/profile',
+          buildCallbackURL: () => 'https://accounts.airi.build/ui/profile',
           messages: {
             listFailed: 'list failed',
             unlinkFailed: 'unlink failed',
@@ -48,8 +48,8 @@ describe('useLinkedAccounts', () => {
 
     expect(linkSocial).toHaveBeenCalledWith({
       provider: 'github',
-      callbackURL: 'https://auth.airi.build/ui/profile',
-      errorCallbackURL: 'https://auth.airi.build/ui/profile',
+      callbackURL: 'https://accounts.airi.build/ui/profile',
+      errorCallbackURL: 'https://accounts.airi.build/ui/profile',
     })
   })
 })
