@@ -1,6 +1,6 @@
 # AIRI Admin Dashboard
 
-Admin dashboard for operating the hosted AIRI server. It is a standalone Vue/Vite app deployed to Cloudflare Pages under `/admin`; the API server redirects its historical `/admin/*` entrypoints to this app.
+Admin dashboard for operating the hosted AIRI server. It is a standalone Vue/Vite app deployed to Cloudflare Pages; the API server redirects its historical `/admin/*` entrypoints to this app.
 
 ## Use When
 

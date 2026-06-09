@@ -140,7 +140,7 @@ jobs:
 
     environment:
       name: AdminServerDev
-      url: https://server-dev.airi-server-admin.pages.dev/admin/
+      url: https://server-dev.airi-server-admin.pages.dev/
 
     steps:
       - uses: actions/checkout@v6
@@ -176,4 +176,4 @@ jobs:
 
       - name: Print preview URL
         run: |
-          echo "Preview URL: https://server-dev.airi-server-admin.pages.dev/admin/"
+          echo "Preview URL: https://server-dev.airi-server-admin.pages.dev/"

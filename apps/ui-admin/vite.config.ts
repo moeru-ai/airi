@@ -7,7 +7,6 @@ import VueMacros from 'vue-macros/vite'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
-  base: '/',
   resolve: {
     alias: {
       '@proj-airi/stage-shared': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-shared', 'src')),

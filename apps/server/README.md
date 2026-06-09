@@ -42,7 +42,7 @@ Set this when previewing or deploying auth UI to a different Cloudflare URL.
 
 Default:
 
-`ADMIN_UI_URL=https://admin.airi.build/admin`
+`ADMIN_UI_URL=https://admin.airi.build`
 
 Set this when previewing or deploying admin UI to a different Cloudflare URL.
 

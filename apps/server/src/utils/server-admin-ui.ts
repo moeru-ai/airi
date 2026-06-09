@@ -1,8 +1,8 @@
 export const SERVER_ADMIN_UI_BASE_PATH = '/admin'
 export const ADMIN_UI_API_SERVER_URL_QUERY_PARAM = 'api_server_url'
-export const DEFAULT_ADMIN_UI_URL = 'https://admin.airi.build/admin'
+export const DEFAULT_ADMIN_UI_URL = 'https://admin.airi.build'
 export const SERVER_DEV_API_SERVER_URL = 'https://airi-server-dev.up.railway.app'
-export const SERVER_DEV_ADMIN_UI_URL = 'https://server-dev.airi-server-admin.pages.dev/admin'
+export const SERVER_DEV_ADMIN_UI_URL = 'https://server-dev.airi-server-admin.pages.dev'
 
 /**
  * Builds an absolute URL inside the externally hosted admin UI.
@@ -13,7 +13,7 @@ export const SERVER_DEV_ADMIN_UI_URL = 'https://server-dev.airi-server-admin.pag
  * - Preserving dashboard route paths and query parameters.
  *
  * Expects:
- * - `adminUiUrl` is the public admin UI base, usually ending in `/admin`.
+ * - `adminUiUrl` is the public admin UI base.
  * - `path` is the route path within the admin UI router.
  *
  * Returns:
@@ -75,7 +75,7 @@ export function resolveAdminUiUrl(adminUiUrl: string, apiServerUrl: string): str
  *
  * Expects:
  * - `requestUrl` is the incoming server URL.
- * - `adminUiUrl` points to the standalone admin UI base path.
+ * - `adminUiUrl` points to the standalone admin UI base.
  *
  * Returns:
  * - The external admin UI URL preserving route suffix and query string.

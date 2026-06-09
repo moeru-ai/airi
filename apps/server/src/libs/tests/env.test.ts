@@ -42,7 +42,7 @@ describe('parseEnv', () => {
     expect(env.DATABASE_URL).toBe('postgres://example')
     expect(env.REDIS_URL).toBe('redis://example')
     expect(env.AUTH_UI_URL).toBe('https://auth.airi.build/ui')
-    expect(env.ADMIN_UI_URL).toBe('https://admin.airi.build/admin')
+    expect(env.ADMIN_UI_URL).toBe('https://admin.airi.build')
     expect(env.ADDITIONAL_TRUSTED_ORIGINS).toEqual([])
   })
 

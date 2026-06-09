@@ -21,7 +21,7 @@ jobs:
 
     environment:
       name: Admin Production
-      url: https://admin.airi.build/admin/
+      url: https://admin.airi.build/
 
     steps:
       - uses: actions/checkout@v6

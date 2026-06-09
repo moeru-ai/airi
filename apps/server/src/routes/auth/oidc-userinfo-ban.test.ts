@@ -103,7 +103,7 @@ describe('auth UI routes', () => {
     expect(res.status).toBe(302)
 
     const location = res.headers.get('location')
-    expect(location).toBe('https://auth.airi.build/ui/sign-in?provider=github&client_id=stage-web&prompt=login&redirect_uri=http%3A%2F%2Flocalhost%3A5173%2Fauth%2Fcallback')
+    expect(location).toBe('https://auth.airi.build/ui/sign-in?provider=github&client_id=stage-web&prompt=login&redirect_uri=http%3A%2F%2Flocalhost%3A5173%2Fauth%2Fcallback&api_server_url=http%3A%2F%2Flocalhost%3A3000')
   })
 
   it('redirects Electron OIDC callback queries to the standalone auth UI relay', async () => {
