@@ -98,6 +98,17 @@ vi.mock('./chat/session-store', () => ({
       sessionMessages[sessionId] ??= []
       sessionMessages[sessionId].push(message)
     },
+    removeSessionMessage: (sessionId: string, messageId: string) => {
+      sessionMessages[sessionId] = (sessionMessages[sessionId] ?? []).filter(message => message.id !== messageId)
+    },
+    commitSessionMessage: (sessionId: string, messageId: string) => {
+      sessionMessages[sessionId] = (sessionMessages[sessionId] ?? []).map((message) => {
+        if (message.id !== messageId || !message.provisional)
+          return message
+        const { provisional: _provisional, ...committed } = message
+        return committed
+      })
+    },
     getSessionMessages: (sessionId: string) => sessionMessages[sessionId] ?? [],
     persistSessionMessages: persistSessionMessagesMock,
     getSessionGeneration: () => currentGeneration,
@@ -440,8 +451,9 @@ describe('chat orchestrator contract', () => {
     releaseFirstSend?.()
 
     // Cancellation is not a failure: the facade promise resolves so the UI
-    // send-failure path never fires. The cancelled send never streams.
-    await expect(secondSend).resolves.toEqual({ rolledBack: false })
+    // send-failure path never fires. The cancelled send never streams, so
+    // `rolledBack` tells the composer it may restore the text.
+    await expect(secondSend).resolves.toEqual({ rolledBack: true })
     expect(llmStreamMock).toHaveBeenCalledTimes(1)
     await firstSend
   })
@@ -504,7 +516,7 @@ describe('chat orchestrator contract', () => {
     store.cancelPendingSends('session-1')
     releaseFirstSend?.()
 
-    await expect(secondSend).resolves.toEqual({ rolledBack: false })
+    await expect(secondSend).resolves.toEqual({ rolledBack: true })
     await firstSend
   })
 
@@ -536,8 +548,9 @@ describe('chat orchestrator contract', () => {
     releaseFirstSend?.()
 
     await firstSend
-    // A stale queued send is discarded, not failed: it resolves and never streams.
-    await expect(secondSend).resolves.toEqual({ rolledBack: false })
+    // A stale queued send is discarded, not failed: it resolves and never
+    // streams, and `rolledBack` says nothing entered history.
+    await expect(secondSend).resolves.toEqual({ rolledBack: true })
     expect(llmStreamMock).toHaveBeenCalledTimes(1)
   })
 

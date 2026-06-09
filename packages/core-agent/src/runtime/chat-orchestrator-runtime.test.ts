@@ -71,6 +71,17 @@ function createHarness() {
           return
         sessionMessages[sessionId] = list.filter(message => message.id !== messageId)
       },
+      commitSessionMessage: (sessionId, messageId) => {
+        const list = sessionMessages[sessionId]
+        if (!list)
+          return
+        sessionMessages[sessionId] = list.map((message) => {
+          if (message.id !== messageId || !message.provisional)
+            return message
+          const { provisional: _provisional, ...committed } = message
+          return committed as ChatHistoryItem
+        })
+      },
       getSessionGeneration: () => generation,
     },
     context: {
@@ -375,7 +386,9 @@ describe('createChatOrchestratorRuntime', () => {
     harness.runtime.cancelPendingSends('session-1')
     releaseFirstSend?.()
 
-    await expect(secondSend).resolves.toEqual({ rolledBack: false })
+    // The cancelled send never ran, so nothing entered history and the caller
+    // is told it may rescue the text.
+    await expect(secondSend).resolves.toEqual({ rolledBack: true })
     // The cancelled send never invoked the provider.
     expect(harness.stream).toHaveBeenCalledTimes(1)
     await firstSend
@@ -414,7 +427,8 @@ describe('createChatOrchestratorRuntime', () => {
     releaseFirstSend?.()
 
     await firstSend
-    await expect(secondSend).resolves.toEqual({ rolledBack: false })
+    // Discarded before it ran: nothing entered history, the caller may rescue.
+    await expect(secondSend).resolves.toEqual({ rolledBack: true })
     expect(harness.stream).toHaveBeenCalledTimes(1)
   })
 
@@ -526,12 +540,13 @@ describe('createChatOrchestratorRuntime', () => {
 
   /**
    * @example
-   * A non-rescuable queued send (retry / voice / transport) cancelled by Stop
-   * settles WITHOUT reporting rolledBack, matching the active-send gate: only a
-   * rescuable caller is told its turn was retracted. Guards the queued path from
-   * the active path drifting to a different retract rule.
+   * A non-rescuable queued send (retry / voice / transport: callers that ignore
+   * the outcome) cancelled by Stop also reports rolledBack: unlike a stopped
+   * ACTIVE send (where `rescuable` gates retracting an already-appended turn),
+   * a queued send never appended anything, so "nothing entered history" is
+   * truthful for every caller and ignorable by those that do not consume it.
    */
-  it('settles a non-rescuable queued send without rollback when stop fires with a backlog', async () => {
+  it('settles a non-rescuable queued send as rolled back when stop fires with a backlog', async () => {
     const harness = createHarness()
     let releaseFirstSend: (() => void) | undefined
     harness.stream.mockImplementationOnce(async () => {
@@ -560,7 +575,7 @@ describe('createChatOrchestratorRuntime', () => {
     harness.runtime.stopSending('session-1')
     releaseFirstSend?.()
 
-    await expect(queuedSend).resolves.toEqual({ rolledBack: false })
+    await expect(queuedSend).resolves.toEqual({ rolledBack: true })
     await firstSend
     expect(harness.runtime.getPendingQueuedSendCount()).toBe(0)
     expect(harness.stream).toHaveBeenCalledTimes(1)
@@ -747,7 +762,7 @@ describe('createChatOrchestratorRuntime', () => {
     harness.runtime.cancelPendingSends('session-1')
     releaseFirstSend?.()
 
-    await expect(secondSend).resolves.toEqual({ rolledBack: false })
+    await expect(secondSend).resolves.toEqual({ rolledBack: true })
     await firstSend
   })
 
@@ -1503,5 +1518,88 @@ describe('createChatOrchestratorRuntime', () => {
     expect(assistantInPrompt).not.toHaveProperty('stopped')
     expect(assistantInPrompt).not.toHaveProperty('slices')
     expect(assistantInPrompt).not.toHaveProperty('tool_results')
+  })
+
+  /**
+   * @example
+   * The user turn is appended with `provisional: true` so sync layers (cloud
+   * outbox, reconcile sweep) skip it while the send can still be retracted;
+   * the marker is cleared once the turn commits. Without the marker, a
+   * reconcile sweep running mid-send uploads the turn, a stop-before-output
+   * then retracts it locally only, and the next catch-up pull resurrects the
+   * retracted text.
+   */
+  it('marks the in-flight user turn provisional and clears the marker at commit', async () => {
+    const harness = createHarness()
+
+    let releaseOutput: (() => Promise<void>) | undefined
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      await new Promise<void>((resolve) => {
+        releaseOutput = async () => {
+          await options?.onStreamEvent?.({ type: 'text-delta', text: 'a reply long enough to cross the streaming flush threshold' })
+          await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+          resolve()
+        }
+      })
+    })
+
+    const send = harness.runtime.ingest('hello', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    await vi.waitFor(() => {
+      expect(harness.sessionMessages['session-1']?.some(message => message.role === 'user')).toBe(true)
+    })
+    const inFlightTurn = harness.sessionMessages['session-1']?.find(message => message.role === 'user')
+    expect(inFlightTurn?.provisional).toBe(true)
+    expect(harness.userCommits).toHaveLength(0)
+
+    await releaseOutput!()
+    await send
+
+    const committedTurn = harness.sessionMessages['session-1']?.find(message => message.role === 'user')
+    expect(committedTurn?.provisional).toBeUndefined()
+    expect(harness.userCommits).toHaveLength(1)
+  })
+
+  /**
+   * @example
+   * The retract window closes at first output, so the commit (cloud upload,
+   * autonomous tasks) fires right then, concurrently with the rest of the
+   * stream, instead of waiting for it to drain. It still fires exactly once
+   * and ahead of the assistant append.
+   */
+  it('commits the user turn at first output while the stream is still in flight', async () => {
+    const harness = createHarness()
+
+    let finishStream: (() => Promise<void>) | undefined
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'a reply long enough to cross the streaming flush threshold' })
+      await new Promise<void>((resolve) => {
+        finishStream = async () => {
+          await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+          resolve()
+        }
+      })
+    })
+
+    const send = harness.runtime.ingest('hello', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    // The commit lands while the provider stream is still parked.
+    await vi.waitFor(() => {
+      expect(harness.userCommits).toHaveLength(1)
+    })
+    const userTurn = harness.sessionMessages['session-1']?.find(message => message.role === 'user')
+    expect(userTurn?.provisional).toBeUndefined()
+
+    await finishStream!()
+    await send
+
+    expect(harness.userCommits).toHaveLength(1)
+    expect(harness.commitOrder).toEqual(['user-commit', 'assistant'])
   })
 })

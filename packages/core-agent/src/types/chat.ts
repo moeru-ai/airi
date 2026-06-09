@@ -47,7 +47,18 @@ export interface ContextMessage extends ContextUpdate<Record<string, unknown>, u
   createdAt: number
 }
 
-export type ChatHistoryItem = (ChatMessage | ErrorMessage) & { context?: ContextMessage } & { createdAt?: number, id?: string }
+export type ChatHistoryItem = (ChatMessage | ErrorMessage) & { context?: ContextMessage } & {
+  createdAt?: number
+  id?: string
+  /**
+   * Marks a user turn whose send is still in flight and may yet be retracted
+   * by a stop before any output. Sync layers must not upload provisional rows
+   * (see `isCloudSyncableMessage`); the orchestrator clears the marker once
+   * the turn commits, and hydrate drops it from stored rows (a row loaded
+   * from disk is by definition settled).
+   */
+  provisional?: boolean
+}
 
 export interface ChatStreamEventContext {
   message: ChatHistoryItem

@@ -96,6 +96,19 @@ describe('isCloudSyncableMessage', () => {
     }
     expect(isCloudSyncableMessage(stoppedAssistant)).toBe(false)
   })
+
+  /**
+   * @example
+   * A provisional user turn (send still in flight, may be retracted by a stop
+   * before any output) is not cloud-syncable. The reconcile create-sweep runs
+   * concurrently with active sends; without this guard it would upload the
+   * turn, a stop-before-output would retract it locally only, and the next
+   * catch-up pull would resurrect the retracted text.
+   */
+  it('rejects provisional user turns so a mid-send sweep cannot upload a retractable row', () => {
+    expect(isCloudSyncableMessage({ role: 'user', content: 'in flight', id: 'u1', provisional: true })).toBe(false)
+    expect(isCloudSyncableMessage({ role: 'user', content: 'committed', id: 'u1' })).toBe(true)
+  })
 })
 
 describe('wireMessageToLocal', () => {

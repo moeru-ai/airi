@@ -47,6 +47,19 @@ interface CloudMergePayload {
  */
 const OUTBOX_MAX_ATTEMPTS = 5
 
+/**
+ * Normalizes a settled message by dropping its in-flight `provisional` marker.
+ *
+ * Before:
+ * - { role: 'user', content: 'hi', id: 'u1', provisional: true }
+ *
+ * After:
+ * - { role: 'user', content: 'hi', id: 'u1' }
+ */
+function withoutProvisional({ provisional: _provisional, ...message }: ChatHistoryItem): ChatHistoryItem {
+  return message as ChatHistoryItem
+}
+
 export const useChatSessionStore = defineStore('chat-session', () => {
   const { userId, token: authToken } = storeToRefs(useAuthStore())
   const { activeCardId, systemPrompt } = storeToRefs(useAiriCardStore())
@@ -287,6 +300,28 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 
   /**
+   * Clear the `provisional` marker from a user turn once the orchestrator
+   * commits it, persisting and broadcasting the change so sync layers (cloud
+   * outbox, reconcile sweep) start treating the row as uploadable. No-op when
+   * the session or message is absent or the row is already committed.
+   */
+  function commitSessionMessage(sessionId: string, messageId: string) {
+    const current = sessionMessages.value[sessionId]
+    if (!current)
+      return
+    let changed = false
+    const next = current.map((message) => {
+      if (message.id !== messageId || !message.provisional)
+        return message
+      changed = true
+      return withoutProvisional(message)
+    })
+    if (!changed)
+      return
+    replaceSessionMessages(sessionId, next)
+  }
+
+  /**
    * Hydrate a single session's messages from IDB into memory. Idempotent —
    * subsequent calls for the same id are no-ops.
    *
@@ -326,7 +361,14 @@ export const useChatSessionStore = defineStore('chat-session', () => {
           return
         if (stored) {
           const currentMessages = sessionMessages.value[sessionId] ?? []
-          const mergedMessages = mergeLoadedSessionMessages(stored.messages, currentMessages)
+          // A `provisional` marker describes a send in flight in the runtime
+          // that wrote it; a row arriving from disk is by definition settled
+          // (e.g. a crash mid-send), so the marker is dropped before merging.
+          // Live in-memory rows keep theirs: a send may be in flight right now.
+          const settledStoredMessages = stored.messages.some(message => message.provisional)
+            ? stored.messages.map(withoutProvisional)
+            : stored.messages
+          const mergedMessages = mergeLoadedSessionMessages(settledStoredMessages, currentMessages)
 
           sessionMetas.value[sessionId] = stored.meta
           replaceSessionMessages(sessionId, mergedMessages, { persist: false })
@@ -1431,6 +1473,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     setSessionMessages,
     appendSessionMessage,
     removeSessionMessage,
+    commitSessionMessage,
     persistSessionMessages,
     getSessionMessages,
     sessionMessages,

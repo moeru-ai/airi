@@ -41,7 +41,7 @@ function isTextDelta(event: StreamEvent): event is Extract<StreamEvent, { type: 
   return event.type === 'text-delta'
 }
 
-export type { QueuedSendSnapshot, ChatOrchestratorSendOptions as SendOptions, SendOutcome } from '@proj-airi/core-agent'
+export type { QueuedSendSnapshot, ChatOrchestratorSendOptions as SendOptions } from '@proj-airi/core-agent'
 
 export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const llmStore = useLLM()
@@ -138,6 +138,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       getSessionMessages: sessionId => chatSession.getSessionMessages(sessionId).map(message => toRaw(message)),
       appendSessionMessage: (sessionId, message) => chatSession.appendSessionMessage(sessionId, message),
       removeSessionMessage: (sessionId, messageId) => chatSession.removeSessionMessage(sessionId, messageId),
+      commitSessionMessage: (sessionId, messageId) => chatSession.commitSessionMessage(sessionId, messageId),
       getSessionGeneration: sessionId => chatSession.getSessionGeneration(sessionId),
     },
     context: {
@@ -200,8 +201,10 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       }
     },
     onUserTurnCommitted: ({ sessionId, message, messageText, sessionMessages }) => {
-      // Deferred to commit so a retracted turn never reaches the cloud or kicks
-      // off an autonomous artist task on text the user took back.
+      // Fires at the first assistant output (or at settle for output-less
+      // turns), so a retracted turn never reaches the cloud or kicks off an
+      // autonomous artist task on text the user took back, while a normal turn
+      // syncs and starts its artist task concurrently with the reply stream.
       if (isCloudSyncableMessage(message)) {
         void chatSession.pushMessageToCloud(sessionId, {
           id: message.id,

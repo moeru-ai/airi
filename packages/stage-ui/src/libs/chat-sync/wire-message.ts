@@ -51,6 +51,26 @@ export function extractMessageText(message: ChatHistoryItem): string {
 }
 
 /**
+ * Whether a history item is a user turn whose visible text is exactly `text`.
+ *
+ * Use when:
+ * - A composer's send-failure path needs to know whether its optimistic turn
+ *   reached history (committed turns keep their text in the transcript, so
+ *   restoring the draft would duplicate the turn on resend). Centralizes the
+ *   knowledge of how the orchestrator shapes user content (plain string, or a
+ *   leading text part when attachments ride along).
+ *
+ * Expects:
+ * - `text` is the raw composer text, before any provider-time prefixes.
+ *
+ * Returns:
+ * - `true` only for `role: 'user'` items whose extracted text equals `text`.
+ */
+export function isUserTurnWithText(message: ChatHistoryItem | undefined, text: string): boolean {
+  return message?.role === 'user' && extractMessageText(message) === text
+}
+
+/**
  * Decide whether a local message should be mirrored to the cloud.
  *
  * Use when:
@@ -59,7 +79,10 @@ export function extractMessageText(message: ChatHistoryItem): string {
  *   local since they are recomputed from settings on every device. Stopped
  *   assistant turns are local-only: the `stopped` flag does not ride the wire
  *   format, so uploading them would server-side them as completed turns and
- *   silently lose the cancellation signal.
+ *   silently lose the cancellation signal. Provisional user turns are skipped
+ *   too: their send is still in flight and a stop before any output retracts
+ *   them locally only, so uploading one would resurrect retracted text on the
+ *   next catch-up pull.
  *
  * Expects:
  * - The caller has already validated the message has an `id`.
@@ -68,7 +91,8 @@ export function extractMessageText(message: ChatHistoryItem): string {
  * - `true` when the message is one of `user` / `assistant`. `tool` / `system`
  *   / `error` roles are filtered out — error messages are local-only since
  *   they describe a per-device runtime failure, not a server-acknowledged turn.
- *   Assistant messages with `stopped: true` are also filtered out.
+ *   Assistant messages with `stopped: true` and rows marked `provisional` are
+ *   also filtered out.
  */
 export function isCloudSyncableMessage(message: ChatHistoryItem): boolean {
   if (message.role === 'tool')
@@ -78,6 +102,8 @@ export function isCloudSyncableMessage(message: ChatHistoryItem): boolean {
   if (message.role === 'error')
     return false
   if (isStoppedAssistant(message))
+    return false
+  if (message.provisional)
     return false
   return true
 }
