@@ -15,6 +15,8 @@ const TRUSTED_EXACT_ORIGINS = [
   'https://airi.moeru.ai', // Production
   'https://auth.airi.build', // Standalone auth UI
   'https://server-dev.airi-server-auth.pages.dev', // Server-dev standalone auth UI
+  'https://admin.airi.build', // Standalone admin UI
+  'https://server-dev.airi-server-admin.pages.dev', // Server-dev standalone admin UI
 ]
 
 // NOTICE:

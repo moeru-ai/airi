@@ -1,49 +1,97 @@
-import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
-
 export const SERVER_ADMIN_UI_BASE_PATH = '/admin'
+export const ADMIN_UI_API_SERVER_URL_QUERY_PARAM = 'api_server_url'
+export const DEFAULT_ADMIN_UI_URL = 'https://admin.airi.build/admin'
+export const SERVER_DEV_API_SERVER_URL = 'https://airi-server-dev.up.railway.app'
+export const SERVER_DEV_ADMIN_UI_URL = 'https://server-dev.airi-server-admin.pages.dev/admin'
 
-const SERVER_ADMIN_UI_DIST_DIR = fileURLToPath(new URL('../../public/ui-admin', import.meta.url))
-const SERVER_ADMIN_UI_INDEX_HTML_PATH = fileURLToPath(new URL('../../public/ui-admin/index.html', import.meta.url))
-const RE_HTML_LT = /</g
-const RE_HTML_GT = />/g
-const RE_HTML_AMP = /&/g
-const RE_UNICODE_LINE_SEPARATOR = /\u2028/g
-const RE_UNICODE_PARAGRAPH_SEPARATOR = /\u2029/g
+/**
+ * Builds an absolute URL inside the externally hosted admin UI.
+ *
+ * Use when:
+ * - Redirecting server-owned admin UI entrypoints to the standalone
+ *   `apps/ui-admin` deployment.
+ * - Preserving dashboard route paths and query parameters.
+ *
+ * Expects:
+ * - `adminUiUrl` is the public admin UI base, usually ending in `/admin`.
+ * - `path` is the route path within the admin UI router.
+ *
+ * Returns:
+ * - An absolute URL with the admin UI base path, normalized path, and search.
+ */
+export function buildAdminUiUrl(adminUiUrl: string, path: string, search = ''): string {
+  const target = new URL(adminUiUrl)
+  const basePath = target.pathname.replace(/\/+$/, '')
+  const routePath = path.startsWith('/') ? path : `/${path}`
 
-let cachedIndexHtml: string | null = null
+  target.pathname = `${basePath}${routePath}`
+  target.search = search
+  target.hash = ''
 
-export interface ServerAdminUiContext {
-  apiServerUrl: string
-  currentUrl: string
+  return target.toString()
 }
 
-export function getServerAdminUiDistDir(): string {
-  return SERVER_ADMIN_UI_DIST_DIR
+/**
+ * Resolves the standalone admin UI base for the active server environment.
+ *
+ * Use when:
+ * - The server redirects historical `/admin/*` entrypoints to the standalone UI.
+ * - The server-dev Railway deployment needs the matching Cloudflare Pages
+ *   branch without changing the production admin domain.
+ *
+ * Expects:
+ * - `adminUiUrl` is the configured admin UI base URL.
+ * - `apiServerUrl` is the configured API server URL.
+ *
+ * Returns:
+ * - The configured admin UI URL, except for the server-dev default pairing where
+ *   the matching Pages branch URL is returned.
+ */
+export function resolveAdminUiUrl(adminUiUrl: string, apiServerUrl: string): string {
+  try {
+    const adminUi = new URL(adminUiUrl)
+    const defaultAdminUi = new URL(DEFAULT_ADMIN_UI_URL)
+    const apiServer = new URL(apiServerUrl)
+    const adminUiBase = `${adminUi.origin}${adminUi.pathname.replace(/\/+$/, '')}`
+    const defaultAdminUiBase = `${defaultAdminUi.origin}${defaultAdminUi.pathname.replace(/\/+$/, '')}`
+
+    if (adminUiBase === defaultAdminUiBase && apiServer.origin === SERVER_DEV_API_SERVER_URL) {
+      return SERVER_DEV_ADMIN_UI_URL
+    }
+  }
+  catch {
+    return adminUiUrl
+  }
+
+  return adminUiUrl
 }
 
-export function renderServerAdminUiHtml(context: ServerAdminUiContext): string {
-  const indexHtml = getServerAdminUiIndexHtml()
+/**
+ * Maps a server `/admin/*` request to the standalone admin UI.
+ *
+ * Use when:
+ * - The server keeps owning the historical `/admin/*` entrypoint but no longer
+ *   packages the admin UI bundle.
+ *
+ * Expects:
+ * - `requestUrl` is the incoming server URL.
+ * - `adminUiUrl` points to the standalone admin UI base path.
+ *
+ * Returns:
+ * - The external admin UI URL preserving route suffix and query string.
+ */
+export function buildAdminUiRedirectUrl(adminUiUrl: string, requestUrl: string, apiServerUrl?: string): string {
+  const request = new URL(requestUrl)
+  const suffix = request.pathname === SERVER_ADMIN_UI_BASE_PATH
+    ? '/'
+    : request.pathname.slice(SERVER_ADMIN_UI_BASE_PATH.length) || '/'
+  const resolvedAdminUiUrl = apiServerUrl ? resolveAdminUiUrl(adminUiUrl, apiServerUrl) : adminUiUrl
 
-  if (!indexHtml.includes('__AIRI_SERVER_ADMIN_CONTEXT__'))
-    throw new Error('ui-admin index.html is missing __AIRI_SERVER_ADMIN_CONTEXT__ placeholder')
+  const target = new URL(buildAdminUiUrl(resolvedAdminUiUrl, suffix, request.search))
+  if (apiServerUrl) {
+    const apiServer = new URL(apiServerUrl)
+    target.searchParams.set(ADMIN_UI_API_SERVER_URL_QUERY_PARAM, apiServer.origin)
+  }
 
-  return indexHtml.replace('__AIRI_SERVER_ADMIN_CONTEXT__', serializeInlineJson(context))
-}
-
-function getServerAdminUiIndexHtml(): string {
-  if (cachedIndexHtml !== null)
-    return cachedIndexHtml
-
-  cachedIndexHtml = readFileSync(SERVER_ADMIN_UI_INDEX_HTML_PATH, 'utf8')
-  return cachedIndexHtml
-}
-
-function serializeInlineJson(value: unknown): string {
-  return JSON.stringify(value)
-    .replace(RE_HTML_LT, '\\u003c')
-    .replace(RE_HTML_GT, '\\u003e')
-    .replace(RE_HTML_AMP, '\\u0026')
-    .replace(RE_UNICODE_LINE_SEPARATOR, '\\u2028')
-    .replace(RE_UNICODE_PARAGRAPH_SEPARATOR, '\\u2029')
+  return target.toString()
 }

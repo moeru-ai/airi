@@ -1,18 +1,3 @@
-FROM node:24-alpine AS ui-assets
-
-WORKDIR /app
-
-RUN corepack enable
-
-RUN apk add --no-cache git
-
-COPY . .
-
-RUN pnpm install --frozen-lockfile --ignore-scripts
-
-RUN pnpm -r -F @proj-airi/ui-admin^... --if-present run build
-RUN pnpm -F @proj-airi/ui-admin run build
-
 FROM node:24-alpine
 
 WORKDIR /app
@@ -21,7 +6,6 @@ RUN corepack enable
 
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.json ./
 COPY patches/ ./patches/
-COPY --from=ui-assets /app/apps/server/public/ui-admin apps/server/public/ui-admin
 COPY apps/server apps/server
 COPY packages/server-schema packages/server-schema
 COPY packages/server-sdk-shared packages/server-sdk-shared

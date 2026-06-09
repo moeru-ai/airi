@@ -1,6 +1,6 @@
 # AIRI Admin Dashboard
 
-Admin dashboard for operating the hosted AIRI server. It is a Vue/Vite app built into `apps/server/public/ui-admin` and served by the server at `/admin`.
+Admin dashboard for operating the hosted AIRI server. It is a standalone Vue/Vite app deployed to Cloudflare Pages under `/admin`; the API server redirects its historical `/admin/*` entrypoints to this app.
 
 ## Use When
 
@@ -22,4 +22,4 @@ pnpm -F @proj-airi/ui-admin build
 
 ## Build Output
 
-`pnpm -F @proj-airi/ui-admin build` writes to `apps/server/public/ui-admin`. Build this app before running a server image or local server flow that needs `/admin` to serve real HTML instead of reporting a missing admin UI artifact.
+`pnpm -F @proj-airi/ui-admin build` writes to `apps/ui-admin/dist`. Server builds do not package this output; deploy the directory through the admin Cloudflare Pages workflow.

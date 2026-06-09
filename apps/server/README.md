@@ -36,6 +36,16 @@ Default:
 
 Set this when previewing or deploying auth UI to a different Cloudflare URL.
 
+## `ADMIN_UI_URL`
+
+`apps/ui-admin` is deployed separately from the server image. The API server still owns the historical `/admin/*` entrypoints and redirects them to **`ADMIN_UI_URL`**.
+
+Default:
+
+`ADMIN_UI_URL=https://admin.airi.build/admin`
+
+Set this when previewing or deploying admin UI to a different Cloudflare URL.
+
 ## `ADDITIONAL_TRUSTED_ORIGINS` (LAN / Capacitor dev)
 
 When the mobile dev server uses a non-localhost origin (for example `https://10.x.x.x:5273` from `cap copy ios` / `capacitor.config.json`), set **`ADDITIONAL_TRUSTED_ORIGINS`** in `apps/server/.env.local` to a comma-separated list of exact origins (parsed and normalized at startup). Example:

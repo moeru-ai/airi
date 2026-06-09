@@ -85,6 +85,11 @@ const EnvSchema = object({
   // of the server image.
   AUTH_UI_URL: optional(string(), 'https://auth.airi.build/ui'),
 
+  // Standalone admin UI base URL. The server keeps `/admin/*` as the historical
+  // entrypoint and redirects those requests here after ui-admin moved out of
+  // the server image.
+  ADMIN_UI_URL: optional(string(), 'https://admin.airi.build/admin'),
+
   // Canonical user-facing web app origin. Used as the Stripe redirect base
   // (success_url / cancel_url / portal return_url) when a request has no trusted
   // browser origin — notably the Electron desktop renderer, which loads from
