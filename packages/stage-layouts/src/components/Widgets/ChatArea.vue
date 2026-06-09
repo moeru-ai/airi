@@ -3,9 +3,10 @@ import type { ChatProvider } from '@xsai-ext/providers/utils'
 
 import { errorMessageFrom } from '@moeru/std'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
-import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatSessionsDrawer, ChatStopButton } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { HearingConfig } from '@proj-airi/stage-ui/components/scenarios/dialogs/audio-input/index'
 import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
+import { isUserTurnWithText } from '@proj-airi/stage-ui/libs/chat-sync/index'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
@@ -71,28 +72,40 @@ async function handleSend() {
   const textToSend = messageInput.value
   messageInput.value = ''
 
+  const restoreDraft = () => {
+    messageInput.value = [textToSend, messageInput.value.trim()].filter(Boolean).join(' ')
+  }
+
   try {
     const providerConfig = providersStore.getProviderConfig(activeProvider.value)
 
-    await ingest(textToSend, {
+    const outcome = await ingest(textToSend, {
       chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
       model: activeModel.value,
       providerConfig,
+      // The composer restores the text on `rolledBack`, so it opts into retract.
+      rescuable: true,
     })
+
+    // Nothing landed in history (stopped before any output, or cancelled
+    // before the queued send ran): put the text back instead of losing it.
+    if (outcome.rolledBack)
+      restoreDraft()
   }
   catch (error) {
-    // Genuine send failures only: a Stop-cancelled queued send resolves (see
-    // ChatOrchestratorRuntime.cancelPendingSends), so it never reaches here.
-    // Preserve the user's input and append an error bubble; never drop the last
-    // persisted turn.
-    messageInput.value = [textToSend, messageInput.value.trim()].filter(Boolean).join(' ')
-    chatSession.setSessionMessages(chatSession.activeSessionId, [
-      ...messages.value,
-      {
-        role: 'error',
-        content: errorMessageFrom(error) ?? 'Failed to send message',
-      },
-    ])
+    // Genuine send failures only: cancellations resolve with an outcome (see
+    // ChatOrchestratorRuntime.cancelPendingSends), so they never reach here.
+    // A committed turn keeps its text in the transcript where retry can
+    // resend it; restoring it into the composer too would duplicate the turn
+    // on the next send. Only a send that never reached history (provider
+    // resolution or pre-append failure) gets its draft back.
+    const lastUserTurn = messages.value.findLast(message => message.role === 'user')
+    if (!isUserTurnWithText(lastUserTurn, textToSend))
+      restoreDraft()
+    chatSession.appendSessionMessage(chatSession.activeSessionId, {
+      role: 'error',
+      content: errorMessageFrom(error) ?? 'Failed to send message',
+    })
   }
 }
 
@@ -273,22 +286,14 @@ watch(sendMode, () => {
           Stop streaming button: only visible while a send is in flight. Drives
           the orchestrator directly rather than going through chat-sync (unlike
           the tamagotchi InteractiveArea's requestStop()), mirroring how this
-          surface sends via ingest() rather than requestIngest().
+          surface sends via ingest() rather than requestIngest(). Scoped to the
+          visible session so a stream owned by another session is untouched.
         -->
-        <button
+        <ChatStopButton
           v-if="sending"
-          :class="[
-            'h-8 w-8 flex items-center justify-center rounded-md outline-none',
-            'transition-all duration-200 active:scale-95',
-            'text-lg text-red-500 dark:text-red-400',
-            'hover:bg-red-100/60 dark:hover:bg-red-900/40',
-          ]"
-          :title="t('stage.chat.actions.stop')"
-          :aria-label="t('stage.chat.actions.stop')"
-          @click="stopSending()"
-        >
-          <div class="i-solar:stop-circle-bold-duotone h-5 w-5" />
-        </button>
+          class="h-8 w-8 text-lg"
+          @stop="stopSending(chatSession.activeSessionId)"
+        />
 
         <!-- Microphone icon button -->
         <PopoverRoot v-model:open="hearingPopoverOpen">

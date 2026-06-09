@@ -6,8 +6,9 @@ import { errorMessageFrom } from '@moeru/std'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { ChatHistory, HearingConfigDialog } from '@proj-airi/stage-ui/components'
-import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatSessionsDrawer, ChatStopButton } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
+import { isUserTurnWithText } from '@proj-airi/stage-ui/libs/chat-sync/index'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/maintenance'
@@ -76,7 +77,7 @@ const { viewControlsEnabled: l2dViewCtrlEnabled } = useL2dViewControl()
 const { viewControlsEnabled: threeViewCtrlEnabled } = useThreeViewControl()
 const settingsAudioDevice = useSettingsAudioDevice()
 const { enabled, stream } = storeToRefs(settingsAudioDevice)
-const { ingest, onAfterMessageComposed } = chatOrchestrator
+const { ingest, onAfterMessageComposed, stopSending } = chatOrchestrator
 const { t } = useI18n()
 const { audioContext } = useAudioContext()
 const { startAnalyzer, stopAnalyzer } = useAudioAnalyzer()
@@ -113,24 +114,32 @@ async function handleSend() {
   try {
     const providerConfig = providersStore.getProviderConfig(activeProvider.value)
 
-    await ingest(textToSend, {
+    const outcome = await ingest(textToSend, {
       chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
       model: activeModel.value,
       providerConfig,
+      // The composer restores the text on `rolledBack`, so it opts into retract.
+      rescuable: true,
     })
+
+    // Nothing landed in history (stopped before any output, or cancelled
+    // before the queued send ran): put the text back instead of losing it.
+    if (outcome.rolledBack && !messageInput.value.trim())
+      messageInput.value = textToSend
   }
   catch (error) {
-    // Genuine send failures only: a Stop-cancelled queued send resolves (see
-    // ChatOrchestratorRuntime.cancelPendingSends), so it never reaches here.
-    // Preserve the input and append an error bubble; never drop the last turn.
-    messageInput.value = textToSend
-    chatSession.setSessionMessages(chatSession.activeSessionId, [
-      ...messages.value,
-      {
-        role: 'error',
-        content: errorMessageFrom(error) ?? 'Failed to send message',
-      },
-    ])
+    // Genuine send failures only: cancellations resolve with an outcome (see
+    // ChatOrchestratorRuntime.cancelPendingSends), so they never reach here.
+    // A committed turn keeps its text in the transcript; restoring it into
+    // the composer too would duplicate the turn on the next send. Only a send
+    // that never reached history gets its draft back.
+    const lastUserTurn = messages.value.findLast(message => message.role === 'user')
+    if (!isUserTurnWithText(lastUserTurn, textToSend) && !messageInput.value.trim())
+      messageInput.value = textToSend
+    chatSession.appendSessionMessage(chatSession.activeSessionId, {
+      role: 'error',
+      content: errorMessageFrom(error) ?? 'Failed to send message',
+    })
   }
 }
 
@@ -275,6 +284,12 @@ onMounted(() => {
           @submit="handleSubmit"
           @compositionstart="isComposing = true"
           @compositionend="isComposing = false"
+        />
+        <ChatStopButton
+          v-if="sending"
+          class="aspect-square self-end rounded-full backdrop-blur-md"
+          w="[calc(1lh+4px+4px)]" h="[calc(1lh+4px+4px)]"
+          @stop="stopSending(chatSession.activeSessionId)"
         />
         <button
           v-if="showStopSpeakingButton"
