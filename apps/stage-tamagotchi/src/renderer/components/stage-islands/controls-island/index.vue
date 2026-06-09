@@ -16,6 +16,8 @@ import ControlsIslandHearingConfig from './controls-island-hearing-config.vue'
 import ControlsIslandProfilePicker from './controls-island-profile-picker.vue'
 import IndicatorMicVolume from './indicator-mic-volume.vue'
 
+import { hasMouseMovedSinceExpand, shouldCollapseControlsIsland } from './auto-collapse'
+
 import {
   electron,
   electronAppQuit,
@@ -61,23 +63,56 @@ defineExpose({
   set hearingDialogOpen(v: boolean) { setOverlay('hearing', v) },
 })
 
-const { isOutside } = useElectronMouseInElement(islandRef)
+const { isOutside, x: mouseX, y: mouseY } = useElectronMouseInElement(islandRef)
+const autoCollapseArmed = ref(false)
+const pointerPositionOnExpand = reactive({ x: 0, y: 0 })
 const isOutsideAfter2seconds = refDebounced(isOutside, 1500)
 
 watch(isOutsideAfter2seconds, (outside) => {
-  if (outside && expanded.value && !isBlocked.value) {
+  if (shouldCollapseControlsIsland({
+    expanded: expanded.value,
+    autoCollapseArmed: autoCollapseArmed.value,
+    isOutside: outside,
+    isBlocked: isBlocked.value,
+  })) {
     expanded.value = false
   }
 })
 
-watch(expanded, (isExpanded) => {
-  if (!isExpanded) {
-    blockingOverlays.clear()
+watch([mouseX, mouseY], ([currentX, currentY]) => {
+  if (!expanded.value || autoCollapseArmed.value) {
+    return
+  }
+
+  if (hasMouseMovedSinceExpand({
+    currentX,
+    currentY,
+    initialX: pointerPositionOnExpand.x,
+    initialY: pointerPositionOnExpand.y,
+  })) {
+    autoCollapseArmed.value = true
   }
 })
 
+watch(expanded, (isExpanded) => {
+  if (isExpanded) {
+    autoCollapseArmed.value = false
+    pointerPositionOnExpand.x = mouseX.value
+    pointerPositionOnExpand.y = mouseY.value
+    return
+  }
+
+  autoCollapseArmed.value = false
+  blockingOverlays.clear()
+})
+
 useIntervalFn(() => {
-  if (expanded.value && isOutside.value && !isBlocked.value) {
+  if (shouldCollapseControlsIsland({
+    expanded: expanded.value,
+    autoCollapseArmed: autoCollapseArmed.value,
+    isOutside: isOutside.value,
+    isBlocked: isBlocked.value,
+  })) {
     expanded.value = false
   }
 }, 1500)
