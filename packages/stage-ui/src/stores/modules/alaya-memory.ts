@@ -120,6 +120,26 @@ export const useAlayaMemoryStore = defineStore('alaya-memory', () => {
       allMemories.value = entries
       totalCount.value = entries.length
 
+      // Populate snapshot from the loaded entries
+      if (entries.length === 0) {
+        snapshot.value = {
+          characterId: characterId.value,
+          totalEntries: 0,
+          newestEntryAt: null,
+          oldestEntryAt: null,
+        }
+      }
+      else {
+        const sorted = [...entries].sort((a, b) => a.createdAt - b.createdAt)
+        snapshot.value = {
+          characterId: characterId.value,
+          totalEntries: entries.length,
+          oldestEntryAt: sorted[0].createdAt,
+          newestEntryAt: sorted[sorted.length - 1].createdAt,
+        }
+      }
+
+      // If there is an active search query, re-run it to refresh search results
       if (searchQuery.value.trim()) {
         await search(searchQuery.value) // re-run search with same query
       }
