@@ -149,6 +149,44 @@ describe('streamFrom abort handling', () => {
 
   /**
    * @example
+   * A genuine (non-abort-shaped) provider fault that settles AFTER the user
+   * pressed Stop must not vanish from the logs: it surfaces at warn level so
+   * faults racing a Stop stay diagnosable, while the aborted signal alone
+   * never silences a real error.
+   */
+  it('logs a non-abort side-channel error at warn level when it races a stop', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const abortError = new DOMException('aborted', 'AbortError')
+    const realError = new Error('usage parser blew up mid-stop')
+    const controller = new AbortController()
+    controller.abort()
+
+    streamTextMock.mockImplementationOnce(() => ({
+      steps: Promise.reject(abortError),
+      messages: Promise.resolve([]),
+      usage: Promise.reject(realError),
+      totalUsage: Promise.resolve(undefined),
+    }))
+
+    const promise = streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [{ role: 'user', content: 'hi' }] as Message[],
+      options: { abortSignal: controller.signal },
+    })
+
+    await expect(promise).rejects.toBe(abortError)
+    await vi.waitFor(() => {
+      expect(consoleWarnSpy).toHaveBeenCalledWith('Stream usage error after stop:', realError)
+    })
+    expect(consoleErrorSpy).not.toHaveBeenCalled()
+    consoleErrorSpy.mockRestore()
+    consoleWarnSpy.mockRestore()
+  })
+
+  /**
+   * @example
    * A genuine (non-abort) rejection on a pure side-channel, with no abort in
    * flight, is still surfaced to the console for postmortem.
    */
