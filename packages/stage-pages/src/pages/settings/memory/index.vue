@@ -134,12 +134,6 @@ const expandedId = ref<string | null>(null)
 function toggleExpand(id: string) {
   expandedId.value = expandedId.value === id ? null : id
 }
-
-const expandedEntry = computed(() => {
-  if (!expandedId.value)
-    return null
-  return alaya.allMemories.find(m => m.id === expandedId.value) ?? null
-})
 </script>
 
 <template>
