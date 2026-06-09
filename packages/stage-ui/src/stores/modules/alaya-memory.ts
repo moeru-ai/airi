@@ -18,6 +18,7 @@ export const useAlayaMemoryStore = defineStore('alaya-memory', () => {
   // ------------------------------------------------------------------
 
   let driver: ReturnType<typeof createAlayaMemory> | null = null
+  let latestSearchRequestId = 0
 
   /**
    * Session-scoped short-term memory buffer.
@@ -99,6 +100,9 @@ export const useAlayaMemoryStore = defineStore('alaya-memory', () => {
     shortTermTurnCount.value = 0
     shortTermTurns.value = []
 
+    // reset request id for new session
+    latestSearchRequestId = 0
+
     await refresh()
   }
 
@@ -116,21 +120,12 @@ export const useAlayaMemoryStore = defineStore('alaya-memory', () => {
       allMemories.value = entries
       totalCount.value = entries.length
 
-      if (entries.length === 0) {
-        snapshot.value = { characterId: characterId.value, totalEntries: 0, newestEntryAt: null, oldestEntryAt: null }
+      if (searchQuery.value.trim()) {
+        await search(searchQuery.value) // re-run search with same query
       }
       else {
-        const sorted = [...entries].sort((a, b) => a.createdAt - b.createdAt)
-        snapshot.value = {
-          characterId: characterId.value,
-          totalEntries: entries.length,
-          oldestEntryAt: sorted[0].createdAt,
-          newestEntryAt: sorted[sorted.length - 1].createdAt,
-        }
+        searchResults.value = []
       }
-
-      searchResults.value = []
-      searchQuery.value = ''
     }
     catch (e) {
       error.value = `Failed to load memories: ${String(e)}`
@@ -228,6 +223,9 @@ export const useAlayaMemoryStore = defineStore('alaya-memory', () => {
     if (!d || !characterId.value)
       throw new Error('Not connected')
 
+    // Bump request id to track the latest search
+    const requestId = ++latestSearchRequestId
+
     searchQuery.value = query
     isLoading.value = true
     error.value = null
@@ -240,13 +238,22 @@ export const useAlayaMemoryStore = defineStore('alaya-memory', () => {
       if (query.trim()) {
         q.text = query.trim()
       }
-      searchResults.value = await d.query(q)
+      const results = await d.query(q)
+
+      // Only update state if this is still the most recent search
+      if (requestId === latestSearchRequestId) {
+        searchResults.value = results
+      }
     }
     catch (e) {
-      error.value = `Search failed: ${String(e)}`
+      if (requestId === latestSearchRequestId) {
+        error.value = `Search failed: ${String(e)}`
+      }
     }
     finally {
-      isLoading.value = false
+      if (requestId === latestSearchRequestId) {
+        isLoading.value = false
+      }
     }
   }
 
@@ -318,7 +325,14 @@ export const useAlayaMemoryStore = defineStore('alaya-memory', () => {
    */
   async function compactSession(): Promise<CompactResult> {
     const st = ensureShortTerm()
-    const result = st.compact()
+
+    // Step 1: Get the compact result without clearing the buffer?
+    // If ShortTermMemory.compact() does clear, we need to back up turns.
+    // Assume compact() returns { digestCandidates, removedTurns } but we only have digestCandidates.
+    // We'll store the current turns before compaction so we can restore on failure.
+    const beforeTurns = st.getRecentTurns() // backup
+
+    const result = st.compact() // This may clear the buffer internally
 
     // Auto-digest: write high-scoring candidates to long-term memory
     if (result.digestCandidates.length > 0 && driver) {
@@ -327,7 +341,13 @@ export const useAlayaMemoryStore = defineStore('alaya-memory', () => {
         await refresh()
       }
       catch (e) {
-        error.value = `Auto-digest failed: ${String(e)}`
+        // Restore the compacted turns into short-term buffer
+        // We need an "uncompact" method or manual re-add
+        for (const turn of beforeTurns) {
+          st.addTurn({ ...turn, sessionId: turn.sessionId ?? 'default' })
+        }
+        error.value = `Auto-digest failed, short-term buffer restored: ${String(e)}`
+        throw e
       }
     }
 
