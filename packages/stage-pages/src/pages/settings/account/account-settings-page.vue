@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { errorMessageFrom } from '@moeru/std'
 import { defaultSignInProviders } from '@proj-airi/stage-ui/components/auth'
-import { useLinkedAccounts } from '@proj-airi/stage-ui/composables'
+import { resolveLinkedAccountOAuthErrorMessageKey, useLinkedAccounts } from '@proj-airi/stage-ui/composables'
 import { authClient } from '@proj-airi/stage-ui/libs/auth'
 import { SERVER_URL } from '@proj-airi/stage-ui/libs/server'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
@@ -10,7 +10,7 @@ import { storeToRefs } from 'pinia'
 import { DialogClose, DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { computed, reactive, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 type SectionId = 'profile' | 'security' | 'connections' | 'danger'
 
@@ -20,6 +20,8 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const route = useRoute()
+const router = useRouter()
 const authStore = useAuthStore()
 const { isAuthenticated, user, credits } = storeToRefs(authStore)
 
@@ -108,6 +110,7 @@ const profileSectionRef = ref<HTMLElement | null>(null)
 const securitySectionRef = ref<HTMLElement | null>(null)
 const connectionsSectionRef = ref<HTMLElement | null>(null)
 const dangerSectionRef = ref<HTMLElement | null>(null)
+const linkedAccountsRouteErrorKey = shallowRef<string | null>(null)
 
 function scrollToSection(id: SectionId) {
   activeSection.value = id
@@ -156,6 +159,25 @@ const {
   },
 })
 
+watch(
+  () => route.query.error,
+  async (error) => {
+    const rawError = Array.isArray(error) ? error[0] : error
+    const messageKey = resolveLinkedAccountOAuthErrorMessageKey(rawError)
+    if (!messageKey)
+      return
+
+    linkedAccountsRouteErrorKey.value = messageKey
+    activeSection.value = 'connections'
+
+    const query = { ...route.query }
+    delete query.error
+    delete query.error_description
+    await router.replace({ query })
+  },
+  { immediate: true },
+)
+
 const connectionsDateFormatter = computed(() => {
   try {
     return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' })
@@ -180,11 +202,13 @@ function formatLinkedSince(iso: string): string {
 }
 
 function handleUnlinkProvider(providerId: string) {
+  linkedAccountsRouteErrorKey.value = null
   const providerName = defaultSignInProviders.find(p => p.id === providerId)?.name ?? providerId
   return unlinkLinkedProvider(providerId, providerName)
 }
 
 function handleLinkProvider(providerId: 'github' | 'google') {
+  linkedAccountsRouteErrorKey.value = null
   const providerName = defaultSignInProviders.find(p => p.id === providerId)?.name ?? providerId
   return linkLinkedProvider(providerId, providerName)
 }
@@ -743,12 +767,12 @@ async function handleConfirmDelete(event: Event) {
             </ul>
 
             <div
-              v-if="linkedAccountsError"
+              v-if="linkedAccountsRouteErrorKey || linkedAccountsError"
               :class="['text-sm text-red-500']"
               role="alert"
               aria-live="polite"
             >
-              {{ linkedAccountsError }}
+              {{ linkedAccountsRouteErrorKey ? t(linkedAccountsRouteErrorKey) : linkedAccountsError }}
             </div>
             <div
               v-else-if="linkedAccountsMessage"
