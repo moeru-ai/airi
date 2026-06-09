@@ -61,18 +61,16 @@ describe('mergeLoadedSessionMessages', () => {
 
   // ROOT CAUSE:
   //
-  // mergeLoadedSessionMessages ends in `[...storedMessages, ...extraMessages]`,
-  // where `extraMessages` is every in-memory message absent from the stored
-  // (disk) copy by fingerprint. The append ignores `createdAt`. That is only
-  // correct when the messages missing from disk are the NEWEST ones (the
-  // happy-path test above). When an OLDER message is the one missing from disk
-  // (a stop+resend orphan that lives in memory but not on the disk copy a second
+  // A blind `[...storedMessages, ...extraMessages]` tail-append is only correct
+  // when the messages missing from disk are the NEWEST ones (the happy-path
+  // test above). When an OLDER message is the one missing from disk (a
+  // stop+resend orphan that lives in memory but not on the disk copy a second
   // window read), it gets tacked onto the END, after its newer twin. History is
   // silently reordered, which breaks prompt caching.
   //
-  // This asserts the CORRECT chronological result and so FAILS against the
-  // current blind tail-append; the order-stable merge (dedupe by id, system
-  // first, stable-sort the rest by createdAt) makes it pass.
+  // The structural merge places each extra right after the nearest preceding
+  // in-memory message that also exists on disk (its anchor), so the orphan
+  // lands back in its conversational slot without reordering any stored row.
   it('keeps chronological order when an older in-memory orphan is missing from the stored copy (chat reorder bug)', () => {
     // The same text is resent after stopping, so each orphan and its resent twin
     // share content but differ by id+createdAt, which is exactly why the orphan
@@ -123,11 +121,10 @@ describe('mergeLoadedSessionMessages', () => {
     ])
   })
 
-  it('keeps an equal-createdAt user/assistant pair in arrival order (stable tie-break)', () => {
+  it('keeps an equal-createdAt user/assistant pair in arrival order', () => {
     // A user turn and its reply can share a createdAt (same millisecond). The
-    // order-stable merge must keep the user before the assistant, never flip
-    // them, so the comparator carries an original-index tiebreak rather than
-    // leaning on engine sort stability.
+    // merge orders extras by their in-memory arrival order, never by
+    // timestamp, so the pair can never flip.
     const system: ChatHistoryItem = { role: 'system', content: 'system', createdAt: 1, id: 'system' }
     const user: ChatHistoryItem = { role: 'user', content: 'same ms', createdAt: 5, id: 'u-same' }
     const reply: ChatHistoryItem = { role: 'assistant', content: 'reply', createdAt: 5, id: 'a-same', slices: [], tool_results: [] }
@@ -139,10 +136,10 @@ describe('mergeLoadedSessionMessages', () => {
   })
 
   it('keeps a createdAt-less row in position instead of jumping it to the front', () => {
-    // Error rows are appended without a createdAt. Coercing a missing key to 0
-    // (a tempting fix) would sort every such row to the front on the next merge
-    // and persist that reorder. The carry-forward key instead keeps the row
-    // adjacent to its predecessor.
+    // Error rows are appended without a createdAt. Sorting the body by
+    // timestamp (with a missing key coerced to 0) would jump every such row
+    // to the front on the next merge and persist that reorder; the structural
+    // merge never reorders stored rows, so the row stays where disk put it.
     const system: ChatHistoryItem = { role: 'system', content: 'system', createdAt: 1, id: 'system' }
     const reply: ChatHistoryItem = { role: 'assistant', content: 'older reply', createdAt: 10, id: 'a-old', slices: [], tool_results: [] }
     const errorRow: ChatHistoryItem = { role: 'error', content: 'a failure', id: 'err-1' }
@@ -158,10 +155,9 @@ describe('mergeLoadedSessionMessages', () => {
 
   it('does not let a regenerated system timestamp push a leading keyless row to the tail', () => {
     // The pinned system message is regenerated with a fresh createdAt when the
-    // prompt changes, so its key can exceed every body row's. A keyless row at
-    // the head of the body must not inherit that future timestamp (seeding the
-    // carry from the system key would sort it AFTER older keyed rows). The carry
-    // seeds from 0 instead, keeping the keyless row in its on-disk position.
+    // prompt changes, so its timestamp can exceed every body row's. Stored
+    // order is canonical and timestamps play no part in placement, so a
+    // keyless row at the head of the body stays in its on-disk position.
     const system: ChatHistoryItem = { role: 'system', content: 'system', createdAt: 9999, id: 'system' }
     const errorRow: ChatHistoryItem = { role: 'error', content: 'a failure', id: 'err-lead' }
     const olderUser: ChatHistoryItem = { role: 'user', content: 'older prompt', createdAt: 100, id: 'u-old' }
@@ -173,6 +169,35 @@ describe('mergeLoadedSessionMessages', () => {
     const currentMessages: ChatHistoryItem[] = [system, errorRow, olderUser, laterUser]
 
     expect(mergeLoadedSessionMessages(storedMessages, currentMessages)).toEqual([system, errorRow, olderUser, laterUser])
+  })
+
+  // ROOT CAUSE:
+  //
+  // Stored bodies can mix clock sources: locally-authored rows are stamped by
+  // the device clock while cloud-pulled rows carry the server's insert clock
+  // (the upload schema never round-trips the client timestamp). With a device
+  // clock running ahead of the server, a prompt/reply pair is correctly
+  // ordered on disk but carries inverted createdAt values. A merge that
+  // re-sorted the body by createdAt flipped the reply BEFORE its prompt and
+  // persisted the transposition.
+  //
+  // We fixed this by making stored order canonical: the merge never reorders
+  // stored rows and places extras structurally (by anchor), ignoring
+  // timestamps entirely.
+  it('never reorders stored rows whose timestamps came from different clocks (device ahead of server)', () => {
+    const system: ChatHistoryItem = { role: 'system', content: 'system', createdAt: 1, id: 'system' }
+    // Local prompt stamped by a device clock 30s ahead of the server.
+    const localPrompt: ChatHistoryItem = { role: 'user', content: 'a question', createdAt: 100_030_000, id: 'u-local' }
+    // Its reply was pulled from the cloud carrying the smaller server timestamp.
+    const cloudReply: ChatHistoryItem = { role: 'assistant', content: 'an answer', createdAt: 100_001_000, id: 'a-cloud', slices: [], tool_results: [] }
+    const newPrompt: ChatHistoryItem = { role: 'user', content: 'a follow-up', createdAt: 100_040_000, id: 'u-next' }
+
+    // Disk order is conversationally correct despite the inverted timestamps.
+    const storedMessages: ChatHistoryItem[] = [system, localPrompt, cloudReply]
+    // Memory adds an in-flight extra, forcing the merge to rebuild.
+    const currentMessages: ChatHistoryItem[] = [system, localPrompt, cloudReply, newPrompt]
+
+    expect(mergeLoadedSessionMessages(storedMessages, currentMessages)).toEqual([system, localPrompt, cloudReply, newPrompt])
   })
 
   it('uses flattened array text for deduplication fingerprints', () => {

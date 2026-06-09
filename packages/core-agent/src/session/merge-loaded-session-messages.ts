@@ -23,17 +23,26 @@ function getMessageFingerprint(message: ChatHistoryItem) {
     message.role,
     message.createdAt ?? '',
     extractMessageContent(message),
-  ].join('\u001F')
+  ].join('')
 }
 
 /**
  * Reconcile a session's persisted (disk) messages with the live in-memory list
- * on hydrate from IndexedDB, keeping every message once and in time order.
+ * on hydrate from IndexedDB, keeping every message exactly once and never
+ * reordering the stored rows.
+ *
+ * Stored order is canonical: rows can carry timestamps from different clocks
+ * (local rows are stamped by the device, cloud-pulled rows by the server), so
+ * sorting the body by `createdAt` can transpose a prompt/reply pair whenever
+ * the clocks disagree. In-memory extras are instead placed structurally: each
+ * extra lands right after the nearest preceding in-memory message that also
+ * exists on disk (its anchor). That keeps an older orphan in its
+ * conversational slot while plain in-flight extras still append at the tail
+ * (no anchor follows them, and when memory shares nothing with disk the
+ * anchor seeds at the tail).
  *
  * Returns `storedMessages` itself (same reference) when nothing needs merging,
- * so the caller's `merged !== stored` check can skip a re-persist. Otherwise a
- * new array: the deduped union, system message pinned first, the rest ordered by
- * `createdAt` so a re-hydrated orphan lands in its slot rather than at the tail.
+ * so the caller's `merged !== stored` check can skip a re-persist.
  */
 export function mergeLoadedSessionMessages(storedMessages: ChatHistoryItem[], currentMessages: ChatHistoryItem[]) {
   if (currentMessages.length === 0)
@@ -41,18 +50,6 @@ export function mergeLoadedSessionMessages(storedMessages: ChatHistoryItem[], cu
 
   const currentNonSystemMessages = currentMessages.filter((message, index) => index !== 0 || message.role !== 'system')
   if (currentNonSystemMessages.length === 0)
-    return storedMessages
-
-  const seen = new Set(storedMessages.map(getMessageFingerprint))
-  const extraMessages = currentNonSystemMessages.filter((message) => {
-    const fingerprint = getMessageFingerprint(message)
-    if (seen.has(fingerprint))
-      return false
-    seen.add(fingerprint)
-    return true
-  })
-
-  if (extraMessages.length === 0)
     return storedMessages
 
   // Pin the system message at the head: stored[0] when it is the system message,
@@ -63,28 +60,59 @@ export function mergeLoadedSessionMessages(storedMessages: ChatHistoryItem[], cu
     : storedMessages.length === 0 && currentMessages[0]?.role === 'system'
       ? [currentMessages[0]]
       : []
+  const body = storedHasSystemHead ? storedMessages.slice(1) : storedMessages
 
-  const restBase = storedHasSystemHead ? storedMessages.slice(1) : storedMessages
-  const rest = restBase.concat(extraMessages)
+  const bodyIndexByFingerprint = new Map<string, number>()
+  body.forEach((message, index) => {
+    bodyIndexByFingerprint.set(getMessageFingerprint(message), index)
+  })
 
-  // Order the body by createdAt. It is optional (some error rows lack one), so
-  // carry the previous key forward for a keyless row rather than coercing it to
-  // 0, which would jump every keyless row to the front and persist that as a
-  // reorder. Seed from 0 (not the pinned system head's createdAt, which can be
-  // regenerated with a fresh timestamp and would otherwise bleed into body
-  // order). Reject non-finite keys: NaN is `typeof 'number'`, so one bad row
-  // would otherwise poison every later key. The index tiebreak keeps
-  // equal-createdAt pairs in arrival order deterministically.
-  const sortKeys: number[] = []
-  let carry = 0
-  for (const message of rest) {
-    if (typeof message.createdAt === 'number' && Number.isFinite(message.createdAt))
-      carry = message.createdAt
-    sortKeys.push(carry)
+  // Fingerprints are content-length proportional to compute, so derive each
+  // in-memory one exactly once for the two walks below.
+  const currentFingerprints = currentNonSystemMessages.map(getMessageFingerprint)
+
+  // Anchor walk: extras attach to the body index of the nearest preceding
+  // shared message. Before any shared message is seen, the anchor sits one
+  // slot ahead of the first shared message (so leading extras precede it),
+  // or at the tail when memory and disk share nothing.
+  let anchor = body.length - 1
+  for (const fingerprint of currentFingerprints) {
+    const bodyIndex = bodyIndexByFingerprint.get(fingerprint)
+    if (bodyIndex !== undefined) {
+      anchor = bodyIndex - 1
+      break
+    }
   }
 
-  const order = rest.map((_, index) => index)
-  order.sort((a, b) => (sortKeys[a] - sortKeys[b]) || (a - b))
+  const headFingerprint = head.length > 0 ? getMessageFingerprint(head[0]) : undefined
+  const insertedFingerprints = new Set<string>()
+  // Keyed by body index; -1 holds extras that precede the first stored row.
+  const insertionsAfter = new Map<number, ChatHistoryItem[]>()
+  currentNonSystemMessages.forEach((message, index) => {
+    const fingerprint = currentFingerprints[index]
+    const bodyIndex = bodyIndexByFingerprint.get(fingerprint)
+    if (bodyIndex !== undefined) {
+      anchor = bodyIndex
+      return
+    }
+    if (fingerprint === headFingerprint || insertedFingerprints.has(fingerprint))
+      return
+    insertedFingerprints.add(fingerprint)
+    const slot = insertionsAfter.get(anchor) ?? []
+    slot.push(message)
+    insertionsAfter.set(anchor, slot)
+  })
 
-  return [...head, ...order.map(index => rest[index])]
+  if (insertionsAfter.size === 0)
+    return storedMessages
+
+  const mergedBody: ChatHistoryItem[] = [...(insertionsAfter.get(-1) ?? [])]
+  body.forEach((message, index) => {
+    mergedBody.push(message)
+    const slot = insertionsAfter.get(index)
+    if (slot)
+      mergedBody.push(...slot)
+  })
+
+  return [...head, ...mergedBody]
 }
