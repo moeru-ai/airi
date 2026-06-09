@@ -60,7 +60,7 @@ signIn:
   error:
     fallback: 登录失败
     unknown: 发生了未知错误
-    socialOnlyNoPassword: 该邮箱通过 Google 或 GitHub 注册，请用下方按钮登录，登录后可在设置中添加密码。
+    socialOnlyNoPassword: This email was registered with Google or GitHub. Sign in with a button below; you can add a password in account settings after signing in.
     passwordMismatch: Password and confirmation do not match.
     invalidEmail: 请输入有效格式的电子邮件地址
   footer:
