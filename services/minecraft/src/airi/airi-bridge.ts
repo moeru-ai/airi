@@ -46,7 +46,7 @@ export class AiriBridge {
 
       // A spark:command is high-level guidance from the AIRI server. It must carry enough weight to
       // trigger a fresh decision (Conscious) cycle, never be silently filed into history — so we
-      // always route it through handleActionIntent (→ signal:chat_message → enqueueEvent → decision cycle).
+      // always route it through handleActionIntent (→ signal:airi_command → enqueueEvent → decision cycle).
       //
       // We intentionally do not special-case `intent === 'context'`: that branch used to emit
       // signal:airi_context which Brain pushes to conversationHistory WITHOUT waking the loop, so a
@@ -179,10 +179,10 @@ export class AiriBridge {
   }
 
   private handleActionIntent(cmd: SparkCommandData): void {
-    // A spark:command is high-level guidance from the AIRI server. Route it through the SAME
-    // `signal:chat_message` path a real directive takes so the brain runs a fresh decision cycle
-    // (resetNoActionFollowupBudget('player_chat'), normal Conscious wake-up) instead of silently
-    // filing it into history. The directive is attributed to the AIRI server as a NEUTRAL source —
+    // A spark:command is high-level guidance from the AIRI server. Route it through the explicit
+    // `airi_command` signal so the brain runs a fresh decision cycle
+    // (resetNoActionFollowupBudget('airi_command'), normal Conscious wake-up) instead of silently
+    // filing it into history. The directive is attributed to the AIRI server as a neutral source,
     // not to any specific in-game player. Binding a relayed command to the master's in-game identity
     // is desktop-relay policy and lives in the desktop Minecraft adapter, not in this bot service.
     const firstOption = cmd.guidance?.options?.[0]
@@ -202,17 +202,16 @@ export class AiriBridge {
     })
 
     this.eventBus.emit({
-      type: 'signal:chat_message',
+      type: 'signal:airi_command',
       payload: Object.freeze({
-        type: 'chat_message' as const,
+        type: 'airi_command' as const,
         description: `Directive from AIRI: "${message}"`,
         sourceId,
         confidence: 1.0,
         timestamp: Date.now(),
         metadata: {
-          username: sourceId,
           message,
-          // Keep the spark provenance for debugging; the brain just sees a directive from AIRI.
+          // Keep the spark provenance for debugging; the brain sees a typed AIRI directive.
           sparkCommandId: cmd.commandId,
           sparkIntent: cmd.intent,
         },
