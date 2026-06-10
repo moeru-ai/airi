@@ -4,6 +4,7 @@ import type { AiriExtension } from '@proj-airi/stage-ui/stores/modules/airi-card
 
 import kebabcase from '@stdlib/string-base-kebabcase'
 
+import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
 import { DEFAULT_ARTISTRY_WIDGET_INSTRUCTION } from '@proj-airi/stage-ui/constants/prompts/artistry-instruction'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
@@ -155,9 +156,13 @@ const speechVoiceOptions = computed(() => {
 const artistryProviderOptions = computed(() => {
   return [
     { value: 'none', label: 'None (Disabled)' },
-    { value: 'replicate', label: 'Replicate' },
     { value: 'comfyui', label: 'ComfyUI' },
-    { value: 'nanobanana', label: 'Nano Banana' },
+    ...(isCustomProvidersDisabled()
+      ? []
+      : [
+          { value: 'replicate', label: 'Replicate' },
+          { value: 'nanobanana', label: 'Nano Banana' },
+        ]),
   ]
 })
 

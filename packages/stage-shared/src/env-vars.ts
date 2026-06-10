@@ -12,3 +12,7 @@ export function isEnvTruthy(value: string | undefined | null): boolean {
 export function isFluxPurchaseDisabled(): boolean {
   return isEnvTruthy(import.meta.env.VITE_DISABLE_FLUX_PURCHASE)
 }
+
+export function isCustomProvidersDisabled(): boolean {
+  return isEnvTruthy(import.meta.env.VITE_DISABLE_CUSTOM_PROVIDERS)
+}

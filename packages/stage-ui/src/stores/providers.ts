@@ -24,7 +24,7 @@ import type { ProviderOnboardingField } from '../libs/providers/types'
 import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream-transcription'
 
 import { errorMessageFrom } from '@moeru/std'
-import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
+import { isCustomProvidersDisabled, isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
 import { getCachedWebGPUCapabilities, isWebGPUSupported } from '@proj-airi/stage-shared/webgpu'
 import { computedAsync, useIntervalFn, useLocalStorage } from '@vueuse/core'
 import {
@@ -283,6 +283,7 @@ export const useProvidersStore = defineStore('providers', () => {
       descriptionKey: 'settings.pages.providers.provider.speech-noop.description',
       description: 'No speech output.',
       icon: 'i-solar:volume-cross-bold-duotone',
+      requiresCredentials: false,
       defaultOptions: () => ({}),
       createProvider: async () => ({
         speech: () => ({
@@ -857,6 +858,7 @@ export const useProvidersStore = defineStore('providers', () => {
       descriptionKey: 'settings.pages.providers.provider.browser-web-speech-api.description',
       description: 'Browser-native speech recognition. No API keys.',
       icon: 'i-solar:microphone-bold-duotone',
+      requiresCredentials: false,
       defaultOptions: () => ({
         language: 'en-US',
         continuous: true,
@@ -2033,6 +2035,7 @@ export const useProvidersStore = defineStore('providers', () => {
       descriptionKey: 'settings.pages.providers.provider.kokoro-local.description',
       description: 'Local text-to-speech using Kokoro-82M.',
       icon: 'i-lobe-icons:speaker',
+      requiresCredentials: false,
 
       defaultOptions: () => {
         const capabilities = getCachedWebGPUCapabilities()
@@ -2744,8 +2747,11 @@ export const useProvidersStore = defineStore('providers', () => {
       if (overrides[provider.id] === false)
         continue
 
-      const p = getProviderMetadata(provider.id)
-      const isAvailableBy = p.isAvailableBy || (() => true)
+      const metadata = getProviderMetadata(provider.id)
+      if (isCustomProvidersDisabled() && metadata.requiresCredentials !== false)
+        continue
+
+      const isAvailableBy = metadata.isAvailableBy || (() => true)
 
       const isAvailable = await isAvailableBy()
       if (isAvailable) {
