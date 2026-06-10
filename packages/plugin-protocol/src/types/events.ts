@@ -610,12 +610,26 @@ interface ModuleCompatibilityResultEvent {
   reason?: string
 }
 
+/**
+ * Describes one server-known module in a registry sync snapshot.
+ */
+export interface RegistryModuleEntry {
+  /** Runtime module name announced by the peer. */
+  name: string
+  /** Optional module slot when several peers announce the same module name. */
+  index?: number
+  /** Plugin identity that owns the module registration. */
+  identity: ModuleIdentity
+  /** Whether the server currently considers the peer live enough to route work to it. */
+  healthy?: boolean
+}
+
+/**
+ * Server registry snapshot for modules currently known by the websocket runtime.
+ */
 export interface RegistryModulesSyncEvent {
-  modules: Array<{
-    name: string
-    index?: number
-    identity: ModuleIdentity
-  }>
+  /** Current module registrations keyed by their announced name/index/identity. */
+  modules: RegistryModuleEntry[]
 }
 
 interface ErrorEvent {

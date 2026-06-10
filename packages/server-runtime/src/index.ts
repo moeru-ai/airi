@@ -479,6 +479,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
         name: peerInfo.name,
         index: peerInfo.index,
         identity: peerInfo.identity!,
+        healthy: peerInfo.healthy !== false,
       }))
   }
 

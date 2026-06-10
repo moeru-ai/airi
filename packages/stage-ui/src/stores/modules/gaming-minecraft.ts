@@ -115,7 +115,6 @@ export const useMinecraftStore = defineStore('minecraft', () => {
 
   function handleRegistrySync(event: WebSocketBaseEvent<'registry:modules:sync', WebSocketEvents['registry:modules:sync']>) {
     const moduleEntry = event.data.modules.find(isMinecraftModuleIdentity)
-    const wasPresent = servicePresent.value
     servicePresent.value = !!moduleEntry
 
     if (!moduleEntry) {
@@ -123,8 +122,7 @@ export const useMinecraftStore = defineStore('minecraft', () => {
       return
     }
 
-    if (!wasPresent)
-      serviceHealthy.value = true
+    serviceHealthy.value = moduleEntry.healthy === true
   }
 
   function handleRegistryHealthy(event: WebSocketBaseEvent<'registry:modules:health:healthy', WebSocketEvents['registry:modules:health:healthy']>) {
