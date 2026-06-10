@@ -2305,7 +2305,7 @@ export class Brain {
       return true
 
     const signal = event.payload as PerceptionSignal
-    return signal.type !== 'chat_message'
+    return !this.canResumeFromGiveUp(signal)
   }
 
   private resumeFromGiveUpIfNeeded(event: BotEvent): void {
@@ -2316,10 +2316,14 @@ export class Brain {
       return
 
     const signal = event.payload as PerceptionSignal
-    if (signal.type !== 'chat_message')
+    if (!this.canResumeFromGiveUp(signal))
       return
 
     this.givenUp = false
     this.giveUpReason = undefined
+  }
+
+  private canResumeFromGiveUp(signal: PerceptionSignal): boolean {
+    return signal.type === 'chat_message' || signal.type === 'airi_command'
   }
 }
