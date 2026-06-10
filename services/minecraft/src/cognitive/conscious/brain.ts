@@ -220,9 +220,9 @@ const NO_ACTION_BUDGET_ALERT_SOURCE_ID = 'brain:no_action_budget'
 
 /**
  * Priority tiers for event scheduling (lower = higher priority).
- * Player chat always takes precedence over stale system feedback.
+ * Player chat and AIRI commands always take precedence over stale system feedback.
  */
-const EVENT_PRIORITY_PLAYER_CHAT = 0
+const EVENT_PRIORITY_URGENT_PERCEPTION = 0
 const EVENT_PRIORITY_PERCEPTION = 1
 const EVENT_PRIORITY_FEEDBACK = 2
 const EVENT_PRIORITY_NO_ACTION_FOLLOWUP = 3
@@ -265,8 +265,8 @@ function augmentDecisionError(message: string): string {
 function getEventPriority(event: BotEvent): number {
   if (event.type === 'perception') {
     const signal = event.payload as PerceptionSignal
-    if (signal.type === 'chat_message')
-      return EVENT_PRIORITY_PLAYER_CHAT
+    if (signal.type === 'chat_message' || signal.type === 'airi_command')
+      return EVENT_PRIORITY_URGENT_PERCEPTION
     return EVENT_PRIORITY_PERCEPTION
   }
   if (event.source.type === 'system' && event.source.id === NO_ACTION_FOLLOWUP_SOURCE_ID)
@@ -1578,7 +1578,7 @@ export class Brain {
   }
 
   /**
-   * Coalesce the event queue: promote high-priority events (player chat)
+   * Coalesce the event queue: promote high-priority events (player chat, AIRI commands)
    * ahead of stale low-priority events (feedback, no-action follow-ups),
    * and drop redundant stale follow-ups when a higher-priority event exists.
    */
@@ -1592,11 +1592,11 @@ export class Brain {
     if (!hasHighPriority)
       return
 
-    // Drop redundant no-action follow-ups when a player chat is waiting
-    const hasPlayerChat = this.queue.some(
-      item => getEventPriority(item.event) === EVENT_PRIORITY_PLAYER_CHAT,
+    // Drop redundant no-action follow-ups when an urgent perception is waiting
+    const hasUrgentPerception = this.queue.some(
+      item => getEventPriority(item.event) === EVENT_PRIORITY_URGENT_PERCEPTION,
     )
-    if (hasPlayerChat) {
+    if (hasUrgentPerception) {
       const before = this.queue.length
       const dropped: QueuedEvent[] = []
       this.queue = this.queue.filter((item) => {
@@ -1618,12 +1618,12 @@ export class Brain {
           sourceType: 'system',
           sourceId: 'brain:coalesce',
           tags: ['scheduler', 'coalesce', 'drop_followups'],
-          text: `Coalesced queue: dropped ${before - this.queue.length} stale no-action follow-ups (player chat waiting)`,
+          text: `Coalesced queue: dropped ${before - this.queue.length} stale no-action follow-ups (urgent perception waiting)`,
         })
       }
     }
 
-    // Stable-sort by priority so player chat events are processed first
+    // Stable-sort by priority so urgent perception events are processed first
     this.queue.sort((a, b) => getEventPriority(a.event) - getEventPriority(b.event))
   }
 

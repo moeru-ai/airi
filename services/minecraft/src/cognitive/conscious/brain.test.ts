@@ -532,6 +532,23 @@ describe('brain queue coalescing', () => {
     expect((brain.queue[0].event.payload as any).type).toBe('chat_message')
   })
 
+  it('promotes AIRI commands ahead of queued ordinary perceptions', () => {
+    const brain: any = new Brain(createDeps('await skip()'))
+
+    brain.queue = [
+      { event: createNonResumingPerceptionEvent(), resolve: vi.fn(), reject: vi.fn() },
+      { event: createFeedbackEvent(), resolve: vi.fn(), reject: vi.fn() },
+      { event: createAiriCommandEvent(), resolve: vi.fn(), reject: vi.fn() },
+    ]
+
+    brain.coalesceQueue()
+
+    expect(brain.queue[0].event.type).toBe('perception')
+    expect((brain.queue[0].event.payload as any).type).toBe('airi_command')
+    expect((brain.queue[1].event.payload as any).type).toBe('saliency_high')
+    expect(brain.queue[2].event.type).toBe('feedback')
+  })
+
   it('drops no-action follow-ups when player chat is waiting', () => {
     const brain: any = new Brain(createDeps('await skip()'))
 
