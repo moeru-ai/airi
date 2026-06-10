@@ -161,7 +161,9 @@ extension DevBridgeViewController: WKNavigationDelegate {
             }
             if nsError.code == -1200 {
                 print(
-                    "[DevBridge] TLS failed (-1200). Prefer an https URL the device trusts (e.g. frp or another reverse proxy to the dev API), or use http for local Vite when policy allows; see apps/server/README.md (Local HTTPS API)."
+                    "[DevBridge] TLS failed (-1200). Prefer an https URL the device trusts "
+                        + "(e.g. frp or another reverse proxy to the dev API), or use http for local Vite "
+                        + "when policy allows; see apps/server/README.md (Local HTTPS API)."
                 )
             }
         }
