@@ -26,23 +26,23 @@ describe('createRelayToMinecraftTool', () => {
   // Codex P2: the bot can de-announce between registration and invocation; execute must re-check.
   it('refuses and does not send when the bot is no longer available', async () => {
     const { tool, sendSparkCommand, onRelay } = await makeTool({ isAvailable: () => false })
-    const result = await tool.execute({ task: '跟着我', ack: null, control: null }, execMeta)
+    const result = await tool.execute({ task: 'follow me', ack: null, control: null }, execMeta)
     expect(sendSparkCommand).not.toHaveBeenCalled()
     expect(onRelay).not.toHaveBeenCalled()
-    expect(result).toContain('不在线')
+    expect(result).toContain('offline')
   })
 
   it('does not send an empty task', async () => {
     const { tool, sendSparkCommand } = await makeTool()
     const result = await tool.execute({ task: '   ', ack: null, control: null }, execMeta)
     expect(sendSparkCommand).not.toHaveBeenCalled()
-    expect(result).toContain('空 task')
+    expect(result).toContain('empty task')
   })
 
   it('relays a "do" command carrying the FULL task text in guidance.options[0].label', async () => {
     const { tool, sendSparkCommand, onRelay } = await makeTool()
-    const task = '跟着我去那片很远的桦树林,把所有成熟的桦木都砍下来再回来'
-    const result = await tool.execute({ task, ack: '好的主人~', control: 'do' }, execMeta)
+    const task = 'follow me to that far birch forest, chop all mature birch logs, then come back'
+    const result = await tool.execute({ task, ack: 'Yes, master, right away.', control: 'do' }, execMeta)
 
     expect(sendSparkCommand).toHaveBeenCalledTimes(1)
     const command = sendSparkCommand.mock.calls[0][0]
@@ -51,28 +51,28 @@ describe('createRelayToMinecraftTool', () => {
     expect(command.priority).toBe('normal')
     // The bot relays options[0].label to its brain — it MUST be the whole instruction, not truncated.
     expect(command.guidance?.options?.[0].label).toBe(task)
-    expect(command.ack).toBe('好的主人~')
+    expect(command.ack).toBe('Yes, master, right away.')
     // Targets the bot directly; an empty array would match no peer and drop the relay.
     expect(command.destinations).toEqual(['minecraft-bot'])
-    expect(onRelay).toHaveBeenCalledWith({ task, control: 'do', ack: '好的主人~' })
-    expect(result).toContain('已把指令派给游戏里的 Airi')
+    expect(onRelay).toHaveBeenCalledWith({ task, control: 'do', ack: 'Yes, master, right away.' })
+    expect(result).toContain('relayed to the in-game Airi')
   })
 
   it('relays a "stop" command as a forceful high-priority interrupt', async () => {
     const { tool, sendSparkCommand } = await makeTool()
-    const result = await tool.execute({ task: '别挖了', ack: null, control: 'stop' }, execMeta)
+    const result = await tool.execute({ task: 'stop mining', ack: null, control: 'stop' }, execMeta)
 
     const command = sendSparkCommand.mock.calls[0][0]
     expect(command.interrupt).toBe('force')
     expect(command.priority).toBe('high')
-    expect(command.guidance?.options?.[0].label).toContain('立刻停下')
-    expect(command.guidance?.options?.[0].steps).toContain('停止当前所有动作')
-    expect(result).toContain('停下')
+    expect(command.guidance?.options?.[0].label).toContain('Immediately stop')
+    expect(command.guidance?.options?.[0].steps).toContain('Stop every current action')
+    expect(result).toContain('stop')
   })
 
   it('defaults a null control to "do"', async () => {
     const { tool, sendSparkCommand } = await makeTool()
-    await tool.execute({ task: '过来', ack: null, control: null }, execMeta)
+    await tool.execute({ task: 'come here', ack: null, control: null }, execMeta)
     const command = sendSparkCommand.mock.calls[0][0]
     expect(command.interrupt).toBe('soft')
     expect(command.priority).toBe('normal')

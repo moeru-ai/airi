@@ -253,11 +253,11 @@ const PAUSE_ABORT_ERROR_NAME = 'AbortError'
  * Before:
  * - "Cannot read properties of undefined (reading 'x')"
  * After:
- * - "...reading 'x') — 你读取了不存在对象的坐标。query 的 .first() 找不到时是 null,先判空… "
+ * - "...reading 'x') — You read coordinates from a missing query result. Check for null first..."
  */
 function augmentDecisionError(message: string): string {
   if (/Cannot read properties of (?:undefined|null) \(reading '(?:[xyz]|pos|position|location)'\)/.test(message)) {
-    return `${message} — 你读取了一个不存在对象的坐标。query.entities()/query.blocks() 的 .first() 在没找到目标时返回 null,直接读它的 .pos/.x 就会这样崩。修法:先判空再读,例如 const t = query.entities().whereName("pig").first(); if (!t) { await chat({ message: "附近没有目标,我换个方向找找", feedback: false }) } else { await goToCoordinate({ x: t.pos.x, y: t.pos.y, z: t.pos.z, closeness: 1 }) }。提示:杀动物直接用 attack({ type: "pig" }) 击杀最近的,通常根本不用手动查坐标。`
+    return `${message} — You tried to read coordinates from a missing object. query.entities()/query.blocks().first() returns null when no target is found, and reading .pos/.x from that value crashes. Fix it by checking for null first, for example: const t = query.entities().whereName("pig").first(); if (!t) { await chat({ message: "I do not see the target nearby, so I will search another direction.", feedback: false }) } else { await goToCoordinate({ x: t.pos.x, y: t.pos.y, z: t.pos.z, closeness: 1 }) }. Tip: to kill an animal, use attack({ type: "pig" }) against the nearest one; you usually do not need to query coordinates manually.`
   }
   return message
 }

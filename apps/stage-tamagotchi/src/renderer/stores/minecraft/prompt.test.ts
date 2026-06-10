@@ -3,17 +3,18 @@ import { describe, expect, it } from 'vitest'
 import { buildMinecraftToolsetPrompt, parseMasterUsername, shouldReadAloud } from './prompt'
 
 describe('shouldReadAloud', () => {
-  it('reads a Chinese report headline', () => {
-    expect(shouldReadAloud('正在被 dssadg 攻击')).toBe(true)
+  it('reads a user-facing report headline', () => {
+    expect(shouldReadAloud('I am being attacked by dssadg')).toBe(true)
   })
 
-  it('reads a mixed Chinese/ASCII headline', () => {
-    expect(shouldReadAloud('HP 5/20 残血,正在撤退')).toBe(true)
+  it('reads a mixed status headline', () => {
+    expect(shouldReadAloud('HP 5/20, retreating now')).toBe(true)
   })
 
-  it('does not read an English/debug-only line', () => {
+  it('does not read diagnostics or debug-only lines', () => {
     expect(shouldReadAloud('Cannot complete task: missing iron_ingot x3')).toBe(false)
     expect(shouldReadAloud('[debug] path_stop reason=interrupted')).toBe(false)
+    expect(shouldReadAloud('path_stop reason=interrupted')).toBe(false)
   })
 
   it('does not read empty or missing text', () => {
@@ -48,15 +49,15 @@ describe('parseMasterUsername', () => {
 })
 
 describe('buildMinecraftToolsetPrompt', () => {
-  it('activates relay mode and binds 主人 when online with a known master', () => {
+  it('activates relay mode and binds the master when online with a known master', () => {
     const prompt = buildMinecraftToolsetPrompt({
       online: true,
       masterUsername: 'dssadg',
       runtimeContextText: 'HP 20/20',
     })
-    expect(prompt).toContain('联机指挥模式')
+    expect(prompt).toContain('Minecraft online command mode active')
     expect(prompt).toContain('relayToMinecraft')
-    expect(prompt).toContain('主人身份绑定')
+    expect(prompt).toContain('Owner identity binding')
     expect(prompt).toContain('dssadg')
     expect(prompt).toContain('HP 20/20')
   })
@@ -68,7 +69,7 @@ describe('buildMinecraftToolsetPrompt', () => {
       runtimeContextText: '',
     })
     expect(prompt).toContain('relayToMinecraft')
-    expect(prompt).not.toContain('主人身份绑定')
+    expect(prompt).not.toContain('Owner identity binding')
   })
 
   it('uses offline copy when the bot is not connected', () => {
@@ -77,8 +78,8 @@ describe('buildMinecraftToolsetPrompt', () => {
       masterUsername: 'dssadg',
       runtimeContextText: '',
     })
-    expect(prompt).toContain('不在线')
-    expect(prompt).not.toContain('联机指挥模式')
+    expect(prompt).toContain('currently offline')
+    expect(prompt).not.toContain('Minecraft online command mode active')
     // Master binding still applies offline so the persona never treats the owner as a stranger.
     expect(prompt).toContain('dssadg')
   })

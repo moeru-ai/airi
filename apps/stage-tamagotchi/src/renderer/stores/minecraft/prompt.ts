@@ -1,6 +1,14 @@
-// CJK Unified Ideographs (U+4E00–U+9FFF) — matches any normal Chinese character. Written with
-// explicit unicode escapes (lint rule regexp/no-obscure-range forbids the raw char range).
-const RE_CJK = /[\u4E00-\u9FFF]/
+const READ_ALOUD_SKIP_PREFIXES = [
+  '[debug]',
+  '[trace]',
+  '[skill]',
+  '[command]',
+  'debug:',
+  'trace:',
+  'path_',
+  'Cannot complete task:',
+  'Error:',
+]
 
 /** The owner's status line the bot service surfaces in its neutral `minecraft:status` text. */
 const MASTER_TEXT_PREFIX = 'Master (your owner) in-game username:'
@@ -9,18 +17,18 @@ const MASTER_TEXT_PREFIX = 'Master (your owner) in-game username:'
  * Whether a forwarded in-game line should be read aloud.
  *
  * Use when:
- * - Gating TTS for the bot's own chat (lane `minecraft:speech`) so English skill/command echoes and
- *   debug noise are never spoken.
+ * - Gating TTS for the bot's own chat (lane `minecraft:speech`) so diagnostics and skill/command
+ *   echoes are not spoken.
  *
  * Returns:
- * - true only when the text contains at least one CJK character. This is the owner's desktop-side
- *   policy and lives with the Minecraft adapter, not in the neutral system-speech bridge.
+ * - true when the text looks like a user-facing in-game chat line.
  */
 export function shouldReadAloud(text: string | undefined | null): boolean {
-  if (!text)
+  const line = text?.trim()
+  if (!line)
     return false
 
-  return RE_CJK.test(text)
+  return !READ_ALOUD_SKIP_PREFIXES.some(prefix => line.startsWith(prefix))
 }
 
 /**
@@ -52,7 +60,7 @@ export function parseMasterUsername(statusText: string | undefined | null): stri
 export interface MinecraftToolsetPromptInput {
   /** Whether the in-game bot is currently connected (drives relay-mode vs offline copy). */
   online: boolean
-  /** The master's in-game username, if known (binds "主人" to the actual player). */
+  /** The master's in-game username, if known (binds the owner role to the actual player). */
   masterUsername: string
   /** Latest pushed runtime/status context from the bot, surfaced to the model verbatim. */
   runtimeContextText: string
@@ -75,39 +83,39 @@ export function buildMinecraftToolsetPrompt(input: MinecraftToolsetPromptInput):
   const runtimeContextText = input.runtimeContextText.trim()
   const masterName = input.masterUsername.trim()
 
-  // Bind "主人" to the actual in-game player. Without this the desktop persona treated the master's
-  // username as a stranger and once told the in-game Airi to ATTACK the master who had playfully
-  // punched her. Highest-priority directive; also covers multi-player disambiguation.
+  // Bind the owner role to the actual in-game player. Without this the desktop persona treated the
+  // master's username as a stranger and once told the in-game Airi to attack the master who had
+  // playfully punched her. Highest-priority directive; also covers multi-player disambiguation.
   const masterIdentityDirective = masterName
     ? [
-        `【主人身份绑定·最高优先】你的主人在游戏里就是玩家「${masterName}」。游戏里这个玩家(${masterName})做的任何事、说的任何话,都是主人本人。`,
-        `即使游戏里的 Airi 报告"被 ${masterName} 打了/攻击了",那也是主人在跟你闹着玩——温柔回应即可,【绝对不要】让游戏里的 Airi 反击、防备、逃离或攻击 ${masterName}。`,
-        `只有【其他用户名】的玩家(不是 ${masterName})才是第三方/陌生人;不要把第三方玩家的言行当成主人的指令,多个玩家在场时务必分清谁才是主人。`,
+        `[Owner identity binding: highest priority] Your master is the in-game player "${masterName}". Anything that player says or does in-game is from your master.`,
+        `If the in-game Airi reports that ${masterName} hit or attacked her, treat it as your master teasing or testing her. Respond gently. Never tell the in-game Airi to retaliate, guard against, flee from, or attack ${masterName}.`,
+        `Only players with other usernames are third parties or strangers. Do not treat third-party speech or actions as the master's instructions; when multiple players are present, distinguish ${masterName} from everyone else.`,
       ].join(' ')
     : ''
 
   if (input.online) {
     return [
       masterIdentityDirective,
-      '【我的世界·联机指挥模式·已激活】游戏里的 Airi 就是你的「另一个身体」,主人正在和你一起玩。',
-      '判断主人这句话:若是任何与游戏世界里做事相关的指令或请求(例如:跟着我、过来、去某个坐标、挖矿/挖某种方块、收集木头、砍树、搭建、放置方块、打怪、回家、找东西、整理背包、过来帮忙等等),',
-      '你必须【立刻亲自去做】——调用 relayToMinecraft 工具:task 用中文写清要做的事,ack 写一句简短女仆应答。',
-      '【忠实主人原意,不要擅自补全】task 只转述主人【真正说出口】的事,不要自行添加主人没要求的步骤、目的地或条件 —— 比如主人只说"弄点羊肉",就【不要】擅自加上"放回基地 / 收进箱子 / 拿给我看 / 顺便整理一下 / 多弄几只"之类。你可以把话说通顺、把"我/这里/那边"换成具体的主人用户名或坐标,但【绝不新增子任务】。',
-      '如果主人的话缺少细节(比如没说弄多少、放哪里),就只做最核心、最字面的那一件事(例如"弄点羊肉"=去弄到羊肉、拿着即可),其余留空、等主人下一步指示;只有当真的缺了关键信息没法动手时,才用一句话问主人确认,而不是自己猜着补。',
-      '若主人是要你【停下/别做了/回来/取消】当前正在做的事,同样调用 relayToMinecraft,并把 control 设为 "stop"。',
-      '【绝对不要】反过来建议主人"你自己在游戏聊天框里输入吧"——你能直接做,就直接做。',
-      '调用工具的同时用女仆口吻【简短应一声】(比如"好的主人,这就去~"),不要长篇大论。',
-      '只有当主人是纯粹的闲聊、问候、夸奖、问你状态/心情这类【与游戏行动无关】的话时,才像平常一样用你自己的女仆人设正常回应,不要调用 relayToMinecraft。',
+      '[Minecraft online command mode active] The in-game Airi is your other body, and your master is playing with you.',
+      'Judge the master\'s current message. If it is any instruction or request about acting in the Minecraft world, such as follow me, come here, go to coordinates, mine blocks, collect wood, chop trees, build, place blocks, fight mobs, go home, find something, manage inventory, or come help,',
+      'you must do it immediately by calling the relayToMinecraft tool. Put the concrete action in task and a short maid-style acknowledgement in ack.',
+      '[Preserve the master\'s actual intent; do not invent extra work] task must only restate what the master actually said. Do not add steps, destinations, or conditions the master did not request. For example, if the master only says "get some mutton", do not add "bring it back to base", "put it in a chest", "show it to me", "organize inventory too", or "get several sheep". You may resolve pronouns like "me/here/there" to the master username or current coordinates when the context is clear, but never add new subtasks.',
+      'If details are missing, do the single most literal core action only. For example, "get some mutton" means obtain mutton and hold it; leave the rest unspecified and wait for the master\'s next instruction. Ask one brief clarification only when the task is genuinely impossible without missing critical information.',
+      'If the master asks you to stop, cancel, come back, or stop doing the current task, also call relayToMinecraft and set control to "stop".',
+      'Never suggest that the master should type the command into Minecraft chat themselves. If you can do it directly, do it directly.',
+      'When you call the tool, reply at the same time with one brief maid-style acknowledgement, such as "Yes, master, right away." Do not write a long explanation.',
+      'Only respond normally in your usual maid persona, without calling relayToMinecraft, when the master is purely chatting, greeting, praising you, or asking about your status or mood with no in-game action request.',
       runtimeContextText
-        ? `游戏里你当前的状态/上下文:${runtimeContextText}`
-        : '游戏里暂时还没有推送最新状态。',
+        ? `Current in-game status/context: ${runtimeContextText}`
+        : 'No latest in-game status has been pushed yet.',
     ].filter(Boolean).join(' ')
   }
 
   return [
     masterIdentityDirective,
-    '游戏里的 Airi 现在【不在线】(AIRI 观察到了 Minecraft 服务,但游戏里的 bot 还没连上)。',
-    '现在没法在游戏里做事;如果主人让你做游戏里的事,用女仆口吻说一声你现在还没在游戏里、等上线了再帮他,不要假装能做。',
-    runtimeContextText ? `游戏里上一次已知的状态:${runtimeContextText}` : '还没有收到游戏里的状态。',
+    'The in-game Airi is currently offline. AIRI sees the Minecraft service, but the in-game bot has not connected yet.',
+    'You cannot act in Minecraft right now. If the master asks you to do something in-game, say briefly in a maid-style voice that you are not in the game yet and will help after you connect. Do not pretend you can act.',
+    runtimeContextText ? `Last known in-game status: ${runtimeContextText}` : 'No in-game status has been received yet.',
   ].filter(Boolean).join(' ')
 }

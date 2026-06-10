@@ -50,13 +50,13 @@ const relayToMinecraftToolSchema = z.object({
   task: z
     .string()
     .min(1)
-    .describe('要在游戏世界里执行的动作,用自然语言完整描述。例如 "跟着我去那片树林砍橡木" 或 "把背包里的圆石放进最近的箱子"。'),
+    .describe('The action to perform in the Minecraft world, described in natural language. Example: "follow me to that forest and chop oak logs" or "put the cobblestone from your inventory into the nearest chest".'),
   ack: z
     .union([z.string(), z.null()])
-    .describe('给主人的简短女仆口吻应答,例如 "好的主人,这就去~"。无需应答时为 null。'),
+    .describe('A brief maid-style acknowledgement for the master, such as "Yes, master, right away." Use null when no acknowledgement is needed.'),
   control: z
     .union([z.enum(['do', 'stop']), z.null()])
-    .describe('"do"=执行该动作(默认);"stop"=立刻停下游戏里正在进行的动作(用于"停下/别做了/回来/取消"等)。'),
+    .describe('"do" means perform the action (default). "stop" means immediately stop the in-game action currently in progress, for requests such as stop, cancel, come back, or do not do that.'),
 }).strict()
 
 /**
@@ -85,20 +85,20 @@ export async function createRelayToMinecraftTool(options: CreateRelayToMinecraft
     rawTool({
       name: 'relayToMinecraft',
       description: [
-        '把主人对游戏世界的指令派给游戏里的 Airi(你的另一个身体)去执行。',
-        '仅当主人要在 Minecraft 里做事时调用:移动/跟随/过来/去坐标、挖矿/砍树/收集、搭建/放置、打怪、整理背包、回家/找东西、以及"停下/别做了/回来"等。',
-        '纯闲聊、问候、夸奖、问你状态或心情时【不要】调用,正常用人设回应即可。',
+        'Relay the master\'s Minecraft-world instruction to the in-game Airi, your other body, so she can execute it.',
+        'Call only when the master wants something done in Minecraft: move, follow, come here, go to coordinates, mine, chop trees, collect items, build, place blocks, fight mobs, manage inventory, go home, find something, or stop/cancel/come back.',
+        'Do not call for pure chat, greetings, praise, or questions about your status or mood. For those, respond normally in character.',
       ].join(''),
       parameters,
       execute: async (rawPayload) => {
         // The bot may have de-announced between tool registration and this invocation.
         if (!options.isAvailable())
-          return 'relayToMinecraft: 游戏里的 Airi 现在不在线,指令没有发出去。等她上线后再让我转达吧。'
+          return 'relayToMinecraft: the in-game Airi is offline, so the instruction was not sent. Wait until she reconnects before relaying it.'
 
         const payload = rawPayload as z.infer<typeof relayToMinecraftToolSchema>
         const task = (payload.task ?? '').trim()
         if (!task)
-          return 'relayToMinecraft: 收到空 task,未转发。'
+          return 'relayToMinecraft: received an empty task, so nothing was relayed.'
 
         const control: RelayToMinecraftControl = payload.control ?? 'do'
         const ack = payload.ack ?? undefined
@@ -106,10 +106,10 @@ export async function createRelayToMinecraftTool(options: CreateRelayToMinecraft
 
         // label is what the bot relays to its brain → keep the full instruction, never truncate.
         const label = isStop
-          ? `立刻停下游戏里正在进行的所有动作${task && task !== '停下' ? `(${task})` : ''}`
+          ? `Immediately stop all in-game actions currently in progress${task ? ` (${task})` : ''}`
           : task
         const steps = isStop
-          ? Array.from(new Set(['停止当前所有动作', task].filter(Boolean)))
+          ? Array.from(new Set(['Stop every current action', task].filter(Boolean)))
           : [task]
 
         const command = {
@@ -145,8 +145,8 @@ export async function createRelayToMinecraftTool(options: CreateRelayToMinecraft
         options.onRelay?.({ task, control, ack })
 
         return isStop
-          ? '已让游戏里的 Airi 停下当前动作。'
-          : `已把指令派给游戏里的 Airi 执行:${task}`
+          ? 'The in-game Airi has been told to stop her current action.'
+          : `The instruction has been relayed to the in-game Airi: ${task}`
       },
     }),
   ]

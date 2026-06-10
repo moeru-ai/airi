@@ -38,8 +38,8 @@ function eventSourceId(event: { metadata?: { source?: { plugin?: { id?: string }
  *     hard capability gate replacing the old prompt-only "don't relay when offline");
  *   - registers the Minecraft persona directive into the shared toolset-prompt store, re-registered
  *     whenever online/master/runtime-context change so the model gets a fresh directive each turn;
- *   - consumes the bot's own forwarded chat (`minecraft:speech`) into the stage TTS, and binds 主人
- *     from the bot's neutral status text;
+ *   - consumes the bot's own forwarded chat (`minecraft:speech`) into the stage TTS, and binds the
+ *     owner identity from the bot's neutral status text;
  *   - mutes Minecraft-origin `spark:notify` in the orchestrator while this adapter owns the
  *     Minecraft speech/status surface.
  */
@@ -53,7 +53,7 @@ export const useMinecraftToolsStore = defineStore('tamagotchi-minecraft-tools', 
 
   const { serviceConnected, configured, latestRuntimeContextText } = storeToRefs(minecraftStore)
   // The master's in-game username, parsed from the bot's neutral `minecraft:status` text. Kept here
-  // (not in the shared minecraft store) because binding 主人 is a desktop-persona concern.
+  // (not in the shared minecraft store) because binding the owner role is a desktop-persona concern.
   const masterUsername = ref('')
 
   let started = false
@@ -99,8 +99,8 @@ export const useMinecraftToolsStore = defineStore('tamagotchi-minecraft-tools', 
       return
 
     if (event.data.lane === 'minecraft:speech') {
-      // The bot's own in-game chat line, forwarded for read-aloud. Speak it (only when it contains
-      // Chinese, so English skill/command echoes are skipped). Not stored as state — a one-off line.
+      // The bot's own in-game chat line, forwarded for read-aloud. Speak it when it looks
+      // user-facing instead of diagnostic. Not stored as state — a one-off line.
       const line = event.data.text ?? ''
       if (shouldReadAloud(line))
         systemSpeechStore.speak(line)
@@ -108,8 +108,9 @@ export const useMinecraftToolsStore = defineStore('tamagotchi-minecraft-tools', 
     }
 
     if (event.data.lane === 'minecraft:status') {
-      // Bind 主人 to the actual in-game player. The bot surfaces its owner in neutral status text; we
-      // parse it here rather than relying on a desktop-specific hint from the bot service.
+      // Bind the owner role to the actual in-game player. The bot surfaces its owner in neutral
+      // status text; we parse it here rather than relying on a desktop-specific hint from the bot
+      // service.
       const parsed = parseMasterUsername(event.data.text)
       if (parsed)
         masterUsername.value = parsed

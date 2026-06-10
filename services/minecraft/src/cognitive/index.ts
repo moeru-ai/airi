@@ -94,8 +94,8 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
         // Resolve EventBus for message handling
         const eventBus = container.resolve('eventBus')
         // Forward the bot's own in-game chat to the desktop for read-aloud. This is the Minecraft
-        // read-aloud capability, paired with the renderer's Minecraft adapter (its minecraft:speech
-        // consumer Chinese-gates the lines). Lands together with that consumer so the contract is whole.
+        // read-aloud capability, paired with the renderer's Minecraft adapter, which filters
+        // diagnostic lines before speaking.
         const airiBridge = container.resolve('airiBridge')
 
         // NOTICE: EventBus trace forwarding disabled - trace logs removed to reduce noise
