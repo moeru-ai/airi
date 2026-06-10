@@ -1,13 +1,12 @@
 import type { OIDCFlowParams, TokenResponse } from './auth-oidc'
 
-import { Capacitor } from '@capacitor/core'
 import { createAuthClient } from 'better-auth/vue'
 
 import { useAuthStore } from '../stores/auth'
-import { completeOIDCCallbackUrl } from './auth-callback'
 import { OIDC_CLIENT_ID, OIDC_REDIRECT_URI } from './auth-config'
-import { buildAuthorizationURL, consumeFlowState, exchangeCodeForTokens, persistFlowState } from './auth-oidc'
-import { openNativeAuthSession } from './native-auth'
+import { buildAuthorizationURL, persistFlowState } from './auth-oidc'
+import { getIOSSignInHandler } from './auth-platform'
+import { getCapacitorPlatform } from './capacitor-runtime'
 import { SERVER_URL } from './server'
 
 export type OAuthProvider = 'google' | 'github'
@@ -186,25 +185,16 @@ export async function signOut() {
  * Builds the authorization URL, persists PKCE state, and navigates.
  */
 export async function signInOIDC(params: OIDCFlowParams) {
-  // Must pass `params` (incl. `provider`) so authorize URL can include `?provider=google` / github.
   const { url, flowState } = await buildAuthorizationURL(params)
   persistFlowState(flowState, params)
 
-  let capacitorPlatform = 'web'
-  try {
-    capacitorPlatform = Capacitor.getPlatform()
-  }
-  catch {
-    // no Capacitor
-  }
+  const capacitorPlatform = getCapacitorPlatform()
   if (capacitorPlatform === 'ios') {
-    const callbackUrl = await openNativeAuthSession(url.toString())
-    await completeOIDCCallbackUrl(callbackUrl, {
-      consumeFlowState,
-      exchangeCodeForTokens,
-      applyOIDCTokens,
-      fetchSession,
-    })
+    const iosSignInHandler = getIOSSignInHandler()
+    if (!iosSignInHandler)
+      throw new Error('iOS sign-in is not configured')
+
+    await iosSignInHandler(url.toString())
     return
   }
   if (capacitorPlatform !== 'web') {

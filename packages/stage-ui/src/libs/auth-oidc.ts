@@ -1,6 +1,6 @@
-import { Capacitor } from '@capacitor/core'
 import { generateCodeChallenge, generateCodeVerifier, generateState } from '@proj-airi/stage-shared/auth'
 
+import { isCapacitorNativePlatform } from './capacitor-runtime'
 import { SERVER_URL } from './server'
 
 // OIDC Authorization Code + PKCE client for all platforms.
@@ -143,19 +143,14 @@ export async function refreshAccessToken(
   return await response.json()
 }
 
-// Keys for PKCE + OAuth params. Web: sessionStorage (tab-scoped). Native: localStorage
-// (Capacitor + system browser / ASWeb often lose sessionStorage for the return navigation).
+// NOTICE: native shells use localStorage — ASWeb return navigation often drops sessionStorage.
 const FLOW_STATE_KEY = 'auth/v1/oidc-flow-state'
 const FLOW_PARAMS_KEY = 'auth/v1/oidc-flow-params'
 
 function getOidcFlowStorage(): Storage {
-  try {
-    if (Capacitor.isNativePlatform())
-      return localStorage
-  }
-  catch {
-    // Capacitor unavailable (SSR / non-native build)
-  }
+  if (isCapacitorNativePlatform())
+    return localStorage
+
   return sessionStorage
 }
 

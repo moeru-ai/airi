@@ -100,7 +100,6 @@ watch(() => route.query.error, (value) => {
   errorMessage.value = typeof value === 'string' ? value : null
 }, { immediate: true })
 
-// NOTICE: Auto-start runs on the standalone auth UI — server GET /auth/sign-in?provider= redirects here (ui-routes.ts), then this watch POSTs to sign-in/social.
 watch(requestedProvider, async (provider) => {
   if (!provider || autoStartedProvider.value === provider)
     return

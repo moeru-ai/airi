@@ -62,7 +62,6 @@
     "test:run": "vitest run"
   },
   "dependencies": {
-    "@capacitor/core": "catalog:",
     "@date-fns/utc": "catalog:",
     "@formkit/auto-animate": "catalog:",
     "@huggingface/transformers": "catalog:",

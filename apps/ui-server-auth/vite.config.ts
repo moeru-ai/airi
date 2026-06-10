@@ -23,7 +23,6 @@ export default defineConfig({
 
   resolve: {
     alias: {
-      '@capacitor/core': resolve(join(import.meta.dirname, 'src', 'shims', 'capacitor-core.ts')),
       '@proj-airi/i18n': resolve(join(import.meta.dirname, '..', '..', 'packages', 'i18n', 'src')),
       '@proj-airi/stage-ui': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src')),
       '@proj-airi/stage-shared': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-shared', 'src')),

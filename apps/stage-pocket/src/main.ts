@@ -15,6 +15,7 @@ import { routes } from 'vue-router/auto-routes'
 
 import App from './App.vue'
 
+import { installPocketAuth } from './libs/pocket-auth'
 import { installDeepLinks } from './modules/deep-links'
 import { i18n } from './modules/i18n'
 
@@ -51,6 +52,7 @@ window.addEventListener('unhandledrejection', (event) => {
 })
 
 installDeepLinks(router)
+installPocketAuth()
 
 createApp(App)
   .use(MotionPlugin)

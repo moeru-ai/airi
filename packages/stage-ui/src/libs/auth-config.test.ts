@@ -1,29 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-let nativePlatform = false
-let platform = 'web'
-
-vi.mock('@capacitor/core', () => ({
-  Capacitor: {
-    getPlatform: () => platform,
-    isNativePlatform: () => nativePlatform,
-  },
-  registerPlugin: () => ({
-    authenticate: vi.fn(),
-  }),
-}))
+function stubWindow(capacitor?: { getPlatform: () => string, isNativePlatform?: () => boolean }) {
+  vi.stubGlobal('window', {
+    location: {
+      origin: 'https://airi.moeru.ai',
+    },
+    Capacitor: capacitor,
+  })
+}
 
 describe('oIDC client config', () => {
   beforeEach(() => {
-    nativePlatform = false
-    platform = 'web'
     vi.unstubAllEnvs()
     vi.resetModules()
-    vi.stubGlobal('window', {
-      location: {
-        origin: 'https://airi.moeru.ai',
-      },
-    })
+    stubWindow()
   })
 
   it('uses the web redirect URI in browsers', async () => {
@@ -42,8 +32,10 @@ describe('oIDC client config', () => {
   })
 
   it('uses the app-owned Pocket redirect URI on native platforms', async () => {
-    nativePlatform = true
-    platform = 'ios'
+    stubWindow({
+      getPlatform: () => 'ios',
+      isNativePlatform: () => true,
+    })
 
     const { OIDC_CLIENT_ID, OIDC_REDIRECT_URI } = await import('./auth-config')
 
@@ -52,8 +44,10 @@ describe('oIDC client config', () => {
   })
 
   it('keeps the existing Capacitor callback for Android until an Android launcher exists', async () => {
-    nativePlatform = true
-    platform = 'android'
+    stubWindow({
+      getPlatform: () => 'android',
+      isNativePlatform: () => true,
+    })
 
     const { OIDC_CLIENT_ID, OIDC_REDIRECT_URI } = await import('./auth-config')
 

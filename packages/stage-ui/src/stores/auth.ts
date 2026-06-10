@@ -39,9 +39,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   const credits = useLocalStorage<number>('user/v1/flux', 0)
 
-  // Cross-app "user must log in" flag. Setting this to true starts the OIDC
-  // flow (`triggerSignIn`) so the browser hits `/api/auth/oauth2/authorize`
-  // and the server-hosted login UI (`/auth/sign-in`). Electron skips this
+  // Cross-app "user must log in" flag. Setting this to true triggers an
+  // immediate OIDC redirect on web (mobile + desktop). Electron skips this
   // path because controls-island-auth-button listens for IPC and handles
   // sign-in in the main process.
   const needsLogin = ref(false)
@@ -51,12 +50,11 @@ export const useAuthStore = defineStore('auth', () => {
     if (isStageTamagotchi())
       return
     try {
-      // Dynamic import avoids a circular dependency: `libs/auth` imports this store.
       const { triggerSignIn } = await import('../libs/auth')
       await triggerSignIn()
     }
     catch {
-      // User cancelled native sheet or transient network failure; flag cleared in `finally`.
+      // Native auth sheet cancelled or sign-in failed.
     }
     finally {
       needsLogin.value = false
