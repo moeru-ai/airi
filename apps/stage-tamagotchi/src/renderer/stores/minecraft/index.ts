@@ -40,7 +40,8 @@ function eventSourceId(event: { metadata?: { source?: { plugin?: { id?: string }
  *     whenever online/master/runtime-context change so the model gets a fresh directive each turn;
  *   - consumes the bot's own forwarded chat (`minecraft:speech`) into the stage TTS, and binds 主人
  *     from the bot's neutral status text;
- *   - mutes the bot's own `spark:notify` in the orchestrator (it is surfaced via read-aloud instead).
+ *   - mutes Minecraft-origin `spark:notify` in the orchestrator while this adapter owns the
+ *     Minecraft speech/status surface.
  */
 export const useMinecraftToolsStore = defineStore('tamagotchi-minecraft-tools', () => {
   const minecraftStore = useMinecraftStore()
@@ -121,8 +122,8 @@ export const useMinecraftToolsStore = defineStore('tamagotchi-minecraft-tools', 
 
     started = true
     minecraftStore.initialize()
-    // The bot's own notify is read aloud via `minecraft:speech`; muting it here stops the orchestrator
-    // from also waking the character to react to the same headline.
+    // This adapter owns Minecraft speech/status surfacing; muting Minecraft-origin notifies keeps the
+    // generic character orchestrator from also waking the desktop persona for that module traffic.
     orchestratorStore.muteNotifySource(MINECRAFT_SOURCE)
 
     disposeContextUpdate = channelStore.onContextUpdate(handleContextUpdate)

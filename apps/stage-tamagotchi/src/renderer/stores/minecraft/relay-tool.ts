@@ -26,8 +26,8 @@ export interface RelayToMinecraftInfo {
 
 export interface CreateRelayToMinecraftToolOptions {
   /**
-   * Sends the assembled `spark:command` over the AIRI channel. Reuses the same broadcast path the
-   * generic spark-command tool uses (`destinations: []`), so relay routing stays consistent with it.
+   * Sends the assembled `spark:command` over the AIRI channel. The command itself targets the
+   * Minecraft bot directly; the caller only owns the transport write.
    */
   sendSparkCommand: (command: WebSocketEvents['spark:command']) => void
   /**
