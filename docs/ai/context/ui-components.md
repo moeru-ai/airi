@@ -448,6 +448,7 @@ All Field components wrap a base input with `label`, `description`, and consiste
 | `placeholder` | `string?` | — | Placeholder |
 | `required` | `boolean?` | — | Required indicator |
 | `type` | `InputType?` | — | Input type |
+| `autocomplete` | `string?` | — | Native autocomplete hint |
 | `inputClass` | `string?` | — | Custom input class |
 | `singleLine` | `boolean?` | `true` | `true` = input, `false` = textarea |
 

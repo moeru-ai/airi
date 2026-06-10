@@ -11,6 +11,7 @@ import {
   buildDashscopeSlice,
   buildNextRouterConfig,
   buildOpenRouterSlice,
+  buildStepfunSlice,
   buildUnspeechSlice,
   createAdminRouterConfigService,
   redactCiphertext,
@@ -194,6 +195,36 @@ describe('buildDashscopeSlice', () => {
     expect(built.model.upstreams[0].baseURL).toBe(`https://${host}/api/v1/services/audio/tts/SpeechSynthesizer`)
     expect(built.model.upstreams[0].adapterParams).toEqual({ model: 'cosyvoice-v2' })
     expect(built.model.fallbackTriggers).toEqual(DEFAULT_FALLBACK_TRIGGERS)
+  })
+})
+
+describe('buildStepfunSlice', () => {
+  it('builds the StepFun TTS endpoint and surfaces model defaults in adapterParams', () => {
+    const envelope = freshEnvelope()
+    const built = buildStepfunSlice({
+      kind: 'stepfun',
+      modelName: 'stepfun/stepaudio-2.5-tts',
+      upstreamModel: 'stepaudio-2.5-tts',
+      defaultVoice: 'cixingnansheng',
+      instruction: '温柔、克制、有一点笑意',
+      plaintextKey: 'step-key',
+    }, envelope)
+
+    expect(built.kind).toBe('stepfun')
+    expect(built.model.provider).toBe('stepfun')
+    expect(built.model.upstreams[0].baseURL).toBe('https://api.stepfun.com/v1/audio/speech')
+    expect(built.model.upstreams[0].adapterParams).toEqual({
+      model: 'stepaudio-2.5-tts',
+      defaultVoice: 'cixingnansheng',
+      instruction: '温柔、克制、有一点笑意',
+    })
+    expect(built.model.fallbackTriggers).toEqual(DEFAULT_FALLBACK_TRIGGERS)
+
+    const decrypted = envelope.decryptKey(built.model.upstreams[0].keys[0].ciphertext, {
+      modelName: 'stepfun/stepaudio-2.5-tts',
+      keyEntryId: 'stepfun-tts-prod-1',
+    })
+    expect(decrypted.toString('utf8')).toBe('step-key')
   })
 })
 
@@ -492,6 +523,82 @@ describe('createAdminRouterConfigService', () => {
     expect(Object.keys(written.tts.models)).toEqual(['microsoft/v1'])
   })
 
+  it('current returns editable slices from configKV without exposing raw ciphertext', async () => {
+    kv.store.set('LLM_ROUTER_CONFIG', {
+      llm: {
+        models: {
+          'chat-live': {
+            upstreams: [{
+              baseURL: 'https://openrouter.ai/api/v1',
+              overrideModel: 'openai/gpt-4.1-mini',
+              keys: [{ id: 'openrouter-live', ciphertext: 'secret-ciphertext' }],
+              headerTemplate: 'Bearer {KEY}',
+            }],
+            fallbackTriggers: DEFAULT_FALLBACK_TRIGGERS,
+          },
+        },
+      },
+      tts: { models: {} },
+      defaults: { perAttemptTimeoutMs: 30000, fullChainTimeoutMs: 60000, fallbackHttpCodes: [500] },
+    })
+    kv.store.set('DEFAULT_CHAT_MODEL', 'chat-live')
+
+    const service = createAdminRouterConfigService({ configKV: kv.service, envelope, redis })
+    const current = await service.current()
+
+    expect(current.request.slices).toEqual([{
+      kind: 'openrouter',
+      modelName: 'chat-live',
+      overrideModel: 'openai/gpt-4.1-mini',
+      baseURL: 'https://openrouter.ai/api/v1',
+      headerTemplate: 'Bearer {KEY}',
+      keyEntryId: 'openrouter-live',
+      existingKeyEntryId: 'openrouter-live',
+    }])
+    expect(current.request.defaults.chatModel).toBe('chat-live')
+    expect(JSON.stringify(current.preview)).toContain('<ciphertext: 17 chars>')
+    expect(JSON.stringify(current.preview)).not.toContain('secret-ciphertext')
+  })
+
+  it('preserves an existing key entry when an applied slice omits plaintextKey', async () => {
+    kv.store.set('LLM_ROUTER_CONFIG', {
+      llm: {
+        models: {
+          'chat-live': {
+            upstreams: [{
+              baseURL: 'https://openrouter.ai/api/v1',
+              overrideModel: 'openai/gpt-4.1-mini',
+              keys: [{ id: 'openrouter-live', ciphertext: 'secret-ciphertext' }],
+              headerTemplate: 'Bearer {KEY}',
+            }],
+            fallbackTriggers: DEFAULT_FALLBACK_TRIGGERS,
+          },
+        },
+      },
+      tts: { models: {} },
+      defaults: { perAttemptTimeoutMs: 30000, fullChainTimeoutMs: 60000, fallbackHttpCodes: [500] },
+    })
+
+    const service = createAdminRouterConfigService({ configKV: kv.service, envelope, redis })
+    await service.apply({
+      mode: 'merge',
+      dryRun: false,
+      slices: [{
+        kind: 'openrouter',
+        modelName: 'chat-live',
+        overrideModel: 'openai/gpt-4.1-mini',
+        baseURL: 'https://proxy.example/api/v1',
+        keyEntryId: 'openrouter-live',
+        existingKeyEntryId: 'openrouter-live',
+      }],
+    })
+
+    const written = kv.store.get('LLM_ROUTER_CONFIG') as { llm: { models: Record<string, { upstreams: Array<{ baseURL: string, keys: Array<{ id: string, ciphertext: string }> }> }> } }
+    const upstream = written.llm.models['chat-live'].upstreams[0]
+    expect(upstream.baseURL).toBe('https://proxy.example/api/v1')
+    expect(upstream.keys).toEqual([{ id: 'openrouter-live', ciphertext: 'secret-ciphertext' }])
+  })
+
   it('reset mode skips the existing read and drops prior entries', async () => {
     kv.store.set('LLM_ROUTER_CONFIG', {
       llm: { models: { 'should-be-dropped': { upstreams: [{ baseURL: 'https://x', keys: [{ id: 'k', ciphertext: 'c' }], headerTemplate: 'Bearer {KEY}' }] } } },
@@ -526,12 +633,14 @@ describe('createAdminRouterConfigService', () => {
       slices: [
         { kind: 'openrouter', modelName: 'chat-default', overrideModel: 'openai/gpt-4o-mini', plaintextKey: 'sk' },
         { kind: 'dashscope-cosyvoice', modelName: 'alibaba/cosyvoice-v2', region: 'intl', upstreamModel: 'cosyvoice-v2', plaintextKey: 'sk' },
+        { kind: 'stepfun', modelName: 'stepfun/stepaudio-2.5-tts', upstreamModel: 'stepaudio-2.5-tts', plaintextKey: 'sk' },
       ],
     })
 
     expect(result.applied).toEqual([
       { kind: 'openrouter', target: 'llm-router', surface: 'llm', modelName: 'chat-default', keyEntryId: 'openrouter-prod-1' },
       { kind: 'dashscope-cosyvoice', target: 'llm-router', surface: 'tts', modelName: 'alibaba/cosyvoice-v2', keyEntryId: 'dashscope-tts-prod-1' },
+      { kind: 'stepfun', target: 'llm-router', surface: 'tts', modelName: 'stepfun/stepaudio-2.5-tts', keyEntryId: 'stepfun-tts-prod-1' },
     ])
   })
 })

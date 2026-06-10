@@ -27,6 +27,7 @@ const props = withDefaults(defineProps<{
    */
   hideRequiredMark?: boolean
   type?: InputType
+  autocomplete?: string
   inputClass?: string
   singleLine?: boolean
 }>(), {
@@ -57,6 +58,7 @@ const modelValue = defineModel<T>({ required: false })
         v-model.number="modelValue"
         :type="props.type"
         :placeholder="props.placeholder"
+        :autocomplete="props.autocomplete"
         :required="props.required"
         :class="props.inputClass"
       />
@@ -65,6 +67,7 @@ const modelValue = defineModel<T>({ required: false })
         v-model="modelValue"
         :type="props.type"
         :placeholder="props.placeholder"
+        :autocomplete="props.autocomplete"
         :required="props.required"
         :class="props.inputClass"
       />
@@ -73,6 +76,7 @@ const modelValue = defineModel<T>({ required: false })
         v-model="modelValue as string | undefined"
         :type="props.type"
         :placeholder="props.placeholder"
+        :autocomplete="props.autocomplete"
         :required="props.required"
         :class="[
           props.inputClass,

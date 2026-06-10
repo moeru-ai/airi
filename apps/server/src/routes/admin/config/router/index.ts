@@ -44,9 +44,10 @@ const OpenRouterSliceSchema = object({
   kind: literal('openrouter'),
   modelName: pipe(string(), nonEmpty('modelName is required'), maxLength(200), NO_PIPE),
   overrideModel: pipe(string(), nonEmpty('overrideModel is required'), maxLength(200)),
-  plaintextKey: pipe(string(), nonEmpty('plaintextKey is required'), maxLength(MAX_KEY_LENGTH)),
+  plaintextKey: optional(pipe(string(), nonEmpty('plaintextKey must not be empty when provided'), maxLength(MAX_KEY_LENGTH))),
   baseURL: optional(pipe(string(), url('baseURL must be a valid URL'))),
   keyEntryId: optional(pipe(string(), nonEmpty(), maxLength(200), NO_PIPE)),
+  existingKeyEntryId: optional(pipe(string(), nonEmpty(), maxLength(200), NO_PIPE)),
   headerTemplate: optional(pipe(string(), nonEmpty(), maxLength(200))),
 })
 
@@ -55,8 +56,9 @@ const AzureSliceSchema = object({
   modelName: pipe(string(), nonEmpty('modelName is required'), maxLength(200), NO_PIPE),
   region: pipe(string(), nonEmpty('region is required'), maxLength(64)),
   defaultVoice: optional(pipe(string(), nonEmpty('defaultVoice must not be empty'), maxLength(200))),
-  plaintextKey: pipe(string(), nonEmpty('plaintextKey is required'), maxLength(MAX_KEY_LENGTH)),
+  plaintextKey: optional(pipe(string(), nonEmpty('plaintextKey must not be empty when provided'), maxLength(MAX_KEY_LENGTH))),
   keyEntryId: optional(pipe(string(), nonEmpty(), maxLength(200), NO_PIPE)),
+  existingKeyEntryId: optional(pipe(string(), nonEmpty(), maxLength(200), NO_PIPE)),
 })
 
 const DashscopeSliceSchema = object({
@@ -64,8 +66,20 @@ const DashscopeSliceSchema = object({
   modelName: pipe(string(), nonEmpty('modelName is required'), maxLength(200), NO_PIPE),
   region: picklist(['intl', 'cn'], 'region must be "intl" or "cn"'),
   upstreamModel: pipe(string(), nonEmpty('upstreamModel is required'), maxLength(200)),
-  plaintextKey: pipe(string(), nonEmpty('plaintextKey is required'), maxLength(MAX_KEY_LENGTH)),
+  plaintextKey: optional(pipe(string(), nonEmpty('plaintextKey must not be empty when provided'), maxLength(MAX_KEY_LENGTH))),
   keyEntryId: optional(pipe(string(), nonEmpty(), maxLength(200), NO_PIPE)),
+  existingKeyEntryId: optional(pipe(string(), nonEmpty(), maxLength(200), NO_PIPE)),
+})
+
+const StepfunSliceSchema = object({
+  kind: literal('stepfun'),
+  modelName: pipe(string(), nonEmpty('modelName is required'), maxLength(200), NO_PIPE),
+  upstreamModel: optional(picklist(['stepaudio-2.5-tts', 'step-tts-2', 'step-tts-mini'], 'upstreamModel must be a supported StepFun TTS model')),
+  defaultVoice: optional(pipe(string(), nonEmpty('defaultVoice must not be empty'), maxLength(200))),
+  instruction: optional(pipe(string(), nonEmpty('instruction must not be empty'), maxLength(200))),
+  plaintextKey: optional(pipe(string(), nonEmpty('plaintextKey must not be empty when provided'), maxLength(MAX_KEY_LENGTH))),
+  keyEntryId: optional(pipe(string(), nonEmpty(), maxLength(200), NO_PIPE)),
+  existingKeyEntryId: optional(pipe(string(), nonEmpty(), maxLength(200), NO_PIPE)),
 })
 
 /**
@@ -89,8 +103,9 @@ const UnspeechSliceSchema = object({
       regex(/^wss?:\/\/\S+$/, 'streaming.upstreamURL must start with ws:// or wss://'),
       maxLength(500),
     ),
-    plaintextKey: pipe(string(), nonEmpty('streaming.plaintextKey is required'), maxLength(MAX_KEY_LENGTH)),
+    plaintextKey: optional(pipe(string(), nonEmpty('streaming.plaintextKey must not be empty when provided'), maxLength(MAX_KEY_LENGTH))),
     keyEntryId: optional(pipe(string(), nonEmpty(), maxLength(200), NO_PIPE)),
+    existingKeyEntryId: optional(pipe(string(), nonEmpty(), maxLength(200), NO_PIPE)),
     models: optional(array(object({
       id: pipe(string(), nonEmpty('streaming.models[].id is required'), maxLength(200)),
       name: optional(pipe(string(), nonEmpty(), maxLength(200))),
@@ -104,6 +119,7 @@ const SliceSchema = variant('kind', [
   OpenRouterSliceSchema,
   AzureSliceSchema,
   DashscopeSliceSchema,
+  StepfunSliceSchema,
   UnspeechSliceSchema,
 ])
 
@@ -150,6 +166,9 @@ const BodySchema = object({
  *       { "kind": "dashscope-cosyvoice", "modelName": "alibaba/cosyvoice-v2",
  *         "region": "intl", "upstreamModel": "cosyvoice-v2",
  *         "plaintextKey": "..." },
+ *       { "kind": "stepfun", "modelName": "stepfun/stepaudio-2.5-tts",
+ *         "upstreamModel": "stepaudio-2.5-tts",
+ *         "defaultVoice": "cixingnansheng", "plaintextKey": "..." },
  *       { "kind": "unspeech",
  *         "restBaseURL": "http://airi-unspeech.railway.internal:5933",
  *         "streaming": {
@@ -194,6 +213,9 @@ export function createAdminRouterConfigRoutes(
   return new Hono<HonoEnv>()
     .use('*', authGuard)
     .use('*', adminGuard)
+    .get('/', async (c) => {
+      return c.json(await service.current())
+    })
     .post('/', async (c) => {
       const user = c.get('user')!
 

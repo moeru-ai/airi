@@ -47,10 +47,72 @@ export interface AdminUsersPage {
   total: number
 }
 
+export interface AdminRouterOpenRouterSlice {
+  kind: 'openrouter'
+  modelName: string
+  overrideModel: string
+  plaintextKey?: string
+  baseURL?: string
+  keyEntryId?: string
+  existingKeyEntryId?: string
+  headerTemplate?: string
+}
+
+export interface AdminRouterAzureSlice {
+  kind: 'azure'
+  modelName: string
+  region: string
+  defaultVoice?: string
+  plaintextKey?: string
+  keyEntryId?: string
+  existingKeyEntryId?: string
+}
+
+export interface AdminRouterDashscopeSlice {
+  kind: 'dashscope-cosyvoice'
+  modelName: string
+  region: 'intl' | 'cn'
+  upstreamModel: string
+  plaintextKey?: string
+  keyEntryId?: string
+  existingKeyEntryId?: string
+}
+
+export interface AdminRouterStepfunSlice {
+  kind: 'stepfun'
+  modelName: string
+  upstreamModel?: 'stepaudio-2.5-tts' | 'step-tts-2' | 'step-tts-mini'
+  defaultVoice?: string
+  instruction?: string
+  plaintextKey?: string
+  keyEntryId?: string
+  existingKeyEntryId?: string
+}
+
+export interface AdminRouterUnspeechSlice {
+  kind: 'unspeech'
+  restBaseURL: string
+  streaming?: {
+    upstreamURL: string
+    plaintextKey?: string
+    keyEntryId?: string
+    existingKeyEntryId?: string
+    models?: Array<{ id: string, name?: string, description?: string }>
+    defaultModel?: string
+  }
+}
+
+export type AdminRouterConfigSlice
+  = | AdminRouterOpenRouterSlice
+    | AdminRouterAzureSlice
+    | AdminRouterDashscopeSlice
+    | AdminRouterStepfunSlice
+    | AdminRouterUnspeechSlice
+
 export interface AdminRouterConfigRequest {
   mode?: 'merge' | 'reset'
   dryRun?: boolean
-  slices?: Array<Record<string, unknown>>
+  slices?: AdminRouterConfigSlice[]
   defaults?: {
     chatModel?: string
     ttsModel?: string
@@ -62,6 +124,13 @@ export interface AdminRouterConfigResult {
   applied: Array<Record<string, unknown>>
   invalidatedKeys: string[]
   preview: Record<string, unknown>
+}
+
+export interface AdminRouterConfigCurrent {
+  request: AdminRouterConfigRequest
+  preview: Record<string, unknown>
+  loadedAt: string
+  missingKeys: string[]
 }
 
 export interface VoicePackParams {
@@ -173,7 +242,12 @@ async function fetchJson<T>(endpoint: URL, init: RequestInit = {}): Promise<T> {
     payload = await response.json()
   }
   catch {
-    payload = null
+    const contentType = response.headers.get('Content-Type')
+    throw new AdminApiError(
+      `Expected JSON from ${endpoint.pathname}, got ${contentType ?? 'an empty response'}. Check api_server_url.`,
+      response.status,
+      null,
+    )
   }
 
   if (!response.ok) {
@@ -269,6 +343,7 @@ export const adminApi = {
       method: 'POST',
       body: JSON.stringify({ ...body, dryRun }),
     }),
+  routerConfig: () => adminFetch<AdminRouterConfigCurrent>('/config/router'),
   speechModels: async () => {
     const data = await publicFetch<{ models?: SpeechModel[] }>('/audio/models')
     return Array.isArray(data.models) ? data.models : []
