@@ -52,7 +52,7 @@ export const llmModelSchema = object({
   fallbackTriggers: fallbackTriggersSchema,
 })
 
-const ttsProviderSchema = picklist(['azure', 'dashscope-cosyvoice', 'volcengine'])
+const ttsProviderSchema = picklist(['azure', 'dashscope-cosyvoice', 'stepfun', 'volcengine'])
 
 export const ttsUpstreamSchema = object({
   baseURL: pipe(string(), nonEmpty('tts.upstreams[].baseURL must not be empty')),

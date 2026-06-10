@@ -3,6 +3,7 @@ import type { Voice } from 'unspeech'
 import type { TtsAdapter, TtsAdapterContext, TtsInput, TtsResult, TtsVoiceCatalogContext } from './types'
 
 import { createBadRequestError } from '../../../utils/error'
+import { audioMimeFromFormat } from './audio-format'
 import { listVoicesViaUnSpeech, sendSpeechViaUnSpeech } from './unspeech'
 
 /**
@@ -69,7 +70,7 @@ export const dashscopeCosyvoiceAdapter: TtsAdapter = {
       input: input.text,
       voice,
       responseFormat: format,
-      fallbackContentType: formatToMime(format),
+      fallbackContentType: audioMimeFromFormat(format),
       providerLabel: 'dashscope-cosyvoice',
     })
   },
@@ -88,17 +89,4 @@ export const dashscopeCosyvoiceAdapter: TtsAdapter = {
       providerLabel: 'cosyvoice',
     })
   },
-}
-
-/**
- * Maps cosyvoice's `format` (`mp3` / `wav` / `pcm`) to a MIME type for the
- * client. Keeps the router contract symmetric with Azure / Volcengine.
- */
-function formatToMime(format: string): string {
-  switch (format) {
-    case 'mp3': return 'audio/mpeg'
-    case 'wav': return 'audio/wav'
-    case 'pcm': return 'audio/L16'
-    default: return 'application/octet-stream'
-  }
 }
