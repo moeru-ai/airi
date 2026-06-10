@@ -512,6 +512,14 @@ speechPipeline.on('onSpecial', (segment) => {
   }
 })
 
+speechPipeline.on('onIntentEnd', (intentId) => {
+  releaseOneOffSessionByIntentId(intentId)
+})
+
+speechPipeline.on('onIntentCancel', ({ intentId }) => {
+  releaseOneOffSessionByIntentId(intentId)
+})
+
 speechPipeline.on('onTurnEnd', (turnId) => {
   streamingControl.completeTurn(turnId)
 })
@@ -638,6 +646,17 @@ let currentSession: StageTtsSession | null = null
 // streaming ws could keep feeding playback into an unmounted component.
 const oneOffSessions = new Set<StageTtsSession>()
 
+function releaseOneOffSession(session: StageTtsSession) {
+  oneOffSessions.delete(session)
+}
+
+function releaseOneOffSessionByIntentId(intentId: string) {
+  for (const session of oneOffSessions) {
+    if (session.intentId === intentId)
+      releaseOneOffSession(session)
+  }
+}
+
 function stopSpeechOutput(reason: string) {
   currentSession?.cancel(reason)
   currentSession = null
@@ -759,12 +778,14 @@ function speakSystemLine(text: string) {
   let session: StageTtsSession | null = null
   session = openTtsSession({ onSettled: () => {
     if (session)
-      oneOffSessions.delete(session)
+      releaseOneOffSession(session)
   } })
   oneOffSessions.add(session)
   // The whole utterance is known up front: feed it, flush, then close the input. end() is required —
   // on the REST/segmenter path finishInput() only flushes (writeFlush); without end() the speech
-  // pipeline's intent reader never exits and would block subsequent queued chat/TTS playback.
+  // pipeline's intent reader never exits and would block subsequent queued chat/TTS playback. This is
+  // NOT a settled signal: REST/segmenter cleanup happens from speechPipeline.on('onIntentEnd') after
+  // queued TTS playback has drained, while streaming cleanup still uses openTtsSession.onSettled.
   session.appendText(line)
   session.finishInput()
   session.end()
