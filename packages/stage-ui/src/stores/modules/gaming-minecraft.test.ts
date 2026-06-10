@@ -1,7 +1,7 @@
 import type { WebSocketBaseEvent, WebSocketEvents } from '@proj-airi/server-sdk'
 
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useMinecraftStore } from './gaming-minecraft'
 
@@ -53,24 +53,38 @@ function emitServerEvent<E extends keyof WebSocketEvents>(type: E, data: WebSock
  * describe('minecraft store', () => {})
  */
 describe('minecraft store', () => {
+  let minecraftStore: ReturnType<typeof useMinecraftStore> | undefined
+
   beforeEach(() => {
     channelListeners.clear()
     setActivePinia(createPinia())
   })
 
+  afterEach(() => {
+    minecraftStore?.dispose()
+    minecraftStore = undefined
+  })
+
   /**
    * @example
-   * it('keeps the Minecraft service offline when registry sync marks it unhealthy', () => {})
+   * it('keeps the Minecraft service offline when registry sync only confirms module presence', () => {})
    */
-  it('keeps the Minecraft service offline when registry sync marks it unhealthy', () => {
-    const minecraftStore = useMinecraftStore()
+  it('keeps the Minecraft service offline when registry sync only confirms module presence', () => {
+    minecraftStore = useMinecraftStore()
     minecraftStore.initialize()
 
+    // ROOT CAUSE:
+    //
+    // A registry sync lists known module registrations, but it is not an online/healthy signal.
+    // The previous local behavior promoted first-seen module presence to service health, so a
+    // late sync replay could make the Minecraft relay look available before any health event.
+    //
+    // We fixed this by letting registry sync update presence only; explicit registry health
+    // events remain the only path that marks the service healthy.
     emitServerEvent('registry:modules:sync', {
       modules: [
         {
           name: 'minecraft-bot',
-          healthy: false,
           identity: {
             kind: 'plugin',
             plugin: { id: 'minecraft-bot' },
@@ -91,14 +105,13 @@ describe('minecraft store', () => {
    * it('updates Minecraft service connectivity from authoritative health events', () => {})
    */
   it('updates Minecraft service connectivity from authoritative health events', () => {
-    const minecraftStore = useMinecraftStore()
+    minecraftStore = useMinecraftStore()
     minecraftStore.initialize()
 
     emitServerEvent('registry:modules:sync', {
       modules: [
         {
           name: 'minecraft-bot',
-          healthy: false,
           identity: {
             kind: 'plugin',
             plugin: { id: 'minecraft-bot' },
@@ -119,5 +132,51 @@ describe('minecraft store', () => {
 
     // @example
     expect(minecraftStore.serviceConnected).toBe(true)
+  })
+
+  /**
+   * @example
+   * it('does not reconnect the Minecraft service from registry sync after it becomes unhealthy', () => {})
+   */
+  it('does not reconnect the Minecraft service from registry sync after it becomes unhealthy', () => {
+    minecraftStore = useMinecraftStore()
+    minecraftStore.initialize()
+
+    emitServerEvent('registry:modules:health:healthy', {
+      name: 'minecraft-bot',
+      identity: {
+        kind: 'plugin',
+        plugin: { id: 'minecraft-bot' },
+        id: 'minecraft-bot',
+      },
+    })
+
+    emitServerEvent('registry:modules:health:unhealthy', {
+      name: 'minecraft-bot',
+      reason: 'heartbeat late',
+      identity: {
+        kind: 'plugin',
+        plugin: { id: 'minecraft-bot' },
+        id: 'minecraft-bot',
+      },
+    })
+
+    emitServerEvent('registry:modules:sync', {
+      modules: [
+        {
+          name: 'minecraft-bot',
+          identity: {
+            kind: 'plugin',
+            plugin: { id: 'minecraft-bot' },
+            id: 'minecraft-bot',
+          },
+        },
+      ],
+    })
+
+    // @example
+    expect(minecraftStore.configured).toBe(true)
+    // @example
+    expect(minecraftStore.serviceConnected).toBe(false)
   })
 })
