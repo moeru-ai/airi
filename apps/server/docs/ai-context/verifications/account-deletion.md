@@ -39,13 +39,14 @@ What this proves:
 - `clearedFlux=500` confirms the Flux handler picked up the actual balance.
 - `count=0` for providers / characters / chats reflects the test user not having those records — empty soft-delete is a valid no-op.
 
-## Known gotcha — UI dist staleness
+## Known gotcha — standalone UI deploy staleness
 
-`apps/server/public/ui-server-auth/` is a build artifact (Vite `outDir`). New
-pages added under `apps/ui-server-auth/src/pages/` only show up after
-running `pnpm -F @proj-airi/ui-server-auth build`. Symptom of forgetting:
-the success page returns `200` with the SPA HTML but renders blank because
-vue-router never registered the route. Re-build → fixes.
+`apps/ui-server-auth/dist/` is deployed independently from the server image.
+New pages added under `apps/ui-server-auth/src/pages/` only show up after
+running `pnpm -F @proj-airi/ui-server-auth build` and deploying the Cloudflare
+Workers Static Assets project. Symptom of forgetting: the success page returns
+`200` with the SPA HTML but renders blank because vue-router never registered
+the route. Re-build and re-deploy the auth UI → fixes.
 
 ## What is verified
 

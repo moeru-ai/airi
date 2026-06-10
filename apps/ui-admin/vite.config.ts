@@ -7,7 +7,6 @@ import VueMacros from 'vue-macros/vite'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
-  base: '/admin/',
   resolve: {
     alias: {
       '@proj-airi/stage-shared': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-shared', 'src')),
@@ -20,7 +19,7 @@ export default defineConfig({
   },
   build: {
     emptyOutDir: true,
-    outDir: resolve(join(import.meta.dirname, '..', 'server', 'public', 'ui-admin')),
+    outDir: resolve(join(import.meta.dirname, 'dist')),
     sourcemap: true,
   },
   plugins: [
