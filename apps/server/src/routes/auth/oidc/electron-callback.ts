@@ -1,38 +1,29 @@
+import type { Env } from '../../../libs/env'
 import type { HonoEnv } from '../../../types/hono'
 
 import { Hono } from 'hono'
 
-import { renderServerAuthUiHtml } from '../../../utils/server-auth-ui'
+import { buildAuthUiUrl } from '../../../utils/auth-ui'
 
 /**
- * Render an HTML relay page that forwards the OIDC authorization code
- * to the Electron app's loopback server.
+ * Redirects the Electron OIDC callback to the standalone auth UI relay page.
  *
- * The page first tries a background fetch() for the cleanest UX. If the browser
- * blocks cross-origin loopback fetches, it falls back to a top-level navigation
- * and also exposes a manual localhost link so the user can complete the flow.
+ * Use when:
+ * - The API origin remains the registered Electron redirect URI, but the relay
+ *   UI bundle is deployed separately from the server image.
  *
+ * Expects:
  * The loopback port is encoded in the `state` parameter as a prefix:
  * `{port}:{originalState}`. The relay page extracts the port, reconstructs
  * the original state, and forwards both `code` and `state` to the loopback.
+ *
+ * Returns:
+ * - A redirect preserving the OIDC callback query string.
  */
-export function createElectronCallbackRelay() {
+export function createElectronCallbackRelay(env: Env) {
   return new Hono<HonoEnv>()
     .get('/', (c) => {
-      const code = c.req.query('code') ?? ''
-      const state = c.req.query('state') ?? ''
-      const error = c.req.query('error') ?? ''
-      const errorDescription = c.req.query('error_description') ?? ''
-
-      return c.html(renderServerAuthUiHtml({
-        apiServerUrl: new URL(c.req.url).origin,
-        currentUrl: c.req.url,
-        oidcCallback: {
-          code,
-          error,
-          errorDescription,
-          state,
-        },
-      }))
+      const request = new URL(c.req.url)
+      return c.redirect(buildAuthUiUrl(env.AUTH_UI_URL, '/api/auth/oidc/electron-callback', request.search))
     })
 }

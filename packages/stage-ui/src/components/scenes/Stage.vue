@@ -688,7 +688,17 @@ function resolveSpeechTransport(providerId: string | null | undefined): SpeechTr
 }
 
 function openTtsSession(): StageTtsSession {
-  return createStageTtsSession<AudioBuffer>({
+  // A session must only clear the module-level `currentSession` if it IS that session. The previous
+  // code cleared it whenever any `stream-` session completed, which is unsafe once sessions exist that
+  // are not assigned to `currentSession` (e.g. one-off read-aloud sessions): one of those finishing
+  // would null a still-active chat session and drop the rest of the reply. Capture the session and
+  // compare identity; the `stream-` guard is preserved so segmenter sessions still don't self-clear.
+  let session: StageTtsSession | null = null
+  const clearIfActive = () => {
+    if (session && currentSession === session && session.intentId.startsWith('stream-'))
+      currentSession = null
+  }
+  session = createStageTtsSession<AudioBuffer>({
     transport: resolveSpeechTransport(activeSpeechProvider.value),
     streaming: buildStreamingSnapshot,
     audioContext,
@@ -706,15 +716,14 @@ function openTtsSession(): StageTtsSession {
           model: activeSpeechModel.value,
           error: err,
         })
-        if (currentSession?.intentId.startsWith('stream-'))
-          currentSession = null
+        clearIfActive()
       },
       onDone: () => {
-        if (currentSession?.intentId.startsWith('stream-'))
-          currentSession = null
+        clearIfActive()
       },
     },
   })
+  return session
 }
 
 watch(latestStopRequest, (request) => {
