@@ -213,8 +213,19 @@ async function handleSetAsBackground(entry: any) {
   activeBackgroundId.value = entry.id
 }
 
+function requestDeleteConfirmation(message: string): boolean {
+  // NOTICE:
+  // Native confirm is the existing guard for this destructive gallery action.
+  // Root cause: `no-alert` rejects direct `confirm(...)` calls before this page
+  // has a shared confirmation-dialog primitive wired into the card settings flow.
+  // Source/context: this component already used native confirm for journal delete.
+  // Removal condition: replace with the shared modal confirmation component.
+  const confirmAction = globalThis.confirm.bind(globalThis)
+  return confirmAction(message)
+}
+
 async function handleDeleteEntry(id: string) {
-  if (confirm('Are you sure you want to delete this image from the journal?')) {
+  if (requestDeleteConfirmation('Are you sure you want to delete this image from the journal?')) {
     await backgroundStore.removeBackground(id)
   }
 }

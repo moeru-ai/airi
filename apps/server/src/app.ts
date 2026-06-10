@@ -334,8 +334,9 @@ export async function buildApp(deps: AppDeps) {
     }))
 
     /**
-     * Admin dashboard SPA. Auth is enforced by `/api/admin/*`; the bundle
-     * itself is public so unauthenticated users can be redirected cleanly.
+     * Admin dashboard entrypoint. Auth is enforced by `/api/admin/*`; the
+     * standalone UI itself is public so unauthenticated users can be redirected
+     * cleanly.
      */
     .route('/', createAdminUiRoutes(deps.env))
 

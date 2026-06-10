@@ -26,6 +26,7 @@ import {
   explainNextStep,
   summarizeTaskProgress,
 } from '../transparency'
+import { errorMessageFromValue } from '../utils/error-message'
 import { resolveTerminalSurface } from './surface-resolver'
 import { resolveStepAction, resolveTerminalConfig } from './types'
 
@@ -699,7 +700,7 @@ export async function executeWorkflow(params: {
         }
       }
       catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error)
+        const errorMessage = errorMessageFromValue(error)
         preparatoryResults.push({
           toolName: prepToolName,
           succeeded: false,
@@ -863,7 +864,7 @@ export async function executeWorkflow(params: {
       })
     }
     catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error)
+      const errorMsg = errorMessageFromValue(error)
       stateManager.completeCurrentStep('failure', errorMsg)
       // NOTICE: completeCurrentStep already increments failureCount — do NOT double-count.
       stepResults.push({
@@ -1082,7 +1083,7 @@ async function executePtyStepFamily(params: {
     }
   }
   catch (error) {
-    return { succeeded: false, explanation: `PTY step error: ${error instanceof Error ? error.message : String(error)}` }
+    return { succeeded: false, explanation: `PTY step error: ${errorMessageFromValue(error)}` }
   }
 }
 
@@ -1144,7 +1145,7 @@ async function executePtyCommand(params: {
   catch (error) {
     return {
       succeeded: false,
-      explanation: `PTY command execution error: ${error instanceof Error ? error.message : String(error)}`,
+      explanation: `PTY command execution error: ${errorMessageFromValue(error)}`,
     }
   }
 }
@@ -1490,7 +1491,7 @@ async function executeActionPreparations(params: {
       })
     }
     catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error)
+      const errorMessage = errorMessageFromValue(error)
       existingPreparatoryResults.push({
         toolName: prepToolName,
         succeeded: false,

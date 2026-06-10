@@ -14,6 +14,8 @@
 
 import { WebSocket } from 'ws'
 
+import { errorMessageFromValue } from '../utils/error-message'
+
 export interface CdpBridgeConfig {
   /** CDP endpoint URL, e.g. http://localhost:9222 */
   cdpUrl: string
@@ -176,7 +178,7 @@ export class CdpBridge {
         if (this.socket && this.socket !== socket)
           return
 
-        const message = error instanceof Error ? error.message : String(error)
+        const message = errorMessageFromValue(error)
         if (!this.socket && connectionSettled)
           return
 
@@ -456,7 +458,7 @@ export class CdpBridge {
         this.awaitingHeartbeatPong = true
       }
       catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
+        const message = errorMessageFromValue(error)
         this.teardownAfterHeartbeatFailure(message)
       }
     }, intervalMs)

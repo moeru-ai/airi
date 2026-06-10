@@ -32,6 +32,7 @@ import type { PluginTransport } from './transports'
 import { cwd } from 'node:process'
 
 import { defineInvokeHandler } from '@moeru/eventa'
+import { errorMessageFrom } from '@moeru/std'
 import {
   errorPermission,
   moduleAnnounce,
@@ -1320,7 +1321,7 @@ export class PluginHost {
       session.channels.host.emit(moduleStatus, {
         identity: session.identity,
         phase: 'failed',
-        reason: error instanceof Error ? error.message : 'Failed to load plugin.',
+        reason: errorMessageFrom(error) ?? 'Failed to load plugin.',
       })
 
       throw error
@@ -1568,7 +1569,7 @@ export class PluginHost {
       session.channels.host.emit(moduleStatus, {
         identity: session.identity,
         phase: 'failed',
-        reason: error instanceof Error ? error.message : 'Plugin host initialization failed.',
+        reason: errorMessageFrom(error) ?? 'Plugin host initialization failed.',
       })
 
       this.cleanupSession(session)

@@ -1,3 +1,4 @@
+import type { Buffer } from 'node:buffer'
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 
 import { spawn } from 'node:child_process'
@@ -7,6 +8,8 @@ import { createServer } from 'node:net'
 import { dirname, resolve } from 'node:path'
 import { env, exit, kill as killProcess } from 'node:process'
 import { fileURLToPath } from 'node:url'
+
+import { errorMessageFromValue } from '@proj-airi/stage-shared'
 
 import { desktopOverlayPollHeartbeatMarker } from '../src/shared/desktop-overlay-heartbeat'
 import { selectDesktopOverlaySmokeCandidateId } from '../src/shared/desktop-overlay-live-window-smoke'
@@ -478,14 +481,14 @@ async function main() {
       waitForRemoteDebug(debugPort),
       stageExited,
     ]).catch((error) => {
-      throw new Error(`APP_START_FAILED: ${error instanceof Error ? error.message : String(error)}`)
+      throw new Error(`APP_START_FAILED: ${errorMessageFromValue(error)}`)
     })
 
     overlayClient = await Promise.race([
       connectOverlayClient(debugPort),
       stageExited,
     ]).catch((error) => {
-      throw new Error(`APP_START_FAILED: ${error instanceof Error ? error.message : String(error)}`)
+      throw new Error(`APP_START_FAILED: ${errorMessageFromValue(error)}`)
     })
 
     // NOTICE:
@@ -499,7 +502,7 @@ async function main() {
       connectOverlayClient(debugPort),
       stageExited,
     ]).catch((error) => {
-      throw new Error(`APP_START_FAILED: ${error instanceof Error ? error.message : String(error)}`)
+      throw new Error(`APP_START_FAILED: ${errorMessageFromValue(error)}`)
     })
 
     const readiness = await overlayClient.evaluate<{ state: 'booting' | 'ready' | 'degraded', error?: string }>('window.__AIRI_DESKTOP_OVERLAY_SMOKE__.getReadiness()')
@@ -531,13 +534,13 @@ async function main() {
       assert(pointerIntent.candidateId === candidateId, `lastPointerIntent candidate mismatch: expected ${candidateId}, got ${String(pointerIntent.candidateId)}`)
     }
     catch (error) {
-      throw new Error(`MCP_CALL_FAILED: ${error instanceof Error ? error.message : String(error)}`)
+      throw new Error(`MCP_CALL_FAILED: ${errorMessageFromValue(error)}`)
     }
 
     const heartbeat = await waitFor('overlay poll heartbeat', () => {
       return heartbeatLines.find(line => line.includes('snapshotId=') && line.includes('pointerIntent=yes'))
     }, 30_000, 250).catch((error) => {
-      throw new Error(`HEARTBEAT_TIMEOUT: ${error instanceof Error ? error.message : String(error)}`)
+      throw new Error(`HEARTBEAT_TIMEOUT: ${errorMessageFromValue(error)}`)
     })
 
     console.info(JSON.stringify({
@@ -556,7 +559,7 @@ async function main() {
 
 if (import.meta.main) {
   main().catch((error) => {
-    console.error(error instanceof Error ? error.message : String(error))
+    console.error(errorMessageFromValue(error))
     console.error(`stage log: ${stageLogPath}`)
     exit(1)
   })

@@ -14,11 +14,11 @@
     "@proj-airi/stage-shared": "workspace:^",
     "@proj-airi/ui": "workspace:^",
     "@vueuse/core": "^14.2.1",
-    "nprogress": "^0.2.0",
-    "pinia": "^3.0.4",
+    "nprogress": "catalog:",
+    "pinia": "catalog:",
     "vue": "catalog:",
-    "vue-router": "^5.0.4",
-    "vue-sonner": "^2.0.9"
+    "vue-router": "catalog:",
+    "vue-sonner": "catalog:"
   },
   "devDependencies": {
     "@iconify-json/lucide": "^1.2.102",
@@ -26,9 +26,9 @@
     "@unocss/reset": "^66.6.8",
     "@vitejs/plugin-vue": "^6.0.6",
     "@vue-macros/volar": "^3.1.2",
-    "unocss": "^66.6.8",
+    "unocss": "catalog:",
     "vite": "catalog:",
-    "vue-macros": "^3.1.2",
-    "vue-tsc": "^3.2.6"
+    "vue-macros": "catalog:",
+    "vue-tsc": "catalog:"
   }
 }

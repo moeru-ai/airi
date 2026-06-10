@@ -4,6 +4,7 @@ import type { ChatSessionMeta } from '@proj-airi/stage-ui/types/chat-session'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 
 import { errorMessageFrom } from '@moeru/std'
+import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/maintenance'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
@@ -153,7 +154,7 @@ function logChatSyncError(message: string, error: unknown, details: Record<strin
   console.error(`[chat-sync] ${message}`, {
     ...details,
     error,
-    errorMessage: errorMessageFrom(error) ?? String(error),
+    errorMessage: errorMessageFromValue(error),
   })
 }
 

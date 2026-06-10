@@ -1,3 +1,4 @@
+import { errorMessageFrom } from '@moeru/std'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
@@ -146,7 +147,7 @@ export const usePluginHostInspectorStore = defineStore('devtools:plugin-host-deb
       return await run(bridge.value)
     }
     catch (cause) {
-      error.value = cause instanceof Error ? cause.message : 'Plugin host debug request failed.'
+      error.value = errorMessageFrom(cause) ?? 'Plugin host debug request failed.'
       throw cause
     }
     finally {

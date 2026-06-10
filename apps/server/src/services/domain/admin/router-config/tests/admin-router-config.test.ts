@@ -21,6 +21,11 @@ function freshEnvelope() {
   return createEnvelopeCrypto({ masterKey: randomBytes(32) })
 }
 
+const DEFAULT_FALLBACK_TRIGGERS = {
+  httpCodes: [401, 402, 403, 429, 500, 502, 503, 504],
+  onTimeout: true,
+}
+
 interface FakeConfigKV {
   store: Map<string, unknown>
   service: ConfigKVService
@@ -112,6 +117,7 @@ describe('buildOpenRouterSlice', () => {
     expect(upstream.baseURL).toBe('https://openrouter.ai/api/v1')
     expect(upstream.overrideModel).toBe('openai/gpt-4o-mini')
     expect(upstream.headerTemplate).toBe('Bearer {KEY}')
+    expect(built.model.fallbackTriggers).toEqual(DEFAULT_FALLBACK_TRIGGERS)
 
     // Round-trip the ciphertext under the same AAD — guards against the
     // AAD getting silently changed (which would surface as DECRYPT_FAILED
@@ -161,6 +167,7 @@ describe('buildAzureSlice', () => {
       region: 'eastasia',
       defaultVoice: 'en-US-AvaMultilingualNeural',
     })
+    expect(built.model.fallbackTriggers).toEqual(DEFAULT_FALLBACK_TRIGGERS)
 
     const decrypted = envelope.decryptKey(built.model.upstreams[0].keys[0].ciphertext, {
       modelName: 'microsoft/v1',
@@ -186,6 +193,7 @@ describe('buildDashscopeSlice', () => {
 
     expect(built.model.upstreams[0].baseURL).toBe(`https://${host}/api/v1/services/audio/tts/SpeechSynthesizer`)
     expect(built.model.upstreams[0].adapterParams).toEqual({ model: 'cosyvoice-v2' })
+    expect(built.model.fallbackTriggers).toEqual(DEFAULT_FALLBACK_TRIGGERS)
   })
 })
 
@@ -232,8 +240,23 @@ describe('buildNextRouterConfig', () => {
   it('merge mode preserves models not touched this run', () => {
     const envelope = freshEnvelope()
     const existing = {
-      llm: { models: { 'untouched-chat': { upstreams: [{ baseURL: 'https://old', keys: [{ id: 'k', ciphertext: 'c' }], headerTemplate: 'Bearer {KEY}' }] } } },
-      tts: { models: { 'untouched-tts': { provider: 'azure' as const, upstreams: [{ baseURL: 'https://old-tts', keys: [{ id: 'k', ciphertext: 'c' }], adapterParams: {} }] } } },
+      llm: {
+        models: {
+          'untouched-chat': {
+            upstreams: [{ baseURL: 'https://old', keys: [{ id: 'k', ciphertext: 'c' }], headerTemplate: 'Bearer {KEY}' }],
+            fallbackTriggers: DEFAULT_FALLBACK_TRIGGERS,
+          },
+        },
+      },
+      tts: {
+        models: {
+          'untouched-tts': {
+            provider: 'azure' as const,
+            upstreams: [{ baseURL: 'https://old-tts', keys: [{ id: 'k', ciphertext: 'c' }], adapterParams: {} }],
+            fallbackTriggers: DEFAULT_FALLBACK_TRIGGERS,
+          },
+        },
+      },
       defaults: { perAttemptTimeoutMs: 12345, fullChainTimeoutMs: 60000, fallbackHttpCodes: [500] },
     }
     const newSlice = buildOpenRouterSlice({
@@ -256,7 +279,14 @@ describe('buildNextRouterConfig', () => {
   it('reset mode drops every prior entry and uses default timeouts', () => {
     const envelope = freshEnvelope()
     const existing = {
-      llm: { models: { old: { upstreams: [{ baseURL: 'https://old', keys: [{ id: 'k', ciphertext: 'c' }], headerTemplate: 'Bearer {KEY}' }] } } },
+      llm: {
+        models: {
+          old: {
+            upstreams: [{ baseURL: 'https://old', keys: [{ id: 'k', ciphertext: 'c' }], headerTemplate: 'Bearer {KEY}' }],
+            fallbackTriggers: DEFAULT_FALLBACK_TRIGGERS,
+          },
+        },
+      },
       tts: { models: {} },
       defaults: { perAttemptTimeoutMs: 12345, fullChainTimeoutMs: 60000, fallbackHttpCodes: [500] },
     }

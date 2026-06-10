@@ -4,7 +4,7 @@ import type { WithUnknown } from '@xsai/shared'
 import type { StreamTranscriptionResult, StreamTranscriptionOptions as XSAIStreamTranscriptionOptions } from '@xsai/stream-transcription'
 
 import { errorMessageFrom, tryCatch } from '@moeru/std'
-import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
+import { errorMessageFromValue, IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset } from '@vueuse/core'
 import { generateTranscription } from '@xsai/generate-transcription'
@@ -20,7 +20,7 @@ import { streamAliyunTranscription } from '../providers/aliyun/stream-transcript
 import { streamWebSpeechAPITranscription } from '../providers/web-speech-api'
 
 function errorMessage(err: unknown): string {
-  const msg = errorMessageFrom(err) ?? String(err)
+  const msg = errorMessageFromValue(err)
   // Browsers hide the real reason (CORS, timeout, DNS, …) behind this generic string.
   if (msg === 'Failed to fetch' || msg === 'Load failed') {
     return `${msg} — check the browser console (Network tab) for the exact reason (e.g. CORS, network timeout, DNS failure).`

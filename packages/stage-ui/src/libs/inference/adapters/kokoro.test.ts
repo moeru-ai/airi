@@ -50,11 +50,15 @@ vi.mock('../coordinator', () => ({
   MODEL_VRAM_ESTIMATES: {},
 }))
 
-vi.mock('@proj-airi/stage-shared', () => ({
-  defaultPerfTracer: {
-    withMeasure: vi.fn((_cat: string, _name: string, fn: () => unknown) => fn()),
-  },
-}))
+vi.mock('@proj-airi/stage-shared', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@proj-airi/stage-shared')>()
+  return {
+    ...actual,
+    defaultPerfTracer: {
+      withMeasure: vi.fn((_cat: string, _name: string, fn: () => unknown) => fn()),
+    },
+  }
+})
 
 describe('kokoro adapter - singleton recovery', () => {
   beforeEach(() => {

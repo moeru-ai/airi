@@ -1,4 +1,4 @@
-import { errorMessageFrom } from '@moeru/std'
+import { errorMessageFromValue } from '../utils/error-message'
 
 export interface BrowserRepairSuggestion {
   /** The matched error pattern. */
@@ -74,7 +74,7 @@ export function diagnoseBrowserActionError(
   selector: string,
   actionKind: string,
 ): BrowserRepairSuggestion | null {
-  const message = errorMessageFrom(error) ?? String(error)
+  const message = errorMessageFromValue(error)
 
   for (const { pattern, build } of ERROR_PATTERNS) {
     if (pattern.test(message)) {
