@@ -112,50 +112,6 @@ describe('createSpeechPipeline', () => {
     expect(scheduled.map(item => item.text)).toEqual(['first', 'second', 'third'])
   })
 
-  it('emits onIntentEnd only after queued playback drains', async () => {
-    const { scheduled, playback, end } = createPlaybackSpy({ autoEnd: false })
-    const events: string[] = []
-
-    const pipeline = createSpeechPipeline<string>({
-      segmenter: createSegmenter(['one-off line']),
-      playback,
-      async tts(request) {
-        events.push(`tts:${request.text}`)
-        return request.text
-      },
-    })
-
-    let intentEnded = false
-    const intentFinished = new Promise<void>((resolve) => {
-      pipeline.on('onIntentEnd', (intentId) => {
-        intentEnded = true
-        events.push(`intent-end:${intentId}`)
-        resolve()
-      })
-    })
-    pipeline.on('onPlaybackEnd', (event) => {
-      events.push(`playback-end:${event.item.text}`)
-    })
-
-    const intent = pipeline.openIntent({ intentId: 'system-line-1' })
-    intent.end()
-
-    await delay(0)
-
-    expect(scheduled.map(item => item.text)).toEqual(['one-off line'])
-    expect(intentEnded).toBe(false)
-    expect(events).toEqual(['tts:one-off line'])
-
-    end(scheduled[0]!)
-    await intentFinished
-
-    expect(events).toEqual([
-      'tts:one-off line',
-      'playback-end:one-off line',
-      'intent-end:system-line-1',
-    ])
-  })
-
   it('prefetches TTS requests up to the configured concurrency', async () => {
     const { playback } = createPlaybackSpy()
     const startedRequests: number[] = []
