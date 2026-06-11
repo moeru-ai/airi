@@ -35,31 +35,17 @@ describe('extensionSessionService', () => {
     expect(service.remove('session-1')).toBeUndefined()
   })
 
-  it('generates random session ids and incrementing module identities with sanitized extension ids', () => {
+  it('generates random session ids with incrementing indexes', () => {
     const service = new ExtensionSessionService<TestSession>()
 
-    expect(service.nextSessionIdentity('  demo-extension  ')).toEqual({
+    expect(service.nextSessionIdentity()).toEqual({
       index: 0,
       sessionId: 'extension-session-session-a',
-      moduleIdentity: {
-        id: 'demo-extension-0',
-        kind: 'plugin',
-        plugin: {
-          id: 'demo-extension',
-        },
-      },
     })
 
-    expect(service.nextSessionIdentity('   ')).toEqual({
+    expect(service.nextSessionIdentity()).toEqual({
       index: 1,
       sessionId: 'extension-session-session-b',
-      moduleIdentity: {
-        id: 'extension-1',
-        kind: 'plugin',
-        plugin: {
-          id: 'extension',
-        },
-      },
     })
   })
 })

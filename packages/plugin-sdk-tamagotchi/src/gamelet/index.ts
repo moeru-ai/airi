@@ -6,13 +6,16 @@ import { defineKit } from '@proj-airi/plugin-sdk'
 export interface GameletKitClient {
   iframe: (input: { assetPath?: string, src?: string, sandbox?: string }) => HostDataRecord
   mount: (definition: {
+    /** Fully qualified host binding id used as the host-side module id. */
+    bindingId?: string
     title: string
     ui: HostDataRecord
-    defaults?: HostDataRecord
+    init?: HostDataRecord
   }) => Promise<unknown>
+  orchestration?: GameletKitRuntime['gamelets']
 }
 
-interface GameletKitRuntime extends KitClientRuntime {
+export interface GameletKitRuntime extends KitClientRuntime {
   bindings?: {
     bind: (input: {
       moduleId: string
@@ -21,6 +24,17 @@ interface GameletKitRuntime extends KitClientRuntime {
       runtime?: string
       config: HostDataRecord
     }) => Promise<unknown> | unknown
+  }
+  gamelets?: {
+    open: (bindingId: string, payload?: HostDataRecord) => Promise<void> | void
+    configure: (bindingId: string, payload: HostDataRecord) => Promise<void> | void
+    request: <TResponse = HostDataRecord>(
+      bindingId: string,
+      payload: HostDataRecord,
+      options?: { timeoutMs?: number },
+    ) => Promise<TResponse> | TResponse
+    close: (bindingId: string) => Promise<void> | void
+    isOpen: (bindingId: string) => Promise<boolean> | boolean
   }
 }
 
@@ -60,18 +74,19 @@ export const gameletKit = defineKit<GameletKitClient>({
         }
 
         return await gameletRuntime.bindings.bind({
-          moduleId: createGameletBindingId(runtime),
+          moduleId: definition.bindingId ?? createGameletBindingId(runtime),
           kitId: 'kit.gamelet',
           kitModuleType: 'gamelet',
           config: {
             title: definition.title,
             widget: definition.ui,
             config: {
-              defaults: definition.defaults ?? {},
+              init: definition.init ?? {},
             },
           },
         })
       },
+      orchestration: gameletRuntime.gamelets,
     }
   },
 })

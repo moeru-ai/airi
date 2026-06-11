@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { DisposableStore } from '../extension/disposable'
 import { defineKit, kitUseFailure } from './index'
 
 describe('defineKit', () => {
@@ -20,6 +21,7 @@ describe('defineKit', () => {
       extensionId: 'extension-a',
       sessionId: 'session-a',
       moduleId: 'module-a',
+      subscriptions: new DisposableStore(),
     }).identity).toBe('extension-a:module-a')
   })
 

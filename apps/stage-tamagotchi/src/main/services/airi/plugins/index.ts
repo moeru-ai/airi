@@ -92,15 +92,15 @@ export async function setupExtensionHost(options: SetupExtensionHostOptions): Pr
   })
 
   defineInvokeHandler(context, electronPluginListAgentTools, async () => {
-    return await hostService.host.listAvailableToolDescriptors()
+    return await hostService.tools.listAvailableDescriptors()
   })
 
   defineInvokeHandler(context, electronPluginListXsaiTools, async () => {
-    return await hostService.host.listSerializedXsaiTools()
+    return await hostService.tools.listSerializedXsaiTools()
   })
 
   defineInvokeHandler(context, electronPluginInvokeTool, async (payload) => {
-    return await hostService.host.invokeTool(payload.ownerPluginId, payload.name, payload.input)
+    return await hostService.tools.invoke(payload.ownerPluginId, payload.name, payload.input)
   })
 
   defineInvokeHandler(context, electronPluginUpdateCapability, async (payload) => {

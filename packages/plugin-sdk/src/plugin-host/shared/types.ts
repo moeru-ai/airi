@@ -1,15 +1,9 @@
 import type {
-  ProtocolEvents,
   ExtensionIdentity as ProtocolExtensionIdentity,
-  ModuleConfigEnvelope as ProtocolModuleConfigEnvelope,
-  ModuleIdentity as ProtocolModuleIdentity,
   ModulePermissionDeclaration as ProtocolModulePermissionDeclaration,
   ModulePermissionGrant as ProtocolModulePermissionGrant,
-  ModulePhase as ProtocolModulePhase,
-  PluginIdentity as ProtocolPluginIdentity,
 } from '@proj-airi/plugin-protocol/types'
 
-import type { PluginTransport } from '../transports'
 import type { KitDescriptor } from './kits'
 
 import { isPlainObject } from 'es-toolkit'
@@ -189,70 +183,6 @@ export const hostDataRecordSchema = pipe(record(string(), lazy(createHostDataVal
 export const nonNegativeIntegerSchema = pipe(number(), safeInteger(), minValue(0))
 
 /**
- * Re-exports the protocol module phase literals used by the host.
- *
- * Use when:
- * - Typing module lifecycle phases shared with `@proj-airi/plugin-protocol`
- *
- * Expects:
- * - Values follow the protocol package lifecycle model
- *
- * Returns:
- * - The protocol-defined module phase union
- */
-export type ModulePhase = ProtocolModulePhase
-
-/**
- * Describes all phases a extension session can occupy inside `ExtensionHost`.
- *
- * Use when:
- * - Typing `ExtensionHostSession.phase`
- * - Checking host lifecycle transitions
- *
- * Expects:
- * - Protocol phases are extended with host-only bootstrap and shutdown phases
- *
- * Returns:
- * - The full plugin-session lifecycle union
- */
-export type PluginSessionPhase
-  = | 'loading'
-    | 'loaded'
-    | 'authenticating'
-    | 'authenticated'
-    | 'waiting-deps'
-    | ModulePhase
-    | 'stopped'
-
-/**
- * Re-exports the protocol plugin identity model used by the host.
- *
- * Use when:
- * - Typing per-plugin identity values stored on sessions and events
- *
- * Expects:
- * - Values originate from the protocol identity generator or host session service
- *
- * Returns:
- * - The protocol-defined plugin identity type
- */
-export type PluginIdentity = ProtocolPluginIdentity
-
-/**
- * Re-exports the protocol module identity model used by the host.
- *
- * Use when:
- * - Typing extension session identities and protocol event payloads
- *
- * Expects:
- * - Values originate from the protocol identity generator or host session service
- *
- * Returns:
- * - The protocol-defined module identity type
- */
-export type ModuleIdentity = ProtocolModuleIdentity
-
-/**
  * Re-exports the protocol extension identity model used by the host.
  *
  * Use when:
@@ -265,48 +195,6 @@ export type ModuleIdentity = ProtocolModuleIdentity
  * - The protocol-defined extension identity type
  */
 export type ExtensionIdentity = ProtocolExtensionIdentity
-
-/**
- * Re-exports the protocol configuration envelope used for extension configuration state.
- *
- * Use when:
- * - Typing configuration payloads stored or emitted by the host
- *
- * Expects:
- * - `C` describes the full configuration object carried in the envelope
- *
- * Returns:
- * - The protocol-defined configuration envelope type
- */
-export type ModuleConfigEnvelope<C = Record<string, unknown>> = ProtocolModuleConfigEnvelope<C>
-
-/**
- * Re-exports the protocol compatibility request payload type.
- *
- * Use when:
- * - Typing compatibility negotiation messages in the host
- *
- * Expects:
- * - Values conform to the protocol event payload
- *
- * Returns:
- * - The protocol-defined compatibility request type
- */
-export type ModuleCompatibilityRequest = ProtocolEvents['module:compatibility:request']
-
-/**
- * Re-exports the protocol compatibility result payload type.
- *
- * Use when:
- * - Typing compatibility negotiation responses in the host
- *
- * Expects:
- * - Values conform to the protocol event payload
- *
- * Returns:
- * - The protocol-defined compatibility result type
- */
-export type ModuleCompatibilityResult = ProtocolEvents['module:compatibility:result']
 
 /**
  * Re-exports the protocol permission declaration model used by manifests and runtime permission flow.
@@ -462,7 +350,7 @@ export interface ExtensionLoadOptions {
  * Configures one `ExtensionHost` instance.
  *
  * Use when:
- * - Constructing a host with specific runtime, transport, or permission behavior
+ * - Constructing a host with specific runtime, permission, or contribution behavior
  *
  * Expects:
  * - Omitted fields fall back to the host defaults documented below
@@ -473,44 +361,15 @@ export interface ExtensionLoadOptions {
 export interface ExtensionHostOptions {
   /** Runtime used when callers do not override it per load/start call. @default 'electron' */
   runtime?: PluginRuntime
-  /** Transport used when callers do not override it per load/start call. @default { kind: 'in-memory' } */
-  transport?: PluginTransport
-  /** Protocol version advertised during compatibility negotiation. @default 'v1' */
-  protocolVersion?: string
-  /** Plugin SDK API version advertised during compatibility negotiation. @default 'v1' */
-  apiVersion?: string
-  /** Additional protocol versions the host is willing to negotiate. @default [] */
-  supportedProtocolVersions?: string[]
-  /** Additional API versions the host is willing to negotiate. @default [] */
-  supportedApiVersions?: string[]
   /** Callback that decides the granted permission set for one extension session. */
   permissionResolver?: (payload: {
-    identity: ModuleIdentity | ExtensionIdentity
+    identity: ExtensionIdentity
     manifest: ExtensionManifestV1
     requested: ModulePermissionDeclaration
     persisted?: ModulePermissionGrant
   }) => ModulePermissionGrant | Promise<ModulePermissionGrant>
-  /** Installable host features that can extend session APIs and register host behavior. @default [] */
+  /** Installable host features that can register kits, resources, and capabilities. @default [] */
   contributions?: ExtensionHostContribution[]
-}
-
-/**
- * Describes the stable session metadata exposed to host-installed contributions.
- *
- * Use when:
- * - Building contribution-owned session APIs
- * - Hooking plugin-session lifecycle work outside the core `ExtensionHost`
- *
- * Expects:
- * - Values come from the currently executing extension session
- *
- * Returns:
- * - A minimal session context safe to pass outside `ExtensionHost`
- */
-export interface ExtensionHostSessionContext {
-  sessionId: string
-  ownerPluginId: string
-  runtime: PluginRuntime
 }
 
 /**
@@ -537,18 +396,15 @@ export interface ExtensionHostPermissionRequest {
  *
  * Use when:
  * - Installing a host feature into `ExtensionHost`
- * - Registering session API namespaces, kits, resources, capabilities, or lifecycle hooks
+ * - Registering kits, resources, or capabilities
  *
  * Expects:
  * - Installation happens during `ExtensionHost` construction
- * - Session API namespace names are unique across all contributions and built-in namespaces
  *
  * Returns:
- * - Registration helpers that keep `ExtensionHost` generic while allowing extensions
+ * - Registration helpers that keep `ExtensionHost` generic while allowing host-specific features
  */
 export interface ExtensionHostInstallContext {
-  registerSessionApi: (namespace: string, factory: PluginSessionApiFactory) => void
-  registerLifecycleHook: (event: ExtensionHostLifecycleEvent, hook: ExtensionHostLifecycleHook) => void
   registerKit: (kit: KitDescriptor) => KitDescriptor
   unregisterKit: (kitId: string) => KitDescriptor | undefined
   setResourceResolver: <T>(key: string, resolver: () => Promise<T> | T) => void
@@ -560,89 +416,10 @@ export interface ExtensionHostInstallContext {
 }
 
 /**
- * Describes the context passed into one contribution-owned session API factory.
- *
- * Use when:
- * - Creating a custom namespace that will be attached to `session.apis`
- *
- * Expects:
- * - `session` refers to the extension session currently being assembled
- * - `assertPermission` is called inside contribution methods before privileged work
- *
- * Returns:
- * - The context needed to build one session API namespace
- */
-export interface PluginSessionApiFactoryContext {
-  host: ExtensionHostInstallContext
-  session: ExtensionHostSessionContext
-  assertPermission: (input: ExtensionHostPermissionRequest) => void
-}
-
-/**
- * Builds one custom session API namespace installed by a host contribution.
- *
- * Use when:
- * - Extending `session.apis` with a plugin-host-specific namespace
- *
- * Expects:
- * - The returned value is an object-like namespace safe to expose to plugin code
- *
- * Returns:
- * - The namespace object attached to `session.apis[namespace]`
- */
-export type PluginSessionApiFactory<TNamespace = unknown> = (context: PluginSessionApiFactoryContext) => TNamespace
-
-/**
- * Enumerates the host lifecycle moments contributions may observe.
- *
- * Use when:
- * - Registering contribution hooks tied to session load, readiness, or stop events
- *
- * Expects:
- * - Hooks are synchronous and should stay lightweight
- *
- * Returns:
- * - The supported lifecycle event names for `registerLifecycleHook(...)`
- */
-export type ExtensionHostLifecycleEvent = 'session-loaded' | 'session-ready' | 'session-stopped'
-
-/**
- * Describes the context passed into one contribution lifecycle hook.
- *
- * Use when:
- * - Reacting to a extension session lifecycle event outside the generic host core
- *
- * Expects:
- * - `session` and `manifest` refer to the active session at the time of the hook
- *
- * Returns:
- * - The snapshot available to contribution lifecycle hooks
- */
-export interface ExtensionHostLifecycleHookContext {
-  host: ExtensionHostInstallContext
-  session: ExtensionHostSessionContext
-  manifest: ExtensionManifestV1
-}
-
-/**
- * Handles one contribution-owned lifecycle event emitted by `ExtensionHost`.
- *
- * Use when:
- * - A contribution needs to observe session loading, readiness, or teardown
- *
- * Expects:
- * - Hooks are synchronous and should throw only for deterministic setup failures
- *
- * Returns:
- * - No value; side effects are owned by the contribution
- */
-export type ExtensionHostLifecycleHook = (context: ExtensionHostLifecycleHookContext) => void
-
-/**
  * Installs one generic host feature into `ExtensionHost`.
  *
  * Use when:
- * - The host should register extra session APIs or bootstrap runtime-specific behavior
+ * - The host should register kits, resources, capabilities, or runtime-specific behavior
  *
  * Expects:
  * - Installation is idempotent for one host instance
@@ -656,10 +433,10 @@ export interface ExtensionHostContribution {
 }
 
 /**
- * Configures one `ExtensionHost.start(...)` or `ExtensionHost.init(...)` call.
+ * Configures one `ExtensionHost.start(...)` call.
  *
  * Use when:
- * - Starting a session with runtime, compatibility, or capability-wait overrides
+ * - Starting a session with runtime or working-directory overrides
  *
  * Expects:
  * - Omitted fields fall back to host defaults or method-local defaults
@@ -672,12 +449,4 @@ export interface ExtensionStartOptions {
   cwd?: string
   /** Runtime override used for this specific start operation. */
   runtime?: PluginRuntime
-  /** Whether initialization should stop in configuration-needed instead of auto-readying. */
-  requireConfiguration?: boolean
-  /** Compatibility ranges sent during protocol negotiation. */
-  compatibility?: Omit<ModuleCompatibilityRequest, 'protocolVersion' | 'apiVersion'>
-  /** Capability keys that must become ready before the session can proceed. */
-  requiredCapabilities?: string[]
-  /** Wait timeout applied to each required capability. @default 15000 */
-  capabilityWaitTimeoutMs?: number
 }

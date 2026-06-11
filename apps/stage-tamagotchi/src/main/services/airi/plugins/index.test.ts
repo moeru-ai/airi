@@ -9,7 +9,7 @@ import type {
 import type { WidgetsAddPayload, WidgetSnapshot, WidgetsUpdatePayload } from '../../../../shared/eventa'
 import type { ExtensionHostService } from './types'
 
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -39,6 +39,7 @@ import { setupExtensionHost as setupExtensionHostService } from './index'
 import {
   gameletPluginKitDescriptor,
 } from './kits/gamelet'
+import { createGameletOrchestrationRuntime } from './kits/gamelet/orchestration'
 import { widgetPluginKitDescriptor } from './kits/widget'
 
 const appMock = vi.hoisted(() => ({
@@ -152,6 +153,33 @@ async function writeEntrypoint(params: { dir: string, name: string, contents: st
   return destination
 }
 
+async function linkWorkspacePackageForPlugin(pluginDir: string, packageName: '@proj-airi/plugin-sdk' | '@proj-airi/plugin-sdk-tamagotchi') {
+  const packageDirName = packageName.replace('@proj-airi/', '')
+  const packageDir = join(pluginDir, 'node_modules', '@proj-airi', packageDirName)
+  await mkdir(packageDir, { recursive: true })
+  await symlink(resolve(repoRoot, 'packages', packageDirName, 'src'), join(packageDir, 'src'), 'dir')
+
+  const exports = packageName === '@proj-airi/plugin-sdk'
+    ? {
+        '.': './src/index.ts',
+        './plugin-host': './src/plugin-host/index.ts',
+      }
+    : {
+        '.': './src/index.ts',
+        './widgets': './src/widgets/index.ts',
+        './gamelet': './src/gamelet/index.ts',
+        './kits/gamelet': './src/kits/gamelet/index.ts',
+        './kits/tool': './src/kits/tool/index.ts',
+        './tools': './src/tools/index.ts',
+      }
+
+  await writeFile(join(packageDir, 'package.json'), JSON.stringify({
+    name: packageName,
+    type: 'module',
+    exports,
+  }))
+}
+
 function createEmptyExtensionEntrypoint(id: string) {
   const pluginSdkUrl = pathToFileURL(resolve(repoRoot, 'packages/plugin-sdk/src/index.ts')).href
   return [
@@ -215,11 +243,11 @@ function createDynamicModuleManifest(entrypoint: string, id = 'test-dynamic-modu
   }
 }
 
-function createExtensionGameletKitManifest(entrypoint: string): ExtensionManifestV1 {
+function createExtensionGameletKitManifest(entrypoint: string, id = 'test-extension-gamelet-kit'): ExtensionManifestV1 {
   return {
     apiVersion: 'v1',
     kind: 'manifest.extension.airi.moeru.ai' as const,
-    id: 'test-extension-gamelet-kit',
+    id,
     permissions: {
       apis: [
         { key: 'kit.gamelet', actions: ['invoke'] },
@@ -234,7 +262,8 @@ function createExtensionGameletKitManifest(entrypoint: string): ExtensionManifes
   }
 }
 
-function createWidgetsManagerDouble() {
+function createWidgetsManagerDouble(options: { respondToRequests?: boolean } = {}) {
+  const respondToRequests = options.respondToRequests ?? true
   const widgetSnapshots = new Map<string, WidgetSnapshot>()
   const widgetEventListeners = new Set<(event: { id: string, event: Record<string, unknown> }) => void>()
   const publishWidgetEvent = vi.fn((id: string, event: Record<string, unknown>) => {
@@ -277,13 +306,17 @@ function createWidgetsManagerDouble() {
     })
 
     const componentProps = payload.componentProps as Record<string, unknown> | undefined
-    const command = componentProps?.payload && typeof componentProps.payload === 'object' && !Array.isArray(componentProps.payload)
-      ? (componentProps.payload as Record<string, unknown>).command
+    const request = componentProps?.payload && typeof componentProps.payload === 'object' && !Array.isArray(componentProps.payload)
+      ? (componentProps.payload as Record<string, unknown>).request
       : undefined
-    if (command && typeof command === 'object' && !Array.isArray(command) && typeof (command as Record<string, unknown>).requestId === 'string') {
-      const requestId = (command as Record<string, unknown>).requestId
+    if (respondToRequests && request && typeof request === 'object' && !Array.isArray(request) && typeof (request as Record<string, unknown>).requestId === 'string') {
+      const requestId = (request as Record<string, unknown>).requestId
       queueMicrotask(() => {
         publishWidgetEvent(payload.id, {
+          route: {
+            namespace: 'airi.plugin.gamelet',
+            name: 'response',
+          },
           payload: {
             requestId,
             ready: true,
@@ -744,7 +777,7 @@ describe('setupExtensionHost', () => {
       '        mount: "iframe",',
       '        iframe: { assetPath: "ui/index.html", sandbox: "allow-scripts allow-same-origin allow-forms allow-popups" },',
       '      },',
-      '      defaults: { airiSide: "white", opening: "queen-gambit" },',
+      '      init: { airiSide: "white", opening: "queen-gambit" },',
       '    })',
       '  },',
       '})',
@@ -788,12 +821,12 @@ describe('setupExtensionHost', () => {
               sandbox: 'allow-scripts allow-same-origin allow-forms allow-popups',
             }),
           }),
-          config: expect.objectContaining({
-            defaults: expect.objectContaining({
+          config: {
+            init: {
               airiSide: 'white',
               opening: 'queen-gambit',
-            }),
-          }),
+            },
+          },
         }),
       }),
     ]))
@@ -1132,9 +1165,316 @@ describe('setupExtensionHost', () => {
         },
       },
       config: {
-        defaults: {},
+        init: {},
       },
     })
+  })
+
+  /**
+   * @example
+   * expect(widgetsManager.pushWidget).toHaveBeenCalledWith(expect.objectContaining({ id: 'kit-module:board' }))
+   * expect(widgetsManager.updateWidget).toHaveBeenCalledWith(expect.objectContaining({ id: 'kit-module:board' }))
+   */
+  it('injects gamelet orchestration methods backed by the widget manager', async () => {
+    const { service, widgetsManager } = await setupExtensionHostForTest()
+    const pluginDir = join(pluginsDir, 'test-extension-gamelet-orchestration')
+    await mkdir(pluginDir, { recursive: true })
+    await linkWorkspacePackageForPlugin(pluginDir, '@proj-airi/plugin-sdk')
+    await linkWorkspacePackageForPlugin(pluginDir, '@proj-airi/plugin-sdk-tamagotchi')
+    const entrypointPath = await writeEntrypoint({
+      dir: pluginDir,
+      name: 'test-extension-gamelet-orchestration.ts',
+      contents: [
+        'import { defineExtension } from \'@proj-airi/plugin-sdk\'',
+        'import { gameletKit } from \'@proj-airi/plugin-sdk-tamagotchi\'',
+        '',
+        'export default defineExtension({',
+        '  id: \'test-extension-gamelet-orchestration\',',
+        '  async setup(ctx) {',
+        '    const module = await ctx.modules.register({',
+        '      id: \'kit-module\',',
+        '      permissions: {',
+        '        apis: [{ key: \'kit.gamelet\', actions: [\'invoke\'] }],',
+        '        resources: [{ key: \'proj-airi:plugin-sdk:resources:kits:kit.gamelet:bindings\', actions: [\'write\'] }],',
+        '      },',
+        '    })',
+        '    const gamelets = await module.kits.use(gameletKit)',
+        '    await gamelets.mount({',
+        '      bindingId: \'kit-module:board\',',
+        '      title: \'Kit Runtime Gamelet\',',
+        '      ui: gamelets.iframe({ assetPath: \'ui/index.html\' }),',
+        '    })',
+        '    await gamelets.orchestration.open(\'kit-module:board\', { mode: \'new\' })',
+        '    await gamelets.orchestration.open(\'kit-module:board\', { mode: \'resume\' })',
+        '    await gamelets.orchestration.configure(\'kit-module:board\', { command: { requestId: \'ignored-by-test-double\' } })',
+        '    const snapshot = await gamelets.orchestration.request(\'kit-module:board\', { action: \'snapshot\' }, { timeoutMs: 1000 })',
+        '    if (snapshot.fen !== \'fen-after-request\') {',
+        '      throw new Error(\'Expected request to resolve from response event\')',
+        '    }',
+        '    if (!(await gamelets.orchestration.isOpen(\'kit-module:board\'))) {',
+        '      throw new Error(\'Expected gamelet to be open before close\')',
+        '    }',
+        '    await gamelets.orchestration.close(\'kit-module:board\')',
+        '  },',
+        '})',
+      ].join('\n'),
+    })
+
+    await service.host.start(createExtensionGameletKitManifest(entrypointPath, 'test-extension-gamelet-orchestration'), { cwd: pluginDir })
+
+    expect(widgetsManager.pushWidget).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'kit-module:board',
+      componentName: 'extension-ui',
+      componentProps: {
+        moduleId: 'kit-module:board',
+        payload: { mode: 'new' },
+      },
+      size: 'l',
+    }))
+    expect(widgetsManager.openWindow).toHaveBeenCalledWith({ id: 'kit-module:board' })
+    expect(widgetsManager.updateWidget).toHaveBeenCalledWith({
+      id: 'kit-module:board',
+      componentProps: {
+        moduleId: 'kit-module:board',
+        payload: { mode: 'resume' },
+      },
+      size: 'l',
+    })
+    expect(widgetsManager.updateWidget).toHaveBeenCalledWith({
+      id: 'kit-module:board',
+      componentProps: {
+        moduleId: 'kit-module:board',
+        payload: { command: { requestId: 'ignored-by-test-double' } },
+      },
+    })
+    expect(widgetsManager.updateWidget).toHaveBeenCalledWith({
+      id: 'kit-module:board',
+      componentProps: {
+        moduleId: 'kit-module:board',
+        payload: {
+          request: {
+            route: {
+              namespace: 'airi.plugin.gamelet',
+              name: 'request',
+            },
+            responseRoute: {
+              namespace: 'airi.plugin.gamelet',
+              name: 'response',
+            },
+            requestId: expect.any(String),
+            payload: { action: 'snapshot' },
+          },
+        },
+      },
+    })
+    expect(widgetsManager.getWidgetSnapshot).toHaveBeenCalledWith('kit-module:board')
+    expect(widgetsManager.removeWidget).toHaveBeenCalledWith('kit-module:board')
+  })
+
+  /**
+   * @example
+   * expect(widgetsManager.removeWidget).toHaveBeenCalledWith('chess:board')
+   */
+  it('closes mounted gamelets when the owning extension session stops', async () => {
+    const { service, widgetsManager } = await setupExtensionHostForTest()
+    const pluginDir = join(pluginsDir, 'test-extension-gamelet-session-cleanup')
+    await mkdir(pluginDir, { recursive: true })
+    await linkWorkspacePackageForPlugin(pluginDir, '@proj-airi/plugin-sdk')
+    await linkWorkspacePackageForPlugin(pluginDir, '@proj-airi/plugin-sdk-tamagotchi')
+    const entrypointPath = await writeEntrypoint({
+      dir: pluginDir,
+      name: 'test-extension-gamelet-session-cleanup.ts',
+      contents: [
+        'import { createModule, defineExtension } from \'@proj-airi/plugin-sdk\'',
+        'import { createGamelet } from \'@proj-airi/plugin-sdk-tamagotchi/kits/gamelet\'',
+        '',
+        'export default defineExtension({',
+        '  id: \'test-extension-gamelet-session-cleanup\',',
+        '  async setup(ctx) {',
+        '    const chess = await createModule(ctx, { id: \'chess\' })',
+        '    const board = await createGamelet(chess, {',
+        '      id: \'board\',',
+        '      title: \'Chess\',',
+        '      indexPath: \'ui/index.html\',',
+        '    })',
+        '    await board.open({ mode: \'new\' })',
+        '  },',
+        '})',
+      ].join('\n'),
+    })
+
+    const session = await service.host.start(createExtensionGameletKitManifest(entrypointPath, 'test-extension-gamelet-session-cleanup'), { cwd: pluginDir })
+    await service.host.stop(session.id)
+
+    expect(widgetsManager.removeWidget).toHaveBeenCalledWith('chess:board')
+  })
+
+  /**
+   * @example
+   * await expect(request).rejects.toThrow('Gamelet request failed.')
+   */
+  it('rejects gamelet requests when the iframe response reports failure', async () => {
+    const { widgetsManager } = createWidgetsManagerDouble({ respondToRequests: false })
+    const gamelets = createGameletOrchestrationRuntime(widgetsManager)
+
+    await gamelets.open('kit-module:board')
+    const request = gamelets.request('kit-module:board', { action: 'snapshot' })
+    const updatePayload = widgetsManager.updateWidget.mock.calls.at(-1)?.[0]
+    const requestEnvelope = updatePayload?.componentProps?.payload?.request
+    if (!requestEnvelope || typeof requestEnvelope !== 'object' || Array.isArray(requestEnvelope) || typeof requestEnvelope.requestId !== 'string') {
+      throw new Error('Expected gamelet request envelope in widget props.')
+    }
+
+    widgetsManager.publishWidgetEvent('kit-module:board', {
+      route: {
+        namespace: 'airi.plugin.gamelet',
+        name: 'response',
+      },
+      payload: {
+        requestId: requestEnvelope.requestId,
+        ok: false,
+        message: 'Board rejected the snapshot request.',
+      },
+    })
+
+    await expect(request).rejects.toThrow('Board rejected the snapshot request.')
+    gamelets.dispose()
+  })
+
+  /**
+   * @example
+   * await expect(request).rejects.toThrow('Gamelet request timed out after 30000ms.')
+   */
+  it('uses the default gamelet request timeout when no timeout is provided', async () => {
+    vi.useFakeTimers()
+    try {
+      const { widgetsManager } = createWidgetsManagerDouble({ respondToRequests: false })
+      const gamelets = createGameletOrchestrationRuntime(widgetsManager)
+
+      await gamelets.open('kit-module:board')
+      const request = gamelets.request('kit-module:board', { action: 'snapshot' })
+      const rejection = expect(request).rejects.toThrow('Gamelet request timed out after 30000ms.')
+      await vi.advanceTimersByTimeAsync(30000)
+
+      await rejection
+      gamelets.dispose()
+    }
+    finally {
+      vi.useRealTimers()
+    }
+  })
+
+  /**
+   * @example
+   * await expect(gamelets.request('kit-module:board', { action: 'snapshot' })).rejects.toThrow('Gamelet `kit-module:board` is not open.')
+   */
+  it('rejects gamelet requests immediately when the widget is not open', async () => {
+    const { widgetsManager } = createWidgetsManagerDouble({ respondToRequests: false })
+    const gamelets = createGameletOrchestrationRuntime(widgetsManager)
+
+    await expect(gamelets.request('kit-module:board', { action: 'snapshot' })).rejects.toThrow('Gamelet `kit-module:board` is not open.')
+    expect(widgetsManager.updateWidget).not.toHaveBeenCalled()
+    gamelets.dispose()
+  })
+
+  /**
+   * @example
+   * await expect(request).resolves.toEqual(expect.objectContaining({ fen: 'fen-after-request' }))
+   */
+  it('ignores gamelet responses from a different widget id', async () => {
+    const { widgetsManager } = createWidgetsManagerDouble({ respondToRequests: false })
+    const gamelets = createGameletOrchestrationRuntime(widgetsManager)
+
+    await gamelets.open('kit-module:board')
+    const request = gamelets.request('kit-module:board', { action: 'snapshot' }, { timeoutMs: 30000 })
+    const updatePayload = widgetsManager.updateWidget.mock.calls.at(-1)?.[0]
+    const requestEnvelope = updatePayload?.componentProps?.payload?.request
+    if (!requestEnvelope || typeof requestEnvelope !== 'object' || Array.isArray(requestEnvelope) || typeof requestEnvelope.requestId !== 'string') {
+      throw new Error('Expected gamelet request envelope in widget props.')
+    }
+
+    widgetsManager.publishWidgetEvent('kit-module:other-board', {
+      route: {
+        namespace: 'airi.plugin.gamelet',
+        name: 'response',
+      },
+      payload: {
+        requestId: requestEnvelope.requestId,
+        fen: 'wrong-board',
+      },
+    })
+    await Promise.resolve()
+
+    widgetsManager.publishWidgetEvent('kit-module:board', {
+      type: 'response',
+      requestId: requestEnvelope.requestId,
+      fen: 'legacy-top-level',
+    })
+    await Promise.resolve()
+
+    widgetsManager.publishWidgetEvent('kit-module:board', {
+      route: {
+        namespace: 'airi.plugin.other',
+        name: 'response',
+      },
+      payload: {
+        requestId: requestEnvelope.requestId,
+        fen: 'wrong-namespace',
+      },
+    })
+    await Promise.resolve()
+
+    widgetsManager.publishWidgetEvent('kit-module:board', {
+      route: {
+        namespace: 'airi.plugin.gamelet',
+        name: 'response',
+      },
+      payload: {
+        requestId: requestEnvelope.requestId,
+        fen: 'fen-after-request',
+      },
+    })
+
+    await expect(request).resolves.toEqual({ fen: 'fen-after-request' })
+    gamelets.dispose()
+  })
+
+  /**
+   * @example
+   * await expect(request).rejects.toThrow('Gamelet was closed before the request completed.')
+   */
+  it('rejects pending gamelet requests when the widget closes', async () => {
+    const { widgetsManager } = createWidgetsManagerDouble({ respondToRequests: false })
+    const gamelets = createGameletOrchestrationRuntime(widgetsManager)
+
+    await gamelets.open('kit-module:board')
+    const request = gamelets.request('kit-module:board', { action: 'snapshot' }, { timeoutMs: 30000 })
+    const rejection = expect(request).rejects.toThrow('Gamelet was closed before the request completed.')
+    await gamelets.close('kit-module:board')
+
+    await rejection
+    expect(widgetsManager.removeWidget).toHaveBeenCalledWith('kit-module:board')
+    gamelets.dispose()
+  })
+
+  /**
+   * @example
+   * expect(unsubscribe).toHaveBeenCalled()
+   * await expect(request).rejects.toThrow('Gamelet orchestration runtime was disposed before the request completed.')
+   */
+  it('unsubscribes and rejects pending gamelet requests on dispose', async () => {
+    const { widgetsManager } = createWidgetsManagerDouble({ respondToRequests: false })
+    const unsubscribe = vi.fn()
+    widgetsManager.onWidgetEvent.mockReturnValueOnce(unsubscribe)
+    const gamelets = createGameletOrchestrationRuntime(widgetsManager)
+
+    await gamelets.open('kit-module:board')
+    const request = gamelets.request('kit-module:board', { action: 'snapshot' }, { timeoutMs: 30000 })
+    const rejection = expect(request).rejects.toThrow('Gamelet orchestration runtime was disposed before the request completed.')
+    gamelets.dispose()
+
+    expect(unsubscribe).toHaveBeenCalled()
+    await rejection
   })
 
   it('rejects module announce when the kit runtime does not match the host runtime', async () => {

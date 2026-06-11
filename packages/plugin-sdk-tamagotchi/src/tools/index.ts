@@ -1,11 +1,30 @@
 import type { KitClientRuntime } from '@proj-airi/plugin-sdk'
-import type { HostDataRecord, ToolsetPromptManifest } from '@proj-airi/plugin-sdk/plugin-host'
+import type { HostDataRecord } from '@proj-airi/plugin-sdk/plugin-host'
 import type { JsonSchema, Schema as StandardSchemaV1 } from 'xsschema'
+
+import type {
+  PluginToolDefinitionRecord,
+  PluginToolsetPromptDefinitionRecord,
+  ToolsetPromptManifest,
+} from './registry'
 
 import { defineKit } from '@proj-airi/plugin-sdk'
 import { hostDataRecordSchema } from '@proj-airi/plugin-sdk/plugin-host'
 import { parse } from 'valibot'
 import { toJsonSchema } from 'xsschema'
+
+export type {
+  PluginToolDefinitionRecord,
+  PluginToolsetPromptDefinitionRecord,
+  RegisteredPluginToolDescriptor,
+  SerializedToolsetPromptDefinition,
+  SerializedXsaiToolDefinition,
+  SerializedXsaiToolsetDefinition,
+  ToolRegistryRecord,
+  ToolsetPromptManifest,
+  ToolsetPromptRegistryRecord,
+} from './registry'
+export { TamagotchiToolRegistry } from './registry'
 
 /**
  * Describes renderer-side discovery hints for a plugin tool.
@@ -80,20 +99,11 @@ export interface ToolKitRuntime extends KitClientRuntime {
    */
   tools?: {
     register: (input: {
-      tool: {
-        id: string
-        title: string
-        description: string
-        activation: {
-          keywords: string[]
-          patterns: string[]
-        }
-        parameters: HostDataRecord
-      }
+      tool: PluginToolDefinitionRecord
       availability?: () => Promise<boolean> | boolean
       execute: (input: unknown) => Promise<unknown> | unknown
     }) => Promise<void> | void
-    registerToolsetPrompt: (input: PluginToolsetPromptRegistration) => Promise<void> | void
+    registerToolsetPrompt: (input: PluginToolsetPromptDefinitionRecord) => Promise<void> | void
   }
 }
 

@@ -56,6 +56,20 @@ export interface ExtensionModuleContext {
 }
 
 /**
+ * Narrow module reference exposed to extension authors.
+ */
+export interface ExtensionModuleRef {
+  /** Stable module id within the current extension session. */
+  id: string
+  /** Module-scoped kit access for attribution and optional lifecycle cleanup. */
+  kits: ExtensionKitRegistry
+  /** Cleanup callbacks owned by this module. */
+  subscriptions: DisposableStore
+  /** Disposes module-owned resources. */
+  dispose: () => Promise<void>
+}
+
+/**
  * Optional module scope API exposed during extension setup.
  *
  * Modules are not required for basic kit usage. Use them when a host needs a

@@ -1,3 +1,5 @@
+import type { TamagotchiToolRegistry } from '@proj-airi/plugin-sdk-tamagotchi/tools'
+
 import type {
   PluginHostDebugSnapshot,
   PluginRegistrySnapshot,
@@ -7,10 +9,7 @@ import type {
   PluginAssetSession,
   PluginAssetSnapshotService,
 } from '../features/static-assets'
-import type {
-  ExtensionHostService,
-  SetupExtensionHostOptions,
-} from '../types'
+import type { ExtensionHostService, SetupExtensionHostOptions } from '../types'
 
 import { dirname, join } from 'node:path'
 
@@ -68,6 +67,9 @@ function createElectronExtensionAssetCookieAdapter() {
  * - The plain `ExtensionHostService` fields plus internal helpers for list/load/unload/inspect/dispose
  */
 export interface ExtensionHostServiceInternal extends ExtensionHostService {
+  /** Tamagotchi-owned extension tool registry used by IPC tool bridges. */
+  tools: TamagotchiToolRegistry
+
   /**
    * Lists the current extension registry snapshot.
    *
@@ -434,6 +436,7 @@ export async function setupExtensionHostServiceInternal(
 
   return {
     host,
+    tools: builtInKitRuntime.tools,
     manifests: extensionRegistry.listManifests(),
     async list() {
       await refreshManifests()
@@ -515,6 +518,7 @@ export async function setupExtensionHostServiceInternal(
     },
     async dispose() {
       autoReloadFeature.dispose()
+      builtInKitRuntime.dispose()
 
       moduleAssetSessionCache.clear()
       await pluginAssetService.revokeAll()

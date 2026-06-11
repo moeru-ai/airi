@@ -1,27 +1,30 @@
 import type { KitRef } from '@proj-airi/plugin-sdk'
+import type { ToolKitRuntime } from '@proj-airi/plugin-sdk-tamagotchi/tools'
 import type { ExtensionHost } from '@proj-airi/plugin-sdk/plugin-host'
 
 import type { SetupExtensionHostOptions } from '../types'
+import type { GameletOrchestrationRuntime } from './gamelet/orchestration'
 
 import { gameletKit, toolKit } from '@proj-airi/plugin-sdk-tamagotchi'
+import { TamagotchiToolRegistry } from '@proj-airi/plugin-sdk-tamagotchi/tools'
 
-import {
-  registerGameletPluginKit,
-} from './gamelet'
+import { registerGameletPluginKit } from './gamelet'
+import { createGameletOrchestrationRuntime } from './gamelet/orchestration'
 import { registerWidgetPluginKit } from './widget'
 
 type GameletKitClient = ReturnType<typeof gameletKit.createClient>
 type ToolKitClient = ReturnType<typeof toolKit.createClient>
 
-function createHostGameletKit(host: ExtensionHost): KitRef<GameletKitClient> {
+function createHostGameletKit(options: { host: ExtensionHost, gamelets: GameletOrchestrationRuntime }): KitRef<GameletKitClient> {
   return {
     ...gameletKit,
     createClient(runtime) {
       const hostRuntime = {
         ...runtime,
         bindings: {
-          bind: (input: Parameters<ExtensionHost['bindExtensionKitModule']>[1]) => host.bindExtensionKitModule(runtime.sessionId, input, runtime.moduleId),
+          bind: (input: Parameters<ExtensionHost['bindExtensionKitModule']>[1]) => options.host.bindExtensionKitModule(runtime.sessionId, input, runtime.moduleId),
         },
+        gamelets: options.gamelets,
       }
 
       return gameletKit.createClient(hostRuntime)
@@ -29,15 +32,45 @@ function createHostGameletKit(host: ExtensionHost): KitRef<GameletKitClient> {
   }
 }
 
-function createHostToolKit(host: ExtensionHost): KitRef<ToolKitClient> {
+function createHostToolKit(options: { tools: TamagotchiToolRegistry }): KitRef<ToolKitClient> {
   return {
     ...toolKit,
     createClient(runtime) {
-      const hostRuntime = {
+      let cleanupRegistered = false
+      const ensureCleanup = () => {
+        if (cleanupRegistered) {
+          return
+        }
+
+        cleanupRegistered = true
+        runtime.subscriptions.add({
+          dispose: () => {
+            options.tools.unregisterOwnerScope(runtime.sessionId, runtime.moduleId)
+          },
+        })
+      }
+
+      const hostRuntime: ToolKitRuntime = {
         ...runtime,
         tools: {
-          register: (input: Parameters<ExtensionHost['registerExtensionTool']>[1]) => host.registerExtensionTool(runtime.sessionId, input, runtime.moduleId),
-          registerToolsetPrompt: (input: Parameters<ExtensionHost['registerExtensionToolsetPrompt']>[1]) => host.registerExtensionToolsetPrompt(runtime.sessionId, input, runtime.moduleId),
+          register: (input) => {
+            ensureCleanup()
+            options.tools.register({
+              ownerSessionId: runtime.sessionId,
+              ownerPluginId: runtime.extensionId,
+              ownerModuleId: runtime.moduleId,
+              ...input,
+            })
+          },
+          registerToolsetPrompt: (input) => {
+            ensureCleanup()
+            options.tools.registerToolsetPrompt({
+              ownerSessionId: runtime.sessionId,
+              ownerPluginId: runtime.extensionId,
+              ownerModuleId: runtime.moduleId,
+              toolset: input,
+            })
+          },
         },
       }
 
@@ -63,7 +96,12 @@ export function createBuiltInExtensionKitRuntime(options: SetupExtensionHostOpti
   contributions: []
   attachHost: (host: ExtensionHost) => void
   registerHostKits: (host: ExtensionHost) => void
+  tools: TamagotchiToolRegistry
+  dispose: () => void
 } {
+  const gamelets = createGameletOrchestrationRuntime(options.widgetsManager)
+  const tools = new TamagotchiToolRegistry()
+
   return {
     contributions: [],
     attachHost(_host) {
@@ -72,8 +110,13 @@ export function createBuiltInExtensionKitRuntime(options: SetupExtensionHostOpti
     registerHostKits(host) {
       registerWidgetPluginKit(host)
       registerGameletPluginKit(host)
-      host.registerKitApi(createHostGameletKit(host))
-      host.registerKitApi(createHostToolKit(host))
+      host.registerKitApi(createHostGameletKit({ host, gamelets }))
+      host.registerKitApi(createHostToolKit({ tools }))
+    },
+    tools,
+    dispose() {
+      gamelets.dispose()
+      tools.clear()
     },
   }
 }

@@ -1,7 +1,4 @@
-import type {
-  ExtensionHost,
-  KitDescriptor,
-} from '@proj-airi/plugin-sdk/plugin-host'
+import type { ExtensionHost, KitDescriptor } from '@proj-airi/plugin-sdk/plugin-host'
 
 /**
  * Declares the built-in gamelet kit exposed by `stage-tamagotchi`.

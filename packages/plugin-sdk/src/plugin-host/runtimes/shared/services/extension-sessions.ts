@@ -1,18 +1,4 @@
-import type { ModuleIdentity } from '../../../shared/types'
-
 import { nanoid } from 'nanoid/non-secure'
-
-function createModuleIdentity(id: string, index: number): ModuleIdentity {
-  const sanitizedId = id.trim() || 'extension'
-
-  return {
-    id: `${sanitizedId}-${index}`,
-    kind: 'plugin',
-    plugin: {
-      id: sanitizedId,
-    },
-  }
-}
 
 /**
  * Stores extension host sessions and generates deterministic session identities.
@@ -54,14 +40,13 @@ export class ExtensionSessionService<TSession extends { id: string }> {
     return session
   }
 
-  nextSessionIdentity(id: string) {
+  nextSessionIdentity() {
     const index = this.sessionCounter
     this.sessionCounter += 1
 
     return {
       index,
       sessionId: `extension-session-${nanoid()}`,
-      moduleIdentity: createModuleIdentity(id, index),
     }
   }
 }

@@ -134,24 +134,6 @@ describe('for ExtensionHost', () => {
             config: {},
           })
         },
-        registerTool() {
-          host.registerExtensionTool(runtime.sessionId, {
-            tool: {
-              id: 'cleanup_failure_tool',
-              title: 'Cleanup Failure Tool',
-              description: 'Verifies failed setup cleanup.',
-              activation: {
-                keywords: ['cleanup'],
-                patterns: ['cleanup'],
-              },
-              parameters: {
-                type: 'object',
-                properties: {},
-              },
-            },
-            execute: async () => ({ ok: true }),
-          })
-        },
       }),
     })
     host.registerKit({
@@ -166,7 +148,6 @@ describe('for ExtensionHost', () => {
       async setup(ctx) {
         const client = await ctx.kits.use(kit)
         client.bind()
-        client.registerTool()
         throw new Error('setup failed after resource registration')
       },
     })
@@ -179,11 +160,9 @@ describe('for ExtensionHost', () => {
         permissions: {
           apis: [
             { key: 'kit.cleanup-failure', actions: ['invoke'] },
-            { key: 'proj-airi:plugin-sdk:apis:client:tools:register', actions: ['invoke'] },
           ],
           resources: [
             { key: 'proj-airi:plugin-sdk:resources:kits:kit.cleanup-failure:bindings', actions: ['write'] },
-            { key: 'proj-airi:plugin-sdk:resources:tools', actions: ['write'] },
           ],
         },
         entrypoints: {},
@@ -191,10 +170,6 @@ describe('for ExtensionHost', () => {
     })).rejects.toThrow('setup failed after resource registration')
 
     expect(host.listBindings()).toEqual([])
-    await expect(host.listAvailableToolDescriptors()).resolves.toEqual([])
-    await expect(host.invokeTool('airi-extension-cleanup-failure', 'cleanup_failure_tool', {})).rejects.toThrow(
-      'Plugin tool not found: airi-extension-cleanup-failure:cleanup_failure_tool',
-    )
   })
 
   /**
@@ -215,34 +190,6 @@ describe('for ExtensionHost', () => {
             config: {},
           }, runtime.moduleId)
         },
-        registerTool() {
-          host.registerExtensionTool(runtime.sessionId, {
-            tool: {
-              id: 'module_dispose_tool',
-              title: 'Module Dispose Tool',
-              description: 'Verifies module-scoped cleanup.',
-              activation: {
-                keywords: ['dispose'],
-                patterns: ['dispose'],
-              },
-              parameters: {
-                type: 'object',
-                properties: {},
-              },
-            },
-            execute: async () => ({ ok: true }),
-          }, runtime.moduleId)
-        },
-        registerToolsetPrompt() {
-          host.registerExtensionToolsetPrompt(runtime.sessionId, {
-            id: 'module-dispose-tools',
-            prompt: {
-              id: 'module-dispose.prompt',
-              title: 'Module Dispose Prompt',
-              content: 'Module-scoped prompt.',
-            },
-          }, runtime.moduleId)
-        },
       }),
     })
     host.registerKit({
@@ -255,11 +202,9 @@ describe('for ExtensionHost', () => {
     const permissions: ModulePermissionDeclaration = {
       apis: [
         { key: 'kit.module-dispose', actions: ['invoke'] },
-        { key: 'proj-airi:plugin-sdk:apis:client:tools:register', actions: ['invoke'] },
       ],
       resources: [
         { key: 'proj-airi:plugin-sdk:resources:kits:kit.module-dispose:bindings', actions: ['write'] },
-        { key: 'proj-airi:plugin-sdk:resources:tools', actions: ['write'] },
       ],
     }
     const extension = defineExtension({
@@ -271,8 +216,6 @@ describe('for ExtensionHost', () => {
         })
         const client = await module.kits.use(kit)
         client.bind()
-        client.registerTool()
-        client.registerToolsetPrompt()
 
         await module.dispose()
       },
@@ -291,14 +234,6 @@ describe('for ExtensionHost', () => {
     expect(session.phase).toBe('ready')
     expect(host.listModules()).toEqual([])
     expect(host.listBindings()).toEqual([])
-    await expect(host.listAvailableToolDescriptors()).resolves.toEqual([])
-    await expect(host.listSerializedXsaiTools()).resolves.toEqual({
-      prompts: [],
-      tools: [],
-    })
-    await expect(host.invokeTool('airi-extension-module-dispose', 'module_dispose_tool', {})).rejects.toThrow(
-      'Plugin tool not found: airi-extension-module-dispose:module_dispose_tool',
-    )
   })
 
   it('lets extension setup use granted kits without registering a module', async () => {
@@ -461,6 +396,42 @@ describe('for ExtensionHost', () => {
     })
 
     await host.startExtension(revokedExtension, { manifest })
+  })
+
+  it('lets module-scoped kit use inherit the extension grant when module permissions are omitted', async () => {
+    const host = new ExtensionHost()
+    const kit = defineKit({
+      id: 'kit.module-inherited-grant',
+      version: '1.0.0',
+      createClient: () => ({ ping: () => 'pong' }),
+    })
+    host.registerKitApi(kit)
+
+    const extension = defineExtension({
+      id: 'airi-extension-module-inherited-grant',
+      async setup(ctx) {
+        const module = await ctx.modules.register({ id: 'module-a' })
+        const result = await module.kits.tryUse(kit)
+
+        expect(result.ok).toBe(true)
+        if (!result.ok) {
+          throw new Error('Expected inherited module kit use to be allowed.')
+        }
+        expect(result.client.ping()).toBe('pong')
+      },
+    })
+
+    await host.startExtension(extension, {
+      manifest: {
+        apiVersion: 'v1',
+        kind: 'manifest.extension.airi.moeru.ai' as const,
+        id: 'airi-extension-module-inherited-grant',
+        permissions: {
+          apis: [{ key: 'kit.module-inherited-grant', actions: ['invoke'] }],
+        },
+        entrypoints: {},
+      },
+    })
   })
 
   it('denies module-scoped kit use when host permission resolver narrows the extension grant', async () => {

@@ -1,4 +1,4 @@
-import type { Disposable } from '../extension/disposable'
+import type { Disposable, DisposableStore } from '../extension/disposable'
 
 import { KitUnavailableError } from './errors'
 
@@ -14,6 +14,8 @@ export interface KitClientRuntime {
   sessionId: string
   /** Stable module id when the kit client is created for an explicit module scope. */
   moduleId?: string
+  /** Cleanup store for the current extension or module scope. */
+  subscriptions: DisposableStore
 }
 
 /**

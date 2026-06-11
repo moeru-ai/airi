@@ -1,65 +1,113 @@
-import type {
-  PluginToolDefinitionRecord,
-  PluginToolsetPromptDefinitionRecord,
-  RegisteredPluginToolDescriptor,
-  SerializedToolsetPromptDefinition,
-  SerializedXsaiToolDefinition,
-  SerializedXsaiToolsetDefinition,
-} from '../../../shared'
+import type { HostDataRecord } from '@proj-airi/plugin-sdk/plugin-host'
 
 /**
- * Stores one plugin tool registration inside the in-memory host runtime.
- *
- * Use when:
- * - Tracking tool ownership and availability per extension session
- *
- * Expects:
- * - `ownerPluginId` and `tool.id` together are unique
- *
- * Returns:
- * - A host-managed record used for listing and invocation
+ * Describes the user-facing metadata for a Tamagotchi extension tool.
+ */
+export interface RegisteredPluginToolDescriptor {
+  id: string
+  title: string
+  description: string
+  activation: {
+    keywords: string[]
+    patterns: string[]
+  }
+}
+
+/**
+ * Describes the JSON-schema side of an xsai-compatible Tamagotchi extension tool.
+ */
+export interface SerializedXsaiToolDefinition {
+  ownerPluginId: string
+  name: string
+  description: string
+  parameters: HostDataRecord
+}
+
+/**
+ * Describes model-facing guidance shared by every tool in one toolset.
+ */
+export interface ToolsetPromptManifest {
+  id: string
+  title?: string
+  content: string
+}
+
+/**
+ * Captures one registered toolset prompt with extension ownership metadata.
+ */
+export interface SerializedToolsetPromptDefinition {
+  ownerPluginId: string
+  id: string
+  prompt: ToolsetPromptManifest
+}
+
+/**
+ * Bundles xsai tools with their shared toolset prompt contributions.
+ */
+export interface SerializedXsaiToolsetDefinition {
+  tools: SerializedXsaiToolDefinition[]
+  prompts: SerializedToolsetPromptDefinition[]
+}
+
+/**
+ * Captures the single source-of-truth definition submitted by a Tamagotchi extension.
+ */
+export interface PluginToolDefinitionRecord {
+  id: string
+  title: string
+  description: string
+  activation: {
+    keywords: string[]
+    patterns: string[]
+  }
+  parameters: HostDataRecord
+}
+
+/**
+ * Captures an extension-owned prompt shared by a toolset.
+ */
+export interface PluginToolsetPromptDefinitionRecord {
+  id: string
+  prompt: ToolsetPromptManifest
+}
+
+/**
+ * Stores one Tamagotchi extension tool registration inside the host runtime.
  */
 export interface ToolRegistryRecord {
   ownerSessionId: string
   ownerPluginId: string
+  ownerModuleId?: string
   tool: PluginToolDefinitionRecord
   availability?: () => Promise<boolean> | boolean
   execute: (input: unknown) => Promise<unknown> | unknown
 }
 
 /**
- * Stores one plugin toolset prompt registration inside the in-memory host runtime.
- *
- * Use when:
- * - Tracking prompt ownership and lifecycle for a extension-owned toolset
- *
- * Expects:
- * - `ownerPluginId` and `toolset.id` together are unique
- *
- * Returns:
- * - A host-managed record used for prompt serialization
+ * Stores one Tamagotchi extension toolset prompt registration inside the host runtime.
  */
 export interface ToolsetPromptRegistryRecord {
   ownerSessionId: string
   ownerPluginId: string
+  ownerModuleId?: string
   toolset: PluginToolsetPromptDefinitionRecord
   availability?: () => Promise<boolean> | boolean
 }
 
 /**
- * In-memory registry for plugin-contributed tools.
+ * In-memory registry for Tamagotchi extension tools.
  *
  * Use when:
- * - The host needs to list plugin tools for UI and xsai consumers
- * - The host needs to dispatch a tool invocation back to its owning plugin
+ * - A Tamagotchi host needs to list extension tools for UI and xsai consumers
+ * - A Tamagotchi host needs to dispatch a tool invocation back to its owning extension
  *
  * Expects:
- * - Callers filter by ownership through `ownerPluginId`
+ * - Callers provide extension session and optional module ownership during registration
  *
  * Returns:
- * - Serialisable metadata views and invoke routing
+ * - Serializable metadata views and invoke routing
  */
-export class ToolRegistryService {
+export class TamagotchiToolRegistry {
   private readonly tools = new Map<string, ToolRegistryRecord>()
   private readonly toolsetPrompts = new Map<string, ToolsetPromptRegistryRecord>()
 
@@ -75,51 +123,15 @@ export class ToolRegistryService {
     return record
   }
 
-  /**
-   * Removes one tool record by plugin and tool id.
-   *
-   * Use when:
-   * - Module-scoped cleanup needs to remove a subset of a session's tools
-   *
-   * Expects:
-   * - `ownerPluginId` and `toolId` form the registry key used during registration
-   *
-   * Returns:
-   * - Whether a matching record existed and was removed
-   */
   unregister(ownerPluginId: string, toolId: string) {
     return this.tools.delete(`${ownerPluginId}:${toolId}`)
   }
 
-  /**
-   * Removes one toolset prompt record by plugin and toolset id.
-   *
-   * Use when:
-   * - Module-scoped cleanup needs to remove prompts without stopping the whole session
-   *
-   * Expects:
-   * - `ownerPluginId` and `toolsetId` form the registry key used during registration
-   *
-   * Returns:
-   * - Whether a matching record existed and was removed
-   */
   unregisterToolsetPrompt(ownerPluginId: string, toolsetId: string) {
     return this.toolsetPrompts.delete(`${ownerPluginId}:${toolsetId}`)
   }
 
-  /**
-   * Removes all tool and toolset prompt records owned by one extension session.
-   *
-   * Use when:
-   * - A session stops, reloads, or fails setup after registering host tools
-   *
-   * Expects:
-   * - `ownerSessionId` is the host session id stored on registry records
-   *
-   * Returns:
-   * - Nothing; matching records are deleted from the in-memory registry
-   */
-  unregisterOwner(ownerSessionId: string) {
+  unregisterOwnerSession(ownerSessionId: string) {
     for (const [key, record] of this.tools) {
       if (record.ownerSessionId === ownerSessionId) {
         this.tools.delete(key)
@@ -131,6 +143,25 @@ export class ToolRegistryService {
         this.toolsetPrompts.delete(key)
       }
     }
+  }
+
+  unregisterOwnerScope(ownerSessionId: string, ownerModuleId?: string) {
+    for (const [key, record] of this.tools) {
+      if (record.ownerSessionId === ownerSessionId && record.ownerModuleId === ownerModuleId) {
+        this.tools.delete(key)
+      }
+    }
+
+    for (const [key, record] of this.toolsetPrompts) {
+      if (record.ownerSessionId === ownerSessionId && record.ownerModuleId === ownerModuleId) {
+        this.toolsetPrompts.delete(key)
+      }
+    }
+  }
+
+  clear() {
+    this.tools.clear()
+    this.toolsetPrompts.clear()
   }
 
   async listAvailableDescriptors() {
@@ -199,7 +230,7 @@ export class ToolRegistryService {
     const key = `${ownerPluginId}:${toolId}`
     const record = this.tools.get(key)
     if (!record) {
-      throw new Error(`Plugin tool not found: ${key}`)
+      throw new Error(`Tamagotchi extension tool not found: ${key}`)
     }
 
     return await record.execute(input)
