@@ -1,7 +1,7 @@
 {
   "apiVersion": "v1",
-  "kind": "manifest.plugin.airi.moeru.ai",
-  "name": "devtools-sample-plugin",
+  "kind": "manifest.extension.airi.moeru.ai",
+  "id": "devtools-sample-plugin",
   "permissions": {
     "apis": [
       {

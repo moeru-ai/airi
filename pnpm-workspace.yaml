@@ -406,7 +406,6 @@ catalog:
   xast-util-to-xml: ^4.0.0
   xastscript: ^4.0.0
   xsschema: 0.5.0-beta.2
-  xstate: ^5.30.0
   yaml: ^2.8.3
   yauzl: ^3.3.0
   zod: ^4.3.6
@@ -418,11 +417,12 @@ catalogs:
     vitest: ^4.1.4
   xsai:
     unspeech: ^0.1.14
+
 ignoredBuiltDependencies:
   - '@ax-llm/ax'
   - '@prisma/client'
   - better-sqlite3
-  - simple-git-hooks # [workaround] postinstall script bundled in simple-git-hooks fails to execute with `enableGlobalVirtualStore: true`. Using local postinstall script to run `npx simple-git-hooks` instead.
+  - simple-git-hooks # [workaround] With `shellEmulator: true`, simple-git-hooks install may fail when no .git dir exists.
 
 onlyBuiltDependencies:
   - '@anthropic-ai/claude-code'
@@ -452,6 +452,7 @@ onlyBuiltDependencies:
   - uiohook-napi
   - utf-8-validate
   - vue-demi
+
 packageExtensions:
   '@formkit/auto-animate':
     peerDependencies:

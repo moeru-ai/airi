@@ -2,28 +2,30 @@ import type { FSWatcher } from 'node:fs'
 
 import type { useLogg } from '@guiiai/logg'
 
-import type { ManifestEntry, PluginConfig } from '../../types'
+import type { ExtensionConfig, ManifestEntry } from '../../types'
 
 import { watch as watchFile } from 'node:fs'
 
+import { manifestIdOf } from '../../host/registry'
+
 /**
- * Declares the host-owned callbacks needed by the plugin auto-reload feature.
+ * Declares the host-owned callbacks needed by the extension auto-reload feature.
  *
  * Use when:
- * - Installing the optional auto-reload feature into the Electron plugin host
+ * - Installing the optional auto-reload feature into the Electron extension host
  * - Keeping file-watcher ownership outside the core host bootstrap
  *
  * Expects:
- * - `reload` unloads, refreshes, and loads the named plugin
- * - `resolveWatchPaths` returns stable absolute file paths for the plugin
+ * - `reload` unloads, refreshes, and loads the named extension
+ * - `resolveWatchPaths` returns stable absolute file paths for the extension
  * - `getConfig`, `listEntries`, and `isLoaded` always reflect current host state
  *
  * Returns:
  * - N/A
  */
-export interface PluginAutoReloadFeatureOptions {
+export interface ExtensionAutoReloadFeatureOptions {
   log: ReturnType<typeof useLogg>
-  getConfig: () => PluginConfig
+  getConfig: () => ExtensionConfig
   listEntries: () => ManifestEntry[]
   isLoaded: (name: string) => boolean
   resolveWatchPaths: (name: string) => string[]
@@ -31,21 +33,21 @@ export interface PluginAutoReloadFeatureOptions {
 }
 
 /**
- * Manages optional plugin auto-reload watchers and debounce timers.
+ * Manages optional extension auto-reload watchers and debounce timers.
  *
  * Use when:
- * - The Electron plugin host wants manifest and entrypoint file watching as an installable feature
+ * - The Electron extension host wants manifest and entrypoint file watching as an installable feature
  * - Host bootstrap should delegate watcher lifecycle and reload scheduling out of `host/index.ts`
  *
  * Expects:
  * - Call `sync()` after registry/config/load-state changes
- * - Call `clearPlugin(name)` before unloading or disabling a plugin
+ * - Call `clearExtension(name)` before unloading or disabling a plugin
  * - Call `dispose()` during host shutdown
  *
  * Returns:
  * - The installed auto-reload feature controller
  */
-export function createPluginAutoReloadFeature(options: PluginAutoReloadFeatureOptions) {
+export function createExtensionAutoReloadFeature(options: ExtensionAutoReloadFeatureOptions) {
   const autoReloadInFlight = new Set<string>()
   const autoReloadTimers = new Map<string, ReturnType<typeof setTimeout>>()
   const autoReloadWatchers = new Map<string, FSWatcher[]>()
@@ -73,7 +75,7 @@ export function createPluginAutoReloadFeature(options: PluginAutoReloadFeatureOp
     autoReloadWatchers.delete(name)
   }
 
-  const reloadPluginByName = async (name: string, changedPath: string) => {
+  const reloadExtensionById = async (name: string, changedPath: string) => {
     if (autoReloadInFlight.has(name)) {
       return
     }
@@ -81,10 +83,10 @@ export function createPluginAutoReloadFeature(options: PluginAutoReloadFeatureOp
     autoReloadInFlight.add(name)
     try {
       await options.reload(name, changedPath)
-      options.log.log('plugin auto-reloaded after file change', { plugin: name, path: changedPath })
+      options.log.log('extension auto-reloaded after file change', { extension: name, path: changedPath })
     }
     catch (error) {
-      options.log.withError(error).withFields({ plugin: name, path: changedPath }).error('plugin auto-reload failed')
+      options.log.withError(error).withFields({ extension: name, path: changedPath }).error('extension auto-reload failed')
     }
     finally {
       autoReloadInFlight.delete(name)
@@ -95,7 +97,7 @@ export function createPluginAutoReloadFeature(options: PluginAutoReloadFeatureOp
     clearTimer(name)
     autoReloadTimers.set(name, setTimeout(() => {
       autoReloadTimers.delete(name)
-      void reloadPluginByName(name, changedPath)
+      void reloadExtensionById(name, changedPath)
     }, 180))
   }
 
@@ -103,7 +105,7 @@ export function createPluginAutoReloadFeature(options: PluginAutoReloadFeatureOp
     sync() {
       const enabledNames = new Set(options.getConfig().autoReload)
       const desiredNames = new Set(options.listEntries()
-        .map(entry => entry.manifest.name)
+        .map(entry => manifestIdOf(entry.manifest))
         .filter(name => enabledNames.has(name) && options.isLoaded(name)))
 
       for (const name of autoReloadWatchers.keys()) {
@@ -128,12 +130,12 @@ export function createPluginAutoReloadFeature(options: PluginAutoReloadFeatureOp
           try {
             const watcher = watchFile(watchPath, { persistent: false }, () => scheduleReload(name, watchPath))
             watcher.on('error', (error) => {
-              options.log.withError(error).withFields({ plugin: name, path: watchPath }).warn('plugin auto-reload watcher error')
+              options.log.withError(error).withFields({ extension: name, path: watchPath }).warn('extension auto-reload watcher error')
             })
             watchers.push(watcher)
           }
           catch (error) {
-            options.log.withError(error).withFields({ plugin: name, path: watchPath }).warn('failed to watch plugin file for auto-reload')
+            options.log.withError(error).withFields({ extension: name, path: watchPath }).warn('failed to watch extension file for auto-reload')
           }
         }
 
@@ -142,7 +144,7 @@ export function createPluginAutoReloadFeature(options: PluginAutoReloadFeatureOp
         }
       }
     },
-    clearPlugin(name: string) {
+    clearExtension(name: string) {
       clearTimer(name)
       closeWatchers(name)
     },

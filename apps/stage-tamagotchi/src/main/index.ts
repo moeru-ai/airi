@@ -33,7 +33,7 @@ import { setupServerChannel } from './services/airi/channel-server'
 import { setupGodotStageManager } from './services/airi/godot-stage'
 import { setupBuiltInServer } from './services/airi/http-server'
 import { setupMcpStdioManager } from './services/airi/mcp-servers'
-import { setupPluginHost } from './services/airi/plugins'
+import { setupExtensionHost } from './services/airi/plugins'
 import { setupArtistryBridge } from './services/airi/widgets/artistry-bridge'
 import { setupAutoUpdater } from './services/electron/auto-updater'
 import { setupGlobalShortcutService } from './services/electron/global-shortcut'
@@ -172,7 +172,7 @@ app.whenReady().then(async () => {
 
   const pluginHost = injeca.provide('modules:plugin-host', {
     dependsOn: { serverChannel, widgetsManager },
-    build: ({ dependsOn }) => setupPluginHost(dependsOn),
+    build: ({ dependsOn }) => setupExtensionHost(dependsOn),
   })
 
   const windowAuthManager = injeca.provide('services:window-auth-manager', () => createWindowAuthManagerService())

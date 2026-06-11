@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   AiriWebSocketEventFormatError,
+  createResponses,
   heartbeatFrameFrom,
   parseEvent,
 } from '.'
@@ -74,5 +75,31 @@ describe('airi websocket protocol codec', () => {
     expect(heartbeatFrameFrom('ping')).toBe('ping')
     expect(heartbeatFrameFrom('pong')).toBe('pong')
     expect(heartbeatFrameFrom('{"type":"ping"}')).toBeUndefined()
+  })
+
+  /**
+   * @example
+   * expect(responses.peerAuthenticated('peer-1').type).toBe('peer:authenticated')
+   * expect(responses.extensionAuthenticated({ id: 'airi-extension-chess' }).type).toBe('extension:authenticated')
+   */
+  it('creates peer and extension authentication responses separately', () => {
+    const responses = createResponses('server-1')
+
+    expect(responses.peerAuthenticated('peer-1')).toMatchObject({
+      type: 'peer:authenticated',
+      data: {
+        authenticated: true,
+        peerId: 'peer-1',
+      },
+    })
+    expect(responses.extensionAuthenticated({ id: 'airi-extension-chess' })).toMatchObject({
+      type: 'extension:authenticated',
+      data: {
+        authenticated: true,
+        identity: {
+          id: 'airi-extension-chess',
+        },
+      },
+    })
   })
 })

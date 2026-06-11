@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { PluginSessionService } from './sessions'
+import { ExtensionSessionService } from './extension-sessions'
 
 vi.mock('nanoid/non-secure', () => ({
   nanoid: vi
@@ -14,9 +14,9 @@ interface TestSession {
   state: 'active' | 'closed'
 }
 
-describe('pluginSessionService', () => {
+describe('extensionSessionService', () => {
   it('registers, lists, gets, and removes sessions by id', () => {
-    const service = new PluginSessionService<TestSession>()
+    const service = new ExtensionSessionService<TestSession>()
     const firstSession: TestSession = { id: 'session-1', state: 'active' }
     const secondSession: TestSession = { id: 'session-2', state: 'closed' }
 
@@ -35,31 +35,17 @@ describe('pluginSessionService', () => {
     expect(service.remove('session-1')).toBeUndefined()
   })
 
-  it('generates random session ids and incrementing module identities with sanitized plugin names', () => {
-    const service = new PluginSessionService<TestSession>()
+  it('generates random session ids with incrementing indexes', () => {
+    const service = new ExtensionSessionService<TestSession>()
 
-    expect(service.nextSessionIdentity('  demo-plugin  ')).toEqual({
+    expect(service.nextSessionIdentity()).toEqual({
       index: 0,
-      sessionId: 'plugin-session-session-a',
-      moduleIdentity: {
-        id: 'demo-plugin-0',
-        kind: 'plugin',
-        plugin: {
-          id: 'demo-plugin',
-        },
-      },
+      sessionId: 'extension-session-session-a',
     })
 
-    expect(service.nextSessionIdentity('   ')).toEqual({
+    expect(service.nextSessionIdentity()).toEqual({
       index: 1,
-      sessionId: 'plugin-session-session-b',
-      moduleIdentity: {
-        id: 'plugin-1',
-        kind: 'plugin',
-        plugin: {
-          id: 'plugin',
-        },
-      },
+      sessionId: 'extension-session-session-b',
     })
   })
 })
