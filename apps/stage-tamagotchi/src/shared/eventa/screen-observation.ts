@@ -3,6 +3,7 @@ import type {
   ScreenObservationSettings,
   ScreenObserverPrivacyState,
   ScreenObserverSummary,
+  Task,
   TouchEventPayload,
 } from '@proj-airi/server-sdk-shared'
 
@@ -12,8 +13,9 @@ import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
  * Live state of the Electron-main screen observation runtime.
  *
  * This is the desktop runtime's view (collection triggers, OS signals,
- * pause state) — task models and touch decisions are owned by the server
- * contract in `@proj-airi/server-sdk-shared` and are not duplicated here.
+ * pause state, the local task registry the decide loop runs against) —
+ * model shapes and touch decisions are owned by the server contract in
+ * `@proj-airi/server-sdk-shared` and are not duplicated here.
  */
 export interface ScreenObservationRuntimeState {
   settings: ScreenObservationSettings
@@ -30,12 +32,21 @@ export interface ScreenObservationRuntimeState {
   screenpipeAvailable: boolean
   /** ISO timestamp of the most recent captured summary, if any. */
   latestSummaryAt?: string
+  /** Tasks registered with the desktop runtime; the main-process decide loop runs against these. */
+  tasks: Task[]
 }
 
 export const electronScreenObservationGetState = defineInvokeEventa<ScreenObservationRuntimeState>('eventa:invoke:electron:screen-observation:get-state')
 export const electronScreenObservationUpdateSettings = defineInvokeEventa<ScreenObservationRuntimeState, Partial<ScreenObservationSettings>>('eventa:invoke:electron:screen-observation:update-settings')
 export const electronScreenObservationPause = defineInvokeEventa<ScreenObservationRuntimeState, PauseObservationRequest>('eventa:invoke:electron:screen-observation:pause')
 export const electronScreenObservationResume = defineInvokeEventa<ScreenObservationRuntimeState>('eventa:invoke:electron:screen-observation:resume')
+/**
+ * Registers (or replaces) a task with the desktop runtime. The renderer's
+ * chat confirmation card builds the Task via the shared contract helpers and
+ * hands it over here; the main process persists it and decides progress
+ * touches against it on each capture tick.
+ */
+export const electronScreenObservationUpsertTask = defineInvokeEventa<ScreenObservationRuntimeState, { task: Task }>('eventa:invoke:electron:screen-observation:upsert-task')
 
 export const electronScreenObservationStateChanged = defineEventa<ScreenObservationRuntimeState>('eventa:event:electron:screen-observation:state-changed')
 export const electronScreenObservationSummaryCaptured = defineEventa<{ summary: ScreenObserverSummary }>('eventa:event:electron:screen-observation:summary-captured')

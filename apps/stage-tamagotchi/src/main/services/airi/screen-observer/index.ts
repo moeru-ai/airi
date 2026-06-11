@@ -3,12 +3,13 @@ import type {
   PauseObservationRequest,
   ScreenObservationSettings,
   ScreenObserverSummary,
+  Task,
   TouchEventPayload,
 } from '@proj-airi/server-sdk-shared'
 import type { BrowserWindow } from 'electron'
-import type { InferOutput } from 'valibot'
+import type { BaseIssue, BaseSchema, InferOutput } from 'valibot'
 
-import type { ScreenObservationRuntimeState } from '../../../../shared/eventa'
+import type { ScreenObservationRuntimeState } from '../../../../shared/eventa/screen-observation'
 import type { I18n } from '../../../libs/i18n'
 import type { NoticeWindowManager } from '../../../windows/notice'
 import type { TouchInteractionLedgerEntry, TouchOutcome } from './runtime'
@@ -18,9 +19,14 @@ import { randomUUID } from 'node:crypto'
 
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
-import { DEFAULT_DAILY_SUMMARY_LOCAL_TIME, resolveObservationPrivacyState } from '@proj-airi/server-sdk-shared'
+import {
+  decideScreenObservationTouch,
+  DEFAULT_DAILY_SUMMARY_LOCAL_TIME,
+  resolveObservationPrivacyState,
+  TOUCH_THROTTLE_WINDOW_MS,
+} from '@proj-airi/server-sdk-shared'
 import { globalShortcut, Notification } from 'electron'
-import { array, boolean, number, object, optional, picklist, record, string } from 'valibot'
+import { array, boolean, check, maxLength, minLength, number, object, optional, picklist, pipe, record, regex, safeParse, string, summarize, trim } from 'valibot'
 
 import {
   electronScreenObservationGetState,
@@ -31,7 +37,8 @@ import {
   electronScreenObservationSummaryCaptured,
   electronScreenObservationTouchDelivered,
   electronScreenObservationUpdateSettings,
-} from '../../../../shared/eventa'
+  electronScreenObservationUpsertTask,
+} from '../../../../shared/eventa/screen-observation'
 import { onAppBeforeQuit } from '../../../libs/bootkit/lifecycle'
 import { createConfig } from '../../../libs/electron/persistence'
 import {
@@ -57,6 +64,75 @@ const POLL_INTERVAL_MS = 30 * 1000
 /** Default accelerator for the global "pause observation" shortcut; users can override or clear it in settings. */
 const DEFAULT_PAUSE_SHORTCUT = 'CommandOrControl+Alt+P'
 
+/** `HH:mm`, 24-hour clock — the only time-of-day format the contract accepts. */
+const LOCAL_TIME_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/
+
+const isoTimestampSchema = pipe(string(), check(value => Number.isFinite(new Date(value).getTime()), 'expected a parseable ISO timestamp'))
+
+/**
+ * One whitelisted app name as accepted over IPC: trimmed, non-empty, capped.
+ * Renderer payloads are untrusted input — TypeScript types do not survive
+ * the IPC boundary, so every field is re-validated at runtime here.
+ */
+const appNameSchema = pipe(string(), trim(), minLength(1), maxLength(128))
+
+const settingsPatchSchema = object({
+  enabled: optional(boolean()),
+  mode: optional(picklist(['whitelist'])),
+  allowedApps: optional(pipe(array(appNameSchema), maxLength(64))),
+  dailySummaryEnabled: optional(boolean()),
+  dailySummaryAtLocalTime: optional(pipe(string(), regex(LOCAL_TIME_PATTERN, 'expected HH:mm'))),
+})
+
+const pauseRequestSchema = object({
+  reason: picklist(['manual_15m', 'manual_1h', 'manual_today', 'fullscreen', 'meeting']),
+  pauseUntil: optional(isoTimestampSchema),
+})
+
+const taskSentenceSchema = pipe(string(), trim(), maxLength(500))
+
+const taskSchema = object({
+  id: pipe(string(), trim(), minLength(1), maxLength(64)),
+  userId: pipe(string(), maxLength(128)),
+  title: pipe(string(), trim(), minLength(1), maxLength(200)),
+  status: picklist(['draft', 'active', 'paused', 'completed', 'cancelled', 'archived']),
+  priority: picklist(['low', 'normal', 'high', 'urgent']),
+  goal: pipe(string(), trim(), maxLength(500)),
+  progressNarrative: optional(object({
+    remainingWork: taskSentenceSchema,
+    etaAt: optional(isoTimestampSchema),
+    pace: optional(taskSentenceSchema),
+    isOffTrack: boolean(),
+  })),
+  schedule: object({
+    startsAt: optional(isoTimestampSchema),
+    dueAt: optional(isoTimestampSchema),
+    timezone: pipe(string(), maxLength(64)),
+    workWindow: optional(object({
+      startLocalTime: pipe(string(), regex(LOCAL_TIME_PATTERN, 'expected HH:mm')),
+      endLocalTime: pipe(string(), regex(LOCAL_TIME_PATTERN, 'expected HH:mm')),
+    })),
+    dailySummaryAtLocalTime: pipe(string(), regex(LOCAL_TIME_PATTERN, 'expected HH:mm')),
+  }),
+  observation: object({
+    enabled: boolean(),
+    mode: picklist(['whitelist']),
+    allowedApps: pipe(array(appNameSchema), maxLength(64)),
+    pauseUntil: optional(isoTimestampSchema),
+    privacyState: picklist(['observing', 'paused', 'not_observing_empty_whitelist', 'suppressed_fullscreen', 'suppressed_meeting', 'disabled']),
+    isEffectivelyObserving: boolean(),
+  }),
+  touchPolicy: object({
+    level: picklist(['L0', 'L1', 'L2', 'L3']),
+    firstTaskFirstProgressUsesL2: boolean(),
+    dailySummaryEnabled: boolean(),
+  }),
+  createdAt: isoTimestampSchema,
+  updatedAt: isoTimestampSchema,
+})
+
+const upsertTaskRequestSchema = object({ task: taskSchema })
+
 const screenObservationConfigSchema = object({
   enabled: optional(boolean()),
   allowedApps: optional(array(string())),
@@ -64,6 +140,11 @@ const screenObservationConfigSchema = object({
   dailySummaryEnabled: optional(boolean()),
   dailySummaryAtLocalTime: optional(string()),
   pauseShortcutAccelerator: optional(string()),
+  // Tasks registered with the desktop runtime; the decide loop runs against these.
+  tasks: optional(record(string(), taskSchema)),
+  // Set once the very first progress touch was ever delivered; drives the
+  // cold-start "first task's first progress goes L2" rule.
+  firstTaskProgressDelivered: optional(boolean()),
   // Per-task touch reaction ledger; persisted so the frozen "ignored twice
   // at the same level -> downgrade" rule survives restarts.
   touchLedger: optional(record(string(), object({
@@ -71,10 +152,23 @@ const screenObservationConfigSchema = object({
     ignoredCount: number(),
     mutedAt: optional(string()),
     lastL2PlusTouchAt: optional(string()),
+    lastDecidedAt: optional(string()),
+    firstProgressDeliveredAt: optional(string()),
   }))),
 })
 
 type ScreenObservationConfig = InferOutput<typeof screenObservationConfigSchema>
+
+/**
+ * Parses an untrusted IPC payload, throwing a TypeError that surfaces to the
+ * invoking renderer when the payload does not match the runtime schema.
+ */
+function parseIpcPayload<TSchema extends BaseSchema<unknown, unknown, BaseIssue<unknown>>>(schema: TSchema, payload: unknown, what: string): InferOutput<TSchema> {
+  const result = safeParse(schema, payload)
+  if (!result.success)
+    throw new TypeError(`Invalid ${what} payload: ${summarize(result.issues)}`)
+  return result.output
+}
 
 export interface ScreenObserverService {
   /**
@@ -88,10 +182,16 @@ export interface ScreenObserverService {
   resume: () => ScreenObservationRuntimeState
   updateSettings: (patch: Partial<ScreenObservationSettings>) => ScreenObservationRuntimeState
   /**
-   * Presents a decided touch on the desktop. The touch DECISION is the
-   * server domain's pure logic; this only routes by level: L0-L2 broadcast to
-   * renderers (role gesture / notice window), L3 additionally raises a system
-   * notification that never steals focus and never opens a modal.
+   * Registers (or replaces) a task in the runtime's persisted registry; the
+   * per-tick decide loop runs against active tasks from here.
+   */
+  upsertTask: (task: Task) => ScreenObservationRuntimeState
+  /**
+   * Presents a decided touch on the desktop. The touch DECISION is shared
+   * pure logic (`decideScreenObservationTouch`); this only routes by level:
+   * L0-L2 broadcast to renderers (role gesture / notice window), L3
+   * additionally raises a system notification that never steals focus and
+   * never opens a modal.
    */
   deliverTouch: (touch: TouchEventPayload) => void
   /** External OS signals (e.g. a future native fullscreen probe) feed suppression here. */
@@ -199,6 +299,7 @@ export function setupScreenObserver(options: SetupScreenObserverOptions): Screen
       suppression: { ...suppression },
       screenpipeAvailable,
       latestSummaryAt,
+      tasks: Object.values(stored.tasks ?? {}),
     }
   }
 
@@ -257,10 +358,15 @@ export function setupScreenObserver(options: SetupScreenObserverOptions): Screen
     const stored = getConfig()
     persist({
       enabled: patch.enabled ?? stored.enabled,
-      allowedApps: patch.allowedApps ?? stored.allowedApps,
+      allowedApps: patch.allowedApps ? dedupeAppNames(patch.allowedApps) : stored.allowedApps,
       dailySummaryEnabled: patch.dailySummaryEnabled ?? stored.dailySummaryEnabled,
       dailySummaryAtLocalTime: patch.dailySummaryAtLocalTime ?? stored.dailySummaryAtLocalTime,
     })
+    return publishStateIfChanged()
+  }
+
+  const upsertTask: ScreenObserverService['upsertTask'] = (task) => {
+    persist({ tasks: { ...getConfig().tasks, [task.id]: task } })
     return publishStateIfChanged()
   }
 
@@ -277,9 +383,13 @@ export function setupScreenObserver(options: SetupScreenObserverOptions): Screen
       endTime: now.toISOString(),
     })))
 
+    // The waterline advances even when a window came back partial (page cap
+    // hit during a long catch-up): the summary is marked partial below
+    // instead of re-fetching the same window forever.
     lastCaptureEndedAt = now
+    const partial = results.some(result => !result.complete)
 
-    const apps = aggregateAppSummaries(results.flat(), settings.allowedApps)
+    const apps = aggregateAppSummaries(results.flatMap(result => result.items), settings.allowedApps)
     if (apps.length === 0)
       return undefined
 
@@ -296,7 +406,7 @@ export function setupScreenObserver(options: SetupScreenObserverOptions): Screen
       // Task matching is core-agent/server reasoning; the desktop runtime
       // only reports what was on screen.
       taskSignals: [],
-      summary: `observed ${apps.length} app(s): ${overview}`,
+      summary: `observed ${apps.length} app(s): ${overview}${partial ? ' (partial window)' : ''}`,
       // Digest quality proxy: share of observed apps that yielded any text.
       confidence: apps.filter(app => app.summary.length > 0).length / apps.length,
     }
@@ -336,6 +446,7 @@ export function setupScreenObserver(options: SetupScreenObserverOptions): Screen
           latestSummaryAt = summary.capturedAt
           broadcast(context => context.emit(electronScreenObservationSummaryCaptured, { summary }))
           publishStateIfChanged()
+          decideProgressTouches(summary, now)
         }
       }
     }
@@ -404,6 +515,26 @@ export function setupScreenObserver(options: SetupScreenObserverOptions): Screen
       notifyOpenTaskDetails(touch.taskId)
   }
 
+  /**
+   * Normalizes a renderer-supplied app whitelist.
+   *
+   * Before:
+   * - [' Code ', 'code', 'Slack']
+   *
+   * After:
+   * - ['Code', 'Slack'] (first spelling wins; duplicates compared case-insensitively)
+   */
+  function dedupeAppNames(appNames: string[]): string[] {
+    const seen = new Set<string>()
+    return appNames.filter((appName) => {
+      const key = appName.toLowerCase()
+      if (seen.has(key))
+        return false
+      seen.add(key)
+      return true
+    })
+  }
+
   const deliverTouch: ScreenObserverService['deliverTouch'] = (touch) => {
     // Data plane: long-lived renderers (dashboard, task cards) always get the
     // touch, independent of whether anything is presented below.
@@ -424,7 +555,12 @@ export function setupScreenObserver(options: SetupScreenObserverOptions): Screen
       return
 
     if (!Notification.isSupported()) {
-      log.warn('L3 touch requested but system notifications are unsupported; renderer event was still broadcast')
+      // Platforms without system notifications still get touched: fall back
+      // to the L2 notice toast, and stamp the throttle clock either way so
+      // the 30-minute L2+ limit cannot be bypassed by repeated L3 decisions.
+      log.warn('System notifications unsupported; presenting L3 touch as an L2 notice instead')
+      saveLedgerEntry(touch.taskId, recordTouchPresented(entry, touch.level, new Date()))
+      presentTaskTouchNotice(touch).catch(error => log.withError(error).warn('Failed to present L3 fallback notice'))
       return
     }
 
@@ -450,6 +586,69 @@ export function setupScreenObserver(options: SetupScreenObserverOptions): Screen
     notification.show()
   }
 
+  /**
+   * The tick -> decide -> deliver bridge: runs the shared touch decision for
+   * every active task after a capture, feeding it this runtime's interaction
+   * ledger so the 30-minute throttle, the ignored-twice downgrade, and the
+   * cold-start first-progress-L2 rule all act on the real end-to-end path.
+   *
+   * The decision cadence per task reuses the frozen 30-minute window: a task
+   * is reconsidered at most once per window, so even L1 gestures cannot spam
+   * every 30s tick.
+   */
+  function decideProgressTouches(summary: ScreenObserverSummary, now: Date) {
+    const stored = getConfig()
+
+    for (const task of Object.values(stored.tasks ?? {})) {
+      if (task.status !== 'active')
+        continue
+
+      const entry = ledgerEntryFor(task.id)
+      // Muted tasks are skipped at the decision stage, not just presentation.
+      if (entry.mutedAt)
+        continue
+      if (entry.lastDecidedAt && now.getTime() - new Date(entry.lastDecidedAt).getTime() < TOUCH_THROTTLE_WINDOW_MS)
+        continue
+
+      // Re-read per task: with several active tasks in one tick, only the
+      // first decided touch may claim the cold-start first-task L2 exception.
+      const isFirstTaskForUser = !getConfig().firstTaskProgressDelivered
+
+      const touch = decideScreenObservationTouch({
+        id: randomUUID(),
+        task,
+        reason: 'task_progress',
+        // The desktop runtime does not synthesize progress copy: the message
+        // is the task's last known narrative (set by the chat layer); the
+        // shared decide normalizer fills human-language fallbacks when empty.
+        message: {
+          remainingWork: task.progressNarrative?.remainingWork ?? '',
+          etaAt: task.progressNarrative?.etaAt,
+          pace: task.progressNarrative?.pace,
+          isOffTrack: task.progressNarrative?.isOffTrack ?? false,
+        },
+        now,
+        summaryId: summary.id,
+        lastL2PlusTouchAt: entry.lastL2PlusTouchAt ? new Date(entry.lastL2PlusTouchAt) : undefined,
+        ignoredTouchesAtSameLevel: entry.ignoredCount,
+        isFirstTaskForUser,
+        isFirstProgressUpdateForTask: !entry.firstProgressDeliveredAt,
+        isFullscreen: suppression.isFullscreen,
+        isMeeting: suppression.isMeeting,
+      })
+
+      saveLedgerEntry(task.id, {
+        ...entry,
+        lastDecidedAt: now.toISOString(),
+        firstProgressDeliveredAt: entry.firstProgressDeliveredAt ?? now.toISOString(),
+      })
+      if (isFirstTaskForUser)
+        persist({ firstTaskProgressDelivered: true })
+
+      deliverTouch(touch)
+    }
+  }
+
   const registerWindow: ScreenObserverService['registerWindow'] = ({ context, window }) => {
     contexts.add(context)
     window.on('closed', () => {
@@ -457,13 +656,10 @@ export function setupScreenObserver(options: SetupScreenObserverOptions): Screen
     })
 
     defineInvokeHandler(context, electronScreenObservationGetState, () => resolveState())
-    defineInvokeHandler(context, electronScreenObservationUpdateSettings, patch => updateSettings(patch ?? {}))
-    defineInvokeHandler(context, electronScreenObservationPause, (request) => {
-      if (!request?.reason)
-        throw new TypeError('screen observation pause requires a reason')
-      return pause(request)
-    })
+    defineInvokeHandler(context, electronScreenObservationUpdateSettings, patch => updateSettings(parseIpcPayload(settingsPatchSchema, patch ?? {}, 'screen observation settings')))
+    defineInvokeHandler(context, electronScreenObservationPause, request => pause(parseIpcPayload(pauseRequestSchema, request, 'screen observation pause')))
     defineInvokeHandler(context, electronScreenObservationResume, () => resume())
+    defineInvokeHandler(context, electronScreenObservationUpsertTask, request => upsertTask(parseIpcPayload(upsertTaskRequestSchema, request, 'screen observation task').task))
   }
 
   const dispose: ScreenObserverService['dispose'] = () => {
@@ -497,6 +693,7 @@ export function setupScreenObserver(options: SetupScreenObserverOptions): Screen
     pause,
     resume,
     updateSettings,
+    upsertTask,
     deliverTouch,
     getTouchInteraction: (taskId) => {
       const entry = ledgerEntryFor(taskId)

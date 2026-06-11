@@ -25,9 +25,10 @@ describe('screenpipe client', () => {
     })))
 
     const client = createScreenpipeClient({ fetchImpl: fetchImpl as unknown as typeof fetch })
-    const items = await client.searchOcr({ appName: 'Code', startTime: '2026-06-11T09:59:00.000Z', endTime: '2026-06-11T10:00:30.000Z' })
+    const { items, complete } = await client.searchOcr({ appName: 'Code', startTime: '2026-06-11T09:59:00.000Z', endTime: '2026-06-11T10:00:30.000Z' })
 
     expect(items).toHaveLength(1)
+    expect(complete).toBe(true)
     expect(items[0]!.appName).toBe('Code')
     expect(items[0]!.windowName).toBe('main.ts')
 
@@ -65,8 +66,45 @@ describe('screenpipe client', () => {
     const client = createScreenpipeClient({ fetchImpl: fetchImpl as unknown as typeof fetch })
 
     expect(await client.health()).toBe(false)
-    expect(await client.searchOcr({ appName: 'Code', startTime: 'a', endTime: 'b' })).toEqual([])
+    expect(await client.searchOcr({ appName: 'Code', startTime: 'a', endTime: 'b' })).toEqual({ items: [], complete: true })
     expect(await client.focusedWindow()).toBeUndefined()
+  })
+
+  it('paginates through a capture window and reports an exhausted window as complete', async () => {
+    const fullPage = Array.from({ length: 100 }, (_, index) => ({
+      type: 'OCR',
+      content: { app_name: 'Code', text: `page1-${index}`, timestamp: `2026-06-11T10:00:${String(index % 60).padStart(2, '0')}.000Z` },
+    }))
+    const shortPage = fullPage.slice(0, 30)
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: fullPage })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: shortPage })))
+
+    const client = createScreenpipeClient({ fetchImpl: fetchImpl as unknown as typeof fetch })
+    const { items, complete } = await client.searchOcr({ appName: 'Code', startTime: 'a', endTime: 'b' })
+
+    expect(items).toHaveLength(130)
+    expect(complete).toBe(true)
+    expect(String(fetchImpl.mock.calls[0]![0])).toContain('offset=0')
+    expect(String(fetchImpl.mock.calls[1]![0])).toContain('offset=100')
+  })
+
+  it('stops at the page cap and reports the window as partial', async () => {
+    const fullPage = Array.from({ length: 100 }, (_, index) => ({
+      type: 'OCR',
+      content: { app_name: 'Code', text: `item-${index}`, timestamp: '2026-06-11T10:00:00.000Z' },
+    }))
+    // A Response body is single-use: build a fresh one per page request.
+    const fetchImpl = vi.fn().mockImplementation(async () => new Response(JSON.stringify({ data: fullPage })))
+
+    const client = createScreenpipeClient({ fetchImpl: fetchImpl as unknown as typeof fetch })
+    const { items, complete } = await client.searchOcr({ appName: 'Code', startTime: 'a', endTime: 'b' })
+
+    // Five pages fetched, every one full: the window may hold more, so the
+    // result is flagged partial instead of silently truncated.
+    expect(fetchImpl).toHaveBeenCalledTimes(5)
+    expect(items).toHaveLength(500)
+    expect(complete).toBe(false)
   })
 })
 

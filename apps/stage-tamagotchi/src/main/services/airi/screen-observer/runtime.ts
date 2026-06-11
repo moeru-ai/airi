@@ -166,6 +166,10 @@ export interface TouchInteractionLedgerEntry {
   mutedAt?: string
   /** Last time an L2+ touch was actually presented; maps to `DecideTouchInput.lastL2PlusTouchAt` for the 30-minute throttle. */
   lastL2PlusTouchAt?: string
+  /** Last time the decide loop ran for this task; gates the per-task decision cadence. */
+  lastDecidedAt?: string
+  /** Set once the task's first progress touch was delivered; drives the cold-start first-progress-L2 rule. */
+  firstProgressDeliveredAt?: string
 }
 
 export type TouchOutcome

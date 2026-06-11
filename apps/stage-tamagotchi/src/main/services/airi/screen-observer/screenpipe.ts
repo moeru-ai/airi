@@ -45,15 +45,25 @@ export interface SearchOcrParams {
   startTime: string
   /** ISO timestamp, inclusive window end. */
   endTime: string
-  /** @default 100 */
+  /** Page size per request. @default 100 */
   limit?: number
+}
+
+export interface SearchOcrResult {
+  items: ScreenpipeOcrItem[]
+  /**
+   * False when the page cap was hit while the last page was still full —
+   * the window likely holds more captures than were fetched, so the caller
+   * should mark its summary partial.
+   */
+  complete: boolean
 }
 
 export interface ScreenpipeClient {
   /** True when the local screenpipe service answers its health endpoint. */
   health: () => Promise<boolean>
-  /** OCR captures within a time window, always scoped to a single whitelisted app. */
-  searchOcr: (params: SearchOcrParams) => Promise<ScreenpipeOcrItem[]>
+  /** OCR captures within a time window, always scoped to a single whitelisted app; paginates through the window up to a page cap. */
+  searchOcr: (params: SearchOcrParams) => Promise<SearchOcrResult>
   /**
    * App name / window title of the most recent capture, for meeting and
    * fullscreen heuristics. Metadata only: the mapper never reads OCR text,
@@ -74,6 +84,14 @@ interface ScreenpipeSearchResponse {
     }
   }[]
 }
+
+/**
+ * Pages fetched per app per capture window before giving up and reporting a
+ * partial result. With the default page size of 100 this bounds one tick to
+ * 500 captures per app — far above screenpipe's ~1fps cadence for a 30s
+ * window, so the cap only bites during long catch-ups after pauses.
+ */
+const SEARCH_MAX_PAGES = 5
 
 /**
  * Creates a screenpipe REST client bound to one base URL.
@@ -148,14 +166,28 @@ export function createScreenpipeClient(options?: ScreenpipeClientOptions): Scree
       return payload !== undefined
     },
     searchOcr: async (params) => {
-      const query = new URLSearchParams({
-        content_type: 'ocr',
-        app_name: params.appName,
-        start_time: params.startTime,
-        end_time: params.endTime,
-        limit: String(params.limit ?? 100),
-      })
-      return toItems(await request(`/search?${query.toString()}`))
+      const limit = params.limit ?? 100
+      const items: ScreenpipeOcrItem[] = []
+
+      // Paginate through the capture window so a long catch-up (after a
+      // pause or restart) is not silently truncated to the first page.
+      for (let page = 0; page < SEARCH_MAX_PAGES; page++) {
+        const query = new URLSearchParams({
+          content_type: 'ocr',
+          app_name: params.appName,
+          start_time: params.startTime,
+          end_time: params.endTime,
+          limit: String(limit),
+          offset: String(page * limit),
+        })
+        const pageItems = toItems(await request(`/search?${query.toString()}`))
+        items.push(...pageItems)
+        // A short page means the window is exhausted.
+        if (pageItems.length < limit)
+          return { items, complete: true }
+      }
+
+      return { items, complete: false }
     },
     focusedWindow: async () => {
       // `focused=true` narrows to the focused capture where screenpipe
