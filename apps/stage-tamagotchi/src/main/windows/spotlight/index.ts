@@ -11,6 +11,7 @@ import { join, resolve } from 'node:path'
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
+import { ShortcutFailureReasons } from '@proj-airi/stage-shared/global-shortcut'
 import { BrowserWindow, ipcMain, Notification, screen } from 'electron'
 import { isMacOS } from 'std-env'
 
@@ -20,6 +21,7 @@ import {
   electronSpotlightHide,
   electronSpotlightShowResultNotification,
 } from '../../../shared/eventa'
+import { isSafeSpotlightAccelerator } from '../../../shared/spotlight-shortcut'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { setupBaseWindowElectronInvokes, transparentWindowConfig } from '../shared/window'
@@ -29,15 +31,9 @@ const SPOTLIGHT_WINDOW_HEIGHT = 100
 const SPOTLIGHT_SHORTCUT_ID = 'spotlight'
 const defaultSpotlightAccelerator: ShortcutAccelerator = { modifiers: ['ctrl', 'shift'], key: 'KeyA' }
 
-/**
- * Main-process controller for the Spotlight window and its owned shortcut.
- */
 export interface SpotlightWindowManager {
-  /** Shows the Spotlight input window near the active display. */
   show: () => Promise<void>
-  /** Returns the persisted Spotlight shortcut accelerator. */
   getShortcutAccelerator: () => ShortcutAccelerator
-  /** Rebinds and persists the Spotlight shortcut when registration succeeds. */
   updateShortcutAccelerator: (accelerator: ShortcutAccelerator | null) => ReturnType<GlobalShortcutService['registerMainShortcut']>
 }
 
@@ -84,7 +80,12 @@ export function setupSpotlightWindowManager(params: {
     }
   }
 
-  function retainResultNotification(notification: Notification) {
+  function showNotification(body: string, onClick?: () => void) {
+    const notification = new Notification({
+      title: 'AIRI',
+      body,
+      ...(onClick && !isMacOS ? { timeoutType: 'never' as const } : {}),
+    })
     resultNotifications.add(notification)
     const release = () => resultNotifications.delete(notification)
 
@@ -92,8 +93,9 @@ export function setupSpotlightWindowManager(params: {
     notification.once('failed', release)
     notification.once('click', () => {
       release()
-      void openChatWindowFromNotification()
+      onClick?.()
     })
+    notification.show()
   }
 
   const reusable = createReusableWindow(async () => {
@@ -121,8 +123,7 @@ export function setupSpotlightWindowManager(params: {
     const { context } = createContext(ipcMain, window)
     await setupBaseWindowElectronInvokes({ context, window, i18n: params.i18n, serverChannel: params.serverChannel })
 
-    // Guards the private invokes so only this Spotlight window can hide itself
-    // or raise a result notification, even though the eventa context is global.
+    // Only the Spotlight window may call these private invokes.
     const isFromSpotlightWindow = (senderId?: number) => window.webContents.id === senderId
 
     defineInvokeHandler(context, electronSpotlightHide, (_, options) => {
@@ -134,13 +135,7 @@ export function setupSpotlightWindowManager(params: {
       if (!payload || !isFromSpotlightWindow(options?.raw.ipcMainEvent.sender.id))
         return
 
-      const notification = new Notification({
-        title: 'AIRI',
-        body: payload.body,
-        ...isMacOS ? {} : { timeoutType: 'never' as const },
-      })
-      retainResultNotification(notification)
-      notification.show()
+      showNotification(payload.body, () => void openChatWindowFromNotification())
     })
 
     await load(window, withHashRoute(rendererBase, '/spotlight'))
@@ -175,33 +170,30 @@ export function setupSpotlightWindowManager(params: {
     })
   }
 
-  function persistShortcutAccelerator(accelerator: ShortcutAccelerator) {
-    params.appConfig.update({
-      ...params.appConfig.get(),
-      spotlightShortcutAccelerator: accelerator,
-    })
-  }
-
   function updateShortcutAccelerator(accelerator: ShortcutAccelerator | null) {
     const nextAccelerator = accelerator ?? defaultSpotlightAccelerator
+    if (!isSafeSpotlightAccelerator(nextAccelerator))
+      return { id: SPOTLIGHT_SHORTCUT_ID, ok: false as const, reason: ShortcutFailureReasons.Invalid }
+
     const registration = params.globalShortcut.registerMainShortcut({
       binding: createShortcutBinding(nextAccelerator),
       onTriggered: handleShortcutTriggered,
     })
 
-    if (registration.ok)
-      persistShortcutAccelerator(nextAccelerator)
-    else
+    if (registration.ok) {
+      params.appConfig.update({
+        ...params.appConfig.get(),
+        spotlightShortcutAccelerator: nextAccelerator,
+      })
+    }
+    else {
       log.warn(`Failed to update Spotlight shortcut: ${registration.reason}`)
+    }
 
-    return registration.ok
-      ? { ...registration, actualAccelerator: nextAccelerator }
-      : registration
+    return registration.ok ? { ...registration, actualAccelerator: nextAccelerator } : registration
   }
 
-  // The global-shortcut service owns registration and release lifecycle; this
-  // main-owned binding survives renderer-driven `unregisterAll` resets and is
-  // only freed on app shutdown via the service's `dispose`.
+  // Main-owned so renderer `unregisterAll` resets do not drop Spotlight.
   const shortcutResult = params.globalShortcut.registerMainShortcut({
     binding: createShortcutBinding(),
     onTriggered: handleShortcutTriggered,
@@ -209,10 +201,7 @@ export function setupSpotlightWindowManager(params: {
 
   if (!shortcutResult.ok) {
     log.warn(`Failed to register Spotlight shortcut: ${shortcutResult.reason}`)
-    new Notification({
-      title: 'AIRI',
-      body: '出错啦：快捷键注册失败',
-    }).show()
+    showNotification(params.i18n.t('tamagotchi.spotlight.errors.shortcutRegistrationFailed'))
   }
 
   return {

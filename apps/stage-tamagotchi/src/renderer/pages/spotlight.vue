@@ -3,6 +3,7 @@ import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useWindowFocus } from '@vueuse/core'
 import { shallowRef, useTemplateRef, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import {
   electronSpotlightHide,
@@ -18,6 +19,7 @@ const inputRef = useTemplateRef<HTMLInputElement>('inputRef')
 const chatSyncStore = useChatSyncStore()
 const hideSpotlightWindow = useElectronEventaInvoke(electronSpotlightHide)
 const showResultNotification = useElectronEventaInvoke(electronSpotlightShowResultNotification)
+const { t } = useI18n()
 
 watch(useWindowFocus(), (focused) => {
   if (!focused) {
@@ -47,7 +49,9 @@ async function handleSend() {
   }
   catch (error) {
     await showResultNotification({
-      body: `出错啦：${errorMessageFrom(error) ?? '未知错误'}`,
+      body: t('tamagotchi.spotlight.errors.prefix', {
+        message: errorMessageFrom(error) ?? t('tamagotchi.spotlight.errors.unknown'),
+      }),
     })
   }
   finally {

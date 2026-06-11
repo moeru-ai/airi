@@ -1,6 +1,11 @@
 allow-visible-on-all-workspaces:
   title: 모든 작업 공간에 표시
   description: 모든 작업 공간에 창을 볼 수 있도록 합니다. macOS 전용 기능입니다.
+spotlight:
+  errors:
+    unknown: 알 수 없는 오류
+    prefix: '문제가 발생했습니다: {message}'
+    shortcutRegistrationFailed: '문제가 발생했습니다: Spotlight 단축키를 등록하지 못했습니다.'
 pages:
   modules:
     mcp-server:
@@ -25,6 +30,7 @@ pages:
         load: 단축키를 불러오지 못했습니다
         conflict: 이 단축키는 이미 사용 중입니다.
         failed: 단축키 업데이트 실패
+        requiresModifier: Cmd, Ctrl, Alt 또는 Super 중 하나 이상을 사용하세요.
       toggle-move:
         label: 이동 켜기/끄기
       toggle-resize:

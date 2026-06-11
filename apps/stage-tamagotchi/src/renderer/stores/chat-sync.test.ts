@@ -277,37 +277,6 @@ describe('useChatSyncStore', async () => {
     vi.useRealTimers()
   })
 
-  it('keeps normal ingest on command response without result payloads', async () => {
-    mockState.ingest.mockResolvedValueOnce(undefined)
-
-    const { authorityStore, followerStore } = initializeAuthorityAndFollower()
-    const result = await followerStore.requestIngest({ text: 'hello normal chat' })
-
-    const commandMessages = postedMessagesOfType('command')
-    const responseMessages = postedMessagesOfType('response')
-
-    expect(result).toBeUndefined()
-    expect(commandMessages).toEqual([
-      expect.objectContaining({
-        type: 'command',
-        command: 'ingest',
-        payload: {
-          text: 'hello normal chat',
-        },
-      }),
-    ])
-    expect(responseMessages).toEqual([
-      expect.objectContaining({
-        type: 'response',
-        ok: true,
-      }),
-    ])
-    expect(responseMessages[0]).not.toHaveProperty('result')
-
-    authorityStore.dispose()
-    followerStore.dispose()
-  })
-
   it('replaces the last failed turn before retrying', async () => {
     mockState.sessionMessages.value['session-1'] = [
       { role: 'system', content: 'init' },
@@ -431,7 +400,7 @@ describe('useChatSyncStore', async () => {
     store.dispose()
   })
 
-  it('sends spotlight commands through dedicated request and response messages', async () => {
+  it('sends spotlight commands through shared request and response messages', async () => {
     mockState.ingest.mockImplementationOnce(async () => {
       mockState.sessionMessages.value['session-1'] = [
         ...(mockState.sessionMessages.value['session-1'] ?? []),
@@ -441,9 +410,9 @@ describe('useChatSyncStore', async () => {
 
     const { authorityStore, followerStore } = initializeAuthorityAndFollower()
     const result = await followerStore.requestSpotlightIngest({ text: 'hello spotlight' })
-    const spotlightCommands = postedMessagesOfType('spotlight-command')
-    const spotlightResponses = postedMessagesOfType('spotlight-response')
-    const normalResponses = postedMessagesOfType('response')
+    const spotlightCommands = postedMessagesOfType('command')
+      .filter(message => message.command === 'spotlight-ingest')
+    const responses = postedMessagesOfType('response')
 
     expect(result).toEqual({
       sessionId: 'session-1',
@@ -451,16 +420,16 @@ describe('useChatSyncStore', async () => {
     })
     expect(spotlightCommands).toEqual([
       expect.objectContaining({
-        type: 'spotlight-command',
-        command: 'ingest',
+        type: 'command',
+        command: 'spotlight-ingest',
         payload: {
           text: 'hello spotlight',
         },
       }),
     ])
-    expect(spotlightResponses).toEqual([
+    expect(responses).toEqual([
       expect.objectContaining({
-        type: 'spotlight-response',
+        type: 'response',
         ok: true,
         result: {
           sessionId: 'session-1',
@@ -468,42 +437,7 @@ describe('useChatSyncStore', async () => {
         },
       }),
     ])
-    expect(normalResponses).toEqual([])
     expect(mockState.ingest).toHaveBeenCalledWith('hello spotlight', expect.objectContaining({
-      tools: expect.any(Function),
-    }), 'session-1')
-
-    authorityStore.dispose()
-    followerStore.dispose()
-  })
-
-  it('fails empty spotlight replies on the authority and appends the error to the main session', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {})
-    mockState.sessionMessages.value['session-1'] = [
-      { role: 'system', content: 'init' },
-      assistantMessage('previous reply'),
-    ]
-    mockState.ingest.mockResolvedValueOnce(undefined)
-
-    const { authorityStore, followerStore } = initializeAuthorityAndFollower()
-    await expect(
-      followerStore.requestSpotlightIngest({ text: 'empty spotlight' }),
-    ).rejects.toThrow('Spotlight response was empty')
-
-    const spotlightResponses = postedMessagesOfType('spotlight-response')
-    const persistedMessages = mockState.sessionMessages.value['session-1']
-
-    expect(spotlightResponses).toEqual([
-      expect.objectContaining({
-        type: 'spotlight-response',
-        ok: false,
-        error: 'Spotlight response was empty',
-      }),
-    ])
-    expect(persistedMessages).toHaveLength(3)
-    expect(persistedMessages[2]?.role).toBe('error')
-    expect(persistedMessages[2]?.content).toBe('Spotlight response was empty')
-    expect(mockState.ingest).toHaveBeenCalledWith('empty spotlight', expect.objectContaining({
       tools: expect.any(Function),
     }), 'session-1')
 
@@ -518,7 +452,7 @@ describe('useChatSyncStore', async () => {
     store.initialize('follower')
 
     const pending = store.requestSpotlightIngest({ text: 'hello timeout' })
-    const expectedRejection = expect(pending).rejects.toThrow('回复超时')
+    const expectedRejection = expect(pending).rejects.toThrow('Spotlight response timed out')
 
     await vi.advanceTimersByTimeAsync(300000)
 

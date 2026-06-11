@@ -72,7 +72,7 @@ const setLocale = useElectronEventaInvoke(i18nSetLocale)
 const initialWindowRoutePath = resolveInitialChatSyncRoutePath(route.path)
 const chatSyncLifecycle = createChatSyncWindowLifecycle(route.path)
 const isSpotlightWindowRoute = initialWindowRoutePath === '/spotlight'
-const isAuxiliaryChatRoute = initialWindowRoutePath === '/chat' || isSpotlightWindowRoute
+const isSettingsWindowRoute = initialWindowRoutePath.startsWith('/settings')
 
 function createFullStageRuntime() {
   const contextBridgeStore = useContextBridgeStore()
@@ -102,6 +102,7 @@ function createFullStageRuntime() {
   const reportPluginCapability = useElectronEventaInvoke(electronPluginUpdateCapability)
   const getGodotStageStatus = useElectronEventaInvoke(electronGodotStageGetStatus)
   const syncArtistryConfig = useElectronEventaInvoke(artistrySyncConfig)
+  const isAuxiliaryChatRoute = initialWindowRoutePath === '/chat'
   const isGodotStageRoute = () => route.path === '/' || route.path.startsWith('/settings')
   const isWidgetsWindowRoute = () => route.path === '/widgets'
 
@@ -223,7 +224,6 @@ function createFullStageRuntime() {
         }
       }
 
-      // Expose stage provider definitions to plugin host APIs.
       defineInvokeHandler(context.value, pluginProtocolListProviders, async () => listProvidersForPluginHost())
 
       if (shouldPublishPluginHostCapabilities()) {
@@ -236,13 +236,11 @@ function createFullStageRuntime() {
         })
       }
 
-      // Preload local inference models (Kokoro TTS, etc.) in background after a delay
       inferencePreload.triggerPreload()
     },
     dispose() {
-      if (!isAuxiliaryChatRoute) {
+      if (!isAuxiliaryChatRoute)
         contextBridgeStore.dispose()
-      }
       mcpToolsStore.dispose()
       pluginToolsStore.dispose()
     },
@@ -258,16 +256,18 @@ watch(dark, () => updateThemeColor(), { immediate: true })
 watch(route, () => updateThemeColor(), { immediate: true })
 onMounted(() => updateThemeColor())
 
-context.value.on(electronSettingsNavigate, (event) => {
-  const targetRoute = event?.body?.route
-  if (!targetRoute || route.fullPath === targetRoute) {
-    return
-  }
+if (isSettingsWindowRoute) {
+  context.value.on(electronSettingsNavigate, (event) => {
+    const targetRoute = event?.body?.route
+    if (!targetRoute || route.fullPath === targetRoute) {
+      return
+    }
 
-  void router.push(targetRoute).catch((error) => {
-    console.warn('Failed to navigate settings window:', error)
+    void router.push(targetRoute).catch((error) => {
+      console.warn('Failed to navigate settings window:', error)
+    })
   })
-})
+}
 
 onMounted(async () => {
   chatSyncLifecycle.initialize()
@@ -281,9 +281,6 @@ onMounted(async () => {
   await restoreLocale()
 
   await chatSessionStore.initialize()
-
-  if (isSpotlightWindowRoute)
-    return
 
   await fullStageRuntime?.initialize()
 })
@@ -309,7 +306,7 @@ onUnmounted(() => {
   <ToasterRoot @close="id => toast.dismiss(id)">
     <Toaster />
   </ToasterRoot>
-  <ResizeHandler />
+  <ResizeHandler v-if="!isSpotlightWindowRoute" />
   <RouterView />
 </template>
 

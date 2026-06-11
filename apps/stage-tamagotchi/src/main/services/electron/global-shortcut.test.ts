@@ -252,6 +252,28 @@ describe('setupGlobalShortcutService', () => {
     expect(oldTriggered).toHaveBeenCalledTimes(1)
   })
 
+  it('replaces the callback when rebinding a main-owned shortcut to the same accelerator', async () => {
+    const m = await setupMocks()
+    const service = m.setupGlobalShortcutService()
+    const oldTriggered = vi.fn()
+    const nextTriggered = vi.fn()
+
+    service.registerMainShortcut({
+      binding: exampleBinding('spotlight', 'KeyA'),
+      onTriggered: oldTriggered,
+    })
+    const result = service.registerMainShortcut({
+      binding: exampleBinding('spotlight', 'KeyA'),
+      onTriggered: nextTriggered,
+    })
+
+    expect(result).toEqual({ id: 'spotlight', ok: true })
+    expect(m.unregisterMock).toHaveBeenCalledWith('CmdOrCtrl+Shift+A')
+    m.triggerCallbacks.get('CmdOrCtrl+Shift+A')?.()
+    expect(oldTriggered).not.toHaveBeenCalled()
+    expect(nextTriggered).toHaveBeenCalledTimes(1)
+  })
+
   it('allows re-register after explicit unregister', async () => {
     const m = await setupMocks()
     const service = m.setupGlobalShortcutService()

@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import type { ShortcutAccelerator } from '@proj-airi/stage-shared/global-shortcut'
+import type { ShortcutAccelerator, ShortcutFailureReason } from '@proj-airi/stage-shared/global-shortcut'
 
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { formatAccelerator } from '@proj-airi/stage-shared/global-shortcut'
+import { formatAccelerator, ShortcutFailureReasons } from '@proj-airi/stage-shared/global-shortcut'
 import { Button } from '@proj-airi/ui'
+import { isMacOS } from 'std-env'
 import { computed, onMounted, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
@@ -12,6 +13,7 @@ import {
   electronSpotlightShortcutGet,
   electronSpotlightShortcutSet,
 } from '../../../../shared/eventa'
+import { isSafeSpotlightAccelerator } from '../../../../shared/spotlight-shortcut'
 
 const getShortcut = useElectronEventaInvoke(electronSpotlightShortcutGet)
 const setShortcut = useElectronEventaInvoke(electronSpotlightShortcutSet)
@@ -29,13 +31,21 @@ const shortcutLabel = computed(() => {
     : tt('empty')
 })
 
+function errorKeyForReason(reason: ShortcutFailureReason) {
+  if (reason === ShortcutFailureReasons.Conflict)
+    return 'errors.conflict'
+  if (reason === ShortcutFailureReasons.Invalid)
+    return 'errors.requiresModifier'
+  return 'errors.failed'
+}
+
 function acceleratorFromEvent(event: KeyboardEvent): ShortcutAccelerator | null {
   if (event.repeat || ['Alt', 'Control', 'Meta', 'Shift'].includes(event.key))
     return null
 
   const modifiers: ShortcutAccelerator['modifiers'] = []
   if (event.metaKey)
-    modifiers.push('cmd')
+    modifiers.push(isMacOS ? 'cmd' : 'super')
   if (event.ctrlKey)
     modifiers.push('ctrl')
   if (event.altKey)
@@ -50,7 +60,7 @@ async function saveShortcut(next: ShortcutAccelerator | null) {
   try {
     const result = await setShortcut({ accelerator: next })
     if (!result.ok) {
-      toast.error(tt(result.reason === 'conflict' ? 'errors.conflict' : 'errors.failed'))
+      toast.error(tt(errorKeyForReason(result.reason)))
       return
     }
     accelerator.value = result.actualAccelerator ?? next ?? accelerator.value
@@ -76,6 +86,10 @@ function recordShortcut(event: KeyboardEvent) {
   if (!next)
     return
   recording.value = false
+  if (!isSafeSpotlightAccelerator(next)) {
+    toast.error(tt('errors.requiresModifier'))
+    return
+  }
   void saveShortcut(next)
 }
 

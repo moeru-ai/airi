@@ -30,32 +30,15 @@ export interface RegisterMainShortcutParams {
 }
 
 export interface GlobalShortcutService {
-  /**
-   * Register a per-window eventa context. Invoke handlers are installed
-   * on the context; trigger events are broadcast to every registered
-   * context, so each window's renderer receives them. Auto-removes on
-   * `window.on('closed')`.
-   */
   registerWindow: (params: RegisterWindowParams) => void
-  /**
-   * Register a main-process-owned global shortcut that invokes
-   * `onTriggered` directly instead of broadcasting to renderers.
-   *
-   * Use when a fixed shortcut must stay alive regardless of which
-   * renderer is loaded (e.g. Spotlight). Main-owned bindings are
-   * skipped by the renderer-facing `unregisterAll`; only `dispose`
-   * releases them.
-   */
   registerMainShortcut: (params: RegisterMainShortcutParams) => ShortcutRegistrationResult
   dispose: () => void
 }
 
-type ShortcutOwner = 'renderer' | 'main'
-
-type ActiveBinding = { binding: ShortcutBinding, owner: ShortcutOwner } & (
-  | { driver: 'electron', electronAccelerator: string }
-  | { driver: 'uiohook' }
-)
+type ActiveBinding
+  = | { binding: ShortcutBinding, owner: 'renderer', driver: 'electron', electronAccelerator: string }
+    | { binding: ShortcutBinding, owner: 'main', driver: 'electron', electronAccelerator: string, onTriggered: () => void }
+    | { binding: ShortcutBinding, owner: 'renderer', driver: 'uiohook' }
 
 export function setupGlobalShortcutService(): GlobalShortcutService {
   const log = useLogg('global-shortcut').useGlobalConfig()
@@ -103,18 +86,26 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
     return result
   }
 
-  // Main-owned shortcuts bypass the renderer broadcast and call `onTriggered`
-  // directly, so a fixed entry like Spotlight does not depend on any renderer
-  // being loaded to register or receive its trigger.
+  // Main-owned shortcuts stay live without a renderer context.
   function registerMainShortcut({ binding, onTriggered }: RegisterMainShortcutParams): ShortcutRegistrationResult {
     const existing = active.get(binding.id)
     if (existing && existing.owner !== 'main')
       return { id: binding.id, ok: false, reason: ShortcutFailureReasons.DuplicateId }
 
     const electronAccelerator = formatElectronAccelerator(binding.accelerator)
-    if (existing?.driver === 'electron' && existing.electronAccelerator === electronAccelerator) {
-      active.set(binding.id, { binding, owner: 'main', driver: 'electron', electronAccelerator })
-      return { id: binding.id, ok: true }
+    const nextEntry: ActiveBinding = { binding, owner: 'main', driver: 'electron', electronAccelerator, onTriggered }
+    if (existing?.electronAccelerator === electronAccelerator) {
+      releaseEntry(binding.id, existing)
+      if (globalShortcut.register(electronAccelerator, onTriggered)) {
+        active.set(binding.id, nextEntry)
+        return { id: binding.id, ok: true }
+      }
+
+      if (globalShortcut.register(existing.electronAccelerator, existing.onTriggered))
+        active.set(binding.id, existing)
+      else
+        log.warn(`Failed to restore main-owned shortcut "${binding.id}" after rebinding failure`)
+      return { id: binding.id, ok: false, reason: ShortcutFailureReasons.Conflict }
     }
 
     if (!globalShortcut.register(electronAccelerator, onTriggered))
@@ -122,7 +113,7 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
 
     if (existing)
       releaseEntry(binding.id, existing)
-    active.set(binding.id, { binding, owner: 'main', driver: 'electron', electronAccelerator })
+    active.set(binding.id, nextEntry)
     return { id: binding.id, ok: true }
   }
 
@@ -159,9 +150,7 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
     releaseEntry(id, entry)
   }
 
-  // `includeMainOwned` stays false for the renderer-facing invoke so a renderer
-  // reset cannot drop main-owned shortcuts (e.g. Spotlight); `dispose` passes
-  // true to release everything on shutdown.
+  // Renderer resets must not drop main-owned shortcuts such as Spotlight.
   function unregisterAll(includeMainOwned = false): void {
     for (const [id, entry] of active) {
       if (!includeMainOwned && entry.owner === 'main')

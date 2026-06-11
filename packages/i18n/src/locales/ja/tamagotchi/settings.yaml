@@ -1,6 +1,11 @@
 allow-visible-on-all-workspaces:
   title: すべてのワークスペースで表示
   description: ウィンドウをすべてのワークスペースで表示可能にします。macOSのみ。
+spotlight:
+  errors:
+    unknown: 不明なエラー
+    prefix: '問題が発生しました: {message}'
+    shortcutRegistrationFailed: '問題が発生しました: Spotlight ショートカットを登録できませんでした。'
 pages:
   modules:
     mcp-server:
@@ -25,6 +30,7 @@ pages:
         load: ショートカットを読み込めませんでした
         conflict: このショートカットは使用中です。
         failed: ショートカットの更新に失敗しました
+        requiresModifier: Cmd、Ctrl、Alt、Super のいずれかを少なくとも 1 つ使用してください。
       toggle-move:
         label: 移動の切り替え
       toggle-resize:

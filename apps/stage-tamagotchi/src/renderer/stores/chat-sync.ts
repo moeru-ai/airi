@@ -56,24 +56,35 @@ interface SpotlightIngestResult {
   visibleText: string
 }
 
+interface ChatCommandMessage<C extends string = string, P = unknown> {
+  type: 'command'
+  authorityId?: string
+  requestId: string
+  senderId: string
+  command: C
+  payload: P
+}
+
 interface RetryCommandPayload {
   sessionId?: string
   index: number
 }
+
+type ChatResponsePayload
+  = | { ok: true, result?: SpotlightIngestResult }
+    | { ok: false, error?: string }
 
 type ChatSyncMessage
   = | { type: 'authority-announcement', authorityId: string, sentAt: number }
     | { type: 'request-snapshot', requestId: string, senderId: string }
     | { type: 'session-snapshot', authorityId: string, snapshot: SessionSnapshotPayload }
     | { type: 'stream-snapshot', authorityId: string, snapshot: StreamSnapshotPayload }
-    | { type: 'command', authorityId?: string, requestId: string, senderId: string, command: 'ingest', payload: IngestCommandPayload }
-    | { type: 'command', authorityId?: string, requestId: string, senderId: string, command: 'retry', payload: RetryCommandPayload }
-    | { type: 'command', authorityId?: string, requestId: string, senderId: string, command: 'cleanup', payload: { sessionId?: string } }
-    | { type: 'command', authorityId?: string, requestId: string, senderId: string, command: 'delete-message', payload: { sessionId?: string, messageId?: string, index?: number } }
-    | { type: 'response', requestId: string, authorityId: string, ok: boolean, error?: string }
-    | { type: 'spotlight-command', requestId: string, senderId: string, command: 'ingest', payload: SpotlightIngestPayload }
-    | { type: 'spotlight-response', requestId: string, authorityId: string, ok: true, result: SpotlightIngestResult }
-    | { type: 'spotlight-response', requestId: string, authorityId: string, ok: false, error: string }
+    | ChatCommandMessage<'ingest', IngestCommandPayload>
+    | ChatCommandMessage<'spotlight-ingest', SpotlightIngestPayload>
+    | ChatCommandMessage<'retry', RetryCommandPayload>
+    | ChatCommandMessage<'cleanup', { sessionId?: string }>
+    | ChatCommandMessage<'delete-message', { sessionId?: string, messageId?: string, index?: number }>
+    | ({ type: 'response', requestId: string, authorityId: string } & ChatResponsePayload)
 
 interface PendingRequest {
   resolve: (result?: unknown) => void
@@ -151,19 +162,6 @@ function previewChatSyncPayload(payload: unknown): unknown {
   }
 }
 
-/**
- * Logs chat-sync failures at the BroadcastChannel boundary.
- *
- * Use when:
- * - A follower window times out waiting for the authority window
- * - The authority window fails while executing a forwarded chat command
- *
- * Expects:
- * - `details` only contains structured-clone-friendly diagnostic metadata
- *
- * Returns:
- * - Writes an error entry to the renderer console for postmortem debugging
- */
 function logChatSyncError(message: string, error: unknown, details: Record<string, unknown>) {
   console.error(`[chat-sync] ${message}`, {
     ...details,
@@ -344,10 +342,8 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
   }
 
   async function executeSpotlightIngest(payload: SpotlightIngestPayload): Promise<SpotlightIngestResult> {
-    // NOTICE:
-    // `chatOrchestrator.ingest()` returns void, so Spotlight snapshots this
-    // session and reads the assistant message appended by the same authority turn.
-    // Delete when ingest returns `{ sessionId, visibleText }`.
+    // NOTICE: `chatOrchestrator.ingest()` returns void; remove this snapshot
+    // read once ingest returns `{ sessionId, visibleText }`.
     const sessionId = activeSessionId.value
     const previousMessageCount = chatSession.getSessionMessages(sessionId).length
 
@@ -359,7 +355,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
 
     const visibleText = readNewAssistantVisibleText(sessionId, previousMessageCount)
     if (!visibleText.trim())
-      throw new Error('Spotlight response was empty')
+      throw new Error('Spotlight returned an empty response')
 
     return {
       sessionId,
@@ -428,7 +424,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     if (mode.value !== 'authority')
       return
 
-    const respond = (response: { ok: boolean, error?: string }) => {
+    const respond = (response: ChatResponsePayload) => {
       post({
         type: 'response',
         requestId: message.requestId,
@@ -442,6 +438,9 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
         case 'ingest':
           await executeIngest(message.payload)
           break
+        case 'spotlight-ingest':
+          respond({ ok: true, result: await executeSpotlightIngest(message.payload) })
+          return
         case 'retry':
           await executeRetry(message.payload)
           break
@@ -460,47 +459,18 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
 
       logChatSyncError('command failed', error, authorityCommandMeta(message))
 
-      if (message.command === 'ingest')
+      if (message.command === 'ingest') {
         appendIngestErrorMessage(message.payload, errorMessage)
+      }
+      else if (message.command === 'spotlight-ingest') {
+        appendIngestErrorMessage({
+          text: message.payload.text,
+          toolset: 'artistry',
+          sessionId: activeSessionId.value,
+        }, errorMessage)
+      }
 
       respond({ ok: false, error: errorMessage })
-    }
-  }
-
-  async function handleSpotlightCommand(message: Extract<ChatSyncMessage, { type: 'spotlight-command' }>) {
-    if (mode.value !== 'authority')
-      return
-
-    const sessionId = activeSessionId.value
-
-    try {
-      const result = await executeSpotlightIngest(message.payload)
-      post({
-        type: 'spotlight-response',
-        requestId: message.requestId,
-        authorityId: instanceId,
-        ok: true,
-        result,
-      })
-    }
-    catch (error) {
-      const errorMessage = errorMessageFrom(error) ?? '未知错误'
-
-      logChatSyncError('spotlight command failed', error, authorityCommandMeta(message))
-
-      appendIngestErrorMessage({
-        text: message.payload.text,
-        toolset: 'artistry',
-        sessionId,
-      }, errorMessage)
-
-      post({
-        type: 'spotlight-response',
-        requestId: message.requestId,
-        authorityId: instanceId,
-        ok: false,
-        error: errorMessage,
-      })
     }
   }
 
@@ -514,9 +484,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     return pending
   }
 
-  function settleResponse(
-    message: Extract<ChatSyncMessage, { type: 'response' } | { type: 'spotlight-response' }>,
-  ) {
+  function settleResponse(message: Extract<ChatSyncMessage, { type: 'response' }>) {
     const pending = takePendingRequest(message.requestId)
     if (!pending)
       return
@@ -560,12 +528,6 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
         void handleCommand(message)
         return
       case 'response':
-        settleResponse(message)
-        return
-      case 'spotlight-command':
-        void handleSpotlightCommand(message)
-        return
-      case 'spotlight-response':
         settleResponse(message)
     }
   }
@@ -614,11 +576,8 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     post({ type: 'request-snapshot', requestId: createRequestId(), senderId: instanceId })
   }
 
-  // Dispatches a follower request and resolves once the authority responds.
-  // `command` and `spotlight-command` share the same pending-request bookkeeping;
-  // only the timeout window, timeout error and resolved value type differ.
   function dispatch<T>(
-    message: Extract<ChatSyncMessage, { type: 'command' } | { type: 'spotlight-command' }>,
+    message: Extract<ChatSyncMessage, { type: 'command' }>,
     timeoutMs: number = REQUEST_TIMEOUT_MS,
     timeoutError: () => Error = () => new Error('Timed out waiting for chat authority response'),
   ): Promise<T> {
@@ -659,12 +618,12 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       return executeSpotlightIngest(payload)
 
     return dispatch<SpotlightIngestResult>({
-      type: 'spotlight-command',
+      type: 'command',
       requestId: createRequestId(),
       senderId: instanceId,
-      command: 'ingest',
+      command: 'spotlight-ingest',
       payload,
-    }, SPOTLIGHT_REQUEST_TIMEOUT_MS, () => new Error('回复超时'))
+    }, SPOTLIGHT_REQUEST_TIMEOUT_MS, () => new Error('Spotlight response timed out'))
   }
 
   async function requestRetry(payload: RetryCommandPayload) {
