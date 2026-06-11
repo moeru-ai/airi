@@ -23,6 +23,10 @@ export type {
 	AiriEventBase,
 	TaskStarted,
 	TaskCompleted,
+	TaskQueued,
+	TaskProgress,
+	TaskFailed,
+	TaskCancelled,
 	ToolCalled,
 	ToolFinished,
 	ModuleActivated,
@@ -55,3 +59,43 @@ export type { Logger, LogLevel } from "./logger.js"
 
 export { bootstrap } from "./bootstrap.js"
 export type { CoreInstance } from "./bootstrap.js"
+
+// ── Task orchestration ──────────────────────────────────────────────
+
+export {
+	TaskManager,
+	TaskScheduler,
+	TaskMetrics,
+	TaskReplayBuffer,
+	createCancellationToken,
+	createLinkedCancellationToken,
+	CancellationTokenSource,
+	withTimeout,
+	createTaskId,
+	isValidTransition,
+	VALID_TRANSITIONS,
+	PRIORITY_WEIGHTS,
+} from "./tasks/index.js"
+
+export type {
+	TaskId,
+	TaskState,
+	TaskPriority,
+	TaskStatus,
+	TaskResult,
+	TaskError,
+	TaskCancellation,
+	Task,
+	CreateTaskInput,
+	TaskFilter,
+	TaskExecutor,
+	TaskExecutionContext,
+	TaskManagerOptions,
+	SchedulerOptions,
+	TaskMetricsSnapshot,
+	ModuleMetrics,
+	ReplayEvent,
+	ReplayBufferOptions,
+	CancellationToken,
+	UnsubscribeFn as TaskUnsubscribeFn,
+} from "./tasks/index.js"

@@ -13,6 +13,8 @@
  *   them serializable by default.
  */
 
+import type { TaskError } from "../tasks/types.js"
+
 // ── Base envelope ─────────────────────────────────────────────────────
 
 /**
@@ -134,6 +136,66 @@ export interface ModuleCrashed extends AiriEventBase {
 	readonly recovered: boolean
 }
 
+// ── Extended task orchestration events ──────────────────────────────────
+
+/**
+ * Emitted when a task is queued for execution.
+ */
+export interface TaskQueued extends AiriEventBase {
+	readonly type: "task.queued"
+
+	/** The task's unique identifier. */
+	readonly taskId: string
+
+	/** The module that owns this task. */
+	readonly moduleId: string
+
+	/** Task priority. */
+	readonly priority: string
+
+	/** Optional human-readable label. */
+	readonly label?: string
+}
+
+/**
+ * Emitted when a task reports progress.
+ */
+export interface TaskProgress extends AiriEventBase {
+	readonly type: "task.progress"
+
+	readonly taskId: string
+
+	/** Progress percentage (0-100). */
+	readonly progress: number
+
+	/** Optional progress message. */
+	readonly message?: string
+}
+
+/**
+ * Emitted when a task fails.
+ */
+export interface TaskFailed extends AiriEventBase {
+	readonly type: "task.failed"
+
+	readonly taskId: string
+
+	/** Structured error information. */
+	readonly error: TaskError
+}
+
+/**
+ * Emitted when a task is cancelled.
+ */
+export interface TaskCancelled extends AiriEventBase {
+	readonly type: "task.cancelled"
+
+	readonly taskId: string
+
+	/** Optional cancellation reason. */
+	readonly reason?: string
+}
+
 // ── Union type ────────────────────────────────────────────────────────
 
 /**
@@ -153,6 +215,10 @@ export interface ModuleCrashed extends AiriEventBase {
 export type AiriEvent =
 	| TaskStarted
 	| TaskCompleted
+	| TaskQueued
+	| TaskProgress
+	| TaskFailed
+	| TaskCancelled
 	| ToolCalled
 	| ToolFinished
 	| ModuleActivated
