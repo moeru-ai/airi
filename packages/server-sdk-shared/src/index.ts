@@ -1,5 +1,7 @@
 import { defineInvokeEventa, defineOutboundEventa } from '@moeru/eventa'
 
+export * from './screen-observation'
+
 export interface WireMessage {
   id: string
   chatId: string
