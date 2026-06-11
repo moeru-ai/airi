@@ -107,7 +107,10 @@ export const useAlayaMemoryStore = defineStore('alaya-memory', () => {
       shortTermTurns.value = []
     }
 
-    // Now set characterId, which triggers watch and calls refresh with driver ready
+    // Clear stale data before exposing the new characterId, so
+    // synchronous consumers (context provider) never see the
+    // previous namespace's cached memories during the refresh gap.
+    allMemories.value = []
     characterId.value = opts.characterId
 
     // Always await refresh so synchronous consumers (context provider)
