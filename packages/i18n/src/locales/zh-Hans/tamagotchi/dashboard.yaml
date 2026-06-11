@@ -1,0 +1,16 @@
+title: 任务
+tasks:
+  title: 今天的任务
+  empty: 还没有任务。在聊天里告诉 AIRI 你要做什么就可以了。
+daily-summary:
+  title: 每日小结
+  empty: 收工时的小结会出现在这里。没有任务的日子保持安静。
+  headline: 今天 {total} 个任务，完成 {completed} 个
+  observation: 观察：{text}
+  tomorrow: 明天：{text}
+task:
+  no-progress-yet: 还没有观察到进度
+  progress-on-track: '{remaining}，按当前速度 {eta} 能完成'
+  progress-off-track: '{remaining}，进度落后了，现在看要到 {eta}'
+hint:
+  create-from-chat: 和 AIRI 聊天即可设定任务——不需要填表。

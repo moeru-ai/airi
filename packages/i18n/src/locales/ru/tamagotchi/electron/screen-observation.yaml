@@ -1,0 +1,16 @@
+tray:
+  status_observing: "Наблюдение за экраном"
+  status_paused: "Пауза до {time}"
+  status_not_observing_empty_whitelist: "Приложения не выбраны — наблюдение не ведётся"
+  status_suppressed_fullscreen: "Автопауза (полноэкранный режим)"
+  status_suppressed_meeting: "Автопауза (встреча)"
+  status_disabled: "Наблюдение за экраном выключено"
+  pause: "Приостановить наблюдение"
+  pause_15m: "На 15 минут"
+  pause_1h: "На 1 час"
+  pause_today: "До конца дня"
+  resume: "Возобновить наблюдение"
+  observation_settings: "Настройки наблюдения за экраном..."
+notification:
+  eta_at: "При текущем темпе завершение около {time}"
+  off_track: "Отставание от плана"

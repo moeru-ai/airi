@@ -12,6 +12,7 @@ import { useDiscordStore } from '../stores/modules/discord'
 import { useFactorioStore } from '../stores/modules/gaming-factorio'
 import { useMinecraftStore } from '../stores/modules/gaming-minecraft'
 import { useHearingStore } from '../stores/modules/hearing'
+import { useScreenObservationStore } from '../stores/modules/screen-observation'
 import { useSpeechStore } from '../stores/modules/speech'
 import { useTwitterStore } from '../stores/modules/twitter'
 import { useVisionStore } from '../stores/modules/vision'
@@ -41,6 +42,7 @@ export function useModulesList() {
   const minecraftStore = useMinecraftStore()
   const factorioStore = useFactorioStore()
   const artistryStore = useArtistryStore()
+  const screenObservationStore = useScreenObservationStore()
   const beatSyncState = ref<BeatSyncDetectorState>()
 
   minecraftStore.initialize()
@@ -152,6 +154,15 @@ export function useModulesList() {
       icon: 'i-solar:server-bold-duotone',
       to: '/settings/modules/mcp',
       configured: false,
+      category: 'essential',
+    },
+    {
+      id: 'screen-observation',
+      name: t('settings.pages.modules.screen-observation.title'),
+      description: t('settings.pages.modules.screen-observation.description'),
+      icon: 'i-solar:monitor-smartphone-bold-duotone',
+      to: '/settings/modules/screen-observation',
+      configured: screenObservationStore.isEffectivelyObserving,
       category: 'essential',
     },
     {

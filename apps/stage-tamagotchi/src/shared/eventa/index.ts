@@ -1,5 +1,6 @@
 import type { Locale } from '@intlify/core'
 import type { ServerOptions } from '@proj-airi/server-runtime/server'
+import type { TouchAction } from '@proj-airi/server-sdk-shared'
 import type {
   ShortcutBinding,
   ShortcutRegistrationResult,
@@ -56,6 +57,7 @@ export * from './plugin/assets'
 export * from './plugin/capabilities'
 export * from './plugin/host'
 export * from './plugin/tools'
+export * from './screen-observation'
 
 export interface DesktopOverlayReadiness {
   state: 'booting' | 'ready' | 'degraded'
@@ -95,6 +97,12 @@ export function createRequestWindowEventa(namespace: string) {
 
 // Notice window events built from generic factory
 export const noticeWindowEventa = createRequestWindowEventa('notice')
+
+// Task-touch notices need richer actions than the generic
+// confirm/cancel/close channel: the screen-observation contract defines
+// ack / details / mute_task, and "ignored twice -> downgrade" requires the
+// main process to know which one was chosen or that none was.
+export const noticeTaskTouchAction = defineInvokeEventa<void, { id: string, action: TouchAction }>('eventa:invoke:electron:windows:notice:task-touch:action')
 
 // Widgets / Adhoc window events
 export interface WidgetWindowSize {

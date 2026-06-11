@@ -820,6 +820,49 @@ pages:
         opened: 已经在文件管理器里打开 {path} 啦
         json-applied: JSON 已经解析完成了，点「保存并重启」就写到磁盘上啦。
         restarted: 重启好啦！启动了 {started} 个，失败 {failed} 个，跳过 {skipped} 个
+    screen-observation:
+      title: 屏幕观察
+      description: 让 AIRI 观察你选定的应用、安静地跟进任务进度——隐私由你掌控。
+      status-title: 当前状态
+      status:
+        observing: 正在观察：只看你加入白名单的应用，用于进行中的任务。
+        paused: 观察已暂停，到时间会自动恢复。
+        not-observing-empty-whitelist: 未选择任何应用，当前未在观察。
+        suppressed-fullscreen: 检测到全屏应用，已自动暂停，结束后会补一份小结。
+        suppressed-meeting: 会议进行中，已自动暂停，结束后会补一份小结。
+        disabled: 屏幕观察已关闭，没有任何内容被观察。
+      enable:
+        label: 启用屏幕观察
+        description: 默认关闭。AIRI 只会看你在下方白名单里明确选择的应用。
+      onboarding:
+        what-it-sees: 它只读取你加入白名单的应用——密码输入和隐私浏览永远不会被读取。
+        where-data-goes: 录屏数据保存在本机 screenpipe，发往模型的只有摘要。
+        how-to-pause: 随时可以从托盘一键暂停，也可以用全局快捷键。
+        confirm: 我了解了
+      whitelist:
+        label: 要观察的应用
+        description: 白名单模式——只有列表里的应用会被 AIRI 看到。
+        placeholder: 例如 Obsidian
+        empty-title: 未在观察
+      auto-pause:
+        label: 屏幕共享 / 会议时自动暂停
+        description: 建议开启。观察会降为静默，结束后补小结。
+        never-read: 无论如何设置，密码输入和隐私浏览窗口永远不会被读取。
+      daily-summary:
+        label: 每日小结
+        description: 一天结束时安静地回顾一次——白天越安静，它越有用。
+        time-label: 发送时间
+        zero-task-note: 当天没有任务就不会发送小结。
+      log:
+        title: 它看到了什么
+        description: 这里展示的是 AIRI 实际消费的摘要——不是截图，也不是原始录屏。
+        purpose-task: 用于任务：{task}
+        purpose-general: 常规观察
+        delete-today: 删除当日数据
+        empty: 今天还没有观察记录。
+      data:
+        statement: 录屏数据保存在本机 screenpipe，发往模型的只有摘要。
+        open-folder: 打开数据文件夹
   flux:
     title: Flux
     buy: 充值

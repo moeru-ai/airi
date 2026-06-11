@@ -1,0 +1,16 @@
+tray:
+  status_observing: "画面を観察中"
+  status_paused: "一時停止中（{time} に再開）"
+  status_not_observing_empty_whitelist: "アプリが未選択のため、現在観察していません"
+  status_suppressed_fullscreen: "全画面表示中のため自動停止"
+  status_suppressed_meeting: "会議中のため自動停止"
+  status_disabled: "画面観察はオフ"
+  pause: "観察を一時停止"
+  pause_15m: "15 分間"
+  pause_1h: "1 時間"
+  pause_today: "今日いっぱい"
+  resume: "観察を再開"
+  observation_settings: "画面観察の設定..."
+notification:
+  eta_at: "このペースなら {time} 頃に完了見込み"
+  off_track: "計画より遅れています"

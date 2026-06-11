@@ -37,6 +37,16 @@ widgets:
   loading: 正在加载小部件…
   waiting: 正在等待小部件 "{id}" 的数据…
 notice:
+  'task-touch':
+    waiting: 正在加载进度…
+    progress:
+      in-progress: 还在进行中…
+      remaining-eta: '{remaining}，按当前速度 {eta} 能完成'
+      off-track-eta: '{remaining}，进度落后了，现在看要到 {eta}'
+    actions:
+      ack: 知道了
+      details: 详情
+      mute-task: 这件事别再提醒
   'fade-on-hover':
     title: 悬停淡出
     intro: 当光标靠近时自动让角色透明度变淡，减少干扰又保持可见。

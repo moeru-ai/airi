@@ -856,6 +856,49 @@ pages:
         opened: Opened {path} in your file manager
         json-applied: JSON applied to the form. Click "Save and restart" to persist it to disk.
         restarted: All restarted! {started} started, {failed} failed, {skipped} skipped.
+    screen-observation:
+      title: Screen observation
+      description: Let AIRI watch selected apps to follow your task progress — privately, on your terms.
+      status-title: Current state
+      status:
+        observing: 'Observing: only the apps you whitelisted, for your active tasks.'
+        paused: Observation is paused. It will resume automatically.
+        not-observing-empty-whitelist: No apps selected — nothing is being observed right now.
+        suppressed-fullscreen: Paused automatically while a fullscreen app is active. A recap will follow afterwards.
+        suppressed-meeting: Paused automatically during your meeting. A recap will follow afterwards.
+        disabled: Screen observation is off. Nothing is being watched.
+      enable:
+        label: Enable screen observation
+        description: Off by default. AIRI only ever sees apps you explicitly whitelist below.
+      onboarding:
+        what-it-sees: It only reads the apps you whitelist — never passwords or private browsing.
+        where-data-goes: Recordings stay on this machine in screenpipe; only short digests reach the model.
+        how-to-pause: Pause anytime from the tray, with one click or a global shortcut.
+        confirm: I understand
+      whitelist:
+        label: Apps to observe
+        description: Whitelist mode — AIRI only sees what you put on this list.
+        placeholder: e.g. Obsidian
+        empty-title: Not observing
+      auto-pause:
+        label: Auto-pause during screen sharing and meetings
+        description: Recommended. Observation drops to silent and recaps afterwards.
+        never-read: Password fields and private browsing windows are never read, regardless of settings.
+      daily-summary:
+        label: Daily summary
+        description: A single quiet recap at the end of the day — the quieter the day, the more useful it is.
+        time-label: Send at
+        zero-task-note: Days with no tasks send no summary at all.
+      log:
+        title: What it saw
+        description: The digests AIRI actually consumed — not screenshots, not raw recordings.
+        purpose-task: 'For task: {task}'
+        purpose-general: General observation
+        delete-today: Delete today's data
+        empty: Nothing observed today.
+      data:
+        statement: Recordings are stored locally by screenpipe; only digests are sent to the model.
+        open-folder: Open data folder
   flux:
     title: Flux
     buy: Charge

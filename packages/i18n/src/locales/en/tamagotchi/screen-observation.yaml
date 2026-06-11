@@ -1,0 +1,14 @@
+daily_summary:
+  progress:
+    remaining_work:
+      blocked: The next concrete step for {title} is blocked.
+      ready: The next concrete step for {title} is ready.
+    pace:
+      off_track: Current pace is off track.
+      on_track: Current pace is on track.
+  observation:
+    off_track: '{title} is off track; the next concrete step is blocked.'
+    on_track: '{title} stayed on track; the next concrete step is ready.'
+  tomorrow:
+    blocked: Start tomorrow by unblocking the next concrete step for {title}.
+    ready: Start tomorrow with the next concrete step for {title}.

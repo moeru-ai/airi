@@ -1,0 +1,16 @@
+title: Tasks
+tasks:
+  title: Today's tasks
+  empty: No tasks yet. Tell AIRI what you're working on in chat — that's all it takes.
+daily-summary:
+  title: Daily summary
+  empty: Your end-of-day recap will appear here. Days with no tasks stay quiet.
+  headline: '{completed} of {total} tasks done today'
+  observation: 'Observed: {text}'
+  tomorrow: 'Tomorrow: {text}'
+task:
+  no-progress-yet: No progress observed yet
+  progress-on-track: '{remaining} — at this pace, done by {eta}'
+  progress-off-track: '{remaining} — falling behind, now looking like {eta}'
+hint:
+  create-from-chat: Set up tasks by chatting with AIRI — no forms needed.

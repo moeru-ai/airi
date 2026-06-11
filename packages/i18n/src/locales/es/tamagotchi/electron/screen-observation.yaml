@@ -1,0 +1,16 @@
+tray:
+  status_observing: "Observando la pantalla"
+  status_paused: "En pausa hasta las {time}"
+  status_not_observing_empty_whitelist: "Ninguna aplicación seleccionada — sin observación"
+  status_suppressed_fullscreen: "Pausa automática (pantalla completa)"
+  status_suppressed_meeting: "Pausa automática (reunión)"
+  status_disabled: "Observación de pantalla desactivada"
+  pause: "Pausar observación"
+  pause_15m: "Durante 15 minutos"
+  pause_1h: "Durante 1 hora"
+  pause_today: "Por el resto del día"
+  resume: "Reanudar observación"
+  observation_settings: "Ajustes de observación de pantalla..."
+notification:
+  eta_at: "A este ritmo, terminarás hacia las {time}"
+  off_track: "Retrasado respecto al plan"

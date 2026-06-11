@@ -34,6 +34,7 @@ import { setupGodotStageManager } from './services/airi/godot-stage'
 import { setupBuiltInServer } from './services/airi/http-server'
 import { setupMcpStdioManager } from './services/airi/mcp-servers'
 import { setupPluginHost } from './services/airi/plugins'
+import { setupScreenObserver } from './services/airi/screen-observer'
 import { setupArtistryBridge } from './services/airi/widgets/artistry-bridge'
 import { setupAutoUpdater } from './services/electron/auto-updater'
 import { setupGlobalShortcutService } from './services/electron/global-shortcut'
@@ -193,6 +194,14 @@ app.whenReady().then(async () => {
     build: ({ dependsOn }) => setupNoticeWindowManager(dependsOn),
   })
 
+  // Desktop screen-observation runtime: screenpipe polling, pause state,
+  // meeting suppression, the global pause shortcut, L2 task-touch notices,
+  // and L3 notifications.
+  const screenObserver = injeca.provide('services:screen-observer', {
+    dependsOn: { i18n, noticeWindow },
+    build: ({ dependsOn }) => setupScreenObserver({ i18n: dependsOn.i18n, noticeWindow: dependsOn.noticeWindow }),
+  })
+
   const aboutWindow = injeca.provide('windows:about', {
     dependsOn: { autoUpdater, i18n, serverChannel },
     build: ({ dependsOn }) => setupAboutWindowReusable(dependsOn),
@@ -204,12 +213,12 @@ app.whenReady().then(async () => {
   })
 
   const settingsWindow = injeca.provide('windows:settings', {
-    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, serverChannel, godotStageManager, mcpStdioManager, i18n, windowAuthManager, globalShortcut },
+    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, serverChannel, godotStageManager, mcpStdioManager, i18n, windowAuthManager, globalShortcut, screenObserver },
     build: async ({ dependsOn }) => setupSettingsWindowReusableFunc(dependsOn),
   })
 
   const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, godotStageManager, mcpStdioManager, i18n, onboardingWindowManager, windowAuthManager },
+    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, godotStageManager, mcpStdioManager, i18n, onboardingWindowManager, windowAuthManager, screenObserver },
     build: async ({ dependsOn }) => setupMainWindow({
       ...dependsOn,
       onWindowCreated: (window) => {
@@ -224,7 +233,7 @@ app.whenReady().then(async () => {
   })
 
   const tray = injeca.provide('app:tray', {
-    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, serverChannel, beatSyncBgWindow: beatSync, aboutWindow, i18n },
+    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, serverChannel, beatSyncBgWindow: beatSync, aboutWindow, i18n, screenObserver },
     build: async ({ dependsOn }) => setupTray(dependsOn),
   })
 
@@ -245,13 +254,20 @@ app.whenReady().then(async () => {
   }
 
   injeca.invoke({
-    dependsOn: { mainWindow, tray, serverChannel, airiHttpServer, godotStageManager, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager, widgetsWindow: widgetsManager, artistryConfig },
+    dependsOn: { mainWindow, tray, serverChannel, airiHttpServer, godotStageManager, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager, widgetsWindow: widgetsManager, artistryConfig, screenObserver },
     callback: async (deps) => {
       const { context } = createContext(ipcMain)
       await setupArtistryBridge({
         widgetsManager: deps.widgetsWindow,
         context,
         artistryConfig: deps.artistryConfig,
+      })
+
+      // Clicking an L3 task notification is explicit user intent: surface the
+      // app; the renderer handles navigation to the task details view.
+      deps.screenObserver.onOpenTaskDetails(() => {
+        deps.mainWindow.show()
+        deps.mainWindow.focus()
       })
     },
   })

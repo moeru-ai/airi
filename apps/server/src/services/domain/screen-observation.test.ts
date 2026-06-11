@@ -269,15 +269,30 @@ describe('screen observation domain contract', () => {
     })
 
     expect(isBarePercentage('85%')).toBe(true)
+    expect(isBarePercentage('进度 75%')).toBe(true)
+    expect(isBarePercentage('(75%)')).toBe(true)
+    expect(isBarePercentage('done: 99.5%')).toBe(true)
     expect(isBarePercentage('Still needs two sections')).toBe(false)
+    expect(isBarePercentage('Two sections left, 75% drafted')).toBe(false)
     expect(decision.payload?.taskSummaries[0]).toMatchObject({
       progress: {
-        remainingWork: 'the next concrete step for Prepare demo script is blocked.',
-        pace: 'Current pace is off track.',
+        remainingWork: {
+          key: 'tamagotchi.screen_observation.daily_summary.progress.remaining_work.blocked',
+          params: { title: 'Prepare demo script' },
+        },
+        pace: {
+          key: 'tamagotchi.screen_observation.daily_summary.progress.pace.off_track',
+        },
         isOffTrack: true,
       },
-      observation: 'Prepare demo script is off track; the next concrete step for Prepare demo script is blocked.',
-      tomorrowSuggestion: 'Start tomorrow by unblocking the next concrete step for Prepare demo script.',
+      observation: {
+        key: 'tamagotchi.screen_observation.daily_summary.observation.off_track',
+        params: { title: 'Prepare demo script' },
+      },
+      tomorrowSuggestion: {
+        key: 'tamagotchi.screen_observation.daily_summary.tomorrow.blocked',
+        params: { title: 'Prepare demo script' },
+      },
     })
   })
 })

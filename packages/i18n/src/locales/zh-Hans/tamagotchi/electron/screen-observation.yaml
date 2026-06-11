@@ -1,0 +1,16 @@
+tray:
+  status_observing: "正在观察屏幕"
+  status_paused: "已暂停，{time} 恢复"
+  status_not_observing_empty_whitelist: "未选择任何应用，当前未在观察"
+  status_suppressed_fullscreen: "全屏中，已自动暂停"
+  status_suppressed_meeting: "会议中，已自动暂停"
+  status_disabled: "屏幕观察已关闭"
+  pause: "暂停观察"
+  pause_15m: "暂停 15 分钟"
+  pause_1h: "暂停 1 小时"
+  pause_today: "今天剩余时间"
+  resume: "立即恢复观察"
+  observation_settings: "屏幕观察设置..."
+notification:
+  eta_at: "按当前速度，预计 {time} 完成"
+  off_track: "进度落后于计划"

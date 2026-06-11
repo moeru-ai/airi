@@ -1,0 +1,16 @@
+tray:
+  status_observing: "화면 관찰 중"
+  status_paused: "일시중지됨 ({time}에 재개)"
+  status_not_observing_empty_whitelist: "선택된 앱이 없어 현재 관찰하지 않음"
+  status_suppressed_fullscreen: "전체 화면 중 자동 일시중지"
+  status_suppressed_meeting: "회의 중 자동 일시중지"
+  status_disabled: "화면 관찰 꺼짐"
+  pause: "관찰 일시중지"
+  pause_15m: "15분 동안"
+  pause_1h: "1시간 동안"
+  pause_today: "오늘 하루"
+  resume: "관찰 재개"
+  observation_settings: "화면 관찰 설정..."
+notification:
+  eta_at: "현재 속도라면 {time}쯤 완료 예상"
+  off_track: "계획보다 늦어지고 있어요"

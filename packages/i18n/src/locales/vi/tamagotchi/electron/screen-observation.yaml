@@ -1,0 +1,16 @@
+tray:
+  status_observing: "Đang quan sát màn hình"
+  status_paused: "Tạm dừng đến {time}"
+  status_not_observing_empty_whitelist: "Chưa chọn ứng dụng nào — hiện không quan sát"
+  status_suppressed_fullscreen: "Tự động tạm dừng (toàn màn hình)"
+  status_suppressed_meeting: "Tự động tạm dừng (cuộc họp)"
+  status_disabled: "Đã tắt quan sát màn hình"
+  pause: "Tạm dừng quan sát"
+  pause_15m: "Trong 15 phút"
+  pause_1h: "Trong 1 giờ"
+  pause_today: "Hết hôm nay"
+  resume: "Tiếp tục quan sát"
+  observation_settings: "Cài đặt quan sát màn hình..."
+notification:
+  eta_at: "Với tốc độ hiện tại, dự kiến xong khoảng {time}"
+  off_track: "Đang chậm so với kế hoạch"

@@ -14,6 +14,37 @@ chat:
     cloud-badge: Synced to cloud
     new-chat-fallback: New chat
     delete: Delete conversation
+  task-card:
+    title: Task confirmation
+    rows:
+      goal: Goal
+      time-range: Time range
+      due-at: Due time
+      observation: I will watch
+      touch-level: Reminders
+    time-range:
+      between: '{starts} → {due}'
+      due-only: Due {due}
+      starts-only: From {starts}
+      unscheduled: No schedule set
+    observation:
+      disabled: Nothing — screen observation is off.
+      empty-whitelist: Nothing yet — no apps are whitelisted, so nothing will be observed.
+      apps: '{apps}'
+    touch-level:
+      l0: Silent — progress only in the task card
+      l1: Subtle — the character gestures, no popups
+      l2: Light — a small toast that fades away
+      l3: Active — system notification for hard deadlines
+    progress:
+      in-progress: Working on it…
+      remaining-eta: '{remaining} — at this pace, done by {eta}'
+      off-track-eta: '{remaining} — falling behind, now looking like {eta}'
+    actions:
+      confirm: Confirm
+      cancel: Cancel
+    hint:
+      keep-typing: Keep typing to change anything
 message: Say something...
 send-mode:
   title: Send key

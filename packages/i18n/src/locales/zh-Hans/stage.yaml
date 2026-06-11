@@ -14,6 +14,37 @@ chat:
     cloud-badge: 已同步到云
     new-chat-fallback: 新建对话
     delete: 删除对话
+  task-card:
+    title: 任务确认
+    rows:
+      goal: 目标
+      time-range: 时间范围
+      due-at: 截止时间
+      observation: 我会留意
+      touch-level: 提醒方式
+    time-range:
+      between: '{starts} → {due}'
+      due-only: '{due} 前完成'
+      starts-only: '{starts} 开始'
+      unscheduled: 未设定时间
+    observation:
+      disabled: 不会观察——屏幕观察功能未开启。
+      empty-whitelist: 暂时不会观察——白名单为空，不会看任何应用。
+      apps: '{apps}'
+    touch-level:
+      l0: 静默——进度只写进任务卡
+      l1: 角色示意——角色做个小动作，不弹窗
+      l2: 轻提示——一行小气泡，几秒淡出
+      l3: 主动提醒——硬截止临近时走系统通知
+    progress:
+      in-progress: 进行中…
+      remaining-eta: '{remaining}，按当前速度 {eta} 能完成'
+      off-track-eta: '{remaining}，进度落后了，现在看要到 {eta}'
+    actions:
+      confirm: 确认
+      cancel: 取消
+    hint:
+      keep-typing: 继续打字即可修改
 message: 说点什么...
 send-mode:
   title: 发送键值

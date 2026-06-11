@@ -3,6 +3,7 @@ import type { BrowserWindow } from 'electron'
 
 import type { I18n } from '../libs/i18n'
 import type { ServerChannel } from '../services/airi/channel-server'
+import type { ScreenObserverService } from '../services/airi/screen-observer'
 import type { setupBeatSync } from '../windows/beat-sync'
 import type { setupCaptionWindowManager } from '../windows/caption'
 import type { SettingsWindowManager } from '../windows/settings'
@@ -87,6 +88,28 @@ function isPositionMatch(window: BrowserWindow, targetX: number, targetY: number
   return Math.abs(x - targetX) <= 5 && Math.abs(y - targetY) <= 5
 }
 
+// NOTICE:
+// Text glyphs stand in for real tray badge icons until dedicated status
+// image assets exist (observing = dot / paused = slash / unconfigured = none).
+// Root cause: nativeImage badges need designed PNG/template assets which are
+// a design deliverable, not code.
+// Source: AIR-5 interaction spec — tray is the system-level source of truth.
+// Removal condition: replace with status-specific tray icon assets and delete
+// the glyph map.
+const TRAY_STATUS_GLYPHS: Partial<Record<string, string>> = {
+  observing: '●',
+  paused: '⊘',
+  suppressed_fullscreen: '⊘',
+  suppressed_meeting: '⊘',
+}
+
+function formatLocalTime(iso: string): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime()))
+    return iso
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
 export function setupTray(params: {
   mainWindow: BrowserWindow
   settingsWindow: SettingsWindowManager
@@ -95,6 +118,7 @@ export function setupTray(params: {
   beatSyncBgWindow: Awaited<ReturnType<typeof setupBeatSync>>
   aboutWindow: () => Promise<BrowserWindow>
   serverChannel: ServerChannel
+  screenObserver: ScreenObserverService
   i18n: I18n
 }): void {
   once(() => {
@@ -103,6 +127,48 @@ export function setupTray(params: {
 
     const appTray = new Tray(trayImage)
     onAppBeforeQuit(() => appTray.destroy())
+
+    function observationStatusLabel(): string {
+      const state = params.screenObserver.getState()
+      const named = state.pauseUntil ? { time: formatLocalTime(state.pauseUntil) } : {}
+      return params.i18n.t(`tamagotchi.electron.screen_observation.tray.status_${state.privacyState}`, named)
+    }
+
+    // The tray is the system-level source of truth for observation state:
+    // even when the character window is hidden, one glance here must answer
+    // "is it watching right now".
+    function applyObservationPresence(): void {
+      const state = params.screenObserver.getState()
+      appTray.setToolTip(`Project AIRI — ${observationStatusLabel()}`)
+      if (isMacOS)
+        appTray.setTitle(TRAY_STATUS_GLYPHS[state.privacyState] ?? '')
+    }
+
+    function buildObservationMenuItems(): Electron.MenuItemConstructorOptions[] {
+      const state = params.screenObserver.getState()
+      const t = (key: string) => params.i18n.t(`tamagotchi.electron.screen_observation.tray.${key}`)
+
+      const quickControls: Electron.MenuItemConstructorOptions[] = state.privacyState === 'paused'
+        ? [{ label: t('resume'), click: () => void params.screenObserver.resume() }]
+        : state.privacyState === 'observing' || state.privacyState === 'suppressed_fullscreen' || state.privacyState === 'suppressed_meeting'
+          ? [{
+              label: t('pause'),
+              submenu: [
+                { label: t('pause_15m'), click: () => void params.screenObserver.pause({ reason: 'manual_15m' }) },
+                { label: t('pause_1h'), click: () => void params.screenObserver.pause({ reason: 'manual_1h' }) },
+                { label: t('pause_today'), click: () => void params.screenObserver.pause({ reason: 'manual_today' }) },
+              ],
+            }]
+          : []
+
+      return [
+        // First observation entry is always the literal current status.
+        { label: observationStatusLabel(), enabled: false },
+        ...quickControls,
+        { label: t('observation_settings'), click: () => void params.settingsWindow.openWindow('/settings/modules/screen-observation') },
+        { type: 'separator' },
+      ]
+    }
 
     const rebuildContextMenu = debounce((): void => {
       if (isRendererUnavailable(params.mainWindow)) {
@@ -120,6 +186,7 @@ export function setupTray(params: {
       const contextMenu = Menu.buildFromTemplate([
         { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.show'), click: () => toggleWindowShow(params.mainWindow) },
         { type: 'separator' },
+        ...buildObservationMenuItems(),
         {
           label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.adjust_sizes'),
           submenu: [
@@ -224,7 +291,12 @@ export function setupTray(params: {
     params.mainWindow.on('resize', rebuildContextMenu)
     params.mainWindow.on('move', rebuildContextMenu)
     params.captionWindow.onVisibilityChanged(rebuildContextMenu)
+    params.screenObserver.onStateChanged(() => {
+      applyObservationPresence()
+      rebuildContextMenu()
+    })
 
+    applyObservationPresence()
     rebuildContextMenu()
 
     effect(() => {
@@ -233,7 +305,6 @@ export function setupTray(params: {
       rebuildContextMenu()
     })
 
-    appTray.setToolTip('Project AIRI')
     appTray.addListener('click', () => toggleWindowShow(params.mainWindow))
 
     // On macOS, there's a special double-click event

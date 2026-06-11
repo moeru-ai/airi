@@ -2029,6 +2029,9 @@ importers:
       '@proj-airi/server-sdk':
         specifier: workspace:*
         version: link:../../packages/server-sdk
+      '@proj-airi/server-sdk-shared':
+        specifier: workspace:^
+        version: link:../../packages/server-sdk-shared
       '@proj-airi/stage-layouts':
         specifier: workspace:^
         version: link:../../packages/stage-layouts

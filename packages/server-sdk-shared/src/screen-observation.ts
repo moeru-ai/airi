@@ -156,12 +156,38 @@ export interface DailySummaryPayload {
   touch?: TouchEventPayload
 }
 
+export type ScreenObservationI18nKey =
+  | 'tamagotchi.screen_observation.daily_summary.progress.remaining_work.blocked'
+  | 'tamagotchi.screen_observation.daily_summary.progress.remaining_work.ready'
+  | 'tamagotchi.screen_observation.daily_summary.progress.pace.off_track'
+  | 'tamagotchi.screen_observation.daily_summary.progress.pace.on_track'
+  | 'tamagotchi.screen_observation.daily_summary.observation.off_track'
+  | 'tamagotchi.screen_observation.daily_summary.observation.on_track'
+  | 'tamagotchi.screen_observation.daily_summary.tomorrow.blocked'
+  | 'tamagotchi.screen_observation.daily_summary.tomorrow.ready'
+
+export type I18nTextParam = string | number | boolean | null | undefined
+
+export interface I18nTextPayload {
+  key: ScreenObservationI18nKey
+  params?: Record<string, I18nTextParam>
+}
+
+export type LocalizedText = string | I18nTextPayload
+
+export interface DailySummaryProgressNarrative {
+  remainingWork: LocalizedText
+  etaAt?: string
+  pace?: LocalizedText
+  isOffTrack: boolean
+}
+
 export interface DailySummaryTaskLine {
   taskId: string
   title: string
-  progress: TaskProgressNarrative
-  observation: string
-  tomorrowSuggestion: string
+  progress: DailySummaryProgressNarrative
+  observation: LocalizedText
+  tomorrowSuggestion: LocalizedText
 }
 
 export interface ScreenObservationSettings {
@@ -467,7 +493,7 @@ export function decideDailySummary(inputOrTaskCount: number | DecideDailySummary
 }
 
 export function isBarePercentage(value: string): boolean {
-  return /^\s*\d{1,3}(?:\.\d+)?\s*%\s*$/.test(value)
+  return /^\s*(?:[\p{L}\p{N}_-]+\s*(?::|：|=|-)?\s*)?[\(\[（【]?\s*\d{1,3}(?:\.\d+)?\s*%\s*[\)\]）】]?\s*$/u.test(value)
 }
 
 function createDailySummaryTaskLine(input: DailySummaryTaskInput): DailySummaryTaskLine {
@@ -481,39 +507,52 @@ function createDailySummaryTaskLine(input: DailySummaryTaskInput): DailySummaryT
   }
 }
 
-function normalizeDailySummaryProgress(progress: TaskProgressNarrative | undefined, task: Task): TaskProgressNarrative {
+function normalizeDailySummaryProgress(progress: TaskProgressNarrative | undefined, task: Task): DailySummaryProgressNarrative {
   const isOffTrack = progress?.isOffTrack ?? false
   return {
     remainingWork: normalizeDailySummarySentence(
       progress?.remainingWork,
-      isOffTrack ? `the next concrete step for ${task.title} is blocked.` : `the next concrete step for ${task.title} is ready.`,
+      dailySummaryI18nText(
+        isOffTrack
+          ? 'tamagotchi.screen_observation.daily_summary.progress.remaining_work.blocked'
+          : 'tamagotchi.screen_observation.daily_summary.progress.remaining_work.ready',
+        { title: task.title },
+      ),
     ),
     etaAt: progress?.etaAt,
     pace: progress?.pace ? normalizeDailySummarySentence(
       progress.pace,
-      isOffTrack ? 'Current pace is off track.' : 'Current pace is on track.',
+      dailySummaryI18nText(
+        isOffTrack
+          ? 'tamagotchi.screen_observation.daily_summary.progress.pace.off_track'
+          : 'tamagotchi.screen_observation.daily_summary.progress.pace.on_track',
+      ),
     ) : undefined,
     isOffTrack,
   }
 }
 
-function normalizeDailySummarySentence(value: string | undefined, fallback: string): string {
+function normalizeDailySummarySentence(value: string | undefined, fallback: I18nTextPayload): LocalizedText {
   const trimmed = value?.trim()
   if (!trimmed || isBarePercentage(trimmed))
     return fallback
   return trimmed
 }
 
-function defaultObservation(task: Task, progress: TaskProgressNarrative): string {
-  if (progress.isOffTrack)
-    return `${task.title} is off track; ${progress.remainingWork}`
-  return `${task.title} stayed on track; ${progress.remainingWork}`
+function dailySummaryI18nText(key: ScreenObservationI18nKey, params?: Record<string, I18nTextParam>): I18nTextPayload {
+  return params ? { key, params } : { key }
 }
 
-function defaultTomorrowSuggestion(task: Task, progress: TaskProgressNarrative): string {
+function defaultObservation(task: Task, progress: DailySummaryProgressNarrative): I18nTextPayload {
   if (progress.isOffTrack)
-    return `Start tomorrow by unblocking the next concrete step for ${task.title}.`
-  return `Start tomorrow with the next concrete step for ${task.title}.`
+    return dailySummaryI18nText('tamagotchi.screen_observation.daily_summary.observation.off_track', { title: task.title })
+  return dailySummaryI18nText('tamagotchi.screen_observation.daily_summary.observation.on_track', { title: task.title })
+}
+
+function defaultTomorrowSuggestion(task: Task, progress: DailySummaryProgressNarrative): I18nTextPayload {
+  if (progress.isOffTrack)
+    return dailySummaryI18nText('tamagotchi.screen_observation.daily_summary.tomorrow.blocked', { title: task.title })
+  return dailySummaryI18nText('tamagotchi.screen_observation.daily_summary.tomorrow.ready', { title: task.title })
 }
 
 function downgradeTouchLevel(level: TouchLevel): TouchLevel {

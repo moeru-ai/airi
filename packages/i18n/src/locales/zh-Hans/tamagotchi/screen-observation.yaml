@@ -1,0 +1,14 @@
+daily_summary:
+  progress:
+    remaining_work:
+      blocked: '{title} 的下一个具体步骤还卡着'
+      ready: '{title} 的下一个具体步骤已经明确'
+    pace:
+      off_track: 当前速度已经偏离计划。
+      on_track: 当前速度仍在计划内。
+  observation:
+    off_track: '{title} 已经偏离计划；下一个具体步骤还卡着。'
+    on_track: '{title} 仍在计划内；下一个具体步骤已经明确。'
+  tomorrow:
+    blocked: 明天先把 {title} 卡住的下一步解开。
+    ready: 明天从 {title} 的下一个具体步骤开始。

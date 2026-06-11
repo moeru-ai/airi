@@ -3,6 +3,7 @@ import type { WindowAuthManager } from '../../services/airi/auth'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { GodotStageManager } from '../../services/airi/godot-stage'
 import type { McpStdioManager } from '../../services/airi/mcp-servers'
+import type { ScreenObserverService } from '../../services/airi/screen-observer'
 import type { AutoUpdater } from '../../services/electron/auto-updater'
 import type { GlobalShortcutService } from '../../services/electron/global-shortcut'
 import type { DevtoolsWindowManager } from '../devtools'
@@ -37,6 +38,7 @@ export function setupSettingsWindowReusableFunc(params: {
   i18n: I18n
   windowAuthManager: WindowAuthManager
   globalShortcut: GlobalShortcutService
+  screenObserver: ScreenObserverService
 }): SettingsWindowManager {
   const rendererBase = baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'))
   const defaultRoute = '/settings'
@@ -77,6 +79,7 @@ export function setupSettingsWindowReusableFunc(params: {
       i18n: params.i18n,
       windowAuthManager: params.windowAuthManager,
       globalShortcut: params.globalShortcut,
+      screenObserver: params.screenObserver,
     })
 
     await load(window, withHashRoute(rendererBase, currentRoute))
