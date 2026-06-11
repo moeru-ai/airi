@@ -52,7 +52,7 @@ const {
   allAudioTranscriptionProvidersMetadata,
 } = storeToRefs(providersStore)
 
-const allArtistryProvidersMetadata = computed<ProviderSourceCard[]>(() => {
+const allArtistryProvidersMetadata = computed<ProviderSourceCard[]>((): ProviderSourceCard[] => {
   return [
     {
       id: 'comfyui',
@@ -103,7 +103,7 @@ const allArtistryProvidersMetadata = computed<ProviderSourceCard[]>(() => {
             deployment: 'cloud',
             iconImage: undefined,
           },
-        ]),
+        ] as ProviderSourceCard[]),
   ]
 })
 
