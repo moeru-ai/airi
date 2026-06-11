@@ -52,23 +52,23 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#f7f8fa] text-[#171717]">
+  <div class="min-h-screen bg-[#f7f8fa] text-[#171717] dark:bg-neutral-950 dark:text-neutral-100">
     <div v-if="loading" class="grid min-h-screen place-items-center">
-      <div class="flex items-center gap-3 text-sm text-neutral-500">
+      <div class="flex items-center gap-3 text-sm text-neutral-500 dark:text-neutral-400">
         <span class="i-lucide-loader-2 animate-spin text-lg" />
         Loading admin session
       </div>
     </div>
 
     <div v-else-if="accessError" class="grid min-h-screen place-items-center px-6">
-      <section class="max-w-md w-full border border-neutral-200 rounded-lg bg-white p-6 shadow-sm">
+      <section class="max-w-md w-full border border-neutral-200 rounded-lg bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
         <div class="mb-4 h-10 w-10 flex items-center justify-center rounded-lg bg-red-50 text-red-600">
           <span class="i-lucide-shield-alert text-xl" />
         </div>
         <h1 class="text-xl font-semibold">
           Admin access required
         </h1>
-        <p class="mt-2 text-sm text-neutral-500">
+        <p class="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
           {{ accessError }}
         </p>
         <a class="mt-5 h-9 inline-flex items-center gap-2 rounded-md bg-emerald-600 px-3 text-sm text-white" :href="signInUrl()">
@@ -88,7 +88,7 @@ onMounted(async () => {
             <div class="truncate text-sm font-semibold">
               AIRI Admin
             </div>
-            <div class="truncate text-xs text-neutral-500">
+            <div class="truncate text-xs text-neutral-500 dark:text-neutral-400">
               Operations
             </div>
           </div>
@@ -132,8 +132,8 @@ onMounted(async () => {
       <main class="admin-main">
         <header class="admin-topbar">
           <div class="flex items-center gap-3">
-            <span class="i-lucide-panel-left text-neutral-500" />
-            <div class="h-5 w-px bg-neutral-200" />
+            <span class="i-lucide-panel-left text-neutral-500 dark:text-neutral-400" />
+            <div class="h-5 w-px bg-neutral-200 dark:bg-neutral-800" />
             <h1 class="text-sm font-semibold">
               {{ currentTitle }}
             </h1>

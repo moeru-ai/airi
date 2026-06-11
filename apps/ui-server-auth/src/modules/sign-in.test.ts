@@ -76,6 +76,34 @@ describe('ui-server-auth sign-in flow helpers', () => {
     })
   })
 
+  it('keeps trusted standalone admin redirects on the admin origin', () => {
+    expect(createServerSignInContext(
+      'https://accounts.airi.build/ui/sign-in?redirect=https%3A%2F%2Fadmin.airi.build%2Fllm-router%3Fapi_server_url%3Dhttps%253A%252F%252Fairi-server-dev.up.railway.app',
+      'https://api.airi.test',
+    )).toEqual({
+      callbackURL: 'https://admin.airi.build/llm-router?api_server_url=https%3A%2F%2Fairi-server-dev.up.railway.app',
+      requestedProvider: null,
+    })
+
+    expect(createServerSignInContext(
+      'https://accounts.airi.build/ui/sign-in?redirect=http%3A%2F%2F127.0.0.1%3A5178%2Fllm-router%3Fapi_server_url%3Dhttp%253A%252F%252F127.0.0.1%253A3000',
+      'https://api.airi.test',
+    )).toEqual({
+      callbackURL: 'http://127.0.0.1:5178/llm-router?api_server_url=http%3A%2F%2F127.0.0.1%3A3000',
+      requestedProvider: null,
+    })
+  })
+
+  it('rejects absolute redirects to untrusted origins', () => {
+    expect(createServerSignInContext(
+      'https://accounts.airi.build/ui/sign-in?redirect=https%3A%2F%2Fevil.example%2Fllm-router',
+      'https://api.airi.test',
+    )).toEqual({
+      callbackURL: '/',
+      requestedProvider: null,
+    })
+  })
+
   it('posts the selected provider and callback URL to the social sign-in endpoint', async () => {
     const fetchImpl = vi.fn<typeof fetch>(async () => {
       return new Response(JSON.stringify({ url: 'https://accounts.example.test/oauth/google' }), {

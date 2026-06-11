@@ -19,16 +19,16 @@ const json = defineModel<string>({ required: true })
 
 <template>
   <section :class="['panel', 'overflow-hidden']">
-    <div :class="['flex', 'items-start', 'justify-between', 'gap-3', 'border-b', 'border-neutral-200', 'px-4', 'py-3']">
+    <div :class="['flex', 'items-start', 'justify-between', 'gap-3', 'border-b', 'border-neutral-200', 'px-4', 'py-3', 'dark:border-neutral-800']">
       <div>
         <h3 :class="['text-sm', 'font-semibold']">
           Advanced JSON
         </h3>
-        <p :class="['mt-1', 'text-xs', 'text-neutral-500']">
+        <p :class="['mt-1', 'text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
           Escape hatch for auditing or unsupported future fields.
         </p>
       </div>
-      <span :class="['i-lucide-code-2', 'text-neutral-500']" />
+      <span :class="['i-lucide-code-2', 'text-neutral-500', 'dark:text-neutral-400']" />
     </div>
 
     <div :class="['space-y-4', 'p-4']">
