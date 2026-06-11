@@ -1,6 +1,8 @@
 import type { ContextUpdate, MetadataEventSource, WebSocketEventInputs } from '@proj-airi/server-shared/types'
 import type { AssistantMessage, CommonContentPart, CompletionToolCall, Message, SystemMessage, ToolMessage, UserMessage } from '@xsai/shared-chat'
 
+import type { AgentChannelIngressContext } from './channel'
+
 export interface ChatSlicesText {
   type: 'text'
   text: string
@@ -54,6 +56,7 @@ export interface ChatStreamEventContext {
   contexts: Record<string, ContextMessage[]>
   composedMessage: Array<Message>
   input?: WebSocketEventInputs
+  channel?: AgentChannelIngressContext
 }
 
 export type ChatStreamEvent

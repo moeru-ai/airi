@@ -3,6 +3,7 @@ import type { CommonContentPart, Message, ToolMessage } from '@xsai/shared-chat'
 
 import type { AgentContextPort } from '../contracts/context-port'
 import type { AgentForegroundStreamPort } from '../contracts/stream-port'
+import type { AgentChannelIngressContext } from '../types/channel'
 import type { ChatAssistantMessage, ChatHistoryItem, ChatSlices, ChatStreamEventContext, ContextMessage, StreamingAssistantMessage } from '../types/chat'
 import type { StreamEvent, StreamOptions } from '../types/llm'
 
@@ -60,6 +61,8 @@ export interface ChatOrchestratorSendOptions {
   tools?: StreamOptions['tools']
   /** Original transport input metadata used by bridge/devtools observers. */
   input?: ChatStreamEventContext['input']
+  /** Channel facts preserved for hooks, observability, and future channel runtimes. */
+  channel?: AgentChannelIngressContext
 }
 
 interface QueuedSend {
@@ -374,6 +377,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       contexts: deps.context.snapshot(),
       composedMessage: [],
       input: options.input,
+      channel: options.channel,
     }
     deps.onLifecycle?.({
       phase: 'before-compose',
