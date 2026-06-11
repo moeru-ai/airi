@@ -108,6 +108,8 @@ export const ShortcutFailureReasons = {
    * presses).
    */
   Unsupported: 'unsupported',
+  /** The requested binding is well-formed but unsafe or not accepted by policy. */
+  Invalid: 'invalid',
 } as const
 
 export type ShortcutFailureReason = typeof ShortcutFailureReasons[keyof typeof ShortcutFailureReasons]

@@ -42,6 +42,16 @@ describe('createChatSyncWindowLifecycle', async () => {
     expect(chatSyncStoreMock.dispose).toHaveBeenCalledTimes(1)
   })
 
+  it('resolves spotlight windows as followers', () => {
+    const lifecycle = createChatSyncWindowLifecycle('/', '#/spotlight')
+
+    lifecycle.initialize()
+    lifecycle.dispose()
+
+    expect(chatSyncStoreMock.initialize).toHaveBeenCalledWith('follower')
+    expect(chatSyncStoreMock.dispose).toHaveBeenCalledTimes(1)
+  })
+
   it('does not initialize chat sync for unrelated windows', () => {
     const lifecycle = createChatSyncWindowLifecycle('/', '#/widgets')
 

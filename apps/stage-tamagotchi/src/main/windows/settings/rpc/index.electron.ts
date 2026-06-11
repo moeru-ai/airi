@@ -8,13 +8,19 @@ import type { McpStdioManager } from '../../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../../services/electron/auto-updater'
 import type { GlobalShortcutService } from '../../../services/electron/global-shortcut'
 import type { DevtoolsWindowManager } from '../../devtools'
+import type { SpotlightWindowManager } from '../../spotlight'
 import type { WidgetsWindowManager } from '../../widgets'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { ipcMain } from 'electron'
 
-import { electronOpenDevtoolsWindow, electronOpenSettingsDevtools } from '../../../../shared/eventa'
+import {
+  electronOpenDevtoolsWindow,
+  electronOpenSettingsDevtools,
+  electronSpotlightShortcutGet,
+  electronSpotlightShortcutSet,
+} from '../../../../shared/eventa'
 import { createAuthService } from '../../../services/airi/auth'
 import { createGodotStageService } from '../../../services/airi/godot-stage'
 import { createMcpServersService } from '../../../services/airi/mcp-servers'
@@ -33,6 +39,7 @@ export async function setupSettingsWindowInvokes(params: {
   i18n: I18n
   windowAuthManager: WindowAuthManager
   globalShortcut: GlobalShortcutService
+  spotlightWindow: SpotlightWindowManager
 }) {
   // TODO: once we refactored eventa to support window-namespaced contexts,
   // we can remove the setMaxListeners call below since eventa will be able to dispatch and
@@ -51,6 +58,14 @@ export async function setupSettingsWindowInvokes(params: {
 
   // Register the global shortcut service for the settings window.
   params.globalShortcut.registerWindow({ context, window: params.settingsWindow })
+
+  defineInvokeHandler(context, electronSpotlightShortcutGet, () => params.spotlightWindow.getShortcutAccelerator())
+  defineInvokeHandler(context, electronSpotlightShortcutSet, (payload) => {
+    if (payload?.accelerator === undefined)
+      throw new TypeError('electronSpotlightShortcutSet called with invalid payload')
+
+    return params.spotlightWindow.updateShortcutAccelerator(payload.accelerator)
+  })
 
   defineInvokeHandler(context, electronOpenSettingsDevtools, async () => params.settingsWindow.webContents.openDevTools({ mode: 'detach' }))
   defineInvokeHandler(context, electronOpenDevtoolsWindow, async (payload) => {
