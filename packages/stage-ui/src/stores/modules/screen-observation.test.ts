@@ -1,6 +1,9 @@
-import { describe, expect, it } from 'vitest'
+import type { ScreenObserverSummary, TouchEventPayload } from '@proj-airi/server-sdk-shared'
 
-import { privacyStateLabelKey, provisionalPrivacyState } from './screen-observation'
+import { createPinia, setActivePinia } from 'pinia'
+import { beforeEach, describe, expect, it } from 'vitest'
+
+import { privacyStateLabelKey, provisionalPrivacyState, useScreenObservationStore } from './screen-observation'
 
 const now = new Date('2026-06-11T12:00:00.000Z')
 
@@ -39,5 +42,91 @@ describe('privacyStateLabelKey', () => {
     expect(privacyStateLabelKey('observing')).toBe('settings.pages.modules.screen-observation.status.observing')
     expect(privacyStateLabelKey('not_observing_empty_whitelist')).toBe('settings.pages.modules.screen-observation.status.not-observing-empty-whitelist')
     expect(privacyStateLabelKey('suppressed_fullscreen')).toBe('settings.pages.modules.screen-observation.status.suppressed-fullscreen')
+  })
+})
+
+describe('useScreenObservationStore appliers', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  function summaryFixture(id: string, capturedAt = '2026-06-11T12:00:00.000Z'): ScreenObserverSummary {
+    return {
+      id,
+      capturedAt,
+      windowStartedAt: '2026-06-11T11:59:30.000Z',
+      windowEndedAt: capturedAt,
+      source: 'screenpipe',
+      privacyState: 'observing',
+      apps: [{ appId: 'obsidian', appName: 'Obsidian', observedSeconds: 30, summary: 'editing report', matchedWhitelist: true }],
+      taskSignals: [],
+      summary: 'editing report outline',
+      confidence: 0.9,
+    }
+  }
+
+  function touchFixture(id: string): TouchEventPayload {
+    return {
+      id,
+      taskId: 'task-1',
+      level: 'L1',
+      reason: 'task_progress',
+      createdAt: '2026-06-11T12:00:00.000Z',
+      message: { remainingWork: 'two sections left', isOffTrack: false },
+      actions: ['ack', 'details', 'mute_task'],
+      policyApplied: [],
+    }
+  }
+
+  it('applyRuntimeState lets the runtime win over renderer-persisted settings', () => {
+    const store = useScreenObservationStore()
+    store.enabled = true
+    store.allowedApps = ['stale-local-app']
+
+    store.applyRuntimeState({
+      settings: { enabled: false, mode: 'whitelist', allowedApps: [], dailySummaryEnabled: true, dailySummaryAtLocalTime: '18:00' },
+      privacyState: 'disabled',
+      screenpipeAvailable: true,
+    })
+
+    expect(store.enabled).toBe(false)
+    expect(store.allowedApps).toEqual([])
+    expect(store.privacyState).toBe('disabled')
+    expect(store.screenpipeAvailable).toBe(true)
+  })
+
+  it('applyRuntimeState surfaces the runtime-resolved suppression states the renderer cannot derive', () => {
+    const store = useScreenObservationStore()
+
+    store.applyRuntimeState({
+      settings: { enabled: true, mode: 'whitelist', allowedApps: ['obsidian'], dailySummaryEnabled: true, dailySummaryAtLocalTime: '18:00' },
+      privacyState: 'suppressed_meeting',
+    })
+
+    expect(store.privacyState).toBe('suppressed_meeting')
+    expect(store.isEffectivelyObserving).toBe(false)
+  })
+
+  it('applySummary prepends new entries and replaces redelivered duplicates by id', () => {
+    const store = useScreenObservationStore()
+
+    store.applySummary(summaryFixture('s-1'))
+    store.applySummary(summaryFixture('s-2'))
+    expect(store.observationLog.map(entry => entry.id)).toEqual(['s-2', 's-1'])
+
+    const redelivered = { ...summaryFixture('s-1'), summary: 'updated digest' }
+    store.applySummary(redelivered)
+    expect(store.observationLog.map(entry => entry.id)).toEqual(['s-1', 's-2'])
+    expect(store.observationLog[0]!.summary).toBe('updated digest')
+  })
+
+  it('applyTouch prepends and dedupes by id', () => {
+    const store = useScreenObservationStore()
+
+    store.applyTouch(touchFixture('t-1'))
+    store.applyTouch(touchFixture('t-2'))
+    store.applyTouch(touchFixture('t-1'))
+
+    expect(store.latestTouches.map(entry => entry.id)).toEqual(['t-1', 't-2'])
   })
 })

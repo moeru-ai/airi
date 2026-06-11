@@ -1,5 +1,6 @@
 import type {
   DailySummaryPayload,
+  ScreenObservationSettings,
   ScreenObservationSnapshot,
   ScreenObserverPrivacyState,
   ScreenObserverSummary,
@@ -64,6 +65,29 @@ export function privacyStateLabelKey(state: ScreenObserverPrivacyState): string 
   return `settings.pages.modules.screen-observation.status.${state.replaceAll('_', '-')}`
 }
 
+/**
+ * Authoritative observation state pushed by the platform runtime (the
+ * Electron main process today). Field types come from the shared contract;
+ * the shape is intentionally a subset so stage-ui never depends on
+ * app-internal eventa modules.
+ */
+export interface RuntimeObservationState {
+  settings: ScreenObservationSettings
+  /** Resolved by the runtime from settings + pause + OS suppression. */
+  privacyState: ScreenObserverPrivacyState
+  /** ISO timestamp until which observation is manually paused, if any. */
+  pauseUntil?: string
+  /** Whether the local screenpipe service responded to the last health check. */
+  screenpipeAvailable?: boolean
+  /** Tasks registered with the runtime's decide loop; omitted payloads keep the current list. */
+  tasks?: Task[]
+}
+
+// Renderer-side display caps. The runtime owns durable history; these only
+// bound what one window keeps in memory for the log/touch surfaces.
+const OBSERVATION_LOG_DISPLAY_CAP = 200
+const TOUCH_DISPLAY_CAP = 50
+
 export const useScreenObservationStore = defineStore('screen-observation', () => {
   // Privacy-first defaults frozen in the product decision (issue AIR-5):
   // master switch off, whitelist empty, daily summary on at 18:00, L1 touch.
@@ -84,6 +108,7 @@ export const useScreenObservationStore = defineStore('screen-observation', () =>
   const latestDailySummary = ref<DailySummaryPayload>()
   const pauseUntil = ref<string>()
   const snapshotPrivacyState = ref<ScreenObserverPrivacyState>()
+  const screenpipeAvailable = ref<boolean>()
 
   const privacyState = computed<ScreenObserverPrivacyState>(() =>
     snapshotPrivacyState.value ?? provisionalPrivacyState({
@@ -98,15 +123,50 @@ export const useScreenObservationStore = defineStore('screen-observation', () =>
 
   const activeTasks = computed(() => tasks.value.filter(task => task.status === 'active' || task.status === 'paused'))
 
+  function applySettings(settings: ScreenObservationSettings) {
+    enabled.value = settings.enabled
+    allowedApps.value = [...settings.allowedApps]
+    dailySummaryEnabled.value = settings.dailySummaryEnabled
+    dailySummaryAtLocalTime.value = settings.dailySummaryAtLocalTime
+  }
+
   function applySnapshot(snapshot: ScreenObservationSnapshot) {
-    enabled.value = snapshot.settings.enabled
-    allowedApps.value = [...snapshot.settings.allowedApps]
-    dailySummaryEnabled.value = snapshot.settings.dailySummaryEnabled
-    dailySummaryAtLocalTime.value = snapshot.settings.dailySummaryAtLocalTime
+    applySettings(snapshot.settings)
     tasks.value = snapshot.tasks
     observationLog.value = snapshot.latestSummaries
     latestTouches.value = snapshot.latestTouches
     snapshotPrivacyState.value = snapshot.privacyState
+  }
+
+  /**
+   * Applies the runtime's authoritative state (settings + resolved privacy
+   * state). The runtime wins over renderer-persisted settings: it is the
+   * component that actually gates capture, so the UI must never claim a
+   * different observation state than the poller is in.
+   */
+  function applyRuntimeState(state: RuntimeObservationState) {
+    applySettings(state.settings)
+    pauseUntil.value = state.pauseUntil
+    snapshotPrivacyState.value = state.privacyState
+    screenpipeAvailable.value = state.screenpipeAvailable
+    if (state.tasks)
+      tasks.value = state.tasks
+  }
+
+  /** Inserts a captured summary at the head of the log, replacing any redelivered duplicate by id. */
+  function applySummary(summary: ScreenObserverSummary) {
+    const rest = observationLog.value.filter(entry => entry.id !== summary.id)
+    observationLog.value = [summary, ...rest].slice(0, OBSERVATION_LOG_DISPLAY_CAP)
+  }
+
+  /** Inserts a delivered touch at the head of the list, replacing any redelivered duplicate by id. */
+  function applyTouch(touch: TouchEventPayload) {
+    const rest = latestTouches.value.filter(entry => entry.id !== touch.id)
+    latestTouches.value = [touch, ...rest].slice(0, TOUCH_DISPLAY_CAP)
+  }
+
+  function applyDailySummary(payload: DailySummaryPayload) {
+    latestDailySummary.value = payload
   }
 
   function resetState() {
@@ -123,6 +183,7 @@ export const useScreenObservationStore = defineStore('screen-observation', () =>
     latestDailySummary.value = undefined
     pauseUntil.value = undefined
     snapshotPrivacyState.value = undefined
+    screenpipeAvailable.value = undefined
   }
 
   return {
@@ -142,7 +203,12 @@ export const useScreenObservationStore = defineStore('screen-observation', () =>
     privacyState,
     isEffectivelyObserving,
     statusLabelKey,
+    screenpipeAvailable,
     applySnapshot,
+    applyRuntimeState,
+    applySummary,
+    applyTouch,
+    applyDailySummary,
     resetState,
   }
 })
