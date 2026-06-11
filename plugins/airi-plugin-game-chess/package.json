@@ -5,14 +5,17 @@
   "private": true,
   "description": "Chess plugin for AIRI gamelet/widget runtime",
   "scripts": {
+    "dev:ui": "vite --host 127.0.0.1 --port 5174",
     "test": "vitest run --root . --config vitest.config.ts",
     "eval:run": "vieval run --root . --config ./vieval.config.ts",
-    "typecheck": "vue-tsc --noEmit -p tsconfig.json"
+    "typecheck": "vue-tsc --noEmit -p tsconfig.json",
+    "build": "vite build && tsdown"
   },
   "dependencies": {
     "@moeru/eventa": "catalog:",
     "@moeru/std": "catalog:",
     "@proj-airi/plugin-protocol": "workspace:*",
+    "@proj-airi/plugin-sdk": "workspace:*",
     "@proj-airi/plugin-sdk-tamagotchi": "workspace:*",
     "@proj-airi/ui": "workspace:^",
     "animejs": "catalog:",
@@ -25,7 +28,6 @@
   "devDependencies": {
     "@ax-llm/ax": "catalog:",
     "@proj-airi/core-agent": "workspace:^",
-    "@proj-airi/plugin-sdk": "workspace:*",
     "@proj-airi/stage-ui": "workspace:^",
     "@proj-airi/unocss-preset-chromatic": "catalog:",
     "@unocss/reset": "catalog:",

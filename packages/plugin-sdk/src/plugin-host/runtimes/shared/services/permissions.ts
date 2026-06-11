@@ -253,7 +253,7 @@ function mergePermissionDeclarations(
 }
 
 /**
- * Tracks requested and granted permissions for plugin sessions.
+ * Tracks requested and granted permissions for extension sessions.
  *
  * Use when:
  * - The host needs to initialize permission state for a session
@@ -268,6 +268,29 @@ function mergePermissionDeclarations(
  */
 export class PermissionService {
   private readonly store = new Map<string, PermissionSnapshot>()
+
+  /**
+   * Computes the effective permission boundary for one module.
+   *
+   * Use when:
+   * - Extension permissions define the install/session-level ceiling
+   * - Module permissions describe actual runtime usage
+   *
+   * Expects:
+   * - `extensionGrant` is the already granted extension-level ceiling
+   * - `moduleRequest` is the module-level requested usage
+   *
+   * Returns:
+   * - The intersection that stays within both extension and module boundaries
+   */
+  intersectGrant(
+    extensionGrant: ModulePermissionGrant,
+    moduleRequest: ModulePermissionDeclaration,
+  ): ModulePermissionGrant {
+    // Extension grants are the package/session ceiling; module requests are
+    // actual runtime usage. Effective access must stay inside both boundaries.
+    return intersectPermissions(normalizeDeclaration(moduleRequest), normalizeDeclaration(extensionGrant))
+  }
 
   initialize(
     pluginId: string,
@@ -337,6 +360,14 @@ export class PermissionService {
     }
 
     const scopes = snapshot.granted[area] ?? []
+    return scopes.some(scope =>
+      matchKey(scope.key, key)
+      && hasAction(scope.actions, action),
+    )
+  }
+
+  grantAllows(grant: ModulePermissionGrant, area: ModulePermissionArea, action: string, key: string) {
+    const scopes = grant[area] ?? []
     return scopes.some(scope =>
       matchKey(scope.key, key)
       && hasAction(scope.actions, action),

@@ -72,7 +72,7 @@ const allArtistryProvidersMetadata = computed<ProviderSourceCard[]>(() => {
     },
     ...(isCustomProvidersDisabled()
       ? []
-      : [
+      : ([
           {
             id: 'replicate',
             category: 'artistry',
@@ -103,7 +103,7 @@ const allArtistryProvidersMetadata = computed<ProviderSourceCard[]>(() => {
             deployment: 'cloud',
             iconImage: undefined,
           },
-        ]),
+        ] satisfies ProviderSourceCard[])),
   ]
 })
 

@@ -1131,9 +1131,6 @@ catalogs:
     xsschema:
       specifier: 0.5.0-beta.2
       version: 0.5.0-beta.2
-    xstate:
-      specifier: ^5.30.0
-      version: 5.30.0
     yaml:
       specifier: ^2.8.3
       version: 2.8.3
@@ -3595,18 +3592,12 @@ importers:
       '@proj-airi/plugin-protocol':
         specifier: workspace:*
         version: link:../plugin-protocol
-      '@proj-airi/server-shared':
-        specifier: workspace:*
-        version: link:../server-shared
       nanoid:
         specifier: 'catalog:'
         version: 5.1.11
       valibot:
         specifier: 'catalog:'
         version: 1.3.1(typescript@5.9.3)
-      xstate:
-        specifier: 'catalog:'
-        version: 5.30.0
     devDependencies:
       es-toolkit:
         specifier: 'catalog:'
@@ -3620,6 +3611,9 @@ importers:
       '@proj-airi/plugin-sdk':
         specifier: workspace:*
         version: link:../plugin-sdk
+      nanoid:
+        specifier: 'catalog:'
+        version: 5.1.11
       valibot:
         specifier: 'catalog:'
         version: 1.3.1(typescript@5.9.3)
@@ -4895,6 +4889,9 @@ importers:
       '@proj-airi/plugin-protocol':
         specifier: workspace:*
         version: link:../../packages/plugin-protocol
+      '@proj-airi/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
       '@proj-airi/plugin-sdk-tamagotchi':
         specifier: workspace:*
         version: link:../../packages/plugin-sdk-tamagotchi
@@ -4926,9 +4923,6 @@ importers:
       '@proj-airi/core-agent':
         specifier: workspace:^
         version: link:../../packages/core-agent
-      '@proj-airi/plugin-sdk':
-        specifier: workspace:*
-        version: link:../../packages/plugin-sdk
       '@proj-airi/stage-ui':
         specifier: workspace:^
         version: link:../../packages/stage-ui
@@ -19148,9 +19142,6 @@ packages:
         optional: true
       zod-to-json-schema:
         optional: true
-
-  xstate@5.30.0:
-    resolution: {integrity: sha512-mIzIuMjtYVkqXq9dUzYQoag7b/dF1CBS/yhliuPLfR0FwKPC18HiUivb/crcqY2gknhR8gJEhnppLg6ubQ0gGw==}
 
   xtend@4.0.2:
     resolution: {integrity: sha512-LKYU1iAXJXUgAXn9URjiu+MWhyUXHsvfp7mcuYm9dSUKK0/CjtrUwFAxD82/mCWbtLsGjFIad0wIsod4zrTAEQ==}
@@ -35061,8 +35052,6 @@ snapshots:
       '@valibot/to-json-schema': 1.0.0-rc.0(valibot@1.3.1(typescript@5.9.3))
       zod: 4.3.6
       zod-to-json-schema: 3.25.2(zod@4.3.6)
-
-  xstate@5.30.0: {}
 
   xtend@4.0.2: {}
 

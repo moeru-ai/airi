@@ -208,4 +208,23 @@ describe('permissionService', () => {
     expect(service.isAllowed('plugin-d', 'apis', 'emit', 'plugin.api.users')).toBe(false)
     expect(service.isAllowed('plugin-d', 'apis', 'invoke', 'plugin.api.billing')).toBe(false)
   })
+
+  it('caps module grants by the extension permission ceiling', () => {
+    const service = new PermissionService()
+    const extension = service.initialize('extension-session', {
+      apis: [{ key: 'kit.tools.register', actions: ['invoke'] }],
+    })
+    const module = service.initialize('module-session', {
+      apis: [
+        { key: 'kit.tools.register', actions: ['invoke'] },
+        { key: 'kit.gamelet.open', actions: ['invoke'] },
+      ],
+    })
+
+    const effective = service.intersectGrant(extension.granted, module.requested)
+
+    expect(effective.apis).toEqual([
+      { key: 'kit.tools.register', actions: ['invoke'] },
+    ])
+  })
 })

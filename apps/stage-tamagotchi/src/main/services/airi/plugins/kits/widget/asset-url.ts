@@ -12,7 +12,7 @@ import {
  * Describes one widget iframe asset as seen from the mounted `/ui` route.
  *
  * Use when:
- * - Converting plugin config asset paths into mounted extension asset URLs
+ * - Converting extension config asset paths into mounted extension asset URLs
  * - Creating sessions that must validate against route-relative asset paths
  *
  * Expects:

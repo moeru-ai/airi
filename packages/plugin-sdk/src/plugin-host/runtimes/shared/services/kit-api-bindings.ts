@@ -5,17 +5,17 @@ import type { HostDataRecord, PluginRuntime } from '../../../shared/types'
  * Declares the host-owned data needed to create one binding record.
  *
  * Use when:
- * - A plugin session contributes a concrete runtime instance through a kit
+ * - A extension session contributes a concrete runtime instance through a kit
  * - Higher-level kit helpers need to persist their low-level binding into the host registry
  *
  * Expects:
- * - `moduleId` is stable within the owning plugin session
+ * - `moduleId` is stable within the owning extension session
  * - `kitId` points at a host-registered kit that defines the binding family
  * - `kitModuleType` is a kit-defined subtype key, not a host-wide enum
  * - `config` is transport-safe and already normalized by the caller
  *
  * Returns:
- * - A serializable payload that {@link BindingsRegistryService.bind} stores as canonical binding state
+ * - A serializable payload that {@link KitApiBindingRegistryService.bind} stores as canonical binding state
  */
 export interface BindingInput<C extends HostDataRecord = HostDataRecord> {
   moduleId: string
@@ -39,7 +39,7 @@ export interface BindingInput<C extends HostDataRecord = HostDataRecord> {
  * - `config` only contains fields that should be shallow-merged into the current config
  *
  * Returns:
- * - A partial mutation applied by {@link BindingsRegistryService.update} or {@link BindingsRegistryService.transition}
+ * - A partial mutation applied by {@link KitApiBindingRegistryService.update} or {@link KitApiBindingRegistryService.transition}
  */
 export interface BindingUpdatePatch<C extends HostDataRecord = HostDataRecord> {
   state?: BindingState
@@ -47,10 +47,10 @@ export interface BindingUpdatePatch<C extends HostDataRecord = HostDataRecord> {
 }
 
 /**
- * Identifies the plugin session that owns a binding record.
+ * Identifies the extension session that owns a binding record.
  *
  * Use when:
- * - Enforcing that only the original plugin session mutates or removes a binding
+ * - Enforcing that only the original extension session mutates or removes a binding
  * - Comparing current callers against stored binding ownership
  *
  * Expects:
@@ -112,12 +112,12 @@ function createInvalidTransitionError(moduleId: string, from: BindingState, to: 
  * Returns:
  * - Stable {@link BindingRecord} snapshots representing bound runtime contributions
  *
- * A binding is the concrete link between a plugin-owned runtime instance and a host-registered kit.
+ * A binding is the concrete link between a extension-owned runtime instance and a host-registered kit.
  * The host keeps kits generic: a kit only describes capabilities, supported runtimes, and allowed
  * operations. That is not enough to render UI, route lifecycle, or enforce ownership for a specific
  * plugin contribution. The missing piece is a binding record saying:
  *
- * - plugin session `X` owns runtime instance `moduleId`
+ * - extension session `X` owns runtime instance `moduleId`
  * - that instance is attached to kit `kitId`
  * - within that kit it behaves as subtype `kitModuleType`
  * - here is its current generic config payload and lifecycle state
@@ -170,11 +170,11 @@ function createInvalidTransitionError(moduleId: string, from: BindingState, to: 
  *    - `widget-main` under `kit.widget`
  *    - after: one registry, multiple kit families, each record still resolved by the same ownership rules
  */
-export class BindingsRegistryService<C extends HostDataRecord = HostDataRecord> {
+export class KitApiBindingRegistryService<C extends HostDataRecord = HostDataRecord> {
   private readonly bindings = new Map<string, BindingRecord<C>>()
 
   /**
-   * Creates or reuses one binding record for a plugin-owned runtime instance.
+   * Creates or reuses one binding record for a extension-owned runtime instance.
    *
    * Use when:
    * - A plugin or kit helper needs to declare that a concrete instance now exists
@@ -276,7 +276,7 @@ export class BindingsRegistryService<C extends HostDataRecord = HostDataRecord> 
   }
 
   /**
-   * Lists bindings owned by one plugin session.
+   * Lists bindings owned by one extension session.
    *
    * Use when:
    * - Stopping or reloading a session
@@ -290,6 +290,26 @@ export class BindingsRegistryService<C extends HostDataRecord = HostDataRecord> 
    */
   listByOwner(ownerSessionId: string) {
     return this.list().filter(binding => binding.ownerSessionId === ownerSessionId)
+  }
+
+  /**
+   * Lists bindings owned by one module in an extension/extension session.
+   *
+   * Use when:
+   * - Module-scoped cleanup or devtools need the bindings for one registered module
+   *
+   * Expects:
+   * - `ownerSessionId` is the extension/extension session id
+   * - `moduleId` is the concrete kit API binding id
+   *
+   * Returns:
+   * - All matching binding records
+   */
+  listByModule(ownerSessionId: string, moduleId: string) {
+    return this.list().filter(binding =>
+      binding.ownerSessionId === ownerSessionId
+      && binding.moduleId === moduleId,
+    )
   }
 
   /**
@@ -434,7 +454,7 @@ export class BindingsRegistryService<C extends HostDataRecord = HostDataRecord> 
    * Physically removes a withdrawn-or-obsolete binding record from the registry.
    *
    * Use when:
-   * - Stopping or reloading a plugin session after lifecycle cleanup
+   * - Stopping or reloading a extension session after lifecycle cleanup
    * - The host wants to forget a binding entirely, not merely mark it withdrawn
    *
    * Expects:

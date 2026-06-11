@@ -9,7 +9,7 @@ import { buildMountedStaticAssetPath } from '../../../http-server/static-assets/
  * Describes one plugin asset session creation request.
  *
  * Use when:
- * - A plugin-owned asset URL must be mounted behind the local loopback server with cookie auth
+ * - A extension-owned asset URL must be mounted behind the local loopback server with cookie auth
  * - Snapshot builders need a transport-agnostic way to authorize one plugin asset route before iframe load
  *
  * Expects:
@@ -25,7 +25,7 @@ export interface PluginAssetSessionInput {
   pluginId: string
   /** Plugin version expected by the server-side session validator. */
   version: string
-  /** Parent plugin session id used for owner-scoped revocation. */
+  /** Parent extension session id used for owner-scoped revocation. */
   ownerSessionId: string
   /** Asset path to mount in the returned renderer-facing URL. */
   routeAssetPath: string
@@ -125,7 +125,7 @@ export interface PluginAssetSession {
 }
 
 /**
- * Defines the plugin-owned asset hosting service used by the plugin host.
+ * Defines the extension-owned asset hosting service used by the extension host.
  *
  * Use when:
  * - Plugin snapshots need mounted asset URLs without depending on the H3 server shape
@@ -172,11 +172,11 @@ async function removeCookies(cookieAdapter: PluginAssetCookieAdapter, baseUrl: s
  * Creates the plugin asset host service backed by the extension static asset server.
  *
  * Use when:
- * - The plugin host needs to expose mounted asset URLs to renderer snapshots
+ * - The extension host needs to expose mounted asset URLs to renderer snapshots
  * - Asset session lifecycle should stay inside the plugin domain instead of the HTTP server layer
  *
  * Expects:
- * - `getManifestEntryByName` returns the latest plugin root/version map
+ * - `getManifestEntryByName` returns the latest extension root/version map
  * - `cookieAdapter` writes and removes cookies in the Electron host session used by plugin iframes
  *
  * Returns:
