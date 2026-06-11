@@ -1,4 +1,4 @@
-import type { ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
+import type { ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, ContextMessage, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message } from '@xsai/shared-chat'
 
@@ -42,6 +42,8 @@ function isTextDelta(event: StreamEvent): event is Extract<StreamEvent, { type: 
 }
 
 export type { QueuedSendSnapshot, ChatOrchestratorSendOptions as SendOptions } from '@proj-airi/core-agent'
+
+export type ContextProvider = (userMessage: string) => Promise<ContextMessage | void>
 
 export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const llmStore = useLLM()
@@ -266,6 +268,8 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     ingestOnFork,
     cancelPendingSends,
     getPendingQueuedSendSnapshot,
+
+    registerRuntimeContextProvider: runtime.registerRuntimeContextProvider,
 
     clearHooks: runtime.hooks.clearHooks,
 

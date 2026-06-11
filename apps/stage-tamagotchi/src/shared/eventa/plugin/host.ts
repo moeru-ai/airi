@@ -59,6 +59,9 @@ export interface PluginModuleWidgetPayload {
  */
 export interface PluginManifestSummary {
   name: string
+  displayName?: string
+  description?: string
+  version?: string
   entrypoints: Record<string, string | undefined>
   path: string
   enabled: boolean

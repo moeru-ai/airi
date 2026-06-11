@@ -1,3 +1,5 @@
+import type { ModuleConfigEnvelope, PluginHostSession } from '@proj-airi/plugin-sdk/plugin-host'
+
 import type {
   PluginHostDebugSnapshot,
   PluginRegistrySnapshot,
@@ -189,6 +191,35 @@ export interface PluginHostHostService extends PluginHostService {
   getAssetBaseUrl: () => string
 
   /**
+   * Returns the merged plugin configuration (defaults from manifest + user overrides).
+   *
+   * Use when:
+   * - Renderer settings page needs to display the current plugin configuration
+   *
+   * Expects:
+   * - The named plugin exists in the registry
+   *
+   * Returns:
+   * - The merged config snapshot with schema and values
+   */
+  getPluginConfig: (payload: { pluginName: string }) => Promise<{ schema: Record<string, { type: string, label: string, description?: string, default?: unknown, required?: boolean, placeholder?: string }>, values: Record<string, string | number | boolean> }>
+
+  /**
+   * Persists user configuration overrides for one plugin.
+   *
+   * Use when:
+   * - Renderer settings page saves plugin configuration changes
+   *
+   * Expects:
+   * - Config keys match the plugin manifest's config.schema
+   * - Value types match the field declarations
+   *
+   * Returns:
+   * - The updated plugin registry snapshot after persistence
+   */
+  setPluginConfig: (payload: { pluginName: string, config: Record<string, string | number | boolean> }) => Promise<PluginRegistrySnapshot>
+
+  /**
    * Disposes optional host features and asset hosting resources.
    *
    * Use when:
@@ -230,7 +261,10 @@ export async function setupPluginHostHostService(
 
   // Kit API, Host
   const builtInKitRuntime = createBuiltInPluginKitRuntime(options)
-  const host = new PluginHost({ runtime: 'electron', contributions: builtInKitRuntime.contributions })
+  const host = new PluginHost({
+    runtime: 'electron',
+    contributions: builtInKitRuntime.contributions,
+  })
   builtInKitRuntime.attachHost(host) // reverse dependency injection
   log.withFields({ pluginsRoot }).log('loading plugin manifests')
   // Once kit injected the host, then apply kits
@@ -341,7 +375,7 @@ export async function setupPluginHostHostService(
 
   const loadPluginByName = async (
     name: string,
-    loadOptions: { cacheBustKey?: string } = {},
+    loadOptions: { cacheBustKey?: string, config?: ModuleConfigEnvelope } = {},
   ) => {
     if (loaded.has(name)) {
       return
@@ -353,10 +387,34 @@ export async function setupPluginHostHostService(
     }
 
     const manifestForLoad = createManifestForLoad(entry, loadOptions)
-    const session = await host.start(manifestForLoad, { cwd: dirname(entry.path) })
+    const session = await host.start(manifestForLoad, { cwd: dirname(entry.path), config: loadOptions.config })
     loaded.add(name)
     loadedSessionIds.set(name, session.id)
     log.log('plugin loaded', { plugin: name, sessionId: session.id })
+  }
+
+  const buildPluginConfigEnvelope = (name: string): ModuleConfigEnvelope | undefined => {
+    const entry = pluginRegistry.findManifestEntry(name)
+    if (!entry)
+      return undefined
+
+    const manifestDefaults: Record<string, string | number | boolean> = {}
+    const configDecl = entry.manifest.config
+    if (configDecl?.schema) {
+      for (const [key, field] of Object.entries(configDecl.schema)) {
+        if (field.default !== undefined) {
+          manifestDefaults[key] = field.default
+        }
+      }
+    }
+
+    const userConfig = getConfig().configs[name] ?? {}
+    return {
+      configId: `${name}:config`,
+      revision: 1,
+      schemaVersion: 1,
+      full: { ...manifestDefaults, ...userConfig },
+    }
   }
 
   const stopLoadedPluginByName = async (name: string) => {
@@ -396,7 +454,7 @@ export async function setupPluginHostHostService(
     reload: async (name) => {
       await stopLoadedPluginByName(name)
       await refreshManifests()
-      await loadPluginByName(name, { cacheBustKey: `auto-reload-${Date.now()}` })
+      await loadPluginByName(name, { cacheBustKey: `auto-reload-${Date.now()}`, config: buildPluginConfigEnvelope(name) })
     },
   })
 
@@ -417,7 +475,7 @@ export async function setupPluginHostHostService(
       }
 
       try {
-        await loadPluginByName(name)
+        await loadPluginByName(name, { config: buildPluginConfigEnvelope(name) })
       }
       catch (error) {
         log.withError(error).withFields({ plugin: name }).error('plugin failed to start')
@@ -462,6 +520,7 @@ export async function setupPluginHostHostService(
           ...config.known,
           [payload.name]: { path: manifestPath },
         },
+        configs: config.configs,
       })
 
       autoReloadFeature.sync()
@@ -495,7 +554,7 @@ export async function setupPluginHostHostService(
     },
     async load(name) {
       await refreshManifests()
-      await loadPluginByName(name)
+      await loadPluginByName(name, { config: buildPluginConfigEnvelope(name) })
       autoReloadFeature.sync()
       return listSnapshot()
     },
@@ -511,6 +570,149 @@ export async function setupPluginHostHostService(
     },
     getAssetBaseUrl() {
       return pluginAssetService.getBaseUrl() ?? ''
+    },
+    async getPluginConfig(payload: { pluginName: string }) {
+      const entry = pluginRegistry.findManifestEntry(payload.pluginName)
+      if (!entry) {
+        return { schema: {}, values: {} as Record<string, string | number | boolean> }
+      }
+      const manifest = entry.manifest as { config?: { schema?: Record<string, { type: string, label: string, description?: string, default?: string | number | boolean, required?: boolean, placeholder?: string }> } }
+      const configDecl = manifest.config
+      const schemaFields: Record<string, { type: string, label: string, description?: string, default?: unknown, required?: boolean, placeholder?: string }> = {}
+      const defaultValues: Record<string, string | number | boolean> = {}
+      if (configDecl?.schema) {
+        for (const [key, field] of Object.entries(configDecl.schema)) {
+          schemaFields[key] = {
+            type: field.type,
+            label: field.label,
+            description: field.description,
+            default: field.default,
+            required: field.required,
+            placeholder: field.placeholder,
+          }
+          if (field.default !== undefined) {
+            defaultValues[key] = field.default
+          }
+        }
+      }
+      const userConfig: Record<string, string | number | boolean> = getConfig().configs[payload.pluginName] ?? {}
+      return {
+        schema: schemaFields,
+        values: { ...defaultValues, ...userConfig },
+      }
+    },
+    async setPluginConfig(payload: { pluginName: string, config: Record<string, string | number | boolean> }) {
+      const entry = pluginRegistry.findManifestEntry(payload.pluginName)
+      if (!entry) {
+        throw new Error(`Plugin not found: ${payload.pluginName}`)
+      }
+      interface ConfigFieldSchema {
+        type: 'string' | 'secret' | 'number' | 'boolean'
+        required?: boolean
+      }
+      const manifest = entry.manifest as { config?: { schema?: Record<string, ConfigFieldSchema> } }
+      const configDecl = manifest.config
+      if (configDecl?.schema) {
+        const schema = configDecl.schema
+
+        for (const [fieldName, fieldDecl] of Object.entries(schema)) {
+          if (fieldDecl.required) {
+            if (!(fieldName in payload.config)) {
+              throw new Error(`Missing required config field: ${fieldName}`)
+            }
+            if ((fieldDecl.type === 'string' || fieldDecl.type === 'secret') && payload.config[fieldName] === '') {
+              throw new Error(`Required ${fieldDecl.type} config field "${fieldName}" must not be empty`)
+            }
+          }
+        }
+
+        for (const [key, value] of Object.entries(payload.config)) {
+          const fieldDecl = schema[key]
+          if (!fieldDecl) {
+            throw new Error(`Unknown config key: ${key}`)
+          }
+          switch (fieldDecl.type) {
+            case 'string':
+            case 'secret':
+              if (typeof value !== 'string') {
+                throw new TypeError(`Config field "${key}" must be a string, got ${typeof value}`)
+              }
+              break
+            case 'number':
+              if (typeof value !== 'number') {
+                throw new TypeError(`Config field "${key}" must be a number, got ${typeof value}`)
+              }
+              break
+            case 'boolean':
+              if (typeof value !== 'boolean') {
+                throw new TypeError(`Config field "${key}" must be a boolean, got ${typeof value}`)
+              }
+              break
+          }
+        }
+      }
+      const currentConfig = getConfig()
+      const previousPluginConfig = currentConfig.configs[payload.pluginName]
+
+      const sessionId = loadedSessionIds.get(payload.pluginName)
+      if (sessionId) {
+        const configEnvelope: ModuleConfigEnvelope = {
+          configId: `${payload.pluginName}:user-config`,
+          revision: 1,
+          schemaVersion: 1,
+          full: payload.config,
+        }
+        const oldSessionId = sessionId
+        let session: PluginHostSession | null
+        try {
+          session = await host.reload(sessionId, { config: configEnvelope })
+        }
+        catch (error) {
+          loaded.delete(payload.pluginName)
+          loadedSessionIds.delete(payload.pluginName)
+          clearModuleAssetSessionCacheByOwnerSessionId(oldSessionId)
+          await pluginAssetService.revokeByOwnerSessionId(oldSessionId)
+          pluginConfig.update({
+            ...currentConfig,
+            configs: {
+              ...currentConfig.configs,
+              [payload.pluginName]: previousPluginConfig,
+            },
+          })
+          throw error
+        }
+
+        pluginConfig.update({
+          ...currentConfig,
+          configs: {
+            ...currentConfig.configs,
+            [payload.pluginName]: payload.config as Record<string, string | number | boolean>,
+          },
+        })
+
+        try {
+          clearModuleAssetSessionCacheByOwnerSessionId(oldSessionId)
+          await pluginAssetService.revokeByOwnerSessionId(oldSessionId)
+        }
+        catch (cleanupError) {
+          log.withError(cleanupError).withFields({ pluginName: payload.pluginName }).error('post-reload cleanup failed')
+        }
+
+        if (session) {
+          loadedSessionIds.set(payload.pluginName, session.id)
+        }
+      }
+      else {
+        pluginConfig.update({
+          ...currentConfig,
+          configs: {
+            ...currentConfig.configs,
+            [payload.pluginName]: payload.config as Record<string, string | number | boolean>,
+          },
+        })
+      }
+
+      return listSnapshot()
     },
     async dispose() {
       autoReloadFeature.dispose()

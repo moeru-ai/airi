@@ -21,6 +21,14 @@ export interface ChatSessionMeta {
    * @default undefined
    */
   cloudMaxSeq?: number
+  /**
+   * Monotonically increasing counter bumped each time the session messages
+   * are cleared (reset). Persisted alongside the session so it survives
+   * reloads — used by memory plugins to distinguish conversation versions.
+   *
+   * @default undefined
+   */
+  generation?: number
 }
 
 export interface ChatSessionRecord {
