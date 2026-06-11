@@ -1,0 +1,11 @@
+{
+	"extends": "../tsconfig.json",
+	"compilerOptions": {
+		"types": ["node"]
+	},
+	"include": [
+		"**/*.ts",
+		"../modules/code/airios.module.ts"
+	],
+	"exclude": ["node_modules", "dist", "build"]
+}
