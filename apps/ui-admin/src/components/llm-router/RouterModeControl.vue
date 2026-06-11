@@ -7,13 +7,13 @@ const mode = defineModel<RouterConfigMode>({ required: true })
 </script>
 
 <template>
-  <section :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-4']">
+  <section :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-4', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
     <div :class="['flex', 'items-start', 'justify-between', 'gap-3']">
       <div>
         <h3 :class="['text-sm', 'font-semibold']">
           Write Mode
         </h3>
-        <p :class="['mt-1', 'text-xs', 'text-neutral-500']">
+        <p :class="['mt-1', 'text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
           Merge keeps untouched router models. Reset replaces the router model tree with this request.
         </p>
       </div>

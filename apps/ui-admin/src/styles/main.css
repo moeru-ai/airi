@@ -2,6 +2,7 @@
 
 :root {
   --admin-accent: #059669;
+  color-scheme: light;
 }
 
 html,
@@ -13,7 +14,17 @@ body,
 
 body {
   background: #f7f8fa;
+  color: #18181b;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark body {
+  background: #09090b;
+  color: #f4f4f5;
 }
 
 button,
@@ -52,8 +63,17 @@ select {
   padding: 18px 14px;
 }
 
+html.dark .admin-sidebar {
+  background: #111113;
+  border-color: #27272a;
+}
+
 .admin-main {
   min-width: 0;
+}
+
+html.dark .admin-main {
+  background: #09090b;
 }
 
 .admin-topbar {
@@ -67,6 +87,11 @@ select {
   position: sticky;
   top: 0;
   z-index: 10;
+}
+
+html.dark .admin-topbar {
+  background: rgba(9, 9, 11, 0.88);
+  border-color: #27272a;
 }
 
 .admin-content {
@@ -101,14 +126,28 @@ select {
   text-decoration: none;
 }
 
+html.dark .nav-item {
+  color: #d4d4d8;
+}
+
 .nav-item:hover {
   background: #e9ecef;
+}
+
+html.dark .nav-item:hover {
+  background: #27272a;
 }
 
 .nav-item-active {
   background: #ffffff;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
   font-weight: 600;
+}
+
+html.dark .nav-item-active {
+  background: #18181b;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  color: #f4f4f5;
 }
 
 .panel {
@@ -118,12 +157,23 @@ select {
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
+html.dark .panel {
+  background: #18181b;
+  border-color: #27272a;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
 .metric-card {
   background: linear-gradient(180deg, #ffffff 0%, #f8fbfa 100%);
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   min-height: 132px;
   padding: 20px;
+}
+
+html.dark .metric-card {
+  background: linear-gradient(180deg, #18181b 0%, #111113 100%);
+  border-color: #27272a;
 }
 
 .field {
@@ -135,6 +185,12 @@ select {
   outline: none;
   padding: 0 10px;
   width: 100%;
+}
+
+html.dark .field {
+  background: #09090b;
+  border-color: #27272a;
+  color: #f4f4f5;
 }
 
 .field:focus,
@@ -153,6 +209,12 @@ select {
   padding: 10px;
   resize: vertical;
   width: 100%;
+}
+
+html.dark .textarea {
+  background: #09090b;
+  border-color: #27272a;
+  color: #f4f4f5;
 }
 
 .btn {
@@ -179,10 +241,22 @@ select {
   color: #27272a;
 }
 
+html.dark .btn-secondary {
+  background: #18181b;
+  border-color: #3f3f46;
+  color: #f4f4f5;
+}
+
 .btn-danger {
   background: #fff;
   border-color: #fecaca;
   color: #b91c1c;
+}
+
+html.dark .btn-danger {
+  background: #18181b;
+  border-color: #7f1d1d;
+  color: #fecaca;
 }
 
 .table {
@@ -198,6 +272,11 @@ select {
   vertical-align: middle;
 }
 
+html.dark .table th,
+html.dark .table td {
+  border-color: #27272a;
+}
+
 .table th {
   background: #f8fafc;
   color: #52525b;
@@ -205,9 +284,18 @@ select {
   font-weight: 600;
 }
 
+html.dark .table th {
+  background: #111113;
+  color: #a1a1aa;
+}
+
 .table td {
   color: #27272a;
   font-size: 13px;
+}
+
+html.dark .table td {
+  color: #e4e4e7;
 }
 
 .badge {
@@ -222,16 +310,33 @@ select {
   padding: 0 8px;
 }
 
+html.dark .badge {
+  border-color: #3f3f46;
+  color: #e4e4e7;
+}
+
 .badge-green {
   background: #ecfdf5;
   border-color: #bbf7d0;
   color: #047857;
 }
 
+html.dark .badge-green {
+  background: rgba(6, 78, 59, 0.5);
+  border-color: rgba(52, 211, 153, 0.28);
+  color: #6ee7b7;
+}
+
 .badge-amber {
   background: #fffbeb;
   border-color: #fde68a;
   color: #b45309;
+}
+
+html.dark .badge-amber {
+  background: rgba(120, 53, 15, 0.45);
+  border-color: rgba(251, 191, 36, 0.3);
+  color: #fcd34d;
 }
 
 .empty-state {
@@ -245,6 +350,114 @@ select {
   min-height: 180px;
 }
 
+html.dark .empty-state {
+  color: #a1a1aa;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+  }
+
+  body {
+    background: #09090b;
+    color: #f4f4f5;
+  }
+
+  .admin-sidebar {
+    background: #111113;
+    border-color: #27272a;
+  }
+
+  .admin-main {
+    background: #09090b;
+  }
+
+  .admin-topbar {
+    background: rgba(9, 9, 11, 0.88);
+    border-color: #27272a;
+  }
+
+  .nav-item {
+    color: #d4d4d8;
+  }
+
+  .nav-item:hover {
+    background: #27272a;
+  }
+
+  .nav-item-active {
+    background: #18181b;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+    color: #f4f4f5;
+  }
+
+  .panel {
+    background: #18181b;
+    border-color: #27272a;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  }
+
+  .metric-card {
+    background: linear-gradient(180deg, #18181b 0%, #111113 100%);
+    border-color: #27272a;
+  }
+
+  .field,
+  .textarea {
+    background: #09090b;
+    border-color: #27272a;
+    color: #f4f4f5;
+  }
+
+  .btn-secondary {
+    background: #18181b;
+    border-color: #3f3f46;
+    color: #f4f4f5;
+  }
+
+  .btn-danger {
+    background: #18181b;
+    border-color: #7f1d1d;
+    color: #fecaca;
+  }
+
+  .table th,
+  .table td {
+    border-color: #27272a;
+  }
+
+  .table th {
+    background: #111113;
+    color: #a1a1aa;
+  }
+
+  .table td {
+    color: #e4e4e7;
+  }
+
+  .badge {
+    border-color: #3f3f46;
+    color: #e4e4e7;
+  }
+
+  .badge-green {
+    background: rgba(6, 78, 59, 0.5);
+    border-color: rgba(52, 211, 153, 0.28);
+    color: #6ee7b7;
+  }
+
+  .badge-amber {
+    background: rgba(120, 53, 15, 0.45);
+    border-color: rgba(251, 191, 36, 0.3);
+    color: #fcd34d;
+  }
+
+  .empty-state {
+    color: #a1a1aa;
+  }
+}
+
 @media (max-width: 900px) {
   .admin-shell {
     grid-template-columns: 1fr;
@@ -256,7 +469,17 @@ select {
     min-height: auto;
   }
 
+  html.dark .admin-sidebar {
+    border-bottom-color: #27272a;
+  }
+
   .admin-content {
     padding: 16px;
+  }
+}
+
+@media (max-width: 900px) and (prefers-color-scheme: dark) {
+  .admin-sidebar {
+    border-bottom-color: #27272a;
   }
 }

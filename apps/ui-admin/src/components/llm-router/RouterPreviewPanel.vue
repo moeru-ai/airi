@@ -18,22 +18,22 @@ function formatJson(value: unknown): string {
 
 <template>
   <section :class="['panel', 'overflow-hidden']">
-    <div :class="['border-b', 'border-neutral-200', 'px-4', 'py-3', 'text-sm', 'font-semibold']">
+    <div :class="['border-b', 'border-neutral-200', 'px-4', 'py-3', 'text-sm', 'font-semibold', 'dark:border-neutral-800']">
       {{ title }}
     </div>
 
     <div v-if="result" :class="['space-y-4', 'p-4']">
       <div :class="['grid', 'gap-3', 'text-xs', 'sm:grid-cols-2']">
-        <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-neutral-50', 'p-3']">
-          <div :class="['text-neutral-500']">
+        <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-neutral-50', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-950']">
+          <div :class="['text-neutral-500', 'dark:text-neutral-400']">
             Slices
           </div>
           <div :class="['mt-1', 'text-lg', 'font-semibold']">
             {{ applied.length }}
           </div>
         </div>
-        <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-neutral-50', 'p-3']">
-          <div :class="['text-neutral-500']">
+        <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-neutral-50', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-950']">
+          <div :class="['text-neutral-500', 'dark:text-neutral-400']">
             Invalidated keys
           </div>
           <div :class="['mt-1', 'text-lg', 'font-semibold']">
@@ -43,7 +43,7 @@ function formatJson(value: unknown): string {
       </div>
 
       <div v-if="applied.length" :class="['space-y-2']">
-        <div :class="['text-xs', 'font-semibold', 'uppercase', 'text-neutral-500']">
+        <div :class="['text-xs', 'font-semibold', 'uppercase', 'text-neutral-500', 'dark:text-neutral-400']">
           Applied
         </div>
         <div :class="['flex', 'flex-wrap', 'gap-2']">
@@ -59,7 +59,7 @@ function formatJson(value: unknown): string {
       </div>
 
       <div v-if="invalidatedKeys.length" :class="['space-y-2']">
-        <div :class="['text-xs', 'font-semibold', 'uppercase', 'text-neutral-500']">
+        <div :class="['text-xs', 'font-semibold', 'uppercase', 'text-neutral-500', 'dark:text-neutral-400']">
           Keys
         </div>
         <div :class="['flex', 'flex-wrap', 'gap-2']">

@@ -250,12 +250,12 @@ function isCurrentConfigResponse(value: AdminRouterConfigCurrent | null): value 
 <template>
   <div :class="['grid', 'gap-5', 'xl:grid-cols-[minmax(0,1fr)_420px]']">
     <section :class="['panel', 'overflow-hidden']">
-      <div :class="['flex', 'flex-col', 'gap-3', 'border-b', 'border-neutral-200', 'px-5', 'py-4', 'md:flex-row', 'md:items-center', 'md:justify-between']">
+      <div :class="['flex', 'flex-col', 'gap-3', 'border-b', 'border-neutral-200', 'px-5', 'py-4', 'md:flex-row', 'md:items-center', 'md:justify-between', 'dark:border-neutral-800']">
         <div>
           <h2 :class="['text-sm', 'font-semibold']">
             Router Config Form
           </h2>
-          <p :class="['mt-1', 'text-sm', 'text-neutral-500']">
+          <p :class="['mt-1', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
             Builds LLM_ROUTER_CONFIG, UNSPEECH_UPSTREAM, and default model aliases without hand-written JSON.
           </p>
         </div>
@@ -266,13 +266,13 @@ function isCurrentConfigResponse(value: AdminRouterConfigCurrent | null): value 
       </div>
 
       <form :class="['space-y-5', 'p-5']" @submit.prevent="previewConfig">
-        <section :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-4']">
+        <section :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-4', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
           <div :class="['flex', 'flex-col', 'gap-3', 'md:flex-row', 'md:items-center', 'md:justify-between']">
             <div>
               <h3 :class="['text-sm', 'font-semibold']">
                 Current Config
               </h3>
-              <p :class="['mt-1', 'text-xs', currentError ? 'text-red-600' : 'text-neutral-500']">
+              <p :class="['mt-1', 'text-xs', currentError ? 'text-red-600 dark:text-red-400' : 'text-neutral-500 dark:text-neutral-400']">
                 {{ currentError ?? currentStatusLabel }}
               </p>
             </div>
@@ -293,13 +293,13 @@ function isCurrentConfigResponse(value: AdminRouterConfigCurrent | null): value 
         <RouterModeControl v-model="form.mode" />
         <RouterDefaultsEditor v-model="form.defaults" />
 
-        <section :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white']">
-          <div :class="['border-b', 'border-neutral-200', 'p-4']">
+        <section :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
+          <div :class="['border-b', 'border-neutral-200', 'p-4', 'dark:border-neutral-800']">
             <div>
               <h3 :class="['text-sm', 'font-semibold']">
                 Provider configuration
               </h3>
-              <p :class="['mt-1', 'text-xs', 'text-neutral-500']">
+              <p :class="['mt-1', 'text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
                 LLM and TTS providers are edited separately, then applied as one router config request.
               </p>
             </div>
@@ -308,7 +308,7 @@ function isCurrentConfigResponse(value: AdminRouterConfigCurrent | null): value 
           <div :class="['flex', 'flex-col', 'gap-4', 'p-4']">
             <div :class="['flex', 'flex-col', 'gap-3', 'lg:flex-row', 'lg:items-end', 'lg:justify-between']">
               <div
-                :class="['inline-grid', 'w-full', 'grid-cols-2', 'rounded-lg', 'border', 'border-neutral-200', 'bg-neutral-50', 'p-1', 'sm:w-auto']"
+                :class="['inline-grid', 'w-full', 'grid-cols-2', 'rounded-lg', 'border', 'border-neutral-200', 'bg-neutral-50', 'p-1', 'sm:w-auto', 'dark:border-neutral-800', 'dark:bg-neutral-950']"
                 role="tablist"
               >
                 <button
@@ -318,15 +318,15 @@ function isCurrentConfigResponse(value: AdminRouterConfigCurrent | null): value 
                   :class="[
                     'h-9 rounded-md px-4 text-sm font-medium transition-colors whitespace-nowrap',
                     activeProviderTab === tab.value
-                      ? 'bg-white text-primary-700 shadow-sm ring-1 ring-primary-200'
-                      : 'text-neutral-500 hover:text-neutral-900',
+                      ? 'bg-white text-primary-700 shadow-sm ring-1 ring-primary-200 dark:bg-neutral-900 dark:text-primary-300 dark:ring-primary-800'
+                      : 'text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-200',
                   ]"
                   role="tab"
                   type="button"
                   @click="selectProviderTab(tab.value)"
                 >
                   {{ tab.label }}
-                  <span :class="['ml-1', 'text-xs', activeProviderTab === tab.value ? 'text-neutral-500' : 'text-neutral-400']">
+                  <span :class="['ml-1', 'text-xs', activeProviderTab === tab.value ? 'text-neutral-500 dark:text-neutral-400' : 'text-neutral-400 dark:text-neutral-500']">
                     {{ tab.count }}
                   </span>
                 </button>
@@ -344,8 +344,8 @@ function isCurrentConfigResponse(value: AdminRouterConfigCurrent | null): value 
               </div>
             </div>
 
-            <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-neutral-50/60', 'px-3', 'py-2', 'text-xs', 'text-neutral-600']">
-              <span :class="['font-medium', 'text-neutral-900']">{{ activeProviderTab === 'llm' ? 'LLM' : 'TTS' }}</span>
+            <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-neutral-50/60', 'px-3', 'py-2', 'text-xs', 'text-neutral-600', 'dark:border-neutral-800', 'dark:bg-neutral-950/60', 'dark:text-neutral-300']">
+              <span :class="['font-medium', 'text-neutral-900', 'dark:text-neutral-100']">{{ activeProviderTab === 'llm' ? 'LLM' : 'TTS' }}</span>
               <span v-if="activeProviderTab === 'llm'">
                 config writes chat model aliases under LLM_ROUTER_CONFIG.
               </span>
@@ -364,11 +364,11 @@ function isCurrentConfigResponse(value: AdminRouterConfigCurrent | null): value 
                 @remove="removeSlice(item.index)"
               />
             </div>
-            <div v-else :class="['empty-state', 'min-h-40', 'rounded-lg', 'border', 'border-dashed', 'border-neutral-200', 'bg-white']">
+            <div v-else :class="['empty-state', 'min-h-40', 'rounded-lg', 'border', 'border-dashed', 'border-neutral-200', 'bg-white', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
               No {{ activeProviderTab === 'llm' ? 'LLM' : 'TTS' }} provider slices
             </div>
           </div>
-          <div :class="['border-t', 'border-neutral-200', 'px-4', 'py-3', 'text-xs', 'text-neutral-500']">
+          <div :class="['border-t', 'border-neutral-200', 'px-4', 'py-3', 'text-xs', 'text-neutral-500', 'dark:border-neutral-800', 'dark:text-neutral-400']">
             UnSpeech is limited to one TTS slice per request.
           </div>
         </section>
@@ -381,26 +381,26 @@ function isCurrentConfigResponse(value: AdminRouterConfigCurrent | null): value 
           </ul>
         </Callout>
 
-        <div :class="['flex', 'flex-col', 'gap-3', 'border-t', 'border-neutral-200', 'pt-4', 'md:flex-row', 'md:items-center', 'md:justify-between']">
-          <div :class="['grid', 'gap-2', 'text-xs', 'text-neutral-600', 'sm:grid-cols-5']">
+        <div :class="['flex', 'flex-col', 'gap-3', 'border-t', 'border-neutral-200', 'pt-4', 'md:flex-row', 'md:items-center', 'md:justify-between', 'dark:border-neutral-800']">
+          <div :class="['grid', 'gap-2', 'text-xs', 'text-neutral-600', 'sm:grid-cols-5', 'dark:text-neutral-400']">
             <div>
-              <span :class="['block', 'font-semibold', 'text-neutral-900']">{{ pendingSummary.slices }}</span>
+              <span :class="['block', 'font-semibold', 'text-neutral-900', 'dark:text-neutral-100']">{{ pendingSummary.slices }}</span>
               slices
             </div>
             <div>
-              <span :class="['block', 'font-semibold', 'text-neutral-900']">{{ pendingSummary.llmSlices }}</span>
+              <span :class="['block', 'font-semibold', 'text-neutral-900', 'dark:text-neutral-100']">{{ pendingSummary.llmSlices }}</span>
               LLM
             </div>
             <div>
-              <span :class="['block', 'font-semibold', 'text-neutral-900']">{{ pendingSummary.ttsSlices }}</span>
+              <span :class="['block', 'font-semibold', 'text-neutral-900', 'dark:text-neutral-100']">{{ pendingSummary.ttsSlices }}</span>
               TTS
             </div>
             <div>
-              <span :class="['block', 'font-semibold', 'text-neutral-900']">{{ pendingSummary.unspeech ? 'yes' : 'no' }}</span>
+              <span :class="['block', 'font-semibold', 'text-neutral-900', 'dark:text-neutral-100']">{{ pendingSummary.unspeech ? 'yes' : 'no' }}</span>
               unspeech
             </div>
             <div>
-              <span :class="['block', 'font-semibold', 'text-neutral-900']">{{ pendingSummary.defaults }}</span>
+              <span :class="['block', 'font-semibold', 'text-neutral-900', 'dark:text-neutral-100']">{{ pendingSummary.defaults }}</span>
               defaults
             </div>
           </div>

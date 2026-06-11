@@ -9,13 +9,13 @@ const defaults = defineModel<RouterDefaultsDraft>({ required: true })
 </script>
 
 <template>
-  <section :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-4']">
+  <section :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-4', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
     <div :class="['mb-4', 'flex', 'items-start', 'justify-between', 'gap-3']">
       <div>
         <h3 :class="['text-sm', 'font-semibold']">
           Defaults
         </h3>
-        <p :class="['mt-1', 'text-xs', 'text-neutral-500']">
+        <p :class="['mt-1', 'text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
           Writes default model aliases alongside provider slices when filled.
         </p>
       </div>
@@ -44,7 +44,7 @@ const defaults = defineModel<RouterDefaultsDraft>({ required: true })
           <div :class="['text-sm', 'font-medium']">
             Recommended voices
           </div>
-          <div :class="['text-xs', 'text-neutral-500']">
+          <div :class="['text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
             JSON object written to DEFAULT_TTS_VOICES.
           </div>
         </div>

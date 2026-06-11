@@ -45,7 +45,28 @@ export function getServerAdminBootstrapContext(): ServerAdminBootstrapContext | 
 }
 
 export function defaultApiServerUrl(): string {
-  return import.meta.env.VITE_SERVER_URL || window.location.origin
+  return import.meta.env.VITE_SERVER_URL || defaultStandaloneApiServerUrl(window.location.origin)
+}
+
+/**
+ * Resolves the API origin for a standalone admin UI without redirect context.
+ *
+ * Before:
+ * - "http://localhost:5178"
+ *
+ * After:
+ * - "http://localhost:3000"
+ */
+export function defaultStandaloneApiServerUrl(currentOrigin: string): string {
+  const origin = new URL(currentOrigin).origin
+
+  if (TRUSTED_LOCAL_API_SERVER_ORIGIN_PATTERNS.some(pattern => pattern.test(origin))) {
+    const url = new URL(origin)
+    url.port = '3000'
+    return url.origin
+  }
+
+  return origin
 }
 
 /**
