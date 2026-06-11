@@ -449,7 +449,7 @@ export function decideScreenObservationTouch(input: DecideTouchInput): TouchEven
     reason: input.reason,
     createdAt: input.now.toISOString(),
     summaryId: input.summaryId,
-    message: input.message,
+    message: normalizeTouchMessage(input.message, input.task),
     actions: actionsForTouchLevel(level),
     policyApplied,
   }
@@ -494,6 +494,36 @@ export function decideDailySummary(inputOrTaskCount: number | DecideDailySummary
 
 export function isBarePercentage(value: string): boolean {
   return /^\s*(?:[\p{L}\p{N}_-]+\s*(?::|：|=|-)?\s*)?[\(\[（【]?\s*\d{1,3}(?:\.\d+)?\s*%\s*[\)\]）】]?\s*$/u.test(value)
+}
+
+function normalizeTouchMessage(message: TouchEventMessage, task: Task): TouchEventMessage {
+  const isOffTrack = message.isOffTrack
+
+  return {
+    remainingWork: normalizeTouchMessageSentence(
+      message.remainingWork,
+      isOffTrack
+        ? `The next concrete step for ${task.title} is blocked.`
+        : `The next concrete step for ${task.title} is ready.`,
+    ),
+    etaAt: message.etaAt,
+    pace: message.pace !== undefined
+      ? normalizeTouchMessageSentence(
+          message.pace,
+          isOffTrack
+            ? 'Current pace is off track.'
+            : 'Current pace is on track.',
+        )
+      : undefined,
+    isOffTrack,
+  }
+}
+
+function normalizeTouchMessageSentence(value: string | undefined, fallback: string): string {
+  const trimmed = value?.trim()
+  if (!trimmed || isBarePercentage(trimmed))
+    return fallback
+  return trimmed
 }
 
 function createDailySummaryTaskLine(input: DailySummaryTaskInput): DailySummaryTaskLine {

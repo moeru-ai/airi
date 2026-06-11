@@ -125,6 +125,29 @@ describe('screen observation domain contract', () => {
     expect(touch.policyApplied).toContain('first_task_first_progress_l2')
   })
 
+  it('guards touch messages before they leave the shared decision', () => {
+    const task = createActiveTask()
+
+    const touch = decideScreenObservationTouch({
+      id: 'touch-guarded-message',
+      task,
+      reason: 'task_blocked',
+      requestedLevel: 'L3',
+      message: {
+        remainingWork: '75%',
+        pace: 'done: 99.5%',
+        isOffTrack: true,
+      },
+      now,
+    })
+
+    expect(touch.level).toBe('L3')
+    expect(touch.message.remainingWork).toBe('The next concrete step for Write quarterly report is blocked.')
+    expect(touch.message.pace).toBe('Current pace is off track.')
+    expect(isBarePercentage(touch.message.remainingWork)).toBe(false)
+    expect(isBarePercentage(touch.message.pace ?? '')).toBe(false)
+  })
+
   it('limits L2+ touches for the same task to one per 30 minutes', () => {
     const task = createActiveTask()
 
