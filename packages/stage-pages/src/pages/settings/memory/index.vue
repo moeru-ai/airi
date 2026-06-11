@@ -17,10 +17,10 @@ const auth = useAuthStore()
 
 const activeCharacterId = computed(() => airiCard.activeCardId)
 
-// Auto-connect when active character changes
-watch(activeCharacterId, (id) => {
-  if (id) {
-    alaya.connect({ characterId: id, userId: auth.userId })
+// Auto-connect when active character or auth user changes
+watch([activeCharacterId, () => auth.userId], ([id, uid]) => {
+  if (id && uid) {
+    alaya.connect({ characterId: id, userId: uid })
   }
 }, { immediate: true })
 

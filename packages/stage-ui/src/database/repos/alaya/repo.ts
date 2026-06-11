@@ -120,8 +120,10 @@ async function update(
       throw new Error(`Memory entry ${entry.id} not found for character ${entry.characterId}`)
     }
 
+    // Merge over the current stored record (all[index]), not the stale
+    // `entry` argument which may be a lock-external snapshot.
     const updated: MemoryEntry = {
-      ...entry,
+      ...all[index],
       ...patch,
       updatedAt: Date.now(),
     }
@@ -221,7 +223,7 @@ async function bulkUpdate(
         if (index === -1)
           continue
 
-        const merged: MemoryEntry = { ...entry, ...patch, updatedAt: now }
+        const merged: MemoryEntry = { ...all[index], ...patch, updatedAt: now }
         all[index] = merged
         updated.push(merged)
       }
@@ -331,4 +333,6 @@ export const alayaRepo = {
   replaceAll,
   healCount,
   touch,
+  /** Exposed for coarse-grained lock usage (housekeeping, batch ops). */
+  withLock,
 }

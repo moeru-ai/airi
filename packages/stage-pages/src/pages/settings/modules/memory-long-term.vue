@@ -13,9 +13,12 @@ const auth = useAuthStore()
 
 const activeCharacterId = computed(() => airiCard.activeCardId)
 
-watch(activeCharacterId, (id) => {
-  if (id)
-    alaya.connect({ characterId: id, userId: auth.userId })
+// Auto-connect when active character or auth user changes.
+// Watching both ensures the driver reconnects with the correct
+// IndexedDB namespace after sign-in / sign-out / account switch.
+watch([activeCharacterId, () => auth.userId], ([id, uid]) => {
+  if (id && uid)
+    alaya.connect({ characterId: id, userId: uid })
 }, { immediate: true })
 
 const memoryCount = computed(() => alaya.totalCount)

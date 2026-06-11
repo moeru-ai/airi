@@ -35,9 +35,12 @@ export const useAlayaMemoryStore = defineStore('alaya-memory', () => {
     return shortTerm
   }
 
+  let driverUid: string | null = null
+
   function ensureDriver(uid: string) {
-    if (!driver) {
+    if (!driver || driverUid !== uid) {
       driver = createAlayaMemory({ userId: uid })
+      driverUid = uid
     }
     return driver
   }

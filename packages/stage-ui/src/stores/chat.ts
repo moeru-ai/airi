@@ -13,6 +13,7 @@ import { ref, toRaw, watch } from 'vue'
 import { useAnalytics } from '../composables'
 import { activeTurnSpan, startSpan } from '../composables/use-io-tracer'
 import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
+import { createAlayaMemoryContext, registerAlayaAutoIngestion } from './chat/context-providers'
 import { createMinecraftContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { useChatSessionStore } from './chat/session-store'
@@ -158,6 +159,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     getActiveProvider: () => activeProvider.value,
     getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
     runtimeContextProviders: [
+      createAlayaMemoryContext,
       createMinecraftContext,
     ],
     createId: nanoid,
@@ -218,6 +220,9 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         void artistryAutonomousStore.runArtistTask(messageText, toProviderHistory(sessionMessages))
     },
   })
+
+  // Auto-ingest user messages into Alaya long-term memory after each chat turn
+  registerAlayaAutoIngestion(runtime.hooks.onChatTurnComplete)
 
   watch(sending, (next) => {
     if (runtime.getSending() !== next)

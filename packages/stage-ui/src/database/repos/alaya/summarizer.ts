@@ -125,8 +125,10 @@ export function summariseMemories(
       compositeScore(a, 1.0, scoreOpts) - compositeScore(b, 1.0, scoreOpts),
     )
 
-    // Preserve only the top `maxEntries`
+    // Preserve only the top `maxEntries`, then restore chronological
+    // order so consumers (e.g. recent-memory slices) see newest-first.
     working = working.slice(working.length - maxEntries)
+    working.sort((a, b) => a.createdAt - b.createdAt)
   }
 
   return { entries: working, modified }

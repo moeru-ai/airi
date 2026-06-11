@@ -203,20 +203,26 @@ export class AlayaMemory {
   }
 
   async #housekeep(characterId: string): Promise<void> {
-    const entries = await alayaRepo.getAll(this.#userId, characterId)
+    // Run the entire read → summarise → write pipeline under the character
+    // lock.  Without this, a concurrent writer can sneak in between `getAll`
+    // and `replaceAll`, and the stale cleaned snapshot silently overwrites
+    // the newer data.
+    await alayaRepo.withLock(this.#userId, characterId, async () => {
+      const entries = await alayaRepo.getAll(this.#userId, characterId)
 
-    const { entries: cleaned, modified } = summariseMemories(entries, {
-      maxUncompressed: this.#maxUncompressed,
-      summariseAfterMs: this.#summariseAfterMs,
-      importanceWeight: this.#importanceWeight,
-      recencyWeight: this.#recencyWeight,
-      maxEntriesPerCharacter: this.#maxEntriesPerCharacter,
+      const { entries: cleaned, modified } = summariseMemories(entries, {
+        maxUncompressed: this.#maxUncompressed,
+        summariseAfterMs: this.#summariseAfterMs,
+        importanceWeight: this.#importanceWeight,
+        recencyWeight: this.#recencyWeight,
+        maxEntriesPerCharacter: this.#maxEntriesPerCharacter,
+      })
+
+      // Only persist when something actually changed
+      if (modified.length > 0 || cleaned.length !== entries.length) {
+        await alayaRepo.saveAll(this.#userId, characterId, cleaned)
+      }
     })
-
-    // Only persist when something actually changed
-    if (modified.length > 0 || cleaned.length !== entries.length) {
-      await alayaRepo.replaceAll(this.#userId, characterId, cleaned)
-    }
   }
 
   // ------------------------------------------------------------------
