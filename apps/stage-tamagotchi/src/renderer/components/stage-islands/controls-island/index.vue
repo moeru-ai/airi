@@ -16,8 +16,6 @@ import ControlsIslandHearingConfig from './controls-island-hearing-config.vue'
 import ControlsIslandProfilePicker from './controls-island-profile-picker.vue'
 import IndicatorMicVolume from './indicator-mic-volume.vue'
 
-import { hasMouseMovedSinceExpand, shouldCollapseControlsIsland } from './auto-collapse'
-
 import {
   electron,
   electronAppQuit,
@@ -26,6 +24,7 @@ import {
   electronStartDraggingWindow,
   electronWindowSetAlwaysOnTop,
 } from '../../../../shared/eventa'
+import { hasMouseMovedSinceExpand, shouldCollapseControlsIsland } from './auto-collapse'
 
 const { isDark, toggleDark } = useTheme()
 const { t } = useI18n()
