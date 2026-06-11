@@ -31,6 +31,12 @@ export type {
 	ToolFinished,
 	ModuleActivated,
 	ModuleCrashed,
+	WorkspaceCreated,
+	ToolExecutionStarted,
+	ToolExecutionCompleted,
+	PatchGenerated,
+	PatchApproved,
+	PatchRejected,
 } from "./events/types.js"
 
 export type {

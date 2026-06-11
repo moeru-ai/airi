@@ -196,6 +196,105 @@ export interface TaskCancelled extends AiriEventBase {
 	readonly reason?: string
 }
 
+// ── Workspace events ──────────────────────────────────────────────────
+
+/**
+ * Emitted when a workspace session is created for a task.
+ */
+export interface WorkspaceCreated extends AiriEventBase {
+	readonly type: "workspace.created"
+
+	/** The workspace session identifier. */
+	readonly sessionId: string
+
+	/** Absolute path to the workspace root. */
+	readonly rootPath: string
+
+	/** The task this workspace is associated with. */
+	readonly taskId: string
+}
+
+// ── Tool execution lifecycle events ───────────────────────────────────
+
+/**
+ * Emitted when a tool execution starts within a task.
+ */
+export interface ToolExecutionStarted extends AiriEventBase {
+	readonly type: "tool.execution.started"
+
+	/** The task being executed. */
+	readonly taskId: string
+
+	/** The tool being executed. */
+	readonly toolName: string
+}
+
+/**
+ * Emitted when a tool execution completes within a task.
+ */
+export interface ToolExecutionCompleted extends AiriEventBase {
+	readonly type: "tool.execution.completed"
+
+	/** The task being executed. */
+	readonly taskId: string
+
+	/** The tool that was executed. */
+	readonly toolName: string
+
+	/** Whether the tool execution succeeded. */
+	readonly success: boolean
+
+	/** Execution duration in milliseconds. */
+	readonly durationMs: number
+}
+
+// ── Patch events ──────────────────────────────────────────────────────
+
+/**
+ * Emitted when a patch is generated for a task.
+ */
+export interface PatchGenerated extends AiriEventBase {
+	readonly type: "patch.generated"
+
+	/** The task this patch is associated with. */
+	readonly taskId: string
+
+	/** Unique identifier for the patch proposal. */
+	readonly patchId: string
+
+	/** Number of files changed in the patch. */
+	readonly fileCount: number
+}
+
+/**
+ * Emitted when a patch is approved.
+ */
+export interface PatchApproved extends AiriEventBase {
+	readonly type: "patch.approved"
+
+	/** The task this patch is associated with. */
+	readonly taskId: string
+
+	/** Unique identifier for the approved patch proposal. */
+	readonly patchId: string
+}
+
+/**
+ * Emitted when a patch is rejected.
+ */
+export interface PatchRejected extends AiriEventBase {
+	readonly type: "patch.rejected"
+
+	/** The task this patch is associated with. */
+	readonly taskId: string
+
+	/** Unique identifier for the rejected patch proposal. */
+	readonly patchId: string
+
+	/** Optional rejection reason. */
+	readonly reason?: string
+}
+
 // ── Union type ────────────────────────────────────────────────────────
 
 /**
@@ -223,3 +322,9 @@ export type AiriEvent =
 	| ToolFinished
 	| ModuleActivated
 	| ModuleCrashed
+	| WorkspaceCreated
+	| ToolExecutionStarted
+	| ToolExecutionCompleted
+	| PatchGenerated
+	| PatchApproved
+	| PatchRejected
