@@ -319,8 +319,10 @@ export function setupScreenObserver(options: SetupScreenObserverOptions): Screen
 
       const settings = settingsFromConfig(getConfig())
       if (screenpipeAvailable && settings.enabled && settings.allowedApps.length > 0) {
-        const latest = await screenpipe.latestFrame()
-        suppression.isMeeting = isMeetingSurface(latest?.appName, latest?.windowName)
+        // Metadata-only probe: app name / window title, never OCR text —
+        // suppression detection must not breach the whitelist capture boundary.
+        const focused = await screenpipe.focusedWindow()
+        suppression.isMeeting = isMeetingSurface(focused?.appName, focused?.windowTitle)
       }
       else {
         suppression.isMeeting = false

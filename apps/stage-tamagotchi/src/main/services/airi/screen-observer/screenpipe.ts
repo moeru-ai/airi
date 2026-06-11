@@ -5,8 +5,10 @@ import type { ScreenObserverAppSummary } from '@proj-airi/server-sdk-shared'
  *
  * screenpipe captures the screen 24/7 on the user's machine and exposes OCR
  * results over a localhost REST API. This client only ever talks to that
- * local endpoint — raw OCR text and frames never leave the machine; the
- * observer turns them into capped digests before anything else sees them.
+ * local endpoint, and it enforces the whitelist capture boundary at the type
+ * level: OCR text queries REQUIRE an app name, and the focused-window probe
+ * materializes window metadata only — non-whitelisted OCR body text never
+ * enters this process as data.
  */
 
 export interface ScreenpipeClientOptions {
@@ -24,11 +26,21 @@ export interface ScreenpipeOcrItem {
   windowName?: string
   text: string
   timestamp: string
-  focused?: boolean
+}
+
+/** App name and window title of the most recent capture — deliberately carries no OCR text. */
+export interface FocusedWindowMeta {
+  appName: string
+  windowTitle?: string
 }
 
 export interface SearchOcrParams {
-  appName?: string
+  /**
+   * The whitelisted app to query. Required by design: the client cannot
+   * express an unscoped OCR text query, so non-whitelisted apps' text can
+   * never be requested in the first place.
+   */
+  appName: string
   /** ISO timestamp, inclusive window start. */
   startTime: string
   /** ISO timestamp, inclusive window end. */
@@ -40,10 +52,14 @@ export interface SearchOcrParams {
 export interface ScreenpipeClient {
   /** True when the local screenpipe service answers its health endpoint. */
   health: () => Promise<boolean>
-  /** OCR captures within a time window, optionally scoped to a single app. */
+  /** OCR captures within a time window, always scoped to a single whitelisted app. */
   searchOcr: (params: SearchOcrParams) => Promise<ScreenpipeOcrItem[]>
-  /** Most recent OCR capture regardless of app — used for focused-app / meeting detection. */
-  latestFrame: () => Promise<ScreenpipeOcrItem | undefined>
+  /**
+   * App name / window title of the most recent capture, for meeting and
+   * fullscreen heuristics. Metadata only: the mapper never reads OCR text,
+   * so this probe is safe to run regardless of the whitelist.
+   */
+  focusedWindow: () => Promise<FocusedWindowMeta | undefined>
 }
 
 interface ScreenpipeSearchResponse {
@@ -63,8 +79,8 @@ interface ScreenpipeSearchResponse {
  * Creates a screenpipe REST client bound to one base URL.
  *
  * Use when:
- * - The screen observer runtime needs health checks, windowed OCR queries, or
- *   the latest focused frame from the local screenpipe service.
+ * - The screen observer runtime needs health checks, whitelisted OCR queries,
+ *   or the focused-window metadata probe from the local screenpipe service.
  *
  * Expects:
  * - screenpipe is reachable on localhost; every call resolves (never throws)
@@ -107,9 +123,23 @@ export function createScreenpipeClient(options?: ScreenpipeClientOptions): Scree
         windowName: content.window_name,
         text: content.text ?? '',
         timestamp: content.timestamp,
-        focused: content.focused,
       }]
     })
+  }
+
+  // Privacy boundary: this mapper reads ONLY app_name / window_name. The
+  // response body may carry OCR text from any app (transient transport bytes,
+  // discarded with the parsed payload), but no text field is ever copied into
+  // an object this process keeps.
+  function toFocusedWindowMeta(payload: unknown): FocusedWindowMeta | undefined {
+    const data = (payload as ScreenpipeSearchResponse | undefined)?.data
+    const content = Array.isArray(data) ? data[0]?.content : undefined
+    if (!content?.app_name)
+      return undefined
+    return {
+      appName: content.app_name,
+      windowTitle: content.window_name,
+    }
   }
 
   return {
@@ -120,17 +150,17 @@ export function createScreenpipeClient(options?: ScreenpipeClientOptions): Scree
     searchOcr: async (params) => {
       const query = new URLSearchParams({
         content_type: 'ocr',
+        app_name: params.appName,
         start_time: params.startTime,
         end_time: params.endTime,
         limit: String(params.limit ?? 100),
       })
-      if (params.appName)
-        query.set('app_name', params.appName)
       return toItems(await request(`/search?${query.toString()}`))
     },
-    latestFrame: async () => {
-      const items = toItems(await request('/search?content_type=ocr&limit=1'))
-      return items[0]
+    focusedWindow: async () => {
+      // `focused=true` narrows to the focused capture where screenpipe
+      // supports it; `limit=1` keeps the transport payload minimal either way.
+      return toFocusedWindowMeta(await request('/search?content_type=ocr&limit=1&focused=true'))
     },
   }
 }
@@ -143,18 +173,22 @@ export function createScreenpipeClient(options?: ScreenpipeClientOptions): Scree
 const APP_DIGEST_TEXT_LIMIT = 160
 
 /**
- * Normalizes raw screenpipe OCR items into per-app observation summaries.
+ * Normalizes raw screenpipe OCR items into per-app observation summaries,
+ * dropping anything outside the whitelist.
  *
  * Before:
- * - 37 OCR items for app "Code", window names ["main.ts — airi", "main.ts — airi", ...]
+ * - 37 OCR items for whitelisted app "Code" plus 4 items for "Slack",
+ *   whitelist = ["Code"]
  *
  * After:
  * - one entry: { appId: 'code', appName: 'Code', windowTitle: 'main.ts — airi',
  *   observedSeconds: 21, summary: 'windows: main.ts — airi · …', matchedWhitelist: true }
+ * - "Slack" is absent: non-whitelisted items are discarded before any
+ *   aggregation, never emitted with `matchedWhitelist: false`.
  *
- * `matchedWhitelist` is re-checked against `allowedApps` even though the
- * poller only queries whitelisted apps, so a future caller cannot silently
- * widen the scope.
+ * The whitelist is re-enforced here even though the poller only queries
+ * whitelisted apps, so no future caller can widen the capture scope through
+ * this function.
  */
 export function aggregateAppSummaries(items: ScreenpipeOcrItem[], allowedApps: string[]): ScreenObserverAppSummary[] {
   const allowed = new Set(allowedApps.map(app => app.toLowerCase()))
@@ -162,6 +196,10 @@ export function aggregateAppSummaries(items: ScreenpipeOcrItem[], allowedApps: s
 
   for (const item of items) {
     const key = item.appName.toLowerCase()
+    // Second enforcement of the capture boundary: anything that slipped past
+    // the per-app queries is dropped here, not flagged and passed along.
+    if (!allowed.has(key))
+      continue
     const bucket = byApp.get(key)
     if (bucket)
       bucket.push(item)
@@ -206,7 +244,7 @@ export function aggregateAppSummaries(items: ScreenpipeOcrItem[], allowedApps: s
       windowTitle,
       observedSeconds,
       summary,
-      matchedWhitelist: allowed.has(appName.toLowerCase()),
+      matchedWhitelist: true,
     }
   })
 }

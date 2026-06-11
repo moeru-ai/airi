@@ -12,5 +12,6 @@ tray:
   resume: "立即恢復觀察"
   observation_settings: "螢幕觀察設定..."
 notification:
+  remaining_fallback: "有新的進度更新，點開任務查看"
   eta_at: "按目前速度，預計 {time} 完成"
   off_track: "進度落後於計畫"

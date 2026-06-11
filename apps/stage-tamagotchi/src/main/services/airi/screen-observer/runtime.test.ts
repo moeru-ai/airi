@@ -113,6 +113,46 @@ describe('screen observer desktop runtime decisions', () => {
     expect(content.title).toBe('two sections left')
     expect(content.body).toBe('OFF TRACK')
   })
+
+  // ROOT CAUSE:
+  //
+  // QA found L3 notifications could ship a bare percentage verbatim: the
+  // formatter put message.remainingWork into the title and message.pace into
+  // the body untouched, and decideScreenObservationTouch passed input.message
+  // through as-is — so a touch built from "75%" reached the OS notification
+  // center raw.
+  //
+  // We fixed this by re-applying the SAME shared isBarePercentage guard at
+  // the presentation boundary (no locally invented check): a bare-percentage
+  // title falls back to the localized notification fallback, and a
+  // bare-percentage pace line is dropped.
+  it('never ships a bare percentage in an L3 notification', () => {
+    const t = (key: string) => key.endsWith('remaining_fallback') ? 'PROGRESS FALLBACK' : key
+
+    const bareTitle = formatTouchNotification({
+      remainingWork: '75%',
+      pace: 'done: 99.5%',
+      isOffTrack: false,
+    }, t)
+
+    expect(bareTitle.title).toBe('PROGRESS FALLBACK')
+    expect(bareTitle.title).not.toContain('75%')
+    expect(bareTitle.body).not.toContain('99.5%')
+    expect(bareTitle.body).toBe('')
+  })
+
+  it('keeps real human-language sentences untouched by the percentage guard', () => {
+    const t = (key: string) => key
+
+    const content = formatTouchNotification({
+      remainingWork: '季度报告还差两节，大约还需 40 分钟',
+      pace: '比计划快 10 分钟',
+      isOffTrack: false,
+    }, t)
+
+    expect(content.title).toBe('季度报告还差两节，大约还需 40 分钟')
+    expect(content.body).toBe('比计划快 10 分钟')
+  })
 })
 
 describe('touch interaction ledger', () => {

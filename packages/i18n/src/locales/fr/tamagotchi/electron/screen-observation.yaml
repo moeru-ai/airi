@@ -12,5 +12,6 @@ tray:
   resume: "Reprendre l’observation"
   observation_settings: "Paramètres d’observation de l’écran..."
 notification:
+  remaining_fallback: "Progression mise à jour — ouvrez la tâche pour les détails"
   eta_at: "À ce rythme, fin prévue vers {time}"
   off_track: "En retard sur le plan"

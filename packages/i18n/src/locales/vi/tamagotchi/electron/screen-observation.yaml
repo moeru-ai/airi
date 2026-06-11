@@ -12,5 +12,6 @@ tray:
   resume: "Tiếp tục quan sát"
   observation_settings: "Cài đặt quan sát màn hình..."
 notification:
+  remaining_fallback: "Tiến độ đã cập nhật — mở nhiệm vụ để xem chi tiết"
   eta_at: "Với tốc độ hiện tại, dự kiến xong khoảng {time}"
   off_track: "Đang chậm so với kế hoạch"

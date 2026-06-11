@@ -15,7 +15,7 @@ function ocrItem(overrides: Partial<ScreenpipeOcrItem>): ScreenpipeOcrItem {
 }
 
 describe('screenpipe client', () => {
-  it('parses /search responses into reduced OCR items', async () => {
+  it('parses /search responses into reduced OCR items and always scopes the query to one app', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       data: [
         { type: 'OCR', content: { app_name: 'Code', window_name: 'main.ts', text: 'hello', timestamp: '2026-06-11T10:00:01.000Z', focused: true } },
@@ -30,12 +30,34 @@ describe('screenpipe client', () => {
     expect(items).toHaveLength(1)
     expect(items[0]!.appName).toBe('Code')
     expect(items[0]!.windowName).toBe('main.ts')
-    expect(items[0]!.focused).toBe(true)
 
+    // The capture boundary at the transport level: every OCR text query
+    // carries app_name (SearchOcrParams.appName is required, so an unscoped
+    // text query is not even expressible).
     const requestedUrl = String(fetchImpl.mock.calls[0]![0])
     expect(requestedUrl).toContain('/search?')
     expect(requestedUrl).toContain('content_type=ocr')
     expect(requestedUrl).toContain('app_name=Code')
+  })
+
+  it('materializes only window metadata from the focused-window probe, never OCR text', async () => {
+    const leakedText = 'TOP SECRET non-whitelisted document body'
+    const fetchImpl = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      data: [
+        { type: 'OCR', content: { app_name: 'Slack', window_name: 'general', text: leakedText, timestamp: '2026-06-11T10:00:01.000Z', focused: true } },
+      ],
+    })))
+
+    const client = createScreenpipeClient({ fetchImpl: fetchImpl as unknown as typeof fetch })
+    const focused = await client.focusedWindow()
+
+    expect(focused).toBeDefined()
+    expect(focused!.appName).toBe('Slack')
+    expect(focused!.windowTitle).toBe('general')
+    // The probe result is the ONLY object kept from this response: it must
+    // carry no text field and no trace of the OCR body.
+    expect(Object.keys(focused!).sort()).toEqual(['appName', 'windowTitle'])
+    expect(JSON.stringify(focused)).not.toContain(leakedText)
   })
 
   it('degrades to unhealthy and empty results when screenpipe is unreachable', async () => {
@@ -43,8 +65,8 @@ describe('screenpipe client', () => {
     const client = createScreenpipeClient({ fetchImpl: fetchImpl as unknown as typeof fetch })
 
     expect(await client.health()).toBe(false)
-    expect(await client.searchOcr({ startTime: 'a', endTime: 'b' })).toEqual([])
-    expect(await client.latestFrame()).toBeUndefined()
+    expect(await client.searchOcr({ appName: 'Code', startTime: 'a', endTime: 'b' })).toEqual([])
+    expect(await client.focusedWindow()).toBeUndefined()
   })
 })
 
@@ -70,15 +92,36 @@ describe('aggregateAppSummaries', () => {
     expect(summaries[0]!.summary.length).toBeLessThan(longText.length)
   })
 
-  it('matches the whitelist case-insensitively and flags non-matching apps', () => {
+  // ROOT CAUSE:
+  //
+  // QA found the previous behavior emitted non-whitelisted apps with
+  // matchedWhitelist=false, including their window title and an OCR text
+  // digest in `summary` — leaking non-whitelisted content past the capture
+  // boundary, and the old test fixated exactly that.
+  //
+  // We fixed this by discarding non-whitelisted items before aggregation:
+  // nothing outside the whitelist is emitted at all, in any field.
+  it('drops non-whitelisted apps entirely instead of emitting them flagged', () => {
+    const leakedText = 'private DM from a non-whitelisted app'
     const summaries = aggregateAppSummaries([
       ocrItem({ appName: 'code' }),
-      ocrItem({ appName: 'Slack', windowName: 'general' }),
+      ocrItem({ appName: 'Slack', windowName: 'general', text: leakedText }),
     ], ['Code'])
 
-    const byApp = new Map(summaries.map(summary => [summary.appName, summary]))
-    expect(byApp.get('code')!.matchedWhitelist).toBe(true)
-    expect(byApp.get('Slack')!.matchedWhitelist).toBe(false)
+    expect(summaries).toHaveLength(1)
+    expect(summaries[0]!.appName).toBe('code')
+    expect(summaries[0]!.matchedWhitelist).toBe(true)
+    expect(JSON.stringify(summaries)).not.toContain('Slack')
+    expect(JSON.stringify(summaries)).not.toContain('general')
+    expect(JSON.stringify(summaries)).not.toContain(leakedText)
+  })
+
+  it('matches the whitelist case-insensitively', () => {
+    const summaries = aggregateAppSummaries([ocrItem({ appName: 'code' })], ['Code'])
+
+    expect(summaries).toHaveLength(1)
+    expect(summaries[0]!.appId).toBe('code')
+    expect(summaries[0]!.matchedWhitelist).toBe(true)
   })
 
   it('returns an empty list for no observations', () => {

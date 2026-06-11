@@ -12,5 +12,6 @@ tray:
   resume: "관찰 재개"
   observation_settings: "화면 관찰 설정..."
 notification:
+  remaining_fallback: "진행 상황이 업데이트되었습니다. 작업을 열어 확인하세요"
   eta_at: "현재 속도라면 {time}쯤 완료 예상"
   off_track: "계획보다 늦어지고 있어요"

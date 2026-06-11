@@ -6,6 +6,8 @@ import type {
   TouchLevel,
 } from '@proj-airi/server-sdk-shared'
 
+import { isBarePercentage } from '@proj-airi/server-sdk-shared'
+
 /**
  * Pure desktop-runtime decisions for screen observation.
  *
@@ -115,13 +117,17 @@ export interface TouchNotificationContent {
  * - An L3 touch must be shown via the OS notification center.
  *
  * Expects:
- * - `message` follows the contract's human-language structure; bare
- *   percentages never reach this function.
+ * - `message` follows the contract's human-language structure. The shared
+ *   decide layer is the primary bare-percentage guard; this formatter
+ *   re-applies the SAME shared `isBarePercentage` at the presentation
+ *   boundary so a bare `75%` can never reach the notification center even
+ *   when a message bypassed the decide path.
  *
  * Returns:
- * - Title carries the remaining-work sentence; body carries pace and a
+ * - Title carries the remaining-work sentence (or its localized fallback
+ *   when the sentence is a bare percentage); body carries pace and a
  *   localized ETA line when present, prefixed with the off-track marker when
- *   the task drifted.
+ *   the task drifted. A bare-percentage pace line is dropped, not reworded.
  */
 export function formatTouchNotification(
   message: TouchEventMessage,
@@ -129,7 +135,7 @@ export function formatTouchNotification(
 ): TouchNotificationContent {
   const lines: string[] = []
 
-  if (message.pace)
+  if (message.pace && !isBarePercentage(message.pace))
     lines.push(message.pace)
 
   if (message.etaAt) {
@@ -144,7 +150,9 @@ export function formatTouchNotification(
     lines.unshift(t('tamagotchi.electron.screen_observation.notification.off_track', {}))
 
   return {
-    title: message.remainingWork,
+    title: isBarePercentage(message.remainingWork)
+      ? t('tamagotchi.electron.screen_observation.notification.remaining_fallback', {})
+      : message.remainingWork,
     body: lines.join('\n'),
   }
 }

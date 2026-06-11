@@ -12,5 +12,6 @@ tray:
   resume: "Resume observation"
   observation_settings: "Screen observation settings..."
 notification:
+  remaining_fallback: "Progress update — open the task for details"
   eta_at: "On pace to finish around {time}"
   off_track: "Falling behind plan"

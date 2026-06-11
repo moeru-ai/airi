@@ -12,5 +12,6 @@ tray:
   resume: "観察を再開"
   observation_settings: "画面観察の設定..."
 notification:
+  remaining_fallback: "進捗が更新されました。タスクを開いて確認してください"
   eta_at: "このペースなら {time} 頃に完了見込み"
   off_track: "計画より遅れています"
