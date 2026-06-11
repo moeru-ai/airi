@@ -55,7 +55,8 @@ function withLock<T>(userId: string, characterId: string, fn: () => Promise<T>):
   // points to OUR marker.  If a subsequent lock has already replaced
   // it, we leave the Map untouched so that lock's caller can chain.
   const cleanup = () => {
-    if (locks.get(lockKey) === marker) locks.delete(lockKey)
+    if (locks.get(lockKey) === marker)
+      locks.delete(lockKey)
   }
   void next.then(cleanup, cleanup)
 
@@ -242,8 +243,10 @@ async function bulkUpdate(
 
 async function clear(userId: string, characterId: string): Promise<void> {
   return withLock(userId, characterId, async () => {
-    await storage.removeItem(scope(userId, characterId))
-    await storage.removeItem(countKey(userId, characterId))
+    await Promise.all([
+      storage.removeItem(scope(userId, characterId)),
+      storage.removeItem(countKey(userId, characterId)),
+    ])
   })
 }
 
@@ -257,10 +260,13 @@ async function count(userId: string, characterId: string): Promise<number> {
 }
 
 /**
- * Atomically writes back a cleaned set of entries under lock.
+ * Writes back a cleaned set of entries under lock.
  *
- * Used by the housekeeping pipeline to prevent lost-write races where
- * entries added between read and write would be silently dropped.
+ * NOTE: This function acquires its OWN lock, so it must NOT be called
+ * from inside an existing withLock callback for the same key — that
+ * would cause a deadlock.  Currently unused; housekeeping uses saveAll
+ * inside an outer withLock instead.
+ * @deprecated Prefer `saveAll` inside an outer `withLock` to avoid re-entrancy.
  */
 async function replaceAll(
   userId: string,
@@ -300,10 +306,11 @@ async function touch(
   return withLock(userId, characterId, async () => {
     const all = await getAll(userId, characterId)
     const now = Date.now()
+    const idSet = new Set(entryIds)
     let changed = false
 
     for (const e of all) {
-      if (entryIds.includes(e.id)) {
+      if (idSet.has(e.id)) {
         e.lastAccessedAt = now
         e.accessCount += 1
         e.updatedAt = now

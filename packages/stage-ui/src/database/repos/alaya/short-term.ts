@@ -277,7 +277,7 @@ function scoreShortTermTurn(turn: ShortTermTurn): number {
   }
 
   // Score question markers (preference queries)
-  if (/\b(like|prefer|favorite|hate|love|enjoy|hobby|名字|喜欢|爱好|讨厌|觉得)\b/i.test(content)) {
+  if (/\b(?:like|prefer|favorite|hate|love|enjoy|hobby|名字|喜欢|爱好|讨厌|觉得)\b/i.test(content)) {
     score += 0.10
   }
 

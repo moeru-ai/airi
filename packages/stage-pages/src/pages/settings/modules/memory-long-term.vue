@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useAlayaMemoryStore } from '@proj-airi/stage-ui/stores/modules/alaya-memory'
-import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Button } from '@proj-airi/ui'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -26,8 +26,12 @@ const isRunningHousekeeping = ref(false)
 
 async function handleHousekeeping() {
   isRunningHousekeeping.value = true
-  try { await alaya.runHousekeeping() }
-  finally { isRunningHousekeeping.value = false }
+  try {
+    await alaya.runHousekeeping()
+  }
+  finally {
+    isRunningHousekeeping.value = false
+  }
 }
 
 const recentMemories = computed(() =>

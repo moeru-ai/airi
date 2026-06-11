@@ -94,15 +94,27 @@ export const useAlayaMemoryStore = defineStore('alaya-memory', () => {
       userId.value = opts.userId
 
     // Initialize driver and short-term memory before setting characterId
+    const oldUserId = userId.value
+    const oldCharacterId = characterId.value
     ensureDriver(userId.value)
 
-    // Create a fresh short-term buffer for the new session
-    shortTerm = new ShortTermMemory({ maxTurns: 20, digestThreshold: 0.6 })
-    shortTermTurnCount.value = 0
-    shortTermTurns.value = []
+    // Reset the short-term buffer when the character or user namespace
+    // changes.  Otherwise a compactSession() could ingest user A's
+    // buffered turns into user B's long-term memories.
+    if (opts.characterId !== oldCharacterId || userId.value !== oldUserId) {
+      shortTerm = new ShortTermMemory({ maxTurns: 20, digestThreshold: 0.6 })
+      shortTermTurnCount.value = 0
+      shortTermTurns.value = []
+    }
 
     // Now set characterId, which triggers watch and calls refresh with driver ready
     characterId.value = opts.characterId
+
+    // Always await refresh so synchronous consumers (context provider)
+    // see populated allMemories on the first read.
+    if (driver) {
+      await refresh()
+    }
   }
 
   async function refresh() {

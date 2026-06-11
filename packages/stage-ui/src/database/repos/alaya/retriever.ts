@@ -97,16 +97,22 @@ export async function retrieve(
   }
 
   // --- Stage 2: score ---
-  const scored: MemorySearchResult[] = candidates.map((entry) => {
+  // Single pass: compute relevance once, then filter & score together.
+  const scored: MemorySearchResult[] = []
+  for (const entry of candidates) {
     const relevance = query.text
       ? keywordRelevance(entry, query.text)
       : 1.0
 
-    return {
+    // Skip entries with zero relevance when searching by text
+    if (query.text && relevance === 0)
+      continue
+
+    scored.push({
       entry,
       score: compositeScore(entry, relevance, options),
-    }
-  })
+    })
+  }
 
   // --- Stage 3: sort + limit ---
   scored.sort((a, b) => b.score - a.score)

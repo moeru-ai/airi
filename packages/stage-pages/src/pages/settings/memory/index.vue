@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useAlayaMemoryStore } from '@proj-airi/stage-ui/stores/modules/alaya-memory'
-import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Button, FieldInput, FieldTextArea } from '@proj-airi/ui'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -151,7 +151,7 @@ function toggleExpand(id: string) {
       <div flex="~" items-center justify-between gap-3>
         <!-- Search -->
         <div relative flex-1>
-          <div i-solar:magnifer-bold-duotone absolute left-3 top="1/2" -translate-y="1/2" text="neutral-400" />
+          <div i-solar:magnifer-bold-duotone absolute left-3 top="1/2" translate-y="-1/2" text="neutral-400" />
           <input
             :value="searchText"
             :placeholder="t('settings.pages.memory.searchPlaceholder')"
