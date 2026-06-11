@@ -412,6 +412,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
       return peersByModule.get(moduleName)?.get(identity.id)
     }
 
+    // REVIEW: This keeps legacy indexed websocket module routing while extension modules move to identity keys.
     if (typeof moduleIndex !== 'undefined') {
       return peersByModule.get(moduleName)?.get(moduleIndex)
     }
@@ -421,6 +422,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
       return undefined
     }
 
+    // REVIEW: This preserves the old unindexed module bucket until server module routing is fully identity-based.
     const legacyPeer = group.get(undefined)
     if (legacyPeer) {
       return legacyPeer

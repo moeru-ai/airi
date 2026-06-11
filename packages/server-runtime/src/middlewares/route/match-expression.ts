@@ -133,6 +133,7 @@ export function matchesDestination(destination: string | RouteTargetExpression, 
       return peer.name === value
     default: {
       const extensionId = getPeerExtensionId(peer)
+      // REVIEW: Bare/glob destination matching is kept for existing event payloads that do not use module:<name>.
       return matchesGlob(destination, peer.name)
         || matchesGlob(destination, extensionId)
         || matchesGlob(destination, peer.identity?.id)
