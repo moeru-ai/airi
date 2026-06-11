@@ -11,6 +11,11 @@ const TRUSTED_STANDALONE_API_SERVER_ORIGINS = [
   'https://airi-server-dev.up.railway.app',
 ]
 
+const DEFAULT_API_SERVER_ORIGINS_BY_ADMIN_UI_ORIGIN = new Map([
+  ['https://admin.airi.build', 'https://api.airi.build'],
+  ['https://server-dev.airi-server-admin.pages.dev', 'https://airi-server-dev.up.railway.app'],
+])
+
 const TRUSTED_LOCAL_API_SERVER_ORIGIN_PATTERNS = [
   /^http:\/\/localhost(:\d+)?$/,
   /^http:\/\/127\.0\.0\.1(:\d+)?$/,
@@ -59,6 +64,9 @@ export function defaultApiServerUrl(): string {
  */
 export function defaultStandaloneApiServerUrl(currentOrigin: string): string {
   const origin = new URL(currentOrigin).origin
+  const knownApiServerOrigin = DEFAULT_API_SERVER_ORIGINS_BY_ADMIN_UI_ORIGIN.get(origin)
+  if (knownApiServerOrigin)
+    return knownApiServerOrigin
 
   if (TRUSTED_LOCAL_API_SERVER_ORIGIN_PATTERNS.some(pattern => pattern.test(origin))) {
     const url = new URL(origin)

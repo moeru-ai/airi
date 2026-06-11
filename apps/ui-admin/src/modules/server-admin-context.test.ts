@@ -32,7 +32,12 @@ describe('ui-admin bootstrap context', () => {
   })
 
   it('keeps non-local standalone origins unchanged without redirect context', () => {
-    expect(defaultStandaloneApiServerUrl('https://admin.airi.build')).toBe('https://admin.airi.build')
+    expect(defaultStandaloneApiServerUrl('https://admin-preview.example')).toBe('https://admin-preview.example')
+  })
+
+  it('defaults known standalone admin deployments to their API origins', () => {
+    expect(defaultStandaloneApiServerUrl('https://admin.airi.build')).toBe('https://api.airi.build')
+    expect(defaultStandaloneApiServerUrl('https://server-dev.airi-server-admin.pages.dev')).toBe('https://airi-server-dev.up.railway.app')
   })
 
   it('falls back to the standalone query context when the static placeholder script is still present', () => {
