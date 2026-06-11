@@ -53,41 +53,6 @@ const {
 } = storeToRefs(providersStore)
 
 const allArtistryProvidersMetadata = computed<ProviderSourceCard[]>((): ProviderSourceCard[] => {
-  const customProviders: ProviderSourceCard[] = isCustomProvidersDisabled()
-    ? []
-    : [
-        {
-          id: 'replicate',
-          category: 'artistry',
-          icon: 'i-lobe-icons:replicate',
-          iconColor: 'i-lobe-icons:replicate-color',
-          name: 'Replicate',
-          localizedName: 'Replicate',
-          description: t('settings.pages.providers.categories.artistry.items.replicate.description'),
-          localizedDescription: t('settings.pages.providers.categories.artistry.items.replicate.description'),
-          configured: !!artistryStore.replicateApiKey,
-          to: '/settings/providers/artistry/replicate',
-          pricing: 'paid',
-          deployment: 'cloud',
-          iconImage: undefined,
-        },
-        {
-          id: 'nanobanana',
-          category: 'artistry',
-          icon: 'i-solar:gallery-round-bold-duotone',
-          iconColor: 'text-amber-500',
-          name: 'Nano Banana',
-          localizedName: 'Nano Banana',
-          description: t('settings.pages.providers.categories.artistry.items.nanobanana.description'),
-          localizedDescription: t('settings.pages.providers.categories.artistry.items.nanobanana.description'),
-          configured: !!artistryStore.nanobananaApiKey,
-          to: '/settings/providers/artistry/nanobanana',
-          pricing: 'free',
-          deployment: 'cloud',
-          iconImage: undefined,
-        },
-      ]
-
   return [
     {
       id: 'comfyui',
