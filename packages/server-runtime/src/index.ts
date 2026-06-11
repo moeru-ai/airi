@@ -286,7 +286,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
   // === Registries & Orchestrators ===
   const peerStore = createServerWsPeerStore<AuthenticatedPeer>()
   const peers = peerStore.peers
-  const peersByModule = new Map<string, Map<number | undefined, AuthenticatedPeer>>()
+  const peersByModule = new Map<string, Map<number | string | undefined, AuthenticatedPeer>>()
   const consumers = createConsumerOrchestrator()
   const heartbeatTtlMs = options?.heartbeat?.readTimeout ?? serverWsDefaultHeartbeatTtlMs
   const heartbeatMessage = options?.heartbeat?.message ?? MessageHeartbeat.Pong
@@ -361,15 +361,26 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
         peers.delete(id)
         unregisterModulePeer(peerInfo, 'heartbeat expired')
       }
-      else if (peerInfo.missedHeartbeats >= serverWsHealthCheckMissesUnhealthy && peerInfo.healthy !== false && peerInfo.name && peerInfo.identity) {
+      else if (peerInfo.missedHeartbeats >= serverWsHealthCheckMissesUnhealthy && peerInfo.healthy !== false) {
         // 5 consecutive misses — mark unhealthy
         peerInfo.healthy = false
         logger.withFields({ peer: id, peerName: peerInfo.name, missedHeartbeats: peerInfo.missedHeartbeats }).debug('heartbeat late, marking unhealthy')
-        broadcastToAuthenticated({
-          type: 'registry:modules:health:unhealthy',
-          data: { name: peerInfo.name, index: peerInfo.index, identity: peerInfo.identity, reason: 'heartbeat late' },
-          metadata: createEventMetadata(instanceId),
-        })
+
+        if (peerInfo.name && peerInfo.identity) {
+          broadcastToAuthenticated({
+            type: 'registry:modules:health:unhealthy',
+            data: { name: peerInfo.name, index: peerInfo.index, identity: peerInfo.identity, reason: 'heartbeat late' },
+            metadata: createEventMetadata(instanceId),
+          })
+        }
+
+        for (const module of peerInfo.extensionModules?.values() ?? []) {
+          broadcastToAuthenticated({
+            type: 'registry:modules:health:unhealthy',
+            data: { name: module.name, identity: module.identity, reason: 'heartbeat late' },
+            metadata: createEventMetadata(instanceId),
+          })
+        }
       }
     }
   }, healthCheckIntervalMs)
@@ -391,13 +402,32 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
       peersByModule.set(module.name, new Map())
     }
 
-    // NOTICE:
-    // The websocket runtime still has a legacy name/index routing map.
-    // Extension modules are multi-registration records on one peer, so they use the
-    // default index bucket until routing is fully migrated to extension module identity.
-    peersByModule.get(module.name)!.set(undefined, p)
+    peersByModule.get(module.name)!.set(module.identity.id, p)
     p.healthy = true
     broadcastRegistrySync()
+  }
+
+  function findModulePeer(moduleName: string, moduleIndex: number | undefined, identity?: MetadataEventSource) {
+    if (isExtensionModuleIdentity(identity)) {
+      return peersByModule.get(moduleName)?.get(identity.id)
+    }
+
+    if (typeof moduleIndex !== 'undefined') {
+      return peersByModule.get(moduleName)?.get(moduleIndex)
+    }
+
+    const group = peersByModule.get(moduleName)
+    if (!group) {
+      return undefined
+    }
+
+    const legacyPeer = group.get(undefined)
+    if (legacyPeer) {
+      return legacyPeer
+    }
+
+    const peers = [...group.values()]
+    return peers.length === 1 ? peers[0] : undefined
   }
 
   function registerConsumer(peerId: string, event: string, mode: ReturnType<typeof normalizeConsumerMode>, group?: string, priority?: number) {
@@ -482,8 +512,8 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
     reason?: string,
   ) {
     const group = peersByModule.get(module.name)
-    if (group?.get(undefined) === peerInfo) {
-      group.delete(undefined)
+    if (group?.get(module.identity.id) === peerInfo) {
+      group.delete(module.identity.id)
 
       if (group.size === 0) {
         peersByModule.delete(module.name)
@@ -841,7 +871,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
               }
             }
 
-            const target = peersByModule.get(moduleName)?.get(moduleIndex)
+            const target = findModulePeer(moduleName, moduleIndex, data.identity)
             if (target) {
               send(target.peer, {
                 type: 'module:configure',

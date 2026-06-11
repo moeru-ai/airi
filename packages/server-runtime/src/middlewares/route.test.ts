@@ -228,7 +228,10 @@ describe('route middleware', () => {
     const peer = createExtensionModulePeer()
 
     expect(matchesDestinations(['module:character'], peer)).toBe(true)
+    expect(matchesDestinations(['character'], peer)).toBe(true)
+    expect(matchesDestinations(['chess-*'], peer)).toBe(true)
     expect(matchesDestinations(['module:missing'], peer)).toBe(false)
+    expect(matchesDestinations(['missing'], peer)).toBe(false)
   })
 
   it('policy middleware filters targets', () => {

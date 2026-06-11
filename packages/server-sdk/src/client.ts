@@ -322,6 +322,7 @@ export class Client<C = undefined> {
   }
 
   private async runConnectLoop() {
+    const reconnectingFromReady = this.pendingReconnect
     this.pendingReconnect = false
 
     while (!this.shouldClose) {
@@ -329,7 +330,7 @@ export class Client<C = undefined> {
       this.transitionTo(reconnecting ? 'reconnecting' : 'connecting')
 
       try {
-        await this.connectOnce()
+        await this.connectOnce({ reconnectingFromReady })
         this.reconnectAttempts = 0
         return
       }
@@ -366,7 +367,7 @@ export class Client<C = undefined> {
     throw new Error('Client is closed')
   }
 
-  private connectOnce(): Promise<void> {
+  private connectOnce(options: { reconnectingFromReady?: boolean } = {}): Promise<void> {
     const WebSocketConstructor = this.websocketConstructor
     const ws = new WebSocketConstructor(this.opts.url)
     this.websocket = ws
@@ -463,6 +464,14 @@ export class Client<C = undefined> {
       this.startHeartbeat()
 
       if (this.opts.handshake === 'manual') {
+        if (options.reconnectingFromReady) {
+          attempt.authenticated = false
+          attempt.announced = false
+          this.reconnectAttempts = 0
+          this.transitionTo('authenticating')
+          return
+        }
+
         attempt.authenticated = true
         attempt.announced = true
         this.reconnectAttempts = 0
@@ -711,6 +720,33 @@ export class Client<C = undefined> {
         }
 
         throw new Error('Authentication failed')
+      }
+
+      case 'peer:authenticated': {
+        if (this.opts.handshake !== 'manual' || this.status !== 'authenticating' || !this.connectionAttempt) {
+          return
+        }
+
+        if (data.data.authenticated) {
+          this.connectionAttempt.authenticated = true
+          this.transitionTo('announcing')
+          return
+        }
+
+        throw new Error('Peer authentication failed')
+      }
+
+      case 'extension:announced': {
+        if (this.opts.handshake !== 'manual' || this.status !== 'announcing' || !this.connectionAttempt) {
+          return
+        }
+
+        this.connectionAttempt.announced = true
+        this.reconnectAttempts = 0
+        this.transitionTo('ready')
+        this.resolveAttempt()
+        this.opts.onReady?.()
+        return
       }
 
       case 'extension:module:announced': {

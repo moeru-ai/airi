@@ -418,6 +418,41 @@ catalogs:
   xsai:
     unspeech: ^0.1.14
 
+ignoredBuiltDependencies:
+  - '@ax-llm/ax'
+  - '@prisma/client'
+  - better-sqlite3
+  - simple-git-hooks # [workaround] With `shellEmulator: true`, simple-git-hooks install may fail when no .git dir exists.
+
+onlyBuiltDependencies:
+  - '@anthropic-ai/claude-code'
+  - '@discordjs/opus'
+  - '@ffmpeg-installer/darwin-arm64'
+  - '@ffmpeg-installer/linux-x64'
+  - '@napi-rs/image'
+  - '@parcel/watcher'
+  - bufferutil
+  - canvas
+  - core-js
+  - electron
+  - electron-click-drag-plugin
+  - electron-winstaller
+  - es5-ext
+  - esbuild
+  - ffmpeg-static
+  - isolated-vm
+  - less
+  - msw
+  - node-pty
+  - onnxruntime-node
+  - protobufjs
+  - sharp
+  - spawn-sync
+  - stockfish
+  - uiohook-napi
+  - utf-8-validate
+  - vue-demi
+
 packageExtensions:
   '@formkit/auto-animate':
     peerDependencies:

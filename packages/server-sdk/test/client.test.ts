@@ -245,6 +245,61 @@ describe('client', () => {
     expect(socket.sent).toHaveLength(0)
   })
 
+  it('keeps manual reconnects non-ready until the peer reauthenticates and reannounces', async () => {
+    const onReady = vi.fn()
+    const client = new Client({
+      autoConnect: false,
+      autoReconnect: true,
+      handshake: 'manual',
+      name: 'test-extension',
+      onReady,
+    })
+
+    const connected = client.connect()
+    const firstSocket = lastSocket()
+
+    emitOpen(firstSocket)
+
+    await expect(connected).resolves.toBeUndefined()
+    expect(client.connectionStatus).toBe('ready')
+    expect(onReady).toHaveBeenCalledTimes(1)
+
+    firstSocket.close()
+    const secondSocket = lastSocket()
+
+    emitOpen(secondSocket)
+
+    expect(client.connectionStatus).toBe('authenticating')
+    expect(onReady).toHaveBeenCalledTimes(1)
+
+    emitMessage(secondSocket, {
+      type: 'peer:authenticated',
+      data: { authenticated: true },
+      metadata: {
+        source: { kind: 'plugin', plugin: { id: 'server' }, id: 'server-1' },
+        event: { id: 'peer-auth-1' },
+      },
+    })
+
+    expect(client.connectionStatus).toBe('announcing')
+    expect(onReady).toHaveBeenCalledTimes(1)
+
+    emitMessage(secondSocket, {
+      type: 'extension:announced',
+      data: {
+        identity: { id: 'test-extension' },
+      },
+      metadata: {
+        source: { kind: 'plugin', plugin: { id: 'server' }, id: 'server-1' },
+        event: { id: 'extension-announce-1' },
+      },
+    })
+
+    await expect(client.ensureConnected()).resolves.toBeUndefined()
+    expect(client.connectionStatus).toBe('ready')
+    expect(onReady).toHaveBeenCalledTimes(2)
+  })
+
   it('uses manual handshake when creating websocket extension peers', async () => {
     const peer = createWebSocketExtensionPeer({
       extension: {

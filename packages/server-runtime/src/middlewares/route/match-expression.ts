@@ -54,6 +54,11 @@ function matchesExtensionModule(peer: AuthenticatedPeer, moduleName: string) {
     .some(module => module.name === moduleName || module.identity.id === moduleName)
 }
 
+function matchesExtensionModuleGlob(peer: AuthenticatedPeer, glob: string) {
+  return [...peer.extensionModules?.values() ?? []]
+    .some(module => matchesGlob(glob, module.name) || matchesGlob(glob, module.identity.id))
+}
+
 function matchesPeerId(peer: AuthenticatedPeer, peerId: string) {
   return peer.peer.id === peerId || Boolean(peer.peerIds?.has(peerId))
 }
@@ -131,6 +136,7 @@ export function matchesDestination(destination: string | RouteTargetExpression, 
       return matchesGlob(destination, peer.name)
         || matchesGlob(destination, extensionId)
         || matchesGlob(destination, peer.identity?.id)
+        || matchesExtensionModuleGlob(peer, destination)
     }
   }
 }
