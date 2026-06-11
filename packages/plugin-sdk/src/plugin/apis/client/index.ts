@@ -31,10 +31,10 @@ export interface PluginApiBindings {
  * Creates the low-level plugin API surface exposed to plugin code.
  *
  * Use when:
- * - Building `ContextInit.apis` for a plugin session
+ * - Building `ContextInit.apis` for a extension session
  *
  * Expects:
- * - `ctx` is the Eventa context for the current plugin session
+ * - `ctx` is the Eventa context for the current extension session
  * - `bindings` contains the host-backed callbacks for each enabled API group
  *
  * Returns:

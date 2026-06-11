@@ -4,52 +4,60 @@ import superjson from 'superjson'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-class MockWebSocket {
-  static readonly CONNECTING = 0
-  static readonly OPEN = 1
-  static readonly CLOSING = 2
-  static readonly CLOSED = 3
+import { Client } from '../src/client'
+import { createWebSocketExtensionPeer } from '../src/extension-peer'
 
-  static instances: MockWebSocket[] = []
+const { InjectedMockWebSocket, MockWebSocket } = vi.hoisted(() => {
+  class MockWebSocket {
+    static readonly CONNECTING = 0
+    static readonly OPEN = 1
+    static readonly CLOSING = 2
+    static readonly CLOSED = 3
 
-  readonly sent: Array<string | ArrayBufferLike | ArrayBufferView<ArrayBufferLike>> = []
-  readyState = MockWebSocket.CONNECTING
-  onclose?: () => void
-  onerror?: (event: { error?: Error } | unknown) => void
-  onmessage?: (event: { data: string | ArrayBufferLike | ArrayBufferView<ArrayBufferLike> }) => void
-  onopen?: () => void
+    static instances: MockWebSocket[] = []
 
-  constructor(public readonly url: string) {
-    MockWebSocket.instances.push(this)
+    readonly sent: Array<string | ArrayBufferLike | ArrayBufferView<ArrayBufferLike>> = []
+    readyState = MockWebSocket.CONNECTING
+    onclose?: () => void
+    onerror?: (event: { error?: Error } | unknown) => void
+    onmessage?: (event: { data: string | ArrayBufferLike | ArrayBufferView<ArrayBufferLike> }) => void
+    onopen?: () => void
+
+    constructor(public readonly url: string) {
+      MockWebSocket.instances.push(this)
+    }
+
+    send(data: string | ArrayBufferLike | ArrayBufferView<ArrayBufferLike>) {
+      this.sent.push(data)
+    }
+
+    close() {
+      this.readyState = MockWebSocket.CLOSED
+      this.onclose?.()
+    }
+
+    ping() {}
+    pong() {}
   }
 
-  send(data: string | ArrayBufferLike | ArrayBufferView<ArrayBufferLike>) {
-    this.sent.push(data)
+  class InjectedMockWebSocket extends MockWebSocket {
+    static instances: InjectedMockWebSocket[] = []
+
+    constructor(url: string) {
+      super(url)
+      InjectedMockWebSocket.instances.push(this)
+    }
   }
 
-  close() {
-    this.readyState = MockWebSocket.CLOSED
-    this.onclose?.()
+  return {
+    InjectedMockWebSocket,
+    MockWebSocket,
   }
-
-  ping() {}
-  pong() {}
-}
-
-class InjectedMockWebSocket extends MockWebSocket {
-  static instances: InjectedMockWebSocket[] = []
-
-  constructor(url: string) {
-    super(url)
-    InjectedMockWebSocket.instances.push(this)
-  }
-}
+})
 
 vi.mock('crossws/websocket', () => ({
   default: MockWebSocket,
 }))
-
-const { Client } = await import('../src/client')
 
 function lastSocket() {
   const socket = MockWebSocket.instances.at(-1)
@@ -60,7 +68,7 @@ function lastSocket() {
   return socket
 }
 
-function parseSent(socket: MockWebSocket, index = -1) {
+function parseSent(socket: InstanceType<typeof MockWebSocket>, index = -1) {
   const payload = socket.sent.at(index)
   if (!payload) {
     throw new Error(`No sent payload at index ${index}`)
@@ -75,12 +83,12 @@ function parseSent(socket: MockWebSocket, index = -1) {
   return superjson.parse<WebSocketEvent>(decoded)
 }
 
-function emitOpen(socket: MockWebSocket) {
+function emitOpen(socket: InstanceType<typeof MockWebSocket>) {
   socket.readyState = MockWebSocket.OPEN
   socket.onopen?.()
 }
 
-function emitMessage(socket: MockWebSocket, event: WebSocketEvent) {
+function emitMessage(socket: InstanceType<typeof MockWebSocket>, event: WebSocketEvent) {
   socket.onmessage?.({
     data: superjson.stringify(event),
   })
@@ -217,6 +225,53 @@ describe('client', () => {
     })
 
     await expect(connected).resolves.toBeUndefined()
+  })
+
+  it('supports manual handshake for extension peers without legacy module announce', async () => {
+    const client = new Client({
+      autoConnect: false,
+      autoReconnect: false,
+      handshake: 'manual',
+      name: 'test-extension',
+    })
+
+    const connected = client.connect()
+    const socket = lastSocket()
+
+    emitOpen(socket)
+
+    await expect(connected).resolves.toBeUndefined()
+    expect(client.connectionStatus).toBe('ready')
+    expect(socket.sent).toHaveLength(0)
+  })
+
+  it('uses manual handshake when creating websocket extension peers', async () => {
+    const peer = createWebSocketExtensionPeer({
+      extension: {
+        id: 'test-extension',
+        sessionId: 'session-1',
+      },
+      clientOptions: {
+        autoReconnect: false,
+      },
+    })
+
+    const connected = peer.connect()
+    const socket = lastSocket()
+
+    emitOpen(socket)
+    await expect(connected).resolves.toBeUndefined()
+
+    expect(socket.sent).toHaveLength(0)
+
+    peer.authenticatePeer({ token: 'secret', peerId: 'peer-1' })
+    expect(parseSent(socket)).toMatchObject({
+      type: 'peer:authenticate',
+      data: {
+        token: 'secret',
+        peerId: 'peer-1',
+      },
+    })
   })
 
   it('supports timeout-aware ensureConnected without cancelling the shared connect task', async () => {

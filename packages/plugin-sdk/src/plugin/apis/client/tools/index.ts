@@ -66,7 +66,7 @@ export type RegisterToolsetPromptInput = PluginToolsetPromptDefinitionRecord
  * Defines the host-side callbacks needed by the low-level plugin tool client.
  *
  * Use when:
- * - Wiring plugin session APIs to host-owned registries
+ * - Wiring extension session APIs to host-owned registries
  *
  * Expects:
  * - `register` stores or forwards the tool definition in the host

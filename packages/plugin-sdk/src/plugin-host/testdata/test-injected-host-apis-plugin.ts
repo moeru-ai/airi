@@ -5,10 +5,10 @@ import type { ContextInit } from '../../plugin/shared'
  *
  * Use when:
  * - Verifying that a plugin can consume injected kit and binding APIs
- * - Testing end-to-end plugin host bindings from a real plugin entrypoint
+ * - Testing end-to-end extension host bindings from a real plugin entrypoint
  *
  * Expects:
- * - The host exposes `kit.widget` to the plugin runtime
+ * - The host exposes `kit.widget` to the extension runtime
  * - The manifest grants the plugin read and write permissions for the relevant resources
  *
  * Returns:

@@ -1,35 +1,35 @@
-import type { PluginHost } from '@proj-airi/plugin-sdk/plugin-host'
+import type { ExtensionHost } from '@proj-airi/plugin-sdk/plugin-host'
 
 import type {
   PluginHostDebugSnapshot,
   PluginHostModuleSummary,
 } from '../../../../../shared/eventa/plugin/host'
 import type { PluginAssetSnapshotService } from '../features/static-assets'
-import type { ManifestEntry, PluginConfig } from '../types'
+import type { ExtensionConfig, ManifestEntry } from '../types'
 
 import { rewriteWidgetModuleAssetUrl } from '../kits/widget'
 import { buildPluginRegistrySnapshot } from './registry'
 
 /**
- * Builds the debug snapshot exposed by the Electron plugin host inspector.
+ * Builds the debug snapshot exposed by the Electron extension host inspector.
  *
  * Use when:
  * - Renderer devtools need sessions, kits, modules, and capability state
  * - Widget iframe asset URLs must be rewritten to mounted plugin asset URLs
  *
  * Expects:
- * - `host` is the initialized plugin host instance
- * - `manifestEntryByName` contains entries for any plugin-owned modules being inspected
+ * - `host` is the initialized extension host instance
+ * - `manifestEntryByName` contains entries for any extension-owned modules being inspected
  * - `pluginAssetService` owns plugin asset URL/session lifecycle when mounted asset URLs are needed
  *
  * Returns:
  * - A full debug snapshot with registry, sessions, kits, modules, and capabilities
  */
 export function buildPluginHostDebugSnapshot(options: {
-  host: PluginHost
-  pluginsRoot: string
+  host: ExtensionHost
+  extensionsRoot: string
   entries: ManifestEntry[]
-  config: PluginConfig
+  config: ExtensionConfig
   loaded: Set<string>
   manifestEntryByName: Map<string, ManifestEntry>
   pluginAssetService?: PluginAssetSnapshotService
@@ -66,14 +66,14 @@ export function buildPluginHostDebugSnapshot(options: {
 
   return modules.then(resolvedModules => ({
     registry: buildPluginRegistrySnapshot({
-      pluginsRoot: options.pluginsRoot,
+      extensionsRoot: options.extensionsRoot,
       entries: options.entries,
       config: options.config,
       loaded: options.loaded,
     }),
     sessions: options.host.listSessions().map(session => ({
       id: session.id,
-      manifestName: session.manifest.name,
+      manifestName: session.manifest.id,
       phase: session.phase,
       runtime: session.runtime,
       moduleId: session.identity.id,

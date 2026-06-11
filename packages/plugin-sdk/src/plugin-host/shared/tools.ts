@@ -68,7 +68,7 @@ export interface ToolsetPromptManifest {
  * - Serializing plugin-contributed toolset guidance across host boundaries
  *
  * Expects:
- * - `id` is stable within the owning plugin session
+ * - `id` is stable within the owning extension session
  *
  * Returns:
  * - A prompt contribution suitable for renderer LLM prompt injection
@@ -100,7 +100,7 @@ export interface SerializedXsaiToolsetDefinition {
  * Captures the single source-of-truth definition submitted by a plugin.
  *
  * Use when:
- * - Registering tools from plugin runtimes into the host
+ * - Registering tools from extension runtimes into the host
  *
  * Expects:
  * - `parameters` already contains a serialized input schema
@@ -120,7 +120,7 @@ export interface PluginToolDefinitionRecord {
 }
 
 /**
- * Captures a plugin-owned prompt shared by a toolset.
+ * Captures a extension-owned prompt shared by a toolset.
  *
  * Use when:
  * - A plugin registers model-facing guidance for a group of related tools

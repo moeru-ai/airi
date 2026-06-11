@@ -1,5 +1,5 @@
 /**
- * Describes the transport selected for one plugin host session.
+ * Describes the transport selected for one extension host session.
  *
  * Use when:
  * - Creating a plugin context for a specific runtime

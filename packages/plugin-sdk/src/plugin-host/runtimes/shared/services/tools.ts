@@ -11,7 +11,7 @@ import type {
  * Stores one plugin tool registration inside the in-memory host runtime.
  *
  * Use when:
- * - Tracking tool ownership and availability per plugin session
+ * - Tracking tool ownership and availability per extension session
  *
  * Expects:
  * - `ownerPluginId` and `tool.id` together are unique
@@ -31,7 +31,7 @@ export interface ToolRegistryRecord {
  * Stores one plugin toolset prompt registration inside the in-memory host runtime.
  *
  * Use when:
- * - Tracking prompt ownership and lifecycle for a plugin-owned toolset
+ * - Tracking prompt ownership and lifecycle for a extension-owned toolset
  *
  * Expects:
  * - `ownerPluginId` and `toolset.id` together are unique
@@ -73,6 +73,64 @@ export class ToolRegistryService {
     const key = `${record.ownerPluginId}:${record.toolset.id}`
     this.toolsetPrompts.set(key, record)
     return record
+  }
+
+  /**
+   * Removes one tool record by plugin and tool id.
+   *
+   * Use when:
+   * - Module-scoped cleanup needs to remove a subset of a session's tools
+   *
+   * Expects:
+   * - `ownerPluginId` and `toolId` form the registry key used during registration
+   *
+   * Returns:
+   * - Whether a matching record existed and was removed
+   */
+  unregister(ownerPluginId: string, toolId: string) {
+    return this.tools.delete(`${ownerPluginId}:${toolId}`)
+  }
+
+  /**
+   * Removes one toolset prompt record by plugin and toolset id.
+   *
+   * Use when:
+   * - Module-scoped cleanup needs to remove prompts without stopping the whole session
+   *
+   * Expects:
+   * - `ownerPluginId` and `toolsetId` form the registry key used during registration
+   *
+   * Returns:
+   * - Whether a matching record existed and was removed
+   */
+  unregisterToolsetPrompt(ownerPluginId: string, toolsetId: string) {
+    return this.toolsetPrompts.delete(`${ownerPluginId}:${toolsetId}`)
+  }
+
+  /**
+   * Removes all tool and toolset prompt records owned by one extension session.
+   *
+   * Use when:
+   * - A session stops, reloads, or fails setup after registering host tools
+   *
+   * Expects:
+   * - `ownerSessionId` is the host session id stored on registry records
+   *
+   * Returns:
+   * - Nothing; matching records are deleted from the in-memory registry
+   */
+  unregisterOwner(ownerSessionId: string) {
+    for (const [key, record] of this.tools) {
+      if (record.ownerSessionId === ownerSessionId) {
+        this.tools.delete(key)
+      }
+    }
+
+    for (const [key, record] of this.toolsetPrompts) {
+      if (record.ownerSessionId === ownerSessionId) {
+        this.toolsetPrompts.delete(key)
+      }
+    }
   }
 
   async listAvailableDescriptors() {

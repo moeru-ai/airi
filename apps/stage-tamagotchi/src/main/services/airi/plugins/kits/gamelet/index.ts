@@ -1,11 +1,11 @@
 import type {
+  ExtensionHost,
+  ExtensionHostContribution,
   HostDataRecord,
   KitDescriptor,
-  PluginHost,
-  PluginHostContribution,
 } from '@proj-airi/plugin-sdk/plugin-host'
 
-import type { PluginHostGameletWidgetsManager } from '../../types'
+import type { ExtensionHostGameletWidgetsManager } from '../../types'
 
 import { isPlainObject } from 'es-toolkit'
 
@@ -134,7 +134,7 @@ function getPositiveTimeoutMs(timeoutMs: number | undefined): number {
  * Declares the built-in gamelet kit exposed by `stage-tamagotchi`.
  *
  * Use when:
- * - Bootstrapping the Electron plugin host with gamelet support
+ * - Bootstrapping the Electron extension host with gamelet support
  * - Reading the stable built-in gamelet kit descriptor in tests or snapshots
  *
  * Expects:
@@ -156,16 +156,16 @@ export const gameletPluginKitDescriptor = {
  * Registers the built-in gamelet kit on one host instance.
  *
  * Use when:
- * - Bootstrapping the Electron plugin host with gamelet kit support
+ * - Bootstrapping the Electron extension host with gamelet kit support
  * - Keeping gamelet descriptor registration inside the gamelet kit module
  *
  * Expects:
- * - `host` is the initialized plugin host instance
+ * - `host` is the initialized extension host instance
  *
  * Returns:
  * - The registered gamelet kit descriptor
  */
-export function registerGameletPluginKit(host: PluginHost): KitDescriptor {
+export function registerGameletPluginKit(host: ExtensionHost): KitDescriptor {
   return host.registerKit(gameletPluginKitDescriptor)
 }
 
@@ -173,29 +173,29 @@ export function registerGameletPluginKit(host: PluginHost): KitDescriptor {
  * Creates the installable gamelet host contribution for `session.apis.gamelets`.
  *
  * Use when:
- * - `stage-tamagotchi` needs plugin sessions to open, configure, close, or inspect gamelet widgets
- * - The root plugin host bootstrap should consume a kit-owned contribution instead of embedding gamelet logic
+ * - `stage-tamagotchi` needs extension sessions to open, configure, close, or inspect gamelet widgets
+ * - The root extension host bootstrap should consume a kit-owned contribution instead of embedding gamelet logic
  *
  * Expects:
- * - `attachHost(...)` is called immediately after constructing `PluginHost`
+ * - `attachHost(...)` is called immediately after constructing `ExtensionHost`
  * - `widgetsManager` already manages extension-ui widget state
  *
  * Returns:
  * - A contribution plus an attach step that binds it to the constructed host instance
  */
 export function createGameletHostContribution(options: {
-  widgetsManager: PluginHostGameletWidgetsManager
+  widgetsManager: ExtensionHostGameletWidgetsManager
 }): {
-  attachHost: (host: PluginHost) => void
-  contribution: PluginHostContribution
+  attachHost: (host: ExtensionHost) => void
+  contribution: ExtensionHostContribution
 } {
-  let host: PluginHost | undefined
+  let host: ExtensionHost | undefined
   const openWidgetIdsBySession = new Map<string, Set<string>>()
   const cleanupPromisesBySession = new Map<string, Promise<void>>()
 
   const requireHost = () => {
     if (!host) {
-      throw new Error('Gamelet host contribution has not been attached to a PluginHost instance.')
+      throw new Error('Gamelet host contribution has not been attached to a ExtensionHost instance.')
     }
 
     return host

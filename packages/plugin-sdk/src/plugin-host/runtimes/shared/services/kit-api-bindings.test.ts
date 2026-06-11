@@ -1,10 +1,27 @@
 import { describe, expect, it } from 'vitest'
 
-import { BindingsRegistryService } from './bindings'
+import { KitApiBindingRegistryService } from './kit-api-bindings'
 
-describe('bindingsRegistryService', () => {
+describe('kitApiBindingRegistryService', () => {
+  it('stores kit API bindings by owning extension session and module', () => {
+    const service = new KitApiBindingRegistryService()
+
+    const binding = service.bind({
+      moduleId: 'chess-gamelet',
+      ownerSessionId: 'session-1',
+      ownerPluginId: 'airi-extension-chess',
+      kitId: 'kit.gamelet',
+      kitModuleType: 'gamelet',
+      config: { title: 'Chess' },
+      runtime: 'electron',
+    })
+
+    expect(binding.state).toBe('announced')
+    expect(service.listByModule('session-1', 'chess-gamelet')).toEqual([binding])
+  })
+
   it('rejects ownership violations when updating a module from another session', () => {
-    const service = new BindingsRegistryService()
+    const service = new KitApiBindingRegistryService()
 
     service.bind({
       moduleId: 'm1',
@@ -20,7 +37,7 @@ describe('bindingsRegistryService', () => {
   })
 
   it('tracks lifecycle transitions with revision bumps and preserved ownership', () => {
-    const service = new BindingsRegistryService()
+    const service = new KitApiBindingRegistryService()
 
     const announced = service.bind({
       moduleId: 'm2',
@@ -45,7 +62,7 @@ describe('bindingsRegistryService', () => {
   })
 
   it('rejects invalid lifecycle transitions after withdrawal', () => {
-    const service = new BindingsRegistryService()
+    const service = new KitApiBindingRegistryService()
 
     service.bind({
       moduleId: 'm3',
@@ -63,7 +80,7 @@ describe('bindingsRegistryService', () => {
   })
 
   it('rejects duplicate module ids from a different owner session', () => {
-    const service = new BindingsRegistryService()
+    const service = new KitApiBindingRegistryService()
 
     service.bind({
       moduleId: 'm4',
@@ -89,7 +106,7 @@ describe('bindingsRegistryService', () => {
   })
 
   it('returns the existing record for an idempotent duplicate bind from the same owner', () => {
-    const service = new BindingsRegistryService()
+    const service = new KitApiBindingRegistryService()
 
     const original = service.bind({
       moduleId: 'm5',
@@ -118,7 +135,7 @@ describe('bindingsRegistryService', () => {
   })
 
   it('rejects module reuse with the same session but a different owner plugin', () => {
-    const service = new BindingsRegistryService()
+    const service = new KitApiBindingRegistryService()
 
     service.bind({
       moduleId: 'm6',
@@ -144,7 +161,7 @@ describe('bindingsRegistryService', () => {
   })
 
   it('removes a withdrawn binding with unbind for teardown flows', () => {
-    const service = new BindingsRegistryService()
+    const service = new KitApiBindingRegistryService()
 
     service.bind({
       moduleId: 'm7',

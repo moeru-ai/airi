@@ -1,5 +1,7 @@
-import type { ContextInit } from '@proj-airi/plugin-sdk'
+import type { ContextInit, KitClientRuntime } from '@proj-airi/plugin-sdk'
 import type { HostDataRecord } from '@proj-airi/plugin-sdk/plugin-host'
+
+import { defineKit } from '@proj-airi/plugin-sdk'
 
 /**
  * Describes a widget hint contributed by a gamelet to the tamagotchi host.
@@ -71,6 +73,27 @@ export interface DefinedGamelet {
   isSupported: () => Promise<boolean>
 }
 
+export interface GameletKitClient {
+  iframe: (input: { assetPath?: string, src?: string, sandbox?: string }) => HostDataRecord
+  mount: (definition: {
+    title: string
+    ui: HostDataRecord
+    defaults?: HostDataRecord
+  }) => Promise<unknown>
+}
+
+interface GameletKitRuntime extends KitClientRuntime {
+  bindings?: {
+    bind: (input: {
+      moduleId: string
+      kitId: string
+      kitModuleType: string
+      runtime?: string
+      config: HostDataRecord
+    }) => Promise<unknown> | unknown
+  }
+}
+
 /**
  * Normalizes one author-facing gamelet widget into host-safe binding config data.
  *
@@ -123,6 +146,58 @@ function buildModuleConfig<TDefaults extends HostDataRecord>(definition: Gamelet
       : {}),
   }
 }
+
+/**
+ * Derives the host binding id used by the gamelet kit client.
+ *
+ * Before:
+ * - `{ sessionId: "session-1", moduleId: undefined }`
+ *
+ * After:
+ * - `"session-1:gamelet"`
+ */
+function createGameletBindingId(runtime: KitClientRuntime): string {
+  return `${runtime.moduleId ?? runtime.sessionId}:gamelet`
+}
+
+export const gameletKit = defineKit<GameletKitClient>({
+  id: 'kit.gamelet',
+  version: '1.0.0',
+  allowedExposePolicies: ['local-only', 'remote-observable'],
+  defaultExposePolicy: 'local-only',
+  createClient(runtime) {
+    const gameletRuntime = runtime as GameletKitRuntime
+    return {
+      iframe(input) {
+        return {
+          mount: 'iframe',
+          iframe: {
+            ...input,
+            sandbox: input.sandbox ?? 'allow-scripts allow-same-origin allow-forms allow-popups',
+          },
+        }
+      },
+      async mount(definition) {
+        if (!gameletRuntime.bindings) {
+          throw new Error('gameletKit requires a host binding runtime.')
+        }
+
+        return await gameletRuntime.bindings.bind({
+          moduleId: createGameletBindingId(runtime),
+          kitId: 'kit.gamelet',
+          kitModuleType: 'gamelet',
+          config: {
+            title: definition.title,
+            widget: definition.ui,
+            config: {
+              defaults: definition.defaults ?? {},
+            },
+          },
+        })
+      },
+    }
+  },
+})
 
 /**
  * Registers a tamagotchi gamelet through the low-level kit/binding APIs.

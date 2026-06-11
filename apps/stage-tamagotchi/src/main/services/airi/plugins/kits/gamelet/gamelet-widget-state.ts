@@ -1,53 +1,45 @@
 import type {
   BindingRecord,
+  ExtensionHost,
   HostDataRecord,
-  PluginHost,
 } from '@proj-airi/plugin-sdk/plugin-host'
 
 import type { WidgetWindowSize } from '../../../../../../shared/eventa'
 
-import { isPlainObject } from 'es-toolkit'
+import { hostDataRecordSchema } from '@proj-airi/plugin-sdk/plugin-host'
+import { safeParse } from 'valibot'
+
+import { normalizeWidgetWindowSize } from '../../../../../../shared/utils/electron/windows/window-size'
 
 function cloneRecord<TValue>(value: TValue): TValue {
   return structuredClone(value)
 }
 
-function toRecord(value: unknown): Record<string, unknown> | undefined {
-  return isPlainObject(value) ? cloneRecord(value as Record<string, unknown>) : undefined
-}
-
 function toHostDataRecord(value: unknown): HostDataRecord | undefined {
-  return isPlainObject(value) ? cloneRecord(value as HostDataRecord) : undefined
-}
-
-function toWindowSize(value: unknown): WidgetWindowSize | undefined {
-  if (!isPlainObject(value)) {
+  const result = safeParse(hostDataRecordSchema, value)
+  if (!result.success) {
     return undefined
   }
 
-  if (typeof value.width !== 'number' || typeof value.height !== 'number') {
-    return undefined
-  }
-
-  return cloneRecord(value as WidgetWindowSize)
+  return cloneRecord(value as HostDataRecord)
 }
 
 /**
  * Resolves one owned gamelet binding and rejects mismatched ownership.
  *
  * Use when:
- * - Plugin sessions invoke `session.apis.gamelets.*`
+ * - Extension sessions invoke `session.apis.gamelets.*`
  * - The gamelet kit must enforce plugin and session ownership before touching widget state
  *
  * Expects:
- * - `host` is the active plugin host instance
+ * - `host` is the active extension host instance
  * - `moduleId` refers to a binding announced through `kit.gamelet`
  *
  * Returns:
  * - The owned gamelet binding record when ownership and kit checks pass
  */
 export function getOwnedGameletBindingOrThrow(params: {
-  host: PluginHost
+  host: ExtensionHost
   ownerPluginId: string
   ownerSessionId: string
   moduleId: string
@@ -89,9 +81,9 @@ export function getGameletWidgetWindowSize(params: {
   moduleConfig: HostDataRecord
   existingSnapshot?: { windowSize?: unknown }
 }): WidgetWindowSize | undefined {
-  const widgetConfig = toRecord(params.moduleConfig.widget)
-  const windowSize = toWindowSize(widgetConfig?.windowSize)
-  return windowSize ?? toWindowSize(params.existingSnapshot?.windowSize)
+  const widgetConfig = toHostDataRecord(params.moduleConfig.widget)
+  const windowSize = normalizeWidgetWindowSize(toHostDataRecord(widgetConfig?.windowSize))
+  return windowSize ?? normalizeWidgetWindowSize(toHostDataRecord(params.existingSnapshot?.windowSize))
 }
 
 /**

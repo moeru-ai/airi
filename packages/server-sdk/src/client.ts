@@ -1,7 +1,7 @@
 import type {
-  MetadataEventSource,
   ModuleConfigSchema,
   ModuleDependency,
+  ModuleIdentity,
   WebSocketBaseEvent,
   WebSocketEvent,
   WebSocketEventOptionalSource,
@@ -49,10 +49,16 @@ export interface ClientOptions<C = undefined> {
   name: string
   token?: string
   websocketConstructor?: WebSocketLikeConstructor
+  /**
+   * Selects the connection handshake owned by this client.
+   *
+   * @default 'module'
+   */
+  handshake?: 'module' | 'manual'
 
   connectTimeoutMs?: number
   possibleEvents?: Array<keyof WebSocketEvents<C>>
-  identity?: MetadataEventSource
+  identity?: ModuleIdentity
   dependencies?: ModuleDependency[]
   configSchema?: ModuleConfigSchema
   heartbeat?: ClientHeartbeatOptions
@@ -122,7 +128,7 @@ export class Client<C = undefined> {
   private connectionAttempt?: ConnectionAttempt
   private failureReason?: Error
   private status: ClientStatus = 'idle'
-  private readonly identity: MetadataEventSource
+  private readonly identity: ModuleIdentity
   private readonly heartbeat: Required<ClientHeartbeatOptions>
   private readonly websocketConstructor: WebSocketLikeConstructor
 
@@ -162,6 +168,7 @@ export class Client<C = undefined> {
       autoConnect: true,
       autoReconnect: true,
       maxReconnectAttempts: -1,
+      handshake: 'module',
       ...clientOptions,
       heartbeat,
       identity,
@@ -449,6 +456,16 @@ export class Client<C = undefined> {
       }
 
       this.startHeartbeat()
+
+      if (this.opts.handshake === 'manual') {
+        attempt.authenticated = true
+        attempt.announced = true
+        this.reconnectAttempts = 0
+        this.transitionTo('ready')
+        this.resolveAttempt()
+        this.opts.onReady?.()
+        return
+      }
 
       if (this.opts.token) {
         attempt.authenticated = false

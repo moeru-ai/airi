@@ -32,7 +32,7 @@ export interface ContextInit {
  * - Hooks are optional, but at least one meaningful hook should be provided by a real plugin
  *
  * Returns:
- * - A plugin lifecycle object consumed by the plugin host loader
+ * - A plugin lifecycle object consumed by the extension host loader
  */
 export interface Plugin {
   /**
@@ -42,7 +42,7 @@ export interface Plugin {
    * - The plugin needs to announce state, wait for capabilities, or register resources during boot
    *
    * Expects:
-   * - The host has already created the plugin session and bound `initContext`
+   * - The host has already created the extension session and bound `initContext`
    *
    * Returns:
    * - `false` to abort startup, or nothing to continue initialization
@@ -55,7 +55,7 @@ export interface Plugin {
    * - The plugin wants to expose dynamic bindings after its initial boot logic
    *
    * Expects:
-   * - The host has already created the plugin session and bound `initContext`
+   * - The host has already created the extension session and bound `initContext`
    *
    * Returns:
    * - Nothing. The host observes any side effects performed through `initContext.apis`.

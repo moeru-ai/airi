@@ -1,31 +1,39 @@
 import type { ActorRefFrom } from 'xstate'
 
+import type {
+  Extension,
+  ExtensionKitRegistry,
+  ExtensionModuleContext,
+  ExtensionSetupContext,
+  RegisterExtensionModuleInput,
+} from '../extension/shared'
+import type { KitAvailability, KitRef, KitUseResult } from '../kit'
 import type { createApis } from '../plugin/apis/client'
 import type { AnnounceBindingInput, UpdateBindingInput } from '../plugin/apis/client/bindings'
 import type { RegisterToolInput, RegisterToolsetPromptInput } from '../plugin/apis/client/tools'
 import type { Plugin } from '../plugin/shared'
 import type { BindingRecord, KitCapabilityDescriptor, KitDescriptor } from './shared'
 import type {
+  ExtensionHostContribution,
+  ExtensionHostInstallContext,
+  ExtensionHostLifecycleEvent,
+  ExtensionHostLifecycleHook,
+  ExtensionHostOptions,
+  ExtensionHostPermissionRequest,
+  ExtensionHostSessionContext,
+  ExtensionLoadOptions,
+  ExtensionManifestV1,
+  ExtensionStartOptions,
   HostDataRecord,
   HostDataValue,
-  ManifestV1,
   ModuleCompatibilityRequest,
   ModuleConfigEnvelope,
   ModuleIdentity,
   ModulePermissionDeclaration,
   ModulePermissionGrant,
-  PluginHostContribution,
-  PluginHostInstallContext,
-  PluginHostLifecycleEvent,
-  PluginHostLifecycleHook,
-  PluginHostOptions,
-  PluginHostPermissionRequest,
-  PluginHostSessionContext,
-  PluginLoadOptions,
   PluginRuntime,
   PluginSessionApiFactory,
   PluginSessionPhase,
-  PluginStartOptions,
 } from './shared/types'
 import type { PluginTransport } from './transports'
 
@@ -53,6 +61,8 @@ import {
 } from '@proj-airi/plugin-protocol/types'
 import { createActor, createMachine } from 'xstate'
 
+import { DisposableStore } from '../extension/disposable'
+import { kitUseFailure } from '../kit'
 import { createApis as createBoundApis } from '../plugin/apis/client'
 import {
   getKitBindingResourceKey,
@@ -86,126 +96,28 @@ import {
 import { createPluginContext } from './runtimes/node'
 import { FileSystemLoader } from './runtimes/node/loaders'
 import {
-  BindingsRegistryService,
   DependencyService,
+  ExtensionSessionService,
+  KitApiBindingRegistryService,
   KitRegistryService,
   PermissionService,
-  PluginSessionService,
   ResourceService,
   ToolRegistryService,
 } from './runtimes/shared'
 
 /**
- * Plugin Host lifecycle overview (transport-aware):
+ * Extension host lifecycle overview.
  *
- * - The host loads a plugin entrypoint (local or remote).
- * - The host resolves a per-plugin transport (in-memory, worker, WebSocket, electron).
- * - The host creates an Eventa context bound to that transport.
- * - The host binds SDK APIs to the context and passes them into plugin.init.
+ * The host owns transport setup, manifest validation, session lifecycle,
+ * extension-level permission grants, and module cleanup. Extension code uses
+ * `setup(ctx)` as the common authoring entrypoint and requests host-installed
+ * kits through `ctx.kits`. Explicit modules are optional lifecycle and
+ * attribution scopes that can narrow kit usage through `module.kits`.
  *
- * This design allows multiple plugins in one host without shared global channels.
- * Each plugin instance has its own context and transport, so local and remote
- * plugins share the same API surface while remaining isolated.
- */
-/**
- * One plugin could contribute multiple modules.
- *
- * For plugin itself, there are two ways to implement it, either local plugin, or remote plugin.
- * Since we have @moeru/eventa as underlying event transmission, we can drive everything in event.
- *
- * It's ok that local plugin doesn't implement the remote protocol to handle the remote plugin
- * RPC if doesn't wish for. Purely local UI manipulation or local resource registration is normal.
- *
- * In another word, we could implement the plugin in same eventa definition, while switching
- * between two different transport.
- *
- * For local plugin, local context for in-memory transport will be used.
- * For remote plugin, server-runtime for WebSocket based transport will be used.
- *
- *
- * The procedure looks like this (regardless to the underlying transport since we will implement
- * in both):
- *
- * 0.  Channel Gateway sits on top of all channels
- * 1.  Connect to control plane channel (from plugin-sdk, or any language implementation will impl)
- * 2.  Authenticate with module:authenticate
- * 3.  Negotiate protocol/api compatibility before lifecycle work starts:
- *     1. Plugin sends module:compatibility:request with:
- *        - plugin protocol version
- *        - plugin sdk api version
- *        - optional supported ranges for backward/forward compatibility
- *     2. Plugin Host replies module:compatibility:result with:
- *        - accepted version tuple (protocol + api)
- *        - compatibility mode (exact, downgraded, rejected)
- *        - deterministic reason if rejected
- *     3. If rejected, host MUST stop initialization for that plugin and emit module:status
- *        with incompatible-version details for Configurator visibility.
- * 4.  Plugin Host will send registry:modules:sync, this ensures the auto plugin / dependency discovery
- * 5.  Module will now announce itself to the entire system through module:announce
- * 6.  Module will now sync to Plugin Host that module now preparing, declaring its:
- *    1. Dependencies to other plugins / modules
- *    2. Initial Configuration (doesn't relate to capabilities)
- *       Note that for capabilities requires Database configuration, and perhaps Memory manipulation,
- *       plugin should orchestrate itself to contribute many capabilities / features, and the needed
- *       configurations and credentials should be requested and configured for each capabilities
- *       instead.
- * 7.  During this phase, if module failed to find the needed dependency, module:status will be emitted
- *     to allow the Plugin Host to surface errors or notice up to Configurator layer, to display the
- *     needed warning and status.
- *
- *     It's ok for module to stay online / connected to channels. In this phase, module:announce
- *     could happen multiple times. Module is ok to listen to the sync events and decide whether to enter
- *     the next phases if needed.
- * 8.  During this phase, if plugin successfully configured itself and calculated / computed the possible
- *     contributing capabilities / features, it will emit module:prepared.
- * 9.  During this phase, if module requires more configuration to fill and enable in order to go next
- *     phase, it's ok, it will emit module:configuration:needed.
- * 10. Module should now emit module:prepared.
- * 11. Module should now emit module:configuration:needed, for telling the shape to Configurator.
- *     In between, for user side / Configurator side:
- *       - module:configuration:validate:request (static check, zod/valibot or programmatic checks)
- *       - module:configuration:validate:status (with parent event id)
- *       - module:configuration:validate:response
- *       - module:configuration:plan:request (actually dry-run, ensures anything during runtime works)
- *       - module:configuration:plan:status (with parent event id)
- *       - module:configuration:plan:response
- *       - module:configuration:commit
- *       - module:configuration:commit:status (with parent event id)
- * 12. Module previously configured will get validate, plan, and commit automatically, if failed, status
- *     will surface to the Configurator side for further noticing to user.
- * 13. Module should now emit module:configuration:configured.
- * 14. Module should now be able to calculate / compute possible capabilities / features to be able to
- *     contribute to the system / Plugin Host, once calculated, module:contribute:capability:offer will
- *     be emitted in (length of) capabilities times.
- *
- *     This means for 1 module that offers 5 capabilities, 5 * module:contribute:capability:offer will
- *     be emitted.
- * 15. Next, module will now enter the capability / feature fill-in phase, during this phase, it's ok
- *     to say that the plugin is running but nothing gets contributed if none of them were configured.
- *
- *     For any capabilities without further configuration and fill-in from Configurator and User side,
- *     it can be automatically activated now (which is next phase for module:contribute:capability:*
- *     events), module:contribute:capability:configuration:configured,
- *     module:contribute:capability:activated will be emitted.
- *
- *     If further configuration and actions needed, module:contribute:capability:configuration:needed
- *     will be emitted.
- *
- *     To configure the capabilities in sequence and correct order,
- *       - module:contribute:capability:configuration:validate:request (static check, zod/valibot or programmatic checks)
- *       - module:contribute:capability:configuration:validate:status (with parent event id)
- *       - module:contribute:capability:configuration:validate:response
- *       - module:contribute:capability:configuration:plan:request (actually dry-run, ensures anything during runtime works)
- *       - module:contribute:capability:configuration:plan:status (with parent event id)
- *       - module:contribute:capability:configuration:plan:response
- *       - module:contribute:capability:configuration:commit
- *       - module:contribute:capability:configuration:commit:status (with parent event id)
- *    similar to module:configuration are accepted.
- *
- * 16. No matter what happens, the module:status should emit with ready status now.
- * 17. Any time the module need to re-calculate / re-compute, or wish to be re-configured, it's ok to
- *     emit module:status:change with needed phase to update, if need to rollback to announced phase,
- *     Plugin Host should treat the Module to be un-prepared status, the needed procedure will be called.
+ * Permission checks are intentionally two-layered: the extension grant is the
+ * package/session ceiling. Extension-scoped kit usage is checked against that
+ * ceiling directly; module-scoped kit usage is checked against the module grant
+ * derived from `extension grant intersection module request`.
  */
 
 type PluginLifecycleEvent
@@ -327,7 +239,7 @@ const lifecycleTransitionEvents: Record<PluginSessionPhase, Partial<Record<Plugi
   'stopped': {},
 }
 
-function assertTransition(session: PluginHostSession, to: PluginSessionPhase) {
+function assertTransition(session: ExtensionHostSession, to: PluginSessionPhase) {
   const eventType = lifecycleTransitionEvents[session.phase][to]
   if (!eventType) {
     throw new Error(`Invalid plugin lifecycle transition: ${session.phase} -> ${to} for module ${session.identity.id}`)
@@ -343,7 +255,7 @@ function assertTransition(session: PluginHostSession, to: PluginSessionPhase) {
   session.phase = session.lifecycle.getSnapshot().value as PluginSessionPhase
 }
 
-function markFailedTransition(session: PluginHostSession) {
+function markFailedTransition(session: ExtensionHostSession) {
   const event: PluginLifecycleEvent = { type: 'SESSION_FAILED' }
   const snapshot = session.lifecycle.getSnapshot()
   if (snapshot.can(event)) {
@@ -531,10 +443,10 @@ class PermissionDeniedError extends Error {
 }
 
 /**
- * Describes the host-owned state tracked for one plugin session.
+ * Describes the host-owned state tracked for one extension session.
  *
  * Use when:
- * - Reading session snapshots from `PluginHost`
+ * - Reading session snapshots from `ExtensionHost`
  * - Passing session state through host tests or orchestration code
  *
  * Expects:
@@ -543,9 +455,9 @@ class PermissionDeniedError extends Error {
  * Returns:
  * - The full session snapshot including transport, phase, bound APIs, and granted permissions
  */
-export interface PluginHostSession {
+export interface ExtensionHostSession {
   /** Manifest used to load the plugin. */
-  manifest: ManifestV1
+  manifest: ExtensionManifestV1
   /** Loaded plugin hooks for the active session. */
   plugin: Plugin
   /** Unique host-generated session id. */
@@ -570,7 +482,7 @@ export interface PluginHostSession {
     host: ReturnType<typeof createPluginContext>
   }
   /** Bound plugin SDK APIs exposed to plugin code. */
-  apis: PluginHostSessionApis
+  apis: ExtensionHostSessionApis
   /** Requested and granted permissions for the session. */
   permissions: {
     /** Permissions requested by the manifest and runtime declarations. */
@@ -583,7 +495,41 @@ export interface PluginHostSession {
 }
 
 /**
- * Filters the binding list returned by `PluginHost.listBindings(...)`.
+ * Describes the host-owned state for one extension setup session.
+ */
+export interface ExtensionSession {
+  /** Unique host-generated session id. */
+  id: string
+  /** Extension identity and session metadata. */
+  extension: {
+    id: string
+    version?: string
+    sessionId: string
+  }
+  /** Manifest used to start this extension. */
+  manifest: ExtensionManifestV1
+  /** Working directory used to resolve relative manifest entrypoints. */
+  cwd?: string
+  /** Runtime used to choose manifest entrypoints. */
+  runtime?: PluginRuntime
+  /** Loaded extension definition. */
+  entrypoint: Extension
+  /** Current extension setup phase. */
+  phase: 'setting-up' | 'ready' | 'failed' | 'stopped'
+  /** Modules registered by this extension setup. */
+  modules: Map<string, ExtensionModuleContext>
+  /** Requested and granted permissions for the extension session. */
+  permissions: {
+    requested: ModulePermissionDeclaration
+    granted: ModulePermissionGrant
+    revision: number
+  }
+  /** Extension-session cleanup callbacks. */
+  subscriptions: DisposableStore
+}
+
+/**
+ * Filters the binding list returned by `ExtensionHost.listBindings(...)`.
  *
  * Use when:
  * - Narrowing the host binding snapshot by owner session or kit
@@ -594,8 +540,8 @@ export interface PluginHostSession {
  * Returns:
  * - Optional filter criteria for the in-memory binding registry
  */
-export interface PluginHostBindingListOptions {
-  /** Limit results to bindings owned by one plugin session. */
+export interface ExtensionHostBindingListOptions {
+  /** Limit results to bindings owned by one extension session. */
   ownerSessionId?: string
   /** Limit results to bindings declared against one kit. */
   kitId?: string
@@ -604,9 +550,15 @@ export interface PluginHostBindingListOptions {
 type BoundAnnounceBindingInput<C extends HostDataRecord = HostDataRecord> = AnnounceBindingInput<C>
 type BoundUpdateBindingInput<C extends HostDataRecord = HostDataRecord> = UpdateBindingInput<C>
 
+interface ExtensionModuleResourceTracker {
+  bindingIds: Set<string>
+  toolIds: Set<string>
+  toolsetPromptIds: Set<string>
+}
+
 const builtInSessionApiNamespaces = new Set(['providers', 'kits', 'bindings', 'tools'])
 
-type PluginHostSessionApis = ReturnType<typeof createApis> & Record<string, unknown>
+type ExtensionHostSessionApis = ReturnType<typeof createApis> & Record<string, unknown>
 
 function omitModuleId<C extends HostDataRecord>(input: BoundUpdateBindingInput<C>) {
   return {
@@ -660,10 +612,10 @@ function cloneBindingRecord<C extends HostDataRecord>(module: BindingRecord<C>):
  *
  * Use when:
  * - Running plugins inside the in-memory host implementation
- * - Tests or applications need one place to load, initialize, start, stop, and query plugin sessions
+ * - Tests or applications need one place to load, initialize, start, stop, and query extension sessions
  *
  * Expects:
- * - Plugins are loaded from manifest entrypoints through {@link FileSystemLoader}
+ * - Extensions are loaded from manifest entrypoints through {@link FileSystemLoader}
  * - Each session gets its own Eventa context, permission scope, and lifecycle actor
  *
  * Returns:
@@ -672,19 +624,20 @@ function cloneBindingRecord<C extends HostDataRecord>(module: BindingRecord<C>):
  * Call stack:
  *
  * caller
- *   -> {@link PluginHost.load}
+ *   -> {@link ExtensionHost.load}
  *     -> {@link FileSystemLoader.resolveEntrypointFor}
- *     -> {@link FileSystemLoader.loadPluginFor}
- *   -> {@link PluginHost.init}
+ *     -> {@link FileSystemLoader.loadExtensionFor}
+ *   -> {@link ExtensionHost.init}
  *     -> permission resolution + protocol negotiation
  *     -> binding of {@link createApis} into plugin context
- *   -> {@link PluginHost.start}
- *     -> {@link PluginHost.load}
- *     -> {@link PluginHost.init}
+ *   -> {@link ExtensionHost.start}
+ *     -> {@link ExtensionHost.load}
+ *     -> {@link ExtensionHost.init}
  */
-export class PluginHost {
+export class ExtensionHost {
   private readonly loader: FileSystemLoader
-  private readonly sessionService = new PluginSessionService<PluginHostSession>()
+  private readonly sessionService = new ExtensionSessionService<ExtensionHostSession>()
+  private readonly extensionSessionService = new ExtensionSessionService<ExtensionSession>()
   private readonly runtime: PluginRuntime
   private readonly transport: PluginTransport
   private readonly protocolVersion: string
@@ -693,22 +646,25 @@ export class PluginHost {
   private readonly supportedApiVersions: string[]
   private readonly dependencies = new DependencyService()
   private readonly kits = new KitRegistryService()
-  private readonly modules = new BindingsRegistryService()
+  private readonly kitApis = new Map<string, KitRef<unknown>>()
+  private readonly kitApiWatchers = new Map<string, Set<() => Promise<void>>>()
+  private readonly modules = new KitApiBindingRegistryService()
   private readonly tools = new ToolRegistryService()
+  private readonly extensionModuleResources = new Map<string, ExtensionModuleResourceTracker>()
   private readonly permissions = new PermissionService()
-  private readonly permissionResolver?: PluginHostOptions['permissionResolver']
+  private readonly permissionResolver?: ExtensionHostOptions['permissionResolver']
   private readonly persistedPermissionGrants = new Map<string, ModulePermissionGrant>()
   private readonly resources = new ResourceService()
   private readonly sessionApiFactories = new Map<string, PluginSessionApiFactory>()
-  private readonly lifecycleHooks: Record<PluginHostLifecycleEvent, PluginHostLifecycleHook[]> = {
+  private readonly lifecycleHooks: Record<ExtensionHostLifecycleEvent, ExtensionHostLifecycleHook[]> = {
     'session-loaded': [],
     'session-ready': [],
     'session-stopped': [],
   }
 
-  private readonly installContext: PluginHostInstallContext
+  private readonly installContext: ExtensionHostInstallContext
 
-  constructor(options: PluginHostOptions = {}) {
+  constructor(options: ExtensionHostOptions = {}) {
     this.loader = new FileSystemLoader()
     this.runtime = options.runtime ?? 'electron'
     this.transport = options.transport ?? { kind: 'in-memory' }
@@ -726,13 +682,279 @@ export class PluginHost {
     }
   }
 
-  private getPermissionScopeKey(session: PluginHostSession) {
+  async startExtension(
+    extension: Extension,
+    options: { manifest: ExtensionManifestV1, cwd?: string, runtime?: PluginRuntime },
+  ) {
+    if (extension.id !== options.manifest.id) {
+      throw new Error(`Extension entrypoint id \`${extension.id}\` must match manifest id \`${options.manifest.id}\`.`)
+    }
+
+    const sessionIdentity = this.extensionSessionService.nextSessionIdentity(extension.id)
+    const extensionIdentity = {
+      id: extension.id,
+      version: extension.version,
+      sessionId: sessionIdentity.sessionId,
+    }
+    const persistedGrant = this.persistedPermissionGrants.get(extension.id)
+    const resolvedGrant = await this.permissionResolver?.({
+      identity: extensionIdentity,
+      manifest: options.manifest,
+      requested: options.manifest.permissions,
+      persisted: persistedGrant,
+    }) ?? options.manifest.permissions
+    const permissionSnapshot = this.permissions.initialize(sessionIdentity.sessionId, options.manifest.permissions, {
+      grant: resolvedGrant,
+      persisted: this.permissionResolver ? undefined : persistedGrant,
+    })
+    this.persistedPermissionGrants.set(extension.id, permissionSnapshot.granted)
+    const subscriptions = new DisposableStore()
+    const session: ExtensionSession = {
+      id: sessionIdentity.sessionId,
+      extension: extensionIdentity,
+      manifest: options.manifest,
+      cwd: options.cwd,
+      runtime: options.runtime,
+      entrypoint: extension,
+      phase: 'setting-up',
+      modules: new Map(),
+      permissions: {
+        requested: permissionSnapshot.requested,
+        granted: permissionSnapshot.granted,
+        revision: permissionSnapshot.revision,
+      },
+      subscriptions,
+    }
+
+    this.extensionSessionService.register(session)
+
+    const ctx: ExtensionSetupContext = {
+      extension: session.extension,
+      kits: this.createExtensionKitRegistry(session),
+      subscriptions,
+      modules: {
+        register: async (input: RegisterExtensionModuleInput) => {
+          if (session.modules.has(input.id)) {
+            throw new Error(`Extension module \`${input.id}\` is already registered for session ${session.id}.`)
+          }
+
+          const moduleSubscriptions = new DisposableStore()
+          const permissions = this.permissions.intersectGrant(
+            session.permissions.granted,
+            input.permissions ?? {},
+          )
+          const module: ExtensionModuleContext = {
+            id: input.id,
+            identity: {
+              id: input.id,
+              extension: session.extension,
+              labels: input.labels,
+            },
+            permissions,
+            kits: this.createModuleKitRegistry(session, moduleSubscriptions, input.id),
+            subscriptions: moduleSubscriptions,
+            dispose: async () => {
+              await this.cleanupExtensionModuleResources(session, input.id)
+              await moduleSubscriptions.dispose()
+              session.modules.delete(input.id)
+            },
+          }
+          session.modules.set(module.id, module)
+          return module
+        },
+      },
+    }
+
+    try {
+      await extension.setup(ctx)
+      session.phase = 'ready'
+      return session
+    }
+    catch (error) {
+      session.phase = 'failed'
+      await this.cleanupExtensionSession(session)
+      throw error
+    }
+  }
+
+  listModules() {
+    return this.extensionSessionService
+      .list()
+      .flatMap(session => [...session.modules.values()])
+  }
+
+  registerKitApi<TClient>(kit: KitRef<TClient>) {
+    this.kitApis.set(kit.id, kit as KitRef<unknown>)
+    void this.notifyKitApiWatchers(kit.id)
+    return kit
+  }
+
+  unregisterKitApi(kitId: string) {
+    const deleted = this.kitApis.delete(kitId)
+    void this.notifyKitApiWatchers(kitId)
+    return deleted
+  }
+
+  private async cleanupExtensionSessionModules(session: ExtensionSession) {
+    for (const module of [...session.modules.values()].reverse()) {
+      await module.dispose()
+    }
+    session.modules.clear()
+  }
+
+  private getExtensionModuleResourceKey(sessionId: string, moduleId: string) {
+    return `${sessionId}:${moduleId}`
+  }
+
+  private getOrCreateExtensionModuleResourceTracker(sessionId: string, moduleId: string) {
+    const key = this.getExtensionModuleResourceKey(sessionId, moduleId)
+    let resources = this.extensionModuleResources.get(key)
+    if (!resources) {
+      resources = {
+        bindingIds: new Set(),
+        toolIds: new Set(),
+        toolsetPromptIds: new Set(),
+      }
+      this.extensionModuleResources.set(key, resources)
+    }
+
+    return resources
+  }
+
+  private async cleanupExtensionModuleResources(session: ExtensionSession, moduleId: string) {
+    const key = this.getExtensionModuleResourceKey(session.id, moduleId)
+    const resources = this.extensionModuleResources.get(key)
+    if (!resources) {
+      return
+    }
+
+    for (const bindingId of resources.bindingIds) {
+      const binding = this.modules.get(bindingId)
+      if (!binding) {
+        continue
+      }
+
+      if (binding.state !== 'withdrawn') {
+        this.modules.withdraw(session.id, session.extension.id, bindingId)
+      }
+      this.modules.unbind(session.id, session.extension.id, bindingId)
+    }
+
+    for (const toolId of resources.toolIds) {
+      this.tools.unregister(session.extension.id, toolId)
+    }
+
+    for (const toolsetPromptId of resources.toolsetPromptIds) {
+      this.tools.unregisterToolsetPrompt(session.extension.id, toolsetPromptId)
+    }
+
+    this.extensionModuleResources.delete(key)
+  }
+
+  private async notifyKitApiWatchers(kitId: string) {
+    const watchers = this.kitApiWatchers.get(kitId)
+    if (!watchers?.size) {
+      return
+    }
+
+    for (const watcher of watchers) {
+      await watcher()
+    }
+  }
+
+  private resolveKitApi<TClient>(
+    session: ExtensionSession,
+    kit: KitRef<TClient>,
+    moduleId?: string,
+  ): KitUseResult<TClient> {
+    const registered = this.kitApis.get(kit.id) as KitRef<TClient> | undefined
+    if (!registered) {
+      return kitUseFailure(kit, 'missing-kit')
+    }
+
+    const grant = moduleId
+      ? session.modules.get(moduleId)?.permissions
+      : session.permissions.granted
+
+    if (!grant || !this.permissions.grantAllows(grant, 'apis', 'invoke', kit.id)) {
+      return kitUseFailure(kit, 'permission-denied')
+    }
+
+    return {
+      ok: true,
+      client: registered.createClient({
+        extensionId: session.extension.id,
+        sessionId: session.id,
+        moduleId,
+      }),
+    }
+  }
+
+  private createKitRegistry(session: ExtensionSession, subscriptions: DisposableStore, moduleId?: string): ExtensionKitRegistry {
+    return {
+      use: async <TClient>(kit: KitRef<TClient>) => {
+        const result = this.resolveKitApi(session, kit, moduleId)
+        if (result.ok) {
+          return result.client
+        }
+        const failure = result as Extract<KitUseResult<TClient>, { ok: false }>
+        throw failure.error
+      },
+      tryUse: async <TClient>(kit: KitRef<TClient>) => {
+        return this.resolveKitApi(session, kit, moduleId)
+      },
+      watch: <TClient>(kit: KitRef<TClient>, callback: (availability: KitAvailability<TClient>) => void | Promise<void>) => {
+        const watchers = this.kitApiWatchers.get(kit.id) ?? new Set()
+        let disposed = false
+        const watcher = async () => {
+          if (disposed) {
+            return
+          }
+
+          const result = this.resolveKitApi(session, kit, moduleId)
+          if (result.ok) {
+            await callback({ available: true, kit, client: result.client })
+            return
+          }
+
+          const failure = result as Extract<KitUseResult<TClient>, { ok: false }>
+          await callback({ available: false, kit, reason: failure.reason, error: failure.error })
+        }
+        watchers.add(watcher)
+        this.kitApiWatchers.set(kit.id, watchers)
+        void watcher()
+        return subscriptions.add({
+          dispose: () => {
+            if (disposed) {
+              return
+            }
+
+            disposed = true
+            watchers.delete(watcher)
+            if (watchers.size === 0) {
+              this.kitApiWatchers.delete(kit.id)
+            }
+          },
+        })
+      },
+    }
+  }
+
+  private createExtensionKitRegistry(session: ExtensionSession): ExtensionKitRegistry {
+    return this.createKitRegistry(session, session.subscriptions)
+  }
+
+  private createModuleKitRegistry(session: ExtensionSession, subscriptions: DisposableStore, moduleId: string): ExtensionModuleContext['kits'] {
+    return this.createKitRegistry(session, subscriptions, moduleId)
+  }
+
+  private getPermissionScopeKey(session: ExtensionHostSession) {
     return session.id
   }
 
   private assertPermission(
-    session: PluginHostSession,
-    input: PluginHostPermissionRequest,
+    session: ExtensionHostSession,
+    input: ExtensionHostPermissionRequest,
   ) {
     const allowed = this.permissions.isAllowed(this.getPermissionScopeKey(session), input.area, input.action, input.key)
     if (allowed) {
@@ -759,16 +981,45 @@ export class PluginHost {
     throw error
   }
 
+  private assertExtensionPermission(
+    session: ExtensionSession,
+    input: ExtensionHostPermissionRequest,
+    moduleId?: string,
+  ) {
+    const grant = moduleId
+      ? session.modules.get(moduleId)?.permissions
+      : session.permissions.granted
+
+    if (grant && this.permissions.grantAllows(grant, input.area, input.action, input.key)) {
+      return
+    }
+
+    throw new PermissionDeniedError({
+      area: input.area,
+      action: input.action,
+      key: input.key,
+    })
+  }
+
   private getSessionOrThrow(sessionId: string) {
     const session = this.sessionService.get(sessionId)
     if (!session) {
-      throw new Error(`Unknown plugin session: ${sessionId}`)
+      throw new Error(`Unknown extension session: ${sessionId}`)
     }
 
     return session
   }
 
-  private createSessionContext(session: PluginHostSession): PluginHostSessionContext {
+  private getExtensionSessionOrThrow(sessionId: string) {
+    const session = this.extensionSessionService.get(sessionId)
+    if (!session) {
+      throw new Error(`Unknown extension session: ${sessionId}`)
+    }
+
+    return session
+  }
+
+  private createSessionContext(session: ExtensionHostSession): ExtensionHostSessionContext {
     return {
       sessionId: session.id,
       ownerPluginId: session.identity.plugin.id,
@@ -776,11 +1027,11 @@ export class PluginHost {
     }
   }
 
-  private createInstallContext(): PluginHostInstallContext {
+  private createInstallContext(): ExtensionHostInstallContext {
     return {
       registerSessionApi: (namespace, factory) => {
         if (builtInSessionApiNamespaces.has(namespace)) {
-          throw new Error(`Session API namespace \`${namespace}\` is reserved by PluginHost.`)
+          throw new Error(`Session API namespace \`${namespace}\` is reserved by ExtensionHost.`)
         }
 
         const currentFactory = this.sessionApiFactories.get(namespace)
@@ -812,14 +1063,14 @@ export class PluginHost {
     }
   }
 
-  private installContribution(contribution: PluginHostContribution) {
+  private installContribution(contribution: ExtensionHostContribution) {
     contribution.install(this.installContext)
   }
 
   private createSessionApis(
-    session: PluginHostSession,
+    session: ExtensionHostSession,
     hostChannel: ReturnType<typeof createPluginContext>,
-  ): PluginHostSessionApis {
+  ): ExtensionHostSessionApis {
     const baseApis = createBoundApis(hostChannel, {
       kits: {
         list: () => {
@@ -895,7 +1146,7 @@ export class PluginHost {
     }
   }
 
-  private runLifecycleHooks(event: PluginHostLifecycleEvent, session: PluginHostSession) {
+  private runLifecycleHooks(event: ExtensionHostLifecycleEvent, session: ExtensionHostSession) {
     for (const hook of this.lifecycleHooks[event]) {
       hook({
         host: this.installContext,
@@ -905,7 +1156,7 @@ export class PluginHost {
     }
   }
 
-  private cleanupSession(session: PluginHostSession) {
+  private cleanupSession(session: ExtensionHostSession) {
     let lifecycleHookError: unknown
 
     if (session.phase !== 'stopped') {
@@ -936,6 +1187,20 @@ export class PluginHost {
     return lifecycleHookError
   }
 
+  private async cleanupExtensionSession(session: ExtensionSession) {
+    session.phase = 'stopped'
+
+    for (const module of this.modules.listByOwner(session.id)) {
+      this.modules.withdraw(session.id, session.extension.id, module.moduleId)
+      this.modules.unbind(session.id, session.extension.id, module.moduleId)
+    }
+    this.tools.unregisterOwner(session.id)
+
+    await this.cleanupExtensionSessionModules(session)
+    await session.subscriptions.dispose()
+    this.extensionSessionService.remove(session.id)
+  }
+
   private getModuleOrThrow(moduleId: string) {
     const module = this.modules.get(moduleId)
     if (!module) {
@@ -945,7 +1210,7 @@ export class PluginHost {
     return module
   }
 
-  private assertKitAvailableForSession(session: PluginHostSession, kitId: string) {
+  private assertKitAvailableForSession(session: ExtensionHostSession, kitId: string) {
     const kit = this.kits.get(kitId)
     if (!kit) {
       throw new Error(`Kit \`${kitId}\` is not registered.`)
@@ -1009,7 +1274,7 @@ export class PluginHost {
     return cloneBindingRecord(module)
   }
 
-  listBindings(options: PluginHostBindingListOptions = {}) {
+  listBindings(options: ExtensionHostBindingListOptions = {}) {
     return this.modules.list().filter((module) => {
       if (options.ownerSessionId && module.ownerSessionId !== options.ownerSessionId) {
         return false
@@ -1201,7 +1466,115 @@ export class PluginHost {
     })
   }
 
-  async load(manifest: ManifestV1, options: PluginLoadOptions = {}): Promise<PluginHostSession> {
+  bindExtensionKitModule<C extends HostDataRecord = HostDataRecord>(
+    sessionId: string,
+    input: BoundAnnounceBindingInput<C>,
+    permissionModuleId?: string,
+  ): BindingRecord<C> {
+    const session = this.getExtensionSessionOrThrow(sessionId)
+
+    this.assertExtensionPermission(session, {
+      area: 'resources',
+      action: 'write',
+      key: getKitBindingResourceKey(input.kitId),
+      reason: `Module announce requires write access to kit \`${input.kitId}\`.`,
+    }, permissionModuleId)
+
+    const binding = cloneBindingRecord(this.modules.bind({
+      ...input,
+      ownerSessionId: session.id,
+      ownerPluginId: session.extension.id,
+      runtime: this.runtime,
+    }) as BindingRecord<C>)
+
+    if (permissionModuleId) {
+      this.getOrCreateExtensionModuleResourceTracker(session.id, permissionModuleId).bindingIds.add(binding.moduleId)
+    }
+
+    return binding
+  }
+
+  registerExtensionTool(
+    sessionId: string,
+    input: RegisterToolInput,
+    permissionModuleId?: string,
+  ) {
+    const session = this.getExtensionSessionOrThrow(sessionId)
+
+    this.assertExtensionPermission(session, {
+      area: 'apis',
+      action: 'invoke',
+      key: pluginToolApiRegisterEventName,
+    }, permissionModuleId)
+    this.assertExtensionPermission(session, {
+      area: 'resources',
+      action: 'write',
+      key: pluginToolRegistryResourceKey,
+    }, permissionModuleId)
+
+    this.tools.register({
+      ownerSessionId: session.id,
+      ownerPluginId: session.extension.id,
+      tool: {
+        ...input.tool,
+        activation: {
+          keywords: [...input.tool.activation.keywords],
+          patterns: [...input.tool.activation.patterns],
+        },
+        parameters: cloneHostDataRecord(input.tool.parameters),
+      },
+      availability: async () => {
+        if (!this.extensionSessionService.get(session.id)) {
+          return false
+        }
+
+        return await input.availability?.() ?? true
+      },
+      execute: async (toolInput) => {
+        if (!this.extensionSessionService.get(session.id)) {
+          throw new Error(`Extension tool not found: ${session.extension.id}:${input.tool.id}`)
+        }
+
+        return await input.execute(toolInput)
+      },
+    })
+
+    if (permissionModuleId) {
+      this.getOrCreateExtensionModuleResourceTracker(session.id, permissionModuleId).toolIds.add(input.tool.id)
+    }
+  }
+
+  registerExtensionToolsetPrompt(
+    sessionId: string,
+    input: RegisterToolsetPromptInput,
+    permissionModuleId?: string,
+  ) {
+    const session = this.getExtensionSessionOrThrow(sessionId)
+
+    this.assertExtensionPermission(session, {
+      area: 'apis',
+      action: 'invoke',
+      key: pluginToolApiRegisterEventName,
+    }, permissionModuleId)
+    this.assertExtensionPermission(session, {
+      area: 'resources',
+      action: 'write',
+      key: pluginToolRegistryResourceKey,
+    }, permissionModuleId)
+
+    this.tools.registerToolsetPrompt({
+      ownerSessionId: session.id,
+      ownerPluginId: session.extension.id,
+      toolset: structuredClone(input),
+      availability: () => Boolean(this.extensionSessionService.get(session.id)),
+    })
+
+    if (permissionModuleId) {
+      this.getOrCreateExtensionModuleResourceTracker(session.id, permissionModuleId).toolsetPromptIds.add(input.id)
+    }
+  }
+
+  async load(manifest: ExtensionManifestV1, options: ExtensionLoadOptions = {}): Promise<ExtensionHostSession> {
     // Step 0 (channel gateway preparation): resolve runtime and transport for this plugin.
     const runtime = options.runtime ?? this.runtime
     const sessionCwd = options.cwd ?? cwd() // Explicitly assign the default CWD.
@@ -1211,11 +1584,11 @@ export class PluginHost {
     // alpha scope guard:
     // we intentionally fail fast for non in-memory transports while iterating on lifecycle design.
     if (transport.kind !== 'in-memory') {
-      throw new Error(`Only in-memory transport is currently supported by PluginHost alpha. Got: ${transport.kind}`)
+      throw new Error(`Only in-memory transport is currently supported by ExtensionHost alpha. Got: ${transport.kind}`)
     }
 
     // Build per-session identity.
-    const sessionIdentity = this.sessionService.nextSessionIdentity(manifest.name)
+    const sessionIdentity = this.sessionService.nextSessionIdentity(manifest.id)
     const sessionIndex = sessionIdentity.index
     const id = sessionIdentity.sessionId
     const identity = sessionIdentity.moduleIdentity
@@ -1230,11 +1603,11 @@ export class PluginHost {
       id,
       manifest.permissions,
       {
-        persisted: this.persistedPermissionGrants.get(identity.plugin.id),
+        persisted: this.permissionResolver ? undefined : this.persistedPermissionGrants.get(identity.plugin.id),
       },
     )
 
-    const session: PluginHostSession = {
+    const session: ExtensionHostSession = {
       manifest,
       plugin: {},
       id,
@@ -1248,7 +1621,7 @@ export class PluginHost {
       channels: {
         host: hostChannel,
       },
-      apis: {} as PluginHostSessionApis,
+      apis: {} as ExtensionHostSessionApis,
       permissions: {
         requested: permissionSnapshot.requested,
         granted: permissionSnapshot.granted,
@@ -1301,12 +1674,7 @@ export class PluginHost {
     this.sessionService.register(session)
 
     try {
-      // Load plugin module from manifest-selected runtime entrypoint.
-      // This is where malformed entrypoints or import errors surface.
-      session.plugin = await this.loader.loadPluginFor(manifest, {
-        cwd: sessionCwd,
-        runtime,
-      })
+      throw new Error('ExtensionHost.load() no longer supports legacy plugin entrypoints. Use ExtensionHost.start() with a defineExtension(...) entrypoint.')
 
       // Assert lifecycle progression (`loading` -> `loaded`) to keep transition rules explicit.
       // This prevents accidental phase drift if the method evolves later.
@@ -1328,11 +1696,11 @@ export class PluginHost {
     }
   }
 
-  async init(sessionId: string, options: PluginStartOptions = {}): Promise<PluginHostSession> {
+  async init(sessionId: string, options: ExtensionStartOptions = {}): Promise<ExtensionHostSession> {
     // `init` starts at procedure step 2 (authenticate) and drives lifecycle to ready.
     const session = this.sessionService.get(sessionId)
     if (!session) {
-      throw new Error(`Unable to initialize plugin session: ${sessionId}`)
+      throw new Error(`Unable to initialize extension session: ${sessionId}`)
     }
 
     // Safety gate: initialization can only begin from a successfully loaded plugin.
@@ -1400,7 +1768,7 @@ export class PluginHost {
         modules: this.listSessions()
           .filter(item => item.phase !== 'stopped')
           .map(item => ({
-            name: item.manifest.name,
+            name: item.manifest.id,
             index: item.index,
             identity: item.identity,
           })),
@@ -1421,7 +1789,7 @@ export class PluginHost {
 
       const grantedSnapshot = this.permissions.initialize(this.getPermissionScopeKey(session), session.permissions.requested, {
         grant: resolvedGrant,
-        persisted: this.persistedPermissionGrants.get(session.identity.plugin.id),
+        persisted: this.permissionResolver ? undefined : this.persistedPermissionGrants.get(session.identity.plugin.id),
       })
       session.permissions = {
         requested: grantedSnapshot.requested,
@@ -1454,7 +1822,7 @@ export class PluginHost {
       // Step 5: module announcement to the shared control plane.
       assertTransition(session, 'announced')
       session.channels.host.emit(moduleAnnounce, {
-        name: session.manifest.name,
+        name: session.manifest.id,
         identity: session.identity,
         possibleEvents: [],
         permissions: session.permissions.requested,
@@ -1471,7 +1839,7 @@ export class PluginHost {
         phase: 'preparing',
       })
 
-      // Optional dependency gate before plugin-owned initialization.
+      // Optional dependency gate before extension-owned initialization.
       if (options.requiredCapabilities?.length) {
         const capabilityTimeoutMs = options.capabilityWaitTimeoutMs ?? 15000
         const unresolvedCapabilities = options.requiredCapabilities.filter(key => !this.isCapabilityReady(key))
@@ -1501,14 +1869,14 @@ export class PluginHost {
         preparedEmitted = true
       }
 
-      // Run plugin-owned init hook. Returning `false` explicitly aborts startup.
+      // Run extension-owned init hook. Returning `false` explicitly aborts startup.
       const initResult = await session.plugin.init?.({
         channels: session.channels,
         apis: session.apis,
       })
 
       if (initResult === false) {
-        throw new Error(`Plugin initialization aborted by plugin: ${session.manifest.name}`)
+        throw new Error(`Plugin initialization aborted by plugin: ${session.manifest.id}`)
       }
 
       // Step 8/10: module prepared.
@@ -1569,7 +1937,7 @@ export class PluginHost {
       session.channels.host.emit(moduleStatus, {
         identity: session.identity,
         phase: 'failed',
-        reason: errorMessageFrom(error) ?? 'Plugin host initialization failed.',
+        reason: errorMessageFrom(error) ?? 'Extension host initialization failed.',
       })
 
       this.cleanupSession(session)
@@ -1578,22 +1946,26 @@ export class PluginHost {
     }
   }
 
-  async start(manifest: ManifestV1, options: PluginStartOptions = {}) {
-    // Convenience wrapper: "start" = load + init in sequence.
-    // Keep this tiny so callers can still call `load`/`init` separately when needed.
-    const session = await this.load(manifest, {
+  async start(manifest: ExtensionManifestV1, options: ExtensionStartOptions = {}): Promise<ExtensionHostSession> {
+    const extension = await this.loader.loadExtensionFor(manifest, {
       cwd: options.cwd,
       runtime: options.runtime,
     })
 
-    return this.init(session.id, options)
+    const session = await this.startExtension(extension, {
+      manifest,
+      cwd: options.cwd,
+      runtime: options.runtime,
+    })
+
+    return session as unknown as ExtensionHostSession
   }
 
   async applyConfiguration(sessionId: string, config: ModuleConfigEnvelope) {
     // Configuration is allowed only after prepare, during configuration-needed, or while re-configuring.
     const session = this.sessionService.get(sessionId)
     if (!session) {
-      throw new Error(`Unable to configure plugin session: ${sessionId}`)
+      throw new Error(`Unable to configure extension session: ${sessionId}`)
     }
 
     if (!['prepared', 'configuration-needed', 'configured'].includes(session.phase)) {
@@ -1622,7 +1994,7 @@ export class PluginHost {
   requestPermissions(sessionId: string, requested: ModulePermissionDeclaration, reason?: string) {
     const session = this.sessionService.get(sessionId)
     if (!session) {
-      throw new Error(`Unable to request permissions for plugin session: ${sessionId}`)
+      throw new Error(`Unable to request permissions for extension session: ${sessionId}`)
     }
 
     const snapshot = this.permissions.declare(this.getPermissionScopeKey(session), requested)
@@ -1660,7 +2032,7 @@ export class PluginHost {
   } {
     const session = this.sessionService.get(sessionId)
     if (!session) {
-      throw new Error(`Unable to grant permissions for plugin session: ${sessionId}`)
+      throw new Error(`Unable to grant permissions for extension session: ${sessionId}`)
     }
 
     const snapshot = this.permissions.grant(this.getPermissionScopeKey(session), grant)
@@ -1731,7 +2103,7 @@ export class PluginHost {
     // Mirrors procedure step 17 where module may request reconfiguration.
     const session = this.sessionService.get(sessionId)
     if (!session) {
-      throw new Error(`Unable to update plugin session: ${sessionId}`)
+      throw new Error(`Unable to update extension session: ${sessionId}`)
     }
 
     if (!['prepared', 'configured', 'ready', 'announced'].includes(session.phase)) {
@@ -1756,24 +2128,55 @@ export class PluginHost {
   stop(sessionId: string) {
     // Stop removes session from active registry. Lifecycle first transitions to `stopped`.
     const session = this.sessionService.get(sessionId)
-    if (!session) {
+    if (session) {
+      const lifecycleHookError = this.cleanupSession(session)
+      if (lifecycleHookError) {
+        throw lifecycleHookError
+      }
+
+      return session
+    }
+
+    const extensionSession = this.extensionSessionService.get(sessionId)
+    if (!extensionSession) {
       return undefined
     }
 
-    const lifecycleHookError = this.cleanupSession(session)
-    if (lifecycleHookError) {
-      throw lifecycleHookError
-    }
-
-    return session
+    const cleanup = this.cleanupExtensionSession(extensionSession)
+      .then(() => extensionSession as unknown as ExtensionHostSession)
+    // NOTICE:
+    // Why this workaround is needed.
+    // `start(...)` still exposes defineExtension sessions through the legacy
+    // ExtensionHostSession return type while the runtime migrates to
+    // ExtensionSession internally.
+    // Root cause summary.
+    // Public callers can pass that id back into `stop(...)`, but the public
+    // return type has not been widened yet.
+    // Source/context.
+    // packages/plugin-sdk/src/plugin-host/core.ts start(...) compatibility shim.
+    // Removal condition.
+    // Replace the legacy host session API with ExtensionSession in a dedicated
+    // public contract migration.
+    return Object.assign(cleanup, extensionSession) as unknown as ExtensionHostSession & Promise<ExtensionHostSession>
   }
 
-  async reload(sessionId: string, options: PluginStartOptions = {}) {
+  async reload(sessionId: string, options: ExtensionStartOptions = {}) {
     // Reload preserves manifest/runtime intent, then performs stop + fresh start.
     // This intentionally creates a new session identity for deterministic re-bootstrap.
     const previous = this.sessionService.get(sessionId)
     if (!previous) {
-      throw new Error(`Unable to reload missing plugin session: ${sessionId}`)
+      const previousExtension = this.extensionSessionService.get(sessionId)
+      if (!previousExtension) {
+        throw new Error(`Unable to reload missing extension session: ${sessionId}`)
+      }
+
+      const manifest = previousExtension.manifest
+      await this.cleanupExtensionSession(previousExtension)
+      return this.start(manifest, {
+        ...options,
+        cwd: options.cwd ?? previousExtension.cwd,
+        runtime: options.runtime ?? previousExtension.runtime,
+      })
     }
 
     const manifest = previous.manifest

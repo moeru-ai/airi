@@ -1,20 +1,22 @@
 import type { createContext } from '@moeru/eventa'
 import type {
   BindingRecord,
+  ExtensionManifestV1,
   HostDataRecord,
-  ManifestV1,
   ModulePermissionDeclaration,
 } from '@proj-airi/plugin-sdk/plugin-host'
 
 import type { WidgetsAddPayload, WidgetSnapshot, WidgetsUpdatePayload } from '../../../../shared/eventa'
-import type { PluginHostService } from './types'
+import type { ExtensionHostService } from './types'
 
 import { cp, mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, join, resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
+import { useLogg } from '@guiiai/logg'
 import { defineInvoke } from '@moeru/eventa'
-import { PluginHost } from '@proj-airi/plugin-sdk/plugin-host'
+import { ExtensionHost } from '@proj-airi/plugin-sdk/plugin-host'
 import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
 
 import {
@@ -36,8 +38,9 @@ import {
   electronPluginListAgentTools,
   electronPluginListXsaiTools,
 } from '../../../../shared/eventa/plugin/tools'
-import { setupPluginHostHostService } from './host'
-import { setupPluginHost as setupPluginHostService } from './index'
+import { setupExtensionHostServiceInternal } from './host'
+import { loadManifestsFrom } from './host/registry'
+import { setupExtensionHost as setupExtensionHostService } from './index'
 import {
   gameletPluginKitDescriptor,
   pluginGameletApiCloseEventName,
@@ -119,20 +122,20 @@ const chessLikePluginRoot = resolve(
   'plugins',
   'airi-plugin-game-chess',
 )
-const pluginManifestFileName = 'plugin.airi.json'
+const extensionManifestFileName = 'extension.airi.json'
 
 async function writeManifest(params: { dir: string, name: string, entrypoint: string }) {
   const manifest = {
     apiVersion: 'v1',
-    kind: 'manifest.plugin.airi.moeru.ai',
-    name: params.name,
+    kind: 'manifest.extension.airi.moeru.ai' as const,
+    id: params.name,
     permissions: {},
     entrypoints: {
       electron: params.entrypoint,
     },
   }
 
-  const path = join(params.dir, pluginManifestFileName)
+  const path = join(params.dir, extensionManifestFileName)
   await writeFile(path, JSON.stringify(manifest, null, 2))
   return path
 }
@@ -182,7 +185,7 @@ async function removeDirWithRetry(path: string, options: { attempts?: number, wa
   }
 }
 
-function createDynamicModuleManifest(entrypoint: string): ManifestV1 {
+function createDynamicModuleManifest(entrypoint: string): ExtensionManifestV1 {
   const providersCapability = 'proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers'
   const permissions: ModulePermissionDeclaration = {
     apis: [
@@ -206,8 +209,8 @@ function createDynamicModuleManifest(entrypoint: string): ManifestV1 {
 
   return {
     apiVersion: 'v1',
-    kind: 'manifest.plugin.airi.moeru.ai',
-    name: 'test-dynamic-module',
+    kind: 'manifest.extension.airi.moeru.ai' as const,
+    id: 'test-dynamic-module',
     permissions,
     entrypoints: {
       electron: entrypoint,
@@ -215,13 +218,13 @@ function createDynamicModuleManifest(entrypoint: string): ManifestV1 {
   }
 }
 
-function createToolEnabledManifest(entrypoint: string): ManifestV1 {
+function createToolEnabledManifest(entrypoint: string): ExtensionManifestV1 {
   const providersCapability = 'proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers'
 
   return {
     apiVersion: 'v1',
-    kind: 'manifest.plugin.airi.moeru.ai',
-    name: 'test-plugin-tools',
+    kind: 'manifest.extension.airi.moeru.ai' as const,
+    id: 'test-plugin-tools',
     permissions: {
       apis: [
         { key: 'proj-airi:plugin-sdk:apis:protocol:capabilities:wait', actions: ['invoke'] },
@@ -242,13 +245,13 @@ function createToolEnabledManifest(entrypoint: string): ManifestV1 {
   }
 }
 
-function createToolDrivenGameletManifest(entrypoint: string): ManifestV1 {
+function createToolDrivenGameletManifest(entrypoint: string): ExtensionManifestV1 {
   const providersCapability = 'proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers'
 
   return {
     apiVersion: 'v1',
-    kind: 'manifest.plugin.airi.moeru.ai',
-    name: 'test-plugin-gamelets',
+    kind: 'manifest.extension.airi.moeru.ai' as const,
+    id: 'test-plugin-gamelets',
     permissions: {
       apis: [
         { key: 'proj-airi:plugin-sdk:apis:protocol:capabilities:wait', actions: ['invoke'] },
@@ -274,6 +277,25 @@ function createToolDrivenGameletManifest(entrypoint: string): ManifestV1 {
       ],
       capabilities: [
         { key: providersCapability, actions: ['wait'] },
+      ],
+    },
+    entrypoints: {
+      electron: entrypoint,
+    },
+  }
+}
+
+function createExtensionGameletKitManifest(entrypoint: string): ExtensionManifestV1 {
+  return {
+    apiVersion: 'v1',
+    kind: 'manifest.extension.airi.moeru.ai' as const,
+    id: 'test-extension-gamelet-kit',
+    permissions: {
+      apis: [
+        { key: 'kit.gamelet', actions: ['invoke'] },
+      ],
+      resources: [
+        { key: 'proj-airi:plugin-sdk:resources:kits:kit.gamelet:bindings', actions: ['write'] },
       ],
     },
     entrypoints: {
@@ -360,20 +382,20 @@ function createWidgetsManagerDouble() {
   }
 }
 
-async function setupPluginHostForTest() {
+async function setupExtensionHostForTest() {
   const widgets = createWidgetsManagerDouble()
-  const service = await setupPluginHostService({ widgetsManager: widgets.widgetsManager })
+  const service = await setupExtensionHostService({ widgetsManager: widgets.widgetsManager })
   return { service, ...widgets }
 }
 
-async function setupPluginHostHostServiceForTest() {
+async function setupExtensionHostServiceInternalForTest() {
   const widgets = createWidgetsManagerDouble()
-  const service = await setupPluginHostHostService({ widgetsManager: widgets.widgetsManager })
+  const service = await setupExtensionHostServiceInternal({ widgetsManager: widgets.widgetsManager })
   return { service, ...widgets }
 }
 
-async function setupPluginHost() {
-  return (await setupPluginHostForTest()).service
+async function setupExtensionHost() {
+  return (await setupExtensionHostForTest()).service
 }
 
 function getGameletApis(session: { apis: Record<string, unknown> }) {
@@ -386,16 +408,16 @@ function getGameletApis(session: { apis: Record<string, unknown> }) {
   }
 }
 
-describe('setupPluginHost', () => {
+describe('setupExtensionHost', () => {
   let userDataDir: string
   let pluginsDir: string
 
-  it('types the setup host service as the plain PluginHost surface', () => {
-    expectTypeOf<PluginHostService['host']>().toMatchTypeOf<PluginHost>()
+  it('types the setup host service as the plain ExtensionHost surface', () => {
+    expectTypeOf<ExtensionHostService['host']>().toMatchTypeOf<ExtensionHost>()
   })
 
-  it('types getBinding as an optional lookup on the plain PluginHost surface', () => {
-    expectTypeOf<ReturnType<PluginHost['getBinding']>>().toMatchTypeOf<BindingRecord<HostDataRecord> | undefined>()
+  it('types getBinding as an optional lookup on the plain ExtensionHost surface', () => {
+    expectTypeOf<ReturnType<ExtensionHost['getBinding']>>().toMatchTypeOf<BindingRecord<HostDataRecord> | undefined>()
   })
 
   it('loads manifests through the internal host bootstrap helper', async () => {
@@ -407,17 +429,17 @@ describe('setupPluginHost', () => {
       entrypointPath: normalEntrypoint,
     })
 
-    const { service } = await setupPluginHostHostServiceForTest()
+    const { service } = await setupExtensionHostServiceInternalForTest()
 
-    expect(service.host).toBeInstanceOf(PluginHost)
+    expect(service.host).toBeInstanceOf(ExtensionHost)
     expect(service.manifests).toEqual([
-      expect.objectContaining({ name: 'test-host-helper' }),
+      expect.objectContaining({ id: 'test-host-helper' }),
     ])
   })
 
   beforeEach(async () => {
     userDataDir = await mkdtemp(join(tmpdir(), 'airi-plugins-'))
-    pluginsDir = join(userDataDir, 'plugins', 'v1')
+    pluginsDir = join(userDataDir, 'extensions', 'v1')
     await mkdir(pluginsDir, { recursive: true })
     appMock.getPath.mockReturnValue(userDataDir)
   })
@@ -446,7 +468,7 @@ describe('setupPluginHost', () => {
       entrypointPath: errorEntrypoint,
     })
 
-    await setupPluginHost()
+    await setupExtensionHost()
 
     expect(contextState.lastContext).toBeDefined()
     const invokeList = defineInvoke(contextState.lastContext!, electronPluginList)
@@ -458,6 +480,42 @@ describe('setupPluginHost', () => {
       expect.objectContaining({ name: 'test-normal', path: normalPath, enabled: false, loaded: false, isNew: true }),
       expect.objectContaining({ name: 'test-error', path: errorPath, enabled: false, loaded: false, isNew: true }),
     ]))
+  })
+
+  it('discovers extension manifests and ignores legacy extension manifests', async () => {
+    const extensionDir = join(pluginsDir, 'extension-test')
+    const legacyDir = join(pluginsDir, 'plugin-legacy')
+    await mkdir(extensionDir, { recursive: true })
+    await mkdir(legacyDir, { recursive: true })
+
+    await writeFile(join(extensionDir, extensionManifestFileName), JSON.stringify({
+      apiVersion: 'v1',
+      kind: 'manifest.extension.airi.moeru.ai' as const,
+      id: 'airi-extension-test',
+      permissions: {},
+      entrypoints: {
+        electron: './extension.mjs',
+      },
+    }, null, 2))
+
+    await writeFile(join(legacyDir, extensionManifestFileName), JSON.stringify({
+      apiVersion: 'v1',
+      kind: 'manifest.plugin.airi.moeru.ai',
+      name: 'airi-plugin-legacy',
+      permissions: {},
+      entrypoints: {
+        electron: './plugin.mjs',
+      },
+    }, null, 2))
+
+    const entries = await loadManifestsFrom(pluginsDir, useLogg('test/plugin-registry'))
+
+    expect(entries.map(entry => entry.path)).toEqual([
+      join(extensionDir, extensionManifestFileName),
+    ])
+    expect(entries.map(entry => 'id' in entry.manifest ? entry.manifest.id : undefined)).toEqual([
+      'airi-extension-test',
+    ])
   })
 
   it('ignores root-level manifests and only loads manifests from subdirectories', async () => {
@@ -476,7 +534,7 @@ describe('setupPluginHost', () => {
       entrypoint: rootEntrypointFile,
     })
 
-    await setupPluginHost()
+    await setupExtensionHost()
 
     expect(contextState.lastContext).toBeDefined()
     const invokeList = defineInvoke(contextState.lastContext!, electronPluginList)
@@ -517,7 +575,7 @@ describe('setupPluginHost', () => {
       entrypointPath: errorEntrypoint,
     })
 
-    await setupPluginHost()
+    await setupExtensionHost()
 
     expect(contextState.lastContext).toBeDefined()
     const invokeSetEnabled = defineInvoke(contextState.lastContext!, electronPluginSetEnabled)
@@ -557,7 +615,7 @@ describe('setupPluginHost', () => {
       entrypointPath: errorEntrypoint,
     })
 
-    const { service } = await setupPluginHostForTest()
+    const { service } = await setupExtensionHostForTest()
 
     expect(contextState.lastContext).toBeDefined()
     const invokeSetEnabled = defineInvoke(contextState.lastContext!, electronPluginSetEnabled)
@@ -568,7 +626,7 @@ describe('setupPluginHost', () => {
 
     const duplicateSession = service.host
       .listSessions()
-      .find(session => session.manifest.name === 'duplicate-plugin')
+      .find(session => session.manifest.id === 'duplicate-plugin')
 
     expect(duplicateSession).toBeDefined()
     expect(duplicateSession?.manifest.entrypoints.electron).toBe('./test-normal-plugin.ts')
@@ -583,7 +641,7 @@ describe('setupPluginHost', () => {
       entrypointPath: normalEntrypoint,
     })
 
-    await setupPluginHost()
+    await setupExtensionHost()
 
     expect(contextState.lastContext).toBeDefined()
     const invokeSetAutoReload = defineInvoke(contextState.lastContext!, electronPluginSetAutoReload)
@@ -616,7 +674,7 @@ describe('setupPluginHost', () => {
       entrypoint: './test-auto-reload-reload.ts',
     })
 
-    await setupPluginHost()
+    await setupExtensionHost()
 
     expect(contextState.lastContext).toBeDefined()
     const invokeSetEnabled = defineInvoke(contextState.lastContext!, electronPluginSetEnabled)
@@ -669,7 +727,7 @@ describe('setupPluginHost', () => {
         entrypoint: externalEntrypoint,
       })
 
-      await setupPluginHost()
+      await setupExtensionHost()
 
       expect(contextState.lastContext).toBeDefined()
       const invokeSetEnabled = defineInvoke(contextState.lastContext!, electronPluginSetEnabled)
@@ -691,15 +749,15 @@ describe('setupPluginHost', () => {
     const pluginDir = join(pluginsDir, 'devtools-sample-plugin')
     await mkdir(pluginDir, { recursive: true })
     await writeFile(
-      join(pluginDir, pluginManifestFileName),
-      await readFile(join(samplePluginRoot, pluginManifestFileName), 'utf-8'),
+      join(pluginDir, extensionManifestFileName),
+      await readFile(join(samplePluginRoot, extensionManifestFileName), 'utf-8'),
     )
     await writeFile(
       join(pluginDir, 'devtools-sample-plugin.mjs'),
       await readFile(join(samplePluginRoot, 'devtools-sample-plugin.mjs'), 'utf-8'),
     )
 
-    await setupPluginHost()
+    await setupExtensionHost()
 
     expect(contextState.lastContext).toBeDefined()
     const invokeSetEnabled = defineInvoke(contextState.lastContext!, electronPluginSetEnabled)
@@ -724,76 +782,50 @@ describe('setupPluginHost', () => {
     catch {
       await mkdir(pluginDir, { recursive: true })
       await writeFile(
-        join(pluginDir, pluginManifestFileName),
+        join(pluginDir, extensionManifestFileName),
         JSON.stringify({
           apiVersion: 'v1',
-          kind: 'manifest.plugin.airi.moeru.ai',
-          name: 'airi-plugin-game-chess',
+          kind: 'manifest.extension.airi.moeru.ai' as const,
+          id: 'airi-plugin-game-chess',
           permissions: {
             apis: [
-              { key: 'proj-airi:plugin-sdk:apis:protocol:capabilities:wait', actions: ['invoke'] },
-              { key: 'proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers', actions: ['invoke'] },
-              { key: 'proj-airi:plugin-sdk:apis:client:kits:list', actions: ['invoke'] },
-              { key: 'proj-airi:plugin-sdk:apis:client:bindings:list', actions: ['invoke'] },
               { key: 'proj-airi:plugin-sdk:apis:client:bindings:announce', actions: ['invoke'] },
               { key: 'proj-airi:plugin-sdk:apis:client:bindings:activate', actions: ['invoke'] },
             ],
             resources: [
-              { key: 'proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers', actions: ['read'] },
-              { key: 'proj-airi:plugin-sdk:resources:kits', actions: ['read'] },
-              { key: 'proj-airi:plugin-sdk:resources:bindings', actions: ['read'] },
-              { key: 'proj-airi:plugin-sdk:resources:kits:kit.gamelet:bindings', actions: ['read', 'write'] },
-            ],
-            capabilities: [
-              { key: 'proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers', actions: ['wait'] },
+              { key: 'proj-airi:plugin-sdk:resources:kits:kit.gamelet:bindings', actions: ['write'] },
             ],
           },
           entrypoints: {
-            electron: './index.ts',
+            electron: './airi-plugin-game-chess.mjs',
           },
         }, null, 2),
       )
-      await writeFile(
-        join(pluginDir, 'index.ts'),
-        `
-        export async function init(ctx) {
-          await ctx.apis.bindings.announce({
-            moduleId: 'chess-like-main',
-            kitId: 'kit.gamelet',
-            kitModuleType: 'gamelet',
-            config: {
-              title: 'Chess',
-              entrypoint: 'ui/index.html',
-              widget: {
-                mount: 'iframe',
-                iframe: {
-                  assetPath: 'ui/index.html',
-                  sandbox: 'allow-scripts allow-same-origin allow-forms allow-popups',
-                },
-              },
-              config: {
-                defaults: {
-                  airiSide: 'white',
-                  opening: 'queen-gambit',
-                },
-              },
-              widgets: [
-                {
-                  id: 'main-board',
-                  kind: 'primary',
-                },
-              ],
-            },
-          })
-          await ctx.apis.bindings.activate({ moduleId: 'chess-like-main' })
-        }
-        `,
-      )
+      await writeFile(join(pluginDir, 'airi-plugin-game-chess.mjs'), [
+        'export async function init(ctx) {',
+        '  await ctx.apis.bindings.announce({',
+        '    moduleId: "chess-like-main",',
+        '    kitId: "kit.gamelet",',
+        '    kitModuleType: "gamelet",',
+        '    config: {',
+        '      title: "Chess",',
+        '      entrypoint: "ui/index.html",',
+        '      widgets: [{ id: "main-board", kind: "primary" }],',
+        '      widget: {',
+        '        mount: "iframe",',
+        '        iframe: { assetPath: "ui/index.html", sandbox: "allow-scripts allow-same-origin allow-forms allow-popups" },',
+        '      },',
+        '      config: { defaults: { airiSide: "white", opening: "queen-gambit" } },',
+        '    },',
+        '  })',
+        '  await ctx.apis.bindings.activate({ moduleId: "chess-like-main" })',
+        '}',
+      ].join('\n'))
       await mkdir(join(pluginDir, 'ui'), { recursive: true })
       await writeFile(join(pluginDir, 'ui', 'index.html'), '<!doctype html><title>fallback</title>')
     }
 
-    await setupPluginHost()
+    await setupExtensionHost()
 
     expect(contextState.lastContext).toBeDefined()
     const invokeSetEnabled = defineInvoke(contextState.lastContext!, electronPluginSetEnabled)
@@ -848,7 +880,7 @@ describe('setupPluginHost', () => {
   })
 
   it('exposes plugin asset base URL through Eventa invoke', async () => {
-    await setupPluginHost()
+    await setupExtensionHost()
 
     expect(contextState.lastContext).toBeDefined()
     const invokeGetAssetBaseUrl = defineInvoke(contextState.lastContext!, electronPluginGetAssetBaseUrl)
@@ -858,7 +890,7 @@ describe('setupPluginHost', () => {
   })
 
   it('exposes registered plugin tools to renderer clients', async () => {
-    const service = await setupPluginHost()
+    const service = await setupExtensionHost()
     const pluginDir = join(pluginsDir, 'test-plugin-tools')
     await mkdir(pluginDir, { recursive: true })
     const entrypointPath = await writeEntrypoint({
@@ -925,7 +957,7 @@ describe('setupPluginHost', () => {
   })
 
   it('lets a plugin tool drive host-backed gamelet widgets end-to-end', async () => {
-    const { service, widgetsManager, widgetSnapshots } = await setupPluginHostForTest()
+    const { service, widgetsManager, widgetSnapshots } = await setupExtensionHostForTest()
     const pluginDir = join(pluginsDir, 'test-plugin-gamelets')
     await mkdir(pluginDir, { recursive: true })
     const entrypointPath = await writeEntrypoint({
@@ -1055,7 +1087,7 @@ describe('setupPluginHost', () => {
   })
 
   it('updates widgetsManager through the host gamelet wrapper', async () => {
-    const { service, widgetsManager, widgetSnapshots } = await setupPluginHostForTest()
+    const { service, widgetsManager, widgetSnapshots } = await setupExtensionHostForTest()
     const pluginDir = join(pluginsDir, 'test-plugin-gamelets-wrapper')
     await mkdir(pluginDir, { recursive: true })
     const entrypointPath = await writeEntrypoint({
@@ -1149,7 +1181,7 @@ describe('setupPluginHost', () => {
   })
 
   it('removes open gamelet widgets when the owning session stops', async () => {
-    const { service, widgetsManager, widgetSnapshots } = await setupPluginHostForTest()
+    const { service, widgetsManager, widgetSnapshots } = await setupExtensionHostForTest()
     const pluginDir = join(pluginsDir, 'test-plugin-gamelets-stop-cleanup')
     await mkdir(pluginDir, { recursive: true })
     const entrypointPath = await writeEntrypoint({
@@ -1218,7 +1250,7 @@ describe('setupPluginHost', () => {
       publishWidgetEvent: vi.fn((_id: string, _event: Record<string, unknown>) => {}),
       onWidgetEvent: vi.fn((_listener: (event: { id: string, event: Record<string, unknown> }) => void) => () => {}),
     }
-    const service = await setupPluginHostService({ widgetsManager })
+    const service = await setupExtensionHostService({ widgetsManager })
     const pluginDir = join(pluginsDir, 'test-plugin-gamelets-stop-cleanup-reject')
     await mkdir(pluginDir, { recursive: true })
     const entrypointPath = await writeEntrypoint({
@@ -1259,7 +1291,7 @@ describe('setupPluginHost', () => {
   })
 
   it('rejects gamelet access when plugin id matches but session id does not', async () => {
-    const { service } = await setupPluginHostForTest()
+    const { service } = await setupExtensionHostForTest()
     const pluginDir = join(pluginsDir, 'test-plugin-gamelets-isolation')
     await mkdir(pluginDir, { recursive: true })
     const entrypointPath = await writeEntrypoint({
@@ -1342,10 +1374,10 @@ describe('setupPluginHost', () => {
         '}',
       ].join('\n'),
     })
-    await writeFile(join(pluginDir, pluginManifestFileName), JSON.stringify({
+    await writeFile(join(pluginDir, extensionManifestFileName), JSON.stringify({
       apiVersion: 'v1',
-      kind: 'manifest.plugin.airi.moeru.ai',
-      name: 'test-plugin-widget-asset-url',
+      kind: 'manifest.extension.airi.moeru.ai' as const,
+      id: 'test-plugin-widget-asset-url',
       permissions: {
         apis: [
           { key: 'proj-airi:plugin-sdk:apis:protocol:capabilities:wait', actions: ['invoke'] },
@@ -1371,7 +1403,7 @@ describe('setupPluginHost', () => {
       },
     }, null, 2))
 
-    await setupPluginHost()
+    await setupExtensionHost()
 
     expect(contextState.lastContext).toBeDefined()
     const invokeSetEnabled = defineInvoke(contextState.lastContext!, electronPluginSetEnabled)
@@ -1439,7 +1471,7 @@ describe('setupPluginHost', () => {
   })
 
   it('mirrors degraded and withdrawn capability updates into the host snapshot', async () => {
-    await setupPluginHost()
+    await setupExtensionHost()
 
     expect(contextState.lastContext).toBeDefined()
     const invokeInspect = defineInvoke(contextState.lastContext!, electronPluginInspect)
@@ -1478,7 +1510,7 @@ describe('setupPluginHost', () => {
 
   it('includes built-in kits and module snapshots in inspect responses without leaking mutable references', async () => {
     const normalEntrypoint = join(testDataRoot, 'test-normal-plugin.ts')
-    const { host } = await setupPluginHost()
+    const { host } = await setupExtensionHost()
 
     expect(contextState.lastContext).toBeDefined()
     const invokeInspect = defineInvoke(contextState.lastContext!, electronPluginInspect)
@@ -1570,9 +1602,71 @@ describe('setupPluginHost', () => {
     })
   })
 
+  /**
+   * @example
+   * expect(service.host.getBinding('kit-module:gamelet')).toEqual(expect.objectContaining({ kitId: 'kit.gamelet' }))
+   */
+  it('injects host services into defineExtension gamelet kit clients', async () => {
+    const { service } = await setupExtensionHostForTest()
+    const pluginDir = join(pluginsDir, 'test-extension-gamelet-kit')
+    await mkdir(pluginDir, { recursive: true })
+    const pluginSdkUrl = pathToFileURL(resolve(repoRoot, 'packages/plugin-sdk/src/index.ts')).href
+    const tamagotchiSdkUrl = pathToFileURL(resolve(repoRoot, 'packages/plugin-sdk-tamagotchi/src/index.ts')).href
+    const entrypointPath = await writeEntrypoint({
+      dir: pluginDir,
+      name: 'test-extension-gamelet-kit.ts',
+      contents: [
+        `import { defineExtension } from '${pluginSdkUrl}'`,
+        `import { gameletKit } from '${tamagotchiSdkUrl}'`,
+        '',
+        'export default defineExtension({',
+        '  id: \'test-extension-gamelet-kit\',',
+        '  async setup(ctx) {',
+        '    const module = await ctx.modules.register({',
+        '      id: \'kit-module\',',
+        '      permissions: {',
+        '        apis: [{ key: \'kit.gamelet\', actions: [\'invoke\'] }],',
+        '        resources: [{ key: \'proj-airi:plugin-sdk:resources:kits:kit.gamelet:bindings\', actions: [\'write\'] }],',
+        '      },',
+        '    })',
+        '    const gamelets = await module.kits.use(gameletKit)',
+        '    await gamelets.mount({',
+        '      title: \'Kit Runtime Gamelet\',',
+        '      ui: gamelets.iframe({ assetPath: \'ui/index.html\' }),',
+        '    })',
+        '  },',
+        '})',
+      ].join('\n'),
+    })
+
+    const session = await service.host.start(createExtensionGameletKitManifest(entrypointPath), { cwd: pluginDir })
+    const binding = service.host.getBinding('kit-module:gamelet')
+
+    expect(binding).toEqual(expect.objectContaining({
+      moduleId: 'kit-module:gamelet',
+      ownerPluginId: 'test-extension-gamelet-kit',
+      ownerSessionId: session.id,
+      kitId: 'kit.gamelet',
+      kitModuleType: 'gamelet',
+    }))
+    expect(binding?.config).toEqual({
+      title: 'Kit Runtime Gamelet',
+      widget: {
+        mount: 'iframe',
+        iframe: {
+          assetPath: 'ui/index.html',
+          sandbox: 'allow-scripts allow-same-origin allow-forms allow-popups',
+        },
+      },
+      config: {
+        defaults: {},
+      },
+    })
+  })
+
   it('rejects module announce when the kit runtime does not match the host runtime', async () => {
     const normalEntrypoint = join(testDataRoot, 'test-normal-plugin.ts')
-    const { host } = await setupPluginHost()
+    const { host } = await setupExtensionHost()
 
     const session = await host.start(createDynamicModuleManifest(normalEntrypoint), { cwd: pluginsDir })
     host.registerKit({
