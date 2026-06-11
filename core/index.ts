@@ -88,6 +88,7 @@ export type {
 	Task,
 	CreateTaskInput,
 	TaskFilter,
+	TaskIsolationLevel,
 	TaskExecutor,
 	TaskExecutionContext,
 	TaskManagerOptions,
@@ -99,3 +100,38 @@ export type {
 	CancellationToken,
 	UnsubscribeFn as TaskUnsubscribeFn,
 } from "./tasks/index.js"
+
+// ── Worker runtime ──────────────────────────────────────────────────
+
+export { WorkerManager } from "./workers/manager.js"
+export type {
+	WorkerManagerOptions,
+	WorkerState,
+	WorkerInfo,
+} from "./workers/manager.js"
+
+export { WorkerMetrics } from "./workers/metrics.js"
+export type { WorkerMetricsSnapshot } from "./workers/metrics.js"
+
+export {
+	WORKER_ERROR_CODES,
+	serializeWorkerMessage,
+	deserializeWorkerMessage,
+} from "./workers/protocol.js"
+
+export type {
+	WorkerMessage,
+	WorkerMessageType,
+	WorkerMessageBase,
+	WorkerHelloMessage,
+	WorkerReadyMessage,
+	WorkerHeartbeatMessage,
+	WorkerShutdownMessage,
+	ExecuteTaskMessage,
+	TaskProgressMessage,
+	TaskResultMessage,
+	TaskFailureMessage,
+	WorkerCapabilities,
+	TaskPayload,
+	WorkerErrorCode,
+} from "./workers/protocol.js"

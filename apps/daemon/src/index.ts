@@ -8,10 +8,12 @@
  * - IPC server (client connections)
  * - TaskManager (task orchestration)
  * - TaskScheduler (task dispatch)
+ * - WorkerManager (isolated task execution)
  * - TaskReplayBuffer (reconnect support)
  *
  * It bootstraps the core, starts the IPC server, and streams events
- * to connected frontend clients.
+ * to connected frontend clients. Tasks are dispatched to isolated
+ * worker processes via the WorkerManager.
  */
 
 import { bootstrap } from "../../../core/bootstrap.js"
@@ -26,6 +28,7 @@ import {
 	TaskReplayBuffer,
 } from "../../../core/tasks/index.js"
 import type { Task, TaskQueued, TaskProgress, TaskFailed, TaskCancelled } from "../../../core/tasks/index.js"
+import { WorkerManager } from "../../../core/workers/manager.js"
 import { createDaemonLifecycle } from "./lifecycle.js"
 
 const logger = createLogger("daemon")
@@ -60,12 +63,22 @@ async function main(): Promise<void> {
 	})
 	const replayBuffer = new TaskReplayBuffer({ maxEvents: 500 })
 
-	// Wire up task events → IPC broadcast + replay buffer.
+	// ── Phase 3b: Create worker manager ─────────────────────────────────
+	logger.info("Initializing worker manager...")
+	const workerManager = new WorkerManager(core.events, logger, {
+		poolSize: 2,
+	})
+
+	// Wire worker events → TaskManager resolution.
+	wireWorkerEvents(core.events, taskManager, workerManager, replayBuffer)
+
+	// Wire task events → IPC broadcast + replay buffer.
 	wireTaskEvents(core.events, taskManager, replayBuffer)
 
 	taskManager.start()
 	taskScheduler.start()
-	logger.info("Task orchestration initialized.")
+	workerManager.start()
+	logger.info("Task orchestration and worker manager initialized.")
 
 	// ── Phase 4: Create IPC server ─────────────────────────────────────
 	logger.info("Starting IPC server...")
@@ -139,6 +152,9 @@ async function main(): Promise<void> {
 		// Stop accepting new connections.
 		await ipcServer.stop()
 
+		// Stop worker manager first (let running tasks finish or fail).
+		await workerManager.stop()
+
 		// Stop task orchestration.
 		taskScheduler.stop()
 		taskManager.stop()
@@ -156,6 +172,57 @@ async function main(): Promise<void> {
 	})
 
 	logger.info("AIRI daemon is ready.")
+}
+
+// ── Worker event wiring ─────────────────────────────────────────────────
+
+/**
+ * Wire up worker lifecycle events to TaskManager resolution.
+ *
+ * Workers emit task.failed/task.completed via the EventBus.
+ * The daemon listens and resolves tasks in the TaskManager.
+ */
+function wireWorkerEvents(
+	events: ReturnType<typeof bootstrap> extends Promise<infer T> ? T["events"] : never,
+	manager: TaskManager,
+	_workerManager: WorkerManager,
+	buffer: TaskReplayBuffer,
+): void {
+	// Track previous states for replay buffer.
+	const previousStates = new Map<string, string>()
+
+	events.on("task.failed", (payload) => {
+		const event = payload as TaskFailed
+		const task = manager.get(event.taskId)
+
+		if (task) {
+			buffer.record(task, previousStates.get(event.taskId) ?? "running", "failed")
+		}
+		previousStates.set(event.taskId, "failed")
+
+		// Resolve the task in the manager.
+		manager.fail(event.taskId, event.error)
+	})
+
+	events.on("task.completed", (payload) => {
+		// The task.completed event from workers only has taskId and summary.
+		// We need to find the pending result from the worker manager.
+		// For now, we handle this via the task.result message path.
+		// This handler is for events emitted by the scheduler's own execution.
+	})
+
+	events.on("task.progress", (payload) => {
+		const event = payload as TaskProgress
+		const task = manager.get(event.taskId)
+
+		if (task) {
+			buffer.record(task, previousStates.get(event.taskId) ?? "running", "running")
+		}
+		previousStates.set(event.taskId, "running")
+
+		// Forward progress to TaskManager.
+		manager.reportProgress(event.taskId, event.progress, event.message)
+	})
 }
 
 // ── Task event wiring ───────────────────────────────────────────────────
@@ -327,7 +394,6 @@ async function handleClientRequest(
 				taskManager.queue(task.id as string)
 
 				// Emit task.queued event.
-				const session = sessions.getByClientId(clientId)
 				const queuedEvent: TaskQueued = {
 					type: "task.queued",
 					timestamp: new Date().toISOString(),

@@ -258,7 +258,8 @@ export class LocalSocketClientTransport implements IpcClientTransport {
 			for (const handler of this.disconnectHandlers) {
 				try {
 					handler()
-				} catch (error)					console.error("[LocalSocketClient] Disconnect handler threw:", error)
+				} catch (error) {
+					console.error("[LocalSocketClient] Disconnect handler threw:", error)
 				}
 			}
 

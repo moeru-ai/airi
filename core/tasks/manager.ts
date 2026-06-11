@@ -127,6 +127,8 @@ export class TaskManager {
 			updatedAt: now,
 			progress: 0,
 			metadata: input.metadata ?? {},
+			executionAttempt: 0,
+			isolationLevel: input.isolationLevel ?? "process",
 			parentTaskId: input.parentTaskId,
 			cancellation: { isCancelled: false },
 		}

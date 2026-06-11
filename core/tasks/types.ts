@@ -171,6 +171,16 @@ export interface TaskCancellation {
 	readonly reason?: string
 }
 
+// ── Isolation level ────────────────────────────────────────────────────
+
+/**
+ * Isolation level for task execution.
+ * - "process": execute in an isolated worker process (current default).
+ * - "vm": future — execute in a VM sandbox.
+ * - "container": future — execute in a container.
+ */
+export type TaskIsolationLevel = "process" | "vm" | "container"
+
 // ── Task ─────────────────────────────────────────────────────────────────
 
 /**
@@ -237,6 +247,15 @@ export interface Task {
 
 	/** Cancellation state. */
 	readonly cancellation: TaskCancellation
+
+	/** Worker process that is/was executing this task, if any. */
+	readonly workerId?: string
+
+	/** Number of execution attempts (incremented on worker crash retry). @default 0 */
+	readonly executionAttempt: number
+
+	/** Isolation level for task execution. @default "process" */
+	readonly isolationLevel: TaskIsolationLevel
 }
 
 // ── Task creation input ──────────────────────────────────────────────────
@@ -265,6 +284,9 @@ export interface CreateTaskInput {
 
 	/** Parent task ID, if this is a subtask. */
 	readonly parentTaskId?: TaskId
+
+	/** Isolation level for task execution. @default "process" */
+	readonly isolationLevel?: TaskIsolationLevel
 }
 
 // ── Task filter ──────────────────────────────────────────────────────────

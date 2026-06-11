@@ -739,6 +739,8 @@ describe("TaskReplayBuffer", () => {
 				progress: 0,
 				metadata: {},
 				cancellation: { isCancelled: false },
+				executionAttempt: 0,
+				isolationLevel: "process" as const,
 			}
 
 			buffer.record(task, "pending", "queued")
@@ -759,6 +761,8 @@ describe("TaskReplayBuffer", () => {
 				progress: 0,
 				metadata: {},
 				cancellation: { isCancelled: false },
+				executionAttempt: 0,
+				isolationLevel: "process" as const,
 			}
 
 			const task2 = {
@@ -772,6 +776,8 @@ describe("TaskReplayBuffer", () => {
 				progress: 50,
 				metadata: {},
 				cancellation: { isCancelled: false },
+				executionAttempt: 0,
+				isolationLevel: "process" as const,
 			}
 
 			buffer.record(task1, "pending", "queued")
@@ -795,6 +801,8 @@ describe("TaskReplayBuffer", () => {
 				progress: 0,
 				metadata: {},
 				cancellation: { isCancelled: false },
+				executionAttempt: 0,
+				isolationLevel: "process" as const,
 			}
 
 			for (let i = 0; i < 5; i++) {
@@ -817,6 +825,8 @@ describe("TaskReplayBuffer", () => {
 				progress: 0,
 				metadata: {},
 				cancellation: { isCancelled: false },
+				executionAttempt: 0,
+				isolationLevel: "process" as const,
 			}
 
 			const task2 = {
@@ -830,6 +840,8 @@ describe("TaskReplayBuffer", () => {
 				progress: 50,
 				metadata: {},
 				cancellation: { isCancelled: false },
+				executionAttempt: 0,
+				isolationLevel: "process" as const,
 			}
 
 			buffer.record(task1, "pending", "queued")
@@ -852,6 +864,8 @@ describe("TaskReplayBuffer", () => {
 				progress: 50,
 				metadata: {},
 				cancellation: { isCancelled: false },
+				executionAttempt: 0,
+				isolationLevel: "process" as const,
 			}
 
 			const task2 = {
@@ -865,6 +879,8 @@ describe("TaskReplayBuffer", () => {
 				progress: 100,
 				metadata: {},
 				cancellation: { isCancelled: false },
+				executionAttempt: 0,
+				isolationLevel: "process" as const,
 			}
 
 			buffer.record(task1, "queued", "running")
@@ -890,6 +906,8 @@ describe("TaskReplayBuffer", () => {
 				progress: 0,
 				metadata: {},
 				cancellation: { isCancelled: false },
+				executionAttempt: 0,
+				isolationLevel: "process" as const,
 			}
 
 			for (let i = 0; i < 15; i++) {
@@ -912,6 +930,8 @@ describe("TaskReplayBuffer", () => {
 				progress: 0,
 				metadata: {},
 				cancellation: { isCancelled: false },
+				executionAttempt: 0,
+				isolationLevel: "process" as const,
 			}
 
 			buffer.record(task, "pending", "queued")
@@ -944,6 +964,8 @@ describe("TaskMetrics", () => {
 			progress: 100,
 			metadata: {},
 			cancellation: { isCancelled: false },
+			executionAttempt: 0,
+			isolationLevel: "process" as const,
 		}
 
 		metrics.recordTransition(task, "running", "completed")
@@ -965,6 +987,8 @@ describe("TaskMetrics", () => {
 			progress: 0,
 			metadata: {},
 			cancellation: { isCancelled: false },
+			executionAttempt: 0,
+			isolationLevel: "process" as const,
 		}
 
 		metrics.recordTransition(task, "running", "failed")
@@ -985,6 +1009,8 @@ describe("TaskMetrics", () => {
 			progress: 100,
 			metadata: {},
 			cancellation: { isCancelled: false },
+			executionAttempt: 0,
+			isolationLevel: "process" as const,
 		}
 
 		const task2 = {
@@ -998,6 +1024,8 @@ describe("TaskMetrics", () => {
 			progress: 0,
 			metadata: {},
 			cancellation: { isCancelled: false },
+			executionAttempt: 0,
+			isolationLevel: "process" as const,
 		}
 
 		metrics.recordTransition(task1, "running", "completed")
@@ -1021,6 +1049,8 @@ describe("TaskMetrics", () => {
 			progress: 50,
 			metadata: {},
 			cancellation: { isCancelled: false },
+			executionAttempt: 0,
+			isolationLevel: "process" as const,
 		}
 
 		const queuedTask = {
@@ -1034,6 +1064,8 @@ describe("TaskMetrics", () => {
 			progress: 0,
 			metadata: {},
 			cancellation: { isCancelled: false },
+			executionAttempt: 0,
+			isolationLevel: "process" as const,
 		}
 
 		const snapshot = metrics.snapshot([activeTask], [queuedTask])
