@@ -7,10 +7,8 @@ const props = defineProps<{
   state?: ChatToolCallState
 }>()
 
-// Single source of the state-to-icon mapping so the shared tool-call block
-// and app-specific custom renderers stay visually consistent when the
-// ChatToolCallState union grows. Positioning (margins, baseline nudges) is
-// the caller's concern via class passthrough.
+// Single source of the state-to-icon mapping so the shared tool-call block and
+// app-specific renderers stay visually consistent.
 const iconClass = computed(() => {
   switch (props.state) {
     case 'executing':

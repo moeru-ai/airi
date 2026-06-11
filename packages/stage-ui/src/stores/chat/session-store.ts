@@ -47,15 +47,7 @@ interface CloudMergePayload {
  */
 const OUTBOX_MAX_ATTEMPTS = 5
 
-/**
- * Normalizes a settled message by dropping its in-flight `provisional` marker.
- *
- * Before:
- * - { role: 'user', content: 'hi', id: 'u1', provisional: true }
- *
- * After:
- * - { role: 'user', content: 'hi', id: 'u1' }
- */
+/** Drops the in-flight `provisional` marker from a settled message. */
 function withoutProvisional({ provisional: _provisional, ...message }: ChatHistoryItem): ChatHistoryItem {
   return message as ChatHistoryItem
 }

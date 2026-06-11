@@ -4,7 +4,6 @@ import { useI18n } from 'vue-i18n'
 // Shared stop affordance for chat composers. The stop transport differs per
 // surface (orchestrator stopSending vs the tamagotchi chat-sync requestStop),
 // so the button only emits; the caller owns the wiring and session scoping.
-// Sizing comes from the caller via class passthrough.
 const emit = defineEmits<{
   (e: 'stop'): void
 }>()

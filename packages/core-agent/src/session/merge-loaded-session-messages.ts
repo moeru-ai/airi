@@ -67,8 +67,8 @@ export function mergeLoadedSessionMessages(storedMessages: ChatHistoryItem[], cu
     bodyIndexByFingerprint.set(getMessageFingerprint(message), index)
   })
 
-  // Fingerprints are content-length proportional to compute, so derive each
-  // in-memory one exactly once for the two walks below.
+  // Computing a fingerprint costs time proportional to message length, so derive
+  // each in-memory one once for the two walks below.
   const currentFingerprints = currentNonSystemMessages.map(getMessageFingerprint)
 
   // Anchor walk: extras attach to the body index of the nearest preceding

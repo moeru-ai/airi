@@ -63,12 +63,6 @@ function createHarness(messages: ChatHistoryItem[]) {
   })
 }
 
-/**
- * @example
- * describe('assistant stopped badge', () => {
- *   it('renders the Stopped badge for an interrupted assistant turn', async () => {})
- * })
- */
 describe('assistant stopped badge', () => {
   /**
    * @example
@@ -96,7 +90,7 @@ describe('assistant stopped badge', () => {
 
   /**
    * @example
-   * A normal completed assistant turn does not render the badge.
+   * The badge is gated on `stopped: true`, so a completed turn renders none.
    */
   it('does not render the Stopped badge for a completed assistant turn', async () => {
     const completed: StreamingAssistantMessage = {

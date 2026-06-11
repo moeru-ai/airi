@@ -467,9 +467,8 @@ describe('useChatSyncStore', async () => {
 
   /**
    * @example
-   * it('stops the active stream when handling a stop command as authority', async () => {
-   *   // follower forwards a stop -> authority aborts its in-flight orchestrator send
-   * })
+   * A follower forwards a stop, and the authority aborts its in-flight
+   * orchestrator send for the payload session.
    */
   it('invokes stopSending with the payload session when handling a stop command as authority', async () => {
     const store = useChatSyncStore()

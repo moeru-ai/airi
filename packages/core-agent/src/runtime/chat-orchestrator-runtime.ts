@@ -325,8 +325,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
   let sending = false
   let pendingQueuedSends: QueuedSend[] = []
-  // The in-flight send is one logical value (controller + owning session), so
-  // it lives in one variable that is set and cleared atomically.
+  // Pairs the abort controller with the session that owns it, so a session-scoped
+  // stop aborts only the matching run.
   let activeSend: { controller: AbortController, sessionId: string } | undefined
 
   function emitStateChange() {
@@ -498,8 +498,6 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     // then: the deferred side effects (cloud upload, autonomous tasks) run
     // concurrently with the rest of the stream instead of waiting for it to
     // drain. Stale generations never commit; session reset/fork owns them.
-    // The `committed` short-circuit keeps repeat calls off the reactive
-    // generation lookup on per-delta paths.
     const commitUserTurnOnFirstOutput = () => {
       if (committed || !hasProducedOutput())
         return
@@ -775,10 +773,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
               // read off the socket before the abort propagated. Dropping them
               // here keeps post-Stop tokens out of fullText and the parser
               // buffer, so the catch-path flush persists a partial that ends
-              // exactly where the user cancelled. The plain abort signal alone
-              // gates this per-token hot path; stale-generation filtering is
-              // enforced in the parser callbacks and the persistence gates, so
-              // a reactive generation lookup per delta would be wasted work.
+              // exactly where the user cancelled. This per-token path checks the
+              // raw abort signal only; stale-generation filtering lives in the
+              // parser callbacks and persistence gates.
               if (sendController.signal.aborted)
                 return
 
@@ -1007,8 +1004,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       // resolve is also the only signal that survives the tamagotchi
       // BroadcastChannel relay, which cannot carry a typed cancellation error.
       queued.cancelled = true
-      // A cancelled queued send never appended its user turn, so it reports
-      // `rolledBack` and a caller that owns a composer can put the text back.
+      // A queued send never appended its user turn, so it rolls back.
       queued.deferred.resolve({ rolledBack: true })
     }
 

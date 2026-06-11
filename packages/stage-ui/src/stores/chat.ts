@@ -201,10 +201,10 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       }
     },
     onUserTurnCommitted: ({ sessionId, message, messageText, sessionMessages }) => {
-      // Fires at the first assistant output (or at settle for output-less
-      // turns), so a retracted turn never reaches the cloud or kicks off an
-      // autonomous artist task on text the user took back, while a normal turn
-      // syncs and starts its artist task concurrently with the reply stream.
+      // Fires at the first assistant output (or at settle for output-less turns).
+      // A retracted turn never reaches the cloud or starts an autonomous artist
+      // task on text the user took back; a normal turn syncs and starts that task
+      // alongside the reply stream.
       if (isCloudSyncableMessage(message)) {
         void chatSession.pushMessageToCloud(sessionId, {
           id: message.id,

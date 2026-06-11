@@ -80,11 +80,10 @@ describe('isCloudSyncableMessage', () => {
 
   /**
    * @example
-   * Predicate-level guard: a stopped assistant turn is not cloud-syncable.
-   * The `stopped` flag does not ride the wire format, so syncing such a turn
-   * would server-side it as a normal completed turn. The session-store reconcile
-   * loop stubs isCloudSyncableMessage, so this predicate test is the
-   * authoritative check that stopped turns are excluded from the cloud outbox.
+   * A stopped assistant turn is not cloud-syncable: the `stopped` flag does not
+   * ride the wire format, so syncing it would land server-side as a normal
+   * completed turn. The reconcile loop stubs isCloudSyncableMessage, so this
+   * predicate test is where that exclusion is actually verified.
    */
   it('rejects assistant turns marked stopped so they never reach the cloud outbox', () => {
     const stoppedAssistant: StreamingAssistantMessage = {
@@ -99,11 +98,10 @@ describe('isCloudSyncableMessage', () => {
 
   /**
    * @example
-   * A provisional user turn (send still in flight, may be retracted by a stop
-   * before any output) is not cloud-syncable. The reconcile create-sweep runs
-   * concurrently with active sends; without this guard it would upload the
-   * turn, a stop-before-output would retract it locally only, and the next
-   * catch-up pull would resurrect the retracted text.
+   * A provisional user turn (send in flight, retractable by a stop before any
+   * output) is not cloud-syncable. Otherwise the concurrent reconcile sweep
+   * uploads it, a stop-before-output retracts it locally only, and the next
+   * catch-up pull resurrects the retracted text.
    */
   it('rejects provisional user turns so a mid-send sweep cannot upload a retractable row', () => {
     expect(isCloudSyncableMessage({ role: 'user', content: 'in flight', id: 'u1', provisional: true })).toBe(false)

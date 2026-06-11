@@ -351,9 +351,6 @@ describe('createChatOrchestratorRuntime', () => {
 
   /**
    * @example
-   * Cancelling a queued send resolves it as a no-op (not a rejection) so the
-   * UI send-failure path never fires for a deliberate cancellation.
-   *
    * A cancelled queued send must resolve, never reject: the awaiting ingest()
    * caller (handleSend in the chat surfaces) shares one catch with genuine send
    * failures, and that catch mutates chat history. The send must also never
@@ -540,11 +537,11 @@ describe('createChatOrchestratorRuntime', () => {
 
   /**
    * @example
-   * A non-rescuable queued send (retry / voice / transport: callers that ignore
-   * the outcome) cancelled by Stop also reports rolledBack: unlike a stopped
-   * ACTIVE send (where `rescuable` gates retracting an already-appended turn),
-   * a queued send never appended anything, so "nothing entered history" is
-   * truthful for every caller and ignorable by those that do not consume it.
+   * A non-rescuable queued send (retry / voice / transport, whose callers ignore
+   * the outcome) cancelled by Stop also reports rolledBack. Unlike a stopped
+   * active send, where `rescuable` gates retracting an already-appended turn, a
+   * queued send never appended anything, so "nothing entered history" holds for
+   * every caller.
    */
   it('settles a non-rescuable queued send as rolled back when stop fires with a backlog', async () => {
     const harness = createHarness()
@@ -659,8 +656,6 @@ describe('createChatOrchestratorRuntime', () => {
 
     const lastMessage = harness.sessionMessages['session-1']?.at(-1) as StreamingAssistantMessage
     expect(lastMessage.role).toBe('assistant')
-    // Treated as a completed turn: no stopped marker, turn-complete hooks fired,
-    // rendered telemetry recorded.
     expect(lastMessage.stopped).toBeUndefined()
     expect(turnCompleteHooks).toEqual(['turn-complete'])
     expect(harness.telemetry.assistantResponseRendered).toHaveLength(1)
@@ -912,10 +907,8 @@ describe('createChatOrchestratorRuntime', () => {
   it('clears foreground stream without persisting assistant turn when no slices have flushed', async () => {
     const harness = createHarness()
 
-    // NOTICE:
-    // Mock the stream to hang on the abort signal without ever emitting a
-    // text-delta. The orchestrator's guard at the abort branch suppresses
-    // persistence when buildingMessage.slices is empty.
+    // Hang on the abort signal without emitting a text-delta, so the abort
+    // branch's empty-slice guard suppresses persistence.
     harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
       await new Promise<void>((_resolve, reject) => {
         const signal = (options as { abortSignal?: AbortSignal })?.abortSignal
@@ -1522,12 +1515,11 @@ describe('createChatOrchestratorRuntime', () => {
 
   /**
    * @example
-   * The user turn is appended with `provisional: true` so sync layers (cloud
-   * outbox, reconcile sweep) skip it while the send can still be retracted;
-   * the marker is cleared once the turn commits. Without the marker, a
-   * reconcile sweep running mid-send uploads the turn, a stop-before-output
-   * then retracts it locally only, and the next catch-up pull resurrects the
-   * retracted text.
+   * The in-flight user turn carries `provisional: true` so sync layers (cloud
+   * outbox, reconcile sweep) skip it while it can still be retracted; the marker
+   * clears at commit. Without it, a mid-send sweep uploads the turn, a
+   * stop-before-output retracts it locally only, and the next catch-up pull
+   * resurrects the retracted text.
    */
   it('marks the in-flight user turn provisional and clears the marker at commit', async () => {
     const harness = createHarness()

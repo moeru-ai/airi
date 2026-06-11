@@ -61,9 +61,8 @@ type SliceView
     | { kind: 'tool-call-result' }
 
 // One view-model per slice, resolved once per message change. The message prop
-// is replaced on every foreground stream patch, so template-level method calls
-// here would re-run renderer/state/result resolution for every slice on every
-// re-render (including unrelated ones).
+// is replaced on every foreground stream patch, so resolving renderer/state/result
+// in template methods would re-run for every slice on each re-render.
 const sliceViews = computed<SliceView[]>(() => resolvedSlices.value.map((slice) => {
   if (slice.type === 'tool-call') {
     const result = toolResultById.value.get(slice.toolCall.toolCallId)

@@ -74,25 +74,23 @@ export function isUserTurnWithText(message: ChatHistoryItem | undefined, text: s
  * Decide whether a local message should be mirrored to the cloud.
  *
  * Use when:
- * - Filtering messages right before `sendMessages`. Tool call / tool result
- *   exchanges are intentionally not synced in v1; system prompts also stay
- *   local since they are recomputed from settings on every device. Stopped
- *   assistant turns are local-only: the `stopped` flag does not ride the wire
- *   format, so uploading them would server-side them as completed turns and
- *   silently lose the cancellation signal. Provisional user turns are skipped
- *   too: their send is still in flight and a stop before any output retracts
- *   them locally only, so uploading one would resurrect retracted text on the
- *   next catch-up pull.
+ * - Filtering messages right before `sendMessages`.
  *
  * Expects:
  * - The caller has already validated the message has an `id`.
  *
  * Returns:
- * - `true` when the message is one of `user` / `assistant`. `tool` / `system`
- *   / `error` roles are filtered out — error messages are local-only since
- *   they describe a per-device runtime failure, not a server-acknowledged turn.
- *   Assistant messages with `stopped: true` and rows marked `provisional` are
- *   also filtered out.
+ * - `true` for `user` / `assistant` turns that should sync. Excluded (returns
+ *   `false`):
+ *   - Tool call / result exchanges: intentionally not synced in v1.
+ *   - System prompts: recomputed from settings on every device.
+ *   - Error messages: a per-device runtime failure, not a server-acknowledged turn.
+ *   - Stopped assistant turns: the `stopped` flag does not ride the wire format,
+ *     so an upload lands server-side as a completed turn and loses the
+ *     cancellation signal.
+ *   - Provisional user turns: the send is still in flight; a stop before any
+ *     output retracts them locally, so an upload would resurrect retracted text
+ *     on the next catch-up pull.
  */
 export function isCloudSyncableMessage(message: ChatHistoryItem): boolean {
   if (message.role === 'tool')

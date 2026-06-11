@@ -64,9 +64,9 @@ describe('mergeLoadedSessionMessages', () => {
   // A blind `[...storedMessages, ...extraMessages]` tail-append is only correct
   // when the messages missing from disk are the NEWEST ones (the happy-path
   // test above). When an OLDER message is the one missing from disk (a
-  // stop+resend orphan that lives in memory but not on the disk copy a second
-  // window read), it gets tacked onto the END, after its newer twin. History is
-  // silently reordered, which breaks prompt caching.
+  // stop-and-resend orphan that lives in memory but is missing from the disk
+  // snapshot another window loaded), it gets tacked onto the END, after its
+  // newer twin. History is silently reordered, which breaks prompt caching.
   //
   // The structural merge places each extra right after the nearest preceding
   // in-memory message that also exists on disk (its anchor), so the orphan

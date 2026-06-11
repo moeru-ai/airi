@@ -149,10 +149,9 @@ describe('streamFrom abort handling', () => {
 
   /**
    * @example
-   * A genuine (non-abort-shaped) provider fault that settles AFTER the user
-   * pressed Stop must not vanish from the logs: it surfaces at warn level so
-   * faults racing a Stop stay diagnosable, while the aborted signal alone
-   * never silences a real error.
+   * A genuine (non-abort-shaped) provider fault that settles after the user
+   * pressed Stop must still surface, at warn level, so faults racing a Stop
+   * stay diagnosable.
    */
   it('logs a non-abort side-channel error at warn level when it races a stop', async () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})

@@ -93,12 +93,11 @@ async function handleSend() {
       restoreDraft()
   }
   catch (error) {
-    // Genuine send failures only: cancellations resolve with an outcome (see
-    // ChatOrchestratorRuntime.cancelPendingSends), so they never reach here.
-    // A committed turn keeps its text in the transcript where retry can
-    // resend it; restoring it into the composer too would duplicate the turn
-    // on the next send. Only a send that never reached history (provider
-    // resolution or pre-append failure) gets its draft back.
+    // Cancellations resolve with an outcome (see ChatOrchestratorRuntime
+    // .cancelPendingSends), so only genuine failures reach here. A committed turn
+    // keeps its text in the transcript for retry; restoring it would duplicate
+    // the turn. Only a send that never reached history (provider resolution or
+    // pre-append failure) gets its draft back.
     const lastUserTurn = messages.value.findLast(message => message.role === 'user')
     if (!isUserTurnWithText(lastUserTurn, textToSend))
       restoreDraft()
@@ -283,11 +282,10 @@ watch(sendMode, () => {
         </DropdownMenuRoot>
 
         <!--
-          Stop streaming button: only visible while a send is in flight. Drives
-          the orchestrator directly rather than going through chat-sync (unlike
-          the tamagotchi InteractiveArea's requestStop()), mirroring how this
-          surface sends via ingest() rather than requestIngest(). Scoped to the
-          visible session so a stream owned by another session is untouched.
+          Stop drives the orchestrator directly rather than going through
+          chat-sync (this surface sends via ingest(), not requestIngest()), and
+          scopes the stop to the active session so another session's stream is
+          untouched.
         -->
         <ChatStopButton
           v-if="sending"

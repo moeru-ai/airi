@@ -30,8 +30,8 @@ const router = useRouter()
 const messageInput = ref('')
 const lastEnterTime = ref(0)
 const attachments = ref<{ type: 'image', data: string, mimeType: string, url: string }[]>([])
-// Holds a retracted send (stopped before any reply) when the composer is busy
-// with other text, so it is parked as a dismissible draft rather than lost.
+// A send stopped before any reply, parked here when the composer is busy with
+// different text so it survives as a dismissible draft.
 const unsentDraft = ref<{ text: string, attachments: typeof attachments.value } | null>(null)
 
 const chatOrchestrator = useChatOrchestratorStore()
@@ -107,20 +107,19 @@ async function handleSend() {
       rescuable: true,
     })
 
-    // The turn was stopped before any reply and retracted upstream: rescue the
-    // text instead of losing it. Otherwise the attachments are now owned by the
-    // committed turn, so release the local object URLs.
+    // Rolled back means stopped before any reply: rescue the text. Otherwise the
+    // committed turn owns the attachments, so release the local object URLs.
     if (outcome?.rolledBack)
       rescueRetractedDraft(textToSend, attachmentsToSend)
     else
       revokeAttachmentUrls(attachmentsToSend)
   }
   catch (error) {
-    // Genuine send failures only: cancellations resolve with an outcome. A
-    // committed turn keeps its text in the transcript where retry can resend
-    // it; restoring it into the composer too would duplicate the turn on the
-    // next send. Only a send that never reached history (provider resolution,
-    // relay timeout, pre-append failure) gets its draft rescued.
+    // Cancellations resolve with an outcome, so only genuine failures reach here.
+    // A committed turn keeps its text in the transcript for retry; rescuing it
+    // into the composer too would duplicate the turn. Only a send that never
+    // reached history (provider resolution, relay timeout, pre-append failure)
+    // gets its draft rescued.
     const lastUserTurn = messages.value.findLast(message => message.role === 'user')
     if (isUserTurnWithText(lastUserTurn, textToSend))
       revokeAttachmentUrls(attachmentsToSend)
@@ -385,7 +384,6 @@ async function handleCleanup() {
       </div>
     </div>
     <div :class="['flex items-center justify-end gap-2 py-1']">
-      <!-- Stop streaming button: only visible while a send is in flight -->
       <ChatStopButton
         v-if="sending"
         class="max-h-[10lh] min-h-[1lh] p-2 text-lg"
