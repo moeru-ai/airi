@@ -7,7 +7,7 @@ This sample extension is for validating extension host behavior in the **Extensi
 - `extension.airi.json`: extension manifest (`ExtensionManifestV1`)
 - `devtools-sample-plugin.mjs`: extension implementation
 
-The manifest declares the protocol permissions required by `apis.providers.listProviders()`: invoke `capabilities:wait`, invoke `resources:providers:list-providers`, read the provider resource, and wait for the provider-list capability.
+The manifest declares the extension entrypoint used by the host inspector sample.
 
 ## How to use
 
@@ -26,7 +26,6 @@ The manifest declares the protocol permissions required by `apis.providers.listP
 
 ## What this extension does
 
-- `init`: logs startup in renderer/main console.
-- `setupModules`: calls `apis.providers.listProviders()` and logs provider names.
+- `setup`: logs startup in renderer/main console.
 
 It does not mutate app state; it is safe for lifecycle verification.

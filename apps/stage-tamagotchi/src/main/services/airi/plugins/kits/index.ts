@@ -6,7 +6,6 @@ import type { SetupExtensionHostOptions } from '../types'
 import { gameletKit, toolKit } from '@proj-airi/plugin-sdk-tamagotchi'
 
 import {
-  createGameletHostContribution,
   registerGameletPluginKit,
 } from './gamelet'
 import { registerWidgetPluginKit } from './widget'
@@ -61,18 +60,14 @@ function createHostToolKit(host: ExtensionHost): KitRef<ToolKitClient> {
  * - Helpers to attach contributions and register built-in kits on the host
  */
 export function createBuiltInExtensionKitRuntime(options: SetupExtensionHostOptions): {
-  contributions: ReturnType<typeof createGameletHostContribution>['contribution'][]
+  contributions: []
   attachHost: (host: ExtensionHost) => void
   registerHostKits: (host: ExtensionHost) => void
 } {
-  const gameletContribution = createGameletHostContribution({
-    widgetsManager: options.widgetsManager,
-  })
-
   return {
-    contributions: [gameletContribution.contribution],
-    attachHost(host) {
-      gameletContribution.attachHost(host)
+    contributions: [],
+    attachHost(_host) {
+      void options.widgetsManager
     },
     registerHostKits(host) {
       registerWidgetPluginKit(host)

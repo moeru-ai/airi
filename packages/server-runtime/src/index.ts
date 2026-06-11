@@ -378,22 +378,6 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
   }
 
   // === Module Registry & Consumer Management ===
-  function registerModulePeer(p: AuthenticatedPeer, name: string, index?: number) {
-    if (!peersByModule.has(name)) {
-      peersByModule.set(name, new Map())
-    }
-
-    const group = peersByModule.get(name)!
-    if (group.has(index)) {
-      // log instead of silent overwrite
-      logger.withFields({ name, index }).debug('peer replaced for module')
-    }
-
-    p.healthy = true
-    group.set(index, p)
-    broadcastRegistrySync()
-  }
-
   function registerExtensionModulePeer(p: AuthenticatedPeer, module: RegisteredExtensionModule) {
     p.extensionModules ??= new Map()
     const previous = p.extensionModules.get(module.identity.id)
@@ -825,64 +809,6 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
                 send(other.peer, {
                   type: 'extension:module:announced',
                   data: event.data,
-                  metadata: createEventMetadata(instanceId, event.metadata?.event.id),
-                })
-              }
-            }
-
-            return
-          }
-
-          case 'module:announce': {
-            const p = peers.get(peer.id)
-            if (!p) {
-              return
-            }
-
-            const { name, index, identity } = event.data as { name: string, index?: number, identity?: MetadataEventSource }
-            if (!name || typeof name !== 'string') {
-              send(peer, RESPONSES.error(ServerErrorMessages.moduleAnnounceNameInvalid))
-
-              return
-            }
-            if (typeof index !== 'undefined') {
-              if (!Number.isInteger(index) || index < 0) {
-                send(peer, RESPONSES.error(ServerErrorMessages.moduleAnnounceIndexInvalid))
-
-                return
-              }
-            }
-            if (!isExtensionModuleIdentity(identity)) {
-              send(peer, RESPONSES.error(ServerErrorMessages.moduleAnnounceIdentityInvalid))
-
-              return
-            }
-            if (authToken && !p.authenticated) {
-              send(peer, RESPONSES.error(ServerErrorMessages.mustAuthenticateBeforeAnnouncing))
-
-              return
-            }
-
-            unregisterModuleRegistration(p, {
-              reason: 're-announcing',
-              unregisterConsumers: false,
-            })
-
-            p.name = name
-            p.index = index
-            p.identity = identity
-
-            registerModulePeer(p, name, index)
-
-            // broadcast module:announced to all authenticated peers
-            for (const other of peers.values()) {
-            // only send to
-            // 1. authenticated peers
-            // 2. other peers except the announcing peer itself
-              if (other.authenticated && !(other.peer.id === peer.id)) {
-                send(other.peer, {
-                  type: 'module:announced',
-                  data: { name, index, identity },
                   metadata: createEventMetadata(instanceId, event.metadata?.event.id),
                 })
               }

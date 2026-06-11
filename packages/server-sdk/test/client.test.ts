@@ -128,15 +128,15 @@ describe('client', () => {
       },
     })
 
-    const announceEvent = parseSent(socket) as WebSocketEventOf<'module:announced'>
+    const announceEvent = parseSent(socket) as WebSocketEventOf<'extension:module:announce'>
 
     expect(announceEvent).toMatchObject({
-      type: 'module:announce',
+      type: 'extension:module:announce',
       data: { name: 'test-plugin' },
     })
 
     emitMessage(socket, {
-      type: 'module:announced',
+      type: 'extension:module:announced',
       data: {
         name: 'test-plugin',
         identity: announceEvent.data.identity,
@@ -210,10 +210,10 @@ describe('client', () => {
     }
 
     emitOpen(socket)
-    const announceEvent = parseSent(socket) as WebSocketEventOf<'module:announced'>
+    const announceEvent = parseSent(socket) as WebSocketEventOf<'extension:module:announce'>
 
     emitMessage(socket, {
-      type: 'module:announced',
+      type: 'extension:module:announced',
       data: {
         name: 'test-plugin',
         identity: announceEvent.data.identity,
@@ -291,10 +291,10 @@ describe('client', () => {
     await timedOutAssertion
 
     emitOpen(socket)
-    const announceEvent = parseSent(socket) as WebSocketEventOf<'module:announced'>
+    const announceEvent = parseSent(socket) as WebSocketEventOf<'extension:module:announce'>
 
     emitMessage(socket, {
-      type: 'module:announced',
+      type: 'extension:module:announced',
       data: {
         name: 'test-plugin',
         identity: announceEvent.data.identity,
@@ -340,10 +340,10 @@ describe('client', () => {
 
     emitOpen(socket)
 
-    const announceEvent = parseSent(socket) as WebSocketEventOf<'module:announced'>
+    const announceEvent = parseSent(socket) as WebSocketEventOf<'extension:module:announce'>
 
     emitMessage(socket, {
-      type: 'module:announced',
+      type: 'extension:module:announced',
       data: {
         name: 'test-plugin',
         identity: announceEvent.data.identity,
@@ -386,10 +386,10 @@ describe('client', () => {
     const secondSocket = lastSocket()
     emitOpen(secondSocket)
 
-    const announceEvent = parseSent(secondSocket) as WebSocketEventOf<'module:announced'>
+    const announceEvent = parseSent(secondSocket) as WebSocketEventOf<'extension:module:announce'>
 
     emitMessage(secondSocket, {
-      type: 'module:announced',
+      type: 'extension:module:announced',
       data: {
         name: 'test-plugin',
         identity: announceEvent.data.identity,
@@ -417,7 +417,7 @@ describe('client', () => {
     const socket = lastSocket()
     emitOpen(socket)
 
-    const announceEvent = parseSent(socket) as WebSocketEventOf<'module:announced'>
+    const announceEvent = parseSent(socket) as WebSocketEventOf<'extension:module:announce'>
 
     const selfIdentity = announceEvent.data.identity
 
@@ -433,7 +433,7 @@ describe('client', () => {
     })
 
     emitMessage(socket, {
-      type: 'module:announced',
+      type: 'extension:module:announced',
       data: {
         name: 'test-plugin',
         identity: selfIdentity,

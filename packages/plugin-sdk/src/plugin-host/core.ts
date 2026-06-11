@@ -1210,25 +1210,29 @@ export class ExtensionHost {
     return module
   }
 
-  private assertKitAvailableForSession(session: ExtensionHostSession, kitId: string) {
+  private assertKitAvailableForRuntime(kitId: string, runtime: PluginRuntime) {
     const kit = this.kits.get(kitId)
     if (!kit) {
       throw new Error(`Kit \`${kitId}\` is not registered.`)
     }
 
-    if (!kit.runtimes.includes(session.runtime)) {
-      throw new Error(`Kit \`${kitId}\` is not available for runtime \`${session.runtime}\`.`)
+    if (!kit.runtimes.includes(runtime)) {
+      throw new Error(`Kit \`${kitId}\` is not available for runtime \`${runtime}\`.`)
     }
 
     return kit
   }
 
+  private assertKitAvailableForSession(session: ExtensionHostSession, kitId: string) {
+    return this.assertKitAvailableForRuntime(kitId, session.runtime)
+  }
+
   listSessions() {
-    return this.sessionService.list()
+    return this.extensionSessionService.list()
   }
 
   getSession(sessionId: string) {
-    return this.sessionService.get(sessionId)
+    return this.extensionSessionService.get(sessionId)
   }
 
   registerKit(kit: KitDescriptor) {
@@ -1472,12 +1476,13 @@ export class ExtensionHost {
     permissionModuleId?: string,
   ): BindingRecord<C> {
     const session = this.getExtensionSessionOrThrow(sessionId)
+    const kit = this.assertKitAvailableForRuntime(input.kitId, this.runtime)
 
     this.assertExtensionPermission(session, {
       area: 'resources',
       action: 'write',
-      key: getKitBindingResourceKey(input.kitId),
-      reason: `Module announce requires write access to kit \`${input.kitId}\`.`,
+      key: getKitBindingResourceKey(kit.kitId),
+      reason: `Module announce requires write access to kit \`${kit.kitId}\`.`,
     }, permissionModuleId)
 
     const binding = cloneBindingRecord(this.modules.bind({
@@ -1765,7 +1770,7 @@ export class ExtensionHost {
 
       // Step 4: broadcast currently known modules for dependency discovery/bootstrap.
       session.channels.host.emit(registryModulesSync, {
-        modules: this.listSessions()
+        modules: this.sessionService.list()
           .filter(item => item.phase !== 'stopped')
           .map(item => ({
             name: item.manifest.id,
@@ -1946,7 +1951,7 @@ export class ExtensionHost {
     }
   }
 
-  async start(manifest: ExtensionManifestV1, options: ExtensionStartOptions = {}): Promise<ExtensionHostSession> {
+  async start(manifest: ExtensionManifestV1, options: ExtensionStartOptions = {}): Promise<ExtensionSession> {
     const extension = await this.loader.loadExtensionFor(manifest, {
       cwd: options.cwd,
       runtime: options.runtime,
@@ -1958,7 +1963,7 @@ export class ExtensionHost {
       runtime: options.runtime,
     })
 
-    return session as unknown as ExtensionHostSession
+    return session
   }
 
   async applyConfiguration(sessionId: string, config: ModuleConfigEnvelope) {
@@ -2125,66 +2130,30 @@ export class ExtensionHost {
     return session
   }
 
-  stop(sessionId: string) {
-    // Stop removes session from active registry. Lifecycle first transitions to `stopped`.
-    const session = this.sessionService.get(sessionId)
-    if (session) {
-      const lifecycleHookError = this.cleanupSession(session)
-      if (lifecycleHookError) {
-        throw lifecycleHookError
-      }
-
-      return session
-    }
-
+  async stop(sessionId: string): Promise<ExtensionSession | undefined> {
     const extensionSession = this.extensionSessionService.get(sessionId)
     if (!extensionSession) {
       return undefined
     }
 
-    const cleanup = this.cleanupExtensionSession(extensionSession)
-      .then(() => extensionSession as unknown as ExtensionHostSession)
-    // NOTICE:
-    // Why this workaround is needed.
-    // `start(...)` still exposes defineExtension sessions through the legacy
-    // ExtensionHostSession return type while the runtime migrates to
-    // ExtensionSession internally.
-    // Root cause summary.
-    // Public callers can pass that id back into `stop(...)`, but the public
-    // return type has not been widened yet.
-    // Source/context.
-    // packages/plugin-sdk/src/plugin-host/core.ts start(...) compatibility shim.
-    // Removal condition.
-    // Replace the legacy host session API with ExtensionSession in a dedicated
-    // public contract migration.
-    return Object.assign(cleanup, extensionSession) as unknown as ExtensionHostSession & Promise<ExtensionHostSession>
+    await this.cleanupExtensionSession(extensionSession)
+    return extensionSession
   }
 
-  async reload(sessionId: string, options: ExtensionStartOptions = {}) {
+  async reload(sessionId: string, options: ExtensionStartOptions = {}): Promise<ExtensionSession> {
     // Reload preserves manifest/runtime intent, then performs stop + fresh start.
     // This intentionally creates a new session identity for deterministic re-bootstrap.
-    const previous = this.sessionService.get(sessionId)
-    if (!previous) {
-      const previousExtension = this.extensionSessionService.get(sessionId)
-      if (!previousExtension) {
-        throw new Error(`Unable to reload missing extension session: ${sessionId}`)
-      }
-
-      const manifest = previousExtension.manifest
-      await this.cleanupExtensionSession(previousExtension)
-      return this.start(manifest, {
-        ...options,
-        cwd: options.cwd ?? previousExtension.cwd,
-        runtime: options.runtime ?? previousExtension.runtime,
-      })
+    const previousExtension = this.extensionSessionService.get(sessionId)
+    if (!previousExtension) {
+      throw new Error(`Unable to reload missing extension session: ${sessionId}`)
     }
 
-    const manifest = previous.manifest
-    this.stop(sessionId)
+    const manifest = previousExtension.manifest
+    await this.cleanupExtensionSession(previousExtension)
     return this.start(manifest, {
       ...options,
-      cwd: options.cwd ?? previous.cwd,
-      runtime: options.runtime ?? previous.runtime,
+      cwd: options.cwd ?? previousExtension.cwd,
+      runtime: options.runtime ?? previousExtension.runtime,
     })
   }
 }

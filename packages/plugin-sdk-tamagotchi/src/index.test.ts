@@ -1,9 +1,7 @@
-import type { ContextInit } from '@proj-airi/plugin-sdk'
-
 import { object, optional, string } from 'valibot'
 import { describe, expect, it, vi } from 'vitest'
 
-import { defineGamelet, gameletKit, toolKit } from './index'
+import { gameletKit, toolKit } from './index'
 
 describe('plugin-sdk-tamagotchi', () => {
   it('exposes gameletKit as a module-scoped kit client', async () => {
@@ -124,69 +122,28 @@ describe('plugin-sdk-tamagotchi', () => {
   it('allows gamelet and tool kits to be composed without coupling tool registration to gamelets', async () => {
     const registerBinding = vi.fn()
     const registerTool = vi.fn()
-    const openGamelet = vi.fn<(id: string, params?: Record<string, unknown>) => Promise<void>>()
-    const configureGamelet = vi.fn<(id: string, patch: Record<string, unknown>) => Promise<void>>()
-    const closeGamelet = vi.fn<(id: string) => Promise<void>>()
-    const isGameletOpen = vi.fn<(id: string) => boolean>(() => true)
-
-    const ctx: Pick<ContextInit, 'apis'> = {
-      apis: {
-        tools: {
-          register: registerTool,
-          registerToolsetPrompt: vi.fn(),
-        },
-        kits: {
-          list: async () => [
-            {
-              kitId: 'kit.gamelet',
-              version: '1.0.0',
-              runtimes: ['electron'],
-              capabilities: [],
-            },
-          ],
-          getCapabilities: async () => [
-            {
-              key: 'kit.gamelet.runtime',
-              actions: ['announce', 'activate', 'update'],
-            },
-          ],
-        },
-        bindings: {
-          list: async () => [],
-          announce: registerBinding,
-          update: registerBinding,
-          activate: registerBinding,
-          withdraw: registerBinding,
-        },
-        providers: {
-          listProviders: async () => [],
-        },
+    const registerToolsetPrompt = vi.fn()
+    const gamelets = gameletKit.createClient({
+      extensionId: 'airi-extension-chess',
+      sessionId: 'session-1',
+      moduleId: 'chess',
+      bindings: {
+        bind: registerBinding,
       },
-    }
-    const gamelets = {
-      open: openGamelet,
-      configure: configureGamelet,
-      request: vi.fn(async () => ({})),
-      close: closeGamelet,
-      isOpen: isGameletOpen,
-    }
+    } as never)
     const tools = toolKit.createClient({
       extensionId: 'airi-extension-chess',
       sessionId: 'session-1',
       moduleId: 'chess',
-      tools: ctx.apis.tools,
+      tools: {
+        register: registerTool,
+        registerToolsetPrompt,
+      },
     } as never)
 
-    const gamelet = await defineGamelet(ctx, {
-      id: 'chess',
+    await gamelets.mount({
       title: 'Chess',
-      entrypoint: './ui/index.html',
-      widgets: [
-        {
-          id: 'main-board',
-          kind: 'primary',
-        },
-      ],
+      ui: gamelets.iframe({ assetPath: './ui/index.html' }),
     })
 
     await tools.registerToolsetPrompt({
@@ -204,13 +161,10 @@ describe('plugin-sdk-tamagotchi', () => {
       inputSchema: object({
         opening: optional(string()),
       }),
-      async execute() {
-        await gamelets.open('chess')
-        return { ok: true }
-      },
+      execute: async () => ({ ok: true }),
     })
 
-    expect(ctx.apis.tools.registerToolsetPrompt).toHaveBeenCalledWith({
+    expect(registerToolsetPrompt).toHaveBeenCalledWith({
       id: 'chess-tools',
       prompt: {
         id: 'airi-plugin-game-chess.prompt',
@@ -218,39 +172,24 @@ describe('plugin-sdk-tamagotchi', () => {
         content: 'Do not pass fen or pgn when mode is "new".',
       },
     })
-    expect(gamelet).toBeDefined()
     expect(registerBinding).toHaveBeenCalledWith({
-      moduleId: 'chess',
+      moduleId: 'chess:gamelet',
       kitId: 'kit.gamelet',
       kitModuleType: 'gamelet',
       config: {
         title: 'Chess',
-        entrypoint: './ui/index.html',
-        widgets: [
-          {
-            id: 'main-board',
-            kind: 'primary',
-          },
-        ],
         widget: {
           mount: 'iframe',
           iframe: {
             assetPath: './ui/index.html',
             sandbox: 'allow-scripts allow-same-origin allow-forms allow-popups',
           },
-          windowSize: {
-            width: 980,
-            height: 840,
-            minWidth: 640,
-            minHeight: 640,
-          },
+        },
+        config: {
+          defaults: {},
         },
       },
     })
-    expect(registerBinding).toHaveBeenCalledWith({
-      moduleId: 'chess',
-    })
-    expect(registerTool).toHaveBeenCalled()
     expect(registerTool).toHaveBeenCalledWith(expect.objectContaining({
       tool: expect.objectContaining({
         id: 'play_chess',
@@ -266,12 +205,7 @@ describe('plugin-sdk-tamagotchi', () => {
       }),
     }))
 
-    await registerTool.mock.calls[0]?.[0].execute({})
-
-    expect(openGamelet).toHaveBeenCalledWith('chess')
-    expect(configureGamelet).not.toHaveBeenCalled()
-    expect(closeGamelet).not.toHaveBeenCalled()
-    expect(isGameletOpen).not.toHaveBeenCalled()
+    await expect(registerTool.mock.calls[0]?.[0].execute({})).resolves.toEqual({ ok: true })
   })
 
   /**
