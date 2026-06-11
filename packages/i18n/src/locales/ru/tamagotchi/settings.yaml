@@ -14,6 +14,17 @@ pages:
     window-shortcuts:
       description: Редактирование горячих клавиш для управления окном
       title: Горячие клавиши управления окном
+      empty: Не задано
+      spotlight:
+        title: Сочетание Spotlight
+        description: Нажмите сочетание, затем введите новое сочетание. Нажмите Esc для отмены.
+      actions:
+        recording: Нажмите клавиши
+        reset: Сбросить
+      errors:
+        load: Не удалось загрузить сочетание
+        conflict: Это сочетание уже используется.
+        failed: Не удалось обновить сочетание
       toggle-move:
         label: Перемещение окна
       toggle-resize:

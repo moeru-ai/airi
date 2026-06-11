@@ -1,3 +1,7 @@
+import type { ShortcutAccelerator, ShortcutBinding } from '@proj-airi/stage-shared/global-shortcut'
+
+import type { globalAppConfigSchema } from '../../configs/global'
+import type { Config } from '../../libs/electron/persistence'
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { GlobalShortcutService } from '../../services/electron/global-shortcut'
@@ -22,9 +26,19 @@ import { setupBaseWindowElectronInvokes, transparentWindowConfig } from '../shar
 
 const SPOTLIGHT_WINDOW_WIDTH = 720
 const SPOTLIGHT_WINDOW_HEIGHT = 100
+const SPOTLIGHT_SHORTCUT_ID = 'spotlight'
+const defaultSpotlightAccelerator: ShortcutAccelerator = { modifiers: ['ctrl', 'shift'], key: 'KeyA' }
 
+/**
+ * Main-process controller for the Spotlight window and its owned shortcut.
+ */
 export interface SpotlightWindowManager {
+  /** Shows the Spotlight input window near the active display. */
   show: () => Promise<void>
+  /** Returns the persisted Spotlight shortcut accelerator. */
+  getShortcutAccelerator: () => ShortcutAccelerator
+  /** Rebinds and persists the Spotlight shortcut when registration succeeds. */
+  updateShortcutAccelerator: (accelerator: ShortcutAccelerator | null) => ReturnType<GlobalShortcutService['registerMainShortcut']>
 }
 
 function resolveSpotlightBounds() {
@@ -45,6 +59,7 @@ export function setupSpotlightWindowManager(params: {
   i18n: I18n
   chatWindow: () => Promise<BrowserWindow>
   globalShortcut: GlobalShortcutService
+  appConfig: Config<typeof globalAppConfigSchema>
 }): SpotlightWindowManager {
   const log = useLogg('spotlight-window').useGlobalConfig()
   const rendererBase = baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'))
@@ -141,21 +156,55 @@ export function setupSpotlightWindowManager(params: {
     window.webContents.focus()
   }
 
+  function getShortcutAccelerator(): ShortcutAccelerator {
+    return params.appConfig.get()?.spotlightShortcutAccelerator ?? defaultSpotlightAccelerator
+  }
+
+  function createShortcutBinding(accelerator = getShortcutAccelerator()): ShortcutBinding {
+    return {
+      id: SPOTLIGHT_SHORTCUT_ID,
+      accelerator,
+      scope: 'global',
+      description: 'Spotlight',
+    }
+  }
+
+  function handleShortcutTriggered() {
+    void show().catch((error) => {
+      log.withError(error).warn('Failed to show Spotlight window')
+    })
+  }
+
+  function persistShortcutAccelerator(accelerator: ShortcutAccelerator) {
+    params.appConfig.update({
+      ...params.appConfig.get(),
+      spotlightShortcutAccelerator: accelerator,
+    })
+  }
+
+  function updateShortcutAccelerator(accelerator: ShortcutAccelerator | null) {
+    const nextAccelerator = accelerator ?? defaultSpotlightAccelerator
+    const registration = params.globalShortcut.registerMainShortcut({
+      binding: createShortcutBinding(nextAccelerator),
+      onTriggered: handleShortcutTriggered,
+    })
+
+    if (registration.ok)
+      persistShortcutAccelerator(nextAccelerator)
+    else
+      log.warn(`Failed to update Spotlight shortcut: ${registration.reason}`)
+
+    return registration.ok
+      ? { ...registration, actualAccelerator: nextAccelerator }
+      : registration
+  }
+
   // The global-shortcut service owns registration and release lifecycle; this
   // main-owned binding survives renderer-driven `unregisterAll` resets and is
   // only freed on app shutdown via the service's `dispose`.
   const shortcutResult = params.globalShortcut.registerMainShortcut({
-    binding: {
-      id: 'spotlight',
-      accelerator: { modifiers: ['ctrl', 'shift'], key: 'KeyA' },
-      scope: 'global',
-      description: 'Spotlight',
-    },
-    onTriggered: () => {
-      void show().catch((error) => {
-        log.withError(error).warn('Failed to show Spotlight window')
-      })
-    },
+    binding: createShortcutBinding(),
+    onTriggered: handleShortcutTriggered,
   })
 
   if (!shortcutResult.ok) {
@@ -167,6 +216,8 @@ export function setupSpotlightWindowManager(params: {
   }
 
   return {
+    getShortcutAccelerator,
     show,
+    updateShortcutAccelerator,
   }
 }

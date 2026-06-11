@@ -14,6 +14,17 @@ pages:
     window-shortcuts:
       description: Chỉnh sửa các phím tắt cho Windows.
       title: Phím tắt Windows
+      empty: Chưa đặt
+      spotlight:
+        title: Phím tắt Spotlight
+        description: Bấm vào phím tắt, rồi nhấn phím tắt mới. Nhấn Esc để hủy.
+      actions:
+        recording: Nhấn phím
+        reset: Đặt lại
+      errors:
+        load: Không tải được phím tắt
+        conflict: Phím tắt này đã được sử dụng.
+        failed: Không cập nhật được phím tắt
       toggle-move:
         label: Bật/Tắt Di chuyển
       toggle-resize:

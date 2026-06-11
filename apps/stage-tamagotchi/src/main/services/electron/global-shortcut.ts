@@ -107,15 +107,38 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
   // directly, so a fixed entry like Spotlight does not depend on any renderer
   // being loaded to register or receive its trigger.
   function registerMainShortcut({ binding, onTriggered }: RegisterMainShortcutParams): ShortcutRegistrationResult {
-    if (active.has(binding.id))
+    const existing = active.get(binding.id)
+    if (existing && existing.owner !== 'main')
       return { id: binding.id, ok: false, reason: ShortcutFailureReasons.DuplicateId }
 
     const electronAccelerator = formatElectronAccelerator(binding.accelerator)
+    if (existing?.driver === 'electron' && existing.electronAccelerator === electronAccelerator) {
+      active.set(binding.id, { binding, owner: 'main', driver: 'electron', electronAccelerator })
+      return { id: binding.id, ok: true }
+    }
+
     if (!globalShortcut.register(electronAccelerator, onTriggered))
       return { id: binding.id, ok: false, reason: ShortcutFailureReasons.Conflict }
 
+    if (existing)
+      releaseEntry(binding.id, existing)
     active.set(binding.id, { binding, owner: 'main', driver: 'electron', electronAccelerator })
     return { id: binding.id, ok: true }
+  }
+
+  function releaseEntry(id: string, entry: ActiveBinding): void {
+    if (entry.driver === 'electron') {
+      try {
+        globalShortcut.unregister(entry.electronAccelerator)
+      }
+      catch (error) {
+        log.withError(error).warn(`Failed to unregister accelerator for "${id}"`)
+      }
+    }
+    else {
+      uiohookDriver.unregisterById(id)
+    }
+    active.delete(id)
   }
 
   function tryRegister(binding: ShortcutBinding): ShortcutRegistrationResult {
@@ -133,18 +156,7 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
     if (!entry || entry.owner === 'main')
       return
 
-    if (entry.driver === 'electron') {
-      try {
-        globalShortcut.unregister(entry.electronAccelerator)
-      }
-      catch (error) {
-        log.withError(error).warn(`Failed to unregister accelerator for "${id}"`)
-      }
-    }
-    else {
-      uiohookDriver.unregisterById(id)
-    }
-    active.delete(id)
+    releaseEntry(id, entry)
   }
 
   // `includeMainOwned` stays false for the renderer-facing invoke so a renderer
@@ -154,18 +166,7 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
     for (const [id, entry] of active) {
       if (!includeMainOwned && entry.owner === 'main')
         continue
-      if (entry.driver === 'electron') {
-        try {
-          globalShortcut.unregister(entry.electronAccelerator)
-        }
-        catch (error) {
-          log.withError(error).warn(`Failed to unregister accelerator for "${id}"`)
-        }
-      }
-      else {
-        uiohookDriver.unregisterById(id)
-      }
-      active.delete(id)
+      releaseEntry(id, entry)
     }
   }
 

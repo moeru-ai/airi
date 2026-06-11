@@ -14,6 +14,17 @@ pages:
     window-shortcuts:
       description: 修改視窗快捷方式
       title: 視窗快捷方式
+      empty: 未設定
+      spotlight:
+        title: Spotlight 快捷鍵
+        description: 點擊快捷鍵後按下新的快捷鍵，按 Esc 取消。
+      actions:
+        recording: 請按鍵
+        reset: 重設
+      errors:
+        load: 無法載入快捷鍵
+        conflict: 此快捷鍵已被佔用
+        failed: 快捷鍵更新失敗
       toggle-move:
         label: 切換移動狀態
       toggle-resize:

@@ -14,6 +14,17 @@ pages:
     window-shortcuts:
       description: 창 바로 가기를 수정합니다.
       title: 창 바로 가기
+      empty: 설정되지 않음
+      spotlight:
+        title: Spotlight 단축키
+        description: 단축키를 클릭한 다음 새 단축키를 누르세요. Esc를 누르면 취소됩니다.
+      actions:
+        recording: 키를 누르세요
+        reset: 재설정
+      errors:
+        load: 단축키를 불러오지 못했습니다
+        conflict: 이 단축키는 이미 사용 중입니다.
+        failed: 단축키 업데이트 실패
       toggle-move:
         label: 이동 켜기/끄기
       toggle-resize:

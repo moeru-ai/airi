@@ -14,6 +14,17 @@ pages:
     window-shortcuts:
       description: ウィンドウ用ショートカットを変更します。
       title: ウィンドウショートカット
+      empty: 未設定
+      spotlight:
+        title: Spotlight ショートカット
+        description: ショートカットをクリックしてから新しいショートカットを押します。Esc でキャンセルします。
+      actions:
+        recording: キーを押してください
+        reset: リセット
+      errors:
+        load: ショートカットを読み込めませんでした
+        conflict: このショートカットは使用中です。
+        failed: ショートカットの更新に失敗しました
       toggle-move:
         label: 移動の切り替え
       toggle-resize:

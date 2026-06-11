@@ -14,6 +14,17 @@ pages:
     window-shortcuts:
       description: Modifier les raccourcis de la fenêtre.
       title: Raccourcis de la fenêtre
+      empty: Non défini
+      spotlight:
+        title: Raccourci Spotlight
+        description: Cliquez sur le raccourci, puis appuyez sur un nouveau raccourci. Appuyez sur Échap pour annuler.
+      actions:
+        recording: Appuyez sur les touches
+        reset: Réinitialiser
+      errors:
+        load: Échec du chargement du raccourci
+        conflict: Ce raccourci est déjà utilisé.
+        failed: Échec de la mise à jour du raccourci
       toggle-move:
         label: (Dés)Activer - Déplacement
       toggle-resize:

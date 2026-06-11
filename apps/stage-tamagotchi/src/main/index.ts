@@ -205,12 +205,12 @@ app.whenReady().then(async () => {
   })
 
   const spotlightWindow = injeca.provide('windows:spotlight', {
-    dependsOn: { serverChannel, i18n, chatWindow, globalShortcut },
+    dependsOn: { serverChannel, i18n, chatWindow, globalShortcut, appConfig },
     build: ({ dependsOn }) => setupSpotlightWindowManager(dependsOn),
   })
 
   const settingsWindow = injeca.provide('windows:settings', {
-    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, serverChannel, godotStageManager, mcpStdioManager, i18n, windowAuthManager, globalShortcut },
+    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, serverChannel, godotStageManager, mcpStdioManager, i18n, windowAuthManager, globalShortcut, spotlightWindow },
     build: async ({ dependsOn }) => setupSettingsWindowReusableFunc(dependsOn),
   })
 
