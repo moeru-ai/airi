@@ -214,7 +214,7 @@ async function sendChat() {
     })
     if (outcome?.error) {
       console.error(outcome.error.message)
-      log('发送到 LLM 失败')
+      log('Failed to send to LLM')
       return
     }
     chatInput.value = ''
