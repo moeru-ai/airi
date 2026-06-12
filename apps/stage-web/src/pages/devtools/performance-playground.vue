@@ -206,10 +206,17 @@ async function sendChat() {
   }
 
   try {
-    await chatOrchestrator.ingest(content, {
+    // A stream/hook failure resolves outcome.error instead of throwing, so a bare
+    // await would log success on a failed send. Log the failure into the playground.
+    const outcome = await chatOrchestrator.ingest(content, {
       model: activeChatModel.value,
       chatProvider: provider as ChatProvider,
     })
+    if (outcome?.error) {
+      console.error(outcome.error.message)
+      log('发送到 LLM 失败')
+      return
+    }
     chatInput.value = ''
   }
   catch (err) {

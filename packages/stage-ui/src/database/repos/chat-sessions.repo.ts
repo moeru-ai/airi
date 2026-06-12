@@ -23,6 +23,13 @@ export interface ChatSendOutboxEntry {
   attempts: number
   lastError?: string
   queuedAt: number
+  /**
+   * Conversation timestamp of the source message. Drain orders by this so the
+   * wire order matches conversation order: the user turn commits at settle,
+   * after the assistant append, so enqueue order (queuedAt) is no longer
+   * conversation order. Falls back to queuedAt when absent.
+   */
+  createdAt?: number
 }
 
 export const chatSessionsRepo = {

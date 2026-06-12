@@ -101,6 +101,7 @@ interface MockState {
   getSessionMessages: ReturnType<typeof vi.fn>
   ingest: ReturnType<typeof vi.fn>
   stopSending: ReturnType<typeof vi.fn>
+  getProviderInstance: ReturnType<typeof vi.fn>
 }
 
 let mockState: MockState
@@ -130,6 +131,7 @@ vi.mock('@proj-airi/stage-ui/stores/chat/stream-store', () => ({
 vi.mock('@proj-airi/stage-ui/stores/chat', () => ({
   useChatOrchestratorStore: () => ({
     sending: ref(false),
+    sendingSessionId: ref<string | null>(null),
     ingest: mockState.ingest,
     stopSending: mockState.stopSending,
   }),
@@ -143,7 +145,7 @@ vi.mock('@proj-airi/stage-ui/stores/chat/maintenance', () => ({
 
 vi.mock('@proj-airi/stage-ui/stores/providers', () => ({
   useProvidersStore: () => ({
-    getProviderInstance: vi.fn(async () => ({ id: 'provider' })),
+    getProviderInstance: mockState.getProviderInstance,
   }),
 }))
 
@@ -219,6 +221,7 @@ describe('useChatSyncStore', async () => {
       getSessionMessages,
       ingest,
       stopSending: vi.fn(),
+      getProviderInstance: vi.fn(async () => ({ id: 'provider' })),
     }
 
     vi.stubGlobal('BroadcastChannel', MockBroadcastChannel)
@@ -539,5 +542,242 @@ describe('useChatSyncStore', async () => {
 
     authority.close()
     store.dispose()
+  })
+
+  /**
+   * @example
+   * const outcome = await store.requestIngest({ text: 'hi' })
+   * expect(outcome).toEqual({ error: { message: '...', turnCommitted: false } })
+   */
+  it('resolves a structured error (not a throw) when the provider cannot be resolved', async () => {
+    // A pre-orchestrator failure must resolve with `outcome.error` so it rides
+    // the relay back to a follower window's composer; a throw would only reach
+    // the authority window and reject the relay.
+    mockState.getProviderInstance.mockResolvedValueOnce(null)
+
+    const store = useChatSyncStore()
+    store.initialize('authority')
+
+    const outcome = await store.requestIngest({ text: 'hello', sessionId: 'session-1' })
+
+    expect(outcome?.error?.message).toContain('Failed to resolve chat provider')
+    expect(outcome?.error?.turnCommitted).toBe(false)
+    expect(outcome?.rolledBack).toBeUndefined()
+    // Pre-orchestrator failures never reach the orchestrator.
+    expect(mockState.ingest).not.toHaveBeenCalled()
+
+    store.dispose()
+  })
+
+  // ROOT CAUSE:
+  //
+  // executeRetry truncated the session via setSessionMessages BEFORE enqueueing
+  // the re-send, then discarded the SendOutcome. If the user hit Stop while the
+  // retry was queued behind an active send, the queued send resolved
+  // { rolledBack: true }, executeRetry returned success, and the truncated
+  // history persisted:
+  //
+  //   truncate to [system, user-1, assistant-1]
+  //   -> queued retry send rolls back (never ran)
+  //   -> history stays truncated -> "hello" and the trailing pair silently lost
+  //
+  // We fixed this by snapshotting the pre-truncation messages and restoring them
+  // via setSessionMessages when the outcome reports rolledBack.
+  it('restores the truncated history when a queued retry rolls back', async () => {
+    const original = [
+      { role: 'system', content: 'init' },
+      { role: 'user', content: 'hello-1' },
+      { role: 'assistant', content: 'answer-1' },
+      { role: 'user', content: 'hello' },
+      { role: 'error', content: 'Remote sent 400 response' },
+      { role: 'user', content: 'hello-3' },
+      { role: 'assistant', content: 'answer-3' },
+    ]
+    mockState.sessionMessages.value['session-1'] = original.map(message => ({ ...message }))
+    // The retry's re-send never starts (Stop while queued behind an active send).
+    mockState.ingest.mockResolvedValueOnce({ rolledBack: true })
+
+    const store = useChatSyncStore()
+    store.initialize('authority')
+
+    const peer = new MockBroadcastChannel('airi:stage-tamagotchi:chat-sync')
+    peer.postMessage({
+      type: 'command',
+      requestId: 'req-retry-rollback',
+      senderId: 'peer',
+      command: 'retry',
+      payload: { sessionId: 'session-1', index: 4 },
+    })
+
+    await vi.waitFor(() => {
+      expect(mockState.ingest).toHaveBeenCalledTimes(1)
+    })
+
+    // The truncation was undone: every turn, including the retried "hello" and
+    // the trailing pair, survives.
+    await vi.waitFor(() => {
+      expect(mockState.sessionMessages.value['session-1']).toEqual(original)
+    })
+
+    peer.close()
+    store.dispose()
+  })
+
+  // ROOT CAUSE:
+  //
+  // The rollback restore wrote the pre-truncation snapshot wholesale. If a
+  // concurrent send landed a fresh exchange after the truncation point while the
+  // retry sat queued, the wholesale write deleted that exchange:
+  //
+  //   truncate to [system, user-1, assistant-1]
+  //   -> concurrent send appends [concurrent-user, concurrent-assistant]
+  //   -> queued retry rolls back -> snapshot write -> concurrent exchange lost
+  //
+  // We fixed this by guarding the restore: with the kept prefix still intact but
+  // history grown, only the removed tail rows that are not already present are
+  // re-appended, preserving the concurrent exchange.
+  it('preserves a concurrent exchange when a queued retry rolls back', async () => {
+    mockState.sessionMessages.value['session-1'] = [
+      { role: 'system', content: 'init', id: 's' },
+      { role: 'user', content: 'hello-1', id: 'u1' },
+      { role: 'assistant', content: 'answer-1', id: 'a1' },
+      { role: 'user', content: 'hello', id: 'u2' },
+      { role: 'error', content: 'Remote sent 400 response', id: 'e1' },
+    ] as Array<{ role: string, content: string, id: string }>
+    // While the retry sits queued, a concurrent send lands a fresh exchange after
+    // the truncation point; only then does the queued retry roll back (Stop).
+    mockState.ingest.mockImplementationOnce(async () => {
+      const current = mockState.sessionMessages.value['session-1']
+      mockState.sessionMessages.value['session-1'] = [
+        ...current,
+        { role: 'user', content: 'concurrent', id: 'c-u' },
+        { role: 'assistant', content: 'concurrent-reply', id: 'c-a' },
+      ] as typeof current
+      return { rolledBack: true }
+    })
+
+    const store = useChatSyncStore()
+    store.initialize('authority')
+
+    const peer = new MockBroadcastChannel('airi:stage-tamagotchi:chat-sync')
+    peer.postMessage({
+      type: 'command',
+      requestId: 'req-retry-concurrent',
+      senderId: 'peer',
+      command: 'retry',
+      payload: { sessionId: 'session-1', index: 3 },
+    })
+
+    await vi.waitFor(() => {
+      expect(mockState.ingest).toHaveBeenCalledTimes(1)
+    })
+
+    // The concurrent exchange survives and the removed tail ("hello" + the error
+    // row) is re-appended after it. Nothing is lost.
+    await vi.waitFor(() => {
+      expect(mockState.sessionMessages.value['session-1']).toEqual([
+        { role: 'system', content: 'init', id: 's' },
+        { role: 'user', content: 'hello-1', id: 'u1' },
+        { role: 'assistant', content: 'answer-1', id: 'a1' },
+        { role: 'user', content: 'concurrent', id: 'c-u' },
+        { role: 'assistant', content: 'concurrent-reply', id: 'c-a' },
+        { role: 'user', content: 'hello', id: 'u2' },
+        { role: 'error', content: 'Remote sent 400 response', id: 'e1' },
+      ])
+    })
+
+    peer.close()
+    store.dispose()
+  })
+
+  // ROOT CAUSE:
+  //
+  // handleCommand appended the authority-side error row only on the THROW path.
+  // A stream/hook failure resolves `outcome.error` (so it can ride the relay back
+  // to a follower's composer) rather than throwing, so it left no record in
+  // authority history; the follower's local row was then wiped by the next
+  // authority session snapshot.
+  //
+  // We fixed this by appending the error row whenever executeIngest resolves an
+  // outcome.error, so it broadcasts to every window and survives the snapshot.
+  it('appends a durable error row when an authority ingest resolves outcome.error', async () => {
+    mockState.ingest.mockResolvedValueOnce({ error: { message: 'stream exploded', turnCommitted: true } })
+
+    const store = useChatSyncStore()
+    store.initialize('authority')
+
+    const responses: Array<{ ok: boolean, outcome?: { error?: { message?: string } } }> = []
+    const peer = new MockBroadcastChannel('airi:stage-tamagotchi:chat-sync')
+    peer.addEventListener('message', (event) => {
+      const message = (event as MessageEvent).data as { type: string, ok?: boolean, outcome?: { error?: { message?: string } } }
+      if (message.type === 'response')
+        responses.push({ ok: !!message.ok, outcome: message.outcome })
+    })
+
+    peer.postMessage({
+      type: 'command',
+      requestId: 'req-outcome-error',
+      senderId: 'peer',
+      command: 'ingest',
+      payload: { text: 'hi', sessionId: 'session-1' },
+    })
+
+    // The resolved failure becomes a durable, broadcast error row in authority
+    // history (not just the follower's local row).
+    await vi.waitFor(() => {
+      const messages = mockState.sessionMessages.value['session-1']
+      expect(messages[messages.length - 1]).toMatchObject({ role: 'error', content: 'stream exploded' })
+    })
+
+    // The response still carries the structured outcome so the follower composer
+    // can react (and suppress its own duplicate local row).
+    await vi.waitFor(() => {
+      expect(responses.some(response => response.ok && response.outcome?.error?.message === 'stream exploded')).toBe(true)
+    })
+
+    peer.close()
+    store.dispose()
+  })
+
+  // A follower's pre-ack 30s deadline only guards the "no authority window" case.
+  // Once the authority acks (on receipt, before streaming), the deadline is
+  // cleared and the request waits for the real response with no further timeout,
+  // because a send can stream for minutes.
+  it('clears the 30s deadline on authority ack and waits for a slow response', async () => {
+    vi.useFakeTimers()
+    const store = useChatSyncStore()
+    store.initialize('follower')
+
+    const authority = new MockBroadcastChannel('airi:stage-tamagotchi:chat-sync')
+    authority.addEventListener('message', (event) => {
+      const message = (event as MessageEvent).data as { type: string, command?: string, requestId?: string }
+      if (message.type === 'command' && message.command === 'ingest') {
+        // Ack immediately on receipt, then deliver the real response long after
+        // the old 30s deadline would have fired.
+        authority.postMessage({ type: 'ack', requestId: message.requestId, authorityId: 'authority' })
+        setTimeout(() => {
+          authority.postMessage({
+            type: 'response',
+            requestId: message.requestId,
+            authorityId: 'authority',
+            ok: true,
+            outcome: { rolledBack: false },
+          })
+        }, 120000)
+      }
+    })
+
+    const pending = store.requestIngest({ text: 'slow', sessionId: 'session-1' })
+
+    // Past the old 30s deadline: the ack cleared it, so no timeout rejection.
+    await vi.advanceTimersByTimeAsync(60000)
+    // Deliver the slow response.
+    await vi.advanceTimersByTimeAsync(60000)
+
+    await expect(pending).resolves.toEqual({ rolledBack: false })
+
+    authority.close()
+    store.dispose()
+    vi.useRealTimers()
   })
 })

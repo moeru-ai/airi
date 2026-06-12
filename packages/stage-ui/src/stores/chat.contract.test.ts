@@ -336,6 +336,34 @@ describe('chat orchestrator contract', () => {
     expect(store.sending).toBe(false)
   })
 
+  // ROOT CAUSE:
+  //
+  // A follower window mirrors the authority's stream snapshot by writing both
+  // store.sending and store.sendingSessionId. The watch(sending) echo then flips
+  // the idle LOCAL runtime via setSending(true), whose emitStateChange reports
+  // sendingSessionId:null (no local activeSend), and syncRuntimeState overwrote
+  // the mirrored value with null:
+  //
+  //   mirror sending=true, sendingSessionId='session-1'
+  //   -> watch echo -> setSending(true) -> onStateChange{ sendingSessionId:null }
+  //   -> syncRuntimeState clobbers -> stop button (gated on it) stays hidden
+  //
+  // We fixed this by not letting a sending=true/null-session echo overwrite the
+  // mirrored id (a real local send always publishes activeSend before sending).
+  it('keeps a mirrored sendingSessionId when the sending echo flips the idle runtime', async () => {
+    const store = useChatOrchestratorStore()
+
+    expect(store.sending).toBe(false)
+
+    // Mimic a follower applying the authority's stream snapshot.
+    store.sendingSessionId = 'session-1'
+    store.sending = true
+    await nextTick()
+
+    expect(store.sending).toBe(true)
+    expect(store.sendingSessionId).toBe('session-1')
+  })
+
   /**
    * @example
    * store.sending = false while a local runtime send is still streaming.

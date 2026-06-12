@@ -2,13 +2,11 @@
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 
-import { errorMessageFrom } from '@moeru/std'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { ChatHistory, HearingConfigDialog } from '@proj-airi/stage-ui/components'
 import { ChatSessionsDrawer, ChatStopButton } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
-import { isUserTurnWithText } from '@proj-airi/stage-ui/libs/chat-sync/index'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/maintenance'
@@ -29,6 +27,7 @@ import ViewControls from '../Layouts/InteractiveArea/Actions/ViewControls.vue'
 import IndicatorMicVolume from '../Widgets/IndicatorMicVolume.vue'
 import ActionAbout from './InteractiveArea/Actions/About.vue'
 
+import { runComposerSend } from '../../composables/runComposerSend'
 import { useTranscriptions } from '../../composables/use-transcriptions'
 import { useStopSpeakingButton } from '../../composables/useStopSpeakingButton'
 import { BackgroundDialogPicker } from '../Backgrounds'
@@ -40,7 +39,7 @@ const chatStream = useChatStreamStore()
 const { cleanupMessages } = useChatMaintenanceStore()
 const { messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
-const { sending } = storeToRefs(chatOrchestrator)
+const { sending, sendingSessionId } = storeToRefs(chatOrchestrator)
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
 const { trackChatMessageDeleted, trackChatMessagesCleared } = useAnalytics()
 
@@ -111,36 +110,25 @@ async function handleSend() {
   const textToSend = messageInput.value
   messageInput.value = ''
 
-  try {
-    const providerConfig = providersStore.getProviderConfig(activeProvider.value)
-
-    const outcome = await ingest(textToSend, {
+  await runComposerSend({
+    send: async () => ingest(textToSend, {
       chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
       model: activeModel.value,
-      providerConfig,
-      // The composer restores the text on `rolledBack`, so it opts into retract.
+      providerConfig: providersStore.getProviderConfig(activeProvider.value),
+      // The composer rescues the text on retract, so it opts into rescuable.
       rescuable: true,
-    })
-
-    // Nothing landed in history (stopped before any output, or cancelled
-    // before the queued send ran): put the text back instead of losing it.
-    if (outcome.rolledBack && !messageInput.value.trim())
-      messageInput.value = textToSend
-  }
-  catch (error) {
-    // Genuine send failures only: cancellations resolve with an outcome (see
-    // ChatOrchestratorRuntime.cancelPendingSends), so they never reach here.
-    // A committed turn keeps its text in the transcript; restoring it into
-    // the composer too would duplicate the turn on the next send. Only a send
-    // that never reached history gets its draft back.
-    const lastUserTurn = messages.value.findLast(message => message.role === 'user')
-    if (!isUserTurnWithText(lastUserTurn, textToSend) && !messageInput.value.trim())
-      messageInput.value = textToSend
-    chatSession.appendSessionMessage(chatSession.activeSessionId, {
+    }),
+    // Lossless: rejoin the rescued text ahead of anything retyped since the
+    // send, instead of only restoring into an empty composer (which dropped the
+    // text whenever the user had started retyping).
+    restoreDraft: () => {
+      messageInput.value = [textToSend, messageInput.value.trim()].filter(Boolean).join(' ')
+    },
+    appendErrorRow: message => chatSession.appendSessionMessage(chatSession.activeSessionId, {
       role: 'error',
-      content: errorMessageFrom(error) ?? 'Failed to send message',
-    })
-  }
+      content: message,
+    }),
+  })
 }
 
 function teardownAnalyzer() {
@@ -285,8 +273,14 @@ onMounted(() => {
           @compositionstart="isComposing = true"
           @compositionend="isComposing = false"
         />
+        <!--
+          Gated on the active session owning the in-flight send so switching
+          sessions mid-stream does not leave an inert stop button lit. Accepted
+          limitation: a send queued for the active session while another session
+          streams shows no button until it becomes the in-flight send.
+        -->
         <ChatStopButton
-          v-if="sending"
+          v-if="sending && sendingSessionId === chatSession.activeSessionId"
           class="aspect-square self-end rounded-full backdrop-blur-md"
           w="[calc(1lh+4px+4px)]" h="[calc(1lh+4px+4px)]"
           @stop="stopSending(chatSession.activeSessionId)"

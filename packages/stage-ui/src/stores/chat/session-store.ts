@@ -1018,7 +1018,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
    *   transparently. UI consumers can watch `outboxPendingCount` to
    *   surface "X syncing".
    */
-  async function pushMessageToCloud(sessionId: string, message: { id: string, role: CloudSyncableRole, content: string }) {
+  async function pushMessageToCloud(sessionId: string, message: { id: string, role: CloudSyncableRole, content: string, createdAt?: number }) {
     const userId = getCurrentUserId()
     if (userId === 'local')
       return
@@ -1031,6 +1031,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       content: message.content,
       attempts: 0,
       queuedAt: Date.now(),
+      createdAt: message.createdAt,
     }
     await enqueuePersist(() => chatSessionsRepo.enqueueOutbox(userId, entry))
     await refreshOutboxPendingCount()
@@ -1066,9 +1067,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
    * `sendMessages` calls (one per session). Idempotent and safe to call
    * concurrently — a single-flight guard collapses overlapping triggers.
    *
-   * Drain ordering: entries are grouped by sessionId, sorted by `queuedAt`
-   * within each session, and sent in a single batch per session. Server
-   * accepts client-supplied message ids so retries are idempotent.
+   * Drain ordering: entries are grouped by sessionId, sorted by message
+   * `createdAt` (falling back to `queuedAt`) within each session, and sent in a
+   * single batch per session. Server accepts client-supplied message ids so
+   * retries are idempotent.
    *
    * Entries whose session has no `cloudChatId` yet are skipped (they will
    * land in the next reconcile pass once create / claim binds the id).
@@ -1090,8 +1092,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       if (entries.length === 0)
         return
 
-      // Group by sessionId for batched dispatch; preserve queuedAt order
-      // within each session so user-then-assistant turns stay ordered.
+      // Group by sessionId for batched dispatch; order within each session by
+      // message createdAt so user-then-assistant turns stay in conversation
+      // order on the wire.
       const bySession = new Map<string, ChatSendOutboxEntry[]>()
       for (const entry of entries) {
         if (entry.attempts >= OUTBOX_MAX_ATTEMPTS)
@@ -1112,7 +1115,11 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         if (!wsClient || wsClient.status() !== 'open')
           break
 
-        sessionEntries.sort((a, b) => a.queuedAt - b.queuedAt)
+        // NOTICE: order by conversation timestamp, not enqueue time. With
+        // commit-at-settle the assistant turn enqueues before the user turn
+        // commits, so queuedAt no longer matches conversation order. Fall back
+        // to queuedAt for ties or entries persisted before createdAt was carried.
+        sessionEntries.sort((a, b) => (a.createdAt ?? a.queuedAt) - (b.createdAt ?? b.queuedAt))
         try {
           await wsClient.sendMessages({
             chatId: cloudChatId,

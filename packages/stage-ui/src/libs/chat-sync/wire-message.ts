@@ -51,26 +51,6 @@ export function extractMessageText(message: ChatHistoryItem): string {
 }
 
 /**
- * Whether a history item is a user turn whose visible text is exactly `text`.
- *
- * Use when:
- * - A composer's send-failure path needs to know whether its optimistic turn
- *   reached history (committed turns keep their text in the transcript, so
- *   restoring the draft would duplicate the turn on resend). Centralizes the
- *   knowledge of how the orchestrator shapes user content (plain string, or a
- *   leading text part when attachments ride along).
- *
- * Expects:
- * - `text` is the raw composer text, before any provider-time prefixes.
- *
- * Returns:
- * - `true` only for `role: 'user'` items whose extracted text equals `text`.
- */
-export function isUserTurnWithText(message: ChatHistoryItem | undefined, text: string): boolean {
-  return message?.role === 'user' && extractMessageText(message) === text
-}
-
-/**
  * Decide whether a local message should be mirrored to the cloud.
  *
  * Use when:

@@ -3,11 +3,11 @@ import type { ChatToolCallRendererRegistry } from '@proj-airi/stage-ui/component
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { errorMessageFrom } from '@moeru/std'
+import { runComposerSend } from '@proj-airi/stage-layouts/composables/runComposerSend'
 import { useStopSpeakingButton } from '@proj-airi/stage-layouts/composables/useStopSpeakingButton'
 import { ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
 import { ChatStopButton } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
-import { isUserTurnWithText } from '@proj-airi/stage-ui/libs/chat-sync/index'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
@@ -44,7 +44,7 @@ const airiCardStore = useAiriCardStore()
 
 const { messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
-const { sending } = storeToRefs(chatOrchestrator)
+const { sending, sendingSessionId } = storeToRefs(chatOrchestrator)
 const { activeCardId } = storeToRefs(airiCardStore)
 const { t } = useI18n()
 const { openImagePreview } = journalPreviewStore
@@ -98,35 +98,34 @@ async function handleSend() {
   messageInput.value = ''
   attachments.value = []
 
-  try {
-    const outcome = await chatSyncStore.requestIngest({
+  // The draft is rescued (its object URLs kept) only when the policy restores
+  // it. Every other exit (a committed turn that owns the attachments, or a
+  // clean reply) releases the local object URLs so they do not leak.
+  let rescued = false
+  await runComposerSend({
+    send: () => chatSyncStore.requestIngest({
       text: textToSend,
       attachments: attachmentsToSend,
       toolset: 'artistry',
-      // The composer rescues the text on rollback, so it opts into retract.
+      // The composer rescues the text on retract, so it opts into rescuable.
       rescuable: true,
-    })
-
-    // Rolled back means stopped before any reply: rescue the text. Otherwise the
-    // committed turn owns the attachments, so release the local object URLs.
-    if (outcome?.rolledBack)
+    }),
+    restoreDraft: () => {
+      rescued = true
       rescueRetractedDraft(textToSend, attachmentsToSend)
-    else
-      revokeAttachmentUrls(attachmentsToSend)
-  }
-  catch (error) {
-    // Cancellations resolve with an outcome, so only genuine failures reach here.
-    // A committed turn keeps its text in the transcript for retry; rescuing it
-    // into the composer too would duplicate the turn. Only a send that never
-    // reached history (provider resolution, relay timeout, pre-append failure)
-    // gets its draft rescued.
-    const lastUserTurn = messages.value.findLast(message => message.role === 'user')
-    if (isUserTurnWithText(lastUserTurn, textToSend))
-      revokeAttachmentUrls(attachmentsToSend)
-    else
-      rescueRetractedDraft(textToSend, attachmentsToSend)
-    appendLocalErrorMessage(errorMessageFrom(error) ?? 'Failed to send message')
-  }
+    },
+    // A resolved outcome.error already has (or will have) a durable error row in
+    // authority session state that broadcasts to every window, so appending a
+    // local row here would duplicate it (and the local row would be wiped by the
+    // next authority snapshot anyway). Only the thrown path means the relay /
+    // authority was unreachable, so no broadcast row is coming: record it locally.
+    appendErrorRow: (message, source) => {
+      if (source === 'thrown')
+        appendLocalErrorMessage(message)
+    },
+  })
+  if (!rescued)
+    revokeAttachmentUrls(attachmentsToSend)
 }
 
 function appendLocalErrorMessage(content: string) {
@@ -384,8 +383,15 @@ async function handleCleanup() {
       </div>
     </div>
     <div :class="['flex items-center justify-end gap-2 py-1']">
+      <!--
+        Gated on the active session owning the in-flight send (mirrored across
+        the chat-sync relay) so switching sessions mid-stream does not leave an
+        inert stop button lit. Accepted limitation: a send queued for the active
+        session while another session streams shows no button until it becomes
+        the in-flight send.
+      -->
       <ChatStopButton
-        v-if="sending"
+        v-if="sending && sendingSessionId === chatSession.activeSessionId"
         class="max-h-[10lh] min-h-[1lh] p-2 text-lg"
         @stop="handleStop"
       />

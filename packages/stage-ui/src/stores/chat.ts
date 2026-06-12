@@ -67,6 +67,9 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const { streamingMessage } = storeToRefs(chatStream)
 
   const sending = ref(false)
+  // Session that owns the active send (null when idle), mirrored from the core
+  // runtime so the UI can scope the stop button to the foreground session.
+  const sendingSessionId = ref<string | null>(null)
   const pendingQueuedSendCount = ref(0)
   let ownedActiveTurnSpan: typeof activeTurnSpan.value
 
@@ -119,6 +122,16 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
   function syncRuntimeState(state: ChatOrchestratorRuntimeState) {
     sending.value = state.sending
+    // The `watch(sending)` echo below mirrors an externally-set `sending` flag
+    // (a follower window applying the authority's stream snapshot) into the local
+    // runtime, whose emitStateChange reports `sendingSessionId: null` because no
+    // local send owns it. That null must not clobber the session id the follower
+    // mirrored from the authority, or the stop button (gated on sendingSessionId)
+    // stays hidden. A real local send always publishes `activeSend` before
+    // setSending(true), so `sending: true` with a null session id is only ever
+    // the echo, never a genuine in-flight send.
+    if (!state.sending || state.sendingSessionId != null)
+      sendingSessionId.value = state.sendingSessionId
     pendingQueuedSendCount.value = state.pendingQueuedSendCount
   }
 
@@ -197,19 +210,20 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
           id: message.id,
           role: 'assistant',
           content: extractMessageText(message),
+          createdAt: message.createdAt,
         })
       }
     },
     onUserTurnCommitted: ({ sessionId, message, messageText, sessionMessages }) => {
-      // Fires at the first assistant output (or at settle for output-less turns).
-      // A retracted turn never reaches the cloud or starts an autonomous artist
-      // task on text the user took back; a normal turn syncs and starts that task
-      // alongside the reply stream.
+      // Fires once at settle (the single commit decision). A retracted turn
+      // never reaches the cloud or starts an autonomous artist task on text the
+      // user took back; a committed turn syncs and starts that task.
       if (isCloudSyncableMessage(message)) {
         void chatSession.pushMessageToCloud(sessionId, {
           id: message.id,
           role: 'user',
           content: messageText,
+          createdAt: message.createdAt,
         })
       }
 
@@ -269,6 +283,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
   return {
     sending,
+    sendingSessionId,
     pendingQueuedSendCount,
 
     ingest,

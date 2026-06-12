@@ -201,6 +201,14 @@ export async function streamFrom({
     }
 
     const onEvent = async (event: unknown) => {
+      // Once the outer contract has settled (via `onEvent`'s own finish/error
+      // handling or `streamResult.steps`, which resolves independently of this
+      // pipeline), drop any further events. An SSE/fetch adapter can surface a
+      // tool-call or delta it had already buffered after the promise settled;
+      // forwarding it would let the orchestrator mutate an already-finalized (or
+      // retracted) turn.
+      if (settled)
+        return
       try {
         const streamEvent = resolveCapturedToolErrorEvent(event, capturedToolErrorByCallId)
         await options?.onStreamEvent?.(streamEvent as any)

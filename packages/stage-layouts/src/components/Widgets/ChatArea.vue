@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 
-import { errorMessageFrom } from '@moeru/std'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { ChatSessionsDrawer, ChatStopButton } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { HearingConfig } from '@proj-airi/stage-ui/components/scenarios/dialogs/audio-input/index'
 import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
-import { isUserTurnWithText } from '@proj-airi/stage-ui/libs/chat-sync/index'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
@@ -22,6 +20,7 @@ import { useI18n } from 'vue-i18n'
 
 import IndicatorMicVolume from './IndicatorMicVolume.vue'
 
+import { runComposerSend } from '../../composables/runComposerSend'
 import { useTranscriptions } from '../../composables/use-transcriptions'
 import { useStopSpeakingButton } from '../../composables/useStopSpeakingButton'
 
@@ -45,8 +44,7 @@ const { enabled, stream } = storeToRefs(useSettingsAudioDevice())
 const chatOrchestrator = useChatOrchestratorStore()
 const chatSession = useChatSessionStore()
 const { ingest, onAfterMessageComposed, stopSending } = chatOrchestrator
-const { sending } = storeToRefs(chatOrchestrator)
-const { messages } = storeToRefs(chatSession)
+const { sending, sendingSessionId } = storeToRefs(chatOrchestrator)
 const { audioContext } = useAudioContext()
 const { t } = useI18n()
 const sendModeLabels = computed<Record<SendMode, string>>(() => ({
@@ -72,40 +70,23 @@ async function handleSend() {
   const textToSend = messageInput.value
   messageInput.value = ''
 
-  const restoreDraft = () => {
-    messageInput.value = [textToSend, messageInput.value.trim()].filter(Boolean).join(' ')
-  }
-
-  try {
-    const providerConfig = providersStore.getProviderConfig(activeProvider.value)
-
-    const outcome = await ingest(textToSend, {
+  await runComposerSend({
+    send: async () => ingest(textToSend, {
       chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
       model: activeModel.value,
-      providerConfig,
-      // The composer restores the text on `rolledBack`, so it opts into retract.
+      providerConfig: providersStore.getProviderConfig(activeProvider.value),
+      // The composer rescues the text on retract, so it opts into rescuable.
       rescuable: true,
-    })
-
-    // Nothing landed in history (stopped before any output, or cancelled
-    // before the queued send ran): put the text back instead of losing it.
-    if (outcome.rolledBack)
-      restoreDraft()
-  }
-  catch (error) {
-    // Cancellations resolve with an outcome (see ChatOrchestratorRuntime
-    // .cancelPendingSends), so only genuine failures reach here. A committed turn
-    // keeps its text in the transcript for retry; restoring it would duplicate
-    // the turn. Only a send that never reached history (provider resolution or
-    // pre-append failure) gets its draft back.
-    const lastUserTurn = messages.value.findLast(message => message.role === 'user')
-    if (!isUserTurnWithText(lastUserTurn, textToSend))
-      restoreDraft()
-    chatSession.appendSessionMessage(chatSession.activeSessionId, {
+    }),
+    // Lossless: rejoin the rescued text ahead of anything retyped since the send.
+    restoreDraft: () => {
+      messageInput.value = [textToSend, messageInput.value.trim()].filter(Boolean).join(' ')
+    },
+    appendErrorRow: message => chatSession.appendSessionMessage(chatSession.activeSessionId, {
       role: 'error',
-      content: errorMessageFrom(error) ?? 'Failed to send message',
-    })
-  }
+      content: message,
+    }),
+  })
 }
 
 function sendFromKeyboard() {
@@ -285,10 +266,14 @@ watch(sendMode, () => {
           Stop drives the orchestrator directly rather than going through
           chat-sync (this surface sends via ingest(), not requestIngest()), and
           scopes the stop to the active session so another session's stream is
-          untouched.
+          untouched. Visibility is gated on the active session owning the
+          in-flight send: a global `sending` flag would light an inert button
+          after switching sessions mid-stream. Accepted limitation: a send
+          queued for the active session while another session streams shows no
+          button until it becomes the in-flight send.
         -->
         <ChatStopButton
-          v-if="sending"
+          v-if="sending && sendingSessionId === chatSession.activeSessionId"
           class="h-8 w-8 text-lg"
           @stop="stopSending(chatSession.activeSessionId)"
         />

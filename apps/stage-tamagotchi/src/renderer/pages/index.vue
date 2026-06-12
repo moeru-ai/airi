@@ -274,7 +274,11 @@ function handleStreamingSentenceEnd(delta: string) {
   void (async () => {
     try {
       console.info('[Main Page] Sending transcription to chat:', finalText)
-      await chatSyncStore.requestIngest({ text: finalText })
+      // A stream/hook failure now resolves outcome.error instead of throwing; the
+      // catch only fires for a pre-append failure (relay unreachable). Surface both.
+      const outcome = await chatSyncStore.requestIngest({ text: finalText })
+      if (outcome?.error)
+        console.error('[Main Page] Failed to send chat from voice:', outcome.error.message)
     }
     catch (err) {
       console.error('[Main Page] Failed to send chat from voice:', err)
@@ -379,7 +383,11 @@ async function startAudioInteraction() {
         postCaption({ type: 'caption-speaker', text })
 
         try {
-          await chatSyncStore.requestIngest({ text })
+          // A stream/hook failure resolves outcome.error; the catch only fires
+          // for a pre-append failure (relay unreachable). Surface both.
+          const outcome = await chatSyncStore.requestIngest({ text })
+          if (outcome?.error)
+            console.error('Failed to send chat from voice:', outcome.error.message)
         }
         catch (err) {
           console.error('Failed to send chat from voice:', err)

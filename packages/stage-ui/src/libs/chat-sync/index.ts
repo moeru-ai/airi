@@ -15,7 +15,6 @@ export type { CloudMergeResult } from './wire-message'
 export {
   extractMessageText,
   isCloudSyncableMessage,
-  isUserTurnWithText,
   mergeCloudMessagesIntoLocal,
   wireMessageToLocal,
 } from './wire-message'

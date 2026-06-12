@@ -688,6 +688,8 @@ describe('createChatOrchestratorRuntime', () => {
     expect(harness.runtime.getSending()).toBe(true)
     expect(harness.stateChanges.at(-1)).toEqual({
       sending: true,
+      // No active send owns this external flip, so no session is in flight.
+      sendingSessionId: null,
       pendingQueuedSendCount: 0,
     })
 
@@ -695,6 +697,7 @@ describe('createChatOrchestratorRuntime', () => {
     expect(harness.runtime.getSending()).toBe(false)
     expect(harness.stateChanges.at(-1)).toEqual({
       sending: false,
+      sendingSessionId: null,
       pendingQueuedSendCount: 0,
     })
   })
@@ -1320,10 +1323,12 @@ describe('createChatOrchestratorRuntime', () => {
     })
 
     expect(outcome.rolledBack).toBe(false)
+    expect(outcome.error).toBeUndefined()
     expect(harness.sessionMessages['session-1']?.some(message => message.role === 'user')).toBe(true)
     expect(harness.userCommits).toHaveLength(1)
     // The user turn commits BEFORE the assistant is appended, so the user's
-    // cloud upload is enqueued ahead of the assistant's (preserving order).
+    // cloud upload is enqueued (and sent when the WS is open) ahead of the
+    // assistant's. The finally backstop is idempotent and does not re-commit.
     expect(harness.commitOrder).toEqual(['user-commit', 'assistant'])
   })
 
@@ -1557,12 +1562,11 @@ describe('createChatOrchestratorRuntime', () => {
 
   /**
    * @example
-   * The retract window closes at first output, so the commit (cloud upload,
-   * autonomous tasks) fires right then, concurrently with the rest of the
-   * stream, instead of waiting for it to drain. It still fires exactly once
-   * and ahead of the assistant append.
+   * The commit is the single decision taken at settle, not mid-stream: while the
+   * provider stream is still parked after first output, the user turn stays
+   * provisional and uncommitted. It commits exactly once when the send drains.
    */
-  it('commits the user turn at first output while the stream is still in flight', async () => {
+  it('defers the user turn commit to settle rather than firing at first output', async () => {
     const harness = createHarness()
 
     let finishStream: (() => Promise<void>) | undefined
@@ -1581,17 +1585,226 @@ describe('createChatOrchestratorRuntime', () => {
       chatProvider: provider,
     })
 
-    // The commit lands while the provider stream is still parked.
+    // First output has flushed (the assistant bubble is painted), but the stream
+    // is still parked: the commit has NOT fired yet and the turn is provisional.
     await vi.waitFor(() => {
-      expect(harness.userCommits).toHaveLength(1)
+      expect(harness.foregroundPatches.some(message => message.slices?.some(slice => slice.type === 'text'))).toBe(true)
     })
-    const userTurn = harness.sessionMessages['session-1']?.find(message => message.role === 'user')
-    expect(userTurn?.provisional).toBeUndefined()
+    expect(harness.userCommits).toHaveLength(0)
+    const inFlightTurn = harness.sessionMessages['session-1']?.find(message => message.role === 'user')
+    expect(inFlightTurn?.provisional).toBe(true)
 
     await finishStream!()
     await send
 
+    // The commit lands exactly once, at settle.
     expect(harness.userCommits).toHaveLength(1)
-    expect(harness.commitOrder).toEqual(['user-commit', 'assistant'])
+    const committedTurn = harness.sessionMessages['session-1']?.find(message => message.role === 'user')
+    expect(committedTurn?.provisional).toBeUndefined()
+  })
+
+  // ROOT CAUSE:
+  //
+  // Before the fix the user turn committed eagerly at first output via
+  // commitUserTurnOnFirstOutput(), called from the onLiteral / tool-call queue /
+  // reasoning-delta stream callbacks. The outer stream promise settles via
+  // `streamResult.steps` independently of that event pipeline (llm-service), and
+  // onStreamEvent had no settled guard, so a tool-call event delivered AFTER the
+  // stream rejected could run after the finally had already retracted the turn:
+  //
+  //   abort -> finally retracts the provisional turn (rolledBack)
+  //   -> late tool-call drains -> commitUserTurnOnFirstOutput() commits it
+  //   -> onUserTurnCommitted fires -> a deleted turn is cloud-uploaded.
+  //
+  // We fixed this by deleting commit-at-first-output: the commit/retract is a
+  // single decision in the send's finally. A late event can mutate the orphaned
+  // buildingMessage but can no longer commit, because there is no commit path
+  // outside the finally.
+  it('drops a late tool-call event after a retract so it cannot commit or upload the turn', async () => {
+    const harness = createHarness()
+
+    // Capture the orchestrator's onStreamEvent so the test can deliver a late
+    // tool-call event AFTER the send has settled and the turn was retracted.
+    let lateEmit: ((event: StreamEvent) => Promise<void> | void) | undefined
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      lateEmit = options?.onStreamEvent
+      await new Promise<void>((_resolve, reject) => {
+        const signal = (options as { abortSignal?: AbortSignal })?.abortSignal
+        signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+      })
+    })
+
+    // A rescuable send produces no output before the stop, so it retracts.
+    const send = harness.runtime.ingest('a stopped prompt', {
+      model: 'gpt-test',
+      chatProvider: provider,
+      rescuable: true,
+    })
+
+    await vi.waitFor(() => {
+      expect(harness.stream).toHaveBeenCalledTimes(1)
+    })
+
+    harness.runtime.stopSending('session-1')
+    const outcome = await send
+
+    // The turn was retracted before any late event.
+    expect(outcome.rolledBack).toBe(true)
+    expect(harness.userCommits).toHaveLength(0)
+    expect(harness.sessionMessages['session-1']?.map(message => message.role)).toEqual(['system'])
+
+    // A tool-call event surfaces after the stream settled and the turn is gone.
+    await lateEmit?.({
+      type: 'tool-call',
+      toolCallId: 'late-call',
+      toolName: 'search',
+      args: {},
+    } as StreamEvent)
+    // Flush the async tool-call queue handler.
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+
+    // The retracted turn stays retracted: no commit, no cloud upload.
+    expect(harness.userCommits).toHaveLength(0)
+    expect(harness.sessionMessages['session-1']?.map(message => message.role)).toEqual(['system'])
+  })
+
+  // ROOT CAUSE:
+  //
+  // A reasoning-only stopped partial persists with content '' (the visible text
+  // never arrived before the stop; only categorization.reasoning did, which
+  // hasProducedOutput() counts). buildProviderMessages stripped the runtime
+  // fields (slices, categorization, stopped) but KEPT the message, so every
+  // subsequent send included { role: 'assistant', content: '' }, which Anthropic
+  // and strict OpenAI-compatible gateways reject with HTTP 400.
+  //
+  // We fixed this by dropping stopped assistant partials whose projected content
+  // is empty from the provider projection.
+  it('drops an empty reasoning-only stopped partial from the provider projection', async () => {
+    const harness = createHarness()
+
+    // A previous turn stopped during reasoning, before any speech slice landed.
+    harness.sessionMessages['session-1'].push({
+      role: 'assistant',
+      content: '',
+      slices: [],
+      tool_results: [],
+      categorization: { speech: '', reasoning: 'weighing the options' },
+      stopped: true,
+      createdAt: new Date(2026, 3, 25, 18, 10).getTime(),
+      id: 'reasoning-only-stopped',
+    } as StreamingAssistantMessage)
+
+    let composedMessages: Message[] = []
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, messages, options) => {
+      composedMessages = messages
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'follow-up' })
+      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+    })
+
+    await harness.runtime.ingest('continue please', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    // The empty stopped partial is gone; only the system + current user message
+    // remain. No { role: 'assistant', content: '' } reaches the provider.
+    expect(composedMessages.map(message => message.role)).toEqual(['system', 'user'])
+    expect(composedMessages.some(message => message.role === 'assistant')).toBe(false)
+  })
+
+  /**
+   * @example
+   * A non-empty stopped partial (it produced a speech slice before the stop) is
+   * still projected: only empty stopped partials are dropped.
+   */
+  it('keeps a non-empty stopped partial in the provider projection', async () => {
+    const harness = createHarness()
+    harness.sessionMessages['session-1'].push({
+      role: 'assistant',
+      content: 'partial reply',
+      slices: [{ type: 'text', text: 'partial reply' }],
+      tool_results: [],
+      stopped: true,
+      createdAt: new Date(2026, 3, 25, 18, 10).getTime(),
+      id: 'non-empty-stopped',
+    } as StreamingAssistantMessage)
+
+    let composedMessages: Message[] = []
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, messages, options) => {
+      composedMessages = messages
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'follow-up' })
+      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+    })
+
+    await harness.runtime.ingest('continue please', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    const assistantInPrompt = composedMessages.find(message => message.role === 'assistant')
+    expect(assistantInPrompt).toMatchObject({ role: 'assistant', content: 'partial reply' })
+  })
+
+  /**
+   * @example
+   * A stream-level failure (not a Stop) resolves with `outcome.error` instead of
+   * rejecting, so the failure survives the BroadcastChannel relay. The user turn
+   * is kept (`turnCommitted: true`) and committed.
+   */
+  it('resolves with a structured error and keeps the user turn on a stream failure', async () => {
+    const harness = createHarness()
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'partial before failure' })
+      throw new Error('provider exploded')
+    })
+
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const outcome = await harness.runtime.ingest('hello', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+    consoleErrorSpy.mockRestore()
+
+    expect(outcome.rolledBack).toBe(false)
+    expect(outcome.error).toEqual({
+      message: 'provider exploded',
+      turnCommitted: true,
+    })
+    // The user turn is kept and committed (a failure is not a retract).
+    expect(harness.sessionMessages['session-1']?.some(message => message.role === 'user')).toBe(true)
+    expect(harness.userCommits).toHaveLength(1)
+  })
+
+  /**
+   * @example
+   * The active send's session is exposed via runtime state so the UI can scope
+   * the stop button. It is the in-flight session while parked, null once settled.
+   */
+  it('exposes the active send session id through runtime state', async () => {
+    const harness = createHarness()
+    let releaseSend: (() => void) | undefined
+    harness.stream.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        releaseSend = resolve
+      })
+    })
+
+    const send = harness.runtime.ingest('hello', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    await vi.waitFor(() => {
+      expect(harness.stream).toHaveBeenCalledTimes(1)
+    })
+
+    // While the send is in flight, runtime state names the session that owns it.
+    expect((harness.stateChanges.at(-1) as { sendingSessionId?: string | null })?.sendingSessionId).toBe('session-1')
+
+    releaseSend?.()
+    await send
+
+    // Once it settles, no session is in flight.
+    expect((harness.stateChanges.at(-1) as { sendingSessionId?: string | null })?.sendingSessionId).toBeNull()
   })
 })
