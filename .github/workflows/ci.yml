@@ -147,8 +147,12 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Setup Playwright
-        run: npx playwright install chromium
+      # NOTICE: The Playwright Chromium installer can hang on GitHub-hosted runners
+      # after the download reaches 100%. Browser-mode Vitest projects select the
+      # runner's preinstalled Google Chrome in CI, so this step verifies it instead
+      # of downloading another browser archive.
+      - name: Verify Chrome
+        run: google-chrome --version
 
       - run: pnpm run build:packages
       - run: pnpm run test:run
