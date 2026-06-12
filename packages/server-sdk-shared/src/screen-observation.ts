@@ -492,8 +492,52 @@ export function decideDailySummary(inputOrTaskCount: number | DecideDailySummary
   }
 }
 
+const barePercentagePrefixPattern = /^[\p{L}\p{N}_-]+/u
+const barePercentageValuePattern = /^\d{1,3}(?:\.\d+)?%$/u
+const percentWrapperPairs: Record<string, string> = {
+  '(': ')',
+  '[': ']',
+  '（': '）',
+  '【': '】',
+}
+
 export function isBarePercentage(value: string): boolean {
-  return /^\s*(?:[\p{L}\p{N}_-]+\s*(?::|：|=|-)?\s*)?[\(\[（【]?\s*\d{1,3}(?:\.\d+)?\s*%\s*[\)\]）】]?\s*$/u.test(value)
+  const trimmed = value.trim()
+  if (!trimmed)
+    return false
+
+  if (isBarePercentageValue(trimmed))
+    return true
+
+  const prefix = trimmed.match(barePercentagePrefixPattern)?.[0]
+  if (!prefix)
+    return false
+
+  let remainder = trimmed.slice(prefix.length).trimStart()
+  if (!remainder)
+    return false
+
+  const separator = remainder.at(0)
+  if (separator && ':：=-'.includes(separator))
+    remainder = remainder.slice(1).trimStart()
+
+  return isBarePercentageValue(remainder)
+}
+
+function isBarePercentageValue(value: string): boolean {
+  let token = value.trim()
+  const first = token.at(0)
+  const expectedClose = first ? percentWrapperPairs[first] : undefined
+  if (expectedClose) {
+    if (!token.endsWith(expectedClose))
+      return false
+    token = token.slice(1, -1).trim()
+  }
+  else if (!first || first < '0' || first > '9') {
+    return false
+  }
+
+  return barePercentageValuePattern.test(token.replace(/\s+/gu, ''))
 }
 
 function normalizeTouchMessage(message: TouchEventMessage, task: Task): TouchEventMessage {

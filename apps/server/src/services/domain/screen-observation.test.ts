@@ -318,4 +318,12 @@ describe('screen observation domain contract', () => {
       },
     })
   })
+
+  it('rejects long adversarial percentage-like input without regex backtracking', () => {
+    const adversarial = `${'progress '.repeat(20_000)}${' '.repeat(20_000)}not-a-percent`
+    const startedAt = performance.now()
+
+    expect(isBarePercentage(adversarial)).toBe(false)
+    expect(performance.now() - startedAt).toBeLessThan(500)
+  })
 })
