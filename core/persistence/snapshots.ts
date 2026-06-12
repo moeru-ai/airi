@@ -18,7 +18,16 @@ import type {
 	RuntimeStateStore,
 	RecoveryMetadata,
 } from "./types.js"
-import type { SerializedPlan, SerializedTask, SerializedCapability, SerializedSession, SerializedExecutionState, SerializedWorkspace } from "./types.js"
+import type {
+	SerializedPlan,
+	SerializedTask,
+	SerializedCapability,
+	SerializedSession,
+	SerializedExecutionState,
+	SerializedWorkspace,
+	SerializedProposal,
+	SerializedReasoningTrace,
+} from "./types.js"
 
 // ── InMemorySnapshotStore ───────────────────────────────────────────────
 
@@ -102,6 +111,12 @@ export class SnapshotManager {
 	/** Function that captures current workspace state. */
 	private captureWorkspaces: (() => SerializedWorkspace[]) = () => []
 
+	/** Function that captures current cognition proposals. */
+	private captureProposals: (() => SerializedProposal[]) = () => []
+
+	/** Function that captures current reasoning traces. */
+	private captureReasoningTraces: (() => SerializedReasoningTrace[]) = () => []
+
 	constructor(
 		store: SnapshotStore,
 		events: EventBus,
@@ -157,6 +172,20 @@ export class SnapshotManager {
 	}
 
 	/**
+	 * Set the cognition proposals capture function.
+	 */
+	setCaptureProposals(fn: () => SerializedProposal[]): void {
+		this.captureProposals = fn
+	}
+
+	/**
+	 * Set the reasoning traces capture function.
+	 */
+	setCaptureReasoningTraces(fn: () => SerializedReasoningTrace[]): void {
+		this.captureReasoningTraces = fn
+	}
+
+	/**
 	 * Set the event count provider (for recovery metadata).
 	 */
 	setEventCountProvider(fn: () => number): void {
@@ -183,6 +212,8 @@ export class SnapshotManager {
 			sessions: this.captureSessions(),
 			executionState: this.captureExecutionState(),
 			workspaces: this.captureWorkspaces(),
+			proposals: this.captureProposals(),
+			reasoningTraces: this.captureReasoningTraces(),
 		}
 
 		await this.store.save(snapshot)

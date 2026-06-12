@@ -254,8 +254,15 @@ export interface RuntimeSnapshot {
 
 	/** Optional execution state for in-flight executions. */
 	readonly executionState?: SerializedExecutionState
-\n	/** Serialized workspace state. */
+
+	/** Serialized workspace state. */
 	readonly workspaces: SerializedWorkspace[]
+
+	/** Serialized cognition proposals. */
+	readonly proposals: SerializedProposal[]
+
+	/** Serialized reasoning traces. */
+	readonly reasoningTraces: SerializedReasoningTrace[]
 }
 
 // ── Recovery metadata ───────────────────────────────────────────────────
@@ -497,6 +504,87 @@ export interface SerializedExecutionState {
 		readonly startedAt: number
 		readonly status: "running" | "completed" | "failed" | "cancelled"
 	}>
+}
+
+// ── Cognition serialized types ──────────────────────────────────────────
+
+/**
+ * Plain serializable version of a PlanProposal.
+ */
+export interface SerializedProposal {
+	/** Proposal ID. */
+	readonly id: string
+
+	/** Associated reasoning request ID. */
+	readonly requestId: string
+
+	/** Proposal name. */
+	readonly name: string
+
+	/** Optional description. */
+	readonly description?: string
+
+	/** Serialized proposed steps. */
+	readonly steps: Array<{
+		readonly id: string
+		readonly name: string
+		readonly action: string
+		readonly input: Record<string, unknown>
+		readonly dependencyIds?: string[]
+	}>
+
+	/** Proposal status. */
+	readonly status: "pending" | "validated" | "rejected" | "accepted"
+
+	/** Validation result, if validated. */
+	readonly validationResult?: {
+		readonly valid: boolean
+		readonly errors: Array<{ readonly code: string; readonly message: string }>
+		readonly warnings: Array<{ readonly code: string; readonly message: string }>
+	}
+
+	/** Model info. */
+	readonly modelInfo: { readonly provider: string; readonly model: string }
+
+	/** Associated reasoning trace ID, if any. */
+	readonly reasoningTraceId?: string
+
+	/** ISO-8601 creation timestamp. */
+	readonly createdAt: string
+
+	/** ISO-8601 validation timestamp, if validated. */
+	readonly validatedAt?: string
+}
+
+/**
+ * Plain serializable version of a ReasoningTrace.
+ */
+export interface SerializedReasoningTrace {
+	/** Reasoning trace ID. */
+	readonly id: string
+
+	/** Associated proposal ID. */
+	readonly proposalId: string
+
+	/** Reasoning entries. */
+	readonly entries: Array<{
+		readonly timestamp: string
+		readonly type: "analysis" | "decision" | "observation" | "revision" | "conclusion"
+		readonly content: string
+		readonly relatedStepIds?: string[]
+	}>
+
+	/** Optional summary. */
+	readonly summary?: string
+
+	/** Model info. */
+	readonly modelInfo: { readonly provider: string; readonly model: string }
+
+	/** ISO-8601 start timestamp. */
+	readonly startedAt: string
+
+	/** ISO-8601 completion timestamp, if completed. */
+	readonly completedAt?: string
 }
 
 // ── Persistence options ─────────────────────────────────────────────────

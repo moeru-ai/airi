@@ -278,3 +278,58 @@ export type {
 	WorkspaceManagerOptions,
 	WorktreeRecord,
 } from "./workspace/index.js"
+
+// ── Cognition layer ─────────────────────────────────────────────────────
+
+export {
+	CognitionCoordinator,
+	PlanValidator,
+	MockCognitionProvider,
+	createProposal,
+	proposalToPlan,
+	summarizeProposal,
+	extractCapabilityRequirements,
+	extractWorkspaceRequirements,
+	createProposalId,
+	createReasoningId,
+	createCognitionSessionId,
+} from "./cognition/index.js"
+
+export type {
+	ProposalId,
+	ReasoningId,
+	CognitionSessionId,
+	CognitionRequest,
+	CognitionContext,
+	PlanSummary,
+	ExecutionSummary,
+	CognitionConstraints,
+	CognitionResponse,
+	ModelInfo,
+	TokenUsage,
+	PlanProposal,
+	ProposedStep,
+	WorkspaceRequirements,
+	EstimatedExecution,
+	ReasoningTrace,
+	ReasoningEntry,
+	CognitionModel,
+	ModelCapabilities,
+	CognitionSession,
+	ValidationResult,
+	ValidationError,
+	ValidationWarning,
+	CognitionProvider,
+	CognitionProviderOptions,
+	CognitionPipelineResult,
+} from "./cognition/index.js"
+
+export type {
+	CognitionRequested,
+	CognitionCompleted,
+	CognitionFailed,
+	PlanProposed,
+	PlanValidated,
+	PlanRejected,
+	CognitionEvent,
+} from "./cognition/events.js"

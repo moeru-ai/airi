@@ -24,5 +24,7 @@ export type {
 	SerializedSession,
 	SerializedExecutionState,
 	SerializedWorkspace,
+	SerializedProposal,
+	SerializedReasoningTrace,
 	PersistenceOptions,
 } from "./types.js"
