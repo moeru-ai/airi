@@ -2,7 +2,6 @@ import type { ExtensionHost } from '@proj-airi/plugin-sdk/plugin-host'
 
 import type {
   PluginHostDebugSnapshot,
-  PluginHostModuleSummary,
 } from '../../../../../shared/eventa/plugin/host'
 import type { ExtensionAssetSnapshotService } from '../features/static-assets'
 import type { ExtensionConfig, ManifestEntry } from '../types'
@@ -19,7 +18,7 @@ import { buildPluginRegistrySnapshot } from './registry'
  *
  * Expects:
  * - `host` is the initialized extension host instance
- * - `manifestEntryByName` contains entries for any extension-owned modules being inspected
+ * - `manifestEntryByExtensionId` contains entries for any extension-owned modules being inspected
  * - `extensionAssetService` owns extension asset URL/session lifecycle when mounted asset URLs are needed
  *
  * Returns:
@@ -31,7 +30,7 @@ export function buildPluginHostDebugSnapshot(options: {
   entries: ManifestEntry[]
   config: ExtensionConfig
   loaded: Set<string>
-  manifestEntryByName: Map<string, ManifestEntry>
+  manifestEntryByExtensionId: Map<string, ManifestEntry>
   extensionAssetService?: ExtensionAssetSnapshotService
 }): Promise<PluginHostDebugSnapshot> {
   const extensionAssetService = options.extensionAssetService
@@ -39,10 +38,10 @@ export function buildPluginHostDebugSnapshot(options: {
     .listBindings()
     .map(module =>
       rewriteWidgetModuleAssetUrl(
-        module as PluginHostModuleSummary,
-        options.manifestEntryByName,
+        module,
+        options.manifestEntryByExtensionId,
         {
-          pluginAssetBaseUrl: extensionAssetService?.getBaseUrl(),
+          extensionAssetBaseUrl: extensionAssetService?.getBaseUrl(),
           ...(extensionAssetService
             ? {
                 createAssetSession: ({ extensionId, version, sessionId, routeAssetPath, sessionPathPrefix }: {
@@ -52,7 +51,7 @@ export function buildPluginHostDebugSnapshot(options: {
                   routeAssetPath: string
                   sessionPathPrefix: string
                 }) => extensionAssetService.createAssetSession({
-                  pluginId: extensionId,
+                  extensionId,
                   version,
                   ownerSessionId: sessionId,
                   routeAssetPath,
@@ -62,7 +61,7 @@ export function buildPluginHostDebugSnapshot(options: {
             : {}),
         },
       ),
-    ) as Array<PluginHostModuleSummary | Promise<PluginHostModuleSummary>>)
+    ))
 
   return modules.then(resolvedModules => ({
     registry: buildPluginRegistrySnapshot({
@@ -73,13 +72,13 @@ export function buildPluginHostDebugSnapshot(options: {
     }),
     sessions: options.host.listSessions().map(session => ({
       id: session.id,
-      manifestName: session.manifest.id,
+      extensionId: session.manifest.id,
       phase: session.phase,
       runtime: session.runtime ?? 'electron',
       moduleId: session.extension.id,
     })),
     kits: options.host.listKits(),
-    modules: resolvedModules as PluginHostDebugSnapshot['modules'],
+    modules: resolvedModules,
     capabilities: options.host.listCapabilities(),
     refreshedAt: Date.now(),
   }))

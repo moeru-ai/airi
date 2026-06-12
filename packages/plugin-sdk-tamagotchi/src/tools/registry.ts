@@ -17,7 +17,7 @@ export interface RegisteredPluginToolDescriptor {
  * Describes the JSON-schema side of an xsai-compatible Tamagotchi extension tool.
  */
 export interface SerializedXsaiToolDefinition {
-  ownerPluginId: string
+  ownerExtensionId: string
   name: string
   description: string
   parameters: HostDataRecord
@@ -36,7 +36,7 @@ export interface ToolsetPromptManifest {
  * Captures one registered toolset prompt with extension ownership metadata.
  */
 export interface SerializedToolsetPromptDefinition {
-  ownerPluginId: string
+  ownerExtensionId: string
   id: string
   prompt: ToolsetPromptManifest
 }
@@ -76,7 +76,7 @@ export interface PluginToolsetPromptDefinitionRecord {
  */
 export interface ToolRegistryRecord {
   ownerSessionId: string
-  ownerPluginId: string
+  ownerExtensionId: string
   ownerModuleId?: string
   tool: PluginToolDefinitionRecord
   availability?: () => Promise<boolean> | boolean
@@ -88,7 +88,7 @@ export interface ToolRegistryRecord {
  */
 export interface ToolsetPromptRegistryRecord {
   ownerSessionId: string
-  ownerPluginId: string
+  ownerExtensionId: string
   ownerModuleId?: string
   toolset: PluginToolsetPromptDefinitionRecord
   availability?: () => Promise<boolean> | boolean
@@ -112,23 +112,23 @@ export class TamagotchiToolRegistry {
   private readonly toolsetPrompts = new Map<string, ToolsetPromptRegistryRecord>()
 
   register(record: ToolRegistryRecord) {
-    const key = `${record.ownerPluginId}:${record.tool.id}`
+    const key = `${record.ownerExtensionId}:${record.tool.id}`
     this.tools.set(key, record)
     return record
   }
 
   registerToolsetPrompt(record: ToolsetPromptRegistryRecord) {
-    const key = `${record.ownerPluginId}:${record.toolset.id}`
+    const key = `${record.ownerExtensionId}:${record.toolset.id}`
     this.toolsetPrompts.set(key, record)
     return record
   }
 
-  unregister(ownerPluginId: string, toolId: string) {
-    return this.tools.delete(`${ownerPluginId}:${toolId}`)
+  unregister(ownerExtensionId: string, toolId: string) {
+    return this.tools.delete(`${ownerExtensionId}:${toolId}`)
   }
 
-  unregisterToolsetPrompt(ownerPluginId: string, toolsetId: string) {
-    return this.toolsetPrompts.delete(`${ownerPluginId}:${toolsetId}`)
+  unregisterToolsetPrompt(ownerExtensionId: string, toolsetId: string) {
+    return this.toolsetPrompts.delete(`${ownerExtensionId}:${toolsetId}`)
   }
 
   unregisterOwnerSession(ownerSessionId: string) {
@@ -195,7 +195,7 @@ export class TamagotchiToolRegistry {
       }
 
       prompts.push({
-        ownerPluginId: record.ownerPluginId,
+        ownerExtensionId: record.ownerExtensionId,
         id: record.toolset.id,
         prompt: structuredClone(record.toolset.prompt),
       })
@@ -213,7 +213,7 @@ export class TamagotchiToolRegistry {
       }
 
       items.push({
-        ownerPluginId: record.ownerPluginId,
+        ownerExtensionId: record.ownerExtensionId,
         name: record.tool.id,
         description: record.tool.description,
         parameters: structuredClone(record.tool.parameters),
@@ -226,8 +226,8 @@ export class TamagotchiToolRegistry {
     }
   }
 
-  async invoke(ownerPluginId: string, toolId: string, input: unknown) {
-    const key = `${ownerPluginId}:${toolId}`
+  async invoke(ownerExtensionId: string, toolId: string, input: unknown) {
+    const key = `${ownerExtensionId}:${toolId}`
     const record = this.tools.get(key)
     if (!record) {
       throw new Error(`Tamagotchi extension tool not found: ${key}`)

@@ -164,7 +164,7 @@ export async function loadManifestsFrom(
 }
 
 /**
- * Builds a renderer-facing plugin summary from manifest, config, and runtime state.
+ * Builds a renderer-facing extension summary from manifest, config, and runtime state.
  *
  * Use when:
  * - Registry snapshots need one UI-friendly entry per discovered plugin
@@ -182,15 +182,15 @@ export function createPluginSummary(
   config: ExtensionConfig,
   loaded: Set<string>,
 ): PluginManifestSummary {
-  const name = manifestIdOf(entry.manifest)
+  const extensionId = manifestIdOf(entry.manifest)
   return {
-    name,
+    extensionId,
     entrypoints: entry.manifest.entrypoints,
     path: entry.path,
-    enabled: config.enabled.includes(name),
-    autoReload: config.autoReload.includes(name),
-    loaded: loaded.has(name),
-    isNew: !config.known[name],
+    enabled: config.enabled.includes(extensionId),
+    autoReload: config.autoReload.includes(extensionId),
+    loaded: loaded.has(extensionId),
+    isNew: !config.known[extensionId],
   }
 }
 
@@ -285,7 +285,7 @@ export function createManifestForLoad(
  *
  * Use when:
  * - Refreshing extension manifests from disk
- * - Looking up manifests by plugin name during load or inspect operations
+ * - Looking up manifests by extension id during load or inspect operations
  *
  * Expects:
  * - `refresh()` is called before consumers read entries or manifests
@@ -299,8 +299,8 @@ export interface ExtensionHostRegistry {
   refresh: () => Promise<ManifestEntry[]>
   listEntries: () => ManifestEntry[]
   listManifests: () => ExtensionManifestV1[]
-  findManifestEntry: (name: string) => ManifestEntry | undefined
-  getManifestEntryByName: () => Map<string, ManifestEntry>
+  findManifestEntry: (extensionId: string) => ManifestEntry | undefined
+  getManifestEntryByExtensionId: () => Map<string, ManifestEntry>
 }
 
 /**
@@ -321,7 +321,7 @@ export function createExtensionHostRegistry(options: {
 }): ExtensionHostRegistry {
   let entries: ManifestEntry[] = []
   let manifests: ExtensionManifestV1[] = []
-  let manifestEntryByName = new Map<string, ManifestEntry>()
+  let manifestEntryByExtensionId = new Map<string, ManifestEntry>()
 
   return {
     getRoot() {
@@ -329,11 +329,11 @@ export function createExtensionHostRegistry(options: {
     },
     async refresh() {
       entries = await loadManifestsFrom(options.extensionsRoot, options.log)
-      manifestEntryByName = new Map()
+      manifestEntryByExtensionId = new Map()
       for (const entry of entries) {
         const id = manifestIdOf(entry.manifest)
-        if (!manifestEntryByName.has(id)) {
-          manifestEntryByName.set(id, entry)
+        if (!manifestEntryByExtensionId.has(id)) {
+          manifestEntryByExtensionId.set(id, entry)
         }
       }
       manifests = entries.map(entry => entry.manifest)
@@ -345,11 +345,11 @@ export function createExtensionHostRegistry(options: {
     listManifests() {
       return manifests
     },
-    findManifestEntry(name) {
-      return manifestEntryByName.get(name)
+    findManifestEntry(extensionId) {
+      return manifestEntryByExtensionId.get(extensionId)
     },
-    getManifestEntryByName() {
-      return manifestEntryByName
+    getManifestEntryByExtensionId() {
+      return manifestEntryByExtensionId
     },
   }
 }

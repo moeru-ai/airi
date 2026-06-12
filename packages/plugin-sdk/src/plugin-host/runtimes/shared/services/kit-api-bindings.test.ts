@@ -9,7 +9,7 @@ describe('kitApiBindingRegistryService', () => {
     const binding = service.bind({
       moduleId: 'chess-gamelet',
       ownerSessionId: 'session-1',
-      ownerPluginId: 'airi-extension-chess',
+      ownerExtensionId: 'airi-extension-chess',
       kitId: 'kit.gamelet',
       kitModuleType: 'gamelet',
       config: { title: 'Chess' },
@@ -26,7 +26,7 @@ describe('kitApiBindingRegistryService', () => {
     service.bind({
       moduleId: 'm1',
       ownerSessionId: 'session-a',
-      ownerPluginId: 'plugin-a',
+      ownerExtensionId: 'plugin-a',
       kitId: 'kit.widget',
       kitModuleType: 'panel',
       config: {},
@@ -42,7 +42,7 @@ describe('kitApiBindingRegistryService', () => {
     const announced = service.bind({
       moduleId: 'm2',
       ownerSessionId: 'session-a',
-      ownerPluginId: 'plugin-a',
+      ownerExtensionId: 'plugin-a',
       kitId: 'kit.widget',
       kitModuleType: 'panel',
       config: { mountPoint: 'widgets' },
@@ -67,7 +67,7 @@ describe('kitApiBindingRegistryService', () => {
     service.bind({
       moduleId: 'm3',
       ownerSessionId: 'session-a',
-      ownerPluginId: 'plugin-a',
+      ownerExtensionId: 'plugin-a',
       kitId: 'kit.widget',
       kitModuleType: 'panel',
       config: {},
@@ -85,7 +85,7 @@ describe('kitApiBindingRegistryService', () => {
     service.bind({
       moduleId: 'm4',
       ownerSessionId: 'session-a',
-      ownerPluginId: 'plugin-a',
+      ownerExtensionId: 'plugin-a',
       kitId: 'kit.widget',
       kitModuleType: 'panel',
       config: {},
@@ -96,7 +96,7 @@ describe('kitApiBindingRegistryService', () => {
       service.bind({
         moduleId: 'm4',
         ownerSessionId: 'session-b',
-        ownerPluginId: 'plugin-b',
+        ownerExtensionId: 'plugin-b',
         kitId: 'kit.widget',
         kitModuleType: 'panel',
         config: {},
@@ -111,7 +111,7 @@ describe('kitApiBindingRegistryService', () => {
     const original = service.bind({
       moduleId: 'm5',
       ownerSessionId: 'session-a',
-      ownerPluginId: 'plugin-a',
+      ownerExtensionId: 'plugin-a',
       kitId: 'kit.widget',
       kitModuleType: 'panel',
       config: { mountPoint: 'widgets' },
@@ -121,7 +121,7 @@ describe('kitApiBindingRegistryService', () => {
     const duplicate = service.bind({
       moduleId: 'm5',
       ownerSessionId: 'session-a',
-      ownerPluginId: 'plugin-a',
+      ownerExtensionId: 'plugin-a',
       kitId: 'kit.widget',
       kitModuleType: 'dialog',
       config: { mountPoint: 'mutated', width: 480 },
@@ -140,7 +140,7 @@ describe('kitApiBindingRegistryService', () => {
     service.bind({
       moduleId: 'm6',
       ownerSessionId: 'session-a',
-      ownerPluginId: 'plugin-a',
+      ownerExtensionId: 'plugin-a',
       kitId: 'kit.widget',
       kitModuleType: 'panel',
       config: {},
@@ -151,7 +151,7 @@ describe('kitApiBindingRegistryService', () => {
       service.bind({
         moduleId: 'm6',
         ownerSessionId: 'session-a',
-        ownerPluginId: 'plugin-b',
+        ownerExtensionId: 'plugin-b',
         kitId: 'kit.widget',
         kitModuleType: 'panel',
         config: {},
@@ -166,7 +166,7 @@ describe('kitApiBindingRegistryService', () => {
     service.bind({
       moduleId: 'm7',
       ownerSessionId: 'session-a',
-      ownerPluginId: 'plugin-a',
+      ownerExtensionId: 'plugin-a',
       kitId: 'kit.widget',
       kitModuleType: 'panel',
       config: {},

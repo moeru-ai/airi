@@ -57,7 +57,7 @@ function createHostToolKit(options: { tools: TamagotchiToolRegistry }): KitRef<T
             ensureCleanup()
             options.tools.register({
               ownerSessionId: runtime.sessionId,
-              ownerPluginId: runtime.extensionId,
+              ownerExtensionId: runtime.extensionId,
               ownerModuleId: runtime.moduleId,
               ...input,
             })
@@ -66,7 +66,7 @@ function createHostToolKit(options: { tools: TamagotchiToolRegistry }): KitRef<T
             ensureCleanup()
             options.tools.registerToolsetPrompt({
               ownerSessionId: runtime.sessionId,
-              ownerPluginId: runtime.extensionId,
+              ownerExtensionId: runtime.extensionId,
               ownerModuleId: runtime.moduleId,
               toolset: input,
             })

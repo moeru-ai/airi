@@ -293,7 +293,7 @@ export class PermissionService {
   }
 
   initialize(
-    pluginId: string,
+    extensionId: string,
     requestedDeclaration: ModulePermissionDeclaration,
     options?: {
       grant?: ModulePermissionGrant
@@ -305,21 +305,21 @@ export class PermissionService {
     const explicitGrant = options?.grant ?? requested
     const mergedGrant = mergePermissions(persisted, explicitGrant)
     const granted = intersectPermissions(requested, mergedGrant)
-    const previousRevision = this.store.get(pluginId)?.revision ?? 0
+    const previousRevision = this.store.get(extensionId)?.revision ?? 0
     const snapshot: PermissionSnapshot = {
       requested,
       granted,
       revision: previousRevision + 1,
     }
 
-    this.store.set(pluginId, snapshot)
+    this.store.set(extensionId, snapshot)
     return snapshot
   }
 
-  declare(pluginId: string, requestedDeclaration: ModulePermissionDeclaration) {
-    const existing = this.store.get(pluginId)
+  declare(extensionId: string, requestedDeclaration: ModulePermissionDeclaration) {
+    const existing = this.store.get(extensionId)
     if (!existing) {
-      throw new Error(`Cannot declare permissions for unknown plugin "${pluginId}".`)
+      throw new Error(`Cannot declare permissions for unknown plugin "${extensionId}".`)
     }
 
     const requested = normalizeDeclaration(requestedDeclaration)
@@ -329,14 +329,14 @@ export class PermissionService {
       revision: existing.revision + 1,
     }
 
-    this.store.set(pluginId, snapshot)
+    this.store.set(extensionId, snapshot)
     return snapshot
   }
 
-  grant(pluginId: string, grant: ModulePermissionGrant) {
-    const existing = this.store.get(pluginId)
+  grant(extensionId: string, grant: ModulePermissionGrant) {
+    const existing = this.store.get(extensionId)
     if (!existing) {
-      throw new Error(`Cannot grant permissions to unknown plugin "${pluginId}".`)
+      throw new Error(`Cannot grant permissions to unknown plugin "${extensionId}".`)
     }
 
     const mergedGranted = mergePermissions(existing.granted, grant)
@@ -345,16 +345,16 @@ export class PermissionService {
       granted: intersectPermissions(existing.requested, mergedGranted),
       revision: existing.revision + 1,
     }
-    this.store.set(pluginId, snapshot)
+    this.store.set(extensionId, snapshot)
     return snapshot
   }
 
-  get(pluginId: string) {
-    return this.store.get(pluginId)
+  get(extensionId: string) {
+    return this.store.get(extensionId)
   }
 
-  isAllowed(pluginId: string, area: ModulePermissionArea, action: string, key: string) {
-    const snapshot = this.store.get(pluginId)
+  isAllowed(extensionId: string, area: ModulePermissionArea, action: string, key: string) {
+    const snapshot = this.store.get(extensionId)
     if (!snapshot) {
       return false
     }

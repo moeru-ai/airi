@@ -467,7 +467,7 @@ describe('plugin-sdk-tamagotchi', () => {
 
     registry.register({
       ownerSessionId: 'session-1',
-      ownerPluginId: 'airi-extension-chess',
+      ownerExtensionId: 'airi-extension-chess',
       ownerModuleId: 'chess',
       tool: {
         id: 'play_chess',
@@ -486,7 +486,7 @@ describe('plugin-sdk-tamagotchi', () => {
     })
     registry.registerToolsetPrompt({
       ownerSessionId: 'session-1',
-      ownerPluginId: 'airi-extension-chess',
+      ownerExtensionId: 'airi-extension-chess',
       ownerModuleId: 'chess',
       toolset: {
         id: 'chess-tools',
@@ -508,7 +508,7 @@ describe('plugin-sdk-tamagotchi', () => {
     }])
     await expect(registry.listSerializedXsaiTools()).resolves.toEqual({
       prompts: [{
-        ownerPluginId: 'airi-extension-chess',
+        ownerExtensionId: 'airi-extension-chess',
         id: 'chess-tools',
         prompt: {
           id: 'airi-plugin-game-chess.prompt',
@@ -516,7 +516,7 @@ describe('plugin-sdk-tamagotchi', () => {
         },
       }],
       tools: [{
-        ownerPluginId: 'airi-extension-chess',
+        ownerExtensionId: 'airi-extension-chess',
         name: 'play_chess',
         description: 'Open chess.',
         parameters: {

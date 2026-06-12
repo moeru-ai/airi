@@ -76,12 +76,12 @@ describe('createExtensionAssetService', () => {
     mockState.createStaticAssetService.mockReturnValue(server)
 
     const service = createExtensionAssetService({
-      getManifestEntryByName: () => new Map(),
+      getManifestEntryByExtensionId: () => new Map(),
       cookieAdapter: adapter,
     })
 
     const result = await service.createAssetSession({
-      pluginId: 'airi-plugin-game-chess',
+      extensionId: 'airi-plugin-game-chess',
       version: '1.0.0',
       ownerSessionId: 'owner-session-1',
       routeAssetPath: 'assets/app.js',
@@ -123,12 +123,12 @@ describe('createExtensionAssetService', () => {
     mockState.createStaticAssetService.mockReturnValue(server)
 
     const service = createExtensionAssetService({
-      getManifestEntryByName: () => new Map(),
+      getManifestEntryByExtensionId: () => new Map(),
       cookieAdapter: adapter,
     })
 
     await expect(service.createAssetSession({
-      pluginId: 'airi-plugin-game-chess',
+      extensionId: 'airi-plugin-game-chess',
       version: '1.0.0',
       ownerSessionId: 'owner-session-1',
       routeAssetPath: 'assets/app.js',
@@ -149,12 +149,12 @@ describe('createExtensionAssetService', () => {
     const { adapter } = createFakeCookieAdapter()
     mockState.createStaticAssetService.mockReturnValue(server)
     const service = createExtensionAssetService({
-      getManifestEntryByName: () => new Map(),
+      getManifestEntryByExtensionId: () => new Map(),
       cookieAdapter: adapter,
     })
 
     await expect(service.createAssetSession({
-      pluginId: 'airi-plugin-game-chess',
+      extensionId: 'airi-plugin-game-chess',
       version: '1.0.0',
       ownerSessionId: 'owner-session-1',
       routeAssetPath: '../secret.txt',
@@ -169,7 +169,7 @@ describe('createExtensionAssetService', () => {
     adapter.setCookie.mockRejectedValueOnce(new Error('cookie jar unavailable'))
 
     await expect(service.createAssetSession({
-      pluginId: 'airi-plugin-game-chess',
+      extensionId: 'airi-plugin-game-chess',
       version: '1.0.0',
       ownerSessionId: 'owner-session-1',
       routeAssetPath: 'assets/app.js',
@@ -196,7 +196,7 @@ describe('createExtensionAssetService', () => {
     mockState.createStaticAssetService.mockReturnValue(server)
 
     const service = createExtensionAssetService({
-      getManifestEntryByName: () => new Map(),
+      getManifestEntryByExtensionId: () => new Map(),
       cookieAdapter: adapter,
     })
 
@@ -252,7 +252,7 @@ describe('createExtensionAssetService', () => {
     mockState.createStaticAssetService.mockReturnValue(server)
 
     const service = createExtensionAssetService({
-      getManifestEntryByName: () => new Map(),
+      getManifestEntryByExtensionId: () => new Map(),
       cookieAdapter: adapter,
     })
 

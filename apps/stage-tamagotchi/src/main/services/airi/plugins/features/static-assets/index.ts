@@ -13,7 +13,7 @@ import { buildMountedStaticAssetPath } from '../../../http-server/static-assets/
  * - Snapshot builders need a transport-agnostic way to authorize one extension asset route before iframe load
  *
  * Expects:
- * - `pluginId` matches a manifest entry registered in the asset host
+ * - `extensionId` matches a manifest entry registered in the asset host
  * - `routeAssetPath` identifies the iframe entry asset relative to the mounted `/ui` route
  * - `pathPrefix` is scoped to the mounted route prefix accepted by the session store
  *
@@ -21,8 +21,8 @@ import { buildMountedStaticAssetPath } from '../../../http-server/static-assets/
  * - N/A
  */
 export interface ExtensionAssetSessionInput {
-  /** Extension/plugin manifest id that owns the static asset root. */
-  pluginId: string
+  /** Extension manifest id that owns the static asset root. */
+  extensionId: string
   /** Extension/plugin version expected by the server-side session validator. */
   version: string
   /** Parent extension session id used for owner-scoped revocation. */
@@ -164,17 +164,17 @@ function createExtensionAssetCookie(baseUrl: string, session: StaticAssetSession
  * - Asset session lifecycle should stay inside the extension domain instead of the HTTP server layer
  *
  * Expects:
- * - `getManifestEntryByName` returns the latest extension root/version map
+ * - `getManifestEntryByExtensionId` returns the latest extension root/version map
  * - `cookieAdapter` writes and removes cookies in the Electron host session used by plugin iframes
  *
  * Returns:
  * - An extension-facing asset host service with generic extension asset methods
  */
 export function createExtensionAssetService(options: {
-  getManifestEntryByName: () => Map<string, StaticAssetManifestEntry>
+  getManifestEntryByExtensionId: () => Map<string, StaticAssetManifestEntry>
   cookieAdapter: ExtensionAssetCookieAdapter
 }): ExtensionAssetService {
-  const server = createStaticAssetService({ getManifestEntryByName: options.getManifestEntryByName })
+  const server = createStaticAssetService({ getManifestEntryByExtensionId: options.getManifestEntryByExtensionId })
   let lastBaseUrl: string | undefined
 
   const readBaseUrl = () => {
@@ -208,7 +208,7 @@ export function createExtensionAssetService(options: {
     },
     async createAssetSession(input) {
       const session = server.createSession({
-        extensionId: input.pluginId,
+        extensionId: input.extensionId,
         version: input.version,
         ownerSessionId: input.ownerSessionId,
         pathPrefix: input.pathPrefix,
@@ -222,7 +222,7 @@ export function createExtensionAssetService(options: {
         }
 
         const mountedPath = buildMountedStaticAssetPath({
-          extensionId: input.pluginId,
+          extensionId: input.extensionId,
           assetSessionId: session.assetSessionId,
           assetPath: input.routeAssetPath,
         })

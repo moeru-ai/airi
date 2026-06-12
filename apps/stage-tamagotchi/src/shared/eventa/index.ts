@@ -142,7 +142,7 @@ export interface WidgetSnapshot {
 }
 
 export interface PluginManifestSummary {
-  name: string
+  extensionId: string
   entrypoints: Record<string, string | undefined>
   path: string
   enabled: boolean
@@ -173,7 +173,7 @@ export interface PluginCapabilityState {
 
 export interface PluginHostSessionSummary {
   id: string
-  manifestName: string
+  extensionId: string
   phase: string
   runtime: 'electron' | 'node' | 'web'
   moduleId: string

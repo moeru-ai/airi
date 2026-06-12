@@ -426,8 +426,8 @@ describe('setupExtensionHost', () => {
     expect(snapshot.root).toBe(pluginsDir)
     expect(snapshot.plugins).toHaveLength(2)
     expect(snapshot.plugins).toEqual(expect.arrayContaining([
-      expect.objectContaining({ name: 'test-normal', path: normalPath, enabled: false, loaded: false, isNew: true }),
-      expect.objectContaining({ name: 'test-error', path: errorPath, enabled: false, loaded: false, isNew: true }),
+      expect.objectContaining({ extensionId: 'test-normal', path: normalPath, enabled: false, loaded: false, isNew: true }),
+      expect.objectContaining({ extensionId: 'test-error', path: errorPath, enabled: false, loaded: false, isNew: true }),
     ]))
   })
 
@@ -491,7 +491,7 @@ describe('setupExtensionHost', () => {
 
     expect(snapshot.plugins).toEqual([
       expect.objectContaining({
-        name: 'devtools-sample-plugin',
+        extensionId: 'devtools-sample-plugin',
         path: manifestPath,
         enabled: false,
         loaded: false,
@@ -528,13 +528,13 @@ describe('setupExtensionHost', () => {
     const invokeSetEnabled = defineInvoke(contextState.lastContext!, electronPluginSetEnabled)
     const invokeLoadEnabled = defineInvoke(contextState.lastContext!, electronPluginLoadEnabled)
 
-    await invokeSetEnabled({ name: 'test-normal', enabled: true })
-    await invokeSetEnabled({ name: 'test-error', enabled: true })
+    await invokeSetEnabled({ extensionId: 'test-normal', enabled: true })
+    await invokeSetEnabled({ extensionId: 'test-error', enabled: true })
 
     const snapshot = await invokeLoadEnabled()
 
-    const normal = snapshot.plugins.find(plugin => plugin.name === 'test-normal')
-    const error = snapshot.plugins.find(plugin => plugin.name === 'test-error')
+    const normal = snapshot.plugins.find(plugin => plugin.extensionId === 'test-normal')
+    const error = snapshot.plugins.find(plugin => plugin.extensionId === 'test-error')
 
     expect(normal).toEqual(expect.objectContaining({ enabled: true, loaded: true }))
     expect(error).toEqual(expect.objectContaining({ enabled: true, loaded: false }))
@@ -557,7 +557,7 @@ describe('setupExtensionHost', () => {
     await setupExtensionHost()
 
     expect(contextState.lastContext).toBeDefined()
-    const toolsChangedEvents: Array<{ reason: string, name?: string }> = []
+    const toolsChangedEvents: Array<{ reason: string, extensionId?: string }> = []
     contextState.lastContext!.on(electronPluginToolsChanged, (event) => {
       if (!event.body) {
         throw new Error('Expected plugin tools changed event body.')
@@ -567,12 +567,12 @@ describe('setupExtensionHost', () => {
 
     const invokeLoad = defineInvoke(contextState.lastContext!, electronPluginLoad)
 
-    await invokeLoad({ name: 'test-tools-changed' })
+    await invokeLoad({ extensionId: 'test-tools-changed' })
 
     expect(toolsChangedEvents).toEqual([
       {
         reason: 'loaded',
-        name: 'test-tools-changed',
+        extensionId: 'test-tools-changed',
       },
     ])
   })
@@ -605,7 +605,7 @@ describe('setupExtensionHost', () => {
     const invokeSetEnabled = defineInvoke(contextState.lastContext!, electronPluginSetEnabled)
     const invokeLoadEnabled = defineInvoke(contextState.lastContext!, electronPluginLoadEnabled)
 
-    await invokeSetEnabled({ name: 'duplicate-plugin', enabled: true })
+    await invokeSetEnabled({ extensionId: 'duplicate-plugin', enabled: true })
     await invokeLoadEnabled()
 
     const duplicateSession = service.host
@@ -631,16 +631,16 @@ describe('setupExtensionHost', () => {
     const invokeSetAutoReload = defineInvoke(contextState.lastContext!, electronPluginSetAutoReload)
     const invokeList = defineInvoke(contextState.lastContext!, electronPluginList)
 
-    await invokeSetAutoReload({ name: 'test-auto-reload', enabled: true })
+    await invokeSetAutoReload({ extensionId: 'test-auto-reload', enabled: true })
     let snapshot = await invokeList()
     expect(snapshot.plugins).toEqual(expect.arrayContaining([
-      expect.objectContaining({ name: 'test-auto-reload', autoReload: true }),
+      expect.objectContaining({ extensionId: 'test-auto-reload', autoReload: true }),
     ]))
 
-    await invokeSetAutoReload({ name: 'test-auto-reload', enabled: false })
+    await invokeSetAutoReload({ extensionId: 'test-auto-reload', enabled: false })
     snapshot = await invokeList()
     expect(snapshot.plugins).toEqual(expect.arrayContaining([
-      expect.objectContaining({ name: 'test-auto-reload', autoReload: false }),
+      expect.objectContaining({ extensionId: 'test-auto-reload', autoReload: false }),
     ]))
   })
 
@@ -667,12 +667,12 @@ describe('setupExtensionHost', () => {
     const invokeInspect = defineInvoke(contextState.lastContext!, electronPluginInspect)
     const invokeUnload = defineInvoke(contextState.lastContext!, electronPluginUnload)
 
-    await invokeSetEnabled({ name: 'test-auto-reload-reload', enabled: true })
+    await invokeSetEnabled({ extensionId: 'test-auto-reload-reload', enabled: true })
     await invokeLoadEnabled()
-    await invokeSetAutoReload({ name: 'test-auto-reload-reload', enabled: true })
+    await invokeSetAutoReload({ extensionId: 'test-auto-reload-reload', enabled: true })
 
     const before = await invokeInspect()
-    const beforeSession = before.sessions.find(session => session.manifestName === 'test-auto-reload-reload')
+    const beforeSession = before.sessions.find(session => session.extensionId === 'test-auto-reload-reload')
     expect(beforeSession).toBeDefined()
 
     const pluginSdkUrl = pathToFileURL(resolve(repoRoot, 'packages/plugin-sdk/src/index.ts')).href
@@ -692,14 +692,14 @@ describe('setupExtensionHost', () => {
     while (Date.now() < deadline && afterSessionId === beforeSession?.id) {
       await new Promise(resolve => setTimeout(resolve, 100))
       const snapshot = await invokeInspect()
-      afterSessionId = snapshot.sessions.find(session => session.manifestName === 'test-auto-reload-reload')?.id
+      afterSessionId = snapshot.sessions.find(session => session.extensionId === 'test-auto-reload-reload')?.id
     }
 
     expect(afterSessionId).toBeDefined()
     expect(afterSessionId).not.toEqual(beforeSession?.id)
 
-    await invokeSetAutoReload({ name: 'test-auto-reload-reload', enabled: false })
-    await invokeUnload({ name: 'test-auto-reload-reload' })
+    await invokeSetAutoReload({ extensionId: 'test-auto-reload-reload', enabled: false })
+    await invokeUnload({ extensionId: 'test-auto-reload-reload' })
   })
 
   it('loads enabled plugins with absolute manifest entrypoints outside the plugin directory', async () => {
@@ -725,10 +725,10 @@ describe('setupExtensionHost', () => {
       const invokeSetEnabled = defineInvoke(contextState.lastContext!, electronPluginSetEnabled)
       const invokeLoadEnabled = defineInvoke(contextState.lastContext!, electronPluginLoadEnabled)
 
-      await invokeSetEnabled({ name: 'test-absolute-entrypoint', enabled: true })
+      await invokeSetEnabled({ extensionId: 'test-absolute-entrypoint', enabled: true })
 
       const snapshot = await invokeLoadEnabled()
-      const plugin = snapshot.plugins.find(item => item.name === 'test-absolute-entrypoint')
+      const plugin = snapshot.plugins.find(item => item.extensionId === 'test-absolute-entrypoint')
 
       expect(plugin).toEqual(expect.objectContaining({ enabled: true, loaded: true }))
     }
@@ -759,10 +759,10 @@ describe('setupExtensionHost', () => {
     const invokeSetEnabled = defineInvoke(contextState.lastContext!, electronPluginSetEnabled)
     const invokeLoadEnabled = defineInvoke(contextState.lastContext!, electronPluginLoadEnabled)
 
-    await invokeSetEnabled({ name: 'devtools-sample-plugin', enabled: true })
+    await invokeSetEnabled({ extensionId: 'devtools-sample-plugin', enabled: true })
 
     const snapshot = await invokeLoadEnabled()
-    const plugin = snapshot.plugins.find(item => item.name === 'devtools-sample-plugin')
+    const plugin = snapshot.plugins.find(item => item.extensionId === 'devtools-sample-plugin')
 
     expect(plugin).toEqual(expect.objectContaining({ enabled: true, loaded: true }))
   })
@@ -825,10 +825,10 @@ describe('setupExtensionHost', () => {
     const invokeLoadEnabled = defineInvoke(contextState.lastContext!, electronPluginLoadEnabled)
     const invokeInspect = defineInvoke(contextState.lastContext!, electronPluginInspect)
 
-    await invokeSetEnabled({ name: 'airi-plugin-game-chess', enabled: true })
+    await invokeSetEnabled({ extensionId: 'airi-plugin-game-chess', enabled: true })
 
     const registry = await invokeLoadEnabled()
-    const plugin = registry.plugins.find(item => item.name === 'airi-plugin-game-chess')
+    const plugin = registry.plugins.find(item => item.extensionId === 'airi-plugin-game-chess')
     expect(plugin).toEqual(expect.objectContaining({ enabled: true, loaded: true }))
 
     const snapshot = await invokeInspect()
@@ -837,7 +837,7 @@ describe('setupExtensionHost', () => {
     expect(snapshot.modules).toEqual(expect.arrayContaining([
       expect.objectContaining({
         moduleId: 'chess-like-main:gamelet',
-        ownerPluginId: 'airi-plugin-game-chess',
+        ownerExtensionId: 'airi-plugin-game-chess',
         kitId: 'kit.gamelet',
         kitModuleType: 'gamelet',
         runtime: 'electron',
@@ -912,7 +912,7 @@ describe('setupExtensionHost', () => {
     const invokeLoadEnabled = defineInvoke(contextState.lastContext!, electronPluginLoadEnabled)
     const invokeInspect = defineInvoke(contextState.lastContext!, electronPluginInspect)
 
-    await invokeSetEnabled({ name: 'test-plugin-widget-asset-url', enabled: true })
+    await invokeSetEnabled({ extensionId: 'test-plugin-widget-asset-url', enabled: true })
     await invokeLoadEnabled()
     const session = service.host
       .listSessions()
@@ -947,7 +947,7 @@ describe('setupExtensionHost', () => {
     expect(snapshot.modules).toEqual(expect.arrayContaining([
       expect.objectContaining({
         moduleId: 'widget-shell-under-test',
-        ownerPluginId: 'test-plugin-widget-asset-url',
+        ownerExtensionId: 'test-plugin-widget-asset-url',
         kitId: 'kit.widget',
         kitModuleType: 'window',
         runtime: 'electron',
@@ -1084,7 +1084,7 @@ describe('setupExtensionHost', () => {
       expect.objectContaining({
         moduleId: 'widget-shell',
         ownerSessionId: session.id,
-        ownerPluginId: 'test-dynamic-module',
+        ownerExtensionId: 'test-dynamic-module',
         kitId: 'kit.widget',
         kitModuleType: 'window',
         runtime: 'electron',
@@ -1183,7 +1183,7 @@ describe('setupExtensionHost', () => {
 
     expect(binding).toEqual(expect.objectContaining({
       moduleId: 'kit-module:gamelet',
-      ownerPluginId: 'test-extension-gamelet-kit',
+      ownerExtensionId: 'test-extension-gamelet-kit',
       ownerSessionId: session.id,
       kitId: 'kit.gamelet',
       kitModuleType: 'gamelet',

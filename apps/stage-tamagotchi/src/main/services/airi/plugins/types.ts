@@ -7,6 +7,11 @@ import type {
 } from '../../../../shared/eventa'
 
 /**
+ * Stable manifest id used as the runtime identity for one extension.
+ */
+export type ExtensionId = string
+
+/**
  * Runtime-facing extension host service bundle returned by setup.
  *
  * Use when:
@@ -108,20 +113,20 @@ export interface ExtensionHostBindingListOptions {
  * Persisted extension configuration snapshot.
  *
  * Use when:
- * - Reading/writing enabled and auto-reload plugin state
+ * - Reading/writing enabled and auto-reload extension state
  * - Keeping known extension manifest path metadata
  *
  * Expects:
- * - Arrays contain extension manifest names
- * - `known` maps plugin names to canonical manifest paths
+ * - Arrays contain extension manifest ids
+ * - `known` maps extension manifest ids to canonical manifest paths
  *
  * Returns:
  * - N/A
  */
 export interface ExtensionConfig {
-  enabled: string[]
-  autoReload: string[]
-  known: Record<string, { path: string }>
+  enabled: ExtensionId[]
+  autoReload: ExtensionId[]
+  known: Record<ExtensionId, { path: string }>
 }
 
 /**

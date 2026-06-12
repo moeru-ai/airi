@@ -27,9 +27,9 @@ export interface ExtensionAutoReloadFeatureOptions {
   log: ReturnType<typeof useLogg>
   getConfig: () => ExtensionConfig
   listEntries: () => ManifestEntry[]
-  isLoaded: (name: string) => boolean
-  resolveWatchPaths: (name: string) => string[]
-  reload: (name: string, changedPath: string) => Promise<void>
+  isLoaded: (extensionId: string) => boolean
+  resolveWatchPaths: (extensionId: string) => string[]
+  reload: (extensionId: string, changedPath: string) => Promise<void>
 }
 
 /**
@@ -41,7 +41,7 @@ export interface ExtensionAutoReloadFeatureOptions {
  *
  * Expects:
  * - Call `sync()` after registry/config/load-state changes
- * - Call `clearExtension(name)` before unloading or disabling a plugin
+ * - Call `clearExtension(extensionId)` before unloading or disabling an extension
  * - Call `dispose()` during host shutdown
  *
  * Returns:
@@ -52,18 +52,18 @@ export function createExtensionAutoReloadFeature(options: ExtensionAutoReloadFea
   const autoReloadTimers = new Map<string, ReturnType<typeof setTimeout>>()
   const autoReloadWatchers = new Map<string, FSWatcher[]>()
 
-  const clearTimer = (name: string) => {
-    const timer = autoReloadTimers.get(name)
+  const clearTimer = (extensionId: string) => {
+    const timer = autoReloadTimers.get(extensionId)
     if (!timer) {
       return
     }
 
     clearTimeout(timer)
-    autoReloadTimers.delete(name)
+    autoReloadTimers.delete(extensionId)
   }
 
-  const closeWatchers = (name: string) => {
-    const watchers = autoReloadWatchers.get(name)
+  const closeWatchers = (extensionId: string) => {
+    const watchers = autoReloadWatchers.get(extensionId)
     if (!watchers) {
       return
     }
@@ -72,55 +72,55 @@ export function createExtensionAutoReloadFeature(options: ExtensionAutoReloadFea
       watcher.close()
     }
 
-    autoReloadWatchers.delete(name)
+    autoReloadWatchers.delete(extensionId)
   }
 
-  const reloadExtensionById = async (name: string, changedPath: string) => {
-    if (autoReloadInFlight.has(name)) {
+  const reloadExtensionById = async (extensionId: string, changedPath: string) => {
+    if (autoReloadInFlight.has(extensionId)) {
       return
     }
 
-    autoReloadInFlight.add(name)
+    autoReloadInFlight.add(extensionId)
     try {
-      await options.reload(name, changedPath)
-      options.log.log('extension auto-reloaded after file change', { extension: name, path: changedPath })
+      await options.reload(extensionId, changedPath)
+      options.log.log('extension auto-reloaded after file change', { extensionId, path: changedPath })
     }
     catch (error) {
-      options.log.withError(error).withFields({ extension: name, path: changedPath }).error('extension auto-reload failed')
+      options.log.withError(error).withFields({ extensionId, path: changedPath }).error('extension auto-reload failed')
     }
     finally {
-      autoReloadInFlight.delete(name)
+      autoReloadInFlight.delete(extensionId)
     }
   }
 
-  const scheduleReload = (name: string, changedPath: string) => {
-    clearTimer(name)
-    autoReloadTimers.set(name, setTimeout(() => {
-      autoReloadTimers.delete(name)
-      void reloadExtensionById(name, changedPath)
+  const scheduleReload = (extensionId: string, changedPath: string) => {
+    clearTimer(extensionId)
+    autoReloadTimers.set(extensionId, setTimeout(() => {
+      autoReloadTimers.delete(extensionId)
+      void reloadExtensionById(extensionId, changedPath)
     }, 180))
   }
 
   return {
     sync() {
-      const enabledNames = new Set(options.getConfig().autoReload)
-      const desiredNames = new Set(options.listEntries()
+      const enabledExtensionIds = new Set(options.getConfig().autoReload)
+      const desiredExtensionIds = new Set(options.listEntries()
         .map(entry => manifestIdOf(entry.manifest))
-        .filter(name => enabledNames.has(name) && options.isLoaded(name)))
+        .filter(extensionId => enabledExtensionIds.has(extensionId) && options.isLoaded(extensionId)))
 
-      for (const name of autoReloadWatchers.keys()) {
-        if (!desiredNames.has(name)) {
-          clearTimer(name)
-          closeWatchers(name)
+      for (const extensionId of autoReloadWatchers.keys()) {
+        if (!desiredExtensionIds.has(extensionId)) {
+          clearTimer(extensionId)
+          closeWatchers(extensionId)
         }
       }
 
-      for (const name of desiredNames) {
-        if (autoReloadWatchers.has(name)) {
+      for (const extensionId of desiredExtensionIds) {
+        if (autoReloadWatchers.has(extensionId)) {
           continue
         }
 
-        const watchPaths = options.resolveWatchPaths(name)
+        const watchPaths = options.resolveWatchPaths(extensionId)
         if (watchPaths.length === 0) {
           continue
         }
@@ -128,25 +128,25 @@ export function createExtensionAutoReloadFeature(options: ExtensionAutoReloadFea
         const watchers: FSWatcher[] = []
         for (const watchPath of watchPaths) {
           try {
-            const watcher = watchFile(watchPath, { persistent: false }, () => scheduleReload(name, watchPath))
+            const watcher = watchFile(watchPath, { persistent: false }, () => scheduleReload(extensionId, watchPath))
             watcher.on('error', (error) => {
-              options.log.withError(error).withFields({ extension: name, path: watchPath }).warn('extension auto-reload watcher error')
+              options.log.withError(error).withFields({ extensionId, path: watchPath }).warn('extension auto-reload watcher error')
             })
             watchers.push(watcher)
           }
           catch (error) {
-            options.log.withError(error).withFields({ extension: name, path: watchPath }).warn('failed to watch extension file for auto-reload')
+            options.log.withError(error).withFields({ extensionId, path: watchPath }).warn('failed to watch extension file for auto-reload')
           }
         }
 
         if (watchers.length > 0) {
-          autoReloadWatchers.set(name, watchers)
+          autoReloadWatchers.set(extensionId, watchers)
         }
       }
     },
-    clearExtension(name: string) {
-      clearTimer(name)
-      closeWatchers(name)
+    clearExtension(extensionId: string) {
+      clearTimer(extensionId)
+      closeWatchers(extensionId)
     },
     dispose() {
       const managedNames = new Set([
@@ -154,9 +154,9 @@ export function createExtensionAutoReloadFeature(options: ExtensionAutoReloadFea
         ...autoReloadWatchers.keys(),
       ])
 
-      for (const name of managedNames) {
-        clearTimer(name)
-        closeWatchers(name)
+      for (const extensionId of managedNames) {
+        clearTimer(extensionId)
+        closeWatchers(extensionId)
       }
     },
   }

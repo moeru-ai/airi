@@ -57,7 +57,7 @@ export async function setupExtensionHost(options: SetupExtensionHostOptions): Pr
     const result = await hostService.setEnabled(payload)
     context.emit(electronPluginToolsChanged, {
       reason: 'enabled-state-changed',
-      name: payload.name,
+      extensionId: payload.extensionId,
     })
     return result
   })
@@ -75,19 +75,19 @@ export async function setupExtensionHost(options: SetupExtensionHostOptions): Pr
   })
 
   defineInvokeHandler(context, electronPluginLoad, async (payload) => {
-    const result = await hostService.load(payload.name)
+    const result = await hostService.load(payload.extensionId)
     context.emit(electronPluginToolsChanged, {
       reason: 'loaded',
-      name: payload.name,
+      extensionId: payload.extensionId,
     })
     return result
   })
 
   defineInvokeHandler(context, electronPluginUnload, async (payload) => {
-    const result = await hostService.unload(payload.name)
+    const result = await hostService.unload(payload.extensionId)
     context.emit(electronPluginToolsChanged, {
       reason: 'unloaded',
-      name: payload.name,
+      extensionId: payload.extensionId,
     })
     return result
   })
@@ -109,7 +109,7 @@ export async function setupExtensionHost(options: SetupExtensionHostOptions): Pr
   })
 
   defineInvokeHandler(context, electronPluginInvokeTool, async (payload) => {
-    return await hostService.tools.invoke(payload.ownerPluginId, payload.name, payload.input)
+    return await hostService.tools.invoke(payload.ownerExtensionId, payload.name, payload.input)
   })
 
   defineInvokeHandler(context, electronPluginUpdateCapability, async (payload) => {

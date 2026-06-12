@@ -665,7 +665,7 @@ export class ExtensionHost {
     return cloneBindingRecord(this.modules.bind({
       ...input,
       ownerSessionId: session.id,
-      ownerPluginId: session.extension.id,
+      ownerExtensionId: session.extension.id,
       runtime: session.runtime ?? this.runtime,
     }) as BindingRecord<C>)
   }
@@ -763,7 +763,7 @@ export class ExtensionHost {
     const binding = cloneBindingRecord(this.modules.bind({
       ...input,
       ownerSessionId: session.id,
-      ownerPluginId: session.extension.id,
+      ownerExtensionId: session.extension.id,
       runtime: this.runtime,
     }) as BindingRecord<C>)
 

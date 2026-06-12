@@ -20,7 +20,7 @@ import type { HostDataRecord, PluginRuntime } from '../../../shared/types'
 export interface BindingInput<C extends HostDataRecord = HostDataRecord> {
   moduleId: string
   ownerSessionId: string
-  ownerPluginId: string
+  ownerExtensionId: string
   kitId: string
   kitModuleType: string
   runtime: PluginRuntime
@@ -55,14 +55,14 @@ export interface BindingUpdatePatch<C extends HostDataRecord = HostDataRecord> {
  *
  * Expects:
  * - `ownerSessionId` is the ephemeral runtime session id
- * - `ownerPluginId` is the stable plugin identity across sessions
+ * - `ownerExtensionId` is the stable extension identity across sessions
  *
  * Returns:
  * - A compact identity tuple used in collision and ownership checks
  */
 export interface BindingOwnerIdentity {
   ownerSessionId: string
-  ownerPluginId: string
+  ownerExtensionId: string
 }
 
 const allowedBindingTransitions: Record<BindingState, readonly BindingState[]> = {
@@ -78,7 +78,7 @@ function createOwnershipError(
   actual: BindingOwnerIdentity,
 ) {
   return new Error(
-    `Ownership violation for module \`${moduleId}\`: owned by \`${expected.ownerSessionId}/${expected.ownerPluginId}\`, not \`${actual.ownerSessionId}/${actual.ownerPluginId}\`.`,
+    `Ownership violation for module \`${moduleId}\`: owned by \`${expected.ownerSessionId}/${expected.ownerExtensionId}\`, not \`${actual.ownerSessionId}/${actual.ownerExtensionId}\`.`,
   )
 }
 
@@ -88,7 +88,7 @@ function createModuleCollisionError(
   actual: BindingOwnerIdentity,
 ) {
   return new Error(
-    `Module id collision for \`${moduleId}\`: owned by \`${expected.ownerSessionId}/${expected.ownerPluginId}\`, not \`${actual.ownerSessionId}/${actual.ownerPluginId}\`.`,
+    `Module id collision for \`${moduleId}\`: owned by \`${expected.ownerSessionId}/${expected.ownerExtensionId}\`, not \`${actual.ownerSessionId}/${actual.ownerExtensionId}\`.`,
   )
 }
 
@@ -192,17 +192,17 @@ export class KitApiBindingRegistryService<C extends HostDataRecord = HostDataRec
     if (current) {
       if (
         current.ownerSessionId !== input.ownerSessionId
-        || current.ownerPluginId !== input.ownerPluginId
+        || current.ownerExtensionId !== input.ownerExtensionId
       ) {
         throw createModuleCollisionError(
           input.moduleId,
           {
             ownerSessionId: current.ownerSessionId,
-            ownerPluginId: current.ownerPluginId,
+            ownerExtensionId: current.ownerExtensionId,
           },
           {
             ownerSessionId: input.ownerSessionId,
-            ownerPluginId: input.ownerPluginId,
+            ownerExtensionId: input.ownerExtensionId,
           },
         )
       }
@@ -213,7 +213,7 @@ export class KitApiBindingRegistryService<C extends HostDataRecord = HostDataRec
     const record: BindingRecord<C> = {
       moduleId: input.moduleId,
       ownerSessionId: input.ownerSessionId,
-      ownerPluginId: input.ownerPluginId,
+      ownerExtensionId: input.ownerExtensionId,
       kitId: input.kitId,
       kitModuleType: input.kitModuleType,
       state: 'announced',
@@ -343,8 +343,8 @@ export class KitApiBindingRegistryService<C extends HostDataRecord = HostDataRec
    * Returns:
    * - The updated binding record with incremented revision and timestamp
    */
-  update(ownerSessionId: string, ownerPluginId: string, moduleId: string, patch: BindingUpdatePatch<C>) {
-    return this.transition({ ownerSessionId, ownerPluginId }, moduleId, patch.state, patch)
+  update(ownerSessionId: string, ownerExtensionId: string, moduleId: string, patch: BindingUpdatePatch<C>) {
+    return this.transition({ ownerSessionId, ownerExtensionId }, moduleId, patch.state, patch)
   }
 
   /**
@@ -359,8 +359,8 @@ export class KitApiBindingRegistryService<C extends HostDataRecord = HostDataRec
    * Returns:
    * - The updated active binding record
    */
-  activate(ownerSessionId: string, ownerPluginId: string, moduleId: string) {
-    return this.transition({ ownerSessionId, ownerPluginId }, moduleId, 'active')
+  activate(ownerSessionId: string, ownerExtensionId: string, moduleId: string) {
+    return this.transition({ ownerSessionId, ownerExtensionId }, moduleId, 'active')
   }
 
   /**
@@ -375,8 +375,8 @@ export class KitApiBindingRegistryService<C extends HostDataRecord = HostDataRec
    * Returns:
    * - The updated degraded binding record
    */
-  degrade(ownerSessionId: string, ownerPluginId: string, moduleId: string) {
-    return this.transition({ ownerSessionId, ownerPluginId }, moduleId, 'degraded')
+  degrade(ownerSessionId: string, ownerExtensionId: string, moduleId: string) {
+    return this.transition({ ownerSessionId, ownerExtensionId }, moduleId, 'degraded')
   }
 
   /**
@@ -391,8 +391,8 @@ export class KitApiBindingRegistryService<C extends HostDataRecord = HostDataRec
    * Returns:
    * - The updated withdrawn binding record
    */
-  withdraw(ownerSessionId: string, ownerPluginId: string, moduleId: string) {
-    return this.transition({ ownerSessionId, ownerPluginId }, moduleId, 'withdrawn')
+  withdraw(ownerSessionId: string, ownerExtensionId: string, moduleId: string) {
+    return this.transition({ ownerSessionId, ownerExtensionId }, moduleId, 'withdrawn')
   }
 
   /**
@@ -421,13 +421,13 @@ export class KitApiBindingRegistryService<C extends HostDataRecord = HostDataRec
 
     if (
       current.ownerSessionId !== owner.ownerSessionId
-      || current.ownerPluginId !== owner.ownerPluginId
+      || current.ownerExtensionId !== owner.ownerExtensionId
     ) {
       throw createOwnershipError(
         moduleId,
         {
           ownerSessionId: current.ownerSessionId,
-          ownerPluginId: current.ownerPluginId,
+          ownerExtensionId: current.ownerExtensionId,
         },
         owner,
       )
@@ -464,7 +464,7 @@ export class KitApiBindingRegistryService<C extends HostDataRecord = HostDataRec
    * Returns:
    * - The removed binding record, or `undefined` when nothing existed
    */
-  unbind(ownerSessionId: string, ownerPluginId: string, moduleId: string) {
+  unbind(ownerSessionId: string, ownerExtensionId: string, moduleId: string) {
     const current = this.bindings.get(moduleId)
     if (!current) {
       return undefined
@@ -472,17 +472,17 @@ export class KitApiBindingRegistryService<C extends HostDataRecord = HostDataRec
 
     if (
       current.ownerSessionId !== ownerSessionId
-      || current.ownerPluginId !== ownerPluginId
+      || current.ownerExtensionId !== ownerExtensionId
     ) {
       throw createOwnershipError(
         moduleId,
         {
           ownerSessionId: current.ownerSessionId,
-          ownerPluginId: current.ownerPluginId,
+          ownerExtensionId: current.ownerExtensionId,
         },
         {
           ownerSessionId,
-          ownerPluginId,
+          ownerExtensionId,
         },
       )
     }

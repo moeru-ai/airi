@@ -8,7 +8,7 @@ describe('bindingRecordSchema', () => {
     const parsed = parse(bindingRecordSchema, {
       moduleId: 'board-main',
       ownerSessionId: 'extension-session-1',
-      ownerPluginId: 'demo-plugin',
+      ownerExtensionId: 'demo-plugin',
       kitId: 'kit.widget',
       kitModuleType: 'panel',
       state: 'announced',
@@ -27,7 +27,7 @@ describe('bindingRecordSchema', () => {
       parse(bindingRecordSchema, {
         moduleId: 'board-main',
         ownerSessionId: 'extension-session-1',
-        ownerPluginId: 'demo-plugin',
+        ownerExtensionId: 'demo-plugin',
         kitId: 'kit.widget',
         kitModuleType: 'panel',
         state: 'booting',
@@ -44,7 +44,7 @@ describe('bindingRecordSchema', () => {
       parse(bindingRecordSchema, {
         moduleId: 'board-main',
         ownerSessionId: 'extension-session-1',
-        ownerPluginId: 'demo-plugin',
+        ownerExtensionId: 'demo-plugin',
         kitId: 'kit.widget',
         kitModuleType: 'panel',
         state: 'announced',
@@ -65,7 +65,7 @@ describe('bindingRecordSchema', () => {
       parse(bindingRecordSchema, {
         moduleId: 'board-main',
         ownerSessionId: 'extension-session-1',
-        ownerPluginId: 'demo-plugin',
+        ownerExtensionId: 'demo-plugin',
         kitId: 'kit.widget',
         kitModuleType: 'panel',
         state: 'announced',

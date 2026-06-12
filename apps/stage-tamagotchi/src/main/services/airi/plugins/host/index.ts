@@ -93,13 +93,13 @@ export interface ExtensionHostServiceInternal extends ExtensionHostService {
    * - Host state must remember a known manifest path for a plugin name
    *
    * Expects:
-   * - `payload.name` matches a discovered or previously known plugin
+   * - `payload.extensionId` matches a discovered or previously known extension
    * - `payload.path` is only needed when the manifest is not currently discoverable
    *
    * Returns:
    * - The updated extension registry snapshot after persistence
    */
-  setEnabled: (payload: { name: string, enabled: boolean, path?: string }) => Promise<PluginRegistrySnapshot>
+  setEnabled: (payload: { extensionId: string, enabled: boolean, path?: string }) => Promise<PluginRegistrySnapshot>
 
   /**
    * Persists whether one loaded plugin should use auto-reload.
@@ -109,12 +109,12 @@ export interface ExtensionHostServiceInternal extends ExtensionHostService {
    * - Host features need to resync optional watcher state after config changes
    *
    * Expects:
-   * - `payload.name` matches one plugin entry in config or discovery state
+   * - `payload.extensionId` matches one extension entry in config or discovery state
    *
    * Returns:
    * - The updated extension registry snapshot after persistence
    */
-  setAutoReload: (payload: { name: string, enabled: boolean }) => Promise<PluginRegistrySnapshot>
+  setAutoReload: (payload: { extensionId: string, enabled: boolean }) => Promise<PluginRegistrySnapshot>
 
   /**
    * Loads every plugin currently marked as enabled.
@@ -132,34 +132,34 @@ export interface ExtensionHostServiceInternal extends ExtensionHostService {
   loadEnabled: () => Promise<PluginRegistrySnapshot>
 
   /**
-   * Loads one plugin by manifest name.
+   * Loads one extension by manifest id.
    *
    * Use when:
    * - Renderer explicitly requests one plugin to start
    * - Host features need to restart a plugin after manifest or entrypoint changes
    *
    * Expects:
-   * - `name` resolves to a manifest entry in the current registry
+   * - `extensionId` resolves to a manifest entry in the current registry
    *
    * Returns:
    * - The extension registry snapshot after the load completes
    */
-  load: (name: string) => Promise<PluginRegistrySnapshot>
+  load: (extensionId: string) => Promise<PluginRegistrySnapshot>
 
   /**
-   * Stops one loaded plugin by manifest name.
+   * Stops one loaded extension by manifest id.
    *
    * Use when:
    * - Renderer explicitly requests one plugin to stop
    * - Host features need to stop a plugin before reload or disposal
    *
    * Expects:
-   * - `name` identifies a plugin that may or may not currently be loaded
+   * - `extensionId` identifies an extension that may or may not currently be loaded
    *
    * Returns:
    * - The extension registry snapshot after unload bookkeeping completes
    */
-  unload: (name: string) => Promise<PluginRegistrySnapshot>
+  unload: (extensionId: string) => Promise<PluginRegistrySnapshot>
 
   /**
    * Builds the full extension host debug snapshot.
@@ -248,7 +248,7 @@ export async function setupExtensionHostServiceInternal(
 
   // Extension feature: Static Assets serving
   const extensionAssetService = createExtensionAssetService({
-    getManifestEntryByName: () => extensionRegistry.getManifestEntryByName(),
+    getManifestEntryByExtensionId: () => extensionRegistry.getManifestEntryByExtensionId(),
     cookieAdapter: createElectronExtensionAssetCookieAdapter(),
   })
   await extensionAssetService.start()
@@ -290,21 +290,21 @@ export async function setupExtensionHostServiceInternal(
   }
 
   const createModuleAssetSession = async (input: {
-    pluginId: string
+    extensionId: string
     version: string
     ownerSessionId: string
     routeAssetPath: string
     pathPrefix: string
   }) => {
-    const { pluginId, version, ownerSessionId, routeAssetPath, pathPrefix } = input
-    const cacheKey = `${pluginId}:${version}:${ownerSessionId}:${routeAssetPath}:${pathPrefix}`
+    const { extensionId, version, ownerSessionId, routeAssetPath, pathPrefix } = input
+    const cacheKey = `${extensionId}:${version}:${ownerSessionId}:${routeAssetPath}:${pathPrefix}`
     const cachedSession = moduleAssetSessionCache.get(cacheKey)
     if (cachedSession) {
       return cachedSession
     }
 
     const session = await extensionAssetService.createAssetSession({
-      pluginId,
+      extensionId,
       version,
       ownerSessionId,
       routeAssetPath,
@@ -317,9 +317,9 @@ export async function setupExtensionHostServiceInternal(
 
   const extensionAssetSnapshotService: ExtensionAssetSnapshotService = {
     getBaseUrl: extensionAssetService.getBaseUrl,
-    createAssetSession: ({ pluginId, version, ownerSessionId, routeAssetPath, pathPrefix }) => {
+    createAssetSession: ({ extensionId, version, ownerSessionId, routeAssetPath, pathPrefix }) => {
       return createModuleAssetSession({
-        pluginId,
+        extensionId,
         version,
         ownerSessionId,
         routeAssetPath,
@@ -335,50 +335,50 @@ export async function setupExtensionHostServiceInternal(
       entries: extensionRegistry.listEntries(),
       config: getConfig(),
       loaded,
-      manifestEntryByName: extensionRegistry.getManifestEntryByName(),
+      manifestEntryByExtensionId: extensionRegistry.getManifestEntryByExtensionId(),
       extensionAssetService: extensionAssetSnapshotService,
     })
   }
 
   const loadExtensionById = async (
-    name: string,
+    extensionId: string,
     loadOptions: { cacheBustKey?: string } = {},
   ) => {
-    if (loaded.has(name)) {
+    if (loaded.has(extensionId)) {
       return
     }
 
-    const entry = extensionRegistry.findManifestEntry(name)
+    const entry = extensionRegistry.findManifestEntry(extensionId)
     if (!entry) {
-      throw new Error(`Extension manifest not found: ${name}`)
+      throw new Error(`Extension manifest not found: ${extensionId}`)
     }
 
     const manifestForLoad = createManifestForLoad(entry, loadOptions)
     const session = await host.start(manifestForLoad, { cwd: dirname(entry.path) })
-    loaded.add(name)
-    loadedSessionIds.set(name, session.id)
-    log.log('extension loaded', { extension: name, sessionId: session.id })
+    loaded.add(extensionId)
+    loadedSessionIds.set(extensionId, session.id)
+    log.withFields({ extensionId, sessionId: session.id }).log('extension loaded')
   }
 
-  const stopLoadedExtensionById = async (name: string) => {
-    const sessionId = loadedSessionIds.get(name)
+  const stopLoadedExtensionById = async (extensionId: string) => {
+    const sessionId = loadedSessionIds.get(extensionId)
     if (!sessionId) {
-      loaded.delete(name)
+      loaded.delete(extensionId)
       return
     }
 
     await host.stop(sessionId)
-    loadedSessionIds.delete(name)
-    loaded.delete(name)
+    loadedSessionIds.delete(extensionId)
+    loaded.delete(extensionId)
 
     clearModuleAssetSessionCacheByOwnerSessionId(sessionId)
     await extensionAssetService.revokeByOwnerSessionId(sessionId)
 
-    log.log('extension unloaded', { extension: name, sessionId })
+    log.withFields({ extensionId, sessionId }).log('extension unloaded')
   }
 
-  const resolveAutoReloadWatchPaths = (name: string) => {
-    const entry = extensionRegistry.findManifestEntry(name)
+  const resolveAutoReloadWatchPaths = (extensionId: string) => {
+    const entry = extensionRegistry.findManifestEntry(extensionId)
     if (!entry) {
       return []
     }
@@ -392,36 +392,36 @@ export async function setupExtensionHostServiceInternal(
     log,
     getConfig,
     listEntries: () => extensionRegistry.listEntries(),
-    isLoaded: name => loaded.has(name),
+    isLoaded: extensionId => loaded.has(extensionId),
     resolveWatchPaths: resolveAutoReloadWatchPaths,
-    reload: async (name) => {
-      await stopLoadedExtensionById(name)
+    reload: async (extensionId) => {
+      await stopLoadedExtensionById(extensionId)
       await refreshManifests()
-      await loadExtensionById(name, { cacheBustKey: `auto-reload-${Date.now()}` })
+      await loadExtensionById(extensionId, { cacheBustKey: `auto-reload-${Date.now()}` })
     },
   })
 
-  const unloadExtensionById = async (name: string) => {
-    autoReloadFeature.clearExtension(name)
-    await stopLoadedExtensionById(name)
+  const unloadExtensionById = async (extensionId: string) => {
+    autoReloadFeature.clearExtension(extensionId)
+    await stopLoadedExtensionById(extensionId)
   }
 
   const loadEnabledExtensions = async () => {
     const config = getConfig()
     for (const entry of extensionRegistry.listEntries()) {
-      const name = manifestIdOf(entry.manifest)
-      if (!config.enabled.includes(name)) {
+      const extensionId = manifestIdOf(entry.manifest)
+      if (!config.enabled.includes(extensionId)) {
         continue
       }
-      if (loaded.has(name)) {
+      if (loaded.has(extensionId)) {
         continue
       }
 
       try {
-        await loadExtensionById(name)
+        await loadExtensionById(extensionId)
       }
       catch (error) {
-        log.withError(error).withFields({ extension: name }).error('extension failed to start')
+        log.withError(error).withFields({ extensionId }).error('extension failed to start')
       }
     }
 
@@ -450,22 +450,22 @@ export async function setupExtensionHostServiceInternal(
       const config = getConfig()
       const enabled = new Set(config.enabled)
       if (payload.enabled) {
-        enabled.add(payload.name)
+        enabled.add(payload.extensionId)
       }
       else {
-        enabled.delete(payload.name)
-        clearModuleAssetSessionCacheByExtensionId(payload.name)
-        await extensionAssetService.revokeByExtensionId(payload.name)
+        enabled.delete(payload.extensionId)
+        clearModuleAssetSessionCacheByExtensionId(payload.extensionId)
+        await extensionAssetService.revokeByExtensionId(payload.extensionId)
       }
 
-      const entry = extensionRegistry.findManifestEntry(payload.name)
+      const entry = extensionRegistry.findManifestEntry(payload.extensionId)
       const manifestPath = entry?.path ?? payload.path ?? ''
       extensionConfig.update({
         enabled: [...enabled],
         autoReload: config.autoReload,
         known: {
           ...config.known,
-          [payload.name]: { path: manifestPath },
+          [payload.extensionId]: { path: manifestPath },
         },
       })
 
@@ -478,10 +478,10 @@ export async function setupExtensionHostServiceInternal(
       const config = getConfig()
       const autoReload = new Set(config.autoReload)
       if (payload.enabled) {
-        autoReload.add(payload.name)
+        autoReload.add(payload.extensionId)
       }
       else {
-        autoReload.delete(payload.name)
+        autoReload.delete(payload.extensionId)
       }
 
       extensionConfig.update({
@@ -498,14 +498,14 @@ export async function setupExtensionHostServiceInternal(
       autoReloadFeature.sync()
       return listSnapshot()
     },
-    async load(name) {
+    async load(extensionId) {
       await refreshManifests()
-      await loadExtensionById(name)
+      await loadExtensionById(extensionId)
       autoReloadFeature.sync()
       return listSnapshot()
     },
-    async unload(name) {
-      await unloadExtensionById(name)
+    async unload(extensionId) {
+      await unloadExtensionById(extensionId)
       autoReloadFeature.sync()
       return listSnapshot()
     },
