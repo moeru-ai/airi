@@ -230,18 +230,6 @@ watch(sendMode, () => {
           </DropdownMenuPortal>
         </DropdownMenuRoot>
 
-        <!--
-          Stop drives the orchestrator directly rather than going through
-          chat-sync (this surface sends via ingest(), not requestIngest()), and
-          scopes the stop to the active session so another session's stream is
-          untouched. Visibility (isActiveSessionStreaming) is owned by the store.
-        -->
-        <ChatStopButton
-          v-if="isActiveSessionStreaming"
-          class="h-8 w-8 text-lg"
-          @stop="stopSending(chatSession.activeSessionId)"
-        />
-
         <!-- Microphone icon button -->
         <PopoverRoot v-model:open="hearingPopoverOpen">
           <PopoverTrigger as-child>
@@ -276,6 +264,23 @@ watch(sendMode, () => {
             />
           </PopoverContent>
         </PopoverRoot>
+
+        <!--
+          Last in the row so the persistent buttons keep stable positions when
+          it appears and disappears with the stream. Stop drives the
+          orchestrator directly rather than going through chat-sync (this
+          surface sends via ingest(), not requestIngest()), and scopes the stop
+          to the active session so another session's stream is untouched.
+          Visibility (isActiveSessionStreaming) is owned by the store.
+        -->
+        <ChatStopButton
+          v-if="isActiveSessionStreaming"
+          :class="[
+            'h-8 w-8 rounded-md text-lg',
+            'hover:bg-red-100/60 dark:hover:bg-red-900/40',
+          ]"
+          @stop="stopSending(chatSession.activeSessionId)"
+        />
       </div>
 
       <div

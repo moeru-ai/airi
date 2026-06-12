@@ -243,8 +243,10 @@ onMounted(() => {
         <!-- Visibility (isActiveSessionStreaming) is owned by the chat store. -->
         <ChatStopButton
           v-if="isActiveSessionStreaming"
-          class="aspect-square self-end rounded-full backdrop-blur-md"
-          w="[calc(1lh+4px+4px)]" h="[calc(1lh+4px+4px)]"
+          :class="[
+            'h-[calc(1lh+4px+4px)] w-[calc(1lh+4px+4px)] aspect-square self-end rounded-full backdrop-blur-md',
+            'hover:bg-red-100/60 dark:hover:bg-red-900/40',
+          ]"
           @stop="stopSending(chatSession.activeSessionId)"
         />
         <button

@@ -389,7 +389,11 @@ async function handleCleanup() {
       -->
       <ChatStopButton
         v-if="isActiveSessionStreaming"
-        class="max-h-[10lh] min-h-[1lh] p-2 text-lg"
+        :class="[
+          'max-h-[10lh] min-h-[1lh] rounded-md p-2 text-lg',
+          'bg-red-100 dark:bg-red-900/30',
+          'hover:bg-red-200 dark:hover:bg-red-900/50',
+        ]"
         @stop="handleStop"
       />
 
