@@ -188,3 +188,62 @@ export type {
 	CreatePlanInput,
 	PlanFilter,
 } from "./planner/index.js"
+
+// ── Persistence layer ────────────────────────────────────────────────
+
+export { InMemoryEventStore, PersistedEventStore } from "./persistence/event-store.js"
+export { InMemorySnapshotStore, SnapshotManager } from "./persistence/snapshots.js"
+
+export type {
+	EventId,
+	PersistedEvent,
+	PersistenceAdapter,
+	PersistenceTransaction,
+	EventStore,
+	SnapshotStore,
+	RuntimeStateStore,
+	RuntimeSnapshot,
+	RecoveryMetadata,
+	SerializedPlan,
+	SerializedPlanStep,
+	SerializedTask,
+	SerializedCapability,
+	SerializedSession,
+	SerializedExecutionState,
+	PersistenceOptions,
+} from "./persistence/index.js"
+
+// ── Filesystem persistence adapters ──────────────────────────────────
+
+export {
+	FilesystemPersistenceAdapter,
+	FilesystemTransaction,
+	FilesystemEventStore,
+	FilesystemSnapshotStore,
+	FilesystemRuntimeStateStore,
+} from "./persistence/adapters/filesystem/index.js"
+
+// ── Persistent session management ────────────────────────────────────
+
+export { PersistentSessionManager } from "./session/session-manager.js"
+export { createPersistentSessionId } from "./session/types.js"
+
+export type {
+	PersistentSessionId,
+	PersistentSession,
+	SessionOwnership,
+	SessionFilter,
+	SessionReconnectResult,
+} from "./session/types.js"
+
+// ── Runtime recovery ─────────────────────────────────────────────────
+
+export { RecoveryCoordinator } from "./runtime/recovery.js"
+
+export type {
+	RecoveryStarted,
+	RecoveryCompleted,
+	RecoveryFailed,
+	RecoveryResult,
+	RecoveryState,
+} from "./runtime/recovery.js"

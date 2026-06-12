@@ -9,9 +9,13 @@
  * - Redaction is a placeholder — returns input as-is today, future
  *   versions will strip tokens, keys, and PII.
  * - Filtering supports toolId, taskId, and since timestamp.
+ * - Optional EventStore persistence: records are persisted to the event
+ *   store in addition to in-memory storage.
  */
 
-import type { ToolId, TaskId } from "../capabilities/types.js"
+import type { ToolId } from "../capabilities/types.js"
+import type { TaskId } from "../tasks/types.js"
+import type { EventStore } from "../persistence/types.js"
 
 // ── Redaction ──────────────────────────────────────────────────────────
 
@@ -96,14 +100,31 @@ export interface ExecutionTraceFilter {
  * Append-only execution trace store.
  *
  * Records tool execution attempts for debugging, auditing, and replay.
+ * When an EventStore is configured, records are also persisted durably.
  */
 export class ExecutionTrace {
 	private readonly records: ExecutionTraceEntry[] = []
 
 	/**
+	 * Optional event store for persisting execution records.
+	 * When configured, each record() call also persists to the event store.
+	 */
+	private readonly eventStore: EventStore | undefined
+
+	/**
+	 * Create a new ExecutionTrace.
+	 *
+	 * @param eventStore - Optional event store for durable persistence.
+	 */
+	constructor(eventStore?: EventStore) {
+		this.eventStore = eventStore
+	}
+
+	/**
 	 * Record a new execution trace entry.
 	 *
 	 * Input and output are redacted before storage.
+	 * If an EventStore is configured, the record is also persisted.
 	 *
 	 * @param entry - The execution trace entry to record.
 	 */
@@ -114,6 +135,22 @@ export class ExecutionTrace {
 			output: entry.output !== undefined ? redactSensitive(entry.output) : undefined,
 		}
 		this.records.push(redacted)
+
+		// Persist to event store if configured.
+		if (this.eventStore) {
+			this.eventStore.append({
+				type: "tool.execution.recorded",
+				timestamp: new Date().toISOString(),
+				source: "execution-trace",
+				executionId: entry.executionId,
+				toolId: entry.toolId as string,
+				taskId: entry.taskId as string,
+				success: entry.success,
+				durationMs: entry.durationMs,
+			} as any).catch(() => {
+				// Persistence failure should not block in-memory recording.
+			})
+		}
 	}
 
 	/**
@@ -163,5 +200,16 @@ export class ExecutionTrace {
 	 */
 	size(): number {
 		return this.records.length
+	}
+
+	/**
+	 * Flush all pending records to the event store.
+	 *
+	 * Since records are persisted immediately in the record() method,
+	 * this method is a no-op for now. It exists as a hook for future
+	 * batching optimizations.
+	 */
+	async flush(): Promise<void> {
+		// All records are persisted immediately. No-op.
 	}
 }

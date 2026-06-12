@@ -13,10 +13,10 @@
  * - Cancellation is checked before and during execution.
  * - All errors are wrapped in structured ToolExecutionResult — this class
  *   does not throw.
+ * - Optional EventStore persistence for tool execution events.
  */
 
 import type { EventBus } from "../events/bus.js"
-import type { CancellationToken } from "../tasks/cancellation.js"
 import { withTimeout } from "../tasks/cancellation.js"
 import type {
 	ToolId,
@@ -26,6 +26,7 @@ import type {
 } from "../capabilities/types.js"
 import type { ToolRuntime } from "./tool-runtime.js"
 import type { CapabilityRegistry } from "../capabilities/registry.js"
+import type { EventStore } from "../persistence/types.js"
 
 /**
  * Tool handler function type.
@@ -41,11 +42,17 @@ export type ToolHandler = (
  * In-process tool runtime implementation.
  *
  * Dispatches tool invocations through a CapabilityRegistry and emits
- * lifecycle events via an EventBus.
+ * lifecycle events via an EventBus. Optionally persists tool execution
+ * events to an EventStore.
  */
 export class LocalToolRuntime implements ToolRuntime {
 	private readonly registry: CapabilityRegistry
 	private readonly events: EventBus
+
+	/**
+	 * Optional event store for persisting tool execution events.
+	 */
+	private readonly eventStore: EventStore | undefined
 
 	/**
 	 * Registered tool handlers, keyed by ToolId.
@@ -57,10 +64,12 @@ export class LocalToolRuntime implements ToolRuntime {
 	 *
 	 * @param registry - The capability registry to look up tools from.
 	 * @param events - The event bus for emitting tool lifecycle events.
+	 * @param eventStore - Optional event store for persisting tool execution events.
 	 */
-	constructor(registry: CapabilityRegistry, events: EventBus) {
+	constructor(registry: CapabilityRegistry, events: EventBus, eventStore?: EventStore) {
 		this.registry = registry
 		this.events = events
+		this.eventStore = eventStore
 	}
 
 	/**
@@ -107,6 +116,18 @@ export class LocalToolRuntime implements ToolRuntime {
 			toolId: toolId as string,
 			taskId: context.taskId as string,
 		})
+
+		// Persist tool.execution.started if event store is configured.
+		if (this.eventStore) {
+			this.eventStore.append({
+				type: "tool.execution.started",
+				timestamp: new Date().toISOString(),
+				source: "tool-runtime",
+				executionId,
+				toolId: toolId as string,
+				taskId: context.taskId as string,
+			} as any).catch(() => {})
+		}
 
 		// Check cancellation before starting.
 		if (context.cancellationToken.isCancelled) {
@@ -188,6 +209,20 @@ export class LocalToolRuntime implements ToolRuntime {
 				success: true,
 			})
 
+			// Persist tool.execution.completed.
+			if (this.eventStore) {
+				this.eventStore.append({
+					type: "tool.execution.completed",
+					timestamp: new Date().toISOString(),
+					source: "tool-runtime",
+					executionId,
+					toolId: toolId as string,
+					taskId: context.taskId as string,
+					durationMs,
+					success: true,
+				} as any).catch(() => {})
+			}
+
 			return { success: true, output, durationMs }
 		} catch (error) {
 			const durationMs = Date.now() - startedAt
@@ -210,6 +245,19 @@ export class LocalToolRuntime implements ToolRuntime {
 				taskId: context.taskId as string,
 				error: { code, message },
 			})
+
+			// Persist tool.execution.failed.
+			if (this.eventStore) {
+				this.eventStore.append({
+					type: "tool.execution.failed",
+					timestamp: new Date().toISOString(),
+					source: "tool-runtime",
+					executionId,
+					toolId: toolId as string,
+					taskId: context.taskId as string,
+					error: { code, message },
+				} as any).catch(() => {})
+			}
 
 			return {
 				success: false,
