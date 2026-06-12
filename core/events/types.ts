@@ -14,6 +14,7 @@
  */
 
 import type { TaskError } from "../tasks/types.js"
+import type { CapabilityId, ToolId } from "../capabilities/types.js"
 
 // ── Base envelope ─────────────────────────────────────────────────────
 
@@ -295,6 +296,121 @@ export interface PatchRejected extends AiriEventBase {
 	readonly reason?: string
 }
 
+// ── Plan orchestration events ─────────────────────────────────────────
+
+/**
+ * Emitted when a plan begins execution.
+ */
+export interface PlanStarted extends AiriEventBase {
+	readonly type: "plan.started"
+
+	/** The plan's unique identifier. */
+	readonly planId: string
+
+	/** Human-readable plan name. */
+	readonly name: string
+
+	/** Total number of steps in the plan. */
+	readonly stepCount: number
+}
+
+/**
+ * Emitted when a plan completes successfully.
+ */
+export interface PlanCompleted extends AiriEventBase {
+	readonly type: "plan.completed"
+
+	readonly planId: string
+
+	readonly name: string
+
+	/** Total execution duration in milliseconds. */
+	readonly durationMs: number
+}
+
+/**
+ * Emitted when a plan fails.
+ */
+export interface PlanFailed extends AiriEventBase {
+	readonly type: "plan.failed"
+
+	readonly planId: string
+
+	readonly name: string
+
+	/** Human-readable failure reason. */
+	readonly failureReason?: string
+
+	/** The step that caused the plan to fail, if any. */
+	readonly failedStepId?: string
+}
+
+/**
+ * Emitted when a plan is cancelled.
+ */
+export interface PlanCancelled extends AiriEventBase {
+	readonly type: "plan.cancelled"
+
+	readonly planId: string
+
+	readonly name: string
+
+	/** Optional cancellation reason. */
+	readonly reason?: string
+}
+
+/**
+ * Emitted when a step begins execution.
+ */
+export interface StepStarted extends AiriEventBase {
+	readonly type: "step.started"
+
+	readonly planId: string
+
+	readonly stepId: string
+
+	/** Human-readable step name. */
+	readonly stepName: string
+
+	/** The action this step performs. */
+	readonly action: string
+}
+
+/**
+ * Emitted when a step completes successfully.
+ */
+export interface StepCompleted extends AiriEventBase {
+	readonly type: "step.completed"
+
+	readonly planId: string
+
+	readonly stepId: string
+
+	readonly stepName: string
+
+	/** Whether the step execution succeeded. */
+	readonly success: boolean
+
+	/** Step execution duration in milliseconds. */
+	readonly durationMs: number
+}
+
+/**
+ * Emitted when a step fails.
+ */
+export interface StepFailed extends AiriEventBase {
+	readonly type: "step.failed"
+
+	readonly planId: string
+
+	readonly stepId: string
+
+	readonly stepName: string
+
+	/** Structured error information. */
+	readonly error: TaskError
+}
+
 // ── Union type ────────────────────────────────────────────────────────
 
 /**
@@ -328,3 +444,112 @@ export type AiriEvent =
 	| PatchGenerated
 	| PatchApproved
 	| PatchRejected
+	| PlanStarted
+	| PlanCompleted
+	| PlanFailed
+	| PlanCancelled
+	| StepStarted
+	| StepCompleted
+	| StepFailed
+	| ToolRegistered
+	| ToolDeregistered
+	| CapabilityRegistered
+	| CapabilityRemoved
+	| ToolExecutionFailed
+	| ToolExecutionCancelled
+
+// ── Capability & tool registration events ──────────────────────────────
+
+/**
+ * Emitted when a tool is registered.
+ */
+export interface ToolRegistered extends AiriEventBase {
+	readonly type: "tool.registered"
+
+	/** The tool identifier. */
+	readonly toolId: ToolId
+
+	/** The capability this tool belongs to. */
+	readonly capabilityId: CapabilityId
+
+	/** Human-readable tool name. */
+	readonly name: string
+}
+
+/**
+ * Emitted when a tool is deregistered.
+ */
+export interface ToolDeregistered extends AiriEventBase {
+	readonly type: "tool.deregistered"
+
+	readonly toolId: ToolId
+
+	readonly capabilityId: CapabilityId
+}
+
+/**
+ * Emitted when a capability is registered.
+ */
+export interface CapabilityRegistered extends AiriEventBase {
+	readonly type: "capability.registered"
+
+	readonly capabilityId: CapabilityId
+
+	/** Human-readable capability name. */
+	readonly name: string
+
+	/** The module that owns this capability. */
+	readonly moduleId: string
+
+	/** Number of tools in this capability. */
+	readonly toolCount: number
+}
+
+/**
+ * Emitted when a capability is removed.
+ */
+export interface CapabilityRemoved extends AiriEventBase {
+	readonly type: "capability.removed"
+
+	readonly capabilityId: CapabilityId
+
+	/** Human-readable capability name. */
+	readonly name: string
+}
+
+/**
+ * Emitted when a tool execution fails.
+ */
+export interface ToolExecutionFailed extends AiriEventBase {
+	readonly type: "tool.execution.failed"
+
+	/** Unique execution identifier. */
+	readonly executionId: string
+
+	readonly toolId: ToolId
+
+	readonly taskId: string
+
+	/** Error details. */
+	readonly error: {
+		readonly code: string
+		readonly message: string
+	}
+}
+
+/**
+ * Emitted when a tool execution is cancelled.
+ */
+export interface ToolExecutionCancelled extends AiriEventBase {
+	readonly type: "tool.execution.cancelled"
+
+	/** Unique execution identifier. */
+	readonly executionId: string
+
+	readonly toolId: ToolId
+
+	readonly taskId: string
+
+	/** Optional cancellation reason. */
+	readonly reason?: string
+}

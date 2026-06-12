@@ -37,6 +37,13 @@ export type {
 	PatchGenerated,
 	PatchApproved,
 	PatchRejected,
+	PlanStarted,
+	PlanCompleted,
+	PlanFailed,
+	PlanCancelled,
+	StepStarted,
+	StepCompleted,
+	StepFailed,
 } from "./events/types.js"
 
 export type {
@@ -141,3 +148,43 @@ export type {
 	TaskPayload,
 	WorkerErrorCode,
 } from "./workers/protocol.js"
+
+// ── Capability runtime ────────────────────────────────────────────────
+
+export { CapabilityRegistry } from "./capabilities/index.js"
+export type {
+	CapabilityId,
+	ToolId,
+	CapabilityDescriptor,
+	ToolDescriptor,
+	ToolExecutionContext,
+	ToolExecutionResult,
+	CapabilityStatus,
+	CapabilityInfo,
+} from "./capabilities/index.js"
+
+export type { ToolRuntime } from "./runtime/tool-runtime.js"
+export { LocalToolRuntime } from "./runtime/local-tool-runtime.js"
+export type { ToolHandler } from "./runtime/local-tool-runtime.js"
+export { ExecutionTrace, redactSensitive } from "./runtime/execution-trace.js"
+export type {
+	ExecutionTraceEntry,
+	ExecutionTraceFilter,
+} from "./runtime/execution-trace.js"
+
+// ── Planner layer ───────────────────────────────────────────────────
+
+export { PlanExecutor, PlanRegistry } from "./planner/index.js"
+
+export type {
+	PlanExecutorOptions,
+	PlanId,
+	StepId,
+	PlanStatus,
+	StepStatus,
+	PlanStep,
+	StepResult,
+	Plan,
+	CreatePlanInput,
+	PlanFilter,
+} from "./planner/index.js"
