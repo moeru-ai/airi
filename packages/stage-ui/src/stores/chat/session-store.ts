@@ -808,6 +808,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
             content: text,
             attempts: 0,
             queuedAt: Date.now(),
+            // Carry conversation timestamp so the drain sort (createdAt ?? queuedAt)
+            // keeps these swept rows in conversation order against push-enqueued
+            // entries, instead of all collapsing to enqueue wall-clock.
+            createdAt: message.createdAt,
           }))
         }
       }
