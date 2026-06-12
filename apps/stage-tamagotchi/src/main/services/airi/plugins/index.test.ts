@@ -28,11 +28,15 @@ import {
 import {
   electronPluginInspect,
   electronPluginList,
+  electronPluginLoad,
   electronPluginLoadEnabled,
   electronPluginSetAutoReload,
   electronPluginSetEnabled,
   electronPluginUnload,
 } from '../../../../shared/eventa/plugin/host'
+import {
+  electronPluginToolsChanged,
+} from '../../../../shared/eventa/plugin/tools'
 import { setupExtensionHostServiceInternal } from './host'
 import { loadManifestsFrom } from './host/registry'
 import { setupExtensionHost as setupExtensionHostService } from './index'
@@ -542,6 +546,43 @@ describe('setupExtensionHost', () => {
 
     expect(normal).toEqual(expect.objectContaining({ enabled: true, loaded: true }))
     expect(error).toEqual(expect.objectContaining({ enabled: true, loaded: false }))
+  })
+
+  it('emits a plugin tools changed event after loading an extension through IPC', async () => {
+    const pluginDir = join(pluginsDir, 'test-tools-changed')
+    await mkdir(pluginDir, { recursive: true })
+    await writeEntrypoint({
+      dir: pluginDir,
+      name: 'test-tools-changed.ts',
+      contents: createEmptyExtensionEntrypoint('test-tools-changed'),
+    })
+    await writeManifest({
+      dir: pluginDir,
+      name: 'test-tools-changed',
+      entrypoint: './test-tools-changed.ts',
+    })
+
+    await setupExtensionHost()
+
+    expect(contextState.lastContext).toBeDefined()
+    const toolsChangedEvents: Array<{ reason: string, name?: string }> = []
+    contextState.lastContext!.on(electronPluginToolsChanged, (event) => {
+      if (!event.body) {
+        throw new Error('Expected plugin tools changed event body.')
+      }
+      toolsChangedEvents.push(event.body)
+    })
+
+    const invokeLoad = defineInvoke(contextState.lastContext!, electronPluginLoad)
+
+    await invokeLoad({ name: 'test-tools-changed' })
+
+    expect(toolsChangedEvents).toEqual([
+      {
+        reason: 'loaded',
+        name: 'test-tools-changed',
+      },
+    ])
   })
 
   it('loads the first matching manifest when duplicate plugin names exist', async () => {

@@ -48,13 +48,11 @@ import {
   electronPluginSetEnabled,
   electronPluginUnload,
 } from '../shared/eventa/plugin/host'
+import { electronPluginToolsChanged } from '../shared/eventa/plugin/tools'
 import { initializeElectronAuthCallbackBridge } from './bridges/electron-auth-callback'
 import { initializeStageThreeRuntimeTraceBridge } from './bridges/stage-three-runtime-trace'
 import { useLanguage } from './composables/use-language'
-import {
-  createChatSyncWindowLifecycle,
-  resolveInitialChatSyncRoutePath,
-} from './stores/chat-sync-lifecycle'
+import { createChatSyncWindowLifecycle, resolveInitialChatSyncRoutePath } from './stores/chat-sync-lifecycle'
 import { useTamagotchiMcpToolsStore } from './stores/mcp-tools'
 import { useTamagotchiPluginToolsStore } from './stores/plugin-tools'
 import { useServerChannelSettingsStore } from './stores/settings/server-channel'
@@ -186,6 +184,10 @@ function createFullStageRuntime() {
     }
 
     syncGodotStageRenderer(event.body)
+  })
+
+  context.value.on(electronPluginToolsChanged, () => {
+    void refreshPluginRuntimeTools()
   })
 
   return {

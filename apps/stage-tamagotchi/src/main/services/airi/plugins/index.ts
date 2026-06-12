@@ -1,17 +1,8 @@
-import type {
-  ExtensionHostService,
-  SetupExtensionHostOptions,
-} from './types'
+import type { ExtensionHostService, SetupExtensionHostOptions } from './types'
 
-import {
-  defineInvoke,
-  defineInvokeHandler,
-} from '@moeru/eventa'
+import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
-import {
-  app,
-  ipcMain,
-} from 'electron'
+import { app, ipcMain } from 'electron'
 
 import {
   electronPluginGetAssetBaseUrl,
@@ -34,6 +25,7 @@ import {
   electronPluginInvokeTool,
   electronPluginListAgentTools,
   electronPluginListXsaiTools,
+  electronPluginToolsChanged,
 } from '../../../../shared/eventa/plugin/tools'
 import { setupExtensionHostServiceInternal } from './host'
 
@@ -64,7 +56,12 @@ export async function setupExtensionHost(options: SetupExtensionHostOptions): Pr
   })
 
   defineInvokeHandler(context, electronPluginSetEnabled, async (payload) => {
-    return await hostService.setEnabled(payload)
+    const result = await hostService.setEnabled(payload)
+    context.emit(electronPluginToolsChanged, {
+      reason: 'enabled-state-changed',
+      name: payload.name,
+    })
+    return result
   })
 
   defineInvokeHandler(context, electronPluginSetAutoReload, async (payload) => {
@@ -72,15 +69,29 @@ export async function setupExtensionHost(options: SetupExtensionHostOptions): Pr
   })
 
   defineInvokeHandler(context, electronPluginLoadEnabled, async () => {
-    return await hostService.loadEnabled()
+    const result = await hostService.loadEnabled()
+    context.emit(electronPluginToolsChanged, {
+      reason: 'load-enabled',
+    })
+    return result
   })
 
   defineInvokeHandler(context, electronPluginLoad, async (payload) => {
-    return await hostService.load(payload.name)
+    const result = await hostService.load(payload.name)
+    context.emit(electronPluginToolsChanged, {
+      reason: 'loaded',
+      name: payload.name,
+    })
+    return result
   })
 
   defineInvokeHandler(context, electronPluginUnload, async (payload) => {
-    return await hostService.unload(payload.name)
+    const result = await hostService.unload(payload.name)
+    context.emit(electronPluginToolsChanged, {
+      reason: 'unloaded',
+      name: payload.name,
+    })
+    return result
   })
 
   defineInvokeHandler(context, electronPluginInspect, async () => {

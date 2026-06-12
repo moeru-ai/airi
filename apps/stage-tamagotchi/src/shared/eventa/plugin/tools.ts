@@ -1,4 +1,4 @@
-import { defineInvokeEventa } from '@moeru/eventa'
+import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
 
 /**
  * Renderer-facing plugin tool descriptor used by agent tooling UIs.
@@ -80,6 +80,23 @@ export interface ElectronPluginXsaiToolsetDefinition {
   prompts: ElectronPluginToolsetPromptDefinition[]
 }
 
+/**
+ * Describes why plugin-backed runtime tools should be refreshed.
+ *
+ * Use when:
+ * - The main process notifies renderers after plugin lifecycle changes
+ *
+ * Expects:
+ * - `name` is present when the change is scoped to one plugin
+ *
+ * Returns:
+ * - N/A
+ */
+export interface ElectronPluginToolsChangedPayload {
+  reason: 'loaded' | 'load-enabled' | 'unloaded' | 'enabled-state-changed'
+  name?: string
+}
+
 export const electronPluginListAgentTools = defineInvokeEventa<ElectronPluginToolDescriptor[]>('eventa:invoke:electron:plugins:tools:list')
 export const electronPluginListXsaiTools = defineInvokeEventa<ElectronPluginXsaiToolsetDefinition>('eventa:invoke:electron:plugins:tools:list-xsai')
 export const electronPluginInvokeTool = defineInvokeEventa<unknown, {
@@ -87,3 +104,4 @@ export const electronPluginInvokeTool = defineInvokeEventa<unknown, {
   name: string
   input: unknown
 }>('eventa:invoke:electron:plugins:tools:invoke')
+export const electronPluginToolsChanged = defineEventa<ElectronPluginToolsChangedPayload>('eventa:event:electron:plugins:tools:changed')
