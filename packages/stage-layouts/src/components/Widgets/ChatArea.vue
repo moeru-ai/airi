@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import type { ChatProvider } from '@xsai-ext/providers/utils'
-
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { ChatSessionsDrawer, ChatStopButton } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { HearingConfig } from '@proj-airi/stage-ui/components/scenarios/dialogs/audio-input/index'
@@ -8,8 +6,6 @@ import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
-import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea } from '@proj-airi/ui'
 import { useLocalStorage } from '@vueuse/core'
@@ -20,8 +16,8 @@ import { useI18n } from 'vue-i18n'
 
 import IndicatorMicVolume from './IndicatorMicVolume.vue'
 
-import { runComposerSend } from '../../composables/runComposerSend'
 import { useTranscriptions } from '../../composables/use-transcriptions'
+import { useComposerSend } from '../../composables/useComposerSend'
 import { useStopSpeakingButton } from '../../composables/useStopSpeakingButton'
 
 const messageInput = ref<string>('')
@@ -35,16 +31,14 @@ type SendMode = (typeof SEND_MODES)[number]
 const sendMode = useLocalStorage<SendMode>('ui/chat/settings/send-mode', 'enter')
 const lastEnterTime = ref(0)
 
-const providersStore = useProvidersStore()
-const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
 
 const { askPermission } = useSettingsAudioDevice()
 const { enabled, stream } = storeToRefs(useSettingsAudioDevice())
 const chatOrchestrator = useChatOrchestratorStore()
 const chatSession = useChatSessionStore()
-const { ingest, onAfterMessageComposed, stopSending } = chatOrchestrator
-const { sending, sendingSessionId } = storeToRefs(chatOrchestrator)
+const { onAfterMessageComposed, stopSending } = chatOrchestrator
+const { isActiveSessionStreaming } = storeToRefs(chatOrchestrator)
 const { audioContext } = useAudioContext()
 const { t } = useI18n()
 const sendModeLabels = computed<Record<SendMode, string>>(() => ({
@@ -53,6 +47,7 @@ const sendModeLabels = computed<Record<SendMode, string>>(() => ({
   'double-enter': t('stage.send-mode.double-enter'),
 }))
 
+const { handleSend } = useComposerSend({ messageInput, isComposing })
 const { isListening, startStreamingTranscription, stopStreamingTranscription, autoSendEnabled } = useTranscriptions(
   {
     messageInputRef: messageInput,
@@ -61,33 +56,6 @@ const { isListening, startStreamingTranscription, stopStreamingTranscription, au
   },
 )
 const { showStopSpeakingButton, stopSpeakingFromChat } = useStopSpeakingButton()
-
-async function handleSend() {
-  if (!messageInput.value.trim() || isComposing.value) {
-    return
-  }
-
-  const textToSend = messageInput.value
-  messageInput.value = ''
-
-  await runComposerSend({
-    send: async () => ingest(textToSend, {
-      chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
-      model: activeModel.value,
-      providerConfig: providersStore.getProviderConfig(activeProvider.value),
-      // The composer rescues the text on retract, so it opts into rescuable.
-      rescuable: true,
-    }),
-    // Lossless: rejoin the rescued text ahead of anything retyped since the send.
-    restoreDraft: () => {
-      messageInput.value = [textToSend, messageInput.value.trim()].filter(Boolean).join(' ')
-    },
-    appendErrorRow: message => chatSession.appendSessionMessage(chatSession.activeSessionId, {
-      role: 'error',
-      content: message,
-    }),
-  })
-}
 
 function sendFromKeyboard() {
   messageInput.value = messageInput.value.replace(TRAILING_NEWLINES_REGEX, '')
@@ -266,14 +234,10 @@ watch(sendMode, () => {
           Stop drives the orchestrator directly rather than going through
           chat-sync (this surface sends via ingest(), not requestIngest()), and
           scopes the stop to the active session so another session's stream is
-          untouched. Visibility is gated on the active session owning the
-          in-flight send: a global `sending` flag would light an inert button
-          after switching sessions mid-stream. Accepted limitation: a send
-          queued for the active session while another session streams shows no
-          button until it becomes the in-flight send.
+          untouched. Visibility (isActiveSessionStreaming) is owned by the store.
         -->
         <ChatStopButton
-          v-if="sending && sendingSessionId === chatSession.activeSessionId"
+          v-if="isActiveSessionStreaming"
           class="h-8 w-8 text-lg"
           @stop="stopSending(chatSession.activeSessionId)"
         />

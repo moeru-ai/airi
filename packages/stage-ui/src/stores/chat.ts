@@ -8,7 +8,7 @@ import { createChatOrchestratorRuntime } from '@proj-airi/core-agent'
 import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
-import { ref, toRaw, watch } from 'vue'
+import { computed, ref, toRaw, watch } from 'vue'
 
 import { useAnalytics } from '../composables'
 import { activeTurnSpan, startSpan } from '../composables/use-io-tracer'
@@ -72,6 +72,13 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const sendingSessionId = ref<string | null>(null)
   const pendingQueuedSendCount = ref(0)
   let ownedActiveTurnSpan: typeof activeTurnSpan.value
+
+  // The foreground (active) session owns the in-flight send. Every composer
+  // surface gates its stop button on this so switching sessions mid-stream does
+  // not leave an inert button lit. Accepted limitation: a send queued for the
+  // active session while another session streams shows no button until it
+  // becomes the in-flight send.
+  const isActiveSessionStreaming = computed(() => sending.value && sendingSessionId.value === activeSessionId.value)
 
   async function streamWithStageAdapters(
     model: string,
@@ -284,6 +291,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   return {
     sending,
     sendingSessionId,
+    isActiveSessionStreaming,
     pendingQueuedSendCount,
 
     ingest,

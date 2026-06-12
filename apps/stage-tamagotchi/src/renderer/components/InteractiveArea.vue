@@ -44,7 +44,7 @@ const airiCardStore = useAiriCardStore()
 
 const { messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
-const { sending, sendingSessionId } = storeToRefs(chatOrchestrator)
+const { sending, isActiveSessionStreaming } = storeToRefs(chatOrchestrator)
 const { activeCardId } = storeToRefs(airiCardStore)
 const { t } = useI18n()
 const { openImagePreview } = journalPreviewStore
@@ -384,14 +384,11 @@ async function handleCleanup() {
     </div>
     <div :class="['flex items-center justify-end gap-2 py-1']">
       <!--
-        Gated on the active session owning the in-flight send (mirrored across
-        the chat-sync relay) so switching sessions mid-stream does not leave an
-        inert stop button lit. Accepted limitation: a send queued for the active
-        session while another session streams shows no button until it becomes
-        the in-flight send.
+        Visibility (isActiveSessionStreaming) is owned by the chat store; here it
+        reflects the in-flight send mirrored across the chat-sync relay.
       -->
       <ChatStopButton
-        v-if="sending && sendingSessionId === chatSession.activeSessionId"
+        v-if="isActiveSessionStreaming"
         class="max-h-[10lh] min-h-[1lh] p-2 text-lg"
         @stop="handleStop"
       />

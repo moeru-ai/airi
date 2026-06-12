@@ -10,6 +10,7 @@ import { createQueue } from '@proj-airi/stream-kit'
 
 import { formatContextPromptText } from '../messages/context-prompt'
 import { formatTimePrefix } from '../messages/datetime-prefix'
+import { isStoppedAssistant } from '../types/chat'
 import { errorMessageFromValue } from '../utils/error-message'
 import { createChatHooks } from './agent-hooks'
 import { useLlmmarkerParser } from './llm-marker-parser'
@@ -451,8 +452,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     // empty assistant turn is not a legal provider message.
     // Removal condition: never; an empty assistant turn is always invalid.
     return projected.filter((message, index) => {
-      const original = sessionMessagesForSend[index]
-      if (original.role !== 'assistant' || !(original as StreamingAssistantMessage).stopped)
+      if (!isStoppedAssistant(sessionMessagesForSend[index]))
         return true
       return !isEmptyProjectedContent((message as { content?: unknown }).content)
     })

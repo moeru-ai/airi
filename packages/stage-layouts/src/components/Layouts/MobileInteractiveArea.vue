@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
-import type { ChatProvider } from '@xsai-ext/providers/utils'
 
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
@@ -13,8 +12,6 @@ import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/mainten
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { useL2dViewControl } from '@proj-airi/stage-ui/stores/live2d'
-import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea, useTheme } from '@proj-airi/ui'
 import { useResizeObserver, useScreenSafeArea } from '@vueuse/core'
@@ -27,8 +24,8 @@ import ViewControls from '../Layouts/InteractiveArea/Actions/ViewControls.vue'
 import IndicatorMicVolume from '../Widgets/IndicatorMicVolume.vue'
 import ActionAbout from './InteractiveArea/Actions/About.vue'
 
-import { runComposerSend } from '../../composables/runComposerSend'
 import { useTranscriptions } from '../../composables/use-transcriptions'
+import { useComposerSend } from '../../composables/useComposerSend'
 import { useStopSpeakingButton } from '../../composables/useStopSpeakingButton'
 import { BackgroundDialogPicker } from '../Backgrounds'
 
@@ -39,7 +36,7 @@ const chatStream = useChatStreamStore()
 const { cleanupMessages } = useChatMaintenanceStore()
 const { messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
-const { sending, sendingSessionId } = storeToRefs(chatOrchestrator)
+const { sending, isActiveSessionStreaming } = storeToRefs(chatOrchestrator)
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
 const { trackChatMessageDeleted, trackChatMessagesCleared } = useAnalytics()
 
@@ -67,8 +64,6 @@ const backgroundDialogOpen = ref(false)
 const sessionsDrawerOpen = ref(false)
 
 const screenSafeArea = useScreenSafeArea()
-const providersStore = useProvidersStore()
-const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
 
 useResizeObserver(document.documentElement, () => screenSafeArea.update())
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
@@ -76,7 +71,7 @@ const { viewControlsEnabled: l2dViewCtrlEnabled } = useL2dViewControl()
 const { viewControlsEnabled: threeViewCtrlEnabled } = useThreeViewControl()
 const settingsAudioDevice = useSettingsAudioDevice()
 const { enabled, stream } = storeToRefs(settingsAudioDevice)
-const { ingest, onAfterMessageComposed, stopSending } = chatOrchestrator
+const { onAfterMessageComposed, stopSending } = chatOrchestrator
 const { t } = useI18n()
 const { audioContext } = useAudioContext()
 const { startAnalyzer, stopAnalyzer } = useAudioAnalyzer()
@@ -86,6 +81,7 @@ function isMobileDevice() {
   return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 }
 
+const { handleSend } = useComposerSend({ messageInput, isComposing })
 const { isListening, startStreamingTranscription, stopStreamingTranscription } = useTranscriptions(
   {
     messageInputRef: messageInput,
@@ -100,35 +96,6 @@ async function handleSubmit() {
   if (!isMobileDevice()) {
     await handleSend()
   }
-}
-
-async function handleSend() {
-  if (!messageInput.value.trim() || isComposing.value) {
-    return
-  }
-
-  const textToSend = messageInput.value
-  messageInput.value = ''
-
-  await runComposerSend({
-    send: async () => ingest(textToSend, {
-      chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
-      model: activeModel.value,
-      providerConfig: providersStore.getProviderConfig(activeProvider.value),
-      // The composer rescues the text on retract, so it opts into rescuable.
-      rescuable: true,
-    }),
-    // Lossless: rejoin the rescued text ahead of anything retyped since the
-    // send, instead of only restoring into an empty composer (which dropped the
-    // text whenever the user had started retyping).
-    restoreDraft: () => {
-      messageInput.value = [textToSend, messageInput.value.trim()].filter(Boolean).join(' ')
-    },
-    appendErrorRow: message => chatSession.appendSessionMessage(chatSession.activeSessionId, {
-      role: 'error',
-      content: message,
-    }),
-  })
 }
 
 function teardownAnalyzer() {
@@ -273,14 +240,9 @@ onMounted(() => {
           @compositionstart="isComposing = true"
           @compositionend="isComposing = false"
         />
-        <!--
-          Gated on the active session owning the in-flight send so switching
-          sessions mid-stream does not leave an inert stop button lit. Accepted
-          limitation: a send queued for the active session while another session
-          streams shows no button until it becomes the in-flight send.
-        -->
+        <!-- Visibility (isActiveSessionStreaming) is owned by the chat store. -->
         <ChatStopButton
-          v-if="sending && sendingSessionId === chatSession.activeSessionId"
+          v-if="isActiveSessionStreaming"
           class="aspect-square self-end rounded-full backdrop-blur-md"
           w="[calc(1lh+4px+4px)]" h="[calc(1lh+4px+4px)]"
           @stop="stopSending(chatSession.activeSessionId)"

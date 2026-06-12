@@ -58,26 +58,27 @@ const toolResultById = computed(() => {
 type SliceView
   = | { kind: 'tool-call', renderer: Component, toolName: string, args: string, state: ChatToolCallState, result: unknown }
     | { kind: 'text', text: string }
-    | { kind: 'tool-call-result' }
 
-// One view-model per slice, resolved once per message change. The message prop
-// is replaced on every foreground stream patch, so resolving renderer/state/result
-// in template methods would re-run for every slice on each re-render.
-const sliceViews = computed<SliceView[]>(() => resolvedSlices.value.map((slice) => {
+// One view-model per renderable slice, resolved once per message change. The
+// message prop is replaced on every foreground stream patch, so resolving
+// renderer/state/result in template methods would re-run for every slice on each
+// re-render. Non-renderable slices (e.g. tool-call results, surfaced through
+// their tool-call view) are dropped here rather than mapped to a no-op view.
+const sliceViews = computed<SliceView[]>(() => resolvedSlices.value.flatMap((slice): SliceView[] => {
   if (slice.type === 'tool-call') {
     const result = toolResultById.value.get(slice.toolCall.toolCallId)
-    return {
+    return [{
       kind: 'tool-call',
       renderer: props.toolCallRenderers[slice.toolCall.toolName] ?? ChatToolCallBlock,
       toolName: slice.toolCall.toolName,
       args: slice.toolCall.args,
       state: resolveToolCallBlockState(result, { stopped: props.message.stopped }),
       result: result?.result,
-    }
+    }]
   }
   if (slice.type === 'text')
-    return { kind: 'text', text: slice.text }
-  return { kind: 'tool-call-result' }
+    return [{ kind: 'text', text: slice.text }]
+  return []
 }))
 
 const showLoader = computed(() => props.showPlaceholder && resolvedSlices.value.length === 0)
