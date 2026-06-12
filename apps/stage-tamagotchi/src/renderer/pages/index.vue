@@ -262,28 +262,29 @@ type CaptionChannelEvent
     | { type: 'caption-assistant', text: string }
 const { post: postCaption } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
 
+// A stream/hook failure resolves outcome.error; the catch only fires for a
+// pre-append failure (relay unreachable). Surface both.
+async function sendVoiceText(text: string) {
+  try {
+    const outcome = await chatSyncStore.requestIngest({ text })
+    if (outcome?.error)
+      console.error('Failed to send chat from voice:', outcome.error.message)
+  }
+  catch (err) {
+    console.error('Failed to send chat from voice:', err)
+  }
+}
+
 function handleStreamingSentenceEnd(delta: string) {
   console.info('[Main Page] Received transcription delta:', delta)
-  const finalText = delta
-  if (!finalText || !finalText.trim()) {
+  if (!delta || !delta.trim()) {
     return
   }
 
-  postCaption({ type: 'caption-speaker', text: finalText })
+  postCaption({ type: 'caption-speaker', text: delta })
 
-  void (async () => {
-    try {
-      console.info('[Main Page] Sending transcription to chat:', finalText)
-      // A stream/hook failure resolves outcome.error; the catch only fires for a
-      // pre-append failure (relay unreachable). Surface both.
-      const outcome = await chatSyncStore.requestIngest({ text: finalText })
-      if (outcome?.error)
-        console.error('[Main Page] Failed to send chat from voice:', outcome.error.message)
-    }
-    catch (err) {
-      console.error('[Main Page] Failed to send chat from voice:', err)
-    }
-  })()
+  console.info('[Main Page] Sending transcription to chat:', delta)
+  void sendVoiceText(delta)
 }
 
 function handleStreamingSpeechEnd(text: string) {
@@ -382,16 +383,7 @@ async function startAudioInteraction() {
         // Update caption overlay speaker text via BroadcastChannel
         postCaption({ type: 'caption-speaker', text })
 
-        try {
-          // A stream/hook failure resolves outcome.error; the catch only fires
-          // for a pre-append failure (relay unreachable). Surface both.
-          const outcome = await chatSyncStore.requestIngest({ text })
-          if (outcome?.error)
-            console.error('Failed to send chat from voice:', outcome.error.message)
-        }
-        catch (err) {
-          console.error('Failed to send chat from voice:', err)
-        }
+        await sendVoiceText(text)
       })
     }
   }

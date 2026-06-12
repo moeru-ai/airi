@@ -24,8 +24,8 @@ import ViewControls from '../Layouts/InteractiveArea/Actions/ViewControls.vue'
 import IndicatorMicVolume from '../Widgets/IndicatorMicVolume.vue'
 import ActionAbout from './InteractiveArea/Actions/About.vue'
 
+import { useComposerSend } from '../../composables/composerSend'
 import { useTranscriptions } from '../../composables/use-transcriptions'
-import { useComposerSend } from '../../composables/useComposerSend'
 import { useStopSpeakingButton } from '../../composables/useStopSpeakingButton'
 import { BackgroundDialogPicker } from '../Backgrounds'
 
@@ -36,7 +36,7 @@ const chatStream = useChatStreamStore()
 const { cleanupMessages } = useChatMaintenanceStore()
 const { messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
-const { sending, isActiveSessionStreaming } = storeToRefs(chatOrchestrator)
+const { sending } = storeToRefs(chatOrchestrator)
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
 const { trackChatMessageDeleted, trackChatMessagesCleared } = useAnalytics()
 
@@ -71,7 +71,7 @@ const { viewControlsEnabled: l2dViewCtrlEnabled } = useL2dViewControl()
 const { viewControlsEnabled: threeViewCtrlEnabled } = useThreeViewControl()
 const settingsAudioDevice = useSettingsAudioDevice()
 const { enabled, stream } = storeToRefs(settingsAudioDevice)
-const { onAfterMessageComposed, stopSending } = chatOrchestrator
+const { stopSending } = chatOrchestrator
 const { t } = useI18n()
 const { audioContext } = useAudioContext()
 const { startAnalyzer, stopAnalyzer } = useAudioAnalyzer()
@@ -123,9 +123,6 @@ async function setupAnalyzer() {
 watch([enabled, stream], () => {
   setupAnalyzer()
 }, { immediate: true })
-
-onAfterMessageComposed(async () => {
-})
 
 onUnmounted(() => {
   teardownAnalyzer()
@@ -240,9 +237,7 @@ onMounted(() => {
           @compositionstart="isComposing = true"
           @compositionend="isComposing = false"
         />
-        <!-- Visibility (isActiveSessionStreaming) is owned by the chat store. -->
         <ChatStopButton
-          v-if="isActiveSessionStreaming"
           :class="[
             'h-[calc(1lh+4px+4px)] w-[calc(1lh+4px+4px)] aspect-square self-end rounded-full backdrop-blur-md',
             'hover:bg-red-100/60 dark:hover:bg-red-900/40',

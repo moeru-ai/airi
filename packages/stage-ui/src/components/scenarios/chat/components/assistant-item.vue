@@ -51,10 +51,6 @@ const resolvedSlices = computed<ChatSlices[]>(() => {
   return []
 })
 
-const toolResultById = computed(() => {
-  return createToolCallResultLookup(resolvedSlices.value, props.message.tool_results)
-})
-
 type SliceView
   = | { kind: 'tool-call', renderer: Component, toolName: string, args: string, state: ChatToolCallState, result: unknown }
     | { kind: 'text', text: string }
@@ -64,22 +60,25 @@ type SliceView
 // renderer/state/result in template methods would re-run for every slice on each
 // re-render. Non-renderable slices (e.g. tool-call results, surfaced through
 // their tool-call view) are dropped here rather than mapped to a no-op view.
-const sliceViews = computed<SliceView[]>(() => resolvedSlices.value.flatMap((slice): SliceView[] => {
-  if (slice.type === 'tool-call') {
-    const result = toolResultById.value.get(slice.toolCall.toolCallId)
-    return [{
-      kind: 'tool-call',
-      renderer: props.toolCallRenderers[slice.toolCall.toolName] ?? ChatToolCallBlock,
-      toolName: slice.toolCall.toolName,
-      args: slice.toolCall.args,
-      state: resolveToolCallBlockState(result, { stopped: props.message.stopped }),
-      result: result?.result,
-    }]
-  }
-  if (slice.type === 'text')
-    return [{ kind: 'text', text: slice.text }]
-  return []
-}))
+const sliceViews = computed<SliceView[]>(() => {
+  const toolResultById = createToolCallResultLookup(resolvedSlices.value, props.message.tool_results)
+  return resolvedSlices.value.flatMap((slice): SliceView[] => {
+    if (slice.type === 'tool-call') {
+      const result = toolResultById.get(slice.toolCall.toolCallId)
+      return [{
+        kind: 'tool-call',
+        renderer: props.toolCallRenderers[slice.toolCall.toolName] ?? ChatToolCallBlock,
+        toolName: slice.toolCall.toolName,
+        args: slice.toolCall.args,
+        state: resolveToolCallBlockState(result, { stopped: props.message.stopped }),
+        result: result?.result,
+      }]
+    }
+    if (slice.type === 'text')
+      return [{ kind: 'text', text: slice.text }]
+    return []
+  })
+})
 
 const showLoader = computed(() => props.showPlaceholder && resolvedSlices.value.length === 0)
 const containerClass = computed(() => props.variant === 'mobile' ? 'mr-0' : 'mr-12')

@@ -37,27 +37,6 @@ function prependTextToContent<T extends { content?: unknown }>(msg: T, text: str
   return msg
 }
 
-/**
- * Whether a projected provider message carries no usable text content.
- *
- * Used to drop interrupted (reasoning-only) assistant partials whose visible
- * content is empty once the runtime-only fields are stripped, so providers do
- * not see `{ role: 'assistant', content: '' }`.
- */
-function isEmptyProjectedContent(content: unknown): boolean {
-  if (content == null)
-    return true
-  if (typeof content === 'string')
-    return content.trim().length === 0
-  if (Array.isArray(content)) {
-    return content.every((part) => {
-      const textPart = part as { type?: string, text?: string }
-      return textPart?.type !== 'text' || !textPart.text?.trim()
-    })
-  }
-  return false
-}
-
 function cloneStreamingMessage(message: StreamingAssistantMessage): StreamingAssistantMessage {
   try {
     return structuredClone(message)
@@ -451,10 +430,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     // Root cause: stopped partials are persisted for the UI badge/retry, but an
     // empty assistant turn is not a legal provider message.
     // Removal condition: never; an empty assistant turn is always invalid.
+    // Stopped partials are runtime-authored, so their content is always a plain
+    // string; any other shape is not a legal assistant turn and is dropped too.
     return projected.filter((message, index) => {
       if (!isStoppedAssistant(sessionMessagesForSend[index]))
         return true
-      return !isEmptyProjectedContent((message as { content?: unknown }).content)
+      const content = (message as { content?: unknown }).content
+      return typeof content === 'string' && content.trim().length > 0
     })
   }
 
@@ -981,18 +963,17 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       // A stream/hook failure (not a Stop) is reported as a resolved outcome,
       // not a rejection: a resolved value is the only signal that survives the
       // tamagotchi BroadcastChannel relay, which cannot carry a typed error.
-      // The user turn is kept (the finally commits it, since the signal is not
-      // aborted), so `turnCommitted` is finalized there.
+      // The user turn is kept (the signal is not aborted): settle it now so the
+      // outcome reports the real commit state.
       console.error('Error sending message:', error)
-      outcome.error = { message: errorMessageFromValue(error), turnCommitted: false }
+      settleUserTurn()
+      outcome.error = { message: errorMessageFromValue(error), turnCommitted }
     }
     finally {
-      // Backstop for every exit path that did not already settle on the success
-      // path (stop, error, or stale). Idempotent, so a clean finish that already
-      // committed before the assistant append is a no-op here.
+      // Backstop for the exit paths that have not settled yet (a stop, or an
+      // early return before the stream). Idempotent, so the clean finish and
+      // the error path, which settle earlier, are no-ops here.
       settleUserTurn()
-      if (outcome.error)
-        outcome.error.turnCommitted = turnCommitted
 
       // NOTICE: reset the bubble on every abort path. Pre-stream
       // `shouldAbort()` checkpoints can early-return without entering

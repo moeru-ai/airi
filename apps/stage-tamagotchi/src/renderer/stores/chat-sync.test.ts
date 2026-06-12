@@ -83,6 +83,19 @@ function postedMessagesOfType<T extends string>(type: T) {
   })
 }
 
+/** Posts a command to the store under test from a separate mock window. */
+function postCommandFromPeer(command: string, payload: unknown) {
+  const peer = new MockBroadcastChannel('airi:stage-tamagotchi:chat-sync')
+  peer.postMessage({
+    type: 'command',
+    requestId: `req-${command}`,
+    senderId: 'peer',
+    command,
+    payload,
+  })
+  return peer
+}
+
 function assistantMessage(content: string): MockChatMessage {
   return {
     role: 'assistant',
@@ -237,17 +250,7 @@ describe('useChatSyncStore', async () => {
     const store = useChatSyncStore()
     store.initialize('authority')
 
-    const peer = new MockBroadcastChannel('airi:stage-tamagotchi:chat-sync')
-    peer.postMessage({
-      type: 'command',
-      requestId: 'req-1',
-      senderId: 'peer',
-      command: 'ingest',
-      payload: {
-        text: 'hello',
-        sessionId: 'session-1',
-      },
-    })
+    const peer = postCommandFromPeer('ingest', { text: 'hello', sessionId: 'session-1' })
 
     await vi.waitFor(() => {
       expect(mockState.ingest).toHaveBeenCalledTimes(1)
@@ -293,22 +296,12 @@ describe('useChatSyncStore', async () => {
       { role: 'user', content: 'hello-3' },
       { role: 'assistant', content: 'answer-3' },
     ]
-    mockState.ingest.mockResolvedValueOnce(undefined)
+    mockState.ingest.mockResolvedValueOnce({ rolledBack: false })
 
     const store = useChatSyncStore()
     store.initialize('authority')
 
-    const peer = new MockBroadcastChannel('airi:stage-tamagotchi:chat-sync')
-    peer.postMessage({
-      type: 'command',
-      requestId: 'req-2',
-      senderId: 'peer',
-      command: 'retry',
-      payload: {
-        sessionId: 'session-1',
-        index: 4,
-      },
-    })
+    const peer = postCommandFromPeer('retry', { sessionId: 'session-1', index: 4 })
 
     await vi.waitFor(() => {
       expect(mockState.setSessionMessages).toHaveBeenCalledWith('session-1', [
@@ -339,22 +332,12 @@ describe('useChatSyncStore', async () => {
       { role: 'assistant', content: 'answer-2' },
       { role: 'user', content: 'hello-3' },
     ]
-    mockState.ingest.mockResolvedValueOnce(undefined)
+    mockState.ingest.mockResolvedValueOnce({ rolledBack: false })
 
     const store = useChatSyncStore()
     store.initialize('authority')
 
-    const peer = new MockBroadcastChannel('airi:stage-tamagotchi:chat-sync')
-    peer.postMessage({
-      type: 'command',
-      requestId: 'req-3',
-      senderId: 'peer',
-      command: 'retry',
-      payload: {
-        sessionId: 'session-1',
-        index: 4,
-      },
-    })
+    const peer = postCommandFromPeer('retry', { sessionId: 'session-1', index: 4 })
 
     await vi.waitFor(() => {
       expect(mockState.setSessionMessages).toHaveBeenCalledWith('session-1', [
@@ -512,14 +495,7 @@ describe('useChatSyncStore', async () => {
     const store = useChatSyncStore()
     store.initialize('authority')
 
-    const peer = new MockBroadcastChannel('airi:stage-tamagotchi:chat-sync')
-    peer.postMessage({
-      type: 'command',
-      requestId: 'req-stop',
-      senderId: 'peer',
-      command: 'stop',
-      payload: { sessionId: 'session-1' },
-    })
+    const peer = postCommandFromPeer('stop', { sessionId: 'session-1' })
 
     await vi.waitFor(() => {
       expect(mockState.stopSending).toHaveBeenCalledWith('session-1')
@@ -635,14 +611,7 @@ describe('useChatSyncStore', async () => {
     const store = useChatSyncStore()
     store.initialize('authority')
 
-    const peer = new MockBroadcastChannel('airi:stage-tamagotchi:chat-sync')
-    peer.postMessage({
-      type: 'command',
-      requestId: 'req-retry-rollback',
-      senderId: 'peer',
-      command: 'retry',
-      payload: { sessionId: 'session-1', index: 4 },
-    })
+    const peer = postCommandFromPeer('retry', { sessionId: 'session-1', index: 4 })
 
     await vi.waitFor(() => {
       expect(mockState.ingest).toHaveBeenCalledTimes(1)
@@ -694,14 +663,7 @@ describe('useChatSyncStore', async () => {
     const store = useChatSyncStore()
     store.initialize('authority')
 
-    const peer = new MockBroadcastChannel('airi:stage-tamagotchi:chat-sync')
-    peer.postMessage({
-      type: 'command',
-      requestId: 'req-retry-concurrent',
-      senderId: 'peer',
-      command: 'retry',
-      payload: { sessionId: 'session-1', index: 3 },
-    })
+    const peer = postCommandFromPeer('retry', { sessionId: 'session-1', index: 3 })
 
     await vi.waitFor(() => {
       expect(mockState.ingest).toHaveBeenCalledTimes(1)
@@ -741,12 +703,12 @@ describe('useChatSyncStore', async () => {
     const store = useChatSyncStore()
     store.initialize('authority')
 
-    const responses: Array<{ ok: boolean, outcome?: { error?: { message?: string } } }> = []
+    const responses: Array<{ ok: boolean, result?: { error?: { message?: string } } }> = []
     const peer = new MockBroadcastChannel('airi:stage-tamagotchi:chat-sync')
     peer.addEventListener('message', (event) => {
-      const message = (event as MessageEvent).data as { type: string, ok?: boolean, outcome?: { error?: { message?: string } } }
+      const message = (event as MessageEvent).data as { type: string, ok?: boolean, result?: { error?: { message?: string } } }
       if (message.type === 'response')
-        responses.push({ ok: !!message.ok, outcome: message.outcome })
+        responses.push({ ok: !!message.ok, result: message.result })
     })
 
     peer.postMessage({
@@ -767,7 +729,7 @@ describe('useChatSyncStore', async () => {
     // The response still carries the structured outcome so the follower composer
     // can react (and suppress its own duplicate local row).
     await vi.waitFor(() => {
-      expect(responses.some(response => response.ok && response.outcome?.error?.message === 'stream exploded')).toBe(true)
+      expect(responses.some(response => response.ok && response.result?.error?.message === 'stream exploded')).toBe(true)
     })
 
     peer.close()
@@ -796,7 +758,7 @@ describe('useChatSyncStore', async () => {
             requestId: message.requestId,
             authorityId: 'authority',
             ok: true,
-            outcome: { rolledBack: false },
+            result: { rolledBack: false },
           })
         }, 120000)
       }

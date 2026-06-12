@@ -315,7 +315,7 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
             model: activeModel.value!,
             chatProvider: provider,
           })
-          if (outcome?.error)
+          if (outcome.error)
             console.error('[markdown-stress] Online send failed', outcome.error.message)
         }
         catch (error) {
@@ -375,7 +375,7 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
             model: modelToUse,
             chatProvider: mockProvider,
           })
-          if (outcome?.error)
+          if (outcome.error)
             console.error('[markdown-stress] Mock send failed', outcome.error.message)
         }
         catch (error) {

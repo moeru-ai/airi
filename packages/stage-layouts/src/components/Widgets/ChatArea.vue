@@ -16,8 +16,8 @@ import { useI18n } from 'vue-i18n'
 
 import IndicatorMicVolume from './IndicatorMicVolume.vue'
 
+import { useComposerSend } from '../../composables/composerSend'
 import { useTranscriptions } from '../../composables/use-transcriptions'
-import { useComposerSend } from '../../composables/useComposerSend'
 import { useStopSpeakingButton } from '../../composables/useStopSpeakingButton'
 
 const messageInput = ref<string>('')
@@ -35,10 +35,8 @@ const { themeColorsHueDynamic } = storeToRefs(useSettings())
 
 const { askPermission } = useSettingsAudioDevice()
 const { enabled, stream } = storeToRefs(useSettingsAudioDevice())
-const chatOrchestrator = useChatOrchestratorStore()
 const chatSession = useChatSessionStore()
-const { onAfterMessageComposed, stopSending } = chatOrchestrator
-const { isActiveSessionStreaming } = storeToRefs(chatOrchestrator)
+const { stopSending } = useChatOrchestratorStore()
 const { audioContext } = useAudioContext()
 const { t } = useI18n()
 const sendModeLabels = computed<Record<SendMode, string>>(() => ({
@@ -101,9 +99,6 @@ watch(hearingPopoverOpen, async (value) => {
   if (value) {
     await askPermission()
   }
-})
-
-onAfterMessageComposed(async () => {
 })
 
 const { startAnalyzer, stopAnalyzer } = useAudioAnalyzer()
@@ -271,10 +266,8 @@ watch(sendMode, () => {
           orchestrator directly rather than going through chat-sync (this
           surface sends via ingest(), not requestIngest()), and scopes the stop
           to the active session so another session's stream is untouched.
-          Visibility (isActiveSessionStreaming) is owned by the store.
         -->
         <ChatStopButton
-          v-if="isActiveSessionStreaming"
           :class="[
             'h-8 w-8 rounded-md text-lg',
             'hover:bg-red-100/60 dark:hover:bg-red-900/40',

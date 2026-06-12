@@ -70,6 +70,23 @@ const {
 
 let stopOnStopRecord: (() => void) | undefined
 
+// A stream/hook failure resolves outcome.error instead of throwing; the catch
+// only fires for a pre-append failure. Surface both.
+async function sendVoiceText(text: string) {
+  try {
+    const provider = await providersStore.getProviderInstance(activeChatProvider.value)
+    if (!provider || !activeChatModel.value)
+      return
+
+    const outcome = await chatStore.ingest(text, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
+    if (outcome.error)
+      console.error('Failed to send chat from voice:', outcome.error.message)
+  }
+  catch (err) {
+    console.error('Failed to send chat from voice:', err)
+  }
+}
+
 async function startAudioInteraction() {
   try {
     await initVAD()
@@ -82,20 +99,7 @@ async function startAudioInteraction() {
       if (!text || !text.trim())
         return
 
-      try {
-        const provider = await providersStore.getProviderInstance(activeChatProvider.value)
-        if (!provider || !activeChatModel.value)
-          return
-
-        // A stream/hook failure resolves outcome.error instead of throwing; the
-        // catch only fires for a pre-append failure. Surface both.
-        const outcome = await chatStore.ingest(text, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
-        if (outcome?.error)
-          console.error('Failed to send chat from voice:', outcome.error.message)
-      }
-      catch (err) {
-        console.error('Failed to send chat from voice:', err)
-      }
+      await sendVoiceText(text)
     })
   }
   catch (e) {
@@ -109,27 +113,11 @@ async function handleSpeechStart() {
     // ChatArea uses only onSentenceEnd to avoid re-adding deleted text.
     await transcribeForMediaStream(stream.value, {
       onSentenceEnd: (delta) => {
-        const finalText = delta
-        if (!finalText || !finalText.trim()) {
+        if (!delta || !delta.trim()) {
           return
         }
 
-        void (async () => {
-          try {
-            const provider = await providersStore.getProviderInstance(activeChatProvider.value)
-            if (!provider || !activeChatModel.value)
-              return
-
-            // A stream/hook failure resolves outcome.error instead of throwing;
-            // the catch only fires for a pre-append failure. Surface both.
-            const outcome = await chatStore.ingest(finalText, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
-            if (outcome?.error)
-              console.error('Failed to send chat from voice:', outcome.error.message)
-          }
-          catch (err) {
-            console.error('Failed to send chat from voice:', err)
-          }
-        })()
+        void sendVoiceText(delta)
       },
     })
     return

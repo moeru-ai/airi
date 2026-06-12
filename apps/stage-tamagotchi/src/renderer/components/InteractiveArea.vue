@@ -3,7 +3,7 @@ import type { ChatToolCallRendererRegistry } from '@proj-airi/stage-ui/component
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { errorMessageFrom } from '@moeru/std'
-import { runComposerSend } from '@proj-airi/stage-layouts/composables/runComposerSend'
+import { runComposerSend } from '@proj-airi/stage-layouts/composables/composerSend'
 import { useStopSpeakingButton } from '@proj-airi/stage-layouts/composables/useStopSpeakingButton'
 import { ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
 import { ChatStopButton } from '@proj-airi/stage-ui/components/scenarios/chat'
@@ -44,7 +44,7 @@ const airiCardStore = useAiriCardStore()
 
 const { messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
-const { sending, isActiveSessionStreaming } = storeToRefs(chatOrchestrator)
+const { sending } = storeToRefs(chatOrchestrator)
 const { activeCardId } = storeToRefs(airiCardStore)
 const { t } = useI18n()
 const { openImagePreview } = journalPreviewStore
@@ -383,12 +383,7 @@ async function handleCleanup() {
       </div>
     </div>
     <div :class="['flex items-center justify-end gap-2 py-1']">
-      <!--
-        Visibility (isActiveSessionStreaming) is owned by the chat store; here it
-        reflects the in-flight send mirrored across the chat-sync relay.
-      -->
       <ChatStopButton
-        v-if="isActiveSessionStreaming"
         :class="[
           'max-h-[10lh] min-h-[1lh] rounded-md p-2 text-lg',
           'bg-red-100 dark:bg-red-900/30',

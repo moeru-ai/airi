@@ -79,7 +79,7 @@ interface RetryCommandPayload {
 }
 
 type ChatResponsePayload
-  = | { ok: true, result?: SpotlightIngestResult }
+  = | { ok: true, result?: SpotlightIngestResult | SendOutcome }
     | { ok: false, error?: string }
 
 type ChatSyncMessage
@@ -94,7 +94,7 @@ type ChatSyncMessage
     | ChatCommandMessage<'delete-message', { sessionId?: string, messageId?: string, index?: number }>
     | ChatCommandMessage<'stop', { sessionId?: string }>
     | { type: 'ack', requestId: string, authorityId: string }
-    | ({ type: 'response', requestId: string, authorityId: string, outcome?: SendOutcome } & ChatResponsePayload)
+    | ({ type: 'response', requestId: string, authorityId: string } & ChatResponsePayload)
 
 interface PendingRequest {
   resolve: (result?: unknown) => void
@@ -455,7 +455,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     // Never started (stopped/cancelled before any output): undo the truncation
     // so the retried turn and the tail survive. A deliberate stop is a silent
     // success, so no error is surfaced.
-    if (outcome?.rolledBack) {
+    if (outcome.rolledBack) {
       restoreTruncation()
       return
     }
@@ -464,7 +464,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     // (mirroring the composer policy). The error row must land in authority
     // history (as executeIngestDurable does for ingest): a follower-local row
     // would be wiped by the session snapshot the restore above just triggered.
-    if (outcome?.error) {
+    if (outcome.error) {
       if (!outcome.error.turnCommitted)
         restoreTruncation()
       appendSessionErrorMessage(sessionId, outcome.error.message)
@@ -530,7 +530,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     // pre-append failure that preserves the throw-means-uncommitted invariant.
     post({ type: 'ack', requestId: message.requestId, authorityId: instanceId })
 
-    const respond = (response: ChatResponsePayload & { outcome?: SendOutcome }) => {
+    const respond = (response: ChatResponsePayload) => {
       post({
         type: 'response',
         requestId: message.requestId,
@@ -540,15 +540,15 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     }
 
     try {
-      // Only `ingest` produces an outcome the composer can act on.
-      let outcome: SendOutcome | undefined
+      // Only `ingest` and `spotlight-ingest` resolve a result the requester acts on.
+      let result: SendOutcome | SpotlightIngestResult | undefined
       switch (message.command) {
         case 'ingest':
-          outcome = await executeIngestDurable(message.payload)
+          result = await executeIngestDurable(message.payload)
           break
         case 'spotlight-ingest':
-          respond({ ok: true, result: await executeSpotlightIngest(message.payload) })
-          return
+          result = await executeSpotlightIngest(message.payload)
+          break
         case 'retry':
           await executeRetry(message.payload)
           break
@@ -563,7 +563,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
           break
       }
 
-      respond({ ok: true, outcome })
+      respond({ ok: true, result })
     }
     catch (error) {
       const errorMessage = errorMessageFrom(error) ?? 'Unknown chat sync command failure'
@@ -606,7 +606,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     pendingRequests.delete(message.requestId)
 
     if (message.ok) {
-      pending.resolve('result' in message ? message.result : message.outcome)
+      pending.resolve(message.result)
       return
     }
 
