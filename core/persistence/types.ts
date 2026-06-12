@@ -13,6 +13,7 @@
  */
 
 import type { AiriEvent } from "../events/types.js"
+import type { WorkspaceSnapshot } from "../workspace/types.js"
 import type { SessionState } from "../runtime/session.js"
 
 // ── Branded ID ──────────────────────────────────────────────────────────
@@ -253,6 +254,8 @@ export interface RuntimeSnapshot {
 
 	/** Optional execution state for in-flight executions. */
 	readonly executionState?: SerializedExecutionState
+\n	/** Serialized workspace state. */
+	readonly workspaces: SerializedWorkspace[]
 }
 
 // ── Recovery metadata ───────────────────────────────────────────────────
@@ -523,4 +526,43 @@ export interface PersistenceOptions {
 	 * @default 100_000
 	 */
 	readonly maxEventLogSize?: number
+}
+
+/**
+ * Plain serializable version of a WorkspaceSnapshot.
+ */
+export interface SerializedWorkspace {
+	/** Workspace ID. */
+	readonly id: string
+
+	/** Plain descriptor. */
+	readonly descriptor: {
+		readonly id: string
+		readonly name: string
+		readonly description?: string
+		readonly rootPath: string
+		readonly state: string
+		readonly sessionId?: string
+		readonly repositoryId?: string
+		readonly branchName?: string
+		readonly createdAt: string
+		readonly updatedAt: string
+		readonly worktreePath?: string
+		readonly metadata: Record<string, unknown>
+	}
+
+	/** Active lease, if any. */
+	readonly lease?: {
+		readonly workspaceId: string
+		readonly sessionId: string
+		readonly acquiredAt: string
+		readonly expiresAt?: string
+		readonly leaseToken: string
+	}
+
+	/** IDs of tasks currently associated with this workspace. */
+	readonly activeTaskIds: string[]
+
+	/** Snapshot creation timestamp. */
+	readonly createdAt: string
 }

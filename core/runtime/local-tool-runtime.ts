@@ -14,6 +14,7 @@
  * - All errors are wrapped in structured ToolExecutionResult — this class
  *   does not throw.
  * - Optional EventStore persistence for tool execution events.
+ * - Optional WorkspaceManager for workspace-scoped tool execution.
  */
 
 import type { EventBus } from "../events/bus.js"
@@ -27,6 +28,7 @@ import type {
 import type { ToolRuntime } from "./tool-runtime.js"
 import type { CapabilityRegistry } from "../capabilities/registry.js"
 import type { EventStore } from "../persistence/types.js"
+import type { WorkspaceManager } from "../workspace/manager.js"
 
 /**
  * Tool handler function type.
@@ -43,7 +45,8 @@ export type ToolHandler = (
  *
  * Dispatches tool invocations through a CapabilityRegistry and emits
  * lifecycle events via an EventBus. Optionally persists tool execution
- * events to an EventStore.
+ * events to an EventStore. Optionally validates workspace leases before
+ * executing workspace-scoped tools.
  */
 export class LocalToolRuntime implements ToolRuntime {
 	private readonly registry: CapabilityRegistry
@@ -53,6 +56,11 @@ export class LocalToolRuntime implements ToolRuntime {
 	 * Optional event store for persisting tool execution events.
 	 */
 	private readonly eventStore: EventStore | undefined
+
+	/**
+	 * Optional workspace manager for workspace-scoped execution.
+	 */
+	private readonly workspaceManager: WorkspaceManager | undefined
 
 	/**
 	 * Registered tool handlers, keyed by ToolId.
@@ -65,11 +73,18 @@ export class LocalToolRuntime implements ToolRuntime {
 	 * @param registry - The capability registry to look up tools from.
 	 * @param events - The event bus for emitting tool lifecycle events.
 	 * @param eventStore - Optional event store for persisting tool execution events.
+	 * @param workspaceManager - Optional workspace manager for workspace-scoped execution.
 	 */
-	constructor(registry: CapabilityRegistry, events: EventBus, eventStore?: EventStore) {
+	constructor(
+		registry: CapabilityRegistry,
+		events: EventBus,
+		eventStore?: EventStore,
+		workspaceManager?: WorkspaceManager,
+	) {
 		this.registry = registry
 		this.events = events
 		this.eventStore = eventStore
+		this.workspaceManager = workspaceManager
 	}
 
 	/**
@@ -145,6 +160,31 @@ export class LocalToolRuntime implements ToolRuntime {
 				output: null,
 				durationMs,
 				error: { code: "CANCELLED", message: "Task cancelled before execution" },
+			}
+		}
+
+		// Validate workspace lease if workspace context is present.
+		if (this.workspaceManager && context.workspaceContext) {
+			const valid = this.workspaceManager.validateLease(
+				context.workspaceContext.workspaceId,
+				context.workspaceContext.leaseToken ?? "",
+			)
+			if (!valid) {
+				const durationMs = Date.now() - startedAt
+				this.events.emit("tool.execution.failed", {
+					timestamp: new Date().toISOString(),
+					source: "tool-runtime",
+					executionId,
+					toolId: toolId as string,
+					taskId: context.taskId as string,
+					error: { code: "LEASE_INVALID", message: "Workspace lease is invalid or expired" },
+				})
+				return {
+					success: false,
+					output: null,
+					durationMs,
+					error: { code: "LEASE_INVALID", message: "Workspace lease is invalid or expired" },
+				}
 			}
 		}
 

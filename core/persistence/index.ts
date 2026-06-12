@@ -23,5 +23,6 @@ export type {
 	SerializedCapability,
 	SerializedSession,
 	SerializedExecutionState,
+	SerializedWorkspace,
 	PersistenceOptions,
 } from "./types.js"

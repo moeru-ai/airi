@@ -19,6 +19,7 @@ export type {
 	ToolId,
 	CapabilityDescriptor,
 	ToolDescriptor,
+	WorkspaceContext,
 	ToolExecutionContext,
 	ToolExecutionResult,
 	CapabilityStatus,

@@ -44,6 +44,13 @@ export type {
 	StepStarted,
 	StepCompleted,
 	StepFailed,
+	WorkspaceDestroyed,
+	WorkspaceLeased,
+	WorkspaceReleased,
+	WorkspaceRecovered,
+	WorkspaceCorrupted,
+	WorktreeCreated,
+	WorktreeRemoved,
 } from "./events/types.js"
 
 export type {
@@ -247,3 +254,27 @@ export type {
 	RecoveryResult,
 	RecoveryState,
 } from "./runtime/recovery.js"
+
+// ── Workspace isolation ────────────────────────────────────────────────
+
+export {
+	WorkspaceManager,
+	WorkspaceStorage,
+	WorkspaceWorktree,
+	createWorkspaceId,
+	isValidWorkspaceTransition,
+	VALID_WORKSPACE_TRANSITIONS,
+} from "./workspace/index.js"
+
+export type {
+	WorkspaceId,
+	WorkspaceState,
+	WorkspaceDescriptor,
+	WorkspaceLease,
+	WorkspaceSnapshot,
+	WorkspaceRecoveryState,
+	WorkspaceFilter,
+	CreateWorkspaceInput,
+	WorkspaceManagerOptions,
+	WorktreeRecord,
+} from "./workspace/index.js"

@@ -18,7 +18,7 @@ import type {
 	RuntimeStateStore,
 	RecoveryMetadata,
 } from "./types.js"
-import type { SerializedPlan, SerializedTask, SerializedCapability, SerializedSession, SerializedExecutionState } from "./types.js"
+import type { SerializedPlan, SerializedTask, SerializedCapability, SerializedSession, SerializedExecutionState, SerializedWorkspace } from "./types.js"
 
 // ── InMemorySnapshotStore ───────────────────────────────────────────────
 
@@ -99,6 +99,9 @@ export class SnapshotManager {
 	/** Function that captures current execution state. */
 	private captureExecutionState: (() => SerializedExecutionState | undefined) = () => undefined
 
+	/** Function that captures current workspace state. */
+	private captureWorkspaces: (() => SerializedWorkspace[]) = () => []
+
 	constructor(
 		store: SnapshotStore,
 		events: EventBus,
@@ -147,6 +150,13 @@ export class SnapshotManager {
 	}
 
 	/**
+	 * Set the workspace state capture function.
+	 */
+	setCaptureWorkspaces(fn: () => SerializedWorkspace[]): void {
+		this.captureWorkspaces = fn
+	}
+
+	/**
 	 * Set the event count provider (for recovery metadata).
 	 */
 	setEventCountProvider(fn: () => number): void {
@@ -172,6 +182,7 @@ export class SnapshotManager {
 			capabilities: this.captureCapabilities(),
 			sessions: this.captureSessions(),
 			executionState: this.captureExecutionState(),
+			workspaces: this.captureWorkspaces(),
 		}
 
 		await this.store.save(snapshot)

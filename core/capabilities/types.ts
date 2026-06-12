@@ -14,6 +14,7 @@
  */
 
 import type { TaskId } from "../tasks/types.js"
+import type { WorkspaceId } from "../workspace/types.js"
 import type { CancellationToken } from "../tasks/cancellation.js"
 
 // ── Branded IDs ──────────────────────────────────────────────────────────
@@ -115,6 +116,28 @@ export interface CapabilityDescriptor {
 	readonly tools: ToolDescriptor[]
 }
 
+// ── Workspace context ──────────────────────────────────────────────────
+
+/**
+ * Workspace context for sandbox-aware tool execution.
+ *
+ * When present, tools should scope all filesystem and git operations
+ * to the workspace root and worktree.
+ */
+export interface WorkspaceContext {
+	/** The workspace this execution is scoped to. */
+	readonly workspaceId: WorkspaceId
+
+	/** Absolute path to the workspace root directory. */
+	readonly rootPath: string
+
+	/** Optional git worktree path for isolated git operations. */
+	readonly worktreePath?: string
+
+	/** Lease token for workspace access validation. */
+	readonly leaseToken?: string
+}
+
 // ── Tool execution context ──────────────────────────────────────────────
 
 /**
@@ -128,6 +151,9 @@ export interface ToolExecutionContext {
 
 	/** Optional workspace identifier for scoping filesystem operations. */
 	readonly workspaceId?: string
+
+	/** Optional workspace context for sandbox-aware execution. */
+	readonly workspaceContext?: WorkspaceContext
 
 	/** Cancellation token for cooperative cancellation. */
 	readonly cancellationToken: CancellationToken

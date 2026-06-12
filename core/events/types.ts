@@ -15,6 +15,7 @@
 
 import type { TaskError } from "../tasks/types.js"
 import type { CapabilityId, ToolId } from "../capabilities/types.js"
+import type { WorkspaceId, WorkspaceState } from "../workspace/types.js"
 
 // ── Base envelope ─────────────────────────────────────────────────────
 
@@ -197,23 +198,6 @@ export interface TaskCancelled extends AiriEventBase {
 	readonly reason?: string
 }
 
-// ── Workspace events ──────────────────────────────────────────────────
-
-/**
- * Emitted when a workspace session is created for a task.
- */
-export interface WorkspaceCreated extends AiriEventBase {
-	readonly type: "workspace.created"
-
-	/** The workspace session identifier. */
-	readonly sessionId: string
-
-	/** Absolute path to the workspace root. */
-	readonly rootPath: string
-
-	/** The task this workspace is associated with. */
-	readonly taskId: string
-}
 
 // ── Tool execution lifecycle events ───────────────────────────────────
 
@@ -438,7 +422,6 @@ export type AiriEvent =
 	| ToolFinished
 	| ModuleActivated
 	| ModuleCrashed
-	| WorkspaceCreated
 	| ToolExecutionStarted
 	| ToolExecutionCompleted
 	| PatchGenerated
@@ -457,6 +440,162 @@ export type AiriEvent =
 	| CapabilityRemoved
 	| ToolExecutionFailed
 	| ToolExecutionCancelled
+	| WorkspaceCreated
+	| WorkspaceDestroyed
+	| WorkspaceLeased
+	| WorkspaceReleased
+	| WorkspaceRecovered
+	| WorkspaceCorrupted
+	| WorktreeCreated
+	| WorktreeRemoved
+
+// ── Workspace isolation events ─────────────────────────────────────────
+
+/**
+ * Emitted when a new workspace is created.
+ */
+export interface WorkspaceCreated extends AiriEventBase {
+	readonly type: "workspace.created"
+
+	/** The workspace identifier. */
+	readonly workspaceId: WorkspaceId
+
+	/** Human-readable workspace name. */
+	readonly name: string
+
+	/** Absolute path to the workspace root. */
+	readonly rootPath: string
+
+	/** Associated session, if any. */
+	readonly sessionId?: string
+
+	/** Associated repository, if any. */
+	readonly repositoryId?: string
+
+	/** Git branch name, if using worktree isolation. */
+	readonly branchName?: string
+}
+
+/**
+ * Emitted when a workspace is destroyed.
+ */
+export interface WorkspaceDestroyed extends AiriEventBase {
+	readonly type: "workspace.destroyed"
+
+	/** The workspace identifier. */
+	readonly workspaceId: WorkspaceId
+
+	/** Human-readable workspace name. */
+	readonly name: string
+
+	/** Optional destruction reason. */
+	readonly reason?: string
+}
+
+/**
+ * Emitted when a workspace is leased to a session.
+ */
+export interface WorkspaceLeased extends AiriEventBase {
+	readonly type: "workspace.leased"
+
+	/** The workspace identifier. */
+	readonly workspaceId: WorkspaceId
+
+	/** The session that holds the lease. */
+	readonly sessionId: string
+
+	/** Unique lease token for validation. */
+	readonly leaseToken: string
+
+	/** Optional lease expiry timestamp. */
+	readonly expiresAt?: string
+}
+
+/**
+ * Emitted when a workspace lease is released.
+ */
+export interface WorkspaceReleased extends AiriEventBase {
+	readonly type: "workspace.released"
+
+	/** The workspace identifier. */
+	readonly workspaceId: WorkspaceId
+
+	/** The session that held the lease. */
+	readonly sessionId: string
+
+	/** The lease token that was released. */
+	readonly leaseToken: string
+}
+
+/**
+ * Emitted when a workspace is recovered after restart.
+ */
+export interface WorkspaceRecovered extends AiriEventBase {
+	readonly type: "workspace.recovered"
+
+	/** The workspace identifier. */
+	readonly workspaceId: WorkspaceId
+
+	/** State before the crash/restart. */
+	readonly previousState: WorkspaceState
+
+	/** State after recovery. */
+	readonly newState: WorkspaceState
+
+	/** Whether reconciliation is needed. */
+	readonly needsReconciliation: boolean
+}
+
+/**
+ * Emitted when a workspace is detected as corrupted.
+ */
+export interface WorkspaceCorrupted extends AiriEventBase {
+	readonly type: "workspace.corrupted"
+
+	/** The workspace identifier. */
+	readonly workspaceId: WorkspaceId
+
+	/** Error description. */
+	readonly error: string
+
+	/** Whether manual intervention is required. */
+	readonly needsManualIntervention: boolean
+}
+
+/**
+ * Emitted when a git worktree is created for a workspace.
+ */
+export interface WorktreeCreated extends AiriEventBase {
+	readonly type: "worktree.created"
+
+	/** The workspace identifier. */
+	readonly workspaceId: WorkspaceId
+
+	/** Path to the primary repository. */
+	readonly repositoryPath: string
+
+	/** Path to the created worktree. */
+	readonly worktreePath: string
+
+	/** Git branch name, if not detached. */
+	readonly branchName?: string
+}
+
+/**
+ * Emitted when a git worktree is removed.
+ */
+export interface WorktreeRemoved extends AiriEventBase {
+	readonly type: "worktree.removed"
+
+	/** The workspace identifier. */
+	readonly workspaceId: WorkspaceId
+
+	/** Path to the removed worktree. */
+	readonly worktreePath: string
+
+	/** Optional removal reason. */
+	readonly reason?: string
+}
 
 // ── Capability & tool registration events ──────────────────────────────
 
