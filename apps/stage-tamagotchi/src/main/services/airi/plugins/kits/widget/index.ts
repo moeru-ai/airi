@@ -1,12 +1,6 @@
-import type {
-  ExtensionHost,
-  KitDescriptor,
-} from '@proj-airi/plugin-sdk/plugin-host'
+import type { ExtensionHost, KitDescriptor } from '@proj-airi/plugin-sdk/plugin-host'
 
-export {
-  resolveWidgetAssetRoute,
-  rewriteWidgetModuleAssetUrl,
-} from './asset-url'
+export { resolveWidgetAssetRoute, rewriteWidgetModuleAssetUrl } from './asset-url'
 
 /**
  * Declares the built-in widget kit exposed by `stage-tamagotchi`.

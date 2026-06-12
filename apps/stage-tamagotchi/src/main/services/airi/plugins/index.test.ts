@@ -19,12 +19,8 @@ import { defineInvoke } from '@moeru/eventa'
 import { ExtensionHost } from '@proj-airi/plugin-sdk/plugin-host'
 import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
 
-import {
-  electronPluginGetAssetBaseUrl,
-} from '../../../../shared/eventa/plugin/assets'
-import {
-  electronPluginUpdateCapability,
-} from '../../../../shared/eventa/plugin/capabilities'
+import { electronPluginGetAssetBaseUrl } from '../../../../shared/eventa/plugin/assets'
+import { electronPluginUpdateCapability } from '../../../../shared/eventa/plugin/capabilities'
 import {
   electronPluginInspect,
   electronPluginList,
@@ -34,15 +30,11 @@ import {
   electronPluginSetEnabled,
   electronPluginUnload,
 } from '../../../../shared/eventa/plugin/host'
-import {
-  electronPluginToolsChanged,
-} from '../../../../shared/eventa/plugin/tools'
+import { electronPluginToolsChanged } from '../../../../shared/eventa/plugin/tools'
 import { setupExtensionHostServiceInternal } from './host'
 import { loadManifestsFrom } from './host/registry'
 import { setupExtensionHost as setupExtensionHostService } from './index'
-import {
-  gameletPluginKitDescriptor,
-} from './kits/gamelet'
+import { gameletPluginKitDescriptor } from './kits/gamelet'
 import { createGameletOrchestrationRuntime } from './kits/gamelet/orchestration'
 import { widgetPluginKitDescriptor } from './kits/widget'
 

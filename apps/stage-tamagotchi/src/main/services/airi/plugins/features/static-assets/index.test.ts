@@ -1,10 +1,10 @@
 import type { StaticAssetService } from '../../../http-server/static-assets'
 import type { StaticAssetSession } from '../../../http-server/static-assets/types'
-import type { PluginAssetCookie, PluginAssetCookieAdapter } from './index'
+import type { ExtensionAssetCookie, ExtensionAssetCookieAdapter } from './index'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createPluginAssetService } from './index'
+import { createExtensionAssetService } from './index'
 
 const mockState = vi.hoisted(() => ({
   createStaticAssetService: vi.fn(),
@@ -45,8 +45,8 @@ function createFakeServer(options: {
 }
 
 function createFakeCookieAdapter() {
-  const setCookies: PluginAssetCookie[] = []
-  const removedCookies: PluginAssetCookie[] = []
+  const setCookies: ExtensionAssetCookie[] = []
+  const removedCookies: ExtensionAssetCookie[] = []
 
   return {
     adapter: {
@@ -56,13 +56,13 @@ function createFakeCookieAdapter() {
       removeCookie: vi.fn(async (cookie) => {
         removedCookies.push(cookie)
       }),
-    } satisfies PluginAssetCookieAdapter,
+    } satisfies ExtensionAssetCookieAdapter,
     removedCookies,
     setCookies,
   }
 }
 
-describe('createPluginAssetService', () => {
+describe('createExtensionAssetService', () => {
   beforeEach(() => {
     mockState.createStaticAssetService.mockReset()
   })
@@ -75,7 +75,7 @@ describe('createPluginAssetService', () => {
     const { adapter, setCookies } = createFakeCookieAdapter()
     mockState.createStaticAssetService.mockReturnValue(server)
 
-    const service = createPluginAssetService({
+    const service = createExtensionAssetService({
       getManifestEntryByName: () => new Map(),
       cookieAdapter: adapter,
     })
@@ -122,7 +122,7 @@ describe('createPluginAssetService', () => {
     const { adapter, setCookies } = createFakeCookieAdapter()
     mockState.createStaticAssetService.mockReturnValue(server)
 
-    const service = createPluginAssetService({
+    const service = createExtensionAssetService({
       getManifestEntryByName: () => new Map(),
       cookieAdapter: adapter,
     })
@@ -134,7 +134,7 @@ describe('createPluginAssetService', () => {
       routeAssetPath: 'assets/app.js',
       pathPrefix: 'assets/',
       ttlMs: 60_000,
-    })).rejects.toThrow('Plugin asset server base URL is unavailable')
+    })).rejects.toThrow('Extension asset server base URL is unavailable')
 
     expect(server.revokeSession).toHaveBeenCalledWith('asset-session-2')
     expect(adapter.setCookie).not.toHaveBeenCalled()
@@ -148,7 +148,7 @@ describe('createPluginAssetService', () => {
     })
     const { adapter } = createFakeCookieAdapter()
     mockState.createStaticAssetService.mockReturnValue(server)
-    const service = createPluginAssetService({
+    const service = createExtensionAssetService({
       getManifestEntryByName: () => new Map(),
       cookieAdapter: adapter,
     })
@@ -160,7 +160,7 @@ describe('createPluginAssetService', () => {
       routeAssetPath: '../secret.txt',
       pathPrefix: '',
       ttlMs: 60_000,
-    })).rejects.toThrow('Plugin asset session routeAssetPath must be a safe plugin asset path')
+    })).rejects.toThrow('Extension asset session routeAssetPath must be a safe extension asset path')
 
     expect(server.revokeSession).toHaveBeenCalledWith('asset-session-3')
     expect(adapter.setCookie).not.toHaveBeenCalled()
@@ -195,14 +195,14 @@ describe('createPluginAssetService', () => {
     const { adapter, removedCookies } = createFakeCookieAdapter()
     mockState.createStaticAssetService.mockReturnValue(server)
 
-    const service = createPluginAssetService({
+    const service = createExtensionAssetService({
       getManifestEntryByName: () => new Map(),
       cookieAdapter: adapter,
     })
 
     await service.revokeSession('direct-asset-session')
     await service.revokeByOwnerSessionId('owner-session-1')
-    await service.revokeByPluginId('airi-plugin-game-chess')
+    await service.revokeByExtensionId('airi-plugin-game-chess')
     await service.revokeAll()
 
     expect(server.revokeSession).toHaveBeenCalledWith('direct-asset-session')
@@ -251,7 +251,7 @@ describe('createPluginAssetService', () => {
     const { adapter, removedCookies } = createFakeCookieAdapter()
     mockState.createStaticAssetService.mockReturnValue(server)
 
-    const service = createPluginAssetService({
+    const service = createExtensionAssetService({
       getManifestEntryByName: () => new Map(),
       cookieAdapter: adapter,
     })

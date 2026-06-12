@@ -4,7 +4,7 @@ import type {
   PluginHostDebugSnapshot,
   PluginHostModuleSummary,
 } from '../../../../../shared/eventa/plugin/host'
-import type { PluginAssetSnapshotService } from '../features/static-assets'
+import type { ExtensionAssetSnapshotService } from '../features/static-assets'
 import type { ExtensionConfig, ManifestEntry } from '../types'
 
 import { rewriteWidgetModuleAssetUrl } from '../kits/widget'
@@ -15,12 +15,12 @@ import { buildPluginRegistrySnapshot } from './registry'
  *
  * Use when:
  * - Renderer devtools need sessions, kits, modules, and capability state
- * - Widget iframe asset URLs must be rewritten to mounted plugin asset URLs
+ * - Widget iframe asset URLs must be rewritten to mounted extension asset URLs
  *
  * Expects:
  * - `host` is the initialized extension host instance
  * - `manifestEntryByName` contains entries for any extension-owned modules being inspected
- * - `pluginAssetService` owns plugin asset URL/session lifecycle when mounted asset URLs are needed
+ * - `extensionAssetService` owns extension asset URL/session lifecycle when mounted asset URLs are needed
  *
  * Returns:
  * - A full debug snapshot with registry, sessions, kits, modules, and capabilities
@@ -32,9 +32,9 @@ export function buildPluginHostDebugSnapshot(options: {
   config: ExtensionConfig
   loaded: Set<string>
   manifestEntryByName: Map<string, ManifestEntry>
-  pluginAssetService?: PluginAssetSnapshotService
+  extensionAssetService?: ExtensionAssetSnapshotService
 }): Promise<PluginHostDebugSnapshot> {
-  const pluginAssetService = options.pluginAssetService
+  const extensionAssetService = options.extensionAssetService
   const modules = Promise.all(options.host
     .listBindings()
     .map(module =>
@@ -42,8 +42,8 @@ export function buildPluginHostDebugSnapshot(options: {
         module as PluginHostModuleSummary,
         options.manifestEntryByName,
         {
-          pluginAssetBaseUrl: pluginAssetService?.getBaseUrl(),
-          ...(pluginAssetService
+          pluginAssetBaseUrl: extensionAssetService?.getBaseUrl(),
+          ...(extensionAssetService
             ? {
                 createAssetSession: ({ extensionId, version, sessionId, routeAssetPath, sessionPathPrefix }: {
                   extensionId: string
@@ -51,7 +51,7 @@ export function buildPluginHostDebugSnapshot(options: {
                   sessionId: string
                   routeAssetPath: string
                   sessionPathPrefix: string
-                }) => pluginAssetService.createAssetSession({
+                }) => extensionAssetService.createAssetSession({
                   pluginId: extensionId,
                   version,
                   ownerSessionId: sessionId,

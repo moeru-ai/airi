@@ -3,10 +3,7 @@ import type { ManifestEntry } from '../../types'
 
 import { isPlainObject } from 'es-toolkit'
 
-import {
-  buildMountedStaticAssetPath,
-  normalizeStaticAssetPath,
-} from '../../../http-server/static-assets/paths'
+import { buildMountedStaticAssetPath, normalizeStaticAssetPath } from '../../../http-server/static-assets/paths'
 
 /**
  * Describes one widget iframe asset as seen from the mounted `/ui` route.

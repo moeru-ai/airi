@@ -5,9 +5,9 @@ import type {
   PluginRegistrySnapshot,
 } from '../../../../../shared/eventa/plugin/host'
 import type {
-  PluginAssetCookie,
-  PluginAssetSession,
-  PluginAssetSnapshotService,
+  ExtensionAssetCookie,
+  ExtensionAssetSession,
+  ExtensionAssetSnapshotService,
 } from '../features/static-assets'
 import type { ExtensionHostService, SetupExtensionHostOptions } from '../types'
 
@@ -18,7 +18,7 @@ import { ExtensionHost } from '@proj-airi/plugin-sdk/plugin-host'
 import { app, session as electronSession } from 'electron'
 
 import { createExtensionAutoReloadFeature } from '../features/auto-reload'
-import { createPluginAssetService } from '../features/static-assets'
+import { createExtensionAssetService } from '../features/static-assets'
 import { createBuiltInExtensionKitRuntime } from '../kits'
 import { createExtensionHostConfigStore } from './config'
 import { buildPluginHostDebugSnapshot } from './debug'
@@ -34,7 +34,7 @@ const extensionAssetSessionTtlMs = 30 * 24 * 60 * 60 * 1000
 
 function createElectronExtensionAssetCookieAdapter() {
   return {
-    async setCookie(cookie: PluginAssetCookie) {
+    async setCookie(cookie: ExtensionAssetCookie) {
       await electronSession.defaultSession.cookies.set({
         url: cookie.url,
         name: cookie.name,
@@ -46,7 +46,7 @@ function createElectronExtensionAssetCookieAdapter() {
         expirationDate: Math.floor(cookie.expiresAt / 1000),
       })
     },
-    async removeCookie(cookie: PluginAssetCookie) {
+    async removeCookie(cookie: ExtensionAssetCookie) {
       await electronSession.defaultSession.cookies.remove(cookie.url, cookie.name)
     },
   }
@@ -169,7 +169,7 @@ export interface ExtensionHostServiceInternal extends ExtensionHostService {
    * - Host debugging needs a fresh runtime snapshot after registry refresh
    *
    * Expects:
-   * - The host and plugin asset service are both initialized
+   * - The host and extension asset service are both initialized
    *
    * Returns:
    * - The full debug snapshot exposed through plugin inspection IPC
@@ -184,10 +184,10 @@ export interface ExtensionHostServiceInternal extends ExtensionHostService {
    * - Snapshot consumers need the current loopback asset mount base
    *
    * Expects:
-   * - The plugin asset service may be started before this is called
+   * - The extension asset service may be started before this is called
    *
    * Returns:
-   * - The current plugin asset base URL, or an empty string when unavailable
+   * - The current extension asset base URL, or an empty string when unavailable
    */
   getAssetBaseUrl: () => string
 
@@ -233,10 +233,8 @@ export async function setupExtensionHostServiceInternal(
 
   // Kit API, Host
   const builtInKitRuntime = createBuiltInExtensionKitRuntime(options)
-  const host = new ExtensionHost({ runtime: 'electron', contributions: builtInKitRuntime.contributions })
-  builtInKitRuntime.attachHost(host) // reverse dependency injection
+  const host = new ExtensionHost({ runtime: 'electron' })
   log.withFields({ extensionsRoot }).log('loading extension manifests')
-  // Once kit injected the host, then apply kits
   builtInKitRuntime.registerHostKits(host)
 
   // extension registry
@@ -249,19 +247,19 @@ export async function setupExtensionHostServiceInternal(
   }
 
   // Extension feature: Static Assets serving
-  const pluginAssetService = createPluginAssetService({
+  const extensionAssetService = createExtensionAssetService({
     getManifestEntryByName: () => extensionRegistry.getManifestEntryByName(),
     cookieAdapter: createElectronExtensionAssetCookieAdapter(),
   })
-  await pluginAssetService.start()
+  await extensionAssetService.start()
 
   const loaded = new Set<string>()
   const loadedSessionIds = new Map<string, string>()
-  const moduleAssetSessionCache = new Map<string, PluginAssetSession>()
+  const moduleAssetSessionCache = new Map<string, ExtensionAssetSession>()
 
-  const clearModuleAssetSessionCacheByExtensionId = (pluginId: string) => {
+  const clearModuleAssetSessionCacheByExtensionId = (extensionId: string) => {
     for (const key of moduleAssetSessionCache.keys()) {
-      if (key.startsWith(`${pluginId}:`)) {
+      if (key.startsWith(`${extensionId}:`)) {
         moduleAssetSessionCache.delete(key)
       }
     }
@@ -305,7 +303,7 @@ export async function setupExtensionHostServiceInternal(
       return cachedSession
     }
 
-    const session = await pluginAssetService.createAssetSession({
+    const session = await extensionAssetService.createAssetSession({
       pluginId,
       version,
       ownerSessionId,
@@ -317,8 +315,8 @@ export async function setupExtensionHostServiceInternal(
     return session
   }
 
-  const pluginAssetSnapshotService: PluginAssetSnapshotService = {
-    getBaseUrl: pluginAssetService.getBaseUrl,
+  const extensionAssetSnapshotService: ExtensionAssetSnapshotService = {
+    getBaseUrl: extensionAssetService.getBaseUrl,
     createAssetSession: ({ pluginId, version, ownerSessionId, routeAssetPath, pathPrefix }) => {
       return createModuleAssetSession({
         pluginId,
@@ -338,7 +336,7 @@ export async function setupExtensionHostServiceInternal(
       config: getConfig(),
       loaded,
       manifestEntryByName: extensionRegistry.getManifestEntryByName(),
-      pluginAssetService: pluginAssetSnapshotService,
+      extensionAssetService: extensionAssetSnapshotService,
     })
   }
 
@@ -374,7 +372,7 @@ export async function setupExtensionHostServiceInternal(
     loaded.delete(name)
 
     clearModuleAssetSessionCacheByOwnerSessionId(sessionId)
-    await pluginAssetService.revokeByOwnerSessionId(sessionId)
+    await extensionAssetService.revokeByOwnerSessionId(sessionId)
 
     log.log('extension unloaded', { extension: name, sessionId })
   }
@@ -436,6 +434,9 @@ export async function setupExtensionHostServiceInternal(
 
   return {
     host,
+    // REVIEW: Tool registry ownership is currently hidden inside the built-in kit runtime even though
+    // the host service also exposes it for IPC listing/invocation. Consider moving registry ownership
+    // to this host service and passing it into kit registration as a dependency.
     tools: builtInKitRuntime.tools,
     manifests: extensionRegistry.listManifests(),
     async list() {
@@ -454,7 +455,7 @@ export async function setupExtensionHostServiceInternal(
       else {
         enabled.delete(payload.name)
         clearModuleAssetSessionCacheByExtensionId(payload.name)
-        await pluginAssetService.revokeByPluginId(payload.name)
+        await extensionAssetService.revokeByExtensionId(payload.name)
       }
 
       const entry = extensionRegistry.findManifestEntry(payload.name)
@@ -514,15 +515,15 @@ export async function setupExtensionHostServiceInternal(
       return await inspectSnapshot()
     },
     getAssetBaseUrl() {
-      return pluginAssetService.getBaseUrl() ?? ''
+      return extensionAssetService.getBaseUrl() ?? ''
     },
     async dispose() {
       autoReloadFeature.dispose()
       builtInKitRuntime.dispose()
 
       moduleAssetSessionCache.clear()
-      await pluginAssetService.revokeAll()
-      await pluginAssetService.stop()
+      await extensionAssetService.revokeAll()
+      await extensionAssetService.stop()
     },
   }
 }
