@@ -84,17 +84,15 @@ function createHostToolKit(options: { tools: TamagotchiToolRegistry }): KitRef<T
  *
  * Use when:
  * - Host bootstrap should depend on a kit-layer API instead of wiring widget/gamelet details inline
- * - Built-in kit registration and contributions should remain outside the host layer
+ * - Built-in kit registration should remain outside the host layer
  *
  * Expects:
  * - `widgetsManager` is initialized before host construction
  *
  * Returns:
- * - Helpers to attach contributions and register built-in kits on the host
+ * - Helpers to register built-in kits on the host
  */
 export function createBuiltInExtensionKitRuntime(options: SetupExtensionHostOptions): {
-  contributions: []
-  attachHost: (host: ExtensionHost) => void
   registerHostKits: (host: ExtensionHost) => void
   tools: TamagotchiToolRegistry
   dispose: () => void
@@ -103,10 +101,6 @@ export function createBuiltInExtensionKitRuntime(options: SetupExtensionHostOpti
   const tools = new TamagotchiToolRegistry()
 
   return {
-    contributions: [],
-    attachHost(_host) {
-      void options.widgetsManager
-    },
     registerHostKits(host) {
       registerWidgetPluginKit(host)
       registerGameletPluginKit(host)
