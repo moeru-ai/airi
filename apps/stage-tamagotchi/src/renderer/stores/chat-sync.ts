@@ -418,18 +418,11 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       toolset: 'widgets',
     })
 
-    // Guard the restore: between the truncation and now the re-send may have
-    // appended a fresh exchange (which a wholesale snapshot write would delete),
-    // or a concurrent session reset/fork may have replaced history (the snapshot
-    // then belongs to a conversation that no longer exists). Reference identity
-    // on the kept prefix tells the three cases apart:
-    //   - prefix gone: a reset/fork replaced history, so the snapshot is stale,
-    //     skip the restore;
-    //   - prefix intact and it is still the whole history: nothing else touched
-    //     the session, restore the full snapshot;
-    //   - prefix intact but history grew: a concurrent exchange landed after the
-    //     truncation point, so re-append only the removed tail rows that are not
-    //     already present, preserving that exchange.
+    // Guard the restore: a concurrent re-send or reset/fork may have changed
+    // history since the truncation. Reference identity on the kept prefix tells
+    // the cases apart: prefix gone means restore is skipped; prefix intact and
+    // unchanged means restore the full snapshot; prefix intact but grown means
+    // append only the missing tail.
     const restoreTruncation = () => {
       const current = chatSession.getSessionMessages(sessionId)
       const prefixIntact = nextMessages.every((message, index) => current[index] === message)
@@ -481,13 +474,10 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
 
   /**
    * Authority-side ingest that makes a resolved stream/hook failure durable. A
-   * stream/hook failure resolves `outcome.error` (it does not throw, so it can
-   * ride the relay back to a follower's composer), but a resolved value alone
-   * leaves no record in authority history. Append the error row here so it
-   * broadcasts to every window and survives the next session snapshot; the
-   * follower's composer then suppresses its own local row for the `outcome`
-   * source to avoid a duplicate. The throw path keeps its own append in
-   * handleCommand's catch (where the relay/authority was unreachable).
+   * resolved `outcome.error` leaves no record in authority history, so append the
+   * error row here: it broadcasts to every window and survives the next session
+   * snapshot, and the follower's composer suppresses its own local row for the
+   * `outcome` source to avoid a duplicate.
    */
   async function executeIngestDurable(payload: IngestCommandPayload): Promise<SendOutcome> {
     const outcome = await executeIngest(payload)
@@ -523,12 +513,9 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       return
 
     // Two-phase response: ack the moment a live authority receives the command,
-    // BEFORE executing it. The requester drops its 30s deadline on the ack and
-    // then waits for the real response, which arrives only at stream settle and
-    // can take minutes. The 30s timeout therefore fires only when no authority
-    // window acks (the window is closed), which is a genuine pre-append failure
-    // (no user turn was appended), preserving runComposerSend's catch invariant
-    // that a throw means the turn never reached history.
+    // BEFORE executing it. The requester drops its 30s deadline on the ack, so the
+    // timeout fires only when no authority acks (the window is closed), a genuine
+    // pre-append failure that preserves the throw-means-uncommitted invariant.
     post({ type: 'ack', requestId: message.requestId, authorityId: instanceId })
 
     const respond = (response: ChatResponsePayload & { outcome?: SendOutcome }) => {

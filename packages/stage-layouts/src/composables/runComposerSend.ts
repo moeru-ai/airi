@@ -76,8 +76,7 @@ export async function runComposerSend(params: ComposerSendParams): Promise<void>
     // INVARIANT: with the resolved-outcome contract, anything that THROWS
     // happened BEFORE the user turn was appended (provider resolution, relay
     // timeout, or a programmer error), so the turn is never in history. An
-    // unconditional restore therefore cannot duplicate a committed turn, which
-    // is why the old text-equality heuristic (isUserTurnWithText) is gone.
+    // unconditional restore therefore cannot duplicate a committed turn.
     restoreDraft()
     appendErrorRow(errorMessageFrom(error) ?? 'Failed to send message', 'thrown')
   }

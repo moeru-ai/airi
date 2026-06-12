@@ -547,21 +547,14 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       || !!buildingMessage.categorization?.reasoning?.trim()
 
     // Single commit/retract decision for the user turn. Idempotent (the `settled`
-    // guard makes it a no-op after the first run) so it can run from two
-    // post-stream-settle call sites: the success path, right BEFORE the assistant
-    // message is appended (so the user's cloud upload enqueues ahead of the
-    // assistant's; pushMessageToCloud sends immediately when the WS is open and
-    // its wire payload carries no timestamp, so the server orders by arrival),
-    // and the `finally` as the backstop for the stop/error paths. Both call sites
-    // run only after the provider stream has settled, so this does NOT reintroduce
-    // the old commit-at-first-output race. A rescuable send stopped before any
-    // output retracts the turn and reports `rolledBack` so the composer can rescue
-    // the text; this also covers a stop before the user row was even appended.
-    // Every other path commits the appended turn, so a non-rescuable stop or a
-    // send-level failure keeps its turn rather than deleting text no caller would
-    // catch. Stale generations are left to session reset/fork. Running once makes
-    // a late event (e.g. a tool-call drained after a retract) unable to resurrect
-    // a removed turn.
+    // guard makes it a no-op after the first run) so it can run from two call
+    // sites: the success path, right BEFORE the assistant message is appended (so
+    // the user's cloud upload enqueues ahead of the assistant's), and the
+    // `finally` as the backstop for stop/error paths. A rescuable send stopped
+    // before any output retracts the turn and reports `rolledBack` so the composer
+    // can rescue the text; every other path commits the appended turn. Stale
+    // generations are left to session reset/fork. Running once keeps a late event
+    // from resurrecting a removed turn.
     let settled = false
     let turnCommitted = false
     const settleUserTurn = () => {
@@ -907,10 +900,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       })
 
       // Commit the user turn BEFORE the assistant is appended so the user's
-      // cloud upload is enqueued (and, when the WS is open, sent) ahead of the
-      // assistant's. This runs post-stream-settle, so it is not the old
-      // commit-at-first-output race. The `finally` backstop covers stop/error
-      // paths that never reach here.
+      // cloud upload is enqueued ahead of the assistant's. The `finally` backstop
+      // covers stop/error paths that never reach here.
       settleUserTurn()
 
       // NOTICE: a Stop in this gap counts as a completed turn (no `stopped`

@@ -538,10 +538,9 @@ describe('createChatOrchestratorRuntime', () => {
   /**
    * @example
    * A non-rescuable queued send (retry / voice / transport, whose callers ignore
-   * the outcome) cancelled by Stop also reports rolledBack. Unlike a stopped
-   * active send, where `rescuable` gates retracting an already-appended turn, a
-   * queued send never appended anything, so "nothing entered history" holds for
-   * every caller.
+   * the outcome) cancelled by Stop reports rolledBack because it never appended
+   * anything, so "nothing entered history" holds for every caller regardless of
+   * rescuable.
    */
   it('settles a non-rescuable queued send as rolled back when stop fires with a backlog', async () => {
     const harness = createHarness()

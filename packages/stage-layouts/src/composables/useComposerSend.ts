@@ -61,9 +61,8 @@ export function useComposerSend(options: UseComposerSendOptions) {
         // The composer rescues the text on retract, so it opts into rescuable.
         rescuable: true,
       }),
-      // Lossless: rejoin the rescued text ahead of anything retyped since the
-      // send, instead of only restoring into an empty composer (which dropped
-      // the text whenever the user had started retyping).
+      // Lossless rejoin: prepend rescued text ahead of anything retyped since
+      // the send.
       restoreDraft: () => {
         messageInput.value = [textToSend, messageInput.value.trim()].filter(Boolean).join(' ')
       },

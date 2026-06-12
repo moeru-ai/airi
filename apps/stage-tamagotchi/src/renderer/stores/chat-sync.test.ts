@@ -771,7 +771,6 @@ describe('useChatSyncStore', async () => {
 
     // Past the old 30s deadline: the ack cleared it, so no timeout rejection.
     await vi.advanceTimersByTimeAsync(60000)
-    // Deliver the slow response.
     await vi.advanceTimersByTimeAsync(60000)
 
     await expect(pending).resolves.toEqual({ rolledBack: false })

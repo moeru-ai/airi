@@ -82,8 +82,7 @@ describe('isCloudSyncableMessage', () => {
    * @example
    * A stopped assistant turn is not cloud-syncable: the `stopped` flag does not
    * ride the wire format, so syncing it would land server-side as a normal
-   * completed turn. The reconcile loop stubs isCloudSyncableMessage, so this
-   * predicate test is where that exclusion is actually verified.
+   * completed turn.
    */
   it('rejects assistant turns marked stopped so they never reach the cloud outbox', () => {
     const stoppedAssistant: StreamingAssistantMessage = {
