@@ -412,6 +412,7 @@ describe('useChatSyncStore', async () => {
         ...(mockState.sessionMessages.value['session-1'] ?? []),
         assistantMessage('visible reply'),
       ]
+      return { rolledBack: false }
     })
 
     const { authorityStore, followerStore } = initializeAuthorityAndFollower()
@@ -464,6 +465,40 @@ describe('useChatSyncStore', async () => {
 
     await expectedRejection
 
+    store.dispose()
+    vi.useRealTimers()
+  })
+
+  /**
+   * A normal send is acked and then streams for an unbounded time, so the ack
+   * clears its pre-ack deadline. A spotlight request stays bounded end-to-end, so
+   * its 5-minute deadline survives the ack and still fires.
+   *
+   * @example
+   * store.requestSpotlightIngest({ text: '...' }) // authority acks, never responds -> rejects at 5 min
+   */
+  it('keeps the five minute spotlight deadline after the authority acks', async () => {
+    vi.useFakeTimers()
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const store = useChatSyncStore()
+    store.initialize('follower')
+
+    // The authority acks the spotlight command but never sends a response.
+    const authority = new MockBroadcastChannel('airi:stage-tamagotchi:chat-sync')
+    authority.addEventListener('message', (event) => {
+      const message = (event as MessageEvent).data as { type: string, command?: string, requestId?: string }
+      if (message.type === 'command' && message.command === 'spotlight-ingest')
+        authority.postMessage({ type: 'ack', requestId: message.requestId, authorityId: 'authority' })
+    })
+
+    const pending = store.requestSpotlightIngest({ text: 'hello ack then hang' })
+    const expectedRejection = expect(pending).rejects.toThrow('Spotlight response timed out')
+
+    await vi.advanceTimersByTimeAsync(300000)
+
+    await expectedRejection
+
+    authority.close()
     store.dispose()
     vi.useRealTimers()
   })

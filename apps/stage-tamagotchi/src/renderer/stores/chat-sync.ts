@@ -103,9 +103,16 @@ interface PendingRequest {
    * Pre-ack deadline. The authority acks on receipt (before executing), and the
    * ack clears this so the request then waits for the real response with no
    * deadline (a send can stream for minutes). Undefined once acked, so only an
-   * unanswered command (no live authority) ever times out.
+   * unanswered command (no live authority) ever times out. The exception is a
+   * `deadlineSurvivesAck` request, whose deadline is end-to-end and is left armed.
    */
   timeout: ReturnType<typeof setTimeout> | undefined
+  /**
+   * When true the deadline is an end-to-end bound the ack does not clear, so the
+   * request still times out even after the authority owns it (spotlight keeps its
+   * own 5-minute bound this way). When false (default) the deadline is pre-ack only.
+   */
+  deadlineSurvivesAck?: boolean
 }
 
 const CHAT_SYNC_CHANNEL_NAME = 'airi:stage-tamagotchi:chat-sync'
@@ -371,16 +378,21 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
   }
 
   async function executeSpotlightIngest(payload: SpotlightIngestPayload): Promise<SpotlightIngestResult> {
-    // NOTICE: `chatOrchestrator.ingest()` returns void; remove this snapshot
-    // read once ingest returns `{ sessionId, visibleText }`.
+    // `ingest()` resolves a SendOutcome, not the spotlight result: a stream or
+    // hook failure resolves `outcome.error` rather than throwing, so surface that
+    // real message here instead of letting it fall through to the generic
+    // empty-response error. The visible text is not on the outcome, so it is read
+    // from the assistant turn the send appended.
     const sessionId = activeSessionId.value
     const previousMessageCount = chatSession.getSessionMessages(sessionId).length
 
-    await executeIngest({
+    const outcome = await executeIngest({
       text: payload.text,
       toolset: 'artistry',
       sessionId,
     })
+    if (outcome.error)
+      throw new Error(outcome.error.message)
 
     const visibleText = readNewAssistantVisibleText(sessionId, previousMessageCount)
     if (!visibleText.trim())
@@ -569,12 +581,13 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
 
   function handleAck(message: Extract<ChatSyncMessage, { type: 'ack' }>) {
     const pending = pendingRequests.get(message.requestId)
-    if (!pending || pending.timeout === undefined)
+    if (!pending || pending.timeout === undefined || pending.deadlineSurvivesAck)
       return
 
     // The authority is alive and now owns the command; the only failure mode the
     // pre-ack deadline guarded (no authority window) cannot happen anymore. Clear
-    // it and wait for the response with no further deadline.
+    // it and wait for the response with no further deadline. A deadlineSurvivesAck
+    // request (spotlight) is exempt above: its deadline is an end-to-end bound.
     // NOTICE: accepted limitation: if the authority window closes mid-stream the
     // request stays pending until dispose() rejects it. No post-ack timeout is
     // used because the legitimate wait (a long stream) is unbounded, so any
@@ -686,6 +699,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     message: Extract<ChatSyncMessage, { type: 'command' }>,
     timeoutMs: number = REQUEST_TIMEOUT_MS,
     timeoutError: () => Error = () => new Error('Timed out waiting for chat authority response'),
+    deadlineSurvivesAck = false,
   ): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -699,6 +713,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
         resolve: result => resolve(result as T),
         reject,
         timeout,
+        deadlineSurvivesAck,
       })
       post(message)
     })
@@ -725,13 +740,16 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     if (mode.value === 'authority')
       return executeSpotlightIngest(payload)
 
+    // deadlineSurvivesAck: keep the 5-minute bound end-to-end. Unlike a chat send
+    // (acked then streamed for an unbounded time), a spotlight request must stay
+    // bounded even after the authority acks it.
     return dispatch<SpotlightIngestResult>({
       type: 'command',
       requestId: createRequestId(),
       senderId: instanceId,
       command: 'spotlight-ingest',
       payload,
-    }, SPOTLIGHT_REQUEST_TIMEOUT_MS, () => new Error('Spotlight response timed out'))
+    }, SPOTLIGHT_REQUEST_TIMEOUT_MS, () => new Error('Spotlight response timed out'), true)
   }
 
   async function requestRetry(payload: RetryCommandPayload) {
