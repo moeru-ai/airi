@@ -338,7 +338,7 @@ export const useSpeechStore = defineStore('speech', () => {
     ensureActiveSpeechModel()
     loadVoicesForProvider(activeSpeechProvider.value, activeSpeechModel.value || undefined).then(() => {
       if (activeSpeechVoiceId.value) {
-        activeSpeechVoice.value = availableVoices.value[activeSpeechProvider.value]?.find(voice => voice.id === activeSpeechVoiceId.value)
+        syncActiveSpeechVoiceSelection(activeSpeechVoiceId.value, availableVoices.value)
       }
     })
   })
@@ -354,29 +354,25 @@ export const useSpeechStore = defineStore('speech', () => {
     ensureActiveSpeechModel()
   })
 
+  function syncActiveSpeechVoiceSelection(voiceId: string, voices: Record<string, VoiceInfo[]>) {
+    const foundVoice = voices[activeSpeechProvider.value]?.find(voice => voice.id === voiceId)
+    activeSpeechVoice.value = foundVoice ?? {
+      id: voiceId,
+      name: voiceId,
+      description: voiceId,
+      previewURL: '',
+      languages: [{ code: 'en', title: 'English' }],
+      provider: activeSpeechProvider.value,
+      gender: 'neutral',
+    }
+  }
+
   watch([activeSpeechVoiceId, availableVoices], ([voiceId, voices]) => {
     if (voiceId) {
-      // For OpenAI Compatible, create a custom voice object (no voices available from API)
-      if (activeSpeechProvider.value === 'openai-compatible-audio-speech') {
-        // Always update to match voiceId (in case it changed)
-        activeSpeechVoice.value = {
-          id: voiceId,
-          name: voiceId,
-          description: voiceId,
-          previewURL: '',
-          languages: [{ code: 'en', title: 'English' }],
-          provider: activeSpeechProvider.value,
-          gender: 'neutral',
-        }
-      }
-      else {
-        // For other providers, find voice in available voices
-        const foundVoice = voices[activeSpeechProvider.value]?.find(voice => voice.id === voiceId)
-        // Only update if we found a voice, or if activeSpeechVoice is not set
-        if (foundVoice || !activeSpeechVoice.value) {
-          activeSpeechVoice.value = foundVoice
-        }
-      }
+      // Providers like OpenAI-compatible / Comet may accept a manual voice id
+      // even when they expose no voice catalog. Rebuild the active voice from
+      // the persisted id so the selection survives route changes and reloads.
+      syncActiveSpeechVoiceSelection(voiceId, voices)
     }
   }, {
     immediate: true,

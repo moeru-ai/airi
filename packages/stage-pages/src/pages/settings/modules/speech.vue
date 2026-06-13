@@ -285,10 +285,12 @@ onUnmounted(() => {
 
 function updateCustomVoiceName(value: string | undefined) {
   if (!value) {
+    activeSpeechVoiceId.value = ''
     activeSpeechVoice.value = undefined
     return
   }
 
+  activeSpeechVoiceId.value = value
   activeSpeechVoice.value = {
     id: value,
     name: value,

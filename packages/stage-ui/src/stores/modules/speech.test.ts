@@ -1,5 +1,6 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { useProvidersStore } from '../providers'
@@ -278,5 +279,29 @@ describe('speech store helpers', () => {
     expect(speechStore.activeSpeechModel).toBe('microsoft/v1')
     expect(speechStore.activeSpeechVoiceId).toBe('')
     expect(speechStore.activeSpeechVoice).toBeUndefined()
+  })
+
+  /**
+   * @example
+   * speechStore.activeSpeechProvider = 'comet-api-speech'
+   * speechStore.activeSpeechVoiceId = 'alloy'
+   */
+  it('rebuilds a manual voice selection when the provider returns no voice catalog', async () => {
+    const speechStore = useSpeechStore()
+
+    speechStore.activeSpeechProvider = 'comet-api-speech'
+    speechStore.activeSpeechVoiceId = 'alloy'
+
+    await nextTick()
+
+    expect(speechStore.activeSpeechVoice).toEqual({
+      id: 'alloy',
+      name: 'alloy',
+      description: 'alloy',
+      previewURL: '',
+      languages: [{ code: 'en', title: 'English' }],
+      provider: 'comet-api-speech',
+      gender: 'neutral',
+    })
   })
 })
