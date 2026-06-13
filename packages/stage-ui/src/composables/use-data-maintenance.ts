@@ -1,7 +1,7 @@
 import type { ChatSessionsExport } from '../types/chat-session'
 
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
-import { useLive2d } from '@proj-airi/stage-ui-live2d'
+import { useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
 import { useModelStore } from '@proj-airi/stage-ui-three'
 
 import { useChatOrchestratorStore } from '../stores/chat'
@@ -27,7 +27,8 @@ export function useDataMaintenance() {
   const providersStore = useProvidersStore()
   const settingsStore = useSettings()
   const audioSettingsStore = useSettingsAudioDevice()
-  const live2dStore = useLive2d()
+  const live2dParamsStore = useLive2dParams()
+  const live2dSettingsStore = useSettingsLive2d()
   const threeStore = useModelStore()
   const hearingStore = useHearingStore()
   const speechStore = useSpeechStore()
@@ -85,7 +86,8 @@ export function useDataMaintenance() {
   async function resetSettingsState() {
     await settingsStore.resetState()
     audioSettingsStore.resetState()
-    live2dStore.resetState()
+    live2dParamsStore.resetState()
+    live2dSettingsStore.resetState()
     threeStore.resetModelStore()
     mcpStore.resetState()
     onboardingStore.resetSetupState()

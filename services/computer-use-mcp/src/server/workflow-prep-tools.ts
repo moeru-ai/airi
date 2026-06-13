@@ -6,6 +6,7 @@ import type { ComputerUseServerRuntime } from './runtime'
 import { captureAXTree, formatAXSnapshotAsText } from '../accessibility'
 import { enumerateDisplays, formatDisplaySummary } from '../display'
 import { destroyPtySession, readPtyScreen, writeToPty } from '../terminal/pty-runner'
+import { errorMessageFromValue } from '../utils/error-message'
 import { textContent } from './content'
 
 function auditPreview(data: string, maxLen = 80) {
@@ -355,7 +356,7 @@ export function createWorkflowPrepToolExecutor(runtime: ComputerUseServerRuntime
 }
 
 function prepToolErrorResult(label: string, error: unknown): CallToolResult {
-  const message = error instanceof Error ? error.message : String(error)
+  const message = errorMessageFromValue(error)
 
   return {
     isError: true,

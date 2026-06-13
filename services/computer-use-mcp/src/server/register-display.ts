@@ -5,6 +5,7 @@ import type { ComputerUseServerRuntime } from './runtime'
 import { z } from 'zod'
 
 import { enumerateDisplays, findDisplayForPoint, formatDisplaySummary } from '../display'
+import { errorMessageFromValue } from '../utils/error-message'
 import { textContent } from './content'
 
 export interface RegisterDisplayToolsOptions {
@@ -47,11 +48,11 @@ export function registerDisplayTools({ server, runtime }: RegisterDisplayToolsOp
         return {
           isError: true,
           content: [
-            textContent(`Display enumeration failed: ${error instanceof Error ? error.message : String(error)}`),
+            textContent(`Display enumeration failed: ${errorMessageFromValue(error)}`),
           ],
           structuredContent: {
             status: 'error',
-            error: error instanceof Error ? error.message : String(error),
+            error: errorMessageFromValue(error),
           },
         }
       }
@@ -109,11 +110,11 @@ export function registerDisplayTools({ server, runtime }: RegisterDisplayToolsOp
         return {
           isError: true,
           content: [
-            textContent(`Display identify failed: ${error instanceof Error ? error.message : String(error)}`),
+            textContent(`Display identify failed: ${errorMessageFromValue(error)}`),
           ],
           structuredContent: {
             status: 'error',
-            error: error instanceof Error ? error.message : String(error),
+            error: errorMessageFromValue(error),
           },
         }
       }

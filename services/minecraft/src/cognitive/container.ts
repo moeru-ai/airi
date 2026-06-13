@@ -6,6 +6,8 @@ import type { MinecraftContextService } from '../airi/minecraft-context-service'
 import type { EventBus } from './event-bus'
 import type { RuleEngine } from './perception/rules'
 
+import { fileURLToPath } from 'node:url'
+
 import { useLogg } from '@guiiai/logg'
 import { asClass, asFunction, asValue, createContainer, InjectionMode } from 'awilix'
 
@@ -53,6 +55,7 @@ export function createAgentContainer(airiClient: Client) {
         airiBridge,
         serverHost: config.bot.host,
         serverPort: config.bot.port,
+        masterUsername: config.bot.masterUsername,
       }),
     ).singleton(),
 
@@ -89,7 +92,12 @@ export function createAgentContainer(airiClient: Client) {
         eventBus,
         logger: useLogg('ruleEngine').useGlobalConfig(),
         config: {
-          rulesDir: new URL('./perception/rules', import.meta.url).pathname,
+          // NOTICE: Use fileURLToPath, not URL.pathname — on Windows `.pathname` yields
+          // "/D:/.../rules" (leading slash before the drive), which fs.existsSync/readdirSync cannot
+          // resolve, so the rule loader silently found 0 rules and the whole perception rule engine
+          // (damage/punch/movement signals) was dead. The rest of the codebase already uses
+          // fileURLToPath; this line was the lone deviation.
+          rulesDir: fileURLToPath(new URL('./perception/rules', import.meta.url)),
           slotMs: 20,
         },
       })

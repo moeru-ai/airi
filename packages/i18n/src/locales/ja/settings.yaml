@@ -10,7 +10,7 @@ animations:
 dialogs:
   onboarding:
     official:
-      title: AIRI Official Provider
+      title: AIRI 公式プロバイダー
     title: AIRI へようこそ！
     description: まず最初のAIプロバイダーを設定しましょう。
     selectProvider: AIプロバイダーを選択
@@ -64,11 +64,11 @@ dialogs:
       stateGranted: 許可済み
       stateNotGranted: 許可されていません
   bug-report:
-    title: Bug report (´;ω;`)ヾ(･∀･`)
-    subtitle: Oops, sorry we made something wrong. Would you mind telling us what happened?
-    trigger-label: Report a Bug
-    submit-label: Send Bug Report
-    triage-description: Include screenshot and page context to help us triage this issue.
+    title: バク報告(´;ω;`)ヾ(･∀･`)
+    subtitle: "予期せぬエラーが発生しました\n何が起こったか報告してくれませんか？"
+    trigger-label: バグを報告
+    submit-label: バグ報告を送信
+    triage-description: この問題の解決のためにページ内容とスクリーンショットを含める。
     description-placeholder: Steps to reproduce, expected behavior, and actual behavior
     include-current-page-screenshot: Include current page screenshot
     manual-media:
@@ -105,6 +105,20 @@ analytics:
     description: この機能を無効にすると、分析データの収集をオプトアウトできます。
   disabled:
     title: この開発ビルドでは分析が無効になっています
+model-select:
+  panel-callout:
+    support-status-header: 私たちは2Dと3Dのモデル両方をサポートしています
+    support-status: >
+      Click {select-button} to select or import models. Currently, {zip} (for Live2D models) and {vrm} (for VRM models) are supported.
+    model-type-example: >
+      Neuro-sama uses 2D model driven by framework developed by Live2D Inc, while Grok Ani (in Grok Companion) uses 3D model driven by VRM / MMD open formats.
+  select-model:
+    title: Model Selector
+    button: モデルを選択
+    select: Pick
+    import: インポート
+    remove: Remove
+    confirm: Confirm
 live2d:
   change-model:
     from-file: ファイルから読み込む
@@ -129,19 +143,63 @@ live2d:
     change-to-vrm: 3Dアバター設定 (VRM) に切り替えるにはここをクリック
   theme-color-from-model:
     title: モデルから色を抽出
+    description: >
+      Extract prominent colors from current rendering canvas. Click on the color to apply it to AIRI. Try to extract multiple times, with the model in different poses, if the colors are not desirable.
     button-extract:
       title: 抽出
-  focus:
-    title: モデルのマウストラッキングを無効にする
-    button-disable:
-      title: モデルのマウストラッキングを無効にする
-  render-scale:
-    title: レンダリングスケール
-  fps:
-    title: FPS
-    description: レンダリングフレームレートを制限
-    options:
-      unlimited: '∞'
+  animation:
+    title: アニメーション
+    focus:
+      title: Enable mouse tracking
+      description: Look at the cursor while it is moving. Idle eye movement resumes after the cursor stops.
+      offset: Eye offset(%)
+    force-idle-eye-animation:
+      title: Idle eye movement
+      description: Randomly look around when there is no active cursor focus.
+    blink-enable:
+      title: Enable blink
+      description: Let the model blink.
+    auto-blink:
+      title: Auto
+      description: Use default blinking animation of the model
+    force-auto-blink:
+      title: Force
+      description: Force blinking animation with external timer
+    blink-mode:
+      title: Blink mode
+      description: Choose the model built-in blink or AIRI's forced blink timer.
+    idle-motion:
+      title: Idle animation
+      no-motion: No animation available
+      placeholder: Select animation
+      disable-motion: Disabled
+      disable-motion-description: Disable idle animation
+  parameters:
+    title: Model Parameters
+    render-scale:
+      title: レンダリングスケール
+    fps:
+      title: FPS
+      description: Limit rendering frame rate
+      options:
+        unlimited: '∞'
+    shadow: Drop shadow
+    reset-parameters: デフォルトのパラメータにリセット
+  clear-model-cache: Clear model cache
+  expressions:
+    title: Expressions
+    override-toggle: Expression system
+    sdk-preset-preserved-notice: >
+      SDK expression manager and eye blink are preserved when disabled.
+    no-expression: No expressions available for this model.
+    llm-integration-wip: LLM tool integration is not yet wired up.
+    save-default: Save expression defaults
+    reset: Reset all expressions
+    expose-to-llm-toggle: Expose to LLM
+    expose-to-llm-options:
+      none: 無し
+      all: すべて
+      custom: Custom
 microphone: マイク
 models: モデル
 pages:
@@ -149,8 +207,8 @@ pages:
     title: アカウント
     description: プロフィールを表示し、アカウントを管理します
     notLoggedIn: アカウントにログインして、全機能をご利用ください
-    login: Sign in
-    logout: Sign out
+    login: サインイン
+    logout: サインアウト
     fluxBalance: Flux 残高
     viewFluxDetails: 詳細を見る
     signedInAs: サインイン済み
@@ -169,44 +227,46 @@ pages:
       message:
         saved: Profile updated.
       error:
-        fallback: We could not save your changes.
+        fallback: 変更を保存できませんでした
     connections:
-      tab: Connected accounts
-      title: Connected accounts
+      tab: 接続済みアカウント
+      title: 接続済みアカウント
       description: Sign in to AIRI through these providers. Unlink to revoke access, then link again to switch to a different account.
       status:
-        linked: Linked
+        linked: リンク済
         notLinked: Not linked
         linkedSince: Linked on {date}
       action:
         link: Link
-        unlink: Unlink
+        unlink: リンク解除
       message:
-        loading: Loading connected accounts...
-        unlinked: '{provider} disconnected.'
-        linked: '{provider} connected.'
+        loading: 接続されたアカウントを読み込んでいます...
+        unlinked: '{provider} は切断されました。'
+        linked: '{provider} が接続されました。'
         linkStarted: Redirecting to {provider}…
       error:
         listFailed: Could not load connected accounts.
         unlinkFailed: Could not unlink this account.
         linkFailed: Could not start the link flow.
-        lastAccount: This is your only sign-in method. Set a password first before unlinking it.
+        accountAlreadyLinkedToDifferentUser: この OAuth アカウントは別の AIRI アカウントにすでに連携されています。別のプロバイダーアカウントを選ぶか、先に別の AIRI アカウントから連携を解除してください。
+        oauthCallbackFailed: この OAuth アカウントを連携できませんでした。もう一度試すか、別のプロバイダーアカウントを選んでください。
+        lastAccount: "これはあなたの唯一のサインイン方法です。\nリンクを解除する前にパスワードを設定してください。"
     security:
-      tab: Security
-      title: Security
+      tab: セキュリティ
+      title: セキュリティ
       description: Change your password. Your other devices will be signed out.
       setDescription: You signed in via a social provider, so there is no current password yet. We'll email a secure link to set one.
       currentPassword:
-        label: Current password
-        placeholder: Enter your current password
+        label: 現在のパスワード
+        placeholder: 現在のパスワードを入力してください
       newPassword:
-        label: New password
-        placeholder: At least 8 characters
+        label: 新しいパスワード
+        placeholder: 8文字以上で設定してください
       confirmPassword:
-        label: Confirm new password
-        placeholder: Repeat your new password
+        label: 新しいパスワードを確認
+        placeholder: 新しいパスワードをもう一度入力してください
       action:
-        changePassword: Change password
+        changePassword: パスワードを変更
         sendSetLink: Email me a link to set my password
       message:
         changed: Password changed. Other sessions have been signed out.
@@ -453,7 +513,7 @@ pages:
           name: None
           description: Bypass and disable the image generation module globally.
         comfyui:
-          name: ComfyUI (Local)
+          name: ComfyUI (ローカル)
           description: Use a local ComfyUI instance via WSL for image generation.
         replicate:
           name: Replicate.ai (Cloud)
@@ -499,7 +559,7 @@ pages:
         label: Widget System Prompt
         description: Custom instructions for the AI on how to use the generation capabilities.
     categories:
-      essential: Essential
+      essential: 必須
       messaging: Messaging
       gaming: Gaming
       artistry: Artistry
@@ -621,6 +681,12 @@ pages:
             select-voice:
               loading: モデルを読み込み中…
               required: 音声を選択してください
+          voice-pack:
+            description: Select a curated voice for the active character
+            empty: No Voice Packs available
+            error: Error loading Voice Packs
+            loading: Loading Voice Packs...
+            title: Voice Pack
           provider-voice-selection:
             custom_model_placeholder: カスタムモデル名を入力…
             custom_voice_placeholder: カスタム音声IDを入力…
@@ -672,7 +738,7 @@ pages:
       access-token-secret-placeholder: あなたのX / Twitterアクセストークンシークレットを入力
       configured: X / Twitterは適切に設定されています！
     mcp-server:
-      title: MCP servers
+      title: MCPサーバー
       description: Configure MCP servers and bring their tools into AIRI.
       config-path: Config file
       runtime-title: ランタイムの状態
@@ -691,9 +757,9 @@ pages:
         unknown: not loaded
       actions:
         open-config: Reveal in file manager
-        apply-and-restart: Save and restart
-        restart: Restart MCP
-        add-server: Add server
+        apply-and-restart: 変更を保存して再起動
+        restart: MCP を再起動
+        add-server: サーバーを追加
         add-env: Add var
         remove: Remove
         test: Test
@@ -888,11 +954,11 @@ pages:
       free: Free
       paid: Paid
       internal: Internal
-      local: Local
-      cloud: Cloud
+      local: ローカル
+      cloud: クラウド
     categories:
       chat:
-        title: Chat
+        title: チャット
         description: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
       speech:
         title: Speech
@@ -1012,9 +1078,9 @@ pages:
               value: Model downloads & node installs are your job.
           connection:
             title: Connection
-            connected: Connected
-            failed: Connection failed
-            error_prefix: Error
+            connected: 接続済み
+            failed: 接続に失敗しました
+            error_prefix: エラー
             test: Test
             testing: Testing...
             unknown_error: Unknown connection error
@@ -1040,7 +1106,7 @@ pages:
             paste_hint: Paste this into your AIRI Card artistry config to override these nodes.
           upload:
             prompt: Drop or select a workflow_api.json file
-            invalid_json: Invalid JSON
+            invalid_json: 無効なJSON形式です
             workflow_name:
               label: Workflow Name
               description: Give this workflow a recognizable name
@@ -1054,7 +1120,7 @@ pages:
           heading: Replicate.ai Configuration
           description: Configure your cloud image generation settings.
           api_key:
-            label: API Key
+            label: APIキー
             description: Your Replicate API token (starts with r8_)
             placeholder: r8_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
           default_model:
@@ -1071,10 +1137,10 @@ pages:
       nanobanana:
         settings:
           title: Nano Banana
-          heading: Nano Banana (Google AI Studio)
+          heading: Nano Banana (Google AIスタジオ)
           description: Configure Google Gemini's native image generation capabilities.
           api_key:
-            label: API Key
+            label: APIキー
             description: Your Google AI Studio API Key
             placeholder: AIpk...
           preferred_model:
@@ -1288,6 +1354,8 @@ pages:
         description: AIRIが提供する公式AIプロバイダー。
         speech-title: 公式音声プロバイダー
         speech-description: AIRIが提供する公式テキスト読み上げプロバイダー。
+        speech-streaming-title: Official Streaming Speech Provider
+        speech-streaming-description: Official low-latency text-to-speech provider by AIRI (bidirectional WebSocket).
         transcription-title: 公式文字起こしプロバイダー
         transcription-description: AIRIが提供する公式の音声テキスト変換プロバイダー。
       transcriptions:
@@ -1312,11 +1380,11 @@ pages:
       advanced-description: >-
         Use a specific hostname or IP address when you need manual network binding.
       options:
-        this-device: This device
+        this-device: この端末
         all: All
         advanced: Advanced
     server-auth-token:
-      label: Auth Token
+      label: 認証トークン
       description: >-
         Security token required by remote clients that connect to this gateway. When left empty, AIRI generates a new token automatically.
       placeholder: Auto-generate
@@ -1524,8 +1592,6 @@ theme:
 title: 設定
 voices: 音声
 vrm:
-  render-scale:
-    title: レンダリングスケール
   change-model:
     from-file: ファイルから読み込む
     from-file-select: 選択
@@ -1565,6 +1631,35 @@ vrm:
   skybox:
     skybox-intensity: スカイボックスの強度
     skybox-specular-mix: 鏡面反射の混合
+spine:
+  title: Spine Settings
+  scale-and-position:
+    title: Scale And Position
+    scale: Scale
+    x: X
+    'y': 'Y'
+  theme-color-from-model:
+    title: Extract colors from model
+    button-extract:
+      title: Extract
+  animation:
+    title: Animation
+    idle-animation: Idle Animation
+    mix-duration: Mix Duration (seconds)
+    speed: Animation Speed
+  variant:
+    title: Variant
+    current-variant: Active Variant
+  skin:
+    title: Skin
+    current-skin: Current Skin
+  rendering:
+    title: Rendering
+    max-fps: Maximum FPS
+    render-scale: Render Scale
+  fps:
+    options:
+      unlimited: Unlimited
 websocket-secure-enabled:
   title: セキュア WebSocket (WSS) を有効にする
   description: >-

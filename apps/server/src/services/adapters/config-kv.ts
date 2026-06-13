@@ -1,6 +1,7 @@
 import type Redis from 'ioredis'
 import type { InferOutput } from 'valibot'
 
+import { errorMessageFrom } from '@moeru/std'
 import { any, array, boolean, check, nonEmpty, number, object, optional, parse, picklist, pipe, record, regex, string } from 'valibot'
 
 import { createServiceUnavailableError } from '../../utils/error'
@@ -51,12 +52,39 @@ export const llmModelSchema = object({
   fallbackTriggers: fallbackTriggersSchema,
 })
 
-const ttsProviderSchema = picklist(['azure', 'dashscope-cosyvoice', 'volcengine'])
+const ttsProviderSchema = picklist(['azure', 'dashscope-cosyvoice', 'stepfun', 'volcengine'])
 
 export const ttsUpstreamSchema = object({
   baseURL: pipe(string(), nonEmpty('tts.upstreams[].baseURL must not be empty')),
   keys: pipe(array(keyEntrySchema), check(v => v.length >= 1, 'tts.upstreams[].keys must contain at least 1 entry')),
   adapterParams: optional(record(string(), any()), {}),
+  // Per-app_id concurrency cap for the pool load balancer. One upstream maps to
+  // one app_id (Volcengine `adapterParams.appid`), capped by the provider at a
+  // small number (e.g. 10). When set on any upstream of a model, the router
+  // switches from fixed-order fallback to capacity-aware routing across pools.
+  // Absent = unlimited: that model keeps the original fixed-order behavior and
+  // makes zero Redis calls (no regression for existing single-app configs).
+  maxConcurrency: optional(pipe(number(), check(v => v >= 1, 'tts.upstreams[].maxConcurrency must be >= 1 when set'))),
+})
+
+export const streamingTtsUpstreamSchema = object({
+  baseURL: pipe(string(), nonEmpty('UNSPEECH_UPSTREAM.streaming.baseURL must not be empty')),
+  keys: pipe(array(keyEntrySchema), check(v => v.length >= 1, 'UNSPEECH_UPSTREAM.streaming.keys must contain at least 1 entry')),
+  adapterParams: optional(record(string(), any()), {}),
+  models: optional(
+    array(object({
+      id: pipe(string(), nonEmpty('UNSPEECH_UPSTREAM.streaming.models[].id must not be empty')),
+      name: optional(string()),
+      description: optional(string()),
+    })),
+    [],
+  ),
+  defaultModel: optional(string()),
+})
+
+export const unspeechUpstreamSchema = object({
+  restBaseURL: pipe(string(), nonEmpty('UNSPEECH_UPSTREAM.restBaseURL must not be empty')),
+  streaming: optional(streamingTtsUpstreamSchema),
 })
 
 export const ttsModelSchema = object({
@@ -124,16 +152,12 @@ const ConfigEntrySchemas = {
   // No default — the router throws CONFIG_NOT_SET when this entry is absent
   // so the admin endpoint (U9) is forced to populate it before traffic flows.
   LLM_ROUTER_CONFIG: optional(llmRouterConfigSchema),
-  // Streaming TTS upstream — a single unspeech instance that the
-  // /api/v1/audio/speech/ws proxy connects to. Separate from
-  // LLM_ROUTER_CONFIG.tts.models because the streaming surface has different
-  // semantics from one-shot HTTP TTS: ws-to-ws bridging, no per-attempt retry
-  // (a live ws cannot transparently switch upstream mid-session), upstream
-  // does the protocol translation to providers (Volcengine v3 etc.). Reuses
-  // ttsUpstreamSchema only for the key envelope shape — `keys` carry the
-  // upstream-provider API key (e.g. Volcengine X-Api-Key), not an unspeech
-  // tenant token.
-  STREAMING_TTS_UPSTREAM: optional(ttsUpstreamSchema),
+  // Single unspeech deployment used for every TTS surface: REST audio/speech,
+  // REST voices catalog, ws audio/speech/stream. `streaming` is optional —
+  // operator may run REST-only without the ws upstream. `streaming.keys`
+  // carry the upstream-provider API key (Volcengine X-Api-Key), not an
+  // unspeech tenant token (unspeech itself is unauthenticated).
+  UNSPEECH_UPSTREAM: optional(unspeechUpstreamSchema),
 } as const
 
 type ConfigDefinitions = {
@@ -143,7 +167,19 @@ type ConfigDefinitions = {
 type ConfigKey = keyof ConfigDefinitions
 
 function parseValue<K extends ConfigKey>(key: K, raw: string): ConfigDefinitions[K] {
-  return parse(ConfigEntrySchemas[key], JSON.parse(raw)) as ConfigDefinitions[K]
+  try {
+    return parse(ConfigEntrySchemas[key], JSON.parse(raw)) as ConfigDefinitions[K]
+  }
+  catch (error) {
+    throw createServiceUnavailableError(
+      'Service configuration is invalid',
+      'CONFIG_INVALID',
+      {
+        key,
+        message: errorMessageFrom(error) ?? 'Unknown config parse error',
+      },
+    )
+  }
 }
 
 function serializeValue<K extends ConfigKey>(key: K, value: ConfigDefinitions[K]): string {
@@ -175,16 +211,16 @@ export function createConfigKVService(redis: Redis) {
       return value ?? null
     },
 
-    async getOrThrow<K extends ConfigKey>(key: K): Promise<ConfigDefinitions[K]> {
+    async getOrThrow<K extends ConfigKey>(key: K): Promise<Exclude<ConfigDefinitions[K], undefined>> {
       const raw = await redis.get(configRedisKey(key))
       const value = resolveWithDefault(key, raw)
       if (value === undefined)
         throw createServiceUnavailableError('Service configuration is incomplete', 'CONFIG_NOT_SET')
 
-      return value
+      return value as Exclude<ConfigDefinitions[K], undefined>
     },
 
-    async get<K extends ConfigKey>(key: K): Promise<ConfigDefinitions[K]> {
+    async get<K extends ConfigKey>(key: K): Promise<Exclude<ConfigDefinitions[K], undefined>> {
       return this.getOrThrow(key)
     },
 

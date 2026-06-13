@@ -1,73 +1,43 @@
 import type { MiddlewareHandler } from 'hono'
 
-import type { Env } from '../libs/env'
 import type { HonoEnv } from '../types/hono'
 
 import { createForbiddenError, createUnauthorizedError } from '../utils/error'
 
 /**
- * Parse the comma-separated `ADMIN_EMAILS` env var into a normalized Set.
- *
- * Use when:
- * - You need a fast in-memory lookup of admin emails
- *
- * Returns:
- * - Set of trimmed, lowercased, non-empty email addresses. Empty set when the
- *   env var is unset or contains only whitespace, which is the production-safe
- *   default (no one is admin).
- *
- * Before:
- * - "  Alice@Example.com , bob@example.com ,, "
- *
- * After:
- * - Set { "alice@example.com", "bob@example.com" }
+ * Role that grants access to `/api/admin/*`. Matches the better-auth `admin`
+ * plugin's default `adminRoles`. `user.role` may be a comma-separated list, so
+ * membership is tested per-entry.
  */
-export function parseAdminEmails(raw: string): Set<string> {
-  return new Set(
-    raw
-      .split(',')
-      .map(s => s.trim().toLowerCase())
-      .filter(Boolean),
-  )
-}
+const ADMIN_ROLE = 'admin'
 
 /**
- * Block requests that aren't from a verified admin user.
+ * Block requests that aren't from an admin-role user.
  *
  * Use when:
- * - Mounting `/api/admin/*` routes that mutate flux balances or other
- *   privileged state
+ * - Mounting `/api/admin/*` routes that mutate flux balances, router config,
+ *   or other privileged state.
  *
  * Expects:
- * - `sessionMiddleware` already populated `c.get('user')` (or set it to null
- *   for anonymous requests)
- * - `env.ADMIN_EMAILS` is a comma-separated allowlist of email addresses
+ * - `sessionMiddleware` already populated `c.get('user')` (or null for
+ *   anonymous requests). The user carries `role` from the better-auth `admin`
+ *   plugin schema.
  *
  * Returns:
  * - `401 UNAUTHORIZED` when no session user is present
- * - `403 FORBIDDEN` when the user is signed in but their email is not in the
- *   allowlist, OR their email is not yet verified. The latter guards against
- *   a fresh email/password signup with an admin's address slipping past the
- *   check before they verify ownership.
+ * - `403 FORBIDDEN` when the user has no `admin` role
  *
- * Future: when a `role` column is added to `user`, replace the env-var
- * lookup with a `user.role === 'admin'` check. The middleware contract
- * stays the same; only the predicate changes.
+ * Roles are granted out-of-band (manual DB update / better-auth `/admin/set-role`
+ * which is currently disabled), so there is no env allowlist.
  */
-export function adminGuard(env: Env): MiddlewareHandler<HonoEnv> {
-  const adminEmails = parseAdminEmails(env.ADMIN_EMAILS)
+export const adminGuard: MiddlewareHandler<HonoEnv> = async (c, next) => {
+  const user = c.get('user')
+  if (!user)
+    throw createUnauthorizedError('Authentication required')
 
-  return async (c, next) => {
-    const user = c.get('user')
-    if (!user)
-      throw createUnauthorizedError('Authentication required')
+  const roles = (user.role ?? '').split(',').map(r => r.trim())
+  if (!roles.includes(ADMIN_ROLE))
+    throw createForbiddenError('Admin access required')
 
-    if (!user.emailVerified)
-      throw createForbiddenError('Admin access requires a verified email')
-
-    if (!adminEmails.has(user.email.toLowerCase()))
-      throw createForbiddenError('Admin access required')
-
-    await next()
-  }
+  await next()
 }

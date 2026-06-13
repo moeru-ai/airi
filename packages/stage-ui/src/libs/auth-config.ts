@@ -9,7 +9,7 @@ function getEnvStatus() {
     return { isAndroidNative: false, isNative: false }
   }
 
-  // @ts-ignore
+  // @ts-expect-error Capacitor is injected by the native runtime when available.
   const capacitor = window.Capacitor
   const isAndroidNative = !!(capacitor?.getPlatform?.() === 'android')
   const isNative = !!capacitor || isAndroidNative

@@ -21,6 +21,15 @@ Godot-native desktop stage runtime project for `stage-tamagotchi`.
 - Early-stage scene and runtime validation work.
 - G1.1 VRM-only scene input baseline: Electron materializes the selected `.vrm`
   file, sends its native file path, and Godot imports it at runtime.
+- G1.2 Godot-owned in-process view state: Godot bootstraps camera pose from the
+  loaded avatar, accepts host-origin camera patches, emits view snapshots for
+  the settings UI, and handles local camera input inside the sidecar process.
+- Current sidecar view state starts when the Godot stage process starts and ends
+  when that process exits. The retained store code is not wired into the active
+  runtime path yet.
+- G1.3 fixed stage presentation baseline: sky background, neutral grid ground,
+  center marker, direct light rig, neutral Godot environment post settings, and
+  avatar-only same-frame glow with the current toon color mapping.
 
 ## Directory Layout
 
@@ -132,6 +141,67 @@ freeing. Failed imports keep the previous avatar visible.
 Runtime import details live in [`docs/vrm-runtime-import.md`](docs/vrm-runtime-import.md).
 Vendored add-on local patches and generated metadata differences are tracked in
 [`docs/vendor-patches.md`](docs/vendor-patches.md).
+
+## Default Stage Visuals
+
+G1.3 installs a fixed default presentation preset at runtime. It includes a sky
+environment, a large world-anchored grid ground at `Y=0`, a center `T` marker at
+the world origin, and a fixed directional light rig.
+
+The sky environment reuses the existing stage-ui-three HDRI at
+`packages/stage-ui-three/src/components/Environment/assets/sky_linekotsi_23_HDRI.hdr`
+when the Godot stage runs from a workspace checkout. The HDRI is not copied into
+Godot `assets/`, and the release packaging path for this shared asset remains a
+separate follow-up.
+
+The grid ground is visual-only. It does not move the avatar root away from
+`(0, 0, 0)`, and its shader fades distant grid lines into the horizon color
+without enabling volumetric fog.
+
+The sky is visible as the viewport background, but it is not used as avatar or
+ground ambient/radiance input. `StageVisualPreset` sets ambient light to a fixed
+color, sets sky ambient contribution to `0`, disables reflected light, disables
+Godot Environment Glow, and leaves Godot tonemap/adjustment neutral. The current
+custom color mapping is applied by the stage compositor instead of Godot's
+Environment adjustment controls.
+
+## Avatar Glow And Color Mapping
+
+The current avatar presentation path uses a camera-local compositor:
+
+1. `StageAvatarGlowRuntime` assigns a `Compositor` to the active `Camera3D`.
+2. The runtime marks loaded avatar `GeometryInstance3D` nodes with a
+   depth-tested `MaterialOverlay` that writes stencil reference `1`.
+3. `StageAvatarGlowCompositorEffect` runs at `PostTransparent`, extracts
+   stencil-marked avatar pixels from the resolved scene color, builds the bloom
+   pyramid, composites avatar glare, and applies the current NAES/toon color
+   mapping before Godot's neutral output path.
+
+This is not Godot Environment Glow and does not use material emission as the
+avatar-style glow source. The color mapping currently lives in the same
+compositor effect as avatar glow; before adding more post effects such as rim
+light or screen-space outlines, pass orchestration and shared transient render
+textures should move behind a shared post-process owner.
+
+Design notes live in [`docs/rendering-effects.md`](docs/rendering-effects.md).
+
+## Material Rendering Check
+
+G1.3 includes a focused runtime material verification scene for the committed
+AvatarSample A/B fixtures:
+
+```powershell
+& $env:GODOT4 --headless --path . `
+  --quit-after 5 `
+  --log-file material-check.log `
+  tests/material-rendering-check/materialRenderingCheck.tscn
+```
+
+This check imports both samples through `VrmRuntimeImporter.gd` and verifies the
+runtime material surface covers MToon, alpha/cutout, transparent materials,
+outline passes, and mesh shadow casters. The current A/B fixtures do not contain
+unlit materials, so this check reports `unlit = 0` and does not treat that as a
+failure.
 
 ## Live Debugging From The Godot Editor
 

@@ -12,6 +12,7 @@ import * as readline from 'node:readline'
 import { x } from 'tinyexec'
 
 import { parseCapacitorPlatform, pickServerUrl, resolveCapRunArgs, shouldRestartForNativeChange } from './native'
+import { errorMessageFromValue } from './utils/error-message'
 
 export interface CapVitePluginOptions {
   capArgs: string[]
@@ -166,7 +167,7 @@ export function capVitePlugin(options: CapVitePluginOptions): Plugin {
           }
         }
         catch (error) {
-          logger.error(`[cap-vite] ${error instanceof Error ? error.message : String(error)}`)
+          logger.error(`[cap-vite] ${errorMessageFromValue(error)}`)
           await shutdown()
         }
         finally {

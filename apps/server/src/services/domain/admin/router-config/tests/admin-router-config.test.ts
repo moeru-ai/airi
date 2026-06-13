@@ -11,7 +11,8 @@ import {
   buildDashscopeSlice,
   buildNextRouterConfig,
   buildOpenRouterSlice,
-  buildStreamingTtsSlice,
+  buildStepfunSlice,
+  buildUnspeechSlice,
   createAdminRouterConfigService,
   redactCiphertext,
 } from '..'
@@ -19,6 +20,11 @@ import { createEnvelopeCrypto } from '../../../../../utils/envelope-crypto'
 
 function freshEnvelope() {
   return createEnvelopeCrypto({ masterKey: randomBytes(32) })
+}
+
+const DEFAULT_FALLBACK_TRIGGERS = {
+  httpCodes: [401, 402, 403, 429, 500, 502, 503, 504],
+  onTimeout: true,
 }
 
 interface FakeConfigKV {
@@ -112,6 +118,7 @@ describe('buildOpenRouterSlice', () => {
     expect(upstream.baseURL).toBe('https://openrouter.ai/api/v1')
     expect(upstream.overrideModel).toBe('openai/gpt-4o-mini')
     expect(upstream.headerTemplate).toBe('Bearer {KEY}')
+    expect(built.model.fallbackTriggers).toEqual(DEFAULT_FALLBACK_TRIGGERS)
 
     // Round-trip the ciphertext under the same AAD — guards against the
     // AAD getting silently changed (which would surface as DECRYPT_FAILED
@@ -150,13 +157,18 @@ describe('buildAzureSlice', () => {
       kind: 'azure',
       modelName: 'microsoft/v1',
       region: 'eastasia',
+      defaultVoice: 'en-US-AvaMultilingualNeural',
       plaintextKey: 'azure-key',
     }, envelope)
 
     expect(built.kind).toBe('azure')
     expect(built.model.provider).toBe('azure')
     expect(built.model.upstreams[0].baseURL).toBe('https://eastasia.tts.speech.microsoft.com/cognitiveservices/v1')
-    expect(built.model.upstreams[0].adapterParams).toEqual({ region: 'eastasia' })
+    expect(built.model.upstreams[0].adapterParams).toEqual({
+      region: 'eastasia',
+      defaultVoice: 'en-US-AvaMultilingualNeural',
+    })
+    expect(built.model.fallbackTriggers).toEqual(DEFAULT_FALLBACK_TRIGGERS)
 
     const decrypted = envelope.decryptKey(built.model.upstreams[0].keys[0].ciphertext, {
       modelName: 'microsoft/v1',
@@ -182,24 +194,72 @@ describe('buildDashscopeSlice', () => {
 
     expect(built.model.upstreams[0].baseURL).toBe(`https://${host}/api/v1/services/audio/tts/SpeechSynthesizer`)
     expect(built.model.upstreams[0].adapterParams).toEqual({ model: 'cosyvoice-v2' })
+    expect(built.model.fallbackTriggers).toEqual(DEFAULT_FALLBACK_TRIGGERS)
   })
 })
 
-describe('buildStreamingTtsSlice', () => {
-  it('encrypts under the streaming-tts AAD model label (must match audio-speech-ws decrypt)', () => {
+describe('buildStepfunSlice', () => {
+  it('builds the StepFun TTS endpoint and surfaces model defaults in adapterParams', () => {
     const envelope = freshEnvelope()
-    const built = buildStreamingTtsSlice({
-      kind: 'streaming-tts',
-      upstreamURL: 'ws://airi-unspeech.railway.internal:5933/v1/audio/speech/stream',
-      plaintextKey: 'volc-key',
+    const built = buildStepfunSlice({
+      kind: 'stepfun',
+      modelName: 'stepfun/stepaudio-2.5-tts',
+      upstreamModel: 'stepaudio-2.5-tts',
+      defaultVoice: 'cixingnansheng',
+      instruction: '温柔、克制、有一点笑意',
+      plaintextKey: 'step-key',
     }, envelope)
 
-    expect(built.target).toBe('streaming-tts')
-    expect(built.value.baseURL).toBe('ws://airi-unspeech.railway.internal:5933/v1/audio/speech/stream')
+    expect(built.kind).toBe('stepfun')
+    expect(built.model.provider).toBe('stepfun')
+    expect(built.model.upstreams[0].baseURL).toBe('https://api.stepfun.com/v1/audio/speech')
+    expect(built.model.upstreams[0].adapterParams).toEqual({
+      model: 'stepaudio-2.5-tts',
+      defaultVoice: 'cixingnansheng',
+      instruction: '温柔、克制、有一点笑意',
+    })
+    expect(built.model.fallbackTriggers).toEqual(DEFAULT_FALLBACK_TRIGGERS)
+
+    const decrypted = envelope.decryptKey(built.model.upstreams[0].keys[0].ciphertext, {
+      modelName: 'stepfun/stepaudio-2.5-tts',
+      keyEntryId: 'stepfun-tts-prod-1',
+    })
+    expect(decrypted.toString('utf8')).toBe('step-key')
+  })
+})
+
+describe('buildUnspeechSlice', () => {
+  it('writes restBaseURL with no streaming subtree when the slice omits streaming', () => {
+    const envelope = freshEnvelope()
+    const built = buildUnspeechSlice({
+      kind: 'unspeech',
+      restBaseURL: 'http://unspeech.example:5933',
+    }, envelope)
+
+    expect(built.target).toBe('unspeech')
+    expect(built.value.restBaseURL).toBe('http://unspeech.example:5933')
+    expect(built.value.streaming).toBeUndefined()
+    expect(built.keyEntryId).toBeNull()
+  })
+
+  it('encrypts streaming.plaintextKey under the streaming-tts AAD model label (must match audio-speech-ws decrypt)', () => {
+    const envelope = freshEnvelope()
+    const built = buildUnspeechSlice({
+      kind: 'unspeech',
+      restBaseURL: 'http://unspeech.example:5933',
+      streaming: {
+        upstreamURL: 'ws://unspeech.example:5933/v1/audio/speech/stream',
+        plaintextKey: 'volc-key',
+      },
+    }, envelope)
+
+    expect(built.target).toBe('unspeech')
+    expect(built.value.streaming?.baseURL).toBe('ws://unspeech.example:5933/v1/audio/speech/stream')
 
     // The AAD modelName MUST be the literal 'streaming-tts' — anything else
     // surfaces as DECRYPT_FAILED at session start in audio-speech-ws.
-    const decrypted = envelope.decryptKey(built.value.keys[0].ciphertext, {
+    const ct = built.value.streaming!.keys[0].ciphertext
+    const decrypted = envelope.decryptKey(ct, {
       modelName: 'streaming-tts',
       keyEntryId: 'volcengine-prod-1',
     })
@@ -211,8 +271,23 @@ describe('buildNextRouterConfig', () => {
   it('merge mode preserves models not touched this run', () => {
     const envelope = freshEnvelope()
     const existing = {
-      llm: { models: { 'untouched-chat': { upstreams: [{ baseURL: 'https://old', keys: [{ id: 'k', ciphertext: 'c' }], headerTemplate: 'Bearer {KEY}' }] } } },
-      tts: { models: { 'untouched-tts': { provider: 'azure' as const, upstreams: [{ baseURL: 'https://old-tts', keys: [{ id: 'k', ciphertext: 'c' }], adapterParams: {} }] } } },
+      llm: {
+        models: {
+          'untouched-chat': {
+            upstreams: [{ baseURL: 'https://old', keys: [{ id: 'k', ciphertext: 'c' }], headerTemplate: 'Bearer {KEY}' }],
+            fallbackTriggers: DEFAULT_FALLBACK_TRIGGERS,
+          },
+        },
+      },
+      tts: {
+        models: {
+          'untouched-tts': {
+            provider: 'azure' as const,
+            upstreams: [{ baseURL: 'https://old-tts', keys: [{ id: 'k', ciphertext: 'c' }], adapterParams: {} }],
+            fallbackTriggers: DEFAULT_FALLBACK_TRIGGERS,
+          },
+        },
+      },
       defaults: { perAttemptTimeoutMs: 12345, fullChainTimeoutMs: 60000, fallbackHttpCodes: [500] },
     }
     const newSlice = buildOpenRouterSlice({
@@ -235,7 +310,14 @@ describe('buildNextRouterConfig', () => {
   it('reset mode drops every prior entry and uses default timeouts', () => {
     const envelope = freshEnvelope()
     const existing = {
-      llm: { models: { old: { upstreams: [{ baseURL: 'https://old', keys: [{ id: 'k', ciphertext: 'c' }], headerTemplate: 'Bearer {KEY}' }] } } },
+      llm: {
+        models: {
+          old: {
+            upstreams: [{ baseURL: 'https://old', keys: [{ id: 'k', ciphertext: 'c' }], headerTemplate: 'Bearer {KEY}' }],
+            fallbackTriggers: DEFAULT_FALLBACK_TRIGGERS,
+          },
+        },
+      },
       tts: { models: {} },
       defaults: { perAttemptTimeoutMs: 12345, fullChainTimeoutMs: 60000, fallbackHttpCodes: [500] },
     }
@@ -291,7 +373,12 @@ describe('createAdminRouterConfigService', () => {
         overrideModel: 'openai/gpt-4o-mini',
         plaintextKey: 'sk-or-secret',
       }],
-      defaults: { chatModel: 'chat-default' },
+      defaults: {
+        chatModel: 'chat-default',
+        ttsVoices: {
+          'alibaba/cosyvoice-v2': { 'zh-CN': 'longxiaochun_v2' },
+        },
+      },
     })
 
     expect(kv.store.size).toBe(0)
@@ -306,6 +393,9 @@ describe('createAdminRouterConfigService', () => {
     expect(ct).not.toContain('sk-or-secret')
 
     expect(result.preview.DEFAULT_CHAT_MODEL).toBe('chat-default')
+    expect(result.preview.DEFAULT_TTS_VOICES).toEqual({
+      'alibaba/cosyvoice-v2': { 'zh-CN': 'longxiaochun_v2' },
+    })
   })
 
   it('writes LLM_ROUTER_CONFIG, DEFAULT_CHAT_MODEL, and publishes invalidation', async () => {
@@ -328,34 +418,83 @@ describe('createAdminRouterConfigService', () => {
     expect(captured.map(p => JSON.parse(p.payload).key).sort()).toEqual(['DEFAULT_CHAT_MODEL', 'LLM_ROUTER_CONFIG'])
   })
 
-  it('writes STREAMING_TTS_UPSTREAM and publishes invalidation when a streaming-tts slice is included', async () => {
+  it('writes DEFAULT_TTS_VOICES without requiring provider slices', async () => {
+    const service = createAdminRouterConfigService({ configKV: kv.service, envelope, redis })
+    const result = await service.apply({
+      mode: 'merge',
+      dryRun: false,
+      slices: [],
+      defaults: {
+        ttsVoices: {
+          'alibaba/cosyvoice-v2': {
+            'zh-CN': 'longxiaochun_v2',
+            'en-US': 'loongava_v2',
+          },
+          'volcengine/seed-tts-2.0': {
+            'zh-CN': 'zh_female_vv_uranus_bigtts',
+          },
+        },
+      },
+    })
+
+    expect(kv.store.get('DEFAULT_TTS_VOICES')).toEqual({
+      'alibaba/cosyvoice-v2': {
+        'zh-CN': 'longxiaochun_v2',
+        'en-US': 'loongava_v2',
+      },
+      'volcengine/seed-tts-2.0': {
+        'zh-CN': 'zh_female_vv_uranus_bigtts',
+      },
+    })
+    expect(kv.store.has('LLM_ROUTER_CONFIG')).toBe(false)
+    expect(result.preview.DEFAULT_TTS_VOICES).toEqual(kv.store.get('DEFAULT_TTS_VOICES'))
+    expect(result.invalidatedKeys).toEqual(['DEFAULT_TTS_VOICES'])
+    expect(captured.map(p => JSON.parse(p.payload).key)).toEqual(['DEFAULT_TTS_VOICES'])
+  })
+
+  it('writes UNSPEECH_UPSTREAM and publishes invalidation when an unspeech slice is included', async () => {
     const service = createAdminRouterConfigService({ configKV: kv.service, envelope, redis })
     const result = await service.apply({
       mode: 'merge',
       dryRun: false,
       slices: [{
-        kind: 'streaming-tts',
-        upstreamURL: 'wss://unspeech.example/v1/audio/speech/stream',
-        plaintextKey: 'volc',
+        kind: 'unspeech',
+        restBaseURL: 'http://unspeech.example:5933',
+        streaming: {
+          upstreamURL: 'wss://unspeech.example/v1/audio/speech/stream',
+          plaintextKey: 'volc',
+          models: [
+            { id: 'volcengine/seed-tts-2.0', name: 'Seed-TTS 2.0', description: 'Low-latency streaming TTS' },
+          ],
+          defaultModel: 'volcengine/seed-tts-2.0',
+        },
       }],
     })
 
-    expect(kv.store.has('STREAMING_TTS_UPSTREAM')).toBe(true)
+    expect(kv.store.has('UNSPEECH_UPSTREAM')).toBe(true)
+    expect(kv.store.get('UNSPEECH_UPSTREAM')).toMatchObject({
+      streaming: {
+        models: [
+          { id: 'volcengine/seed-tts-2.0', name: 'Seed-TTS 2.0', description: 'Low-latency streaming TTS' },
+        ],
+        defaultModel: 'volcengine/seed-tts-2.0',
+      },
+    })
     expect(kv.store.has('LLM_ROUTER_CONFIG')).toBe(false)
-    expect(result.invalidatedKeys).toEqual(['STREAMING_TTS_UPSTREAM'])
-    expect(captured.map(p => JSON.parse(p.payload).key)).toEqual(['STREAMING_TTS_UPSTREAM'])
+    expect(result.invalidatedKeys).toEqual(['UNSPEECH_UPSTREAM'])
+    expect(captured.map(p => JSON.parse(p.payload).key)).toEqual(['UNSPEECH_UPSTREAM'])
   })
 
-  it('rejects multiple streaming-tts slices', async () => {
+  it('rejects multiple unspeech slices', async () => {
     const service = createAdminRouterConfigService({ configKV: kv.service, envelope, redis })
     await expect(service.apply({
       mode: 'merge',
       dryRun: true,
       slices: [
-        { kind: 'streaming-tts', upstreamURL: 'ws://a/x', plaintextKey: 'a' },
-        { kind: 'streaming-tts', upstreamURL: 'ws://b/x', plaintextKey: 'b' },
+        { kind: 'unspeech', restBaseURL: 'http://a' },
+        { kind: 'unspeech', restBaseURL: 'http://b' },
       ],
-    })).rejects.toThrow(/At most one streaming-tts/i)
+    })).rejects.toThrow(/At most one unspeech/i)
   })
 
   it('merge mode reads existing LLM_ROUTER_CONFIG and preserves untouched models', async () => {
@@ -382,6 +521,82 @@ describe('createAdminRouterConfigService', () => {
     const written = kv.store.get('LLM_ROUTER_CONFIG') as { llm: { models: Record<string, unknown> }, tts: { models: Record<string, unknown> } }
     expect(Object.keys(written.llm.models)).toEqual(['preexisting-chat'])
     expect(Object.keys(written.tts.models)).toEqual(['microsoft/v1'])
+  })
+
+  it('current returns editable slices from configKV without exposing raw ciphertext', async () => {
+    kv.store.set('LLM_ROUTER_CONFIG', {
+      llm: {
+        models: {
+          'chat-live': {
+            upstreams: [{
+              baseURL: 'https://openrouter.ai/api/v1',
+              overrideModel: 'openai/gpt-4.1-mini',
+              keys: [{ id: 'openrouter-live', ciphertext: 'secret-ciphertext' }],
+              headerTemplate: 'Bearer {KEY}',
+            }],
+            fallbackTriggers: DEFAULT_FALLBACK_TRIGGERS,
+          },
+        },
+      },
+      tts: { models: {} },
+      defaults: { perAttemptTimeoutMs: 30000, fullChainTimeoutMs: 60000, fallbackHttpCodes: [500] },
+    })
+    kv.store.set('DEFAULT_CHAT_MODEL', 'chat-live')
+
+    const service = createAdminRouterConfigService({ configKV: kv.service, envelope, redis })
+    const current = await service.current()
+
+    expect(current.request.slices).toEqual([{
+      kind: 'openrouter',
+      modelName: 'chat-live',
+      overrideModel: 'openai/gpt-4.1-mini',
+      baseURL: 'https://openrouter.ai/api/v1',
+      headerTemplate: 'Bearer {KEY}',
+      keyEntryId: 'openrouter-live',
+      existingKeyEntryId: 'openrouter-live',
+    }])
+    expect(current.request.defaults.chatModel).toBe('chat-live')
+    expect(JSON.stringify(current.preview)).toContain('<ciphertext: 17 chars>')
+    expect(JSON.stringify(current.preview)).not.toContain('secret-ciphertext')
+  })
+
+  it('preserves an existing key entry when an applied slice omits plaintextKey', async () => {
+    kv.store.set('LLM_ROUTER_CONFIG', {
+      llm: {
+        models: {
+          'chat-live': {
+            upstreams: [{
+              baseURL: 'https://openrouter.ai/api/v1',
+              overrideModel: 'openai/gpt-4.1-mini',
+              keys: [{ id: 'openrouter-live', ciphertext: 'secret-ciphertext' }],
+              headerTemplate: 'Bearer {KEY}',
+            }],
+            fallbackTriggers: DEFAULT_FALLBACK_TRIGGERS,
+          },
+        },
+      },
+      tts: { models: {} },
+      defaults: { perAttemptTimeoutMs: 30000, fullChainTimeoutMs: 60000, fallbackHttpCodes: [500] },
+    })
+
+    const service = createAdminRouterConfigService({ configKV: kv.service, envelope, redis })
+    await service.apply({
+      mode: 'merge',
+      dryRun: false,
+      slices: [{
+        kind: 'openrouter',
+        modelName: 'chat-live',
+        overrideModel: 'openai/gpt-4.1-mini',
+        baseURL: 'https://proxy.example/api/v1',
+        keyEntryId: 'openrouter-live',
+        existingKeyEntryId: 'openrouter-live',
+      }],
+    })
+
+    const written = kv.store.get('LLM_ROUTER_CONFIG') as { llm: { models: Record<string, { upstreams: Array<{ baseURL: string, keys: Array<{ id: string, ciphertext: string }> }> }> } }
+    const upstream = written.llm.models['chat-live'].upstreams[0]
+    expect(upstream.baseURL).toBe('https://proxy.example/api/v1')
+    expect(upstream.keys).toEqual([{ id: 'openrouter-live', ciphertext: 'secret-ciphertext' }])
   })
 
   it('reset mode skips the existing read and drops prior entries', async () => {
@@ -418,12 +633,14 @@ describe('createAdminRouterConfigService', () => {
       slices: [
         { kind: 'openrouter', modelName: 'chat-default', overrideModel: 'openai/gpt-4o-mini', plaintextKey: 'sk' },
         { kind: 'dashscope-cosyvoice', modelName: 'alibaba/cosyvoice-v2', region: 'intl', upstreamModel: 'cosyvoice-v2', plaintextKey: 'sk' },
+        { kind: 'stepfun', modelName: 'stepfun/stepaudio-2.5-tts', upstreamModel: 'stepaudio-2.5-tts', plaintextKey: 'sk' },
       ],
     })
 
     expect(result.applied).toEqual([
       { kind: 'openrouter', target: 'llm-router', surface: 'llm', modelName: 'chat-default', keyEntryId: 'openrouter-prod-1' },
       { kind: 'dashscope-cosyvoice', target: 'llm-router', surface: 'tts', modelName: 'alibaba/cosyvoice-v2', keyEntryId: 'dashscope-tts-prod-1' },
+      { kind: 'stepfun', target: 'llm-router', surface: 'tts', modelName: 'stepfun/stepaudio-2.5-tts', keyEntryId: 'stepfun-tts-prod-1' },
     ])
   })
 })

@@ -40,7 +40,8 @@
     "vite": "^7.0.0 || ^8.0.0-beta.0"
   },
   "dependencies": {
-    "cac": "^7.0.0",
-    "tinyexec": "^1.1.1"
+    "@moeru/std": "catalog:",
+    "cac": "catalog:",
+    "tinyexec": "catalog:"
   }
 }

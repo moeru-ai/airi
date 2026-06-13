@@ -25,19 +25,19 @@
     "@electric-sql/pglite": "catalog:",
     "@guiiai/logg": "catalog:",
     "@moeru/std": "catalog:",
-    "@velin-dev/core": "^0.4.0",
+    "@velin-dev/core": "catalog:",
     "@xsai/generate-text": "catalog:",
     "@xsai/shared-chat": "catalog:",
     "@xsai/utils-chat": "catalog:",
-    "best-effort-json-parser": "^1.4.0",
+    "best-effort-json-parser": "catalog:",
     "drizzle-orm": "catalog:",
-    "es-toolkit": "^1.45.1",
-    "nanoid": "^5.1.9",
-    "valibot": "^1.3.1",
-    "ws": "^8.20.0"
+    "es-toolkit": "catalog:",
+    "nanoid": "catalog:",
+    "valibot": "catalog:",
+    "ws": "catalog:"
   },
   "devDependencies": {
-    "@types/ws": "^8.18.1",
+    "@types/ws": "catalog:",
     "drizzle-kit": "catalog:"
   }
 }

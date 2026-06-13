@@ -72,7 +72,7 @@ export function useL2dViewControl() {
   return {
     /** model position relative to the center of the screen, in pixels */
     position,
-    /** model scaling in percentages. `100` means no scaling. */
+    /** model scaling in percentages. `1` means no scaling. */
     scale,
     /** reset the given control to its default value. */
     set,

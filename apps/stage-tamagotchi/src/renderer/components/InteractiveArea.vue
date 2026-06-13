@@ -3,7 +3,9 @@ import type { ChatToolCallRendererRegistry } from '@proj-airi/stage-ui/component
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { errorMessageFrom } from '@moeru/std'
+import { useStopSpeakingButton } from '@proj-airi/stage-layouts/composables/useStopSpeakingButton'
 import { ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
+import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
@@ -56,6 +58,12 @@ const sendModeLabels = computed<Record<SendMode, string>>(() => ({
   'ctrl-enter': t('stage.send-mode.ctrl-enter'),
   'double-enter': t('stage.send-mode.double-enter'),
 }))
+const {
+  trackChatMessageDeleted,
+  trackChatMessageRetried,
+  trackChatMessagesCleared,
+} = useAnalytics()
+const { showStopSpeakingButton, stopSpeakingFromChat } = useStopSpeakingButton()
 
 const latestImageEntries = computed(() => {
   if (!activeCardId.value)
@@ -196,7 +204,12 @@ watch(sendMode, () => {
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
 
 async function handleDeleteMessage(index: number) {
+  const message = messages.value[index]
   await chatSyncStore.requestDeleteMessage({ index })
+  trackChatMessageDeleted({
+    source: 'history',
+    message_role: message?.role ?? 'unknown',
+  })
 }
 
 onMounted(() => {
@@ -207,6 +220,18 @@ async function handleRetryMessage(index: number) {
   await chatSyncStore.requestRetry({
     sessionId: chatSession.activeSessionId,
     index,
+  })
+  trackChatMessageRetried({
+    source: 'history',
+  })
+}
+
+async function handleCleanupMessages() {
+  const messageCount = messages.value.filter(message => message.role !== 'system').length
+  await chatSyncStore.requestCleanup()
+  trackChatMessagesCleared({
+    source: 'chat_controls',
+    message_count: messageCount,
   })
 }
 </script>
@@ -323,6 +348,24 @@ async function handleRetryMessage(index: number) {
       </DropdownMenuRoot>
 
       <button
+        v-if="showStopSpeakingButton"
+        data-testid="stop-speaking-button"
+        :class="[
+          'max-h-[10lh] min-h-[1lh]',
+        ]"
+        bg="neutral-100 dark:neutral-800"
+        text="lg neutral-500 dark:neutral-400"
+        hover:text="primary-500 dark:primary-400"
+        flex items-center justify-center rounded-md p-2 outline-none
+        transition-colors transition-transform active:scale-95
+        title="Stop speaking"
+        aria-label="Stop speaking"
+        @click="stopSpeakingFromChat"
+      >
+        <div class="i-solar:stop-circle-bold-duotone" />
+      </button>
+
+      <button
         :class="[
           'max-h-[10lh] min-h-[1lh]',
         ]"
@@ -331,7 +374,7 @@ async function handleRetryMessage(index: number) {
         hover:text="red-500 dark:red-400"
         flex items-center justify-center rounded-md p-2 outline-none
         transition-colors transition-transform active:scale-95
-        @click="() => chatSyncStore.requestCleanup()"
+        @click="handleCleanupMessages"
       >
         <div class="i-solar:trash-bin-2-bold-duotone" />
       </button>

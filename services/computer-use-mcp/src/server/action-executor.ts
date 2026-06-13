@@ -37,6 +37,7 @@ import {
   maskEnvValuePreview,
   readEnvValue,
 } from '../utils/env-file'
+import { errorMessageFromValue } from '../utils/error-message'
 import { executeDesktopClickTarget } from './desktop-grounding-actions'
 import { describeExecutionTarget } from './formatters'
 import { refreshRuntimeRunState } from './refresh-run-state'
@@ -525,7 +526,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
               backendResult.focusDisplayPoint = structuredDisplayPoint
             }
             catch (clickError) {
-              const msg = clickError instanceof Error ? clickError.message : String(clickError)
+              const msg = errorMessageFromValue(clickError)
               throw new Error(`Preparatory click at (${normalizedAction.input.x}, ${normalizedAction.input.y}) failed before typing: ${msg}`)
             }
           }
@@ -755,7 +756,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
       })
     }
     catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error)
+      const errorMessage = errorMessageFromValue(error)
 
       // Update run state with failure info.
       if (runtime.stateManager.hasActiveTask()) {

@@ -37,7 +37,7 @@ describe('createStaticAssetService', () => {
     const sessionStore = createStaticAssetSessionStore()
     const validateInputs: string[] = []
     const server = createStaticAssetService({
-      getManifestEntryByName: () => new Map([
+      getManifestEntryByExtensionId: () => new Map([
         [extensionId, { rootDir, version }],
       ]),
       sessionStore: {
@@ -206,7 +206,7 @@ describe('createStaticAssetService', () => {
     ]
     let manifestReadCount = 0
     const server = createStaticAssetService({
-      getManifestEntryByName: () => manifestEntries[Math.min(manifestReadCount++, manifestEntries.length - 1)],
+      getManifestEntryByExtensionId: () => manifestEntries[Math.min(manifestReadCount++, manifestEntries.length - 1)],
     })
     servers.push(server)
     await server.start()
@@ -242,7 +242,7 @@ describe('createStaticAssetService', () => {
     const version = '1.0.0'
     const sessionStore = createStaticAssetSessionStore()
     const server = createStaticAssetService({
-      getManifestEntryByName: () => new Map([
+      getManifestEntryByExtensionId: () => new Map([
         [extensionId, { rootDir, version }],
       ]),
       sessionStore: {

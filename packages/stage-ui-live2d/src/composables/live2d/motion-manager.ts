@@ -27,7 +27,10 @@ export type MotionManagerPluginContext = MotionManagerUpdateContext & {
   internalModel: PixiLive2DInternalModel
   motionManager: PixiLive2DInternalModel['motionManager']
   modelParameters: Ref<any>
+  live2dEyeTrackingEnabled: Ref<boolean>
+  live2dEyeFocusSourceActive: Ref<boolean>
   live2dIdleAnimationEnabled: Ref<boolean>
+  live2dForceIdleEyeAnimation: Ref<boolean>
   live2dAutoBlinkEnabled: Ref<boolean>
   live2dForceAutoBlinkEnabled: Ref<boolean>
   isIdleMotion: boolean
@@ -41,7 +44,10 @@ export interface UseLive2DMotionManagerUpdateOptions {
   internalModel: PixiLive2DInternalModel
   motionManager: PixiLive2DInternalModel['motionManager']
   modelParameters: Ref<any>
+  live2dEyeTrackingEnabled: Ref<boolean>
+  live2dEyeFocusSourceActive: Ref<boolean>
   live2dIdleAnimationEnabled: Ref<boolean>
+  live2dForceIdleEyeAnimation: Ref<boolean>
   live2dAutoBlinkEnabled: Ref<boolean>
   live2dForceAutoBlinkEnabled: Ref<boolean>
   lastUpdateTime: Ref<number>
@@ -52,7 +58,10 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
     internalModel,
     motionManager,
     modelParameters,
+    live2dEyeTrackingEnabled,
+    live2dEyeFocusSourceActive,
     live2dIdleAnimationEnabled,
+    live2dForceIdleEyeAnimation,
     live2dAutoBlinkEnabled,
     live2dForceAutoBlinkEnabled,
     lastUpdateTime,
@@ -94,7 +103,10 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
       internalModel,
       motionManager,
       modelParameters,
+      live2dEyeTrackingEnabled,
+      live2dEyeFocusSourceActive,
       live2dIdleAnimationEnabled,
+      live2dForceIdleEyeAnimation,
       live2dAutoBlinkEnabled,
       live2dForceAutoBlinkEnabled,
       isIdleMotion,
@@ -206,8 +218,8 @@ export function useMotionUpdatePluginIdleDisable(idleEyeFocus = useLive2DIdleEye
     if (!ctx.live2dIdleAnimationEnabled.value && ctx.isIdleMotion) {
       ctx.motionManager.stopAllMotions()
 
-      // Still update eye focus and blink even if idle motion is stopped
-      idleEyeFocus.update(ctx.internalModel, ctx.now)
+      if (ctx.live2dForceIdleEyeAnimation.value && (!ctx.live2dEyeTrackingEnabled.value || !ctx.live2dEyeFocusSourceActive.value))
+        idleEyeFocus.update(ctx.internalModel, ctx.now)
       if (ctx.internalModel.eyeBlink != null) {
         ctx.internalModel.eyeBlink.updateParameters(ctx.model, ctx.timeDelta / 1000)
       }
@@ -225,6 +237,10 @@ export function useMotionUpdatePluginIdleFocus(idleEyeFocus = useLive2DIdleEyeFo
   return (ctx) => {
     if (!ctx.isIdleMotion || ctx.handled)
       return
+    if (!ctx.live2dForceIdleEyeAnimation.value)
+      return
+    if (ctx.live2dEyeTrackingEnabled.value && ctx.live2dEyeFocusSourceActive.value)
+      return
 
     idleEyeFocus.update(ctx.internalModel, ctx.now)
   }
@@ -239,6 +255,7 @@ export function useMotionUpdatePluginAutoEyeBlink(
     startLeft: 1,
     startRight: 1,
     delayMs: 0,
+    openDurationMs: 300,
   }
 
   // Eye values captured at blink start.  Used as the base during
@@ -247,11 +264,13 @@ export function useMotionUpdatePluginAutoEyeBlink(
   let preBlinkLeft = 1.0
   let preBlinkRight = 1.0
   const blinkCloseDuration = 75 // ms
-  const blinkOpenDuration = 75 // ms
+  const minBlinkOpenDuration = 150 // ms
+  const maxBlinkOpenDuration = 300 // ms
   const minDelay = 3000
   const maxDelay = 8000
 
   const clamp01 = (value: number) => Math.min(1, Math.max(0, value))
+  const randomBlinkOpenDuration = () => minBlinkOpenDuration + Math.random() * (maxBlinkOpenDuration - minBlinkOpenDuration)
 
   function resetBlinkState() {
     blinkState.phase = 'idle'
@@ -291,13 +310,14 @@ export function useMotionUpdatePluginAutoEyeBlink(
       if (blinkState.progress >= 1) {
         blinkState.phase = 'opening'
         blinkState.progress = 0
+        blinkState.openDurationMs = randomBlinkOpenDuration()
       }
 
       return { eyeLOpen, eyeROpen }
     }
 
     // Opening: move back to the base with ease-in.
-    blinkState.progress = Math.min(1, blinkState.progress + dt / blinkOpenDuration)
+    blinkState.progress = Math.min(1, blinkState.progress + dt / blinkState.openDurationMs)
     const eased = easeInQuad(blinkState.progress)
     const eyeLOpen = clamp01(blinkState.startLeft * eased)
     const eyeROpen = clamp01(blinkState.startRight * eased)

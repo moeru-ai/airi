@@ -5,6 +5,7 @@ import type { ComputerUseServerRuntime } from './runtime'
 import { z } from 'zod'
 
 import { captureAXTree, formatAXSnapshotAsText } from '../accessibility'
+import { errorMessageFromValue } from '../utils/error-message'
 import { textContent } from './content'
 
 export interface RegisterAccessibilityToolsOptions {
@@ -55,11 +56,11 @@ export function registerAccessibilityTools({ server, runtime }: RegisterAccessib
         return {
           isError: true,
           content: [
-            textContent(`Accessibility snapshot failed: ${error instanceof Error ? error.message : String(error)}`),
+            textContent(`Accessibility snapshot failed: ${errorMessageFromValue(error)}`),
           ],
           structuredContent: {
             status: 'error',
-            error: error instanceof Error ? error.message : String(error),
+            error: errorMessageFromValue(error),
           },
         }
       }
@@ -128,11 +129,11 @@ export function registerAccessibilityTools({ server, runtime }: RegisterAccessib
         return {
           isError: true,
           content: [
-            textContent(`Accessibility find failed: ${error instanceof Error ? error.message : String(error)}`),
+            textContent(`Accessibility find failed: ${errorMessageFromValue(error)}`),
           ],
           structuredContent: {
             status: 'error',
-            error: error instanceof Error ? error.message : String(error),
+            error: errorMessageFromValue(error),
           },
         }
       }

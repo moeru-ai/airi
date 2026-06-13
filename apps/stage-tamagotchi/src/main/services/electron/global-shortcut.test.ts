@@ -101,6 +101,19 @@ async function setupMocks() {
       unregister: unregisterMock,
       unregisterAll: unregisterAllMock,
     },
+    systemPreferences: {
+      isTrustedAccessibilityClient: vi.fn(() => true),
+    },
+  }))
+
+  vi.doMock('uiohook-napi', () => ({
+    uIOhook: {
+      on: vi.fn(),
+      removeListener: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn(),
+    },
+    UiohookKey: new Proxy({}, { get: () => 0 }),
   }))
 
   vi.doMock('@moeru/eventa', async (importOriginal) => {
@@ -162,19 +175,15 @@ describe('setupGlobalShortcutService', () => {
     expect(m.registerMock).toHaveBeenCalledWith('CmdOrCtrl+Shift+K', expect.any(Function))
   })
 
-  it('refuses receiveKeyUps with reason "unsupported" and does not call globalShortcut', async () => {
-    // Electron's `globalShortcut` does not deliver key-release
-    // events. The driver refuses `receiveKeyUps: true` honestly so
-    // callers can switch to (or fail back from) the uiohook driver
-    // path that will handle it.
+  it('routes receiveKeyUps:true to the uiohook driver and bypasses electron.globalShortcut', async () => {
     const m = await setupMocks()
     const service = m.setupGlobalShortcutService()
     const ctx = createMockContext()
     registerMockWindow(service, ctx)
 
     const handler = ctx.invokeHandlers.get('eventa:invoke:electron:shortcut:register')!
-    const result = handler({ ...exampleBinding('ptt'), receiveKeyUps: true }) as { id: string, ok: boolean, reason?: string }
-    expect(result).toEqual({ id: 'ptt', ok: false, reason: ShortcutFailureReasons.Unsupported })
+    const result = handler({ ...exampleBinding('ptt'), receiveKeyUps: true }) as { id: string, ok: boolean }
+    expect(result).toEqual({ id: 'ptt', ok: true })
     expect(m.registerMock).not.toHaveBeenCalled()
   })
 
@@ -208,6 +217,61 @@ describe('setupGlobalShortcutService', () => {
     expect(second).toEqual({ id: 'toggle', ok: false, reason: ShortcutFailureReasons.DuplicateId })
     expect(m.registerMock).toHaveBeenCalledTimes(1)
     expect(m.unregisterMock).not.toHaveBeenCalled()
+  })
+
+  it('rebinds main-owned shortcuts transactionally', async () => {
+    const m = await setupMocks()
+    const service = m.setupGlobalShortcutService()
+    service.registerMainShortcut({
+      binding: exampleBinding('spotlight', 'KeyA'),
+      onTriggered: vi.fn(),
+    })
+    const secondTriggered = vi.fn()
+    const success = service.registerMainShortcut({
+      binding: exampleBinding('spotlight', 'KeyB'),
+      onTriggered: secondTriggered,
+    })
+
+    expect(success).toEqual({ id: 'spotlight', ok: true })
+    expect(m.unregisterMock).toHaveBeenCalledWith('CmdOrCtrl+Shift+A')
+    m.triggerCallbacks.get('CmdOrCtrl+Shift+B')?.()
+    expect(secondTriggered).toHaveBeenCalledTimes(1)
+
+    const oldTriggered = vi.fn()
+    service.registerMainShortcut({ binding: exampleBinding('spotlight', 'KeyA'), onTriggered: oldTriggered })
+    m.unregisterMock.mockClear()
+    m.registerMock.mockImplementationOnce(() => false)
+    const result = service.registerMainShortcut({
+      binding: exampleBinding('spotlight', 'KeyC'),
+      onTriggered: vi.fn(),
+    })
+
+    expect(result).toEqual({ id: 'spotlight', ok: false, reason: ShortcutFailureReasons.Conflict })
+    expect(m.unregisterMock).not.toHaveBeenCalled()
+    m.triggerCallbacks.get('CmdOrCtrl+Shift+A')?.()
+    expect(oldTriggered).toHaveBeenCalledTimes(1)
+  })
+
+  it('replaces the callback when rebinding a main-owned shortcut to the same accelerator', async () => {
+    const m = await setupMocks()
+    const service = m.setupGlobalShortcutService()
+    const oldTriggered = vi.fn()
+    const nextTriggered = vi.fn()
+
+    service.registerMainShortcut({
+      binding: exampleBinding('spotlight', 'KeyA'),
+      onTriggered: oldTriggered,
+    })
+    const result = service.registerMainShortcut({
+      binding: exampleBinding('spotlight', 'KeyA'),
+      onTriggered: nextTriggered,
+    })
+
+    expect(result).toEqual({ id: 'spotlight', ok: true })
+    expect(m.unregisterMock).toHaveBeenCalledWith('CmdOrCtrl+Shift+A')
+    m.triggerCallbacks.get('CmdOrCtrl+Shift+A')?.()
+    expect(oldTriggered).not.toHaveBeenCalled()
+    expect(nextTriggered).toHaveBeenCalledTimes(1)
   })
 
   it('allows re-register after explicit unregister', async () => {

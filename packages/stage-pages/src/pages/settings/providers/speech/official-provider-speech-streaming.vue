@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import { isFluxPurchaseDisabled } from '@proj-airi/stage-shared'
 import {
   ProviderSettingsContainer,
   ProviderSettingsLayout,
   SpeechPlayground,
 } from '@proj-airi/stage-ui/components'
-import { streamingSynthesize } from '@proj-airi/stage-ui/libs'
+import { getDefaultStreamingModel, streamingSynthesize } from '@proj-airi/stage-ui/libs'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
@@ -23,18 +24,20 @@ const { isAuthenticated, credits, needsLogin } = storeToRefs(authStore)
 
 const providerId = 'official-provider-speech-streaming'
 const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
-const defaultModel = 'volcengine/seed-tts-2.0'
+const fluxPurchaseDisabled = isFluxPurchaseDisabled()
 
 const providerConfig = computed(() => providersStore.getProviderConfig(providerId))
 
-// Model picker. Pulled from the provider's `extraMethods.listModels` —
-// today that's two hard-coded Volcengine variants, but the picker stays
-// generic so adding ICL / other backends later doesn't need UI changes.
+// Model picker. The catalog and the default model id both come from the
+// server's `/api/v1/audio/models/streaming` response (operator-controlled
+// via `UNSPEECH_UPSTREAM.streaming`); no client-side hardcoded defaults so
+// adding ICL / other backends doesn't need a UI release.
 const providerModels = computed(() => providersStore.getModelsForProvider(providerId))
 const modelsLoading = computed(() => providersStore.isLoadingModels[providerId] || false)
+const serverDefaultModel = ref<string | null>(null)
 const model = computed({
   get(): string {
-    return (providerConfig.value?.model as string | undefined) ?? defaultModel
+    return (providerConfig.value?.model as string | undefined) ?? serverDefaultModel.value ?? ''
   },
   set(val: string) {
     providerConfig.value.model = val
@@ -57,8 +60,13 @@ async function loadVoices() {
 
 onMounted(async () => {
   await providersStore.fetchModelsForProvider(providerId)
-  if (!providerConfig.value.model)
-    providerConfig.value.model = defaultModel
+  // `getDefaultStreamingModel()` is populated by the provider's listModels()
+  // (just ran via fetchModelsForProvider). If the operator hasn't curated a
+  // default server-side, fall back to the first model the server returned
+  // so the picker always has something selected.
+  serverDefaultModel.value = getDefaultStreamingModel() ?? providerModels.value[0]?.id ?? null
+  if (!providerConfig.value.model && serverDefaultModel.value)
+    providerConfig.value.model = serverDefaultModel.value
   await loadVoices()
 })
 
@@ -76,11 +84,18 @@ watch(model, async () => {
 // per-preview because there's no LLM token stream here — we just send
 // one `text` frame containing the static preview prompt.
 async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: boolean): Promise<ArrayBuffer> {
-  const requestedModel = model.value || defaultModel
+  const requestedModel = model.value
+  if (!requestedModel)
+    throw new Error('No streaming TTS model selected and server returned no default')
   // `model` looks like `volcengine/seed-tts-2.0`. The trailing path is
-  // forwarded as Volcengine's `api_resource_id` so the upstream knows
-  // which model variant to use; matches the wiring in `Stage.vue`.
-  const apiResourceId = requestedModel.includes('/') ? requestedModel.split('/', 2)[1] : 'seed-tts-2.0'
+  // forwarded as Volcengine's `api_resource_id` so the upstream knows which
+  // model variant to use; matches the wiring in `Stage.vue`. We require the
+  // `<backend>/<resource>` shape and refuse anything else — silently picking
+  // a fallback resource id hides config drift.
+  const slashIndex = requestedModel.indexOf('/')
+  if (slashIndex < 0)
+    throw new Error(`Streaming model id missing backend prefix: ${requestedModel}`)
+  const apiResourceId = requestedModel.slice(slashIndex + 1)
   const result = await streamingSynthesize({
     model: requestedModel,
     voice: voiceId,
@@ -136,6 +151,7 @@ function handleLogin() {
               </span>
             </div>
             <button
+              v-if="!fluxPurchaseDisabled"
               type="button"
               class="rounded-full bg-primary-500/10 px-6 py-2 text-sm text-primary-600 font-semibold transition-all dark:bg-primary-400/10 hover:bg-primary-500 dark:text-primary-400 hover:text-white dark:hover:bg-primary-400 dark:hover:text-neutral-900"
               @click="router.push('/settings/flux')"

@@ -2,6 +2,7 @@
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { ChatHistory } from '@proj-airi/stage-ui/components'
+import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
@@ -20,9 +21,15 @@ const { streamingMessage } = storeToRefs(useChatStreamStore())
 
 const isLoading = ref(true)
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
+const { trackChatMessageDeleted } = useAnalytics()
 
 function handleDeleteMessage(index: number) {
+  const message = messages.value[index]
   messages.value = messages.value.filter((_, messageIndex) => messageIndex !== index)
+  trackChatMessageDeleted({
+    source: 'history',
+    message_role: message?.role ?? 'unknown',
+  })
 }
 </script>
 

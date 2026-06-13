@@ -1,6 +1,6 @@
 # Metrics Ownership
 
-这份文档定义 AIRI 团队的指标分层规则：什么指标该走 Grafana / Prometheus（OTel server-side），什么该走 PostHog（前后端混合 product analytics），同名指标怎么处理。落地这份是为了避免后期"同一个 KPI 三处不同数"的漂移。
+这份文档定义 AIRI 团队的指标分层规则：什么指标该走 Grafana / Prometheus（OTel server-side），什么该走 PostHog（frontend/external product analytics），同名指标怎么处理。落地这份是为了避免后期"同一个 KPI 三处不同数"的漂移。
 
 ## 总原则
 
@@ -9,9 +9,9 @@
 | 层 | 工具 | 关键属性 |
 |---|---|---|
 | **System / API observability** | Grafana Cloud + Prometheus + OTel | 系统健康、延迟、错误率、SRE on-call 告警 |
-| **Product analytics** | PostHog Cloud | 用户行为、漏斗、retention、cohort、A/B、feature adoption |
+| **Product analytics** | PostHog Cloud | 前端用户行为、漏斗、retention、cohort、A/B、feature adoption |
 | **Financial truth source** | Postgres (`flux_transaction` / Stripe webhook 持久化) | 收入与扣费 ledger，任何展示都视作近似 |
-| **LLM-native observability**（预留） | Langfuse / Helicone（未接入） | token cost、prompt eval、provider trace — 后续按需引入 |
+| **LLM-native observability** | Langfuse Cloud（已接入：chat completion + TTS speech） | 逐条 prompt/completion trace、TTS text trace、token/字符用量、按 user/session 成本归因、eval。真实 staging HTTP E2E 与 model 定价匹配待做 |
 
 **业界没有权威的判定 framework**（参见下方"参考来源"），这份文档落实成项目内的可执行规则。
 
@@ -45,10 +45,11 @@
 |---|---|---|
 | 计费 ledger（每一分钱可审计） | **Postgres** | Grafana / PostHog 都视作近似展示，争议查 SQL |
 | HTTP / WS / DB / Stripe webhook **计数** | **Grafana**（OTel counter） | 系统事件，PostHog 看不到 |
-| 用户去重 DAU / WAU / retention | **PostHog** | 需要 distinctId 去重，session table 计数不准 |
+| 用户去重 DAU / WAU / retention | **Postgres → Grafana** for server truth; **PostHog** for frontend journey | Server 不直接发 PostHog；后端事实查 `product_events` / `user.last_seen_at` |
 | 收入展示（MRR / ARR / churn revenue） | **Postgres → 两边展示** | 真相在 Postgres，Grafana 取系统侧切片（panel-30），PostHog 取用户维度切片 |
-| LLM token / cost | **Grafana**（短期） | 后续若引入 Langfuse 则迁过去 |
-| 用户行为漏斗各步骤 | **PostHog**（必须） | 第一步通常是前端事件，Grafana 拿不到 |
+| LLM token / cost（聚合速率、按模型） | **Grafana**（OTel counter） | 系统侧聚合，SRE 视角 |
+| LLM 逐条 prompt / completion / TTS text / eval / 按 user-session 成本 | **Langfuse** | 已接入 chat completion + TTS speech，正文级 trace + eval |
+| 用户行为漏斗各步骤 | **PostHog** for frontend steps; **Postgres/Grafana** for server steps | Server-side facts 不在请求路径发 PostHog |
 
 ### Better Auth session table 与活跃用户
 
@@ -79,7 +80,7 @@
 | properties 用 `snake_case` | `{ plan_id, price_usd, checkout_session_id }` |
 | 跟外部系统串联的 ID 用原平台命名 | `stripe_customer_id`、`stripe_subscription_id`、`checkout_session_id` |
 
-`distinctId` 在登录后必须调 `posthog.identify(userId)`，userId 用 Better Auth 的 user id（跟 server 里的 `c.get('user').id` 一致）。后端 `posthog-node` 上报支付事件时用 fallback 链 `userId` (`session.metadata.userId`) > `email` (`session.customer_email`) > `session.id`——第一项跟前端 `identify` 一致，PostHog person merge 在这里完成。前端 wiring 由 `useSharedAnalyticsStore.initialize()` 自动处理，不需要每个 caller 手动 identify。
+`distinctId` 在登录后必须调 `posthog.identify(userId)`，userId 用 Better Auth 的 user id（跟 server 里的 `c.get('user').id` 一致）。AIRI server 不直接接入 `posthog-node`，后端事实事件写入 Postgres `product_events` 并通过 `airi_product_events_total` 暴露到 Grafana。前端 wiring 由 `useSharedAnalyticsStore.initialize()` 自动处理，不需要每个 caller 手动 identify。
 
 参考来源：[PostHog: 5 events all teams should track](https://posthog.com/blog/events-you-should-track-with-posthog)。
 
@@ -108,23 +109,27 @@
 | Runtime | `v8js_memory_*` / `nodejs_eventloop_delay_*` | Grafana | per `service_instance_id` |
 | Rate-limit | `airi_rate_limit_blocked_total` | Grafana | in-memory per replica |
 
-### PostHog（前后端混合，产品侧）
+### PostHog（前端 / 外部数据源，产品侧）
 
 已接入：
 - 前端 `posthog-js` 通过 `packages/stage-ui/src/stores/analytics/posthog.ts` 初始化，三个 app（web / desktop / pocket）按 `isStageTamagotchi()` 等选 project key
-- 后端 `posthog-node` 通过 `apps/server/src/services/adapters/posthog.ts` + injeca provider `services:posthog`
-- 前端↔后端 identity merge：`useSharedAnalyticsStore.initialize()` watch `authStore.isAuthenticated` 自动调 `posthog.identify(user.id)` / `reset()`
+- Server 不接入 `posthog-node`。后端产品事件写 `product_events`，Grafana 展示低基数聚合；需要 PostHog revenue/person analytics 时优先用 PostHog Stripe source connector 或离线导入，不允许在 API 请求路径同步发 PostHog。
+- 前端 identity：`useSharedAnalyticsStore.initialize()` watch `authStore.isAuthenticated` 自动调 `posthog.identify(user.id)` / `reset()`
+- Conversation controls 事件的 `surface` 由 `packages/stage-ui/src/composables/use-analytics.ts` 统一按 runtime 推断，UI 调用点只传业务字段。
 
 已埋点：
 
 | 域 | 事件 | 来源 | 落点 | Truth |
 |---|---|---|---|---|
 | 付费漏斗 | `pricing_page_viewed` / `plan_selected` / `checkout_started` | 前端 | `packages/stage-pages/src/pages/settings/flux.vue` | PostHog |
-| 付费漏斗终点 | `payment_completed` | 后端 webhook | `apps/server/src/routes/stripe/index.ts` | PostHog |
+| 付费漏斗终点 | `payment_completed` | 后端 webhook | `product_events` + Grafana；PostHog 走 Stripe source connector/离线导入 | Postgres |
 | Activation / Retention | `first_model_selected` / `model_switched` | 前端（consciousness store watcher） | `packages/stage-ui/src/stores/analytics/index.ts` | PostHog |
 | Retention | `character_created` | 前端 | `apps/stage-web/src/pages/settings/characters/components/CharacterDialog.vue` | PostHog |
 | Retention | `chat_session_started` | 前端 | `packages/stage-ui/src/components/scenarios/chat/components/sessions-drawer.vue` | PostHog |
-| Churn | `subscription_cancelled`（带 cancellation_reason） | 后端 webhook | `apps/server/src/routes/stripe/index.ts` | PostHog |
+| Conversation controls | `chat_session_selected` | 前端 | `packages/stage-ui/src/components/scenarios/chat/components/sessions-drawer.vue` | PostHog |
+| Conversation controls | `chat_message_deleted` / `chat_messages_cleared` / `chat_message_retried` | 前端 | `packages/stage-layouts/src/components/Layouts/*InteractiveArea.vue` / `packages/stage-layouts/src/components/Widgets/ChatActionButtons.vue` / `apps/stage-tamagotchi/src/renderer/components/InteractiveArea.vue` | PostHog |
+| Conversation controls | `tts_stop_clicked` | 前端 | `packages/stage-layouts/src/composables/useStopSpeakingButton.ts` | PostHog |
+| Churn | `subscription_cancelled`（带 cancellation_reason） | 外部 Stripe 数据源 | PostHog Stripe source connector | Stripe/Postgres |
 | 老事件 | `provider_card_clicked` / `first_message_sent` | 前端 | `packages/stage-ui/src/composables/use-analytics.ts` | PostHog |
 
 待埋点（API 已在 `use-analytics.ts` 暴露但调用点未接入）：
@@ -139,33 +144,15 @@
 
 | 指标 | Grafana | PostHog | Truth | 语义差异 |
 |---|---|---|---|---|
-| 活跃用户数 | `user_active_sessions`（Postgres session 计数） | DAU = 去重 distinctId | **PostHog** | Grafana 是 active **sessions**，PostHog 是 active **users** |
-| Checkout 完成数 | `stripe_checkout_completed_total` | `payment_completed` event | **Postgres** | 两边都展示，Grafana 是 webhook 计数，PostHog 是漏斗终点 |
+| 活跃用户数 | `user_active_rolling` / `user_distinct_active` | DAU = 前端 journey 去重 distinctId | **Postgres/Grafana** for server truth | Grafana 是服务端可验证活跃，PostHog 是前端产品旅程 |
+| Checkout 完成数 | `stripe_checkout_completed_total` + `product_events.payment_completed` | Stripe source connector / offline import | **Postgres** | Grafana 是 webhook 计数，PostHog 是产品漏斗展示 |
 | LLM 请求 | `gen_ai_client_operation_count_total` | `chat_session_started` 等 | **Grafana**（系统计数） | PostHog 是用户维度切片，会少于 Grafana（PostHog 只覆盖 logged-in user） |
 
 ## PostHog 接入路线图
 
-落地分两步，**不要一次性埋全部事件**，否则 schema 漂移会很快出现。
+落地分两步，**不要一次性埋全部事件**，否则 schema 漂移会很快出现。PostHog 采集只发生在前端或外部 source connector；server 请求路径只写 Postgres/Grafana。
 
 ### 阶段 1（P0 — 付费漏斗 + activation）
-
-`apps/server`：
-
-```ts
-// services/adapters/posthog.ts（新增）
-import { PostHog } from 'posthog-node'
-
-export function createPostHog(env: ServerEnv) {
-  return new PostHog(env.POSTHOG_KEY, { host: 'https://us.i.posthog.com' })
-}
-
-// 在 Stripe webhook handler 里
-posthog.capture({
-  distinctId: stripeCustomerEmail,
-  event: 'payment_completed',
-  properties: { plan_id, amount_usd, stripe_customer_id, stripe_subscription_id }
-})
-```
 
 `apps/stage-web`：
 
@@ -198,12 +185,12 @@ posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
 埋点事件清单（P0）：
 
 - 前端：`pricing_page_viewed`、`plan_selected`、`checkout_started`、`user_signed_up`、`first_message_sent`、`first_model_selected`
-- 后端：`payment_completed`
+- 后端：不直接发 PostHog；`payment_completed` 写入 `product_events`，PostHog 侧通过 Stripe source connector 或离线导入展示
 
 PostHog UI 配两个 funnel：
 
-- **付费漏斗** (7d 窗口)：`pricing_page_viewed → plan_selected → checkout_started → payment_completed`
-- **激活漏斗** (14d 窗口)：`user_signed_up → first_message_sent → first_model_selected → payment_completed`
+- **付费漏斗** (7d 窗口)：`pricing_page_viewed → plan_selected → checkout_started → payment_completed`（最后一步来自 Stripe source connector / 离线导入）
+- **激活漏斗** (14d 窗口)：`user_signed_up → first_message_sent → first_model_selected → payment_completed`（最后一步同上）
 
 ### 阶段 2（P1 — retention / feature adoption / churn）
 
@@ -216,14 +203,14 @@ PostHog UI 配 cohort：
 
 ### Stripe → PostHog 集成路径
 
-**两条路径都接**：
+**不在 server webhook 里手动 capture**：
 
 | 路径 | 用途 |
 |---|---|
 | PostHog Stripe **source connector** | MRR / ARR / churn revenue dashboard（PostHog 原生 Revenue analytics） |
-| **手动 capture** `payment_completed`（后端 webhook） | 漏斗终点 event，跟前端 `checkout_started` 串联 |
+| 离线导入 `product_events.payment_completed`（可选） | 漏斗终点 event，跟前端 `checkout_started` 串联 |
 
-不能只用 source connector：它是 data warehouse 层，**不生成 person event，做不了漏斗**。
+不要在 API 请求路径同步发 PostHog：PostHog 网络尾延迟会污染 auth / billing / chat route latency。需要 person-level funnel endpoint 时，用后台导入或 connector，不阻塞用户请求。
 
 ## 5xx Triage 路径
 

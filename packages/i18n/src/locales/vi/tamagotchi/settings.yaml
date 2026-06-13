@@ -1,6 +1,11 @@
 allow-visible-on-all-workspaces:
   title: Hiển thị ở mọi nơi
   description: Cho phép cửa sổ hiển thị trên tất cả workspaces, chỉ áp dụng cho macOS.
+spotlight:
+  errors:
+    unknown: Lỗi không xác định
+    prefix: 'Đã xảy ra lỗi: {message}'
+    shortcutRegistrationFailed: 'Đã xảy ra lỗi: không đăng ký được phím tắt Spotlight.'
 pages:
   modules:
     mcp-server:
@@ -14,6 +19,18 @@ pages:
     window-shortcuts:
       description: Chỉnh sửa các phím tắt cho Windows.
       title: Phím tắt Windows
+      empty: Chưa đặt
+      spotlight:
+        title: Phím tắt Spotlight
+        description: Bấm vào phím tắt, rồi nhấn phím tắt mới. Nhấn Esc để hủy.
+      actions:
+        recording: Nhấn phím
+        reset: Đặt lại
+      errors:
+        load: Không tải được phím tắt
+        conflict: Phím tắt này đã được sử dụng.
+        failed: Không cập nhật được phím tắt
+        requiresModifier: Dùng ít nhất một trong các phím Cmd, Ctrl, Alt hoặc Super.
       toggle-move:
         label: Bật/Tắt Di chuyển
       toggle-resize:

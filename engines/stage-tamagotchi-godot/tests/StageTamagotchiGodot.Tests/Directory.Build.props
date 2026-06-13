@@ -1,0 +1,8 @@
+<Project>
+  <PropertyGroup>
+    <ArtifactsRoot>$(MSBuildThisFileDirectory)..\..\.godot\mono\temp\tests\</ArtifactsRoot>
+    <ArtifactsRoot>$([System.IO.Path]::GetFullPath('$(ArtifactsRoot)'))</ArtifactsRoot>
+    <BaseOutputPath>$(ArtifactsRoot)bin\</BaseOutputPath>
+    <BaseIntermediateOutputPath>$(ArtifactsRoot)obj\</BaseIntermediateOutputPath>
+  </PropertyGroup>
+</Project>

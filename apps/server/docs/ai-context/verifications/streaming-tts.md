@@ -208,7 +208,7 @@ reads `keys[0]`, so a write replaces the active key).
 The file `/tmp/smoke-streaming-tts.mjs` used in the smoke run:
 
 ```js
-import WebSocket from '<airi-root>/node_modules/.pnpm/ws@*/node_modules/ws/wrapper.mjs'
+import WebSocket from 'ws'
 
 const URL = 'ws://localhost:5933/v1/audio/speech/stream'
 

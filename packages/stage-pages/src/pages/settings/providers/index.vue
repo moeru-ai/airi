@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import type { ProviderSourceDeployment, ProviderSourcePricing } from '@proj-airi/stage-ui/libs/providers/source-metadata'
+import type { Ref } from 'vue'
+
+import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
 import { IconStatusItem, RippleGrid } from '@proj-airi/stage-ui/components'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useRippleGridState } from '@proj-airi/stage-ui/composables/use-ripple-grid-state'
@@ -8,6 +12,31 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
+
+interface ProviderSourceCard {
+  id: string
+  category: string
+  to?: string
+  icon?: string
+  iconColor?: string
+  iconImage?: string
+  name?: string
+  description?: string
+  localizedName?: string
+  localizedDescription?: string
+  configured?: boolean
+  pricing?: ProviderSourcePricing
+  deployment?: ProviderSourceDeployment
+  beginnerRecommended?: boolean
+}
+
+interface ProviderBlockConfig {
+  id: string
+  icon: string
+  title: string
+  description: string
+  providersRef: Readonly<Ref<ProviderSourceCard[]>>
+}
 
 const route = useRoute()
 const router = useRouter()
@@ -23,7 +52,7 @@ const {
   allAudioTranscriptionProvidersMetadata,
 } = storeToRefs(providersStore)
 
-const allArtistryProvidersMetadata = computed(() => {
+const allArtistryProvidersMetadata = computed<ProviderSourceCard[]>((): ProviderSourceCard[] => {
   return [
     {
       id: 'comfyui',
@@ -41,42 +70,44 @@ const allArtistryProvidersMetadata = computed(() => {
       beginnerRecommended: true,
       iconImage: undefined,
     },
-    {
-      id: 'replicate',
-      category: 'artistry',
-      icon: 'i-lobe-icons:replicate',
-      iconColor: 'i-lobe-icons:replicate-color',
-      name: 'Replicate',
-      localizedName: 'Replicate',
-      description: t('settings.pages.providers.categories.artistry.items.replicate.description'),
-      localizedDescription: t('settings.pages.providers.categories.artistry.items.replicate.description'),
-      configured: !!artistryStore.replicateApiKey,
-      to: '/settings/providers/artistry/replicate',
-      pricing: 'paid',
-      deployment: 'cloud',
-      beginnerRecommended: false,
-      iconImage: undefined,
-    },
-    {
-      id: 'nanobanana',
-      category: 'artistry',
-      icon: 'i-solar:gallery-round-bold-duotone',
-      iconColor: 'text-amber-500',
-      name: 'Nano Banana',
-      localizedName: 'Nano Banana',
-      description: t('settings.pages.providers.categories.artistry.items.nanobanana.description'),
-      localizedDescription: t('settings.pages.providers.categories.artistry.items.nanobanana.description'),
-      configured: !!artistryStore.nanobananaApiKey,
-      to: '/settings/providers/artistry/nanobanana',
-      pricing: 'free',
-      deployment: 'cloud',
-      beginnerRecommended: false,
-      iconImage: undefined,
-    },
+    ...(isCustomProvidersDisabled()
+      ? []
+      : ([
+          {
+            id: 'replicate',
+            category: 'artistry',
+            icon: 'i-lobe-icons:replicate',
+            iconColor: 'i-lobe-icons:replicate-color',
+            name: 'Replicate',
+            localizedName: 'Replicate',
+            description: t('settings.pages.providers.categories.artistry.items.replicate.description'),
+            localizedDescription: t('settings.pages.providers.categories.artistry.items.replicate.description'),
+            configured: !!artistryStore.replicateApiKey,
+            to: '/settings/providers/artistry/replicate',
+            pricing: 'paid',
+            deployment: 'cloud',
+            iconImage: undefined,
+          },
+          {
+            id: 'nanobanana',
+            category: 'artistry',
+            icon: 'i-solar:gallery-round-bold-duotone',
+            iconColor: 'text-amber-500',
+            name: 'Nano Banana',
+            localizedName: 'Nano Banana',
+            description: t('settings.pages.providers.categories.artistry.items.nanobanana.description'),
+            localizedDescription: t('settings.pages.providers.categories.artistry.items.nanobanana.description'),
+            configured: !!artistryStore.nanobananaApiKey,
+            to: '/settings/providers/artistry/nanobanana',
+            pricing: 'free',
+            deployment: 'cloud',
+            iconImage: undefined,
+          },
+        ] satisfies ProviderSourceCard[])),
   ]
 })
 
-const providerBlocksConfig = [
+const providerBlocksConfig: ProviderBlockConfig[] = [
   {
     id: 'chat',
     icon: 'i-solar:chat-square-like-bold-duotone',
@@ -133,7 +164,7 @@ const providerBlocks = computed(() => {
     .filter(block => block.id === activeTabId.value)
     .map((block) => {
       const filteredProviders = block.providersRef.value
-        .filter((p: any) => {
+        .filter((p) => {
           if (filterPricing.value !== 'all' && p.pricing !== filterPricing.value)
             return false
           if (filterDeployment.value !== 'all' && p.deployment !== filterDeployment.value)
@@ -251,10 +282,10 @@ const providerBlocks = computed(() => {
           :icon="provider.icon"
           :icon-color="provider.iconColor"
           :icon-image="provider.iconImage"
-          :to="`/settings/providers/${provider.category}/${provider.id}`"
+          :to="provider.to ?? `/settings/providers/${provider.category}/${provider.id}`"
           :configured="provider.configured"
-          :pricing="provider.pricing as any"
-          :deployment="provider.deployment as any"
+          :pricing="provider.pricing"
+          :deployment="provider.deployment"
           :beginner-recommended="provider.beginnerRecommended"
           @click="trackProviderClick(provider.id, provider.category)"
         />

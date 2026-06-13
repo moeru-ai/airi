@@ -3,6 +3,7 @@ import type { ServerEvent, ServerEvents } from '@proj-airi/stage-ui/stores/provi
 
 import vadWorkletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
+import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import { createAliyunNLSProvider, streamAliyunTranscription } from '@proj-airi/stage-ui/stores/providers/aliyun/stream-transcription'
 import { Button, FieldCombobox, FieldInput } from '@proj-airi/ui'
 import { computed, nextTick, onBeforeUnmount, reactive, ref, shallowRef, watch } from 'vue'
@@ -177,7 +178,7 @@ async function startRecording() {
       },
       onSessionTerminated: (error) => {
         if (error) {
-          appendLog(`Session terminated: ${error instanceof Error ? error.message : String(error)}`, 'error')
+          appendLog(`Session terminated: ${errorMessageFromValue(error)}`, 'error')
           isTranscribing.value = false
         }
       },
@@ -199,7 +200,7 @@ async function startRecording() {
       if (error instanceof DOMException && error.name === 'AbortError')
         appendLog('Transcription aborted by user')
       else
-        appendLog(`Transcription failed: ${error instanceof Error ? error.message : String(error)}`, 'error')
+        appendLog(`Transcription failed: ${errorMessageFromValue(error)}`, 'error')
     })
     .finally(() => {
       isTranscribing.value = false
@@ -229,7 +230,7 @@ async function startRecording() {
   }
   catch (error) {
     console.error(error)
-    appendLog(`Failed to start recording: ${error instanceof Error ? error.message : String(error)}`, 'error')
+    appendLog(`Failed to start recording: ${errorMessageFromValue(error)}`, 'error')
     audioStreamController.value?.error(error instanceof Error ? error : new Error(String(error)))
     audioStreamController.value = undefined
     abortTranscription()
