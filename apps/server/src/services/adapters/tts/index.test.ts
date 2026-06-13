@@ -490,9 +490,9 @@ describe('volcengineAdapter.send', () => {
     expect(fetchImpl).not.toHaveBeenCalled()
   })
 
-  it('rejects when adapterParams.appid is missing', async () => {
+  it('accepts when adapterParams.appid is missing (V3 auth)', async () => {
     const adapter = getAdapter('volcengine')
-    const fetchImpl = vi.fn() as unknown as typeof fetch
+    const fetchImpl = vi.fn().mockResolvedValue(Response.json({ code: 20000000 }))
     await expect(adapter.send(
       { text: 'hi' },
       {
@@ -502,6 +502,8 @@ describe('volcengineAdapter.send', () => {
         adapterParams: {},
         fetchImpl,
       },
-    )).rejects.toMatchObject({ statusCode: 500 })
+    )).resolves.toBeDefined()
+
+    expect(fetchImpl).toHaveBeenCalled()
   })
 })

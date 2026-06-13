@@ -2,7 +2,7 @@ import type { Voice } from 'unspeech'
 
 import type { TtsAdapter, TtsAdapterContext, TtsInput, TtsResult, TtsVoiceCatalogContext } from './types'
 
-import { createBadRequestError, createInternalError } from '../../../utils/error'
+import { createBadRequestError } from '../../../utils/error'
 import { nanoid } from '../../../utils/id'
 import { audioMimeFromFormat } from './audio-format'
 import { listVoicesViaUnSpeech, sendSpeechViaUnSpeech } from './unspeech'
@@ -46,10 +46,7 @@ export const volcengineAdapter: TtsAdapter = {
   id: 'volcengine',
 
   async send(input: TtsInput, ctx: TtsAdapterContext): Promise<TtsResult> {
-    const appid = ctx.adapterParams.appid
-    if (typeof appid !== 'string' || !appid)
-      throw createInternalError('volcengine tts: adapterParams.appid is required')
-
+    const appid = ctx.adapterParams.appid as string | undefined
     const cluster = typeof ctx.adapterParams.cluster === 'string'
       ? ctx.adapterParams.cluster
       : DEFAULT_VOLCENGINE_CLUSTER
@@ -68,25 +65,23 @@ export const volcengineAdapter: TtsAdapter = {
     const encoding = input.responseFormat ?? DEFAULT_VOLCENGINE_FORMAT
     const speed = input.speed ?? 1
 
-    // unspeech volcengine backend (unspeech/pkg/backend/volcengine/speech.go):
-    // - reads token from `Authorization: Bearer <token>` (strips "Bearer "
-    //   prefix), then re-attaches as `Bearer; <token>` to the upstream — so
-    //   we send a normal Bearer here, NOT the `Bearer; ` form.
-    // - takes `app.appid`, `app.cluster`, `user.uid`, `request.reqid`,
-    //   `audio.encoding`, `audio.speed_ratio` from `extra_body` jsonpath.
-    // - decodes the upstream base64 audio frame itself and returns binary.
+    const extraBody: Record<string, unknown> = {
+      user: { uid: 'airi-server' },
+      audio: { speed_ratio: speed },
+      request: { reqid: nanoid(), operation: 'query' },
+    }
+
+    if (typeof appid === 'string' && appid) {
+      extraBody.app = { appid, cluster }
+    }
+
     return sendSpeechViaUnSpeech({
       ctx,
       model: apiResourceId ? `volcengine/${apiResourceId}` : 'volcengine',
       input: input.text,
       voice,
       responseFormat: encoding,
-      extraBody: {
-        app: { appid, cluster },
-        user: { uid: 'airi-server' },
-        audio: { speed_ratio: speed },
-        request: { reqid: nanoid(), operation: 'query' },
-      },
+      extraBody,
       fallbackContentType: audioMimeFromFormat(encoding),
       providerLabel: 'volcengine',
     })
