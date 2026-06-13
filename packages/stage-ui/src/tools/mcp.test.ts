@@ -1,8 +1,10 @@
 import type { JsonSchema } from 'xsschema'
 
+import type { McpToolDescriptor } from './mcp'
+
 import { describe, expect, it } from 'vitest'
 
-import { mcp } from './mcp'
+import { buildMcpNativeNames, mcp, normalizeOneLine, renderMcpCatalog, sanitizeMcpToolName } from './mcp'
 
 describe('tools mcp schema', () => {
   it('emits strict parameter objects', async () => {
@@ -22,5 +24,69 @@ describe('tools mcp schema', () => {
     const props = (callTool!.function.parameters as JsonSchema).properties!
     expect((props.name as JsonSchema).type).toBe('string')
     expect((props.arguments as JsonSchema).type).toBe('string')
+  })
+})
+
+describe('normalizeOneLine', () => {
+  it('collapses a multi-line description to its first sentence', () => {
+    expect(normalizeOneLine('Read a file.\nHandles encodings.\nExample: {}')).toBe('Read a file.')
+  })
+
+  it('flattens whitespace when there is no sentence terminator', () => {
+    expect(normalizeOneLine('search   the\nweb')).toBe('search the web')
+  })
+
+  it('hard-caps an over-long single sentence with an ellipsis', () => {
+    const out = normalizeOneLine(`${'x'.repeat(200)}.`)
+    expect(out.length).toBe(120)
+    expect(out.endsWith('…')).toBe(true)
+  })
+
+  it('returns empty for a missing/blank description', () => {
+    expect(normalizeOneLine(undefined)).toBe('')
+    expect(normalizeOneLine('   ')).toBe('')
+  })
+})
+
+describe('sanitizeMcpToolName', () => {
+  it('turns a "<server>::<tool>" ref into a prefixed, name-safe function name', () => {
+    expect(sanitizeMcpToolName('filesystem::read_file')).toBe('mcp__filesystem__read_file')
+  })
+
+  it('replaces every invalid character and trims edge underscores', () => {
+    expect(sanitizeMcpToolName('tavily::search/extract')).toBe('mcp__tavily__search_extract')
+  })
+})
+
+describe('buildMcpNativeNames', () => {
+  it('maps each ref to its sanitized name', () => {
+    const map = buildMcpNativeNames(['filesystem::read_file', 'tavily::search'])
+    expect(map.get('filesystem::read_file')).toBe('mcp__filesystem__read_file')
+    expect(map.get('tavily::search')).toBe('mcp__tavily__search')
+  })
+
+  it('disambiguates two refs that sanitize to the same name', () => {
+    // "a::b/c" and "a::b.c" both sanitize to mcp__a__b_c, so the second gets a numeric suffix.
+    const map = buildMcpNativeNames(['a::b/c', 'a::b.c'])
+    expect(map.get('a::b/c')).toBe('mcp__a__b_c')
+    expect(map.get('a::b.c')).toBe('mcp__a__b_c_2')
+    expect(new Set(map.values()).size).toBe(2)
+  })
+})
+
+describe('renderMcpCatalog', () => {
+  const descriptors: McpToolDescriptor[] = [
+    { serverName: 'filesystem', toolName: 'read_file', name: 'filesystem::read_file', description: 'Read a file.\nMore.', inputSchema: {} },
+    { serverName: 'tavily', toolName: 'search', name: 'tavily::search', description: 'Search the web.', inputSchema: {} },
+  ]
+
+  it('lists only the cold (not-yet-activated) tools, one normalized line each', () => {
+    const out = renderMcpCatalog(descriptors, new Set(['tavily::search']))
+    expect(out).toContain('- filesystem::read_file — Read a file.')
+    expect(out).not.toContain('tavily::search')
+  })
+
+  it('returns empty when every tool is already activated', () => {
+    expect(renderMcpCatalog(descriptors, new Set(['filesystem::read_file', 'tavily::search']))).toBe('')
   })
 })
