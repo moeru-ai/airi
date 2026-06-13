@@ -15,6 +15,7 @@ import { createForbiddenError } from '../../utils/error'
 import { checkEmailIdentifier } from './email-identifier'
 import { createElectronCallbackRelay } from './oidc/electron-callback'
 import { createOIDCTokenAuthRoute } from './oidc/token-auth'
+import { createSteamDesktopSignInRoute } from './steam/desktop-sign-in'
 import { createAuthUiRoutes } from './ui-routes'
 
 function usesRailwayEdge(apiServerUrl: string): boolean {
@@ -95,6 +96,7 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
      * This avoids navigating the browser to http://127.0.0.1:{port}.
      */
     .route('/api/auth/oidc/electron-callback', createElectronCallbackRelay(deps.env))
+    .route('/api/auth/steam', createSteamDesktopSignInRoute(deps))
     /**
      * OAuth 2.1 Authorization Server metadata must live at the root-level
      * well-known path with the issuer path inserted for non-root issuers.

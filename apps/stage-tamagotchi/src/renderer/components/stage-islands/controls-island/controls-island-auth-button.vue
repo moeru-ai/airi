@@ -9,6 +9,8 @@ import {
   electronAuthCallback,
   electronAuthCallbackError,
   electronAuthStartLogin,
+  electronAuthSteamSignInFinished,
+  electronAuthSteamSignInStarted,
   electronOpenSettings,
 } from '../../../../shared/eventa'
 
@@ -50,6 +52,12 @@ context.value.on(electronAuthCallback, () => {
   signingIn.value = false
 })
 context.value.on(electronAuthCallbackError, () => {
+  signingIn.value = false
+})
+context.value.on(electronAuthSteamSignInStarted, () => {
+  signingIn.value = true
+})
+context.value.on(electronAuthSteamSignInFinished, () => {
   signingIn.value = false
 })
 

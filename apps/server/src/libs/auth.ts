@@ -57,7 +57,7 @@ export interface TrustedClientSeedSummary {
   redirectUris: string[]
 }
 
-const OIDC_SCOPES = ['openid', 'profile', 'email', 'offline_access'] as const
+export const OIDC_SCOPES = ['openid', 'profile', 'email', 'offline_access'] as const
 const OIDC_GRANT_TYPES = ['authorization_code', 'refresh_token'] as const
 const OIDC_RESPONSE_TYPES = ['code'] as const
 export const OIDC_CLIENT_ID_WEB = 'airi-stage-web'

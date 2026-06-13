@@ -491,6 +491,8 @@ export interface ElectronAuthTokens {
 export const electronAuthStartLogin = defineInvokeEventa<void>('eventa:invoke:electron:auth:start-login')
 export const electronAuthCallback = defineEventa<ElectronAuthTokens>('eventa:event:electron:auth:callback')
 export const electronAuthCallbackError = defineEventa<{ error: string }>('eventa:event:electron:auth:callback-error')
+export const electronAuthSteamSignInStarted = defineEventa<void>('eventa:event:electron:auth:steam-sign-in-started')
+export const electronAuthSteamSignInFinished = defineEventa<void>('eventa:event:electron:auth:steam-sign-in-finished')
 export const electronAuthLogout = defineInvokeEventa<void>('eventa:invoke:electron:auth:logout')
 
 export const i18nSetLocale = defineInvokeEventa<void, Locale>('eventa:invoke:electron:i18n:set-locale')

@@ -27,6 +27,7 @@ export default defineConfig({
           // Native modules that have `__dirname` usages. Externalize to avoid bundling
           // them into ESM and causing issues in runtime.
           'electron-click-drag-plugin',
+          'steamworks-ffi-node',
           'uiohook-napi',
         ],
       },

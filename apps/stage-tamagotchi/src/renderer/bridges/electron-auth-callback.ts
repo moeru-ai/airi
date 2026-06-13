@@ -7,7 +7,9 @@ import { toast } from 'vue-sonner'
 import {
   electronAuthCallback,
   electronAuthCallbackError,
+  electronAuthSteamSignInFinished,
 } from '../../shared/eventa'
+import { i18n } from '../modules/i18n'
 
 /**
  * Register auth callback listeners at the renderer service level so they
@@ -15,6 +17,7 @@ import {
  * mount/unmount lifecycle.
  */
 export function initializeElectronAuthCallbackBridge() {
+  const t = i18n.global.t
   const context = getElectronEventaContext()
 
   context.on(electronAuthCallback, async (event) => {
@@ -42,7 +45,11 @@ export function initializeElectronAuthCallbackBridge() {
   })
 
   context.on(electronAuthCallbackError, (event) => {
-    if (event.body)
+    if (event.body?.error)
       toast.error(event.body.error)
+  })
+
+  context.on(electronAuthSteamSignInFinished, () => {
+    toast.error(t('tamagotchi.stage.controls-island.steam-sign-in-failed'))
   })
 }
