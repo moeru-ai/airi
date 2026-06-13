@@ -3,7 +3,7 @@ import type { ContextMessage } from '../../../types/chat'
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { nanoid } from 'nanoid'
 
-import { useVisionOrchestratorStore } from '../../modules/vision'
+import { useVisionOrchestratorStore, useVisionProcessingStore } from '../../modules/vision'
 
 // Prefix `vision:` so it matches the screen-vision awareness line added to the system prompt.
 const VISION_CONTEXT_ID = 'vision:screen'
@@ -26,13 +26,21 @@ const FRESHNESS_MS = 60_000
  * Returns null when background capture is off, or when no fresh frame is available.
  */
 export function createVisionContext(): ContextMessage | null {
+  // Respect the opt-in: only inject screen context while background capture is enabled, matching
+  // the VISION_AWARENESS_PROMPT gate in chat.ts. Without this, a devtools capture (whose default
+  // is publish-off) or a frame left over from before the toggle was turned off would still leak
+  // the persisted lastResultText into the next chat turn.
+  const processing = useVisionProcessingStore()
+  if (!processing.backgroundCaptureEnabled)
+    return null
+
   const orchestrator = useVisionOrchestratorStore()
   const text = orchestrator.lastResultText.trim()
   const at = orchestrator.lastResultAt
   const fresh = !!text && at != null && Date.now() - at <= FRESHNESS_MS
 
-  // Inject whenever a fresh screen description exists, regardless of how capture was started
-  // (settings toggle or the devtools Vision page). Freshness alone discards stale frames.
+  // Beyond freshness the description is stale (the user moved on), so drop it rather than report
+  // an old frame.
   if (!fresh)
     return null
 
