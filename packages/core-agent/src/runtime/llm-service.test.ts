@@ -160,6 +160,47 @@ describe('streamFrom maxTokens forwarding', () => {
     const streamOptions = streamTextMock.mock.calls.at(-1)?.[0]
     expect(streamOptions.maxTokens).toBeUndefined()
   })
+
+  /**
+   * @example
+   * await streamFrom({ model: 'openai/gpt-5-mini', ..., options: { maxTokens: 512 } })
+   * // -> streamText receives `maxCompletionTokens: 512` and no `maxTokens`, because OpenAI
+   * //    reasoning models reject the legacy `max_tokens` field.
+   */
+  it('routes the cap to maxCompletionTokens for OpenAI reasoning models', async () => {
+    mockImmediateFinish()
+
+    await streamFrom({
+      model: 'openai/gpt-5-mini',
+      chatProvider: provider,
+      messages: [{ role: 'user', content: 'hi' }] as Message[],
+      options: { maxTokens: 512 },
+    })
+
+    const streamOptions = streamTextMock.mock.calls.at(-1)?.[0]
+    expect(streamOptions.maxCompletionTokens).toBe(512)
+    expect(streamOptions.maxTokens).toBeUndefined()
+  })
+
+  /**
+   * @example
+   * await streamFrom({ model: 'o3-mini', ..., options: { maxTokens: 256 } })
+   * // -> the o-series is also a reasoning family, so the cap uses maxCompletionTokens
+   */
+  it('treats the o-series as a reasoning family', async () => {
+    mockImmediateFinish()
+
+    await streamFrom({
+      model: 'o3-mini',
+      chatProvider: provider,
+      messages: [{ role: 'user', content: 'hi' }] as Message[],
+      options: { maxTokens: 256 },
+    })
+
+    const streamOptions = streamTextMock.mock.calls.at(-1)?.[0]
+    expect(streamOptions.maxCompletionTokens).toBe(256)
+    expect(streamOptions.maxTokens).toBeUndefined()
+  })
 })
 
 describe('sanitizeMessages', () => {

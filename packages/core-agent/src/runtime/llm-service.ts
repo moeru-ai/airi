@@ -162,6 +162,19 @@ function resolveCapturedToolErrorEvent(
   }
 }
 
+/**
+ * Whether the model belongs to an OpenAI reasoning family (o1/o3/o4…, gpt-5) that rejects the legacy
+ * `max_tokens` field and only accepts `max_completion_tokens`.
+ *
+ * NOTICE: id-pattern heuristic. The final path segment is matched so provider-prefixed ids
+ * (e.g. "openai/gpt-5-mini", "openrouter/openai/o3") still resolve. Extend the prefixes as new
+ * reasoning families ship.
+ */
+function usesCompletionTokenLimit(model: string): boolean {
+  const name = model.toLowerCase().split('/').pop() ?? ''
+  return /^o[1-9]/.test(name) || name.startsWith('gpt-5')
+}
+
 export async function streamFrom({
   model,
   chatProvider,
@@ -170,6 +183,7 @@ export async function streamFrom({
   builtinToolsResolver,
 }: StreamFromOptions) {
   const chatConfig = chatProvider.chat(model)
+  const reasoningTokenLimit = usesCompletionTokenLimit(model)
   const supportsContentArray = streamOptionsContentArrayCompatibilityOk(model, chatProvider, options)
   const sanitized = sanitizeMessages(messages as unknown[], supportsContentArray)
 
@@ -226,10 +240,14 @@ export async function streamFrom({
         messages: sanitized,
         headers: options?.headers,
         // NOTICE:
-        // xsAI's `requestBody` camel→snake-cases every option key into the chat
-        // body and strips `undefined`, so this lands as the standard OpenAI
-        // `max_tokens` field — and is omitted entirely when unset.
-        maxTokens: options?.maxTokens,
+        // xsAI's `requestBody` camel→snake-cases every option key into the chat body and strips
+        // `undefined`. Non-reasoning models take the standard `max_tokens`; OpenAI reasoning models
+        // (o1/o3/…, gpt-5) reject `max_tokens` and require `max_completion_tokens`, so the cap is
+        // routed to the field the model accepts. The limit is omitted entirely when unset.
+        maxTokens: reasoningTokenLimit ? undefined : options?.maxTokens,
+        ...(reasoningTokenLimit && options?.maxTokens != null
+          ? { maxCompletionTokens: options.maxTokens }
+          : {}),
         stopWhen: stepCountAtLeast(10),
         // NOTICE:
         // Do not pass xsAI's `captureToolErrors` option here. In the installed
