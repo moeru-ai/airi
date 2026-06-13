@@ -1037,6 +1037,20 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       queuedAt: Date.now(),
       createdAt: message.createdAt,
     }
+    // NOTICE: conversation-order invariant. A single turn calls this twice,
+    // user message then assistant message (the orchestrator commits the user
+    // turn before appending the assistant). Both calls are void/fire-and-forget
+    // and neither awaits the other, yet they must reach the socket in that
+    // order: the server assigns `seq` by request-arrival order and other devices
+    // render by `seq`, so a reversed arrival would show the reply before its
+    // prompt. The order holds because the send below is gated behind two awaits.
+    // `enqueuePersist` is a FIFO queue, so the user's outbox write lands before
+    // the assistant's; `refreshOutboxPendingCount` then reads the same store, so
+    // the assistant's write cannot begin until the user's read completes, by
+    // which point the user's `sendMessages` frame is already on the wire. Do not
+    // move the immediate send ahead of these awaits, or the reorder returns. The
+    // `createdAt` sort in `drainOutbox` only covers the batched reconnect path,
+    // not this immediate per-message send.
     await enqueuePersist(() => chatSessionsRepo.enqueueOutbox(userId, entry))
     await refreshOutboxPendingCount()
 
