@@ -51,8 +51,9 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   const mutedNotifySources = new Set<string>()
 
   function notifySourceId(event: WebSocketEventOf<'spark:notify'>): string | undefined {
-    const source = event.metadata?.source
-    return source?.plugin?.id ?? source?.id
+    // Every MetadataEventSource kind (module/extension/kit) carries a flat `id`, and adapters that
+    // own a notify lane publish that same id (e.g. the Minecraft bridge sends `{ id: 'bridge' }`).
+    return event.metadata?.source?.id
   }
 
   function muteNotifySource(sourceId: string) {
