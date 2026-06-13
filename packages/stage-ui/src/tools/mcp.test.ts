@@ -1,10 +1,10 @@
 import type { JsonSchema } from 'xsschema'
 
-import type { McpToolDescriptor } from './mcp'
+import type { McpToolDescriptor, McpToolRuntime } from './mcp'
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
-import { buildMcpNativeNames, mcp, normalizeOneLine, renderMcpCatalog, sanitizeMcpToolName } from './mcp'
+import { buildMcpNativeNames, createMcpMetaTools, mcp, normalizeOneLine, renderMcpCatalog, sanitizeMcpToolName } from './mcp'
 
 describe('tools mcp schema', () => {
   it('emits strict parameter objects', async () => {
@@ -24,6 +24,39 @@ describe('tools mcp schema', () => {
     const props = (callTool!.function.parameters as JsonSchema).properties!
     expect((props.name as JsonSchema).type).toBe('string')
     expect((props.arguments as JsonSchema).type).toBe('string')
+  })
+})
+
+describe('builtIn_mcpCallTool execute', () => {
+  async function getCallTool(runtime: McpToolRuntime, onToolInvoked?: (ref: string) => void) {
+    const tools = await Promise.all(createMcpMetaTools(runtime, onToolInvoked))
+    return tools.find(entry => entry.function.name === 'builtIn_mcpCallTool')!
+  }
+
+  const execOptions = { messages: [], toolCallId: 'call-1' }
+
+  it('returns a structured isError result for malformed arguments JSON instead of throwing', async () => {
+    const callTool = vi.fn()
+    const tool = await getCallTool({ listTools: async () => [], callTool })
+
+    const result = await tool.execute({ name: 'filesystem::read_file', arguments: '{not json' }, execOptions) as { isError?: boolean, content?: Array<{ text?: string }> }
+
+    expect(result.isError).toBe(true)
+    expect(result.content?.[0]?.text).toContain('Invalid JSON')
+    // The malformed call must never reach the runtime.
+    expect(callTool).not.toHaveBeenCalled()
+  })
+
+  it('promotes a tool only after a successful call', async () => {
+    const onToolInvoked = vi.fn()
+    const tool = await getCallTool(
+      { listTools: async () => [], callTool: async () => ({ content: [{ type: 'text', text: 'ok' }] }) },
+      onToolInvoked,
+    )
+
+    await tool.execute({ name: 'filesystem::read_file', arguments: '{"path":"/tmp"}' }, execOptions)
+
+    expect(onToolInvoked).toHaveBeenCalledWith('filesystem::read_file')
   })
 })
 

@@ -3,7 +3,7 @@ import type { McpToolRuntime } from '@proj-airi/stage-ui/tools/mcp'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/llm-tools'
 import { useLlmToolsetPromptsStore } from '@proj-airi/stage-ui/stores/llm-toolset-prompts'
-import { createMcpToolset } from '@proj-airi/stage-ui/tools/mcp'
+import { createMcpMetaTools, createMcpToolset } from '@proj-airi/stage-ui/tools/mcp'
 import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { watch } from 'vue'
@@ -57,6 +57,11 @@ export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', ()
   }
 
   async function refresh() {
+    // Register the meta-tools immediately with the live runtime, before the async descriptor
+    // discovery below. Without this, a chat sent during the discovery window would only see the
+    // unavailable fallback meta-tools, so every MCP call would fail until listTools() resolves.
+    await llmToolsStore.registerTools('mcp', await Promise.all(createMcpMetaTools(runtime, markToolActivated)))
+
     const { tools, catalog } = await createMcpToolset(runtime, {
       activatedRefs: new Set(activatedRefs.value),
       onToolInvoked: markToolActivated,

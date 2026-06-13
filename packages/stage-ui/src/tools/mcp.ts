@@ -215,7 +215,18 @@ export function createMcpMetaTools(runtime: McpToolRuntime, onToolInvoked?: (ref
       name: 'builtIn_mcpCallTool',
       description: 'Run an MCP tool that is in the MCP catalog but NOT already a direct tool in your tool list. Set `name` to the reference (e.g. "filesystem::read_file") and `arguments` to a JSON string of its inputs (e.g. "{}" or "{\\"path\\":\\"D:/airi-files\\"}"). Do NOT call a "<server>::<tool>" name directly — it is not a registered function; pass it here instead. NOTE: a capability you have used before is registered directly in your tool list under an `mcp__…` name — when one exists, call that directly and do not route it through this tool.',
       execute: async ({ name, arguments: argsJson }) => {
-        const args = argsJson ? JSON.parse(argsJson) : {}
+        let args: Record<string, unknown>
+        try {
+          args = argsJson ? JSON.parse(argsJson) : {}
+        }
+        catch (error) {
+          // Report malformed arguments back to the model as a tool error rather than throwing — a
+          // throw would abort the whole turn instead of letting the model retry with valid JSON.
+          return {
+            isError: true,
+            content: [{ type: 'text', text: `Invalid JSON in arguments: ${errorMessageFromValue(error)}` }],
+          }
+        }
         const result = await executeMcpCall(runtime, name, args)
         // A tool the model actually used (successfully) is worth promoting to a native first-class
         // tool — from the next turn it is callable directly, no `::` wrapper, no double-encoded args.

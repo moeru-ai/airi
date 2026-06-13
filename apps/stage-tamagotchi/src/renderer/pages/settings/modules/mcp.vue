@@ -267,6 +267,9 @@ async function restartServers() {
   try {
     const result = await invokeApplyAndRestart()
     await refreshRuntime()
+    // Re-derive the live MCP toolset so the awareness catalog and native tools reflect the new
+    // server set; otherwise added/removed server tools stay stale until an app reload.
+    await mcpToolsStore.refresh()
     infoMessage.value = tn('messages.restarted', {
       started: result.started.length,
       failed: result.failed.length,
