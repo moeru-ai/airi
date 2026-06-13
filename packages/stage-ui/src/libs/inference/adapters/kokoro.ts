@@ -463,6 +463,15 @@ export function createKokoroAdapter(): KokoroAdapter {
       if (error === notReadyError)
         throw error
 
+      // Cancellation is a caller-controlled lifecycle outcome, not a worker
+      // failure. Keep the loaded model available and avoid restarting the
+      // worker after waitForWorkerMessage has already posted `cancel`.
+      if ((error as Error)?.name === 'AbortError') {
+        if (state === 'running')
+          state = 'ready'
+        throw error
+      }
+
       handleWorkerError(error instanceof Error ? error : new Error(String(error)))
       throw error
     })
