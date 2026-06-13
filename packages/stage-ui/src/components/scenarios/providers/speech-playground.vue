@@ -19,6 +19,9 @@ const props = defineProps<{
   // Current state
   apiKeyConfigured?: boolean
   voicesLoading?: boolean
+
+  // Preferred voice to select automatically when voices load (matches by id)
+  preferredVoice?: string
 }>()
 
 const { t } = useI18n()
@@ -38,7 +41,12 @@ watch(
   () => props.availableVoices,
   (newVoices) => {
     if (newVoices.length > 0 && !selectedVoice.value) {
-      selectedVoice.value = newVoices[0]?.id || ''
+      if (props.preferredVoice && newVoices.some(v => v.id === props.preferredVoice)) {
+        selectedVoice.value = props.preferredVoice
+      }
+      else {
+        selectedVoice.value = newVoices[0]?.id || ''
+      }
     }
   },
   { immediate: true },

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useDebounceFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -99,20 +99,28 @@ onMounted(() => {
   }
 })
 
-const debouncedUpdate = useDebounceFn(() => {
+function persistProviderConfig() {
   providers.value[props.providerId] = {
     ...providers.value[props.providerId],
     apiKey: apiKey.value,
     baseUrl: baseUrl.value || providerMetadata.value?.defaultOptions?.().baseUrl || '',
     voiceSettings: { ...voiceSettings.value },
   }
-}, 1000)
+}
+
+const debouncedUpdate = useDebounceFn(persistProviderConfig, 1000)
 
 // Watch all settings and update the provider configuration
 watch([apiKey, baseUrl], debouncedUpdate)
 
 // Watch voice settings for changes
 watch(voiceSettings, debouncedUpdate, { deep: true })
+
+// Flush pending debounced saves before navigating away to prevent data loss
+onBeforeUnmount(() => {
+  debouncedUpdate.cancel()
+  persistProviderConfig()
+})
 
 function handleResetVoiceSettings() {
   voiceSettings.value = { ...(providerMetadata.value?.defaultOptions?.().voiceSettings as Record<string, unknown>) }
