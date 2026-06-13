@@ -1,7 +1,7 @@
 import { nextTick } from 'vue'
 
 import { initializeAuth } from '../libs/auth'
-import { getStreamingTtsAvailable } from '../libs/providers'
+import { getStreamingTtsAvailable, OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from '../libs/providers'
 import { useAuthStore } from '../stores/auth'
 import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useHearingStore } from '../stores/modules/hearing'
@@ -15,6 +15,7 @@ import { useProvidersStore } from '../stores/providers'
 const AUTH_ACTIVATED_PROVIDERS: Array<{ id: string, module: 'consciousness' | 'speech' | 'hearing' }> = [
   { id: 'official-provider', module: 'consciousness' },
   { id: 'official-provider-speech', module: 'speech' },
+  { id: OFFICIAL_TRANSCRIPTION_PROVIDER_ID, module: 'hearing' },
 ]
 
 // The streaming TTS provider is NOT in the static list above because its

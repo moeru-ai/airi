@@ -1,184 +1,92 @@
-import type { ContextInit } from '@proj-airi/plugin-sdk'
+import type { KitClientRuntime } from '@proj-airi/plugin-sdk'
 import type { HostDataRecord } from '@proj-airi/plugin-sdk/plugin-host'
 
-/**
- * Describes a widget hint contributed by a gamelet to the tamagotchi host.
- *
- * Use when:
- * - A gamelet should expose one or more mountable widget surfaces
- *
- * Expects:
- * - `id` is stable within the gamelet
- *
- * Returns:
- * - A serializable host hint for widget registration
- */
-export interface GameletWidgetDefinition {
-  id: string
-  kind: string
+import { defineKit } from '@proj-airi/plugin-sdk'
+
+export interface GameletKitClient {
+  iframe: (input: { assetPath?: string, src?: string, sandbox?: string }) => HostDataRecord
+  mount: (definition: {
+    /** Fully qualified host binding id used as the host-side module id. */
+    bindingId?: string
+    title: string
+    ui: HostDataRecord
+    init?: HostDataRecord
+  }) => Promise<unknown>
+  orchestration?: GameletKitRuntime['gamelets']
 }
 
-/**
- * Describes host-managed configuration defaults declared by a gamelet.
- *
- * Use when:
- * - A gamelet wants the host to persist validated defaults
- *
- * Expects:
- * - `defaults` is JSON-compatible
- *
- * Returns:
- * - The configuration declaration stored in the gamelet module config
- */
-export interface GameletConfigDefinition<TDefaults extends HostDataRecord = HostDataRecord> {
-  defaults?: TDefaults
-}
-
-/**
- * Describes the friendly tamagotchi authoring shape for a gamelet.
- *
- * Use when:
- * - A plugin wants to register one UI-driven gamelet without raw kit/module calls
- *
- * Expects:
- * - `entrypoint` points at the plugin-provided UI asset entry
- *
- * Returns:
- * - A declarative gamelet definition consumed by {@link defineGamelet}
- */
-export interface GameletDefinition<TDefaults extends HostDataRecord = HostDataRecord> {
-  id: string
-  title: string
-  entrypoint: string
-  widgets?: GameletWidgetDefinition[]
-  config?: GameletConfigDefinition<TDefaults>
-}
-
-/**
- * Represents one registered tamagotchi gamelet.
- *
- * Use when:
- * - Tools or plugin bootstrap code need to check whether host registration succeeded
- *
- * Expects:
- * - Returned values come from a previously completed {@link defineGamelet} call
- *
- * Returns:
- * - A minimal handle that keeps host lifecycle concerns internal
- */
-export interface DefinedGamelet {
-  id: string
-  isSupported: () => Promise<boolean>
-}
-
-/**
- * Normalizes one author-facing gamelet widget into host-safe binding config data.
- *
- * Before:
- * - `{ id: 'main-board', kind: 'primary' }`
- *
- * After:
- * - `{ id: 'main-board', kind: 'primary' }`
- */
-function createWidgetHintRecord(definition: GameletWidgetDefinition): HostDataRecord {
-  return {
-    id: definition.id,
-    kind: definition.kind,
+export interface GameletKitRuntime extends KitClientRuntime {
+  bindings?: {
+    bind: (input: {
+      moduleId: string
+      kitId: string
+      kitModuleType: string
+      runtime?: string
+      config: HostDataRecord
+    }) => Promise<unknown> | unknown
+  }
+  gamelets?: {
+    open: (bindingId: string, payload?: HostDataRecord) => Promise<void> | void
+    configure: (bindingId: string, payload: HostDataRecord) => Promise<void> | void
+    request: <TResponse = HostDataRecord>(
+      bindingId: string,
+      payload: HostDataRecord,
+      options?: { timeoutMs?: number },
+    ) => Promise<TResponse> | TResponse
+    close: (bindingId: string) => Promise<void> | void
+    isOpen: (bindingId: string) => Promise<boolean> | boolean
   }
 }
 
 /**
- * Normalizes one gamelet definition into binding config stored in `kit.gamelet`.
+ * Derives the host binding id used by the gamelet kit client.
  *
  * Before:
- * - Friendly authoring fields that may include optional properties and typed helper objects
+ * - `{ sessionId: "session-1", moduleId: undefined }`
  *
  * After:
- * - A plain `HostDataRecord` with only host-safe values and no `undefined` properties
+ * - `"session-1:gamelet"`
  */
-function buildModuleConfig<TDefaults extends HostDataRecord>(definition: GameletDefinition<TDefaults>): HostDataRecord {
-  return {
-    title: definition.title,
-    entrypoint: definition.entrypoint,
-    widgets: (definition.widgets ?? []).map(createWidgetHintRecord),
-    widget: {
-      mount: 'iframe',
-      iframe: {
-        assetPath: definition.entrypoint,
-        sandbox: 'allow-scripts allow-same-origin allow-forms allow-popups',
-      },
-      windowSize: {
-        width: 980,
-        height: 840,
-        minWidth: 640,
-        minHeight: 640,
-      },
-    },
-    ...(definition.config
-      ? {
-          config: {
-            defaults: definition.config.defaults ?? {},
+function createGameletBindingId(runtime: KitClientRuntime): string {
+  return `${runtime.moduleId ?? runtime.sessionId}:gamelet`
+}
+
+export const gameletKit = defineKit<GameletKitClient>({
+  id: 'kit.gamelet',
+  version: '1.0.0',
+  allowedExposePolicies: ['local-only', 'remote-observable'],
+  defaultExposePolicy: 'local-only',
+  createClient(runtime) {
+    const gameletRuntime = runtime as GameletKitRuntime
+    return {
+      iframe(input) {
+        return {
+          mount: 'iframe',
+          iframe: {
+            ...input,
+            sandbox: input.sandbox ?? 'allow-scripts allow-same-origin allow-forms allow-popups',
           },
         }
-      : {}),
-  }
-}
-
-/**
- * Registers a tamagotchi gamelet through the low-level kit/binding APIs.
- *
- * Use when:
- * - A plugin targets stage-tamagotchi and wants one-step gamelet registration
- *
- * Expects:
- * - The host exposes the `kit.gamelet` kit through `ctx.apis.kits`
- *
- * Returns:
- * - A handle that reports whether the host supports the gamelet kit
- */
-export async function defineGamelet<TDefaults extends HostDataRecord = HostDataRecord>(
-  ctx: Pick<ContextInit, 'apis'>,
-  definition: GameletDefinition<TDefaults>,
-): Promise<DefinedGamelet> {
-  const kits = await ctx.apis.kits.list()
-  const supported = kits.some(kit => kit.kitId === 'kit.gamelet')
-
-  if (!supported) {
-    return {
-      id: definition.id,
-      async isSupported() {
-        return false
       },
+      async mount(definition) {
+        if (!gameletRuntime.bindings) {
+          throw new Error('gameletKit requires a host binding runtime.')
+        }
+
+        return await gameletRuntime.bindings.bind({
+          moduleId: definition.bindingId ?? createGameletBindingId(runtime),
+          kitId: 'kit.gamelet',
+          kitModuleType: 'gamelet',
+          config: {
+            title: definition.title,
+            widget: definition.ui,
+            config: {
+              init: definition.init ?? {},
+            },
+          },
+        })
+      },
+      orchestration: gameletRuntime.gamelets,
     }
-  }
-
-  const existingModules = await ctx.apis.bindings.list()
-  const existingModule = existingModules.find(module => module.moduleId === definition.id)
-  const config = buildModuleConfig(definition)
-
-  if (!existingModule) {
-    await ctx.apis.bindings.announce({
-      moduleId: definition.id,
-      kitId: 'kit.gamelet',
-      kitModuleType: 'gamelet',
-      config,
-    })
-  }
-  else {
-    await ctx.apis.bindings.update({
-      moduleId: definition.id,
-      config,
-    })
-  }
-
-  await ctx.apis.bindings.activate({
-    moduleId: definition.id,
-  })
-
-  return {
-    id: definition.id,
-    async isSupported() {
-      return true
-    },
-  }
-}
+  },
+})

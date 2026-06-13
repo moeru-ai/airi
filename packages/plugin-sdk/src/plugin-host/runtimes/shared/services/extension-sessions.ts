@@ -1,25 +1,11 @@
-import type { ModuleIdentity } from '../../../shared/types'
-
 import { nanoid } from 'nanoid/non-secure'
 
-function createModuleIdentity(name: string, index: number): ModuleIdentity {
-  const sanitizedName = name.trim() || 'plugin'
-
-  return {
-    id: `${sanitizedName}-${index}`,
-    kind: 'plugin',
-    plugin: {
-      id: sanitizedName,
-    },
-  }
-}
-
 /**
- * Stores plugin sessions and generates deterministic session identities.
+ * Stores extension host sessions and generates deterministic session identities.
  *
  * Use when:
- * - The host needs to track loaded plugin sessions by id
- * - New plugin sessions need a generated session id and module identity
+ * - The host needs to track loaded extension sessions by id
+ * - New extension sessions need a generated session id and module identity
  *
  * Expects:
  * - `TSession` has a stable `id` field used as the registry key
@@ -27,7 +13,7 @@ function createModuleIdentity(name: string, index: number): ModuleIdentity {
  * Returns:
  * - An in-memory session registry with identity generation helpers
  */
-export class PluginSessionService<TSession extends { id: string }> {
+export class ExtensionSessionService<TSession extends { id: string }> {
   private readonly sessions = new Map<string, TSession>()
   private sessionCounter = 0
 
@@ -54,14 +40,13 @@ export class PluginSessionService<TSession extends { id: string }> {
     return session
   }
 
-  nextSessionIdentity(name: string) {
+  nextSessionIdentity() {
     const index = this.sessionCounter
     this.sessionCounter += 1
 
     return {
       index,
-      sessionId: `plugin-session-${nanoid()}`,
-      moduleIdentity: createModuleIdentity(name, index),
+      sessionId: `extension-session-${nanoid()}`,
     }
   }
 }

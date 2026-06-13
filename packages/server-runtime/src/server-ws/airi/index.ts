@@ -1,4 +1,4 @@
-import type { DeliveryConfig, MessageHeartbeat, MetadataEventSource, WebSocketBaseEvent, WebSocketEvent } from '@proj-airi/server-shared/types'
+import type { DeliveryConfig, ExtensionIdentity, MessageHeartbeat, MetadataEventSource, WebSocketBaseEvent, WebSocketEvent } from '@proj-airi/server-shared/types'
 
 import type {
   RouteContext,
@@ -131,6 +131,20 @@ export function createResponses(serverInstanceId: string) {
       return {
         type: 'module:authenticated',
         data: { authenticated: true },
+        metadata: createEventMetadata(serverInstanceId, parentId),
+      } satisfies WebSocketEvent<Record<string, unknown>>
+    },
+    peerAuthenticated(peerId: string, parentId?: string) {
+      return {
+        type: 'peer:authenticated',
+        data: { authenticated: true, peerId },
+        metadata: createEventMetadata(serverInstanceId, parentId),
+      } satisfies WebSocketEvent<Record<string, unknown>>
+    },
+    extensionAuthenticated(identity: ExtensionIdentity, parentId?: string) {
+      return {
+        type: 'extension:authenticated',
+        data: { identity, authenticated: true },
         metadata: createEventMetadata(serverInstanceId, parentId),
       } satisfies WebSocketEvent<Record<string, unknown>>
     },

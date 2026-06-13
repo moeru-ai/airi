@@ -47,10 +47,84 @@ export interface AdminUsersPage {
   total: number
 }
 
+export interface AdminRouterOpenRouterSlice {
+  kind: 'openrouter'
+  modelName: string
+  overrideModel: string
+  plaintextKey?: string
+  baseURL?: string
+  keyEntryId?: string
+  existingKeyEntryId?: string
+  headerTemplate?: string
+}
+
+export interface AdminRouterAzureSlice {
+  kind: 'azure'
+  modelName: string
+  region: string
+  defaultVoice?: string
+  plaintextKey?: string
+  keyEntryId?: string
+  existingKeyEntryId?: string
+}
+
+export interface AdminRouterDashscopeSlice {
+  kind: 'dashscope-cosyvoice'
+  modelName: string
+  region: 'intl' | 'cn'
+  upstreamModel: string
+  plaintextKey?: string
+  keyEntryId?: string
+  existingKeyEntryId?: string
+}
+
+export interface AdminRouterStepfunSlice {
+  kind: 'stepfun'
+  modelName: string
+  upstreamModel?: 'stepaudio-2.5-tts' | 'step-tts-2' | 'step-tts-mini'
+  defaultVoice?: string
+  instruction?: string
+  plaintextKey?: string
+  keyEntryId?: string
+  existingKeyEntryId?: string
+}
+
+export interface AdminRouterUnspeechSlice {
+  kind: 'unspeech'
+  restBaseURL: string
+  streaming?: {
+    upstreamURL: string
+    plaintextKey?: string
+    keyEntryId?: string
+    existingKeyEntryId?: string
+    models?: Array<{ id: string, name?: string, description?: string }>
+    defaultModel?: string
+  }
+}
+
+export interface AdminRouterAliyunNlsAsrSlice {
+  kind: 'aliyun-nls-asr'
+  modelName: string
+  accessKeyId: string
+  appKey: string
+  region?: 'cn-shanghai' | 'cn-shanghai-internal' | 'cn-beijing' | 'cn-beijing-internal' | 'cn-shenzhen' | 'cn-shenzhen-internal'
+  plaintextKey?: string
+  keyEntryId?: string
+  existingKeyEntryId?: string
+}
+
+export type AdminRouterConfigSlice
+  = | AdminRouterOpenRouterSlice
+    | AdminRouterAzureSlice
+    | AdminRouterDashscopeSlice
+    | AdminRouterStepfunSlice
+    | AdminRouterAliyunNlsAsrSlice
+    | AdminRouterUnspeechSlice
+
 export interface AdminRouterConfigRequest {
   mode?: 'merge' | 'reset'
   dryRun?: boolean
-  slices?: Array<Record<string, unknown>>
+  slices?: AdminRouterConfigSlice[]
   defaults?: {
     chatModel?: string
     ttsModel?: string
@@ -62,6 +136,13 @@ export interface AdminRouterConfigResult {
   applied: Array<Record<string, unknown>>
   invalidatedKeys: string[]
   preview: Record<string, unknown>
+}
+
+export interface AdminRouterConfigCurrent {
+  request: AdminRouterConfigRequest
+  preview: Record<string, unknown>
+  loadedAt: string
+  missingKeys: string[]
 }
 
 export interface VoicePackParams {
@@ -140,10 +221,27 @@ export function apiServerUrl(): string {
   return getServerAdminBootstrapContext()?.apiServerUrl ?? defaultApiServerUrl()
 }
 
-export function signInUrl(): string {
-  const url = new URL('/auth/sign-in', apiServerUrl())
-  url.searchParams.set('redirect', `${window.location.pathname}${window.location.search}`)
+/**
+ * Builds an API-owned sign-in URL that returns to the exact admin page.
+ *
+ * Use when:
+ * - The standalone admin app needs to bounce through the API auth route.
+ * - The admin app may be hosted on a different origin than the auth UI.
+ *
+ * Expects:
+ * - `currentUrl` is the browser's absolute admin URL.
+ *
+ * Returns:
+ * - An API `/auth/sign-in` URL carrying an absolute trusted return target.
+ */
+export function buildAdminSignInUrl(apiServerUrl: string, currentUrl: string): string {
+  const url = new URL('/auth/sign-in', apiServerUrl)
+  url.searchParams.set('redirect', currentUrl)
   return url.toString()
+}
+
+export function signInUrl(): string {
+  return buildAdminSignInUrl(apiServerUrl(), window.location.href)
 }
 
 async function adminFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -173,7 +271,12 @@ async function fetchJson<T>(endpoint: URL, init: RequestInit = {}): Promise<T> {
     payload = await response.json()
   }
   catch {
-    payload = null
+    const contentType = response.headers.get('Content-Type')
+    throw new AdminApiError(
+      `Expected JSON from ${endpoint.pathname}, got ${contentType ?? 'an empty response'}. Check api_server_url.`,
+      response.status,
+      null,
+    )
   }
 
   if (!response.ok) {
@@ -269,6 +372,7 @@ export const adminApi = {
       method: 'POST',
       body: JSON.stringify({ ...body, dryRun }),
     }),
+  routerConfig: () => adminFetch<AdminRouterConfigCurrent>('/config/router'),
   speechModels: async () => {
     const data = await publicFetch<{ models?: SpeechModel[] }>('/audio/models')
     return Array.isArray(data.models) ? data.models : []

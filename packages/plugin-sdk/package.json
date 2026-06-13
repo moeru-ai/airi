@@ -43,10 +43,8 @@
     "@moeru/eventa": "catalog:",
     "@moeru/std": "catalog:",
     "@proj-airi/plugin-protocol": "workspace:*",
-    "@proj-airi/server-shared": "workspace:*",
     "nanoid": "catalog:",
-    "valibot": "catalog:",
-    "xstate": "catalog:"
+    "valibot": "catalog:"
   },
   "devDependencies": {
     "es-toolkit": "catalog:"

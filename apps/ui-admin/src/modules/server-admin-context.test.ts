@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { getServerAdminBootstrapContext, resolveStandaloneServerAdminContext } from './server-admin-context'
+import { defaultStandaloneApiServerUrl, getServerAdminBootstrapContext, resolveStandaloneServerAdminContext } from './server-admin-context'
 
 describe('ui-admin bootstrap context', () => {
   it('uses the trusted API server origin carried by standalone server redirects', () => {
@@ -24,6 +24,20 @@ describe('ui-admin bootstrap context', () => {
     expect(resolveStandaloneServerAdminContext(
       'http://localhost:5173/admin/users?api_server_url=http%3A%2F%2F127.0.0.1%3A3000',
     )?.apiServerUrl).toBe('http://127.0.0.1:3000')
+  })
+
+  it('defaults local standalone dev UI origins to the local API port', () => {
+    expect(defaultStandaloneApiServerUrl('http://localhost:5178')).toBe('http://localhost:3000')
+    expect(defaultStandaloneApiServerUrl('http://127.0.0.1:5178')).toBe('http://127.0.0.1:3000')
+  })
+
+  it('keeps non-local standalone origins unchanged without redirect context', () => {
+    expect(defaultStandaloneApiServerUrl('https://admin-preview.example')).toBe('https://admin-preview.example')
+  })
+
+  it('defaults known standalone admin deployments to their API origins', () => {
+    expect(defaultStandaloneApiServerUrl('https://admin.airi.build')).toBe('https://api.airi.build')
+    expect(defaultStandaloneApiServerUrl('https://server-dev.airi-server-admin.pages.dev')).toBe('https://airi-server-dev.up.railway.app')
   })
 
   it('falls back to the standalone query context when the static placeholder script is still present', () => {

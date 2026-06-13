@@ -22,6 +22,12 @@
       ],
       "@proj-airi/stage-layouts/*": [
         "../../packages/stage-layouts/src/*"
+      ],
+      "@proj-airi/electron-vueuse": [
+        "../../packages/electron-vueuse/src/index.ts"
+      ],
+      "@proj-airi/electron-vueuse/*": [
+        "../../packages/electron-vueuse/src/*"
       ]
     },
     "resolveJsonModule": true,

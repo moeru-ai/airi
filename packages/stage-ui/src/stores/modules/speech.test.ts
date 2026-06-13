@@ -128,6 +128,39 @@ describe('speech store helpers', () => {
 
   /**
    * @example
+   * speechStore.resolveVoicePackSpeechInput({ text, voice, forceSSML: true, supportsSSML: false, supportsAdapterProsody: true })
+   */
+  it('keeps official adapter-backed speech input as plain text when global SSML is enabled', () => {
+    const speechStore = useSpeechStore()
+    const voice = {
+      id: 'voice-1',
+      name: 'Voice 1',
+      provider: OFFICIAL_SPEECH_PROVIDER_ID,
+      languages: [{ code: 'en-US', title: 'English' }],
+      gender: 'neutral',
+    }
+
+    // ROOT CAUSE:
+    //
+    // Auto TTS can enable global SSML before the server routes the official
+    // speech provider to DashScope CosyVoice. DashScope rejects `<speak>...`
+    // payloads with `SSML text is not supported at the moment!`, so providers
+    // that apply prosody through adapter options must keep the text field plain.
+    const request = speechStore.resolveVoicePackSpeechInput({
+      text: 'hello',
+      voice,
+      providerConfig: { pitch: 0 },
+      forceSSML: true,
+      supportsSSML: false,
+      supportsAdapterProsody: true,
+    })
+
+    expect(request.input).toBe('hello')
+    expect(request.input).not.toContain('<speak')
+  })
+
+  /**
+   * @example
    * speechStore.resolveVoicePackSpeechInput({ text, voice, params: { pitch: '+20%' }, supportsAdapterProsody: true })
    */
   it('passes Voice Pack prosody params through adapter options when supported', () => {

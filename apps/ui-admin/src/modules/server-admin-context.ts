@@ -11,6 +11,11 @@ const TRUSTED_STANDALONE_API_SERVER_ORIGINS = [
   'https://airi-server-dev.up.railway.app',
 ]
 
+const DEFAULT_API_SERVER_ORIGINS_BY_ADMIN_UI_ORIGIN = new Map([
+  ['https://admin.airi.build', 'https://api.airi.build'],
+  ['https://server-dev.airi-server-admin.pages.dev', 'https://airi-server-dev.up.railway.app'],
+])
+
 const TRUSTED_LOCAL_API_SERVER_ORIGIN_PATTERNS = [
   /^http:\/\/localhost(:\d+)?$/,
   /^http:\/\/127\.0\.0\.1(:\d+)?$/,
@@ -45,7 +50,31 @@ export function getServerAdminBootstrapContext(): ServerAdminBootstrapContext | 
 }
 
 export function defaultApiServerUrl(): string {
-  return import.meta.env.VITE_SERVER_URL || window.location.origin
+  return import.meta.env.VITE_SERVER_URL || defaultStandaloneApiServerUrl(window.location.origin)
+}
+
+/**
+ * Resolves the API origin for a standalone admin UI without redirect context.
+ *
+ * Before:
+ * - "http://localhost:5178"
+ *
+ * After:
+ * - "http://localhost:3000"
+ */
+export function defaultStandaloneApiServerUrl(currentOrigin: string): string {
+  const origin = new URL(currentOrigin).origin
+  const knownApiServerOrigin = DEFAULT_API_SERVER_ORIGINS_BY_ADMIN_UI_ORIGIN.get(origin)
+  if (knownApiServerOrigin)
+    return knownApiServerOrigin
+
+  if (TRUSTED_LOCAL_API_SERVER_ORIGIN_PATTERNS.some(pattern => pattern.test(origin))) {
+    const url = new URL(origin)
+    url.port = '3000'
+    return url.origin
+  }
+
+  return origin
 }
 
 /**

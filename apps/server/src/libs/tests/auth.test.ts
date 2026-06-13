@@ -46,6 +46,21 @@ describe('createAuth', () => {
 
     expect(auth.options.account?.accountLinking?.allowDifferentEmails).toBe(true)
   })
+
+  it('asks social providers to show the account picker during OAuth authorization', () => {
+    const auth = createAuth({} as unknown as Database, {
+      API_SERVER_URL: 'http://localhost:3000',
+      AUTH_GOOGLE_CLIENT_ID: 'google-client',
+      AUTH_GOOGLE_CLIENT_SECRET: 'google-secret',
+      AUTH_GITHUB_CLIENT_ID: 'github-client',
+      AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
+      BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
+      ADDITIONAL_TRUSTED_ORIGINS: [],
+    } as unknown as Env)
+
+    expect(auth.options.socialProviders?.google?.prompt).toBe('select_account')
+    expect(auth.options.socialProviders?.github?.prompt).toBe('select_account')
+  })
 })
 
 describe('seedTrustedClients', () => {

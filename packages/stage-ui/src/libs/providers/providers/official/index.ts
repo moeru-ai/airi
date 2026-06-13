@@ -12,6 +12,7 @@ import { createOfficialAudioProvider, createOfficialOpenAIProvider, OFFICIAL_ICO
 
 export const OFFICIAL_SPEECH_PROVIDER_ID = 'official-provider-speech'
 export const OFFICIAL_SPEECH_STREAMING_PROVIDER_ID = 'official-provider-speech-streaming'
+export const OFFICIAL_TRANSCRIPTION_PROVIDER_ID = 'official-provider-transcription'
 
 // Locale → voice id map recommended by the server, keyed by provider id.
 // Populated by each speech provider's listVoices() from the response's
@@ -321,6 +322,47 @@ export const providerOfficialSpeechStreaming = defineProvider({
         }
       })
     },
+  },
+})
+
+export const providerOfficialTranscription = defineProvider({
+  id: OFFICIAL_TRANSCRIPTION_PROVIDER_ID,
+  order: -1,
+  name: 'Official Transcription Provider',
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.official.transcription-title'),
+  description: 'Official realtime speech-to-text provider by AIRI.',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.official.transcription-description'),
+  tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt', 'streaming-transcription'],
+  icon: OFFICIAL_ICON,
+  requiresCredentials: false,
+  capabilities: {
+    transcription: {
+      protocol: 'http',
+      generateOutput: false,
+      streamOutput: true,
+      streamInput: true,
+    },
+  },
+  createProviderConfig: () => officialConfigSchema,
+  createProvider(_config) {
+    return {
+      transcription: (model: string) => ({
+        baseURL: new URL(`${SERVER_URL}/api/v1/audio/transcriptions/stream`),
+        fetch: withCredentials(),
+        model,
+      }),
+    }
+  },
+  validationRequiredWhen: () => false,
+  extraMethods: {
+    listModels: async (): Promise<ModelInfo[]> => [
+      {
+        id: 'auto',
+        name: 'Auto',
+        provider: OFFICIAL_TRANSCRIPTION_PROVIDER_ID,
+        description: 'Realtime transcription routed by AIRI',
+      },
+    ],
   },
 })
 

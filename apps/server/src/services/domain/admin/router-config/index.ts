@@ -2,7 +2,7 @@ import type Redis from 'ioredis'
 import type { InferOutput } from 'valibot'
 
 import type { EnvelopeCrypto } from '../../../../utils/envelope-crypto'
-import type { ConfigKVService, llmModelSchema, llmRouterConfigSchema, ttsModelSchema, unspeechUpstreamSchema } from '../../../adapters/config-kv'
+import type { asrModelSchema, ConfigKVService, llmModelSchema, llmRouterConfigSchema, ttsModelSchema, unspeechUpstreamSchema } from '../../../adapters/config-kv'
 
 import { useLogger } from '@guiiai/logg'
 
@@ -22,7 +22,9 @@ const DEFAULT_KEY_ENTRY_IDS = {
   'openrouter': 'openrouter-prod-1',
   'azure': 'azure-tts-prod-1',
   'dashscope-cosyvoice': 'dashscope-tts-prod-1',
+  'stepfun': 'stepfun-tts-prod-1',
   'unspeech': 'volcengine-prod-1',
+  'aliyun-nls-asr': 'aliyun-nls-asr-prod-1',
 } as const
 
 const DEFAULT_FALLBACK_TRIGGERS = {
@@ -33,7 +35,9 @@ const DEFAULT_FALLBACK_TRIGGERS = {
 type LlmRouterConfig = InferOutput<typeof llmRouterConfigSchema>
 type LlmModel = InferOutput<typeof llmModelSchema>
 type TtsModel = InferOutput<typeof ttsModelSchema>
+type AsrModel = InferOutput<typeof asrModelSchema>
 type UnspeechUpstream = InferOutput<typeof unspeechUpstreamSchema>
+type KeyEntry = LlmModel['upstreams'][number]['keys'][number]
 
 /**
  * Per-provider input. The admin route validates the shape with Valibot
@@ -47,6 +51,8 @@ export type SliceInput
   = | OpenRouterSliceInput
     | AzureSliceInput
     | DashscopeSliceInput
+    | StepfunSliceInput
+    | AliyunNlsAsrSliceInput
     | UnspeechSliceInput
 
 export interface OpenRouterSliceInput {
@@ -56,11 +62,13 @@ export interface OpenRouterSliceInput {
   /** Upstream model id sent to OpenRouter (e.g. `openai/gpt-4o-mini`). */
   overrideModel: string
   /** Plaintext provider key. Encrypted in-place; never echoed back. */
-  plaintextKey: string
+  plaintextKey?: string
   /** @default 'https://openrouter.ai/api/v1' */
   baseURL?: string
   /** @default 'openrouter-prod-1' */
   keyEntryId?: string
+  /** Existing key entry to preserve when `plaintextKey` is omitted. */
+  existingKeyEntryId?: string
   /** @default 'Bearer {KEY}' */
   headerTemplate?: string
 }
@@ -73,9 +81,11 @@ export interface AzureSliceInput {
   region: string
   /** Default Microsoft voice used when `/audio/speech` omits `voice`. */
   defaultVoice?: string
-  plaintextKey: string
+  plaintextKey?: string
   /** @default 'azure-tts-prod-1' */
   keyEntryId?: string
+  /** Existing key entry to preserve when `plaintextKey` is omitted. */
+  existingKeyEntryId?: string
 }
 
 export interface DashscopeSliceInput {
@@ -86,9 +96,28 @@ export interface DashscopeSliceInput {
   region: 'intl' | 'cn'
   /** Concrete cosyvoice variant the adapter calls upstream. Independent from `modelName`. */
   upstreamModel: string
-  plaintextKey: string
+  plaintextKey?: string
   /** @default 'dashscope-tts-prod-1' */
   keyEntryId?: string
+  /** Existing key entry to preserve when `plaintextKey` is omitted. */
+  existingKeyEntryId?: string
+}
+
+export interface StepfunSliceInput {
+  kind: 'stepfun'
+  /** Key under `LLM_ROUTER_CONFIG.tts.models` (e.g. `stepfun/stepaudio-2.5-tts`). */
+  modelName: string
+  /** Concrete StepFun TTS model sent upstream. */
+  upstreamModel?: 'stepaudio-2.5-tts' | 'step-tts-2' | 'step-tts-mini'
+  /** Default official voice used when `/audio/speech` omits `voice`. */
+  defaultVoice?: string
+  /** Default global instruction for `stepaudio-2.5-tts`; per-request `instruction` overrides it. */
+  instruction?: string
+  plaintextKey?: string
+  /** @default 'stepfun-tts-prod-1' */
+  keyEntryId?: string
+  /** Existing key entry to preserve when `plaintextKey` is omitted. */
+  existingKeyEntryId?: string
 }
 
 export interface UnspeechSliceInput {
@@ -100,14 +129,34 @@ export interface UnspeechSliceInput {
     /** unspeech ws endpoint: `ws(s)://host:port/v1/audio/speech/stream`. */
     upstreamURL: string
     /** Upstream provider key (Volcengine `X-Api-Key`), not an unspeech token. */
-    plaintextKey: string
+    plaintextKey?: string
     /** @default 'volcengine-prod-1' */
     keyEntryId?: string
+    /** Existing key entry to preserve when `plaintextKey` is omitted. */
+    existingKeyEntryId?: string
     /** Operator-curated streaming models exposed to the frontend picker. */
     models?: Array<{ id: string, name?: string, description?: string }>
     /** Server-curated default streaming model id. */
     defaultModel?: string
   }
+}
+
+export interface AliyunNlsAsrSliceInput {
+  kind: 'aliyun-nls-asr'
+  /** Key under `LLM_ROUTER_CONFIG.asr.models`; the official client currently uses `auto`. */
+  modelName: string
+  /** Aliyun AccessKey ID used for token signing. Stored in adapterParams, not encrypted. */
+  accessKeyId: string
+  /** Aliyun NLS app key. Stored in adapterParams, not encrypted. */
+  appKey: string
+  /** Aliyun NLS region; defaults to cn-shanghai. */
+  region?: 'cn-shanghai' | 'cn-shanghai-internal' | 'cn-beijing' | 'cn-beijing-internal' | 'cn-shenzhen' | 'cn-shenzhen-internal'
+  /** Aliyun AccessKey secret. Encrypted in-place; never echoed back. */
+  plaintextKey?: string
+  /** @default 'aliyun-nls-asr-prod-1' */
+  keyEntryId?: string
+  /** Existing key entry to preserve when `plaintextKey` is omitted. */
+  existingKeyEntryId?: string
 }
 
 interface LlmModelSlice {
@@ -122,9 +171,18 @@ interface LlmModelSlice {
 interface TtsModelSlice {
   target: 'llm-router'
   surface: 'tts'
-  kind: 'azure' | 'dashscope-cosyvoice'
+  kind: 'azure' | 'dashscope-cosyvoice' | 'stepfun'
   modelName: string
   model: TtsModel
+  keyEntryId: string
+}
+
+interface AsrModelSlice {
+  target: 'llm-router'
+  surface: 'asr'
+  kind: 'aliyun-nls-asr'
+  modelName: string
+  model: AsrModel
   keyEntryId: string
 }
 
@@ -136,7 +194,7 @@ interface UnspeechSlice {
   keyEntryId: string | null
 }
 
-type BuiltSlice = LlmModelSlice | TtsModelSlice | UnspeechSlice
+type BuiltSlice = LlmModelSlice | TtsModelSlice | AsrModelSlice | UnspeechSlice
 
 /**
  * Encrypts an OpenRouter slice into the LLM_ROUTER_CONFIG.llm shape.
@@ -150,7 +208,7 @@ type BuiltSlice = LlmModelSlice | TtsModelSlice | UnspeechSlice
  */
 export function buildOpenRouterSlice(input: OpenRouterSliceInput, envelope: EnvelopeCrypto): LlmModelSlice {
   const keyEntryId = input.keyEntryId ?? DEFAULT_KEY_ENTRY_IDS.openrouter
-  const ciphertext = envelope.encryptKey(input.plaintextKey, {
+  const ciphertext = envelope.encryptKey(requiredPlaintextKey(input.plaintextKey, input.kind), {
     modelName: input.modelName,
     keyEntryId,
   })
@@ -180,7 +238,7 @@ export function buildOpenRouterSlice(input: OpenRouterSliceInput, envelope: Enve
  */
 export function buildAzureSlice(input: AzureSliceInput, envelope: EnvelopeCrypto): TtsModelSlice {
   const keyEntryId = input.keyEntryId ?? DEFAULT_KEY_ENTRY_IDS.azure
-  const ciphertext = envelope.encryptKey(input.plaintextKey, {
+  const ciphertext = envelope.encryptKey(requiredPlaintextKey(input.plaintextKey, input.kind), {
     modelName: input.modelName,
     keyEntryId,
   })
@@ -219,7 +277,7 @@ export function buildAzureSlice(input: AzureSliceInput, envelope: EnvelopeCrypto
  */
 export function buildDashscopeSlice(input: DashscopeSliceInput, envelope: EnvelopeCrypto): TtsModelSlice {
   const keyEntryId = input.keyEntryId ?? DEFAULT_KEY_ENTRY_IDS['dashscope-cosyvoice']
-  const ciphertext = envelope.encryptKey(input.plaintextKey, {
+  const ciphertext = envelope.encryptKey(requiredPlaintextKey(input.plaintextKey, input.kind), {
     modelName: input.modelName,
     keyEntryId,
   })
@@ -245,6 +303,81 @@ export function buildDashscopeSlice(input: DashscopeSliceInput, envelope: Envelo
 }
 
 /**
+ * Encrypts a StepFun TTS slice into the LLM_ROUTER_CONFIG.tts shape.
+ *
+ * Use when:
+ * - Admin posts a `stepfun` slice for StepAudio 2.5 TTS or Step TTS 2/Mini.
+ *
+ * Expects:
+ * - `upstreamModel` is the concrete StepFun model sent to
+ *   `POST /v1/audio/speech`; defaults to `stepaudio-2.5-tts`.
+ */
+export function buildStepfunSlice(input: StepfunSliceInput, envelope: EnvelopeCrypto): TtsModelSlice {
+  const keyEntryId = input.keyEntryId ?? DEFAULT_KEY_ENTRY_IDS.stepfun
+  const ciphertext = envelope.encryptKey(requiredPlaintextKey(input.plaintextKey, input.kind), {
+    modelName: input.modelName,
+    keyEntryId,
+  })
+  return {
+    target: 'llm-router',
+    surface: 'tts',
+    kind: 'stepfun',
+    modelName: input.modelName,
+    keyEntryId,
+    model: {
+      provider: 'stepfun',
+      upstreams: [{
+        baseURL: 'https://api.stepfun.com/v1/audio/speech',
+        keys: [{ id: keyEntryId, ciphertext }],
+        adapterParams: {
+          model: input.upstreamModel ?? 'stepaudio-2.5-tts',
+          ...(input.defaultVoice ? { defaultVoice: input.defaultVoice } : {}),
+          ...(input.instruction ? { instruction: input.instruction } : {}),
+        },
+      }],
+      fallbackTriggers: DEFAULT_FALLBACK_TRIGGERS,
+    },
+  }
+}
+
+/**
+ * Encrypts an Aliyun NLS ASR slice into the LLM_ROUTER_CONFIG.asr shape.
+ *
+ * Use when:
+ * - Admin posts an `aliyun-nls-asr` slice for the official realtime
+ *   transcription proxy.
+ *
+ * Expects:
+ * - `plaintextKey` is the Aliyun AccessKey secret. `accessKeyId` and `appKey`
+ *   are non-secret routing params stored in `adapterParams`.
+ */
+export function buildAliyunNlsAsrSlice(input: AliyunNlsAsrSliceInput, envelope: EnvelopeCrypto): AsrModelSlice {
+  const keyEntryId = input.keyEntryId ?? DEFAULT_KEY_ENTRY_IDS['aliyun-nls-asr']
+  const ciphertext = envelope.encryptKey(requiredPlaintextKey(input.plaintextKey, input.kind), {
+    modelName: input.modelName,
+    keyEntryId,
+  })
+  return {
+    target: 'llm-router',
+    surface: 'asr',
+    kind: 'aliyun-nls-asr',
+    modelName: input.modelName,
+    keyEntryId,
+    model: {
+      provider: 'aliyun-nls',
+      upstreams: [{
+        keys: [{ id: keyEntryId, ciphertext }],
+        adapterParams: {
+          accessKeyId: input.accessKeyId,
+          appKey: input.appKey,
+          region: input.region ?? 'cn-shanghai',
+        },
+      }],
+    },
+  }
+}
+
+/**
  * Encrypts an unspeech slice into the UNSPEECH_UPSTREAM shape.
  *
  * Use when:
@@ -265,7 +398,7 @@ export function buildUnspeechSlice(input: UnspeechSliceInput, envelope: Envelope
     }
   }
   const keyEntryId = input.streaming.keyEntryId ?? DEFAULT_KEY_ENTRY_IDS.unspeech
-  const ciphertext = envelope.encryptKey(input.streaming.plaintextKey, {
+  const ciphertext = envelope.encryptKey(requiredPlaintextKey(input.streaming.plaintextKey, input.kind), {
     modelName: STREAMING_TTS_AAD_MODEL_NAME,
     keyEntryId,
   })
@@ -286,6 +419,188 @@ export function buildUnspeechSlice(input: UnspeechSliceInput, envelope: Envelope
   }
 }
 
+function requiredPlaintextKey(value: string | undefined, kind: SliceInput['kind']): string {
+  if (value?.trim())
+    return value
+
+  throw createBadRequestError(`${kind} plaintext key is required when no existing key can be preserved`, 'INVALID_BODY')
+}
+
+function firstKey(upstream: { keys: KeyEntry[] } | undefined, preferredId: string | undefined): KeyEntry | null {
+  if (!upstream?.keys.length)
+    return null
+
+  if (preferredId) {
+    const selected = upstream.keys.find(key => key.id === preferredId)
+    if (selected)
+      return selected
+  }
+
+  return upstream.keys[0] ?? null
+}
+
+function preservedKeyOrThrow(upstream: { keys: KeyEntry[] } | undefined, preferredId: string | undefined, kind: SliceInput['kind']): KeyEntry {
+  const key = firstKey(upstream, preferredId)
+  if (!key)
+    throw createBadRequestError(`${kind} existing key entry was not found; paste a new provider key to rotate it`, 'INVALID_BODY')
+
+  return key
+}
+
+function buildOpenRouterSlicePreservingKey(input: OpenRouterSliceInput, envelope: EnvelopeCrypto, existing: LlmModel | undefined): LlmModelSlice {
+  if (input.plaintextKey?.trim())
+    return buildOpenRouterSlice(input, envelope)
+
+  const existingUpstream = existing?.upstreams[0]
+  const key = preservedKeyOrThrow(existingUpstream, input.existingKeyEntryId ?? input.keyEntryId, input.kind)
+  return {
+    target: 'llm-router',
+    surface: 'llm',
+    kind: 'openrouter',
+    modelName: input.modelName,
+    keyEntryId: key.id,
+    model: {
+      upstreams: [{
+        baseURL: input.baseURL ?? existingUpstream?.baseURL ?? 'https://openrouter.ai/api/v1',
+        overrideModel: input.overrideModel,
+        keys: [key],
+        headerTemplate: input.headerTemplate ?? existingUpstream?.headerTemplate ?? 'Bearer {KEY}',
+      }],
+      fallbackTriggers: existing?.fallbackTriggers ?? DEFAULT_FALLBACK_TRIGGERS,
+    },
+  }
+}
+
+function buildAzureSlicePreservingKey(input: AzureSliceInput, envelope: EnvelopeCrypto, existing: TtsModel | undefined): TtsModelSlice {
+  if (input.plaintextKey?.trim())
+    return buildAzureSlice(input, envelope)
+
+  const existingUpstream = existing?.upstreams[0]
+  const key = preservedKeyOrThrow(existingUpstream, input.existingKeyEntryId ?? input.keyEntryId, input.kind)
+  return {
+    target: 'llm-router',
+    surface: 'tts',
+    kind: 'azure',
+    modelName: input.modelName,
+    keyEntryId: key.id,
+    model: {
+      provider: 'azure',
+      upstreams: [{
+        baseURL: `https://${input.region}.tts.speech.microsoft.com/cognitiveservices/v1`,
+        keys: [key],
+        adapterParams: {
+          region: input.region,
+          ...(input.defaultVoice ? { defaultVoice: input.defaultVoice } : {}),
+        },
+      }],
+      fallbackTriggers: existing?.fallbackTriggers ?? DEFAULT_FALLBACK_TRIGGERS,
+    },
+  }
+}
+
+function buildDashscopeSlicePreservingKey(input: DashscopeSliceInput, envelope: EnvelopeCrypto, existing: TtsModel | undefined): TtsModelSlice {
+  if (input.plaintextKey?.trim())
+    return buildDashscopeSlice(input, envelope)
+
+  const existingUpstream = existing?.upstreams[0]
+  const key = preservedKeyOrThrow(existingUpstream, input.existingKeyEntryId ?? input.keyEntryId, input.kind)
+  const host = input.region === 'cn'
+    ? 'dashscope.aliyuncs.com'
+    : 'dashscope-intl.aliyuncs.com'
+  return {
+    target: 'llm-router',
+    surface: 'tts',
+    kind: 'dashscope-cosyvoice',
+    modelName: input.modelName,
+    keyEntryId: key.id,
+    model: {
+      provider: 'dashscope-cosyvoice',
+      upstreams: [{
+        baseURL: `https://${host}/api/v1/services/audio/tts/SpeechSynthesizer`,
+        keys: [key],
+        adapterParams: { model: input.upstreamModel },
+      }],
+      fallbackTriggers: existing?.fallbackTriggers ?? DEFAULT_FALLBACK_TRIGGERS,
+    },
+  }
+}
+
+function buildStepfunSlicePreservingKey(input: StepfunSliceInput, envelope: EnvelopeCrypto, existing: TtsModel | undefined): TtsModelSlice {
+  if (input.plaintextKey?.trim())
+    return buildStepfunSlice(input, envelope)
+
+  const existingUpstream = existing?.upstreams[0]
+  const key = preservedKeyOrThrow(existingUpstream, input.existingKeyEntryId ?? input.keyEntryId, input.kind)
+  return {
+    target: 'llm-router',
+    surface: 'tts',
+    kind: 'stepfun',
+    modelName: input.modelName,
+    keyEntryId: key.id,
+    model: {
+      provider: 'stepfun',
+      upstreams: [{
+        baseURL: 'https://api.stepfun.com/v1/audio/speech',
+        keys: [key],
+        adapterParams: {
+          model: input.upstreamModel ?? 'stepaudio-2.5-tts',
+          ...(input.defaultVoice ? { defaultVoice: input.defaultVoice } : {}),
+          ...(input.instruction ? { instruction: input.instruction } : {}),
+        },
+      }],
+      fallbackTriggers: existing?.fallbackTriggers ?? DEFAULT_FALLBACK_TRIGGERS,
+    },
+  }
+}
+
+function buildAliyunNlsAsrSlicePreservingKey(input: AliyunNlsAsrSliceInput, envelope: EnvelopeCrypto, existing: AsrModel | undefined): AsrModelSlice {
+  if (input.plaintextKey?.trim())
+    return buildAliyunNlsAsrSlice(input, envelope)
+
+  const existingUpstream = existing?.upstreams[0]
+  const key = preservedKeyOrThrow(existingUpstream, input.existingKeyEntryId ?? input.keyEntryId, input.kind)
+  return {
+    target: 'llm-router',
+    surface: 'asr',
+    kind: 'aliyun-nls-asr',
+    modelName: input.modelName,
+    keyEntryId: key.id,
+    model: {
+      provider: 'aliyun-nls',
+      upstreams: [{
+        keys: [key],
+        adapterParams: {
+          accessKeyId: input.accessKeyId,
+          appKey: input.appKey,
+          region: input.region ?? stringFromRecord(existingUpstream?.adapterParams, 'region') ?? 'cn-shanghai',
+        },
+      }],
+    },
+  }
+}
+
+function buildUnspeechSlicePreservingKey(input: UnspeechSliceInput, envelope: EnvelopeCrypto, existing: UnspeechUpstream | undefined | null): UnspeechSlice {
+  if (!input.streaming || input.streaming.plaintextKey?.trim())
+    return buildUnspeechSlice(input, envelope)
+
+  const key = preservedKeyOrThrow(existing?.streaming, input.streaming.existingKeyEntryId ?? input.streaming.keyEntryId, input.kind)
+  return {
+    target: 'unspeech',
+    kind: 'unspeech',
+    keyEntryId: key.id,
+    value: {
+      restBaseURL: input.restBaseURL,
+      streaming: {
+        baseURL: input.streaming.upstreamURL,
+        keys: [key],
+        adapterParams: existing?.streaming?.adapterParams ?? {},
+        models: input.streaming.models ?? existing?.streaming?.models ?? [],
+        defaultModel: input.streaming.defaultModel ?? existing?.streaming?.defaultModel,
+      },
+    },
+  }
+}
+
 /**
  * Encrypts a slice input. Routes to the per-kind builder.
  *
@@ -293,16 +608,27 @@ export function buildUnspeechSlice(input: UnspeechSliceInput, envelope: Envelope
  * - The service main path needs to turn an admin-supplied slice into a
  *   ready-to-write configKV fragment. Tests dispatch the same way.
  */
-export function buildSlice(input: SliceInput, envelope: EnvelopeCrypto): BuiltSlice {
+export function buildSlice(
+  input: SliceInput,
+  envelope: EnvelopeCrypto,
+  existing?: {
+    routerConfig?: LlmRouterConfig | null
+    unspeech?: UnspeechUpstream | null
+  },
+): BuiltSlice {
   switch (input.kind) {
     case 'openrouter':
-      return buildOpenRouterSlice(input, envelope)
+      return buildOpenRouterSlicePreservingKey(input, envelope, existing?.routerConfig?.llm.models[input.modelName])
     case 'azure':
-      return buildAzureSlice(input, envelope)
+      return buildAzureSlicePreservingKey(input, envelope, existing?.routerConfig?.tts.models[input.modelName])
     case 'dashscope-cosyvoice':
-      return buildDashscopeSlice(input, envelope)
+      return buildDashscopeSlicePreservingKey(input, envelope, existing?.routerConfig?.tts.models[input.modelName])
+    case 'stepfun':
+      return buildStepfunSlicePreservingKey(input, envelope, existing?.routerConfig?.tts.models[input.modelName])
+    case 'aliyun-nls-asr':
+      return buildAliyunNlsAsrSlicePreservingKey(input, envelope, existing?.routerConfig?.asr?.models[input.modelName])
     case 'unspeech':
-      return buildUnspeechSlice(input, envelope)
+      return buildUnspeechSlicePreservingKey(input, envelope, existing?.unspeech)
   }
 }
 
@@ -327,18 +653,22 @@ export function buildSlice(input: SliceInput, envelope: EnvelopeCrypto): BuiltSl
 export function buildNextRouterConfig(
   mode: 'merge' | 'reset',
   existing: LlmRouterConfig | null | undefined,
-  slices: (LlmModelSlice | TtsModelSlice)[],
+  slices: (LlmModelSlice | TtsModelSlice | AsrModelSlice)[],
 ): LlmRouterConfig {
   const llmModels: Record<string, LlmModel>
     = mode === 'merge' && existing?.llm?.models ? { ...existing.llm.models } : {}
   const ttsModels: Record<string, TtsModel>
     = mode === 'merge' && existing?.tts?.models ? { ...existing.tts.models } : {}
+  const asrModels: Record<string, AsrModel>
+    = mode === 'merge' && existing?.asr?.models ? { ...existing.asr.models } : {}
 
   for (const slice of slices) {
     if (slice.surface === 'llm')
       llmModels[slice.modelName] = slice.model
-    else
+    else if (slice.surface === 'tts')
       ttsModels[slice.modelName] = slice.model
+    else
+      asrModels[slice.modelName] = slice.model
   }
 
   // Defaults live alongside the models but aren't editable through this
@@ -351,6 +681,7 @@ export function buildNextRouterConfig(
   return {
     llm: { models: llmModels },
     tts: { models: ttsModels },
+    asr: { models: asrModels },
     defaults,
   }
 }
@@ -397,7 +728,7 @@ export interface ApplyInput {
 export interface AppliedSummary {
   kind: SliceInput['kind']
   target: 'llm-router' | 'unspeech'
-  surface?: 'llm' | 'tts'
+  surface?: 'llm' | 'tts' | 'asr'
   modelName?: string
   keyEntryId: string | null
 }
@@ -412,6 +743,177 @@ export interface ApplyResult {
     DEFAULT_TTS_MODEL?: string
     DEFAULT_TTS_VOICES?: Record<string, Record<string, string>>
   }
+}
+
+export interface CurrentRouterConfigResult {
+  request: {
+    mode: 'merge'
+    slices: SliceInput[]
+    defaults: NonNullable<ApplyInput['defaults']>
+  }
+  preview: ApplyResult['preview']
+  loadedAt: string
+  missingKeys: string[]
+}
+
+function sliceNeedsExistingKey(slice: SliceInput): boolean {
+  if (slice.kind === 'unspeech')
+    return slice.streaming != null && !slice.streaming.plaintextKey?.trim()
+
+  return !slice.plaintextKey?.trim()
+}
+
+function slicesFromRouterConfig(config: LlmRouterConfig | null): SliceInput[] {
+  if (!config)
+    return []
+
+  const slices: SliceInput[] = []
+  for (const [modelName, model] of Object.entries(config.llm.models)) {
+    const slice = openRouterSliceFromModel(modelName, model)
+    if (slice)
+      slices.push(slice)
+  }
+  for (const [modelName, model] of Object.entries(config.tts.models)) {
+    const slice = ttsSliceFromModel(modelName, model)
+    if (slice)
+      slices.push(slice)
+  }
+  for (const [modelName, model] of Object.entries(config.asr?.models ?? {})) {
+    const slice = asrSliceFromModel(modelName, model)
+    if (slice)
+      slices.push(slice)
+  }
+  return slices
+}
+
+function openRouterSliceFromModel(modelName: string, model: LlmModel): OpenRouterSliceInput | null {
+  const upstream = model.upstreams[0]
+  const key = upstream?.keys[0]
+  if (!upstream || !key)
+    return null
+
+  return {
+    kind: 'openrouter',
+    modelName,
+    overrideModel: upstream.overrideModel ?? modelName,
+    baseURL: upstream.baseURL,
+    headerTemplate: upstream.headerTemplate,
+    keyEntryId: key.id,
+    existingKeyEntryId: key.id,
+  }
+}
+
+function ttsSliceFromModel(modelName: string, model: TtsModel): AzureSliceInput | DashscopeSliceInput | StepfunSliceInput | null {
+  const upstream = model.upstreams[0]
+  const key = upstream?.keys[0]
+  if (!upstream || !key)
+    return null
+
+  if (model.provider === 'azure') {
+    const region = stringFromRecord(upstream.adapterParams, 'region') ?? azureRegionFromBaseURL(upstream.baseURL) ?? ''
+    return {
+      kind: 'azure',
+      modelName,
+      region,
+      defaultVoice: stringFromRecord(upstream.adapterParams, 'defaultVoice'),
+      keyEntryId: key.id,
+      existingKeyEntryId: key.id,
+    }
+  }
+
+  if (model.provider === 'dashscope-cosyvoice') {
+    return {
+      kind: 'dashscope-cosyvoice',
+      modelName,
+      region: upstream.baseURL.includes('dashscope.aliyuncs.com') ? 'cn' : 'intl',
+      upstreamModel: stringFromRecord(upstream.adapterParams, 'model') ?? modelName,
+      keyEntryId: key.id,
+      existingKeyEntryId: key.id,
+    }
+  }
+
+  if (model.provider === 'stepfun') {
+    const upstreamModel = stringFromRecord(upstream.adapterParams, 'model')
+    return {
+      kind: 'stepfun',
+      modelName,
+      upstreamModel: isStepfunInputModel(upstreamModel) ? upstreamModel : undefined,
+      defaultVoice: stringFromRecord(upstream.adapterParams, 'defaultVoice'),
+      instruction: stringFromRecord(upstream.adapterParams, 'instruction'),
+      keyEntryId: key.id,
+      existingKeyEntryId: key.id,
+    }
+  }
+
+  return null
+}
+
+function asrSliceFromModel(modelName: string, model: AsrModel): AliyunNlsAsrSliceInput | null {
+  const upstream = model.upstreams[0]
+  const key = upstream?.keys[0]
+  if (model.provider !== 'aliyun-nls' || !upstream || !key)
+    return null
+
+  const accessKeyId = stringFromRecord(upstream.adapterParams, 'accessKeyId')
+  const appKey = stringFromRecord(upstream.adapterParams, 'appKey')
+  if (!accessKeyId || !appKey)
+    return null
+
+  const region = stringFromRecord(upstream.adapterParams, 'region')
+  return {
+    kind: 'aliyun-nls-asr',
+    modelName,
+    accessKeyId,
+    appKey,
+    region: isAliyunNlsRegion(region) ? region : undefined,
+    keyEntryId: key.id,
+    existingKeyEntryId: key.id,
+  }
+}
+
+function slicesFromUnspeech(unspeech: UnspeechUpstream | null): UnspeechSliceInput[] {
+  if (!unspeech)
+    return []
+
+  const key = unspeech.streaming?.keys[0]
+  return [{
+    kind: 'unspeech',
+    restBaseURL: unspeech.restBaseURL,
+    ...(unspeech.streaming
+      ? {
+          streaming: {
+            upstreamURL: unspeech.streaming.baseURL,
+            keyEntryId: key?.id,
+            existingKeyEntryId: key?.id,
+            models: unspeech.streaming.models,
+            defaultModel: unspeech.streaming.defaultModel,
+          },
+        }
+      : {}),
+  }]
+}
+
+function azureRegionFromBaseURL(baseURL: string): string | null {
+  const match = /^https:\/\/([^.]+)\.tts\.speech\.microsoft\.com\//u.exec(baseURL)
+  return match?.[1] ?? null
+}
+
+function stringFromRecord(recordValue: Record<string, unknown> | undefined, key: string): string | undefined {
+  const value = recordValue?.[key]
+  return typeof value === 'string' && value.trim() ? value : undefined
+}
+
+function isStepfunInputModel(value: string | undefined): value is NonNullable<StepfunSliceInput['upstreamModel']> {
+  return value === 'stepaudio-2.5-tts' || value === 'step-tts-2' || value === 'step-tts-mini'
+}
+
+function isAliyunNlsRegion(value: string | undefined): value is NonNullable<AliyunNlsAsrSliceInput['region']> {
+  return value === 'cn-shanghai'
+    || value === 'cn-shanghai-internal'
+    || value === 'cn-beijing'
+    || value === 'cn-beijing-internal'
+    || value === 'cn-shenzhen'
+    || value === 'cn-shenzhen-internal'
 }
 
 interface AdminRouterConfigDeps {
@@ -441,6 +943,62 @@ interface AdminRouterConfigDeps {
 export function createAdminRouterConfigService(deps: AdminRouterConfigDeps) {
   const logger = useLogger('admin-router-config').useGlobalConfig()
 
+  async function current(): Promise<CurrentRouterConfigResult> {
+    const [
+      routerConfig,
+      unspeech,
+      chatModel,
+      ttsModel,
+      ttsVoices,
+    ] = await Promise.all([
+      deps.configKV.getOptional('LLM_ROUTER_CONFIG'),
+      deps.configKV.getOptional('UNSPEECH_UPSTREAM'),
+      deps.configKV.getOptional('DEFAULT_CHAT_MODEL'),
+      deps.configKV.getOptional('DEFAULT_TTS_MODEL'),
+      deps.configKV.getOptional('DEFAULT_TTS_VOICES'),
+    ])
+
+    const slices: SliceInput[] = [
+      ...slicesFromRouterConfig(routerConfig ?? null),
+      ...slicesFromUnspeech(unspeech ?? null),
+    ]
+    const defaults: NonNullable<ApplyInput['defaults']> = {}
+    if (chatModel)
+      defaults.chatModel = chatModel
+    if (ttsModel)
+      defaults.ttsModel = ttsModel
+    if (ttsVoices && Object.keys(ttsVoices).length > 0)
+      defaults.ttsVoices = ttsVoices
+
+    const preview: ApplyResult['preview'] = {}
+    if (routerConfig)
+      preview.LLM_ROUTER_CONFIG = redactCiphertext(routerConfig)
+    if (unspeech)
+      preview.UNSPEECH_UPSTREAM = redactCiphertext(unspeech)
+    if (chatModel)
+      preview.DEFAULT_CHAT_MODEL = chatModel
+    if (ttsModel)
+      preview.DEFAULT_TTS_MODEL = ttsModel
+    if (ttsVoices && Object.keys(ttsVoices).length > 0)
+      preview.DEFAULT_TTS_VOICES = ttsVoices
+
+    return {
+      request: {
+        mode: 'merge',
+        slices,
+        defaults,
+      },
+      preview,
+      loadedAt: new Date().toISOString(),
+      missingKeys: [
+        ...(routerConfig ? [] : ['LLM_ROUTER_CONFIG']),
+        ...(unspeech ? [] : ['UNSPEECH_UPSTREAM']),
+        ...(chatModel ? [] : ['DEFAULT_CHAT_MODEL']),
+        ...(ttsModel ? [] : ['DEFAULT_TTS_MODEL']),
+      ],
+    }
+  }
+
   /**
    * Applies an admin request, returning the redacted preview either way.
    *
@@ -454,21 +1012,31 @@ export function createAdminRouterConfigService(deps: AdminRouterConfigDeps) {
     if (unspeechCount > 1)
       throw createBadRequestError('At most one unspeech slice per request', 'INVALID_BODY')
 
-    // Step 1: encrypt every slice. Throws (via envelope) only on malformed
-    // master key, which means the deployment is broken; surface as 500.
-    const built = input.slices.map(s => buildSlice(s, deps.envelope))
+    const hasRouterInput = input.slices.some(s => s.kind !== 'unspeech')
+    const hasUnspeechInput = input.slices.some(s => s.kind === 'unspeech')
+    const shouldReadRouterConfig = hasRouterInput
+      && (input.mode === 'merge' || input.slices.some(sliceNeedsExistingKey))
+    const shouldReadUnspeech = hasUnspeechInput
+    const [existingRouterConfig, existingUnspeech] = await Promise.all([
+      shouldReadRouterConfig ? deps.configKV.getOptional('LLM_ROUTER_CONFIG') : Promise.resolve(null),
+      shouldReadUnspeech ? deps.configKV.getOptional('UNSPEECH_UPSTREAM') : Promise.resolve(null),
+    ])
 
-    const llmTtsSlices = built.filter((s): s is LlmModelSlice | TtsModelSlice => s.target === 'llm-router')
+    // Step 1: encrypt new keys and preserve existing ciphertexts when the
+    // admin loaded current config and left a key field blank.
+    const built = input.slices.map(s => buildSlice(s, deps.envelope, {
+      routerConfig: existingRouterConfig,
+      unspeech: existingUnspeech,
+    }))
+
+    const routerSlices = built.filter((s): s is LlmModelSlice | TtsModelSlice | AsrModelSlice => s.target === 'llm-router')
     const unspeechSlice = built.find((s): s is UnspeechSlice => s.target === 'unspeech')
 
-    // Step 2: build the next LLM_ROUTER_CONFIG tree if any LLM/TTS slice
+    // Step 2: build the next LLM_ROUTER_CONFIG tree if any LLM/TTS/ASR slice
     // was supplied. `merge` reads existing first; `reset` skips the read.
     let nextRouterConfig: LlmRouterConfig | undefined
-    if (llmTtsSlices.length > 0) {
-      const existing = input.mode === 'merge'
-        ? await deps.configKV.getOptional('LLM_ROUTER_CONFIG')
-        : null
-      nextRouterConfig = buildNextRouterConfig(input.mode, existing, llmTtsSlices)
+    if (routerSlices.length > 0) {
+      nextRouterConfig = buildNextRouterConfig(input.mode, existingRouterConfig, routerSlices)
     }
 
     // Step 3: build the next UNSPEECH_UPSTREAM. Streaming `models` +
@@ -477,15 +1045,14 @@ export function createAdminRouterConfigService(deps: AdminRouterConfigDeps) {
     // subtree is set (otherwise there's nothing to merge into).
     let nextUnspeech: UnspeechUpstream | undefined
     if (unspeechSlice) {
-      const existing = await deps.configKV.getOptional('UNSPEECH_UPSTREAM')
       const newValue = unspeechSlice.value
-      if (newValue.streaming && existing?.streaming) {
+      if (newValue.streaming && existingUnspeech?.streaming) {
         nextUnspeech = {
           ...newValue,
           streaming: {
             ...newValue.streaming,
-            models: existing.streaming.models?.length ? existing.streaming.models : newValue.streaming.models,
-            defaultModel: existing.streaming.defaultModel ?? newValue.streaming.defaultModel,
+            models: existingUnspeech.streaming.models?.length ? existingUnspeech.streaming.models : newValue.streaming.models,
+            defaultModel: existingUnspeech.streaming.defaultModel ?? newValue.streaming.defaultModel,
           },
         }
       }
@@ -563,7 +1130,7 @@ export function createAdminRouterConfigService(deps: AdminRouterConfigDeps) {
     return { applied, invalidatedKeys, preview }
   }
 
-  return { apply }
+  return { apply, current }
 }
 
 export type AdminRouterConfigService = ReturnType<typeof createAdminRouterConfigService>

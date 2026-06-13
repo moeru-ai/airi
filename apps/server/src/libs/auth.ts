@@ -586,6 +586,13 @@ export function createAuth(
       google: {
         clientId: env.AUTH_GOOGLE_CLIENT_ID,
         clientSecret: env.AUTH_GOOGLE_CLIENT_SECRET,
+        // Force the provider's authorization page to let users choose an
+        // identity before linking. Without this, an existing provider session
+        // can silently reuse the previously authorized account and immediately
+        // hit account_already_linked_to_different_user.
+        // Source: @better-auth/core/src/oauth2/create-authorization-url.ts
+        // forwards provider `prompt` to the OAuth authorization URL.
+        prompt: 'select_account',
         // NOTICE:
         // Why: better-auth's google provider already maps email_verified
         // through, but a stale Google profile that omits the claim falls
@@ -602,6 +609,13 @@ export function createAuth(
       github: {
         clientId: env.AUTH_GITHUB_CLIENT_ID,
         clientSecret: env.AUTH_GITHUB_CLIENT_SECRET,
+        // Force GitHub's authorization page to let users choose an identity
+        // before linking. Without this, an existing github.com session can
+        // silently reuse the previously authorized account and immediately hit
+        // account_already_linked_to_different_user.
+        // Source: @better-auth/core/src/oauth2/create-authorization-url.ts
+        // forwards provider `prompt` to the OAuth authorization URL.
+        prompt: 'select_account',
         // NOTICE:
         // Why: better-auth derives emailVerified from the GitHub /user/emails
         // response, but `emails.find(e => e.email === profile.email)?.verified`

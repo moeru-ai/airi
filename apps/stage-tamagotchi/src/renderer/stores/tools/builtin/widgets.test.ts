@@ -571,7 +571,7 @@ describe('widgets tool helpers', () => {
         moduleSnapshot: {
           moduleId: 'module-1',
           ownerSessionId: 'session-1',
-          ownerPluginId: 'plugin-1',
+          ownerExtensionId: 'plugin-1',
           kitId: 'kit.widget',
           kitModuleType: 'window',
           state: 'active',
