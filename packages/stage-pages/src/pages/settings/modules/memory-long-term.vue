@@ -16,6 +16,7 @@ const {
   enabled,
   embedProvider,
   embedModel,
+  embeddingDimension,
   configured,
   topK,
   simThreshold,
@@ -136,6 +137,22 @@ function handleDeleteProvider(providerId: string) {
           :class="['w-full rounded px-3 py-2', 'border border-neutral-300 dark:border-neutral-700', 'bg-white dark:bg-neutral-900']"
           placeholder="bge-m3"
         >
+      </div>
+
+      <div v-if="embedProvider">
+        <label :class="['mb-1 block text-sm font-medium']">Embedding dimension</label>
+        <input
+          v-model.number="embeddingDimension"
+          type="number"
+          min="1"
+          step="1"
+          :class="['w-full rounded px-3 py-2', 'border border-neutral-300 dark:border-neutral-700', 'bg-white dark:bg-neutral-900']"
+          placeholder="1024"
+        >
+        <span :class="['mt-1 block text-sm', 'text-neutral-400 dark:text-neutral-500']">
+          Must match your embedding model's vector width (e.g. <code>bge-m3</code> = 1024).
+          A mismatch makes every recall and write fail silently.
+        </span>
       </div>
     </div>
 

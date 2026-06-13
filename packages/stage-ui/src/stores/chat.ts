@@ -267,6 +267,11 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const memoryStore = useMemoryStore()
   const { recall: recallMemories } = useMemoryRecall()
   runtime.hooks.onBeforeMessageComposed(async (messageText) => {
+    // Skip all memory work when the feature is off, mirroring the write hook below. recall()
+    // already returns '' when disabled, but gating here also avoids ingesting a blank clearing
+    // context every turn in the common memory-off case.
+    if (!memoryStore.enabled || !memoryStore.configured)
+      return
     const recentMessages = chatSession.getSessionMessages(activeSessionId.value)
     const tail = recentMessages.slice(-2).map(extractMessageText).filter(Boolean)
     const query = [...tail, messageText].filter(Boolean).join('\n')
