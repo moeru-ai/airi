@@ -4,24 +4,6 @@ import { describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../../utils/error'
 import { createSteamDesktopSignInRoute } from './desktop-sign-in'
 
-vi.mock('../../../libs/steam-web-api', () => ({
-  authenticateUserTicket: vi.fn(async () => '76561198000000000'),
-  checkAppOwnership: vi.fn(async () => true),
-}))
-
-vi.mock('../../../services/domain/steam-auth/resolve-steam-user', () => ({
-  resolveOrCreateSteamUser: vi.fn(async () => ({ userId: 'user-steam-1' })),
-}))
-
-vi.mock('../../../libs/steam-oidc-tokens', () => ({
-  mintElectronOidcTokens: vi.fn(async () => ({
-    accessToken: 'jwt-access',
-    refreshToken: 'refresh-token',
-    idToken: 'id-token',
-    expiresIn: 3600,
-  })),
-}))
-
 function createMockDb() {
   return {
     select: vi.fn(() => ({
@@ -43,6 +25,17 @@ function buildApp(env: { STEAM_PUBLISHER_KEY: string }) {
       STEAM_APP_ID: '3885340',
       ...env,
     } as never,
+    collaborators: {
+      authenticateUserTicket: vi.fn(async () => '76561198000000000'),
+      checkAppOwnership: vi.fn(async () => true),
+      resolveOrCreateSteamUser: vi.fn(async () => ({ userId: 'user-steam-1' })),
+      mintElectronOidcTokens: vi.fn(async () => ({
+        accessToken: 'jwt-access',
+        refreshToken: 'refresh-token',
+        idToken: 'id-token',
+        expiresIn: 3600,
+      })),
+    },
   })
 
   return new Hono()
@@ -54,7 +47,7 @@ function buildApp(env: { STEAM_PUBLISHER_KEY: string }) {
     })
 }
 
-describe('pOST /api/auth/steam/desktop-sign-in', () => {
+describe('post /api/auth/steam/desktop-sign-in', () => {
   it('returns OIDC tokens when ticket is valid', async () => {
     const app = buildApp({ STEAM_PUBLISHER_KEY: 'test-key' })
 

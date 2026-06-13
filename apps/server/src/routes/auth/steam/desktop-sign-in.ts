@@ -1,6 +1,7 @@
 import type { AuthInstance } from '../../../libs/auth'
 import type { Database } from '../../../libs/db'
 import type { Env } from '../../../libs/env'
+import type { ElectronOidcTokenBundle } from '../../../libs/steam-oidc-tokens'
 import type { HonoEnv } from '../../../types/hono'
 
 import { errorMessageFrom } from '@moeru/std'
@@ -29,13 +30,33 @@ const DesktopSignInBodySchema = v.object({
   ),
 })
 
+export interface SteamDesktopSignInCollaborators {
+  authenticateUserTicket: typeof authenticateUserTicket
+  checkAppOwnership: typeof checkAppOwnership
+  resolveOrCreateSteamUser: typeof resolveOrCreateSteamUser
+  mintElectronOidcTokens: (params: {
+    auth: AuthInstance
+    env: Env
+    userId: string
+  }) => Promise<ElectronOidcTokenBundle>
+}
+
 export interface SteamDesktopSignInRouteDeps {
   auth: AuthInstance
   db: Database
   env: Env
+  collaborators?: Partial<SteamDesktopSignInCollaborators>
 }
 
 export function createSteamDesktopSignInRoute(deps: SteamDesktopSignInRouteDeps) {
+  const collaborators: SteamDesktopSignInCollaborators = {
+    authenticateUserTicket,
+    checkAppOwnership,
+    resolveOrCreateSteamUser,
+    mintElectronOidcTokens,
+    ...deps.collaborators,
+  }
+
   return new Hono<HonoEnv>()
     .post('/desktop-sign-in', async (c) => {
       if (!deps.env.STEAM_PUBLISHER_KEY?.trim())
@@ -49,7 +70,7 @@ export function createSteamDesktopSignInRoute(deps: SteamDesktopSignInRouteDeps)
 
       let steamId: string
       try {
-        steamId = await authenticateUserTicket({
+        steamId = await collaborators.authenticateUserTicket({
           publisherKey: deps.env.STEAM_PUBLISHER_KEY,
           appId,
           ticketHex: parsed.output.ticket,
@@ -65,7 +86,7 @@ export function createSteamDesktopSignInRoute(deps: SteamDesktopSignInRouteDeps)
 
       let ownsApp: boolean
       try {
-        ownsApp = await checkAppOwnership({
+        ownsApp = await collaborators.checkAppOwnership({
           publisherKey: deps.env.STEAM_PUBLISHER_KEY,
           steamId,
           appId,
@@ -81,7 +102,7 @@ export function createSteamDesktopSignInRoute(deps: SteamDesktopSignInRouteDeps)
       if (!ownsApp)
         throw createForbiddenError('Steam account does not own this app', 'STEAM_NO_OWNERSHIP')
 
-      const { userId } = await resolveOrCreateSteamUser(deps.db, steamId)
+      const { userId } = await collaborators.resolveOrCreateSteamUser(deps.db, steamId)
 
       const [userForBanCheck] = await deps.db
         .select({ banned: user.banned, banExpires: user.banExpires })
@@ -92,7 +113,7 @@ export function createSteamDesktopSignInRoute(deps: SteamDesktopSignInRouteDeps)
       if (userForBanCheck && isUserBannedNow(userForBanCheck))
         throw createForbiddenError('This account has been banned')
 
-      const tokens = await mintElectronOidcTokens({
+      const tokens = await collaborators.mintElectronOidcTokens({
         auth: deps.auth,
         env: deps.env,
         userId,

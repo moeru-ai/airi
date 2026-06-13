@@ -108,11 +108,11 @@ export function createWindowAuthManagerService(): WindowAuthManager {
   }
 
   function broadcastSteamSignInStarted(): void {
-    forEachAuthContext(context => context.emit(electronAuthSteamSignInStarted))
+    forEachAuthContext(context => context.emit(electronAuthSteamSignInStarted, undefined))
   }
 
   function broadcastSteamSignInFinished(): void {
-    forEachAuthContext(context => context.emit(electronAuthSteamSignInFinished))
+    forEachAuthContext(context => context.emit(electronAuthSteamSignInFinished, undefined))
   }
 
   return {
