@@ -102,11 +102,23 @@ export interface AdminRouterUnspeechSlice {
   }
 }
 
+export interface AdminRouterAliyunNlsAsrSlice {
+  kind: 'aliyun-nls-asr'
+  modelName: string
+  accessKeyId: string
+  appKey: string
+  region?: 'cn-shanghai' | 'cn-shanghai-internal' | 'cn-beijing' | 'cn-beijing-internal' | 'cn-shenzhen' | 'cn-shenzhen-internal'
+  plaintextKey?: string
+  keyEntryId?: string
+  existingKeyEntryId?: string
+}
+
 export type AdminRouterConfigSlice
   = | AdminRouterOpenRouterSlice
     | AdminRouterAzureSlice
     | AdminRouterDashscopeSlice
     | AdminRouterStepfunSlice
+    | AdminRouterAliyunNlsAsrSlice
     | AdminRouterUnspeechSlice
 
 export interface AdminRouterConfigRequest {

@@ -59,6 +59,7 @@ import { createAdminFluxGrantsRoutes } from './routes/admin/flux-grants'
 import { createAdminUsersRoutes } from './routes/admin/users'
 import { createAdminVoicePackRoutes } from './routes/admin/voice-packs'
 import { createAudioSpeechWsHandlers } from './routes/audio-speech-ws'
+import { createAudioTranscriptionStreamHandler } from './routes/audio-transcription-stream/route'
 import { createAuthRoutes } from './routes/auth'
 import { createCharacterRoutes } from './routes/characters'
 import { createChatWsHandlers } from './routes/chat-ws'
@@ -213,6 +214,16 @@ export async function buildApp(deps: AppDeps) {
       trigger: c.req.query('tts_trigger') === 'auto' ? 'auto' : 'manual',
       source: parseTtsSource(c.req.query('tts_source'), 'audio.speech.ws'),
     })
+  }))
+
+  // Realtime ASR proxy. Mounted before the global bodyLimit middleware because
+  // the request body is a live microphone PCM stream rather than a bounded JSON
+  // payload. Auth is resolved manually here for the same reason.
+  app.post('/api/v1/audio/transcriptions/stream', createAudioTranscriptionStreamHandler({
+    auth: deps.auth,
+    env: deps.env,
+    configKV: deps.configKV,
+    envelopeCrypto: deps.envelopeCrypto,
   }))
 
   // Cross-instance config invalidation. The subscriber owns its own

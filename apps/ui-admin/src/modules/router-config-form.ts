@@ -1,4 +1,5 @@
 import type {
+  AdminRouterAliyunNlsAsrSlice,
   AdminRouterAzureSlice,
   AdminRouterConfigRequest,
   AdminRouterConfigSlice,
@@ -14,6 +15,7 @@ export type RouterConfigMode = 'merge' | 'reset'
 export type RouterSliceKind = AdminRouterConfigSlice['kind']
 export type DashscopeRegion = AdminRouterDashscopeSlice['region']
 export type StepfunModel = NonNullable<AdminRouterStepfunSlice['upstreamModel']>
+export type AliyunNlsRegion = NonNullable<AdminRouterAliyunNlsAsrSlice['region']>
 
 export interface RouterDefaultsDraft {
   chatModel: string
@@ -80,11 +82,23 @@ export interface UnspeechSliceDraft extends SliceDraftBase {
   streamingDefaultModel: string
 }
 
+export interface AliyunNlsAsrSliceDraft extends SliceDraftBase {
+  kind: 'aliyun-nls-asr'
+  modelName: string
+  accessKeyId: string
+  appKey: string
+  region: AliyunNlsRegion
+  plaintextKey: string
+  keyEntryId: string
+  existingKeyEntryId: string
+}
+
 export type RouterSliceDraft
   = | OpenRouterSliceDraft
     | AzureSliceDraft
     | DashscopeSliceDraft
     | StepfunSliceDraft
+    | AliyunNlsAsrSliceDraft
     | UnspeechSliceDraft
 
 export interface RouterConfigFormState {
@@ -108,6 +122,7 @@ export const ROUTER_SLICE_KIND_OPTIONS: Array<{ label: string, value: RouterSlic
   { label: 'Azure Speech', value: 'azure', description: 'Microsoft TTS model alias' },
   { label: 'DashScope CosyVoice', value: 'dashscope-cosyvoice', description: 'Alibaba TTS model alias' },
   { label: 'StepFun TTS', value: 'stepfun', description: 'StepAudio / Step TTS model alias' },
+  { label: 'Aliyun NLS ASR', value: 'aliyun-nls-asr', description: 'Alibaba realtime ASR model alias' },
   { label: 'UnSpeech', value: 'unspeech', description: 'REST and optional streaming TTS upstream' },
 ]
 
@@ -120,6 +135,15 @@ export const STEPFUN_MODEL_OPTIONS: Array<{ label: string, value: StepfunModel }
   { label: 'StepAudio 2.5 TTS', value: 'stepaudio-2.5-tts' },
   { label: 'Step TTS 2', value: 'step-tts-2' },
   { label: 'Step TTS Mini', value: 'step-tts-mini' },
+]
+
+export const ALIYUN_NLS_REGION_OPTIONS: Array<{ label: string, value: AliyunNlsRegion }> = [
+  { label: 'Shanghai', value: 'cn-shanghai' },
+  { label: 'Shanghai Internal', value: 'cn-shanghai-internal' },
+  { label: 'Beijing', value: 'cn-beijing' },
+  { label: 'Beijing Internal', value: 'cn-beijing-internal' },
+  { label: 'Shenzhen', value: 'cn-shenzhen' },
+  { label: 'Shenzhen Internal', value: 'cn-shenzhen-internal' },
 ]
 
 /**
@@ -157,6 +181,7 @@ export function createRouterSliceDraft(kind: 'openrouter', id?: string): OpenRou
 export function createRouterSliceDraft(kind: 'azure', id?: string): AzureSliceDraft
 export function createRouterSliceDraft(kind: 'dashscope-cosyvoice', id?: string): DashscopeSliceDraft
 export function createRouterSliceDraft(kind: 'stepfun', id?: string): StepfunSliceDraft
+export function createRouterSliceDraft(kind: 'aliyun-nls-asr', id?: string): AliyunNlsAsrSliceDraft
 export function createRouterSliceDraft(kind: 'unspeech', id?: string): UnspeechSliceDraft
 export function createRouterSliceDraft(kind: RouterSliceKind, id?: string): RouterSliceDraft
 export function createRouterSliceDraft(kind: RouterSliceKind, id?: string): RouterSliceDraft {
@@ -204,6 +229,18 @@ export function createRouterSliceDraft(kind: RouterSliceKind, id?: string): Rout
         upstreamModel: 'stepaudio-2.5-tts',
         defaultVoice: '',
         instruction: '',
+        plaintextKey: '',
+        keyEntryId: '',
+        existingKeyEntryId: '',
+      }
+    case 'aliyun-nls-asr':
+      return {
+        id: sliceId,
+        kind,
+        modelName: 'auto',
+        accessKeyId: '',
+        appKey: '',
+        region: 'cn-shanghai',
         plaintextKey: '',
         keyEntryId: '',
         existingKeyEntryId: '',
@@ -349,6 +386,14 @@ function validateSlice(slice: RouterSliceDraft, ordinal: number): string[] {
         noPipe(slice.modelName, `${label}: model alias must not contain "|".`),
         requiredKey(slice.plaintextKey, slice.existingKeyEntryId, `${label}: provider key is required unless an existing key is loaded.`),
       ].filter(isPresent)
+    case 'aliyun-nls-asr':
+      return [
+        required(slice.modelName, `${label}: model alias is required.`),
+        noPipe(slice.modelName, `${label}: model alias must not contain "|".`),
+        required(slice.accessKeyId, `${label}: access key id is required.`),
+        required(slice.appKey, `${label}: app key is required.`),
+        requiredKey(slice.plaintextKey, slice.existingKeyEntryId, `${label}: access key secret is required unless an existing key is loaded.`),
+      ].filter(isPresent)
     case 'unspeech':
       return [
         required(slice.restBaseURL, `${label}: REST base URL is required.`),
@@ -440,6 +485,19 @@ function sliceToRequest(slice: RouterSliceDraft): AdminRouterConfigSlice {
       assignOptional(request, 'existingKeyEntryId', slice.existingKeyEntryId)
       return request
     }
+    case 'aliyun-nls-asr': {
+      const request: AdminRouterAliyunNlsAsrSlice = {
+        kind: slice.kind,
+        modelName: trim(slice.modelName),
+        accessKeyId: trim(slice.accessKeyId),
+        appKey: trim(slice.appKey),
+        region: slice.region,
+      }
+      assignOptional(request, 'plaintextKey', slice.plaintextKey)
+      assignOptional(request, 'keyEntryId', slice.keyEntryId)
+      assignOptional(request, 'existingKeyEntryId', slice.existingKeyEntryId)
+      return request
+    }
     case 'unspeech': {
       const request: AdminRouterUnspeechSlice = {
         kind: slice.kind,
@@ -513,6 +571,17 @@ function draftFromRequestSlice(value: unknown, ordinal: number): RouterSliceDraf
       draft.upstreamModel = isStepfunModel(value.upstreamModel) ? value.upstreamModel : draft.upstreamModel
       draft.defaultVoice = stringValue(value.defaultVoice)
       draft.instruction = stringValue(value.instruction)
+      draft.plaintextKey = stringValue(value.plaintextKey)
+      draft.keyEntryId = stringValue(value.keyEntryId)
+      draft.existingKeyEntryId = stringValue(value.existingKeyEntryId)
+      return draft
+    }
+    case 'aliyun-nls-asr': {
+      const draft = createRouterSliceDraft('aliyun-nls-asr', `imported-aliyun-nls-asr-${ordinal}`) as AliyunNlsAsrSliceDraft
+      draft.modelName = stringValue(value.modelName)
+      draft.accessKeyId = stringValue(value.accessKeyId)
+      draft.appKey = stringValue(value.appKey)
+      draft.region = isAliyunNlsRegion(value.region) ? value.region : draft.region
       draft.plaintextKey = stringValue(value.plaintextKey)
       draft.keyEntryId = stringValue(value.keyEntryId)
       draft.existingKeyEntryId = stringValue(value.existingKeyEntryId)
@@ -637,4 +706,13 @@ function stringValue(value: unknown): string {
 
 function isStepfunModel(value: unknown): value is StepfunModel {
   return value === 'stepaudio-2.5-tts' || value === 'step-tts-2' || value === 'step-tts-mini'
+}
+
+function isAliyunNlsRegion(value: unknown): value is AliyunNlsRegion {
+  return value === 'cn-shanghai'
+    || value === 'cn-shanghai-internal'
+    || value === 'cn-beijing'
+    || value === 'cn-beijing-internal'
+    || value === 'cn-shenzhen'
+    || value === 'cn-shenzhen-internal'
 }
