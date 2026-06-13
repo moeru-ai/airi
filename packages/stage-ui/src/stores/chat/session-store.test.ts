@@ -345,4 +345,46 @@ describe('chat-session-store · crash-settled provisional turn re-enqueues on hy
       content: 'a crash-mid-send prompt',
     }))
   })
+
+  // ROOT CAUSE (follow-up):
+  //
+  // mergeLoadedSessionMessages dedupes by a fingerprint that excludes
+  // `provisional`, so a live in-memory provisional row and the stripped stored
+  // copy collide and the merge keeps the stripped row. The first cut of this
+  // fix then uploaded that still-in-flight row; a Stop before output removed it
+  // locally but the cloud copy could resurrect the cancelled prompt on the next
+  // pull. Fixed by excluding ids still provisional in currentMessages from the
+  // crash-settled set. https://github.com/moeru-ai/airi/pull/1889
+  it('does not enqueue a row that is still live-provisional in memory (in-flight send)', async () => {
+    const meta: ChatSessionMeta = {
+      sessionId: 'sess-1',
+      userId: 'user-1',
+      characterId: 'default',
+      createdAt: 1,
+      updatedAt: 1,
+      cloudChatId: 'cloud-1',
+    }
+    // Disk copy is provisional (persisted by the in-flight append)...
+    getSessionMock.mockResolvedValue({
+      meta,
+      messages: [{ role: 'user', content: 'an in-flight prompt', id: 'm1', provisional: true } as any],
+    })
+    isCloudSyncableMock.mockReturnValue(true)
+    userIdRef.value = 'user-1'
+
+    const store = useChatSessionStore()
+    // ...and the SAME row is still live-provisional in memory (send in flight).
+    store.applyRemoteSnapshot({
+      activeSessionId: '',
+      sessionMessages: { 'sess-1': [{ role: 'user', content: 'an in-flight prompt', id: 'm1', provisional: true } as any] },
+      sessionMetas: { 'sess-1': meta },
+      index: null,
+    })
+
+    await store.loadSession('sess-1')
+    await flushMicrotasks()
+
+    // The live in-flight row must NOT be uploaded; a Stop could still retract it.
+    expect(enqueueOutboxMock).not.toHaveBeenCalled()
+  })
 })

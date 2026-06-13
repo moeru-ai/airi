@@ -354,14 +354,22 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         if (stored) {
           const currentMessages = sessionMessages.value[sessionId] ?? []
           // A `provisional` marker describes a send in flight in the runtime
-          // that wrote it; a row arriving from disk is by definition settled
-          // (e.g. a crash mid-send), so the marker is dropped before merging.
-          // Live in-memory rows keep theirs: a send may be in flight right now.
-          const provisionalIds = new Set(
-            stored.messages.filter(message => message.provisional && message.id).map(message => message.id!),
+          // that wrote it. A row arriving from disk is settled (e.g. a crash
+          // mid-send) ONLY when no live in-memory row is still provisional for
+          // it; if `currentMessages` still holds it as provisional the send is
+          // in flight right now, so keep the marker. Settling a live row here
+          // would let it be uploaded and then resurrected by a later cloud pull
+          // even though a Stop may still retract it locally.
+          const liveProvisionalIds = new Set(
+            currentMessages.filter(message => message.provisional && message.id).map(message => message.id!),
           )
-          const settledStoredMessages = stored.messages.some(message => message.provisional)
-            ? stored.messages.map(withoutProvisional)
+          const crashSettledIds = new Set(
+            stored.messages
+              .filter(message => message.provisional && message.id && !liveProvisionalIds.has(message.id!))
+              .map(message => message.id!),
+          )
+          const settledStoredMessages = crashSettledIds.size
+            ? stored.messages.map(message => (message.id && crashSettledIds.has(message.id) ? withoutProvisional(message) : message))
             : stored.messages
           const mergedMessages = mergeLoadedSessionMessages(settledStoredMessages, currentMessages)
 
@@ -379,9 +387,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
           // upload. Enqueue the now-settled rows here so `drainOutbox` carries
           // them to the cloud. Idempotent by messageId, so a row that did get
           // enqueued before the crash is not duplicated.
-          if (provisionalIds.size && getCurrentUserId() !== 'local') {
+          if (crashSettledIds.size && getCurrentUserId() !== 'local') {
             for (const message of mergedMessages) {
-              if (!message.id || !provisionalIds.has(message.id) || !isCloudSyncableMessage(message))
+              if (!message.id || !crashSettledIds.has(message.id) || !isCloudSyncableMessage(message))
                 continue
               const text = extractMessageText(message)
               if (!text)
