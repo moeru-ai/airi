@@ -1312,12 +1312,39 @@ pages:
         description: vllm.ai
         title: vLLM
       volcengine:
-        description: Volcengine.com
+        description: volcengine.com
         fields:
           field:
-            appId:
-              description: App ID проекта (получается в Console)
-              label: Идентификатор приложения (App ID)
+            resource_id:
+              description: Выберите версию модели. Должна соответствовать суффиксу голоса
+              label: Модель/Ресурс
+            speaker:
+              description: Идентификатор голоса, например zh_female_meilinvyou_uranus_bigtts
+              label: Голос
+            format:
+              description: Формат вывода аудио
+              label: Формат
+            sample_rate:
+              description: Частота дискретизации, рекомендуется 24000
+              label: Частота дискретизации
+            bit_rate:
+              description: Битрейт MP3, установите 128000 для хорошего качества
+              label: Битрейт
+            speech_rate:
+              description: Скорость речи, от -50 до 100, 0 — нормально
+              label: Скорость речи
+            loudness_rate:
+              description: Громкость, от -50 до 100, 0 — нормально
+              label: Громкость
+            pitch:
+              description: Тон, от -12 до 12, 0 — нормально
+              label: Тон
+            emotion:
+              description: Параметр эмоции (поддерживается не всеми голосами), например happy, sad, angry
+              label: Эмоция
+            emotion_scale:
+              description: Интенсивность эмоции, от 1 до 5, по умолчанию 4
+              label: Интенсивность эмоции
         title: Volcano Engine
       volcengine-coding-plan:
         description: План кодирования Volcengine

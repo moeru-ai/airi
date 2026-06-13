@@ -1315,9 +1315,36 @@ pages:
         description: volcengine.com
         fields:
           field:
-            appId:
-              description: App ID của dự án (lấy trong Console)
-              label: App ID
+            resource_id:
+              description: Chọn phiên bản mô hình. Phải khớp với hậu tố của giọng nói
+              label: Mô hình/Tài nguyên
+            speaker:
+              description: 'Mã giọng nói, ví dụ: zh_female_meilinvyou_uranus_bigtts'
+              label: Giọng nói
+            format:
+              description: Định dạng âm thanh đầu ra
+              label: Định dạng
+            sample_rate:
+              description: Tần số lấy mẫu, khuyến nghị 24000
+              label: Tần số lấy mẫu
+            bit_rate:
+              description: Tốc độ bit MP3, đặt 128000 để có chất lượng tốt
+              label: Tốc độ bit
+            speech_rate:
+              description: Tốc độ nói, -50 đến 100, 0 là bình thường
+              label: Tốc độ nói
+            loudness_rate:
+              description: Âm lượng, -50 đến 100, 0 là bình thường
+              label: Âm lượng
+            pitch:
+              description: Cao độ, -12 đến 12, 0 là bình thường
+              label: Cao độ
+            emotion:
+              description: 'Tham số cảm xúc (chỉ một số giọng hỗ trợ), ví dụ: happy, sad, angry'
+              label: Cảm xúc
+            emotion_scale:
+              description: Cường độ cảm xúc, 1 đến 5, mặc định 4
+              label: Cường độ cảm xúc
         title: Volcano Engine
       volcengine-coding-plan:
         description: Volcengine Coding Plan

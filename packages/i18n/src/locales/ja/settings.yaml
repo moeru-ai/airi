@@ -1315,10 +1315,37 @@ pages:
         description: volcengine.com
         fields:
           field:
-            appId:
-              description: コンソールで取得できるプロジェクトのApp ID
-              label: App ID
-        title: Volcano Engine
+            resource_id:
+              description: モデルバージョンを選択してください。話者のサフィックスと一致させる必要があります
+              label: モデル/リソース
+            speaker:
+              description: '話者識別子（例: zh_female_meilinvyou_uranus_bigtts）'
+              label: 話者
+            format:
+              description: 音声出力形式
+              label: 形式
+            sample_rate:
+              description: サンプルレート、24000 推奨
+              label: サンプルレート
+            bit_rate:
+              description: MP3ビットレート、128000を推奨
+              label: ビットレート
+            speech_rate:
+              description: 話速、-50〜100、0が標準
+              label: 話速
+            loudness_rate:
+              description: 音量、-50〜100、0が標準
+              label: 音量
+            pitch:
+              description: 音程、-12〜12、0が標準
+              label: 音程
+            emotion:
+              description: '感情パラメータ（一部の話者のみ対応）、例: happy, sad, angry'
+              label: 感情
+            emotion_scale:
+              description: 感情の強さ、1〜5、デフォルト4
+              label: 感情強度
+        title: 火山エンジン
       volcengine-coding-plan:
         description: Volcengine Coding Plan
         title: Volcengine Coding Plan

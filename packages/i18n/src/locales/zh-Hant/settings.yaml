@@ -1315,9 +1315,36 @@ pages:
         description: volcengine.com
         fields:
           field:
-            appId:
-              description: 可在控制台取得的 App ID
-              label: 應用程式 ID
+            resource_id:
+              description: 選擇豆包語音合成模型版本，需與發音人音色後綴匹配
+              label: 模型/資源選擇
+            speaker:
+              description: 發音人標識，例如 zh_female_meilinvyou_uranus_bigtts
+              label: 發音人
+            format:
+              description: 音訊輸出格式
+              label: 音訊格式
+            sample_rate:
+              description: 取樣率，推薦 24000
+              label: 取樣率
+            bit_rate:
+              description: MP3 位元率，設為 128000 以保證音質
+              label: 位元率
+            speech_rate:
+              description: 語調/語速，-50 至 100，0 為正常語速
+              label: 語調(語速)
+            loudness_rate:
+              description: 音量，-50 至 100，0 為正常音量
+              label: 音量
+            pitch:
+              description: 音調，-12 至 12，0 為正常音調
+              label: 音調
+            emotion:
+              description: 情感參數（僅部分音色支援），如 happy、sad、angry
+              label: 情感
+            emotion_scale:
+              description: 情感強度，1 至 5，預設 4
+              label: 情感強度
         title: 火山引擎
       volcengine-coding-plan:
         description: Volcengine Coding Plan

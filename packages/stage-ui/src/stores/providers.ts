@@ -1376,7 +1376,6 @@ export const useProvidersStore = defineStore('providers', () => {
           const errors = [
             !config.apiKey && new Error('API key is required.'),
             !config.baseUrl && new Error('Base URL is required.'),
-            !((config.app as any)?.appId) && new Error('App ID is required.'),
           ].filter(Boolean)
 
           const res = baseUrlValidator.value(config.baseUrl)
@@ -1387,7 +1386,7 @@ export const useProvidersStore = defineStore('providers', () => {
           return {
             errors,
             reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.apiKey && !!config.baseUrl && !!config.app && !!(config.app as any).appId,
+            valid: !!config.apiKey && !!config.baseUrl,
           }
         },
       },

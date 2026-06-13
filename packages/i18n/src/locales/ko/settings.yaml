@@ -1315,10 +1315,37 @@ pages:
         description: volcengine.com
         fields:
           field:
-            appId:
-              description: 콘솔에서 얻을 수 있는 프로젝트의 애플리케이션 ID
-              label: 애플리케이션 ID
-        title: Volcano 엔진
+            resource_id:
+              description: 모델 버전을 선택하세요. 화자 접미사와 일치해야 합니다
+              label: 모델/리소스
+            speaker:
+              description: '화자 식별자 (예: zh_female_meilinvyou_uranus_bigtts)'
+              label: 화자
+            format:
+              description: 오디오 출력 형식
+              label: 형식
+            sample_rate:
+              description: 샘플 레이트, 24000 권장
+              label: 샘플 레이트
+            bit_rate:
+              description: MP3 비트레이트, 128000 권장
+              label: 비트레이트
+            speech_rate:
+              description: 말하기 속도, -50~100, 0이 표준
+              label: 말하기 속도
+            loudness_rate:
+              description: 음량, -50~100, 0이 표준
+              label: 음량
+            pitch:
+              description: 음조, -12~12, 0이 표준
+              label: 음조
+            emotion:
+              description: '감정 파라미터 (일부 화자만 지원), 예: happy, sad, angry'
+              label: 감정
+            emotion_scale:
+              description: 감정 강도, 1~5, 기본값 4
+              label: 감정 강도
+        title: Volcano Engine
       volcengine-coding-plan:
         description: Volcengine Coding Plan
         title: Volcengine Coding Plan

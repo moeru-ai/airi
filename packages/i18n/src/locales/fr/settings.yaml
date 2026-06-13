@@ -1315,9 +1315,36 @@ pages:
         description: volcengine.com
         fields:
           field:
-            appId:
-              description: ID de l’application du projet, que vous pouvez obtenir dans la Console
-              label: ID de l’application
+            resource_id:
+              description: Sélectionnez la version du modèle. Doit correspondre au suffixe de la voix
+              label: Modèle/Ressource
+            speaker:
+              description: Identifiant de la voix, ex. zh_female_meilinvyou_uranus_bigtts
+              label: Voix
+            format:
+              description: Format de sortie audio
+              label: Format
+            sample_rate:
+              description: Taux d'échantillonnage, 24000 recommandé
+              label: Taux d'échantillonnage
+            bit_rate:
+              description: Débit binaire MP3, 128000 recommandé
+              label: Débit binaire
+            speech_rate:
+              description: Vitesse de parole, -50 à 100, 0 est normal
+              label: Vitesse de parole
+            loudness_rate:
+              description: Volume, -50 à 100, 0 est normal
+              label: Volume
+            pitch:
+              description: Tonalité, -12 à 12, 0 est normal
+              label: Tonalité
+            emotion:
+              description: Paramètre d'émotion (certaines voix uniquement), ex. happy, sad, angry
+              label: Émotion
+            emotion_scale:
+              description: Intensité de l'émotion, 1 à 5, par défaut 4
+              label: Intensité de l'émotion
         title: Volcano Engine
       volcengine-coding-plan:
         description: Volcengine Coding Plan

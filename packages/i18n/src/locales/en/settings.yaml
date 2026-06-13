@@ -1369,9 +1369,36 @@ pages:
         description: volcengine.com
         fields:
           field:
-            appId:
-              description: App ID of the project where you can obtain in Console
-              label: App ID
+            resource_id:
+              description: Select the model version. Must match the speaker suffix
+              label: Model / Resource
+            speaker:
+              description: Speaker identifier, e.g. zh_female_meilinvyou_uranus_bigtts
+              label: Speaker
+            format:
+              description: Audio output format
+              label: Format
+            sample_rate:
+              description: Sample rate, 24000 recommended
+              label: Sample Rate
+            bit_rate:
+              description: MP3 bitrate, set to 128000 for good quality
+              label: Bitrate
+            speech_rate:
+              description: Speech rate, -50 to 100, 0 is normal
+              label: Speech Rate
+            loudness_rate:
+              description: Volume, -50 to 100, 0 is normal
+              label: Volume
+            pitch:
+              description: Pitch, -12 to 12, 0 is normal
+              label: Pitch
+            emotion:
+              description: Emotion parameter (only supported by some voices), e.g. happy, sad, angry
+              label: Emotion
+            emotion_scale:
+              description: Emotion intensity, 1 to 5, default 4
+              label: Emotion Intensity
         title: Volcano Engine
       volcengine-coding-plan:
         description: Volcengine Coding Plan
