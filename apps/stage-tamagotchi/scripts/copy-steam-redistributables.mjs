@@ -9,6 +9,8 @@
  *   node scripts/copy-steam-redistributables.mjs <windows|macos|linux> <destDir>
  */
 
+import process from 'node:process'
+
 import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -52,5 +54,5 @@ for (const { from, to } of files) {
     continue
   }
   cpSync(src, join(destDir, to))
-  console.log(`[steam] copied ${basename(to)} -> ${destDir}`)
+  console.info(`[steam] copied ${basename(to)} -> ${destDir}`)
 }
