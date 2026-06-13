@@ -357,6 +357,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
           // that wrote it; a row arriving from disk is by definition settled
           // (e.g. a crash mid-send), so the marker is dropped before merging.
           // Live in-memory rows keep theirs: a send may be in flight right now.
+          const provisionalIds = new Set(
+            stored.messages.filter(message => message.provisional && message.id).map(message => message.id!),
+          )
           const settledStoredMessages = stored.messages.some(message => message.provisional)
             ? stored.messages.map(withoutProvisional)
             : stored.messages
@@ -368,6 +371,29 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
           if (mergedMessages !== stored.messages)
             await persistSession(sessionId)
+
+          // A provisional row that survived to disk is a crash mid-send: the
+          // settle-time `onUserTurnCommitted` cloud enqueue never ran, and
+          // reconcile only sweeps newly-created sessions (the claim branch for
+          // already-mapped sessions does not), so the row would otherwise never
+          // upload. Enqueue the now-settled rows here so `drainOutbox` carries
+          // them to the cloud. Idempotent by messageId, so a row that did get
+          // enqueued before the crash is not duplicated.
+          if (provisionalIds.size && getCurrentUserId() !== 'local') {
+            for (const message of mergedMessages) {
+              if (!message.id || !provisionalIds.has(message.id) || !isCloudSyncableMessage(message))
+                continue
+              const text = extractMessageText(message)
+              if (!text)
+                continue
+              void pushMessageToCloud(sessionId, {
+                id: message.id,
+                role: message.role as CloudSyncableRole,
+                content: text,
+                createdAt: message.createdAt,
+              })
+            }
+          }
         }
         loadedSessions.add(sessionId)
 
