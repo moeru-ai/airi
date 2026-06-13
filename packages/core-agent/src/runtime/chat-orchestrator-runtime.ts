@@ -528,6 +528,16 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     const hasProducedOutput = () => buildingMessage.slices.length > 0
       || !!buildingMessage.categorization?.reasoning?.trim()
 
+    // Orphan guard for the assistant turn. The per-message delete menu can
+    // remove the user's own prompt while its reply is still streaming; appending
+    // (and uploading) a reply whose prompt is gone leaves a headless reply in
+    // history and, for signed-in users, syncs it to other devices. So append the
+    // assistant only while its prompt still exists. Mirrors the user-side guard
+    // in `settleUserTurn` (which already suppresses the prompt's own upload).
+    const userPromptStillInHistory = () =>
+      !!appendedUserMessage
+      && deps.session.getSessionMessages(sessionId).some(message => message.id === appendedUserMessage!.id)
+
     // Single commit/retract decision for the user turn. Idempotent (the `settled`
     // guard makes it a no-op after the first run) so it can run from two call
     // sites: the success path, right BEFORE the assistant message is appended (so
@@ -911,7 +921,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       // NOTICE: a Stop in this gap counts as a completed turn (no `stopped`
       // marker, turn-complete hooks fire); the catch block owns mid-stream
       // cancellation.
-      if (!isStaleGeneration() && buildingMessage.slices.length > 0) {
+      if (!isStaleGeneration() && buildingMessage.slices.length > 0 && userPromptStillInHistory()) {
         const finalAssistant = buildingMessage
         deps.session.appendSessionMessage(sessionId, finalAssistant)
         landed = true
@@ -960,7 +970,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         // Reasoning-only turns (reasoning models that stop before any speech or
         // tool slice) carry their partial in categorization.reasoning, which
         // hasProducedOutput() counts, so they persist rather than being dropped.
-        if (!landed && !isStaleGeneration() && hasProducedOutput()) {
+        if (!landed && !isStaleGeneration() && hasProducedOutput() && userPromptStillInHistory()) {
           const stoppedAssistant: StreamingAssistantMessage = {
             ...buildingMessage,
             // Snapshot the arrays: the tool-call queue keeps recording

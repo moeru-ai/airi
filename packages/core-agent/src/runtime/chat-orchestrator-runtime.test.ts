@@ -1448,6 +1448,45 @@ describe('createChatOrchestratorRuntime', () => {
 
   /**
    * @example
+   * Deleting your own prompt while its reply is still streaming must not leave a
+   * headless reply: the assistant turn is neither appended nor uploaded when the
+   * prompt is gone from history at settle (the assistant-side mirror of the
+   * user-side delete guard). https://github.com/moeru-ai/airi/pull/1889
+   */
+  it('does not append or upload the assistant when the prompt was deleted mid-stream', async () => {
+    const harness = createHarness()
+    let releaseStream!: () => void
+    let streamStarted = false
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      streamStarted = true
+      await new Promise<void>((resolve) => {
+        releaseStream = resolve
+      })
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'an orphaned reply' })
+      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+    })
+
+    const send = harness.runtime.ingest('a prompt to be deleted', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    await vi.waitFor(() => expect(streamStarted).toBe(true))
+    // Simulate the user deleting their own prompt mid-stream (per-message menu).
+    harness.sessionMessages['session-1'] = (harness.sessionMessages['session-1'] ?? [])
+      .filter(message => message.role !== 'user')
+    releaseStream()
+    await send
+
+    // No headless reply: the assistant is neither appended nor uploaded, and the
+    // user-commit side effects are suppressed too (its row is gone).
+    expect(harness.assistantAppended).toHaveLength(0)
+    expect(harness.sessionMessages['session-1']?.some(message => message.role === 'assistant')).toBe(false)
+    expect(harness.userCommits).toHaveLength(0)
+  })
+
+  /**
+   * @example
    * A reasoning-only stop still produces output (the stopped partial), so the
    * user turn commits rather than retracting.
    */
