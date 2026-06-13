@@ -1416,6 +1416,38 @@ describe('createChatOrchestratorRuntime', () => {
 
   /**
    * @example
+   * Deleting a session mid-send (drawer trash while streaming) removes the
+   * provisional row, so `commitSessionMessage` no-ops at settle. The commit side
+   * effects (cloud enqueue, autonomous tasks) must NOT fire for a row that no
+   * longer exists, or an undrainable outbox entry with no cloudChatId is left
+   * behind. https://github.com/moeru-ai/airi/pull/1889
+   */
+  it('skips user-commit side effects when the session was deleted mid-send', async () => {
+    const harness = createHarness()
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      await new Promise<void>((_resolve, reject) => {
+        const signal = (options as { abortSignal?: AbortSignal })?.abortSignal
+        signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+      })
+    })
+
+    const send = harness.runtime.ingest('a prompt for a doomed session', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    await vi.waitFor(() => expect(harness.stream).toHaveBeenCalledTimes(1))
+    // Simulate deleteSession removing the session while the send is in flight.
+    harness.sessionMessages['session-1'] = []
+    harness.runtime.stopSending('session-1')
+    await send
+
+    // No commit side effects for a deleted prompt: no cloud enqueue, no tasks.
+    expect(harness.userCommits).toHaveLength(0)
+  })
+
+  /**
+   * @example
    * A reasoning-only stop still produces output (the stopped partial), so the
    * user turn commits rather than retracting.
    */

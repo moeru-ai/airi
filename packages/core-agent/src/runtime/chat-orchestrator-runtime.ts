@@ -558,13 +558,22 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         // finish this runs before the assistant append, so the user-turn consumer
         // (autonomous artist task on the "user" target) sees history up to and
         // including the user turn, which is the turn it acts on.
-        deps.onUserTurnCommitted?.({
-          sessionId,
-          message: appendedUserMessage,
-          messageText: sendingMessage,
-          sessionMessages: deps.session.getSessionMessages(sessionId),
-        })
-        turnCommitted = true
+        const committedSessionMessages = deps.session.getSessionMessages(sessionId)
+        const committedUserMessageId = appendedUserMessage.id
+        // The session can be deleted mid-send (drawer trash while streaming).
+        // `commitSessionMessage` then no-ops because the row is gone, so only run
+        // the commit side effects when the row still exists: firing them for a
+        // deleted prompt would re-enqueue an outbox entry with no `cloudChatId`
+        // (which can never drain) and run autonomous tasks for a removed turn.
+        if (committedSessionMessages.some(message => message.id === committedUserMessageId)) {
+          deps.onUserTurnCommitted?.({
+            sessionId,
+            message: appendedUserMessage,
+            messageText: sendingMessage,
+            sessionMessages: committedSessionMessages,
+          })
+          turnCommitted = true
+        }
       }
     }
 
