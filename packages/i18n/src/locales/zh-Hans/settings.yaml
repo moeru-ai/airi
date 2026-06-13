@@ -745,6 +745,12 @@ pages:
       empty: 尚无已配置的 MCP 集成 - 点击「添加服务器」来创建一个，或者通过「编辑 JSON」直接粘贴配置
       error-title: 坏了
       success-title: 完成！
+      activated:
+        title: 已激活的工具
+        description: 用过一次的 MCP 工具会自动转成可直接调用的原生工具(重启保留)。取消激活会让它退回目录、改走通用入口。
+        empty: 还没有工具被激活。用过一次之后会出现在这里。
+        deactivate: 取消激活
+        deactivate-all: 全部取消
       existing:
         title: 配置完成
         description: 在配置文件中记录了 MCP 服务器。点击展开后可以编辑它。

@@ -14,6 +14,7 @@ import {
   Checkbox,
   TransitionVertical,
 } from '@proj-airi/ui'
+import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -30,6 +31,7 @@ import {
   electronMcpWriteConfigText,
 } from '../../../../shared/eventa'
 import { parseElectronMcpConfigText } from '../../../../shared/mcp-config'
+import { useTamagotchiMcpToolsStore } from '../../../stores/mcp-tools'
 import {
   buildConfigFile,
   buildServerConfig,
@@ -42,6 +44,11 @@ import {
 
 const { t } = useI18n()
 const tn = (key: string, params?: Record<string, unknown>) => t(`settings.pages.modules.mcp-server.${key}`, params ?? {})
+
+// Tools the model has used are promoted to directly-callable native tools (persisted). Surface them
+// here so the user can see what's active and demote any back to the cold catalog.
+const mcpToolsStore = useTamagotchiMcpToolsStore()
+const { activatedRefs } = storeToRefs(mcpToolsStore)
 
 const invokeOpenConfigFile = useElectronEventaInvoke(electronMcpOpenConfigFile)
 const invokeApplyAndRestart = useElectronEventaInvoke(electronMcpApplyAndRestart)
@@ -512,6 +519,42 @@ onMounted(async () => {
           </div>
         </li>
       </ul>
+    </section>
+
+    <section :class="PANEL">
+      <div class="flex items-center justify-between gap-2">
+        <h3 class="text-sm font-semibold">
+          {{ tn('activated.title') }}
+        </h3>
+        <span class="rounded-full bg-neutral-200/60 px-2 py-0.5 text-xs text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
+          {{ activatedRefs.length }}
+        </span>
+      </div>
+      <p class="text-xs text-neutral-500 dark:text-neutral-400">
+        {{ tn('activated.description') }}
+      </p>
+
+      <div v-if="!activatedRefs.length" class="border-2 border-neutral-200 rounded-lg border-dashed p-6 text-center text-xs text-neutral-500 dark:border-neutral-800">
+        {{ tn('activated.empty') }}
+      </div>
+      <template v-else>
+        <ul class="flex flex-col gap-2">
+          <li v-for="entry in activatedRefs" :key="entry" :class="CARD_MUTED">
+            <div class="flex items-center justify-between gap-3">
+              <span class="min-w-0 flex-1 truncate text-xs font-mono">{{ entry }}</span>
+              <Button
+                variant="secondary" size="sm"
+                icon="i-solar:close-circle-line-duotone"
+                :label="tn('activated.deactivate')"
+                @click="mcpToolsStore.deactivate(entry)"
+              />
+            </div>
+          </li>
+        </ul>
+        <div class="flex justify-end">
+          <Button variant="secondary" size="sm" :label="tn('activated.deactivate-all')" @click="mcpToolsStore.deactivateAll()" />
+        </div>
+      </template>
     </section>
   </div>
 </template>
