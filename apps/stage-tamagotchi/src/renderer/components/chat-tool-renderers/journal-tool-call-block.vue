@@ -169,6 +169,17 @@ function openGeneratedImagePreview() {
           {{ formattedArgs }}
         </div>
       </template>
+      <template v-else-if="state === 'cancelled'">
+        <div :class="['mb-2 flex items-center gap-2']">
+          <div :class="['i-solar:stop-circle-bold-duotone text-base text-amber-500']" />
+          <div :class="['rounded-full px-2.5 py-1 text-xs', 'bg-amber-500/12 text-amber-700 dark:text-amber-300']">
+            Cancelled
+          </div>
+        </div>
+        <div :class="['whitespace-pre-wrap break-words font-mono']">
+          {{ formattedArgs }}
+        </div>
+      </template>
       <template v-else-if="isTextJournalCreate">
         <div class="mb-2 flex items-center gap-2">
           <div class="i-solar:notebook-bookmark-bold-duotone text-base text-emerald-500" />
