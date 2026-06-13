@@ -119,6 +119,25 @@ export async function listSessions() {
   return await authClient.listSessions()
 }
 
+export const SIGN_OUT_REQUEST_TIMEOUT_MS = 8000
+
+async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}, timeoutMs = SIGN_OUT_REQUEST_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => {
+    controller.abort()
+  }, timeoutMs)
+
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    })
+  }
+  finally {
+    clearTimeout(timeoutId)
+  }
+}
+
 export async function signOut() {
   const authStore = useAuthStore()
 
@@ -154,27 +173,28 @@ export async function signOut() {
   // persistence (applyOIDCTokens started saving id_token in this branch);
   // without it, those legacy sessions would skip server cleanup and hit
   // exactly the silent-re-login bug described above.
-  try {
-    if (idTokenHint && clientId) {
-      const url = new URL('/api/auth/oauth2/end-session', SERVER_URL)
-      url.searchParams.set('id_token_hint', idTokenHint)
-      url.searchParams.set('client_id', clientId)
-      await fetch(url.toString(), { method: 'GET' })
-    }
-    else if (bearerToken) {
-      const url = new URL('/api/auth/sign-out', SERVER_URL)
-      await fetch(url.toString(), {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${bearerToken}` },
-      })
-    }
-  }
-  catch {
-    // Network failure: still clear local state below. Server-side row will
-    // expire by TTL; the local refreshToken/idToken/clientId are about to
-    // be wiped, so the local user has no way to spend it in the meantime.
+  if (idTokenHint && clientId) {
+    const url = new URL('/api/auth/oauth2/end-session', SERVER_URL)
+    url.searchParams.set('id_token_hint', idTokenHint)
+    url.searchParams.set('client_id', clientId)
+    await fetchWithTimeout(url.toString(), { method: 'GET' })
+    authStore.clearAllAuthState()
+    return
   }
 
+  if (bearerToken) {
+    const url = new URL('/api/auth/sign-out', SERVER_URL)
+    await fetchWithTimeout(url.toString(), {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${bearerToken}` },
+    })
+    authStore.clearAllAuthState()
+    return
+  }
+
+  // No server-side credential material is available, so there is no
+  // authoritative remote session we can invalidate from this client. In that
+  // legacy/local-only state, local cleanup is still the only available action.
   authStore.clearAllAuthState()
 }
 
