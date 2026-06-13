@@ -293,19 +293,43 @@ type CaptionChannelEvent
     | { type: 'caption-assistant', text: string }
 const { post: postCaption } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
 
+// Whether push-to-talk (CapsLock) is currently held. Declared here because the streaming
+// transcription handler below reads it to gate sends; the PTT key handlers further down maintain it.
+let pttRecording = false
+
 function handleStreamingSentenceEnd(delta: string) {
   console.info('[Main Page] Received transcription delta:', delta)
-  const finalText = delta
-  if (!finalText || !finalText.trim()) {
+  const finalText = delta?.trim()
+  if (!finalText) {
     return
   }
 
   postCaption({ type: 'caption-speaker', text: finalText })
 
+  // A streaming provider keeps the mic session live the whole time, so the same PTT/auto-send
+  // policy as the record-then-transcribe path must be applied here — otherwise every sentence is
+  // sent regardless of mode. In push-to-talk mode only emit sentences produced while CapsLock is
+  // held; in VAD mode honor the auto-send toggle (off → stage a draft for manual review).
+  if (listeningMode.value === 'ptt') {
+    if (pttRecording)
+      sendVoiceTranscript(finalText)
+    return
+  }
+
+  if (autoSendEnabled.value) {
+    sendVoiceTranscript(finalText)
+    return
+  }
+
+  voiceInputDraft.value = voiceInputDraft.value ? `${voiceInputDraft.value} ${finalText}` : finalText
+  void openChat()
+}
+
+function sendVoiceTranscript(text: string) {
   void (async () => {
     try {
-      console.info('[Main Page] Sending transcription to chat:', finalText)
-      await chatSyncStore.requestIngest({ text: finalText })
+      console.info('[Main Page] Sending transcription to chat:', text)
+      await chatSyncStore.requestIngest({ text })
     }
     catch (err) {
       console.error('[Main Page] Failed to send chat from voice:', err)
@@ -480,7 +504,6 @@ const shortcutContext = useElectronEventaContext()
 // register returns false and ours silently loses. Alt+` is essentially never taken by other apps.
 const OPEN_CHAT_ACCELERATOR = 'Alt+Backquote'
 const PTT_ACCELERATOR = 'CapsLock'
-let pttRecording = false
 
 function startPushToTalk() {
   // Begin capturing only while held, in PTT mode, with a live mic stream.
