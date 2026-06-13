@@ -53,6 +53,7 @@ export const llmModelSchema = object({
 })
 
 const ttsProviderSchema = picklist(['azure', 'dashscope-cosyvoice', 'stepfun', 'volcengine'])
+const asrProviderSchema = picklist(['aliyun-nls'])
 
 export const ttsUpstreamSchema = object({
   baseURL: pipe(string(), nonEmpty('tts.upstreams[].baseURL must not be empty')),
@@ -93,6 +94,16 @@ export const ttsModelSchema = object({
   fallbackTriggers: fallbackTriggersSchema,
 })
 
+export const asrUpstreamSchema = object({
+  keys: pipe(array(keyEntrySchema), check(v => v.length >= 1, 'asr.upstreams[].keys must contain at least 1 entry')),
+  adapterParams: optional(record(string(), any()), {}),
+})
+
+export const asrModelSchema = object({
+  provider: asrProviderSchema,
+  upstreams: pipe(array(asrUpstreamSchema), check(v => v.length >= 1, 'asr.models[].upstreams must contain at least 1 entry')),
+})
+
 export const llmRouterDefaultsSchema = optional(
   object({
     perAttemptTimeoutMs: optional(number(), 30000),
@@ -109,6 +120,9 @@ export const llmRouterConfigSchema = object({
   tts: object({
     models: record(string(), ttsModelSchema),
   }),
+  asr: optional(object({
+    models: record(string(), asrModelSchema),
+  })),
   defaults: llmRouterDefaultsSchema,
 })
 

@@ -15,6 +15,7 @@ import vadWorkletUrl from '../../workers/vad/process.worklet?worker&url'
 
 import { useAnalytics } from '../../composables/use-analytics'
 import { activeTurnSpan, startSpan } from '../../composables/use-io-tracer'
+import { OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from '../../libs/providers'
 import { useProvidersStore } from '../providers'
 import { streamAliyunTranscription } from '../providers/aliyun/stream-transcription'
 import { streamWebSpeechAPITranscription } from '../providers/web-speech-api'
@@ -95,7 +96,12 @@ export function filterTranscriptionByConfidence(
 
 const STREAM_TRANSCRIPTION_EXECUTORS: Record<string, StreamTranscription> = {
   'aliyun-nls-transcription': streamAliyunTranscription,
+  [OFFICIAL_TRANSCRIPTION_PROVIDER_ID]: streamAliyunTranscription,
   // Web Speech API is handled specially in transcribeForMediaStream since it works directly with MediaStream
+}
+
+export function resolveStreamTranscriptionExecutor(providerId: string): StreamTranscription | undefined {
+  return STREAM_TRANSCRIPTION_EXECUTORS[providerId]
 }
 
 export const useHearingStore = defineStore('hearing-store', () => {
@@ -193,7 +199,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
       inputAudioStream?: ReadableStream<ArrayBuffer>
     }
     const features = providersStore.getTranscriptionFeatures(providerId)
-    const streamExecutor = STREAM_TRANSCRIPTION_EXECUTORS[providerId]
+    const streamExecutor = resolveStreamTranscriptionExecutor(providerId)
 
     const { trackSttStarted, trackSttSucceeded, trackSttFailed } = useAnalytics()
     const sttStartedAt = performance.now()

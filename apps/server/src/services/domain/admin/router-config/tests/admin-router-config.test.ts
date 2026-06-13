@@ -7,6 +7,7 @@ import { randomBytes } from 'node:crypto'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  buildAliyunNlsAsrSlice,
   buildAzureSlice,
   buildDashscopeSlice,
   buildNextRouterConfig,
@@ -175,6 +176,40 @@ describe('buildAzureSlice', () => {
       keyEntryId: 'azure-tts-prod-1',
     })
     expect(decrypted.toString('utf8')).toBe('azure-key')
+  })
+})
+
+describe('buildAliyunNlsAsrSlice', () => {
+  /**
+   * @example
+   * buildAliyunNlsAsrSlice({ kind: 'aliyun-nls-asr', modelName: 'auto', accessKeyId: 'ak', appKey: 'app', plaintextKey: 'secret' }, envelope)
+   */
+  it('encrypts the access key secret under the ASR model AAD', () => {
+    const envelope = freshEnvelope()
+    const built = buildAliyunNlsAsrSlice({
+      kind: 'aliyun-nls-asr',
+      modelName: 'auto',
+      accessKeyId: 'ak',
+      appKey: 'app',
+      plaintextKey: 'secret',
+    }, envelope)
+
+    expect(built.target).toBe('llm-router')
+    expect(built.surface).toBe('asr')
+    expect(built.modelName).toBe('auto')
+    expect(built.keyEntryId).toBe('aliyun-nls-asr-prod-1')
+    expect(built.model.provider).toBe('aliyun-nls')
+    expect(built.model.upstreams[0].adapterParams).toEqual({
+      accessKeyId: 'ak',
+      appKey: 'app',
+      region: 'cn-shanghai',
+    })
+
+    const decrypted = envelope.decryptKey(built.model.upstreams[0].keys[0].ciphertext, {
+      modelName: 'auto',
+      keyEntryId: 'aliyun-nls-asr-prod-1',
+    })
+    expect(decrypted.toString('utf8')).toBe('secret')
   })
 })
 

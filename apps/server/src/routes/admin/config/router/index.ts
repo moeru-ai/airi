@@ -82,6 +82,24 @@ const StepfunSliceSchema = object({
   existingKeyEntryId: optional(pipe(string(), nonEmpty(), maxLength(200), NO_PIPE)),
 })
 
+const AliyunNlsAsrSliceSchema = object({
+  kind: literal('aliyun-nls-asr'),
+  modelName: pipe(string(), nonEmpty('modelName is required'), maxLength(200), NO_PIPE),
+  accessKeyId: pipe(string(), nonEmpty('accessKeyId is required'), maxLength(200)),
+  appKey: pipe(string(), nonEmpty('appKey is required'), maxLength(200)),
+  region: optional(picklist([
+    'cn-shanghai',
+    'cn-shanghai-internal',
+    'cn-beijing',
+    'cn-beijing-internal',
+    'cn-shenzhen',
+    'cn-shenzhen-internal',
+  ], 'region must be a supported Aliyun NLS region')),
+  plaintextKey: optional(pipe(string(), nonEmpty('plaintextKey must not be empty when provided'), maxLength(MAX_KEY_LENGTH))),
+  keyEntryId: optional(pipe(string(), nonEmpty(), maxLength(200), NO_PIPE)),
+  existingKeyEntryId: optional(pipe(string(), nonEmpty(), maxLength(200), NO_PIPE)),
+})
+
 /**
  * `restBaseURL` is the unspeech REST root (http(s)://host:port, no path).
  * `streaming.upstreamURL` must be ws:// or wss:// — http(s):// here is almost
@@ -120,6 +138,7 @@ const SliceSchema = variant('kind', [
   AzureSliceSchema,
   DashscopeSliceSchema,
   StepfunSliceSchema,
+  AliyunNlsAsrSliceSchema,
   UnspeechSliceSchema,
 ])
 
@@ -169,6 +188,8 @@ const BodySchema = object({
  *       { "kind": "stepfun", "modelName": "stepfun/stepaudio-2.5-tts",
  *         "upstreamModel": "stepaudio-2.5-tts",
  *         "defaultVoice": "cixingnansheng", "plaintextKey": "..." },
+ *       { "kind": "aliyun-nls-asr", "modelName": "auto",
+ *         "accessKeyId": "...", "appKey": "...", "plaintextKey": "..." },
  *       { "kind": "unspeech",
  *         "restBaseURL": "http://airi-unspeech.railway.internal:5933",
  *         "streaming": {

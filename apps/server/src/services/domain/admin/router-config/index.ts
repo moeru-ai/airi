@@ -2,7 +2,7 @@ import type Redis from 'ioredis'
 import type { InferOutput } from 'valibot'
 
 import type { EnvelopeCrypto } from '../../../../utils/envelope-crypto'
-import type { ConfigKVService, llmModelSchema, llmRouterConfigSchema, ttsModelSchema, unspeechUpstreamSchema } from '../../../adapters/config-kv'
+import type { asrModelSchema, ConfigKVService, llmModelSchema, llmRouterConfigSchema, ttsModelSchema, unspeechUpstreamSchema } from '../../../adapters/config-kv'
 
 import { useLogger } from '@guiiai/logg'
 
@@ -24,6 +24,7 @@ const DEFAULT_KEY_ENTRY_IDS = {
   'dashscope-cosyvoice': 'dashscope-tts-prod-1',
   'stepfun': 'stepfun-tts-prod-1',
   'unspeech': 'volcengine-prod-1',
+  'aliyun-nls-asr': 'aliyun-nls-asr-prod-1',
 } as const
 
 const DEFAULT_FALLBACK_TRIGGERS = {
@@ -34,6 +35,7 @@ const DEFAULT_FALLBACK_TRIGGERS = {
 type LlmRouterConfig = InferOutput<typeof llmRouterConfigSchema>
 type LlmModel = InferOutput<typeof llmModelSchema>
 type TtsModel = InferOutput<typeof ttsModelSchema>
+type AsrModel = InferOutput<typeof asrModelSchema>
 type UnspeechUpstream = InferOutput<typeof unspeechUpstreamSchema>
 type KeyEntry = LlmModel['upstreams'][number]['keys'][number]
 
@@ -50,6 +52,7 @@ export type SliceInput
     | AzureSliceInput
     | DashscopeSliceInput
     | StepfunSliceInput
+    | AliyunNlsAsrSliceInput
     | UnspeechSliceInput
 
 export interface OpenRouterSliceInput {
@@ -138,6 +141,24 @@ export interface UnspeechSliceInput {
   }
 }
 
+export interface AliyunNlsAsrSliceInput {
+  kind: 'aliyun-nls-asr'
+  /** Key under `LLM_ROUTER_CONFIG.asr.models`; the official client currently uses `auto`. */
+  modelName: string
+  /** Aliyun AccessKey ID used for token signing. Stored in adapterParams, not encrypted. */
+  accessKeyId: string
+  /** Aliyun NLS app key. Stored in adapterParams, not encrypted. */
+  appKey: string
+  /** Aliyun NLS region; defaults to cn-shanghai. */
+  region?: 'cn-shanghai' | 'cn-shanghai-internal' | 'cn-beijing' | 'cn-beijing-internal' | 'cn-shenzhen' | 'cn-shenzhen-internal'
+  /** Aliyun AccessKey secret. Encrypted in-place; never echoed back. */
+  plaintextKey?: string
+  /** @default 'aliyun-nls-asr-prod-1' */
+  keyEntryId?: string
+  /** Existing key entry to preserve when `plaintextKey` is omitted. */
+  existingKeyEntryId?: string
+}
+
 interface LlmModelSlice {
   target: 'llm-router'
   surface: 'llm'
@@ -156,6 +177,15 @@ interface TtsModelSlice {
   keyEntryId: string
 }
 
+interface AsrModelSlice {
+  target: 'llm-router'
+  surface: 'asr'
+  kind: 'aliyun-nls-asr'
+  modelName: string
+  model: AsrModel
+  keyEntryId: string
+}
+
 interface UnspeechSlice {
   target: 'unspeech'
   kind: 'unspeech'
@@ -164,7 +194,7 @@ interface UnspeechSlice {
   keyEntryId: string | null
 }
 
-type BuiltSlice = LlmModelSlice | TtsModelSlice | UnspeechSlice
+type BuiltSlice = LlmModelSlice | TtsModelSlice | AsrModelSlice | UnspeechSlice
 
 /**
  * Encrypts an OpenRouter slice into the LLM_ROUTER_CONFIG.llm shape.
@@ -306,6 +336,43 @@ export function buildStepfunSlice(input: StepfunSliceInput, envelope: EnvelopeCr
         },
       }],
       fallbackTriggers: DEFAULT_FALLBACK_TRIGGERS,
+    },
+  }
+}
+
+/**
+ * Encrypts an Aliyun NLS ASR slice into the LLM_ROUTER_CONFIG.asr shape.
+ *
+ * Use when:
+ * - Admin posts an `aliyun-nls-asr` slice for the official realtime
+ *   transcription proxy.
+ *
+ * Expects:
+ * - `plaintextKey` is the Aliyun AccessKey secret. `accessKeyId` and `appKey`
+ *   are non-secret routing params stored in `adapterParams`.
+ */
+export function buildAliyunNlsAsrSlice(input: AliyunNlsAsrSliceInput, envelope: EnvelopeCrypto): AsrModelSlice {
+  const keyEntryId = input.keyEntryId ?? DEFAULT_KEY_ENTRY_IDS['aliyun-nls-asr']
+  const ciphertext = envelope.encryptKey(requiredPlaintextKey(input.plaintextKey, input.kind), {
+    modelName: input.modelName,
+    keyEntryId,
+  })
+  return {
+    target: 'llm-router',
+    surface: 'asr',
+    kind: 'aliyun-nls-asr',
+    modelName: input.modelName,
+    keyEntryId,
+    model: {
+      provider: 'aliyun-nls',
+      upstreams: [{
+        keys: [{ id: keyEntryId, ciphertext }],
+        adapterParams: {
+          accessKeyId: input.accessKeyId,
+          appKey: input.appKey,
+          region: input.region ?? 'cn-shanghai',
+        },
+      }],
     },
   }
 }
@@ -486,6 +553,32 @@ function buildStepfunSlicePreservingKey(input: StepfunSliceInput, envelope: Enve
   }
 }
 
+function buildAliyunNlsAsrSlicePreservingKey(input: AliyunNlsAsrSliceInput, envelope: EnvelopeCrypto, existing: AsrModel | undefined): AsrModelSlice {
+  if (input.plaintextKey?.trim())
+    return buildAliyunNlsAsrSlice(input, envelope)
+
+  const existingUpstream = existing?.upstreams[0]
+  const key = preservedKeyOrThrow(existingUpstream, input.existingKeyEntryId ?? input.keyEntryId, input.kind)
+  return {
+    target: 'llm-router',
+    surface: 'asr',
+    kind: 'aliyun-nls-asr',
+    modelName: input.modelName,
+    keyEntryId: key.id,
+    model: {
+      provider: 'aliyun-nls',
+      upstreams: [{
+        keys: [key],
+        adapterParams: {
+          accessKeyId: input.accessKeyId,
+          appKey: input.appKey,
+          region: input.region ?? stringFromRecord(existingUpstream?.adapterParams, 'region') ?? 'cn-shanghai',
+        },
+      }],
+    },
+  }
+}
+
 function buildUnspeechSlicePreservingKey(input: UnspeechSliceInput, envelope: EnvelopeCrypto, existing: UnspeechUpstream | undefined | null): UnspeechSlice {
   if (!input.streaming || input.streaming.plaintextKey?.trim())
     return buildUnspeechSlice(input, envelope)
@@ -532,6 +625,8 @@ export function buildSlice(
       return buildDashscopeSlicePreservingKey(input, envelope, existing?.routerConfig?.tts.models[input.modelName])
     case 'stepfun':
       return buildStepfunSlicePreservingKey(input, envelope, existing?.routerConfig?.tts.models[input.modelName])
+    case 'aliyun-nls-asr':
+      return buildAliyunNlsAsrSlicePreservingKey(input, envelope, existing?.routerConfig?.asr?.models[input.modelName])
     case 'unspeech':
       return buildUnspeechSlicePreservingKey(input, envelope, existing?.unspeech)
   }
@@ -558,18 +653,22 @@ export function buildSlice(
 export function buildNextRouterConfig(
   mode: 'merge' | 'reset',
   existing: LlmRouterConfig | null | undefined,
-  slices: (LlmModelSlice | TtsModelSlice)[],
+  slices: (LlmModelSlice | TtsModelSlice | AsrModelSlice)[],
 ): LlmRouterConfig {
   const llmModels: Record<string, LlmModel>
     = mode === 'merge' && existing?.llm?.models ? { ...existing.llm.models } : {}
   const ttsModels: Record<string, TtsModel>
     = mode === 'merge' && existing?.tts?.models ? { ...existing.tts.models } : {}
+  const asrModels: Record<string, AsrModel>
+    = mode === 'merge' && existing?.asr?.models ? { ...existing.asr.models } : {}
 
   for (const slice of slices) {
     if (slice.surface === 'llm')
       llmModels[slice.modelName] = slice.model
-    else
+    else if (slice.surface === 'tts')
       ttsModels[slice.modelName] = slice.model
+    else
+      asrModels[slice.modelName] = slice.model
   }
 
   // Defaults live alongside the models but aren't editable through this
@@ -582,6 +681,7 @@ export function buildNextRouterConfig(
   return {
     llm: { models: llmModels },
     tts: { models: ttsModels },
+    asr: { models: asrModels },
     defaults,
   }
 }
@@ -628,7 +728,7 @@ export interface ApplyInput {
 export interface AppliedSummary {
   kind: SliceInput['kind']
   target: 'llm-router' | 'unspeech'
-  surface?: 'llm' | 'tts'
+  surface?: 'llm' | 'tts' | 'asr'
   modelName?: string
   keyEntryId: string | null
 }
@@ -675,6 +775,11 @@ function slicesFromRouterConfig(config: LlmRouterConfig | null): SliceInput[] {
   }
   for (const [modelName, model] of Object.entries(config.tts.models)) {
     const slice = ttsSliceFromModel(modelName, model)
+    if (slice)
+      slices.push(slice)
+  }
+  for (const [modelName, model] of Object.entries(config.asr?.models ?? {})) {
+    const slice = asrSliceFromModel(modelName, model)
     if (slice)
       slices.push(slice)
   }
@@ -743,6 +848,29 @@ function ttsSliceFromModel(modelName: string, model: TtsModel): AzureSliceInput 
   return null
 }
 
+function asrSliceFromModel(modelName: string, model: AsrModel): AliyunNlsAsrSliceInput | null {
+  const upstream = model.upstreams[0]
+  const key = upstream?.keys[0]
+  if (model.provider !== 'aliyun-nls' || !upstream || !key)
+    return null
+
+  const accessKeyId = stringFromRecord(upstream.adapterParams, 'accessKeyId')
+  const appKey = stringFromRecord(upstream.adapterParams, 'appKey')
+  if (!accessKeyId || !appKey)
+    return null
+
+  const region = stringFromRecord(upstream.adapterParams, 'region')
+  return {
+    kind: 'aliyun-nls-asr',
+    modelName,
+    accessKeyId,
+    appKey,
+    region: isAliyunNlsRegion(region) ? region : undefined,
+    keyEntryId: key.id,
+    existingKeyEntryId: key.id,
+  }
+}
+
 function slicesFromUnspeech(unspeech: UnspeechUpstream | null): UnspeechSliceInput[] {
   if (!unspeech)
     return []
@@ -777,6 +905,15 @@ function stringFromRecord(recordValue: Record<string, unknown> | undefined, key:
 
 function isStepfunInputModel(value: string | undefined): value is NonNullable<StepfunSliceInput['upstreamModel']> {
   return value === 'stepaudio-2.5-tts' || value === 'step-tts-2' || value === 'step-tts-mini'
+}
+
+function isAliyunNlsRegion(value: string | undefined): value is NonNullable<AliyunNlsAsrSliceInput['region']> {
+  return value === 'cn-shanghai'
+    || value === 'cn-shanghai-internal'
+    || value === 'cn-beijing'
+    || value === 'cn-beijing-internal'
+    || value === 'cn-shenzhen'
+    || value === 'cn-shenzhen-internal'
 }
 
 interface AdminRouterConfigDeps {
@@ -875,9 +1012,9 @@ export function createAdminRouterConfigService(deps: AdminRouterConfigDeps) {
     if (unspeechCount > 1)
       throw createBadRequestError('At most one unspeech slice per request', 'INVALID_BODY')
 
-    const hasLlmTtsInput = input.slices.some(s => s.kind !== 'unspeech')
+    const hasRouterInput = input.slices.some(s => s.kind !== 'unspeech')
     const hasUnspeechInput = input.slices.some(s => s.kind === 'unspeech')
-    const shouldReadRouterConfig = hasLlmTtsInput
+    const shouldReadRouterConfig = hasRouterInput
       && (input.mode === 'merge' || input.slices.some(sliceNeedsExistingKey))
     const shouldReadUnspeech = hasUnspeechInput
     const [existingRouterConfig, existingUnspeech] = await Promise.all([
@@ -892,14 +1029,14 @@ export function createAdminRouterConfigService(deps: AdminRouterConfigDeps) {
       unspeech: existingUnspeech,
     }))
 
-    const llmTtsSlices = built.filter((s): s is LlmModelSlice | TtsModelSlice => s.target === 'llm-router')
+    const routerSlices = built.filter((s): s is LlmModelSlice | TtsModelSlice | AsrModelSlice => s.target === 'llm-router')
     const unspeechSlice = built.find((s): s is UnspeechSlice => s.target === 'unspeech')
 
-    // Step 2: build the next LLM_ROUTER_CONFIG tree if any LLM/TTS slice
+    // Step 2: build the next LLM_ROUTER_CONFIG tree if any LLM/TTS/ASR slice
     // was supplied. `merge` reads existing first; `reset` skips the read.
     let nextRouterConfig: LlmRouterConfig | undefined
-    if (llmTtsSlices.length > 0) {
-      nextRouterConfig = buildNextRouterConfig(input.mode, existingRouterConfig, llmTtsSlices)
+    if (routerSlices.length > 0) {
+      nextRouterConfig = buildNextRouterConfig(input.mode, existingRouterConfig, routerSlices)
     }
 
     // Step 3: build the next UNSPEECH_UPSTREAM. Streaming `models` +
