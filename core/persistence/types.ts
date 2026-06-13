@@ -263,6 +263,15 @@ export interface RuntimeSnapshot {
 
 	/** Serialized reasoning traces. */
 	readonly reasoningTraces: SerializedReasoningTrace[]
+
+	/** Serialized semantic memory records. */
+	readonly memories: SerializedMemoryRecord[]
+
+	/** Serialized retrieval traces. */
+	readonly retrievalTraces: SerializedRetrievalTrace[]
+
+	/** Serialized repository maps. */
+	readonly repositoryMaps: SerializedRepositoryMap[]
 }
 
 // ── Recovery metadata ───────────────────────────────────────────────────
@@ -585,6 +594,115 @@ export interface SerializedReasoningTrace {
 
 	/** ISO-8601 completion timestamp, if completed. */
 	readonly completedAt?: string
+}
+
+// ── Semantic memory serialized types ────────────────────────────────────
+
+/**
+ * Plain serializable version of a MemoryRecord.
+ */
+export interface SerializedMemoryRecord {
+	/** Memory ID. */
+	readonly id: string
+
+	/** Memory scope. */
+	readonly scope: string
+
+	/** Memory type. */
+	readonly type: string
+
+	/** Human-readable title. */
+	readonly title: string
+
+	/** Detailed content. */
+	readonly content: string
+
+	/** Serialized references. */
+	readonly references: Array<{
+		readonly type: string
+		readonly id: string
+		readonly path?: string
+		readonly description?: string
+	}>
+
+	/** Metadata. */
+	readonly metadata: Record<string, unknown>
+
+	/** ISO-8601 creation timestamp. */
+	readonly createdAt: string
+
+	/** ISO-8601 last-update timestamp. */
+	readonly updatedAt: string
+
+	/** Associated session. */
+	readonly sessionId?: string
+
+	/** Associated workspace. */
+	readonly workspaceId?: string
+
+	/** Associated repository. */
+	readonly repositoryId?: string
+
+	/** Importance score (0-1). */
+	readonly importance: number
+
+	/** Access count. */
+	readonly accessCount: number
+
+	/** ISO-8601 last access timestamp. */
+	readonly lastAccessedAt?: string
+}
+
+/**
+ * Plain serializable version of a RetrievalTrace.
+ */
+export interface SerializedRetrievalTrace {
+	/** Retrieval trace ID. */
+	readonly id: string
+
+	/** Query text, if any. */
+	readonly queryText?: string
+
+	/** Number of results. */
+	readonly resultCount: number
+
+	/** ISO-8601 retrieval timestamp. */
+	readonly timestamp: string
+
+	/** Retrieval duration in milliseconds. */
+	readonly durationMs: number
+}
+
+/**
+ * Plain serializable version of a RepositoryMap.
+ */
+export interface SerializedRepositoryMap {
+	/** Repository map ID. */
+	readonly id: string
+
+	/** Repository path. */
+	readonly repositoryPath: string
+
+	/** Repository name. */
+	readonly name: string
+
+	/** Number of files in the file graph. */
+	readonly fileCount: number
+
+	/** Number of import edges. */
+	readonly importEdgeCount: number
+
+	/** Git branch. */
+	readonly branch: string
+
+	/** Git commit. */
+	readonly commit: string
+
+	/** ISO-8601 indexing timestamp. */
+	readonly indexedAt: string
+
+	/** ISO-8601 last update timestamp. */
+	readonly lastUpdated: string
 }
 
 // ── Persistence options ─────────────────────────────────────────────────

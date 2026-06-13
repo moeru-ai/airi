@@ -83,7 +83,7 @@ export interface RecoveryResult {
 
 	/** Number of executions reconciled (marked as failed). */
 	readonly reconciledExecutions: number
-\n	/** Number of workspaces restored from snapshot. */
+	/** Number of workspaces restored from snapshot. */
 	readonly workspacesRestored: number
 
 	/** Error message if recovery failed. */
@@ -202,7 +202,7 @@ export class RecoveryCoordinator {
 
 			// Step 6: Reconcile incomplete executions.
 			const reconciled = this.reconcileExecutions(snapshot)
-\n			// Step 7: Restore workspaces.\
+			// Step 7: Restore workspaces.
 			const workspacesRestored = await this.restoreWorkspaces(snapshot)
 
 			const result: RecoveryResult = {
@@ -486,112 +486,112 @@ export class RecoveryCoordinator {
 		if (!lastEvent) return "evt_0_0" as any
 		return lastEvent.eventId
 	}
-\n	// ── Workspace recovery ────────────────────────────────────────────────\
-\
-	/**\
-	 * Restore workspaces from a snapshot.\
-	 *\
-	 * Loads workspace manifests from storage and restores them into the\
-	 * workspace manager. Emits WorkspaceRecovered or WorkspaceCorrupted\
-	 * events for each workspace.\
-	 *\
-	 * @returns The number of workspaces restored.\
-	 */\
-	async restoreWorkspaces(snapshot: RuntimeSnapshot | null): Promise<number> {\
-		if (!this.workspaceManager || !snapshot) return 0\
-\
-		const workspaceSnapshots = snapshot.workspaces ?? []\
-		if (workspaceSnapshots.length === 0) return 0\
-\
-		let restored = 0\
-\
-			for (const ws of workspaceSnapshots) {\
-			try {\
-				// Validate workspace state.\
-				if (!ws.descriptor || !ws.id) {\
-					this.logger.warn(`Recovery: skipping invalid workspace snapshot: ${JSON.stringify(ws)}`)\
-					this.events.emit("workspace.corrupted", {\
-						timestamp: new Date().toISOString(),\
-						source: "recovery",\
-						workspaceId: (ws.id ?? "unknown") as any,\
-						error: "Invalid workspace snapshot: missing descriptor or id",\
-						needsManualIntervention: true,\
-					})\
-					continue\
-				}\
-\
-				// Restore workspace into the manager.\
-				const snapshots = [{\
-					id: ws.id as any,\
-					descriptor: ws.descriptor as any,\
-					lease: ws.lease as any,\
-					activeTaskIds: ws.activeTaskIds ?? [],\
-					createdAt: ws.createdAt,\
-				}]\
-\
-				this.workspaceManager.restoreFromSnapshots(snapshots)\
-\
-				this.logger.info(`Recovery: restored workspace ${ws.id} (state: ${ws.descriptor.state})`)\
-\
-				// Emit workspace.recovered.\
-				this.events.emit("workspace.recovered", {\
-					timestamp: new Date().toISOString(),\
-					source: "recovery",\
-					workspaceId: ws.id,\
-					previousState: ws.descriptor.state,\
-					newState: ws.descriptor.state,\
-					needsReconciliation: false,\
-				})\
-\
-				restored++\
-			} catch (error) {\
-				const message = error instanceof Error ? error.message : String(error)\
-				this.logger.error(`Recovery: failed to restore workspace ${ws.id}: ${message}`)\
-\
-				this.events.emit("workspace.corrupted", {\
-					timestamp: new Date().toISOString(),\
-					source: "recovery",\
-					workspaceId: (ws.id ?? "unknown") as any,\
-					error: message,\
-					needsManualIntervention: true,\
-				})\
-			}\
-		}\
-\
-		return restored\
-	}\
-\
-	/**\
-	 * Reconcile orphaned workspaces.\
-	 *\
-	 * Detects workspaces with no active session and marks them for cleanup.\
-	 * Also detects corrupted workspace metadata.\
-	 *\
-	 * @returns The number of orphaned workspaces detected.\
-	 */\
-	async reconcileOrphanedWorkspaces(): Promise<number> {\
-		if (!this.workspaceManager) return 0\
-\
-		const allWorkspaces = this.workspaceManager.listWorkspaces()\
-		let orphaned = 0\
-\
-		for (const ws of allWorkspaces) {\
-			// A workspace with no session and no active tasks is orphaned.\
-			if (!ws.sessionId && this.workspaceManager.getActiveTasks(ws.id).length === 0) {\
-				this.logger.warn(`Recovery: detected orphaned workspace ${ws.id} "${ws.name}"`)\
-\
-				this.events.emit("workspace.corrupted", {\
-					timestamp: new Date().toISOString(),\
-					source: "recovery",\
-					workspaceId: ws.id as string,\
-					error: "Orphaned workspace: no active session or tasks",\
-					needsManualIntervention: false,\
-				})\
-\
-				orphaned++\
-			}\
-		}\
-\
-		return orphaned\
+	// ── Workspace recovery ────────────────────────────────────────────────
+	/**
+	 * Restore workspaces from a snapshot.
+	 *
+	 *
+	 * Loads workspace manifests from storage and restores them into the
+	 * workspace manager. Emits WorkspaceRecovered or WorkspaceCorrupted
+	 * events for each workspace.
+	 *
+	 * @returns The number of workspaces restored.
+	 */
+	async restoreWorkspaces(snapshot: RuntimeSnapshot | null): Promise<number> {
+		if (!this.workspaceManager || !snapshot) return 0
+
+		const workspaceSnapshots = snapshot.workspaces ?? []
+		if (workspaceSnapshots.length === 0) return 0
+
+		let restored = 0
+
+			for (const ws of workspaceSnapshots) {
+			try {
+				// Validate workspace state.
+				if (!ws.descriptor || !ws.id) {
+					this.logger.warn(`Recovery: skipping invalid workspace snapshot: ${JSON.stringify(ws)}`)
+					this.events.emit("workspace.corrupted", {
+						timestamp: new Date().toISOString(),
+						source: "recovery",
+						workspaceId: (ws.id ?? "unknown") as any,
+						error: "Invalid workspace snapshot: missing descriptor or id",
+						needsManualIntervention: true,
+					})
+					continue
+				}
+
+				// Restore workspace into the manager.
+				const snapshots = [{
+					id: ws.id as any,
+					descriptor: ws.descriptor as any,
+					lease: ws.lease as any,
+					activeTaskIds: ws.activeTaskIds ?? [],
+					createdAt: ws.createdAt,
+				}]
+
+				this.workspaceManager.restoreFromSnapshots(snapshots)
+
+				this.logger.info(`Recovery: restored workspace ${ws.id} (state: ${ws.descriptor.state})`)
+
+				// Emit workspace.recovered.
+				this.events.emit("workspace.recovered", {
+					timestamp: new Date().toISOString(),
+					source: "recovery",
+					workspaceId: ws.id,
+					previousState: ws.descriptor.state,
+					newState: ws.descriptor.state,
+					needsReconciliation: false,
+				})
+
+				restored++
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error)
+				this.logger.error(`Recovery: failed to restore workspace ${ws.id}: ${message}`)
+
+				this.events.emit("workspace.corrupted", {
+					timestamp: new Date().toISOString(),
+					source: "recovery",
+					workspaceId: (ws.id ?? "unknown") as any,
+					error: message,
+					needsManualIntervention: true,
+				})
+			}
+		}
+
+		return restored
+	}
+
+	/**
+	 * Reconcile orphaned workspaces.
+	 *
+	 * Detects workspaces with no active session and marks them for cleanup.
+	 * Also detects corrupted workspace metadata.
+	 *
+	 * @returns The number of orphaned workspaces detected.
+	 */
+	async reconcileOrphanedWorkspaces(): Promise<number> {
+		if (!this.workspaceManager) return 0
+
+		const allWorkspaces = this.workspaceManager.listWorkspaces()
+		let orphaned = 0
+
+		for (const ws of allWorkspaces) {
+			// A workspace with no session and no active tasks is orphaned.
+			if (!ws.sessionId && this.workspaceManager.getActiveTasks(ws.id).length === 0) {
+				this.logger.warn(`Recovery: detected orphaned workspace ${ws.id} "${ws.name}"`)
+
+				this.events.emit("workspace.corrupted", {
+					timestamp: new Date().toISOString(),
+					source: "recovery",
+					workspaceId: ws.id as string,
+					error: "Orphaned workspace: no active session or tasks",
+					needsManualIntervention: false,
+				})
+
+				orphaned++
+			}
+		}
+
+		return orphaned
 	}
 }

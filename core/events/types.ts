@@ -17,6 +17,7 @@ import type { TaskError } from "../tasks/types.js"
 import type { CapabilityId, ToolId } from "../capabilities/types.js"
 import type { WorkspaceId, WorkspaceState } from "../workspace/types.js"
 import type { ProposalId, ReasoningId } from "../cognition/types.js"
+import type { MemoryId, RepositoryMapId } from "../memory/types.js"
 
 // ── Base envelope ─────────────────────────────────────────────────────
 
@@ -449,6 +450,14 @@ export type AiriEvent =
 	| WorkspaceCorrupted
 	| WorktreeCreated
 	| WorktreeRemoved
+	| MemoryStored
+	| MemoryRetrieved
+	| MemoryUpdated
+	| MemoryRemoved
+	| RepositoryIndexed
+	| DecisionRecorded
+	| FailureRecorded
+	| FailurePatternDetected
 
 
 // ── Cognition events ──────────────────────────────────────────────────
@@ -800,4 +809,137 @@ export interface ToolExecutionCancelled extends AiriEventBase {
 
 	/** Optional cancellation reason. */
 	readonly reason?: string
+}
+
+// ── Semantic memory events ────────────────────────────────────────────
+
+/**
+ * Emitted when a memory record is stored.
+ */
+export interface MemoryStored extends AiriEventBase {
+	readonly type: "memory.stored"
+
+	/** The memory record identifier. */
+	readonly memoryId: MemoryId
+
+	/** Memory scope. */
+	readonly scope: string
+
+	/** Memory type. */
+	readonly memoryType: string
+
+	/** Human-readable title. */
+	readonly title: string
+}
+
+/**
+ * Emitted when memories are retrieved for context.
+ */
+export interface MemoryRetrieved extends AiriEventBase {
+	readonly type: "memory.retrieved"
+
+	/** Number of results returned. */
+	readonly resultCount: number
+
+	/** The query text, if any. */
+	readonly queryText?: string
+
+	/** Associated request ID, if any. */
+	readonly requestId?: string
+}
+
+/**
+ * Emitted when a memory record is updated.
+ */
+export interface MemoryUpdated extends AiriEventBase {
+	readonly type: "memory.updated"
+
+	/** The memory record identifier. */
+	readonly memoryId: MemoryId
+
+	/** Human-readable title. */
+	readonly title: string
+}
+
+/**
+ * Emitted when a memory record is removed.
+ */
+export interface MemoryRemoved extends AiriEventBase {
+	readonly type: "memory.removed"
+
+	/** The memory record identifier. */
+	readonly memoryId: MemoryId
+}
+
+/**
+ * Emitted when a repository is indexed.
+ */
+export interface RepositoryIndexed extends AiriEventBase {
+	readonly type: "repository.indexed"
+
+	/** The repository map identifier. */
+	readonly mapId: RepositoryMapId
+
+	/** Repository path. */
+	readonly repositoryPath: string
+
+	/** Number of files indexed. */
+	readonly filesIndexed: number
+
+	/** Number of import edges found. */
+	readonly importEdges: number
+}
+
+/**
+ * Emitted when a decision is recorded.
+ */
+export interface DecisionRecorded extends AiriEventBase {
+	readonly type: "decision.recorded"
+
+	/** The memory record identifier. */
+	readonly memoryId: MemoryId
+
+	/** Decision type. */
+	readonly decisionType: "accepted" | "rejected" | "revised"
+
+	/** Associated proposal ID, if any. */
+	readonly proposalId?: string
+
+	/** Human-readable title. */
+	readonly title: string
+}
+
+/**
+ * Emitted when a failure is recorded.
+ */
+export interface FailureRecorded extends AiriEventBase {
+	readonly type: "failure.recorded"
+
+	/** The memory record identifier. */
+	readonly memoryId: MemoryId
+
+	/** Failure type. */
+	readonly failureType: string
+
+	/** Error signature. */
+	readonly error: string
+}
+
+/**
+ * Emitted when a recurring failure pattern is detected.
+ */
+export interface FailurePatternDetected extends AiriEventBase {
+	readonly type: "failure.pattern.detected"
+
+	/** Pattern identifier. */
+	readonly patternId: string
+
+	/** Pattern type. */
+	readonly patternType: string
+
+	/** Number of occurrences. */
+	readonly occurrences: number
+
+	/** Suggested action, if any. */
+	readonly suggestedAction?: string
 }

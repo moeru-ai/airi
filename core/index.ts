@@ -51,6 +51,14 @@ export type {
 	WorkspaceCorrupted,
 	WorktreeCreated,
 	WorktreeRemoved,
+	MemoryStored,
+	MemoryRetrieved,
+	MemoryUpdated,
+	MemoryRemoved,
+	RepositoryIndexed,
+	DecisionRecorded,
+	FailureRecorded,
+	FailurePatternDetected,
 } from "./events/types.js"
 
 export type {
@@ -217,6 +225,9 @@ export type {
 	SerializedCapability,
 	SerializedSession,
 	SerializedExecutionState,
+	SerializedMemoryRecord,
+	SerializedRetrievalTrace,
+	SerializedRepositoryMap,
 	PersistenceOptions,
 } from "./persistence/index.js"
 
@@ -333,3 +344,40 @@ export type {
 	PlanRejected,
 	CognitionEvent,
 } from "./cognition/events.js"
+
+// ── Semantic memory ──────────────────────────────────────────────────
+
+export {
+	MemoryRegistry,
+	RepositoryIntelligence,
+	DecisionMemory,
+	FailureMemory,
+	MemoryRetriever,
+	createMemoryId,
+	createRetrievalId,
+	createRepositoryMapId,
+} from "./memory/index.js"
+
+export type {
+	MemoryId,
+	RetrievalId,
+	RepositoryMapId,
+	MemoryScope,
+	MemoryType,
+	MemoryRecord,
+	MemoryReference,
+	MemoryEmbedding,
+	MemoryQuery,
+	MemoryResult,
+	RepositoryMap,
+	ArchitectureNode,
+	FileGraphNode,
+	ImportEdge,
+	GitMetadata,
+	GitCommitInfo,
+	DecisionRecord,
+	FailureRecord,
+	FailurePattern,
+	RetrievalTrace,
+	RetrievalContext,
+} from "./memory/index.js"

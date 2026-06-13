@@ -26,5 +26,8 @@ export type {
 	SerializedWorkspace,
 	SerializedProposal,
 	SerializedReasoningTrace,
+	SerializedMemoryRecord,
+	SerializedRetrievalTrace,
+	SerializedRepositoryMap,
 	PersistenceOptions,
 } from "./types.js"

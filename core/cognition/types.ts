@@ -16,6 +16,7 @@
 import type { CapabilityId, ToolId } from "../capabilities/types.js"
 import type { WorkspaceId } from "../workspace/types.js"
 import type { PlanId, PlanSummary } from "../planner/types.js"
+import type { MemoryId, RepositoryMapId } from "../memory/types.js"
 
 // ── Branded IDs ──────────────────────────────────────────────────────────
 
@@ -121,6 +122,33 @@ export interface CognitionContext {
 
 	/** Additional custom context (must be serializable). */
 	readonly customContext?: Record<string, unknown>
+
+	/**
+	 * Semantic memory context from retrieval.
+	 *
+	 * Populated by MemoryRetriever before calling the provider.
+	 * Contains retrieved memory IDs and the assembled context string.
+	 */
+	readonly memoryContext?: {
+		/** IDs of retrieved memory records. */
+		readonly retrievedMemories: MemoryId[]
+
+		/** Deterministic context string assembled from results. */
+		readonly contextString: string
+	}
+
+	/**
+	 * Repository context for intelligence queries.
+	 *
+	 * Populated when a repository map is available.
+	 */
+	readonly repositoryContext?: {
+		/** The repository map ID. */
+		readonly mapId: RepositoryMapId
+
+		/** Files relevant to the current query. */
+		readonly relevantFiles: string[]
+	}
 }
 
 /**

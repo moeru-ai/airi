@@ -27,6 +27,9 @@ import type {
 	SerializedWorkspace,
 	SerializedProposal,
 	SerializedReasoningTrace,
+	SerializedMemoryRecord,
+	SerializedRetrievalTrace,
+	SerializedRepositoryMap,
 } from "./types.js"
 
 // ── InMemorySnapshotStore ───────────────────────────────────────────────
@@ -117,6 +120,15 @@ export class SnapshotManager {
 	/** Function that captures current reasoning traces. */
 	private captureReasoningTraces: (() => SerializedReasoningTrace[]) = () => []
 
+	/** Function that captures current memory records. */
+	private captureMemories: (() => SerializedMemoryRecord[]) = () => []
+
+	/** Function that captures current retrieval traces. */
+	private captureRetrievalTraces: (() => SerializedRetrievalTrace[]) = () => []
+
+	/** Function that captures current repository maps. */
+	private captureRepositoryMaps: (() => SerializedRepositoryMap[]) = () => []
+
 	constructor(
 		store: SnapshotStore,
 		events: EventBus,
@@ -186,6 +198,27 @@ export class SnapshotManager {
 	}
 
 	/**
+	 * Set the memory records capture function.
+	 */
+	setCaptureMemories(fn: () => SerializedMemoryRecord[]): void {
+		this.captureMemories = fn
+	}
+
+	/**
+	 * Set the retrieval traces capture function.
+	 */
+	setCaptureRetrievalTraces(fn: () => SerializedRetrievalTrace[]): void {
+		this.captureRetrievalTraces = fn
+	}
+
+	/**
+	 * Set the repository maps capture function.
+	 */
+	setCaptureRepositoryMaps(fn: () => SerializedRepositoryMap[]): void {
+		this.captureRepositoryMaps = fn
+	}
+
+	/**
 	 * Set the event count provider (for recovery metadata).
 	 */
 	setEventCountProvider(fn: () => number): void {
@@ -214,6 +247,9 @@ export class SnapshotManager {
 			workspaces: this.captureWorkspaces(),
 			proposals: this.captureProposals(),
 			reasoningTraces: this.captureReasoningTraces(),
+			memories: this.captureMemories(),
+			retrievalTraces: this.captureRetrievalTraces(),
+			repositoryMaps: this.captureRepositoryMaps(),
 		}
 
 		await this.store.save(snapshot)
