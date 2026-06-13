@@ -30,9 +30,12 @@ const router = useRouter()
 const messageInput = ref('')
 const lastEnterTime = ref(0)
 const attachments = ref<{ type: 'image', data: string, mimeType: string, url: string }[]>([])
-// A send stopped before any reply, parked here when the composer is busy with
-// different text so it survives as a dismissible draft.
-const unsentDraft = ref<{ text: string, attachments: typeof attachments.value } | null>(null)
+// Sends stopped before any reply, parked here when the composer is busy with
+// different text so each survives as its own dismissible draft. A stack, not a
+// single slot: stopping multiple queued sends must not overwrite or silently
+// lose earlier rescued prompts (or their attachment object URLs).
+interface UnsentDraft { id: string, text: string, attachments: typeof attachments.value }
+const unsentDrafts = ref<UnsentDraft[]>([])
 
 const chatOrchestrator = useChatOrchestratorStore()
 const chatSession = useChatSessionStore()
@@ -162,38 +165,43 @@ function rescueRetractedDraft(text: string, draftAttachments: typeof attachments
   // (With attachments we fall through to the chip so they are never discarded.)
   if (messageInput.value === text && draftAttachments.length === 0)
     return
-  // Busy with different text: park the retracted draft as a dismissible chip so
-  // nothing is silently lost and nothing the user is typing is overwritten.
-  discardUnsentDraft()
-  unsentDraft.value = { text, attachments: draftAttachments }
+  // Busy with different text: park the retracted draft as its own dismissible
+  // chip. Push, never overwrite, so cancelling several queued sends keeps every
+  // prompt (and its attachments) independently recoverable.
+  unsentDrafts.value.push({ id: crypto.randomUUID(), text, attachments: draftAttachments })
 }
 
-function restoreUnsentDraft() {
-  const draft = unsentDraft.value
-  if (!draft)
+function restoreUnsentDraft(id: string) {
+  const index = unsentDrafts.value.findIndex(draft => draft.id === id)
+  if (index < 0)
     return
+  const draft = unsentDrafts.value[index]
   // Swap rather than overwrite: whatever is currently staged moves into the
-  // chip slot (its object URLs move with it), so restore never destroys
-  // content in either direction.
+  // slot the restored draft just vacated (its object URLs move with it), so
+  // restore never destroys content in either direction and the list stays put.
   const displacedText = messageInput.value
   const displacedAttachments = attachments.value
   messageInput.value = draft.text
   attachments.value = draft.attachments
-  unsentDraft.value = (displacedText.trim() || displacedAttachments.length > 0)
-    ? { text: displacedText, attachments: displacedAttachments }
-    : null
+  if (displacedText.trim() || displacedAttachments.length > 0)
+    unsentDrafts.value[index] = { id: draft.id, text: displacedText, attachments: displacedAttachments }
+  else
+    unsentDrafts.value.splice(index, 1)
 }
 
-function discardUnsentDraft() {
-  revokeAttachmentUrls(unsentDraft.value?.attachments ?? [])
-  unsentDraft.value = null
+function discardUnsentDraft(id: string) {
+  const index = unsentDrafts.value.findIndex(draft => draft.id === id)
+  if (index < 0)
+    return
+  revokeAttachmentUrls(unsentDrafts.value[index].attachments)
+  unsentDrafts.value.splice(index, 1)
 }
 
 // Release every object URL this component still owns when it goes away, so a
 // staged or parked-but-unsent image draft does not leak.
 onBeforeUnmount(() => {
   revokeAttachmentUrls(attachments.value)
-  revokeAttachmentUrls(unsentDraft.value?.attachments ?? [])
+  unsentDrafts.value.forEach(draft => revokeAttachmentUrls(draft.attachments))
 })
 
 function sendFromKeyboard() {
@@ -508,10 +516,12 @@ async function handleCleanup() {
         @change="handleFileSelect"
       >
     </div>
-    <!-- Retracted-but-not-lost draft: a turn stopped before any reply, surfaced
-         here (rather than overwriting current input) so it is visibly unsent. -->
+    <!-- Retracted-but-not-lost drafts: turns stopped before any reply, surfaced
+         here (rather than overwriting current input) so each is visibly unsent.
+         One chip per rescued draft so multiple cancellations never clobber. -->
     <div
-      v-if="unsentDraft"
+      v-for="draft in unsentDrafts"
+      :key="draft.id"
       :class="[
         'mb-2 flex items-center gap-2 rounded-xl px-3 py-2 text-sm',
         'border border-amber-400/40 bg-amber-100/60 dark:bg-amber-900/30',
@@ -519,19 +529,19 @@ async function handleCleanup() {
     >
       <div class="i-solar:undo-left-round-bold-duotone shrink-0 text-amber-600 dark:text-amber-300" />
       <span class="min-w-0 flex-1 truncate text-amber-800 dark:text-amber-100">
-        {{ t('stage.unsent-draft.label', { text: unsentDraft.text }) }}
+        {{ t('stage.unsent-draft.label', { text: draft.text }) }}
       </span>
       <button
         type="button"
         :class="['rounded-lg px-2 py-1 text-xs font-medium', 'text-amber-900 dark:text-amber-50 bg-amber-500/20 hover:bg-amber-500/30']"
-        @click="restoreUnsentDraft"
+        @click="restoreUnsentDraft(draft.id)"
       >
         {{ t('stage.unsent-draft.restore') }}
       </button>
       <button
         type="button"
         :class="['rounded-lg px-2 py-1 text-xs', 'text-amber-700/70 dark:text-amber-200/70 hover:text-amber-900 dark:hover:text-amber-50']"
-        @click="discardUnsentDraft"
+        @click="discardUnsentDraft(draft.id)"
       >
         {{ t('stage.unsent-draft.discard') }}
       </button>
