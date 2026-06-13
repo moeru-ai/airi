@@ -27,6 +27,7 @@ docs:
   'collapse': Collapse
   'login': Sign in
   'logging-in': Signing in...
+  'steam-sign-in-failed': Steam sign-in failed. Use Sign in to try another method.
   'account': Account
   'logout': Sign out
 
