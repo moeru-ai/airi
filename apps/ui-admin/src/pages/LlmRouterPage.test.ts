@@ -74,6 +74,9 @@ describe('llm router page', () => {
     expect(host.textContent).toContain('Provider configuration')
     expect(host.textContent).toContain('LLM')
     expect(host.textContent).toContain('TTS')
+    expect(host.textContent).toContain('Streaming TTS')
+    expect(host.textContent).toContain('ASR')
+    expect(host.textContent).not.toContain('LLM and TTS providers')
     expect(host.textContent).toContain('OpenRouter')
     expect(host.textContent).not.toContain('Router Config Request')
   })
@@ -124,7 +127,7 @@ describe('llm router page', () => {
     expect(host.textContent).toContain('Current router config response is not a valid JSON object.')
   })
 
-  it('separates LLM and TTS provider slices by tab', async () => {
+  it('separates LLM, TTS, Streaming TTS, and ASR provider slices by tab', async () => {
     buttonByText('TTS').click()
     await nextTick()
 
@@ -135,6 +138,28 @@ describe('llm router page', () => {
     await nextTick()
 
     expect(host.textContent).toContain('Azure Speech')
+
+    buttonByText('Streaming TTS').click()
+    await nextTick()
+
+    expect(host.textContent).toContain('No Streaming TTS provider slices')
+    expect(sectionHeadings(host)).not.toContain('1. Azure Speech')
+
+    buttonByText('Add').click()
+    await nextTick()
+
+    expect(host.textContent).toContain('UnSpeech')
+
+    buttonByText('ASR').click()
+    await nextTick()
+
+    expect(host.textContent).toContain('No ASR provider slices')
+    expect(sectionHeadings(host)).not.toContain('1. UnSpeech')
+
+    buttonByText('Add').click()
+    await nextTick()
+
+    expect(host.textContent).toContain('Aliyun NLS ASR')
   })
 
   it('keeps preview disabled until required fields are complete', async () => {

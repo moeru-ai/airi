@@ -26,13 +26,15 @@ import {
 } from '../modules/router-config-form'
 
 type BusyState = 'preview' | 'apply' | 'advanced-preview' | 'advanced-apply'
-type ProviderTab = 'llm' | 'tts'
+type ProviderTab = 'llm' | 'tts' | 'streamingTts' | 'asr'
 
 const form = reactive(createRouterConfigFormState())
 const activeProviderTab = shallowRef<ProviderTab>('llm')
 const selectedKindByTab = reactive<Record<ProviderTab, RouterSliceKind>>({
   llm: 'openrouter',
   tts: 'azure',
+  streamingTts: 'unspeech',
+  asr: 'aliyun-nls-asr',
 })
 const previewResult = shallowRef<AdminRouterConfigResult | null>(null)
 const applyResult = shallowRef<AdminRouterConfigResult | null>(null)
@@ -57,26 +59,39 @@ const pendingSummary = computed(() => {
   return {
     slices: form.slices.length,
     llmSlices: form.slices.filter(slice => slice.kind === 'openrouter').length,
-    ttsSlices: form.slices.filter(slice => slice.kind !== 'openrouter' && slice.kind !== 'unspeech').length,
-    unspeech: form.slices.some(slice => slice.kind === 'unspeech'),
+    ttsSlices: form.slices.filter(isTtsSlice).length,
+    streamingTtsSlices: form.slices.filter(isStreamingTtsSlice).length,
+    asrSlices: form.slices.filter(isAsrSlice).length,
     defaults: Object.keys(defaults).length,
   }
 })
 const providerTabs = computed(() => [
   { value: 'llm' as const, label: 'LLM', count: pendingSummary.value.llmSlices },
-  { value: 'tts' as const, label: 'TTS', count: pendingSummary.value.ttsSlices + (pendingSummary.value.unspeech ? 1 : 0) },
+  { value: 'tts' as const, label: 'TTS', count: pendingSummary.value.ttsSlices },
+  { value: 'streamingTts' as const, label: 'Streaming TTS', count: pendingSummary.value.streamingTtsSlices },
+  { value: 'asr' as const, label: 'ASR', count: pendingSummary.value.asrSlices },
 ])
 const providerKindOptions = computed(() => ROUTER_SLICE_KIND_OPTIONS.filter((option) => {
   if (activeProviderTab.value === 'llm')
     return option.value === 'openrouter'
+  if (activeProviderTab.value === 'streamingTts')
+    return option.value === 'unspeech'
+  if (activeProviderTab.value === 'asr')
+    return option.value === 'aliyun-nls-asr'
 
-  return option.value !== 'openrouter'
+  return isTtsSliceKind(option.value)
 }))
 const visibleSlices = computed(() => form.slices
   .map((slice, index) => ({ slice, index }))
-  .filter(({ slice }) => activeProviderTab.value === 'llm'
-    ? isLlmSlice(slice)
-    : !isLlmSlice(slice)))
+  .filter(({ slice }) => {
+    if (activeProviderTab.value === 'llm')
+      return isLlmSlice(slice)
+    if (activeProviderTab.value === 'streamingTts')
+      return isStreamingTtsSlice(slice)
+    if (activeProviderTab.value === 'asr')
+      return isAsrSlice(slice)
+    return isTtsSlice(slice)
+  }))
 const currentStatusLabel = computed(() => {
   if (loadingCurrent.value)
     return 'Loading current config'
@@ -237,6 +252,37 @@ function isLlmSlice(slice: RouterSliceDraft) {
   return slice.kind === 'openrouter'
 }
 
+function isTtsSlice(slice: RouterSliceDraft) {
+  return isTtsSliceKind(slice.kind)
+}
+
+function isStreamingTtsSlice(slice: RouterSliceDraft) {
+  return slice.kind === 'unspeech'
+}
+
+function isAsrSlice(slice: RouterSliceDraft) {
+  return slice.kind === 'aliyun-nls-asr'
+}
+
+function isTtsSliceKind(kind: RouterSliceKind) {
+  return kind === 'azure'
+    || kind === 'dashscope-cosyvoice'
+    || kind === 'stepfun'
+}
+
+function activeProviderLabel() {
+  switch (activeProviderTab.value) {
+    case 'llm':
+      return 'LLM'
+    case 'tts':
+      return 'TTS'
+    case 'streamingTts':
+      return 'Streaming TTS'
+    case 'asr':
+      return 'ASR'
+  }
+}
+
 function isCurrentConfigResponse(value: AdminRouterConfigCurrent | null): value is AdminRouterConfigCurrent {
   return value != null
     && typeof value === 'object'
@@ -300,7 +346,7 @@ function isCurrentConfigResponse(value: AdminRouterConfigCurrent | null): value 
                 Provider configuration
               </h3>
               <p :class="['mt-1', 'text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
-                LLM and TTS providers are edited separately, then applied as one router config request.
+                LLM, TTS, Streaming TTS, and ASR providers are edited separately, then applied as one router config request.
               </p>
             </div>
           </div>
@@ -308,7 +354,7 @@ function isCurrentConfigResponse(value: AdminRouterConfigCurrent | null): value 
           <div :class="['flex', 'flex-col', 'gap-4', 'p-4']">
             <div :class="['flex', 'flex-col', 'gap-3', 'lg:flex-row', 'lg:items-end', 'lg:justify-between']">
               <div
-                :class="['inline-grid', 'w-full', 'grid-cols-2', 'rounded-lg', 'border', 'border-neutral-200', 'bg-neutral-50', 'p-1', 'sm:w-auto', 'dark:border-neutral-800', 'dark:bg-neutral-950']"
+                :class="['inline-grid', 'w-full', 'grid-cols-4', 'rounded-lg', 'border', 'border-neutral-200', 'bg-neutral-50', 'p-1', 'sm:w-auto', 'dark:border-neutral-800', 'dark:bg-neutral-950']"
                 role="tablist"
               >
                 <button
@@ -345,12 +391,18 @@ function isCurrentConfigResponse(value: AdminRouterConfigCurrent | null): value 
             </div>
 
             <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-neutral-50/60', 'px-3', 'py-2', 'text-xs', 'text-neutral-600', 'dark:border-neutral-800', 'dark:bg-neutral-950/60', 'dark:text-neutral-300']">
-              <span :class="['font-medium', 'text-neutral-900', 'dark:text-neutral-100']">{{ activeProviderTab === 'llm' ? 'LLM' : 'TTS' }}</span>
+              <span :class="['font-medium', 'text-neutral-900', 'dark:text-neutral-100']">{{ activeProviderLabel() }}</span>
               <span v-if="activeProviderTab === 'llm'">
                 config writes chat model aliases under LLM_ROUTER_CONFIG.
               </span>
+              <span v-else-if="activeProviderTab === 'tts'">
+                config writes speech model aliases under LLM_ROUTER_CONFIG.
+              </span>
+              <span v-else-if="activeProviderTab === 'streamingTts'">
+                config writes UNSPEECH_UPSTREAM settings for realtime speech synthesis.
+              </span>
               <span v-else>
-                config writes speech model aliases and optional UNSPEECH_UPSTREAM settings.
+                config writes realtime transcription model aliases under LLM_ROUTER_CONFIG.asr.
               </span>
             </div>
 
@@ -365,11 +417,11 @@ function isCurrentConfigResponse(value: AdminRouterConfigCurrent | null): value 
               />
             </div>
             <div v-else :class="['empty-state', 'min-h-40', 'rounded-lg', 'border', 'border-dashed', 'border-neutral-200', 'bg-white', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
-              No {{ activeProviderTab === 'llm' ? 'LLM' : 'TTS' }} provider slices
+              No {{ activeProviderLabel() }} provider slices
             </div>
           </div>
           <div :class="['border-t', 'border-neutral-200', 'px-4', 'py-3', 'text-xs', 'text-neutral-500', 'dark:border-neutral-800', 'dark:text-neutral-400']">
-            UnSpeech is limited to one TTS slice per request.
+            UnSpeech is limited to one Streaming TTS slice per request. ASR writes to LLM_ROUTER_CONFIG.asr.
           </div>
         </section>
 
@@ -382,7 +434,7 @@ function isCurrentConfigResponse(value: AdminRouterConfigCurrent | null): value 
         </Callout>
 
         <div :class="['flex', 'flex-col', 'gap-3', 'border-t', 'border-neutral-200', 'pt-4', 'md:flex-row', 'md:items-center', 'md:justify-between', 'dark:border-neutral-800']">
-          <div :class="['grid', 'gap-2', 'text-xs', 'text-neutral-600', 'sm:grid-cols-5', 'dark:text-neutral-400']">
+          <div :class="['grid', 'gap-2', 'text-xs', 'text-neutral-600', 'sm:grid-cols-6', 'dark:text-neutral-400']">
             <div>
               <span :class="['block', 'font-semibold', 'text-neutral-900', 'dark:text-neutral-100']">{{ pendingSummary.slices }}</span>
               slices
@@ -396,8 +448,12 @@ function isCurrentConfigResponse(value: AdminRouterConfigCurrent | null): value 
               TTS
             </div>
             <div>
-              <span :class="['block', 'font-semibold', 'text-neutral-900', 'dark:text-neutral-100']">{{ pendingSummary.unspeech ? 'yes' : 'no' }}</span>
-              unspeech
+              <span :class="['block', 'font-semibold', 'text-neutral-900', 'dark:text-neutral-100']">{{ pendingSummary.streamingTtsSlices }}</span>
+              Streaming TTS
+            </div>
+            <div>
+              <span :class="['block', 'font-semibold', 'text-neutral-900', 'dark:text-neutral-100']">{{ pendingSummary.asrSlices }}</span>
+              ASR
             </div>
             <div>
               <span :class="['block', 'font-semibold', 'text-neutral-900', 'dark:text-neutral-100']">{{ pendingSummary.defaults }}</span>
