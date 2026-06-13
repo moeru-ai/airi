@@ -64,4 +64,5 @@ meta:
   titleKey: settings.title
   stageTransition:
     name: slide
+    pageSpecificAvailable: true
 </route>
