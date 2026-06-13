@@ -28,10 +28,7 @@ import './minimax'
 import './mistral-ai'
 import './moonshot-ai'
 import './modelscope'
-// NOTICE: Ollama disabled — we use DeepSeek, never had Ollama configured. Its troubleshooting
-// message contains HTML; vue-i18n re-warns on every reactive re-render, flooding the console.
-// Removing the side-effect import takes Ollama off the provider catalog entirely.
-// import './ollama'
+import './ollama'
 import './mimo'
 import './cloudflare-workers-ai'
 import './azure-ai-foundry'

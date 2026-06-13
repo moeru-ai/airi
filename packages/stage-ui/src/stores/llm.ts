@@ -37,14 +37,13 @@ export const useLLM = defineStore('llm', () => {
     const key = modelKey(model, chatProvider)
     // TODO(@nekomeowww,@shinohara-rin): we should not register the command callback on every stream anyway...
     const sendSparkCommand = (command: WebSocketEvents['spark:command']) => {
-      // NOTICE: The previous code set `command.destinations = []` claiming "empty = broadcast to all".
-      // That is incorrect — server-runtime's `collectDestinations()` returns the value whenever
-      // `data.destinations` is an Array (including empty), and the routing branch then SKIPS every
-      // peer because an empty list matches nobody. Net effect: spark:command silently reached zero
-      // modules (observed in prod: MC bot got 0 'Received spark:command' over many invocations).
-      // Removing the field entirely → `collectDestinations` returns undefined → real broadcast to
-      // every authenticated peer. The "LLM hallucinates destination" worry is moot when broadcast.
-      delete (command as { destinations?: unknown }).destinations
+      // TODO(@nekomeowww): instruct the LLM to understand what destination is.
+      // Currently without skill like prompt injection, many issues occur.
+      // destination mostly are wrong or hallucinated, we need to find a way to make it more reliable.
+      //
+      // For now, since destinations as array will always broadcast to all connected modules/agents, we can set it to
+      // empty array to avoid wrong routing.
+      command.destinations = []
 
       modsServerChannelStore.send({
         type: 'spark:command',
