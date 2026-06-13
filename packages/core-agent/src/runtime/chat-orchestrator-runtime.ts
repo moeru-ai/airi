@@ -618,8 +618,12 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         }
       }
 
-      if (shouldAbort())
+      // A stale generation means this send was superseded (session switched
+      // out, teardown); nothing should enter history and the caller may rescue.
+      if (isStaleGeneration()) {
+        outcome.rolledBack = true
         return outcome
+      }
 
       const userMessageId = createId()
       const userMessage = {
@@ -628,8 +632,17 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         createdAt: sendingCreatedAt,
         id: userMessageId,
       }
+      // Append the provisional turn BEFORE the abort checkpoint. A Stop that
+      // lands while the pre-compose hook above is awaiting must still leave a
+      // real turn for `settleUserTurn` to act on: committed for non-rescuable
+      // callers (voice/retry/transport keep-on-stop) and retracted with
+      // `rolledBack` for rescuable ones. Returning before the append would make
+      // the finally a no-op and silently drop the prompt.
       deps.session.appendSessionMessage(sessionId, { ...userMessage, provisional: true })
       appendedUserMessage = userMessage
+
+      if (sendController.signal.aborted)
+        return outcome
 
       const sessionMessagesForSend = deps.session.getSessionMessages(sessionId)
 

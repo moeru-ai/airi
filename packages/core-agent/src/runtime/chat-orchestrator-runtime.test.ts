@@ -1310,6 +1310,89 @@ describe('createChatOrchestratorRuntime', () => {
 
   /**
    * @example
+   * A Stop that lands while the pre-compose hook is still awaiting (before the
+   * provisional append) must still leave a real turn for the finally to settle.
+   *
+   * ROOT CAUSE:
+   *
+   * The pre-stream checkpoint returned before the provisional append, so
+   * `appendedUserMessage` was undefined and `settleUserTurn` became a no-op.
+   * For non-rescuable callers `outcome.rolledBack` stayed false and no caller
+   * restores the text, so the prompt silently vanished (worst on retry, which
+   * had already truncated history). Fixed by appending before the abort check.
+   * https://github.com/moeru-ai/airi/pull/1889
+   */
+  it('keeps a non-rescuable turn when stop lands during the pre-compose hook (before append)', async () => {
+    const harness = createHarness()
+    let hookEntered = false
+    let releaseHook!: () => void
+    const hookGate = new Promise<void>((resolve) => {
+      releaseHook = resolve
+    })
+    harness.runtime.hooks.onBeforeMessageComposed(async () => {
+      hookEntered = true
+      await hookGate
+    })
+
+    // No `rescuable`: mirrors retry/voice/transport, which ignore the outcome.
+    const send = harness.runtime.ingest('a stopped prompt', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    // Stop fires while the hook awaits: activeSend is published but no user
+    // row has been appended yet.
+    await vi.waitFor(() => expect(hookEntered).toBe(true))
+    harness.runtime.stopSending('session-1')
+    releaseHook()
+    const outcome = await send
+
+    expect(outcome.rolledBack).toBe(false)
+    // The provider request is skipped entirely; the stop beat the stream.
+    expect(harness.stream).not.toHaveBeenCalled()
+    // The turn is kept and committed rather than silently dropped.
+    expect(harness.sessionMessages['session-1']?.some(message => message.role === 'user')).toBe(true)
+    expect(harness.userCommits).toHaveLength(1)
+  })
+
+  /**
+   * @example
+   * The rescuable counterpart of the pre-compose stop: the composer restores the
+   * text, so the provisional turn is retracted and `rolledBack` is reported.
+   */
+  it('retracts a rescuable turn when stop lands during the pre-compose hook (before append)', async () => {
+    const harness = createHarness()
+    let hookEntered = false
+    let releaseHook!: () => void
+    const hookGate = new Promise<void>((resolve) => {
+      releaseHook = resolve
+    })
+    harness.runtime.hooks.onBeforeMessageComposed(async () => {
+      hookEntered = true
+      await hookGate
+    })
+
+    // `rescuable` mirrors a composer send: the caller restores the text.
+    const send = harness.runtime.ingest('a stopped prompt', {
+      model: 'gpt-test',
+      chatProvider: provider,
+      rescuable: true,
+    })
+
+    await vi.waitFor(() => expect(hookEntered).toBe(true))
+    harness.runtime.stopSending('session-1')
+    releaseHook()
+    const outcome = await send
+
+    expect(outcome.rolledBack).toBe(true)
+    expect(harness.stream).not.toHaveBeenCalled()
+    // Retracted: only the seeded system message remains, no deferred commit.
+    expect(harness.sessionMessages['session-1']?.map(message => message.role)).toEqual(['system'])
+    expect(harness.userCommits).toHaveLength(0)
+  })
+
+  /**
+   * @example
    * A normal completion keeps the user turn and reports `rolledBack: false`, and
    * the commit hook fires exactly once so cloud upload / autonomous tasks run.
    */
