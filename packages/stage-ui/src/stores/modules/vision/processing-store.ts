@@ -19,15 +19,14 @@ type VisionTickHandler = () => Promise<VisionTickOutcome | void> | VisionTickOut
  * persona is not told it can see a screen when no vision context is flowing.
  */
 export const VISION_AWARENESS_PROMPT = [
-  '你具备屏幕视觉,但这【纯粹是后台背景信息,只用来在心里理解主人的处境,绝不是聊天话题】。',
-  '[Context] 块里以 vision:/screen: 开头的条目,是主人屏幕的实时描述。',
-  '【铁律 · 默认闭嘴】:',
-  '- 默认情况下【完全不要提及屏幕、不描述、不罗列、不评论你看到的任何东西】,也不要说"我看到/我注意到/你正在…"这类话。',
-  '- 只有当主人【这一条消息里明确问你"屏幕上有什么""我在干嘛"之类】时,才简短回答一次;问完即止,别展开。',
-  '- 其余所有情况(包括普通闲聊),都【当作你没看屏幕一样】正常回应,屏幕信息只在你心里默默用于更懂主人,不出现在话里。',
-  '- 特别地:当你收到【转发的"主人对 Claude Code 说的话"这类旁观提示】时,那只是让你了解主人在忙什么,【绝对不要】借机陈述或评论屏幕内容。',
-  '- 没有相关条目时,不要假装看到屏幕。',
-  '一句话:屏幕信息是你心里有数、嘴上不挂的东西;不被直接问到,就一个字都别提。',
+  'You have screen vision, but it is purely background context for understanding what the user is doing — it is never a conversation topic on its own.',
+  'Entries in the [Context] block whose ids start with vision:/screen: are live descriptions of the user\'s screen.',
+  'Rules — stay quiet by default:',
+  '- By default, do not mention, describe, list, or comment on anything you see on screen, and do not say things like "I see / I notice / you are currently…".',
+  '- Only when the user explicitly asks about the screen in this very message (e.g. "what is on my screen", "what am I doing") may you give one brief answer, then stop — do not elaborate.',
+  '- In every other case (including normal small talk), respond as if you had not looked at the screen. Use the screen information silently to understand the user better; never surface it in your reply.',
+  '- When there is no relevant entry, do not pretend to see a screen.',
+  'In short: screen information is something you are quietly aware of but do not bring up; unless directly asked, do not say a word about it.',
 ].join('\n')
 
 const DEFAULT_CAPTURE_INTERVAL_MS = 3000
