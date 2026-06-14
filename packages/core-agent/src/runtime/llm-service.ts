@@ -201,6 +201,15 @@ export async function streamFrom({
     }
 
     const onEvent = async (event: unknown) => {
+      // Drop events that arrive after a Stop. The abort signal, not `settled`,
+      // is the gate: under `waitForTools` the outer promise resolves early from
+      // `streamResult.steps` while the stream legitimately keeps emitting events
+      // that must still reach `onStreamEvent`, so gating on `settled` would
+      // swallow them. After an abort an SSE/fetch adapter can still surface a
+      // tool-call or delta it had buffered off the socket; forwarding it would
+      // let the orchestrator mutate an already-retracted turn.
+      if (options?.abortSignal?.aborted)
+        return
       try {
         const streamEvent = resolveCapturedToolErrorEvent(event, capturedToolErrorByCallId)
         await options?.onStreamEvent?.(streamEvent as any)
@@ -235,27 +244,39 @@ export async function streamFrom({
         onEvent,
       })
 
-      // NOTICE: Consume underlying promises to prevent unhandled rejections from
-      // @xsai/stream-text's SSE parser surfacing as faulted app state.
+      // Abort-shaped rejections are the cancellation we asked for, never worth
+      // logging. A non-abort-shaped error that settles while a Stop is in
+      // flight is still surfaced (warn level) so a genuine provider fault that
+      // races a Stop stays diagnosable from the logs.
+      const logStreamError = (label: string) => (error: unknown) => {
+        if (isAbortError(error))
+          return
+        if (options?.abortSignal?.aborted)
+          console.warn(`Stream ${label} error after stop:`, error)
+        else
+          console.error(`Stream ${label} error:`, error)
+      }
+
       // NOTICE:
-      // `streamText(...).steps` is the authoritative completion signal for the
-      // full streamed interaction, including tool-call rounds.
-      // Resolving only from `onEvent({ type: 'finish' })` is incorrect when
-      // `options?.waitForTools === true`, because providers can emit
-      // `finishReason: 'tool_calls'` or `finishReason: 'tool-calls'` before the
-      // tool round has fully settled.
-      // That misuse leaves the outer promise pending, which makes provider-backed
-      // eval tasks look like they stop mid-run and prevents later scheduled evals
-      // from starting.
-      // Keep `steps.then(resolveOnce)` so evaluation runners observe the real end
-      // of the stream lifecycle instead of an intermediate tool boundary.
-      void streamResult.steps.then(resolveOnce).catch((error) => {
-        rejectOnce(error)
-        console.error('Stream steps error:', error)
-      })
-      void streamResult.messages.catch(error => console.error('Stream messages error:', error))
-      void streamResult.usage.catch(error => console.error('Stream usage error:', error))
-      void streamResult.totalUsage.catch(error => console.error('Stream totalUsage error:', error))
+      // `steps` is the authoritative completion signal (covers tool-call rounds
+      // that `onEvent({ type: 'finish' })` misses when `waitForTools` holds the
+      // round open past `finishReason: 'tool_calls'`). It drives the outer
+      // resolve/reject contract, so it is handled explicitly. On Stop it rejects
+      // with AbortError; we still `rejectOnce` so the orchestrator's outer catch
+      // persists the `stopped` marker, but suppress the console noise.
+      void streamResult.steps
+        .then(resolveOnce)
+        .catch((error) => {
+          rejectOnce(error)
+          logStreamError('steps')(error)
+        })
+
+      // The remaining promises are pure side-channels: we only consume them to
+      // swallow `@xsai/stream-text`'s unhandled SSE-parser rejections. They never
+      // settle the outer contract, so each just logs by the policy above.
+      void streamResult.messages.catch(logStreamError('messages'))
+      void streamResult.usage.catch(logStreamError('usage'))
+      void streamResult.totalUsage.catch(logStreamError('totalUsage'))
     }
     catch (error) {
       rejectOnce(error)

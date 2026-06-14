@@ -309,10 +309,14 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
       const delay = Math.max(0, runStart + message.atMs - performance.now())
       const timer = setTimeout(async () => {
         try {
-          await chatStore.ingest(message.text, {
+          // A stream/hook failure resolves outcome.error instead of throwing, so
+          // the catch only catches pre-append failures. Log both.
+          const outcome = await chatStore.ingest(message.text, {
             model: activeModel.value!,
             chatProvider: provider,
           })
+          if (outcome.error)
+            console.error('[markdown-stress] Online send failed', outcome.error.message)
         }
         catch (error) {
           console.error('[markdown-stress] Online send failed', error)
@@ -365,10 +369,14 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
       const delay = Math.max(0, runStart + message.atMs - performance.now())
       const timer = setTimeout(async () => {
         try {
-          await chatStore.ingest(message.text, {
+          // A stream/hook failure resolves outcome.error instead of throwing, so
+          // the catch only catches pre-append failures. Log both.
+          const outcome = await chatStore.ingest(message.text, {
             model: modelToUse,
             chatProvider: mockProvider,
           })
+          if (outcome.error)
+            console.error('[markdown-stress] Mock send failed', outcome.error.message)
         }
         catch (error) {
           console.error('[markdown-stress] Mock send failed', error)

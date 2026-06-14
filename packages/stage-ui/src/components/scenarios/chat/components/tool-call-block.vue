@@ -1,13 +1,17 @@
 <script setup lang="ts">
+import type { ChatToolCallState } from './tool-call-renderer'
+
 import { Collapsible, ContainerError } from '@proj-airi/ui'
 import { computed } from 'vue'
+
+import ToolCallStateIcon from './tool-call-state-icon.vue'
 
 import { createToolResultError } from './tool-call-display'
 
 const props = defineProps<{
   toolName: string
   args: string
-  state?: 'executing' | 'done' | 'error'
+  state?: ChatToolCallState
   result?: unknown
 }>()
 
@@ -39,22 +43,7 @@ const formattedArgs = computed(() => {
         ]"
         @click="setVisible(!visible)"
       >
-        <div
-          v-if="state === 'executing'"
-          i-eos-icons:loading class="mr-1 inline-block op-50"
-        />
-        <div
-          v-else-if="state === 'error'"
-          i-solar:danger-circle-bold-duotone class="mr-1 inline-block text-red-500"
-        />
-        <div
-          v-else-if="state === 'done'"
-          i-solar:check-circle-bold-duotone class="mr-1 inline-block text-emerald-500"
-        />
-        <div
-          v-else
-          i-solar:sledgehammer-bold-duotone class="mr-1 inline-block translate-y-1 op-50"
-        />
+        <ToolCallStateIcon :state="state" class="mr-1 inline-block" />
         <code class="text-xs">{{ toolName }}</code>
       </button>
     </template>

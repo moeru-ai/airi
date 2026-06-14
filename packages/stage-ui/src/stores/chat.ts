@@ -8,7 +8,7 @@ import { createChatOrchestratorRuntime } from '@proj-airi/core-agent'
 import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
-import { ref, toRaw, watch } from 'vue'
+import { computed, ref, toRaw, watch } from 'vue'
 
 import { useAnalytics } from '../composables'
 import { activeTurnSpan, startSpan } from '../composables/use-io-tracer'
@@ -67,8 +67,18 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const { streamingMessage } = storeToRefs(chatStream)
 
   const sending = ref(false)
+  // Session that owns the active send (null when idle), mirrored from the core
+  // runtime so the UI can scope the stop button to the foreground session.
+  const sendingSessionId = ref<string | null>(null)
   const pendingQueuedSendCount = ref(0)
   let ownedActiveTurnSpan: typeof activeTurnSpan.value
+
+  // The foreground (active) session owns the in-flight send. Every composer
+  // surface gates its stop button on this so switching sessions mid-stream does
+  // not leave an inert button lit. Accepted limitation: a send queued for the
+  // active session while another session streams shows no button until it
+  // becomes the in-flight send.
+  const isActiveSessionStreaming = computed(() => sending.value && sendingSessionId.value === activeSessionId.value)
 
   async function streamWithStageAdapters(
     model: string,
@@ -119,6 +129,16 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
   function syncRuntimeState(state: ChatOrchestratorRuntimeState) {
     sending.value = state.sending
+    // The `watch(sending)` echo below mirrors an externally-set `sending` flag
+    // (a follower window applying the authority's stream snapshot) into the local
+    // runtime, whose emitStateChange reports `sendingSessionId: null` because no
+    // local send owns it. That null must not clobber the session id the follower
+    // mirrored from the authority, or the stop button (gated on sendingSessionId)
+    // stays hidden. A real local send always publishes `activeSend` before
+    // setSending(true), so `sending: true` with a null session id is only ever
+    // the echo, never a genuine in-flight send.
+    if (!state.sending || state.sendingSessionId != null)
+      sendingSessionId.value = state.sendingSessionId
     pendingQueuedSendCount.value = state.pendingQueuedSendCount
   }
 
@@ -137,6 +157,8 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       ensureSession: sessionId => chatSession.ensureSession(sessionId),
       getSessionMessages: sessionId => chatSession.getSessionMessages(sessionId).map(message => toRaw(message)),
       appendSessionMessage: (sessionId, message) => chatSession.appendSessionMessage(sessionId, message),
+      removeSessionMessage: (sessionId, messageId) => chatSession.removeSessionMessage(sessionId, messageId),
+      commitSessionMessage: (sessionId, messageId) => chatSession.commitSessionMessage(sessionId, messageId),
       getSessionGeneration: sessionId => chatSession.getSessionGeneration(sessionId),
     },
     context: {
@@ -189,25 +211,29 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     }),
     onLifecycle: record => contextObservability.recordLifecycle(record),
     onPromptProjection: payload => contextObservability.capturePromptProjection(payload),
-    onUserMessageAppended: ({ sessionId, message, messageText }) => {
-      if (isCloudSyncableMessage(message)) {
-        void chatSession.pushMessageToCloud(sessionId, {
-          id: message.id,
-          role: 'user',
-          content: messageText,
-        })
-      }
-    },
     onAssistantMessageAppended: ({ sessionId, message }) => {
       if (isCloudSyncableMessage(message) && message.id) {
         void chatSession.pushMessageToCloud(sessionId, {
           id: message.id,
           role: 'assistant',
           content: extractMessageText(message),
+          createdAt: message.createdAt,
         })
       }
     },
-    onUserTurnReady: ({ messageText, sessionMessages }) => {
+    onUserTurnCommitted: ({ sessionId, message, messageText, sessionMessages }) => {
+      // Fires once at settle (the single commit decision). A retracted turn
+      // never reaches the cloud or starts an autonomous artist task on text the
+      // user took back; a committed turn syncs and starts that task.
+      if (isCloudSyncableMessage(message)) {
+        void chatSession.pushMessageToCloud(sessionId, {
+          id: message.id,
+          role: 'user',
+          content: messageText,
+          createdAt: message.createdAt,
+        })
+      }
+
       const autonomousTarget = cardStore.activeCard?.extensions?.airi?.modules?.artistry?.autonomousTarget || 'user'
       if (autonomousTarget === 'user')
         void artistryAutonomousStore.runArtistTask(messageText, toProviderHistory(sessionMessages))
@@ -254,17 +280,24 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     runtime.cancelPendingSends(sessionId)
   }
 
+  function stopSending(sessionId?: string) {
+    runtime.stopSending(sessionId)
+  }
+
   function getPendingQueuedSendSnapshot() {
     return runtime.getPendingQueuedSendSnapshot()
   }
 
   return {
     sending,
+    sendingSessionId,
+    isActiveSessionStreaming,
     pendingQueuedSendCount,
 
     ingest,
     ingestOnFork,
     cancelPendingSends,
+    stopSending,
     getPendingQueuedSendSnapshot,
 
     clearHooks: runtime.hooks.clearHooks,

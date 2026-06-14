@@ -10,5 +10,6 @@ export type {
   ChatStreamEventContext,
   ContextMessage,
   ErrorMessage,
+  SendOutcome,
   StreamingAssistantMessage,
 } from '@proj-airi/core-agent'

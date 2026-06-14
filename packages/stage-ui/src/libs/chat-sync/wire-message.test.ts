@@ -1,4 +1,4 @@
-import type { ChatAssistantMessage, ChatHistoryItem } from '@proj-airi/core-agent'
+import type { ChatAssistantMessage, ChatHistoryItem, StreamingAssistantMessage } from '@proj-airi/core-agent'
 import type { WireMessage } from '@proj-airi/server-sdk-shared'
 
 import { describe, expect, it } from 'vitest'
@@ -76,6 +76,35 @@ describe('isCloudSyncableMessage', () => {
     expect(isCloudSyncableMessage({ role: 'error', content: 'x' })).toBe(false)
     expect(isCloudSyncableMessage({ role: 'user', content: 'x' })).toBe(true)
     expect(isCloudSyncableMessage({ role: 'assistant', content: 'x', slices: [], tool_results: [] })).toBe(true)
+  })
+
+  /**
+   * @example
+   * A stopped assistant turn is not cloud-syncable: the `stopped` flag does not
+   * ride the wire format, so syncing it would land server-side as a normal
+   * completed turn.
+   */
+  it('rejects assistant turns marked stopped so they never reach the cloud outbox', () => {
+    const stoppedAssistant: StreamingAssistantMessage = {
+      role: 'assistant',
+      content: 'partial reply',
+      slices: [{ type: 'text', text: 'partial reply' }],
+      tool_results: [],
+      stopped: true,
+    }
+    expect(isCloudSyncableMessage(stoppedAssistant)).toBe(false)
+  })
+
+  /**
+   * @example
+   * A provisional user turn (send in flight, retractable by a stop before any
+   * output) is not cloud-syncable. Otherwise the concurrent reconcile sweep
+   * uploads it, a stop-before-output retracts it locally only, and the next
+   * catch-up pull resurrects the retracted text.
+   */
+  it('rejects provisional user turns so a mid-send sweep cannot upload a retractable row', () => {
+    expect(isCloudSyncableMessage({ role: 'user', content: 'in flight', id: 'u1', provisional: true })).toBe(false)
+    expect(isCloudSyncableMessage({ role: 'user', content: 'committed', id: 'u1' })).toBe(true)
   })
 })
 

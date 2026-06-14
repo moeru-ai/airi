@@ -3,8 +3,10 @@ import type { ChatToolCallRendererRegistry } from '@proj-airi/stage-ui/component
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { errorMessageFrom } from '@moeru/std'
+import { runComposerSend } from '@proj-airi/stage-layouts/composables/composerSend'
 import { useStopSpeakingButton } from '@proj-airi/stage-layouts/composables/useStopSpeakingButton'
 import { ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
+import { ChatStopButton } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
@@ -16,7 +18,7 @@ import { BasicTextarea } from '@proj-airi/ui'
 import { useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -28,6 +30,12 @@ const router = useRouter()
 const messageInput = ref('')
 const lastEnterTime = ref(0)
 const attachments = ref<{ type: 'image', data: string, mimeType: string, url: string }[]>([])
+// Sends stopped before any reply, parked here when the composer is busy with
+// different text so each survives as its own dismissible draft. A stack, not a
+// single slot: stopping multiple queued sends must not overwrite or silently
+// lose earlier rescued prompts (or their attachment object URLs).
+interface UnsentDraft { id: string, text: string, attachments: typeof attachments.value }
+const unsentDrafts = ref<UnsentDraft[]>([])
 
 const chatOrchestrator = useChatOrchestratorStore()
 const chatSession = useChatSessionStore()
@@ -93,28 +101,108 @@ async function handleSend() {
   messageInput.value = ''
   attachments.value = []
 
-  try {
-    await chatSyncStore.requestIngest({
+  // The draft is rescued (its object URLs kept) only when the policy restores
+  // it. Every other exit (a committed turn that owns the attachments, or a
+  // clean reply) releases the local object URLs so they do not leak.
+  let rescued = false
+  await runComposerSend({
+    send: () => chatSyncStore.requestIngest({
       text: textToSend,
       attachments: attachmentsToSend,
       toolset: 'artistry',
-    })
+      // The composer rescues the text on retract, so it opts into rescuable.
+      rescuable: true,
+    }),
+    restoreDraft: () => {
+      rescued = true
+      rescueRetractedDraft(textToSend, attachmentsToSend)
+    },
+    // A resolved outcome.error already has (or will have) a durable error row in
+    // authority session state that broadcasts to every window, so appending a
+    // local row here would duplicate it (and the local row would be wiped by the
+    // next authority snapshot anyway). Only the thrown path means the relay /
+    // authority was unreachable, so no broadcast row is coming: record it locally.
+    appendErrorRow: (message, source) => {
+      if (source === 'thrown')
+        appendLocalErrorMessage(message)
+    },
+  })
+  if (!rescued)
+    revokeAttachmentUrls(attachmentsToSend)
+}
 
-    attachmentsToSend.forEach(att => URL.revokeObjectURL(att.url))
+function appendLocalErrorMessage(content: string) {
+  chatSession.appendSessionMessage(chatSession.activeSessionId, {
+    role: 'error',
+    content,
+  })
+}
+
+// Chat-sync commands travel the BroadcastChannel in follower windows and can
+// reject (authority gone, 30s timeout, channel disposed); surface that as an
+// error row instead of leaving an unhandled rejection.
+async function runChatSyncCommand(command: () => Promise<unknown>, fallbackMessage: string) {
+  try {
+    await command()
   }
   catch (error) {
-    // restore on failure
-    messageInput.value = textToSend
-    attachments.value = attachmentsToSend
-    chatSession.setSessionMessages(chatSession.activeSessionId, [
-      ...messages.value,
-      {
-        role: 'error',
-        content: errorMessageFrom(error) ?? 'Failed to send message',
-      },
-    ])
+    appendLocalErrorMessage(errorMessageFrom(error) ?? fallbackMessage)
   }
 }
+
+function revokeAttachmentUrls(list: typeof attachments.value) {
+  list.forEach(att => URL.revokeObjectURL(att.url))
+}
+
+function rescueRetractedDraft(text: string, draftAttachments: typeof attachments.value) {
+  // Composer empty: put the text straight back where it was.
+  if (!messageInput.value.trim() && attachments.value.length === 0) {
+    messageInput.value = text
+    attachments.value = draftAttachments
+    return
+  }
+  // Already retyped the same thing AND nothing to lose: drop the rescued copy.
+  // (With attachments we fall through to the chip so they are never discarded.)
+  if (messageInput.value === text && draftAttachments.length === 0)
+    return
+  // Busy with different text: park the retracted draft as its own dismissible
+  // chip. Push, never overwrite, so cancelling several queued sends keeps every
+  // prompt (and its attachments) independently recoverable.
+  unsentDrafts.value.push({ id: crypto.randomUUID(), text, attachments: draftAttachments })
+}
+
+function restoreUnsentDraft(id: string) {
+  const index = unsentDrafts.value.findIndex(draft => draft.id === id)
+  if (index < 0)
+    return
+  const draft = unsentDrafts.value[index]
+  // Swap rather than overwrite: whatever is currently staged moves into the
+  // slot the restored draft just vacated (its object URLs move with it), so
+  // restore never destroys content in either direction and the list stays put.
+  const displacedText = messageInput.value
+  const displacedAttachments = attachments.value
+  messageInput.value = draft.text
+  attachments.value = draft.attachments
+  if (displacedText.trim() || displacedAttachments.length > 0)
+    unsentDrafts.value[index] = { id: draft.id, text: displacedText, attachments: displacedAttachments }
+  else
+    unsentDrafts.value.splice(index, 1)
+}
+
+function discardUnsentDraft(id: string) {
+  const index = unsentDrafts.value.findIndex(draft => draft.id === id)
+  if (index < 0)
+    return
+  revokeAttachmentUrls(unsentDrafts.value[index].attachments)
+  unsentDrafts.value.splice(index, 1)
+}
+
+// Release every object URL this component still owns when it goes away, so a
+// staged or parked-but-unsent image draft does not leak.
+onBeforeUnmount(() => {
+  revokeAttachmentUrls(attachments.value)
+  unsentDrafts.value.forEach(draft => revokeAttachmentUrls(draft.attachments))
+})
 
 function sendFromKeyboard() {
   messageInput.value = messageInput.value.replace(TRAILING_NEWLINES_REGEX, '')
@@ -205,7 +293,7 @@ const historyMessages = computed(() => messages.value as unknown as ChatHistoryI
 
 async function handleDeleteMessage(index: number) {
   const message = messages.value[index]
-  await chatSyncStore.requestDeleteMessage({ index })
+  await runChatSyncCommand(() => chatSyncStore.requestDeleteMessage({ index }), 'Failed to delete message')
   trackChatMessageDeleted({
     source: 'history',
     message_role: message?.role ?? 'unknown',
@@ -217,18 +305,22 @@ onMounted(() => {
 })
 
 async function handleRetryMessage(index: number) {
-  await chatSyncStore.requestRetry({
+  await runChatSyncCommand(() => chatSyncStore.requestRetry({
     sessionId: chatSession.activeSessionId,
     index,
-  })
+  }), 'Failed to retry message')
   trackChatMessageRetried({
     source: 'history',
   })
 }
 
-async function handleCleanupMessages() {
+async function handleStop() {
+  await runChatSyncCommand(() => chatSyncStore.requestStop(chatSession.activeSessionId), 'Failed to stop the response')
+}
+
+async function handleCleanup() {
   const messageCount = messages.value.filter(message => message.role !== 'system').length
-  await chatSyncStore.requestCleanup()
+  await runChatSyncCommand(() => chatSyncStore.requestCleanup(chatSession.activeSessionId), 'Failed to clear messages')
   trackChatMessagesCleared({
     source: 'chat_controls',
     message_count: messageCount,
@@ -299,6 +391,15 @@ async function handleCleanupMessages() {
       </div>
     </div>
     <div :class="['flex items-center justify-end gap-2 py-1']">
+      <ChatStopButton
+        :class="[
+          'max-h-[10lh] min-h-[1lh] rounded-md p-2 text-lg',
+          'bg-red-100 dark:bg-red-900/30',
+          'hover:bg-red-200 dark:hover:bg-red-900/50',
+        ]"
+        @stop="handleStop"
+      />
+
       <DropdownMenuRoot>
         <DropdownMenuTrigger as-child>
           <button
@@ -374,7 +475,7 @@ async function handleCleanupMessages() {
         hover:text="red-500 dark:red-400"
         flex items-center justify-center rounded-md p-2 outline-none
         transition-colors transition-transform active:scale-95
-        @click="handleCleanupMessages"
+        @click="handleCleanup"
       >
         <div class="i-solar:trash-bin-2-bold-duotone" />
       </button>
@@ -414,6 +515,36 @@ async function handleCleanupMessages() {
         multiple
         @change="handleFileSelect"
       >
+    </div>
+    <!-- Retracted-but-not-lost drafts: turns stopped before any reply, surfaced
+         here (rather than overwriting current input) so each is visibly unsent.
+         One chip per rescued draft so multiple cancellations never clobber. -->
+    <div
+      v-for="draft in unsentDrafts"
+      :key="draft.id"
+      :class="[
+        'mb-2 flex items-center gap-2 rounded-xl px-3 py-2 text-sm',
+        'border border-amber-400/40 bg-amber-100/60 dark:bg-amber-900/30',
+      ]"
+    >
+      <div class="i-solar:undo-left-round-bold-duotone shrink-0 text-amber-600 dark:text-amber-300" />
+      <span class="min-w-0 flex-1 truncate text-amber-800 dark:text-amber-100">
+        {{ t('stage.unsent-draft.label', { text: draft.text }) }}
+      </span>
+      <button
+        type="button"
+        :class="['rounded-lg px-2 py-1 text-xs font-medium', 'text-amber-900 dark:text-amber-50 bg-amber-500/20 hover:bg-amber-500/30']"
+        @click="restoreUnsentDraft(draft.id)"
+      >
+        {{ t('stage.unsent-draft.restore') }}
+      </button>
+      <button
+        type="button"
+        :class="['rounded-lg px-2 py-1 text-xs', 'text-amber-700/70 dark:text-amber-200/70 hover:text-amber-900 dark:hover:text-amber-50']"
+        @click="discardUnsentDraft(draft.id)"
+      >
+        {{ t('stage.unsent-draft.discard') }}
+      </button>
     </div>
     <BasicTextarea
       v-model="messageInput"

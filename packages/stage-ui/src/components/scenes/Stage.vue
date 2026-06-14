@@ -765,7 +765,7 @@ chatHookCleanups.push(onAssistantResponseEnd(async (_message) => {
   // Streaming sessions null-out via the onDone hook; segmenter sessions
   // stay around until the next `onBeforeMessageComposed` cancels them
   // (the segmenter pipeline's IntentHandle.end is idempotent and
-  // ResourceMessages still arrive after end() — clearing here would
+  // ResourceMessages still arrive after end(), clearing here would
   // race with the pipeline's own cleanup). Keep the ref pointing at
   // the just-ended session; it costs nothing and the next message
   // replaces it.

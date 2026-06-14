@@ -47,6 +47,11 @@ interface CloudMergePayload {
  */
 const OUTBOX_MAX_ATTEMPTS = 5
 
+/** Drops the in-flight `provisional` marker from a settled message. */
+function withoutProvisional({ provisional: _provisional, ...message }: ChatHistoryItem): ChatHistoryItem {
+  return message as ChatHistoryItem
+}
+
 export const useChatSessionStore = defineStore('chat-session', () => {
   const { userId, token: authToken } = storeToRefs(useAuthStore())
   const { activeCardId, systemPrompt } = storeToRefs(useAiriCardStore())
@@ -96,6 +101,13 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   // Single-flight guard for outbox drain so concurrent `reconcile end` +
   // `pushMessageToCloud post-enqueue` triggers don't double-send.
   let outboxDrainTask: Promise<void> | undefined
+  // Set when a drain is requested while one is in flight, so a row enqueued
+  // after the in-flight pass read the outbox is re-drained instead of waiting
+  // for the next reconcile. Mirrors `pendingReconcile` but without its
+  // `!isStaleEpoch()` re-trigger guard: `teardownCloudWsClient` clears this
+  // synchronously with the epoch bump, so a stale re-trigger cannot occur, and
+  // `drainOutbox` re-guards on user / WS-open at the top of every pass anyway.
+  let pendingDrain = false
 
   // I know this nu uh, better than loading all language on rehypeShiki
   const codeBlockSystemPrompt = '- For any programming code block, always specify the programming language that supported on @shikijs/rehype on the rendered markdown, eg. ```python ... ```\n'
@@ -273,6 +285,42 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 
   /**
+   * Remove a message by id, persisting and broadcasting the change. No-op when
+   * the session or message is absent so a redundant retract skips re-persist.
+   */
+  function removeSessionMessage(sessionId: string, messageId: string) {
+    const current = sessionMessages.value[sessionId]
+    if (!current)
+      return
+    const next = current.filter(message => message.id !== messageId)
+    if (next.length === current.length)
+      return
+    replaceSessionMessages(sessionId, next)
+  }
+
+  /**
+   * Clear the `provisional` marker from a user turn once the orchestrator
+   * commits it, persisting and broadcasting the change so sync layers (cloud
+   * outbox, reconcile sweep) start treating the row as uploadable. No-op when
+   * the session or message is absent or the row is already committed.
+   */
+  function commitSessionMessage(sessionId: string, messageId: string) {
+    const current = sessionMessages.value[sessionId]
+    if (!current)
+      return
+    let changed = false
+    const next = current.map((message) => {
+      if (message.id !== messageId || !message.provisional)
+        return message
+      changed = true
+      return withoutProvisional(message)
+    })
+    if (!changed)
+      return
+    replaceSessionMessages(sessionId, next)
+  }
+
+  /**
    * Hydrate a single session's messages from IDB into memory. Idempotent —
    * subsequent calls for the same id are no-ops.
    *
@@ -312,7 +360,25 @@ export const useChatSessionStore = defineStore('chat-session', () => {
           return
         if (stored) {
           const currentMessages = sessionMessages.value[sessionId] ?? []
-          const mergedMessages = mergeLoadedSessionMessages(stored.messages, currentMessages)
+          // A `provisional` marker describes a send in flight in the runtime
+          // that wrote it. A row arriving from disk is settled (e.g. a crash
+          // mid-send) ONLY when no live in-memory row is still provisional for
+          // it; if `currentMessages` still holds it as provisional the send is
+          // in flight right now, so keep the marker. Settling a live row here
+          // would let it be uploaded and then resurrected by a later cloud pull
+          // even though a Stop may still retract it locally.
+          const liveProvisionalIds = new Set(
+            currentMessages.filter(message => message.provisional && message.id).map(message => message.id!),
+          )
+          const crashSettledIds = new Set(
+            stored.messages
+              .filter(message => message.provisional && message.id && !liveProvisionalIds.has(message.id!))
+              .map(message => message.id!),
+          )
+          const settledStoredMessages = crashSettledIds.size
+            ? stored.messages.map(message => (message.id && crashSettledIds.has(message.id) ? withoutProvisional(message) : message))
+            : stored.messages
+          const mergedMessages = mergeLoadedSessionMessages(settledStoredMessages, currentMessages)
 
           sessionMetas.value[sessionId] = stored.meta
           replaceSessionMessages(sessionId, mergedMessages, { persist: false })
@@ -320,6 +386,29 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
           if (mergedMessages !== stored.messages)
             await persistSession(sessionId)
+
+          // A provisional row that survived to disk is a crash mid-send: the
+          // settle-time `onUserTurnCommitted` cloud enqueue never ran, and
+          // reconcile only sweeps newly-created sessions (the claim branch for
+          // already-mapped sessions does not), so the row would otherwise never
+          // upload. Enqueue the now-settled rows here so `drainOutbox` carries
+          // them to the cloud. Idempotent by messageId, so a row that did get
+          // enqueued before the crash is not duplicated.
+          if (crashSettledIds.size && getCurrentUserId() !== 'local') {
+            for (const message of mergedMessages) {
+              if (!message.id || !crashSettledIds.has(message.id) || !isCloudSyncableMessage(message))
+                continue
+              const text = extractMessageText(message)
+              if (!text)
+                continue
+              void pushMessageToCloud(sessionId, {
+                id: message.id,
+                role: message.role as CloudSyncableRole,
+                content: text,
+                createdAt: message.createdAt,
+              })
+            }
+          }
         }
         loadedSessions.add(sessionId)
 
@@ -760,6 +849,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
             content: text,
             attempts: 0,
             queuedAt: Date.now(),
+            // Carry conversation timestamp so the drain sort (createdAt ?? queuedAt)
+            // keeps these swept rows in conversation order against push-enqueued
+            // entries, instead of all collapsing to enqueue wall-clock.
+            createdAt: message.createdAt,
           }))
         }
       }
@@ -894,6 +987,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     cloudSyncReady.value = false
     cloudReconcileTask = undefined
     pendingReconcile = false
+    outboxDrainTask = undefined
+    pendingDrain = false
     // Invalidate any in-flight reconcile IIFE so its post-await mutations
     // do not land on the next user's state.
     reconcileEpoch += 1
@@ -970,7 +1065,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
    *   transparently. UI consumers can watch `outboxPendingCount` to
    *   surface "X syncing".
    */
-  async function pushMessageToCloud(sessionId: string, message: { id: string, role: CloudSyncableRole, content: string }) {
+  async function pushMessageToCloud(sessionId: string, message: { id: string, role: CloudSyncableRole, content: string, createdAt?: number }) {
     const userId = getCurrentUserId()
     if (userId === 'local')
       return
@@ -983,44 +1078,40 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       content: message.content,
       attempts: 0,
       queuedAt: Date.now(),
+      createdAt: message.createdAt,
     }
+    // Local-first: persist to the outbox, then deliver via `drainOutbox`. The
+    // drain batches per session and sorts by `createdAt`, so conversation order
+    // on the wire (a prompt before its reply) is one explicit rule shared with
+    // the offline/reconnect path, not the timing of the awaits here. The sort,
+    // not enqueue order, is what guarantees it: on a stopped turn the assistant
+    // row is enqueued before the user row, so FIFO order would invert the pair.
     await enqueuePersist(() => chatSessionsRepo.enqueueOutbox(userId, entry))
     await refreshOutboxPendingCount()
+    // Opportunistic delivery: `drainOutbox` no-ops when the WS is closed or the
+    // session is not yet bound, so reconcile picks the entry up later.
+    void drainOutbox().catch(logDrainError)
+  }
 
-    // Opportunistic immediate send. Skip if WS not open or cloudChatId not
-    // yet bound — drainOutbox will pick it up on the next reconcile.
-    if (!wsClient || wsClient.status() !== 'open')
-      return
-    if (!entry.cloudChatId)
-      return
-
-    try {
-      await wsClient.sendMessages({
-        chatId: entry.cloudChatId,
-        messages: [{ id: entry.messageId, role: entry.role, content: entry.content }],
-      })
-      await enqueuePersist(() => chatSessionsRepo.dequeueOutbox(userId, [entry.messageId]))
-      await refreshOutboxPendingCount()
-    }
-    catch (err) {
-      const errMsg = errorMessageFrom(err) ?? 'unknown'
-      console.warn('[chat-sync] sendMessages failed for', sessionId, errMsg)
-      await enqueuePersist(() => chatSessionsRepo.updateOutboxEntries(userId, [{
-        messageId: entry.messageId,
-        attempts: 1,
-        lastError: errMsg,
-      }]))
-    }
+  // Best-effort log policy for `void drainOutbox()` triggers, whose IDB reads
+  // (getOutbox / dequeue) can reject outside the per-send try/catch within.
+  function logDrainError(error: unknown) {
+    console.warn('[chat-sync] drainOutbox failed:', errorMessageFrom(error) ?? 'unknown')
   }
 
   /**
    * Drain every outbox entry for the current user via batched
    * `sendMessages` calls (one per session). Idempotent and safe to call
-   * concurrently — a single-flight guard collapses overlapping triggers.
+   * concurrently — a single-flight guard collapses overlapping triggers, and a
+   * trigger that arrives mid-drain re-runs once after (so a row enqueued during
+   * the in-flight pass is not stranded until the next reconcile). This is the
+   * sole delivery path: `pushMessageToCloud` triggers it instead of sending
+   * inline, so wire order is always the per-session `createdAt` sort below.
    *
-   * Drain ordering: entries are grouped by sessionId, sorted by `queuedAt`
-   * within each session, and sent in a single batch per session. Server
-   * accepts client-supplied message ids so retries are idempotent.
+   * Drain ordering: entries are grouped by sessionId, sorted by message
+   * `createdAt` (falling back to `queuedAt`) within each session, and sent in a
+   * single batch per session. Server accepts client-supplied message ids so
+   * retries are idempotent.
    *
    * Entries whose session has no `cloudChatId` yet are skipped (they will
    * land in the next reconcile pass once create / claim binds the id).
@@ -1029,8 +1120,12 @@ export const useChatSessionStore = defineStore('chat-session', () => {
    * can see them via `outboxPendingCount`. They are NOT dropped silently.
    */
   async function drainOutbox(): Promise<void> {
-    if (outboxDrainTask)
+    if (outboxDrainTask) {
+      // A trigger arrived mid-drain; re-run after so a row enqueued after this
+      // pass already read the outbox is not stranded until the next reconcile.
+      pendingDrain = true
       return outboxDrainTask
+    }
     outboxDrainTask = (async () => {
       const userId = getCurrentUserId()
       if (userId === 'local')
@@ -1042,8 +1137,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       if (entries.length === 0)
         return
 
-      // Group by sessionId for batched dispatch; preserve queuedAt order
-      // within each session so user-then-assistant turns stay ordered.
+      // Group by sessionId for batched dispatch; order within each session by
+      // message createdAt so user-then-assistant turns stay in conversation
+      // order on the wire.
       const bySession = new Map<string, ChatSendOutboxEntry[]>()
       for (const entry of entries) {
         if (entry.attempts >= OUTBOX_MAX_ATTEMPTS)
@@ -1064,7 +1160,14 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         if (!wsClient || wsClient.status() !== 'open')
           break
 
-        sessionEntries.sort((a, b) => a.queuedAt - b.queuedAt)
+        // NOTICE: order by conversation timestamp, not enqueue time. With
+        // commit-at-settle the assistant turn enqueues before the user turn
+        // commits, so queuedAt no longer matches conversation order. Fall back
+        // to queuedAt for ties or entries persisted before createdAt was carried.
+        // Same-millisecond ties (user + assistant of one turn often share a
+        // createdAt) resolve by the array's existing order, which is FIFO outbox
+        // insertion (user enqueued first) preserved by a stable sort.
+        sessionEntries.sort((a, b) => (a.createdAt ?? a.queuedAt) - (b.createdAt ?? b.queuedAt))
         try {
           await wsClient.sendMessages({
             chatId: cloudChatId,
@@ -1092,6 +1195,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       await refreshOutboxPendingCount()
     })().finally(() => {
       outboxDrainTask = undefined
+      if (pendingDrain) {
+        pendingDrain = false
+        void drainOutbox().catch(logDrainError)
+      }
     })
     return outboxDrainTask
   }
@@ -1416,6 +1523,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     ensureSession,
     setSessionMessages,
     appendSessionMessage,
+    removeSessionMessage,
+    commitSessionMessage,
     persistSessionMessages,
     getSessionMessages,
     sessionMessages,

@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import type { ChatToolCallState } from '@proj-airi/stage-ui/components/scenarios/chat'
+
 import { createToolResultError, MarkdownRenderer, normalizeToolResultText } from '@proj-airi/stage-ui/components'
+import { ChatToolCallStateIcon } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useJournalPreviewStore } from '@proj-airi/stage-ui/stores/journal-preview'
 import { Collapsible, ContainerError } from '@proj-airi/ui'
 import { computed } from 'vue'
@@ -7,7 +10,7 @@ import { computed } from 'vue'
 const props = defineProps<{
   toolName: string
   args: string
-  state?: 'executing' | 'done' | 'error'
+  state?: ChatToolCallState
   result?: unknown
 }>()
 
@@ -138,22 +141,7 @@ function openGeneratedImagePreview() {
         ]"
         @click="setVisible(!visible)"
       >
-        <div
-          v-if="state === 'executing'"
-          i-eos-icons:loading class="mr-1 inline-block translate-y-0.5 op-50"
-        />
-        <div
-          v-else-if="state === 'error'"
-          i-ph:warning-circle-duotone class="mr-1 inline-block translate-y-0.5 text-red-500"
-        />
-        <div
-          v-else-if="state === 'done'"
-          i-ph:check-circle-duotone class="mr-1 inline-block translate-y-0.5 text-emerald-500"
-        />
-        <div
-          v-else
-          i-solar:sledgehammer-bold-duotone class="mr-1 inline-block translate-y-1 op-50"
-        />
+        <ChatToolCallStateIcon :state="state" class="mr-1 inline-block" />
         <code>{{ toolName }}</code>
         <span v-if="state === 'error' && resultText" class="ml-2 text-xs text-red-500 op-80">
           (failed)
@@ -178,6 +166,17 @@ function openGeneratedImagePreview() {
             'mt-2 whitespace-pre-wrap break-words font-mono',
           ]"
         >
+          {{ formattedArgs }}
+        </div>
+      </template>
+      <template v-else-if="state === 'cancelled'">
+        <div :class="['mb-2 flex items-center gap-2']">
+          <div :class="['i-solar:stop-circle-bold-duotone text-base text-amber-500']" />
+          <div :class="['rounded-full px-2.5 py-1 text-xs', 'bg-amber-500/12 text-amber-700 dark:text-amber-300']">
+            Cancelled
+          </div>
+        </div>
+        <div :class="['whitespace-pre-wrap break-words font-mono']">
           {{ formattedArgs }}
         </div>
       </template>
