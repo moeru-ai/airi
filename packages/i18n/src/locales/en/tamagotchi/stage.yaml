@@ -15,6 +15,7 @@ docs:
   'open-settings': Open settings
   'open-chat': Open Chat
   'refresh': Refresh
+  'center-main-window': Move to screen center
   'open-hearing-controls': Open hearing Controls
   'drag-to-move-window': Drag to move window
   'switch-to-light-mode': Switch to light mode
