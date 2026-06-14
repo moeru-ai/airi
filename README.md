@@ -59,10 +59,25 @@ User intent
 | Mode | Slug | Role |
 |------|------|------|
 | 🧠 **Spec** | `spec` | Kiro-style spec-driven planning. Converts vague intent into structured requirements, design docs, and actionable task lists. Asks clarifying questions before any code is written. |
-| 🪃 **Boss** | `orchestrator` | Orchestration layer. Decomposes complex tasks, delegates to specialized subagents, manages async worktree-isolated execution, and synthesizes results. |
-| ✨ **Vibe** | `vibe` | Flow-state implementation mode. Less formal, rapid iteration, code-focused. Gets your spec'd work done. |
+| 🪃 **Boss** | `orchestrator` | Read-only coordinator. Explores the codebase (files, search, MCP), decomposes complex tasks, and delegates all implementation to Vibe. **No terminal. No write access.** |
+| ✨ **Vibe** | `vibe` | Flow-state implementation mode. Less formal, rapid iteration, code-focused. Gets your spec'd work done. Has full read/write/terminal access. |
 
 Philosophy: **"Spec before vibe."**
+
+### How Boss Differs from Upstream Roo
+
+In stock Roo Code, the orchestrator has broad access — it can read, write, run terminal commands, and execute tools directly. AnimAIOS has **restored the original Boomerang form**:
+
+| | Upstream Roo Orchestrator | AnimAIOS Boss |
+|---|---|---|
+| **File reads** | ✅ | ✅ |
+| **Search / MCP** | ✅ | ✅ |
+| **Terminal** | ✅ | ❌ |
+| **File writes** | ✅ | ❌ |
+| **Tool execution** | ✅ | ❌ |
+| **Delegates to Vibe** | Optional | **Always** |
+
+Boss is a **pure coordinator** — it explores, understands, plans, and then hands off every implementation action to Vibe. This enforces a clean separation of concerns: Boss never touches code directly.
 
 ### Architecture Direction
 
