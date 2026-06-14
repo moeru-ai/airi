@@ -26,17 +26,49 @@ Our goal is a Linux desktop experience where your AI companion acts as the cente
 
 ### What It Is
 
-The **AnimAIOS Code module** (`modules/code`) is a fork of [Roo Code](https://roocode.com) that has been re-architected from a standalone AI coding assistant into the **spec-driven, async-orchestrated coding brain** of the AnimAIOS companion OS.
+The **AnimAIOS Code module** (`modules/code`) is a fork of [Roo Code](https://roocode.com) being re-architected from a standalone AI coding assistant into the **spec-driven, async-orchestrated coding brain** of the AnimAIOS companion OS.
 
-It is not just a copilot — it is the implementation arm of your AI companion's agentic workflow!
+### Current Status: Alpha ⚠️
 
-### The Three Modes
+The module is in **alpha**: the foundational tooling and infrastructure are implemented and functional, but the higher-level orchestration modes (Spec, Boss, Vibe) and AI integration are **not yet runnable features**. What exists today is a solid library of low-level building blocks — think of it as an operating system for coding agents that hasn't yet booted its first process.
 
-| Mode | Slug | Role |
-|------|------|------|
-| 🧠 **Spec** | `spec` | Kiro-style spec-driven planning. Converts vague intent into structured requirements, design docs, and actionable task lists. Asks clarifying questions before any code is written. |
-| ✨ **Vibe** | `vibe` | Flow-state implementation mode. Less formal, rapid iteration, code-focused. Gets your spec'd work done. Has full read/write/terminal access. |
-| 🕴️**Boss** | `orchestrator` | Read-only coordinator. Explores the codebase (files, search, MCP), decomposes complex tasks, and delegates all implementation to Vibe. **No terminal. No write access.** |
+### What's Implemented
+
+These components have real, working logic and can be used right now:
+
+| Component | What It Does |
+|-----------|-------------|
+| **🔧 Built-in Tools** | `read_file` (slice + indentation modes, binary detection), `list_files` (recursive, skip dirs), `search_files` (regex across workspace), `apply_diff` (unified diff + SEARCH/REPLACE) |
+| **📁 Workspace Management** | Per-task workspace sessions with temp-dir sandboxing, deterministic cleanup, git worktree creation |
+| **📡 Streaming** | Bounded per-task event buffers, subscribe/unsubscribe, reconnect-safe replay |
+| **🩹 Patch Generation** | LCS-based unified diff generation, patch proposal creation, patch application |
+| **🔍 Repository Indexing** | Content-hashed incremental re-indexing, structural map building (file graph, import edges) |
+| **🧠 Capability System** | Generic `CapabilityRegistry<T>`, typed `ToolCapability` interface, `CodeToolExecutor` with validation + timeout + cancellation |
+| **📋 Mode Definitions** | Full role definitions and custom instructions for all 5 modes (`spec`, `vibe`, `orchestrator`, `ask`, `debug`) |
+
+### What's Stubbed / Not Yet Implemented
+
+These are architectural directions with interfaces defined but no runnable logic:
+
+| Feature | Status |
+|---------|--------|
+| **Spec mode** (Kiro-style planning) | Mode definition only — no spec workflow executor |
+| **Vibe mode** (flow-state implementation) | Mode definition only — no implementation engine |
+| **Boss mode** (read-only coordinator) | Mode definition only — no delegation/orchestration logic |
+| **Multi-agent swarms** | Interface stubs (`IDaemon`, `IAgent`, `ICoordinator`) |
+| **Semantic memory integration** | Planned, not started |
+| **Autonomous background workers** | Planned, not started |
+| **Filesystem/Git/Terminal capabilities** | Path-validation helpers exist, but no `ToolCapability` implementations registered |
+
+### The Five Modes
+
+| Mode | Slug | Role | Status |
+|------|------|------|--------|
+| 🧠 **Spec** | `spec` | Kiro-style spec-driven planning. Converts vague intent into structured requirements, design docs, and actionable task lists. | 📝 Definition only |
+| ✨ **Vibe** | `vibe` | Flow-state implementation mode. Rapid iteration, code-focused. Full read/write/terminal access. | 📝 Definition only |
+| 🕴️ **Boss** | `orchestrator` | Read-only coordinator. Explores codebase, decomposes tasks, delegates to Vibe. **No terminal. No write access.** | 📝 Definition only |
+| ❓ **Ask** | `ask` | Technical Q&A without making changes. | 📝 Definition only |
+| 🪲 **Debug** | `debug` | Systematic debugging and root-cause analysis. | 📝 Definition only |
 
 Philosophy: **"Spec before vibe."**
 
@@ -57,7 +89,7 @@ Boss is a **pure coordinator** — it explores, understands, plans, and then han
 
 ### Architecture Direction
 
-The module has diverged significantly from stock Roo Code toward:
+The module is being re-architected from stock Roo Code toward:
 
 - **Backend-first orchestration** — decoupled frontend, async pipelines, resumable sessions
 - **Multi-agent swarms** — specialized modes with clear delegation, not monolithic prompts
@@ -83,8 +115,13 @@ The long-term direction is a **fully integrated experience** where:
 ### Key Files
 
 - `packages/types/src/mode.ts` — mode definitions, role definitions, and custom instructions
-- `src/core/prompts/system.ts` — system prompt generation and tool reference stripping
-- `core/planner/executor.ts` — deterministic workflow executor
+- `tools/builtins/` — fully implemented tool capabilities (read_file, list_files, search_files, apply_diff)
+- `workspace/` — workspace session management and handle
+- `capabilities/` — capability types, adapter, and path-validation helpers
+- `streaming/` — event streaming infrastructure
+- `patches/` — diff generation and patch proposals
+- `indexing/` — repository scanner with content hashing
+- `src/core/` — core type stubs (module, capabilities, tasks, events, workspace, memory)
 
 ### Relationship to AnimAIOS Core
 
