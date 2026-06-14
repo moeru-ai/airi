@@ -248,8 +248,8 @@ pages:
         listFailed: 暂时无法加载已关联的帐户
         unlinkFailed: 无法解除此帐户的关联
         linkFailed: 暂时无法开始关联的流程，要之后再试试吗？
-        accountAlreadyLinkedToDifferentUser: 这个 OAuth 帐户已经关联到另一个 AIRI 帐户了。请选择另一个第三方帐户，或者先在另一个 AIRI 帐户中解除关联。
-        oauthCallbackFailed: 暂时无法关联这个 OAuth 帐户。请重试，或选择另一个第三方帐户。
+        accountAlreadyLinkedToDifferentUser: This OAuth account is already linked to another AIRI account. Choose a different provider account, or unlink it from the other AIRI account first.
+        oauthCallbackFailed: We could not connect this OAuth account. Try again or choose another provider account.
         lastAccount: 这是你当前唯一的登录方式，请务必先设置密码再解除关联哦
     security:
       tab: 安全
@@ -751,7 +751,7 @@ pages:
         empty: 这里什么都还没有哦，在下面添加一个！
       add:
         title: 新建
-        description: '填写新的服务器配置，然后点击「保存并重启」，完成后将会更新至上方的「已配置」'
+        description: "填写新的服务器配置，然后点击「保存并重启」，完成后将会更新至上方的「已配置」"
         pending-badge: 未保存
       status:
         unknown: 未加载

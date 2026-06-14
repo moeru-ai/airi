@@ -248,8 +248,8 @@ pages:
         listFailed: Не удалось загрузить подключенные учетные записи.
         unlinkFailed: Не удалось отвязать эту учетную запись.
         linkFailed: Не удалось запустить поток ссылок.
-        accountAlreadyLinkedToDifferentUser: Этот OAuth-аккаунт уже привязан к другому аккаунту AIRI. Выберите другой аккаунт провайдера или сначала отвяжите его от другого аккаунта AIRI.
-        oauthCallbackFailed: Не удалось подключить этот OAuth-аккаунт. Попробуйте еще раз или выберите другой аккаунт провайдера.
+        accountAlreadyLinkedToDifferentUser: This OAuth account is already linked to another AIRI account. Choose a different provider account, or unlink it from the other AIRI account first.
+        oauthCallbackFailed: We could not connect this OAuth account. Try again or choose another provider account.
         lastAccount: Это единственный способ входа в систему. Установите пароль перед отсоединением.
     security:
       tab: Безопасность
@@ -751,7 +751,7 @@ pages:
         empty: Здесь пока ничего нет. Добавьте одно ниже!
       add:
         title: Новый
-        description: 'Заполните новый сервер, затем нажмите кнопку «Сохранить и перезапустить» — он будет перемещен в «Конфигурация» выше.'
+        description: "Заполните новый сервер, затем нажмите кнопку «Сохранить и перезапустить» — он будет перемещен в «Конфигурация» выше."
         pending-badge: Не сохранено
       status:
         unknown: Не загружен
@@ -968,7 +968,7 @@ pages:
         description: >-
           Провайдеры транскрипции (speech-to-text): Whisper.cpp, OpenAI, Azure Speech
       artistry:
-        title: Artistry
+        title: Artistry 
         description: Поставщики моделей генерации и создания изображений, например ComfyUI, Replicate.
         items:
           comfyui:
