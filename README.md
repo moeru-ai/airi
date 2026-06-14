@@ -28,9 +28,9 @@ Our goal is a Linux desktop experience where your AI companion acts as the cente
 
 The **AnimAIOS Code module** (`modules/code`) is a fork of [Roo Code](https://roocode.com) being re-architected from a standalone AI coding assistant into the **spec-driven, async-orchestrated coding brain** of the AnimAIOS companion OS.
 
-### Current Status: Alpha ⚠️
+### Current Status
 
-The module is in **alpha**: the foundational tooling and infrastructure are implemented and functional, but the higher-level orchestration modes (Spec, Boss, Vibe) and AI integration are **not yet runnable features**. What exists today is a solid library of low-level building blocks — think of it as an operating system for coding agents that hasn't yet booted its first process.
+The Code module ships as a **fully functional VS Code / Codium / Code-server extension** with all five modes (Spec, Vibe, Boss, Ask, Debug) available today. The submodule (`modules/code`) contains the type system, tool implementations, and infrastructure; the parent repo provides the mode execution engines (planner, prompts, orchestration) that wire everything together into the extension.
 
 ### What's Implemented
 
@@ -46,29 +46,46 @@ These components have real, working logic and can be used right now:
 | **🧠 Capability System** | Generic `CapabilityRegistry<T>`, typed `ToolCapability` interface, `CodeToolExecutor` with validation + timeout + cancellation |
 | **📋 Mode Definitions** | Full role definitions and custom instructions for all 5 modes (`spec`, `vibe`, `orchestrator`, `ask`, `debug`) |
 
-### What's Stubbed / Not Yet Implemented
+### What's Implemented in the Extension
 
-These are architectural directions with interfaces defined but no runnable logic:
+The VS Code extension (parent repo + submodule) provides the full experience:
 
 | Feature | Status |
 |---------|--------|
-| **Spec mode** (Kiro-style planning) | Mode definition only — no spec workflow executor |
-| **Vibe mode** (flow-state implementation) | Mode definition only — no implementation engine |
-| **Boss mode** (read-only coordinator) | Mode definition only — no delegation/orchestration logic |
+| **Spec mode** (Kiro-style planning) | ✅ Fully functional in extension |
+| **Vibe mode** (flow-state implementation) | ✅ Fully functional in extension |
+| **Boss mode** (read-only coordinator) | ✅ Fully functional in extension |
+| **Ask mode** (technical Q&A) | ✅ Fully functional in extension |
+| **Debug mode** (systematic debugging) | ✅ Fully functional in extension |
+| **Built-in tools** (read, list, search, diff) | ✅ Implemented in submodule |
+| **Workspace/session management** | ✅ Implemented in submodule |
+| **Streaming events** | ✅ Implemented in submodule |
+| **Patch generation** | ✅ Implemented in submodule |
+| **Repository indexing** | ✅ Implemented in submodule |
+
+### Future Direction
+
+These are planned enhancements on top of the existing extension:
+
+| Feature | Status |
+|---------|--------|
 | **Multi-agent swarms** | Interface stubs (`IDaemon`, `IAgent`, `ICoordinator`) |
 | **Semantic memory integration** | Planned, not started |
 | **Autonomous background workers** | Planned, not started |
 | **Filesystem/Git/Terminal capabilities** | Path-validation helpers exist, but no `ToolCapability` implementations registered |
+| **Hacking Mode** (integrated terminal-native coding) | Planned, not started |
 
 ### The Five Modes
 
-| Mode | Slug | Role | Status |
-|------|------|------|--------|
-| 🧠 **Spec** | `spec` | Kiro-style spec-driven planning. Converts vague intent into structured requirements, design docs, and actionable task lists. | 📝 Definition only |
-| ✨ **Vibe** | `vibe` | Flow-state implementation mode. Rapid iteration, code-focused. Full read/write/terminal access. | 📝 Definition only |
-| 🕴️ **Boss** | `orchestrator` | Read-only coordinator. Explores codebase, decomposes tasks, delegates to Vibe. **No terminal. No write access.** | 📝 Definition only |
-| ❓ **Ask** | `ask` | Technical Q&A without making changes. | 📝 Definition only |
-| 🪲 **Debug** | `debug` | Systematic debugging and root-cause analysis. | 📝 Definition only |
+All five modes are **fully functional in the VS Code extension**:
+
+| Mode | Slug | Role |
+|------|------|------|
+| 🧠 **Spec** | `spec` | Kiro-style spec-driven planning. Converts vague intent into structured requirements, design docs, and actionable task lists. Asks clarifying questions before any code is written. |
+| ✨ **Vibe** | `vibe` | Flow-state implementation mode. Less formal, rapid iteration, code-focused. Gets your spec'd work done. Has full read/write/terminal access. |
+| 🕴️ **Boss** | `orchestrator` | Read-only coordinator. Explores the codebase (files, search, MCP), decomposes complex tasks, and delegates all implementation to Vibe. **No terminal. No write access.** |
+| ❓ **Ask** | `ask` | Technical Q&A and explanations without making changes. |
+| 🪲 **Debug** | `debug` | Systematic debugging — diagnoses root causes before applying fixes. |
 
 Philosophy: **"Spec before vibe."**
 
@@ -97,13 +114,19 @@ The module is being re-architected from stock Roo Code toward:
 - **Semantic memory integration** — persistent context across sessions (planned)
 - **Autonomous background workers** — tasks continue even when you step away
 
-### Current Hosting Model (Transitional ⚠️)
+### Hosting Model: VS Code Extension (First-Class ✅)
 
-The Code module **currently requires a VS Codium / VS Code / Code-server host extension** to run. This is a temporary constraint.
+The Code module is a **full standalone VS Code / Codium / Code-server extension** — not a temporary constraint, but a first-class, permanently supported hosting experience.
 
-### The Target Model: Integrated Hacking Mode
+Every push to `main` triggers a **nightly build** of the extension:
 
-The long-term direction is a **fully integrated experience** where:
+> 🌙 **Nightly Extension** — [Download the latest build](https://github.com/animaios/code/releases) | [Build badge](https://github.com/animaios/code/actions)
+
+The extension gives you the complete Roo Code experience — all five modes (Spec, Vibe, Boss, Ask, Debug), the full tool suite, and the complete orchestration pipeline — inside your IDE of choice.
+
+### Future Direction: Integrated Hacking Mode
+
+On top of the standalone extension, AnimAIOS is building a **fully integrated experience** where:
 
 1. The former Roo Code logic **dynamically replaces stock AIRI logic** when the user enables **Hacking Mode**
 2. The AIRI chatbox **doubles as a system terminal** — similar to [Warp](https://www.warp.dev/) with natural language command detection
@@ -111,6 +134,8 @@ The long-term direction is a **fully integrated experience** where:
 4. No separate IDE needed — the terminal *is* the coding environment
 
 > In short: your AI companion reads your screen, detects when you're coding, and seamlessly spins up the spec-driven workflow without you ever opening an external editor.
+
+The standalone extension remains the primary, fully supported way to use the Code module. Hacking Mode is an additional integration layer on top.
 
 ### Key Files
 
@@ -194,7 +219,6 @@ pnpm approve-builds # Select 'electron' and confirm
   - [ ] [AnimAIOS Code](https://github.com/animaios/code) integration
     - [ ] Send recent AnimAIOS Code context snapshot with each AIRI heartbeat
     - [ ] **Hacking Mode:** dynamically involve Code module (Spec → Boss → Vibe) when coding activity is detected
-    - [ ] Remove the VS Codium / Code-server host requirement — terminal-native operation
   - [ ] AIRI chatbox doubles as a system terminal with natural language detection
 - [ ] **Misc**
   - [ ] DeepSource pass with 0 issues
