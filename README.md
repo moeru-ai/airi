@@ -45,22 +45,15 @@ Our goal is a Linux desktop experience where your AI companion acts as the cente
 
 The **AnimAIOS Code module** (`modules/code`) is a fork of [Roo Code](https://roocode.com) that has been re-architected from a standalone AI coding assistant into the **spec-driven, async-orchestrated coding brain** of the AnimAIOS companion OS.
 
-It is not just a copilot — it is the implementation arm of your AI companion's agentic workflow:
-
-```
-User intent
-  → 🧠 Spec (plan & decompose)
-  → 🪃 Boss (orchestrate & delegate)
-  → ✨ Vibe (implement & iterate)
-```
+It is not just a copilot — it is the implementation arm of your AI companion's agentic workflow!
 
 ### The Three Modes
 
 | Mode | Slug | Role |
 |------|------|------|
 | 🧠 **Spec** | `spec` | Kiro-style spec-driven planning. Converts vague intent into structured requirements, design docs, and actionable task lists. Asks clarifying questions before any code is written. |
-| 🪃 **Boss** | `orchestrator` | Read-only coordinator. Explores the codebase (files, search, MCP), decomposes complex tasks, and delegates all implementation to Vibe. **No terminal. No write access.** |
 | ✨ **Vibe** | `vibe` | Flow-state implementation mode. Less formal, rapid iteration, code-focused. Gets your spec'd work done. Has full read/write/terminal access. |
+| 🕴️**Boss** | `orchestrator` | Read-only coordinator. Explores the codebase (files, search, MCP), decomposes complex tasks, and delegates all implementation to Vibe. **No terminal. No write access.** |
 
 Philosophy: **"Spec before vibe."**
 
