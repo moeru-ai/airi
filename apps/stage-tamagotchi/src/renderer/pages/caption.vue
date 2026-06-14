@@ -8,8 +8,8 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { captionGetIsFollowingWindow, captionIsFollowingWindowChanged } from '../../shared/eventa'
 import { useCaptionItems } from '../composables/useCaptionItems'
 
-/** Keep stale captions from lingering after the last broadcast update. */
-const CAPTION_TEXT_EXPIRY_MS = 10_000
+/** Idle fade-out: the bubble auto-disappears this long after the last message. */
+const CAPTION_TEXT_EXPIRY_MS = 5_000
 
 const attached = ref(true)
 
@@ -52,6 +52,13 @@ const captionTextByType = computed(() => ({
   'caption-assistant': toCaptionTextSegments('caption-assistant'),
 }))
 
+// Whether there's any live caption to show. Drives the bubble's pop-in / fade-out:
+// empty -> the (transparent, click-through) overlay is effectively invisible above the pet.
+const hasCaption = computed(() =>
+  captionTextByType.value['caption-speaker'].length > 0
+  || captionTextByType.value['caption-assistant'].length > 0,
+)
+
 onMounted(async () => {
   try {
     const isAttached = await getAttached()
@@ -88,41 +95,56 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="pointer-events-none relative h-full w-full flex items-end justify-center">
-    <div
-      :class="[
-        shouldFadeOnCursorWithin ? 'op-0' : 'op-100',
-        'pointer-events-auto relative select-none rounded-xl px-3 py-2',
-        'transition-opacity duration-250 ease-in-out',
-      ]"
+  <div class="pointer-events-none relative h-full w-full flex items-end justify-center pb-2">
+    <!-- Speech bubble: pops in above the pet on a new message, fades out when captions expire -->
+    <Transition
+      enter-active-class="transition-all duration-200 ease-out"
+      enter-from-class="op-0 scale-90 translate-y-2"
+      enter-to-class="op-100 scale-100 translate-y-0"
+      leave-active-class="transition-all duration-300 ease-in"
+      leave-from-class="op-100 scale-100"
+      leave-to-class="op-0 scale-95"
     >
       <div
-        v-show="!attached"
-        class="[-webkit-app-region:drag] absolute left-1/2 h-[14px] w-[36px] border border-[rgba(125,125,125,0.35)] rounded-[10px] bg-[rgba(125,125,125,0.28)] backdrop-blur-[6px] -top-2 -translate-x-1/2"
-        title="Drag to move"
+        v-if="hasCaption"
+        :class="[
+          shouldFadeOnCursorWithin ? 'op-0' : 'op-100',
+          'pointer-events-auto relative max-w-[92%] select-none',
+          'rounded-2xl px-3.5 py-2.5',
+          'bg-neutral-900/72 ring-1 ring-white/12 shadow-lg shadow-black/30 backdrop-blur-md',
+          'transition-opacity duration-250 ease-in-out',
+        ]"
       >
-        <div class="absolute left-1/2 top-1/2 h-[3px] w-4 rounded-full bg-[rgba(255,255,255,0.85)] -translate-x-1/2 -translate-y-1/2" />
-      </div>
-
-      <div class="max-w-[80vw] flex flex-col gap-1">
         <div
-          v-for="type in captionTypes"
-          v-show="captionTextByType[type].length > 0"
-          :key="type"
-          :class="[
-            type === 'caption-speaker' ? 'rounded-md px-2 py-1 text-[1.1rem] text-neutral-50 font-medium text-shadow-lg text-shadow-color-neutral-900/60' : '',
-            type === 'caption-assistant' ? 'rounded-md px-2 py-1 text-[1.35rem] text-primary-50 font-semibold text-stroke-4 text-stroke-primary-300/50 text-shadow-lg text-shadow-color-primary-700/50' : '',
-          ]"
-          :style="type === 'caption-assistant' ? { paintOrder: 'stroke fill' } : undefined"
+          v-show="!attached"
+          class="[-webkit-app-region:drag] absolute left-1/2 h-[14px] w-[36px] border border-white/25 rounded-[10px] bg-white/20 backdrop-blur-[6px] -top-3 -translate-x-1/2"
+          title="Drag to move"
         >
-          <PoppinText
-            :text="captionTextByType[type]"
-            :animator="captionAnimatorByType[type]"
-            :text-class="type === 'caption-assistant' ? 'color-neutral-50! align-middle' : type === 'caption-speaker' ? 'color-neutral-50! align-middle' : ''"
-          />
+          <div class="absolute left-1/2 top-1/2 h-[3px] w-4 rounded-full bg-white/85 -translate-x-1/2 -translate-y-1/2" />
         </div>
+
+        <div class="flex flex-col gap-0.5">
+          <div
+            v-for="type in captionTypes"
+            v-show="captionTextByType[type].length > 0"
+            :key="type"
+            :class="[
+              type === 'caption-speaker' ? 'text-[0.95rem] text-neutral-300/90 font-medium' : '',
+              type === 'caption-assistant' ? 'text-[1.2rem] text-primary-100 font-semibold leading-snug' : '',
+            ]"
+          >
+            <PoppinText
+              :text="captionTextByType[type]"
+              :animator="captionAnimatorByType[type]"
+              :text-class="type === 'caption-assistant' ? 'color-primary-50! align-middle' : 'color-neutral-200! align-middle'"
+            />
+          </div>
+        </div>
+
+        <!-- downward tail pointing at the pet's head -->
+        <div class="absolute left-1/2 h-3 w-3 rotate-45 rounded-[2px] bg-neutral-900/72 ring-1 ring-white/12 -bottom-1.5 -translate-x-1/2" />
       </div>
-    </div>
+    </Transition>
 
     <Transition
       enter-active-class="transition-opacity duration-250 ease-in-out"

@@ -27,11 +27,19 @@ const {
   supportsModelListing,
   transcriptionModelSearchQuery,
   activeCustomModelName,
+  confidenceThreshold,
+  vadSpeechThreshold,
+  listeningMode,
   autoSendEnabled,
   autoSendDelay,
-  confidenceThreshold,
   verboseJsonNotSupported,
 } = storeToRefs(hearingStore)
+
+// Binary proxy for the listening-mode <-> push-to-talk checkbox.
+const pushToTalkEnabled = computed({
+  get: () => listeningMode.value === 'ptt',
+  set: (on: boolean) => { listeningMode.value = on ? 'ptt' : 'vad' },
+})
 const providersStore = useProvidersStore()
 const { configuredTranscriptionProvidersMetadata } = storeToRefs(providersStore)
 
@@ -77,7 +85,8 @@ const testStreamingText = ref<string>('')
 const testStatusMessage = ref<string>('')
 const testStreamWasStarted = ref(false) // Track if we started the stream for testing
 
-const useVADThreshold = ref(0.6) // 0.1 - 0.9
+// Persisted + shared with the desktop stage (useHearingStore). Lower = more sensitive.
+const useVADThreshold = vadSpeechThreshold // 0.1 - 0.9
 const useVADMinSilenceDurationMs = ref(800)
 const useVADModel = ref(true) // Toggle between VAD and volume-based detection
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
@@ -691,14 +700,32 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- Auto-send settings -->
+        <!-- Voice input mode -->
         <div class="border-t border-neutral-200 pt-4 dark:border-neutral-700">
           <div class="mb-4">
             <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-500">
-              Auto-send Settings
+              聆听方式 / Voice input mode
             </h2>
             <div text="neutral-400 dark:neutral-400">
-              Configure automatic sending of transcribed text to chat
+              持续聆听:自动检测说话(VAD)。按住说话:仅在按住 CapsLock 时录音(像微信/QQ),不再时刻检测。桌面端生效。
+            </div>
+          </div>
+          <FieldCheckbox
+            v-model="pushToTalkEnabled"
+            label="按住说话(Push-to-talk,按住 CapsLock 说话)"
+            description="开启后不再持续检测声音:按住 CapsLock 录音、松开自动转录发送。关闭则恢复持续聆听(VAD)。"
+          />
+        </div>
+
+        <!-- Auto-send settings — only relevant in continuous-listening (VAD) mode. In push-to-talk
+             mode the key release is itself the send intent, so auto-send does not apply and is hidden. -->
+        <div v-if="!pushToTalkEnabled" class="border-t border-neutral-200 pt-4 dark:border-neutral-700">
+          <div class="mb-4">
+            <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-500">
+              自动发送 / Auto-send Settings
+            </h2>
+            <div text="neutral-400 dark:neutral-400">
+              持续聆听(VAD)模式下,转录文本是否自动发送到聊天。按住说话模式不受此设置影响(松开即发送)。
             </div>
           </div>
 

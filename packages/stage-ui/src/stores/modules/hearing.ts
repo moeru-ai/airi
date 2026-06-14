@@ -107,15 +107,27 @@ export function resolveStreamTranscriptionExecutor(providerId: string): StreamTr
 export const useHearingStore = defineStore('hearing-store', () => {
   const providersStore = useProvidersStore()
   const { allAudioTranscriptionProvidersMetadata } = storeToRefs(providersStore)
+  // NOTICE: useAnalytics() relies on Vue's setup/inject context, so it must be resolved
+  // here at store setup time. Calling it inside the async `transcription()` (which runs from
+  // post-await callbacks like onStopRecord) throws "Must be called at the top of a setup function".
+  const { trackSttStarted, trackSttSucceeded, trackSttFailed } = useAnalytics()
 
   // State
   const activeTranscriptionProvider = useLocalStorageManualReset('settings/hearing/active-provider', '')
   const activeTranscriptionModel = useLocalStorageManualReset('settings/hearing/active-model', '')
   const activeCustomModelName = useLocalStorageManualReset('settings/hearing/active-custom-model', '')
   const transcriptionModelSearchQuery = refManualReset<string>('')
-  const autoSendEnabled = useLocalStorageManualReset<boolean>('settings/hearing/auto-send-enabled', false)
+  // Default on: the desktop pet has no manual "send" button, so voice input must auto-send to chat
+  // for the character to react at all. Web/mobile still expose the toggle to opt out.
+  const autoSendEnabled = useLocalStorageManualReset<boolean>('settings/hearing/auto-send-enabled', true)
   const autoSendDelay = useLocalStorageManualReset<number>('settings/hearing/auto-send-delay', 2000) // Default 2 seconds
   const confidenceThreshold = useLocalStorageManualReset<number>('settings/hearing/confidence-threshold', CONFIDENCE_THRESHOLD_DISABLED)
+  // Silero VAD speech-probability threshold shared by the desktop stage and the settings page.
+  // Lower = more sensitive (triggers on quieter/shorter speech). Persisted so tuning survives restarts.
+  const vadSpeechThreshold = useLocalStorageManualReset<number>('settings/hearing/vad-threshold', 0.35)
+  // How the desktop stage captures voice:
+  // 'vad' = always listen (auto voice-activity detection); 'ptt' = push-to-talk (hold a key to speak).
+  const listeningMode = useLocalStorageManualReset<'vad' | 'ptt'>('settings/hearing/listening-mode', 'vad')
   const verboseJsonNotSupported = ref(false)
 
   watch(activeTranscriptionProvider, () => {
@@ -184,6 +196,8 @@ export const useHearingStore = defineStore('hearing-store', () => {
     autoSendEnabled.reset()
     autoSendDelay.reset()
     confidenceThreshold.reset()
+    vadSpeechThreshold.reset()
+    listeningMode.reset()
   }
 
   async function transcription(
@@ -201,7 +215,6 @@ export const useHearingStore = defineStore('hearing-store', () => {
     const features = providersStore.getTranscriptionFeatures(providerId)
     const streamExecutor = resolveStreamTranscriptionExecutor(providerId)
 
-    const { trackSttStarted, trackSttSucceeded, trackSttFailed } = useAnalytics()
     const sttStartedAt = performance.now()
     trackSttStarted(providerId)
 
@@ -317,6 +330,8 @@ export const useHearingStore = defineStore('hearing-store', () => {
     autoSendEnabled,
     autoSendDelay,
     confidenceThreshold,
+    vadSpeechThreshold,
+    listeningMode,
     verboseJsonNotSupported,
 
     supportsModelListing,
