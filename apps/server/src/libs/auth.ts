@@ -169,13 +169,16 @@ function buildTrustedClientSeeds(env: Env): TrustedClientSeed[] {
   })
 
   // Capacitor mobile app — public client (no secret, PKCE only).
-  // Same reasoning as Web: native WebView cannot safely store secrets.
+  // Uses an app-owned callback scheme so ASWebAuthenticationSession can hand
+  // the authorization response back to iOS Pocket outside the WKWebView.
+  // Keep the Capacitor WebView callback until Android has its native launcher.
   clients.push({
     clientId: OIDC_CLIENT_ID_POCKET,
     name: 'AIRI Stage Mobile',
     type: 'native',
     public: true,
     redirectUris: [
+      'airi-pocket://auth/callback',
       'capacitor://localhost/auth/callback',
       'ai.moeru.airi-pocket://links/auth/callback',
     ],

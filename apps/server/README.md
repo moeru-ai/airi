@@ -53,3 +53,7 @@ When the mobile dev server uses a non-localhost origin (for example `https://10.
 `ADDITIONAL_TRUSTED_ORIGINS=https://10.0.0.129:5273,https://198.18.0.1:5273`
 
 Restart the API server after changing this variable.
+
+## Local HTTPS API (reverse proxy; no TLS in Node)
+
+When the client runs on **https** (e.g. Vite `dev:https` or Capacitor) while Hono stays on **`http://127.0.0.1:3000`**, WebKit can treat **`https` → `http` API** calls as mixed content. Terminate TLS on a reverse proxy or tunnel (for example **frp**, Caddy, or nginx) that forwards to this API, then point **`API_SERVER_URL`** and the frontend **`VITE_SERVER_URL`** (or equivalent `SERVER_URL`) at that **https** public base URL.

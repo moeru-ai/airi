@@ -14,6 +14,7 @@ class DevBridgeViewController: CAPBridgeViewController {
 
     override func capacitorDidLoad() {
         super.capacitorDidLoad()
+        bridge?.registerPluginInstance(AiriNativeAuthPlugin())
         configureTransparentBackground()
         webView?.allowsBackForwardNavigationGestures = true
         installWebSocketBridge()
@@ -99,6 +100,7 @@ extension DevBridgeViewController: WKNavigationDelegate {
         if let url = navigationAction.request.url {
             print("[DevBridge] Navigation request to: \(url.absoluteString)")
         }
+
         decisionHandler(.allow)
     }
 
@@ -106,7 +108,9 @@ extension DevBridgeViewController: WKNavigationDelegate {
         _ webView: WKWebView,
         didStartProvisionalNavigation navigation: WKNavigation!
     ) {
-        print("[DevBridge] Started provisional navigation")
+        print(
+            "[DevBridge] didStartProvisional webView.url=\(webView.url?.absoluteString ?? "nil")"
+        )
     }
 
     func webView(
@@ -153,6 +157,13 @@ extension DevBridgeViewController: WKNavigationDelegate {
             if nsError.code == -1001 {
                 print(
                     "[DevBridge] Timeout error - check if Vite server is running and accessible."
+                )
+            }
+            if nsError.code == -1200 {
+                print(
+                    "[DevBridge] TLS failed (-1200). Prefer an https URL the device trusts "
+                        + "(e.g. frp or another reverse proxy to the dev API), or use http for local Vite "
+                        + "when policy allows; see apps/server/README.md (Local HTTPS API)."
                 )
             }
         }
