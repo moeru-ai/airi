@@ -106,7 +106,7 @@ export interface AiriCard extends Card {
 }
 
 export const useAiriCardStore = defineStore('airi-card', () => {
-  const { t } = useI18n()
+  const { tm } = useI18n()
 
   const cards = useLocalStorageManualReset<Map<string, AiriCard>>('airi-cards', new Map())
   const activeCardId = useLocalStorageManualReset<string>('airi-card-active-id', 'default')
@@ -365,8 +365,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       name: 'ReLU',
       version: '1.0.0',
       description: SystemPromptV2(
-        t('base.prompt.prefix'),
-        t('base.prompt.suffix'),
+        tm('base.prompt.prefix') as string,
+        tm('base.prompt.suffix') as string,
       ).content,
     }))
     if (!activeCardId.value)
