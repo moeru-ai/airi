@@ -3,9 +3,9 @@ allow-visible-on-all-workspaces:
   description: Позволяет окну быть видимым на всех рабочих столах, только для macOS.
 spotlight:
   errors:
-    unknown: Неизвестная ошибка
-    prefix: 'Что-то пошло не так: {message}'
-    shortcutRegistrationFailed: 'Что-то пошло не так: не удалось зарегистрировать сочетание Spotlight.'
+    unknown: Unknown error
+    prefix: 'Something went wrong: {message}'
+    shortcutRegistrationFailed: 'Something went wrong: failed to register Spotlight shortcut.'
 pages:
   modules:
     mcp-server:
@@ -19,18 +19,18 @@ pages:
     window-shortcuts:
       description: Редактирование горячих клавиш для управления окном
       title: Горячие клавиши управления окном
-      empty: Не задано
+      empty: Not set
       spotlight:
-        title: Сочетание Spotlight
-        description: Нажмите сочетание, затем введите новое сочетание. Нажмите Esc для отмены.
+        title: Spotlight shortcut
+        description: Click the shortcut, then press a new shortcut. Press Esc to cancel.
       actions:
-        recording: Нажмите клавиши
-        reset: Сбросить
+        recording: Press keys
+        reset: Reset
       errors:
-        load: Не удалось загрузить сочетание
-        conflict: Это сочетание уже используется.
-        failed: Не удалось обновить сочетание
-        requiresModifier: Используйте хотя бы одну клавишу из Cmd, Ctrl, Alt или Super.
+        load: Failed to load shortcut
+        conflict: Shortcut already in use.
+        failed: Failed to update shortcut
+        requiresModifier: Use at least one of Cmd, Ctrl, Alt, or Super.
       toggle-move:
         label: Перемещение окна
       toggle-resize:

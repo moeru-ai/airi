@@ -3,9 +3,9 @@ allow-visible-on-all-workspaces:
   description: ウィンドウをすべてのワークスペースで表示可能にします。macOSのみ。
 spotlight:
   errors:
-    unknown: 不明なエラー
-    prefix: '問題が発生しました: {message}'
-    shortcutRegistrationFailed: '問題が発生しました: Spotlight ショートカットを登録できませんでした。'
+    unknown: Unknown error
+    prefix: 'Something went wrong: {message}'
+    shortcutRegistrationFailed: 'Something went wrong: failed to register Spotlight shortcut.'
 pages:
   modules:
     mcp-server:
@@ -19,18 +19,18 @@ pages:
     window-shortcuts:
       description: ウィンドウ用ショートカットを変更します。
       title: ウィンドウショートカット
-      empty: 未設定
+      empty: Not set
       spotlight:
-        title: Spotlight ショートカット
-        description: ショートカットをクリックしてから新しいショートカットを押します。Esc でキャンセルします。
+        title: Spotlight shortcut
+        description: Click the shortcut, then press a new shortcut. Press Esc to cancel.
       actions:
-        recording: キーを押してください
-        reset: リセット
+        recording: Press keys
+        reset: Reset
       errors:
-        load: ショートカットを読み込めませんでした
-        conflict: このショートカットは使用中です。
-        failed: ショートカットの更新に失敗しました
-        requiresModifier: Cmd、Ctrl、Alt、Super のいずれかを少なくとも 1 つ使用してください。
+        load: Failed to load shortcut
+        conflict: Shortcut already in use.
+        failed: Failed to update shortcut
+        requiresModifier: Use at least one of Cmd, Ctrl, Alt, or Super.
       toggle-move:
         label: 移動の切り替え
       toggle-resize:

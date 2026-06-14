@@ -3,9 +3,9 @@ allow-visible-on-all-workspaces:
   description: 允許視窗在所有虛擬桌面中可見，僅限 macOS。
 spotlight:
   errors:
-    unknown: 未知錯誤
-    prefix: 出錯啦：{message}
-    shortcutRegistrationFailed: 出錯啦：快捷鍵註冊失敗
+    unknown: Unknown error
+    prefix: 'Something went wrong: {message}'
+    shortcutRegistrationFailed: 'Something went wrong: failed to register Spotlight shortcut.'
 pages:
   modules:
     mcp-server:
@@ -19,18 +19,18 @@ pages:
     window-shortcuts:
       description: 修改視窗快捷方式
       title: 視窗快捷方式
-      empty: 未設定
+      empty: Not set
       spotlight:
-        title: Spotlight 快捷鍵
-        description: 點擊快捷鍵後按下新的快捷鍵，按 Esc 取消。
+        title: Spotlight shortcut
+        description: Click the shortcut, then press a new shortcut. Press Esc to cancel.
       actions:
-        recording: 請按鍵
-        reset: 重設
+        recording: Press keys
+        reset: Reset
       errors:
-        load: 無法載入快捷鍵
-        conflict: 此快捷鍵已被佔用
-        failed: 快捷鍵更新失敗
-        requiresModifier: 請至少使用 Cmd、Ctrl、Alt 或 Super 中的一個修飾鍵。
+        load: Failed to load shortcut
+        conflict: Shortcut already in use.
+        failed: Failed to update shortcut
+        requiresModifier: Use at least one of Cmd, Ctrl, Alt, or Super.
       toggle-move:
         label: 切換移動狀態
       toggle-resize:
