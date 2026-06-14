@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
  * Builds a binding for the uiohook driver.
  *
  * Defaults to `receiveKeyUps: true` because that flag is the dispatch
- * signal in the orchestrator; the driver itself does not inspect it,
+ * signal in the boss; the driver itself does not inspect it,
  * but tests stay closer to how callers will use the driver this way.
  *
  * @example
