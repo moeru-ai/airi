@@ -10,9 +10,9 @@ function getOriginFromUrl(url: string): string | undefined {
 }
 
 const TRUSTED_EXACT_ORIGINS = [
+  'https://airi.moeru.ai', // Production web app
   'capacitor://localhost', // Capacitor mobile (iOS)
   'ai.moeru.airi-pocket://links', // Android deep link
-  'https://airi.moeru.ai', // Production
   'https://accounts.airi.build', // Standalone auth UI
   'https://server-dev.airi-server-auth.pages.dev', // Server-dev standalone auth UI
   'https://admin.airi.build', // Standalone admin UI
@@ -147,6 +147,10 @@ export function getAuthTrustedOrigins(
   const apiServerOrigin = getOriginFromUrl(env.API_SERVER_URL)
   if (apiServerOrigin) {
     origins.add(apiServerOrigin)
+  }
+
+  for (const origin of TRUSTED_EXACT_ORIGINS) {
+    origins.add(origin)
   }
 
   for (const origin of env.ADDITIONAL_TRUSTED_ORIGINS) {

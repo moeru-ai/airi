@@ -67,6 +67,13 @@ describe('origin utils', () => {
       ADDITIONAL_TRUSTED_ORIGINS: [],
     }, request)).toEqual([
       'https://api.airi.moeru.ai',
+      'https://airi.moeru.ai',
+      'capacitor://localhost',
+      'ai.moeru.airi-pocket://links',
+      'https://accounts.airi.build',
+      'https://server-dev.airi-server-auth.pages.dev',
+      'https://admin.airi.build',
+      'https://server-dev.airi-server-admin.pages.dev',
       'http://localhost:*',
       'http://127.0.0.1:*',
       'http://localhost:5173',
@@ -122,9 +129,36 @@ describe('origin utils', () => {
       ADDITIONAL_TRUSTED_ORIGINS: ['https://10.0.0.129:5273'],
     })).toEqual([
       'https://api.airi.moeru.ai',
+      'https://airi.moeru.ai',
+      'capacitor://localhost',
+      'ai.moeru.airi-pocket://links',
+      'https://accounts.airi.build',
+      'https://server-dev.airi-server-auth.pages.dev',
+      'https://admin.airi.build',
+      'https://server-dev.airi-server-admin.pages.dev',
       'https://10.0.0.129:5273',
       'http://localhost:*',
       'http://127.0.0.1:*',
     ])
+  })
+
+  // ROOT CAUSE:
+  //
+  // Email verification links carry a callbackURL query parameter that Better
+  // Auth validates only against its trustedOrigins list. The standalone auth
+  // UI sends callbackURL=https://accounts.airi.build/ui/verify-email?verified=true,
+  // but getAuthTrustedOrigins previously listed only API_SERVER_URL,
+  // additional env origins, and localhost wildcards. Clicking the email from
+  // a normal inbox has no usable Origin/Referer header, so request-derived
+  // trust could not add the auth UI origin and Better Auth returned
+  // INVALID_CALLBACK_URL.
+  //
+  // Before patch: auth UI callback -> not in trustedOrigins -> 403.
+  // After patch: built-in first-party exact origins are always present.
+  it('includes built-in first-party origins for email verification callbacks without request headers', () => {
+    expect(getAuthTrustedOrigins({
+      API_SERVER_URL: 'https://api.airi.build',
+      ADDITIONAL_TRUSTED_ORIGINS: [],
+    })).toContain('https://accounts.airi.build')
   })
 })
