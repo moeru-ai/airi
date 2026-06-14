@@ -1,7 +1,7 @@
 /**
  * AIRI Core — Plan Executor
  *
- * Deterministic multi-step workflow orchestrator that composes existing
+ * Deterministic multi-step workflow boss that composes existing
  * TaskManager capabilities into sequential or dependency-parallel plans.
  *
  * Design decisions:
