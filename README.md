@@ -1,8 +1,7 @@
-<h1 align="center">airiOS - Core</h1>
+<img width="1337" height="1337" alt="AnimAIOS" src="https://github.com/user-attachments/assets/af5d86f7-c826-4d16-9497-1f1b2d9016cb" />
 
-
+<!--
 <p align="center">
-  <img width="256" height="384" alt="airiOS mascot" src="https://github.com/user-attachments/assets/cc79352b-4700-4866-bb19-e55e7d9f9010" />
   <br>
   <a href="https://app.deepsource.com/gh/airi-os/core/" target="_blank"><img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/airi-os/core.svg/?label=active+issues&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/></a>
   <a href="https://app.deepsource.com/gh/airi-os/core/" target="_blank"><img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/airi-os/core.svg/?label=resolved+issues&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/></a>
@@ -11,27 +10,29 @@
   <a href="https://discord.gg/TgQ3Cu2F7A"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fdiscord.com%2Fapi%2Finvites%2FTgQ3Cu2F7A%3Fwith_counts%3Dtrue&query=%24.approximate_member_count&suffix=%20members&logo=discord&logoColor=white&label=%20&color=7389D8&labelColor=6A7EC2"></a>
   <a href="https://app.deepsource.com/gh/airi-os/core/" target="_blank"><img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/airi-os/core.svg/?label=code+coverage&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/></a>
   <br>
-
 </p>
+-->
 
 <div align="center">
+<h4>
 
-A container of souls - cyber livings, waifu, digital humans - brought into your Linux machine.
+A container of souls — cyber beings, waifus, and digital humans living 24/7 on your Linux machine.
 
-This fork's focus is **creating desktop-native agentic OS centered around your AI companion**.
+AnimAIOS is focused on creating a desktop-native, agentic AI OS centered around your companion: a zero-config experience where you paste a free API key and 🚀
 
+</h4>
 </div>
 
 ---
 
-## 🌙 The Vision: airiOS
+## 🌙 The Vision: AnimAIOS
 
 Our goal is a Linux desktop experience where your AI companion acts as the center of your desktop environment:
 
 - **Always-Present Stage:** Your character lives on your desktop so she is always in control! She can open, close and switch between windows and most importantly read text in those windows through accessibility tools, not just rely on screenshotting everything~
-- **System Integration:** Hooks into system fully, from basic stuff like notifications and global shortcuts to fully managing your terminal!
+- **System Integration:** Hooks fully into the system, from basic stuff like notifications and global shortcuts to fully managing your terminal!
 - **Context Awareness:** Your companion observes desktop activity to respond and interact proactively and she might even take control if you let her (agentic mode)
-- **Modular Stage Layouts:** GTK3/4 widgets, interactively generated backgrounds through artistry module, and window layouts composed dynamically by the character (she will always be on screen most of time)
+- **Modular Stage Layouts:** GTK3/4 widgets, interactively generated backgrounds through artistry module, and window layouts composed dynamically by the character (she will always be on screen most of the time)
 
 ---
 
@@ -73,7 +74,7 @@ The module has diverged significantly from stock Roo Code toward:
 - **Semantic memory integration** — persistent context across sessions (planned)
 - **Autonomous background workers** — tasks continue even when you step away
 
-### Current Hosting Model ( Transitional ⚠️)
+### Current Hosting Model (Transitional ⚠️)
 
 The Code module **currently requires a VS Codium / VS Code / Code-server host extension** to run. This is a temporary constraint.
 
@@ -96,7 +97,7 @@ The long-term direction is a **fully integrated experience** where:
 
 ### Relationship to AnimAIOS Core
 
-The Code module is a **git submodule** (`modules/code`) pointing to [`airi-os/code`](https://github.com/airi-os/code). The parent repo tracks a specific commit and bumps it as the module evolves.
+The Code module is a **git submodule** (`modules/code`) pointing to [`animaios/code`](https://github.com/animaios/code). The parent repo tracks a specific commit and bumps it as the module evolves.
 
 </details>
 
@@ -115,6 +116,8 @@ The Code module is a **git submodule** (`modules/code`) pointing to [`airi-os/co
 pnpm i
 pnpm dev:tamagotchi
 ```
+<img width="256" height="384" alt="AnimAIOS mascot" src="https://github.com/user-attachments/assets/0d048b16-c5f2-4d9a-8735-ce1417256b22" />
+
 <!--
 ### ⌨️ Building for Linux (under construction)
 
@@ -159,9 +162,9 @@ pnpm approve-builds # Select 'electron' and confirm
 - [ ] **AnimAIOS (WIP)**
   - [x] System tray & screen capture integration
   - [ ] Generate and open native GTK3/4 windows instead of web widgets
-  - [ ] [airiOS Linux API](https://github.com/airi-os/api-linux) integration
-  - [ ] [AnimAIOS Code](https://github.com/airi-os/code) integration
-    - [ ] Send recent Code module context snapshot with each AIRI heartbeat
+  - [ ] [AnimAIOS Linux API](https://github.com/animaios/api-linux) integration
+  - [ ] [AnimAIOS Code](https://github.com/animaios/code) integration
+    - [ ] Send recent AnimAIOS Code context snapshot with each AIRI heartbeat
     - [ ] **Hacking Mode:** dynamically involve Code module (Spec → Boss → Vibe) when coding activity is detected
     - [ ] Remove the VS Codium / Code-server host requirement — terminal-native operation
   - [ ] AIRI chatbox doubles as a system terminal with natural language detection
@@ -177,7 +180,7 @@ pnpm approve-builds # Select 'electron' and confirm
 ## 🤖 LLM API Providers
 
 - [x] Supported providers: everything [xsai](https://github.com/moeru-ai/xsai) supports
-- [ ] Planned airiOS [localhost](https://github.com/airi-os/api-llm-localhost) and [cloud](https://github.com/airi-os/api-llm-cloud) LLM API layers integration to replace default AIRI provider, good source of almost limitless free yummy tokens for your cyber waifus~
+- [ ] Planned AnimAIOS [localhost](https://github.com/animaios/api-llm-localhost) and (optional) [cloud](https://github.com/animaios/api-llm-cloud) LLM API routers integration to replace default AIRI provider, good source of almost limitless free yummy tokens for your cyber waifus~
 
 ---
 
