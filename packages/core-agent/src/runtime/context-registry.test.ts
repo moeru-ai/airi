@@ -7,17 +7,25 @@ import { createContextRegistry } from './context-registry'
 
 type TestContextMessage = ContextMessage & { source?: string }
 
+/**
+ * Creates metadata for an extension-owned module source.
+ */
 function createMetadata(extensionId: string, moduleId: string): NonNullable<ContextMessage['metadata']> {
-  return {
-    source: {
-      id: moduleId,
-      extension: {
-        id: extensionId,
-      },
+  const source = {
+    id: moduleId,
+    extension: {
+      id: extensionId,
     },
+  }
+
+  return {
+    source,
   }
 }
 
+/**
+ * Creates a context message fixture with sensible defaults for registry tests.
+ */
 function createContextMessage(overrides: Partial<TestContextMessage> = {}): TestContextMessage {
   const id = overrides.id ?? 'context-1'
 

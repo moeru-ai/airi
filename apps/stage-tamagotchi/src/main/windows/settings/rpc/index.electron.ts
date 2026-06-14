@@ -13,9 +13,10 @@ import type { WidgetsWindowManager } from '../../widgets'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
-import { ipcMain } from 'electron'
+import { ipcMain, screen } from 'electron'
 
 import {
+  electronCenterMainWindow,
   electronOpenDevtoolsWindow,
   electronOpenSettingsDevtools,
   electronSpotlightShortcutGet,
@@ -26,6 +27,7 @@ import { createGodotStageService } from '../../../services/airi/godot-stage'
 import { createMcpServersService } from '../../../services/airi/mcp-servers'
 import { createWidgetsService } from '../../../services/airi/widgets'
 import { createAutoUpdaterService } from '../../../services/electron'
+import { centerWindowOnDisplay } from '../../main/window-position'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
 
 export async function setupSettingsWindowInvokes(params: {
@@ -33,6 +35,7 @@ export async function setupSettingsWindowInvokes(params: {
   widgetsManager: WidgetsWindowManager
   autoUpdater: AutoUpdater
   devtoolsWindow: DevtoolsWindowManager
+  getMainWindow?: () => BrowserWindow | undefined
   serverChannel: ServerChannel
   godotStageManager: GodotStageManager
   mcpStdioManager: McpStdioManager
@@ -59,6 +62,21 @@ export async function setupSettingsWindowInvokes(params: {
   // Register the global shortcut service for the settings window.
   params.globalShortcut.registerWindow({ context, window: params.settingsWindow })
 
+  /**
+   * Moves the main AIRI window from the settings window context.
+   */
+  function centerMainWindow() {
+    const mainWindow = params.getMainWindow?.()
+    if (!mainWindow || mainWindow.isDestroyed())
+      throw new Error('Main AIRI window is not available.')
+
+    return centerWindowOnDisplay({
+      getDisplayMatching: bounds => screen.getDisplayMatching(bounds),
+      window: mainWindow,
+    })
+  }
+
+  defineInvokeHandler(context, electronCenterMainWindow, centerMainWindow)
   defineInvokeHandler(context, electronSpotlightShortcutGet, () => params.spotlightWindow.getShortcutAccelerator())
   defineInvokeHandler(context, electronSpotlightShortcutSet, (payload) => {
     if (payload?.accelerator === undefined)

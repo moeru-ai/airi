@@ -29,6 +29,20 @@ export const electronStartTrackMousePosition = defineInvokeEventa('eventa:invoke
 export const electronStartDraggingWindow = defineInvokeEventa('eventa:invoke:electron:start-dragging-window')
 
 export const electronOpenMainDevtools = defineInvokeEventa('eventa:invoke:electron:windows:main:devtools:open')
+/**
+ * Main AIRI window bounds returned after a desktop-window recovery action.
+ */
+export interface ElectronMainWindowBounds {
+  /** Logical screen x-coordinate of the window origin. */
+  x: number
+  /** Logical screen y-coordinate of the window origin. */
+  y: number
+  /** Current window width in logical pixels. */
+  width: number
+  /** Current window height in logical pixels. */
+  height: number
+}
+export const electronCenterMainWindow = defineInvokeEventa<ElectronMainWindowBounds>('eventa:invoke:electron:windows:main:center')
 export const electronOpenSettings = defineInvokeEventa<void, { route?: string }>('eventa:invoke:electron:windows:settings:open')
 export const electronSettingsNavigate = defineEventa<{ route: string }>('eventa:event:electron:windows:settings:navigate')
 export const electronOpenChat = defineInvokeEventa('eventa:invoke:electron:windows:chat:open')

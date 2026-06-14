@@ -211,7 +211,11 @@ app.whenReady().then(async () => {
 
   const settingsWindow = injeca.provide('windows:settings', {
     dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, serverChannel, godotStageManager, mcpStdioManager, i18n, windowAuthManager, globalShortcut, spotlightWindow },
-    build: async ({ dependsOn }) => setupSettingsWindowReusableFunc(dependsOn),
+    build: async ({ dependsOn }) =>
+      setupSettingsWindowReusableFunc({
+        ...dependsOn,
+        getMainWindow: () => userFacingMainWindow,
+      }),
   })
 
   const mainWindow = injeca.provide('windows:main', {

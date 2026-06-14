@@ -5,6 +5,23 @@ interface EventSourcePayload {
   metadata?: { source?: MetadataEventSource }
 }
 
+type ExtensionModuleEventSource = MetadataEventSource & {
+  extension: { id: string }
+}
+
+/**
+ * Checks whether a protocol source belongs to a module owned by an extension.
+ */
+function isExtensionModuleIdentity(source: MetadataEventSource): source is ExtensionModuleEventSource {
+  return (
+    'extension' in source
+    && typeof source.extension === 'object'
+    && source.extension !== null
+    && 'id' in source.extension
+    && typeof source.extension.id === 'string'
+  )
+}
+
 /**
  * Returns a human-readable source label for extension identities.
  *
@@ -22,7 +39,7 @@ export function getMetadataSourceLabel(source?: MetadataEventSource) {
   if (!source)
     return undefined
 
-  if ('extension' in source) {
+  if (isExtensionModuleIdentity(source)) {
     return `${source.extension.id}:${source.id}`
   }
 

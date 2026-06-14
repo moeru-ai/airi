@@ -1,14 +1,9 @@
-import type { MetadataEventSource } from '@proj-airi/server-shared/types'
-
 import type { ContextMessage } from '../types/chat'
+
+import { getEventSourceKey } from './event-source'
 
 const CONTEXT_UPDATE_REPLACE_SELF = 'replace-self'
 const CONTEXT_UPDATE_APPEND_SELF = 'append-self'
-
-interface EventSourcePayload {
-  source?: string
-  metadata?: { source?: MetadataEventSource }
-}
 
 /**
  * Stored context event with the registry bucket key resolved at ingest time.
@@ -58,26 +53,7 @@ interface CreateContextRegistryOptions {
    *
    * @default metadata extension/module key, then event source, then "unknown"
    */
-  getSourceKey?: (event: EventSourcePayload, fallback?: string) => string
-}
-
-function formatMetadataSource(source?: MetadataEventSource) {
-  if (!source)
-    return undefined
-
-  if ('extension' in source) {
-    return `${source.extension.id}:${source.id}`
-  }
-
-  return source.id
-}
-
-function defaultGetSourceKey(event: EventSourcePayload, fallback = 'unknown') {
-  return (
-    formatMetadataSource(event.metadata?.source)
-    ?? event.source
-    ?? fallback
-  )
+  getSourceKey?: typeof getEventSourceKey
 }
 
 /**
@@ -96,13 +72,13 @@ function defaultGetSourceKey(event: EventSourcePayload, fallback = 'unknown') {
  */
 export function createContextRegistry(options: CreateContextRegistryOptions = {}): ContextRegistry {
   const historyLimit = options.historyLimit ?? 400
-  const getSourceKey = options.getSourceKey ?? defaultGetSourceKey
+  const resolveSourceKey = options.getSourceKey ?? getEventSourceKey
 
   let currentActiveContexts = new Map<string, ContextMessage[]>()
   let currentContextHistory: ContextHistoryEntry[] = []
 
   function ingest(envelope: ContextMessage): ContextIngestResult | undefined {
-    const sourceKey = getSourceKey(envelope)
+    const sourceKey = resolveSourceKey(envelope)
     const safeEnvelopeToStore = structuredClone(envelope)
 
     if (!currentActiveContexts.has(sourceKey)) {

@@ -14,7 +14,7 @@ import type {
 
 import { nanoid } from 'nanoid'
 
-import { getEventSourceKey } from './event-source'
+import { getEventSourceKey } from '../../runtime/event-source'
 import { createSparkNotifyTools } from './tools'
 
 export type { SparkNotifyCommandSchema } from './schema'
