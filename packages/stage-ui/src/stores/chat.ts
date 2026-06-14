@@ -12,6 +12,7 @@ import { ref, toRaw, watch } from 'vue'
 
 import { useAnalytics } from '../composables'
 import { activeTurnSpan, startSpan } from '../composables/use-io-tracer'
+import { responseLengthGuidelinePrompt } from '../constants/prompts/response-length'
 import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
 import { createMinecraftContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
@@ -95,6 +96,8 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     try {
       await llmStore.stream(model, chatProvider, messages, {
         ...options,
+        // 0 means "no cap" — leave the field undefined so the request omits `max_tokens`.
+        maxTokens: consciousnessStore.responseMaxTokens > 0 ? consciousnessStore.responseMaxTokens : undefined,
         onStreamEvent: async (event: StreamEvent) => {
           if (isTextDelta(event)) {
             if (!llmFirstTokenEmitted) {
@@ -156,7 +159,12 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     },
     getActiveSessionId: () => activeSessionId.value,
     getActiveProvider: () => activeProvider.value,
-    getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
+    getSystemPromptSupplement: () => {
+      const parts = [llmToolsetPromptsStore.activeToolsetPrompt]
+      if (consciousnessStore.responseLengthHint > 0)
+        parts.push(responseLengthGuidelinePrompt(consciousnessStore.responseLengthHint))
+      return parts.filter(Boolean).join('\n\n')
+    },
     runtimeContextProviders: [
       createMinecraftContext,
     ],
