@@ -20,6 +20,15 @@ const TRUSTED_EXACT_ORIGINS = [
 ]
 
 // NOTICE:
+// Better Auth accepts non-http(s) origins by prefix (`url.startsWith(pattern)`),
+// so native deep-link schemes must not be copied from TRUSTED_EXACT_ORIGINS
+// into auth callback validation. Browser auth callbacks only need web origins.
+const TRUSTED_AUTH_CALLBACK_ORIGINS = TRUSTED_EXACT_ORIGINS.filter((origin) => {
+  const protocol = new URL(origin).protocol
+  return protocol === 'http:' || protocol === 'https:'
+})
+
+// NOTICE:
 // Private LAN / CGNAT-style dev hosts (e.g. https://10.x:5273 from cap-vite) are NOT matched
 // by regex here — list them explicitly via env `ADDITIONAL_TRUSTED_ORIGINS` (see env.ts).
 const TRUSTED_ORIGIN_PATTERNS = [
@@ -149,7 +158,7 @@ export function getAuthTrustedOrigins(
     origins.add(apiServerOrigin)
   }
 
-  for (const origin of TRUSTED_EXACT_ORIGINS) {
+  for (const origin of TRUSTED_AUTH_CALLBACK_ORIGINS) {
     origins.add(origin)
   }
 

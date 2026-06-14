@@ -68,8 +68,6 @@ describe('origin utils', () => {
     }, request)).toEqual([
       'https://api.airi.moeru.ai',
       'https://airi.moeru.ai',
-      'capacitor://localhost',
-      'ai.moeru.airi-pocket://links',
       'https://accounts.airi.build',
       'https://server-dev.airi-server-auth.pages.dev',
       'https://admin.airi.build',
@@ -130,8 +128,6 @@ describe('origin utils', () => {
     })).toEqual([
       'https://api.airi.moeru.ai',
       'https://airi.moeru.ai',
-      'capacitor://localhost',
-      'ai.moeru.airi-pocket://links',
       'https://accounts.airi.build',
       'https://server-dev.airi-server-auth.pages.dev',
       'https://admin.airi.build',
@@ -140,6 +136,19 @@ describe('origin utils', () => {
       'http://localhost:*',
       'http://127.0.0.1:*',
     ])
+  })
+
+  it('does not include native deep-link schemes in Better Auth trustedOrigins', () => {
+    expect(getTrustedOrigin('capacitor://localhost')).toBe('capacitor://localhost')
+    expect(getTrustedOrigin('ai.moeru.airi-pocket://links')).toBe('ai.moeru.airi-pocket://links')
+
+    const authOrigins = getAuthTrustedOrigins({
+      API_SERVER_URL: 'https://api.airi.build',
+      ADDITIONAL_TRUSTED_ORIGINS: [],
+    })
+
+    expect(authOrigins).not.toContain('capacitor://localhost')
+    expect(authOrigins).not.toContain('ai.moeru.airi-pocket://links')
   })
 
   // ROOT CAUSE:
