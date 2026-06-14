@@ -54,6 +54,12 @@ vi.mock('./speech', async () => {
   }
 })
 
+vi.mock('vue-i18n', () => ({
+  useI18n: () => ({
+    t: (key: string) => key,
+  }),
+}))
+
 /**
  * @example
  * describe('airi-card store', () => {})
