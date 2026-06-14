@@ -189,6 +189,9 @@ const EnvSchema = object({
   // Empty (default) = no one is admin — production safe by default.
   // Example: ADMIN_EMAILS=alice@example.com,bob@example.com
   ADMIN_EMAILS: optional(string(), ''),
+  STEAM_PUBLISHER_KEY: optional(string(), ''),
+  STEAM_APP_ID: optional(string(), '3885340'),
+  STEAM_WEB_API_IDENTITY: optional(string(), 'airi-desktop'),
 })
 
 export type Env = InferOutput<typeof EnvSchema>

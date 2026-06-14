@@ -16,8 +16,12 @@ import {
   electronAuthCallbackError,
   electronAuthLogout,
   electronAuthStartLogin,
+  electronAuthSteamSignInFinished,
+  electronAuthSteamSignInStarted,
 } from '../../../shared/eventa'
+import { getWebApiTicket, initSteam } from '../steam/client'
 import { startLoopbackServer } from './http-server/http/auth'
+import { exchangeSteamTicketForTokens } from './steam-sign-in'
 
 const log = useLogg('auth-service').useGlobalConfig()
 
@@ -34,25 +38,81 @@ const OIDC_TOKEN_PATH = '/api/auth/oauth2/token'
 let closeLoopback: (() => void) | null = null
 let signingInFlight = false
 
+export interface TokenExchangeResult {
+  accessToken: string
+  refreshToken?: string
+  idToken?: string
+  expiresIn: number
+}
+
 export interface WindowAuthManager {
   registerWindow: (params: { context: MainContext, window: BrowserWindow }) => void
   broadcastAuthCallback: (tokens: TokenExchangeResult) => void
-  broadcastAuthError: (error: string) => void
+  broadcastAuthError: (message: string) => void
+  broadcastSteamSignInStarted: () => void
+  broadcastSteamSignInFinished: () => void
+}
+
+function isOidcSignInActive(): boolean {
+  return signingInFlight || closeLoopback !== null
+}
+
+export async function trySteamSignIn(windowAuthManager: WindowAuthManager): Promise<void> {
+  if (isOidcSignInActive()) {
+    log.debug('Skipping Steam sign-in: OIDC flow in progress')
+    return
+  }
+
+  const initResult = await initSteam()
+  if (!initResult.ok) {
+    log.withFields({ reason: initResult.reason }).debug('Steam sign-in skipped')
+    return
+  }
+
+  windowAuthManager.broadcastSteamSignInStarted()
+
+  try {
+    const ticketResult = await getWebApiTicket()
+    if (!ticketResult.ok) {
+      windowAuthManager.broadcastSteamSignInFinished()
+      return
+    }
+
+    const tokens = await exchangeSteamTicketForTokens({
+      serverUrl: SERVER_URL,
+      ticketHex: ticketResult.ticketHex,
+    })
+    windowAuthManager.broadcastAuthCallback(tokens)
+    log.log('Steam sign-in successful')
+  }
+  catch (err) {
+    log.withError(err).warn('Steam sign-in failed')
+    windowAuthManager.broadcastSteamSignInFinished()
+  }
 }
 
 export function createWindowAuthManagerService(): WindowAuthManager {
   const authContexts = new Set<MainContext>()
 
-  function broadcastAuthCallback(tokens: TokenExchangeResult): void {
-    for (const context of authContexts) {
-      context.emit(electronAuthCallback, tokens)
-    }
+  function forEachAuthContext(emit: (context: MainContext) => void): void {
+    for (const context of authContexts)
+      emit(context)
   }
 
-  function broadcastAuthError(error: string): void {
-    for (const context of authContexts) {
-      context.emit(electronAuthCallbackError, { error })
-    }
+  function broadcastAuthCallback(tokens: TokenExchangeResult): void {
+    forEachAuthContext(context => context.emit(electronAuthCallback, tokens))
+  }
+
+  function broadcastAuthError(message: string): void {
+    forEachAuthContext(context => context.emit(electronAuthCallbackError, { error: message }))
+  }
+
+  function broadcastSteamSignInStarted(): void {
+    forEachAuthContext(context => context.emit(electronAuthSteamSignInStarted, undefined))
+  }
+
+  function broadcastSteamSignInFinished(): void {
+    forEachAuthContext(context => context.emit(electronAuthSteamSignInFinished, undefined))
   }
 
   return {
@@ -66,6 +126,8 @@ export function createWindowAuthManagerService(): WindowAuthManager {
 
     broadcastAuthCallback,
     broadcastAuthError,
+    broadcastSteamSignInStarted,
+    broadcastSteamSignInFinished,
   }
 }
 
@@ -174,13 +236,6 @@ export function createAuthService(params: {
 }
 
 // --- Internal helpers ---
-
-interface TokenExchangeResult {
-  accessToken: string
-  refreshToken?: string
-  idToken?: string
-  expiresIn: number
-}
 
 async function exchangeCode(code: string, codeVerifier: string, redirectUri: string): Promise<TokenExchangeResult> {
   const body = new URLSearchParams({
