@@ -35,6 +35,73 @@ Our goal is a Linux desktop experience where your AI companion acts as the cente
 
 ---
 
+## 🧩 AnimAIOS Code Module
+
+<details>
+<summary><strong>Expand to learn about the Code module (formerly Roo Code fork)</strong></summary>
+
+### What It Is
+
+The **AnimAIOS Code module** (`modules/code`) is a fork of [Roo Code](https://roocode.com) that has been re-architected from a standalone AI coding assistant into the **spec-driven, async-orchestrated coding brain** of the AnimAIOS companion OS.
+
+It is not just a copilot — it is the implementation arm of your AI companion's agentic workflow:
+
+```
+User intent
+  → 🧠 Spec (plan & decompose)
+  → 🪃 Boss (orchestrate & delegate)
+  → ✨ Vibe (implement & iterate)
+```
+
+### The Three Modes
+
+| Mode | Slug | Role |
+|------|------|------|
+| 🧠 **Spec** | `spec` | Kiro-style spec-driven planning. Converts vague intent into structured requirements, design docs, and actionable task lists. Asks clarifying questions before any code is written. |
+| 🪃 **Boss** | `orchestrator` | Orchestration layer. Decomposes complex tasks, delegates to specialized subagents, manages async worktree-isolated execution, and synthesizes results. |
+| ✨ **Vibe** | `vibe` | Flow-state implementation mode. Less formal, rapid iteration, code-focused. Gets your spec'd work done. |
+
+Philosophy: **"Spec before vibe."**
+
+### Architecture Direction
+
+The module has diverged significantly from stock Roo Code toward:
+
+- **Backend-first orchestration** — decoupled frontend, async pipelines, resumable sessions
+- **Multi-agent swarms** — specialized modes with clear delegation, not monolithic prompts
+- **Worktree/task isolation** — parallel subtasks run in isolated git worktrees
+- **Semantic memory integration** — persistent context across sessions (planned)
+- **Autonomous background workers** — tasks continue even when you step away
+
+### Current Hosting Model ( Transitional ⚠️)
+
+The Code module **currently requires a VS Codium / VS Code / Code-server host extension** to run. This is a temporary constraint.
+
+### The Target Model: Integrated Hacking Mode
+
+The long-term direction is a **fully integrated experience** where:
+
+1. The former Roo Code logic **dynamically replaces stock AIRI logic** when the user enables **Hacking Mode**
+2. The AIRI chatbox **doubles as a system terminal** — similar to [Warp](https://www.warp.dev/) with natural language command detection
+3. When the system detects coding-related activity (file edits, git operations, project context), it **dynamically involves the ex-Roo subsystem** (Spec → Boss → Vibe)
+4. No separate IDE needed — the terminal *is* the coding environment
+
+> In short: your AI companion reads your screen, detects when you're coding, and seamlessly spins up the spec-driven workflow without you ever opening an external editor.
+
+### Key Files
+
+- `packages/types/src/mode.ts` — mode definitions, role definitions, and custom instructions
+- `src/core/prompts/system.ts` — system prompt generation and tool reference stripping
+- `core/planner/executor.ts` — deterministic workflow executor
+
+### Relationship to AnimAIOS Core
+
+The Code module is a **git submodule** (`modules/code`) pointing to [`airi-os/code`](https://github.com/airi-os/code). The parent repo tracks a specific commit and bumps it as the module evolves.
+
+</details>
+
+---
+
 ## 🖥️ Development
 
 ### ☕ Prerequisites
@@ -89,12 +156,14 @@ pnpm approve-builds # Select 'electron' and confirm
   - [ ] Multiple characters sharing the stage (one window per character)
   - [ ] Widget system (to be converted to GTK)
   - [ ] Scene/background management per character
-- [ ] **airiOS (WIP)**
+- [ ] **AnimAIOS (WIP)**
   - [x] System tray & screen capture integration
   - [ ] Generate and open native GTK3/4 windows instead of web widgets
   - [ ] [airiOS Linux API](https://github.com/airi-os/api-linux) integration
-  - [ ] [airiOS Code](https://github.com/airi-os/code) integration
-    - [ ] Send recent airiOS Code context snapshot with each AIRI heartbeat
+  - [ ] [AnimAIOS Code](https://github.com/airi-os/code) integration
+    - [ ] Send recent Code module context snapshot with each AIRI heartbeat
+    - [ ] **Hacking Mode:** dynamically involve Code module (Spec → Boss → Vibe) when coding activity is detected
+    - [ ] Remove the VS Codium / Code-server host requirement — terminal-native operation
   - [ ] AIRI chatbox doubles as a system terminal with natural language detection
 - [ ] **Misc**
   - [ ] DeepSource pass with 0 issues
