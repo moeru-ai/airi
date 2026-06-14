@@ -67,6 +67,38 @@ describe('formatContextPromptText', () => {
 
   /**
    * @example
+   * A bucket whose only message has blank text contributes no bullet, so a
+   * source can clear its line by ingesting an empty ReplaceSelf update.
+   */
+  it('skips blank-text messages and treats an all-blank snapshot as empty', () => {
+    const blankOnly: ContextSnapshot = {
+      'memory:recall': [
+        {
+          id: 'm',
+          contextId: 'memory:recall',
+          strategy: ContextUpdateStrategy.ReplaceSelf,
+          text: '   ',
+          createdAt: 0,
+        },
+      ],
+    }
+    expect(formatContextPromptText(blankOnly)).toBe('')
+
+    const mixed: ContextSnapshot = {
+      'system:minecraft-integration': [
+        { id: 'a', contextId: 'system:minecraft-integration', strategy: ContextUpdateStrategy.ReplaceSelf, text: 'Bot is online', createdAt: 0 },
+      ],
+      'memory:recall': [
+        { id: 'm', contextId: 'memory:recall', strategy: ContextUpdateStrategy.ReplaceSelf, text: '', createdAt: 0 },
+      ],
+    }
+    const lines = formatContextPromptText(mixed).split('\n')
+    expect(lines).toContain('- system:minecraft-integration: Bot is online')
+    expect(lines.some(l => l.startsWith('- memory:recall:'))).toBe(false)
+  })
+
+  /**
+   * @example
    * Multiple buckets render as one context block with multiple bullets.
    */
   it('formats multiple modules as bullets under one [Context] header', () => {
