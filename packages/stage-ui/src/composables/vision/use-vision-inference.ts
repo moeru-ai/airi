@@ -3,10 +3,10 @@ import type { CommonContentPart, Message } from '@xsai/shared-chat'
 
 import type { VisionWorkloadId } from './use-vision-workloads'
 
+import { generateText } from '@xsai/generate-text'
 import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
-import { useLLM } from '../../stores/llm'
 import { useVisionStore } from '../../stores/modules/vision'
 import { useProvidersStore } from '../../stores/providers'
 import { getVisionWorkload } from './use-vision-workloads'
@@ -35,7 +35,6 @@ function parseDataUrl(dataUrl: string) {
 }
 
 export function useVisionInference() {
-  const llmStore = useLLM()
   const providersStore = useProvidersStore()
   const visionStore = useVisionStore()
   const { activeProvider, activeModel, ollamaThinkingEnabled } = storeToRefs(visionStore)
@@ -76,21 +75,21 @@ export function useVisionInference() {
       { role: 'user', content: contentParts },
     ]
 
-    let buffer = ''
     const abortController = new AbortController()
     const timeoutHandle = setTimeout(() => {
       abortController.abort(new Error(`Vision inference timed out after ${VISION_INFERENCE_TIMEOUT_MS}ms`))
     }, VISION_INFERENCE_TIMEOUT_MS)
 
     try {
-      await llmStore.stream(activeModel.value, visionProvider, messages, {
+      // Non-streaming on purpose: vision only needs the full description, and some local VLM
+      // adapters' SSE streaming path stalls browser stream readers (the request hangs until the
+      // timeout). A plain completion returns the whole text in one JSON response.
+      const { text } = await generateText({
+        ...visionProvider.chat(activeModel.value),
+        messages,
         abortSignal: abortController.signal,
-        onStreamEvent: (event) => {
-          if (event.type === 'text-delta') {
-            buffer += event.text
-          }
-        },
       })
+      lastText.value = (text ?? '').trim()
     }
     catch (error) {
       if (abortController.signal.aborted) {
@@ -104,7 +103,6 @@ export function useVisionInference() {
       clearTimeout(timeoutHandle)
     }
 
-    lastText.value = buffer.trim()
     return lastText.value
   }
 

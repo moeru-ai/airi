@@ -26,11 +26,12 @@ const {
 } = storeToRefs(visionStore)
 const {
   captureIntervalMs,
+  backgroundCaptureEnabled,
   captureCount,
   contextUpdateCount,
+  captureActive,
   lastCaptureAt,
   lastContextUpdateAt,
-  isRunning,
 } = storeToRefs(visionProcessingStore)
 
 const { t } = useI18n()
@@ -339,6 +340,12 @@ function formatRelativeTime(timestamp: number | null) {
           </div>
         </div>
 
+        <FieldCheckbox
+          v-model="backgroundCaptureEnabled"
+          label="Background capture"
+          description="Continuously capture the primary screen in the background (no devtools needed) and feed the latest frame into chat context. Requires a configured vision provider and model above."
+        />
+
         <FieldRange
           v-model="captureIntervalMs"
           label="Capture interval"
@@ -355,7 +362,7 @@ function formatRelativeTime(timestamp: number | null) {
               Ticker
             </div>
             <div :class="['text-sm', 'font-medium', 'text-neutral-600', 'dark:text-neutral-200']">
-              {{ isRunning ? 'Active' : 'Idle' }}
+              {{ captureActive ? 'Active' : 'Idle' }}
             </div>
             <div :class="['text-xs', 'text-neutral-400']">
               Last capture {{ formattedLastCapture }}
