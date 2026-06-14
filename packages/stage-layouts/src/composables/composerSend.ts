@@ -141,10 +141,12 @@ export function useComposerSend(options: UseComposerSendOptions) {
         // The composer rescues the text on retract, so it opts into rescuable.
         rescuable: true,
       }),
-      // Lossless rejoin: prepend rescued text ahead of anything retyped since
-      // the send.
+      // Lossless rejoin: append the rescued text after anything retyped since
+      // the send. Appending (not prepending) keeps cancelled queued sends in
+      // FIFO order; prepending each rolled-back draft reversed them (queue B
+      // then C while typing D, and it restored as "C B D" instead of "D B C").
       restoreDraft: () => {
-        messageInput.value = [textToSend, messageInput.value.trim()].filter(Boolean).join(' ')
+        messageInput.value = [messageInput.value.trim(), textToSend].filter(Boolean).join(' ')
       },
       appendErrorRow: message => chatSession.appendSessionMessage(chatSession.activeSessionId, {
         role: 'error',
