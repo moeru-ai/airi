@@ -46,6 +46,7 @@ describe('stage-ui exports contract', () => {
       './stores/providers/aliyun',
       './stores/settings',
       './stores/settings/analytics',
+      './tools/*',
       './tools/mcp',
       './types',
       './types/*',
