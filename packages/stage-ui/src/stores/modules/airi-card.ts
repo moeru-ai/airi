@@ -158,30 +158,53 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return cards.value.get(id)
   }
 
-  function updateActiveCardDisplayModel(displayModelId: string | undefined) {
+  function updateActiveCardModules(patch: (extension: AiriExtension) => Partial<AiriExtension['modules']>) {
     const cardId = activeCardId.value
     const card = cards.value.get(cardId)
     if (!card)
       return false
 
     const extension = resolveAiriExtension(card)
-    const modules: AiriExtension['modules'] = {
-      ...extension.modules,
-      displayModelId,
-    }
-
     cards.value.set(cardId, {
       ...card,
       extensions: {
         ...card.extensions,
         airi: {
           ...extension,
-          modules,
+          modules: {
+            ...extension.modules,
+            ...patch(extension),
+          },
         },
       },
     })
 
     return true
+  }
+
+  function updateActiveCardDisplayModel(displayModelId: string | undefined) {
+    return updateActiveCardModules(() => ({ displayModelId }))
+  }
+
+  function updateActiveCardConsciousness(consciousness: AiriExtension['modules']['consciousness']) {
+    return updateActiveCardModules(() => ({ consciousness }))
+  }
+
+  function updateActiveCardSpeech(speech: Pick<AiriExtension['modules']['speech'], 'provider' | 'model' | 'voice_id'>) {
+    return updateActiveCardModules(({ modules }) => {
+      const existingVoicePack = modules.speech.voicePack
+      const shouldKeepVoicePack = speech.provider === OFFICIAL_SPEECH_PROVIDER_ID
+        && existingVoicePack?.ttsModelId === speech.model
+        && existingVoicePack.voiceId === speech.voice_id
+
+      return {
+        speech: {
+          ...modules.speech,
+          ...speech,
+          voicePack: shouldKeepVoicePack ? existingVoicePack : undefined,
+        },
+      }
+    })
   }
 
   function resolveAiriExtension(card: Card | ccv3.CharacterCardV3): AiriExtension {
@@ -423,7 +446,9 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     removeCard,
     updateCard,
     bindVoicePackToActiveCard,
+    updateActiveCardConsciousness,
     updateActiveCardDisplayModel,
+    updateActiveCardSpeech,
     getCard,
     resetState,
     initialize,

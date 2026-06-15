@@ -71,19 +71,23 @@ describe('airi-card store', () => {
 
   /**
    * @example
-   * it('persists selected display model on active card', () => {})
+   * it('persists selected module config on active card', () => {})
    */
-  it('persists selected display model on active card', () => {
+  it('persists selected module config on active card', () => {
     const stageModelStore = useSettingsStageModel()
     stageModelStore.stageModelSelected = 'preset-live2d-1'
 
     const cardStore = useAiriCardStore()
     cardStore.initialize()
 
-    const updated = cardStore.updateActiveCardDisplayModel('display-model-iru-v2')
-
-    expect(updated).toBe(true)
-    expect(cardStore.activeCard?.extensions.airi.modules.displayModelId).toBe('display-model-iru-v2')
+    expect(cardStore.updateActiveCardDisplayModel('display-model-iru-v2')).toBe(true)
+    expect(cardStore.updateActiveCardConsciousness({ provider: 'openrouter-ai', model: 'anthropic/claude-sonnet' })).toBe(true)
+    expect(cardStore.updateActiveCardSpeech({ provider: 'elevenlabs', model: 'eleven_multilingual_v2', voice_id: 'aria' })).toBe(true)
+    expect(cardStore.activeCard?.extensions.airi.modules).toMatchObject({
+      displayModelId: 'display-model-iru-v2',
+      consciousness: { provider: 'openrouter-ai', model: 'anthropic/claude-sonnet' },
+      speech: { provider: 'elevenlabs', model: 'eleven_multilingual_v2', voice_id: 'aria' },
+    })
     expect(stageModelStore.stageModelSelected).toBe('preset-live2d-1')
   })
 
