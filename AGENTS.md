@@ -2,6 +2,11 @@
 
 Concise but detailed reference for contributors working across the `moeru-ai/airi` monorepo. Improve code when you touch it; avoid one-off patterns.
 
+> **Architecture note**: The Code module (`modules/code`) is a **standalone VS Code extension** — a complete, independent product. AIRI does not control it. The interaction model is:
+> - **Normal mode**: User chats with AIRI directly. No Roo visible.
+> - **Hacking Mode**: Roo activates **inside** the AIRI interface. The AIRI chatbox becomes the Roo interface. User messages go to Roo (processed as if typed in VS Code). Roo's periodic summaries flow back to AIRI for TTS narration.
+> - AIRI is the host. Roo is the coding brain that AIRI activates on demand.
+
 ## Tech Stack (by surface)
 
 - **Desktop (stage-tamagotchi)**: Electron, Vue, Vite, TypeScript, Pinia, VueUse, Eventa (IPC/RPC), UnoCSS, Vitest, ESLint.

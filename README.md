@@ -26,11 +26,17 @@ Our goal is a Linux desktop experience where your AI companion acts as the cente
 
 ### What It Is
 
-The **AnimAIOS Code module** (`modules/code`) is a fork of [Roo Code](https://roocode.com) being re-architected from a standalone AI coding assistant into the **spec-driven, async-orchestrated coding brain** of the AnimAIOS companion OS.
+The **AnimAIOS Code module** (`modules/code`) is a fork of [Roo Code](https://roocode.com) re-architected into a **standalone VS Code / Codium / Code-server extension** — a complete, independent product. All five modes (Spec, Vibe, Boss, Ask, Debug) are fully functional in the extension today.
 
-### Current Status
+### Relationship to AIRI
 
-The Code module ships as a **fully functional VS Code / Codium / Code-server extension** with all five modes (Spec, Vibe, Boss, Ask, Debug) available today. The submodule (`modules/code`) contains the type system, tool implementations, and infrastructure; the parent repo provides the mode execution engines (planner, prompts, orchestration) that wire everything together into the extension.
+AIRI does not control Roo. The interaction model is:
+
+- **Normal mode**: User chats with AIRI directly. No Roo visible.
+- **Hacking Mode**: Roo activates **inside** the AIRI interface. The AIRI chatbox becomes the Roo interface. User messages go to Roo (processed as if typed in VS Code). Roo's periodic summaries flow back to AIRI for TTS narration.
+- AIRI is the host. Roo is the coding brain that AIRI activates on demand.
+
+The Code module also works **standalone** in VS Code / Codium / Code-server — no AIRI needed. Hacking Mode is an optional integration on top.
 
 ### What's Implemented
 
@@ -124,18 +130,18 @@ Every push to `main` triggers a **nightly build** of the extension:
 
 The extension gives you the complete Roo Code experience — all five modes (Spec, Vibe, Boss, Ask, Debug), the full tool suite, and the complete orchestration pipeline — inside your IDE of choice.
 
-### Future Direction: Integrated Hacking Mode
+### Hacking Mode: Roo Inside AIRI
 
-On top of the standalone extension, AnimAIOS is building a **fully integrated experience** where:
+On top of the standalone extension, AnimAIOS is building a **hybrid interaction model**:
 
-1. The former Roo Code logic **dynamically replaces stock AIRI logic** when the user enables **Hacking Mode**
-2. The AIRI chatbox **doubles as a system terminal** — similar to [Warp](https://www.warp.dev/) with natural language command detection
-3. When the system detects coding-related activity (file edits, git operations, project context), it **dynamically involves the ex-Roo subsystem** (Spec → Boss → Vibe)
-4. No separate IDE needed — the terminal *is* the coding environment
+1. **Normal mode**: User chats with AIRI directly. No Roo visible. AIRI is the companion.
+2. **Hacking Mode**: Roo activates **inside** the AIRI interface. The AIRI chatbox becomes the Roo interface — user sees Roo exactly as it appears in VS Code.
+3. User messages go to Roo, which processes them as if typed in VS Code. Roo's periodic summaries flow back to AIRI for TTS narration.
+4. AIRI is the host. Roo is the coding brain that AIRI activates on demand.
 
-> In short: your AI companion reads your screen, detects when you're coding, and seamlessly spins up the spec-driven workflow without you ever opening an external editor.
+> In short: AIRI is your companion. When you need to code, Hacking Mode brings Roo inside AIRI's interface — same Roo, same interface, now hosted in AIRI.
 
-The standalone extension remains the primary, fully supported way to use the Code module. Hacking Mode is an additional integration layer on top.
+The standalone extension remains the primary, fully supported way to use the Code module. Hacking Mode is an optional integration on top.
 
 ### Key Files
 
