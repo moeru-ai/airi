@@ -14,7 +14,7 @@ import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { STEAM_APP_ID } from '@proj-airi/stage-shared/steam'
+import { STEAM_APP_ID } from '../src/main/services/steam/app-id'
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
 const sdkRoot = join(packageRoot, 'steamworks_sdk', 'redistributable_bin')
@@ -27,13 +27,13 @@ if (!platform || !destDir) {
   process.exit(1)
 }
 
-const redistributables = {
+const redistributables: Record<string, { from: string, to: string }[]> = {
   windows: [{ from: 'win64/steam_api64.dll', to: 'steam_api64.dll' }],
   macos: [{ from: 'osx/libsteam_api.dylib', to: 'libsteam_api.dylib' }],
   linux: [{ from: 'linux64/libsteam_api.so', to: 'libsteam_api.so' }],
 }
 
-const files = redistributables[platform as keyof typeof redistributables]
+const files = redistributables[platform]
 if (!files) {
   console.error(`Unknown platform: ${platform}`)
   process.exit(1)

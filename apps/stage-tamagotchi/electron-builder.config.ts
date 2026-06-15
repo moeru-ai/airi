@@ -7,8 +7,9 @@ import { cpSync, existsSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { STEAM_APP_ID } from '@proj-airi/stage-shared/steam'
 import { isMacOS } from 'std-env'
+
+import { STEAM_APP_ID } from './src/main/services/steam/app-id'
 
 const packageDir = dirname(fileURLToPath(import.meta.url))
 

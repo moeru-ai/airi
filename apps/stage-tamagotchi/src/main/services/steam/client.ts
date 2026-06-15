@@ -2,7 +2,8 @@ import type { SteamInitResult, SteamTicketResult } from './types'
 
 import { useLogg } from '@guiiai/logg'
 import { errorMessageFrom } from '@moeru/std'
-import { STEAM_APP_ID } from '@proj-airi/stage-shared/steam'
+
+import { STEAM_APP_ID } from './app-id'
 
 const log = useLogg('steam-client').useGlobalConfig()
 
