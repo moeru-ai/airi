@@ -1,3 +1,4 @@
+import { STEAM_APP_ID } from '@proj-airi/stage-shared/steam'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
@@ -5,8 +6,6 @@ import {
   initSteam,
   resetSteamClientForTests,
   shutdownSteam,
-  STEAM_APP_ID,
-  STEAM_WEB_API_IDENTITY,
 } from './client'
 
 const steamMock = vi.hoisted(() => {
@@ -108,7 +107,7 @@ describe('getWebApiTicket', () => {
 
     expect(result).toEqual({ ok: true, ticketHex: 'deadbeef' })
     expect(steamMock.getAuthTicketForWebApi).toHaveBeenCalledWith({
-      genericString: STEAM_WEB_API_IDENTITY,
+      genericString: 'airi-desktop',
     })
   })
 

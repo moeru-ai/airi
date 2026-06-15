@@ -247,7 +247,7 @@ Steam depot 启动时，Electron 主进程通过 `steamworks-ffi-node` 获取 We
 ```
 Steam client → initSteam → getWebApiTicket
   → POST /api/auth/steam/desktop-sign-in { ticket }
-  → authenticateUserTicket + checkAppOwnership(STEAM_APP_ID)
+  → authenticateUserTicket + checkAppOwnership
   → resolveOrCreateSteamUser → mintElectronOidcTokens
   → electronAuthCallback（renderer）
 ```
@@ -255,7 +255,6 @@ Steam client → initSteam → getWebApiTicket
 | 变量 | 说明 |
 |------|------|
 | `STEAM_PUBLISHER_KEY` | Steam Web API publisher key（未配置则返回 `STEAM_NOT_CONFIGURED`） |
-| `STEAM_APP_ID` | 默认 `3885340` |
 
 相关文件：`src/libs/steam-web-api.ts`、`src/libs/steam-oidc-tokens.ts`、`src/routes/auth/steam/desktop-sign-in.ts`、`apps/stage-tamagotchi/src/main/services/steam/`。
 
