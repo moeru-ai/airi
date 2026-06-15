@@ -389,6 +389,44 @@ describe('context bridge contract', () => {
    * @example
    * Input context updates record store-ingested and stay in chat input payload.
    */
+  it('sanitizes nested non-cloneable context values before broadcasting stream events', async () => {
+    activeProviderRef.value = 'mock-provider'
+    activeModelRef.value = 'mock-model'
+    getProviderInstanceMock.mockResolvedValueOnce({})
+    const store = useContextBridgeStore()
+    await store.initialize()
+
+    const streamMessages = collectChannelMessages<any>(CHAT_STREAM_CHANNEL_NAME)
+    const unsafeContext = {
+      contexts: {
+        vision: [
+          {
+            text: 'vision update',
+            metadata: {
+              safe: 'ok',
+              nested: { window: globalThis, fn: () => 'bad' },
+            },
+          },
+        ],
+      },
+    }
+
+    await emitHooks(beforeComposeHooks, { role: 'user', content: 'hello' }, unsafeContext)
+    await waitForBroadcastDelivery()
+
+    expect(streamMessages).toHaveLength(1)
+    expect(streamMessages[0].type).toBe('before-compose')
+    expect(streamMessages[0].context.contexts.vision[0]).toEqual({
+      text: 'vision update',
+      metadata: {
+        safe: 'ok',
+        nested: {},
+      },
+    })
+
+    await store.dispose()
+  })
+
   it('records core ingest result for input context updates and forwards accepted updates', async () => {
     chatContextIngestMock.mockReturnValueOnce({
       sourceKey: 'weather:station-1',

@@ -26,6 +26,7 @@ import { useLlmStreamingControlStore } from '../../llm-streaming-control'
 import { useConsciousnessStore } from '../../modules/consciousness'
 import { useProvidersStore } from '../../providers'
 import { useModsServerChannelStore } from './channel-server'
+import { sanitizeCloneable } from './context-bridge-sanitize'
 
 export function normalizeContextSnapshot<C extends Pick<ChatStreamEventContext, 'contexts'>>(contexts: C): C {
   return {
@@ -35,7 +36,9 @@ export function normalizeContextSnapshot<C extends Pick<ChatStreamEventContext, 
         .entries(toRaw(contexts.contexts))
         .map(([key, ctx]) => [
           key,
-          ctx.map(c => toRaw(c)),
+          ctx
+            .map(c => sanitizeCloneable(c))
+            .filter((value): value is NonNullable<typeof value> => value !== undefined),
         ]),
     ),
   }
