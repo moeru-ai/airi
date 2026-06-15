@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * Copy Steam redistributable binaries and steam_appid.txt into a build output folder.
  *
@@ -6,7 +5,7 @@
  * (not committed; download from Steamworks partner site).
  *
  * Usage:
- *   node scripts/copy-steam-redistributables.mjs <windows|macos|linux> <destDir>
+ *   pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/copy-steam-redistributables.ts <windows|macos|linux> <destDir>
  */
 
 import process from 'node:process'
@@ -15,7 +14,8 @@ import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const STEAM_APP_ID = '3885340'
+import { STEAM_APP_ID } from '@proj-airi/stage-shared/steam'
+
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
 const sdkRoot = join(packageRoot, 'steamworks_sdk', 'redistributable_bin')
 
@@ -23,7 +23,7 @@ const platform = process.argv[2]
 const destDir = process.argv[3]
 
 if (!platform || !destDir) {
-  console.error('Usage: node copy-steam-redistributables.mjs <windows|macos|linux> <destDir>')
+  console.error('Usage: tsx copy-steam-redistributables.ts <windows|macos|linux> <destDir>')
   process.exit(1)
 }
 
@@ -33,7 +33,7 @@ const redistributables = {
   linux: [{ from: 'linux64/libsteam_api.so', to: 'libsteam_api.so' }],
 }
 
-const files = redistributables[platform]
+const files = redistributables[platform as keyof typeof redistributables]
 if (!files) {
   console.error(`Unknown platform: ${platform}`)
   process.exit(1)

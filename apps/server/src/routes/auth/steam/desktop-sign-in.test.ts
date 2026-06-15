@@ -22,7 +22,6 @@ function buildApp(env: { STEAM_PUBLISHER_KEY: string }) {
     db: createMockDb() as never,
     env: {
       API_SERVER_URL: 'http://localhost:3000',
-      STEAM_APP_ID: '3885340',
       ...env,
     } as never,
     collaborators: {

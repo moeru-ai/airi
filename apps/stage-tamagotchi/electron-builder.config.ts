@@ -7,10 +7,10 @@ import { cpSync, existsSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { STEAM_APP_ID } from '@proj-airi/stage-shared/steam'
 import { isMacOS } from 'std-env'
 
 const packageDir = dirname(fileURLToPath(import.meta.url))
-const STEAM_APP_ID = '3885340'
 
 function copySteamRuntimeIntoApp(appOutDir: string, platform: string) {
   writeFileSync(join(appOutDir, 'steam_appid.txt'), `${STEAM_APP_ID}\n`, 'utf8')

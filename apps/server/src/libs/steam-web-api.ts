@@ -36,13 +36,12 @@ export async function authenticateUserTicket(params: {
   publisherKey: string
   appId: string
   ticketHex: string
-  identity: string
 }): Promise<string> {
   const url = new URL('/ISteamUserAuth/AuthenticateUserTicket/v1/', STEAM_PARTNER_API)
   url.searchParams.set('key', params.publisherKey)
   url.searchParams.set('appid', params.appId)
   url.searchParams.set('ticket', params.ticketHex)
-  url.searchParams.set('identity', params.identity)
+  url.searchParams.set('identity', 'airi-desktop')
 
   const body = await fetchSteamJson<AuthenticateUserTicketResponse>(url, 'Steam AuthenticateUserTicket')
   const result = body.response?.params?.result

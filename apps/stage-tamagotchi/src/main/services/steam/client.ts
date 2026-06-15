@@ -2,11 +2,9 @@ import type { SteamInitResult, SteamTicketResult } from './types'
 
 import { useLogg } from '@guiiai/logg'
 import { errorMessageFrom } from '@moeru/std'
+import { STEAM_APP_ID } from '@proj-airi/stage-shared/steam'
 
 const log = useLogg('steam-client').useGlobalConfig()
-
-export const STEAM_APP_ID = 3885340
-export const STEAM_WEB_API_IDENTITY = 'airi-desktop'
 
 type SteamworksModule = typeof import('steamworks-ffi-node')
 type SteamworksSdkClass = SteamworksModule['SteamworksSDK']
@@ -79,7 +77,7 @@ export async function getWebApiTicket(): Promise<SteamTicketResult> {
 
   try {
     const result = await steam.user.getAuthTicketForWebApi({
-      genericString: STEAM_WEB_API_IDENTITY,
+      genericString: 'airi-desktop',
     })
 
     if (!result.success || !result.ticketHex) {

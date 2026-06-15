@@ -214,7 +214,7 @@ jobs:
 
           New-Item -ItemType Directory -Force steam-content/windows | Out-Null
           Copy-Item apps/stage-tamagotchi/dist/win-unpacked/* steam-content/windows -Recurse -Force
-          node apps/stage-tamagotchi/scripts/copy-steam-redistributables.mjs windows steam-content/windows
+          pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/copy-steam-redistributables.ts windows steam-content/windows
           tar -cf steam-content-windows.tar -C steam-content windows
 
       - name: Upload Windows Steam content
@@ -253,7 +253,7 @@ jobs:
 
           mkdir -p steam-content/macos
           ditto "$app_path" steam-content/macos/AIRI.app
-          node apps/stage-tamagotchi/scripts/copy-steam-redistributables.mjs macos "steam-content/macos/AIRI.app/Contents/MacOS"
+          pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/copy-steam-redistributables.ts macos "steam-content/macos/AIRI.app/Contents/MacOS"
           tar -cf steam-content-macos.tar -C steam-content macos
 
       - name: Upload macOS Steam content
@@ -275,7 +275,7 @@ jobs:
 
           mkdir -p steam-content/linux
           cp -a apps/stage-tamagotchi/dist/linux-unpacked/. steam-content/linux/
-          node apps/stage-tamagotchi/scripts/copy-steam-redistributables.mjs linux steam-content/linux
+          pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/copy-steam-redistributables.ts linux steam-content/linux
           tar -cf steam-content-linux.tar -C steam-content linux
 
       - name: Upload Linux Steam content
