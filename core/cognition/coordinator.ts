@@ -149,7 +149,7 @@ export class CognitionCoordinator {
 						repositoryContext: retrievalContext.repositoryContext
 							? {
 									mapId: retrievalContext.repositoryContext.map.id,
-									relevantFiles: retrievalContext.relevantFiles.map((f) => f.path),
+									relevantFiles: retrievalContext.repositoryContext.relevantFiles.map((f) => f.path),
 								}
 							: context.repositoryContext,
 					}

@@ -215,6 +215,17 @@ export class MemoryRegistry {
 				continue
 			}
 
+			// Text filter: if query.text is provided, exclude records that don't match.
+			if (query.text) {
+				const lowerText = query.text.toLowerCase()
+				if (
+					!record.title.toLowerCase().includes(lowerText) &&
+					!record.content.toLowerCase().includes(lowerText)
+				) {
+					continue
+				}
+			}
+
 			const relevanceScore = computeRelevanceScore(record, query)
 			const matchType = determineMatchType(record, query)
 

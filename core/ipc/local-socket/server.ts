@@ -91,7 +91,7 @@ export class LocalSocketServerTransport implements IpcServerTransport {
 		this.setState("connecting")
 
 		// Clean up stale socket file if it exists.
-		this.cleanupStaleSocket()
+		await this.cleanupStaleSocket()
 
 		return new Promise<void>((resolve, reject) => {
 			this.server = createServer()
@@ -220,31 +220,37 @@ export class LocalSocketServerTransport implements IpcServerTransport {
 	 * its shutdown handler. We attempt to connect to verify staleness;
 	 * if the connection fails, the file is safe to remove.
 	 */
-	cleanupStaleSocket(): void {
+	async cleanupStaleSocket(): Promise<void> {
 		if (!this.socketPath.startsWith("/")) return // TCP fallback — no file to clean.
 
 		const absolutePath = resolve(this.socketPath)
 		if (!existsSync(absolutePath)) return
 
 		// Try to connect — if it fails, the socket is stale.
-		const testSocket = new Socket()
-		testSocket.on("connect", () => {
-			// Socket is alive — another daemon is running.
-			testSocket.destroy()
-			throw new Error(
-				`Socket path "${absolutePath}" is already in use. Is another daemon running?`,
-			)
+		// Wrap the async socket probe in a Promise so callers can await it,
+		// preventing a race between cleanup and server.listen().
+		return new Promise<void>((resolve) => {
+			const testSocket = new Socket()
+			testSocket.on("connect", () => {
+				// Socket is alive — another daemon is running.
+				testSocket.destroy()
+				resolve()
+				throw new Error(
+					`Socket path "${absolutePath}" is already in use. Is another daemon running?`,
+				)
+			})
+			testSocket.on("error", () => {
+				// Connection failed — socket is stale, remove it.
+				try {
+					unlinkSync(absolutePath)
+				} catch {
+					// Best-effort: ignore unlink errors.
+				}
+				testSocket.destroy()
+				resolve()
+			})
+			testSocket.connect(absolutePath)
 		})
-		testSocket.on("error", () => {
-			// Connection failed — socket is stale, remove it.
-			try {
-				unlinkSync(absolutePath)
-			} catch {
-				// Best-effort: ignore unlink errors.
-			}
-			testSocket.destroy()
-		})
-		testSocket.connect(absolutePath)
 	}
 
 	// ── Private: connection handling ───────────────────────────────────

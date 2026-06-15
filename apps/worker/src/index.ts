@@ -190,6 +190,13 @@ async function handleExecuteTask(message: ExecuteTaskMessage): Promise<void> {
  * executor. For now, we use a simple registry.
  */
 async function importExecutor(moduleId: string): Promise<TaskExecutor | null> {
+	// Validate moduleId to prevent path traversal.
+	const SAFE_MODULE_ID = /^[a-zA-Z0-9_-]+$/
+	if (!SAFE_MODULE_ID.test(moduleId)) {
+		console.error(`[Worker ${workerId}] Rejected unsafe moduleId: ${moduleId}`)
+		return null
+	}
+
 	// Dynamic import based on module ID.
 	// This is a simplified approach — in production, you'd have a proper
 	// module registry that maps module IDs to executor factories.
