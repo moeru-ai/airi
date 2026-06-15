@@ -31,6 +31,34 @@ export type {
 	ToolFinished,
 	ModuleActivated,
 	ModuleCrashed,
+	WorkspaceCreated,
+	ToolExecutionStarted,
+	ToolExecutionCompleted,
+	PatchGenerated,
+	PatchApproved,
+	PatchRejected,
+	PlanStarted,
+	PlanCompleted,
+	PlanFailed,
+	PlanCancelled,
+	StepStarted,
+	StepCompleted,
+	StepFailed,
+	WorkspaceDestroyed,
+	WorkspaceLeased,
+	WorkspaceReleased,
+	WorkspaceRecovered,
+	WorkspaceCorrupted,
+	WorktreeCreated,
+	WorktreeRemoved,
+	MemoryStored,
+	MemoryRetrieved,
+	MemoryUpdated,
+	MemoryRemoved,
+	RepositoryIndexed,
+	DecisionRecorded,
+	FailureRecorded,
+	FailurePatternDetected,
 } from "./events/types.js"
 
 export type {
@@ -88,6 +116,7 @@ export type {
 	Task,
 	CreateTaskInput,
 	TaskFilter,
+	TaskIsolationLevel,
 	TaskExecutor,
 	TaskExecutionContext,
 	TaskManagerOptions,
@@ -99,3 +128,256 @@ export type {
 	CancellationToken,
 	UnsubscribeFn as TaskUnsubscribeFn,
 } from "./tasks/index.js"
+
+// ── Worker runtime ──────────────────────────────────────────────────
+
+export { WorkerManager } from "./workers/manager.js"
+export type {
+	WorkerManagerOptions,
+	WorkerState,
+	WorkerInfo,
+} from "./workers/manager.js"
+
+export { WorkerMetrics } from "./workers/metrics.js"
+export type { WorkerMetricsSnapshot } from "./workers/metrics.js"
+
+export {
+	WORKER_ERROR_CODES,
+	serializeWorkerMessage,
+	deserializeWorkerMessage,
+} from "./workers/protocol.js"
+
+export type {
+	WorkerMessage,
+	WorkerMessageType,
+	WorkerMessageBase,
+	WorkerHelloMessage,
+	WorkerReadyMessage,
+	WorkerHeartbeatMessage,
+	WorkerShutdownMessage,
+	ExecuteTaskMessage,
+	TaskProgressMessage,
+	TaskResultMessage,
+	TaskFailureMessage,
+	WorkerCapabilities,
+	TaskPayload,
+	WorkerErrorCode,
+} from "./workers/protocol.js"
+
+// ── Capability runtime ────────────────────────────────────────────────
+
+export { CapabilityRegistry } from "./capabilities/index.js"
+export type {
+	CapabilityId,
+	ToolId,
+	CapabilityDescriptor,
+	ToolDescriptor,
+	ToolExecutionContext,
+	ToolExecutionResult,
+	CapabilityStatus,
+	CapabilityInfo,
+} from "./capabilities/index.js"
+
+export type { ToolRuntime } from "./runtime/tool-runtime.js"
+export { LocalToolRuntime } from "./runtime/local-tool-runtime.js"
+export type { ToolHandler } from "./runtime/local-tool-runtime.js"
+export { ExecutionTrace, redactSensitive } from "./runtime/execution-trace.js"
+export type {
+	ExecutionTraceEntry,
+	ExecutionTraceFilter,
+} from "./runtime/execution-trace.js"
+
+// ── Planner layer ───────────────────────────────────────────────────
+
+export { PlanExecutor, PlanRegistry } from "./planner/index.js"
+
+export type {
+	PlanExecutorOptions,
+	PlanId,
+	StepId,
+	PlanStatus,
+	StepStatus,
+	PlanStep,
+	StepResult,
+	Plan,
+	CreatePlanInput,
+	PlanFilter,
+} from "./planner/index.js"
+
+// ── Persistence layer ────────────────────────────────────────────────
+
+export { InMemoryEventStore, PersistedEventStore } from "./persistence/event-store.js"
+export { InMemorySnapshotStore, SnapshotManager } from "./persistence/snapshots.js"
+
+export type {
+	EventId,
+	PersistedEvent,
+	PersistenceAdapter,
+	PersistenceTransaction,
+	EventStore,
+	SnapshotStore,
+	RuntimeStateStore,
+	RuntimeSnapshot,
+	RecoveryMetadata,
+	SerializedPlan,
+	SerializedPlanStep,
+	SerializedTask,
+	SerializedCapability,
+	SerializedSession,
+	SerializedExecutionState,
+	SerializedMemoryRecord,
+	SerializedRetrievalTrace,
+	SerializedRepositoryMap,
+	PersistenceOptions,
+} from "./persistence/index.js"
+
+// ── Filesystem persistence adapters ──────────────────────────────────
+
+export {
+	FilesystemPersistenceAdapter,
+	FilesystemTransaction,
+	FilesystemEventStore,
+	FilesystemSnapshotStore,
+	FilesystemRuntimeStateStore,
+} from "./persistence/adapters/filesystem/index.js"
+
+// ── Persistent session management ────────────────────────────────────
+
+export { PersistentSessionManager } from "./session/session-manager.js"
+export { createPersistentSessionId } from "./session/types.js"
+
+export type {
+	PersistentSessionId,
+	PersistentSession,
+	SessionOwnership,
+	SessionFilter,
+	SessionReconnectResult,
+} from "./session/types.js"
+
+// ── Runtime recovery ─────────────────────────────────────────────────
+
+export { RecoveryCoordinator } from "./runtime/recovery.js"
+
+export type {
+	RecoveryStarted,
+	RecoveryCompleted,
+	RecoveryFailed,
+	RecoveryResult,
+	RecoveryState,
+} from "./runtime/recovery.js"
+
+// ── Workspace isolation ────────────────────────────────────────────────
+
+export {
+	WorkspaceManager,
+	WorkspaceStorage,
+	WorkspaceWorktree,
+	createWorkspaceId,
+	isValidWorkspaceTransition,
+	VALID_WORKSPACE_TRANSITIONS,
+} from "./workspace/index.js"
+
+export type {
+	WorkspaceId,
+	WorkspaceState,
+	WorkspaceDescriptor,
+	WorkspaceLease,
+	WorkspaceSnapshot,
+	WorkspaceRecoveryState,
+	WorkspaceFilter,
+	CreateWorkspaceInput,
+	WorkspaceManagerOptions,
+	WorktreeRecord,
+} from "./workspace/index.js"
+
+// ── Cognition layer ─────────────────────────────────────────────────────
+
+export {
+	CognitionCoordinator,
+	PlanValidator,
+	MockCognitionProvider,
+	createProposal,
+	proposalToPlan,
+	summarizeProposal,
+	extractCapabilityRequirements,
+	extractWorkspaceRequirements,
+	createProposalId,
+	createReasoningId,
+	createCognitionSessionId,
+} from "./cognition/index.js"
+
+export type {
+	ProposalId,
+	ReasoningId,
+	CognitionSessionId,
+	CognitionRequest,
+	CognitionContext,
+	PlanSummary,
+	ExecutionSummary,
+	CognitionConstraints,
+	CognitionResponse,
+	ModelInfo,
+	TokenUsage,
+	PlanProposal,
+	ProposedStep,
+	WorkspaceRequirements,
+	EstimatedExecution,
+	ReasoningTrace,
+	ReasoningEntry,
+	CognitionModel,
+	ModelCapabilities,
+	CognitionSession,
+	ValidationResult,
+	ValidationError,
+	ValidationWarning,
+	CognitionProvider,
+	CognitionProviderOptions,
+	CognitionPipelineResult,
+} from "./cognition/index.js"
+
+export type {
+	CognitionRequested,
+	CognitionCompleted,
+	CognitionFailed,
+	PlanProposed,
+	PlanValidated,
+	PlanRejected,
+	CognitionEvent,
+} from "./cognition/events.js"
+
+// ── Semantic memory ──────────────────────────────────────────────────
+
+export {
+	MemoryRegistry,
+	RepositoryIntelligence,
+	DecisionMemory,
+	FailureMemory,
+	MemoryRetriever,
+	createMemoryId,
+	createRetrievalId,
+	createRepositoryMapId,
+} from "./memory/index.js"
+
+export type {
+	MemoryId,
+	RetrievalId,
+	RepositoryMapId,
+	MemoryScope,
+	MemoryType,
+	MemoryRecord,
+	MemoryReference,
+	MemoryEmbedding,
+	MemoryQuery,
+	MemoryResult,
+	RepositoryMap,
+	ArchitectureNode,
+	FileGraphNode,
+	ImportEdge,
+	GitMetadata,
+	GitCommitInfo,
+	DecisionRecord,
+	FailureRecord,
+	FailurePattern,
+	RetrievalTrace,
+	RetrievalContext,
+} from "./memory/index.js"

@@ -28,6 +28,7 @@ export type {
 	Task,
 	CreateTaskInput,
 	TaskFilter,
+	TaskIsolationLevel,
 } from "./types.js"
 export { createTaskId, isValidTransition, VALID_TRANSITIONS, PRIORITY_WEIGHTS } from "./types.js"
 

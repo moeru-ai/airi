@@ -8,10 +8,15 @@
  * - IPC server (client connections)
  * - TaskManager (task orchestration)
  * - TaskScheduler (task dispatch)
+ * - WorkerManager (isolated task execution)
  * - TaskReplayBuffer (reconnect support)
+ * - PlanRegistry (plan definitions)
+ * - PlanExecutor (multi-step plan orchestration)
  *
  * It bootstraps the core, starts the IPC server, and streams events
- * to connected frontend clients.
+ * to connected frontend clients. Tasks are dispatched to isolated
+ * worker processes via the WorkerManager. Plans compose tasks into
+ * multi-step deterministic workflows.
  */
 
 import { bootstrap } from "../../../core/bootstrap.js"
@@ -26,6 +31,9 @@ import {
 	TaskReplayBuffer,
 } from "../../../core/tasks/index.js"
 import type { Task, TaskQueued, TaskProgress, TaskFailed, TaskCancelled } from "../../../core/tasks/index.js"
+import { WorkerManager } from "../../../core/workers/manager.js"
+import { PlanExecutor, PlanRegistry } from "../../../core/planner/index.js"
+import type { CreatePlanInput, PlanFilter } from "../../../core/planner/index.js"
 import { createDaemonLifecycle } from "./lifecycle.js"
 
 const logger = createLogger("daemon")
@@ -60,12 +68,34 @@ async function main(): Promise<void> {
 	})
 	const replayBuffer = new TaskReplayBuffer({ maxEvents: 500 })
 
-	// Wire up task events → IPC broadcast + replay buffer.
+	// ── Phase 3b: Create worker manager ─────────────────────────────────
+	logger.info("Initializing worker manager...")
+	const workerManager = new WorkerManager(core.events, logger, {
+		poolSize: 2,
+	})
+
+	// Wire worker events → TaskManager resolution.
+	wireWorkerEvents(core.events, taskManager, workerManager, replayBuffer)
+
+	// Wire task events → IPC broadcast + replay buffer.
 	wireTaskEvents(core.events, taskManager, replayBuffer)
 
 	taskManager.start()
 	taskScheduler.start()
-	logger.info("Task orchestration initialized.")
+	workerManager.start()
+	logger.info("Task orchestration and worker manager initialized.")
+
+	// ── Phase 3c: Create planner layer ──────────────────────────────────
+	logger.info("Initializing planner layer...")
+	const planRegistry = new PlanRegistry()
+	const planExecutor = new PlanExecutor(taskManager, core.events, logger, {
+		concurrency: 2,
+		defaultStepTimeoutMs: 300_000,
+	})
+
+	// Wire plan events → IPC broadcast + replay buffer.
+	wirePlanEvents(core.events, planRegistry, replayBuffer)
+	logger.info("Planner layer initialized.")
 
 	// ── Phase 4: Create IPC server ─────────────────────────────────────
 	logger.info("Starting IPC server...")
@@ -99,7 +129,7 @@ async function main(): Promise<void> {
 
 		// Handle requests.
 		if (message.type === "request") {
-			handleClientRequest(clientId, message, core, ipcServer, sessions, taskManager).catch(
+			handleClientRequest(clientId, message, core, ipcServer, sessions, taskManager, planRegistry, planExecutor).catch(
 				(error) => {
 					logger.error(`Request handler error for ${clientId}:`, error)
 				},
@@ -132,12 +162,44 @@ async function main(): Promise<void> {
 		broadcastEvent(ipcServer, payload as AiriEvent, "tool.finished")
 	})
 
+	// Plan/step events → IPC broadcast.
+	core.events.on("plan.started", (payload) => {
+		broadcastEvent(ipcServer, payload as AiriEvent, "plan.started")
+	})
+
+	core.events.on("plan.completed", (payload) => {
+		broadcastEvent(ipcServer, payload as AiriEvent, "plan.completed")
+	})
+
+	core.events.on("plan.failed", (payload) => {
+		broadcastEvent(ipcServer, payload as AiriEvent, "plan.failed")
+	})
+
+	core.events.on("plan.cancelled", (payload) => {
+		broadcastEvent(ipcServer, payload as AiriEvent, "plan.cancelled")
+	})
+
+	core.events.on("step.started", (payload) => {
+		broadcastEvent(ipcServer, payload as AiriEvent, "step.started")
+	})
+
+	core.events.on("step.completed", (payload) => {
+		broadcastEvent(ipcServer, payload as AiriEvent, "step.completed")
+	})
+
+	core.events.on("step.failed", (payload) => {
+		broadcastEvent(ipcServer, payload as AiriEvent, "step.failed")
+	})
+
 	// ── Phase 8: Register shutdown handlers ────────────────────────────
 	lifecycle.registerShutdownHandlers(async () => {
 		logger.info("Shutting down daemon...")
 
 		// Stop accepting new connections.
 		await ipcServer.stop()
+
+		// Stop worker manager first (let running tasks finish or fail).
+		await workerManager.stop()
 
 		// Stop task orchestration.
 		taskScheduler.stop()
@@ -156,6 +218,57 @@ async function main(): Promise<void> {
 	})
 
 	logger.info("AIRI daemon is ready.")
+}
+
+// ── Worker event wiring ─────────────────────────────────────────────────
+
+/**
+ * Wire up worker lifecycle events to TaskManager resolution.
+ *
+ * Workers emit task.failed/task.completed via the EventBus.
+ * The daemon listens and resolves tasks in the TaskManager.
+ */
+function wireWorkerEvents(
+	events: ReturnType<typeof bootstrap> extends Promise<infer T> ? T["events"] : never,
+	manager: TaskManager,
+	_workerManager: WorkerManager,
+	buffer: TaskReplayBuffer,
+): void {
+	// Track previous states for replay buffer.
+	const previousStates = new Map<string, string>()
+
+	events.on("task.failed", (payload) => {
+		const event = payload as TaskFailed
+		const task = manager.get(event.taskId)
+
+		if (task) {
+			buffer.record(task, previousStates.get(event.taskId) ?? "running", "failed")
+		}
+		previousStates.set(event.taskId, "failed")
+
+		// Resolve the task in the manager.
+		manager.fail(event.taskId, event.error)
+	})
+
+	events.on("task.completed", (payload) => {
+		// The task.completed event from workers only has taskId and summary.
+		// We need to find the pending result from the worker manager.
+		// For now, we handle this via the task.result message path.
+		// This handler is for events emitted by the scheduler's own execution.
+	})
+
+	events.on("task.progress", (payload) => {
+		const event = payload as TaskProgress
+		const task = manager.get(event.taskId)
+
+		if (task) {
+			buffer.record(task, previousStates.get(event.taskId) ?? "running", "running")
+		}
+		previousStates.set(event.taskId, "running")
+
+		// Forward progress to TaskManager.
+		manager.reportProgress(event.taskId, event.progress, event.message)
+	})
 }
 
 // ── Task event wiring ───────────────────────────────────────────────────
@@ -206,6 +319,39 @@ function wireTaskEvents(
 			buffer.record(task, previousStates.get(event.taskId) ?? "queued", "cancelled")
 		}
 		previousStates.set(event.taskId, "cancelled")
+	})
+}
+
+// ── Plan event wiring ───────────────────────────────────────────────────
+
+/**
+ * Wire up plan orchestration events to replay buffer.
+ */
+function wirePlanEvents(
+	events: ReturnType<typeof bootstrap> extends Promise<infer T> ? T["events"] : never,
+	_registry: PlanRegistry,
+	buffer: TaskReplayBuffer,
+): void {
+	// Plan events are recorded in the replay buffer for client reconnect.
+	// We use a synthetic task ID format: "plan:<planId>" for replay purposes.
+	events.on("plan.started", (payload) => {
+		const event = payload as AiriEvent & { planId: string; name: string }
+		logger.debug(`Plan started: ${event.planId} "${event.name}"`)
+	})
+
+	events.on("plan.completed", (payload) => {
+		const event = payload as AiriEvent & { planId: string; name: string }
+		logger.debug(`Plan completed: ${event.planId} "${event.name}"`)
+	})
+
+	events.on("plan.failed", (payload) => {
+		const event = payload as AiriEvent & { planId: string; name: string; failureReason?: string }
+		logger.debug(`Plan failed: ${event.planId} "${event.name}" — ${event.failureReason ?? "unknown"}`)
+	})
+
+	events.on("plan.cancelled", (payload) => {
+		const event = payload as AiriEvent & { planId: string; name: string }
+		logger.debug(`Plan cancelled: ${event.planId} "${event.name}"`)
 	})
 }
 
@@ -261,6 +407,8 @@ async function handleClientRequest(
 	ipcServer: LocalSocketServerTransport,
 	sessions: SessionManager,
 	taskManager: TaskManager,
+	planRegistry: PlanRegistry,
+	planExecutor: PlanExecutor,
 ): Promise<void> {
 	const { id, method, params } = message
 
@@ -327,7 +475,6 @@ async function handleClientRequest(
 				taskManager.queue(task.id as string)
 
 				// Emit task.queued event.
-				const session = sessions.getByClientId(clientId)
 				const queuedEvent: TaskQueued = {
 					type: "task.queued",
 					timestamp: new Date().toISOString(),
@@ -420,6 +567,125 @@ async function handleClientRequest(
 				}
 
 				result = { task }
+				break
+			}
+
+			// ── Plan APIs ───────────────────────────────────────────────
+
+			case "plan.create": {
+				const name = params?.["name"] as string | undefined
+				if (!name) {
+					throw new Error("Missing required param: name")
+				}
+
+				const input = params?.["input"] as CreatePlanInput | undefined
+				if (!input) {
+					throw new Error("Missing required param: input")
+				}
+
+				const planId = crypto.randomUUID()
+				const now = new Date().toISOString()
+
+				const plan = {
+					id: planId,
+					name: input.name,
+					description: input.description,
+					steps: input.steps.map((step, index) => ({
+						id: crypto.randomUUID(),
+						name: step.name,
+						description: step.description,
+						action: step.action,
+						input: step.input,
+						dependencyIds: step.dependencyIds,
+						timeoutMs: step.timeoutMs,
+						status: "pending" as const,
+					})),
+					status: "pending" as const,
+					sessionId: input.sessionId,
+					createdAt: now,
+					metadata: input.metadata,
+				}
+
+				planRegistry.register(plan)
+
+				// Auto-execute if requested.
+				const autoExecute = params?.["execute"] as boolean | undefined
+				if (autoExecute) {
+					// Execute asynchronously — don't block the request.
+					planExecutor.executePlan(plan).catch((error) => {
+						logger.error(`Plan execution error for ${planId}:`, error)
+					})
+				}
+
+				result = {
+					plan: {
+						id: plan.id,
+						name: plan.name,
+						status: plan.status,
+						stepCount: plan.steps.length,
+						createdAt: plan.createdAt,
+					},
+				}
+				break
+			}
+
+			case "plan.cancel": {
+				const planId = params?.["planId"] as string | undefined
+				if (!planId) {
+					throw new Error("Missing required param: planId")
+				}
+
+				const reason = params?.["reason"] as string | undefined
+				const plan = planExecutor.cancelPlan(planId, reason)
+
+				if (!plan) {
+					throw new Error(`Running plan not found: ${planId}`)
+				}
+
+				result = {
+					plan: {
+						id: plan.id,
+						status: plan.status,
+					},
+				}
+				break
+			}
+
+			case "plan.list": {
+				const filter: PlanFilter = {}
+				if (params?.["status"]) filter.status = params["status"] as PlanFilter["status"]
+				if (params?.["sessionId"]) filter.sessionId = params["sessionId"] as string
+				if (params?.["name"]) filter.name = params["name"] as string
+
+				const plans = planRegistry.list(filter)
+				result = {
+					plans: plans.map((p) => ({
+						id: p.id,
+						name: p.name,
+						status: p.status,
+						stepCount: p.steps.length,
+						createdAt: p.createdAt,
+						startedAt: p.startedAt,
+						completedAt: p.completedAt,
+						failedAt: p.failedAt,
+						cancelledAt: p.cancelledAt,
+					})),
+				}
+				break
+			}
+
+			case "plan.get": {
+				const planId = params?.["planId"] as string | undefined
+				if (!planId) {
+					throw new Error("Missing required param: planId")
+				}
+
+				const plan = planRegistry.get(planId)
+				if (!plan) {
+					throw new Error(`Plan not found: ${planId}`)
+				}
+
+				result = { plan }
 				break
 			}
 

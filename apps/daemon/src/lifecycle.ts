@@ -11,7 +11,7 @@
  * - Crash logging writes to stderr with timestamps.
  */
 
-import { writeFileSync, unlinkSync, existsSync } from "node:fs"
+import { writeFileSync, unlinkSync, existsSync, readFileSync } from "node:fs"
 import { resolve } from "node:path"
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -71,7 +71,7 @@ export function createDaemonLifecycle(
 			if (!existsSync(pidFile)) return false
 
 			try {
-				const pid = parseInt(require("node:fs").readFileSync(pidFile, "utf-8").trim(), 10)
+				const pid = parseInt(readFileSync(pidFile, "utf-8").trim(), 10)
 				if (isNaN(pid)) return false
 
 				// Check if the process is still alive.

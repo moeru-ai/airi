@@ -16,7 +16,7 @@
  */
 
 import type { EventBus } from "../events/bus.js"
-import type { RuntimeConnectionState, RuntimeMessageHandler, RuntimeStateHandler } from "./client.js"
+import type { RuntimeClient, RuntimeConnectionState, RuntimeMessageHandler, RuntimeStateHandler } from "./client.js"
 
 /**
  * Creates a local RuntimeClient backed by the given EventBus.
