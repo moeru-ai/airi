@@ -1,6 +1,6 @@
-import { STEAM_APP_ID } from '@proj-airi/stage-shared/steam'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { STEAM_APP_ID } from './app-id'
 import {
   getWebApiTicket,
   initSteam,

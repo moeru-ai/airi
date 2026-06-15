@@ -23,8 +23,7 @@
     "./server-channel-qr": "./src/server-channel-qr.ts",
     "./electron-renderer": "./src/electron-renderer.d.ts",
     "./composables": "./src/composables/index.ts",
-    "./webgpu": "./src/webgpu/index.ts",
-    "./steam": "./src/steam/app-id.ts"
+    "./webgpu": "./src/webgpu/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
