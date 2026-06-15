@@ -17,12 +17,9 @@ describe('authenticateUserTicket', () => {
       publisherKey: 'test-key',
       appId: '3885340',
       ticketHex: 'deadbeef',
-      identity: 'airi-desktop',
     })
 
     expect(steamId).toBe('76561198000000000')
-    const fetchUrl = String((fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[0])
-    expect(new URL(fetchUrl).searchParams.get('identity')).toBe('airi-desktop')
   })
 
   it('throws when result is not OK', async () => {
@@ -37,7 +34,6 @@ describe('authenticateUserTicket', () => {
       publisherKey: 'test-key',
       appId: '3885340',
       ticketHex: 'bad',
-      identity: 'airi-desktop',
     })).rejects.toThrow(/InvalidTicket/)
   })
 })
