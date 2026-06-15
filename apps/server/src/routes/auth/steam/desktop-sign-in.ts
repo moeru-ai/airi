@@ -5,7 +5,6 @@ import type { ElectronOidcTokenBundle } from '../../../libs/steam-oidc-tokens'
 import type { HonoEnv } from '../../../types/hono'
 
 import { errorMessageFrom } from '@moeru/std'
-import { STEAM_APP_ID } from '@proj-airi/stage-shared/steam'
 import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 
@@ -30,6 +29,8 @@ const DesktopSignInBodySchema = v.object({
     v.regex(/^[0-9a-f]+$/i, 'ticket must be hex-encoded'),
   ),
 })
+
+const STEAM_APP_ID = 3885340
 
 export interface SteamDesktopSignInCollaborators {
   authenticateUserTicket: typeof authenticateUserTicket
@@ -71,7 +72,7 @@ export function createSteamDesktopSignInRoute(deps: SteamDesktopSignInRouteDeps)
       try {
         steamId = await collaborators.authenticateUserTicket({
           publisherKey: deps.env.STEAM_PUBLISHER_KEY,
-          appId: `${STEAM_APP_ID}`,
+          appId: String(STEAM_APP_ID),
           ticketHex: parsed.output.ticket,
         })
       }
@@ -87,7 +88,7 @@ export function createSteamDesktopSignInRoute(deps: SteamDesktopSignInRouteDeps)
         ownsApp = await collaborators.checkAppOwnership({
           publisherKey: deps.env.STEAM_PUBLISHER_KEY,
           steamId,
-          appId: `${STEAM_APP_ID}`,
+          appId: String(STEAM_APP_ID),
         })
       }
       catch (error) {

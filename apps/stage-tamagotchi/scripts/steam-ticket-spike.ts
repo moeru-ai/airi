@@ -6,8 +6,8 @@
 import process from 'node:process'
 
 import { errorMessageFrom } from '@moeru/std'
-import { STEAM_APP_ID } from '@proj-airi/stage-shared/steam'
 
+import { STEAM_APP_ID } from '../src/main/services/steam/app-id'
 import {
   getWebApiTicket,
   initSteam,
