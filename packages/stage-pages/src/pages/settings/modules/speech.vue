@@ -35,7 +35,7 @@ const providersStore = useProvidersStore()
 const speechStore = useSpeechStore()
 const airiCardStore = useAiriCardStore()
 const voicePacksStore = useVoicePacksStore()
-const { configuredSpeechProvidersMetadata } = storeToRefs(providersStore)
+const { allAudioSpeechProvidersMetadata, configuredSpeechProvidersMetadata } = storeToRefs(providersStore)
 const { activeCard } = storeToRefs(airiCardStore)
 const { packs: voicePacks, loading: isLoadingVoicePacks, error: voicePacksError } = storeToRefs(voicePacksStore)
 const {
@@ -71,6 +71,13 @@ const shouldShowVoicePackSection = computed(() =>
   supportsVoicePackSelection.value
   && (isLoadingVoicePacks.value || voicePacksError.value != null || voicePacks.value.length > 0),
 )
+
+const selectableSpeechProvidersMetadata = computed(() => {
+  return [
+    ...configuredSpeechProvidersMetadata.value.filter(metadata => metadata.id !== 'speech-noop'),
+    ...allAudioSpeechProvidersMetadata.value.filter(metadata => metadata.id === 'speech-noop'),
+  ]
+})
 
 function createVoicePackVoice(voicePack: VoicePackSnapshot): VoiceInfo {
   return {
@@ -386,11 +393,11 @@ function handleDeleteProvider(providerId: string) {
         </div>
         <div max-w-full>
           <fieldset
-            v-if="configuredSpeechProvidersMetadata.length > 0" flex="~ row gap-4"
+            v-if="selectableSpeechProvidersMetadata.length > 0" flex="~ row gap-4"
             min-w-0 of-x-auto scroll-smooth role="radiogroup"
           >
             <RadioCardSimple
-              v-for="metadata in configuredSpeechProvidersMetadata"
+              v-for="metadata in selectableSpeechProvidersMetadata"
               :id="metadata.id"
               :key="metadata.id"
               v-model="activeSpeechProvider"

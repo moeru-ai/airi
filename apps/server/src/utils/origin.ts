@@ -10,14 +10,23 @@ function getOriginFromUrl(url: string): string | undefined {
 }
 
 const TRUSTED_EXACT_ORIGINS = [
+  'https://airi.moeru.ai', // Production web app
   'capacitor://localhost', // Capacitor mobile (iOS)
   'ai.moeru.airi-pocket://links', // Android deep link
-  'https://airi.moeru.ai', // Production
   'https://accounts.airi.build', // Standalone auth UI
   'https://server-dev.airi-server-auth.pages.dev', // Server-dev standalone auth UI
   'https://admin.airi.build', // Standalone admin UI
   'https://server-dev.airi-server-admin.pages.dev', // Server-dev standalone admin UI
 ]
+
+// NOTICE:
+// Better Auth accepts non-http(s) origins by prefix (`url.startsWith(pattern)`),
+// so native deep-link schemes must not be copied from TRUSTED_EXACT_ORIGINS
+// into auth callback validation. Browser auth callbacks only need web origins.
+const TRUSTED_AUTH_CALLBACK_ORIGINS = TRUSTED_EXACT_ORIGINS.filter((origin) => {
+  const protocol = new URL(origin).protocol
+  return protocol === 'http:' || protocol === 'https:'
+})
 
 // NOTICE:
 // Private LAN / CGNAT-style dev hosts (e.g. https://10.x:5273 from cap-vite) are NOT matched
@@ -147,6 +156,10 @@ export function getAuthTrustedOrigins(
   const apiServerOrigin = getOriginFromUrl(env.API_SERVER_URL)
   if (apiServerOrigin) {
     origins.add(apiServerOrigin)
+  }
+
+  for (const origin of TRUSTED_AUTH_CALLBACK_ORIGINS) {
+    origins.add(origin)
   }
 
   for (const origin of env.ADDITIONAL_TRUSTED_ORIGINS) {
