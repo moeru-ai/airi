@@ -1,5 +1,19 @@
 <img width="1337" height="1337" alt="AnimAIOS" src="https://github.com/user-attachments/assets/af5d86f7-c826-4d16-9497-1f1b2d9016cb" />
 
+<!--
+<p align="center">
+  <br>
+  <a href="https://app.deepsource.com/gh/airi-os/core/" target="_blank"><img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/airi-os/core.svg/?label=active+issues&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/></a>
+  <a href="https://app.deepsource.com/gh/airi-os/core/" target="_blank"><img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/airi-os/core.svg/?label=resolved+issues&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/></a>
+  <br>
+  <a href="https://bafybeigwwctpv37xdcwacqxvekr6e4kaemqsrv34em6glkbiceo3fcy4si.ipfs.inbrowser.link/"><img src="https://api.visitorbadge.io/api/visitors?path=https%3A%2F%2Fgithub.com%2Fvi70x3%2Fairi&label=%F0%9F%92%93%20awesome%20people%20counter&countColor=%23263759&style=flat" /></a>
+  <a href="https://discord.gg/TgQ3Cu2F7A"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fdiscord.com%2Fapi%2Finvites%2FTgQ3Cu2F7A%3Fwith_counts%3Dtrue&query=%24.approximate_member_count&suffix=%20members&logo=discord&logoColor=white&label=%20&color=7389D8&labelColor=6A7EC2"></a>
+  <a href="https://app.deepsource.com/gh/airi-os/core/" target="_blank"><img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/airi-os/core.svg/?label=code+coverage&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/></a>
+  <br>
+</p>
+-->
+
+
 <div align="center">
 <h4>
 
@@ -9,6 +23,9 @@ AnimAIOS is focused on creating a desktop-native, agentic AI OS centered around 
 
 </h4>
 </div>
+
+
+---
 
 ## 🌙 The Vision: AnimAIOS
 
@@ -160,6 +177,8 @@ The Code module is a **git submodule** (`modules/code`) pointing to [`animaios/c
 
 </details>
 
+
+
 ## 🖥️ Development
 
   <a href="https://app.deepsource.com/gh/animaios/airi/" target="_blank"><img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/airi.svg/?label=code+coverage&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/></a>
@@ -178,6 +197,7 @@ pnpm i
 pnpm dev:tamagotchi
 ```
 <img width="256" height="384" alt="AnimAIOS mascot" src="https://github.com/user-attachments/assets/0d048b16-c5f2-4d9a-8735-ce1417256b22" />
+
 
 <!--
 ### ⌨️ Building for Linux (under construction)
@@ -237,6 +257,8 @@ pnpm approve-builds # Select 'electron' and confirm
 
 - [x] Supported providers: everything [xsai](https://github.com/moeru-ai/xsai) supports
 - [ ] Planned AnimAIOS [localhost](https://github.com/animaios/api-llm-localhost) and (optional) [cloud](https://github.com/animaios/api-llm-cloud) LLM API routers integration to replace default AIRI provider, good source of almost limitless free yummy tokens for your cyber waifus~
+
+---
 
 ## 🙏 Acknowledgements
 
