@@ -19,7 +19,7 @@ Our goal is a Linux desktop experience where your AI companion acts as the cente
 - **Context Awareness:** Your companion observes desktop activity to respond and interact proactively and she might even take control if you let her (agentic mode)
 - **Modular Stage Layouts:** GTK3/4 widgets, interactively generated backgrounds through artistry module, and window layouts composed dynamically by the character (she will always be on screen most of the time)
 
-## 🧩 AnimAIOS Code Module
+## 🧩 [AnimAIOS Code Module](https://github.com/animaios/code)
 
 <details>
 <summary><strong>Expand to learn about the Code module (formerly Roo Code fork)</strong></summary>
