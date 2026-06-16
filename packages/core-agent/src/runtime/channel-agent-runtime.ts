@@ -1,4 +1,5 @@
 import type { AgentChannelMessage } from '../types/channel'
+import type { AgentRuntimeConfig } from './agent-runtime-config'
 import type { ChatOrchestratorRuntime, ChatOrchestratorRuntimeDeps, ChatOrchestratorSendOptions } from './chat-orchestrator-runtime'
 
 import { createChatOrchestratorRuntime } from './chat-orchestrator-runtime'
@@ -7,6 +8,14 @@ import { createChatOrchestratorRuntime } from './chat-orchestrator-runtime'
  * Execution options supplied by a caller after channel message normalization.
  */
 export type ChannelAgentExecutionOptions = Omit<ChatOrchestratorSendOptions, 'attachments' | 'input' | 'channel'>
+
+/**
+ * Dependencies for the channel-facing runtime facade.
+ */
+export interface ChannelAgentRuntimeDeps extends ChatOrchestratorRuntimeDeps {
+  /** Optional core-owned runtime config for resolving execution options from channel messages. */
+  runtimeConfig?: AgentRuntimeConfig
+}
 
 /**
  * Channel-facing runtime that accepts normalized channel messages before delegating to chat orchestration.
@@ -21,7 +30,7 @@ export interface ChannelAgentRuntime extends Pick<
   | 'hooks'
 > {
   /** Enqueues a normalized channel user message for the existing chat orchestrator runtime. */
-  ingestMessage: (message: AgentChannelMessage, options: ChannelAgentExecutionOptions) => Promise<void>
+  ingestMessage: (message: AgentChannelMessage, options?: Partial<ChannelAgentExecutionOptions>) => Promise<void>
 }
 
 /**
@@ -33,17 +42,31 @@ export interface ChannelAgentRuntime extends Pick<
  *
  * Expects:
  * - `message.sessionId` points at the core chat session that should receive the turn.
- * - Provider/model execution details are passed separately as execution options.
+ * - Provider/model execution details are passed explicitly or resolved by one shared runtime config profile.
  *
  * Returns:
  * - A runtime with channel ingress plus the existing queue, hook, and state surfaces.
  */
-export function createChannelAgentRuntime(deps: ChatOrchestratorRuntimeDeps): ChannelAgentRuntime {
+export function createChannelAgentRuntime(deps: ChannelAgentRuntimeDeps): ChannelAgentRuntime {
   const chatRuntime = createChatOrchestratorRuntime(deps)
 
-  function ingestMessage(message: AgentChannelMessage, options: ChannelAgentExecutionOptions) {
+  async function resolveExecutionOptions(message: AgentChannelMessage, options?: Partial<ChannelAgentExecutionOptions>) {
+    if (options?.model && options.chatProvider) {
+      return options as ChannelAgentExecutionOptions
+    }
+
+    if (deps.runtimeConfig) {
+      return deps.runtimeConfig.resolveExecutionOptions(message, options)
+    }
+
+    throw new Error(`Cannot ingest channel message "${message.id}" for channel "${message.channelId}" session "${message.sessionId}": pass model/chatProvider options or configure runtimeConfig`)
+  }
+
+  async function ingestMessage(message: AgentChannelMessage, options?: Partial<ChannelAgentExecutionOptions>) {
+    const executionOptions = await resolveExecutionOptions(message, options)
+
     return chatRuntime.ingest(message.content, {
-      ...options,
+      ...executionOptions,
       attachments: message.attachments,
       input: message.input,
       channel: {

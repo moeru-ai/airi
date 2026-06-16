@@ -6,16 +6,21 @@ import type { StreamEvent } from '../types/llm'
 
 import { describe, expect, it, vi } from 'vitest'
 
+import { createAgentRuntimeConfig } from './agent-runtime-config'
 import { createChannelAgentRuntime } from './channel-agent-runtime'
 
 const provider = {
   chat: () => ({ baseURL: 'https://example.com/' }),
 } as unknown as ChatProvider
 
-function createHarness() {
+function createHarness(options: {
+  activeProvider?: string
+  runtimeConfig?: ReturnType<typeof createAgentRuntimeConfig>
+} = {}) {
   const sessionMessages: Record<string, ChatHistoryItem[]> = {}
   const foregroundPatches: StreamingAssistantMessage[] = []
   const foregroundResets: StreamingAssistantMessage[] = []
+  const llmRequestStarted: unknown[] = []
   const stateChanges: unknown[] = []
   const ensureSession = vi.fn((sessionId: string) => {
     sessionMessages[sessionId] ??= [
@@ -56,10 +61,12 @@ function createHarness() {
       stream,
     },
     getActiveSessionId: () => 'session-1',
-    getActiveProvider: () => 'mock-provider',
+    getActiveProvider: () => options.activeProvider ?? 'mock-provider',
+    runtimeConfig: options.runtimeConfig,
     now: () => 200,
     monotonicNow: () => 100,
     createId: () => 'generated-id',
+    onLlmRequestStarted: event => llmRequestStarted.push(event),
     onStateChange: state => stateChanges.push(state),
   })
 
@@ -67,6 +74,7 @@ function createHarness() {
     ensureSession,
     foregroundPatches,
     foregroundResets,
+    llmRequestStarted,
     runtime,
     sessionMessages,
     stateChanges,
@@ -167,6 +175,79 @@ describe('createChannelAgentRuntime', () => {
         content: 'visible reply',
       }),
     ]))
+  })
+
+  /**
+   * @example
+   * await runtime.ingestMessage(channelMessage)
+   * // execution config supplies provider/model for all channels
+   */
+  it('resolves omitted execution options from the shared runtime config', async () => {
+    const resolver = vi.fn(async () => ({ chatProvider: provider }))
+    const runtimeConfig = createAgentRuntimeConfig({
+      defaultExecutionProfile: {
+        providerId: 'shared-provider',
+        model: 'shared-model',
+      },
+      providerResolver: resolver,
+    })
+    const harness = createHarness({
+      activeProvider: 'fallback-provider',
+      runtimeConfig,
+    })
+
+    await harness.runtime.ingestMessage({
+      id: 'satori-message',
+      channelId: 'satori',
+      sessionId: 'satori-session',
+      role: 'user',
+      content: 'hello from satori',
+      createdAt: 300,
+    })
+
+    expect(resolver).toHaveBeenCalledWith('shared-provider')
+    expect(harness.stream).toHaveBeenCalledWith(
+      'shared-model',
+      provider,
+      expect.any(Array),
+      expect.objectContaining({
+        waitForTools: true,
+      }),
+    )
+    expect(harness.llmRequestStarted).toEqual([
+      {
+        model: 'shared-model',
+        provider: 'shared-provider',
+        hasVoice: false,
+      },
+    ])
+    expect(harness.sessionMessages['satori-session']).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        role: 'user',
+        content: 'hello from satori',
+      }),
+      expect.objectContaining({
+        role: 'assistant',
+        content: 'channel reply',
+      }),
+    ]))
+  })
+
+  /**
+   * @example
+   * await expect(runtime.ingestMessage(channelMessage)).rejects.toThrow()
+   */
+  it('fails clearly when omitted execution options have no runtime config fallback', async () => {
+    const harness = createHarness()
+
+    await expect(harness.runtime.ingestMessage({
+      id: 'missing-config-message',
+      channelId: 'satori',
+      sessionId: 'satori-session',
+      role: 'user',
+      content: 'hello from satori',
+      createdAt: 300,
+    })).rejects.toThrow('Cannot ingest channel message "missing-config-message" for channel "satori" session "satori-session"')
   })
 
   /**
