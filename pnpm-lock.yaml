@@ -1253,31 +1253,6 @@ overrides:
 
 packageExtensionsChecksum: sha256-lLxz4me6BFXSsuohDen54RU9DmiItse34Xa+IWGtSzU=
 
-patchedDependencies:
-  '@mediapipe/tasks-vision':
-    hash: 2014bd232d13f4bfac27f27d61105894bf54aca350379b2816fe05b6d3e27d66
-    path: patches/@mediapipe__tasks-vision.patch
-  '@xsai/generate-text@0.5.0-beta.2':
-    hash: 306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6
-    path: patches/@xsai__generate-text@0.5.0-beta.2.patch
-  '@xsai/shared-chat@0.5.0-beta.2':
-    hash: 26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01
-    path: patches/@xsai__shared-chat@0.5.0-beta.2.patch
-  '@xsai/stream-text@0.5.0-beta.2':
-    hash: 90dfe10d02f5946658508ec019937eab600745c93446ce7b2fdb1a0ed70e3e49
-    path: patches/@xsai__stream-text@0.5.0-beta.2.patch
-  mineflayer-pathfinder:
-    hash: 4bbfdca823ab48b74086e6e7d4b2f9baf5ee7c0ba9aee0c279b3c91c50bfd797
-    path: patches/mineflayer-pathfinder.patch
-  pixi-live2d-display:
-    hash: 122ac09349321d5bfe9d9817aa095cd1c9c4132af86345aa9e27ba8b63dadf2c
-    path: patches/pixi-live2d-display.patch
-  sponsorkit@17.1.0:
-    hash: f5887da52a29ae85732e01644d05c0c274231fe76b95aebeafbfab6dc4444f88
-    path: patches/sponsorkit@17.1.0.patch
-  uiohook-napi@1.5.5:
-    hash: 012c5e5ad881d5ae40fc0af58832e31a0772ab0a74c038c8f4dfe51efaf398dd
-    path: patches/uiohook-napi@1.5.5.patch
 
 importers:
 
@@ -1360,7 +1335,7 @@ importers:
         version: 2.13.1
       sponsorkit:
         specifier: 'catalog:'
-        version: 17.1.0(patch_hash=f5887da52a29ae85732e01644d05c0c274231fe76b95aebeafbfab6dc4444f88)
+        version: 17.1.0
       sponsors-svg:
         specifier: 'catalog:'
         version: 0.3.0
@@ -1426,13 +1401,13 @@ importers:
         version: 14.2.1(vue@3.5.32(typescript@5.9.3))
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
+        version: 0.5.0-beta.2
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
+        version: 0.5.0-beta.2
       '@xsai/stream-text':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=90dfe10d02f5946658508ec019937eab600745c93446ce7b2fdb1a0ed70e3e49)
+        version: 0.5.0-beta.2
       valibot:
         specifier: catalog:valibot-1-3-1
         version: 1.3.1(typescript@5.9.3)
@@ -1749,7 +1724,7 @@ importers:
         version: 0.5.0-beta.2
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
+        version: 0.5.0-beta.2
       '@xsai/model':
         specifier: 'catalog:'
         version: 0.5.0-beta.2
@@ -1758,10 +1733,10 @@ importers:
         version: 0.5.0-beta.2
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
+        version: 0.5.0-beta.2
       '@xsai/stream-text':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=90dfe10d02f5946658508ec019937eab600745c93446ce7b2fdb1a0ed70e3e49)
+        version: 0.5.0-beta.2
       '@xsai/stream-transcription':
         specifier: 'catalog:'
         version: 0.5.0-beta.2
@@ -2164,7 +2139,7 @@ importers:
         version: 0.5.0-beta.2
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
+        version: 0.5.0-beta.2
       '@xsai/model':
         specifier: 'catalog:'
         version: 0.5.0-beta.2
@@ -2173,10 +2148,10 @@ importers:
         version: 0.5.0-beta.2
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
+        version: 0.5.0-beta.2
       '@xsai/stream-text':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=90dfe10d02f5946658508ec019937eab600745c93446ce7b2fdb1a0ed70e3e49)
+        version: 0.5.0-beta.2
       '@xsai/stream-transcription':
         specifier: 'catalog:'
         version: 0.5.0-beta.2
@@ -2287,7 +2262,7 @@ importers:
         version: 0.184.0
       uiohook-napi:
         specifier: 'catalog:'
-        version: 1.5.5(patch_hash=012c5e5ad881d5ae40fc0af58832e31a0772ab0a74c038c8f4dfe51efaf398dd)
+        version: 1.5.5
       unified:
         specifier: 'catalog:'
         version: 11.0.5
@@ -2639,7 +2614,7 @@ importers:
         version: 0.5.0-beta.2
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
+        version: 0.5.0-beta.2
       '@xsai/model':
         specifier: 'catalog:'
         version: 0.5.0-beta.2
@@ -2648,10 +2623,10 @@ importers:
         version: 0.5.0-beta.2
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
+        version: 0.5.0-beta.2
       '@xsai/stream-text':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=90dfe10d02f5946658508ec019937eab600745c93446ce7b2fdb1a0ed70e3e49)
+        version: 0.5.0-beta.2
       '@xsai/stream-transcription':
         specifier: 'catalog:'
         version: 0.5.0-beta.2
@@ -3432,7 +3407,7 @@ importers:
         version: 0.5.0-beta.2
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
+        version: 0.5.0-beta.2
       '@xsai/model':
         specifier: 'catalog:'
         version: 0.5.0-beta.2
@@ -3441,10 +3416,10 @@ importers:
         version: 0.5.0-beta.2
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
+        version: 0.5.0-beta.2
       '@xsai/stream-text':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=90dfe10d02f5946658508ec019937eab600745c93446ce7b2fdb1a0ed70e3e49)
+        version: 0.5.0-beta.2
       '@xsai/tool':
         specifier: 'catalog:'
         version: 0.5.0-beta.2(zod-to-json-schema@3.25.2(zod@4.3.6))(zod@4.3.6)
@@ -3615,7 +3590,7 @@ importers:
     dependencies:
       '@mediapipe/tasks-vision':
         specifier: 'catalog:'
-        version: 0.10.34(patch_hash=2014bd232d13f4bfac27f27d61105894bf54aca350379b2816fe05b6d3e27d66)
+        version: 0.10.34
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3658,7 +3633,7 @@ importers:
         version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
+        version: 0.5.0-beta.2
 
   packages/plugin-sdk:
     dependencies:
@@ -4224,7 +4199,7 @@ importers:
         version: 0.5.0-beta.2
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
+        version: 0.5.0-beta.2
       '@xsai/generate-transcription':
         specifier: 'catalog:'
         version: 0.5.0-beta.2
@@ -4236,10 +4211,10 @@ importers:
         version: 0.5.0-beta.2
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
+        version: 0.5.0-beta.2
       '@xsai/stream-text':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=90dfe10d02f5946658508ec019937eab600745c93446ce7b2fdb1a0ed70e3e49)
+        version: 0.5.0-beta.2
       '@xsai/stream-transcription':
         specifier: 'catalog:'
         version: 0.5.0-beta.2
@@ -4606,7 +4581,7 @@ importers:
         version: 4.2.0(5af797a0b5bd919a06578c24a7479046)
       pixi-live2d-display:
         specifier: 'catalog:'
-        version: 0.4.0(patch_hash=122ac09349321d5bfe9d9817aa095cd1c9c4132af86345aa9e27ba8b63dadf2c)(0736f5bd67d2e4de7e9fff36ad63fa2e)
+        version: 0.4.0(0736f5bd67d2e4de7e9fff36ad63fa2e)
       three:
         specifier: 'catalog:'
         version: 0.184.0
@@ -5016,13 +4991,13 @@ importers:
         version: 0.5.0-beta.2
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
+        version: 0.5.0-beta.2
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
+        version: 0.5.0-beta.2
       '@xsai/stream-text':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=90dfe10d02f5946658508ec019937eab600745c93446ce7b2fdb1a0ed70e3e49)
+        version: 0.5.0-beta.2
       pinia:
         specifier: 'catalog:'
         version: 3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3))
@@ -5137,13 +5112,13 @@ importers:
         version: 0.5.0-beta.2
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
+        version: 0.5.0-beta.2
       '@xsai/generate-transcription':
         specifier: 'catalog:'
         version: 0.5.0-beta.2
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
+        version: 0.5.0-beta.2
       discord.js:
         specifier: 'catalog:'
         version: 14.26.3(bufferutil@4.1.0)(utf-8-validate@5.0.10)
@@ -5176,10 +5151,10 @@ importers:
         version: link:../../packages/server-sdk
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
+        version: 0.5.0-beta.2
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
+        version: 0.5.0-beta.2
       alien-signals:
         specifier: 'catalog:'
         version: 3.1.2
@@ -5218,7 +5193,7 @@ importers:
         version: 1.6.0(encoding@0.1.13)
       mineflayer-pathfinder:
         specifier: 'catalog:'
-        version: 2.4.5(patch_hash=4bbfdca823ab48b74086e6e7d4b2f9baf5ee7c0ba9aee0c279b3c91c50bfd797)
+        version: 2.4.5
       mineflayer-pvp:
         specifier: 'catalog:'
         version: 1.3.2(encoding@0.1.13)(prismarine-registry@1.11.0)
@@ -5285,10 +5260,10 @@ importers:
         version: 0.4.0(typescript@5.9.3)
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
+        version: 0.5.0-beta.2
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
+        version: 0.5.0-beta.2
       '@xsai/utils-chat':
         specifier: 'catalog:'
         version: 0.5.0-beta.2
@@ -5376,10 +5351,10 @@ importers:
         version: 0.5.0-beta.2
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
+        version: 0.5.0-beta.2
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
+        version: 0.5.0-beta.2
       '@xsai/tool':
         specifier: 'catalog:'
         version: 0.5.0-beta.2(zod-to-json-schema@3.25.2(zod@4.3.6))(zod@4.3.6)
@@ -22142,7 +22117,7 @@ snapshots:
     optionalDependencies:
       markdown-it: 14.1.1
 
-  '@mediapipe/tasks-vision@0.10.34(patch_hash=2014bd232d13f4bfac27f27d61105894bf54aca350379b2816fe05b6d3e27d66)': {}
+  '@mediapipe/tasks-vision@0.10.34': {}
 
   '@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.3.6)':
     dependencies:
@@ -26269,10 +26244,10 @@ snapshots:
     dependencies:
       '@xsai/shared': 0.5.0-beta.2
 
-  '@xsai/generate-text@0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)':
+  '@xsai/generate-text@0.5.0-beta.2':
     dependencies:
       '@xsai/shared': 0.5.0-beta.2
-      '@xsai/shared-chat': 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
+      '@xsai/shared-chat': 0.5.0-beta.2
 
   '@xsai/generate-transcription@0.4.4':
     dependencies:
@@ -26286,7 +26261,7 @@ snapshots:
     dependencies:
       '@xsai/shared': 0.5.0-beta.2
 
-  '@xsai/shared-chat@0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)':
+  '@xsai/shared-chat@0.5.0-beta.2':
     dependencies:
       '@xsai/shared': 0.5.0-beta.2
 
@@ -26298,10 +26273,10 @@ snapshots:
 
   '@xsai/shared@0.5.0-beta.2': {}
 
-  '@xsai/stream-text@0.5.0-beta.2(patch_hash=90dfe10d02f5946658508ec019937eab600745c93446ce7b2fdb1a0ed70e3e49)':
+  '@xsai/stream-text@0.5.0-beta.2':
     dependencies:
       '@xsai/shared': 0.5.0-beta.2
-      '@xsai/shared-chat': 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
+      '@xsai/shared-chat': 0.5.0-beta.2
       '@xsai/shared-stream': 0.5.0-beta.2
 
   '@xsai/stream-transcription@0.5.0-beta.2':
@@ -26312,7 +26287,7 @@ snapshots:
   '@xsai/tool@0.5.0-beta.2(zod-to-json-schema@3.25.2(zod@4.3.6))(zod@4.3.6)':
     dependencies:
       '@xsai/shared': 0.5.0-beta.2
-      '@xsai/shared-chat': 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
+      '@xsai/shared-chat': 0.5.0-beta.2
       xsschema: 0.5.0-beta.2(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.3.1(typescript@5.9.3)))(zod-to-json-schema@3.25.2(zod@4.3.6))(zod@4.3.6)
     transitivePeerDependencies:
       - '@valibot/to-json-schema'
@@ -26324,7 +26299,7 @@ snapshots:
 
   '@xsai/utils-chat@0.5.0-beta.2':
     dependencies:
-      '@xsai/shared-chat': 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
+      '@xsai/shared-chat': 0.5.0-beta.2
 
   abbrev@2.0.0: {}
 
@@ -30933,13 +30908,13 @@ snapshots:
   mineflayer-collectblock@1.6.0(encoding@0.1.13):
     dependencies:
       mineflayer: 4.33.0(encoding@0.1.13)
-      mineflayer-pathfinder: 2.4.5(patch_hash=4bbfdca823ab48b74086e6e7d4b2f9baf5ee7c0ba9aee0c279b3c91c50bfd797)
+      mineflayer-pathfinder: 2.4.5
       mineflayer-tool: 1.2.0(encoding@0.1.13)
     transitivePeerDependencies:
       - encoding
       - supports-color
 
-  mineflayer-pathfinder@2.4.5(patch_hash=4bbfdca823ab48b74086e6e7d4b2f9baf5ee7c0ba9aee0c279b3c91c50bfd797):
+  mineflayer-pathfinder@2.4.5:
     dependencies:
       minecraft-data: 3.102.3
       prismarine-block: 1.23.0
@@ -30952,7 +30927,7 @@ snapshots:
   mineflayer-pvp@1.3.2(encoding@0.1.13)(prismarine-registry@1.11.0):
     dependencies:
       mineflayer: 4.33.0(encoding@0.1.13)
-      mineflayer-pathfinder: 2.4.5(patch_hash=4bbfdca823ab48b74086e6e7d4b2f9baf5ee7c0ba9aee0c279b3c91c50bfd797)
+      mineflayer-pathfinder: 2.4.5
       mineflayer-utils: 0.1.4(encoding@0.1.13)(prismarine-registry@1.11.0)
     transitivePeerDependencies:
       - encoding
@@ -30962,7 +30937,7 @@ snapshots:
   mineflayer-tool@1.2.0(encoding@0.1.13):
     dependencies:
       mineflayer: 4.33.0(encoding@0.1.13)
-      mineflayer-pathfinder: 2.4.5(patch_hash=4bbfdca823ab48b74086e6e7d4b2f9baf5ee7c0ba9aee0c279b3c91c50bfd797)
+      mineflayer-pathfinder: 2.4.5
       prismarine-nbt: 2.8.0
     transitivePeerDependencies:
       - encoding
@@ -31860,7 +31835,7 @@ snapshots:
       - '@pixi/settings'
       - '@pixi/utils'
 
-  pixi-live2d-display@0.4.0(patch_hash=122ac09349321d5bfe9d9817aa095cd1c9c4132af86345aa9e27ba8b63dadf2c)(0736f5bd67d2e4de7e9fff36ad63fa2e):
+  pixi-live2d-display@0.4.0(0736f5bd67d2e4de7e9fff36ad63fa2e):
     dependencies:
       '@pixi/core': 6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
       '@pixi/display': 6.5.10(@pixi/constants@6.5.10)(@pixi/math@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
@@ -33151,7 +33126,7 @@ snapshots:
     dependencies:
       vue: 3.5.32(typescript@5.9.3)
 
-  sponsorkit@17.1.0(patch_hash=f5887da52a29ae85732e01644d05c0c274231fe76b95aebeafbfab6dc4444f88):
+  sponsorkit@17.1.0:
     dependencies:
       ansis: 4.2.0
       cac: 6.7.14
@@ -33764,7 +33739,7 @@ snapshots:
 
   uint4@0.1.2: {}
 
-  uiohook-napi@1.5.5(patch_hash=012c5e5ad881d5ae40fc0af58832e31a0772ab0a74c038c8f4dfe51efaf398dd):
+  uiohook-napi@1.5.5:
     dependencies:
       node-gyp-build: 4.8.4
 
@@ -34353,7 +34328,7 @@ snapshots:
       '@vitest/expect': 4.1.4
       '@vitest/runner': 4.1.4
       '@xsai-ext/providers': 0.5.0-beta.2
-      '@xsai/generate-text': 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
+      '@xsai/generate-text': 0.5.0-beta.2
       c12: 4.0.0-beta.4(chokidar@5.0.0)(dotenv@17.4.2)(giget@2.0.0)(jiti@2.6.1)(magicast@0.5.2)
       es-toolkit: 1.43.0
       fast-string-width: 3.0.2
