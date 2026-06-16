@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import type { ProviderSourceDeployment, ProviderSourcePricing } from '@proj-airi/stage-ui/libs/providers/source-metadata'
 import type { Ref } from 'vue'
+
+type ProviderSourcePricing = 'free' | 'paid' | 'internal'
+type ProviderSourceDeployment = 'local' | 'cloud'
 
 import { IconStatusItem, RippleGrid } from '@proj-airi/stage-ui/components'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'

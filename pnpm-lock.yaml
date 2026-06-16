@@ -306,6 +306,9 @@ catalogs:
     '@unocss/reset':
       specifier: ^66.6.8
       version: 66.6.8
+    '@valibot/to-json-schema':
+      specifier: 1.0.0-rc.0
+      version: 1.0.0-rc.0
     '@vitejs/plugin-vue':
       specifier: ^6.0.6
       version: 6.0.6
@@ -1285,7 +1288,7 @@ importers:
         version: 5.0.0
       xsschema:
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(zod-to-json-schema@3.25.2(zod@4.3.6))(zod@4.3.6)
+        version: 0.5.0-beta.2(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.2.0(typescript@5.9.3)))(zod-to-json-schema@3.25.2(zod@4.3.6))(zod@4.3.6)
       zod:
         specifier: 'catalog:'
         version: 4.3.6
@@ -1572,7 +1575,7 @@ importers:
         version: 0.0.5(@opentelemetry/api@1.9.1)(@types/node@25.6.0)(@vitest/browser-playwright@4.1.4)(@vitest/coverage-v8@4.1.4)(chokidar@5.0.0)(dotenv@17.4.2)(esbuild@0.27.2)(giget@2.0.0)(jiti@2.6.1)(jsdom@29.1.1(@noble/hashes@2.0.1)(canvas@3.2.3))(less@4.6.4)(magicast@0.5.2)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
       xsschema:
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(zod-to-json-schema@3.25.2(zod@4.3.6))(zod@4.3.6)
+        version: 0.5.0-beta.2(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.2.0(typescript@5.9.3)))(zod-to-json-schema@3.25.2(zod@4.3.6))(zod@4.3.6)
       zod:
         specifier: 'catalog:'
         version: 4.3.6
@@ -1755,7 +1758,11 @@ importers:
         version: 1.2.0(typescript@5.9.3)
       xsschema:
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(zod-to-json-schema@3.25.2(zod@4.3.6))(zod@4.3.6)
+        version: 0.5.0-beta.2(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.2.0(typescript@5.9.3)))(zod-to-json-schema@3.25.2(zod@4.3.6))(zod@4.3.6)
+    devDependencies:
+      '@valibot/to-json-schema':
+        specifier: 'catalog:'
+        version: 1.0.0-rc.0(valibot@1.2.0(typescript@5.9.3))
 
   packages/server-runtime:
     dependencies:
@@ -2026,7 +2033,7 @@ importers:
         version: 2.0.9(vue@3.5.32(typescript@5.9.3))
       xsschema:
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(zod-to-json-schema@3.25.2(zod@4.3.6))(zod@4.3.6)
+        version: 0.5.0-beta.2(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.2.0(typescript@5.9.3)))(zod-to-json-schema@3.25.2(zod@4.3.6))(zod@4.3.6)
       zod:
         specifier: 'catalog:'
         version: 4.3.6
@@ -2376,7 +2383,7 @@ importers:
         version: 4.0.0
       xsschema:
         specifier: 'catalog:'
-        version: 0.5.0-beta.2(zod-to-json-schema@3.25.2(zod@4.3.6))(zod@4.3.6)
+        version: 0.5.0-beta.2(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.2.0(typescript@5.9.3)))(zod-to-json-schema@3.25.2(zod@4.3.6))(zod@4.3.6)
       zod:
         specifier: 'catalog:'
         version: 4.3.6
@@ -6710,6 +6717,11 @@ packages:
     resolution: {integrity: sha512-bXfEnEHdW7zTGLIYU16MsfKSFy3Q47Pevhrt5f9fOGzC4UI1JGkkoQSfoFpXZGliDrhoSFK4Msz9Jt43Ta4j+w==}
     peerDependencies:
       vite: ^2.9.0 || ^3.0.0-0 || ^4.0.0 || ^5.0.0-0 || ^6.0.0-0 || ^7.0.0-0 || ^8.0.0-0
+
+  '@valibot/to-json-schema@1.0.0-rc.0':
+    resolution: {integrity: sha512-F3WDgnPzcDs9Y8qZwU9qfPnEJBQ6lCMCFjI7VsMjAza6yAixGr4cZ50gOy6zniSCk49GkFvq2a6cBKfZjTpyOw==}
+    peerDependencies:
+      valibot: ^1.0.0 || ^1.0.0-beta.5 || ^1.0.0-rc
 
   '@vibrant/color@4.0.4':
     resolution: {integrity: sha512-Fq2tAszz4QOPWfHZ+KuEAchXUD8i594BM2fOJt8dI/fvYbiVoBycBF/BlNH6F4IWBubxXoPqD4JmmAHvFYbNew==}
@@ -16700,6 +16712,10 @@ snapshots:
       unplugin-utils: 0.3.1
       vite: 8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
 
+  '@valibot/to-json-schema@1.0.0-rc.0(valibot@1.2.0(typescript@5.9.3))':
+    dependencies:
+      valibot: 1.2.0(typescript@5.9.3)
+
   '@vibrant/color@4.0.4': {}
 
   '@vibrant/core@4.0.4':
@@ -17644,7 +17660,7 @@ snapshots:
     dependencies:
       '@xsai/shared': 0.5.0-beta.2
       '@xsai/shared-chat': 0.5.0-beta.2
-      xsschema: 0.5.0-beta.2(zod-to-json-schema@3.25.2(zod@4.3.6))(zod@4.3.6)
+      xsschema: 0.5.0-beta.2(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.2.0(typescript@5.9.3)))(zod-to-json-schema@3.25.2(zod@4.3.6))(zod@4.3.6)
     transitivePeerDependencies:
       - '@valibot/to-json-schema'
       - arktype
@@ -24278,8 +24294,9 @@ snapshots:
 
   xmlchars@2.2.0: {}
 
-  xsschema@0.5.0-beta.2(zod-to-json-schema@3.25.2(zod@4.3.6))(zod@4.3.6):
+  xsschema@0.5.0-beta.2(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.2.0(typescript@5.9.3)))(zod-to-json-schema@3.25.2(zod@4.3.6))(zod@4.3.6):
     optionalDependencies:
+      '@valibot/to-json-schema': 1.0.0-rc.0(valibot@1.2.0(typescript@5.9.3))
       zod: 4.3.6
       zod-to-json-schema: 3.25.2(zod@4.3.6)
 

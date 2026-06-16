@@ -217,9 +217,9 @@ function generateExampleJson(wf: ComfyUIWorkflowTemplate) {
     example[nodeTitle] = {}
     for (const field of fields) {
       const nodeId = Object.keys(wf.workflow).find(
-        (id) => (wf.workflow[id]._meta?.title || wf.workflow[id].class_type) === nodeTitle,
+        (id) => ((wf.workflow[id] as any)._meta?.title || (wf.workflow[id] as any).class_type) === nodeTitle,
       )
-      const val = nodeId ? wf.workflow[nodeId].inputs[field] : '...'
+      const val = nodeId ? (wf.workflow[nodeId] as any).inputs[field] : '...'
       example[nodeTitle][field] = val
     }
   }

@@ -50,5 +50,8 @@
     "@proj-airi/plugin-sdk": "workspace:*",
     "valibot": "catalog:",
     "xsschema": "catalog:"
+  },
+  "devDependencies": {
+    "@valibot/to-json-schema": "catalog:"
   }
 }
