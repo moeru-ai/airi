@@ -182,6 +182,7 @@
 			var WS_URL = location.protocol === "https:"
 				? "wss://" + location.host + "/ws"
 				: "ws://" + location.host + "/ws";
+			// Use wss:// for secure contexts, ws:// for local dev only
 
 			var ws = null;
 			var state = null;
