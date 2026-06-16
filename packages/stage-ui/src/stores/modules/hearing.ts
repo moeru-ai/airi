@@ -576,7 +576,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
       supportsStreamInput: supportsStreamInput.value,
       hasStream: Boolean(stream),
       providerId: activeTranscriptionProvider.value,
-      hasCallbacks: !!(options?.onSentenceEnd || options?.onSpeechEnd),
+      hasCallbacks: Boolean(options?.onSentenceEnd || options?.onSpeechEnd),
     })
 
     if (!supportsStreamInput.value) {

@@ -41,7 +41,7 @@ const region = computed({
 })
 
 // Check if API key is configured
-const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
+const apiKeyConfigured = computed(() => Boolean(providers.value[providerId]?.apiKey))
 
 // Get available voices for Microsoft Speech
 const availableVoices = computed(() => {

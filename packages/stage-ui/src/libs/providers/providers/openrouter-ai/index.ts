@@ -61,7 +61,7 @@ export const providerOpenRouterAI = defineProvider<OpenRouterConfig>({
   },
 
   validationRequiredWhen(config) {
-    return !!config.apiKey?.trim()
+    return Boolean(config.apiKey?.trim())
   },
   validators: {
     ...createOpenAICompatibleValidators({

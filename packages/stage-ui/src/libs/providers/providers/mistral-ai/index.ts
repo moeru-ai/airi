@@ -45,7 +45,7 @@ export const providerMistralAI = defineProvider<MistralConfig>({
   },
 
   validationRequiredWhen(config) {
-    return !!config.apiKey?.trim()
+    return Boolean(config.apiKey?.trim())
   },
   validators: {
     ...createOpenAICompatibleValidators({

@@ -880,7 +880,7 @@ export class Client<C = undefined> {
     }
 
     this.pendingReconnect = true
-    const hadSocket = !!this.websocket
+    const hadSocket = Boolean(this.websocket)
 
     if (!this.connectionAttempt || this.status === 'ready') {
       this.opts.onError?.(error)

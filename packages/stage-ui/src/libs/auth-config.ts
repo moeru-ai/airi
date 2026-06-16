@@ -11,8 +11,8 @@ function getEnvStatus() {
 
   // @ts-ignore
   const capacitor = window.Capacitor
-  const isAndroidNative = !!(capacitor?.getPlatform?.() === 'android')
-  const isNative = !!capacitor || isAndroidNative
+  const isAndroidNative = Boolean(capacitor?.getPlatform?.() === 'android')
+  const isNative = Boolean(capacitor) || isAndroidNative
 
   return { isAndroidNative, isNative }
 }

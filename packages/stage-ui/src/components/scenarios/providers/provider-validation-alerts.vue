@@ -19,10 +19,24 @@ const props = defineProps<{
 
 const { t } = useI18n()
 
-const isValidationFailed = computed(() => !props.isValid && props.isValidating === 0 && !!props.validationMessage)
-const isManualTestNeeded = computed(() => props.isValid && props.isValidating === 0 && props.hasManualValidators && !props.manualTestPassed && !props.manualTestMessage)
-const isFullSuccess = computed(() => props.isValid && props.isValidating === 0 && (!props.hasManualValidators || props.manualTestPassed))
-const isManualTestFailed = computed(() => props.hasManualValidators && !props.manualTestPassed && !!props.manualTestMessage && !props.isManualTesting)
+const isValidationFailed = computed(
+  () => !props.isValid && props.isValidating === 0 && Boolean(props.validationMessage),
+)
+const isManualTestNeeded = computed(
+  () =>
+    props.isValid &&
+    props.isValidating === 0 &&
+    props.hasManualValidators &&
+    !props.manualTestPassed &&
+    !props.manualTestMessage,
+)
+const isFullSuccess = computed(
+  () => props.isValid && props.isValidating === 0 && (!props.hasManualValidators || props.manualTestPassed),
+)
+const isManualTestFailed = computed(
+  () =>
+    props.hasManualValidators && !props.manualTestPassed && Boolean(props.manualTestMessage) && !props.isManualTesting,
+)
 </script>
 
 <template>
@@ -57,10 +71,7 @@ const isManualTestFailed = computed(() => props.hasManualValidators && !props.ma
     </template>
   </Alert>
   <!-- Partial: auto validation passed, manual test not yet attempted -->
-  <Alert
-    v-else-if="isManualTestNeeded"
-    type="info"
-  >
+  <Alert v-else-if="isManualTestNeeded" type="info">
     <template #title>
       <div :class="['w-full flex items-center justify-between']">
         <span>{{ t('settings.dialogs.onboarding.validationPartial') }}</span>

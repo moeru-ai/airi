@@ -98,7 +98,7 @@ export function createServer(opts?: ServerOptions): Server {
   let serverInstance: ServerInstance | null = null
   let startTask: Promise<void> | null = null
 
-  log.withFields({ hasTlsConfig: !!options?.tlsConfig }).log('creating server channel')
+  log.withFields({ hasTlsConfig: Boolean(options?.tlsConfig) }).log('creating server channel')
 
   async function closeServer(closeActiveConnections = false) {
     if (!serverInstance || typeof serverInstance.close !== 'function') {

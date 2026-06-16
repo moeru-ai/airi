@@ -44,7 +44,7 @@ export const providerZai = defineProvider<ZaiConfig>({
   },
 
   validationRequiredWhen(config) {
-    return !!config.apiKey?.trim()
+    return Boolean(config.apiKey?.trim())
   },
   validators: {
     ...createOpenAICompatibleValidators({

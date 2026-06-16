@@ -48,7 +48,7 @@ export const providerCometAPI = defineProvider<CometApiConfig>({
   },
 
   validationRequiredWhen(config) {
-    return !!config.apiKey?.trim()
+    return Boolean(config.apiKey?.trim())
   },
   validators: {
     ...createOpenAICompatibleValidators({

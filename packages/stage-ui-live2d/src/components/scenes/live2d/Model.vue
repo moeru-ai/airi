@@ -210,7 +210,7 @@ async function loadModel() {
     try {
       // NOTICE: shouldUpdateView can fire while the canvas (pixiApp) is being torn down/recreated.
       // Wait briefly for the new stage instead of bailing out, otherwise we keep a blank screen.
-      await until(() => !!pixiApp.value && !!pixiApp.value.stage).toBeTruthy({ timeout: 1500 })
+      await until(() => Boolean(pixiApp.value) && Boolean(pixiApp.value?.stage)).toBeTruthy({ timeout: 1500 })
     } catch {
       modelLoading.value = false
       componentState.value = 'mounted'

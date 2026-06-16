@@ -41,7 +41,7 @@ function resolveProviderBaseUrl(input: string): string {
     if (DEPLOYMENT_CHAT_COMPLETIONS_PATH_REGEX.test(parsed.pathname) || OPENAI_PATH_REGEX.test(parsed.pathname)) {
       return `${parsed.origin}/openai/v1`
     }
-  // eslint-disable-next-line no-empty
+    // eslint-disable-next-line no-empty
   } catch {
     // noop
   }
@@ -228,7 +228,7 @@ export const providerAzureOpenAI = defineProvider<AzureOpenAIConfig>({
   },
 
   validationRequiredWhen(config) {
-    return !!config.apiKey?.trim()
+    return Boolean(config.apiKey?.trim())
   },
   validators: {
     validateConfig: [

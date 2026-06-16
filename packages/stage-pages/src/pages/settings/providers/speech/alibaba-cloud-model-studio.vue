@@ -28,7 +28,7 @@ const { providers } = storeToRefs(providersStore)
 const { t } = useI18n()
 
 // Check if API key is configured
-const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
+const apiKeyConfigured = computed(() => Boolean(providers.value[providerId]?.apiKey))
 
 // Get available voices for ElevenLabs
 const availableVoices = computed(() => {

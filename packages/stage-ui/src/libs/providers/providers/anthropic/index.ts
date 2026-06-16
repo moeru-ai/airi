@@ -87,7 +87,7 @@ export const providerAnthropic = defineProvider<AnthropicConfig>({
       ] satisfies ModelInfo[],
   },
   validationRequiredWhen(config) {
-    return !!config.apiKey?.trim()
+    return Boolean(config.apiKey?.trim())
   },
   validators: {
     ...createOpenAICompatibleValidators({

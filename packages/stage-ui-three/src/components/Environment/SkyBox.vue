@@ -91,7 +91,7 @@ function clearEnvironment() {
 // load HDRI environment from sky box
 async function loadEnvironment(skyBoxSrc: string) {
   // Wait until renderer is ready
-  await until(() => !!renderer && !!renderer.domElement).toBeTruthy()
+  await until(() => Boolean(renderer) && Boolean(renderer.domElement)).toBeTruthy()
   // Always dispose previous env when switching
   clearEnvironment()
 

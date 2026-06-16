@@ -90,7 +90,7 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
     const isIdleMotion =
       !motionManager.state.currentGroup ||
       motionManager.state.currentGroup === motionManager.groups.idle ||
-      (!!selectedMotionGroup && motionManager.state.currentGroup === selectedMotionGroup)
+      (Boolean(selectedMotionGroup) && motionManager.state.currentGroup === selectedMotionGroup)
 
     const ctx: MotionManagerPluginContext = {
       model,

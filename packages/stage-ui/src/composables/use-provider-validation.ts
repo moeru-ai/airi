@@ -51,7 +51,7 @@ export function useProviderValidation(providerId: string) {
   const validationMessage = ref('')
 
   // Manual chat ping check state (settings pages only)
-  const hasManualValidators = computed(() => !!providerMetadata.value?.validators.chatPingCheckAvailable)
+  const hasManualValidators = computed(() => Boolean(providerMetadata.value?.validators.chatPingCheckAvailable))
   const isManualTesting = ref(false)
   const manualTestPassed = ref(false)
   const manualTestMessage = ref('')

@@ -211,7 +211,7 @@ export function useChatHistoryScroll<TMessage extends { role?: string }>({
 
   function syncPointerOrFocusInspection(target: EventTarget | null) {
     const element = findMessageElement(target)
-    isInspectingOlderMessage.value = !!element && !isLastMessageElement(element)
+    isInspectingOlderMessage.value = Boolean(element) && !isLastMessageElement(element)
   }
 
   function syncSelectionInspection() {
@@ -222,7 +222,7 @@ export function useChatHistoryScroll<TMessage extends { role?: string }>({
     }
 
     const element = findMessageElement(selection.anchorNode)
-    isSelectionInspectingHistory.value = !!element && !isLastMessageElement(element)
+    isSelectionInspectingHistory.value = Boolean(element) && !isLastMessageElement(element)
   }
 
   function scrollToBottom() {

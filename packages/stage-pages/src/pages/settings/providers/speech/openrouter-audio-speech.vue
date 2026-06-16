@@ -25,7 +25,7 @@ const model = computed({
 
 const providerModels = computed(() => providersStore.getModelsForProvider(providerId))
 const isLoadingModels = computed(() => providersStore.isLoadingModels[providerId] || false)
-const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
+const apiKeyConfigured = computed(() => Boolean(providers.value[providerId]?.apiKey))
 
 const availableVoices = computed(() => {
   return speechStore.availableVoices[providerId] || []

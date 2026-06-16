@@ -37,7 +37,7 @@ export const providerCloudflareWorkersAI = defineProvider({
     return createWorkersAI(config.apiKey, config.accountId)
   },
   validationRequiredWhen: (config) => {
-    return !!config.apiKey && !!config.accountId
+    return Boolean(config.apiKey) && Boolean(config.accountId)
   },
   validators: {
     validateConfig: [

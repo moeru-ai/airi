@@ -580,7 +580,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       deps.onLlmRequestStarted?.({
         model: options.model,
         provider: deps.getActiveProvider() || 'unknown',
-        hasVoice: !!options.input,
+        hasVoice: Boolean(options.input),
       })
 
       await deps.llm.stream(options.model, options.chatProvider, newMessages as Message[], {
@@ -687,7 +687,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       resetForegroundStream(sessionId)
       deps.onMessageRound?.({
         durationMs: Math.round(monotonicNow() - roundStartedAt),
-        hasVoice: !!options.input,
+        hasVoice: Boolean(options.input),
         model: options.model,
       })
     } finally {
@@ -761,9 +761,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         ({
           sessionId: queued.sessionId,
           generation: queued.generation,
-          cancelled: !!queued.cancelled,
+          cancelled: Boolean(queued.cancelled),
           messagePreview: queued.sendingMessage.slice(0, 120),
-          hasAttachments: !!queued.options.attachments?.length,
+          hasAttachments: Boolean(queued.options.attachments?.length),
           inputType: queued.options.input?.type,
         }) satisfies QueuedSendSnapshot,
     )

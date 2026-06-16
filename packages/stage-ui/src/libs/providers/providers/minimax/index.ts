@@ -108,7 +108,7 @@ export const providerMinimax = defineProvider<MinimaxCnConfig>({
     listModels: async () => minimaxModels,
   },
   validationRequiredWhen(config) {
-    return !!config.apiKey?.trim()
+    return Boolean(config.apiKey?.trim())
   },
   validators: {
     ...createOpenAICompatibleValidators({
@@ -153,7 +153,7 @@ export const providerMinimaxGlobal = defineProvider<MinimaxGlobalConfig>({
     listModels: async () => minimaxModels.map((m) => ({ ...m, provider: 'minimax-global' })),
   },
   validationRequiredWhen(config) {
-    return !!config.apiKey?.trim()
+    return Boolean(config.apiKey?.trim())
   },
   validators: {
     ...createOpenAICompatibleValidators({

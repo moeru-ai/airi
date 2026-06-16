@@ -576,7 +576,7 @@ watch(
       emitSceneSubtreeTrace('controlsRef', 'detached')
       controlsReady.value = false
 
-      if (props.modelSrc && !!activeModelSrc.value) beginSceneRebind()
+      if (props.modelSrc && Boolean(activeModelSrc.value)) beginSceneRebind()
     }
   },
   { flush: 'sync' },

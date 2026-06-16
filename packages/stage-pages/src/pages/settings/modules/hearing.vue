@@ -85,7 +85,7 @@ const testStreamWasStarted = ref(false) // Track if we started the stream for te
 const useVADThreshold = ref(0.6) // 0.1 - 0.9
 const useVADMinSilenceDurationMs = ref(800)
 const useVADModel = ref(true) // Toggle between VAD and volume-based detection
-const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
+const shouldUseStreamInput = computed(() => supportsStreamInput.value && Boolean(stream.value))
 
 function formatVADThreshold(value: number) {
   return value.toFixed(2)

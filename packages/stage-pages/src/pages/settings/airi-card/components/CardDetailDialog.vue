@@ -402,7 +402,7 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
             </div>
 
             <!-- Character -->
-            <div v-if="activeTab === 'character' && Object.values(characterSettings).some((value) => !!value)">
+            <div v-if="activeTab === 'character' && Object.values(characterSettings).some((value) => Boolean(value))">
               <div flex="~ col" max-h-60 gap-4 overflow-auto pr-1 sm:max-h-80>
                 <template v-for="(value, key) in characterSettings" :key="key">
                   <div v-if="value" flex="~ col" gap-2>

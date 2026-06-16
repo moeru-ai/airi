@@ -100,7 +100,7 @@ const voiceSample = computed({
   },
 })
 
-const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
+const apiKeyConfigured = computed(() => Boolean(providers.value[providerId]?.apiKey))
 
 onMounted(async () => {
   ensureProviderConfig()
