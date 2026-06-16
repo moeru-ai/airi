@@ -38,13 +38,13 @@ async function main() {
     return reply.sendFile('index.html', distDir)
   })
 
-  app.listen({ port: PORT, host: HOST }, (err) => {
-    if (err) {
-      console.error(err)
-      process.exit(1)
-    }
+  try {
+    await app.listen({ port: PORT, host: HOST })
     console.log(`[roo-standalone] http://${HOST}:${PORT}`)
-  })
+  } catch (err) {
+    console.error(err)
+    process.exit(1)
+  }
 }
 
 main().catch(console.error)

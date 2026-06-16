@@ -14,22 +14,23 @@ import type { ExtensionState, ProviderSettings } from '@roo-code/types'
 // Defaults
 // ---------------------------------------------------------------------------
 
-const DEFAULT_PROVIDER_SETTINGS: ProviderSettings = {
+const DEFAULT_PROVIDER_SETTINGS = {
   // The webview-ui already ships with 27+ providers and builds its own
   // settings UI. We only need to seed an empty config — the user fills in
   // their API key through the Settings tab.
+  //
+  // Note: `temperature` is NOT a ProviderSettings field — it's a per-model
+  // parameter managed by the TemperatureControl UI component. `apiKey` and
+  // `apiModelId` are provider-specific; `modelMaxTokens` is the base field.
   apiProvider: 'openrouter',
-  apiKey: '',
-  apiModelId: '',
-  temperature: 0,
-  maxTokens: 4096,
-} as unknown as ProviderSettings
+  modelMaxTokens: 4096,
+} satisfies ProviderSettings
 
-function initialState(): ExtensionState {
+function buildInitialState(): ExtensionState {
   return {
     version: '0.1.0',
     clineMessages: [],
-    apiConfiguration: DEFAULT_PROVIDER_SETTINGS,
+    apiConfiguration: { ...DEFAULT_PROVIDER_SETTINGS },
     shouldShowAnnouncement: false,
     taskHistory: [],
     writeDelayMs: 0,
@@ -46,7 +47,7 @@ function initialState(): ExtensionState {
     mode: 'vibe',
     customModes: [],
     toolRequirements: {},
-    renderContext: 'sidebar',
+    renderContext: 'sidebar' as const,
     organizationAllowList: { allowAll: true, providers: {} },
     autoCondenseContext: false,
     autoCondenseContextPercent: 80,
@@ -80,11 +81,24 @@ function initialState(): ExtensionState {
   }
 }
 
+/**
+ * Build a fresh initial state, preserving fields that should survive a reset.
+ *
+ * The webview-ui expects `apiConfiguration` (user's API keys) to persist across
+ * resets — wiping it would force the user to re-enter credentials every time.
+ */
+export function createInitialStateFrom(current: ExtensionState): ExtensionState {
+  return {
+    ...buildInitialState(),
+    apiConfiguration: current.apiConfiguration,
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Store
 // ---------------------------------------------------------------------------
 
-let state: ExtensionState = initialState()
+let state: ExtensionState = buildInitialState()
 
 /** Full state hydration — sent to the webview on load. */
 export function getState(): ExtensionState {
@@ -113,6 +127,11 @@ const tasks = new Map<string, HistoryItem>()
 
 export function listTasks(): HistoryItem[] {
   return Array.from(tasks.values()).sort((a, b) => (b.ts ?? 0) - (a.ts ?? 0))
+}
+
+/** O(1) task count — avoids converting the entire map to a sorted array. */
+export function getTaskCount(): number {
+  return tasks.size
 }
 
 export function getTask(id: string): HistoryItem | undefined {

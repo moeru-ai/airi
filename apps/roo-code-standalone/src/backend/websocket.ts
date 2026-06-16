@@ -2,7 +2,16 @@ import type { WebSocket } from 'ws'
 
 import { nanoid } from 'nanoid'
 
-import { getState, setState, patchState, listTasks, getTask, upsertTask, deleteTask } from './state.js'
+import {
+  getState,
+  setState,
+  patchState,
+  createInitialStateFrom,
+  getTask,
+  getTaskCount,
+  upsertTask,
+  deleteTask,
+} from './state.js'
 
 /**
  * WebSocket handler for the standalone backend.
@@ -44,8 +53,12 @@ export function websocketHandler(ws: WebSocket): void {
 
   ws.on('message', (raw) => {
     try {
-      const message = JSON.parse(raw.toString()) as Record<string, unknown>
-      handleMessage(ws, message)
+      const message = JSON.parse(raw.toString())
+      if (!message || typeof message !== 'object' || Array.isArray(message)) {
+        console.warn('[roo-standalone] ws invalid message shape:', raw.toString().slice(0, 200))
+        return
+      }
+      handleMessage(ws, message as Record<string, unknown>)
     } catch {
       console.warn('[roo-standalone] ws invalid JSON:', raw.toString().slice(0, 200))
     }
@@ -83,59 +96,7 @@ function handleMessage(ws: WebSocket, message: Record<string, unknown>): void {
     }
 
     case 'resetState': {
-      const fresh = {
-        version: '0.1.0',
-        clineMessages: [],
-        apiConfiguration: getState().apiConfiguration,
-        shouldShowAnnouncement: false,
-        taskHistory: [],
-        writeDelayMs: 0,
-        enableCheckpoints: false,
-        checkpointTimeout: 15,
-        maxOpenTabsContext: 20,
-        maxWorkspaceFiles: 200,
-        showRooIgnoredFiles: false,
-        enableSubfolderRules: false,
-        maxImageFileSize: 5,
-        maxTotalImageSize: 20,
-        experiments: {},
-        mcpEnabled: true,
-        mode: 'vibe',
-        customModes: [],
-        toolRequirements: {},
-        renderContext: 'sidebar' as const,
-        organizationAllowList: { allowAll: true, providers: {} },
-        autoCondenseContext: false,
-        autoCondenseContextPercent: 80,
-        autoCondenseOnModelSwitch: false,
-        autoCondenseModelSwitchLookback: 3,
-        profileThresholds: {},
-        hasOpenedModeSelector: false,
-        currentApiConfigName: 'default',
-        listApiConfigMeta: [],
-        pinnedApiConfigs: {},
-        customInstructions: '',
-        dismissedUpsells: [],
-        autoApprovalEnabled: false,
-        alwaysAllowReadOnly: false,
-        alwaysAllowReadOnlyOutsideWorkspace: false,
-        alwaysAllowWrite: false,
-        alwaysAllowWriteOutsideWorkspace: false,
-        alwaysAllowWriteProtected: false,
-        alwaysAllowMcp: true,
-        alwaysAllowModeSwitch: true,
-        modeSwitchingEnabled: true,
-        alwaysAllowSubtasks: false,
-        alwaysAllowFollowupQuestions: false,
-        alwaysAllowExecute: false,
-        allowedCommands: [],
-        ttsEnabled: false,
-        ttsSpeed: 1,
-        soundEnabled: false,
-        soundVolume: 0.5,
-        cwd: process.cwd(),
-      }
-      setState(fresh)
+      const fresh = setState(createInitialStateFrom(getState()))
       send(ws, { type: 'state', state: fresh, requestId })
       broadcast({ type: 'state', state: fresh })
       break
@@ -158,7 +119,7 @@ function handleMessage(ws: WebSocket, message: Record<string, unknown>): void {
         cacheWrites: 0,
         cacheReads: 0,
         totalCost: 0,
-        number: listTasks().length + 1,
+        number: getTaskCount() + 1,
       }
       upsertTask(item as any)
       send(ws, { type: 'taskCreated', task: item, requestId })

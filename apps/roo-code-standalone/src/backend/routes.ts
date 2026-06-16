@@ -1,7 +1,17 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { nanoid } from 'nanoid'
 
-import { getState, setState, patchState, listTasks, getTask, upsertTask, deleteTask } from './state.js'
+import {
+  getState,
+  setState,
+  patchState,
+  createInitialStateFrom,
+  listTasks,
+  getTask,
+  getTaskCount,
+  upsertTask,
+  deleteTask,
+} from './state.js'
 import type { HistoryItem } from '@roo-code/types'
 
 /**
@@ -21,7 +31,7 @@ export const router: FastifyPluginAsync = async (fastify: FastifyInstance) => {
 
   fastify.post('/state', async (req, reply) => {
     const body = req.body as Record<string, unknown>
-    if (!body || typeof body !== 'object') {
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
       return reply.code(400).send({ error: 'invalid body' })
     }
     const updated = patchState(body as any)
@@ -29,58 +39,7 @@ export const router: FastifyPluginAsync = async (fastify: FastifyInstance) => {
   })
 
   fastify.post('/state/reset', async (_req, reply) => {
-    const fresh = setState({
-      version: '0.1.0',
-      clineMessages: [],
-      apiConfiguration: getState().apiConfiguration,
-      shouldShowAnnouncement: false,
-      taskHistory: [],
-      writeDelayMs: 0,
-      enableCheckpoints: false,
-      checkpointTimeout: 15,
-      maxOpenTabsContext: 20,
-      maxWorkspaceFiles: 200,
-      showRooIgnoredFiles: false,
-      enableSubfolderRules: false,
-      maxImageFileSize: 5,
-      maxTotalImageSize: 20,
-      experiments: {},
-      mcpEnabled: true,
-      mode: 'vibe',
-      customModes: [],
-      toolRequirements: {},
-      renderContext: 'sidebar',
-      organizationAllowList: { allowAll: true, providers: {} },
-      autoCondenseContext: false,
-      autoCondenseContextPercent: 80,
-      autoCondenseOnModelSwitch: false,
-      autoCondenseModelSwitchLookback: 3,
-      profileThresholds: {},
-      hasOpenedModeSelector: false,
-      currentApiConfigName: 'default',
-      listApiConfigMeta: [],
-      pinnedApiConfigs: {},
-      customInstructions: '',
-      dismissedUpsells: [],
-      autoApprovalEnabled: false,
-      alwaysAllowReadOnly: false,
-      alwaysAllowReadOnlyOutsideWorkspace: false,
-      alwaysAllowWrite: false,
-      alwaysAllowWriteOutsideWorkspace: false,
-      alwaysAllowWriteProtected: false,
-      alwaysAllowMcp: true,
-      alwaysAllowModeSwitch: true,
-      modeSwitchingEnabled: true,
-      alwaysAllowSubtasks: false,
-      alwaysAllowFollowupQuestions: false,
-      alwaysAllowExecute: false,
-      allowedCommands: [],
-      ttsEnabled: false,
-      ttsSpeed: 1,
-      soundEnabled: false,
-      soundVolume: 0.5,
-      cwd: process.cwd(),
-    })
+    const fresh = setState(createInitialStateFrom(getState()))
     return reply.send(fresh)
   })
 
@@ -114,7 +73,7 @@ export const router: FastifyPluginAsync = async (fastify: FastifyInstance) => {
       cacheWrites: 0,
       cacheReads: 0,
       totalCost: 0,
-      number: listTasks().length + 1,
+      number: getTaskCount() + 1,
     }
     upsertTask(item)
     return reply.code(201).send(item)
