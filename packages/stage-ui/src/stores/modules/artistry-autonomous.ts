@@ -55,18 +55,19 @@ export const useAutonomousArtistryStore = defineStore('artistry-autonomous', () 
     generate: (payload: GenerationPayload) => Promise<GenerationResult>
     addWidget: (options: Record<string, unknown>) => Promise<void>
   } | null => {
-    // eslint-disable-next-line ts/no-explicit-any
-    const win = window as any
-    if (typeof window !== 'undefined' && win.electron?.ipcRenderer) {
-      const { context } = createContext(win.electron.ipcRenderer)
-      return {
-        generate: defineInvoke(context, artistryGenerateHeadless) as (
-          payload: GenerationPayload,
-        ) => Promise<GenerationResult>,
-        addWidget: defineInvoke(context, widgetsAdd) as (options: Record<string, unknown>) => Promise<void>,
-      }
+    if (typeof window === 'undefined') return null
+
+    const ipcRenderer = (window as unknown as { electron?: { ipcRenderer: Parameters<typeof createContext>[0] } })
+      .electron?.ipcRenderer
+    if (!ipcRenderer) return null
+
+    const { context } = createContext(ipcRenderer)
+    return {
+      generate: defineInvoke(context, artistryGenerateHeadless) as (
+        payload: GenerationPayload,
+      ) => Promise<GenerationResult>,
+      addWidget: defineInvoke(context, widgetsAdd) as (options: Record<string, unknown>) => Promise<void>,
     }
-    return null
   }
 
   /**
