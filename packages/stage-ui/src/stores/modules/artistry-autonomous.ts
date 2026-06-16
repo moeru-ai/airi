@@ -18,12 +18,6 @@ import { useAiriCardStore } from './airi-card'
 import { useArtistryStore } from './artistry'
 import { useConsciousnessStore } from './consciousness'
 
-// Type for Electron IPC context
-type ElectronIpcRenderer = {
-  invoke: (channel: string, ...args: unknown[]) => Promise<unknown>
-  on: (channel: string, listener: (...args: unknown[]) => void) => void
-}
-
 // Type for generation payload
 interface GenerationPayload {
   prompt: string
@@ -61,15 +55,19 @@ export const useAutonomousArtistryStore = defineStore('artistry-autonomous', () 
     generate: (payload: GenerationPayload) => Promise<GenerationResult>
     addWidget: (options: Record<string, unknown>) => Promise<void>
   } | null => {
-    const win = window as unknown as { electron?: { ipcRenderer: ElectronIpcRenderer } }
-    if (typeof window !== 'undefined' && win.electron?.ipcRenderer) {
-      const { context } = createContext(win.electron.ipcRenderer)
-      return {
-        generate: defineInvoke(context, artistryGenerateHeadless) as (payload: GenerationPayload) => Promise<GenerationResult>,
-        addWidget: defineInvoke(context, widgetsAdd) as (options: Record<string, unknown>) => Promise<void>,
-      }
+    if (typeof window === 'undefined') return null
+
+    const ipcRenderer = (window as unknown as { electron?: { ipcRenderer: Parameters<typeof createContext>[0] } })
+      .electron?.ipcRenderer
+    if (!ipcRenderer) return null
+
+    const { context } = createContext(ipcRenderer)
+    return {
+      generate: defineInvoke(context, artistryGenerateHeadless) as (
+        payload: GenerationPayload,
+      ) => Promise<GenerationResult>,
+      addWidget: defineInvoke(context, widgetsAdd) as (options: Record<string, unknown>) => Promise<void>,
     }
-    return null
   }
 
   /**
@@ -282,7 +280,10 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
           throw new Error(result.error)
         }
 
-        artistLog('Headless Generation Success!', { hasUrl: Boolean(result.imageUrl), hasBase64: Boolean(result.base64) })
+        artistLog('Headless Generation Success!', {
+          hasUrl: Boolean(result.imageUrl),
+          hasBase64: Boolean(result.base64),
+        })
 
         // 4. Save to journal
         if (result.base64 || result.imageUrl) {

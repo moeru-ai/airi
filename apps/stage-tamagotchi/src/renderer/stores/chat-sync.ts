@@ -13,6 +13,8 @@ import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
 
+import type { Tool } from '@xsai/shared-chat'
+
 import { imageJournalTools } from './tools/builtin/image-journal'
 import { weatherTools } from './tools/builtin/weather'
 import { widgetsTools } from './tools/builtin/widgets'
@@ -303,7 +305,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
   }
 
   function resolveTools(toolset?: ToolsetId) {
-    const toolsetRegistry: Record<string, () => Promise<unknown[]>> = {
+    const toolsetRegistry: Record<ToolsetId, () => Promise<Tool[]>> = {
       widgets: async () => {
         const [w, we] = await Promise.all([widgetsTools(), weatherTools()])
         return [...w, ...we]
