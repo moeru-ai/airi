@@ -1,5 +1,6 @@
 import type { ChatSessionMeta } from '../../types/chat-session'
 
+import { errorMessageFrom } from '@moeru/std'
 import * as v from 'valibot'
 
 const REMOTE_CHAT_TYPES = ['private', 'bot', 'group', 'channel'] as const

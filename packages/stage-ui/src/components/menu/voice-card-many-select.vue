@@ -172,6 +172,11 @@ function createAudioStream(audio: HTMLAudioElement, voiceId: string): MediaStrea
     // Get the shared audio context
     const audioContext = initAudioContext()
 
+    // Guard: audio context may be unavailable (e.g. user hasn't interacted yet)
+    if (!audioContext) {
+      return null
+    }
+
     // Check if we already have a source for this audio element
     if (audioSources.value.has(voiceId)) {
       const source = audioSources.value.get(voiceId)!
