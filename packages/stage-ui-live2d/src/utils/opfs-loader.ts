@@ -204,7 +204,7 @@ export class OPFSCache {
       if (settings) {
         const _logger = (..._a: unknown[]) => void 0
         _logger('[OPFS] Reconstructing settings file...')
-        const settingsText = encodeModelSettings(settings.json)
+        const settingsText = encodeModelSettings(settings.json as Record<string, unknown>)
         const settingsFilePath = settings.url || 'model.model3.json'
         const newSettingsFile = new File([settingsText], settingsFilePath)
         Object.defineProperty(newSettingsFile, 'webkitRelativePath', {
@@ -223,10 +223,17 @@ export class OPFSCache {
 }
 
 function encodeProperty(obj: Record<string, unknown>, path: string): void {
-  let cursor = obj
+  // eslint-disable-next-line ts/no-explicit-any
+  let cursor: any = obj
   const propPath = path.split('.')
   // will lose reference when access to the last level
-  while (propPath.length > 1 && cursor !== null && cursor !== undefined && typeof cursor === 'object' && propPath[0] in cursor) {
+  while (
+    propPath.length > 1 &&
+    cursor !== null &&
+    cursor !== undefined &&
+    typeof cursor === 'object' &&
+    propPath[0] in cursor
+  ) {
     cursor = cursor[propPath.shift()!]
   }
   if (cursor === null || cursor === undefined || cursor[propPath[0]] === null || cursor[propPath[0]] === undefined) {
