@@ -95,8 +95,6 @@ interface PendingRequest {
   timeout: ReturnType<typeof setTimeout>
 }
 
-const _logger = (...a: unknown[]) => void 0
-
 const CHAT_SYNC_CHANNEL_NAME = 'airi:stage-tamagotchi:chat-sync'
 const AUTHORITY_HEARTBEAT_INTERVAL_MS = 1000
 const REQUEST_TIMEOUT_MS = 30000
@@ -175,7 +173,8 @@ function previewChatSyncPayload(payload: unknown): unknown {
  * - Writes an error entry to the renderer console for postmortem debugging
  */
 function logChatSyncError(message: string, error: unknown, details: Record<string, unknown>) {
-  _logger(`[chat-sync] ${message}`, {
+  // eslint-disable-next-line no-console
+  console.error(`[chat-sync] ${message}`, {
     ...details,
     error,
     errorMessage: errorMessageFrom(error) ?? String(error),
