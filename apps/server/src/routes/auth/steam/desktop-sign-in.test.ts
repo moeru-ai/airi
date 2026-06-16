@@ -27,7 +27,7 @@ function buildApp(env: { STEAM_PUBLISHER_KEY: string }) {
     collaborators: {
       authenticateUserTicket: vi.fn(async () => '76561198000000000'),
       checkAppOwnership: vi.fn(async () => true),
-      resolveOrCreateSteamUser: vi.fn(async () => ({ userId: 'user-steam-1' })),
+      resolveOrCreateSteamUser: vi.fn(async () => ({ userId: 'user-steam-1', created: false })),
       mintElectronOidcTokens: vi.fn(async () => ({
         accessToken: 'jwt-access',
         refreshToken: 'refresh-token',

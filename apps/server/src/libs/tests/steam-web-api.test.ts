@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { authenticateUserTicket, checkAppOwnership } from '../steam-web-api'
+import { authenticateUserTicket, checkAppOwnership, getPlayerSummaries } from '../steam-web-api'
 
 describe('authenticateUserTicket', () => {
   afterEach(() => vi.restoreAllMocks())
@@ -56,5 +56,63 @@ describe('checkAppOwnership', () => {
     })
 
     expect(owns).toBe(true)
+  })
+})
+
+describe('getPlayerSummaries', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it('returns name and image from first player', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        response: {
+          players: [{
+            steamid: '76561198000000001',
+            personaname: 'Alice',
+            avatarfull: 'https://steamcdn-a.akamaihd.net/avatar_full.jpg',
+          }],
+        },
+      }),
+    }))
+
+    const profile = await getPlayerSummaries({
+      publisherKey: 'test-key',
+      steamId: '76561198000000001',
+    })
+
+    expect(profile).toEqual({
+      name: 'Alice',
+      image: 'https://steamcdn-a.akamaihd.net/avatar_full.jpg',
+    })
+  })
+
+  it('returns null on HTTP error', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({}),
+    }))
+
+    const profile = await getPlayerSummaries({
+      publisherKey: 'test-key',
+      steamId: '76561198000000001',
+    })
+
+    expect(profile).toBeNull()
+  })
+
+  it('returns null when players array is empty', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ response: { players: [] } }),
+    }))
+
+    const profile = await getPlayerSummaries({
+      publisherKey: 'test-key',
+      steamId: '76561198000000001',
+    })
+
+    expect(profile).toBeNull()
   })
 })

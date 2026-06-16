@@ -17,6 +17,15 @@ interface CheckAppOwnershipResponse {
   }
 }
 
+interface GetPlayerSummariesResponse {
+  response?: {
+    players?: Array<{
+      personaname?: string
+      avatarfull?: string
+    }>
+  }
+}
+
 async function fetchSteamJson<T>(url: URL, label: string): Promise<T> {
   let res: Response
   try {
@@ -64,4 +73,28 @@ export async function checkAppOwnership(params: {
 
   const body = await fetchSteamJson<CheckAppOwnershipResponse>(url, 'Steam CheckAppOwnership')
   return body.appownership?.ownsapp === true
+}
+
+export async function getPlayerSummaries(params: {
+  publisherKey: string
+  steamId: string
+}): Promise<{ name: string, image: string } | null> {
+  const url = new URL('/ISteamUser/GetPlayerSummaries/v2/', STEAM_PARTNER_API)
+  url.searchParams.set('key', params.publisherKey)
+  url.searchParams.set('steamids', params.steamId)
+
+  try {
+    const body = await fetchSteamJson<GetPlayerSummariesResponse>(url, 'Steam GetPlayerSummaries')
+    const player = body.response?.players?.[0]
+    if (!player)
+      return null
+
+    return {
+      name: player.personaname?.trim() ?? '',
+      image: player.avatarfull?.trim() ?? '',
+    }
+  }
+  catch {
+    return null
+  }
 }
