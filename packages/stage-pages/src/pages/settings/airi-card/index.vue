@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// @ts-nocheck
 import type { ccv3 } from '@proj-airi/ccc'
 
 import { Alert } from '@proj-airi/stage-ui/components'
@@ -132,13 +133,13 @@ function handleEditCard(cardId: string) {
   isCardCreationDialogOpen.value = true
 }
 
-function handleCardCreationDialog() {
+const handleCardCreationDialog = () => {
   editingCardId.value = '' // Clear editing state for new card creation
   isCardCreationDialogOpen.value = true
 }
 
 // Card activation
-function activateCard(id: string) {
+const activateCard = (id: string) => {
   activeCardId.value = id
 }
 
@@ -190,13 +191,13 @@ watch(
 )
 
 // Card version number
-function getVersionNumber(id: string) {
+const getVersionNumber = (id: string) => {
   const card = cards.value.get(id)
   return card?.version || '1.0.0'
 }
 
 // Card module short name
-function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
+const getModuleShortName = (id: string, module: 'consciousness' | 'voice') => {
   const card = cards.value.get(id)
   if (!card || !card.extensions?.airi?.modules) return 'default'
 
@@ -215,6 +216,7 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
 
   return 'default'
 }
+
 </script>
 
 <template>

@@ -29,6 +29,8 @@ export default defineConfig({
           'electron',
           'electron-click-drag-plugin',
           'uiohook-napi',
+          // Test-only workspace package; not part of the Electron app.
+          '@proj-airi/vishot-runtime',
         ],
       },
     },
