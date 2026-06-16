@@ -45,8 +45,9 @@ export function themeColorFromValue(value: string | { light: string; dark: strin
 
 export function useThemeColor(colorFrom: () => string | Promise<string>) {
   async function updateThemeColor() {
-    if (!('document' in globalThis) || globalThis.document == null) return
-    if (!('window' in globalThis) || globalThis.window == null) return
+    const hasDocument = typeof globalThis.document !== 'undefined' && globalThis.document !== null
+    const hasWindow = typeof globalThis.window !== 'undefined' && globalThis.window !== null
+    if (!hasDocument || !hasWindow) return
 
     document
       .querySelector('meta[name="theme-color"]')
@@ -88,12 +89,15 @@ export function useBackgroundThemeColor({
   })
 
   // Keep theme-color reasonably fresh for animated wave backgrounds without doing per-frame work.
+  const THEME_COLOR_POLL_INTERVAL_MS = 250
   const { pause, resume } = useIntervalFn(
     () => {
       if (visibility.value !== 'visible') return
-      if (selectedOption.value?.kind === BackgroundKind.Wave && themeColorsHueDynamic.value) void updateThemeColor()
+      if (selectedOption.value?.kind === BackgroundKind.Wave && themeColorsHueDynamic.value) {
+        updateThemeColor().catch((error) => console.warn('Failed to update theme color', error))
+      }
     },
-    250,
+    THEME_COLOR_POLL_INTERVAL_MS,
     { immediate: false },
   )
 
@@ -101,7 +105,7 @@ export function useBackgroundThemeColor({
     [() => selectedOption.value?.kind, () => themeColorsHueDynamic.value],
     ([kind, dynamic]) => {
       if (kind === BackgroundKind.Wave && dynamic) {
-        void updateThemeColor()
+        updateThemeColor().catch((error) => console.warn('Failed to update theme color', error))
         resume()
       } else {
         pause()
@@ -141,6 +145,10 @@ export function useBackgroundThemeColor({
 
     await waitForBackgroundReady()
 
+    const SAMPLE_REGION_MAX_HEIGHT = 140
+    const SAMPLE_HEIGHT = 20
+    const SAMPLE_STRIDE = 10
+    const SAMPLE_SCALE = 0.5
     const result = await colorFromElement(el, {
       mode: 'html2canvas',
       html2canvas: {
@@ -148,11 +156,11 @@ export function useBackgroundThemeColor({
           x: 0,
           y: 0,
           width: el.offsetWidth,
-          height: Math.min(140, el.offsetHeight),
+          height: Math.min(SAMPLE_REGION_MAX_HEIGHT, el.offsetHeight),
         },
-        sampleHeight: 20,
-        sampleStride: 10,
-        scale: 0.5,
+        sampleHeight: SAMPLE_HEIGHT,
+        sampleStride: SAMPLE_STRIDE,
+        scale: SAMPLE_SCALE,
         backgroundColor: null,
         allowTaint: true,
         useCORS: true,

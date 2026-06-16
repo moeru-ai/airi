@@ -48,7 +48,12 @@ function playAudio(voiceId: string) {
   // Set up audio context and stream when audio can play
   audioElement.value.oncanplay = () => {
     try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+      const AudioCtx = window.AudioContext || ((window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)
+      if (!AudioCtx) {
+        console.error('Web Audio API not supported')
+        return
+      }
+      const audioContext = new AudioCtx()
 
       // Create audio analyzer for visualization
       const analyzer = audioContext.createAnalyser()

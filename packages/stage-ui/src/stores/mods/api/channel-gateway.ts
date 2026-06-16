@@ -79,7 +79,7 @@ export function createChannelGateway(): ChannelGateway {
           if (result.done) break
           dispatch(result.value, { origin: channel.name })
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.warn('Channel gateway stream error:', channel.name, error)
       }
     }

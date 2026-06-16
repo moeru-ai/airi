@@ -13,6 +13,13 @@ import { useConsciousnessStore } from './modules/consciousness'
 import { usePerfTracerBridgeStore } from './perf-tracer-bridge'
 import { useProvidersStore } from './providers'
 
+// Type definitions for deterministic timer
+interface Scheduled {
+  id: number
+  at: number
+  fn: () => void | Promise<void>
+}
+
 interface DeterministicTimer {
   now: () => number
   schedule: (delayMs: number, fn: () => void | Promise<void>) => number
@@ -22,12 +29,6 @@ interface DeterministicTimer {
 }
 
 function createDeterministicTimer(startAt = 0): DeterministicTimer {
-  interface Scheduled {
-    id: number
-    at: number
-    fn: () => void | Promise<void>
-  }
-
   let now = startAt
   let nextId = 1
   const queue: Scheduled[] = []
@@ -304,7 +305,7 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
             model: activeModel.value!,
             chatProvider: provider,
           })
-        } catch (error) {
+        } catch (error: unknown) {
           console.error('[markdown-stress] Online send failed', error)
         }
       }, delay)

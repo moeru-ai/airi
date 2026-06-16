@@ -31,8 +31,8 @@ function createMockStreamResult(steps: Promise<unknown[]> = Promise.resolve([]))
   return {
     steps,
     messages: Promise.resolve([]),
-    usage: Promise.resolve(undefined),
-    totalUsage: Promise.resolve(undefined),
+    usage: Promise.resolve(undefined as undefined),
+    totalUsage: Promise.resolve(undefined as undefined),
   }
 }
 
@@ -42,7 +42,7 @@ describe('streamFrom tool error capture', () => {
    * await streamFrom({ model, chatProvider, messages, options: { captureToolErrors: true } })
    */
   it('keeps captureToolErrors internal while forwarding failed tool calls as tool-error events', async () => {
-    let resolveSteps: ((steps: unknown[]) => void) | undefined
+    let resolveSteps: ((steps: unknown[]) => void) | undefined = undefined
     const events: unknown[] = []
     const failingTool = {
       type: 'function',
@@ -258,6 +258,6 @@ describe('isContentArrayRelatedError', () => {
     expect(isContentArrayRelatedError('Remote sent 400 response: model not found')).toBe(false)
     expect(isContentArrayRelatedError('Remote sent 401 response: invalid api key')).toBe(false)
     expect(isContentArrayRelatedError('Tool call failed: invalid schema for function')).toBe(false)
-    expect(isContentArrayRelatedError(undefined)).toBe(false)
+    expect(isContentArrayRelatedError(undefined as unknown as string)).toBe(false)
   })
 })

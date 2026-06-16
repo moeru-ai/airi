@@ -37,6 +37,8 @@ import {
   setStageThreeRuntimeTraceRemoteSubscription,
 } from '../bridges/stage-three-runtime-trace'
 
+const _logger = (...a: unknown[]) => void 0
+
 export const TRACE_HISTORY_LIMIT = 20
 
 export interface StageThreeRuntimeThreeRenderDiagnostics {
@@ -473,7 +475,7 @@ export const useStageThreeRuntimeDiagnosticsStore = defineStore('stageThreeRunti
     subscribeLocalEvents()
     subscribeRemoteEvents()
     void setStageThreeRuntimeTraceRemoteSubscription(true).catch((error) => {
-      console.warn('[StageThreeRuntimeDiagnostics] Failed to enable remote trace subscription.', error)
+      _logger('[StageThreeRuntimeDiagnostics] Failed to enable remote trace subscription.', error)
     })
     tracing.value = true
   }
@@ -487,7 +489,7 @@ export const useStageThreeRuntimeDiagnosticsStore = defineStore('stageThreeRunti
     stopLocalSubscriptions = []
     stopRemoteSubscriptions = []
     void setStageThreeRuntimeTraceRemoteSubscription(false).catch((error) => {
-      console.warn('[StageThreeRuntimeDiagnostics] Failed to disable remote trace subscription.', error)
+      _logger('[StageThreeRuntimeDiagnostics] Failed to disable remote trace subscription.', error)
     })
     releaseLocalTrace?.()
     releaseLocalTrace = undefined

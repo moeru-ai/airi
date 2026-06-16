@@ -313,7 +313,6 @@ function saveCard(card: Card): boolean {
       if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
         throw new Error('Not an object')
       }
-      void parsed // Validate JSON structure
     } catch (e) {
       showError.value = true
       errorMessage.value = t('settings.pages.card.creation.errors.invalid_artistry_json')
@@ -328,8 +327,9 @@ function saveCard(card: Card): boolean {
   if (selectedArtistryConfigStr.value.trim()) {
     try {
       artistryOptions = JSON.parse(selectedArtistryConfigStr.value)
-    } catch {
+    } catch (e) {
       // Should not happen due to validation above
+      console.warn('Failed to parse artistry config JSON', e)
       artistryOptions = undefined
     }
   }
@@ -408,7 +408,8 @@ function initializeCard(): Card {
     selectedArtistryConfigStr.value = artistrySettings?.options
       ? JSON.stringify(artistrySettings.options, null, 2)
       : '{\n  \n}'
-  } catch {
+  } catch (e) {
+    console.warn('Failed to serialize artistry options', e)
     selectedArtistryConfigStr.value = '{\n  \n}'
   }
 

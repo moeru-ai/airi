@@ -328,7 +328,11 @@ async function runInference(request: RunInferenceRequest<WhisperInput>): Promise
   try {
     sendProgress(requestId, 'inference', 0, 'Starting transcription...')
 
-    const audioData = input.audioFloat32 ?? (await base64ToFeatures(input.audio!))
+    const audioData = input.audioFloat32 ?? (input.audio ? await base64ToFeatures(input.audio) : null)
+    if (!audioData) {
+      sendError(requestId, new Error('No audio data provided (audioFloat32 or audio is required)'), 'inference')
+      return
+    }
     const [tokenizer, processor, model] = await AutomaticSpeechRecognitionPipeline.getInstance()
 
     let startTime: number | undefined
@@ -337,8 +341,8 @@ async function runInference(request: RunInferenceRequest<WhisperInput>): Promise
       startTime ??= performance.now()
 
       let tps: number | undefined
-      if (numTokens++ > 0) {
-        tps = (numTokens / (performance.now() - startTime!)) * 1000
+      if (numTokens++ > 0 && startTime != null) {
+        tps = (numTokens / (performance.now() - startTime)) * 1000
       }
 
       // Send streaming updates as progress messages with inference phase

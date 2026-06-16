@@ -208,27 +208,4 @@ export async function createSparkNotifyTools(options: CreateSparkNotifyToolsOpti
   return {
     tools,
   }
-
-  if (allowSparkCommand) {
-    tools.push(
-      rawTool({
-        name: 'builtIn_sparkCommand',
-        description: 'Issue a spark:command to sub-agents. You can call this tool multiple times.',
-        parameters: normalizeNullableAnyOf((await toJsonSchema(sparkNotifyCommandSchema)) as any),
-        execute: async (rawPayload) => {
-          try {
-            const payload = rawPayload as z.infer<typeof sparkNotifyCommandSchema>
-            const validated = await validate(sparkNotifyCommandSchema, payload)
-            options.onCommands(validated.commands.map(normalizeSparkNotifyCommand))
-          } catch (error) {
-            return `AIRI System: Error - invalid spark_command parameters: ${errorMessageFrom(error)}`
-          }
-
-          return 'AIRI System: Acknowledged, command fired.'
-        },
-      }),
-    )
-  }
-
-  return { tools }
 }

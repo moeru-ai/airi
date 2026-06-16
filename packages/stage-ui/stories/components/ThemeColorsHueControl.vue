@@ -13,7 +13,11 @@ function resetToDefault() {
 onMounted(() => {
   const hue = document.documentElement.style.getPropertyValue(VAR_HUE)
   const hueF = Number.parseFloat(hue)
-  themeColorsHue.value = hueF >= 0 && hueF <= 360 ? hueF : DEFAULT_THEME_COLORS_HUE
+  if (hueF >= 0 && hueF <= 360) {
+    themeColorsHue.value = hueF
+  } else {
+    themeColorsHue.value = DEFAULT_THEME_COLORS_HUE
+  }
   document.documentElement.style.setProperty(VAR_HUE, themeColorsHue.value.toString())
 })
 

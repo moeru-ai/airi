@@ -12,6 +12,9 @@
  */
 
 import { describe, it, expect, beforeEach } from "vitest"
+
+const _logger = (..._a: unknown[]) => void 0
+
 import {
 	createProposalId,
 	createReasoningId,
@@ -48,6 +51,7 @@ import type { SerializedProposal, SerializedReasoningTrace } from "../persistenc
 
 const logger = createLogger("test")
 const events = new EventBus()
+void logger
 
 function createTestCapabilityId(name: string): CapabilityId {
 	return createCapabilityId(name)
@@ -438,7 +442,8 @@ describe("PlanValidator", () => {
 			}],
 		})
 
-		const steps = Array.from({ length: 101 }, (_, i) =>
+		const LARGE_PROPOSAL_THRESHOLD = 101
+		const steps = Array.from({ length: LARGE_PROPOSAL_THRESHOLD }, (_, i) =>
 			createTestProposedStep({ id: `s${i}`, name: `Step ${i}`, action: "read_file" }),
 		)
 		const proposal = createProposal(createReasoningId("r1"), "Large", steps)
@@ -661,7 +666,9 @@ describe("CognitionCoordinator", () => {
 		provider.registerFixture("bad", fixture)
 
 		let rejectedEmitted = false
-		events.on("plan.rejected", () => { rejectedEmitted = true })
+		events.on("plan.rejected", () => {
+			rejectedEmitted = true
+		})
 
 		await coordinator.proposePlan(makeContext({ availableCapabilities: [] }), "bad")
 

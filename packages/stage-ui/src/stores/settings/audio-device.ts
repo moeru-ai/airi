@@ -4,8 +4,6 @@ import { watch } from 'vue'
 
 import { useAudioDevice } from '../../composables/audio'
 
-let microphonePermissionStatus: PermissionStatus
-
 export const useSettingsAudioDevice = defineStore('settings-audio-devices', () => {
   const {
     audioInputs,
@@ -38,8 +36,7 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
   // permissionGranted from vueuse does not track revocation yet.
   // implement it manually.
   try {
-    navigator?.permissions?.query({ name: 'microphone' }).then((status) => {
-      microphonePermissionStatus = status // existing one cleaned up by GC
+    void navigator?.permissions?.query({ name: 'microphone' }).then((status) => {
       status.onchange = () => {
         if (status.state === 'denied' || status.state === 'prompt') audioInputEnabled.value = false
       }
@@ -47,7 +44,6 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
   } catch (e) {
     console.info(`Unable to track microphone permission: ${e}`)
   }
-  void microphonePermissionStatus // suppress unused variable lint
   function initialize() {
     const hasSelectedInput =
       selectedAudioInputPersist.value &&

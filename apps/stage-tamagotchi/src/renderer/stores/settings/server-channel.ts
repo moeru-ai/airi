@@ -43,7 +43,7 @@ export const useServerChannelSettingsStore = defineStore('tamagotchi-server-chan
   watch([tlsConfig, hostname, authToken], async ([newTls, newHost, newAuth], [oldTls, oldHost, oldAuth]) => {
     if (
       syncingWithServer.value ||
-      (JSON.stringify(newTls) === JSON.stringify(oldTls) && newHost === oldHost && newAuth === oldAuth)
+      ((JSON.stringify(newTls) === JSON.stringify(oldTls)) && (newHost === oldHost) && (newAuth === oldAuth))
     ) {
       return
     }

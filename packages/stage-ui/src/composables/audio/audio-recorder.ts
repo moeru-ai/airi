@@ -41,9 +41,9 @@ export function useAudioRecorder(media: MaybeRefOrGetter<MediaStream | undefined
     await mediaOutput.value.start()
   }
 
-  async function stopRecord() {
+  async function stopRecord(): Promise<Blob | undefined> {
     if (!mediaOutput.value) {
-      return
+      return undefined
     }
 
     await mediaOutput.value.finalize()
@@ -64,7 +64,6 @@ export function useAudioRecorder(media: MaybeRefOrGetter<MediaStream | undefined
 
     mediaOutput.value = undefined
 
-    // eslint-disable-next-line consistent-return
     return audioBlob
   }
 

@@ -16,6 +16,24 @@ import { x } from 'xastscript'
 import { getDefaultStreamingModel, OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, setupOfficialSpeechAutoPick } from '../../libs/providers/providers/official'
 import { useProvidersStore } from '../providers'
 
+// Type for Voice Pack speech input options
+interface VoicePackSpeechInputOptions {
+  text: string
+  voice: VoiceInfo
+  providerConfig?: Record<string, unknown>
+  params?: VoicePackParams
+  voicePack?: Pick<VoicePackSnapshot, 'packId' | 'costMultiplier'>
+  forceSSML?: boolean
+  supportsSSML?: boolean
+  supportsAdapterProsody?: boolean
+}
+
+// Type for Voice Pack speech input result
+interface VoicePackSpeechInput {
+  input: string
+  providerConfig: Record<string, unknown>
+}
+
 export function toSignedPercent(value: number): string {
   if (value > 0)
     return `+${value}%`

@@ -41,17 +41,17 @@ export function useDataMaintenance() {
   const onboardingStore = useOnboardingStore()
   const airiCardStore = useAiriCardStore()
 
-  async function deleteAllModels() {
+  async function deleteAllModels(): Promise<void> {
     await displayModelsStore.resetDisplayModels()
     settingsStore.stageModelSelected = 'preset-live2d-1'
     await settingsStore.updateStageModel()
   }
 
-  async function resetProvidersSettings() {
+  async function resetProvidersSettings(): Promise<void> {
     await providersStore.resetProviderSettings()
   }
 
-  function resetModulesSettings() {
+  function resetModulesSettings(): void {
     hearingStore.resetState()
     speechStore.resetState()
     consciousnessStore.resetState()
@@ -61,12 +61,12 @@ export function useDataMaintenance() {
     minecraftStore.resetState()
   }
 
-  function deleteAllChatSessions() {
+  function deleteAllChatSessions(): void {
     chatOrchestrator.cancelPendingSends()
     chatStore.resetAllSessions()
   }
 
-  async function exportChatSessions() {
+  async function exportChatSessions(): Promise<Blob> {
     const data = await chatStore.exportSessions()
     return new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
   }
@@ -76,12 +76,12 @@ export function useDataMaintenance() {
     return (payload as { format?: string }).format === 'chat-sessions-index:v1'
   }
 
-  async function importChatSessions(payload: Record<string, unknown>) {
+  async function importChatSessions(payload: Record<string, unknown>): Promise<void> {
     if (!isChatSessionsPayload(payload)) throw new Error('Invalid chat session export format')
     await chatStore.importSessions(payload)
   }
 
-  async function resetSettingsState() {
+  async function resetSettingsState(): Promise<void> {
     await settingsStore.resetState()
     audioSettingsStore.resetState()
     live2dParamsStore.resetState()
@@ -92,7 +92,7 @@ export function useDataMaintenance() {
     airiCardStore.resetState()
   }
 
-  async function deleteAllData() {
+  async function deleteAllData(): Promise<void> {
     await deleteAllModels()
     await resetProvidersSettings()
     resetModulesSettings()
@@ -100,7 +100,7 @@ export function useDataMaintenance() {
     await resetSettingsState()
   }
 
-  async function resetDesktopApplicationState() {
+  async function resetDesktopApplicationState(): Promise<void> {
     if (!isStageTamagotchi()) return
 
     await resetSettingsState()

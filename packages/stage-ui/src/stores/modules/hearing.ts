@@ -22,6 +22,27 @@ import { useProvidersStore } from '../providers'
 import { streamAliyunTranscription } from '../providers/aliyun/stream-transcription'
 import { streamWebSpeechAPITranscription } from '../providers/web-speech-api'
 
+// Type for VAD worklet message
+interface VadWorkletMessage {
+  buffer?: Float32Array
+}
+
+// Type for streaming session
+interface StreamingSession {
+  audioContext: AudioContext | Record<string, never>
+  workletNode: AudioWorkletNode | Record<string, never>
+  mediaStreamSource: MediaStreamAudioSourceNode | Record<string, never>
+  audioStreamController?: ReadableStreamDefaultController<ArrayBuffer>
+  abortController: AbortController
+  result?: HearingTranscriptionResult & { recognition?: unknown }
+  idleTimer?: ReturnType<typeof setTimeout>
+  providerId?: string
+  callbacks?: {
+    onSentenceEnd?: (delta: string) => void
+    onSpeechEnd?: (text: string) => void
+  }
+}
+
 function errorMessage(err: unknown): string {
   const msg = errorMessageFrom(err) ?? String(err)
   // Browsers hide the real reason (CORS, timeout, DNS, …) behind this generic string.
@@ -355,20 +376,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
   const hearingStore = useHearingStore()
   const { activeTranscriptionProvider, activeTranscriptionModel } = storeToRefs(hearingStore)
   const providersStore = useProvidersStore()
-  const streamingSession = shallowRef<{
-    audioContext: AudioContext | Record<string, never>
-    workletNode: AudioWorkletNode | Record<string, never>
-    mediaStreamSource: MediaStreamAudioSourceNode | Record<string, never>
-    audioStreamController?: ReadableStreamDefaultController<ArrayBuffer>
-    abortController: AbortController
-    result?: HearingTranscriptionResult & { recognition?: any }
-    idleTimer?: ReturnType<typeof setTimeout>
-    providerId?: string
-    callbacks?: {
-      onSentenceEnd?: (delta: string) => void
-      onSpeechEnd?: (text: string) => void
-    }
-  }>()
+  const streamingSession = shallowRef<StreamingSession>()
 
   let asrSpan: Span | undefined
 
@@ -416,7 +424,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
       },
     })
 
-    workletNode.port.onmessage = ({ data }: MessageEvent<{ buffer?: Float32Array }>) => {
+    workletNode.port.onmessage = ({ data }: MessageEvent<VadWorkletMessage>) => {
       const buffer = data?.buffer
       if (!buffer || !audioStreamController) return
 
@@ -693,21 +701,21 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
         })
 
         // Store session info for cleanup
-        const recognitionInstance = (result as any).recognition
+        const recognitionInstance = (result as { recognition?: unknown }).recognition
         streamingSession.value = {
           audioContext: {} as AudioContext, // Not used for Web Speech API
           workletNode: {} as AudioWorkletNode, // Not used for Web Speech API
           mediaStreamSource: {} as MediaStreamAudioSourceNode, // Not used for Web Speech API
           audioStreamController: undefined,
           abortController,
-          result: { ...result, mode: 'stream' as const, recognition: recognitionInstance },
+          result: { ...result, mode: 'stream' as const, recognition: recognitionInstance } as HearingTranscriptionResult & { recognition?: unknown },
           idleTimer,
           providerId,
           callbacks: {
             onSentenceEnd: options?.onSentenceEnd,
             onSpeechEnd: options?.onSpeechEnd,
           },
-        } as any // Type assertion needed because recognition is extra
+        }
 
         // Initial idle timer (only if enabled)
         bumpIdle()

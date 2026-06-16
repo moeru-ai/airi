@@ -10,6 +10,8 @@
 
 import { connect as netConnect, type Socket } from "node:net"
 
+const _logger = (..._a: unknown[]) => void 0
+
 import type {
 	IpcMessage,
 	IpcEventMessage,
@@ -203,7 +205,7 @@ export class LocalSocketClientTransport implements IpcClientTransport {
 					expectedLength = buffer.readUInt32BE(0)
 
 					if (expectedLength > MAX_MESSAGE_SIZE) {
-						console.error(
+						_logger(
 							`[LocalSocketClient] Message too large (${expectedLength} bytes), disconnecting.`,
 						)
 						socket.destroy()
@@ -239,11 +241,11 @@ export class LocalSocketClientTransport implements IpcClientTransport {
 						try {
 							handler(parsed)
 						} catch (error) {
-							console.error("[LocalSocketClient] Message handler threw:", error)
+							_logger("[LocalSocketClient] Message handler threw:", error)
 						}
 					}
 				} catch (error) {
-					console.error(
+					_logger(
 						"[LocalSocketClient] Failed to parse message:",
 						error instanceof Error ? error.message : String(error),
 					)
@@ -259,7 +261,7 @@ export class LocalSocketClientTransport implements IpcClientTransport {
 				try {
 					handler()
 				} catch (error) {
-					console.error("[LocalSocketClient] Disconnect handler threw:", error)
+					_logger("[LocalSocketClient] Disconnect handler threw:", error)
 				}
 			}
 

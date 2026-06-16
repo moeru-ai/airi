@@ -70,7 +70,7 @@ describe('buildCreateTokenRequest', () => {
 describe('createToken', (test) => {
   it('successfully fetches a token', async () => {
     if (!env.ALIYUN_AK_ID || !env.ALIYUN_AK_SECRET) {
-      test.skip('ALIYUN_AK_ID and ALIYUN_AK_SECRET must be set in environment to run this test', () => {})
+      test.skip('ALIYUN_AK_ID and ALIYUN_AK_SECRET must be set in environment to run this test')
       return
     }
 

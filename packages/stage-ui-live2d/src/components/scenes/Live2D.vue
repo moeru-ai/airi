@@ -76,7 +76,9 @@ watch(
 )
 
 onUnmounted(() => {
-  if (clearCursorFocusTimeout) clearTimeout(clearCursorFocusTimeout)
+  if (clearCursorFocusTimeout) {
+    clearTimeout(clearCursorFocusTimeout)
+  }
 })
 
 watch([componentStateModel, componentStateCanvas], () => {

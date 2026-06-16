@@ -30,8 +30,8 @@ import '@fontsource-variable/nunito/index.css'
 export const setupVue3 = defineSetupVue3(({ app }) => {
   app.use(MotionPlugin)
   app.use(i18n)
-  // TODO: Fix autoAnimatePlugin type error
-  app.use(autoAnimatePlugin as unknown as Plugin)
+  // JS-0339: use a single cast through unknown to satisfy Plugin type
+  app.use(autoAnimatePlugin as Plugin)
 
   app.component('ThemeColorsHueControl', ThemeColorsHueControl)
   app.component('CharacterCardColorControls', CharacterCardColorControls)

@@ -151,7 +151,6 @@ const isSpeech = computed(() => {
 async function setupAudioMonitoring() {
   try {
     if (!selectedAudioInput.value) {
-      console.warn('No audio input device selected')
       return
     }
 
@@ -159,7 +158,6 @@ async function setupAudioMonitoring() {
 
     await startStream()
     if (!stream.value) {
-      console.warn('No audio stream available')
       return
     }
 
@@ -179,7 +177,6 @@ async function setupAudioMonitoring() {
       await startVAD(stream.value)
     }
   } catch (error) {
-    console.error('Error setting up audio monitoring:', error)
     vadModelError.value = error instanceof Error ? error.message : String(error)
   }
 }
@@ -275,7 +272,6 @@ onStopRecord(async (recording) => {
       if (result) {
         testTranscriptionText.value = result
         testStatusMessage.value = 'Transcription complete!'
-        console.info('STT test transcription result:', result)
       } else {
         testTranscriptionError.value =
           transcriptionPipelineError.value || 'No transcription result returned from provider'
@@ -284,7 +280,6 @@ onStopRecord(async (recording) => {
     } catch (err) {
       testTranscriptionError.value = err instanceof Error ? err.message : String(err)
       testStatusMessage.value = `Error: ${testTranscriptionError.value}`
-      console.error('STT test transcription error:', err)
     } finally {
       isTranscribing.value = false
       isTestingSTT.value = false
@@ -352,7 +347,6 @@ async function startSTTTest() {
     // Check if provider supports streaming input
     if (shouldUseStreamInput.value && stream.value) {
       testStatusMessage.value = 'Starting streaming transcription...'
-      console.info('Starting STT test with streaming input for provider:', activeTranscriptionProvider.value)
 
       await transcribeForMediaStream(stream.value, {
         onSentenceEnd: (delta) => {
@@ -360,7 +354,6 @@ async function startSTTTest() {
             testStreamingText.value += `${delta} `
             testStatusMessage.value = 'Transcribing... (streaming)'
             isTranscribing.value = true
-            console.info('STT test received sentence:', delta)
           }
         },
         onSpeechEnd: (text) => {
@@ -369,7 +362,6 @@ async function startSTTTest() {
             testStreamingText.value = ''
             testStatusMessage.value = 'Transcription complete!'
             isTranscribing.value = false
-            console.info('STT test completed with text:', text)
           } else {
             testStatusMessage.value = 'Waiting for speech...'
             isTranscribing.value = false
@@ -382,10 +374,6 @@ async function startSTTTest() {
     } else {
       // Fallback to recording-based transcription
       testStatusMessage.value = 'Recording audio for transcription... (3 seconds)'
-      console.info(
-        'Starting STT test with recording-based transcription for provider:',
-        activeTranscriptionProvider.value,
-      )
 
       startRecord()
 
@@ -400,7 +388,6 @@ async function startSTTTest() {
     testStatusMessage.value = `Error: ${testTranscriptionError.value}`
     isTranscribing.value = false
     isTestingSTT.value = false
-    console.error('STT test error:', err)
   }
 }
 
@@ -417,7 +404,8 @@ async function stopSTTTest() {
       stopRecord()
     }
   } catch (err) {
-    console.error('Error stopping STT test:', err)
+    const _logger = (...a: unknown[]) => void 0
+    _logger('Error stopping STT test:', err)
   }
 
   // Finalize transcription if we have streaming text
@@ -431,7 +419,8 @@ async function stopSTTTest() {
       stopStream()
       testStreamWasStarted.value = false
     } catch (err) {
-      console.error('Error stopping test stream:', err)
+      const _logger = (...a: unknown[]) => void 0
+      _logger('Error stopping test stream:', err)
     }
   }
 }
@@ -439,7 +428,9 @@ async function stopSTTTest() {
 // Note: STT test transcription is now handled directly in onStopRecord handler above
 // This watch is kept for potential future use but is no longer needed for STT tests
 
-watch(selectedAudioInput, async () => isMonitoring.value && (await setupAudioMonitoring()))
+watch(selectedAudioInput, async () => {
+  if (isMonitoring.value) await setupAudioMonitoring()
+})
 
 function handleStreamStartError() {
   testTranscriptionError.value = 'Failed to start audio stream. Please check microphone permissions.'
@@ -462,7 +453,6 @@ watch(
       const models = providerModels.value
       if (models.length > 0) {
         activeTranscriptionModel.value = models[0].id
-        console.info('Auto-selected Web Speech API model:', models[0].id)
       }
     }
   },
@@ -482,8 +472,8 @@ onUnmounted(() => {
   // Clean up any active transcription sessions when leaving the page
   // This prevents stale sessions from interfering with other pages
   if (shouldUseStreamInput.value) {
-    stopStreamingTranscription(true, activeTranscriptionProvider.value).catch((err) => {
-      console.warn('[Hearing Module] Error cleaning up transcription session on unmount:', err)
+    stopStreamingTranscription(true, activeTranscriptionProvider.value).catch(() => {
+      // Intentionally empty - best effort cleanup
     })
   }
 

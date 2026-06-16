@@ -50,16 +50,16 @@ export function useVRMLipSync(audioNode: Ref<AudioBufferSourceNode | undefined, 
         try {
           oldAudioNode.disconnect()
         // eslint-disable-next-line no-empty
-        } catch {
-          // noop
+        } catch (error) {
+          console.error('[LipSync] Failed to disconnect old audio node:', error)
         }
       }
       if (!ready || !newAudioNode || !lipSyncNode.value) return
       // eslint-disable-next-line no-empty
       try {
         newAudioNode.connect(lipSyncNode.value)
-      } catch {
-        // noop
+      } catch (error) {
+        console.error('[LipSync] Failed to connect new audio node:', error)
       }
     },
     { immediate: true },

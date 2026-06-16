@@ -10,8 +10,6 @@
  * - No external dependencies — pure in-memory signaling.
  */
 
-import type { TaskId } from "./types.js"
-
 // ── Types ────────────────────────────────────────────────────────────────
 
 /**

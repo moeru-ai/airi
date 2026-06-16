@@ -29,7 +29,7 @@ export function getGPUCoordinator(): GPUResourceCoordinator {
     coordinator = createGPUResourceCoordinator(estimatedVRAM)
 
     // Log memory pressure events
-    coordinator.onMemoryPressure((level) => {
+    coordinator.onMemoryPressure((level: string) => {
       const usage = coordinator!.getUsage()
       console.warn(
         `[GPU] Memory pressure: ${level} — ` +

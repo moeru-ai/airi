@@ -1,20 +1,23 @@
 export interface HandlerContext<T> {
   data: T
-  emit: (eventName: string, ...params: any[]) => void
+  // JS-0339: replace `any[]` with `unknown[]`
+  emit: (eventName: string, ...params: unknown[]) => void
 }
 
 export interface Events<T> {
   enqueue: Array<(payload: T, queueLength: number) => void>
   dequeue: Array<(payload: T, queueLength: number) => void>
-  process: Array<(payload: T, handler: (param: HandlerContext<T>) => Promise<any>) => void>
-  error: Array<(payload: T, error: unknown, handler: (param: HandlerContext<T>) => Promise<any>) => void>
-  result: Array<<R>(payload: T, result: R, handler: (param: HandlerContext<T>) => Promise<any>) => void>
+  // JS-0339: replace `any` with `unknown` for handler return types
+  process: Array<(payload: T, handler: (param: HandlerContext<T>) => Promise<unknown>) => void>
+  error: Array<(payload: T, error: unknown, handler: (param: HandlerContext<T>) => Promise<unknown>) => void>
+  result: Array<<R>(payload: T, result: R, handler: (param: HandlerContext<T>) => Promise<unknown>) => void>
   drain: Array<() => void>
 }
 
 export function createQueue<T>(options: { handlers: Array<(ctx: HandlerContext<T>) => Promise<void>> }) {
   const queue: T[] = []
-  let drainTask: Promise<any> | undefined
+  // JS-0339: replace `any` with `unknown`
+  let drainTask: Promise<unknown> | undefined
 
   const internalEventListeners: Events<T> = {
     enqueue: [],
@@ -24,23 +27,25 @@ export function createQueue<T>(options: { handlers: Array<(ctx: HandlerContext<T
     result: [],
     drain: [],
   }
-  const internalHandlerEventListeners: Record<string, Array<(...params: any[]) => void>> = {}
+  // JS-0339: replace `any[]` with `unknown[]`
+  const internalHandlerEventListeners: Record<string, Array<(...params: unknown[]) => void>> = {}
 
   function on<E extends keyof Events<T>>(eventName: E, listener: Events<T>[E][number]) {
-    internalEventListeners[eventName].push(listener as any)
+    // JS-0339: cast via unknown to preserve type safety
+    internalEventListeners[eventName].push(listener as unknown as Events<T>[E][number])
   }
 
   function emit<E extends keyof Events<T>>(eventName: E, ...params: Parameters<Events<T>[E][number]>) {
     const listeners = internalEventListeners[eventName] as Events<T>[E]
-    listeners.forEach((listener) => (listener as any)(...params))
+    listeners.forEach((listener) => (listener as unknown as (...p: unknown[]) => void)(...params))
   }
 
-  function onHandlerEvent(eventName: string, listener: (...params: any[]) => void) {
+  function onHandlerEvent(eventName: string, listener: (...params: unknown[]) => void) {
     internalHandlerEventListeners[eventName] = internalHandlerEventListeners[eventName] || []
     internalHandlerEventListeners[eventName].push(listener)
   }
 
-  function emitHandlerEvent(eventName: string, ...params: any[]) {
+  function emitHandlerEvent(eventName: string, ...params: unknown[]) {
     const listeners = internalHandlerEventListeners[eventName] || []
     listeners.forEach((listener) => listener(...params))
   }
@@ -57,7 +62,7 @@ export function createQueue<T>(options: { handlers: Array<(ctx: HandlerContext<T
     queue.length = 0
   }
 
-  async function drain() {
+  async function drain(): Promise<void> {
     while (queue.length > 0) {
       const payload = queue.shift() as T
       emit('dequeue', payload, queue.length)
@@ -68,7 +73,6 @@ export function createQueue<T>(options: { handlers: Array<(ctx: HandlerContext<T
           emit('result', payload, result, handler)
         } catch (err) {
           emit('error', payload, err, handler)
-          continue
         }
       }
     }

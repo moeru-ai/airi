@@ -16,6 +16,28 @@ import { useAiriCardStore } from './airi-card'
 import { useArtistryStore } from './artistry'
 import { useConsciousnessStore } from './consciousness'
 
+// Type for Electron IPC context
+type ElectronIpcRenderer = {
+  invoke: (channel: string, ...args: unknown[]) => Promise<unknown>
+  on: (channel: string, listener: (...args: unknown[]) => void) => void
+}
+
+// Type for generation payload
+interface GenerationPayload {
+  prompt: string
+  model: string
+  provider: string
+  options: Record<string, unknown>
+  globals: Record<string, unknown>
+}
+
+// Type for generation result
+interface GenerationResult {
+  imageUrl?: string
+  base64?: string
+  error?: string
+}
+
 const artistLog = import.meta.env.DEV ? console.info.bind(console, '[AutonomousArtist]') : () => {}
 
 export const useAutonomousArtistryStore = defineStore('artistry-autonomous', () => {
@@ -33,13 +55,16 @@ export const useAutonomousArtistryStore = defineStore('artistry-autonomous', () 
    */
   const widgetsAdd = defineInvokeEventa<string | undefined, any>('eventa:invoke:electron:windows:widgets:add')
 
-  const getGenerateHeadless = () => {
-    const win = window as any
+  const getGenerateHeadless = (): {
+    generate: (payload: GenerationPayload) => Promise<GenerationResult>
+    addWidget: (options: Record<string, unknown>) => Promise<void>
+  } | null => {
+    const win = window as unknown as { electron?: { ipcRenderer: ElectronIpcRenderer } }
     if (typeof window !== 'undefined' && win.electron?.ipcRenderer) {
-      const { context } = createContext(win.electron.ipcRenderer as any)
+      const { context } = createContext(win.electron.ipcRenderer)
       return {
-        generate: defineInvoke(context, artistryGenerateHeadless),
-        addWidget: defineInvoke(context, widgetsAdd),
+        generate: defineInvoke(context, artistryGenerateHeadless) as (payload: GenerationPayload) => Promise<GenerationResult>,
+        addWidget: defineInvoke(context, widgetsAdd) as (options: Record<string, unknown>) => Promise<void>,
       }
     }
     return null
@@ -202,7 +227,12 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
         throw new Error('LLM returned empty content')
       }
 
-      const analysis = JSON.parse(jsonContent)
+      const analysis = JSON.parse(jsonContent) as {
+        intensity: number
+        reasoning: string
+        title: string
+        prompt: string
+      }
       artistLog('Parsed Analysis Result:', {
         intensity: analysis.intensity,
         reasoning: analysis.reasoning,
@@ -243,7 +273,7 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
         }
 
         // Safety: ensure payload is a plain object for IPC serialization
-        const plainPayload = JSON.parse(JSON.stringify(toRaw(generationPayload)))
+        const plainPayload = JSON.parse(JSON.stringify(toRaw(generationPayload))) as GenerationPayload
         const result = await invokers.generate(plainPayload)
 
         if (result.error) {
@@ -255,12 +285,17 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
         // 4. Save to journal
         if (result.base64 || result.imageUrl) {
           let blob: Blob
-          if (result.base64) {
-            const response = await fetch(result.base64)
-            blob = await response.blob()
-          } else {
-            const response = await fetch(result.imageUrl!)
-            blob = await response.blob()
+          try {
+            if (result.base64) {
+              const response = await fetch(result.base64)
+              blob = await response.blob()
+            } else {
+              const response = await fetch(result.imageUrl!)
+              blob = await response.blob()
+            }
+          } catch (fetchError) {
+            console.warn('[AutonomousArtist] Failed to fetch generated image', fetchError)
+            return
           }
 
           const entryId = await backgroundStore.addBackground(
@@ -362,10 +397,11 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
               break
           }
         }
+      }
       } else {
         artistLog(`Intensity (${analysis.intensity}) below threshold (${threshold}). No action taken.`)
       }
-    } catch (err) {
+    } catch (err: unknown) {
       artistLog('Task failed with error:', err)
     } finally {
       isProcessing.value = false

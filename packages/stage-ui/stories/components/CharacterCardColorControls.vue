@@ -93,7 +93,7 @@ function resetToDefault() {
 
     <button
       class="rounded-md px-2 py-1 text-xs transition-colors"
-      bg="neutral-200 dark:neutral-800 hover:neutral-200 dark:hover:neutral-700"
+      bg="neutral-200 dark:neutral-800 dark:hover:neutral-700"
       text="neutral-700 dark:neutral-300"
       @click="resetToDefault"
     >

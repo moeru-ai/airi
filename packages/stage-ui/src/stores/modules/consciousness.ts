@@ -15,6 +15,13 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
   const expandedDescriptions = refManualReset<Record<string, boolean>>(() => ({}))
   const modelSearchQuery = refManualReset<string>('')
 
+  // Type for model items
+  interface ModelItem {
+    id: string
+    name: string
+    description?: string
+  }
+
   // Computed properties
   const supportsModelListing = computed(() => {
     return providersStore.getProviderMetadata(activeProvider.value)?.capabilities.listModels !== undefined

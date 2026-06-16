@@ -32,8 +32,8 @@ const props = withDefaults(
     animationEnter: () => ({ opacity: 1, y: 0 }),
     animationDuration: 250,
     delayPerUnit: 80,
-    getItems: (section: any) => section.items || [],
-    getKey: (item: any) => item.id ?? item.key,
+    getItems: (section: TSection) => (section as VirtualSection).items || [],
+    getKey: (item: TItem) => String((item as { id?: string | number; key?: string | number }).id ?? (item as { key?: string | number }).key ?? ''),
   },
 )
 
@@ -55,12 +55,13 @@ const normalizedSections = computed(() => {
 const currentCols = computed(() => {
   if (typeof props.columns === 'number') return props.columns
 
+  const columnsMap = props.columns as Record<string, number>
   for (const key of COLUMN_ORDER) {
-    if ((props.columns as any)[key] && breakpoints.greaterOrEqual(key).value) {
-      return (props.columns as any)[key]
+    if (columnsMap[key] && breakpoints.greaterOrEqual(key).value) {
+      return columnsMap[key]
     }
   }
-  return props.columns.default || 1
+  return columnsMap.default || 1
 })
 
 const sectionMeta = computed(() => {

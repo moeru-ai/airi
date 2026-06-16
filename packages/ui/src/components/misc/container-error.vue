@@ -184,14 +184,11 @@ async function copyContent() {
           <pre
             v-if="resolvedStack"
             :class="['whitespace-pre-wrap break-words text-neutral-700 leading-relaxed dark:text-neutral-200']"
-          >
-    {{ resolvedStack }}</pre
-          >
+          >{{ resolvedStack }}</pre>
           <pre
             v-if="resolvedCause"
             :class="['whitespace-pre-wrap break-words text-neutral-700 leading-relaxed dark:text-neutral-200']"
-            >{{ `Cause:\n${resolvedCause}` }}</pre
-          >
+          >{{ `Cause:\n${resolvedCause}` }}</pre>
           <div v-if="!panelContent" :class="['text-neutral-600 dark:text-neutral-300']">
             No error details available.
           </div>

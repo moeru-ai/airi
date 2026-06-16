@@ -51,7 +51,6 @@ export const useBackgroundStore = defineStore('background-entries', () => {
   const loading = ref(true)
 
   // Track object URLs to prevent leaks
-  const blobRefs = new Map<string, any>()
   const backgroundUrls = reactive<Record<string, string | null>>({})
 
   function ensureObjectUrl(id: string, blob: Blob) {
@@ -277,7 +276,7 @@ export const useBackgroundStore = defineStore('background-entries', () => {
     title: string,
     prompt?: string,
     characterId?: string | null,
-    remixId?: string,
+    _remixId?: string,
   ) {
     const airiCardStore = useAiriCardStore()
     const id = `${STORAGE_PREFIX}${nanoid()}`
@@ -297,7 +296,6 @@ export const useBackgroundStore = defineStore('background-entries', () => {
       title: title.trim() || 'Untitled Background',
       blob,
       prompt,
-      remixId,
       createdAt: Date.now(),
     }
 
@@ -326,9 +324,6 @@ export const useBackgroundStore = defineStore('background-entries', () => {
       nextEntries.delete(id)
       entries.value = nextEntries
 
-      const blobRef = blobRefs.get(id)
-      if (blobRef) blobRef.value = undefined
-      blobRefs.delete(id)
       const url = backgroundUrls[id]
       if (url) {
         URL.revokeObjectURL(url)

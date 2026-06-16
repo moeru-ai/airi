@@ -109,7 +109,16 @@ function createMetadata(pluginId: string, instanceId: string) {
   }
 }
 
-function createContextMessage(overrides: Record<string, unknown> = {}) {
+interface ContextMessage {
+  id: string
+  contextId: string
+  strategy: ContextUpdateStrategy
+  text: string
+  createdAt: number
+  metadata?: Record<string, unknown>
+}
+
+function createContextMessage(overrides: Record<string, unknown> = {}): ContextMessage {
   const id = typeof overrides.id === 'string' ? overrides.id : 'context-1'
 
   return {
@@ -122,7 +131,19 @@ function createContextMessage(overrides: Record<string, unknown> = {}) {
   }
 }
 
-function createContextUpdateEvent(overrides: Record<string, unknown> = {}) {
+interface ContextUpdateEvent {
+  type: 'context:update'
+  source: string
+  metadata: ReturnType<typeof createMetadata>
+  data: {
+    id: string
+    contextId: string
+    strategy: ContextUpdateStrategy
+    text: string
+  }
+}
+
+function createContextUpdateEvent(overrides: Record<string, unknown> = {}): ContextUpdateEvent {
   const id = typeof overrides.id === 'string' ? overrides.id : 'context-1'
 
   return {

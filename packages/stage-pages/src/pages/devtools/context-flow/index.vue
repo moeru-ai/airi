@@ -112,7 +112,8 @@ const pendingQueuedSends = computed(() => chatStore.getPendingQueuedSendSnapshot
 function normalizePayload(payload: unknown) {
   try {
     return JSON.parse(JSON.stringify(payload)) as unknown
-  } catch {
+  } catch (error) {
+    console.warn('Failed to normalize payload', error)
     return payload
   }
 }

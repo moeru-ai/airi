@@ -136,7 +136,6 @@ async function generateTestSpeech() {
     activeSpeechProvider.value,
   )) as SpeechProviderWithExtraOptions<string, any>
   if (!provider) {
-    console.error('Failed to initialize speech provider')
     return
   }
 
@@ -163,13 +162,7 @@ async function generateTestSpeech() {
     }
   }
 
-  if (!model) {
-    console.error('No model selected')
-    return
-  }
-
-  if (!voice) {
-    console.error('No voice selected')
+  if (!model || !voice) {
     return
   }
 
@@ -224,7 +217,6 @@ async function generateTestSpeech() {
       }
     }, 100)
   } catch (error) {
-    console.error('Error generating speech:', error)
     errorMessage.value = errorMessageFrom(error) || 'An unknown error occurred'
   } finally {
     isGenerating.value = false

@@ -27,6 +27,7 @@ const {
 const { captureIntervalMs, captureCount, contextUpdateCount, lastCaptureAt, lastContextUpdateAt, isRunning } =
   storeToRefs(visionProcessingStore)
 
+
 const { t } = useI18n()
 const { trackProviderClick } = useAnalytics()
 

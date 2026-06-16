@@ -5,7 +5,6 @@ import Bar from './bar.vue'
 
 defineProps<{
   text: string
-  icon: string
   description?: string
 }>()
 

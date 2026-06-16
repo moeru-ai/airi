@@ -64,9 +64,10 @@ watch(
       // Sync speed from voiceSettings or direct speed property
       const config = newConfig as any
       const newSpeed = config.voiceSettings?.speed || config.speed || defaultVoiceSettings.speed
-      if (Math.abs(speed.value - newSpeed) > 0.001)
+      if (Math.abs(speed.value - newSpeed) > 0.001) {
         // Use small epsilon for float comparison
         speed.value = newSpeed
+      }
 
       // Sync model if property was cleared externally (undefined/null), not when user sets empty string
       if (config.model == null && model.value !== defaultModel) model.value = defaultModel

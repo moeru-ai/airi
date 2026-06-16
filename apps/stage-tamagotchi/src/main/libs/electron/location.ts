@@ -5,6 +5,8 @@ import { env } from 'node:process'
 
 import { is } from '@electron-toolkit/utils'
 
+const _logger = (...a: unknown[]) => void 0
+
 let electronMainDirname: string = ''
 
 export function setElectronMainDirname(dirname: string) {
@@ -78,9 +80,9 @@ export async function load(
           //
           // https://github.com/electron/electron/issues/17526
           // https://github.com/electron/electron/blob/8d05285a1f39c759985b17c89a449e4a6b3960df/lib/browser/api/web-contents.ts#L370-L387
-          console.warn('Electron navigation error with hash route, ignoring:', error, 'url:', url.url)
+          _logger('Electron navigation error with hash route, ignoring:', error, 'url:', url.url)
 
-          return
+          return undefined
         }
       }
     }

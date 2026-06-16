@@ -7,6 +7,9 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest"
+
+const _logger = (..._a: unknown[]) => void 0
+
 import fs from "node:fs"
 import path from "node:path"
 import os from "node:os"

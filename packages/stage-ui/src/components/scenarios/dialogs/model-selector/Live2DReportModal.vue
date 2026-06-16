@@ -148,7 +148,7 @@ function handleFix(err: string) {
           <!-- Footer -->
           <div class="mt-2 flex justify-end gap-2">
             <Button variant="secondary" @click="handleClose">Cancel</Button>
-            <Button v-if="report.status !== 'INVALID'" @click="handleConfirm">
+            <Button v-if="report.status === 'VALID' || report.status === 'WARNING'" @click="handleConfirm">
               {{ report.status === 'WARNING' ? 'Import Anyway' : 'Confirm Import' }}
             </Button>
             <div v-else class="flex items-center gap-1 text-xs text-red-500 italic">
@@ -229,7 +229,7 @@ function handleFix(err: string) {
           </div>
 
           <div class="mt-auto flex flex-col gap-2 pt-4">
-            <Button v-if="report.status !== 'INVALID'" @click="handleConfirm">
+            <Button v-if="report.status === 'VALID' || report.status === 'WARNING'" @click="handleConfirm">
               {{ report.status === 'WARNING' ? 'Import Anyway' : 'Confirm Import' }}
             </Button>
             <Button variant="secondary" @click="handleClose">Cancel</Button>

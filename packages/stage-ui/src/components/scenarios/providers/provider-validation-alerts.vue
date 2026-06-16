@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import Alert from '../../misc/alert.vue'
@@ -17,6 +18,11 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
+
+const isValidationFailed = computed(() => !props.isValid && props.isValidating === 0 && !!props.validationMessage)
+const isManualTestNeeded = computed(() => props.isValid && props.isValidating === 0 && props.hasManualValidators && !props.manualTestPassed && !props.manualTestMessage)
+const isFullSuccess = computed(() => props.isValid && props.isValidating === 0 && (!props.hasManualValidators || props.manualTestPassed))
+const isManualTestFailed = computed(() => props.hasManualValidators && !props.manualTestPassed && !!props.manualTestMessage && !props.isManualTesting)
 </script>
 
 <template>
@@ -27,7 +33,7 @@ const { t } = useI18n()
     </template>
   </Alert>
   <!-- Validation Error -->
-  <Alert v-else-if="!isValid && isValidating === 0 && validationMessage" type="error">
+  <Alert v-else-if="isValidationFailed" type="error">
     <template #title>
       <div :class="['w-full flex items-center justify-between']">
         <span>{{ t('settings.dialogs.onboarding.validationFailed') }}</span>
@@ -52,7 +58,7 @@ const { t } = useI18n()
   </Alert>
   <!-- Partial: auto validation passed, manual test not yet attempted -->
   <Alert
-    v-else-if="isValid && isValidating === 0 && hasManualValidators && !manualTestPassed && !manualTestMessage"
+    v-else-if="isManualTestNeeded"
     type="info"
   >
     <template #title>
@@ -92,7 +98,7 @@ const { t } = useI18n()
     </template>
   </Alert>
   <!-- Full success -->
-  <Alert v-else-if="isValid && isValidating === 0 && (!hasManualValidators || manualTestPassed)" type="success">
+  <Alert v-else-if="isFullSuccess" type="success">
     <template #title>
       <div :class="['w-full flex items-center justify-between']">
         <span>{{ t('settings.dialogs.onboarding.validationSuccess') }}</span>
@@ -111,7 +117,7 @@ const { t } = useI18n()
     </template>
   </Alert>
   <!-- Manual test failed -->
-  <Alert v-else-if="hasManualValidators && !manualTestPassed && manualTestMessage && !isManualTesting" type="error">
+  <Alert v-else-if="isManualTestFailed" type="error">
     <template #title>
       <div :class="['w-full flex items-center justify-between']">
         <span>{{ t('settings.dialogs.onboarding.testGenerationFailed') }}</span>

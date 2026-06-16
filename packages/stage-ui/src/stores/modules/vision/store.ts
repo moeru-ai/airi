@@ -14,10 +14,17 @@ export const useVisionStore = defineStore('vision', () => {
   const ollamaThinkingEnabled = useLocalStorageManualReset('settings/vision/ollama-thinking-enabled', false)
   const modelSearchQuery = refManualReset('')
 
-  const providerMetadata = computed(() => {
+  // Type for provider metadata
+  interface ProviderMetadata {
+    capabilities: {
+      listModels?: () => Promise<Array<{ id: string; name: string }>>
+    }
+  }
+
+  const providerMetadata = computed<ProviderMetadata | null>(() => {
     if (!activeProvider.value) return null
 
-    return providersStore.providerMetadata[activeProvider.value] ?? null
+    return (providersStore.providerMetadata[activeProvider.value] as ProviderMetadata) ?? null
   })
 
   const supportsModelListing = computed(() => {

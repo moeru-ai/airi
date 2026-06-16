@@ -86,7 +86,6 @@ export function stripUnreadableSymbols(
   text: string,
   options?: StripUnreadableSymbolsOptions,
 ): string {
-  console.log('[TTS DEBUG] stripUnreadableSymbols INPUT:', JSON.stringify(text))
   const opts: Required<StripUnreadableSymbolsOptions> = { ...DEFAULT_OPTIONS, ...options }
 
   // Protect streaming control tokens from stripping
@@ -94,12 +93,10 @@ export function stripUnreadableSymbols(
 
   // Pass 1: Strip Markdown syntax (always run)
   let result = stripMarkdownFromSpeech(safeText)
-  console.log('[TTS DEBUG] after stripMarkdownFromSpeech:', JSON.stringify(result))
 
   // Aggressive star stripping for TTS: remove any ** that survived the markdown pass.
   // This handles split markers like **bold + text** where neither chunk has complete **...**.
   result = result.replace(/\*\*/g, '')
-  console.log('[TTS DEBUG] after aggressive star strip:', JSON.stringify(result))
 
   // Pass 2: Strip emoji, pictographic symbols, and decorative Unicode.
   // Ranges are deduplicated: \u{1F300}-\u{1F9FF} already covers

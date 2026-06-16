@@ -5,6 +5,9 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { applyCreateActions, createCloudChatMapper, reconcileLocalAndRemote } from './cloud-mapper'
 
+/** Placeholder for future tests */
+void reconcileLocalAndRemote
+
 function makeMeta(partial: Partial<ChatSessionMeta>): ChatSessionMeta {
   return {
     sessionId: partial.sessionId ?? 'session-x',

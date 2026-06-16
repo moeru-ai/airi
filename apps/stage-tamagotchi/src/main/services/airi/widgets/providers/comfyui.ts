@@ -161,7 +161,7 @@ export class ComfyUIProvider implements ArtistryProvider {
 
       while (!historyDone) {
         await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS))
-        attempt++
+        attempt += 1
 
         if (Date.now() - startTime > POLL_TIMEOUT_MS) {
           throw new Error('Generation timed out after 5 minutes')

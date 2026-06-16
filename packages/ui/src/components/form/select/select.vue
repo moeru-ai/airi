@@ -146,7 +146,7 @@ function toCssSize(value?: string | number): string | undefined {
             {{ selectedOption?.label ?? props.placeholder }}
           </span>
         </slot>
-        <SelectValue v-else v-model="modelValue" />
+        <SelectValue v-else />
       </div>
       <SelectIcon as-child>
         <div

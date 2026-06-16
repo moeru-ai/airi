@@ -71,7 +71,7 @@ const thresholdBars = computed(() => {
 
     <!-- Threshold Bars -->
     <div
-      class="flex items-end gap-1 rounded bg-neutral-200/45 p-1 p-1 dark:bg-neutral-700"
+      class="flex items-end gap-1 rounded bg-neutral-200/45 p-1 dark:bg-neutral-700"
       :style="{ height: `${height}px` }"
     >
       <div

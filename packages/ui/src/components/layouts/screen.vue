@@ -13,12 +13,8 @@ const isTablet = computed(() => breakpoints.between('md', 'lg').value)
 const isDesktop = computed(() => breakpoints.greaterOrEqual('lg').value)
 
 const canvasWidth = computed(() => {
-  if (isDesktop.value) return containerElementBounding.width.value
-  else if (isMobile.value)
-    return width.value - 16 // padding
-  else if (isTablet.value)
-    return width.value - 16 // padding
-  else return containerElementBounding.width.value
+  if (isMobile.value || isTablet.value) return width.value - 16 // padding
+  return containerElementBounding.width.value
 })
 
 const canvasHeight = ref(0)

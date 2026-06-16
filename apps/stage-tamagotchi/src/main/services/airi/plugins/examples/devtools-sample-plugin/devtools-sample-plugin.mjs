@@ -9,12 +9,14 @@ function nowIso() {
  * from the userData plugins folder without additional dependency setup.
  */
 export async function init(_context) {
-  console.info('[devtools-sample-plugin] init', { at: nowIso() })
+  const _logger = (...a) => void 0
+  _logger('[devtools-sample-plugin] init', { at: nowIso() })
 }
 
 export async function setupModules({ apis }) {
   const providers = await apis.providers.listProviders()
-  console.info('[devtools-sample-plugin] setupModules', {
+  const _logger = (...a) => void 0
+  _logger('[devtools-sample-plugin] setupModules', {
     at: nowIso(),
     providerCount: providers.length,
     providerNames: providers.map((provider) => provider.name),

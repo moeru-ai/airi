@@ -248,7 +248,8 @@ async function runInference(request: RunInferenceRequest<KokoroInferenceInput>):
       requestId,
       output: { action: 'generate', samples, samplingRate: audioResult.sampling_rate },
     }
-    ;(globalThis as any).postMessage(result, [samples.buffer])
+    // JS-0339: use Worker interface instead of `as any` cast
+    ;(globalThis as Worker).postMessage(result, [samples.buffer])
   } catch (error) {
     if (isCancelled(requestId)) clearCancelled(requestId)
     else sendError(requestId, error, 'inference')
