@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { STEAM_APP_ID } from './app-id'
 import {
   getWebApiTicket,
   initSteam,
   resetSteamClientForTests,
   shutdownSteam,
 } from './client'
+import { STEAM_APP_ID } from './types'
 
 const steamMock = vi.hoisted(() => {
   const getAuthTicketForWebApi = vi.fn()

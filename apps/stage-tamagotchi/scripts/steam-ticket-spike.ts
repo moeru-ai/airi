@@ -7,12 +7,12 @@ import process from 'node:process'
 
 import { errorMessageFrom } from '@moeru/std'
 
-import { STEAM_APP_ID } from '../src/main/services/steam/app-id'
 import {
   getWebApiTicket,
   initSteam,
   shutdownSteam,
 } from '../src/main/services/steam/client'
+import { STEAM_APP_ID } from '../src/main/services/steam/types'
 
 async function main(): Promise<void> {
   console.info(`Steam ticket spike (appId=${STEAM_APP_ID}, identity=airi-desktop)`)

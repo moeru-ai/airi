@@ -1,9 +1,8 @@
 import type { SteamInitResult, SteamTicketResult } from './types'
 
 import { useLogg } from '@guiiai/logg'
-import { errorMessageFrom } from '@moeru/std'
 
-import { STEAM_APP_ID } from './app-id'
+import { STEAM_APP_ID } from './types'
 
 const log = useLogg('steam-client').useGlobalConfig()
 
@@ -46,29 +45,21 @@ export async function initSteam(): Promise<SteamInitResult> {
     return { ok: false, reason: 'not_steam' }
   }
 
-  try {
-    const instance = getSteamworksSdk(module)
-    if (!instance)
-      return { ok: false, reason: 'api_unavailable' }
-    if (!instance.user?.getAuthTicketForWebApi)
-      return { ok: false, reason: 'api_unavailable' }
+  const instance = getSteamworksSdk(module)
+  if (!instance)
+    return { ok: false, reason: 'api_unavailable' }
+  if (!instance.user?.getAuthTicketForWebApi)
+    return { ok: false, reason: 'api_unavailable' }
 
-    const initialized = instance.init({ appId: STEAM_APP_ID })
-    if (!initialized) {
-      log.warn('SteamAPI_Init returned false')
-      return { ok: false, reason: 'init_failed' }
-    }
-
-    steam = instance
-    steamInitialized = true
-    return { ok: true }
-  }
-  catch (error) {
-    log.withError(error).warn('SteamAPI_Init failed')
-    steam = null
-    steamInitialized = false
+  const initialized = instance.init({ appId: STEAM_APP_ID })
+  if (!initialized) {
+    log.warn('SteamAPI_Init returned false')
     return { ok: false, reason: 'init_failed' }
   }
+
+  steam = instance
+  steamInitialized = true
+  return { ok: true }
 }
 
 export async function getWebApiTicket(): Promise<SteamTicketResult> {
@@ -76,26 +67,18 @@ export async function getWebApiTicket(): Promise<SteamTicketResult> {
     return { ok: false, reason: 'Steam is not initialized' }
   }
 
-  try {
-    const result = await steam.user.getAuthTicketForWebApi({
-      genericString: 'airi-desktop',
-    })
+  const result = await steam.user.getAuthTicketForWebApi({
+    genericString: 'airi-desktop',
+  })
 
-    if (!result.success || !result.ticketHex) {
-      return {
-        ok: false,
-        reason: result.error ?? 'GetAuthTicketForWebApi failed',
-      }
-    }
-
-    return { ok: true, ticketHex: result.ticketHex }
-  }
-  catch (error) {
+  if (!result.success || !result.ticketHex) {
     return {
       ok: false,
-      reason: errorMessageFrom(error) ?? 'GetAuthTicketForWebApi failed',
+      reason: result.error ?? 'GetAuthTicketForWebApi failed',
     }
   }
+
+  return { ok: true, ticketHex: result.ticketHex }
 }
 
 export function shutdownSteam(): void {

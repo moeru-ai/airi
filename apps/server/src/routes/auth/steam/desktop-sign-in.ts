@@ -1,7 +1,6 @@
 import type { AuthInstance } from '../../../libs/auth'
 import type { Database } from '../../../libs/db'
 import type { Env } from '../../../libs/env'
-import type { ElectronOidcTokenBundle } from '../../../libs/steam-oidc-tokens'
 import type { HonoEnv } from '../../../types/hono'
 
 import { errorMessageFrom } from '@moeru/std'
@@ -30,28 +29,22 @@ const DesktopSignInBodySchema = v.object({
   ),
 })
 
-const STEAM_APP_ID = 3885340
+const STEAM_APP_ID = '3885340'
 
-export interface SteamDesktopSignInCollaborators {
-  authenticateUserTicket: typeof authenticateUserTicket
-  checkAppOwnership: typeof checkAppOwnership
-  resolveOrCreateSteamUser: typeof resolveOrCreateSteamUser
-  mintElectronOidcTokens: (params: {
-    auth: AuthInstance
-    env: Env
-    userId: string
-  }) => Promise<ElectronOidcTokenBundle>
-}
-
-export interface SteamDesktopSignInRouteDeps {
+interface SteamDesktopSignInRouteDeps {
   auth: AuthInstance
   db: Database
   env: Env
-  collaborators?: Partial<SteamDesktopSignInCollaborators>
+  collaborators?: Partial<{
+    authenticateUserTicket: typeof authenticateUserTicket
+    checkAppOwnership: typeof checkAppOwnership
+    resolveOrCreateSteamUser: typeof resolveOrCreateSteamUser
+    mintElectronOidcTokens: typeof mintElectronOidcTokens
+  }>
 }
 
 export function createSteamDesktopSignInRoute(deps: SteamDesktopSignInRouteDeps) {
-  const collaborators: SteamDesktopSignInCollaborators = {
+  const collaborators = {
     authenticateUserTicket,
     checkAppOwnership,
     resolveOrCreateSteamUser,
@@ -72,7 +65,7 @@ export function createSteamDesktopSignInRoute(deps: SteamDesktopSignInRouteDeps)
       try {
         steamId = await collaborators.authenticateUserTicket({
           publisherKey: deps.env.STEAM_PUBLISHER_KEY,
-          appId: String(STEAM_APP_ID),
+          appId: STEAM_APP_ID,
           ticketHex: parsed.output.ticket,
         })
       }
@@ -88,7 +81,7 @@ export function createSteamDesktopSignInRoute(deps: SteamDesktopSignInRouteDeps)
         ownsApp = await collaborators.checkAppOwnership({
           publisherKey: deps.env.STEAM_PUBLISHER_KEY,
           steamId,
-          appId: String(STEAM_APP_ID),
+          appId: STEAM_APP_ID,
         })
       }
       catch (error) {
