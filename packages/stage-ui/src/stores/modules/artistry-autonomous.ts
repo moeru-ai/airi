@@ -61,7 +61,7 @@ export const useAutonomousArtistryStore = defineStore('artistry-autonomous', () 
   } | null => {
     const win = window as unknown as { electron?: { ipcRenderer: ElectronIpcRenderer } }
     if (typeof window !== 'undefined' && win.electron?.ipcRenderer) {
-      const { context } = createContext(win.electron.ipcRenderer)
+      const { context } = createContext(win.electron.ipcRenderer as any)
       return {
         generate: defineInvoke(context, artistryGenerateHeadless) as (payload: GenerationPayload) => Promise<GenerationResult>,
         addWidget: defineInvoke(context, widgetsAdd) as (options: Record<string, unknown>) => Promise<void>,
@@ -397,7 +397,6 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
               break
           }
         }
-      }
       } else {
         artistLog(`Intensity (${analysis.intensity}) below threshold (${threshold}). No action taken.`)
       }
