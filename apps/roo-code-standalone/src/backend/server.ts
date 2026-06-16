@@ -14,11 +14,20 @@ const __dirname = path.dirname(__filename)
 
 const PORT = Number(process.env.ROO_PORT) || 3210
 const HOST = process.env.ROO_HOST || '127.0.0.1'
+const IS_PROD = process.env.NODE_ENV === 'production'
 
 async function main() {
   const app = Fastify({ logger: true })
 
-  await app.register(cors, { origin: true })
+  // CORS: in production, restrict to local standalone frontend origins only.
+  // `origin: true` reflects any Origin header, which would allow any website
+  // to make credentialed requests to this local API — fine for dev (Vite proxy
+  // / browser extensions can hit it from different origins), but dangerous in
+  // production where only the bundled SPA should be calling us.
+  await app.register(
+    cors,
+    IS_PROD ? { origin: ['http://127.0.0.1:3210', 'http://localhost:3210'], credentials: true } : { origin: true },
+  )
 
   // REST API routes
   await app.register(router, { prefix: '/api' })

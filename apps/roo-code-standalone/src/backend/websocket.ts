@@ -1,4 +1,5 @@
 import type { WebSocket } from 'ws'
+import type { HistoryItem } from '@roo-code/types'
 
 import { nanoid } from 'nanoid'
 
@@ -11,6 +12,7 @@ import {
   getTaskCount,
   upsertTask,
   deleteTask,
+  tasks,
 } from './state.js'
 
 /**
@@ -84,9 +86,16 @@ function handleMessage(ws: WebSocket, message: Record<string, unknown>): void {
     // ------------------------------------------------------------------
     case 'state': {
       // Client → server: patch state
-      const { state, ...rest } = message
-      if (state && typeof state === 'object') {
-        patchState(state as any)
+      const { state: clientState, ...rest } = message
+      if (clientState && typeof clientState === 'object') {
+        patchState(clientState as Record<string, unknown>)
+        // Sync taskHistory into the tasks Map (source of truth for /tasks)
+        const hist = (clientState as Record<string, unknown>).taskHistory
+        if (Array.isArray(hist)) {
+          for (const item of hist as Array<{ id?: string }>) {
+            if (item?.id) tasks.set(item.id, item as HistoryItem)
+          }
+        }
         // Acknowledge
         send(ws, { type: 'state', state: getState(), requestId })
         // Broadcast to other tabs
@@ -171,7 +180,8 @@ function handleMessage(ws: WebSocket, message: Record<string, unknown>): void {
     case 'customInstructions':
     case 'allowedCommands':
     case 'updateSettings': {
-      patchState(message as any)
+      const { type: _type, requestId: _requestId, seq: _seq, ...payload } = message
+      patchState(payload as any)
       const updated = getState()
       send(ws, { type: 'state', state: updated, requestId })
       broadcast({ type: 'state', state: updated })
