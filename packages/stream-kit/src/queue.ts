@@ -14,12 +14,20 @@ export interface Events<T> {
   drain: Array<() => void>
 }
 
+/**
+ * Internal storage type for event listeners.
+ *
+ * All event handler signatures are intentionally variadic at runtime,
+ * so we use a single erased signature for storage and cast at emit time.
+ */
+type InternalListener = (...args: unknown[]) => void
+
 export function createQueue<T>(options: { handlers: Array<(ctx: HandlerContext<T>) => Promise<void>> }) {
   const queue: T[] = []
   // JS-0339: replace `any` with `unknown`
   let drainTask: Promise<unknown> | undefined
 
-  const internalEventListeners: Events<T> = {
+  const internalEventListeners: Record<keyof Events<T>, InternalListener[]> = {
     enqueue: [],
     dequeue: [],
     process: [],
@@ -31,13 +39,12 @@ export function createQueue<T>(options: { handlers: Array<(ctx: HandlerContext<T
   const internalHandlerEventListeners: Record<string, Array<(...params: unknown[]) => void>> = {}
 
   function on<E extends keyof Events<T>>(eventName: E, listener: Events<T>[E][number]) {
-    // JS-0339: cast via unknown to preserve type safety
-    internalEventListeners[eventName].push(listener as unknown as Events<T>[E][number])
+    internalEventListeners[eventName].push(listener as InternalListener)
   }
 
   function emit<E extends keyof Events<T>>(eventName: E, ...params: Parameters<Events<T>[E][number]>) {
-    const listeners = internalEventListeners[eventName] as Events<T>[E]
-    listeners.forEach((listener) => (listener as unknown as (...p: unknown[]) => void)(...params))
+    const listeners = internalEventListeners[eventName]
+    listeners.forEach((listener) => listener(...params))
   }
 
   function onHandlerEvent(eventName: string, listener: (...params: unknown[]) => void) {
