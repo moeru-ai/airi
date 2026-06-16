@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Roo Code — Standalone</title>
+	<style>
+		html, body, #root { height: 100%; margin: 0; background: #1e1e1e; }
+	</style>
+</head>
+<body>
+	<div id="root"></div>
+	<script type="module">
+		// Standalone bridge bootstrap — runs before the webview-ui entry.
+		// Creates a minimal bridge object on window.__roo_bridge__ so that
+		// vscode.ts detects standalone mode and uses WebSocket instead of
+		// localStorage. The full bridge module is loaded lazily after the
+		// app mounts (see main.tsx).
+		(function() {
+			const WS_URL = location.protocol === "https:"
+				? `wss://${location.host}/ws`
+				: `ws://${location.host}/ws`;
+
+			let ws = null;
+			let state = null;
+			const handlers = new Set();
+			const queue = [];
+
+			function send(msg) {
+				if (ws && ws.readyState === 1) ws.send(JSON.stringify(msg));
+				else queue.push(msg);
+			}
+
+			function handle(message) {
+				if (message.type === "state" && message.state) {
+					state = message.state;
+				}
+				for (const h of handlers) { try { h(message); } catch(e) { console.error(e); } }
+				// Re-dispatch as window message event so ExtensionStateContext picks it up
+				window.dispatchEvent(new MessageEvent("message", { data: message }));
+			}
+
+			function connect() {
+				ws = new WebSocket(WS_URL);
+				ws.addEventListener("open", () => {
+					console.log("[roo-bridge] ws connected");
+					for (const msg of queue) ws.send(JSON.stringify(msg));
+					queue.length = 0;
+					send({ type: "webviewDidLaunch" });
+				});
+				ws.addEventListener("message", (e) => {
+					try { handle(JSON.parse(e.data)); } catch(err) { console.warn("[roo-bridge] invalid", err); }
+				});
+				ws.addEventListener("close", () => { console.log("[roo-bridge] ws disconnected"); setTimeout(connect, 2000); });
+				ws.addEventListener("error", (e) => { console.warn("[roo-bridge] ws error", e); });
+			}
+
+			connect();
+
+			window.__roo_bridge__ = {
+				connect,
+				postMessage(msg) { send(msg); },
+				getState() { return state; },
+				setState(newState) { state = newState; send({ type: "state", state }); },
+				onMessage(handler) { handlers.add(handler); return () => handlers.delete(handler); },
+			};
+		})();
+	</script>
+	<script type="module" src="./main.tsx"></script>
+</body>
+</html>
