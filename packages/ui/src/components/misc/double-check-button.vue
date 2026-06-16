@@ -26,8 +26,8 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
-  (event: 'confirm'): void
-  (event: 'cancel'): void
+  confirm: []
+  cancel: []
 }>()
 
 const slots = defineSlots<{

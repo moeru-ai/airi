@@ -18,9 +18,9 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
-  (e: 'submit'): void
-  (e: 'requestTriageContext'): void
-  (e: 'feedback'): void
+  submit: []
+  requestTriageContext: []
+  feedback: []
 }>()
 
 const description = defineModel<string>('description', { default: '' })

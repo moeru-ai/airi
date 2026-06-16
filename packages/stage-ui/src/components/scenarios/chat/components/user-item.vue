@@ -20,8 +20,8 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
-  (e: 'copy'): void
-  (e: 'delete'): void
+  copy: []
+  delete: []
 }>()
 
 const content = computed(() => {

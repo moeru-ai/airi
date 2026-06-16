@@ -42,9 +42,9 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
-  (e: 'submit', payload: BugReportDialogSubmitPayload): void
-  (e: 'requestTriageContext'): void
-  (e: 'feedback'): void
+  submit: [payload: BugReportDialogSubmitPayload]
+  requestTriageContext: []
+  feedback: []
 }>()
 
 const showDialog = defineModel<boolean>({ default: false, required: false })

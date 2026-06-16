@@ -19,9 +19,9 @@ interface Props {
 
 defineProps<Props>()
 const emit = defineEmits<{
-  (e: 'update:modelValue', value: boolean): void
-  (e: 'confirm'): void
-  (e: 'cancel'): void
+  'update:modelValue': [value: boolean]
+  confirm: []
+  cancel: []
 }>()
 
 const { t } = useI18n()

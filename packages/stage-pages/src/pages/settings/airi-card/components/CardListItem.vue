@@ -14,10 +14,10 @@ interface Props {
 
 defineProps<Props>()
 const emit = defineEmits<{
-  (e: 'select'): void
-  (e: 'activate'): void
-  (e: 'delete'): void
-  (e: 'edit'): void
+  select: []
+  activate: []
+  delete: []
+  edit: []
 }>()
 </script>
 

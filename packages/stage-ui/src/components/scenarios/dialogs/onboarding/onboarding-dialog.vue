@@ -15,8 +15,8 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'configured'): void
-  (e: 'skipped'): void
+  configured: []
+  skipped: []
 }>()
 
 const showDialog = defineModel({ type: Boolean, default: false, required: false })

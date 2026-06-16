@@ -50,9 +50,9 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
-  (e: 'copy'): void
-  (e: 'retry'): void
-  (e: 'delete'): void
+  copy: []
+  retry: []
+  delete: []
 }>()
 defineSlots<{
   default: (props: { setMeasuredElement: (element: Element | ComponentPublicInstance | null) => void }) => unknown

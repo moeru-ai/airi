@@ -25,10 +25,10 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
-  (e: 'apply', payload: { option: BackgroundOption; color?: string }): void
-  (e: 'import', payload: { option: BackgroundOption; color?: string }): void
-  (e: 'change', payload: { option: BackgroundOption | undefined }): void
-  (e: 'remove', option: BackgroundOption): void
+  apply: [payload: { option: BackgroundOption; color?: string }]
+  import: [payload: { option: BackgroundOption; color?: string }]
+  change: [payload: { option: BackgroundOption | undefined }]
+  remove: [option: BackgroundOption]
 }>()
 
 const { themeColorsHue } = useSettings()

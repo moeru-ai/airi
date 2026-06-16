@@ -12,9 +12,9 @@ defineProps<{
 }>()
 
 const emits = defineEmits<{
-  (e: 'close'): void
-  (e: 'confirm'): void
-  (e: 'fix-error', error: string): void
+  close: []
+  confirm: []
+  'fix-error': [error: string]
 }>()
 
 const showDialog = defineModel<boolean>('open', { default: false })

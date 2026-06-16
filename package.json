@@ -71,6 +71,7 @@
     "oxlint": "catalog:",
     "playwright": "catalog:",
     "posthog-js": "catalog:",
+    "prettier": "catalog:",
     "publint": "catalog:",
     "rollup": "catalog:",
     "simple-git-hooks": "catalog:",

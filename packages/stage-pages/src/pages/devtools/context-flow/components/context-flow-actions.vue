@@ -4,8 +4,8 @@ import { Section } from '@proj-airi/stage-ui/components'
 import { Button, FieldInput, FieldTextArea, SelectTab } from '@proj-airi/ui'
 
 const emit = defineEmits<{
-  (event: 'sendContextUpdate'): void
-  (event: 'sendSparkNotify'): void
+  sendContextUpdate: []
+  sendSparkNotify: []
 }>()
 const testStrategy = defineModel<ContextUpdateStrategy>('testStrategy', { required: true })
 const testPayload = defineModel<string>('testPayload', { required: true })

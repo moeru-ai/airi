@@ -20,11 +20,6 @@ import { capturePosthogEvent } from '../../../../stores/analytics/posthog'
 import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
 import { useProvidersStore } from '../../../../stores/providers'
 
-interface Emits {
-  (e: 'configured'): void
-  (e: 'skipped'): void
-}
-
 const props = withDefaults(
   defineProps<{
     extraSteps?: OnboardingStep[]
@@ -33,7 +28,10 @@ const props = withDefaults(
     extraSteps: () => [],
   },
 )
-const emit = defineEmits<Emits>()
+const emit = defineEmits<{
+  configured: []
+  skipped: []
+}>()
 const step = ref(0)
 const direction = ref<'next' | 'previous'>('next')
 const pendingProviderConfig = ref<ProviderConfigData | null>(null)

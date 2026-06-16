@@ -26,9 +26,9 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
-  (e: 'copy'): void
-  (e: 'retry'): void
-  (e: 'delete'): void
+  copy: []
+  retry: []
+  delete: []
 }>()
 
 const boxClasses = computed(() => [

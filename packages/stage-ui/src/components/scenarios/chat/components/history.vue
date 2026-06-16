@@ -33,9 +33,9 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
-  (e: 'copyMessage', payload: { message: ChatHistoryItem; index: number; key: string | number }): void
-  (e: 'deleteMessage', payload: { message: ChatHistoryItem; index: number; key: string | number }): void
-  (e: 'retryMessage', payload: { message: ChatHistoryItem; index: number; key: string | number }): void
+  copyMessage: [payload: { message: ChatHistoryItem; index: number; key: string | number }]
+  deleteMessage: [payload: { message: ChatHistoryItem; index: number; key: string | number }]
+  retryMessage: [payload: { message: ChatHistoryItem; index: number; key: string | number }]
 }>()
 
 const chatHistoryRef = ref<HTMLDivElement>()
