@@ -104,13 +104,14 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
       let timeoutId: ReturnType<typeof setTimeout> | undefined
       let abortListener: (() => void) | null = null
 
-      const cleanup = (): void => {
-        if (timeoutId !== undefined) clearTimeout(timeoutId)
-        w.removeEventListener('message', handler)
-        if (abortListener && signal) signal.removeEventListener('abort', abortListener)
-      }
+      w.addEventListener('message', handler)
 
-      const handler = (event: MessageEvent): void => {
+      timeoutId = setTimeout(() => {
+        cleanup()
+        reject(new Error(`Background removal: timeout after ${timeout}ms`))
+      }, timeout)
+
+      function handler(event: MessageEvent): void {
         if (event.data.requestId !== requestId) return
 
         if (event.data.type === targetType) {
@@ -126,12 +127,11 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
         }
       }
 
-      w.addEventListener('message', handler)
-
-      timeoutId = setTimeout(() => {
-        cleanup()
-        reject(new Error(`Background removal: timeout after ${timeout}ms`))
-      }, timeout)
+      function cleanup(): void {
+        if (timeoutId !== undefined) clearTimeout(timeoutId)
+        w.removeEventListener('message', handler)
+        if (abortListener && signal) signal.removeEventListener('abort', abortListener)
+      }
 
       if (signal) {
         if (signal.aborted) {

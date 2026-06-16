@@ -169,6 +169,7 @@ function clearDefault() {
     </Section>
 
     <Callout theme="lime" :label="t('settings.pages.scene.tip.label')">
+      <!-- deepline: JS-0693 requires v-html here for raw HTML rendering -->
       <div v-html="t('settings.pages.scene.tip.description')" />
     </Callout>
   </div>

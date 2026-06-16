@@ -203,7 +203,7 @@ export async function setupMainWindow(params: {
    * Workaround: https://github.com/noobfromph/electron-click-drag-plugin
    */
   if (!isLinux) {
-    function handleStartDraggingWindow() {
+    const handleStartDraggingWindow = () => {
       try {
         const windowId = window.getNativeWindowHandle()
         clickDragPlugin.startDrag(windowId)

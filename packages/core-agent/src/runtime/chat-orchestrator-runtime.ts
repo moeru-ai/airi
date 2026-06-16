@@ -690,8 +690,6 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         hasVoice: !!options.input,
         model: options.model,
       })
-    } catch (error) {
-      throw error
     } finally {
       setSending(false)
       deps.onSendSettled?.({ sessionId })

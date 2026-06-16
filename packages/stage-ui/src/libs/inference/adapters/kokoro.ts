@@ -154,13 +154,14 @@ function waitForWorkerMessage<T = any>(
     let timeoutId: ReturnType<typeof setTimeout> | undefined
     let abortListener: (() => void) | null = null
 
-    const cleanup = (): void => {
-      if (timeoutId !== undefined) clearTimeout(timeoutId)
-      worker.removeEventListener('message', handler)
-      if (abortListener && signal) signal.removeEventListener('abort', abortListener)
-    }
+    worker.addEventListener('message', handler)
 
-    const handler = (event: MessageEvent): void => {
+    timeoutId = setTimeout(() => {
+      cleanup()
+      reject(new Error(`Kokoro: timeout after ${timeout}ms waiting for '${targetType}'`))
+    }, timeout)
+
+    function handler(event: MessageEvent): void {
       if (event.data.requestId !== requestId) return
 
       if (event.data.type === targetType) {
@@ -176,12 +177,11 @@ function waitForWorkerMessage<T = any>(
       }
     }
 
-    worker.addEventListener('message', handler)
-
-    timeoutId = setTimeout(() => {
-      cleanup()
-      reject(new Error(`Kokoro: timeout after ${timeout}ms waiting for '${targetType}'`))
-    }, timeout)
+    function cleanup(): void {
+      if (timeoutId !== undefined) clearTimeout(timeoutId)
+      worker.removeEventListener('message', handler)
+      if (abortListener && signal) signal.removeEventListener('abort', abortListener)
+    }
 
     if (signal) {
       if (signal.aborted) {
@@ -321,7 +321,9 @@ export function createKokoroAdapter(): KokoroAdapter {
     let effectiveDevice = device
     if (device === 'webgpu' && deviceLossCount >= DEVICE_LOSS_WASM_THRESHOLD) {
       // eslint-disable-next-line no-console -- Adapter needs to log warnings
-      console.warn(`[KokoroAdapter] ${deviceLossCount} device-loss events recorded, promoting load from webgpu to wasm.`)
+      console.warn(
+        `[KokoroAdapter] ${deviceLossCount} device-loss events recorded, promoting load from webgpu to wasm.`,
+      )
       effectiveDevice = 'wasm'
     }
     throwIfAborted(options?.signal)

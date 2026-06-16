@@ -61,7 +61,7 @@ onMounted(async () => {
   try {
     const isAttached = await getAttached()
     attached.value = Boolean(isAttached)
-  // eslint-disable-next-line no-empty
+    // eslint-disable-next-line no-empty
   } catch {
     // noop
   }
@@ -85,7 +85,7 @@ onMounted(async () => {
           addCaptionItem(event)
         } else if (event.type === 'caption-assistant') {
           addCaptionItem(event)
-        // eslint-disable-next-line no-empty
+          // eslint-disable-next-line no-empty
         }
       },
       { immediate: true },
@@ -168,8 +168,6 @@ onUnmounted(() => {
     </Transition>
   </div>
 </template>
-
-<style scoped></style>
 
 <route lang="yaml">
 meta:

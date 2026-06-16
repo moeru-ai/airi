@@ -574,7 +574,7 @@ export class PlanExecutor {
 		}
 
 		// Transition to running.
-		this.taskManager.start(taskId)
+		this.taskManager.startTask(taskId)
 
 		// Build execution context.
 		const token = this.taskManager.getCancellationToken(taskId)

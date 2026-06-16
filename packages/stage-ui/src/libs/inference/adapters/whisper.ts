@@ -209,13 +209,14 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
       let timeoutId: ReturnType<typeof setTimeout> | undefined
       let abortListener: (() => void) | null = null
 
-      const cleanup = (): void => {
-        if (timeoutId !== undefined) clearTimeout(timeoutId)
-        w.removeEventListener('message', handler)
-        if (abortListener && signal) signal.removeEventListener('abort', abortListener)
-      }
+      w.addEventListener('message', handler)
 
-      const handler = (event: MessageEvent): void => {
+      timeoutId = setTimeout(() => {
+        cleanup()
+        reject(new Error(`Whisper: timeout after ${timeout}ms waiting for '${targetType}'`))
+      }, timeout)
+
+      function handler(event: MessageEvent): void {
         if (event.data.requestId !== requestId) return
 
         if (event.data.type === targetType) {
@@ -230,13 +231,12 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
           onOther?.(event.data)
         }
       }
-  
-      w.addEventListener('message', handler)
 
-      timeoutId = setTimeout(() => {
-        cleanup()
-        reject(new Error(`Whisper: timeout after ${timeout}ms waiting for '${targetType}'`))
-      }, timeout)
+      function cleanup(): void {
+        if (timeoutId !== undefined) clearTimeout(timeoutId)
+        w.removeEventListener('message', handler)
+        if (abortListener && signal) signal.removeEventListener('abort', abortListener)
+      }
 
       if (signal) {
         if (signal.aborted) {
@@ -265,7 +265,9 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
     const requestedDevice = deviceLossCount >= DEVICE_LOSS_WASM_THRESHOLD ? 'wasm' : 'webgpu'
     if (requestedDevice === 'wasm') {
       // eslint-disable-next-line no-console -- Adapter needs to log warnings
-      console.warn(`[WhisperAdapter] ${deviceLossCount} device-loss events recorded, promoting load from webgpu to wasm.`)
+      console.warn(
+        `[WhisperAdapter] ${deviceLossCount} device-loss events recorded, promoting load from webgpu to wasm.`,
+      )
     }
     throwIfAborted(options?.signal)
     return operationMutex.runExclusive(async () => {

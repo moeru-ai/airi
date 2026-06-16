@@ -152,7 +152,7 @@ export class TaskManager {
 		return this.transition(taskId, "queued")
 	}
 
-	start(taskId: string): Task | undefined {
+	startTask(taskId: string): Task | undefined {
 		return this.transition(taskId, "running")
 	}
 

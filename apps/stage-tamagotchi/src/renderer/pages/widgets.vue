@@ -113,7 +113,7 @@ onMounted(() => {
       if (!body || body.id !== widgetId.value) return
       applySnapshot(body)
     })
-  // eslint-disable-next-line no-empty
+    // eslint-disable-next-line no-empty
   } catch {
     // noop
   }
@@ -134,7 +134,7 @@ onMounted(() => {
         size: body.size ?? widget.value.size,
         windowSize: body.windowSize ?? widget.value.windowSize,
         ttlMs: body.ttlMs ?? widget.value.ttlMs,
-      // eslint-disable-next-line no-empty
+        // eslint-disable-next-line no-empty
       })
     })
   } catch {
@@ -286,8 +286,6 @@ function handleClose() {
     />
   </div>
 </template>
-
-<style scoped></style>
 
 <route lang="yaml">
 meta:

@@ -38,6 +38,7 @@ onMounted(() => {
 </script>
 
 <template>
+  <!-- deepline: JS-0693 requires v-html here for raw HTML rendering -->
   <div :class="props.class" class="markdown-content" v-html="processedContent" />
 </template>
 

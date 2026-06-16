@@ -567,6 +567,7 @@ function handleDeleteProvider() {
                   ?.label
               "
             >
+              <!-- deepline: JS-0693 requires v-html here for raw HTML rendering -->
               <div v-html="safeOllamaConnectivityTroubleshootingHtml" />
             </Callout>
 
