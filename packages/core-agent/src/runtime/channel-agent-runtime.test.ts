@@ -13,6 +13,26 @@ const provider = {
   chat: () => ({ baseURL: 'https://example.com/' }),
 } as unknown as ChatProvider
 
+interface Deferred<T> {
+  promise: Promise<T>
+  resolve: (value: T) => void
+  reject: (error: unknown) => void
+}
+
+function createDeferred<T>(): Deferred<T> {
+  let resolve: Deferred<T>['resolve'] | undefined
+  let reject: Deferred<T>['reject'] | undefined
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve
+    reject = promiseReject
+  })
+
+  if (!resolve || !reject)
+    throw new Error('Deferred promise handlers were not initialized')
+
+  return { promise, resolve, reject }
+}
+
 function createHarness(options: {
   activeProvider?: string
   runtimeConfig?: ReturnType<typeof createAgentRuntimeConfig>
@@ -231,6 +251,198 @@ describe('createChannelAgentRuntime', () => {
         content: 'channel reply',
       }),
     ]))
+  })
+
+  /**
+   * @example
+   * const firstSend = runtime.ingestMessage(firstMessage)
+   * const secondSend = runtime.ingestMessage(secondMessage)
+   * // second provider resolves first, but first message still sends first
+   */
+  it('preserves channel FIFO when provider resolution completes out of order', async () => {
+    const slowProvider = createDeferred<{ chatProvider: ChatProvider }>()
+    const fastProvider = createDeferred<{ chatProvider: ChatProvider }>()
+    const resolver = vi.fn((providerId: string) => {
+      if (providerId === 'slow-provider')
+        return slowProvider.promise
+      if (providerId === 'fast-provider')
+        return fastProvider.promise
+
+      return Promise.reject(new Error(`Unexpected provider id: ${providerId}`))
+    })
+    const runtimeConfig = createAgentRuntimeConfig({
+      defaultExecutionProfile: {
+        providerId: 'slow-provider',
+        model: 'shared-model',
+      },
+      providerResolver: resolver,
+    })
+    const harness = createHarness({ runtimeConfig })
+
+    const firstSend = harness.runtime.ingestMessage({
+      id: 'first-channel-message',
+      channelId: 'satori',
+      sessionId: 'session-1',
+      role: 'user',
+      content: 'first message',
+      createdAt: 300,
+    }, {
+      providerId: 'slow-provider',
+      model: 'slow-model',
+    })
+    const secondSend = harness.runtime.ingestMessage({
+      id: 'second-channel-message',
+      channelId: 'satori',
+      sessionId: 'session-1',
+      role: 'user',
+      content: 'second message',
+      createdAt: 301,
+    }, {
+      providerId: 'fast-provider',
+      model: 'fast-model',
+    })
+
+    await vi.waitFor(() => {
+      expect(resolver).toHaveBeenCalledTimes(2)
+    })
+    fastProvider.resolve({ chatProvider: provider })
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(harness.stream).not.toHaveBeenCalled()
+
+    slowProvider.resolve({ chatProvider: provider })
+    await Promise.all([firstSend, secondSend])
+
+    expect(harness.stream.mock.calls.map(call => call[0])).toEqual([
+      'slow-model',
+      'fast-model',
+    ])
+    expect(harness.sessionMessages['session-1']
+      .filter(message => message.role === 'user')
+      .map(message => message.content)).toEqual([
+      'first message',
+      'second message',
+    ])
+  })
+
+  /**
+   * @example
+   * const send = runtime.ingestMessage(channelMessage)
+   * runtime.cancelPendingSends(sessionId)
+   */
+  it('cancels a channel send while provider options are still resolving', async () => {
+    const slowProvider = createDeferred<{ chatProvider: ChatProvider }>()
+    const resolver = vi.fn((providerId: string) => {
+      if (providerId === 'slow-provider')
+        return slowProvider.promise
+
+      return Promise.reject(new Error(`Unexpected provider id: ${providerId}`))
+    })
+    const runtimeConfig = createAgentRuntimeConfig({
+      defaultExecutionProfile: {
+        providerId: 'slow-provider',
+        model: 'slow-model',
+      },
+      providerResolver: resolver,
+    })
+    const harness = createHarness({ runtimeConfig })
+
+    const send = harness.runtime.ingestMessage({
+      id: 'resolving-channel-message',
+      channelId: 'satori',
+      sessionId: 'session-1',
+      role: 'user',
+      content: 'cancel while resolving',
+      createdAt: 300,
+    })
+
+    await vi.waitFor(() => {
+      expect(resolver).toHaveBeenCalledWith('slow-provider')
+    })
+    expect(harness.runtime.getPendingQueuedSendSnapshot()).toEqual([
+      {
+        sessionId: 'session-1',
+        generation: 1,
+        cancelled: false,
+        messagePreview: 'cancel while resolving',
+        hasAttachments: false,
+        inputType: undefined,
+      },
+    ])
+
+    harness.runtime.cancelPendingSends('session-1')
+    const expectedRejection = expect(send).rejects.toThrow('Chat session was reset before send could start')
+    slowProvider.resolve({ chatProvider: provider })
+
+    await expectedRejection
+    expect(harness.runtime.getPendingQueuedSendCount()).toBe(0)
+    expect(harness.stream).not.toHaveBeenCalled()
+  })
+
+  /**
+   * @example
+   * const activeSend = runtime.ingestMessage(activeMessage, explicitOptions)
+   * const failedQueuedSend = runtime.ingestMessage(queuedMessage)
+   */
+  it('defers queued provider resolution failures until earlier sends finish', async () => {
+    const resolver = vi.fn((providerId: string) => {
+      if (providerId === 'broken-provider')
+        return Promise.reject(new Error('provider failed before its turn'))
+
+      return Promise.reject(new Error(`Unexpected provider id: ${providerId}`))
+    })
+    const runtimeConfig = createAgentRuntimeConfig({
+      defaultExecutionProfile: {
+        providerId: 'broken-provider',
+        model: 'broken-model',
+      },
+      providerResolver: resolver,
+    })
+    const harness = createHarness({ runtimeConfig })
+    let releaseFirstSend: (() => void) | undefined
+    harness.stream.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        releaseFirstSend = resolve
+      })
+    })
+
+    const firstSend = harness.runtime.ingestMessage({
+      id: 'active-channel-message',
+      channelId: 'stage-ui',
+      sessionId: 'session-1',
+      role: 'user',
+      content: 'active send',
+      createdAt: 300,
+    }, {
+      model: 'active-model',
+      chatProvider: provider,
+    })
+    await vi.waitFor(() => {
+      expect(harness.stream).toHaveBeenCalledTimes(1)
+    })
+
+    const secondSend = harness.runtime.ingestMessage({
+      id: 'broken-channel-message',
+      channelId: 'satori',
+      sessionId: 'session-1',
+      role: 'user',
+      content: 'broken send',
+      createdAt: 301,
+    })
+    let secondRejectedBeforeFirstSettled = false
+    void secondSend.catch(() => {
+      secondRejectedBeforeFirstSettled = true
+    })
+
+    await vi.waitFor(() => {
+      expect(resolver).toHaveBeenCalledWith('broken-provider')
+    })
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(secondRejectedBeforeFirstSettled).toBe(false)
+
+    releaseFirstSend?.()
+    await firstSend
+    await expect(secondSend).rejects.toThrow('provider failed before its turn')
+    expect(harness.stream).toHaveBeenCalledTimes(1)
   })
 
   /**

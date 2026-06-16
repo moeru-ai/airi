@@ -62,19 +62,27 @@ export function createChannelAgentRuntime(deps: ChannelAgentRuntimeDeps): Channe
     throw new Error(`Cannot ingest channel message "${message.id}" for channel "${message.channelId}" session "${message.sessionId}": pass model/chatProvider options or configure runtimeConfig`)
   }
 
-  async function ingestMessage(message: AgentChannelMessage, options?: Partial<ChannelAgentExecutionOptions>) {
-    const executionOptions = await resolveExecutionOptions(message, options)
+  function ingestMessage(message: AgentChannelMessage, options?: Partial<ChannelAgentExecutionOptions>) {
+    return chatRuntime.ingestWithQueuedPreparation(message.content, {
+      resolveOptions: async () => {
+        const executionOptions = await resolveExecutionOptions(message, options)
 
-    return chatRuntime.ingest(message.content, {
-      ...executionOptions,
-      attachments: message.attachments,
-      input: message.input,
-      channel: {
-        channelId: message.channelId,
-        channelMessageId: message.id,
-        sessionId: message.sessionId,
-        createdAt: message.createdAt,
-        metadata: message.metadata,
+        return {
+          ...executionOptions,
+          attachments: message.attachments,
+          input: message.input,
+          channel: {
+            channelId: message.channelId,
+            channelMessageId: message.id,
+            sessionId: message.sessionId,
+            createdAt: message.createdAt,
+            metadata: message.metadata,
+          },
+        }
+      },
+      snapshot: {
+        attachments: message.attachments,
+        input: message.input,
       },
     }, message.sessionId)
   }
