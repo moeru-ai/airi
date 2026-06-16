@@ -110,6 +110,45 @@ describe('createAgentRuntimeConfig', () => {
 
   /**
    * @example
+   * Optional override fields with undefined values behave like omitted fields.
+   */
+  it('ignores undefined override fields when applying default and resolver fallbacks', async () => {
+    const resolver = vi.fn(async (providerId: string) => ({
+      chatProvider: provider,
+      providerConfig: {
+        headers: {
+          'x-provider-id': providerId,
+        },
+      },
+    }))
+    const config = createAgentRuntimeConfig({
+      defaultExecutionProfile: {
+        providerId: 'default-provider',
+        model: 'default-model',
+      },
+      providerResolver: resolver,
+    })
+
+    const result = await config.resolveExecutionOptions(createMessage(), {
+      providerId: undefined,
+      model: undefined,
+      chatProvider: undefined,
+      providerConfig: undefined,
+    })
+
+    expect(resolver).toHaveBeenCalledWith('default-provider')
+    expect(result.providerId).toBe('default-provider')
+    expect(result.model).toBe('default-model')
+    expect(result.chatProvider).toBe(provider)
+    expect(result.providerConfig).toEqual({
+      headers: {
+        'x-provider-id': 'default-provider',
+      },
+    })
+  })
+
+  /**
+   * @example
    * Existing callers with a concrete provider do not need a resolver.
    */
   it('preserves explicit chatProvider behavior without requiring a resolver', async () => {

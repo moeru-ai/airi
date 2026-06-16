@@ -59,6 +59,32 @@ function formatChannelMessageContext(message: AgentChannelMessage) {
 }
 
 /**
+ * Normalizes execution overrides by treating undefined values as omitted fields.
+ *
+ * Before:
+ * - `{ model: undefined, providerId: "openai" }`
+ *
+ * After:
+ * - `{ providerId: "openai" }`
+ */
+function normalizeExecutionOverrides(overrides: Partial<ChannelAgentExecutionOptions>): Partial<ChannelAgentExecutionOptions> {
+  const normalized: Partial<ChannelAgentExecutionOptions> = {}
+
+  if (overrides.providerId !== undefined)
+    normalized.providerId = overrides.providerId
+  if (overrides.model !== undefined)
+    normalized.model = overrides.model
+  if (overrides.chatProvider !== undefined)
+    normalized.chatProvider = overrides.chatProvider
+  if (overrides.providerConfig !== undefined)
+    normalized.providerConfig = overrides.providerConfig
+  if (overrides.tools !== undefined)
+    normalized.tools = overrides.tools
+
+  return normalized
+}
+
+/**
  * Creates an in-memory runtime config for resolving core-agent execution options.
  *
  * Use when:
@@ -88,19 +114,20 @@ export function createAgentRuntimeConfig(options: CreateAgentRuntimeConfigOption
     message: AgentChannelMessage,
     overrides: Partial<ChannelAgentExecutionOptions> = {},
   ): Promise<ChatOrchestratorSendOptions> {
-    const providerId = overrides.providerId ?? defaultExecutionProfile?.providerId
-    const model = overrides.model ?? defaultExecutionProfile?.model
+    const executionOverrides = normalizeExecutionOverrides(overrides)
+    const providerId = executionOverrides.providerId ?? defaultExecutionProfile?.providerId
+    const model = executionOverrides.model ?? defaultExecutionProfile?.model
 
     if (!model) {
       throw new Error(`Cannot resolve execution model for ${formatChannelMessageContext(message)}: no default execution profile or model override was provided`)
     }
 
-    if (overrides.chatProvider) {
+    if (executionOverrides.chatProvider) {
       return {
-        ...overrides,
+        ...executionOverrides,
         providerId,
         model,
-        chatProvider: overrides.chatProvider,
+        chatProvider: executionOverrides.chatProvider,
       }
     }
 
@@ -119,7 +146,7 @@ export function createAgentRuntimeConfig(options: CreateAgentRuntimeConfigOption
       model,
       chatProvider: resolved.chatProvider,
       providerConfig: resolved.providerConfig,
-      ...overrides,
+      ...executionOverrides,
     }
   }
 
