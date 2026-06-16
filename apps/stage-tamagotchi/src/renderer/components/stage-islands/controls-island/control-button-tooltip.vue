@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { TooltipContent, TooltipProvider, TooltipRoot, TooltipTrigger } from 'reka-ui'
 
-const { side = 'top' } = withDefaults(
+const { side } = withDefaults(
   defineProps<{
     side?: 'top' | 'right' | 'bottom' | 'left'
   }>(),
