@@ -29,6 +29,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          submodules: true
 
       # Turborepo
       - name: Cache turbo build setup
@@ -56,6 +58,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          submodules: true
 
       # Turborepo
       - name: Cache turbo build setup
@@ -86,6 +90,8 @@ jobs:
     if: ${{ !(github.event_name == 'pull_request' && startsWith(github.event.pull_request.head.label, 'moeru-ai:i18n/')) }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          submodules: true
 
       # Node.js
       - uses: pnpm/action-setup@v5
@@ -104,6 +110,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          submodules: true
       - uses: danielroe/provenance-action@main
         id: check
         with:
