@@ -71,24 +71,25 @@ export async function trySteamSignIn(windowAuthManager: WindowAuthManager): Prom
 
   windowAuthManager.broadcastSteamSignInStarted()
 
-  try {
-    const ticketResult = await getWebApiTicket()
-    if (!ticketResult.ok) {
-      windowAuthManager.broadcastSteamSignInFinished()
-      return
-    }
-
-    const tokens = await exchangeSteamTicketForTokens({
-      serverUrl: SERVER_URL,
-      ticketHex: ticketResult.ticketHex,
-    })
-    windowAuthManager.broadcastAuthCallback(tokens)
-    log.log('Steam sign-in successful')
-  }
-  catch (err) {
-    log.withError(err).warn('Steam sign-in failed')
+  const ticketResult = await getWebApiTicket()
+  if (!ticketResult.ok) {
+    log.withFields({ reason: ticketResult.reason }).warn('Steam sign-in failed')
     windowAuthManager.broadcastSteamSignInFinished()
+    return
   }
+
+  const exchangeResult = await exchangeSteamTicketForTokens({
+    serverUrl: SERVER_URL,
+    ticketHex: ticketResult.ticketHex,
+  })
+  if (!exchangeResult.ok) {
+    log.withFields({ reason: exchangeResult.reason }).warn('Steam sign-in failed')
+    windowAuthManager.broadcastSteamSignInFinished()
+    return
+  }
+
+  windowAuthManager.broadcastAuthCallback(exchangeResult.tokens)
+  log.log('Steam sign-in successful')
 }
 
 export function createWindowAuthManagerService(): WindowAuthManager {

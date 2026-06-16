@@ -14,7 +14,7 @@ import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { STEAM_APP_ID } from '../src/main/services/steam/app-id'
+import { STEAM_APP_ID } from '../src/main/services/steam/types'
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
 const sdkRoot = join(packageRoot, 'steamworks_sdk', 'redistributable_bin')
