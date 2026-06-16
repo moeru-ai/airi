@@ -297,7 +297,6 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
             console.warn('[AutonomousArtist] Failed to fetch generated image', fetchError)
             return
           }
-        }
 
           const entryId = await backgroundStore.addBackground(
             'journal',
@@ -398,6 +397,7 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
               break
           }
         }
+      }
       } else {
         artistLog(`Intensity (${analysis.intensity}) below threshold (${threshold}). No action taken.`)
       }

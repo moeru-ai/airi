@@ -33,7 +33,11 @@ export class OPFSCache {
         const file = await fileHandle.getFile()
         if (file.name === '__meta.json') continue
         // live2d-display expects this
-        ;(file as any).webkitRelativePath = pathPrefix + file.name
+        Object.defineProperty(file, 'webkitRelativePath', {
+          value: pathPrefix + file.name,
+          writable: false,
+          configurable: true,
+        })
         files.push(file)
       } else if (entry.kind === 'directory') {
         const newPrefix = `${pathPrefix + entry.name}/`
@@ -203,7 +207,11 @@ export class OPFSCache {
         const settingsText = encodeModelSettings(settings.json)
         const settingsFilePath = settings.url || 'model.model3.json'
         const newSettingsFile = new File([settingsText], settingsFilePath)
-        ;(newSettingsFile as any).webkitRelativePath = encodeURI(settingsFilePath)
+        Object.defineProperty(newSettingsFile, 'webkitRelativePath', {
+          value: encodeURI(settingsFilePath),
+          writable: false,
+          configurable: true,
+        })
         files.push(newSettingsFile)
       }
       delete (context.source as any).settings

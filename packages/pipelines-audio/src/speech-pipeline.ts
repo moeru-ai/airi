@@ -261,7 +261,11 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
         }
 
         const { value, done } = await reader.read()
-        if (done || intent.canceled || intent.controller.signal.aborted) break
+        if (done) break
+        if (intent.canceled || intent.controller.signal.aborted) {
+          await reader.cancel()
+          break
+        }
         if (!value) continue
 
         context.emit(speechPipelineEventMap.onSegment, value)
