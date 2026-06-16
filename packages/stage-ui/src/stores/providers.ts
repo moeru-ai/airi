@@ -638,12 +638,12 @@ export const useProvidersStore = defineStore('providers', () => {
 
           // Filter for TTS models - look for models with "tts" in the ID
           return models
-            .filter((model: any) => {
+            .filter((model: { id: string }) => {
               const modelId = model.id.toLowerCase()
               // Include models that contain "tts" in their ID
               return modelId.includes('tts')
             })
-            .map((model: any) => {
+            .map((model: { id: string; name?: string; display_name?: string; description?: string; context_length?: number }) => {
               return {
                 id: model.id,
                 name: model.name || model.display_name || model.id,
@@ -1203,7 +1203,7 @@ export const useProvidersStore = defineStore('providers', () => {
             throw new Error(`Failed to fetch voices: ${response.statusText}`)
           }
           const voices = await response.json()
-          return Object.keys(voices).map((voice: any) => {
+          return Object.keys(voices).map((voice: string) => {
             return {
               id: voice,
               name: voice,
@@ -1369,10 +1369,11 @@ export const useProvidersStore = defineStore('providers', () => {
       validators: {
         chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
+          const appConfig = config.app as { appId?: string } | undefined
           const errors = [
             !config.apiKey && new Error('API key is required.'),
             !config.baseUrl && new Error('Base URL is required.'),
-            !((config.app as any)?.appId) && new Error('App ID is required.'),
+            !(appConfig?.appId) && new Error('App ID is required.'),
           ].filter(Boolean)
 
           const res = baseUrlValidator.value(config.baseUrl)
@@ -1383,7 +1384,7 @@ export const useProvidersStore = defineStore('providers', () => {
           return {
             errors,
             reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: Boolean(config.apiKey) && Boolean(config.baseUrl) && Boolean(config.app) && !!(config.app as any).appId,
+            valid: Boolean(config.apiKey) && Boolean(config.baseUrl) && Boolean(config.app) && !!appConfig?.appId,
           }
         },
       },
@@ -2206,7 +2207,7 @@ export const useProvidersStore = defineStore('providers', () => {
 
       validators: {
         chatPingCheckAvailable: false,
-        validateProviderConfig: async (config: any) => {
+        validateProviderConfig: async (config: Record<string, unknown>) => {
           const model = config.model as string
 
           if (!model) {

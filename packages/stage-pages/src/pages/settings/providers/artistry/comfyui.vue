@@ -85,10 +85,10 @@ async function testConnection() {
 const showUploadSection = ref(false)
 const uploadError = ref('')
 const parsedWorkflow = ref<{
-  nodes: Array<{ id: string; title: string; type: string; inputs: Record<string, any> }>
+  nodes: Array<{ id: string; title: string; type: string; inputs: Record<string, unknown> }>
 } | null>(null)
 const pendingWorkflowName = ref('')
-const pendingWorkflowRaw = ref<Record<string, any> | null>(null)
+const pendingWorkflowRaw = ref<Record<string, unknown> | null>(null)
 const selectedFields = ref<Record<string, Set<string>>>({})
 
 function handleFileUpload(event: Event) {
@@ -109,11 +109,12 @@ function handleFileUpload(event: Event) {
       pendingWorkflowName.value = file.name.replace(/.json$/, '')
 
       // Parse nodes from API format (flat object of nodeId -> node)
-      const nodes: Array<{ id: string; title: string; type: string; inputs: Record<string, any> }> = []
-      for (const [nodeId, node] of Object.entries(json as Record<string, any>)) {
+      type ComfyUINode = { _meta?: { title?: string }; class_type?: string; inputs?: Record<string, unknown> }
+      const nodes: Array<{ id: string; title: string; type: string; inputs: Record<string, unknown> }> = []
+      for (const [nodeId, node] of Object.entries(json as Record<string, ComfyUINode>)) {
         const title = node._meta?.title || node.class_type || `Node ${nodeId}`
         const type = node.class_type || 'Unknown'
-        const inputs: Record<string, any> = {}
+        const inputs: Record<string, unknown> = {}
         for (const [key, val] of Object.entries(node.inputs || {})) {
           // Skip link arrays (connections to other nodes)
           if (!Array.isArray(val)) {
@@ -202,7 +203,7 @@ function removeWorkflow(id: string) {
   }
 }
 
-function formatValue(val: any): string {
+function formatValue(val: unknown): string {
   if (typeof val === 'string') return val.length > 40 ? `"${val.slice(0, 37)}..."` : `"${val}"`
   if (typeof val === 'number') return String(val)
   if (typeof val === 'boolean') return String(val)
@@ -210,17 +211,18 @@ function formatValue(val: any): string {
 }
 
 function generateExampleJson(wf: ComfyUIWorkflowTemplate) {
-  const example: Record<string, any> = {
+  const example: Record<string, unknown> = {
     template: wf.id,
   }
   for (const [nodeTitle, fields] of Object.entries(wf.exposedFields)) {
     example[nodeTitle] = {}
     for (const field of fields) {
       const nodeId = Object.keys(wf.workflow).find(
-        (id) => ((wf.workflow[id] as any)._meta?.title || (wf.workflow[id] as any).class_type) === nodeTitle,
+        (id) => ((wf.workflow[id] as { _meta?: { title?: string }; class_type?: string })._meta?.title || (wf.workflow[id] as { _meta?: { title?: string }; class_type?: string }).class_type) === nodeTitle,
       )
-      const val = nodeId ? (wf.workflow[nodeId] as any).inputs[field] : '...'
-      example[nodeTitle][field] = val
+      type WorkflowNode = { inputs?: Record<string, unknown> }
+      const val = nodeId ? (wf.workflow[nodeId] as WorkflowNode).inputs?.[field] : '...'
+      ;(example[nodeTitle] as Record<string, unknown>)[field] = val
     }
   }
   return JSON.stringify(example, null, 2)

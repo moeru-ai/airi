@@ -217,10 +217,10 @@ function configureInjectedShaderMaterial(mat: ShaderMaterial) {
   if ('envMap' in mat && mat.envMap) mat.envMap = null
 
   // NPR materials usually use sRGB textures.
-  const tex = (mat as any).map as Texture | undefined
-  if (tex && (tex as any).colorSpace !== undefined) {
+  const tex = (mat as { map?: Texture }).map as Texture | undefined
+  if (tex && (tex as { colorSpace?: string }).colorSpace !== undefined) {
     try {
-      ;(tex as any).colorSpace = SRGBColorSpace
+      ;(tex as { colorSpace?: string }).colorSpace = SRGBColorSpace
     } catch (e) {
       // ignore colorSpace assignment failures
     }

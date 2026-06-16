@@ -200,7 +200,7 @@ export class OPFSCache {
     const settingsFile = files.find((f) => f.name.endsWith('.model.json') || f.name.endsWith('.model3.json'))
     if (!settingsFile) {
       // reconstruct settings files from ModelSettings
-      const settings: ModelSettings = (files as any).settings
+      const settings: ModelSettings = (files as unknown as { settings: ModelSettings }).settings
       if (settings) {
         const _logger = (..._a: unknown[]) => void 0
         _logger('[OPFS] Reconstructing settings file...')
@@ -214,7 +214,7 @@ export class OPFSCache {
         })
         files.push(newSettingsFile)
       }
-      delete (context.source as any).settings
+      delete (context.source as unknown as { settings?: ModelSettings }).settings
     }
     await OPFSCache.save(context.opfsKey, files, context.opfsUrl)
 
@@ -222,7 +222,7 @@ export class OPFSCache {
   }
 }
 
-function encodeProperty(obj: any, path: string): void {
+function encodeProperty(obj: Record<string, unknown>, path: string): void {
   let cursor = obj
   const propPath = path.split('.')
   // will lose reference when access to the last level
@@ -240,7 +240,7 @@ function encodeProperty(obj: any, path: string): void {
   }
 }
 // TODO: find all file paths and encode them by recursively visiting the settings
-function encodeModelSettings(input: any): string {
+function encodeModelSettings(input: Record<string, unknown>): string {
   const settings = JSON.parse(JSON.stringify(input))
   const propertyToEncode = [
     'FileReferences.DisplayInfo',

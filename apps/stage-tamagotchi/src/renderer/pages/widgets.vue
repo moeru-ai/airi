@@ -24,7 +24,7 @@ type SizePreset = 's' | 'm' | 'l' | { cols?: number; rows?: number }
 interface WidgetItem {
   id: string
   componentName: string
-  componentProps: Record<string, any>
+  componentProps: Record<string, unknown>
   size: SizePreset
   windowSize?: WidgetWindowSize
   ttlMs: number

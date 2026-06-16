@@ -17,8 +17,8 @@ const amazonBedrockConfigSchema = z.object({
 type AmazonBedrockConfig = z.infer<typeof amazonBedrockConfigSchema>
 
 // Helper: merge consecutive messages with the same role (Converse API requires alternating)
-function mergeConsecutiveRoles(messages: Array<{ role: string; content: any[] }>): Array<{ role: string; content: any[] }> {
-  const merged: Array<{ role: string; content: any[] }> = []
+function mergeConsecutiveRoles(messages: Array<{ role: string; content: unknown[] }>): Array<{ role: string; content: unknown[] }> {
+  const merged: Array<{ role: string; content: unknown[] }> = []
   for (const msg of messages) {
     const last = merged.at(-1)
     if (last && last.role === msg.role) {

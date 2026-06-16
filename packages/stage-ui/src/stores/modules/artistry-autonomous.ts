@@ -1,4 +1,6 @@
+import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message } from '@xsai/shared-chat'
+import type { AiriCard } from './airi-card'
 
 import { defineInvoke, defineInvokeEventa } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
@@ -53,7 +55,7 @@ export const useAutonomousArtistryStore = defineStore('artistry-autonomous', () 
   /**
    * Safe IPC Invoker for headless generation
    */
-  const widgetsAdd = defineInvokeEventa<string | undefined, any>('eventa:invoke:electron:windows:widgets:add')
+  const widgetsAdd = defineInvokeEventa<string | undefined, unknown>('eventa:invoke:electron:windows:widgets:add')
 
   const getGenerateHeadless = (): {
     generate: (payload: GenerationPayload) => Promise<GenerationResult>
@@ -61,7 +63,7 @@ export const useAutonomousArtistryStore = defineStore('artistry-autonomous', () 
   } | null => {
     const win = window as unknown as { electron?: { ipcRenderer: ElectronIpcRenderer } }
     if (typeof window !== 'undefined' && win.electron?.ipcRenderer) {
-      const { context } = createContext(win.electron.ipcRenderer as any)
+      const { context } = createContext(win.electron.ipcRenderer)
       return {
         generate: defineInvoke(context, artistryGenerateHeadless) as (payload: GenerationPayload) => Promise<GenerationResult>,
         addWidget: defineInvoke(context, widgetsAdd) as (options: Record<string, unknown>) => Promise<void>,
@@ -185,7 +187,7 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
         throw new Error(`Missing LLM configuration (Model: ${modelId}, Provider: ${providerId})`)
       }
 
-      const chatProvider = (await providersStore.getProviderInstance(providerId)) as any
+      const chatProvider = (await providersStore.getProviderInstance(providerId)) as ChatProvider | null
       if (!chatProvider) {
         throw new Error(`Failed to resolve chat provider instance for: ${providerId}`)
       }
@@ -325,7 +327,7 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
                     },
                   },
                 },
-              } as any)
+              } as AiriCard)
               break
 
             case 'inline': {
@@ -375,7 +377,7 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
                     },
                   },
                 },
-              } as any)
+              } as AiriCard)
 
               try {
                 await invokers.addWidget({

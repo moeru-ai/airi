@@ -458,9 +458,9 @@ export const useSpeechStore = defineStore('speech', () => {
   }
 
   function withAiriTtsAnalytics(
-    providerConfig: Record<string, any>,
+    providerConfig: Record<string, unknown>,
     analytics: { trigger: 'auto' | 'manual', source: 'chat_auto_tts' | 'manual_preview' | 'settings_test' },
-  ): Record<string, any> {
+  ): Record<string, unknown> {
     return {
       ...providerConfig,
       extraBody: {

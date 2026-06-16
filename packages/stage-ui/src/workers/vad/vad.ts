@@ -17,8 +17,8 @@ export class VAD implements BaseVAD {
   private isRecording = false
   private postSpeechSamples: number = 0
   private prevBuffers: Float32Array[] = []
-  private inferenceChain: Promise<any> = Promise.resolve()
-  private eventListeners: Partial<Record<keyof VADEvents, VADEventCallback<any>[]>> = {}
+  private inferenceChain: Promise<unknown> = Promise.resolve()
+  private eventListeners: Partial<Record<keyof VADEvents, VADEventCallback<keyof VADEvents>[]>> = {}
   private isReady = false
 
   constructor(userConfig: Partial<BaseVADConfig> = {}) {
@@ -70,7 +70,7 @@ export class VAD implements BaseVAD {
     if (!this.eventListeners[event]) {
       this.eventListeners[event] = []
     }
-    this.eventListeners[event]!.push(callback as any)
+    this.eventListeners[event]!.push(callback as VADEventCallback<keyof VADEvents>)
   }
 
   /**

@@ -153,7 +153,7 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
         ttsModel = await KokoroTTS.from_pretrained(MODEL_IDS.KOKORO, {
           dtype: attempt.dtype as 'fp32' | 'fp16' | 'q8' | 'q4' | 'q4f16',
           device: attempt.device as 'wasm' | 'webgpu' | 'cpu',
-          progress_callback: (progress: any) => {
+          progress_callback: (progress: { progress?: number; status?: string; file?: string; loaded?: number; total?: number }) => {
             const msg: ProgressResponse = {
               type: 'progress',
               requestId,
@@ -280,6 +280,6 @@ globalThis.addEventListener('message', async (event: MessageEvent<WorkerInboundM
       markCancelled(message.targetRequestId)
       break
     default:
-      console.warn('[Kokoro Worker] Unknown message type:', (message as any).type)
+      console.warn('[Kokoro Worker] Unknown message type:', (message as { type?: string }).type)
   }
 })

@@ -303,7 +303,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
   }
 
   function resolveTools(toolset?: ToolsetId) {
-    const toolsetRegistry: Record<string, () => Promise<any[]>> = {
+    const toolsetRegistry: Record<string, () => Promise<unknown[]>> = {
       widgets: async () => {
         const [w, we] = await Promise.all([widgetsTools(), weatherTools()])
         return [...w, ...we]
