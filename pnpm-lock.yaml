@@ -2801,6 +2801,8 @@ importers:
         specifier: 'catalog:'
         version: 3.2.6(typescript@5.9.3)
 
+  packages/vishot-runtime: {}
+
 packages:
 
   7zip-bin@5.2.0:
