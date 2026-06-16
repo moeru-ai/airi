@@ -15,7 +15,7 @@ import {
   widgetsUpdateEvent,
 } from '../../shared/eventa'
 
-const _logger = (...a: unknown[]) => void 0
+const _logger = (..._a: unknown[]) => void 0
 
 const { t } = useI18n()
 

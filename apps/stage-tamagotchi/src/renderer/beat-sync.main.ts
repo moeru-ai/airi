@@ -11,7 +11,7 @@ import {
   createContext,
 } from '@proj-airi/stage-shared/beat-sync'
 
-const _logger = (...a: unknown[]) => void 0
+const _logger = (..._a: unknown[]) => void 0
 
 const context = createContext()
 

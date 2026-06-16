@@ -1,0 +1,10 @@
+{
+  "name": "@proj-airi/vishot-runtime",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Test-only workspace package for vishot runtime tests",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run"
+  }
+}

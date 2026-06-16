@@ -43,7 +43,7 @@ import { useControlsIslandStore } from '../stores/controls-island'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
 import { shouldSampleStageTransparency } from '../utils/stage-three-transparency'
 
-const _logger = (...a: unknown[]) => void 0
+const _logger = (..._a: unknown[]) => void 0
 
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
 const statusIslandRef = ref<InstanceType<typeof StatusIsland>>()

@@ -20,7 +20,7 @@ export class OPFSCache {
         await root.removeEntry(entry.name, { recursive: true })
       }
     } catch (e) {
-      const _logger = (...a: unknown[]) => void 0
+      const _logger = (..._a: unknown[]) => void 0
       _logger('[OPFS] Failed to clear cache:', e)
     }
   }
@@ -86,14 +86,14 @@ export class OPFSCache {
     try {
       const root = await navigator.storage.getDirectory()
       const dirHandle = await root.getDirectoryHandle(key, { create: false })
-      const _logger = (...a: unknown[]) => void 0
+      const _logger = (..._a: unknown[]) => void 0
       _logger(`[OPFS] Cache hit for ${key}`)
 
       const meta = await OPFSCache.readMeta(dirHandle)
       if (meta?.sourceUrl && meta.sourceUrl !== sourceUrl) {
         // NOTICE: Skip cache when the requested URL changes while the key stays the same.
         // This avoids serving a stale model when ids are reused or props are out of sync.
-        const _logger = (...a: unknown[]) => void 0
+        const _logger = (..._a: unknown[]) => void 0
         _logger(`[OPFS] Cache mismatch for ${key}, source url changed`)
         await root.removeEntry(dirHandle.name, { recursive: true }) // actually invalidates cache
         return null
@@ -111,7 +111,7 @@ export class OPFSCache {
   }
 
   static async save(key: string, files: File[], sourceUrl?: string): Promise<void> {
-    const _logger = (...a: unknown[]) => void 0
+    const _logger = (..._a: unknown[]) => void 0
     _logger(`[OPFS] Saving ${files.length} files to ${key}`)
 
     try {
@@ -129,10 +129,10 @@ export class OPFSCache {
       if (sourceUrl) {
         await OPFSCache.writeFile(dirHandle, '__meta.json', JSON.stringify({ sourceUrl }))
       }
-      const _logger = (...a: unknown[]) => void 0
+      const _logger = (..._a: unknown[]) => void 0
       _logger(`[OPFS] Saved to cache`)
     } catch (e) {
-      const _logger = (...a: unknown[]) => void 0
+      const _logger = (..._a: unknown[]) => void 0
       _logger('[OPFS] Failed to save to cache:', e)
     }
   }
@@ -166,7 +166,7 @@ export class OPFSCache {
     }
 
     // cache miss
-    const _logger = (...a: unknown[]) => void 0
+    const _logger = (..._a: unknown[]) => void 0
     _logger(`[OPFS] Cache miss for ${key}`)
     context.opfsKey = key
     context.opfsUrl = blobUrl
@@ -177,7 +177,7 @@ export class OPFSCache {
       const fileName = `${key}.zip`
       context.source = [new File([blob], fileName)]
     } catch (e) {
-      const _logger = (...a: unknown[]) => void 0
+      const _logger = (..._a: unknown[]) => void 0
       _logger(`[OPFS] Failed to fetch blob for ${key}`, e)
       throw e
     }
@@ -202,7 +202,7 @@ export class OPFSCache {
       // reconstruct settings files from ModelSettings
       const settings: ModelSettings = (files as any).settings
       if (settings) {
-        const _logger = (...a: unknown[]) => void 0
+        const _logger = (..._a: unknown[]) => void 0
         _logger('[OPFS] Reconstructing settings file...')
         const settingsText = encodeModelSettings(settings.json)
         const settingsFilePath = settings.url || 'model.model3.json'

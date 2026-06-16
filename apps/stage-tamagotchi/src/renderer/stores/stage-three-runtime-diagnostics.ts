@@ -37,7 +37,7 @@ import {
   setStageThreeRuntimeTraceRemoteSubscription,
 } from '../bridges/stage-three-runtime-trace'
 
-const _logger = (...a: unknown[]) => void 0
+const _logger = (..._a: unknown[]) => void 0
 
 export const TRACE_HISTORY_LIMIT = 20
 
