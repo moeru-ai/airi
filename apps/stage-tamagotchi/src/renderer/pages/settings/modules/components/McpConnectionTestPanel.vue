@@ -9,11 +9,16 @@ interface TestOption {
   value: string
 }
 
-const props = defineProps<{
-  options: TestOption[]
-  result?: ElectronMcpStdioTestResult
-  running: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    options: TestOption[]
+    result?: ElectronMcpStdioTestResult
+    running: boolean
+  }>(),
+  {
+    result: undefined,
+  },
+)
 
 const emit = defineEmits<{
   test: []

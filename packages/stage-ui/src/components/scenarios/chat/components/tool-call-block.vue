@@ -4,12 +4,18 @@ import { computed } from 'vue'
 
 import { createToolResultError } from './tool-call-display'
 
-const props = defineProps<{
-  toolName: string
-  args: string
-  state?: 'executing' | 'done' | 'error'
-  result?: unknown
-}>()
+const props = withDefaults(
+  defineProps<{
+    toolName: string
+    args: string
+    state?: 'executing' | 'done' | 'error'
+    result?: unknown
+  }>(),
+  {
+    state: undefined,
+    result: undefined,
+  },
+)
 
 const resultError = computed(() => (props.state === 'error' ? createToolResultError(props.result) : undefined))
 

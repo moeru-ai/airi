@@ -12,10 +12,16 @@ import {
   electronOpenSettings,
 } from '../../../../shared/eventa'
 
-const props = defineProps<{
-  buttonStyle?: string
-  iconClass?: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    buttonStyle?: string
+    iconClass?: string
+  }>(),
+  {
+    buttonStyle: '',
+    iconClass: '',
+  },
+)
 
 const { t } = useI18n()
 const authStore = useAuthStore()

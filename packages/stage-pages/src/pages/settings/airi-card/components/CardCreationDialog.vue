@@ -70,7 +70,7 @@ const { stageModelSelected: defaultDisplayModelId } = storeToRefs(stageModelStor
 const { activeProvider: defaultArtistryProvider } = storeToRefs(artistryStore)
 
 // Determine if we're in edit mode
-const isEditMode = computed(() => !!props.cardId)
+const isEditMode = computed(() => Boolean(props.cardId))
 
 // Modules configuration
 const selectedConsciousnessProvider = ref<string>('')

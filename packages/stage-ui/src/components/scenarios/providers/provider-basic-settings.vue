@@ -1,9 +1,16 @@
 <script setup lang="ts">
-defineProps<{
-  title?: string
-  description?: string
-  onReset?: () => void
-}>()
+withDefaults(
+  defineProps<{
+    title?: string
+    description?: string
+    onReset?: () => void
+  }>(),
+  {
+    title: '',
+    description: '',
+    onReset: () => {},
+  },
+)
 </script>
 
 <template>

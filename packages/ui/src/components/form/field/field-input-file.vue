@@ -1,13 +1,22 @@
 <script setup lang="ts">
 import { InputFile } from '../input'
 
-const props = defineProps<{
-  label?: string
-  description?: string
-  accept?: string
-  multiple?: boolean
-  placeholder?: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    label?: string
+    description?: string
+    accept?: string
+    multiple?: boolean
+    placeholder?: string
+  }>(),
+  {
+    label: '',
+    description: '',
+    accept: '',
+    multiple: false,
+    placeholder: '',
+  },
+)
 
 const modelValue = defineModel<File[] | undefined>({ required: false })
 </script>

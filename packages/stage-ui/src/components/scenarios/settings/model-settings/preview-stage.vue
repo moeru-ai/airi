@@ -68,7 +68,7 @@ async function capturePreviewFrame() {
 }
 
 const runtimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() => {
-  const hasModel = !!stageModelSelectedUrl.value
+  const hasModel = Boolean(stageModelSelectedUrl.value)
 
   if (stageModelRenderer.value === 'live2d') {
     const phase = resolveComponentStateToRuntimePhase(live2dComponentState.value, { hasModel })
@@ -79,7 +79,7 @@ const runtimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() => {
       phase,
       controlsLocked: hasModel ? phase !== 'mounted' : false,
       previewAvailable: hasModel,
-      canCapturePreview: !!live2dSceneRef.value?.canvasElement(),
+      canCapturePreview: Boolean(live2dSceneRef.value?.canvasElement()),
       updatedAt: Date.now(),
     })
   }
@@ -91,7 +91,7 @@ const runtimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() => {
       phase: hasModel ? scenePhase.value : 'no-model',
       controlsLocked: hasModel ? sceneMutationLocked.value : false,
       previewAvailable: hasModel,
-      canCapturePreview: !!vrmSceneRef.value?.canvasElement(),
+      canCapturePreview: Boolean(vrmSceneRef.value?.canvasElement()),
       updatedAt: Date.now(),
     })
   }
@@ -105,7 +105,7 @@ const runtimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() => {
       phase,
       controlsLocked: hasModel ? phase !== 'mounted' : false,
       previewAvailable: hasModel,
-      canCapturePreview: !!spineSceneRef.value?.canvasElement(),
+      canCapturePreview: Boolean(spineSceneRef.value?.canvasElement()),
       updatedAt: Date.now(),
     })
   }

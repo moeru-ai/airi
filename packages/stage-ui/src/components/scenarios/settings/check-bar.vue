@@ -1,12 +1,17 @@
 <script setup lang="ts">
 import Bar from './bar.vue'
 
-defineProps<{
-  text: string
-  iconOn: string
-  iconOff: string
-  description?: string
-}>()
+withDefaults(
+  defineProps<{
+    text: string
+    iconOn: string
+    iconOff: string
+    description?: string
+  }>(),
+  {
+    description: '',
+  },
+)
 const model = defineModel<boolean>()
 </script>
 

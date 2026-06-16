@@ -7,10 +7,15 @@ import { ref } from 'vue'
 import { BackgroundKind } from '../../stores/background'
 import { DefaultBackground } from '../Backgrounds/default'
 
-defineProps<{
-  background: BackgroundItem
-  topColor?: string
-}>()
+withDefaults(
+  defineProps<{
+    background: BackgroundItem
+    topColor?: string
+  }>(),
+  {
+    topColor: '',
+  },
+)
 
 const containerRef = ref<HTMLElement | null>(null)
 

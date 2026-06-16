@@ -12,7 +12,9 @@ interface Props {
   voiceModel: string
 }
 
-defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  description: '',
+})
 const emit = defineEmits<{
   select: []
   activate: []

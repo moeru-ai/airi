@@ -1,8 +1,13 @@
 <script setup lang="ts">
-defineProps<{
-  progress: number
-  barClass?: string
-}>()
+withDefaults(
+  defineProps<{
+    progress: number
+    barClass?: string
+  }>(),
+  {
+    barClass: '',
+  },
+)
 </script>
 
 <template>

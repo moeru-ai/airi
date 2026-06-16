@@ -2,10 +2,16 @@
 import { Collapsible } from '@proj-airi/ui'
 import { ref } from 'vue'
 
-const props = defineProps<{
-  title?: string
-  initialVisible?: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    title?: string
+    initialVisible?: boolean
+  }>(),
+  {
+    title: '',
+    initialVisible: false,
+  },
+)
 
 const visible = ref(props.initialVisible || false)
 

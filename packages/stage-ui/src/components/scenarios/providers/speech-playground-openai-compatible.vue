@@ -5,18 +5,24 @@ import { useI18n } from 'vue-i18n'
 
 import { TestDummyMarker } from '../../gadgets'
 
-const props = defineProps<{
-  // Input fields
-  defaultText?: string
-  modelValue: string
-  voice: string
+const props = withDefaults(
+  defineProps<{
+    // Input fields
+    defaultText?: string
+    modelValue: string
+    voice: string
 
-  // Provider-specific handlers (provided from parent)
-  generateSpeech: (input: string, voice: string, useSSML: boolean, model?: string) => Promise<ArrayBuffer>
+    // Provider-specific handlers (provided from parent)
+    generateSpeech: (input: string, voice: string, useSSML: boolean, model?: string) => Promise<ArrayBuffer>
 
-  // Current state
-  apiKeyConfigured?: boolean
-}>()
+    // Current state
+    apiKeyConfigured?: boolean
+  }>(),
+  {
+    defaultText: '',
+    apiKeyConfigured: false,
+  },
+)
 
 const emit = defineEmits(['update:modelValue', 'update:voice'])
 

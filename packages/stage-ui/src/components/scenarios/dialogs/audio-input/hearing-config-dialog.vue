@@ -17,13 +17,22 @@ import HearingConfig from './hearing-config.vue'
 import { useAudioDevice } from '../../../../composables'
 import { useBreakpoints } from '../../../../composables/use-breakpoints'
 
-const props = defineProps<{
-  overlayDim?: boolean
-  overlayBlur?: boolean
-  granted?: boolean
-  transcription?: boolean
-  toggleTranscription?: () => void
-}>()
+const props = withDefaults(
+  defineProps<{
+    overlayDim?: boolean
+    overlayBlur?: boolean
+    granted?: boolean
+    transcription?: boolean
+    toggleTranscription?: () => void
+  }>(),
+  {
+    overlayDim: false,
+    overlayBlur: false,
+    granted: false,
+    transcription: false,
+    toggleTranscription: () => {},
+  },
+)
 
 const showDialog = defineModel('show', { type: Boolean, default: false, required: false })
 

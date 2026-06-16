@@ -11,12 +11,17 @@ import { useAudioAnalyzer } from '../../../composables/audio/audio-analyzer'
 import { useAudioRecorder } from '../../../composables/audio/audio-recorder'
 import { LevelMeter, TestDummyMarker, ThresholdMeter } from '../../gadgets'
 
-const props = defineProps<{
-  // Provider-specific handlers (provided from parent)
-  generateTranscription: (input: File) => Promise<HearingTranscriptionResult>
-  // Current state
-  apiKeyConfigured?: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    // Provider-specific handlers (provided from parent)
+    generateTranscription: (input: File) => Promise<HearingTranscriptionResult>
+    // Current state
+    apiKeyConfigured?: boolean
+  }>(),
+  {
+    apiKeyConfigured: false,
+  },
+)
 
 const { t } = useI18n()
 const { audioInputs, selectedAudioInput, stream, stopStream, startStream } = useAudioDevice()

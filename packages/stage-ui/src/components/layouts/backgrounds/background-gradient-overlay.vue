@@ -1,7 +1,12 @@
 <script setup lang="ts">
-const props = defineProps<{
-  color?: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    color?: string
+  }>(),
+  {
+    color: '',
+  },
+)
 </script>
 
 <template>

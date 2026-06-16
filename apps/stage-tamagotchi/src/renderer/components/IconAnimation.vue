@@ -1,16 +1,22 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 
-const props = defineProps<{
-  icon: string
-  iconSize: number // avoid conflict with unocss size prop
-  position: string
-  duration: number
-  started: boolean
-  textColor: string
-  isReverse?: boolean
-  zIndex?: number
-}>()
+const props = withDefaults(
+  defineProps<{
+    icon: string
+    iconSize: number // avoid conflict with unocss size prop
+    position: string
+    duration: number
+    started: boolean
+    textColor: string
+    isReverse?: boolean
+    zIndex?: number
+  }>(),
+  {
+    isReverse: false,
+    zIndex: 0,
+  },
+)
 
 const emit = defineEmits<{
   (e: 'animationEnded'): void

@@ -10,9 +10,14 @@ import Onboarding from './onboarding.vue'
 
 import { useBreakpoints } from '../../../../composables/use-breakpoints'
 
-const props = defineProps<{
-  extraSteps?: OnboardingStep[]
-}>()
+const props = withDefaults(
+  defineProps<{
+    extraSteps?: OnboardingStep[]
+  }>(),
+  {
+    extraSteps: () => [],
+  },
+)
 
 const emit = defineEmits<{
   configured: []

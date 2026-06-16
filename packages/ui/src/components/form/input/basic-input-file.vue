@@ -2,14 +2,24 @@
 import { useDebounce } from '@vueuse/core'
 import { ref } from 'vue'
 
-const props = defineProps<{
-  class?: string | string[] | null
-  isDraggingClasses?: string | string[] | null
-  isNotDraggingClasses?: string | string[] | null
-  accept?: string
-  multiple?: boolean
-  modelValue?: File[]
-}>()
+const props = withDefaults(
+  defineProps<{
+    class?: string | string[] | null
+    isDraggingClasses?: string | string[] | null
+    isNotDraggingClasses?: string | string[] | null
+    accept?: string
+    multiple?: boolean
+    modelValue?: File[]
+  }>(),
+  {
+    class: null,
+    isDraggingClasses: null,
+    isNotDraggingClasses: null,
+    accept: '',
+    multiple: false,
+    modelValue: () => [],
+  },
+)
 
 const emit = defineEmits<{
   'update:modelValue': [files: File[]]

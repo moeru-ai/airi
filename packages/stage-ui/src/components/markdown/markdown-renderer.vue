@@ -10,7 +10,9 @@ interface Props {
   class?: string | string[]
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  class: '',
+})
 
 const processedContent = ref('')
 const { process, processSync } = useMarkdown()

@@ -1,10 +1,16 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-const props = defineProps<{
-  disabled?: boolean
-  class?: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    disabled?: boolean
+    class?: string
+  }>(),
+  {
+    disabled: false,
+    class: '',
+  },
+)
 
 const modelValue = defineModel<number>({ required: true })
 

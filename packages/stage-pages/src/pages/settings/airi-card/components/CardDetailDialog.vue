@@ -182,7 +182,7 @@ const tabs = computed<Tab[]>(() => {
   }
 
   // Character tab - only show if there are character settings
-  if (Object.values(characterSettings.value).some((value) => !!value)) {
+  if (Object.values(characterSettings.value).some((value) => Boolean(value))) {
     availableTabs.push({
       id: 'character',
       label: t('settings.pages.card.character'),

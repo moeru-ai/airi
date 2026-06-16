@@ -17,7 +17,9 @@ interface Props {
   cardName?: string
 }
 
-defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  cardName: '',
+})
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   confirm: []

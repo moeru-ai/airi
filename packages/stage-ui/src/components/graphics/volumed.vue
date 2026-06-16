@@ -1,8 +1,14 @@
 <script setup lang="ts">
-defineProps<{
-  perspective?: number
-  transform?: string
-}>()
+withDefaults(
+  defineProps<{
+    perspective?: number
+    transform?: string
+  }>(),
+  {
+    perspective: 0,
+    transform: '',
+  },
+)
 </script>
 
 <template>

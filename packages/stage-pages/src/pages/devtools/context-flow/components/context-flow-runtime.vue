@@ -3,16 +3,22 @@ import type { QueuedSendSnapshot } from '@proj-airi/stage-ui/stores/chat'
 
 import { Section } from '@proj-airi/stage-ui/components'
 
-defineProps<{
-  connected: boolean
-  pendingSendCount: number
-  pendingQueuedSendCount: number
-  pendingQueuedSends: QueuedSendSnapshot[]
-  activeSessionId: string
-  lastBroadcastPostedAt?: number
-  lastBroadcastReceivedAt?: number
-  now: number
-}>()
+const props = withDefaults(
+  defineProps<{
+    connected: boolean
+    pendingSendCount: number
+    pendingQueuedSendCount: number
+    pendingQueuedSends: QueuedSendSnapshot[]
+    activeSessionId: string
+    lastBroadcastPostedAt?: number
+    lastBroadcastReceivedAt?: number
+    now: number
+  }>(),
+  {
+    lastBroadcastPostedAt: undefined,
+    lastBroadcastReceivedAt: undefined,
+  },
+)
 
 function formatAge(now: number, timestamp?: number) {
   if (!timestamp) return 'never'

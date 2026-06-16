@@ -1,10 +1,17 @@
 <script setup lang="ts">
-defineProps<{
-  providerName: string
-  providerIcon?: string
-  providerIconColor?: string
-  onBack?: () => void
-}>()
+withDefaults(
+  defineProps<{
+    providerName: string
+    providerIcon?: string
+    providerIconColor?: string
+    onBack?: () => void
+  }>(),
+  {
+    providerIcon: '',
+    providerIconColor: '',
+    onBack: () => {},
+  },
+)
 </script>
 
 <template>

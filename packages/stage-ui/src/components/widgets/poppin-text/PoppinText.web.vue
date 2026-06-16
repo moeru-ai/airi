@@ -16,15 +16,22 @@ interface PoppinTextTarget {
   grapheme: string
 }
 
-const props = defineProps<{
-  /**
-   * A plain string, keyed text segments, or a ReadableStream of bytes from text in UTF-8 encoding.
-   * If a stream is provided, the stream **SHOULD NOT** be reused. (i.e. You should not set a same stream twice.)
-   */
-  text?: string | PoppinTextSegment[] | ReadableStream<Uint8Array>
-  textClass?: string | string[]
-  animator?: Animator
-}>()
+const props = withDefaults(
+  defineProps<{
+    /**
+     * A plain string, keyed text segments, or a ReadableStream of bytes from text in UTF-8 encoding.
+     * If a stream is provided, the stream **SHOULD NOT** be reused. (i.e. You should not set a same stream twice.)
+     */
+    text?: string | PoppinTextSegment[] | ReadableStream<Uint8Array>
+    textClass?: string | string[]
+    animator?: Animator
+  }>(),
+  {
+    text: undefined,
+    textClass: '',
+    animator: undefined,
+  },
+)
 
 const emits = defineEmits<{
   (e: 'textSplit', grapheme: string): void
