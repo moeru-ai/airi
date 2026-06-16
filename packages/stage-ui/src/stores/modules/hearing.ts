@@ -514,7 +514,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
 
       if (abort) session.audioStreamController?.error(reason)
       else session.audioStreamController?.close()
-    // eslint-disable-next-line no-empty
+      // eslint-disable-next-line no-empty
     } catch {
       // noop
     }
@@ -536,7 +536,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
 
         if (disposeProviderId) {
           await providersStore.disposeProviderInstance(disposeProviderId)
-        // eslint-disable-next-line consistent-return
+          // eslint-disable-next-line consistent-return
         }
 
         return text
@@ -548,11 +548,10 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
       }
     }
 
-    const text = session.result?.text
     // eslint-disable-next-line consistent-return
     if (disposeProviderId) await providersStore.disposeProviderInstance(disposeProviderId)
 
-    return text
+    return session.result?.text
   }
 
   async function transcribeForMediaStream(
@@ -708,7 +707,11 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
           mediaStreamSource: {} as MediaStreamAudioSourceNode, // Not used for Web Speech API
           audioStreamController: undefined,
           abortController,
-          result: { ...result, mode: 'stream' as const, recognition: recognitionInstance } as HearingTranscriptionResult & { recognition?: unknown },
+          result: {
+            ...result,
+            mode: 'stream' as const,
+            recognition: recognitionInstance,
+          } as HearingTranscriptionResult & { recognition?: unknown },
           idleTimer,
           providerId,
           callbacks: {
@@ -896,7 +899,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
         if (!text || !text.trim()) {
           error.value = 'No transcription result returned from provider'
           return
-        // eslint-disable-next-line consistent-return
+          // eslint-disable-next-line consistent-return
         }
 
         return text
