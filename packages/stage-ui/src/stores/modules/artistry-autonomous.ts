@@ -18,12 +18,6 @@ import { useAiriCardStore } from './airi-card'
 import { useArtistryStore } from './artistry'
 import { useConsciousnessStore } from './consciousness'
 
-// Type for Electron IPC context
-type ElectronIpcRenderer = {
-  invoke: (channel: string, ...args: unknown[]) => Promise<unknown>
-  on: (channel: string, listener: (...args: unknown[]) => void) => void
-}
-
 // Type for generation payload
 interface GenerationPayload {
   prompt: string
@@ -61,11 +55,14 @@ export const useAutonomousArtistryStore = defineStore('artistry-autonomous', () 
     generate: (payload: GenerationPayload) => Promise<GenerationResult>
     addWidget: (options: Record<string, unknown>) => Promise<void>
   } | null => {
-    const win = window as unknown as { electron?: { ipcRenderer: ElectronIpcRenderer } }
+    // eslint-disable-next-line ts/no-explicit-any
+    const win = window as any
     if (typeof window !== 'undefined' && win.electron?.ipcRenderer) {
       const { context } = createContext(win.electron.ipcRenderer)
       return {
-        generate: defineInvoke(context, artistryGenerateHeadless) as (payload: GenerationPayload) => Promise<GenerationResult>,
+        generate: defineInvoke(context, artistryGenerateHeadless) as (
+          payload: GenerationPayload,
+        ) => Promise<GenerationResult>,
         addWidget: defineInvoke(context, widgetsAdd) as (options: Record<string, unknown>) => Promise<void>,
       }
     }
@@ -282,7 +279,10 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
           throw new Error(result.error)
         }
 
-        artistLog('Headless Generation Success!', { hasUrl: Boolean(result.imageUrl), hasBase64: Boolean(result.base64) })
+        artistLog('Headless Generation Success!', {
+          hasUrl: Boolean(result.imageUrl),
+          hasBase64: Boolean(result.base64),
+        })
 
         // 4. Save to journal
         if (result.base64 || result.imageUrl) {

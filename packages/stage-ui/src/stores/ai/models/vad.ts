@@ -80,11 +80,12 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
       })
 
       vad.value.on('debug', ({ data }) => {
-        if (data?.probability !== undefined) {
-          isSpeechProb.value = data.probability
+        const debugData = data as { probability?: number }
+        if (debugData?.probability !== undefined) {
+          isSpeechProb.value = debugData.probability
 
           // Update VAD history for visualization
-          isSpeechHistory.value.push(data.probability)
+          isSpeechHistory.value.push(debugData.probability)
           if (isSpeechHistory.value.length > maxIsSpeechHistory) {
             isSpeechHistory.value.shift()
           }
