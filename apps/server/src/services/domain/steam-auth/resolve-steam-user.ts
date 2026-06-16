@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto'
 
 import { and, eq } from 'drizzle-orm'
 
+import { getPlayerSummaries } from '../../../libs/steam-web-api'
 import { account, user } from '../../../schemas/accounts'
 
 const STEAM_PROVIDER_ID = 'steam'
@@ -15,16 +16,20 @@ const STEAM_PROVIDER_ID = 'steam'
  * - steamId `76561198000000001`
  *
  * After:
- * - `steam+76561198000000001@steam.local`
+ * - `76561198000000001@steam.local`
  */
 export function steamPlaceholderEmail(steamId: string): string {
-  return `steam+${steamId}@steam.local`
+  return `${steamId}@steam.local`
 }
 
 export async function resolveOrCreateSteamUser(
   db: Database,
   steamId: string,
-): Promise<{ userId: string }> {
+  options?: {
+    publisherKey?: string
+    getPlayerSummaries?: typeof getPlayerSummaries
+  },
+): Promise<{ userId: string, created: boolean }> {
   const [existingAccount] = await db
     .select({ userId: account.userId })
     .from(account)
@@ -35,16 +40,24 @@ export async function resolveOrCreateSteamUser(
     .limit(1)
 
   if (existingAccount)
-    return { userId: existingAccount.userId }
+    return { userId: existingAccount.userId, created: false }
+
+  const profile = options?.publisherKey
+    ? await (options.getPlayerSummaries ?? getPlayerSummaries)({
+        publisherKey: options.publisherKey,
+        steamId,
+      })
+    : null
 
   const userId = randomUUID()
   const now = new Date()
 
   await db.insert(user).values({
     id: userId,
-    name: 'Steam User',
+    name: profile?.name || 'Steam User',
     email: steamPlaceholderEmail(steamId),
     emailVerified: true,
+    image: profile?.image || null,
     createdAt: now,
     updatedAt: now,
   })
@@ -58,5 +71,5 @@ export async function resolveOrCreateSteamUser(
     updatedAt: now,
   })
 
-  return { userId }
+  return { userId, created: true }
 }

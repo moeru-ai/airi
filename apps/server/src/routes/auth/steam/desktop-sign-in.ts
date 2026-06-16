@@ -94,7 +94,9 @@ export function createSteamDesktopSignInRoute(deps: SteamDesktopSignInRouteDeps)
       if (!ownsApp)
         throw createForbiddenError('Steam account does not own this app', 'STEAM_NO_OWNERSHIP')
 
-      const { userId } = await collaborators.resolveOrCreateSteamUser(deps.db, steamId)
+      const { userId } = await collaborators.resolveOrCreateSteamUser(deps.db, steamId, {
+        publisherKey: deps.env.STEAM_PUBLISHER_KEY,
+      })
 
       const [userForBanCheck] = await deps.db
         .select({ banned: user.banned, banExpires: user.banExpires })
