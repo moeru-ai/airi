@@ -5,7 +5,6 @@ import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import staticFiles from '@fastify/static'
 import websocket from '@fastify/websocket'
-import { WebSocketServer } from 'ws'
 
 import { router } from './routes.js'
 import { websocketHandler } from './websocket.js'
