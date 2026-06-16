@@ -131,7 +131,7 @@ describe('dispatchSparkNotifyPerformance', () => {
   it('includes the CALL payload in the performance result', async () => {
     const store = useContextBridgeStore()
     store.setSparkNotifyHostRole('main')
-    const handler = vi.fn<(arg: { move: string }) => Promise<void>>()
+    const handler = vi.fn<(payload?: Record<string, unknown>) => Promise<void>>()
     const streamingControl = useLlmStreamingControlStore()
 
     const resultPromise = store.dispatchSparkNotifyPerformance({

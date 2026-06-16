@@ -204,6 +204,7 @@
     "vite": "catalog:vite-6-4-2",
     "vitest-browser-vue": "catalog:",
     "vue": "catalog:",
+    "@vue-macros/volar": "catalog:",
     "vue-tsc": "catalog:",
     "ws": "catalog:"
   }

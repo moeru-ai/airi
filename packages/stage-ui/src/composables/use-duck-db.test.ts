@@ -15,7 +15,7 @@ vi.mock('@proj-airi/drizzle-duckdb-wasm', () => ({
 
 // Mock the helper function
 vi.mock('@proj-airi/drizzle-duckdb-wasm/bundles/import-url-browser', () => ({
-  getImportUrlBundles: vi.fn().mockReturnValue<unknown[]>([]),
+  getImportUrlBundles: vi.fn().mockReturnValue([]),
 }))
 
 describe('useDuckDB (Singleton)', () => {

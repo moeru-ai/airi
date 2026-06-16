@@ -66,6 +66,7 @@
     "@webgpu/types": "catalog:",
     "jsdom": "catalog:",
     "unplugin-info": "catalog:",
+    "@vue-macros/volar": "catalog:",
     "vitest": "catalog:vitest",
     "vue-tsc": "catalog:"
   }

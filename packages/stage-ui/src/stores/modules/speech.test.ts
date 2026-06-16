@@ -8,19 +8,6 @@ import {
 import { useProvidersStore } from '../providers'
 import { toSignedPercent, useSpeechStore } from './speech'
 
-// Type for Voice Pack snapshot
-interface VoicePackSnapshot {
-  packId: string
-  costMultiplier: number
-}
-
-// Type for Voice Pack parameters
-interface VoicePackParams {
-  pitch?: string
-  rate?: string
-  volume?: string
-}
-
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
     locale: { value: 'en-US' },
