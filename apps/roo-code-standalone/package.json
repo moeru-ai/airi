@@ -5,7 +5,8 @@
 	"description": "Standalone browser shell for Roo Code — replaces the VSCode extension host",
 	"scripts": {
 		"dev": "tsx src/backend/server.ts",
-		"build": "vite build",
+		"build": "vite build && npm run postbuild",
+		"postbuild": "cp ../../modules/code/src/webview-ui/build/assets/index.css dist/assets/index.css && cp dist/src/renderer/index.html dist/index.html",
 		"preview": "vite preview",
 		"clean": "rimraf dist"
 	},

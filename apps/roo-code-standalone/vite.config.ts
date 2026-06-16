@@ -21,7 +21,11 @@ export default defineConfig({
     }),
     tailwindcss(),
   ],
-  root: path.resolve(__dirname, 'src/renderer'),
+  // Vite root must contain ALL files that use Tailwind classes so that
+  // @tailwindcss/vite can scan them for utility usage. The webview-ui
+  // source uses the bulk of our Tailwind utilities and lives outside
+  // src/renderer/, so we set root to the package root.
+  root: __dirname,
   resolve: {
     alias: {
       // Point @roo to the code submodule's shared types
@@ -40,7 +44,7 @@ export default defineConfig({
       // Externalize vscode module — same as the webview-ui config
       external: ['vscode'],
       input: {
-        index: path.resolve(__dirname, 'src/renderer/index.html'),
+        index: 'src/renderer/index.html',
       },
       output: {
         entryFileNames: `assets/[name].js`,
