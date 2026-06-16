@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url'
 
 import { isMacOS } from 'std-env'
 
-import { STEAM_APP_ID } from './src/main/services/steam/app-id'
+import { STEAM_APP_ID } from './src/main/services/steam/types'
 
 const packageDir = dirname(fileURLToPath(import.meta.url))
 
