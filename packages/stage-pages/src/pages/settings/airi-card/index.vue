@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// @ts-nocheck
 import type { ccv3 } from '@proj-airi/ccc'
 
 import { Alert } from '@proj-airi/stage-ui/components'
@@ -64,7 +63,7 @@ watch(inputFiles, async (newFiles) => {
     selectedCardId.value = addCard(cardJSON)
     isCardDialogOpen.value = true
   } catch (error) {
-    const _logger = (...a: unknown[]) => void 0
+    const _logger = (..._a: unknown[]) => void 0
     _logger('Error processing card file:', error)
   }
 })
@@ -129,8 +128,9 @@ function handleSelectCard(cardId: string) {
 function handleEditCard(cardId: string) {
   // Verify card exists before opening edit dialog
   if (cards.value.has(cardId)) {
-  editingCardId.value = cardId
-  isCardCreationDialogOpen.value = true
+    editingCardId.value = cardId
+    isCardCreationDialogOpen.value = true
+  }
 }
 
 const handleCardCreationDialog = () => {
