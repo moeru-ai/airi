@@ -204,8 +204,12 @@ export async function setupMainWindow(params: {
    */
   if (!isLinux) {
     function handleStartDraggingWindow() {
-      const windowId = window.getNativeWindowHandle()
-      clickDragPlugin.startDrag(windowId)
+      try {
+        const windowId = window.getNativeWindowHandle()
+        clickDragPlugin.startDrag(windowId)
+      } catch (e) {
+        console.warn('Failed to start drag:', e)
+      }
     }
 
     // TODO: once we refactored eventa to support window-namespaced contexts,

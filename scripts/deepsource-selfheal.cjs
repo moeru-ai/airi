@@ -19,9 +19,9 @@ const path = require('path');
 
 // ── Config ──────────────────────────────────────────────────────────────────
 const REPO         = 'vi70x4/airiOS';
-// Derive repo root from CWD so the script is portable across machines/clones.
-// Caller is expected to run this from the repo root.
-const LOCAL_PATH   = process.cwd();
+// Derive repo root from this script's location so the script is portable across
+// machines/clones regardless of the caller's CWD.
+const LOCAL_PATH   = path.resolve(__dirname, '..');
 const STATE_FILE   = path.join(LOCAL_PATH, '.claude', 'deepsource-loop-state.json');
 const LOG_FILE     = path.join(LOCAL_PATH, '.claude', 'deepsource-loop.log');
 const MAX_ITER      = 15;
@@ -46,6 +46,15 @@ function run(cmd, timeout = 120_000) {
   return execSync(cmd, { cwd: LOCAL_PATH, encoding: 'utf8', timeout }).trim();
 }
 
+// ── Safe child_process wrappers ─────────────────────────────────────────────
+// These helpers use execFileSync with array args (no shell interpolation) for
+// commands that don't need pipes/&& chains.
+
+function ghCLI(...args) {
+  // `gh` is installed by the CI environment; args are controlled by this script.
+  return execFileSync('gh', args, { cwd: LOCAL_PATH, encoding: 'utf8' }).trim();
+}
+
 function readState() {
   try { return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); }
   catch { return { phase: 'checking', pr_number: null, iteration: 0, consecutive_clean: 0 }; }
@@ -58,7 +67,7 @@ function writeState(patch) {
 }
 
 function ghJSON(...args) {
-  try { return JSON.parse(run(`gh ${args.join(' ')}`)); }
+  try { return JSON.parse(ghCLI(...args)); }
   catch (e) { log(`gh ${args.join(' ')} failed: ${e.message}`); return null; }
 }
 

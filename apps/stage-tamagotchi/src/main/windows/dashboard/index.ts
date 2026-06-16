@@ -155,8 +155,12 @@ export async function setupDashboardWindow(params: {
   let cleanUpWindowDraggingInvokeHandler: (() => void) | undefined
   if (!isLinux) {
     const handleStartDraggingWindow = () => {
-      const windowId = window.getNativeWindowHandle()
-      clickDragPlugin.startDrag(windowId)
+      try {
+        const windowId = window.getNativeWindowHandle()
+        clickDragPlugin.startDrag(windowId)
+      } catch (e) {
+        console.warn('Failed to start drag:', e)
+      }
     }
 
     // TODO: once we refactored eventa to support window-namespaced contexts,

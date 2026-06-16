@@ -22,6 +22,11 @@
  * ```
  */
 
+/* eslint-disable no-console */
+// System-level file logger — console calls here are intentional:
+// they bootstrap logging before the @guiiai/logg global hook is registered
+// and remain as a fallback if file writes fail.
+
 import { mkdir, open, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 
@@ -37,7 +42,11 @@ const LOG_FILE_PREFIX = 'airi-tamagotchi'
 // Internal utilities
 // ============================================================================
 
-const _logger = (..._a: unknown[]) => undefined
+const _logger = (...args: unknown[]) => {
+  // Route through console so system init/failure messages are visible
+  // in the Electron main process stderr even before logg is configured.
+  console.error('[FileLogger]', ...args)
+}
 
 // ============================================================================
 // Public Types
