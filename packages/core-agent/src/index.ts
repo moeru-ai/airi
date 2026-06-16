@@ -25,6 +25,12 @@ export type {
 } from './runtime/channel-agent-runtime'
 export { createChannelAgentRuntime } from './runtime/channel-agent-runtime'
 export type {
+  AgentChannelAdapter,
+  AgentChannelRegistry,
+  AgentChannelRegistryLookupContext,
+} from './runtime/channel-registry'
+export { createAgentChannelRegistry } from './runtime/channel-registry'
+export type {
   ChatOrchestratorLifecycleRecord,
   ChatOrchestratorLLMPort,
   ChatOrchestratorPromptProjection,
@@ -61,6 +67,8 @@ export { mergeLoadedSessionMessages } from './session/merge-loaded-session-messa
 export type {
   AgentChannelIngressContext,
   AgentChannelMessage,
+  AgentChannelReplyTarget,
+  AgentOutboundMessage,
 } from './types/channel'
 export type {
   ChatAssistantMessage,
