@@ -27,10 +27,8 @@ function handleFileChange(e: Event) {
 
   files.value = []
 
-  // eslint-disable-next-line no-restricted-syntax
-  for (const file of input.files) {
-    files.value.push(file)
-  }
+  // FileList is not iterable in all TS lib targets; use Array.from
+  files.value = Array.from(input.files)
 
   emit('update:modelValue', files.value)
 
