@@ -82,8 +82,8 @@ function disposeSpine() {
   if (spineCanvas) {
     try {
       spineCanvas.dispose()
-    } catch (err) {
-      console.warn('[Spine] Failed to dispose SpineCanvas:', err)
+    } catch {
+      // noop - best effort cleanup
     }
     spineCanvas = undefined
   }
@@ -108,7 +108,6 @@ async function loadModel() {
     }
 
     if (!modelSrc.value) {
-      console.warn('[Spine] No model source provided')
       disposeSpine()
       modelLoading.value = false
       componentState.value = 'mounted'
@@ -165,10 +164,10 @@ async function loadModel() {
         ? detectSpineVersionFromBinary(rawData[assetPaths.skeletonPath] as Uint8Array)
         : detectSpineVersionFromJson(rawData[assetPaths.skeletonPath] as string)
       : undefined
-    if (!detectedVersion) detectedVersion = '4.2'
+    if (!detectedVersion) {
+      detectedVersion = '4.2'
+    }
     const spine = await loadSpineRuntime(detectedVersion)
-    // eslint-disable-next-line no-console
-    console.log(`[Spine] Detected skeleton version: ${detectedVersion}`)
 
     if (isUnmounted) {
       assetCleanup?.()
@@ -281,7 +280,6 @@ async function loadModel() {
       })
     })
   } catch (err) {
-    console.error('[Spine] Failed to load model:', err)
     emits('error', err instanceof Error ? err : new Error(String(err)))
   } finally {
     modelLoading.value = false

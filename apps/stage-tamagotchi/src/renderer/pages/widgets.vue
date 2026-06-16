@@ -15,6 +15,8 @@ import {
   widgetsUpdateEvent,
 } from '../../shared/eventa'
 
+const _logger = (...a: unknown[]) => void 0
+
 const { t } = useI18n()
 
 type SizePreset = 's' | 'm' | 'l' | { cols?: number; rows?: number }
@@ -58,7 +60,7 @@ async function requestRemoval(id: string) {
   try {
     await removeWidgetInvoke({ id })
   } catch (error) {
-    console.warn('Failed to remove widget', error)
+    _logger('Failed to remove widget', error)
   }
 }
 
@@ -86,7 +88,7 @@ async function requestSnapshot(id: string) {
     if (snapshot) applySnapshot(snapshot)
     else widget.value = null
   } catch (error) {
-    console.warn('Failed to fetch widget snapshot', error)
+    _logger('Failed to fetch widget snapshot', error)
   } finally {
     if (widgetId.value === id) loading.value = false
   }

@@ -128,7 +128,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
         onAnySend: (event) => {
           useWebSocketInspectorStore().add('outgoing', event)
         },
-        onError: (error) => {
+        onError: (error: unknown) => {
           connected.value = false
           // Do not clear listeners or replay cache here.
           // onError may be recoverable while the SDK is reconnecting.
@@ -181,7 +181,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
         },
       })
 
-      client.value.onEvent('module:authenticated', (event) => {
+      client.value.onEvent('module:authenticated', (event: { data: { authenticated: boolean } }) => {
         if (event.data.authenticated) {
           if (!hasEverConnected.value) {
             // First connection can flush immediately after authentication.

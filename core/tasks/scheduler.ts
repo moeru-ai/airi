@@ -18,7 +18,6 @@ import type { Task, TaskState } from "./types.js"
 import { PRIORITY_WEIGHTS } from "./types.js"
 import type { TaskManager } from "./manager.js"
 import type { TaskExecutor, TaskExecutionContext } from "./executor.js"
-import type { TaskResult } from "./types.js"
 
 // ── Configuration ────────────────────────────────────────────────────────
 

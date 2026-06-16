@@ -122,7 +122,7 @@ function createLlmMarkerStream(input: ReadableStream<string>, options?: MarkerPa
   const { stream, write, close, error } = createPushStream<MarkerToken>()
   const parser = createLlmMarkerParser(options)
 
-  void readStream(input, async (chunk) => {
+  readStream(input, async (chunk) => {
     await parser.consume(
       chunk,
       async (literal) => {

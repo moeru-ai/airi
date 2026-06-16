@@ -14,12 +14,10 @@ export const useSettingsGeneral = defineStore('settings-general', () => {
   const websocketSecureEnabled = useLocalStorageManualReset<boolean>('settings/websocket/secure-enabled', false)
 
   function getLanguage() {
-    let language = localStorage.getItem('settings/language')
+    const storedLanguage = localStorage.getItem('settings/language')
 
-    if (!language) {
-      // Fallback to browser language
-      language = navigator.language || 'en'
-    }
+    // Fallback to browser language if no stored preference
+    const language = storedLanguage || navigator.language || 'en'
 
     return resolveSupportedLocale(language, Object.keys(messages!))
   }

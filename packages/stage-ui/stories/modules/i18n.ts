@@ -15,7 +15,10 @@ function getLocale() {
     language = localStorage.getItem('settings/language') || 'en'
   }
 
-  if (!language) {
+  // JS-W1028: `language` is always at least `'en'` (line 7 default + `|| 'en'` above),
+  // so this branch was dead code. Keep the fallback but make it reachable by checking
+  // for empty string explicitly.
+  if (language === '') {
     // Fallback to browser language
     language = navigator.language || 'en'
   }

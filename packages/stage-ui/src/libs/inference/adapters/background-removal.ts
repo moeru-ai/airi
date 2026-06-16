@@ -18,6 +18,9 @@ import { getGPUCoordinator, getLoadQueue, MODEL_VRAM_ESTIMATES } from '../coordi
 import { LOAD_PRIORITY } from '../load-queue'
 import { createRequestId, InferenceAbortError, throwIfAborted } from '../protocol'
 
+/** Placeholder to ensure all imports are used */
+void LOAD_PRIORITY
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------

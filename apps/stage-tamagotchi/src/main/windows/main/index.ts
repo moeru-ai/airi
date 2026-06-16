@@ -114,8 +114,8 @@ export async function setupMainWindow(params: {
   if (is.dev || env.MAIN_APP_DEBUG || env.APP_DEBUG) {
     try {
       window.webContents.openDevTools({ mode: 'detach' })
-    } catch (err) {
-      console.error('failed to open devtools:', err)
+    } catch {
+      // devtools unavailable — non-fatal
     }
   }
 
@@ -204,12 +204,8 @@ export async function setupMainWindow(params: {
    */
   if (!isLinux) {
     function handleStartDraggingWindow() {
-      try {
-        const windowId = window.getNativeWindowHandle()
-        clickDragPlugin.startDrag(windowId)
-      } catch (error) {
-        console.error(error)
-      }
+      const windowId = window.getNativeWindowHandle()
+      clickDragPlugin.startDrag(windowId)
     }
 
     // TODO: once we refactored eventa to support window-namespaced contexts,

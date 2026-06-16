@@ -14,6 +14,8 @@
 
 import { describe, it, expect, beforeEach } from "vitest"
 
+const _logger = (..._a: unknown[]) => void 0
+
 import {
 	MemoryRegistry,
 	RepositoryIntelligence,
@@ -410,7 +412,7 @@ describe("Query relevance scoring", () => {
 	})
 
 	it("applies maxResults limit", () => {
-		for (let i = 0; i < 10; i++) {
+		for (let i = 0; i < 10; i += 1) {
 			registry.register(createTestMemory({
 				id: createMemoryId(`mem-${i}`),
 				title: `Memory ${i}`,
@@ -935,7 +937,7 @@ describe("FailureMemory", () => {
 
 	it("detects recurring patterns", () => {
 		// Record 3 failures with the same error signature.
-		for (let i = 0; i < 3; i++) {
+		for (let i = 0; i < 3; i += 1) {
 			memory.recordFailure({
 				id: createMemoryId(`fail-${i}`),
 				type: "execution",
@@ -978,7 +980,7 @@ describe("FailureMemory", () => {
 	})
 
 	it("gets a pattern by ID", () => {
-		for (let i = 0; i < 3; i++) {
+		for (let i = 0; i < 3; i += 1) {
 			memory.recordFailure({
 				id: createMemoryId(`fail-${i}`),
 				type: "execution",
@@ -999,7 +1001,7 @@ describe("FailureMemory", () => {
 	})
 
 	it("gets suggested action for a pattern", () => {
-		for (let i = 0; i < 3; i++) {
+		for (let i = 0; i < 3; i += 1) {
 			memory.recordFailure({
 				id: createMemoryId(`fail-${i}`),
 				type: "execution",

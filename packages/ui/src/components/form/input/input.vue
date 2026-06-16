@@ -13,14 +13,10 @@ type InputVariant = 'primary' | 'secondary' | 'primary-dimmed'
 
 type InputTheme = 'default'
 
-// Define size options for better flexibility
-type InputSize = 'sm' | 'md' | 'lg'
-
 const props = withDefaults(
   defineProps<{
     type?: InputType
     variant?: InputVariant // Button style variant
-    size?: InputSize // Button size variant
     theme?: InputTheme // Button theme
     /**
      * Forwarded to the underlying `<input>` element so the browser participates
@@ -31,7 +27,6 @@ const props = withDefaults(
   }>(),
   {
     variant: 'primary',
-    size: 'md',
     theme: 'default',
   },
 )
@@ -83,28 +78,14 @@ const variantClasses: Record<
 </script>
 
 <template>
-  <template v-if="props.type === 'number'">
-    <input
-      v-model.number="modelValue"
-      :type="props.type || 'text'"
-      :required="props.required"
-      :class="[
-        'transition-all duration-200 ease-in-out',
-        'cursor-disabled:not-allowed',
-        ...variantClasses[props.variant][props.theme].default,
-      ]"
-    />
-  </template>
-  <template v-else>
-    <input
-      v-model="modelValue"
-      :type="props.type || 'text'"
-      :required="props.required"
-      :class="[
-        'transition-all duration-200 ease-in-out',
-        'cursor-disabled:not-allowed',
-        ...variantClasses[props.variant][props.theme].default,
-      ]"
-    />
-  </template>
+  <input
+    v-model="modelValue"
+    :type="props.type || 'text'"
+    :required="props.required"
+    :class="[
+      'transition-all duration-200 ease-in-out',
+      'cursor-disabled:not-allowed',
+      ...variantClasses[props.variant][props.theme].default,
+    ]"
+  />
 </template>

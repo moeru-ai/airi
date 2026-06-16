@@ -24,7 +24,7 @@ function createStream(text: string) {
         () => {
           if (index < bytes.length) {
             controller.enqueue(bytes.subarray(index, index + 1))
-            index++
+            index += 1
           } else {
             clearInterval(interval)
             controller.close()

@@ -27,6 +27,8 @@ import type { ActivationResult, ModuleActivationResult } from "./modules/registr
 import type { RuntimeClient } from "./runtime/client.js"
 import type { ModuleActivated, ModuleCrashed } from "./events/types.js"
 
+const _logger = (..._a: unknown[]) => void 0
+
 import { ModuleRegistry } from "./modules/registry.js"
 import { EventBus } from "./events/bus.js"
 import { createLocalRuntimeClient } from "./runtime/local-client.js"

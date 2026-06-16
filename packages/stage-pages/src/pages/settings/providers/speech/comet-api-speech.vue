@@ -56,9 +56,13 @@ watch(
       const newSpeed = config.voiceSettings?.speed || config.speed || defaultVoiceSettings.speed
       if (Math.abs(speed.value - newSpeed) > 0.001) speed.value = newSpeed
 
-      if (!config.model && model.value !== defaultModel) model.value = defaultModel
+      if (!config.model && model.value !== defaultModel) {
+        model.value = defaultModel
+      }
 
-      if (!config.voice && voice.value !== 'alloy') voice.value = 'alloy'
+      if (!config.voice && voice.value !== 'alloy') {
+        voice.value = 'alloy'
+      }
     } else {
       speed.value = defaultVoiceSettings.speed
       model.value = defaultModel

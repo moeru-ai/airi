@@ -8,6 +8,8 @@
 
 import { describe, it, expect, beforeEach } from "vitest"
 
+const _logger = (..._a: unknown[]) => void 0
+
 import { EventBus } from "../events/bus.js"
 import { createLogger } from "../logger.js"
 
@@ -165,12 +167,12 @@ describe("InMemoryEventStore", () => {
 
 	it("generates monotonic IDs", async () => {
 		const ids: string[] = []
-		for (let i = 0; i < 10; i++) {
+		for (let i = 0; i < 10; i += 1) {
 			ids.push(await store.append(createTestEvent()))
 		}
 
 		// IDs should be strictly increasing.
-		for (let i = 1; i < ids.length; i++) {
+		for (let i = 1; i < ids.length; i += 1) {
 			expect(ids[i]!.localeCompare(ids[i - 1]!)).toBeGreaterThan(0)
 		}
 	})
@@ -241,7 +243,7 @@ describe("SnapshotManager", () => {
 	})
 
 	it("prunes old snapshots", async () => {
-		for (let i = 0; i < 5; i++) {
+		for (let i = 0; i < 5; i += 1) {
 			await manager.takeSnapshot()
 		}
 
@@ -691,12 +693,12 @@ describe("Event consistency", () => {
 	})
 
 	it("events are ordered by sequence number", async () => {
-		for (let i = 0; i < 10; i++) {
+		for (let i = 0; i < 10; i += 1) {
 			await store.append(createTestEvent())
 		}
 
 		const events = store.getAll()
-		for (let i = 1; i < events.length; i++) {
+		for (let i = 1; i < events.length; i += 1) {
 			expect(events[i]!.sequence).toBeGreaterThan(events[i - 1]!.sequence)
 		}
 	})

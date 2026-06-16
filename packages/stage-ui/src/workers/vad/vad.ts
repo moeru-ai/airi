@@ -37,7 +37,8 @@ export class VAD implements BaseVAD {
     this.config = { ...defaultConfig, ...userConfig }
 
     this.buffer = new Float32Array(this.config.maxBufferDuration * this.config.sampleRate)
-    this.sampleRateTensor = new Tensor('int64', [this.config.sampleRate], [])
+    // JS-W1042: int64 dtype requires BigInt64Array, not a plain number array
+    this.sampleRateTensor = new Tensor('int64', new BigInt64Array([BigInt(this.config.sampleRate)]), [1])
     this.state = new Tensor('float32', new Float32Array(2 * 1 * 128), [2, 1, 128])
   }
 
@@ -76,8 +77,9 @@ export class VAD implements BaseVAD {
    * Remove event listener
    */
   public off<K extends keyof VADEvents>(event: K, callback: VADEventCallback<K>): void {
-    if (!this.eventListeners[event]) return
-    this.eventListeners[event] = this.eventListeners[event]!.filter((cb) => cb !== callback)
+    if (this.eventListeners[event]) {
+      this.eventListeners[event] = this.eventListeners[event]!.filter((cb) => cb !== callback)
+    }
   }
 
   /**
@@ -112,7 +114,9 @@ export class VAD implements BaseVAD {
 
     // If not currently in speech and the current buffer isn't speech,
     // store it in the previous buffers queue for potential padding
-    if (!wasRecording && !isSpeech) {
+    if (wasRecording || isSpeech) {
+      // handled below
+    } else {
       if (this.prevBuffers.length >= maxPrevBuffers) {
         this.prevBuffers.shift()
       }
@@ -142,7 +146,9 @@ export class VAD implements BaseVAD {
 
     // Handle speech detection
     if (isSpeech) {
-      if (!this.isRecording) {
+      if (this.isRecording) {
+        // already recording, no start event needed
+      } else {
         // Speech just started
         this.emit('speech-start', undefined)
         this.emit('status', { type: 'info', message: 'Speech detected' })
@@ -262,7 +268,7 @@ export class VAD implements BaseVAD {
 
     // Update sample rate tensor if needed
     if (newConfig.sampleRate) {
-      this.sampleRateTensor = new Tensor('int64', [this.config.sampleRate], [])
+      this.sampleRateTensor = new Tensor('int64', new BigInt64Array([BigInt(this.config.sampleRate)]), [1])
     }
   }
 }

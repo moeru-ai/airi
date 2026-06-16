@@ -87,7 +87,7 @@ async function confirmImport() {
 }
 
 function handleFixError(error: string) {
-  void error
+  console.warn('Live2D fix-error not implemented:', error)
 }
 
 function handlePick(m: DisplayModel) {

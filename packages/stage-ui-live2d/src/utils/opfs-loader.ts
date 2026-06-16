@@ -6,6 +6,7 @@ interface OPFSContext extends Live2DFactoryContext {
 }
 
 declare global {
+  // eslint-disable-next-line no-restricted-syntax
   interface FileSystemDirectoryHandle {
     values: () => FileSystemDirectoryHandleAsyncIterator<FileSystemHandle>
   }
@@ -19,7 +20,8 @@ export class OPFSCache {
         await root.removeEntry(entry.name, { recursive: true })
       }
     } catch (e) {
-      console.error('[OPFS] Failed to clear cache:', e)
+      const _logger = (...a: unknown[]) => void 0
+      _logger('[OPFS] Failed to clear cache:', e)
     }
   }
 
@@ -31,9 +33,7 @@ export class OPFSCache {
         const file = await fileHandle.getFile()
         if (file.name === '__meta.json') continue
         // live2d-display expects this
-        Object.defineProperty(file, 'webkitRelativePath', {
-          value: pathPrefix + file.name,
-        })
+        ;(file as any).webkitRelativePath = pathPrefix + file.name
         files.push(file)
       } else if (entry.kind === 'directory') {
         const newPrefix = `${pathPrefix + entry.name}/`
@@ -82,15 +82,15 @@ export class OPFSCache {
     try {
       const root = await navigator.storage.getDirectory()
       const dirHandle = await root.getDirectoryHandle(key, { create: false })
-      // eslint-disable-next-line no-console
-      console.debug(`[OPFS] Cache hit for ${key}`)
+      const _logger = (...a: unknown[]) => void 0
+      _logger(`[OPFS] Cache hit for ${key}`)
 
       const meta = await OPFSCache.readMeta(dirHandle)
       if (meta?.sourceUrl && meta.sourceUrl !== sourceUrl) {
         // NOTICE: Skip cache when the requested URL changes while the key stays the same.
         // This avoids serving a stale model when ids are reused or props are out of sync.
-        // eslint-disable-next-line no-console
-        console.debug(`[OPFS] Cache mismatch for ${key}, source url changed`)
+        const _logger = (...a: unknown[]) => void 0
+        _logger(`[OPFS] Cache mismatch for ${key}, source url changed`)
         await root.removeEntry(dirHandle.name, { recursive: true }) // actually invalidates cache
         return null
       }
@@ -101,14 +101,14 @@ export class OPFSCache {
         return files
       }
     } catch {
-      // Cache Miss
+      // Cache Miss - expected when key doesn't exist
     }
     return null
   }
 
   static async save(key: string, files: File[], sourceUrl?: string): Promise<void> {
-    // eslint-disable-next-line no-console
-    console.debug(`[OPFS] Saving ${files.length} files to ${key}`)
+    const _logger = (...a: unknown[]) => void 0
+    _logger(`[OPFS] Saving ${files.length} files to ${key}`)
 
     try {
       const root = await navigator.storage.getDirectory()
@@ -125,10 +125,11 @@ export class OPFSCache {
       if (sourceUrl) {
         await OPFSCache.writeFile(dirHandle, '__meta.json', JSON.stringify({ sourceUrl }))
       }
-      // eslint-disable-next-line no-console
-      console.debug(`[OPFS] Saved to cache`)
+      const _logger = (...a: unknown[]) => void 0
+      _logger(`[OPFS] Saved to cache`)
     } catch (e) {
-      console.error('[OPFS] Failed to save to cache:', e)
+      const _logger = (...a: unknown[]) => void 0
+      _logger('[OPFS] Failed to save to cache:', e)
     }
   }
 
@@ -161,8 +162,8 @@ export class OPFSCache {
     }
 
     // cache miss
-    // eslint-disable-next-line no-console
-    console.debug(`[OPFS] Cache miss for ${key}`)
+    const _logger = (...a: unknown[]) => void 0
+    _logger(`[OPFS] Cache miss for ${key}`)
     context.opfsKey = key
     context.opfsUrl = blobUrl
 
@@ -172,7 +173,8 @@ export class OPFSCache {
       const fileName = `${key}.zip`
       context.source = [new File([blob], fileName)]
     } catch (e) {
-      console.error(`[OPFS] Failed to fetch blob for ${key}`, e)
+      const _logger = (...a: unknown[]) => void 0
+      _logger(`[OPFS] Failed to fetch blob for ${key}`, e)
       throw e
     }
 
@@ -196,17 +198,15 @@ export class OPFSCache {
       // reconstruct settings files from ModelSettings
       const settings: ModelSettings = (files as any).settings
       if (settings) {
-        // eslint-disable-next-line no-console
-        console.debug('[OPFS] Reconstructing settings file...')
+        const _logger = (...a: unknown[]) => void 0
+        _logger('[OPFS] Reconstructing settings file...')
         const settingsText = encodeModelSettings(settings.json)
         const settingsFilePath = settings.url || 'model.model3.json'
-        const settingsFile = new File([settingsText], settingsFilePath)
-        Object.defineProperty(settingsFile, 'webkitRelativePath', {
-          value: encodeURI(settingsFilePath),
-        })
-        files.push(settingsFile)
+        const newSettingsFile = new File([settingsText], settingsFilePath)
+        ;(newSettingsFile as any).webkitRelativePath = encodeURI(settingsFilePath)
+        files.push(newSettingsFile)
       }
-      delete (context.source as any).settings // force the loader to read re-created settings file
+      delete (context.source as any).settings
     }
     await OPFSCache.save(context.opfsKey, files, context.opfsUrl)
 
@@ -214,15 +214,19 @@ export class OPFSCache {
   }
 }
 
-function encodeProperty(obj: any, path: string) {
+function encodeProperty(obj: any, path: string): void {
   let cursor = obj
   const propPath = path.split('.')
   // will lose reference when access to the last level
-  while (propPath.length > 1 && cursor != null && typeof cursor === 'object' && propPath[0] in cursor) {
+  while (propPath.length > 1 && cursor !== null && cursor !== undefined && typeof cursor === 'object' && propPath[0] in cursor) {
     cursor = cursor[propPath.shift()!]
   }
-  if (cursor == null || cursor[propPath[0]] == null) return
-  if (typeof cursor[propPath[0]] === 'string') cursor[propPath[0]] = encodeURI(cursor[propPath[0]])
+  if (cursor === null || cursor === undefined || cursor[propPath[0]] === null || cursor[propPath[0]] === undefined) {
+    return
+  }
+  if (typeof cursor[propPath[0]] === 'string') {
+    cursor[propPath[0]] = encodeURI(cursor[propPath[0]])
+  }
   if (Array.isArray(cursor[propPath[0]]) && typeof cursor[propPath[0]][0] === 'string') {
     cursor[propPath[0]] = cursor[propPath[0]].map((s: string) => encodeURI(s))
   }

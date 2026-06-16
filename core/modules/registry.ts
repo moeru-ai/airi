@@ -144,7 +144,7 @@ export class ModuleRegistry {
 	async deactivateAll(): Promise<void> {
 		const entries = [...this.entries.entries()].reverse()
 
-		for (const [id, entry] of entries) {
+		for (const [_id, entry] of entries) {
 			if (entry.state !== "active") continue
 			if (!entry.module?.deactivate) continue
 

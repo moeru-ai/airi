@@ -7,18 +7,12 @@ const props = withDefaults(
     max?: number
     step?: number
     disabled?: boolean
-    thumbColor?: string
-    trackColor?: string
-    trackValueColor?: string
   }>(),
   {
     min: 0,
     max: 100,
     step: 1,
     disabled: false,
-    thumbColor: '#9090906e',
-    trackColor: 'gray',
-    trackValueColor: 'red',
   },
 )
 
@@ -47,8 +41,8 @@ function updateTrackColor() {
   }
 
   sliderRef.value.style.setProperty('--value', sliderValue.value.toString())
-  sliderRef.value.style.setProperty('--min', !sliderRef.value.min ? props.min.toString() : sliderRef.value.min)
-  sliderRef.value.style.setProperty('--max', !sliderRef.value.max ? props.max.toString() : sliderRef.value.max)
+  sliderRef.value.style.setProperty('--min', props.min.toString())
+  sliderRef.value.style.setProperty('--max', props.max.toString())
 }
 
 function handleInput(e: Event) {

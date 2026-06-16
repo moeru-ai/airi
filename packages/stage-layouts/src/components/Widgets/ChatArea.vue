@@ -149,9 +149,8 @@ function teardownAnalyzer() {
   try {
     analyzerSource?.disconnect()
   }
-  // eslint-disable-next-line no-empty
-  catch {
-    // noop
+  catch (error) {
+    console.warn('Failed to disconnect analyzer source', error)
   }
   analyzerSource = undefined
   stopAnalyzer()

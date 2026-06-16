@@ -117,7 +117,7 @@ function getSchemaMeta(schema: ZodType): Record<string, unknown> {
   return schema.meta() || {}
 }
 
-function isOptionalSchema(schema: ZodType) {
+function isOptionalSchema(schema: ZodType): boolean {
   return schema.safeParse(undefined).success
 }
 

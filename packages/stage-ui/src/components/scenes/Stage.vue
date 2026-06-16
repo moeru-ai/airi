@@ -293,9 +293,8 @@ async function playFunction(item: Parameters<Parameters<typeof createPlaybackMan
         source.stop()
         source.disconnect()
       }
-      // eslint-disable-next-line no-empty
-      catch {
-        // noop
+      catch (error) {
+        console.debug('[Stage] Audio source stop/disconnect failed (may already be stopped)', error)
       }
       if (currentAudioSource.value === source)
         currentAudioSource.value = undefined
@@ -316,7 +315,8 @@ async function playFunction(item: Parameters<Parameters<typeof createPlaybackMan
     try {
       source.start(0)
     }
-    catch {
+    catch (error) {
+      console.debug('[Stage] Audio source start failed', error)
       stopPlayback()
     }
   })
@@ -522,14 +522,14 @@ playbackManager.onStart(({ item }) => {
   try {
     postCaption({ type: 'caption-assistant', text: item.text })
   }
-  catch {
-    // BroadcastChannel may be closed - don't break playback
+  catch (error) {
+    console.debug('[Stage] Failed to post caption (BroadcastChannel may be closed)', error)
   }
   try {
     postPresent({ type: 'assistant-append', text: item.text })
   }
-  catch {
-    // BroadcastChannel may be closed - don't break playback
+  catch (error) {
+    console.debug('[Stage] Failed to post present (BroadcastChannel may be closed)', error)
   }
 })
 
@@ -563,11 +563,10 @@ function resetLive2dLipSync() {
   stopLipSyncLoop()
 
   try {
-    // eslint-disable-next-line no-empty
     lipSyncNode.value?.disconnect()
   }
-  catch {
-    // noop
+  catch (error) {
+    console.debug('[Stage] lipSyncNode disconnect failed', error)
   }
 
   lipSyncNode.value = undefined
@@ -830,6 +829,8 @@ function canvasElement() {
 
   else if (stageModelRenderer.value === 'spine')
     return spineSceneRef.value?.canvasElement()
+
+  return undefined
 }
 
 function readRenderTargetRegionAtClientPoint(clientX: number, clientY: number, radius: number) {

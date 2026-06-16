@@ -54,10 +54,10 @@ const streaming = computed<ChatAssistantMessage & { context?: ContextMessage } &
     props.streamingMessage ?? { role: 'assistant', content: '', slices: [], tool_results: [], createdAt: Date.now() },
 )
 const showStreamingPlaceholder = computed(() => (streaming.value.slices?.length ?? 0) === 0 && !streaming.value.content)
-const streamingTs = computed(() => streaming.value?.createdAt)
+const streamingTs = computed(() => streaming.value.createdAt)
 function shouldShowPlaceholder(message: ChatHistoryItem) {
   const ts = streamingTs.value
-  if (ts == null) return false
+  if (ts === undefined || ts === null) return false
 
   return message.context?.createdAt === ts || message.createdAt === ts
 }
@@ -68,7 +68,7 @@ const renderMessages = computed<ChatHistoryItem[]>(() => {
   if (!streamTs) return props.messages
 
   const hasStreamAlready =
-    streamTs && props.messages.some((msg) => msg?.role === 'assistant' && msg?.createdAt === streamTs)
+    streamTs && props.messages.some((msg) => msg.role === 'assistant' && msg.createdAt === streamTs)
   if (hasStreamAlready) return props.messages
 
   return [...props.messages, streaming.value]

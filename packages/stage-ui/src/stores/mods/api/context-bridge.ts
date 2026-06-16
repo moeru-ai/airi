@@ -27,13 +27,20 @@ import { useConsciousnessStore } from '../../modules/consciousness'
 import { useProvidersStore } from '../../providers'
 import { useModsServerChannelStore } from './channel-server'
 
+// Re-export for use in this module
+export type { SparkNotifyPerformanceResult, SparkNotifyReactionOptions } from './spark-notify-reaction'
+
 export function normalizeContextSnapshot<C extends Pick<ChatStreamEventContext, 'contexts'>>(contexts: C): C {
+  const rawContexts = toRaw(contexts.contexts)
   return {
     ...contexts,
     contexts: Object.fromEntries(
-      Object.entries(toRaw(contexts.contexts)).map(([key, ctx]) => [key, ctx.map((c) => toRaw(c))]),
+      Object.entries(rawContexts).map(([key, ctx]) => [
+        key,
+        Array.isArray(ctx) ? ctx.map((c) => toRaw(c)) : ctx,
+      ]),
     ),
-  }
+  } as C
 }
 
 export const useContextBridgeStore = defineStore('mods:api:context-bridge', () => {
@@ -190,7 +197,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         forceSparkCommandResponse: options.forceSparkCommandResponse,
         messageOverride: options.messageOverride,
       })
-    } catch (error) {
+    } catch (error: unknown) {
       console.warn('[context-bridge] spark:notify handling failed; using fallback', error)
       return options.fallbackResponseText
     }

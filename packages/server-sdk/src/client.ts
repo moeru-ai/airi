@@ -643,7 +643,7 @@ export class Client<C = undefined> {
         return parsed
       }
     } catch {
-      // Try standard JSON next.
+      // superjson cannot parse this payload — fall back to JSON.parse below.
     }
 
     const parsed = JSON.parse(raw) as WebSocketEvent<C>

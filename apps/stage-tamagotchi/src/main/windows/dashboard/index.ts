@@ -89,8 +89,8 @@ export async function setupDashboardWindow(params: {
   if (is.dev || env.MAIN_APP_DEBUG || env.APP_DEBUG) {
     try {
       window.webContents.openDevTools({ mode: 'detach' })
-    } catch (err) {
-      console.error('failed to open devtools:', err)
+    } catch {
+      // devtools unavailable — non-fatal
     }
   }
 
@@ -152,14 +152,11 @@ export async function setupDashboardWindow(params: {
    * Discussion: https://github.com/electron/electron/issues/37789
    * Workaround: https://github.com/noobfromph/electron-click-drag-plugin
    */
+  let cleanUpWindowDraggingInvokeHandler: (() => void) | undefined
   if (!isLinux) {
-    function handleStartDraggingWindow() {
-      try {
-        const windowId = window.getNativeWindowHandle()
-        clickDragPlugin.startDrag(windowId)
-      } catch (error) {
-        console.error(error)
-      }
+    const handleStartDraggingWindow = () => {
+      const windowId = window.getNativeWindowHandle()
+      clickDragPlugin.startDrag(windowId)
     }
 
     // TODO: once we refactored eventa to support window-namespaced contexts,
@@ -168,16 +165,16 @@ export async function setupDashboardWindow(params: {
     ipcMain.setMaxListeners(0)
 
     const { context } = createContext(ipcMain, window)
-    const cleanUpWindowDraggingInvokeHandler = defineInvokeHandler(
+    cleanUpWindowDraggingInvokeHandler = defineInvokeHandler(
       context,
       electronStartDraggingWindow,
       handleStartDraggingWindow,
     )
-
-    window.on('closed', () => {
-      cleanUpWindowDraggingInvokeHandler()
-    })
   }
+
+  window.on('closed', () => {
+    cleanUpWindowDraggingInvokeHandler?.()
+  })
 
   initScreenCaptureForWindow(window)
 

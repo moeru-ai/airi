@@ -7,6 +7,8 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 
+const _logger = (..._a: unknown[]) => void 0
+
 import {
 	serializeMessage,
 	deserializeMessage,

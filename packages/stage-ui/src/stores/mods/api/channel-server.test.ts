@@ -80,8 +80,8 @@ const serverSdkMocks = vi.hoisted(() => {
       this.options.onError?.(error)
     }
 
-    simulateStateChange(previousStatus: string, status: string) {
-      this.options.onStateChange?.({ previousStatus, status })
+    simulateStateChange(_previousStatus: string, status: string) {
+      this.options.onStateChange?.({ previousStatus: _previousStatus, status })
     }
   }
 

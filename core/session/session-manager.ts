@@ -60,7 +60,6 @@ export class PersistentSessionManager {
 	/**
 	 * Create a new PersistentSessionManager.
 	 *
-	 * 
 	 */
 	constructor() {
 	}

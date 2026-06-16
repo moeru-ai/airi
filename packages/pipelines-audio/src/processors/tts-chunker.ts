@@ -83,7 +83,6 @@ export async function* chunkTtsInput(
     let afterNext: IteratorResult<string, any> | undefined
 
     if (flush || special || hard || soft) {
-      // eslint-disable-next-line default-case
       switch (value) {
         case '.':
         case ',': {
@@ -187,9 +186,6 @@ export async function* chunkTtsInput(
     current = next
   }
 
-  // TODO: remove later
-  // eslint-disable-next-line no-console
-  console.debug('while loop ends, chunk/buffer:', chunk, buffer)
   if (chunk.length > 0 || buffer.length > 0) {
     const text = (chunk + buffer).trim()
     yield {
@@ -214,7 +210,6 @@ export async function chunkEmitter(
 
   try {
     for await (const chunk of chunkTtsInput(reader, options)) {
-      // TODO: remove later
       const cleanedText = sanitizeChunk(chunk.text)
       if (!cleanedText && chunk.reason !== 'special') {
         continue
@@ -222,14 +217,13 @@ export async function chunkEmitter(
 
       if (chunk.reason === 'special') {
         const specialToken = pendingSpecials.shift()
-        // console.debug("special yield:", specialToken)
         await handler({ chunk: cleanedText, special: specialToken ?? null, reason: chunk.reason })
       } else {
         await handler({ chunk: cleanedText, special: null, reason: chunk.reason })
       }
     }
-  } catch (e) {
-    console.error('Error chunking stream to TTS queue:', e)
+  } catch {
+    // intentionally empty — errors propagate via stream error
   }
 }
 

@@ -13,7 +13,6 @@
  */
 
 import type { AiriEvent } from "../events/types.js"
-import type { WorkspaceSnapshot } from "../workspace/types.js"
 import type { SessionState } from "../runtime/session.js"
 
 // ── Branded ID ──────────────────────────────────────────────────────────

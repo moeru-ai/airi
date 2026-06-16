@@ -23,7 +23,6 @@ import type {
 import type { PersistentSessionManager } from "../session/session-manager.js"
 import type { WorkspaceManager } from "../workspace/manager.js"
 import type { WorkspaceStorage } from "../workspace/storage.js"
-import type { SerializedWorkspace } from "../persistence/types.js"
 
 // ── Recovery events ──────────────────────────────────────────────────────
 

@@ -51,7 +51,9 @@ watch(selectedAudioInput, async () => {
 })
 
 watch(audioInputs, () => {
-  if (!selectedAudioInput.value && audioInputs.value.length > 0) {
+  const hasNoSelection = !selectedAudioInput.value
+  const hasInputs = audioInputs.value.length > 0
+  if (hasNoSelection && hasInputs) {
     selectedAudioInput.value =
       audioInputs.value.find((input) => input.deviceId === 'default')?.deviceId || audioInputs.value[0].deviceId
   }

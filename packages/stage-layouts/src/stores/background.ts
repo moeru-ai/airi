@@ -208,7 +208,9 @@ export const useBackgroundStore = defineStore('background', () => {
 
           if (storedSrc.startsWith('data:')) {
             setTimeout(() => {
-              void migrateDataUrlToBlob(key, val, storedSrc)
+              migrateDataUrlToBlob(key, val, storedSrc).catch((error) => {
+                console.warn('Failed to migrate data URL to Blob', error)
+              })
             }, 0)
           }
         }
@@ -221,7 +223,9 @@ export const useBackgroundStore = defineStore('background', () => {
     loading.value = false
   }
 
-  void loadFromIndexedDb()
+  loadFromIndexedDb().catch((error) => {
+    console.warn('Failed to load backgrounds from IndexedDB', error)
+  })
 
   async function addOption(option: BackgroundItem): Promise<BackgroundItem> {
     const normalizedId = option.file

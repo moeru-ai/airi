@@ -21,7 +21,7 @@ class MockWorker {
     MockWorker.instances.push(this)
   }
 
-  dispatch(type: string, event: any): void {
+  dispatch(type: string, event: unknown): void {
     for (const listener of this.listeners.get(type) ?? []) listener(event)
   }
 }

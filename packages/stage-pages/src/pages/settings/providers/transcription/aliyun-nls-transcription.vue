@@ -271,8 +271,8 @@ async function startStreaming() {
 async function stopStreaming() {
   try {
     workletNode.value?.port.postMessage({ type: 'stop' })
-  } catch {
-    /* noop */
+  } catch (error) {
+    console.warn('Failed to send stop message to worklet', error)
   }
 
   if (mediaStreamSource.value) {
@@ -294,8 +294,8 @@ async function stopStreaming() {
   if (audioContext.value) {
     try {
       await audioContext.value.close()
-    } catch {
-      /* noop */
+    } catch (error) {
+      console.warn('Failed to close audio context', error)
     }
     audioContext.value = undefined
   }
@@ -308,8 +308,9 @@ async function stopStreaming() {
   if (transcriptionTextPromise.value) {
     try {
       await transcriptionTextPromise.value
-    } catch {
-      /* handled in promise */
+    } catch (error) {
+      // Error already handled in the promise chain during startStreaming
+      console.debug('Transcription text promise rejected', error)
     } finally {
       transcriptionTextPromise.value = null
     }
@@ -327,7 +328,7 @@ function abortStreaming() {
   controller.abort(new DOMException('Aborted by user', 'AbortError'))
   audioStreamController.value?.error(new DOMException('Aborted by user', 'AbortError'))
   audioStreamController.value = undefined
-  void stopStreaming()
+  stopStreaming().catch((error) => console.warn('Failed to stop streaming', error))
 }
 
 onBeforeUnmount(async () => {

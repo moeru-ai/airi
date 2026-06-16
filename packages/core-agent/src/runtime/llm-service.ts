@@ -229,11 +229,10 @@ export async function streamFrom({ model, chatProvider, messages, options, built
       // of the stream lifecycle instead of an intermediate tool boundary.
       void streamResult.steps.then(resolveOnce).catch((error) => {
         rejectOnce(error)
-        console.error('Stream steps error:', error)
       })
-      void streamResult.messages.catch((error) => console.error('Stream messages error:', error))
-      void streamResult.usage.catch((error) => console.error('Stream usage error:', error))
-      void streamResult.totalUsage.catch((error) => console.error('Stream totalUsage error:', error))
+      void streamResult.messages.catch(() => void 0)
+      void streamResult.usage.catch(() => void 0)
+      void streamResult.totalUsage.catch(() => void 0)
     } catch (error) {
       rejectOnce(error)
     }

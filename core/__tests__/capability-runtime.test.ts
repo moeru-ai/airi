@@ -7,6 +7,8 @@
 
 import { describe, it, expect, beforeEach } from "vitest"
 
+const _logger = (..._a: unknown[]) => void 0
+
 import { EventBus } from "../events/bus.js"
 import { createLogger } from "../logger.js"
 import { createCancellationToken } from "../tasks/cancellation.js"
@@ -701,7 +703,8 @@ describe("ExecutionTrace", () => {
 
 	describe("getRecent", () => {
 		it("returns the most recent N entries", () => {
-			for (let i = 0; i < 5; i++) {
+			const ENTRY_COUNT = 5
+			for (let i = 0; i < ENTRY_COUNT; i++) {
 				trace.record({
 					executionId: `exec-${i}`,
 					toolId: "read_file" as ToolId,
@@ -713,7 +716,8 @@ describe("ExecutionTrace", () => {
 				})
 			}
 
-			const recent = trace.getRecent(3)
+			const RECENT_COUNT = 3
+			const recent = trace.getRecent(RECENT_COUNT)
 			expect(recent).toHaveLength(3)
 			expect(recent[0].executionId).toBe("exec-2")
 			expect(recent[2].executionId).toBe("exec-4")
@@ -734,7 +738,7 @@ describe("ExecutionTrace", () => {
 			expect(recent).toHaveLength(1)
 		})
 
-		it("returns empty array for count <= 0", () => {
+		it("returns empty array for count less than or equal to 0", () => {
 			trace.record({
 				executionId: "exec-1",
 				toolId: "read_file" as ToolId,
@@ -873,6 +877,7 @@ describe("PlanExecutor with ToolRuntime", () => {
 		logger = createTestLogger()
 		taskManager = createTestTaskManager(events, logger)
 		taskManager.start()
+		void logger
 
 		registry = new CapabilityRegistry()
 		toolRuntime = new LocalToolRuntime(registry, events)

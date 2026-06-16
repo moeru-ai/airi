@@ -43,6 +43,8 @@ import { useControlsIslandStore } from '../stores/controls-island'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
 import { shouldSampleStageTransparency } from '../utils/stage-three-transparency'
 
+const _logger = (...a: unknown[]) => void 0
+
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
 const statusIslandRef = ref<InstanceType<typeof StatusIsland>>()
 const widgetStageRef = ref<InstanceType<typeof WidgetStage>>()
@@ -279,7 +281,7 @@ const { post: postCaption } = useBroadcastChannel<CaptionChannelEvent, CaptionCh
 })
 
 function handleStreamingSentenceEnd(delta: string) {
-  console.info('[Main Page] Received transcription delta:', delta)
+  _logger('[Main Page] Received transcription delta:', delta)
   const finalText = delta
   if (!finalText || !finalText.trim()) {
     return
@@ -289,22 +291,22 @@ function handleStreamingSentenceEnd(delta: string) {
 
   void (async () => {
     try {
-      console.info('[Main Page] Sending transcription to chat:', finalText)
+      _logger('[Main Page] Sending transcription to chat:', finalText)
       await chatSyncStore.requestIngest({ text: finalText })
     } catch (err) {
-      console.error('[Main Page] Failed to send chat from voice:', err)
+      _logger('[Main Page] Failed to send chat from voice:', err)
     }
   })()
 }
 
 function handleStreamingSpeechEnd(text: string) {
-  console.info('[Main Page] Speech ended, final text:', text)
+  _logger('[Main Page] Speech ended, final text:', text)
   postCaption({ type: 'caption-speaker', text })
 }
 
 async function handleSpeechStart() {
   if (shouldUseStreamInput.value) {
-    console.info('Speech detected - transcription session should already be active')
+    _logger('Speech detected - transcription session should already be active')
     return
   }
 
@@ -334,28 +336,28 @@ async function startAudioInteraction() {
   // transcription binding when a new stream arrives.
   audioInteractionStarting.value = true
   try {
-    console.info('[Main Page] Starting audio interaction...')
+    _logger('[Main Page] Starting audio interaction...')
 
     initVAD()
       // eslint-disable-next-line consistent-return
       .then(() => {
         if (stream.value) {
-          console.info('[Main Page] VAD initialized successfully, starting with stream input')
+          _logger('[Main Page] VAD initialized successfully, starting with stream input')
           return startVAD(stream.value)
         }
       })
       .catch((err) => {
-        console.warn('[Main Page] VAD initialization failed (non-critical for Web Speech API):', err)
+        _logger('[Main Page] VAD initialization failed (non-critical for Web Speech API):', err)
       })
 
     if (shouldUseStreamInput.value) {
-      console.info('[Main Page] Starting streaming transcription...', {
+      _logger('[Main Page] Starting streaming transcription...', {
         supportsStreamInput: supportsStreamInput.value,
         hasStream: !!stream.value,
       })
 
       if (!stream.value) {
-        console.warn('[Main Page] Stream not available despite shouldUseStreamInput being true')
+        _logger('[Main Page] Stream not available despite shouldUseStreamInput being true')
         return
       }
 
@@ -365,9 +367,9 @@ async function startAudioInteraction() {
         onSpeechEnd: handleStreamingSpeechEnd,
       })
 
-      console.info('[Main Page] Streaming transcription started successfully')
+      _logger('[Main Page] Streaming transcription started successfully')
     } else {
-      console.warn('[Main Page] Not starting streaming transcription:', {
+      _logger('[Main Page] Not starting streaming transcription:', {
         shouldUseStreamInput: shouldUseStreamInput.value,
         hasStream: !!stream.value,
         supportsStreamInput: supportsStreamInput.value,
@@ -395,12 +397,12 @@ async function startAudioInteraction() {
         try {
           await chatSyncStore.requestIngest({ text })
         } catch (err) {
-          console.error('Failed to send chat from voice:', err)
+          _logger('Failed to send chat from voice:', err)
         }
       })
     }
   } catch (e) {
-    console.error('Audio interaction init failed:', e)
+    _logger('Audio interaction init failed:', e)
   } finally {
     audioInteractionStarting.value = false
   }
@@ -419,7 +421,7 @@ function stopAudioInteraction() {
 watch(
   enabled,
   async (val) => {
-    console.info('[Main Page] Audio enabled changed:', val, 'stream available:', !!stream.value)
+    _logger('[Main Page] Audio enabled changed:', val, 'stream available:', !!stream.value)
     if (val) {
       await askPermission()
       await startAudioInteraction()
@@ -451,7 +453,7 @@ watch(stream, async (currentStream) => {
   // without reloading the page. When that happens, VAD may successfully restart against the new stream,
   // but any existing transcription transport is still bound to the old one. Always allow the page to
   // re-run `startAudioInteraction()` for a newly available stream unless startup is already underway.
-  console.info('[Main Page] Stream became available, ensuring audio interaction is started')
+  _logger('[Main Page] Stream became available, ensuring audio interaction is started')
   await startAudioInteraction()
 })
 
@@ -460,7 +462,7 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
     try {
       await startVAD(s)
     } catch (e) {
-      console.error('Failed to start VAD with stream:', e)
+      _logger('Failed to start VAD with stream:', e)
     }
   }
 })

@@ -86,7 +86,7 @@ const requestNextStep: OnboardingStepNextHandler = async (configData?: ProviderC
   await navigateNext()
 }
 
-async function saveProviderConfiguration(data: ProviderConfigData) {
+async function saveProviderConfiguration(data: ProviderConfigData): Promise<void> {
   if (!selectedProvider.value) return
 
   const config: Record<string, unknown> = {}
@@ -165,18 +165,18 @@ const currentStep = computed(() => allSteps.value[step.value] ?? null)
 const isLastStep = computed(() => step.value === allSteps.value.length - 1)
 const currentStepProps = computed(() => currentStep.value?.props?.() ?? {})
 
-async function handleSave() {
+async function handleSave(): Promise<void> {
   capturePosthogEvent('onboarding_step_completed', { step: currentStep.value?.id ?? 'unknown' })
   emit('configured')
 }
 
-async function canPassGuard(guard?: OnboardingStepGuard) {
+async function canPassGuard(guard?: OnboardingStepGuard): Promise<boolean> {
   if (!guard) return true
 
   return await guard()
 }
 
-async function navigateNext() {
+async function navigateNext(): Promise<void> {
   if (!currentStep.value) return
 
   if (!(await canPassGuard(currentStep.value.beforeNext))) return
@@ -191,7 +191,7 @@ async function navigateNext() {
   step.value++
 }
 
-async function navigatePrevious() {
+async function navigatePrevious(): Promise<void> {
   if (!currentStep.value || step.value <= 0) return
 
   if (!(await canPassGuard(currentStep.value.beforePrev))) return

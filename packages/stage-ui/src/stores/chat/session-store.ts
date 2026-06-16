@@ -694,83 +694,89 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       // claim: remote chat already exists with the same id; just bind.
       for (const action of plan.claim) {
         const meta = sessionMetas.value[action.sessionId]
-        if (!meta) continue
-        sessionMetas.value[action.sessionId] = { ...meta, cloudChatId: action.cloudChatId }
-        void persistSession(action.sessionId)
+        if (meta) {
+          sessionMetas.value[action.sessionId] = { ...meta, cloudChatId: action.cloudChatId }
+          void persistSession(action.sessionId)
+        }
       }
 
       // create: POST /api/v1/chats and bind. Mapper handles 409-as-claim.
       const createResults = await applyCreateActions(mapper, plan.create)
       if (isStaleEpoch()) return
       for (const result of createResults) {
-        if (!result.cloudChatId) continue
-        const meta = sessionMetas.value[result.sessionId]
-        if (!meta) continue
-        sessionMetas.value[result.sessionId] = { ...meta, cloudChatId: result.cloudChatId }
-        void persistSession(result.sessionId)
+        if (result.cloudChatId) {
+          const meta = sessionMetas.value[result.sessionId]
+          if (meta) {
+            sessionMetas.value[result.sessionId] = { ...meta, cloudChatId: result.cloudChatId }
+            void persistSession(result.sessionId)
+          }
 
-        // Enqueue every pre-existing local syncable message into the
-        // outbox so anonymous-era messages and turns typed during the
-        // connect handshake make it server-side. The post-reconcile
-        // `drainOutbox` will batch-send them. Idempotent: enqueueOutbox
-        // overwrites by messageId so re-running reconcile doesn't
-        // multiply rows.
-        const localMessages = sessionMessages.value[result.sessionId] ?? []
-        for (const message of localMessages) {
-          if (!message.id || !isCloudSyncableMessage(message)) continue
-          const text = extractMessageText(message)
-          if (!text) continue
-          await enqueuePersist(() =>
-            chatSessionsRepo.enqueueOutbox(currentUserId, {
-              messageId: message.id!,
-              sessionId: result.sessionId,
-              cloudChatId: result.cloudChatId,
-              role: message.role as CloudSyncableRole,
-              content: text,
-              attempts: 0,
-              queuedAt: Date.now(),
-            }),
-          )
+          // Enqueue every pre-existing local syncable message into the
+          // outbox so anonymous-era messages and turns typed during the
+          // connect handshake make it server-side. The post-reconcile
+          // `drainOutbox` will batch-send them. Idempotent: enqueueOutbox
+          // overwrites by messageId so re-running reconcile doesn't
+          // multiply rows.
+          const localMessages = sessionMessages.value[result.sessionId] ?? []
+          for (const message of localMessages) {
+            if (message.id && isCloudSyncableMessage(message)) {
+              const text = extractMessageText(message)
+              if (text) {
+                await enqueuePersist(() =>
+                  chatSessionsRepo.enqueueOutbox(currentUserId, {
+                    messageId: message.id!,
+                    sessionId: result.sessionId,
+                    cloudChatId: result.cloudChatId,
+                    role: message.role as CloudSyncableRole,
+                    content: text,
+                    attempts: 0,
+                    queuedAt: Date.now(),
+                  }),
+                )
+              }
+            }
+          }
         }
       }
 
       // adopt: remote-only chats become empty local sessions. Messages get
       // pulled the first time the user opens them via `loadSession`.
       for (const remote of plan.adopt) {
-        if (sessionMetas.value[remote.id]) continue
-        const now = Date.now()
-        const adoptedMeta: ChatSessionMeta = {
-          sessionId: remote.id,
-          userId: currentUserId,
-          characterId: 'default',
-          title: remote.title ?? undefined,
-          createdAt: new Date(remote.createdAt).getTime() || now,
-          updatedAt: new Date(remote.updatedAt).getTime() || now,
-          cloudChatId: remote.id,
-        }
-        sessionMetas.value[remote.id] = adoptedMeta
-        sessionMessages.value[remote.id] = [generateInitialMessage()]
-        ensureGeneration(remote.id)
+        if (!sessionMetas.value[remote.id]) {
+          const now = Date.now()
+          const adoptedMeta: ChatSessionMeta = {
+            sessionId: remote.id,
+            userId: currentUserId,
+            characterId: 'default',
+            title: remote.title ?? undefined,
+            createdAt: new Date(remote.createdAt).getTime() || now,
+            updatedAt: new Date(remote.updatedAt).getTime() || now,
+            cloudChatId: remote.id,
+          }
+          sessionMetas.value[remote.id] = adoptedMeta
+          sessionMessages.value[remote.id] = [generateInitialMessage()]
+          ensureGeneration(remote.id)
 
-        if (!index.value) index.value = { userId: currentUserId, characters: {} }
-        const characterIndex = index.value.characters[adoptedMeta.characterId] ?? {
-          activeSessionId: '',
-          sessions: {},
-        }
-        characterIndex.sessions[remote.id] = adoptedMeta
-        index.value.characters[adoptedMeta.characterId] = characterIndex
+          if (!index.value) index.value = { userId: currentUserId, characters: {} }
+          const characterIndex = index.value.characters[adoptedMeta.characterId] ?? {
+            activeSessionId: '',
+            sessions: {},
+          }
+          characterIndex.sessions[remote.id] = adoptedMeta
+          index.value.characters[adoptedMeta.characterId] = characterIndex
 
-        // Snapshot the messages array — without a clone the subsequent
-        // pullCloudMessages would mutate the same reference the queued
-        // saveSession is about to read, and the IDB write would be
-        // last-writer-wins on stale state.
-        const adoptedMessagesSnapshot = snapshotMessages(sessionMessages.value[remote.id])
-        await enqueuePersist(() =>
-          chatSessionsRepo.saveSession(remote.id, {
-            meta: adoptedMeta,
-            messages: adoptedMessagesSnapshot,
-          }),
-        )
+          // Snapshot the messages array — without a clone the subsequent
+          // pullCloudMessages would mutate the same reference the queued
+          // saveSession is about to read, and the IDB write would be
+          // last-writer-wins on stale state.
+          const adoptedMessagesSnapshot = snapshotMessages(sessionMessages.value[remote.id])
+          await enqueuePersist(() =>
+            chatSessionsRepo.saveSession(remote.id, {
+              meta: adoptedMeta,
+              messages: adoptedMessagesSnapshot,
+            }),
+          )
+        }
       }
       if (isStaleEpoch()) return
       await persistIndex()
@@ -1009,10 +1015,11 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       // within each session so user-then-assistant turns stay ordered.
       const bySession = new Map<string, ChatSendOutboxEntry[]>()
       for (const entry of entries) {
-        if (entry.attempts >= OUTBOX_MAX_ATTEMPTS) continue
-        const list = bySession.get(entry.sessionId) ?? []
-        list.push(entry)
-        bySession.set(entry.sessionId, list)
+        if (entry.attempts < OUTBOX_MAX_ATTEMPTS) {
+          const list = bySession.get(entry.sessionId) ?? []
+          list.push(entry)
+          bySession.set(entry.sessionId, list)
+        }
       }
 
       const succeededIds: string[] = []
@@ -1021,25 +1028,24 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       for (const [sessionId, sessionEntries] of bySession) {
         const meta = sessionMetas.value[sessionId]
         const cloudChatId = meta?.cloudChatId
-        if (!cloudChatId) continue
-        if (!wsClient || wsClient.status() !== 'open') break
-
-        sessionEntries.sort((a, b) => a.queuedAt - b.queuedAt)
-        try {
-          await wsClient.sendMessages({
-            chatId: cloudChatId,
-            messages: sessionEntries.map((e) => ({ id: e.messageId, role: e.role, content: e.content })),
-          })
-          succeededIds.push(...sessionEntries.map((e) => e.messageId))
-        } catch (err) {
-          const errMsg = errorMessageFrom(err) ?? 'unknown'
-          console.warn('[chat-sync] outbox drain failed for', sessionId, errMsg)
-          for (const entry of sessionEntries) {
-            failedUpdates.push({
-              messageId: entry.messageId,
-              attempts: entry.attempts + 1,
-              lastError: errMsg,
+        if (cloudChatId && wsClient && wsClient.status() === 'open') {
+          sessionEntries.sort((a, b) => a.queuedAt - b.queuedAt)
+          try {
+            await wsClient.sendMessages({
+              chatId: cloudChatId,
+              messages: sessionEntries.map((e) => ({ id: e.messageId, role: e.role, content: e.content })),
             })
+            succeededIds.push(...sessionEntries.map((e) => e.messageId))
+          } catch (err) {
+            const errMsg = errorMessageFrom(err) ?? 'unknown'
+            console.warn('[chat-sync] outbox drain failed for', sessionId, errMsg)
+            for (const entry of sessionEntries) {
+              failedUpdates.push({
+                messageId: entry.messageId,
+                attempts: entry.attempts + 1,
+                lastError: errMsg,
+              })
+            }
           }
         }
       }

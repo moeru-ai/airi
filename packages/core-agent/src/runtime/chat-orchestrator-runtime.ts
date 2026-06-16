@@ -450,13 +450,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         onLiteral: async (literal) => {
           if (shouldAbort()) return
 
-          console.log('[TTS DEBUG] onLiteral received:', JSON.stringify(literal))
           categorizer.consume(literal)
 
           const filtered = categorizer.filterToSpeech(literal, streamPosition)
-          console.log('[TTS DEBUG] after filterToSpeech:', JSON.stringify(filtered))
           const speechOnly = stripUnreadableSymbols(filtered)
-          console.log('[TTS DEBUG] after stripUnreadableSymbols:', JSON.stringify(speechOnly))
           streamPosition += literal.length
 
           if (speechOnly.trim()) {
@@ -694,7 +691,6 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         model: options.model,
       })
     } catch (error) {
-      console.error('Error sending message:', error)
       throw error
     } finally {
       setSending(false)

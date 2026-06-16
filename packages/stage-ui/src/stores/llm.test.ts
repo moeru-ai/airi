@@ -108,19 +108,19 @@ describe('isToolRelatedError', () => {
     '',
   ]
 
-  for (const [provider, msg] of positives) {
+  positives.forEach(([provider, msg]) => {
     it(`matches [${provider}]: "${msg}"`, () => {
       expect(isToolRelatedError(msg)).toBe(true)
       expect(isToolRelatedError(new Error(msg))).toBe(true)
     })
-  }
+  })
 
-  for (const msg of negatives) {
+  negatives.forEach((msg) => {
     it(`rejects: "${msg}"`, () => {
       expect(isToolRelatedError(msg)).toBe(false)
       expect(isToolRelatedError(new Error(msg))).toBe(false)
     })
-  }
+  })
 
   it('resolves from steps while still forwarding tool_calls finish events', async () => {
     let onEvent: ((event: unknown) => Promise<void>) | undefined

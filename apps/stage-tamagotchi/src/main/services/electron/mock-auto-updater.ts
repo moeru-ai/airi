@@ -64,8 +64,6 @@ export class MockAutoUpdater extends EventEmitter {
 
   // eslint-disable-next-line class-methods-use-this
   async quitAndInstall() {
-    // eslint-disable-next-line no-console
-    console.log('[MockAutoUpdater] quitAndInstall called. Quitting app...')
     app.quit()
   }
 }

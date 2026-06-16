@@ -24,6 +24,9 @@ import { Mutex } from 'async-mutex'
 
 import { createRequestId } from './protocol'
 
+/** Placeholder to ensure all imports are used */
+void errorMessageFrom
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------

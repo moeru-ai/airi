@@ -212,6 +212,23 @@ function toErrorMessage(error: unknown) {
   }
 }
 
+function configureInjectedShaderMaterial(mat: ShaderMaterial) {
+  if ('toneMapped' in mat) mat.toneMapped = false
+  if ('envMap' in mat && mat.envMap) mat.envMap = null
+
+  // NPR materials usually use sRGB textures.
+  const tex = (mat as any).map as Texture | undefined
+  if (tex && (tex as any).colorSpace !== undefined) {
+    try {
+      ;(tex as any).colorSpace = SRGBColorSpace
+    } catch (e) {
+      // ignore colorSpace assignment failures
+    }
+  }
+
+  injectDiffuseIBL(mat)
+}
+
 function emitVrmLoadError(reason: VrmLifecycleReason, startedAt: number, error: unknown) {
   if (!isStageThreeRuntimeTraceEnabled()) return
 
@@ -296,7 +313,8 @@ function isManagedVrmInstanceReusable(instance: ManagedVrmInstance) {
     instance.vrm.scene.updateMatrixWorld(true)
     instance.vrm.humanoid.update()
     return true
-  } catch {
+  } catch (error) {
+    console.error('[VRMModel] Failed to check instance reusability:', error)
     return false
   }
 }
@@ -335,7 +353,6 @@ function runVrmFrameHooks(context: VrmFrameHookContext) {
     try {
       hook.onFrame?.(context)
     } catch (error) {
-      console.error(error)
       emit('error', error)
     }
   }
@@ -345,7 +362,6 @@ function runVrmFrameRuntimeHook(vrm: VRM, delta: number) {
   try {
     vrmFrameRuntimeHook.value?.(vrm, delta)
   } catch (error) {
-    console.error(error)
     emit('error', error)
   }
 }
@@ -355,7 +371,6 @@ function runVrmDisposeHooks(context: VrmDisposeHookContext) {
     try {
       hook.onDispose?.(context)
     } catch (error) {
-      console.error(error)
       emit('error', error)
     }
   }
@@ -607,7 +622,6 @@ async function loadModel() {
       if (!isLoadRequestCurrent(requestId)) return
     }
     if (!modelSrc.value) {
-      console.warn('NO model src, cannot load VRM model.')
       return
     }
 
@@ -677,7 +691,6 @@ async function loadModel() {
     if (!_vrmInfo || !_vrmInfo._vrm || !_vrmInfo._vrmGroup) {
       if (isLoadRequestCurrent(requestId)) {
         emitVrmLoadError(currentLoadReason, loadStartedAt, 'VRM model loading failure')
-        console.warn('VRM model loading failure!')
         emit('error', new Error('VRM model loading failure'))
       }
       return
@@ -711,7 +724,6 @@ async function loadModel() {
     if (!clip) {
       disposeDetachedVrm(nextVrm, nextVrmGroup)
       emitVrmLoadError(currentLoadReason, loadStartedAt, 'No VRM animation loaded')
-      console.warn('No VRM animation loaded')
       if (isLoadRequestCurrent(requestId)) emit('error', new Error('No VRM animation loaded'))
       return
     }
@@ -728,23 +740,6 @@ async function loadModel() {
      * Shader setting
      */
     const isShaderMat = (m: any): m is ShaderMaterial => !!m?.isShaderMaterial
-
-    function configureInjectedShaderMaterial(mat: ShaderMaterial) {
-      if ('toneMapped' in mat) mat.toneMapped = false
-      if ('envMap' in mat && mat.envMap) mat.envMap = null
-
-      // NPR materials usually use sRGB textures.
-      const tex = (mat as any).map as Texture | undefined
-      if (tex && (tex as any).colorSpace !== undefined) {
-        try {
-          ;(tex as any).colorSpace = SRGBColorSpace
-        } catch (e) {
-          console.warn('Failed to set colorSpace on texture:', e)
-        }
-      }
-
-      injectDiffuseIBL(mat)
-    }
 
     // MToon material sky box lightProbe setting
     if (!airiIblProbe && scene.value) airiIblProbe = createIblProbeController(scene.value)
@@ -827,7 +822,6 @@ async function loadModel() {
     if (!isLoadRequestCurrent(requestId)) return
 
     emitVrmLoadError(currentLoadReason, loadStartedAt, err)
-    console.error(err)
     emit('error', err)
   }
 }

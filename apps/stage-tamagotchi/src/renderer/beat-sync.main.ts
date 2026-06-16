@@ -11,6 +11,8 @@ import {
   createContext,
 } from '@proj-airi/stage-shared/beat-sync'
 
+const _logger = (...a: unknown[]) => void 0
+
 const context = createContext()
 
 const changeState = defineInvoke(context, beatSyncStateChangedInvokeEventa)
@@ -22,14 +24,12 @@ const detector = createBeatSyncDetector({
 
 detector.on('stateChange', (state) => changeState(state))
 detector.on('beat', (e) => {
-  // eslint-disable-next-line no-console
-  console.debug('[beat]', e) // This could be noisy.
+  _logger('[beat]', e) // This could be noisy.
   signalBeat(e)
 })
 
 defineInvokeHandler(context, beatSyncToggleInvokeEventa, async (enabled) => {
-  // eslint-disable-next-line no-console
-  console.log('[toggle]', enabled)
+  _logger('[toggle]', enabled)
   if (enabled) {
     detector.startScreenCapture()
   } else {
@@ -38,12 +38,10 @@ defineInvokeHandler(context, beatSyncToggleInvokeEventa, async (enabled) => {
 })
 defineInvokeHandler(context, beatSyncGetStateInvokeEventa, async () => detector.state)
 defineInvokeHandler(context, beatSyncUpdateParametersInvokeEventa, async (params) => {
-  // eslint-disable-next-line no-console
-  console.log('[update-params]', params)
+  _logger('[update-params]', params)
   detector.updateParameters(params)
 })
 defineInvokeHandler(context, beatSyncGetInputByteFrequencyDataInvokeEventa, async () => {
-  // eslint-disable-next-line no-console
-  console.debug('[get-input-byte-frequency-data]') // This could be noisy.
+  _logger('[get-input-byte-frequency-data]') // This could be noisy.
   return detector.getInputByteFrequencyData()
 })

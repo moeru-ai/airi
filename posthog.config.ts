@@ -17,11 +17,11 @@ export const POSTHOG_PROJECT_KEY_WEB =
 export const POSTHOG_PROJECT_KEY_DESKTOP =
   import.meta.env.VITE_POSTHOG_PROJECT_KEY_DESKTOP ?? 'phc_rljw376z5gt6vXJlc3sTr7hFbXodciY9THEQXIRnW53' // cspell:disable-line
 
-// FIXME: Using the same key for 'web' for now.
+// TODO: Replace with dedicated Pocket project key when available.
 export const POSTHOG_PROJECT_KEY_POCKET =
   import.meta.env.VITE_POSTHOG_PROJECT_KEY_POCKET ?? 'phc_pzjziJjrVZpa9SqnQqq0QEKvkmuCPH7GDTA6TbRTEf9' // cspell:disable-line
 
-// FIXME: Using the same key for 'web' for now.
+// TODO: Replace with dedicated Docs project key when available.
 export const POSTHOG_PROJECT_KEY_DOCS =
   import.meta.env.VITE_POSTHOG_PROJECT_KEY_DOCS ?? 'phc_pzjziJjrVZpa9SqnQqq0QEKvkmuCPH7GDTA6TbRTEf9' // cspell:disable-line
 

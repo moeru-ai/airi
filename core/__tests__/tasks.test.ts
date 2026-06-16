@@ -7,6 +7,8 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 
+const _logger = (..._a: unknown[]) => void 0
+
 import { EventBus } from "../events/bus.js"
 import { createLogger } from "../logger.js"
 
@@ -91,7 +93,7 @@ describe("task types", () => {
 
 		it("generates unique IDs", () => {
 			const ids = new Set<string>()
-			for (let i = 0; i < 100; i++) {
+			for (let i = 0; i < 100; i += 1) {
 				ids.add(createTaskId(crypto.randomUUID()) as string)
 			}
 			expect(ids.size).toBe(100)
@@ -669,7 +671,7 @@ describe("TaskScheduler", () => {
 			manager.registerExecutor("code", executor)
 
 			// Create 5 tasks.
-			for (let i = 0; i < 5; i++) {
+			for (let i = 0; i < 5; i += 1) {
 				const task = manager.createTask({ title: `Task ${i}`, moduleId: "code" })
 				manager.queue(task.id as string)
 			}
@@ -805,7 +807,7 @@ describe("TaskReplayBuffer", () => {
 				isolationLevel: "process" as const,
 			}
 
-			for (let i = 0; i < 5; i++) {
+			for (let i = 0; i < 5; i += 1) {
 				buffer.record(task, "pending", "queued")
 			}
 
@@ -910,7 +912,7 @@ describe("TaskReplayBuffer", () => {
 				isolationLevel: "process" as const,
 			}
 
-			for (let i = 0; i < 15; i++) {
+			for (let i = 0; i < 15; i += 1) {
 				buffer.record(task, "pending", "queued")
 			}
 
@@ -1099,7 +1101,7 @@ describe("task lifecycle with cancellation", () => {
 	it("cancels a running task mid-execution", async () => {
 		const executor = createMockExecutor("code", async (task, ctx) => {
 			// Simulate long-running work.
-			for (let i = 0; i < 10; i++) {
+			for (let i = 0; i < 10; i += 1) {
 				await new Promise((r) => setTimeout(r, 10))
 				ctx.token.throwIfCancelled()
 				ctx.reportProgress(i * 10)

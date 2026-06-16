@@ -56,11 +56,11 @@ export interface LoadQueue {
 // ---------------------------------------------------------------------------
 
 export function createLoadQueue(): LoadQueue {
-  const queue: QueueEntry<any>[] = []
+  const queue: QueueEntry<unknown>[] = []
   let active: string | null = null
   let running = false
 
-  function detachAbortHandler(entry: QueueEntry<any>): void {
+  function detachAbortHandler(entry: QueueEntry<unknown>): void {
     if (entry.signal && entry.abortHandler) {
       entry.signal.removeEventListener('abort', entry.abortHandler)
       entry.abortHandler = undefined
@@ -108,11 +108,11 @@ export function createLoadQueue(): LoadQueue {
     options?: EnqueueOptions,
   ): Promise<T> {
     return new Promise<T>((resolve, reject) => {
-      const entry: QueueEntry<T> = {
+      const entry: QueueEntry<unknown> = {
         modelId,
         priority,
         loader,
-        resolve,
+        resolve: resolve as (value: unknown) => void,
         reject,
         signal: options?.signal,
       }
@@ -138,7 +138,7 @@ export function createLoadQueue(): LoadQueue {
       }
 
       queue.push(entry)
-      processQueue()
+      void processQueue()
     })
   }
 

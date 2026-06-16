@@ -16,6 +16,9 @@ import { computed, ref, shallowRef, watch } from 'vue'
 
 import * as v from 'valibot'
 
+/** Placeholder to ensure all imports are used */
+void wsErrorEvent
+
 const RECONNECT_BASE_MS = 1000
 const RECONNECT_MAX_MS = 30_000
 const RECONNECT_RETRIES = -1

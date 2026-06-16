@@ -146,7 +146,6 @@ export function createChatHooks(): ChatHookRegistry {
   }
 
   async function emitTokenLiteralHooks(literal: string, context: ChatStreamEventContext) {
-    console.log('[TTS HOOKS] emitTokenLiteralHooks called with:', JSON.stringify(literal))
     for (const hook of onTokenLiteralHooks) await hook(literal, context)
   }
 

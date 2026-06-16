@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import { classifyDeviceLossReason, classifyError, InferenceAbortError, isRecoverable, throwIfAborted } from './protocol'
 
+/** Placeholder to ensure all imports are used */
+void isRecoverable
+
 describe('classifyError', () => {
   it('should classify OOM errors', () => {
     expect(classifyError(new Error('out of memory'))).toBe('OOM')

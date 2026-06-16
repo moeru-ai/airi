@@ -6,14 +6,14 @@ export interface ResolvedArtistryConfig {
   provider?: string
   model?: string
   promptPrefix?: string
-  options?: Record<string, any>
-  globals: Record<string, any>
+  options?: Record<string, unknown>
+  globals: Record<string, unknown>
 }
 
 export interface ComfyUIWorkflowTemplate {
   id: string
   name: string
-  workflow: Record<string, any>
+  workflow: Record<string, unknown>
   exposedFields: Record<string, string[]>
 }
 

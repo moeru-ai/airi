@@ -34,7 +34,7 @@ const slots = defineSlots<{
   default: (props: Record<string, unknown>) => unknown
   confirm: (props: Record<string, unknown>) => unknown
   cancel: (props: Record<string, unknown>) => unknown
-  'cancel-botton-icon': (props: Record<string, unknown>) => unknown
+  'cancel-button-icon': (props: Record<string, unknown>) => unknown
 }>()
 
 const confirming = ref(false)
@@ -78,7 +78,7 @@ function handleCancel() {
           @click="handleCancel"
         >
           <div class="flex items-center gap-2">
-            <slot v-if="slots['cancel-botton-icon']" name="cancel-botton-icon" />
+            <slot v-if="slots['cancel-button-icon']" name="cancel-button-icon" />
             <span><slot name="cancel">Cancel</slot></span>
           </div>
         </Button>

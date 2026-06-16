@@ -58,7 +58,6 @@ function fromIntent(intent: IntentHandleSubset): StageTtsSession {
   return {
     intentId: intent.intentId,
     appendText: (text) => {
-      console.log('[TTS SESSION] appendText (segmenter path):', JSON.stringify(text))
       intent.writeLiteral(text)
     },
     appendSpecial: intent.writeSpecial,

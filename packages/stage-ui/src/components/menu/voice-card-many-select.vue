@@ -78,7 +78,10 @@ const sharedAudioContext = ref<AudioContext | null>(null)
 // Initialize the shared audio context (call this in mounted or when needed)
 function initAudioContext() {
   if (!sharedAudioContext.value) {
-    sharedAudioContext.value = new (window.AudioContext || (window as any).webkitAudioContext)()
+    const AudioCtx = window.AudioContext || ((window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)
+    if (AudioCtx) {
+      sharedAudioContext.value = new AudioCtx()
+    }
   }
   return sharedAudioContext.value
 }

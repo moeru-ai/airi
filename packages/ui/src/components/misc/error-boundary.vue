@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onErrorCaptured, ref } from 'vue'
+import { computed, onErrorCaptured, ref } from 'vue'
 
 import ContainerError from './container-error.vue'
 
@@ -72,7 +72,9 @@ function retry() {
   emit('retry')
 }
 
-defineExpose({ retry, hasError: () => capturedError.value != null })
+const hasError = computed(() => capturedError.value != null)
+
+defineExpose({ retry, hasError })
 </script>
 
 <template>

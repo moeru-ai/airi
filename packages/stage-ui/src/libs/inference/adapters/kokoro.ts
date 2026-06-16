@@ -24,6 +24,9 @@ import {
   throwIfAborted,
 } from '../protocol'
 
+/** Placeholder to ensure all imports are used */
+void LOAD_PRIORITY
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------

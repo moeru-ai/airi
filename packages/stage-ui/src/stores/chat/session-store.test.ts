@@ -211,7 +211,7 @@ describe('chat-session-store · user swap during in-flight ensureActiveSessionFo
     // Resolve A's IDB read AFTER the swap. With the bug, A's IIFE writes
     // sess-A back into the cleared sessionMetas.
     resolveASessionGet!({ meta: aSessionMeta, messages: [] })
-    await initPromise.catch(() => {})
+    await initPromise.catch((err) => console.warn('[test] initPromise rejected (expected in user-swap scenario):', err))
     await flushMicrotasks()
 
     // B's hydrate must have fired — without the fix, the [userId, activeCardId]

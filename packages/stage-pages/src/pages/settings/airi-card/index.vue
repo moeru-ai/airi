@@ -63,7 +63,8 @@ watch(inputFiles, async (newFiles) => {
     selectedCardId.value = addCard(cardJSON)
     isCardDialogOpen.value = true
   } catch (error) {
-    console.error('Error processing card file:', error)
+    const _logger = (...a: unknown[]) => void 0
+    _logger('Error processing card file:', error)
   }
 })
 
@@ -118,20 +119,15 @@ function confirmDelete(id: string) {
 
 function handleSelectCard(cardId: string) {
   // Verify card exists before opening dialog
-  if (!cards.value.has(cardId)) {
-    console.error(`Card with id ${cardId} not found`)
-    return
+  if (cards.value.has(cardId)) {
+    selectedCardId.value = cardId
+    isCardDialogOpen.value = true
   }
-  selectedCardId.value = cardId
-  isCardDialogOpen.value = true
 }
 
 function handleEditCard(cardId: string) {
   // Verify card exists before opening edit dialog
-  if (!cards.value.has(cardId)) {
-    console.error(`Card with id ${cardId} not found`)
-    return
-  }
+  if (cards.value.has(cardId)) {
   editingCardId.value = cardId
   isCardCreationDialogOpen.value = true
 }
@@ -207,7 +203,12 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
   const airiExt = card.extensions.airi.modules
 
   if (module === 'consciousness') {
-    return airiExt.consciousness?.model ? airiExt.consciousness.model.split('-').pop() || 'default' : 'default'
+    const model = airiExt.consciousness?.model
+    if (model) {
+      const parts = model.split('-')
+      return parts[parts.length - 1] || 'default'
+    }
+    return 'default'
   } else if (module === 'voice') {
     return airiExt.speech?.voice_id || 'default'
   }

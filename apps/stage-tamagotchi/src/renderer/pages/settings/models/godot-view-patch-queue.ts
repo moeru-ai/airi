@@ -106,7 +106,7 @@ export function createGodotViewPatchQueue(options: GodotViewPatchQueueOptions): 
     }, waitMs)
   }
 
-  async function sendPendingPatch() {
+  async function sendPendingPatch(): Promise<void> {
     if (disposed || inFlight) return
 
     const sendGeneration = generation
@@ -129,6 +129,8 @@ export function createGodotViewPatchQueue(options: GodotViewPatchQueueOptions): 
         schedule()
       }
     }
+
+    return
   }
 
   function reset() {
