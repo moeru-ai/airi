@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { inject } from 'vue'
 
+defineOptions({ inheritAttrs: false })
+
 const props = withDefaults(
   defineProps<{
     value: string | number
