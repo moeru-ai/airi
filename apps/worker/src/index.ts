@@ -35,7 +35,7 @@ import type { CancellationToken } from '../../../core/tasks/cancellation.js'
 
 // ── State ───────────────────────────────────────────────────────────────
 
-let workerId = process.env.AIRI_WORKER_ID ?? `worker-${process.pid}`
+const workerId = process.env.AIRI_WORKER_ID ?? `worker-${process.pid}`
 let currentTaskId: string | null = null
 let shutdownRequested = false
 

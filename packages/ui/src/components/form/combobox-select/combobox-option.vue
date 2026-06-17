@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { inject } from 'vue'
+import { inject, defineOptions } from 'vue'
+
+defineOptions({ inheritAttrs: false })
 
 const props = withDefaults(
   defineProps<{
