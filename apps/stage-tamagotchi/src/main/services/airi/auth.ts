@@ -16,8 +16,6 @@ import {
   electronAuthCallbackError,
   electronAuthLogout,
   electronAuthStartLogin,
-  electronAuthSteamSignInFinished,
-  electronAuthSteamSignInStarted,
 } from '../../../shared/eventa'
 import { getWebApiTicket, initSteam } from '../steam/client'
 import { startLoopbackServer } from './http-server/http/auth'
@@ -49,8 +47,6 @@ export interface WindowAuthManager {
   registerWindow: (params: { context: MainContext, window: BrowserWindow }) => void
   broadcastAuthCallback: (tokens: TokenExchangeResult) => void
   broadcastAuthError: (message: string) => void
-  broadcastSteamSignInStarted: () => void
-  broadcastSteamSignInFinished: () => void
 }
 
 function isOidcSignInActive(): boolean {
@@ -69,12 +65,10 @@ export async function trySteamSignIn(windowAuthManager: WindowAuthManager): Prom
     return
   }
 
-  windowAuthManager.broadcastSteamSignInStarted()
-
   const ticketResult = await getWebApiTicket()
   if (!ticketResult.ok) {
     log.withFields({ reason: ticketResult.reason }).warn('Steam sign-in failed')
-    windowAuthManager.broadcastSteamSignInFinished()
+    windowAuthManager.broadcastAuthError(ticketResult.reason)
     return
   }
 
@@ -84,7 +78,7 @@ export async function trySteamSignIn(windowAuthManager: WindowAuthManager): Prom
   })
   if (!exchangeResult.ok) {
     log.withFields({ reason: exchangeResult.reason }).warn('Steam sign-in failed')
-    windowAuthManager.broadcastSteamSignInFinished()
+    windowAuthManager.broadcastAuthError(exchangeResult.reason)
     return
   }
 
@@ -108,14 +102,6 @@ export function createWindowAuthManagerService(): WindowAuthManager {
     forEachAuthContext(context => context.emit(electronAuthCallbackError, { error: message }))
   }
 
-  function broadcastSteamSignInStarted(): void {
-    forEachAuthContext(context => context.emit(electronAuthSteamSignInStarted, undefined))
-  }
-
-  function broadcastSteamSignInFinished(): void {
-    forEachAuthContext(context => context.emit(electronAuthSteamSignInFinished, undefined))
-  }
-
   return {
     registerWindow(params) {
       authContexts.add(params.context)
@@ -127,8 +113,6 @@ export function createWindowAuthManagerService(): WindowAuthManager {
 
     broadcastAuthCallback,
     broadcastAuthError,
-    broadcastSteamSignInStarted,
-    broadcastSteamSignInFinished,
   }
 }
 
