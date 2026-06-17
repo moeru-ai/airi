@@ -3,6 +3,8 @@ import type { HistoryItem } from '@roo-code/types'
 
 import { nanoid } from 'nanoid'
 
+import { runTask } from './task-runner.js'
+
 import {
   getState,
   setState,
@@ -132,6 +134,14 @@ function handleMessage(ws: WebSocket, message: Record<string, unknown>): void {
       }
       upsertTask(item as any)
       send(ws, { type: 'taskCreated', task: item, requestId })
+
+      // Standalone mode: run the LLM call directly. Fire-and-forget —
+      // the runner pushes state updates via onUpdate -> broadcast.
+      runTask(id, text, (mode as string) ?? 'vibe', () => {
+        broadcast({ type: 'state', state: getState() })
+      }).catch((err) => {
+        console.error('[roo-standalone] task run failed:', err)
+      })
       break
     }
 
