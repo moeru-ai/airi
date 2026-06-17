@@ -16,7 +16,7 @@
  * providers — anything else can route through OpenRouter.
  */
 
-import { getState, patchState } from './state.js'
+import { getState, patchState, upsertTask } from './state.js'
 import type { ExtensionState } from '@roo-code/types'
 
 // ---------------------------------------------------------------------------
@@ -74,6 +74,21 @@ export async function runTask(taskId: string, text: string, onUpdate?: () => voi
     return
   }
 
+  // Validate API key is present for providers that require one
+  const apiKey = String(apiConfig.apiKey ?? '').trim()
+  if (!apiKey) {
+    appendMessage(
+      {
+        ts: Date.now(),
+        type: 'say',
+        say: 'error',
+        text: `No API key configured for ${apiConfig.apiProvider}. Open Settings -> Providers to add an API key.`,
+      },
+      onUpdate,
+    )
+    return
+  }
+
   // 1. Append the user message.
   appendMessage(
     {
@@ -88,6 +103,7 @@ export async function runTask(taskId: string, text: string, onUpdate?: () => voi
   // 2. Call the LLM.
   let assistantText = ''
   let assistantMessageTs: number | null = null
+  let hadError = false
   try {
     const systemPrompt = 'You are Roo, a helpful AI coding assistant. Be concise and direct.'
     const messages: LLMMessage[] = [{ role: 'user', content: text }]
@@ -133,9 +149,9 @@ export async function runTask(taskId: string, text: string, onUpdate?: () => voi
           const updated = [...tasks]
           updated[idx] = {
             ...updated[idx],
-            tokensIn: chunk.inputTokens ?? updated[idx].tokensIn ?? 0,
-            tokensOut: chunk.outputTokens ?? updated[idx].tokensOut ?? 0,
-            totalCost: chunk.totalCost ?? updated[idx].totalCost ?? 0,
+            tokensIn: chunk.inputTokens || updated[idx].tokensIn || 0,
+            tokensOut: chunk.outputTokens || updated[idx].tokensOut || 0,
+            totalCost: chunk.totalCost || updated[idx].totalCost || 0,
           }
           patchState({ taskHistory: updated } as Partial<ExtensionState>)
           onUpdate?.()
@@ -145,6 +161,7 @@ export async function runTask(taskId: string, text: string, onUpdate?: () => voi
   } catch (err: unknown) {
     const errMsg = `Error calling ${apiConfig.apiProvider}: ${err instanceof Error ? err.message : String(err)}`
     assistantText = errMsg
+    hadError = true
     // Mark the streaming assistant message as complete so it doesn't stay stuck as partial
     if (assistantMessageTs !== null) {
       const s = getState()
@@ -171,7 +188,7 @@ export async function runTask(taskId: string, text: string, onUpdate?: () => voi
   }
 
   // 3. Mark the streaming assistant message as complete (non-partial).
-  if (assistantMessageTs !== null && assistantText && !assistantText.startsWith('Error')) {
+  if (assistantMessageTs !== null && assistantText && !hadError) {
     const s = getState()
     const msgs = s.clineMessages || []
     const idx = msgs.findIndex(
@@ -312,10 +329,23 @@ async function* streamOpenAI(
 
   yield* parseSSE(res, (data) => {
     const choice = data.choices?.[0]
-    if (choice?.delta?.content) {
+    const hasText = choice?.delta?.content
+    const hasUsage = data.usage
+    if (hasText && hasUsage) {
+      return [
+        { type: 'text' as const, text: choice.delta.content },
+        {
+          type: 'usage' as const,
+          inputTokens: data.usage.prompt_tokens ?? 0,
+          outputTokens: data.usage.completion_tokens ?? 0,
+          totalCost: 0,
+        },
+      ]
+    }
+    if (hasText) {
       return { type: 'text' as const, text: choice.delta.content }
     }
-    if (data.usage) {
+    if (hasUsage) {
       return {
         type: 'usage' as const,
         inputTokens: data.usage.prompt_tokens ?? 0,
@@ -416,10 +446,23 @@ async function* streamOpenRouter(
 
   yield* parseSSE(res, (data) => {
     const choice = data.choices?.[0]
-    if (choice?.delta?.content) {
+    const hasText = choice?.delta?.content
+    const hasUsage = data.usage
+    if (hasText && hasUsage) {
+      return [
+        { type: 'text' as const, text: choice.delta.content },
+        {
+          type: 'usage' as const,
+          inputTokens: data.usage.prompt_tokens ?? 0,
+          outputTokens: data.usage.completion_tokens ?? 0,
+          totalCost: Number(data.usage.total_cost ?? 0),
+        },
+      ]
+    }
+    if (hasText) {
       return { type: 'text' as const, text: choice.delta.content }
     }
-    if (data.usage) {
+    if (hasUsage) {
       return {
         type: 'usage' as const,
         inputTokens: data.usage.prompt_tokens ?? 0,
