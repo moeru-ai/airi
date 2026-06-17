@@ -20,7 +20,6 @@ import {
 	PRIORITY_WEIGHTS,
 	type TaskState,
 	type Task,
-	type TaskError,
 } from "../tasks/types.js"
 
 import {
