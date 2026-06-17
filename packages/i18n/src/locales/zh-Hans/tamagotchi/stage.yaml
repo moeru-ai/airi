@@ -30,7 +30,6 @@ docs:
   'collapse': 折叠
   'login': 登录
   'logging-in': 登录中...
-  'steam-sign-in-failed': Steam 登录失败，请点「登录」使用其他方式。
   'account': 账号
   'logout': 退出登录
 widgets:
