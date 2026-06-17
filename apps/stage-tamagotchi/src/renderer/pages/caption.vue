@@ -136,7 +136,7 @@ onUnmounted(() => {
         <div
           :class="[
             'b-primary/50',
-            'h-full w-full animate-flash animate-duration-3s animate-count-infinite b-4 rounded-2xl',
+            'h-full w-full animate-flash stage-animation-loop-3s b-4 rounded-2xl',
           ]"
         />
       </div>
@@ -145,6 +145,10 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.stage-animation-loop-3s {
+  animation-duration: 3s;
+  animation-iteration-count: infinite;
+}
 </style>
 
 <route lang="yaml">

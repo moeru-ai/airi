@@ -885,7 +885,7 @@ const cursorPosition = computed(() => ({
             'h-full w-full flex items-center justify-center',
             'text-1.5rem text-primary-600 dark:text-primary-400 font-normal',
             'select-none',
-            'animate-flash animate-duration-5s animate-count-infinite',
+            'animate-flash stage-animation-loop-5s',
           ]"
         >
           Loading...
@@ -910,7 +910,7 @@ const cursorPosition = computed(() => ({
         bg="white/80 dark:neutral-950/80" backdrop-blur="md"
       >
         <div class="wall absolute top-0 h-8" />
-        <div class="absolute left-0 top-0 h-full w-full flex animate-flash animate-duration-5s animate-count-infinite select-none items-center justify-center text-1.5rem text-primary-400 font-normal drag-region">
+        <div class="stage-animation-loop-5s absolute left-0 top-0 h-full w-full flex animate-flash select-none items-center justify-center text-1.5rem text-primary-400 font-normal drag-region">
           DRAG HERE TO MOVE
         </div>
         <div class="wall absolute bottom-0 h-8 drag-region" />
@@ -929,7 +929,7 @@ const cursorPosition = computed(() => ({
       <div
         :class="[
           'b-primary/50',
-          'h-full w-full animate-flash animate-duration-3s animate-count-infinite b-4 rounded-2xl',
+          'h-full w-full animate-flash stage-animation-loop-3s b-4 rounded-2xl',
         ]"
       />
     </div>
@@ -959,6 +959,16 @@ const cursorPosition = computed(() => ({
     #ff00 calc(var(--wall-width) * 2)
   );
   width: calc(100% + 4 * var(--wall-width));
+}
+
+.stage-animation-loop-3s {
+  animation-duration: 3s;
+  animation-iteration-count: infinite;
+}
+
+.stage-animation-loop-5s {
+  animation-duration: 5s;
+  animation-iteration-count: infinite;
 }
 </style>
 

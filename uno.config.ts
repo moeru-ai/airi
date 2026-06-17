@@ -137,7 +137,9 @@ export function sharedUnoConfig() {
           ...createExternalPackageIconLoader('@proj-airi/iconify-meteocons'),
         },
       }),
-      presetScrollbar(),
+      presetScrollbar({
+        compatible: true,
+      }),
       presetChromatic({
         baseHue: 220.44,
         colors: {
