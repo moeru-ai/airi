@@ -1,5 +1,5 @@
 import type { WebSocket } from 'ws'
-import type { HistoryItem } from '@roo-code/types'
+import type { HistoryItem, ExtensionState } from '@roo-code/types'
 
 import { nanoid } from 'nanoid'
 

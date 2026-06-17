@@ -87,14 +87,12 @@ export async function runTask(taskId: string, text: string, onUpdate?: () => voi
 
   // 2. Call the LLM.
   let assistantText = ''
+  let assistantMessageTs: number | null = null
   try {
     const systemPrompt = 'You are Roo, a helpful AI coding assistant. Be concise and direct.'
     const messages: LLMMessage[] = [{ role: 'user', content: text }]
 
     const stream = streamLLM(apiConfig, systemPrompt, messages)
-
-    // Track the ts of the single assistant message so we can update in place.
-    let assistantMessageTs: number | null = null
 
     for await (const chunk of stream) {
       if (chunk.type === 'text' && chunk.text) {
@@ -157,18 +155,19 @@ export async function runTask(taskId: string, text: string, onUpdate?: () => voi
     )
   }
 
-  // 3. Final non-partial assistant message.
-  if (assistantText && !assistantText.startsWith('Error')) {
-    appendMessage(
-      {
-        ts: Date.now(),
-        type: 'say',
-        say: 'assistant',
-        text: assistantText,
-        partial: false,
-      },
-      onUpdate,
+  // 3. Mark the streaming assistant message as complete (non-partial).
+  if (assistantMessageTs !== null && assistantText && !assistantText.startsWith('Error')) {
+    const s = getState()
+    const msgs = s.clineMessages || []
+    const idx = msgs.findIndex(
+      (m) => m.type === 'say' && (m.say as string) === 'assistant' && m.ts === assistantMessageTs,
     )
+    if (idx !== -1) {
+      const updated = [...msgs]
+      updated[idx] = { ...updated[idx], partial: false }
+      patchState({ clineMessages: updated } as Partial<ExtensionState>)
+      onUpdate?.()
+    }
   }
 }
 
@@ -267,7 +266,7 @@ async function* streamOpenAI(
 ): AsyncGenerator<StreamChunk> {
   const apiKey = String(apiConfig.apiKey ?? '')
   const model = String(apiConfig.apiModelId ?? apiConfig.modelId ?? 'gpt-4o')
-  const baseURL = String(apiConfig.baseURL ?? 'https://api.openai.com/v1')
+  const baseURL = String(apiConfig.baseURL || 'https://api.openai.com/v1')
 
   const res = await fetch(`${baseURL}/chat/completions`, {
     method: 'POST',
@@ -279,6 +278,7 @@ async function* streamOpenAI(
       model,
       messages: [{ role: 'system', content: systemPrompt }, ...messages],
       stream: true,
+      stream_options: { include_usage: true },
     }),
   })
 
@@ -369,6 +369,7 @@ async function* streamOpenRouter(
       model,
       messages: [{ role: 'system', content: systemPrompt }, ...messages],
       stream: true,
+      stream_options: { include_usage: true },
     }),
   })
 
