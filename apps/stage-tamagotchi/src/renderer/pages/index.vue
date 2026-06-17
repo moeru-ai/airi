@@ -2,10 +2,10 @@
 import type { ModelSettingsRuntimeSnapshot } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 
 import type { ModelSettingsRuntimeChannelEvent } from '../../shared/model-settings-runtime'
+import type { VoiceInputTranscriptionTicket } from '../utils/voice-input-transcription-queue'
 
 import workletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
-import { tryCatch } from '@moeru/std'
 import { electron } from '@proj-airi/electron-eventa'
 import {
   useElectronEventaInvoke,
@@ -22,15 +22,16 @@ import {
   resolveComponentStateToRuntimePhase,
 } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
-import { useAudioRecorder } from '@proj-airi/stage-ui/composables/audio/audio-recorder'
 import { useCanvasPixelIsTransparentAtPoint } from '@proj-airi/stage-ui/composables/canvas-alpha'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
+import { useSpeakingStore } from '@proj-airi/stage-ui/stores/audio'
 import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { refDebounced, useBroadcastChannel } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, ref, toRef, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 'vue'
+import { toast } from 'vue-sonner'
 
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
@@ -41,7 +42,20 @@ import { modelSettingsRuntimeSnapshotChannelName } from '../../shared/model-sett
 import { useChatSyncStore } from '../stores/chat-sync'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
+import { postBroadcastChannelEvent } from '../utils/broadcast-channel'
 import { shouldSampleStageTransparency } from '../utils/stage-three-transparency'
+import { createVoiceInputWavFromPcmSegment, shouldSkipVoiceInputSegment } from '../utils/voice-input-audio-segment'
+import { createVoiceInputDebugRecorder, installVoiceInputDebugConsole } from '../utils/voice-input-debug'
+import { formatVoiceInputFailure, postVoiceInputCaption } from '../utils/voice-input-feedback'
+import { hasLiveAudioInputTrack } from '../utils/voice-input-recording'
+import {
+  assistantSpeechCooldownDeadline,
+  DEFAULT_ASSISTANT_SPEECH_INPUT_COOLDOWN_MS,
+  shouldSuppressVoiceInput,
+} from '../utils/voice-input-suppression'
+import { createVoiceInputTranscriptBuffer } from '../utils/voice-input-transcript-buffer'
+import { createVoiceInputTranscriptionQueue } from '../utils/voice-input-transcription-queue'
+import { getVoiceInputVadProfile, readVoiceInputVadProfileName } from '../utils/voice-input-vad-profile'
 
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
 const statusIslandRef = ref<InstanceType<typeof StatusIsland>>()
@@ -222,39 +236,71 @@ watch([isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor
 })
 
 // Emit runtime snapshot on change and on request from settings panel
+/**
+ * Sends model-settings runtime events without letting closed HMR channels break the stage.
+ */
+function postModelSettingsRuntimeEvent(event: ModelSettingsRuntimeChannelEvent) {
+  postBroadcastChannelEvent(postModelSettingsRuntimeChannelEvent, event, (error) => {
+    console.warn('[Main Page] Failed to post model settings runtime event:', error)
+  })
+}
+
 watch(modelSettingsRuntimeSnapshot, (snapshot) => {
-  postModelSettingsRuntimeChannelEvent({ type: 'snapshot', snapshot })
+  postModelSettingsRuntimeEvent({ type: 'snapshot', snapshot })
 }, { immediate: true })
 
 watch(modelSettingsRuntimeChannelEvent, (event) => {
   if (event?.type !== 'request-current')
     return
 
-  postModelSettingsRuntimeChannelEvent({ type: 'snapshot', snapshot: modelSettingsRuntimeSnapshot.value })
+  postModelSettingsRuntimeEvent({ type: 'snapshot', snapshot: modelSettingsRuntimeSnapshot.value })
 })
 
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { stream, enabled } = storeToRefs(settingsAudioDeviceStore)
-const { askPermission } = settingsAudioDeviceStore
-const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
+const { askPermission, startStream, stopStream } = settingsAudioDeviceStore
+const { nowSpeaking } = storeToRefs(useSpeakingStore())
 const hearingPipeline = useHearingSpeechInputPipeline()
 const { transcribeForRecording, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
-const { supportsStreamInput } = storeToRefs(hearingPipeline)
+const { error: transcriptionError, supportsStreamInput } = storeToRefs(hearingPipeline)
 const chatSyncStore = useChatSyncStore()
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
+const voiceInputVadProfile = getVoiceInputVadProfile(readVoiceInputVadProfileName())
+const voiceInputDebugEnabled = IS_DEV || globalThis.localStorage?.getItem('airi:debug') === '1'
+const voiceInputDebugRecorder = createVoiceInputDebugRecorder({
+  enabled: voiceInputDebugEnabled,
+})
+const voiceInputTranscriptionQueue = createVoiceInputTranscriptionQueue()
+const uninstallVoiceInputDebugConsole = voiceInputDebugEnabled
+  ? installVoiceInputDebugConsole(globalThis, voiceInputDebugRecorder)
+  : undefined
+const voiceTranscriptBuffer = createVoiceInputTranscriptBuffer({
+  flushDelayMs: 1200,
+  maxBufferedTextLength: 90,
+  async flush(text) {
+    await sendVoiceInputTextToChat(text)
+  },
+})
 
 const { init: initVAD, dispose: disposeVAD, start: startVAD, loaded: vadLoaded } = useVAD(workletUrl, {
-  threshold: ref(0.6),
+  threshold: ref(voiceInputVadProfile.vad.threshold),
+  minSilenceDurationMs: ref(voiceInputVadProfile.vad.minSilenceDurationMs),
+  speechPadMs: ref(voiceInputVadProfile.vad.speechPadMs),
+  minSpeechDurationMs: ref(voiceInputVadProfile.vad.minSpeechDurationMs),
   onSpeechStart: () => {
     void handleSpeechStart()
   },
   onSpeechEnd: () => {
     void handleSpeechEnd()
   },
+  onSpeechReady: (event) => {
+    void voiceInputTranscriptionQueue.enqueue(ticket => handleSpeechReady(event, ticket))
+  },
 })
 
-let stopOnStopRecord: (() => void) | undefined
 const audioInteractionStarting = ref(false)
+const assistantSpeechSuppressedUntil = shallowRef(0)
+const assistantSpeechResumeTimer = shallowRef<ReturnType<typeof setTimeout>>()
 
 // Caption overlay broadcast channel
 type CaptionChannelEvent
@@ -262,73 +308,274 @@ type CaptionChannelEvent
     | { type: 'caption-assistant', text: string }
 const { post: postCaption } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
 
+console.info('[Main Page] Voice input VAD profile resolved', voiceInputVadProfile)
+
+/**
+ * Reports a voice input pipeline failure to both developer logs and the visible app UI.
+ */
+function reportVoiceInputFailure(action: string, error: unknown) {
+  const message = formatVoiceInputFailure(action, error)
+  console.error(`[Main Page] ${message}`, error)
+  toast.error(message)
+}
+
+/**
+ * Checks whether current voice input should be ignored to avoid assistant self-transcription.
+ */
+function isVoiceInputSuppressed(now = Date.now()) {
+  return shouldSuppressVoiceInput({
+    assistantSpeaking: nowSpeaking.value,
+    suppressedUntil: assistantSpeechSuppressedUntil.value,
+  }, now)
+}
+
+/**
+ * Clears the pending assistant-speech resume timer.
+ */
+function clearAssistantSpeechResumeTimer() {
+  if (!assistantSpeechResumeTimer.value)
+    return
+
+  clearTimeout(assistantSpeechResumeTimer.value)
+  assistantSpeechResumeTimer.value = undefined
+}
+
+/**
+ * Restarts voice input after assistant playback tail audio should be gone.
+ */
+function scheduleAssistantSpeechResume() {
+  clearAssistantSpeechResumeTimer()
+
+  if (!enabled.value)
+    return
+
+  assistantSpeechResumeTimer.value = setTimeout(() => {
+    assistantSpeechResumeTimer.value = undefined
+    if (!enabled.value || isVoiceInputSuppressed())
+      return
+
+    void startAudioInteraction()
+  }, DEFAULT_ASSISTANT_SPEECH_INPUT_COOLDOWN_MS)
+}
+
+/**
+ * Ensures the microphone stream has a live audio track before binding recorder or VAD.
+ */
+async function ensureLiveAudioInputStream() {
+  if (hasLiveAudioInputTrack(stream.value))
+    return true
+
+  console.warn('[Main Page] Microphone stream is missing or ended; refreshing audio input stream')
+  stopStream()
+  await askPermission()
+  await startStream()
+
+  if (hasLiveAudioInputTrack(stream.value))
+    return true
+
+  console.warn('[Main Page] Audio input stream refresh did not produce a live audio track')
+  return false
+}
+
+/**
+ * Sends voice captions as best-effort overlay updates without interrupting chat ingestion.
+ */
+function postSpeakerCaption(text: string) {
+  postVoiceInputCaption(postCaption, { type: 'caption-speaker', text }, (error) => {
+    console.warn('[Main Page] Failed to post voice input caption:', error)
+  })
+}
+
+/**
+ * Sends buffered voice input text to the active chat session.
+ */
+async function sendVoiceInputTextToChat(text: string) {
+  try {
+    console.info('[Main Page] Sending voice input to chat:', text)
+    await chatSyncStore.requestIngest({ text })
+  }
+  catch (err) {
+    reportVoiceInputFailure('send to chat', err)
+  }
+}
+
 function handleStreamingSentenceEnd(delta: string) {
+  if (isVoiceInputSuppressed()) {
+    console.info('[Main Page] Ignoring transcription delta while assistant speech is active or cooling down')
+    return
+  }
+
   console.info('[Main Page] Received transcription delta:', delta)
   const finalText = delta
   if (!finalText || !finalText.trim()) {
     return
   }
 
-  postCaption({ type: 'caption-speaker', text: finalText })
-
-  void (async () => {
-    try {
-      console.info('[Main Page] Sending transcription to chat:', finalText)
-      await chatSyncStore.requestIngest({ text: finalText })
-    }
-    catch (err) {
-      console.error('[Main Page] Failed to send chat from voice:', err)
-    }
-  })()
+  postSpeakerCaption(finalText)
+  void sendVoiceInputTextToChat(finalText)
 }
 
 function handleStreamingSpeechEnd(text: string) {
+  if (isVoiceInputSuppressed()) {
+    console.info('[Main Page] Ignoring speech end while assistant speech is active or cooling down')
+    return
+  }
+
   console.info('[Main Page] Speech ended, final text:', text)
-  postCaption({ type: 'caption-speaker', text })
+  postSpeakerCaption(text)
 }
 
 async function handleSpeechStart() {
+  if (isVoiceInputSuppressed()) {
+    console.info('[Main Page] Ignoring speech start while assistant speech is active or cooling down')
+    return
+  }
+
   if (shouldUseStreamInput.value) {
     console.info('Speech detected - transcription session should already be active')
     return
   }
 
-  startRecord()
+  console.info('[Main Page] Speech detected, waiting for VAD speech-ready segment')
 }
 
 async function handleSpeechEnd() {
+  if (isVoiceInputSuppressed()) {
+    console.info('[Main Page] Ignoring speech end while assistant speech is active or cooling down')
+    return
+  }
+
   if (shouldUseStreamInput.value) {
     // Keep streaming session alive; idle timer in pipeline will handle teardown.
     return
   }
 
-  stopRecord()
+  console.info('[Main Page] Speech ended, VAD segment should be ready shortly')
+}
+
+/**
+ * Sends the exact VAD speech segment to the record-then-transcribe provider.
+ */
+async function handleSpeechReady(event: { buffer: Float32Array, duration: number }, ticket: VoiceInputTranscriptionTicket) {
+  if (shouldUseStreamInput.value)
+    return
+
+  if (isVoiceInputSuppressed()) {
+    console.info('[Main Page] Dropping VAD speech segment while assistant speech is active or cooling down', {
+      durationMs: event.duration,
+      sampleCount: event.buffer.length,
+    })
+    return
+  }
+
+  const { blob, diagnostics } = createVoiceInputWavFromPcmSegment({
+    buffer: event.buffer,
+    durationMs: event.duration,
+  })
+  const gate = shouldSkipVoiceInputSegment(diagnostics, voiceInputVadProfile.segmentQualityGate)
+  const debugEntry = voiceInputDebugRecorder.recordAttempt({ blob, diagnostics })
+  console.info('[Main Page] VAD speech segment ready', {
+    ...diagnostics,
+    recordingSize: blob.size,
+    skipReason: gate.skip ? gate.reason : undefined,
+    debugAudioUrl: debugEntry?.audioUrl,
+  })
+
+  if (debugEntry) {
+    console.info('[Main Page] Voice input debug clip recorded', {
+      id: debugEntry.id,
+      audioUrl: debugEntry.audioUrl,
+      diagnostics,
+    })
+  }
+
+  if (gate.skip) {
+    voiceInputDebugRecorder.markResult(debugEntry?.id, {
+      status: 'skipped',
+      error: `Skipped local segment: ${gate.reason}`,
+      skipReason: gate.reason,
+    })
+    return
+  }
+
+  let text = ''
+  try {
+    text = await transcribeForRecording(blob) ?? ''
+  }
+  catch (error) {
+    voiceInputDebugRecorder.markResult(debugEntry?.id, {
+      status: 'failed',
+      error: formatVoiceInputFailure('transcribe speech', error),
+    })
+    reportVoiceInputFailure('transcribe speech', error)
+    return
+  }
+
+  if (!ticket.isCurrent() || !enabled.value || isVoiceInputSuppressed()) {
+    voiceInputDebugRecorder.markResult(debugEntry?.id, {
+      status: 'skipped',
+      error: 'Skipped stale transcription result after voice input stopped or assistant speech started',
+    })
+    console.info('[Main Page] Dropping stale transcription result', {
+      current: ticket.isCurrent(),
+      enabled: enabled.value,
+      suppressed: isVoiceInputSuppressed(),
+      text,
+    })
+    return
+  }
+
+  if (!text || !text.trim()) {
+    const message = transcriptionError.value
+      ? formatVoiceInputFailure('transcribe speech', transcriptionError.value)
+      : 'Voice input transcribed no text.'
+    voiceInputDebugRecorder.markResult(debugEntry?.id, {
+      status: 'empty',
+      error: message,
+    })
+    console.warn('[Main Page]', message, {
+      transcriptionError: transcriptionError.value,
+      ...diagnostics,
+      recordingSize: blob.size,
+      recordingType: blob.type,
+    })
+    toast(message)
+    return
+  }
+
+  voiceInputDebugRecorder.markResult(debugEntry?.id, {
+    status: 'transcribed',
+    text,
+  })
+  postSpeakerCaption(text)
+  toast(`Voice input transcribed: ${text}`)
+  voiceTranscriptBuffer.push(text)
 }
 
 async function startAudioInteraction() {
+  if (isVoiceInputSuppressed()) {
+    console.info('[Main Page] Voice input start skipped while assistant speech is active or cooling down')
+    return
+  }
+
   if (audioInteractionStarting.value)
     return
 
-  // NOTICE: `stopOnStopRecord` only tracks whether the non-stream recording hook was registered.
-  //
-  // It does NOT guarantee that the current realtime transcription session is still attached to the
-  // latest `MediaStream`. We previously used it as a generic "already started" guard, which broke
-  // the hearing-config retoggle path: the mic stream was recreated, VAD restarted on the new stream,
-  // but `transcribeForMediaStream()` never reattached so speech was detected without any transcript.
-  //
-  // Keep the startup guard scoped to "startup in progress" only, and let stream changes restart the
-  // transcription binding when a new stream arrives.
   audioInteractionStarting.value = true
   try {
     console.info('[Main Page] Starting audio interaction...')
 
+    if (!await ensureLiveAudioInputStream())
+      return
+
     initVAD().then(() => {
-      if (stream.value) {
+      if (enabled.value && stream.value && !isVoiceInputSuppressed()) {
         console.info('[Main Page] VAD initialized successfully, starting with stream input')
         return startVAD(stream.value)
       }
     }).catch((err) => {
       console.warn('[Main Page] VAD initialization failed (non-critical for Web Speech API):', err)
+      toast.error(formatVoiceInputFailure('initialize speech detection', err))
     })
 
     if (shouldUseStreamInput.value) {
@@ -358,51 +605,44 @@ async function startAudioInteraction() {
       })
     }
 
-    // NOTICE: This hook is only for record-then-transcribe providers.
-    //
-    // Streaming providers use the active `MediaStream` directly, so this callback must not be treated
-    // as proof that a realtime session is alive. Future refactors should keep recorder-hook bookkeeping
-    // separate from stream transcription state, otherwise mic/device re-toggles can leave VAD active
-    // but transcription detached.
-    //
-    // Hook once for non-streaming providers.
-    if (!stopOnStopRecord) {
-      stopOnStopRecord = onStopRecord(async (recording) => {
-        if (shouldUseStreamInput.value)
-          return
-
-        const text = await transcribeForRecording(recording)
-        if (!text || !text.trim())
-          return
-
-        // Update caption overlay speaker text via BroadcastChannel
-        postCaption({ type: 'caption-speaker', text })
-
-        try {
-          await chatSyncStore.requestIngest({ text })
-        }
-        catch (err) {
-          console.error('Failed to send chat from voice:', err)
-        }
-      })
-    }
+    console.info('[Main Page] Record-then-transcribe providers will use VAD speech-ready segments')
   }
   catch (e) {
-    console.error('Audio interaction init failed:', e)
+    reportVoiceInputFailure('start listening', e)
   }
   finally {
     audioInteractionStarting.value = false
   }
 }
 
-function stopAudioInteraction() {
-  tryCatch(() => {
-    stopOnStopRecord?.()
-    stopOnStopRecord = undefined
+/**
+ * Stops active microphone consumers before the stage binds to another audio stream.
+ */
+async function stopAudioInteraction(options: {
+  flushTranscript?: boolean
+  clearQueuedTranscription?: boolean
+} = {}) {
+  try {
+    const flushTranscript = options.flushTranscript ?? true
+    const clearQueuedTranscription = options.clearQueuedTranscription ?? true
+
+    clearAssistantSpeechResumeTimer()
     audioInteractionStarting.value = false
-    void stopStreamingTranscription(true)
+    if (clearQueuedTranscription)
+      voiceInputTranscriptionQueue.clearPending()
+
+    if (flushTranscript)
+      await voiceTranscriptBuffer.dispose()
+    else
+      voiceTranscriptBuffer.clear()
+
+    const stoppedStreaming = stopStreamingTranscription(true)
     disposeVAD()
-  })
+    await Promise.allSettled([stoppedStreaming])
+  }
+  catch (error) {
+    reportVoiceInputFailure('stop listening', error)
+  }
 }
 
 watch(enabled, async (val) => {
@@ -412,9 +652,24 @@ watch(enabled, async (val) => {
     await startAudioInteraction()
   }
   else {
-    stopAudioInteraction()
+    await stopAudioInteraction()
   }
 }, { immediate: true })
+
+watch(nowSpeaking, async (speaking) => {
+  if (speaking) {
+    clearAssistantSpeechResumeTimer()
+    console.info('[Main Page] Assistant speech started, suspending voice input')
+    await stopAudioInteraction({ flushTranscript: false })
+    return
+  }
+
+  assistantSpeechSuppressedUntil.value = assistantSpeechCooldownDeadline()
+  console.info('[Main Page] Assistant speech ended, scheduling voice input resume', {
+    cooldownMs: DEFAULT_ASSISTANT_SPEECH_INPUT_COOLDOWN_MS,
+  })
+  scheduleAssistantSpeechResume()
+})
 
 onMounted(() => {
   if (onboardingStore.needsOnboarding) {
@@ -423,27 +678,31 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  postModelSettingsRuntimeChannelEvent({
+  postModelSettingsRuntimeEvent({
     type: 'owner-gone',
     ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
   })
-  stopAudioInteraction()
+  clearAssistantSpeechResumeTimer()
+  uninstallVoiceInputDebugConsole?.()
+  voiceInputDebugRecorder.dispose()
+  void stopAudioInteraction()
 })
 
 watch(stream, async (currentStream) => {
-  if (!enabled.value || !currentStream || audioInteractionStarting.value)
+  if (!enabled.value || !currentStream || audioInteractionStarting.value || isVoiceInputSuppressed())
     return
 
   // NOTICE: The controls-island mic toggle and device changes can replace the underlying MediaStream
   // without reloading the page. When that happens, VAD may successfully restart against the new stream,
   // but any existing transcription transport is still bound to the old one. Always allow the page to
   // re-run `startAudioInteraction()` for a newly available stream unless startup is already underway.
-  console.info('[Main Page] Stream became available, ensuring audio interaction is started')
+  console.info('[Main Page] Stream changed, restarting audio interaction')
+  await stopAudioInteraction()
   await startAudioInteraction()
 })
 
 watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
-  if (enabled.value && loaded && s) {
+  if (enabled.value && loaded && s && !isVoiceInputSuppressed()) {
     try {
       await startVAD(s)
     }

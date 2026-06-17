@@ -74,6 +74,7 @@ export type HearingTranscriptionResult = HearingTranscriptionGenerateResult | He
 
 type HearingTranscriptionInput = File | {
   file?: File
+  fileName?: string
   inputAudioStream?: ReadableStream<ArrayBuffer>
 }
 
@@ -94,6 +95,108 @@ export function filterTranscriptionByConfidence(
   return segments.filter(s => (s?.avg_logprob ?? -Infinity) >= threshold).map(s => s?.text ?? '').join('').trim()
 }
 
+/**
+ * Reads a string field from an unknown response object.
+ */
+function stringField(value: unknown, key: string) {
+  if (!value || typeof value !== 'object')
+    return ''
+
+  const field = (value as Record<string, unknown>)[key]
+  return typeof field === 'string' ? field.trim() : ''
+}
+
+/**
+ * Reads a nested object field from an unknown response object.
+ */
+function objectField(value: unknown, key: string) {
+  if (!value || typeof value !== 'object')
+    return undefined
+
+  const field = (value as Record<string, unknown>)[key]
+  return field && typeof field === 'object' ? field : undefined
+}
+
+/**
+ * Normalizes generated transcription text from OpenAI-compatible response variants.
+ *
+ * Before:
+ * - `{ result: { text: "你好" } }`
+ * - `{ segments: [{ text: "你" }, { text: "好" }] }`
+ *
+ * After:
+ * - `"你好"`
+ */
+export function normalizeGeneratedTranscriptionText(response: unknown) {
+  const directText = stringField(response, 'text')
+  if (directText)
+    return directText
+
+  for (const envelopeKey of ['result', 'data', 'output']) {
+    const nested = objectField(response, envelopeKey)
+    const nestedText = stringField(nested, 'text')
+    if (nestedText)
+      return nestedText
+  }
+
+  const segments = objectField(response, 'segments') ?? (response && typeof response === 'object' ? (response as Record<string, unknown>).segments : undefined)
+  if (Array.isArray(segments)) {
+    const text = segments
+      .map(segment => stringField(segment, 'text'))
+      .join('')
+      .trim()
+    if (text)
+      return text
+  }
+
+  return ''
+}
+
+/**
+ * Builds a compact diagnostic summary for an empty transcription response.
+ */
+export function describeEmptyTranscriptionResponse(response: unknown) {
+  if (!response || typeof response !== 'object')
+    return `response=${String(response)}`
+
+  const keys = Object.keys(response as Record<string, unknown>)
+  const nestedKeys = keys
+    .map((key) => {
+      const nested = objectField(response, key)
+      return nested ? `${key}.{${Object.keys(nested as Record<string, unknown>).join(',')}}` : ''
+    })
+    .filter(Boolean)
+
+  return [
+    `keys=${keys.join(',') || '(none)'}`,
+    ...(nestedKeys.length ? [`nested=${nestedKeys.join(';')}`] : []),
+  ].join(' ')
+}
+
+/**
+ * Resolves the upload filename for transcription requests.
+ *
+ * Use when:
+ * - OpenAI-compatible providers infer audio format from multipart filenames.
+ *
+ * Expects:
+ * - `file.name` may carry the recorder-generated extension.
+ *
+ * Returns:
+ * - A stable filename with an audio extension.
+ */
+export function resolveTranscriptionFileName(file: File, explicitFileName?: string) {
+  const explicit = explicitFileName?.trim()
+  if (explicit)
+    return explicit
+
+  const fileName = file.name.trim()
+  if (fileName)
+    return fileName
+
+  return 'recording.wav'
+}
+
 const STREAM_TRANSCRIPTION_EXECUTORS: Record<string, StreamTranscription> = {
   'aliyun-nls-transcription': streamAliyunTranscription,
   [OFFICIAL_TRANSCRIPTION_PROVIDER_ID]: streamAliyunTranscription,
@@ -104,9 +207,78 @@ export function resolveStreamTranscriptionExecutor(providerId: string): StreamTr
   return STREAM_TRANSCRIPTION_EXECUTORS[providerId]
 }
 
+/**
+ * Resolves the setup error for the selected transcription provider.
+ *
+ * Use when:
+ * - A speech pipeline entry point needs to fail before provider instantiation.
+ * - User-facing diagnostics should explain the missing Hearing selection.
+ *
+ * Expects:
+ * - `providerId` is the current `settings/hearing/active-provider` value.
+ *
+ * Returns:
+ * - A setup error when no provider is selected, otherwise `undefined`.
+ */
+export function resolveActiveTranscriptionProviderError(providerId: string): string | undefined {
+  if (providerId)
+    return undefined
+
+  return 'No active transcription provider selected. Select a provider in Settings > Hearing.'
+}
+
+/**
+ * Resolves the transcription model from Hearing state with provider config fallback.
+ *
+ * Use when:
+ * - OpenAI-compatible transcription stores the model in provider settings.
+ * - The Hearing module has not yet synchronized that model into its active model state.
+ *
+ * Expects:
+ * - `activeModel` is the current Hearing model value.
+ * - `providerConfig.model` may contain a provider-scoped model name.
+ *
+ * Returns:
+ * - The explicit Hearing model first, then the provider config model, otherwise an empty string.
+ */
+export function resolveActiveTranscriptionModel(activeModel: string, providerConfig?: Record<string, unknown>) {
+  const modelFromHearing = activeModel.trim()
+  if (modelFromHearing)
+    return modelFromHearing
+
+  const modelFromProviderConfig = typeof providerConfig?.model === 'string' ? providerConfig.model.trim() : ''
+  return modelFromProviderConfig
+}
+
+/**
+ * Resolves extra transcription request options from provider config and UI locale.
+ *
+ * Use when:
+ * - Short ASR recordings need a language hint to avoid multilingual auto-detection drift.
+ * - Provider-specific transcription prompts are configured outside the Hearing active model field.
+ *
+ * Expects:
+ * - `uiLocale` uses a BCP-47-like language tag such as `zh-Hans` or `en-US`.
+ *
+ * Returns:
+ * - OpenAI-compatible transcription options that can be merged into the provider request.
+ */
+export function resolveTranscriptionProviderOptions(providerConfig?: Record<string, unknown>, uiLocale = globalThis.navigator?.language ?? '') {
+  const configuredLanguage = typeof providerConfig?.language === 'string' ? providerConfig.language.trim() : ''
+  const localeLanguage = uiLocale.split(/[-_]/)[0]?.trim().toLowerCase() ?? ''
+  const language = configuredLanguage || localeLanguage
+  const prompt = typeof providerConfig?.prompt === 'string' ? providerConfig.prompt.trim() : ''
+
+  return {
+    ...(language ? { language } : {}),
+    ...(prompt ? { prompt } : {}),
+  }
+}
+
 export const useHearingStore = defineStore('hearing-store', () => {
   const providersStore = useProvidersStore()
   const { allAudioTranscriptionProvidersMetadata } = storeToRefs(providersStore)
+  const { trackSttStarted, trackSttSucceeded, trackSttFailed } = useAnalytics()
 
   // State
   const activeTranscriptionProvider = useLocalStorageManualReset('settings/hearing/active-provider', '')
@@ -196,12 +368,12 @@ export const useHearingStore = defineStore('hearing-store', () => {
   ): Promise<HearingTranscriptionResult> {
     const normalizedInput = (input instanceof File ? { file: input } : input ?? {}) as {
       file?: File
+      fileName?: string
       inputAudioStream?: ReadableStream<ArrayBuffer>
     }
     const features = providersStore.getTranscriptionFeatures(providerId)
     const streamExecutor = resolveStreamTranscriptionExecutor(providerId)
 
-    const { trackSttStarted, trackSttSucceeded, trackSttFailed } = useAnalytics()
     const sttStartedAt = performance.now()
     trackSttStarted(providerId)
 
@@ -275,6 +447,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
       const response = await generateTranscription({
         ...provider.transcription(model, options?.providerOptions),
         file: normalizedInput.file,
+        fileName: resolveTranscriptionFileName(normalizedInput.file, normalizedInput.fileName),
         responseFormat: useVerboseJson ? 'verbose_json' : format,
       })
 
@@ -295,11 +468,12 @@ export const useHearingStore = defineStore('hearing-store', () => {
         }
       }
 
-      const fallbackText = typeof response.text === 'string' ? response.text : ''
+      const fallbackText = normalizeGeneratedTranscriptionText(response)
       emitSucceeded(fallbackText.length, false)
       return {
         mode: 'generate',
         ...response,
+        text: fallbackText,
       }
     }
     catch (err) {
@@ -567,9 +741,10 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
 
     try {
       const providerId = activeTranscriptionProvider.value
-      if (!providerId) {
-        error.value = 'No transcription provider selected'
-        console.error('[Hearing Pipeline] No transcription provider selected')
+      const providerError = resolveActiveTranscriptionProviderError(providerId)
+      if (providerError) {
+        error.value = providerError
+        console.error('[Hearing Pipeline]', providerError)
         return
       }
 
@@ -867,33 +1042,58 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
   async function transcribeForRecording(recording: Blob | null | undefined) {
     error.value = undefined
 
-    if (!recording)
+    if (!recording) {
+      error.value = 'No recording captured from microphone'
       return
+    }
+
+    if (recording.size <= 0) {
+      error.value = 'Recording captured from microphone is empty'
+      return
+    }
 
     try {
-      if (recording && recording.size > 0) {
-        const providerId = activeTranscriptionProvider.value
-        const provider = await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, any>>(providerId)
-        if (!provider) {
-          throw new Error('Failed to initialize speech provider')
-        }
-
-        // Get model from configuration or use default
-        const model = activeTranscriptionModel.value
-        const result = await hearingStore.transcription(
-          providerId,
-          provider,
-          model,
-          new File([recording], 'recording.wav'),
-        )
-        const text = result.mode === 'stream' ? await result.text : result.text
-        if (!text || !text.trim()) {
-          error.value = 'No transcription result returned from provider'
-          return
-        }
-
-        return text
+      const providerId = activeTranscriptionProvider.value
+      const providerError = resolveActiveTranscriptionProviderError(providerId)
+      if (providerError) {
+        error.value = providerError
+        console.error('[Hearing Pipeline]', providerError)
+        return
       }
+
+      const provider = await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, any>>(providerId)
+      if (!provider) {
+        throw new Error('Failed to initialize speech provider')
+      }
+
+      const providerConfig = providersStore.getProviderConfig(providerId)
+      const model = resolveActiveTranscriptionModel(activeTranscriptionModel.value, providerConfig)
+      const providerOptions = resolveTranscriptionProviderOptions(providerConfig)
+      console.info('[Hearing Pipeline] Transcribing recording', {
+        providerId,
+        language: providerOptions.language,
+        model,
+        recordingSize: recording.size,
+        recordingType: recording.type,
+      })
+      const result = await hearingStore.transcription(
+        providerId,
+        provider,
+        model,
+        new File([recording], 'recording.wav', { type: recording.type || 'audio/wav' }),
+        undefined,
+        { providerOptions },
+      )
+      const text = result.mode === 'stream' ? await result.text : result.text
+      if (!text || !text.trim()) {
+        const responseSummary = result.mode === 'generate'
+          ? describeEmptyTranscriptionResponse(result)
+          : 'stream result returned empty text'
+        error.value = `No transcription result returned from provider (${responseSummary})`
+        return
+      }
+
+      return text
     }
     catch (err) {
       error.value = errorMessage(err)
