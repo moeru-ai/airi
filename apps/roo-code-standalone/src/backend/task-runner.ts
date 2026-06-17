@@ -16,7 +16,7 @@
  * providers — anything else can route through OpenRouter.
  */
 
-import { getState, patchState, upsertTask } from './state.js'
+import { getState, patchState, upsertTask, getTask } from './state.js'
 import type { ExtensionState } from '@roo-code/types'
 
 /**
@@ -154,19 +154,15 @@ export async function runTask(taskId: string, text: string, onUpdate?: () => voi
           }
         }
       } else if (chunk.type === 'usage') {
-        // Store cost info on the task record via patchState (immutable).
-        const s = getState()
-        const tasks = s.taskHistory || []
-        const idx = tasks.findIndex((t) => t.id === taskId)
-        if (idx !== -1) {
-          const updated = [...tasks]
-          updated[idx] = {
-            ...updated[idx],
-            tokensIn: chunk.inputTokens || updated[idx].tokensIn || 0,
-            tokensOut: chunk.outputTokens || updated[idx].tokensOut || 0,
-            totalCost: chunk.totalCost || updated[idx].totalCost || 0,
-          }
-          patchState({ taskHistory: updated } as Partial<ExtensionState>)
+        // Store cost info on the task record via upsertTask (O(1) + sync).
+        const task = getTask(taskId)
+        if (task) {
+          upsertTask({
+            ...task,
+            tokensIn: chunk.inputTokens || task.tokensIn || 0,
+            tokensOut: chunk.outputTokens || task.tokensOut || 0,
+            totalCost: chunk.totalCost || task.totalCost || 0,
+          })
           onUpdate?.()
         }
       }
