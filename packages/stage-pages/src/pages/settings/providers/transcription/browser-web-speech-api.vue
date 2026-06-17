@@ -23,7 +23,7 @@ const { t } = useI18n()
 const router = useRouter()
 
 const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, unknown>> }
 
 providersStore.initializeProvider(providerId)
 
@@ -112,12 +112,12 @@ const { audioInputs, selectedAudioInput, stream } = storeToRefs(useSettingsAudio
 const isTestingSTT = ref(false)
 const testTranscriptionText = ref<string>('')
 const testTranscriptionError = ref<string>('')
-const testTranscriptionResult = ref<any>(null)
+const testTranscriptionResult = ref<unknown>(null)
 const isTranscribing = ref(false)
 const testStreamingText = ref<string>('')
 const testStatusMessage = ref<string>('')
 const testStreamWasStarted = ref(false)
-const testRecognitionInstance = ref<any>(null)
+const testRecognitionInstance = ref<unknown>(null)
 const testAbortController = ref<AbortController | null>(null)
 
 function handleStreamStartError() {
@@ -217,7 +217,7 @@ async function startSTTTest() {
     })
 
     // Store recognition instance and result for cleanup
-    testRecognitionInstance.value = (result as any).recognition
+    testRecognitionInstance.value = result.recognition
     testTranscriptionResult.value = result
 
     testStatusMessage.value = 'Listening for speech... (Web Speech API streaming mode)'

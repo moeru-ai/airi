@@ -3,6 +3,7 @@ import type z from 'zod/v4'
 
 import { rawTool } from '@xsai/tool'
 import { nanoid } from 'nanoid'
+import type { JsonSchema } from 'xsschema'
 import { toJsonSchema } from 'xsschema'
 
 import {
@@ -24,7 +25,7 @@ export async function createSparkCommandTool(options: CreateSparkCommandToolOpti
   // NOTICE: We intentionally bypass `tool(...)` here so we can normalize the generated
   // JSON Schema before `strictJsonSchema(...)` finalizes it. This is required for providers
   // like Azure that reject some `anyOf` nullable forms and strict-object optional-field shapes.
-  const parameters = normalizeNullableAnyOf((await toJsonSchema(sparkCommandToolSchema)) as any)
+  const parameters = normalizeNullableAnyOf((await toJsonSchema(sparkCommandToolSchema)) as JsonSchema)
 
   return [
     rawTool({

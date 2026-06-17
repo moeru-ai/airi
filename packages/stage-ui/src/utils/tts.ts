@@ -80,8 +80,8 @@ export async function* chunkTTSInput(
     const hard = hardPunctuations.has(value)
     const soft = softPunctuations.has(value)
     const kept = keptPunctuations.has(value)
-    let next: IteratorResult<string, any> | undefined
-    let afterNext: IteratorResult<string, any> | undefined
+    let next: IteratorResult<string, void> | undefined
+    let afterNext: IteratorResult<string, void> | undefined
 
     if (flush || special || hard || soft) {
       // eslint-disable-next-line default-case

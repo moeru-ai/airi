@@ -69,7 +69,19 @@ export function createWebSpeechAPIProvider(): TranscriptionProviderWithExtraOpti
     )
   }
 
-  const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+  const SpeechRecognition =
+    (
+      window as unknown as {
+        SpeechRecognition: typeof SpeechRecognition
+        webkitSpeechRecognition: typeof SpeechRecognition
+      }
+    ).SpeechRecognition ||
+    (
+      window as unknown as {
+        SpeechRecognition: typeof SpeechRecognition
+        webkitSpeechRecognition: typeof SpeechRecognition
+      }
+    ).webkitSpeechRecognition
 
   return {
     transcription: (model: string, extraOptions?: WebSpeechAPIExtraOptions) => {
@@ -107,7 +119,7 @@ export function createWebSpeechAPIProvider(): TranscriptionProviderWithExtraOpti
           recognition.interimResults = extraOptions?.interimResults ?? true
           recognition.maxAlternatives = extraOptions?.maxAlternatives ?? 1
 
-          recognition.onresult = (event: any) => {
+          recognition.onresult = (event: SpeechRecognitionEvent) => {
             let finalTranscript = ''
 
             for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -129,7 +141,7 @@ export function createWebSpeechAPIProvider(): TranscriptionProviderWithExtraOpti
             // }
           }
 
-          recognition.onerror = (event: any) => {
+          recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
             const error = new Error(`Speech recognition error: ${event.error}`)
             textStreamCtrl?.error(error)
             deferredText.reject(error)
@@ -175,12 +187,12 @@ export function streamWebSpeechAPITranscription(
     onSentenceEnd?: (delta: string) => void
     onSpeechEnd?: (text: string) => void
   },
-): StreamTranscriptionResult & { recognition?: any } {
+): StreamTranscriptionResult & { recognition?: SpeechRecognition } {
   const deferredText = createDeferred<string>()
   let fullText = ''
   let textStreamCtrl: ReadableStreamDefaultController<string> | undefined
   let fullStreamCtrl: ReadableStreamDefaultController<StreamTranscriptionDelta> | undefined
-  let recognitionInstance: any = null
+  let recognitionInstance: SpeechRecognition | null = null
 
   const fullStream = new ReadableStream<StreamTranscriptionDelta>({
     start(controller) {
@@ -221,7 +233,19 @@ export function streamWebSpeechAPITranscription(
     }
   }
 
-  const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+  const SpeechRecognition =
+    (
+      window as unknown as {
+        SpeechRecognition: typeof SpeechRecognition
+        webkitSpeechRecognition: typeof SpeechRecognition
+      }
+    ).SpeechRecognition ||
+    (
+      window as unknown as {
+        SpeechRecognition: typeof SpeechRecognition
+        webkitSpeechRecognition: typeof SpeechRecognition
+      }
+    ).webkitSpeechRecognition
   const recognition = new SpeechRecognition()
   recognitionInstance = recognition
 
@@ -236,7 +260,7 @@ export function streamWebSpeechAPITranscription(
     interimResults: recognition.interimResults,
   })
 
-  recognition.onresult = (event: any) => {
+  recognition.onresult = (event: SpeechRecognitionEvent) => {
     let finalTranscript = ''
     let interimTranscript = ''
 
@@ -272,7 +296,7 @@ export function streamWebSpeechAPITranscription(
     }
   }
 
-  recognition.onerror = (event: any) => {
+  recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
     const errorType = event.error || 'unknown'
     console.warn('Web Speech API error:', errorType)
 
@@ -370,7 +394,7 @@ export function streamWebSpeechAPITranscription(
     })
   }
 
-  function createAndStartNewRecognitionInstance(sourceRecognition: any): any {
+  function createAndStartNewRecognitionInstance(sourceRecognition: SpeechRecognition): SpeechRecognition {
     const newRecognition = new SpeechRecognition()
     newRecognition.lang = sourceRecognition.lang
     newRecognition.continuous = sourceRecognition.continuous
@@ -389,12 +413,12 @@ export function streamWebSpeechAPITranscription(
       recognition.start()
       console.info('Web Speech API recognition started successfully')
       return true
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Common errors:
       // - "already started": Recognition is already running
       // - "not-allowed": Microphone permission denied
       // - "service-not-allowed": Service not available
-      const errorMessage = error?.message || String(error)
+      const errorMessage = error instanceof Error ? error.message : String(error)
       console.warn('Web Speech API recognition start failed:', errorMessage, error)
 
       if (errorMessage.includes('already') || errorMessage.includes('started')) {
@@ -420,9 +444,9 @@ export function streamWebSpeechAPITranscription(
         createAndStartNewRecognitionInstance(recognition)
         console.info('Web Speech API recognition restarted successfully with new instance')
         return true
-      } catch (restartError: any) {
+      } catch (restartError: unknown) {
         const err = new Error(
-          `Failed to start Web Speech API recognition: ${restartError?.message || String(restartError)}`,
+          `Failed to start Web Speech API recognition: ${restartError instanceof Error ? restartError.message : String(restartError)}`,
         )
         fullStreamCtrl?.error(err)
         textStreamCtrl?.error(err)

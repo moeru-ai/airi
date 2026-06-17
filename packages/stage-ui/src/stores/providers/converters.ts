@@ -1,6 +1,6 @@
 import type { ComposerTranslation } from 'vue-i18n'
 
-import type { ProviderDefinition, ProviderValidationPlan } from '../../libs'
+import type { ModelInfo, ProviderDefinition, ProviderValidationPlan } from '../../libs/providers/types'
 import type { ProviderMetadata } from '../providers'
 
 import { listModels } from '@xsai/model'
@@ -24,29 +24,31 @@ function getCategoryFromTasks(tasks: string[]): ProviderMetadata['category'] {
   return 'chat'
 }
 
-function extractSchemaDefaults(definition: ProviderDefinition<any>, t: ComposerTranslation) {
+function extractSchemaDefaults<TConfig>(definition: ProviderDefinition<TConfig>, t: ComposerTranslation) {
   const defaults: Record<string, unknown> = {}
 
   try {
-    const schema = definition.createProviderConfig({ t }) as any
-    const shape = schema?.shape
+    const schema = definition.createProviderConfig({ t })
+    const shape = (schema as { shape?: Record<string, unknown> })?.shape
 
     // Zod object-level parsing fails when required fields (for example apiKey) are missing.
     // Extract each field default individually to preserve default base URLs.
     if (shape && typeof shape === 'object') {
       for (const [key, fieldSchema] of Object.entries(shape)) {
-        const parsedField = (fieldSchema as any)?.safeParse?.(undefined)
+        const parsedField = (
+          fieldSchema as { safeParse?: (value: unknown) => { success: boolean; data?: unknown } }
+        )?.safeParse?.(undefined)
         if (parsedField?.success) {
           defaults[key] = parsedField.data
         }
       }
     }
 
-    const parsed = schema?.safeParse?.({})
+    const parsed = (schema as { safeParse?: (value: unknown) => { success: boolean; data?: unknown } })?.safeParse?.({})
     if (parsed?.success && typeof parsed.data === 'object' && parsed.data !== null) {
       Object.assign(defaults, parsed.data as Record<string, unknown>)
     }
-  // eslint-disable-next-line no-empty
+    // eslint-disable-next-line no-empty
   } catch {
     // noop
   }
@@ -72,15 +74,15 @@ function buildConfigValidationResult(plan: ProviderValidationPlan) {
   }
 }
 
-function mapModelsToMetadataModels(providerId: string, models: any[]) {
-  return models.map((model: any) => {
+function mapModelsToMetadataModels(providerId: string, models: ModelInfo[]) {
+  return models.map((model: ModelInfo) => {
     return {
       id: model.id,
-      name: model.name || model.display_name || model.id,
+      name: model.name || model.id,
       provider: providerId,
       description: model.description || '',
-      contextLength: model.context_length || 0,
-      deprecated: false,
+      contextLength: model.contextLength ?? 0,
+      deprecated: model.deprecated ?? false,
     }
   })
 }
@@ -90,8 +92,8 @@ function appendUniqueReason(reasons: string[], next: string) {
   if (!reasons.includes(next)) reasons.push(next)
 }
 
-export function convertProviderDefinitionToMetadata(
-  definition: ProviderDefinition<any>,
+export function convertProviderDefinitionToMetadata<TConfig>(
+  definition: ProviderDefinition<TConfig>,
   t: ComposerTranslation,
   options: {
     fallbackDefaultOptions?: ProviderMetadata['defaultOptions']
@@ -122,35 +124,41 @@ export function convertProviderDefinitionToMetadata(
 
       return options.fallbackDefaultOptions?.() || {}
     },
-    createProvider: async (config) => (await definition.createProvider(config as any)) as any,
+    createProvider: async (config: TConfig) => await definition.createProvider(config),
     capabilities: {
       listModels: definition.extraMethods?.listModels
-        ? async (config) => {
-            const provider = await definition.createProvider(config as any)
+        ? async (config: TConfig) => {
+            const provider = await definition.createProvider(config)
             try {
-              const models = await definition.extraMethods!.listModels!(config as any, provider)
-              return mapModelsToMetadataModels(definition.id, models as any[])
+              const models = await definition.extraMethods!.listModels!(config, provider)
+              return mapModelsToMetadataModels(definition.id, models)
             } finally {
               await (provider as { dispose?: () => Promise<void> | void }).dispose?.()
             }
           }
-        : async (config) => {
-            const provider = await definition.createProvider(config as any)
+        : async (config: TConfig) => {
+            const provider = await definition.createProvider(config)
             try {
               if (isModelProvider(provider)) {
                 const models = await listModels(provider.model())
-                return mapModelsToMetadataModels(definition.id, models as any[])
+                return mapModelsToMetadataModels(definition.id, models as ModelInfo[])
               }
 
-              const baseUrl = typeof (config as any).baseUrl === 'string' ? (config as any).baseUrl.trim() : ''
-              const apiKey = typeof (config as any).apiKey === 'string' ? (config as any).apiKey.trim() : ''
+              const baseUrl =
+                typeof (config as { baseUrl?: unknown }).baseUrl === 'string'
+                  ? (config as { baseUrl?: string }).baseUrl.trim()
+                  : ''
+              const apiKey =
+                typeof (config as { apiKey?: unknown }).apiKey === 'string'
+                  ? (config as { apiKey?: string }).apiKey.trim()
+                  : ''
               if (!baseUrl) return []
 
               const models = await listModels({
                 baseURL: baseUrl,
                 ...(apiKey ? { apiKey } : {}),
               })
-              return mapModelsToMetadataModels(definition.id, models as any[])
+              return mapModelsToMetadataModels(definition.id, models as ModelInfo[])
             } catch {
               return []
             } finally {
@@ -158,20 +166,20 @@ export function convertProviderDefinitionToMetadata(
             }
           },
       listVoices: definition.extraMethods?.listVoices
-        ? async (config, model) => {
-            const provider = await definition.createProvider(config as any)
+        ? async (config: TConfig, model?: string) => {
+            const provider = await definition.createProvider(config)
             try {
-              return await definition.extraMethods!.listVoices!(config as any, provider, model)
+              return await definition.extraMethods!.listVoices!(config, provider, model)
             } finally {
               await (provider as { dispose?: () => Promise<void> | void }).dispose?.()
             }
           }
         : undefined,
       loadModel: definition.extraMethods?.loadModel
-        ? async (config, hooks) => {
-            const provider = await definition.createProvider(config as any)
+        ? async (config: TConfig, hooks?: { onProgress?: (progress: unknown) => Promise<void> | void }) => {
+            const provider = await definition.createProvider(config)
             try {
-              await definition.extraMethods!.loadModel!(config as any, provider, hooks)
+              await definition.extraMethods!.loadModel!(config, provider, hooks)
             } finally {
               await (provider as { dispose?: () => Promise<void> | void }).dispose?.()
             }
@@ -277,8 +285,8 @@ export function convertProviderDefinitionToMetadata(
   }
 }
 
-export function convertProviderDefinitionsToMetadata(
-  definitions: ProviderDefinition<any>[],
+export function convertProviderDefinitionsToMetadata<TConfig>(
+  definitions: ProviderDefinition<TConfig>[],
   t: ComposerTranslation,
   currentMetadata: Record<string, ProviderMetadata>,
 ) {

@@ -392,7 +392,10 @@ export class RepositoryIntelligence {
 				for (const imp of node.imports) {
 					const target = fileGraph.find((f) => f.path === imp || f.path.endsWith(imp))
 					if (target) {
-						(target as any).importedBy = [...target.importedBy, node.path]
+						;(target as FileGraphNode & { importedBy: string[] }).importedBy = [
+							...target.importedBy,
+							node.path,
+					]
 					}
 				}
 			}

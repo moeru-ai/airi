@@ -149,7 +149,13 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
 
     model = await AutoModel.from_pretrained(MODEL_ID, {
       device,
-      progress_callback: (progress: any) => {
+      progress_callback: (progress: {
+        progress?: number
+        status?: string
+        file?: string
+        loaded?: number
+        total?: number
+      }) => {
         sendProgress(requestId, progress?.progress ?? -1, progress?.status)
       },
     })
@@ -212,7 +218,7 @@ async function runInference(request: RunInferenceRequest<BackgroundRemovalInput>
       output: { maskData, width, height },
     }
     // Transfer the buffer to avoid copying
-    ;(globalThis as any).postMessage(result, [maskData.buffer])
+    globalThis.postMessage(result, [maskData.buffer])
   } catch (error) {
     if (isCancelled(requestId)) clearCancelled(requestId)
     else sendError(requestId, error, 'inference')

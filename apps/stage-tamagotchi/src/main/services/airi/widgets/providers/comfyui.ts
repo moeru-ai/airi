@@ -9,12 +9,31 @@ const log = useLogg('providers-comfyui').useGlobalConfig()
 const POLL_INTERVAL_MS = 5000
 const POLL_TIMEOUT_MS = 1000 * 60 * 5 // 5 minutes
 
+interface ComfyUIWorkflowNode {
+  _meta?: { title?: string }
+  inputs: Record<string, unknown>
+  class_type?: string
+  [key: string]: unknown
+}
+
+interface ComfyUIWorkflowTemplate {
+  id: string
+  workflow: Record<string, ComfyUIWorkflowNode>
+  exposedFields: Record<string, string[]>
+}
+
+interface ComfyUIProviderConfig {
+  comfyuiServerUrl?: string
+  comfyuiSavedWorkflows?: ComfyUIWorkflowTemplate[]
+  comfyuiActiveWorkflow?: string
+}
+
 export class ComfyUIProvider implements ArtistryProvider {
   readonly id = 'comfyui'
   readonly name = 'ComfyUI (Local)'
 
   private serverUrl = 'http://localhost:8188'
-  private savedWorkflows: any[] = []
+  private savedWorkflows: ComfyUIWorkflowTemplate[] = []
   private activeWorkflowId = ''
 
   private jobResults = new Map<string, ArtistryJobStatus>()
@@ -50,7 +69,7 @@ export class ComfyUIProvider implements ArtistryProvider {
     if (callback) callback(status)
   }
 
-  async initialize(config: any): Promise<void> {
+  async initialize(config: ComfyUIProviderConfig): Promise<void> {
     if (config?.comfyuiServerUrl) this.serverUrl = config.comfyuiServerUrl.replace(/\/+$/, '') // strip trailing slashes
     if (config?.comfyuiSavedWorkflows) this.savedWorkflows = config.comfyuiSavedWorkflows
     if (config?.comfyuiActiveWorkflow) this.activeWorkflowId = config.comfyuiActiveWorkflow
@@ -61,7 +80,7 @@ export class ComfyUIProvider implements ArtistryProvider {
 
     // Resolve which workflow template to use --- per-request template override takes precedence over card model default
     const templateId = request.extra?.template || request.model || this.activeWorkflowId
-    const template = this.savedWorkflows.find((w: any) => w.id === templateId)
+    const template = this.savedWorkflows.find((w) => w.id === templateId)
 
     if (!template) {
       this.updateStatus(jobId, {
@@ -78,11 +97,7 @@ export class ComfyUIProvider implements ArtistryProvider {
     return { jobId, providerJobId: jobId }
   }
 
-  private async pollForResult(
-    jobId: string,
-    template: { workflow: Record<string, any>; exposedFields: Record<string, string[]> },
-    request: ArtistryRequest,
-  ) {
+  private async pollForResult(jobId: string, template: ComfyUIWorkflowTemplate, request: ArtistryRequest) {
     this.updateStatus(jobId, { status: 'running', actionLabel: 'Preparing workflow...' })
 
     try {
@@ -99,8 +114,8 @@ export class ComfyUIProvider implements ArtistryProvider {
         try {
           uploadedImageName = await this.uploadImage(request.extra.image)
           log.log(`[ComfyUI] Texture uploaded as: ${uploadedImageName}`)
-        } catch (e: any) {
-          log.error(`[ComfyUI] Texture upload failed: ${e.message}`)
+        } catch (e: unknown) {
+          log.error(`[ComfyUI] Texture upload failed: ${e instanceof Error ? e.message : String(e)}`)
         }
       }
 
@@ -136,8 +151,8 @@ export class ComfyUIProvider implements ArtistryProvider {
           },
           15000,
         )
-      } catch (e: any) {
-        throw new Error(`Cannot connect to ComfyUI at ${this.serverUrl}: ${e.message}`)
+      } catch (e: unknown) {
+        throw new Error(`Cannot connect to ComfyUI at ${this.serverUrl}: ${e instanceof Error ? e.message : String(e)}`)
       }
 
       if (!queueResp.ok) {
@@ -174,8 +189,8 @@ export class ComfyUIProvider implements ArtistryProvider {
         let histResp: Response
         try {
           histResp = await this.fetchWithTimeout(`${this.serverUrl}/history/${promptId}`, {}, 10000)
-        } catch (e: any) {
-          throw new Error(`ComfyUI disconnected during polling: ${e.message}`)
+        } catch (e: unknown) {
+          throw new Error(`ComfyUI disconnected during polling: ${e instanceof Error ? e.message : String(e)}`)
         }
 
         if (histResp.ok) {
@@ -232,8 +247,8 @@ export class ComfyUIProvider implements ArtistryProvider {
           }
         }
       }
-    } catch (error: any) {
-      const errorMessage = error.message || String(error)
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
       log.error(`[ComfyUI] Generation failed for job ${jobId}: ${errorMessage}`)
       this.updateStatus(jobId, {
         status: 'failed',
@@ -256,14 +271,14 @@ export class ComfyUIProvider implements ArtistryProvider {
    */
   // eslint-disable-next-line class-methods-use-this
   private applyOverrides(
-    template: { workflow: Record<string, any>; exposedFields: Record<string, string[]> },
+    template: ComfyUIWorkflowTemplate,
     request: ArtistryRequest,
-  ): Record<string, any> {
+  ): Record<string, ComfyUIWorkflowNode> {
     // Deep clone the workflow so we don't mutate the stored template
-    const prompt = JSON.parse(JSON.stringify(template.workflow))
+    const prompt: Record<string, ComfyUIWorkflowNode> = JSON.parse(JSON.stringify(template.workflow))
 
     // Build overrides from the request
-    const overrides: Record<string, Record<string, any>> = {}
+    const overrides: Record<string, Record<string, unknown>> = {}
 
     // The main prompt text goes into the first exposed "text" field we find
     // COMPAT: If the user ALREADY used a {{PROMPT}} placeholder in the extra params, we skip this auto-injection
@@ -295,7 +310,9 @@ export class ComfyUIProvider implements ArtistryProvider {
 
     // Still support legacy .options nesting just in case
     if (request.extra?.options) {
-      for (const [nodeTitle, fields] of Object.entries(request.extra.options as Record<string, Record<string, any>>)) {
+      for (const [nodeTitle, fields] of Object.entries(
+        request.extra.options as Record<string, Record<string, unknown>>,
+      )) {
         if (!overrides[nodeTitle]) overrides[nodeTitle] = {}
         Object.assign(overrides[nodeTitle], fields)
       }
@@ -371,7 +388,7 @@ export class ComfyUIProvider implements ArtistryProvider {
     return data.name // Returns the filename in ComfyUI's input folder
   }
 
-  private replacePlaceholders(obj: any, replacements: Record<string, string>): any {
+  private replacePlaceholders(obj: unknown, replacements: Record<string, string>): unknown {
     if (typeof obj === 'string') {
       let result = obj
       for (const [placeholder, value] of Object.entries(replacements)) {
@@ -383,8 +400,8 @@ export class ComfyUIProvider implements ArtistryProvider {
     if (Array.isArray(obj)) return obj.map((item) => this.replacePlaceholders(item, replacements))
 
     if (obj !== null && typeof obj === 'object') {
-      const newObj: any = {}
-      for (const [key, value] of Object.entries(obj)) {
+      const newObj: Record<string, unknown> = {}
+      for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
         newObj[key] = this.replacePlaceholders(value, replacements)
       }
       return newObj

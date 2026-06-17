@@ -16,7 +16,6 @@ const keptPunctuations = new Set('?？!！')
 const hardPunctuations = new Set('.。?？!！…⋯～~\n\t\r')
 const softPunctuations = new Set(',，、–—:：;；《》「」')
 
-
 export interface TtsInputChunk {
   text: string
   words: number
@@ -79,8 +78,8 @@ export async function* chunkTtsInput(
     const hard = hardPunctuations.has(value)
     const soft = softPunctuations.has(value)
     const kept = keptPunctuations.has(value)
-    let next: IteratorResult<string, any> | undefined
-    let afterNext: IteratorResult<string, any> | undefined
+    let next: IteratorResult<string, void> | undefined
+    let afterNext: IteratorResult<string, void> | undefined
 
     if (flush || special || hard || soft) {
       switch (value) {
@@ -395,7 +394,7 @@ export function createTtsSegmentStream(
             const bracketsUnclosed = stack.length > 0
             const starMatch = pendingText.match(/\*([^*]*)$/)
             const italicUnclosed =
-              (pendingText.match(/\*/g) || []).length % 2 !== 0 && starMatch !== null && !starMatch[1].startsWith(" ")
+              (pendingText.match(/\*/g) || []).length % 2 !== 0 && starMatch !== null && !starMatch[1].startsWith(' ')
             // Detect unclosed ** (bold): count ** occurrences — odd means unclosed bold
             const boldDoubleCount = (pendingText.match(/\*\*/g) || []).length
             const boldUnclosed = boldDoubleCount % 2 !== 0

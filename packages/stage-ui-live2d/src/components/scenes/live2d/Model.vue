@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { Application } from '@pixi/app'
+import type { ExpressionManager } from 'pixi-live2d-display/cubism4'
 
-import type { PixiLive2DInternalModel } from '../../../composables/live2d'
+import type { CubismEyeBlink, PixiLive2DInternalModel } from '../../../composables/live2d'
 
 import { listenBeatSyncBeatSignal } from '@proj-airi/stage-shared/beat-sync'
 import { useTheme } from '@proj-airi/ui'
@@ -180,8 +181,8 @@ const expressionController = useExpressionController({
   modelId: props.modelId,
 })
 // Saved SDK manager references for runtime expression toggle (restore on disable)
-const savedEyeBlink = shallowRef<any>(null)
-const savedExpressionManager = shallowRef<any>(null)
+const savedEyeBlink = shallowRef<CubismEyeBlink | undefined>(undefined)
+const savedExpressionManager = shallowRef<ExpressionManager | undefined>(undefined)
 
 const localCurrentMotion = ref<{ group: string; index: number }>({ group: 'Idle', index: 0 })
 const beatSync = createBeatSyncController({
@@ -286,7 +287,7 @@ async function loadModel() {
     availableMotions.value = Object.entries(motionManager.definitions)
       .flatMap(
         ([motionName, definition]) =>
-          definition?.map((motion: any, index: number) => ({
+          definition?.map((motion: { File: string }, index: number) => ({
             motionName,
             motionIndex: index,
             fileName: motion.File,
@@ -300,7 +301,7 @@ async function loadModel() {
 
     // Configure the selected motion to loop
     if (selectedMotionGroup !== null && selectedMotionIndex) {
-      const groupIndex = (motionManager.groups as Record<string, any>)[selectedMotionGroup]
+      const groupIndex = (motionManager.groups as Record<string, string | undefined>)[selectedMotionGroup]
       if (groupIndex !== undefined && motionManager.motionGroups[groupIndex]) {
         const motionIndex = Number.parseInt(selectedMotionIndex)
         const motion = motionManager.motionGroups[groupIndex][motionIndex]
@@ -327,7 +328,7 @@ async function loadModel() {
     // FIXME: it cannot blink if loading a model only have idle motion
     if (motionManager.groups.idle) {
       motionManager.motionGroups[motionManager.groups.idle]?.forEach((motion) => {
-        motion._motionData.curves.forEach((curve: any) => {
+        motion._motionData.curves.forEach((curve: { id: string }) => {
           // TODO: After emotion mapper, stage editor, eye related parameters should be take cared to be dynamical instead of hardcoding
           if (curve.id === 'ParamEyeBallX' || curve.id === 'ParamEyeBallY') {
             curve.id = `_${curve.id}`
@@ -422,14 +423,14 @@ async function loadModel() {
       // replaces it. The SDK's manager runs after motionManager.update() and
       // would overwrite our final-plugin values every frame.
       if (motionManager.expressionManager) {
-        ;(motionManager as any).expressionManager = null
+        ;(motionManager as { expressionManager: unknown }).expressionManager = null
       }
       // Disable SDK eyeBlink — it runs on frames where motionUpdated=false and
       // would conflict with expression eye parameter overrides. Our auto-blink
       // plugin (Force Auto Blink setting) provides the replacement for models
       // without idle-motion blink curves.
       if (internalModel.eyeBlink) {
-        ;(internalModel as any).eyeBlink = null
+        ;(internalModel as { eyeBlink: unknown }).eyeBlink = null
       }
 
       internalModelRef.value = internalModel
@@ -460,7 +461,9 @@ async function initExpressionController(internalModel?: PixiLive2DInternalModel)
   // Dispose any previous state (handles model reloads)
   expressionController.dispose()
 
-  const settings = internalModel?.settings as any
+  const settings = internalModel?.settings as
+    | { expressions?: { Name: string; File: string }[]; resolveURL?: (filePath: string) => string }
+    | undefined
   if (!settings) return
 
   // model3.json stores expressions as { Name, File }[] under settings.expressions
@@ -765,10 +768,10 @@ watch(live2dExpressionEnabled, (enabled) => {
   const mm = im.motionManager
   if (enabled) {
     if (mm.expressionManager) {
-      ;(mm as any).expressionManager = null
+      ;(mm as { expressionManager: unknown }).expressionManager = null
     }
     if (im.eyeBlink) {
-      ;(im as any).eyeBlink = null
+      ;(im as { eyeBlink: unknown }).eyeBlink = null
     }
 
     internalModelRef.value = im

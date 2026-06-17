@@ -258,6 +258,12 @@ async function* streamAnthropic(
   const apiKey = String(apiConfig.apiKey ?? '')
   const model = String(apiConfig.apiModelId ?? apiConfig.modelId ?? 'claude-sonnet-4-5')
 
+  // Anthropic expects content as array of content blocks, not a plain string.
+  const anthropicMessages = messages.map((m) => ({
+    role: m.role,
+    content: [{ type: 'text' as const, text: m.content }],
+  }))
+
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -270,7 +276,7 @@ async function* streamAnthropic(
       model,
       max_tokens: 4096,
       system: systemPrompt,
-      messages,
+      messages: anthropicMessages,
       stream: true,
     }),
   })
@@ -489,7 +495,7 @@ async function* streamOpenRouter(
  */
 async function* parseSSE(
   res: Response,
-  extract: (data: any) => StreamChunk | StreamChunk[] | null,
+  extract: (data: Record<string, unknown>) => StreamChunk | StreamChunk[] | null,
 ): AsyncGenerator<StreamChunk> {
   const reader = res.body?.getReader()
   if (!reader) throw new Error('No response body')
@@ -511,9 +517,9 @@ async function* parseSSE(
       const json = trimmed.slice(5).trim()
       if (json === '[DONE]') continue
 
-      let data: any
+      let data: Record<string, unknown>
       try {
-        data = JSON.parse(json)
+        data = JSON.parse(json) as Record<string, unknown>
       } catch {
         continue
       }
@@ -533,9 +539,9 @@ async function* parseSSE(
     if (trimmed.startsWith('data:')) {
       const json = trimmed.slice(5).trim()
       if (json && json !== '[DONE]') {
-        let data: any
+        let data: Record<string, unknown>
         try {
-          data = JSON.parse(json)
+          data = JSON.parse(json) as Record<string, unknown>
         } catch {
           return
         }

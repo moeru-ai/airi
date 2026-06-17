@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
+import type { ComposerTranslation } from 'vue-i18n'
 
+import type { ProviderDefinition } from '../../libs/providers/types'
 import { convertProviderDefinitionToMetadata } from './converters'
 
 vi.mock('@xsai/model', () => ({
@@ -21,10 +23,10 @@ describe('providers converters', () => {
           apiKey: z.string(),
           baseUrl: z.string().optional().default('https://example.com/v1/'),
         }),
-      createProvider: () => ({}) as any,
-    } as any
+      createProvider: () => ({}),
+    } as unknown as ProviderDefinition<{ apiKey: string; baseUrl?: string }>
 
-    const metadata = convertProviderDefinitionToMetadata(definition, ((key: string) => key) as any)
+    const metadata = convertProviderDefinitionToMetadata(definition, ((key: string) => key) as ComposerTranslation)
 
     expect(metadata.defaultOptions?.()).toMatchObject({
       baseUrl: 'https://example.com/v1/',
@@ -57,9 +59,9 @@ describe('providers converters', () => {
         ],
       },
       validationRequiredWhen: () => true,
-    } as any
+    } as unknown as ProviderDefinition<{ apiKey: string; baseUrl?: string }>
 
-    const metadata = convertProviderDefinitionToMetadata(definition, ((key: string) => key) as any)
+    const metadata = convertProviderDefinitionToMetadata(definition, ((key: string) => key) as ComposerTranslation)
     const models = await metadata.capabilities.listModels?.({ apiKey: 'k', baseUrl: 'https://example.com/v1/' })
 
     expect(models).toMatchObject([
@@ -102,9 +104,9 @@ describe('providers converters', () => {
         ],
       },
       validationRequiredWhen: () => true,
-    } as any
+    } as unknown as ProviderDefinition<{ apiKey: string; baseUrl?: string }>
 
-    const metadata = convertProviderDefinitionToMetadata(definition, ((key: string) => key) as any)
+    const metadata = convertProviderDefinitionToMetadata(definition, ((key: string) => key) as ComposerTranslation)
     const result = await metadata.validators.validateProviderConfig({ apiKey: 'k' }, { skipChatPingCheck: true })
 
     expect(result.valid).toBe(false)

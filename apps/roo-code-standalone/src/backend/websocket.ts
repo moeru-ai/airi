@@ -156,7 +156,7 @@ function handleMessage(ws: WebSocket, message: Record<string, unknown>): void {
       if (taskId && typeof taskId === 'string') {
         const task = getTask(taskId)
         if (task) {
-          ;(task as any).status = 'cancelled'
+          ;(task as Omit<HistoryItem, 'status'> & { status: string }).status = 'cancelled'
           upsertTask(task)
           send(ws, { type: 'taskUpdated', task, requestId })
         }

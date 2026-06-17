@@ -51,7 +51,7 @@ export class VAD implements BaseVAD {
 
       // Full-precision
       this.model = await AutoModel.from_pretrained('onnx-community/silero-vad', {
-        config: { model_type: 'custom' } as any,
+        config: { model_type: 'custom' },
         dtype: 'fp32',
       })
       this.isReady = true
