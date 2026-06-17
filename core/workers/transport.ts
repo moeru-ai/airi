@@ -90,7 +90,7 @@ export class StdioWorkerTransport implements WorkerTransport {
 			return Promise.reject(new Error("Transport is closed or stdin is destroyed."))
 		}
 
-		const data = this.encodeMessage(message)
+		const data = StdioWorkerTransport.encodeMessage(message)
 		return new Promise<void>((resolve, reject) => {
 			this.process.stdin!.write(data, (err) => {
 				if (err) reject(err)
@@ -276,7 +276,7 @@ export class StdioWorkerTransport implements WorkerTransport {
 	 *
 	 * Format: [4 bytes: length][N bytes: UTF-8 JSON]
 	 */
-	private encodeMessage(message: WorkerMessage): Buffer {
+	private static encodeMessage(message: WorkerMessage): Buffer {
 		const json = serializeWorkerMessage(message)
 		const payload = Buffer.from(json, "utf-8")
 		const header = Buffer.alloc(HEADER_SIZE)

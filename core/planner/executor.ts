@@ -347,7 +347,7 @@ export class PlanExecutor {
 
 			// Wait for at least one step to complete before re-evaluating.
 			if (running.size > 0) {
-				await this.waitForAnyStep(running)
+				await PlanExecutor.waitForAnyStep(running)
 			}
 		}
 
@@ -642,7 +642,7 @@ export class PlanExecutor {
 	/**
 	 * Wait for any step in the running set to complete.
 	 */
-	private waitForAnyStep(running: Set<string>): Promise<void> {
+	private static waitForAnyStep(running: Set<string>): Promise<void> {
 		return new Promise<void>((resolve) => {
 			if (running.size === 0) {
 				resolve()

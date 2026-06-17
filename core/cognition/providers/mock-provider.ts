@@ -82,7 +82,7 @@ export class MockCognitionProvider implements CognitionProvider {
 		}
 
 		// Build a deterministic reasoning trace.
-		const trace = this.buildReasoningTrace(request.id, proposal)
+		const trace = MockCognitionProvider.buildReasoningTrace(request.id, proposal)
 
 		const durationMs = Date.now() - startTime
 
@@ -118,7 +118,7 @@ export class MockCognitionProvider implements CognitionProvider {
 	/**
 	 * Build a deterministic reasoning trace for a proposal.
 	 */
-	private buildReasoningTrace(requestId: ReasoningId, proposal: PlanProposal): ReasoningTrace {
+	private static buildReasoningTrace(requestId: ReasoningId, proposal: PlanProposal): ReasoningTrace {
 		const now = new Date().toISOString()
 		const entries: ReasoningEntry[] = [
 			{
