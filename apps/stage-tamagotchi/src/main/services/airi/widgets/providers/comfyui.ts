@@ -132,7 +132,7 @@ export class ComfyUIProvider implements ArtistryProvider {
           replacements['{{IMAGE}}'] = uploadedImageName
         }
 
-        resolvedPrompt = this.replacePlaceholders(resolvedPrompt, replacements)
+        resolvedPrompt = this.replacePlaceholders(resolvedPrompt, replacements) as Record<string, ComfyUIWorkflowNode>
       }
 
       log.log(`[ComfyUI] Resolved prompt for ${jobId}:`, JSON.stringify(resolvedPrompt, null, 2))
@@ -275,7 +275,10 @@ export class ComfyUIProvider implements ArtistryProvider {
     request: ArtistryRequest,
   ): Record<string, ComfyUIWorkflowNode> {
     // Deep clone the workflow so we don't mutate the stored template
-    const prompt: Record<string, ComfyUIWorkflowNode> = JSON.parse(JSON.stringify(template.workflow))
+    const prompt: Record<string, ComfyUIWorkflowNode> = JSON.parse(JSON.stringify(template.workflow)) as Record<
+      string,
+      ComfyUIWorkflowNode
+    >
 
     // Build overrides from the request
     const overrides: Record<string, Record<string, unknown>> = {}
