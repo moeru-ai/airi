@@ -141,8 +141,8 @@ describe("EventBus", () => {
 	})
 
 	it("clear() with no args removes all listeners", () => {
-		bus.on("a", () => {})
-		bus.on("b", () => {})
+		bus.on("a", () => { /* no-op */ })
+		bus.on("b", () => { /* no-op */ })
 
 		bus.clear()
 
@@ -379,7 +379,7 @@ describe("ModuleRegistry activation order", () => {
 		const moduleA = {
 			id: "a",
 			name: "Module A",
-			async activate() {},
+			async activate() { /* no-op */ },
 			async deactivate() {
 				deactivationOrder.push("a")
 			},
@@ -388,7 +388,7 @@ describe("ModuleRegistry activation order", () => {
 		const moduleB = {
 			id: "b",
 			name: "Module B",
-			async activate() {},
+			async activate() { /* no-op */ },
 			async deactivate() {
 				deactivationOrder.push("b")
 			},
@@ -470,7 +470,7 @@ describe("ModuleRegistry activation order", () => {
 				return {
 					id: "lazy",
 					name: "Lazy Module",
-					async activate() {},
+					async activate() { /* no-op */ },
 				}
 			},
 			"lazy",

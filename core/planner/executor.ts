@@ -183,7 +183,7 @@ export class PlanExecutor {
 
 			// Persist plan.completed event.
 			if (this.options.eventStore) {
-				await this.options.eventStore.append(planCompletedEvent).catch(() => {})
+				await this.options.eventStore.append(planCompletedEvent).catch(() => { /* best-effort persistence */ })
 			}
 
 			this.logger.info(`Plan ${plan.id} completed in ${durationMs}ms`)
@@ -204,7 +204,7 @@ export class PlanExecutor {
 
 			// Persist plan.failed event.
 			if (this.options.eventStore) {
-				await this.options.eventStore.append(planFailedEvent).catch(() => {})
+				await this.options.eventStore.append(planFailedEvent).catch(() => { /* best-effort persistence */ })
 			}
 
 			this.logger.error(`Plan ${plan.id} failed: ${message}`)
@@ -239,11 +239,11 @@ export class PlanExecutor {
 			name: plan.name,
 			reason,
 		}
-		this.events.publish(cancelledEvent).catch(() => {})
+		this.events.publish(cancelledEvent).catch(() => { /* best-effort publish */ })
 
 		// Persist plan.cancelled event.
 		if (this.options.eventStore) {
-			this.options.eventStore.append(cancelledEvent).catch(() => {})
+			this.options.eventStore.append(cancelledEvent).catch(() => { /* best-effort persistence */ })
 		}
 
 		return this.finalizePlan(plan, "cancelled")
@@ -276,7 +276,7 @@ export class PlanExecutor {
 			name: plan.name,
 		}
 
-		await this.options.eventStore.append(statusEvent as AiriEvent).catch(() => {})
+		await this.options.eventStore.append(statusEvent as AiriEvent).catch(() => { /* best-effort persistence */ })
 	}
 
 	// ── Step execution order ──────────────────────────────────────────────
@@ -385,7 +385,7 @@ export class PlanExecutor {
 
 		// Persist step.started event.
 		if (this.options.eventStore) {
-			await this.options.eventStore.append(stepStartedEvent).catch(() => {})
+			await this.options.eventStore.append(stepStartedEvent).catch(() => { /* best-effort persistence */ })
 		}
 
 		this.logger.info(`Step ${step.id} "${step.name}" started [${step.action}]`)
@@ -444,7 +444,7 @@ export class PlanExecutor {
 
 				// Persist step.completed event.
 				if (this.options.eventStore) {
-					await this.options.eventStore.append(stepCompletedEvent).catch(() => {})
+					await this.options.eventStore.append(stepCompletedEvent).catch(() => { /* best-effort persistence */ })
 				}
 
 				this.logger.info(`Step ${step.id} completed in ${durationMs}ms`)
@@ -487,7 +487,7 @@ export class PlanExecutor {
 
 			// Persist step.failed event.
 			if (this.options.eventStore) {
-				await this.options.eventStore.append(stepFailedEvent).catch(() => {})
+				await this.options.eventStore.append(stepFailedEvent).catch(() => { /* best-effort persistence */ })
 			}
 
 			this.logger.error(`Step ${step.id} failed: ${message}`)
@@ -582,7 +582,7 @@ export class PlanExecutor {
 		const token = this.taskManager.getCancellationToken(taskId)
 		const ctx = {
 			task,
-			token: token ?? { isCancelled: false, onCancelled: () => () => {}, throwIfCancelled: () => {} },
+			token: token ?? { isCancelled: false, onCancelled: () => () => { /* no-op */ }, throwIfCancelled: () => { /* no-op */ } },
 			reportProgress: (percent: number, message?: string) => {
 				this.taskManager.reportProgress(taskId, percent, message)
 			},

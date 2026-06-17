@@ -266,7 +266,8 @@ export function isProbablyAngleTag(index: number, text: string): boolean {
   }
 
   // Lookbehind: if before is non-empty/non-bracket character, then determine as code or any instead of a label
-  if (prevChar && /[^\s([{（【<\])}>）】.,!?;:，。！？；：'"\-_]/u.test(prevChar)) return false
+  const hasNonLabelPrevChar = prevChar ? /[^\s([{（【<\])}>）】.,!?;:，。！？；：'"\-_]/u.test(prevChar) : false
+  if (hasNonLabelPrevChar) return false
 
   return true
 }

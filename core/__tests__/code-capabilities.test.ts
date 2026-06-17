@@ -675,7 +675,7 @@ describe("StreamingEmitter", () => {
 	})
 
 	it("clears all events and subscribers", () => {
-		emitter.subscribe(() => {})
+		emitter.subscribe(() => { /* no-op subscriber */ })
 		emitter.emit({ type: "token", taskId: "t1", token: "a", timestamp: "2024-01-01T00:00:00Z" })
 
 		emitter.clearAll()

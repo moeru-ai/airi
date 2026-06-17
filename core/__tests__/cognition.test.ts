@@ -28,7 +28,6 @@ import {
 import type {
 	CognitionRequest,
 	CognitionContext,
-	PlanProposal,
 	ProposedStep,
 } from "../cognition/types.js"
 import { PlanValidator } from "../cognition/validator.js"

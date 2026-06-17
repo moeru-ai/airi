@@ -20,10 +20,10 @@ vi.mock("node:child_process", () => ({
 			},
 		})
 		proc.stdout = new Readable({
-			read() {},
+			read() { /* no-op mock */ },
 		})
 		proc.stderr = new Readable({
-			read() {},
+			read() { /* no-op mock */ },
 		})
 		proc.killed = false
 		proc.exitCode = null

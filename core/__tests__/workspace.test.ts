@@ -18,16 +18,12 @@ import { EventBus } from "../events/bus.js"
 import {
 	createWorkspaceId,
 	isValidWorkspaceTransition,
-	VALID_WORKSPACE_TRANSITIONS,
 } from "../workspace/types.js"
 import type {
-	WorkspaceId,
 	WorkspaceDescriptor,
-	WorkspaceState,
 } from "../workspace/types.js"
 import { WorkspaceManager } from "../workspace/manager.js"
 import { WorkspaceStorage } from "../workspace/storage.js"
-import { InMemorySnapshotStore } from "../persistence/snapshots.js"
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 

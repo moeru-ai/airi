@@ -89,7 +89,7 @@ export class CancellationTokenSource {
 					} catch {
 						// Handler errors are swallowed.
 					}
-					return () => {}
+					return () => { /* already cancelled, no-op unsubscribe */ }
 				}
 				this.handlers.add(handler)
 				return () => {

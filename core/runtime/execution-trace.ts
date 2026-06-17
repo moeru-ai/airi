@@ -164,16 +164,10 @@ export class ExecutionTrace {
 		if (!filter) return [...this.records]
 
 		return this.records.filter((entry) => {
-			if (filter.toolId !== undefined && entry.toolId !== filter.toolId) {
-				return false
-			}
-			if (filter.taskId !== undefined && entry.taskId !== filter.taskId) {
-				return false
-			}
-			if (filter.since !== undefined && entry.startedAt < filter.since) {
-				return false
-			}
-			return true
+			const toolIdMismatch = filter.toolId !== undefined && entry.toolId !== filter.toolId
+			const taskIdMismatch = filter.taskId !== undefined && entry.taskId !== filter.taskId
+			const beforeSince = filter.since !== undefined && entry.startedAt < filter.since
+			return !toolIdMismatch && !taskIdMismatch && !beforeSince
 		})
 	}
 

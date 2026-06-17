@@ -4,10 +4,8 @@ import type { Emotion } from '../../constants/emotions'
 import { Screen } from '@proj-airi/ui'
 import { ref, watch } from 'vue'
 
-// deepsource: ignore
-import SpineCanvas from './spine/Canvas.vue'
-// deepsource: ignore
-import SpineModel from './spine/Model.vue'
+import SpineCanvas from './spine/Canvas.vue' // deepsource: ignore
+import SpineModel from './spine/Model.vue' // deepsource: ignore
 
 withDefaults(
   defineProps<{
