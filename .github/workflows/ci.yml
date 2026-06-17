@@ -41,7 +41,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-turbo-
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 10.33.0
       - uses: actions/setup-node@v6
         with:
           node-version: lts/*
@@ -70,7 +72,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-turbo-
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 10.33.0
       - uses: actions/setup-node@v6
         with:
           node-version: lts/*
@@ -95,6 +99,8 @@ jobs:
 
       # Node.js
       - uses: pnpm/action-setup@v5
+        with:
+          version: 10.33.0
       - uses: actions/setup-node@v6
         with:
           node-version: lts/*
