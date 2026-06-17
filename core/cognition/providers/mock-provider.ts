@@ -24,7 +24,7 @@ import type {
 	ModelInfo,
 } from "../types.js"
 import type { CancellationToken } from "../../tasks/cancellation.js"
-import { createProposalId, createReasoningId } from "../types.js"
+import { } from "../types.js"
 
 /**
  * Mock cognition provider for testing.
