@@ -959,7 +959,7 @@ describe("PlanExecutor with ToolRuntime", () => {
 		// Suppress unhandled rejection from the handler promise.
 		// The tool runtime wraps the handler in withTimeout, but the
 		// rejected promise can escape the catch chain in some edge cases.
-		const unhandled = (reason: unknown) => {
+		const unhandled = (_reason: unknown) => {
 			// Expected: "Tool failed intentionally"
 		}
 		process.on("unhandledRejection", unhandled)

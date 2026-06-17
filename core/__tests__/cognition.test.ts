@@ -26,9 +26,6 @@ import {
 	extractWorkspaceRequirements,
 } from "../cognition/index.js"
 import type {
-	ProposalId,
-	ReasoningId,
-	CognitionSessionId,
 	CognitionRequest,
 	CognitionContext,
 	PlanProposal,
@@ -39,8 +36,6 @@ import { MockCognitionProvider } from "../cognition/providers/mock-provider.js"
 import { CognitionCoordinator } from "../cognition/coordinator.js"
 import { CapabilityRegistry } from "../capabilities/registry.js"
 import { WorkspaceManager } from "../workspace/manager.js"
-import { EventBus } from "../events/bus.js"
-import { createLogger } from "../logger.js"
 import { createCancellationToken, CancellationTokenSource } from "../tasks/cancellation.js"
 import { createCapabilityId, createToolId } from "../capabilities/types.js"
 import { createWorkspaceId } from "../workspace/types.js"
@@ -48,10 +43,6 @@ import { InMemoryEventStore, InMemorySnapshotStore, SnapshotManager } from "../p
 import type { SerializedProposal, SerializedReasoningTrace } from "../persistence/types.js"
 
 // ── Helpers ──────────────────────────────────────────────────────────────
-
-const logger = createLogger("test")
-const events = new EventBus()
-void logger
 
 function createTestCapabilityId(name: string): CapabilityId {
 	return createCapabilityId(name)
@@ -68,14 +59,6 @@ function createTestProposedStep(overrides: Partial<ProposedStep> & { id: string;
 	}
 }
 
-function createTestProposal(name: string, steps: ProposedStep[]): PlanProposal {
-	return createProposal(
-		createReasoningId("test-reasoning"),
-		name,
-		steps,
-		{ confidence: 0.9 },
-	)
-}
 
 // ── Branded ID Tests ────────────────────────────────────────────────────
 

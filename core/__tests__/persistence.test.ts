@@ -38,10 +38,6 @@ function createTestEventBus(): EventBus {
 	return new EventBus()
 }
 
-function createTestLogger() {
-	return createLogger("test")
-}
-
 // ── EventStore tests ─────────────────────────────────────────────────────
 
 describe("InMemoryEventStore", () => {
@@ -72,8 +68,8 @@ describe("InMemoryEventStore", () => {
 
 	it("gets events since a given event ID", async () => {
 		const id1 = await store.append(createTestEvent({ type: "task.started" }))
-		const id2 = await store.append(createTestEvent({ type: "task.completed" }))
-		const id3 = await store.append(createTestEvent({ type: "task.failed" }))
+		await store.append(createTestEvent({ type: "task.completed" }))
+		await store.append(createTestEvent({ type: "task.failed" }))
 
 		const since = await store.getSince(id1)
 		expect(since.length).toBe(2)
@@ -413,9 +409,6 @@ describe("PersistentSessionManager", () => {
 		manager.markAttached(s1.id)
 		manager.detachSession(s1.id)
 
-		// Manually set the updatedAt to the past.
-		const session = manager.getSession(s1.id)!
-		const oldSession = { ...session, updatedAt: new Date(Date.now() - 120_000).toISOString() }
 		// We can't directly modify the session, so we test with a very short maxAgeMs.
 		// Since the session was just detached, cleanup with 0ms should remove it.
 		const removed = manager.cleanupExpiredDetached(0)

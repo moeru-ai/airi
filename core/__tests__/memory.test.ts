@@ -27,9 +27,6 @@ import {
 	createRepositoryMapId,
 } from "../memory/index.js"
 import type {
-	MemoryId,
-	RetrievalId,
-	RepositoryMapId,
 	MemoryRecord,
 	MemoryReference,
 	MemoryQuery,

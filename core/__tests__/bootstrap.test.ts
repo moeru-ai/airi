@@ -5,7 +5,7 @@
  * and module activation sequencing.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
+import { describe, it, expect, beforeEach, afterEach } from "vitest"
 
 // ── EventBus tests ──────────────────────────────────────────────────
 
@@ -39,7 +39,6 @@ describe("EventBus", () => {
 	})
 
 	it("delivers typed events via publish()", async () => {
-		const received: unknown[] = []
 		await bus.publish({
 			type: "task.started",
 			timestamp: new Date().toISOString(),

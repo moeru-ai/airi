@@ -20,9 +20,7 @@ import { createCancellationToken } from "../tasks/cancellation.js"
 import type {
 	WorkspaceContext,
 	ToolExecutionContext,
-	ToolExecutionResult,
 } from "../capabilities/types.js"
-import type { WorkspaceId } from "../workspace/types.js"
 import { createWorkspaceId } from "../workspace/types.js"
 import { WorkspaceManager } from "../workspace/manager.js"
 import { CodeCapabilityAdapter } from "../../modules/code/capabilities/adapter.js"
