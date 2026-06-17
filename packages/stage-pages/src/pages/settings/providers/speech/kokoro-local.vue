@@ -93,7 +93,7 @@ onMounted(async () => {
   // NOTICE: Uses synchronous check for initial render. The cached result from
   // detectWebGPU() is populated by the providers store during initialization.
   const capabilities = getCachedWebGPUCapabilities()
-  hasWebGPU.value = capabilities?.supported ?? (typeof navigator !== 'undefined' && !!navigator.gpu)
+  hasWebGPU.value = capabilities?.supported ?? (typeof navigator !== 'undefined' && Boolean(navigator.gpu))
   fp16Supported.value = capabilities?.fp16Supported ?? false
 
   try {

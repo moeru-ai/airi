@@ -9,9 +9,14 @@ import BugReportDialog from './bug-report-dialog.vue'
 
 import { createBugReportPageContext } from './bug-report-payload'
 
-const props = defineProps<{
-  triggerLabel?: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    triggerLabel?: string
+  }>(),
+  {
+    triggerLabel: '',
+  },
+)
 
 const emit = defineEmits<{
   (e: 'submit', payload: BugReportDialogSubmitPayload): void

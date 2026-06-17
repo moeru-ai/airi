@@ -4,12 +4,18 @@ import { useJournalPreviewStore } from '@proj-airi/stage-ui/stores/journal-previ
 import { Collapsible, ContainerError } from '@proj-airi/ui'
 import { computed } from 'vue'
 
-const props = defineProps<{
-  toolName: string
-  args: string
-  state?: 'executing' | 'done' | 'error'
-  result?: unknown
-}>()
+const props = withDefaults(
+  defineProps<{
+    toolName: string
+    args: string
+    state?: 'executing' | 'done' | 'error'
+    result?: unknown
+  }>(),
+  {
+    state: 'done',
+    result: undefined,
+  },
+)
 
 interface TextJournalArgs {
   action?: string

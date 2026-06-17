@@ -44,7 +44,7 @@ export const providerFeatherlessAI = defineProvider<FeatherlessConfig>({
   },
 
   validationRequiredWhen(config) {
-    return !!config.apiKey?.trim()
+    return Boolean(config.apiKey?.trim())
   },
   validators: {
     ...createOpenAICompatibleValidators({

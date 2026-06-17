@@ -3,11 +3,16 @@ import type { PromptProjectionSnapshot } from '@proj-airi/stage-ui/stores/devtoo
 
 import { Section } from '@proj-airi/stage-ui/components'
 
-defineProps<{
-  currentPromptText: string
-  currentSourceCount: number
-  lastProjection?: PromptProjectionSnapshot
-}>()
+const props = withDefaults(
+  defineProps<{
+    currentPromptText: string
+    currentSourceCount: number
+    lastProjection?: PromptProjectionSnapshot
+  }>(),
+  {
+    lastProjection: undefined,
+  },
+)
 </script>
 
 <template>

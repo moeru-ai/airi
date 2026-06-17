@@ -111,9 +111,30 @@ export function setState(newState: ExtensionState): ExtensionState {
   return state
 }
 
-/** Merge a partial update into the state (used by settings changes). */
-export function patchState(patch: Partial<ExtensionState>): ExtensionState {
-  state = { ...state, ...patch }
+/** Merge a partial update into the state (used by settings changes).
+ *
+ * Performs a 2-level merge for known nested objects so that callers can
+ * patch a single field inside `apiConfiguration` (for example) without
+ * wiping the rest of the object.
+ */
+export function patchState(patch: Record<string, unknown>): ExtensionState {
+  const merged: Record<string, unknown> = { ...state }
+  for (const [key, value] of Object.entries(patch)) {
+    const current = merged[key]
+    if (
+      value &&
+      typeof value === 'object' &&
+      !Array.isArray(value) &&
+      current &&
+      typeof current === 'object' &&
+      !Array.isArray(current)
+    ) {
+      merged[key] = { ...(current as Record<string, unknown>), ...(value as Record<string, unknown>) }
+    } else {
+      merged[key] = value
+    }
+  }
+  state = merged as unknown as ExtensionState
   return state
 }
 
@@ -123,7 +144,7 @@ export function patchState(patch: Partial<ExtensionState>): ExtensionState {
 
 import type { HistoryItem } from '@roo-code/types'
 
-const tasks = new Map<string, HistoryItem>()
+export const tasks = new Map<string, HistoryItem>()
 
 export function listTasks(): HistoryItem[] {
   return Array.from(tasks.values()).sort((a, b) => (b.ts ?? 0) - (a.ts ?? 0))
@@ -145,4 +166,8 @@ export function upsertTask(item: HistoryItem): void {
 
 export function deleteTask(id: string): void {
   tasks.delete(id)
+}
+
+export function clearTasks(): void {
+  tasks.clear()
 }

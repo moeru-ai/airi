@@ -162,7 +162,7 @@ export async function setupFileLogger(): Promise<FileLoggerHandle> {
 
     _logger(`[FileLogger] Session logs: ${logFilePath}`)
 
-    async function appendLog(content: string) {
+    const appendLog = async (content: string) => {
       if (isFileClosed) {
         return
       }
@@ -177,7 +177,7 @@ export async function setupFileLogger(): Promise<FileLoggerHandle> {
       }
     }
 
-    async function close() {
+    const close = async () => {
       if (isFileClosed) {
         return
       }

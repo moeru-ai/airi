@@ -46,7 +46,7 @@ export const providerDeepSeek = defineProvider<DeepSeekConfig>({
   },
 
   validationRequiredWhen(config) {
-    return !!config.apiKey?.trim()
+    return Boolean(config.apiKey?.trim())
   },
   validators: {
     ...createOpenAICompatibleValidators({

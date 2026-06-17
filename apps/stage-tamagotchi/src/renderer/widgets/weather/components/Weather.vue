@@ -291,8 +291,6 @@ const resolvedIconClass = computed(() => weatherIconMap[resolvedIconKey.value].i
   </div>
 </template>
 
-<style scoped></style>
-
 <route lang="yaml">
 meta:
   layout: plain

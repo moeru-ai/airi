@@ -57,8 +57,8 @@ export async function initializeAuth() {
   //
   // Treat any mismatch as an unauthenticated session; the user will get a
   // fresh OIDC login prompt via the standard 401→needsLogin path.
-  const hasRefreshToken = !!authStore.refreshToken
-  const hasClientId = !!authStore.oidcClientId
+  const hasRefreshToken = Boolean(authStore.refreshToken)
+  const hasClientId = Boolean(authStore.oidcClientId)
   if (hasRefreshToken !== hasClientId) authStore.clearAllAuthState()
 
   // NOTICE: restoreRefreshSchedule must complete BEFORE fetchSession when

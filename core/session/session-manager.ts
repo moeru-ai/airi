@@ -57,13 +57,6 @@ export class PersistentSessionManager {
 	private readonly sessions = new Map<string, PersistentSession>()
 
 
-	/**
-	 * Create a new PersistentSessionManager.
-	 *
-	 */
-	constructor() {
-	}
-
 	// ── Lifecycle ────────────────────────────────────────────────────────
 
 	/**

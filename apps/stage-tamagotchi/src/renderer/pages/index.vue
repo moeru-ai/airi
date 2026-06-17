@@ -121,7 +121,7 @@ const { pause, resume } = watch(
 const hearingDialogOpen = computed(() => controlsIslandRef.value?.hearingDialogOpen ?? false)
 
 const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() => {
-  const hasModel = !!stageModelSelectedUrl.value
+  const hasModel = Boolean(stageModelSelectedUrl.value)
 
   if (stageModelRenderer.value === 'live2d') {
     const phase = resolveComponentStateToRuntimePhase(componentStateStage.value, { hasModel })
@@ -254,7 +254,7 @@ const hearingPipeline = useHearingSpeechInputPipeline()
 const { transcribeForRecording, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
 const chatSyncStore = useChatSyncStore()
-const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
+const shouldUseStreamInput = computed(() => supportsStreamInput.value && Boolean(stream.value))
 
 const {
   init: initVAD,
@@ -353,7 +353,7 @@ async function startAudioInteraction() {
     if (shouldUseStreamInput.value) {
       _logger('[Main Page] Starting streaming transcription...', {
         supportsStreamInput: supportsStreamInput.value,
-        hasStream: !!stream.value,
+        hasStream: Boolean(stream.value),
       })
 
       if (!stream.value) {
@@ -371,7 +371,7 @@ async function startAudioInteraction() {
     } else {
       _logger('[Main Page] Not starting streaming transcription:', {
         shouldUseStreamInput: shouldUseStreamInput.value,
-        hasStream: !!stream.value,
+        hasStream: Boolean(stream.value),
         supportsStreamInput: supportsStreamInput.value,
       })
     }
@@ -421,7 +421,7 @@ function stopAudioInteraction() {
 watch(
   enabled,
   async (val) => {
-    _logger('[Main Page] Audio enabled changed:', val, 'stream available:', !!stream.value)
+    _logger('[Main Page] Audio enabled changed:', val, 'stream available:', Boolean(stream.value))
     if (val) {
       await askPermission()
       await startAudioInteraction()

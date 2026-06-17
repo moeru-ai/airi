@@ -14,14 +14,21 @@ import {
 } from '.'
 import { useProvidersStore } from '../../../stores/providers'
 
-const props = defineProps<{
-  providerId: string
-  // Default model to use if not specified in provider settings
-  defaultModel?: string
-  // Additional provider-specific settings
-  additionalSettings?: Record<string, any>
-  placeholder?: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    providerId: string
+    // Default model to use if not specified in provider settings
+    defaultModel?: string
+    // Additional provider-specific settings
+    additionalSettings?: Record<string, any>
+    placeholder?: string
+  }>(),
+  {
+    defaultModel: '',
+    additionalSettings: () => ({}),
+    placeholder: '',
+  },
+)
 
 const { t } = useI18n()
 const router = useRouter()

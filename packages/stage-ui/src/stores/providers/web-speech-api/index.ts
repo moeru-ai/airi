@@ -26,11 +26,11 @@ function createDeferred<T>() {
     get isResolved() {
       return _isResolved
     },
-    get isRejected() {
-      return _isRejected
-    },
     set isResolved(value: boolean) {
       _isResolved = value
+    },
+    get isRejected() {
+      return _isRejected
     },
     set isRejected(value: boolean) {
       _isRejected = value
@@ -197,7 +197,7 @@ export function streamWebSpeechAPITranscription(
       if (recognitionInstance) {
         try {
           recognitionInstance.stop()
-        // eslint-disable-next-line no-empty
+          // eslint-disable-next-line no-empty
         } catch {
           // noop
         }

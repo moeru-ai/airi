@@ -17,7 +17,9 @@ const amazonBedrockConfigSchema = z.object({
 type AmazonBedrockConfig = z.infer<typeof amazonBedrockConfigSchema>
 
 // Helper: merge consecutive messages with the same role (Converse API requires alternating)
-function mergeConsecutiveRoles(messages: Array<{ role: string; content: unknown[] }>): Array<{ role: string; content: unknown[] }> {
+function mergeConsecutiveRoles(
+  messages: Array<{ role: string; content: unknown[] }>,
+): Array<{ role: string; content: unknown[] }> {
   const merged: Array<{ role: string; content: unknown[] }> = []
   for (const msg of messages) {
     const last = merged.at(-1)
@@ -77,7 +79,14 @@ function fallbackModels(): ModelInfo[] {
   ]
 }
 
-function createBedrockConverseProvider(config: { apiKey: string; region: string }): { chat: (model: string) => { apiKey: string; baseURL: string; model: string; fetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response> } } {
+function createBedrockConverseProvider(config: { apiKey: string; region: string }): {
+  chat: (model: string) => {
+    apiKey: string
+    baseURL: string
+    model: string
+    fetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+  }
+} {
   const { apiKey, region } = config
   // baseURL is a placeholder; all actual requests go through the custom fetch interceptor below
   const baseURL = `https://bedrock-runtime.${region}.amazonaws.com/v1/`
@@ -358,7 +367,7 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig>({
   },
 
   validationRequiredWhen(config) {
-    return !!config.apiKey?.trim()
+    return Boolean(config.apiKey?.trim())
   },
 
   validators: {

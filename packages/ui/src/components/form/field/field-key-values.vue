@@ -3,15 +3,26 @@ import { ref, watch } from 'vue'
 
 import { InputKeyValue } from '../input'
 
-const props = defineProps<{
-  label?: string
-  description?: string
-  name?: string
-  keyPlaceholder?: string
-  valuePlaceholder?: string
-  required?: boolean
-  inputClass?: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    label?: string
+    description?: string
+    name?: string
+    keyPlaceholder?: string
+    valuePlaceholder?: string
+    required?: boolean
+    inputClass?: string
+  }>(),
+  {
+    label: '',
+    description: '',
+    name: '',
+    keyPlaceholder: '',
+    valuePlaceholder: '',
+    required: false,
+    inputClass: '',
+  },
+)
 
 const emit = defineEmits<{
   (e: 'remove', index: number): void

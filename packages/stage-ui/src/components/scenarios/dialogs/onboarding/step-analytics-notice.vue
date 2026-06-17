@@ -6,10 +6,15 @@ import { useI18n } from 'vue-i18n'
 
 import { useAnalytics } from '../../../../composables/use-analytics'
 
-const props = defineProps<{
-  onNext: OnboardingStepNextHandler
-  onPrevious?: OnboardingStepPrevHandler
-}>()
+const props = withDefaults(
+  defineProps<{
+    onNext: OnboardingStepNextHandler
+    onPrevious?: OnboardingStepPrevHandler
+  }>(),
+  {
+    onPrevious: undefined,
+  },
+)
 
 const { t } = useI18n()
 const { privacyPolicyUrl } = useAnalytics()

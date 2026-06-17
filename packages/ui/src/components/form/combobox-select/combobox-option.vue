@@ -1,11 +1,17 @@
 <script setup lang="ts">
 import { inject } from 'vue'
 
-const props = defineProps<{
-  value: string | number
-  label?: string
-  active?: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    value: string | number
+    label?: string
+    active?: boolean
+  }>(),
+  {
+    label: '',
+    active: false,
+  },
+)
 
 const selectOption = inject('selectOption') as (value: string | number) => void
 const hide = inject('hide') as () => void

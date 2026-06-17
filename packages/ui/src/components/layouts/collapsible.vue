@@ -3,10 +3,16 @@ import { watchEffect } from 'vue'
 
 import { TransitionVertical } from '../animations'
 
-const props = defineProps<{
-  default?: boolean
-  label?: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    default?: boolean
+    label?: string
+  }>(),
+  {
+    default: false,
+    label: '',
+  },
+)
 const visible = defineModel<boolean>({ default: false })
 watchEffect(() => {
   if (props.default != null) {

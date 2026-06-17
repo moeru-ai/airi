@@ -1,7 +1,12 @@
 <script setup lang="ts">
-defineProps<{
-  enterDelay?: number
-}>()
+withDefaults(
+  defineProps<{
+    enterDelay?: number
+  }>(),
+  {
+    enterDelay: 0,
+  },
+)
 </script>
 
 <template>

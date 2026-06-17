@@ -1,14 +1,24 @@
 <script setup lang="ts">
 import { Input } from '../input'
 
-const props = defineProps<{
-  label?: string
-  description?: string
-  name?: string
-  valuePlaceholder?: string
-  required?: boolean
-  inputClass?: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    label?: string
+    description?: string
+    name?: string
+    valuePlaceholder?: string
+    required?: boolean
+    inputClass?: string
+  }>(),
+  {
+    label: '',
+    description: '',
+    name: '',
+    valuePlaceholder: '',
+    required: false,
+    inputClass: '',
+  },
+)
 
 const emit = defineEmits<{
   (e: 'remove', index: number): void

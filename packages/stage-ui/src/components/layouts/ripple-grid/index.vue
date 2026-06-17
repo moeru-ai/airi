@@ -33,7 +33,10 @@ const props = withDefaults(
     animationDuration: 250,
     delayPerUnit: 80,
     getItems: (section: TSection) => (section as VirtualSection).items || [],
-    getKey: (item: TItem) => String((item as { id?: string | number; key?: string | number }).id ?? (item as { key?: string | number }).key ?? ''),
+    getKey: (item: TItem) =>
+      String(
+        (item as { id?: string | number; key?: string | number }).id ?? (item as { key?: string | number }).key ?? '',
+      ),
   },
 )
 
@@ -44,7 +47,7 @@ const emit = defineEmits<{
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const COLUMN_ORDER = ['2xl', 'xl', 'lg', 'md', 'sm'] as const
 
-const isFlat = computed(() => !!props.items && !props.sections)
+const isFlat = computed(() => Boolean(props.items) && !props.sections)
 
 const normalizedSections = computed(() => {
   if (isFlat.value && props.items) {

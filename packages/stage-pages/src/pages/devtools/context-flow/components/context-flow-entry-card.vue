@@ -6,7 +6,9 @@ import ContextFlowSparkNotify from './context-flow-spark-notify.vue'
 
 import { useContextFlowFormatters } from '../composables/use-context-flow-formatters'
 
-defineProps<{ entry: FlowEntry; sparkNotifyState?: SparkNotifyEntryState }>()
+const props = withDefaults(defineProps<{ entry: FlowEntry; sparkNotifyState?: SparkNotifyEntryState }>(), {
+  sparkNotifyState: undefined,
+})
 
 const { formatPayload, formatTimestamp, getEventSource } = useContextFlowFormatters()
 

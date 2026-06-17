@@ -77,7 +77,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
       'Starting streaming transcription',
       {
         enabled: hearingEnabled.value,
-        hasStream: !!stream.value,
+        hasStream: Boolean(stream.value),
         supportsStreamInput: supportsStreamInput.value,
         hearingConfigured: hearingConfigured.value,
       },

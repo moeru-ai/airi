@@ -18,9 +18,14 @@ import ModelManager from './model-selector.vue'
 
 import { useBreakpoints } from '../../../../composables/use-breakpoints'
 
-const props = defineProps<{
-  selectedModel?: DisplayModel
-}>()
+const props = withDefaults(
+  defineProps<{
+    selectedModel?: DisplayModel
+  }>(),
+  {
+    selectedModel: undefined,
+  },
+)
 const emits = defineEmits<{
   (e: 'pick', value: DisplayModel | undefined): void
 }>()

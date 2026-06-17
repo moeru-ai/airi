@@ -1,10 +1,16 @@
 <script setup lang="ts">
 import Alert from './alert.vue'
 
-defineProps<{
-  title?: string
-  error?: any
-}>()
+withDefaults(
+  defineProps<{
+    title?: string
+    error?: any
+  }>(),
+  {
+    title: '',
+    error: undefined,
+  },
+)
 </script>
 
 <template>

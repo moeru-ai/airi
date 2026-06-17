@@ -11,6 +11,7 @@ import {
   getTaskCount,
   upsertTask,
   deleteTask,
+  clearTasks,
 } from './state.js'
 import type { HistoryItem } from '@roo-code/types'
 
@@ -39,6 +40,7 @@ export const router: FastifyPluginAsync = async (fastify: FastifyInstance) => {
   })
 
   fastify.post('/state/reset', async (_req, reply) => {
+    clearTasks()
     const fresh = setState(createInitialStateFrom(getState()))
     return reply.send(fresh)
   })
@@ -67,7 +69,7 @@ export const router: FastifyPluginAsync = async (fastify: FastifyInstance) => {
       id,
       ts: Date.now(),
       task: body.text,
-      mode: body.mode,
+      mode: body.mode ?? 'vibe',
       tokensIn: 0,
       tokensOut: 0,
       cacheWrites: 0,

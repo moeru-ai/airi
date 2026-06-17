@@ -1,16 +1,28 @@
 <script setup lang="ts">
-const props = defineProps<{
-  title: string
-  description?: string
-  icon?: string
-  iconColor?: string
-  iconImage?: string
-  to: string
-  configured?: boolean
-  pricing?: 'free' | 'paid' | 'internal'
-  deployment?: 'local' | 'cloud'
-  beginnerRecommended?: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    title: string
+    description?: string
+    icon?: string
+    iconColor?: string
+    iconImage?: string
+    to: string
+    configured?: boolean
+    pricing?: 'free' | 'paid' | 'internal'
+    deployment?: 'local' | 'cloud'
+    beginnerRecommended?: boolean
+  }>(),
+  {
+    description: '',
+    icon: '',
+    iconColor: '',
+    iconImage: '',
+    configured: false,
+    pricing: undefined,
+    deployment: undefined,
+    beginnerRecommended: false,
+  },
+)
 </script>
 
 <template>

@@ -16,7 +16,7 @@ const speechStore = useSpeechStore()
 const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore)
 
-const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
+const apiKeyConfigured = computed(() => Boolean(providers.value[providerId]?.apiKey))
 
 const availableVoices = computed(() => {
   return speechStore.availableVoices[providerId] || []

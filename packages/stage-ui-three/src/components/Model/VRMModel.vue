@@ -488,7 +488,7 @@ function componentCleanUp(reason: VrmLifecycleReason, options: { invalidate?: bo
   const shouldDestroyResources = shouldDestroyVrmResources(reason)
   const clearedInstance = shouldDestroyResources ? clearManagedVrmInstance(getManagedVrmScopeKey()) : undefined
   const rendererInstance = getRendererInstance()
-  const hasCleanupWork = !!disposeBeforeRenderLoop || !!activeInstance || !!airiIblProbe
+  const hasCleanupWork = Boolean(disposeBeforeRenderLoop) || Boolean(activeInstance) || Boolean(airiIblProbe)
 
   if (hasCleanupWork && isStageThreeRuntimeTraceEnabled()) {
     stageThreeRuntimeTraceContext.emit(stageThreeTraceVrmDisposeStartEvent, {
@@ -739,7 +739,7 @@ async function loadModel() {
     /*
      * Shader setting
      */
-    const isShaderMat = (m: any): m is ShaderMaterial => !!m?.isShaderMaterial
+    const isShaderMat = (m: any): m is ShaderMaterial => Boolean(m?.isShaderMaterial)
 
     // MToon material sky box lightProbe setting
     if (!airiIblProbe && scene.value) airiIblProbe = createIblProbeController(scene.value)

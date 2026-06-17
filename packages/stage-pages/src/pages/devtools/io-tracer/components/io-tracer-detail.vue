@@ -5,10 +5,16 @@ import { computed } from 'vue'
 
 import { SUBSYSTEM_CONFIG_MAP } from '../io-tracer-types'
 
-const props = defineProps<{
-  span: IOSpan | undefined
-  turn: IOTurn | undefined
-}>()
+const props = withDefaults(
+  defineProps<{
+    span: IOSpan | undefined
+    turn: IOTurn | undefined
+  }>(),
+  {
+    span: undefined,
+    turn: undefined,
+  },
+)
 
 defineEmits<{
   close: []

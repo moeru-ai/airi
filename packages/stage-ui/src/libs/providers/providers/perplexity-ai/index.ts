@@ -47,7 +47,7 @@ export const providerPerplexityAI = defineProvider<PerplexityConfig>({
   },
 
   validationRequiredWhen(config) {
-    return !!config.apiKey?.trim()
+    return Boolean(config.apiKey?.trim())
   },
   extraMethods: {
     async listModels() {

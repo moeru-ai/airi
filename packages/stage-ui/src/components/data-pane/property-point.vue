@@ -10,13 +10,22 @@ interface AxisConfig {
   precision?: number
 }
 
-const props = defineProps<{
-  label?: string
-  disabled?: boolean
-  xConfig?: AxisConfig
-  yConfig?: AxisConfig
-  zConfig?: AxisConfig
-}>()
+const props = withDefaults(
+  defineProps<{
+    label?: string
+    disabled?: boolean
+    xConfig?: AxisConfig
+    yConfig?: AxisConfig
+    zConfig?: AxisConfig
+  }>(),
+  {
+    label: '',
+    disabled: false,
+    xConfig: () => ({}),
+    yConfig: () => ({}),
+    zConfig: () => ({}),
+  },
+)
 
 const x = defineModel('x', { required: false, default: 0 })
 const y = defineModel('y', { required: false, default: 0 })

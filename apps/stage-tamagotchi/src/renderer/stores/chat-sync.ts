@@ -291,7 +291,9 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
   function applySessionSnapshot(snapshot: SessionSnapshotPayload) {
     const localActiveSessionId = activeSessionId.value
     const shouldPreserveLocalActiveSession =
-      mode.value === 'follower' && !!localActiveSessionId && !!snapshot.sessionMessages[localActiveSessionId]
+      mode.value === 'follower' &&
+      Boolean(localActiveSessionId) &&
+      Boolean(snapshot.sessionMessages[localActiveSessionId])
 
     chatSession.applyRemoteSnapshot({
       ...snapshot,

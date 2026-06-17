@@ -46,7 +46,7 @@ export const providerGoogleGenerativeAI = defineProvider<GoogleGenerativeConfig>
   },
 
   validationRequiredWhen(config) {
-    return !!config.apiKey?.trim()
+    return Boolean(config.apiKey?.trim())
   },
   validators: {
     ...createOpenAICompatibleValidators({

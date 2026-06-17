@@ -452,7 +452,7 @@ async function handleConfirmDelete(event: Event) {
                     v-if="gravatarProfileUrl"
                     :href="gravatarProfileUrl"
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     :class="['ml-1 underline underline-offset-2 hover:text-neutral-700 dark:hover:text-neutral-300']"
                   >
                     {{ t('settings.pages.account.profile.avatar.gravatarLink') }}

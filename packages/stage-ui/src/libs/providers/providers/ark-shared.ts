@@ -110,7 +110,7 @@ export function createArkChatProviderDefinition(options: ArkProviderDefinitionOp
         }),
     },
     validationRequiredWhen(config) {
-      return !!config.apiKey?.trim()
+      return Boolean(config.apiKey?.trim())
     },
     validators: {
       ...createOpenAICompatibleValidators({

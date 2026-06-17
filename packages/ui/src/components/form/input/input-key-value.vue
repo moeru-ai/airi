@@ -1,11 +1,18 @@
 <script setup lang="ts">
 import Input from './input.vue'
 
-const props = defineProps<{
-  name?: string
-  keyPlaceholder?: string
-  valuePlaceholder?: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    name?: string
+    keyPlaceholder?: string
+    valuePlaceholder?: string
+  }>(),
+  {
+    name: '',
+    keyPlaceholder: '',
+    valuePlaceholder: '',
+  },
+)
 
 const key = defineModel<string>('propertyKey', { required: true })
 const value = defineModel<string>('propertyValue', { required: true })

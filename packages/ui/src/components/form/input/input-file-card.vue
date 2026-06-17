@@ -3,10 +3,16 @@ import { useSlots } from 'vue'
 
 import BasicInputFile from './basic-input-file.vue'
 
-defineProps<{
-  accept?: string
-  multiple?: boolean
-}>()
+withDefaults(
+  defineProps<{
+    accept?: string
+    multiple?: boolean
+  }>(),
+  {
+    accept: '',
+    multiple: false,
+  },
+)
 
 const slots = useSlots()
 </script>

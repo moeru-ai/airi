@@ -10,7 +10,9 @@ interface Props {
   class?: string | string[]
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  class: '',
+})
 
 const processedContent = ref('')
 const { process, processSync } = useMarkdown()
@@ -38,6 +40,7 @@ onMounted(() => {
 </script>
 
 <template>
+  <!-- deepline: JS-0693 requires v-html here for raw HTML rendering -->
   <div :class="props.class" class="markdown-content" v-html="processedContent" />
 </template>
 

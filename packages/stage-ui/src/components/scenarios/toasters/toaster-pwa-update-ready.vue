@@ -5,7 +5,9 @@ import { useI18n } from 'vue-i18n'
 
 import { ToasterRootInjectionKey } from './constants'
 
-const props = defineProps<{ id?: string }>()
+const props = withDefaults(defineProps<{ id?: string }>(), {
+  id: '',
+})
 
 const emits = defineEmits<{ (e: 'update'): void }>()
 

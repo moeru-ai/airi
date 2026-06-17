@@ -31,7 +31,7 @@ export function createGamingModuleStore(moduleName: string, defaultPort: number)
     }
 
     const configured = computed(() => {
-      return !!(serverAddress.value.trim() && username.value.trim() && serverPort.value !== null)
+      return Boolean(serverAddress.value.trim() && username.value.trim() && serverPort.value !== null)
     })
 
     return { enabled, serverAddress, serverPort, username, configured, saveSettings, resetState }

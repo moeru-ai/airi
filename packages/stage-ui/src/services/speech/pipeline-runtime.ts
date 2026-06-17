@@ -236,7 +236,7 @@ export function createSpeechPipelineRuntime(): SpeechPipelineRuntime {
   }
 
   function isHost() {
-    return hostReady && !!hostPipeline
+    return hostReady && Boolean(hostPipeline)
   }
 
   async function dispose() {

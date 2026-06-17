@@ -1,9 +1,14 @@
 <script setup lang="ts">
 import { computed, useSlots } from 'vue'
 
-const props = defineProps<{
-  type?: 'error' | 'warning' | 'success' | 'info' | 'loading'
-}>()
+const props = withDefaults(
+  defineProps<{
+    type?: 'error' | 'warning' | 'success' | 'info' | 'loading'
+  }>(),
+  {
+    type: undefined,
+  },
+)
 
 defineSlots<{
   title: (props: any) => any

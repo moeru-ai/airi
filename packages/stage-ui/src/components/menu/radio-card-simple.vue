@@ -1,11 +1,16 @@
 <script setup lang="ts">
-defineProps<{
-  id: string
-  name: string
-  value: string
-  title: string
-  description?: string
-}>()
+withDefaults(
+  defineProps<{
+    id: string
+    name: string
+    value: string
+    title: string
+    description?: string
+  }>(),
+  {
+    description: '',
+  },
+)
 
 defineSlots<{
   topRight?: any

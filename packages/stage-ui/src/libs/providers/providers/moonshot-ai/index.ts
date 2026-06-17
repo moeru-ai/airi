@@ -44,7 +44,7 @@ export const providerMoonshotAI = defineProvider<MoonshotConfig>({
   },
 
   validationRequiredWhen(config) {
-    return !!config.apiKey?.trim()
+    return Boolean(config.apiKey?.trim())
   },
   validators: {
     ...createOpenAICompatibleValidators({

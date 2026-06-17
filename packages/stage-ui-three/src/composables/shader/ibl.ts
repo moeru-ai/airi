@@ -60,8 +60,8 @@ if (uNprEnvMode == 2) {
 // ===== Utility tools =====
 export type EnvMode = 'off' | 'skyBox' | 'hemisphere'
 
-export const isShaderMat = (m: any): m is THREE.ShaderMaterial => !!m?.isShaderMaterial
-export const isRawShader = (m: any): m is THREE.RawShaderMaterial => !!m?.isRawShaderMaterial
+export const isShaderMat = (m: any): m is THREE.ShaderMaterial => Boolean(m?.isShaderMaterial)
+export const isRawShader = (m: any): m is THREE.RawShaderMaterial => Boolean(m?.isRawShaderMaterial)
 
 export function normalizeEnvMode(v?: string | null): EnvMode {
   if (v === 'skyBox') return 'skyBox'

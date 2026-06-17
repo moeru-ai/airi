@@ -27,9 +27,14 @@ import Live2DReportModal from './Live2DReportModal.vue'
 
 import { DisplayModelFormat, useDisplayModelsStore } from '../../../../stores/display-models'
 
-const props = defineProps<{
-  selectedModel?: DisplayModel
-}>()
+const props = withDefaults(
+  defineProps<{
+    selectedModel?: DisplayModel
+  }>(),
+  {
+    selectedModel: undefined,
+  },
+)
 const emits = defineEmits<{
   (e: 'close', value: void): void
   (e: 'pick', value: DisplayModel | undefined): void

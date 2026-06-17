@@ -50,7 +50,7 @@ export const providerLmStudio = defineProvider<LMStudioConfig>({
   },
 
   validationRequiredWhen(config) {
-    return !!config.baseUrl?.trim()
+    return Boolean(config.baseUrl?.trim())
   },
   validators: {
     ...createOpenAICompatibleValidators({

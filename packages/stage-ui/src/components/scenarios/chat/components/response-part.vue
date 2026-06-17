@@ -6,10 +6,15 @@ import { computed } from 'vue'
 
 import { MarkdownRenderer } from '../../../markdown'
 
-const props = defineProps<{
-  message: ChatAssistantMessage
-  variant?: 'desktop' | 'mobile'
-}>()
+const props = withDefaults(
+  defineProps<{
+    message: ChatAssistantMessage
+    variant?: 'desktop' | 'mobile'
+  }>(),
+  {
+    variant: undefined,
+  },
+)
 
 const reasoningContent = computed(() => props.message.categorization?.reasoning?.trim() ?? '')
 const hasReasoning = computed(() => reasoningContent.value.length > 0)
