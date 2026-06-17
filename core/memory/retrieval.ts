@@ -141,7 +141,7 @@ function buildContextString(
 	const contextString = parts.join("\n")
 
 	if (options.maxLength && contextString.length > options.maxLength) {
-		return contextString.slice(0, options.maxLength) + "\n... (truncated)"
+		return `${contextString.slice(0, options.maxLength)}\n... (truncated)`
 	}
 
 	return contextString

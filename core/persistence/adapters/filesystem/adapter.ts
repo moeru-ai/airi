@@ -186,7 +186,7 @@ export class FilesystemPersistenceAdapter implements PersistenceAdapter {
 				// Recurse into subdirectories.
 				const subKeys = await this.listRecursive(fullPath, _prefix)
 				keys.push(...subKeys)
-			} else if (!(entry.name as string).endsWith(".tmp." + process.pid)) {
+			} else if (!((entry.name as string).endsWith(`.tmp.${process.pid}`))) {
 				// Convert file path back to key, skip temp files.
 				const key = this.pathToKey(fullPath)
 				keys.push(key)
