@@ -676,4 +676,36 @@ describe('context bridge contract', () => {
 
     await store.dispose()
   })
+
+  it('preserves bigint values in broadcast context snapshots', async () => {
+    const messages = collectChannelMessages<{
+      type: string
+      data: {
+        metadata?: {
+          count?: bigint
+          nested?: Array<{ total?: bigint }>
+        }
+      }
+    }>(CONTEXT_CHANNEL_NAME)
+
+    const store = useContextBridgeStore()
+    await store.initialize()
+
+    await emitContextUpdate(createContextUpdateEvent({
+      metadata: { count: 7n, nested: [{ total: 9n }] },
+    }))
+    await waitForBroadcastDelivery()
+
+    expect(messages.at(-1)).toMatchObject({
+      type: 'context:update',
+      data: {
+        metadata: {
+          count: 7n,
+          nested: [{ total: 9n }],
+        },
+      },
+    })
+
+    await store.dispose()
+  })
 })

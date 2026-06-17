@@ -1,9 +1,9 @@
 export function sanitizeCloneable(value: unknown, seen = new WeakSet<object>()): unknown {
   if (value == null)
     return value
-  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint')
     return value
-  if (typeof value === 'bigint' || typeof value === 'symbol' || typeof value === 'function')
+  if (typeof value === 'symbol' || typeof value === 'function')
     return undefined
 
   const rawValue = value
