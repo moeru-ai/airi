@@ -19,6 +19,19 @@
 import { getState, patchState, upsertTask } from './state.js'
 import type { ExtensionState } from '@roo-code/types'
 
+/**
+ * Minimal shape of the subset of apiConfiguration that provider functions
+ * actually read. The full ExtensionState['apiConfiguration'] type is a deep
+ * intersection of 27+ provider-specific records — we only need these fields.
+ */
+interface ApiConfig {
+  apiKey?: string
+  apiProvider?: string
+  apiModelId?: string
+  modelId?: string
+  baseURL?: string
+}
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -220,11 +233,7 @@ function appendMessage(message: ClineMessage, onUpdate?: () => void): void {
 /**
  * Pick the right streaming function for the configured provider.
  */
-function streamLLM(
-  apiConfig: Record<string, unknown>,
-  systemPrompt: string,
-  messages: LLMMessage[],
-): AsyncGenerator<StreamChunk> {
+function streamLLM(apiConfig: ApiConfig, systemPrompt: string, messages: LLMMessage[]): AsyncGenerator<StreamChunk> {
   const provider = String(apiConfig.apiProvider ?? 'openrouter').toLowerCase()
 
   switch (provider) {
@@ -246,7 +255,7 @@ function streamLLM(
 // ---------------------------------------------------------------------------
 
 async function* streamAnthropic(
-  apiConfig: Record<string, unknown>,
+  apiConfig: ApiConfig,
   systemPrompt: string,
   messages: LLMMessage[],
 ): AsyncGenerator<StreamChunk> {
@@ -300,7 +309,7 @@ async function* streamAnthropic(
 }
 
 async function* streamOpenAI(
-  apiConfig: Record<string, unknown>,
+  apiConfig: ApiConfig,
   systemPrompt: string,
   messages: LLMMessage[],
 ): AsyncGenerator<StreamChunk> {
@@ -358,7 +367,7 @@ async function* streamOpenAI(
 }
 
 async function* streamGemini(
-  apiConfig: Record<string, unknown>,
+  apiConfig: ApiConfig,
   systemPrompt: string,
   messages: LLMMessage[],
 ): AsyncGenerator<StreamChunk> {
@@ -418,7 +427,7 @@ async function* streamGemini(
 }
 
 async function* streamOpenRouter(
-  apiConfig: Record<string, unknown>,
+  apiConfig: ApiConfig,
   systemPrompt: string,
   messages: LLMMessage[],
 ): AsyncGenerator<StreamChunk> {
