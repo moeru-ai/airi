@@ -27,6 +27,15 @@ describe('media permissions', () => {
     )).toBe(false)
   })
 
+  it('rejects media permission requests that include video', () => {
+    expect(shouldGrantAudioCapturePermission(
+      localWebContents as unknown as WebContents,
+      'media',
+      undefined,
+      { mediaTypes: ['audio', 'video'] },
+    )).toBe(false)
+  })
+
   it('does not treat missing media details as audio', () => {
     expect(shouldGrantAudioCapturePermission(
       localWebContents as unknown as WebContents,
@@ -43,5 +52,23 @@ describe('media permissions', () => {
       'https://example.com',
       { mediaTypes: ['audio'] },
     )).toBe(false)
+  })
+
+  it('rejects remote frame requests even when the host window is local', () => {
+    expect(shouldGrantAudioCapturePermission(
+      localWebContents as unknown as WebContents,
+      'media',
+      undefined,
+      { mediaTypes: ['audio'], requestingUrl: 'https://example.com/frame.html' },
+    )).toBe(false)
+  })
+
+  it('grants audio requests with explicit local requester URLs', () => {
+    expect(shouldGrantAudioCapturePermission(
+      null,
+      'media',
+      'http://localhost:5173',
+      { mediaTypes: ['audio'], securityOrigin: 'http://localhost:5173' },
+    )).toBe(true)
   })
 })

@@ -42,7 +42,7 @@ function isAudioMediaPermission(permission: string, details?: MediaPermissionDet
     return true
 
   if (details?.mediaTypes?.length)
-    return details.mediaTypes.includes('audio')
+    return details.mediaTypes.includes('audio') && !details.mediaTypes.includes('video')
 
   return details?.mediaType === 'audio'
 }
@@ -51,10 +51,16 @@ export function shouldGrantAudioCapturePermission(webContents: WebContents | nul
   if (!isAudioMediaPermission(permission, details))
     return false
 
-  return isLocalAppURL(requestingOrigin)
-    || isLocalAppURL(details?.requestingUrl)
-    || isLocalAppURL(details?.securityOrigin)
-    || isLocalAppURL(webContents?.getURL())
+  const requesterURLs = [
+    requestingOrigin,
+    details?.requestingUrl,
+    details?.securityOrigin,
+  ].filter(url => !!url)
+
+  if (requesterURLs.length)
+    return requesterURLs.every(isLocalAppURL)
+
+  return isLocalAppURL(webContents?.getURL())
 }
 
 /**
