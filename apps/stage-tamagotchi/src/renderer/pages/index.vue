@@ -330,6 +330,22 @@ function isVoiceInputSuppressed(now = Date.now()) {
 }
 
 /**
+ * Captures whether a queued VAD segment can still leave the app for ASR.
+ */
+function inspectVoiceInputProviderRequestGate(ticket: VoiceInputTranscriptionTicket) {
+  const current = ticket.isCurrent()
+  const audioEnabled = enabled.value
+  const suppressed = isVoiceInputSuppressed()
+
+  return {
+    current,
+    enabled: audioEnabled,
+    suppressed,
+    skip: !current || !audioEnabled || suppressed,
+  }
+}
+
+/**
  * Clears the pending assistant-speech resume timer.
  */
 function clearAssistantSpeechResumeTimer() {
@@ -498,6 +514,20 @@ async function handleSpeechReady(event: { buffer: Float32Array, duration: number
     return
   }
 
+  const requestGate = inspectVoiceInputProviderRequestGate(ticket)
+  if (requestGate.skip) {
+    voiceInputDebugRecorder.markResult(debugEntry?.id, {
+      status: 'skipped',
+      error: 'Skipped stale voice input segment before transcription request',
+    })
+    console.info('[Main Page] Dropping stale speech segment before transcription request', {
+      ...requestGate,
+      ...diagnostics,
+      recordingSize: blob.size,
+    })
+    return
+  }
+
   let text = ''
   try {
     text = await transcribeForRecording(blob) ?? ''
@@ -511,15 +541,14 @@ async function handleSpeechReady(event: { buffer: Float32Array, duration: number
     return
   }
 
-  if (!ticket.isCurrent() || !enabled.value || isVoiceInputSuppressed()) {
+  const resultGate = inspectVoiceInputProviderRequestGate(ticket)
+  if (resultGate.skip) {
     voiceInputDebugRecorder.markResult(debugEntry?.id, {
       status: 'skipped',
       error: 'Skipped stale transcription result after voice input stopped or assistant speech started',
     })
     console.info('[Main Page] Dropping stale transcription result', {
-      current: ticket.isCurrent(),
-      enabled: enabled.value,
-      suppressed: isVoiceInputSuppressed(),
+      ...resultGate,
       text,
     })
     return
