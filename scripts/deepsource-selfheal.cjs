@@ -73,7 +73,7 @@ function ghJSON(...args) {
 
 // ── Phase: checking ─────────────────────────────────────────────────────────
 function stripAnsi(s) {
-  return s.replace(/\x1b\[[0-9;]*m/g, '');
+  return s.replace(/\u001b\[[0-9;]*m/g, '');
 }
 
 function fetchIssues() {
