@@ -2,6 +2,7 @@ import type { Session, WebContents } from 'electron'
 
 interface MediaPermissionDetails {
   mediaType?: string
+  mediaTypes?: string[]
   requestingUrl?: string
   securityOrigin?: string
 }
@@ -40,10 +41,13 @@ function isAudioMediaPermission(permission: string, details?: MediaPermissionDet
   if (permission !== 'media')
     return true
 
-  return !details?.mediaType || details.mediaType === 'audio'
+  if (details?.mediaTypes?.length)
+    return details.mediaTypes.includes('audio')
+
+  return details?.mediaType === 'audio'
 }
 
-function shouldGrantAudioCapturePermission(webContents: WebContents | null, permission: string, requestingOrigin?: string, details?: MediaPermissionDetails) {
+export function shouldGrantAudioCapturePermission(webContents: WebContents | null, permission: string, requestingOrigin?: string, details?: MediaPermissionDetails) {
   if (!isAudioMediaPermission(permission, details))
     return false
 
