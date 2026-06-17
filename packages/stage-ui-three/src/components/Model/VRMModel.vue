@@ -221,7 +221,7 @@ function configureInjectedShaderMaterial(mat: ShaderMaterial) {
   if (tex && (tex as { colorSpace?: string }).colorSpace !== undefined) {
     try {
       ;(tex as { colorSpace?: string }).colorSpace = SRGBColorSpace
-    } catch (e) {
+    } catch (_e) {
       // ignore colorSpace assignment failures
     }
   }

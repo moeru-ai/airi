@@ -3,7 +3,7 @@ import type { PromptProjectionSnapshot } from '@proj-airi/stage-ui/stores/devtoo
 
 import { Section } from '@proj-airi/stage-ui/components'
 
-const props = withDefaults(
+withDefaults(
   defineProps<{
     currentPromptText: string
     currentSourceCount: number

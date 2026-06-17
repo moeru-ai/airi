@@ -49,7 +49,7 @@ async function generateReport(zipPath: string) {
   // eslint-disable-next-line no-console -- CLI reporting tool needs console output
   console.log(`[1] Enumerating ${allFiles.length} files...`)
   allFiles.forEach((f) => {
-    if (/[^\x00-\x7F]/u.test(f)) {
+    if (/[^\u0000-\u007F]/u.test(f)) {
       report.issues.push(`Non-ASCII filename detected: "${f}" (Ensure middleware handles this)`)
     }
   })
@@ -163,7 +163,7 @@ async function generateReport(zipPath: string) {
   const motionFiles = allFiles.filter(
     // eslint-disable-next-line no-console
     (f) => f.toLowerCase().endsWith('.motion3.json') || f.toLowerCase().endsWith('.mtn'),
-  // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
   )
   // eslint-disable-next-line no-console
   report.metadata.motions = motionFiles
@@ -184,7 +184,7 @@ async function generateReport(zipPath: string) {
     report.checks.forEach((c) => {
       // eslint-disable-next-line no-console -- CLI reporting tool needs console output
       console.log(`    [V] ${c}`)
-    // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
     })
   }
 

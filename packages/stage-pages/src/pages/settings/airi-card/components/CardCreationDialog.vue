@@ -313,7 +313,7 @@ function saveCard(card: Card): boolean {
       if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
         throw new Error('Not an object')
       }
-    } catch (e) {
+    } catch (_e) {
       showError.value = true
       errorMessage.value = t('settings.pages.card.creation.errors.invalid_artistry_json')
       return false

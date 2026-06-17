@@ -17,7 +17,7 @@ interface Props {
   cardName?: string
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   cardName: '',
 })
 const emit = defineEmits<{
