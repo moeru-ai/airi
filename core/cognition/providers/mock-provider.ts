@@ -90,7 +90,7 @@ export class MockCognitionProvider implements CognitionProvider {
 			requestId: request.id,
 			proposal,
 			reasoning: trace,
-			modelInfo: this.getModelInfo(),
+			modelInfo: MockCognitionProvider.getModelInfo(),
 			durationMs,
 			completedAt: new Date().toISOString(),
 		}
@@ -99,7 +99,7 @@ export class MockCognitionProvider implements CognitionProvider {
 	/**
 	 * Get model info for this mock provider.
 	 */
-	getModelInfo(): ModelInfo {
+	static getModelInfo(): ModelInfo {
 		return {
 			provider: "mock",
 			model: "mock-v1",
@@ -109,7 +109,7 @@ export class MockCognitionProvider implements CognitionProvider {
 	/**
 	 * Always available.
 	 */
-	async isAvailable(): Promise<boolean> {
+	static async isAvailable(): Promise<boolean> {
 		return true
 	}
 
@@ -144,7 +144,7 @@ export class MockCognitionProvider implements CognitionProvider {
 			proposalId: proposal.id,
 			entries,
 			summary: `Mock reasoning for proposal: ${proposal.name}`,
-			modelInfo: this.getModelInfo(),
+			modelInfo: MockCognitionProvider.getModelInfo(),
 			startedAt: now,
 			completedAt: now,
 		}

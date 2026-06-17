@@ -23,7 +23,7 @@
  */
 
 import type { CoreContext } from "./modules/module.js"
-import type { ActivationResult, ModuleActivationResult } from "./modules/registry.js"
+import type { ActivationResult } from "./modules/registry.js"
 import type { RuntimeClient } from "./runtime/client.js"
 import type { ModuleActivated, ModuleCrashed } from "./events/types.js"
 

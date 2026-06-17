@@ -19,18 +19,16 @@ import type {
 	CognitionResponse,
 	CognitionContext,
 	PlanProposal,
-	ReasoningId,
-	ProposalId,
 	ValidationResult,
 } from "./types.js"
-import type { Plan, PlanId } from "../planner/types.js"
+import type { Plan } from "../planner/types.js"
 import type { EventBus } from "../events/bus.js"
 import type { Logger } from "../logger.js"
 import type { EventStore } from "../persistence/types.js"
 import type { CognitionConstraints } from "./types.js"
 import type { MemoryRetriever } from "../memory/retrieval.js"
 import type { DecisionMemory } from "../memory/decision-memory.js"
-import { createReasoningId, createProposalId } from "./types.js"
+import { createReasoningId } from "./types.js"
 import { proposalToPlan } from "./proposals.js"
 
 // ── Pipeline result ──────────────────────────────────────────────────────
@@ -223,7 +221,7 @@ export class CognitionCoordinator {
 
 		// 8. Emit validation events.
 		if (validationResult.valid) {
-			const plan = this.acceptProposal(response.proposal, { sessionId: options.sessionId })
+			const plan = CognitionCoordinator.acceptProposal(response.proposal, { sessionId: options.sessionId })
 
 			this.events.emit("plan.validated", {
 				timestamp: new Date().toISOString(),
@@ -235,7 +233,7 @@ export class CognitionCoordinator {
 
 			// 9. Record decision if decision memory is configured.
 			if (this.decisionMemory) {
-				const decisionId = this.decisionMemory.generateId()
+				const decisionId = DecisionMemory.generateId()
 				this.decisionMemory.recordDecision({
 					id: decisionId,
 					proposalId: response.proposal.id as string,
@@ -284,7 +282,7 @@ export class CognitionCoordinator {
 
 			// Record rejected decision if decision memory is configured.
 			if (this.decisionMemory) {
-				const decisionId = this.decisionMemory.generateId()
+				const decisionId = DecisionMemory.generateId()
 				this.decisionMemory.recordDecision({
 					id: decisionId,
 					proposalId: response.proposal.id as string,
@@ -333,7 +331,7 @@ export class CognitionCoordinator {
 	 *
 	 * Does NOT re-validate — caller must validate first.
 	 */
-	acceptProposal(proposal: PlanProposal, options: { sessionId?: string } = {}): Plan {
+	static acceptProposal(proposal: PlanProposal, options: { sessionId?: string } = {}): Plan {
 		return proposalToPlan(proposal, {
 			sessionId: options.sessionId,
 			resumable: true,

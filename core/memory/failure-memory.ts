@@ -255,7 +255,7 @@ export class FailureMemory {
 	/**
 	 * Generate a unique failure ID.
 	 */
-	generateId(prefix = 'failure'): MemoryId {
+	static generateId(prefix = 'failure'): MemoryId {
 		return createMemoryId(`${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)
 	}
 }

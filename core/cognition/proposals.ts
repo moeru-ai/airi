@@ -14,16 +14,13 @@
 import type {
 	PlanProposal,
 	ProposedStep,
-	ProposalId,
 	ReasoningId,
 	PlanSummary,
 	WorkspaceRequirements,
-	EstimatedExecution,
 } from "./types.js"
 import type { Plan, PlanStep, PlanId, StepId } from "../planner/types.js"
 import type { CapabilityId } from "../capabilities/types.js"
-import type { WorkspaceId } from "../workspace/types.js"
-import { createProposalId, createReasoningId } from "./types.js"
+import { createProposalId } from "./types.js"
 import { createPlanId, createStepId } from "../planner/types.js"
 
 // ── Proposal creation ────────────────────────────────────────────────────

@@ -12,15 +12,7 @@ import { connect as netConnect, type Socket } from "node:net"
 
 const _logger = (..._a: unknown[]) => void 0
 
-import type {
-	IpcMessage,
-	IpcEventMessage,
-	IpcRequestMessage,
-	IpcResponseMessage,
-	IpcErrorMessage,
-	IpcPingMessage,
-	IpcPongMessage,
-} from "../protocol.js"
+import type { IpcMessage } from "../protocol.js"
 import type {
 	IpcClientTransport,
 	IpcConnectionState,
@@ -338,7 +330,7 @@ export class LocalSocketClientTransport implements IpcClientTransport {
 
 	// ── Private: encoding ──────────────────────────────────────────────
 
-	private encodeMessage(message: IpcMessage): Buffer {
+	private static encodeMessage(message: IpcMessage): Buffer {
 		const json = JSON.stringify(message)
 		const payload = Buffer.from(json, "utf-8")
 		const header = Buffer.alloc(HEADER_SIZE)

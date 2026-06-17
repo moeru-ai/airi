@@ -165,7 +165,7 @@ export class PlanValidator {
 	 * - All dependency references point to existing steps.
 	 * - No circular dependencies (cycle detection via DFS).
 	 */
-	private validateDependencyGraph(steps: ProposedStep[]): ValidationError[] {
+	private static validateDependencyGraph(steps: ProposedStep[]): ValidationError[] {
 		const errors: ValidationError[] = []
 		const stepIds = new Set(steps.map((s) => s.id))
 
@@ -271,7 +271,7 @@ export class PlanValidator {
 	/**
 	 * Validate execution constraints.
 	 */
-	private validateConstraints(proposal: PlanProposal): ValidationWarning[] {
+	private static validateConstraints(proposal: PlanProposal): ValidationWarning[] {
 		const warnings: ValidationWarning[] = []
 
 		// Check for empty proposals.
@@ -311,7 +311,7 @@ export class PlanValidator {
 	 * - Resolves dependency references.
 	 * - Sets default timeouts.
 	 */
-	normalize(proposal: PlanProposal): PlanProposal {
+	static normalize(proposal: PlanProposal): PlanProposal {
 		const normalizedSteps = proposal.steps.map((step) => ({
 			...step,
 			timeoutMs: step.timeoutMs ?? 30_000,

@@ -141,7 +141,7 @@ export class DecisionMemory {
 	/**
 	 * Generate a unique decision ID.
 	 */
-	generateId(prefix = 'decision'): MemoryId {
+	static generateId(prefix = 'decision'): MemoryId {
 		return createMemoryId(`${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)
 	}
 }

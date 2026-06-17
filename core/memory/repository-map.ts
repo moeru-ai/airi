@@ -300,7 +300,7 @@ export class RepositoryIntelligence {
 	 * Import paths may omit file extensions (e.g., "src/foo" vs "src/foo.ts").
 	 * This helper tries exact match first, then appends common extensions.
 	 */
-	private resolveImportPath(
+	private static resolveImportPath(
 		fileGraph: FileGraphNode[],
 		importPath: string,
 	): string | undefined {
@@ -493,7 +493,7 @@ export class RepositoryIntelligence {
 
 			visited.add(current.path)
 
-			const resolvedPath = this.resolveImportPath(map.fileGraph, current.path) ?? current.path
+			const resolvedPath = RepositoryIntelligence.resolveImportPath(map.fileGraph, current.path) ?? current.path
 			const fileNode = map.fileGraph.find((f) => f.path === resolvedPath)
 			if (fileNode && current.path !== filePath) {
 				related.push(fileNode)
@@ -548,7 +548,7 @@ export class RepositoryIntelligence {
 			if (visited.has(path)) return
 			visited.add(path)
 
-			const resolved = this.resolveImportPath(map.fileGraph, path) ?? path
+			const resolved = RepositoryIntelligence.resolveImportPath(map.fileGraph, path) ?? path
 			const fileNode = map.fileGraph.find((f) => f.path === resolved)
 			if (!fileNode) return
 
@@ -579,7 +579,7 @@ export class RepositoryIntelligence {
 		for (const changedPath of changedPaths) {
 			for (const fileNode of map.fileGraph) {
 				if (fileNode.imports.some((imp) => {
-					const resolved = this.resolveImportPath(map.fileGraph, imp)
+					const resolved = RepositoryIntelligence.resolveImportPath(map.fileGraph, imp)
 					return resolved === changedPath || imp === changedPath
 				})) {
 					affected.add(fileNode.path)

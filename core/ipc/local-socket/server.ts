@@ -16,15 +16,7 @@ import { createServer, type Socket, type Server as NetServer } from "node:net"
 import { existsSync, unlinkSync } from "node:fs"
 import { resolve } from "node:path"
 
-import type {
-	IpcMessage,
-	IpcEventMessage,
-	IpcRequestMessage,
-	IpcResponseMessage,
-	IpcErrorMessage,
-	IpcPingMessage,
-	IpcPongMessage,
-} from "../protocol.js"
+import type { IpcMessage } from "../protocol.js"
 import type {
 	IpcServerTransport,
 	IpcConnectionState,
@@ -154,7 +146,7 @@ export class LocalSocketServerTransport implements IpcServerTransport {
 			throw new Error(`Client "${clientId}" is not connected.`)
 		}
 
-		const data = this.encodeMessage(message)
+		const data = LocalSocketServerTransport.encodeMessage(message)
 		return new Promise<void>((resolve, reject) => {
 			entry.socket.write(data, (err) => {
 				if (err) reject(err)
@@ -164,7 +156,7 @@ export class LocalSocketServerTransport implements IpcServerTransport {
 	}
 
 	async broadcast(message: IpcMessage): Promise<void> {
-		const data = this.encodeMessage(message)
+		const data = LocalSocketServerTransport.encodeMessage(message)
 		const promises: Promise<void>[] = []
 
 		for (const [, entry] of this.clients) {
@@ -345,7 +337,7 @@ export class LocalSocketServerTransport implements IpcServerTransport {
 	 *
 	 * Format: [4 bytes: length][N bytes: UTF-8 JSON]
 	 */
-	private encodeMessage(message: IpcMessage): Buffer {
+	private static encodeMessage(message: IpcMessage): Buffer {
 		const json = JSON.stringify(message)
 		const payload = Buffer.from(json, "utf-8")
 		const header = Buffer.alloc(HEADER_SIZE)
