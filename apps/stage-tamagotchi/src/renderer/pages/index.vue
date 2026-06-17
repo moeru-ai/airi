@@ -346,6 +346,20 @@ function inspectVoiceInputProviderRequestGate(ticket: VoiceInputTranscriptionTic
 }
 
 /**
+ * Captures whether live microphone audio can still leave the app for streaming ASR.
+ */
+function inspectVoiceInputStreamingRequestGate() {
+  const audioEnabled = enabled.value
+  const suppressed = isVoiceInputSuppressed()
+
+  return {
+    enabled: audioEnabled,
+    suppressed,
+    skip: !audioEnabled || suppressed,
+  }
+}
+
+/**
  * Clears the pending assistant-speech resume timer.
  */
 function clearAssistantSpeechResumeTimer() {
@@ -615,6 +629,15 @@ async function startAudioInteraction() {
 
       if (!stream.value) {
         console.warn('[Main Page] Stream not available despite shouldUseStreamInput being true')
+        return
+      }
+
+      const requestGate = inspectVoiceInputStreamingRequestGate()
+      if (requestGate.skip) {
+        console.info('[Main Page] Skipping streaming transcription before ASR request', {
+          ...requestGate,
+          hasStream: !!stream.value,
+        })
         return
       }
 
