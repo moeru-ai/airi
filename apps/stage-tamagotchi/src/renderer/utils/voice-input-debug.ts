@@ -11,8 +11,8 @@ export interface VoiceInputDebugEntry {
   audioUrl: string
   /** Original WAV blob retained for console-side inspection. */
   blob: Blob
-  /** Segment diagnostics measured before provider upload. */
-  diagnostics: VoiceInputAudioDiagnostics
+  /** Segment diagnostics measured before provider upload when the segment came from VAD PCM. */
+  diagnostics?: VoiceInputAudioDiagnostics
   /** Blob size in bytes. */
   recordingSize: number
   /** Blob MIME type. */
@@ -59,8 +59,8 @@ export interface VoiceInputDebugRecorderOptions {
 export interface VoiceInputDebugAttempt {
   /** Exact WAV blob that will be sent to the transcription provider. */
   blob: Blob
-  /** Audio diagnostics measured from the same VAD segment. */
-  diagnostics: VoiceInputAudioDiagnostics
+  /** Audio diagnostics measured from the same VAD segment when available. */
+  diagnostics?: VoiceInputAudioDiagnostics
 }
 
 export interface VoiceInputDebugResult {

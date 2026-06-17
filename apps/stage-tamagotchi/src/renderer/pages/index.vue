@@ -22,10 +22,11 @@ import {
   resolveComponentStateToRuntimePhase,
 } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
+import { useAudioRecorder } from '@proj-airi/stage-ui/composables'
 import { useCanvasPixelIsTransparentAtPoint } from '@proj-airi/stage-ui/composables/canvas-alpha'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
 import { useSpeakingStore } from '@proj-airi/stage-ui/stores/audio'
-import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { refDebounced, useBroadcastChannel } from '@vueuse/core'
@@ -44,7 +45,6 @@ import { useControlsIslandStore } from '../stores/controls-island'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
 import { postBroadcastChannelEvent } from '../utils/broadcast-channel'
 import { shouldSampleStageTransparency } from '../utils/stage-three-transparency'
-import { createVoiceInputWavFromPcmSegment, shouldSkipVoiceInputSegment } from '../utils/voice-input-audio-segment'
 import { createVoiceInputDebugRecorder, installVoiceInputDebugConsole } from '../utils/voice-input-debug'
 import { formatVoiceInputFailure, postVoiceInputCaption } from '../utils/voice-input-feedback'
 import { hasLiveAudioInputTrack } from '../utils/voice-input-recording'
@@ -260,11 +260,15 @@ const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { stream, enabled } = storeToRefs(settingsAudioDeviceStore)
 const { askPermission, startStream, stopStream } = settingsAudioDeviceStore
 const { nowSpeaking } = storeToRefs(useSpeakingStore())
+const hearingStore = useHearingStore()
+const { activeTranscriptionModel, activeTranscriptionProvider } = storeToRefs(hearingStore)
 const hearingPipeline = useHearingSpeechInputPipeline()
 const { transcribeForRecording, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
 const { error: transcriptionError, supportsStreamInput } = storeToRefs(hearingPipeline)
 const chatSyncStore = useChatSyncStore()
-const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
+const streamingTranscriptionUnavailable = ref(false)
+const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value && !streamingTranscriptionUnavailable.value)
+const { startRecord, stopRecord, onStopRecord, isRecording } = useAudioRecorder(stream)
 const voiceInputVadProfile = getVoiceInputVadProfile(readVoiceInputVadProfileName())
 const voiceInputDebugEnabled = IS_DEV || globalThis.localStorage?.getItem('airi:debug') === '1'
 const voiceInputDebugRecorder = createVoiceInputDebugRecorder({
@@ -293,12 +297,10 @@ const { init: initVAD, dispose: disposeVAD, start: startVAD, loaded: vadLoaded }
   onSpeechEnd: () => {
     void handleSpeechEnd()
   },
-  onSpeechReady: (event) => {
-    void voiceInputTranscriptionQueue.enqueue(ticket => handleSpeechReady(event, ticket))
-  },
 })
 
 const audioInteractionStarting = ref(false)
+const audioInteractionStopping = ref(false)
 const assistantSpeechSuppressedUntil = shallowRef(0)
 const assistantSpeechResumeTimer = shallowRef<ReturnType<typeof setTimeout>>()
 
@@ -485,7 +487,13 @@ async function handleSpeechStart() {
     return
   }
 
-  console.info('[Main Page] Speech detected, waiting for VAD speech-ready segment')
+  console.info('[Main Page] Speech detected, starting recorder-backed transcription segment')
+  try {
+    await startRecord()
+  }
+  catch (error) {
+    reportVoiceInputFailure('start recording speech', error)
+  }
 }
 
 async function handleSpeechEnd() {
@@ -499,34 +507,41 @@ async function handleSpeechEnd() {
     return
   }
 
-  console.info('[Main Page] Speech ended, VAD segment should be ready shortly')
+  if (!isRecording.value) {
+    console.info('[Main Page] Speech ended without an active recorder segment')
+    return
+  }
+
+  console.info('[Main Page] Speech ended, finalizing recorder-backed transcription segment')
+  try {
+    await stopRecord()
+  }
+  catch (error) {
+    reportVoiceInputFailure('finalize speech recording', error)
+  }
 }
 
 /**
- * Sends the exact VAD speech segment to the record-then-transcribe provider.
+ * Sends a recorder-backed speech segment to the record-then-transcribe provider.
  */
-async function handleSpeechReady(event: { buffer: Float32Array, duration: number }, ticket: VoiceInputTranscriptionTicket) {
+async function handleRecordedSpeech(recording: Blob | undefined, ticket: VoiceInputTranscriptionTicket) {
   if (shouldUseStreamInput.value)
     return
 
   if (isVoiceInputSuppressed()) {
-    console.info('[Main Page] Dropping VAD speech segment while assistant speech is active or cooling down', {
-      durationMs: event.duration,
-      sampleCount: event.buffer.length,
-    })
+    console.info('[Main Page] Dropping recorded speech segment while assistant speech is active or cooling down')
     return
   }
 
-  const { blob, diagnostics } = createVoiceInputWavFromPcmSegment({
-    buffer: event.buffer,
-    durationMs: event.duration,
-  })
-  const gate = shouldSkipVoiceInputSegment(diagnostics, voiceInputVadProfile.segmentQualityGate)
-  const debugEntry = voiceInputDebugRecorder.recordAttempt({ blob, diagnostics })
-  console.info('[Main Page] VAD speech segment ready', {
-    ...diagnostics,
-    recordingSize: blob.size,
-    skipReason: gate.skip ? gate.reason : undefined,
+  if (!recording || recording.size <= 0) {
+    console.warn('[Main Page] Dropping empty recorder-backed speech segment')
+    return
+  }
+
+  const debugEntry = voiceInputDebugRecorder.recordAttempt({ blob: recording })
+  console.info('[Main Page] Recorder-backed speech segment ready', {
+    recordingSize: recording.size,
+    recordingType: recording.type,
     debugAudioUrl: debugEntry?.audioUrl,
   })
 
@@ -534,17 +549,9 @@ async function handleSpeechReady(event: { buffer: Float32Array, duration: number
     console.info('[Main Page] Voice input debug clip recorded', {
       id: debugEntry.id,
       audioUrl: debugEntry.audioUrl,
-      diagnostics,
+      recordingSize: recording.size,
+      recordingType: recording.type,
     })
-  }
-
-  if (gate.skip) {
-    voiceInputDebugRecorder.markResult(debugEntry?.id, {
-      status: 'skipped',
-      error: `Skipped local segment: ${gate.reason}`,
-      skipReason: gate.reason,
-    })
-    return
   }
 
   const requestGate = inspectVoiceInputProviderRequestGate(ticket)
@@ -555,15 +562,15 @@ async function handleSpeechReady(event: { buffer: Float32Array, duration: number
     })
     console.info('[Main Page] Dropping stale speech segment before transcription request', {
       ...requestGate,
-      ...diagnostics,
-      recordingSize: blob.size,
+      recordingSize: recording.size,
+      recordingType: recording.type,
     })
     return
   }
 
   let text = ''
   try {
-    text = await transcribeForRecording(blob) ?? ''
+    text = await transcribeForRecording(recording) ?? ''
   }
   catch (error) {
     voiceInputDebugRecorder.markResult(debugEntry?.id, {
@@ -597,9 +604,8 @@ async function handleSpeechReady(event: { buffer: Float32Array, duration: number
     })
     console.warn('[Main Page]', message, {
       transcriptionError: transcriptionError.value,
-      ...diagnostics,
-      recordingSize: blob.size,
-      recordingType: blob.type,
+      recordingSize: recording.size,
+      recordingType: recording.type,
     })
     toast(message)
     return
@@ -613,6 +619,13 @@ async function handleSpeechReady(event: { buffer: Float32Array, duration: number
   toast(`Voice input transcribed: ${text}`)
   voiceTranscriptBuffer.push(text)
 }
+
+onStopRecord(async (recording) => {
+  if (audioInteractionStopping.value)
+    return
+
+  await voiceInputTranscriptionQueue.enqueue(ticket => handleRecordedSpeech(recording, ticket))
+})
 
 async function startAudioInteraction() {
   if (isVoiceInputSuppressed()) {
@@ -666,17 +679,31 @@ async function startAudioInteraction() {
         onSpeechEnd: handleStreamingSpeechEnd,
       })
 
-      console.info('[Main Page] Streaming transcription started successfully')
-    }
-    else {
-      console.warn('[Main Page] Not starting streaming transcription:', {
-        shouldUseStreamInput: shouldUseStreamInput.value,
-        hasStream: !!stream.value,
-        supportsStreamInput: supportsStreamInput.value,
-      })
+      const postSetupGate = inspectVoiceInputStreamingRequestGate()
+      if (postSetupGate.skip) {
+        await stopStreamingTranscription(true)
+        console.info('[Main Page] Stopped streaming transcription after setup because voice input is no longer allowed', {
+          ...postSetupGate,
+          hasStream: !!stream.value,
+        })
+        return
+      }
+
+      if (transcriptionError.value) {
+        streamingTranscriptionUnavailable.value = true
+        await stopStreamingTranscription(true)
+        console.warn('[Main Page] Streaming transcription failed; falling back to VAD-triggered recorder segments', {
+          error: transcriptionError.value,
+        })
+      }
+      else {
+        console.info('[Main Page] Streaming transcription started successfully')
+      }
     }
 
-    console.info('[Main Page] Record-then-transcribe providers will use VAD speech-ready segments')
+    if (!shouldUseStreamInput.value) {
+      console.info('[Main Page] Record-then-transcribe providers will use VAD-triggered recorder segments')
+    }
   }
   catch (e) {
     reportVoiceInputFailure('start listening', e)
@@ -697,6 +724,7 @@ async function stopAudioInteraction(options: {
     const flushTranscript = options.flushTranscript ?? true
     const clearQueuedTranscription = options.clearQueuedTranscription ?? true
 
+    audioInteractionStopping.value = true
     clearAssistantSpeechResumeTimer()
     audioInteractionStarting.value = false
     if (clearQueuedTranscription)
@@ -708,11 +736,15 @@ async function stopAudioInteraction(options: {
       voiceTranscriptBuffer.clear()
 
     const stoppedStreaming = stopStreamingTranscription(true)
+    const stoppedRecording = isRecording.value ? stopRecord() : undefined
     disposeVAD()
-    await Promise.allSettled([stoppedStreaming])
+    await Promise.allSettled([stoppedStreaming, stoppedRecording])
   }
   catch (error) {
     reportVoiceInputFailure('stop listening', error)
+  }
+  finally {
+    audioInteractionStopping.value = false
   }
 }
 
@@ -726,6 +758,10 @@ watch(enabled, async (val) => {
     await stopAudioInteraction()
   }
 }, { immediate: true })
+
+watch([activeTranscriptionProvider, activeTranscriptionModel, supportsStreamInput], () => {
+  streamingTranscriptionUnavailable.value = false
+})
 
 watch(nowSpeaking, async (speaking) => {
   if (speaking) {
