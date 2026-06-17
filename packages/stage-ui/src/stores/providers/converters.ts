@@ -161,7 +161,7 @@ export function convertProviderDefinitionToMetadata<TConfig>(
                 baseURL: baseUrl,
                 ...(apiKey ? { apiKey } : {}),
               })
-              return mapModelsToMetadataModels(definition.id, models as ModelInfo[])
+              return mapModelsToMetadataModels(definition.id, models as unknown as ModelInfo[])
             } catch {
               return []
             } finally {
