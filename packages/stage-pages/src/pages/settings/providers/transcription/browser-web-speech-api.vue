@@ -16,6 +16,12 @@ import { until } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+
+interface WebSpeechAPISettings {
+  language?: string
+  continuous?: boolean
+  interimResults?: boolean
+}
 import { useRouter } from 'vue-router'
 
 const providerId = 'browser-web-speech-api'
@@ -31,7 +37,7 @@ const providerMetadata = computed(() => providersStore.getProviderMetadata(provi
 
 // Web Speech API settings (no API key needed, but language and options)
 const settings = computed({
-  get: () => providers.value[providerId] || {},
+  get: () => (providers.value[providerId] || {}) as WebSpeechAPISettings,
   set: (value) => {
     providers.value[providerId] = value
   },
@@ -41,7 +47,7 @@ const language = computed({
   get: () => settings.value?.language || 'en-US',
   set: (value) => {
     if (!providers.value[providerId]) providers.value[providerId] = {}
-    providers.value[providerId].language = value
+    ;(providers.value[providerId] as WebSpeechAPISettings).language = value
   },
 })
 
@@ -49,7 +55,7 @@ const continuous = computed({
   get: () => settings.value?.continuous ?? true,
   set: (value) => {
     if (!providers.value[providerId]) providers.value[providerId] = {}
-    providers.value[providerId].continuous = value
+    ;(providers.value[providerId] as WebSpeechAPISettings).continuous = value
   },
 })
 
@@ -57,7 +63,7 @@ const interimResults = computed({
   get: () => settings.value?.interimResults ?? true,
   set: (value) => {
     if (!providers.value[providerId]) providers.value[providerId] = {}
-    providers.value[providerId].interimResults = value
+    ;(providers.value[providerId] as WebSpeechAPISettings).interimResults = value
   },
 })
 
@@ -240,7 +246,7 @@ async function stopSTTTest() {
     // Stop recognition instance if we have one
     if (testRecognitionInstance.value) {
       try {
-        testRecognitionInstance.value.stop()
+        ;(testRecognitionInstance.value as { stop: () => void }).stop()
       } catch (err) {
         console.warn('Error stopping recognition instance:', err)
       }
