@@ -82,7 +82,7 @@ export interface IOSpan {
   ttsCorrelationId?: string
   subsystem: IOSubsystem
   name: string
-  meta: Record<string, any>
+  meta: Record<string, unknown>
   /** OTel events attached to the span. */
   events?: IOSpanEvent[]
 }

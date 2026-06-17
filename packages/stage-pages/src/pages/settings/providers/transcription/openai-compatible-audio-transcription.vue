@@ -23,7 +23,8 @@ import { computed, onMounted, watch } from 'vue'
 const providerId = 'openai-compatible-audio-transcription'
 const hearingStore = useHearingStore()
 const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+// deepsource:issue=JS-0323
+const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, Record<string, any>>> }
 
 // Define computed properties for credentials
 const apiKey = computed({
@@ -71,7 +72,9 @@ const apiKeyConfigured = computed(() => Boolean(providers.value[providerId]?.api
 // Generate transcription
 async function handleGenerateTranscription(file: File) {
   const provider =
-    await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, any>>(providerId)
+    await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, Record<string, unknown>>>(
+      providerId,
+    )
   if (!provider) throw new Error('Failed to initialize transcription provider')
 
   // Get provider configuration
@@ -96,6 +99,7 @@ const apiKeyPlaceholder = computed(() => {
   const definition = getDefinedProvider(providerId)
   if (!definition?.createProviderConfig) return 'sk-...'
 
+  // deepsource:issue=JS-0323
   const schema = definition.createProviderConfig({ t }) as any
   const shape = typeof schema?.shape === 'function' ? schema.shape() : schema?.shape
   const apiKeySchema = shape?.apiKey

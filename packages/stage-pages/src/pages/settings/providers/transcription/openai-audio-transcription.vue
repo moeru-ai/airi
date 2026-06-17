@@ -46,7 +46,9 @@ onMounted(async () => {
 // Generate transcription
 async function handleGenerateTranscription(file: File) {
   const provider =
-    await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, any>>(providerId)
+    await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, Record<string, unknown>>>(
+      providerId,
+    )
   if (!provider) {
     throw new Error('Failed to initialize transcription provider')
   }
