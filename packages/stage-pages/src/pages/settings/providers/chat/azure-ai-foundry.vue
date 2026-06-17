@@ -17,7 +17,14 @@ import { computed } from 'vue'
 
 const providerId = 'azure-ai-foundry'
 const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+
+interface AzureAIFoundryConfig {
+  apiKey?: string
+  resourceName?: string
+  apiVersion?: string
+  modelId?: string
+}
+const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, AzureAIFoundryConfig>> }
 
 // Define computed properties for credentials
 const apiKey = computed({

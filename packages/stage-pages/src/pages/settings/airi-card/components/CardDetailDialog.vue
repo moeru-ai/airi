@@ -4,7 +4,7 @@ import type { AiriCard } from '@proj-airi/stage-ui/stores/modules/airi-card'
 
 import DOMPurify from 'dompurify'
 
-import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
+import { useBackgroundStore, type BackgroundEntry } from '@proj-airi/stage-ui/stores/background'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
@@ -207,7 +207,7 @@ const tabs = computed<Tab[]>(() => {
   return availableTabs
 })
 
-async function handleSetAsBackground(entry: any) {
+function handleSetAsBackground(entry: BackgroundEntry) {
   activeBackgroundId.value = entry.id
 }
 

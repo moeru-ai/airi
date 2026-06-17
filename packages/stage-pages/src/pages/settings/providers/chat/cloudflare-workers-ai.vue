@@ -16,7 +16,14 @@ import { computed } from 'vue'
 
 const providerId = 'cloudflare-workers-ai'
 const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+
+interface CloudflareWorkersAIConfig {
+  apiKey?: string
+  accountId?: string
+}
+const { providers } = storeToRefs(providersStore) as {
+  providers: RemovableRef<Record<string, CloudflareWorkersAIConfig>>
+}
 
 // Define computed properties for credentials
 const apiKey = computed({

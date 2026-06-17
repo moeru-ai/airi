@@ -18,7 +18,12 @@ import { computed } from 'vue'
 const providerId = 'amazon-bedrock'
 const providersStore = useProvidersStore()
 const consciousnessStore = useConsciousnessStore()
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+
+interface BedrockConfig {
+  apiKey?: string
+  region?: string
+}
+const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, BedrockConfig>> }
 const { activeProvider } = storeToRefs(consciousnessStore)
 
 const apiKey = computed({

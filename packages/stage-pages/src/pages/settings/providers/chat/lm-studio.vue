@@ -15,7 +15,11 @@ import { computed } from 'vue'
 
 const providerId = 'lm-studio'
 const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+
+interface LMStudioConfig {
+  baseUrl?: string
+}
+const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, LMStudioConfig>> }
 
 // Define computed properties for credentials
 

@@ -17,7 +17,13 @@ import { computed, onMounted, ref, watch } from 'vue'
 
 const providerId = 'ollama'
 const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+
+interface OllamaConfig {
+  baseUrl?: string
+  headers?: Record<string, string>
+  thinkingMode?: string
+}
+const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, OllamaConfig>> }
 
 // Define computed properties for credentials
 const baseUrl = computed({

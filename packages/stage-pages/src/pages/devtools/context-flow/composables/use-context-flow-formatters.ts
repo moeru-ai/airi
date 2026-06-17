@@ -102,7 +102,7 @@ function buildPreviewItems(entry: FlowEntry): PreviewItem[] {
     return items
   }
 
-  const payload = getPayloadData(entry) as Record<string, any> | undefined
+  const payload = getPayloadData(entry) as Record<string, unknown> | undefined
   if (payload?.destinations !== undefined) {
     items.push({ label: 'Destinations', value: formatPreviewValue(formatDestinations(payload.destinations)) })
   }
