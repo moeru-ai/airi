@@ -1,7 +1,8 @@
 import type { ComposerTranslation } from 'vue-i18n'
 
-import type { ModelInfo, ProviderDefinition, ProviderValidationPlan } from '../../libs/providers/types'
+import type { ModelInfo, ProviderDefinition } from '../../libs/providers/types'
 import type { ProviderMetadata } from '../providers'
+import type { ProviderValidationPlan, ProviderValidationStep } from '../../libs/providers/validators/run'
 
 import { listModels } from '@xsai/model'
 
@@ -57,7 +58,9 @@ function extractSchemaDefaults<TConfig>(definition: ProviderDefinition<TConfig>,
 }
 
 function buildConfigValidationResult(plan: ProviderValidationPlan) {
-  const invalidSteps = plan.steps.filter((step) => step.kind === 'config' && step.status === 'invalid')
+  const invalidSteps = plan.steps.filter(
+    (step: ProviderValidationStep) => step.kind === 'config' && step.status === 'invalid',
+  )
   if (invalidSteps.length === 0) {
     return {
       errors: [],
@@ -66,9 +69,9 @@ function buildConfigValidationResult(plan: ProviderValidationPlan) {
     }
   }
 
-  const reasons = invalidSteps.map((step) => step.reason).filter(Boolean)
+  const reasons = invalidSteps.map((step: ProviderValidationStep) => step.reason).filter(Boolean)
   return {
-    errors: invalidSteps.map((step) => new Error(step.reason || `${step.id} is invalid`)),
+    errors: invalidSteps.map((step: ProviderValidationStep) => new Error(step.reason || `${step.id} is invalid`)),
     reason: reasons.join('; '),
     valid: false,
   }
@@ -141,7 +144,7 @@ export function convertProviderDefinitionToMetadata<TConfig>(
             try {
               if (isModelProvider(provider)) {
                 const models = await listModels(provider.model())
-                return mapModelsToMetadataModels(definition.id, models as ModelInfo[])
+                return mapModelsToMetadataModels(definition.id, models as unknown as ModelInfo[])
               }
 
               const baseUrl =
@@ -282,7 +285,7 @@ export function convertProviderDefinitionToMetadata<TConfig>(
           supportsStreamInput: definition.capabilities.transcription.streamInput,
         }
       : undefined,
-  }
+  } as unknown as ProviderMetadata
 }
 
 export function convertProviderDefinitionsToMetadata<TConfig>(

@@ -1,6 +1,48 @@
 import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { StreamTranscriptionDelta, StreamTranscriptionResult } from '@xsai/stream-transcription'
 
+// Web Speech API types are not included in lib.dom.d.ts — declare them here
+// so we can reference them without `any`.
+declare global {
+  // eslint-disable-next-line no-var
+  var SpeechRecognition: {
+    new (): SpeechRecognition
+    prototype: SpeechRecognition
+  }
+  // eslint-disable-next-line no-var
+  var webkitSpeechRecognition: {
+    new (): SpeechRecognition
+    prototype: SpeechRecognition
+  }
+  interface SpeechRecognitionEvent extends Event {
+    readonly resultIndex: number
+    readonly results: SpeechRecognitionResultList
+  }
+  interface SpeechRecognitionResultList {
+    readonly length: number
+    item(index: number): SpeechRecognitionResult
+    [index: number]: SpeechRecognitionResult
+  }
+  interface SpeechRecognitionResult {
+    readonly isFinal: boolean
+    readonly length: number
+    item(index: number): SpeechRecognitionAlternative
+    [index: number]: SpeechRecognitionAlternative
+  }
+  interface SpeechRecognitionAlternative {
+    readonly transcript: string
+    readonly confidence: number
+  }
+  interface SpeechRecognitionErrorEvent extends Event {
+    readonly error: string
+    readonly message: string
+  }
+}
+
+// Type alias for the SpeechRecognition constructor — avoids the circular
+// `typeof SpeechRecognition` reference that trips up TS7022.
+type SpeechRecognitionCtor = typeof SpeechRecognition
+
 // NOTICE: Copied/adapted from @xsai/stream-transcription delayed promise helper.
 // Ref: @xsai/stream-transcription@0.4.0-beta.8 (dist/index.js DelayedPromise usage).
 function createDeferred<T>() {
@@ -69,17 +111,17 @@ export function createWebSpeechAPIProvider(): TranscriptionProviderWithExtraOpti
     )
   }
 
-  const SpeechRecognition =
+  const SpeechRecognition: SpeechRecognitionCtor =
     (
       window as unknown as {
-        SpeechRecognition: typeof SpeechRecognition
-        webkitSpeechRecognition: typeof SpeechRecognition
+        SpeechRecognition: SpeechRecognitionCtor
+        webkitSpeechRecognition: SpeechRecognitionCtor
       }
     ).SpeechRecognition ||
     (
       window as unknown as {
-        SpeechRecognition: typeof SpeechRecognition
-        webkitSpeechRecognition: typeof SpeechRecognition
+        SpeechRecognition: SpeechRecognitionCtor
+        webkitSpeechRecognition: SpeechRecognitionCtor
       }
     ).webkitSpeechRecognition
 
@@ -187,12 +229,12 @@ export function streamWebSpeechAPITranscription(
     onSentenceEnd?: (delta: string) => void
     onSpeechEnd?: (text: string) => void
   },
-): StreamTranscriptionResult & { recognition?: SpeechRecognition } {
+): StreamTranscriptionResult & { recognition?: InstanceType<SpeechRecognitionCtor> } {
   const deferredText = createDeferred<string>()
   let fullText = ''
   let textStreamCtrl: ReadableStreamDefaultController<string> | undefined
   let fullStreamCtrl: ReadableStreamDefaultController<StreamTranscriptionDelta> | undefined
-  let recognitionInstance: SpeechRecognition | null = null
+  let recognitionInstance: InstanceType<SpeechRecognitionCtor> | null = null
 
   const fullStream = new ReadableStream<StreamTranscriptionDelta>({
     start(controller) {
@@ -233,17 +275,17 @@ export function streamWebSpeechAPITranscription(
     }
   }
 
-  const SpeechRecognition =
+  const SpeechRecognition: SpeechRecognitionCtor =
     (
       window as unknown as {
-        SpeechRecognition: typeof SpeechRecognition
-        webkitSpeechRecognition: typeof SpeechRecognition
+        SpeechRecognition: SpeechRecognitionCtor
+        webkitSpeechRecognition: SpeechRecognitionCtor
       }
     ).SpeechRecognition ||
     (
       window as unknown as {
-        SpeechRecognition: typeof SpeechRecognition
-        webkitSpeechRecognition: typeof SpeechRecognition
+        SpeechRecognition: SpeechRecognitionCtor
+        webkitSpeechRecognition: SpeechRecognitionCtor
       }
     ).webkitSpeechRecognition
   const recognition = new SpeechRecognition()
@@ -394,7 +436,9 @@ export function streamWebSpeechAPITranscription(
     })
   }
 
-  function createAndStartNewRecognitionInstance(sourceRecognition: SpeechRecognition): SpeechRecognition {
+  function createAndStartNewRecognitionInstance(
+    sourceRecognition: InstanceType<SpeechRecognitionCtor>,
+  ): InstanceType<SpeechRecognitionCtor> {
     const newRecognition = new SpeechRecognition()
     newRecognition.lang = sourceRecognition.lang
     newRecognition.continuous = sourceRecognition.continuous
