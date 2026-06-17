@@ -19,11 +19,15 @@ import { computed, ref, watch } from 'vue'
 
 import { useWebSocketInspectorStore } from '../../devtools/websocket-inspector'
 
-interface ChannelListenerEntry {
-  type: keyof WebSocketEvents
-  callback: (event: WebSocketBaseEvent<any, any>) => void | Promise<void>
+interface ChannelListenerEntry<E extends keyof WebSocketEvents = keyof WebSocketEvents> {
+  type: E
+  callback: (event: WebSocketBaseEvent<E, WebSocketEvents[E]>) => void | Promise<void>
   boundClient?: Client
 }
+
+type EventCallback = (
+  data: WebSocketBaseEvent<keyof WebSocketEvents, WebSocketEvents[keyof WebSocketEvents]>,
+) => void | Promise<void>
 
 function hasReconnectableWebSocketScheme(url: string | undefined) {
   if (!url) {
@@ -60,7 +64,10 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   const websocketUrl = useLocalStorage('settings/connection/websocket-url', defaultWebSocketUrl)
   const websocketAuthToken = useLocalStorage('settings/connection/websocket-auth-token', '')
   const registeredListeners: ChannelListenerEntry[] = []
-  const replayableEvents = new Map<keyof WebSocketEvents, WebSocketBaseEvent<any, any>>()
+  const replayableEvents = new Map<
+    keyof WebSocketEvents,
+    WebSocketBaseEvent<keyof WebSocketEvents, WebSocketEvents[keyof WebSocketEvents]>
+  >()
 
   const basePossibleEvents: Array<keyof WebSocketEvents> = [
     'context:update',
@@ -120,8 +127,12 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
         },
         possibleEvents,
         onAnyMessage: (event) => {
-          if (REPLAYABLE_EVENT_TYPES.has(event.type as keyof WebSocketEvents))
-            replayableEvents.set(event.type as keyof WebSocketEvents, event as WebSocketBaseEvent<any, any>)
+          const eventType = event.type as keyof WebSocketEvents
+          if (REPLAYABLE_EVENT_TYPES.has(eventType))
+            replayableEvents.set(
+              eventType,
+              event as WebSocketBaseEvent<keyof WebSocketEvents, WebSocketEvents[keyof WebSocketEvents]>,
+            )
 
           useWebSocketInspectorStore().add('incoming', event)
         },
@@ -211,7 +222,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   function clearListeners() {
     for (const listener of registeredListeners) {
       if (listener.boundClient) {
-        listener.boundClient.offEvent(listener.type, listener.callback as any)
+        listener.boundClient.offEvent(listener.type, listener.callback as EventCallback)
         listener.boundClient = undefined
       }
     }
@@ -223,8 +234,8 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     for (const listener of registeredListeners) {
       if (listener.boundClient === client.value) continue
 
-      listener.boundClient?.offEvent(listener.type, listener.callback as any)
-      client.value.onEvent(listener.type, listener.callback as any)
+      listener.boundClient?.offEvent(listener.type, listener.callback as EventCallback)
+      client.value.onEvent(listener.type, listener.callback as EventCallback)
       listener.boundClient = client.value
     }
   }
@@ -237,7 +248,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
 
     const entry: ChannelListenerEntry = {
       type,
-      callback: callback as any,
+      callback: callback as unknown as ChannelListenerEntry['callback'],
     }
     registeredListeners.push(entry)
     initializeListeners()
@@ -249,7 +260,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
       const index = registeredListeners.indexOf(entry)
       if (index >= 0) registeredListeners.splice(index, 1)
 
-      entry.boundClient?.offEvent(type, callback as any)
+      entry.boundClient?.offEvent(type, callback as EventCallback)
       entry.boundClient = undefined
     }
   }

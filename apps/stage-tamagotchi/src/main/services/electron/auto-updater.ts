@@ -215,7 +215,12 @@ export interface AppUpdaterLike {
   downloadUpdate: () => Promise<any>
   quitAndInstall: (isSilent?: boolean, isForceRunAfter?: boolean) => Promise<void> | void
   setFeedURL?: (options: { provider: 'generic'; url: string }) => void
-  logger?: any
+  logger?: {
+    info: (message: string) => void
+    warn: (message: string) => void
+    error: (message: string) => void
+    debug: (message: string) => void
+  }
   allowPrerelease?: boolean
   autoDownload?: boolean
   channel?: string
@@ -479,7 +484,7 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
 
       try {
         callback(state)
-      // eslint-disable-next-line no-empty
+        // eslint-disable-next-line no-empty
       } catch {
         // noop
       }

@@ -131,8 +131,12 @@ async function generateReport(zipPath: string) {
 
       // Expressions
       if (Array.isArray(refs.Expressions)) {
-        refs.Expressions.forEach((exp: any) => {
+        refs.Expressions.forEach((exp: { Name?: string; File?: string } | string) => {
           const expFile = typeof exp === 'string' ? exp : exp.File
+          if (!expFile) {
+            report.issues.push(`Missing Expression file path in JSON reference`)
+            return
+          }
           const expPath = path.posix.join(baseDir, expFile)
           if (allFiles.includes(expPath)) {
             report.metadata.expressions.push(expPath)
@@ -141,8 +145,8 @@ async function generateReport(zipPath: string) {
           }
         })
       }
-    } catch (e: any) {
-      report.issues.push(`Failed to parse ${report.entryPoint}: ${e.message}`)
+    } catch (e: unknown) {
+      report.issues.push(`Failed to parse ${report.entryPoint}: ${e instanceof Error ? e.message : String(e)}`)
     }
   }
 

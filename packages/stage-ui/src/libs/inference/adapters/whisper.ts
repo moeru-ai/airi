@@ -7,7 +7,7 @@
  */
 
 import type { AllocationToken } from '../gpu-resource-coordinator'
-import type { ProgressPayload } from '../protocol'
+import type { InferenceResultResponse, ModelReadyResponse, ProgressPayload, WorkerOutboundMessage } from '../protocol'
 
 import { defaultPerfTracer } from '@proj-airi/stage-shared'
 import { Mutex } from 'async-mutex'
@@ -197,12 +197,12 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
    * If `signal` is provided and aborts, sends a `cancel` message to the
    * worker and rejects with `InferenceAbortError`.
    */
-  function waitForMessage<T = any>(
+  function waitForMessage<T = WorkerOutboundMessage>(
     w: Worker,
     requestId: string,
     targetType: string,
     timeout: number,
-    onOther?: (data: any) => void,
+    onOther?: (data: WorkerOutboundMessage) => void,
     signal?: AbortSignal,
   ): Promise<T> {
     return new Promise((resolve, reject) => {
@@ -273,7 +273,7 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
     return operationMutex.runExclusive(async () => {
       throwIfAborted(options?.signal)
       state = 'loading'
-      updateInferenceStatus(MODEL_NAMES.WHISPER, { state: 'downloading', device: requestedDevice as any })
+      updateInferenceStatus(MODEL_NAMES.WHISPER, { state: 'downloading', device: requestedDevice })
 
       return getLoadQueue().enqueue(
         MODEL_NAMES.WHISPER,
@@ -283,7 +283,7 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
           const w = ensureWorker()
           const requestId = createRequestId()
 
-          const readyPromise = waitForMessage(
+          const readyPromise = waitForMessage<ModelReadyResponse>(
             w,
             requestId,
             'model-ready',
@@ -306,7 +306,7 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
 
           w.postMessage({ type: 'load-model', requestId, modelId: MODEL_NAMES.WHISPER, device: requestedDevice })
 
-          let readyResponse: any
+          let readyResponse: ModelReadyResponse | null = null
           try {
             readyResponse = await readyPromise
           } catch (error) {
@@ -349,7 +349,7 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
           state = 'transcribing'
           const requestId = createRequestId()
 
-          const resultPromise = waitForMessage<any>(
+          const resultPromise = waitForMessage<InferenceResultResponse<{ text: string[] }>>(
             worker,
             requestId,
             'inference-result',

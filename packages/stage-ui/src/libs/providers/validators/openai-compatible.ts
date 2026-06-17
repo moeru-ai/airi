@@ -24,18 +24,24 @@ interface OpenAICompatibleValidationOptions<TConfig extends { apiKey?: string; b
   modelListFailureReason?: (input: { config: TConfig; error: unknown; errorMessage: string }) => string
 }
 
+interface ErrorWithStatusLikeCause {
+  cause?: {
+    status?: unknown
+    statusCode?: unknown
+    response?: { status?: unknown }
+  }
+}
+
+function isErrorWithStatusLikeCause(error: unknown): error is ErrorWithStatusLikeCause {
+  return typeof error === 'object' && error !== null
+}
+
 function extractStatusCode(error: unknown): number | null {
   if (!error) return null
 
-  const anyError = error as {
-    cause?: {
-      status?: unknown
-      statusCode?: unknown
-      response?: { status?: unknown }
-    }
-  }
+  if (!isErrorWithStatusLikeCause(error)) return null
 
-  const candidates = [anyError.cause?.status, anyError.cause?.statusCode, anyError.cause?.response?.status]
+  const candidates = [error.cause?.status, error.cause?.statusCode, error.cause?.response?.status]
 
   for (const candidate of candidates) {
     if (typeof candidate === 'number') return candidate
@@ -44,10 +50,20 @@ function extractStatusCode(error: unknown): number | null {
   return null
 }
 
-function extractModelId(model: any): string {
+interface ModelWithId {
+  id: unknown
+}
+
+function isModelWithId(value: unknown): value is ModelWithId {
+  return typeof value === 'object' && value !== null && 'id' in value
+}
+
+function extractModelId(model: unknown): string {
   if (!model) return ''
   if (typeof model === 'string') return model
-  if (typeof model.id === 'string') return model.id
+  if (isModelWithId(model) && typeof model.id === 'string') {
+    return model.id
+  }
 
   return ''
 }

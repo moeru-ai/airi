@@ -3,6 +3,8 @@ import { useElectronAllDisplays, useElectronMouse } from '@proj-airi/electron-vu
 import { useWindowSize } from '@vueuse/core'
 import { computed } from 'vue'
 
+import type { Display } from 'electron'
+
 const allDisplays = useElectronAllDisplays()
 const { x: cursorX, y: cursorY } = useElectronMouse()
 
@@ -53,7 +55,7 @@ const scale = computed(() => {
 })
 
 // Transform display coordinates
-function transformDisplay(display: any) {
+function transformDisplay(display: Display) {
   const { minX, minY } = displayBounds.value
   return {
     x: (display.bounds.x - minX) * scale.value,

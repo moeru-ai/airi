@@ -1,4 +1,4 @@
-import type { ModelInfo } from '../../types'
+import type { ModelInfo, ProviderInstance } from '../../types'
 
 import { createAzure } from '@xsai-ext/providers/special/create'
 import { z } from 'zod'
@@ -54,7 +54,7 @@ export const providerAzureAIFoundry = defineProvider<AzureAIFoundryConfig>({
       apiKey: async () => config.apiKey.trim(),
       resourceName: config.resourceName.trim(),
       apiVersion: config.apiVersion?.trim(),
-    }) as any
+    }) as unknown as ProviderInstance
   },
 
   extraMethods: {

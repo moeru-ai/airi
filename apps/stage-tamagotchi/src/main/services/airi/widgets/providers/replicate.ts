@@ -6,6 +6,34 @@ import { useLogg } from '@guiiai/logg'
 
 const log = useLogg('providers-replicate').useGlobalConfig()
 
+/** Shape of the config object passed to {@link ReplicateProvider.initialize}. */
+interface ReplicateConfig {
+  replicateApiKey?: string
+  replicateDefaultModel?: string
+  replicateAspectRatio?: string
+  replicateInferenceSteps?: number
+  [key: string]: unknown
+}
+
+/** A single output item returned by Replicate's `run()`. */
+interface ReplicateOutputItem {
+  url?: (() => { href: string }) | string
+}
+
+/** Type for the extra provider-options bag inside {@link ArtistryRequest.extra}. */
+type ReplicateExtra = Record<string, unknown> & {
+  image?: string
+  internalJobId?: string
+  remixId?: string
+  model?: string
+  go_fast?: boolean
+  aspect_ratio?: string
+  output_format?: string
+  output_quality?: number
+  num_inference_steps?: number
+  prompt?: string
+}
+
 export class ReplicateProvider implements ArtistryProvider {
   readonly id = 'replicate'
   readonly name = 'Replicate.ai (Cloud)'
@@ -31,7 +59,7 @@ export class ReplicateProvider implements ArtistryProvider {
     if (callback) callback(status)
   }
 
-  async initialize(config: any): Promise<void> {
+  async initialize(config: ReplicateConfig): Promise<void> {
     if (config?.replicateApiKey) {
       this.apiKey = config.replicateApiKey
       this.replicate = new Replicate({ auth: this.apiKey })
@@ -54,7 +82,7 @@ export class ReplicateProvider implements ArtistryProvider {
 
     // 1. Start with defaults
     const hasPromptPlaceholder = JSON.stringify(request.extra).includes('{{PROMPT}}')
-    let inputOptions: Record<string, any> = {
+    let inputOptions: Record<string, unknown> = {
       go_fast: request.extra?.go_fast ?? true,
       aspect_ratio: request.extra?.aspect_ratio ?? this.aspectRatio,
       output_format: request.extra?.output_format ?? 'png',
@@ -71,12 +99,12 @@ export class ReplicateProvider implements ArtistryProvider {
     if (request.extra) {
       const { image: _image, internalJobId: _internalJobId, remixId: _remixId, ...rest } = request.extra
       // [BY DESIGN]: Strip 'prompt' from rest to avoid overwriting the prefixed version from the bridge.
-      const { prompt: _overriddenPrompt, ...safeRest } = rest as any
+      const { prompt: _overriddenPrompt, ...safeRest } = rest as unknown as ReplicateExtra
       inputOptions = { ...inputOptions, ...safeRest }
     }
 
     // 3. Recursive placeholder replacement for {{IMAGE}} and {{PROMPT}}
-    const replacePlaceholders = (obj: any): any => {
+    const replacePlaceholders = (obj: unknown): unknown => {
       if (typeof obj === 'string') {
         let result = obj
         // Handle image replacement
@@ -93,17 +121,17 @@ export class ReplicateProvider implements ArtistryProvider {
       }
       if (Array.isArray(obj)) return obj.map(replacePlaceholders)
       if (typeof obj === 'object' && obj !== null) {
-        const newObj: any = {}
-        for (const key in obj) newObj[key] = replacePlaceholders(obj[key])
+        const newObj: Record<string, unknown> = {}
+        for (const key in obj) newObj[key] = replacePlaceholders((obj as Record<string, unknown>)[key])
         return newObj
       }
       return obj
     }
 
-    inputOptions = replacePlaceholders(inputOptions)
+    inputOptions = replacePlaceholders(inputOptions) as Record<string, unknown>
 
     // Ensure main prompt is also truncated if not using a placeholder
-    if (inputOptions.prompt && !hasPromptPlaceholder) {
+    if (typeof inputOptions.prompt === 'string' && !hasPromptPlaceholder) {
       inputOptions.prompt = this.truncatePrompt(inputOptions.prompt)
     }
 
@@ -138,17 +166,22 @@ export class ReplicateProvider implements ArtistryProvider {
         let imageUrl: string | undefined
 
         // Case 1: FileUpload object with .url() method (common in recent SDK versions)
-        if (typeof first === 'object' && first !== null && 'url' in first && typeof (first as any).url === 'function') {
-          imageUrl = (first as any).url().href
+        if (
+          typeof first === 'object' &&
+          first !== null &&
+          'url' in first &&
+          typeof (first as ReplicateOutputItem).url === 'function'
+        ) {
+          imageUrl = (first as ReplicateOutputItem & { url: () => { href: string } }).url().href
         }
         // Case 2: Object with url property as a string
         else if (
           typeof first === 'object' &&
           first !== null &&
           'url' in first &&
-          typeof (first as any).url === 'string'
+          typeof (first as ReplicateOutputItem).url === 'string'
         ) {
-          imageUrl = (first as any).url
+          imageUrl = (first as ReplicateOutputItem).url as string
         }
         // Case 3: Simple string (the URL itself)
         else if (typeof first === 'string') {
@@ -165,8 +198,9 @@ export class ReplicateProvider implements ArtistryProvider {
       } else {
         throw new Error('Replicate returned an empty output array.')
       }
-    } catch (error: any) {
-      const errorMessage = error.message || (typeof error === 'object' ? JSON.stringify(error) : String(error))
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : typeof error === 'object' ? JSON.stringify(error) : String(error)
       log.error(`[Replicate] Generation Failed for ${jobId}: ${errorMessage}`)
       this.updateStatus(jobId, {
         status: 'failed',

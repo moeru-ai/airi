@@ -10,6 +10,15 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+interface VolcengineProviderConfig {
+  [key: string]: unknown
+  apiKey?: string
+  baseUrl?: string
+  model?: string
+  app?: { appId?: string }
+  audio?: { speedRatio?: number }
+}
+
 const providerId = 'volcengine'
 const defaultModel = 'v1'
 
@@ -20,9 +29,13 @@ const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore)
 const { t } = useI18n()
 
+function getProviderConfig(): VolcengineProviderConfig {
+  return (providers.value[providerId] ?? {}) as VolcengineProviderConfig
+}
+
 // Additional settings specific to Volcengine (appId)
 const appId = computed({
-  get: () => ((providers.value[providerId]?.app as any)?.appId as string | undefined) || '',
+  get: () => getProviderConfig().app?.appId ?? '',
   set: (value) => {
     if (!providers.value[providerId]) providers.value[providerId] = {}
 
@@ -51,19 +64,20 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   }
 
   // Get provider configuration
-  const providerConfig = providersStore.getProviderConfig(providerId)
+  const providerConfig = getProviderConfig()
 
   // Get model from configuration or use default
-  const model = (providerConfig.model as string | undefined) || defaultModel
+  const model = providerConfig.model || defaultModel
 
   // ElevenLabs doesn't need SSML conversion, but if SSML is provided, use it directly
+  const { app: _app, audio: _audio, ...restConfig } = providerConfig
   return await speechStore.speech(provider, model, input, voiceId, {
-    ...providerConfig,
+    ...restConfig,
   })
 }
 
 onMounted(async () => {
-  const providerConfig = providersStore.getProviderConfig(providerId)
+  const providerConfig = getProviderConfig()
   const providerMetadata = providersStore.getProviderMetadata(providerId)
   if (await providerMetadata.validators.validateProviderConfig(providerConfig)) {
     await speechStore.loadVoicesForProvider(providerId)
@@ -73,18 +87,18 @@ onMounted(async () => {
 })
 
 watch(speedRatio, async () => {
-  const providerConfig = providersStore.getProviderConfig(providerId)
+  const providerConfig = getProviderConfig()
   if (!providerConfig.audio) {
     providerConfig.audio = {}
   }
 
-  ;(providerConfig.audio as any).speedRatio = speedRatio.value
+  providerConfig.audio.speedRatio = speedRatio.value
 })
 
 watch(
   [providers, appId],
   async () => {
-    const providerConfig = providersStore.getProviderConfig(providerId)
+    const providerConfig = getProviderConfig()
     const providerMetadata = providersStore.getProviderMetadata(providerId)
     if (await providerMetadata.validators.validateProviderConfig(providerConfig)) {
       await speechStore.loadVoicesForProvider(providerId)

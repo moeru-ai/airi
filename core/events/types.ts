@@ -442,6 +442,9 @@ export type AiriEvent =
 	| CapabilityRemoved
 	| ToolExecutionFailed
 	| ToolExecutionCancelled
+	| PersistedToolExecutionStarted
+	| PersistedToolExecutionCompleted
+	| PersistedToolExecutionFailed
 	| WorkspaceCreated
 	| WorkspaceDestroyed
 	| WorkspaceLeased
@@ -810,6 +813,72 @@ export interface ToolExecutionCancelled extends AiriEventBase {
 	/** Optional cancellation reason. */
 	readonly reason?: string
 }
+
+// ── Persisted tool execution events ────────────────────────────────────
+
+/**
+ * Persisted record of a tool execution start.
+ *
+ * Includes executionId for correlation across the full lifecycle
+ * (started → completed/failed/cancelled).
+ */
+export interface PersistedToolExecutionStarted extends AiriEventBase {
+	readonly type: "tool.execution.started"
+
+	/** Unique execution identifier for correlation. */
+	readonly executionId: string
+
+	/** The tool being executed. */
+	readonly toolId: ToolId
+
+	/** The task this execution belongs to. */
+	readonly taskId: string
+}
+
+/**
+ * Persisted record of a tool execution completion.
+ */
+export interface PersistedToolExecutionCompleted extends AiriEventBase {
+	readonly type: "tool.execution.completed"
+
+	/** Unique execution identifier for correlation. */
+	readonly executionId: string
+
+	/** The tool that was executed. */
+	readonly toolId: ToolId
+
+	/** The task this execution belongs to. */
+	readonly taskId: string
+
+	/** Whether the tool execution succeeded. */
+	readonly success: boolean
+
+	/** Execution duration in milliseconds. */
+	readonly durationMs: number
+}
+
+/**
+ * Persisted record of a tool execution failure.
+ */
+export interface PersistedToolExecutionFailed extends AiriEventBase {
+	readonly type: "tool.execution.failed"
+
+	/** Unique execution identifier for correlation. */
+	readonly executionId: string
+
+	/** The tool that was executed. */
+	readonly toolId: ToolId
+
+	/** The task this execution belongs to. */
+	readonly taskId: string
+
+	/** Error details. */
+	readonly error: {
+		readonly code: string
+		readonly message: string
+	}
+}
+
 
 // ── Semantic memory events ────────────────────────────────────────────
 

@@ -3,6 +3,8 @@ import type { Tool } from '@xsai/shared-chat'
 
 import type { SparkNotifyTracingHooks, SparkTraceEvent } from './types'
 
+import type { JsonSchema } from 'xsschema'
+
 import { errorMessageFrom } from '@moeru/std'
 import { rawTool } from '@xsai/tool'
 import { toJsonSchema, validate } from 'xsschema'
@@ -138,7 +140,7 @@ export async function createSparkNotifyTools(options: CreateSparkNotifyToolsOpti
   const sparkNoResponseTool = rawTool({
     name: 'builtIn_sparkNoResponse',
     description: 'Indicate that no response or action is needed for the current spark:notify event.',
-    parameters: normalizeNullableAnyOf((await toJsonSchema(z.object({}).strict())) as any),
+    parameters: normalizeNullableAnyOf((await toJsonSchema(z.object({}).strict())) as JsonSchema),
     execute: async (_rawPayload, context) => {
       options.onTrace?.({
         type: 'model-output-tool-call',
@@ -164,7 +166,7 @@ export async function createSparkNotifyTools(options: CreateSparkNotifyToolsOpti
   const sparkCommandTool = rawTool({
     name: 'builtIn_sparkCommand',
     description: 'Issue a spark:command to sub-agents. You can call this tool multiple times.',
-    parameters: normalizeNullableAnyOf((await toJsonSchema(sparkNotifyCommandSchema)) as any),
+    parameters: normalizeNullableAnyOf((await toJsonSchema(sparkNotifyCommandSchema)) as JsonSchema),
     execute: async (rawPayload, context) => {
       options.onTrace?.({
         type: 'model-output-tool-call',

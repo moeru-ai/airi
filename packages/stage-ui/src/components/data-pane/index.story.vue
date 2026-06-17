@@ -111,10 +111,10 @@ function useDataPane<T extends DataPaneSchema>(
   data: Ref<InferDataPaneType<T>>
   schema: { [K in keyof InferDataPaneType<T>]: T[K] }
   states: Ref<Record<keyof T, unknown>>
-  stateOf: <S>(key: string) => S
+  stateOf: <S = unknown>(key: string) => S
 } {
-  const data = ref<InferDataPaneType<T>>({} as any)
-  const states = ref<Record<keyof T, any>>({} as Record<keyof T, unknown>)
+  const data = ref<InferDataPaneType<T>>({} as unknown as InferDataPaneType<T>)
+  const states = ref<Record<keyof T, unknown>>({} as unknown as Record<keyof T, unknown>)
 
   function initStateFor(key: string, defaultValue: unknown) {
     if (!states.value[key]) {
@@ -122,8 +122,8 @@ function useDataPane<T extends DataPaneSchema>(
     }
   }
 
-  function stateOf<S>(key: string): S {
-    return states.value[key]
+  function stateOf<S = unknown>(key: string): S {
+    return states.value[key] as S
   }
 
   for (const key in schema) {

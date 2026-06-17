@@ -226,7 +226,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
 
   async function transcription(
     providerId: string,
-    provider: TranscriptionProviderWithExtraOptions<string, any>,
+    provider: TranscriptionProviderWithExtraOptions<string, Record<string, unknown>>,
     model: string,
     input: HearingTranscriptionInput,
     format?: 'json' | 'verbose_json',
@@ -473,8 +473,8 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
         }
 
         // Stop Web Speech API recognition if it exists
-        const result = session.result as any
-        if (result?.recognition) {
+        const result = session.result as { recognition?: { stop?: () => void } } | null | undefined
+        if (result?.recognition?.stop) {
           try {
             result.recognition.stop()
           } catch (err) {
@@ -747,7 +747,9 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
       }
 
       const provider =
-        await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, any>>(providerId)
+        await providersStore.getProviderInstance<
+          TranscriptionProviderWithExtraOptions<string, Record<string, unknown>>
+        >(providerId)
       if (!provider) {
         throw new Error('Failed to initialize speech provider')
       }
@@ -882,7 +884,9 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
       if (recording && recording.size > 0) {
         const providerId = activeTranscriptionProvider.value
         const provider =
-          await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, any>>(providerId)
+          await providersStore.getProviderInstance<
+            TranscriptionProviderWithExtraOptions<string, Record<string, unknown>>
+          >(providerId)
         if (!provider) {
           throw new Error('Failed to initialize speech provider')
         }

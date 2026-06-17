@@ -10,6 +10,17 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+interface SpeechProviderConfig {
+  apiKey?: string
+  baseUrl?: string
+  model?: string
+  voice?: string
+  speed?: number
+  voiceSettings?: {
+    speed?: number
+  }
+}
+
 const speechStore = useSpeechStore()
 const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore)
@@ -25,8 +36,8 @@ const defaultModel = 'tts' // https://www.cometapi.com/models/openai/tts/
 
 // Initialize speed from provider config or default
 const speed = ref<number>(
-  (providers.value[providerId] as any)?.voiceSettings?.speed ||
-    (providers.value[providerId] as any)?.speed ||
+  (providers.value[providerId] as SpeechProviderConfig | undefined)?.voiceSettings?.speed ||
+    (providers.value[providerId] as SpeechProviderConfig | undefined)?.speed ||
     defaultVoiceSettings.speed,
 )
 
@@ -52,7 +63,7 @@ watch(
   () => providers.value[providerId],
   (newConfig) => {
     if (newConfig) {
-      const config = newConfig as any
+      const config = newConfig as SpeechProviderConfig
       const newSpeed = config.voiceSettings?.speed || config.speed || defaultVoiceSettings.speed
       if (Math.abs(speed.value - newSpeed) > 0.001) speed.value = newSpeed
 
@@ -156,7 +167,7 @@ const { isValidating, isValid, validationMessage, forceValid } = useProviderVali
     <template #playground>
       <SpeechPlaygroundOpenAICompatible
         v-model:model-value="model"
-        v-model:voice="voice as any"
+        v-model:voice="voice as string"
         :generate-speech="handleGenerateSpeech"
         :api-key-configured="apiKeyConfigured"
         default-text="Hello! This is a test of the CometAPI Speech."

@@ -12,6 +12,7 @@
 
 import type {
   ErrorPayload,
+  ErrorResponse,
   LoadModelRequest,
   ModelReadyResponse,
   ProgressPayload,
@@ -105,7 +106,7 @@ function waitForWorkerMessage<T extends WorkerOutboundMessage>(
       } else if (event.data.type === 'error') {
         if (timeoutId !== undefined) clearTimeout(timeoutId)
         worker.removeEventListener('message', handler)
-        const payload = (event.data as any).payload
+        const payload = (event.data as ErrorResponse).payload
         reject(new Error(payload?.message ?? 'Worker error'))
       } else {
         onOther?.(event.data)

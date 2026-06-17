@@ -1,4 +1,4 @@
-import type { EventContext } from '@moeru/eventa'
+import type { InvocableEventContext } from '@moeru/eventa'
 import type { Analyser, AnalyserBeatEvent, AnalyserWorkletParameters } from '@nekopaw/tempora'
 import type { SerializableDesktopCapturerSource } from '@proj-airi/electron-screen-capture'
 
@@ -56,7 +56,7 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
   let inputAnalyserNode: AnalyserNode | undefined
   let inputAnalyserBuffer: Uint8Array<ArrayBuffer> | undefined
 
-  const listeners: { [K in keyof BeatSyncDetectorEventMap]: Array<(...args: any) => void> } = {
+  const listeners: { [K in keyof BeatSyncDetectorEventMap]: Array<BeatSyncDetectorEventMap[K]> } = {
     stateChange: [],
     beat: [],
   }
@@ -65,7 +65,12 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
     event: E,
     ...args: Parameters<BeatSyncDetectorEventMap[E]>
   ) => {
-    listeners[event].forEach((listener) => listener(...args))
+    // NOTICE:
+    // Type assertion needed because TypeScript can't prove at compile-time that
+    // listener and args have matching parameter types even though they're both
+    // derived from the same event key E. The runtime guarantee comes from the
+    // on/off methods which enforce type safety at the registration point.
+    listeners[event].forEach((listener) => (listener as (...a: typeof args) => void)(...args))
   }
 
   const stop = () => {
@@ -256,7 +261,7 @@ function getDetector() {
   return detector
 }
 
-let context: EventContext<any, any> | undefined
+let context: InvocableEventContext<unknown, { raw?: unknown }> | undefined
 function getContext() {
   if (!context) context = createContext()
 

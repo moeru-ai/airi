@@ -245,7 +245,8 @@ export function useExpressionController(options: ExpressionControllerOptions) {
 
     try {
       // Prefer the dedicated default-value API when available (Cubism 4+).
-      const defaultApi = (im.coreModel as any).getParameterDefaultValueById
+      const defaultApi = (im.coreModel as { getParameterDefaultValueById?: (id: string) => number | undefined })
+        .getParameterDefaultValueById
       if (typeof defaultApi === 'function') {
         const val = defaultApi.call(im.coreModel, parameterId)
         if (val != null) return val as number

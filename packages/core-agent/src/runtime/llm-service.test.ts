@@ -78,7 +78,7 @@ describe('streamFrom tool error capture', () => {
             toolCallId: 'call-1',
             toolName: 'play_chess',
           })
-          await options.onEvent({ type: 'finish', finishReason: 'stop' })
+          await options.onEvent({ type: 'finish', reason: 'stop' })
           resolveSteps?.([])
         })
 

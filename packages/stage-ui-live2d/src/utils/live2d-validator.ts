@@ -132,10 +132,19 @@ export async function validateLive2DZip(file: File | Blob): Promise<Live2DValida
       }
       if (refs.Physics) checkRef(refs.Physics, 'Physics')
       if (Array.isArray(refs.Expressions)) {
-        refs.Expressions.forEach((e: any) => checkRef(typeof e === 'string' ? e : e.File, 'Expression'))
+        refs.Expressions.forEach((e: { Name?: string; File?: string } | string) => {
+          const expFile = typeof e === 'string' ? e : e.File
+          if (expFile) {
+            checkRef(expFile, 'Expression')
+          } else {
+            report.errors.push('Expression reference missing File property')
+          }
+        })
       }
-    } catch (e: any) {
-      report.errors.push(`JSON PARSE ERROR: Failed to parse ${report.entryPoint}: ${e.message}`)
+    } catch (e: unknown) {
+      report.errors.push(
+        `JSON PARSE ERROR: Failed to parse ${report.entryPoint}: ${e instanceof Error ? e.message : String(e)}`,
+      )
     }
   }
 

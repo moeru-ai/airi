@@ -22,7 +22,9 @@ const route = useRoute()
 const providerId = route.params.providerId as string
 const providersStore = useProvidersStore()
 const consciousnessStore = useConsciousnessStore()
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+const { providers } = storeToRefs(providersStore) as {
+  providers: RemovableRef<Record<string, Record<string, unknown>>>
+}
 const { activeProvider } = storeToRefs(consciousnessStore)
 
 // Define computed properties for credentials
@@ -63,7 +65,9 @@ const apiKeyPlaceholder = computed(() => {
   const definition = getDefinedProvider(providerId)
   if (!definition?.createProviderConfig) return 'sk-...'
 
-  const schema = definition.createProviderConfig({ t }) as any
+  const schema = definition.createProviderConfig({ t }) as
+    | { shape?: () => Record<string, { meta?: () => { placeholderLocalized?: string } }> }
+    | undefined
   const shape = typeof schema?.shape === 'function' ? schema.shape() : schema?.shape
   const apiKeySchema = shape?.apiKey
   if (!apiKeySchema) return 'sk-...'

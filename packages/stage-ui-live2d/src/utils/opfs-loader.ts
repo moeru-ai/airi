@@ -223,8 +223,7 @@ export class OPFSCache {
 }
 
 function encodeProperty(obj: Record<string, unknown>, path: string): void {
-  // eslint-disable-next-line ts/no-explicit-any
-  let cursor: any = obj
+  let cursor: unknown = obj
   const propPath = path.split('.')
   // will lose reference when access to the last level
   while (
@@ -232,18 +231,30 @@ function encodeProperty(obj: Record<string, unknown>, path: string): void {
     cursor !== null &&
     cursor !== undefined &&
     typeof cursor === 'object' &&
-    propPath[0] in cursor
+    propPath[0] in (cursor as Record<string, unknown>)
   ) {
-    cursor = cursor[propPath.shift()!]
+    cursor = (cursor as Record<string, unknown>)[propPath.shift()!]
   }
-  if (cursor === null || cursor === undefined || cursor[propPath[0]] === null || cursor[propPath[0]] === undefined) {
+  if (
+    cursor === null ||
+    cursor === undefined ||
+    (cursor as Record<string, unknown>)[propPath[0]] === null ||
+    (cursor as Record<string, unknown>)[propPath[0]] === undefined
+  ) {
     return
   }
-  if (typeof cursor[propPath[0]] === 'string') {
-    cursor[propPath[0]] = encodeURI(cursor[propPath[0]])
+  if (typeof (cursor as Record<string, unknown>)[propPath[0]] === 'string') {
+    ;(cursor as Record<string, unknown>)[propPath[0]] = encodeURI(
+      (cursor as Record<string, unknown>)[propPath[0]] as string,
+    )
   }
-  if (Array.isArray(cursor[propPath[0]]) && typeof cursor[propPath[0]][0] === 'string') {
-    cursor[propPath[0]] = cursor[propPath[0]].map((s: string) => encodeURI(s))
+  if (
+    Array.isArray((cursor as Record<string, unknown>)[propPath[0]]) &&
+    typeof ((cursor as Record<string, unknown>)[propPath[0]] as unknown[])[0] === 'string'
+  ) {
+    ;(cursor as Record<string, unknown>)[propPath[0]] = (
+      (cursor as Record<string, unknown>)[propPath[0]] as string[]
+    ).map((s: string) => encodeURI(s))
   }
 }
 // TODO: find all file paths and encode them by recursively visiting the settings

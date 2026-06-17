@@ -23,11 +23,13 @@ import { computed } from 'vue'
 const providerId = 'comet-api-transcription'
 const hearingStore = useHearingStore()
 const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+const { providers } = storeToRefs(providersStore) as {
+  providers: RemovableRef<Record<string, Record<string, unknown>>>
+}
 
 // Define computed properties for credentials
 const apiKey = computed({
-  get: () => providers.value[providerId]?.apiKey || '',
+  get: () => (providers.value[providerId]?.apiKey as string) ?? '',
   set: (value) => {
     if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].apiKey = value
@@ -35,7 +37,7 @@ const apiKey = computed({
 })
 
 const baseUrl = computed({
-  get: () => providers.value[providerId]?.baseUrl || '',
+  get: () => (providers.value[providerId]?.baseUrl as string) ?? '',
   set: (value) => {
     if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].baseUrl = value
@@ -43,7 +45,7 @@ const baseUrl = computed({
 })
 
 const model = computed({
-  get: () => providers.value[providerId]?.model || '',
+  get: () => (providers.value[providerId]?.model as string) ?? '',
   set: (value) => {
     if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].model = value
@@ -56,7 +58,9 @@ const apiKeyConfigured = computed(() => Boolean(providers.value[providerId]?.api
 // Generate transcription
 async function handleGenerateTranscription(file: File) {
   const provider =
-    await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, any>>(providerId)
+    await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, Record<string, unknown>>>(
+      providerId,
+    )
   if (!provider) throw new Error('Failed to initialize transcription provider')
 
   return await hearingStore.transcription(providerId, provider, model.value, file, 'json')
@@ -70,7 +74,9 @@ const apiKeyPlaceholder = computed(() => {
   const definition = getDefinedProvider(providerId)
   if (!definition?.createProviderConfig) return 'sk-...'
 
-  const schema = definition.createProviderConfig({ t }) as any
+  const schema = definition.createProviderConfig({ t }) as
+    | { shape?: () => Record<string, { meta?: () => { placeholderLocalized?: string } }> }
+    | undefined
   const shape = typeof schema?.shape === 'function' ? schema.shape() : schema?.shape
   const apiKeySchema = shape?.apiKey
   if (!apiKeySchema) return 'sk-...'

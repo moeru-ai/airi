@@ -1,6 +1,6 @@
 import type { RehypeShikiOptions } from '@shikijs/rehype'
 import type { BundledLanguage } from 'shiki'
-import type { Processor } from 'unified'
+import type { Root } from 'hast'
 
 import rehypeShiki from '@shikijs/rehype'
 import rehypeKatex from 'rehype-katex'
@@ -12,8 +12,23 @@ import RemarkRehype from 'remark-rehype'
 import { defaultPerfTracer } from '@proj-airi/stage-shared'
 import { unified } from 'unified'
 
-// Define a specific, compatible type for our processor to ensure type safety.
-type MarkdownProcessor = Processor<any, any, any, any, string>
+/** Minimal VFile interface for unified ecosystem — only properties used by this composable */
+interface VFile {
+  value?: string | Uint8Array
+}
+
+/** Rehype transform function type produced by rehype plugins such as rehype-katex */
+type RehypeTransform = (tree: Root, file: VFile) => undefined
+
+/**
+ * Minimal processor interface wrapping a unified Processor.
+ * Only exposes the methods used by this composable, avoiding the complex
+ * generic invariant types from unified's Processor class.
+ */
+interface MarkdownProcessor {
+  processSync: (markdown: string) => VFile
+  process: (markdown: string) => Promise<VFile>
+}
 
 const processorCache = new Map<string, Promise<MarkdownProcessor>>()
 const langRegex = /```(.{2,})\s/g
@@ -28,13 +43,13 @@ function extractLangs(markdown: string): BundledLanguage[] {
   return [...langs]
 }
 
-function measuredKatex(options?: Parameters<typeof rehypeKatex>[0]) {
+function measuredKatex(options?: Parameters<typeof rehypeKatex>[0]): RehypeTransform {
   const transform = rehypeKatex(options)
-  return (tree: any, file: any) => {
+  return (tree: Root, file: VFile) => {
     const start = performance.now()
-    const length = typeof file?.value === 'string' ? file.value.length : undefined
+    const length = typeof file.value === 'string' ? file.value.length : undefined
     try {
-      return transform(tree, file)
+      return transform(tree, file as Parameters<typeof transform>[1])
     } finally {
       defaultPerfTracer.emit({
         tracerId: 'markdown',
@@ -47,7 +62,7 @@ function measuredKatex(options?: Parameters<typeof rehypeKatex>[0]) {
   }
 }
 
-async function createProcessor(langs: BundledLanguage[]): Promise<MarkdownProcessor> {
+function createProcessor(langs: BundledLanguage[]): MarkdownProcessor {
   const options: RehypeShikiOptions = {
     themes: {
       light: 'github-light',
@@ -57,13 +72,18 @@ async function createProcessor(langs: BundledLanguage[]): Promise<MarkdownProces
     defaultLanguage: langs[0] || 'python',
   }
 
-  return unified()
+  const processor = unified()
     .use(RemarkParse)
     .use(remarkMath)
     .use(RemarkRehype)
     .use(measuredKatex, { output: 'mathml' })
     .use(rehypeShiki, options)
     .use(RehypeStringify)
+
+  return {
+    processSync: (markdown: string) => processor.processSync(markdown) as VFile,
+    process: (markdown: string) => processor.process(markdown) as Promise<VFile>,
+  }
 }
 
 function getProcessor(langs: BundledLanguage[]): Promise<MarkdownProcessor> {
@@ -71,7 +91,11 @@ function getProcessor(langs: BundledLanguage[]): Promise<MarkdownProcessor> {
   const cacheKey = [...langs].sort().join(',')
 
   if (!processorCache.has(cacheKey)) {
-    const processorPromise = createProcessor(langs)
+    const processorPromise = new Promise<MarkdownProcessor>((resolve) => {
+      // The processor is created synchronously, but wrapping in a promise
+      // allows the cache to store the result for future calls.
+      resolve(createProcessor(langs))
+    })
     processorCache.set(cacheKey, processorPromise)
   }
 

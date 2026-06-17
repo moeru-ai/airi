@@ -7,7 +7,19 @@
 
 import type { VoiceKey, Voices } from '../../../workers/kokoro/types'
 import type { AllocationToken } from '../gpu-resource-coordinator'
-import type { ProgressPayload } from '../protocol'
+import type { InferenceModelStatus } from '../../../composables/use-inference-status'
+import type { InferenceResultResponse, ModelReadyResponse, ProgressPayload, WorkerOutboundMessage } from '../protocol'
+
+/**
+ * Kokoro-specific generate output shape — mirrors the `KokoroGenerateOutput`
+ * interface declared in the kokoro worker. Kept local to the adapter so the
+ * protocol remains domain-agnostic.
+ */
+interface KokoroGenerateOutput {
+  action: 'generate'
+  samples: Float32Array
+  samplingRate: number
+}
 
 import { defaultPerfTracer } from '@proj-airi/stage-shared'
 import { Mutex } from 'async-mutex'
@@ -142,12 +154,12 @@ function writeString(view: DataView, offset: number, str: string): void {
  * `InferenceAbortError` and a `cancel` message is sent to the worker so
  * it can discard the result when it eventually arrives.
  */
-function waitForWorkerMessage<T = any>(
+function waitForWorkerMessage<T = WorkerOutboundMessage>(
   worker: Worker,
   requestId: string,
   targetType: string,
   timeout: number,
-  callback?: (data: any) => void,
+  callback?: (data: WorkerOutboundMessage) => void,
   signal?: AbortSignal,
 ): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -344,7 +356,10 @@ export function createKokoroAdapter(): KokoroAdapter {
               removeInferenceStatus(currentModelStatusId)
             currentModelStatusId = modelStatusId
 
-            updateInferenceStatus(modelStatusId, { state: 'downloading', device: effectiveDevice as any })
+            updateInferenceStatus(modelStatusId, {
+              state: 'downloading',
+              device: effectiveDevice as InferenceModelStatus['device'],
+            })
 
             // Use the global load queue to serialize model loads across all adapters
             return getLoadQueue().enqueue(
@@ -355,7 +370,7 @@ export function createKokoroAdapter(): KokoroAdapter {
                 const requestId = createRequestId()
                 // Signal is also passed to the queue below for pending-entry removal
 
-                const readyPromise = waitForWorkerMessage<any>(
+                const readyPromise = waitForWorkerMessage<ModelReadyResponse>(
                   worker!,
                   requestId,
                   'model-ready',
@@ -404,7 +419,7 @@ export function createKokoroAdapter(): KokoroAdapter {
                 state = 'ready'
                 updateInferenceStatus(modelStatusId, {
                   state: 'ready',
-                  device: (response.device ?? effectiveDevice) as any,
+                  device: (response.device ?? effectiveDevice) as InferenceModelStatus['device'],
                 })
                 onSuccess()
                 if (!voices) throw new Error('Kokoro worker did not return voice metadata')
@@ -443,7 +458,7 @@ export function createKokoroAdapter(): KokoroAdapter {
             state = 'running'
             const requestId = createRequestId()
 
-            const resultPromise = waitForWorkerMessage<any>(
+            const resultPromise = waitForWorkerMessage<InferenceResultResponse<KokoroGenerateOutput>>(
               worker,
               requestId,
               'inference-result',

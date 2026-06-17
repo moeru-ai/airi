@@ -1,9 +1,75 @@
 import type { ModelInfo } from '../../types'
 
 import { createModelProvider, merge } from '@xsai-ext/providers/utils'
+import type { Message, TextContentPart, UserMessage, AssistantMessage, SystemMessage } from '@xsai/shared-chat'
 import { z } from 'zod'
 
 import { defineProvider } from '../registry'
+
+/** A content block within a message — only text is used for the Converse conversion path. */
+interface ConverseTextContentBlock {
+  text: string
+  type?: 'text'
+}
+
+/** Shape of a single Converse message (user or assistant). */
+interface ConverseMessage {
+  role: 'user' | 'assistant'
+  content: ConverseTextContentBlock[]
+}
+
+/** Parsed request body coming from the xsai chat pipeline. */
+interface ParsedBody {
+  messages?: Message[]
+  model?: string
+  max_tokens?: number
+  temperature?: number
+  [key: string]: unknown
+}
+
+/** Request body sent to the Bedrock Converse API. */
+interface ConverseRequestBody {
+  messages: ConverseMessage[]
+  inferenceConfig: {
+    maxTokens: number
+    temperature?: number
+  }
+  system?: Array<{ text: string }>
+}
+
+/** Single model summary returned by the Bedrock ListFoundationModels API. */
+interface BedrockModelSummary {
+  modelId?: string
+  modelName?: string
+  providerName?: string
+}
+
+/** A model summary that is guaranteed to have a non-empty modelId. */
+interface ValidBedrockModelSummary extends BedrockModelSummary {
+  modelId: string
+  modelName: string
+}
+
+/** Response body from the Bedrock ListFoundationModels API. */
+interface BedrockFoundationModelsResponse {
+  modelSummaries?: BedrockModelSummary[]
+}
+
+/** Single inference profile summary returned by the Bedrock ListInferenceProfiles API. */
+interface BedrockInferenceProfileSummary {
+  inferenceProfileId?: string
+  inferenceProfileName?: string
+}
+
+/** An inference profile summary with a defined inferenceProfileId. */
+interface ValidBedrockInferenceProfileSummary extends BedrockInferenceProfileSummary {
+  inferenceProfileId: string
+}
+
+/** Response body from the Bedrock ListInferenceProfiles API. */
+interface BedrockInferenceProfilesResponse {
+  inferenceProfileSummaries?: BedrockInferenceProfileSummary[]
+}
 
 const amazonBedrockConfigSchema = z.object({
   apiKey: z.string('Amazon Bedrock API Key').min(1),
@@ -17,10 +83,8 @@ const amazonBedrockConfigSchema = z.object({
 type AmazonBedrockConfig = z.infer<typeof amazonBedrockConfigSchema>
 
 // Helper: merge consecutive messages with the same role (Converse API requires alternating)
-function mergeConsecutiveRoles(
-  messages: Array<{ role: string; content: unknown[] }>,
-): Array<{ role: string; content: unknown[] }> {
-  const merged: Array<{ role: string; content: unknown[] }> = []
+function mergeConsecutiveRoles(messages: ConverseMessage[]): ConverseMessage[] {
+  const merged: ConverseMessage[] = []
   for (const msg of messages) {
     const last = merged.at(-1)
     if (last && last.role === msg.role) {
@@ -33,12 +97,14 @@ function mergeConsecutiveRoles(
 }
 
 // Helper: convert xsai message content to Converse content blocks
-function toConverseContent(content: any): Array<{ text: string }> {
+function toConverseContent(content: Message['content']): ConverseTextContentBlock[] {
   if (typeof content === 'string') {
     return [{ text: content }]
   }
   if (Array.isArray(content)) {
-    return content.filter((c: any) => c.type === 'text' && c.text).map((c: any) => ({ text: c.text }))
+    return content
+      .filter((c): c is TextContentPart => c.type === 'text' && typeof (c as TextContentPart).text === 'string')
+      .map((c) => ({ text: (c as TextContentPart).text }))
   }
   return [{ text: String(content) }]
 }
@@ -103,13 +169,13 @@ function createBedrockConverseProvider(config: { apiKey: string; region: string 
       model,
       fetch: async (_input: RequestInfo | URL, init?: RequestInit) => {
         // Parse xsai chat request body (messages array + model)
-        const body = JSON.parse((init?.body as string) || '{}') as any
-        const messages: any[] = body.messages || []
-        const modelId: string = body.model || model
+        const parsed = JSON.parse((init?.body as string) || '{}') as ParsedBody
+        const messages: Message[] = parsed.messages ?? []
+        const modelId: string = parsed.model ?? model
 
         // Separate system messages
-        const systemMessages = messages.filter((m) => m.role === 'system')
-        const chatMessages = messages.filter((m) => m.role !== 'system')
+        const systemMessages = messages.filter((m): m is SystemMessage => m.role === 'system')
+        const chatMessages = messages.filter((m): m is UserMessage | AssistantMessage => m.role !== 'system')
 
         // Convert to Converse messages format
         const converseMessages = mergeConsecutiveRoles(
@@ -127,17 +193,20 @@ function createBedrockConverseProvider(config: { apiKey: string; region: string 
                   typeof m.content === 'string'
                     ? m.content
                     : Array.isArray(m.content)
-                      ? m.content.map((c: any) => c.text || '').join('')
+                      ? m.content
+                          .filter((c): c is TextContentPart => c.type === 'text')
+                          .map((c) => c.text)
+                          .join('')
                       : String(m.content),
               }))
             : undefined
 
         // Build Converse request body
-        const converseBody: any = {
+        const converseBody: ConverseRequestBody = {
           messages: converseMessages,
           inferenceConfig: {
-            maxTokens: body.max_tokens || 4096,
-            ...(body.temperature !== undefined && { temperature: body.temperature }),
+            maxTokens: parsed.max_tokens ?? 4096,
+            ...(parsed.temperature !== undefined && { temperature: parsed.temperature }),
           },
         }
         if (system) converseBody.system = system
@@ -281,11 +350,15 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig>({
           targetProviders.map(async (provider) => {
             const url = `${base}/foundation-models?byInferenceType=ON_DEMAND&byOutputModality=TEXT&byProvider=${encodeURIComponent(provider)}`
             const res = await fetch(url, { method: 'GET', headers })
-            if (!res.ok) return { modelSummaries: [] as any[] }
-            return res.json() as Promise<{ modelSummaries: any[] }>
+            if (!res.ok) return { modelSummaries: [] as BedrockModelSummary[] }
+            return res.json() as Promise<BedrockFoundationModelsResponse>
           }),
         )
-        const allFoundationModels = foundationResults.flatMap((r) => r.modelSummaries || [])
+        const allFoundationModels = foundationResults
+          .flatMap((r) => r.modelSummaries ?? [])
+          .filter(
+            (m): m is ValidBedrockModelSummary => typeof m.modelId === 'string' && typeof m.modelName === 'string',
+          )
 
         // 2. Fetch system-defined inference profiles (cross-region, global/us prefixed)
         const profilesRes = await fetch(`${base}/inference-profiles?type=SYSTEM_DEFINED&maxResults=1000`, {
@@ -293,14 +366,17 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig>({
           headers,
         })
         const profilesData = profilesRes.ok
-          ? ((await profilesRes.json()) as { inferenceProfileSummaries: any[] })
+          ? ((await profilesRes.json()) as BedrockInferenceProfilesResponse)
           : { inferenceProfileSummaries: [] }
+
+        const validProfiles = (profilesData.inferenceProfileSummaries ?? []).filter(
+          (p): p is ValidBedrockInferenceProfileSummary => typeof p.inferenceProfileId === 'string',
+        )
 
         // 3. Build lookup map: baseModelId → { global?: profileId, us?: profileId }
         const profileMap = new Map<string, { global?: string; us?: string }>()
-        for (const p of profilesData.inferenceProfileSummaries || []) {
+        for (const p of validProfiles) {
           const id: string = p.inferenceProfileId
-          if (!id) continue
           const dotIdx = id.indexOf('.')
           if (dotIdx === -1) continue
           const prefix = id.slice(0, dotIdx) // 'us' or 'global'
@@ -323,7 +399,7 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig>({
             id: bestId,
             name: m.modelName,
             provider: 'amazon-bedrock',
-            description: `${m.providerName} · ${m.modelName}`,
+            description: `${m.providerName ?? m.modelName} · ${m.modelName}`,
           } satisfies ModelInfo
         })
 
@@ -332,9 +408,8 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig>({
         const targetPrefixes = ['amazon.', 'anthropic.', 'moonshot.', 'minimax.', 'deepseek.']
         const seenBaseIds = new Set(foundationModelIds)
 
-        for (const p of profilesData.inferenceProfileSummaries || []) {
+        for (const p of validProfiles) {
           const id: string = p.inferenceProfileId
-          if (!id) continue
           const dotIdx = id.indexOf('.')
           if (dotIdx === -1) continue
           const prefix = id.slice(0, dotIdx) // 'us' or 'global'
@@ -376,8 +451,8 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig>({
       () => ({
         id: 'amazon-bedrock:check-credentials',
         name: 'Verify Amazon Bedrock API key',
-        validator: async (config: Record<string, any>) => {
-          const region = config.region || 'us-east-1'
+        validator: async (config: AmazonBedrockConfig) => {
+          const region = config.region
           const apiKey = config.apiKey
           const errors: Array<{ error: unknown }> = []
           try {

@@ -39,9 +39,12 @@ function getBroadcastChannel() {
   return _broadcastChannel
 }
 
-export function createContext(): InvocableEventContext<any, { raw?: any }> {
+export function createContext(): InvocableEventContext<unknown, { raw?: unknown }> {
   if (isElectronWindow(window)) {
-    return createBroadcastChannelContext(getBroadcastChannel()).context as InvocableEventContext<any, { raw?: any }>
+    return createBroadcastChannelContext(getBroadcastChannel()).context as InvocableEventContext<
+      unknown,
+      { raw?: unknown }
+    >
   } else {
     return createWebContext()
   }

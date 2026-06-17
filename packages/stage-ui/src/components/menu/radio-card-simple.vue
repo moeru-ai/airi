@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { VNode } from 'vue'
+
 withDefaults(
   defineProps<{
     id: string
@@ -13,8 +15,8 @@ withDefaults(
 )
 
 defineSlots<{
-  topRight?: any
-  bottomRight?: any
+  topRight?: (props?: undefined) => VNode[]
+  bottomRight?: (props?: undefined) => VNode[]
 }>()
 
 const modelValue = defineModel<string>({ required: true })

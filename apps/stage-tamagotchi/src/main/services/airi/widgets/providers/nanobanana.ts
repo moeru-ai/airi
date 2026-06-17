@@ -26,10 +26,11 @@ export class NanoBananaProvider implements ArtistryProvider {
     if (callback) callback(status)
   }
 
-  async initialize(config: any) {
-    this.apiKey = config.nanobananaApiKey || config.apiKey || ''
-    if (config.nanobananaModel) this.defaultModel = config.nanobananaModel
-    if (config.nanobananaResolution) this.defaultResolution = config.nanobananaResolution
+  async initialize(config: Record<string, unknown>) {
+    const c = config as Record<string, string | undefined>
+    this.apiKey = c.nanobananaApiKey || c.apiKey || ''
+    if (c.nanobananaModel) this.defaultModel = c.nanobananaModel
+    if (c.nanobananaResolution) this.defaultResolution = c.nanobananaResolution
     log.log(`[Nano Banana] Initialized. API Key present: ${!!this.apiKey}`)
   }
 
@@ -59,7 +60,8 @@ export class NanoBananaProvider implements ArtistryProvider {
 
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.apiKey}`
-      const generationParts: any[] = [{ text: prompt }]
+      type GenerationPart = { text: string } | { inline_data: { mime_type: string; data: string } }
+      const generationParts: GenerationPart[] = [{ text: prompt }]
       if (base64Image) {
         generationParts.push({ inline_data: { mime_type: 'image/jpeg', data: base64Image } })
       }
@@ -79,8 +81,13 @@ export class NanoBananaProvider implements ArtistryProvider {
       }
 
       // Search all parts for the first image
-      const responseParts = json.candidates?.[0]?.content?.parts || []
-      const imagePart = responseParts.find((p: any) => p.inlineData?.data)
+      type ResponsePart = { text?: string } | { inlineData?: { mimeType?: string; data?: string } }
+      const responseParts: ResponsePart[] =
+        (json as { candidates?: Array<{ content?: { parts?: ResponsePart[] } }> }).candidates?.[0]?.content?.parts || []
+      const imagePart = responseParts.find(
+        (p): p is ResponsePart & { inlineData: { data: string } } =>
+          'inlineData' in p && typeof p.inlineData?.data === 'string',
+      )
       const inlineData = imagePart?.inlineData
 
       if (inlineData?.data) {
@@ -89,9 +96,10 @@ export class NanoBananaProvider implements ArtistryProvider {
       } else {
         throw new Error('No image data returned from Nano Banana')
       }
-    } catch (e: any) {
-      log.error(`[Nano Banana] Generation failed: ${e.message}`)
-      this.updateStatus(jobId, { status: 'failed', error: e.message })
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e)
+      log.error(`[Nano Banana] Generation failed: ${message}`)
+      this.updateStatus(jobId, { status: 'failed', error: message })
     } finally {
       // Clean up callback and job result after completion to prevent memory leaks
       setTimeout(() => {

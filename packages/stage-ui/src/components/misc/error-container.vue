@@ -4,7 +4,7 @@ import Alert from './alert.vue'
 withDefaults(
   defineProps<{
     title?: string
-    error?: any
+    error?: unknown
   }>(),
   {
     title: '',

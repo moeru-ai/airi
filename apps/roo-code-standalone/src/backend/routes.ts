@@ -35,7 +35,7 @@ export const router: FastifyPluginAsync = async (fastify: FastifyInstance) => {
     if (!body || typeof body !== 'object' || Array.isArray(body)) {
       return reply.code(400).send({ error: 'invalid body' })
     }
-    const updated = patchState(body as any)
+    const updated = patchState(body)
     return reply.send(updated)
   })
 

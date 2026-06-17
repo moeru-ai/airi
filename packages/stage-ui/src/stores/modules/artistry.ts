@@ -1,6 +1,6 @@
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
-import { computed, isRef, ref, watch } from 'vue'
+import { computed, isRef, ref, watch, type Ref } from 'vue'
 
 export interface ResolvedArtistryConfig {
   provider?: string
@@ -22,7 +22,7 @@ export const useArtistryStore = defineStore('artistry', () => {
   const globalProvider = useLocalStorageManualReset<string>('artistry-provider', 'none')
   const globalModel = useLocalStorageManualReset<string>('artistry-model', '')
   const globalPromptPrefix = useLocalStorageManualReset<string>('artistry-prompt-prefix', '')
-  const globalProviderOptions = useLocalStorageManualReset<Record<string, any> | undefined>(
+  const globalProviderOptions = useLocalStorageManualReset<Record<string, unknown> | undefined>(
     'artistry-provider-options',
     undefined,
   )
@@ -180,31 +180,33 @@ export const useArtistryStore = defineStore('artistry', () => {
  *
  * @param store - The artistry store instance (from useArtistryStore())
  */
-export function resolveArtistryConfigFromStore(store: any): ResolvedArtistryConfig {
-  const unwrap = (val: any) => {
+export function resolveArtistryConfigFromStore(store: ReturnType<typeof useArtistryStore>): ResolvedArtistryConfig {
+  /**
+   * Unwraps a Pinia store property that may be a Ref or a plain value.
+   * In Vue component context, Pinia auto-unwraps Refs (so `val` is T).
+   * In headless service/tool context, `val` remains a Ref-like object with a `value` property.
+   */
+  const unwrap = <T>(val: T | Ref<T>): T => {
     if (isRef(val)) return val.value
-
-    if (val && typeof val === 'object' && 'value' in val && Object.keys(val).length === 1) return val.value
-
     return val
   }
 
   return {
-    provider: unwrap(store.activeProvider),
-    model: unwrap(store.activeModel),
-    promptPrefix: unwrap(store.defaultPromptPrefix),
-    options: unwrap(store.providerOptions),
+    provider: unwrap<string | undefined>(store.activeProvider),
+    model: unwrap<string | undefined>(store.activeModel),
+    promptPrefix: unwrap<string | undefined>(store.defaultPromptPrefix),
+    options: unwrap<Record<string, unknown> | undefined>(store.providerOptions),
     globals: {
-      comfyuiServerUrl: unwrap(store.comfyuiServerUrl),
-      comfyuiSavedWorkflows: unwrap(store.comfyuiSavedWorkflows),
-      comfyuiActiveWorkflow: unwrap(store.comfyuiActiveWorkflow),
-      replicateApiKey: unwrap(store.replicateApiKey),
-      replicateDefaultModel: unwrap(store.replicateDefaultModel),
-      replicateAspectRatio: unwrap(store.replicateAspectRatio),
-      replicateInferenceSteps: unwrap(store.replicateInferenceSteps),
-      nanobananaApiKey: unwrap(store.nanobananaApiKey),
-      nanobananaModel: unwrap(store.nanobananaModel),
-      nanobananaResolution: unwrap(store.nanobananaResolution),
+      comfyuiServerUrl: unwrap<string>(store.comfyuiServerUrl),
+      comfyuiSavedWorkflows: unwrap<ComfyUIWorkflowTemplate[]>(store.comfyuiSavedWorkflows),
+      comfyuiActiveWorkflow: unwrap<string>(store.comfyuiActiveWorkflow),
+      replicateApiKey: unwrap<string>(store.replicateApiKey),
+      replicateDefaultModel: unwrap<string>(store.replicateDefaultModel),
+      replicateAspectRatio: unwrap<string>(store.replicateAspectRatio),
+      replicateInferenceSteps: unwrap<number>(store.replicateInferenceSteps),
+      nanobananaApiKey: unwrap<string>(store.nanobananaApiKey),
+      nanobananaModel: unwrap<string>(store.nanobananaModel),
+      nanobananaResolution: unwrap<string>(store.nanobananaResolution),
     },
   }
 }

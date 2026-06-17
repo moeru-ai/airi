@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
 
+interface WindowWithWebkitAudioContext extends Window {
+  webkitAudioContext?: typeof AudioContext
+}
+
 const props = withDefaults(
   defineProps<{
     stream?: MediaStream
@@ -28,7 +32,8 @@ function handleAnalyze() {
     return
   }
 
-  const audioContext = new (window.AudioContext || (window as unknown as any).webkitAudioContext)()
+  const windowWithWebkit = window as WindowWithWebkitAudioContext
+  const audioContext = new (window.AudioContext || windowWithWebkit.webkitAudioContext!)()
   const source = audioContext.createMediaStreamSource(props.stream)
   const analyser = audioContext.createAnalyser()
 

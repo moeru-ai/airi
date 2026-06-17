@@ -1,5 +1,6 @@
 // stage-ui/composables/shader/ibl.ts
 import * as THREE from 'three'
+import type { WebGLProgramParametersWithUniforms } from 'three/src/renderers/webgl/WebGLPrograms.js'
 
 // ===== head guard shader injection =====
 const VS_DECL = `
@@ -60,8 +61,16 @@ if (uNprEnvMode == 2) {
 // ===== Utility tools =====
 export type EnvMode = 'off' | 'skyBox' | 'hemisphere'
 
-export const isShaderMat = (m: any): m is THREE.ShaderMaterial => Boolean(m?.isShaderMaterial)
-export const isRawShader = (m: any): m is THREE.RawShaderMaterial => Boolean(m?.isRawShaderMaterial)
+export const isShaderMat = (m: unknown): m is THREE.ShaderMaterial =>
+  typeof m === 'object' &&
+  m !== null &&
+  'isShaderMaterial' in m &&
+  Boolean((m as THREE.ShaderMaterial).isShaderMaterial)
+export const isRawShader = (m: unknown): m is THREE.RawShaderMaterial =>
+  typeof m === 'object' &&
+  m !== null &&
+  'isRawShaderMaterial' in m &&
+  Boolean((m as THREE.RawShaderMaterial).isRawShaderMaterial)
 
 export function normalizeEnvMode(v?: string | null): EnvMode {
   if (v === 'skyBox') return 'skyBox'
@@ -69,9 +78,15 @@ export function normalizeEnvMode(v?: string | null): EnvMode {
   return 'off'
 }
 
+interface IblShaderUniforms {
+  uNprEnvMode: { value: number }
+  uEnvIntensity: { value: number }
+  uSHCoeffs: { value: THREE.Vector3[] }
+}
+
 // Turn SphericalHarmonics3 to vec3[9] uniforms
-function assignSHUniform(u: any, sh: THREE.SphericalHarmonics3 | null | undefined) {
-  if (!u?.uSHCoeffs || !u.uSHCoeffs.value || !Array.isArray(u.uSHCoeffs.value)) return
+function assignSHUniform(u: IblShaderUniforms, sh: THREE.SphericalHarmonics3 | null | undefined) {
+  if (!u?.uSHCoeffs?.value || !Array.isArray(u.uSHCoeffs.value)) return
   if (!sh) return
   for (let i = 0; i < 9; i++) {
     u.uSHCoeffs.value[i] ||= new THREE.Vector3()
@@ -85,7 +100,7 @@ export function injectDiffuseIBL(mat: THREE.ShaderMaterial) {
   mat.customProgramCacheKey = () => `${baseKey}|airi-diffuse-ibl`
 
   const prev = mat.onBeforeCompile
-  mat.onBeforeCompile = (shader: any, renderer: any) => {
+  mat.onBeforeCompile = (shader: WebGLProgramParametersWithUniforms, renderer: THREE.WebGLRenderer) => {
     prev?.(shader, renderer)
 
     // vertex shader declare & apply
@@ -123,7 +138,7 @@ export function injectDiffuseIBL(mat: THREE.ShaderMaterial) {
     ;(mat.userData ||= {}).__airiIbl = shader.uniforms
   }
 
-  if ('toneMapped' in mat) (mat as any).toneMapped = false
+  if ('toneMapped' in mat) mat.toneMapped = false
   mat.needsUpdate = true
 }
 
@@ -135,10 +150,10 @@ export function updateNprShaderSetting(
   const shaderMode = opts.mode === 'skyBox' ? 2 : 0
   root.traverse((o) => {
     const mesh = o as THREE.Mesh
-    const raw = (mesh as any).material
-    const mats: any[] = raw ? (Array.isArray(raw) ? raw : [raw]) : []
+    const raw = mesh.material
+    const mats: THREE.Material[] = raw ? (Array.isArray(raw) ? raw : [raw]) : []
     mats.forEach((m) => {
-      const u = m?.userData?.__airiIbl
+      const u = (m.userData as Record<string, unknown>)?.__airiIbl as IblShaderUniforms | undefined
       if (!u) return
       u.uNprEnvMode.value = shaderMode
       u.uEnvIntensity.value = opts.intensity

@@ -141,7 +141,7 @@ export class LocalToolRuntime implements ToolRuntime {
 				executionId,
 				toolId: toolId as string,
 				taskId: context.taskId as string,
-			} as any).catch(() => {})
+			}).catch(() => {})
 		}
 
 		// Check cancellation before starting.
@@ -260,7 +260,7 @@ export class LocalToolRuntime implements ToolRuntime {
 					taskId: context.taskId as string,
 					durationMs,
 					success: true,
-				} as any).catch(() => {})
+				}).catch(() => {})
 			}
 
 			return { success: true, output, durationMs }
@@ -296,7 +296,7 @@ export class LocalToolRuntime implements ToolRuntime {
 					toolId: toolId as string,
 					taskId: context.taskId as string,
 					error: { code, message },
-				} as any).catch(() => {})
+				}).catch(() => {})
 			}
 
 			return {

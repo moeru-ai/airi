@@ -146,41 +146,49 @@ function updateSparkNotifyState(eventId: string, updater: (state: SparkNotifyEnt
   setSparkNotifyState(updater(current))
 }
 
-function summarizeServerEvent(event: { type: string; data: Record<string, any> }) {
+interface SummarizeServerEventData {
+  name?: string
+  possibleEvents?: unknown[]
+  headline?: string
+  destinations?: unknown[]
+  state?: string
+  intent?: string
+  priority?: string | number
+  text?: string
+  transcription?: string
+  [key: string]: unknown
+}
+
+function summarizeServerEvent(event: { type: string; data?: Record<string, unknown> }) {
+  const data = (event.data ?? {}) as SummarizeServerEventData
   switch (event.type) {
     case 'module:announce':
-      return `name=${event.data.name} events=${event.data.possibleEvents?.length ?? 0}`
+      return `name=${data.name} events=${data.possibleEvents?.length ?? 0}`
     case 'spark:notify':
       return [
-        event.data.headline ? `headline="${truncateText(String(event.data.headline), 120)}"` : '',
-        event.data.destinations
-          ? `destinations="${truncateText(formatDestinations(event.data.destinations), 120)}"`
-          : '',
+        data.headline ? `headline="${truncateText(String(data.headline), 120)}"` : '',
+        data.destinations ? `destinations="${truncateText(formatDestinations(data.destinations), 120)}"` : '',
       ]
         .filter(Boolean)
         .join(' ')
     case 'spark:emit':
       return [
-        event.data.state ? `state=${event.data.state}` : '',
-        event.data.destinations
-          ? `destinations="${truncateText(formatDestinations(event.data.destinations), 120)}"`
-          : '',
+        data.state ? `state=${data.state}` : '',
+        data.destinations ? `destinations="${truncateText(formatDestinations(data.destinations), 120)}"` : '',
       ]
         .filter(Boolean)
         .join(' ')
     case 'spark:command':
       return [
-        event.data.intent ? `intent=${event.data.intent}` : '',
-        event.data.priority ? `priority=${event.data.priority}` : '',
-        event.data.destinations
-          ? `destinations="${truncateText(formatDestinations(event.data.destinations), 120)}"`
-          : '',
+        data.intent ? `intent=${data.intent}` : '',
+        data.priority ? `priority=${data.priority}` : '',
+        data.destinations ? `destinations="${truncateText(formatDestinations(data.destinations), 120)}"` : '',
       ]
         .filter(Boolean)
         .join(' ')
     default:
-      if (event.data.text) return `text="${truncateText(String(event.data.text), 120)}"`
-      if (event.data.transcription) return `transcription="${truncateText(String(event.data.transcription), 120)}"`
+      if (data.text) return `text="${truncateText(String(data.text), 120)}"`
+      if (data.transcription) return `transcription="${truncateText(String(data.transcription), 120)}"`
       return ''
   }
 }
@@ -243,9 +251,9 @@ async function sendTestSparkNotify() {
   const raw = testSparkNotifyPayload.value.trim()
   if (!raw) return
 
-  let parsed: any
+  let parsed: Record<string, unknown>
   try {
-    parsed = JSON.parse(raw)
+    parsed = JSON.parse(raw) as Record<string, unknown>
   } catch (err) {
     toast(`Invalid spark:notify: ${errorMessageFrom(err)}`)
     return
@@ -288,7 +296,7 @@ async function sendTestSparkNotify() {
     direction: 'incoming',
     channel: 'server',
     type: 'spark:notify',
-    summary: summarizeServerEvent(simulatedEvent as any),
+    summary: summarizeServerEvent(simulatedEvent),
     payload: simulatedEvent,
   })
 
@@ -401,7 +409,7 @@ onMounted(() => {
           direction: 'incoming',
           channel: 'server',
           type: event.type,
-          summary: summarizeServerEvent(event as any),
+          summary: summarizeServerEvent(event),
           payload: event,
         })
       }),

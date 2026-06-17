@@ -62,7 +62,7 @@ export function useWhisper(url: string, options?: Partial<UseWhisperOptions>) {
           opts.onProgress?.(payload)
         } else if (payload.phase === 'inference') {
           // Streaming transcription updates
-          const extra = payload as any
+          const extra = payload as ProgressPayload & { tps?: number }
           if (extra.tps != null) {
             tps.value = extra.tps
             opts.onUpdate?.(extra.tps)

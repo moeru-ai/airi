@@ -1,4 +1,4 @@
-<script setup lang="ts" generic="T extends Record<string, any> | any">
+<script setup lang="ts" generic="T extends object">
 import { computed, useSlots } from 'vue'
 
 const props = withDefaults(
@@ -7,7 +7,7 @@ const props = withDefaults(
     stepKey?: keyof T | string
   }>(),
   {
-    stepKey: 'id',
+    stepKey: 'id' as keyof T | string,
   },
 )
 
@@ -23,8 +23,12 @@ const isFirstStep = computed(() => value.value === 0)
 const isLastStep = computed(() => value.value === props.steps.length - 1)
 
 function getKey(step: T, index: number): string | number {
-  if (typeof step === 'object' && step !== null && props.stepKey in step) {
-    return (step as any)[props.stepKey]
+  const key = props.stepKey
+  if (key != null && key in step) {
+    const val = (step as unknown as Record<string | number | symbol, unknown>)[key]
+    if (typeof val === 'string' || typeof val === 'number') {
+      return val
+    }
   }
   return index // Fallback to index
 }

@@ -13,4 +13,4 @@ import type { EventContext } from '@moeru/eventa'
  * Returns:
  * - An Eventa context whose raw transport payload may be exposed through `raw`
  */
-export type ChannelHost = EventContext<unknown, { raw?: any }>
+export type ChannelHost = EventContext<unknown, { raw?: unknown }>

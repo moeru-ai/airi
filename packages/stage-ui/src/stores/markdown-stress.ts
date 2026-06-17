@@ -13,6 +13,14 @@ import { useConsciousnessStore } from './modules/consciousness'
 import { usePerfTracerBridgeStore } from './perf-tracer-bridge'
 import { useProvidersStore } from './providers'
 
+/** Minimal shape returned by `ChatProvider.chat()` for mock usage */
+interface MockChatInstance {
+  baseURL: string
+  apiKey: string
+  headers: Record<string, string>
+  model: string
+}
+
 // Type definitions for deterministic timer
 interface Scheduled {
   id: number
@@ -319,13 +327,13 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
     const targetScenario = ensureScenario()
     const modelToUse = mockModelId
     const mockProvider: ChatProvider = {
-      chat(model: string) {
+      chat(model: string): MockChatInstance {
         return {
           baseURL: 'mock://markdown-stress/',
           apiKey: '',
           headers: {},
           model,
-        } as any
+        }
       },
     } as ChatProvider
 

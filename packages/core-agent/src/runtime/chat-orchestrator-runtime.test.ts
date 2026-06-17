@@ -51,7 +51,7 @@ function createHarness() {
       },
     ) => {
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'assistant reply' })
-      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+      await options?.onStreamEvent?.({ type: 'finish', reason: 'stop' })
     },
   )
   const ids = ['stream-context', 'assistant-id', 'user-id', 'fallback-id']
@@ -195,7 +195,7 @@ describe('createChatOrchestratorRuntime', () => {
     harness.stream.mockImplementationOnce(async (_model, _chatProvider, messages, options) => {
       composedMessages = messages
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'hello' })
-      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+      await options?.onStreamEvent?.({ type: 'finish', reason: 'stop' })
     })
 
     await harness.runtime.ingest('hello from user', {
@@ -249,7 +249,7 @@ describe('createChatOrchestratorRuntime', () => {
     harness.stream.mockImplementationOnce(async (_model, _chatProvider, messages, options) => {
       composedMessages = messages
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'hello' })
-      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+      await options?.onStreamEvent?.({ type: 'finish', reason: 'stop' })
     })
 
     await harness.runtime.ingest('hello from user', {
@@ -276,7 +276,7 @@ describe('createChatOrchestratorRuntime', () => {
     harness.stream.mockImplementationOnce(async (_model, _chatProvider, messages, options) => {
       composedMessages = messages
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'hello' })
-      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+      await options?.onStreamEvent?.({ type: 'finish', reason: 'stop' })
     })
 
     await harness.runtime.ingest('hello from user', {
@@ -522,7 +522,7 @@ describe('createChatOrchestratorRuntime', () => {
         result: 'sunny',
       } as StreamEvent)
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'visible reply' })
-      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+      await options?.onStreamEvent?.({ type: 'finish', reason: 'stop' })
     })
 
     await harness.runtime.ingest('see image', {

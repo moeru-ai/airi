@@ -1,3 +1,4 @@
+import type { Resource } from '@opentelemetry/resources'
 import type { Span, SpanContext, SpanStatusCode } from '@opentelemetry/api'
 import type { ReadableSpan, SpanExporter } from '@opentelemetry/sdk-trace-base'
 import type { TimedEvent } from '@opentelemetry/sdk-trace-base/build/esm/TimedEvent'
@@ -63,6 +64,11 @@ export function deserializeSpan(s: SerializedSpan): ReadableSpan {
     ? { traceId: s.traceId, spanId: s.parentSpanId, traceFlags: 1, isRemote: false }
     : undefined
 
+  const resource: Resource = {
+    attributes: {},
+    merge: () => ({ attributes: {} }),
+  }
+
   return {
     name: s.name,
     kind: s.kind,
@@ -81,7 +87,7 @@ export function deserializeSpan(s: SerializedSpan): ReadableSpan {
     })),
     duration: nanoToHr(String(Number(s.endTimeNano) - Number(s.startTimeNano))),
     ended: s.ended,
-    resource: { attributes: {}, merge: () => ({ attributes: {} }) } as any,
+    resource,
     instrumentationScope: { name: TRACER_NAME },
     droppedAttributesCount: 0,
     droppedEventsCount: 0,

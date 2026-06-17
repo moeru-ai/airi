@@ -4,11 +4,11 @@ import type { CommonContentPart, CompletionToolCall, CompletionToolResult, Messa
 export type StreamEvent =
   | { type: 'text-delta'; text: string }
   | { type: 'reasoning-delta'; text: string }
-  | ({ type: 'finish' } & any)
+  | { type: 'finish'; reason?: string }
   | ({ type: 'tool-call' } & CompletionToolCall)
   | (CompletionToolResult & { type: 'tool-error' })
   | { type: 'tool-result'; toolCallId: string; result?: string | CommonContentPart[] }
-  | { type: 'error'; error: any }
+  | { type: 'error'; error: unknown }
 
 export interface StreamOptions {
   abortSignal?: AbortSignal

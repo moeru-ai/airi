@@ -17,13 +17,44 @@ import {
 import { useSpeechStore } from '../../../stores/modules/speech'
 import { useProvidersStore } from '../../../stores/providers'
 
+/**
+ * Common voice settings properties that most providers support
+ */
+interface VoiceSettings {
+  pitch?: number
+  speed?: number
+  volume?: number
+  stability?: number
+  similarityBoost?: number
+  [key: string]: unknown
+}
+
+/**
+ * Provider configuration structure
+ */
+interface ProviderConfig {
+  apiKey?: string
+  baseUrl?: string
+  voiceSettings?: VoiceSettings
+  [key: string]: unknown
+}
+
+/**
+ * Slot props for provider settings
+ */
+interface SlotProps {
+  providerId: string
+  providerName?: string
+  settings: VoiceSettings
+}
+
 const props = withDefaults(
   defineProps<{
     providerId: string
     // Default model to use if not specified in provider settings
     defaultModel?: string
     // Additional provider-specific settings
-    additionalSettings?: Record<string, any>
+    additionalSettings?: VoiceSettings
     placeholder?: string
   }>(),
   {
@@ -35,10 +66,10 @@ const props = withDefaults(
 
 // Expose slots and emit events to allow customization
 defineSlots<{
-  'basic-settings': (props: any) => any
-  'voice-settings': (props: any) => any
-  'advanced-settings': (props: any) => any
-  playground: (props: any) => any
+  'basic-settings': (props: SlotProps) => unknown
+  'voice-settings': (props: SlotProps) => unknown
+  'advanced-settings': (props: SlotProps) => unknown
+  playground: (props: SlotProps) => unknown
 }>()
 const { t } = useI18n()
 const router = useRouter()
@@ -50,34 +81,39 @@ const { providers } = storeToRefs(providersStore)
 const providerMetadata = computed(() => providersStore.getProviderMetadata(props.providerId))
 
 // Common provider settings
-const apiKey = computed({
-  get: () => (providers.value[props.providerId]?.apiKey as string | undefined) || '',
-  set: (value) => {
-    if (!providers.value[props.providerId]) providers.value[props.providerId] = {}
+const apiKey = ref('')
+const baseUrl = ref('')
 
-    providers.value[props.providerId].apiKey = value
+// Sync from store to local refs (prevents feedback loop via value comparison)
+watch(
+  () => providers.value[props.providerId] as ProviderConfig | undefined,
+  (config) => {
+    if (config) {
+      if (config.apiKey !== undefined && config.apiKey !== apiKey.value) {
+        apiKey.value = config.apiKey ?? ''
+      }
+      const defaultBaseUrl = extractStringValue(providerMetadata.value?.defaultOptions?.().baseUrl)
+      const targetBaseUrl = config.baseUrl ?? defaultBaseUrl
+      if (targetBaseUrl !== baseUrl.value) {
+        baseUrl.value = targetBaseUrl
+      }
+    } else {
+      // Reset local refs when provider config is removed
+      apiKey.value = ''
+      baseUrl.value = extractStringValue(providerMetadata.value?.defaultOptions?.().baseUrl)
+    }
   },
-})
-
-const baseUrl = computed({
-  get: () =>
-    (providers.value[props.providerId]?.baseUrl as string | undefined) ||
-    (providerMetadata.value?.defaultOptions?.().baseUrl as string | undefined) ||
-    '',
-  set: (value) => {
-    if (!providers.value[props.providerId]) providers.value[props.providerId] = {}
-
-    providers.value[props.providerId].baseUrl = value
-  },
-})
+  { immediate: true, deep: true },
+)
 
 // Voice settings as reactive objects to allow for different provider settings
-const voiceSettings = ref<Record<string, any>>({})
+const voiceSettings = ref<VoiceSettings>({})
 
 // Initialize voice settings with defaults or from provider
 function initializeVoiceSettings() {
-  if (providers.value[props.providerId]?.voiceSettings) {
-    voiceSettings.value = { ...(providers.value[props.providerId].voiceSettings as Record<string, any> | undefined) }
+  const providerConfig = providers.value[props.providerId] as ProviderConfig | undefined
+  if (providerConfig?.voiceSettings) {
+    voiceSettings.value = { ...providerConfig.voiceSettings }
   } else {
     // Default values that most providers use
     voiceSettings.value = {
@@ -94,11 +130,11 @@ onMounted(() => {
   providersStore.initializeProvider(props.providerId)
 
   // Initialize refs with current values
-  apiKey.value = (providers.value[props.providerId]?.apiKey as string | undefined) || ''
-  baseUrl.value =
-    (providers.value[props.providerId]?.baseUrl as string | undefined) ||
-    (providerMetadata.value?.defaultOptions?.().baseUrl as string | undefined) ||
-    ''
+  const providerConfig = providers.value[props.providerId] as ProviderConfig | undefined
+  const defaultBaseUrl = extractStringValue(providerMetadata.value?.defaultOptions?.().baseUrl)
+
+  apiKey.value = providerConfig?.apiKey ?? ''
+  baseUrl.value = providerConfig?.baseUrl ?? defaultBaseUrl
 
   // Initialize voice settings
   initializeVoiceSettings()
@@ -110,10 +146,13 @@ onMounted(() => {
 })
 
 const debouncedUpdate = useDebounceFn(() => {
+  const defaultBaseUrl = providerMetadata.value?.defaultOptions?.().baseUrl ?? ''
+  const existingConfig = providers.value[props.providerId] as ProviderConfig | undefined
+
   providers.value[props.providerId] = {
-    ...providers.value[props.providerId],
+    ...existingConfig,
     apiKey: apiKey.value,
-    baseUrl: baseUrl.value || providerMetadata.value?.defaultOptions?.().baseUrl || '',
+    baseUrl: baseUrl.value || defaultBaseUrl,
     voiceSettings: { ...voiceSettings.value },
   }
 }, 1000)
@@ -124,8 +163,16 @@ watch([apiKey, baseUrl], debouncedUpdate)
 // Watch voice settings for changes
 watch(voiceSettings, debouncedUpdate, { deep: true })
 
+/**
+ * Extract a string value from an unknown type
+ */
+function extractStringValue(value: unknown): string {
+  return typeof value === 'string' ? value : ''
+}
+
 function handleResetVoiceSettings() {
-  voiceSettings.value = { ...(providerMetadata.value?.defaultOptions?.().voiceSettings as Record<string, unknown>) }
+  const defaultVoiceSettings = providerMetadata.value?.defaultOptions?.().voiceSettings
+  voiceSettings.value = defaultVoiceSettings ? { ...defaultVoiceSettings } : {}
   debouncedUpdate()
 }
 </script>
@@ -151,7 +198,12 @@ function handleResetVoiceSettings() {
             :placeholder="props.placeholder || 'API Key'"
           />
           <!-- Slot for provider-specific basic settings -->
-          <slot name="basic-settings" />
+          <slot
+            name="basic-settings"
+            :provider-id="props.providerId"
+            :provider-name="providerMetadata?.localizedName"
+            :settings="voiceSettings"
+          />
         </ProviderBasicSettings>
 
         <!-- Voice settings section -->
@@ -161,7 +213,12 @@ function handleResetVoiceSettings() {
           </h2>
           <div flex="~ col gap-4">
             <!-- Common voice settings with ranges -->
-            <slot name="voice-settings" />
+            <slot
+              name="voice-settings"
+              :provider-id="props.providerId"
+              :provider-name="providerMetadata?.localizedName"
+              :settings="voiceSettings"
+            />
           </div>
         </div>
 
@@ -169,11 +226,16 @@ function handleResetVoiceSettings() {
         <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
           <ProviderBaseUrlInput
             v-model="baseUrl"
-            :placeholder="(providerMetadata?.defaultOptions?.().baseUrl as string) || ''"
+            :placeholder="extractStringValue(providerMetadata?.defaultOptions?.().baseUrl)"
             required
           />
           <!-- Slot for provider-specific advanced settings -->
-          <slot name="advanced-settings" />
+          <slot
+            name="advanced-settings"
+            :provider-id="props.providerId"
+            :provider-name="providerMetadata?.localizedName"
+            :settings="voiceSettings"
+          />
         </ProviderAdvancedSettings>
       </ProviderSettingsContainer>
 
@@ -181,7 +243,12 @@ function handleResetVoiceSettings() {
       <div flex="~ col gap-6" class="w-full md:w-[60%]">
         <div w-full rounded-xl>
           <!-- Custom playground slot -->
-          <slot name="playground" />
+          <slot
+            name="playground"
+            :provider-id="props.providerId"
+            :provider-name="providerMetadata?.localizedName"
+            :settings="voiceSettings"
+          />
         </div>
       </div>
     </div>

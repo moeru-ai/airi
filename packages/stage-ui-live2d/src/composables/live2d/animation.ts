@@ -1,8 +1,10 @@
-import type { InternalModel } from 'pixi-live2d-display/cubism4'
+import type { Cubism4InternalModel, InternalModel } from 'pixi-live2d-display/cubism4'
 
 import { MathUtils } from 'three'
 
 import { randomSaccadeInterval } from '../../utils'
+
+type CubismCoreModel = Cubism4InternalModel['coreModel']
 
 /**
  * This is to simulate idle eye saccades and focus (head) movements in a *pretty* naive way.
@@ -24,7 +26,7 @@ export function useLive2DIdleEyeFocus() {
     }
 
     model.focusController.update(now - lastSaccadeAt)
-    const coreModel = model.coreModel as any
+    const coreModel = model.coreModel as CubismCoreModel
     // TODO: After emotion mapper, stage editor, eye related parameters should be take cared to be dynamical instead of hardcoding
     coreModel.setParameterValueById(
       'ParamEyeBallX',

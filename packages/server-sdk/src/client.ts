@@ -8,7 +8,12 @@ import type {
   WebSocketEvents,
 } from '@proj-airi/server-shared/types'
 
-import type { WebSocketLike, WebSocketLikeConstructor, WebSocketMessageEventLike } from './websocket-like'
+import type {
+  WebSocketLike,
+  WebSocketLikeConstructor,
+  WebSocketMessageEventLike,
+  WebSocketErrorEventLike,
+} from './websocket-like'
 
 import NativeWebSocket from 'crossws/websocket'
 import superjson from 'superjson'
@@ -133,7 +138,7 @@ export class Client<C = undefined> {
 
   private readonly eventListeners = new Map<
     keyof WebSocketEvents<C>,
-    Set<(data: WebSocketBaseEvent<any, any>) => void | Promise<void>>
+    Set<(data: WebSocketEvent<C>) => void | Promise<void>>
   >()
 
   private readonly stateListeners = new Set<(context: ClientStateChangeContext) => void>()
@@ -241,7 +246,7 @@ export class Client<C = undefined> {
       this.eventListeners.set(event, listeners)
     }
 
-    listeners.add(callback as any)
+    listeners.add(callback as (data: WebSocketEvent<C>) => void | Promise<void>)
 
     return () => {
       this.offEvent(event, callback)
@@ -258,7 +263,7 @@ export class Client<C = undefined> {
     }
 
     if (callback) {
-      listeners.delete(callback as any)
+      listeners.delete(callback as (data: WebSocketEvent<C>) => void | Promise<void>)
       if (!listeners.size) {
         this.eventListeners.delete(event)
       }
@@ -402,7 +407,7 @@ export class Client<C = undefined> {
       void this.handleMessage(event)
     }
 
-    ws.onerror = (event: unknown) => {
+    ws.onerror = (event: WebSocketErrorEventLike | unknown) => {
       clearConnectTimer()
 
       if (!isCurrentSocket()) {
@@ -410,7 +415,10 @@ export class Client<C = undefined> {
       }
 
       // Extract error from WebSocket error event which may vary in shape
-      const error = (event as any)?.error instanceof Error ? (event as any).error : new Error('WebSocket error')
+      const error =
+        event && typeof event === 'object' && 'error' in event && event.error instanceof Error
+          ? event.error
+          : new Error('WebSocket error')
       if (this.connectionAttempt) {
         this.handleSocketFailure(error, ws)
       } else {
@@ -734,7 +742,11 @@ export class Client<C = undefined> {
               }>
             }
           | unknown
-        const modules = Array.isArray((syncData as any)?.modules) ? (syncData as any).modules : []
+        const modules = Array.isArray(
+          (syncData as { modules?: Array<{ name: string; identity?: { id?: string } }> })?.modules,
+        )
+          ? (syncData as { modules?: Array<{ name: string; identity?: { id?: string } }> }).modules
+          : []
 
         const selfRegistered = modules.some((m) => m.name === this.opts.name && m.identity?.id === this.identity.id)
 

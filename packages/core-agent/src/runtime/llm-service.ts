@@ -1,7 +1,7 @@
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message, Tool } from '@xsai/shared-chat'
 
-import type { StreamFromOptions, StreamOptions } from '../types/llm'
+import type { StreamEvent, StreamFromOptions, StreamOptions } from '../types/llm'
 
 import { errorMessageFrom } from '@moeru/std'
 import { stepCountAtLeast } from '@xsai/shared-chat'
@@ -33,36 +33,39 @@ import { streamText } from '@xsai/stream-text'
  *   providers.
  */
 export function sanitizeMessages(messages: unknown[], supportsContentArray = true): Message[] {
-  return messages.map((message: any) => {
-    if (message && message.role === 'error') {
-      return {
-        role: 'user',
-        content: `User encountered error: ${String(message.content ?? '')}`,
-      } as Message
-    }
+  return messages.map((message: unknown) => {
+    if (message && typeof message === 'object' && 'role' in message) {
+      const msg = message as { role: unknown; content?: unknown }
+      if (msg.role === 'error') {
+        return {
+          role: 'user',
+          content: `User encountered error: ${String(msg.content ?? '')}`,
+        } as Message
+      }
 
-    // NOTICE:
-    // Flatten array content for providers (e.g. DeepSeek and other Rust/serde-
-    // strict OpenAI-compatible gateways) that only accept `messages[].content`
-    // as a plain string and reject arrays with `Failed to deserialize the JSON
-    // body into the target type: messages[N]: invalid type: sequence, expected
-    // a string`.
-    // Root cause: OpenAI's chat API permits `content` as either `string` or an
-    // array of content parts; some compatible servers only implement the
-    // string variant.
-    // Source/context: https://github.com/moeru-ai/airi/issues/1500
-    // Removal condition: when every supported provider accepts content-part
-    // arrays uniformly (no longer realistic for the OpenAI-compatible
-    // ecosystem, so this is effectively load-bearing).
-    if (message && Array.isArray(message.content)) {
-      const contentParts = message.content as { type?: string; text?: string }[]
-      const hasNonTextPart = contentParts.some((part) => part?.type && part.type !== 'text')
-      // When the provider supports arrays, only flatten pure-text arrays so we
-      // never silently drop image / audio / file parts on a vision-capable
-      // model. When it doesn't, flatten unconditionally; non-text parts are
-      // dropped because the provider can't carry them anyway.
-      if (!supportsContentArray || !hasNonTextPart) {
-        return { ...message, content: contentParts.map((part) => part?.text ?? '').join('') } as Message
+      // NOTICE:
+      // Flatten array content for providers (e.g. DeepSeek and other Rust/serde-
+      // strict OpenAI-compatible gateways) that only accept `messages[].content`
+      // as a plain string and reject arrays with `Failed to deserialize the JSON
+      // body into the target type: messages[N]: invalid type: sequence, expected
+      // a string`.
+      // Root cause: OpenAI's chat API permits `content` as either `string` or an
+      // array of content parts; some compatible servers only implement the
+      // string variant.
+      // Source/context: https://github.com/moeru-ai/airi/issues/1500
+      // Removal condition: when every supported provider accepts content-part
+      // arrays uniformly (no longer realistic for the OpenAI-compatible
+      // ecosystem, so this is effectively load-bearing).
+      if (Array.isArray(msg.content)) {
+        const contentParts = msg.content as { type?: string; text?: string }[]
+        const hasNonTextPart = contentParts.some((part) => part?.type && part.type !== 'text')
+        // When the provider supports arrays, only flatten pure-text arrays so we
+        // never silently drop image / audio / file parts on a vision-capable
+        // model. When it doesn't, flatten unconditionally; non-text parts are
+        // dropped because the provider can't carry them anyway.
+        if (!supportsContentArray || !hasNonTextPart) {
+          return { ...msg, content: contentParts.map((part) => part?.text ?? '').join('') } as Message
+        }
       }
     }
 
@@ -131,27 +134,33 @@ function withCapturedToolErrors(tools: Tool[], capturedToolErrorByCallId: Map<st
   }))
 }
 
-function resolveCapturedToolErrorEvent(event: unknown, capturedToolErrorByCallId: Map<string, string>) {
+function resolveCapturedToolErrorEvent(event: unknown, capturedToolErrorByCallId: Map<string, string>): StreamEvent {
   if (
     typeof event !== 'object' ||
     event === null ||
     (event as { type?: unknown }).type !== 'tool-result' ||
     typeof (event as { toolCallId?: unknown }).toolCallId !== 'string'
   ) {
-    return event
+    return event as StreamEvent
   }
 
   const toolCallId = (event as { toolCallId: string }).toolCallId
   const result = capturedToolErrorByCallId.get(toolCallId)
-  if (result == null) return event
+  if (result == null) return event as StreamEvent
 
   capturedToolErrorByCallId.delete(toolCallId)
+  // NOTICE:
+  // We're converting a tool-result event into a tool-error event by spreading
+  // the original event (which should have CompletionToolResult properties like
+  // toolCallId, toolName, args) and overriding the type + adding isError flag.
+  // The double cast is needed because TypeScript can't verify at compile time
+  // that the spread event contains all required CompletionToolResult properties.
   return {
     ...event,
     type: 'tool-error',
     isError: true,
     result,
-  }
+  } as unknown as StreamEvent
 }
 
 export async function streamFrom({ model, chatProvider, messages, options, builtinToolsResolver }: StreamFromOptions) {
@@ -184,13 +193,19 @@ export async function streamFrom({ model, chatProvider, messages, options, built
     const onEvent = async (event: unknown) => {
       try {
         const streamEvent = resolveCapturedToolErrorEvent(event, capturedToolErrorByCallId)
-        await options?.onStreamEvent?.(streamEvent as any)
-        if (event && (event as any).type === 'finish') {
-          const finishReason = (event as any).finishReason
-          const waitingForToolRound = finishReason === 'tool_calls' || finishReason === 'tool-calls'
-          if (!waitingForToolRound || !options?.waitForTools) resolveOnce()
-        } else if (event && (event as any).type === 'error') {
-          rejectOnce((event as any).error ?? new Error('Stream error'))
+        await options?.onStreamEvent?.(streamEvent)
+        if (event && typeof event === 'object' && 'type' in event) {
+          const eventObj = event as { type: string; reason?: string; finishReason?: string; error?: unknown }
+          if (eventObj.type === 'finish') {
+            // NOTICE: Fall back to `finishReason` for providers that still emit the
+            // legacy field name instead of `reason`. Without this, tool-call rounds
+            // are never detected and the stream resolves prematurely or hangs.
+            const finishReason = eventObj.reason ?? eventObj.finishReason
+            const waitingForToolRound = finishReason === 'tool_calls' || finishReason === 'tool-calls'
+            if (!waitingForToolRound || !options?.waitForTools) resolveOnce()
+          } else if (eventObj.type === 'error') {
+            rejectOnce(eventObj.error ?? new Error('Stream error'))
+          }
         }
       } catch (error) {
         rejectOnce(error)

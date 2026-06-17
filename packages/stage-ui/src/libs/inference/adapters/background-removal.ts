@@ -7,7 +7,8 @@
  */
 
 import type { AllocationToken } from '../gpu-resource-coordinator'
-import type { ProgressPayload } from '../protocol'
+import type { InferenceResultResponse, ModelReadyResponse, ProgressPayload, WorkerOutboundMessage } from '../protocol'
+import type { BackgroundRemovalOutput } from '../../../workers/background-removal/worker'
 
 import { defaultPerfTracer } from '@proj-airi/stage-shared'
 import { Mutex } from 'async-mutex'
@@ -92,12 +93,12 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
    * Uses the unified protocol message types. Honors `signal` to cancel the
    * wait (and notify the worker to discard the result).
    */
-  function waitForMessage<T = any>(
+  function waitForMessage<T = WorkerOutboundMessage>(
     w: Worker,
     requestId: string,
     targetType: string,
     timeout: number,
-    onOther?: (data: any) => void,
+    onOther?: (data: WorkerOutboundMessage) => void,
     signal?: AbortSignal,
   ): Promise<T> {
     return new Promise((resolve, reject) => {
@@ -168,7 +169,7 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
           const w = ensureWorker()
           const requestId = createRequestId()
 
-          const loadedPromise = waitForMessage(
+          const loadedPromise = waitForMessage<ModelReadyResponse>(
             w,
             requestId,
             'model-ready',
@@ -191,7 +192,7 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
 
           w.postMessage({ type: 'load-model', requestId, modelId: MODEL_IDS.BG_REMOVAL, device: 'webgpu' })
 
-          let loadedResponse: any
+          let loadedResponse: ModelReadyResponse | null = null
           try {
             loadedResponse = await loadedPromise
           } catch (error) {
@@ -233,7 +234,7 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
           state = 'processing'
           const requestId = createRequestId()
 
-          const resultPromise = waitForMessage<any>(
+          const resultPromise = waitForMessage<InferenceResultResponse<BackgroundRemovalOutput>>(
             worker,
             requestId,
             'inference-result',
@@ -257,7 +258,7 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
             [pixelsCopy.buffer],
           )
 
-          let result: any
+          let result: InferenceResultResponse<BackgroundRemovalOutput> | null = null
           try {
             result = await resultPromise
           } catch (error) {
@@ -265,9 +266,14 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
             throw error
           }
 
+          if (!result?.output) {
+            state = 'ready'
+            throw new Error('Background removal failed to produce a result')
+          }
+
           // Apply mask to original image alpha channel
           const output = new ImageData(new Uint8ClampedArray(imageData.data), imageData.width, imageData.height)
-          const maskData = result.output.maskData as Uint8Array
+          const maskData = result.output.maskData
           for (let i = 0; i < maskData.length; i++) {
             output.data[4 * i + 3] = maskData[i]
           }

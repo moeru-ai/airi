@@ -2,11 +2,11 @@ import { defineInvokeEventa } from '@moeru/eventa'
 
 export interface ArtistrySyncPayload {
   provider: string
-  globals: any
+  globals: Record<string, unknown>
   // Card-level defaults to ensure widget triggers respect character settings
   model?: string
   promptPrefix?: string
-  options?: Record<string, any>
+  options?: Record<string, unknown>
 }
 export const ARTISTRY_SYNC_CONFIG_ADDRESS = 'eventa:invoke:electron:artistry:sync-config'
 export const ARTISTRY_TEST_COMFYUI_CONNECTION_ADDRESS = 'eventa:invoke:electron:artistry:test-comfyui-connection'

@@ -14,6 +14,20 @@ import { Button } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 
+type ControlMode = (typeof threeSupportedControl)[number] | (typeof l2dSupportedCtrl)[number]
+
+interface ControlConfig {
+  buttonText: string
+}
+
+interface ControlEnabled {
+  enabled: { value: boolean }
+  mode: { value: ControlMode }
+  supported: readonly ControlMode[]
+  conf: Record<ControlMode, ControlConfig>
+  reset: (mode: ControlMode) => void
+}
+
 const { stageModelRenderer } = storeToRefs(useSettingsStageModel())
 const { viewControlsEnabled: l2dViewCtrlEnabled, viewControlMode: l2dCtrlMode, set: l2dSet } = useL2dViewControl()
 const {
@@ -21,7 +35,7 @@ const {
   viewControlMode: threeCtrlMode,
   set: threeSet,
 } = useThreeViewControl()
-const controlEnabled = computed(() => {
+const controlEnabled = computed<ControlEnabled | null>(() => {
   if (stageModelRenderer.value === 'live2d')
     return {
       enabled: l2dViewCtrlEnabled,
@@ -41,13 +55,13 @@ const controlEnabled = computed(() => {
   return null
 })
 
-function handleViewControlsToggle(targetMode: string) {
-  if (!controlEnabled.value || !controlEnabled.value.supported.includes(targetMode as any)) return
+function handleViewControlsToggle(targetMode: ControlMode) {
+  if (!controlEnabled.value || !controlEnabled.value.supported.includes(targetMode)) return
   if (controlEnabled.value.mode.value === targetMode) {
-    controlEnabled.value.reset(controlEnabled.value.mode.value as any)
+    controlEnabled.value.reset(controlEnabled.value.mode.value)
     return
   }
-  controlEnabled.value.mode.value = targetMode as any
+  controlEnabled.value.mode.value = targetMode
 }
 </script>
 
@@ -63,7 +77,7 @@ function handleViewControlsToggle(targetMode: string) {
           w-full
           @click="handleViewControlsToggle(control)"
         >
-          {{ (controlEnabled.conf as any)[control].buttonText }}
+          {{ controlEnabled.conf[control].buttonText }}
         </Button>
       </div>
     </Transition>

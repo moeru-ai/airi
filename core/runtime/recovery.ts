@@ -19,8 +19,11 @@ import type {
 	EventStore,
 	RuntimeSnapshot,
 	PersistedEvent,
+	EventId,
 } from "../persistence/types.js"
+import type { PersistentSessionId } from "../session/types.js"
 import type { PersistentSessionManager } from "../session/session-manager.js"
+import type { WorkspaceId, WorkspaceDescriptor, WorkspaceLease } from "../workspace/types.js"
 import type { WorkspaceManager } from "../workspace/manager.js"
 import type { WorkspaceStorage } from "../workspace/storage.js"
 
@@ -298,7 +301,7 @@ export class RecoveryCoordinator {
 			// No snapshot — replay all events.
 			const lastEvt = await this.eventStore.getLastEvent()
 			if (lastEvt) {
-				const allEvents = await this.eventStore.getSince("evt_0_0" as any)
+				const allEvents = await this.eventStore.getSince("evt_0_0" as EventId)
 				for (const event of allEvents) {
 					if (!this.recoveryState.replayedEventIds.has(event.eventId as string)) {
 						await this.replayEvent(event)
@@ -434,7 +437,12 @@ export class RecoveryCoordinator {
 
 		// If a session manager is configured, load sessions into it.
 		if (this.sessionManager) {
-			this.sessionManager.loadFromSnapshot(snapshot.sessions as any)
+			this.sessionManager.loadFromSnapshot(
+				snapshot.sessions.map((s) => ({
+					...s,
+					id: s.id as PersistentSessionId,
+				})),
+			)
 		}
 
 		return snapshot.sessions.length
@@ -478,11 +486,11 @@ export class RecoveryCoordinator {
 	 */
 	private async findSnapshotEventId(
 		_snapshot: RuntimeSnapshot,
-	): Promise<any> {
+	): Promise<EventId> {
 		// The snapshot stores the event count at the time it was taken.
 		// We use the last event as the starting point.
 		const lastEvent = await this.eventStore.getLastEvent()
-		if (!lastEvent) return "evt_0_0" as any
+		if (!lastEvent) return "evt_0_0" as EventId
 		return lastEvent.eventId
 	}
 	// ── Workspace recovery ────────────────────────────────────────────────
@@ -505,57 +513,57 @@ export class RecoveryCoordinator {
 		let restored = 0
 
 			for (const ws of workspaceSnapshots) {
-			try {
-				// Validate workspace state.
-				if (!ws.descriptor || !ws.id) {
-					this.logger.warn(`Recovery: skipping invalid workspace snapshot: ${JSON.stringify(ws)}`)
+				try {
+					// Validate workspace state.
+					if (!ws.descriptor || !ws.id) {
+						this.logger.warn(`Recovery: skipping invalid workspace snapshot: ${JSON.stringify(ws)}`)
+						this.events.emit("workspace.corrupted", {
+							timestamp: new Date().toISOString(),
+							source: "recovery",
+							workspaceId: ws.id ?? "unknown",
+							error: "Invalid workspace snapshot: missing descriptor or id",
+							needsManualIntervention: true,
+						})
+						continue
+					}
+	
+					// Restore workspace into the manager.
+					const snapshots = [{
+						id: ws.id as WorkspaceId,
+						descriptor: ws.descriptor as WorkspaceDescriptor,
+						lease: ws.lease as WorkspaceLease | undefined,
+						activeTaskIds: ws.activeTaskIds ?? [],
+						createdAt: ws.createdAt,
+					}]
+	
+					this.workspaceManager.restoreFromSnapshots(snapshots)
+	
+					this.logger.info(`Recovery: restored workspace ${ws.id} (state: ${ws.descriptor.state})`)
+	
+					// Emit workspace.recovered.
+					this.events.emit("workspace.recovered", {
+						timestamp: new Date().toISOString(),
+						source: "recovery",
+						workspaceId: ws.id,
+						previousState: ws.descriptor.state,
+						newState: ws.descriptor.state,
+						needsReconciliation: false,
+					})
+	
+					restored++
+				} catch (error) {
+					const message = error instanceof Error ? error.message : String(error)
+					this.logger.error(`Recovery: failed to restore workspace ${ws.id}: ${message}`)
+	
 					this.events.emit("workspace.corrupted", {
 						timestamp: new Date().toISOString(),
 						source: "recovery",
-						workspaceId: (ws.id ?? "unknown") as any,
-						error: "Invalid workspace snapshot: missing descriptor or id",
+						workspaceId: ws.id ?? "unknown",
+						error: message,
 						needsManualIntervention: true,
 					})
-					continue
 				}
-
-				// Restore workspace into the manager.
-				const snapshots = [{
-					id: ws.id as any,
-					descriptor: ws.descriptor as any,
-					lease: ws.lease as any,
-					activeTaskIds: ws.activeTaskIds ?? [],
-					createdAt: ws.createdAt,
-				}]
-
-				this.workspaceManager.restoreFromSnapshots(snapshots)
-
-				this.logger.info(`Recovery: restored workspace ${ws.id} (state: ${ws.descriptor.state})`)
-
-				// Emit workspace.recovered.
-				this.events.emit("workspace.recovered", {
-					timestamp: new Date().toISOString(),
-					source: "recovery",
-					workspaceId: ws.id,
-					previousState: ws.descriptor.state,
-					newState: ws.descriptor.state,
-					needsReconciliation: false,
-				})
-
-				restored++
-			} catch (error) {
-				const message = error instanceof Error ? error.message : String(error)
-				this.logger.error(`Recovery: failed to restore workspace ${ws.id}: ${message}`)
-
-				this.events.emit("workspace.corrupted", {
-					timestamp: new Date().toISOString(),
-					source: "recovery",
-					workspaceId: (ws.id ?? "unknown") as any,
-					error: message,
-					needsManualIntervention: true,
-				})
 			}
-		}
 
 		return restored
 	}

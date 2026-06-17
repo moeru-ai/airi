@@ -29,7 +29,7 @@ const enableChatCheck = ref(true)
 const customFieldValues = ref<Record<string, string>>({})
 
 const validation = ref<'unchecked' | 'pending' | 'succeed' | 'failed'>('unchecked')
-const validationError = ref<any>()
+const validationError = ref<string | undefined>(undefined)
 
 const hasOnboardingFields = computed(() => (props.selectedProvider?.onboardingFields?.length ?? 0) > 0)
 
@@ -191,9 +191,17 @@ function getApiKeyPlaceholder(providerId: string): string {
   return placeholders[providerId] || 'API Key'
 }
 
+interface DefaultOptionsWithBaseUrl {
+  baseUrl?: string
+}
+
 function getBaseUrlPlaceholder(_providerId: string): string {
-  const defaultOptions = props.selectedProvider?.defaultOptions?.() || {}
-  return (defaultOptions as any)?.baseUrl || 'https://api.example.com/v1/'
+  const defaultOptions = props.selectedProvider?.defaultOptions?.()
+  const baseUrl =
+    defaultOptions && typeof defaultOptions === 'object' && 'baseUrl' in defaultOptions
+      ? String((defaultOptions as Record<string, unknown>).baseUrl ?? '')
+      : ''
+  return baseUrl || 'https://api.example.com/v1/'
 }
 
 // Initialize on mount

@@ -11,6 +11,17 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+interface SpeechProviderConfig {
+  apiKey?: string
+  baseUrl?: string
+  model?: string
+  voice?: string
+  speed?: number
+  voiceSettings?: {
+    speed?: number
+  }
+}
+
 const speechStore = useSpeechStore()
 const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore)
@@ -27,8 +38,8 @@ const defaultVoice = 'alloy'
 
 // Initialize speed from provider config or default
 const speed = ref<number>(
-  (providers.value[providerId] as any)?.voiceSettings?.speed ||
-    (providers.value[providerId] as any)?.speed ||
+  (providers.value[providerId] as SpeechProviderConfig | undefined)?.voiceSettings?.speed ||
+    (providers.value[providerId] as SpeechProviderConfig | undefined)?.speed ||
     defaultVoiceSettings.speed,
 )
 
@@ -62,7 +73,7 @@ watch(
   (newConfig) => {
     if (newConfig) {
       // Sync speed from voiceSettings or direct speed property
-      const config = newConfig as any
+      const config = newConfig as SpeechProviderConfig
       const newSpeed = config.voiceSettings?.speed || config.speed || defaultVoiceSettings.speed
       if (Math.abs(speed.value - newSpeed) > 0.001) {
         // Use small epsilon for float comparison
@@ -127,7 +138,9 @@ const apiKeyPlaceholder = computed(() => {
   const definition = getDefinedProvider(providerId)
   if (!definition?.createProviderConfig) return 'sk-...'
 
-  const schema = definition.createProviderConfig({ t }) as any
+  const schema = definition.createProviderConfig({ t }) as
+    | { shape?: () => Record<string, { meta?: () => { placeholderLocalized?: string } }> }
+    | undefined
   const shape = typeof schema?.shape === 'function' ? schema.shape() : schema?.shape
   const apiKeySchema = shape?.apiKey
   if (!apiKeySchema) return 'sk-...'
@@ -167,7 +180,7 @@ const apiKeyPlaceholder = computed(() => {
     <template #playground>
       <SpeechPlaygroundOpenAICompatible
         v-model:model-value="model"
-        v-model:voice="voice as any"
+        v-model:voice="voice as string"
         :generate-speech="handleGenerateSpeech"
         :api-key-configured="apiKeyConfigured"
         default-text="Hello! This is a test of the OpenAI Compatible Speech."

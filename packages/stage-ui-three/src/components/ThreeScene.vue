@@ -164,7 +164,11 @@ const pendingCommittedModelSrc = ref<string>()
 const pendingCommittedModelRevision = ref<number>()
 const pendingSceneBootstrap = shallowRef<SceneBootstrap>()
 
-function emitThreeSceneTrace(label: string, event: any, payload: Record<string, unknown>) {
+function emitThreeSceneTrace<P>(
+  label: string,
+  event: Parameters<typeof stageThreeRuntimeTraceContext.emit<P>>[0],
+  payload: P,
+) {
   if (isStageThreeRuntimeTraceEnabled()) stageThreeRuntimeTraceContext.emit(event, payload)
   if (import.meta.env.DEV) console.info(`[stage-ui-three][trace][three-scene][${label}]`, payload)
 }

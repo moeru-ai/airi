@@ -1148,7 +1148,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       }
       return sessionMessages.value[activeSessionId.value] ?? []
     },
-    set: (value) => {
+    set: (value: ChatHistoryItem[]) => {
       if (!activeSessionId.value) return
       replaceSessionMessages(activeSessionId.value, value)
     },

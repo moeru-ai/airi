@@ -257,23 +257,27 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
     sendProgress(requestId, 'download', -1, 'Loading model...')
 
     const [_tokenizer, _processor, model] = await AutomaticSpeechRecognitionPipeline.getInstance(
-      (x: any) => {
-        // Forward transformers.js progress events
+      (progressInfo) => {
+        // Forward transformers.js progress events.
+        // The library always passes a ProgressInfo object with a discriminated `status` field.
         if (currentLoadRequestId) {
-          if (x.status === 'progress') {
+          // Type-safe access: use the 'status' discriminant to narrow the union
+          if (progressInfo.status === 'progress') {
             sendProgress(
               currentLoadRequestId,
               'download',
-              x.progress != null ? Math.round(x.progress * 100) : -1,
+              progressInfo.progress != null ? Math.round(progressInfo.progress * 100) : -1,
               undefined,
               {
-                file: x.file,
-                loaded: x.loaded,
-                total: x.total,
+                file: progressInfo.file,
+                loaded: progressInfo.loaded,
+                total: progressInfo.total,
               },
             )
-          } else if (x.status === 'initiate') {
-            sendProgress(currentLoadRequestId, 'download', 0, `Loading ${x.file}`, { file: x.file })
+          } else if (progressInfo.status === 'initiate') {
+            sendProgress(currentLoadRequestId, 'download', 0, `Loading ${progressInfo.file}`, {
+              file: progressInfo.file,
+            })
           }
         }
       },
@@ -346,7 +350,7 @@ async function runInference(request: RunInferenceRequest<WhisperInput>): Promise
       }
 
       // Send streaming updates as progress messages with inference phase
-      sendProgress(requestId, 'inference', -1, undefined, { output, tps, numTokens } as any)
+      sendProgress(requestId, 'inference', -1, undefined, { output, tps, numTokens } satisfies Record<string, unknown>)
     }
 
     const streamer = new TextStreamer(tokenizer, {

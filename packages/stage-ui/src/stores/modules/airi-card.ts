@@ -84,7 +84,7 @@ export interface AiriExtension {
       workflowId?: string
       widgetInstruction?: string
       spawnMode?: 'bg' | 'widget' | 'inline' | 'bg_widget'
-      options?: Record<string, any>
+      options?: Record<string, unknown>
       autonomousEnabled?: boolean
       autonomousThreshold?: number
       autonomousTarget?: 'user' | 'assistant'
@@ -104,6 +104,30 @@ export interface AiriCard extends Card {
   extensions: {
     airi: AiriExtension
   } & Card['extensions']
+}
+
+/**
+ * Legacy shape where `artistry` lived directly on the extension (pre-`modules` nesting).
+ * Kept as a separate interface so the compatibility reads are explicit and typed.
+ */
+interface LegacyAiriExtension {
+  artistry?: {
+    enabled?: boolean
+    provider?: string
+    model?: string
+    promptPrefix?: string
+    /** Legacy snake_case alias of promptPrefix */
+    prompt_prefix?: string
+    workflowId?: string
+    /** Legacy alias of workflowId used by some exporters */
+    remixId?: string
+    widgetInstruction?: string
+    spawnMode?: 'bg' | 'widget' | 'inline' | 'bg_widget'
+    options?: Record<string, unknown>
+    autonomousEnabled?: boolean
+    autonomousThreshold?: number
+    autonomousTarget?: 'user' | 'assistant'
+  }
 }
 
 export const useAiriCardStore = defineStore('airi-card', () => {
@@ -179,7 +203,9 @@ export const useAiriCardStore = defineStore('airi-card', () => {
 
   function resolveAiriExtension(card: Card | ccv3.CharacterCardV3): AiriExtension {
     // Get existing extension if available
-    const existingExtension = ('data' in card ? card.data?.extensions?.airi : card.extensions?.airi) as AiriExtension
+    // Older cards may have `artistry` at the top level instead of under `modules.artistry`.
+    const existingExtension = ('data' in card ? card.data?.extensions?.airi : card.extensions?.airi) as AiriExtension &
+      LegacyAiriExtension
 
     // Create default modules config
     const defaultModules = {
@@ -239,48 +265,48 @@ export const useAiriCardStore = defineStore('airi-card', () => {
         artistry: {
           enabled:
             existingExtension.modules?.artistry?.enabled ??
-            (existingExtension as any).artistry?.enabled ??
+            existingExtension.artistry?.enabled ??
             defaultModules.artistry.enabled,
           provider:
             existingExtension.modules?.artistry?.provider ??
-            (existingExtension as any).artistry?.provider ??
+            existingExtension.artistry?.provider ??
             defaultModules.artistry.provider,
           model:
             existingExtension.modules?.artistry?.model ??
-            (existingExtension as any).artistry?.model ??
+            existingExtension.artistry?.model ??
             defaultModules.artistry.model,
           promptPrefix:
             existingExtension.modules?.artistry?.promptPrefix ??
-            (existingExtension as any).artistry?.promptPrefix ??
-            (existingExtension as any).artistry?.prompt_prefix ??
+            existingExtension.artistry?.promptPrefix ??
+            existingExtension.artistry?.prompt_prefix ??
             defaultModules.artistry.promptPrefix,
           workflowId:
             existingExtension.modules?.artistry?.workflowId ??
-            (existingExtension as any).artistry?.workflowId ??
-            (existingExtension as any).artistry?.remixId,
+            existingExtension.artistry?.workflowId ??
+            existingExtension.artistry?.remixId,
           widgetInstruction:
             existingExtension.modules?.artistry?.widgetInstruction ??
-            (existingExtension as any).artistry?.widgetInstruction ??
+            existingExtension.artistry?.widgetInstruction ??
             defaultModules.artistry.widgetInstruction,
           spawnMode:
             existingExtension.modules?.artistry?.spawnMode ??
-            (existingExtension as any).artistry?.spawnMode ??
+            existingExtension.artistry?.spawnMode ??
             defaultModules.artistry.spawnMode,
           options:
             existingExtension.modules?.artistry?.options ??
-            (existingExtension as any).artistry?.options ??
+            existingExtension.artistry?.options ??
             defaultModules.artistry.options,
           autonomousEnabled:
             existingExtension.modules?.artistry?.autonomousEnabled ??
-            (existingExtension as any).artistry?.autonomousEnabled ??
+            existingExtension.artistry?.autonomousEnabled ??
             defaultModules.artistry.autonomousEnabled,
           autonomousThreshold:
             existingExtension.modules?.artistry?.autonomousThreshold ??
-            (existingExtension as any).artistry?.autonomousThreshold ??
+            existingExtension.artistry?.autonomousThreshold ??
             defaultModules.artistry.autonomousThreshold,
           autonomousTarget:
             existingExtension.modules?.artistry?.autonomousTarget ??
-            (existingExtension as any).artistry?.autonomousTarget ??
+            existingExtension.artistry?.autonomousTarget ??
             defaultModules.artistry.autonomousTarget,
         },
       },
@@ -337,8 +363,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   function bindVoicePackToActiveCard(pack: VoicePackBindingInput) {
     const cardId = activeCardId.value
     const card = cards.value.get(cardId)
-    if (!card)
-      return false
+    if (!card) return false
 
     const extension = resolveAiriExtension(card)
     const voicePack: VoicePackSnapshot = {

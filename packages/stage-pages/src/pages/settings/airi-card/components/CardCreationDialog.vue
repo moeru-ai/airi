@@ -32,6 +32,9 @@ interface LegacyArtistrySettings {
   model?: string
   promptPrefix?: string
   widgetInstruction?: string
+  spawnMode?: 'bg' | 'widget' | 'inline' | 'bg_widget'
+  autonomousEnabled?: boolean
+  autonomousThreshold?: number
   options?: Record<string, unknown>
 }
 
@@ -323,7 +326,7 @@ function saveCard(card: Card): boolean {
   showError.value = false
 
   // Build options with final safety parse
-  let artistryOptions: Record<string, any> | undefined
+  let artistryOptions: Record<string, unknown> | undefined
   if (selectedArtistryConfigStr.value.trim()) {
     try {
       artistryOptions = JSON.parse(selectedArtistryConfigStr.value)
@@ -400,9 +403,9 @@ function initializeCard(): Card {
   selectedArtistryModel.value = artistrySettings?.model || ''
   selectedArtistryPromptPrefix.value = artistrySettings?.promptPrefix || ''
   selectedArtistryWidgetInstruction.value = artistrySettings?.widgetInstruction || DEFAULT_ARTISTRY_WIDGET_INSTRUCTION
-  selectedArtistrySpawnMode.value = (artistrySettings as any)?.spawnMode || 'bg_widget'
-  selectedArtistryAutonomousEnabled.value = (artistrySettings as any)?.autonomousEnabled ?? false
-  selectedArtistryAutonomousThreshold.value = (artistrySettings as any)?.autonomousThreshold ?? 70
+  selectedArtistrySpawnMode.value = artistrySettings?.spawnMode || 'bg_widget'
+  selectedArtistryAutonomousEnabled.value = artistrySettings?.autonomousEnabled ?? false
+  selectedArtistryAutonomousThreshold.value = artistrySettings?.autonomousThreshold ?? 70
 
   try {
     selectedArtistryConfigStr.value = artistrySettings?.options

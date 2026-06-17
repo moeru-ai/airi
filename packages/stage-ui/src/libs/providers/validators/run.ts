@@ -8,6 +8,9 @@ import type {
   ProviderRuntimeValidator,
 } from '../types'
 
+/** Placeholder for the validator parameter type */
+type ValidatorProviderExtra = ProviderExtraMethods<Record<string, unknown>>
+
 import { errorMessageFrom, merge } from '@moeru/std'
 
 export type ProviderValidationStepStatus = 'idle' | 'validating' | 'valid' | 'invalid'
@@ -114,7 +117,7 @@ export function getValidatorsOfProvider(options: {
 
   const normalizedConfig = merge(options.schemaDefaults, options.config)
   const validationRequired =
-    definition.validationRequiredWhen || (<TConfig extends Record<string, any>>(_: TConfig) => false)
+    definition.validationRequiredWhen || (<TConfig extends Record<string, unknown>>(_: TConfig) => false)
   const shouldValidate = validationRequired(normalizedConfig)
 
   return {
@@ -192,7 +195,12 @@ export async function validateProvider(
       step.reason = ''
       onValidatorStart?.({ kind: 'provider', index, step })
       try {
-        const result = await validatorDefinition.validator(config, providerInstance, providerExtra as any, runContext)
+        const result = await validatorDefinition.validator(
+          config,
+          providerInstance,
+          providerExtra as ValidatorProviderExtra,
+          runContext,
+        )
         step.status = result.valid ? 'valid' : 'invalid'
         step.reason = result.valid ? '' : result.reason
         onValidatorSuccess?.({ kind: 'provider', index, step, result })

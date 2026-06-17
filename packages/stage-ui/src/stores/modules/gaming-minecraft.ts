@@ -173,15 +173,12 @@ export const useMinecraftStore = defineStore('minecraft', () => {
     if (initialized.value) return
 
     initialized.value = true
-    disposeContextUpdate = serverChannelStore.onContextUpdate(handleRuntimeContextUpdate as any)
-    disposeSparkCommand = serverChannelStore.onEvent('spark:command', handleSparkCommand as any)
-    disposeRegistrySync = serverChannelStore.onEvent('registry:modules:sync', handleRegistrySync as any)
-    disposeRegistryHealthy = serverChannelStore.onEvent('registry:modules:health:healthy', handleRegistryHealthy as any)
-    disposeRegistryUnhealthy = serverChannelStore.onEvent(
-      'registry:modules:health:unhealthy',
-      handleRegistryUnhealthy as any,
-    )
-    disposeModuleDeAnnounced = serverChannelStore.onEvent('module:de-announced', handleModuleDeAnnounced as any)
+    disposeContextUpdate = serverChannelStore.onContextUpdate(handleRuntimeContextUpdate)
+    disposeSparkCommand = serverChannelStore.onEvent('spark:command', handleSparkCommand)
+    disposeRegistrySync = serverChannelStore.onEvent('registry:modules:sync', handleRegistrySync)
+    disposeRegistryHealthy = serverChannelStore.onEvent('registry:modules:health:healthy', handleRegistryHealthy)
+    disposeRegistryUnhealthy = serverChannelStore.onEvent('registry:modules:health:unhealthy', handleRegistryUnhealthy)
+    disposeModuleDeAnnounced = serverChannelStore.onEvent('module:de-announced', handleModuleDeAnnounced)
     runtimeTickTimer = setInterval(() => {
       now.value = Date.now()
     }, RUNTIME_CONTEXT_TICK_MS)

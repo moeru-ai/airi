@@ -739,7 +739,8 @@ async function loadModel() {
     /*
      * Shader setting
      */
-    const isShaderMat = (m: any): m is ShaderMaterial => Boolean(m?.isShaderMaterial)
+    const isShaderMat = (m: Material): m is ShaderMaterial =>
+      typeof m === 'object' && m !== null && 'isShaderMaterial' in m && Boolean((m as ShaderMaterial).isShaderMaterial)
 
     // MToon material sky box lightProbe setting
     if (!airiIblProbe && scene.value) airiIblProbe = createIblProbeController(scene.value)
