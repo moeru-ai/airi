@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { inject, defineOptions } from 'vue'
+import { inject } from 'vue'
 
 defineOptions({ inheritAttrs: false })
 
