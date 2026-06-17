@@ -6,7 +6,7 @@ import { Alert, ErrorContainer, LevelMeter, RadioCardManySelect, RadioCardSimple
 import { useAnalytics, useAudioAnalyzer, useAudioRecorder } from '@proj-airi/stage-ui/composables'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
-import { CONFIDENCE_THRESHOLD_DISABLED, useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { CONFIDENCE_THRESHOLD_DISABLED, hasOptionalModelListing, useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { Button, FieldCheckbox, FieldCombobox, FieldInput, FieldRange } from '@proj-airi/ui'
@@ -241,9 +241,11 @@ function updateCustomModelName(value: string | undefined) {
   activeTranscriptionModel.value = modelValue
 }
 
-// Sync OpenAI Compatible model from provider config
-function syncOpenAICompatibleSettings() {
-  if (activeTranscriptionProvider.value !== 'openai-compatible-audio-transcription')
+// Sync the active model from provider config for providers whose model listing
+// is optional (e.g. local servers that may not expose `/v1/models`), falling
+// back to a sane default when no model has been configured yet.
+function syncManualModelProviderSettings() {
+  if (!hasOptionalModelListing(activeTranscriptionProvider.value))
     return
 
   const providerConfig = providersStore.getProviderConfig(activeTranscriptionProvider.value)
@@ -464,7 +466,7 @@ watch(activeTranscriptionProvider, async (provider) => {
     return
 
   await hearingStore.loadModelsForProvider(provider)
-  syncOpenAICompatibleSettings()
+  syncManualModelProviderSettings()
 
   // Auto-select first model for Web Speech API if no model is selected
   if (provider === 'browser-web-speech-api' && !activeTranscriptionModel.value) {
@@ -478,7 +480,7 @@ watch(activeTranscriptionProvider, async (provider) => {
 
 onMounted(async () => {
   // Audio devices are loaded on demand when user requests them
-  syncOpenAICompatibleSettings()
+  syncManualModelProviderSettings()
 })
 
 onUnmounted(() => {
@@ -621,7 +623,7 @@ onUnmounted(() => {
 
             <!-- Manual input for providers without model listing or when no models are available -->
             <div
-              v-else-if="!supportsModelListing || (activeTranscriptionProvider === 'openai-compatible-audio-transcription' && providerModels.length === 0 && !isLoadingActiveProviderModels)"
+              v-else-if="!supportsModelListing || (hasOptionalModelListing(activeTranscriptionProvider) && providerModels.length === 0 && !isLoadingActiveProviderModels)"
               class="mt-2"
             >
               <FieldInput

@@ -83,6 +83,16 @@ interface HearingTranscriptionInvokeOptions {
 
 export const CONFIDENCE_THRESHOLD_DISABLED = -3
 
+// Providers backed by a local/minimal OpenAI-compatible server whose `/v1/models`
+// endpoint is optional. Listing may legitimately return zero models even when the
+// provider is configured correctly, so the UI must fall back to manual model entry
+// instead of treating an empty list as "this provider has no models".
+const PROVIDERS_WITH_OPTIONAL_MODEL_LISTING = new Set(['openai-compatible-audio-transcription', 'faster-whisper'])
+
+export function hasOptionalModelListing(providerId: string): boolean {
+  return PROVIDERS_WITH_OPTIONAL_MODEL_LISTING.has(providerId)
+}
+
 export function filterTranscriptionByConfidence(
   segments: Array<{ text?: string, avg_logprob?: number }>,
   threshold: number,
@@ -174,9 +184,9 @@ export const useHearingStore = defineStore('hearing-store', () => {
       return true // Web Speech API is ready if provider is selected and available
     }
 
-    // For OpenAI Compatible providers, check provider config as fallback
+    // For providers with optional model listing, check provider config as fallback
     let hasProviderModel = false
-    if (activeTranscriptionProvider.value === 'openai-compatible-audio-transcription') {
+    if (hasOptionalModelListing(activeTranscriptionProvider.value)) {
       const providerConfig = providersStore.getProviderConfig(activeTranscriptionProvider.value)
       hasProviderModel = !!providerConfig?.model
     }

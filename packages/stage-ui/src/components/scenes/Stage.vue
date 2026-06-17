@@ -292,6 +292,22 @@ async function playFunction(item: Parameters<Parameters<typeof createPlaybackMan
       ])
     }
     catch {}
+
+    // Starting a source on a still-suspended context never fires `onended`
+    // (its clock never advances), which would leave this promise unresolved
+    // forever and permanently wedge the single playback voice slot. Drop this
+    // segment and let the manager move on; the next call re-checks state and
+    // retries resume() once a real user gesture unlocks the context.
+    // NOTICE:
+    // TS narrows `outputContext.state` to the literal 'suspended' from the
+    // guard above and doesn't widen it back across the `await` for this
+    // property access, so the post-resume check needs an explicit cast back
+    // to the declared union type to compare against 'running'.
+    const resumedState = outputContext.state as AudioContextState
+    if (resumedState !== 'running') {
+      console.warn('[Stage] Dropping playback segment: AudioContext failed to resume', { state: resumedState })
+      return
+    }
   }
 
   // Lip-sync source: lives on the STORE context so the existing VRM/live2d

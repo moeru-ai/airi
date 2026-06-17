@@ -815,6 +815,13 @@ export const useProvidersStore = defineStore('providers', () => {
 
           const rawBaseUrl = (config.baseUrl as string)?.trim() ?? ''
           const baseUrl = rawBaseUrl ? `${rawBaseUrl.replace(/\/+$/, '')}/` : ''
+          // NOTICE:
+          // Mirrors the placeholder fallback in this provider's listModels
+          // capability: local faster-whisper servers ignore Authorization, but
+          // hosted/gated deployments enforce it, so the probe must send the same
+          // key a real transcription request would.
+          const apiKey = (config.apiKey as string)?.trim() || 'sk-faster-whisper'
+          let response: Response
           try {
             const controller = new AbortController()
             const timeout = setTimeout(() => controller.abort(), 5000)
@@ -822,13 +829,24 @@ export const useProvidersStore = defineStore('providers', () => {
             // Probe /v1/models only as a liveness check. Any HTTP response (even
             // 404/405 from a transcriptions-only server) proves the server is
             // reachable, so only a thrown fetch (connection refused / timeout)
-            // is treated as a failure.
-            await fetch(`${baseUrl}models`, { signal: controller.signal })
+            // is treated as a failure. The exception is 401/403: those mean the
+            // server is reachable but rejects the credentials a real
+            // transcription request would also use, so they must fail
+            // validation instead of being reported as a healthy provider.
+            response = await fetch(`${baseUrl}models`, {
+              headers: { Authorization: `Bearer ${apiKey}` },
+              signal: controller.signal,
+            })
             clearTimeout(timeout)
           }
           catch (err) {
             const reason = `Faster Whisper server connection failed: ${errorMessageFrom(err)}`
             return { errors: [err as Error], reason, valid: false }
+          }
+
+          if (response.status === 401 || response.status === 403) {
+            const reason = `Faster Whisper server rejected the API key (HTTP ${response.status}). Check your API key.`
+            return { errors: [new Error(reason)], reason, valid: false }
           }
 
           return { errors: [], reason: '', valid: true }
