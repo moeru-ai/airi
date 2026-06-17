@@ -63,13 +63,13 @@ export class PlanValidator {
 		errors.push(...this.validateWorkspaces(proposal))
 
 		// 3. Validate dependency graph.
-		errors.push(...this.validateDependencyGraph(proposal.steps))
+		errors.push(...PlanValidator.validateDependencyGraph(proposal.steps))
 
 		// 4. Validate step actions.
 		errors.push(...this.validateStepActions(proposal.steps))
 
 		// 5. Validate execution constraints.
-		warnings.push(...this.validateConstraints(proposal))
+		warnings.push(...PlanValidator.validateConstraints(proposal))
 
 		return {
 			valid: errors.length === 0,

@@ -126,7 +126,7 @@ export class LocalSocketClientTransport implements IpcClientTransport {
 			throw new Error(`Cannot send: transport is ${this._state}.`)
 		}
 
-		const data = this.encodeMessage(message)
+		const data = LocalSocketClient.encodeMessage(message)
 		return new Promise<void>((resolve, reject) => {
 			this.socket!.write(data, (err) => {
 				if (err) reject(err)

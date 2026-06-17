@@ -27,7 +27,7 @@ import type { Logger } from "../logger.js"
 import type { EventStore } from "../persistence/types.js"
 import type { CognitionConstraints } from "./types.js"
 import type { MemoryRetriever } from "../memory/retrieval.js"
-import type { DecisionMemory } from "../memory/decision-memory.js"
+import { DecisionMemory } from "../memory/decision-memory.js"
 import { createReasoningId } from "./types.js"
 import { proposalToPlan } from "./proposals.js"
 
