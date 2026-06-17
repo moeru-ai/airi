@@ -195,7 +195,7 @@ async function startSTTTest() {
       interimResults: interimResults.value,
       abortSignal: abortController.signal,
       onSentenceEnd: (delta) => {
-        if (delta && delta.trim()) {
+        if (delta?.trim()) {
           testStreamingText.value += `${delta} `
           testStatusMessage.value = 'Transcribing... (streaming)'
           isTranscribing.value = true

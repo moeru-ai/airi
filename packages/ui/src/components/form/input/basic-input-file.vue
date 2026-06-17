@@ -35,8 +35,6 @@ function handleFileChange(e: Event) {
   const input = e.target as HTMLInputElement
   if (!input.files) return
 
-  files.value = []
-
   // FileList is not iterable in all TS lib targets; use Array.from
   files.value = Array.from(input.files)
 

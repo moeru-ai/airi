@@ -41,7 +41,7 @@ async function main() {
     console.info(filenames[0].releaseArtifactFilename)
     return
   }
-  if (argOptions.getFilename && argOptions.getFilename[0]) {
+  if (argOptions.getFilename?.[0]) {
     const ext = String(argOptions.getFilename[0]).trim()
     const filenames = await getFilenames(target, argOptions)
     const match = filenames.find((f) => f.extension === ext)
@@ -52,7 +52,7 @@ async function main() {
     console.info(match.releaseArtifactFilename)
     return
   }
-  if (argOptions.getOutputFilename && argOptions.getOutputFilename[0]) {
+  if (argOptions.getOutputFilename?.[0]) {
     const ext = String(argOptions.getOutputFilename[0]).trim()
     const filenames = await getFilenames(target, argOptions)
     const match = filenames.find((f) => f.extension === ext)

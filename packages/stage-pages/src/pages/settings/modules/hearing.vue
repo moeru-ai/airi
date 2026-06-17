@@ -350,7 +350,7 @@ async function startSTTTest() {
 
       await transcribeForMediaStream(stream.value, {
         onSentenceEnd: (delta) => {
-          if (delta && delta.trim()) {
+          if (delta?.trim()) {
             testStreamingText.value += `${delta} `
             testStatusMessage.value = 'Transcribing... (streaming)'
             isTranscribing.value = true
