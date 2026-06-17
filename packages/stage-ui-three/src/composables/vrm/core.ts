@@ -7,7 +7,8 @@ import { Box3, Group, Quaternion, Vector3 } from 'three'
 
 import { useVRMLoader } from './loader'
 
-interface GLTFUserdata extends Record<string, any> {
+interface GLTFUserdata extends Record<string, unknown> {
+  vrm?: VRM
   vrmCore?: VRMCore
 }
 

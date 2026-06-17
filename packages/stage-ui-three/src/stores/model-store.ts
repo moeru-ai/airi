@@ -60,7 +60,7 @@ export interface FieldKindMap {
   number: { def: NumberField; value: number }
   vec3: { def: Vec3Field; value: Vector3 }
   color: { def: ColorField; value: HexColor }
-  select: { def: SelectField<any>; value: string }
+  select: { def: SelectField; value: string }
 }
 // type of Field
 export type FieldDef = FieldKindMap[keyof FieldKindMap]['def']

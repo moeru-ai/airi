@@ -23,7 +23,7 @@ class AiriMToonMaterialLoaderPlugin extends MToonMaterialLoaderPlugin {
     this._outlineFallbackSettings = this._resolveOutlineFallbackSettings()
   }
 
-  override extendMaterialParams(materialIndex: number, materialParams: Record<string, any>) {
+  override extendMaterialParams(materialIndex: number, materialParams: Record<string, unknown>) {
     const pending = super.extendMaterialParams(materialIndex, materialParams)
 
     if (!AIRI_ALL_OUTLINE) return pending

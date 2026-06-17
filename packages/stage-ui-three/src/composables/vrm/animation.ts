@@ -11,7 +11,7 @@ import { ref } from 'vue'
 import { useVRMLoader } from './loader'
 import { randomSaccadeInterval } from './utils/eye-motions'
 
-export interface GLTFUserdata extends Record<string, any> {
+export interface GLTFUserdata extends Record<string, unknown> {
   vrmAnimations: VRMAnimation[]
 }
 

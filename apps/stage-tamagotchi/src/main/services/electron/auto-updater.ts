@@ -209,6 +209,10 @@ function extractReleaseTagsFromAtom(atom: string) {
   return tags
 }
 
+// deepsource:issue=JS-0323
+// NOTICE: `any` is required in AppUpdaterLike to maintain compatibility with
+// MockAutoUpdater, electron-updater's AutoUpdater, and EventEmitter-based
+// implementations that have varying return types and listener signatures.
 export interface AppUpdaterLike {
   on: (event: string, listener: (...args: any[]) => void) => any
   checkForUpdates: () => Promise<any>

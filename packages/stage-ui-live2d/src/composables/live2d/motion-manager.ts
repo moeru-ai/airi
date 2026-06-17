@@ -26,7 +26,7 @@ export interface MotionManagerUpdateContext {
 export type MotionManagerPluginContext = MotionManagerUpdateContext & {
   internalModel: PixiLive2DInternalModel
   motionManager: PixiLive2DInternalModel['motionManager']
-  modelParameters: Ref<any>
+  modelParameters: Ref<Record<string, number>>
   live2dEyeTrackingEnabled: Ref<boolean>
   live2dEyeFocusSourceActive: Ref<boolean>
   live2dIdleAnimationEnabled: Ref<boolean>
@@ -43,7 +43,7 @@ export type MotionManagerPlugin = (ctx: MotionManagerPluginContext) => void
 export interface UseLive2DMotionManagerUpdateOptions {
   internalModel: PixiLive2DInternalModel
   motionManager: PixiLive2DInternalModel['motionManager']
-  modelParameters: Ref<any>
+  modelParameters: Ref<Record<string, number>>
   live2dEyeTrackingEnabled: Ref<boolean>
   live2dEyeFocusSourceActive: Ref<boolean>
   live2dIdleAnimationEnabled: Ref<boolean>

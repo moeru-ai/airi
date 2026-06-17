@@ -3,7 +3,7 @@ export interface TraceEvent {
   name: string
   ts: number
   duration?: number
-  meta?: Record<string, any>
+  meta?: Record<string, unknown>
 }
 
 export type TraceSubscriber = (event: TraceEvent) => void
@@ -19,8 +19,13 @@ export interface PerfTracer {
     options?: { label?: string; onError?: (error: unknown, event: TraceEvent) => void },
   ) => () => void
   emit: (event: TraceEvent) => void
-  mark: (tracerId: string, name: string, meta?: Record<string, any>) => void
-  withMeasure: <T>(tracerId: string, name: string, fn: () => Promise<T> | T, meta?: Record<string, any>) => Promise<T>
+  mark: (tracerId: string, name: string, meta?: Record<string, unknown>) => void
+  withMeasure: <T>(
+    tracerId: string,
+    name: string,
+    fn: () => Promise<T> | T,
+    meta?: Record<string, unknown>,
+  ) => Promise<T>
 }
 
 export function createPerfTracer(): PerfTracer {
@@ -87,7 +92,7 @@ export function createPerfTracer(): PerfTracer {
     push(event, false)
   }
 
-  function mark(tracerId: string, name: string, meta?: Record<string, any>) {
+  function mark(tracerId: string, name: string, meta?: Record<string, unknown>) {
     push(
       {
         tracerId,
@@ -99,7 +104,12 @@ export function createPerfTracer(): PerfTracer {
     )
   }
 
-  async function withMeasure<T>(tracerId: string, name: string, fn: () => Promise<T> | T, meta?: Record<string, any>) {
+  async function withMeasure<T>(
+    tracerId: string,
+    name: string,
+    fn: () => Promise<T> | T,
+    meta?: Record<string, unknown>,
+  ) {
     const shouldEmit = enabled
     if (!shouldEmit) return fn()
 
