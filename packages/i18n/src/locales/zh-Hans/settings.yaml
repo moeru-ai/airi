@@ -960,6 +960,9 @@ pages:
       chat:
         title: 聊天
         description: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
+      vision:
+        title: 视觉
+        description: 用于图像理解的视觉模型服务来源。
       speech:
         title: Speech
         description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
