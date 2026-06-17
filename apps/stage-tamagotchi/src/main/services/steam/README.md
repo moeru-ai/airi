@@ -15,7 +15,7 @@ apps/stage-tamagotchi/steamworks_sdk/redistributable_bin/
   linux64/libsteam_api.so
 ```
 
-This directory is gitignored. CI and `electron-builder` copy these files when present; otherwise only `steam_appid.txt` is shipped.
+This directory is gitignored. CI packs redistributables into `steam-content` via `scripts/pack-steam-redistributables.ts` (local SDK when present, otherwise a temporary public mirror). Replace the mirror with an org-private SDK bundle before long-term production use. GitHub Release builds do not bundle these files.
 
 ### 2. Server
 
@@ -38,20 +38,20 @@ Prints a hex ticket on success.
 
 ### 4. Full desktop flow
 
-1. Build or run tamagotchi with SDK redistributables beside `airi` / inside the `.app` bundle (`electron-builder` `afterPack` or `pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/copy-steam-redistributables.ts`).
+1. Build tamagotchi, then run `pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/pack-steam-redistributables.ts <windows|macos|linux> <destDir>` (uses local `steamworks_sdk/` when present, otherwise the CI mirror).
 2. Launch from Steam (or dev: Steam running + `steam_appid.txt` in the executable directory).
 3. On startup, main calls `trySteamSignIn`; the controls island shows **Signing in with Steam…** / **正在通过 Steam 登录…**.
 4. Success: session syncs like browser OIDC. Failure: one toast (`steam-sign-in-failed`); use **Login** for OIDC.
 
 ### 5. Release / Steam depot
 
-After `electron-builder`, CI runs:
+CI restores redistributables, then copies them into each `steam-content` tree:
 
 ```bash
-pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/copy-steam-redistributables.ts <windows|macos|linux> <destDir>
+pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/pack-steam-redistributables.ts <windows|macos|linux> <destDir>
 ```
 
-on each `steam-content-*` artifact (see `.github/workflows/release-tamagotchi.yml`).
+See `.github/workflows/release-tamagotchi.yml` (`STEAMWORKS_SDK_MIRROR_*` env).
 
 ---
 
@@ -61,4 +61,4 @@ on each `steam-content-*` artifact (see `.github/workflows/release-tamagotchi.ym
 2. 配置服务端 `STEAM_PUBLISHER_KEY`，启动 API。
 3. 可选：运行 `steam-ticket-spike.ts` 确认能拿到 ticket。
 4. 从 Steam 启动桌面端（或开发时 Steam 在线 + 可执行文件旁有 `steam_appid.txt`），观察静默登录；失败时弹出「Steam 登录失败」Toast，可点「登录」走 OIDC。
-5. 发版流水线会在 `steam-content` 目录中写入 `steam_appid.txt` 与各平台 `steam_api` 库（SDK 需在构建机或缓存中提供）。
+5. 发版流水线通过 `pack-steam-redistributables.ts` 直接写入 `steam-content`（无本地 SDK 时从临时镜像下载）。
