@@ -29,7 +29,7 @@ interface MockAdapterInfo {
  * `maxBufferSize` drives the heuristic VRAM calculation.
  * `info` optionally populates adapterInfo.
  */
-function makeMockAdapter(options: { maxBufferSize?: number; info?: MockAdapterInfo }): any {
+function makeMockAdapter(options: { maxBufferSize?: number; info?: MockAdapterInfo }) {
   const adapter: { limits: { maxBufferSize: number }; info?: MockAdapterInfo } = {
     limits: { maxBufferSize: options.maxBufferSize ?? 0 },
   }
@@ -168,9 +168,9 @@ describe('detectWebGPU', () => {
       description: 'Intel Xe Graphics',
     }
 
-    const legacyAdapter: any = {
+    const legacyAdapter = {
       limits: { maxBufferSize: 256 * 1024 * 1024 },
-      requestAdapterInfo: vi.fn(async () => legacyInfo),
+      requestAdapterInfo: vi.fn(() => Promise.resolve(legacyInfo)),
     }
 
     mockedCheck.mockResolvedValue({

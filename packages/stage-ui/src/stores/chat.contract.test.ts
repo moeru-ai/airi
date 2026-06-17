@@ -9,7 +9,8 @@ import { nextTick, ref } from 'vue'
 import { useChatOrchestratorStore } from './chat'
 
 vi.hoisted(() => {
-  ;(globalThis as any).window = {
+  // deepsource:issue=JS-0323
+  ;(globalThis as Record<string, unknown>).window = {
     location: {
       origin: 'http://localhost',
     },
@@ -17,8 +18,8 @@ vi.hoisted(() => {
 })
 
 const ioTracerMocks = vi.hoisted(() => {
-  const activeTurnSpan = { value: undefined as any }
-  const spans: any[] = []
+  const activeTurnSpan = { value: undefined as unknown }
+  const spans: unknown[] = []
   const startSpanMock = vi.fn((name: string) => {
     const span = {
       name,
@@ -47,15 +48,20 @@ const forkSessionMock = vi.fn()
 const ensureSessionMock = vi.fn()
 
 const activeSessionIdRef = ref('session-1')
-const streamingMessageRef = ref<any>({ role: 'assistant', content: '', slices: [], tool_results: [] })
-const sessionMessages: Record<string, any[]> = {}
+const streamingMessageRef = ref<{ role: string; content: string; slices: unknown[]; tool_results: unknown[] }>({
+  role: 'assistant',
+  content: '',
+  slices: [],
+  tool_results: [],
+})
+const sessionMessages: Record<string, unknown[]> = {}
 let currentGeneration = 1
 
 vi.mock('pinia', async () => {
   const actual = await vi.importActual<typeof import('pinia')>('pinia')
   return {
     ...actual,
-    storeToRefs: (store: any) => store,
+    storeToRefs: (store: unknown) => store,
   }
 })
 
@@ -94,7 +100,7 @@ vi.mock('./chat/session-store', () => ({
       ensureSessionMock(sessionId)
       sessionMessages[sessionId] ??= [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }]
     },
-    appendSessionMessage: (sessionId: string, message: any) => {
+    appendSessionMessage: (sessionId: string, message: unknown) => {
       sessionMessages[sessionId] ??= []
       sessionMessages[sessionId].push(message)
     },
@@ -193,13 +199,13 @@ describe('chat orchestrator contract', () => {
 
     let composedMessages: Message[] = []
     llmStreamMock.mockImplementation(
-      async (_model: string, _chatProvider: ChatProvider, messages: Message[], options: any) => {
+      async (_model: string, _chatProvider: ChatProvider, messages: Message[], options: Record<string, unknown>) => {
         composedMessages = messages
         expect(options.waitForTools).toBe(true)
         expect(options.captureToolErrors).toBe(true)
 
-        await options.onStreamEvent({ type: 'text-delta', text: 'hello' })
-        await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+        await (options.onStreamEvent as (event: unknown) => Promise<void>)({ type: 'text-delta', text: 'hello' })
+        await (options.onStreamEvent as (event: unknown) => Promise<void>)({ type: 'finish', finishReason: 'stop' })
       },
     )
 
@@ -268,9 +274,11 @@ describe('chat orchestrator contract', () => {
     // the prefix permanently KV-cache friendly across turns and across day
     // boundaries (the date now lives inside per-message timestamp prefixes
     // instead of a system anchor).
-    const systemContent = (composedMessages[0] as any).content
+    const systemContent = (composedMessages[0] as Message & { content: unknown }).content
     const systemText =
-      typeof systemContent === 'string' ? systemContent : systemContent.map((p: any) => p.text).join('')
+      typeof systemContent === 'string'
+        ? systemContent
+        : (systemContent as { text: string }[]).map((p) => p.text).join('')
     expect(systemText).toContain('system prompt')
     expect(systemText).toContain('Plugin toolset guidance.')
 
@@ -279,7 +287,7 @@ describe('chat orchestrator contract', () => {
     // "current" turn becomes "historic" on the next send. Side-channel context
     // (weather) is appended as a separate text part so providers don't see
     // consecutive same-role messages.
-    const userMessageContent = (composedMessages[1] as any).content
+    const userMessageContent = (composedMessages[1] as Message & { content: { text: string }[] }).content
     expect(userMessageContent[0].text).toMatch(/^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}\] hello from user$/)
 
     const syntheticContextText = userMessageContent[1].text
@@ -393,10 +401,13 @@ describe('chat orchestrator contract', () => {
       'system:minecraft': [minecraftContext],
     })
     llmStreamMock.mockImplementation(
-      async (_model: string, _chatProvider: ChatProvider, messages: Message[], options: any) => {
+      async (_model: string, _chatProvider: ChatProvider, messages: Message[], options: Record<string, unknown>) => {
         composedMessages = messages
-        await options.onStreamEvent({ type: 'text-delta', text: 'minecraft reply' })
-        await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+        await (options.onStreamEvent as (event: unknown) => Promise<void>)({
+          type: 'text-delta',
+          text: 'minecraft reply',
+        })
+        await (options.onStreamEvent as (event: unknown) => Promise<void>)({ type: 'finish', finishReason: 'stop' })
       },
     )
 
@@ -549,9 +560,9 @@ describe('chat orchestrator contract', () => {
     getContextsSnapshotMock.mockReturnValue({})
     forkSessionMock.mockResolvedValue('session-forked')
     llmStreamMock.mockImplementation(
-      async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
-        await options.onStreamEvent({ type: 'text-delta', text: 'fork-reply' })
-        await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+      async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: Record<string, unknown>) => {
+        await (options.onStreamEvent as (event: unknown) => Promise<void>)({ type: 'text-delta', text: 'fork-reply' })
+        await (options.onStreamEvent as (event: unknown) => Promise<void>)({ type: 'finish', finishReason: 'stop' })
       },
     )
 

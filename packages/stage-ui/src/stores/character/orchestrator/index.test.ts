@@ -36,34 +36,32 @@ function mockedStore<TStoreDef extends () => unknown>(
       State,
       Record<string, never>,
       {
-        [K in keyof Actions]: Actions[K] extends (...args: any[]) => any
-          ? // 👇 depends on your testing framework
-            Mock<Actions[K]>
-          : Actions[K]
+        // deepsource:issue=JS-0323
+        [K in keyof Actions]: Actions[K] extends (...args: any[]) => any ? Mock<Actions[K]> : Actions[K]
       }
     > & {
       [K in keyof Getters]: UnwrapRef<Getters[K]>
     }
   : ReturnType<TStoreDef> {
-  return useStore() as any
+  return useStore() as never
 }
 
-function getObjectSchema(schema?: Record<string, any>) {
+function getObjectSchema(schema?: Record<string, unknown>) {
   if (!schema) return undefined
 
   if (schema.type === 'object') return schema
 
   const candidates = [...(schema.anyOf ?? []), ...(schema.oneOf ?? [])]
-  return candidates.find((candidate: Record<string, any>) => candidate?.type === 'object')
+  return candidates.find((candidate: Record<string, unknown>) => candidate?.type === 'object')
 }
 
-function getArraySchema(schema?: Record<string, any>) {
+function getArraySchema(schema?: Record<string, unknown>) {
   if (!schema) return undefined
 
   if (schema.type === 'array') return schema
 
   const candidates = [...(schema.anyOf ?? []), ...(schema.oneOf ?? [])]
-  return candidates.find((candidate: Record<string, any>) => candidate?.type === 'array')
+  return candidates.find((candidate: Record<string, unknown>) => candidate?.type === 'array')
 }
 
 describe('sparkNotifyCommandSchema', () => {
@@ -72,10 +70,10 @@ describe('sparkNotifyCommandSchema', () => {
       name: 'builtIn_sparkCommand',
       description: 'test',
       parameters: sparkNotifyCommandSchema,
-      execute: async () => undefined,
+      execute: () => Promise.resolve(undefined),
     })
 
-    const schema = sparkTool.function.parameters as Record<string, any>
+    const schema = sparkTool.function.parameters as Record<string, unknown>
     const commandsSchema = getArraySchema(schema.properties?.commands)
     const commandItemSchema = getObjectSchema(commandsSchema?.items)
     const guidanceSchema = getObjectSchema(commandItemSchema?.properties?.guidance)
@@ -99,7 +97,7 @@ describe('store character-orchestrator', () => {
 
     const mockGetProviderInstance = vi.fn()
     mockedStore(useProvidersStore).getProviderInstance = mockGetProviderInstance
-    mockedStore(useProvidersStore).getProviderInstance.mockResolvedValue({ chat: (_model: string) => ({}) as any })
+    mockedStore(useProvidersStore).getProviderInstance.mockResolvedValue({ chat: (_model: string) => ({}) as unknown })
 
     const consciousnessStore = useConsciousnessStore(pinia)
     consciousnessStore.activeProvider = 'mock-provider'
@@ -135,9 +133,9 @@ describe('store character-orchestrator', () => {
     const mockStream = vi.fn()
     mockedStore(useLLM).stream = mockStream
     mockedStore(useLLM).stream.mockImplementation(
-      async (_model: string, _provider: unknown, _messages: unknown, options: any) => {
-        if (options?.tools?.length) {
-          await options.tools[1].execute({
+      async (_model: string, _provider: unknown, _messages: unknown, options: Record<string, unknown>) => {
+        if ((options?.tools as unknown[])?.length) {
+          await ((options.tools as unknown[])[1] as { execute: (input: unknown) => Promise<unknown> }).execute({
             commands: [
               {
                 destinations: ['minecraft'],
@@ -198,8 +196,8 @@ describe('store character-orchestrator', () => {
     const mockStream = vi.fn()
     mockedStore(useLLM).stream = mockStream
     mockedStore(useLLM).stream.mockImplementation(
-      async (_model: string, _provider: unknown, _messages: unknown, options: any) => {
-        await options?.onStreamEvent?.({
+      async (_model: string, _provider: unknown, _messages: unknown, options: Record<string, unknown>) => {
+        await (options?.onStreamEvent as ((event: StreamEvent) => Promise<void>) | undefined)?.({
           type: 'text-delta',
           text: 'I choose d5 to pressure the center.',
         } satisfies StreamEvent)
@@ -243,8 +241,12 @@ describe('store character-orchestrator', () => {
     const mockStream = vi.fn()
     mockedStore(useLLM).stream = mockStream
     mockedStore(useLLM).stream.mockImplementation(
-      async (_model: string, _provider: unknown, _messages: unknown, options: any) => {
-        const sparkCommandTool = options?.tools?.find((tool: any) => tool.function?.name === 'builtIn_sparkCommand')
+      async (_model: string, _provider: unknown, _messages: unknown, options: Record<string, unknown>) => {
+        const sparkCommandTool = (
+          options?.tools as
+            | { function?: { name?: string }; execute: (input: unknown) => Promise<unknown> }[]
+            | undefined
+        )?.find((tool) => tool.function?.name === 'builtIn_sparkCommand')
         await sparkCommandTool.execute({
           commands: [
             {
@@ -301,9 +303,14 @@ describe('store character-orchestrator', () => {
     const mockStream = vi.fn()
     mockedStore(useLLM).stream = mockStream
     mockedStore(useLLM).stream.mockImplementation(
-      async (_model: string, _provider: unknown, _messages: unknown, options: any) => {
-        await options?.onStreamEvent?.({ type: 'text-delta', text: 'legacy-safe text' } satisfies StreamEvent)
-        await options?.onStreamEvent?.({ type: 'finish' } satisfies StreamEvent)
+      async (_model: string, _provider: unknown, _messages: unknown, options: Record<string, unknown>) => {
+        await (options?.onStreamEvent as ((event: StreamEvent) => Promise<void>) | undefined)?.({
+          type: 'text-delta',
+          text: 'legacy-safe text',
+        } satisfies StreamEvent)
+        await (options?.onStreamEvent as ((event: StreamEvent) => Promise<void>) | undefined)?.({
+          type: 'finish',
+        } satisfies StreamEvent)
       },
     )
 

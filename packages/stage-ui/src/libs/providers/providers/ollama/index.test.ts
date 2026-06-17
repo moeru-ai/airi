@@ -33,7 +33,7 @@ describe('providerOllama.createProvider chat options', () => {
     const provider = providerOllama.createProvider({
       baseUrl: 'http://localhost:11434/v1/',
       thinkingMode: 'auto',
-    }) as any
+    }) as unknown as { chat: (model: string) => Record<string, unknown> }
 
     const chatOptions = provider.chat('qwen3:8b') as Record<string, unknown>
     expect('think' in chatOptions).toBe(false)
@@ -43,7 +43,7 @@ describe('providerOllama.createProvider chat options', () => {
     const provider = providerOllama.createProvider({
       baseUrl: 'http://localhost:11434/v1/',
       thinkingMode: 'disable',
-    }) as any
+    }) as unknown as { chat: (model: string) => Record<string, unknown> }
 
     const chatOptions = provider.chat('qwen3:8b') as Record<string, unknown>
     expect(chatOptions.think).toBe(false)
@@ -53,7 +53,7 @@ describe('providerOllama.createProvider chat options', () => {
     const provider = providerOllama.createProvider({
       baseUrl: 'http://localhost:11434/v1/',
       thinkingMode: 'enable',
-    }) as any
+    }) as unknown as { chat: (model: string) => Record<string, unknown> }
 
     const chatOptions = provider.chat('gpt-oss:20b') as Record<string, unknown>
     expect(chatOptions.think).toBe('medium')
@@ -63,7 +63,7 @@ describe('providerOllama.createProvider chat options', () => {
     const provider = providerOllama.createProvider({
       baseUrl: 'http://localhost:11434/v1/',
       thinkingMode: 'disable',
-    }) as any
+    }) as unknown as { chat: (model: string) => Record<string, unknown> }
 
     const chatOptions = provider.chat('gpt-oss:20b') as Record<string, unknown>
     expect(chatOptions.think).toBe('low')

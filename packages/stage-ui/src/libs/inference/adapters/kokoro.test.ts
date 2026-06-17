@@ -4,13 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 class MockWorker {
   static instances: MockWorker[] = []
 
-  listeners = new Map<string, Set<(event: any) => void>>()
-  addEventListener = vi.fn((type: string, listener: (event: any) => void) => {
+  listeners = new Map<string, Set<(event: MessageEvent) => void>>()
+  addEventListener = vi.fn((type: string, listener: (event: MessageEvent) => void) => {
     if (!this.listeners.has(type)) this.listeners.set(type, new Set())
     this.listeners.get(type)!.add(listener)
   })
 
-  removeEventListener = vi.fn((type: string, listener: (event: any) => void) => {
+  removeEventListener = vi.fn((type: string, listener: (event: MessageEvent) => void) => {
     this.listeners.get(type)?.delete(listener)
   })
 
@@ -90,7 +90,7 @@ describe('kokoro adapter - singleton recovery', () => {
     const { createKokoroAdapter } = await import('./kokoro')
     const adapter = createKokoroAdapter()
 
-    await expect(adapter.generate('hello', 'af_heart' as any)).rejects.toThrow(
+    await expect(adapter.generate('hello', 'af_heart' as never)).rejects.toThrow(
       'Model not loaded. Call loadModel() first.',
     )
     expect(adapter.state).toBe('idle')

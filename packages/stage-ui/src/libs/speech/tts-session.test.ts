@@ -65,8 +65,8 @@ function makePipelineStub() {
     finish: 0,
     cancel: 0,
   }
-  let captured: any
-  const factory = vi.fn((options: any) => {
+  let captured: Record<string, unknown>
+  const factory = vi.fn((options: Record<string, unknown>) => {
     captured = options
     return {
       appendText: (text: string) => {
@@ -190,7 +190,7 @@ describe('createStreamingTtsSession (adapter)', () => {
       snapshot: snap,
       audioContext: dummyAudioContext,
       playbackManager: playback,
-      pipelineFactory: pipe.factory as any,
+      pipelineFactory: pipe.factory as never,
     })
 
     // Simulate the pipeline emitting two sentences.
@@ -225,7 +225,7 @@ describe('createStreamingTtsSession (adapter)', () => {
       snapshot: makeStreamingSnapshot(),
       audioContext: dummyAudioContext,
       playbackManager: makePlaybackManagerStub(),
-      pipelineFactory: pipe.factory as any,
+      pipelineFactory: pipe.factory as never,
     })
 
     session.appendText('hello')
@@ -244,7 +244,7 @@ describe('createStreamingTtsSession (adapter)', () => {
       snapshot: makeStreamingSnapshot({ onImmediateSpecial: onSpecial }),
       audioContext: dummyAudioContext,
       playbackManager: makePlaybackManagerStub(),
-      pipelineFactory: pipe.factory as any,
+      pipelineFactory: pipe.factory as never,
     })
 
     session.appendSpecial('emotion:angry')
@@ -263,7 +263,7 @@ describe('createStreamingTtsSession (adapter)', () => {
       snapshot: makeStreamingSnapshot(),
       audioContext: dummyAudioContext,
       playbackManager: playback,
-      pipelineFactory: pipe.factory as any,
+      pipelineFactory: pipe.factory as never,
     })
 
     session.cancel('user-aborted')
@@ -280,7 +280,7 @@ describe('createStreamingTtsSession (adapter)', () => {
       snapshot: makeStreamingSnapshot(),
       audioContext: dummyAudioContext,
       playbackManager: playback,
-      pipelineFactory: pipe.factory as any,
+      pipelineFactory: pipe.factory as never,
     })
 
     // Pipeline naturally completes first.
@@ -301,7 +301,7 @@ describe('createStreamingTtsSession (adapter)', () => {
       snapshot: makeStreamingSnapshot(),
       audioContext: dummyAudioContext,
       playbackManager: playback,
-      pipelineFactory: pipe.factory as any,
+      pipelineFactory: pipe.factory as never,
     })
 
     // Mark terminated, then a straggler sentence arrives.
@@ -321,7 +321,7 @@ describe('createStreamingTtsSession (adapter)', () => {
       audioContext: dummyAudioContext,
       playbackManager: makePlaybackManagerStub(),
       hooks: { onError, onDone },
-      pipelineFactory: pipe.factory as any,
+      pipelineFactory: pipe.factory as never,
     })
 
     const err = new Error('boom')

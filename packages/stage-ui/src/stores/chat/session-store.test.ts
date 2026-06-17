@@ -15,7 +15,7 @@ const saveIndexMock = vi.fn<(idx: ChatSessionsIndex) => Promise<void>>()
 const getSessionMock = vi.fn<(id: string) => Promise<ChatSessionRecord | null>>()
 const saveSessionMock = vi.fn<(id: string, rec: ChatSessionRecord) => Promise<void>>()
 const deleteSessionRepoMock = vi.fn<(id: string) => Promise<void>>()
-const getOutboxMock = vi.fn<(uid: string) => Promise<any[]>>()
+const getOutboxMock = vi.fn<(uid: string) => Promise<unknown[]>>()
 const dropOutboxForSessionMock = vi.fn<(uid: string, id: string) => Promise<void>>()
 const getTombstonesMock = vi.fn<(uid: string) => Promise<string[]>>()
 const removeTombstonesMock = vi.fn<(uid: string, ids: string[]) => Promise<void>>()
@@ -24,7 +24,7 @@ vi.mock('pinia', async () => {
   const actual = await vi.importActual<typeof import('pinia')>('pinia')
   return {
     ...actual,
-    storeToRefs: (store: any) => store,
+    storeToRefs: (store: unknown) => store,
   }
 })
 
@@ -89,7 +89,7 @@ vi.mock('../../libs/chat-sync', () => ({
     onNewMessages: () => () => {},
     onStatusChange: () => () => {},
   }),
-  extractMessageText: (m: any) => (typeof m?.content === 'string' ? m.content : ''),
+  extractMessageText: (m: { content?: unknown }) => (typeof m?.content === 'string' ? m.content : ''),
   isCloudSyncableMessage: () => false,
   mergeCloudMessagesIntoLocal: () => ({ dirty: false, messages: [], maxSeq: 0 }),
 }))
@@ -282,7 +282,10 @@ describe('chat-session-store · loadSession vs concurrent deleteSession', () => 
     expect(store.sessionMetas['sess-1']).toBeUndefined()
 
     // Resolve getSession with the stale stored record.
-    resolveGet!({ meta, messages: [{ role: 'user', content: 'hi', id: 'm1' } as any] })
+    resolveGet!({
+      meta,
+      messages: [{ role: 'user', content: 'hi', id: 'm1' } as ChatSessionRecord['messages'][number]],
+    })
     await loadPromise
     await flushMicrotasks()
 

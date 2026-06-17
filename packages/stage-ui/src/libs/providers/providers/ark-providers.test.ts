@@ -27,14 +27,18 @@ describe('ark chat provider definitions', () => {
     const provider = getDefinedProvider('volcengine-coding-plan')
     expect(provider).toBeDefined()
 
-    const schema = provider!.createProviderConfig({ t: (input) => input }) as any
+    const schema = provider!.createProviderConfig({ t: (input) => input }) as unknown as {
+      parse: (input: Record<string, unknown>) => Record<string, unknown>
+    }
     const parsedConfig = schema.parse({
       apiKey: 'test-key',
     })
 
     expect(parsedConfig.baseUrl).toBe('https://ark.cn-beijing.volces.com/api/coding/v3')
 
-    const providerInstance = provider!.createProvider(parsedConfig) as any
+    const providerInstance = provider!.createProvider(parsedConfig) as unknown as {
+      chat: (model: string) => { model: string }
+    }
     const chatConfig = providerInstance.chat('volcengine-coding-plan/doubao-seed-2.0-code')
     expect(chatConfig.model).toBe('doubao-seed-2.0-code')
 
@@ -62,10 +66,18 @@ describe('ark chat provider definitions', () => {
     expect(byteplus).toBeDefined()
     expect(byteplusCodingPlan).toBeDefined()
 
-    const byteplusConfig = (byteplus!.createProviderConfig({ t: (input) => input }) as any).parse({
+    const byteplusConfig = (
+      byteplus!.createProviderConfig({ t: (input) => input }) as unknown as {
+        parse: (input: Record<string, unknown>) => Record<string, unknown>
+      }
+    ).parse({
       apiKey: 'test-key',
     })
-    const byteplusCodingPlanConfig = (byteplusCodingPlan!.createProviderConfig({ t: (input) => input }) as any).parse({
+    const byteplusCodingPlanConfig = (
+      byteplusCodingPlan!.createProviderConfig({ t: (input) => input }) as unknown as {
+        parse: (input: Record<string, unknown>) => Record<string, unknown>
+      }
+    ).parse({
       apiKey: 'test-key',
     })
 

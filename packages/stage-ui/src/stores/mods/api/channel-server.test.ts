@@ -3,17 +3,26 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 
 const serverSdkMocks = vi.hoisted(() => {
+  interface MockClientOptions {
+    token?: string
+    heartbeat?: { readTimeout: number; pingInterval: number }
+    onClose?: (code?: number, reason?: string) => void
+    onReady?: () => void
+    onError?: (error: unknown) => void
+    onStateChange?: (state: { previousStatus: string; status: string }) => void
+  }
+
   class MockClient {
     static instances: MockClient[] = []
 
-    readonly listeners = new Map<string, Set<(event: any) => void | Promise<void>>>()
-    readonly sent: any[] = []
+    readonly listeners = new Map<string, Set<(event: unknown) => void | Promise<void>>>()
+    readonly sent: unknown[] = []
 
-    constructor(public readonly options: Record<string, any>) {
+    constructor(public readonly options: MockClientOptions) {
       MockClient.instances.push(this)
     }
 
-    onEvent(type: string, callback: (event: any) => void | Promise<void>) {
+    onEvent(type: string, callback: (event: unknown) => void | Promise<void>) {
       let callbacks = this.listeners.get(type)
       if (!callbacks) {
         callbacks = new Set()
@@ -27,7 +36,7 @@ const serverSdkMocks = vi.hoisted(() => {
       }
     }
 
-    offEvent(type: string, callback?: (event: any) => void | Promise<void>) {
+    offEvent(type: string, callback?: (event: unknown) => void | Promise<void>) {
       const callbacks = this.listeners.get(type)
       if (!callbacks) {
         return
@@ -44,7 +53,7 @@ const serverSdkMocks = vi.hoisted(() => {
       this.listeners.delete(type)
     }
 
-    send(event: any) {
+    send(event: unknown) {
       this.sent.push(event)
       return true
     }
@@ -53,7 +62,7 @@ const serverSdkMocks = vi.hoisted(() => {
       this.options.onClose?.(code, reason)
     }
 
-    emit(type: string, data: any) {
+    emit(type: string, data: unknown) {
       const event = { type, data }
       for (const callback of this.listeners.get(type) ?? []) {
         void callback(event)
@@ -136,7 +145,7 @@ describe('channel-server store reconnect', () => {
     store.send({
       type: 'spark:notify',
       data: { message: 'before-init' },
-    } as any)
+    } as unknown as Parameters<typeof store.send>[0])
 
     const initializePromise = store.initialize({ token: 'secret' })
     const client = serverSdkMocks.MockClient.instances[0]
@@ -162,7 +171,7 @@ describe('channel-server store reconnect', () => {
     store.send({
       type: 'spark:notify',
       data: { message: 'queued-during-disconnect' },
-    } as any)
+    } as unknown as Parameters<typeof store.send>[0])
 
     expect(store.pendingSendCount).toBe(1)
 
@@ -333,7 +342,7 @@ describe('channel-server store reconnect', () => {
     store.send({
       type: 'spark:notify',
       data: { message: 'reconnect-authenticated-queued' },
-    } as any)
+    } as unknown as Parameters<typeof store.send>[0])
 
     expect(store.pendingSendCount).toBe(1)
 

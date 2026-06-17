@@ -174,7 +174,7 @@ describe('isToolRelatedError', () => {
   it('keeps builtin tools when stream steps resolve before a tool-related error event', async () => {
     const store = useLLM()
     const llmToolsStore = useLlmToolsStore()
-    const customTool = { name: 'custom-tool' } as any
+    const customTool = { name: 'custom-tool' } as unknown as Tool
     const runtimeTool = {
       function: {
         name: 'runtime_play_chess_match',
@@ -184,7 +184,7 @@ describe('isToolRelatedError', () => {
       execute: vi.fn(),
     }
 
-    llmToolsStore.registerTools('plugin-tools', [runtimeTool as any])
+    llmToolsStore.registerTools('plugin-tools', [runtimeTool as unknown as Tool])
 
     streamTextMock.mockImplementationOnce(
       (options: { onEvent: (event: unknown) => Promise<void>; tools?: unknown[] }) => {
@@ -246,8 +246,8 @@ describe('isToolRelatedError', () => {
       execute: vi.fn(),
     }
 
-    llmToolsStore.registerTools('mcp', [runtimeMcpStatusTool as any])
-    llmToolsStore.registerTools('plugin-tools', [playChessTool as any])
+    llmToolsStore.registerTools('mcp', [runtimeMcpStatusTool as unknown as Tool])
+    llmToolsStore.registerTools('plugin-tools', [playChessTool as unknown as Tool])
 
     streamTextMock.mockImplementationOnce(
       (options: { onEvent: (event: unknown) => Promise<void>; tools?: unknown[] }) => {
@@ -285,7 +285,7 @@ describe('isToolRelatedError', () => {
     }
 
     mcpMock.mockResolvedValueOnce([builtinTool] as Tool[])
-    llmToolsStore.registerTools('plugin-tools', [runtimeTool as any])
+    llmToolsStore.registerTools('plugin-tools', [runtimeTool as unknown as Tool])
 
     streamTextMock.mockImplementationOnce(
       (options: { onEvent: (event: unknown) => Promise<void>; tools?: unknown[] }) => {
@@ -331,7 +331,7 @@ describe('isToolRelatedError', () => {
       resolveTools = resolve
     })
 
-    llmToolsStore.registerTools('plugin-tools', pendingTools as Promise<any[]>)
+    llmToolsStore.registerTools('plugin-tools', pendingTools as Promise<Tool[]>)
 
     streamTextMock.mockImplementationOnce(
       (options: { onEvent: (event: unknown) => Promise<void>; tools?: unknown[] }) => {

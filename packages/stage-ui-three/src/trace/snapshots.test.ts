@@ -64,7 +64,7 @@ describe('stage three runtime snapshots', () => {
     scene.add(skinnedMesh)
 
     const summary = createVrmSceneSummarySnapshot({
-      mixer: { _actions: [1, 2, 3] } as any,
+      mixer: { _actions: [1, 2, 3] } as unknown as Parameters<typeof createVrmSceneSummarySnapshot>[0]['mixer'],
       vrm: { scene } as unknown as VRM,
     })
 

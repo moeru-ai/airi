@@ -1,5 +1,5 @@
 import { createPinia, setActivePinia } from 'pinia'
-import { Raycaster, Vector3 } from 'three'
+import { PerspectiveCamera, Raycaster, Vector3 } from 'three'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@vueuse/core', async () => {
@@ -48,7 +48,7 @@ describe('useVRMEyeFocusFor', () => {
         raycaster: new Raycaster(),
         camera: {
           near: 0.1,
-        } as any,
+        } as unknown as PerspectiveCamera,
         defaultLookAt,
       }),
       screenBoundingBox: () => ({ top: 0, left: 0, width: 100, height: 100 }),
@@ -79,7 +79,7 @@ describe('useVRMEyeFocusFor', () => {
         raycaster: raycaster as unknown as Raycaster,
         camera: {
           near: 0.1,
-        } as any,
+        } as unknown as PerspectiveCamera,
         defaultLookAt: new Vector3(1, 2, 3),
       }),
       screenBoundingBox: () => ({ top: 0, left: 0, width: 100, height: 100 }),

@@ -93,13 +93,16 @@ describe('useTranscriptions', () => {
     mockProvidersStore = createMockStore()
 
     // Mock 'until' to resolve immediately for stream checks
-    ;(until as any).mockImplementation((_source: Ref) => ({
+    ;(
+      until as unknown as { mockImplementation: (impl: (source: Ref) => { toBeTruthy: () => Promise<void> }) => void }
+    ).mockImplementation((_source: Ref) => ({
       toBeTruthy: vi.fn().mockResolvedValue(undefined),
     }))
 
     // Mock SpeechRecognition for browser tests
     if (typeof window !== 'undefined') {
-      ;(window as any).SpeechRecognition = function () {
+      // deepsource:issue=JS-0323
+      ;(window as Record<string, unknown>).SpeechRecognition = function () {
         this.start = vi.fn()
         this.stop = vi.fn()
         this.onresult = null
@@ -148,12 +151,12 @@ describe('useTranscriptions', () => {
     it('should fail gracefully if Web Speech API is not available', async () => {
       // Setup: Tamagotchi mode or no API
       if (typeof window !== 'undefined') {
-        delete (window as any).SpeechRecognition
-        delete (window as any).webkitSpeechRecognition
+        delete (window as Record<string, unknown>).SpeechRecognition
+        delete (window as Record<string, unknown>).webkitSpeechRecognition
       }
 
       mockHearingStore.configured.value = false
-      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.stream.value = { id: 'stream-1' } as unknown as MediaStream
       mockAudioDevice.enabled.value = true
 
       const { isListening, startStreamingTranscription } = useTranscriptions(createOptions())
@@ -165,7 +168,7 @@ describe('useTranscriptions', () => {
 
     it('should handle tamagotchi', async () => {
       mockHearingStore.configured.value = false
-      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.stream.value = { id: 'stream-1' } as unknown as MediaStream
       mockAudioDevice.enabled.value = true
 
       const { isListening, stopStreamingTranscription } = useTranscriptions(createOptions(true))
@@ -177,7 +180,7 @@ describe('useTranscriptions', () => {
   describe('streaming Logic', () => {
     it('should start streaming if stream exists and provider supports it', async () => {
       mockHearingStore.configured.value = true
-      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.stream.value = { id: 'stream-1' } as unknown as MediaStream
       mockAudioDevice.enabled.value = true
       mockHearingPipeline.supportsStreamInput.value = true
 
@@ -215,7 +218,9 @@ describe('useTranscriptions', () => {
       mockHearingPipeline.supportsStreamInput.value = true
 
       // simulate failure (stream never appears)
-      ;(until as any).mockImplementation(() => ({
+      ;(
+        until as unknown as { mockImplementation: (impl: () => { toBeTruthy: () => Promise<never> }) => void }
+      ).mockImplementation(() => ({
         toBeTruthy: vi.fn().mockRejectedValue(new Error('Timeout')),
       }))
 
@@ -232,7 +237,7 @@ describe('useTranscriptions', () => {
     it('should append transcribed text to messageInputRef', async () => {
       const mockInput = ref('')
       mockHearingStore.configured.value = true
-      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.stream.value = { id: 'stream-1' } as unknown as MediaStream
       mockAudioDevice.enabled.value = true
       mockHearingPipeline.supportsStreamInput.value = true
 
@@ -248,7 +253,7 @@ describe('useTranscriptions', () => {
       const prependText = 'prepend text'
       const mockInput = ref(prependText)
       mockHearingStore.configured.value = true
-      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.stream.value = { id: 'stream-1' } as unknown as MediaStream
       mockAudioDevice.enabled.value = true
       mockHearingPipeline.supportsStreamInput.value = true
 
@@ -267,7 +272,7 @@ describe('useTranscriptions', () => {
       mockHearingStore.autoSendDelay.value = 500
       mockHearingStore.configured.value = true
       mockHearingStore.autoSendEnabled.value = true
-      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.stream.value = { id: 'stream-1' } as unknown as MediaStream
       mockAudioDevice.enabled.value = true
       mockHearingPipeline.supportsStreamInput.value = true
 
@@ -294,7 +299,7 @@ describe('useTranscriptions', () => {
       mockHearingStore.autoSendDelay.value = 500
       mockHearingStore.configured.value = true
       mockHearingStore.autoSendEnabled.value = true
-      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.stream.value = { id: 'stream-1' } as unknown as MediaStream
       mockAudioDevice.enabled.value = true
       mockHearingPipeline.supportsStreamInput.value = true
 
@@ -319,7 +324,7 @@ describe('useTranscriptions', () => {
   describe('cleanup', () => {
     it('should stop streaming and clear timeout', async () => {
       mockHearingStore.configured.value = true
-      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.stream.value = { id: 'stream-1' } as unknown as MediaStream
       mockAudioDevice.enabled.value = true
       mockHearingPipeline.supportsStreamInput.value = true
 
@@ -338,7 +343,7 @@ describe('useTranscriptions', () => {
 
     it('should stop streaming on unmount', async () => {
       mockHearingStore.configured.value = true
-      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.stream.value = { id: 'stream-1' } as unknown as MediaStream
       mockAudioDevice.enabled.value = true
       mockHearingPipeline.supportsStreamInput.value = true
 
@@ -361,7 +366,7 @@ describe('useTranscriptions', () => {
   describe('reactive watchers', () => {
     it('should stop listening if microphone is disabled', async () => {
       mockHearingStore.configured.value = true
-      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.stream.value = { id: 'stream-1' } as unknown as MediaStream
       mockAudioDevice.enabled.value = true
       mockHearingPipeline.supportsStreamInput.value = true
 
