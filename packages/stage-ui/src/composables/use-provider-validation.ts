@@ -13,16 +13,16 @@ export function useProviderValidation(providerId: string) {
   const { t } = useI18n()
   const router = useRouter()
   const providersStore = useProvidersStore()
-  // deepsource:issue=JS-0323
-  // NOTICE: `any` is required for the provider config record because the store
+  // NOTICE: Provider config record uses Record<string, unknown> because the store
   // values are dynamically typed per-provider (apiKey, baseUrl, accountId, etc.).
-  // Using `unknown` would break property access patterns throughout this composable.
-  const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+  const { providers } = storeToRefs(providersStore) as {
+    providers: RemovableRef<Record<string, Record<string, unknown>>>
+  }
 
   const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
 
   // --- Internal Computed Properties for Credentials ---
-  const credentials = computed(() => providers.value[providerId] || {})
+  const credentials = computed(() => (providers.value[providerId] || {}) as Record<string, string>)
 
   const apiKey = computed({
     get: () => credentials.value.apiKey || '',
@@ -69,7 +69,7 @@ export function useProviderValidation(providerId: string) {
     let finalValidationMessage = ''
 
     try {
-      const config = { ...credentials.value }
+      const config = { ...credentials.value } as Record<string, string>
       if (config.apiKey) config.apiKey = config.apiKey.trim()
       if (config.baseUrl) config.baseUrl = config.baseUrl.trim()
 
@@ -112,7 +112,7 @@ export function useProviderValidation(providerId: string) {
     manualTestMessage.value = ''
 
     try {
-      const config = { ...credentials.value }
+      const config = { ...credentials.value } as Record<string, string>
       if (config.apiKey) config.apiKey = config.apiKey.trim()
       if (config.baseUrl) config.baseUrl = config.baseUrl.trim()
 

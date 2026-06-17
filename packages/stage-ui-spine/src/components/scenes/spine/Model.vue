@@ -252,9 +252,8 @@ async function loadModel() {
           animationState.update(delta * animationSpeed.value)
           animationState.apply(skeleton)
           // NOTICE: Physics was added in Spine 4.2; older runtimes take no argument.
-          // deepsource:issue=JS-0323
           if (spine.Physics) skeleton.updateWorldTransform(spine.Physics.update)
-          else (skeleton as any).updateWorldTransform()
+          else (skeleton as unknown as { updateWorldTransform: () => void }).updateWorldTransform()
         },
         render: (sc) => {
           if (!skeleton) return

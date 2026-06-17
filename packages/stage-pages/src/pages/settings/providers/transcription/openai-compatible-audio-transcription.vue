@@ -20,11 +20,20 @@ import { FieldCombobox, FieldInput } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, watch } from 'vue'
 
+/** Minimal Zod-like shape interface for extracting field metadata from provider schemas. */
+interface ZodLikeFieldSchema {
+  meta?: (() => Record<string, unknown>) | Record<string, unknown>
+}
+interface ZodLikeSchema {
+  shape?: (() => Record<string, ZodLikeFieldSchema>) | Record<string, ZodLikeFieldSchema>
+}
+
 const providerId = 'openai-compatible-audio-transcription'
 const hearingStore = useHearingStore()
 const providersStore = useProvidersStore()
-// deepsource:issue=JS-0323
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, Record<string, any>>> }
+const { providers } = storeToRefs(providersStore) as {
+  providers: RemovableRef<Record<string, Record<string, unknown>>>
+}
 
 // Define computed properties for credentials
 const apiKey = computed({
@@ -99,13 +108,12 @@ const apiKeyPlaceholder = computed(() => {
   const definition = getDefinedProvider(providerId)
   if (!definition?.createProviderConfig) return 'sk-...'
 
-  // deepsource:issue=JS-0323
-  const schema = definition.createProviderConfig({ t }) as any
-  const shape = typeof schema?.shape === 'function' ? schema.shape() : schema?.shape
+  const schema = definition.createProviderConfig({ t }) as unknown as ZodLikeSchema
+  const shape = typeof schema.shape === 'function' ? schema.shape() : schema.shape
   const apiKeySchema = shape?.apiKey
   if (!apiKeySchema) return 'sk-...'
 
-  const meta = typeof apiKeySchema.meta === 'function' ? apiKeySchema.meta() : undefined
+  const meta = typeof apiKeySchema.meta === 'function' ? apiKeySchema.meta() : apiKeySchema.meta
   return typeof meta?.placeholderLocalized === 'string' ? meta.placeholderLocalized : 'sk-...'
 })
 

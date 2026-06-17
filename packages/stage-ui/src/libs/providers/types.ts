@@ -141,11 +141,9 @@ export interface VoiceInfo {
   }[]
 }
 
-// deepsource:issue=JS-0323
-// NOTICE: `any` is required here as the generic default because TConfig appears
-// in contravariant position (createProvider parameter). Using `unknown` or
-// `Record<string, unknown>` would break assignability of typed provider defs.
-export interface ProviderDefinition<TConfig extends any = any> {
+// NOTICE: TConfig uses Record<string, unknown> as default for safe property access.
+// Typed provider defs (e.g. ProviderDefinition<{ apiKey: string }>) override this.
+export interface ProviderDefinition<TConfig = Record<string, unknown>> {
   id: string
   order?: number
   tasks: string[]
