@@ -41,8 +41,6 @@ export default defineConfig({
     sourcemap: true,
     cssCodeSplit: false,
     rollupOptions: {
-      // Externalize vscode module — same as the webview-ui config
-      external: ['vscode'],
       input: {
         index: 'src/renderer/index.html',
       },
@@ -72,6 +70,6 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    exclude: ['vscode', '@vscode/codicons', 'vscode-oniguruma', 'shiki'],
+    exclude: ['vscode-oniguruma', 'shiki'],
   },
 })

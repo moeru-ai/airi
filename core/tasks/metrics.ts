@@ -102,6 +102,8 @@ export class TaskMetrics {
 			case "queued":
 				updatedPrevious.queued = Math.max(0, updatedPrevious.queued - 1)
 				break
+			default:
+				break
 		}
 
 		// Increment new state counter.
@@ -128,6 +130,8 @@ export class TaskMetrics {
 				break
 			case "cancelled":
 				this.cancelledCount++
+				break
+			default:
 				break
 		}
 

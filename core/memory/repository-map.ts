@@ -233,6 +233,9 @@ function parseImports(content: string, extension: string): string[] {
 
 			break
 		}
+
+		default:
+			break
 	}
 
 	return [...new Set(imports)]

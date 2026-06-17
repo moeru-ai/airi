@@ -259,6 +259,8 @@ export class FilesystemTransaction implements PersistenceTransaction {
 				case "delete":
 					await this.adapter.delete(op.key)
 					break
+				default:
+					break
 			}
 		}
 		this.operations.length = 0
