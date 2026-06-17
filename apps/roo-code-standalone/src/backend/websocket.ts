@@ -133,6 +133,12 @@ function handleMessage(ws: WebSocket, message: Record<string, unknown>): void {
         number: getTaskCount() + 1,
       }
       upsertTask(item as HistoryItem)
+
+      // Patch task into taskHistory immediately so runTask can find it for usage updates.
+      const currentState = getState()
+      const currentHistory = currentState.taskHistory || []
+      patchState({ taskHistory: [...currentHistory, item as HistoryItem] })
+
       send(ws, { type: 'taskCreated', task: item, requestId })
 
       // Standalone mode: run the LLM call directly. Fire-and-forget —

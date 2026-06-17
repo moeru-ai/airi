@@ -143,13 +143,28 @@ export async function runTask(taskId: string, text: string, onUpdate?: () => voi
       }
     }
   } catch (err: unknown) {
-    assistantText = `Error calling ${apiConfig.apiProvider}: ${err instanceof Error ? err.message : String(err)}`
+    const errMsg = `Error calling ${apiConfig.apiProvider}: ${err instanceof Error ? err.message : String(err)}`
+    assistantText = errMsg
+    // Mark the streaming assistant message as complete so it doesn't stay stuck as partial
+    if (assistantMessageTs !== null) {
+      const s = getState()
+      const msgs = s.clineMessages || []
+      const idx = msgs.findIndex(
+        (m) => m.type === 'say' && (m.say as string) === 'assistant' && m.ts === assistantMessageTs,
+      )
+      if (idx !== -1) {
+        const updated = [...msgs]
+        updated[idx] = { ...updated[idx], text: errMsg, partial: false }
+        patchState({ clineMessages: updated } as Partial<ExtensionState>)
+        onUpdate?.()
+      }
+    }
     appendMessage(
       {
         ts: Date.now(),
         type: 'say',
         say: 'error',
-        text: assistantText,
+        text: errMsg,
       },
       onUpdate,
     )
@@ -247,10 +262,18 @@ async function* streamAnthropic(
     if (data.type === 'content_block_delta' && data.delta?.type === 'text_delta') {
       return { type: 'text' as const, text: data.delta.text }
     }
+    if (data.type === 'message_start' && data.message?.usage) {
+      return {
+        type: 'usage' as const,
+        inputTokens: data.message.usage.input_tokens ?? 0,
+        outputTokens: 0,
+        totalCost: 0,
+      }
+    }
     if (data.type === 'message_delta' && data.usage) {
       return {
         type: 'usage' as const,
-        inputTokens: data.usage.input_tokens ?? 0,
+        inputTokens: 0,
         outputTokens: data.usage.output_tokens ?? 0,
         totalCost: 0,
       }
@@ -336,10 +359,23 @@ async function* streamGemini(
   yield* parseSSE(res, (data) => {
     const candidate = data.candidates?.[0]
     const part = candidate?.content?.parts?.[0]
-    if (part?.text) {
+    const hasText = part?.text
+    const hasUsage = data.usageMetadata
+    if (hasText && hasUsage) {
+      return [
+        { type: 'text' as const, text: part.text },
+        {
+          type: 'usage' as const,
+          inputTokens: Number(data.usageMetadata.promptTokenCount ?? 0),
+          outputTokens: Number(data.usageMetadata.candidatesTokenCount ?? 0),
+          totalCost: 0,
+        },
+      ]
+    }
+    if (hasText) {
       return { type: 'text' as const, text: part.text }
     }
-    if (data.usageMetadata) {
+    if (hasUsage) {
       return {
         type: 'usage' as const,
         inputTokens: Number(data.usageMetadata.promptTokenCount ?? 0),
@@ -403,7 +439,10 @@ async function* streamOpenRouter(
  * Read a streaming response body line-by-line (SSE format) and yield
  * parsed chunks that the `extract` callback returns.
  */
-async function* parseSSE(res: Response, extract: (data: any) => StreamChunk | null): AsyncGenerator<StreamChunk> {
+async function* parseSSE(
+  res: Response,
+  extract: (data: any) => StreamChunk | StreamChunk[] | null,
+): AsyncGenerator<StreamChunk> {
   const reader = res.body?.getReader()
   if (!reader) throw new Error('No response body')
 
@@ -431,8 +470,12 @@ async function* parseSSE(res: Response, extract: (data: any) => StreamChunk | nu
         continue
       }
 
-      const chunk = extract(data)
-      if (chunk) yield chunk
+      const result = extract(data)
+      if (Array.isArray(result)) {
+        for (const chunk of result) yield chunk
+      } else if (result) {
+        yield result
+      }
     }
   }
 
@@ -448,8 +491,12 @@ async function* parseSSE(res: Response, extract: (data: any) => StreamChunk | nu
         } catch {
           return
         }
-        const chunk = extract(data)
-        if (chunk) yield chunk
+        const result = extract(data)
+        if (Array.isArray(result)) {
+          for (const chunk of result) yield chunk
+        } else if (result) {
+          yield result
+        }
       }
     }
   }
