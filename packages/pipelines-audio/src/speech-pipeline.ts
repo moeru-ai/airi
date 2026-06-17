@@ -24,11 +24,17 @@ import { createTimeline } from './timeline'
 export interface SpeechPipelineOptions<TAudio> {
   tts: (request: TtsRequest, signal: AbortSignal) => Promise<TAudio | null>
   /**
-   * Maximum number of concurrent TTS generation tasks. Default is 4. Must be at least 1.
+   * Maximum number of concurrent TTS generation tasks. Must be at least 1.
+   *
+   * Pass a function to make the limit dynamic — it is re-evaluated before each
+   * segment is dispatched, so the caller can lower it for the currently active
+   * provider (e.g. a single-model local TTS server that produces garbled audio
+   * when hit with overlapping generation requests) and keep it high for cloud
+   * providers that parallelize well.
    *
    * @default 4
    */
-  ttsMaxConcurrent?: number
+  ttsMaxConcurrent?: number | (() => number)
   playback: {
     schedule: (item: PlaybackItem<TAudio>) => void
     stopAll: (reason: string) => void
@@ -66,7 +72,10 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
   const logger = options.logger ?? console
   const priorityResolver = options.priority ?? createPriorityResolver()
   const segmenter = options.segmenter ?? createTtsSegmentStream
-  const ttsMaxConcurrent = Math.max(1, options.ttsMaxConcurrent ?? 4)
+  const resolveTtsMaxConcurrent = () => {
+    const raw = typeof options.ttsMaxConcurrent === 'function' ? options.ttsMaxConcurrent() : options.ttsMaxConcurrent
+    return Math.max(1, raw ?? 4)
+  }
   const context = createContext()
   const timeline = createTimeline()
 
@@ -249,7 +258,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
       const reader = segmentStream.getReader()
 
       while (true) {
-        while (!intent.controller.signal.aborted && inFlightTasks.size >= ttsMaxConcurrent) {
+        while (!intent.controller.signal.aborted && inFlightTasks.size >= resolveTtsMaxConcurrent()) {
           await Promise.race(inFlightTasks)
         }
 

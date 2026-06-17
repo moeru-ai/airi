@@ -2,7 +2,15 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { isProbablyAngleTag, processNarrative } from './tts-chunker'
+import { chunkTtsInput, isProbablyAngleTag, processNarrative } from './tts-chunker'
+
+async function collectChunks(input: string, options?: Parameters<typeof chunkTtsInput>[1]): Promise<string[]> {
+  const texts: string[] = []
+  for await (const chunk of chunkTtsInput(input, options))
+    texts.push(chunk.text)
+
+  return texts
+}
 
 describe('tTS Chunker Logic Cleanup', () => {
   describe('isProbablyAngleTag Heuristics', () => {
@@ -87,6 +95,42 @@ describe('tTS Chunker Logic Cleanup', () => {
     it('should support non-CJK Unicode letters as tag context', () => {
       expect(isProbablyAngleTag(4, 'café<laugh>')).toBe(true)
       expect(isProbablyAngleTag(6, 'привет<sigh>')).toBe(true)
+    })
+  })
+
+  // Regression: autoregressive local TTS (Chatterbox via devnen/Chatterbox-TTS-Server)
+  // sounded crackly with silent gaps in chat because every short sentence became its
+  // own low-context generation, while the settings playground (single whole-text
+  // request) sounded clean.
+  // https://github.com/devnen/Chatterbox-TTS-Server
+  describe('mergeShortSentences for autoregressive local models', () => {
+    it('by default ends a chunk on every hard sentence boundary', async () => {
+      // ROOT CAUSE:
+      //
+      // hard punctuation always forced a yield, so two short sentences became
+      // two tiny standalone generations -> crackle / silence on local models.
+      const chunks = await collectChunks('Hi there. Okay then.', { boost: 0 })
+      expect(chunks).toEqual(['Hi there.', 'Okay then.'])
+    })
+
+    it('coalesces short sentences until minimumWords is reached', async () => {
+      // After the fix, the same short sentences merge into one generation with
+      // enough context, approximating the playground's single-request quality.
+      const chunks = await collectChunks('Hi there. Okay then.', { boost: 0, mergeShortSentences: true, minimumWords: 4 })
+      expect(chunks).toEqual(['Hi there. Okay then.'])
+    })
+
+    it('still yields once enough context is accumulated', async () => {
+      const chunks = await collectChunks(
+        'One two three four five. Six seven.',
+        { boost: 0, mergeShortSentences: true, minimumWords: 4, maximumWords: 100 },
+      )
+      expect(chunks).toEqual(['One two three four five.', 'Six seven.'])
+    })
+
+    it('flushes trailing short text at end of input', async () => {
+      const chunks = await collectChunks('Hi.', { boost: 0, mergeShortSentences: true, minimumWords: 4 })
+      expect(chunks).toEqual(['Hi.'])
     })
   })
 })

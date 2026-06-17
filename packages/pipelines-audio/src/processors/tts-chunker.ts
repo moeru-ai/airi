@@ -27,6 +27,25 @@ export interface TtsInputChunkOptions {
   maximumWords?: number
   stripNarrative?: boolean
   keepNarrativeText?: boolean
+  /**
+   * Keep accumulating across hard sentence boundaries (`.`, `!`, `?`, `…`,
+   * newline) until at least {@link TtsInputChunkOptions.minimumWords} words
+   * have been collected, instead of ending a chunk on every sentence.
+   *
+   * Autoregressive local TTS models (Chatterbox, Index-TTS, …) generate
+   * crackle / near-silence on short, low-context fragments — a one- or
+   * two-word sentence sent as its own generation sounds broken, while the
+   * settings playground sounds clean because it submits the whole text at
+   * once. Coalescing short sentences gives each generation enough context to
+   * match playground quality. Cloud providers leave this off to keep
+   * first-audio latency low.
+   *
+   * `flush` (end of input) and the per-segment `maximumWords` cap still force
+   * a yield so trailing text is never lost and long runs stay bounded.
+   *
+   * @default false
+   */
+  mergeShortSentences?: boolean
 }
 
 export interface TtsChunkItem {
@@ -43,6 +62,7 @@ export async function* chunkTtsInput(
     boost = 2,
     minimumWords = 4,
     maximumWords = 12,
+    mergeShortSentences = false,
   } = options ?? {}
 
   const iterator = readGraphemeClusters(
@@ -155,12 +175,21 @@ export async function* chunkTtsInput(
         chunk = ''
         chunkWordsCount = 0
       }
-      else if (flush || hard || chunkWordsCount > maximumWords || yieldCount < boost) {
+      // Coalesce short sentences for autoregressive local models: a hard
+      // boundary only ends the chunk once it carries enough context. flush
+      // (end of input) and the maximumWords cap below still force a yield.
+      else if (
+        flush
+        || (hard && (!mergeShortSentences || chunkWordsCount >= minimumWords))
+        || chunkWordsCount > maximumWords
+        || yieldCount < boost
+      ) {
+        const hardYield = hard && (!mergeShortSentences || chunkWordsCount >= minimumWords)
         const text = chunk.trim()
         yield {
           text,
           words: chunkWordsCount,
-          reason: flush ? 'flush' : hard ? 'hard' : chunkWordsCount > maximumWords ? 'limit' : 'boost',
+          reason: flush ? 'flush' : hardYield ? 'hard' : chunkWordsCount > maximumWords ? 'limit' : 'boost',
         }
         yieldCount++
         chunk = ''

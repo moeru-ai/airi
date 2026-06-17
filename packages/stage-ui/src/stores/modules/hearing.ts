@@ -108,6 +108,14 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const providersStore = useProvidersStore()
   const { allAudioTranscriptionProvidersMetadata } = storeToRefs(providersStore)
 
+  // NOTICE:
+  // useAnalytics() calls useI18n() internally, which must run during setup. It
+  // was previously called lazily inside transcription(), which is invoked from
+  // event handlers (e.g. the playground "Generate" button) outside any setup
+  // context, throwing "Must be called at the top of a `setup` function". Hoist
+  // it to store setup like stores/chat.ts does.
+  const { trackSttStarted, trackSttSucceeded, trackSttFailed } = useAnalytics()
+
   // State
   const activeTranscriptionProvider = useLocalStorageManualReset('settings/hearing/active-provider', '')
   const activeTranscriptionModel = useLocalStorageManualReset('settings/hearing/active-model', '')
@@ -201,7 +209,6 @@ export const useHearingStore = defineStore('hearing-store', () => {
     const features = providersStore.getTranscriptionFeatures(providerId)
     const streamExecutor = resolveStreamTranscriptionExecutor(providerId)
 
-    const { trackSttStarted, trackSttSucceeded, trackSttFailed } = useAnalytics()
     const sttStartedAt = performance.now()
     trackSttStarted(providerId)
 

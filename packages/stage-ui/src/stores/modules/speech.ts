@@ -24,6 +24,9 @@ export function toSignedPercent(value: number): string {
   return '0%'
 }
 
+/** Audio containers accepted by xsai's `generateSpeech` `responseFormat`. */
+export type SpeechResponseFormat = 'aac' | 'flac' | 'mp3' | 'opus' | 'pcm' | 'wav'
+
 interface VoicePackSpeechInputOptions {
   text: string
   voice: VoiceInfo
@@ -407,10 +410,16 @@ export const useSpeechStore = defineStore('speech', () => {
           source: 'manual_preview',
         })
       : providerConfig
+    // Forward the configured audio container (e.g. chatterbox-turbo's wav).
+    // provider.speech() only yields CommonRequestOptions, so responseFormat has
+    // to be set on the generateSpeech call. Keeps the playground request shape
+    // identical to the chat path in Stage.vue.
+    const responseFormat = providerConfig?.responseFormat as SpeechResponseFormat | undefined
     const response = await generateSpeech({
       ...provider.speech(model, requestProviderConfig),
       input,
       voice,
+      ...(responseFormat ? { responseFormat } : {}),
     })
 
     return response

@@ -759,6 +759,82 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     }),
+    'faster-whisper': buildOpenAICompatibleProvider({
+      id: 'faster-whisper',
+      name: 'Faster Whisper (Local)',
+      nameKey: 'settings.pages.providers.provider.faster-whisper.title',
+      descriptionKey: 'settings.pages.providers.provider.faster-whisper.description',
+      icon: 'i-solar:microphone-3-bold-duotone',
+      description: 'github.com/speaches-ai/speaches',
+      category: 'transcription',
+      tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
+      // NOTICE:
+      // Targets any OpenAI-compatible STT server exposing /v1/audio/transcriptions
+      // (faster-whisper-server / Speaches default to port 8000). The /v1/models
+      // endpoint is optional: minimal servers implement only transcriptions, so
+      // both model listing and reachability validation must tolerate its absence.
+      // Source: https://github.com/speaches-ai/speaches
+      defaultBaseUrl: 'http://localhost:8000/v1/',
+      creator: createOpenAI,
+      capabilities: {
+        listModels: async (config) => {
+          const rawBaseUrl = (config.baseUrl as string)?.trim() ?? ''
+          const baseUrl = rawBaseUrl ? `${rawBaseUrl.replace(/\/+$/, '')}/` : ''
+          if (!baseUrl)
+            return []
+
+          // NOTICE:
+          // Local faster-whisper servers ignore Authorization, but @xsai/model
+          // still sends the header, so fall back to a placeholder key when the
+          // user has not configured one. Model listing is best-effort: servers
+          // that only implement /v1/audio/transcriptions return [], and the UI
+          // falls back to manual model entry.
+          const apiKey = (config.apiKey as string)?.trim() || 'sk-faster-whisper'
+          try {
+            const models = await listModels({ apiKey, baseURL: baseUrl })
+            return models.map(model => ({
+              id: model.id,
+              name: model.id,
+              provider: 'faster-whisper',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
+            } satisfies ModelInfo))
+          }
+          catch {
+            return []
+          }
+        },
+      },
+      validators: {
+        chatPingCheckAvailable: false,
+        validateProviderConfig: async (config) => {
+          const res = baseUrlValidator.value(config.baseUrl)
+          if (res)
+            return res
+
+          const rawBaseUrl = (config.baseUrl as string)?.trim() ?? ''
+          const baseUrl = rawBaseUrl ? `${rawBaseUrl.replace(/\/+$/, '')}/` : ''
+          try {
+            const controller = new AbortController()
+            const timeout = setTimeout(() => controller.abort(), 5000)
+            // NOTICE:
+            // Probe /v1/models only as a liveness check. Any HTTP response (even
+            // 404/405 from a transcriptions-only server) proves the server is
+            // reachable, so only a thrown fetch (connection refused / timeout)
+            // is treated as a failure.
+            await fetch(`${baseUrl}models`, { signal: controller.signal })
+            clearTimeout(timeout)
+          }
+          catch (err) {
+            const reason = `Faster Whisper server connection failed: ${errorMessageFrom(err)}`
+            return { errors: [err as Error], reason, valid: false }
+          }
+
+          return { errors: [], reason: '', valid: true }
+        },
+      },
+    }),
     'aliyun-nls-transcription': {
       id: 'aliyun-nls-transcription',
       category: 'transcription',
@@ -1251,6 +1327,109 @@ export const useProvidersStore = defineStore('providers', () => {
             reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
             valid: errors.length === 0,
           }
+        },
+      },
+    },
+    'chatterbox-turbo': {
+      id: 'chatterbox-turbo',
+      category: 'speech',
+      tasks: ['text-to-speech', 'tts'],
+      nameKey: 'settings.pages.providers.provider.chatterbox-turbo.title',
+      name: 'Chatterbox Turbo',
+      descriptionKey: 'settings.pages.providers.provider.chatterbox-turbo.description',
+      description: 'github.com/devnen/Chatterbox-TTS-Server',
+      icon: 'i-solar:soundwave-bold-duotone',
+      // NOTICE:
+      // Chatterbox Turbo is a PyTorch/ONNX model that cannot run in-browser via
+      // transformers.js. The realistic local integration is an OpenAI-compatible
+      // TTS server. devnen/Chatterbox-TTS-Server defaults to port 8004 and exposes
+      // /v1/audio/speech and /v1/audio/voices.
+      // Source: https://github.com/devnen/Chatterbox-TTS-Server
+      //
+      // The server's OpenAI-compatible /v1/audio/speech endpoint accepts a
+      // `response_format`; we request `wav` explicitly. Web Audio's
+      // `decodeAudioData` handles the server's WAV correctly — earlier silence
+      // was a dead playback AudioContext (created while the window was hidden),
+      // not the container; see the playback-context handling in Stage.vue.
+      defaultOptions: () => ({
+        baseUrl: 'http://localhost:8004/v1/',
+        model: 'chatterbox',
+        responseFormat: 'wav',
+      }),
+      createProvider: async (config) => {
+        const provider: SpeechProvider = {
+          speech: () => ({
+            baseURL: config.baseUrl as string,
+            model: (config.model as string) || 'chatterbox',
+          }),
+        }
+        return provider
+      },
+      capabilities: {
+        listModels: async () => {
+          return [
+            {
+              id: 'chatterbox',
+              name: 'Chatterbox Turbo',
+              provider: 'chatterbox-turbo',
+              description: 'Default model for the Chatterbox TTS server',
+              contextLength: 0,
+              deprecated: false,
+            },
+          ]
+        },
+        listVoices: async (config) => {
+          const baseUrl = config.baseUrl as string
+          const response = await fetch(`${baseUrl}audio/voices`)
+          if (!response.ok) {
+            throw new Error(`Failed to fetch voices: ${response.statusText}`)
+          }
+
+          // NOTICE:
+          // The OpenAI-compatible voice listing shape varies between Chatterbox
+          // server forks: an array of names, an object keyed by name, or
+          // { voices: [...] }. Normalize all three into a string[] of voice ids.
+          // Source: https://github.com/devnen/Chatterbox-TTS-Server (/v1/audio/voices)
+          const payload = await response.json()
+          const voiceIds: string[] = Array.isArray(payload)
+            ? payload.map(v => (typeof v === 'string' ? v : v?.id ?? v?.name)).filter(Boolean)
+            : Array.isArray(payload?.voices)
+              ? payload.voices.map((v: any) => (typeof v === 'string' ? v : v?.id ?? v?.name)).filter(Boolean)
+              : Object.keys(payload ?? {})
+
+          return voiceIds.map(voice => ({
+            id: voice,
+            name: voice,
+            provider: 'chatterbox-turbo',
+            languages: [{ code: 'en', title: 'English' }],
+          }))
+        },
+      },
+      validators: {
+        chatPingCheckAvailable: false,
+        validateProviderConfig: async (config) => {
+          const res = baseUrlValidator.value(config.baseUrl)
+          if (res) {
+            return res
+          }
+
+          try {
+            const controller = new AbortController()
+            const timeout = setTimeout(() => controller.abort(), 5000)
+            const response = await fetch(`${config.baseUrl as string}audio/voices`, { signal: controller.signal })
+            clearTimeout(timeout)
+
+            if (!response.ok) {
+              const reason = `Chatterbox TTS server unreachable: HTTP ${response.status} ${response.statusText}`
+              return { errors: [new Error(reason)], reason, valid: false }
+            }
+          }
+          catch (err) {
+            const reason = `Chatterbox TTS server connection failed: ${errorMessageFrom(err)}`
+            return { errors: [err as Error], reason, valid: false }
+          }
+
+          return { errors: [], reason: '', valid: true }
         },
       },
     },

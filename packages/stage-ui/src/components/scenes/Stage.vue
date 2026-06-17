@@ -1,18 +1,20 @@
 <script setup lang="ts">
 import type { Live2DLipSync, Live2DLipSyncOptions } from '@proj-airi/model-driver-lipsync'
 import type { Profile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
+import type { TtsInputChunkOptions } from '@proj-airi/pipelines-audio'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { UnElevenLabsOptions } from 'unspeech'
 
 import type { EmotionPayload } from '../../constants/emotions'
 import type { SpeechTransport, StageTtsSession, StreamingSessionSnapshot } from '../../libs/speech/tts-session'
 import type { VoicePackSnapshot } from '../../stores/modules/airi-card'
+import type { SpeechResponseFormat } from '../../stores/modules/speech'
 import type { VoiceInfo } from '../../stores/providers'
 
 import { sleep } from '@moeru/std'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
-import { createPlaybackManager, createSpeechPipeline, normalizeActPayload } from '@proj-airi/pipelines-audio'
+import { createPlaybackManager, createSpeechPipeline, createTtsSegmentStream, normalizeActPayload } from '@proj-airi/pipelines-audio'
 import { Live2DScene, useLive2dParams } from '@proj-airi/stage-ui-live2d'
 import { SpineScene } from '@proj-airi/stage-ui-spine'
 import { ThreeScene } from '@proj-airi/stage-ui-three'
@@ -34,6 +36,7 @@ import { useIOTraceBridge } from '../../composables/use-io-trace-bridge'
 import { initIOTracer } from '../../composables/use-io-tracer'
 import { useSpeechPipelineAnalytics } from '../../composables/use-speech-pipeline-analytics'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
+import { resolveProviderSourceMetadata } from '../../libs/providers'
 import { getDefaultStreamingModel, getDefinedProvider } from '../../libs/providers/providers'
 import { OFFICIAL_SPEECH_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { createStageTtsSession } from '../../libs/speech/tts-session'
@@ -252,36 +255,85 @@ async function playSpecialToken(
 }
 const lipSyncNode = ref<AudioNode>()
 
+// NOTICE:
+// The shared store AudioContext (useAudioContext) is constructed at store-init,
+// which in the Electron main window happens while the window is still hidden
+// (created with show:false). A context constructed before its window is visible
+// binds to a dead output sink: it still *renders* the graph — so the wLipSync
+// worklet keeps driving the avatar's mouth — but it produces NO audible output.
+// A context constructed after the window is visible (i.e. at first playback)
+// outputs correctly. Verified empirically: a fresh AudioContext created during
+// playback is audible while the early store context is silent, even though both
+// report state 'running'.
+//
+// So we keep the store context purely for lip-sync analysis (which only needs to
+// read the signal, not output it) and route AUDIBLE playback through this
+// dedicated context, created lazily on first playback when the window is shown.
+let playbackContext: AudioContext | undefined
+function getPlaybackContext(): AudioContext {
+  if (!playbackContext)
+    playbackContext = new AudioContext()
+  return playbackContext
+}
+
 async function playFunction(item: Parameters<Parameters<typeof createPlaybackManager<AudioBuffer>>[0]['play']>[0], signal: AbortSignal): Promise<void> {
-  if (!audioContext || !item.audio)
+  if (!item.audio)
     return
 
-  // Ensure audio context is resumed (browsers suspend it by default until user interaction)
-  if (audioContext.state === 'suspended') {
+  const outputContext = getPlaybackContext()
+  if (outputContext.state === 'suspended') {
+    // resume() can hang outside a user gesture (playback is often triggered by
+    // chat-sync IPC from another window). Race a timeout so a stuck resume can
+    // never wedge the single playback voice slot.
     try {
-      await audioContext.resume()
+      await Promise.race([
+        outputContext.resume(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('resume-timeout')), 1500)),
+      ])
     }
-    catch {
-      return
-    }
+    catch {}
   }
 
-  if (stageModelRenderer.value === 'live2d' && !lipSyncStarted.value) {
-    // NOTICE: Playback can be triggered by non-chat speech intents, so initialize
-    // the wLipSync graph here before connecting the AudioBufferSourceNode.
+  // Lip-sync source: lives on the STORE context so the existing VRM/live2d
+  // wLipSync worklet (also on the store context) can analyse it and drive the
+  // mouth. It is intentionally NOT connected to any destination — the store
+  // context's output is silent anyway, and the audible copy plays through
+  // outputContext below.
+  let lipSource: AudioBufferSourceNode | undefined
+  if (audioContext) {
     setupAnalyser()
-    await setupLipSync()
+    lipSource = audioContext.createBufferSource()
+    lipSource.buffer = item.audio
+    currentAudioSource.value = lipSource
+    if (audioAnalyser.value)
+      lipSource.connect(audioAnalyser.value)
+    if (lipSyncNode.value) {
+      lipSource.connect(lipSyncNode.value)
+    }
+    else if (stageModelRenderer.value === 'live2d' && !lipSyncStarted.value) {
+      // Lip-sync must never gate audible playback; set it up in the background
+      // and attach mid-playback once ready (live2d only; VRM wires itself via
+      // currentAudioSource through useVRMLipSync).
+      void setupLipSync().then(() => {
+        if (lipSyncNode.value && currentAudioSource.value === lipSource) {
+          try {
+            lipSource!.connect(lipSyncNode.value)
+          }
+          catch {}
+        }
+      })
+    }
+    try {
+      lipSource.start(0)
+    }
+    catch {}
   }
 
-  const source = audioContext.createBufferSource()
-  currentAudioSource.value = source
+  // Audible source on the healthy playback context. AudioBuffers are not bound to
+  // a single context, so the buffer decoded on the store context plays here fine.
+  const source = outputContext.createBufferSource()
   source.buffer = item.audio
-
-  source.connect(audioContext.destination)
-  if (audioAnalyser.value)
-    source.connect(audioAnalyser.value)
-  if (lipSyncNode.value)
-    source.connect(lipSyncNode.value)
+  source.connect(outputContext.destination)
 
   return new Promise<void>((resolve) => {
     let settled = false
@@ -298,7 +350,12 @@ async function playFunction(item: Parameters<Parameters<typeof createPlaybackMan
         source.disconnect()
       }
       catch {}
-      if (currentAudioSource.value === source)
+      try {
+        lipSource?.stop()
+        lipSource?.disconnect()
+      }
+      catch {}
+      if (currentAudioSource.value === lipSource)
         currentAudioSource.value = undefined
       resolveOnce()
     }
@@ -344,6 +401,34 @@ function createVoicePackVoice(voicePack: VoicePackSnapshot): VoiceInfo {
 }
 
 const speechPipeline = createSpeechPipeline<AudioBuffer>({
+  // NOTICE:
+  // Self-hosted local TTS servers run a single model instance and produce
+  // garbled / crackly audio when the pipeline fires its default 4 concurrent
+  // generation requests at them (the per-segment chat path; the settings
+  // playground sends one request and stays clean). Serialize requests for
+  // local-deployment providers and keep cloud providers parallel.
+  ttsMaxConcurrent: () => resolveProviderSourceMetadata({ id: activeSpeechProvider.value }).deployment === 'local' ? 1 : 4,
+  // NOTICE:
+  // The chunker's low-latency "boost" emits the first 1-2 segments of each
+  // reply early, regardless of length, so the first segment can be a 1-2 word
+  // fragment. Autoregressive local models (Chatterbox, Index-TTS, …) garble
+  // such short, low-context inputs — heard as a broken first part of every
+  // message. Disable boost for local providers so the first segment is a full
+  // clause; cloud providers keep the default boost for faster first audio.
+  //
+  // The same models also garble on short standalone sentences ("Hi there.")
+  // because every hard punctuation otherwise ends a chunk and becomes its own
+  // low-context generation — heard as crackle / silent gaps mid-message. The
+  // settings playground sounds clean because it submits the whole text at once.
+  // mergeShortSentences coalesces across sentence boundaries until there is
+  // enough context, approximating the playground's single-request quality.
+  segmenter: (tokens, meta) => {
+    const chunkOptions: TtsInputChunkOptions | undefined
+      = resolveProviderSourceMetadata({ id: activeSpeechProvider.value }).deployment === 'local'
+        ? { boost: 0, mergeShortSentences: true }
+        : undefined
+    return createTtsSegmentStream(tokens, meta, chunkOptions)
+  },
   tts: async (request, signal) => {
     if (signal.aborted)
       return null
@@ -431,8 +516,21 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
         voice = createVoicePackVoice(voicePack)
     }
 
-    if (!model || !voice)
+    if (!model || !voice) {
+      // Previously a silent drop: the chat path resolves model/voice from the
+      // character's speech module (activeSpeechModel/activeSpeechVoice or a
+      // voicePack), unlike the playground which passes an explicit voiceId. If
+      // the character has a provider selected but no concrete voice resolved,
+      // every segment was dropped with no request and no log — indistinguishable
+      // from "TTS is broken". Surface it so the misconfiguration is visible.
+      console.warn('[Speech Pipeline] tts() skipped: no model or voice resolved for active speech module', {
+        provider: activeSpeechProvider.value,
+        model,
+        voice: voice?.id,
+        hasVoicePack: Boolean(voicePack),
+      })
       return null
+    }
 
     try {
       const speechRequest = speechStore.resolveVoicePackSpeechInput({
@@ -464,10 +562,16 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
             },
           }
         : speechRequest.providerConfig
+      // Forward the configured audio container (chatterbox-turbo defaults to
+      // wav) so the request shape matches the settings playground. provider.speech()
+      // returns only CommonRequestOptions, so responseFormat has to ride on the
+      // generateSpeech call here rather than inside the provider definition.
+      const responseFormat = providerConfig?.responseFormat as SpeechResponseFormat | undefined
       const res = await generateSpeech({
         ...provider.speech(model, providerConfigWithAnalytics),
         input: speechRequest.input,
         voice: voice.id,
+        ...(responseFormat ? { responseFormat } : {}),
       })
 
       if (signal.aborted || !res || res.byteLength === 0)
@@ -737,7 +841,10 @@ chatHookCleanups.push(onBeforeMessageComposed(async () => {
   playbackManager.stopAll('new-message')
 
   setupAnalyser()
-  await setupLipSync()
+  // Do not block session setup on lip-sync; createLive2DLipSync can be slow
+  // while the avatar loads, which delays opening the TTS session and lets tokens
+  // race ahead of it. Lip-sync attaches itself during playFunction instead.
+  void setupLipSync()
   resetAssistantSpeechSurface('new-message')
 
   currentSession?.cancel('new-message')

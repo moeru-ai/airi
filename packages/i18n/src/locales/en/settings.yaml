@@ -1290,6 +1290,11 @@ pages:
         title: Bilibili / IndexTTS
         callout_indextts2_unavailable_title: Limited Support
         callout_indextts2_unavailable: Support for IndexTTS2 is currently unavailable. Please use IndexTTS.
+      chatterbox-turbo:
+        description: Resemble AI / Chatterbox Turbo
+        title: Chatterbox Turbo
+        callout_local_server_title: Local server required
+        callout_local_server: Chatterbox Turbo runs through a self-hosted OpenAI-compatible TTS server (e.g. devnen/Chatterbox-TTS-Server). Start the server, then set the Base URL below (default http://localhost:8004/v1/).
       azure-ai-foundry:
         description: Azure AI Foundry
         title: Azure AI Foundry
@@ -1403,6 +1408,11 @@ pages:
       browser-web-speech-api:
         description: Browser-native STT (requires Chrome/Edge/Safari)
         title: Web Speech API
+      faster-whisper:
+        description: github.com/speaches-ai/speaches
+        title: Faster Whisper (Local)
+        callout_local_server_title: Local server required
+        callout_local_server: Faster Whisper runs through a self-hosted OpenAI-compatible STT server (e.g. Speaches / faster-whisper-server). Start the server, then set the Base URL below (default http://localhost:8000/v1/). No API key is required for local deployments.
       official:
         title: Official Provider
         description: Official AI provider by AIRI.
