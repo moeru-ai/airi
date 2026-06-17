@@ -132,12 +132,12 @@ function handleMessage(ws: WebSocket, message: Record<string, unknown>): void {
         totalCost: 0,
         number: getTaskCount() + 1,
       }
-      upsertTask(item as any)
+      upsertTask(item as HistoryItem)
       send(ws, { type: 'taskCreated', task: item, requestId })
 
       // Standalone mode: run the LLM call directly. Fire-and-forget —
       // the runner pushes state updates via onUpdate -> broadcast.
-      runTask(id, text, (mode as string) ?? 'vibe', () => {
+      runTask(id, text, () => {
         broadcast({ type: 'state', state: getState() })
       }).catch((err) => {
         console.error('[roo-standalone] task run failed:', err)
@@ -191,7 +191,7 @@ function handleMessage(ws: WebSocket, message: Record<string, unknown>): void {
     case 'allowedCommands':
     case 'updateSettings': {
       const { type: _type, requestId: _requestId, seq: _seq, ...payload } = message
-      patchState(payload as any)
+      patchState(payload as Partial<ExtensionState>)
       const updated = getState()
       send(ws, { type: 'state', state: updated, requestId })
       broadcast({ type: 'state', state: updated })

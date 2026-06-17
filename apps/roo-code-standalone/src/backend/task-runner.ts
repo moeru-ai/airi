@@ -17,6 +17,7 @@
  */
 
 import { getState, patchState } from './state.js'
+import type { ExtensionState } from '@roo-code/types'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -35,6 +36,15 @@ interface StreamChunk {
   totalCost?: number
 }
 
+interface ClineMessage {
+  ts: number
+  type: 'ask' | 'say'
+  ask?: string
+  say?: 'assistant' | 'user' | 'error' | string
+  text?: string
+  partial?: boolean
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -47,13 +57,12 @@ interface StreamChunk {
  * Keeping the broadcast hook as a parameter avoids a circular import
  * between task-runner <-> websocket.
  */
-export async function runTask(taskId: string, text: string, mode: string, onUpdate?: () => void): Promise<void> {
+export async function runTask(taskId: string, text: string, onUpdate?: () => void): Promise<void> {
   const state = getState()
   const apiConfig = state.apiConfiguration
 
   if (!apiConfig?.apiProvider) {
     appendMessage(
-      taskId,
       {
         ts: Date.now(),
         type: 'say',
@@ -67,7 +76,6 @@ export async function runTask(taskId: string, text: string, mode: string, onUpda
 
   // 1. Append the user message.
   appendMessage(
-    taskId,
     {
       ts: Date.now(),
       type: 'say',
@@ -85,35 +93,60 @@ export async function runTask(taskId: string, text: string, mode: string, onUpda
 
     const stream = streamLLM(apiConfig, systemPrompt, messages)
 
+    // Track the ts of the single assistant message so we can update in place.
+    let assistantMessageTs: number | null = null
+
     for await (const chunk of stream) {
       if (chunk.type === 'text' && chunk.text) {
         assistantText += chunk.text
-        // Live-stream partial updates to the UI.
-        appendMessage(
-          taskId,
-          {
-            ts: Date.now(),
-            type: 'say',
-            say: 'assistant',
-            text: assistantText,
-            partial: true,
-          },
-          onUpdate,
-        )
+
+        if (assistantMessageTs === null) {
+          assistantMessageTs = Date.now()
+          appendMessage(
+            {
+              ts: assistantMessageTs,
+              type: 'say',
+              say: 'assistant',
+              text: assistantText,
+              partial: true,
+            },
+            onUpdate,
+          )
+        } else {
+          // Update the existing assistant message in place.
+          const s = getState()
+          const msgs = s.clineMessages || []
+          const idx = msgs.findIndex(
+            (m) => m.type === 'say' && (m.say as string) === 'assistant' && m.ts === assistantMessageTs,
+          )
+          if (idx !== -1) {
+            const updated = [...msgs]
+            updated[idx] = { ...updated[idx], text: assistantText, partial: true }
+            patchState({ clineMessages: updated } as Partial<ExtensionState>)
+            onUpdate?.()
+          }
+        }
       } else if (chunk.type === 'usage') {
-        // Store cost info on the task record (best-effort).
-        const task = getState().taskHistory?.find((t: any) => t.id === taskId)
-        if (task) {
-          task.tokensIn = chunk.inputTokens ?? 0
-          task.tokensOut = chunk.outputTokens ?? 0
-          task.totalCost = chunk.totalCost ?? 0
+        // Store cost info on the task record via patchState (immutable).
+        const s = getState()
+        const tasks = s.taskHistory || []
+        const idx = tasks.findIndex((t) => t.id === taskId)
+        if (idx !== -1) {
+          const updated = [...tasks]
+          updated[idx] = {
+            ...updated[idx],
+            tokensIn: chunk.inputTokens ?? updated[idx].tokensIn ?? 0,
+            tokensOut: chunk.outputTokens ?? updated[idx].tokensOut ?? 0,
+            totalCost: chunk.totalCost ?? updated[idx].totalCost ?? 0,
+          }
+          patchState({ taskHistory: updated } as Partial<ExtensionState>)
+          onUpdate?.()
         }
       }
     }
-  } catch (err: any) {
-    assistantText = `Error calling ${apiConfig.apiProvider}: ${err.message}`
+  } catch (err: unknown) {
+    assistantText = `Error calling ${apiConfig.apiProvider}: ${err instanceof Error ? err.message : String(err)}`
     appendMessage(
-      taskId,
       {
         ts: Date.now(),
         type: 'say',
@@ -127,7 +160,6 @@ export async function runTask(taskId: string, text: string, mode: string, onUpda
   // 3. Final non-partial assistant message.
   if (assistantText && !assistantText.startsWith('Error')) {
     appendMessage(
-      taskId,
       {
         ts: Date.now(),
         type: 'say',
@@ -147,10 +179,10 @@ export async function runTask(taskId: string, text: string, mode: string, onUpda
 /**
  * Append a ClineMessage to state.clineMessages and push a state update.
  */
-function appendMessage(taskId: string, message: Record<string, unknown>, onUpdate?: () => void): void {
+function appendMessage(message: ClineMessage, onUpdate?: () => void): void {
   const state = getState()
   const clineMessages = [...(state.clineMessages || []), message]
-  patchState({ clineMessages } as any)
+  patchState({ clineMessages } as Partial<ExtensionState>)
   onUpdate?.()
 }
 
@@ -279,7 +311,7 @@ async function* streamGemini(
 ): AsyncGenerator<StreamChunk> {
   const apiKey = String(apiConfig.apiKey ?? '')
   const model = String(apiConfig.apiModelId ?? apiConfig.modelId ?? 'gemini-2.5-flash')
-  const baseURL = String(apiConfig.baseURL ?? 'https://generativelanguage.googleapis.com/v1beta')
+  const baseURL = String(apiConfig.baseURL || 'https://generativelanguage.googleapis.com/v1beta')
 
   // Gemini uses a different message format — convert to contents array.
   const contents = messages.map((m) => ({
@@ -291,7 +323,7 @@ async function* streamGemini(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      system_instruction: { parts: [{ text: systemPrompt }] },
+      systemInstruction: { parts: [{ text: systemPrompt }] },
       contents,
     }),
   })
@@ -400,6 +432,24 @@ async function* parseSSE(res: Response, extract: (data: any) => StreamChunk | nu
 
       const chunk = extract(data)
       if (chunk) yield chunk
+    }
+  }
+
+  // Flush any remaining buffered text (handles responses that don't end with a newline)
+  if (buffer.trim()) {
+    const trimmed = buffer.trim()
+    if (trimmed.startsWith('data:')) {
+      const json = trimmed.slice(5).trim()
+      if (json && json !== '[DONE]') {
+        let data: any
+        try {
+          data = JSON.parse(json)
+        } catch {
+          return
+        }
+        const chunk = extract(data)
+        if (chunk) yield chunk
+      }
     }
   }
 }
