@@ -20,6 +20,7 @@ import type {
 	IpcRequestMessage,
 	IpcResponseMessage,
 	IpcErrorMessage,
+	IpcPingMessage,
 } from "../ipc/protocol.js"
 import { generateId, request } from "../ipc/transport.js"
 import type { IpcClientTransport, IpcConnectionState } from "../ipc/transport.js"
