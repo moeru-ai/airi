@@ -13,9 +13,9 @@ import { Readable, Writable } from "node:stream"
 
 vi.mock("node:child_process", () => ({
 	fork: vi.fn(() => {
-		const proc = new EventEmitter() as any
+		const proc = new EventEmitter() as unknown as Record<string, unknown>
 		proc.stdin = new Writable({
-			write(_chunk: any, _encoding: any, callback: () => void) {
+			write(_chunk: unknown, _encoding: unknown, callback: () => void) {
 				callback()
 			},
 		})

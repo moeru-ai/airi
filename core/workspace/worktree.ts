@@ -98,9 +98,10 @@ export class WorkspaceWorktree {
 			await execFileAsync("git", ["worktree", "remove", "--force", worktreePath], {
 				cwd: this.repositoryPath,
 			})
-		} catch (error: any) {
+		} catch (error: unknown) {
 			// If git remove fails, try manual cleanup.
-			if (error?.code === "ENOENT" || error?.stderr?.includes("not a worktree")) {
+			const err = error as Partial<NodeJS.ErrnoException> & { stderr?: string } | undefined
+			if (err?.code === "ENOENT" || err?.stderr?.includes("not a worktree")) {
 				await fs.rm(worktreePath, { recursive: true, force: true })
 			} else {
 				throw error
@@ -219,7 +220,7 @@ export class WorkspaceWorktree {
 			if (wt.path === this.repositoryPath) continue
 
 			// Check if this worktree belongs to an active workspace.
-			if (wt.workspaceId && activeWorkspaceIds.has(wt.workspaceId as any)) continue
+			if (wt.workspaceId && activeWorkspaceIds.has(wt.workspaceId)) continue
 
 			// Check if the directory still exists.
 			try {

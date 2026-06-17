@@ -9,17 +9,17 @@ import { useLlmToolsStore } from './llm-tools'
 
 const { streamTextMock, mcpMock, debugMock, createSparkCommandToolMock } = vi.hoisted(() => ({
   streamTextMock: vi.fn(),
-  mcpMock: vi.fn(async (): Promise<Tool[]> => []),
-  debugMock: vi.fn(async (): Promise<Tool[]> => []),
+  mcpMock: vi.fn((): Promise<Tool[]> => Promise.resolve([])),
+  debugMock: vi.fn((): Promise<Tool[]> => Promise.resolve([])),
   createSparkCommandToolMock: vi.fn(
-    async (): Promise<unknown> => [
+    (): Promise<unknown> => Promise.resolve([
       {
         name: 'spark',
         description: '',
         parameters: {},
         execute: vi.fn(),
       },
-    ],
+    ]),
   ),
 }))
 

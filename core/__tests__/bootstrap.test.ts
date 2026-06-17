@@ -60,7 +60,7 @@ describe("EventBus", () => {
 		})
 
 		expect(collected).toHaveLength(1)
-		expect((collected[0] as any).taskId).toBe("t2")
+		expect((collected[0] as Record<string, unknown>).taskId).toBe("t2")
 	})
 
 	it("once() fires exactly once", () => {
@@ -270,6 +270,7 @@ describe("createLogger", () => {
 
 import { bootstrap } from "../bootstrap.js"
 import { ModuleRegistry } from "../modules/registry.js"
+import type { CoreContext } from "../modules/module.js"
 
 describe("bootstrap()", () => {
 	it("returns a CoreInstance with all subsystems", async () => {
@@ -334,7 +335,7 @@ describe("ModuleRegistry activation order", () => {
 		const moduleA = {
 			id: "a",
 			name: "Module A",
-			async activate(_ctx: any) {
+			async activate(_ctx: CoreContext) {
 				activationOrder.push("a")
 			},
 		}
@@ -342,7 +343,7 @@ describe("ModuleRegistry activation order", () => {
 		const moduleB = {
 			id: "b",
 			name: "Module B",
-			async activate(_ctx: any) {
+			async activate(_ctx: CoreContext) {
 				activationOrder.push("b")
 			},
 		}
@@ -350,7 +351,7 @@ describe("ModuleRegistry activation order", () => {
 		const moduleC = {
 			id: "c",
 			name: "Module C",
-			async activate(_ctx: any) {
+			async activate(_ctx: CoreContext) {
 				activationOrder.push("c")
 			},
 		}

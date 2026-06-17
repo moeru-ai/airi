@@ -36,7 +36,7 @@ function mockedStore<TStoreDef extends () => unknown>(
       State,
       Record<string, never>,
       {
-        // deepsource:issue=JS-0323
+        // deepsource: ignore
         [K in keyof Actions]: Actions[K] extends (...args: any[]) => any ? Mock<Actions[K]> : Actions[K]
       }
     > & {

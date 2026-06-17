@@ -58,8 +58,8 @@ const LEGACY_OFFICIAL_UPDATER_CACHE_DIR = join(getLegacyCacheRoot(), 'ai.moeru.a
 const OFFICIAL_UPDATER_CACHE_DIRS = Array.from(new Set([OFFICIAL_UPDATER_CACHE_DIR, LEGACY_OFFICIAL_UPDATER_CACHE_DIR]))
 
 async function logToFile(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', message: string) {
-  await mkdir(UPDATER_DEBUG_CACHE_DIR, { recursive: true }).catch(() => {})
-  await appendFile(UPDATER_LOG_FILE, `${new Date().toISOString()} [${level}] ${message}\n`).catch(() => {})
+  await mkdir(UPDATER_DEBUG_CACHE_DIR, { recursive: true }).catch(() => { /* best-effort */ })
+  await appendFile(UPDATER_LOG_FILE, `${new Date().toISOString()} [${level}] ${message}\n`).catch(() => { /* best-effort */ })
 }
 
 async function cleanupStaleUpdateFiles() {
@@ -524,7 +524,7 @@ export function createAutoUpdaterService(params: {
       await service.downloadUpdate()
       return service.state
     }),
-    defineInvokeHandler(context, electronGetUpdaterPreferences, async () => ({
+    defineInvokeHandler(context, electronGetUpdaterPreferences, () => ({
       channel: service.getPreferredUpdateLane(),
     })),
     defineInvokeHandler(context, electronSetUpdaterPreferences, async (payload) => {

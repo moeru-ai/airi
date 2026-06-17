@@ -21,10 +21,11 @@ import { RecoveryCoordinator } from "../runtime/recovery.js"
 import type { AiriEvent } from "../events/types.js"
 import type { RuntimeSnapshot } from "../persistence/types.js"
 import type { PersistentSession } from "../session/types.js"
+import { createPersistentSessionId } from "../session/types.js"
 
 // ── Test helpers ─────────────────────────────────────────────────────────
 
-function createTestEvent(overrides: Partial<AiriEvent> = {}): AiriEvent {
+function createTestEvent(overrides: Record<string, unknown> = {}): AiriEvent {
 	return {
 		type: "task.started",
 		timestamp: new Date().toISOString(),
@@ -78,9 +79,9 @@ describe("InMemoryEventStore", () => {
 	})
 
 	it("gets events by session", async () => {
-		await store.append(createTestEvent({ type: "task.started", sessionId: "sess-1" } as any))
-		await store.append(createTestEvent({ type: "task.started", sessionId: "sess-2" } as any))
-		await store.append(createTestEvent({ type: "task.completed", sessionId: "sess-1" } as any))
+		await store.append(createTestEvent({ type: "task.started", sessionId: "sess-1" }))
+		await store.append(createTestEvent({ type: "task.started", sessionId: "sess-2" }))
+		await store.append(createTestEvent({ type: "task.completed", sessionId: "sess-1" }))
 
 		const events = await store.getBySession("sess-1")
 		expect(events.length).toBe(2)
@@ -105,8 +106,8 @@ describe("InMemoryEventStore", () => {
 	})
 
 	it("gets events by execution", async () => {
-		await store.append(createTestEvent({ executionId: "exec-1" } as any))
-		await store.append(createTestEvent({ executionId: "exec-2" } as any))
+		await store.append(createTestEvent({ executionId: "exec-1" }))
+		await store.append(createTestEvent({ executionId: "exec-2" }))
 
 		const events = await store.getByExecution("exec-1")
 		expect(events.length).toBe(1)
@@ -419,7 +420,7 @@ describe("PersistentSessionManager", () => {
 	it("loads sessions from snapshot", () => {
 		const sessions: PersistentSession[] = [
 			{
-				id: "psess-snap-1" as any,
+				id: createPersistentSessionId("psess-snap-1"),
 				clientId: "client-1",
 				state: "attached",
 				createdAt: new Date().toISOString(),
@@ -432,7 +433,7 @@ describe("PersistentSessionManager", () => {
 		manager.loadFromSnapshot(sessions)
 		expect(manager.count).toBe(1)
 
-		const session = manager.getSession("psess-snap-1" as any)
+		const session = manager.getSession(createPersistentSessionId("psess-snap-1"))
 		expect(session).toBeDefined()
 		expect(session!.clientId).toBe("client-1")
 	})
@@ -662,7 +663,7 @@ describe("RecoveryCoordinator", () => {
 			sessions: [],
 		}
 		await snapshotStore.save(snapshot)
-		await eventStore.append(createTestEvent({ type: "plan.started" } as any))
+		await eventStore.append(createTestEvent({ type: "plan.started" }))
 
 		const result1 = await coordinator.recover()
 

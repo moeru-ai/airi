@@ -40,8 +40,8 @@ export interface PluginModuleWidgetPayload {
   moduleId: string
   title?: string
   widgetComponent?: string
-  componentProps?: Record<string, any>
-  payload?: Record<string, any>
+  componentProps?: Record<string, unknown>
+  payload?: Record<string, unknown>
   windowSize?: PluginModuleWidgetWindowSize
 }
 

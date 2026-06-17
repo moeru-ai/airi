@@ -94,7 +94,7 @@ async function handleGenerateTranscription(file: File) {
 
   // Validate model - throw error if no valid model configured
   if (!modelToUse || !isValidTranscriptionModel(modelToUse)) {
-    throw new Error(`Invalid or missing transcription model. Please configure a valid model in the provider settings.`)
+    throw new Error('Invalid or missing transcription model. Please configure a valid model in the provider settings.')
   }
 
   return await hearingStore.transcription(providerId, provider, modelToUse, file, 'json')
@@ -141,8 +141,8 @@ function isValidTranscriptionModel(modelName: string | undefined | null): boolea
   if (VALID_TRANSCRIPTION_MODELS.includes(modelName)) return true
   // Allow custom models that might be transcription-compatible
   // But reject obvious chat models
-  if (modelName.includes('gpt-4') && !modelName.includes('transcribe') && !modelName.includes('whisper')) return false
-  return true
+  const isChatModel = modelName.includes('gpt-4') && !modelName.includes('transcribe') && !modelName.includes('whisper')
+  return !isChatModel
 }
 
 // Initialize provider settings on mount

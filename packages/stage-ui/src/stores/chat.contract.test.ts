@@ -212,31 +212,31 @@ describe('chat orchestrator contract', () => {
     const store = useChatOrchestratorStore()
     const hookOrder: string[] = []
 
-    store.onBeforeMessageComposed(async () => {
+    store.onBeforeMessageComposed(() => {
       hookOrder.push('before-compose')
     })
-    store.onAfterMessageComposed(async () => {
+    store.onAfterMessageComposed(() => {
       hookOrder.push('after-compose')
     })
-    store.onBeforeSend(async () => {
+    store.onBeforeSend(() => {
       hookOrder.push('before-send')
     })
-    store.onTokenLiteral(async () => {
+    store.onTokenLiteral(() => {
       hookOrder.push('token-literal')
     })
-    store.onStreamEnd(async () => {
+    store.onStreamEnd(() => {
       hookOrder.push('stream-end')
     })
-    store.onAssistantResponseEnd(async () => {
+    store.onAssistantResponseEnd(() => {
       hookOrder.push('assistant-end')
     })
-    store.onAfterSend(async () => {
+    store.onAfterSend(() => {
       hookOrder.push('after-send')
     })
-    store.onAssistantMessage(async () => {
+    store.onAssistantMessage(() => {
       hookOrder.push('assistant-message')
     })
-    store.onChatTurnComplete(async () => {
+    store.onChatTurnComplete(() => {
       hookOrder.push('turn-complete')
     })
 

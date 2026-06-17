@@ -60,7 +60,7 @@ vi.mock('@proj-airi/stage-ui/stores/settings', () => ({
 }))
 
 vi.mock('pinia', () => ({
-  storeToRefs: vi.fn().mockImplementation((val: any) => val),
+  storeToRefs: vi.fn().mockImplementation((val: unknown) => val),
 }))
 
 vi.mock('@vueuse/core', () => ({
@@ -71,7 +71,7 @@ vi.mock('@vueuse/core', () => ({
 beforeAll(() => {
   // Ensure window is available
   if (typeof window === 'undefined') {
-    ;(globalThis as any).window = {
+    ;(globalThis as Record<string, unknown>).window = {
       webkitSpeechRecognition: undefined,
       SpeechRecognition: undefined,
     }

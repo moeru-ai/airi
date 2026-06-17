@@ -16,6 +16,7 @@
 import type { ToolId } from "../capabilities/types.js"
 import type { TaskId } from "../tasks/types.js"
 import type { EventStore } from "../persistence/types.js"
+import type { AiriEvent } from "../events/types.js"
 
 // ── Redaction ──────────────────────────────────────────────────────────
 
@@ -147,7 +148,7 @@ export class ExecutionTrace {
 				taskId: entry.taskId as string,
 				success: entry.success,
 				durationMs: entry.durationMs,
-			} as any).catch(() => {
+			} as AiriEvent).catch(() => {
 				// Persistence failure should not block in-memory recording.
 			})
 		}

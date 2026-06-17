@@ -20,7 +20,9 @@ import type { TaskManager } from "../tasks/manager.js"
 import type { TaskResult } from "../tasks/types.js"
 import type { ToolRuntime } from "../runtime/tool-runtime.js"
 import type { ToolExecutionContext, WorkspaceContext } from "../capabilities/types.js"
+import { createToolId } from "../capabilities/types.js"
 import type { EventStore } from "../persistence/types.js"
+import type { AiriEvent } from "../events/types.js"
 import { createCancellationToken } from "../tasks/cancellation.js"
 import { withTimeout } from "../tasks/cancellation.js"
 import type { Plan, PlanId, PlanStep, StepId } from "./types.js"
@@ -274,7 +276,7 @@ export class PlanExecutor {
 			name: plan.name,
 		}
 
-		await this.options.eventStore.append(statusEvent as any).catch(() => {})
+		await this.options.eventStore.append(statusEvent as AiriEvent).catch(() => {})
 	}
 
 	// ── Step execution order ──────────────────────────────────────────────
@@ -512,7 +514,7 @@ export class PlanExecutor {
 		if (this.toolRuntime) {
 			// Check if the step's action field maps to a known tool.
 			const stepAction = task.metadata?.action as string | undefined
-			if (stepAction && this.toolRuntime.hasTool(stepAction as any)) {
+			if (stepAction && this.toolRuntime.hasTool(createToolId(stepAction))) {
 				const toolInput = (task.metadata?.stepInput as Record<string, unknown>) ?? {}
 				const stepToken = this.taskManager.getCancellationToken(taskId)
 				const toolCtx: ToolExecutionContext = {
@@ -527,7 +529,7 @@ export class PlanExecutor {
 				}
 
 				try {
-					const toolResult = await this.toolRuntime.execute(stepAction as any, toolInput, toolCtx)
+					const toolResult = await this.toolRuntime.execute(createToolId(stepAction), toolInput, toolCtx)
 
 					if (toolResult.success) {
 						this.taskManager.complete(taskId, { success: true, output: toolResult.output })

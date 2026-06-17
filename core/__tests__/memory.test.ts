@@ -1144,7 +1144,7 @@ describe("MemoryRetriever", () => {
 
 	it("traces retrieval", () => {
 		const query: MemoryQuery = { text: "test", maxResults: 5 }
-		const results: any[] = []
+		const results: unknown[] = []
 		const contextString = "## Semantic Memory Context"
 
 		const trace = retriever.traceRetrieval(query, results, contextString, "req-123")

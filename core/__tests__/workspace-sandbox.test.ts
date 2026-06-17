@@ -21,6 +21,7 @@ import type {
 	WorkspaceContext,
 	ToolExecutionContext,
 } from "../capabilities/types.js"
+import { createToolId, createCapabilityId } from "../capabilities/types.js"
 import { createWorkspaceId } from "../workspace/types.js"
 import { WorkspaceManager } from "../workspace/manager.js"
 import { CodeCapabilityAdapter } from "../../modules/code/capabilities/adapter.js"
@@ -118,13 +119,13 @@ describe("Workspace-scoped tool execution", () => {
 		const { registry, runtime } = createTestRuntime(manager)
 
 		// Register a test tool.
-		const toolId = "test.tool" as any
+		const toolId = createToolId("test.tool")
 		registry.register({
 			id: toolId,
 			name: "Test Tool",
 			description: "A test tool",
-			capabilityId: "test" as any,
-			tools: [{ id: toolId, name: "Test Tool", description: "A test tool", capabilityId: "test" as any, inputSchema: { type: "object" }, outputSchema: { type: "object" } }],
+			capabilityId: createCapabilityId("test"),
+			tools: [{ id: toolId, name: "Test Tool", description: "A test tool", capabilityId: createCapabilityId("test"), inputSchema: { type: "object" }, outputSchema: { type: "object" } }],
 		})
 
 		let handlerCalled = false
@@ -157,13 +158,13 @@ describe("Workspace-scoped tool execution", () => {
 	it("rejects execution with invalid lease token", async () => {
 		const { registry, runtime } = createTestRuntime(manager)
 
-		const toolId = "test.tool" as any
+		const toolId = createToolId("test.tool")
 		registry.register({
 			id: toolId,
 			name: "Test Tool",
 			description: "A test tool",
-			capabilityId: "test" as any,
-			tools: [{ id: toolId, name: "Test Tool", description: "A test tool", capabilityId: "test" as any, inputSchema: { type: "object" }, outputSchema: { type: "object" } }],
+			capabilityId: createCapabilityId("test"),
+			tools: [{ id: toolId, name: "Test Tool", description: "A test tool", capabilityId: createCapabilityId("test"), inputSchema: { type: "object" }, outputSchema: { type: "object" } }],
 		})
 
 		runtime.registerHandler(toolId, async () => "ok")
@@ -190,13 +191,13 @@ describe("Workspace-scoped tool execution", () => {
 	it("executes without workspace context (backward compatibility)", async () => {
 		const { registry, runtime } = createTestRuntime(manager)
 
-		const toolId = "test.tool" as any
+		const toolId = createToolId("test.tool")
 		registry.register({
 			id: toolId,
 			name: "Test Tool",
 			description: "A test tool",
-			capabilityId: "test" as any,
-			tools: [{ id: toolId, name: "Test Tool", description: "A test tool", capabilityId: "test" as any, inputSchema: { type: "object" }, outputSchema: { type: "object" } }],
+			capabilityId: createCapabilityId("test"),
+			tools: [{ id: toolId, name: "Test Tool", description: "A test tool", capabilityId: createCapabilityId("test"), inputSchema: { type: "object" }, outputSchema: { type: "object" } }],
 		})
 
 		runtime.registerHandler(toolId, async () => "ok")
@@ -211,13 +212,13 @@ describe("Workspace-scoped tool execution", () => {
 	it("executes without workspace manager (backward compatibility)", async () => {
 		const { registry, runtime } = createTestRuntime(undefined)
 
-		const toolId = "test.tool" as any
+		const toolId = createToolId("test.tool")
 		registry.register({
 			id: toolId,
 			name: "Test Tool",
 			description: "A test tool",
-			capabilityId: "test" as any,
-			tools: [{ id: toolId, name: "Test Tool", description: "A test tool", capabilityId: "test" as any, inputSchema: { type: "object" }, outputSchema: { type: "object" } }],
+			capabilityId: createCapabilityId("test"),
+			tools: [{ id: toolId, name: "Test Tool", description: "A test tool", capabilityId: createCapabilityId("test"), inputSchema: { type: "object" }, outputSchema: { type: "object" } }],
 		})
 
 		runtime.registerHandler(toolId, async () => "ok")
@@ -390,11 +391,11 @@ describe("Workspace manager integration", () => {
 		const adapter = new CodeCapabilityAdapter(registry, events)
 		adapter.registerCapabilities()
 
-		expect(registry.hasTool("code.read_file" as any)).toBe(true)
-		expect(registry.hasTool("code.list_files" as any)).toBe(true)
-		expect(registry.hasTool("code.search_files" as any)).toBe(true)
-		expect(registry.hasTool("code.apply_diff" as any)).toBe(true)
-		expect(registry.hasTool("code.execute_command" as any)).toBe(true)
+		expect(registry.hasTool(createToolId("code.read_file"))).toBe(true)
+		expect(registry.hasTool(createToolId("code.list_files"))).toBe(true)
+		expect(registry.hasTool(createToolId("code.search_files"))).toBe(true)
+		expect(registry.hasTool(createToolId("code.apply_diff"))).toBe(true)
+		expect(registry.hasTool(createToolId("code.execute_command"))).toBe(true)
 	})
 })
 

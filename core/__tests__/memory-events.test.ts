@@ -18,6 +18,7 @@ import type {
 	FailureRecorded,
 	FailurePatternDetected,
 } from "../events/types.js"
+import { createMemoryId, createRepositoryMapId } from "../memory/types.js"
 
 // ── Event type verification ──────────────────────────────────────────────
 
@@ -27,7 +28,7 @@ describe("Memory event types in AiriEvent union", () => {
 			type: "memory.stored",
 			timestamp: "2024-01-01T00:00:00Z",
 			source: "memory-registry",
-			memoryId: "mem-123" as any,
+			memoryId: createMemoryId("mem-123"),
 			scope: "workspace",
 			memoryType: "decision",
 			title: "Test Memory",
@@ -57,7 +58,7 @@ describe("Memory event types in AiriEvent union", () => {
 			type: "memory.updated",
 			timestamp: "2024-01-01T00:00:00Z",
 			source: "memory-registry",
-			memoryId: "mem-123" as any,
+			memoryId: createMemoryId("mem-123"),
 			title: "Updated Title",
 		}
 
@@ -70,7 +71,7 @@ describe("Memory event types in AiriEvent union", () => {
 			type: "memory.removed",
 			timestamp: "2024-01-01T00:00:00Z",
 			source: "memory-registry",
-			memoryId: "mem-123" as any,
+			memoryId: createMemoryId("mem-123"),
 		}
 
 		const airiEvent: AiriEvent = event
@@ -82,7 +83,7 @@ describe("Memory event types in AiriEvent union", () => {
 			type: "repository.indexed",
 			timestamp: "2024-01-01T00:00:00Z",
 			source: "repository-scanner",
-			mapId: "repo-123" as any,
+			mapId: createRepositoryMapId("repo-123"),
 			repositoryPath: "/test/repo",
 			filesIndexed: 42,
 			importEdges: 15,
@@ -97,7 +98,7 @@ describe("Memory event types in AiriEvent union", () => {
 			type: "decision.recorded",
 			timestamp: "2024-01-01T00:00:00Z",
 			source: "decision-memory",
-			memoryId: "mem-123" as any,
+			memoryId: createMemoryId("mem-123"),
 			decisionType: "accepted",
 			proposalId: "prop-123",
 			title: "Test Decision",
@@ -112,7 +113,7 @@ describe("Memory event types in AiriEvent union", () => {
 			type: "failure.recorded",
 			timestamp: "2024-01-01T00:00:00Z",
 			source: "failure-memory",
-			memoryId: "mem-123" as any,
+			memoryId: createMemoryId("mem-123"),
 			failureType: "execution",
 			error: "Connection timeout",
 		}
@@ -145,7 +146,7 @@ describe("Memory event payloads", () => {
 			type: "memory.stored",
 			timestamp: "2024-01-01T00:00:00Z",
 			source: "memory-registry",
-			memoryId: "mem-001" as any,
+			memoryId: createMemoryId("mem-001"),
 			scope: "workspace",
 			memoryType: "decision",
 			title: "Use JWT for auth",
@@ -177,7 +178,7 @@ describe("Memory event payloads", () => {
 			type: "repository.indexed",
 			timestamp: "2024-01-01T00:00:00Z",
 			source: "repository-scanner",
-			mapId: "repo-789" as any,
+			mapId: createRepositoryMapId("repo-789"),
 			repositoryPath: "/projects/myapp",
 			filesIndexed: 150,
 			importEdges: 320,
@@ -193,7 +194,7 @@ describe("Memory event payloads", () => {
 			type: "decision.recorded",
 			timestamp: "2024-01-01T00:00:00Z",
 			source: "cognition-coordinator",
-			memoryId: "mem-002" as any,
+			memoryId: createMemoryId("mem-002"),
 			decisionType: "rejected",
 			proposalId: "prop-789",
 			title: "Migrate to microservices",
@@ -209,7 +210,7 @@ describe("Memory event payloads", () => {
 			type: "failure.recorded",
 			timestamp: "2024-01-01T00:00:00Z",
 			source: "failure-memory",
-			memoryId: "mem-003" as any,
+			memoryId: createMemoryId("mem-003"),
 			failureType: "workspace",
 			error: "Workspace corruption on concurrent access",
 		}
@@ -242,7 +243,7 @@ describe("Event narrowing via type field", () => {
 			type: "memory.stored",
 			timestamp: "2024-01-01T00:00:00Z",
 			source: "test",
-			memoryId: "mem-001" as any,
+			memoryId: createMemoryId("mem-001"),
 			scope: "global",
 			memoryType: "context",
 			title: "Test",

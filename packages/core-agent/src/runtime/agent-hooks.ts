@@ -247,7 +247,7 @@ export function createAgentHooks<TContext, TAssistantMessage, TToolCall>(): Agen
     onChatTurnCompleteHooks.length = 0
   }
 
-  async function emitHooks<T extends any[]>(hooks: Array<(...args: T) => Promise<void>>, ...args: T) {
+  async function emitHooks<T extends unknown[]>(hooks: Array<(...args: T) => Promise<void>>, ...args: T) {
     for (const hook of hooks) await hook(...args)
   }
 

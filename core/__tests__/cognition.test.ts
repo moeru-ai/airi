@@ -41,6 +41,7 @@ import { createCapabilityId, createToolId } from "../capabilities/types.js"
 import { createWorkspaceId } from "../workspace/types.js"
 import { InMemoryEventStore, InMemorySnapshotStore, SnapshotManager } from "../persistence/index.js"
 import type { SerializedProposal, SerializedReasoningTrace } from "../persistence/types.js"
+import type { AiriEvent } from "../events/types.js"
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -796,7 +797,7 @@ describe("Replay Consistency", () => {
 			type: "cognition.requested",
 			requestId: createReasoningId("r1") as string,
 			sessionId: "session-1",
-		} as any)
+		} as AiriEvent)
 
 		await eventStore.append({
 			timestamp: new Date().toISOString(),
@@ -807,7 +808,7 @@ describe("Replay Consistency", () => {
 			name: "Test Plan",
 			stepCount: 3,
 			confidence: 0.9,
-		} as any)
+		} as AiriEvent)
 
 		await eventStore.append({
 			timestamp: new Date().toISOString(),
@@ -816,7 +817,7 @@ describe("Replay Consistency", () => {
 			proposalId: createProposalId("p1") as string,
 			planId: "plan-1",
 			validationResult: { valid: true, errors: [], warnings: [] },
-		} as any)
+		} as AiriEvent)
 
 		// Verify events were stored.
 		const count = await eventStore.getEventCount()

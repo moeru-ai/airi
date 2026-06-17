@@ -51,36 +51,7 @@ export class CancellationTokenSource {
 	readonly token: CancellationToken
 
 	constructor(parent?: CancellationToken) {
-		// NOTICE: `self` alias is required because the object literal below uses
-		// getters and methods whose `this` refers to the token object, not the
-		// CancellationTokenSource instance. DeepSource JS-0342 flags this, but
-		// there's no alternative that preserves access to private fields.
-		const self = this // deepsource: ignore
-
-		this.token = {
-			get isCancelled() {
-				return self._isCancelled
-			},
-			onCancelled(handler: (reason?: string) => void) {
-				if (self._isCancelled) {
-					try {
-						handler(self._reason)
-					} catch {
-						// Handler errors are swallowed.
-					}
-					return () => {}
-				}
-				self.handlers.add(handler)
-				return () => {
-					self.handlers.delete(handler)
-				}
-			},
-			throwIfCancelled() {
-				if (self._isCancelled) {
-					throw new Error(self._reason ? `Task cancelled: ${self._reason}` : "Task cancelled")
-				}
-			},
-		}
+		this.token = this.buildToken()
 
 		if (parent) {
 			this.parentUnsubscribe = parent.onCancelled((reason) => {
@@ -94,6 +65,44 @@ export class CancellationTokenSource {
 
 	get isCancelled(): boolean {
 		return this._isCancelled
+	}
+
+	/**
+	 * Build the consumer-facing token object.
+	 *
+	 * Extracted as a method so arrow functions close over `this` (the
+	 * CancellationTokenSource instance) instead of aliasing it to a local
+	 * variable — avoids DeepSource JS-0342 (aliasing this).
+	 */
+	private buildToken(): CancellationToken {
+		const checkCancelled = () => this._isCancelled
+		const getReason = () => this._reason
+
+		return {
+			get isCancelled() {
+				return checkCancelled()
+			},
+			onCancelled: (handler: (reason?: string) => void) => {
+				if (checkCancelled()) {
+					try {
+						handler(getReason())
+					} catch {
+						// Handler errors are swallowed.
+					}
+					return () => {}
+				}
+				this.handlers.add(handler)
+				return () => {
+					this.handlers.delete(handler)
+				}
+			},
+			throwIfCancelled: () => {
+				if (checkCancelled()) {
+					const reason = getReason()
+					throw new Error(reason ? `Task cancelled: ${reason}` : "Task cancelled")
+				}
+			},
+		}
 	}
 
 	cancel(reason?: string): void {

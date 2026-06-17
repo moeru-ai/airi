@@ -9,7 +9,7 @@ describe('setupAgentSparkNotifyHandler', () => {
     const traces: unknown[] = []
     const handler = setupAgentSparkNotifyHandler({
       stream: async (_model, _provider, _messages, options) => {
-        const commandTool = options.tools?.find((tool: any) => tool.function?.name === 'builtIn_sparkCommand')
+        const commandTool = options.tools?.find((tool: Record<string, unknown>) => (tool.function as Record<string, unknown> | undefined)?.name === 'builtIn_sparkCommand') as { execute: (input: unknown) => Promise<unknown> } | undefined
         await commandTool?.execute({
           commands: [
             {
@@ -22,11 +22,11 @@ describe('setupAgentSparkNotifyHandler', () => {
             },
           ],
         })
-        await options.onStreamEvent?.({ type: 'finish' } as any)
+        await options.onStreamEvent?.({ type: 'finish' } as Parameters<NonNullable<typeof options.onStreamEvent>>[0])
       },
       getActiveProvider: () => 'mock-provider',
       getActiveModel: () => 'mock-model',
-      getProviderInstance: async () => ({}) as any,
+      getProviderInstance: async () => ({}) as Record<string, unknown>,
       onReactionDelta: vi.fn(),
       onReactionEnd: vi.fn(),
       getSystemPrompt: () => 'system',
@@ -35,7 +35,7 @@ describe('setupAgentSparkNotifyHandler', () => {
       getPending: () => [],
       setPending: vi.fn(),
       onTrace: (event: unknown) => traces.push(event),
-    } as any)
+    } as unknown as Parameters<typeof setupAgentSparkNotifyHandler>[0])
 
     const event: WebSocketEventOf<'spark:notify'> = {
       type: 'spark:notify',
@@ -58,14 +58,14 @@ describe('setupAgentSparkNotifyHandler', () => {
 
   it('routes forceSparkCommandResponse to the model call', async () => {
     const stream = vi.fn(async (_model, _provider, _messages, options) => {
-      await options.onStreamEvent?.({ type: 'finish' } as any)
+      await options.onStreamEvent?.({ type: 'finish' } as Parameters<NonNullable<typeof options.onStreamEvent>>[0])
     })
 
     const handler = setupAgentSparkNotifyHandler({
       stream,
       getActiveProvider: () => 'mock-provider',
       getActiveModel: () => 'mock-model',
-      getProviderInstance: async () => ({}) as any,
+      getProviderInstance: async () => ({}) as Record<string, unknown>,
       onReactionDelta: vi.fn(),
       onReactionEnd: vi.fn(),
       getSystemPrompt: () => 'system',
@@ -90,7 +90,7 @@ describe('setupAgentSparkNotifyHandler', () => {
 
     await handler.handle(event, {
       forceSparkCommandResponse: true,
-    } as any)
+    } as Parameters<typeof handler.handle>[1])
 
     const streamOptions = stream.mock.calls[0]?.[3] as { toolChoice?: unknown } | undefined
     expect(streamOptions?.toolChoice).toEqual({
@@ -106,14 +106,14 @@ describe('setupAgentSparkNotifyHandler', () => {
       expect(String(messages[0]?.content)).toContain('Extra instruction: stay concise.')
       expect(String(messages[1]?.content)).toContain('"headline": "override update"')
       expect(String(messages[1]?.content)).toContain('Rendered board: white to move, fen=...')
-      await options.onStreamEvent?.({ type: 'finish' } as any)
+      await options.onStreamEvent?.({ type: 'finish' } as Parameters<NonNullable<typeof options.onStreamEvent>>[0])
     })
 
     const handler = setupAgentSparkNotifyHandler({
       stream,
       getActiveProvider: () => 'mock-provider',
       getActiveModel: () => 'mock-model',
-      getProviderInstance: async () => ({}) as any,
+      getProviderInstance: async () => ({}) as Record<string, unknown>,
       onReactionDelta: vi.fn(),
       onReactionEnd: vi.fn(),
       getSystemPrompt: () => 'system',

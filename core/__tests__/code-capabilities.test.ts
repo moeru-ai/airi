@@ -489,7 +489,7 @@ describe("CodeToolExecutor", () => {
 	it("executes a registered tool", async () => {
 		const registry = new CapabilityRegistry()
 		registry.register(new ReadFileTool())
-		const executor = new CodeToolExecutor(registry as any)
+		const executor = new CodeToolExecutor(registry as unknown as ConstructorParameters<typeof CodeToolExecutor>[0])
 		const ctx = createTestContext(workspaceDir)
 
 		const output = await executor.execute(
@@ -505,7 +505,7 @@ describe("CodeToolExecutor", () => {
 
 	it("returns error for unknown tool", async () => {
 		const registry = new CapabilityRegistry()
-		const executor = new CodeToolExecutor(registry as any)
+		const executor = new CodeToolExecutor(registry as unknown as ConstructorParameters<typeof CodeToolExecutor>[0])
 		const ctx = createTestContext(workspaceDir)
 
 		const output = await executor.execute(
@@ -520,7 +520,7 @@ describe("CodeToolExecutor", () => {
 	it("returns validation error for invalid input", async () => {
 		const registry = new CapabilityRegistry()
 		registry.register(new ReadFileTool())
-		const executor = new CodeToolExecutor(registry as any)
+		const executor = new CodeToolExecutor(registry as unknown as ConstructorParameters<typeof CodeToolExecutor>[0])
 		const ctx = createTestContext(workspaceDir)
 
 		const output = await executor.execute(
@@ -535,7 +535,7 @@ describe("CodeToolExecutor", () => {
 	it("cancels execution for cancelled task", async () => {
 		const registry = new CapabilityRegistry()
 		registry.register(new ReadFileTool())
-		const executor = new CodeToolExecutor(registry as any)
+		const executor = new CodeToolExecutor(registry as unknown as ConstructorParameters<typeof CodeToolExecutor>[0])
 		const ctx = createTestContext(workspaceDir)
 
 		// Cancel the task.

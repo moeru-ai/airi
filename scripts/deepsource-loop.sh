@@ -17,7 +17,7 @@ preflight() {
   log "Pre-flight OK"
 }
 run_cycle() {
-  local run_num=$1; log "=== Starting run $run_num ==="
+  local run_num="$1"; log "=== Starting run $run_num ==="
   local output exit_code=0
   output=$(node "$SCRIPT_DIR/deepsource-selfheal.cjs" 2>>"$LOG_FILE") || exit_code=$?
   if [ "$exit_code" -ne 0 ]; then log "ERROR: script exited $exit_code"; return 1; fi

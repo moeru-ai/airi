@@ -30,11 +30,7 @@ export type ProviderInstance =
 export function isModelProvider(
   providerInstance: ProviderInstance,
 ): providerInstance is ModelProvider | ModelProviderWithExtraOptions {
-  if ('model' in providerInstance && typeof providerInstance.model === 'function') {
-    return true
-  }
-
-  return false
+  return 'model' in providerInstance && typeof providerInstance.model === 'function'
 }
 
 export interface ProviderOnboardingField {

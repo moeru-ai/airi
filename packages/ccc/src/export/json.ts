@@ -57,7 +57,7 @@ function formatMessageExample(messageExample: string[][] | undefined): string {
  * @param data Source card data
  * @returns Extensions object
  */
-function createExtensions(data: Card): Record<string, any> {
+function createExtensions(data: Card): Record<string, unknown> {
   return {
     depth_prompt: {
       depth: 4,

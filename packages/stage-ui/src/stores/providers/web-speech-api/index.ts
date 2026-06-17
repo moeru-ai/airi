@@ -27,14 +27,14 @@ declare global {
     abort(): void
   }
   // eslint-disable-next-line no-var
+  // deepsource: ignore
   var SpeechRecognition: {
-    // deepsource: ignore
     new (): SpeechRecognition
     prototype: SpeechRecognition
   }
   // eslint-disable-next-line no-var
+  // deepsource: ignore
   var webkitSpeechRecognition: {
-    // deepsource: ignore
     new (): SpeechRecognition
     prototype: SpeechRecognition
   }

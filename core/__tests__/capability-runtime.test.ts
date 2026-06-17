@@ -204,7 +204,7 @@ describe("CapabilityRegistry", () => {
 		})
 
 		it("returns false for unknown capability", () => {
-			expect(registry.unregister("unknown" as any)).toBe(false)
+			expect(registry.unregister(createCapabilityId("unknown"))).toBe(false)
 		})
 
 		it("removes tool mappings on unregister", () => {
@@ -228,7 +228,7 @@ describe("CapabilityRegistry", () => {
 		})
 
 		it("returns undefined for unknown ID", () => {
-			expect(registry.get("unknown" as any)).toBeUndefined()
+			expect(registry.get(createCapabilityId("unknown"))).toBeUndefined()
 		})
 	})
 

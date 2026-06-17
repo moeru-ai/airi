@@ -718,8 +718,8 @@ describe("WorkspaceWorktree", () => {
 			try {
 				fs.accessSync(worktreePath)
 				throw new Error("Worktree should have been removed")
-			} catch (error: any) {
-				expect(error.code).toBe("ENOENT")
+			} catch (error: unknown) {
+				expect((error as NodeJS.ErrnoException).code).toBe("ENOENT")
 			}
 		})
 	})
@@ -785,7 +785,7 @@ describe("Workspace events", () => {
 		})
 
 		expect(received).toHaveLength(1)
-		expect((received[0] as any).name).toBe("event-test")
+		expect((received[0] as Record<string, unknown>).name).toBe("event-test")
 	})
 
 	it("emits workspace.leased on lease", async () => {
@@ -801,8 +801,8 @@ describe("Workspace events", () => {
 		manager.leaseWorkspace(ws.id, "session-1")
 
 		expect(received).toHaveLength(1)
-		expect((received[0] as any).sessionId).toBe("session-1")
-		expect((received[0] as any).leaseToken).toBeDefined()
+		expect((received[0] as Record<string, unknown>).sessionId).toBe("session-1")
+		expect((received[0] as Record<string, unknown>).leaseToken).toBeDefined()
 	})
 
 	it("emits workspace.released on release", async () => {
@@ -819,7 +819,7 @@ describe("Workspace events", () => {
 		manager.releaseWorkspace(ws.id, lease.leaseToken)
 
 		expect(received).toHaveLength(1)
-		expect((received[0] as any).sessionId).toBe("session-1")
+		expect((received[0] as Record<string, unknown>).sessionId).toBe("session-1")
 	})
 
 	it("emits workspace.destroyed on destruction", async () => {
@@ -835,7 +835,7 @@ describe("Workspace events", () => {
 		await manager.destroyWorkspace(ws.id)
 
 		expect(received).toHaveLength(1)
-		expect((received[0] as any).name).toBe("event-test")
+		expect((received[0] as Record<string, unknown>).name).toBe("event-test")
 	})
 })
 

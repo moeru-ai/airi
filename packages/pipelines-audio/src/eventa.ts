@@ -14,18 +14,18 @@ export const speechSegmentEvent = defineEventa<TextSegment>('proj-airi:pipelines
 export const speechSpecialEvent = defineEventa<TextSegment>('proj-airi:pipelines:output:speech:special')
 
 export const speechTtsRequestEvent = defineEventa<TtsRequest>('proj-airi:pipelines:output:speech:tts-request')
-export const speechTtsResultEvent = defineEventa<TtsResult<any>>('proj-airi:pipelines:output:speech:tts-result')
+export const speechTtsResultEvent = defineEventa<TtsResult<unknown>>('proj-airi:pipelines:output:speech:tts-result')
 
-export const speechPlaybackStartEvent = defineEventa<PlaybackStartEvent<any>>(
+export const speechPlaybackStartEvent = defineEventa<PlaybackStartEvent<unknown>>(
   'proj-airi:pipelines:output:speech:playback-start',
 )
-export const speechPlaybackEndEvent = defineEventa<PlaybackEndEvent<any>>(
+export const speechPlaybackEndEvent = defineEventa<PlaybackEndEvent<unknown>>(
   'proj-airi:pipelines:output:speech:playback-end',
 )
-export const speechPlaybackInterruptEvent = defineEventa<PlaybackInterruptEvent<any>>(
+export const speechPlaybackInterruptEvent = defineEventa<PlaybackInterruptEvent<unknown>>(
   'proj-airi:pipelines:output:speech:playback-interrupt',
 )
-export const speechPlaybackRejectEvent = defineEventa<PlaybackRejectEvent<any>>(
+export const speechPlaybackRejectEvent = defineEventa<PlaybackRejectEvent<unknown>>(
   'proj-airi:pipelines:output:speech:playback-reject',
 )
 

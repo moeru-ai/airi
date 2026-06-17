@@ -254,7 +254,7 @@ export class SnapshotManager {
 
 		await this.store.save(snapshot)
 
-		this.events.emit("snapshot.taken", { version: snapshot.version, timestamp: snapshot.timestamp } as any)
+		this.events.emit("snapshot.taken", { version: snapshot.version, timestamp: snapshot.timestamp })
 
 		// Persist recovery metadata.
 		if (this.stateStore) {
