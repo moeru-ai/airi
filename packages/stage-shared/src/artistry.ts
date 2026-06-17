@@ -24,7 +24,13 @@ export const artistryTestComfyUIConnection = defineInvokeEventa<ArtistryTestComf
 
 export const artistryGenerateHeadless = defineInvokeEventa<
   { imageUrl?: string; base64?: string; error?: string },
-  { prompt: string; model?: string; provider?: string; options?: Record<string, any>; globals?: Record<string, any> }
+  {
+    prompt: string
+    model?: string
+    provider?: string
+    options?: Record<string, unknown>
+    globals?: Record<string, unknown>
+  }
 >('eventa:invoke:electron:artistry:generate-headless')
 
 export const REPLICATE_IMAGEGEN_PRESETS = [

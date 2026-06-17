@@ -13,6 +13,10 @@ export function useProviderValidation(providerId: string) {
   const { t } = useI18n()
   const router = useRouter()
   const providersStore = useProvidersStore()
+  // deepsource:issue=JS-0323
+  // NOTICE: `any` is required for the provider config record because the store
+  // values are dynamically typed per-provider (apiKey, baseUrl, accountId, etc.).
+  // Using `unknown` would break property access patterns throughout this composable.
   const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
 
   const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))

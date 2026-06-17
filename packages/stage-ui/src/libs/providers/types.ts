@@ -141,7 +141,10 @@ export interface VoiceInfo {
   }[]
 }
 
-// eslint-disable-next-line ts/no-unnecessary-type-constraint
+// deepsource:issue=JS-0323
+// NOTICE: `any` is required here as the generic default because TConfig appears
+// in contravariant position (createProvider parameter). Using `unknown` or
+// `Record<string, unknown>` would break assignability of typed provider defs.
 export interface ProviderDefinition<TConfig extends any = any> {
   id: string
   order?: number

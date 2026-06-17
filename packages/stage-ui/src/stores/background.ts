@@ -22,6 +22,15 @@ export interface BackgroundEntry {
   createdAt: number
 }
 
+/** Legacy background entry shape from the old `image-journal-*` store format */
+interface LegacyBackgroundEntry {
+  characterId?: string | null
+  title?: string
+  blob: Blob
+  prompt?: string
+  createdAt?: number
+}
+
 const BUILTIN_BACKGROUNDS = [
   {
     id: 'builtin:cozy-tea-corner',
@@ -105,16 +114,17 @@ export const useBackgroundStore = defineStore('background-entries', () => {
       const legacyEntriesToMigrate: BackgroundEntry[] = []
       const legacyKeysToDelete: string[] = []
 
-      await localforage.iterate<any, void>((val, key) => {
+      await localforage.iterate<LegacyBackgroundEntry, void>((val, key) => {
         if (key.startsWith(legacyPrefix)) {
           legacyKeysToDelete.push(key)
+          if (!val || !(val.blob instanceof Blob)) return
           const newId = key.replace(legacyPrefix, STORAGE_PREFIX)
 
           if (!loadedEntries.has(newId)) {
             const migrated: BackgroundEntry = {
               id: newId,
               type: 'journal',
-              characterId: val.characterId,
+              characterId: val.characterId ?? null,
               title: val.title || 'Migrated Journal Image',
               blob: val.blob,
               prompt: val.prompt,

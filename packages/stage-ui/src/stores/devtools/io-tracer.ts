@@ -11,8 +11,8 @@ import { activeTurnSpan, initIOTracer, onIOSpan, onRemoteIOSpan } from '../../co
 
 const MAX_TURNS = 50
 
-function attrsToMeta(attrs: Attributes): Record<string, any> {
-  const meta: Record<string, any> = {}
+function attrsToMeta(attrs: Attributes): Record<string, unknown> {
+  const meta: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(attrs)) {
     const shortKey = key === IOAttributes.TooltipKeys ? 'tooltipKeys' : key.includes('.') ? key.split('.').at(-1)! : key
     meta[shortKey] = value
