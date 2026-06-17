@@ -105,6 +105,8 @@ export async function* chunkTtsInput(
             }
           }
         }
+        default:
+          break
       }
 
       if (buffer.length === 0) {

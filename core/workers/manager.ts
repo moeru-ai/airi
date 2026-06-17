@@ -369,6 +369,9 @@ export class WorkerManager {
 			case "task.failure":
 				this.handleTaskFailure(worker, message)
 				break
+
+			default:
+				break
 		}
 	}
 

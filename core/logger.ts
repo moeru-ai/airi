@@ -96,6 +96,8 @@ function log(source: string, level: LogLevel, message: string, ...args: unknown[
 		case "error":
 			console.error(formatted)
 			break
+		default:
+			break
 	}
 }
 

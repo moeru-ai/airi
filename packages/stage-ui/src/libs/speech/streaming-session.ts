@@ -107,7 +107,7 @@ export async function streamingSynthesize(options: StreamingTtsSessionOptions): 
       } finally {
         try {
           if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) ws.close()
-        // eslint-disable-next-line no-empty
+          // eslint-disable-next-line no-empty
         } catch {
           // noop
         }
@@ -162,7 +162,7 @@ export async function streamingSynthesize(options: StreamingTtsSessionOptions): 
         let evt: StreamingTtsServerEvent
         try {
           evt = JSON.parse(e.data) as StreamingTtsServerEvent
-        // eslint-disable-next-line default-case
+          // eslint-disable-next-line default-case
         } catch {
           return
         }
@@ -191,6 +191,8 @@ export async function streamingSynthesize(options: StreamingTtsSessionOptions): 
             settle(() => reject(new Error(`${code}: ${message}`)))
             break
           }
+          default:
+            break
         }
         return
       }
@@ -227,7 +229,6 @@ export async function streamingSynthesize(options: StreamingTtsSessionOptions): 
     })
   })
 }
-
 
 function concatArrayBuffers(parts: ArrayBuffer[]): ArrayBuffer {
   if (parts.length === 0) return new ArrayBuffer(0)
