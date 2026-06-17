@@ -3,43 +3,8 @@
 import type { Configuration } from 'electron-builder'
 
 import { execSync } from 'node:child_process'
-import { cpSync, existsSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 
 import { isMacOS } from 'std-env'
-
-import { STEAM_APP_ID } from './src/main/services/steam/types'
-
-const packageDir = dirname(fileURLToPath(import.meta.url))
-
-function copySteamRuntimeIntoApp(appOutDir: string, platform: string) {
-  writeFileSync(join(appOutDir, 'steam_appid.txt'), `${STEAM_APP_ID}\n`, 'utf8')
-
-  const sdkRoot = join(packageDir, 'steamworks_sdk', 'redistributable_bin')
-  if (!existsSync(sdkRoot)) {
-    console.warn('[electron-builder] steamworks_sdk missing; packaged steam_appid.txt only')
-    return
-  }
-
-  const files: Record<string, { from: string, to: string }> = {
-    win32: { from: 'win64/steam_api64.dll', to: 'steam_api64.dll' },
-    darwin: { from: 'osx/libsteam_api.dylib', to: 'libsteam_api.dylib' },
-    linux: { from: 'linux64/libsteam_api.so', to: 'libsteam_api.so' },
-  }
-
-  const entry = files[platform]
-  if (!entry)
-    return
-
-  const src = join(sdkRoot, entry.from)
-  if (!existsSync(src)) {
-    console.warn(`[electron-builder] missing Steam redistributable: ${src}`)
-    return
-  }
-
-  cpSync(src, join(appOutDir, entry.to))
-}
 
 function hasXcode26OrAbove() {
   if (!isMacOS)
@@ -133,9 +98,6 @@ export default {
     '**/*.node',
     '**/node_modules/steamworks-ffi-node/**',
   ],
-  afterPack: async (context) => {
-    copySteamRuntimeIntoApp(context.appOutDir, context.electronPlatformName)
-  },
   extraResources: [
     {
       from: '../../engines/stage-tamagotchi-godot/build/${os}',

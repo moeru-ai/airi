@@ -11,6 +11,9 @@ env:
   FLATPAK_BUNDLE_NAME: ''
   PRODUCT_NAME: 'AIRI'
   VERSION: ''
+  # NOTICE: Temporary public mirror for CI until an org-private SDK bundle exists.
+  STEAMWORKS_SDK_MIRROR_REPO: rlabrecque/SteamworksSDK
+  STEAMWORKS_SDK_MIRROR_REF: be6107f4b75bf996531415c53a6488a33a2a1be3
 
 on:
   release:
@@ -214,7 +217,11 @@ jobs:
 
           New-Item -ItemType Directory -Force steam-content/windows | Out-Null
           Copy-Item apps/stage-tamagotchi/dist/win-unpacked/* steam-content/windows -Recurse -Force
-          pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/copy-steam-redistributables.ts windows steam-content/windows
+          pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/pack-steam-redistributables.ts windows steam-content/windows
+          if (!(Test-Path 'steam-content/windows/steamworks_sdk/redistributable_bin/win64/steam_api64.dll')) {
+            Write-Error 'Steam redistributable missing from steam-content/windows'
+            exit 1
+          }
           tar -cf steam-content-windows.tar -C steam-content windows
 
       - name: Upload Windows Steam content
@@ -253,7 +260,11 @@ jobs:
 
           mkdir -p steam-content/macos
           ditto "$app_path" steam-content/macos/AIRI.app
-          pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/copy-steam-redistributables.ts macos "steam-content/macos/AIRI.app/Contents/MacOS"
+          pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/pack-steam-redistributables.ts macos "steam-content/macos/AIRI.app/Contents/MacOS"
+          if [ ! -f steam-content/macos/AIRI.app/Contents/MacOS/steamworks_sdk/redistributable_bin/osx/libsteam_api.dylib ]; then
+            echo "Steam redistributable missing from steam-content/macos/AIRI.app"
+            exit 1
+          fi
           tar -cf steam-content-macos.tar -C steam-content macos
 
       - name: Upload macOS Steam content
@@ -275,7 +286,11 @@ jobs:
 
           mkdir -p steam-content/linux
           cp -a apps/stage-tamagotchi/dist/linux-unpacked/. steam-content/linux/
-          pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/copy-steam-redistributables.ts linux steam-content/linux
+          pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/pack-steam-redistributables.ts linux steam-content/linux
+          if [ ! -f steam-content/linux/steamworks_sdk/redistributable_bin/linux64/libsteam_api.so ]; then
+            echo "Steam redistributable missing from steam-content/linux"
+            exit 1
+          fi
           tar -cf steam-content-linux.tar -C steam-content linux
 
       - name: Upload Linux Steam content
