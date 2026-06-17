@@ -10,12 +10,10 @@ import SpineModel from './spine/Model.vue'
 withDefaults(
   defineProps<{
     modelSrc?: string
-    modelId?: string
     paused?: boolean
     premultipliedAlpha?: boolean
     defaultMixDuration?: number
     idleAnimationEnabled?: boolean
-    maxFps?: number
     renderScale?: number
   }>(),
   {
@@ -23,7 +21,6 @@ withDefaults(
     premultipliedAlpha: true,
     defaultMixDuration: 0.2,
     idleAnimationEnabled: true,
-    maxFps: 0,
     renderScale: 1,
   },
 )
@@ -64,7 +61,6 @@ defineExpose({
         ref="modelRef"
         v-model:state="componentStateModel"
         :model-src="modelSrc"
-        :model-id="modelId"
         :canvas="canvas"
         :width="width"
         :height="height"
@@ -72,7 +68,6 @@ defineExpose({
         :premultiplied-alpha="premultipliedAlpha"
         :default-mix-duration="defaultMixDuration"
         :idle-animation-enabled="idleAnimationEnabled"
-        :max-fps="maxFps"
       />
     </SpineCanvas>
   </Screen>

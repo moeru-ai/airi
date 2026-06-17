@@ -1,5 +1,4 @@
-import type { EventContext } from '@moeru/eventa'
-
+import type { ChannelHost } from '../../../../channels/shared'
 import type { KitCapabilityDescriptor, KitDescriptor } from '../../../../plugin-host/shared'
 
 /**
@@ -85,7 +84,7 @@ function requireBinding<TBinding>(binding: TBinding | undefined, method: string)
  * - A minimal `kits.*` client that forwards to the bound host callbacks
  */
 export function createKits<TKit extends KitDescriptor = KitDescriptor>(
-  _ctx: EventContext<any, any>,
+  _ctx: ChannelHost,
   bindings?: KitClientBindings<TKit>,
 ) {
   return {

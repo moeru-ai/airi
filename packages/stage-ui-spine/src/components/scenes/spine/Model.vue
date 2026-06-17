@@ -19,7 +19,6 @@ import { loadSpineZip } from '../../../utils/spine-zip-loader'
 const props = withDefaults(
   defineProps<{
     modelSrc?: string
-    modelId?: string
     canvas?: HTMLCanvasElement
     width: number
     height: number
@@ -27,14 +26,12 @@ const props = withDefaults(
     premultipliedAlpha?: boolean
     defaultMixDuration?: number
     idleAnimationEnabled?: boolean
-    maxFps?: number
   }>(),
   {
     paused: false,
     premultipliedAlpha: true,
     defaultMixDuration: 0.2,
     idleAnimationEnabled: true,
-    maxFps: 0,
   },
 )
 

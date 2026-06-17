@@ -1,5 +1,4 @@
-import type { EventContext } from '@moeru/eventa'
-
+import type { ChannelHost } from '../../../../channels/shared'
 import type { BindingUpdatePatch } from '../../../../plugin-host/runtimes/shared'
 import type { BindingRecord } from '../../../../plugin-host/shared'
 import type { HostDataRecord } from '../../../../plugin-host/shared/types'
@@ -213,7 +212,7 @@ function requireBinding<TBinding>(binding: TBinding | undefined, method: string)
  * - A minimal `bindings.*` client that forwards to the bound host callbacks
  */
 export function createBindings<C extends HostDataRecord = HostDataRecord>(
-  _ctx: EventContext<any, any>,
+  _ctx: ChannelHost,
   bindings?: BindingClientBindings<C>,
 ) {
   return {

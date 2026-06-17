@@ -1,5 +1,4 @@
-import type { EventContext } from '@moeru/eventa'
-
+import type { ChannelHost } from '../../../../channels/shared'
 import type { PluginToolDefinitionRecord, PluginToolsetPromptDefinitionRecord } from '../../../../plugin-host/shared'
 
 /**
@@ -103,7 +102,7 @@ function requireBinding<TBinding>(binding: TBinding | undefined, method: string)
  * Returns:
  * - A minimal `tools.register(...)` client
  */
-export function createTools(_ctx: EventContext<any, any>, bindings?: ToolClientBindings) {
+export function createTools(_ctx: ChannelHost, bindings?: ToolClientBindings) {
   return {
     async register(input: RegisterToolInput) {
       return await requireBinding(bindings, 'tools.register').register(input)

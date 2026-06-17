@@ -1,5 +1,4 @@
-import type { EventContext } from '@moeru/eventa'
-
+import type { ChannelHost } from '../../../../channels/shared'
 import { createProviders } from './providers'
 
 /**
@@ -14,7 +13,7 @@ import { createProviders } from './providers'
  * Returns:
  * - The resource client groups currently supported by the SDK
  */
-export function createResources(ctx: EventContext<any, any>) {
+export function createResources(ctx: ChannelHost) {
   return {
     providers: createProviders(ctx),
   }

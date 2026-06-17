@@ -1,5 +1,4 @@
-import type { EventContext } from '@moeru/eventa'
-
+import type { ChannelHost } from '../../../channels/shared'
 import type { BindingClientBindings } from './bindings'
 import type { KitClientBindings } from './kits'
 import type { ToolClientBindings } from './tools'
@@ -40,7 +39,7 @@ export interface PluginApiBindings {
  * Returns:
  * - The composed built-in plugin client APIs for resources, kits, bindings, and tools
  */
-export function createApis(ctx: EventContext<any, any>, bindings: PluginApiBindings = {}) {
+export function createApis(ctx: ChannelHost, bindings: PluginApiBindings = {}) {
   return {
     ...createResources(ctx),
     kits: createKits(ctx, bindings.kits),
