@@ -38,7 +38,7 @@ function createPeer(options: {
 
 function createSparkNotifyEvent(
   overrides: Partial<WebSocketEventOf<'spark:notify'>> = {},
-): WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify'], unknown> {
+): WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify'], string> {
   const data: WebSocketEvents['spark:notify'] = {
     id: 'evt-1',
     eventId: 'spark-1',
@@ -57,7 +57,7 @@ function createSparkNotifyEvent(
       event: { id: data.id },
     },
     route: overrides.route,
-  } as WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify'], unknown>
+  } as WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify'], string>
 }
 
 describe('match-expression', () => {
@@ -148,7 +148,7 @@ describe('route middleware', () => {
         event: { id: 'evt-primitive' },
       },
       route: undefined,
-    } as unknown as WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify'], unknown>
+    } as unknown as WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify'], string>
 
     expect(collectDestinations(event)).toBeUndefined()
   })

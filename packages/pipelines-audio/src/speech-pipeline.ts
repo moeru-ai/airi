@@ -132,11 +132,15 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
     if (intent.turnId) context.emit(speechPipelineEventMap.onTurnStart, intent.turnId)
 
     const tokenStream = intent.stream
-    const segmentStream = segmenter(tokenStream, {
-      streamId: intent.streamId,
-      intentId: intent.intentId,
-      turnId: intent.turnId,
-    }, { stripMarkdown })
+    const segmentStream = segmenter(
+      tokenStream,
+      {
+        streamId: intent.streamId,
+        intentId: intent.intentId,
+        turnId: intent.turnId,
+      },
+      { stripMarkdown },
+    )
     const completedRequests = new Map<number, TtsResult<TAudio> | null>()
     const inFlightTasks = new Set<Promise<void>>()
     let nextRequestSequence = 0
@@ -462,7 +466,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
     stopAll,
     on<K extends SpeechPipelineEventName>(event: K, listener: SpeechPipelineEvents<TAudio>[K]) {
       return context.on(speechPipelineEventMap[event] as Eventa<unknown>, (payload) => {
-        listener(payload?.body ?? payload)
+        listener((payload?.body ?? payload) as never)
       })
     },
   }
