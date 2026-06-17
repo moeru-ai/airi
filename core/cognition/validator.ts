@@ -63,13 +63,13 @@ export class PlanValidator {
 		errors.push(...this.validateWorkspaces(proposal))
 
 		// 3. Validate dependency graph.
-		errors.push(...this.validateDependencyGraph(proposal.steps))
+		errors.push(...PlanValidator.validateDependencyGraph(proposal.steps))
 
 		// 4. Validate step actions.
 		errors.push(...this.validateStepActions(proposal.steps))
 
 		// 5. Validate execution constraints.
-		warnings.push(...this.validateConstraints(proposal))
+		warnings.push(...PlanValidator.validateConstraints(proposal))
 
 		return {
 			valid: errors.length === 0,
@@ -165,7 +165,7 @@ export class PlanValidator {
 	 * - All dependency references point to existing steps.
 	 * - No circular dependencies (cycle detection via DFS).
 	 */
-	private validateDependencyGraph(steps: ProposedStep[]): ValidationError[] {
+	private static validateDependencyGraph(steps: ProposedStep[]): ValidationError[] {
 		const errors: ValidationError[] = []
 		const stepIds = new Set(steps.map((s) => s.id))
 
@@ -271,7 +271,7 @@ export class PlanValidator {
 	/**
 	 * Validate execution constraints.
 	 */
-	private validateConstraints(proposal: PlanProposal): ValidationWarning[] {
+	private static validateConstraints(proposal: PlanProposal): ValidationWarning[] {
 		const warnings: ValidationWarning[] = []
 
 		// Check for empty proposals.
@@ -311,7 +311,7 @@ export class PlanValidator {
 	 * - Resolves dependency references.
 	 * - Sets default timeouts.
 	 */
-	normalize(proposal: PlanProposal): PlanProposal {
+	static normalize(proposal: PlanProposal): PlanProposal {
 		const normalizedSteps = proposal.steps.map((step) => ({
 			...step,
 			timeoutMs: step.timeoutMs ?? 30_000,

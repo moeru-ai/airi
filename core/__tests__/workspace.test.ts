@@ -24,14 +24,10 @@ import type {
 	WorkspaceId,
 	WorkspaceDescriptor,
 	WorkspaceState,
-	WorkspaceFilter,
-	CreateWorkspaceInput,
 } from "../workspace/types.js"
 import { WorkspaceManager } from "../workspace/manager.js"
 import { WorkspaceStorage } from "../workspace/storage.js"
-import { WorkspaceWorktree } from "../workspace/worktree.js"
-import { InMemorySnapshotStore, SnapshotManager } from "../persistence/snapshots.js"
-import type { SerializedWorkspace } from "../persistence/types.js"
+import { InMemorySnapshotStore } from "../persistence/snapshots.js"
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 

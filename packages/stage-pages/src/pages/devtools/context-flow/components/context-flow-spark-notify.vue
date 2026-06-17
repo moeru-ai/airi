@@ -3,7 +3,7 @@ import type { SparkNotifyEntryState } from '../context-flow-types'
 
 import { useContextFlowFormatters } from '../composables/use-context-flow-formatters'
 
-const props = withDefaults(defineProps<{ entryId: number; state?: SparkNotifyEntryState }>(), {
+withDefaults(defineProps<{ entryId: number; state?: SparkNotifyEntryState }>(), {
   state: undefined,
 })
 

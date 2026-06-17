@@ -249,7 +249,7 @@ export class MemoryRetriever {
 		
 
 		// Create trace.
-		const trace = this.traceRetrieval(query, results, contextString)
+		const trace = MemoryRetriever.traceRetrieval(query, results, contextString)
 
 		return {
 			results,
@@ -291,7 +291,7 @@ export class MemoryRetriever {
 	/**
 	 * Build a deterministic context string from results.
 	 */
-	buildContextString(
+	static buildContextString(
 		results: MemoryResult[],
 		maxLength?: number,
 	): string {
@@ -301,7 +301,7 @@ export class MemoryRetriever {
 	/**
 	 * Create an audit trace for a retrieval operation.
 	 */
-	traceRetrieval(
+	static traceRetrieval(
 		query: MemoryQuery,
 		results: MemoryResult[],
 		contextUsed: string,

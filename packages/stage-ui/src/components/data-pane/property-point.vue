@@ -27,9 +27,9 @@ const props = withDefaults(
   },
 )
 
-const x = defineModel('x', { required: false, default: 0 })
-const y = defineModel('y', { required: false, default: 0 })
-const z = defineModel('z', { required: false, default: 0 })
+const x = defineModel<number>('x', { required: false, default: 0 })
+const y = defineModel<number>('y', { required: false, default: 0 })
+const z = defineModel<number>('z', { required: false, default: 0 })
 
 // Dragging state
 const isDragging = ref<'x' | 'y' | 'z' | undefined>()

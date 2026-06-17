@@ -403,9 +403,8 @@ async function stopSTTTest() {
     } else {
       stopRecord()
     }
-  } catch (err) {
-    const _logger = (...a: unknown[]) => void 0
-    _logger('Error stopping STT test:', err)
+  } catch {
+    // noop: best-effort stop
   }
 
   // Finalize transcription if we have streaming text
@@ -418,9 +417,8 @@ async function stopSTTTest() {
     try {
       stopStream()
       testStreamWasStarted.value = false
-    } catch (err) {
-      const _logger = (...a: unknown[]) => void 0
-      _logger('Error stopping test stream:', err)
+    } catch {
+      // noop: best-effort stop
     }
   }
 }

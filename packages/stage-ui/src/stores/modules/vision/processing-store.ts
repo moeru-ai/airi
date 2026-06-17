@@ -14,9 +14,6 @@ const DEFAULT_CAPTURE_INTERVAL_MS = 3000
 const HISTORY_MAX_AGE_MS = 5 * 60 * 1000
 const PROCESSING_HISTORY_LIMIT = 240
 
-// Type for error logging
-type ErrorLike = unknown
-
 function trimHistoryByAge(history: number[], maxAgeMs: number) {
   const cutoff = Date.now() - maxAgeMs
   while (history.length > 0 && history[0] < cutoff) history.shift()
@@ -106,7 +103,7 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
 
       if (outcome?.capturedAt) recordCapture(outcome.capturedAt)
       if (outcome?.contextUpdates) recordContextUpdates(outcome.contextUpdates)
-    } catch (error: ErrorLike) {
+    } catch (error: unknown) {
       lastError.value = errorMessageFrom(error) || 'Unknown error'
     } finally {
       recordProcessingDuration(performance.now() - start)

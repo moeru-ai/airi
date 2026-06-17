@@ -5,7 +5,7 @@
  * scheduler, replay buffer, metrics, and executor isolation.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
+import { describe, it, expect, beforeEach, afterEach } from "vitest"
 
 const _logger = (..._a: unknown[]) => void 0
 
@@ -17,26 +17,21 @@ import { createLogger } from "../logger.js"
 import {
 	createTaskId,
 	isValidTransition,
-	VALID_TRANSITIONS,
 	PRIORITY_WEIGHTS,
-	type TaskId,
 	type TaskState,
 	type Task,
-	type TaskResult,
 	type TaskError,
 } from "../tasks/types.js"
 
 import {
 	createCancellationToken,
 	createLinkedCancellationToken,
-	CancellationTokenSource,
 	withTimeout,
 } from "../tasks/cancellation.js"
 
 import type { TaskExecutor, TaskExecutionContext } from "../tasks/executor.js"
 
 import { TaskManager } from "../tasks/manager.js"
-import type { TaskManagerOptions } from "../tasks/manager.js"
 
 import { TaskScheduler } from "../tasks/scheduler.js"
 
@@ -627,7 +622,7 @@ describe("TaskScheduler", () => {
 		it("dispatches higher priority tasks first", async () => {
 			const executionOrder: string[] = []
 
-			const executor = createMockExecutor("code", async (task, ctx) => {
+			const executor = createMockExecutor("code", async (task, _ctx) => {
 				executionOrder.push(task.priority)
 				await new Promise((r) => setTimeout(r, 10))
 				return { success: true }
@@ -660,7 +655,7 @@ describe("TaskScheduler", () => {
 			let concurrentCount = 0
 			let maxConcurrent = 0
 
-			const executor = createMockExecutor("code", async (task, ctx) => {
+			const executor = createMockExecutor("code", async (_task, _ctx) => {
 				concurrentCount++
 				maxConcurrent = Math.max(maxConcurrent, concurrentCount)
 				await new Promise((r) => setTimeout(r, 50))
@@ -1183,7 +1178,7 @@ describe("full lifecycle with scheduler", () => {
 	it("handles multiple tasks with priority ordering", async () => {
 		const executionOrder: string[] = []
 
-		const executor = createMockExecutor("code", async (task, ctx) => {
+		const executor = createMockExecutor("code", async (task, _ctx) => {
 			executionOrder.push(task.title)
 			await new Promise((r) => setTimeout(r, 10))
 			return { success: true }

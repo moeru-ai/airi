@@ -358,7 +358,7 @@ export class MemoryRegistry {
 	/**
 	 * Generate a unique memory ID with an optional prefix.
 	 */
-	generateId(prefix = 'mem'): MemoryId {
+	static generateId(prefix = 'mem'): MemoryId {
 		return createMemoryId(`${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)
 	}
 }

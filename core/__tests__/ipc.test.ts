@@ -5,7 +5,7 @@
  * session management, and event streaming across the IPC boundary.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
+import { describe, it, expect, beforeEach } from "vitest"
 
 const _logger = (..._a: unknown[]) => void 0
 
@@ -20,7 +20,6 @@ import type {
 	IpcRequestMessage,
 	IpcResponseMessage,
 	IpcErrorMessage,
-	IpcPingMessage,
 	IpcPongMessage,
 } from "../ipc/protocol.js"
 import { generateId, request } from "../ipc/transport.js"

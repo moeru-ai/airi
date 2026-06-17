@@ -20,7 +20,6 @@ import { formatTimePrefix } from '../messages/datetime-prefix'
 import { createChatHooks } from './agent-hooks'
 import { useLlmmarkerParser } from './llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from './response-categoriser'
-import { stripMarkdownFromSpeech } from './markdown-stripper'
 import { stripUnreadableSymbols } from './unreadable-symbols-stripper'
 
 const STREAMING_UI_FLUSH_CHUNK_SIZE = 24

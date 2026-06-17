@@ -42,7 +42,7 @@ describe('streamFrom tool error capture', () => {
    * await streamFrom({ model, chatProvider, messages, options: { captureToolErrors: true } })
    */
   it('keeps captureToolErrors internal while forwarding failed tool calls as tool-error events', async () => {
-    let resolveSteps: ((steps: unknown[]) => void) | undefined = undefined
+    let resolveSteps: ((steps: unknown[]) => void) | undefined
     const events: unknown[] = []
     const failingTool = {
       type: 'function',

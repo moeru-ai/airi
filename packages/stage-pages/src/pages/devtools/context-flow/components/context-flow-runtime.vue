@@ -3,7 +3,7 @@ import type { QueuedSendSnapshot } from '@proj-airi/stage-ui/stores/chat'
 
 import { Section } from '@proj-airi/stage-ui/components'
 
-const props = withDefaults(
+withDefaults(
   defineProps<{
     connected: boolean
     pendingSendCount: number

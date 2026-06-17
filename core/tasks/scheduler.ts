@@ -14,7 +14,7 @@
 
 import type { EventBus } from "../events/bus.js"
 import type { Logger } from "../logger.js"
-import type { Task, TaskState } from "./types.js"
+import type { Task } from "./types.js"
 import { PRIORITY_WEIGHTS } from "./types.js"
 import type { TaskManager } from "./manager.js"
 import type { TaskExecutor, TaskExecutionContext } from "./executor.js"
