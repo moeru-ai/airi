@@ -392,13 +392,32 @@ function scheduleAssistantSpeechResume() {
  * Ensures the microphone stream has a live audio track before binding recorder or VAD.
  */
 async function ensureLiveAudioInputStream() {
+  if (!enabled.value)
+    return false
+
   if (hasLiveAudioInputTrack(stream.value))
     return true
 
   console.warn('[Main Page] Microphone stream is missing or ended; refreshing audio input stream')
   stopStream()
+
+  if (!enabled.value)
+    return false
+
   await askPermission()
+
+  if (!enabled.value) {
+    console.info('[Main Page] Skipping audio input stream restart because voice input was disabled during permission refresh')
+    return false
+  }
+
   await startStream()
+
+  if (!enabled.value) {
+    console.info('[Main Page] Stopping refreshed audio input stream because voice input was disabled during stream restart')
+    stopStream()
+    return false
+  }
 
   if (hasLiveAudioInputTrack(stream.value))
     return true
