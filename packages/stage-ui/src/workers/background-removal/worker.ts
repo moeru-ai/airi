@@ -218,7 +218,7 @@ async function runInference(request: RunInferenceRequest<BackgroundRemovalInput>
       output: { maskData, width, height },
     }
     // Transfer the buffer to avoid copying
-    globalThis.postMessage(result, [maskData.buffer])
+    globalThis.postMessage(result, { transfer: [maskData.buffer] })
   } catch (error) {
     if (isCancelled(requestId)) clearCancelled(requestId)
     else sendError(requestId, error, 'inference')

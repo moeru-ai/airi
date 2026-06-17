@@ -1,3 +1,3 @@
 import './setup'
 
-globalThis.CSS = undefined as typeof CSS
+globalThis.CSS = undefined as unknown as typeof CSS

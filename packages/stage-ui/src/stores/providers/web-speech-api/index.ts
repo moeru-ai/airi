@@ -4,6 +4,28 @@ import type { StreamTranscriptionDelta, StreamTranscriptionResult } from '@xsai/
 // Web Speech API types are not included in lib.dom.d.ts — declare them here
 // so we can reference them without `any`.
 declare global {
+  // Instance type — declared as an interface BEFORE the `var` so the
+  // constructor's type literal can reference it without TS2749.
+  interface SpeechRecognition {
+    lang: string
+    continuous: boolean
+    interimResults: boolean
+    maxAlternatives: number
+    onresult: ((event: SpeechRecognitionEvent) => void) | null
+    onerror: ((event: SpeechRecognitionErrorEvent) => void) | null
+    onend: (() => void) | null
+    onstart: (() => void) | null
+    onspeechend: (() => void) | null
+    onaudiostart: (() => void) | null
+    onaudioend: (() => void) | null
+    onsoundstart: (() => void) | null
+    onsoundend: (() => void) | null
+    onspeechstart: (() => void) | null
+    onnomatch: ((event: Event) => void) | null
+    start(): void
+    stop(): void
+    abort(): void
+  }
   // eslint-disable-next-line no-var
   var SpeechRecognition: {
     new (): SpeechRecognition

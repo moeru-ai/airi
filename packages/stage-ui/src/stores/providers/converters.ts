@@ -147,14 +147,10 @@ export function convertProviderDefinitionToMetadata<TConfig>(
                 return mapModelsToMetadataModels(definition.id, models as unknown as ModelInfo[])
               }
 
-              const baseUrl =
-                typeof (config as { baseUrl?: unknown }).baseUrl === 'string'
-                  ? (config as { baseUrl?: string }).baseUrl.trim()
-                  : ''
-              const apiKey =
-                typeof (config as { apiKey?: unknown }).apiKey === 'string'
-                  ? (config as { apiKey?: string }).apiKey.trim()
-                  : ''
+              const baseUrlRaw = (config as { baseUrl?: unknown }).baseUrl
+              const baseUrl = typeof baseUrlRaw === 'string' ? baseUrlRaw.trim() : ''
+              const apiKeyRaw = (config as { apiKey?: unknown }).apiKey
+              const apiKey = typeof apiKeyRaw === 'string' ? apiKeyRaw.trim() : ''
               if (!baseUrl) return []
 
               const models = await listModels({
@@ -195,7 +191,10 @@ export function convertProviderDefinitionToMetadata<TConfig>(
         (definition.validators?.validateProvider || []).some((creator) =>
           creator({ t }).id.includes(CHAT_COMPLETIONS_VALIDATOR_ID),
         ),
-      validateProviderConfig: async (config, options) => {
+      validateProviderConfig: async (
+        config: Record<string, unknown>,
+        options?: { skipChatPingCheck?: boolean; onlyChatPingCheck?: boolean },
+      ) => {
         // onlyChatPingCheck: skip all validators except chat completions.
         // Used by the manual "Test Generation" button on settings pages.
         if (options?.onlyChatPingCheck) {
