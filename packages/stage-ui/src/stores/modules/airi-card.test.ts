@@ -54,6 +54,19 @@ vi.mock('./speech', async () => {
   }
 })
 
+vi.mock('./vision', async () => {
+  const { defineStore } = await import('pinia')
+
+  return {
+    useVisionStore: defineStore('vision', {
+      state: () => ({
+        activeProvider: 'mock-vision-provider',
+        activeModel: 'mock-vision-model',
+      }),
+    }),
+  }
+})
+
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
     t: (key: string) => key,
@@ -82,10 +95,12 @@ describe('airi-card store', () => {
 
     expect(cardStore.updateActiveCardDisplayModel('display-model-iru-v2')).toBe(true)
     expect(cardStore.updateActiveCardConsciousness({ provider: 'openrouter-ai', model: 'anthropic/claude-sonnet' })).toBe(true)
+    expect(cardStore.updateActiveCardVision({ provider: 'ollama', model: 'llava' })).toBe(true)
     expect(cardStore.updateActiveCardSpeech({ provider: 'elevenlabs', model: 'eleven_multilingual_v2', voice_id: 'aria' })).toBe(true)
     expect(cardStore.activeCard?.extensions.airi.modules).toMatchObject({
       displayModelId: 'display-model-iru-v2',
       consciousness: { provider: 'openrouter-ai', model: 'anthropic/claude-sonnet' },
+      vision: { provider: 'ollama', model: 'llava' },
       speech: { provider: 'elevenlabs', model: 'eleven_multilingual_v2', voice_id: 'aria' },
     })
     expect(stageModelStore.stageModelSelected).toBe('preset-live2d-1')

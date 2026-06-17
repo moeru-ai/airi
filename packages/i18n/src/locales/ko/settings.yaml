@@ -310,6 +310,9 @@ pages:
       provider: 채팅 / 제공자
     consciousness:
       model: 의식 / 모델
+    vision:
+      provider: 비전 / 제공자
+      model: 비전 / 모델
     created_by: 만든이
     creator_notes: 제작자 노트
     delete: 삭제

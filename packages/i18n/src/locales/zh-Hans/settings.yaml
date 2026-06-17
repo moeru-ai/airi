@@ -310,6 +310,9 @@ pages:
       provider: 聊天 / 提供商
     consciousness:
       model: 意识 / 模型
+    vision:
+      provider: 视觉 / 提供商
+      model: 视觉 / 模型
     created_by: 创建者
     creator_notes: 创建者笔记
     delete: 删除
