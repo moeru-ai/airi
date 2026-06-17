@@ -5,7 +5,7 @@
  * and module activation sequencing.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest"
+import { describe, it, expect, beforeEach } from "vitest"
 
 // ── EventBus tests ──────────────────────────────────────────────────
 

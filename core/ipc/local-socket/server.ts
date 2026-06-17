@@ -22,7 +22,6 @@ import type {
 	IpcConnectionState,
 	IpcStateHandler,
 } from "../transport.js"
-import { generateId } from "../transport.js"
 
 // ── Types ──────────────────────────────────────────────────────────────
 

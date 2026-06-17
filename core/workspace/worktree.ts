@@ -176,7 +176,7 @@ export class WorkspaceWorktree {
 	/**
 	 * Validate that a worktree path is a valid git worktree.
 	 */
-	async validateWorktree(worktreePath: string): Promise<boolean> {
+	static async validateWorktree(worktreePath: string): Promise<boolean> {
 		try {
 			// Check if the directory exists.
 			await fs.access(worktreePath)
