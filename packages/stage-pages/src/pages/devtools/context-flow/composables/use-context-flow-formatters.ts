@@ -21,13 +21,13 @@ function formatDestinations(destinations: unknown) {
 }
 
 function getPayloadData(entry: FlowEntry) {
-  const payload = entry.payload as Record<string, any> | undefined
+  const payload = entry.payload as Record<string, unknown> | undefined
   if (!payload) return undefined
   return payload.data ?? payload
 }
 
 function getEventSource(entry: FlowEntry) {
-  const payload = entry.payload as Record<string, any> | undefined
+  const payload = entry.payload as Record<string, unknown> | undefined
   if (!payload) return undefined
   return payload.source as string | undefined
 }
@@ -73,7 +73,7 @@ function formatPreviewValue(value: unknown) {
 }
 
 function getContextUpdatePreview(entry: FlowEntry) {
-  const candidate = getPayloadData(entry) as Record<string, any> | undefined
+  const candidate = getPayloadData(entry) as Record<string, unknown> | undefined
   if (
     !candidate ||
     (candidate.text === undefined && candidate.content === undefined && candidate.destinations === undefined)
