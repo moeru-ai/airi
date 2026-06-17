@@ -136,7 +136,8 @@ export async function loadSpineModelPreview(file: File): Promise<string | undefi
           },
         ) => import('@esotericsoftware/spine-webgl').SpineCanvas
 
-        new SpineCanvasCtor(canvas!, {
+        // SpineCanvasCtor populates `app` via side effects — the return value is intentionally discarded.
+        void new SpineCanvasCtor(canvas!, {
           app,
           pathPrefix: '',
           webglConfig: { alpha: true, premultipliedAlpha: false, preserveDrawingBuffer: true },

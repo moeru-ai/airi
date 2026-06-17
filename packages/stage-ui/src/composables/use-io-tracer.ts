@@ -1,7 +1,12 @@
-import type { Resource } from '@opentelemetry/resources'
 import type { Span, SpanContext, SpanStatusCode } from '@opentelemetry/api'
 import type { ReadableSpan, SpanExporter } from '@opentelemetry/sdk-trace-base'
 import type { TimedEvent } from '@opentelemetry/sdk-trace-base/build/esm/TimedEvent'
+
+// Minimal Resource interface to avoid dependency on @opentelemetry/resources
+interface Resource {
+  attributes: Record<string, unknown>
+  merge?: (other: Resource) => Resource
+}
 
 import { context, trace } from '@opentelemetry/api'
 import { hrTimeToNanoseconds } from '@opentelemetry/core'

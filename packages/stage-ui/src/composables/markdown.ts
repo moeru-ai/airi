@@ -91,12 +91,7 @@ function getProcessor(langs: BundledLanguage[]): Promise<MarkdownProcessor> {
   const cacheKey = [...langs].sort().join(',')
 
   if (!processorCache.has(cacheKey)) {
-    const processorPromise = new Promise<MarkdownProcessor>((resolve) => {
-      // The processor is created synchronously, but wrapping in a promise
-      // allows the cache to store the result for future calls.
-      resolve(createProcessor(langs))
-    })
-    processorCache.set(cacheKey, processorPromise)
+    processorCache.set(cacheKey, Promise.resolve(createProcessor(langs)))
   }
 
   return processorCache.get(cacheKey)!

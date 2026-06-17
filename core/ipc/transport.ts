@@ -261,15 +261,16 @@ export async function request(
 
 	return new Promise<unknown>((resolve, reject) => {
 		let settled = false
+		let unsubscribe: (() => void) | undefined
 
 		const timer = setTimeout(() => {
 			if (settled) return
 			settled = true
-			unsubscribe()
+			unsubscribe?.()
 			reject(new Error(`Request "${method}" timed out after ${timeout}ms.`))
 		}, timeout)
 
-		const unsubscribe = transport.onMessage((msg) => {
+		unsubscribe = transport.onMessage((msg) => {
 			if (msg.type === "response" && msg.correlationId === correlationId) {
 				settled = true
 				unsubscribe()

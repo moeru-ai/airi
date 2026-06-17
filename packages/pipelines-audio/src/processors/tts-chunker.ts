@@ -84,27 +84,29 @@ export async function* chunkTtsInput(
     if (flush || special || hard || soft) {
       switch (value) {
         case '.':
-        case ',': {
-          if (previousValue !== undefined && regexpAnySingleDigit.test(previousValue)) {
-            next = await iterator.next()
-            if (!next.done && next.value && regexpAnySingleDigit.test(next.value)) {
-              buffer += value
-              current = next
-              next = undefined
-              continue
-            }
-          } else if (value === '.') {
-            next = await iterator.next()
-            if (!next.done && next.value && next.value === '.') {
-              afterNext = await iterator.next()
-              if (!afterNext.done && afterNext.value && afterNext.value === '.') {
-                value = '…'
+        case ',':
+          {
+            if (previousValue !== undefined && regexpAnySingleDigit.test(previousValue)) {
+              next = await iterator.next()
+              if (!next.done && next.value && regexpAnySingleDigit.test(next.value)) {
+                buffer += value
+                current = next
                 next = undefined
-                afterNext = undefined
+                continue
+              }
+            } else if (value === '.') {
+              next = await iterator.next()
+              if (!next.done && next.value && next.value === '.') {
+                afterNext = await iterator.next()
+                if (!afterNext.done && afterNext.value && afterNext.value === '.') {
+                  value = '…'
+                  next = undefined
+                  afterNext = undefined
+                }
               }
             }
           }
-        }
+          break
         default:
           break
       }

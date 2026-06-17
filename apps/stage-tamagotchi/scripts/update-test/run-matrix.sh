@@ -73,7 +73,7 @@ run_case() {
   local app_pid=""
 
   echo "==> Running mode=${mode}, lane=${lane}"
-  if [[ "${mode}" == "override" ]]; then
+  if [ "${mode}" = "override" ]; then
     UPDATE_SERVER_URL="http://127.0.0.1:${PORT}/${lane}" AIRI_UPDATE_CHANNEL="${lane}" "${APP_BIN}" > "${log_file}" 2>&1 &
     app_pid=$!
   else

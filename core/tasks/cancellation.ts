@@ -51,7 +51,11 @@ export class CancellationTokenSource {
 	readonly token: CancellationToken
 
 	constructor(parent?: CancellationToken) {
-		const self = this
+		// NOTICE: `self` alias is required because the object literal below uses
+		// getters and methods whose `this` refers to the token object, not the
+		// CancellationTokenSource instance. DeepSource JS-0342 flags this, but
+		// there's no alternative that preserves access to private fields.
+		const self = this // deepsource: ignore
 
 		this.token = {
 			get isCancelled() {

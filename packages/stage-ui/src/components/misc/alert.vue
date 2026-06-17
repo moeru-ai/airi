@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { VNode } from 'vue'
+import type { Slot } from 'vue'
 import { computed, useSlots } from 'vue'
 
 const props = withDefaults(
@@ -12,8 +12,8 @@ const props = withDefaults(
 )
 
 defineSlots<{
-  title: () => VNode[]
-  content: () => VNode[]
+  title: Slot
+  content: Slot
 }>()
 
 const slots = useSlots()

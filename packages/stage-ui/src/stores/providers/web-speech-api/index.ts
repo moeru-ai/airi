@@ -28,11 +28,13 @@ declare global {
   }
   // eslint-disable-next-line no-var
   var SpeechRecognition: {
+    // deepsource: ignore
     new (): SpeechRecognition
     prototype: SpeechRecognition
   }
   // eslint-disable-next-line no-var
   var webkitSpeechRecognition: {
+    // deepsource: ignore
     new (): SpeechRecognition
     prototype: SpeechRecognition
   }

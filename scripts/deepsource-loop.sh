@@ -2,7 +2,6 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-STATE_FILE="$REPO_ROOT/.claude/deepsource-loop-state.json"
 LOG_FILE="$REPO_ROOT/.claude/deepsource-loop.log"
 INTERVAL_MINUTES="${INTERVAL_MINUTES:-10}"
 MAX_RUNS="${MAX_RUNS:-20}"
@@ -21,7 +20,7 @@ run_cycle() {
   local run_num=$1; log "=== Starting run $run_num ==="
   local output exit_code=0
   output=$(node "$SCRIPT_DIR/deepsource-selfheal.cjs" 2>>"$LOG_FILE") || exit_code=$?
-  if [ $exit_code -ne 0 ]; then log "ERROR: script exited $exit_code"; return 1; fi
+  if [ "$exit_code" -ne 0 ]; then log "ERROR: script exited $exit_code"; return 1; fi
   local phase; phase=$(echo "$output" | tail -1 | node -e "const d=require('fs').readFileSync('/dev/stdin','utf8');try{console.log(JSON.parse(d).phase)}catch{console.log('?')}" 2>/dev/null || echo "?")
   log "Run $run_num complete — phase: $phase"
   [ "$phase" = "done" ] && return 2
@@ -34,12 +33,12 @@ main() {
   log "========================================="
   preflight
   local run_num=0
-  while [ $run_num -lt "$MAX_RUNS" ]; do
+  while [ "$run_num" -lt "$MAX_RUNS" ]; do
     run_num=$((run_num + 1))
-    local result=0; run_cycle $run_num || result=$?
-    [ $result -eq 2 ] && { log "✓ Self-healing complete. Goodbye!"; exit 0; }
-    [ $result -ne 0 ] && log "Run $run_num had errors, will retry..."
-    [ $run_num -lt "$MAX_RUNS" ] && { log "Sleeping ${INTERVAL_MINUTES}m..."; sleep $((INTERVAL_MINUTES * 60)); }
+    local result=0; run_cycle "$run_num" || result=$?
+    [ "$result" -eq 2 ] && { log "✓ Self-healing complete. Goodbye!"; exit 0; }
+    [ "$result" -ne 0 ] && log "Run $run_num had errors, will retry..."
+    [ "$run_num" -lt "$MAX_RUNS" ] && { log "Sleeping ${INTERVAL_MINUTES}m..."; sleep $((INTERVAL_MINUTES * 60)); }
   done
   log "✓ Hit max runs ($MAX_RUNS). Stopping."
 }

@@ -191,10 +191,6 @@ function getApiKeyPlaceholder(providerId: string): string {
   return placeholders[providerId] || 'API Key'
 }
 
-interface DefaultOptionsWithBaseUrl {
-  baseUrl?: string
-}
-
 function getBaseUrlPlaceholder(_providerId: string): string {
   const defaultOptions = props.selectedProvider?.defaultOptions?.()
   const baseUrl =
