@@ -98,7 +98,7 @@ export class TaskManager {
 
 	findExecutor(task: Task): TaskExecutor | undefined {
 		const moduleExecutor = this.executors.get(task.moduleId)
-		if (moduleExecutor && moduleExecutor.canExecute(task)) {
+		if (moduleExecutor?.canExecute(task)) {
 			return moduleExecutor
 		}
 		for (const [, executor] of this.executors) {

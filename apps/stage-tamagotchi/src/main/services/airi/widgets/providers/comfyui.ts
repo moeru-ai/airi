@@ -191,7 +191,7 @@ export class ComfyUIProvider implements ArtistryProvider {
               const retryResp = await this.fetchWithTimeout(`${this.serverUrl}/history/${promptId}`, {}, 10000)
               if (retryResp.ok) {
                 const retryData = await retryResp.json()
-                if (retryData[promptId] && retryData[promptId].outputs) {
+                if (retryData[promptId]?.outputs) {
                   log.log(`[ComfyUI] Retry successful for ${jobId}. Managed to find outputs!`)
                   outputs = retryData[promptId].outputs
                 }

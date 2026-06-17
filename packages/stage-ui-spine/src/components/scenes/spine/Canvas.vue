@@ -49,7 +49,8 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  if (canvasRef.value && canvasRef.value.parentElement) canvasRef.value.parentElement.removeChild(canvasRef.value)
+  const canvas = canvasRef.value
+  if (canvas?.parentElement) canvas.parentElement.removeChild(canvas)
   canvasRef.value = undefined
   isCanvasReady.value = false
 })

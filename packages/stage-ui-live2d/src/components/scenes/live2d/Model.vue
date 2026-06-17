@@ -304,7 +304,7 @@ async function loadModel() {
       if (groupIndex !== undefined && motionManager.motionGroups[groupIndex]) {
         const motionIndex = Number.parseInt(selectedMotionIndex)
         const motion = motionManager.motionGroups[groupIndex][motionIndex]
-        if (motion && motion._looper) {
+        if (motion?._looper) {
           // Force the motion to loop
           motion._looper.loopDuration = 0 // 0 means infinite loop
           console.info('Configured motion to loop infinitely:', selectedMotionGroup, motionIndex)

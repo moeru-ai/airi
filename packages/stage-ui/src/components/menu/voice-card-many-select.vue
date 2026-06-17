@@ -78,7 +78,8 @@ const sharedAudioContext = ref<AudioContext | null>(null)
 // Initialize the shared audio context (call this in mounted or when needed)
 function initAudioContext() {
   if (!sharedAudioContext.value) {
-    const AudioCtx = window.AudioContext || ((window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)
+    const AudioCtx =
+      window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
     if (AudioCtx) {
       sharedAudioContext.value = new AudioCtx()
     }
@@ -97,10 +98,10 @@ const filteredVoices = computed(() => {
   return props.voices.filter((voice) => {
     // Search in name and description
     const nameMatch = voice.name.toLowerCase().includes(query)
-    const descMatch = voice.description && voice.description.toLowerCase().includes(query)
+    const descMatch = voice.description?.toLowerCase().includes(query)
 
     // Search in tags
-    const tagMatch = voice.tags && voice.tags.some((tag) => tag.toLowerCase().includes(query))
+    const tagMatch = voice.tags?.some((tag) => tag.toLowerCase().includes(query))
 
     // Search in labels
     const labelMatch =
@@ -108,9 +109,9 @@ const filteredVoices = computed(() => {
       Object.values(voice.labels).some((value) => typeof value === 'string' && value.toLowerCase().includes(query))
 
     // Search in languages
-    const langMatch =
-      voice.languages &&
-      voice.languages.some((lang) => lang.name.toLowerCase().includes(query) || lang.code.toLowerCase().includes(query))
+    const langMatch = voice.languages?.some(
+      (lang) => lang.name.toLowerCase().includes(query) || lang.code.toLowerCase().includes(query),
+    )
 
     return nameMatch || descMatch || tagMatch || labelMatch || langMatch
   })

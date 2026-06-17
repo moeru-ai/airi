@@ -189,7 +189,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
     try {
       await transcribeForMediaStream(stream.value, {
         onSentenceEnd: (delta) => {
-          if (delta && delta.trim()) {
+          if (delta?.trim()) {
             console.info('Received transcription delta:', delta, { source: 'useTranscriptions' })
             // Append transcribed text to message input
             const currentText = messageInput.value.trim()
