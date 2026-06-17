@@ -4,20 +4,20 @@
  * Preserves `steamworks_sdk/redistributable_bin/...` next to the app executable,
  * as expected by `steamworks-ffi-node` when `process.cwd()` is that directory.
  *
- * Source order:
- * 1. Local `apps/stage-tamagotchi/steamworks_sdk/redistributable_bin/` (partner SDK)
- * 2. Public mirror (`STEAMWORKS_SDK_MIRROR_*`) when local files are absent
+ * Redistributables are fetched from the public mirror (`STEAMWORKS_SDK_MIRROR_*`).
  *
  * Usage:
  *   pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/pack-steam-redistributables.ts <windows|macos|linux> <destDir>
+ *
+ * Local dev (`destDir` is the tamagotchi package root):
+ *   pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/pack-steam-redistributables.ts macos .
  */
 
 import process from 'node:process'
 
 import { Buffer } from 'node:buffer'
-import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 
 import { errorMessageFrom } from '@moeru/std'
 
@@ -28,9 +28,6 @@ import { STEAM_APP_ID } from '../src/main/services/steam/types'
 // Replace with an org-private artifact store fed from partner.steamgames.com before long-term production use.
 const DEFAULT_MIRROR_REPO = 'rlabrecque/SteamworksSDK'
 const DEFAULT_MIRROR_REF = 'be6107f4b75bf996531415c53a6488a33a2a1be3'
-
-const packageRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
-const localSdkRoot = join(packageRoot, 'steamworks_sdk', 'redistributable_bin')
 
 const platform = process.argv[2]
 const destDir = process.argv[3]
@@ -79,15 +76,6 @@ async function main(): Promise<void> {
   writeFileSync(join(destDir, 'steam_appid.txt'), `${STEAM_APP_ID}\n`, 'utf8')
 
   const dest = join(destDir, 'steamworks_sdk', 'redistributable_bin', relativePath)
-  const localSrc = join(localSdkRoot, relativePath)
-
-  if (existsSync(localSrc)) {
-    mkdirSync(dirname(dest), { recursive: true })
-    cpSync(localSrc, dest)
-    console.info(`[steam] copied ${relativePath} from local SDK -> ${dest}`)
-    return
-  }
-
   const url = `${mirrorBaseUrl()}/${relativePath}`
   console.info(`[steam] downloading ${relativePath} from mirror -> ${dest}`)
   await downloadFile(url, dest)
