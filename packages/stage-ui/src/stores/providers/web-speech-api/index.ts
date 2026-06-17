@@ -1,6 +1,70 @@
 import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { StreamTranscriptionDelta, StreamTranscriptionResult } from '@xsai/stream-transcription'
 
+// Web Speech API types are not included in lib.dom.d.ts — declare them here
+// so we can reference them without `any`.
+declare global {
+  // Instance type — declared as an interface BEFORE the `var` so the
+  // constructor's type literal can reference it without TS2749.
+  interface SpeechRecognition {
+    lang: string
+    continuous: boolean
+    interimResults: boolean
+    maxAlternatives: number
+    onresult: ((event: SpeechRecognitionEvent) => void) | null
+    onerror: ((event: SpeechRecognitionErrorEvent) => void) | null
+    onend: (() => void) | null
+    onstart: (() => void) | null
+    onspeechend: (() => void) | null
+    onaudiostart: (() => void) | null
+    onaudioend: (() => void) | null
+    onsoundstart: (() => void) | null
+    onsoundend: (() => void) | null
+    onspeechstart: (() => void) | null
+    onnomatch: ((event: Event) => void) | null
+    start(): void
+    stop(): void
+    abort(): void
+  }
+  // eslint-disable-next-line no-var
+  var SpeechRecognition: {
+    new (): SpeechRecognition
+    prototype: SpeechRecognition
+  }
+  // eslint-disable-next-line no-var
+  var webkitSpeechRecognition: {
+    new (): SpeechRecognition
+    prototype: SpeechRecognition
+  }
+  interface SpeechRecognitionEvent extends Event {
+    readonly resultIndex: number
+    readonly results: SpeechRecognitionResultList
+  }
+  interface SpeechRecognitionResultList {
+    readonly length: number
+    item(index: number): SpeechRecognitionResult
+    [index: number]: SpeechRecognitionResult
+  }
+  interface SpeechRecognitionResult {
+    readonly isFinal: boolean
+    readonly length: number
+    item(index: number): SpeechRecognitionAlternative
+    [index: number]: SpeechRecognitionAlternative
+  }
+  interface SpeechRecognitionAlternative {
+    readonly transcript: string
+    readonly confidence: number
+  }
+  interface SpeechRecognitionErrorEvent extends Event {
+    readonly error: string
+    readonly message: string
+  }
+}
+
+// Type alias for the SpeechRecognition constructor — avoids the circular
+// `typeof SpeechRecognition` reference that trips up TS7022.
+type SpeechRecognitionCtor = typeof SpeechRecognition
+
 // NOTICE: Copied/adapted from @xsai/stream-transcription delayed promise helper.
 // Ref: @xsai/stream-transcription@0.4.0-beta.8 (dist/index.js DelayedPromise usage).
 function createDeferred<T>() {
@@ -69,7 +133,19 @@ export function createWebSpeechAPIProvider(): TranscriptionProviderWithExtraOpti
     )
   }
 
-  const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+  const SpeechRecognition: SpeechRecognitionCtor =
+    (
+      window as unknown as {
+        SpeechRecognition: SpeechRecognitionCtor
+        webkitSpeechRecognition: SpeechRecognitionCtor
+      }
+    ).SpeechRecognition ||
+    (
+      window as unknown as {
+        SpeechRecognition: SpeechRecognitionCtor
+        webkitSpeechRecognition: SpeechRecognitionCtor
+      }
+    ).webkitSpeechRecognition
 
   return {
     transcription: (model: string, extraOptions?: WebSpeechAPIExtraOptions) => {
@@ -107,7 +183,7 @@ export function createWebSpeechAPIProvider(): TranscriptionProviderWithExtraOpti
           recognition.interimResults = extraOptions?.interimResults ?? true
           recognition.maxAlternatives = extraOptions?.maxAlternatives ?? 1
 
-          recognition.onresult = (event: any) => {
+          recognition.onresult = (event: SpeechRecognitionEvent) => {
             let finalTranscript = ''
 
             for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -129,7 +205,7 @@ export function createWebSpeechAPIProvider(): TranscriptionProviderWithExtraOpti
             // }
           }
 
-          recognition.onerror = (event: any) => {
+          recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
             const error = new Error(`Speech recognition error: ${event.error}`)
             textStreamCtrl?.error(error)
             deferredText.reject(error)
@@ -175,12 +251,12 @@ export function streamWebSpeechAPITranscription(
     onSentenceEnd?: (delta: string) => void
     onSpeechEnd?: (text: string) => void
   },
-): StreamTranscriptionResult & { recognition?: any } {
+): StreamTranscriptionResult & { recognition?: InstanceType<SpeechRecognitionCtor> } {
   const deferredText = createDeferred<string>()
   let fullText = ''
   let textStreamCtrl: ReadableStreamDefaultController<string> | undefined
   let fullStreamCtrl: ReadableStreamDefaultController<StreamTranscriptionDelta> | undefined
-  let recognitionInstance: any = null
+  let recognitionInstance: InstanceType<SpeechRecognitionCtor> | null = null
 
   const fullStream = new ReadableStream<StreamTranscriptionDelta>({
     start(controller) {
@@ -221,7 +297,19 @@ export function streamWebSpeechAPITranscription(
     }
   }
 
-  const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+  const SpeechRecognition: SpeechRecognitionCtor =
+    (
+      window as unknown as {
+        SpeechRecognition: SpeechRecognitionCtor
+        webkitSpeechRecognition: SpeechRecognitionCtor
+      }
+    ).SpeechRecognition ||
+    (
+      window as unknown as {
+        SpeechRecognition: SpeechRecognitionCtor
+        webkitSpeechRecognition: SpeechRecognitionCtor
+      }
+    ).webkitSpeechRecognition
   const recognition = new SpeechRecognition()
   recognitionInstance = recognition
 
@@ -236,7 +324,7 @@ export function streamWebSpeechAPITranscription(
     interimResults: recognition.interimResults,
   })
 
-  recognition.onresult = (event: any) => {
+  recognition.onresult = (event: SpeechRecognitionEvent) => {
     let finalTranscript = ''
     let interimTranscript = ''
 
@@ -272,7 +360,7 @@ export function streamWebSpeechAPITranscription(
     }
   }
 
-  recognition.onerror = (event: any) => {
+  recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
     const errorType = event.error || 'unknown'
     console.warn('Web Speech API error:', errorType)
 
@@ -370,7 +458,9 @@ export function streamWebSpeechAPITranscription(
     })
   }
 
-  function createAndStartNewRecognitionInstance(sourceRecognition: any): any {
+  function createAndStartNewRecognitionInstance(
+    sourceRecognition: InstanceType<SpeechRecognitionCtor>,
+  ): InstanceType<SpeechRecognitionCtor> {
     const newRecognition = new SpeechRecognition()
     newRecognition.lang = sourceRecognition.lang
     newRecognition.continuous = sourceRecognition.continuous
@@ -389,12 +479,12 @@ export function streamWebSpeechAPITranscription(
       recognition.start()
       console.info('Web Speech API recognition started successfully')
       return true
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Common errors:
       // - "already started": Recognition is already running
       // - "not-allowed": Microphone permission denied
       // - "service-not-allowed": Service not available
-      const errorMessage = error?.message || String(error)
+      const errorMessage = error instanceof Error ? error.message : String(error)
       console.warn('Web Speech API recognition start failed:', errorMessage, error)
 
       if (errorMessage.includes('already') || errorMessage.includes('started')) {
@@ -420,9 +510,9 @@ export function streamWebSpeechAPITranscription(
         createAndStartNewRecognitionInstance(recognition)
         console.info('Web Speech API recognition restarted successfully with new instance')
         return true
-      } catch (restartError: any) {
+      } catch (restartError: unknown) {
         const err = new Error(
-          `Failed to start Web Speech API recognition: ${restartError?.message || String(restartError)}`,
+          `Failed to start Web Speech API recognition: ${restartError instanceof Error ? restartError.message : String(restartError)}`,
         )
         fullStreamCtrl?.error(err)
         textStreamCtrl?.error(err)

@@ -132,12 +132,12 @@ function handleMessage(ws: WebSocket, message: Record<string, unknown>): void {
         totalCost: 0,
         number: getTaskCount() + 1,
       }
+      // upsertTask handles both the tasks Map insert AND the state.taskHistory
+      // append — this is the single code path for adding a task. Do NOT also
+      // call patchState({ taskHistory: ... }) here; the state handler would
+      // then re-add the item from taskHistory into the tasks Map on the next
+      // client state sync.
       upsertTask(item as HistoryItem)
-
-      // Patch task into taskHistory immediately so runTask can find it for usage updates.
-      const currentState = getState()
-      const currentHistory = currentState.taskHistory || []
-      patchState({ taskHistory: [...currentHistory, item as HistoryItem] })
 
       send(ws, { type: 'taskCreated', task: item, requestId })
 
@@ -156,7 +156,7 @@ function handleMessage(ws: WebSocket, message: Record<string, unknown>): void {
       if (taskId && typeof taskId === 'string') {
         const task = getTask(taskId)
         if (task) {
-          ;(task as any).status = 'cancelled'
+          ;(task as Omit<HistoryItem, 'status'> & { status: string }).status = 'cancelled'
           upsertTask(task)
           send(ws, { type: 'taskUpdated', task, requestId })
         }

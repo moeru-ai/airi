@@ -7,7 +7,7 @@ import type { useExpressionController } from './expression-controller'
 import { useLive2DIdleEyeFocus } from './animation'
 
 type CubismModel = Cubism4InternalModel['coreModel']
-type CubismEyeBlink = Cubism4InternalModel['eyeBlink']
+export type CubismEyeBlink = Cubism4InternalModel['eyeBlink']
 
 export type PixiLive2DInternalModel = InternalModel & {
   eyeBlink?: CubismEyeBlink

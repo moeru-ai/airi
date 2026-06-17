@@ -43,70 +43,47 @@ Our goal is a Linux desktop experience where your AI companion acts as the cente
 
 ### What It Is
 
-The **AnimAIOS Code module** (`modules/code`) is a fork of [Roo Code](https://roocode.com) re-architected into a **standalone VS Code / Codium / Code-server extension** — a complete, independent product. All five modes (Spec, Vibe, Boss, Ask, Debug) are fully functional in the extension today.
+The **AnimAIOS Code module** (`modules/code`) is a fork of [Roo Code](https://roocode.com) re-architected into a **standalone browser-based AI coding assistant** — no IDE, no extension host, no VS Code dependency. The UI is a React SPA backed by a lightweight Fastify server that handles WebSocket streaming and LLM API calls.
 
 ### Relationship to AIRI
 
-AIRI does not control Roo. The interaction model is:
+The Code module is a **standalone product** — it does not require AIRI. You can use it by itself in any browser.
 
-- **Normal mode**: User chats with AIRI directly. No Roo visible.
-- **Hacking Mode**: Roo activates **inside** the AIRI interface. The AIRI chatbox becomes the Roo interface. User messages go to Roo (processed as if typed in VS Code). Roo's periodic summaries flow back to AIRI for TTS narration.
-- AIRI is the host. Roo is the coding brain that AIRI activates on demand.
+Optionally, AIRI can embed the Code UI as a panel inside its Electron app ("Hacking Mode"):
 
-The Code module also works **standalone** in VS Code / Codium / Code-server — no AIRI needed. Hacking Mode is an optional integration on top.
+- **Normal mode**: User chats with AIRI directly. No Code UI visible.
+- **Hacking Mode**: The AIRI chatbox becomes the Code interface. User messages go to Code; Code's summaries flow back to AIRI for TTS narration.
+- AIRI embeds Code via a BrowserView loading from `localhost:3210`.
 
 ### What's Implemented
 
-These components have real, working logic and can be used right now:
+The standalone app is fully functional today:
 
 | Component | What It Does |
 |-----------|-------------|
-| **🔧 Built-in Tools** | `read_file` (slice + indentation modes, binary detection), `list_files` (recursive, skip dirs), `search_files` (regex across workspace), `apply_diff` (unified diff + SEARCH/REPLACE) |
-| **📁 Workspace Management** | Per-task workspace sessions with temp-dir sandboxing, deterministic cleanup, git worktree creation |
-| **📡 Streaming** | Bounded per-task event buffers, subscribe/unsubscribe, reconnect-safe replay |
-| **🩹 Patch Generation** | LCS-based unified diff generation, patch proposal creation, patch application |
-| **🔍 Repository Indexing** | Content-hashed incremental re-indexing, structural map building (file graph, import edges) |
-| **🧠 Capability System** | Generic `CapabilityRegistry<T>`, typed `ToolCapability` interface, `CodeToolExecutor` with validation + timeout + cancellation |
-| **📋 Mode Definitions** | Full role definitions and custom instructions for all 5 modes (`spec`, `vibe`, `orchestrator`, `ask`, `debug`) |
+| **🌐 React SPA** | Chat UI, settings, history, 27+ provider configurations |
+| **⚡ Fastify Backend** | WebSocket server, task lifecycle, state sync |
+| **🤖 Task Runner** | Single-turn LLM calls via raw HTTP + SSE (no SDK deps) |
+| **📋 Mode Definitions** | Full role definitions for all 5 modes (`spec`, `vibe`, `orchestrator`, `ask`, `debug`) |
+| **🔄 WebSocket Bridge** | Protocol-compatible with ExtensionMessage / WebviewMessage |
 
-### What's Implemented in the Extension
+### Running
 
-The VS Code extension (parent repo + submodule) provides the full experience:
+```bash
+cd apps/roo-code-standalone
+npm install
+npm run dev
+```
 
-| Feature | Status |
-|---------|--------|
-| **Spec mode** (Kiro-style planning) | ✅ Fully functional in extension |
-| **Vibe mode** (flow-state implementation) | ✅ Fully functional in extension |
-| **Boss mode** (read-only coordinator) | ✅ Fully functional in extension |
-| **Ask mode** (technical Q&A) | ✅ Fully functional in extension |
-| **Debug mode** (systematic debugging) | ✅ Fully functional in extension |
-| **Built-in tools** (read, list, search, diff) | ✅ Implemented in submodule |
-| **Workspace/session management** | ✅ Implemented in submodule |
-| **Streaming events** | ✅ Implemented in submodule |
-| **Patch generation** | ✅ Implemented in submodule |
-| **Repository indexing** | ✅ Implemented in submodule |
-
-### Future Direction
-
-These are planned enhancements on top of the existing extension:
-
-| Feature | Status |
-|---------|--------|
-| **Multi-agent swarms** | Interface stubs (`IDaemon`, `IAgent`, `ICoordinator`) |
-| **Semantic memory integration** | Planned, not started |
-| **Autonomous background workers** | Planned, not started |
-| **Filesystem/Git/Terminal capabilities** | Path-validation helpers exist, but no `ToolCapability` implementations registered |
-| **Hacking Mode** (integrated terminal-native coding) | Planned, not started |
+Opens the UI at `http://127.0.0.1:3210`. Configure your provider in the Settings UI and start chatting.
 
 ### The Five Modes
 
-All five modes are **fully functional in the VS Code extension**:
-
 | Mode | Slug | Role |
 |------|------|------|
-| 🧠 **Spec** | `spec` | Kiro-style spec-driven planning. Converts vague intent into structured requirements, design docs, and actionable task lists. Asks clarifying questions before any code is written. |
-| ✨ **Vibe** | `vibe` | Flow-state implementation mode. Less formal, rapid iteration, code-focused. Gets your spec'd work done. Has full read/write/terminal access. |
-| 🕴️ **Boss** | `orchestrator` | Read-only coordinator. Explores the codebase (files, search, MCP), decomposes complex tasks, and delegates all implementation to Vibe. **No terminal. No write access.** |
+| 🧠 **Spec** | `spec` | Kiro-style spec-driven planning. Converts vague intent into structured requirements, design docs, and actionable task lists. |
+| ✨ **Vibe** | `vibe` | Flow-state implementation mode. Rapid iteration, code-focused. |
+| 🕴️ **Boss** | `orchestrator` | Read-only coordinator. Explores the codebase, decomposes tasks, delegates all implementation to Vibe. |
 | ❓ **Ask** | `ask` | Technical Q&A and explanations without making changes. |
 | 🪲 **Debug** | `debug` | Systematic debugging — diagnoses root causes before applying fixes. |
 
@@ -114,51 +91,59 @@ Philosophy: **"Spec before vibe."**
 
 ### How Boss Differs from Upstream Roo
 
-In stock Roo Code, the orchestrator has broad access — it can read, write, run terminal commands, and execute tools directly. AnimAIOS has **restored the original Boomerang form**:
+In stock Roo Code, the orchestrator has broad access. AnimAIOS Boss is a **pure coordinator** — it explores, understands, plans, and then hands off every implementation action to Vibe. Boss never touches code directly.
 
-| | Upstream Roo Orchestrator | AnimAIOS Boss |
-|---|---|---|
-| **File reads** | ✅ | ✅ |
-| **Search / MCP** | ✅ | ✅ |
-| **Terminal** | ✅ | ❌ |
-| **File writes** | ✅ | ❌ |
-| **Tool execution** | ✅ | ❌ |
-| **Delegates to Vibe** | Optional | **Always** |
+### Architecture
 
-Boss is a **pure coordinator** — it explores, understands, plans, and then hands off every implementation action to Vibe. This enforces a clean separation of concerns: Boss never touches code directly.
+```
+Browser (React SPA)
+  │  vscode.ts → window.__roo_bridge__ → WebSocket
+  ↓
+Backend (Fastify, port 3210)
+  ├─ WebSocket handler (task lifecycle, state sync)
+  ├─ Task runner (raw HTTP + SSE to LLM providers)
+  ├─ State management (tasks Map + taskHistory with O(1) upsert)
+  └─ Static file serving (built SPA)
+```
 
-### Architecture Direction
+### Roadmap
 
-The module is being re-architected from stock Roo Code toward:
+### Phase 1 (Current) — Standalone Q&A ✅
+- Browser SPA with chat UI
+- 27+ LLM providers via raw HTTP + SSE
+- WebSocket bridge replacing vscode.postMessage
+- Task history with token tracking
 
-- **Backend-first orchestration** — decoupled frontend, async pipelines, resumable sessions
-- **Multi-agent swarms** — specialized modes with clear delegation, not monolithic prompts
-- **Worktree/task isolation** — parallel subtasks run in isolated git worktrees
-- **Semantic memory integration** — persistent context across sessions (planned)
-- **Autonomous background workers** — tasks continue even when you step away
+### Phase 2 — Tool Use
+- Filesystem operations (read, write, search)
+- Terminal (node-pty)
+- Git operations
+- Multi-turn conversations with tool calls
 
-### Hosting Model: VS Code Extension (First-Class ✅)
+### Phase 3 — AIRI Integration
+- BrowserView embedding in AIRI Electron
+- IPC bridge (Code ↔ AIRI main process)
+- Hacking Mode controller
+- TTS narration of Code summaries
 
-The Code module is a **full standalone VS Code / Codium / Code-server extension** — not a temporary constraint, but a first-class, permanently supported hosting experience.
+### Phase 4 — Polish
+- API proxy (hide LLM keys from browser)
+- SQLite persistence
+- Theme system
+- Auto-update mechanism
 
-Every push to `main` triggers a **nightly build** of the extension:
+### Hacking Mode: Code Inside AIRI
 
-> 🌙 **Nightly Extension** — [Download the latest build](https://github.com/animaios/code/releases) | [Build badge](https://github.com/animaios/code/actions)
+On top of the standalone app, AnimAIOS is building a **hybrid interaction model**:
 
-The extension gives you the complete Roo Code experience — all five modes (Spec, Vibe, Boss, Ask, Debug), the full tool suite, and the complete orchestration pipeline — inside your IDE of choice.
+1. **Normal mode**: User chats with AIRI directly. No Code UI visible.
+2. **Hacking Mode**: Code activates **inside** the AIRI interface via BrowserView. The AIRI chatbox becomes the Code interface.
+3. User messages go to Code; Code's summaries flow back to AIRI for TTS narration.
+4. AIRI is the host. Code is the coding brain that AIRI activates on demand.
 
-### Hacking Mode: Roo Inside AIRI
+> In short: AIRI is your companion. When you need to code, Hacking Mode brings Code inside AIRI's interface — same Code, same interface, now hosted in AIRI.
 
-On top of the standalone extension, AnimAIOS is building a **hybrid interaction model**:
-
-1. **Normal mode**: User chats with AIRI directly. No Roo visible. AIRI is the companion.
-2. **Hacking Mode**: Roo activates **inside** the AIRI interface. The AIRI chatbox becomes the Roo interface — user sees Roo exactly as it appears in VS Code.
-3. User messages go to Roo, which processes them as if typed in VS Code. Roo's periodic summaries flow back to AIRI for TTS narration.
-4. AIRI is the host. Roo is the coding brain that AIRI activates on demand.
-
-> In short: AIRI is your companion. When you need to code, Hacking Mode brings Roo inside AIRI's interface — same Roo, same interface, now hosted in AIRI.
-
-The standalone extension remains the primary, fully supported way to use the Code module. Hacking Mode is an optional integration on top.
+The standalone browser app remains the primary, fully supported way to use the Code module. Hacking Mode is an optional integration on top.
 
 ### Key Files
 

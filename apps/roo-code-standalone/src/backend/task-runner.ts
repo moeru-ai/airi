@@ -16,8 +16,21 @@
  * providers — anything else can route through OpenRouter.
  */
 
-import { getState, patchState } from './state.js'
+import { getState, patchState, upsertTask, getTask } from './state.js'
 import type { ExtensionState } from '@roo-code/types'
+
+/**
+ * Minimal shape of the subset of apiConfiguration that provider functions
+ * actually read. The full ExtensionState['apiConfiguration'] type is a deep
+ * intersection of 27+ provider-specific records — we only need these fields.
+ */
+interface ApiConfig {
+  apiKey?: string
+  apiProvider?: string
+  apiModelId?: string
+  modelId?: string
+  baseURL?: string
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -74,6 +87,21 @@ export async function runTask(taskId: string, text: string, onUpdate?: () => voi
     return
   }
 
+  // Validate API key is present for providers that require one
+  const apiKey = String(apiConfig.apiKey ?? '').trim()
+  if (!apiKey) {
+    appendMessage(
+      {
+        ts: Date.now(),
+        type: 'say',
+        say: 'error',
+        text: `No API key configured for ${apiConfig.apiProvider}. Open Settings -> Providers to add an API key.`,
+      },
+      onUpdate,
+    )
+    return
+  }
+
   // 1. Append the user message.
   appendMessage(
     {
@@ -88,6 +116,7 @@ export async function runTask(taskId: string, text: string, onUpdate?: () => voi
   // 2. Call the LLM.
   let assistantText = ''
   let assistantMessageTs: number | null = null
+  let hadError = false
   try {
     const systemPrompt = 'You are Roo, a helpful AI coding assistant. Be concise and direct.'
     const messages: LLMMessage[] = [{ role: 'user', content: text }]
@@ -125,19 +154,15 @@ export async function runTask(taskId: string, text: string, onUpdate?: () => voi
           }
         }
       } else if (chunk.type === 'usage') {
-        // Store cost info on the task record via patchState (immutable).
-        const s = getState()
-        const tasks = s.taskHistory || []
-        const idx = tasks.findIndex((t) => t.id === taskId)
-        if (idx !== -1) {
-          const updated = [...tasks]
-          updated[idx] = {
-            ...updated[idx],
-            tokensIn: chunk.inputTokens ?? updated[idx].tokensIn ?? 0,
-            tokensOut: chunk.outputTokens ?? updated[idx].tokensOut ?? 0,
-            totalCost: chunk.totalCost ?? updated[idx].totalCost ?? 0,
-          }
-          patchState({ taskHistory: updated } as Partial<ExtensionState>)
+        // Store cost info on the task record via upsertTask (O(1) + sync).
+        const task = getTask(taskId)
+        if (task) {
+          upsertTask({
+            ...task,
+            tokensIn: chunk.inputTokens || task.tokensIn || 0,
+            tokensOut: chunk.outputTokens || task.tokensOut || 0,
+            totalCost: chunk.totalCost || task.totalCost || 0,
+          })
           onUpdate?.()
         }
       }
@@ -145,6 +170,7 @@ export async function runTask(taskId: string, text: string, onUpdate?: () => voi
   } catch (err: unknown) {
     const errMsg = `Error calling ${apiConfig.apiProvider}: ${err instanceof Error ? err.message : String(err)}`
     assistantText = errMsg
+    hadError = true
     // Mark the streaming assistant message as complete so it doesn't stay stuck as partial
     if (assistantMessageTs !== null) {
       const s = getState()
@@ -171,7 +197,7 @@ export async function runTask(taskId: string, text: string, onUpdate?: () => voi
   }
 
   // 3. Mark the streaming assistant message as complete (non-partial).
-  if (assistantMessageTs !== null && assistantText && !assistantText.startsWith('Error')) {
+  if (assistantMessageTs !== null && assistantText && !hadError) {
     const s = getState()
     const msgs = s.clineMessages || []
     const idx = msgs.findIndex(
@@ -203,11 +229,7 @@ function appendMessage(message: ClineMessage, onUpdate?: () => void): void {
 /**
  * Pick the right streaming function for the configured provider.
  */
-function streamLLM(
-  apiConfig: Record<string, unknown>,
-  systemPrompt: string,
-  messages: LLMMessage[],
-): AsyncGenerator<StreamChunk> {
+function streamLLM(apiConfig: ApiConfig, systemPrompt: string, messages: LLMMessage[]): AsyncGenerator<StreamChunk> {
   const provider = String(apiConfig.apiProvider ?? 'openrouter').toLowerCase()
 
   switch (provider) {
@@ -229,12 +251,18 @@ function streamLLM(
 // ---------------------------------------------------------------------------
 
 async function* streamAnthropic(
-  apiConfig: Record<string, unknown>,
+  apiConfig: ApiConfig,
   systemPrompt: string,
   messages: LLMMessage[],
 ): AsyncGenerator<StreamChunk> {
   const apiKey = String(apiConfig.apiKey ?? '')
   const model = String(apiConfig.apiModelId ?? apiConfig.modelId ?? 'claude-sonnet-4-5')
+
+  // Anthropic expects content as array of content blocks, not a plain string.
+  const anthropicMessages = messages.map((m) => ({
+    role: m.role,
+    content: [{ type: 'text' as const, text: m.content }],
+  }))
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -248,7 +276,7 @@ async function* streamAnthropic(
       model,
       max_tokens: 4096,
       system: systemPrompt,
-      messages,
+      messages: anthropicMessages,
       stream: true,
     }),
   })
@@ -283,7 +311,7 @@ async function* streamAnthropic(
 }
 
 async function* streamOpenAI(
-  apiConfig: Record<string, unknown>,
+  apiConfig: ApiConfig,
   systemPrompt: string,
   messages: LLMMessage[],
 ): AsyncGenerator<StreamChunk> {
@@ -312,10 +340,23 @@ async function* streamOpenAI(
 
   yield* parseSSE(res, (data) => {
     const choice = data.choices?.[0]
-    if (choice?.delta?.content) {
+    const hasText = choice?.delta?.content
+    const hasUsage = data.usage
+    if (hasText && hasUsage) {
+      return [
+        { type: 'text' as const, text: choice.delta.content },
+        {
+          type: 'usage' as const,
+          inputTokens: data.usage.prompt_tokens ?? 0,
+          outputTokens: data.usage.completion_tokens ?? 0,
+          totalCost: 0,
+        },
+      ]
+    }
+    if (hasText) {
       return { type: 'text' as const, text: choice.delta.content }
     }
-    if (data.usage) {
+    if (hasUsage) {
       return {
         type: 'usage' as const,
         inputTokens: data.usage.prompt_tokens ?? 0,
@@ -328,7 +369,7 @@ async function* streamOpenAI(
 }
 
 async function* streamGemini(
-  apiConfig: Record<string, unknown>,
+  apiConfig: ApiConfig,
   systemPrompt: string,
   messages: LLMMessage[],
 ): AsyncGenerator<StreamChunk> {
@@ -388,7 +429,7 @@ async function* streamGemini(
 }
 
 async function* streamOpenRouter(
-  apiConfig: Record<string, unknown>,
+  apiConfig: ApiConfig,
   systemPrompt: string,
   messages: LLMMessage[],
 ): AsyncGenerator<StreamChunk> {
@@ -416,10 +457,23 @@ async function* streamOpenRouter(
 
   yield* parseSSE(res, (data) => {
     const choice = data.choices?.[0]
-    if (choice?.delta?.content) {
+    const hasText = choice?.delta?.content
+    const hasUsage = data.usage
+    if (hasText && hasUsage) {
+      return [
+        { type: 'text' as const, text: choice.delta.content },
+        {
+          type: 'usage' as const,
+          inputTokens: data.usage.prompt_tokens ?? 0,
+          outputTokens: data.usage.completion_tokens ?? 0,
+          totalCost: Number(data.usage.total_cost ?? 0),
+        },
+      ]
+    }
+    if (hasText) {
       return { type: 'text' as const, text: choice.delta.content }
     }
-    if (data.usage) {
+    if (hasUsage) {
       return {
         type: 'usage' as const,
         inputTokens: data.usage.prompt_tokens ?? 0,
@@ -441,7 +495,7 @@ async function* streamOpenRouter(
  */
 async function* parseSSE(
   res: Response,
-  extract: (data: any) => StreamChunk | StreamChunk[] | null,
+  extract: (data: Record<string, unknown>) => StreamChunk | StreamChunk[] | null,
 ): AsyncGenerator<StreamChunk> {
   const reader = res.body?.getReader()
   if (!reader) throw new Error('No response body')
@@ -463,9 +517,9 @@ async function* parseSSE(
       const json = trimmed.slice(5).trim()
       if (json === '[DONE]') continue
 
-      let data: any
+      let data: Record<string, unknown>
       try {
-        data = JSON.parse(json)
+        data = JSON.parse(json) as Record<string, unknown>
       } catch {
         continue
       }
@@ -485,9 +539,9 @@ async function* parseSSE(
     if (trimmed.startsWith('data:')) {
       const json = trimmed.slice(5).trim()
       if (json && json !== '[DONE]') {
-        let data: any
+        let data: Record<string, unknown>
         try {
-          data = JSON.parse(json)
+          data = JSON.parse(json) as Record<string, unknown>
         } catch {
           return
         }

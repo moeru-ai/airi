@@ -46,7 +46,7 @@ export class FilesystemPersistenceAdapter implements PersistenceAdapter {
 		const filePath = this.keyToPath(key)
 		try {
 			return await fs.readFile(filePath)
-		} catch (error: any) {
+		} catch (error: NodeJS.ErrnoException) {
 			if (error?.code === "ENOENT") return null
 			throw error
 		}
@@ -95,7 +95,7 @@ export class FilesystemPersistenceAdapter implements PersistenceAdapter {
 			} else {
 				await fs.unlink(filePath)
 			}
-		} catch (error: any) {
+		} catch (error: NodeJS.ErrnoException) {
 			if (error?.code === "ENOENT") return
 			throw error
 		}
@@ -139,7 +139,7 @@ export class FilesystemPersistenceAdapter implements PersistenceAdapter {
 			return keys
 				.filter((key) => key.startsWith(prefix) || key.startsWith(fullPrefix))
 				.sort()
-		} catch (error: any) {
+		} catch (error: NodeJS.ErrnoException) {
 			if (error?.code === "ENOENT") return []
 			throw error
 		}
@@ -175,7 +175,7 @@ export class FilesystemPersistenceAdapter implements PersistenceAdapter {
 		let entries: import("node:fs").Dirent[]
 		try {
 			entries = await fs.readdir(dirPath, { withFileTypes: true })
-		} catch (error: any) {
+		} catch (error: NodeJS.ErrnoException) {
 			if (error?.code === "ENOENT") return []
 			throw error
 		}

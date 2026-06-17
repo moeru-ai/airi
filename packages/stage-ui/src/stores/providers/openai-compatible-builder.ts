@@ -6,7 +6,7 @@ import { message } from '@xsai/utils-chat'
 
 import { ProviderValidationCheck } from '../../libs/providers'
 
-type ProviderCreator = (apiKey: string, baseUrl: string) => any
+type ProviderCreator = (apiKey: string, baseUrl: string) => { model: (...args: unknown[]) => unknown }
 
 // Lightweight normalization utilities and conditional logging
 function normalizeString(value: unknown): string {
@@ -94,16 +94,24 @@ export function buildOpenAICompatibleProvider(
         headers: additionalHeaders,
       })
 
-      return models.map((model: any) => {
-        return {
-          id: model.id,
-          name: model.name || model.display_name || model.id,
-          provider: id,
-          description: model.description || '',
-          contextLength: model.context_length || 0,
-          deprecated: false,
-        } satisfies ModelInfo
-      })
+      return models.map(
+        (model: {
+          id: string
+          name?: string
+          display_name?: string
+          description?: string
+          context_length?: number
+        }) => {
+          return {
+            id: model.id,
+            name: model.name || model.display_name || model.id,
+            provider: id,
+            description: model.description || '',
+            contextLength: model.context_length || 0,
+            deprecated: false,
+          } satisfies ModelInfo
+        },
+      )
     },
   }
 

@@ -32,6 +32,9 @@ import {
 } from '../../../core/workers/protocol.js'
 import type { TaskExecutor, TaskExecutionContext } from '../../../core/tasks/executor.js'
 import type { CancellationToken } from '../../../core/tasks/cancellation.js'
+import type { EventBus } from '../../../core/modules/module.js'
+import type { Logger } from '../../../core/logger.js'
+import type { TaskId } from '../../../core/tasks/types.js'
 
 // ── State ───────────────────────────────────────────────────────────────
 
@@ -159,7 +162,8 @@ async function handleExecuteTask(message: ExecuteTaskMessage): Promise<void> {
     const ctx = createExecutionContext(task.id)
 
     // Execute the task.
-    const result = await executor.execute(task as any, ctx)
+    // TaskPayload is a serializable subset of Task, so we cast here.
+    const result = await executor.execute(task as Parameters<typeof executor.execute>[0], ctx)
 
     if (result.success) {
       sendResult(task.id, { success: true, output: result.output })
@@ -219,7 +223,7 @@ function createExecutionContext(taskId: string): TaskExecutionContext {
 
   return {
     task: {
-      id: taskId as any,
+      id: taskId as TaskId,
       title: '',
       state: 'running',
       priority: 'normal',
@@ -244,13 +248,13 @@ function createExecutionContext(taskId: string): TaskExecutionContext {
       subscribe: () => () => {},
       listenerCount: () => 0,
       clear: () => {},
-    } as any,
+    } as EventBus,
     logger: {
-      debug: (..._args: any[]) => {},
-      info: (..._args: any[]) => {},
-      warn: (..._args: any[]) => {},
-      error: (..._args: any[]) => {},
-    } as any,
+      debug: (..._args: unknown[]) => {},
+      info: (..._args: unknown[]) => {},
+      warn: (..._args: unknown[]) => {},
+      error: (..._args: unknown[]) => {},
+    } as Logger,
   }
 }
 

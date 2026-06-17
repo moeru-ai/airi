@@ -98,7 +98,7 @@ export async function loadSpineModelPreview(file: File): Promise<string | undefi
             ).__previewSkeleton
             if (skeleton) {
               if (spine.Physics) skeleton.updateWorldTransform(spine.Physics.update)
-              else (skeleton as any).updateWorldTransform()
+              else (skeleton as unknown as { updateWorldTransform?: () => void }).updateWorldTransform?.()
             }
           },
           render: (canvasApp: import('@esotericsoftware/spine-webgl').SpineCanvas) => {
