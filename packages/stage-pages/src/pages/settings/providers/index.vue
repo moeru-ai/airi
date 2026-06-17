@@ -50,6 +50,7 @@ const {
   allChatProvidersMetadata,
   allAudioSpeechProvidersMetadata,
   allAudioTranscriptionProvidersMetadata,
+  allVisionProvidersMetadata,
 } = storeToRefs(providersStore)
 
 const allArtistryProvidersMetadata = computed<ProviderSourceCard[]>((): ProviderSourceCard[] => {
@@ -114,6 +115,13 @@ const providerBlocksConfig: ProviderBlockConfig[] = [
     title: t('settings.pages.providers.categories.chat.title'),
     description: t('settings.pages.providers.categories.chat.description'),
     providersRef: allChatProvidersMetadata,
+  },
+  {
+    id: 'vision',
+    icon: 'i-solar:eye-bold-duotone',
+    title: t('settings.pages.providers.categories.vision.title'),
+    description: t('settings.pages.providers.categories.vision.description'),
+    providersRef: allVisionProvidersMetadata,
   },
   {
     id: 'speech',

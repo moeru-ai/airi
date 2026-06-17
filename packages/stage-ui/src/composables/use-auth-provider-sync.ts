@@ -6,14 +6,16 @@ import { useAuthStore } from '../stores/auth'
 import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useHearingStore } from '../stores/modules/hearing'
 import { useSpeechStore } from '../stores/modules/speech'
+import { useVisionStore } from '../stores/modules/vision'
 import { useProvidersStore } from '../stores/providers'
 
 /**
  * Provider IDs to auto-activate on sign-in.
  * Edit this list to enable/disable official providers.
  */
-const AUTH_ACTIVATED_PROVIDERS: Array<{ id: string, module: 'consciousness' | 'speech' | 'hearing' }> = [
+const AUTH_ACTIVATED_PROVIDERS: Array<{ id: string, module: 'consciousness' | 'speech' | 'hearing' | 'vision' }> = [
   { id: 'official-provider', module: 'consciousness' },
+  { id: 'vision-official-provider', module: 'vision' },
   { id: 'official-provider-speech', module: 'speech' },
   { id: OFFICIAL_TRANSCRIPTION_PROVIDER_ID, module: 'hearing' },
 ]
@@ -36,6 +38,7 @@ export function useAuthProviderSync() {
   const authStore = useAuthStore()
   const providersStore = useProvidersStore()
   const consciousnessStore = useConsciousnessStore()
+  const visionStore = useVisionStore()
   const speechStore = useSpeechStore()
   const hearingStore = useHearingStore()
 
@@ -67,6 +70,12 @@ export function useAuthProviderSync() {
             consciousnessStore.activeModel = 'auto'
           }
           break
+        case 'vision':
+          if (!visionStore.activeProvider) {
+            visionStore.activeProvider = id
+            visionStore.activeModel = 'auto'
+          }
+          break
         case 'speech':
           if (!speechStore.activeSpeechProvider || speechStore.activeSpeechProvider === 'speech-noop') {
             speechStore.activeSpeechProvider = id
@@ -88,7 +97,9 @@ export function useAuthProviderSync() {
         toActivate.map(({ id, module }) =>
           module === 'consciousness'
             ? consciousnessStore.loadModelsForProvider(id)
-            : providersStore.fetchModelsForProvider(id),
+            : module === 'vision'
+              ? visionStore.loadModelsForProvider(id)
+              : providersStore.fetchModelsForProvider(id),
         ),
       )
     }
@@ -166,6 +177,12 @@ export function useAuthProviderSync() {
           if (consciousnessStore.activeProvider === id) {
             consciousnessStore.activeProvider = ''
             consciousnessStore.activeModel = ''
+          }
+          break
+        case 'vision':
+          if (visionStore.activeProvider === id) {
+            visionStore.activeProvider = ''
+            visionStore.activeModel = ''
           }
           break
         case 'speech':
