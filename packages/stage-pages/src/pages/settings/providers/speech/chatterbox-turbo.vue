@@ -8,7 +8,8 @@ import {
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { Callout } from '@proj-airi/ui'
-import { computed, onMounted, watch } from 'vue'
+import { storeToRefs } from 'pinia'
+import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -18,6 +19,7 @@ const defaultModel = 'chatterbox'
 
 const speechStore = useSpeechStore()
 const providersStore = useProvidersStore()
+const { providers } = storeToRefs(providersStore)
 
 // Chatterbox servers do not require an API key; the local server is always reachable once configured.
 const apiKeyConfigured = true
@@ -27,12 +29,17 @@ const availableVoices = computed(() => {
   return speechStore.availableVoices[providerId] || []
 })
 
-onMounted(async () => {
-  await speechStore.loadVoicesForProvider(providerId)
-})
-
-watch([apiKeyConfigured], async () => {
-  await speechStore.loadVoicesForProvider(providerId)
+watch(providers, async () => {
+  const providerConfig = providersStore.getProviderConfig(providerId)
+  const providerMetadata = providersStore.getProviderMetadata(providerId)
+  if ((await providerMetadata.validators.validateProviderConfig(providerConfig)).valid) {
+    await speechStore.loadVoicesForProvider(providerId)
+  }
+  else {
+    console.error('Failed to validate provider config', providerConfig)
+  }
+}, {
+  immediate: true,
 })
 
 async function handleGenerateSpeech(input: string, voiceId: string) {
