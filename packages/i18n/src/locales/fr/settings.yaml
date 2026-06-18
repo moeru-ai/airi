@@ -310,6 +310,9 @@ pages:
       provider: Chat / Fournisseur
     consciousness:
       model: Conscience / Modèle
+    vision:
+      provider: Vision / Fournisseur
+      model: Vision / Modèle
     created_by: créé par
     creator_notes: Notes du créateur
     delete: Supprimer

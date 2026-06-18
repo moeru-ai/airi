@@ -310,6 +310,9 @@ pages:
       provider: 聊天 / 提供商
     consciousness:
       model: 意识 / 模型
+    vision:
+      provider: 视觉 / 提供商
+      model: 视觉 / 模型
     created_by: 创建者
     creator_notes: 创建者笔记
     delete: 删除
@@ -960,6 +963,9 @@ pages:
       chat:
         title: 聊天
         description: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
+      vision:
+        title: 视觉
+        description: 用于图像理解的视觉模型服务来源。
       speech:
         title: Speech
         description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.

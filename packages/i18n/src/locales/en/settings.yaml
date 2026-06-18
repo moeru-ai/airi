@@ -324,6 +324,9 @@ pages:
       provider: Chat / Provider
     consciousness:
       model: Consciousness / Model
+    vision:
+      provider: Vision / Provider
+      model: Vision / Model
     created_by: created by
     creator_notes: Creator Notes
     delete: Delete
@@ -1006,6 +1009,9 @@ pages:
       chat:
         title: Chat
         description: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
+      vision:
+        title: Vision
+        description: Vision model providers for image understanding.
       speech:
         title: Speech
         description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.

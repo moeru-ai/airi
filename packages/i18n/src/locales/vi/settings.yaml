@@ -310,6 +310,9 @@ pages:
       provider: Trò chuyện / Nhà cung cấp
     consciousness:
       model: Ý thức / Mô hình
+    vision:
+      provider: Thị giác / Nhà cung cấp
+      model: Thị giác / Mô hình
     created_by: được tạo bởi
     creator_notes: Ghi chú của tác giả
     delete: Xóa
