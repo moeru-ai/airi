@@ -115,6 +115,13 @@ class HostBridgeConnection {
         break
 
       case 'error':
+        if (!this.settled) {
+          this.settled = true
+          connections.delete(this.id)
+          this.reject(new Error(event.message))
+          return
+        }
+
         this.events.error(new Error(event.message))
         break
 
