@@ -3300,9 +3300,27 @@ importers:
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
+      '@proj-airi/audio':
+        specifier: workspace:^
+        version: link:../audio
       uncrypto:
         specifier: 'catalog:'
         version: 0.1.3
+
+  packages/better-ws:
+    dependencies:
+      '@moeru/eventa':
+        specifier: 'catalog:'
+        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)
+      crossws:
+        specifier: 'catalog:'
+        version: 0.4.5(srvx@0.11.15)
+      h3:
+        specifier: 'catalog:'
+        version: 2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15))
+      srvx:
+        specifier: 'catalog:'
+        version: 0.11.15
 
   packages/cap-vite:
     dependencies:
@@ -3693,6 +3711,9 @@ importers:
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
+      '@proj-airi/better-ws':
+        specifier: workspace:^
+        version: link:../better-ws
       '@proj-airi/server-shared':
         specifier: workspace:^
         version: link:../server-shared
@@ -3711,6 +3732,9 @@ importers:
       superjson:
         specifier: 'catalog:'
         version: 2.2.6
+      valibot:
+        specifier: 'catalog:'
+        version: 1.3.1(typescript@5.9.3)
 
   packages/server-schema:
     devDependencies:
@@ -3723,15 +3747,18 @@ importers:
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
+      '@proj-airi/better-ws':
+        specifier: workspace:^
+        version: link:../better-ws
       '@proj-airi/server-shared':
         specifier: workspace:^
         version: link:../server-shared
-      crossws:
-        specifier: 'catalog:'
-        version: 0.4.5(srvx@0.11.15)
       superjson:
         specifier: 'catalog:'
         version: 2.2.6
+      valibot:
+        specifier: 'catalog:'
+        version: 1.3.1(typescript@5.9.3)
 
   packages/server-sdk-shared:
     dependencies:

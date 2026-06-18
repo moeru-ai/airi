@@ -363,6 +363,30 @@ describe('widgets tool helpers', () => {
       })
     })
 
+    it('forwards always-on-top preference when spawning a widget', async () => {
+      const invokers = makeInvokers()
+      vi.mocked(invokers.addWidget).mockResolvedValue('pinned-widget')
+
+      await executeWidgetAction({
+        action: 'spawn',
+        id: ' pinned-widget ',
+        componentName: 'weather',
+        componentProps: '{"city":"Tokyo"}',
+        size: 'm',
+        ttlSeconds: 0,
+        alwaysOnTop: true,
+      }, { invokers })
+
+      expect(invokers.addWidget).toHaveBeenCalledWith({
+        id: 'pinned-widget',
+        componentName: 'weather',
+        componentProps: { city: 'Tokyo' },
+        size: 'm',
+        alwaysOnTop: true,
+        ttlMs: 0,
+      })
+    })
+
     it('forwards custom window sizing when spawning a widget', async () => {
       const invokers = makeInvokers()
       vi.mocked(invokers.addWidget).mockResolvedValue('sized-widget')
@@ -492,10 +516,11 @@ describe('widgets tool helpers', () => {
         componentName: '',
         componentProps: '{"foo":1}',
         size: 'm',
+        alwaysOnTop: false,
         ttlSeconds: 0,
       }, { invokers })
 
-      expect(invokers.updateWidget).toHaveBeenCalledWith({ id: 'xyz', componentProps: { foo: 1 } })
+      expect(invokers.updateWidget).toHaveBeenCalledWith({ id: 'xyz', componentProps: { foo: 1 }, alwaysOnTop: false })
     })
 
     it('removes when id provided', async () => {
