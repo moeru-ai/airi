@@ -124,6 +124,8 @@ describe('opfs cache full directory persistence', () => {
 
   it('saves every zip entry and restores webkitRelativePath from the physical OPFS directory', async () => {
     const zipBlob = await createZip({
+      '__MACOSX/._model.model3.json': new Uint8Array([0, 5, 22, 7, 0, 2, 0, 0]),
+      '._model.moc3': new Uint8Array([0, 5, 22, 7, 0, 2, 0, 0]),
       'model.model3.json': JSON.stringify({
         Version: 3,
         FileReferences: { Moc: 'model.moc3', Textures: ['textures/texture_00.png'] },
@@ -144,6 +146,33 @@ describe('opfs cache full directory persistence', () => {
       'model.model3.json',
       'textures/texture_00.png',
     ])
+  })
+
+  it('does not restore ignored archive metadata that already exists in OPFS', async () => {
+    const dir = await root.getDirectoryHandle('metadata-model', { create: true })
+    await OPFSCache.writeFile(
+      dir as unknown as FileSystemDirectoryHandle,
+      '__MACOSX/._model.model3.json',
+      new Blob([new Uint8Array([0, 5, 22, 7, 0, 2, 0, 0])]),
+    )
+    await OPFSCache.writeFile(
+      dir as unknown as FileSystemDirectoryHandle,
+      'model.model3.json',
+      JSON.stringify({
+        Version: 3,
+        FileReferences: { Moc: 'model.moc3', Textures: ['texture.png'] },
+      }),
+    )
+    await OPFSCache.writeFile(
+      dir as unknown as FileSystemDirectoryHandle,
+      '__meta.json',
+      JSON.stringify({ sourceUrl: 'blob:first', version: 2 }),
+    )
+
+    const files = await OPFSCache.get('metadata-model', 'blob:second')
+
+    expect(files).not.toBeNull()
+    expect(filePaths(files ?? [])).toEqual(['model.model3.json'])
   })
 
   it('keeps the original model3.json text without reconstructing or double-encoding paths', async () => {
@@ -181,6 +210,7 @@ describe('opfs cache full directory persistence', () => {
 
   it('invalidates non-blob URL cache entries when the source URL changes', async () => {
     const zipBlob = await createZip({
+      '__MACOSX/._model.model3.json': new Uint8Array([0, 5, 22, 7, 0, 2, 0, 0]),
       'model.model3.json': JSON.stringify({
         Version: 3,
         FileReferences: { Moc: 'model.moc3', Textures: ['texture.png'] },
