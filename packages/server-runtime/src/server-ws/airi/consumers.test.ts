@@ -1,13 +1,13 @@
-import type { ServerWsStickyAssignment } from '.'
+import type { ConsumerStickyAssignment } from './consumers'
 
 import { describe, expect, it } from 'vitest'
 
 import {
   createConsumerOrchestrator,
   selectConsumerPeerId,
-} from '.'
+} from './consumers'
 
-describe('server-ws consumer selection', () => {
+describe('airi websocket consumer selection', () => {
   it('selects highest priority then earliest registration', () => {
     expect(selectConsumerPeerId({
       eventType: 'event:test',
@@ -36,7 +36,7 @@ describe('server-ws consumer selection', () => {
   })
 
   it('preserves sticky assignment for the same sticky key', () => {
-    const stickyAssignments = new Map<string, ServerWsStickyAssignment>()
+    const stickyAssignments = new Map<string, ConsumerStickyAssignment>()
     const delivery = { mode: 'consumer-group' as const, group: 'workers', selection: 'sticky' as const, stickyKey: 'job-1' }
     const candidates = [
       { peerId: 'a', priority: 0, registeredAt: 1, authenticated: true },
@@ -73,7 +73,7 @@ describe('server-ws consumer selection', () => {
   })
 })
 
-describe('server-ws consumer registry', () => {
+describe('airi websocket consumer registry', () => {
   it('registers and unregisters consumers', () => {
     const registry = createConsumerOrchestrator()
 
@@ -106,7 +106,7 @@ describe('server-ws consumer registry', () => {
   })
 
   it('keeps sticky assignments isolated for delimiter-like event and group names', () => {
-    const stickyAssignments = new Map<string, ServerWsStickyAssignment>()
+    const stickyAssignments = new Map<string, ConsumerStickyAssignment>()
     const candidates = [
       { peerId: 'event::group-target', priority: 0, registeredAt: 1, authenticated: true },
       { peerId: 'other-target', priority: 0, registeredAt: 2, authenticated: true },

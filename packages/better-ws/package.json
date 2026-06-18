@@ -1,8 +1,9 @@
 {
-  "name": "@proj-airi/server-runtime",
+  "name": "@proj-airi/better-ws",
   "type": "module",
   "version": "0.10.2",
-  "description": "Server runtime implementation for AIRI running in different environments",
+  "private": true,
+  "description": "Transport-agnostic reliable WebSocket runtime primitives",
   "author": {
     "name": "Moeru AI Project AIRI Team",
     "email": "airi@moeru.ai",
@@ -12,7 +13,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/moeru-ai/airi.git",
-    "directory": "packages/server-runtime"
+    "directory": "packages/better-ws"
   },
   "exports": {
     ".": {
@@ -22,32 +23,33 @@
     "./server": {
       "types": "./dist/server.d.mts",
       "default": "./dist/server.mjs"
+    },
+    "./client/crossws": {
+      "types": "./dist/client/crossws.d.mts",
+      "default": "./dist/client/crossws.mjs"
+    },
+    "./server/h3": {
+      "types": "./dist/server/h3.d.mts",
+      "default": "./dist/server/h3.mjs"
     }
   },
   "main": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
-  "bin": "./dist/bin/run.mjs",
   "files": [
     "README.md",
     "dist",
     "package.json"
   ],
   "scripts": {
-    "dev": "tsx ./src/bin/run.js",
-    "start": "tsx ./src/bin/run.js",
     "build": "tsdown",
+    "dev": "pnpm run build",
+    "test": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@guiiai/logg": "catalog:",
-    "@moeru/std": "catalog:",
-    "@proj-airi/better-ws": "workspace:^",
-    "@proj-airi/server-shared": "workspace:^",
+    "@moeru/eventa": "catalog:",
     "crossws": "catalog:",
     "h3": "catalog:",
-    "nanoid": "catalog:",
-    "srvx": "catalog:",
-    "superjson": "catalog:",
-    "valibot": "catalog:"
+    "srvx": "catalog:"
   }
 }
