@@ -2,7 +2,7 @@ import type { ModelSettings } from 'pixi-live2d-display/cubism4'
 
 import JSZip from 'jszip'
 
-import { Cubism4ModelSettings, ZipLoader } from 'pixi-live2d-display/cubism4'
+import { Cubism4ModelSettings, FileLoader, ZipLoader } from 'pixi-live2d-display/cubism4'
 
 ZipLoader.zipReader = (data: Blob, _url: string) => JSZip.loadAsync(data)
 
@@ -53,6 +53,32 @@ ZipLoader.createSettings = async (reader: JSZip) => {
   }
 
   return settings
+}
+
+/**
+ * Normalizes Live2D model settings JSON before upstream path resolution.
+ *
+ * Before:
+ * - `{ "FileReferences": { "Physics": null } }`
+ *
+ * After:
+ * - `{ "FileReferences": {} }`
+ */
+function sanitizeModelSettingsText(text: string): string {
+  const json = JSON.parse(text) as Record<string, unknown>
+  const refs = json.FileReferences
+
+  if (refs && typeof refs === 'object') {
+    const fileReferences = refs as Record<string, unknown>
+    if (fileReferences.Physics === null)
+      delete fileReferences.Physics
+    if (fileReferences.Pose === null)
+      delete fileReferences.Pose
+    if (fileReferences.DisplayInfo === null)
+      delete fileReferences.DisplayInfo
+  }
+
+  return JSON.stringify(json)
 }
 
 export function isSettingsFile(file: string) {
@@ -115,14 +141,24 @@ function createFakeSettings(files: string[]): ModelSettings {
   return settings
 }
 
-ZipLoader.readText = (jsZip: JSZip, path: string) => {
+ZipLoader.readText = async (jsZip: JSZip, path: string) => {
   const file = jsZip.file(path)
 
   if (!file) {
     throw new Error(`Cannot find file: ${path}`)
   }
 
-  return file.async('text')
+  const text = await file.async('text')
+
+  return isSettingsFile(path) ? sanitizeModelSettingsText(text) : text
+}
+
+const defaultFileLoaderReadText = FileLoader.readText
+FileLoader.readText = async (file: File) => {
+  const text = await defaultFileLoaderReadText(file)
+  const path = file.webkitRelativePath || file.name
+
+  return isSettingsFile(path) ? sanitizeModelSettingsText(text) : text
 }
 
 ZipLoader.getFilePaths = (jsZip: JSZip) => {
