@@ -29,7 +29,11 @@ const availableVoices = computed(() => {
   return speechStore.availableVoices[providerId] || []
 })
 
-watch(providers, async () => {
+// Key the watcher to the Chatterbox Base URL specifically: SpeechProviderSettings
+// reassigns the nested providers[providerId] entry in a debounced update, which a
+// non-deep watch on the providers ref would miss. The base URL is the only config
+// field listVoices/validateProviderConfig depend on for this provider.
+watch(() => providers.value[providerId]?.baseUrl, async () => {
   const providerConfig = providersStore.getProviderConfig(providerId)
   const providerMetadata = providersStore.getProviderMetadata(providerId)
   if ((await providerMetadata.validators.validateProviderConfig(providerConfig)).valid) {
