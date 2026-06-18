@@ -77,7 +77,7 @@ function handleDeleteProvider(providerId: string) {
           <fieldset
             v-if="persistedChatProvidersMetadata.length > 0"
             flex="~ row gap-4"
-            min-w-0 of-x-auto scroll-smooth
+            min-w-0 overflow-x-auto scroll-smooth
             role="radiogroup"
           >
             <RadioCardSimple
