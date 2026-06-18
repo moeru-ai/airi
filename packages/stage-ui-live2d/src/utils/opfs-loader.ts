@@ -20,6 +20,21 @@ interface OPFSCacheMeta {
  */
 const live2DOpfsCacheVersion = 2
 
+interface IgnoredArchivePathSegmentRule {
+  matches: (segment: string) => boolean
+}
+
+const ignoredArchivePathSegmentRules: IgnoredArchivePathSegmentRule[] = [
+  { matches: segment => segment === '__MACOSX' },
+  { matches: segment => segment.startsWith('._') },
+]
+
+function shouldIgnoreLive2DArchiveEntry(filePath: string): boolean {
+  return filePath
+    .split('/')
+    .some(segment => ignoredArchivePathSegmentRules.some(rule => rule.matches(segment)))
+}
+
 function blobFromBytes(data: Uint8Array): Blob {
   const buffer = new ArrayBuffer(data.byteLength)
   new Uint8Array(buffer).set(data)
@@ -51,11 +66,12 @@ export class OPFSCache {
       if (entry.kind === 'file') {
         const fileHandle = entry as FileSystemFileHandle
         const file = await fileHandle.getFile()
-        if (file.name === '__meta.json')
+        const relativePath = pathPrefix + file.name
+        if (file.name === '__meta.json' || shouldIgnoreLive2DArchiveEntry(relativePath))
           continue
         // live2d-display expects this
         Object.defineProperty(file, 'webkitRelativePath', {
-          value: pathPrefix + file.name,
+          value: relativePath,
         })
         files.push(file)
       }
@@ -175,7 +191,8 @@ export class OPFSCache {
   static async save(key: string, zipBlob: Blob, sourceUrl?: string): Promise<void> {
     try {
       const zip = await JSZip.loadAsync(await zipBlob.arrayBuffer())
-      const fileEntries = Object.values(zip.files).filter(file => !file.dir)
+      const fileEntries = Object.values(zip.files)
+        .filter(file => !file.dir && !shouldIgnoreLive2DArchiveEntry(file.name))
 
       // eslint-disable-next-line no-console
       console.debug(`[OPFS] Saving ${fileEntries.length} zip entries to ${key}`)
