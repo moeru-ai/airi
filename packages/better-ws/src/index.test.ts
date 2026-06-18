@@ -937,11 +937,12 @@ describe('better-ws client runtime', () => {
     expect(states).toEqual(['connecting', 'open', 'ready'])
   })
 
-  it('rejects a url client open error without scheduling reconnect', async () => {
+  it('rejects a url client open error without scheduling reconnect when reconnect is disabled', async () => {
     const reconnectDelays: number[] = []
     const client = betterWs.createClient({
       url: 'ws://localhost/ws',
       wsConstructor: FakeWebSocket,
+      reconnect: false,
       schedule: (delay, run) => {
         reconnectDelays.push(delay)
         return { cancel: vi.fn(), run }
@@ -957,6 +958,43 @@ describe('better-ws client runtime', () => {
 
     expect(reconnectDelays).toEqual([])
     expect(client.state).toBe('closed')
+  })
+
+  it('schedules reconnect after an initial connector open failure', async () => {
+    const reconnectDelays: number[] = []
+    const scheduled: Array<() => void> = []
+    let attempt = 0
+    const client = betterWs.createClient<string>({
+      connector: {
+        connect() {
+          attempt += 1
+          if (attempt === 1) {
+            throw new Error('server unavailable')
+          }
+
+          return {
+            send: vi.fn(() => true),
+            close: vi.fn(),
+          }
+        },
+      },
+      reconnect: { retries: 1, delay: attempt => attempt },
+      schedule: (delay, run) => {
+        reconnectDelays.push(delay)
+        scheduled.push(run)
+        return { cancel: vi.fn(), run }
+      },
+    })
+
+    await expect(client.connect()).rejects.toThrow('server unavailable')
+
+    expect(client.state).toBe('reconnecting')
+    expect(reconnectDelays).toEqual([1])
+
+    scheduled[0]?.()
+    await Promise.resolve()
+
+    expect(client.state).toBe('ready')
   })
 
   it('enters ready only after prepare resolves', async () => {
@@ -1794,6 +1832,35 @@ describe('better-ws client runtime', () => {
     expect(reconnects).toEqual([10])
   })
 
+  it('closes the active connection when a post-open adapter error schedules reconnect', async () => {
+    const reconnects: number[] = []
+    let emitError: ((error: unknown) => void) | undefined
+    const close = vi.fn()
+    const client = betterWs.createClient<string>({
+      connector: {
+        connect(events) {
+          emitError = events.error
+          return {
+            send: vi.fn(() => true),
+            close,
+          }
+        },
+      },
+      reconnect: { retries: 1, delay: attempt => attempt },
+      schedule: (delay, run) => {
+        reconnects.push(delay)
+        return { cancel: vi.fn(), run }
+      },
+    })
+
+    await client.connect()
+    emitError?.(new Error('invalid payload'))
+
+    expect(close).toHaveBeenCalledOnce()
+    expect(client.state).toBe('reconnecting')
+    expect(reconnects).toEqual([1])
+  })
+
   it('reconnects by default after an unexpected close', async () => {
     const reconnectDelays: number[] = []
     let closeHandler: (() => void) | undefined
@@ -2106,9 +2173,10 @@ describe('better-ws client runtime', () => {
     expect(reconnects).toEqual([1])
   })
 
-  it('returns to closed when a connector fails to open', async () => {
+  it('returns to closed when a connector fails to open with reconnect disabled', async () => {
     const reconnectDelays: number[] = []
     const client = betterWs.createClient<string>({
+      reconnect: false,
       schedule: (delay, run) => {
         reconnectDelays.push(delay)
         return { cancel: vi.fn(), run }

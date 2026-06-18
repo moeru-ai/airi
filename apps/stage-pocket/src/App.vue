@@ -80,7 +80,7 @@ onMounted(async () => {
 
   await serverChannelStore.initialize({
     possibleEvents: ['ui:configure'],
-    connector: getHostWebSocketConnector(serverChannelStore.websocketUrl),
+    connector: getHostWebSocketConnector,
   }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
   contextBridgeStore.initialize()
   characterOrchestratorStore.initialize()

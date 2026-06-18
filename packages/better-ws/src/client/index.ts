@@ -472,13 +472,17 @@ function createClientWithConnector<TMessage>(
     catch (error) {
       if (currentConnectionEpoch === connectionEpoch) {
         stopHeartbeat()
-        if (automaticReconnect && reconnectOptions && !manuallyClosed) {
+        if (reconnectOptions && !manuallyClosed) {
           lastCloseError = error
           scheduleReconnect(error)
-          return
+          if (automaticReconnect) {
+            return
+          }
         }
 
-        transition('closed')
+        else {
+          transition('closed')
+        }
       }
       if (automaticReconnect) {
         return
@@ -610,6 +614,8 @@ function createClientWithConnector<TMessage>(
     }
 
     lastCloseError = error
+    const erroredConnection = connection
+    erroredConnection?.close?.()
     handleClose(connectionErrorEpoch, { reason: 'error' })
   }
 

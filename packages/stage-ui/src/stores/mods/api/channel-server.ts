@@ -25,6 +25,8 @@ interface ChannelListenerEntry {
   boundClient?: Client
 }
 
+type TextConnectorFactory = (url: string) => ClientConnector<string> | undefined
+
 function hasReconnectableWebSocketScheme(url: string | undefined) {
   if (!url) {
     return false
@@ -51,7 +53,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   const connected = ref(false)
   const client = ref<Client>()
   const initializing = ref<Promise<void> | null>(null)
-  const textConnector = ref<ClientConnector<string>>()
+  const textConnectorFactory = ref<TextConnectorFactory>()
   const hasEverConnected = ref(false)
   const pendingSend = ref<Array<WebSocketEvent>>([])
   const pendingSendCount = computed(() => pendingSend.value.length)
@@ -90,7 +92,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   async function initialize(options?: {
     token?: string
     possibleEvents?: Array<keyof WebSocketEvents>
-    connector?: ClientConnector<string>
+    connector?: TextConnectorFactory
   }) {
     if (connected.value && client.value)
       return Promise.resolve()
@@ -98,7 +100,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
       return initializing.value
 
     if (options?.connector) {
-      textConnector.value = options.connector
+      textConnectorFactory.value = options.connector
     }
 
     const possibleEvents = Array.from(new Set<keyof WebSocketEvents>([
@@ -107,12 +109,15 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     ]))
 
     initializing.value = new Promise<void>((resolve) => {
+      const currentWebSocketUrl = websocketUrl.value || defaultWebSocketUrl
+      const textConnector = textConnectorFactory.value?.(currentWebSocketUrl)
+
       client.value = new Client({
         name: isStageWeb() ? WebSocketEventSource.StageWeb : isStageTamagotchi() ? WebSocketEventSource.StageTamagotchi : WebSocketEventSource.StageWeb,
-        url: websocketUrl.value || defaultWebSocketUrl,
+        url: currentWebSocketUrl,
         token: options?.token ?? (websocketAuthToken.value || undefined),
-        connector: textConnector.value
-          ? createTextProtocolConnector(textConnector.value)
+        connector: textConnector
+          ? createTextProtocolConnector(textConnector)
           : undefined,
         heartbeat: {
           // Keep client and server heartbeat windows aligned to reduce false-positive disconnects.
