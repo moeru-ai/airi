@@ -279,6 +279,7 @@ function createWidgetsManagerDouble(options: { respondToRequests?: boolean } = {
       id: payload.id ?? Math.random().toString(36).slice(2, 10),
       componentName: payload.componentName,
       componentProps: payload.componentProps ?? {},
+      alwaysOnTop: payload.alwaysOnTop ?? false,
       size: payload.size ?? 'm',
       windowSize: payload.windowSize,
       ttlMs: payload.ttlMs ?? 0,
@@ -296,6 +297,7 @@ function createWidgetsManagerDouble(options: { respondToRequests?: boolean } = {
     widgetSnapshots.set(payload.id, {
       ...existing,
       componentProps: payload.componentProps ?? existing.componentProps,
+      alwaysOnTop: payload.alwaysOnTop ?? existing.alwaysOnTop,
       size: payload.size ?? existing.size,
       windowSize: payload.windowSize ?? existing.windowSize,
       ttlMs: payload.ttlMs ?? existing.ttlMs,

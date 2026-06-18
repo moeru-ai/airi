@@ -2,11 +2,11 @@
 import type { WidgetSnapshot, WidgetWindowSize } from '../../shared/eventa'
 
 import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { computed, defineAsyncComponent, defineComponent, h, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, defineComponent, h, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
-import { widgetsClearEvent, widgetsFetch, widgetsRemove, widgetsRemoveEvent, widgetsRenderEvent, widgetsUpdateEvent } from '../../shared/eventa'
+import { widgetsClearEvent, widgetsFetch, widgetsRemove, widgetsRemoveEvent, widgetsRenderEvent, widgetsUpdate, widgetsUpdateEvent } from '../../shared/eventa'
 
 const { t } = useI18n()
 
@@ -16,6 +16,7 @@ interface WidgetItem {
   id: string
   componentName: string
   componentProps: Record<string, any>
+  alwaysOnTop: boolean
   size: SizePreset
   windowSize?: WidgetWindowSize
   ttlMs: number
@@ -38,6 +39,8 @@ const loading = ref(false)
 const context = useElectronEventaContext()
 const removeWidgetInvoke = useElectronEventaInvoke(widgetsRemove)
 const fetchWidget = useElectronEventaInvoke(widgetsFetch)
+const updateWidgetInvoke = useElectronEventaInvoke(widgetsUpdate)
+const pinUpdating = shallowRef(false)
 
 let ttlTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -64,6 +67,7 @@ function applySnapshot(snapshot: WidgetSnapshot) {
     id: snapshot.id,
     componentName: snapshot.componentName,
     componentProps: snapshot.componentProps ?? {},
+    alwaysOnTop: snapshot.alwaysOnTop ?? false,
     size: snapshot.size ?? 'm',
     windowSize: snapshot.windowSize,
     ttlMs: snapshot.ttlMs ?? 0,
@@ -128,6 +132,7 @@ onMounted(() => {
       applySnapshot({
         ...widget.value,
         componentProps: body.componentProps ?? widget.value.componentProps,
+        alwaysOnTop: body.alwaysOnTop ?? widget.value.alwaysOnTop,
         size: body.size ?? widget.value.size,
         windowSize: body.windowSize ?? widget.value.windowSize,
         ttlMs: body.ttlMs ?? widget.value.ttlMs,
@@ -203,21 +208,71 @@ function handleClose() {
   clearTtl()
   window.close()
 }
+
+async function toggleAlwaysOnTop() {
+  if (!widget.value || pinUpdating.value)
+    return
+
+  const previous = widget.value.alwaysOnTop
+  const next = !previous
+  widget.value = {
+    ...widget.value,
+    alwaysOnTop: next,
+  }
+  pinUpdating.value = true
+
+  try {
+    await updateWidgetInvoke({ id: widget.value.id, alwaysOnTop: next })
+  }
+  catch (error) {
+    widget.value = widget.value
+      ? {
+          ...widget.value,
+          alwaysOnTop: previous,
+        }
+      : widget.value
+    console.warn('Failed to update widget pin state', error)
+  }
+  finally {
+    pinUpdating.value = false
+  }
+}
 </script>
 
 <template>
   <div :class="['relative h-full w-full']">
-    <button
-      :class="[
-        'absolute right-2 top-2 z-10 size-7 rounded-full text-xs text-white transition',
-        'bg-black/40 hover:bg-black/60',
-      ]"
-      :title="t('tamagotchi.stage.widgets.close')"
-      :aria-label="t('tamagotchi.stage.widgets.close')"
-      @click="handleClose"
-    >
-      ✕
-    </button>
+    <div :class="['absolute right-2 top-2 z-10 flex items-center gap-1']">
+      <button
+        v-if="widget"
+        :class="[
+          'size-7 flex items-center justify-center rounded-full text-white transition',
+          widget.alwaysOnTop ? 'bg-primary-500/70 hover:bg-primary-500/85' : 'bg-black/40 hover:bg-black/60',
+          pinUpdating ? 'cursor-wait opacity-70' : '',
+        ]"
+        :title="widget.alwaysOnTop ? t('tamagotchi.stage.controls-island.unpin-from-top') : t('tamagotchi.stage.controls-island.pin-on-top')"
+        :aria-label="widget.alwaysOnTop ? t('tamagotchi.stage.controls-island.unpin-from-top') : t('tamagotchi.stage.controls-island.pin-on-top')"
+        :disabled="pinUpdating"
+        @click="toggleAlwaysOnTop"
+      >
+        <div
+          :class="[
+            'size-4',
+            widget.alwaysOnTop ? 'i-solar:pin-bold' : 'i-solar:pin-linear opacity-80',
+          ]"
+        />
+      </button>
+      <button
+        :class="[
+          'size-7 rounded-full text-xs text-white transition',
+          'bg-black/40 hover:bg-black/60',
+        ]"
+        :title="t('tamagotchi.stage.widgets.close')"
+        :aria-label="t('tamagotchi.stage.widgets.close')"
+        @click="handleClose"
+      >
+        x
+      </button>
+    </div>
     <div v-if="!widgetId" :class="['h-full flex items-center justify-center p-6']">
       <div
         :class="[
