@@ -11,6 +11,7 @@ export default defineConfig({
       'packages/cap-vite',
       'packages/core-agent',
       'packages/vishot-runner-browser',
+      'packages/better-ws',
       'packages/plugin-sdk',
       'packages/plugin-sdk-tamagotchi',
       'packages/server-runtime',

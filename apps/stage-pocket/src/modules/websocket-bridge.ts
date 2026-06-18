@@ -1,9 +1,4 @@
-import type {
-  WebSocketErrorEventLike,
-  WebSocketLike,
-  WebSocketLikeConstructor,
-  WebSocketMessageEventLike,
-} from '@proj-airi/server-sdk'
+import type { ClientConnector, ClientEvents } from '@proj-airi/server-sdk'
 
 type HostBridgeCommand
   = | { kind: 'connect', id: string, url: string }
@@ -34,7 +29,7 @@ declare global {
   }
 }
 
-const sockets = new Map<string, HostWebSocket>()
+const connections = new Map<string, HostBridgeConnection>()
 
 function postBridgeMessage(command: HostBridgeCommand) {
   if (window.AiriHostBridge) {
@@ -52,43 +47,37 @@ function postBridgeMessage(command: HostBridgeCommand) {
 
 function dispatchNativeEvent(payload: string) {
   const event = JSON.parse(payload) as HostBridgeEvent
-  const socket = sockets.get(event.id)
-  if (!socket) {
+  const connection = connections.get(event.id)
+  if (!connection) {
     return
   }
 
-  socket.handleNativeEvent(event)
+  connection.handleNativeEvent(event)
 }
 
-class HostWebSocket implements WebSocketLike {
-  static readonly CONNECTING = 0
-  static readonly OPEN = 1
-  static readonly CLOSING = 2
-  static readonly CLOSED = 3
-
+class HostBridgeConnection {
   readonly id = crypto.randomUUID()
-  readyState = HostWebSocket.CONNECTING
-  onopen?: (event?: unknown) => void
-  onmessage?: (event: WebSocketMessageEventLike) => void
-  onerror?: (event: WebSocketErrorEventLike | unknown) => void
-  onclose?: (event?: unknown) => void
+  private opened = false
+  private settled = false
 
-  constructor(url: string) {
-    sockets.set(this.id, this)
+  constructor(
+    private readonly url: string,
+    private readonly events: ClientEvents<string>,
+    private readonly resolve: () => void,
+    private readonly reject: (error: Error) => void,
+  ) {
+    connections.set(this.id, this)
+
     postBridgeMessage({
       kind: 'connect',
       id: this.id,
-      url,
+      url: this.url,
     })
   }
 
-  send(data: string | ArrayBufferLike | ArrayBufferView) {
-    if (typeof data !== 'string') {
-      throw new TypeError('HostWebSocket only supports text frames')
-    }
-
-    if (this.readyState !== HostWebSocket.OPEN) {
-      throw new Error('WebSocket is not open')
+  send(data: string) {
+    if (!this.opened) {
+      return false
     }
 
     postBridgeMessage({
@@ -96,14 +85,15 @@ class HostWebSocket implements WebSocketLike {
       id: this.id,
       data,
     })
+
+    return true
   }
 
   close(code?: number, reason?: string) {
-    if (this.readyState === HostWebSocket.CLOSED) {
+    if (this.settled && !this.opened) {
       return
     }
 
-    this.readyState = HostWebSocket.CLOSING
     postBridgeMessage({
       kind: 'close',
       id: this.id,
@@ -115,33 +105,66 @@ class HostWebSocket implements WebSocketLike {
   handleNativeEvent(event: HostBridgeEvent) {
     switch (event.kind) {
       case 'open':
-        this.readyState = HostWebSocket.OPEN
-        this.onopen?.()
+        this.opened = true
+        this.settled = true
+        this.resolve()
         break
 
       case 'message':
-        this.onmessage?.({ data: event.data })
+        this.events.message(event.data)
         break
 
       case 'error':
-        this.onerror?.({ error: new Error(event.message) })
+        this.events.error(new Error(event.message))
         break
 
       case 'close':
-        this.readyState = HostWebSocket.CLOSED
-        sockets.delete(this.id)
-        this.onclose?.({ code: event.code, reason: event.reason })
+        connections.delete(this.id)
+        if (!this.settled) {
+          this.settled = true
+          this.reject(createCloseBeforeOpenError(event))
+          return
+        }
+
+        this.opened = false
+        this.events.close({ code: event.code, reason: event.reason })
         break
     }
   }
 }
 
-export function getHostWebSocketConstructor() {
+function createCloseBeforeOpenError(event: Extract<HostBridgeEvent, { kind: 'close' }>) {
+  const reason = event.reason ? ` ${event.reason}` : ''
+  const code = typeof event.code === 'number' ? ` with code ${event.code}` : ''
+  return new Error(`AIRI host websocket bridge closed before opening${code}.${reason}`)
+}
+
+export function getHostWebSocketConnector(url: string): ClientConnector<string> | undefined {
   if (!window.AiriHostBridge && !window.webkit?.messageHandlers?.airiHostBridge) {
     return undefined
   }
 
   window.__airiHostBridge = window.__airiHostBridge ?? {}
   window.__airiHostBridge.onNativeMessage = dispatchNativeEvent
-  return HostWebSocket as unknown as WebSocketLikeConstructor
+
+  return {
+    connect(events) {
+      let connection: HostBridgeConnection | undefined
+      const opened = new Promise<void>((resolve, reject) => {
+        connection = new HostBridgeConnection(url, events, resolve, reject)
+      })
+
+      return opened.then(() => {
+        const activeConnection = connection
+        if (!activeConnection) {
+          throw new Error('AIRI host websocket bridge connection was not created')
+        }
+
+        return {
+          send: message => activeConnection.send(message),
+          close: (code?: number, reason?: string) => activeConnection.close(code, reason),
+        }
+      })
+    },
+  }
 }
