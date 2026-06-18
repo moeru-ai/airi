@@ -33,7 +33,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   // Get model from configuration or use default
   const model = (providerConfig.model as string | undefined) || defaultModel
   // Player2 doesn't need SSML conversion, but if SSML is provided, use it directly
-  return await speechStore.speech(provider, model, input, voiceId, {
+  return await speechStore.speech(provider as any, model, input, voiceId, {
     ...providerConfig,
   })
 }

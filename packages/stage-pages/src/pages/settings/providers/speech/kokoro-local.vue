@@ -77,7 +77,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
     const config = providersStore.getProviderConfig(providerId)
     const selectedModel = (config.model as string | undefined) || defaultModel
 
-    const result = await speechStore.speech(provider, selectedModel, input, voiceId, {
+    const result = await speechStore.speech(provider as any, selectedModel, input, voiceId, {
       ...config,
     })
 

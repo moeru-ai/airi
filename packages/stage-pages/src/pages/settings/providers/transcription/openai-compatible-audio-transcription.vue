@@ -37,7 +37,7 @@ const { providers } = storeToRefs(providersStore) as {
 
 // Define computed properties for credentials
 const apiKey = computed({
-  get: () => providers.value[providerId]?.apiKey || '',
+  get: () => (providers.value[providerId]?.apiKey as string) || '',
   set: (value) => {
     if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].apiKey = value
@@ -46,11 +46,11 @@ const apiKey = computed({
 
 const baseUrl = computed({
   get: () => {
-    const stored = providers.value[providerId]?.baseUrl
+    const stored = providers.value[providerId]?.baseUrl as string | undefined
     if (stored) return stored
     // Use default from provider metadata if available
     const metadata = providersStore.getProviderMetadata(providerId)
-    return (metadata?.defaultOptions?.().baseUrl as string | undefined) || ''
+    return (metadata?.defaultOptions?.() as any)?.baseUrl || ''
   },
   set: (value) => {
     if (!providers.value[providerId]) providers.value[providerId] = {}
@@ -59,7 +59,7 @@ const baseUrl = computed({
 })
 
 const model = computed({
-  get: () => providers.value[providerId]?.model || '',
+  get: () => (providers.value[providerId]?.model as string) || '',
   set: (value) => {
     if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].model = value

@@ -44,7 +44,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   const providerConfig = providersStore.getProviderConfig(providerId)
   const modelToUse = model.value || defaultModel
 
-  return await speechStore.speech(provider, modelToUse, input, voiceId, providerConfig)
+  return await speechStore.speech(provider as any, modelToUse, input, voiceId, providerConfig)
 }
 </script>
 

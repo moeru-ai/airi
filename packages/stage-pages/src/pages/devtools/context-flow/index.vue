@@ -279,11 +279,13 @@ async function sendTestSparkNotify() {
         : 'immediate',
     headline: String(parsed.headline),
     note: typeof parsed.note === 'string' ? parsed.note : undefined,
-    payload: parsed.payload && typeof parsed.payload === 'object' ? parsed.payload : undefined,
+    payload:
+      parsed.payload && typeof parsed.payload === 'object' ? (parsed.payload as Record<string, unknown>) : undefined,
     ttlMs: typeof parsed.ttlMs === 'number' ? parsed.ttlMs : undefined,
     requiresAck: typeof parsed.requiresAck === 'boolean' ? parsed.requiresAck : undefined,
     destinations,
-    metadata: parsed.metadata && typeof parsed.metadata === 'object' ? parsed.metadata : undefined,
+    metadata:
+      parsed.metadata && typeof parsed.metadata === 'object' ? (parsed.metadata as Record<string, unknown>) : undefined,
   }
 
   const simulatedEvent: WebSocketEventOf<'spark:notify'> = {

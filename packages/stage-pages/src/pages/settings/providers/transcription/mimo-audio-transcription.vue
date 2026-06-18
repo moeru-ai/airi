@@ -27,7 +27,7 @@ const { providers } = storeToRefs(providersStore) as {
 }
 
 const apiKey = computed({
-  get: () => providers.value[providerId]?.apiKey || '',
+  get: () => (providers.value[providerId]?.apiKey as string) || '',
   set: (value) => {
     if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].apiKey = value
@@ -35,7 +35,7 @@ const apiKey = computed({
 })
 
 const baseUrl = computed({
-  get: () => providers.value[providerId]?.baseUrl || '',
+  get: () => (providers.value[providerId]?.baseUrl as string) || '',
   set: (value) => {
     if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].baseUrl = value
@@ -43,7 +43,7 @@ const baseUrl = computed({
 })
 
 const model = computed({
-  get: () => providers.value[providerId]?.model || 'mimo-v2-omni',
+  get: () => (providers.value[providerId]?.model as string) || 'mimo-v2-omni',
   set: (value) => {
     if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].model = value
@@ -104,7 +104,9 @@ const { t, router, providerMetadata, isValidating, isValid, validationMessage, h
       <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
         <ProviderBaseUrlInput
           v-model="baseUrl"
-          :placeholder="(providerMetadata?.defaultOptions?.().baseUrl as string) || 'https://api.xiaomimimo.com/v1/'"
+          :placeholder="
+            (providerMetadata?.defaultOptions?.() as any)?.baseUrl || '' || 'https://api.xiaomimimo.com/v1/'
+          "
         />
       </ProviderAdvancedSettings>
 

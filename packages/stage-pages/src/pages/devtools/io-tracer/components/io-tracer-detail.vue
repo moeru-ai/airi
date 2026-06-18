@@ -165,15 +165,17 @@ function copyValue(value: string) {
             <span :class="['text-neutral-400']">End</span>
             <span :class="['font-mono']">+{{ fmtMs(relativeEnd) }}</span>
           </template>
-          <template v-if="props.span.meta.ttftMs">
+          <template v-if="props.span.meta.ttftMs as number">
             <span :class="['text-purple-500']">TTFT</span>
-            <span :class="['font-mono text-purple-500 font-medium']">{{ fmtMs(props.span.meta.ttftMs) }}</span>
+            <span :class="['font-mono text-purple-500 font-medium']">
+              {{ fmtMs(props.span.meta.ttftMs as number) }}
+            </span>
           </template>
         </div>
       </div>
 
       <!-- Text Content -->
-      <div v-if="props.span.meta.text">
+      <div v-if="props.span.meta.text as string">
         <div :class="['text-neutral-500 font-medium mb-1.5 uppercase tracking-wider text-2.5']">Text</div>
         <div
           :class="[
@@ -184,7 +186,7 @@ function copyValue(value: string) {
             'relative group',
           ]"
         >
-          {{ props.span.meta.text }}
+          {{ props.span.meta.text as string }}
           <button
             :class="[
               'absolute top-1 right-1',
@@ -193,7 +195,7 @@ function copyValue(value: string) {
               'text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300',
             ]"
             title="Copy text"
-            @click="copyValue(props.span.meta.text)"
+            @click="copyValue(props.span.meta.text as string)"
           >
             <div class="i-solar:copy-bold-duotone h-3 w-3" />
           </button>

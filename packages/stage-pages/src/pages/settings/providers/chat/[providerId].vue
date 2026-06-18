@@ -29,7 +29,7 @@ const { activeProvider } = storeToRefs(consciousnessStore)
 
 // Define computed properties for credentials
 const apiKey = computed({
-  get: () => providers.value[providerId]?.apiKey || '',
+  get: () => (providers.value[providerId]?.apiKey as string) || '',
   set: (value) => {
     if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].apiKey = value
@@ -37,7 +37,7 @@ const apiKey = computed({
 })
 
 const baseUrl = computed({
-  get: () => providers.value[providerId]?.baseUrl || '',
+  get: () => (providers.value[providerId]?.baseUrl as string) || '',
   set: (value) => {
     if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].baseUrl = value
@@ -105,7 +105,7 @@ function goToModelSelection() {
       <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
         <ProviderBaseUrlInput
           v-model="baseUrl"
-          :placeholder="(providerMetadata?.defaultOptions?.().baseUrl as string) || 'Base URL of your provider'"
+          :placeholder="(providerMetadata?.defaultOptions?.() as any)?.baseUrl || '' || 'Base URL of your provider'"
         />
       </ProviderAdvancedSettings>
 

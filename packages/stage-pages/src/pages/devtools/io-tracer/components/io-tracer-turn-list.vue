@@ -37,7 +37,7 @@ function spanCountBySubsystem(turn: IOTurn): { subsystem: string; count: number;
 
 function getTtft(turn: IOTurn): number | undefined {
   for (const span of turn.spans) {
-    if (span.subsystem === 'llm' && span.meta.ttftMs) return span.meta.ttftMs
+    if (span.subsystem === 'llm' && (span.meta.ttftMs as number)) return span.meta.ttftMs as number
   }
   return undefined
 }

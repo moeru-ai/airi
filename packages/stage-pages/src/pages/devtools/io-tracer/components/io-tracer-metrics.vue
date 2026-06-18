@@ -41,8 +41,8 @@ const metrics = computed(() => {
     }
 
     for (const span of turn.spans) {
-      if (span.meta.ttftMs) {
-        ttftTotal += span.meta.ttftMs
+      if (span.meta.ttftMs as number) {
+        ttftTotal += span.meta.ttftMs as number
         ttftCount++
       }
       if (span.endTs) {

@@ -50,7 +50,7 @@ async function handleGenerateSpeech(input: string, voiceId: string) {
     ...providerConfig,
   }
 
-  return await speechStore.speech(provider, model, input, voiceId, options)
+  return await speechStore.speech(provider as any, model, input, voiceId, options)
 }
 </script>
 

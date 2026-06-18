@@ -137,7 +137,8 @@ onMounted(() => {
   providersStore.initializeProvider(providerId)
 
   // Initialize refs with current values
-  baseUrl.value = providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultOptions?.().baseUrl || ''
+  baseUrl.value =
+    providers.value[providerId]?.baseUrl || (providerMetadata.value?.defaultOptions?.() as any)?.baseUrl || ''
 
   // Initialize headers if not already set
   if (!providers.value[providerId]?.headers) {
