@@ -241,7 +241,11 @@ export class Client<C = undefined> {
     })
 
     if (this.opts.autoConnect) {
-      void this.connect()
+      void this.connect().catch((error) => {
+        const normalized = this.normalizeError(error, 'Failed to connect websocket client')
+        this.failureReason = normalized
+        this.opts.onError(normalized)
+      })
     }
   }
 

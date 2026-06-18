@@ -108,11 +108,47 @@ async function flushMicrotasks() {
   await Promise.resolve()
 }
 
+async function flushAsyncTasks() {
+  await flushMicrotasks()
+  await new Promise(resolve => setTimeout(resolve, 0))
+}
+
 afterEach(() => {
   vi.useRealTimers()
 })
 
 describe('client', () => {
+  it('routes default autoConnect failures through onError without unhandled rejections', async () => {
+    const connector = new FakeConnector()
+    const onError = vi.fn()
+    const unhandledRejections: unknown[] = []
+    const onUnhandledRejection = (reason: unknown) => {
+      unhandledRejections.push(reason)
+    }
+    process.on('unhandledRejection', onUnhandledRejection)
+
+    let client: Client | undefined
+    try {
+      client = new Client({
+        autoReconnect: false,
+        connector,
+        name: 'test-plugin',
+        onError,
+      })
+
+      const failure = new Error('server unavailable')
+      connector.reject(failure)
+      await flushAsyncTasks()
+
+      expect(onError).toHaveBeenCalledWith(failure)
+      expect(unhandledRejections).toEqual([])
+    }
+    finally {
+      client?.close()
+      process.off('unhandledRejection', onUnhandledRejection)
+    }
+  })
+
   it('runs module authentication and announcement in the better-ws prepare step', async () => {
     const connector = new FakeConnector()
     const client = new Client({
