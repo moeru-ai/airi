@@ -33,7 +33,7 @@ function createMockPipeline() {
 function createMockAudioDevice() {
   const instance = {
     enabled: ref(false),
-    stream: ref(null),
+    stream: ref<MediaStream | null>(null),
     askPermission: vi.fn().mockResolvedValue(undefined),
     startStream: vi.fn(),
   }
@@ -71,7 +71,7 @@ vi.mock('@vueuse/core', () => ({
 beforeAll(() => {
   // Ensure window is available
   if (typeof window === 'undefined') {
-    ;(globalThis as Record<string, unknown>).window = {
+    ;(globalThis as unknown as Record<string, unknown>).window = {
       webkitSpeechRecognition: undefined,
       SpeechRecognition: undefined,
     }
@@ -102,7 +102,7 @@ describe('useTranscriptions', () => {
     // Mock SpeechRecognition for browser tests
     if (typeof window !== 'undefined') {
       // deepsource:issue=JS-0323
-      ;(window as Record<string, unknown>).SpeechRecognition = function () {
+      ;(window as unknown as Record<string, unknown>).SpeechRecognition = function () {
         this.start = vi.fn()
         this.stop = vi.fn()
         this.onresult = null
@@ -151,8 +151,8 @@ describe('useTranscriptions', () => {
     it('should fail gracefully if Web Speech API is not available', async () => {
       // Setup: Tamagotchi mode or no API
       if (typeof window !== 'undefined') {
-        delete (window as Record<string, unknown>).SpeechRecognition
-        delete (window as Record<string, unknown>).webkitSpeechRecognition
+        delete (window as unknown as Record<string, unknown>).SpeechRecognition
+        delete (window as unknown as Record<string, unknown>).webkitSpeechRecognition
       }
 
       mockHearingStore.configured.value = false

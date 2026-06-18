@@ -24,8 +24,8 @@ interface ControlEnabled {
   enabled: { value: boolean }
   mode: { value: ControlMode }
   supported: readonly ControlMode[]
-  conf: Record<ControlMode, ControlConfig>
-  reset: (mode: ControlMode) => void
+  conf: Partial<Record<ControlMode, ControlConfig>>
+  reset: (mode: string) => void
 }
 
 const { stageModelRenderer } = storeToRefs(useSettingsStageModel())
@@ -42,7 +42,7 @@ const controlEnabled = computed<ControlEnabled | null>(() => {
       mode: l2dCtrlMode,
       supported: l2dSupportedCtrl,
       conf: l2dCtrlConf,
-      reset: l2dSet,
+      reset: l2dSet as unknown as ControlEnabled['reset'],
     }
   if (stageModelRenderer.value === 'vrm')
     return {
@@ -50,7 +50,7 @@ const controlEnabled = computed<ControlEnabled | null>(() => {
       mode: threeCtrlMode,
       supported: threeSupportedControl,
       conf: threeCtrlConf,
-      reset: threeSet,
+      reset: threeSet as unknown as ControlEnabled['reset'],
     }
   return null
 })
@@ -77,7 +77,7 @@ function handleViewControlsToggle(targetMode: ControlMode) {
           w-full
           @click="handleViewControlsToggle(control)"
         >
-          {{ controlEnabled.conf[control].buttonText }}
+          {{ controlEnabled.conf[control]!.buttonText }}
         </Button>
       </div>
     </Transition>
