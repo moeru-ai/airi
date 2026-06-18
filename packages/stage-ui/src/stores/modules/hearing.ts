@@ -529,6 +529,24 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
 
   let asrSpan: Span | undefined
 
+  function startStreamingAsrSpan(providerId: string) {
+    activeTurnSpan.value?.end()
+    const turnSpan = startSpan(IOSpanNames.InteractionTurn)
+    activeTurnSpan.value = turnSpan
+    asrSpan = startSpan(IOSpanNames.SpeechRecognition, turnSpan, {
+      [IOAttributes.Subsystem]: IOSubsystems.ASR,
+      [IOAttributes.GenAIRequestModel]: providerId,
+    })
+  }
+
+  function endStreamingAsrSpan() {
+    if (!asrSpan)
+      return
+
+    asrSpan.end()
+    asrSpan = undefined
+  }
+
   const supportsStreamInput = computed(() => {
     const providerId = activeTranscriptionProvider.value
     if (!providerId)
@@ -717,14 +735,6 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     onSentenceEnd?: (delta: string) => void
     onSpeechEnd?: (text: string) => void
   }) {
-    activeTurnSpan.value?.end()
-    const turnSpan = startSpan(IOSpanNames.InteractionTurn)
-    activeTurnSpan.value = turnSpan
-    asrSpan = startSpan(IOSpanNames.SpeechRecognition, turnSpan, {
-      [IOAttributes.Subsystem]: IOSubsystems.ASR,
-      [IOAttributes.GenAIRequestModel]: activeTranscriptionProvider.value ?? '',
-    })
-
     console.info('[Hearing Pipeline] transcribeForMediaStream called', {
       supportsStreamInput: supportsStreamInput.value,
       hasStream: !!stream,
@@ -793,6 +803,8 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
             return
           }
         }
+
+        startStreamingAsrSpan(providerId)
 
         // Auto-select default model if not selected
         if (!activeTranscriptionModel.value) {
@@ -935,6 +947,8 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
         }
       }
 
+      startStreamingAsrSpan(providerId)
+
       const abortController = new AbortController()
       let idleTimer: ReturnType<typeof setTimeout> | undefined
       const bumpIdle = () => {
@@ -1031,6 +1045,8 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
       }
     }
     catch (err) {
+      endStreamingAsrSpan()
+
       if (isExpectedStreamStopError(err))
         return
 

@@ -750,12 +750,19 @@ async function stopAudioInteraction(options: {
 
 watch(enabled, async (val) => {
   console.info('[Main Page] Audio enabled changed:', val, 'stream available:', !!stream.value)
-  if (val) {
-    await askPermission()
-    await startAudioInteraction()
+  try {
+    if (val) {
+      await askPermission()
+      await startAudioInteraction()
+    }
+    else {
+      await stopAudioInteraction()
+    }
   }
-  else {
-    await stopAudioInteraction()
+  catch (error) {
+    reportVoiceInputFailure(val ? 'start listening' : 'stop listening', error)
+    if (val)
+      enabled.value = false
   }
 }, { immediate: true })
 
