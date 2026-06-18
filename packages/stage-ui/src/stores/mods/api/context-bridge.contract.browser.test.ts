@@ -707,7 +707,6 @@ describe('context bridge contract', () => {
       metadata: {
         source: {
           id: 'station-1',
-          plugin: { id: 'weather' },
         },
       },
       count: 7n,
