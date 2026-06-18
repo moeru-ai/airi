@@ -71,4 +71,13 @@ describe('media permissions', () => {
       { mediaTypes: ['audio'], securityOrigin: 'http://localhost:5173' },
     )).toBe(true)
   })
+
+  it('ignores opaque file origins when packaged local pages request audio', () => {
+    expect(shouldGrantAudioCapturePermission(
+      localWebContents as unknown as WebContents,
+      'media',
+      'null',
+      { mediaTypes: ['audio'], requestingUrl: 'file:///app/index.html' },
+    )).toBe(true)
+  })
 })

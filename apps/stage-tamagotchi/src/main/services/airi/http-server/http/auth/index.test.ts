@@ -21,4 +21,21 @@ describe('startLoopbackServer', () => {
 
     await expect(server.result).resolves.toEqual({ code: 'ok', state: 'state-1' })
   })
+
+  it('allows browser private-network preflight for the callback relay', async () => {
+    const server = await startLoopbackServer()
+    servers.push(server)
+
+    const response = await fetch(`http://127.0.0.1:${server.port}/callback`, {
+      method: 'OPTIONS',
+      headers: {
+        'Access-Control-Request-Method': 'GET',
+        'Access-Control-Request-Private-Network': 'true',
+        'Origin': 'https://accounts.airi.build',
+      },
+    })
+
+    expect(response.status).toBe(204)
+    expect(response.headers.get('Access-Control-Allow-Private-Network')).toBe('true')
+  })
 })

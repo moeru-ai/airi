@@ -34,6 +34,10 @@ function isLocalAppURL(rawURL: string | undefined) {
   }
 }
 
+function isUsableRequesterURL(rawURL: string | undefined) {
+  return !!rawURL && rawURL !== 'null'
+}
+
 function isAudioMediaPermission(permission: string, details?: MediaPermissionDetails) {
   if (!MEDIA_PERMISSION_NAMES.has(permission))
     return false
@@ -55,7 +59,7 @@ export function shouldGrantAudioCapturePermission(webContents: WebContents | nul
     requestingOrigin,
     details?.requestingUrl,
     details?.securityOrigin,
-  ].filter(url => !!url)
+  ].filter(isUsableRequesterURL)
 
   if (requesterURLs.length)
     return requesterURLs.every(isLocalAppURL)

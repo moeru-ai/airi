@@ -47,6 +47,11 @@ export async function startLoopbackServer(): Promise<{
     },
   } as const
 
+  function withPrivateNetworkAccessHeaders<T extends { headers: Headers }>(response: T) {
+    response.headers.set('Access-Control-Allow-Private-Network', 'true')
+    return response
+  }
+
   const finish = (callback: () => void) => {
     if (settled) {
       return
@@ -64,16 +69,16 @@ export async function startLoopbackServer(): Promise<{
   app.options('/callback', eventHandler(async (event) => {
     const corsResponse = handleCors(event, corsOptions)
     if (corsResponse !== false) {
-      return corsResponse
+      return withPrivateNetworkAccessHeaders(corsResponse)
     }
 
-    return new Response(null, { status: 204 })
+    return withPrivateNetworkAccessHeaders(new Response(null, { status: 204 }))
   }))
 
   app.get('/callback', eventHandler(async (event) => {
     const corsResponse = handleCors(event, corsOptions)
     if (corsResponse !== false) {
-      return corsResponse
+      return withPrivateNetworkAccessHeaders(corsResponse)
     }
 
     const query = getQuery(event)
