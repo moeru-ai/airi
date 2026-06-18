@@ -681,25 +681,37 @@ describe('context bridge contract', () => {
     const messages = collectChannelMessages<{
       id: string
       metadata?: {
-        count?: bigint
-        nested?: Array<{ total?: bigint }>
+        source?: {
+          id?: string
+          plugin?: { id?: string }
+        }
       }
+      count?: bigint
+      nested?: Array<{ total?: bigint }>
     }>(CONTEXT_CHANNEL_NAME)
 
     const store = useContextBridgeStore()
     await store.initialize()
 
-    await emitContextUpdate(createContextUpdateEvent({
-      metadata: { count: 7n, nested: [{ total: 9n }] },
+    const contextSender = createTestChannel(CONTEXT_CHANNEL_NAME)
+    contextSender.postMessage(createContextMessage({
+      id: 'context-1',
+      metadata: createMetadata('weather', 'station-1'),
+      count: 7n,
+      nested: [{ total: 9n }],
     }))
     await waitForBroadcastDelivery()
 
     expect(messages.at(-1)).toMatchObject({
       id: 'context-1',
       metadata: {
-        count: 7n,
-        nested: [{ total: 9n }],
+        source: {
+          id: 'station-1',
+          plugin: { id: 'weather' },
+        },
       },
+      count: 7n,
+      nested: [{ total: 9n }],
     })
 
     await store.dispose()
