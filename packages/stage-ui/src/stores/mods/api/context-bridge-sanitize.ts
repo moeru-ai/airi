@@ -27,6 +27,28 @@ export function sanitizeCloneable(value: unknown, seen = new WeakSet<object>()):
     return undefined
   seen.add(rawValue)
 
+  if (rawValue instanceof Map) {
+    return new Map(
+      [...rawValue.entries()]
+        .map(([key, nestedValue]) => [
+          sanitizeCloneable(key, seen),
+          sanitizeCloneable(nestedValue, seen),
+        ] as const)
+        .filter(([key, nestedValue]) => key !== undefined && nestedValue !== undefined),
+    )
+  }
+
+  if (rawValue instanceof Set) {
+    return new Set(
+      [...rawValue.values()]
+        .map(item => sanitizeCloneable(item, seen))
+        .filter(item => item !== undefined),
+    )
+  }
+
+  if (ArrayBuffer.isView(rawValue) || rawValue instanceof ArrayBuffer)
+    return rawValue
+
   const proto = Object.getPrototypeOf(rawValue)
   if (proto !== Object.prototype && proto !== null)
     return undefined

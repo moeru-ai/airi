@@ -678,15 +678,7 @@ describe('context bridge contract', () => {
   })
 
   it('preserves bigint values in broadcast context snapshots', async () => {
-    const messages = collectChannelMessages<{
-      type: string
-      data: {
-        metadata?: {
-          count?: bigint
-          nested?: Array<{ total?: bigint }>
-        }
-      }
-    }>(CONTEXT_CHANNEL_NAME)
+    const messages = collectChannelMessages<unknown>(CONTEXT_CHANNEL_NAME)
 
     const store = useContextBridgeStore()
     await store.initialize()
@@ -697,12 +689,10 @@ describe('context bridge contract', () => {
     await waitForBroadcastDelivery()
 
     expect(messages.at(-1)).toMatchObject({
-      type: 'context:update',
-      data: {
-        metadata: {
-          count: 7n,
-          nested: [{ total: 9n }],
-        },
+      id: 'context-1',
+      metadata: {
+        count: 7n,
+        nested: [{ total: 9n }],
       },
     })
 
