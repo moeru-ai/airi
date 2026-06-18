@@ -69,10 +69,10 @@ export function deserializeSpan(s: SerializedSpan): ReadableSpan {
     ? { traceId: s.traceId, spanId: s.parentSpanId, traceFlags: 1, isRemote: false }
     : undefined
 
-  const resource: Resource = {
+  const resource = {
     attributes: {},
     merge: () => ({ attributes: {} }),
-  }
+  } as Resource
 
   return {
     name: s.name,
@@ -92,7 +92,7 @@ export function deserializeSpan(s: SerializedSpan): ReadableSpan {
     })),
     duration: nanoToHr(String(Number(s.endTimeNano) - Number(s.startTimeNano))),
     ended: s.ended,
-    resource,
+    resource: resource as any,
     instrumentationScope: { name: TRACER_NAME },
     droppedAttributesCount: 0,
     droppedEventsCount: 0,

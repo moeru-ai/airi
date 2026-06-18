@@ -5,7 +5,7 @@ import type { ProviderDefinition } from '../types'
 
 import { orderBy } from 'es-toolkit'
 
-const providerRegistry = new Map<string, ProviderDefinition>()
+const providerRegistry = new Map<string, ProviderDefinition<Record<string, unknown>>>()
 
 export function listProviders(): ProviderDefinition[] {
   const providerDefs = Array.from(providerRegistry.values()).map((def) => ({ order: 99999, ...def }))
@@ -26,7 +26,7 @@ export function defineProvider<T>(
     ...definition,
   }
 
-  providerRegistry.set(definition.id, definition)
+  providerRegistry.set(definition.id, definition as unknown as ProviderDefinition<Record<string, unknown>>)
 
   return provider
 }

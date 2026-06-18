@@ -51,8 +51,8 @@ function getObjectSchema(schema?: Record<string, unknown>) {
 
   if (schema.type === 'object') return schema
 
-  const candidates = [...(schema.anyOf ?? []), ...(schema.oneOf ?? [])]
-  return candidates.find((candidate: Record<string, unknown>) => candidate?.type === 'object')
+  const candidates = [...((schema.anyOf as unknown[]) ?? []), ...((schema.oneOf as unknown[]) ?? [])]
+  return candidates.find((candidate: any) => candidate?.type === 'object')
 }
 
 function getArraySchema(schema?: Record<string, unknown>) {
@@ -60,8 +60,8 @@ function getArraySchema(schema?: Record<string, unknown>) {
 
   if (schema.type === 'array') return schema
 
-  const candidates = [...(schema.anyOf ?? []), ...(schema.oneOf ?? [])]
-  return candidates.find((candidate: Record<string, unknown>) => candidate?.type === 'array')
+  const candidates = [...((schema.anyOf as unknown[]) ?? []), ...((schema.oneOf as unknown[]) ?? [])]
+  return candidates.find((candidate: any) => candidate?.type === 'array')
 }
 
 describe('sparkNotifyCommandSchema', () => {
@@ -73,14 +73,14 @@ describe('sparkNotifyCommandSchema', () => {
       execute: () => Promise.resolve(undefined),
     })
 
-    const schema = sparkTool.function.parameters as Record<string, unknown>
-    const commandsSchema = getArraySchema(schema.properties?.commands)
-    const commandItemSchema = getObjectSchema(commandsSchema?.items)
-    const guidanceSchema = getObjectSchema(commandItemSchema?.properties?.guidance)
-    const personaSchema = getArraySchema(guidanceSchema?.properties?.persona)
-    const personaItemSchema = getObjectSchema(personaSchema?.items)
-    const optionsSchema = getArraySchema(guidanceSchema?.properties?.options)
-    const optionsItemSchema = getObjectSchema(optionsSchema?.items)
+    const schema = sparkTool.function.parameters as any
+    const commandsSchema = getArraySchema(schema.properties?.commands) as any
+    const commandItemSchema = getObjectSchema(commandsSchema?.items) as any
+    const guidanceSchema = getObjectSchema(commandItemSchema?.properties?.guidance) as any
+    const personaSchema = getArraySchema(guidanceSchema?.properties?.persona) as any
+    const personaItemSchema = getObjectSchema(personaSchema?.items) as any
+    const optionsSchema = getArraySchema(guidanceSchema?.properties?.options) as any
+    const optionsItemSchema = getObjectSchema(optionsSchema?.items) as any
 
     expect(schema.additionalProperties).toBe(false)
     expect(commandItemSchema?.additionalProperties).toBe(false)
@@ -97,7 +97,9 @@ describe('store character-orchestrator', () => {
 
     const mockGetProviderInstance = vi.fn()
     mockedStore(useProvidersStore).getProviderInstance = mockGetProviderInstance
-    mockedStore(useProvidersStore).getProviderInstance.mockResolvedValue({ chat: (_model: string) => ({}) as unknown })
+    mockedStore(useProvidersStore).getProviderInstance.mockResolvedValue({
+      chat: (_model: string) => ({}) as any,
+    } as any)
 
     const consciousnessStore = useConsciousnessStore(pinia)
     consciousnessStore.activeProvider = 'mock-provider'
@@ -132,27 +134,25 @@ describe('store character-orchestrator', () => {
   it('handles immediate spark:notify with reaction and commands', async () => {
     const mockStream = vi.fn()
     mockedStore(useLLM).stream = mockStream
-    mockedStore(useLLM).stream.mockImplementation(
-      async (_model: string, _provider: unknown, _messages: unknown, options: Record<string, unknown>) => {
-        if ((options?.tools as unknown[])?.length) {
-          await ((options.tools as unknown[])[1] as { execute: (input: unknown) => Promise<unknown> }).execute({
-            commands: [
-              {
-                destinations: ['minecraft'],
-                intent: 'action',
-                priority: 'critical',
-                interrupt: 'false',
-                ack: 'ok',
-                guidance: null,
-              },
-            ],
-          } satisfies z.infer<typeof sparkNotifyCommandSchema>)
-        }
+    mockedStore(useLLM).stream.mockImplementation(async (_model: any, _provider: any, _messages: any, options: any) => {
+      if ((options?.tools as unknown[])?.length) {
+        await ((options.tools as unknown[])[1] as { execute: (input: unknown) => Promise<unknown> }).execute({
+          commands: [
+            {
+              destinations: ['minecraft'],
+              intent: 'action',
+              priority: 'critical',
+              interrupt: 'false',
+              ack: 'ok',
+              guidance: null,
+            },
+          ],
+        } satisfies z.infer<typeof sparkNotifyCommandSchema>)
+      }
 
-        await options?.onStreamEvent?.({ type: 'text-delta', text: 'Ahhh, got hit by zombie!' } satisfies StreamEvent)
-        await options?.onStreamEvent?.({ type: 'finish' } satisfies StreamEvent)
-      },
-    )
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'Ahhh, got hit by zombie!' } satisfies StreamEvent)
+      await options?.onStreamEvent?.({ type: 'finish' } satisfies StreamEvent)
+    })
 
     const mockOnSparkNotifyReactionStreamEvent = vi.fn()
     mockedStore(useCharacterStore).onSparkNotifyReactionStreamEvent = mockOnSparkNotifyReactionStreamEvent
@@ -195,15 +195,13 @@ describe('store character-orchestrator', () => {
   it('supports forcing text-only spark:notify responses', async () => {
     const mockStream = vi.fn()
     mockedStore(useLLM).stream = mockStream
-    mockedStore(useLLM).stream.mockImplementation(
-      async (_model: string, _provider: unknown, _messages: unknown, options: Record<string, unknown>) => {
-        await (options?.onStreamEvent as ((event: StreamEvent) => Promise<void>) | undefined)?.({
-          type: 'text-delta',
-          text: 'I choose d5 to pressure the center.',
-        } satisfies StreamEvent)
-        await options?.onStreamEvent?.({ type: 'finish' } satisfies StreamEvent)
-      },
-    )
+    mockedStore(useLLM).stream.mockImplementation(async (_model: any, _provider: any, _messages: any, options: any) => {
+      await (options?.onStreamEvent as ((event: StreamEvent) => Promise<void>) | undefined)?.({
+        type: 'text-delta',
+        text: 'I choose d5 to pressure the center.',
+      } satisfies StreamEvent)
+      await options?.onStreamEvent?.({ type: 'finish' } satisfies StreamEvent)
+    })
 
     const onDelta = vi.fn()
     const onEnd = vi.fn()
@@ -240,29 +238,25 @@ describe('store character-orchestrator', () => {
   it('supports forcing spark-command responses', async () => {
     const mockStream = vi.fn()
     mockedStore(useLLM).stream = mockStream
-    mockedStore(useLLM).stream.mockImplementation(
-      async (_model: string, _provider: unknown, _messages: unknown, options: Record<string, unknown>) => {
-        const sparkCommandTool = (
-          options?.tools as
-            | { function?: { name?: string }; execute: (input: unknown) => Promise<unknown> }[]
-            | undefined
-        )?.find((tool) => tool.function?.name === 'builtIn_sparkCommand')
-        await sparkCommandTool.execute({
-          commands: [
-            {
-              destinations: ['minecraft'],
-              intent: 'action',
-              priority: 'high',
-              interrupt: 'false',
-              ack: 'go',
-              guidance: null,
-            },
-          ],
-        } satisfies z.infer<typeof sparkNotifyCommandSchema>)
-        await options?.onStreamEvent?.({ type: 'text-delta', text: 'This should be ignored.' } satisfies StreamEvent)
-        await options?.onStreamEvent?.({ type: 'finish' } satisfies StreamEvent)
-      },
-    )
+    mockedStore(useLLM).stream.mockImplementation(async (_model: any, _provider: any, _messages: any, options: any) => {
+      const sparkCommandTool = (
+        options?.tools as { function?: { name?: string }; execute: (input: unknown) => Promise<unknown> }[] | undefined
+      )?.find((tool) => tool.function?.name === 'builtIn_sparkCommand')
+      await sparkCommandTool?.execute({
+        commands: [
+          {
+            destinations: ['minecraft'],
+            intent: 'action',
+            priority: 'high',
+            interrupt: 'false',
+            ack: 'go',
+            guidance: null,
+          },
+        ],
+      } satisfies z.infer<typeof sparkNotifyCommandSchema>)
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'This should be ignored.' } satisfies StreamEvent)
+      await options?.onStreamEvent?.({ type: 'finish' } satisfies StreamEvent)
+    })
 
     const onDelta = vi.fn()
     const onEnd = vi.fn()
@@ -302,17 +296,15 @@ describe('store character-orchestrator', () => {
   it('forwards runtime-only message overrides into the rendered spark prompt', async () => {
     const mockStream = vi.fn()
     mockedStore(useLLM).stream = mockStream
-    mockedStore(useLLM).stream.mockImplementation(
-      async (_model: string, _provider: unknown, _messages: unknown, options: Record<string, unknown>) => {
-        await (options?.onStreamEvent as ((event: StreamEvent) => Promise<void>) | undefined)?.({
-          type: 'text-delta',
-          text: 'legacy-safe text',
-        } satisfies StreamEvent)
-        await (options?.onStreamEvent as ((event: StreamEvent) => Promise<void>) | undefined)?.({
-          type: 'finish',
-        } satisfies StreamEvent)
-      },
-    )
+    mockedStore(useLLM).stream.mockImplementation(async (_model: any, _provider: any, _messages: any, options: any) => {
+      await (options?.onStreamEvent as ((event: StreamEvent) => Promise<void>) | undefined)?.({
+        type: 'text-delta',
+        text: 'legacy-safe text',
+      } satisfies StreamEvent)
+      await (options?.onStreamEvent as ((event: StreamEvent) => Promise<void>) | undefined)?.({
+        type: 'finish',
+      } satisfies StreamEvent)
+    })
 
     const store = useCharacterOrchestratorStore()
     const event: WebSocketEventOf<'spark:notify'> = {

@@ -65,8 +65,8 @@ function makePipelineStub() {
     finish: 0,
     cancel: 0,
   }
-  let captured: Record<string, unknown>
-  const factory = vi.fn((options: Record<string, unknown>) => {
+  let captured: any
+  const factory = vi.fn((options: any) => {
     captured = options
     return {
       appendText: (text: string) => {

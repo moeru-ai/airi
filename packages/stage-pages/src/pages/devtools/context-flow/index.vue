@@ -159,7 +159,7 @@ interface SummarizeServerEventData {
   [key: string]: unknown
 }
 
-function summarizeServerEvent(event: { type: string; data?: Record<string, unknown> }) {
+function summarizeServerEvent(event: any) {
   const data = (event.data ?? {}) as SummarizeServerEventData
   switch (event.type) {
     case 'module:announce':
@@ -268,7 +268,7 @@ async function sendTestSparkNotify() {
   }
 
   // TODO(@nekomeowww): improve server event, support to have zod or valibot schema validation for better cross runtime handling
-  const notify = {
+  const notify: WebSocketEvents['spark:notify'] = {
     id: typeof parsed.id === 'string' && parsed.id ? parsed.id : nanoid(),
     eventId: typeof parsed.eventId === 'string' && parsed.eventId ? parsed.eventId : nanoid(),
     lane: typeof parsed.lane === 'string' ? parsed.lane : undefined,

@@ -22,7 +22,7 @@ class MockWorker {
   }
 
   dispatch(type: string, event: unknown): void {
-    for (const listener of this.listeners.get(type) ?? []) listener(event)
+    for (const listener of this.listeners.get(type) ?? []) listener(event as MessageEvent)
   }
 }
 vi.stubGlobal('Worker', MockWorker)

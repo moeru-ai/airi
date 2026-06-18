@@ -661,7 +661,9 @@ function tooltipMetaEntries(span: IOSpan) {
                 <div
                   v-if="row.span.meta.firstTokenTs"
                   :class="['absolute top-0 bottom-0 w-0.5 bg-white/60']"
-                  :style="{ left: `${timeToX(row.span.meta.firstTokenTs) - spanBarX(row.span)}px` }"
+                  :style="{
+                    left: `${(timeToX(row.span.meta.firstTokenTs as number) ?? 0) - (spanBarX(row.span) ?? 0)}px`,
+                  }"
                 />
                 <!-- Duration inside bar -->
                 <span
@@ -824,14 +826,14 @@ function tooltipMetaEntries(span: IOSpan) {
           <span v-if="hoveredSpan.span.endTs">{{ fmtMs(hoveredSpan.span.endTs - hoveredSpan.span.startTs) }}</span>
           <span v-else :class="['text-amber-400']">In progress...</span>
           <span v-if="hoveredSpan.span.meta.ttftMs" :class="['text-purple-300']">
-            TTFT {{ fmtMs(hoveredSpan.span.meta.ttftMs) }}
+            TTFT {{ fmtMs((hoveredSpan.span.meta.ttftMs as number) ?? 0) }}
           </span>
         </div>
         <div v-if="hoveredSpan.span.meta.text" :class="['text-neutral-400 mt-1 break-words']">
           {{
-            hoveredSpan.span.meta.text.length > 80
-              ? `${hoveredSpan.span.meta.text.slice(0, 80)}…`
-              : hoveredSpan.span.meta.text
+            ((hoveredSpan.span.meta.text as string | undefined)?.length ?? 0 > 80)
+              ? `${(hoveredSpan.span.meta.text as string)?.slice(0, 80)}…`
+              : (hoveredSpan.span.meta.text as string | undefined)
           }}
         </div>
         <div v-if="hoveredSpan.span.meta.chunk_reason" :class="['text-amber-300/80 mt-0.5']">

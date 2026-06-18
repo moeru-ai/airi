@@ -19,7 +19,7 @@ vi.hoisted(() => {
 
 const ioTracerMocks = vi.hoisted(() => {
   const activeTurnSpan = { value: undefined as unknown }
-  const spans: unknown[] = []
+  const spans: any[] = []
   const startSpanMock = vi.fn((name: string) => {
     const span = {
       name,
@@ -212,31 +212,31 @@ describe('chat orchestrator contract', () => {
     const store = useChatOrchestratorStore()
     const hookOrder: string[] = []
 
-    store.onBeforeMessageComposed(() => {
+    store.onBeforeMessageComposed(async () => {
       hookOrder.push('before-compose')
     })
-    store.onAfterMessageComposed(() => {
+    store.onAfterMessageComposed(async () => {
       hookOrder.push('after-compose')
     })
-    store.onBeforeSend(() => {
+    store.onBeforeSend(async () => {
       hookOrder.push('before-send')
     })
-    store.onTokenLiteral(() => {
+    store.onTokenLiteral(async () => {
       hookOrder.push('token-literal')
     })
-    store.onStreamEnd(() => {
+    store.onStreamEnd(async () => {
       hookOrder.push('stream-end')
     })
-    store.onAssistantResponseEnd(() => {
+    store.onAssistantResponseEnd(async () => {
       hookOrder.push('assistant-end')
     })
-    store.onAfterSend(() => {
+    store.onAfterSend(async () => {
       hookOrder.push('after-send')
     })
-    store.onAssistantMessage(() => {
+    store.onAssistantMessage(async () => {
       hookOrder.push('assistant-message')
     })
-    store.onChatTurnComplete(() => {
+    store.onChatTurnComplete(async () => {
       hookOrder.push('turn-complete')
     })
 

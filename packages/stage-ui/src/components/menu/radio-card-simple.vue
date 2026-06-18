@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import type { Slot } from 'vue'
-
 withDefaults(
   defineProps<{
     id: string
@@ -13,11 +11,6 @@ withDefaults(
     description: '',
   },
 )
-
-defineSlots<{
-  topRight?: Slot
-  bottomRight?: Slot
-}>()
 
 const modelValue = defineModel<string>({ required: true })
 </script>

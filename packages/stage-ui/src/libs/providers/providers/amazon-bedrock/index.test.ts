@@ -34,7 +34,8 @@ describe('providerAmazonBedrock', () => {
     expect(
       providerAmazonBedrock.validationRequiredWhen?.({
         apiKey: '',
-      } as { apiKey: string }),
+        region: 'us-east-1',
+      }),
     ).toBe(false)
   })
 
@@ -49,7 +50,8 @@ describe('providerAmazonBedrock', () => {
   it('should use default us-east-1 region when not specified', () => {
     const provider = providerAmazonBedrock.createProvider({
       apiKey: 'some-api-key',
-    } as { apiKey: string })
+      region: 'us-east-1',
+    })
     expect(provider).toBeDefined()
   })
 

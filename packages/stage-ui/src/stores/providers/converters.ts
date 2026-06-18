@@ -199,7 +199,7 @@ export function convertProviderDefinitionToMetadata<TConfig>(
         // Used by the manual "Test Generation" button on settings pages.
         if (options?.onlyChatPingCheck) {
           const plan = getValidatorsOfProvider({
-            definition,
+            definition: definition as ProviderDefinition,
             config,
             schemaDefaults,
             contextOptions: { t },
@@ -225,7 +225,7 @@ export function convertProviderDefinitionToMetadata<TConfig>(
         }
 
         const plan = getValidatorsOfProvider({
-          definition,
+          definition: definition as ProviderDefinition,
           config,
           schemaDefaults,
           contextOptions: { t },
