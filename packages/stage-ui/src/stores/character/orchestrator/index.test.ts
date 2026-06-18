@@ -190,15 +190,15 @@ describe('store character-orchestrator', () => {
     expect(result?.commands?.[0].intent).toBe('action')
     expect(result?.commands?.[0].priority).toBe('critical')
 
-    expect(mockStream).toBeCalledTimes(1)
+    expect(mockStream).toHaveBeenCalledTimes(1)
     expect(mockStream.mock.calls).toHaveLength(1)
     expect(mockStream.mock.calls[0][0]).toEqual('mock-model')
     expect(mockStream.mock.calls[0][1]).not.toBeNull()
     expect(mockStream.mock.calls[0][2]).toHaveLength(2)
     expect(mockStream.mock.calls[0][3]).toHaveProperty('tools')
 
-    expect(mockOnSparkNotifyReactionStreamEvent).toBeCalledWith(event.data.id, 'Ahhh, got hit by zombie!')
-    expect(mockOnSparkNotifyReactionStreamEnd).toBeCalledTimes(1)
+    expect(mockOnSparkNotifyReactionStreamEvent).toHaveBeenCalledWith(event.data.id, 'Ahhh, got hit by zombie!')
+    expect(mockOnSparkNotifyReactionStreamEnd).toHaveBeenCalledTimes(1)
   })
 
   it('supports forcing text-only spark:notify responses', async () => {
@@ -237,8 +237,8 @@ describe('store character-orchestrator', () => {
     expect(streamOptions.waitForTools).toBe(false)
     expect(streamOptions.tools).toEqual([])
     expect(streamOptions.toolChoice).toBeUndefined()
-    expect(onDelta).toBeCalled()
-    expect(onEnd).toBeCalled()
+    expect(onDelta).toHaveBeenCalled()
+    expect(onEnd).toHaveBeenCalled()
   })
 
   it('supports forcing spark-command responses', async () => {
@@ -291,8 +291,8 @@ describe('store character-orchestrator', () => {
       function: { name: 'builtIn_sparkCommand' },
     })
     expect(result?.commands?.length).toBe(1)
-    expect(onDelta).not.toBeCalled()
-    expect(onEnd).toBeCalledWith(event.data.id, '')
+    expect(onDelta).not.toHaveBeenCalled()
+    expect(onEnd).toHaveBeenCalledWith(event.data.id, '')
   })
 
   it('forwards runtime-only message overrides into the rendered spark prompt', async () => {
