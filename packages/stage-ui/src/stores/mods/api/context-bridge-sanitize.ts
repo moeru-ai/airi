@@ -46,7 +46,7 @@ export function sanitizeCloneable(value: unknown, seen = new WeakSet<object>()):
     )
   }
 
-  if (ArrayBuffer.isView(rawValue) || rawValue instanceof ArrayBuffer)
+  if (ArrayBuffer.isView(rawValue) || rawValue instanceof ArrayBuffer || rawValue instanceof Blob)
     return rawValue
 
   const proto = Object.getPrototypeOf(rawValue)

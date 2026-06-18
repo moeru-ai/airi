@@ -678,7 +678,13 @@ describe('context bridge contract', () => {
   })
 
   it('preserves bigint values in broadcast context snapshots', async () => {
-    const messages = collectChannelMessages<unknown>(CONTEXT_CHANNEL_NAME)
+    const messages = collectChannelMessages<{
+      id: string
+      metadata?: {
+        count?: bigint
+        nested?: Array<{ total?: bigint }>
+      }
+    }>(CONTEXT_CHANNEL_NAME)
 
     const store = useContextBridgeStore()
     await store.initialize()

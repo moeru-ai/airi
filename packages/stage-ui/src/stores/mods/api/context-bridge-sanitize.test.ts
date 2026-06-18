@@ -22,6 +22,34 @@ describe('sanitizeCloneable', () => {
     })
   })
 
+  it('preserves structured-cloneable built-ins', async () => {
+    const payload = new Uint8Array([1, 2, 3])
+    const buffer = payload.buffer.slice(0)
+    const blob = new Blob(['hello'])
+    const input = {
+      metadata: {
+        mapping: new Map([['key', 7n]]),
+        seen: new Set(['a', 'b']),
+        payload,
+        buffer,
+        blob,
+      },
+    }
+
+    const sanitized = sanitizeCloneable(input)
+    const cloned = structuredClone(sanitized)
+
+    expect(cloned).toEqual({
+      metadata: {
+        mapping: new Map([['key', 7n]]),
+        seen: new Set(['a', 'b']),
+        payload,
+        buffer,
+        blob,
+      },
+    })
+  })
+
   it('removes nested non-cloneable values and stays structuredClone-safe', () => {
     const input = {
       text: 'vision update',
