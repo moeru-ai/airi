@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@moeru/std": "catalog:",
+    "@proj-airi/audio": "workspace:^",
     "uncrypto": "catalog:"
   }
 }

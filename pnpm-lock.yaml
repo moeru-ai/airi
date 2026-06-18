@@ -3300,6 +3300,9 @@ importers:
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
+      '@proj-airi/audio':
+        specifier: workspace:^
+        version: link:../audio
       uncrypto:
         specifier: 'catalog:'
         version: 0.1.3

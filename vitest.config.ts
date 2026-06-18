@@ -7,7 +7,6 @@ export default defineConfig({
       'apps/ui-server-auth',
       'apps/ui-admin',
       'apps/stage-tamagotchi',
-      'packages/audio-pipelines-transcribe',
       'packages/cap-vite',
       'packages/core-agent',
       'packages/vishot-runner-browser',
