@@ -5,6 +5,17 @@ function resolvePreferredAudioInput(audioInputs: MediaDeviceInfo[]) {
   return audioInputs.find(device => device.deviceId === 'default')?.deviceId || audioInputs[0]?.deviceId || ''
 }
 
+export function isMissingAudioInputDeviceError(error: unknown) {
+  if (!error || typeof error !== 'object')
+    return false
+
+  const { message, name } = error as { message?: unknown, name?: unknown }
+
+  return name === 'NotFoundError'
+    || name === 'OverconstrainedError'
+    || (typeof message === 'string' && message.includes('Requested device not found'))
+}
+
 export function useAudioDevice(requestPermission: boolean = false) {
   const { audioInputs, permissionGranted, ensurePermissions } = useDevicesList({ constraints: { audio: true }, requestPermissions: requestPermission })
   const selectedAudioInput = ref<string>(audioInputs.value.find(device => device.deviceId === 'default')?.deviceId || '')
@@ -59,6 +70,12 @@ export function useAudioDevice(requestPermission: boolean = false) {
       const fallbackDeviceId = resolvePreferredAudioInput(audioInputs.value)
       if (fallbackDeviceId && fallbackDeviceId !== selectedAudioInput.value) {
         selectedAudioInput.value = fallbackDeviceId
+        await nextTick()
+        return await startUserMediaStream()
+      }
+
+      if (selectedAudioInput.value && isMissingAudioInputDeviceError(error)) {
+        selectedAudioInput.value = ''
         await nextTick()
         return await startUserMediaStream()
       }
