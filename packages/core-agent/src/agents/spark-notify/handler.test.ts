@@ -9,7 +9,10 @@ describe('setupAgentSparkNotifyHandler', () => {
     const traces: unknown[] = []
     const handler = setupAgentSparkNotifyHandler({
       stream: async (_model, _provider, _messages, options) => {
-        const commandTool = options.tools?.find((tool: Record<string, unknown>) => (tool.function as Record<string, unknown> | undefined)?.name === 'builtIn_sparkCommand') as { execute: (input: unknown) => Promise<unknown> } | undefined
+        const commandTool = options.tools?.find(
+          (tool: Record<string, unknown>) =>
+            (tool.function as Record<string, unknown> | undefined)?.name === 'builtIn_sparkCommand',
+        ) as { execute: (input: unknown) => Promise<unknown> } | undefined
         await commandTool?.execute({
           commands: [
             {
@@ -26,7 +29,7 @@ describe('setupAgentSparkNotifyHandler', () => {
       },
       getActiveProvider: () => 'mock-provider',
       getActiveModel: () => 'mock-model',
-      getProviderInstance: async () => ({}) as Record<string, unknown>,
+      getProviderInstance: async () => ({}) as any,
       onReactionDelta: vi.fn(),
       onReactionEnd: vi.fn(),
       getSystemPrompt: () => 'system',
@@ -65,7 +68,7 @@ describe('setupAgentSparkNotifyHandler', () => {
       stream,
       getActiveProvider: () => 'mock-provider',
       getActiveModel: () => 'mock-model',
-      getProviderInstance: async () => ({}) as Record<string, unknown>,
+      getProviderInstance: async () => ({}) as any,
       onReactionDelta: vi.fn(),
       onReactionEnd: vi.fn(),
       getSystemPrompt: () => 'system',
@@ -113,7 +116,7 @@ describe('setupAgentSparkNotifyHandler', () => {
       stream,
       getActiveProvider: () => 'mock-provider',
       getActiveModel: () => 'mock-model',
-      getProviderInstance: async () => ({}) as Record<string, unknown>,
+      getProviderInstance: async () => ({}) as any,
       onReactionDelta: vi.fn(),
       onReactionEnd: vi.fn(),
       getSystemPrompt: () => 'system',
