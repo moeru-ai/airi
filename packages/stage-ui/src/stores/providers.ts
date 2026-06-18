@@ -59,6 +59,7 @@ import { useAuthStore } from './auth'
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
 import { convertProviderDefinitionsToMetadata } from './providers/converters'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
+import { buildGptSoVitsProvider } from './providers/gpt-sovits'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
 import { buildOpenRouterAudioSpeechProvider } from './providers/openrouter/audio-speech'
 import { createWebSpeechAPIProvider } from './providers/web-speech-api'
@@ -1255,6 +1256,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+    'gpt-sovits': buildGptSoVitsProvider(v => baseUrlValidator.value(v)),
     'alibaba-cloud-model-studio': {
       id: 'alibaba-cloud-model-studio',
       category: 'speech',

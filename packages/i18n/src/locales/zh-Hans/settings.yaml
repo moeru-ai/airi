@@ -1242,6 +1242,9 @@ pages:
         title: Bilibili / IndexTTS
         callout_indextts2_unavailable_title: 暂不支持
         callout_indextts2_unavailable: 目前尚未支持 IndexTTS2，请使用 IndexTTS。
+      gpt-sovits:
+        title: GPT-SoVITS（本地）
+        description: github.com/RVC-Boss/GPT-SoVITS
       azure-ai-foundry:
         description: Azure AI Foundry
         title: Azure AI Foundry

@@ -13,7 +13,7 @@ import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalHookPostLog, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { initScreenCaptureForMain } from '@proj-airi/electron-screen-capture/main'
-import { app, ipcMain } from 'electron'
+import { app, ipcMain, session } from 'electron'
 import { noop } from 'es-toolkit'
 import { createLoggLogger, injeca, lifecycle } from 'injeca'
 import { isLinux } from 'std-env'
@@ -113,6 +113,36 @@ app.whenReady().then(async () => {
   if (!shouldStartMainProcess) {
     return
   }
+
+  // NOTICE:
+  // Local AI provider servers (GPT-SoVITS, vLLM, Whisper, etc.) typically run without
+  // CORS headers. The Electron renderer uses Chromium's fetch, which enforces CORS and
+  // sends an OPTIONS preflight for Content-Type: application/json requests.
+  //
+  // Two issues to fix:
+  // 1. FastAPI without CORS middleware does not return CORS response headers.
+  // 2. FastAPI / Starlette may return 405 for OPTIONS on non-OPTIONS routes,
+  //    and Chromium requires a 2xx status for a preflight to succeed.
+  //
+  // We resolve both by intercepting responses from localhost: injecting CORS headers
+  // and overriding OPTIONS responses to 200 OK. This lets any local AI service work
+  // without requiring the user to configure CORS on their own server.
+  session.defaultSession.webRequest.onHeadersReceived(
+    { urls: ['http://127.0.0.1:*/*', 'http://localhost:*/*'] },
+    (details, callback) => {
+      const isOptionsPreflight = details.method === 'OPTIONS'
+      callback({
+        // Force preflight responses to 200 so Chromium accepts them.
+        statusLine: isOptionsPreflight ? 'HTTP/1.1 200 OK' : details.statusLine,
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Access-Control-Allow-Origin': ['*'],
+          'Access-Control-Allow-Methods': ['GET, POST, PUT, DELETE, OPTIONS'],
+          'Access-Control-Allow-Headers': ['Content-Type, Authorization'],
+        },
+      })
+    },
+  )
 
   // Initialize file logger and register the hook
   fileLogger = await setupFileLogger()
