@@ -162,6 +162,10 @@ watch(activeSpeechModel, async () => {
   }
 })
 
+watch([activeSpeechProvider, activeSpeechModel, activeSpeechVoiceId], ([provider, model, voiceId]) => {
+  airiCardStore.updateActiveCardSpeech({ provider, model, voice_id: voiceId })
+})
+
 // Function to generate speech
 async function generateTestSpeech() {
   if (!testText.value.trim() && !useSSML.value)

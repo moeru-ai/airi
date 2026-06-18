@@ -310,6 +310,9 @@ pages:
       provider: チャット / プロバイダー
     consciousness:
       model: 意識 / モデル
+    vision:
+      provider: ビジョン / プロバイダー
+      model: ビジョン / モデル
     created_by: 作成者
     creator_notes: 作成者のメモ
     delete: 削除

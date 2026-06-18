@@ -310,6 +310,9 @@ pages:
       provider: Чат / провайдеры
     consciousness:
       model: Сознание / Модель
+    vision:
+      provider: Зрение / Провайдер
+      model: Зрение / Модель
     created_by: создано
     creator_notes: Заметки автора
     delete: Удалить
