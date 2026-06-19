@@ -714,6 +714,8 @@ function syncLipSyncLoop() {
   stopLipSyncLoop()
 }
 
+let lipSyncSetupPromise: Promise<void> | undefined
+
 async function setupLipSync() {
   if (stageModelRenderer.value !== 'live2d') {
     resetLive2dLipSync()
@@ -723,18 +725,35 @@ async function setupLipSync() {
   if (lipSyncStarted.value)
     return
 
-  try {
-    const lipSync = await createLive2DLipSync(audioContext, wlipsyncProfile as Profile, live2dLipSyncOptions)
-    live2dLipSync.value = lipSync
-    lipSyncNode.value = lipSync.node
-    await audioContext.resume()
-    lipSyncStarted.value = true
-    syncLipSyncLoop()
-  }
-  catch (error) {
-    resetLive2dLipSync()
-    console.error('Failed to setup Live2D lip sync', error)
-  }
+  // createLive2DLipSync can be slow (avatar still loading), and this is called
+  // fire-and-forget at message start (onBeforeMessageComposed) AND again per TTS
+  // segment in playFunction while lipSyncStarted is still false. Without de-duping,
+  // each segment that arrives before the first call resolves would start its own
+  // createLive2DLipSync(), leaking the earlier worklet nodes (never disposed) and
+  // letting whichever call resolves last stomp lipSyncNode mid-playback. Share one
+  // in-flight setup across all callers instead of starting a new one each time.
+  if (lipSyncSetupPromise)
+    return lipSyncSetupPromise
+
+  lipSyncSetupPromise = (async () => {
+    try {
+      const lipSync = await createLive2DLipSync(audioContext, wlipsyncProfile as Profile, live2dLipSyncOptions)
+      live2dLipSync.value = lipSync
+      lipSyncNode.value = lipSync.node
+      await audioContext.resume()
+      lipSyncStarted.value = true
+      syncLipSyncLoop()
+    }
+    catch (error) {
+      resetLive2dLipSync()
+      console.error('Failed to setup Live2D lip sync', error)
+    }
+    finally {
+      lipSyncSetupPromise = undefined
+    }
+  })()
+
+  return lipSyncSetupPromise
 }
 
 function setupAnalyser() {
