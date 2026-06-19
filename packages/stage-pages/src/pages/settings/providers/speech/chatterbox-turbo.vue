@@ -5,10 +5,10 @@ import {
   SpeechPlayground,
   SpeechProviderSettings,
 } from '@proj-airi/stage-ui/components'
+import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { Callout } from '@proj-airi/ui'
-import { storeToRefs } from 'pinia'
 import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -19,7 +19,6 @@ const defaultModel = 'chatterbox'
 
 const speechStore = useSpeechStore()
 const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore)
 
 // Chatterbox servers do not require an API key; the local server is always reachable once configured.
 const apiKeyConfigured = true
@@ -29,22 +28,19 @@ const availableVoices = computed(() => {
   return speechStore.availableVoices[providerId] || []
 })
 
-// Key the watcher to the Chatterbox Base URL specifically: SpeechProviderSettings
-// reassigns the nested providers[providerId] entry in a debounced update, which a
-// non-deep watch on the providers ref would miss. The base URL is the only config
-// field listVoices/validateProviderConfig depend on for this provider.
-watch(() => providers.value[providerId]?.baseUrl, async () => {
-  const providerConfig = providersStore.getProviderConfig(providerId)
-  const providerMetadata = providersStore.getProviderMetadata(providerId)
-  if ((await providerMetadata.validators.validateProviderConfig(providerConfig)).valid) {
+// useProviderValidation re-validates whenever the provider config changes (e.g. the
+// Base URL field, debounced) and marks the provider as added on a successful
+// validation. Without that, the provider's config stays identical to defaultOptions
+// when the user never edits anything, providers.ts only validates providers that are
+// dirty or explicitly added, and Chatterbox would never appear in
+// configuredSpeechProvidersMetadata for the Speech module to select.
+const { isValid } = useProviderValidation(providerId)
+
+watch(isValid, async (valid) => {
+  if (valid) {
     await speechStore.loadVoicesForProvider(providerId)
   }
-  else {
-    console.error('Failed to validate provider config', providerConfig)
-  }
-}, {
-  immediate: true,
-})
+}, { immediate: true })
 
 async function handleGenerateSpeech(input: string, voiceId: string) {
   const provider = await providersStore.getProviderInstance(providerId) as SpeechProvider
