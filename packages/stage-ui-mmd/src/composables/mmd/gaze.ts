@@ -9,8 +9,8 @@ export interface GazeOffset {
 }
 
 // Eyes can swing further than the head; values in radians.
-const EYE_YAW_LIMIT = 0.35
-const EYE_PITCH_LIMIT = 0.25
+export const EYE_YAW_LIMIT = 0.35
+export const EYE_PITCH_LIMIT = 0.25
 const HEAD_YAW_LIMIT = 0.2
 const HEAD_PITCH_LIMIT = 0.12
 

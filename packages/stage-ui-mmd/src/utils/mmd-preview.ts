@@ -59,7 +59,7 @@ export async function loadMMDModelPreview(file: File): Promise<string | undefine
   let group: Group | undefined
 
   try {
-    resolved = await loadMMDModelFromSource(objectUrl)
+    resolved = await loadMMDModelFromSource(objectUrl, { waitForTextures: true })
     group = new Group()
     group.add(resolved.mesh)
     scene.add(group)
@@ -68,9 +68,15 @@ export async function loadMMDModelPreview(file: File): Promise<string | undefine
     const box = new Box3().setFromObject(group)
     const size = box.getSize(new Vector3())
     const center = box.getCenter(new Vector3())
-    const fov = (camera.fov * Math.PI) / 180
-    const distance = (Math.max(size.x, size.y) / (2 * Math.tan(fov / 2))) * 1.3
+    // Fit to both axes for the portrait preview canvas so the model is not
+    // cropped or shrunk into the distance.
+    const vFov = (camera.fov * Math.PI) / 180
+    const fitHeightDistance = (size.y / 2) / Math.tan(vFov / 2)
+    const fitWidthDistance = (size.x / 2) / (Math.tan(vFov / 2) * camera.aspect)
+    const distance = 1.15 * Math.max(fitHeightDistance, fitWidthDistance)
     camera.position.set(center.x, center.y, center.z + distance)
+    camera.near = Math.max(distance / 100, 0.01)
+    camera.far = distance * 100
     camera.lookAt(center)
     camera.updateProjectionMatrix()
 

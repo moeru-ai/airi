@@ -58,7 +58,6 @@ export function createMorphController(
   overrides: Partial<Record<MorphSlot, string>> = {},
 ): MorphController {
   const dictionary = mesh.morphTargetDictionary ?? {}
-  const influences = mesh.morphTargetInfluences ?? []
   const available = new Set(Object.keys(dictionary))
 
   const slotIndex = new Map<MorphSlot, number>()
@@ -83,19 +82,26 @@ export function createMorphController(
     },
     set(slot, weight) {
       const index = slotIndex.get(slot)
-      if (index === undefined)
+      // Read morphTargetInfluences live: caching it risks writing to a stale
+      // or detached array if three (re)assigns it during updateMorphTargets.
+      const influences = mesh.morphTargetInfluences
+      if (index === undefined || !influences)
         return
       influences[index] = weight < 0 ? 0 : weight > 1 ? 1 : weight
     },
     get(slot) {
       const index = slotIndex.get(slot)
-      return index === undefined ? 0 : influences[index] ?? 0
+      const influences = mesh.morphTargetInfluences
+      return index === undefined || !influences ? 0 : influences[index] ?? 0
     },
     override(slot, morphName) {
       slotOverrides[slot] = morphName
       rebind()
     },
     resetManaged() {
+      const influences = mesh.morphTargetInfluences
+      if (!influences)
+        return
       for (const index of slotIndex.values())
         influences[index] = 0
     },

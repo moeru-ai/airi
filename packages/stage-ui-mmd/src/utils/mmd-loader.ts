@@ -1,4 +1,4 @@
-import type { Color, Material, SkinnedMesh, Texture } from 'three'
+import type { Color, LoadingManager, Material, SkinnedMesh, Texture } from 'three'
 
 import type { MMDLoadedAssets, MMDModelFormat } from './mmd-zip-loader'
 
@@ -16,10 +16,46 @@ export interface ResolvedMMDModel {
   dispose: () => void
 }
 
+export interface LoadMMDOptions {
+  /**
+   * Wait for the model's textures to finish loading before resolving.
+   *
+   * MMDLoader resolves the mesh as soon as it is parsed; textures continue
+   * loading through the LoadingManager. The live scene renders continuously so
+   * textures appear within a frame or two, but a one-shot offscreen render
+   * (the preview) would capture an untextured/transparent frame. Enable this
+   * for previews. Defaults to `false`.
+   */
+  waitForTextures?: boolean
+}
+
 // ZIP local-file-header magic: "PK\x03\x04".
 function isZip(buffer: ArrayBuffer): boolean {
   const head = new Uint8Array(buffer, 0, Math.min(4, buffer.byteLength))
   return head[0] === 0x50 && head[1] === 0x4B && head[2] === 0x03 && head[3] === 0x04
+}
+
+/**
+ * Resolves once the manager has no more pending loads.
+ *
+ * `LoadingManager.onLoad` fires when the last queued item finishes. A timeout
+ * guards the case where everything is already loaded (so `onLoad` never fires)
+ * or a texture stalls, so preview generation can never hang.
+ */
+function waitForManagerIdle(manager: LoadingManager, timeoutMs = 4000): Promise<void> {
+  return new Promise((resolve) => {
+    let settled = false
+    let timer: ReturnType<typeof setTimeout>
+    const finish = () => {
+      if (settled)
+        return
+      settled = true
+      clearTimeout(timer)
+      resolve()
+    }
+    timer = setTimeout(finish, timeoutMs)
+    manager.onLoad = finish
+  })
 }
 
 /** Material with the slots we adjust for correct MMD shading under r184. */
@@ -58,6 +94,11 @@ function fixupMMDMaterials(mesh: SkinnedMesh): void {
   mesh.traverse((object) => {
     if (!(object instanceof Mesh))
       return
+    // Skinned MMD meshes report a bind-pose bounding sphere that does not
+    // cover the posed/animated mesh, so they get frustum-culled when the
+    // camera pulls back (e.g. the offscreen preview renders blank). Disable
+    // culling, as the VRM loader does.
+    object.frustumCulled = false
     const materials = Array.isArray(object.material) ? object.material : [object.material]
     for (const material of materials) {
       const mapped = material as ColorMappedMaterial
@@ -129,7 +170,7 @@ export function withModelExtension(url: string, format: MMDModelFormat): string 
  * The returned `dispose()` revokes any blob URLs created during the load. It
  * does not dispose the mesh's GPU resources — the scene owns that lifecycle.
  */
-export async function loadMMDModelFromSource(src: string): Promise<ResolvedMMDModel> {
+export async function loadMMDModelFromSource(src: string, options: LoadMMDOptions = {}): Promise<ResolvedMMDModel> {
   const response = await fetch(src)
   if (!response.ok)
     throw new Error(`Failed to fetch MMD model: ${response.status} ${response.statusText}`)
@@ -138,9 +179,11 @@ export async function loadMMDModelFromSource(src: string): Promise<ResolvedMMDMo
 
   if (isZip(buffer)) {
     const assets = await loadMMDZip(buffer)
-    const { loader } = createMMDLoaderContext(assets.urlModifier)
+    const { loader, manager } = createMMDLoaderContext(assets.urlModifier)
     const mesh = await loadMMDMesh(loader, withModelExtension(assets.modelBlobUrl, assets.variant.format))
     fixupMMDMaterials(mesh)
+    if (options.waitForTextures)
+      await waitForManagerIdle(manager)
     return {
       mesh,
       format: assets.variant.format,
@@ -150,9 +193,11 @@ export async function loadMMDModelFromSource(src: string): Promise<ResolvedMMDMo
   }
 
   // Raw model URL: load directly, textures resolve against the server path.
-  const { loader } = createMMDLoaderContext()
+  const { loader, manager } = createMMDLoaderContext()
   const mesh = await loadMMDMesh(loader, withModelExtension(src, formatFromUrl(src)))
   fixupMMDMaterials(mesh)
+  if (options.waitForTextures)
+    await waitForManagerIdle(manager)
   return {
     mesh,
     format: formatFromUrl(src),

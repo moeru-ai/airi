@@ -1,6 +1,6 @@
 import type { AnimationAction, AnimationClip, AnimationMixer, SkinnedMesh } from 'three'
 
-import { AnimationClip as AnimationClipCtor, LoopOnce, LoopRepeat } from 'three'
+import { AnimationClip as AnimationClipCtor, LoopOnce, LoopRepeat, Vector3 } from 'three'
 import { MMDAnimationHelper } from 'three-stdlib'
 
 import { ensureAmmo } from '../../utils/ammo'
@@ -131,7 +131,9 @@ export function createMMDAnimationManager(mesh: SkinnedMesh, options: MMDAnimati
 
     if (currentAction && currentAction !== idleAction)
       currentAction.fadeOut(crossfade)
-    idleAction.reset().setEffectiveWeight(1).fadeIn(crossfade).play()
+    // Restore LoopRepeat: a one-shot may have reused this same action with
+    // LoopOnce, which would otherwise leave the idle no longer looping.
+    idleAction.reset().setLoop(LoopRepeat, Number.POSITIVE_INFINITY).setEffectiveWeight(1).fadeIn(crossfade).play()
     currentAction = idleAction
   }
 
@@ -205,6 +207,11 @@ export function createMMDAnimationManager(mesh: SkinnedMesh, options: MMDAnimati
     helper.enable('physics', enabled)
   }
 
+  /** Sets the physics world gravity strength, applied as (0, -magnitude, 0). */
+  function setGravity(magnitude: number): void {
+    helper.objects.get(mesh)?.physics?.setGravity(new Vector3(0, -magnitude, 0))
+  }
+
   function setIKEnabled(enabled: boolean): void {
     helper.enable('ik', enabled)
   }
@@ -244,6 +251,7 @@ export function createMMDAnimationManager(mesh: SkinnedMesh, options: MMDAnimati
     playAction,
     setIdleMotion,
     setPhysicsEnabled,
+    setGravity,
     setIKEnabled,
     setGrantEnabled,
     update,
