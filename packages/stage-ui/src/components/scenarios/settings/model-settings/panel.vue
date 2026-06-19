@@ -15,6 +15,7 @@ import { useI18n } from 'vue-i18n'
 
 import Godot from './godot.vue'
 import Live2D from './live2d.vue'
+import MMD from './mmd.vue'
 import Spine from './spine.vue'
 import VRM from './vrm.vue'
 
@@ -116,6 +117,13 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
       :palette="palette"
       :runtime-snapshot="runtimeSnapshot"
       @extract-colors-from-model="$emit('extractColorsFromModel')"
+    />
+    <MMD
+      v-if="effectiveRenderer === 'mmd'"
+      :allow-extract-colors="allowExtractColors"
+      :palette="palette"
+      :runtime-snapshot="runtimeSnapshot"
+      @extract-colors-from-model="emit('extractColorsFromModel')"
     />
     <Godot
       v-if="effectiveRenderer === 'godot'"
