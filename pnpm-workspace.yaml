@@ -219,6 +219,7 @@ catalog:
   '@xsai/tool': 0.5.0-beta.2
   '@xsai/utils-chat': 0.5.0-beta.2
   alien-signals: ^3.1.2
+  ammojs-typed: ^1.0.6
   animejs: ^4.3.6
   async-mutex: 0.5.0
   awilix: ^13.0.3
@@ -352,6 +353,7 @@ catalog:
   taze: ^19.11.0
   telegram: ^2.26.22
   three: ^0.184.0
+  three-stdlib: ^2.36.1
   tinyexec: ^1.1.1
   tinyglobby: ^0.2.16
   tsdown: ^0.21.9

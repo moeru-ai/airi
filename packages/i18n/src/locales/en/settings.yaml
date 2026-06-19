@@ -1737,6 +1737,40 @@ spine:
   fps:
     options:
       unlimited: Unlimited
+mmd:
+  title: MMD Settings
+  scale-and-position:
+    title: Scale And Position
+    scale: Scale
+    x: X
+    'y': 'Y'
+    rotation: Rotation
+  theme-color-from-model:
+    title: Extract colors from model
+    button-extract:
+      title: Extract
+  physics:
+    title: Physics & Rig
+    enabled: Enable physics (hair, skirt, accessories)
+    ik: Enable IK (inverse kinematics)
+    grant: Enable append-bone propagation
+  gaze:
+    title: Gaze
+    tracking: Track cursor with eyes and head
+  animation:
+    title: Animation
+    idle-motion: Idle Motion
+    import-motion: Import Motion (.vmd)
+    play-once: Play
+    description: >-
+      Import VMD motion files, set one as the looping idle, or play any as a
+      one-shot gesture. Map emotions to motions to play gestures alongside
+      facial expressions.
+  morphs:
+    title: Morphs
+    description: >-
+      The renderer auto-detects standard Japanese morph names (あいうえお,
+      まばたき). Override a slot here if your model uses non-standard names.
 websocket-secure-enabled:
   title: Enable Secure WebSocket (WSS)
   description: >-
