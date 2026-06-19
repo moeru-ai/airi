@@ -4,17 +4,24 @@ import type { MorphSlot } from '../constants/morphs'
 import localforage from 'localforage'
 
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
-import { useBroadcastChannel, useLocalStorage } from '@vueuse/core'
+import { useBroadcastChannel } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 
 import { EMOTION_ACTION_NAME } from '../constants/actions'
 import { supportedControl, useMMDViewControl } from './view-control'
 
-type BroadcastChannelEvents = BroadcastChannelEventShouldUpdateView
+type BroadcastChannelEvents
+  = | BroadcastChannelEventShouldUpdateView
+    | BroadcastChannelEventPlayOneShot
 
 interface BroadcastChannelEventShouldUpdateView {
   type: 'mmd-should-update-view'
+}
+
+interface BroadcastChannelEventPlayOneShot {
+  type: 'mmd-play-one-shot'
+  request: MMDOneShotAction
 }
 
 /**
@@ -37,7 +44,20 @@ interface PersistedMMDMotion {
   file: File
 }
 
+/** A material ("part") of the loaded model, for the materials settings UI. */
+export interface MMDMaterialDescriptor {
+  /** Raw material name; the key used for opacity overrides. */
+  name: string
+  /** Human-friendly label (falls back to `Material N` for unnamed parts). */
+  label: string
+  /** Order index within the model. */
+  index: number
+}
+
 const MOTION_STORAGE_PREFIX = 'mmd-motion-'
+
+/** Eye/head tracking mode, mirroring the VRM renderer's tracking modes. */
+export type MMDGazeMode = 'camera' | 'mouse' | 'none'
 
 /** Transient request to play a one-shot motion, bumped per request. */
 export interface MMDOneShotAction {
@@ -51,6 +71,15 @@ export const useMMD = defineStore('mmd', () => {
     name: 'airi-stores-stage-ui-mmd',
   })
   const shouldUpdateViewHooks = ref(new Set<() => void>())
+
+  /**
+   * Transient one-shot motion request (fire-and-forget; not persisted).
+   *
+   * Declared before the broadcast handler that writes to it. Delivered across
+   * Electron windows via the BroadcastChannel below — NOT localStorage, whose
+   * storage events do not fire reliably between BrowserWindows.
+   */
+  const oneShotAction = ref<MMDOneShotAction>()
 
   const onShouldUpdateView = (hook: () => void) => {
     shouldUpdateViewHooks.value.add(hook)
@@ -67,6 +96,8 @@ export const useMMD = defineStore('mmd', () => {
   watch(data, (event) => {
     if (event?.type === 'mmd-should-update-view')
       shouldUpdateViewHooks.value.forEach(hook => hook())
+    else if (event?.type === 'mmd-play-one-shot')
+      oneShotAction.value = event.request
   })
 
   // === Physics & solver toggles ===
@@ -76,9 +107,45 @@ export const useMMD = defineStore('mmd', () => {
   const ikEnabled = useLocalStorageManualReset<boolean>('settings/mmd/ik-enabled', true)
   /** Append-bone ("grant") propagation for derived bones. */
   const grantEnabled = useLocalStorageManualReset<boolean>('settings/mmd/grant-enabled', true)
+  /**
+   * Physics gravity strength (magnitude). Applied as world gravity (0, -g, 0).
+   * MMD's default is 98 (9.8 × 10 for MMD's scale). Lower = floatier hair and
+   * cloth, higher = heavier/droopier.
+   */
+  const physicsGravity = useLocalStorageManualReset<number>('settings/mmd/physics-gravity', 98)
 
   // === Gaze ===
-  const gazeTrackingEnabled = useLocalStorageManualReset<boolean>('settings/mmd/gaze-tracking', true)
+  /**
+   * Eye/head tracking mode, mirroring the VRM renderer:
+   * - `mouse`  — follow the cursor
+   * - `camera` — look toward the camera (forward)
+   * - `none`   — no tracking; idle saccades only
+   */
+  const gazeMode = useLocalStorageManualReset<MMDGazeMode>('settings/mmd/gaze-mode', 'mouse')
+
+  // === Scene: camera ===
+  /** Vertical field of view in degrees. */
+  const cameraFov = useLocalStorageManualReset<number>('settings/mmd/camera-fov', 30)
+
+  // === Scene: lighting ===
+  const ambientColor = useLocalStorageManualReset<string>('settings/mmd/ambient-color', '#FFFFFF')
+  const ambientIntensity = useLocalStorageManualReset<number>('settings/mmd/ambient-intensity', 0.6)
+  const directionalColor = useLocalStorageManualReset<string>('settings/mmd/directional-color', '#FFFBF5')
+  const directionalIntensity = useLocalStorageManualReset<number>('settings/mmd/directional-intensity', 0.75)
+  const directionalPosition = useLocalStorageManualReset<{ x: number, y: number, z: number }>(
+    'settings/mmd/directional-position',
+    () => ({ x: 1, y: 2, z: 2 }),
+  )
+
+  // === Scene: rendering ===
+  /**
+   * Albedo self-illumination, 0–1. Drives `emissiveIntensity` on every
+   * material so the model reads as the flat, luminous MMD/anime look. 0 = lit
+   * only by scene lights, 1 = nearly self-lit.
+   */
+  const albedoGlow = useLocalStorageManualReset<number>('settings/mmd/albedo-glow', 0.45)
+  /** Device-pixel-ratio multiplier for render resolution. */
+  const renderScale = useLocalStorageManualReset<number>('settings/mmd/render-scale', 1)
 
   // === Animation ===
   /** Name of the persistent idle motion; empty means none/static. */
@@ -123,6 +190,16 @@ export const useMMD = defineStore('mmd', () => {
     availableMotions.value = []
     await Promise.all(motions.map(motion => localforage.removeItem(motion.id)))
   }
+
+  /** Removes a single imported motion (from the synced list and IndexedDB). */
+  async function removeMotion(id: string): Promise<void> {
+    const motion = availableMotions.value.find(m => m.id === id)
+    availableMotions.value = availableMotions.value.filter(m => m.id !== id)
+    // Drop the idle selection if it pointed at the removed motion.
+    if (motion && idleMotionName.value === motion.name)
+      idleMotionName.value = ''
+    await localforage.removeItem(id)
+  }
   /** Per-emotion gesture motion overrides; falls back to EMOTION_ACTION_NAME. */
   const emotionActionMap = useLocalStorageManualReset<Record<Emotion, string>>(
     'settings/mmd/emotion-action-map',
@@ -139,23 +216,42 @@ export const useMMD = defineStore('mmd', () => {
   const availableMorphs = useLocalStorageManualReset<string[]>('settings/mmd/available-morphs', () => [])
 
   /**
+   * Materials (parts) of the active model, published by the scene so the
+   * settings window can render a control per part.
+   */
+  const availableMaterials = useLocalStorageManualReset<MMDMaterialDescriptor[]>(
+    'settings/mmd/available-materials',
+    () => [],
+  )
+  /**
+   * Per-material opacity overrides, keyed by material name. Missing entries
+   * render at full opacity. Lets the user fade or hide individual parts.
+   */
+  const materialOpacity = useLocalStorageManualReset<Record<string, number>>(
+    'settings/mmd/material-opacity',
+    () => ({}),
+  )
+
+  /**
    * Whether an MMD mesh is currently mounted. Runtime-only: the persisted
    * descriptor lists survive reloads and cannot indicate live mount state.
    */
   const isModelLoaded = ref(false)
 
   /**
-   * Transient one-shot motion request.
+   * Queues a one-shot motion. Applies it in this window and broadcasts it to
+   * the others. The bumped `nonce` makes repeat requests for the same motion
+   * re-trigger the scene's watcher.
    *
-   * localStorage-backed (not just an in-memory ref) so a "play" click in the
-   * settings window reaches the stage window's scene. The bumped `nonce` makes
-   * repeat requests for the same motion re-trigger the watcher.
+   * Uses the BroadcastChannel rather than localStorage because this is a
+   * transient trigger that must reach the stage window's animation manager,
+   * and localStorage storage events do not fire reliably across Electron
+   * BrowserWindows (the live stage and settings run as separate processes).
    */
-  const oneShotAction = useLocalStorage<MMDOneShotAction | null>('settings/mmd/one-shot', null)
-
-  /** Queue a one-shot motion; bumps the nonce so repeat calls re-trigger. */
   function playOneShotAction(name: string, loop = false) {
-    oneShotAction.value = { name, loop, nonce: (oneShotAction.value?.nonce ?? 0) + 1 }
+    const request: MMDOneShotAction = { name, loop, nonce: (oneShotAction.value?.nonce ?? 0) + 1 }
+    oneShotAction.value = request
+    post({ type: 'mmd-play-one-shot', request })
   }
 
   const { position, scale, rotationY, reset: resetViewControl } = useMMDViewControl()
@@ -165,13 +261,24 @@ export const useMMD = defineStore('mmd', () => {
     physicsEnabled.reset()
     ikEnabled.reset()
     grantEnabled.reset()
-    gazeTrackingEnabled.reset()
+    physicsGravity.reset()
+    gazeMode.reset()
+    cameraFov.reset()
+    ambientColor.reset()
+    ambientIntensity.reset()
+    directionalColor.reset()
+    directionalIntensity.reset()
+    directionalPosition.reset()
+    albedoGlow.reset()
+    renderScale.reset()
     idleMotionName.reset()
     void clearMotions()
-    oneShotAction.value = null
+    oneShotAction.value = undefined
     emotionActionMap.reset()
     morphOverrides.reset()
     availableMorphs.reset()
+    availableMaterials.reset()
+    materialOpacity.reset()
     shouldUpdateView()
   }
 
@@ -183,17 +290,30 @@ export const useMMD = defineStore('mmd', () => {
     physicsEnabled,
     ikEnabled,
     grantEnabled,
-    gazeTrackingEnabled,
+    physicsGravity,
+    gazeMode,
+
+    cameraFov,
+    ambientColor,
+    ambientIntensity,
+    directionalColor,
+    directionalIntensity,
+    directionalPosition,
+    albedoGlow,
+    renderScale,
 
     idleMotionName,
     availableMotions,
     addMotion,
     getMotionFile,
     clearMotions,
+    removeMotion,
     emotionActionMap,
 
     morphOverrides,
     availableMorphs,
+    availableMaterials,
+    materialOpacity,
 
     isModelLoaded,
     oneShotAction,

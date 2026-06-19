@@ -84,6 +84,9 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
         <template #vrm>
           <code>.vrm</code>
         </template>
+        <template #mmd>
+          <code>.pmx</code>/<code>.pmd</code>
+        </template>
       </i18n-t>
       <p>
         {{ t('settings.model-select.panel-callout.model-type-example') }}
