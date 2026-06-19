@@ -256,7 +256,7 @@ async function toggleAlwaysOnTop() {
       >
         <div
           :class="[
-            'size-4',
+            'size-3',
             widget.alwaysOnTop ? 'i-solar:pin-bold' : 'i-solar:pin-linear opacity-80',
           ]"
         />
@@ -270,7 +270,7 @@ async function toggleAlwaysOnTop() {
         :aria-label="t('tamagotchi.stage.widgets.close')"
         @click="handleClose"
       >
-        x
+        <span class="size-6">×</span>
       </button>
     </div>
     <div v-if="!widgetId" :class="['h-full flex items-center justify-center p-6']">
