@@ -73,9 +73,10 @@ export async function loadSpineModelPreview(file: File): Promise<string | undefi
             else
               am.loadJson(skeletonAssetPath)
 
+            // loadTextureAtlas loads every page image referenced by the atlas
+            // through the patched downloader, so the texture pages do not need
+            // to be requested again individually.
             am.loadTextureAtlas(atlasAssetPath)
-            for (const texPath of layout.texturePaths)
-              am.loadTexture(texPath)
           },
           initialize: (canvasApp: import('@esotericsoftware/spine-webgl').SpineCanvas) => {
             const am = canvasApp.assetManager
@@ -89,6 +90,13 @@ export async function loadSpineModelPreview(file: File): Promise<string | undefi
 
             const skeleton = new spine.Skeleton(skeletonData)
             skeleton.setToSetupPose()
+            // Some rigs ship without a default skin; their slot attachments
+            // only resolve once a skin is active, so setup pose renders empty.
+            // Fall back to the first skin so the preview isn't blank.
+            if (!skeletonData.defaultSkin && skeletonData.skins.length > 0) {
+              skeleton.setSkinByName(skeletonData.skins[0].name)
+              skeleton.setSlotsToSetupPose()
+            }
             ;(canvasApp as unknown as { __previewSkeleton: import('@esotericsoftware/spine-webgl').Skeleton }).__previewSkeleton = skeleton
           },
           update: (canvasApp: import('@esotericsoftware/spine-webgl').SpineCanvas, _delta: number) => {
@@ -106,12 +114,41 @@ export async function loadSpineModelPreview(file: File): Promise<string | undefi
               return
 
             const renderer = canvasApp.renderer
-            renderer.resize(spine.ResizeMode.Fit)
+            // Expand keeps world units == canvas pixels at zoom 1, giving a
+            // predictable basis for the bounds-fit math below.
+            renderer.resize(spine.ResizeMode.Expand)
+
+            // Frame the camera to the skeleton's world-space bounding box.
+            // Most rigs anchor the root at the feet, so the model occupies
+            // roughly y: 0..height around x: 0. The renderer's default camera
+            // sits at the origin and would crop everything above the ankles —
+            // this is the actual cause of the cropped preview. getBounds gives
+            // the AABB of the currently posed attachments; we centre on it and
+            // zoom so the whole box fits with a small margin.
+            const offset = new spine.Vector2()
+            const size = new spine.Vector2()
+            skeleton.getBounds(offset, size, [])
+
+            const camera = renderer.camera
+            if (size.x > 0 && size.y > 0) {
+              const padding = 1.1
+              camera.position.x = offset.x + size.x / 2
+              camera.position.y = offset.y + size.y / 2
+              camera.zoom = Math.max(size.x / camera.viewportWidth, size.y / camera.viewportHeight) * padding
+              camera.update()
+            }
+
             canvasApp.gl.clearColor(0, 0, 0, 0)
             canvasApp.gl.clear(canvasApp.gl.COLOR_BUFFER_BIT)
             renderer.begin()
             renderer.drawSkeleton(skeleton, true)
             renderer.end()
+
+            // Wait for a valid bounding box before capturing. A degenerate box
+            // (empty setup pose, attachments not yet resolved) would produce a
+            // blank or mis-framed thumbnail, so retry on the next frame instead.
+            if (size.x <= 0 || size.y <= 0)
+              return
 
             try {
               const dataUrl = canvas!.toDataURL('image/png')

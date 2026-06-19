@@ -7,10 +7,10 @@ import type { SpineModelVariant } from '../../../utils/spine-zip-loader'
 
 import { Mutex } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
-import { onMounted, onUnmounted, ref, toRef, watch } from 'vue'
+import { nextTick, onMounted, onUnmounted, ref, toRef, watch } from 'vue'
 
 import { useSpineAnimationManager } from '../../../composables/spine'
-import { EMOTION_SpineAnimationName_value, SpineAnimationName } from '../../../constants/emotions'
+import { EMOTION_SpineAnimationName_value, SPINE_IDLE_TRACK, SpineAnimationName } from '../../../constants/emotions'
 import { useSpine } from '../../../stores/spine'
 import { loadSpineRuntime } from '../../../utils/spine-runtime'
 import { detectSpineVersionFromBinary, detectSpineVersionFromJson } from '../../../utils/spine-version'
@@ -22,6 +22,7 @@ const props = withDefaults(defineProps<{
   canvas?: HTMLCanvasElement
   width: number
   height: number
+  resolution?: number
   paused?: boolean
   premultipliedAlpha?: boolean
   defaultMixDuration?: number
@@ -29,6 +30,7 @@ const props = withDefaults(defineProps<{
   maxFps?: number
 }>(), {
   paused: false,
+  resolution: 1,
   premultipliedAlpha: true,
   defaultMixDuration: 0.2,
   idleAnimationEnabled: true,
@@ -54,6 +56,7 @@ const {
   availableVariants,
   currentVariant,
   animationSpeed,
+  oneShotAnimation,
 } = storeToRefs(spineStore)
 
 let isUnmounted = false
@@ -67,6 +70,23 @@ let animationManager: SpineAnimationManager | undefined
 let skeleton: Skeleton | undefined
 let animationState: AnimationState | undefined
 let loadedVariants: SpineModelVariant[] = []
+
+// Intrinsic model bounds at scale 1 with the root at the origin, captured on
+// load and used to auto-fit the skeleton to the canvas. Undefined until a model
+// is loaded, or when the setup pose has no renderable bounds.
+let modelIntrinsicBounds: { x: number, y: number, width: number, height: number } | undefined
+
+// Last time the skeleton was drawn, used to honour `maxFps`. The skeleton
+// still advances every frame in `update`; only the GPU draw is throttled.
+let lastRenderTime = 0
+
+// Mutable defaults handed to the animation manager. The manager reads these
+// fields on every call, so mutating them in place (see the prop watches
+// below) propagates live setting changes without rebuilding the manager.
+const animationDefaults = {
+  mixDuration: props.defaultMixDuration,
+  idleAnimationEnabled: props.idleAnimationEnabled,
+}
 
 const canvas = toRef(() => props.canvas)
 const modelSrc = toRef(() => props.modelSrc)
@@ -87,6 +107,8 @@ function disposeSpine() {
   animationManager = undefined
   skeleton = undefined
   animationState = undefined
+  modelIntrinsicBounds = undefined
+  spineStore.isModelLoaded = false
 }
 
 async function loadModel() {
@@ -201,16 +223,12 @@ async function loadModel() {
 
             skeleton = new spine.Skeleton(skeletonData)
             skeleton.setToSetupPose()
-            applyTransformFromStore()
 
             const stateData = new spine.AnimationStateData(skeletonData)
             stateData.defaultMix = props.defaultMixDuration
             animationState = new spine.AnimationState(stateData)
 
-            animationManager = useSpineAnimationManager(animationState, skeleton, {
-              mixDuration: props.defaultMixDuration,
-              idleAnimationEnabled: props.idleAnimationEnabled,
-            })
+            animationManager = useSpineAnimationManager(animationState, skeleton, animationDefaults)
 
             // Inventory animations and skins, populate the store.
             const animations = skeletonData.animations.map(animation => ({ name: animation.name, duration: animation.duration }))
@@ -222,9 +240,31 @@ async function loadModel() {
             // Apply the user's saved skin (if any).
             applySkin(currentSkin.value)
 
+            // Capture the model's intrinsic bounds (scale 1, root at origin)
+            // so applyTransformFromStore can auto-fit it to the canvas. Done
+            // after the skin is applied because skin selection changes which
+            // attachments are visible, and therefore the model's extent.
+            skeleton.scaleX = 1
+            skeleton.scaleY = 1
+            skeleton.x = 0
+            skeleton.y = 0
+            if (spine.Physics)
+              skeleton.updateWorldTransform(spine.Physics.update)
+            else
+              (skeleton as any).updateWorldTransform()
+            const boundsOffset = new spine.Vector2()
+            const boundsSize = new spine.Vector2()
+            skeleton.getBounds(boundsOffset, boundsSize, [])
+            modelIntrinsicBounds = boundsSize.x > 0 && boundsSize.y > 0
+              ? { x: boundsOffset.x, y: boundsOffset.y, width: boundsSize.x, height: boundsSize.y }
+              : undefined
+
+            applyTransformFromStore()
+
             // Apply the user's saved idle animation.
             applyCurrentAnimation()
 
+            spineStore.isModelLoaded = true
             emits('modelLoaded')
             resolve()
           }
@@ -251,6 +291,15 @@ async function loadModel() {
         render: (sc) => {
           if (!skeleton)
             return
+          // Cap the draw rate when maxFps > 0. Animation timing stays correct
+          // because `update` keeps advancing every frame; we only skip the GPU
+          // draw to honour the configured ceiling.
+          if (props.maxFps > 0) {
+            const now = performance.now()
+            if (now - lastRenderTime < 1000 / props.maxFps)
+              return
+            lastRenderTime = now
+          }
           const renderer = sc.renderer
           renderer.resize(spine.ResizeMode.Expand)
           sc.gl.clearColor(0, 0, 0, 0)
@@ -368,21 +417,46 @@ function applyTransformFromStore() {
   if (!skeleton || !canvas.value)
     return
 
-  // Centre the skeleton roughly at the bottom-middle of the canvas, then
-  // apply user offsets/scale on top. This mirrors the Live2D anchor.
+  // The SpineCanvas camera sits at world origin (0,0), so screen centre maps
+  // to world (0,0) and the visible region is [-w/2, w/2] x [-h/2, h/2] (y up).
   const w = canvas.value.width
   const h = canvas.value.height
-  skeleton.x = w / 2 + position.value.x
-  skeleton.y = h * 0.05 + position.value.y
-  skeleton.scaleX = scale.value
-  skeleton.scaleY = scale.value
+
+  // Base scale auto-fits the model's intrinsic bounds into the canvas so tall
+  // or oversized rigs are fully visible by default. The user's `scale` setting
+  // multiplies on top, so 1 means "fit". Without bounds we fall back to raw
+  // user scale and a centred root.
+  let baseScale = 1
+  if (modelIntrinsicBounds) {
+    const margin = 0.9
+    const fitScale = Math.min(w / modelIntrinsicBounds.width, h / modelIntrinsicBounds.height) * margin
+    if (Number.isFinite(fitScale) && fitScale > 0)
+      baseScale = fitScale
+  }
+  const finalScale = baseScale * scale.value
+  skeleton.scaleX = finalScale
+  skeleton.scaleY = finalScale
+
+  if (modelIntrinsicBounds) {
+    // Centre the bounding box at world origin, then apply the user's pixel
+    // offsets. Bounds scale linearly with skeleton scale because the root sits
+    // at the origin without rotation.
+    const centreX = modelIntrinsicBounds.x + modelIntrinsicBounds.width / 2
+    const centreY = modelIntrinsicBounds.y + modelIntrinsicBounds.height / 2
+    skeleton.x = -finalScale * centreX + position.value.x
+    skeleton.y = -finalScale * centreY + position.value.y
+  }
+  else {
+    skeleton.x = position.value.x
+    skeleton.y = position.value.y
+  }
 }
 
 function applyCurrentAnimation() {
   if (!animationManager)
     return
   const desired = currentAnimation.value?.name ?? SpineAnimationName.Idle
-  animationManager.setIdle(desired)
+  animationManager.setIdle(desired, currentAnimation.value?.loop ?? true)
 }
 
 function applySkin(skinName: string) {
@@ -417,13 +491,17 @@ function applySkin(skinName: string) {
  * Returns:
  * - The resolved animation name when one was found, otherwise `undefined`.
  */
-function setEmotion(emotion: Emotion, _intensity: number = 1): string | undefined {
+function setEmotion(emotion: Emotion, intensity: number = 1): string | undefined {
   if (!animationManager)
     return undefined
   const animationName = EMOTION_SpineAnimationName_value[emotion]
   if (!animationName)
     return undefined
-  const entry = animationManager.playEmotion(animationName)
+  // Intensity scales the emotion track's blend weight so a stronger emotion
+  // overrides more of the idle pose. Clamp to [0, 1]; alpha outside that range
+  // is undefined behaviour in Spine's track mixing.
+  const alpha = Math.min(1, Math.max(0, intensity))
+  const entry = animationManager.playEmotion(animationName, { alpha })
   return entry?.animation?.name
 }
 
@@ -433,13 +511,22 @@ watch(canvas, async (next, prev) => {
     await loadModel()
 })
 
-watch([() => props.width, () => props.height, position, scale], () => {
+watch([() => props.width, () => props.height, () => props.resolution, position, scale], async () => {
+  // The sibling Canvas component resizes the backing store in its own watcher
+  // when width/height/resolution change. Wait a tick so `canvas.width/height`
+  // reflect the new size before we recompute the skeleton's centre.
+  await nextTick()
   applyTransformFromStore()
 }, { deep: true })
 
 watch(currentAnimation, () => {
   applyCurrentAnimation()
 }, { deep: true })
+
+watch(oneShotAnimation, (req) => {
+  if (req)
+    animationManager?.playEmotion(req.name, { loop: req.loop })
+})
 
 watch(currentSkin, (skinName) => {
   applySkin(skinName)
@@ -450,16 +537,18 @@ watch(currentVariant, async () => {
     await loadModel()
 })
 
-watch(() => props.idleAnimationEnabled, () => {
+watch(() => props.idleAnimationEnabled, (enabled) => {
+  animationDefaults.idleAnimationEnabled = enabled
   if (!animationManager || !skeleton || !animationState)
     return
-  if (props.idleAnimationEnabled)
+  if (enabled)
     applyCurrentAnimation()
   else
-    animationState.setEmptyAnimation(0, props.defaultMixDuration)
+    animationState.setEmptyAnimation(SPINE_IDLE_TRACK, props.defaultMixDuration)
 })
 
 watch(() => props.defaultMixDuration, (mix) => {
+  animationDefaults.mixDuration = mix
   if (animationState)
     animationState.data.defaultMix = mix
 })

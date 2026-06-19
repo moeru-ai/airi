@@ -13,13 +13,16 @@ const position = useLocalStorage<{ x: number, y: number }>('settings/spine/posit
 /** uniform model scaling. `1` means no scaling. */
 const scale = useLocalStorage('settings/spine/scale', 1)
 
-const formatPercentD1 = (val: number) => `${val.toFixed(1)}%`
+const formatPixels = (val: number) => `${val.toFixed(0)}px`
 const formatToPercent = (val: number) => `${(val * 100).toFixed(0)}%`
 
+// Position is stored and applied in canvas pixels (see applyTransformFromStore
+// in Model.vue: `skeleton.x = w / 2 + position.x`), so the x/y controls use a
+// pixel range and formatter matching the settings panel sliders.
 export const controlConfig: Record<SupportedControl, ControlConfig> = {
-  x: { min: -500, max: 500, step: 0.1, default: 0, format: formatPercentD1 },
-  y: { min: -500, max: 500, step: 0.1, default: 0, format: formatPercentD1 },
-  scale: { min: 0.01, max: 3, step: 0.01, default: 1, format: formatToPercent },
+  x: { min: -3000, max: 3000, step: 1, default: 0, format: formatPixels },
+  y: { min: -3000, max: 3000, step: 1, default: 0, format: formatPixels },
+  scale: { min: 0.1, max: 3, step: 0.01, default: 1, format: formatToPercent },
 }
 
 export function useSpineViewControl() {
