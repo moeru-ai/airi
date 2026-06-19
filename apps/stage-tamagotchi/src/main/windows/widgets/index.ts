@@ -204,8 +204,6 @@ function createWidgetsWindow() {
     ...spotlightLikeWindowConfig(),
   })
 
-  // Keep on top like caption/main overlays
-  window.setAlwaysOnTop(true, 'screen-saver', 1)
   window.setFullScreenable(false)
   window.setVisibleOnAllWorkspaces(true)
   if (isMacOS)
@@ -218,6 +216,15 @@ function createWidgetsWindow() {
   })
 
   return window
+}
+
+function applyAlwaysOnTop(window: BrowserWindow, enabled: boolean) {
+  if (enabled) {
+    window.setAlwaysOnTop(true, 'screen-saver', 1)
+    return
+  }
+
+  window.setAlwaysOnTop(false)
 }
 
 interface WidgetRecord extends WidgetSnapshot {
@@ -462,11 +469,12 @@ export function setupWidgetsWindowManager(params: {
     return resolved
   }
 
-  async function showWindowWithRoute(route: string, context?: WidgetWindowContext, snapshot?: Pick<WidgetSnapshot, 'windowSize'>) {
+  async function showWindowWithRoute(route: string, context?: WidgetWindowContext, snapshot?: Pick<WidgetSnapshot, 'alwaysOnTop' | 'windowSize'>) {
     pendingRoute = route
     const window = await getWindowFromContext(context)
     pendingRoute = undefined
     applyWindowLayout(window, snapshot)
+    applyAlwaysOnTop(window, snapshot?.alwaysOnTop ?? false)
     if (currentRoute !== route)
       await loadWithRoute(window, route)
     window.show()
@@ -529,6 +537,7 @@ export function setupWidgetsWindowManager(params: {
       id,
       componentName: payload.componentName,
       componentProps: payload.componentProps ?? {},
+      alwaysOnTop: payload.alwaysOnTop ?? false,
       size: payload.size ?? 'm',
       windowSize: resolveWindowSizeFromPayload(payload),
       ttlMs: payload.ttlMs ?? 0,
@@ -564,6 +573,7 @@ export function setupWidgetsWindowManager(params: {
     const nextSnapshot: WidgetSnapshot = {
       ...toSnapshot(existing),
       componentProps: payload.componentProps ?? existing.componentProps,
+      alwaysOnTop: payload.alwaysOnTop ?? existing.alwaysOnTop,
       size: payload.size ?? existing.size,
       windowSize: normalizeWidgetWindowSize(payload.windowSize) ?? existing.windowSize,
       ttlMs: payload.ttlMs ?? existing.ttlMs,
@@ -573,12 +583,15 @@ export function setupWidgetsWindowManager(params: {
 
     const context = windowContexts.get(payload.id)
     const window = context?.window
-    if (window && !window.isDestroyed())
+    if (window && !window.isDestroyed()) {
       applyWindowLayout(window, nextSnapshot)
+      applyAlwaysOnTop(window, nextSnapshot.alwaysOnTop)
+    }
 
     eventaContext?.emit(widgetsUpdateEvent, {
       id: nextSnapshot.id,
       componentProps: nextSnapshot.componentProps,
+      alwaysOnTop: nextSnapshot.alwaysOnTop,
       size: nextSnapshot.size,
       windowSize: nextSnapshot.windowSize,
       ttlMs: nextSnapshot.ttlMs,

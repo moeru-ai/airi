@@ -59,6 +59,7 @@ import { useAuthStore } from './auth'
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
 import { convertProviderDefinitionsToMetadata } from './providers/converters'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
+import { buildGoogleGeminiSpeechProvider } from './providers/google-gemini-speech'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
 import { buildOpenRouterAudioSpeechProvider } from './providers/openrouter/audio-speech'
 import { createWebSpeechAPIProvider } from './providers/web-speech-api'
@@ -2436,6 +2437,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+    'google-gemini-audio-speech': buildGoogleGeminiSpeechProvider(v => baseUrlValidator.value(v)),
   }
 
   const VISION_PROVIDER_ID_PREFIX = 'vision-'
