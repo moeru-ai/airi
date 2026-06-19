@@ -130,6 +130,11 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const activeTranscriptionProvider = useLocalStorageManualReset('settings/hearing/active-provider', '')
   const activeTranscriptionModel = useLocalStorageManualReset('settings/hearing/active-model', '')
   const activeCustomModelName = useLocalStorageManualReset('settings/hearing/active-custom-model', '')
+  // Tracks which provider `activeCustomModelName` was entered for. Both refs are flat
+  // (shared across all providers), so without this a manual model typed for one
+  // optional-listing provider (e.g. OpenAI-compatible) could be silently copied into
+  // a different provider's config (e.g. Faster Whisper) on the next provider switch.
+  const activeCustomModelProviderId = useLocalStorageManualReset('settings/hearing/active-custom-model-provider', '')
   const transcriptionModelSearchQuery = refManualReset<string>('')
   const autoSendEnabled = useLocalStorageManualReset<boolean>('settings/hearing/auto-send-enabled', false)
   const autoSendDelay = useLocalStorageManualReset<number>('settings/hearing/auto-send-delay', 2000) // Default 2 seconds
@@ -198,6 +203,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     activeTranscriptionProvider.reset()
     activeTranscriptionModel.reset()
     activeCustomModelName.reset()
+    activeCustomModelProviderId.reset()
     transcriptionModelSearchQuery.reset()
     autoSendEnabled.reset()
     autoSendDelay.reset()
@@ -330,6 +336,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     activeTranscriptionModel,
     availableProvidersMetadata,
     activeCustomModelName,
+    activeCustomModelProviderId,
     transcriptionModelSearchQuery,
     autoSendEnabled,
     autoSendDelay,

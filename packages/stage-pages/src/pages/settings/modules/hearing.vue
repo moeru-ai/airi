@@ -27,6 +27,7 @@ const {
   supportsModelListing,
   transcriptionModelSearchQuery,
   activeCustomModelName,
+  activeCustomModelProviderId,
   autoSendEnabled,
   autoSendDelay,
   confidenceThreshold,
@@ -238,6 +239,7 @@ const speakingIndicatorClass = computed(() => {
 function updateCustomModelName(value: string | undefined) {
   const modelValue = value || ''
   activeCustomModelName.value = modelValue
+  activeCustomModelProviderId.value = activeTranscriptionProvider.value
   activeTranscriptionModel.value = modelValue
 
   // Persist manual entries into provider config, matching the pattern used by
@@ -261,11 +263,14 @@ function syncManualModelProviderSettings() {
   if (providerConfig?.model) {
     updateCustomModelName(providerConfig.model as string)
   }
-  else if (activeCustomModelName.value) {
-    // Provider config doesn't have a model yet (e.g. manual entry made before
-    // provider-config persistence existed) — keep the user's existing manual
-    // selection instead of clobbering it with the hardcoded default below, and
-    // let updateCustomModelName migrate it into provider config.
+  else if (activeCustomModelName.value && activeCustomModelProviderId.value === activeTranscriptionProvider.value) {
+    // Provider config doesn't have a model yet, but the flat activeCustomModelName ref
+    // already holds a manual entry for THIS SAME provider (e.g. saved before
+    // provider-config persistence existed) — keep it instead of clobbering it with the
+    // hardcoded default below, and let updateCustomModelName migrate it into provider
+    // config. activeCustomModelName/activeCustomModelProviderId are shared across all
+    // providers, so without the provider-id check a value typed for a previously active
+    // provider would otherwise leak into this one.
     updateCustomModelName(activeCustomModelName.value)
   }
   else {
