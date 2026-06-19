@@ -926,22 +926,31 @@ watch(
   },
 )
 
-// Resume audio context on first user interaction (browser requirement)
-let audioContextResumed = false
+// Resume audio on user interaction (browser autoplay-gating requirement).
+// Listeners are intentionally NOT `{ once: true }`: the dedicated playback
+// context (getPlaybackContext, above) is otherwise created lazily inside
+// playFunction on first TTS segment, well after this gesture's
+// user-activation window has expired, so it must be created/resumed here
+// too — and resume() can still race/fail on the very first gesture, so keep
+// retrying on every later interaction. resume() on an already-running
+// context is a cheap no-op.
+const interactionEvents = ['click', 'touchstart', 'keydown'] as const
 function resumeAudioContextOnInteraction() {
-  if (audioContextResumed || !audioContext)
-    return
-  audioContextResumed = true
-  audioContext.resume().catch(() => {
+  audioContext?.resume().catch(() => {
     // Ignore errors - audio context will be resumed when needed
   })
+
+  const ctx = getPlaybackContext()
+  if (ctx.state === 'suspended') {
+    ctx.resume().catch(() => {
+      // Ignore errors - playback context will be resumed when needed
+    })
+  }
 }
 
-// Add event listeners for user interaction
 if (typeof window !== 'undefined') {
-  const events = ['click', 'touchstart', 'keydown']
-  events.forEach((event) => {
-    window.addEventListener(event, resumeAudioContextOnInteraction, { once: true, passive: true })
+  interactionEvents.forEach((event) => {
+    window.addEventListener(event, resumeAudioContextOnInteraction, { passive: true })
   })
 }
 
@@ -1036,6 +1045,9 @@ onUnmounted(() => {
   resetLive2dLipSync()
   chatHookCleanups.forEach(dispose => dispose?.())
   viewUpdateCleanups.forEach(dispose => dispose?.())
+  if (typeof window !== 'undefined') {
+    interactionEvents.forEach(event => window.removeEventListener(event, resumeAudioContextOnInteraction))
+  }
   // Tear down any in-flight TTS session (segmenter or streaming) and
   // drain playback. Without this, a still-open streaming ws keeps
   // feeding sentences into a playbackManager whose listeners still

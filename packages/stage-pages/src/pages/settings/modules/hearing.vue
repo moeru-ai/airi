@@ -239,6 +239,14 @@ function updateCustomModelName(value: string | undefined) {
   const modelValue = value || ''
   activeCustomModelName.value = modelValue
   activeTranscriptionModel.value = modelValue
+
+  // Persist manual entries into provider config, matching the pattern used by
+  // the dedicated provider settings pages (e.g. faster-whisper.vue), so the
+  // value survives remounts instead of only living in the flat hearing-store refs.
+  if (hasOptionalModelListing(activeTranscriptionProvider.value)) {
+    providersStore.initializeProvider(activeTranscriptionProvider.value)
+    providersStore.getProviderConfig(activeTranscriptionProvider.value).model = modelValue
+  }
 }
 
 // Sync the active model from provider config for providers whose model listing
@@ -249,16 +257,19 @@ function syncManualModelProviderSettings() {
     return
 
   const providerConfig = providersStore.getProviderConfig(activeTranscriptionProvider.value)
-  // Always sync model from provider config (override any existing value from previous provider)
+
   if (providerConfig?.model) {
-    activeTranscriptionModel.value = providerConfig.model as string
     updateCustomModelName(providerConfig.model as string)
   }
+  else if (activeCustomModelName.value) {
+    // Provider config doesn't have a model yet (e.g. manual entry made before
+    // provider-config persistence existed) — keep the user's existing manual
+    // selection instead of clobbering it with the hardcoded default below, and
+    // let updateCustomModelName migrate it into provider config.
+    updateCustomModelName(activeCustomModelName.value)
+  }
   else {
-    // If no model in provider config, use default
-    const defaultModel = 'whisper-1'
-    activeTranscriptionModel.value = defaultModel
-    updateCustomModelName(defaultModel)
+    updateCustomModelName('whisper-1')
   }
 }
 
