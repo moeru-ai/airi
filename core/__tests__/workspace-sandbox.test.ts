@@ -2,7 +2,7 @@
  * Workspace Sandbox Tests
  *
  * Tests for workspace-scoped tool execution, lease validation,
- * filesystem constraints, terminal scoping, and git worktree isolation.
+ * and filesystem constraints.
  */
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest"
@@ -24,7 +24,6 @@ import type {
 import { createToolId, createCapabilityId } from "../capabilities/types.js"
 import { createWorkspaceId } from "../workspace/types.js"
 import { WorkspaceManager } from "../workspace/manager.js"
-import { CodeCapabilityAdapter } from "../../modules/code/capabilities/adapter.js"
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
@@ -255,147 +254,6 @@ describe("Filesystem constraint", () => {
 		const resolved2 = path.resolve(root, target2)
 		const relative2 = path.relative(root, resolved2)
 		expect(relative2.startsWith("..")).toBe(true)
-	})
-
-	it("CodeCapabilityAdapter.validateWorkspacePath rejects traversal", () => {
-		// The static method is available on the adapter.
-		expect(CodeCapabilityAdapter.validateWorkspacePath("/workspace", "src/index.ts")).toBe(true)
-		expect(CodeCapabilityAdapter.validateWorkspacePath("/workspace", "../etc/passwd")).toBe(false)
-		expect(CodeCapabilityAdapter.validateWorkspacePath("/workspace", "/etc/passwd")).toBe(false)
-	})
-})
-
-// ── Terminal scoping ────────────────────────────────────────────────────
-
-describe("Terminal scoping", () => {
-	it("resolves CWD to workspace root when no cwd specified", async () => {
-		const { createTerminalCapability } = await import("../../modules/code/capabilities/terminal/terminal.module.js")
-		const cap = createTerminalCapability({ workspaceRoot: "/tmp/workspace" })
-
-		expect(cap.config?.workspaceRoot).toBe("/tmp/workspace")
-	})
-
-	it("rejects CWD that escapes workspace root", async () => {
-		const { resolveTerminalCwd } = await import("../../modules/code/capabilities/terminal/terminal.module.js")
-
-		const cwd = resolveTerminalCwd("/workspace", "../../etc")
-		expect(cwd).toBe("/workspace")
-	})
-
-	it("accepts CWD within workspace root", async () => {
-		const { resolveTerminalCwd } = await import("../../modules/code/capabilities/terminal/terminal.module.js")
-
-		const cwd = resolveTerminalCwd("/workspace", "src")
-		expect(cwd).toContain("src")
-		expect(cwd).toContain("/workspace")
-	})
-
-	it("builds workspace environment variables", async () => {
-		const { buildWorkspaceEnv } = await import("../../modules/code/capabilities/terminal/terminal.module.js")
-
-		const env = buildWorkspaceEnv("/workspace", { NODE_ENV: "test" })
-		expect(env.AIRI_WORKSPACE_ROOT).toBe("/workspace")
-		expect(env.NODE_ENV).toBe("test")
-	})
-})
-
-// ── Git worktree isolation ──────────────────────────────────────────────
-
-describe("Git worktree isolation", () => {
-	let repoPath: string
-
-	beforeEach(async () => {
-		repoPath = tmpDir()
-		await execGit(repoPath, "init", "-b", "main")
-		await execGit(repoPath, "config", "user.email", "test@test.com")
-		await execGit(repoPath, "config", "user.name", "Test")
-		fs.writeFileSync(path.join(repoPath, "README.md"), "# Test")
-		await execGit(repoPath, "add", ".")
-		await execGit(repoPath, "commit", "-m", "initial")
-	})
-
-	afterEach(async () => {
-		fs.rmSync(repoPath, { recursive: true, force: true })
-	})
-
-	it("resolves git workdir to worktree path", async () => {
-		const { resolveGitWorkdir } = await import("../../modules/code/capabilities/git/git.module.js")
-
-		const worktreePath = "/workspace/.airi-worktrees/ws-1"
-		const dir = resolveGitWorkdir("/workspace", worktreePath)
-		expect(dir).toBe(worktreePath)
-	})
-
-	it("falls back to workspace root when no worktree", async () => {
-		const { resolveGitWorkdir } = await import("../../modules/code/capabilities/git/git.module.js")
-
-		const dir = resolveGitWorkdir("/workspace")
-		expect(dir).toBe("/workspace")
-	})
-
-	it("asserts git operations target worktree, not primary repo", async () => {
-		const { assertNotPrimaryRepo } = await import("../../modules/code/capabilities/git/git.module.js")
-
-		expect(() => {
-			assertNotPrimaryRepo("/repo", "/repo")
-		}).toThrow("must target a worktree")
-
-		// Should not throw for different paths.
-		expect(() => {
-			assertNotPrimaryRepo("/workspace/.airi-worktrees/ws-1", "/repo")
-		}).not.toThrow()
-	})
-
-	it("creates git capability with worktree config", async () => {
-		const { createGitCapability } = await import("../../modules/code/capabilities/git/git.module.js")
-
-		const cap = createGitCapability({ worktreePath: "/workspace/.airi-worktrees/ws-1" })
-		expect(cap.config?.worktreePath).toBe("/workspace/.airi-worktrees/ws-1")
-	})
-})
-
-// ── Workspace manager integration with adapter ──────────────────────────
-
-describe("Workspace manager integration", () => {
-	let basePath: string
-
-	beforeEach(() => {
-		basePath = tmpDir()
-	})
-
-	afterEach(async () => {
-		fs.rmSync(basePath, { recursive: true, force: true })
-	})
-
-	it("passes workspace manager to CodeCapabilityAdapter", () => {
-		const events = new EventBus()
-		const registry = new CapabilityRegistry()
-		const manager = new WorkspaceManager({ basePath }, events)
-
-		const adapter = new CodeCapabilityAdapter(registry, events, manager)
-		expect(adapter.getWorkspaceManager()).toBe(manager)
-	})
-
-	it("adapter works without workspace manager", () => {
-		const events = new EventBus()
-		const registry = new CapabilityRegistry()
-
-		const adapter = new CodeCapabilityAdapter(registry, events)
-		expect(adapter.getWorkspaceManager()).toBeUndefined()
-	})
-
-	it("adapter registers capabilities", () => {
-		const events = new EventBus()
-		const registry = new CapabilityRegistry()
-
-		const adapter = new CodeCapabilityAdapter(registry, events)
-		adapter.registerCapabilities()
-
-		expect(registry.hasTool(createToolId("code.read_file"))).toBe(true)
-		expect(registry.hasTool(createToolId("code.list_files"))).toBe(true)
-		expect(registry.hasTool(createToolId("code.search_files"))).toBe(true)
-		expect(registry.hasTool(createToolId("code.apply_diff"))).toBe(true)
-		expect(registry.hasTool(createToolId("code.execute_command"))).toBe(true)
 	})
 })
 

@@ -139,7 +139,4 @@ core/
   ipc/              — (future) IPC transport implementations
   types/            — (future) Shared platform types
 
-modules/
-  code/
-    airios.module.ts — Code module implementation
 ```

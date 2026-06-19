@@ -165,15 +165,6 @@ taskManager.registerExecutor(moduleId, executor)
 
 The executor's `canExecute()` method determines which tasks it handles. The scheduler uses this to find the right executor for each task.
 
-### Mock Executor (Code Module)
-
-The code module includes a mock executor that:
-- Accepts tasks with `moduleId: "code"` or no specific module.
-- Simulates work with progress reporting at 0%, 25%, 50%, 75%, 100%.
-- Respects cancellation tokens.
-- Returns a mock result.
-
-This serves as a reference implementation for other modules.
 
 ## Scheduler Behavior
 

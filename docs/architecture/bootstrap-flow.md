@@ -20,8 +20,7 @@ The AIRI Core is the central orchestration layer that manages module lifecycle, 
 │  Phase 3: Create ModuleRegistry                         │
 │     └─ Manages module registration & lifecycle          │
 │                                                         │
-│  Phase 4: Register built-in modules                     │
-│     └─ CodeModule (reference implementation)            │
+│  Phase 4: (Reserved for future built-in modules)       │
 │                                                         │
 │  Phase 5: Connect runtime                              │
 │     └─ State: disconnected → connecting → connected     │
