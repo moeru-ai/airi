@@ -1,4 +1,4 @@
-<img width="1337" height="1337" alt="AnimAIOS" src="https://github.com/user-attachments/assets/af5d86f7-c826-4d16-9497-1f1b2d9016cb" />
+<img width="1254" height="972" alt="crop" src="https://github.com/user-attachments/assets/3d7e78c3-8fb5-4537-b5a3-b0eb38548274" />
 
 <!--
 <p align="center">
@@ -35,134 +35,6 @@ Our goal is a Linux desktop experience where your AI companion acts as the cente
 - **System Integration:** Hooks fully into the system, from basic stuff like notifications and global shortcuts to fully managing your terminal!
 - **Context Awareness:** Your companion observes desktop activity to respond and interact proactively and she might even take control if you let her (agentic mode)
 - **Modular Stage Layouts:** GTK3/4 widgets, interactively generated backgrounds through artistry module, and window layouts composed dynamically by the character (she will always be on screen most of the time)
-
-## 🧩 [AnimAIOS Code Module](https://github.com/animaios/code)
-
-<details>
-<summary><strong>Expand to learn about the Code module (formerly Roo Code fork)</strong></summary>
-
-### What It Is
-
-The **AnimAIOS Code module** (`modules/code`) is a fork of [Roo Code](https://roocode.com) re-architected into a **standalone browser-based AI coding assistant** — no IDE, no extension host, no VS Code dependency. The UI is a React SPA backed by a lightweight Fastify server that handles WebSocket streaming and LLM API calls.
-
-### Relationship to AIRI
-
-The Code module is a **standalone product** — it does not require AIRI. You can use it by itself in any browser.
-
-Optionally, AIRI can embed the Code UI as a panel inside its Electron app ("Hacking Mode"):
-
-- **Normal mode**: User chats with AIRI directly. No Code UI visible.
-- **Hacking Mode**: The AIRI chatbox becomes the Code interface. User messages go to Code; Code's summaries flow back to AIRI for TTS narration.
-- AIRI embeds Code via a BrowserView loading from `localhost:3210`.
-
-### What's Implemented
-
-The standalone app is fully functional today:
-
-| Component | What It Does |
-|-----------|-------------|
-| **🌐 React SPA** | Chat UI, settings, history, 27+ provider configurations |
-| **⚡ Fastify Backend** | WebSocket server, task lifecycle, state sync |
-| **🤖 Task Runner** | Single-turn LLM calls via raw HTTP + SSE (no SDK deps) |
-| **📋 Mode Definitions** | Full role definitions for all 5 modes (`spec`, `vibe`, `orchestrator`, `ask`, `debug`) |
-| **🔄 WebSocket Bridge** | Protocol-compatible with ExtensionMessage / WebviewMessage |
-
-### Running
-
-```bash
-cd apps/roo-code-standalone
-npm install
-npm run dev
-```
-
-Opens the UI at `http://127.0.0.1:3210`. Configure your provider in the Settings UI and start chatting.
-
-### The Five Modes
-
-| Mode | Slug | Role |
-|------|------|------|
-| 🧠 **Spec** | `spec` | Kiro-style spec-driven planning. Converts vague intent into structured requirements, design docs, and actionable task lists. |
-| ✨ **Vibe** | `vibe` | Flow-state implementation mode. Rapid iteration, code-focused. |
-| 🕴️ **Boss** | `orchestrator` | Read-only coordinator. Explores the codebase, decomposes tasks, delegates all implementation to Vibe. |
-| ❓ **Ask** | `ask` | Technical Q&A and explanations without making changes. |
-| 🪲 **Debug** | `debug` | Systematic debugging — diagnoses root causes before applying fixes. |
-
-Philosophy: **"Spec before vibe."**
-
-### How Boss Differs from Upstream Roo
-
-In stock Roo Code, the orchestrator has broad access. AnimAIOS Boss is a **pure coordinator** — it explores, understands, plans, and then hands off every implementation action to Vibe. Boss never touches code directly.
-
-### Architecture
-
-```
-Browser (React SPA)
-  │  vscode.ts → window.__roo_bridge__ → WebSocket
-  ↓
-Backend (Fastify, port 3210)
-  ├─ WebSocket handler (task lifecycle, state sync)
-  ├─ Task runner (raw HTTP + SSE to LLM providers)
-  ├─ State management (tasks Map + taskHistory with O(1) upsert)
-  └─ Static file serving (built SPA)
-```
-
-### Roadmap
-
-### Phase 1 (Current) — Standalone Q&A ✅
-- Browser SPA with chat UI
-- 27+ LLM providers via raw HTTP + SSE
-- WebSocket bridge replacing vscode.postMessage
-- Task history with token tracking
-
-### Phase 2 — Tool Use
-- Filesystem operations (read, write, search)
-- Terminal (node-pty)
-- Git operations
-- Multi-turn conversations with tool calls
-
-### Phase 3 — AIRI Integration
-- BrowserView embedding in AIRI Electron
-- IPC bridge (Code ↔ AIRI main process)
-- Hacking Mode controller
-- TTS narration of Code summaries
-
-### Phase 4 — Polish
-- API proxy (hide LLM keys from browser)
-- SQLite persistence
-- Theme system
-- Auto-update mechanism
-
-### Hacking Mode: Code Inside AIRI
-
-On top of the standalone app, AnimAIOS is building a **hybrid interaction model**:
-
-1. **Normal mode**: User chats with AIRI directly. No Code UI visible.
-2. **Hacking Mode**: Code activates **inside** the AIRI interface via BrowserView. The AIRI chatbox becomes the Code interface.
-3. User messages go to Code; Code's summaries flow back to AIRI for TTS narration.
-4. AIRI is the host. Code is the coding brain that AIRI activates on demand.
-
-> In short: AIRI is your companion. When you need to code, Hacking Mode brings Code inside AIRI's interface — same Code, same interface, now hosted in AIRI.
-
-The standalone browser app remains the primary, fully supported way to use the Code module. Hacking Mode is an optional integration on top.
-
-### Key Files
-
-- `packages/types/src/mode.ts` — mode definitions, role definitions, and custom instructions
-- `tools/builtins/` — fully implemented tool capabilities (read_file, list_files, search_files, apply_diff)
-- `workspace/` — workspace session management and handle
-- `capabilities/` — capability types, adapter, and path-validation helpers
-- `streaming/` — event streaming infrastructure
-- `patches/` — diff generation and patch proposals
-- `indexing/` — repository scanner with content hashing
-- `src/core/` — core type stubs (module, capabilities, tasks, events, workspace, memory)
-
-### Relationship to AnimAIOS Core
-
-The Code module is a **git submodule** (`modules/code`) pointing to [`animaios/code`](https://github.com/animaios/code). The parent repo tracks a specific commit and bumps it as the module evolves.
-
-</details>
-
-
 
 ## 🖥️ Development
   <a href="https://github.com/animaios/airi/actions/workflows/ci.yml">
@@ -213,9 +85,9 @@ pnpm approve-builds # Select 'electron' and confirm
 
 - [x] **Brain**
   - [x] _Artistry:_ Native image generation pipelines (Replicate, ComfyUI)
-  - [ ] _Proactivity:_ Define triggers for autonomous companion interactions (heartbeat)
-  - [ ] _Multi-tier memory_ based on [openvault](https://github.com/vadash/openvault) design
-  - [ ] _Per-character memory scoping_ that works with multiple-character being preset at the stage (witnesses)
+  - [ ] _Proactivity:_ Define triggers for autonomous companion interactions (heartbeats)
+  - [ ] _Multi-tier memory:_ [AnimaVault](https://github.com/animaios/animavault)
+    - [ ] _Per-character memory scoping_ that works with witnesses (multiple-character sharing the screen)
 - [x] **Ears**
   - [x] Client-side speech recognition & talking detection
 - [x] **Mouth**
@@ -227,28 +99,26 @@ pnpm approve-builds # Select 'electron' and confirm
   - [x] Live2D support
     - [ ] LLM-driven expression controls
 - [x] **Desktop Stage**
-  - [ ] Multiple characters sharing the stage (one window per character)
-  - [ ] Widget system (to be converted to GTK)
+  - [ ] Multiple characters sharing the screen (KISS 1 window per character)
   - [ ] Scene/background management per character
 - [ ] **AnimAIOS (WIP)**
   - [x] System tray & screen capture integration
-  - [ ] Generate and open native GTK3/4 windows instead of web widgets
-  - [ ] [AnimAIOS Linux API](https://github.com/animaios/api-linux) integration
-  - [ ] [AnimAIOS Code](https://github.com/animaios/code) integration
-    - [ ] Send recent AnimAIOS Code context snapshot with each AIRI heartbeat
-    - [ ] **Hacking Mode:** dynamically involve Code module (Spec → Boss → Vibe) when coding activity is detected
-  - [ ] AIRI chatbox doubles as a system terminal with natural language detection
+  - [ ] Generate native GTK3/4 windows instead of web widgets
+  - [ ] [AnimAIOS Devtools MCP](https://github.com/animaios/devtools-mcp) deep integration
+  - [ ] [AnimAIOS Linux MCP](https://github.com/animaios/linux-mcp) deep integration
+  - [ ] [AnimAIOS Zed](https://github.com/animaios/zed) deep integration
+    - [ ] Send recent context snapshot with each AIRI heartbeat
+  - [ ] AIRI chatbox doubles as a system terminal with natural language detection (similar to Warp terminal)
 - [ ] **Misc**
   - [ ] DeepSource pass with 0 issues
   - [ ] LCov > 90% -> switch to TDD
-  - [ ] Natural terminal command detection (similar to Warp terminal)
-  - [ ] Add providers/mcp/skills via natural language prompts
+  - [ ] Add mcp/skills via natural language prompts
   - [ ] Native Wayland Support using Ozone platform flags
 
 ## 🤖 LLM API Providers
 
 - [x] Supported providers: everything [xsai](https://github.com/moeru-ai/xsai) supports
-- [ ] Planned AnimAIOS [localhost](https://github.com/animaios/api-llm-localhost) and (optional) [cloud](https://github.com/animaios/api-llm-cloud) LLM API routers integration to replace default AIRI provider, good source of almost limitless free yummy tokens for your cyber waifus~
+- [ ] Planned [freerouter](https://github.com/animaios/freerouter) and (optional) [freeproxy](https://github.com/animaios/freeproxy) integration to replace official AIRI provider, together they can provide almost limitless source of free yummy tokens for your cyber waifus~
 
 ---
 
