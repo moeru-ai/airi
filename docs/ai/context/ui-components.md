@@ -489,6 +489,7 @@ All Field components wrap a base input with `label`, `description`, and consiste
 | `description` | `string?` | — | Helper text |
 | `formatValue` | `(value: number) => string?` | — | Value formatter |
 | `as` | `'label' \| 'div'` | `'label'` | Wrapper element |
+| `defaultValue` | `number?` | — | When set, shows a reset button next to the label that restores this value. Use with `as="div"`. |
 
 **v-model**: `modelValue: number`
 

@@ -109,7 +109,7 @@ model-select:
   panel-callout:
     support-status-header: 私たちは2Dと3Dのモデル両方をサポートしています
     support-status: >
-      Click {select-button} to select or import models. Currently, {zip} (for Live2D models) and {vrm} (for VRM models) are supported.
+      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models) and {vrm} (for VRM models) are supported.
     model-type-example: >
       Neuro-sama uses 2D model driven by framework developed by Live2D Inc, while Grok Ani (in Grok Companion) uses 3D model driven by VRM / MMD open formats.
   select-model:
@@ -446,7 +446,7 @@ pages:
       all_deleted: すべてのローカルデータを削除しました。
       desktop_reset: デスクトップのデータをリセットしました。
   models:
-    description: Live2D、VRMなど。
+    description: Live2D、VRM、Spineなど。
     title: モデル
     sections:
       section:
@@ -1650,6 +1650,8 @@ spine:
     idle-animation: Idle Animation
     mix-duration: Mix Duration (seconds)
     speed: Animation Speed
+  appearance:
+    title: 外観
   variant:
     title: Variant
     current-variant: Active Variant

@@ -40,6 +40,16 @@ export const defaultSpineAnimation: SpineCurrentAnimation = {
   loop: true,
 }
 
+/** Transient request to play a one-shot animation on the emotion track. */
+export interface SpineOneShotAnimation {
+  /** Animation name; resolved against the loaded skeleton by the scene. */
+  name: string
+  /** Whether the one-shot should loop instead of reverting to idle. */
+  loop: boolean
+  /** Bumped on every request so repeat calls with the same name re-trigger. */
+  nonce: number
+}
+
 export const useSpine = defineStore('spine', () => {
   const { post, data } = useBroadcastChannel<BroadcastChannelEvents, BroadcastChannelEvents>({
     name: 'airi-stores-stage-ui-spine',
@@ -94,20 +104,38 @@ export const useSpine = defineStore('spine', () => {
   /** Active variant name. Empty string means use the default (first) variant. */
   const currentVariant = useLocalStorageManualReset<string>('settings/spine/current-variant', '')
 
-  /** Premultiplied alpha — most modern Spine atlases ship as PMA. */
-  const premultipliedAlpha = useLocalStorageManualReset<boolean>('settings/spine/premultiplied-alpha', true)
-
-  /** Default mix-in/out duration (s) between track animations. */
-  const defaultMixDuration = useLocalStorageManualReset<number>('settings/spine/default-mix', 0.2)
-
-  /** Auto-play idle animation on load. */
-  const idleAnimationEnabled = useLocalStorageManualReset<boolean>('settings/spine/idle-enabled', true)
-
   /** Animation playback speed multiplier (1.0 = normal). */
   const animationSpeed = useLocalStorageManualReset<number>('settings/spine/animation-speed', 1)
 
-  /** Maximum FPS for the WebGL render loop (0 = uncapped). */
-  const maxFps = useLocalStorageManualReset<number>('settings/spine/max-fps', 0)
+  // NOTICE:
+  // Premultiplied-alpha, default-mix, idle-enabled, and max-fps live in
+  // `useSettingsSpine` (packages/stage-ui/src/stores/settings/spine.ts) and
+  // are bound to the same `settings/spine/*` keys. They used to be declared
+  // here too, which created two refs per key and two competing sources of
+  // truth. Stage, the preview, and the settings panel all read the
+  // `useSettingsSpine` copies, so the duplicates were removed from this store.
+  // Removal condition: keep these settings owned by a single store.
+
+  /**
+   * Whether a Spine skeleton is currently mounted in a live scene.
+   *
+   * Runtime-only and never persisted: `availableAnimations` survives reloads
+   * via localStorage, so it cannot tell tools whether a model is actually on
+   * screen. The scene sets this on mount and clears it on dispose/unmount.
+   */
+  const isModelLoaded = ref(false)
+
+  /**
+   * Transient one-shot animation request. The scene watches this and layers
+   * the animation on the emotion track over the persistent idle loop. Not
+   * persisted — it is a fire-and-forget trigger rather than durable state.
+   */
+  const oneShotAnimation = ref<SpineOneShotAnimation>()
+
+  /** Queue a one-shot animation; bumps the nonce so repeat calls re-trigger. */
+  function playOneShotAnimation(name: string, loop = false) {
+    oneShotAnimation.value = { name, loop, nonce: (oneShotAnimation.value?.nonce ?? 0) + 1 }
+  }
 
   const { position, scale, reset: resetViewControl } = useSpineViewControl()
 
@@ -119,11 +147,7 @@ export const useSpine = defineStore('spine', () => {
     currentSkin.reset()
     availableVariants.reset()
     currentVariant.reset()
-    premultipliedAlpha.reset()
-    defaultMixDuration.reset()
-    idleAnimationEnabled.reset()
     animationSpeed.reset()
-    maxFps.reset()
     shouldUpdateView()
   }
 
@@ -136,11 +160,11 @@ export const useSpine = defineStore('spine', () => {
     currentSkin,
     availableVariants,
     currentVariant,
-    premultipliedAlpha,
-    defaultMixDuration,
-    idleAnimationEnabled,
     animationSpeed,
-    maxFps,
+
+    isModelLoaded,
+    oneShotAnimation,
+    playOneShotAnimation,
 
     onShouldUpdateView,
     shouldUpdateView,
