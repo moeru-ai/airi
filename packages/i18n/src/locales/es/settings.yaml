@@ -390,8 +390,14 @@ pages:
     systemprompt: Prompt del Sistema
     title: Tarjeta AIRI
     try_different_search: Prueba un término de búsqueda diferente
+    export: Exportar
+    exported: Paquete de tarjeta exportado
+    export_failed: No se pudo exportar el paquete de tarjeta
+    imported: Paquete de tarjeta importado
+    import_missing_file: Al paquete de tarjeta le faltan archivos necesarios
+    import_invalid_file: El archivo del paquete de tarjeta no es válido
     upload: Subir
-    upload_desc: Haz clic o arrastra el archivo para subir
+    upload_desc: Haz clic o arrastra un paquete de tarjeta AIRI para importar
   memory:
     description: Donde se almacenan y organizan las memorias
     title: Memoria

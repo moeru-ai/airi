@@ -390,8 +390,14 @@ pages:
     systemprompt: 系统提示词
     title: AIRI 角色卡
     try_different_search: 尝试使用其他关键词搜索
+    export: 导出
+    exported: 角色卡包已导出
+    export_failed: 角色卡包导出失败
+    imported: 角色卡包已导入
+    import_missing_file: 角色卡包缺少必要文件
+    import_invalid_file: 角色卡包文件错误
     upload: 上传
-    upload_desc: 点击或拖拽文件到此处上传
+    upload_desc: 点击或拖拽 AIRI 角色卡包到此处导入
   memory:
     description: 存放记忆的地方，以及策略
     title: 记忆体

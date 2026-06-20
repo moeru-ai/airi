@@ -4239,6 +4239,9 @@ importers:
       idb-keyval:
         specifier: 'catalog:'
         version: 6.2.2
+      jszip:
+        specifier: 'catalog:'
+        version: 3.10.1
       kokoro-js:
         specifier: 'catalog:'
         version: 1.2.1
