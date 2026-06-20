@@ -4,8 +4,8 @@ allow-visible-on-all-workspaces:
 spotlight:
   errors:
     unknown: 未知錯誤
-    prefix: 出錯啦：{message}
-    shortcutRegistrationFailed: 出錯啦：快捷鍵註冊失敗
+    prefix: '出錯啦：{message}'
+    shortcutRegistrationFailed: '出錯啦：快捷鍵註冊失敗。'
 pages:
   modules:
     mcp-server:
@@ -28,7 +28,7 @@ pages:
         reset: 重設
       errors:
         load: 無法載入快捷鍵
-        conflict: 此快捷鍵已被佔用
+        conflict: 此快捷鍵已被佔用。
         failed: 快捷鍵更新失敗
         requiresModifier: 請至少使用 Cmd、Ctrl、Alt 或 Super 中的一個修飾鍵。
       toggle-move:

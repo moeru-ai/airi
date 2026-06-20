@@ -311,8 +311,8 @@ pages:
     consciousness:
       model: Consciencia / Modelo
     vision:
-      provider: Visión / Proveedor
-      model: Visión / Modelo
+      provider: Vision / Provider
+      model: Vision / Model
     created_by: creado por
     creator_notes: Notas del Creador
     delete: Eliminar
@@ -963,6 +963,9 @@ pages:
       chat:
         title: Chat
         description: Proveedores de modelos de generación de texto. ej. OpenRouter, OpenAI, Ollama.
+      vision:
+        title: Vision
+        description: Vision model providers for image understanding.
       speech:
         title: Habla
         description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
@@ -1226,6 +1229,9 @@ pages:
       fireworks:
         description: fireworks.ai
         title: Fireworks.ai
+      google-gemini-audio-speech:
+        description: aistudio.google.com
+        title: Google Gemini
       microsoft-speech:
         description: speech.microsoft.com
         fields:
@@ -1651,7 +1657,7 @@ spine:
     mix-duration: Mezclar duración (segundos)
     speed: Velocidad de animación
   appearance:
-    title: Apariencia
+    title: Appearance
   variant:
     title: Variante
     current-variant: Variante activa
