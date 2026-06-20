@@ -311,8 +311,8 @@ pages:
     consciousness:
       model: 의식 / 모델
     vision:
-      provider: 비전 / 제공자
-      model: 비전 / 모델
+      provider: Vision / Provider
+      model: Vision / Model
     created_by: 만든이
     creator_notes: 제작자 노트
     delete: 삭제
@@ -446,7 +446,7 @@ pages:
       all_deleted: 로컬 데이터가 초기화되었습니다.
       desktop_reset: 데스크탑 데이터가 초기화되었습니다.
   models:
-    description: Live2D, VRM, Spine, 기타 등등.
+    description: Live2D, VRM, Spine, etc.
     title: 모델
     sections:
       section:
@@ -963,6 +963,9 @@ pages:
       chat:
         title: Chat
         description: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
+      vision:
+        title: Vision
+        description: Vision model providers for image understanding.
       speech:
         title: Speech
         description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
@@ -1226,6 +1229,9 @@ pages:
       fireworks:
         description: fireworks.ai
         title: Fireworks.ai
+      google-gemini-audio-speech:
+        description: aistudio.google.com
+        title: Google Gemini
       microsoft-speech:
         description: speech.microsoft.com
         fields:
@@ -1651,7 +1657,7 @@ spine:
     mix-duration: Mix Duration (seconds)
     speed: Animation Speed
   appearance:
-    title: 외형
+    title: Appearance
   variant:
     title: Variant
     current-variant: Active Variant

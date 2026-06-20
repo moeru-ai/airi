@@ -109,7 +109,7 @@ model-select:
   panel-callout:
     support-status-header: Мы поддерживаем 2D и 3D модели
     support-status: >
-      Нажмите {select-button}, чтобы выбрать или импортировать модели. В настоящее время поддерживаются {zip} (для моделей Live2D и Spine) и {vrm} (для моделей VRM).
+      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models) and {vrm} (for VRM models) are supported.
     model-type-example: >
       Neuro-sama использует 2D модель, основанную на фреймворк, разработанной компанией Live2D Inc, В то время как Grok Ani (в компании Grok) использует 3D-модели, основанные на открытых форматах VRM / MMD.
   select-model:
@@ -311,8 +311,8 @@ pages:
     consciousness:
       model: Сознание / Модель
     vision:
-      provider: Зрение / Провайдер
-      model: Зрение / Модель
+      provider: Vision / Provider
+      model: Vision / Model
     created_by: создано
     creator_notes: Заметки автора
     delete: Удалить
@@ -446,7 +446,7 @@ pages:
       all_deleted: Все локальные данные удалены.
       desktop_reset: Данные рабочего стола сброшены.
   models:
-    description: Live2D, VRM, Spine и др.
+    description: Live2D, VRM, Spine, etc.
     title: Модели
     sections:
       section:
@@ -754,7 +754,7 @@ pages:
         empty: Здесь пока ничего нет. Добавьте одно ниже!
       add:
         title: Новый
-        description: 'Заполните новый сервер, затем нажмите кнопку «Сохранить и перезапустить» — он будет перемещен в «Конфигурация» выше.'
+        description: "Заполните новый сервер, затем нажмите кнопку «Сохранить и перезапустить» — он будет перемещен в «Конфигурация» выше."
         pending-badge: Не сохранено
       status:
         unknown: Не загружен
@@ -963,6 +963,9 @@ pages:
       chat:
         title: Чат
         description: Провайдеры текстовых моделей, напр. OpenRouter, OpenAI, Ollama.
+      vision:
+        title: Зрение
+        description: Провайдеры моделей зрения для понимания изображений.
       speech:
         title: Речь
         description: Провайдеры речи (text-to-speech), напр. ElevenLabs, Azure Speech.
@@ -971,7 +974,7 @@ pages:
         description: >-
           Провайдеры транскрипции (speech-to-text): Whisper.cpp, OpenAI, Azure Speech
       artistry:
-        title: Artistry
+        title: Artistry 
         description: Поставщики моделей генерации и создания изображений, например ComfyUI, Replicate.
         items:
           comfyui:
@@ -1226,6 +1229,9 @@ pages:
       fireworks:
         description: Fireworks.ai
         title: Fireworks.ai
+      google-gemini-audio-speech:
+        description: aistudio.google.com
+        title: Google Gemini
       microsoft-speech:
         description: speech.microsoft.com
         fields:
@@ -1651,7 +1657,7 @@ spine:
     mix-duration: Длительность смешивания (в секундах)
     speed: Скорость анимации
   appearance:
-    title: Внешний вид
+    title: Appearance
   variant:
     title: Вариация
     current-variant: Активный вариант

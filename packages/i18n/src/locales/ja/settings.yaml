@@ -311,8 +311,8 @@ pages:
     consciousness:
       model: 意識 / モデル
     vision:
-      provider: ビジョン / プロバイダー
-      model: ビジョン / モデル
+      provider: Vision / Provider
+      model: Vision / Model
     created_by: 作成者
     creator_notes: 作成者のメモ
     delete: 削除
@@ -446,7 +446,7 @@ pages:
       all_deleted: すべてのローカルデータを削除しました。
       desktop_reset: デスクトップのデータをリセットしました。
   models:
-    description: Live2D、VRM、Spineなど。
+    description: Live2D, VRM, Spine, etc.
     title: モデル
     sections:
       section:
@@ -963,6 +963,9 @@ pages:
       chat:
         title: チャット
         description: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
+      vision:
+        title: Vision
+        description: Vision model providers for image understanding.
       speech:
         title: Speech
         description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
@@ -1226,6 +1229,9 @@ pages:
       fireworks:
         description: fireworks.ai
         title: Fireworks.ai
+      google-gemini-audio-speech:
+        description: aistudio.google.com
+        title: Google Gemini
       microsoft-speech:
         description: speech.microsoft.com
         fields:
@@ -1651,7 +1657,7 @@ spine:
     mix-duration: Mix Duration (seconds)
     speed: Animation Speed
   appearance:
-    title: 外観
+    title: Appearance
   variant:
     title: Variant
     current-variant: Active Variant

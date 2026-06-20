@@ -4,8 +4,8 @@ allow-visible-on-all-workspaces:
 spotlight:
   errors:
     unknown: 未知错误
-    prefix: 出错啦：{message}
-    shortcutRegistrationFailed: 出错啦：快捷键注册失败
+    prefix: '出错啦：{message}'
+    shortcutRegistrationFailed: '出错啦：快捷键注册失败'
 pages:
   modules:
     mcp-server:
