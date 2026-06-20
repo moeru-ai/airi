@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
 import { useLinkedAccounts } from './use-linked-accounts'
@@ -11,7 +11,16 @@ beforeAll(() => {
   // Suppress the Vue onMounted warning that fires when calling composables
   // outside of a mounted component context. The composable's lifecycle hooks
   // (onMounted, watch) are tested indirectly through the returned API.
+  // eslint-disable-next-line ts/no-empty-function -- intentional no-op to swallow Vue lifecycle warnings outside component context
   vi.spyOn(console, 'warn').mockImplementation(() => {})
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
+afterAll(() => {
+  vi.restoreAllMocks()
 })
 
 function createMockClient(overrides: Partial<LinkedAccountsClient> = {}): LinkedAccountsClient {
@@ -322,9 +331,11 @@ describe('useLinkedAccounts', () => {
     })
 
     it('does not allow concurrent unlinking', async () => {
-      const unlinkAccount = vi
-        .fn()
-        .mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve({ data: null, error: null }), 100)))
+      let resolveUnlink!: (value: { data: null; error: null }) => void
+      const unlinkPromise = new Promise<{ data: null; error: null }>((resolve) => {
+        resolveUnlink = resolve
+      })
+      const unlinkAccount = vi.fn().mockReturnValue(unlinkPromise)
       const client = createMockClient({
         listAccounts: vi.fn().mockResolvedValue({ data: [], error: null }),
         unlinkAccount,
@@ -343,8 +354,8 @@ describe('useLinkedAccounts', () => {
       // Second call while first is in-flight should be a no-op
       await result.unlink('github', 'GitHub')
 
+      resolveUnlink({ data: null, error: null })
       await first
-      await new Promise<void>((resolve) => setTimeout(resolve, 150))
 
       expect(unlinkAccount).toHaveBeenCalledTimes(1)
       expect(unlinkAccount).toHaveBeenCalledWith({ providerId: 'google' })
@@ -415,15 +426,12 @@ describe('useLinkedAccounts', () => {
     })
 
     it('does not allow concurrent linking', async () => {
+      let resolveLink!: (value: { data: { url: string } | null; error: null }) => void
+      const linkPromise = new Promise<{ data: { url: string } | null; error: null }>((resolve) => {
+        resolveLink = resolve
+      })
       const client = createMockClient({
-        linkSocial: vi
-          .fn()
-          .mockImplementation(
-            () =>
-              new Promise((resolve) =>
-                setTimeout(() => resolve({ data: { url: 'https://example.com' }, error: null }), 100),
-              ),
-          ),
+        linkSocial: vi.fn().mockReturnValue(linkPromise),
       })
       const assignSpy = vi.fn()
       vi.stubGlobal('window', { location: { href: '/', assign: assignSpy } })
@@ -432,8 +440,8 @@ describe('useLinkedAccounts', () => {
       const first = result.link('google', 'Google')
       await result.link('github', 'GitHub')
 
+      resolveLink({ data: { url: 'https://example.com' }, error: null })
       await first
-      await new Promise<void>((resolve) => setTimeout(resolve, 150))
 
       expect(client.linkSocial).toHaveBeenCalledTimes(1)
       expect(client.linkSocial).toHaveBeenCalledWith({
@@ -468,7 +476,10 @@ describe('useLinkedAccounts', () => {
       result.linkedAccounts.value = [
         { id: '1', accountId: 'a1', providerId: 'google', createdAt: '2024-01-01T00:00:00Z', scopes: [] },
       ]
-      result.linkedAccounts.value = []
+      expect(result.linkedAccounts.value).toHaveLength(1)
+
+      // Simulate sign-out: clear accounts and reset loaded flag
+      result.linkedAccounts.value.splice(0)
       result.loaded.value = false
 
       expect(result.linkedAccounts.value).toEqual([])
