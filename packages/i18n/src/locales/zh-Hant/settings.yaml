@@ -311,8 +311,8 @@ pages:
     consciousness:
       model: 意識 / 模型
     vision:
-      provider: 視覺 / 供應商
-      model: 視覺 / 模型
+      provider: Vision / Provider
+      model: Vision / Model
     created_by: 建立者
     creator_notes: 建立者筆記
     delete: 刪除
@@ -446,7 +446,7 @@ pages:
       all_deleted: 所有本機資料已刪除
       desktop_reset: 桌面資料已重設
   models:
-    description: 切換角色的 Live2D、VRM、Spine 模型
+    description: Live2D, VRM, Spine, etc.
     title: 角色模型
     sections:
       section:
@@ -963,6 +963,9 @@ pages:
       chat:
         title: Chat
         description: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
+      vision:
+        title: Vision
+        description: Vision model providers for image understanding.
       speech:
         title: Speech
         description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
@@ -1226,6 +1229,9 @@ pages:
       fireworks:
         description: Fireworks.ai
         title: Fireworks.ai
+      google-gemini-audio-speech:
+        description: aistudio.google.com
+        title: Google Gemini
       microsoft-speech:
         description: speech.microsoft.com
         fields:
@@ -1651,7 +1657,7 @@ spine:
     mix-duration: Mix Duration (seconds)
     speed: Animation Speed
   appearance:
-    title: 外觀
+    title: Appearance
   variant:
     title: Variant
     current-variant: Active Variant

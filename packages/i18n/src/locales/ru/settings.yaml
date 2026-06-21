@@ -158,7 +158,7 @@ live2d:
       description: Случайно смотреть вокруг когда нет активного курсора фокуса.
     blink-enable:
       title: Включить моргание
-      description: Пусть модель моргает
+      description: Пусть модель моргает.
     auto-blink:
       title: Авто
       description: Использовать стандартную анимацию моргания модели
@@ -190,9 +190,9 @@ live2d:
     title: Выражения
     override-toggle: Система выражений
     sdk-preset-preserved-notice: >
-      Диспетчер выражений SDK и моргание глаз сохраняются, если выключены
-    no-expression: Нет выражений для этой модели
-    llm-integration-wip: Интеграция инструментов LLM еще не завершена
+      Диспетчер выражений SDK и моргание глаз сохраняются, если выключены.
+    no-expression: Нет выражений для этой модели.
+    llm-integration-wip: Интеграция инструментов LLM еще не завершена.
     save-default: Сохранить выражение по умолчанию
     reset: Сбросить все выражения
     expose-to-llm-toggle: Распространять в LLM
@@ -963,6 +963,9 @@ pages:
       chat:
         title: Чат
         description: Провайдеры текстовых моделей, напр. OpenRouter, OpenAI, Ollama.
+      vision:
+        title: Зрение
+        description: Провайдеры моделей зрения для понимания изображений.
       speech:
         title: Речь
         description: Провайдеры речи (text-to-speech), напр. ElevenLabs, Azure Speech.
@@ -1226,6 +1229,9 @@ pages:
       fireworks:
         description: Fireworks.ai
         title: Fireworks.ai
+      google-gemini-audio-speech:
+        description: aistudio.google.com
+        title: Google Gemini
       microsoft-speech:
         description: speech.microsoft.com
         fields:
