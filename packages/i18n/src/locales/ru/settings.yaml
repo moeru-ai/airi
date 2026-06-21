@@ -109,7 +109,7 @@ model-select:
   panel-callout:
     support-status-header: Мы поддерживаем 2D и 3D модели
     support-status: >
-      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models) and {vrm} (for VRM models) are supported.
+      Нажмите {select-button}, чтобы выбрать или импортировать модели. В настоящее время поддерживаются {zip} (для моделей Live2D и Spine) и {vrm} (для моделей VRM).
     model-type-example: >
       Neuro-sama использует 2D модель, основанную на фреймворк, разработанной компанией Live2D Inc, В то время как Grok Ani (в компании Grok) использует 3D-модели, основанные на открытых форматах VRM / MMD.
   select-model:
@@ -158,7 +158,7 @@ live2d:
       description: Случайно смотреть вокруг когда нет активного курсора фокуса.
     blink-enable:
       title: Включить моргание
-      description: Пусть модель моргает
+      description: Пусть модель моргает.
     auto-blink:
       title: Авто
       description: Использовать стандартную анимацию моргания модели
@@ -190,9 +190,9 @@ live2d:
     title: Выражения
     override-toggle: Система выражений
     sdk-preset-preserved-notice: >
-      Диспетчер выражений SDK и моргание глаз сохраняются, если выключены
-    no-expression: Нет выражений для этой модели
-    llm-integration-wip: Интеграция инструментов LLM еще не завершена
+      Диспетчер выражений SDK и моргание глаз сохраняются, если выключены.
+    no-expression: Нет выражений для этой модели.
+    llm-integration-wip: Интеграция инструментов LLM еще не завершена.
     save-default: Сохранить выражение по умолчанию
     reset: Сбросить все выражения
     expose-to-llm-toggle: Распространять в LLM
@@ -311,8 +311,8 @@ pages:
     consciousness:
       model: Сознание / Модель
     vision:
-      provider: Vision / Provider
-      model: Vision / Model
+      provider: Зрение / Провайдер
+      model: Зрение / Модель
     created_by: создано
     creator_notes: Заметки автора
     delete: Удалить
@@ -446,7 +446,7 @@ pages:
       all_deleted: Все локальные данные удалены.
       desktop_reset: Данные рабочего стола сброшены.
   models:
-    description: Live2D, VRM, Spine, etc.
+    description: Live2D, VRM, Spine и др.
     title: Модели
     sections:
       section:
@@ -754,7 +754,7 @@ pages:
         empty: Здесь пока ничего нет. Добавьте одно ниже!
       add:
         title: Новый
-        description: 'Заполните новый сервер, затем нажмите кнопку «Сохранить и перезапустить» — он будет перемещен в «Конфигурация» выше.'
+        description: "Заполните новый сервер, затем нажмите кнопку «Сохранить и перезапустить» — он будет перемещен в «Конфигурация» выше."
         pending-badge: Не сохранено
       status:
         unknown: Не загружен
@@ -1657,7 +1657,7 @@ spine:
     mix-duration: Длительность смешивания (в секундах)
     speed: Скорость анимации
   appearance:
-    title: Appearance
+    title: Внешний вид
   variant:
     title: Вариация
     current-variant: Активный вариант

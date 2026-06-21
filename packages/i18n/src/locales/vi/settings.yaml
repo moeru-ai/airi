@@ -311,8 +311,8 @@ pages:
     consciousness:
       model: Ý thức / Mô hình
     vision:
-      provider: Vision / Provider
-      model: Vision / Model
+      provider: Thị giác / Nhà cung cấp
+      model: Thị giác / Mô hình
     created_by: được tạo bởi
     creator_notes: Ghi chú của tác giả
     delete: Xóa
@@ -446,7 +446,7 @@ pages:
       all_deleted: Tất cả dữ liệu cục bộ đã bị xóa.
       desktop_reset: Đã đặt lại dữ liệu ứng dụng máy tính.
   models:
-    description: Live2D, VRM, Spine, etc.
+    description: Live2D, VRM, Spine, v.v.
     title: Mô hình
     sections:
       section:
@@ -1657,7 +1657,7 @@ spine:
     mix-duration: Mix Duration (seconds)
     speed: Animation Speed
   appearance:
-    title: Appearance
+    title: Diện mạo
   variant:
     title: Variant
     current-variant: Active Variant
