@@ -311,8 +311,8 @@ pages:
     consciousness:
       model: 意識 / モデル
     vision:
-      provider: Vision / Provider
-      model: Vision / Model
+      provider: ビジョン / プロバイダー
+      model: ビジョン / モデル
     created_by: 作成者
     creator_notes: 作成者のメモ
     delete: 削除
@@ -446,7 +446,7 @@ pages:
       all_deleted: すべてのローカルデータを削除しました。
       desktop_reset: デスクトップのデータをリセットしました。
   models:
-    description: Live2D, VRM, Spine, etc.
+    description: Live2D、VRM、Spine、など。
     title: モデル
     sections:
       section:
@@ -1657,7 +1657,7 @@ spine:
     mix-duration: Mix Duration (seconds)
     speed: Animation Speed
   appearance:
-    title: Appearance
+    title: 外観
   variant:
     title: Variant
     current-variant: Active Variant

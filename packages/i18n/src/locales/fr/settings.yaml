@@ -311,8 +311,8 @@ pages:
     consciousness:
       model: Conscience / Modèle
     vision:
-      provider: Vision / Provider
-      model: Vision / Model
+      provider: Vision / Fournisseur
+      model: Vision / Modèle
     created_by: créé par
     creator_notes: Notes du créateur
     delete: Supprimer
@@ -1657,7 +1657,7 @@ spine:
     mix-duration: Mix Duration (seconds)
     speed: Animation Speed
   appearance:
-    title: Appearance
+    title: Apparence
   variant:
     title: Variant
     current-variant: Active Variant

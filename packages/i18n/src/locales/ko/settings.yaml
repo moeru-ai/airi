@@ -311,8 +311,8 @@ pages:
     consciousness:
       model: 의식 / 모델
     vision:
-      provider: Vision / Provider
-      model: Vision / Model
+      provider: 비전 / 제공자
+      model: 비전 / 모델
     created_by: 만든이
     creator_notes: 제작자 노트
     delete: 삭제
@@ -446,7 +446,7 @@ pages:
       all_deleted: 로컬 데이터가 초기화되었습니다.
       desktop_reset: 데스크탑 데이터가 초기화되었습니다.
   models:
-    description: Live2D, VRM, Spine, etc.
+    description: Live2D, VRM, Spine, 기타 등등.
     title: 모델
     sections:
       section:
@@ -1657,7 +1657,7 @@ spine:
     mix-duration: Mix Duration (seconds)
     speed: Animation Speed
   appearance:
-    title: Appearance
+    title: 외형
   variant:
     title: Variant
     current-variant: Active Variant
