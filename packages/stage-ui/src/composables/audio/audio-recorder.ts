@@ -52,14 +52,24 @@ export function useAudioRecorder(
     await until(mediaRef).toBeTruthy()
 
     const track = await getMediaStreamTrack(mediaRef.value!)
-    mediaOutput.value = new Output({ format: new WavOutputFormat(), target: new BufferTarget() })
+    const output = new Output({ format: new WavOutputFormat(), target: new BufferTarget() })
+    mediaOutput.value = output
 
-    const audioSource = new MediaStreamAudioTrackSource(track, { codec: TRANSCRIPTION_WAV_CODEC, bitrate: QUALITY_MEDIUM })
-    audioSource.errorPromise.catch(console.error)
-    mediaOutput.value.addAudioTrack(audioSource)
+    try {
+      const audioSource = new MediaStreamAudioTrackSource(track, { codec: TRANSCRIPTION_WAV_CODEC, bitrate: QUALITY_MEDIUM })
+      audioSource.errorPromise.catch(console.error)
+      output.addAudioTrack(audioSource)
 
-    mediaFormat.value = await mediaOutput.value.getMimeType()
-    await mediaOutput.value.start()
+      mediaFormat.value = await output.getMimeType()
+      await output.start()
+    }
+    catch (error) {
+      if (mediaOutput.value === output) {
+        mediaOutput.value = undefined
+        mediaFormat.value = undefined
+      }
+      throw error
+    }
   }
 
   /**

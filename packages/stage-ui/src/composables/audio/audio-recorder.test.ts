@@ -4,6 +4,7 @@ import { shallowRef } from 'vue'
 const mediabunnyMock = vi.hoisted(() => {
   const audioSources: Array<{ track: MediaStreamTrack, encodingConfig: { codec: string, bitrate: number } }> = []
   const outputs: Array<{ target: { buffer?: Uint8Array }, finalized: boolean }> = []
+  let startFailuresRemaining = 0
 
   class FakeBufferTarget {
     buffer?: Uint8Array
@@ -35,6 +36,11 @@ const mediabunnyMock = vi.hoisted(() => {
     }
 
     async start() {
+      if (startFailuresRemaining > 0) {
+        startFailuresRemaining -= 1
+        throw new Error('start failed')
+      }
+
       this.target.buffer = new Uint8Array([outputs.length])
     }
 
@@ -46,6 +52,9 @@ const mediabunnyMock = vi.hoisted(() => {
   return {
     audioSources,
     outputs,
+    failNextStart: () => {
+      startFailuresRemaining += 1
+    },
     FakeBufferTarget,
     FakeMediaStreamAudioTrackSource,
     FakeOutput,
@@ -119,5 +128,20 @@ describe('useAudioRecorder', () => {
     expect(isRecording.value).toBe(false)
 
     expect(activeSecondOutput?.finalized).toBe(true)
+  })
+
+  it('resets recorder state after startup fails so recording can be retried', async () => {
+    const { useAudioRecorder } = await import('./audio-recorder')
+    const stream = shallowRef(createMediaStream())
+
+    const { startRecord, isRecording } = useAudioRecorder(stream)
+    mediabunnyMock.failNextStart()
+
+    await expect(startRecord()).rejects.toThrow('start failed')
+    expect(isRecording.value).toBe(false)
+
+    await startRecord()
+
+    expect(isRecording.value).toBe(true)
   })
 })
