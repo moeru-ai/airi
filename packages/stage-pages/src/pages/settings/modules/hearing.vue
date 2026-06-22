@@ -85,6 +85,8 @@ let sttTestStopTimer: ReturnType<typeof setTimeout> | undefined
 
 const sttTestVoiceInputSession = useVoiceInputSession(stream, {
   shouldUseStreamInput,
+  // Manual Settings tests own their 3s recording window; automatic volume segmentation
+  // would race that timer and make provider diagnostics harder to interpret.
   volumeFallback: {
     enabled: false,
   },
@@ -122,6 +124,15 @@ const sttTestVoiceInputSession = useVoiceInputSession(stream, {
     console.error('STT test transcription error:', error)
   },
 })
+
+async function resetSttTestVoiceInputSession() {
+  if (sttTestStopTimer) {
+    clearTimeout(sttTestStopTimer)
+    sttTestStopTimer = undefined
+  }
+
+  await sttTestVoiceInputSession.stop({ flushActiveRecording: false })
+}
 
 function formatVADThreshold(value: number) {
   return value.toFixed(2)
@@ -411,7 +422,16 @@ async function startSTTTest() {
       sttTestStopTimer = setTimeout(async () => {
         sttTestStopTimer = undefined
         testStatusMessage.value = 'Processing transcription...'
-        await sttTestVoiceInputSession.stopSegment('manual')
+        try {
+          await sttTestVoiceInputSession.stopSegment('manual')
+        }
+        catch (err) {
+          testTranscriptionError.value = errorMessageFromValue(err)
+          testStatusMessage.value = `Error: ${testTranscriptionError.value}`
+          isTranscribing.value = false
+          isTestingSTT.value = false
+          console.error('STT test stop timer error:', err)
+        }
       }, 3000) // Record for 3 seconds
     }
   }
@@ -430,17 +450,12 @@ async function stopSTTTest() {
   testStatusMessage.value = 'Stopped'
 
   try {
-    if (sttTestStopTimer) {
-      clearTimeout(sttTestStopTimer)
-      sttTestStopTimer = undefined
-    }
-
     // Stop streaming transcription if active
     if (shouldUseStreamInput.value) {
       await stopStreamingTranscription(false, activeTranscriptionProvider.value)
     }
     else {
-      await sttTestVoiceInputSession.stop({ flushActiveRecording: false })
+      await resetSttTestVoiceInputSession()
     }
   }
   catch (err) {
