@@ -3,7 +3,7 @@ import workletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&u
 
 import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import { Alert, ErrorContainer, LevelMeter, RadioCardManySelect, RadioCardSimple, TestDummyMarker, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
-import { useAnalytics, useAudioAnalyzer, useAudioRecorder } from '@proj-airi/stage-ui/composables'
+import { useAnalytics, useAudioAnalyzer, useAudioRecorder, useVoiceInputSession } from '@proj-airi/stage-ui/composables'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { CONFIDENCE_THRESHOLD_DISABLED, useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
@@ -81,6 +81,47 @@ const useVADThreshold = ref(0.6) // 0.1 - 0.9
 const useVADMinSilenceDurationMs = ref(800)
 const useVADModel = ref(true) // Toggle between VAD and volume-based detection
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
+let sttTestStopTimer: ReturnType<typeof setTimeout> | undefined
+
+const sttTestVoiceInputSession = useVoiceInputSession(stream, {
+  shouldUseStreamInput,
+  volumeFallback: {
+    enabled: false,
+  },
+  onSegmentStart: () => {
+    testStatusMessage.value = 'Recording audio for transcription... (3 seconds)'
+  },
+  onTranscriptionStart: () => {
+    testStatusMessage.value = 'Transcribing recording...'
+    isTranscribing.value = true
+  },
+  onTranscriptionResult: ({ text }) => {
+    testTranscriptionText.value = text
+    testStatusMessage.value = 'Transcription complete!'
+    isTranscribing.value = false
+    isTestingSTT.value = false
+    console.info('STT test transcription result:', text)
+  },
+  onTranscriptionEmpty: () => {
+    testTranscriptionError.value = transcriptionPipelineError.value || 'No transcription result returned from provider'
+    testStatusMessage.value = 'Transcription failed'
+    isTranscribing.value = false
+    isTestingSTT.value = false
+  },
+  onRecordingSkipped: ({ gate }) => {
+    testTranscriptionError.value = gate?.reason || transcriptionPipelineError.value || 'No recording captured from microphone'
+    testStatusMessage.value = 'Transcription failed'
+    isTranscribing.value = false
+    isTestingSTT.value = false
+  },
+  onTranscriptionError: ({ error }) => {
+    testTranscriptionError.value = errorMessageFromValue(error)
+    testStatusMessage.value = `Error: ${testTranscriptionError.value}`
+    isTranscribing.value = false
+    isTestingSTT.value = false
+    console.error('STT test transcription error:', error)
+  },
+})
 
 function formatVADThreshold(value: number) {
   return value.toFixed(2)
@@ -267,35 +308,6 @@ onStopRecord(async (recording) => {
   if (!recording || recording.size === 0)
     return
 
-  // Handle STT test transcription directly here
-  if (isTestingSTT.value) {
-    testStatusMessage.value = 'Transcribing recording...'
-    isTranscribing.value = true
-
-    try {
-      const result = await transcribeForRecording(recording)
-      if (result) {
-        testTranscriptionText.value = result
-        testStatusMessage.value = 'Transcription complete!'
-        console.info('STT test transcription result:', result)
-      }
-      else {
-        testTranscriptionError.value = transcriptionPipelineError.value || 'No transcription result returned from provider'
-        testStatusMessage.value = 'Transcription failed'
-      }
-    }
-    catch (err) {
-      testTranscriptionError.value = errorMessageFromValue(err)
-      testStatusMessage.value = `Error: ${testTranscriptionError.value}`
-      console.error('STT test transcription error:', err)
-    }
-    finally {
-      isTranscribing.value = false
-      isTestingSTT.value = false
-    }
-    return
-  }
-
   // Normal monitoring mode - add to audios and transcribe
   audios.value.push(recording)
 
@@ -393,12 +405,13 @@ async function startSTTTest() {
       testStatusMessage.value = 'Recording audio for transcription... (3 seconds)'
       console.info('Starting STT test with recording-based transcription for provider:', activeTranscriptionProvider.value)
 
-      startRecord()
+      await sttTestVoiceInputSession.startSegment('manual')
 
       // Wait a bit for recording to start, then stop it after a delay
-      setTimeout(async () => {
-        stopRecord()
+      sttTestStopTimer = setTimeout(async () => {
+        sttTestStopTimer = undefined
         testStatusMessage.value = 'Processing transcription...'
+        await sttTestVoiceInputSession.stopSegment('manual')
       }, 3000) // Record for 3 seconds
     }
   }
@@ -417,12 +430,17 @@ async function stopSTTTest() {
   testStatusMessage.value = 'Stopped'
 
   try {
+    if (sttTestStopTimer) {
+      clearTimeout(sttTestStopTimer)
+      sttTestStopTimer = undefined
+    }
+
     // Stop streaming transcription if active
     if (shouldUseStreamInput.value) {
       await stopStreamingTranscription(false, activeTranscriptionProvider.value)
     }
     else {
-      stopRecord()
+      await sttTestVoiceInputSession.stop({ flushActiveRecording: false })
     }
   }
   catch (err) {
@@ -445,9 +463,6 @@ async function stopSTTTest() {
     }
   }
 }
-
-// Note: STT test transcription is now handled directly in onStopRecord handler above
-// This watch is kept for potential future use but is no longer needed for STT tests
 
 watch(selectedAudioInput, async () => isMonitoring.value && await setupAudioMonitoring())
 
