@@ -13,6 +13,11 @@ const MEDIA_PERMISSION_NAMES = new Set([
   'audioCapture',
 ])
 
+const LOCAL_APP_PERMISSION_NAMES = new Set([
+  'display-capture',
+  'clipboard-sanitized-write',
+])
+
 function isLocalAppURL(rawURL: string | undefined) {
   if (!rawURL)
     return false
@@ -56,6 +61,10 @@ export function shouldGrantAudioCapturePermission(webContents: WebContents | nul
   if (!isAudioMediaPermission(permission, details))
     return false
 
+  return shouldGrantLocalAppPermission(webContents, requestingOrigin, details)
+}
+
+function shouldGrantLocalAppPermission(webContents: WebContents | null, requestingOrigin?: string, details?: MediaPermissionDetails) {
   const requesterURLs = [
     requestingOrigin,
     details?.requestingUrl,
@@ -68,16 +77,26 @@ export function shouldGrantAudioCapturePermission(webContents: WebContents | nul
   return isLocalAppURL(webContents?.getURL())
 }
 
+export function shouldGrantElectronPermission(webContents: WebContents | null, permission: string, requestingOrigin?: string, details?: MediaPermissionDetails) {
+  if (isAudioMediaPermission(permission, details))
+    return shouldGrantAudioCapturePermission(webContents, permission, requestingOrigin, details)
+
+  if (!LOCAL_APP_PERMISSION_NAMES.has(permission))
+    return false
+
+  return shouldGrantLocalAppPermission(webContents, requestingOrigin, details)
+}
+
 /**
  * Lets AIRI-owned Electron windows use the microphone on platforms where Chromium asks the
  * session for media permission instead of relying on macOS systemPreferences APIs.
  */
 export function setupMediaPermissionHandlers(targetSession: Session) {
   targetSession.setPermissionRequestHandler((webContents, permission, callback, details) => {
-    callback(shouldGrantAudioCapturePermission(webContents, permission, undefined, details))
+    callback(shouldGrantElectronPermission(webContents, permission, undefined, details))
   })
 
   targetSession.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) => {
-    return shouldGrantAudioCapturePermission(webContents, permission, requestingOrigin, details)
+    return shouldGrantElectronPermission(webContents, permission, requestingOrigin, details)
   })
 }
