@@ -2,7 +2,7 @@ import type { WebContents } from 'electron'
 
 import { describe, expect, it } from 'vitest'
 
-import { shouldGrantAudioCapturePermission } from './media-permissions'
+import { shouldGrantAudioCapturePermission, shouldGrantElectronPermission } from './media-permissions'
 
 const localWebContents = {
   getURL: () => 'file:///app/index.html',
@@ -97,5 +97,41 @@ describe('media permissions', () => {
       'null',
       { mediaTypes: ['audio'], requestingUrl: 'file:///app/index.html' },
     )).toBe(true)
+  })
+
+  it('grants display capture requests from local app pages', () => {
+    expect(shouldGrantElectronPermission(
+      localWebContents as unknown as WebContents,
+      'display-capture',
+      undefined,
+      { requestingUrl: 'file:///app/index.html' },
+    )).toBe(true)
+  })
+
+  it('rejects display capture requests from remote pages', () => {
+    expect(shouldGrantElectronPermission(
+      localWebContents as unknown as WebContents,
+      'display-capture',
+      undefined,
+      { requestingUrl: 'https://example.com/capture.html' },
+    )).toBe(false)
+  })
+
+  it('grants sanitized clipboard writes from local app pages', () => {
+    expect(shouldGrantElectronPermission(
+      localWebContents as unknown as WebContents,
+      'clipboard-sanitized-write',
+      'file:///app/index.html',
+      {},
+    )).toBe(true)
+  })
+
+  it('rejects unrelated permissions instead of granting all local requests', () => {
+    expect(shouldGrantElectronPermission(
+      localWebContents as unknown as WebContents,
+      'notifications',
+      'file:///app/index.html',
+      {},
+    )).toBe(false)
   })
 })
