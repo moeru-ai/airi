@@ -98,4 +98,28 @@ describe('useVoiceInputSession', () => {
     expect(session.activeRecordingTrigger.value).toBeUndefined()
     expect(session.lastError.value).toBe(startupError)
   })
+
+  it('clears the active segment when the caller start gate rejects', async () => {
+    const { useVoiceInputSession } = await import('./voice-input-session')
+    const gateError = new Error('gate failed')
+
+    const session = useVoiceInputSession(shallowRef(createMediaStream()), {
+      volumeFallback: { enabled: false },
+      canStartSegment: vi.fn()
+        .mockRejectedValueOnce(gateError)
+        .mockResolvedValueOnce(true),
+    })
+
+    await expect(session.startSegment('manual')).resolves.toBe(false)
+
+    expect(session.activeRecordingTrigger.value).toBeUndefined()
+    expect(session.lastError.value).toBe(gateError)
+
+    audioRecorderMock.startRecord.mockImplementationOnce(async () => {
+      audioRecorderMock.isRecording.value = true
+    })
+
+    await expect(session.startSegment('manual')).resolves.toBe(true)
+    expect(session.activeRecordingTrigger.value).toBe('manual')
+  })
 })

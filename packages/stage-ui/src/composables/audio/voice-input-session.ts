@@ -198,10 +198,21 @@ export function useVoiceInputSession(
     const segment = createVoiceInputRecordingSegment(++nextRecordingSegmentId, trigger)
     activeRecordingSegment.value = segment
 
-    if (options.canStartSegment && !await options.canStartSegment(event)) {
-      log('info', 'segment-start-skipped-gate', 'Recorder segment start skipped by caller gate.', { trigger })
-      activeRecordingSegment.value = resolveActiveVoiceInputRecordingSegmentAfterStop(activeRecordingSegment.value, segment)
-      return false
+    if (options.canStartSegment) {
+      try {
+        if (!await options.canStartSegment(event)) {
+          log('info', 'segment-start-skipped-gate', 'Recorder segment start skipped by caller gate.', { trigger })
+          activeRecordingSegment.value = resolveActiveVoiceInputRecordingSegmentAfterStop(activeRecordingSegment.value, segment)
+          return false
+        }
+      }
+      catch (error) {
+        activeRecordingSegment.value = resolveActiveVoiceInputRecordingSegmentAfterStop(activeRecordingSegment.value, segment)
+        lastError.value = error
+        log('error', 'segment-start-gate-failed', 'Recorder segment start gate failed.', { trigger, error })
+        await options.onTranscriptionError?.({ trigger, error })
+        return false
+      }
     }
 
     await options.onSegmentStart?.(event)
