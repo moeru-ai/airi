@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Alert, ErrorContainer, RadioCardManySelect, RadioCardSimple } from '@proj-airi/stage-ui/components'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
+import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { storeToRefs } from 'pinia'
@@ -9,6 +10,7 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
 const providersStore = useProvidersStore()
+const airiCardStore = useAiriCardStore()
 const consciousnessStore = useConsciousnessStore()
 const { persistedChatProvidersMetadata, configuredProviders } = storeToRefs(providersStore)
 const {
@@ -36,6 +38,10 @@ watch(activeProvider, async (provider, oldProvider) => {
 
   await consciousnessStore.loadModelsForProvider(provider)
 }, { immediate: true })
+
+watch([activeProvider, activeModel], ([provider, model]) => {
+  airiCardStore.updateActiveCardConsciousness({ provider, model })
+})
 
 function updateCustomModelName(value: string) {
   customModelName.value = value
@@ -71,7 +77,7 @@ function handleDeleteProvider(providerId: string) {
           <fieldset
             v-if="persistedChatProvidersMetadata.length > 0"
             flex="~ row gap-4"
-            min-w-0 of-x-auto scroll-smooth
+            min-w-0 overflow-x-auto scroll-smooth
             role="radiogroup"
           >
             <RadioCardSimple

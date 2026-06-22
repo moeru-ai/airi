@@ -117,6 +117,7 @@ export interface WidgetsAddPayload {
   id?: string
   componentName: string
   componentProps?: Record<string, any>
+  alwaysOnTop?: boolean
   // size presets or explicit spans; renderer decides mapping
   size?: WidgetGridSize
   windowSize?: WidgetWindowSize | Record<string, unknown>
@@ -127,6 +128,7 @@ export interface WidgetsAddPayload {
 export interface WidgetsUpdatePayload {
   id: string
   componentProps?: Record<string, any>
+  alwaysOnTop?: boolean
   size?: WidgetGridSize
   windowSize?: WidgetWindowSize | Record<string, unknown>
   ttlMs?: number
@@ -136,6 +138,7 @@ export interface WidgetSnapshot {
   id: string
   componentName: string
   componentProps: Record<string, any>
+  alwaysOnTop: boolean
   size: WidgetGridSize
   windowSize?: WidgetWindowSize
   ttlMs: number

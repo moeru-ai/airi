@@ -16,6 +16,7 @@ import { useSettingsStageModel } from '../settings/stage-model'
 import { useArtistryStore } from './artistry'
 import { useConsciousnessStore } from './consciousness'
 import { useSpeechStore } from './speech'
+import { useVisionStore } from './vision'
 
 export type VoicePackParams = Record<string, string | number | boolean | null>
 
@@ -46,6 +47,11 @@ export interface AiriExtension {
     consciousness: {
       provider: string // Example: "openai"
       model: string // Example: "gpt-4o"
+    }
+
+    vision: {
+      provider: string // Example: "ollama"
+      model: string // Example: "llava"
     }
 
     speech: {
@@ -114,6 +120,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   const activeCard = computed(() => cards.value.get(activeCardId.value))
 
   const consciousnessStore = useConsciousnessStore()
+  const visionStore = useVisionStore()
   const speechStore = useSpeechStore()
   const artistryStore = useArtistryStore()
   const stageModelStore = useSettingsStageModel()
@@ -122,6 +129,11 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     activeProvider: activeConsciousnessProvider,
     activeModel: activeConsciousnessModel,
   } = storeToRefs(consciousnessStore)
+
+  const {
+    activeProvider: activeVisionProvider,
+    activeModel: activeVisionModel,
+  } = storeToRefs(visionStore)
 
   const {
     activeSpeechProvider,
@@ -158,30 +170,57 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return cards.value.get(id)
   }
 
-  function updateActiveCardDisplayModel(displayModelId: string | undefined) {
+  function updateActiveCardModules(patch: (extension: AiriExtension) => Partial<AiriExtension['modules']>) {
     const cardId = activeCardId.value
     const card = cards.value.get(cardId)
     if (!card)
       return false
 
     const extension = resolveAiriExtension(card)
-    const modules: AiriExtension['modules'] = {
-      ...extension.modules,
-      displayModelId,
-    }
-
     cards.value.set(cardId, {
       ...card,
       extensions: {
         ...card.extensions,
         airi: {
           ...extension,
-          modules,
+          modules: {
+            ...extension.modules,
+            ...patch(extension),
+          },
         },
       },
     })
 
     return true
+  }
+
+  function updateActiveCardDisplayModel(displayModelId: string | undefined) {
+    return updateActiveCardModules(() => ({ displayModelId }))
+  }
+
+  function updateActiveCardConsciousness(consciousness: AiriExtension['modules']['consciousness']) {
+    return updateActiveCardModules(() => ({ consciousness }))
+  }
+
+  function updateActiveCardVision(vision: AiriExtension['modules']['vision']) {
+    return updateActiveCardModules(() => ({ vision }))
+  }
+
+  function updateActiveCardSpeech(speech: Pick<AiriExtension['modules']['speech'], 'provider' | 'model' | 'voice_id'>) {
+    return updateActiveCardModules(({ modules }) => {
+      const existingVoicePack = modules.speech.voicePack
+      const shouldKeepVoicePack = speech.provider === OFFICIAL_SPEECH_PROVIDER_ID
+        && existingVoicePack?.ttsModelId === speech.model
+        && existingVoicePack.voiceId === speech.voice_id
+
+      return {
+        speech: {
+          ...modules.speech,
+          ...speech,
+          voicePack: shouldKeepVoicePack ? existingVoicePack : undefined,
+        },
+      }
+    })
   }
 
   function resolveAiriExtension(card: Card | ccv3.CharacterCardV3): AiriExtension {
@@ -195,6 +234,10 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       consciousness: {
         provider: activeConsciousnessProvider.value,
         model: activeConsciousnessModel.value,
+      },
+      vision: {
+        provider: activeVisionProvider.value,
+        model: activeVisionModel.value,
       },
       speech: {
         provider: activeSpeechProvider.value,
@@ -230,6 +273,10 @@ export const useAiriCardStore = defineStore('airi-card', () => {
         consciousness: {
           provider: existingExtension.modules?.consciousness?.provider ?? defaultModules.consciousness.provider,
           model: existingExtension.modules?.consciousness?.model ?? defaultModules.consciousness.model,
+        },
+        vision: {
+          provider: existingExtension.modules?.vision?.provider ?? defaultModules.vision.provider,
+          model: existingExtension.modules?.vision?.model ?? defaultModules.vision.model,
         },
         speech: {
           provider: existingExtension.modules?.speech?.provider ?? defaultModules.speech.provider,
@@ -387,6 +434,9 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     activeConsciousnessProvider.value = extension?.modules?.consciousness?.provider
     activeConsciousnessModel.value = extension?.modules?.consciousness?.model
 
+    activeVisionProvider.value = extension?.modules?.vision?.provider
+    activeVisionModel.value = extension?.modules?.vision?.model
+
     activeSpeechProvider.value = extension?.modules?.speech?.provider
     activeSpeechModel.value = extension?.modules?.speech?.model
     activeSpeechVoiceId.value = extension?.modules?.speech?.voice_id
@@ -423,7 +473,10 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     removeCard,
     updateCard,
     bindVoicePackToActiveCard,
+    updateActiveCardConsciousness,
     updateActiveCardDisplayModel,
+    updateActiveCardSpeech,
+    updateActiveCardVision,
     getCard,
     resetState,
     initialize,
@@ -433,6 +486,10 @@ export const useAiriCardStore = defineStore('airi-card', () => {
         consciousness: {
           provider: activeConsciousnessProvider.value,
           model: activeConsciousnessModel.value,
+        },
+        vision: {
+          provider: activeVisionProvider.value,
+          model: activeVisionModel.value,
         },
         speech: {
           provider: activeSpeechProvider.value,

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Alert, ErrorContainer, RadioCardManySelect, RadioCardSimple } from '@proj-airi/stage-ui/components'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
+import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useVisionProcessingStore, useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { FieldCheckbox, FieldRange } from '@proj-airi/ui'
@@ -10,6 +11,7 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
 const providersStore = useProvidersStore()
+const airiCardStore = useAiriCardStore()
 const visionStore = useVisionStore()
 const visionProcessingStore = useVisionProcessingStore()
 const { persistedVisionProvidersMetadata, configuredProviders } = storeToRefs(providersStore)
@@ -46,6 +48,10 @@ watch(activeProvider, async (provider, oldProvider) => {
 
   await visionStore.loadModelsForProvider(provider)
 }, { immediate: true })
+
+watch([activeProvider, activeModel], ([provider, model]) => {
+  airiCardStore.updateActiveCardVision({ provider, model })
+})
 
 function updateCustomModelName(value: string) {
   customModelName.value = value
@@ -98,7 +104,7 @@ function formatRelativeTime(timestamp: number | null) {
         <div :class="['max-w-full']">
           <fieldset
             v-if="persistedVisionProvidersMetadata.length > 0"
-            :class="['flex', 'min-w-0', 'flex-row', 'gap-4', 'of-x-auto', 'scroll-smooth']"
+            :class="['flex', 'min-w-0', 'flex-row', 'gap-4', 'overflow-x-auto', 'scroll-smooth']"
             role="radiogroup"
           >
             <RadioCardSimple

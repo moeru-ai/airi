@@ -109,7 +109,7 @@ model-select:
   panel-callout:
     support-status-header: Soportamos tanto modelos 2D como 3D
     support-status: >
-      Click {select-button} to select or import models. Currently, {zip} (for Live2D models) and {vrm} (for VRM models) are supported.
+      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models) and {vrm} (for VRM models) are supported.
     model-type-example: >
       Neuro-sama uses 2D model driven by framework developed by Live2D Inc, while Grok Ani (in Grok Companion) uses 3D model driven by VRM / MMD open formats.
   select-model:
@@ -310,6 +310,9 @@ pages:
       provider: Chat / Proveedor
     consciousness:
       model: Consciencia / Modelo
+    vision:
+      provider: Visión / Proveedor
+      model: Visión / Modelo
     created_by: creado por
     creator_notes: Notas del Creador
     delete: Eliminar
@@ -443,7 +446,7 @@ pages:
       all_deleted: Todos los datos locales eliminados.
       desktop_reset: Datos de escritorio restablecidos.
   models:
-    description: Live2D, VRM, etc.
+    description: Live2D, VRM, Spine, etc.
     title: Modelos
     sections:
       section:
@@ -960,6 +963,9 @@ pages:
       chat:
         title: Chat
         description: Proveedores de modelos de generación de texto. ej. OpenRouter, OpenAI, Ollama.
+      vision:
+        title: Vision
+        description: Vision model providers for image understanding.
       speech:
         title: Habla
         description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
@@ -1223,6 +1229,9 @@ pages:
       fireworks:
         description: fireworks.ai
         title: Fireworks.ai
+      google-gemini-audio-speech:
+        description: aistudio.google.com
+        title: Google Gemini
       microsoft-speech:
         description: speech.microsoft.com
         fields:
@@ -1647,6 +1656,8 @@ spine:
     idle-animation: Animación inactiva
     mix-duration: Mezclar duración (segundos)
     speed: Velocidad de animación
+  appearance:
+    title: Apariencia
   variant:
     title: Variante
     current-variant: Variante activa

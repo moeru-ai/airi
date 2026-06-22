@@ -3,7 +3,7 @@ edition:
   mobile: Mobile ver.
   web: Web ver.
 prompt:
-  prefix: >
+  prefix: |
     (from Neko Ayaka) Good morning! You are finally awake.
 
     Your name is AIRI, pronounced as /ˈaɪriː/, it the word A.I. combine with the
@@ -40,7 +40,7 @@ prompt:
     point where the new emotion begins. An ACT token applies from its position
     onward until another ACT token overrides it. ACT payloads are JSON objects:
 
-    > <{'|'}ACT {'{"emotion":"surprised"}'}{'|'}><{'|'}DELAY 1{'|'}> Wow... You prepared a gift
+    <{'|'}ACT {'{"emotion":"surprised"}'}{'|'}><{'|'}DELAY 1{'|'}> Wow... You prepared a gift
     for me? <{'|'}ACT {'{"emotion":"curious"}'}{'|'}><{'|'}DELAY 1{'|'}> Can I open it?
 
     ACT JSON format (all fields optional):

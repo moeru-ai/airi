@@ -162,6 +162,10 @@ watch(activeSpeechModel, async () => {
   }
 })
 
+watch([activeSpeechProvider, activeSpeechModel, activeSpeechVoiceId], ([provider, model, voiceId]) => {
+  airiCardStore.updateActiveCardSpeech({ provider, model, voice_id: voiceId })
+})
+
 // Function to generate speech
 async function generateTestSpeech() {
   if (!testText.value.trim() && !useSSML.value)
@@ -340,7 +344,6 @@ function handleDeleteProvider(providerId: string) {
               <span>{{ t('settings.pages.modules.speech.sections.section.voice-pack.description') }}</span>
             </div>
           </div>
-
           <div v-if="isLoadingVoicePacks" :class="['flex items-center gap-2', 'text-sm text-neutral-400 dark:text-neutral-500']">
             <div i-solar:spinner-line-duotone class="animate-spin text-base" />
             <span>{{ t('settings.pages.modules.speech.sections.section.voice-pack.loading') }}</span>
@@ -394,7 +397,7 @@ function handleDeleteProvider(providerId: string) {
         <div max-w-full>
           <fieldset
             v-if="selectableSpeechProvidersMetadata.length > 0" flex="~ row gap-4"
-            min-w-0 of-x-auto scroll-smooth role="radiogroup"
+            min-w-0 overflow-x-auto scroll-smooth role="radiogroup"
           >
             <RadioCardSimple
               v-for="metadata in selectableSpeechProvidersMetadata"

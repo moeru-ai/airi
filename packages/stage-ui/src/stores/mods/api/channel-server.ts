@@ -1,16 +1,16 @@
 import type {
+  ClientConnector,
   ContextUpdate,
   InputContextUpdate,
   WebSocketBaseEvent,
   WebSocketEvent,
   WebSocketEventOptionalSource,
   WebSocketEvents,
-  WebSocketLikeConstructor,
 } from '@proj-airi/server-sdk'
 import type { CommonContentPart } from '@xsai/shared-chat'
 
 import { errorMessageFrom } from '@moeru/std'
-import { Client, WebSocketEventSource } from '@proj-airi/server-sdk'
+import { Client, createTextProtocolConnector, WebSocketEventSource } from '@proj-airi/server-sdk'
 import { isStageTamagotchi, isStageWeb } from '@proj-airi/stage-shared'
 import { useLocalStorage } from '@vueuse/core'
 import { nanoid } from 'nanoid'
@@ -24,6 +24,8 @@ interface ChannelListenerEntry {
   callback: (event: WebSocketBaseEvent<any, any>) => void | Promise<void>
   boundClient?: Client
 }
+
+type TextConnectorFactory = (url: string) => ClientConnector<string> | undefined
 
 function hasReconnectableWebSocketScheme(url: string | undefined) {
   if (!url) {
@@ -51,7 +53,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   const connected = ref(false)
   const client = ref<Client>()
   const initializing = ref<Promise<void> | null>(null)
-  const websocketConstructor = ref<WebSocketLikeConstructor>()
+  const textConnectorFactory = ref<TextConnectorFactory>()
   const hasEverConnected = ref(false)
   const pendingSend = ref<Array<WebSocketEvent>>([])
   const pendingSendCount = computed(() => pendingSend.value.length)
@@ -90,15 +92,15 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   async function initialize(options?: {
     token?: string
     possibleEvents?: Array<keyof WebSocketEvents>
-    websocketConstructor?: WebSocketLikeConstructor
+    connector?: TextConnectorFactory
   }) {
     if (connected.value && client.value)
       return Promise.resolve()
     if (initializing.value)
       return initializing.value
 
-    if (options?.websocketConstructor) {
-      websocketConstructor.value = options.websocketConstructor
+    if (options?.connector) {
+      textConnectorFactory.value = options.connector
     }
 
     const possibleEvents = Array.from(new Set<keyof WebSocketEvents>([
@@ -107,11 +109,16 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     ]))
 
     initializing.value = new Promise<void>((resolve) => {
+      const currentWebSocketUrl = websocketUrl.value || defaultWebSocketUrl
+      const textConnector = textConnectorFactory.value?.(currentWebSocketUrl)
+
       client.value = new Client({
         name: isStageWeb() ? WebSocketEventSource.StageWeb : isStageTamagotchi() ? WebSocketEventSource.StageTamagotchi : WebSocketEventSource.StageWeb,
-        url: websocketUrl.value || defaultWebSocketUrl,
+        url: currentWebSocketUrl,
         token: options?.token ?? (websocketAuthToken.value || undefined),
-        websocketConstructor: websocketConstructor.value,
+        connector: textConnector
+          ? createTextProtocolConnector(textConnector)
+          : undefined,
         heartbeat: {
           // Keep client and server heartbeat windows aligned to reduce false-positive disconnects.
           readTimeout: 60_000,
