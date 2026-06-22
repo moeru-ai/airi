@@ -98,12 +98,15 @@ export function filterTranscriptionByConfidence(
 /**
  * Reads a string field from an unknown response object.
  */
-function stringField(value: unknown, key: string) {
+function stringField(value: unknown, key: string, options: { trim?: boolean } = {}) {
   if (!value || typeof value !== 'object')
     return ''
 
   const field = (value as Record<string, unknown>)[key]
-  return typeof field === 'string' ? field.trim() : ''
+  if (typeof field !== 'string')
+    return ''
+
+  return options.trim === false ? field : field.trim()
 }
 
 /**
@@ -142,7 +145,7 @@ export function normalizeGeneratedTranscriptionText(response: unknown) {
   const segments = objectField(response, 'segments') ?? (response && typeof response === 'object' ? (response as Record<string, unknown>).segments : undefined)
   if (Array.isArray(segments)) {
     const text = segments
-      .map(segment => stringField(segment, 'text'))
+      .map(segment => stringField(segment, 'text', { trim: false }))
       .join('')
       .trim()
     if (text)

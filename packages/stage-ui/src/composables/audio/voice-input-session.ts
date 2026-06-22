@@ -1,6 +1,7 @@
 import type { MaybeRefOrGetter } from 'vue'
 
 import type { VoiceInputRecordingSegment, VoiceInputSessionTrigger } from './voice-input-segment'
+import type { VoiceInputTranscriptionTicket } from './voice-input-transcription-chain'
 
 import { computed, ref, shallowRef, toRef } from 'vue'
 
@@ -13,6 +14,7 @@ import {
   createVoiceInputRecordingSegment,
   resolveActiveVoiceInputRecordingSegmentAfterStop,
 } from './voice-input-segment'
+import { createVoiceInputTranscriptionChain } from './voice-input-transcription-chain'
 import { startVoiceInputVadDetectionSafely } from './voice-input-vad-startup'
 
 export type { VoiceInputSessionTrigger } from './voice-input-segment'
@@ -113,10 +115,11 @@ export function useVoiceInputSession(
   const isTranscribing = ref(false)
   const lastTranscriptionText = ref('')
   const lastError = ref<unknown>()
-  const transcriptionChain = shallowRef<Promise<void>>(Promise.resolve())
+  const transcriptionChain = createVoiceInputTranscriptionChain()
   const stoppedRecordingSegments: VoiceInputRecordingSegment[] = []
   let nextRecordingSegmentId = 0
   let discardNextRecording = false
+  let activeTranscriptionCount = 0
 
   const {
     init: initVAD,
@@ -154,6 +157,27 @@ export function useVoiceInputSession(
 
   function log(level: VoiceInputSessionLogLevel, event: string, message: string, details?: Record<string, unknown>) {
     options.onLog?.(level, event, message, details)
+  }
+
+  function markTranscriptionStarted() {
+    activeTranscriptionCount += 1
+    isTranscribing.value = true
+  }
+
+  function markTranscriptionFinished() {
+    activeTranscriptionCount = Math.max(0, activeTranscriptionCount - 1)
+    isTranscribing.value = activeTranscriptionCount > 0
+  }
+
+  function isStaleTranscriptionTicket(ticket: VoiceInputTranscriptionTicket, trigger: VoiceInputSessionTrigger, phase: string) {
+    if (ticket.isCurrent())
+      return false
+
+    log('info', 'recording-drop-stale-session', 'Dropping stale recorder-backed transcription work after the listening session changed.', {
+      trigger,
+      phase,
+    })
+    return true
   }
 
   async function startSegment(trigger: VoiceInputSessionTrigger = 'manual') {
@@ -238,8 +262,11 @@ export function useVoiceInputSession(
     }
   }
 
-  async function processRecording(recording: Blob | undefined, trigger: VoiceInputSessionTrigger) {
+  async function processRecording(recording: Blob | undefined, trigger: VoiceInputSessionTrigger, ticket: VoiceInputTranscriptionTicket) {
     const event: VoiceInputSessionEvent = { trigger, recording }
+
+    if (isStaleTranscriptionTicket(ticket, trigger, 'recording-start'))
+      return
 
     if (!recording || recording.size <= 0) {
       log('warn', 'recording-drop-empty', 'Dropping empty recorder-backed voice input segment.', { trigger, recording })
@@ -249,7 +276,13 @@ export function useVoiceInputSession(
 
     const metadata = await options.onRecordingReady?.(event) ?? undefined
     const readyEvent = { ...event, metadata }
+    if (isStaleTranscriptionTicket(ticket, trigger, 'recording-ready'))
+      return
+
     const beforeGate = await options.inspectBeforeTranscription?.(readyEvent)
+    if (isStaleTranscriptionTicket(ticket, trigger, 'before-transcription-gate'))
+      return
+
     if (beforeGate?.skip) {
       log('info', 'recording-drop-before-asr', 'Skipping recorder-backed segment before transcription request.', {
         trigger,
@@ -259,25 +292,37 @@ export function useVoiceInputSession(
       return
     }
 
-    isTranscribing.value = true
-    await options.onTranscriptionStart?.(readyEvent)
+    markTranscriptionStarted()
 
     let text = ''
     try {
+      await options.onTranscriptionStart?.(readyEvent)
+      if (isStaleTranscriptionTicket(ticket, trigger, 'transcription-started'))
+        return
+
       text = await transcribeForRecording(recording) ?? ''
     }
     catch (error) {
+      if (isStaleTranscriptionTicket(ticket, trigger, 'transcription-error'))
+        return
+
       lastError.value = error
       log('error', 'recording-transcription-error', 'Transcription provider threw while processing recorder-backed segment.', { trigger, error })
       await options.onTranscriptionError?.({ ...readyEvent, error })
       return
     }
     finally {
-      isTranscribing.value = false
+      markTranscriptionFinished()
     }
+
+    if (isStaleTranscriptionTicket(ticket, trigger, 'transcription-result'))
+      return
 
     const resultEvent = { ...readyEvent, text }
     const afterGate = await options.inspectAfterTranscription?.(resultEvent)
+    if (isStaleTranscriptionTicket(ticket, trigger, 'after-transcription-gate'))
+      return
+
     if (afterGate?.skip) {
       log('info', 'recording-drop-after-asr', 'Dropping stale transcription result after transcription request.', {
         trigger,
@@ -306,13 +351,12 @@ export function useVoiceInputSession(
 
     const segment = stoppedRecordingSegments.shift()
     const trigger = segment?.trigger ?? activeRecordingTrigger.value ?? 'manual'
-    transcriptionChain.value = transcriptionChain.value
-      .then(() => processRecording(recording, trigger))
+    await transcriptionChain
+      .enqueue(ticket => processRecording(recording, trigger, ticket))
       .catch((error) => {
         lastError.value = error
         log('error', 'recording-processing-error', 'Voice input recording processing failed.', { trigger, error })
       })
-    await transcriptionChain.value
   })
 
   function stopVolumeFallback() {
@@ -458,9 +502,13 @@ export function useVoiceInputSession(
   async function stop(options: { flushActiveRecording?: boolean } = {}) {
     stopVolumeFallback()
     disposeVAD()
+    transcriptionChain.reset()
+    stoppedRecordingSegments.length = 0
 
     if (options.flushActiveRecording && isRecording.value) {
       await stopSegment(activeRecordingTrigger.value ?? 'manual')
+      await transcriptionChain.idle()
+      transcriptionChain.reset()
     }
     else if (isRecording.value) {
       discardNextRecording = true
@@ -470,8 +518,6 @@ export function useVoiceInputSession(
     else {
       activeRecordingSegment.value = undefined
     }
-
-    await transcriptionChain.value
   }
 
   return {

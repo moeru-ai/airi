@@ -124,6 +124,14 @@ describe('normalizeGeneratedTranscriptionText', () => {
 
   /**
    * @example
+   * normalizeGeneratedTranscriptionText({ segments: [{ text: ' Hello' }, { text: ' world' }] })
+   */
+  it('preserves segment whitespace before trimming the final fallback text', () => {
+    expect(normalizeGeneratedTranscriptionText({ segments: [{ text: ' Hello' }, { text: ' world' }] })).toBe('Hello world')
+  })
+
+  /**
+   * @example
    * normalizeGeneratedTranscriptionText({ data: { text: '你好' } })
    */
   it('reads data text from provider envelope responses', () => {
