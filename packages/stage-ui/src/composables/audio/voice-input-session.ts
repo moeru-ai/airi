@@ -180,6 +180,17 @@ export function useVoiceInputSession(
     return true
   }
 
+  async function discardActiveRecorderSegment(segment: VoiceInputRecordingSegment) {
+    discardNextRecording = true
+    try {
+      await recorder.stopRecord()
+    }
+    finally {
+      discardNextRecording = false
+      activeRecordingSegment.value = resolveActiveVoiceInputRecordingSegmentAfterStop(activeRecordingSegment.value, segment)
+    }
+  }
+
   async function startSegment(trigger: VoiceInputSessionTrigger = 'manual') {
     const event: VoiceInputSessionEvent = { trigger }
     if (shouldUseStreamInput.value) {
@@ -215,11 +226,18 @@ export function useVoiceInputSession(
       }
     }
 
-    await options.onSegmentStart?.(event)
-
     try {
+      await options.onSegmentStart?.(event)
       await recorder.startRecord()
-      await options.onSegmentStarted?.(event)
+
+      try {
+        await options.onSegmentStarted?.(event)
+      }
+      catch (error) {
+        await discardActiveRecorderSegment(segment)
+        throw error
+      }
+
       return true
     }
     catch (error) {
@@ -254,7 +272,15 @@ export function useVoiceInputSession(
     }
 
     const stoppedSegment = segment ?? createVoiceInputRecordingSegment(++nextRecordingSegmentId, trigger)
-    await options.onSegmentStop?.(event)
+
+    try {
+      await options.onSegmentStop?.(event)
+    }
+    catch (error) {
+      lastError.value = error
+      log('error', 'segment-stop-hook-failed', 'Caller stop hook failed; finalizing recorder segment anyway.', { trigger, error })
+      await options.onTranscriptionError?.({ trigger, error })
+    }
 
     try {
       stoppedRecordingSegments.push(stoppedSegment)
