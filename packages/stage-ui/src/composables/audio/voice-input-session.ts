@@ -253,7 +253,7 @@ export function useVoiceInputSession(
     const event: VoiceInputSessionEvent = { trigger }
     const segment = activeRecordingSegment.value
 
-    if (shouldUseStreamInput.value) {
+    if (shouldUseStreamInput.value && !isRecording.value && !segment) {
       log('info', 'segment-stop-skipped-streaming', 'Recorder segment stop skipped because streaming transcription is active.', { trigger })
       return
     }

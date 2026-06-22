@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { shallowRef } from 'vue'
+import { ref, shallowRef } from 'vue'
 
 const audioRecorderMock = vi.hoisted(() => ({
   isRecording: undefined as unknown as { value: boolean },
@@ -191,6 +191,31 @@ describe('useVoiceInputSession', () => {
     expect(session.activeRecordingTrigger.value).toBeUndefined()
     expect(session.lastError.value).toBe(hookError)
     expect(onTranscriptionError).toHaveBeenCalledWith(expect.objectContaining({ error: hookError }))
+  })
+
+  it('stops an active recorder segment after stream mode becomes enabled', async () => {
+    const { useVoiceInputSession } = await import('./voice-input-session')
+    const shouldUseStreamInput = ref(false)
+
+    audioRecorderMock.startRecord.mockImplementation(async () => {
+      audioRecorderMock.isRecording.value = true
+    })
+    audioRecorderMock.stopRecord.mockImplementation(async () => {
+      audioRecorderMock.isRecording.value = false
+    })
+
+    const session = useVoiceInputSession(shallowRef(createMediaStream()), {
+      shouldUseStreamInput,
+      volumeFallback: { enabled: false },
+    })
+
+    await expect(session.startSegment('manual')).resolves.toBe(true)
+    shouldUseStreamInput.value = true
+    await session.stopSegment('manual')
+
+    expect(audioRecorderMock.stopRecord).toHaveBeenCalledOnce()
+    expect(session.isRecording.value).toBe(false)
+    expect(session.activeRecordingTrigger.value).toBeUndefined()
   })
 
   it('lets volume fallback finalize a VAD-owned segment after silence', async () => {
