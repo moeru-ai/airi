@@ -512,8 +512,13 @@ export function useVoiceInputSession(
     }
     else if (isRecording.value) {
       discardNextRecording = true
-      await recorder.stopRecord()
-      activeRecordingSegment.value = undefined
+      try {
+        await recorder.stopRecord()
+      }
+      finally {
+        discardNextRecording = false
+        activeRecordingSegment.value = undefined
+      }
     }
     else {
       activeRecordingSegment.value = undefined

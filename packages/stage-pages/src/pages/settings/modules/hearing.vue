@@ -410,8 +410,8 @@ async function startSTTTest() {
       // Wait a bit for recording to start, then stop it after a delay
       sttTestStopTimer = setTimeout(async () => {
         sttTestStopTimer = undefined
-        await sttTestVoiceInputSession.stopSegment('manual')
         testStatusMessage.value = 'Processing transcription...'
+        await sttTestVoiceInputSession.stopSegment('manual')
       }, 3000) // Record for 3 seconds
     }
   }
