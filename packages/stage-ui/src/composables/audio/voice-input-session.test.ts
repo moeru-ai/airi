@@ -125,6 +125,74 @@ describe('useVoiceInputSession', () => {
     expect(session.activeRecordingTrigger.value).toBe('manual')
   })
 
+  it('clears the active segment when the caller start hook rejects', async () => {
+    const { useVoiceInputSession } = await import('./voice-input-session')
+    const hookError = new Error('start hook failed')
+
+    const session = useVoiceInputSession(shallowRef(createMediaStream()), {
+      volumeFallback: { enabled: false },
+      onSegmentStart: vi.fn().mockRejectedValueOnce(hookError),
+    })
+
+    await expect(session.startSegment('manual')).resolves.toBe(false)
+
+    expect(audioRecorderMock.startRecord).not.toHaveBeenCalled()
+    expect(session.activeRecordingTrigger.value).toBeUndefined()
+    expect(session.lastError.value).toBe(hookError)
+  })
+
+  it('stops and clears the recorder when the caller started hook rejects', async () => {
+    const { useVoiceInputSession } = await import('./voice-input-session')
+    const hookError = new Error('started hook failed')
+
+    audioRecorderMock.startRecord.mockImplementation(async () => {
+      audioRecorderMock.isRecording.value = true
+    })
+    audioRecorderMock.stopRecord.mockImplementation(async () => {
+      audioRecorderMock.isRecording.value = false
+    })
+
+    const session = useVoiceInputSession(shallowRef(createMediaStream()), {
+      volumeFallback: { enabled: false },
+      onSegmentStarted: vi.fn().mockRejectedValueOnce(hookError),
+    })
+
+    await expect(session.startSegment('manual')).resolves.toBe(false)
+
+    expect(audioRecorderMock.stopRecord).toHaveBeenCalledOnce()
+    expect(session.isRecording.value).toBe(false)
+    expect(session.activeRecordingTrigger.value).toBeUndefined()
+    expect(session.lastError.value).toBe(hookError)
+  })
+
+  it('finalizes the recorder when the caller stop hook rejects', async () => {
+    const { useVoiceInputSession } = await import('./voice-input-session')
+    const hookError = new Error('stop hook failed')
+    const onTranscriptionError = vi.fn()
+
+    audioRecorderMock.startRecord.mockImplementation(async () => {
+      audioRecorderMock.isRecording.value = true
+    })
+    audioRecorderMock.stopRecord.mockImplementation(async () => {
+      audioRecorderMock.isRecording.value = false
+    })
+
+    const session = useVoiceInputSession(shallowRef(createMediaStream()), {
+      volumeFallback: { enabled: false },
+      onSegmentStop: vi.fn().mockRejectedValueOnce(hookError),
+      onTranscriptionError,
+    })
+
+    await expect(session.startSegment('manual')).resolves.toBe(true)
+    await expect(session.stopSegment('manual')).resolves.toBeUndefined()
+
+    expect(audioRecorderMock.stopRecord).toHaveBeenCalledOnce()
+    expect(session.isRecording.value).toBe(false)
+    expect(session.activeRecordingTrigger.value).toBeUndefined()
+    expect(session.lastError.value).toBe(hookError)
+    expect(onTranscriptionError).toHaveBeenCalledWith(expect.objectContaining({ error: hookError }))
+  })
+
   it('lets volume fallback finalize a VAD-owned segment after silence', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(1000)
