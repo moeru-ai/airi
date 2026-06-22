@@ -363,6 +363,10 @@ function clearVoiceInputLogs() {
   voiceInputLogs.value = []
 }
 
+function openVoiceInputLogs() {
+  voiceInputLogsOpen.value = true
+}
+
 async function copyVoiceInputLogs() {
   await navigator.clipboard.writeText(formattedVoiceInputLogs.value)
   toast('Voice input logs copied.')
@@ -984,7 +988,7 @@ const cursorPosition = computed(() => ({
         <HoloCoupon />
         <ControlsIsland
           ref="controlsIslandRef"
-          @open-voice-input-logs="voiceInputLogsOpen = true"
+          @open-voice-input-logs="openVoiceInputLogs"
         />
       </div>
     </div>
