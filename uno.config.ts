@@ -138,6 +138,7 @@ export function sharedUnoConfig() {
         },
       }),
       presetScrollbar({
+        // Electron's packaged Chromium build still needs the legacy scrollbar selectors.
         compatible: true,
       }),
       presetChromatic({
