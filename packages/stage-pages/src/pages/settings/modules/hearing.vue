@@ -416,7 +416,14 @@ async function startSTTTest() {
       testStatusMessage.value = 'Recording audio for transcription... (3 seconds)'
       console.info('Starting STT test with recording-based transcription for provider:', activeTranscriptionProvider.value)
 
-      await sttTestVoiceInputSession.startSegment('manual')
+      const recordingStarted = await sttTestVoiceInputSession.startSegment('manual')
+      if (!recordingStarted) {
+        if (!testTranscriptionError.value)
+          testStatusMessage.value = 'Recording did not start'
+        isTranscribing.value = false
+        isTestingSTT.value = false
+        return
+      }
 
       // Wait a bit for recording to start, then stop it after a delay
       sttTestStopTimer = setTimeout(async () => {
