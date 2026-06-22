@@ -37,5 +37,23 @@ describe('startLoopbackServer', () => {
 
     expect(response.status).toBe(204)
     expect(response.headers.get('Access-Control-Allow-Private-Network')).toBe('true')
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe('https://accounts.airi.build')
+  })
+
+  it('does not allow private-network preflight from untrusted origins', async () => {
+    const server = await startLoopbackServer()
+    servers.push(server)
+
+    const response = await fetch(`http://127.0.0.1:${server.port}/callback`, {
+      method: 'OPTIONS',
+      headers: {
+        'Access-Control-Request-Method': 'GET',
+        'Access-Control-Request-Private-Network': 'true',
+        'Origin': 'https://example.invalid',
+      },
+    })
+
+    expect(response.headers.get('Access-Control-Allow-Private-Network')).toBeNull()
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBeNull()
   })
 })
