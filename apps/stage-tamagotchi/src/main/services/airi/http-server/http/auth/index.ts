@@ -1,4 +1,6 @@
-import { eventHandler, getQuery, H3, handleCors } from 'h3'
+import type { CorsOptions } from 'h3'
+
+import { eventHandler, getQuery, getRequestHeader, H3, handleCors } from 'h3'
 
 import { createH3Server } from '../../server'
 
@@ -6,6 +8,8 @@ export interface LoopbackCallbackResult {
   code: string
   state: string
 }
+
+const AIRI_AUTH_ORIGIN = 'https://accounts.airi.build'
 
 /**
  * Starts a temporary loopback callback server for the Electron OIDC flow.
@@ -39,16 +43,18 @@ export async function startLoopbackServer(): Promise<{
 
   const app = new H3()
   const loopbackServer = createH3Server({ app, host })
-  const corsOptions = {
-    origin: '*',
+  const corsOptions: CorsOptions = {
+    origin: [AIRI_AUTH_ORIGIN],
     methods: '*',
     preflight: {
       statusCode: 204,
     },
-  } as const
+  }
 
-  function appendPrivateNetworkAccessHeaders<T extends { headers: Headers }>(response: T) {
-    response.headers.set('Access-Control-Allow-Private-Network', 'true')
+  function appendPrivateNetworkAccessHeaders<T extends { headers: Headers }>(event: Parameters<typeof handleCors>[0], response: T) {
+    if (getRequestHeader(event, 'origin') === AIRI_AUTH_ORIGIN)
+      response.headers.set('Access-Control-Allow-Private-Network', 'true')
+
     return response
   }
 
@@ -69,16 +75,16 @@ export async function startLoopbackServer(): Promise<{
   app.options('/callback', eventHandler(async (event) => {
     const corsResponse = handleCors(event, corsOptions)
     if (corsResponse !== false) {
-      return appendPrivateNetworkAccessHeaders(corsResponse)
+      return appendPrivateNetworkAccessHeaders(event, corsResponse)
     }
 
-    return appendPrivateNetworkAccessHeaders(new Response(null, { status: 204 }))
+    return new Response(null, { status: 204 })
   }))
 
   app.get('/callback', eventHandler(async (event) => {
     const corsResponse = handleCors(event, corsOptions)
     if (corsResponse !== false) {
-      return appendPrivateNetworkAccessHeaders(corsResponse)
+      return appendPrivateNetworkAccessHeaders(event, corsResponse)
     }
 
     const query = getQuery(event)
