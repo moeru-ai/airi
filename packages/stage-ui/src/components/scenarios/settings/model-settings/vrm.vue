@@ -132,6 +132,7 @@ const envOptions = computed(() => [
       </div>
       <div />
       <template v-for="option in trackingOptions" :key="option.value">
+        <!-- Keep grid placement inline so UnoCSS extraction does not have to discover computed col-start-* classes. -->
         <Button
           class="w-auto"
           :style="{ gridColumnStart: option.columnStart }"
