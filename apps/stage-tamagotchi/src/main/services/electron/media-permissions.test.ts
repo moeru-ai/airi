@@ -36,6 +36,24 @@ describe('media permissions', () => {
     )).toBe(false)
   })
 
+  it('rejects microphone permission requests when future Electron details include video', () => {
+    expect(shouldGrantAudioCapturePermission(
+      localWebContents as unknown as WebContents,
+      'microphone',
+      undefined,
+      { mediaTypes: ['audio', 'video'] },
+    )).toBe(false)
+  })
+
+  it('rejects audio capture permission requests when future Electron details include video', () => {
+    expect(shouldGrantAudioCapturePermission(
+      localWebContents as unknown as WebContents,
+      'audioCapture',
+      undefined,
+      { mediaTypes: ['video'] },
+    )).toBe(false)
+  })
+
   it('does not treat missing media details as audio', () => {
     expect(shouldGrantAudioCapturePermission(
       localWebContents as unknown as WebContents,
