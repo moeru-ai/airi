@@ -30,6 +30,7 @@ function isLocalAppURL(rawURL: string | undefined) {
       || url.hostname === '[::1]'
   }
   catch {
+    console.warn('[Media Permissions] Ignoring invalid requester URL:', rawURL)
     return false
   }
 }
@@ -42,11 +43,11 @@ function isAudioMediaPermission(permission: string, details?: MediaPermissionDet
   if (!MEDIA_PERMISSION_NAMES.has(permission))
     return false
 
-  if (permission !== 'media')
-    return true
-
   if (details?.mediaTypes?.length)
     return details.mediaTypes.includes('audio') && !details.mediaTypes.includes('video')
+
+  if (permission !== 'media')
+    return true
 
   return details?.mediaType === 'audio'
 }
