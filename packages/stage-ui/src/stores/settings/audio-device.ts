@@ -12,13 +12,14 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     deviceConstraints,
     selectedAudioInput: selectedAudioInputNonPersist,
     startStream: startAudioInputStream,
-    stopStream,
+    stopStream: stopAudioInputStream,
     stream,
     askPermission: askAudioInputPermission,
   } = useAudioDevice()
 
   const selectedAudioInputPersist = useLocalStorageManualReset<string>('settings/audio/input', selectedAudioInputNonPersist.value)
   const audioInputEnabled = useLocalStorageManualReset<boolean>('settings/audio/input/enabled', false)
+  let audioInputStartGeneration = 0
 
   function syncSelectedAudioInputFromRuntime() {
     if (selectedAudioInputPersist.value !== selectedAudioInputNonPersist.value)
@@ -36,10 +37,37 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     syncSelectedAudioInputFromRuntime()
   }
 
-  async function startStream() {
+  function createAudioInputStartGeneration() {
+    audioInputStartGeneration += 1
+    return audioInputStartGeneration
+  }
+
+  function invalidateAudioInputStarts() {
+    audioInputStartGeneration += 1
+  }
+
+  async function startStreamForGeneration(generation: number) {
     syncSelectedAudioInputToRuntime()
     await startAudioInputStream()
-    syncSelectedAudioInputFromRuntime()
+
+    if (generation === audioInputStartGeneration)
+      syncSelectedAudioInputFromRuntime()
+  }
+
+  async function startStream() {
+    await startStreamForGeneration(createAudioInputStartGeneration())
+  }
+
+  function stopStream() {
+    invalidateAudioInputStarts()
+    stopAudioInputStream()
+  }
+
+  function handleStartStreamError(generation: number, error: unknown, message: string) {
+    console.error(message, error)
+
+    if (generation === audioInputStartGeneration)
+      audioInputEnabled.value = false
   }
 
   watch(selectedAudioInputPersist, (newValue) => {
@@ -48,9 +76,9 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
 
   watch(audioInputEnabled, (val) => {
     if (val) {
-      startStream().catch((error) => {
-        console.error('Unable to start audio input stream:', error)
-        audioInputEnabled.value = false
+      const generation = createAudioInputStartGeneration()
+      startStreamForGeneration(generation).catch((error) => {
+        handleStartStreamError(generation, error, 'Unable to start audio input stream:')
       })
     }
     else {
@@ -79,9 +107,9 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
       syncSelectedAudioInputToRuntime()
 
     if (audioInputEnabled.value && hasSelectedInput) {
-      startStream().catch((error) => {
-        console.error('Unable to initialize audio input stream:', error)
-        audioInputEnabled.value = false
+      const generation = createAudioInputStartGeneration()
+      startStreamForGeneration(generation).catch((error) => {
+        handleStartStreamError(generation, error, 'Unable to initialize audio input stream:')
       })
     }
     else if (selectedAudioInputPersist.value && audioInputs.value.length > 0 && !hasSelectedInput) {
