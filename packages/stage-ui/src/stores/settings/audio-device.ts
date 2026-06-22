@@ -25,12 +25,19 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
       selectedAudioInputPersist.value = selectedAudioInputNonPersist.value
   }
 
+  function syncSelectedAudioInputToRuntime() {
+    if (selectedAudioInputPersist.value && selectedAudioInputPersist.value !== selectedAudioInputNonPersist.value)
+      selectedAudioInputNonPersist.value = selectedAudioInputPersist.value
+  }
+
   async function askPermission() {
+    syncSelectedAudioInputToRuntime()
     await askAudioInputPermission()
     syncSelectedAudioInputFromRuntime()
   }
 
   async function startStream() {
+    syncSelectedAudioInputToRuntime()
     await startAudioInputStream()
     syncSelectedAudioInputFromRuntime()
   }
@@ -67,6 +74,9 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
   function initialize() {
     const hasSelectedInput = selectedAudioInputPersist.value
       && audioInputs.value.some(device => device.deviceId === selectedAudioInputPersist.value)
+
+    if (hasSelectedInput)
+      syncSelectedAudioInputToRuntime()
 
     if (audioInputEnabled.value && hasSelectedInput) {
       startStream().catch((error) => {
