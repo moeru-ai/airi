@@ -2,9 +2,6 @@
 import type { ModelSettingsRuntimeSnapshot } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 
 import type { ModelSettingsRuntimeChannelEvent } from '../../shared/model-settings-runtime'
-import type { VoiceInputTranscriptionTicket } from '../utils/voice-input-transcription-queue'
-
-import workletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
 import { electron } from '@proj-airi/electron-eventa'
 import {
@@ -22,9 +19,8 @@ import {
   resolveComponentStateToRuntimePhase,
 } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
-import { useAudioRecorder } from '@proj-airi/stage-ui/composables'
+import { useVoiceInputSession } from '@proj-airi/stage-ui/composables'
 import { useCanvasPixelIsTransparentAtPoint } from '@proj-airi/stage-ui/composables/canvas-alpha'
-import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
 import { useSpeakingStore } from '@proj-airi/stage-ui/stores/audio'
 import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
@@ -54,7 +50,6 @@ import {
   shouldSuppressVoiceInput,
 } from '../utils/voice-input-suppression'
 import { createVoiceInputTranscriptBuffer } from '../utils/voice-input-transcript-buffer'
-import { createVoiceInputTranscriptionQueue } from '../utils/voice-input-transcription-queue'
 import { getVoiceInputVadProfile, readVoiceInputVadProfileName } from '../utils/voice-input-vad-profile'
 
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
@@ -130,6 +125,7 @@ const { pause, resume } = watch(isTransparent, (transparent) => {
 }, { immediate: true })
 
 const hearingDialogOpen = computed(() => controlsIslandRef.value?.hearingDialogOpen ?? false)
+const voiceInputLogsOpen = ref(false)
 
 const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() => {
   const hasModel = !!stageModelSelectedUrl.value
@@ -194,7 +190,7 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
   })
 })
 
-watch([isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, hearingDialogOpen, fadeOnHoverEnabled, stagePaused], () => {
+watch([isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, hearingDialogOpen, voiceInputLogsOpen, fadeOnHoverEnabled, stagePaused], () => {
   if (stagePaused.value) {
     isIgnoringMouseEvents.value = false
     shouldFadeOnCursorWithin.value = false
@@ -203,8 +199,8 @@ watch([isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor
     return
   }
 
-  if (hearingDialogOpen.value) {
-    // Hearing dialog/drawer is open; keep window interactive
+  if (hearingDialogOpen.value || voiceInputLogsOpen.value) {
+    // Hearing dialog/drawer or diagnostics panel is open; keep window interactive
     isIgnoringMouseEvents.value = false
     shouldFadeOnCursorWithin.value = false
     setIgnoreMouseEvents([false, { forward: true }])
@@ -263,18 +259,16 @@ const { nowSpeaking } = storeToRefs(useSpeakingStore())
 const hearingStore = useHearingStore()
 const { activeTranscriptionModel, activeTranscriptionProvider } = storeToRefs(hearingStore)
 const hearingPipeline = useHearingSpeechInputPipeline()
-const { transcribeForRecording, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
+const { transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
 const { error: transcriptionError, supportsStreamInput } = storeToRefs(hearingPipeline)
 const chatSyncStore = useChatSyncStore()
 const streamingTranscriptionUnavailable = ref(false)
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value && !streamingTranscriptionUnavailable.value)
-const { startRecord, stopRecord, onStopRecord, isRecording } = useAudioRecorder(stream)
 const voiceInputVadProfile = getVoiceInputVadProfile(readVoiceInputVadProfileName())
 const voiceInputDebugEnabled = IS_DEV || globalThis.localStorage?.getItem('airi:debug') === '1'
 const voiceInputDebugRecorder = createVoiceInputDebugRecorder({
   enabled: voiceInputDebugEnabled,
 })
-const voiceInputTranscriptionQueue = createVoiceInputTranscriptionQueue()
 const uninstallVoiceInputDebugConsole = voiceInputDebugEnabled
   ? installVoiceInputDebugConsole(globalThis, voiceInputDebugRecorder)
   : undefined
@@ -286,23 +280,93 @@ const voiceTranscriptBuffer = createVoiceInputTranscriptBuffer({
   },
 })
 
-const { init: initVAD, dispose: disposeVAD, start: startVAD, loaded: vadLoaded } = useVAD(workletUrl, {
-  threshold: ref(voiceInputVadProfile.vad.threshold),
-  minSilenceDurationMs: ref(voiceInputVadProfile.vad.minSilenceDurationMs),
-  speechPadMs: ref(voiceInputVadProfile.vad.speechPadMs),
-  minSpeechDurationMs: ref(voiceInputVadProfile.vad.minSpeechDurationMs),
-  onSpeechStart: () => {
-    void handleSpeechStart()
-  },
-  onSpeechEnd: () => {
-    void handleSpeechEnd()
-  },
-})
-
 const audioInteractionStarting = ref(false)
 const audioInteractionStopping = ref(false)
 const assistantSpeechSuppressedUntil = shallowRef(0)
 const assistantSpeechResumeTimer = shallowRef<ReturnType<typeof setTimeout>>()
+let voiceInputGeneration = 0
+
+type VoiceInputLogLevel = 'info' | 'warn' | 'error'
+
+interface VoiceInputLogEntry {
+  id: number
+  at: string
+  level: VoiceInputLogLevel
+  event: string
+  message: string
+  details?: Record<string, unknown>
+}
+
+const voiceInputLogs = ref<VoiceInputLogEntry[]>([])
+let nextVoiceInputLogId = 1
+
+function normalizeVoiceInputLogDetails(details?: Record<string, unknown>) {
+  if (!details)
+    return undefined
+
+  return Object.fromEntries(
+    Object.entries(details).map(([key, value]) => {
+      if (value instanceof Blob) {
+        return [key, {
+          size: value.size,
+          type: value.type,
+        }]
+      }
+
+      if (value instanceof MediaStream) {
+        return [key, {
+          id: value.id,
+          active: value.active,
+          audioTracks: value.getAudioTracks().map(track => ({
+            enabled: track.enabled,
+            id: track.id,
+            label: track.label,
+            muted: track.muted,
+            readyState: track.readyState,
+          })),
+        }]
+      }
+
+      if (value instanceof Error) {
+        return [key, {
+          message: value.message,
+          name: value.name,
+        }]
+      }
+
+      return [key, value]
+    }),
+  )
+}
+
+function writeVoiceInputLog(level: VoiceInputLogLevel, event: string, message: string, details?: Record<string, unknown>) {
+  const entry: VoiceInputLogEntry = {
+    id: nextVoiceInputLogId++,
+    at: new Date().toLocaleTimeString(),
+    level,
+    event,
+    message,
+    details: normalizeVoiceInputLogDetails(details),
+  }
+
+  voiceInputLogs.value = [...voiceInputLogs.value.slice(-199), entry]
+}
+
+const formattedVoiceInputLogs = computed(() => {
+  return voiceInputLogs.value.map((entry) => {
+    const details = entry.details ? `\n${JSON.stringify(entry.details, null, 2)}` : ''
+    return `[${entry.at}] ${entry.level.toUpperCase()} ${entry.event}: ${entry.message}${details}`
+  }).join('\n\n')
+})
+
+function clearVoiceInputLogs() {
+  voiceInputLogs.value = []
+}
+
+async function copyVoiceInputLogs() {
+  await navigator.clipboard.writeText(formattedVoiceInputLogs.value)
+  toast('Voice input logs copied.')
+}
 
 // Caption overlay broadcast channel
 type CaptionChannelEvent
@@ -317,6 +381,7 @@ console.info('[Main Page] Voice input VAD profile resolved', voiceInputVadProfil
  */
 function reportVoiceInputFailure(action: string, error: unknown) {
   const message = formatVoiceInputFailure(action, error)
+  writeVoiceInputLog('error', `failure:${action}`, message, { error })
   console.error(`[Main Page] ${message}`, error)
   toast.error(message)
 }
@@ -334,15 +399,25 @@ function isVoiceInputSuppressed(now = Date.now()) {
 /**
  * Captures whether a queued VAD segment can still leave the app for ASR.
  */
-function inspectVoiceInputProviderRequestGate(ticket: VoiceInputTranscriptionTicket) {
-  const current = ticket.isCurrent()
+function inspectVoiceInputProviderRequestGate(generation: unknown) {
+  const current = generation === voiceInputGeneration
   const audioEnabled = enabled.value
   const suppressed = isVoiceInputSuppressed()
+  let reason: string | undefined
+  if (!current)
+    reason = 'Skipped stale voice input segment'
+  else if (!audioEnabled)
+    reason = 'Skipped voice input segment because audio input is disabled'
+  else if (suppressed)
+    reason = 'Skipped voice input segment while assistant speech is active or cooling down'
 
   return {
+    generation,
+    activeGeneration: voiceInputGeneration,
     current,
     enabled: audioEnabled,
     suppressed,
+    reason,
     skip: !current || !audioEnabled || suppressed,
   }
 }
@@ -378,13 +453,20 @@ function clearAssistantSpeechResumeTimer() {
 function scheduleAssistantSpeechResume() {
   clearAssistantSpeechResumeTimer()
 
-  if (!enabled.value)
+  if (!enabled.value) {
+    writeVoiceInputLog('info', 'assistant-resume-skip', 'Voice input is disabled after assistant speech.')
     return
+  }
 
+  writeVoiceInputLog('info', 'assistant-resume-scheduled', 'Voice input will resume after assistant speech cooldown.', {
+    cooldownMs: DEFAULT_ASSISTANT_SPEECH_INPUT_COOLDOWN_MS,
+  })
   assistantSpeechResumeTimer.value = setTimeout(() => {
     assistantSpeechResumeTimer.value = undefined
-    if (!enabled.value || isVoiceInputSuppressed())
+    if (!enabled.value || isVoiceInputSuppressed()) {
+      writeVoiceInputLog('info', 'assistant-resume-skipped-after-cooldown', 'Voice input is still disabled or suppressed.')
       return
+    }
 
     void startAudioInteraction()
   }, DEFAULT_ASSISTANT_SPEECH_INPUT_COOLDOWN_MS)
@@ -394,36 +476,50 @@ function scheduleAssistantSpeechResume() {
  * Ensures the microphone stream has a live audio track before binding recorder or VAD.
  */
 async function ensureLiveAudioInputStream() {
-  if (!enabled.value)
+  if (!enabled.value) {
+    writeVoiceInputLog('info', 'stream-skip', 'Audio input is disabled.')
     return false
+  }
 
-  if (hasLiveAudioInputTrack(stream.value))
+  if (hasLiveAudioInputTrack(stream.value)) {
+    writeVoiceInputLog('info', 'stream-ready', 'Existing microphone stream has a live audio track.', { stream: stream.value })
     return true
+  }
 
+  writeVoiceInputLog('warn', 'stream-refresh', 'Microphone stream is missing or ended; refreshing.')
   console.warn('[Main Page] Microphone stream is missing or ended; refreshing audio input stream')
   stopStream()
 
-  if (!enabled.value)
+  if (!enabled.value) {
+    writeVoiceInputLog('info', 'stream-refresh-aborted', 'Audio input was disabled before permission refresh.')
     return false
+  }
 
+  writeVoiceInputLog('info', 'permission-request', 'Requesting microphone permission.')
   await askPermission()
 
   if (!enabled.value) {
+    writeVoiceInputLog('info', 'stream-refresh-aborted', 'Audio input was disabled during permission refresh.')
     console.info('[Main Page] Skipping audio input stream restart because voice input was disabled during permission refresh')
     return false
   }
 
+  writeVoiceInputLog('info', 'stream-start', 'Starting microphone stream.')
   await startStream()
 
   if (!enabled.value) {
+    writeVoiceInputLog('info', 'stream-start-aborted', 'Audio input was disabled during stream restart.')
     console.info('[Main Page] Stopping refreshed audio input stream because voice input was disabled during stream restart')
     stopStream()
     return false
   }
 
-  if (hasLiveAudioInputTrack(stream.value))
+  if (hasLiveAudioInputTrack(stream.value)) {
+    writeVoiceInputLog('info', 'stream-ready', 'Refreshed microphone stream has a live audio track.', { stream: stream.value })
     return true
+  }
 
+  writeVoiceInputLog('warn', 'stream-missing-track', 'Audio input stream refresh did not produce a live audio track.', { stream: stream.value })
   console.warn('[Main Page] Audio input stream refresh did not produce a live audio track')
   return false
 }
@@ -442,8 +538,10 @@ function postSpeakerCaption(text: string) {
  */
 async function sendVoiceInputTextToChat(text: string) {
   try {
+    writeVoiceInputLog('info', 'chat-send-start', 'Sending transcribed voice input to chat.', { text })
     console.info('[Main Page] Sending voice input to chat:', text)
     await chatSyncStore.requestIngest({ text })
+    writeVoiceInputLog('info', 'chat-send-success', 'Transcribed voice input was sent to chat.', { text })
   }
   catch (err) {
     reportVoiceInputFailure('send to chat', err)
@@ -452,6 +550,7 @@ async function sendVoiceInputTextToChat(text: string) {
 
 function handleStreamingSentenceEnd(delta: string) {
   if (isVoiceInputSuppressed()) {
+    writeVoiceInputLog('info', 'streaming-delta-ignored', 'Ignored streaming transcription delta while voice input is suppressed.', { delta })
     console.info('[Main Page] Ignoring transcription delta while assistant speech is active or cooling down')
     return
   }
@@ -459,199 +558,169 @@ function handleStreamingSentenceEnd(delta: string) {
   console.info('[Main Page] Received transcription delta:', delta)
   const finalText = delta
   if (!finalText || !finalText.trim()) {
+    writeVoiceInputLog('warn', 'streaming-empty-delta', 'Streaming transcription emitted an empty delta.')
     return
   }
 
+  writeVoiceInputLog('info', 'streaming-delta', 'Streaming transcription emitted text.', { text: finalText })
   postSpeakerCaption(finalText)
   void sendVoiceInputTextToChat(finalText)
 }
 
 function handleStreamingSpeechEnd(text: string) {
   if (isVoiceInputSuppressed()) {
+    writeVoiceInputLog('info', 'streaming-speech-end-ignored', 'Ignored streaming speech end while voice input is suppressed.', { text })
     console.info('[Main Page] Ignoring speech end while assistant speech is active or cooling down')
     return
   }
 
+  writeVoiceInputLog(text.trim() ? 'info' : 'warn', 'streaming-speech-end', text.trim() ? 'Streaming transcription ended with text.' : 'Streaming transcription ended with empty text.', { text })
   console.info('[Main Page] Speech ended, final text:', text)
   postSpeakerCaption(text)
 }
 
-async function handleSpeechStart() {
-  if (isVoiceInputSuppressed()) {
-    console.info('[Main Page] Ignoring speech start while assistant speech is active or cooling down')
-    return
-  }
-
-  if (shouldUseStreamInput.value) {
-    console.info('Speech detected - transcription session should already be active')
-    return
-  }
-
-  console.info('[Main Page] Speech detected, starting recorder-backed transcription segment')
-  try {
-    await startRecord()
-  }
-  catch (error) {
-    reportVoiceInputFailure('start recording speech', error)
-  }
+function getVoiceInputDebugEntryId(metadata?: Record<string, unknown>) {
+  return typeof metadata?.debugEntryId === 'string' ? metadata.debugEntryId : undefined
 }
 
-async function handleSpeechEnd() {
-  if (isVoiceInputSuppressed()) {
-    console.info('[Main Page] Ignoring speech end while assistant speech is active or cooling down')
-    return
-  }
-
-  if (shouldUseStreamInput.value) {
-    // Keep streaming session alive; idle timer in pipeline will handle teardown.
-    return
-  }
-
-  if (!isRecording.value) {
-    console.info('[Main Page] Speech ended without an active recorder segment')
-    return
-  }
-
-  console.info('[Main Page] Speech ended, finalizing recorder-backed transcription segment')
-  try {
-    await stopRecord()
-  }
-  catch (error) {
-    reportVoiceInputFailure('finalize speech recording', error)
-  }
+function getVoiceInputGeneration(metadata?: Record<string, unknown>) {
+  return typeof metadata?.generation === 'number' ? metadata.generation : undefined
 }
 
-/**
- * Sends a recorder-backed speech segment to the record-then-transcribe provider.
- */
-async function handleRecordedSpeech(recording: Blob | undefined, ticket: VoiceInputTranscriptionTicket) {
-  if (shouldUseStreamInput.value)
-    return
+const voiceInputSession = useVoiceInputSession(stream, {
+  shouldUseStreamInput,
+  vad: {
+    threshold: ref(voiceInputVadProfile.vad.threshold),
+    minSilenceDurationMs: ref(voiceInputVadProfile.vad.minSilenceDurationMs),
+    speechPadMs: ref(voiceInputVadProfile.vad.speechPadMs),
+    minSpeechDurationMs: ref(voiceInputVadProfile.vad.minSpeechDurationMs),
+  },
+  canStartSegment: ({ trigger }) => {
+    if (!enabled.value || isVoiceInputSuppressed()) {
+      writeVoiceInputLog('info', 'speech-start-ignored', 'Ignored speech start while voice input is disabled or suppressed.', {
+        trigger,
+        enabled: enabled.value,
+        suppressed: isVoiceInputSuppressed(),
+      })
+      return false
+    }
 
-  if (isVoiceInputSuppressed()) {
-    console.info('[Main Page] Dropping recorded speech segment while assistant speech is active or cooling down')
-    return
-  }
-
-  if (!recording || recording.size <= 0) {
-    console.warn('[Main Page] Dropping empty recorder-backed speech segment')
-    return
-  }
-
-  const debugEntry = voiceInputDebugRecorder.recordAttempt({ blob: recording })
-  console.info('[Main Page] Recorder-backed speech segment ready', {
-    recordingSize: recording.size,
-    recordingType: recording.type,
-    debugAudioUrl: debugEntry?.audioUrl,
-  })
-
-  if (debugEntry) {
-    console.info('[Main Page] Voice input debug clip recorded', {
-      id: debugEntry.id,
-      audioUrl: debugEntry.audioUrl,
-      recordingSize: recording.size,
-      recordingType: recording.type,
+    return true
+  },
+  inspectBeforeTranscription: ({ metadata }) => inspectVoiceInputProviderRequestGate(getVoiceInputGeneration(metadata)),
+  inspectAfterTranscription: ({ metadata }) => inspectVoiceInputProviderRequestGate(getVoiceInputGeneration(metadata)),
+  onLog: writeVoiceInputLog,
+  onSegmentStart: ({ trigger }) => {
+    writeVoiceInputLog('info', 'recording-start', 'Speech detected; starting recorder-backed transcription segment.', { trigger })
+  },
+  onSegmentStarted: ({ trigger }) => {
+    writeVoiceInputLog('info', 'recording-started', 'Recorder-backed speech segment started.', { trigger })
+  },
+  onSegmentStop: ({ trigger }) => {
+    writeVoiceInputLog('info', 'recording-stop', 'Speech ended; finalizing recorder-backed transcription segment.', { trigger })
+  },
+  onSegmentStopped: ({ trigger }) => {
+    writeVoiceInputLog('info', 'recording-stopped', 'Recorder-backed speech segment finalized.', { trigger })
+  },
+  onRecordingReady: ({ recording }) => {
+    const debugEntry = recording ? voiceInputDebugRecorder.recordAttempt({ blob: recording }) : undefined
+    writeVoiceInputLog('info', 'recording-ready', 'Recorder-backed speech segment is ready for transcription.', {
+      recording,
+      debugAudioUrl: debugEntry?.audioUrl,
     })
-  }
+    console.info('[Main Page] Recorder-backed speech segment ready', {
+      recordingSize: recording?.size,
+      recordingType: recording?.type,
+      debugAudioUrl: debugEntry?.audioUrl,
+    })
 
-  const requestGate = inspectVoiceInputProviderRequestGate(ticket)
-  if (requestGate.skip) {
-    voiceInputDebugRecorder.markResult(debugEntry?.id, {
+    return {
+      debugEntryId: debugEntry?.id,
+      debugAudioUrl: debugEntry?.audioUrl,
+      generation: voiceInputGeneration,
+    }
+  },
+  onRecordingSkipped: ({ gate, metadata, recording }) => {
+    const debugEntryId = getVoiceInputDebugEntryId(metadata)
+    const message = gate?.reason ?? 'Skipped stale voice input segment before transcription request'
+    voiceInputDebugRecorder.markResult(debugEntryId, {
       status: 'skipped',
-      error: 'Skipped stale voice input segment before transcription request',
+      error: message,
     })
-    console.info('[Main Page] Dropping stale speech segment before transcription request', {
-      ...requestGate,
-      recordingSize: recording.size,
-      recordingType: recording.type,
+    writeVoiceInputLog('info', 'recording-drop-stale', message, {
+      gate,
+      recording,
     })
-    return
-  }
-
-  let text = ''
-  try {
-    text = await transcribeForRecording(recording) ?? ''
-  }
-  catch (error) {
-    voiceInputDebugRecorder.markResult(debugEntry?.id, {
+  },
+  onTranscriptionStart: ({ recording }) => {
+    writeVoiceInputLog('info', 'asr-recording-start', 'Sending recorder-backed segment to transcription provider.', {
+      recording,
+      provider: activeTranscriptionProvider.value,
+      model: activeTranscriptionModel.value,
+    })
+  },
+  onTranscriptionResult: ({ text, metadata }) => {
+    voiceInputDebugRecorder.markResult(getVoiceInputDebugEntryId(metadata), {
+      status: 'transcribed',
+      text,
+    })
+    writeVoiceInputLog('info', 'asr-transcribed', 'Recorder-backed speech segment transcribed successfully.', { text })
+    postSpeakerCaption(text)
+    toast(`Voice input transcribed: ${text}`)
+    voiceTranscriptBuffer.push(text)
+  },
+  onTranscriptionEmpty: ({ text, recording, metadata }) => {
+    const message = transcriptionError.value
+      ? formatVoiceInputFailure('transcribe speech', transcriptionError.value)
+      : 'Voice input transcribed no text.'
+    writeVoiceInputLog('warn', 'asr-empty-text', message, {
+      text,
+      pipelineError: transcriptionError.value,
+      recording,
+    })
+    voiceInputDebugRecorder.markResult(getVoiceInputDebugEntryId(metadata), {
+      status: 'empty',
+      error: message,
+    })
+    toast(message)
+  },
+  onTranscriptionError: ({ error, metadata }) => {
+    voiceInputDebugRecorder.markResult(getVoiceInputDebugEntryId(metadata), {
       status: 'failed',
       error: formatVoiceInputFailure('transcribe speech', error),
     })
     reportVoiceInputFailure('transcribe speech', error)
-    return
-  }
-
-  const resultGate = inspectVoiceInputProviderRequestGate(ticket)
-  if (resultGate.skip) {
-    voiceInputDebugRecorder.markResult(debugEntry?.id, {
-      status: 'skipped',
-      error: 'Skipped stale transcription result after voice input stopped or assistant speech started',
-    })
-    console.info('[Main Page] Dropping stale transcription result', {
-      ...resultGate,
-      text,
-    })
-    return
-  }
-
-  if (!text || !text.trim()) {
-    const message = transcriptionError.value
-      ? formatVoiceInputFailure('transcribe speech', transcriptionError.value)
-      : 'Voice input transcribed no text.'
-    voiceInputDebugRecorder.markResult(debugEntry?.id, {
-      status: 'empty',
-      error: message,
-    })
-    console.warn('[Main Page]', message, {
-      transcriptionError: transcriptionError.value,
-      recordingSize: recording.size,
-      recordingType: recording.type,
-    })
-    toast(message)
-    return
-  }
-
-  voiceInputDebugRecorder.markResult(debugEntry?.id, {
-    status: 'transcribed',
-    text,
-  })
-  postSpeakerCaption(text)
-  toast(`Voice input transcribed: ${text}`)
-  voiceTranscriptBuffer.push(text)
-}
-
-onStopRecord(async (recording) => {
-  if (audioInteractionStopping.value)
-    return
-
-  await voiceInputTranscriptionQueue.enqueue(ticket => handleRecordedSpeech(recording, ticket))
+  },
 })
+const { isRecording } = voiceInputSession
 
 async function startAudioInteraction() {
   if (isVoiceInputSuppressed()) {
+    writeVoiceInputLog('info', 'audio-start-skipped-suppressed', 'Voice input start skipped while assistant speech is active or cooling down.')
     console.info('[Main Page] Voice input start skipped while assistant speech is active or cooling down')
     return
   }
 
-  if (audioInteractionStarting.value)
+  if (audioInteractionStarting.value) {
+    writeVoiceInputLog('info', 'audio-start-skipped-in-flight', 'Voice input start skipped because startup is already in progress.')
     return
+  }
 
   audioInteractionStarting.value = true
   try {
+    writeVoiceInputLog('info', 'audio-start', 'Starting voice input interaction.', {
+      enabled: enabled.value,
+      hasStream: !!stream.value,
+      supportsStreamInput: supportsStreamInput.value,
+      provider: activeTranscriptionProvider.value,
+      model: activeTranscriptionModel.value,
+    })
     console.info('[Main Page] Starting audio interaction...')
 
-    if (!await ensureLiveAudioInputStream())
+    if (!await ensureLiveAudioInputStream()) {
+      writeVoiceInputLog('warn', 'audio-start-aborted-no-stream', 'Voice input startup stopped because no live microphone stream was available.')
       return
-
-    initVAD().then(() => {
-      if (enabled.value && stream.value && !isVoiceInputSuppressed()) {
-        console.info('[Main Page] VAD initialized successfully, starting with stream input')
-        return startVAD(stream.value)
-      }
-    }).catch((err) => {
-      console.warn('[Main Page] VAD initialization failed (non-critical for Web Speech API):', err)
-      toast.error(formatVoiceInputFailure('initialize speech detection', err))
-    })
+    }
 
     if (shouldUseStreamInput.value) {
       console.info('[Main Page] Starting streaming transcription...', {
@@ -660,12 +729,17 @@ async function startAudioInteraction() {
       })
 
       if (!stream.value) {
+        writeVoiceInputLog('warn', 'streaming-start-skipped-no-stream', 'Streaming transcription was requested but no microphone stream was available.')
         console.warn('[Main Page] Stream not available despite shouldUseStreamInput being true')
         return
       }
 
       const requestGate = inspectVoiceInputStreamingRequestGate()
       if (requestGate.skip) {
+        writeVoiceInputLog('info', 'streaming-start-skipped-gate', 'Skipping streaming transcription before ASR request.', {
+          ...requestGate,
+          hasStream: !!stream.value,
+        })
         console.info('[Main Page] Skipping streaming transcription before ASR request', {
           ...requestGate,
           hasStream: !!stream.value,
@@ -674,6 +748,10 @@ async function startAudioInteraction() {
       }
 
       // Use sentence deltas for live captions and speech end for final text.
+      writeVoiceInputLog('info', 'streaming-start', 'Starting streaming transcription session.', {
+        provider: activeTranscriptionProvider.value,
+        model: activeTranscriptionModel.value,
+      })
       await transcribeForMediaStream(stream.value, {
         onSentenceEnd: handleStreamingSentenceEnd,
         onSpeechEnd: handleStreamingSpeechEnd,
@@ -682,6 +760,10 @@ async function startAudioInteraction() {
       const postSetupGate = inspectVoiceInputStreamingRequestGate()
       if (postSetupGate.skip) {
         await stopStreamingTranscription(true)
+        writeVoiceInputLog('info', 'streaming-stop-after-setup-gate', 'Stopped streaming transcription after setup because voice input is no longer allowed.', {
+          ...postSetupGate,
+          hasStream: !!stream.value,
+        })
         console.info('[Main Page] Stopped streaming transcription after setup because voice input is no longer allowed', {
           ...postSetupGate,
           hasStream: !!stream.value,
@@ -692,17 +774,27 @@ async function startAudioInteraction() {
       if (transcriptionError.value) {
         streamingTranscriptionUnavailable.value = true
         await stopStreamingTranscription(true)
+        writeVoiceInputLog('warn', 'streaming-unavailable-fallback-recorder', 'Streaming transcription failed; falling back to VAD-triggered recorder segments.', {
+          error: transcriptionError.value,
+        })
         console.warn('[Main Page] Streaming transcription failed; falling back to VAD-triggered recorder segments', {
           error: transcriptionError.value,
         })
       }
       else {
+        writeVoiceInputLog('info', 'streaming-started', 'Streaming transcription started successfully.')
         console.info('[Main Page] Streaming transcription started successfully')
       }
     }
 
     if (!shouldUseStreamInput.value) {
+      writeVoiceInputLog('info', 'recording-mode-active', 'Record-then-transcribe provider will use VAD-triggered recorder segments.', {
+        supportsStreamInput: supportsStreamInput.value,
+        hasStream: !!stream.value,
+        streamingTranscriptionUnavailable: streamingTranscriptionUnavailable.value,
+      })
       console.info('[Main Page] Record-then-transcribe providers will use VAD-triggered recorder segments')
+      await voiceInputSession.startAutoSegmentation()
     }
   }
   catch (e) {
@@ -710,6 +802,10 @@ async function startAudioInteraction() {
   }
   finally {
     audioInteractionStarting.value = false
+    writeVoiceInputLog('info', 'audio-start-finished', 'Voice input startup finished.', {
+      enabled: enabled.value,
+      hasStream: !!stream.value,
+    })
   }
 }
 
@@ -725,10 +821,15 @@ async function stopAudioInteraction(options: {
     const clearQueuedTranscription = options.clearQueuedTranscription ?? true
 
     audioInteractionStopping.value = true
+    writeVoiceInputLog('info', 'audio-stop', 'Stopping voice input interaction.', {
+      flushTranscript,
+      clearQueuedTranscription,
+      isRecording: isRecording.value,
+    })
     clearAssistantSpeechResumeTimer()
     audioInteractionStarting.value = false
     if (clearQueuedTranscription)
-      voiceInputTranscriptionQueue.clearPending()
+      voiceInputGeneration += 1
 
     if (flushTranscript)
       await voiceTranscriptBuffer.dispose()
@@ -736,9 +837,9 @@ async function stopAudioInteraction(options: {
       voiceTranscriptBuffer.clear()
 
     const stoppedStreaming = stopStreamingTranscription(true)
-    const stoppedRecording = isRecording.value ? stopRecord() : undefined
-    disposeVAD()
-    await Promise.allSettled([stoppedStreaming, stoppedRecording])
+    const stoppedRecordingSession = voiceInputSession.stop({ flushActiveRecording: false })
+    await Promise.allSettled([stoppedStreaming, stoppedRecordingSession])
+    writeVoiceInputLog('info', 'audio-stopped', 'Voice input interaction stopped.')
   }
   catch (error) {
     reportVoiceInputFailure('stop listening', error)
@@ -749,6 +850,9 @@ async function stopAudioInteraction(options: {
 }
 
 watch(enabled, async (val) => {
+  writeVoiceInputLog('info', 'audio-enabled-changed', `Voice input was ${val ? 'enabled' : 'disabled'}.`, {
+    hasStream: !!stream.value,
+  })
   console.info('[Main Page] Audio enabled changed:', val, 'stream available:', !!stream.value)
   try {
     if (val) {
@@ -761,24 +865,35 @@ watch(enabled, async (val) => {
   }
   catch (error) {
     reportVoiceInputFailure(val ? 'start listening' : 'stop listening', error)
-    if (val)
+    if (val) {
+      writeVoiceInputLog('warn', 'audio-enabled-rollback', 'Rolling voice input toggle back to disabled after startup failure.')
       enabled.value = false
+    }
   }
 }, { immediate: true })
 
 watch([activeTranscriptionProvider, activeTranscriptionModel, supportsStreamInput], () => {
   streamingTranscriptionUnavailable.value = false
+  writeVoiceInputLog('info', 'transcription-provider-changed', 'Transcription provider/model changed; streaming fallback state reset.', {
+    provider: activeTranscriptionProvider.value,
+    model: activeTranscriptionModel.value,
+    supportsStreamInput: supportsStreamInput.value,
+  })
 })
 
 watch(nowSpeaking, async (speaking) => {
   if (speaking) {
     clearAssistantSpeechResumeTimer()
+    writeVoiceInputLog('info', 'assistant-speaking-started', 'Assistant speech started; suspending voice input.')
     console.info('[Main Page] Assistant speech started, suspending voice input')
     await stopAudioInteraction({ flushTranscript: false })
     return
   }
 
   assistantSpeechSuppressedUntil.value = assistantSpeechCooldownDeadline()
+  writeVoiceInputLog('info', 'assistant-speaking-ended', 'Assistant speech ended; scheduling voice input resume.', {
+    cooldownMs: DEFAULT_ASSISTANT_SPEECH_INPUT_COOLDOWN_MS,
+  })
   console.info('[Main Page] Assistant speech ended, scheduling voice input resume', {
     cooldownMs: DEFAULT_ASSISTANT_SPEECH_INPUT_COOLDOWN_MS,
   })
@@ -803,27 +918,24 @@ onUnmounted(() => {
 })
 
 watch(stream, async (currentStream) => {
-  if (!enabled.value || !currentStream || audioInteractionStarting.value || isVoiceInputSuppressed())
+  if (!enabled.value || !currentStream || audioInteractionStarting.value || isVoiceInputSuppressed()) {
+    writeVoiceInputLog('info', 'stream-change-ignored', 'Microphone stream changed but restart was skipped.', {
+      enabled: enabled.value,
+      hasStream: !!currentStream,
+      audioInteractionStarting: audioInteractionStarting.value,
+      suppressed: isVoiceInputSuppressed(),
+    })
     return
+  }
 
   // NOTICE: The controls-island mic toggle and device changes can replace the underlying MediaStream
   // without reloading the page. When that happens, VAD may successfully restart against the new stream,
   // but any existing transcription transport is still bound to the old one. Always allow the page to
   // re-run `startAudioInteraction()` for a newly available stream unless startup is already underway.
+  writeVoiceInputLog('info', 'stream-changed-restart', 'Microphone stream changed; restarting voice input interaction.', { stream: currentStream })
   console.info('[Main Page] Stream changed, restarting audio interaction')
   await stopAudioInteraction()
   await startAudioInteraction()
-})
-
-watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
-  if (enabled.value && loaded && s && !isVoiceInputSuppressed()) {
-    try {
-      await startVAD(s)
-    }
-    catch (e) {
-      console.error('Failed to start VAD with stream:', e)
-    }
-  }
 })
 
 // Assistant caption is broadcast from Stage.vue via the same channel
@@ -872,6 +984,7 @@ const cursorPosition = computed(() => ({
         <HoloCoupon />
         <ControlsIsland
           ref="controlsIslandRef"
+          @open-voice-input-logs="voiceInputLogsOpen = true"
         />
       </div>
     </div>
@@ -921,6 +1034,62 @@ const cursorPosition = computed(() => ({
           DRAG HERE TO MOVE
         </div>
         <div class="wall absolute bottom-0 h-8 drag-region" />
+      </div>
+    </div>
+  </Transition>
+  <Transition
+    enter-active-class="transition-opacity duration-150"
+    enter-from-class="opacity-0"
+    enter-to-class="opacity-100"
+    leave-active-class="transition-opacity duration-150"
+    leave-from-class="opacity-100"
+    leave-to-class="opacity-0"
+  >
+    <div
+      v-if="voiceInputLogsOpen"
+      class="absolute inset-0 z-[1000] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm"
+    >
+      <div class="max-h-[86vh] max-w-4xl w-full flex flex-col overflow-hidden rounded-lg bg-white shadow-2xl dark:bg-neutral-950">
+        <div class="flex items-center gap-3 border-b border-neutral-200 px-4 py-3 dark:border-neutral-800">
+          <div i-solar:document-text-outline class="size-5 text-primary-500" />
+          <div class="min-w-0 flex-1">
+            <div class="truncate text-sm text-neutral-900 font-semibold dark:text-neutral-100">
+              Voice Input Logs
+            </div>
+            <div class="truncate text-xs text-neutral-500 dark:text-neutral-400">
+              {{ voiceInputLogs.length }} entries
+            </div>
+          </div>
+          <button
+            class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-neutral-700 transition-colors hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
+            type="button"
+            @click="copyVoiceInputLogs"
+          >
+            <div i-solar:copy-outline class="size-4" />
+            Copy
+          </button>
+          <button
+            class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-neutral-700 transition-colors hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
+            type="button"
+            @click="clearVoiceInputLogs"
+          >
+            <div i-solar:trash-bin-trash-outline class="size-4" />
+            Clear
+          </button>
+          <button
+            class="inline-flex rounded-md p-1 text-neutral-700 transition-colors hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
+            type="button"
+            @click="voiceInputLogsOpen = false"
+          >
+            <div i-solar:close-circle-outline class="size-5" />
+          </button>
+        </div>
+        <div class="min-h-0 flex-1 overflow-auto bg-neutral-50 p-4 text-xs text-neutral-800 leading-5 font-mono dark:bg-neutral-950 dark:text-neutral-200">
+          <pre v-if="formattedVoiceInputLogs" class="whitespace-pre-wrap break-words">{{ formattedVoiceInputLogs }}</pre>
+          <div v-else class="text-neutral-500">
+            No voice input logs yet.
+          </div>
+        </div>
       </div>
     </div>
   </Transition>
