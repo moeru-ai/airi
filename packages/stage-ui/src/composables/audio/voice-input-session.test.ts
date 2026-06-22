@@ -57,6 +57,8 @@ function createMediaStream() {
 describe('useVoiceInputSession', () => {
   afterEach(() => {
     audioRecorderMock.isRecording.value = false
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
     vi.clearAllMocks()
   })
 
@@ -121,5 +123,77 @@ describe('useVoiceInputSession', () => {
 
     await expect(session.startSegment('manual')).resolves.toBe(true)
     expect(session.activeRecordingTrigger.value).toBe('manual')
+  })
+
+  it('lets volume fallback finalize a VAD-owned segment after silence', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(1000)
+
+    const animationFrames: FrameRequestCallback[] = []
+    const stopRecord = audioRecorderMock.stopRecord.mockImplementation(async () => {
+      audioRecorderMock.isRecording.value = false
+    })
+    audioRecorderMock.startRecord.mockImplementation(async () => {
+      audioRecorderMock.isRecording.value = true
+    })
+
+    class FakeAudioContext {
+      state: AudioContextState = 'running'
+      destination = {}
+
+      createMediaStreamSource() {
+        return {
+          connect: vi.fn(),
+          disconnect: vi.fn(),
+        }
+      }
+
+      createAnalyser() {
+        return {
+          fftSize: 512,
+          smoothingTimeConstant: 0,
+          connect: vi.fn(),
+          disconnect: vi.fn(),
+          getByteTimeDomainData: (data: Uint8Array<ArrayBuffer>) => data.fill(128),
+        }
+      }
+
+      createGain() {
+        return {
+          gain: { value: 1 },
+          connect: vi.fn(),
+          disconnect: vi.fn(),
+        }
+      }
+
+      resume = vi.fn()
+      close = vi.fn()
+    }
+
+    vi.stubGlobal('AudioContext', FakeAudioContext)
+    vi.stubGlobal('requestAnimationFrame', vi.fn((callback: FrameRequestCallback) => {
+      animationFrames.push(callback)
+      return animationFrames.length
+    }))
+    vi.stubGlobal('cancelAnimationFrame', vi.fn())
+
+    const { useVoiceInputSession } = await import('./voice-input-session')
+    const session = useVoiceInputSession(shallowRef(createMediaStream()), {
+      volumeFallback: {
+        enabled: true,
+        stopDelayMs: 10,
+      },
+    })
+
+    await expect(session.startSegment('vad')).resolves.toBe(true)
+    await session.startAutoSegmentation()
+
+    animationFrames.shift()?.(1000)
+    vi.setSystemTime(1011)
+    animationFrames.shift()?.(1011)
+    await Promise.resolve()
+
+    expect(stopRecord).toHaveBeenCalledOnce()
+    expect(session.activeRecordingTrigger.value).toBeUndefined()
   })
 })

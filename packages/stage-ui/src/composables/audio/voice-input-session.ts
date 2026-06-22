@@ -470,17 +470,22 @@ export function useVoiceInputSession(
             volumeFallbackSpeechFrames = 0
           }
         }
-        else if (activeRecordingTrigger.value === 'volume') {
+        else if (activeRecordingTrigger.value === 'volume' || activeRecordingTrigger.value === 'vad') {
           if (level > stopThreshold) {
             volumeFallbackLastSpeechAt = now
           }
+          else if (!volumeFallbackLastSpeechAt) {
+            volumeFallbackLastSpeechAt = now
+          }
           else if (volumeFallbackLastSpeechAt && now - volumeFallbackLastSpeechAt >= stopDelayMs) {
+            const trigger = activeRecordingTrigger.value
             volumeFallbackLastSpeechAt = 0
             log('info', 'volume-fallback-speech-end', 'Volume fallback detected silence; finalizing recorder segment.', {
               level: Number(level.toFixed(1)),
               silenceMs: stopDelayMs,
+              trigger,
             })
-            void stopSegment('volume')
+            void stopSegment(trigger)
           }
         }
 

@@ -1,6 +1,7 @@
 import { createTestingPinia } from '@pinia/testing'
 import { setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 
 const storageMock = vi.hoisted(() => ({
   values: new Map<string, unknown>(),
@@ -97,5 +98,39 @@ describe('store settings-audio-devices', () => {
     expect(startedWith).toEqual(['microphone-1'])
     expect(store.selectedAudioInput).toBe('microphone-1')
     expect(storageMock.values.get('settings/audio/input')).toBe('microphone-1')
+  })
+
+  it('ignores stale microphone startup failures after a newer start succeeds', async () => {
+    const { useSettingsAudioDevice } = await import('./audio-device')
+    const store = useSettingsAudioDevice()
+
+    let rejectFirstStart!: (error: unknown) => void
+    let resolveSecondStart!: () => void
+    audioDeviceMock.startStream
+      .mockImplementationOnce(() => new Promise<void>((_resolve, reject) => {
+        rejectFirstStart = reject
+      }))
+      .mockImplementationOnce(() => new Promise<void>((resolve) => {
+        resolveSecondStart = resolve
+      }))
+
+    store.enabled = true
+    await nextTick()
+
+    store.enabled = false
+    await nextTick()
+
+    store.enabled = true
+    await nextTick()
+
+    resolveSecondStart()
+    await Promise.resolve()
+
+    rejectFirstStart(new Error('old startup failed'))
+    await Promise.resolve()
+    await nextTick()
+
+    expect(store.enabled).toBe(true)
+    expect(audioDeviceMock.stopStream).toHaveBeenCalledTimes(1)
   })
 })
