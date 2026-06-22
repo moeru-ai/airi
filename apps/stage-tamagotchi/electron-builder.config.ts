@@ -132,6 +132,7 @@ export default {
     deleteAppDataOnUninstall: true,
     oneClick: false,
     allowToChangeInstallationDirectory: true,
+    runAfterFinish: true,
   },
   mac: {
     entitlementsInherit: 'build/entitlements.mac.plist',
