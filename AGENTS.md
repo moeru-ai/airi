@@ -48,7 +48,7 @@ AI companion desktop OS — Electron + Vue 3 + TypeScript pnpm monorepo. Your ch
 
 ## Delegation
 
-Spawned agents are stateless — include repo id, target symbol_ids, jcodemunch mandate, and all context in every prompt. See RULES.md §0 for SOP.
+When available, `spawn_agent` is stateless — include repo id, target symbol_ids, jcodemunch mandate, and all context in every prompt. If `spawn_agent` is unavailable, proceed directly with the normal editing tools and keep changes scoped. See RULES.md §0 for SOP.
 
 ## Further Reference
 
