@@ -15,21 +15,17 @@
 
 
 <div align="center">
-<h4>
+<h3>
 
-A container of souls — cyber beings, waifus, and digital humans living 24/7 on your Linux machine.
+AnimAIOS is focused on creating a zero-config agentic AI desktop OS experience centered around your digital companion
 
-AnimAIOS is focused on creating a desktop-native, agentic AI OS centered around your companion: a zero-config experience where you paste a free API key and 🚀
-
-</h4>
+</h3>
 </div>
 
 
 ---
 
-## 🌙 The Vision: AnimAIOS
-
-Our goal is a Linux desktop experience where your AI companion acts as the center of your desktop environment:
+## 🌙 The Vision
 
 - **Always-Present Stage:** Your character lives on your desktop so she is always in control! She can open, close and switch between windows and most importantly read text in those windows through accessibility tools, not just rely on screenshotting everything~
 - **System Integration:** Hooks fully into the system, from basic stuff like notifications and global shortcuts to fully managing your terminal!
@@ -118,7 +114,7 @@ pnpm approve-builds # Select 'electron' and confirm
 ## 🤖 LLM API Providers
 
 - [x] Supported providers: everything [xsai](https://github.com/moeru-ai/xsai) supports
-- [ ] Planned [freerouter](https://github.com/animaios/freerouter) and (optional) [freeproxy](https://github.com/animaios/freeproxy) integration to replace official AIRI provider, together they can provide almost limitless source of free yummy tokens for your cyber waifus~
+- [ ] Planned [AnimaRouter](https://github.com/animaios/animarouter) integration to replace official AIRI provider, a limitless source of free yummy tokens for your cyber waifus~
 
 ---
 
