@@ -73,32 +73,25 @@ function computeInitialCaptionBounds(params: { mainWindow: BrowserWindow, captio
     },
     { breakpoints: resolutionBreakpoints },
   )
-  const height = Math.max(Math.floor(width / 3.2), 120)
+  // Cap width for a compact speech bubble that floats above the pet (not a wide side caption bar).
+  const bubbleWidth = Math.min(width, 460)
+  const height = Math.max(Math.floor(bubbleWidth / 3.2), 120)
 
-  const margin = 16
-  // Prefer to the right of main window, else to the left, else bottom centered
-  let x = mainBounds.x + mainBounds.width + margin
-  let y = mainBounds.y + mainBounds.height - height
+  const margin = 12
+  // Centered horizontally over the pet, floating just above its head (small overlap for the tail).
+  let x = mainBounds.x + Math.floor((mainBounds.width - bubbleWidth) / 2)
+  let y = mainBounds.y - height + 20
 
-  const rightEdge = x + width
   const displayRight = displayWorkArea.x + displayWorkArea.width
-
-  if (rightEdge > displayRight) {
-    // Place to the left
-    x = mainBounds.x - width - margin
-  }
-
-  // If still out of bounds horizontally, fallback to bottom center
-  if (x < displayWorkArea.x || (x + width) > displayRight) {
-    x = displayWorkArea.x + Math.floor((displayWorkArea.width - width) / 2)
-  }
-
-  // Clamp vertically
-  if (y < displayWorkArea.y) {
+  if (x < displayWorkArea.x)
+    x = displayWorkArea.x + margin
+  if (x + bubbleWidth > displayRight)
+    x = displayRight - bubbleWidth - margin
+  // No room above (pet near the top of the screen) → drop just below the top edge instead.
+  if (y < displayWorkArea.y)
     y = displayWorkArea.y + margin
-  }
 
-  const initial = clampBoundsWithinRect({ x, y, width, height }, displayWorkArea)
+  const initial = clampBoundsWithinRect({ x, y, width: bubbleWidth, height }, displayWorkArea)
 
   return { ...initial, ...params.captionOptions }
 }

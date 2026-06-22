@@ -3,6 +3,7 @@ import { electron } from '@proj-airi/electron-eventa'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { HearingConfigDialog } from '@proj-airi/stage-ui/components'
 import { useAudioAnalyzer, useAudioContextFromStream } from '@proj-airi/stage-ui/composables'
+import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useAsyncState } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -12,6 +13,9 @@ const show = defineModel('show', { type: Boolean, default: false })
 
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { enabled, stream } = storeToRefs(settingsAudioDeviceStore)
+// Surface the auto-send toggle in the mic popover. HearingConfig only renders it in VAD mode
+// (hidden in push-to-talk), so this stays consistent with the settings page.
+const { autoSendEnabled } = storeToRefs(useHearingStore())
 
 const getMediaAccessStatus = useElectronEventaInvoke(electron.systemPreferences.getMediaAccessStatus)
 const { state: mediaAccessStatus, execute: refreshMediaAccessStatus } = useAsyncState(() => getMediaAccessStatus(['microphone']), 'not-determined')
@@ -58,7 +62,9 @@ onUnmounted(async () => {
 <template>
   <HearingConfigDialog
     v-model:show="show"
+    v-model:auto-send="autoSendEnabled"
     :granted="mediaAccessStatus !== 'denied' && mediaAccessStatus !== 'restricted'"
+    :show-auto-send="true"
     :volume-level="volumeLevel"
   >
     <slot />

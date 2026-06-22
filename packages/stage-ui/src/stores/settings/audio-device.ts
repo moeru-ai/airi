@@ -25,6 +25,25 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     }
   })
 
+  // Self-heal a stale/empty persisted device selection.
+  //
+  // Browsers and Electron can rotate non-"default" deviceIds across sessions, so a previously saved id
+  // may no longer match any enumerated device — leaving the picker stuck on the "Select microphone"
+  // placeholder and forcing the user to re-pick every launch. Once devices are *really* enumerated
+  // (a label is present, i.e. permission was granted), ensure the selection points at a live device,
+  // preferring the system "default" so a specific choice is only needed when the user wants one.
+  watch(audioInputs, (inputs) => {
+    const usable = inputs.filter(device => device.deviceId)
+    if (usable.length === 0 || !usable.some(device => device.label))
+      return
+
+    const current = selectedAudioInputPersist.value
+    if (current && usable.some(device => device.deviceId === current))
+      return
+
+    selectedAudioInputPersist.value = usable.find(device => device.deviceId === 'default')?.deviceId || usable[0].deviceId
+  }, { immediate: true })
+
   // permissionGranted from vueuse does not track revocation yet.
   // implement it manually.
   try {

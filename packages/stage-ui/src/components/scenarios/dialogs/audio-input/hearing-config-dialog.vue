@@ -15,9 +15,11 @@ const props = defineProps<{
   granted?: boolean
   transcription?: boolean
   toggleTranscription?: () => void
+  showAutoSend?: boolean // opt-in: forward the auto-send toggle into HearingConfig (off by default)
 }>()
 
 const showDialog = defineModel('show', { type: Boolean, default: false, required: false })
+const autoSend = defineModel<boolean>('autoSend')
 
 const { isDesktop } = useBreakpoints()
 const { askPermission } = useAudioDevice()
@@ -49,7 +51,9 @@ onMounted(() => screenSafeArea.update())
           <DialogTitle>Hearing Input</DialogTitle>
         </VisuallyHidden>
         <HearingConfig
+          v-model:auto-send="autoSend"
           :granted="props.granted" :transcription="props.transcription"
+          :show-auto-send="props.showAutoSend"
           @toggle-transcription="() => toggleTranscription?.()"
         />
         <slot name="extra" />
@@ -79,8 +83,10 @@ onMounted(() => screenSafeArea.update())
           ]"
         />
         <HearingConfig
+          v-model:auto-send="autoSend"
           :granted="props.granted"
           :transcription="props.transcription"
+          :show-auto-send="props.showAutoSend"
           @toggle-transcription="() => toggleTranscription?.()"
         />
         <slot name="extra" />

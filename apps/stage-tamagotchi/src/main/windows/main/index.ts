@@ -7,6 +7,7 @@ import type { ServerChannel } from '../../services/airi/channel-server'
 import type { GodotStageManager } from '../../services/airi/godot-stage'
 import type { McpStdioManager } from '../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../services/electron/auto-updater'
+import type { GlobalShortcutService } from '../../services/electron/global-shortcut'
 import type { NoticeWindowManager } from '../notice'
 import type { OnboardingWindowManager } from '../onboarding'
 import type { SettingsWindowManager } from '../settings'
@@ -62,6 +63,7 @@ export async function setupMainWindow(params: {
   i18n: I18n
   onboardingWindowManager: OnboardingWindowManager
   windowAuthManager: WindowAuthManager
+  globalShortcut: GlobalShortcutService
 }) {
   const {
     setup: setupConfig,
@@ -88,6 +90,12 @@ export async function setupMainWindow(params: {
     webPreferences: {
       preload: join(dirname(fileURLToPath(import.meta.url)), '../preload/index.mjs'),
       sandbox: false,
+      // Keep the renderer running at full speed while unfocused. This is the pet/character window that
+      // hosts the always-on microphone VAD (an AudioWorklet) + transcription pipeline. Without this,
+      // Chromium throttles the backgrounded renderer once the user clicks into another app (e.g. the
+      // Minecraft window), starving the audio worklet and timers — so speech detection silently stops
+      // and hearing "dies" until the window regains focus. The desktop-overlay window already sets this.
+      backgroundThrottling: false,
     },
     // Thanks to [@HeartArmy](https://github.com/HeartArmy) for the tip implementation.
     //
@@ -189,6 +197,7 @@ export async function setupMainWindow(params: {
     i18n: params.i18n,
     onboardingWindowManager: params.onboardingWindowManager,
     windowAuthManager: params.windowAuthManager,
+    globalShortcut: params.globalShortcut,
   })
 
   await load(window, baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')))

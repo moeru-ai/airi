@@ -75,6 +75,10 @@ function buildKeycodeMap(): Record<ShortcutKey, number> {
     Comma: 'Comma',
     Period: 'Period',
     Slash: 'Slash',
+    // Lock keys — commonly used as push-to-talk keys (don't conflict with most games)
+    CapsLock: 'CapsLock',
+    NumLock: 'NumLock',
+    ScrollLock: 'ScrollLock',
   }
   for (const [w3c, uioName] of Object.entries(named))
     map[w3c] = (UiohookKey as unknown as Record<string, number>)[uioName as string]
