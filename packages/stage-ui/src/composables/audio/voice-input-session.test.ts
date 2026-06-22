@@ -75,11 +75,27 @@ describe('useVoiceInputSession', () => {
       volumeFallback: { enabled: false },
     })
 
-    await session.startSegment('manual')
+    await expect(session.startSegment('manual')).resolves.toBe(true)
     expect(session.activeRecordingTrigger.value).toBe('manual')
 
     await expect(session.stop({ flushActiveRecording: false })).rejects.toThrow('finalize failed')
 
     expect(session.activeRecordingTrigger.value).toBeUndefined()
+  })
+
+  it('reports a failed recorder start without leaving an active segment', async () => {
+    const { useVoiceInputSession } = await import('./voice-input-session')
+    const startupError = new Error('start failed')
+
+    audioRecorderMock.startRecord.mockRejectedValueOnce(startupError)
+
+    const session = useVoiceInputSession(shallowRef(createMediaStream()), {
+      volumeFallback: { enabled: false },
+    })
+
+    await expect(session.startSegment('manual')).resolves.toBe(false)
+
+    expect(session.activeRecordingTrigger.value).toBeUndefined()
+    expect(session.lastError.value).toBe(startupError)
   })
 })

@@ -184,7 +184,7 @@ export function useVoiceInputSession(
     const event: VoiceInputSessionEvent = { trigger }
     if (shouldUseStreamInput.value) {
       log('info', 'segment-start-skipped-streaming', 'Recorder segment start skipped because streaming transcription is active.', { trigger })
-      return
+      return false
     }
 
     if (isRecording.value || activeRecordingSegment.value) {
@@ -192,7 +192,7 @@ export function useVoiceInputSession(
         trigger,
         activeRecordingTrigger: activeRecordingTrigger.value,
       })
-      return
+      return false
     }
 
     const segment = createVoiceInputRecordingSegment(++nextRecordingSegmentId, trigger)
@@ -201,7 +201,7 @@ export function useVoiceInputSession(
     if (options.canStartSegment && !await options.canStartSegment(event)) {
       log('info', 'segment-start-skipped-gate', 'Recorder segment start skipped by caller gate.', { trigger })
       activeRecordingSegment.value = resolveActiveVoiceInputRecordingSegmentAfterStop(activeRecordingSegment.value, segment)
-      return
+      return false
     }
 
     await options.onSegmentStart?.(event)
@@ -209,12 +209,14 @@ export function useVoiceInputSession(
     try {
       await recorder.startRecord()
       await options.onSegmentStarted?.(event)
+      return true
     }
     catch (error) {
       activeRecordingSegment.value = resolveActiveVoiceInputRecordingSegmentAfterStop(activeRecordingSegment.value, segment)
       lastError.value = error
       log('error', 'segment-start-failed', 'Failed to start recorder-backed voice input segment.', { trigger, error })
       await options.onTranscriptionError?.({ trigger, error })
+      return false
     }
   }
 
