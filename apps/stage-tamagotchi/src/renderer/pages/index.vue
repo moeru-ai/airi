@@ -462,8 +462,18 @@ function scheduleAssistantSpeechResume() {
     return
   }
 
+  const remainingCooldownMs = Math.max(
+    0,
+    assistantSpeechSuppressedUntil.value
+      ? assistantSpeechSuppressedUntil.value - Date.now()
+      : DEFAULT_ASSISTANT_SPEECH_INPUT_COOLDOWN_MS,
+  )
+  const cooldownMs = nowSpeaking.value
+    ? DEFAULT_ASSISTANT_SPEECH_INPUT_COOLDOWN_MS
+    : remainingCooldownMs
+
   writeVoiceInputLog('info', 'assistant-resume-scheduled', 'Voice input will resume after assistant speech cooldown.', {
-    cooldownMs: DEFAULT_ASSISTANT_SPEECH_INPUT_COOLDOWN_MS,
+    cooldownMs,
   })
   assistantSpeechResumeTimer.value = setTimeout(() => {
     assistantSpeechResumeTimer.value = undefined
@@ -473,7 +483,7 @@ function scheduleAssistantSpeechResume() {
     }
 
     void startAudioInteraction()
-  }, DEFAULT_ASSISTANT_SPEECH_INPUT_COOLDOWN_MS)
+  }, cooldownMs)
 }
 
 /**
@@ -702,6 +712,7 @@ async function startAudioInteraction() {
   if (isVoiceInputSuppressed()) {
     writeVoiceInputLog('info', 'audio-start-skipped-suppressed', 'Voice input start skipped while assistant speech is active or cooling down.')
     console.info('[Main Page] Voice input start skipped while assistant speech is active or cooling down')
+    scheduleAssistantSpeechResume()
     return
   }
 
@@ -876,13 +887,26 @@ watch(enabled, async (val) => {
   }
 }, { immediate: true })
 
-watch([activeTranscriptionProvider, activeTranscriptionModel, supportsStreamInput], () => {
+watch([activeTranscriptionProvider, activeTranscriptionModel, supportsStreamInput], async () => {
+  const wasUsingStreamingFallback = streamingTranscriptionUnavailable.value
   streamingTranscriptionUnavailable.value = false
   writeVoiceInputLog('info', 'transcription-provider-changed', 'Transcription provider/model changed; streaming fallback state reset.', {
     provider: activeTranscriptionProvider.value,
     model: activeTranscriptionModel.value,
     supportsStreamInput: supportsStreamInput.value,
+    wasUsingStreamingFallback,
   })
+
+  if (!enabled.value)
+    return
+
+  writeVoiceInputLog('info', 'transcription-provider-restart', 'Restarting voice input after transcription provider/model changed.', {
+    provider: activeTranscriptionProvider.value,
+    model: activeTranscriptionModel.value,
+    supportsStreamInput: supportsStreamInput.value,
+  })
+  await stopAudioInteraction({ flushTranscript: false })
+  await startAudioInteraction()
 })
 
 watch(nowSpeaking, async (speaking) => {
