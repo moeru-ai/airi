@@ -674,7 +674,9 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           // - https://developer.mozilla.org/en-US/docs/Web/API/Web_Locks_API
           await withContextBridgeLock('context-bridge:event:input:text', async () => {
             try {
-              await chatOrchestrator.ingest(messageText, {
+              // A stream/hook failure resolves outcome.error instead of throwing,
+              // so the catch only fires for a pre-append failure. Log both.
+              const outcome = await chatOrchestrator.ingest(messageText, {
                 model: activeModel.value,
                 chatProvider,
                 input: {
@@ -688,6 +690,8 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
                   },
                 },
               }, targetSessionId)
+              if (outcome?.error)
+                console.error('Error ingesting text input via context bridge:', outcome.error.message)
             }
             catch (err) {
               console.error('Error ingesting text input via context bridge:', err)

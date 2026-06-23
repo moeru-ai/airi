@@ -1,5 +1,5 @@
 import type { WebSocketEventInputs } from '@proj-airi/server-sdk'
-import type { ChatHistoryItem, StreamingAssistantMessage } from '@proj-airi/stage-ui/types/chat'
+import type { ChatHistoryItem, SendOutcome, StreamingAssistantMessage } from '@proj-airi/stage-ui/types/chat'
 import type { ChatSessionMeta } from '@proj-airi/stage-ui/types/chat-session'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 
@@ -36,6 +36,12 @@ interface SessionSnapshotPayload {
 
 interface StreamSnapshotPayload {
   sending: boolean
+  /**
+   * Session that owns the in-flight send (null when idle). Mirrored so follower
+   * windows can scope their stop button to the foreground session; without it a
+   * follower's local `sendingSessionId` stays null and the button never shows.
+   */
+  sendingSessionId: string | null
   streamingMessage: StreamingAssistantMessage
 }
 
@@ -45,6 +51,8 @@ interface IngestCommandPayload {
   input?: WebSocketEventInputs
   sessionId?: string
   toolset?: ToolsetId
+  /** Forwarded to the orchestrator; see ChatOrchestratorSendOptions.rescuable. */
+  rescuable?: boolean
 }
 
 interface SpotlightIngestPayload {
@@ -71,7 +79,7 @@ interface RetryCommandPayload {
 }
 
 type ChatResponsePayload
-  = | { ok: true, result?: SpotlightIngestResult }
+  = | { ok: true, result?: SpotlightIngestResult | SendOutcome }
     | { ok: false, error?: string }
 
 type ChatSyncMessage
@@ -84,12 +92,27 @@ type ChatSyncMessage
     | ChatCommandMessage<'retry', RetryCommandPayload>
     | ChatCommandMessage<'cleanup', { sessionId?: string }>
     | ChatCommandMessage<'delete-message', { sessionId?: string, messageId?: string, index?: number }>
+    | ChatCommandMessage<'stop', { sessionId?: string }>
+    | { type: 'ack', requestId: string, authorityId: string }
     | ({ type: 'response', requestId: string, authorityId: string } & ChatResponsePayload)
 
 interface PendingRequest {
   resolve: (result?: unknown) => void
   reject: (error: Error) => void
-  timeout: ReturnType<typeof setTimeout>
+  /**
+   * Pre-ack deadline. The authority acks on receipt (before executing), and the
+   * ack clears this so the request then waits for the real response with no
+   * deadline (a send can stream for minutes). Undefined once acked, so only an
+   * unanswered command (no live authority) ever times out. The exception is a
+   * `deadlineSurvivesAck` request, whose deadline is end-to-end and is left armed.
+   */
+  timeout: ReturnType<typeof setTimeout> | undefined
+  /**
+   * When true the deadline is an end-to-end bound the ack does not clear, so the
+   * request still times out even after the authority owns it (spotlight keeps its
+   * own 5-minute bound this way). When false (default) the deadline is pre-ack only.
+   */
+  deadlineSurvivesAck?: boolean
 }
 
 const CHAT_SYNC_CHANNEL_NAME = 'airi:stage-tamagotchi:chat-sync'
@@ -184,7 +207,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
   const { activeProvider, activeModel } = storeToRefs(consciousnessStore)
   const { activeSessionId, sessionMessages, sessionMetas } = storeToRefs(chatSession)
   const { streamingMessage } = storeToRefs(chatStream)
-  const { sending } = storeToRefs(chatOrchestrator)
+  const { sending, sendingSessionId } = storeToRefs(chatOrchestrator)
 
   const pendingRequests = new Map<string, PendingRequest>()
   const stopSyncWatchers: Array<() => void> = []
@@ -202,6 +225,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
   function buildStreamSnapshot(): StreamSnapshotPayload {
     return {
       sending: sending.value,
+      sendingSessionId: sendingSessionId.value,
       streamingMessage: JSON.parse(JSON.stringify(streamingMessage.value)) as StreamingAssistantMessage,
     }
   }
@@ -258,7 +282,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       watch([activeSessionId, sessionMessages, sessionMetas], () => {
         broadcastSessionSnapshot()
       }, { deep: true, immediate: true }),
-      watch([sending, streamingMessage], () => {
+      watch([sending, sendingSessionId, streamingMessage], () => {
         broadcastStreamSnapshot()
       }, { deep: true, immediate: true }),
     )
@@ -286,6 +310,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
 
   function applyStreamSnapshot(snapshot: StreamSnapshotPayload) {
     chatOrchestrator.sending = snapshot.sending
+    chatOrchestrator.sendingSessionId = snapshot.sendingSessionId
     chatStream.streamingMessage = snapshot.streamingMessage
   }
 
@@ -320,38 +345,54 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     return assistant ? extractMessageText(assistant) : ''
   }
 
-  async function executeIngest(payload: IngestCommandPayload): Promise<void> {
+  async function executeIngest(payload: IngestCommandPayload): Promise<SendOutcome> {
     const providerId = activeProvider.value
     const modelId = activeModel.value
-    if (!providerId || !modelId) {
-      throw new Error('No active chat provider or model configured')
-    }
+    // Pre-orchestrator failures resolve with a structured error instead of
+    // throwing. A resolved outcome rides the BroadcastChannel response back to a
+    // follower window, where the composer's outcome.error branch surfaces it;
+    // a throw would only reach the authority window and reject the relay, so the
+    // two windows would take divergent paths. These all happen before any user
+    // turn is appended, so turnCommitted is false.
+    if (!providerId || !modelId)
+      return { error: { message: 'No active chat provider or model configured', turnCommitted: false } }
 
-    const chatProvider = await providersStore.getProviderInstance<ChatProvider>(providerId)
-    if (!chatProvider) {
-      throw new Error(`Failed to resolve chat provider "${providerId}"`)
+    let chatProvider: ChatProvider | undefined
+    try {
+      chatProvider = await providersStore.getProviderInstance<ChatProvider>(providerId)
     }
+    catch (error) {
+      return { error: { message: errorMessageFrom(error) ?? `Failed to resolve chat provider "${providerId}"`, turnCommitted: false } }
+    }
+    if (!chatProvider)
+      return { error: { message: `Failed to resolve chat provider "${providerId}"`, turnCommitted: false } }
 
-    await chatOrchestrator.ingest(payload.text, {
+    return await chatOrchestrator.ingest(payload.text, {
       model: modelId,
       chatProvider,
       attachments: payload.attachments,
       input: payload.input,
       tools: resolveTools(payload.toolset),
+      rescuable: payload.rescuable,
     }, payload.sessionId)
   }
 
   async function executeSpotlightIngest(payload: SpotlightIngestPayload): Promise<SpotlightIngestResult> {
-    // NOTICE: `chatOrchestrator.ingest()` returns void; remove this snapshot
-    // read once ingest returns `{ sessionId, visibleText }`.
+    // `ingest()` resolves a SendOutcome, not the spotlight result: a stream or
+    // hook failure resolves `outcome.error` rather than throwing, so surface that
+    // real message here instead of letting it fall through to the generic
+    // empty-response error. The visible text is not on the outcome, so it is read
+    // from the assistant turn the send appended.
     const sessionId = activeSessionId.value
     const previousMessageCount = chatSession.getSessionMessages(sessionId).length
 
-    await executeIngest({
+    const outcome = await executeIngest({
       text: payload.text,
       toolset: 'artistry',
       sessionId,
     })
+    if (outcome.error)
+      throw new Error(outcome.error.message)
 
     const visibleText = readNewAssistantVisibleText(sessionId, previousMessageCount)
     if (!visibleText.trim())
@@ -374,14 +415,60 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     if (!text)
       throw new Error('Retry target has no retriable user message')
 
+    // Snapshot the pre-truncation history before the re-send: setSessionMessages
+    // truncates from the source turn down, but the re-send may never run (a Stop
+    // while it is queued behind an active send resolves rolledBack) or may fail.
+    // Without the snapshot the truncated history would persist, silently dropping
+    // the retried user turn and everything after it.
+    const snapshot = currentMessages.slice()
     const nextMessages = currentMessages.slice(0, sourceIndex)
     chatSession.setSessionMessages(sessionId, nextMessages)
 
-    await executeIngest({
+    const outcome = await executeIngest({
       text,
       sessionId,
       toolset: 'widgets',
     })
+
+    // Guard the restore: a concurrent re-send or reset/fork may have changed
+    // history since the truncation. Reference identity on the kept prefix tells
+    // the cases apart: prefix gone means restore is skipped; prefix intact and
+    // unchanged means restore the full snapshot; prefix intact but grown means
+    // append only the missing tail.
+    const restoreTruncation = () => {
+      const current = chatSession.getSessionMessages(sessionId)
+      const prefixIntact = nextMessages.every((message, index) => current[index] === message)
+      if (!prefixIntact)
+        return
+      if (current.length === nextMessages.length) {
+        chatSession.setSessionMessages(sessionId, snapshot)
+        return
+      }
+      const removedTail = snapshot.slice(nextMessages.length)
+      const presentIds = new Set(current.map(message => message.id).filter(Boolean))
+      const missingTail = removedTail.filter(message => !message.id || !presentIds.has(message.id))
+      if (missingTail.length === 0)
+        return
+      chatSession.setSessionMessages(sessionId, [...current, ...missingTail])
+    }
+
+    // Never started (stopped/cancelled before any output): undo the truncation
+    // so the retried turn and the tail survive. A deliberate stop is a silent
+    // success, so no error is surfaced.
+    if (outcome.rolledBack) {
+      restoreTruncation()
+      return
+    }
+
+    // Send-level failure: restore the tail only when the user turn never landed
+    // (mirroring the composer policy). The error row must land in authority
+    // history (as executeIngestDurable does for ingest): a follower-local row
+    // would be wiped by the session snapshot the restore above just triggered.
+    if (outcome.error) {
+      if (!outcome.error.turnCommitted)
+        restoreTruncation()
+      appendSessionErrorMessage(sessionId, outcome.error.message)
+    }
   }
 
   function executeDeleteMessage(payload: { sessionId?: string, messageId?: string, index?: number }) {
@@ -397,8 +484,21 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     chatSession.setSessionMessages(sessionId, nextMessages)
   }
 
-  function appendIngestErrorMessage(payload: IngestCommandPayload, message: string) {
-    const sessionId = payload.sessionId || activeSessionId.value
+  /**
+   * Authority-side ingest that makes a resolved stream/hook failure durable. A
+   * resolved `outcome.error` leaves no record in authority history, so append the
+   * error row here: it broadcasts to every window and survives the next session
+   * snapshot, and the follower's composer suppresses its own local row for the
+   * `outcome` source to avoid a duplicate.
+   */
+  async function executeIngestDurable(payload: IngestCommandPayload): Promise<SendOutcome> {
+    const outcome = await executeIngest(payload)
+    if (outcome.error)
+      appendSessionErrorMessage(payload.sessionId || chatSession.activeSessionId, outcome.error.message)
+    return outcome
+  }
+
+  function appendSessionErrorMessage(sessionId: string, message: string) {
     const nextMessages = [
       ...chatSession.getSessionMessages(sessionId),
       {
@@ -424,6 +524,12 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     if (mode.value !== 'authority')
       return
 
+    // Two-phase response: ack the moment a live authority receives the command,
+    // BEFORE executing it. The requester drops its 30s deadline on the ack, so the
+    // timeout fires only when no authority acks (the window is closed), a genuine
+    // pre-append failure that preserves the throw-means-uncommitted invariant.
+    post({ type: 'ack', requestId: message.requestId, authorityId: instanceId })
+
     const respond = (response: ChatResponsePayload) => {
       post({
         type: 'response',
@@ -434,13 +540,15 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     }
 
     try {
+      // Only `ingest` and `spotlight-ingest` resolve a result the requester acts on.
+      let result: SendOutcome | SpotlightIngestResult | undefined
       switch (message.command) {
         case 'ingest':
-          await executeIngest(message.payload)
+          result = await executeIngestDurable(message.payload)
           break
         case 'spotlight-ingest':
-          respond({ ok: true, result: await executeSpotlightIngest(message.payload) })
-          return
+          result = await executeSpotlightIngest(message.payload)
+          break
         case 'retry':
           await executeRetry(message.payload)
           break
@@ -450,47 +558,55 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
         case 'delete-message':
           executeDeleteMessage(message.payload)
           break
+        case 'stop':
+          chatOrchestrator.stopSending(message.payload.sessionId)
+          break
       }
 
-      respond({ ok: true })
+      respond({ ok: true, result })
     }
     catch (error) {
       const errorMessage = errorMessageFrom(error) ?? 'Unknown chat sync command failure'
 
       logChatSyncError('command failed', error, authorityCommandMeta(message))
 
-      if (message.command === 'ingest') {
-        appendIngestErrorMessage(message.payload, errorMessage)
-      }
-      else if (message.command === 'spotlight-ingest') {
-        appendIngestErrorMessage({
-          text: message.payload.text,
-          toolset: 'artistry',
-          sessionId: activeSessionId.value,
-        }, errorMessage)
-      }
+      if (message.command === 'ingest')
+        appendSessionErrorMessage(message.payload.sessionId || chatSession.activeSessionId, errorMessage)
+      else if (message.command === 'spotlight-ingest')
+        appendSessionErrorMessage(activeSessionId.value, errorMessage)
 
       respond({ ok: false, error: errorMessage })
     }
   }
 
-  function takePendingRequest(requestId: string): PendingRequest | undefined {
-    const pending = pendingRequests.get(requestId)
-    if (!pending)
-      return undefined
+  function handleAck(message: Extract<ChatSyncMessage, { type: 'ack' }>) {
+    const pending = pendingRequests.get(message.requestId)
+    if (!pending || pending.timeout === undefined || pending.deadlineSurvivesAck)
+      return
 
+    // The authority is alive and now owns the command; the only failure mode the
+    // pre-ack deadline guarded (no authority window) cannot happen anymore. Clear
+    // it and wait for the response with no further deadline. A deadlineSurvivesAck
+    // request (spotlight) is exempt above: its deadline is an end-to-end bound.
+    // NOTICE: accepted limitation: if the authority window closes mid-stream the
+    // request stays pending until dispose() rejects it. No post-ack timeout is
+    // used because the legitimate wait (a long stream) is unbounded, so any
+    // deadline here would risk the duplicate-turn bug a timeout-then-restore
+    // reintroduces.
     clearTimeout(pending.timeout)
-    pendingRequests.delete(requestId)
-    return pending
+    pending.timeout = undefined
   }
 
-  function settleResponse(message: Extract<ChatSyncMessage, { type: 'response' }>) {
-    const pending = takePendingRequest(message.requestId)
+  function handleResponse(message: Extract<ChatSyncMessage, { type: 'response' }>) {
+    const pending = pendingRequests.get(message.requestId)
     if (!pending)
       return
 
+    clearTimeout(pending.timeout)
+    pendingRequests.delete(message.requestId)
+
     if (message.ok) {
-      pending.resolve('result' in message ? message.result : undefined)
+      pending.resolve(message.result)
       return
     }
 
@@ -527,8 +643,11 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       case 'command':
         void handleCommand(message)
         return
+      case 'ack':
+        handleAck(message)
+        return
       case 'response':
-        settleResponse(message)
+        handleResponse(message)
     }
   }
 
@@ -580,6 +699,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     message: Extract<ChatSyncMessage, { type: 'command' }>,
     timeoutMs: number = REQUEST_TIMEOUT_MS,
     timeoutError: () => Error = () => new Error('Timed out waiting for chat authority response'),
+    deadlineSurvivesAck = false,
   ): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -593,18 +713,21 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
         resolve: result => resolve(result as T),
         reject,
         timeout,
+        deadlineSurvivesAck,
       })
       post(message)
     })
   }
 
-  async function requestIngest(payload: IngestCommandPayload) {
+  async function requestIngest(payload: IngestCommandPayload): Promise<SendOutcome | undefined> {
     if (mode.value === 'authority') {
-      await executeIngest(payload)
-      return
+      // Same-window send: no command crosses the channel, so append the durable
+      // error row here too (handleCommand only runs for follower-originated
+      // commands). The composer suppresses its own `outcome` row to match.
+      return await executeIngestDurable(payload)
     }
 
-    return await dispatch<void>({
+    return await dispatch<SendOutcome>({
       type: 'command',
       requestId: createRequestId(),
       senderId: instanceId,
@@ -617,13 +740,16 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     if (mode.value === 'authority')
       return executeSpotlightIngest(payload)
 
+    // deadlineSurvivesAck: keep the 5-minute bound end-to-end. Unlike a chat send
+    // (acked then streamed for an unbounded time), a spotlight request must stay
+    // bounded even after the authority acks it.
     return dispatch<SpotlightIngestResult>({
       type: 'command',
       requestId: createRequestId(),
       senderId: instanceId,
       command: 'spotlight-ingest',
       payload,
-    }, SPOTLIGHT_REQUEST_TIMEOUT_MS, () => new Error('Spotlight response timed out'))
+    }, SPOTLIGHT_REQUEST_TIMEOUT_MS, () => new Error('Spotlight response timed out'), true)
   }
 
   async function requestRetry(payload: RetryCommandPayload) {
@@ -671,6 +797,21 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     })
   }
 
+  async function requestStop(sessionId?: string) {
+    if (mode.value === 'authority') {
+      chatOrchestrator.stopSending(sessionId)
+      return
+    }
+
+    return await dispatch<void>({
+      type: 'command',
+      requestId: createRequestId(),
+      senderId: instanceId,
+      command: 'stop',
+      payload: { sessionId },
+    })
+  }
+
   function dispose() {
     stopWatchers()
     clearHeartbeat()
@@ -690,5 +831,6 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     requestRetry,
     requestCleanup,
     requestDeleteMessage,
+    requestStop,
   }
 })

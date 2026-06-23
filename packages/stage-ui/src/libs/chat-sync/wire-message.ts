@@ -1,6 +1,8 @@
 import type { ChatAssistantMessage, ChatHistoryItem } from '@proj-airi/core-agent'
 import type { NewMessagesPayload, WireMessage } from '@proj-airi/server-sdk-shared'
 
+import { isStoppedAssistant } from '@proj-airi/core-agent'
+
 /**
  * Extract a plain-text payload from a local `ChatHistoryItem` for upload.
  *
@@ -52,17 +54,23 @@ export function extractMessageText(message: ChatHistoryItem): string {
  * Decide whether a local message should be mirrored to the cloud.
  *
  * Use when:
- * - Filtering messages right before `sendMessages`. Tool call / tool result
- *   exchanges are intentionally not synced in v1; system prompts also stay
- *   local since they are recomputed from settings on every device.
+ * - Filtering messages right before `sendMessages`.
  *
  * Expects:
  * - The caller has already validated the message has an `id`.
  *
  * Returns:
- * - `true` when the message is one of `user` / `assistant`. `tool` / `system`
- *   / `error` roles are filtered out — error messages are local-only since
- *   they describe a per-device runtime failure, not a server-acknowledged turn.
+ * - `true` for `user` / `assistant` turns that should sync. Excluded (returns
+ *   `false`):
+ *   - Tool call / result exchanges: intentionally not synced in v1.
+ *   - System prompts: recomputed from settings on every device.
+ *   - Error messages: a per-device runtime failure, not a server-acknowledged turn.
+ *   - Stopped assistant turns: the `stopped` flag does not ride the wire format,
+ *     so an upload lands server-side as a completed turn and loses the
+ *     cancellation signal.
+ *   - Provisional user turns: the send is still in flight; a stop before any
+ *     output retracts them locally, so an upload would resurrect retracted text
+ *     on the next catch-up pull.
  */
 export function isCloudSyncableMessage(message: ChatHistoryItem): boolean {
   if (message.role === 'tool')
@@ -70,6 +78,10 @@ export function isCloudSyncableMessage(message: ChatHistoryItem): boolean {
   if (message.role === 'system')
     return false
   if (message.role === 'error')
+    return false
+  if (isStoppedAssistant(message))
+    return false
+  if (message.provisional)
     return false
   return true
 }

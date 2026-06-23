@@ -16,6 +16,8 @@ const getSessionMock = vi.fn<(id: string) => Promise<ChatSessionRecord | null>>(
 const saveSessionMock = vi.fn<(id: string, rec: ChatSessionRecord) => Promise<void>>()
 const deleteSessionRepoMock = vi.fn<(id: string) => Promise<void>>()
 const getOutboxMock = vi.fn<(uid: string) => Promise<any[]>>()
+const enqueueOutboxMock = vi.fn<(uid: string, entry: any) => Promise<void>>()
+const isCloudSyncableMock = vi.fn<(message: any) => boolean>()
 const dropOutboxForSessionMock = vi.fn<(uid: string, id: string) => Promise<void>>()
 const getTombstonesMock = vi.fn<(uid: string) => Promise<string[]>>()
 const removeTombstonesMock = vi.fn<(uid: string, ids: string[]) => Promise<void>>()
@@ -47,7 +49,7 @@ vi.mock('../../database/repos/chat-sessions.repo', () => ({
     saveSession: (id: string, rec: ChatSessionRecord) => saveSessionMock(id, rec),
     deleteSession: (id: string) => deleteSessionRepoMock(id),
     getOutbox: (uid: string) => getOutboxMock(uid),
-    enqueueOutbox: vi.fn().mockResolvedValue(undefined),
+    enqueueOutbox: (uid: string, entry: any) => enqueueOutboxMock(uid, entry),
     dequeueOutbox: vi.fn().mockResolvedValue(undefined),
     updateOutboxEntries: vi.fn().mockResolvedValue(undefined),
     dropOutboxForSession: (uid: string, id: string) => dropOutboxForSessionMock(uid, id),
@@ -90,7 +92,7 @@ vi.mock('../../libs/chat-sync', () => ({
     onStatusChange: () => () => {},
   }),
   extractMessageText: (m: any) => (typeof m?.content === 'string' ? m.content : ''),
-  isCloudSyncableMessage: () => false,
+  isCloudSyncableMessage: (m: any) => isCloudSyncableMock(m),
   mergeCloudMessagesIntoLocal: () => ({ dirty: false, messages: [], maxSeq: 0 }),
 }))
 
@@ -108,6 +110,8 @@ beforeEach(() => {
   saveSessionMock.mockReset().mockResolvedValue(undefined)
   deleteSessionRepoMock.mockReset().mockResolvedValue(undefined)
   getOutboxMock.mockReset().mockResolvedValue([])
+  enqueueOutboxMock.mockReset().mockResolvedValue(undefined)
+  isCloudSyncableMock.mockReset().mockReturnValue(false)
   dropOutboxForSessionMock.mockReset().mockResolvedValue(undefined)
   getTombstonesMock.mockReset().mockResolvedValue([])
   removeTombstonesMock.mockReset().mockResolvedValue(undefined)
@@ -292,5 +296,95 @@ describe('chat-session-store · loadSession vs concurrent deleteSession', () => 
 
     // Without the fix, sess-1 reappears here.
     expect(store.sessionMetas['sess-1']).toBeUndefined()
+  })
+})
+
+describe('chat-session-store · crash-settled provisional turn re-enqueues on hydrate', () => {
+  // ROOT CAUSE:
+  //
+  // A crash/reload mid-stream persists the user turn `provisional`, but the
+  // settle-time `onUserTurnCommitted` cloud enqueue never ran. On hydrate the
+  // provisional marker is stripped, so the row is now settled and syncable, yet
+  // reconcile only sweeps newly-created sessions (the claim branch for an
+  // already-mapped session does no message sweep). The de-provisionalized row
+  // is therefore never enqueued and other devices miss it permanently.
+  //
+  // We fixed this by enqueueing the de-provisionalized rows during loadSession.
+  // https://github.com/moeru-ai/airi/pull/1889
+  it('enqueues a de-provisionalized user turn to the outbox for an already-mapped session', async () => {
+    const meta: ChatSessionMeta = {
+      sessionId: 'sess-1',
+      userId: 'user-1',
+      characterId: 'default',
+      createdAt: 1,
+      updatedAt: 1,
+      cloudChatId: 'cloud-1',
+    }
+    getSessionMock.mockResolvedValue({
+      meta,
+      messages: [{ role: 'user', content: 'a crash-mid-send prompt', id: 'm1', provisional: true } as any],
+    })
+    isCloudSyncableMock.mockReturnValue(true)
+    userIdRef.value = 'user-1'
+
+    const store = useChatSessionStore()
+    // Seed the already-mapped session into sessionMetas without createSession.
+    store.applyRemoteSnapshot({
+      activeSessionId: '',
+      sessionMessages: {},
+      sessionMetas: { 'sess-1': meta },
+      index: null,
+    })
+
+    await store.loadSession('sess-1')
+    await flushMicrotasks()
+
+    expect(enqueueOutboxMock).toHaveBeenCalledWith('user-1', expect.objectContaining({
+      messageId: 'm1',
+      role: 'user',
+      content: 'a crash-mid-send prompt',
+    }))
+  })
+
+  // ROOT CAUSE (follow-up):
+  //
+  // mergeLoadedSessionMessages dedupes by a fingerprint that excludes
+  // `provisional`, so a live in-memory provisional row and the stripped stored
+  // copy collide and the merge keeps the stripped row. The first cut of this
+  // fix then uploaded that still-in-flight row; a Stop before output removed it
+  // locally but the cloud copy could resurrect the cancelled prompt on the next
+  // pull. Fixed by excluding ids still provisional in currentMessages from the
+  // crash-settled set. https://github.com/moeru-ai/airi/pull/1889
+  it('does not enqueue a row that is still live-provisional in memory (in-flight send)', async () => {
+    const meta: ChatSessionMeta = {
+      sessionId: 'sess-1',
+      userId: 'user-1',
+      characterId: 'default',
+      createdAt: 1,
+      updatedAt: 1,
+      cloudChatId: 'cloud-1',
+    }
+    // Disk copy is provisional (persisted by the in-flight append)...
+    getSessionMock.mockResolvedValue({
+      meta,
+      messages: [{ role: 'user', content: 'an in-flight prompt', id: 'm1', provisional: true } as any],
+    })
+    isCloudSyncableMock.mockReturnValue(true)
+    userIdRef.value = 'user-1'
+
+    const store = useChatSessionStore()
+    // ...and the SAME row is still live-provisional in memory (send in flight).
+    store.applyRemoteSnapshot({
+      activeSessionId: '',
+      sessionMessages: { 'sess-1': [{ role: 'user', content: 'an in-flight prompt', id: 'm1', provisional: true } as any] },
+      sessionMetas: { 'sess-1': meta },
+      index: null,
+    })
+
+    await store.loadSession('sess-1')
+    await flushMicrotasks()
+
+    // The live in-flight row must NOT be uploaded; a Stop could still retract it.
+    expect(enqueueOutboxMock).not.toHaveBeenCalled()
   })
 })

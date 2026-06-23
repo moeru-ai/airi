@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
-import type { ChatProvider } from '@xsai-ext/providers/utils'
 
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { ChatHistory, HearingConfigDialog } from '@proj-airi/stage-ui/components'
-import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatSessionsDrawer, ChatStopButton } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
@@ -13,8 +12,6 @@ import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/mainten
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { useL2dViewControl } from '@proj-airi/stage-ui/stores/live2d'
-import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea, useTheme } from '@proj-airi/ui'
 import { useResizeObserver, useScreenSafeArea } from '@vueuse/core'
@@ -27,6 +24,7 @@ import ViewControls from '../Layouts/InteractiveArea/Actions/ViewControls.vue'
 import IndicatorMicVolume from '../Widgets/IndicatorMicVolume.vue'
 import ActionAbout from './InteractiveArea/Actions/About.vue'
 
+import { useComposerSend } from '../../composables/composerSend'
 import { useTranscriptions } from '../../composables/use-transcriptions'
 import { useStopSpeakingButton } from '../../composables/useStopSpeakingButton'
 import { BackgroundDialogPicker } from '../Backgrounds'
@@ -66,8 +64,6 @@ const backgroundDialogOpen = ref(false)
 const sessionsDrawerOpen = ref(false)
 
 const screenSafeArea = useScreenSafeArea()
-const providersStore = useProvidersStore()
-const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
 
 useResizeObserver(document.documentElement, () => screenSafeArea.update())
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
@@ -75,7 +71,7 @@ const { viewControlsEnabled: l2dViewCtrlEnabled } = useL2dViewControl()
 const { viewControlsEnabled: threeViewCtrlEnabled } = useThreeViewControl()
 const settingsAudioDevice = useSettingsAudioDevice()
 const { enabled, stream } = storeToRefs(settingsAudioDevice)
-const { ingest, onAfterMessageComposed } = chatOrchestrator
+const { stopSending } = chatOrchestrator
 const { t } = useI18n()
 const { audioContext } = useAudioContext()
 const { startAnalyzer, stopAnalyzer } = useAudioAnalyzer()
@@ -85,6 +81,7 @@ function isMobileDevice() {
   return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 }
 
+const { handleSend } = useComposerSend({ messageInput, isComposing })
 const { isListening, startStreamingTranscription, stopStreamingTranscription } = useTranscriptions(
   {
     messageInputRef: messageInput,
@@ -98,33 +95,6 @@ const toggleTranscription = () => isListening.value ? stopStreamingTranscription
 async function handleSubmit() {
   if (!isMobileDevice()) {
     await handleSend()
-  }
-}
-
-async function handleSend() {
-  if (!messageInput.value.trim() || isComposing.value) {
-    return
-  }
-
-  const textToSend = messageInput.value
-  messageInput.value = ''
-
-  try {
-    const providerConfig = providersStore.getProviderConfig(activeProvider.value)
-
-    await ingest(textToSend, {
-      chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
-      model: activeModel.value,
-      providerConfig,
-    })
-  }
-  catch (error) {
-    messageInput.value = textToSend
-    messages.value.pop()
-    messages.value.push({
-      role: 'error',
-      content: (error as Error).message,
-    })
   }
 }
 
@@ -153,9 +123,6 @@ async function setupAnalyzer() {
 watch([enabled, stream], () => {
   setupAnalyzer()
 }, { immediate: true })
-
-onAfterMessageComposed(async () => {
-})
 
 onUnmounted(() => {
   teardownAnalyzer()
@@ -269,6 +236,13 @@ onMounted(() => {
           @submit="handleSubmit"
           @compositionstart="isComposing = true"
           @compositionend="isComposing = false"
+        />
+        <ChatStopButton
+          :class="[
+            'h-[calc(1lh+4px+4px)] w-[calc(1lh+4px+4px)] aspect-square self-end rounded-full backdrop-blur-md',
+            'hover:bg-red-100/60 dark:hover:bg-red-900/40',
+          ]"
+          @stop="stopSending(chatSession.activeSessionId)"
         />
         <button
           v-if="showStopSpeakingButton"

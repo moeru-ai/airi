@@ -98,6 +98,17 @@ vi.mock('./chat/session-store', () => ({
       sessionMessages[sessionId] ??= []
       sessionMessages[sessionId].push(message)
     },
+    removeSessionMessage: (sessionId: string, messageId: string) => {
+      sessionMessages[sessionId] = (sessionMessages[sessionId] ?? []).filter(message => message.id !== messageId)
+    },
+    commitSessionMessage: (sessionId: string, messageId: string) => {
+      sessionMessages[sessionId] = (sessionMessages[sessionId] ?? []).map((message) => {
+        if (message.id !== messageId || !message.provisional)
+          return message
+        const { provisional: _provisional, ...committed } = message
+        return committed
+      })
+    },
     getSessionMessages: (sessionId: string) => sessionMessages[sessionId] ?? [],
     persistSessionMessages: persistSessionMessagesMock,
     getSessionGeneration: () => currentGeneration,
@@ -325,6 +336,34 @@ describe('chat orchestrator contract', () => {
     expect(store.sending).toBe(false)
   })
 
+  // ROOT CAUSE:
+  //
+  // A follower window mirrors the authority's stream snapshot by writing both
+  // store.sending and store.sendingSessionId. The watch(sending) echo then flips
+  // the idle LOCAL runtime via setSending(true), whose emitStateChange reports
+  // sendingSessionId:null (no local activeSend), and syncRuntimeState overwrote
+  // the mirrored value with null:
+  //
+  //   mirror sending=true, sendingSessionId='session-1'
+  //   -> watch echo -> setSending(true) -> onStateChange{ sendingSessionId:null }
+  //   -> syncRuntimeState clobbers -> stop button (gated on it) stays hidden
+  //
+  // We fixed this by not letting a sending=true/null-session echo overwrite the
+  // mirrored id (a real local send always publishes activeSend before sending).
+  it('keeps a mirrored sendingSessionId when the sending echo flips the idle runtime', async () => {
+    const store = useChatOrchestratorStore()
+
+    expect(store.sending).toBe(false)
+
+    // Mimic a follower applying the authority's stream snapshot.
+    store.sendingSessionId = 'session-1'
+    store.sending = true
+    await nextTick()
+
+    expect(store.sending).toBe(true)
+    expect(store.sendingSessionId).toBe('session-1')
+  })
+
   /**
    * @example
    * store.sending = false while a local runtime send is still streaming.
@@ -412,7 +451,7 @@ describe('chat orchestrator contract', () => {
     })
   })
 
-  it('rejects cancelled queued sends before they start', async () => {
+  it('resolves cancelled queued sends as a no-op before they start', async () => {
     let releaseFirstSend: (() => void) | undefined
     llmStreamMock.mockImplementationOnce(async () => {
       await new Promise<void>((resolve) => {
@@ -439,7 +478,11 @@ describe('chat orchestrator contract', () => {
     store.cancelPendingSends('session-1')
     releaseFirstSend?.()
 
-    await expect(secondSend).rejects.toThrow('Chat session was reset before send could start')
+    // Cancellation is not a failure: the facade promise resolves so the UI
+    // send-failure path never fires. The cancelled send never streams, so
+    // `rolledBack` tells the composer it may restore the text.
+    await expect(secondSend).resolves.toEqual({ rolledBack: true })
+    expect(llmStreamMock).toHaveBeenCalledTimes(1)
     await firstSend
   })
 
@@ -501,11 +544,11 @@ describe('chat orchestrator contract', () => {
     store.cancelPendingSends('session-1')
     releaseFirstSend?.()
 
-    await expect(secondSend).rejects.toThrow('Chat session was reset before send could start')
+    await expect(secondSend).resolves.toEqual({ rolledBack: true })
     await firstSend
   })
 
-  it('rejects stale generation sends before performSend starts', async () => {
+  it('resolves stale generation sends as a no-op before performSend starts', async () => {
     let releaseFirstSend: (() => void) | undefined
     llmStreamMock.mockImplementationOnce(async () => {
       await new Promise<void>((resolve) => {
@@ -533,7 +576,9 @@ describe('chat orchestrator contract', () => {
     releaseFirstSend?.()
 
     await firstSend
-    await expect(secondSend).rejects.toThrow('Chat session was reset before send could start')
+    // A stale queued send is discarded, not failed: it resolves and never
+    // streams, and `rolledBack` says nothing entered history.
+    await expect(secondSend).resolves.toEqual({ rolledBack: true })
     expect(llmStreamMock).toHaveBeenCalledTimes(1)
   })
 

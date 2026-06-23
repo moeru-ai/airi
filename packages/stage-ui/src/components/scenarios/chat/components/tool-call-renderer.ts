@@ -1,6 +1,12 @@
 import type { Component } from 'vue'
 
 /**
+ * Visual state of a tool-call block: running, finished, failed, or cancelled
+ * because the user stopped the turn before it resolved.
+ */
+export type ChatToolCallState = 'executing' | 'done' | 'error' | 'cancelled'
+
+/**
  * Props passed to a tool-call renderer component.
  *
  * Use when:
@@ -17,7 +23,7 @@ import type { Component } from 'vue'
 export interface ChatToolCallRendererProps {
   toolName: string
   args: string
-  state?: 'executing' | 'done' | 'error'
+  state?: ChatToolCallState
   result?: unknown
 }
 
