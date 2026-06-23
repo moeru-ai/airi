@@ -107,6 +107,7 @@ export class LocalToolRuntime implements ToolRuntime {
 
   // ── ToolRuntime interface ────────────────────────────────────────────
 
+  // async: implements interface (Promise<ToolExecutionResult>)
   async execute(toolId: ToolId, input: unknown, context: ToolExecutionContext): Promise<ToolExecutionResult> {
     const startedAt = Date.now()
     const executionId = crypto.randomUUID()

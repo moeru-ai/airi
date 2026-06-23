@@ -159,10 +159,9 @@ interface SummarizeServerEventData {
   [key: string]: unknown
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- websocket event payloads are heterogeneous here.
-function summarizeServerEvent(event: any) {
-  const data = (event.data ?? {}) as SummarizeServerEventData
-  switch (event.type) {
+function summarizeServerEvent(event: unknown) {
+  const data = ((event as { data?: unknown }).data ?? {}) as SummarizeServerEventData
+  switch ((event as { type?: string }).type) {
     case 'module:announce':
       return `name=${data.name} events=${data.possibleEvents?.length ?? 0}`
     case 'spark:notify':

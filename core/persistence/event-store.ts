@@ -48,6 +48,7 @@ export class InMemoryEventStore implements EventStore {
 
   // ── EventStore interface ────────────────────────────────────────────
 
+  // async: implements EventStore interface (Promise<EventId>)
   async append(event: AiriEvent): Promise<EventId> {
     const sequence = this.nextSequence++
     const timestamp = Date.now()
@@ -66,6 +67,7 @@ export class InMemoryEventStore implements EventStore {
     return eventId
   }
 
+  // async: implements EventStore interface (Promise<PersistedEvent[]>)
   async getSince(eventId: EventId, limit?: number): Promise<PersistedEvent[]> {
     const idx = this.events.findIndex((e) => e.eventId === eventId)
     if (idx === -1) {
@@ -78,6 +80,7 @@ export class InMemoryEventStore implements EventStore {
     return limit !== undefined ? after.slice(0, limit) : after
   }
 
+  // async: implements EventStore interface (Promise<PersistedEvent[]>)
   async getBySession(sessionId: string, limit?: number): Promise<PersistedEvent[]> {
     const matching = this.events.filter((e) => {
       const payload = e.payload as { sessionId?: string }
@@ -86,16 +89,19 @@ export class InMemoryEventStore implements EventStore {
     return limit !== undefined ? matching.slice(0, limit) : matching
   }
 
+  // async: implements EventStore interface (Promise<PersistedEvent[]>)
   async getByModule(moduleId: string, limit?: number): Promise<PersistedEvent[]> {
     const matching = this.events.filter((e) => e.source === moduleId)
     return limit !== undefined ? matching.slice(0, limit) : matching
   }
 
+  // async: implements EventStore interface (Promise<PersistedEvent[]>)
   async getByType(eventType: string, limit?: number): Promise<PersistedEvent[]> {
     const matching = this.events.filter((e) => e.type === eventType)
     return limit !== undefined ? matching.slice(0, limit) : matching
   }
 
+  // async: implements EventStore interface (Promise<PersistedEvent[]>)
   async getByExecution(executionId: string, limit?: number): Promise<PersistedEvent[]> {
     const matching = this.events.filter((e) => {
       const payload = e.payload as { executionId?: string }
@@ -104,11 +110,13 @@ export class InMemoryEventStore implements EventStore {
     return limit !== undefined ? matching.slice(0, limit) : matching
   }
 
+  // async: implements EventStore interface (Promise<PersistedEvent | null>)
   async getLastEvent(): Promise<PersistedEvent | null> {
     if (this.events.length === 0) return null
     return this.events[this.events.length - 1] ?? null
   }
 
+  // async: implements EventStore interface (Promise<number>)
   async getEventCount(): Promise<number> {
     return this.events.length
   }
@@ -210,6 +218,7 @@ export class PersistedEventStore implements EventStore {
     return eventId
   }
 
+  // async: implements EventStore interface (Promise<PersistedEvent[]>)
   async getSince(eventId: EventId, limit?: number): Promise<PersistedEvent[]> {
     const all = await this.readAllEvents()
     const idx = all.findIndex((e) => e.eventId === eventId)
@@ -220,6 +229,7 @@ export class PersistedEventStore implements EventStore {
     return limit !== undefined ? after.slice(0, limit) : after
   }
 
+  // async: implements EventStore interface (Promise<PersistedEvent[]>)
   async getBySession(sessionId: string, limit?: number): Promise<PersistedEvent[]> {
     const all = await this.readAllEvents()
     const matching = all.filter((e) => {
@@ -229,18 +239,21 @@ export class PersistedEventStore implements EventStore {
     return limit !== undefined ? matching.slice(0, limit) : matching
   }
 
+  // async: implements EventStore interface (Promise<PersistedEvent[]>)
   async getByModule(moduleId: string, limit?: number): Promise<PersistedEvent[]> {
     const all = await this.readAllEvents()
     const matching = all.filter((e) => e.source === moduleId)
     return limit !== undefined ? matching.slice(0, limit) : matching
   }
 
+  // async: implements EventStore interface (Promise<PersistedEvent[]>)
   async getByType(eventType: string, limit?: number): Promise<PersistedEvent[]> {
     const all = await this.readAllEvents()
     const matching = all.filter((e) => e.type === eventType)
     return limit !== undefined ? matching.slice(0, limit) : matching
   }
 
+  // async: implements EventStore interface (Promise<PersistedEvent[]>)
   async getByExecution(executionId: string, limit?: number): Promise<PersistedEvent[]> {
     const all = await this.readAllEvents()
     const matching = all.filter((e) => {
@@ -250,12 +263,14 @@ export class PersistedEventStore implements EventStore {
     return limit !== undefined ? matching.slice(0, limit) : matching
   }
 
+  // async: implements EventStore interface (Promise<PersistedEvent | null>)
   async getLastEvent(): Promise<PersistedEvent | null> {
     const all = await this.readAllEvents()
     if (all.length === 0) return null
     return all[all.length - 1] ?? null
   }
 
+  // async: implements EventStore interface (Promise<number>)
   async getEventCount(): Promise<number> {
     const all = await this.readAllEvents()
     return all.length

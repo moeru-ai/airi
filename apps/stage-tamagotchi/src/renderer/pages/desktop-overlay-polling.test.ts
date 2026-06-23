@@ -4,6 +4,10 @@ import type { OverlayState } from './desktop-overlay-polling'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+interface RunStateLike {
+  lastGroundingSnapshot?: { snapshotId?: string }
+}
+
 import {
   createEmptyOverlayState,
   createOverlayPollController,
@@ -126,7 +130,7 @@ describe('extractRunStateFromResult', () => {
       },
     })
     expect(result).toBeDefined()
-    expect((result as any).lastGroundingSnapshot.snapshotId).toBe('dg_1')
+    expect((result as RunStateLike | undefined)?.lastGroundingSnapshot?.snapshotId).toBe('dg_1')
   })
 
   it('falls back to structuredContent directly when no runState key', () => {
@@ -136,7 +140,7 @@ describe('extractRunStateFromResult', () => {
       },
     })
     expect(result).toBeDefined()
-    expect((result as any).lastGroundingSnapshot.snapshotId).toBe('dg_2')
+    expect((result as RunStateLike | undefined)?.lastGroundingSnapshot?.snapshotId).toBe('dg_2')
   })
 
   it('returns undefined when structuredContent is missing', () => {

@@ -266,6 +266,7 @@ export class FilesystemTransaction implements PersistenceTransaction {
 		this.operations.length = 0
 	}
 
+	// async: implements PersistenceAdapter interface (Promise<void>)
 	async rollback(): Promise<void> {
 		this.operations.length = 0
 	}

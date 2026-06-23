@@ -99,6 +99,7 @@ export class LocalSocketClientTransport implements IpcClientTransport {
     await this.doConnect()
   }
 
+  // async: implements TransportClient interface (Promise<void>)
   async disconnect(): Promise<void> {
     if (this._state === 'idle' || this._state === 'disconnected') return
 
@@ -116,6 +117,7 @@ export class LocalSocketClientTransport implements IpcClientTransport {
     this.setState('disconnected')
   }
 
+  // async: implements TransportClient interface (Promise<void>)
   async send(message: IpcMessage): Promise<void> {
     if (!this.socket || this._state !== 'connected') {
       throw new Error(`Cannot send: transport is ${this._state}.`)

@@ -101,6 +101,7 @@ export class LocalSocketServerTransport implements IpcServerTransport {
 		})
 	}
 
+	// async: implements TransportServer interface (Promise<void>)
 	async stop(): Promise<void> {
 		if (this._state === "idle" || this._state === "disconnected") return
 
@@ -211,6 +212,7 @@ export class LocalSocketServerTransport implements IpcServerTransport {
 	 * its shutdown handler. We attempt to connect to verify staleness;
 	 * if the connection fails, the file is safe to remove.
 	 */
+	// async: returns Promise for async socket probe
 	async cleanupStaleSocket(): Promise<void> {
 		if (!this.socketPath.startsWith("/")) return // TCP fallback — no file to clean.
 

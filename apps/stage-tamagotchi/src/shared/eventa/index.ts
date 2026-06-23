@@ -95,14 +95,12 @@ export interface RequestWindowPayload {
   id?: string
   route: string
   type?: string
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- window payloads are dynamic per route.
-  payload?: Record<string, any>
+  payload?: Record<string, unknown>
 }
 export interface RequestWindowPending {
   id: string
   type?: string
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- window payloads are dynamic per route.
-  payload?: Record<string, any>
+  payload?: Record<string, unknown>
 }
 
 // Reference window helpers are generic; callers can alias for clarity
@@ -136,8 +134,7 @@ export type WidgetGridSize = 's' | 'm' | 'l' | { cols?: number; rows?: number }
 export interface WidgetsAddPayload {
   id?: string
   componentName: string
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- widget props are dynamic per component.
-  componentProps?: Record<string, any>
+  componentProps?: Record<string, unknown>
   // size presets or explicit spans; renderer decides mapping
   size?: WidgetGridSize
   windowSize?: WidgetWindowSize | Record<string, unknown>
@@ -147,8 +144,7 @@ export interface WidgetsAddPayload {
 
 export interface WidgetsUpdatePayload {
   id: string
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- widget props are dynamic per component.
-  componentProps?: Record<string, any>
+  componentProps?: Record<string, unknown>
   size?: WidgetGridSize
   windowSize?: WidgetWindowSize | Record<string, unknown>
   ttlMs?: number
@@ -157,8 +153,7 @@ export interface WidgetsUpdatePayload {
 export interface WidgetSnapshot {
   id: string
   componentName: string
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- widget props are dynamic per component.
-  componentProps: Record<string, any>
+  componentProps: Record<string, unknown>
   size: WidgetGridSize
   windowSize?: WidgetWindowSize
   ttlMs: number

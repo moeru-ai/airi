@@ -55,7 +55,7 @@ function captureCanvasFrame(canvas?: HTMLCanvasElement) {
   })
 }
 
-async function capturePreviewFrame() {
+function capturePreviewFrame() {
   if (stageModelRenderer.value === 'live2d') return captureCanvasFrame(live2dSceneRef.value?.canvasElement())
 
   if (stageModelRenderer.value === 'vrm') return captureCanvasFrame(vrmSceneRef.value?.canvasElement())

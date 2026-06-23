@@ -203,6 +203,9 @@ export class ExecutionTrace {
 	 * Since records are persisted immediately in the record() method,
 	 * this method is a no-op for now. It exists as a hook for future
 	 * batching optimizations.
+	 *
+	 * async: reserved for future batching — currently a no-op but callers
+	 * await it so the signature must stay Promise<void>.
 	 */
 	async flush(): Promise<void> {
 		// All records are persisted immediately. No-op.

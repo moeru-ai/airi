@@ -65,6 +65,7 @@ export class LocalRuntimeClient implements RuntimeClient {
 		return this._state
 	}
 
+	// async: implements RuntimeClient interface (Promise<void>)
 	async connect(): Promise<void> {
 		if (this._state === "connected") return
 
@@ -76,6 +77,7 @@ export class LocalRuntimeClient implements RuntimeClient {
 		this.notifyStateChange("connected")
 	}
 
+	// async: implements RuntimeClient interface (Promise<void>)
 	async disconnect(): Promise<void> {
 		if (this._state === "disconnected") return
 
@@ -83,6 +85,7 @@ export class LocalRuntimeClient implements RuntimeClient {
 		this.notifyStateChange("disconnected")
 	}
 
+	// async: implements RuntimeClient interface (Promise<void>)
 	async send(channel: string, payload: unknown): Promise<void> {
 		if (this._state !== "connected") {
 			throw new Error(`Cannot send on channel "${channel}": client is ${this._state}.`)

@@ -1,3 +1,5 @@
+import type { WidgetsAddPayload, WidgetsUpdatePayload } from '../../../../shared/eventa'
+
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -40,13 +42,13 @@ describe('widget invoke validation', () => {
         () =>
           validateWidgetsAddPayload({
             componentName: '   ',
-          } as any), // eslint-disable-line @typescript-eslint/no-explicit-any -- intentionally incomplete mock payload
+          } as unknown as WidgetsAddPayload), // intentionally incomplete mock payload
       ).toThrow('componentName is required to spawn a widget.')
 
       expect(() =>
         validateWidgetsAddPayload({
           componentName: 'weather',
-          componentProps: [] as any, // eslint-disable-line @typescript-eslint/no-explicit-any -- intentionally invalid type for test
+          componentProps: [] as unknown as Record<string, unknown>, // intentionally invalid type for test
         }),
       ).toThrow('componentProps must be a plain object.')
 
@@ -62,7 +64,7 @@ describe('widget invoke validation', () => {
           validateWidgetsAddPayload({
             componentName: 'weather',
             windowSize: { width: 0, height: 320 },
-          } as any), // eslint-disable-line @typescript-eslint/no-explicit-any -- intentionally incomplete mock payload
+          } as unknown as WidgetsAddPayload), // intentionally incomplete mock payload
       ).toThrow('windowSize must contain a positive finite width and height.')
     })
   })
@@ -88,13 +90,13 @@ describe('widget invoke validation', () => {
         () =>
           validateWidgetsUpdatePayload({
             id: '   ',
-          } as any), // eslint-disable-line @typescript-eslint/no-explicit-any -- intentionally incomplete mock payload
+          } as unknown as WidgetsUpdatePayload), // intentionally incomplete mock payload
       ).toThrow('id is required to update a widget.')
 
       expect(() =>
         validateWidgetsUpdatePayload({
           id: 'widget-1',
-          componentProps: [] as any, // eslint-disable-line @typescript-eslint/no-explicit-any -- intentionally invalid type for test
+          componentProps: [] as unknown as Record<string, unknown>, // intentionally invalid type for test
         }),
       ).toThrow('componentProps must be a plain object.')
 
@@ -103,7 +105,7 @@ describe('widget invoke validation', () => {
           validateWidgetsUpdatePayload({
             id: 'widget-1',
             windowSize: { width: Number.NaN, height: 400 },
-          } as any), // eslint-disable-line @typescript-eslint/no-explicit-any -- intentionally incomplete mock payload
+          } as unknown as WidgetsUpdatePayload), // intentionally incomplete mock payload
       ).toThrow('windowSize must contain a positive finite width and height.')
     })
   })

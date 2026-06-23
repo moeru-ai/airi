@@ -40,24 +40,29 @@ import type {
 export class InMemorySnapshotStore implements SnapshotStore {
 	private readonly snapshots: RuntimeSnapshot[] = []
 
+	// async: implements SnapshotStore interface (Promise<void>)
 	async save(snapshot: RuntimeSnapshot): Promise<void> {
 		this.snapshots.push(snapshot)
 	}
 
+	// async: implements SnapshotStore interface (Promise<RuntimeSnapshot | null>)
 	async load(version: number): Promise<RuntimeSnapshot | null> {
 		return this.snapshots.find((s) => s.version === version) ?? null
 	}
 
+	// async: implements SnapshotStore interface (Promise<RuntimeSnapshot | null>)
 	async getLatest(): Promise<RuntimeSnapshot | null> {
 		if (this.snapshots.length === 0) return null
 		return this.snapshots[this.snapshots.length - 1] ?? null
 	}
 
+	// async: implements SnapshotStore interface (Promise<RuntimeSnapshot[]>)
 	async list(limit?: number): Promise<RuntimeSnapshot[]> {
 		const sorted = [...this.snapshots].sort((a, b) => b.version - a.version)
 		return limit !== undefined ? sorted.slice(0, limit) : sorted
 	}
 
+	// async: implements SnapshotStore interface (Promise<number>)
 	async prune(keepCount: number): Promise<number> {
 		if (this.snapshots.length <= keepCount) return 0
 
@@ -277,6 +282,7 @@ export class SnapshotManager {
 	 *
 	 * @returns The latest snapshot, or null if none exists.
 	 */
+	// async: returns Promise for async snapshot retrieval
 	async restoreSnapshot(): Promise<RuntimeSnapshot | null> {
 		return this.store.getLatest()
 	}
@@ -284,6 +290,7 @@ export class SnapshotManager {
 	/**
 	 * Get recovery metadata for the latest snapshot.
 	 */
+	// async: returns Promise for async metadata retrieval
 	async getRecoveryMetadata(): Promise<RecoveryMetadata | null> {
 		if (!this.stateStore) return null
 		return this.stateStore.get<RecoveryMetadata>("recovery:metadata")
@@ -331,6 +338,7 @@ export class SnapshotManager {
 	/**
 	 * List available snapshots.
 	 */
+	// async: returns Promise for async snapshot listing
 	async listSnapshots(limit?: number): Promise<RuntimeSnapshot[]> {
 		return this.store.list(limit)
 	}
@@ -338,6 +346,7 @@ export class SnapshotManager {
 	/**
 	 * Prune old snapshots, keeping only the N most recent.
 	 */
+	// async: returns Promise for async snapshot pruning
 	async pruneSnapshots(keepCount: number): Promise<number> {
 		return this.store.prune(keepCount)
 	}

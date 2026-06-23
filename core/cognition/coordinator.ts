@@ -114,6 +114,7 @@ export class CognitionCoordinator {
 	 * 8. Record decision (if decision memory configured)
 	 * 9. Persist if event store configured
 	 */
+  // async: returns Promise for async plan proposal
 	async proposePlan(
 		context: CognitionContext,
 		prompt: string,

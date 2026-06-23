@@ -55,6 +55,7 @@ export class MockCognitionProvider implements CognitionProvider {
 	 * Generate a plan proposal by matching the request prompt against
 	 * registered fixtures, or returning the default proposal.
 	 */
+	// async: implements CognitionProvider interface (Promise<CognitionResponse>)
 	async generatePlanProposal(
 		request: CognitionRequest,
 		cancellationToken?: CancellationToken,
@@ -109,6 +110,7 @@ export class MockCognitionProvider implements CognitionProvider {
 	/**
 	 * Always available.
 	 */
+	// async: implements CognitionProvider interface (Promise<boolean>)
 		async isAvailable(): Promise<boolean> {
 		return true
 	}
