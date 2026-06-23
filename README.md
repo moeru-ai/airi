@@ -4,7 +4,7 @@
 <div align="center">
 <h3>
 
-AnimaCore is focused on creating an agentic AI desktop OS centered around your digital companion
+AnimaCore is an agentic AI desktop OS built around your digital companion
 
 </h3>
 </div>
