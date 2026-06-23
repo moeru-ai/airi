@@ -17,9 +17,7 @@ const props = defineProps<{
   spineSceneClass?: string | string[]
 }>()
 
-const emit = defineEmits<{
-  (e: 'runtimeSnapshotChanged', value: ModelSettingsRuntimeSnapshot): void
-}>()
+const emit = defineEmits<{ runtimeSnapshotChanged: [value: ModelSettingsRuntimeSnapshot] }>()
 
 const settingsStore = useSettings()
 const modelStore = useModelStore()

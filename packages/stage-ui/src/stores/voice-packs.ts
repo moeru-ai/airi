@@ -8,16 +8,14 @@ export const useVoicePacksStore = defineStore('voice-packs', () => {
   const loading = ref(false)
   const error = ref<string | undefined>(undefined)
 
-  async function load() {
+  function load() {
     loading.value = true
     error.value = undefined
     try {
       packs.value = []
-    }
-    catch (err) {
+    } catch (err) {
       error.value = err instanceof Error ? err.message : String(err)
-    }
-    finally {
+    } finally {
       loading.value = false
     }
   }

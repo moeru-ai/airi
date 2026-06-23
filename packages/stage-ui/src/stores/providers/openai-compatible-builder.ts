@@ -32,6 +32,7 @@ function logWarn(...args: unknown[]) {
   if (shouldLog()) console.warn(...args)
 }
 
+// eslint-disable-next-line complexity
 export function buildOpenAICompatibleProvider(
   options: Partial<ProviderMetadata> & {
     id: string

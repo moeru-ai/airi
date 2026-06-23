@@ -79,7 +79,7 @@ export const useBackgroundStore = defineStore('background-entries', () => {
     Object.values(backgroundUrls).forEach((url) => {
       if (url) URL.revokeObjectURL(url)
     })
-    for (const key in backgroundUrls) {
+    for (const key of Object.keys(backgroundUrls)) {
       // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
       delete backgroundUrls[key]
     }

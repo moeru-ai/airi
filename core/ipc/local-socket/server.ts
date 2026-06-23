@@ -12,7 +12,7 @@
  * into individual messages even when they arrive in arbitrary chunks.
  */
 
-import { createServer, type Socket, type Server as NetServer } from "node:net"
+import { Socket, createServer, type Server as NetServer } from "node:net"
 import { existsSync, unlinkSync } from "node:fs"
 import { resolve } from "node:path"
 
@@ -220,15 +220,12 @@ export class LocalSocketServerTransport implements IpcServerTransport {
 		// Try to connect — if it fails, the socket is stale.
 		// Wrap the async socket probe in a Promise so callers can await it,
 		// preventing a race between cleanup and server.listen().
-		return new Promise<void>((resolve) => {
+		return new Promise<void>((resolve, reject) => {
 			const testSocket = new Socket()
 			testSocket.on("connect", () => {
 				// Socket is alive — another daemon is running.
 				testSocket.destroy()
-				resolve()
-				throw new Error(
-					`Socket path "${absolutePath}" is already in use. Is another daemon running?`,
-				)
+				reject(new Error(`Socket path "${absolutePath}" is already in use. Is another daemon running?`))
 			})
 			testSocket.on("error", () => {
 				// Connection failed — socket is stale, remove it.

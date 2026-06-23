@@ -181,6 +181,7 @@ interface InternalRealtimeOptions extends CreateAliyunStreamTranscriptionOptions
   stopAckTimeoutMs?: number
 }
 
+// eslint-disable-next-line complexity
 async function startRealtimeSession(options: InternalRealtimeOptions): Promise<AliyunStreamTranscriptionHandle> {
   const {
     accessKeyId,
@@ -343,6 +344,7 @@ async function startRealtimeSession(options: InternalRealtimeOptions): Promise<A
   return handle
 }
 
+// eslint-disable-next-line complexity
 export function streamAliyunTranscription(options: AliyunStreamTranscriptionOptions): StreamTranscriptionResult {
   const audioStream = resolveAudioStream(options)
   const fetcher = options.fetch ?? globalThis.fetch
@@ -422,6 +424,7 @@ export function streamAliyunTranscription(options: AliyunStreamTranscriptionOpti
   }
 }
 
+// eslint-disable-next-line complexity
 export function createAliyunNLSProvider(
   accessKeyId: string,
   accessKeySecret: string,

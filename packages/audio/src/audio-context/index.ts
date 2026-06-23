@@ -299,7 +299,8 @@ export function subscribeToAudioContext(listener: (state: State) => void): () =>
 }
 
 // Browser cleanup
-if ('window' in globalThis && globalThis.window != null) {
-  globalThis.window.addEventListener('beforeunload', cleanupAudioContext)
-  globalThis.window.addEventListener('pagehide', cleanupAudioContext)
+const _window = typeof globalThis.window !== 'undefined' ? globalThis.window : null
+if (_window != null) {
+  _window.addEventListener('beforeunload', cleanupAudioContext)
+  _window.addEventListener('pagehide', cleanupAudioContext)
 }

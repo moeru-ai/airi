@@ -17,6 +17,26 @@ export interface ComfyUIWorkflowTemplate {
   exposedFields: Record<string, string[]>
 }
 
+type MaybeRefLike<T> = T | Ref<T> | { value: T }
+
+interface ArtistryConfigStoreLike {
+  activeProvider: MaybeRefLike<string | undefined>
+  activeModel: MaybeRefLike<string | undefined>
+  defaultPromptPrefix: MaybeRefLike<string | undefined>
+  providerOptions: MaybeRefLike<Record<string, unknown> | undefined>
+  comfyuiServerUrl: MaybeRefLike<string>
+  comfyuiSavedWorkflows: MaybeRefLike<ComfyUIWorkflowTemplate[]>
+  comfyuiActiveWorkflow: MaybeRefLike<string>
+  replicateApiKey: MaybeRefLike<string>
+  replicateDefaultModel: MaybeRefLike<string>
+  replicateAspectRatio: MaybeRefLike<string>
+  replicateInferenceSteps: MaybeRefLike<number>
+  nanobananaApiKey: MaybeRefLike<string>
+  nanobananaModel: MaybeRefLike<string>
+  nanobananaResolution: MaybeRefLike<string>
+}
+
+// eslint-disable-next-line complexity
 export const useArtistryStore = defineStore('artistry', () => {
   // --- Persistent Global Settings (User Preferences) ---
   const globalProvider = useLocalStorageManualReset<string>('artistry-provider', 'none')
@@ -180,13 +200,13 @@ export const useArtistryStore = defineStore('artistry', () => {
  *
  * @param store - The artistry store instance (from useArtistryStore())
  */
-export function resolveArtistryConfigFromStore(store: ReturnType<typeof useArtistryStore>): ResolvedArtistryConfig {
+export function resolveArtistryConfigFromStore(store: ArtistryConfigStoreLike): ResolvedArtistryConfig {
   /**
    * Unwraps a Pinia store property that may be a Ref or a plain value.
    * In Vue component context, Pinia auto-unwraps Refs (so `val` is T).
    * In headless service/tool context, `val` remains a Ref-like object with a `value` property.
    */
-  const unwrap = <T>(val: T | Ref<T>): T => {
+  const unwrap = <T>(val: MaybeRefLike<T>): T => {
     if (isRef(val)) return val.value
     if (val !== null && typeof val === 'object' && 'value' in val) {
       return (val as { value: T }).value

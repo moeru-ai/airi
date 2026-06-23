@@ -211,6 +211,7 @@ async function executeSetAsBackground(params: { query?: string }) {
   return `No match for "${params.query}".${available.length > 0 ? ` Try: ${available.join(', ')}` : ''}`
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function executeImageJournalAction(params: any) {
   if (params.action === 'create') return await executeCreateImageJournalEntry(params)
   if (params.action === 'apply' || params.action === 'set_as_background') return await executeSetAsBackground(params)

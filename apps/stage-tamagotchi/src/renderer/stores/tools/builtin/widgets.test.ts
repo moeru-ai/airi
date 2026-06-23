@@ -232,7 +232,9 @@ describe('widgets tool helpers', () => {
 
     describe('live AIHubMix repro', () => {
       if (!hasAihubmixApiKey) {
-        it.skip('aIHUBMIX_API_KEY must be set in apps/stage-tamagotchi/.env.local to run this test', () => {})
+        it.skip('aIHUBMIX_API_KEY must be set in apps/stage-tamagotchi/.env.local to run this test', () => {
+          /* skip requires a body */
+        })
         return
       }
 
@@ -288,7 +290,7 @@ describe('widgets tool helpers', () => {
     it('returns empty object for empty or undefined', () => {
       expect(normalizeComponentProps('   ')).toEqual({})
       expect(normalizeComponentProps(undefined)).toEqual({})
-      expect(normalizeComponentProps(null as any)).toEqual({})
+      expect(normalizeComponentProps(null as unknown as undefined)).toEqual({})
     })
 
     it('passes through object inputs', () => {
@@ -355,7 +357,7 @@ describe('widgets tool helpers', () => {
             minWidth: 480,
             minHeight: 320,
           },
-        } as any,
+        },
         { invokers },
       )
 

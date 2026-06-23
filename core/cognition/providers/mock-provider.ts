@@ -17,12 +17,13 @@
 import type { CognitionProvider } from "../provider.js"
 import type {
 	CognitionRequest,
-	CognitionResponse,
-	PlanProposal,
-	ReasoningTrace,
-	ReasoningEntry,
-	ModelInfo,
-} from "../types.js"
+		CognitionResponse,
+		PlanProposal,
+		ReasoningTrace,
+		ReasoningEntry,
+		ModelInfo,
+		ReasoningId,
+	} from "../types.js"
 import type { CancellationToken } from "../../tasks/cancellation.js"
 
 /**
@@ -81,7 +82,7 @@ export class MockCognitionProvider implements CognitionProvider {
 		}
 
 		// Build a deterministic reasoning trace.
-		const trace = MockCognitionProvider.buildReasoningTrace(request.id, proposal)
+			const trace = this.buildReasoningTrace(request.id, proposal)
 
 		const durationMs = Date.now() - startTime
 
@@ -89,7 +90,7 @@ export class MockCognitionProvider implements CognitionProvider {
 			requestId: request.id,
 			proposal,
 			reasoning: trace,
-			modelInfo: MockCognitionProvider.getModelInfo(),
+				modelInfo: this.getModelInfo(),
 			durationMs,
 			completedAt: new Date().toISOString(),
 		}
@@ -98,7 +99,7 @@ export class MockCognitionProvider implements CognitionProvider {
 	/**
 	 * Get model info for this mock provider.
 	 */
-	static getModelInfo(): ModelInfo {
+		getModelInfo(): ModelInfo {
 		return {
 			provider: "mock",
 			model: "mock-v1",
@@ -108,7 +109,7 @@ export class MockCognitionProvider implements CognitionProvider {
 	/**
 	 * Always available.
 	 */
-	static async isAvailable(): Promise<boolean> {
+		async isAvailable(): Promise<boolean> {
 		return true
 	}
 
@@ -117,7 +118,7 @@ export class MockCognitionProvider implements CognitionProvider {
 	/**
 	 * Build a deterministic reasoning trace for a proposal.
 	 */
-	private static buildReasoningTrace(requestId: ReasoningId, proposal: PlanProposal): ReasoningTrace {
+		private buildReasoningTrace(requestId: ReasoningId, proposal: PlanProposal): ReasoningTrace {
 		const now = new Date().toISOString()
 		const entries: ReasoningEntry[] = [
 			{
@@ -143,7 +144,7 @@ export class MockCognitionProvider implements CognitionProvider {
 			proposalId: proposal.id,
 			entries,
 			summary: `Mock reasoning for proposal: ${proposal.name}`,
-			modelInfo: MockCognitionProvider.getModelInfo(),
+				modelInfo: this.getModelInfo(),
 			startedAt: now,
 			completedAt: now,
 		}

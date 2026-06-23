@@ -33,9 +33,7 @@ const props = withDefaults(
   },
 )
 
-const emits = defineEmits<{
-  (e: 'textSplit', grapheme: string): void
-}>()
+const emits = defineEmits<{ textSplit: [grapheme: string] }>()
 
 const targets = ref<PoppinTextTarget[]>([])
 const abortController = shallowRef<AbortController>()

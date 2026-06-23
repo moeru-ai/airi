@@ -28,7 +28,7 @@ export function useDuckDb() {
       let dbInstance
       try {
         dbInstance = drizzle({ connection: { bundles: getImportUrlBundles() } })
-        await dbInstance.execute(`CREATE TABLE IF NOT EXISTS memory_test (vec FLOAT[768]);`)
+        await dbInstance.execute('CREATE TABLE IF NOT EXISTS memory_test (vec FLOAT[768]);')
         db.value = dbInstance
         return db
       } catch (error) {

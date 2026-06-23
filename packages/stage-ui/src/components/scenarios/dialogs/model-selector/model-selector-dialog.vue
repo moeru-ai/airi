@@ -26,9 +26,7 @@ const props = withDefaults(
     selectedModel: undefined,
   },
 )
-const emits = defineEmits<{
-  (e: 'pick', value: DisplayModel | undefined): void
-}>()
+const emits = defineEmits<{ pick: [value: DisplayModel | undefined] }>()
 const showDialog = defineModel('show', { type: Boolean, default: false, required: false })
 const { isDesktop } = useBreakpoints()
 const screenSafeArea = useScreenSafeArea()

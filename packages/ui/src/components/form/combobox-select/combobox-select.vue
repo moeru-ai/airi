@@ -13,7 +13,6 @@ const props = withDefaults(
     placeholder?: string
     disabled?: boolean
     openOnClick?: boolean
-    title?: string
     layout?: 'horizontal' | 'vertical'
     contentMinWidth?: string | number
     contentWidth?: string | number

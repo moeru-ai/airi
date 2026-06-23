@@ -159,6 +159,7 @@ interface SummarizeServerEventData {
   [key: string]: unknown
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- websocket event payloads are heterogeneous here.
 function summarizeServerEvent(event: any) {
   const data = (event.data ?? {}) as SummarizeServerEventData
   switch (event.type) {

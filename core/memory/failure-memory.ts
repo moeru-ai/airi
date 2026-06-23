@@ -62,19 +62,31 @@ function determinePatternType(signature: string): string {
 	if (signature.includes('permission') || signature.includes('eacces')) {
 		return 'permission'
 	}
-	if (signature.includes('enoent') || signature.includes('not found') || signature.includes('no such file')) {
+	const isEnoent = signature.includes('enoent')
+	const isNotFound = signature.includes('not found')
+	const isNoSuchFile = signature.includes('no such file')
+	if (isEnoent || isNotFound || isNoSuchFile) {
 		return 'file_not_found'
 	}
-	if (signature.includes('econnrefused') || signature.includes('econnreset') || signature.includes('network')) {
+	const isConnRefused = signature.includes('econnrefused')
+	const isConnReset = signature.includes('econnreset')
+	const isNetwork = signature.includes('network')
+	if (isConnRefused || isConnReset || isNetwork) {
 		return 'network'
 	}
 	if (signature.includes('memory') || signature.includes('allocation')) {
 		return 'resource_exhaustion'
 	}
-	if (signature.includes('race') || signature.includes('concurrent') || signature.includes('lock')) {
+	const isRace = signature.includes('race')
+	const isConcurrent = signature.includes('concurrent')
+	const isLock = signature.includes('lock')
+	if (isRace || isConcurrent || isLock) {
 		return 'workspace_race_condition'
 	}
-	if (signature.includes('validation') || signature.includes('invalid') || signature.includes('schema')) {
+	const isValidation = signature.includes('validation')
+	const isInvalid = signature.includes('invalid')
+	const isSchema = signature.includes('schema')
+	if (isValidation || isInvalid || isSchema) {
 		return 'validation'
 	}
 	if (signature.includes('workspace') || signature.includes('corrupt')) {

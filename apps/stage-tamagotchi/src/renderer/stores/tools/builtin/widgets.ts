@@ -27,6 +27,7 @@ type WidgetActionInput =
       action: 'spawn'
       id: string
       componentName: string
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- widget props are dynamic per component.
       componentProps: string | Record<string, any>
       size: SizePreset
       windowSize?: WidgetWindowSize
@@ -35,6 +36,7 @@ type WidgetActionInput =
   | {
       action: 'update'
       id: string
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- widget props are dynamic per component.
       componentProps: string | Record<string, any>
       componentName?: string
       size?: SizePreset
@@ -45,6 +47,7 @@ type WidgetActionInput =
       action: 'remove'
       id: string
       componentName?: string
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- widget props are dynamic per component.
       componentProps?: string | Record<string, any>
       size?: SizePreset
       windowSize?: WidgetWindowSize
@@ -54,6 +57,7 @@ type WidgetActionInput =
       action: 'clear'
       id: string
       componentName?: string
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- widget props are dynamic per component.
       componentProps?: string | Record<string, any>
       size?: SizePreset
       windowSize?: WidgetWindowSize
@@ -63,6 +67,7 @@ type WidgetActionInput =
       action: 'open'
       id: string
       componentName?: string
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- widget props are dynamic per component.
       componentProps?: string | Record<string, any>
       size?: SizePreset
       windowSize?: WidgetWindowSize
@@ -203,6 +208,7 @@ function normalizeWidgetToolInput(input: WidgetToolInput): WidgetActionInput {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- widget props are dynamic per component.
 export function normalizeComponentProps(raw?: string | Record<string, any>) {
   if (raw === undefined || raw === null) return {}
 
@@ -224,6 +230,7 @@ export function normalizeComponentProps(raw?: string | Record<string, any>) {
 
 function resolveWindowSize(
   componentName: string | undefined,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- widget props are dynamic per component.
   componentProps: Record<string, any>,
   windowSize?: WidgetWindowSize,
 ) {
@@ -235,7 +242,11 @@ function resolveWindowSize(
   return normalizeWidgetWindowSize(componentProps.windowSize)
 }
 
-function sanitizeComponentPropsForDispatch(componentName: string | undefined, componentProps: Record<string, any>) {
+function sanitizeComponentPropsForDispatch(
+  componentName: string | undefined,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- widget props are dynamic per component.
+  componentProps: Record<string, any>,
+) {
   if (componentName?.trim().toLowerCase() !== 'extension-ui') return componentProps
 
   return sanitizeExtensionUiDispatchProps(componentProps)

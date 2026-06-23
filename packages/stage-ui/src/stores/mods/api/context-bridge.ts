@@ -35,14 +35,12 @@ export function normalizeContextSnapshot<C extends Pick<ChatStreamEventContext, 
   return {
     ...contexts,
     contexts: Object.fromEntries(
-      Object.entries(rawContexts).map(([key, ctx]) => [
-        key,
-        Array.isArray(ctx) ? ctx.map((c) => toRaw(c)) : ctx,
-      ]),
+      Object.entries(rawContexts).map(([key, ctx]) => [key, Array.isArray(ctx) ? ctx.map((c) => toRaw(c)) : ctx]),
     ),
   } as C
 }
 
+// eslint-disable-next-line complexity
 export const useContextBridgeStore = defineStore('mods:api:context-bridge', () => {
   const consumerRegistrationEvents = ['input:text', 'input:text:voice', 'input:voice'] as const
   const mutex = new Mutex()
@@ -476,7 +474,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
                   ...event.payload,
                   calls: event.performance.callManifests.map((manifest) => ({
                     manifest,
-                    handler: async () => undefined,
+                    handler: () => undefined,
                   })),
                   timeoutMs: event.performance.timeoutMs,
                 })

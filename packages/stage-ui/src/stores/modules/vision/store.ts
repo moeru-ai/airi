@@ -63,9 +63,11 @@ export const useVisionStore = defineStore('vision', () => {
     if (provider && providerMetadata.value?.capabilities.listModels !== undefined) {
       await providersStore.fetchModelsForProvider(provider)
     }
+
+    return undefined
   }
 
-  async function getModelsForProvider(provider: string) {
+  function getModelsForProvider(provider: string) {
     if (provider && providerMetadata.value?.capabilities.listModels !== undefined) {
       return providersStore.getModelsForProvider(provider)
     }

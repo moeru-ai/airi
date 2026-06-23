@@ -1,3 +1,7 @@
-export async function startClickThrough() {}
+export function startClickThrough() {
+  // noop
+}
 
-export async function stopClickThrough() {}
+export function stopClickThrough() {
+  // noop
+}

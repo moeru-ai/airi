@@ -466,5 +466,6 @@ export async function getFilenames(
     default:
       console.error('Target is not supported')
       process.exit(1)
+      return [] // unreachable - satisfies consistent return path
   }
 }

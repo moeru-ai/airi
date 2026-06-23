@@ -126,7 +126,7 @@ function useDataPane<T extends DataPaneSchema>(
     return states.value[key] as S
   }
 
-  for (const key in schema) {
+  for (const key of Object.keys(schema)) {
     const fieldSchema = schema[key]
     if (fieldSchema.default !== undefined) {
       data.value[key] = fieldSchema.default as SchemaToValueType<typeof fieldSchema>

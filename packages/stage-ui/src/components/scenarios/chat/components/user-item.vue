@@ -70,7 +70,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
           <div>
             <span text-sm text="black/60 dark:white/65" font-normal class="inline <sm:hidden">{{ label }}</span>
           </div>
-          <MarkdownRenderer :content="content as string" class="break-words" />
+          <MarkdownRenderer :content="content as string" class="wrap-break-word" />
         </div>
       </template>
     </ChatActionMenu>

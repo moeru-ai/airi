@@ -247,7 +247,9 @@ describe('createOverlayPollController', () => {
     const controller = createOverlayPollController({
       callTool,
       getReadiness,
-      onState: () => {},
+      onState: () => {
+        /* intentionally unused */
+      },
       intervalMs: 100,
     })
 
@@ -322,7 +324,9 @@ describe('createOverlayPollController', () => {
     const controller = createOverlayPollController({
       callTool,
       getReadiness,
-      onState: () => {},
+      onState: () => {
+        /* intentionally unused */
+      },
       intervalMs: 100,
     })
 
@@ -399,7 +403,9 @@ describe('createOverlayPollController', () => {
     const controller = createOverlayPollController({
       callTool,
       getReadiness: vi.fn().mockResolvedValue({ state: 'ready' }),
-      onState: () => {},
+      onState: () => {
+        /* intentionally unused */
+      },
       intervalMs: 100,
       fallbackIntervalMs: 200,
       callTimeoutMs: 500,
@@ -431,7 +437,9 @@ describe('createOverlayPollController', () => {
     const controller = createOverlayPollController({
       callTool,
       getReadiness: vi.fn().mockResolvedValue({ state: 'ready' }),
-      onState: () => {},
+      onState: () => {
+        /* intentionally unused */
+      },
       intervalMs: 100,
       fallbackIntervalMs: 200,
       callTimeoutMs: 500,
@@ -459,7 +467,9 @@ describe('createOverlayPollController', () => {
   it('releases timed-out poll slots only when the original promise settles', async () => {
     vi.useFakeTimers()
 
-    let resolveFirst: (value: McpCallToolResult) => void = () => {}
+    let resolveFirst: (value: McpCallToolResult) => void = () => {
+      /* assigned later */
+    }
     const callTool = vi
       .fn<(name: string) => Promise<McpCallToolResult>>()
       .mockImplementationOnce(

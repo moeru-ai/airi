@@ -130,6 +130,7 @@ interface LegacyAiriExtension {
   }
 }
 
+// eslint-disable-next-line complexity
 export const useAiriCardStore = defineStore('airi-card', () => {
   const { t } = useI18n()
 

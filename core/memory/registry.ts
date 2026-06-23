@@ -187,11 +187,13 @@ export class MemoryRegistry {
 
 		for (const record of this.records.values()) {
 			// Apply filters.
-			if (query.scopes && query.scopes.length > 0 && !query.scopes.includes(record.scope)) {
+				const hasScopes = query.scopes && query.scopes.length > 0
+			if (hasScopes && !query.scopes.includes(record.scope)) {
 				continue
 			}
 
-			if (query.types && query.types.length > 0 && !query.types.includes(record.type)) {
+				const hasTypes = query.types && query.types.length > 0
+			if (hasTypes && !query.types.includes(record.type)) {
 				continue
 			}
 
@@ -282,10 +284,12 @@ export class MemoryRegistry {
 		if (!filter) return records
 
 		return records.filter((r) => {
-			if (filter.scopes && filter.scopes.length > 0 && !filter.scopes.includes(r.scope)) {
+			const scopes = filter.scopes
+			if (scopes && scopes.length > 0 && !scopes.includes(r.scope)) {
 				return false
 			}
-			if (filter.types && filter.types.length > 0 && !filter.types.includes(r.type)) {
+			const types = filter.types
+			if (types && types.length > 0 && !types.includes(r.type)) {
 				return false
 			}
 			return true

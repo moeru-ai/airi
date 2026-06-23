@@ -18,9 +18,7 @@ const props = withDefaults(
   },
 )
 
-const emit = defineEmits<{
-  (e: 'submit', payload: BugReportDialogSubmitPayload): void
-}>()
+const emit = defineEmits<{ submit: [payload: BugReportDialogSubmitPayload] }>()
 
 const { t } = useI18n()
 const showDialog = shallowRef(false)

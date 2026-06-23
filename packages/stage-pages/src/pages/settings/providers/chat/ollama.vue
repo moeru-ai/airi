@@ -138,7 +138,10 @@ onMounted(() => {
 
   // Initialize refs with current values
   baseUrl.value =
-    providers.value[providerId]?.baseUrl || (providerMetadata.value?.defaultOptions?.() as any)?.baseUrl || ''
+    providers.value[providerId]?.baseUrl ||
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- provider defaults are dynamic provider-specific options.
+    (providerMetadata.value?.defaultOptions?.() as any)?.baseUrl ||
+    ''
 
   // Initialize headers if not already set
   if (!providers.value[providerId]?.headers) {

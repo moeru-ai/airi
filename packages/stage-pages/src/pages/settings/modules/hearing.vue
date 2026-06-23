@@ -224,7 +224,7 @@ const speakingIndicatorClass = computed(() => {
 
   if (prob > threshold) {
     // Speaking: green (could add intensity in future)
-    return `bg-green-500 shadow-lg shadow-green-500/50`
+    return 'bg-green-500 shadow-lg shadow-green-500/50'
   } else if (prob > threshold * 0.5) {
     // Close to threshold: yellow
     return 'bg-yellow-500 shadow-lg shadow-yellow-500/30'

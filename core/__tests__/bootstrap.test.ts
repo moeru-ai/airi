@@ -409,6 +409,9 @@ describe('ModuleRegistry activation order', () => {
         activationOrder.push('bad')
         throw new Error('Intentional failure')
       },
+      async deactivate() {
+        /* noop */
+      },
     }
 
     const anotherGoodModule = {

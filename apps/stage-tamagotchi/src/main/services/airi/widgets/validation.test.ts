@@ -36,16 +36,17 @@ describe('widget invoke validation', () => {
     })
 
     it('rejects empty component names and invalid payload fields', () => {
-      expect(() =>
-        validateWidgetsAddPayload({
-          componentName: '   ',
-        } as any),
+      expect(
+        () =>
+          validateWidgetsAddPayload({
+            componentName: '   ',
+          } as any), // eslint-disable-line @typescript-eslint/no-explicit-any -- intentionally incomplete mock payload
       ).toThrow('componentName is required to spawn a widget.')
 
       expect(() =>
         validateWidgetsAddPayload({
           componentName: 'weather',
-          componentProps: [] as any,
+          componentProps: [] as any, // eslint-disable-line @typescript-eslint/no-explicit-any -- intentionally invalid type for test
         }),
       ).toThrow('componentProps must be a plain object.')
 
@@ -56,11 +57,12 @@ describe('widget invoke validation', () => {
         }),
       ).toThrow('ttlMs must be a non-negative finite number.')
 
-      expect(() =>
-        validateWidgetsAddPayload({
-          componentName: 'weather',
-          windowSize: { width: 0, height: 320 },
-        } as any),
+      expect(
+        () =>
+          validateWidgetsAddPayload({
+            componentName: 'weather',
+            windowSize: { width: 0, height: 320 },
+          } as any), // eslint-disable-line @typescript-eslint/no-explicit-any -- intentionally incomplete mock payload
       ).toThrow('windowSize must contain a positive finite width and height.')
     })
   })
@@ -82,24 +84,26 @@ describe('widget invoke validation', () => {
     })
 
     it('rejects missing ids and malformed update fields', () => {
-      expect(() =>
-        validateWidgetsUpdatePayload({
-          id: '   ',
-        } as any),
+      expect(
+        () =>
+          validateWidgetsUpdatePayload({
+            id: '   ',
+          } as any), // eslint-disable-line @typescript-eslint/no-explicit-any -- intentionally incomplete mock payload
       ).toThrow('id is required to update a widget.')
 
       expect(() =>
         validateWidgetsUpdatePayload({
           id: 'widget-1',
-          componentProps: [] as any,
+          componentProps: [] as any, // eslint-disable-line @typescript-eslint/no-explicit-any -- intentionally invalid type for test
         }),
       ).toThrow('componentProps must be a plain object.')
 
-      expect(() =>
-        validateWidgetsUpdatePayload({
-          id: 'widget-1',
-          windowSize: { width: Number.NaN, height: 400 },
-        } as any),
+      expect(
+        () =>
+          validateWidgetsUpdatePayload({
+            id: 'widget-1',
+            windowSize: { width: Number.NaN, height: 400 },
+          } as any), // eslint-disable-line @typescript-eslint/no-explicit-any -- intentionally incomplete mock payload
       ).toThrow('windowSize must contain a positive finite width and height.')
     })
   })

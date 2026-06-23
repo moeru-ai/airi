@@ -56,9 +56,7 @@ const props = withDefaults(
 )
 
 // emit equirect HDRI for NPR shader use
-const emit = defineEmits<{
-  (e: 'skyBoxReady', value: EnvPayload): void
-}>()
+const emit = defineEmits<{ skyBoxReady: [value: EnvPayload] }>()
 
 interface EnvPayload {
   hdri?: Texture | null
@@ -119,7 +117,9 @@ async function loadEnvironment(skyBoxSrc: string) {
     _envRT = rt
 
     // Convert equirectangular to cube render target
+    // eslint-disable-next-line @typescript-eslint/no-deprecated
     const cubeRT = new WebGLCubeRenderTarget(256)
+    // eslint-disable-next-line @typescript-eslint/no-deprecated
     cubeRT.fromEquirectangularTexture(renderer as WebGLRenderer, hdrTex)
 
     // Generate SH from cube render target

@@ -54,7 +54,7 @@ describe('providers converters', () => {
           () => ({
             id: 'openai-compatible:check-config',
             name: 'config',
-            validator: async () => ({ errors: [], reason: '', reasonKey: '', valid: true }),
+            validator: () => ({ errors: [], reason: '', reasonKey: '', valid: true }),
           }),
         ],
       },

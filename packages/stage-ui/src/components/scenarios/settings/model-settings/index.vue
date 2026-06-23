@@ -22,9 +22,7 @@ withDefaults(
   },
 )
 
-defineEmits<{
-  (e: 'extractColorsFromModel'): void
-}>()
+defineEmits<{ extractColorsFromModel: [] }>()
 
 const previewStageRef = ref<{ capturePreviewFrame: () => Promise<Blob | undefined> }>()
 const runtimeSnapshot = ref<ModelSettingsRuntimeSnapshot>(createEmptyModelSettingsRuntimeSnapshot())

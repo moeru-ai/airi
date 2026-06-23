@@ -95,6 +95,7 @@ function appendUniqueReason(reasons: string[], next: string) {
   if (!reasons.includes(next)) reasons.push(next)
 }
 
+// eslint-disable-next-line complexity
 export function convertProviderDefinitionToMetadata<TConfig>(
   definition: ProviderDefinition<TConfig>,
   t: ComposerTranslation,

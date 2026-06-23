@@ -47,7 +47,8 @@ function getPeerLabels(peer: AuthenticatedPeer) {
 export function isDevtoolsPeer(peer: AuthenticatedPeer) {
   const devtoolsLabel = getPeerLabels(peer).devtools
   const isDevtoolsLabel = devtoolsLabel === 'true' || devtoolsLabel === '1'
-  return Boolean(isDevtoolsLabel || peer.name.includes('devtools'))
+  const hasDevtoolsInName = peer.name.includes('devtools')
+  return Boolean(isDevtoolsLabel || hasDevtoolsInName)
 }
 
 /**
@@ -138,9 +139,11 @@ export function collectDestinations(
     return event.route.destinations
   }
 
-  const data = event.data as unknown
-  if (typeof data === 'object' && data !== null && 'destinations' in data && Array.isArray(data.destinations)) {
-    return data.destinations
+  const data = event.data as Record<string, unknown>
+  const isDataObject = data !== null && typeof data === 'object'
+  const hasDestinations = isDataObject && 'destinations' in data && Array.isArray(data.destinations)
+  if (hasDestinations) {
+    return data.destinations as DestinationList
   }
 
   return undefined

@@ -136,7 +136,7 @@ export function proposalToPlan(
  */
 export function summarizeProposal(proposal: PlanProposal): PlanSummary {
 	return {
-		planId: proposal.id,
+		planId: createPlanId(proposal.id as string),
 		name: proposal.name,
 		status: "proposed",
 		stepCount: proposal.steps.length,

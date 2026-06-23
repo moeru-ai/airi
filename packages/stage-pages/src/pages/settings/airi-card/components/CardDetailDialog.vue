@@ -17,15 +17,12 @@ import { useI18n } from 'vue-i18n'
 import DeleteCardDialog from './DeleteCardDialog.vue'
 
 interface Props {
-  modelValue: boolean
   cardId: string
   initialTab?: string
 }
 
 const props = defineProps<Props>()
-const emit = defineEmits<{
-  (e: 'update:modelValue', value: boolean): void
-}>()
+const modelValue = defineModel<boolean>({ required: true })
 
 const { t } = useI18n()
 const cardStore = useAiriCardStore()
@@ -116,7 +113,7 @@ const showDeleteConfirm = ref(false)
 function handleDeleteConfirm() {
   if (selectedCard.value) {
     removeCard(props.cardId)
-    emit('update:modelValue', false)
+    modelValue.value = false
   }
   showDeleteConfirm.value = false
 }
@@ -256,16 +253,12 @@ const activeTab = computed({
 })
 
 // Reset active tab when dialog opens
-watch(
-  () => props.modelValue,
-  (isOpen) => {
-    if (isOpen) {
-      if (props.initialTab && tabs.value.some((tab) => tab.id === props.initialTab))
-        activeTabId.value = props.initialTab
-      else activeTabId.value = '' // Let computed handle default
-    }
-  },
-)
+watch(modelValue, (isOpen) => {
+  if (isOpen) {
+    if (props.initialTab && tabs.value.some((tab) => tab.id === props.initialTab)) activeTabId.value = props.initialTab
+    else activeTabId.value = '' // Let computed handle default
+  }
+})
 
 // Helper function to generate placeholder text for default values
 function getDefaultPlaceholder(defaultValue: string | undefined): string {
@@ -281,7 +274,7 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
 </script>
 
 <template>
-  <DialogRoot :open="modelValue" @update:open="emit('update:modelValue', $event)">
+  <DialogRoot :open="modelValue" @update:open="modelValue = $event">
     <DialogPortal>
       <DialogOverlay
         class="fixed inset-0 z-100 bg-black/50 backdrop-blur-sm data-[state=closed]:animate-fadeOut data-[state=open]:animate-fadeIn"
@@ -335,7 +328,7 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
                   variant="secondary"
                   icon="i-solar:close-circle-bold-duotone"
                   :label="t('settings.pages.card.cancel')"
-                  @click="emit('update:modelValue', false)"
+                  @click="modelValue = false"
                 />
               </div>
             </div>

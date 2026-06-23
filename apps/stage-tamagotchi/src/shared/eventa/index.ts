@@ -95,11 +95,13 @@ export interface RequestWindowPayload {
   id?: string
   route: string
   type?: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- window payloads are dynamic per route.
   payload?: Record<string, any>
 }
 export interface RequestWindowPending {
   id: string
   type?: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- window payloads are dynamic per route.
   payload?: Record<string, any>
 }
 
@@ -134,6 +136,7 @@ export type WidgetGridSize = 's' | 'm' | 'l' | { cols?: number; rows?: number }
 export interface WidgetsAddPayload {
   id?: string
   componentName: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- widget props are dynamic per component.
   componentProps?: Record<string, any>
   // size presets or explicit spans; renderer decides mapping
   size?: WidgetGridSize
@@ -144,6 +147,7 @@ export interface WidgetsAddPayload {
 
 export interface WidgetsUpdatePayload {
   id: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- widget props are dynamic per component.
   componentProps?: Record<string, any>
   size?: WidgetGridSize
   windowSize?: WidgetWindowSize | Record<string, unknown>
@@ -153,6 +157,7 @@ export interface WidgetsUpdatePayload {
 export interface WidgetSnapshot {
   id: string
   componentName: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- widget props are dynamic per component.
   componentProps: Record<string, any>
   size: WidgetGridSize
   windowSize?: WidgetWindowSize

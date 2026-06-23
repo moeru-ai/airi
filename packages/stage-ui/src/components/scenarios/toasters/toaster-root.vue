@@ -3,9 +3,7 @@ import { provide } from 'vue'
 
 import { ToasterRootInjectionKey } from './constants'
 
-const emits = defineEmits<{
-  (e: 'close', id: string): void
-}>()
+const emits = defineEmits<{ close: [id: string] }>()
 
 provide(ToasterRootInjectionKey, {
   close: (id: string) => emits('close', id),

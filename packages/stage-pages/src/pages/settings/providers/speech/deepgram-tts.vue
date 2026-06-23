@@ -32,6 +32,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
 
   const model = (providerConfig.model as string | undefined) || defaultModel
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- provider module type is compatible with the store at runtime.
   return await speechStore.speech(provider as any, model, input, voiceId, {
     ...providerConfig,
     ...defaultVoiceSettings,

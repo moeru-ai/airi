@@ -12,7 +12,6 @@ const props = withDefaults(
     cardHeight?: number
     cardWidth?: number
     primaryColor: string
-    primaryColorDark?: string
     secondaryColor: string
     backgroundColor?: string
     dividerColor?: string

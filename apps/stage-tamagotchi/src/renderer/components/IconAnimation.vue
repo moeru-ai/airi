@@ -28,7 +28,7 @@ const clsAndProps = computed(() => {
   return {
     opacity: isAnimating.value !== props.isReverse ? 1 : 0, // this equals to opacity: isAnimating.value ? props.isReverse ? 1 : 0 : props.isReverse ? 0 : 1
     size: isAnimating.value !== props.isReverse ? 25 : props.iconSize,
-    position: isAnimating.value !== props.isReverse ? `calc(50dvw - 12.5rem), calc(50dvh - 12.5rem)` : props.position,
+    position: isAnimating.value !== props.isReverse ? 'calc(50dvw - 12.5rem), calc(50dvh - 12.5rem)' : props.position,
     textColor: isAnimating.value !== props.isReverse ? 'text-white' : props.textColor,
   }
 })

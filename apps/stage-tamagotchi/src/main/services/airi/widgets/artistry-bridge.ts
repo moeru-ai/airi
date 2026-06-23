@@ -23,20 +23,24 @@ const log = useLogg('artistry-bridge').useGlobalConfig()
 const DEFAULT_REMIX_ID = '48250602'
 const DEFAULT_ARTISTRY_PROVIDER = 'none'
 
+type StructuredRecord = Record<string, unknown>
+type ArtistryConfigData = NonNullable<ReturnType<Config<typeof artistryConfigSchema>['get']>>
+type ArtistryGlobals = NonNullable<ArtistryConfigData['artistryGlobals']>
+
 interface ArtistrySyncSnapshot {
   provider?: string
   model?: string
   promptPrefix?: string
-  options?: Record<string, any>
-  globals?: Record<string, any>
+  options?: StructuredRecord
+  globals?: StructuredRecord
 }
 
 interface TriggerConfig {
   provider?: string
   model?: string
   promptPrefix?: string
-  options?: Record<string, any>
-  globals?: Record<string, any>
+  options?: StructuredRecord
+  globals?: StructuredRecord
 }
 
 function robustParse(input: unknown, context?: string): Record<string, unknown> {
@@ -68,8 +72,8 @@ const cardDefaults: ArtistrySyncSnapshot = {
   provider: undefined as string | undefined,
   model: undefined as string | undefined,
   promptPrefix: undefined as string | undefined,
-  options: undefined as Record<string, unknown> | undefined,
-  globals: undefined as Record<string, unknown> | undefined,
+  options: undefined as StructuredRecord | undefined,
+  globals: undefined as StructuredRecord | undefined,
 }
 
 function createRunId(widgetId: string) {
@@ -110,18 +114,18 @@ export async function generateHeadless(params: {
   prompt: string
   model?: string
   provider?: string
-  options?: Record<string, any>
-  globals?: Record<string, any>
+  options?: StructuredRecord
+  globals?: StructuredRecord
 }): Promise<{ imageUrl?: string; base64?: string; error?: string }> {
   // Resolve config and effective globals early to secure the deduplication fingerprint
   const { config: artistryConfig } = await injeca.resolve({ config: 'configs:artistry' } as {
     config: ProvidedBy<Config<typeof artistryConfigSchema>>
   })
-  const activeGlobals = (params.globals || artistryConfig.get()?.artistryGlobals || {}) as Record<string, any>
+  const activeGlobals = (params.globals || artistryConfig.get()?.artistryGlobals || {}) as StructuredRecord
 
   // Create a fingerprint for deduplication
-  const sourceImage = activeGlobals?.image
-  const imageHash = typeof sourceImage === 'string' ? createHash('sha256').update(sourceImage).digest('hex') : 'NONE'
+  const sourceImage = typeof activeGlobals.image === 'string' ? activeGlobals.image : undefined
+  const imageHash = sourceImage ? createHash('sha256').update(sourceImage).digest('hex') : 'NONE'
 
   // We hash the globals (excluding the heavy image already covered by imageHash)
   // to ensure that changing a workflow or provider setting triggers a unique execution.
@@ -164,17 +168,17 @@ export async function generateHeadless(params: {
     }
 
     log.log(`[Headless] Globals keys: ${Object.keys(activeGlobals || {}).join(', ')}`)
-    if (activeGlobals?.image) log.log(`[Headless] Source image length: ${activeGlobals.image.length}`)
+    if (sourceImage) log.log(`[Headless] Source image length: ${sourceImage.length}`)
 
     const request: ArtistryRequest = {
       prompt: params.prompt,
-      negativePrompt: params.options?.negativePrompt,
+      negativePrompt: typeof params.options?.negativePrompt === 'string' ? params.options.negativePrompt : undefined,
       width: typeof params.options?.width === 'number' ? params.options.width : undefined,
       height: typeof params.options?.height === 'number' ? params.options.height : undefined,
       model: params.model,
       extra: {
         ...params.options,
-        image: activeGlobals?.image,
+        image: sourceImage,
         internalJobId: createRunId('headless'),
       },
     }
@@ -358,7 +362,7 @@ async function handleArtistryTrigger(params: {
         },
       }
 
-      const updateIfActive = (statusUpdate: Record<string, any>) => {
+      const updateIfActive = (statusUpdate: StructuredRecord) => {
         // NOTICE: the same widget can kick off another generation before the previous one fully
         // settles. Only the most recent run is allowed to keep updating the widget state.
         if (activeRunMap.get(params.id) !== runId) return
@@ -369,7 +373,7 @@ async function handleArtistryTrigger(params: {
         params.widgetsManager.updateWidget({
           id: params.id,
           componentProps: {
-            ...(existing?.componentProps as any),
+            ...(existing?.componentProps as StructuredRecord | undefined),
             ...statusUpdate,
           },
         })
@@ -378,7 +382,7 @@ async function handleArtistryTrigger(params: {
       // If the provider accepts callbacks (like ComfyUI streaming stdout)
       if (supportsJobCallback(provider)) {
         provider.setJobCallback(runId, (statusUpdate) => {
-          updateIfActive(statusUpdate as Record<string, any>)
+          updateIfActive({ ...statusUpdate })
           if (statusUpdate.status === 'succeeded') {
             log.log(`🎉 Job complete (via callback) for ${params.id}. Sending final status: done`)
             updateIfActive({ status: 'done', progress: 100, actionLabel: undefined })
@@ -417,7 +421,7 @@ async function handleArtistryTrigger(params: {
             isDone = true
           }
 
-          updateIfActive(status as Record<string, any>)
+          updateIfActive({ ...status })
 
           if (!isDone) {
             await new Promise((resolve) => setTimeout(resolve, 2000))
@@ -463,22 +467,24 @@ export async function setupArtistryBridge(params: {
 
     defineInvokeHandler(params.context, artistrySyncConfig, (payload) => {
       log.log(`🔄 Syncing artistry config to main. Provider: ${payload.provider}`)
+      const artistryGlobals = payload.globals ||
+        params.artistryConfig.get()?.artistryGlobals || {
+          comfyuiServerUrl: 'http://localhost:8188',
+          comfyuiSavedWorkflows: [],
+          comfyuiActiveWorkflow: '',
+          replicateApiKey: '',
+          replicateDefaultModel: 'black-forest-labs/flux-schnell',
+          replicateAspectRatio: '16:9',
+          replicateInferenceSteps: 4,
+          nanobananaApiKey: '',
+          nanobananaModel: 'gemini-3.1-flash-image-preview',
+          nanobananaResolution: '1K',
+        }
+
       params.artistryConfig.update({
         artistryProvider:
           payload.provider || params.artistryConfig.get()?.artistryProvider || DEFAULT_ARTISTRY_PROVIDER,
-        artistryGlobals: payload.globals ||
-          params.artistryConfig.get()?.artistryGlobals || {
-            comfyuiServerUrl: 'http://localhost:8188',
-            comfyuiSavedWorkflows: [],
-            comfyuiActiveWorkflow: '',
-            replicateApiKey: '',
-            replicateDefaultModel: 'black-forest-labs/flux-schnell',
-            replicateAspectRatio: '16:9',
-            replicateInferenceSteps: 4,
-            nanobananaApiKey: '',
-            nanobananaModel: 'gemini-3.1-flash-image-preview',
-            nanobananaResolution: '1K',
-          },
+        artistryGlobals: artistryGlobals as ArtistryGlobals,
       })
 
       // Update character-level defaults (volatile only)

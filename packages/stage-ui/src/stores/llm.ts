@@ -116,7 +116,7 @@ export const useLLM = defineStore('llm', () => {
         apiKey,
       })
     } catch (err) {
-      if (String(err).includes(`Failed to construct 'URL': Invalid URL`)) return []
+      if (String(err).includes("Failed to construct 'URL': Invalid URL")) return []
       throw err
     }
   }

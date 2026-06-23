@@ -27,9 +27,7 @@ const props = withDefaults(
     allowExtractColors: true,
   },
 )
-defineEmits<{
-  (e: 'extractColorsFromModel'): void
-}>()
+defineEmits<{ extractColorsFromModel: [] }>()
 
 const { t } = useI18n()
 

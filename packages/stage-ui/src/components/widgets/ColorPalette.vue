@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { TooltipArrow, TooltipContent, TooltipPortal, TooltipProvider, TooltipRoot, TooltipTrigger } from 'reka-ui'
 
-import { DEFAULT_THEME_COLORS_HUE, useSettings } from '../../stores/settings'
+import { DEFAULT_THEME_COLORS_HUE, useSettingsTheme } from '../../stores/settings'
 
 interface Color {
   hex?: string
@@ -12,7 +12,7 @@ defineProps<{
   colors: Color[]
 }>()
 
-const settings = useSettings()
+const settings = useSettingsTheme()
 </script>
 
 <template>
