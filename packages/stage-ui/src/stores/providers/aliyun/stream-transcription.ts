@@ -2,12 +2,10 @@ import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { CommonRequestOptions } from '@xsai/shared'
 import type { StreamTranscriptionDelta, StreamTranscriptionResult } from '@xsai/stream-transcription'
 
-import type { EventStartTranscription, ServerEvent, ServerEvents } from './'
-
 import { tryCatch } from '@moeru/std'
 import { timeout as promiseTimeout } from 'es-toolkit/promise'
 
-import { createAliyunNLSSession } from './'
+import { type EventStartTranscription, type ServerEvent, type ServerEvents, createAliyunNLSSession } from './'
 import { nlsWebSocketEndpointFromRegion } from './utils'
 
 type SessionOptions = NonNullable<Parameters<typeof createAliyunNLSSession>[3]>

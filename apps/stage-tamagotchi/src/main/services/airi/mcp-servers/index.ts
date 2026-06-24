@@ -189,7 +189,9 @@ export function createMcpStdioManager(): McpStdioManager {
         pid: transport.pid,
       })
     } catch (error) {
-      await transport.close().catch(() => {})
+      await transport.close().catch(() => {
+        /* noop — ignore close errors */
+      })
       throw error
     }
   }
@@ -421,10 +423,14 @@ export function createMcpStdioManager(): McpStdioManager {
       }
     } finally {
       if (client) {
-        await client.close().catch(() => {})
+        await client.close().catch(() => {
+          /* noop — ignore close errors */
+        })
       }
       if (transport) {
-        await transport.close().catch(() => {})
+        await transport.close().catch(() => {
+          /* noop — ignore close errors */
+        })
       }
     }
   }

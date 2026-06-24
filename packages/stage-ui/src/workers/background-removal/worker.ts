@@ -229,27 +229,24 @@ async function runInference(request: RunInferenceRequest<BackgroundRemovalInput>
 // Message handler
 // ---------------------------------------------------------------------------
 
-const _self = typeof self !== 'undefined' ? self : null
-if (_self != null) {
-  _self.addEventListener('message', async (event: MessageEvent<WorkerInboundMessage<BackgroundRemovalInput>>) => {
-    const message = event.data
+globalThis.addEventListener('message', async (event: MessageEvent<WorkerInboundMessage<BackgroundRemovalInput>>) => {
+  const message = event.data
 
-    // eslint-disable-next-line default-case
-    switch (message.type) {
-      case 'load-model':
-        await loadModel(message)
-        break
-      case 'run-inference':
-        await runInference(message as RunInferenceRequest<BackgroundRemovalInput>)
-        break
-      case 'unload-model':
-        model = null
-        processor = null
-        globalThis.postMessage({ type: 'model-unloaded', requestId: message.requestId })
-        break
-      case 'cancel':
-        markCancelled(message.targetRequestId)
-        break
-    }
-  })
-}
+  // eslint-disable-next-line default-case
+  switch (message.type) {
+    case 'load-model':
+      await loadModel(message)
+      break
+    case 'run-inference':
+      await runInference(message as RunInferenceRequest<BackgroundRemovalInput>)
+      break
+    case 'unload-model':
+      model = null
+      processor = null
+      globalThis.postMessage({ type: 'model-unloaded', requestId: message.requestId })
+      break
+    case 'cancel':
+      markCancelled(message.targetRequestId)
+      break
+  }
+})

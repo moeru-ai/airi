@@ -54,6 +54,88 @@ interface ContextAssemblyOptions {
 }
 
 /**
+ * Append relevant memories section to the parts array.
+ */
+function appendMemoriesSection(parts: string[], results: MemoryResult[]): void {
+	if (results.length === 0) return
+
+	parts.push("")
+	parts.push("### Relevant Memories")
+	for (let i = 0; i < results.length; i++) {
+		const result = results[i]!
+		const record = result.record
+		parts.push(
+			`[${i + 1}] (${record.type}, ${result.relevanceScore.toFixed(2)}) ${record.title} — ${record.content.slice(0, 100)}`,
+		)
+	}
+}
+
+/**
+ * Append repository context section to the parts array.
+ */
+function appendRepositorySection(
+	parts: string[],
+	options: ContextAssemblyOptions,
+): void {
+	if (!options.repositoryMap) return
+
+	const map = options.repositoryMap
+	parts.push("")
+	parts.push("### Repository Context")
+	parts.push(`- Branch: ${map.gitMetadata.branch} (${map.gitMetadata.commit.slice(0, 7)})`)
+
+	if (options.relevantFiles && options.relevantFiles.length > 0) {
+		parts.push(
+			`- Relevant files: ${options.relevantFiles.map((f) => f.path).join(", ")}`,
+		)
+	}
+
+	if (options.architectureNodes && options.architectureNodes.length > 0) {
+		parts.push(
+			`- Architecture: ${options.architectureNodes.map((n) => `${n.name} (${n.type})`).join(", ")}`,
+		)
+	}
+}
+
+/**
+ * Append decision history section to the parts array.
+ */
+function appendDecisionHistorySection(
+	parts: string[],
+	decisions: DecisionRecord[],
+): void {
+	if (decisions.length === 0) return
+
+	const accepted = decisions.filter((d) => d.type === 'accepted').length
+	const rejected = decisions.filter((d) => d.type === 'rejected').length
+	const revised = decisions.filter((d) => d.type === 'revised').length
+
+	parts.push("")
+	parts.push("### Decision History")
+	parts.push(
+		`- Last ${decisions.length} decisions: ${accepted} accepted, ${rejected} rejected, ${revised} revised`,
+	)
+}
+
+/**
+ * Append failure patterns section to the parts array.
+ */
+function appendFailurePatternsSection(
+	parts: string[],
+	patterns: FailurePattern[],
+): void {
+	if (patterns.length === 0) return
+
+	parts.push("")
+	parts.push("### Known Failure Patterns")
+	for (const pattern of patterns) {
+		parts.push(
+			`- ${pattern.type} (${pattern.occurrences} occurrences): ${pattern.suggestedAction ?? "No suggestion"}`,
+		)
+	}
+}
+
+/**
  * Assemble a deterministic context string from memory results.
  *
  * Format:
@@ -77,66 +159,12 @@ function buildContextString(
 	results: MemoryResult[],
 	options: ContextAssemblyOptions = {},
 ): string {
-	const parts: string[] = []
+	const parts: string[] = ["## Semantic Memory Context"]
 
-	parts.push("## Semantic Memory Context")
-
-	// Relevant memories.
-	if (results.length > 0) {
-		parts.push("")
-		parts.push("### Relevant Memories")
-		for (let i = 0; i < results.length; i++) {
-			const result = results[i]!
-			const record = result.record
-			parts.push(
-				`[${i + 1}] (${record.type}, ${result.relevanceScore.toFixed(2)}) ${record.title} — ${record.content.slice(0, 100)}`,
-			)
-		}
-	}
-
-	// Repository context.
-	if (options.repositoryMap) {
-		const map = options.repositoryMap
-		parts.push("")
-		parts.push("### Repository Context")
-		parts.push(`- Branch: ${map.gitMetadata.branch} (${map.gitMetadata.commit.slice(0, 7)})`)
-
-		if (options.relevantFiles && options.relevantFiles.length > 0) {
-			parts.push(
-				`- Relevant files: ${options.relevantFiles.map((f) => f.path).join(", ")}`,
-			)
-		}
-
-		if (options.architectureNodes && options.architectureNodes.length > 0) {
-			parts.push(
-				`- Architecture: ${options.architectureNodes.map((n) => `${n.name} (${n.type})`).join(", ")}`,
-			)
-		}
-	}
-
-	// Decision history.
-	if (options.recentDecisions && options.recentDecisions.length > 0) {
-		const accepted = options.recentDecisions.filter((d) => d.type === 'accepted').length
-		const rejected = options.recentDecisions.filter((d) => d.type === 'rejected').length
-		const revised = options.recentDecisions.filter((d) => d.type === 'revised').length
-
-		parts.push("")
-		parts.push("### Decision History")
-		parts.push(
-			`- Last ${options.recentDecisions.length} decisions: ${accepted} accepted, ${rejected} rejected, ${revised} revised`,
-		)
-	}
-
-	// Failure patterns.
-	if (options.failurePatterns && options.failurePatterns.length > 0) {
-		parts.push("")
-		parts.push("### Known Failure Patterns")
-		for (const pattern of options.failurePatterns) {
-			parts.push(
-				`- ${pattern.type} (${pattern.occurrences} occurrences): ${pattern.suggestedAction ?? "No suggestion"}`,
-			)
-		}
-	}
+	appendMemoriesSection(parts, results)
+	appendRepositorySection(parts, options)
+	appendDecisionHistorySection(parts, options.recentDecisions ?? [])
+	appendFailurePatternsSection(parts, options.failurePatterns ?? [])
 
 	const contextString = parts.join("\n")
 
@@ -176,14 +204,54 @@ export class MemoryRetriever {
 	}
 
 	/**
+	 * Build the repository context for the query, if available.
+	 */
+	private buildRepositoryContext(
+		query: MemoryQuery,
+	): RetrievalContext['repositoryContext'] | undefined {
+		if (!this.repositoryIntelligence || !query.repositoryId) return undefined
+
+		const maps = this.repositoryIntelligence.listMaps()
+		const map = maps.find((m) =>
+			m.fileGraph.some((f) => f.path.includes(query.repositoryId ?? "")),
+		) ?? maps[0]
+
+		if (!map) return undefined
+
+		const relevantFiles = query.text
+			? map.fileGraph.filter((f) =>
+					f.path.toLowerCase().includes((query.text ?? "").toLowerCase()),
+				)
+			: []
+
+		const architectureNodes = relevantFiles.length > 0
+			? map.rootNodes.filter((n) =>
+					relevantFiles.some((f) => f.path.startsWith(n.path)),
+				)
+			: []
+
+		return { map, relevantFiles, architectureNodes }
+	}
+
+	/**
+	 * Build the decision and failure context, if available.
+	 */
+	private buildDecisionContext(): RetrievalContext['decisionContext'] | undefined {
+		if (!this.decisionMemory && !this.failureMemory) return undefined
+
+		return {
+			recentDecisions: this.decisionMemory?.getDecisions() ?? [],
+			failurePatterns: this.failureMemory?.detectPatterns() ?? [],
+		}
+	}
+
+	/**
 	 * Retrieve context for cognition.
 	 *
 	 * Assembles a full RetrievalContext with memory results, repository
 	 * context, decision history, and failure patterns.
 	 */
-  // async: returns Promise for async retrieval
-	async retrieveForContext(query: MemoryQuery): Promise<RetrievalContext> {
-
+	retrieveForContext(query: MemoryQuery): Promise<RetrievalContext> {
 		// Query memory registry.
 		const results = this.registry.query(query)
 
@@ -192,47 +260,8 @@ export class MemoryRetriever {
 			this.registry.incrementAccess(result.record.id)
 		}
 
-		// Build repository context if available.
-		let repositoryContext: RetrievalContext['repositoryContext']
-		if (this.repositoryIntelligence && query.repositoryId) {
-			const maps = this.repositoryIntelligence.listMaps()
-			const map = maps.find((m) =>
-				m.fileGraph.some((f) => f.path.includes(query.repositoryId ?? "")),
-			) ?? maps[0]
-
-			if (map) {
-				const relevantFiles = query.text
-					? map.fileGraph.filter((f) =>
-							f.path.toLowerCase().includes((query.text ?? "").toLowerCase()),
-						)
-					: []
-
-				const architectureNodes = relevantFiles.length > 0
-					? map.rootNodes.filter((n) =>
-							relevantFiles.some((f) => f.path.startsWith(n.path)),
-						)
-					: []
-
-				repositoryContext = {
-					map,
-					relevantFiles,
-					architectureNodes,
-				}
-			}
-		}
-
-		// Build decision context if available.
-		let decisionContext: RetrievalContext['decisionContext']
-		if (this.decisionMemory || this.failureMemory) {
-			decisionContext = {
-				recentDecisions: this.decisionMemory
-					? this.decisionMemory.getDecisions()
-					: [],
-				failurePatterns: this.failureMemory
-					? this.failureMemory.detectPatterns()
-					: [],
-			}
-		}
+		const repositoryContext = this.buildRepositoryContext(query)
+		const decisionContext = this.buildDecisionContext()
 
 		// Build context string.
 		const contextOptions: ContextAssemblyOptions = {}
@@ -247,48 +276,44 @@ export class MemoryRetriever {
 		}
 		const contextString = buildContextString(results, contextOptions)
 
-		
-
 		// Create trace.
 		const trace = MemoryRetriever.traceRetrieval(query, results, contextString)
 
-		return {
+		return Promise.resolve({
 			results,
 			contextString,
 			repositoryContext,
 			decisionContext,
 			trace,
-		}
+		})
 	}
 
 	/**
 	 * Retrieve workspace-scoped memories.
 	 */
-  // async: returns Promise for async retrieval
-	async retrieveForWorkspace(
+	retrieveForWorkspace(
 		workspaceId: string,
 		maxResults = 10,
 	): Promise<MemoryResult[]> {
-		return this.registry.query({
+		return Promise.resolve(this.registry.query({
 			workspaceId,
 			scopes: ['workspace', 'global'],
 			maxResults,
-		})
+		}))
 	}
 
 	/**
 	 * Retrieve repository-scoped memories.
 	 */
-  // async: returns Promise for async retrieval
-	async retrieveForRepository(
+	retrieveForRepository(
 		repositoryId: string,
 		maxResults = 10,
 	): Promise<MemoryResult[]> {
-		return this.registry.query({
+		return Promise.resolve(this.registry.query({
 			repositoryId,
 			scopes: ['repository', 'global'],
 			maxResults,
-		})
+		}))
 	}
 
 	/**

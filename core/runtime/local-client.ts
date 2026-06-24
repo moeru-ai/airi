@@ -65,9 +65,8 @@ export class LocalRuntimeClient implements RuntimeClient {
 		return this._state
 	}
 
-	// async: implements RuntimeClient interface (Promise<void>)
-	async connect(): Promise<void> {
-		if (this._state === "connected") return
+	connect(): Promise<void> {
+		if (this._state === "connected") return Promise.resolve()
 
 		this._state = "connecting"
 		this.notifyStateChange("connecting")
@@ -75,24 +74,25 @@ export class LocalRuntimeClient implements RuntimeClient {
 		// In-process connection is always immediate.
 		this._state = "connected"
 		this.notifyStateChange("connected")
+		return Promise.resolve()
 	}
 
-	// async: implements RuntimeClient interface (Promise<void>)
-	async disconnect(): Promise<void> {
-		if (this._state === "disconnected") return
+	disconnect(): Promise<void> {
+		if (this._state === "disconnected") return Promise.resolve()
 
 		this._state = "disconnected"
 		this.notifyStateChange("disconnected")
+		return Promise.resolve()
 	}
 
-	// async: implements RuntimeClient interface (Promise<void>)
-	async send(channel: string, payload: unknown): Promise<void> {
+	send(channel: string, payload: unknown): Promise<void> {
 		if (this._state !== "connected") {
 			throw new Error(`Cannot send on channel "${channel}": client is ${this._state}.`)
 		}
 
 		// Publish through the bus so local subscribers receive it.
 		this.bus.emit(this.channelPrefix + channel, payload)
+		return Promise.resolve()
 	}
 
 	subscribe(channel: string, handler: RuntimeMessageHandler): () => void {

@@ -55,8 +55,7 @@ export class MockCognitionProvider implements CognitionProvider {
 	 * Generate a plan proposal by matching the request prompt against
 	 * registered fixtures, or returning the default proposal.
 	 */
-	// async: implements CognitionProvider interface (Promise<CognitionResponse>)
-	async generatePlanProposal(
+	generatePlanProposal(
 		request: CognitionRequest,
 		cancellationToken?: CancellationToken,
 	): Promise<CognitionResponse> {
@@ -87,14 +86,14 @@ export class MockCognitionProvider implements CognitionProvider {
 
 		const durationMs = Date.now() - startTime
 
-		return {
+		return Promise.resolve({
 			requestId: request.id,
 			proposal,
 			reasoning: trace,
 				modelInfo: this.getModelInfo(),
 			durationMs,
 			completedAt: new Date().toISOString(),
-		}
+		})
 	}
 
 	/**
@@ -110,9 +109,8 @@ export class MockCognitionProvider implements CognitionProvider {
 	/**
 	 * Always available.
 	 */
-	// async: implements CognitionProvider interface (Promise<boolean>)
-		async isAvailable(): Promise<boolean> {
-		return true
+	isAvailable(): Promise<boolean> {
+		return Promise.resolve(true)
 	}
 
 	// ── Private ────────────────────────────────────────────────────────────

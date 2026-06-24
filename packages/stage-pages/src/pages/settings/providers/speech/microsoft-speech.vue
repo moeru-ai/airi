@@ -92,12 +92,26 @@ async function handleGenerateSpeech(input: string, voiceId: string, useSSML: boo
     const voice = availableVoices.value.find((v) => v.id === voiceId)
     if (voice) {
       const ssml = speechStore.generateSSML(input, voice, { ...providerConfig, pitch: pitch.value })
-      return await speechStore.speech(provider as any, model, ssml, voiceId, options)
+      // speechStore.speech expects SpeechProviderWithExtraOptions; the provider instance is structurally compatible
+      return await speechStore.speech(
+        provider as SpeechProviderWithExtraOptions<string, unknown>,
+        model,
+        ssml,
+        voiceId,
+        options,
+      )
     }
   }
 
   // Either using direct SSML or no voice found
-  return await speechStore.speech(provider as any, model, input, voiceId, options)
+  // speechStore.speech expects SpeechProviderWithExtraOptions; the provider instance is structurally compatible
+  return await speechStore.speech(
+    provider as SpeechProviderWithExtraOptions<string, unknown>,
+    model,
+    input,
+    voiceId,
+    options,
+  )
 }
 </script>
 

@@ -652,7 +652,7 @@ describe('CognitionCoordinator', () => {
     expect(rejectedEmitted).toBe(true)
   })
 
-  it('validates an existing proposal', async () => {
+  it('validates an existing proposal', () => {
     const proposal = createProposal(createReasoningId('r1'), 'Test', [
       createTestProposedStep({ id: 's1', name: 'Step', action: 'nonexistent_tool' }),
     ])
@@ -662,7 +662,7 @@ describe('CognitionCoordinator', () => {
     expect(result.errors.some((e) => e.code === 'UNKNOWN_ACTION')).toBe(true)
   })
 
-  it('accepts a validated proposal', async () => {
+  it('accepts a validated proposal', () => {
     const cap = createTestCapabilityId('code')
     capabilityRegistry.register({
       id: cap,

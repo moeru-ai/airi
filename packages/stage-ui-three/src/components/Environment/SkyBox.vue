@@ -32,7 +32,7 @@ import { LightProbeGenerator } from 'three/examples/jsm/lights/LightProbeGenerat
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 
-import skyBoxSrc from './assets/sky_linekotsi_23_HDRI.hdr?url'
+import defaultSkyBoxSrc from './assets/sky_linekotsi_23_HDRI.hdr?url'
 
 /**
  * Props
@@ -48,7 +48,7 @@ const props = withDefaults(
     backgroundIntensity?: number
   }>(),
   {
-    skyBoxSrc,
+    skyBoxSrc: defaultSkyBoxSrc,
     asBackground: true,
     backgroundBlurriness: 0,
     backgroundIntensity: 1,
@@ -117,9 +117,9 @@ async function loadEnvironment(skyBoxSrc: string) {
     _envRT = rt
 
     // Convert equirectangular to cube render target
-    // eslint-disable-next-line @typescript-eslint/no-deprecated
+    // TODO: WebGLCubeRenderTarget.fromEquirectangularTexture is deprecated in three@r184+
+    // Replace with CubeRenderTarget + PMREMGenerator.fromEquirectangular() when upgrading to three@r200+.
     const cubeRT = new WebGLCubeRenderTarget(256)
-    // eslint-disable-next-line @typescript-eslint/no-deprecated
     cubeRT.fromEquirectangularTexture(renderer as WebGLRenderer, hdrTex)
 
     // Generate SH from cube render target

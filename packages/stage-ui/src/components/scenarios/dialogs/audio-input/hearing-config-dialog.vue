@@ -30,7 +30,9 @@ const props = withDefaults(
     overlayBlur: false,
     granted: false,
     transcription: false,
-    toggleTranscription: () => {},
+    toggleTranscription: () => {
+      /* no-op — override via prop */
+    },
   },
 )
 

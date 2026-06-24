@@ -70,7 +70,10 @@ export const providerAzureAIFoundry = defineProvider<AzureAIFoundryConfig>({
     ],
   },
   validationRequiredWhen(config) {
-    return Boolean(config.apiKey?.trim()) || Boolean(config.resourceName?.trim()) || Boolean(config.modelId?.trim())
+    const hasApiKey = Boolean(config.apiKey?.trim())
+    const hasResourceName = Boolean(config.resourceName?.trim())
+    const hasModelId = Boolean(config.modelId?.trim())
+    return hasApiKey || hasResourceName || hasModelId
   },
   validators: {
     validateConfig: [

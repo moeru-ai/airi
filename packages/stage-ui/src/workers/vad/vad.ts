@@ -207,7 +207,9 @@ export class VAD implements BaseVAD {
     this.emit('debug', { message: 'VAD score', data: { probability: speechProb } })
 
     // Apply thresholds
-    return speechProb > this.config.speechThreshold || (this.isRecording && speechProb >= this.config.exitThreshold)
+    const exceedsSpeechThreshold = speechProb > this.config.speechThreshold
+    const exceedsExitThresholdWhileRecording = this.isRecording && speechProb >= this.config.exitThreshold
+    return exceedsSpeechThreshold || exceedsExitThresholdWhileRecording
   }
 
   /**

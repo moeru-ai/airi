@@ -77,17 +77,18 @@ export class ReplicateProvider implements ArtistryProvider {
       throw new Error('Replicate provider is not configured. Missing API Key.')
     }
 
-    const model = (request.model || request.extra?.model || this.defaultModel) as `${string}/${string}`
-    const base64Image = request.extra?.image || ''
+    const extra = request.extra as ReplicateExtra | undefined
+    const model = (request.model || extra?.model || this.defaultModel) as `${string}/${string}`
+    const base64Image = extra?.image || ''
 
     // 1. Start with defaults
-    const hasPromptPlaceholder = JSON.stringify(request.extra).includes('{{PROMPT}}')
+    const hasPromptPlaceholder = JSON.stringify(extra).includes('{{PROMPT}}')
     let inputOptions: Record<string, unknown> = {
-      go_fast: request.extra?.go_fast ?? true,
-      aspect_ratio: request.extra?.aspect_ratio ?? this.aspectRatio,
-      output_format: request.extra?.output_format ?? 'png',
-      output_quality: request.extra?.output_quality ?? 80,
-      num_inference_steps: request.extra?.num_inference_steps ?? this.inferenceSteps,
+      go_fast: extra?.go_fast ?? true,
+      aspect_ratio: extra?.aspect_ratio ?? this.aspectRatio,
+      output_format: extra?.output_format ?? 'png',
+      output_quality: extra?.output_quality ?? 80,
+      num_inference_steps: extra?.num_inference_steps ?? this.inferenceSteps,
     }
 
     // Default prompt injection if NO placeholder is used in overrides
@@ -96,10 +97,10 @@ export class ReplicateProvider implements ArtistryProvider {
     }
 
     // 2. Merge overrides from the "JSON Parameters" textarea if present
-    if (request.extra) {
-      const { image: _image, internalJobId: _internalJobId, remixId: _remixId, ...rest } = request.extra
+    if (extra) {
+      const { image: _image, internalJobId: _internalJobId, remixId: _remixId, ...rest } = extra
       // [BY DESIGN]: Strip 'prompt' from rest to avoid overwriting the prefixed version from the bridge.
-      const { prompt: _overriddenPrompt, ...safeRest } = rest as unknown as ReplicateExtra
+      const { prompt: _overriddenPrompt, ...safeRest } = rest as ReplicateExtra
       inputOptions = { ...inputOptions, ...safeRest }
     }
 
@@ -122,7 +123,11 @@ export class ReplicateProvider implements ArtistryProvider {
       if (Array.isArray(obj)) return obj.map(replacePlaceholders)
       if (typeof obj === 'object' && obj !== null) {
         const newObj: Record<string, unknown> = {}
-        for (const key in obj) newObj[key] = replacePlaceholders((obj as Record<string, unknown>)[key])
+        for (const key in obj) {
+          if (Object.prototype.hasOwnProperty.call(obj, key)) {
+            newObj[key] = replacePlaceholders((obj as Record<string, unknown>)[key])
+          }
+        }
         return newObj
       }
       return obj
@@ -139,7 +144,7 @@ export class ReplicateProvider implements ArtistryProvider {
 
     // We don't await the result here because the interface expects us to return an ArtistryJob immediately.
     // However, replicate.run() blocks until completion. We'll run it in the background and store the result.
-    const jobId = request.extra?.internalJobId || Math.random().toString(36).slice(2)
+    const jobId = extra?.internalJobId || Math.random().toString(36).slice(2)
 
     // Start generation asynchronously
     this.runGeneration(jobId, model, inputOptions)

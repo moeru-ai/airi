@@ -15,9 +15,9 @@ import { isString } from 'es-toolkit'
 
 type ResolveResourceKeys<
   // eslint-disable-next-line ts/no-empty-object-type
-  Schema extends Record<string, any> = {},
+  Schema extends Record<string, unknown> = {},
   // eslint-disable-next-line ts/no-empty-object-type
-  DefineLocaleMessageSchema extends Record<string, any> = {},
+  DefineLocaleMessageSchema extends Record<string, unknown> = {},
   DefinedLocaleMessage extends RemovedIndexResources<DefineLocaleMessageSchema> =
     RemovedIndexResources<DefineLocaleMessageSchema>,
   SchemaPaths = IsEmptyObject<Schema> extends false ? PickupPaths<{ [K in keyof Schema]: Schema[K] }> : never,
@@ -30,9 +30,9 @@ type ResolveResourceKeys<
 
 interface TranslationFunction<
   // eslint-disable-next-line ts/no-empty-object-type
-  Schema extends Record<string, any> = {},
+  Schema extends Record<string, unknown> = {},
   // eslint-disable-next-line ts/no-empty-object-type
-  DefineLocaleMessageSchema extends Record<string, any> = {},
+  DefineLocaleMessageSchema extends Record<string, unknown> = {},
   ResourceKeys = ResolveResourceKeys<Schema, DefineLocaleMessageSchema>,
 > {
   /**
@@ -122,14 +122,14 @@ interface TranslationFunction<
   <Key extends string>(key: Key | ResourceKeys, named: NamedValue, options: TranslateOptions): string
 }
 
-export interface I18n<Schema extends Record<string, any> = Record<string, any>> {
+export interface I18n<Schema extends Record<string, unknown> = Record<string, unknown>> {
   t: TranslationFunction<Schema>
   locale:
-    | (() => string | LocaleDetector<any[]> | undefined)
-    | ((value: string | LocaleDetector<any[]> | undefined) => void)
+    | (() => string | LocaleDetector<unknown[]> | undefined)
+    | ((value: string | LocaleDetector<unknown[]> | undefined) => void)
 }
 
-export function createI18n<Schema extends Record<string, any> = Record<string, any>>(
+export function createI18n<Schema extends Record<string, unknown> = Record<string, unknown>>(
   options: CoreOptions,
 ): I18n<Schema> {
   const log = useLogg('i18n').useGlobalConfig()

@@ -92,6 +92,7 @@ export function deserializeSpan(s: SerializedSpan): ReadableSpan {
     })),
     duration: nanoToHr(String(Number(s.endTimeNano) - Number(s.startTimeNano))),
     ended: s.ended,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resource: resource as any,
     instrumentationScope: { name: TRACER_NAME },
     droppedAttributesCount: 0,

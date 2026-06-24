@@ -6,7 +6,9 @@ export function createCutePopupAnimator(options: CreateAnimatorOptions): Animato
   return (elements: HTMLElement[]) => {
     if (elements.length === 0) {
       // NO DIV0
-      return () => {}
+      return () => {
+        /* noop — no elements to animate */
+      }
     }
 
     const timeline = createTimeline({ loop: options.loop })

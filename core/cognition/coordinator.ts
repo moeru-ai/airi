@@ -126,54 +126,84 @@ export class CognitionCoordinator {
 		const requestId = createReasoningId(`reasoning-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)
 		const now = new Date().toISOString()
 
-		// 1. Retrieve semantic memory if retriever is configured.
-		let enrichedContext = context
-		if (this.memoryRetriever) {
-			try {
-				const retrievalContext = await this.memoryRetriever.retrieveForContext({
-					text: prompt,
-					scopes: ['global', 'workspace', 'repository'],
-					workspaceId: context.workspaceId,
-					repositoryId: context.repositoryId,
-					maxResults: 10,
-				})
+		const enrichedContext = await this.enrichContextWithMemory(context, prompt, requestId, now)
+		const request = this.buildCognitionRequest(requestId, enrichedContext, prompt, options, now)
 
-				if (retrievalContext.results.length > 0) {
-					enrichedContext = {
-						...context,
-						memoryContext: {
-							retrievedMemories: retrievalContext.results.map((r) => r.record.id),
-							contextString: retrievalContext.contextString,
-						},
-						repositoryContext: retrievalContext.repositoryContext
-							? {
-									mapId: retrievalContext.repositoryContext.map.id,
-									relevantFiles: retrievalContext.repositoryContext.relevantFiles.map((f) => f.path),
-								}
-							: context.repositoryContext,
-					}
+		this.emitCognitionRequested(requestId, options, context, now)
+		this.logger.info(`[CognitionCoordinator] Generating proposal for: "${prompt}"`)
+		const response = await this.provider.generatePlanProposal(request)
 
-					// Emit memory retrieved event.
-					this.events.emit("memory.retrieved", {
-						timestamp: now,
-						source: "cognition-coordinator",
-						resultCount: retrievalContext.results.length,
-						queryText: prompt,
-						requestId: requestId as string,
-					})
+		const completedAt = new Date().toISOString()
+		this.emitCognitionCompleted(requestId, response, completedAt)
+		this.emitPlanProposed(requestId, response, completedAt)
 
-					this.logger.info(`[CognitionCoordinator] Retrieved ${retrievalContext.results.length} memories for context`)
-				}
-			} catch (error) {
-				// Memory retrieval failure should not block cognition.
-				this.logger.warn(
-					`[CognitionCoordinator] Memory retrieval failed: ${error instanceof Error ? error.message : String(error)}`,
-				)
-			}
+		const validationResult = this.validator.validate(response.proposal)
+
+		if (validationResult.valid) {
+			return this.handleAcceptedProposal(request, response, validationResult, options)
 		}
+		return this.handleRejectedProposal(request, response, validationResult)
+	}
 
-		// 2. Create cognition request.
-		const request: CognitionRequest = {
+	// ── Private: memory enrichment ───────────────────────────────────────
+
+	private async enrichContextWithMemory(
+		context: CognitionContext,
+		prompt: string,
+		requestId: ReturnType<typeof createReasoningId>,
+		now: string,
+	): Promise<CognitionContext> {
+		if (!this.memoryRetriever) return context
+
+		try {
+			const retrievalContext = await this.memoryRetriever.retrieveForContext({
+				text: prompt,
+				scopes: ['global', 'workspace', 'repository'],
+				workspaceId: context.workspaceId,
+				repositoryId: context.repositoryId,
+				maxResults: 10,
+			})
+
+			if (retrievalContext.results.length === 0) return context
+
+			this.events.emit("memory.retrieved", {
+				timestamp: now,
+				source: "cognition-coordinator",
+				resultCount: retrievalContext.results.length,
+				queryText: prompt,
+				requestId: requestId as string,
+			})
+			this.logger.info(`[CognitionCoordinator] Retrieved ${retrievalContext.results.length} memories for context`)
+
+			return {
+				...context,
+				memoryContext: {
+					retrievedMemories: retrievalContext.results.map((r) => r.record.id),
+					contextString: retrievalContext.contextString,
+				},
+				repositoryContext: retrievalContext.repositoryContext
+					? {
+							mapId: retrievalContext.repositoryContext.map.id,
+							relevantFiles: retrievalContext.repositoryContext.relevantFiles.map((f) => f.path),
+						}
+					: context.repositoryContext,
+			}
+		} catch (error) {
+			this.logger.warn(
+				`[CognitionCoordinator] Memory retrieval failed: ${error instanceof Error ? error.message : String(error)}`,
+			)
+			return context
+		}
+	}
+
+	private buildCognitionRequest(
+		requestId: ReturnType<typeof createReasoningId>,
+		enrichedContext: CognitionContext,
+		prompt: string,
+		options: { constraints?: CognitionConstraints; sessionId?: string },
+		now: string,
+	): CognitionRequest {
+		return {
 			id: requestId,
 			context: enrichedContext,
 			prompt,
@@ -181,8 +211,16 @@ export class CognitionCoordinator {
 			metadata: { sessionId: options.sessionId },
 			createdAt: now,
 		}
+	}
 
-		// 3. Emit cognition.requested event.
+	// ── Private: event emission ──────────────────────────────────────────
+
+	private emitCognitionRequested(
+		requestId: ReturnType<typeof createReasoningId>,
+		options: { sessionId?: string },
+		context: CognitionContext,
+		now: string,
+	): void {
 		this.events.emit("cognition.requested", {
 			timestamp: now,
 			source: "cognition-coordinator",
@@ -190,13 +228,13 @@ export class CognitionCoordinator {
 			sessionId: options.sessionId,
 			workspaceId: context.workspaceId,
 		})
+	}
 
-		// 4. Call provider.
-		this.logger.info(`[CognitionCoordinator] Generating proposal for: "${prompt}"`)
-		const response = await this.provider.generatePlanProposal(request)
-
-		// 5. Emit cognition.completed event.
-		const completedAt = new Date().toISOString()
+	private emitCognitionCompleted(
+		requestId: ReturnType<typeof createReasoningId>,
+		response: CognitionResponse,
+		completedAt: string,
+	): void {
 		this.events.emit("cognition.completed", {
 			timestamp: completedAt,
 			source: "cognition-coordinator",
@@ -205,8 +243,13 @@ export class CognitionCoordinator {
 			modelInfo: response.modelInfo,
 			durationMs: response.durationMs,
 		})
+	}
 
-		// 6. Emit plan.proposed event.
+	private emitPlanProposed(
+		requestId: ReturnType<typeof createReasoningId>,
+		response: CognitionResponse,
+		completedAt: string,
+	): void {
 		this.events.emit("plan.proposed", {
 			timestamp: completedAt,
 			source: "cognition-coordinator",
@@ -216,108 +259,130 @@ export class CognitionCoordinator {
 			stepCount: response.proposal.steps.length,
 			confidence: response.proposal.confidence,
 		})
+	}
 
-		// 7. Validate proposal.
-		const validationResult = this.validator.validate(response.proposal)
+	// ── Private: accepted / rejected handling ────────────────────────────
 
-		// 8. Emit validation events.
-		if (validationResult.valid) {
-			const plan = CognitionCoordinator.acceptProposal(response.proposal, { sessionId: options.sessionId })
+	private handleAcceptedProposal(
+		request: CognitionRequest,
+		response: CognitionResponse,
+		validationResult: ValidationResult,
+		options: { sessionId?: string },
+	): CognitionPipelineResult {
+		const plan = CognitionCoordinator.acceptProposal(response.proposal, { sessionId: options.sessionId })
 
-			this.events.emit("plan.validated", {
-				timestamp: new Date().toISOString(),
-				source: "cognition-coordinator",
-				proposalId: response.proposal.id as string,
-				planId: plan.id as string,
-				validationResult,
-			})
+		this.events.emit("plan.validated", {
+			timestamp: new Date().toISOString(),
+			source: "cognition-coordinator",
+			proposalId: response.proposal.id as string,
+			planId: plan.id as string,
+			validationResult,
+		})
 
-			// 9. Record decision if decision memory is configured.
-			if (this.decisionMemory) {
-				const decisionId = DecisionMemory.generateId()
-				this.decisionMemory.recordDecision({
-					id: decisionId,
-					proposalId: response.proposal.id as string,
-					planId: plan.id as string,
-					type: 'accepted',
-					title: response.proposal.name,
-					reasoning: `Proposal accepted with ${response.proposal.steps.length} steps`,
-					validationResult: {
-						valid: validationResult.valid,
-						errors: validationResult.errors.map((e) => e.message),
-						warnings: validationResult.warnings.map((w) => w.message),
-					},
-					timestamp: new Date().toISOString(),
-				})
+		this.recordDecision(response.proposal, plan, validationResult)
 
-				this.events.emit("decision.recorded", {
-					timestamp: new Date().toISOString(),
-					source: "cognition-coordinator",
-					memoryId: decisionId as string,
-					decisionType: 'accepted',
-					proposalId: response.proposal.id as string,
-					title: response.proposal.name,
-				})
-			}
+		this.logger.info(`[CognitionCoordinator] Proposal "${response.proposal.name}" accepted (${response.proposal.steps.length} steps)`)
 
-			this.logger.info(`[CognitionCoordinator] Proposal "${response.proposal.name}" accepted (${response.proposal.steps.length} steps)`)
-
-			return {
-				request,
-				response,
-				proposal: response.proposal,
-				validationResult,
-				plan,
-				accepted: true,
-			}
-		} else {
-			// Rejected — emit plan.rejected event.
-			const reason = validationResult.errors.map((e) => e.message).join("; ")
-			this.events.emit("plan.rejected", {
-				timestamp: new Date().toISOString(),
-				source: "cognition-coordinator",
-				proposalId: response.proposal.id as string,
-				reason,
-				validationResult,
-			})
-
-			// Record rejected decision if decision memory is configured.
-			if (this.decisionMemory) {
-				const decisionId = DecisionMemory.generateId()
-				this.decisionMemory.recordDecision({
-					id: decisionId,
-					proposalId: response.proposal.id as string,
-					type: 'rejected',
-					title: response.proposal.name,
-					reasoning: reason,
-					validationResult: {
-						valid: validationResult.valid,
-						errors: validationResult.errors.map((e) => e.message),
-						warnings: validationResult.warnings.map((w) => w.message),
-					},
-					timestamp: new Date().toISOString(),
-				})
-
-				this.events.emit("decision.recorded", {
-					timestamp: new Date().toISOString(),
-					source: "cognition-coordinator",
-					memoryId: decisionId as string,
-					decisionType: 'rejected',
-					proposalId: response.proposal.id as string,
-					title: response.proposal.name,
-				})
-			}
-
-			this.logger.warn(`[CognitionCoordinator] Proposal "${response.proposal.name}" rejected: ${reason}`)
-
-			return {
-				request,
-				response,
-				proposal: response.proposal,
-				validationResult,
-				accepted: false,
-			}
+		return {
+			request,
+			response,
+			proposal: response.proposal,
+			validationResult,
+			plan,
+			accepted: true,
 		}
+	}
+
+	private handleRejectedProposal(
+		request: CognitionRequest,
+		response: CognitionResponse,
+		validationResult: ValidationResult,
+	): CognitionPipelineResult {
+		const reason = validationResult.errors.map((e) => e.message).join("; ")
+		this.events.emit("plan.rejected", {
+			timestamp: new Date().toISOString(),
+			source: "cognition-coordinator",
+			proposalId: response.proposal.id as string,
+			reason,
+			validationResult,
+		})
+
+		this.recordRejectedDecision(response.proposal, reason, validationResult)
+
+		this.logger.warn(`[CognitionCoordinator] Proposal "${response.proposal.name}" rejected: ${reason}`)
+
+		return {
+			request,
+			response,
+			proposal: response.proposal,
+			validationResult,
+			accepted: false,
+		}
+	}
+
+	private recordDecision(
+		proposal: PlanProposal,
+		plan: Plan,
+		validationResult: ValidationResult,
+	): void {
+		if (!this.decisionMemory) return
+
+		const decisionId = DecisionMemory.generateId()
+		this.decisionMemory.recordDecision({
+			id: decisionId,
+			proposalId: proposal.id as string,
+			planId: plan.id as string,
+			type: 'accepted',
+			title: proposal.name,
+			reasoning: `Proposal accepted with ${proposal.steps.length} steps`,
+			validationResult: {
+				valid: validationResult.valid,
+				errors: validationResult.errors.map((e) => e.message),
+				warnings: validationResult.warnings.map((w) => w.message),
+			},
+			timestamp: new Date().toISOString(),
+		})
+
+		this.events.emit("decision.recorded", {
+			timestamp: new Date().toISOString(),
+			source: "cognition-coordinator",
+			memoryId: decisionId as string,
+			decisionType: 'accepted',
+			proposalId: proposal.id as string,
+			title: proposal.name,
+		})
+	}
+
+	private recordRejectedDecision(
+		proposal: PlanProposal,
+		reason: string,
+		validationResult: ValidationResult,
+	): void {
+		if (!this.decisionMemory) return
+
+		const decisionId = DecisionMemory.generateId()
+		this.decisionMemory.recordDecision({
+			id: decisionId,
+			proposalId: proposal.id as string,
+			type: 'rejected',
+			title: proposal.name,
+			reasoning: reason,
+			validationResult: {
+				valid: validationResult.valid,
+				errors: validationResult.errors.map((e) => e.message),
+				warnings: validationResult.warnings.map((w) => w.message),
+			},
+			timestamp: new Date().toISOString(),
+		})
+
+		this.events.emit("decision.recorded", {
+			timestamp: new Date().toISOString(),
+			source: "cognition-coordinator",
+			memoryId: decisionId as string,
+			decisionType: 'rejected',
+			proposalId: proposal.id as string,
+			title: proposal.name,
+		})
 	}
 
 	/**

@@ -2,6 +2,15 @@ import type { ArtistryJob, ArtistryJobStatus, ArtistryProvider, ArtistryRequest 
 
 import { useLogg } from '@guiiai/logg'
 
+/** Type for the extra provider-options bag inside {@link ArtistryRequest.extra}. */
+type NanobananaExtra = Record<string, unknown> & {
+  internalJobId?: string
+  model?: string
+  resolution?: string
+  image?: string
+  providerOptions?: { image?: string }
+}
+
 const log = useLogg('providers-nanobanana').useGlobalConfig()
 
 export class NanoBananaProvider implements ArtistryProvider {
@@ -39,13 +48,15 @@ export class NanoBananaProvider implements ArtistryProvider {
       throw new Error('Nano Banana API Key not configured')
     }
 
-    const jobId = request.extra?.internalJobId || `nanobanana-${Date.now()}`
+    const extra = request.extra as NanobananaExtra | undefined
+    const jobId = extra?.internalJobId || `nanobanana-${Date.now()}`
     const model = request.model || this.defaultModel
-    const resolution = request.extra?.resolution || this.defaultResolution
+    const resolution = extra?.resolution || this.defaultResolution
 
     // Robust image extraction & cleansing
-    let base64Image = request.extra?.image || request.extra?.providerOptions?.image || ''
-    if (base64Image.includes('base64,')) base64Image = base64Image.split('base64,')[1]
+    let base64Image = extra?.image || extra?.providerOptions?.image || ''
+    if (typeof base64Image === 'string' && base64Image.includes('base64,'))
+      base64Image = base64Image.split('base64,')[1]
 
     this.runGeneration(jobId, model, resolution, request.prompt, base64Image)
 

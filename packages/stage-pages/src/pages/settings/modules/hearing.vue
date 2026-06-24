@@ -148,34 +148,33 @@ const isSpeech = computed(() => {
   return isSpeechVolume.value
 })
 
+async function connectAnalyzer(source: MediaStreamAudioSourceNode) {
+  const analyzer = startAnalyzer(audioContext.value)
+  onAnalyzerUpdate((volumeLevel) => {
+    if (!useVADModel.value || !loadedVAD.value) {
+      isSpeechVolume.value = volumeLevel > useVADThreshold.value
+    }
+  })
+  if (analyzer) source.connect(analyzer)
+}
+
+async function startVadProcessing() {
+  if (!useVADModel.value) return
+  await initVAD()
+  await startVAD(stream.value!)
+}
+
 async function setupAudioMonitoring() {
   try {
-    if (!selectedAudioInput.value) {
-      return
-    }
+    if (!selectedAudioInput.value) return
 
     await stopAudioMonitoring()
-
     await startStream()
-    if (!stream.value) {
-      return
-    }
+    if (!stream.value) return
 
     const source = audioContext.value.createMediaStreamSource(stream.value)
-
-    // Fallback speaking detection (when VAD model is not used)
-    const analyzer = startAnalyzer(audioContext.value)
-    onAnalyzerUpdate((volumeLevel) => {
-      if (!useVADModel.value || !loadedVAD.value) {
-        isSpeechVolume.value = volumeLevel > useVADThreshold.value
-      }
-    })
-    if (analyzer) source.connect(analyzer)
-
-    if (useVADModel.value) {
-      await initVAD()
-      await startVAD(stream.value)
-    }
+    await connectAnalyzer(source)
+    await startVadProcessing()
   } catch (error) {
     vadModelError.value = error instanceof Error ? error.message : String(error)
   }
@@ -209,29 +208,25 @@ async function toggleMonitoring() {
   }
 }
 
-// Speaking indicator with enhanced VAD visualization
-const speakingIndicatorClass = computed(() => {
-  if (!useVADModel.value || !loadedVAD.value) {
-    // Volume-based: simple green/white
-    return isSpeechVolume.value
-      ? 'bg-green-500 shadow-lg shadow-green-500/50'
-      : 'bg-white dark:bg-neutral-900 border-2 border-neutral-300 dark:border-neutral-600'
-  }
+const volumeIndicatorClass = computed(() =>
+  isSpeechVolume.value
+    ? 'bg-green-500 shadow-lg shadow-green-500/50'
+    : 'bg-white dark:bg-neutral-900 border-2 border-neutral-300 dark:border-neutral-600',
+)
 
-  // VAD-based: color intensity based on probability
+const vadIndicatorClass = computed(() => {
   const prob = isSpeechProb.value
   const threshold = useVADThreshold.value
 
-  if (prob > threshold) {
-    // Speaking: green (could add intensity in future)
-    return 'bg-green-500 shadow-lg shadow-green-500/50'
-  } else if (prob > threshold * 0.5) {
-    // Close to threshold: yellow
-    return 'bg-yellow-500 shadow-lg shadow-yellow-500/30'
-  } else {
-    // Low probability: neutral
-    return 'bg-white dark:bg-neutral-900 border-2 border-neutral-300 dark:border-neutral-600'
-  }
+  if (prob > threshold) return 'bg-green-500 shadow-lg shadow-green-500/50'
+  if (prob > threshold * 0.5) return 'bg-yellow-500 shadow-lg shadow-yellow-500/30'
+  return 'bg-white dark:bg-neutral-900 border-2 border-neutral-300 dark:border-neutral-600'
+})
+
+// Speaking indicator with enhanced VAD visualization
+const speakingIndicatorClass = computed(() => {
+  if (!useVADModel.value || !loadedVAD.value) return volumeIndicatorClass.value
+  return vadIndicatorClass.value
 })
 
 function updateCustomModelName(value: string | undefined) {
@@ -257,37 +252,30 @@ function syncOpenAICompatibleSettings() {
   }
 }
 
-onStopRecord(async (recording) => {
-  if (shouldUseStreamInput.value) return
+async function transcribeRecordingForTest(recording: Blob) {
+  testStatusMessage.value = 'Transcribing recording...'
+  isTranscribing.value = true
 
-  if (!recording || recording.size === 0) return
-
-  // Handle STT test transcription directly here
-  if (isTestingSTT.value) {
-    testStatusMessage.value = 'Transcribing recording...'
-    isTranscribing.value = true
-
-    try {
-      const result = await transcribeForRecording(recording)
-      if (result) {
-        testTranscriptionText.value = result
-        testStatusMessage.value = 'Transcription complete!'
-      } else {
-        testTranscriptionError.value =
-          transcriptionPipelineError.value || 'No transcription result returned from provider'
-        testStatusMessage.value = 'Transcription failed'
-      }
-    } catch (err) {
-      testTranscriptionError.value = err instanceof Error ? err.message : String(err)
-      testStatusMessage.value = `Error: ${testTranscriptionError.value}`
-    } finally {
-      isTranscribing.value = false
-      isTestingSTT.value = false
+  try {
+    const result = await transcribeForRecording(recording)
+    if (result) {
+      testTranscriptionText.value = result
+      testStatusMessage.value = 'Transcription complete!'
+    } else {
+      testTranscriptionError.value =
+        transcriptionPipelineError.value || 'No transcription result returned from provider'
+      testStatusMessage.value = 'Transcription failed'
     }
-    return
+  } catch (err) {
+    testTranscriptionError.value = err instanceof Error ? err.message : String(err)
+    testStatusMessage.value = `Error: ${testTranscriptionError.value}`
+  } finally {
+    isTranscribing.value = false
+    isTestingSTT.value = false
   }
+}
 
-  // Normal monitoring mode - add to audios and transcribe
+async function transcribeRecordingForMonitoring(recording: Blob) {
   audios.value.push(recording)
 
   const res = await transcribeForRecording(recording)
@@ -298,7 +286,81 @@ onStopRecord(async (recording) => {
   } else if (transcriptionPipelineError.value) {
     error.value = transcriptionPipelineError.value
   }
+}
+
+onStopRecord(async (recording) => {
+  if (shouldUseStreamInput.value) return
+  if (!recording || recording.size === 0) return
+
+  if (isTestingSTT.value) {
+    await transcribeRecordingForTest(recording)
+    return
+  }
+
+  await transcribeRecordingForMonitoring(recording)
 })
+
+async function ensureTestStream(): Promise<boolean> {
+  if (stream.value) {
+    testStreamWasStarted.value = false
+    return true
+  }
+
+  testStatusMessage.value = 'Starting audio stream...'
+  testStreamWasStarted.value = true
+  await startStream()
+
+  try {
+    await until(stream).toBeTruthy({ timeout: 3000, throwOnTimeout: true })
+  } catch {
+    handleStreamStartError()
+    return false
+  }
+
+  if (!stream.value) {
+    handleStreamStartError()
+    return false
+  }
+
+  return true
+}
+
+async function startStreamingTest() {
+  testStatusMessage.value = 'Starting streaming transcription...'
+
+  await transcribeForMediaStream(stream.value!, {
+    onSentenceEnd: (delta) => {
+      if (delta?.trim()) {
+        testStreamingText.value += `${delta} `
+        testStatusMessage.value = 'Transcribing... (streaming)'
+        isTranscribing.value = true
+      }
+    },
+    onSpeechEnd: (text) => {
+      if (text) {
+        testTranscriptionText.value = text
+        testStreamingText.value = ''
+        testStatusMessage.value = 'Transcription complete!'
+        isTranscribing.value = false
+      } else {
+        testStatusMessage.value = 'Waiting for speech...'
+        isTranscribing.value = false
+      }
+    },
+  })
+
+  testStatusMessage.value = 'Listening for speech... (streaming mode active)'
+  isTranscribing.value = false
+}
+
+function startRecordingTest() {
+  testStatusMessage.value = 'Recording audio for transcription... (3 seconds)'
+  startRecord()
+  setTimeout(async () => {
+    stopRecord()
+    testStatusMessage.value = 'Processing transcription...'
+  }, 3000)
+}
 
 // Speech-to-Text test functions
 async function startSTTTest() {
@@ -321,67 +383,13 @@ async function startSTTTest() {
   isTranscribing.value = true
 
   try {
-    // Ensure audio stream is available
-    if (!stream.value) {
-      testStatusMessage.value = 'Starting audio stream...'
-      testStreamWasStarted.value = true
-      await startStream()
+    const streamReady = await ensureTestStream()
+    if (!streamReady) return
 
-      // Wait for the stream to become available with a 3-second timeout.
-      try {
-        await until(stream).toBeTruthy({ timeout: 3000, throwOnTimeout: true })
-      } catch {
-        handleStreamStartError()
-        return
-      }
-
-      // Type guard: until guarantees stream.value is truthy, but TypeScript doesn't know this
-      if (!stream.value) {
-        handleStreamStartError()
-        return
-      }
-    } else {
-      testStreamWasStarted.value = false // Stream was already running
-    }
-
-    // Check if provider supports streaming input
     if (shouldUseStreamInput.value && stream.value) {
-      testStatusMessage.value = 'Starting streaming transcription...'
-
-      await transcribeForMediaStream(stream.value, {
-        onSentenceEnd: (delta) => {
-          if (delta?.trim()) {
-            testStreamingText.value += `${delta} `
-            testStatusMessage.value = 'Transcribing... (streaming)'
-            isTranscribing.value = true
-          }
-        },
-        onSpeechEnd: (text) => {
-          if (text) {
-            testTranscriptionText.value = text
-            testStreamingText.value = ''
-            testStatusMessage.value = 'Transcription complete!'
-            isTranscribing.value = false
-          } else {
-            testStatusMessage.value = 'Waiting for speech...'
-            isTranscribing.value = false
-          }
-        },
-      })
-
-      testStatusMessage.value = 'Listening for speech... (streaming mode active)'
-      isTranscribing.value = false // Not actively transcribing yet, just listening
+      await startStreamingTest()
     } else {
-      // Fallback to recording-based transcription
-      testStatusMessage.value = 'Recording audio for transcription... (3 seconds)'
-
-      startRecord()
-
-      // Wait a bit for recording to start, then stop it after a delay
-      setTimeout(async () => {
-        stopRecord()
-        testStatusMessage.value = 'Processing transcription...'
-      }, 3000) // Record for 3 seconds
+      startRecordingTest()
     }
   } catch (err) {
     testTranscriptionError.value = err instanceof Error ? err.message : String(err)
@@ -391,13 +399,8 @@ async function startSTTTest() {
   }
 }
 
-async function stopSTTTest() {
-  isTestingSTT.value = false
-  isTranscribing.value = false
-  testStatusMessage.value = 'Stopped'
-
+async function stopSTTTranscription() {
   try {
-    // Stop streaming transcription if active
     if (shouldUseStreamInput.value) {
       await stopStreamingTranscription(false, activeTranscriptionProvider.value)
     } else {
@@ -406,21 +409,32 @@ async function stopSTTTest() {
   } catch {
     // noop: best-effort stop
   }
+}
 
-  // Finalize transcription if we have streaming text
+function finalizeStreamingTranscription() {
   if (testStreamingText.value.trim() && !testTranscriptionText.value) {
     testTranscriptionText.value = testStreamingText.value.trim()
   }
+}
 
-  // Stop the stream if we started it for testing (and monitoring is not active)
-  if (testStreamWasStarted.value && !isMonitoring.value) {
-    try {
-      stopStream()
-      testStreamWasStarted.value = false
-    } catch {
-      // noop: best-effort stop
-    }
+function stopTestStream() {
+  if (!testStreamWasStarted.value || isMonitoring.value) return
+  try {
+    stopStream()
+    testStreamWasStarted.value = false
+  } catch {
+    // noop: best-effort stop
   }
+}
+
+async function stopSTTTest() {
+  isTestingSTT.value = false
+  isTranscribing.value = false
+  testStatusMessage.value = 'Stopped'
+
+  await stopSTTTranscription()
+  finalizeStreamingTranscription()
+  stopTestStream()
 }
 
 // Note: STT test transcription is now handled directly in onStopRecord handler above

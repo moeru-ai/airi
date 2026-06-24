@@ -87,6 +87,84 @@ const CONFIG_PATTERNS = [
 
 // ── Import parsers ────────────────────────────────────────────────────────
 
+/** Collect all regex matches into an array. */
+function collectMatches(content: string, regex: RegExp): string[] {
+	const matches: string[] = []
+	let m: RegExpExecArray | null
+	while ((m = regex.exec(content)) !== null) {
+		matches.push(m[1]!)
+	}
+	return matches
+}
+
+/** Parse ES module, CommonJS, and dynamic imports from JS/TS content. */
+function parseJsTsImports(content: string): string[] {
+	const imports = [
+		...collectMatches(content, /import\s+(?:.+\s+from\s+)?['"]([^'"]+)['"]/g),
+		...collectMatches(content, /require\s*\(\s*['"]([^'"]+)['"]\s*\)/g),
+		...collectMatches(content, /import\s*\(\s*['"]([^'"]+)['"]\s*\)/g),
+	]
+	return imports
+}
+
+/** Parse Python imports (`import X` / `from X import Y`). */
+function parsePythonImports(content: string): string[] {
+	const imports = [
+		...collectMatches(content, /^import\s+(\S+)/gm),
+		...collectMatches(content, /^from\s+(\S+)\s+import/gm),
+	]
+	return imports.map((imp) => imp.replace(/\./g, '/'))
+}
+
+/** Parse Rust imports (`use crate::X` / `mod X`). */
+function parseRustImports(content: string): string[] {
+	const imports = [
+		...collectMatches(content, /use\s+(?:::)?(\S+)/g),
+		...collectMatches(content, /^mod\s+(\S+);/gm),
+	]
+	return imports.map((imp) => imp.replace(/::/g, '/'))
+}
+
+/** Parse Go imports (single-line and multi-line). */
+function parseGoImports(content: string): string[] {
+	const imports = [
+		...collectMatches(content, /import\s+"([^"]+)"/g),
+	]
+
+	// Multi-line import blocks.
+	const blocks = collectMatches(content, /import\s*\(\s*((?:\s*"[^"]+")+)/g)
+	for (const block of blocks) {
+		imports.push(...collectMatches(block, /"([^"]+)"/g))
+	}
+
+	return imports
+}
+
+/** Parse Java/Kotlin imports. */
+function parseJavaKotlinImports(content: string): string[] {
+	return collectMatches(content, /^import\s+(\S+);/gm).map((imp) => imp.replace(/\./g, '/'))
+}
+
+/** Parse Swift imports. */
+function parseSwiftImports(content: string): string[] {
+	return collectMatches(content, /^import\s+(\S+)/gm)
+}
+
+/** Parse Ruby imports (`require` / `require_relative`). */
+function parseRubyImports(content: string): string[] {
+	return [
+		...collectMatches(content, /require\s+['"]([^'"]+)['"]/g),
+		...collectMatches(content, /require_relative\s+['"]([^'"]+)['"]/g),
+	]
+}
+
+/** Parse PHP imports (`use` / `require` / `include`). */
+function parsePhpImports(content: string): string[] {
+	return collectMatches(content, /(?:use|require|include)\s+['"]?([^'";\s]+)['"]?/g).map((imp) =>
+		imp.replace(/\\/g, '/'),
+	)
+}
+
 /**
  * Parse import statements from file content.
  *
@@ -99,7 +177,7 @@ const CONFIG_PATTERNS = [
  * - Java/Kotlin/Swift: import X
  */
 function parseImports(content: string, extension: string): string[] {
-	const imports: string[] = []
+	let imports: string[]
 
 	switch (extension) {
 		case '.ts':
@@ -107,135 +185,33 @@ function parseImports(content: string, extension: string): string[] {
 		case '.js':
 		case '.jsx':
 		case '.vue':
-		case '.svelte': {
-			// ES module imports.
-			const esImportRegex = /import\s+(?:.+\s+from\s+)?['"]([^'"]+)['"]/g
-			let match: RegExpExecArray | null
-			while ((match = esImportRegex.exec(content)) !== null) {
-				imports.push(match[1]!)
-			}
-
-			// CommonJS requires.
-			const cjsRegex = /require\s*\(\s*['"]([^'"]+)['"]\s*\)/g
-			while ((match = cjsRegex.exec(content)) !== null) {
-				imports.push(match[1]!)
-			}
-
-			// Dynamic imports.
-			const dynImportRegex = /import\s*\(\s*['"]([^'"]+)['"]\s*\)/g
-			while ((match = dynImportRegex.exec(content)) !== null) {
-				imports.push(match[1]!)
-			}
-
+		case '.svelte':
+			imports = parseJsTsImports(content)
 			break
-		}
-
-		case '.py': {
-			// Python imports.
-			const pyImportRegex = /^import\s+(\S+)/gm
-			let match: RegExpExecArray | null
-			while ((match = pyImportRegex.exec(content)) !== null) {
-				imports.push(match[1]!.replace(/\./g, '/'))
-			}
-
-			const pyFromRegex = /^from\s+(\S+)\s+import/gm
-			while ((match = pyFromRegex.exec(content)) !== null) {
-				imports.push(match[1]!.replace(/\./g, '/'))
-			}
-
+		case '.py':
+			imports = parsePythonImports(content)
 			break
-		}
-
-		case '.rs': {
-			// Rust imports.
-			const useRegex = /use\s+(?:::)?(\S+)/g
-			let match: RegExpExecArray | null
-			while ((match = useRegex.exec(content)) !== null) {
-				imports.push(match[1]!.replace(/::/g, '/'))
-			}
-
-			const modRegex = /^mod\s+(\S+);/gm
-			while ((match = modRegex.exec(content)) !== null) {
-				imports.push(match[1]!)
-			}
-
+		case '.rs':
+			imports = parseRustImports(content)
 			break
-		}
-
-		case '.go': {
-			// Go imports.
-			const goImportRegex = /import\s+"([^"]+)"/g
-			let match: RegExpExecArray | null
-			while ((match = goImportRegex.exec(content)) !== null) {
-				imports.push(match[1]!)
-			}
-
-			// Multi-line imports.
-			const goMultiImportRegex = /import\s*\(\s*((?:\s*"[^"]+")+)/g
-			while ((match = goMultiImportRegex.exec(content)) !== null) {
-				const block = match[1]!
-				const pathRegex = /"([^"]+)"/g
-				let pathMatch: RegExpExecArray | null
-				while ((pathMatch = pathRegex.exec(block)) !== null) {
-					imports.push(pathMatch[1]!)
-				}
-			}
-
+		case '.go':
+			imports = parseGoImports(content)
 			break
-		}
-
 		case '.java':
-		case '.kt': {
-			// Java/Kotlin imports.
-			const javaImportRegex = /^import\s+(\S+);/gm
-			let match: RegExpExecArray | null
-			while ((match = javaImportRegex.exec(content)) !== null) {
-				imports.push(match[1]!.replace(/\./g, '/'))
-			}
-
+		case '.kt':
+			imports = parseJavaKotlinImports(content)
 			break
-		}
-
-		case '.swift': {
-			// Swift imports.
-			const swiftImportRegex = /^import\s+(\S+)/gm
-			let match: RegExpExecArray | null
-			while ((match = swiftImportRegex.exec(content)) !== null) {
-				imports.push(match[1]!)
-			}
-
+		case '.swift':
+			imports = parseSwiftImports(content)
 			break
-		}
-
-		case '.rb': {
-			// Ruby imports.
-			const requireRegex = /require\s+['"]([^'"]+)['"]/g
-			let match: RegExpExecArray | null
-			while ((match = requireRegex.exec(content)) !== null) {
-				imports.push(match[1]!)
-			}
-
-			const requireRelRegex = /require_relative\s+['"]([^'"]+)['"]/g
-			while ((match = requireRelRegex.exec(content)) !== null) {
-				imports.push(match[1]!)
-			}
-
+		case '.rb':
+			imports = parseRubyImports(content)
 			break
-		}
-
-		case '.php': {
-			// PHP imports.
-			const phpImportRegex = /(?:use|require|include)\s+['"]?([^'";\s]+)['"]?/g
-			let match: RegExpExecArray | null
-			while ((match = phpImportRegex.exec(content)) !== null) {
-				imports.push(match[1]!.replace(/\\/g, '/'))
-			}
-
+		case '.php':
+			imports = parsePhpImports(content)
 			break
-		}
-
 		default:
-			break
+			return []
 	}
 
 	return [...new Set(imports)]
@@ -328,6 +304,102 @@ export class RepositoryIntelligence {
 	}
 
 	/**
+	 * Build the file graph and import edges from provided files.
+	 *
+	 * Returns the populated fileGraph and importGraph arrays.
+	 */
+	private static buildFileGraph(
+		files: Array<{
+			readonly path: string
+			readonly content: string
+			readonly size: number
+			readonly lastModified: string
+		}>,
+	): { fileGraph: FileGraphNode[]; importGraph: ImportEdge[] } {
+		const fileGraph: FileGraphNode[] = []
+		const importGraph: ImportEdge[] = []
+
+		for (const file of files) {
+			const extension = file.path.includes('.')
+				? `.${file.path.split('.').pop()}`
+				: ''
+			const name = file.path.split('/').pop() ?? file.path
+
+			const imports = PARSEABLE_EXTENSIONS.has(extension)
+				? parseImports(file.content, extension)
+				: []
+
+			fileGraph.push({
+				path: file.path,
+				name,
+				extension,
+				size: file.size,
+				lastModified: file.lastModified,
+				imports,
+				importedBy: [],
+				isTest: isTestFile(file.path),
+				isConfig: isConfigFile(file.path),
+			})
+
+			for (const imp of imports) {
+				importGraph.push({
+					from: file.path,
+					to: imp,
+					isExternal: imp.startsWith('node_modules/') || !imp.startsWith('.'),
+				})
+			}
+		}
+
+		// Populate importedBy references.
+		for (const node of fileGraph) {
+			for (const imp of node.imports) {
+				const target = fileGraph.find((f) => f.path === imp || f.path.endsWith(imp))
+				if (target) {
+					;(target as FileGraphNode & { importedBy: string[] }).importedBy = [
+						...target.importedBy,
+						node.path,
+					]
+				}
+			}
+		}
+
+		return { fileGraph, importGraph }
+	}
+
+	/**
+	 * Build architecture nodes from the directory structure of the file graph.
+	 */
+	private static buildArchitectureNodes(fileGraph: FileGraphNode[]): ArchitectureNode[] {
+		const dirMap = new Map<string, string[]>()
+		for (const file of fileGraph) {
+			const dir = file.path.split('/').slice(0, -1).join('/')
+			if (!dirMap.has(dir)) {
+				dirMap.set(dir, [])
+			}
+			dirMap.get(dir)!.push(file.path)
+		}
+
+		const rootNodes: ArchitectureNode[] = []
+		for (const [dirPath, files] of dirMap) {
+			const name = dirPath.split('/').pop() ?? 'root'
+			const nodeType = determineNodeType(dirPath, '')
+
+			rootNodes.push({
+				id: `node-${dirPath}`,
+				name,
+				type: nodeType,
+				path: dirPath,
+				children: [],
+				dependencies: [],
+				capabilities: [],
+				description: `${files.length} files`,
+			})
+		}
+
+		return rootNodes
+	}
+
+	/**
 	 * Index a repository at the given path.
 	 *
 	 * This is a simplified in-memory implementation that builds the
@@ -337,8 +409,7 @@ export class RepositoryIntelligence {
 	 * For now, this creates a skeleton map that can be populated
 	 * by the caller with actual file data.
 	 */
-  // async: returns Promise for async indexing
-	async indexRepository(
+  indexRepository(
 		path: string,
 		options: {
 			readonly files?: Array<{
@@ -353,83 +424,13 @@ export class RepositoryIntelligence {
 		const id = createRepositoryMapId(`repo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)
 		const now = new Date().toISOString()
 
-		const fileGraph: FileGraphNode[] = []
-		const importGraph: ImportEdge[] = []
-		const rootNodes: ArchitectureNode[] = []
+		const { fileGraph, importGraph } = options.files
+			? RepositoryIntelligence.buildFileGraph(options.files)
+			: { fileGraph: [] as FileGraphNode[], importGraph: [] as ImportEdge[] }
 
-		if (options.files) {
-			// Build file graph from provided files.
-			for (const file of options.files) {
-				const extension = file.path.includes('.')
-					? `.${file.path.split('.').pop()}`
-					: ''
-				const name = file.path.split('/').pop() ?? file.path
-
-				const imports = PARSEABLE_EXTENSIONS.has(extension)
-					? parseImports(file.content, extension)
-					: []
-
-				fileGraph.push({
-					path: file.path,
-					name,
-					extension,
-					size: file.size,
-					lastModified: file.lastModified,
-					imports,
-					importedBy: [], // Populated below.
-					isTest: isTestFile(file.path),
-					isConfig: isConfigFile(file.path),
-				})
-
-				// Create import edges.
-				for (const imp of imports) {
-					importGraph.push({
-						from: file.path,
-						to: imp,
-						isExternal: imp.startsWith('node_modules/') || !imp.startsWith('.'),
-					})
-				}
-			}
-
-			// Populate importedBy.
-			for (const node of fileGraph) {
-				for (const imp of node.imports) {
-					const target = fileGraph.find((f) => f.path === imp || f.path.endsWith(imp))
-					if (target) {
-						;(target as FileGraphNode & { importedBy: string[] }).importedBy = [
-							...target.importedBy,
-							node.path,
-					]
-					}
-				}
-			}
-
-			// Build architecture nodes from directory structure.
-			const dirMap = new Map<string, string[]>()
-			for (const file of fileGraph) {
-				const dir = file.path.split('/').slice(0, -1).join('/')
-				if (!dirMap.has(dir)) {
-					dirMap.set(dir, [])
-				}
-				dirMap.get(dir)!.push(file.path)
-			}
-
-			for (const [dirPath, files] of dirMap) {
-				const name = dirPath.split('/').pop() ?? 'root'
-				const nodeType = determineNodeType(dirPath, '')
-
-				rootNodes.push({
-					id: `node-${dirPath}`,
-					name,
-					type: nodeType,
-					path: dirPath,
-					children: [],
-					dependencies: [],
-					capabilities: [],
-					description: `${files.length} files`,
-				})
-			}
-		}
+		const rootNodes = options.files
+			? RepositoryIntelligence.buildArchitectureNodes(fileGraph)
+			: []
 
 		const defaultGitMetadata: GitMetadata = options.gitMetadata ?? {
 			branch: 'unknown',
@@ -452,7 +453,7 @@ export class RepositoryIntelligence {
 		}
 
 		this.maps.set(id, map)
-		return map
+		return Promise.resolve(map)
 	}
 
 	/**

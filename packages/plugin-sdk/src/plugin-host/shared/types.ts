@@ -72,18 +72,10 @@ export type PluginRuntime = (typeof pluginRuntimeValues)[number]
  */
 export const pluginRuntimeSchema = picklist(pluginRuntimeValues)
 
-/**
- * Describes a JSON-like array accepted by plugin-host shared data schemas.
- *
- * Use when:
- * - Typing serializable arrays inside binding config, resource payloads, or tool schemas
- *
- * Expects:
- * - Every element is a {@link HostDataValue}
- *
- * Returns:
- * - A recursive array interface for host-safe data
- */
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+// HostDataArray is an empty interface by design: it serves as a recursive
+// typed-array marker in the HostDataValue union, enabling clearer type
+// errors and IDE hover information than a plain `HostDataValue[]` alias.
 export interface HostDataArray extends Array<HostDataValue> {}
 
 /**

@@ -106,7 +106,9 @@ export function useCanvasPixelAtPoint(
 
     const xIn = xRef.value - left.value
     const yIn = yRef.value - top.value
-    return xIn >= 0 && yIn >= 0 && xIn < width.value && yIn < height.value
+    const isWithinHorizontalBounds = xIn >= 0 && xIn < width.value
+    const isWithinVerticalBounds = yIn >= 0 && yIn < height.value
+    return isWithinHorizontalBounds && isWithinVerticalBounds
   })
 
   const pixel = computed(() => {

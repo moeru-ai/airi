@@ -346,7 +346,9 @@ describe('applyCreateActions', () => {
     const mapper: CloudChatMapper = {
       listChats: async () => [],
       createChat: async (input) => ({ id: input.id!, type: 'bot', title: null, createdAt: '', updatedAt: '' }),
-      deleteChat: async () => {},
+      deleteChat: async () => {
+        /* stub */
+      },
     }
     const results = await applyCreateActions(mapper, [
       { sessionId: 's1', characterId: 'c1' },
@@ -371,7 +373,9 @@ describe('applyCreateActions', () => {
         if (input.id === 's2') throw new Error('boom')
         return { id: input.id!, type: 'bot', title: null, createdAt: '', updatedAt: '' }
       },
-      deleteChat: async () => {},
+      deleteChat: async () => {
+        /* stub */
+      },
     }
     const results = await applyCreateActions(mapper, [
       { sessionId: 's1', characterId: 'c1' },
@@ -394,7 +398,9 @@ describe('applyCreateActions', () => {
     const mapper: CloudChatMapper = {
       listChats: async () => [],
       createChat: createChat as unknown as CloudChatMapper['createChat'],
-      deleteChat: async () => {},
+      deleteChat: async () => {
+        /* stub */
+      },
     }
     expect(await applyCreateActions(mapper, [])).toEqual([])
     expect(createChat).not.toHaveBeenCalled()

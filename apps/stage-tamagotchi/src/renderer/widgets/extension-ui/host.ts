@@ -31,12 +31,7 @@ export function canRenderExtensionUi(options: {
   iframeSrc?: string
   iframeSrcdoc?: string
 }) {
-  return Boolean(
-    options.moduleSnapshot &&
-    (options.iframeSrc || options.iframeSrcdoc) &&
-    !options.loading &&
-    !options.error &&
-    !options.iframeLoadError &&
-    !options.iframeMountError,
-  )
+  const hasContent = Boolean(options.moduleSnapshot && (options.iframeSrc || options.iframeSrcdoc))
+  const hasError = Boolean(options.loading || options.error || options.iframeLoadError || options.iframeMountError)
+  return hasContent && !hasError
 }

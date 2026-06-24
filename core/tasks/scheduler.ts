@@ -185,9 +185,21 @@ export class TaskScheduler {
    * Execute a task with the given executor.
    */
   private async executeTask(task: Task, executor: TaskExecutor): Promise<void> {
-    const token = this.manager.getCancellationToken(task.id)
+    const ctx = this.createExecutionContext(task)
 
-    const ctx: TaskExecutionContext = {
+    try {
+      const result = await executor.execute(task, ctx)
+      this.handleTaskResult(task, result)
+    } catch (error) {
+      this.handleTaskError(task, error)
+    } finally {
+      this.activeCount--
+    }
+  }
+
+  private createExecutionContext(task: Task): TaskExecutionContext {
+    const token = this.manager.getCancellationToken(task.id)
+    return {
       task,
       token: token ?? {
         isCancelled: false,
@@ -204,30 +216,28 @@ export class TaskScheduler {
       events: this.events,
       logger: this.logger,
     }
+  }
 
-    try {
-      const result = await executor.execute(task, ctx)
-
-      if (result.success) {
-        this.manager.complete(task.id, result)
-      } else {
-        this.manager.fail(task.id, {
-          code: 'EXECUTION_FAILED',
-          message: result.error ?? 'Task execution failed',
-          recoverable: true,
-        })
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
+  private handleTaskResult(task: Task, result: { success: boolean; error?: string }): void {
+    if (result.success) {
+      this.manager.complete(task.id, result)
+    } else {
       this.manager.fail(task.id, {
-        code: 'EXECUTION_ERROR',
-        message,
-        recoverable: false,
-        details: error,
+        code: 'EXECUTION_FAILED',
+        message: result.error ?? 'Task execution failed',
+        recoverable: true,
       })
-    } finally {
-      this.activeCount--
     }
+  }
+
+  private handleTaskError(task: Task, error: unknown): void {
+    const message = error instanceof Error ? error.message : String(error)
+    this.manager.fail(task.id, {
+      code: 'EXECUTION_ERROR',
+      message,
+      recoverable: false,
+      details: error,
+    })
   }
 
   // ── Query ────────────────────────────────────────────────────────────

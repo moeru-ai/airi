@@ -50,9 +50,15 @@ function createMutation<TVars, TData>(mutation: (vars: TVars) => Promise<TData>)
 function setupController() {
   const model: InferenceServiceProvidersModel = {
     list: vi.fn(async () => ({})),
-    saveAll: vi.fn(async () => {}),
-    upsert: vi.fn(async () => {}),
-    remove: vi.fn(async () => {}),
+    saveAll: vi.fn(async () => {
+      /* stub */
+    }),
+    upsert: vi.fn(async () => {
+      /* stub */
+    }),
+    remove: vi.fn(async () => {
+      /* stub */
+    }),
   }
   const service: InferenceServiceProvidersService = {
     getDefinition: vi.fn(() => providerOpenAICompatible),
@@ -60,7 +66,9 @@ function setupController() {
     buildLocal: vi.fn(() => localProvider),
     fetchRemote: vi.fn(async () => ({})),
     createRemote: vi.fn(async () => remoteProvider),
-    deleteRemote: vi.fn(async () => {}),
+    deleteRemote: vi.fn(async () => {
+      /* stub */
+    }),
     patchConfigRemote: vi.fn(async () => ({ ...remoteProvider, id: 'provider-1', validated: true })),
   }
   const providersQuery = {
@@ -162,7 +170,9 @@ describe('store provider-catalog controller', () => {
       fetchRemote: vi.fn(async () => ({}) as Promise<InferenceServiceProviders>),
     }
     const model = {
-      saveAll: vi.fn(async () => {}),
+      saveAll: vi.fn(async () => {
+        /* stub */
+      }),
     }
     const controller = new AbortController()
     const options = createProviderCatalogListQueryOptions({

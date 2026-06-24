@@ -63,7 +63,9 @@ export function createH3Server(options: {
 
         const activeServer = server
         server = undefined
-        await activeServer.close().catch(() => {})
+        await activeServer.close().catch(() => {
+          /* noop — ignore close errors */
+        })
       })
     },
     getAddress() {

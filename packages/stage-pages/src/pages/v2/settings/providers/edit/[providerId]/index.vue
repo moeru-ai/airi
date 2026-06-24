@@ -74,7 +74,8 @@ const isEdited = computed(() => {
 })
 
 const canSkipValidation = computed(() => {
-  return !isEdited.value && (providerConfig.value?.validated || providerConfig.value?.validationBypassed)
+  const hasValidationPassed = providerConfig.value?.validated || providerConfig.value?.validationBypassed
+  return !isEdited.value && hasValidationPassed
 })
 
 const isValidating = ref(false)

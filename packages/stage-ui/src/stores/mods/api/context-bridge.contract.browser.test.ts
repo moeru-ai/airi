@@ -18,7 +18,9 @@ const finalizeStreamMock = vi.fn()
 const resetStreamMock = vi.fn()
 const serverSendMock = vi.fn()
 const ensureConnectedMock = vi.fn().mockResolvedValue(undefined)
-const onReconnectedMock = vi.fn(() => () => {})
+const onReconnectedMock = vi.fn(() => () => {
+  /* stub */
+})
 const onContextUpdateMock = vi.fn((callback: HookCallback) => registerHook(contextUpdateHooks, callback))
 const onEventMock = vi.fn((eventName: string, callback: HookCallback) => registerServerEventHook(eventName, callback))
 const getProviderInstanceMock = vi.fn()
@@ -208,9 +210,13 @@ vi.mock('es-toolkit', async (importOriginal) => {
     ...actual,
     Mutex: class {
       // eslint-disable-next-line class-methods-use-this
-      async acquire() {}
+      async acquire() {
+        /* stub */
+      }
       // eslint-disable-next-line class-methods-use-this
-      release() {}
+      release() {
+        /* stub */
+      }
     },
   }
 })

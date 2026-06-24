@@ -72,7 +72,9 @@ export async function initializeAuth() {
   })
 
   await authStore.restoreRefreshSchedule()
-  await fetchSession().catch(() => {})
+  await fetchSession().catch(() => {
+    /* noop — session restore is best-effort */
+  })
 }
 
 /**

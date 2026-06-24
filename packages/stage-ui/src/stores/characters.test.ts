@@ -59,9 +59,15 @@ function createMutation<TVars, TData>(mutation: (vars: TVars) => Promise<TData>)
 function setupController() {
   const model: CharactersModel = {
     list: vi.fn(async () => []),
-    saveAll: vi.fn(async () => {}),
-    upsert: vi.fn(async () => {}),
-    remove: vi.fn(async () => {}),
+    saveAll: vi.fn(async () => {
+      /* stub */
+    }),
+    upsert: vi.fn(async () => {
+      /* stub */
+    }),
+    remove: vi.fn(async () => {
+      /* stub */
+    }),
   }
   const service: CharactersService = {
     buildLocal: vi.fn(() => ({ ...character, id: 'local-character' })),
@@ -69,7 +75,9 @@ function setupController() {
     fetchRemoteById: vi.fn(async () => character),
     createRemote: vi.fn(async () => character),
     updateRemote: vi.fn(async () => character),
-    removeRemote: vi.fn(async () => {}),
+    removeRemote: vi.fn(async () => {
+      /* stub */
+    }),
     likeRemote: vi.fn(async () => ({ ...character, likesCount: 1 })),
     bookmarkRemote: vi.fn(async () => ({ ...character, bookmarksCount: 1 })),
   }

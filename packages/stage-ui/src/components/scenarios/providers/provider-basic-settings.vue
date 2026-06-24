@@ -8,7 +8,9 @@ withDefaults(
   {
     title: '',
     description: '',
-    onReset: () => {},
+    onReset: () => {
+      /* no-op — override via prop */
+    },
   },
 )
 </script>

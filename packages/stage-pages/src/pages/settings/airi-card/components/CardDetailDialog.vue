@@ -54,18 +54,18 @@ const journalEntries = computed(() => {
 })
 
 // Get module settings
-const moduleSettings = computed(() => {
-  if (!selectedCard.value || !selectedCard.value.extensions?.airi?.modules) {
-    return {
-      consciousnessProvider: '',
-      consciousness: '',
-      speechProvider: '',
-      speech: '',
-      voice: '',
-    }
-  }
+const emptyModuleSettings = {
+  consciousnessProvider: '',
+  consciousness: '',
+  speechProvider: '',
+  speech: '',
+  voice: '',
+}
 
-  const airiExt = selectedCard.value.extensions.airi.modules
+const moduleSettings = computed(() => {
+  const airiExt = selectedCard.value?.extensions?.airi?.modules
+  if (!airiExt) return emptyModuleSettings
+
   return {
     consciousnessProvider: airiExt.consciousness?.provider || '',
     consciousness: airiExt.consciousness?.model || '',

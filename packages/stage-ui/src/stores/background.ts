@@ -265,7 +265,9 @@ export const useBackgroundStore = defineStore('background-entries', () => {
   const getCharacterJournalEntries = computed(() => (characterId?: string) => {
     return Array.from(entries.value.values())
       .filter((e) => {
-        return (e.type === 'journal' || e.type === 'selfie') && characterId && e.characterId === characterId
+        const isJournalOrSelfie = e.type === 'journal' || e.type === 'selfie'
+        const matchesCharacter = characterId && e.characterId === characterId
+        return isJournalOrSelfie && matchesCharacter
       })
       .map((e) => ({
         ...e,

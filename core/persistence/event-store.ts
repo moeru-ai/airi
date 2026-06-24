@@ -48,8 +48,7 @@ export class InMemoryEventStore implements EventStore {
 
   // ── EventStore interface ────────────────────────────────────────────
 
-  // async: implements EventStore interface (Promise<EventId>)
-  async append(event: AiriEvent): Promise<EventId> {
+  append(event: AiriEvent): Promise<EventId> {
     const sequence = this.nextSequence++
     const timestamp = Date.now()
     const eventId = generateEventId(sequence, timestamp)
@@ -64,61 +63,54 @@ export class InMemoryEventStore implements EventStore {
     }
 
     this.events.push(persisted)
-    return eventId
+    return Promise.resolve(eventId)
   }
 
-  // async: implements EventStore interface (Promise<PersistedEvent[]>)
-  async getSince(eventId: EventId, limit?: number): Promise<PersistedEvent[]> {
+  getSince(eventId: EventId, limit?: number): Promise<PersistedEvent[]> {
     const idx = this.events.findIndex((e) => e.eventId === eventId)
     if (idx === -1) {
       // Event ID not found — return all events.
       const all = [...this.events]
-      return limit !== undefined ? all.slice(0, limit) : all
+      return Promise.resolve(limit !== undefined ? all.slice(0, limit) : all)
     }
 
     const after = this.events.slice(idx + 1)
-    return limit !== undefined ? after.slice(0, limit) : after
+    return Promise.resolve(limit !== undefined ? after.slice(0, limit) : after)
   }
 
-  // async: implements EventStore interface (Promise<PersistedEvent[]>)
-  async getBySession(sessionId: string, limit?: number): Promise<PersistedEvent[]> {
+  getBySession(sessionId: string, limit?: number): Promise<PersistedEvent[]> {
     const matching = this.events.filter((e) => {
       const payload = e.payload as { sessionId?: string }
       return payload.sessionId === sessionId
     })
-    return limit !== undefined ? matching.slice(0, limit) : matching
+    return Promise.resolve(limit !== undefined ? matching.slice(0, limit) : matching)
   }
 
-  // async: implements EventStore interface (Promise<PersistedEvent[]>)
-  async getByModule(moduleId: string, limit?: number): Promise<PersistedEvent[]> {
+  getByModule(moduleId: string, limit?: number): Promise<PersistedEvent[]> {
     const matching = this.events.filter((e) => e.source === moduleId)
-    return limit !== undefined ? matching.slice(0, limit) : matching
+    return Promise.resolve(limit !== undefined ? matching.slice(0, limit) : matching)
   }
 
-  // async: implements EventStore interface (Promise<PersistedEvent[]>)
-  async getByType(eventType: string, limit?: number): Promise<PersistedEvent[]> {
+  getByType(eventType: string, limit?: number): Promise<PersistedEvent[]> {
     const matching = this.events.filter((e) => e.type === eventType)
-    return limit !== undefined ? matching.slice(0, limit) : matching
+    return Promise.resolve(limit !== undefined ? matching.slice(0, limit) : matching)
   }
 
-  // async: implements EventStore interface (Promise<PersistedEvent[]>)
-  async getByExecution(executionId: string, limit?: number): Promise<PersistedEvent[]> {
+  getByExecution(executionId: string, limit?: number): Promise<PersistedEvent[]> {
     const matching = this.events.filter((e) => {
       const payload = e.payload as { executionId?: string }
       return payload.executionId === executionId
     })
-    return limit !== undefined ? matching.slice(0, limit) : matching
+    return Promise.resolve(limit !== undefined ? matching.slice(0, limit) : matching)
   }
 
-  // async: implements EventStore interface (Promise<PersistedEvent | null>)
-  async getLastEvent(): Promise<PersistedEvent | null> {
-    if (this.events.length === 0) return null
-    return this.events[this.events.length - 1] ?? null
+  getLastEvent(): Promise<PersistedEvent | null> {
+    if (this.events.length === 0) return Promise.resolve(null)
+    return Promise.resolve(this.events[this.events.length - 1] ?? null)
   }
 
-  // async: implements EventStore interface (Promise<number>)
-  async getEventCount(): Promise<number> {
-    return this.events.length
+  getEventCount(): Promise<number> {
+    return Promise.resolve(this.events.length)
   }
 
   // ── Replay ───────────────────────────────────────────────────────────

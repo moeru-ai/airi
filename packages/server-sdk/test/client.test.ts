@@ -33,9 +33,13 @@ class MockWebSocket {
   }
 
   // eslint-disable-next-line class-methods-use-this
-  ping() {}
+  ping() {
+    /* stub — intentionally empty */
+  }
   // eslint-disable-next-line class-methods-use-this
-  pong() {}
+  pong() {
+    /* stub — intentionally empty */
+  }
 }
 
 class InjectedMockWebSocket extends MockWebSocket {

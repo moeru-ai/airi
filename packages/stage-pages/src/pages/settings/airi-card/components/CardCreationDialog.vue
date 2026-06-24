@@ -22,7 +22,6 @@ import { useI18n } from 'vue-i18n'
 import CardCreationTabArtistry from './tabs/CardCreationTabArtistry.vue'
 
 interface Props {
-  modelValue: boolean
   cardId?: string // If provided, edit mode; otherwise create mode
   initialTab?: string
 }
@@ -250,7 +249,7 @@ const activeTab = computed({
 
 // Reset active tab when dialog opens
 watch(
-  () => props.modelValue,
+  () => modelValue.value,
   (isOpen) => {
     if (isOpen) {
       if (props.initialTab && tabs.some((tab) => tab.id === props.initialTab)) activeTabId.value = props.initialTab
@@ -436,9 +435,9 @@ const card = ref<Card>(initializeCard())
 
 // Reinitialize when cardId changes or dialog opens
 watch(
-  () => [props.modelValue, props.cardId],
+  () => [modelValue.value, props.cardId],
   () => {
-    if (props.modelValue) {
+    if (modelValue.value) {
       card.value = initializeCard()
     }
   },

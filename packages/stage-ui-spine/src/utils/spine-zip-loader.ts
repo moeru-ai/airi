@@ -113,18 +113,17 @@ export function detectSpineLayout(
  * variants. Useful for ZIPs containing multiple outfits/characters in
  * separate folders.
  */
-export function detectAllSpineLayouts(
+/**
+ * First pass: match each atlas with a same-basename skeleton.
+ * Returns the matched variants and populates `usedAtlases` with matched atlas paths.
+ */
+function matchAtlasesByBasename(
+  atlasCandidates: string[],
   entries: Record<string, string>,
+  usedAtlases: Set<string>,
   atlasText: Record<string, string>,
 ): SpineModelVariant[] {
-  const allFiles = Object.keys(entries)
-  const atlasCandidates = allFiles.filter(isAtlasPath)
-  if (atlasCandidates.length === 0) throw new Error('Spine ZIP must contain a .atlas (or .atlas.txt) file')
-
   const variants: SpineModelVariant[] = []
-  const usedAtlases = new Set<string>()
-
-  // First pass: match each atlas with a same-basename skeleton.
   for (const candidate of atlasCandidates) {
     const baseName = stripExt(stripExt(basename(candidate)))
     const dir = dirname(candidate)
@@ -150,8 +149,20 @@ export function detectAllSpineLayouts(
     const name = dir ? dir.replace(/\/$/, '').split('/').pop()! : baseName
     variants.push({ name, layout: { skeletonPath, skeletonFormat, atlasPath: candidate, texturePaths } })
   }
+  return variants
+}
 
-  // Fallback: unmatched atlases paired with any skeleton in the same directory.
+/**
+ * Fallback pass: pair unmatched atlases with any skeleton in the same directory.
+ */
+function matchAtlasesByDirectory(
+  atlasCandidates: string[],
+  allFiles: string[],
+  usedAtlases: Set<string>,
+  entries: Record<string, string>,
+  atlasText: Record<string, string>,
+): SpineModelVariant[] {
+  const variants: SpineModelVariant[] = []
   for (const candidate of atlasCandidates) {
     if (usedAtlases.has(candidate)) continue
 
@@ -167,8 +178,52 @@ export function detectAllSpineLayouts(
     const name = dir ? dir.replace(/\/$/, '').split('/').pop()! : baseName
     variants.push({ name, layout: { skeletonPath: skel, skeletonFormat, atlasPath: candidate, texturePaths } })
   }
-
   return variants
+}
+
+export function detectAllSpineLayouts(
+  entries: Record<string, string>,
+  atlasText: Record<string, string>,
+): SpineModelVariant[] {
+  const allFiles = Object.keys(entries)
+  const atlasCandidates = allFiles.filter(isAtlasPath)
+  if (atlasCandidates.length === 0) throw new Error('Spine ZIP must contain a .atlas (or .atlas.txt) file')
+
+  const usedAtlases = new Set<string>()
+
+  const primaryVariants = matchAtlasesByBasename(atlasCandidates, entries, usedAtlases, atlasText)
+  const fallbackVariants = matchAtlasesByDirectory(atlasCandidates, allFiles, usedAtlases, entries, atlasText)
+
+  return [...primaryVariants, ...fallbackVariants]
+}
+
+/**
+ * Heuristic line-by-line atlas parser: walks the atlas text and returns
+ * texture page paths that exist in the ZIP entries.
+ *
+ * Page lines start at column 0 with the texture file name. Continued
+ * page-property lines start with whitespace; a blank line ends the page
+ * block, and a new page starts with a non-empty, non-indented line that
+ * does not contain ':' (atlas property).
+ */
+function parseAtlasPageLines(lines: string[], atlasPath: string, entries: Record<string, string>): string[] {
+  const texturePaths: string[] = []
+  const dir = dirname(atlasPath)
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    if (!line) continue
+    if (line.trim().length === 0) continue
+    if (line[0] === ' ' || line[0] === '\t') continue
+    if (line.includes(':')) continue
+
+    // Candidate page name; verify against entries (handles relative path).
+    const candidate = `${dir}${line.trim()}`
+    if (entries[candidate] !== undefined && isTexturePath(candidate)) texturePaths.push(candidate)
+
+    // Skip property lines until next blank line.
+    while (i + 1 < lines.length && lines[i + 1].length > 0) i++
+  }
+  return texturePaths
 }
 
 function resolveAtlasTextures(
@@ -178,30 +233,9 @@ function resolveAtlasTextures(
 ): string[] {
   const allFiles = Object.keys(entries)
 
-  // Atlas page lines start at column 0 with the texture file name.
   const text = atlasText[atlasPath] ?? ''
   const lines = text.split(/\r?\n/)
-  const texturePaths: string[] = []
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]
-    if (!line) continue
-
-    // First non-empty, non-property line is a texture page name. After that
-    // continued page-property lines start with whitespace; a blank line ends
-    // the page block, and a new page starts with a non-empty, non-indented
-    // line that does not contain ':' (atlas property) or ',' (region prop).
-    if (line.trim().length === 0) continue
-    if (line[0] === ' ' || line[0] === '\t') continue
-    if (line.includes(':')) continue
-
-    // Heuristic: candidate page name; verify against entries (handles relative path).
-    const dir = dirname(atlasPath)
-    const candidate = `${dir}${line.trim()}`
-    if (entries[candidate] !== undefined && isTexturePath(candidate)) texturePaths.push(candidate)
-
-    // After the first valid page, skip property lines until next blank line.
-    while (i + 1 < lines.length && lines[i + 1].length > 0) i++
-  }
+  const texturePaths = parseAtlasPageLines(lines, atlasPath, entries)
 
   // Fallback: if atlas parsing missed pages, accept every PNG sibling.
   if (texturePaths.length === 0) {
@@ -215,21 +249,15 @@ function resolveAtlasTextures(
 }
 
 /**
- * Loads a Spine model packaged as a ZIP into a set of blob URLs ready for
- * `spine.AssetManager`.
- *
- * The returned `dispose()` revokes every blob URL — call it on unmount or
- * when reloading.
+ * Pass 1: inventory file paths and read atlas text bodies.
  */
-export async function loadSpineZip(file: File | Blob | ArrayBuffer): Promise<SpineLoadedAssets> {
-  const zip = new JSZip()
-  const archive = await zip.loadAsync(file)
-
+async function inventoryArchive(archive: JSZip): Promise<{
+  entries: Record<string, string>
+  atlasTexts: Record<string, string>
+}> {
   const entries: Record<string, string> = {}
   const atlasTexts: Record<string, string> = {}
-  const blobUrls: Record<string, string> = {}
 
-  // Pass 1: inventory file paths and read atlas text bodies.
   await Promise.all(
     Object.keys(archive.files).map(async (name) => {
       const entry = archive.files[name]
@@ -241,34 +269,17 @@ export async function loadSpineZip(file: File | Blob | ArrayBuffer): Promise<Spi
     }),
   )
 
-  const variants = detectAllSpineLayouts(entries, atlasTexts)
-  if (variants.length === 0) throw new Error('Spine ZIP must contain at least one skeleton+atlas pair')
-  const layout = variants[0].layout
+  return { entries, atlasTexts }
+}
 
-  // Pass 2: materialize assets for ALL variants.
-  // NOTICE:
-  // Spine's Downloader has a heuristic for rawDataUris: if the value doesn't
-  // contain ".", it treats it as a data: URI and calls atob(). In Electron,
-  // blob URLs are `blob:null/<uuid>` (no dots), so the Downloader fails.
-  // Even with data: URIs, Spine's atob-based decode can corrupt binary data.
-  // We store raw decoded data (Uint8Array / string) alongside blob URLs and
-  // monkey-patch the Downloader's download methods to serve from memory.
-  // Removal condition: Spine ships a Blob-aware or buffer-aware loader.
-  const rawData: Record<string, Uint8Array | string> = {}
+/**
+ * Create blob URLs for all texture pages.
+ */
+async function materializeTextures(archive: JSZip, paths: Set<string>): Promise<Record<string, string>> {
+  const blobUrls: Record<string, string> = {}
 
-  // Collect all unique paths across all variants.
-  const allTexturePaths = new Set<string>()
-  const allSkeletonPaths = new Set<string>()
-  const allAtlasPaths = new Set<string>()
-  for (const v of variants) {
-    allSkeletonPaths.add(v.layout.skeletonPath)
-    allAtlasPaths.add(v.layout.atlasPath)
-    for (const t of v.layout.texturePaths) allTexturePaths.add(t)
-  }
-
-  // Textures → blob URLs (used by image.src in loadTexture).
   await Promise.all(
-    Array.from(allTexturePaths).map(async (path) => {
+    Array.from(paths).map(async (path) => {
       const entry = archive.files[path]
       if (!entry) return
       const buffer = await entry.async('blob')
@@ -276,15 +287,28 @@ export async function loadSpineZip(file: File | Blob | ArrayBuffer): Promise<Spi
     }),
   )
 
-  // Skeletons → raw decoded data
-  // NOTICE:
-  // Spine's BinaryInput does `new DataView(data.buffer)` without respecting
-  // byteOffset. JSZip may return a Uint8Array that is a view into a larger
-  // ArrayBuffer. We copy via `.slice(0)` which produces a zero-offset buffer.
-  // Source: spine-core/SkeletonBinary.js BinaryInput constructor.
-  // Removal condition: Spine fixes BinaryInput to use byteOffset/byteLength.
+  return blobUrls
+}
+
+/**
+ * Decode skeleton data (binary → Uint8Array, JSON → string).
+ *
+ * NOTICE:
+ * Spine's BinaryInput does `new DataView(data.buffer)` without respecting
+ * byteOffset. JSZip may return a Uint8Array that is a view into a larger
+ * ArrayBuffer. We copy via `.slice(0)` which produces a zero-offset buffer.
+ * Source: spine-core/SkeletonBinary.js BinaryInput constructor.
+ * Removal condition: Spine fixes BinaryInput to use byteOffset/byteLength.
+ */
+async function materializeSkeletons(
+  archive: JSZip,
+  paths: Set<string>,
+  variants: SpineModelVariant[],
+): Promise<Record<string, Uint8Array | string>> {
+  const rawData: Record<string, Uint8Array | string> = {}
+
   await Promise.all(
-    Array.from(allSkeletonPaths).map(async (path) => {
+    Array.from(paths).map(async (path) => {
       const entry = archive.files[path]
       if (!entry) return
       const variant = variants.find((v) => v.layout.skeletonPath === path)!
@@ -297,12 +321,73 @@ export async function loadSpineZip(file: File | Blob | ArrayBuffer): Promise<Spi
     }),
   )
 
-  // Atlases → raw text with page references rewritten to bare filenames
-  for (const atlasPath of allAtlasPaths) {
+  return rawData
+}
+
+/**
+ * Rewrite atlas page references to bare filenames for Spine's AssetManager.
+ */
+function materializeAtlases(
+  atlasPaths: Set<string>,
+  variants: SpineModelVariant[],
+  atlasTexts: Record<string, string>,
+  blobUrls: Record<string, string>,
+): Record<string, string> {
+  const rawData: Record<string, string> = {}
+
+  for (const atlasPath of atlasPaths) {
     const variantForAtlas = variants.find((v) => v.layout.atlasPath === atlasPath)!
     const finalAtlasText = rewriteAtlasPageReferences(atlasTexts[atlasPath] ?? '', variantForAtlas.layout, blobUrls)
     rawData[atlasPath] = finalAtlasText
   }
+
+  return rawData
+}
+
+/**
+ * Loads a Spine model packaged as a ZIP into a set of blob URLs ready for
+ * `spine.AssetManager`.
+ *
+ * The returned `dispose()` revokes every blob URL — call it on unmount or
+ * when reloading.
+ */
+export async function loadSpineZip(file: File | Blob | ArrayBuffer): Promise<SpineLoadedAssets> {
+  const zip = new JSZip()
+  const archive = await zip.loadAsync(file)
+
+  // Pass 1: inventory file paths and read atlas text bodies.
+  const { entries, atlasTexts } = await inventoryArchive(archive)
+
+  const variants = detectAllSpineLayouts(entries, atlasTexts)
+  if (variants.length === 0) throw new Error('Spine ZIP must contain at least one skeleton+atlas pair')
+  const layout = variants[0].layout
+
+  // Collect all unique paths across all variants.
+  const allTexturePaths = new Set<string>()
+  const allSkeletonPaths = new Set<string>()
+  const allAtlasPaths = new Set<string>()
+  for (const v of variants) {
+    allSkeletonPaths.add(v.layout.skeletonPath)
+    allAtlasPaths.add(v.layout.atlasPath)
+    for (const t of v.layout.texturePaths) allTexturePaths.add(t)
+  }
+
+  // Pass 2: materialize textures → blob URLs (used by image.src in loadTexture).
+  // NOTICE:
+  // Spine's Downloader has a heuristic for rawDataUris: if the value doesn't
+  // contain ".", it treats it as a data: URI and calls atob(). In Electron,
+  // blob URLs are `blob:null/<uuid>` (no dots), so the Downloader fails.
+  // Even with data: URIs, Spine's atob-based decode can corrupt binary data.
+  // We store raw decoded data (Uint8Array / string) alongside blob URLs and
+  // monkey-patch the Downloader's download methods to serve from memory.
+  // Removal condition: Spine ships a Blob-aware or buffer-aware loader.
+  const blobUrls = await materializeTextures(archive, allTexturePaths)
+
+  // Pass 3: materialize skeletons → raw decoded data
+  const rawData = await materializeSkeletons(archive, allSkeletonPaths, variants)
+
+  // Pass 4: materialize atlases → raw text with page references rewritten
+  Object.assign(rawData, materializeAtlases(allAtlasPaths, variants, atlasTexts, blobUrls))
 
   return {
     layout,
@@ -324,15 +409,21 @@ export async function loadSpineZip(file: File | Blob | ArrayBuffer): Promise<Spi
   }
 }
 
+/**
+ * Returns true if the line is a blank, indented, or property line that
+ * should be passed through unchanged during atlas reference rewriting.
+ */
+function isPassthroughLine(line: string): boolean {
+  return line.trim().length === 0 || line[0] === ' ' || line[0] === '\t' || line.includes(':')
+}
+
 function rewriteAtlasPageReferences(atlasText: string, layout: SpineModelLayout, blobUrls: Record<string, string>) {
   const dir = dirname(layout.atlasPath)
   // eslint-disable-next-line no-restricted-syntax
   const lines = atlasText.split(/\r?\n/)
   const out: string[] = []
   for (const line of lines) {
-    const isBlankLine = line.trim().length === 0
-    const isIndented = line[0] === ' ' || line[0] === '\t'
-    if (isBlankLine || isIndented || line.includes(':')) {
+    if (isPassthroughLine(line)) {
       out.push(line)
       continue
     }

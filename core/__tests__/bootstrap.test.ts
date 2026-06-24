@@ -106,7 +106,7 @@ describe('EventBus', () => {
   it('listener isolation in publish(): one failing async listener does not break others', async () => {
     const received: unknown[] = []
 
-    bus.subscribe('test.event', async () => {
+    bus.subscribe('test.event', () => {
       throw new Error('Async listener failed')
     })
 
@@ -447,15 +447,15 @@ describe('ModuleRegistry activation order', () => {
     const registry = new ModuleRegistry()
     let factoryCalled = false
 
-    registry.registerLazy(async () => {
+    registry.registerLazy(() => {
       factoryCalled = true
-      return {
+      return Promise.resolve({
         id: 'lazy',
         name: 'Lazy Module',
         async activate() {
           /* no-op */
         },
-      }
+      })
     }, 'lazy')
 
     expect(factoryCalled).toBe(false)

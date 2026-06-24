@@ -103,7 +103,9 @@ function handleResetSettings() {
 
 // Check if Web Speech API is available
 const isWebSpeechAPIAvailable = computed(() => {
-  return typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)
+  const hasWindow = typeof window !== 'undefined'
+  const hasSpeechAPI = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window
+  return hasWindow && hasSpeechAPI
 })
 
 onMounted(async () => {

@@ -18,7 +18,7 @@ export interface ArtistryRequest {
   /** Provider-specific model identifier */
   model?: string
   /** Provider-specific extras (e.g. remixId, checkpoint, seed, aspect_ratio) */
-  extra?: Record<string, any>
+  extra?: Record<string, unknown>
 }
 
 export interface ArtistryJob {
@@ -48,7 +48,7 @@ export interface ArtistryProviderConfig {
   /** Human-readable display name */
   name: string
   /** Provider-specific configuration (API keys, paths, etc.) */
-  settings: Record<string, any>
+  settings: Record<string, unknown>
 }
 
 export interface ArtistryProvider {
@@ -77,7 +77,7 @@ export interface ArtistryProvider {
   /**
    * Called when the provider is first initialized with its config.
    */
-  initialize?: (config: Record<string, any>) => Promise<void>
+  initialize?: (config: Record<string, unknown>) => Promise<void>
 
   /**
    * Optional push callback for providers that stream or callback status updates.
@@ -105,5 +105,5 @@ export interface ArtistryModuleSettings {
    * For Replicate: { go_fast: true, megapixels: "1", aspect_ratio: "16:9", ... }
    * For ComfyUI:   { remixId: 48250602, checkpoint: "bunnyMint.safetensors" }
    */
-  providerOptions?: Record<string, any>
+  providerOptions?: Record<string, unknown>
 }

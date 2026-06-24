@@ -63,6 +63,62 @@ const imageJournalParams = {
   additionalProperties: false,
 } satisfies JsonSchema
 
+function resolveCardArtistryConfig(
+  activeCard: ReturnType<typeof useAiriCardStore>['activeCard'],
+  globalArtistryConfig: ReturnType<typeof getArtistryConfig>,
+) {
+  const airiExt = activeCard?.extensions?.airi
+  const cardArtistry = airiExt?.modules?.artistry
+  return {
+    provider: cardArtistry?.provider || globalArtistryConfig.provider,
+    model: cardArtistry?.model || globalArtistryConfig.model,
+    promptPrefix: cardArtistry?.promptPrefix || globalArtistryConfig.promptPrefix,
+    options: cardArtistry?.options || globalArtistryConfig.options,
+    globals: globalArtistryConfig.globals,
+    spawnMode: cardArtistry?.spawnMode,
+  }
+}
+
+async function setCardActiveBackgroundId(cardStore: ReturnType<typeof useAiriCardStore>, entryId: string) {
+  const cardId = cardStore.activeCardId
+  if (!cardId) return
+
+  const card = cardStore.cards.get(cardId)
+  if (!card) return
+
+  const extension = JSON.parse(JSON.stringify(card.extensions || {}))
+  if (!extension.airi) extension.airi = {}
+  if (!extension.airi.modules) extension.airi.modules = {}
+  extension.airi.modules.activeBackgroundId = entryId
+  cardStore.updateCard(cardId, { ...card, extensions: extension })
+}
+
+async function spawnResultWidget(
+  addWidget: ReturnType<typeof getInvokers>['addWidget'],
+  entryId: string,
+  imageUrl: string,
+  prompt: string,
+  title: string,
+) {
+  try {
+    await addWidget({
+      componentName: 'artistry',
+      componentProps: {
+        status: 'done',
+        entryId,
+        imageUrl,
+        prompt,
+        title,
+        _skipIngestion: true,
+      },
+      size: 'm',
+      ttlMs: 0,
+    })
+  } catch (e) {
+    console.warn('[ImageJournalTool] Failed to spawn Result widget', e)
+  }
+}
+
 async function executeCreateImageJournalEntry(params: {
   prompt?: string
   title?: string
@@ -72,24 +128,11 @@ async function executeCreateImageJournalEntry(params: {
 
   const backgroundStore = useBackgroundStore()
   const cardStore = useAiriCardStore()
-  const activeCard = cardStore.activeCard
   const globalArtistryConfig = getArtistryConfig()
-
-  const airiExt = activeCard?.extensions?.airi
-  const cardArtistry = airiExt?.modules?.artistry
-  const artistryConfig = {
-    provider: cardArtistry?.provider || globalArtistryConfig.provider,
-    model: cardArtistry?.model || globalArtistryConfig.model,
-    promptPrefix: cardArtistry?.promptPrefix || globalArtistryConfig.promptPrefix,
-    options: cardArtistry?.options || globalArtistryConfig.options,
-    globals: globalArtistryConfig.globals,
-  }
+  const artistryConfig = resolveCardArtistryConfig(cardStore.activeCard, globalArtistryConfig)
 
   const title = params.title || `Generation ${new Date().toLocaleString()}`
-
-  // Resolve mode: explicit param > character fallback > global default (inline)
-  const spawnMode = cardArtistry?.spawnMode
-  const mode = params.mode || spawnMode || 'inline'
+  const mode = params.mode || artistryConfig.spawnMode || 'inline'
 
   const { addWidget, generateHeadless } = getInvokers()
 
@@ -108,57 +151,24 @@ async function executeCreateImageJournalEntry(params: {
       throw new Error(`Failed to generate image: ${artistryResult.error || 'No output received'}`)
     }
 
-    let blob: Blob
-    if (artistryResult.base64) {
-      const response = await fetch(artistryResult.base64)
-      blob = await response.blob()
-    } else {
-      const response = await fetch(artistryResult.imageUrl!)
-      blob = await response.blob()
-    }
+    const imageUrl = artistryResult.imageUrl || artistryResult.base64!
+    const response = await fetch(artistryResult.base64 || artistryResult.imageUrl!)
+    const blob = await response.blob()
 
     const entryId = await backgroundStore.addBackground('journal', blob, title, params.prompt, cardStore.activeCardId)
 
-    // Handle Application Logic based on Mode
     if (mode === 'bg' || mode === 'bg_widget') {
-      const cardId = cardStore.activeCardId
-      if (cardId) {
-        const card = cardStore.cards.get(cardId)
-        if (card) {
-          const extension = JSON.parse(JSON.stringify(card.extensions || {}))
-          if (!extension.airi) extension.airi = {}
-          if (!extension.airi.modules) extension.airi.modules = {}
-          extension.airi.modules.activeBackgroundId = entryId
-          cardStore.updateCard(cardId, { ...card, extensions: extension })
-        }
-      }
+      await setCardActiveBackgroundId(cardStore, entryId)
     }
 
     if (mode === 'widget' || mode === 'bg_widget') {
-      try {
-        await addWidget({
-          componentName: 'artistry',
-          componentProps: {
-            status: 'done',
-            entryId,
-            imageUrl: artistryResult.imageUrl || artistryResult.base64,
-            prompt: params.prompt as string,
-            title,
-            _skipIngestion: true,
-          },
-          size: 'm',
-          ttlMs: 0,
-        })
-      } catch (e) {
-        console.warn('[ImageJournalTool] Failed to spawn Result widget', e)
-      }
+      await spawnResultWidget(addWidget, entryId, imageUrl, params.prompt as string, title)
     }
 
-    // Return structured result for UI rendering
     return JSON.stringify({
       message: `Image created in ${mode} mode${mode === 'bg' || mode === 'bg_widget' ? ' and set as background' : ''}.`,
       entryId,
-      imageUrl: artistryResult.imageUrl || artistryResult.base64,
+      imageUrl,
       title,
       prompt: params.prompt,
       mode,

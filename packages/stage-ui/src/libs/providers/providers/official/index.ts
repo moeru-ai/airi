@@ -1,8 +1,6 @@
-import type { Ref, WatchSource } from 'vue'
+import { ref, watch, type Ref, type WatchSource } from 'vue'
 
 import type { ModelInfo, VoiceInfo } from '../../../../stores/providers'
-
-import { ref, watch } from 'vue'
 import { z } from 'zod'
 
 import { getAuthToken } from '../../../../libs/auth'

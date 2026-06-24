@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
-import type { UnElevenLabsOptions } from 'unspeech'
 
 import { Alert, SpeechPlayground, SpeechProviderSettings } from '@proj-airi/stage-ui/components'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
@@ -23,7 +22,7 @@ const availableVoices = computed(() => {
 async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: boolean) {
   const provider = (await providersStore.getProviderInstance(providerId)) as SpeechProviderWithExtraOptions<
     string,
-    UnElevenLabsOptions
+    Record<string, unknown>
   >
   if (!provider) {
     throw new Error('Failed to initialize speech provider')
@@ -33,7 +32,8 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   // Get model from configuration or use default
   const model = (providerConfig.model as string | undefined) || defaultModel
   // Player2 doesn't need SSML conversion, but if SSML is provided, use it directly
-  return await speechStore.speech(provider as any, model, input, voiceId, {
+  // speechStore.speech expects SpeechProviderWithExtraOptions; provider is already typed as such above
+  return await speechStore.speech(provider, model, input, voiceId, {
     ...providerConfig,
   })
 }

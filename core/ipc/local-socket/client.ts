@@ -99,9 +99,8 @@ export class LocalSocketClientTransport implements IpcClientTransport {
     await this.doConnect()
   }
 
-  // async: implements TransportClient interface (Promise<void>)
-  async disconnect(): Promise<void> {
-    if (this._state === 'idle' || this._state === 'disconnected') return
+  disconnect(): Promise<void> {
+    if (this._state === 'idle' || this._state === 'disconnected') return Promise.resolve()
 
     this.intentionallyDisconnected = true
     this.setState('disconnecting')
@@ -115,10 +114,10 @@ export class LocalSocketClientTransport implements IpcClientTransport {
     }
 
     this.setState('disconnected')
+    return Promise.resolve()
   }
 
-  // async: implements TransportClient interface (Promise<void>)
-  async send(message: IpcMessage): Promise<void> {
+  send(message: IpcMessage): Promise<void> {
     if (!this.socket || this._state !== 'connected') {
       throw new Error(`Cannot send: transport is ${this._state}.`)
     }
@@ -186,82 +185,95 @@ export class LocalSocketClientTransport implements IpcClientTransport {
 
     socket.on('data', (chunk: Buffer) => {
       buffer = Buffer.concat([buffer, chunk])
-
-      while (true) {
-        if (expectedLength === null) {
-          if (buffer.length < HEADER_SIZE) break
-
-          expectedLength = buffer.readUInt32BE(0)
-
-          if (expectedLength > MAX_MESSAGE_SIZE) {
-            _logger(`[LocalSocketClient] Message too large (${expectedLength} bytes), disconnecting.`)
-            socket.destroy()
-            return
-          }
-
-          buffer = buffer.subarray(HEADER_SIZE)
-        }
-
-        if (buffer.length < expectedLength) break
-
-        const messageBytes = buffer.subarray(0, expectedLength)
-        buffer = buffer.subarray(expectedLength)
-        expectedLength = null
-
-        try {
-          const json = messageBytes.toString('utf-8')
-          const parsed = JSON.parse(json) as IpcMessage
-
-          // Auto-respond to pings with pong.
-          if (parsed.type === 'ping') {
-            this.send({
-              id: generateId(),
-              type: 'pong',
-              timestamp: new Date().toISOString(),
-              correlationId: parsed.id,
-            }).catch(() => {
-              // Best-effort: ignore send errors on pong.
-            })
-          }
-
-          for (const handler of this.messageHandlers) {
-            try {
-              handler(parsed)
-            } catch (error) {
-              _logger('[LocalSocketClient] Message handler threw:', error)
-            }
-          }
-        } catch (error) {
-          _logger(
-            '[LocalSocketClient] Failed to parse message:',
-            error instanceof Error ? error.message : String(error),
-          )
-        }
-      }
+     	expectedLength = this.processSocketData(buffer, socket, expectedLength)
     })
 
     socket.on('close', () => {
-      this.socket = null
-      this.stopHeartbeat()
-
-      for (const handler of this.disconnectHandlers) {
-        try {
-          handler()
-        } catch (error) {
-          _logger('[LocalSocketClient] Disconnect handler threw:', error)
-        }
-      }
-
-      if (!this.intentionallyDisconnected && this.autoReconnect) {
-        this.scheduleReconnect()
-      } else {
-        this.setState('disconnected')
-      }
+      this.handleSocketClose()
     })
 
     socket.on('error', (err) => {
       console.error('[LocalSocketClient] Socket error:', err.message)
     })
+  }
+
+  private processSocketData(buffer: Buffer, socket: Socket, expectedLength: number | null): number | null {
+    let currentExpected = expectedLength
+    let currentBuffer = buffer
+
+    while (true) {
+      if (currentExpected === null) {
+        if (currentBuffer.length < HEADER_SIZE) return null
+
+        currentExpected = currentBuffer.readUInt32BE(0)
+
+        if (currentExpected > MAX_MESSAGE_SIZE) {
+          _logger(`[LocalSocketClient] Message too large (${currentExpected} bytes), disconnecting.`)
+          socket.destroy()
+          return null
+        }
+
+        currentBuffer = currentBuffer.subarray(HEADER_SIZE)
+      }
+
+      if (currentBuffer.length < currentExpected) return currentExpected
+
+      const messageBytes = currentBuffer.subarray(0, currentExpected)
+      currentBuffer = currentBuffer.subarray(currentExpected)
+      currentExpected = null
+
+      this.handleRawMessage(messageBytes)
+    }
+  }
+
+  private handleRawMessage(messageBytes: Buffer): void {
+    try {
+      const json = messageBytes.toString('utf-8')
+      const parsed = JSON.parse(json) as IpcMessage
+
+      if (parsed.type === 'ping') {
+        this.send({
+          id: generateId(),
+          type: 'pong',
+          timestamp: new Date().toISOString(),
+          correlationId: parsed.id,
+        }).catch(() => {
+          // Best-effort: ignore send errors on pong.
+        })
+      }
+
+      for (const handler of this.messageHandlers) {
+        try {
+          handler(parsed)
+        } catch (error) {
+          _logger('[LocalSocketClient] Message handler threw:', error)
+        }
+      }
+    } catch (error) {
+      _logger(
+        '[LocalSocketClient] Failed to parse message:',
+        error instanceof Error ? error.message : String(error),
+      )
+    }
+  }
+
+  private handleSocketClose(): void {
+    this.socket = null
+    this.stopHeartbeat()
+
+    for (const handler of this.disconnectHandlers) {
+      try {
+        handler()
+      } catch (error) {
+        _logger('[LocalSocketClient] Disconnect handler threw:', error)
+      }
+    }
+
+    if (!this.intentionallyDisconnected && this.autoReconnect) {
+      this.scheduleReconnect()
+    } else {
+      this.setState('disconnected')
+    }
   }
 
   // ── Private: reconnection ──────────────────────────────────────────

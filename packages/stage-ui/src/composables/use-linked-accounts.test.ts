@@ -12,7 +12,9 @@ beforeAll(() => {
   // outside of a mounted component context. The composable's lifecycle hooks
   // (onMounted, watch) are tested indirectly through the returned API.
   // eslint-disable-next-line ts/no-empty-function -- intentional no-op to swallow Vue lifecycle warnings outside component context
-  vi.spyOn(console, 'warn').mockImplementation(() => {})
+  vi.spyOn(console, 'warn').mockImplementation(() => {
+    /* noop */
+  })
 })
 
 afterEach(() => {

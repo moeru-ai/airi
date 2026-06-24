@@ -77,7 +77,7 @@ export class LocalSocketServerTransport implements IpcServerTransport {
 	}
 
 	async start(): Promise<void> {
-		if (this._state === "connected") return
+		if (this._state === "connected") return undefined
 
 		this.setState("connecting")
 
@@ -103,7 +103,7 @@ export class LocalSocketServerTransport implements IpcServerTransport {
 
 	// async: implements TransportServer interface (Promise<void>)
 	async stop(): Promise<void> {
-		if (this._state === "idle" || this._state === "disconnected") return
+		if (this._state === "idle" || this._state === "disconnected") return undefined
 
 		this.setState("disconnecting")
 
@@ -214,10 +214,10 @@ export class LocalSocketServerTransport implements IpcServerTransport {
 	 */
 	// async: returns Promise for async socket probe
 	async cleanupStaleSocket(): Promise<void> {
-		if (!this.socketPath.startsWith("/")) return // TCP fallback — no file to clean.
+		if (!this.socketPath.startsWith("/")) return undefined // TCP fallback — no file to clean.
 
 		const absolutePath = resolve(this.socketPath)
-		if (!existsSync(absolutePath)) return
+		if (!existsSync(absolutePath)) return undefined
 
 		// Try to connect — if it fails, the socket is stale.
 		// Wrap the async socket probe in a Promise so callers can await it,

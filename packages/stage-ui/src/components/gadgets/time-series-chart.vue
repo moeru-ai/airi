@@ -97,7 +97,7 @@ watch(
 )
 
 const lineColorProps = toRef(() => props.lineColor)
-const lineColor = computed(() => {
+const resolvedLineColor = computed(() => {
   if (!lineColorProps.value) {
     return chromaticShades.value.shadeBy(500).toHex()
   }
@@ -106,7 +106,7 @@ const lineColor = computed(() => {
 })
 
 const thresholdColorProps = toRef(() => props.thresholdColor)
-const thresholdColor = computed(() => {
+const resolvedThresholdColor = computed(() => {
   if (!thresholdColorProps.value) {
     const color = chromaticShades.value.shadeBy(500).withAlpha(0.1).color as Oklch
     return `oklch(${color.l} ${color.c} ${color.h} / ${color.alpha})`
@@ -116,7 +116,7 @@ const thresholdColor = computed(() => {
 })
 
 const activeColorProps = toRef(() => props.activeColor)
-const activeColor = computed(() => {
+const resolvedActiveColor = computed(() => {
   if (!activeColorProps.value) {
     return chromaticShades.value.shadeBy(600).toHex()
   }
@@ -125,7 +125,7 @@ const activeColor = computed(() => {
 })
 
 const inactiveColorProps = toRef(() => props.inactiveColor)
-const inactiveColor = computed(() => {
+const resolvedInactiveColor = computed(() => {
   if (!inactiveColorProps.value) {
     return chromaticShades.value.shadeBy(400).toHex()
   }
@@ -261,23 +261,23 @@ const dataAreaPath = computed(() => {
 
           <!-- Gradient for the filled area -->
           <linearGradient :id="areaGradientId" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" :style="`stop-color:${lineColor};stop-opacity:0.3`" />
-            <stop offset="50%" :style="`stop-color:${lineColor};stop-opacity:0.15`" />
-            <stop offset="100%" :style="`stop-color:${lineColor};stop-opacity:0.05`" />
+            <stop offset="0%" :style="`stop-color:${resolvedLineColor};stop-opacity:0.3`" />
+            <stop offset="50%" :style="`stop-color:${resolvedLineColor};stop-opacity:0.15`" />
+            <stop offset="100%" :style="`stop-color:${resolvedLineColor};stop-opacity:0.05`" />
           </linearGradient>
 
           <!-- Gradient for threshold areas -->
           <linearGradient :id="thresholdGradientId" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" :style="`stop-color:${activeColor};stop-opacity:0.3`" />
-            <stop offset="50%" :style="`stop-color:${activeColor};stop-opacity:0.15`" />
-            <stop offset="100%" :style="`stop-color:${activeColor};stop-opacity:0.05`" />
+            <stop offset="0%" :style="`stop-color:${resolvedActiveColor};stop-opacity:0.3`" />
+            <stop offset="50%" :style="`stop-color:${resolvedActiveColor};stop-opacity:0.15`" />
+            <stop offset="100%" :style="`stop-color:${resolvedActiveColor};stop-opacity:0.05`" />
           </linearGradient>
 
           <!-- Below threshold gradient -->
           <linearGradient id="below-threshold-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" :style="`stop-color:${thresholdColor};stop-opacity:0.2`" />
-            <stop offset="50%" :style="`stop-color:${thresholdColor};stop-opacity:0.1`" />
-            <stop offset="100%" :style="`stop-color:${thresholdColor};stop-opacity:0.05`" />
+            <stop offset="0%" :style="`stop-color:${resolvedThresholdColor};stop-opacity:0.2`" />
+            <stop offset="50%" :style="`stop-color:${resolvedThresholdColor};stop-opacity:0.1`" />
+            <stop offset="100%" :style="`stop-color:${resolvedThresholdColor};stop-opacity:0.05`" />
           </linearGradient>
         </defs>
 
@@ -291,7 +291,7 @@ const dataAreaPath = computed(() => {
           :y="thresholdLineY"
           width="100%"
           :height="chartHeight - thresholdLineY"
-          :fill="thresholdColor"
+          :fill="resolvedThresholdColor"
         />
 
         <!-- Threshold line -->
@@ -301,10 +301,10 @@ const dataAreaPath = computed(() => {
           :y1="thresholdLineY"
           x2="100%"
           :y2="thresholdLineY"
-          :stroke="thresholdColor"
+          :stroke="resolvedThresholdColor"
           stroke-width="1.5"
           stroke-dasharray="4,4"
-          :fill="thresholdColor"
+          :fill="resolvedThresholdColor"
         />
 
         <!-- Data area (filled under curve) -->
@@ -315,7 +315,7 @@ const dataAreaPath = computed(() => {
           v-if="smoothPath"
           :d="smoothPath"
           fill="none"
-          :stroke="lineColor"
+          :stroke="resolvedLineColor"
           :stroke-width="lineWidth"
           stroke-linecap="round"
           stroke-linejoin="round"
@@ -353,11 +353,11 @@ const dataAreaPath = computed(() => {
     <div v-if="showLegend" class="flex flex-wrap items-center justify-between text-xs text-neutral-500">
       <div class="flex items-center gap-3">
         <span class="flex items-center gap-1 text-nowrap">
-          <div class="h-2 w-2 rounded-full" :style="{ backgroundColor: activeColor }" />
+          <div class="h-2 w-2 rounded-full" :style="{ backgroundColor: resolvedActiveColor }" />
           {{ activeLegendLabel }}
         </span>
         <span class="flex items-center gap-1 text-nowrap">
-          <div class="h-2 w-2 rounded-full" :style="{ backgroundColor: inactiveColor }" />
+          <div class="h-2 w-2 rounded-full" :style="{ backgroundColor: resolvedInactiveColor }" />
           {{ inactiveLegendLabel }}
         </span>
       </div>

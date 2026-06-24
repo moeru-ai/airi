@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { SpeechProvider } from '@xsai-ext/providers/utils'
+import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import { getCachedWebGPUCapabilities } from '@proj-airi/stage-shared/webgpu'
 import { SpeechPlayground, SpeechProviderSettings } from '@proj-airi/stage-ui/components'
@@ -68,7 +68,10 @@ const modelOptions = computed(() => {
 // Generate speech with Kokoro-specific parameters
 async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: boolean) {
   try {
-    const provider = (await providersStore.getProviderInstance(providerId)) as SpeechProvider
+    const provider = (await providersStore.getProviderInstance(providerId)) as SpeechProviderWithExtraOptions<
+      string,
+      unknown
+    >
     if (!provider) {
       console.error('[Kokoro Playground] Failed to get provider instance')
       throw new Error('Failed to initialize speech provider')
@@ -77,9 +80,16 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
     const config = providersStore.getProviderConfig(providerId)
     const selectedModel = (config.model as string | undefined) || defaultModel
 
-    const result = await speechStore.speech(provider as any, selectedModel, input, voiceId, {
-      ...config,
-    })
+    // speechStore.speech expects SpeechProviderWithExtraOptions; the provider instance is structurally compatible
+    const result = await speechStore.speech(
+      provider as SpeechProviderWithExtraOptions<string, unknown>,
+      selectedModel,
+      input,
+      voiceId,
+      {
+        ...config,
+      },
+    )
 
     return result
   } catch (error) {
@@ -115,7 +125,9 @@ onMounted(async () => {
       // Load the initial model
       if (metadata.capabilities.loadModel) {
         await metadata.capabilities.loadModel(config, {
-          onProgress: async (_progress) => {},
+          onProgress: async (_progress) => {
+            /* progress tracking not yet implemented in UI */
+          },
         })
       }
 
@@ -141,7 +153,9 @@ watch(model, async (newValue) => {
       if (validationResult.valid && metadata.capabilities.loadModel) {
         // Load the model using the capability with progress tracking
         await metadata.capabilities.loadModel(config, {
-          onProgress: async (_progress) => {},
+          onProgress: async (_progress) => {
+            /* progress tracking not yet implemented in UI */
+          },
         })
 
         // Then reload voices

@@ -19,13 +19,27 @@ export interface UseWhisperOptions {
 export function useWhisper(url: string, options?: Partial<UseWhisperOptions>) {
   const opts = merge<UseWhisperOptions>(
     {
-      onLoading: () => {},
-      onProgress: () => {},
-      onReady: () => {},
-      onStart: () => {},
-      onUpdate: () => {},
-      onComplete: () => {},
-      onError: () => {},
+      onLoading: () => {
+        /* noop */
+      },
+      onProgress: () => {
+        /* noop */
+      },
+      onReady: () => {
+        /* noop */
+      },
+      onStart: () => {
+        /* noop */
+      },
+      onUpdate: () => {
+        /* noop */
+      },
+      onComplete: () => {
+        /* noop */
+      },
+      onError: () => {
+        /* noop */
+      },
     },
     options,
   )

@@ -292,7 +292,7 @@ export class RecoveryCoordinator {
 			const events = await this.eventStore.getSince(sinceId)
 			for (const event of events) {
 				if (!this.recoveryState.replayedEventIds.has(event.eventId as string)) {
-					await this.replayEvent(event)
+					this.replayEvent(event)
 					this.recoveryState.replayedEventIds.add(event.eventId as string)
 					replayed++
 				}
@@ -304,7 +304,7 @@ export class RecoveryCoordinator {
 				const allEvents = await this.eventStore.getSince("evt_0_0" as EventId)
 				for (const event of allEvents) {
 					if (!this.recoveryState.replayedEventIds.has(event.eventId as string)) {
-						await this.replayEvent(event)
+						this.replayEvent(event)
 						this.recoveryState.replayedEventIds.add(event.eventId as string)
 						replayed++
 					}
@@ -322,8 +322,7 @@ export class RecoveryCoordinator {
 	 * The EventBus is NOT used here to avoid side effects — instead,
 	 * we directly update the recovery state.
 	 */
-  // async: implements interface (Promise<void>)
-	private async replayEvent(event: PersistedEvent): Promise<void> {
+	private replayEvent(event: PersistedEvent): void {
 		const payload = event.payload
 
 		switch (payload.type) {
@@ -505,69 +504,68 @@ export class RecoveryCoordinator {
 	 *
 	 * @returns The number of workspaces restored.
 	 */
-  // async: implements interface (Promise<number>)
-	async restoreWorkspaces(snapshot: RuntimeSnapshot | null): Promise<number> {
-		if (!this.workspaceManager || !snapshot) return 0
+	restoreWorkspaces(snapshot: RuntimeSnapshot | null): Promise<number> {
+		if (!this.workspaceManager || !snapshot) return Promise.resolve(0)
 
 		const workspaceSnapshots = snapshot.workspaces ?? []
-		if (workspaceSnapshots.length === 0) return 0
+		if (workspaceSnapshots.length === 0) return Promise.resolve(0)
 
 		let restored = 0
 
-			for (const ws of workspaceSnapshots) {
-				try {
-					// Validate workspace state.
-					if (!ws.descriptor || !ws.id) {
-						this.logger.warn(`Recovery: skipping invalid workspace snapshot: ${JSON.stringify(ws)}`)
-						this.events.emit("workspace.corrupted", {
-							timestamp: new Date().toISOString(),
-							source: "recovery",
-							workspaceId: ws.id ?? "unknown",
-							error: "Invalid workspace snapshot: missing descriptor or id",
-							needsManualIntervention: true,
-						})
-						continue
-					}
-	
-					// Restore workspace into the manager.
-					const snapshots = [{
-						id: ws.id as WorkspaceId,
-						descriptor: ws.descriptor as WorkspaceDescriptor,
-						lease: ws.lease as WorkspaceLease | undefined,
-						activeTaskIds: ws.activeTaskIds ?? [],
-						createdAt: ws.createdAt,
-					}]
-	
-					this.workspaceManager.restoreFromSnapshots(snapshots)
-	
-					this.logger.info(`Recovery: restored workspace ${ws.id} (state: ${ws.descriptor.state})`)
-	
-					// Emit workspace.recovered.
-					this.events.emit("workspace.recovered", {
-						timestamp: new Date().toISOString(),
-						source: "recovery",
-						workspaceId: ws.id,
-						previousState: ws.descriptor.state,
-						newState: ws.descriptor.state,
-						needsReconciliation: false,
-					})
-	
-					restored++
-				} catch (error) {
-					const message = error instanceof Error ? error.message : String(error)
-					this.logger.error(`Recovery: failed to restore workspace ${ws.id}: ${message}`)
-	
-					this.events.emit("workspace.corrupted", {
-						timestamp: new Date().toISOString(),
-						source: "recovery",
-						workspaceId: ws.id ?? "unknown",
-						error: message,
-						needsManualIntervention: true,
-					})
-				}
-			}
+		for (const ws of workspaceSnapshots) {
+			const result = this.restoreSingleWorkspace(ws)
+			if (result) restored++
+		}
 
-		return restored
+		return Promise.resolve(restored)
+	}
+
+	private restoreSingleWorkspace(ws: RuntimeSnapshot["workspaces"] extends (infer T)[] | undefined ? T : never): boolean {
+		if (!ws.descriptor || !ws.id) {
+			this.logger.warn(`Recovery: skipping invalid workspace snapshot: ${JSON.stringify(ws)}`)
+			this.emitWorkspaceCorrupted(ws.id ?? "unknown", "Invalid workspace snapshot: missing descriptor or id")
+			return false
+		}
+
+		try {
+			this.workspaceManager!.restoreFromSnapshots([{
+				id: ws.id as WorkspaceId,
+				descriptor: ws.descriptor as WorkspaceDescriptor,
+				lease: ws.lease as WorkspaceLease | undefined,
+				activeTaskIds: ws.activeTaskIds ?? [],
+				createdAt: ws.createdAt,
+			}])
+
+			this.logger.info(`Recovery: restored workspace ${ws.id} (state: ${ws.descriptor.state})`)
+			this.emitWorkspaceRecovered(ws.id as WorkspaceId, ws.descriptor.state)
+			return true
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error)
+			this.logger.error(`Recovery: failed to restore workspace ${ws.id}: ${message}`)
+			this.emitWorkspaceCorrupted(ws.id ?? "unknown", message)
+			return false
+		}
+	}
+
+	private emitWorkspaceCorrupted(workspaceId: string, error: string): void {
+		this.events.emit("workspace.corrupted", {
+			timestamp: new Date().toISOString(),
+			source: "recovery",
+			workspaceId,
+			error,
+			needsManualIntervention: true,
+		})
+	}
+
+	private emitWorkspaceRecovered(workspaceId: WorkspaceId, state: string): void {
+		this.events.emit("workspace.recovered", {
+			timestamp: new Date().toISOString(),
+			source: "recovery",
+			workspaceId,
+			previousState: state,
+			newState: state,
+			needsReconciliation: false,
+		})
 	}
 
 	/**
@@ -578,9 +576,8 @@ export class RecoveryCoordinator {
 	 *
 	 * @returns The number of orphaned workspaces detected.
 	 */
-  // async: implements interface (Promise<number>)
-	async reconcileOrphanedWorkspaces(): Promise<number> {
-		if (!this.workspaceManager) return 0
+	reconcileOrphanedWorkspaces(): Promise<number> {
+		if (!this.workspaceManager) return Promise.resolve(0)
 
 		const allWorkspaces = this.workspaceManager.listWorkspaces()
 		let orphaned = 0
@@ -602,6 +599,6 @@ export class RecoveryCoordinator {
 			}
 		}
 
-		return orphaned
+		return Promise.resolve(orphaned)
 	}
 }

@@ -243,7 +243,9 @@ describe('channel-server store reconnect', () => {
   it('continues invoking remaining onReconnected callbacks when one throws', async () => {
     const store = useModsServerChannelStore()
     const successfulCallback = vi.fn()
-    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {
+      /* noop */
+    })
 
     store.onReconnected(() => {
       throw new Error('boom')
@@ -311,7 +313,9 @@ describe('channel-server store reconnect', () => {
 
   it('keeps the initialize lock on recoverable onError so auto-reconnect does not spawn a second client', () => {
     const store = useModsServerChannelStore()
-    const consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {})
+    const consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {
+      /* noop */
+    })
 
     const firstInitializePromise = store.initialize({ token: 'secret' })
     const firstClient = serverSdkMocks.MockClient.instances[0]

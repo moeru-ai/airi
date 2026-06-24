@@ -436,22 +436,25 @@ function createMockTransport(
       return state
     },
 
-    async connect(): Promise<void> {
+    connect(): Promise<void> {
       state = 'connected'
       for (const handler of stateHandlers) handler(state)
+      return Promise.resolve()
     },
 
-    async disconnect(): Promise<void> {
+    disconnect(): Promise<void> {
       state = 'disconnected'
       for (const handler of disconnectHandlers) handler()
       for (const handler of stateHandlers) handler(state)
+      return Promise.resolve()
     },
 
-    async send(message: IpcMessage): Promise<void> {
+    send(message: IpcMessage): Promise<void> {
       if (state !== 'connected') {
         throw new Error(`Cannot send: transport is ${state}.`)
       }
       sentMessages.push(message)
+      return Promise.resolve()
     },
 
     onMessage(handler: (msg: IpcMessage) => void): () => void {

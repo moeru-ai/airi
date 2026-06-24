@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { SpeechProvider } from '@xsai-ext/providers/utils'
+import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import { SpeechPlayground, SpeechProviderSettings } from '@proj-airi/stage-ui/components'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
@@ -38,13 +38,20 @@ onMounted(async () => {
 })
 
 async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: boolean) {
-  const provider = await providersStore.getProviderInstance<SpeechProvider<string>>(providerId)
+  const provider = await providersStore.getProviderInstance<SpeechProviderWithExtraOptions<string, unknown>>(providerId)
   if (!provider) throw new Error('Failed to initialize speech provider')
 
   const providerConfig = providersStore.getProviderConfig(providerId)
   const modelToUse = model.value || defaultModel
 
-  return await speechStore.speech(provider as any, modelToUse, input, voiceId, providerConfig)
+  // speechStore.speech expects SpeechProviderWithExtraOptions; the provider instance is structurally compatible
+  return await speechStore.speech(
+    provider as SpeechProviderWithExtraOptions<string, unknown>,
+    modelToUse,
+    input,
+    voiceId,
+    providerConfig,
+  )
 }
 </script>
 

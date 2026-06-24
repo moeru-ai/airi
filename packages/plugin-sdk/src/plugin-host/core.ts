@@ -382,36 +382,23 @@ function resolveNegotiatedVersion(
     peerSupportedVersions && peerSupportedVersions.length > 0 ? normalizeVersionList(peerSupportedVersions) : undefined
 
   if (!normalizedPeerSupportedVersions?.length) {
-    if (normalizedHostSupportedVersions.includes(normalizedPreferredVersion)) {
-      return {
-        acceptedVersion: normalizedPreferredVersion,
-        exact: true,
-      }
-    }
-
-    return {
-      exact: false,
-      reason: `Host does not support preferred version "${normalizedPreferredVersion}".`,
-    }
+    const accepted = normalizedHostSupportedVersions.includes(normalizedPreferredVersion)
+    return accepted
+      ? { acceptedVersion: normalizedPreferredVersion, exact: true }
+      : { exact: false, reason: `Host does not support preferred version "${normalizedPreferredVersion}".` }
   }
 
-  if (
-    normalizedPeerSupportedVersions.includes(normalizedPreferredVersion) &&
-    normalizedHostSupportedVersions.includes(normalizedPreferredVersion)
-  ) {
-    return {
-      acceptedVersion: normalizedPreferredVersion,
-      exact: true,
-    }
+  const peerSupportsPreferred = normalizedPeerSupportedVersions.includes(normalizedPreferredVersion)
+  const hostSupportsPreferred = normalizedHostSupportedVersions.includes(normalizedPreferredVersion)
+
+  if (peerSupportsPreferred && hostSupportsPreferred) {
+    return { acceptedVersion: normalizedPreferredVersion, exact: true }
   }
 
-  for (const version of normalizedHostSupportedVersions) {
-    if (normalizedPeerSupportedVersions.includes(version)) {
-      return {
-        acceptedVersion: version,
-        exact: false,
-      }
-    }
+  const overlap = normalizedHostSupportedVersions.find((version) => normalizedPeerSupportedVersions.includes(version))
+
+  if (overlap) {
+    return { acceptedVersion: overlap, exact: false }
   }
 
   return {
@@ -478,6 +465,34 @@ function getPermissionIntersectionKey(left: string, right: string) {
   return undefined
 }
 
+function collectGrantedActions(
+  requestedSpec: { key: string; actions: string[] },
+  granted: Array<{ key: string; actions: string[] }> | undefined,
+): { grantedActions: Set<string>; hasUnRepresentableOverlap: boolean } {
+  const grantedActions = new Set<string>()
+  let hasUnRepresentableOverlap = false
+
+  for (const grantedSpec of granted ?? []) {
+    const intersectionKey = getPermissionIntersectionKey(requestedSpec.key, grantedSpec.key)
+    if (!intersectionKey) {
+      continue
+    }
+
+    if (intersectionKey !== requestedSpec.key) {
+      hasUnRepresentableOverlap = true
+      continue
+    }
+
+    for (const action of grantedSpec.actions) {
+      if (requestedSpec.actions.includes(action)) {
+        grantedActions.add(action)
+      }
+    }
+  }
+
+  return { grantedActions, hasUnRepresentableOverlap }
+}
+
 function filterDeniedPermissionScopes<
   T extends {
     key: string
@@ -489,45 +504,14 @@ function filterDeniedPermissionScopes<
   }
 
   return requested.flatMap((requestedSpec) => {
-    const grantedActions = new Set<string>()
-    let hasUnRepresentableOverlap = false
-
-    for (const grantedSpec of granted ?? []) {
-      const intersectionKey = getPermissionIntersectionKey(requestedSpec.key, grantedSpec.key)
-      if (!intersectionKey) {
-        continue
-      }
-
-      if (intersectionKey !== requestedSpec.key) {
-        // A narrower grant overlaps only part of the requested scope, such as:
-        // - requested `plugin.resource.*`
-        // - granted   `plugin.resource.settings`
-        //
-        // The current declaration shape cannot express "everything except the granted subset",
-        // so reporting the whole requested scope as denied would contradict the granted/current
-        // snapshots. In that case we omit the denied entry rather than over-reporting it.
-        hasUnRepresentableOverlap = true
-        continue
-      }
-
-      for (const action of grantedSpec.actions) {
-        if (requestedSpec.actions.includes(action)) {
-          grantedActions.add(action)
-        }
-      }
-    }
-
+    const { grantedActions, hasUnRepresentableOverlap } = collectGrantedActions(requestedSpec, granted)
     const deniedActions = requestedSpec.actions.filter((action) => !grantedActions.has(action))
+
     if (deniedActions.length === 0 || hasUnRepresentableOverlap) {
       return []
     }
 
-    return [
-      {
-        ...requestedSpec,
-        actions: deniedActions,
-      },
-    ]
+    return [{ ...requestedSpec, actions: deniedActions }]
   })
 }
 
@@ -920,32 +904,43 @@ export class PluginHost {
   }
 
   private cleanupSession(session: PluginHostSession) {
-    let lifecycleHookError: unknown
-
-    if (session.phase !== 'stopped') {
-      const canStop = session.lifecycle.getSnapshot().can({ type: 'STOP' })
-      if (canStop) {
-        assertTransition(session, 'stopped')
-      } else {
-        session.phase = 'stopped'
-      }
-    }
-
-    for (const module of this.modules.listByOwner(session.id)) {
-      this.modules.withdraw(session.id, session.identity.plugin.id, module.moduleId)
-      this.modules.unbind(session.id, session.identity.plugin.id, module.moduleId)
-    }
-
-    try {
-      this.runLifecycleHooks('session-stopped', session)
-    } catch (error) {
-      lifecycleHookError = error
-    }
+    this.transitionToStopped(session)
+    this.withdrawAndUnbindSessionModules(session)
+    const lifecycleHookError = this.runSessionStoppedHooks(session)
 
     session.lifecycle.stop()
     this.sessionService.remove(session.id)
 
     return lifecycleHookError
+  }
+
+  private transitionToStopped(session: PluginHostSession): void {
+    if (session.phase === 'stopped') {
+      return
+    }
+
+    const canStop = session.lifecycle.getSnapshot().can({ type: 'STOP' })
+    if (canStop) {
+      assertTransition(session, 'stopped')
+    } else {
+      session.phase = 'stopped'
+    }
+  }
+
+  private withdrawAndUnbindSessionModules(session: PluginHostSession): void {
+    for (const module of this.modules.listByOwner(session.id)) {
+      this.modules.withdraw(session.id, session.identity.plugin.id, module.moduleId)
+      this.modules.unbind(session.id, session.identity.plugin.id, module.moduleId)
+    }
+  }
+
+  private runSessionStoppedHooks(session: PluginHostSession): unknown {
+    try {
+      this.runLifecycleHooks('session-stopped', session)
+      return undefined
+    } catch (error) {
+      return error
+    }
   }
 
   private getModuleOrThrow(moduleId: string) {
@@ -1267,46 +1262,7 @@ export class PluginHost {
       },
     }
     session.apis = this.createSessionApis(session, hostChannel)
-
-    defineInvokeHandler(hostChannel, protocolCapabilityWait, async (payload) => {
-      this.assertPermission(session, {
-        area: 'apis',
-        action: 'invoke',
-        key: protocolCapabilityWaitEventName,
-      })
-      this.assertPermission(session, {
-        area: 'capabilities',
-        action: 'wait',
-        key: payload.key,
-      })
-      return await this.waitForCapability(payload.key, payload?.timeoutMs)
-    })
-    defineInvokeHandler(hostChannel, protocolCapabilitySnapshot, async () => {
-      this.assertPermission(session, {
-        area: 'apis',
-        action: 'invoke',
-        key: protocolCapabilitySnapshotEventName,
-      })
-      this.assertPermission(session, {
-        area: 'capabilities',
-        action: 'snapshot',
-        key: '*',
-      })
-      return this.listCapabilities()
-    })
-    defineInvokeHandler(hostChannel, protocolProviders.listProviders, async () => {
-      this.assertPermission(session, {
-        area: 'apis',
-        action: 'invoke',
-        key: protocolListProvidersEventName,
-      })
-      this.assertPermission(session, {
-        area: 'resources',
-        action: 'read',
-        key: protocolListProvidersEventName,
-      })
-      return (await this.resources.get<Array<{ name: string }>>(protocolListProvidersEventName, [])) ?? []
-    })
+    this.registerProtocolInvokeHandlers(session, hostChannel)
 
     // Register session before loading so failure paths still have observable state.
     this.sessionService.register(session)
@@ -1325,235 +1281,61 @@ export class PluginHost {
       this.runLifecycleHooks('session-loaded', session)
       return session
     } catch (error) {
-      // Load failure is terminal for this session (`loading` -> `failed`).
-      // Emit status so Configurator/observers can show deterministic diagnostics.
-      markFailedTransition(session)
-      session.channels.host.emit(moduleStatus, {
-        identity: session.identity,
-        phase: 'failed',
-        reason: error instanceof Error ? error.message : 'Failed to load plugin.',
-      })
-
+      this.handleLoadFailure(session, error)
       throw error
     }
   }
 
-  async init(sessionId: string, options: PluginStartOptions = {}): Promise<PluginHostSession> {
-    // `init` starts at procedure step 2 (authenticate) and drives lifecycle to ready.
-    const session = this.sessionService.get(sessionId)
-    if (!session) {
-      throw new Error(`Unable to initialize plugin session: ${sessionId}`)
-    }
+  private handleLoadFailure(session: PluginHostSession, error: unknown): void {
+    markFailedTransition(session)
+    session.channels.host.emit(moduleStatus, {
+      identity: session.identity,
+      phase: 'failed',
+      reason: error instanceof Error ? error.message : 'Failed to load plugin.',
+    })
+  }
 
-    // Safety gate: initialization can only begin from a successfully loaded plugin.
-    if (session.phase !== 'loaded') {
-      throw new Error(`Session ${sessionId} cannot initialize from phase ${session.phase}. Expected loaded.`)
-    }
+  private registerProtocolInvokeHandlers(
+    session: PluginHostSession,
+    hostChannel: ReturnType<typeof createPluginContext>,
+  ): void {
+    const assert = (area: PluginHostPermissionRequest['area'], action: string, key: string) =>
+      this.assertPermission(session, { area, action, key })
+
+    defineInvokeHandler(hostChannel, protocolCapabilityWait, async (payload) => {
+      assert('apis', 'invoke', protocolCapabilityWaitEventName)
+      assert('capabilities', 'wait', payload.key)
+      return await this.waitForCapability(payload.key, payload?.timeoutMs)
+    })
+    defineInvokeHandler(hostChannel, protocolCapabilitySnapshot, async () => {
+      assert('apis', 'invoke', protocolCapabilitySnapshotEventName)
+      assert('capabilities', 'snapshot', '*')
+      return this.listCapabilities()
+    })
+    defineInvokeHandler(hostChannel, protocolProviders.listProviders, async () => {
+      assert('apis', 'invoke', protocolListProvidersEventName)
+      assert('resources', 'read', protocolListProvidersEventName)
+      return (await this.resources.get<Array<{ name: string }>>(protocolListProvidersEventName, [])) ?? []
+    })
+  }
+
+  async init(sessionId: string, options: PluginStartOptions = {}): Promise<PluginHostSession> {
+    const session = this.getLoadedSession(sessionId)
+    let preparedEmitted = false
 
     try {
-      let preparedEmitted = false
+      this.authenticateSession(session)
+      this.negotiateAndEmitCompatibility(session, options)
+      this.broadcastModulesAndResolvePermissions(session)
+      this.announceSession(session)
+      preparedEmitted = await this.waitForRequiredCapabilities(session, options, preparedEmitted)
+      await this.runPluginInit(session)
+      this.markPreparedUnlessEmitted(session, preparedEmitted)
 
-      // Step 2: authenticate module against host control plane.
-      assertTransition(session, 'authenticating')
-      session.channels.host.emit(moduleAuthenticate, {
-        token: `${session.id}:${session.identity.id}`,
-      })
-
-      // Mark local lifecycle after authentication handshake.
-      assertTransition(session, 'authenticated')
-      session.channels.host.emit(moduleAuthenticated, { authenticated: true })
-
-      // Step 3: protocol/api compatibility negotiation.
-      const compatibilityRequest: ModuleCompatibilityRequest = {
-        protocolVersion: this.protocolVersion,
-        apiVersion: this.apiVersion,
-        supportedProtocolVersions: options.compatibility?.supportedProtocolVersions,
-        supportedApiVersions: options.compatibility?.supportedApiVersions,
-      }
-
-      session.channels.host.emit(moduleCompatibilityRequest, compatibilityRequest)
-      const protocolNegotiation = resolveNegotiatedVersion(
-        compatibilityRequest.protocolVersion,
-        this.supportedProtocolVersions,
-        compatibilityRequest.supportedProtocolVersions,
-      )
-      const apiNegotiation = resolveNegotiatedVersion(
-        compatibilityRequest.apiVersion,
-        this.supportedApiVersions,
-        compatibilityRequest.supportedApiVersions,
-      )
-
-      const rejectionReasons = [
-        ...(protocolNegotiation.acceptedVersion ? [] : [`protocol: ${protocolNegotiation.reason}`]),
-        ...(apiNegotiation.acceptedVersion ? [] : [`api: ${apiNegotiation.reason}`]),
-      ]
-
-      if (rejectionReasons.length > 0) {
-        const reason = `Negotiation rejected: ${rejectionReasons.join('; ')}`
-        session.channels.host.emit(moduleCompatibilityResult, {
-          protocolVersion: compatibilityRequest.protocolVersion,
-          apiVersion: compatibilityRequest.apiVersion,
-          mode: 'rejected',
-          reason,
-        })
-        throw new Error(reason)
-      }
-
-      session.channels.host.emit(moduleCompatibilityResult, {
-        protocolVersion: protocolNegotiation.acceptedVersion!,
-        apiVersion: apiNegotiation.acceptedVersion!,
-        mode: protocolNegotiation.exact && apiNegotiation.exact ? 'exact' : 'downgraded',
-      })
-
-      // Step 4: broadcast currently known modules for dependency discovery/bootstrap.
-      session.channels.host.emit(registryModulesSync, {
-        modules: this.listSessions()
-          .filter((item) => item.phase !== 'stopped')
-          .map((item) => ({
-            name: item.manifest.name,
-            index: item.index,
-            identity: item.identity,
-          })),
-      })
-
-      session.channels.host.emit(modulePermissionsDeclare, {
-        identity: session.identity,
-        requested: session.permissions.requested,
-        source: 'manifest',
-      })
-
-      const resolvedGrant =
-        (await this.permissionResolver?.({
-          identity: session.identity,
-          manifest: session.manifest,
-          requested: session.permissions.requested,
-          persisted: this.persistedPermissionGrants.get(session.identity.plugin.id),
-        })) ?? session.permissions.requested
-
-      const grantedSnapshot = this.permissions.initialize(
-        this.getPermissionScopeKey(session),
-        session.permissions.requested,
-        {
-          grant: resolvedGrant,
-          persisted: this.persistedPermissionGrants.get(session.identity.plugin.id),
-        },
-      )
-      session.permissions = {
-        requested: grantedSnapshot.requested,
-        granted: grantedSnapshot.granted,
-        revision: grantedSnapshot.revision,
-      }
-      this.persistedPermissionGrants.set(session.identity.plugin.id, grantedSnapshot.granted)
-
-      const deniedPermissions = filterDeniedPermissions(grantedSnapshot.requested, grantedSnapshot.granted)
-      session.channels.host.emit(modulePermissionsGranted, {
-        identity: session.identity,
-        granted: grantedSnapshot.granted,
-        revision: grantedSnapshot.revision,
-      })
-      if (Object.values(deniedPermissions).some((value) => Array.isArray(value) && value.length > 0)) {
-        session.channels.host.emit(modulePermissionsDenied, {
-          identity: session.identity,
-          denied: deniedPermissions,
-          reason: 'One or more requested permissions were not granted by host policy.',
-          revision: grantedSnapshot.revision,
-        })
-      }
-      session.channels.host.emit(modulePermissionsCurrent, {
-        identity: session.identity,
-        requested: grantedSnapshot.requested,
-        granted: grantedSnapshot.granted,
-        revision: grantedSnapshot.revision,
-      })
-
-      // Step 5: module announcement to the shared control plane.
-      assertTransition(session, 'announced')
-      session.channels.host.emit(moduleAnnounce, {
-        name: session.manifest.name,
-        identity: session.identity,
-        possibleEvents: [],
-        permissions: session.permissions.requested,
-      })
-      session.channels.host.emit(moduleStatus, {
-        identity: session.identity,
-        phase: 'announced',
-      })
-
-      // Step 6/7: preparing phase (dependency/config preparation may happen inside plugin init).
-      assertTransition(session, 'preparing')
-      session.channels.host.emit(moduleStatus, {
-        identity: session.identity,
-        phase: 'preparing',
-      })
-
-      // Optional dependency gate before plugin-owned initialization.
-      if (options.requiredCapabilities?.length) {
-        const capabilityTimeoutMs = options.capabilityWaitTimeoutMs ?? 15000
-        const unresolvedCapabilities = options.requiredCapabilities.filter((key) => !this.isCapabilityReady(key))
-        assertTransition(session, 'waiting-deps')
-        session.channels.host.emit(moduleStatus, {
-          identity: session.identity,
-          phase: 'preparing',
-          reason: `Waiting for capabilities: ${options.requiredCapabilities.join(', ')}`,
-          details: {
-            // For richer observability
-            lifecyclePhase: 'waiting-deps',
-            requiredCapabilities: options.requiredCapabilities,
-            unresolvedCapabilities,
-            timeoutMs: capabilityTimeoutMs,
-          },
-        })
-
-        await this.waitForCapabilities(options.requiredCapabilities, capabilityTimeoutMs)
-        assertTransition(session, 'prepared')
-        session.channels.host.emit(modulePrepared, {
-          identity: session.identity,
-        })
-        session.channels.host.emit(moduleStatus, {
-          identity: session.identity,
-          phase: 'prepared',
-        })
-        preparedEmitted = true
-      }
-
-      // Run plugin-owned init hook. Returning `false` explicitly aborts startup.
-      const initResult = await session.plugin.init?.({
-        channels: session.channels,
-        apis: session.apis,
-      })
-
-      if (initResult === false) {
-        throw new Error(`Plugin initialization aborted by plugin: ${session.manifest.name}`)
-      }
-
-      // Step 8/10: module prepared.
-      if (!preparedEmitted) {
-        assertTransition(session, 'prepared')
-        session.channels.host.emit(modulePrepared, {
-          identity: session.identity,
-        })
-        session.channels.host.emit(moduleStatus, {
-          identity: session.identity,
-          phase: 'prepared',
-        })
-      }
-
-      // Step 9/11: allow host to stop at explicit "configuration-needed".
       if (options.requireConfiguration) {
-        assertTransition(session, 'configuration-needed')
-        session.channels.host.emit(moduleConfigurationNeeded, {
-          identity: session.identity,
-          reason: 'Host requested configuration before activation.',
-        })
-        session.channels.host.emit(moduleStatus, {
-          identity: session.identity,
-          phase: 'configuration-needed',
-        })
-
-        return session
+        return this.stopAtConfigurationNeeded(session)
       }
 
-      // Step 12/13: apply default config path for alpha when no manual configuration is required.
       await this.applyConfiguration(session.id, {
         configId: `${session.identity.id}:default`,
         revision: 1,
@@ -1561,13 +1343,11 @@ export class PluginHost {
         full: {},
       })
 
-      // Step 14/15: plugin contributes modules/capabilities in setup hook.
       await session.plugin.setupModules?.({
         channels: session.channels,
         apis: session.apis,
       })
 
-      // Step 16: mark ready after setup/contribution flow completes.
       assertTransition(session, 'ready')
       session.channels.host.emit(moduleStatus, {
         identity: session.identity,
@@ -1577,19 +1357,248 @@ export class PluginHost {
 
       return session
     } catch (error) {
-      // Any init failure is normalized into failed phase + status event for observability.
-      markFailedTransition(session)
-
-      session.channels.host.emit(moduleStatus, {
-        identity: session.identity,
-        phase: 'failed',
-        reason: error instanceof Error ? error.message : 'Plugin host initialization failed.',
-      })
-
-      this.cleanupSession(session)
-
+      this.handleInitFailure(session, error)
       throw error
     }
+  }
+
+  private getLoadedSession(sessionId: string): PluginHostSession {
+    const session = this.sessionService.get(sessionId)
+    if (!session) {
+      throw new Error(`Unable to initialize plugin session: ${sessionId}`)
+    }
+
+    if (session.phase !== 'loaded') {
+      throw new Error(`Session ${sessionId} cannot initialize from phase ${session.phase}. Expected loaded.`)
+    }
+
+    return session
+  }
+
+  private authenticateSession(session: PluginHostSession): void {
+    assertTransition(session, 'authenticating')
+    session.channels.host.emit(moduleAuthenticate, {
+      token: `${session.id}:${session.identity.id}`,
+    })
+
+    assertTransition(session, 'authenticated')
+    session.channels.host.emit(moduleAuthenticated, { authenticated: true })
+  }
+
+  private negotiateAndEmitCompatibility(session: PluginHostSession, options: PluginStartOptions): void {
+    const compatibilityRequest: ModuleCompatibilityRequest = {
+      protocolVersion: this.protocolVersion,
+      apiVersion: this.apiVersion,
+      supportedProtocolVersions: options.compatibility?.supportedProtocolVersions,
+      supportedApiVersions: options.compatibility?.supportedApiVersions,
+    }
+
+    session.channels.host.emit(moduleCompatibilityRequest, compatibilityRequest)
+
+    const protocolNegotiation = resolveNegotiatedVersion(
+      compatibilityRequest.protocolVersion,
+      this.supportedProtocolVersions,
+      compatibilityRequest.supportedProtocolVersions,
+    )
+    const apiNegotiation = resolveNegotiatedVersion(
+      compatibilityRequest.apiVersion,
+      this.supportedApiVersions,
+      compatibilityRequest.supportedApiVersions,
+    )
+
+    const rejectionReasons = [
+      ...(protocolNegotiation.acceptedVersion ? [] : [`protocol: ${protocolNegotiation.reason}`]),
+      ...(apiNegotiation.acceptedVersion ? [] : [`api: ${apiNegotiation.reason}`]),
+    ]
+
+    if (rejectionReasons.length > 0) {
+      const reason = `Negotiation rejected: ${rejectionReasons.join('; ')}`
+      session.channels.host.emit(moduleCompatibilityResult, {
+        protocolVersion: compatibilityRequest.protocolVersion,
+        apiVersion: compatibilityRequest.apiVersion,
+        mode: 'rejected',
+        reason,
+      })
+      throw new Error(reason)
+    }
+
+    session.channels.host.emit(moduleCompatibilityResult, {
+      protocolVersion: protocolNegotiation.acceptedVersion!,
+      apiVersion: apiNegotiation.acceptedVersion!,
+      mode: protocolNegotiation.exact && apiNegotiation.exact ? 'exact' : 'downgraded',
+    })
+  }
+
+  private broadcastModulesAndResolvePermissions(session: PluginHostSession): Promise<void> {
+    session.channels.host.emit(registryModulesSync, {
+      modules: this.listSessions()
+        .filter((item) => item.phase !== 'stopped')
+        .map((item) => ({
+          name: item.manifest.name,
+          index: item.index,
+          identity: item.identity,
+        })),
+    })
+
+    session.channels.host.emit(modulePermissionsDeclare, {
+      identity: session.identity,
+      requested: session.permissions.requested,
+      source: 'manifest',
+    })
+
+    return this.resolveAndEmitPermissions(session)
+  }
+
+  private async resolveAndEmitPermissions(session: PluginHostSession): Promise<void> {
+    const resolvedGrant =
+      (await this.permissionResolver?.({
+        identity: session.identity,
+        manifest: session.manifest,
+        requested: session.permissions.requested,
+        persisted: this.persistedPermissionGrants.get(session.identity.plugin.id),
+      })) ?? session.permissions.requested
+
+    const grantedSnapshot = this.permissions.initialize(
+      this.getPermissionScopeKey(session),
+      session.permissions.requested,
+      {
+        grant: resolvedGrant,
+        persisted: this.persistedPermissionGrants.get(session.identity.plugin.id),
+      },
+    )
+    session.permissions = {
+      requested: grantedSnapshot.requested,
+      granted: grantedSnapshot.granted,
+      revision: grantedSnapshot.revision,
+    }
+    this.persistedPermissionGrants.set(session.identity.plugin.id, grantedSnapshot.granted)
+
+    const deniedPermissions = filterDeniedPermissions(grantedSnapshot.requested, grantedSnapshot.granted)
+    session.channels.host.emit(modulePermissionsGranted, {
+      identity: session.identity,
+      granted: grantedSnapshot.granted,
+      revision: grantedSnapshot.revision,
+    })
+    if (Object.values(deniedPermissions).some((value) => Array.isArray(value) && value.length > 0)) {
+      session.channels.host.emit(modulePermissionsDenied, {
+        identity: session.identity,
+        denied: deniedPermissions,
+        reason: 'One or more requested permissions were not granted by host policy.',
+        revision: grantedSnapshot.revision,
+      })
+    }
+    session.channels.host.emit(modulePermissionsCurrent, {
+      identity: session.identity,
+      requested: grantedSnapshot.requested,
+      granted: grantedSnapshot.granted,
+      revision: grantedSnapshot.revision,
+    })
+  }
+
+  private announceSession(session: PluginHostSession): void {
+    assertTransition(session, 'announced')
+    session.channels.host.emit(moduleAnnounce, {
+      name: session.manifest.name,
+      identity: session.identity,
+      possibleEvents: [],
+      permissions: session.permissions.requested,
+    })
+    session.channels.host.emit(moduleStatus, {
+      identity: session.identity,
+      phase: 'announced',
+    })
+
+    // Step 6/7: preparing phase (dependency/config preparation may happen inside plugin init).
+    assertTransition(session, 'preparing')
+    session.channels.host.emit(moduleStatus, {
+      identity: session.identity,
+      phase: 'preparing',
+    })
+  }
+
+  private async waitForRequiredCapabilities(
+    session: PluginHostSession,
+    options: PluginStartOptions,
+    preparedEmitted: boolean,
+  ): Promise<boolean> {
+    if (!options.requiredCapabilities?.length) {
+      return preparedEmitted
+    }
+
+    const capabilityTimeoutMs = options.capabilityWaitTimeoutMs ?? 15000
+    const unresolvedCapabilities = options.requiredCapabilities.filter((key) => !this.isCapabilityReady(key))
+    assertTransition(session, 'waiting-deps')
+    session.channels.host.emit(moduleStatus, {
+      identity: session.identity,
+      phase: 'preparing',
+      reason: `Waiting for capabilities: ${options.requiredCapabilities.join(', ')}`,
+      details: {
+        lifecyclePhase: 'waiting-deps',
+        requiredCapabilities: options.requiredCapabilities,
+        unresolvedCapabilities,
+        timeoutMs: capabilityTimeoutMs,
+      },
+    })
+
+    await this.waitForCapabilities(options.requiredCapabilities, capabilityTimeoutMs)
+    assertTransition(session, 'prepared')
+    session.channels.host.emit(modulePrepared, {
+      identity: session.identity,
+    })
+    session.channels.host.emit(moduleStatus, {
+      identity: session.identity,
+      phase: 'prepared',
+    })
+    return true
+  }
+
+  private async runPluginInit(session: PluginHostSession): Promise<void> {
+    const initResult = await session.plugin.init?.({
+      channels: session.channels,
+      apis: session.apis,
+    })
+
+    if (initResult === false) {
+      throw new Error(`Plugin initialization aborted by plugin: ${session.manifest.name}`)
+    }
+  }
+
+  private markPreparedUnlessEmitted(session: PluginHostSession, preparedEmitted: boolean): void {
+    if (preparedEmitted) {
+      return
+    }
+
+    assertTransition(session, 'prepared')
+    session.channels.host.emit(modulePrepared, {
+      identity: session.identity,
+    })
+    session.channels.host.emit(moduleStatus, {
+      identity: session.identity,
+      phase: 'prepared',
+    })
+  }
+
+  private stopAtConfigurationNeeded(session: PluginHostSession): PluginHostSession {
+    assertTransition(session, 'configuration-needed')
+    session.channels.host.emit(moduleConfigurationNeeded, {
+      identity: session.identity,
+      reason: 'Host requested configuration before activation.',
+    })
+    session.channels.host.emit(moduleStatus, {
+      identity: session.identity,
+      phase: 'configuration-needed',
+    })
+    return session
+  }
+
+  private handleInitFailure(session: PluginHostSession, error: unknown): void {
+    markFailedTransition(session)
+    session.channels.host.emit(moduleStatus, {
+      identity: session.identity,
+      phase: 'failed',
+      reason: error instanceof Error ? error.message : 'Plugin host initialization failed.',
+    })
+    this.cleanupSession(session)
   }
 
   async start(manifest: ManifestV1, options: PluginStartOptions = {}) {

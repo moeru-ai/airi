@@ -75,7 +75,12 @@ vi.mock('@moeru/eventa/adapters/electron/main', async () => {
     createContext: () => {
       const context = eventa.createContext()
       contextState.lastContext = context
-      return { context, dispose: () => {} }
+      return {
+        context,
+        dispose: () => {
+          /* stub — intentionally empty */
+        },
+      }
     },
   }
 })
@@ -1198,7 +1203,9 @@ describe('setupPluginHost', () => {
   it('handles rejected widget cleanup promises while stopping a session', async () => {
     const widgetSnapshots = new Map<string, WidgetSnapshot>()
     const widgetsManager = {
-      openWindow: vi.fn(async (_params?: { id?: string }) => {}),
+      openWindow: vi.fn(async (_params?: { id?: string }) => {
+        /* stub — intentionally empty */
+      }),
       pushWidget: vi.fn(async (payload: WidgetsAddPayload) => {
         const snapshot: WidgetSnapshot = {
           id: payload.id ?? Math.random().toString(36).slice(2, 10),
@@ -1212,7 +1219,9 @@ describe('setupPluginHost', () => {
         widgetSnapshots.set(snapshot.id, snapshot)
         return snapshot.id
       }),
-      updateWidget: vi.fn(async (_payload: WidgetsUpdatePayload) => {}),
+      updateWidget: vi.fn(async (_payload: WidgetsUpdatePayload) => {
+        /* stub — intentionally empty */
+      }),
       removeWidget: vi.fn(async (id: string) => {
         if (id === 'gamelet-stop-cleanup-reject-a') {
           throw new Error('remove failed')
@@ -1221,8 +1230,12 @@ describe('setupPluginHost', () => {
         widgetSnapshots.delete(id)
       }),
       getWidgetSnapshot: vi.fn((id: string) => widgetSnapshots.get(id)),
-      publishWidgetEvent: vi.fn((_id: string, _event: Record<string, unknown>) => {}),
-      onWidgetEvent: vi.fn((_listener: (event: { id: string; event: Record<string, unknown> }) => void) => () => {}),
+      publishWidgetEvent: vi.fn((_id: string, _event: Record<string, unknown>) => {
+        /* stub — intentionally empty */
+      }),
+      onWidgetEvent: vi.fn((_listener: (event: { id: string; event: Record<string, unknown> }) => void) => () => {
+        /* stub — intentionally empty */
+      }),
     }
     const service = await setupPluginHostService({ widgetsManager })
     const pluginDir = join(pluginsDir, 'test-plugin-gamelets-stop-cleanup-reject')

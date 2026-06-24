@@ -86,8 +86,12 @@ vi.mock('../../libs/chat-sync', () => ({
     destroy: vi.fn(),
     sendMessages: vi.fn().mockResolvedValue({ ok: true }),
     pullMessages: vi.fn().mockResolvedValue({ messages: [], maxSeq: 0 }),
-    onNewMessages: () => () => {},
-    onStatusChange: () => () => {},
+    onNewMessages: () => () => {
+      /* stub */
+    },
+    onStatusChange: () => () => {
+      /* stub */
+    },
   }),
   extractMessageText: (m: { content?: unknown }) => (typeof m?.content === 'string' ? m.content : ''),
   isCloudSyncableMessage: () => false,

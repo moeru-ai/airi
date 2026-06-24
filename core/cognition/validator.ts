@@ -87,22 +87,10 @@ export class PlanValidator {
 		const errors: ValidationError[] = []
 
 		for (const capabilityId of proposal.capabilityRequirements) {
-			const info = this.capabilityRegistry.get(capabilityId)
-			if (!info) {
-				errors.push({
-					code: "UNKNOWN_CAPABILITY",
-					message: `Required capability "${capabilityId}" is not registered`,
-				})
-			} else if (info.status === "deregistered" || info.status === "failed") {
-				errors.push({
-					code: "UNAVAILABLE_CAPABILITY",
-					message: `Required capability "${capabilityId}" is ${info.status}`,
-					stepId: undefined,
-				})
-			}
+			const error = this.validateCapability(capabilityId)
+			if (error) errors.push(error)
 		}
 
-		// Also check step-level capability requirements.
 		for (const step of proposal.steps) {
 			if (step.capabilityRequirement) {
 				const info = this.capabilityRegistry.get(step.capabilityRequirement)
@@ -119,6 +107,24 @@ export class PlanValidator {
 		return errors
 	}
 
+	private validateCapability(capabilityId: string): ValidationError | undefined {
+		const info = this.capabilityRegistry.get(capabilityId)
+		if (!info) {
+			return {
+				code: "UNKNOWN_CAPABILITY",
+				message: `Required capability "${capabilityId}" is not registered`,
+			}
+		}
+		if (info.status === "deregistered" || info.status === "failed") {
+			return {
+				code: "UNAVAILABLE_CAPABILITY",
+				message: `Required capability "${capabilityId}" is ${info.status}`,
+				stepId: undefined,
+			}
+		}
+		return undefined
+	}
+
 	/**
 	 * Validate workspace requirements.
 	 */
@@ -127,22 +133,11 @@ export class PlanValidator {
 
 		for (const req of proposal.workspaceRequirements) {
 			if (req.workspaceId) {
-				const descriptor = this.workspaceManager.getWorkspace(req.workspaceId)
-				if (!descriptor) {
-					errors.push({
-						code: "UNKNOWN_WORKSPACE",
-						message: `Required workspace "${req.workspaceId}" does not exist`,
-					})
-				} else if (descriptor.state === "destroyed" || descriptor.state === "destroying") {
-					errors.push({
-						code: "UNAVAILABLE_WORKSPACE",
-						message: `Required workspace "${req.workspaceId}" is ${descriptor.state}`,
-					})
-				}
+				const error = this.validateWorkspace(req.workspaceId)
+				if (error) errors.push(error)
 			}
 		}
 
-		// Also check step-level workspace requirements.
 		for (const step of proposal.steps) {
 			if (step.workspaceRequirement) {
 				const descriptor = this.workspaceManager.getWorkspace(step.workspaceRequirement)
@@ -159,6 +154,23 @@ export class PlanValidator {
 		return errors
 	}
 
+	private validateWorkspace(workspaceId: string): ValidationError | undefined {
+		const descriptor = this.workspaceManager.getWorkspace(workspaceId)
+		if (!descriptor) {
+			return {
+				code: "UNKNOWN_WORKSPACE",
+				message: `Required workspace "${workspaceId}" does not exist`,
+			}
+		}
+		if (descriptor.state === "destroyed" || descriptor.state === "destroying") {
+			return {
+				code: "UNAVAILABLE_WORKSPACE",
+				message: `Required workspace "${workspaceId}" is ${descriptor.state}`,
+			}
+		}
+		return undefined
+	}
+
 	/**
 	 * Validate the dependency graph.
 	 *
@@ -170,43 +182,62 @@ export class PlanValidator {
 		const errors: ValidationError[] = []
 		const stepIds = new Set(steps.map((s) => s.id))
 
-		// Check all dependency references exist.
+		PlanValidator.validateDependencyReferences(steps, stepIds, errors)
+
+		const adjacency = PlanValidator.buildAdjacency(steps, stepIds)
+		PlanValidator.detectCycles(steps, adjacency, errors)
+
+		return errors
+	}
+
+	private static validateDependencyReferences(
+		steps: ProposedStep[],
+		stepIds: Set<string>,
+		errors: ValidationError[],
+	): void {
 		for (const step of steps) {
-			if (step.dependencyIds) {
-				for (const depId of step.dependencyIds) {
-					if (!stepIds.has(depId)) {
-						errors.push({
-							code: "MISSING_DEPENDENCY",
-							message: `Step "${step.name}" depends on step "${depId}" which does not exist`,
-							stepId: step.id,
-						})
-					}
+			if (!step.dependencyIds) continue
+			for (const depId of step.dependencyIds) {
+				if (!stepIds.has(depId)) {
+					errors.push({
+						code: "MISSING_DEPENDENCY",
+						message: `Step "${step.name}" depends on step "${depId}" which does not exist`,
+						stepId: step.id,
+					})
 				}
 			}
 		}
+	}
 
-		// Check for cycles using DFS.
-		// Build adjacency list: step -> steps that depend on it.
+	private static buildAdjacency(
+		steps: ProposedStep[],
+		stepIds: Set<string>,
+	): Map<string, string[]> {
 		const adjacency = new Map<string, string[]>()
 		for (const step of steps) {
 			adjacency.set(step.id, [])
 		}
 		for (const step of steps) {
-			if (step.dependencyIds) {
-				for (const depId of step.dependencyIds) {
-					if (stepIds.has(depId)) {
-						const deps = adjacency.get(depId) ?? []
-						deps.push(step.id)
-						adjacency.set(depId, deps)
-					}
+			if (!step.dependencyIds) continue
+			for (const depId of step.dependencyIds) {
+				if (stepIds.has(depId)) {
+					const deps = adjacency.get(depId) ?? []
+					deps.push(step.id)
+					adjacency.set(depId, deps)
 				}
 			}
 		}
+		return adjacency
+	}
 
-		// DFS cycle detection.
-		const WHITE = 0 // Not visited
-		const GRAY = 1  // In current path
-		const BLACK = 2 // Fully processed
+	private static detectCycles(
+		steps: ProposedStep[],
+		adjacency: Map<string, string[]>,
+		errors: ValidationError[],
+	): void {
+		const WHITE = 0
+		const GRAY = 1
+		const BLACK = 2
 		const color = new Map<string, number>()
 		for (const step of steps) {
 			color.set(step.id, WHITE)
@@ -214,14 +245,13 @@ export class PlanValidator {
 
 		const path: string[] = []
 
-		function dfs(node: string): boolean {
+		const dfs = (node: string): boolean => {
 			color.set(node, GRAY)
 			path.push(node)
 
 			const neighbors = adjacency.get(node) ?? []
 			for (const neighbor of neighbors) {
 				if (color.get(neighbor) === GRAY) {
-					// Cycle detected.
 					const cycleStart = path.indexOf(neighbor)
 					const cycle = path.slice(cycleStart).join(" -> ")
 					errors.push({
@@ -231,8 +261,8 @@ export class PlanValidator {
 					})
 					return true
 				}
-				if (color.get(neighbor) === WHITE) {
-					if (dfs(neighbor)) return true
+				if (color.get(neighbor) === WHITE && dfs(neighbor)) {
+					return true
 				}
 			}
 
@@ -246,8 +276,6 @@ export class PlanValidator {
 				dfs(step.id)
 			}
 		}
-
-		return errors
 	}
 
 	/**
@@ -274,24 +302,27 @@ export class PlanValidator {
 	 */
 	private static validateConstraints(proposal: PlanProposal): ValidationWarning[] {
 		const warnings: ValidationWarning[] = []
+		warnings.push(...PlanValidator.validateProposalSize(proposal))
+		warnings.push(...PlanValidator.validateStepTimeouts(proposal))
+		return warnings
+	}
 
-		// Check for empty proposals.
+	private static validateProposalSize(proposal: PlanProposal): ValidationWarning[] {
+		const warnings: ValidationWarning[] = []
 		if (proposal.steps.length === 0) {
-			warnings.push({
-				code: "EMPTY_PROPOSAL",
-				message: "Proposal has no steps",
-			})
+			warnings.push({ code: "EMPTY_PROPOSAL", message: "Proposal has no steps" })
 		}
-
-		// Check for very large proposals.
 		if (proposal.steps.length > 100) {
 			warnings.push({
 				code: "LARGE_PROPOSAL",
 				message: `Proposal has ${proposal.steps.length} steps — consider breaking into smaller plans`,
 			})
+		}
+		return warnings
 	}
 
-		// Check for steps with very long timeouts.
+	private static validateStepTimeouts(proposal: PlanProposal): ValidationWarning[] {
+		const warnings: ValidationWarning[] = []
 		for (const step of proposal.steps) {
 			if (step.timeoutMs && step.timeoutMs > 300_000) {
 				warnings.push({
@@ -301,7 +332,6 @@ export class PlanValidator {
 				})
 			}
 		}
-
 		return warnings
 	}
 

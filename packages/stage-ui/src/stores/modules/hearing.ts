@@ -329,12 +329,11 @@ export const useHearingStore = defineStore('hearing-store', () => {
             ...response,
             text: filteredText,
           }
-        } else {
-          verboseJsonNotSupported.value = true
-          console.warn(
-            '[Hearing] Confidence filter is enabled but the provider did not return verbose_json segments. Filtering has no effect.',
-          )
         }
+        verboseJsonNotSupported.value = true
+        console.warn(
+          '[Hearing] Confidence filter is enabled but the provider did not return verbose_json segments. Filtering has no effect.',
+        )
       }
 
       const fallbackText = typeof response.text === 'string' ? response.text : ''
@@ -462,7 +461,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
 
   async function stopStreamingTranscription(abort?: boolean, disposeProviderId?: string) {
     const session = streamingSession.value
-    if (!session) return
+    if (!session) return undefined
 
     if (asrSpan) {
       asrSpan.setAttribute(IOAttributes.ASRAbort, Boolean(abort))
@@ -501,14 +500,14 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
           // eslint-disable-next-line consistent-return
           return text
         } catch (err) {
-          if (isExpectedStreamStopError(err)) return
+          if (isExpectedStreamStopError(err)) return undefined
 
           error.value = errorMessage(err)
           console.error('Error getting transcription result:', error.value)
         }
       }
 
-      return
+      return undefined
     }
 
     try {
@@ -547,7 +546,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
 
         return text
       } catch (err) {
-        if (isExpectedStreamStopError(err)) return
+        if (isExpectedStreamStopError(err)) return undefined
 
         error.value = errorMessage(err)
         console.error('Error generating transcription:', error.value)

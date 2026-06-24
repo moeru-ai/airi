@@ -79,8 +79,7 @@ export class WorkspaceManager {
    * @param input - Workspace creation parameters.
    * @returns The created workspace descriptor.
    */
-  // async: implements WorkspaceManager interface (Promise<WorkspaceDescriptor>)
-  async createWorkspace(input: CreateWorkspaceInput): Promise<WorkspaceDescriptor> {
+  createWorkspace(input: CreateWorkspaceInput): WorkspaceDescriptor {
     const now = new Date().toISOString()
     const id = createWorkspaceId(`ws-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)
 
@@ -126,8 +125,7 @@ export class WorkspaceManager {
    * @param workspaceId - The workspace to destroy.
    * @throws Error if the workspace is in "executing" state.
    */
-  // async: implements WorkspaceManager interface (Promise<void>)
-  async destroyWorkspace(workspaceId: WorkspaceId): Promise<void> {
+  destroyWorkspace(workspaceId: WorkspaceId): void {
     const descriptor = this.workspaces.get(workspaceId)
     if (!descriptor) {
       throw new Error(`Workspace not found: ${workspaceId}`)

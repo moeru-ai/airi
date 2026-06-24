@@ -133,26 +133,33 @@ async function refetch() {
 }
 
 watch([baseUrl, thinkingMode, headers], refetch, { immediate: true, deep: true })
-onMounted(() => {
-  providersStore.initializeProvider(providerId)
-
-  // Initialize refs with current values
+function initBaseUrl() {
   baseUrl.value =
     providers.value[providerId]?.baseUrl ||
     (((providerMetadata.value?.defaultOptions?.() ?? {}) as Record<string, unknown>).baseUrl as string) ||
     ''
+}
 
-  // Initialize headers if not already set
+function initHeaders() {
   if (!providers.value[providerId]?.headers) {
     providers.value[providerId].headers = {}
   }
   if (headers.value.length === 0) {
     headers.value = [{ key: '', value: '' }]
   }
+}
 
+function initThinkingMode() {
   if (!providers.value[providerId].thinkingMode) {
     providers.value[providerId].thinkingMode = 'auto'
   }
+}
+
+onMounted(() => {
+  providersStore.initializeProvider(providerId)
+  initBaseUrl()
+  initHeaders()
+  initThinkingMode()
 })
 </script>
 

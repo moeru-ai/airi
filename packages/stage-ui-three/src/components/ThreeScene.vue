@@ -46,7 +46,6 @@ const props = withDefaults(
     currentAudioSource?: AudioBufferSourceNode
     cursorPosition?: { x: number; y: number }
     modelSrc?: string
-    skyBoxSrc?: string
     /**
      * Enables user-driven OrbitControls camera rotation and zoom.
      *
@@ -442,7 +441,9 @@ function onOrbitControlsReady() {
 }
 
 const controlEnable = computed(() => {
-  return props.enableOrbitControls && controlsReady.value && modelPhase.value === 'ready' && !sceneMutationLocked.value
+  const isModelReady = modelPhase.value === 'ready'
+  const isNotLocked = !sceneMutationLocked.value
+  return props.enableOrbitControls && controlsReady.value && isModelReady && isNotLocked
 })
 function onVRMModelLoadStart(reason: VrmLifecycleReason) {
   modelPhase.value = 'loading'

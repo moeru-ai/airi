@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { ProviderMetadata } from '../../../../stores/providers'
 import type { OnboardingStepNextHandler, OnboardingStepPrevHandler } from './types'
 
 import { errorMessageFrom } from '@moeru/std'
@@ -7,7 +6,7 @@ import { Button, Callout, FieldCheckbox, FieldInput } from '@proj-airi/ui'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { useProvidersStore } from '../../../../stores/providers'
+import { type ProviderMetadata, useProvidersStore } from '../../../../stores/providers'
 import { Alert } from '../../../misc'
 import { ProviderAccountIdInput } from '../../../scenarios/providers'
 

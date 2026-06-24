@@ -19,7 +19,10 @@ export function safeClose(window?: BrowserWindow | null): boolean {
 }
 
 export function isRendererUnavailable(window: BrowserWindow) {
-  return window.isDestroyed() || window?.webContents?.isDestroyed() || window?.webContents?.isCrashed()
+  const isWindowDestroyed = window.isDestroyed()
+  const isWebContentsDestroyed = window?.webContents?.isDestroyed()
+  const isWebContentsCrashed = window?.webContents?.isCrashed()
+  return isWindowDestroyed || isWebContentsDestroyed || isWebContentsCrashed
 }
 
 export function shouldStopForRendererError(error: unknown) {

@@ -65,7 +65,9 @@ function makePipelineStub() {
     finish: 0,
     cancel: 0,
   }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let captured: any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const factory = vi.fn((options: any) => {
     captured = options
     return {

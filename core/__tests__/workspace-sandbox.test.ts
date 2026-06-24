@@ -132,9 +132,9 @@ describe('Workspace-scoped tool execution', () => {
     })
 
     let handlerCalled = false
-    runtime.registerHandler(toolId, async () => {
+    runtime.registerHandler(toolId, () => {
       handlerCalled = true
-      return 'ok'
+      return Promise.resolve('ok')
     })
 
     // Create a workspace and lease it.
@@ -179,7 +179,7 @@ describe('Workspace-scoped tool execution', () => {
       ],
     })
 
-    runtime.registerHandler(toolId, async () => 'ok')
+    runtime.registerHandler(toolId, () => Promise.resolve('ok'))
 
     const ws = await manager.createWorkspace({
       name: 'lease-ws',
@@ -221,7 +221,7 @@ describe('Workspace-scoped tool execution', () => {
       ],
     })
 
-    runtime.registerHandler(toolId, async () => 'ok')
+    runtime.registerHandler(toolId, () => Promise.resolve('ok'))
 
     // No workspace context — should still work.
     const ctx = createToolCtx()
@@ -251,7 +251,7 @@ describe('Workspace-scoped tool execution', () => {
       ],
     })
 
-    runtime.registerHandler(toolId, async () => 'ok')
+    runtime.registerHandler(toolId, () => Promise.resolve('ok'))
 
     const ctx = createToolCtx({
       workspaceContext: {

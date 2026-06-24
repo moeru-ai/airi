@@ -102,47 +102,37 @@ export class FilesystemPersistenceAdapter implements PersistenceAdapter {
 	}
 
 	async list(prefix: string): Promise<string[]> {
-		// Strategy: find the deepest existing directory that matches the prefix,
-		// then recursively list all files and filter by the prefix.
-		const prefixPath = this.keyToPath(prefix)
+		const { searchDir, prefixFilter } = await this.findDeepestExistingDir(prefix)
+		const keys = await this.listRecursive(searchDir, "")
+		const fullPrefix = prefixFilter ? `${prefix}${prefixFilter}` : prefix
+		return keys
+			.filter((key) => key.startsWith(prefix) || key.startsWith(fullPrefix))
+			.sort()
+	}
 
-		// First, try to find the deepest existing directory.
+	/**
+	 * Walk up from the prefix path to find the deepest existing directory.
+	 */
+	private async findDeepestExistingDir(prefix: string): Promise<{
+		searchDir: string
+		prefixFilter: string
+	}> {
+		const prefixPath = this.keyToPath(prefix)
 		let searchDir = prefixPath
 		let prefixFilter = ""
 
-		while (searchDir !== this.basePath) {
-			try {
-				const stat = await fs.stat(searchDir)
-				if (stat.isDirectory()) {
-					// Found an existing directory — list recursively from here.
-					break
-				}
-			} catch {
-				// Doesn't exist, go up one level.
+		while (searchDir !== this.basePath && searchDir !== path.dirname(searchDir)) {
+			const stat = await fs.stat(searchDir).catch(() => null)
+			if (stat?.isDirectory()) {
+				break
 			}
 
-			// Go up one directory level and add the basename to the filter.
 			const basename = path.basename(searchDir)
 			prefixFilter = prefixFilter ? `${basename}:${prefixFilter}` : basename
 			searchDir = path.dirname(searchDir)
-
-			if (searchDir === path.dirname(searchDir)) {
-				// Reached the filesystem root.
-				break
-			}
 		}
 
-		try {
-			const keys = await this.listRecursive(searchDir, "")
-			// Filter keys that start with the original prefix.
-			const fullPrefix = prefixFilter ? `${prefix}${prefixFilter}` : prefix
-			return keys
-				.filter((key) => key.startsWith(prefix) || key.startsWith(fullPrefix))
-				.sort()
-		} catch (error: NodeJS.ErrnoException) {
-			if (error?.code === "ENOENT") return []
-			throw error
-		}
+		return { searchDir, prefixFilter }
 	}
 
 	async exists(key: string): Promise<boolean> {
@@ -170,30 +160,34 @@ export class FilesystemPersistenceAdapter implements PersistenceAdapter {
 	 * Recursively list all files under a directory and convert them back to keys.
 	 */
 	private async listRecursive(dirPath: string, _prefix: string): Promise<string[]> {
+		const entries = await this.readDirSafe(dirPath)
+		if (!entries) return []
+
 		const keys: string[] = []
-
-		let entries: import("node:fs").Dirent[]
-		try {
-			entries = await fs.readdir(dirPath, { withFileTypes: true })
-		} catch (error: NodeJS.ErrnoException) {
-			if (error?.code === "ENOENT") return []
-			throw error
-		}
-
 		for (const entry of entries) {
 			const fullPath = path.join(dirPath, entry.name)
 			if (entry.isDirectory()) {
-				// Recurse into subdirectories.
 				const subKeys = await this.listRecursive(fullPath, _prefix)
 				keys.push(...subKeys)
-			} else if (!entry.name.endsWith(`.tmp.${process.pid}`)) {
-				// Convert file path back to key, skip temp files.
-				const key = this.pathToKey(fullPath)
-				keys.push(key)
+			} else if (!this.shouldSkipEntry(entry.name)) {
+				keys.push(this.pathToKey(fullPath))
 			}
 		}
 
 		return keys
+	}
+
+	private async readDirSafe(dirPath: string): Promise<import("node:fs").Dirent[] | null> {
+		try {
+			return await fs.readdir(dirPath, { withFileTypes: true })
+		} catch (error: NodeJS.ErrnoException) {
+			if (error?.code === "ENOENT") return null
+			throw error
+		}
+	}
+
+	private shouldSkipEntry(name: string): boolean {
+		return name.endsWith(`.tmp.${process.pid}`)
 	}
 
 	/**
@@ -266,8 +260,8 @@ export class FilesystemTransaction implements PersistenceTransaction {
 		this.operations.length = 0
 	}
 
-	// async: implements PersistenceAdapter interface (Promise<void>)
-	async rollback(): Promise<void> {
+	rollback(): Promise<void> {
 		this.operations.length = 0
+		return Promise.resolve()
 	}
 }

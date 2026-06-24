@@ -34,7 +34,11 @@ interface GenerationResult {
   error?: string
 }
 
-const artistLog = import.meta.env.DEV ? console.info.bind(console, '[AutonomousArtist]') : () => {}
+const artistLog = import.meta.env.DEV
+  ? console.info.bind(console, '[AutonomousArtist]')
+  : () => {
+      /* noop — silent in production */
+    }
 
 // eslint-disable-next-line complexity
 export const useAutonomousArtistryStore = defineStore('artistry-autonomous', () => {

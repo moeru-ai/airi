@@ -99,24 +99,23 @@ function toggleFlip() {
   isFlipped.value = !isFlipped.value
 }
 
+async function applyActiveBackground(entryId: string) {
+  const cardId = cardStore.activeCardId
+  const card = cardStore.activeCard
+  if (!card) return
+
+  const extension = JSON.parse(JSON.stringify(card.extensions || {}))
+  if (!extension.airi) extension.airi = {}
+  if (!extension.airi.modules) extension.airi.modules = {}
+  extension.airi.modules.activeBackgroundId = entryId
+  await cardStore.updateCard(cardId, { ...card, extensions: extension })
+}
+
 async function handleSetAsBackground() {
   if (!currentImage.value || !cardStore.activeCardId) return
   isSettingBackground.value = true
   try {
-    const entry = currentImage.value
-    // Update the active card's background ID
-    const cardId = cardStore.activeCardId
-    const card = cardStore.activeCard
-    if (card) {
-      const extension = JSON.parse(JSON.stringify(card.extensions || {}))
-      if (!extension.airi) extension.airi = {}
-      if (!extension.airi.modules) extension.airi.modules = {}
-      extension.airi.modules.activeBackgroundId = entry.id
-
-      await cardStore.updateCard(cardId, { ...card, extensions: extension })
-      const _logger = (..._a: unknown[]) => void 0
-      _logger(`[ComfyWidget] Set activeBackgroundId to ${entry.id} for ${cardId}`)
-    }
+    await applyActiveBackground(currentImage.value.id)
   } catch (e) {
     const _logger = (..._a: unknown[]) => void 0
     _logger('[ComfyWidget] Failed to set background', e)

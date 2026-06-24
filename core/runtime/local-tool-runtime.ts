@@ -112,191 +112,194 @@ export class LocalToolRuntime implements ToolRuntime {
     const startedAt = Date.now()
     const executionId = crypto.randomUUID()
 
-    // Emit tool.execution.started.
-    this.events.emit('tool.execution.started', {
-            timestamp: new Date().toISOString(),
-            source: 'tool-runtime',
-            executionId,
-            toolId,
-            taskId: context.taskId as string,
-          })
+    this.emitStarted(executionId, toolId, context)
+    this.persistStarted(executionId, toolId, context)
 
-    // Persist tool.execution.started if event store is configured.
-    if (this.eventStore) {
-      this.eventStore
-        .append({
-          type: 'tool.execution.started',
-            timestamp: new Date().toISOString(),
-            source: 'tool-runtime',
-            executionId,
-            toolId,
-            taskId: context.taskId as string,
-          })
-        .catch(() => {})
-    }
-
-    // Check cancellation before starting.
     if (context.cancellationToken.isCancelled) {
-      const durationMs = Date.now() - startedAt
-      this.events.emit('tool.execution.failed', {
-        timestamp: new Date().toISOString(),
-        source: 'tool-runtime',
-        executionId,
-        toolId: toolId as string,
-        taskId: context.taskId as string,
-        error: { code: 'CANCELLED', message: 'Task cancelled before execution' },
-      })
-      return {
-        success: false,
-        output: null,
-        durationMs,
-        error: { code: 'CANCELLED', message: 'Task cancelled before execution' },
-      }
+      return this.buildCancelledResult(toolId, context, executionId, startedAt)
     }
 
-    // Validate workspace lease if workspace context is present.
     if (this.workspaceManager && context.workspaceContext) {
-      const valid = this.workspaceManager.validateLease(
-        context.workspaceContext.workspaceId,
-        context.workspaceContext.leaseToken ?? '',
-      )
-      if (!valid) {
-        const durationMs = Date.now() - startedAt
-        this.events.emit('tool.execution.failed', {
-          timestamp: new Date().toISOString(),
-          source: 'tool-runtime',
-          executionId,
-          toolId: toolId as string,
-          taskId: context.taskId as string,
-          error: { code: 'LEASE_INVALID', message: 'Workspace lease is invalid or expired' },
-        })
-        return {
-          success: false,
-          output: null,
-          durationMs,
-          error: { code: 'LEASE_INVALID', message: 'Workspace lease is invalid or expired' },
-        }
-      }
+      const leaseError = this.validateWorkspaceLease(toolId, context, executionId, startedAt)
+      if (leaseError) return leaseError
     }
 
-    // Look up the tool in the registry.
     const found = this.registry.findTool(toolId)
     if (!found) {
-      const durationMs = Date.now() - startedAt
-      this.events.emit('tool.execution.failed', {
-        timestamp: new Date().toISOString(),
-        source: 'tool-runtime',
-        executionId,
-        toolId: toolId as string,
-        taskId: context.taskId as string,
-        error: { code: 'UNKNOWN_TOOL', message: `Unknown tool: ${toolId}` },
-      })
-      return {
-        success: false,
-        output: null,
-        durationMs,
-        error: { code: 'UNKNOWN_TOOL', message: `Unknown tool: ${toolId}` },
-      }
+      return this.buildErrorResult(toolId, context, executionId, startedAt, 'UNKNOWN_TOOL', `Unknown tool: ${toolId}`)
     }
 
-    // Look up the handler.
     const handler = this.handlers.get(toolId)
     if (!handler) {
-      const durationMs = Date.now() - startedAt
-      this.events.emit('tool.execution.failed', {
-        timestamp: new Date().toISOString(),
-        source: 'tool-runtime',
-        executionId,
-        toolId: toolId as string,
-        taskId: context.taskId as string,
-        error: { code: 'NO_HANDLER', message: `No handler registered for tool: ${toolId}` },
-      })
-      return {
-        success: false,
-        output: null,
-        durationMs,
-        error: { code: 'NO_HANDLER', message: `No handler registered for tool: ${toolId}` },
-      }
+      return this.buildErrorResult(toolId, context, executionId, startedAt, 'NO_HANDLER', `No handler registered for tool: ${toolId}`)
     }
 
-    // Execute with timeout and cancellation.
     try {
       const output = await withTimeout(handler(input, context), context.timeoutMs, context.cancellationToken)
-
       const durationMs = Date.now() - startedAt
+      this.emitSuccess(executionId, toolId, context, durationMs)
+      this.persistSuccess(executionId, toolId, context, durationMs)
+      return { success: true, output, durationMs }
+    } catch (error) {
+      return this.handleExecutionError(toolId, context, executionId, startedAt, error)
+    }
+  }
 
-      // Emit tool.execution.completed.
-      this.events.emit('tool.execution.completed', {
+  private emitStarted(executionId: string, toolId: ToolId, context: ToolExecutionContext): void {
+    this.events.emit('tool.execution.started', {
+      timestamp: new Date().toISOString(),
+      source: 'tool-runtime',
+      executionId,
+      toolId,
+      taskId: context.taskId as string,
+    })
+  }
+
+  private persistStarted(executionId: string, toolId: ToolId, context: ToolExecutionContext): void {
+    if (!this.eventStore) return
+    this.eventStore
+      .append({
+        type: 'tool.execution.started',
         timestamp: new Date().toISOString(),
         source: 'tool-runtime',
         executionId,
-        toolId: toolId as string,
+        toolId,
+        taskId: context.taskId as string,
+      })
+      .catch(() => {})
+  }
+
+  private buildCancelledResult(
+    toolId: ToolId,
+    context: ToolExecutionContext,
+    executionId: string,
+    startedAt: number,
+  ): ToolExecutionResult {
+    const durationMs = Date.now() - startedAt
+    const error = { code: 'CANCELLED', message: 'Task cancelled before execution' }
+    this.emitFailed(executionId, toolId, context, error)
+    return { success: false, output: null, durationMs, error }
+  }
+
+  private validateWorkspaceLease(
+    toolId: ToolId,
+    context: ToolExecutionContext,
+    executionId: string,
+    startedAt: number,
+  ): ToolExecutionResult | null {
+    const valid = this.workspaceManager!.validateLease(
+      context.workspaceContext!.workspaceId,
+      context.workspaceContext!.leaseToken ?? '',
+    )
+    if (valid) return null
+    return this.buildErrorResult(toolId, context, executionId, startedAt, 'LEASE_INVALID', 'Workspace lease is invalid or expired')
+  }
+
+  private buildErrorResult(
+    toolId: ToolId,
+    context: ToolExecutionContext,
+    executionId: string,
+    startedAt: number,
+    code: string,
+    message: string,
+  ): ToolExecutionResult {
+    const durationMs = Date.now() - startedAt
+    this.emitFailed(executionId, toolId, context, { code, message })
+    return { success: false, output: null, durationMs, error: { code, message } }
+  }
+
+  private emitFailed(
+    executionId: string,
+    toolId: ToolId,
+    context: ToolExecutionContext,
+    error: { code: string; message: string },
+  ): void {
+    this.events.emit('tool.execution.failed', {
+      timestamp: new Date().toISOString(),
+      source: 'tool-runtime',
+      executionId,
+      toolId: toolId as string,
+      taskId: context.taskId as string,
+      error,
+    })
+  }
+
+  private emitSuccess(executionId: string, toolId: ToolId, context: ToolExecutionContext, durationMs: number): void {
+    this.events.emit('tool.execution.completed', {
+      timestamp: new Date().toISOString(),
+      source: 'tool-runtime',
+      executionId,
+      toolId: toolId as string,
+      taskId: context.taskId as string,
+      durationMs,
+      success: true,
+    })
+  }
+
+  private persistSuccess(executionId: string, toolId: ToolId, context: ToolExecutionContext, durationMs: number): void {
+    if (!this.eventStore) return
+    this.eventStore
+      .append({
+        type: 'tool.execution.completed',
+        timestamp: new Date().toISOString(),
+        source: 'tool-runtime',
+        executionId,
+        toolId,
         taskId: context.taskId as string,
         durationMs,
         success: true,
       })
+      .catch(() => {})
+  }
 
-      // Persist tool.execution.completed.
-      if (this.eventStore) {
-        this.eventStore
-          .append({
-            type: 'tool.execution.completed',
-            timestamp: new Date().toISOString(),
-            source: 'tool-runtime',
-            executionId,
-            toolId,
-            taskId: context.taskId as string,
-            durationMs,
-            success: true,
-          })
-          .catch(() => {})
-      }
+  private handleExecutionError(
+    toolId: ToolId,
+    context: ToolExecutionContext,
+    executionId: string,
+    startedAt: number,
+    error: unknown,
+  ): ToolExecutionResult {
+    const durationMs = Date.now() - startedAt
+    const message = error instanceof Error ? error.message : String(error)
+    const code = this.classifyErrorMessage(message)
+    this.emitFailed(executionId, toolId, context, { code, message })
+    this.persistFailure(executionId, toolId, context, code, message)
+    return { success: false, output: null, durationMs, error: { code, message } }
+  }
 
-      return { success: true, output, durationMs }
-    } catch (error) {
-      const durationMs = Date.now() - startedAt
-      const message = error instanceof Error ? error.message : String(error)
+  private classifyErrorMessage(message: string): string {
+    if (this.isCancelledMessage(message)) return 'CANCELLED'
+    if (this.isTimeoutMessage(message)) return 'TIMEOUT'
+    return 'EXECUTION_ERROR'
+  }
 
-      // Determine error code.
-      let code = 'EXECUTION_ERROR'
-      if (message.includes('cancelled') || message.includes('Cancelled')) {
-        code = 'CANCELLED'
-      } else if (message.includes('timed out')) {
-        code = 'TIMEOUT'
-      }
+  private isCancelledMessage(message: string): boolean {
+    return message.includes('cancelled') || message.includes('Cancelled')
+  }
 
-      // Emit tool.execution.failed.
-      this.events.emit('tool.execution.failed', {
+  private isTimeoutMessage(message: string): boolean {
+    return message.includes('timed out')
+  }
+
+  private persistFailure(
+    executionId: string,
+    toolId: ToolId,
+    context: ToolExecutionContext,
+    code: string,
+    message: string,
+  ): void {
+    if (!this.eventStore) return
+    this.eventStore
+      .append({
+        type: 'tool.execution.failed',
         timestamp: new Date().toISOString(),
         source: 'tool-runtime',
         executionId,
-        toolId: toolId as string,
+        toolId,
         taskId: context.taskId as string,
         error: { code, message },
       })
-
-      // Persist tool.execution.failed.
-      if (this.eventStore) {
-        this.eventStore
-          .append({
-            type: 'tool.execution.failed',
-            timestamp: new Date().toISOString(),
-            source: 'tool-runtime',
-            executionId,
-            toolId,
-            taskId: context.taskId as string,
-            error: { code, message },
-          })
-          .catch(() => {})
-      }
-
-      return {
-        success: false,
-        output: null,
-        durationMs,
-        error: { code, message },
-      }
-    }
+      .catch(() => {})
   }
 
   hasTool(toolId: ToolId): boolean {

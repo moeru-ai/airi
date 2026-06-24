@@ -52,73 +52,50 @@ function normalizeErrorSignature(error: string): string {
 	return sig
 }
 
+interface PatternMatcher {
+	patterns: string[]
+	type: string
+}
+
+const PATTERN_MATCHERS: PatternMatcher[] = [
+	{ patterns: ['timeout', 'timed out'], type: 'timeout' },
+	{ patterns: ['permission', 'eacces'], type: 'permission' },
+	{ patterns: ['enoent', 'not found', 'no such file'], type: 'file_not_found' },
+	{ patterns: ['econnrefused', 'econnreset', 'network'], type: 'network' },
+	{ patterns: ['memory', 'allocation'], type: 'resource_exhaustion' },
+	{ patterns: ['race', 'concurrent', 'lock'], type: 'workspace_race_condition' },
+	{ patterns: ['validation', 'invalid', 'schema'], type: 'validation' },
+	{ patterns: ['workspace', 'corrupt'], type: 'workspace_corruption' },
+]
+
 /**
  * Determine the pattern type from an error signature.
  */
 function determinePatternType(signature: string): string {
-	if (signature.includes('timeout') || signature.includes('timed out')) {
-		return 'timeout'
-	}
-	if (signature.includes('permission') || signature.includes('eacces')) {
-		return 'permission'
-	}
-	const isEnoent = signature.includes('enoent')
-	const isNotFound = signature.includes('not found')
-	const isNoSuchFile = signature.includes('no such file')
-	if (isEnoent || isNotFound || isNoSuchFile) {
-		return 'file_not_found'
-	}
-	const isConnRefused = signature.includes('econnrefused')
-	const isConnReset = signature.includes('econnreset')
-	const isNetwork = signature.includes('network')
-	if (isConnRefused || isConnReset || isNetwork) {
-		return 'network'
-	}
-	if (signature.includes('memory') || signature.includes('allocation')) {
-		return 'resource_exhaustion'
-	}
-	const isRace = signature.includes('race')
-	const isConcurrent = signature.includes('concurrent')
-	const isLock = signature.includes('lock')
-	if (isRace || isConcurrent || isLock) {
-		return 'workspace_race_condition'
-	}
-	const isValidation = signature.includes('validation')
-	const isInvalid = signature.includes('invalid')
-	const isSchema = signature.includes('schema')
-	if (isValidation || isInvalid || isSchema) {
-		return 'validation'
-	}
-	if (signature.includes('workspace') || signature.includes('corrupt')) {
-		return 'workspace_corruption'
+	for (const matcher of PATTERN_MATCHERS) {
+		if (matcher.patterns.some((p) => signature.includes(p))) {
+			return matcher.type
+		}
 	}
 	return 'unknown'
+}
+
+const SUGGESTED_ACTIONS: Record<string, string> = {
+	timeout: 'Increase timeout or implement retry with exponential backoff',
+	permission: 'Check file permissions and ensure the process has required access',
+	file_not_found: 'Verify file paths exist before access; add pre-flight checks',
+	network: 'Check network connectivity; implement retry with backoff',
+	resource_exhaustion: 'Reduce concurrency; implement resource pooling or streaming',
+	workspace_race_condition: 'Implement file locking or serialize workspace operations',
+	validation: 'Review input schemas; add pre-validation before processing',
+	workspace_corruption: 'Implement workspace integrity checks; add recovery procedures',
 }
 
 /**
  * Get a suggested action for a pattern type.
  */
 function getSuggestedActionForType(type: string): string | undefined {
-	switch (type) {
-		case 'timeout':
-			return 'Increase timeout or implement retry with exponential backoff'
-		case 'permission':
-			return 'Check file permissions and ensure the process has required access'
-		case 'file_not_found':
-			return 'Verify file paths exist before access; add pre-flight checks'
-		case 'network':
-			return 'Check network connectivity; implement retry with backoff'
-		case 'resource_exhaustion':
-			return 'Reduce concurrency; implement resource pooling or streaming'
-		case 'workspace_race_condition':
-			return 'Implement file locking or serialize workspace operations'
-		case 'validation':
-			return 'Review input schemas; add pre-validation before processing'
-		case 'workspace_corruption':
-			return 'Implement workspace integrity checks; add recovery procedures'
-		default:
-			return undefined
-	}
+	return SUGGESTED_ACTIONS[type]
 }
 
 // ── FailureMemory ─────────────────────────────────────────────────────────

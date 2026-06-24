@@ -172,7 +172,11 @@ function isJsonSchemaRecord(inputSchema: unknown): inputSchema is JsonSchema {
     return false
   }
 
-  return 'type' in inputSchema || 'properties' in inputSchema || '$schema' in inputSchema || '$ref' in inputSchema
+  const hasTypeProperty = 'type' in inputSchema
+  const hasProperties = 'properties' in inputSchema
+  const hasSchema = '$schema' in inputSchema
+  const hasRef = '$ref' in inputSchema
+  return hasTypeProperty || hasProperties || hasSchema || hasRef
 }
 
 /**

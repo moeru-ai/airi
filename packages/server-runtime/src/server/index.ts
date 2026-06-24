@@ -179,7 +179,9 @@ export function createServer(opts?: ServerOptions): Server {
       } catch (error) {
         serverInstance = null
         h3App.dispose()
-        await instance.close(true).catch(() => {})
+        await instance.close(true).catch(() => {
+          /* noop — best-effort close */
+        })
         if (isAddressInUseError(error)) {
           log.withError(error).warn('WebSocket server port already in use, assuming an existing listener is available')
           return

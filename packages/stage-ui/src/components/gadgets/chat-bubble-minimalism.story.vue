@@ -5,7 +5,9 @@ import { onMounted, ref } from 'vue'
 import ChatBubbleMinimalism from './chat-bubble-minimalism.vue'
 
 function createStream(text: string) {
-  let doneFunc = () => {}
+  let doneFunc = () => {
+    /* placeholder — replaced by untilDone() */
+  }
 
   return {
     untilDone: () => {

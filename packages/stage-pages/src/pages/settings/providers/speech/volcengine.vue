@@ -71,7 +71,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
 
   // ElevenLabs doesn't need SSML conversion, but if SSML is provided, use it directly
   const { app: _app, audio: _audio, ...restConfig } = providerConfig
-  return await speechStore.speech(provider as any, model, input, voiceId, {
+  return await speechStore.speech(provider as SpeechProviderWithExtraOptions<string, unknown>, model, input, voiceId, {
     ...restConfig,
   })
 }

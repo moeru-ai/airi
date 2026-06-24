@@ -28,6 +28,12 @@ interface ZodLikeSchema {
   shape?: (() => Record<string, ZodLikeFieldSchema>) | Record<string, ZodLikeFieldSchema>
 }
 
+/** Shape returned by provider defaultOptions() containing at least a baseUrl. */
+interface ProviderDefaultOptions {
+  baseUrl?: string
+  [key: string]: unknown
+}
+
 const providerId = 'openai-compatible-audio-transcription'
 const hearingStore = useHearingStore()
 const providersStore = useProvidersStore()
@@ -50,7 +56,7 @@ const baseUrl = computed({
     if (stored) return stored
     // Use default from provider metadata if available
     const metadata = providersStore.getProviderMetadata(providerId)
-    return (metadata?.defaultOptions?.() as any)?.baseUrl || ''
+    return (metadata?.defaultOptions?.() as ProviderDefaultOptions | undefined)?.baseUrl || ''
   },
   set: (value) => {
     if (!providers.value[providerId]) providers.value[providerId] = {}

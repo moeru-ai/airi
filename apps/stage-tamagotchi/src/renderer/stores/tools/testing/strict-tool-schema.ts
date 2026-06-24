@@ -9,6 +9,7 @@ interface StrictToolSchemaIssue {
 }
 
 declare module 'vitest' {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   interface Assertion<T = any> {
     toSatisfyStrictToolSchema: () => T
     toSatisfyStrictToolSchemas: () => T

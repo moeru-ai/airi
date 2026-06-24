@@ -162,13 +162,14 @@ export class ExecutionTrace {
 	 */
 	getRecords(filter?: ExecutionTraceFilter): ExecutionTraceEntry[] {
 		if (!filter) return [...this.records]
+		return this.records.filter((entry) => this.matchesFilter(entry, filter))
+	}
 
-		return this.records.filter((entry) => {
-			const toolIdMismatch = filter.toolId !== undefined && entry.toolId !== filter.toolId
-			const taskIdMismatch = filter.taskId !== undefined && entry.taskId !== filter.taskId
-			const beforeSince = filter.since !== undefined && entry.startedAt < filter.since
-			return !toolIdMismatch && !taskIdMismatch && !beforeSince
-		})
+	private matchesFilter(entry: ExecutionTraceEntry, filter: ExecutionTraceFilter): boolean {
+		if (filter.toolId !== undefined && entry.toolId !== filter.toolId) return false
+		if (filter.taskId !== undefined && entry.taskId !== filter.taskId) return false
+		if (filter.since !== undefined && entry.startedAt < filter.since) return false
+		return true
 	}
 
 	/**

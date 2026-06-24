@@ -86,65 +86,64 @@ async function detectWebGPUInWorker(): Promise<boolean> {
 // Track which device was actually used (for reporting back to main thread)
 let resolvedDevice: 'webgpu' | 'wasm' | 'cpu' = 'webgpu'
 
-class AutomaticSpeechRecognitionPipeline {
-  static model_id: string | null = null
-  static tokenizer: Promise<PreTrainedTokenizer>
-  static processor: Promise<Processor>
-  static model: Promise<PreTrainedModel>
+// Module-level singleton state for the ASR pipeline
+let _tokenizer: Promise<PreTrainedTokenizer>
+let _processor: Promise<Processor>
+let _model: Promise<PreTrainedModel>
 
-  static async getInstance(progress_callback?: ProgressCallback, device: 'webgpu' | 'wasm' | 'cpu' = 'webgpu') {
-    this.model_id = MODEL_ID
-
-    // Auto-detect: if WebGPU was requested but unavailable, fall back to WASM
-    let actualDevice = device
-    if (device === 'webgpu') {
-      const hasWebGPU = await detectWebGPUInWorker()
-      if (!hasWebGPU) {
-        console.warn('[Whisper Worker] WebGPU not available, falling back to WASM')
-        actualDevice = 'wasm'
-      }
+async function getAutomaticSpeechRecognitionPipelineInstance(
+  progress_callback?: ProgressCallback,
+  device: 'webgpu' | 'wasm' | 'cpu' = 'webgpu',
+) {
+  // Auto-detect: if WebGPU was requested but unavailable, fall back to WASM
+  let actualDevice = device
+  if (device === 'webgpu') {
+    const hasWebGPU = await detectWebGPUInWorker()
+    if (!hasWebGPU) {
+      console.warn('[Whisper Worker] WebGPU not available, falling back to WASM')
+      actualDevice = 'wasm'
     }
-    resolvedDevice = actualDevice
-
-    this.tokenizer ??= AutoTokenizer.from_pretrained(this.model_id, {
-      progress_callback,
-    })
-
-    this.processor ??= AutoProcessor.from_pretrained(this.model_id, {
-      progress_callback,
-    })
-
-    // NOTICE: fp16 encoder may fail on some devices/browsers. Fall back to fp32
-    // if the initial load fails. Decoder fp16 is known broken (see Issue #989).
-    // https://github.com/huggingface/transformers.js/issues/989
-    this.model ??= (async () => {
-      try {
-        return await WhisperForConditionalGeneration.from_pretrained(this.model_id!, {
-          dtype: {
-            encoder_model: 'fp16',
-            decoder_model_merged: 'q4',
-          },
-          device: actualDevice,
-          progress_callback,
-        })
-      } catch (error) {
-        console.warn(
-          '[Whisper Worker] fp16 encoder failed, falling back to fp32:',
-          error instanceof Error ? error.message : error,
-        )
-        return await WhisperForConditionalGeneration.from_pretrained(this.model_id!, {
-          dtype: {
-            encoder_model: 'fp32',
-            decoder_model_merged: 'q4',
-          },
-          device: actualDevice,
-          progress_callback,
-        })
-      }
-    })()
-
-    return Promise.all([this.tokenizer, this.processor, this.model])
   }
+  resolvedDevice = actualDevice
+
+  _tokenizer ??= AutoTokenizer.from_pretrained(MODEL_ID, {
+    progress_callback,
+  })
+
+  _processor ??= AutoProcessor.from_pretrained(MODEL_ID, {
+    progress_callback,
+  })
+
+  // NOTICE: fp16 encoder may fail on some devices/browsers. Fall back to fp32
+  // if the initial load fails. Decoder fp16 is known broken (see Issue #989).
+  // https://github.com/huggingface/transformers.js/issues/989
+  _model ??= (async () => {
+    try {
+      return await WhisperForConditionalGeneration.from_pretrained(MODEL_ID, {
+        dtype: {
+          encoder_model: 'fp16',
+          decoder_model_merged: 'q4',
+        },
+        device: actualDevice,
+        progress_callback,
+      })
+    } catch (error) {
+      console.warn(
+        '[Whisper Worker] fp16 encoder failed, falling back to fp32:',
+        error instanceof Error ? error.message : error,
+      )
+      return await WhisperForConditionalGeneration.from_pretrained(MODEL_ID, {
+        dtype: {
+          encoder_model: 'fp32',
+          decoder_model_merged: 'q4',
+        },
+        device: actualDevice,
+        progress_callback,
+      })
+    }
+  })()
+
+  return Promise.all([_tokenizer, _processor, _model])
 }
 
 /**
@@ -256,7 +255,7 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
   try {
     sendProgress(requestId, 'download', -1, 'Loading model...')
 
-    const [_tokenizer, _processor, model] = await AutomaticSpeechRecognitionPipeline.getInstance(
+    const [_tokenizer, _processor, model] = await getAutomaticSpeechRecognitionPipelineInstance(
       (progressInfo) => {
         // Forward transformers.js progress events.
         // The library always passes a ProgressInfo object with a discriminated `status` field.
@@ -337,7 +336,7 @@ async function runInference(request: RunInferenceRequest<WhisperInput>): Promise
       sendError(requestId, new Error('No audio data provided (audioFloat32 or audio is required)'), 'inference')
       return
     }
-    const [tokenizer, processor, model] = await AutomaticSpeechRecognitionPipeline.getInstance()
+    const [tokenizer, processor, model] = await getAutomaticSpeechRecognitionPipelineInstance()
 
     let startTime: number | undefined
     let numTokens = 0

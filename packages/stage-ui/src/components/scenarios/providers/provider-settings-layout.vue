@@ -9,7 +9,9 @@ withDefaults(
   {
     providerIcon: '',
     providerIconColor: '',
-    onBack: () => {},
+    onBack: () => {
+      /* no-op — override via prop */
+    },
   },
 )
 </script>

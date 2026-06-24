@@ -24,6 +24,56 @@ import { createMemoryId } from "./types.js"
 // ── Relevance scoring ─────────────────────────────────────────────────────
 
 /**
+ * Compute the base text-match score for a record against a query.
+ *
+ * Returns 1.0 for exact substring match, 0.0-0.5 for partial word match,
+ * or 0.5 when no text query is provided.
+ */
+function computeTextMatchScore(record: MemoryRecord, query: MemoryQuery): number {
+	if (!query.text) return 0.5
+
+	const lowerText = query.text.toLowerCase()
+	const titleLower = record.title.toLowerCase()
+	const contentLower = record.content.toLowerCase()
+
+	if (titleLower.includes(lowerText) || contentLower.includes(lowerText)) {
+		return 1.0
+	}
+
+	// Partial word match.
+	const words = lowerText.split(/\s+/)
+	const recordText = `${record.title} ${record.content}`.toLowerCase()
+	const matchCount = words.filter((w) => recordText.includes(w)).length
+	return matchCount > 0 ? Math.min(0.5, matchCount / words.length) : 0
+}
+
+/**
+ * Compute the reference overlap score (+0.3 per matching reference).
+ */
+function computeReferenceScore(
+	record: MemoryRecord,
+	queryReferences: MemoryReference[],
+): number {
+	const matchingRefs = queryReferences.filter((qr) =>
+		record.references.some(
+			(rr) => rr.type === qr.type && rr.id === qr.id,
+		),
+	)
+	return 0.3 * matchingRefs.length
+}
+
+/**
+ * Compute the recency boost (+0.1 if accessed within last 24h).
+ */
+function computeRecencyBoost(record: MemoryRecord): number {
+	if (!record.lastAccessedAt) return 0
+
+	const lastAccess = new Date(record.lastAccessedAt).getTime()
+	const hoursSinceAccess = (Date.now() - lastAccess) / (1000 * 60 * 60)
+	return hoursSinceAccess < 24 ? 0.1 : 0
+}
+
+/**
  * Compute deterministic relevance score for a memory record against a query.
  *
  * Scoring algorithm:
@@ -43,65 +93,28 @@ import { createMemoryId } from "./types.js"
  * - score: (1.0 + 0.2 + 0.1) * (0.5 + 0.5 * 0.8) = 1.3 * 0.9 = 1.17
  */
 function computeRelevanceScore(record: MemoryRecord, query: MemoryQuery): number {
-	let score = 0.0
-
-	// 1. Exact text match.
-	if (query.text) {
-		const lowerText = query.text.toLowerCase()
-		if (
-			record.title.toLowerCase().includes(lowerText)
-			|| record.content.toLowerCase().includes(lowerText)
-		) {
-			score = 1.0
-		} else {
-			// Partial word match: check if any word in the query matches.
-			const words = lowerText.split(/\s+/)
-			const recordText = `${record.title} ${record.content}`.toLowerCase()
-			const matchCount = words.filter((w) => recordText.includes(w)).length
-			if (matchCount > 0) {
-				score = Math.min(0.5, matchCount / words.length)
-			}
-		}
-	} else {
-		// No text query — base score from other factors.
-		score = 0.5
-	}
+	let score = computeTextMatchScore(record, query)
 
 	// 2. Reference overlap.
 	if (query.references && query.references.length > 0) {
-		const matchingRefs = query.references.filter((qr) =>
-			record.references.some(
-				(rr) => rr.type === qr.type && rr.id === qr.id,
-			),
-		)
-		score += 0.3 * matchingRefs.length
+		score += computeReferenceScore(record, query.references)
 	}
 
 	// 3. Scope match.
-	if (query.scopes && query.scopes.length > 0) {
-		if (query.scopes.includes(record.scope)) {
-			score += 0.2
-		}
+	if (query.scopes && query.scopes.length > 0 && query.scopes.includes(record.scope)) {
+		score += 0.2
 	}
 
 	// 4. Type match.
-	if (query.types && query.types.length > 0) {
-		if (query.types.includes(record.type)) {
-			score += 0.1
-		}
+	if (query.types && query.types.length > 0 && query.types.includes(record.type)) {
+		score += 0.1
 	}
 
 	// 5. Importance weighting.
 	score *= 0.5 + 0.5 * record.importance
 
-	// 6. Recency boost (accessed within last 24h).
-	if (record.lastAccessedAt) {
-		const lastAccess = new Date(record.lastAccessedAt).getTime()
-		const hoursSinceAccess = (Date.now() - lastAccess) / (1000 * 60 * 60)
-		if (hoursSinceAccess < 24) {
-			score += 0.1
-		}
-	}
+	// 6. Recency boost.
+	score += computeRecencyBoost(record)
 
 	// 7. Access frequency boost.
 	score += 0.05 * Math.min(record.accessCount, 10)
@@ -125,8 +138,8 @@ function determineMatchType(record: MemoryRecord, query: MemoryQuery): MemoryRes
 	if (query.text) {
 		const lowerText = query.text.toLowerCase()
 		if (
-			record.title.toLowerCase().includes(lowerText)
-			|| record.content.toLowerCase().includes(lowerText)
+			record.title.toLowerCase().includes(lowerText) ||
+			record.content.toLowerCase().includes(lowerText)
 		) {
 			return 'exact'
 		}
@@ -177,6 +190,47 @@ export class MemoryRegistry {
 	}
 
 	/**
+	 * Determine whether a record passes the query's scope/type/workspace filters.
+	 */
+	private passesFilters(record: MemoryRecord, query: MemoryQuery): boolean {
+		if (query.scopes && query.scopes.length > 0 && !query.scopes.includes(record.scope)) {
+			return false
+		}
+		if (query.types && query.types.length > 0 && !query.types.includes(record.type)) {
+			return false
+		}
+		if (query.workspaceId && record.workspaceId !== query.workspaceId) {
+			return false
+		}
+		if (query.repositoryId && record.repositoryId !== query.repositoryId) {
+			return false
+		}
+		if (query.sessionId && record.sessionId !== query.sessionId) {
+			return false
+		}
+		if (query.minImportance !== undefined && record.importance < query.minImportance) {
+			return false
+		}
+		if (query.sinceTimestamp && record.createdAt < query.sinceTimestamp) {
+			return false
+		}
+		return true
+	}
+
+	/**
+	 * Determine whether a record matches the query text.
+	 */
+	private matchesText(record: MemoryRecord, query: MemoryQuery): boolean {
+		if (!query.text) return true
+
+		const lowerText = query.text.toLowerCase()
+		return (
+			record.title.toLowerCase().includes(lowerText) ||
+			record.content.toLowerCase().includes(lowerText)
+		)
+	}
+
+	/**
 	 * Query memory records with deterministic relevance scoring.
 	 *
 	 * Results are sorted by relevance score (highest first).
@@ -186,47 +240,8 @@ export class MemoryRegistry {
 		const results: MemoryResult[] = []
 
 		for (const record of this.records.values()) {
-			// Apply filters.
-				const hasScopes = query.scopes && query.scopes.length > 0
-			if (hasScopes && !query.scopes.includes(record.scope)) {
-				continue
-			}
-
-				const hasTypes = query.types && query.types.length > 0
-			if (hasTypes && !query.types.includes(record.type)) {
-				continue
-			}
-
-			if (query.workspaceId && record.workspaceId !== query.workspaceId) {
-				continue
-			}
-
-			if (query.repositoryId && record.repositoryId !== query.repositoryId) {
-				continue
-			}
-
-			if (query.sessionId && record.sessionId !== query.sessionId) {
-				continue
-			}
-
-			if (query.minImportance !== undefined && record.importance < query.minImportance) {
-				continue
-			}
-
-			if (query.sinceTimestamp && record.createdAt < query.sinceTimestamp) {
-				continue
-			}
-
-			// Text filter: if query.text is provided, exclude records that don't match.
-			if (query.text) {
-				const lowerText = query.text.toLowerCase()
-				if (
-					!record.title.toLowerCase().includes(lowerText) &&
-					!record.content.toLowerCase().includes(lowerText)
-				) {
-					continue
-				}
-			}
+			if (!this.passesFilters(record, query)) continue
+			if (!this.matchesText(record, query)) continue
 
 			const relevanceScore = computeRelevanceScore(record, query)
 			const matchType = determineMatchType(record, query)

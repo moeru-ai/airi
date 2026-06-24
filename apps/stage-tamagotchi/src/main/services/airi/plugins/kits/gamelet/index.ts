@@ -238,7 +238,9 @@ export function createGameletHostContribution(options: { widgetsManager: PluginH
           })
 
           cleanupPromisesBySession.set(session.sessionId, cleanupPromise)
-          void cleanupPromise.catch(() => {})
+          void cleanupPromise.catch(() => {
+            /* noop — ignore cleanup errors */
+          })
         })
 
         context.registerSessionApi('gamelets', ({ session, assertPermission }) => ({

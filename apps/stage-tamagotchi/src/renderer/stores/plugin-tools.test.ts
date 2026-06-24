@@ -115,7 +115,9 @@ describe('useTamagotchiPluginToolsStore', async () => {
    */
   it('falls back to empty plugin tools when listing xsai tools never resolves during cold start', async () => {
     vi.useFakeTimers()
-    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    vi.spyOn(console, 'warn').mockImplementation(() => {
+      /* stub — intentionally empty */
+    })
     invokeMocks.listPluginXsaiTools.mockImplementationOnce(
       (_req?: undefined, options?: { signal?: AbortSignal }) =>
         new Promise((_, reject) => {

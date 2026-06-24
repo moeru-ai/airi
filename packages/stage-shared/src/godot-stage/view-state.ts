@@ -88,7 +88,10 @@ export const StageCameraPosePatchSchema = strictObject({
 })
 
 function hasStageViewVec3PatchMutation(patch: Partial<StageViewVec3> | undefined) {
-  return patch?.x !== undefined || patch?.y !== undefined || patch?.z !== undefined
+  const hasX = patch?.x !== undefined
+  const hasY = patch?.y !== undefined
+  const hasZ = patch?.z !== undefined
+  return hasX || hasY || hasZ
 }
 
 function hasStageViewPatchMutation(patch: StageViewPatch) {

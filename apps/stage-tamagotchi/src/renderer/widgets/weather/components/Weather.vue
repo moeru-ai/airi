@@ -89,23 +89,25 @@ function isWeatherIconKey(input: string): input is string {
   return input in weatherIconMap
 }
 
-const resolvedIconKey = computed<string>(() => {
+function findConditionMatch(condition: string): string | undefined {
+  const match = conditionMappings.find(({ keywords }) => keywords.some((keyword) => condition.includes(keyword)))
+  return match?.key
+}
+
+function resolveWeatherIconKey(): string {
   if (props.icon) return props.icon
 
   const direct = normalizedCode.value
   if (direct && isWeatherIconKey(direct)) return direct
 
-  const match = conditionMappings.find(({ keywords }) =>
-    keywords.some((keyword) => normalizedCondition.value.includes(keyword)),
-  )
   const fallback: string = props.isNight ? 'clear-night' : 'clear-day'
-  const baseKey = match?.key ?? fallback
+  const baseKey = findConditionMatch(normalizedCondition.value) ?? fallback
   const config = weatherIconMap[baseKey]
 
-  if (props.isNight && config.nightKey) return config.nightKey
+  return props.isNight && config.nightKey ? config.nightKey : baseKey
+}
 
-  return baseKey
-})
+const resolvedIconKey = computed<string>(resolveWeatherIconKey)
 
 const resolvedIconClass = computed(() => weatherIconMap[resolvedIconKey.value].icon)
 </script>

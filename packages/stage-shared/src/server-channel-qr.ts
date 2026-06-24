@@ -8,7 +8,8 @@ export const SERVER_CHANNEL_QR_PAYLOAD_VERSION = 1
 function isWebSocketUrl(value: string) {
   try {
     const url = new URL(value)
-    return (url.protocol === 'ws:' || url.protocol === 'wss:') && Boolean(url.hostname)
+    const isWebSocketProtocol = url.protocol === 'ws:' || url.protocol === 'wss:'
+    return isWebSocketProtocol && Boolean(url.hostname)
   } catch {
     return false
   }

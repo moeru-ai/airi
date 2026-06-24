@@ -94,28 +94,42 @@ let setSourceMutex: MutexInterface
 let screenCaptureSourceMutexHandle: string | undefined
 let setSourceMutexTimeoutHandle: NodeJS.Timeout | undefined
 
-export function initScreenCaptureForMain(options: InitMainOptions = {}): void {
-  const { forceCoreAudioTap = false, mutexAcquireTimeout = 5000 } = options
+// ---------------------------------------------------------------------------
+// Logger helpers
+// ---------------------------------------------------------------------------
 
+function configureLogger(loggerOptions?: { logLevel?: string; format?: 'json' | 'plain' }) {
   let log = useLogg('screen-capture').useGlobalConfig()
-  if (options?.loggerOptions?.logLevel) {
-    log = log.withLogLevelString((options?.loggerOptions?.logLevel ?? 'info') as LogLevelString)
+  if (loggerOptions?.logLevel) {
+    log = log.withLogLevelString(loggerOptions.logLevel as LogLevelString)
   }
-  if (options?.loggerOptions?.format) {
-    log = log.withFormat((options?.loggerOptions?.format ?? 'plain') as Format)
+  if (loggerOptions?.format) {
+    log = log.withFormat(loggerOptions.format as Format)
   }
+  return log
+}
 
-  if (mutexAcquireTimeout <= 0 || !Number.isFinite(mutexAcquireTimeout) || Number.isNaN(mutexAcquireTimeout)) {
+// ---------------------------------------------------------------------------
+// Timeout validation helpers
+// ---------------------------------------------------------------------------
+
+function validateMutexTimeout(timeout: number): void {
+  if (timeout <= 0 || !Number.isFinite(timeout) || Number.isNaN(timeout)) {
     throw new Error('mutexAcquireTimeout must be a positive finite number')
   }
+}
 
-  if (initMainCalled) {
-    log.warn('initScreenCaptureForMain should only be called once')
-    return
+function validateRequestTimeout(timeout: unknown): void {
+  if (typeof timeout === 'number' && (timeout <= 0 || !Number.isFinite(timeout) || Number.isNaN(timeout))) {
+    throw new Error('timeout must be a positive finite number')
   }
-  initMainCalled = true
-  setSourceMutex = withTimeout(new Mutex(), mutexAcquireTimeout)
+}
 
+// ---------------------------------------------------------------------------
+// Feature-flag helpers
+// ---------------------------------------------------------------------------
+
+function applyFeatureFlags(forceCoreAudioTap: boolean): void {
   // Get other enabled features from the command line.
   const otherEnabledFeatures = app.commandLine.getSwitchValue(featureSwitchKey)?.split(',')
 
@@ -132,6 +146,31 @@ export function initScreenCaptureForMain(options: InitMainOptions = {}): void {
 
   app.commandLine.appendSwitch(featureSwitchKey, currentFeatureFlags)
 }
+
+// ---------------------------------------------------------------------------
+// initScreenCaptureForMain
+// ---------------------------------------------------------------------------
+
+export function initScreenCaptureForMain(options: InitMainOptions = {}): void {
+  const { forceCoreAudioTap = false, mutexAcquireTimeout = 5000 } = options
+
+  const log = configureLogger(options?.loggerOptions)
+
+  validateMutexTimeout(mutexAcquireTimeout)
+
+  if (initMainCalled) {
+    log.warn('initScreenCaptureForMain should only be called once')
+    return
+  }
+  initMainCalled = true
+  setSourceMutex = withTimeout(new Mutex(), mutexAcquireTimeout)
+
+  applyFeatureFlags(forceCoreAudioTap)
+}
+
+// ---------------------------------------------------------------------------
+// Shared state helpers
+// ---------------------------------------------------------------------------
 
 function resetScreenCaptureSource() {
   sessionModule.defaultSession.setDisplayMediaRequestHandler(null)
@@ -155,14 +194,118 @@ function tryWindowTitle(window: BrowserWindow, previous?: string): string {
   return title
 }
 
+// ---------------------------------------------------------------------------
+// Window-level handler helpers (extracted from initScreenCaptureForWindow)
+// ---------------------------------------------------------------------------
+
+/** Stored reference to the current window, used inside timeout handlers. */
+let currentWindow: BrowserWindow
+
+function createSetSourceTimeoutHandler(
+  handle: string,
+  windowId: number,
+  windowTitle: string,
+  log: ReturnType<typeof useLogg>,
+  timeoutMs: number,
+): NodeJS.Timeout {
+  return setTimeout(() => {
+    if (screenCaptureSourceMutexHandle !== handle) return
+
+    resetScreenCaptureSource()
+    setSourceMutex.release()
+
+    log
+      .withFields({ windowId, windowTitle: tryWindowTitle(currentWindow, windowTitle) })
+      .warn(
+        `setSourceMutex released for window due to timeout. ` +
+          'Please make sure to invoke screenCaptureResetSource when getDisplayMedia is completed.',
+      )
+  }, timeoutMs)
+}
+
+function handleSetSource(
+  request: { sourceId: string; options?: SourcesOptions; timeout?: number },
+  eventaOptions: { raw: { ipcMainEvent: { sender: { id: number } } } },
+  window: BrowserWindow,
+  windowId: number,
+  windowTitle: string,
+  log: ReturnType<typeof useLogg>,
+  loopbackWithMute?: boolean,
+): Promise<string> {
+  // FIXME: Would be better if `onlySameWindow` in `createContext` also filters out invocations here.
+  if (window.webContents.id !== eventaOptions?.raw.ipcMainEvent.sender.id) {
+    return Promise.resolve('')
+  }
+
+  validateRequestTimeout(request.timeout)
+
+  return setSourceMutex.acquire().then(() => {
+    log.withFields({ windowId, windowTitle: tryWindowTitle(window, windowTitle) }).debug('setSourceMutex acquired')
+
+    clearTimeout(setSourceMutexTimeoutHandle)
+    const handle = nanoid()
+    setSourceMutexTimeoutHandle = undefined
+    screenCaptureSourceMutexHandle = handle
+
+    try {
+      sessionModule.defaultSession.setDisplayMediaRequestHandler(async (_req, callback) => {
+        const sources = await desktopCapturer.getSources(request.options)
+        const source = sources.find((s) => s.id === request.sourceId)
+        if (!source) {
+          throw new Error(`Source with id ${request.sourceId} not found.`)
+        }
+
+        callback({
+          video: source,
+          audio: loopbackWithMute ? LoopbackAudioTypes.LoopbackWithMute : LoopbackAudioTypes.Loopback,
+        })
+      })
+
+      setSourceMutexTimeoutHandle = createSetSourceTimeoutHandler(
+        handle,
+        windowId,
+        windowTitle,
+        log,
+        request.timeout ?? 5000,
+      )
+
+      // eslint-disable-next-line consistent-return
+      return handle
+    } catch (e) {
+      log
+        .withFields({ windowId, windowTitle: tryWindowTitle(window, windowTitle) })
+        .withError(e)
+        .error('screenCaptureSetSourceEx failed for window')
+
+      resetScreenCaptureSource()
+      setSourceMutex.release()
+      throw e
+    }
+  })
+}
+
+function handleResetSource(
+  mutexHandle: string,
+  windowId: number,
+  windowTitle: string,
+  log: ReturnType<typeof useLogg>,
+): void {
+  if (screenCaptureSourceMutexHandle !== mutexHandle) return
+
+  resetScreenCaptureSource()
+  setSourceMutex.release()
+
+  log
+    .withFields({ windowId, windowTitle: tryWindowTitle(currentWindow, windowTitle) })
+    .debug('setSourceMutex released by window')
+}
+
+// ---------------------------------------------------------------------------
+// initScreenCaptureForWindow
+// ---------------------------------------------------------------------------
+
 export function initScreenCaptureForWindow(window: BrowserWindow, options?: InitWindowOptions): void {
-  let log = useLogg('screen-capture').useGlobalConfig()
-  if (options?.loggerOptions?.logLevel) {
-    log = log.withLogLevelString((options?.loggerOptions?.logLevel ?? 'info') as LogLevelString)
-  }
-  if (options?.loggerOptions?.format) {
-    log = log.withFormat((options?.loggerOptions?.format ?? 'plain') as Format)
-  }
+  const log = configureLogger(options?.loggerOptions)
 
   const windowId = window.id
   const windowTitle = tryWindowTitle(window)
@@ -181,15 +324,15 @@ export function initScreenCaptureForWindow(window: BrowserWindow, options?: Init
   }
 
   initializedWindows.add(window)
+  currentWindow = window
 
   const { context } = createContext(ipcMain, window, { onlySameWindow: true })
-  const session = sessionModule.defaultSession
 
   defineInvokeHandler(context, screenCapture.checkMacOSPermission, async () => checkMacOSScreenCapturePermission())
   defineInvokeHandler(context, screenCapture.requestMacOSPermission, async () => requestMacOSScreenCapturePermission())
 
   defineInvokeHandler(context, screenCapture.getSources, async (sourcesOptions) => {
-    // NOTICE(@nekomeowww): In probability of 9/10, the window thumbnail is purely empty or black, sources printed and
+    // NOTICE(@nekomeowww): In probability of 9/10, the window thumbnail is purely empty or sources printed and
     // nothing is returned from the desktopCapturer API.
     // NOTICE(@sumimakito): Not only thumbnail is empty, the appIcon could be empty as well with nothing returned.
     // REVIEW(@sumimakito): This has nothing to do with out side, probably related to Electron Bug, you can
@@ -198,73 +341,11 @@ export function initScreenCaptureForWindow(window: BrowserWindow, options?: Init
     return sources.map((source) => toSerializableDesktopCapturerSource(source))
   })
 
-  defineInvokeHandler(context, screenCapture.setSource, async (request, eventaOptions) => {
-    // FIXME: Would be better if `onlySameWindow` in `createContext` also filters out invocations here.
-    if (window.webContents.id !== eventaOptions?.raw.ipcMainEvent.sender.id) return
+  defineInvokeHandler(context, screenCapture.setSource, async (request, eventaOptions) =>
+    handleSetSource(request, eventaOptions, window, windowId, windowTitle, log, options?.loopbackWithMute),
+  )
 
-    const { timeout } = request
-    if (typeof timeout === 'number' && (timeout <= 0 || !Number.isFinite(timeout) || Number.isNaN(timeout))) {
-      throw new Error('timeout must be a positive finite number')
-    }
-
-    await setSourceMutex.acquire()
-    log.withFields({ windowId, windowTitle: tryWindowTitle(window, windowTitle) }).debug('setSourceMutex acquired')
-
-    clearTimeout(setSourceMutexTimeoutHandle)
-    const handle = nanoid()
-    setSourceMutexTimeoutHandle = undefined
-    screenCaptureSourceMutexHandle = handle
-
-    try {
-      session.setDisplayMediaRequestHandler(async (_request, callback) => {
-        const sources = await desktopCapturer.getSources(request.options)
-        const source = sources.find((source) => source.id === request.sourceId)
-        if (!source) {
-          throw new Error(`Source with id ${request.sourceId} not found.`)
-        }
-
-        callback({
-          video: source,
-          audio: options?.loopbackWithMute ? LoopbackAudioTypes.LoopbackWithMute : LoopbackAudioTypes.Loopback,
-        })
-      })
-
-      setSourceMutexTimeoutHandle = setTimeout(() => {
-        if (screenCaptureSourceMutexHandle !== handle) return
-
-        resetScreenCaptureSource()
-        setSourceMutex.release()
-
-        log
-          .withFields({ windowId, windowTitle: tryWindowTitle(window, windowTitle) })
-          .warn(
-            `setSourceMutex released for window due to timeout. ` +
-              'Please make sure to invoke screenCaptureResetSource when getDisplayMedia is completed.',
-          )
-      }, timeout ?? 5000)
-
-      // eslint-disable-next-line consistent-return
-      return handle
-    } catch (e) {
-      log
-        .withFields({ windowId, windowTitle: tryWindowTitle(window, windowTitle) })
-        .withError(e)
-        .error('screenCaptureSetSourceEx failed for window')
-
-      resetScreenCaptureSource()
-      setSourceMutex.release()
-      throw e
-    }
-  })
-
-  defineInvokeHandler(context, screenCapture.resetSource, async (mutexHandle) => {
-    if (screenCaptureSourceMutexHandle !== mutexHandle) return
-
-    resetScreenCaptureSource()
-    setSourceMutex.release()
-
-    log
-      .withFields({ windowId, windowTitle: tryWindowTitle(window, windowTitle) })
-      .debug('setSourceMutex released by window')
-  })
+  defineInvokeHandler(context, screenCapture.resetSource, async (mutexHandle) =>
+    handleResetSource(mutexHandle, windowId, windowTitle, log),
+  )
 }

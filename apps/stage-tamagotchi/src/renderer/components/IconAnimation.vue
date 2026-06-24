@@ -18,9 +18,7 @@ const props = withDefaults(
   },
 )
 
-const emit = defineEmits<{
-  (e: 'animationEnded'): void
-}>()
+const emit = defineEmits(['animationEnded'])
 
 const isAnimating = ref(false)
 

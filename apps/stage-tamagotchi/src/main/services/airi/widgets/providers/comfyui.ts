@@ -76,10 +76,11 @@ export class ComfyUIProvider implements ArtistryProvider {
   }
 
   async generate(request: ArtistryRequest): Promise<ArtistryJob> {
-    const jobId = request.extra?.internalJobId || Math.random().toString(36).slice(2)
+    const extra = request.extra as Record<string, unknown> | undefined
+    const jobId = (extra?.internalJobId as string) || Math.random().toString(36).slice(2)
 
     // Resolve which workflow template to use --- per-request template override takes precedence over card model default
-    const templateId = request.extra?.template || request.model || this.activeWorkflowId
+    const templateId = (extra?.template as string) || request.model || this.activeWorkflowId
     const template = this.savedWorkflows.find((w) => w.id === templateId)
 
     if (!template) {
@@ -99,6 +100,7 @@ export class ComfyUIProvider implements ArtistryProvider {
 
   private async pollForResult(jobId: string, template: ComfyUIWorkflowTemplate, request: ArtistryRequest) {
     this.updateStatus(jobId, { status: 'running', actionLabel: 'Preparing workflow...' })
+    const extra = request.extra as Record<string, unknown> | undefined
 
     try {
       // 0. Handle potential image and prompt upload bidirectional flow
@@ -108,11 +110,11 @@ export class ComfyUIProvider implements ArtistryProvider {
       const hasPromptPlaceholder = extraStr.includes('{{PROMPT}}') || workflowStr.includes('{{PROMPT}}')
 
       let uploadedImageName = ''
-      if (hasImagePlaceholder && request.extra?.image) {
+      if (hasImagePlaceholder && extra?.image) {
         log.log(`[ComfyUI] Bidirectional flow detected. Uploading texture for job ${jobId}...`)
         this.updateStatus(jobId, { status: 'running', actionLabel: 'Uploading texture to ComfyUI...' })
         try {
-          uploadedImageName = await this.uploadImage(request.extra.image)
+          uploadedImageName = await this.uploadImage(extra.image as string)
           log.log(`[ComfyUI] Texture uploaded as: ${uploadedImageName}`)
         } catch (e: unknown) {
           log.error(`[ComfyUI] Texture upload failed: ${e instanceof Error ? e.message : String(e)}`)
@@ -220,6 +222,7 @@ export class ComfyUIProvider implements ArtistryProvider {
 
             // Find first image in any node's output
             for (const nodeId in outputs) {
+              if (!Object.prototype.hasOwnProperty.call(outputs, nodeId)) continue
               const nodeOutput = outputs[nodeId]
               if (nodeOutput.images && nodeOutput.images.length > 0) {
                 const img = nodeOutput.images[0]
@@ -323,6 +326,7 @@ export class ComfyUIProvider implements ArtistryProvider {
 
     // Apply overrides to matching nodes
     for (const nodeId in prompt) {
+      if (!Object.prototype.hasOwnProperty.call(prompt, nodeId)) continue
       const node = prompt[nodeId]
       const title = node._meta?.title
       if (title && overrides[title]) {
@@ -343,6 +347,7 @@ export class ComfyUIProvider implements ArtistryProvider {
         (overrides[nodeTitle]?.seed === undefined || overrides[nodeTitle]?.seed === null)
       ) {
         for (const nodeId in prompt) {
+          if (!Object.prototype.hasOwnProperty.call(prompt, nodeId)) continue
           const node = prompt[nodeId]
           if (node._meta?.title === nodeTitle) {
             node.inputs.seed = Math.floor(Math.random() * 1e15)

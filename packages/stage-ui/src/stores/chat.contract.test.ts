@@ -19,6 +19,7 @@ vi.hoisted(() => {
 
 const ioTracerMocks = vi.hoisted(() => {
   const activeTurnSpan = { value: undefined as unknown }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const spans: any[] = []
   const startSpanMock = vi.fn((name: string) => {
     const span = {

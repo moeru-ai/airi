@@ -195,7 +195,9 @@ describe('useChatSyncStore authority ingest failures', async () => {
    * })
    */
   it('stores command ingest errors in authority session history', async () => {
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {
+      /* stub — intentionally empty */
+    })
     const store = useChatSyncStore()
     store.initialize('authority')
 
@@ -244,7 +246,9 @@ describe('useChatSyncStore authority ingest failures', async () => {
    */
   it('logs follower command timeouts with request metadata', async () => {
     vi.useFakeTimers()
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {
+      /* stub — intentionally empty */
+    })
     const store = useChatSyncStore()
     store.initialize('follower')
 

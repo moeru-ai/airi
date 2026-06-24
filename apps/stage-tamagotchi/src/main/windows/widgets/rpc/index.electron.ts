@@ -1,11 +1,10 @@
-import type { BrowserWindow } from 'electron'
+import { type BrowserWindow, ipcMain } from 'electron'
 
 import type { I18n } from '../../../libs/i18n'
 import type { ServerChannel } from '../../../services/airi/channel-server'
 import type { WidgetsWindowManager } from '../../widgets'
 
 import { createContext } from '@moeru/eventa/adapters/electron/main'
-import { ipcMain } from 'electron'
 
 import { createWidgetsService } from '../../../services/airi/widgets'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'

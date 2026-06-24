@@ -9,5 +9,7 @@ export interface ElectronWindow<CustomApi = unknown> {
 }
 
 export function isElectronWindow<CustomApi = unknown>(window: Window): window is Window & ElectronWindow<CustomApi> {
-  return isStageTamagotchi() && typeof window === 'object' && window !== null && 'electron' in window
+  const isStageApp = isStageTamagotchi()
+  const isObject = typeof window === 'object' && window !== null
+  return isStageApp && isObject && 'electron' in window
 }

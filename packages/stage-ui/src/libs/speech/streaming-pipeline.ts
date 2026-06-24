@@ -221,7 +221,9 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
     // `flushAccumulatedAsSentence`.
     pendingFlush = pendingFlush
       .then(() => flushAccumulatedAsSentence(sentenceChunks, sentenceChunkBytes, textOverride))
-      .catch(() => {})
+      .catch(() => {
+        /* noop — decode failures surface via onError */
+      })
     return pendingFlush
   }
 
@@ -363,7 +365,7 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
         setTimeout(() => {
           try {
             ws.close()
-          // eslint-disable-next-line no-empty
+            // eslint-disable-next-line no-empty
           } catch {
             // noop
           }
@@ -383,7 +385,7 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
       if (text.length === 0) return
       const stripped = stripMarkdownFromText(text)
       if (stripped !== text) {
-          text = stripped
+        text = stripped
       }
       // Pure-whitespace chunks (e.g. the " " between two LLM tokens) ARE
       // forwarded verbatim. Dropping them would corrupt the text the
@@ -413,9 +415,18 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
 }
 
 function noopHandle(): StreamingTtsPipelineHandle {
-  return { appendText: () => {}, finish: () => {}, cancel: () => {} }
+  return {
+    appendText: () => {
+      /* noop — unauthenticated pipeline */
+    },
+    finish: () => {
+      /* noop — unauthenticated pipeline */
+    },
+    cancel: () => {
+      /* noop — unauthenticated pipeline */
+    },
+  }
 }
-
 
 /**
  * Reads the sentence text from a `sentence.start` / `sentence.end` /
