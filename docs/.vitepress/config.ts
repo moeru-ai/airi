@@ -157,6 +157,7 @@ export default defineConfig<ThemeConfig>({
                 text: 'Configuration',
                 items: [
                   { text: 'Configuration Guide', link: withBase('/en/docs/manual/config/') },
+                  { text: 'Character Card Template', link: withBase('/en/docs/manual/tamagotchi/character-card-template') },
                 ],
               },
             ],
@@ -302,6 +303,10 @@ export default defineConfig<ThemeConfig>({
                 text: '配置',
                 items: [
                   { text: '配置指南', link: withBase('/zh-Hans/docs/manual/config/') },
+                  {
+                    text: '角色卡模板',
+                    link: withBase('/zh-Hans/docs/manual/tamagotchi/character-card-template'),
+                  },
                 ],
               },
             ],
@@ -443,6 +448,7 @@ export default defineConfig<ThemeConfig>({
                 text: '設定',
                 items: [
                   { text: '設定ガイド', link: withBase('/ja/docs/manual/config/') },
+                  { text: 'キャラクターカードテンプレート', link: withBase('/ja/docs/manual/tamagotchi/character-card-template') },
                 ],
               },
             ],
