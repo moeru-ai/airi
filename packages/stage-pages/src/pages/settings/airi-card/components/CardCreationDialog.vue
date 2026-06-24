@@ -46,10 +46,6 @@ type AiriExtensionWithLegacyArtistry = AiriExtension & {
 }
 
 const props = defineProps<Props>()
-const emit = defineEmits<{
-  (e: 'update:modelValue', value: boolean): void
-}>()
-
 const modelValue = defineModel<boolean>()
 
 const { t } = useI18n()
@@ -500,7 +496,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
 </script>
 
 <template>
-  <DialogRoot :open="modelValue" @update:open="emit('update:modelValue', $event)">
+  <DialogRoot :open="modelValue" @update:open="modelValue = $event">
     <DialogPortal>
       <DialogOverlay
         class="fixed inset-0 z-100 bg-black/50 backdrop-blur-sm data-[state=closed]:animate-fadeOut data-[state=open]:animate-fadeIn"

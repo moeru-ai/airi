@@ -27,7 +27,7 @@ type WidgetActionInput =
       action: 'spawn'
       id: string
       componentName: string
-      componentProps: string | Record<string, any>
+      componentProps: string | Record<string, unknown>
       size: SizePreset
       windowSize?: WidgetWindowSize
       ttlSeconds: number
@@ -35,7 +35,7 @@ type WidgetActionInput =
   | {
       action: 'update'
       id: string
-      componentProps: string | Record<string, any>
+      componentProps: string | Record<string, unknown>
       componentName?: string
       size?: SizePreset
       windowSize?: WidgetWindowSize
@@ -45,7 +45,7 @@ type WidgetActionInput =
       action: 'remove'
       id: string
       componentName?: string
-      componentProps?: string | Record<string, any>
+      componentProps?: string | Record<string, unknown>
       size?: SizePreset
       windowSize?: WidgetWindowSize
       ttlSeconds?: number
@@ -54,7 +54,7 @@ type WidgetActionInput =
       action: 'clear'
       id: string
       componentName?: string
-      componentProps?: string | Record<string, any>
+      componentProps?: string | Record<string, unknown>
       size?: SizePreset
       windowSize?: WidgetWindowSize
       ttlSeconds?: number
@@ -63,7 +63,7 @@ type WidgetActionInput =
       action: 'open'
       id: string
       componentName?: string
-      componentProps?: string | Record<string, any>
+      componentProps?: string | Record<string, unknown>
       size?: SizePreset
       windowSize?: WidgetWindowSize
       ttlSeconds?: number
@@ -203,7 +203,7 @@ function normalizeWidgetToolInput(input: WidgetToolInput): WidgetActionInput {
   }
 }
 
-export function normalizeComponentProps(raw?: string | Record<string, any>) {
+export function normalizeComponentProps(raw?: string | Record<string, unknown>) {
   if (raw === undefined || raw === null) return {}
 
   if (typeof raw === 'string') {
@@ -224,7 +224,7 @@ export function normalizeComponentProps(raw?: string | Record<string, any>) {
 
 function resolveWindowSize(
   componentName: string | undefined,
-  componentProps: Record<string, any>,
+  componentProps: Record<string, unknown>,
   windowSize?: WidgetWindowSize,
 ) {
   const explicitWindowSize = normalizeWidgetWindowSize(windowSize)
@@ -232,10 +232,10 @@ function resolveWindowSize(
 
   if (componentName?.trim().toLowerCase() !== 'extension-ui') return undefined
 
-  return normalizeWidgetWindowSize(componentProps.windowSize)
+  return normalizeWidgetWindowSize(componentProps.windowSize as WidgetWindowSize | undefined)
 }
 
-function sanitizeComponentPropsForDispatch(componentName: string | undefined, componentProps: Record<string, any>) {
+function sanitizeComponentPropsForDispatch(componentName: string | undefined, componentProps: Record<string, unknown>) {
   if (componentName?.trim().toLowerCase() !== 'extension-ui') return componentProps
 
   return sanitizeExtensionUiDispatchProps(componentProps)

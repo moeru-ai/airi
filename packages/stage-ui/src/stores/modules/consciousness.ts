@@ -57,6 +57,8 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     if (provider && providersStore.getProviderMetadata(provider)?.capabilities.listModels !== undefined) {
       await providersStore.fetchModelsForProvider(provider)
     }
+
+    return undefined
   }
 
   async function getModelsForProvider(provider: string) {

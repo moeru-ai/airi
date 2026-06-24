@@ -167,7 +167,7 @@ export function initScreenCaptureForWindow(window: BrowserWindow, options?: Init
   const windowId = window.id
   const windowTitle = tryWindowTitle(window)
 
-  log.withFields({ windowId, windowTitle: tryWindowTitle(window, windowTitle) }).debug(`init for window`)
+  log.withFields({ windowId, windowTitle: tryWindowTitle(window, windowTitle) }).debug('init for window')
 
   if (!initMainCalled) {
     // Throwing an error because this is unlikely to be recoverable.

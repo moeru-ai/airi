@@ -337,6 +337,7 @@ export class RepositoryIntelligence {
 	 * For now, this creates a skeleton map that can be populated
 	 * by the caller with actual file data.
 	 */
+  // async: returns Promise for async indexing
 	async indexRepository(
 		path: string,
 		options: {

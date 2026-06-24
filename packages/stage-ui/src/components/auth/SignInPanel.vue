@@ -48,7 +48,7 @@ function handleSelect(provider: OAuthProvider) {
   >
     <div
       :class="[
-        'pointer-events-none absolute inset-x-0 top-0 h-36 bg-gradient-to-br from-primary-300/35 via-sky-200/20 to-transparent blur-2xl',
+        'pointer-events-none absolute inset-x-0 top-0 h-36 bg-linear-to-br from-primary-300/35 via-sky-200/20 to-transparent blur-2xl',
         'dark:from-primary-500/15 dark:via-cyan-500/12',
       ]"
     />
@@ -98,7 +98,7 @@ function handleSelect(provider: OAuthProvider) {
           :loading="pendingProvider === provider.id"
           :disabled="Boolean(pendingProvider)"
           :class="[
-            '!justify-start rounded-2xl px-5 py-4 text-base font-medium',
+            'justify-start! rounded-2xl px-5 py-4 text-base font-medium',
             'shadow-[0_12px_30px_-24px_rgba(15,23,42,0.6)]',
           ]"
           @click="handleSelect(provider.id)"

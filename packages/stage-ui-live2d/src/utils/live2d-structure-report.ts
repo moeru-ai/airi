@@ -10,11 +10,11 @@ import JSZip from 'jszip'
 // eslint-disable-next-line no-console -- CLI reporting tool needs console output
 async function generateReport(zipPath: string) {
   // eslint-disable-next-line no-console -- CLI reporting tool needs console output
-  console.log(`\n================================================================`)
+  console.log('\n================================================================')
   // eslint-disable-next-line no-console -- CLI reporting tool needs console output
   console.log(`LIVE2D STRUCTURE REPORT: ${path.basename(zipPath)}`)
   // eslint-disable-next-line no-console -- CLI reporting tool needs console output
-  console.log(`================================================================\n`)
+  console.log('================================================================\n')
 
   if (!fs.existsSync(zipPath)) {
     // eslint-disable-next-line no-console -- CLI reporting tool needs console output

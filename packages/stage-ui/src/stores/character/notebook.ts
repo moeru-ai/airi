@@ -123,7 +123,8 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
 
   function getDueTasks(now: number, windowMs: number) {
     return tasks.value.filter((task) => {
-      if (task.status === 'done' || task.status === 'dropped') return false
+      const isCompletedTask = task.status === 'done' || task.status === 'dropped'
+      if (isCompletedTask) return false
       const dueAt = task.dueAt ?? now
       if (dueAt > now + windowMs) return false
       if (typeof task.nextNotifyAt === 'number' && task.nextNotifyAt > now) return false

@@ -16,7 +16,7 @@
 import type { TaskError } from "../tasks/types.js"
 import type { CapabilityId, ToolId } from "../capabilities/types.js"
 import type { WorkspaceId, WorkspaceState } from "../workspace/types.js"
-import type { ProposalId, ReasoningId } from "../cognition/types.js"
+import type { ModelInfo, ProposalId, ReasoningId } from "../cognition/types.js"
 import type { MemoryId, RepositoryMapId } from "../memory/types.js"
 
 // ── Base envelope ─────────────────────────────────────────────────────

@@ -26,7 +26,7 @@ interface Props {
   thresholdLabel?: string // Label for threshold
   height?: number // Chart height in pixels
   lineWidth?: number // Line stroke width
-  chartHeight?: number // Internal chart height for calculations
+
   minDataPoints?: number // Minimum points needed to show chart
   precision?: number // Value display precision
   unit?: string // Value unit

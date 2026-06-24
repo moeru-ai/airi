@@ -30,9 +30,9 @@ import {
   serializeWorkerMessage,
   deserializeWorkerMessage,
 } from '../../../core/workers/protocol.js'
+import { EventBus } from '../../../core/events/bus.js'
 import type { TaskExecutor, TaskExecutionContext } from '../../../core/tasks/executor.js'
 import type { CancellationToken } from '../../../core/tasks/cancellation.js'
-import type { EventBus } from '../../../core/modules/module.js'
 import type { Logger } from '../../../core/logger.js'
 import type { TaskId } from '../../../core/tasks/types.js'
 
@@ -217,8 +217,12 @@ async function importExecutor(moduleId: string): Promise<TaskExecutor | null> {
 function createExecutionContext(taskId: string): TaskExecutionContext {
   const token: CancellationToken = {
     isCancelled: false,
-    onCancelled: () => () => {},
-    throwIfCancelled: () => {},
+    onCancelled: () => () => {
+      /* noop */
+    },
+    throwIfCancelled: () => {
+      /* noop */
+    },
   }
 
   return {
@@ -240,20 +244,20 @@ function createExecutionContext(taskId: string): TaskExecutionContext {
     reportProgress: (percent: number, message?: string) => {
       sendProgress(taskId, percent, message)
     },
-    events: {
-      on: () => () => {},
-      once: () => () => {},
-      emit: () => {},
-      publish: async () => {},
-      subscribe: () => () => {},
-      listenerCount: () => 0,
-      clear: () => {},
-    } as EventBus,
+    events: new EventBus(),
     logger: {
-      debug: (..._args: unknown[]) => {},
-      info: (..._args: unknown[]) => {},
-      warn: (..._args: unknown[]) => {},
-      error: (..._args: unknown[]) => {},
+      debug: (..._args: unknown[]) => {
+        /* noop */
+      },
+      info: (..._args: unknown[]) => {
+        /* noop */
+      },
+      warn: (..._args: unknown[]) => {
+        /* noop */
+      },
+      error: (..._args: unknown[]) => {
+        /* noop */
+      },
     } as Logger,
   }
 }

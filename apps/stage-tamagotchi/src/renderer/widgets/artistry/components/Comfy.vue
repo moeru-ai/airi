@@ -17,7 +17,6 @@ const props = withDefaults(
     actionLabel?: string
     remixId?: string | number
     renderTime?: string
-    engineStats?: string
   }>(),
   {
     status: 'idle',

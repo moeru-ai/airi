@@ -52,6 +52,7 @@ export default defineConfig({
                   if (moduleId.includes('node_modules/debug')) {
                     return 'vendor-debug'
                   }
+                  return undefined
                 },
               },
               {
@@ -61,6 +62,7 @@ export default defineConfig({
                   if (moduleId.includes('node_modules/h3')) {
                     return 'vendor-h3'
                   }
+                  return undefined
                 },
               },
             ],

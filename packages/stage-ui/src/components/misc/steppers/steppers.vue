@@ -11,9 +11,7 @@ const props = withDefaults(
   },
 )
 
-const emit = defineEmits<{
-  (e: 'finish'): void
-}>()
+const emit = defineEmits<{ finish: [] }>()
 
 const value = defineModel<number>({ required: false, default: 0 })
 

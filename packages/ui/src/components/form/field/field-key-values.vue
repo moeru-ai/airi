@@ -7,7 +7,6 @@ const props = withDefaults(
   defineProps<{
     label?: string
     description?: string
-    name?: string
     keyPlaceholder?: string
     valuePlaceholder?: string
     required?: boolean
@@ -16,7 +15,6 @@ const props = withDefaults(
   {
     label: '',
     description: '',
-    name: '',
     keyPlaceholder: '',
     valuePlaceholder: '',
     required: false,

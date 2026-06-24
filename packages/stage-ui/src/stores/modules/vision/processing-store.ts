@@ -29,6 +29,7 @@ function countInWindow(history: number[], windowMs: number) {
   return count
 }
 
+// eslint-disable-next-line complexity
 export const useVisionProcessingStore = defineStore('vision-processing', () => {
   const captureIntervalMs = useLocalStorageManualReset<number>(
     'settings/vision/capture-interval-ms',

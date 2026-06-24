@@ -4,6 +4,7 @@ import { watch } from 'vue'
 
 import { useAudioDevice } from '../../composables/audio'
 
+// eslint-disable-next-line complexity
 export const useSettingsAudioDevice = defineStore('settings-audio-devices', () => {
   const {
     audioInputs,

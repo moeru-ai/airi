@@ -90,7 +90,10 @@ export class DecisionMemory {
 	 */
 	getValidationHistory(proposalId: string): DecisionRecord[] {
 		return Array.from(this.decisions.values()).filter(
-			(d) => d.proposalId === proposalId && d.validationResult !== undefined,
+			(d) => {
+				const matchesProposal = d.proposalId === proposalId
+				return matchesProposal && d.validationResult !== undefined
+			},
 		)
 	}
 

@@ -18,14 +18,29 @@ import { useSpeechStore } from '../stores/modules/speech'
 import { useTwitterStore } from '../stores/modules/twitter'
 import { useOnboardingStore } from '../stores/onboarding'
 import { useProvidersStore } from '../stores/providers'
-import { useSettings, useSettingsAudioDevice } from '../stores/settings'
+import {
+  useSettingsAudioDevice,
+  useSettingsAnalytics,
+  useSettingsControlsIsland,
+  useSettingsDeveloper,
+  useSettingsGeneral,
+  useSettingsSpine,
+  useSettingsStageModel,
+  useSettingsTheme,
+} from '../stores/settings'
 
 export function useDataMaintenance() {
   const chatStore = useChatSessionStore()
   const chatOrchestrator = useChatOrchestratorStore()
   const displayModelsStore = useDisplayModelsStore()
   const providersStore = useProvidersStore()
-  const settingsStore = useSettings()
+  const settingsStageModelStore = useSettingsStageModel()
+  const settingsThemeStore = useSettingsTheme()
+  const settingsGeneralStore = useSettingsGeneral()
+  const settingsAnalyticsStore = useSettingsAnalytics()
+  const settingsSpineStore = useSettingsSpine()
+  const settingsControlsIslandStore = useSettingsControlsIsland()
+  const settingsDeveloperStore = useSettingsDeveloper()
   const audioSettingsStore = useSettingsAudioDevice()
   const live2dParamsStore = useLive2dParams()
   const live2dSettingsStore = useSettingsLive2d()
@@ -43,8 +58,8 @@ export function useDataMaintenance() {
 
   async function deleteAllModels(): Promise<void> {
     await displayModelsStore.resetDisplayModels()
-    settingsStore.stageModelSelected = 'preset-live2d-1'
-    await settingsStore.updateStageModel()
+    settingsStageModelStore.stageModelSelected = 'preset-live2d-1'
+    await settingsStageModelStore.updateStageModel()
   }
 
   async function resetProvidersSettings(): Promise<void> {
@@ -82,14 +97,20 @@ export function useDataMaintenance() {
   }
 
   async function resetSettingsState(): Promise<void> {
-    await settingsStore.resetState()
-    audioSettingsStore.resetState()
-    live2dParamsStore.resetState()
-    live2dSettingsStore.resetState()
-    threeStore.resetModelStore()
-    mcpStore.resetState()
-    onboardingStore.resetSetupState()
-    airiCardStore.resetState()
+    await settingsStageModelStore.resetState()
+    await settingsAnalyticsStore.resetState()
+    await settingsGeneralStore.resetState()
+    await settingsSpineStore.resetState()
+    await settingsThemeStore.resetState()
+    await settingsControlsIslandStore.resetState()
+    await settingsDeveloperStore.resetState()
+    await audioSettingsStore.resetState()
+    await live2dParamsStore.resetState()
+    await live2dSettingsStore.resetState()
+    await threeStore.resetModelStore()
+    await mcpStore.resetState()
+    await onboardingStore.resetSetupState()
+    await airiCardStore.resetState()
   }
 
   async function deleteAllData(): Promise<void> {

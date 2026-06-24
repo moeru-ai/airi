@@ -181,6 +181,7 @@ export class MemoryRetriever {
 	 * Assembles a full RetrievalContext with memory results, repository
 	 * context, decision history, and failure patterns.
 	 */
+  // async: returns Promise for async retrieval
 	async retrieveForContext(query: MemoryQuery): Promise<RetrievalContext> {
 
 		// Query memory registry.
@@ -263,6 +264,7 @@ export class MemoryRetriever {
 	/**
 	 * Retrieve workspace-scoped memories.
 	 */
+  // async: returns Promise for async retrieval
 	async retrieveForWorkspace(
 		workspaceId: string,
 		maxResults = 10,
@@ -277,6 +279,7 @@ export class MemoryRetriever {
 	/**
 	 * Retrieve repository-scoped memories.
 	 */
+  // async: returns Promise for async retrieval
 	async retrieveForRepository(
 		repositoryId: string,
 		maxResults = 10,

@@ -12,7 +12,7 @@
  * into individual messages even when they arrive in arbitrary chunks.
  */
 
-import { createServer, type Socket, type Server as NetServer } from "node:net"
+import { Socket, createServer, type Server as NetServer } from "node:net"
 import { existsSync, unlinkSync } from "node:fs"
 import { resolve } from "node:path"
 
@@ -101,6 +101,7 @@ export class LocalSocketServerTransport implements IpcServerTransport {
 		})
 	}
 
+	// async: implements TransportServer interface (Promise<void>)
 	async stop(): Promise<void> {
 		if (this._state === "idle" || this._state === "disconnected") return
 
@@ -211,6 +212,7 @@ export class LocalSocketServerTransport implements IpcServerTransport {
 	 * its shutdown handler. We attempt to connect to verify staleness;
 	 * if the connection fails, the file is safe to remove.
 	 */
+	// async: returns Promise for async socket probe
 	async cleanupStaleSocket(): Promise<void> {
 		if (!this.socketPath.startsWith("/")) return // TCP fallback — no file to clean.
 
@@ -220,15 +222,12 @@ export class LocalSocketServerTransport implements IpcServerTransport {
 		// Try to connect — if it fails, the socket is stale.
 		// Wrap the async socket probe in a Promise so callers can await it,
 		// preventing a race between cleanup and server.listen().
-		return new Promise<void>((resolve) => {
+		return new Promise<void>((resolve, reject) => {
 			const testSocket = new Socket()
 			testSocket.on("connect", () => {
 				// Socket is alive — another daemon is running.
 				testSocket.destroy()
-				resolve()
-				throw new Error(
-					`Socket path "${absolutePath}" is already in use. Is another daemon running?`,
-				)
+				reject(new Error(`Socket path "${absolutePath}" is already in use. Is another daemon running?`))
 			})
 			testSocket.on("error", () => {
 				// Connection failed — socket is stale, remove it.

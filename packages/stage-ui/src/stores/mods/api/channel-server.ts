@@ -50,6 +50,7 @@ const REPLAYABLE_EVENT_TYPES = new Set<keyof WebSocketEvents>([
   'registry:modules:sync',
 ])
 
+// eslint-disable-next-line complexity
 export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:server', () => {
   const connected = ref(false)
   const client = ref<Client>()

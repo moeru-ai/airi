@@ -59,6 +59,7 @@ function handleInput(e: Event) {
     :min="scaledMin"
     :max="scaledMax"
     :step="scaledStep"
+    :disabled="disabled"
     class="slider-progress form_input-range"
     @input="handleInput"
   />

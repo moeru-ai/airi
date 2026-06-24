@@ -9,7 +9,7 @@ const props = withDefaults(defineProps<{ id?: string }>(), {
   id: '',
 })
 
-const emits = defineEmits<{ (e: 'update'): void }>()
+const emits = defineEmits<{ update: [] }>()
 
 const { t } = useI18n()
 

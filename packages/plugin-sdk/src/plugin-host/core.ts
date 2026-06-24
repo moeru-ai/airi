@@ -1603,6 +1603,7 @@ export class PluginHost {
     return this.init(session.id, options)
   }
 
+  // async: implements PluginHost interface (Promise<PluginHostSession>)
   async applyConfiguration(sessionId: string, config: ModuleConfigEnvelope) {
     // Configuration is allowed only after prepare, during configuration-needed, or while re-configuring.
     const session = this.sessionService.get(sessionId)
@@ -1782,6 +1783,7 @@ export class PluginHost {
     return session
   }
 
+  // async: implements PluginHost interface (Promise<PluginHostSession>)
   async reload(sessionId: string, options: PluginStartOptions = {}) {
     // Reload preserves manifest/runtime intent, then performs stop + fresh start.
     // This intentionally creates a new session identity for deterministic re-bootstrap.

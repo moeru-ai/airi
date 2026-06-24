@@ -472,7 +472,7 @@ export class WorkerManager {
 		worker.state = "dead"
 	}
 
-	private handleTaskProgress(worker: WorkerInfo, message: TaskProgressMessage): void {
+	private handleTaskProgress(_worker: WorkerInfo, message: TaskProgressMessage): void {
 		// Forward progress to the event bus.
 		this.events.emit("task.progress", {
 			type: "task.progress",

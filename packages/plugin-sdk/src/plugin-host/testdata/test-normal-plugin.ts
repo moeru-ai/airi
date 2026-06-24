@@ -6,7 +6,9 @@ export async function init({ channels }: ContextInit): Promise<void | false> {
   channels.host.emit(defineEventa('vitest-call:init'), undefined)
 }
 
-export async function configure(): Promise<void> {}
+export async function configure(): Promise<void> {
+  // noop
+}
 
 export async function setupModules({ apis, channels }: ContextInit): Promise<void> {
   const providerList = await apis.providers.listProviders()

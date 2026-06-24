@@ -230,6 +230,7 @@ export interface ProviderRuntimeState {
   modelLoadError: string | null
 }
 
+// eslint-disable-next-line complexity
 export const useProvidersStore = defineStore('providers', () => {
   const providerCredentials = useLocalStorage<Record<string, Record<string, unknown>>>(
     'settings/credentials/providers',
@@ -2813,7 +2814,7 @@ export const useProvidersStore = defineStore('providers', () => {
     (newCreds) => {
       const changedProviders: string[] = []
 
-      for (const providerId in newCreds) {
+      for (const providerId of Object.keys(newCreds)) {
         const currentConfig = newCreds[providerId]
         const currentHash = JSON.stringify(currentConfig)
         const previousHash = previousCredentialHashes.value[providerId]

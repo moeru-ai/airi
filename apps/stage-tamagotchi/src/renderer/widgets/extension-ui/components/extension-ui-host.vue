@@ -19,10 +19,10 @@ import { canRenderExtensionUi, sanitizeExtensionUiRenderProps } from '../host'
 const props = withDefaults(
   defineProps<{
     title?: string
-    modelValue?: Record<string, any>
+    modelValue?: Record<string, unknown>
     moduleId?: string
-    componentProps?: Record<string, any>
-    payload?: Record<string, any>
+    componentProps?: Record<string, unknown>
+    payload?: Record<string, unknown>
   }>(),
   {
     title: 'Extension UI',
@@ -48,7 +48,7 @@ function firstString(...values: unknown[]) {
   return undefined
 }
 
-function omitControlFields(record: Record<string, any>) {
+function omitControlFields(record: Record<string, unknown>) {
   const {
     componentProps: _componentProps,
     moduleId: _moduleId,

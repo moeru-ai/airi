@@ -27,12 +27,14 @@ declare global {
     abort(): void
   }
   // eslint-disable-next-line no-var
-  var SpeechRecognition: { // deepsource: ignore
+  var SpeechRecognition: {
+    // deepsource: ignore
     new (): SpeechRecognition
     prototype: SpeechRecognition
   }
   // eslint-disable-next-line no-var
-  var webkitSpeechRecognition: { // deepsource: ignore
+  var webkitSpeechRecognition: {
+    // deepsource: ignore
     new (): SpeechRecognition
     prototype: SpeechRecognition
   }
@@ -122,6 +124,7 @@ export interface WebSpeechAPIExtraOptions {
  * - Language support depends on browser implementation
  * - Not available in Node.js or Tauri main process
  */
+// eslint-disable-next-line complexity
 export function createWebSpeechAPIProvider(): TranscriptionProviderWithExtraOptions<string, WebSpeechAPIExtraOptions> {
   // Check if Web Speech API is available
   const isAvailable =

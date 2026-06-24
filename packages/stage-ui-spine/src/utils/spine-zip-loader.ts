@@ -314,7 +314,7 @@ export async function loadSpineZip(file: File | Blob | ArrayBuffer): Promise<Spi
         if (url.startsWith('blob:')) {
           try {
             URL.revokeObjectURL(url)
-          // eslint-disable-next-line no-empty
+            // eslint-disable-next-line no-empty
           } catch {
             // noop
           }
@@ -330,7 +330,9 @@ function rewriteAtlasPageReferences(atlasText: string, layout: SpineModelLayout,
   const lines = atlasText.split(/\r?\n/)
   const out: string[] = []
   for (const line of lines) {
-    if (line.trim().length === 0 || line[0] === ' ' || line[0] === '\t' || line.includes(':')) {
+    const isBlankLine = line.trim().length === 0
+    const isIndented = line[0] === ' ' || line[0] === '\t'
+    if (isBlankLine || isIndented || line.includes(':')) {
       out.push(line)
       continue
     }

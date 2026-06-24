@@ -211,9 +211,16 @@ async function executeSetAsBackground(params: { query?: string }) {
   return `No match for "${params.query}".${available.length > 0 ? ` Try: ${available.join(', ')}` : ''}`
 }
 
-async function executeImageJournalAction(params: any) {
-  if (params.action === 'create') return await executeCreateImageJournalEntry(params)
-  if (params.action === 'apply' || params.action === 'set_as_background') return await executeSetAsBackground(params)
+async function executeImageJournalAction(params: unknown) {
+  if (params && typeof params === 'object' && 'action' in params) {
+    const { action } = params as { action: string }
+    if (action === 'create') {
+      return await executeCreateImageJournalEntry(params as Parameters<typeof executeCreateImageJournalEntry>[0])
+    }
+    if (action === 'apply' || action === 'set_as_background') {
+      return await executeSetAsBackground(params as Parameters<typeof executeSetAsBackground>[0])
+    }
+  }
   return 'No action performed.'
 }
 

@@ -32,7 +32,7 @@ export interface WebSocketBaseEvent<T, D, S extends string = string> {
   route?: RouteConfig
 }
 
-export interface WebSocketEvents<C = undefined> extends ProtocolEvents<C> {}
+export type WebSocketEvents<C = undefined> = ProtocolEvents<C>
 
 export type WebSocketEventDataInputs =
   | WebSocketEvents['input:text']

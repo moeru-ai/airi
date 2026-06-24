@@ -36,8 +36,8 @@ export function extractMessageText(message: ChatHistoryItem): string {
     return message.content
       .map((part) => {
         if (typeof part === 'string') return part
-        if (part && typeof part === 'object' && 'type' in part && part.type === 'text' && 'text' in part)
-          return String(part.text ?? '')
+        const isTextPart = part && typeof part === 'object' && 'type' in part && part.type === 'text' && 'text' in part
+        if (isTextPart) return String(part.text ?? '')
         return ''
       })
       .join('')

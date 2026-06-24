@@ -17,9 +17,7 @@ const props = defineProps<{
   spineSceneClass?: string | string[]
 }>()
 
-const emit = defineEmits<{
-  (e: 'runtimeSnapshotChanged', value: ModelSettingsRuntimeSnapshot): void
-}>()
+const emit = defineEmits<{ runtimeSnapshotChanged: [value: ModelSettingsRuntimeSnapshot] }>()
 
 const settingsStore = useSettings()
 const modelStore = useModelStore()
@@ -57,7 +55,7 @@ function captureCanvasFrame(canvas?: HTMLCanvasElement) {
   })
 }
 
-async function capturePreviewFrame() {
+function capturePreviewFrame() {
   if (stageModelRenderer.value === 'live2d') return captureCanvasFrame(live2dSceneRef.value?.canvasElement())
 
   if (stageModelRenderer.value === 'vrm') return captureCanvasFrame(vrmSceneRef.value?.canvasElement())

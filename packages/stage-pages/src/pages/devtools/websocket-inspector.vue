@@ -16,7 +16,10 @@ const filteredHistory = computed(() => {
     if (!showIncoming.value && item.direction === 'incoming') return false
     if (!showOutgoing.value && item.direction === 'outgoing') return false
     if (!showHeartbeats.value && item.event.type === 'transport:connection:heartbeat') return false
-    if (filter.value && !JSON.stringify(item.event).toLowerCase().includes(filter.value.toLowerCase())) return false
+    if (filter.value) {
+      const filterLower = filter.value.toLowerCase()
+      if (!JSON.stringify(item.event).toLowerCase().includes(filterLower)) return false
+    }
     return true
   })
 })

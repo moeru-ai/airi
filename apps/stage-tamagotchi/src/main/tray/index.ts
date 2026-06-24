@@ -268,7 +268,7 @@ export function setupTray(params: {
     rebuildContextMenu()
 
     effect(() => {
-      const locale = params.i18n.locale as () => string | LocaleDetector<any[]> | undefined
+      const locale = params.i18n.locale as () => string | LocaleDetector<unknown[]> | undefined
       locale()
       rebuildContextMenu()
     })

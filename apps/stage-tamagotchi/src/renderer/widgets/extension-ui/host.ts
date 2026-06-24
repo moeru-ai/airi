@@ -10,15 +10,15 @@ const extensionUiDispatchReservedPropKeys = new Set([
 
 const extensionUiRenderReservedPropKeys = new Set(['title', ...extensionUiDispatchReservedPropKeys])
 
-function sanitizeExtensionUiProps(record: Record<string, any>, reservedKeys: Set<string>) {
+function sanitizeExtensionUiProps(record: Record<string, unknown>, reservedKeys: Set<string>) {
   return Object.fromEntries(Object.entries(record).filter(([key]) => !reservedKeys.has(key)))
 }
 
-export function sanitizeExtensionUiDispatchProps(record: Record<string, any>) {
+export function sanitizeExtensionUiDispatchProps(record: Record<string, unknown>) {
   return sanitizeExtensionUiProps(record, extensionUiDispatchReservedPropKeys)
 }
 
-export function sanitizeExtensionUiRenderProps(record: Record<string, any>) {
+export function sanitizeExtensionUiRenderProps(record: Record<string, unknown>) {
   return sanitizeExtensionUiProps(record, extensionUiRenderReservedPropKeys)
 }
 

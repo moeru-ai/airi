@@ -52,7 +52,7 @@ onMounted(async () => {
   {
     // https://generator.lorem-ipsum.info/_japanese2
     const textStreamRes = createStream(
-      `もリソソンまら他差根課阿模舳素擢等れるのねはて素擢んり留等はさたによしみろ等離離樹派津夜きたせやれありゃ遊絵めゆたそそ屋御ユユソカフあゅえ樹れろは、こにとしむあまさももけ氏ひれしゅ雲差屋へ。`,
+      'もリソソンまら他差根課阿模舳素擢等れるのねはて素擢んり留等はさたによしみろ等離離樹派津夜きたせやれありゃ遊絵めゆたそそ屋御ユユソカフあゅえ樹れろは、こにとしむあまさももけ氏ひれしゅ雲差屋へ。',
     )
 
     senderTextStream.value = textStreamRes.stream

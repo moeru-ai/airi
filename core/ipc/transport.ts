@@ -244,6 +244,7 @@ export interface IpcRequestOptions {
  * // result is the deserialized response result
  * ```
  */
+// async: returns Promise for request/response pattern
 export async function request(
 	transport: IpcClientTransport,
 	method: string,

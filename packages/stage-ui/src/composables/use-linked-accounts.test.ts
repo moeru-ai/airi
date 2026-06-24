@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { ref } from 'vue'
+import { ref, type Ref } from 'vue'
 
 import { useLinkedAccounts } from './use-linked-accounts'
 
@@ -59,12 +59,12 @@ function createMessages(): LinkedAccountsMessages {
  */
 function mountLinkedAccounts(args: {
   client: LinkedAccountsClient
-  isAuthenticated?: ReturnType<typeof ref<boolean>>
+  isAuthenticated?: Ref<boolean>
   messages?: LinkedAccountsMessages
   describeError?: (error: unknown) => string
   buildCallbackURL?: () => string
 }) {
-  const isAuthenticated = args.isAuthenticated ?? ref(false)
+  const isAuthenticated: Ref<boolean> = args.isAuthenticated ?? ref(false)
 
   return useLinkedAccounts({
     client: args.client,

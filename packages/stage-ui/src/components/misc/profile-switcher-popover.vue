@@ -8,9 +8,7 @@ import { useI18n } from 'vue-i18n'
 import { useAiriCardStore } from '../../stores/modules/airi-card'
 
 withDefaults(defineProps<Props>(), { placement: 'down' })
-const emit = defineEmits<{
-  (e: 'manage'): void
-}>()
+const emit = defineEmits<{ manage: [] }>()
 const CREATE_PROFILE_ACTION = '__create-profile__'
 const MANAGE_PROFILE_ACTION = '__manage-profile__'
 

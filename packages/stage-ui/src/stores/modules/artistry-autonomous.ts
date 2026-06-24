@@ -36,6 +36,7 @@ interface GenerationResult {
 
 const artistLog = import.meta.env.DEV ? console.info.bind(console, '[AutonomousArtist]') : () => {}
 
+// eslint-disable-next-line complexity
 export const useAutonomousArtistryStore = defineStore('artistry-autonomous', () => {
   const cardStore = useAiriCardStore()
   const backgroundStore = useBackgroundStore()

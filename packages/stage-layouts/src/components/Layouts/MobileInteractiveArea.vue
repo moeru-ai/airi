@@ -52,7 +52,7 @@ function handleDeleteMessage(index: number) {
 }
 
 function handleCleanupMessages() {
-  const messageCount = messages.value.filter(message => message.role !== 'system').length
+  const messageCount = messages.value.filter((message) => message.role !== 'system').length
   cleanupMessages()
   trackChatMessagesCleared({
     source: 'chat_controls',
@@ -85,15 +85,13 @@ function isMobileDevice() {
   return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 }
 
-const { isListening, startStreamingTranscription, stopStreamingTranscription } = useTranscriptions(
-  {
-    messageInputRef: messageInput,
-    sendMessage: handleSend,
-    isStageTamagotchi,
-  },
-)
+const { isListening, startStreamingTranscription, stopStreamingTranscription } = useTranscriptions({
+  messageInputRef: messageInput,
+  sendMessage: handleSend,
+  isStageTamagotchi,
+})
 const { showStopSpeakingButton, stopSpeakingFromChat } = useStopSpeakingButton()
-const toggleTranscription = () => isListening.value ? stopStreamingTranscription() : startStreamingTranscription()
+const toggleTranscription = () => (isListening.value ? stopStreamingTranscription() : startStreamingTranscription())
 
 async function handleSubmit() {
   if (!isMobileDevice()) {
@@ -113,12 +111,11 @@ async function handleSend() {
     const providerConfig = providersStore.getProviderConfig(activeProvider.value)
 
     await ingest(textToSend, {
-      chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
+      chatProvider: (await providersStore.getProviderInstance(activeProvider.value)) as ChatProvider,
       model: activeModel.value,
       providerConfig,
     })
-  }
-  catch (error) {
+  } catch (error) {
     messageInput.value = textToSend
     messages.value.pop()
     messages.value.push({
@@ -131,8 +128,7 @@ async function handleSend() {
 function teardownAnalyzer() {
   try {
     analyzerSource?.disconnect()
-  }
-  catch (error) {
+  } catch (error) {
     console.warn('Failed to disconnect analyzer source', error)
   }
   analyzerSource = undefined
@@ -141,22 +137,24 @@ function teardownAnalyzer() {
 
 async function setupAnalyzer() {
   teardownAnalyzer()
-  if (!enabled.value || !stream.value)
-    return
-  if (audioContext.state === 'suspended')
-    await audioContext.resume()
+  if (!enabled.value || !stream.value) return
+  if (audioContext.state === 'suspended') await audioContext.resume()
   const analyser = startAnalyzer(audioContext)
-  if (!analyser)
-    return
+  if (!analyser) return
   analyzerSource = audioContext.createMediaStreamSource(stream.value)
   analyzerSource.connect(analyser)
 }
 
-watch([enabled, stream], () => {
-  setupAnalyzer()
-}, { immediate: true })
+watch(
+  [enabled, stream],
+  () => {
+    setupAnalyzer()
+  },
+  { immediate: true },
+)
 
 onAfterMessageComposed(async () => {
+  // noop
 })
 
 onUnmounted(() => {
@@ -180,11 +178,12 @@ onMounted(() => {
           :sending="sending"
           :streaming-message="streamingMessage"
           max-w="[calc(100%-3.5rem)]"
-          w-full self-start pb-3 pl-3
+          w-full
+          self-start
+          pb-3
+          pl-3
           class="chat-history"
-          :class="[
-            'relative z-20',
-          ]"
+          :class="['relative z-20']"
           @delete-message="handleDeleteMessage($event.index)"
         />
       </Transition>
@@ -201,7 +200,14 @@ onMounted(() => {
           <button
             border="2 solid neutral-100/60 dark:neutral-800/30"
             bg="neutral-50/70 dark:neutral-800/70"
-            w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md
+            w-fit
+            flex
+            items-center
+            self-end
+            justify-center
+            rounded-xl
+            p-2
+            backdrop-blur-md
             title="Conversations"
             @click="sessionsDrawerOpen = true"
           >
@@ -217,28 +223,78 @@ onMounted(() => {
             <button
               border="2 solid neutral-100/60 dark:neutral-800/30"
               bg="neutral-50/70 dark:neutral-800/70"
-              w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md
+              w-fit
+              flex
+              items-center
+              self-end
+              justify-center
+              rounded-xl
+              p-2
+              backdrop-blur-md
               title="Hearing"
             >
               <Transition name="fade" mode="out-in">
-                <IndicatorMicVolume v-if="enabled" size-5 :color-class="isListening ? undefined : 'text-neutral-500 dark:text-neutral-400'" />
+                <IndicatorMicVolume
+                  v-if="enabled"
+                  size-5
+                  :color-class="isListening ? undefined : 'text-neutral-500 dark:text-neutral-400'"
+                />
                 <div v-else i-solar:microphone-3-outline size-5 text="neutral-500 dark:neutral-400" />
               </Transition>
             </button>
           </HearingConfigDialog>
-          <button border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="Theme" @click="toggleDark()">
+          <button
+            border="2 solid neutral-100/60 dark:neutral-800/30"
+            bg="neutral-50/70 dark:neutral-800/70"
+            w-fit
+            flex
+            items-center
+            self-end
+            justify-center
+            rounded-xl
+            p-2
+            backdrop-blur-md
+            title="Theme"
+            @click="toggleDark()"
+          >
             <Transition name="fade" mode="out-in">
               <div v-if="isDark" i-solar:moon-outline size-5 text="neutral-500 dark:neutral-400" />
               <div v-else i-solar:sun-2-outline size-5 text="neutral-500 dark:neutral-400" />
             </Transition>
           </button>
-          <button border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="Background" @click="backgroundDialogOpen = true">
+          <button
+            border="2 solid neutral-100/60 dark:neutral-800/30"
+            bg="neutral-50/70 dark:neutral-800/70"
+            w-fit
+            flex
+            items-center
+            self-end
+            justify-center
+            rounded-xl
+            p-2
+            backdrop-blur-md
+            title="Background"
+            @click="backgroundDialogOpen = true"
+          >
             <div i-solar:gallery-wide-bold-duotone size-5 text="neutral-500 dark:neutral-400" />
           </button>
           <!-- <button border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="Language">
             <div i-solar:earth-outline size-5 text="neutral-500 dark:neutral-400" />
           </button> -->
-          <RouterLink to="/settings" border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="Settings">
+          <RouterLink
+            to="/settings"
+            border="2 solid neutral-100/60 dark:neutral-800/30"
+            bg="neutral-50/70 dark:neutral-800/70"
+            w-fit
+            flex
+            items-center
+            self-end
+            justify-center
+            rounded-xl
+            p-2
+            backdrop-blur-md
+            title="Settings"
+          >
             <div i-solar:settings-outline size-5 text="neutral-500 dark:neutral-400" />
           </RouterLink>
           <!-- <button border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="Model">
@@ -247,7 +303,14 @@ onMounted(() => {
           <button
             border="2 solid neutral-100/60 dark:neutral-800/30"
             bg="neutral-50/70 dark:neutral-800/70"
-            w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md
+            w-fit
+            flex
+            items-center
+            self-end
+            justify-center
+            rounded-xl
+            p-2
+            backdrop-blur-md
             title="Cleanup Messages"
             @click="handleCleanupMessages"
           >
@@ -256,15 +319,37 @@ onMounted(() => {
           <ViewControls />
         </div>
       </div>
-      <div bg="white dark:neutral-800" max-h-100dvh max-w-100dvw w-full flex gap-1 overflow-auto px-3 pt-2 :style="{ paddingBottom: `${Math.max(Number.parseFloat(screenSafeArea.bottom.value.replace('px', '')), 12)}px` }">
+      <div
+        bg="white dark:neutral-800"
+        max-h-100dvh
+        max-w-100dvw
+        w-full
+        flex
+        gap-1
+        overflow-auto
+        px-3
+        pt-2
+        :style="{
+          paddingBottom: `${Math.max(Number.parseFloat(screenSafeArea.bottom.value.replace('px', '')), 12)}px`,
+        }"
+      >
         <BasicTextarea
           v-model="messageInput"
           :placeholder="t('stage.message')"
           border="solid 2 neutral-200/60 dark:neutral-700/60"
           text="neutral-500 hover:neutral-600 dark:neutral-100 dark:hover:neutral-200 placeholder:neutral-400 placeholder:hover:neutral-500 placeholder:dark:neutral-300 placeholder:dark:hover:neutral-400"
           bg="neutral-100/80 dark:neutral-950/80"
-          max-h="[10lh]" min-h="[calc(1lh+4px+4px)]"
-          w-full resize-none overflow-y-scroll rounded="[1lh]" px-4 py-0.5 outline-none backdrop-blur-md scrollbar-none
+          max-h="[10lh]"
+          min-h="[calc(1lh+4px+4px)]"
+          w-full
+          resize-none
+          overflow-y-scroll
+          rounded="[1lh]"
+          px-4
+          py-0.5
+          outline-none
+          backdrop-blur-md
+          scrollbar-none
           transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
           :class="[themeColorsHueDynamic ? 'transition-colors-none placeholder:transition-colors-none' : '']"
           default-height="1lh"
@@ -288,7 +373,16 @@ onMounted(() => {
         </button>
         <button
           v-if="messageInput.trim() || isComposing"
-          w="[calc(1lh+4px+4px)]" h="[calc(1lh+4px+4px)]" aspect-square flex items-center self-end justify-center rounded-full outline-none backdrop-blur-md
+          w="[calc(1lh+4px+4px)]"
+          h="[calc(1lh+4px+4px)]"
+          aspect-square
+          flex
+          items-center
+          self-end
+          justify-center
+          rounded-full
+          outline-none
+          backdrop-blur-md
           text="neutral-500 hover:neutral-600 dark:neutral-900 dark:hover:neutral-800"
           bg="primary-50/80 dark:neutral-100/80 hover:neutral-50"
           transition="all duration-250 ease-in-out"
@@ -322,7 +416,7 @@ html - Why doesn't blur backdrop-filter work together with mask-image? - Stack O
 https://stackoverflow.com/questions/72780266/why-doesnt-blur-backdrop-filter-work-together-with-mask-image
 */
 .chat-history {
-  --gradient: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 20%);
+  --gradient: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 1) 20%);
   -webkit-mask-image: var(--gradient);
   mask-image: var(--gradient);
   -webkit-mask-size: 100% 100%;

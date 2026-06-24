@@ -322,6 +322,7 @@ export class RecoveryCoordinator {
 	 * The EventBus is NOT used here to avoid side effects — instead,
 	 * we directly update the recovery state.
 	 */
+  // async: implements interface (Promise<void>)
 	private async replayEvent(event: PersistedEvent): Promise<void> {
 		const payload = event.payload
 
@@ -504,6 +505,7 @@ export class RecoveryCoordinator {
 	 *
 	 * @returns The number of workspaces restored.
 	 */
+  // async: implements interface (Promise<number>)
 	async restoreWorkspaces(snapshot: RuntimeSnapshot | null): Promise<number> {
 		if (!this.workspaceManager || !snapshot) return 0
 
@@ -576,6 +578,7 @@ export class RecoveryCoordinator {
 	 *
 	 * @returns The number of orphaned workspaces detected.
 	 */
+  // async: implements interface (Promise<number>)
 	async reconcileOrphanedWorkspaces(): Promise<number> {
 		if (!this.workspaceManager) return 0
 

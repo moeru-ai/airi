@@ -32,10 +32,16 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
 
   const model = (providerConfig.model as string | undefined) || defaultModel
 
-  return await speechStore.speech(provider as any, model, input, voiceId, {
-    ...providerConfig,
-    ...defaultVoiceSettings,
-  })
+  return await speechStore.speech(
+    provider as unknown as SpeechProviderWithExtraOptions<string, Record<string, unknown>>,
+    model,
+    input,
+    voiceId,
+    {
+      ...providerConfig,
+      ...defaultVoiceSettings,
+    },
+  )
 }
 
 watch(

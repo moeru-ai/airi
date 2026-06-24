@@ -159,9 +159,9 @@ interface SummarizeServerEventData {
   [key: string]: unknown
 }
 
-function summarizeServerEvent(event: any) {
-  const data = (event.data ?? {}) as SummarizeServerEventData
-  switch (event.type) {
+function summarizeServerEvent(event: unknown) {
+  const data = ((event as { data?: unknown }).data ?? {}) as SummarizeServerEventData
+  switch ((event as { type?: string }).type) {
     case 'module:announce':
       return `name=${data.name} events=${data.possibleEvents?.length ?? 0}`
     case 'spark:notify':

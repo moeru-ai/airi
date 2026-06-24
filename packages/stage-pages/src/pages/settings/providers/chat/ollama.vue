@@ -138,7 +138,9 @@ onMounted(() => {
 
   // Initialize refs with current values
   baseUrl.value =
-    providers.value[providerId]?.baseUrl || (providerMetadata.value?.defaultOptions?.() as any)?.baseUrl || ''
+    providers.value[providerId]?.baseUrl ||
+    (((providerMetadata.value?.defaultOptions?.() ?? {}) as Record<string, unknown>).baseUrl as string) ||
+    ''
 
   // Initialize headers if not already set
   if (!providers.value[providerId]?.headers) {

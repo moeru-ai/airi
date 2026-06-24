@@ -85,7 +85,7 @@ export class NanoBananaProvider implements ArtistryProvider {
       const responseParts: ResponsePart[] =
         (json as { candidates?: Array<{ content?: { parts?: ResponsePart[] } }> }).candidates?.[0]?.content?.parts || []
       const imagePart = responseParts.find(
-        (p): p is ResponsePart & { inlineData: { data: string } } =>
+        (p): p is { inlineData: { mimeType?: string; data: string } } =>
           'inlineData' in p && typeof p.inlineData?.data === 'string',
       )
       const inlineData = imagePart?.inlineData

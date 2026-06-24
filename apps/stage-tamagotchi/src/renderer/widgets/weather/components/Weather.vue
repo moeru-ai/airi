@@ -18,8 +18,7 @@ const props = withDefaults(
     isNight?: boolean
     effect?: WeatherEffect
     size?: SizePreset
-    high?: string
-    low?: string
+
     feelsLike?: string
     humidity?: string
     wind?: string

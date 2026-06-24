@@ -44,9 +44,7 @@ export interface ChatHookRegistry {
   ) => Promise<void>
   clearHooks: () => void
 }
-export interface HookUnsubscribe {
-  (): void
-}
+export type HookUnsubscribe = () => void
 
 export interface AgentHookRegistry<TContext, TAssistantMessage, TToolCall> {
   onBeforeMessageComposed: (

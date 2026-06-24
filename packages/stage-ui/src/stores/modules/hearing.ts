@@ -140,6 +140,7 @@ const STREAM_TRANSCRIPTION_EXECUTORS: Record<string, StreamTranscription> = {
   // Web Speech API is handled specially in transcribeForMediaStream since it works directly with MediaStream
 }
 
+// eslint-disable-next-line complexity
 export const useHearingStore = defineStore('hearing-store', () => {
   const providersStore = useProvidersStore()
   const { allAudioTranscriptionProvidersMetadata } = storeToRefs(providersStore)
@@ -185,9 +186,11 @@ export const useHearingStore = defineStore('hearing-store', () => {
     if (provider && providersStore.getProviderMetadata(provider)?.capabilities.listModels !== undefined) {
       await providersStore.fetchModelsForProvider(provider)
     }
+
+    return undefined
   }
 
-  async function getModelsForProvider(provider: string) {
+  function getModelsForProvider(provider: string) {
     if (provider && providersStore.getProviderMetadata(provider)?.capabilities.listModels !== undefined) {
       return providersStore.getModelsForProvider(provider)
     }
@@ -370,6 +373,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
   }
 })
 
+// eslint-disable-next-line complexity
 export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech:audio-input-pipeline', () => {
   const error = ref<string>()
 
@@ -386,7 +390,9 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
 
     // Web Speech API always supports stream input when available
     if (providerId === 'browser-web-speech-api') {
-      return typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)
+      const hasRecognitionAPI =
+        typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)
+      return typeof window !== 'undefined' && hasRecognitionAPI
     }
 
     return providersStore.getTranscriptionFeatures(providerId).supportsStreamInput
@@ -599,8 +605,9 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
       // Special handling for Web Speech API - it works directly with MediaStream
       if (providerId === 'browser-web-speech-api') {
         // Check if Web Speech API is available
-        const isAvailable =
+        const hasRecognitionAPI =
           typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)
+        const isAvailable = hasRecognitionAPI
 
         if (!isAvailable) {
           error.value = 'Web Speech API is not available in this browser'

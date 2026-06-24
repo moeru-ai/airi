@@ -153,16 +153,20 @@ export async function* chunkTtsInput(
         yieldCount++
         chunk = ''
         chunkWordsCount = 0
-      } else if (flush || hard || chunkWordsCount > maximumWords || yieldCount < boost) {
-        const text = chunk.trim()
-        yield {
-          text,
-          words: chunkWordsCount,
-          reason: flush ? 'flush' : hard ? 'hard' : chunkWordsCount > maximumWords ? 'limit' : 'boost',
+      } else {
+        const overMaxWords = chunkWordsCount > maximumWords
+        const needsBoost = yieldCount < boost
+        if (flush || hard || overMaxWords || needsBoost) {
+          const text = chunk.trim()
+          yield {
+            text,
+            words: chunkWordsCount,
+            reason: flush ? 'flush' : hard ? 'hard' : chunkWordsCount > maximumWords ? 'limit' : 'boost',
+          }
+          yieldCount++
+          chunk = ''
+          chunkWordsCount = 0
         }
-        yieldCount++
-        chunk = ''
-        chunkWordsCount = 0
       }
 
       previousValue = value
@@ -255,13 +259,16 @@ export function isProbablyAngleTag(index: number, text: string): boolean {
   if (nextChar === '/') return true
 
   // Lookahead: if followed by num, space or equals, not a label
-  if (nextChar && /[0-9\s=]/.test(nextChar)) return false
+  const isNextCharSep = nextChar && /[0-9\s=]/.test(nextChar)
+  if (isNextCharSep) return false
 
-  if (prevChar && (isUnicodeLetter(prevChar) || /\d/u.test(prevChar))) {
+  const isPrevCharLetterOrDigit = prevChar && (isUnicodeLetter(prevChar) || /\d/u.test(prevChar))
+  if (isPrevCharLetterOrDigit) {
     // fix: check whether remainder is piefix with any keywords, or contains the whole keyword
-    const isLikelyNarrative = NARRATIVE_KEYWORDS.some(
-      (kw) => (remainder.length > 1 && kw.startsWith(remainder)) || remainder.startsWith(kw),
-    )
+    const isLikelyNarrative = NARRATIVE_KEYWORDS.some((kw) => {
+      const isPrefixMatch = remainder.length > 1 && kw.startsWith(remainder)
+      return isPrefixMatch || remainder.startsWith(kw)
+    })
     return isLikelyNarrative
   }
 
@@ -396,8 +403,8 @@ export function createTtsSegmentStream(
 
             const bracketsUnclosed = stack.length > 0
             const starMatch = pendingText.match(/\*([^*]*)$/)
-            const italicUnclosed =
-              (pendingText.match(/\*/g) || []).length % 2 !== 0 && starMatch !== null && !starMatch[1].startsWith(' ')
+            const oddStarCount = (pendingText.match(/\*/g) || []).length % 2 !== 0
+            const italicUnclosed = oddStarCount && starMatch !== null && !starMatch[1].startsWith(' ')
             // Detect unclosed ** (bold): count ** occurrences — odd means unclosed bold
             const boldDoubleCount = (pendingText.match(/\*\*/g) || []).length
             const boldUnclosed = boldDoubleCount % 2 !== 0

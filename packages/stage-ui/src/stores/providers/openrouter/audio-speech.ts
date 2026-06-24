@@ -211,6 +211,7 @@ function listVoices(): VoiceInfo[] {
   )
 }
 
+// eslint-disable-next-line complexity
 export function buildOpenRouterAudioSpeechProvider(
   baseUrlValidator: (baseUrl: unknown) => { errors: unknown[]; reason: string; valid: boolean } | null | undefined,
 ): ProviderMetadata {

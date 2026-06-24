@@ -21,6 +21,7 @@ import type {
 	ValidationError,
 	ValidationWarning,
 } from "./types.js"
+import { createToolId } from "../capabilities/types.js"
 import type { CapabilityRegistry } from "../capabilities/registry.js"
 import type { WorkspaceManager } from "../workspace/manager.js"
 
@@ -256,7 +257,7 @@ export class PlanValidator {
 		const errors: ValidationError[] = []
 
 		for (const step of steps) {
-			if (!this.capabilityRegistry.hasTool(step.action)) {
+			if (!this.capabilityRegistry.hasTool(createToolId(step.action))) {
 				errors.push({
 					code: "UNKNOWN_ACTION",
 					message: `Step "${step.name}" uses action "${step.action}" which is not a registered tool`,

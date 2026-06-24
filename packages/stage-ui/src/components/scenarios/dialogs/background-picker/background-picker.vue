@@ -9,7 +9,7 @@ import { nanoid } from 'nanoid'
 import { computed, nextTick, onScopeDispose, ref, shallowRef, watch } from 'vue'
 
 import { colorFromElement, patchThemeSamplingHtml2CanvasClone } from '../../../../libs'
-import { useSettings } from '../../../../stores/settings'
+import { useSettingsTheme } from '../../../../stores/settings'
 import { BackgroundGradientOverlay } from '../../../layouts/backgrounds'
 
 const props = withDefaults(
@@ -31,7 +31,7 @@ const emit = defineEmits<{
   remove: [option: BackgroundOption]
 }>()
 
-const { themeColorsHue } = useSettings()
+const { themeColorsHue } = useSettingsTheme()
 
 const modelValue = defineModel<BackgroundOption | undefined>({ default: undefined })
 

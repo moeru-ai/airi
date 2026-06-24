@@ -15,7 +15,7 @@
 
 import type { CapabilityId, ToolId } from "../capabilities/types.js"
 import type { WorkspaceId } from "../workspace/types.js"
-import type { PlanId, PlanSummary } from "../planner/types.js"
+import type { PlanId } from "../planner/types.js"
 import type { MemoryId, RepositoryMapId } from "../memory/types.js"
 
 // ── Branded IDs ──────────────────────────────────────────────────────────

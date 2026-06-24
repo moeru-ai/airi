@@ -13,9 +13,7 @@ withDefaults(
   },
 )
 
-const emits = defineEmits<{
-  (e: 'click'): void
-}>()
+const emits = defineEmits<{ click: [] }>()
 </script>
 
 <template>

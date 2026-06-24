@@ -115,7 +115,7 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
       :allow-extract-colors="allowExtractColors"
       :palette="palette"
       :runtime-snapshot="runtimeSnapshot"
-      @extract-colors-from-model="$emit('extractColorsFromModel')"
+      @extract-colors-from-model="emit('extractColorsFromModel')"
     />
     <Godot
       v-if="effectiveRenderer === 'godot'"

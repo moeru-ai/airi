@@ -169,6 +169,7 @@ export function normalizeSparkCommandPersona(
   }, {})
 }
 
+// eslint-disable-next-line complexity
 export function normalizeSparkCommandGuidanceOptions(options: z.infer<typeof sparkCommandGuidanceOptionSchema>[]) {
   // NOTICE: Provider-facing schemas keep nullable fields required so strict-object validation
   // passes on Azure/OpenAI-compatible providers. Runtime guidance objects use omitted fields

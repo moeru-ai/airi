@@ -198,6 +198,7 @@ export class Client<C = undefined> {
     return this.failureReason
   }
 
+  // async: implements ServerClient interface (Promise<void>)
   async connect(options?: ConnectOptions) {
     if (this.shouldClose) {
       throw new Error('Client is closed')
