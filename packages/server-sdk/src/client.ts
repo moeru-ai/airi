@@ -234,7 +234,7 @@ export class Client<C = undefined> {
     }
 
     if (this.status === 'ready') {
-      return
+      return Promise.resolve()
     }
 
     if (this.connectTask) {

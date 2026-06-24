@@ -148,6 +148,12 @@ async function setupMocks() {
     }),
   }))
 
+  // Stub XDG_SESSION_TYPE so the uiohook driver doesn't bail out on
+  // Wayland (the test machine may run under native Wayland). The env
+  // var is snapshot at module instantiation, so this must happen before
+  // the dynamic import below.
+  vi.stubEnv('XDG_SESSION_TYPE', 'x11')
+
   const { setupGlobalShortcutService } = await import('./global-shortcut')
 
   return {
