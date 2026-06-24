@@ -4,7 +4,7 @@
 <div align="center">
 <h3>
 
-AnimAIOS is focused on creating a zero-config agentic AI desktop OS experience centered around your digital companion
+AnimaCore is an agentic AI desktop OS built around your digital companion
 
 </h3>
 </div>
@@ -20,16 +20,16 @@ AnimAIOS is focused on creating a zero-config agentic AI desktop OS experience c
 - **Modular Stage Layouts:** GTK3/4 widgets, interactively generated backgrounds through artistry module, and window layouts composed dynamically by the character (she will always be on screen most of the time)
 
 ## 🖥️ Development
-  <a href="https://github.com/animaios/ai/actions/workflows/ci.yml">
-    <img src="https://github.com/animaios/ai/actions/workflows/ci.yml/badge.svg" alt="CI">
+  <a href="https://github.com/animaios/animacore/actions/workflows/ci.yml">
+    <img src="https://github.com/animaios/animacore/actions/workflows/ci.yml/badge.svg" alt="CI">
   </a>
-  <a href="https://app.deepsource.com/gh/animaios/ai/" target="_blank">
-    <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/ai.svg/?label=code+coverage&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/></a>
-  <a href="https://app.deepsource.com/gh/animaios/ai/" target="_blank">
-    <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/ai.svg/?label=active+issues&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/>
+  <a href="https://app.deepsource.com/gh/animaios/animacore/" target="_blank">
+    <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/animacore.svg/?label=code+coverage&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/></a>
+  <a href="https://app.deepsource.com/gh/animaios/animacore/" target="_blank">
+    <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/animacore.svg/?label=active+issues&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/>
   </a>
-  <a href="https://app.deepsource.com/gh/animaios/ai/" target="_blank">
-    <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/ai.svg/?label=resolved+issues&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/>
+  <a href="https://app.deepsource.com/gh/animaios/animacore/" target="_blank">
+    <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/animacore.svg/?label=resolved+issues&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/>
   </a>
 
 ### ☕ Prerequisites
