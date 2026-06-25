@@ -29,5 +29,7 @@ enabled=PackedStringArray("res://addons/Godot-MToon-Shader/plugin.cfg", "res://a
 
 [rendering]
 
+anti_aliasing/quality/msaa_3d=2
+scaling_3d/scale=2.0
 rendering_device/driver.windows="d3d12"
 textures/vram_compression/import_etc2_astc=true

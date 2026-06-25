@@ -169,9 +169,7 @@ export function createInferenceWorkerManager(
   }
 
   function handleWorkerError(event: ErrorEvent | Error): void {
-    const message = event instanceof Error
-      ? event.message
-      : (event as ErrorEvent).message ?? 'Unknown worker error'
+    const message = errorMessageFrom(event) ?? 'Unknown worker error'
 
     lastError = {
       code: 'UNKNOWN',

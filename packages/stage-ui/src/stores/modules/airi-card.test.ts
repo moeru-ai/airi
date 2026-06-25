@@ -1,6 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { OFFICIAL_SPEECH_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { useSettingsStageModel } from '../settings/stage-model'
 import { useAiriCardStore } from './airi-card'
 
@@ -53,6 +54,19 @@ vi.mock('./speech', async () => {
   }
 })
 
+vi.mock('./vision', async () => {
+  const { defineStore } = await import('pinia')
+
+  return {
+    useVisionStore: defineStore('vision', {
+      state: () => ({
+        activeProvider: 'mock-vision-provider',
+        activeModel: 'mock-vision-model',
+      }),
+    }),
+  }
+})
+
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
     t: (key: string) => key,
@@ -70,19 +84,90 @@ describe('airi-card store', () => {
 
   /**
    * @example
-   * it('persists selected display model on active card', () => {})
+   * it('persists selected module config on active card', () => {})
    */
-  it('persists selected display model on active card', () => {
+  it('persists selected module config on active card', () => {
     const stageModelStore = useSettingsStageModel()
     stageModelStore.stageModelSelected = 'preset-live2d-1'
 
     const cardStore = useAiriCardStore()
     cardStore.initialize()
 
-    const updated = cardStore.updateActiveCardDisplayModel('display-model-iru-v2')
-
-    expect(updated).toBe(true)
-    expect(cardStore.activeCard?.extensions.airi.modules.displayModelId).toBe('display-model-iru-v2')
+    expect(cardStore.updateActiveCardDisplayModel('display-model-iru-v2')).toBe(true)
+    expect(cardStore.updateActiveCardConsciousness({ provider: 'openrouter-ai', model: 'anthropic/claude-sonnet' })).toBe(true)
+    expect(cardStore.updateActiveCardVision({ provider: 'ollama', model: 'llava' })).toBe(true)
+    expect(cardStore.updateActiveCardSpeech({ provider: 'elevenlabs', model: 'eleven_multilingual_v2', voice_id: 'aria' })).toBe(true)
+    expect(cardStore.activeCard?.extensions.airi.modules).toMatchObject({
+      displayModelId: 'display-model-iru-v2',
+      consciousness: { provider: 'openrouter-ai', model: 'anthropic/claude-sonnet' },
+      vision: { provider: 'ollama', model: 'llava' },
+      speech: { provider: 'elevenlabs', model: 'eleven_multilingual_v2', voice_id: 'aria' },
+    })
     expect(stageModelStore.stageModelSelected).toBe('preset-live2d-1')
+  })
+
+  /**
+   * @example
+   * it('freezes a Voice Pack snapshot on the active card', () => {})
+   */
+  it('freezes a Voice Pack snapshot on the active card', () => {
+    const cardStore = useAiriCardStore()
+    cardStore.initialize()
+
+    const pack = {
+      id: 'vp-1',
+      name: 'Neuro Sama',
+      provider: 'volcengine',
+      model: 'seed-tts-2.0',
+      voiceId: 'voice-neuro',
+      ttsModelId: 'volcengine/neuro-pool',
+      params: { pitch: '+20%', volume: '+5%' },
+      costMultiplier: 1.5,
+    }
+
+    const bound = cardStore.bindVoicePackToActiveCard(pack)
+
+    expect(bound).toBe(true)
+    expect(cardStore.activeCard?.extensions.airi.modules.speech).toMatchObject({
+      provider: OFFICIAL_SPEECH_PROVIDER_ID,
+      model: 'volcengine/neuro-pool',
+      voice_id: 'voice-neuro',
+      voicePack: {
+        packId: 'vp-1',
+        name: 'Neuro Sama',
+        provider: 'volcengine',
+        model: 'seed-tts-2.0',
+        voiceId: 'voice-neuro',
+        ttsModelId: 'volcengine/neuro-pool',
+        params: { pitch: '+20%', volume: '+5%' },
+        costMultiplier: 1.5,
+      },
+    })
+  })
+
+  /**
+   * @example
+   * it('keeps the frozen Voice Pack independent from later library edits', () => {})
+   */
+  it('keeps the frozen Voice Pack independent from later library edits', () => {
+    const cardStore = useAiriCardStore()
+    cardStore.initialize()
+
+    const params = { pitch: '+20%' }
+    cardStore.bindVoicePackToActiveCard({
+      id: 'vp-1',
+      name: 'Frozen',
+      provider: 'volcengine',
+      model: 'seed-tts-2.0',
+      voiceId: 'voice-a',
+      ttsModelId: 'volcengine/pool-a',
+      params,
+      costMultiplier: 1,
+    })
+
+    params.pitch = '-10%'
+
+    expect(cardStore.activeCard?.extensions.airi.modules.speech.voicePack?.params).toEqual({ pitch: '+20%' })
+    expect(cardStore.activeCard?.extensions.airi.modules.speech.voicePack?.voiceId).toBe('voice-a')
   })
 })

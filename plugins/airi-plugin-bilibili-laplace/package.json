@@ -10,8 +10,8 @@
   },
   "dependencies": {
     "@guiiai/logg": "catalog:",
-    "@laplace.live/event-bridge-sdk": "^1.0.22",
-    "@laplace.live/event-types": "^2.0.14",
+    "@laplace.live/event-bridge-sdk": "catalog:",
+    "@laplace.live/event-types": "catalog:",
     "@proj-airi/server-sdk": "workspace:*"
   }
 }

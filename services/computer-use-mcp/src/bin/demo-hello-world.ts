@@ -1,13 +1,15 @@
-/**
- * Demo: use computer-use-mcp's terminal_exec tool via MCP client
- * to create a Python hello-world project and run it.
- */
 import { dirname, resolve } from 'node:path'
 import { env, exit } from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
+/**
+ * Demo: use computer-use-mcp's terminal_exec tool via MCP client
+ * to create a Python hello-world project and run it.
+ */
+
+import { errorMessageFromValue } from '../utils/error-message'
 
 const packageDir = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const homeDir = env.HOME || '$HOME'
@@ -153,6 +155,6 @@ function printResult(label: string, result: unknown) {
 }
 
 main().catch((err) => {
-  console.error('❌ Fatal:', err instanceof Error ? err.message : String(err))
+  console.error('❌ Fatal:', errorMessageFromValue(err))
   exit(1)
 })

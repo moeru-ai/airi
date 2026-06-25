@@ -32,6 +32,8 @@ import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { createInterface } from 'node:readline'
 
+import { errorMessageFromValue } from '../utils/error-message'
+
 function buildSshTarget(config: ComputerUseConfig) {
   if (!config.remoteSshHost || !config.remoteSshUser) {
     throw new Error('linux-x11 executor requires COMPUTER_USE_REMOTE_SSH_HOST and COMPUTER_USE_REMOTE_SSH_USER')
@@ -304,13 +306,13 @@ export class RemoteRunnerClient {
     }
     catch (error) {
       if (options.mutating) {
-        this.taintedReason = error instanceof Error ? error.message : String(error)
+        this.taintedReason = errorMessageFromValue(error)
       }
 
       if (this.currentTarget) {
         this.currentTarget = this.applyPersistentTaint({
           ...this.currentTarget,
-          note: error instanceof Error ? error.message : String(error),
+          note: errorMessageFromValue(error),
         })
       }
       throw error

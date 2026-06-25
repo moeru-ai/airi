@@ -9,7 +9,7 @@ import { createProviders } from './providers'
  * - Building the plugin SDK API object for a specific session
  *
  * Expects:
- * - `ctx` is the Eventa context for the current plugin session
+ * - `ctx` is the Eventa context for the current extension session
  *
  * Returns:
  * - The resource client groups currently supported by the SDK

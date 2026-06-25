@@ -113,7 +113,7 @@ describe('verification: flux-unbilled-exploit-fix', () => {
     )
 
     expect(responses.filter(r => r.status === 402)).toHaveLength(5)
-    const ledger = await ctx.db.query.fluxTransaction.findMany({ where: ... })
+    const ledger = await ctx.db.query.fluxTransaction.findMany({ where: { userId: 'u1' } })
     expect(ledger).toHaveLength(0)
 
     const metrics = await ctx.scrapeMetrics()

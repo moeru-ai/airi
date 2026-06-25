@@ -152,7 +152,10 @@ function makeFakeDeps(overrides: {
   decryptedKey?: string
 }) {
   const ttsMeter = {
-    assertCanAfford: vi.fn(async () => undefined),
+    assertCanAfford: vi.fn(async (_userId: string, _newUnits: number, currentBalance: number) => {
+      if (currentBalance <= 0)
+        throw Object.assign(new Error('Insufficient flux'), { statusCode: 402 })
+    }),
     accumulate: vi.fn(async () => ({
       fluxDebited: 1,
       debtAfter: 0,
@@ -165,6 +168,10 @@ function makeFakeDeps(overrides: {
   }
   const requestLogService = {
     logRequest: vi.fn(async () => undefined),
+  }
+  const productEventService = {
+    track: vi.fn(async () => undefined),
+    countDistinctUsersByFeature: vi.fn(async () => []),
   }
   const configKV = {
     getOptional: vi.fn(async (key: string) => {
@@ -185,7 +192,7 @@ function makeFakeDeps(overrides: {
     decryptKey: vi.fn(() => Buffer.from(overrides.decryptedKey ?? 'mock-upstream-token', 'utf8')),
   }
 
-  return { configKV, envelopeCrypto, fluxService, ttsMeter, requestLogService }
+  return { configKV, envelopeCrypto, fluxService, ttsMeter, requestLogService, productEventService }
 }
 
 /** Drives the WSEvents lifecycle as if a real client had connected. */
@@ -278,7 +285,7 @@ describe('audio-speech-ws route', () => {
     upstream = await startMockUpstream([])
     const deps = makeFakeDeps({ upstreamURL: upstream.url, fluxBalance: 0 })
     const handlers = createAudioSpeechWsHandlers(deps as any)
-    const events = handlers('user-broke')
+    const events = handlers('user-broke', { trigger: 'auto', source: 'chat_auto_tts' })
     const client = makeMockClientWs()
 
     await driveClientSession(events, client, [])
@@ -295,6 +302,18 @@ describe('audio-speech-ws route', () => {
     })
     expect(client.closed).toBe(true)
     expect(client.closeCode).toBe(1008)
+    expect(deps.productEventService.track).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'user-broke',
+      feature: 'tts',
+      action: 'speech_blocked',
+      status: 'blocked',
+      source: 'chat_auto_tts',
+      reason: 'insufficient_balance',
+      metadata: expect.objectContaining({
+        trigger: 'auto',
+        balance_state: 'insufficient',
+      }),
+    }))
   })
 
   it('refuses with streaming_tts_not_configured when UNSPEECH_UPSTREAM.streaming is empty', async () => {

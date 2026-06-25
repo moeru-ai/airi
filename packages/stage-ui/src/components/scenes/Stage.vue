@@ -6,6 +6,8 @@ import type { UnElevenLabsOptions } from 'unspeech'
 
 import type { EmotionPayload } from '../../constants/emotions'
 import type { SpeechTransport, StageTtsSession, StreamingSessionSnapshot } from '../../libs/speech/tts-session'
+import type { VoicePackSnapshot } from '../../stores/modules/airi-card'
+import type { VoiceInfo } from '../../stores/providers'
 
 import { sleep } from '@moeru/std'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
@@ -32,16 +34,18 @@ import { useIOTraceBridge } from '../../composables/use-io-trace-bridge'
 import { initIOTracer } from '../../composables/use-io-tracer'
 import { useSpeechPipelineAnalytics } from '../../composables/use-speech-pipeline-analytics'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
-import { getDefinedProvider } from '../../libs/providers/providers'
+import { getDefaultStreamingModel, getDefinedProvider } from '../../libs/providers/providers'
+import { OFFICIAL_SPEECH_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { createStageTtsSession } from '../../libs/speech/tts-session'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useBackgroundStore } from '../../stores/background'
 import { useChatOrchestratorStore } from '../../stores/chat'
 import { useLlmStreamingControlStore } from '../../stores/llm-streaming-control'
 import { useAiriCardStore } from '../../stores/modules'
-import { useSpeechStore } from '../../stores/modules/speech'
+import { useSpeechStore, voicePackForSpeechProvider } from '../../stores/modules/speech'
 import { useProvidersStore } from '../../stores/providers'
 import { useSettings } from '../../stores/settings'
+import { useSpeechOutputControlStore } from '../../stores/speech-output-control'
 import { useSpeechRuntimeStore } from '../../stores/speech-runtime'
 
 const props = withDefaults(defineProps<{
@@ -87,6 +91,7 @@ const {
 const { mouthOpenSize, nowSpeaking } = storeToRefs(useSpeakingStore())
 const { audioContext } = useAudioContext()
 const currentAudioSource = ref<AudioBufferSourceNode>()
+const { latestStopRequest } = storeToRefs(useSpeechOutputControlStore())
 
 const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatOrchestratorStore()
 const chatHookCleanups: Array<() => void> = []
@@ -125,6 +130,26 @@ const lipSyncStarted = ref(false)
 const lipSyncLoopId = ref<number>()
 const live2dLipSync = ref<Live2DLipSync>()
 const live2dLipSyncOptions: Live2DLipSyncOptions = { mouthUpdateIntervalMs: 50, mouthLerpWindowMs: 50 }
+
+function resetAssistantSpeechSurface(source: string) {
+  nowSpeaking.value = false
+  mouthOpenSize.value = 0
+  assistantCaption.value = ''
+
+  try {
+    postCaption({ type: 'caption-assistant', text: '' })
+  }
+  catch (error) {
+    console.warn(`[Stage] Failed to post caption reset for ${source} (channel may be closed)`, { error })
+  }
+
+  try {
+    postPresent({ type: 'assistant-reset' })
+  }
+  catch (error) {
+    console.warn(`[Stage] Failed to post present reset for ${source} (channel may be closed)`, { error })
+  }
+}
 
 const { activeCard } = storeToRefs(useAiriCardStore())
 const speechStore = useSpeechStore()
@@ -306,6 +331,18 @@ const playbackManager = createPlaybackManager<AudioBuffer>({
   ownerOverflowPolicy: 'steal-oldest',
 })
 
+function createVoicePackVoice(voicePack: VoicePackSnapshot): VoiceInfo {
+  return {
+    id: voicePack.voiceId,
+    name: voicePack.name,
+    description: voicePack.name,
+    previewURL: '',
+    languages: [{ code: 'en', title: 'English' }],
+    provider: activeSpeechProvider.value,
+    gender: 'neutral',
+  }
+}
+
 const speechPipeline = createSpeechPipeline<AudioBuffer>({
   tts: async (request, signal) => {
     if (signal.aborted)
@@ -387,20 +424,49 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
       }
     }
 
+    const voicePack = voicePackForSpeechProvider(activeSpeechProvider.value, activeCard.value?.extensions.airi.modules.speech.voicePack)
+    if (voicePack) {
+      model = voicePack.ttsModelId
+      if (!voice || voice.id !== voicePack.voiceId)
+        voice = createVoicePackVoice(voicePack)
+    }
+
     if (!model || !voice)
       return null
 
-    const input = ssmlEnabled.value
-      ? speechStore.generateSSML(request.text, voice, { ...providerConfig, pitch: pitch.value })
-      : request.text
-
     try {
+      const speechRequest = speechStore.resolveVoicePackSpeechInput({
+        text: request.text,
+        voice,
+        providerConfig: {
+          ...providerConfig,
+          pitch: ssmlEnabled.value ? pitch.value : undefined,
+        },
+        params: voicePack?.params,
+        voicePack,
+        forceSSML: ssmlEnabled.value,
+        supportsSSML: speechStore.supportsSSML,
+        supportsAdapterProsody: activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID,
+      })
+
       // Non-streaming providers only: synth via REST. Streaming provider
       // was already early-returned above; it owns its own ws path opened
       // in `onBeforeMessageComposed`.
+      const providerConfigWithAnalytics = activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID
+        ? {
+            ...speechRequest.providerConfig,
+            extraBody: {
+              ...(speechRequest.providerConfig.extraBody as Record<string, unknown> | undefined),
+              airi_analytics: {
+                trigger: 'auto',
+                source: 'chat_auto_tts',
+              },
+            },
+          }
+        : speechRequest.providerConfig
       const res = await generateSpeech({
-        ...provider.speech(model, providerConfig),
-        input,
+        ...provider.speech(model, providerConfigWithAnalytics),
+        input: speechRequest.input,
         voice: voice.id,
       })
 
@@ -565,6 +631,14 @@ function setupAnalyser() {
 // decision point. See `packages/stage-ui/src/libs/speech/tts-session.ts`.
 let currentSession: StageTtsSession | null = null
 
+function stopSpeechOutput(reason: string) {
+  currentSession?.cancel(reason)
+  currentSession = null
+  speechPipeline.stopAll(reason)
+  playbackManager.stopAll(reason)
+  resetAssistantSpeechSurface(reason)
+}
+
 function buildStreamingSnapshot(): StreamingSessionSnapshot | null {
   // Snapshotted once per session, so a mid-session provider/voice swap
   // does not corrupt an in-flight session — the watcher below detects
@@ -575,8 +649,17 @@ function buildStreamingSnapshot(): StreamingSessionSnapshot | null {
   const voiceId = activeSpeechVoice.value?.id
   if (!voiceId)
     return null
-  const sessionModel = (activeSpeechModel.value as string | undefined) || 'volcengine/seed-tts-2.0'
-  const apiResourceId = sessionModel.includes('/') ? sessionModel.split('/', 2)[1] : 'seed-tts-2.0'
+  // Resolve the concrete streaming model id. The active speech model is only
+  // valid here when it carries the `<backend>/<api_resource_id>` shape the ws
+  // upstream expects — the HTTP TTS `auto` alias (and an empty selection after
+  // a provider switch) must NOT reach the bridge, so fall back to the
+  // server-curated default instead of a hardcoded id. Returns null (segmenter
+  // fallback) when neither resolves, rather than guessing a resource id.
+  const activeModel = activeSpeechModel.value as string | undefined
+  const sessionModel = activeModel?.includes('/') ? activeModel : getDefaultStreamingModel()
+  if (!sessionModel?.includes('/'))
+    return null
+  const apiResourceId = sessionModel.split('/', 2)[1]
   // TTS 2.0 / ICL 2.0 ship subtitles asynchronously relative to audio
   // (per the wire spec), so chunk-on-sentence-end would drop frames.
   // Buffer the entire session and decode at session.finished instead.
@@ -605,7 +688,17 @@ function resolveSpeechTransport(providerId: string | null | undefined): SpeechTr
 }
 
 function openTtsSession(): StageTtsSession {
-  return createStageTtsSession<AudioBuffer>({
+  // A session must only clear the module-level `currentSession` if it IS that session. The previous
+  // code cleared it whenever any `stream-` session completed, which is unsafe once sessions exist that
+  // are not assigned to `currentSession` (e.g. one-off read-aloud sessions): one of those finishing
+  // would null a still-active chat session and drop the rest of the reply. Capture the session and
+  // compare identity; the `stream-` guard is preserved so segmenter sessions still don't self-clear.
+  let session: StageTtsSession | null = null
+  const clearIfActive = () => {
+    if (session && currentSession === session && session.intentId.startsWith('stream-'))
+      currentSession = null
+  }
+  session = createStageTtsSession<AudioBuffer>({
     transport: resolveSpeechTransport(activeSpeechProvider.value),
     streaming: buildStreamingSnapshot,
     audioContext,
@@ -623,38 +716,29 @@ function openTtsSession(): StageTtsSession {
           model: activeSpeechModel.value,
           error: err,
         })
-        if (currentSession?.intentId.startsWith('stream-'))
-          currentSession = null
+        clearIfActive()
       },
       onDone: () => {
-        if (currentSession?.intentId.startsWith('stream-'))
-          currentSession = null
+        clearIfActive()
       },
     },
   })
+  return session
 }
+
+watch(latestStopRequest, (request) => {
+  if (!request)
+    return
+
+  stopSpeechOutput(request.reason)
+})
 
 chatHookCleanups.push(onBeforeMessageComposed(async () => {
   playbackManager.stopAll('new-message')
 
   setupAnalyser()
   await setupLipSync()
-  // Reset assistant caption for a new message
-  assistantCaption.value = ''
-  try {
-    postCaption({ type: 'caption-assistant', text: '' })
-  }
-  catch (error) {
-    // BroadcastChannel may be closed if user navigated away - don't break flow
-    console.warn('[Stage] Failed to post caption reset (channel may be closed)', { error })
-  }
-  try {
-    postPresent({ type: 'assistant-reset' })
-  }
-  catch (error) {
-    // BroadcastChannel may be closed if user navigated away - don't break flow
-    console.warn('[Stage] Failed to post present reset (channel may be closed)', { error })
-  }
+  resetAssistantSpeechSurface('new-message')
 
   currentSession?.cancel('new-message')
   currentSession = openTtsSession()

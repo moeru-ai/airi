@@ -3,6 +3,7 @@ import type { MaybeRefOrGetter } from 'vue'
 import type { BaseVADConfig } from '../../../libs/audio/vad'
 
 import { merge } from '@moeru/std'
+import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import { ref, toRef, watch } from 'vue'
 
 import { createVAD, createVADStates } from '../../../workers/vad'
@@ -111,7 +112,7 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
       loaded.value = true
     }
     catch (error) {
-      inferenceError.value = error instanceof Error ? error.message : String(error)
+      inferenceError.value = errorMessageFromValue(error)
     }
     finally {
       loading.value = false

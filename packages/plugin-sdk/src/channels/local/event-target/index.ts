@@ -18,6 +18,22 @@ export function createEventTargetHostChannel(eventTarget: EventTarget) {
 }
 
 /**
+ * Creates an extension Eventa transport backed by a local `EventTarget`.
+ *
+ * Use when:
+ * - A web-like host bridges extension traffic through an in-process event target
+ *
+ * Expects:
+ * - `eventTarget` dispatches and listens for the Eventa adapter event format
+ *
+ * Returns:
+ * - An Eventa context ready to pass into `createExtensionChannelScope`
+ */
+export function createEventTargetExtensionTransport(eventTarget: EventTarget) {
+  return createContext(eventTarget)
+}
+
+/**
  * Creates a data-plane Eventa context backed by a local `EventTarget`.
  *
  * Use when:

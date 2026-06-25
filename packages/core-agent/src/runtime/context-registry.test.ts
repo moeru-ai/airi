@@ -7,13 +7,12 @@ import { createContextRegistry } from './context-registry'
 
 type TestContextMessage = ContextMessage & { source?: string }
 
-function createMetadata(pluginId: string, instanceId: string): NonNullable<ContextMessage['metadata']> {
+function createMetadata(extensionId: string, moduleId: string): NonNullable<ContextMessage['metadata']> {
   return {
     source: {
-      id: instanceId,
-      kind: 'plugin',
-      plugin: {
-        id: pluginId,
+      id: moduleId,
+      extension: {
+        id: extensionId,
       },
     },
   }
@@ -105,19 +104,15 @@ describe('createContextRegistry', () => {
 
   /**
    * @example
-   * metadata.source.plugin.id + metadata.source.id becomes "plugin:instance".
+   * metadata.source.extension.id + metadata.source.id becomes "extension:module".
    */
   it('resolves metadata source keys before source fallback and unknown fallback', () => {
     const registry = createContextRegistry()
 
-    const pluginInstanceResult = registry.ingest(createContextMessage({
+    const extensionModuleResult = registry.ingest(createContextMessage({
       id: 'with-instance',
       source: 'fallback-source',
       metadata: createMetadata('weather', 'station-1'),
-    }))
-    const pluginOnlyResult = registry.ingest(createContextMessage({
-      id: 'plugin-only',
-      metadata: createMetadata('weather', ''),
     }))
     const sourceResult = registry.ingest(createContextMessage({
       id: 'source-only',
@@ -127,13 +122,11 @@ describe('createContextRegistry', () => {
       id: 'unknown-source',
     }))
 
-    expect(pluginInstanceResult?.sourceKey).toBe('weather:station-1')
-    expect(pluginOnlyResult?.sourceKey).toBe('weather')
+    expect(extensionModuleResult?.sourceKey).toBe('weather:station-1')
     expect(sourceResult?.sourceKey).toBe('legacy-source')
     expect(unknownResult?.sourceKey).toBe('unknown')
     expect(Object.keys(registry.snapshot())).toEqual([
       'weather:station-1',
-      'weather',
       'legacy-source',
       'unknown',
     ])

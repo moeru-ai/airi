@@ -149,7 +149,7 @@ function waitForWorkerMessage<T = any>(
     let timeoutId: ReturnType<typeof setTimeout> | undefined
     let abortListener: (() => void) | null = null
 
-    const cleanup = (): void => {
+    function cleanup(): void {
       if (timeoutId !== undefined)
         clearTimeout(timeoutId)
       worker.removeEventListener('message', handler)
@@ -157,7 +157,7 @@ function waitForWorkerMessage<T = any>(
         signal.removeEventListener('abort', abortListener)
     }
 
-    const handler = (event: MessageEvent): void => {
+    function handler(event: MessageEvent): void {
       if (event.data.requestId !== requestId)
         return
 

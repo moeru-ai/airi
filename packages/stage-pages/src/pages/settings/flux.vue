@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { isFluxPurchaseDisabled, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { client } from '@proj-airi/stage-ui/composables/api'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Button, SelectTab } from '@proj-airi/ui'
+import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -14,6 +16,15 @@ const router = useRouter()
 const authStore = useAuthStore()
 const { credits } = storeToRefs(authStore)
 const { trackPricingViewed, trackPlanSelected, trackCheckoutStarted } = useAnalytics()
+
+const fluxPurchaseDisabled = isFluxPurchaseDisabled()
+
+// On desktop, checkout happens in the external system browser (see handleBuy), so
+// the app never receives the success_url redirect that web/mobile use to refresh.
+// Re-pull the FLUX balance whenever the window regains focus; the balance source
+// of truth is the server (credited by the Stripe webhook).
+if (isStageTamagotchi())
+  useEventListener(window, 'focus', () => authStore.updateCredits())
 
 interface FluxPackage {
   stripePriceId: string
@@ -221,13 +232,15 @@ async function fetchPackages() {
 }
 
 onMounted(async () => {
-  Promise.allSettled([fetchPackages(), authStore.updateCredits(), fetchStats(), fetchAuditHistory()])
+  Promise.allSettled([authStore.updateCredits(), fetchStats(), fetchAuditHistory(), ...(fluxPurchaseDisabled ? [] : [fetchPackages()])])
 
   // PostHog funnel step 1: pricing surface view. Today this is an in-app
   // settings page (already-authenticated users); when we add a public
   // pricing landing page the surface label changes but the event stays the
   // same, so the funnel definition in PostHog doesn't need re-wiring.
-  trackPricingViewed('settings_flux', 'one_time')
+  if (!fluxPurchaseDisabled) {
+    trackPricingViewed('settings_flux', 'one_time')
+  }
 
   if (route.query.success === 'true') {
     message.value = { type: 'success', text: t('settings.pages.flux.checkout.success') }
@@ -260,7 +273,14 @@ async function handleBuy(stripePriceId: string) {
       // the page nav so the event is sent (PostHog's beforeunload handler
       // would otherwise race the navigation).
       trackCheckoutStarted(stripePriceId, { currency: selectedCurrency.value })
-      window.location.href = data.url
+      // Electron renderer runs from file:// and cannot navigate to Stripe in-window
+      // (the settings window would load checkout.stripe.com and never come back).
+      // window.open routes through setWindowOpenHandler -> shell.openExternal, so the
+      // system browser handles payment. Web keeps the in-window redirect.
+      if (isStageTamagotchi())
+        window.open(data.url, '_blank')
+      else
+        window.location.href = data.url
     }
   }
   catch {
@@ -300,13 +320,13 @@ async function handleBuy(stripePriceId: string) {
             {{ formatNumber(credits) }}
           </h2>
           <p text="sm neutral-500">
-            {{ t('settings.pages.flux.description') }}
+            {{ t(fluxPurchaseDisabled ? 'settings.pages.account.fluxBalance' : 'settings.pages.flux.description') }}
           </p>
         </div>
       </div>
     </div>
 
-    <div flex="~ col gap-4">
+    <div v-if="!fluxPurchaseDisabled" flex="~ col gap-4">
       <!-- Currency selector -->
       <div v-if="currencyOptions.length > 1" flex="~ justify-start sm:justify-end">
         <SelectTab

@@ -19,6 +19,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import {
   prioritizeInspectableAiriTargets,
 } from '../e2e/debug-targets'
+import { errorMessageFromValue } from '../utils/error-message'
 
 interface DebugTarget {
   id: string
@@ -961,7 +962,7 @@ async function main() {
       }
       catch (error) {
         addTimeline('discord-client-open-skipped', {
-          error: error instanceof Error ? error.message : String(error),
+          error: errorMessageFromValue(error),
         })
       }
     }
@@ -1027,7 +1028,7 @@ async function main() {
     report.discord.bot = {
       ...discordRuntimeState,
     }
-    report.error = error instanceof Error ? error.stack || error.message : String(error)
+    report.error = errorMessageFromValue(error)
     addTimeline('failure', { error: report.error })
     await writeReport()
     console.error(report.error)

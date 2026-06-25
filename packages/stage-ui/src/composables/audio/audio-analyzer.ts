@@ -1,3 +1,4 @@
+import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import { onUnmounted, ref } from 'vue'
 
 const amplification = 3 // Amplification factor for volume visualization
@@ -71,7 +72,7 @@ export function useAudioAnalyzer() {
     }
     catch (err) {
       console.error('Error setting up audio monitoring:', err)
-      error.value = err instanceof Error ? err.message : String(err)
+      error.value = errorMessageFromValue(err)
     }
   }
 

@@ -7,8 +7,8 @@ describe('bindingRecordSchema', () => {
   it('accepts generic host-level module record without business coupling', () => {
     const parsed = parse(bindingRecordSchema, {
       moduleId: 'board-main',
-      ownerSessionId: 'plugin-session-1',
-      ownerPluginId: 'demo-plugin',
+      ownerSessionId: 'extension-session-1',
+      ownerExtensionId: 'demo-plugin',
       kitId: 'kit.widget',
       kitModuleType: 'panel',
       state: 'announced',
@@ -26,8 +26,8 @@ describe('bindingRecordSchema', () => {
     expect(() =>
       parse(bindingRecordSchema, {
         moduleId: 'board-main',
-        ownerSessionId: 'plugin-session-1',
-        ownerPluginId: 'demo-plugin',
+        ownerSessionId: 'extension-session-1',
+        ownerExtensionId: 'demo-plugin',
         kitId: 'kit.widget',
         kitModuleType: 'panel',
         state: 'booting',
@@ -43,8 +43,8 @@ describe('bindingRecordSchema', () => {
     expect(() =>
       parse(bindingRecordSchema, {
         moduleId: 'board-main',
-        ownerSessionId: 'plugin-session-1',
-        ownerPluginId: 'demo-plugin',
+        ownerSessionId: 'extension-session-1',
+        ownerExtensionId: 'demo-plugin',
         kitId: 'kit.widget',
         kitModuleType: 'panel',
         state: 'announced',
@@ -64,8 +64,8 @@ describe('bindingRecordSchema', () => {
     expect(() =>
       parse(bindingRecordSchema, {
         moduleId: 'board-main',
-        ownerSessionId: 'plugin-session-1',
-        ownerPluginId: 'demo-plugin',
+        ownerSessionId: 'extension-session-1',
+        ownerExtensionId: 'demo-plugin',
         kitId: 'kit.widget',
         kitModuleType: 'panel',
         state: 'announced',

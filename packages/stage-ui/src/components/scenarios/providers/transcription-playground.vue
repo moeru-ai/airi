@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { HearingTranscriptionResult } from '../../../stores/modules/hearing'
 
+import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import { Button, FieldCombobox, FieldRange } from '@proj-airi/ui'
 import { until } from '@vueuse/core'
 import { computed, onUnmounted, ref, shallowRef, watch } from 'vue'
@@ -75,7 +76,7 @@ async function setupAudioMonitoring() {
   }
   catch (error) {
     console.error('Error setting up audio monitoring:', error)
-    errorMessage.value = error instanceof Error ? error.message : String(error)
+    errorMessage.value = errorMessageFromValue(error)
   }
 }
 
@@ -118,7 +119,7 @@ onStopRecord(async (recording) => {
     }
   }
   catch (err) {
-    errorMessage.value = err instanceof Error ? err.message : String(err)
+    errorMessage.value = errorMessageFromValue(err)
     console.error('Error generating transcription:', errorMessage.value)
   }
 })

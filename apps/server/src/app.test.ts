@@ -48,8 +48,14 @@ function createTestDeps() {
     billingService: {} as any,
     adminFluxGrantsService: {} as any,
     adminRouterConfigService: {} as any,
+    adminUsersService: {} as any,
     ttsMeter: {} as any,
     requestLogService: {} as any,
+    voicePackService: {} as any,
+    productEventService: {
+      track: vi.fn(async () => undefined),
+      countDistinctUsersByFeature: vi.fn(async () => []),
+    },
     configKV: {
       getOrThrow: vi.fn(async (key: string) => {
         switch (key) {
@@ -65,7 +71,6 @@ function createTestDeps() {
     redis: redis as any,
     env: {
       API_SERVER_URL: 'http://localhost:3000',
-      ADMIN_EMAILS: '',
     } as any,
     otel: null,
     userDeletionService: {} as any,
@@ -77,7 +82,6 @@ function createTestDeps() {
       encryptKey: vi.fn(),
       decryptKey: vi.fn(),
     } as any,
-    posthog: null,
   }
 
   return {

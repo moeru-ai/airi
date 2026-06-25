@@ -4,7 +4,7 @@ import type { WithUnknown } from '@xsai/shared'
 import type { StreamTranscriptionResult, StreamTranscriptionOptions as XSAIStreamTranscriptionOptions } from '@xsai/stream-transcription'
 
 import { errorMessageFrom, tryCatch } from '@moeru/std'
-import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
+import { errorMessageFromValue, IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset } from '@vueuse/core'
 import { generateTranscription } from '@xsai/generate-transcription'
@@ -15,12 +15,13 @@ import vadWorkletUrl from '../../workers/vad/process.worklet?worker&url'
 
 import { useAnalytics } from '../../composables/use-analytics'
 import { activeTurnSpan, startSpan } from '../../composables/use-io-tracer'
+import { OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from '../../libs/providers'
 import { useProvidersStore } from '../providers'
 import { streamAliyunTranscription } from '../providers/aliyun/stream-transcription'
 import { streamWebSpeechAPITranscription } from '../providers/web-speech-api'
 
 function errorMessage(err: unknown): string {
-  const msg = errorMessageFrom(err) ?? String(err)
+  const msg = errorMessageFromValue(err)
   // Browsers hide the real reason (CORS, timeout, DNS, …) behind this generic string.
   if (msg === 'Failed to fetch' || msg === 'Load failed') {
     return `${msg} — check the browser console (Network tab) for the exact reason (e.g. CORS, network timeout, DNS failure).`
@@ -95,7 +96,12 @@ export function filterTranscriptionByConfidence(
 
 const STREAM_TRANSCRIPTION_EXECUTORS: Record<string, StreamTranscription> = {
   'aliyun-nls-transcription': streamAliyunTranscription,
+  [OFFICIAL_TRANSCRIPTION_PROVIDER_ID]: streamAliyunTranscription,
   // Web Speech API is handled specially in transcribeForMediaStream since it works directly with MediaStream
+}
+
+export function resolveStreamTranscriptionExecutor(providerId: string): StreamTranscription | undefined {
+  return STREAM_TRANSCRIPTION_EXECUTORS[providerId]
 }
 
 export const useHearingStore = defineStore('hearing-store', () => {
@@ -193,7 +199,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
       inputAudioStream?: ReadableStream<ArrayBuffer>
     }
     const features = providersStore.getTranscriptionFeatures(providerId)
-    const streamExecutor = STREAM_TRANSCRIPTION_EXECUTORS[providerId]
+    const streamExecutor = resolveStreamTranscriptionExecutor(providerId)
 
     const { trackSttStarted, trackSttSucceeded, trackSttFailed } = useAnalytics()
     const sttStartedAt = performance.now()

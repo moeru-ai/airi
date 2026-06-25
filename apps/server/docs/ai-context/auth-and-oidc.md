@@ -88,6 +88,8 @@ OIDC_CLIENT_ID_POCKET
 
 **为什么现在可以直接用 OIDC access token？** 因为服务端的 `resolveRequestAuth()` 已经统一支持两条路径：先走 `auth.api.getSession()` 解析 better-auth session；如果没有 session，再用 `jose.jwtVerify()` 本地验证 JWT 签名、issuer、audience、过期时间，然后通过 `findUserById()` 补齐用户信息。对业务路由来说，拿到的仍然是统一的 `{ user, session }` 结构。
 
+**测试环境登录绕过：** 设置 `TEST_AUTH_TOKEN` 后，业务 API 可以直接带 `Authorization: Bearer $TEST_AUTH_TOKEN` 进入 `resolveRequestAuth()`，无需走 UI 登录或 better-auth session。默认虚拟用户为 `test-user / test@example.com / Test User`，可用 `TEST_AUTH_USER_ID`、`TEST_AUTH_USER_EMAIL`、`TEST_AUTH_USER_NAME`、`TEST_AUTH_USER_ROLE` 覆盖；需要访问 `/api/admin/*` 时把 `TEST_AUTH_USER_ROLE=admin`。该 token 只接入业务鉴权链路，不改变 `/api/auth/*` better-auth 登录/OIDC 端点；生产环境保持 unset。
+
 **JWT 签发条件：** 前端在 authorize/token 请求中传递 `resource` 参数（值为 `API_SERVER_URL`），oauthProvider 据此签发 JWT 而非 opaque token。JWKS 通过 `/api/auth/jwks` 端点获取并缓存。
 
 **撤销策略：** JWT 1 小时 TTL + refresh token rotation。signout 时撤销 refresh token，JWT 等自然过期。不使用 denylist 或 Redis。

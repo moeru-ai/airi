@@ -47,6 +47,7 @@ export interface RuntimeSnapshot {
 }
 
 export interface BridgeAvailability {
+  botCall: boolean
   forgetConversation: boolean
   getNoActionBudget: boolean
   notifyAiri: boolean

@@ -27,19 +27,20 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
+    "@moeru/std": "catalog:",
     "@proj-airi/font-departure-mono": "workspace:^",
-    "@rive-app/canvas-lite": "^2.37.2",
-    "@vueuse/core": "^14.2.1",
-    "@vueuse/motion": "^3.0.3",
+    "@rive-app/canvas-lite": "catalog:",
+    "@vueuse/core": "catalog:",
+    "@vueuse/motion": "catalog:",
     "vue": "catalog:"
   },
   "devDependencies": {
     "@proj-airi/ui": "workspace:^",
-    "@unocss/reset": "^66.6.8",
-    "@vitejs/plugin-vue": "^6.0.6",
+    "@unocss/reset": "catalog:",
+    "@vitejs/plugin-vue": "catalog:",
     "vite": "catalog:",
-    "vite-plugin-vue-devtools": "^8.1.1",
-    "vue-router": "^5.0.4",
-    "vue-tsc": "^3.2.6"
+    "vite-plugin-vue-devtools": "catalog:",
+    "vue-router": "catalog:",
+    "vue-tsc": "catalog:"
   }
 }

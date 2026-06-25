@@ -287,11 +287,21 @@ describe('createStreamingTtsPipeline', () => {
     await server.startObserved
     handle.cancel()
 
-    await new Promise<void>((resolve) => {
-      onDone.mockImplementation(() => resolve())
-      setTimeout(resolve, 500)
-    })
-
-    expect(cancelObserved).toBe(true)
+    // ROOT CAUSE:
+    //
+    // This test was flaky on CI: asserting `cancelObserved` right after `onDone`
+    // resolved raced the mock server's `message` event.
+    // `cancel()` queues the cancel frame in the ws write buffer, then `terminate()`
+    // defers `ws.close()` + `onDone()` by one macrotask (streaming-pipeline.ts) —
+    // but the frame still has to cross a real loopback socket and be dispatched to
+    // the server's `message` listener, which on a loaded runner can happen AFTER
+    // the client-side `onDone` fired.
+    //
+    // We fixed this by polling for both observations instead of asserting
+    // immediately after `onDone`.
+    await vi.waitFor(() => {
+      expect(cancelObserved).toBe(true)
+      expect(onDone).toHaveBeenCalledTimes(1)
+    }, { interval: 10, timeout: 1500 })
   })
 })

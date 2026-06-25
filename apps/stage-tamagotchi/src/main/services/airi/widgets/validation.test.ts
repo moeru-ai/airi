@@ -14,6 +14,7 @@ describe('widget invoke validation', () => {
         id: ' widget-1 ',
         componentName: ' weather ',
         componentProps: { city: 'Tokyo' },
+        alwaysOnTop: true,
         ttlMs: 2500.9,
         windowSize: {
           width: 620.8,
@@ -24,6 +25,7 @@ describe('widget invoke validation', () => {
         id: 'widget-1',
         componentName: 'weather',
         componentProps: { city: 'Tokyo' },
+        alwaysOnTop: true,
         ttlMs: 2500,
         windowSize: {
           width: 620,
@@ -52,6 +54,11 @@ describe('widget invoke validation', () => {
         componentName: 'weather',
         windowSize: { width: 0, height: 320 },
       } as any)).toThrow('windowSize must contain a positive finite width and height.')
+
+      expect(() => validateWidgetsAddPayload({
+        componentName: 'weather',
+        alwaysOnTop: 'yes' as any,
+      })).toThrow('alwaysOnTop must be a boolean when provided.')
     })
   })
 
@@ -60,10 +67,12 @@ describe('widget invoke validation', () => {
       expect(validateWidgetsUpdatePayload({
         id: ' widget-1 ',
         componentProps: { city: 'Taipei' },
+        alwaysOnTop: false,
         ttlMs: 1500.4,
       })).toEqual({
         id: 'widget-1',
         componentProps: { city: 'Taipei' },
+        alwaysOnTop: false,
         ttlMs: 1500,
         windowSize: undefined,
       })
@@ -83,6 +92,11 @@ describe('widget invoke validation', () => {
         id: 'widget-1',
         windowSize: { width: Number.NaN, height: 400 },
       } as any)).toThrow('windowSize must contain a positive finite width and height.')
+
+      expect(() => validateWidgetsUpdatePayload({
+        id: 'widget-1',
+        alwaysOnTop: 'yes' as any,
+      })).toThrow('alwaysOnTop must be a boolean when provided.')
     })
   })
 

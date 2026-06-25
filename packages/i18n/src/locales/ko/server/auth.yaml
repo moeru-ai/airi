@@ -60,7 +60,7 @@ signIn:
   error:
     fallback: 가입 실패
     unknown: 알 수 없는 오류가 발생했습니다
-    authFailed: 인증에 실패했습니다. 다시 시도해 주세요.
+    socialOnlyNoPassword: This email was registered with Google or GitHub. Sign in with a button below; you can add a password in account settings after signing in.
     passwordMismatch: Password and confirmation do not match.
     invalidEmail: Please enter a valid email address.
   footer:

@@ -112,7 +112,7 @@ async function handleSetAsBackground() {
       extension.airi.modules.activeBackgroundId = entry.id
 
       await cardStore.updateCard(cardId, { ...card, extensions: extension })
-      console.log(`[ComfyWidget] Set activeBackgroundId to ${entry.id} for ${cardId}`)
+      console.info(`[ComfyWidget] Set activeBackgroundId to ${entry.id} for ${cardId}`)
     }
   }
   catch (e) {

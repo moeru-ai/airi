@@ -17,8 +17,7 @@ function makeContext(overrides: Record<string, unknown> = {}): ContextSnapshot {
         metadata: {
           source: {
             id: 'system:minecraft-integration',
-            kind: 'plugin' as const,
-            plugin: { id: 'airi:minecraft' },
+            extension: { id: 'airi:minecraft' },
           },
         },
         ...overrides,

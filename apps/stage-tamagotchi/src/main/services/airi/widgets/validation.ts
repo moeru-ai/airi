@@ -35,6 +35,16 @@ function normalizeComponentProps(componentProps?: Record<string, unknown>): Reco
   return componentProps
 }
 
+function normalizeOptionalBoolean(value: boolean | undefined, fieldName: string): boolean | undefined {
+  if (value === undefined)
+    return undefined
+
+  if (typeof value !== 'boolean')
+    throw new Error(`${fieldName} must be a boolean when provided.`)
+
+  return value
+}
+
 /**
  * Validates and normalizes widget spawn payloads at the Electron invoke boundary.
  *
@@ -44,6 +54,7 @@ function normalizeComponentProps(componentProps?: Record<string, unknown>): Reco
  * Expects:
  * - `componentName` is a non-empty string
  * - `componentProps`, when provided, is a plain object
+ * - `alwaysOnTop`, when provided, is a boolean
  * - `ttlMs`, when provided, is a non-negative finite number
  *
  * Returns:
@@ -69,6 +80,7 @@ export function validateWidgetsAddPayload(payload?: WidgetsAddPayload): WidgetsA
     id: normalizeWidgetId(payload.id),
     componentName,
     componentProps: normalizeComponentProps(payload.componentProps),
+    alwaysOnTop: normalizeOptionalBoolean(payload.alwaysOnTop, 'alwaysOnTop'),
     ttlMs: normalizeTtlMs(payload.ttlMs),
     windowSize: normalizedWindowSize,
   }
@@ -83,6 +95,7 @@ export function validateWidgetsAddPayload(payload?: WidgetsAddPayload): WidgetsA
  * Expects:
  * - `id` is a non-empty string after trimming
  * - `componentProps`, when provided, is a plain object
+ * - `alwaysOnTop`, when provided, is a boolean
  *
  * Returns:
  * - A normalized payload safe to pass into the widgets manager
@@ -108,6 +121,7 @@ export function validateWidgetsUpdatePayload(payload?: WidgetsUpdatePayload): Wi
     componentProps: payload.componentProps === undefined
       ? undefined
       : normalizeComponentProps(payload.componentProps),
+    alwaysOnTop: normalizeOptionalBoolean(payload.alwaysOnTop, 'alwaysOnTop'),
     ttlMs: payload.ttlMs === undefined
       ? undefined
       : normalizeTtlMs(payload.ttlMs),

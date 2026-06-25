@@ -18,6 +18,22 @@ export function createWebSocketHostChannel(webSocket: WebSocket) {
 }
 
 /**
+ * Creates an extension Eventa transport backed by a native `WebSocket`.
+ *
+ * Use when:
+ * - A peer transport carries extension protocol and invoke traffic over websocket
+ *
+ * Expects:
+ * - `webSocket` is already connected and managed by the caller
+ *
+ * Returns:
+ * - An Eventa context ready to pass into `createExtensionChannelScope`
+ */
+export function createWebSocketExtensionTransport(webSocket: WebSocket) {
+  return createContext(webSocket)
+}
+
+/**
  * Creates a data-plane Eventa context backed by a native `WebSocket`.
  *
  * Use when:

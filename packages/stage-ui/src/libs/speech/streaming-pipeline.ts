@@ -48,6 +48,10 @@ export interface StreamingTtsPipelineOptions extends StreamingTtsPipelineEvents 
   responseFormat?: 'mp3' | 'opus' | 'aac' | 'flac' | 'pcm'
   /** Backend-specific knobs forwarded as the `extra_body` of the `start` frame. */
   extraBody?: Record<string, unknown>
+  /** Business trigger hint sent to server-side product analytics. */
+  ttsTrigger?: 'auto' | 'manual'
+  /** Low-cardinality source hint sent to server-side product analytics. */
+  ttsSource?: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
   /**
    * Decoder context. The pipeline calls `decodeAudioData` on it for each
    * sentence (or once at session end in buffered mode). Reusing the page's
@@ -115,7 +119,10 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
     return noopHandle()
   }
 
-  const wsUrl = toWebSocketUrl(options.serverUrl ?? SERVER_URL, '/api/v1/audio/speech/ws', token)
+  const wsUrl = toWebSocketUrl(options.serverUrl ?? SERVER_URL, '/api/v1/audio/speech/ws', token, {
+    ttsTrigger: options.ttsTrigger ?? 'auto',
+    ttsSource: options.ttsSource ?? 'chat_auto_tts',
+  })
   const ws = new WebSocket(wsUrl)
   ws.binaryType = 'arraybuffer'
 
@@ -170,17 +177,19 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
     // CLOSING/CLOSED — drop silently; caller will see onDone shortly.
   }
 
-  async function flushAccumulatedAsSentence(textOverride?: string) {
-    if (chunkBytes === 0)
+  async function flushAccumulatedAsSentence(
+    sentenceChunks: ArrayBuffer[],
+    sentenceChunkBytes: number,
+    textOverride?: string,
+  ) {
+    if (sentenceChunkBytes === 0)
       return
-    const merged = new Uint8Array(chunkBytes)
+    const merged = new Uint8Array(sentenceChunkBytes)
     let offset = 0
-    for (const c of chunks) {
+    for (const c of sentenceChunks) {
       merged.set(new Uint8Array(c), offset)
       offset += c.byteLength
     }
-    chunks = []
-    chunkBytes = 0
 
     // Prefer the explicit override (the `sentence.end` payload's own text)
     // over the queued `sentence.start` text — `sentence.end` is the
@@ -201,10 +210,15 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
   }
 
   function enqueueFlush(textOverride?: string): Promise<void> {
+    const sentenceChunks = chunks
+    const sentenceChunkBytes = chunkBytes
+    chunks = []
+    chunkBytes = 0
+
     // `.catch(() => {})` keeps a single decode failure from poisoning the
     // tail of the chain — failures already surface via `onError` inside
     // `flushAccumulatedAsSentence`.
-    pendingFlush = pendingFlush.then(() => flushAccumulatedAsSentence(textOverride)).catch(() => {})
+    pendingFlush = pendingFlush.then(() => flushAccumulatedAsSentence(sentenceChunks, sentenceChunkBytes, textOverride)).catch(() => {})
     return pendingFlush
   }
 
@@ -330,14 +344,32 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
     if (closed)
       return
     closed = true
+
+    const triggerCallbacks = () => {
+      if (err != null)
+        options.onError?.(err)
+      options.onDone?.()
+    }
+
     try {
-      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)
-        ws.close()
+      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+        // NOTICE:
+        // Deferring ws.close() and callbacks to the next event loop tick allows the WebSocket
+        // to flush any pending outgoing messages (like 'cancel') before closing the connection.
+        // packages/stage-ui/src/libs/speech/streaming-pipeline.ts
+        // Can be removed if the WebSocket implementation natively flushes the write buffer before close.
+        setTimeout(() => {
+          try {
+            ws.close()
+          }
+          catch {}
+          triggerCallbacks()
+        }, 0)
+        return
+      }
     }
     catch {}
-    if (err != null)
-      options.onError?.(err)
-    options.onDone?.()
+    triggerCallbacks()
   }
 
   return {
@@ -375,10 +407,17 @@ function noopHandle(): StreamingTtsPipelineHandle {
   return { appendText: () => {}, finish: () => {}, cancel: () => {} }
 }
 
-function toWebSocketUrl(httpBase: string, path: string, token: string): string {
+function toWebSocketUrl(
+  httpBase: string,
+  path: string,
+  token: string,
+  analytics: { ttsTrigger: 'auto' | 'manual', ttsSource: 'chat_auto_tts' | 'manual_preview' | 'settings_test' },
+): string {
   const u = new URL(path, httpBase)
   u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:'
   u.searchParams.set('token', token)
+  u.searchParams.set('tts_trigger', analytics.ttsTrigger)
+  u.searchParams.set('tts_source', analytics.ttsSource)
   return u.toString()
 }
 

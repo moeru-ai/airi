@@ -37,7 +37,7 @@
   "dependencies": {
     "@moeru/eventa": "catalog:",
     "@moeru/std": "catalog:",
-    "clustr": "^1.0.2"
+    "clustr": "catalog:"
   },
   "devDependencies": {}
 }

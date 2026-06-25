@@ -13,6 +13,7 @@ import type {
 } from '../types'
 
 import { RemoteRunnerClient } from '../runner/client'
+import { errorMessageFromValue } from '../utils/error-message'
 import { writeScreenshotArtifact } from '../utils/screenshot'
 
 export interface LinuxX11ExecutorOptions extends RemoteRunnerClientOptions {
@@ -45,7 +46,7 @@ export function createLinuxX11Executor(config: ComputerUseConfig, options: Linux
         return await client.getForegroundContext()
       }
       catch (error) {
-        return unavailableContext(error instanceof Error ? error.message : String(error))
+        return unavailableContext(errorMessageFromValue(error))
       }
     },
     getDisplayInfo: () => client.getDisplayInfo(),

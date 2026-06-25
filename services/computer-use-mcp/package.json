@@ -53,8 +53,8 @@
     "@modelcontextprotocol/sdk": "catalog:",
     "@moeru/std": "catalog:",
     "node-pty": "catalog:",
-    "ws": "^8.20.0",
-    "zod": "^4.3.6"
+    "ws": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@types/ws": "catalog:"

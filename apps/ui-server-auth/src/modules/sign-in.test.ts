@@ -5,7 +5,7 @@ import { createServerSignInContext, requestSocialSignInRedirect } from './sign-i
 describe('ui-server-auth sign-in flow helpers', () => {
   it('rebuilds the OIDC callback URL without provider and prompt query params', () => {
     expect(createServerSignInContext(
-      'https://auth.airi.test/sign-in?client_id=airi-stage-web&provider=github&prompt=login&response_type=code&scope=openid',
+      'https://auth.airi.test/sign-in?api_server_url=https%3A%2F%2Fairi-server-dev.up.railway.app&client_id=airi-stage-web&provider=github&prompt=login&response_type=code&scope=openid',
       'https://api.airi.test',
     )).toEqual({
       callbackURL: 'https://api.airi.test/api/auth/oauth2/authorize?client_id=airi-stage-web&response_type=code&scope=openid',
@@ -51,6 +51,52 @@ describe('ui-server-auth sign-in flow helpers', () => {
   it('still falls back when the OIDC handoff is partial (client_id without response_type)', () => {
     expect(createServerSignInContext(
       'https://auth.airi.test/sign-in?client_id=airi-stage-web&scope=openid',
+      'https://api.airi.test',
+    )).toEqual({
+      callbackURL: '/',
+      requestedProvider: null,
+    })
+  })
+
+  it('normalizes standalone UI redirects under the deployed /ui base', () => {
+    expect(createServerSignInContext(
+      'https://auth.airi.test/ui/sign-in?redirect=%2Fprofile%3Ftab%3Dsecurity',
+      'https://api.airi.test',
+    )).toEqual({
+      callbackURL: 'https://auth.airi.test/ui/profile?tab=security',
+      requestedProvider: null,
+    })
+
+    expect(createServerSignInContext(
+      'https://auth.airi.test/ui/sign-in?redirect=%2Fauth%2Freset-password%3Ftoken%3Dold-link',
+      'https://api.airi.test',
+    )).toEqual({
+      callbackURL: 'https://auth.airi.test/ui/reset-password?token=old-link',
+      requestedProvider: null,
+    })
+  })
+
+  it('keeps trusted standalone admin redirects on the admin origin', () => {
+    expect(createServerSignInContext(
+      'https://accounts.airi.build/ui/sign-in?redirect=https%3A%2F%2Fadmin.airi.build%2Fllm-router%3Fapi_server_url%3Dhttps%253A%252F%252Fairi-server-dev.up.railway.app',
+      'https://api.airi.test',
+    )).toEqual({
+      callbackURL: 'https://admin.airi.build/llm-router?api_server_url=https%3A%2F%2Fairi-server-dev.up.railway.app',
+      requestedProvider: null,
+    })
+
+    expect(createServerSignInContext(
+      'https://accounts.airi.build/ui/sign-in?redirect=http%3A%2F%2F127.0.0.1%3A5178%2Fllm-router%3Fapi_server_url%3Dhttp%253A%252F%252F127.0.0.1%253A3000',
+      'https://api.airi.test',
+    )).toEqual({
+      callbackURL: 'http://127.0.0.1:5178/llm-router?api_server_url=http%3A%2F%2F127.0.0.1%3A3000',
+      requestedProvider: null,
+    })
+  })
+
+  it('rejects absolute redirects to untrusted origins', () => {
+    expect(createServerSignInContext(
+      'https://accounts.airi.build/ui/sign-in?redirect=https%3A%2F%2Fevil.example%2Fllm-router',
       'https://api.airi.test',
     )).toEqual({
       callbackURL: '/',

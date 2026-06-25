@@ -10,10 +10,23 @@ function getOriginFromUrl(url: string): string | undefined {
 }
 
 const TRUSTED_EXACT_ORIGINS = [
+  'https://airi.moeru.ai', // Production web app
   'capacitor://localhost', // Capacitor mobile (iOS)
   'ai.moeru.airi-pocket://links', // Android deep link
-  'https://airi.moeru.ai', // Production
+  'https://accounts.airi.build', // Standalone auth UI
+  'https://server-dev.airi-server-auth.pages.dev', // Server-dev standalone auth UI
+  'https://admin.airi.build', // Standalone admin UI
+  'https://server-dev.airi-server-admin.pages.dev', // Server-dev standalone admin UI
 ]
+
+// NOTICE:
+// Better Auth accepts non-http(s) origins by prefix (`url.startsWith(pattern)`),
+// so native deep-link schemes must not be copied from TRUSTED_EXACT_ORIGINS
+// into auth callback validation. Browser auth callbacks only need web origins.
+const TRUSTED_AUTH_CALLBACK_ORIGINS = TRUSTED_EXACT_ORIGINS.filter((origin) => {
+  const protocol = new URL(origin).protocol
+  return protocol === 'http:' || protocol === 'https:'
+})
 
 // NOTICE:
 // Private LAN / CGNAT-style dev hosts (e.g. https://10.x:5273 from cap-vite) are NOT matched
@@ -85,6 +98,29 @@ export function resolveTrustedRequestOrigin(
   return undefined
 }
 
+/**
+ * Resolves the base URL for Stripe redirect targets (`success_url` / `cancel_url` / portal `return_url`).
+ *
+ * Prefers the request's trusted browser origin so web and mobile users return to the surface they
+ * started from. Falls back to the configured web app URL when the request carries no trusted origin —
+ * notably the Electron desktop renderer, which loads from `file://` and sends no usable web origin,
+ * so Stripe (which only accepts http/https redirect URLs) can still land users on a real page.
+ *
+ * Expects:
+ * - Same trust inputs as {@link resolveTrustedRequestOrigin}.
+ * - `webAppFallbackUrl` is an absolute origin used verbatim as the base.
+ *
+ * Returns:
+ * - The trusted request origin when present, otherwise `webAppFallbackUrl` (always a usable base).
+ */
+export function resolveCheckoutRedirectBase(
+  request: Request,
+  additionalTrustedOrigins: readonly string[],
+  webAppFallbackUrl: string,
+): string {
+  return resolveTrustedRequestOrigin(request, additionalTrustedOrigins) ?? webAppFallbackUrl
+}
+
 // NOTICE:
 // Better Auth's callbackURL validation walks `trustedOrigins`. Static entries
 // support `*` wildcards via the framework's wildcardMatch (see
@@ -120,6 +156,10 @@ export function getAuthTrustedOrigins(
   const apiServerOrigin = getOriginFromUrl(env.API_SERVER_URL)
   if (apiServerOrigin) {
     origins.add(apiServerOrigin)
+  }
+
+  for (const origin of TRUSTED_AUTH_CALLBACK_ORIGINS) {
+    origins.add(origin)
   }
 
   for (const origin of env.ADDITIONAL_TRUSTED_ORIGINS) {

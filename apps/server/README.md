@@ -26,6 +26,26 @@ For local observability infrastructure, use:
 docker compose -f apps/server/docker-compose.otel.yml up -d
 ```
 
+## `AUTH_UI_URL`
+
+`apps/ui-server-auth` is deployed separately from the server image. The API server still owns the historical `/auth/*` entrypoints and redirects them to **`AUTH_UI_URL`**.
+
+Default:
+
+`AUTH_UI_URL=https://accounts.airi.build/ui`
+
+Set this when previewing or deploying auth UI to a different Cloudflare URL.
+
+## `ADMIN_UI_URL`
+
+`apps/ui-admin` is deployed separately from the server image. The API server still owns the historical `/admin/*` entrypoints and redirects them to **`ADMIN_UI_URL`**.
+
+Default:
+
+`ADMIN_UI_URL=https://admin.airi.build`
+
+Set this when previewing or deploying admin UI to a different Cloudflare URL.
+
 ## `ADDITIONAL_TRUSTED_ORIGINS` (LAN / Capacitor dev)
 
 When the mobile dev server uses a non-localhost origin (for example `https://10.x.x.x:5273` from `cap copy ios` / `capacitor.config.json`), set **`ADDITIONAL_TRUSTED_ORIGINS`** in `apps/server/.env.local` to a comma-separated list of exact origins (parsed and normalized at startup). Example:

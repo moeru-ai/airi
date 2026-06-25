@@ -7,6 +7,13 @@ import { createHmac } from 'node:crypto'
 
 import { createAuthMiddleware } from 'better-auth/api'
 import { createLocalJWKSet, jwtVerify } from 'jose'
+import { pipe, regex, safeParse, string, transform } from 'valibot'
+
+const JwtBearerTokenSchema = pipe(
+  string(),
+  transform(value => value.trim()),
+  regex(/^[\w-]+\.[\w-]+\.[\w-]+$/, 'Bearer token must be a compact JWT'),
+)
 
 /**
  * Bridge plugin that lets better-auth's `sessionMiddleware` accept the
@@ -64,11 +71,6 @@ import { createLocalJWKSet, jwtVerify } from 'jose'
  *   externally-signed JWTs against a JWKS for its own session resolution.
  */
 export function oidcJwtBearer(env: Env): BetterAuthPlugin {
-  // JWT shape: three base64url segments separated by dots. Catches the
-  // happy path without us decoding; downstream JWKS verify is the real
-  // gate. Anything that fails this regex falls through to bearer().
-  const JWT_SHAPE_RE = /^[\w-]+\.[\w-]+\.[\w-]+$/
-
   // Bridge session lifetime. Long enough to span an OAuth round-trip
   // (link-social → provider → callback) on slow networks; short enough
   // that an unused row TTL-prunes quickly.
@@ -207,9 +209,14 @@ export function oidcJwtBearer(env: Env): BetterAuthPlugin {
             if (lower !== 'bearer ')
               return
 
-            const token = authHeader.slice(7).trim()
-            if (!token || !JWT_SHAPE_RE.test(token))
+            // JWT shape: three base64url segments separated by dots. Catches
+            // the happy path without us decoding; downstream JWKS verify is
+            // the real gate. Anything that fails this schema falls through to
+            // bearer().
+            const tokenResult = safeParse(JwtBearerTokenSchema, authHeader.slice(7))
+            if (!tokenResult.success)
               return
+            const token = tokenResult.output
 
             // Verify against our own JWKS, read directly from DB (no
             // self-fetch). If it isn't ours (signature mismatch, wrong

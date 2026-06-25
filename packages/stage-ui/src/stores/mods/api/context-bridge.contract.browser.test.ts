@@ -98,13 +98,12 @@ async function emitServerEvent(eventName: string, event: unknown) {
   await emitHooks(serverEventHooks.get(eventName) ?? [], event)
 }
 
-function createMetadata(pluginId: string, instanceId: string) {
+function createMetadata(extensionId: string, moduleId: string) {
   return {
     source: {
-      id: instanceId,
-      kind: 'plugin',
-      plugin: {
-        id: pluginId,
+      id: moduleId,
+      extension: {
+        id: extensionId,
       },
     },
   }
@@ -128,7 +127,7 @@ function createContextUpdateEvent(overrides: Record<string, unknown> = {}) {
 
   return {
     type: 'context:update',
-    source: 'plugin-module-host',
+    source: 'extension-module-host',
     metadata: createMetadata('weather', 'station-1'),
     data: {
       id,
@@ -173,10 +172,14 @@ vi.mock('pinia', async () => {
   }
 })
 
-vi.mock('@proj-airi/stage-shared', () => ({
-  isStageWeb: () => true,
-  isStageTamagotchi: () => false,
-}))
+vi.mock('@proj-airi/stage-shared', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@proj-airi/stage-shared')>()
+  return {
+    ...actual,
+    isStageWeb: () => true,
+    isStageTamagotchi: () => false,
+  }
+})
 
 vi.mock('es-toolkit', async (importOriginal) => {
   const actual = await importOriginal<typeof import('es-toolkit')>()
@@ -400,7 +403,7 @@ describe('context bridge contract', () => {
 
     await emitServerEvent('input:text', {
       type: 'input:text',
-      source: 'plugin-module-host',
+      source: 'extension-module-host',
       metadata: createMetadata('weather', 'station-1'),
       data: {
         text: 'hello',
@@ -519,7 +522,7 @@ describe('context bridge contract', () => {
 
     await emitServerEvent('input:text', {
       type: 'input:text',
-      source: 'plugin-module-host',
+      source: 'extension-module-host',
       metadata: createMetadata('weather', 'station-1'),
       data: {
         text: 'hello',

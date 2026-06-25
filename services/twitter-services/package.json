@@ -13,11 +13,11 @@
   },
   "dependencies": {
     "@guiiai/logg": "catalog:",
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/sdk": "catalog:",
     "@moeru/std": "catalog:",
     "@proj-airi/server-sdk": "workspace:*",
-    "h3": "2.0.1-rc.20",
-    "playwright": "^1.59.1",
-    "zod": "^4.3.6"
+    "h3": "catalog:",
+    "playwright": "catalog:",
+    "zod": "catalog:"
   }
 }

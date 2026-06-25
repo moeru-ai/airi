@@ -196,6 +196,7 @@ export function useLinkedAccounts(args: UseLinkedAccountsArgs) {
       const { data, error: apiError } = await args.client.linkSocial({
         provider: providerId,
         callbackURL,
+        errorCallbackURL: callbackURL,
       })
       if (apiError)
         throw new Error(apiError.message ?? 'linkSocial failed')

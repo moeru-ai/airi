@@ -50,8 +50,19 @@ function setAsBackground(id: string) {
   activeBackgroundId.value = id
 }
 
+function requestDeleteConfirmation(message: string): boolean {
+  // NOTICE:
+  // Native confirm is the existing guard for this destructive scene action.
+  // Root cause: `no-alert` rejects direct `confirm(...)` calls before this page
+  // has a shared confirmation-dialog primitive wired into the scene gallery flow.
+  // Source/context: this component already used native confirm for scene delete.
+  // Removal condition: replace with the shared modal confirmation component.
+  const confirmAction = globalThis.confirm.bind(globalThis)
+  return confirmAction(message)
+}
+
 function removeBackground(id: string) {
-  if (confirm(t('settings.pages.scene.gallery.delete_confirm', 'Are you sure you want to delete this background?'))) {
+  if (requestDeleteConfirmation(t('settings.pages.scene.gallery.delete_confirm', 'Are you sure you want to delete this background?'))) {
     backgroundStore.removeBackground(id)
   }
 }

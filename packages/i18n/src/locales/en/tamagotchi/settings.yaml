@@ -1,6 +1,11 @@
 allow-visible-on-all-workspaces:
   title: Cross-Space Visibility
   description: Allow the window to be visible on all workspaces, macOS only.
+spotlight:
+  errors:
+    unknown: Unknown error
+    prefix: 'Something went wrong: {message}'
+    shortcutRegistrationFailed: 'Something went wrong: failed to register Spotlight shortcut.'
 pages:
   modules:
     mcp-server:
@@ -14,6 +19,18 @@ pages:
     window-shortcuts:
       description: Modify the window shortcuts.
       title: Window Shortcuts
+      empty: Not set
+      spotlight:
+        title: Spotlight shortcut
+        description: Click the shortcut, then press a new shortcut. Press Esc to cancel.
+      actions:
+        recording: Press keys
+        reset: Reset
+      errors:
+        load: Failed to load shortcut
+        conflict: Shortcut already in use.
+        failed: Failed to update shortcut
+        requiresModifier: Use at least one of Cmd, Ctrl, Alt, or Super.
       toggle-move:
         label: Toggle Move
       toggle-resize:

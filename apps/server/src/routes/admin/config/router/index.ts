@@ -1,4 +1,3 @@
-import type { Env } from '../../../../libs/env'
 import type { AdminRouterConfigService, SliceInput } from '../../../../services/domain/admin/router-config'
 import type { HonoEnv } from '../../../../types/hono'
 
@@ -8,12 +7,12 @@ import {
   boolean,
   literal,
   maxLength,
-  minLength,
   nonEmpty,
   object,
   optional,
   picklist,
   pipe,
+  record,
   regex,
   safeParse,
   string,
@@ -45,9 +44,10 @@ const OpenRouterSliceSchema = object({
   kind: literal('openrouter'),
   modelName: pipe(string(), nonEmpty('modelName is required'), maxLength(200), NO_PIPE),
   overrideModel: pipe(string(), nonEmpty('overrideModel is required'), maxLength(200)),
-  plaintextKey: pipe(string(), nonEmpty('plaintextKey is required'), maxLength(MAX_KEY_LENGTH)),
+  plaintextKey: optional(pipe(string(), nonEmpty('plaintextKey must not be empty when provided'), maxLength(MAX_KEY_LENGTH))),
   baseURL: optional(pipe(string(), url('baseURL must be a valid URL'))),
   keyEntryId: optional(pipe(string(), nonEmpty(), maxLength(200), NO_PIPE)),
+  existingKeyEntryId: optional(pipe(string(), nonEmpty(), maxLength(200), NO_PIPE)),
   headerTemplate: optional(pipe(string(), nonEmpty(), maxLength(200))),
 })
 
@@ -55,8 +55,10 @@ const AzureSliceSchema = object({
   kind: literal('azure'),
   modelName: pipe(string(), nonEmpty('modelName is required'), maxLength(200), NO_PIPE),
   region: pipe(string(), nonEmpty('region is required'), maxLength(64)),
-  plaintextKey: pipe(string(), nonEmpty('plaintextKey is required'), maxLength(MAX_KEY_LENGTH)),
+  defaultVoice: optional(pipe(string(), nonEmpty('defaultVoice must not be empty'), maxLength(200))),
+  plaintextKey: optional(pipe(string(), nonEmpty('plaintextKey must not be empty when provided'), maxLength(MAX_KEY_LENGTH))),
   keyEntryId: optional(pipe(string(), nonEmpty(), maxLength(200), NO_PIPE)),
+  existingKeyEntryId: optional(pipe(string(), nonEmpty(), maxLength(200), NO_PIPE)),
 })
 
 const DashscopeSliceSchema = object({
@@ -64,8 +66,38 @@ const DashscopeSliceSchema = object({
   modelName: pipe(string(), nonEmpty('modelName is required'), maxLength(200), NO_PIPE),
   region: picklist(['intl', 'cn'], 'region must be "intl" or "cn"'),
   upstreamModel: pipe(string(), nonEmpty('upstreamModel is required'), maxLength(200)),
-  plaintextKey: pipe(string(), nonEmpty('plaintextKey is required'), maxLength(MAX_KEY_LENGTH)),
+  plaintextKey: optional(pipe(string(), nonEmpty('plaintextKey must not be empty when provided'), maxLength(MAX_KEY_LENGTH))),
   keyEntryId: optional(pipe(string(), nonEmpty(), maxLength(200), NO_PIPE)),
+  existingKeyEntryId: optional(pipe(string(), nonEmpty(), maxLength(200), NO_PIPE)),
+})
+
+const StepfunSliceSchema = object({
+  kind: literal('stepfun'),
+  modelName: pipe(string(), nonEmpty('modelName is required'), maxLength(200), NO_PIPE),
+  upstreamModel: optional(picklist(['stepaudio-2.5-tts', 'step-tts-2', 'step-tts-mini'], 'upstreamModel must be a supported StepFun TTS model')),
+  defaultVoice: optional(pipe(string(), nonEmpty('defaultVoice must not be empty'), maxLength(200))),
+  instruction: optional(pipe(string(), nonEmpty('instruction must not be empty'), maxLength(200))),
+  plaintextKey: optional(pipe(string(), nonEmpty('plaintextKey must not be empty when provided'), maxLength(MAX_KEY_LENGTH))),
+  keyEntryId: optional(pipe(string(), nonEmpty(), maxLength(200), NO_PIPE)),
+  existingKeyEntryId: optional(pipe(string(), nonEmpty(), maxLength(200), NO_PIPE)),
+})
+
+const AliyunNlsAsrSliceSchema = object({
+  kind: literal('aliyun-nls-asr'),
+  modelName: pipe(string(), nonEmpty('modelName is required'), maxLength(200), NO_PIPE),
+  accessKeyId: pipe(string(), nonEmpty('accessKeyId is required'), maxLength(200)),
+  appKey: pipe(string(), nonEmpty('appKey is required'), maxLength(200)),
+  region: optional(picklist([
+    'cn-shanghai',
+    'cn-shanghai-internal',
+    'cn-beijing',
+    'cn-beijing-internal',
+    'cn-shenzhen',
+    'cn-shenzhen-internal',
+  ], 'region must be a supported Aliyun NLS region')),
+  plaintextKey: optional(pipe(string(), nonEmpty('plaintextKey must not be empty when provided'), maxLength(MAX_KEY_LENGTH))),
+  keyEntryId: optional(pipe(string(), nonEmpty(), maxLength(200), NO_PIPE)),
+  existingKeyEntryId: optional(pipe(string(), nonEmpty(), maxLength(200), NO_PIPE)),
 })
 
 /**
@@ -89,8 +121,15 @@ const UnspeechSliceSchema = object({
       regex(/^wss?:\/\/\S+$/, 'streaming.upstreamURL must start with ws:// or wss://'),
       maxLength(500),
     ),
-    plaintextKey: pipe(string(), nonEmpty('streaming.plaintextKey is required'), maxLength(MAX_KEY_LENGTH)),
+    plaintextKey: optional(pipe(string(), nonEmpty('streaming.plaintextKey must not be empty when provided'), maxLength(MAX_KEY_LENGTH))),
     keyEntryId: optional(pipe(string(), nonEmpty(), maxLength(200), NO_PIPE)),
+    existingKeyEntryId: optional(pipe(string(), nonEmpty(), maxLength(200), NO_PIPE)),
+    models: optional(array(object({
+      id: pipe(string(), nonEmpty('streaming.models[].id is required'), maxLength(200)),
+      name: optional(pipe(string(), nonEmpty(), maxLength(200))),
+      description: optional(pipe(string(), nonEmpty(), maxLength(500))),
+    }))),
+    defaultModel: optional(pipe(string(), nonEmpty('streaming.defaultModel must not be empty'), maxLength(200))),
   })),
 })
 
@@ -98,20 +137,31 @@ const SliceSchema = variant('kind', [
   OpenRouterSliceSchema,
   AzureSliceSchema,
   DashscopeSliceSchema,
+  StepfunSliceSchema,
+  AliyunNlsAsrSliceSchema,
   UnspeechSliceSchema,
 ])
 
 const BodySchema = object({
   mode: optional(picklist(['merge', 'reset']), 'merge'),
   dryRun: optional(boolean(), false),
-  slices: pipe(
-    array(SliceSchema),
-    minLength(1, 'slices must not be empty'),
-    maxLength(MAX_SLICES_PER_REQUEST, `slices must be at most ${MAX_SLICES_PER_REQUEST} entries`),
+  slices: optional(
+    pipe(
+      array(SliceSchema),
+      maxLength(MAX_SLICES_PER_REQUEST, `slices must be at most ${MAX_SLICES_PER_REQUEST} entries`),
+    ),
+    [],
   ),
   defaults: optional(object({
     chatModel: optional(pipe(string(), nonEmpty('defaults.chatModel must not be empty'), maxLength(200))),
     ttsModel: optional(pipe(string(), nonEmpty('defaults.ttsModel must not be empty'), maxLength(200))),
+    ttsVoices: optional(record(
+      pipe(string(), nonEmpty('defaults.ttsVoices model id must not be empty'), maxLength(200)),
+      record(
+        pipe(string(), nonEmpty('defaults.ttsVoices locale must not be empty'), maxLength(50)),
+        pipe(string(), nonEmpty('defaults.ttsVoices voice id must not be empty'), maxLength(200)),
+      ),
+    )),
   })),
 })
 
@@ -127,7 +177,7 @@ const BodySchema = object({
  *     "mode": "merge" | "reset",        // defaults to "merge"
  *     "dryRun": false,                  // when true, returns redacted preview
  *                                       // and skips writes + invalidation
- *     "slices": [
+ *     "slices": [                      // optional when only defaults change
  *       { "kind": "openrouter", "modelName": "chat-default",
  *         "overrideModel": "openai/gpt-4o-mini", "plaintextKey": "..." },
  *       { "kind": "azure", "modelName": "microsoft/v1",
@@ -135,6 +185,11 @@ const BodySchema = object({
  *       { "kind": "dashscope-cosyvoice", "modelName": "alibaba/cosyvoice-v2",
  *         "region": "intl", "upstreamModel": "cosyvoice-v2",
  *         "plaintextKey": "..." },
+ *       { "kind": "stepfun", "modelName": "stepfun/stepaudio-2.5-tts",
+ *         "upstreamModel": "stepaudio-2.5-tts",
+ *         "defaultVoice": "cixingnansheng", "plaintextKey": "..." },
+ *       { "kind": "aliyun-nls-asr", "modelName": "auto",
+ *         "accessKeyId": "...", "appKey": "...", "plaintextKey": "..." },
  *       { "kind": "unspeech",
  *         "restBaseURL": "http://airi-unspeech.railway.internal:5933",
  *         "streaming": {
@@ -144,7 +199,12 @@ const BodySchema = object({
  *     ],
  *     "defaults": {
  *       "chatModel": "chat-default",    // writes DEFAULT_CHAT_MODEL
- *       "ttsModel":  "alibaba/cosyvoice-v2"  // writes DEFAULT_TTS_MODEL
+ *       "ttsModel":  "alibaba/cosyvoice-v2", // writes DEFAULT_TTS_MODEL
+ *       "ttsVoices": {                  // writes DEFAULT_TTS_VOICES
+ *         "alibaba/cosyvoice-v2": {
+ *           "zh-CN": "longxiaochun_v2"
+ *         }
+ *       }
  *     }
  *   }
  *
@@ -157,7 +217,8 @@ const BodySchema = object({
  *       "LLM_ROUTER_CONFIG":     { ... },
  *       "UNSPEECH_UPSTREAM":     { ... },
  *       "DEFAULT_CHAT_MODEL":    "chat-default",
- *       "DEFAULT_TTS_MODEL":     "alibaba/cosyvoice-v2"
+ *       "DEFAULT_TTS_MODEL":     "alibaba/cosyvoice-v2",
+ *       "DEFAULT_TTS_VOICES":    { ... }
  *     }
  *   }
  *
@@ -169,11 +230,13 @@ const BodySchema = object({
  */
 export function createAdminRouterConfigRoutes(
   service: AdminRouterConfigService,
-  env: Env,
 ) {
   return new Hono<HonoEnv>()
     .use('*', authGuard)
-    .use('*', adminGuard(env))
+    .use('*', adminGuard)
+    .get('/', async (c) => {
+      return c.json(await service.current())
+    })
     .post('/', async (c) => {
       const user = c.get('user')!
 
@@ -194,6 +257,10 @@ export function createAdminRouterConfigRoutes(
       }
 
       const body = parsed.output
+      const hasDefaults = body.defaults != null && Object.keys(body.defaults).length > 0
+      if (body.slices.length === 0 && !hasDefaults)
+        throw createBadRequestError('Request body must include at least one slice or defaults entry', 'INVALID_BODY')
+
       const result = await service.apply({
         mode: body.mode,
         dryRun: body.dryRun,

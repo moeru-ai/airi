@@ -38,8 +38,9 @@
   },
   "dependencies": {
     "@moeru/std": "catalog:",
+    "@proj-airi/better-ws": "workspace:^",
     "@proj-airi/server-shared": "workspace:^",
-    "crossws": "^0.4.5",
-    "superjson": "catalog:"
+    "superjson": "catalog:",
+    "valibot": "catalog:"
   }
 }

@@ -1,4 +1,3 @@
-import type { Env } from '../../../libs/env'
 import type { AdminFluxGrantsService } from '../../../services/domain/admin/flux-grants'
 import type { HonoEnv } from '../../../types/hono'
 
@@ -61,11 +60,10 @@ const GrantBodySchema = object({
  */
 export function createAdminFluxGrantsRoutes(
   fluxGrantsService: AdminFluxGrantsService,
-  env: Env,
 ) {
   return new Hono<HonoEnv>()
     .use('*', authGuard)
-    .use('*', adminGuard(env))
+    .use('*', adminGuard)
     .post('/', async (c) => {
       const user = c.get('user')!
       const dryRun = c.req.query('dryRun') === 'true'

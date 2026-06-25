@@ -43,7 +43,7 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
           llmToolsetPromptsStore.registerToolsetPrompts(
             'plugin-tools',
             definitions.prompts.map(definition => ({
-              id: `${definition.ownerPluginId}:${definition.id}`,
+              id: `${definition.ownerExtensionId}:${definition.id}`,
               title: definition.prompt.title,
               content: definition.prompt.content,
             })),
@@ -55,7 +55,7 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
               description: definition.description,
               parameters: definition.parameters,
               execute: async input => invokePluginTool({
-                ownerPluginId: definition.ownerPluginId,
+                ownerExtensionId: definition.ownerExtensionId,
                 name: definition.name,
                 input,
               }),

@@ -6,6 +6,8 @@ import type {
   PlaybackStartEvent,
 } from '../types'
 
+import { errorMessageFrom } from '@moeru/std'
+
 export type OverflowPolicy = 'queue' | 'reject' | 'steal-oldest' | 'steal-lowest-priority'
 export type OwnerOverflowPolicy = 'reject' | 'steal-oldest'
 
@@ -141,7 +143,7 @@ export function createPlaybackManager<TAudio>(options: PlaybackManagerOptions<TA
         if (!active.has(item.id))
           return
         active.delete(item.id)
-        emitInterrupt(item, err instanceof Error ? err.message : 'playback-error')
+        emitInterrupt(item, errorMessageFrom(err) ?? 'playback-error')
         void tryStartWaiting()
       })
   }

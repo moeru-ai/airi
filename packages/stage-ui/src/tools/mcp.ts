@@ -1,6 +1,6 @@
 import type { Tool } from '@xsai/shared-chat'
 
-import { errorMessageFrom } from '@moeru/std'
+import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import { tool } from '@xsai/tool'
 import { z } from 'zod'
 
@@ -117,7 +117,7 @@ export function createMcpTools(runtime: McpToolRuntime): Array<Promise<Tool>> {
         catch (error) {
           return {
             isError: true,
-            content: [{ type: 'text', text: errorMessageFrom(error) ?? String(error) }],
+            content: [{ type: 'text', text: errorMessageFromValue(error) }],
           }
         }
       },

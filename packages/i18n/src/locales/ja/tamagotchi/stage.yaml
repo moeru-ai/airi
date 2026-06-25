@@ -53,7 +53,7 @@ notice:
     preview-title: これは何？
 about:
   subtitle: Desktop ver.
-  current-version: Current Version
+  current-version: 現在のバージョン
   common:
     cancel: Cancel
   links:
@@ -75,24 +75,24 @@ about:
       canary: Canary
     status:
       downloading: Downloading update...
-      error-prefix: Error
+      error-prefix: エラー
       latest: Up to date (v{version}).
       downloaded:
         windows: Update ready to install silently (v{version}).
         restart: Update ready to install on restart (v{version}).
     actions:
-      download: Download Update
-      download-short: Download
+      download: アップデートをダウンロード
+      download-short: ダウンロード
       confirm-download: Confirm Download
-      check-for-updates: Check for updates
-      checking: Checking...
-      latest-version: Latest version
+      check-for-updates: アップデートを確認
+      checking: 確認中…
+      latest-version: 最新バージョン
       disabled-dev: Updates disabled in Dev
       retry-check: Retry Check
       restart-silent: Restart to update silently
-      restart-install: Restart to install update
+      restart-install: 再起動してアップデートをインストールする
       confirm-restart: Confirm Restart
     dialog:
       title: Update Available
-      description: A new version (v{version}) is available.
+      description: 新しいバージョン({version})が利用可能です。
       no-release-notes-markdown: _No release notes provided._

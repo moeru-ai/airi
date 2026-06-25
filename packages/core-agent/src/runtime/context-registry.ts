@@ -56,19 +56,20 @@ interface CreateContextRegistryOptions {
   /**
    * Resolves a context message into a stable source bucket key.
    *
-   * @default metadata plugin/instance key, then event source, then "unknown"
+   * @default metadata extension/module key, then event source, then "unknown"
    */
   getSourceKey?: (event: EventSourcePayload, fallback?: string) => string
 }
 
 function formatMetadataSource(source?: MetadataEventSource) {
-  if (!source?.plugin)
+  if (!source)
     return undefined
 
-  const pluginId = source.plugin.id
-  const instanceId = source.id
+  if ('extension' in source) {
+    return `${source.extension.id}:${source.id}`
+  }
 
-  return instanceId ? `${pluginId}:${instanceId}` : pluginId
+  return source.id
 }
 
 function defaultGetSourceKey(event: EventSourcePayload, fallback = 'unknown') {

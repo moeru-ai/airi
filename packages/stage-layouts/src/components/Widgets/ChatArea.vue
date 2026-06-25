@@ -22,6 +22,7 @@ import { useI18n } from 'vue-i18n'
 import IndicatorMicVolume from './IndicatorMicVolume.vue'
 
 import { useTranscriptions } from '../../composables/use-transcriptions'
+import { useStopSpeakingButton } from '../../composables/useStopSpeakingButton'
 
 const messageInput = ref<string>('')
 const hearingPopoverOpen = ref(false)
@@ -59,6 +60,7 @@ const { isListening, startStreamingTranscription, stopStreamingTranscription, au
     isStageTamagotchi,
   },
 )
+const { showStopSpeakingButton, stopSpeakingFromChat } = useStopSpeakingButton()
 
 async function handleSend() {
   if (!messageInput.value.trim() || isComposing.value) {
@@ -297,6 +299,25 @@ watch(sendMode, () => {
             />
           </PopoverContent>
         </PopoverRoot>
+      </div>
+
+      <div
+        absolute bottom-2 right-2 z-10 flex items-center
+      >
+        <button
+          v-if="showStopSpeakingButton"
+          data-testid="stop-speaking-button"
+          :class="[
+            'h-8 w-8 flex items-center justify-center rounded-md outline-none',
+            'text-lg text-neutral-500 transition-all duration-200 active:scale-95 dark:text-neutral-400',
+            'hover:bg-primary-100/60 hover:text-primary-600 dark:hover:bg-primary-900/40 dark:hover:text-primary-300',
+          ]"
+          title="Stop speaking"
+          aria-label="Stop speaking"
+          @click="stopSpeakingFromChat"
+        >
+          <div class="i-solar:stop-circle-bold-duotone h-5 w-5" />
+        </button>
       </div>
     </div>
   </div>

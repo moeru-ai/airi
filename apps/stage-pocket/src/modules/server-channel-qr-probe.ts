@@ -1,19 +1,23 @@
 import type { ServerChannelQrPayload } from '@proj-airi/stage-shared/server-channel-qr'
 
 import { errorMessageFrom } from '@moeru/std'
-import { Client, WebSocketEventSource } from '@proj-airi/server-sdk'
+import { Client, createTextProtocolConnector, WebSocketEventSource } from '@proj-airi/server-sdk'
 
-import { getHostWebSocketConstructor } from './websocket-bridge'
+import { getHostWebSocketConnector } from './websocket-bridge'
 
 export async function probeServerChannelQrPayload(payload: ServerChannelQrPayload) {
-  const websocketConstructor = getHostWebSocketConstructor()
-  if (!websocketConstructor) {
+  if (!payload.urls.some(url => getHostWebSocketConnector(url))) {
     throw new Error('AIRI host websocket bridge is unavailable')
   }
 
   const errors: string[] = []
 
   for (const url of payload.urls) {
+    const connector = getHostWebSocketConnector(url)
+    if (!connector) {
+      throw new Error('AIRI host websocket bridge is unavailable')
+    }
+
     const client = new Client({
       autoConnect: false,
       autoReconnect: false,
@@ -21,7 +25,7 @@ export async function probeServerChannelQrPayload(payload: ServerChannelQrPayloa
       name: WebSocketEventSource.StageWeb,
       token: payload.authToken,
       url,
-      websocketConstructor,
+      connector: createTextProtocolConnector(connector),
     })
 
     try {

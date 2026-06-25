@@ -4,6 +4,8 @@ import type { ChatSessionMeta } from '@proj-airi/stage-ui/types/chat-session'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 
 import { errorMessageFrom } from '@moeru/std'
+import { errorMessageFromValue } from '@proj-airi/stage-shared'
+import { extractMessageText } from '@proj-airi/stage-ui/libs/chat-sync/wire-message'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/maintenance'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
@@ -45,24 +47,47 @@ interface IngestCommandPayload {
   toolset?: ToolsetId
 }
 
+interface SpotlightIngestPayload {
+  text: string
+}
+
+interface SpotlightIngestResult {
+  sessionId: string
+  visibleText: string
+}
+
+interface ChatCommandMessage<C extends string = string, P = unknown> {
+  type: 'command'
+  authorityId?: string
+  requestId: string
+  senderId: string
+  command: C
+  payload: P
+}
+
 interface RetryCommandPayload {
   sessionId?: string
   index: number
 }
+
+type ChatResponsePayload
+  = | { ok: true, result?: SpotlightIngestResult }
+    | { ok: false, error?: string }
 
 type ChatSyncMessage
   = | { type: 'authority-announcement', authorityId: string, sentAt: number }
     | { type: 'request-snapshot', requestId: string, senderId: string }
     | { type: 'session-snapshot', authorityId: string, snapshot: SessionSnapshotPayload }
     | { type: 'stream-snapshot', authorityId: string, snapshot: StreamSnapshotPayload }
-    | { type: 'command', authorityId?: string, requestId: string, senderId: string, command: 'ingest', payload: IngestCommandPayload }
-    | { type: 'command', authorityId?: string, requestId: string, senderId: string, command: 'retry', payload: RetryCommandPayload }
-    | { type: 'command', authorityId?: string, requestId: string, senderId: string, command: 'cleanup', payload: { sessionId?: string } }
-    | { type: 'command', authorityId?: string, requestId: string, senderId: string, command: 'delete-message', payload: { sessionId?: string, messageId?: string, index?: number } }
-    | { type: 'response', requestId: string, authorityId: string, ok: boolean, error?: string }
+    | ChatCommandMessage<'ingest', IngestCommandPayload>
+    | ChatCommandMessage<'spotlight-ingest', SpotlightIngestPayload>
+    | ChatCommandMessage<'retry', RetryCommandPayload>
+    | ChatCommandMessage<'cleanup', { sessionId?: string }>
+    | ChatCommandMessage<'delete-message', { sessionId?: string, messageId?: string, index?: number }>
+    | ({ type: 'response', requestId: string, authorityId: string } & ChatResponsePayload)
 
 interface PendingRequest {
-  resolve: () => void
+  resolve: (result?: unknown) => void
   reject: (error: Error) => void
   timeout: ReturnType<typeof setTimeout>
 }
@@ -70,6 +95,7 @@ interface PendingRequest {
 const CHAT_SYNC_CHANNEL_NAME = 'airi:stage-tamagotchi:chat-sync'
 const AUTHORITY_HEARTBEAT_INTERVAL_MS = 1000
 const REQUEST_TIMEOUT_MS = 30000
+const SPOTLIGHT_REQUEST_TIMEOUT_MS = 5 * 60 * 1000
 
 function createRequestId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
@@ -136,24 +162,11 @@ function previewChatSyncPayload(payload: unknown): unknown {
   }
 }
 
-/**
- * Logs chat-sync failures at the BroadcastChannel boundary.
- *
- * Use when:
- * - A follower window times out waiting for the authority window
- * - The authority window fails while executing a forwarded chat command
- *
- * Expects:
- * - `details` only contains structured-clone-friendly diagnostic metadata
- *
- * Returns:
- * - Writes an error entry to the renderer console for postmortem debugging
- */
 function logChatSyncError(message: string, error: unknown, details: Record<string, unknown>) {
   console.error(`[chat-sync] ${message}`, {
     ...details,
     error,
-    errorMessage: errorMessageFrom(error) ?? String(error),
+    errorMessage: errorMessageFromValue(error),
   })
 }
 
@@ -299,7 +312,15 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     return undefined
   }
 
-  async function executeIngest(payload: IngestCommandPayload) {
+  function readNewAssistantVisibleText(sessionId: string, fromIndex: number): string {
+    const assistant = chatSession.getSessionMessages(sessionId)
+      .slice(fromIndex)
+      .reverse()
+      .find(message => message.role === 'assistant')
+    return assistant ? extractMessageText(assistant) : ''
+  }
+
+  async function executeIngest(payload: IngestCommandPayload): Promise<void> {
     const providerId = activeProvider.value
     const modelId = activeModel.value
     if (!providerId || !modelId) {
@@ -320,8 +341,30 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     }, payload.sessionId)
   }
 
+  async function executeSpotlightIngest(payload: SpotlightIngestPayload): Promise<SpotlightIngestResult> {
+    // NOTICE: `chatOrchestrator.ingest()` returns void; remove this snapshot
+    // read once ingest returns `{ sessionId, visibleText }`.
+    const sessionId = activeSessionId.value
+    const previousMessageCount = chatSession.getSessionMessages(sessionId).length
+
+    await executeIngest({
+      text: payload.text,
+      toolset: 'artistry',
+      sessionId,
+    })
+
+    const visibleText = readNewAssistantVisibleText(sessionId, previousMessageCount)
+    if (!visibleText.trim())
+      throw new Error('Spotlight returned an empty response')
+
+    return {
+      sessionId,
+      visibleText,
+    }
+  }
+
   async function executeRetry(payload: RetryCommandPayload) {
-    const sessionId = payload.sessionId || chatSession.activeSessionId
+    const sessionId = payload.sessionId || activeSessionId.value
     const currentMessages = chatSession.getSessionMessages(sessionId)
     const sourceIndex = resolveRetrySourceIndex(currentMessages, payload.index)
     if (sourceIndex < 0)
@@ -342,7 +385,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
   }
 
   function executeDeleteMessage(payload: { sessionId?: string, messageId?: string, index?: number }) {
-    const sessionId = payload.sessionId || chatSession.activeSessionId
+    const sessionId = payload.sessionId || activeSessionId.value
     const nextMessages = chatSession.getSessionMessages(sessionId).filter((message, index) => {
       if (payload.messageId)
         return message.id !== payload.messageId
@@ -355,7 +398,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
   }
 
   function appendIngestErrorMessage(payload: IngestCommandPayload, message: string) {
-    const sessionId = payload.sessionId || chatSession.activeSessionId
+    const sessionId = payload.sessionId || activeSessionId.value
     const nextMessages = [
       ...chatSession.getSessionMessages(sessionId),
       {
@@ -366,17 +409,27 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     chatSession.setSessionMessages(sessionId, nextMessages)
   }
 
+  function authorityCommandMeta(message: { requestId: string, senderId: string, command: string, payload: unknown }) {
+    return {
+      mode: mode.value,
+      authorityId: authorityId.value,
+      requestId: message.requestId,
+      senderId: message.senderId,
+      command: message.command,
+      payload: previewChatSyncPayload(message.payload),
+    }
+  }
+
   async function handleCommand(message: Extract<ChatSyncMessage, { type: 'command' }>) {
     if (mode.value !== 'authority')
       return
 
-    const respond = (ok: boolean, error?: string) => {
+    const respond = (response: ChatResponsePayload) => {
       post({
         type: 'response',
         requestId: message.requestId,
         authorityId: instanceId,
-        ok,
-        error,
+        ...response,
       })
     }
 
@@ -385,6 +438,9 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
         case 'ingest':
           await executeIngest(message.payload)
           break
+        case 'spotlight-ingest':
+          respond({ ok: true, result: await executeSpotlightIngest(message.payload) })
+          return
         case 'retry':
           await executeRetry(message.payload)
           break
@@ -396,37 +452,45 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
           break
       }
 
-      respond(true)
+      respond({ ok: true })
     }
     catch (error) {
       const errorMessage = errorMessageFrom(error) ?? 'Unknown chat sync command failure'
 
-      logChatSyncError('command failed', error, {
-        mode: mode.value,
-        authorityId: authorityId.value,
-        requestId: message.requestId,
-        senderId: message.senderId,
-        command: message.command,
-        payload: previewChatSyncPayload(message.payload),
-      })
+      logChatSyncError('command failed', error, authorityCommandMeta(message))
 
-      if (message.command === 'ingest')
+      if (message.command === 'ingest') {
         appendIngestErrorMessage(message.payload, errorMessage)
+      }
+      else if (message.command === 'spotlight-ingest') {
+        appendIngestErrorMessage({
+          text: message.payload.text,
+          toolset: 'artistry',
+          sessionId: activeSessionId.value,
+        }, errorMessage)
+      }
 
-      respond(false, errorMessage)
+      respond({ ok: false, error: errorMessage })
     }
   }
 
-  function handleResponse(message: Extract<ChatSyncMessage, { type: 'response' }>) {
-    const pending = pendingRequests.get(message.requestId)
+  function takePendingRequest(requestId: string): PendingRequest | undefined {
+    const pending = pendingRequests.get(requestId)
+    if (!pending)
+      return undefined
+
+    clearTimeout(pending.timeout)
+    pendingRequests.delete(requestId)
+    return pending
+  }
+
+  function settleResponse(message: Extract<ChatSyncMessage, { type: 'response' }>) {
+    const pending = takePendingRequest(message.requestId)
     if (!pending)
       return
 
-    clearTimeout(pending.timeout)
-    pendingRequests.delete(message.requestId)
-
     if (message.ok) {
-      pending.resolve()
+      pending.resolve('result' in message ? message.result : undefined)
       return
     }
 
@@ -464,7 +528,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
         void handleCommand(message)
         return
       case 'response':
-        handleResponse(message)
+        settleResponse(message)
     }
   }
 
@@ -512,23 +576,24 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     post({ type: 'request-snapshot', requestId: createRequestId(), senderId: instanceId })
   }
 
-  function dispatchCommand(message: Extract<ChatSyncMessage, { type: 'command' }>) {
-    return new Promise<void>((resolve, reject) => {
+  function dispatch<T>(
+    message: Extract<ChatSyncMessage, { type: 'command' }>,
+    timeoutMs: number = REQUEST_TIMEOUT_MS,
+    timeoutError: () => Error = () => new Error('Timed out waiting for chat authority response'),
+  ): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
       const timeout = setTimeout(() => {
         pendingRequests.delete(message.requestId)
-        const error = new Error('Timed out waiting for chat authority response')
-        logChatSyncError('command timed out waiting for authority response', error, {
-          mode: mode.value,
-          authorityId: authorityId.value,
-          requestId: message.requestId,
-          senderId: message.senderId,
-          command: message.command,
-          payload: previewChatSyncPayload(message.payload),
-        })
+        const error = timeoutError()
+        logChatSyncError('command timed out waiting for authority response', error, authorityCommandMeta(message))
         reject(error)
-      }, REQUEST_TIMEOUT_MS)
+      }, timeoutMs)
 
-      pendingRequests.set(message.requestId, { resolve, reject, timeout })
+      pendingRequests.set(message.requestId, {
+        resolve: result => resolve(result as T),
+        reject,
+        timeout,
+      })
       post(message)
     })
   }
@@ -539,7 +604,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       return
     }
 
-    return await dispatchCommand({
+    return await dispatch<void>({
       type: 'command',
       requestId: createRequestId(),
       senderId: instanceId,
@@ -548,13 +613,26 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     })
   }
 
+  async function requestSpotlightIngest(payload: SpotlightIngestPayload) {
+    if (mode.value === 'authority')
+      return executeSpotlightIngest(payload)
+
+    return dispatch<SpotlightIngestResult>({
+      type: 'command',
+      requestId: createRequestId(),
+      senderId: instanceId,
+      command: 'spotlight-ingest',
+      payload,
+    }, SPOTLIGHT_REQUEST_TIMEOUT_MS, () => new Error('Spotlight response timed out'))
+  }
+
   async function requestRetry(payload: RetryCommandPayload) {
     if (mode.value === 'authority') {
       await executeRetry(payload)
       return
     }
 
-    return await dispatchCommand({
+    return await dispatch<void>({
       type: 'command',
       requestId: createRequestId(),
       senderId: instanceId,
@@ -569,7 +647,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       return
     }
 
-    return await dispatchCommand({
+    return await dispatch<void>({
       type: 'command',
       requestId: createRequestId(),
       senderId: instanceId,
@@ -584,7 +662,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       return
     }
 
-    return await dispatchCommand({
+    return await dispatch<void>({
       type: 'command',
       requestId: createRequestId(),
       senderId: instanceId,
@@ -608,6 +686,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     initialize,
     dispose,
     requestIngest,
+    requestSpotlightIngest,
     requestRetry,
     requestCleanup,
     requestDeleteMessage,

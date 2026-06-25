@@ -1,55 +1,45 @@
-import type { definePlugin } from '../../../../plugin'
-import type { Plugin } from '../../../../plugin/shared'
-import type { ManifestV1, PluginLoadOptions } from '../../../shared/types'
+import type { Extension } from '../../../../extension'
+import type { ExtensionLoadOptions, ExtensionManifestV1 } from '../../../shared/types'
 
 import { isAbsolute, join } from 'node:path'
 import { cwd } from 'node:process'
 
-function isPluginDefinition(value: unknown): value is ReturnType<typeof definePlugin> {
+function isExtensionDefinition(value: unknown): value is Extension {
   return typeof value === 'object'
     && value !== null
+    && 'id' in value
+    && typeof (value as { id?: unknown }).id === 'string'
     && 'setup' in value
     && typeof (value as { setup?: unknown }).setup === 'function'
 }
 
-async function coercePluginFromModule(moduleValue: unknown): Promise<Plugin> {
-  if (isPluginDefinition(moduleValue)) {
-    return await moduleValue.setup()
+function coerceExtensionFromModule(moduleValue: unknown): Extension {
+  if (isExtensionDefinition(moduleValue)) {
+    return moduleValue
   }
 
   if (typeof moduleValue === 'object' && moduleValue !== null) {
-    if ('default' in moduleValue && isPluginDefinition((moduleValue as { default?: unknown }).default)) {
-      return await (moduleValue as { default: ReturnType<typeof definePlugin> }).default.setup()
-    }
-
-    if ('default' in moduleValue && typeof (moduleValue as { default?: unknown }).default === 'object') {
-      const defaultPlugin = (moduleValue as { default: Plugin }).default
-      if (typeof defaultPlugin.init === 'function' || typeof defaultPlugin.setupModules === 'function') {
-        return defaultPlugin
-      }
-    }
-
-    const plugin = moduleValue as Plugin
-    if (typeof plugin.init === 'function' || typeof plugin.setupModules === 'function') {
-      return plugin
+    const defaultExport = (moduleValue as { default?: unknown }).default
+    if (isExtensionDefinition(defaultExport)) {
+      return defaultExport
     }
   }
 
-  throw new Error('Failed to resolve plugin module. The entrypoint must export either definePlugin(...) or Plugin hooks.')
+  throw new Error('Failed to resolve extension module. The entrypoint must export defineExtension(...).')
 }
 
 /**
- * Loads plugin entrypoints from the local filesystem for the current runtime.
+ * Loads extension entrypoints from the local filesystem for the current runtime.
  *
  * Use when:
  * - The host needs to resolve a manifest entrypoint path
- * - The host needs to import either a lazy `definePlugin(...)` export or a concrete plugin module
+ * - The host needs to import a `defineExtension(...)` export
  *
  * Expects:
  * - Entry points are valid importable module paths for the active runtime
  *
  * Returns:
- * - Filesystem-backed helpers for resolving and loading plugin entrypoints
+ * - Filesystem-backed helpers for resolving and loading extension entrypoints
  */
 export class FileSystemLoader {
   /**
@@ -58,9 +48,9 @@ export class FileSystemLoader {
    * Resolution order:
    * 1) `entrypoints.<runtime>`
    * 2) `entrypoints.default`
-   * 3) `entrypoints.electron` (legacy fallback for current local plugin manifests)
+   * 3) `entrypoints.electron` (legacy fallback for current local extension manifests)
    */
-  resolveEntrypointFor(manifest: ManifestV1, options?: PluginLoadOptions) {
+  resolveEntrypointFor(manifest: ExtensionManifestV1, options?: ExtensionLoadOptions) {
     const runtime = options?.runtime ?? 'electron'
     const root = options?.cwd ?? cwd()
     const entrypoint
@@ -70,36 +60,18 @@ export class FileSystemLoader {
 
     if (!entrypoint) {
       throw new Error(''
-        + `Plugin entrypoint is required for runtime \`${runtime}\`. `
+        + `Extension entrypoint is required for runtime \`${runtime}\`. `
         + 'Define one of `entrypoints.<runtime>`, `entrypoints.default`, '
-        + 'or `entrypoints.electron` in the plugin manifest.',
+        + 'or `entrypoints.electron` in the extension manifest.',
       )
     }
 
     return isAbsolute(entrypoint) ? entrypoint : join(root, entrypoint)
   }
 
-  async loadLazyPluginFor(manifest: ManifestV1, options?: PluginLoadOptions) {
+  async loadExtensionFor(manifest: ExtensionManifestV1, options?: ExtensionLoadOptions) {
     const entrypoint = this.resolveEntrypointFor(manifest, options)
-    const pluginModule = await import(entrypoint)
-
-    if (isPluginDefinition(pluginModule)) {
-      return pluginModule
-    }
-
-    if (typeof pluginModule === 'object' && pluginModule !== null) {
-      const defaultExport = (pluginModule as { default?: unknown }).default
-      if (isPluginDefinition(defaultExport)) {
-        return defaultExport
-      }
-    }
-
-    throw new Error('Plugin lazy loader expects a definePlugin(...) export.')
-  }
-
-  async loadPluginFor(manifest: ManifestV1, options?: PluginLoadOptions) {
-    const entrypoint = this.resolveEntrypointFor(manifest, options)
-    const pluginModule = await import(entrypoint)
-    return coercePluginFromModule(pluginModule)
+    const extensionModule = await import(entrypoint)
+    return coerceExtensionFromModule(extensionModule)
   }
 }

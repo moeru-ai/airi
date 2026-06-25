@@ -5,6 +5,7 @@ import process from 'node:process'
 import { createInterface } from 'node:readline'
 
 import { LinuxX11RunnerService } from '../runner/service'
+import { errorMessageFromValue } from '../utils/error-message'
 
 const runner = new LinuxX11RunnerService()
 const rl = createInterface({
@@ -120,7 +121,7 @@ async function handleRequest(request: RunnerRequest) {
       id: request.id,
       ok: false,
       error: {
-        message: error instanceof Error ? error.message : String(error),
+        message: errorMessageFromValue(error),
       },
     })
   }
@@ -134,7 +135,7 @@ function enqueueRequest(request: RunnerRequest) {
       id: request.id,
       ok: false,
       error: {
-        message: error instanceof Error ? error.message : String(error),
+        message: errorMessageFromValue(error),
       },
     })
   })
@@ -150,7 +151,7 @@ rl.on('line', (line) => {
     enqueueRequest(request)
   }
   catch (error) {
-    process.stderr.write(`invalid runner request: ${error instanceof Error ? error.message : String(error)}\n`)
+    process.stderr.write(`invalid runner request: ${errorMessageFromValue(error)}\n`)
   }
 })
 

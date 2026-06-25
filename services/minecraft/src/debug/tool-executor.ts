@@ -5,6 +5,7 @@ import type { Mineflayer } from '../libs/mineflayer'
 import type { ToolDefinition, ToolParameter } from './types'
 
 import { actionsList } from '../cognitive/action/llm-actions'
+import { errorMessageFromValue } from '../utils/error-message'
 import { DebugService } from './debug-service'
 
 export class ToolExecutor {
@@ -86,7 +87,7 @@ export class ToolExecutor {
       this.debugService.emit('debug:tool_result', {
         toolName,
         params,
-        error: err instanceof Error ? err.message : String(err),
+        error: errorMessageFromValue(err),
         timestamp: Date.now(),
       })
     }

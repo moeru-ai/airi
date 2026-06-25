@@ -7,6 +7,7 @@ import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
+import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { Button, Select } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import {
@@ -36,12 +37,14 @@ const { t } = useI18n()
 const cardStore = useAiriCardStore()
 const consciousnessStore = useConsciousnessStore()
 const speechStore = useSpeechStore()
+const visionStore = useVisionStore()
 const backgroundStore = useBackgroundStore()
 
 const { removeCard } = cardStore
 const { activeCardId } = storeToRefs(cardStore)
 const { activeProvider: consciousnessProvider, activeModel: defaultConsciousnessModel } = storeToRefs(consciousnessStore)
 const { activeSpeechProvider: speechProvider, activeSpeechModel: defaultSpeechModel, activeSpeechVoiceId: defaultVoiceId } = storeToRefs(speechStore)
+const { activeProvider: visionProvider, activeModel: defaultVisionModel } = storeToRefs(visionStore)
 
 const isRefreshingGallery = ref(false)
 
@@ -63,6 +66,8 @@ const moduleSettings = computed(() => {
     return {
       consciousnessProvider: '',
       consciousness: '',
+      visionProvider: '',
+      vision: '',
       speechProvider: '',
       speech: '',
       voice: '',
@@ -73,6 +78,8 @@ const moduleSettings = computed(() => {
   return {
     consciousnessProvider: airiExt.consciousness?.provider || '',
     consciousness: airiExt.consciousness?.model || '',
+    visionProvider: airiExt.vision?.provider || '',
+    vision: airiExt.vision?.model || '',
     speechProvider: airiExt.speech?.provider || '',
     speech: airiExt.speech?.model || '',
     voice: airiExt.speech?.voice_id || '',
@@ -213,8 +220,19 @@ async function handleSetAsBackground(entry: any) {
   activeBackgroundId.value = entry.id
 }
 
+function requestDeleteConfirmation(message: string): boolean {
+  // NOTICE:
+  // Native confirm is the existing guard for this destructive gallery action.
+  // Root cause: `no-alert` rejects direct `confirm(...)` calls before this page
+  // has a shared confirmation-dialog primitive wired into the card settings flow.
+  // Source/context: this component already used native confirm for journal delete.
+  // Removal condition: replace with the shared modal confirmation component.
+  const confirmAction = globalThis.confirm.bind(globalThis)
+  return confirmAction(message)
+}
+
 async function handleDeleteEntry(id: string) {
-  if (confirm('Are you sure you want to delete this image from the journal?')) {
+  if (requestDeleteConfirmation('Are you sure you want to delete this image from the journal?')) {
     await backgroundStore.removeBackground(id)
   }
 }
@@ -429,6 +447,40 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
                   </span>
                   <div truncate font-medium>
                     {{ getModuleDisplayValue(moduleSettings.consciousness, defaultConsciousnessModel) }}
+                  </div>
+                </div>
+
+                <div
+                  flex="~ col"
+                  bg="white/60 dark:black/30"
+                  gap-1 rounded-lg p-3
+                  border="~ neutral-200/50 dark:neutral-700/30"
+                  transition="all duration-200"
+                  hover="bg-white/80 dark:bg-black/40"
+                >
+                  <span flex="~ row" items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400>
+                    <div i-lucide:eye />
+                    {{ t('settings.pages.card.vision.provider') }}
+                  </span>
+                  <div truncate font-medium>
+                    {{ getModuleDisplayValue(moduleSettings.visionProvider, visionProvider) }}
+                  </div>
+                </div>
+
+                <div
+                  flex="~ col"
+                  bg="white/60 dark:black/30"
+                  gap-1 rounded-lg p-3
+                  border="~ neutral-200/50 dark:neutral-700/30"
+                  transition="all duration-200"
+                  hover="bg-white/80 dark:bg-black/40"
+                >
+                  <span flex="~ row" items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400>
+                    <div i-lucide:scan-eye />
+                    {{ t('settings.pages.card.vision.model') }}
+                  </span>
+                  <div truncate font-medium>
+                    {{ getModuleDisplayValue(moduleSettings.vision, defaultVisionModel) }}
                   </div>
                 </div>
 

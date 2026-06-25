@@ -1,6 +1,7 @@
 import type { Locale } from '@intlify/core'
 import type { ServerOptions } from '@proj-airi/server-runtime/server'
 import type {
+  ShortcutAccelerator,
   ShortcutBinding,
   ShortcutRegistrationResult,
 } from '@proj-airi/stage-shared/global-shortcut'
@@ -31,6 +32,10 @@ export const electronOpenMainDevtools = defineInvokeEventa('eventa:invoke:electr
 export const electronOpenSettings = defineInvokeEventa<void, { route?: string }>('eventa:invoke:electron:windows:settings:open')
 export const electronSettingsNavigate = defineEventa<{ route: string }>('eventa:event:electron:windows:settings:navigate')
 export const electronOpenChat = defineInvokeEventa('eventa:invoke:electron:windows:chat:open')
+export const electronSpotlightHide = defineInvokeEventa<void>('eventa:invoke:electron:windows:spotlight:hide')
+export const electronSpotlightShowResultNotification = defineInvokeEventa<void, { body: string }>('eventa:invoke:electron:windows:spotlight:show-result-notification')
+export const electronSpotlightShortcutGet = defineInvokeEventa<ShortcutAccelerator>('eventa:invoke:electron:windows:spotlight:shortcut:get')
+export const electronSpotlightShortcutSet = defineInvokeEventa<ShortcutRegistrationResult, { accelerator: ShortcutAccelerator | null }>('eventa:invoke:electron:windows:spotlight:shortcut:set')
 export const electronOpenSettingsDevtools = defineInvokeEventa('eventa:invoke:electron:windows:settings:devtools:open')
 export const electronOpenDevtoolsWindow = defineInvokeEventa<void, { key: string, route?: string, width?: number, height?: number, x?: number, y?: number }>('eventa:invoke:electron:windows:devtools:open')
 
@@ -112,6 +117,7 @@ export interface WidgetsAddPayload {
   id?: string
   componentName: string
   componentProps?: Record<string, any>
+  alwaysOnTop?: boolean
   // size presets or explicit spans; renderer decides mapping
   size?: WidgetGridSize
   windowSize?: WidgetWindowSize | Record<string, unknown>
@@ -122,6 +128,7 @@ export interface WidgetsAddPayload {
 export interface WidgetsUpdatePayload {
   id: string
   componentProps?: Record<string, any>
+  alwaysOnTop?: boolean
   size?: WidgetGridSize
   windowSize?: WidgetWindowSize | Record<string, unknown>
   ttlMs?: number
@@ -131,13 +138,14 @@ export interface WidgetSnapshot {
   id: string
   componentName: string
   componentProps: Record<string, any>
+  alwaysOnTop: boolean
   size: WidgetGridSize
   windowSize?: WidgetWindowSize
   ttlMs: number
 }
 
 export interface PluginManifestSummary {
-  name: string
+  extensionId: string
   entrypoints: Record<string, string | undefined>
   path: string
   enabled: boolean
@@ -168,7 +176,7 @@ export interface PluginCapabilityState {
 
 export interface PluginHostSessionSummary {
   id: string
-  manifestName: string
+  extensionId: string
   phase: string
   runtime: 'electron' | 'node' | 'web'
   moduleId: string
