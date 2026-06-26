@@ -35,7 +35,7 @@ export async function loadVRMAnimation(url: string) {
   return userData.vrmAnimations[0]
 }
 
-export async function clipFromVRMAnimation(vrm?: VRMCore, animation?: VRMAnimation) {
+export function clipFromVRMAnimation(vrm?: VRMCore, animation?: VRMAnimation) {
   if (!vrm) {
     console.warn('No VRM found')
     return

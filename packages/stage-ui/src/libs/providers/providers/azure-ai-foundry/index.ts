@@ -73,7 +73,8 @@ export const providerAzureAIFoundry = defineProvider<AzureAIFoundryConfig>({
     const hasApiKey = Boolean(config.apiKey?.trim())
     const hasResourceName = Boolean(config.resourceName?.trim())
     const hasModelId = Boolean(config.modelId?.trim())
-    return hasApiKey || hasResourceName || hasModelId
+    const hasAnyCredential = hasApiKey || hasResourceName || hasModelId
+    return hasAnyCredential
   },
   validators: {
     validateConfig: [

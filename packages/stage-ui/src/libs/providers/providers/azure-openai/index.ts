@@ -79,7 +79,8 @@ function parseAzureEndpointHints(baseUrl: string | undefined): AzureEndpointHint
 }
 
 function resolveCompletionsApiVersion(config: AzureOpenAIConfig, hints: AzureEndpointHints): string {
-  return (hints.apiVersionFromUrl || config.completionsApiVersion || DEFAULT_COMPLETIONS_API_VERSION).trim()
+  const versionFromUrl = hints.apiVersionFromUrl || config.completionsApiVersion
+  return (versionFromUrl || DEFAULT_COMPLETIONS_API_VERSION).trim()
 }
 
 function resolveConfiguredDeployments(config: AzureOpenAIConfig): string[] {

@@ -25,7 +25,7 @@ function createUpdaterMock() {
     autoDownload: true,
     allowPrerelease: false,
     channel: undefined as string | undefined,
-    logger: undefined as any,
+    logger: undefined as unknown,
     forceDevUpdateConfig: false,
     setFeedURL: vi.fn(),
     checkForUpdates: vi.fn().mockResolvedValue(undefined),

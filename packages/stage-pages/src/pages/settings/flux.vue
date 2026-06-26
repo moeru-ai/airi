@@ -220,7 +220,7 @@ async function fetchPackages() {
   }
 }
 
-onMounted(async () => {
+onMounted(() => {
   Promise.allSettled([fetchPackages(), authStore.updateCredits(), fetchStats(), fetchAuditHistory()])
 
   // PostHog funnel step 1: pricing surface view. Today this is an in-app

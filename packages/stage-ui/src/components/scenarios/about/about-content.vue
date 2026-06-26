@@ -31,7 +31,11 @@ const hasBuildInfo = computed(() => {
   const info = props.buildInfo
   if (!info) return false
 
-  return Boolean(info.branch || info.commit || info.builtOn || info.version)
+  const hasBranch = Boolean(info.branch)
+  const hasCommit = Boolean(info.commit)
+  const hasBuiltOn = Boolean(info.builtOn)
+  const hasVersion = Boolean(info.version)
+  return hasBranch || hasCommit || hasBuiltOn || hasVersion
 })
 </script>
 

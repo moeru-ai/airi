@@ -456,9 +456,7 @@ export async function createServerChannelService(params: { serverChannel: Server
 
   const { context } = createContext(ipcMain)
 
-  defineInvokeHandler(context, electronGetServerChannelConfig, async () => {
-    return await getChannelServerConfig()
-  })
+  defineInvokeHandler(context, electronGetServerChannelConfig, () => getChannelServerConfig())
 
   defineInvokeHandler(context, electronGetServerChannelQrPayload, async () => {
     const config = await getChannelServerConfig()

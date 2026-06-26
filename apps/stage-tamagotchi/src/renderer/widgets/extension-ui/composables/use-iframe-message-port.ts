@@ -69,9 +69,8 @@ function toWidgetsIframePostMessageValue(value: unknown, seen = new WeakSet<obje
  */
 export function toWidgetsIframePostMessageRecord(value: unknown): Record<string, unknown> {
   const normalized = toWidgetsIframePostMessageValue(value)
-  return normalized && typeof normalized === 'object' && !Array.isArray(normalized)
-    ? (normalized as Record<string, unknown>)
-    : {}
+  const isNormalizedObject = normalized && typeof normalized === 'object' && !Array.isArray(normalized)
+  return isNormalizedObject ? (normalized as Record<string, unknown>) : {}
 }
 
 /**

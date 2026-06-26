@@ -105,7 +105,9 @@ function goToModelSelection() {
       <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
         <ProviderBaseUrlInput
           v-model="baseUrl"
-          :placeholder="(providerMetadata?.defaultOptions?.() as any)?.baseUrl || '' || 'Base URL of your provider'"
+          :placeholder="
+            (providerMetadata?.defaultOptions?.() as Record<string, unknown>)?.baseUrl ?? 'Base URL of your provider'
+          "
         />
       </ProviderAdvancedSettings>
 

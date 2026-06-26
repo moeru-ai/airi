@@ -5,7 +5,8 @@ import { z } from 'zod'
 const JSON_SCHEMA_NULLABLE_SCALAR_TYPES = new Set(['string', 'number', 'integer', 'boolean', 'null'])
 
 function isJsonSchema(value: JsonSchema | boolean | JsonSchema[] | undefined): value is JsonSchema {
-  return Boolean(value && !Array.isArray(value) && typeof value === 'object')
+  const isNonNullObject = typeof value === 'object' && value !== null
+  return isNonNullObject && !Array.isArray(value)
 }
 
 /**

@@ -428,9 +428,9 @@ function setEmotion(emotion: Emotion, _intensity: number = 1): string | undefine
   return entry?.animation?.name
 }
 
-watch(modelSrc, async () => await loadModel(), { immediate: true })
-watch(canvas, async (next, prev) => {
-  if (next && next !== prev) await loadModel()
+watch(modelSrc, () => void loadModel(), { immediate: true })
+watch(canvas, (next, prev) => {
+  if (next && next !== prev) void loadModel()
 })
 
 watch(
@@ -453,8 +453,8 @@ watch(currentSkin, (skinName) => {
   applySkin(skinName)
 })
 
-watch(currentVariant, async () => {
-  if (loadedVariants.length > 1) await loadModel()
+watch(currentVariant, () => {
+  if (loadedVariants.length > 1) void loadModel()
 })
 
 watch(

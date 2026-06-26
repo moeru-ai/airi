@@ -159,6 +159,7 @@ export function createAuthService(params: {
     }
   })
 
+  // async: returns Promise for interface compatibility
   defineInvokeHandler(params.context, electronAuthLogout, async (_, options) => {
     if (params.window.webContents.id !== options?.raw.ipcMainEvent.sender.id) {
       return

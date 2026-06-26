@@ -443,7 +443,8 @@ function onOrbitControlsReady() {
 const controlEnable = computed(() => {
   const isModelReady = modelPhase.value === 'ready'
   const isNotLocked = !sceneMutationLocked.value
-  return props.enableOrbitControls && controlsReady.value && isModelReady && isNotLocked
+  const isReady = controlsReady.value && isModelReady && isNotLocked
+  return props.enableOrbitControls && isReady
 })
 function onVRMModelLoadStart(reason: VrmLifecycleReason) {
   modelPhase.value = 'loading'
@@ -710,7 +711,7 @@ defineExpose({
   renderer: () => tresContextRef.value?.renderer.instance,
   scene: () => modelRef.value?.scene,
   readRenderTargetRegionAtClientPoint,
-  captureFrame: async () => {
+  captureFrame: () => {
     if (!tresContextRef.value) return null
 
     const { renderer, scene } = tresContextRef.value

@@ -37,7 +37,7 @@ export function createH3Server(options: {
 
   return {
     async start(): Promise<BuiltInServerAddress> {
-      return await lifecycleMutex.runExclusive(async () => {
+      return lifecycleMutex.runExclusive(async () => {
         if (address) {
           return address
         }

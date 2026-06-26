@@ -419,7 +419,7 @@ onMounted(() => {
   }
 
   cleanupFns.push(
-    chatStore.onBeforeMessageComposed(async (message, context) => {
+    chatStore.onBeforeMessageComposed((message, context) => {
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -428,7 +428,7 @@ onMounted(() => {
         payload: { message, context },
       })
     }),
-    chatStore.onAfterMessageComposed(async (message, context) => {
+    chatStore.onAfterMessageComposed((message, context) => {
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -437,7 +437,7 @@ onMounted(() => {
         payload: { message, context },
       })
     }),
-    chatStore.onBeforeSend(async (message, context) => {
+    chatStore.onBeforeSend((message, context) => {
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -446,7 +446,7 @@ onMounted(() => {
         payload: { message, context },
       })
     }),
-    chatStore.onAfterSend(async (message, context) => {
+    chatStore.onAfterSend((message, context) => {
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -455,7 +455,7 @@ onMounted(() => {
         payload: { message, context },
       })
     }),
-    chatStore.onTokenLiteral(async (literal, context) => {
+    chatStore.onTokenLiteral((literal, context) => {
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -464,7 +464,7 @@ onMounted(() => {
         payload: { literal, context },
       })
     }),
-    chatStore.onTokenSpecial(async (special, context) => {
+    chatStore.onTokenSpecial((special, context) => {
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -473,7 +473,7 @@ onMounted(() => {
         payload: { special, context },
       })
     }),
-    chatStore.onStreamEnd(async (context) => {
+    chatStore.onStreamEnd((context) => {
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -482,7 +482,7 @@ onMounted(() => {
         payload: { context },
       })
     }),
-    chatStore.onAssistantResponseEnd(async (message, context) => {
+    chatStore.onAssistantResponseEnd((message, context) => {
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -491,7 +491,7 @@ onMounted(() => {
         payload: { message, context },
       })
     }),
-    chatStore.onAssistantMessage(async (message, messageText, context) => {
+    chatStore.onAssistantMessage((message, messageText, context) => {
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -500,7 +500,7 @@ onMounted(() => {
         payload: { message, messageText, context },
       })
     }),
-    chatStore.onChatTurnComplete(async (chat, context) => {
+    chatStore.onChatTurnComplete((chat, context) => {
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',

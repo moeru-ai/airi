@@ -202,7 +202,7 @@ export function getCachedWebGPUCapabilities(): WebGPUCapabilities | null {
  * Simple boolean helper that matches the old `isWebGPUSupported()` API.
  * Prefer `detectWebGPU()` when you need more detail.
  */
-export async function isWebGPUSupported(): Promise<boolean> {
+export function isWebGPUSupported(): Promise<boolean> {
   // Fast-path: if gpuu's lightweight check is enough
   return gpuuIsSupported()
 }

@@ -20,7 +20,7 @@ export function useElectronScreenCapture(ipcRenderer: IpcRenderer, sourcesOption
   const checkMacOSPermission = defineInvoke(context, screenCapture.checkMacOSPermission)
   const requestMacOSPermission = defineInvoke(context, screenCapture.requestMacOSPermission)
 
-  async function getSources() {
+  function getSources() {
     return invokeGetSources(toRaw(toValue(sourcesOptions)))
   }
 

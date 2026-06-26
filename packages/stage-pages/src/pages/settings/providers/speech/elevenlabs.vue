@@ -83,37 +83,37 @@ onMounted(async () => {
   }
 })
 
-watch(pitch, async () => {
+watch(pitch, () => {
   const providerConfig = providersStore.getProviderConfig(providerId)
   providerConfig.pitch = pitch.value
 })
 
-watch(speed, async () => {
+watch(speed, () => {
   const providerConfig = providersStore.getProviderConfig(providerId)
   providerConfig.speed = speed.value
 })
 
-watch(volume, async () => {
+watch(volume, () => {
   const providerConfig = providersStore.getProviderConfig(providerId)
   providerConfig.volume = volume.value
 })
 
-watch(style, async () => {
+watch(style, () => {
   const providerConfig = providersStore.getProviderConfig(providerId)
   providerConfig.style = style.value
 })
 
-watch(stability, async () => {
+watch(stability, () => {
   const providerConfig = providersStore.getProviderConfig(providerId)
   providerConfig.stability = stability.value
 })
 
-watch(similarityBoost, async () => {
+watch(similarityBoost, () => {
   const providerConfig = providersStore.getProviderConfig(providerId)
   providerConfig.similarityBoost = similarityBoost.value
 })
 
-watch(useSpeakerBoost, async () => {
+watch(useSpeakerBoost, () => {
   const providerConfig = providersStore.getProviderConfig(providerId)
   providerConfig.useSpeakerBoost = useSpeakerBoost.value
 })

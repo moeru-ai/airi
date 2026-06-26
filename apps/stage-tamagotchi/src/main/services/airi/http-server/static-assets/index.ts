@@ -69,7 +69,7 @@ export function createStaticAssetService(options: {
 
   const staticAssetRoute = createStaticAssetRoute({
     getType,
-    authorize: async ({ extensionId, assetSessionId, assetPath, cookieValue }) => {
+    authorize: ({ extensionId, assetSessionId, assetPath, cookieValue }) => {
       const entry = getManifestEntryForRequest(extensionId)
       if (!entry) {
         return {

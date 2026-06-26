@@ -333,7 +333,8 @@ function pickLocaleForUi(uiLocale: string, available: string[]): string {
   const uiPrefix = languagePrefix(uiLocale)
   const prefixMatch = available.find((c) => languagePrefix(c) === uiPrefix)
   if (prefixMatch) return prefixMatch
-  return available.find((c) => c === 'en-US') || available.find((c) => c.toLowerCase().startsWith('en')) || available[0]
+  const enUSMatch = available.find((c) => c === 'en-US') || available.find((c) => c.toLowerCase().startsWith('en'))
+  return enUSMatch || available[0]
 }
 
 // Look up the recommended voice id for a locale: exact match first, then

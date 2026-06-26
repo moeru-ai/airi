@@ -126,7 +126,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   })
 }
 
-watch(speed, async () => {
+watch(speed, () => {
   if (!providers.value[providerId]) providers.value[providerId] = {}
   providers.value[providerId].speed = speed.value
 })

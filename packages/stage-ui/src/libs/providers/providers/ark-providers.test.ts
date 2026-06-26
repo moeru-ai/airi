@@ -42,8 +42,7 @@ describe('ark chat provider definitions', () => {
     const chatConfig = providerInstance.chat('volcengine-coding-plan/doubao-seed-2.0-code')
     expect(chatConfig.model).toBe('doubao-seed-2.0-code')
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const listedModels = await provider!.extraMethods!.listModels!(parsedConfig, providerInstance as any)
+    const listedModels = await provider!.extraMethods!.listModels!(parsedConfig, provider!.createProvider(parsedConfig))
     expect(listedModels.map((model) => model.id)).toEqual([
       'volcengine-coding-plan/doubao-seed-2.0-code',
       'volcengine-coding-plan/doubao-seed-2.0-pro',

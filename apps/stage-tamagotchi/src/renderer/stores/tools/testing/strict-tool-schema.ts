@@ -21,7 +21,8 @@ declare module 'vitest' {
 }
 
 function isSchemaRecord(value: unknown): value is JsonSchema {
-  return Boolean(value && typeof value === 'object' && !Array.isArray(value))
+  const isNonNullObject = typeof value === 'object' && value !== null
+  return isNonNullObject && !Array.isArray(value)
 }
 
 function sorted(values: string[]): string[] {

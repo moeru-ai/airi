@@ -86,7 +86,7 @@ onMounted(async () => {
   }
 })
 
-watch(speedRatio, async () => {
+watch(speedRatio, () => {
   const providerConfig = getProviderConfig()
   if (!providerConfig.audio) {
     providerConfig.audio = {}

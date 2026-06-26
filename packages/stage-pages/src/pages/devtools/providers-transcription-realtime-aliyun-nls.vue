@@ -54,10 +54,16 @@ const regionOptions: { label: string; value: AliyunRegion }[] = [
 ]
 
 const credentialsReady = computed(() => {
-  return Boolean(credentials.accessKeyId.trim() && credentials.accessKeySecret.trim() && credentials.appKey.trim())
+  const hasAccessKeyId = Boolean(credentials.accessKeyId.trim())
+  const hasAccessKeySecret = Boolean(credentials.accessKeySecret.trim())
+  const hasAppKey = Boolean(credentials.appKey.trim())
+  return hasAccessKeyId && hasAccessKeySecret && hasAppKey
 })
 
-const canStartRecording = computed(() => credentialsReady.value && !isRecording.value && !isTranscribing.value)
+const canStartRecording = computed(() => {
+  const notRecording = !isRecording.value && !isTranscribing.value
+  return credentialsReady.value && notRecording
+})
 const canStopRecording = computed(() => isRecording.value)
 const canAbortTranscription = computed(() => isTranscribing.value && Boolean(transcriptionAbortController.value))
 

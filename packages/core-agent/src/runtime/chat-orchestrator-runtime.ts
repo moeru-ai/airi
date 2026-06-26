@@ -494,7 +494,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       const toolCallQueue = createQueue<ChatSlices>({
         handlers: [
-          async (ctx) => {
+          (ctx) => {
             if (shouldAbort()) return
             if (ctx.data.type === 'tool-call') {
               buildingMessage.slices.push(ctx.data)

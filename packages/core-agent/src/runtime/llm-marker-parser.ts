@@ -109,6 +109,7 @@ function createLlmMarkerParser(options?: MarkerParserOptions) {
       }
     },
 
+    // async: returns Promise for interface compatibility
     async end(onLiteral: (value: string) => Promise<void> | void) {
       if (!inTag && buffer.length > 0) {
         await onLiteral(buffer)
@@ -129,7 +130,7 @@ function createLlmMarkerStream(input: ReadableStream<string>, options?: MarkerPa
         if (!literal) return
         write({ type: 'literal', value: literal })
       },
-      async (special) => {
+      (special) => {
         write({ type: 'special', value: special })
       },
     )

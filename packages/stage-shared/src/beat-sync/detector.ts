@@ -285,7 +285,7 @@ export function toggleBeatSync(enabled: boolean) {
   throw new Error('Unknown environment for beatSyncToggle()')
 }
 
-export async function getBeatSyncState() {
+export function getBeatSyncState(): Promise<BeatSyncDetectorState> {
   if (isStageWeb()) {
     return getDetector().state
   }
@@ -333,7 +333,7 @@ export function listenBeatSyncBeatSignal(listener: (e: AnalyserBeatEvent) => voi
   throw new Error('Unknown environment for listenBeatSyncBeatSignal()')
 }
 
-export async function getBeatSyncInputByteFrequencyData() {
+export function getBeatSyncInputByteFrequencyData(): Promise<Uint8Array<ArrayBuffer>> {
   if (isStageWeb()) {
     return getDetector().getInputByteFrequencyData()
   }

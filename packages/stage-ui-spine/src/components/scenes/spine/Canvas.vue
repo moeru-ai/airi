@@ -55,7 +55,7 @@ onUnmounted(() => {
   isCanvasReady.value = false
 })
 
-async function captureFrame() {
+function captureFrame() {
   return new Promise<Blob | null>((resolve) => {
     if (!canvasRef.value) {
       resolve(null)

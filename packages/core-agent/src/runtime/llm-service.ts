@@ -110,7 +110,8 @@ async function resolveTools(options?: StreamOptions) {
 }
 
 function isAbortError(error: unknown): boolean {
-  return typeof error === 'object' && error !== null && (error as { name?: unknown }).name === 'AbortError'
+  const isNonNullObject = typeof error === 'object' && error !== null
+  return isNonNullObject && (error as { name?: unknown }).name === 'AbortError'
 }
 
 function createCapturedToolErrorResult(toolName: string, error: unknown): string {

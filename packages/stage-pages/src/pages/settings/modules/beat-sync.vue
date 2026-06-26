@@ -108,7 +108,7 @@ const noAudioDetected = computed(() => {
 
 watch(
   state,
-  async (newState) => {
+  (newState) => {
     if (newState?.isActive) {
       if (!isUpdatingFrequencies.value) {
         isUpdatingFrequencies.value = true

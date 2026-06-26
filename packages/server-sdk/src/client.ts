@@ -665,7 +665,8 @@ export class Client<C = undefined> {
   }
 
   private isValidWebSocketEvent(parsed: unknown): parsed is WebSocketEvent<C> {
-    return parsed != null && typeof parsed === 'object' && 'type' in parsed
+    const isNonNullObject = parsed != null && typeof parsed === 'object'
+    return isNonNullObject && 'type' in parsed
   }
 
   // eslint-disable-next-line class-methods-use-this

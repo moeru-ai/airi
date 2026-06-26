@@ -68,7 +68,8 @@ export interface ExecuteToolOptions {
 }
 
 function isAbortError(error: unknown): boolean {
-  return typeof error === 'object' && error !== null && (error as { name?: unknown }).name === 'AbortError'
+  const isNonNullObject = typeof error === 'object' && error !== null
+  return isNonNullObject && (error as { name?: unknown }).name === 'AbortError'
 }
 
 function classifyError(
@@ -103,7 +104,8 @@ function createCapturedErrorContent(toolName: string, error: unknown): string {
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
+  const isNonNullObject = typeof value === 'object' && value !== null
+  return isNonNullObject && !Array.isArray(value)
 }
 
 /**

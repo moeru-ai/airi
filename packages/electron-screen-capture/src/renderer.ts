@@ -26,7 +26,7 @@ export function setupElectronScreenCapture(context: ReturnType<typeof createCont
   const checkMacOSPermission = defineInvoke(context, screenCaptureCheckMacOSPermission)
   const requestMacOSPermission = defineInvoke(context, screenCaptureRequestMacOSPermission)
 
-  async function getSources(sourcesOptions: SourcesOptions) {
+  function getSources(sourcesOptions: SourcesOptions) {
     return invokeGetSources(sourcesOptions)
   }
 

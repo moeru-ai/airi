@@ -45,7 +45,7 @@ watch([containerElementBounding.width, containerElementBounding.height], () => {
   }
 })
 
-onMounted(async () => {
+onMounted(() => {
   if (!containerRef.value) return
 
   containerElementBounding.update()

@@ -153,7 +153,7 @@ watch(
   { immediate: true },
 )
 
-onAfterMessageComposed(async () => {
+onAfterMessageComposed(() => {
   // noop
 })
 

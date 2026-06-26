@@ -414,7 +414,10 @@ export async function loadSpineZip(file: File | Blob | ArrayBuffer): Promise<Spi
  * should be passed through unchanged during atlas reference rewriting.
  */
 function isPassthroughLine(line: string): boolean {
-  return line.trim().length === 0 || line[0] === ' ' || line[0] === '\t' || line.includes(':')
+  const isBlank = line.trim().length === 0
+  const isIndented = line[0] === ' ' || line[0] === '\t'
+  const isIndentedOrBlank = isBlank || isIndented
+  return isIndentedOrBlank || line.includes(':')
 }
 
 function rewriteAtlasPageReferences(atlasText: string, layout: SpineModelLayout, blobUrls: Record<string, string>) {

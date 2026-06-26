@@ -192,7 +192,8 @@ function isJsonSchemaRecord(inputSchema: unknown): inputSchema is JsonSchema {
  * - `true` when the value can be converted by {@link toJsonSchema}
  */
 function isStandardSchema(inputSchema: unknown): inputSchema is StandardSchemaV1 {
-  return Boolean(inputSchema && typeof inputSchema === 'object' && '~standard' in inputSchema)
+  const isNonNullObject = Boolean(inputSchema && typeof inputSchema === 'object')
+  return isNonNullObject && '~standard' in (inputSchema as object)
 }
 
 /**
@@ -211,7 +212,8 @@ function toHostDataRecord(value: object): HostDataRecord {
 }
 
 function isJsonSchemaNode(value: JsonSchema | boolean | JsonSchema[] | undefined): value is JsonSchema {
-  return Boolean(value && !Array.isArray(value) && typeof value === 'object')
+  const isNonNullObject = Boolean(value && !Array.isArray(value) && typeof value === 'object')
+  return isNonNullObject
 }
 
 function withNullableValue(schema: JsonSchema): JsonSchema {

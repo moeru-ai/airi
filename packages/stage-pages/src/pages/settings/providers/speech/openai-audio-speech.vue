@@ -90,7 +90,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   })
 }
 
-watch(speed, async () => {
+watch(speed, () => {
   const providerConfig = providersStore.getProviderConfig(providerId)
   providerConfig.speed = speed.value
 })

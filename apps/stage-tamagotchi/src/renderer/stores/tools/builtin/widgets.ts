@@ -127,7 +127,8 @@ const widgetParams = z
 type WidgetToolInput = z.infer<typeof widgetParams>
 
 function isJsonSchema(value: JsonSchema | boolean | JsonSchema[] | undefined): value is JsonSchema {
-  return Boolean(value && !Array.isArray(value) && typeof value === 'object')
+  const isObject = typeof value === 'object' && value !== null
+  return isObject && !Array.isArray(value) && value !== undefined
 }
 
 function normalizeNullableAnyOf(schema: JsonSchema): JsonSchema {

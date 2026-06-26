@@ -218,7 +218,8 @@ export function normalizeSparkCommandStringValue(value: string | null): string |
 }
 
 function isJsonSchema(value: JsonSchema | boolean | JsonSchema[] | undefined): value is JsonSchema {
-  return Boolean(value && !Array.isArray(value) && typeof value === 'object')
+  const isNonNullObject = Boolean(value && !Array.isArray(value) && typeof value === 'object')
+  return isNonNullObject
 }
 
 export function normalizeNullableAnyOf(schema: JsonSchema): JsonSchema {

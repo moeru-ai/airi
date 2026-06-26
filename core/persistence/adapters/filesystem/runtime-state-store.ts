@@ -7,10 +7,8 @@
  * Directory-based organization for efficient listing.
  */
 
-import type {
-	RuntimeStateStore,
-} from "../../types.js"
-import type { FilesystemPersistenceAdapter } from "./adapter.js"
+import type { RuntimeStateStore } from '../../types.js'
+import type { FilesystemPersistenceAdapter } from './adapter.js'
 
 /**
  * Filesystem-backed key-value runtime state store.
@@ -18,52 +16,52 @@ import type { FilesystemPersistenceAdapter } from "./adapter.js"
  * Each key maps to an individual JSON file under the base path.
  */
 export class FilesystemRuntimeStateStore implements RuntimeStateStore {
-	private readonly adapter: FilesystemPersistenceAdapter
-	private readonly keyPrefix: string
+  private readonly adapter: FilesystemPersistenceAdapter
+  private readonly keyPrefix: string
 
-	constructor(adapter: FilesystemPersistenceAdapter, keyPrefix = "state") {
-		this.adapter = adapter
-		this.keyPrefix = keyPrefix
-	}
+  constructor(adapter: FilesystemPersistenceAdapter, keyPrefix = 'state') {
+    this.adapter = adapter
+    this.keyPrefix = keyPrefix
+  }
 
-	// ── Lifecycle ────────────────────────────────────────────────────────
+  // ── Lifecycle ────────────────────────────────────────────────────────
 
-	/**
-	 * Initialize the state store — ensure the base directory exists.
-	 */
-	async initialize(): Promise<void> {
-		await this.adapter.initialize()
-	}
+  /**
+   * Initialize the state store — ensure the base directory exists.
+   */
+  async initialize(): Promise<void> {
+    await this.adapter.initialize()
+  }
 
-	// ── RuntimeStateStore interface ─────────────────────────────────────
+  // ── RuntimeStateStore interface ─────────────────────────────────────
 
-	async get<T>(key: string): Promise<T | null> {
-		const fullKey = `${this.keyPrefix}:${key}`
-		const buffer = await this.adapter.read(fullKey)
-		if (!buffer) return null
-		return JSON.parse(buffer.toString("utf-8")) as T
-	}
+  async get<T>(key: string): Promise<T | null> {
+    const fullKey = `${this.keyPrefix}:${key}`
+    const buffer = await this.adapter.read(fullKey)
+    if (!buffer) return null
+    return JSON.parse(buffer.toString('utf-8')) as T
+  }
 
-	async set<T>(key: string, value: T): Promise<void> {
-		const fullKey = `${this.keyPrefix}:${key}`
-		const data = Buffer.from(JSON.stringify(value), "utf-8")
-		await this.adapter.write(fullKey, data)
-	}
+  async set<T>(key: string, value: T): Promise<void> {
+    const fullKey = `${this.keyPrefix}:${key}`
+    const data = Buffer.from(JSON.stringify(value), 'utf-8')
+    await this.adapter.write(fullKey, data)
+  }
 
-	async delete(key: string): Promise<void> {
-		const fullKey = `${this.keyPrefix}:${key}`
-		await this.adapter.delete(fullKey)
-	}
+  async delete(key: string): Promise<void> {
+    const fullKey = `${this.keyPrefix}:${key}`
+    await this.adapter.delete(fullKey)
+  }
 
-	async has(key: string): Promise<boolean> {
-		const fullKey = `${this.keyPrefix}:${key}`
-		return this.adapter.exists(fullKey)
-	}
+  has(key: string): Promise<boolean> {
+    const fullKey = `${this.keyPrefix}:${key}`
+    return this.adapter.exists(fullKey)
+  }
 
-	async clear(): Promise<void> {
-		const keys = await this.adapter.list(`${this.keyPrefix}:`)
-		for (const key of keys) {
-			await this.adapter.delete(key)
-		}
-	}
+  async clear(): Promise<void> {
+    const keys = await this.adapter.list(`${this.keyPrefix}:`)
+    for (const key of keys) {
+      await this.adapter.delete(key)
+    }
+  }
 }

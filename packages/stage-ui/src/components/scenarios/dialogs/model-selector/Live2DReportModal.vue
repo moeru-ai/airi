@@ -37,7 +37,11 @@ function handleClose() {
 
 function canFixError(err: string) {
   const e = err.toLowerCase()
-  return e.includes('preview') || e.includes('thumbnail') || e.includes('icon') || e.includes('expression')
+  const isPreviewError = e.includes('preview')
+  const isThumbnailError = e.includes('thumbnail')
+  const isIconError = e.includes('icon')
+  const isExpressionError = e.includes('expression')
+  return isPreviewError || isThumbnailError || isIconError || isExpressionError
 }
 
 function handleFix(err: string) {

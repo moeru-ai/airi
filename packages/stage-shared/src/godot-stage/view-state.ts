@@ -91,16 +91,17 @@ function hasStageViewVec3PatchMutation(patch: Partial<StageViewVec3> | undefined
   const hasX = patch?.x !== undefined
   const hasY = patch?.y !== undefined
   const hasZ = patch?.z !== undefined
-  return hasX || hasY || hasZ
+  const hasPositionMutation = hasX || hasY || hasZ
+  return hasPositionMutation
 }
 
 function hasStageViewPatchMutation(patch: StageViewPatch) {
-  return (
-    hasStageViewVec3PatchMutation(patch.camera?.position) ||
-    patch.camera?.yawDeg !== undefined ||
-    patch.camera?.pitchDeg !== undefined ||
-    patch.camera?.fovDeg !== undefined
-  )
+  const hasPositionMutation = hasStageViewVec3PatchMutation(patch.camera?.position)
+  const hasYawMutation = patch.camera?.yawDeg !== undefined
+  const hasPitchMutation = patch.camera?.pitchDeg !== undefined
+  const hasFovMutation = patch.camera?.fovDeg !== undefined
+  const hasAngleMutation = hasYawMutation || hasPitchMutation || hasFovMutation
+  return hasPositionMutation || hasAngleMutation
 }
 
 export const StageViewPatchSchema = pipe(

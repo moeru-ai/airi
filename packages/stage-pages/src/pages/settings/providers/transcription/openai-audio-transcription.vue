@@ -62,7 +62,7 @@ async function handleGenerateTranscription(file: File) {
   return await hearingStore.transcription(providerId, provider, modelToUse, file, 'json')
 }
 
-watch(model, async () => {
+watch(model, () => {
   const providerConfig = providersStore.getProviderConfig(providerId)
   providerConfig.model = model.value
 })

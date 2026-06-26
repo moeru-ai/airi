@@ -284,7 +284,7 @@ export function setupCaptionWindowManager(params: {
     for (const listener of visibilityListeners) {
       try {
         listener()
-      // eslint-disable-next-line no-empty
+        // eslint-disable-next-line no-empty
       } catch {
         // noop
       }
@@ -447,7 +447,8 @@ export function setupCaptionWindowManager(params: {
   }
 
   function isVisible(): boolean {
-    return Boolean(currentWindow && !currentWindow.isDestroyed() && currentWindow.isVisible())
+    const hasActiveWindow = Boolean(currentWindow && !currentWindow.isDestroyed())
+    return hasActiveWindow && currentWindow!.isVisible()
   }
 
   async function toggleVisibility() {

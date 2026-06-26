@@ -33,7 +33,7 @@ export function themeColorFromPropertyOf(colorFromClass: string, property: strin
 }
 
 export function themeColorFromValue(value: string | { light: string; dark: string }): () => Promise<string> {
-  return async () => {
+  return () => {
     if (typeof value === 'string') {
       return value
     } else {

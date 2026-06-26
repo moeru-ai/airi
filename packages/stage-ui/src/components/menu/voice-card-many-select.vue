@@ -113,7 +113,8 @@ const filteredVoices = computed(() => {
       (lang) => lang.name.toLowerCase().includes(query) || lang.code.toLowerCase().includes(query),
     )
 
-    return nameMatch || descMatch || tagMatch || labelMatch || langMatch
+    const hasNameOrDescMatch = nameMatch || descMatch || tagMatch
+    return hasNameOrDescMatch || labelMatch || langMatch
   })
 })
 

@@ -45,9 +45,9 @@ describe('createConfig', () => {
     const appMock = {
       getPath: vi.fn(() => '/tmp/airi-user-data'),
     }
-    const mkdirMock = vi.fn(async () => {})
+    const mkdirMock = vi.fn(() => {})
     const existingTempFiles = new Set<string>()
-    const renameMock = vi.fn(async (from: string) => {
+    const renameMock = vi.fn((from: string) => {
       if (!existingTempFiles.has(from)) {
         const error = new Error(`ENOENT: no such file or directory, rename '${from}'`) as NodeJS.ErrnoException
         error.code = 'ENOENT'
@@ -84,7 +84,7 @@ describe('createConfig', () => {
       readFileSync: () => '',
     }))
     vi.doMock('node:fs/promises', () => ({
-      copyFile: vi.fn(async () => {}),
+      copyFile: vi.fn(() => {}),
       mkdir: mkdirMock,
       rename: renameMock,
       writeFile: writeFileMock,

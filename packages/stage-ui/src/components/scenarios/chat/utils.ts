@@ -2,7 +2,8 @@ import type { ChatHistoryItem } from '../../../types/chat'
 
 function isTextPart(part: unknown): part is { type: 'text'; text?: string } {
   const isObject = typeof part === 'object' && part !== null
-  return isObject && 'type' in part && part.type === 'text' && 'text' in part
+  const isTextType = isObject && 'type' in part && part.type === 'text'
+  return isTextType && 'text' in part
 }
 
 function getTextFromContentParts(parts: unknown[]): string {

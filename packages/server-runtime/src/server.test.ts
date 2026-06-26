@@ -13,11 +13,11 @@ const serveMocks = vi.hoisted(() => {
       }),
   )
 
-  const closeCall = vi.fn(async () => {})
+  const closeCall = vi.fn(() => {})
   const disposeCall = vi.fn(() => {})
   const setupAppCall = vi.fn(() => ({
     app: {
-      fetch: vi.fn(async () => ({ crossws: {} })),
+      fetch: vi.fn(() => Promise.resolve({ crossws: {} })),
     },
     closeAllPeers: vi.fn(),
     dispose: disposeCall,

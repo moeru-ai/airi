@@ -33,6 +33,6 @@ export function createReusableWindow(setupFn: () => BrowserWindow | Promise<Brow
   }
 
   return {
-    getWindow: async () => ensureWindow(),
+    getWindow: () => ensureWindow(),
   }
 }

@@ -34,27 +34,102 @@ AI companion desktop OS — Electron + Vue 3 + TypeScript pnpm monorepo. Your ch
 - `pnpm lint` / `pnpm lint:fix` — ESLint + formatting
 - `pnpm -F @proj-airi/<pkg> build` — Build one package
 
+## Agent SOP — The Delegate-Verify Loop
+
+This is the **critical workflow** for any code-change task. Follow it **every time**. Never skip verification.
+
+### Step 1: Analyze & Plan
+1. Use jcodemunch to explore:
+   - `plan_turn(repo="airi", query="<task>")` — opening move; surfaces target symbols.
+   - `search_symbols` / `get_file_outline` — locate exact symbols.
+   - `get_blast_radius(symbol="...", depth=2)` — understand downstream impact.
+   - `get_call_hierarchy` / `find_references` — map callers and dependents.
+   - `get_hotspots` / `find_dead_code` — identify risk areas.
+2. Break the task into **smallest possible steps**. Do not bundle.
+
+### Step 2: Delegate ONE Step
+- Use `spawn_agent` for code modifications.
+- Every prompt MUST include:
+  - Repo identifier: `"airi"`
+  - Exact `symbol_ids` (use `get_file_outline`/
+    `search_symbols` to find them).
+  - jcodemunch mandate: "Use jcodemunch tools (`get_file_outline`, `search_symbols`, `get_symbol_source`, `get_ranked_context`) for **all** code lookup. Batch with `symbol_ids[]` instead of repeated calls."
+  - Full context — the subagent is **stateless**.
+
+**Template:**
+```
+You are working in repo "airi" (indexed via jcodemunch-mcp).
+Mandatory: use jcodemunch tools for ALL code lookup.
+- get_file_outline → get_symbol_source
+- search_symbols → get_ranked_context
+- Batch with symbol_ids[]
+
+Target symbols: [<list symbol_ids>]
+Task: <description>
+```
+
+### Step 3: ❗ Verify the Result (Critical)
+**Never trust a subagent's report.** Subagents frequently claim success while leaving code unmodified.
+After every delegated task:
+1. **Read the actual file** with `grep`/`read_file` — confirm the expected code is present.
+2. Check blast radius: `find_references(identifier="...")` — verify no call site is broken.
+3. Trace upstream: `get_call_hierarchy(symbol_id="...", direction="callers")`.
+4. Confirm indexed source: `get_symbol_source(symbol_id="...", verify=true)`.
+5. Register edits: `register_edit(file_paths=[...], reindex=true)`.
+6. Run targeted tests: `pnpm exec vitest run <changed-file>`.
+
+**If missing or wrong, re-delegate with corrective feedback — never fix yourself.**
+
+### Lesson Learned — Missing Blast Radius Verification
+The subagent for ["Extract persistence logic from Electron main thread"](https://github.com/animaios/airi/pull/142) reported success, but the `AppDataManager` class was **never moved** out of `main.ts`. Only a stub file was created. The missing move was discovered when verifying blast radius — `find_references(identifier="AppDataManager")` still showed all IPC call sites inside the Electron main thread. **Always verify blast radius and references with jcodemunch after a delegated task.**
+
+## Commands Recap
+- Build/test: `pnpm typecheck`, `pnpm -F @proj-airi/<pkg> exec vitest run`
+- Run: `pnpm dev:tamagotchi`
+- Lint: `pnpm lint` / `pnpm lint:fix`
+
 ## Rules
 
-- Use pnpm (never npm/yarn). Filter with `-F @proj-airi/<name>`.
-- Shared logic → `packages/`. Keep app entrypoints thin.
-- Translations → `packages/i18n` only.
-- `@moeru/eventa` for IPC, `injeca` for DI, `@moeru/std` for errors (`errorMessageFrom`), Valibot for schemas.
-- UnoCSS (not Tailwind). Extend shortcuts in `uno.config.ts`.
-- `@proj-airi/ui` primitives (reka-ui) instead of raw DOM.
-- Iconify icon sets; no bespoke SVGs.
-- Never commit secrets or API keys.
-- Search for existing internal implementations before adding dependencies.
+### Git
+- Rebase pulls: `git pull --rebase`.
+- Branch naming: `username/feat/short-name`.
+- Conventional Commits: `feat(<scope>): message`. No Gitmoji.
+- Commit messages: summarise changes, **test commands used**, follow-ups.
 
-## Delegation
+### Testing
+- Reproduce bugs with a test **before** changing production code.
+- Include tracker identifiers: `Issue #<number>` or Linear key.
+- Add the report URL as a comment above the test.
+- Run targeted tests: `pnpm exec vitest run <changed-file>`.
 
-When available, `spawn_agent` is stateless — include repo id, target symbol_ids, jcodemunch mandate, and all context in every prompt. If `spawn_agent` is unavailable, proceed directly with the normal editing tools and keep changes scoped. See RULES.md §0 for SOP.
+### Architecture Landmines
+- Module boundaries: prefer **deep modules** (hide a meaningful decision: policy, persistence, lifecycle). Avoid shallow splits (by execution order only).
+- DI: use only at **external boundaries** (database, model runtime, Redis). Do not create `Dependencies` objects for internal helpers.
+- Circular imports: treat as a **design problem**. Reconsider ownership/boundaries.
+- TypeScript: import types from the **owning module**. Never redeclare external types.
+- IPC: centralise Eventa contracts; use `@moeru/eventa` for all events.
 
-## Further Reference
+### Dependencies
+- **Never add a dependency without searching for existing internal implementations.**
+- For `node:*`, DOM, or Vue composables, research existing libraries first and **ask the user to confirm choices**.
 
-- `RULES.md §0` — Agent SOP: plan → delegate → review workflow
-- `RULES.md §1–§9` — TypeScript, testing, naming, modules, git, styling, deps, i18n, dev practices
-- `docs/architecture/` — Bootstrap flow, module system, cognition, planner, memory, workers, workspace isolation
+### Styling & Components
+- Use UnoCSS shortcuts/rules (extend in `uno.config.ts`). Prefer UnoCSS over Tailwind.
+- Build on `@proj-airi/ui` primitives (reka-ui). Update `docs/ai/context/ui-components.md` when adding/updating components.
+- Use Iconify icon sets; **no bespoke SVGs**.
+
+### Credentials/Secrets
+- **Never commit secrets or API keys.** Use `.env.example` patterns.
+
+## jcodemunch Recap
+
+Repo: `airi` (indexed). Symbol ID: `{file_path}::{qualified_name}#{kind}`
+
+- `plan_turn(repo="airi", query="...")` → before any task
+- `get_file_outline` → `get_symbol_source` / `get_context_bundle` — **never** read full files
+- `search_symbols(repo="airi", query="...")` — find symbols
+- `get_blast_radius(symbol="...", include_source=true)` — check impact before changes
+- `find_references` / `get_call_hierarchy` — trace who uses a symbol
 
 ## jcodemunch
 

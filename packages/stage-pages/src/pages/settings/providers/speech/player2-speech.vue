@@ -60,7 +60,7 @@ onMounted(async () => {
     hasPlayer2.value = false
   }
 })
-watch(speedRatio, async () => {
+watch(speedRatio, () => {
   const providerConfig = providersStore.getProviderConfig(providerId)
   providerConfig.speed = speedRatio.value
 })

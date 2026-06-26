@@ -328,8 +328,8 @@ export function initScreenCaptureForWindow(window: BrowserWindow, options?: Init
 
   const { context } = createContext(ipcMain, window, { onlySameWindow: true })
 
-  defineInvokeHandler(context, screenCapture.checkMacOSPermission, async () => checkMacOSScreenCapturePermission())
-  defineInvokeHandler(context, screenCapture.requestMacOSPermission, async () => requestMacOSScreenCapturePermission())
+  defineInvokeHandler(context, screenCapture.checkMacOSPermission, () => checkMacOSScreenCapturePermission())
+  defineInvokeHandler(context, screenCapture.requestMacOSPermission, () => requestMacOSScreenCapturePermission())
 
   defineInvokeHandler(context, screenCapture.getSources, async (sourcesOptions) => {
     // NOTICE(@nekomeowww): In probability of 9/10, the window thumbnail is purely empty or sources printed and
@@ -345,7 +345,7 @@ export function initScreenCaptureForWindow(window: BrowserWindow, options?: Init
     handleSetSource(request, eventaOptions, window, windowId, windowTitle, log, options?.loopbackWithMute),
   )
 
-  defineInvokeHandler(context, screenCapture.resetSource, async (mutexHandle) =>
+  defineInvokeHandler(context, screenCapture.resetSource, (mutexHandle) =>
     handleResetSource(mutexHandle, windowId, windowTitle, log),
   )
 }

@@ -136,7 +136,8 @@ export function useProviderValidation(providerId: string) {
     // Only check auth credential fields — excludes config-only fields like region, endpoint
     const hasAnyCredential = AUTH_FIELDS.some((field) => {
       const v = config[field]
-      return v !== null && v !== undefined && String(v).trim() !== ''
+      const isPresent = v !== null && v !== undefined
+      return isPresent && String(v).trim() !== ''
     })
     if (!hasAnyCredential) {
       isValid.value = false
@@ -153,7 +154,8 @@ export function useProviderValidation(providerId: string) {
     if (
       AUTH_FIELDS.some((field) => {
         const v = config[field]
-        return v !== null && v !== undefined && String(v).trim() !== ''
+        const isPresent = v !== null && v !== undefined
+        return isPresent && String(v).trim() !== ''
       })
     ) {
       validateConfiguration()

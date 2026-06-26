@@ -143,7 +143,8 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
       .find((item) => item.sourceEventId === event.data.id)
       ?.message?.trim()
 
-    return reaction || options?.fallbackText || ''
+    const fallbackOrEmpty = options?.fallbackText || ''
+    return reaction || fallbackOrEmpty
   }
 
   function enqueueDueTasks(now: number) {

@@ -517,7 +517,7 @@ function updateDropShadowFilter() {
   model.value.filters = [dropShadowFilter.value]
 }
 
-watch(modelSrcRef, async () => await loadModel(), { immediate: true })
+watch(modelSrcRef, () => void loadModel(), { immediate: true })
 watch(dark, updateDropShadowFilter, { immediate: true })
 watch([model, themeColorsHue], updateDropShadowFilter)
 watch(live2dShadowEnabled, updateDropShadowFilter)

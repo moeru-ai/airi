@@ -220,9 +220,9 @@ export function useTranscriptions(options: TranscriptionOptions) {
   })
 
   // Watch for auto-send setting changes and clear pending sends if disabled
-  watch(hearingEnabled, async (enabled) => {
+  watch(hearingEnabled, (enabled) => {
     if (!enabled) {
-      await stopStreaming()
+      stopStreaming().catch(() => {})
       console.info('Stopping streaming transcription because hearing is disabled.', { source: 'useTranscriptions' })
     }
   })

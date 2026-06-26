@@ -1031,16 +1031,16 @@ export class PluginHost {
       .map((module) => cloneBindingRecord(module))
   }
 
-  async listAvailableToolDescriptors() {
-    return await this.tools.listAvailableDescriptors()
+  listAvailableToolDescriptors() {
+    return this.tools.listAvailableDescriptors()
   }
 
-  async listSerializedXsaiTools() {
-    return await this.tools.listSerializedXsaiTools()
+  listSerializedXsaiTools() {
+    return this.tools.listSerializedXsaiTools()
   }
 
-  async invokeTool(ownerPluginId: string, toolId: string, input: unknown) {
-    return await this.tools.invoke(ownerPluginId, toolId, input)
+  invokeTool(ownerPluginId: string, toolId: string, input: unknown) {
+    return this.tools.invoke(ownerPluginId, toolId, input)
   }
 
   announceBinding<C extends HostDataRecord = HostDataRecord>(
@@ -1742,12 +1742,12 @@ export class PluginHost {
     return this.dependencies.isReady(key)
   }
 
-  async waitForCapabilities(keys: string[], timeoutMs: number = 15000) {
-    await this.dependencies.waitForMany(keys, timeoutMs)
+  waitForCapabilities(keys: string[], timeoutMs: number = 15000) {
+    return this.dependencies.waitForMany(keys, timeoutMs)
   }
 
-  async waitForCapability(key: string, timeoutMs: number = 15000) {
-    return await this.dependencies.waitFor(key, timeoutMs)
+  waitForCapability(key: string, timeoutMs: number = 15000) {
+    return this.dependencies.waitFor(key, timeoutMs)
   }
 
   markConfigurationNeeded(sessionId: string, reason?: string) {

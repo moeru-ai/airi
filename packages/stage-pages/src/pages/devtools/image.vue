@@ -6,7 +6,7 @@ const image = ref<File>()
 const imageDataURL = ref<string>('')
 const { copy } = useClipboard({ source: imageDataURL })
 
-async function readAsDataURL(file: File) {
+function readAsDataURL(file: File): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
 

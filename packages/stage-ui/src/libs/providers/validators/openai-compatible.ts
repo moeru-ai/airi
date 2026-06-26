@@ -55,7 +55,8 @@ interface ModelWithId {
 }
 
 function isModelWithId(value: unknown): value is ModelWithId {
-  return typeof value === 'object' && value !== null && 'id' in value
+  const isNonNullObject = typeof value === 'object' && value !== null
+  return isNonNullObject && 'id' in value
 }
 
 function extractModelId(model: unknown): string {

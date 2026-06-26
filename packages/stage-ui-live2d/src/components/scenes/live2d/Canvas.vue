@@ -46,7 +46,7 @@ function installRenderGuard(app: Application) {
   app.ticker.maxFPS = resolveMaxFps(props.maxFps)
 }
 
-async function initLive2DPixiStage(parent: HTMLDivElement) {
+function initLive2DPixiStage(parent: HTMLDivElement) {
   componentState.value = 'loading'
   isPixiCanvasReady.value = false
 
@@ -103,8 +103,8 @@ watch(
 onMounted(async () => containerRef.value && (await initLive2DPixiStage(containerRef.value)))
 onUnmounted(() => pixiApp.value?.destroy())
 
-async function captureFrame() {
-  const frame = new Promise<Blob | null>((resolve) => {
+function captureFrame() {
+  return new Promise<Blob | null>((resolve) => {
     if (!pixiAppCanvas.value || !pixiApp.value) {
       resolve(null)
       return
@@ -120,8 +120,6 @@ async function captureFrame() {
 
     pixiAppCanvas.value.toBlob(resolve)
   })
-
-  return frame
 }
 
 function canvasElement() {

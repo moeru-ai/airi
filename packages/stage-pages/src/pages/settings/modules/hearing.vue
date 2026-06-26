@@ -148,7 +148,7 @@ const isSpeech = computed(() => {
   return isSpeechVolume.value
 })
 
-async function connectAnalyzer(source: MediaStreamAudioSourceNode) {
+function connectAnalyzer(source: MediaStreamAudioSourceNode) {
   const analyzer = startAnalyzer(audioContext.value)
   onAnalyzerUpdate((volumeLevel) => {
     if (!useVADModel.value || !loadedVAD.value) {

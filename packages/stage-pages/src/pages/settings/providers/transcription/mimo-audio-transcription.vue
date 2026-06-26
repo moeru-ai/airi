@@ -105,7 +105,8 @@ const { t, router, providerMetadata, isValidating, isValid, validationMessage, h
         <ProviderBaseUrlInput
           v-model="baseUrl"
           :placeholder="
-            (providerMetadata?.defaultOptions?.() as any)?.baseUrl || '' || 'https://api.xiaomimimo.com/v1/'
+            (providerMetadata?.defaultOptions?.() as Record<string, unknown>)?.baseUrl ??
+            'https://api.xiaomimimo.com/v1/'
           "
         />
       </ProviderAdvancedSettings>

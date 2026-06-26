@@ -75,17 +75,17 @@ onMounted(async () => {
   }
 })
 
-watch(pitch, async () => {
+watch(pitch, () => {
   const providerConfig = providersStore.getProviderConfig(providerId)
   providerConfig.pitch = pitch.value
 })
 
-watch(speed, async () => {
+watch(speed, () => {
   const providerConfig = providersStore.getProviderConfig(providerId)
   providerConfig.speed = speed.value
 })
 
-watch(volume, async () => {
+watch(volume, () => {
   const providerConfig = providersStore.getProviderConfig(providerId)
   providerConfig.volume = volume.value
 })

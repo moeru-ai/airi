@@ -88,7 +88,10 @@ function ensureProviderCredentials() {
 }
 
 const credentialsReady = computed(() => {
-  return Boolean(credentials.accessKeyId.trim() && credentials.accessKeySecret.trim() && credentials.appKey.trim())
+  const hasAccessKeyId = Boolean(credentials.accessKeyId.trim())
+  const hasAccessKeySecret = Boolean(credentials.accessKeySecret.trim())
+  const hasAppKey = Boolean(credentials.appKey.trim())
+  return hasAccessKeyId && hasAccessKeySecret && hasAppKey
 })
 
 const isRecording = ref(false)
@@ -106,7 +109,10 @@ const transcriptionAbortController = shallowRef<AbortController>()
 const activeTranscription = shallowRef<HearingTranscriptionResult | null>(null)
 const transcriptionTextPromise = shallowRef<Promise<string> | null>(null)
 
-const canStart = computed(() => credentialsReady.value && !isRecording.value && !isStreaming.value)
+const canStart = computed(() => {
+  const notActive = !isRecording.value && !isStreaming.value
+  return credentialsReady.value && notActive
+})
 const canStop = computed(() => isRecording.value || isStreaming.value)
 const canAbort = computed(() => isStreaming.value && Boolean(transcriptionAbortController.value))
 

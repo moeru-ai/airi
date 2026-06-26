@@ -132,7 +132,7 @@ const backgroundOptions = computed(() => {
 
 const activeBackgroundId = computed({
   get: () => selectedCard.value?.extensions?.airi?.modules?.activeBackgroundId || 'none',
-  set: async (val: string) => {
+  set: (val: string) => {
     if (!selectedCard.value) return
     const extension = JSON.parse(JSON.stringify(selectedCard.value.extensions))
     if (!extension.airi.modules) extension.airi.modules = {}
@@ -225,7 +225,7 @@ async function handleRefreshGallery() {
   }
 }
 
-async function handleDownloadEntry(id: string, title: string) {
+function handleDownloadEntry(id: string, title: string) {
   const url = backgroundStore.getBackgroundUrl(id)
   if (!url) return
 
