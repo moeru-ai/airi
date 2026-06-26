@@ -33,6 +33,7 @@ const emit = defineEmits<{
   (e: 'copyMessage', payload: { message: ChatHistoryItem, index: number, key: string | number }): void
   (e: 'deleteMessage', payload: { message: ChatHistoryItem, index: number, key: string | number }): void
   (e: 'retryMessage', payload: { message: ChatHistoryItem, index: number, key: string | number }): void
+  (e: 'toolCallRerun', payload: { message: ChatHistoryItem, index: number, key: string | number, toolCallId: string, toolName: string, args: string }): void
 }>()
 
 const chatHistoryRef = ref<HTMLDivElement>()
@@ -100,6 +101,19 @@ function emitRetryMessage(message: ChatHistoryItem, index: number) {
     key: getChatHistoryItemKey(message, index),
   })
 }
+
+function emitToolCallRerun(
+  message: ChatHistoryItem,
+  index: number,
+  payload: { toolCallId: string, toolName: string, args: string },
+) {
+  emit('toolCallRerun', {
+    message,
+    index,
+    key: getChatHistoryItemKey(message, index),
+    ...payload,
+  })
+}
 </script>
 
 <template>
@@ -131,6 +145,7 @@ function emitRetryMessage(message: ChatHistoryItem, index: number) {
           :tool-call-renderers="toolCallRenderers"
           @copy="emitCopyMessage(message, index)"
           @delete="emitDeleteMessage(message, index)"
+          @tool-call-rerun="emitToolCallRerun(message, index, $event)"
         />
         <ChatUserItem
           v-else-if="message.role === 'user'"

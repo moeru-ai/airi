@@ -14,6 +14,8 @@ import ChatActionButtons from '../Widgets/ChatActionButtons.vue'
 import ChatArea from '../Widgets/ChatArea.vue'
 import ChatContainer from '../Widgets/ChatContainer.vue'
 
+import { useChatToolCallRerun } from '../../composables/useChatToolCallRerun'
+
 const { isReady } = useDeferredMount()
 const { sending } = storeToRefs(useChatOrchestratorStore())
 const { messages } = storeToRefs(useChatSessionStore())
@@ -22,6 +24,7 @@ const { streamingMessage } = storeToRefs(useChatStreamStore())
 const isLoading = ref(true)
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
 const { trackChatMessageDeleted } = useAnalytics()
+const { rerunToolCall } = useChatToolCallRerun()
 
 function handleDeleteMessage(index: number) {
   const message = messages.value[index]
@@ -53,6 +56,7 @@ function handleDeleteMessage(index: number) {
             h-full
             variant="desktop"
             @delete-message="handleDeleteMessage($event.index)"
+            @tool-call-rerun="rerunToolCall"
             @vue:mounted="isLoading = false"
           />
         </div>

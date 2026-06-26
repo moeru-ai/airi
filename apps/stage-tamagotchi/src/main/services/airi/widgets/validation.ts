@@ -1,5 +1,6 @@
 import type {
   WidgetsAddPayload,
+  WidgetsIframeRequestResultPayload,
   WidgetsUpdatePayload,
 } from '../../../../shared/eventa'
 
@@ -182,4 +183,62 @@ export function validateWidgetIframeEvent(event: unknown): Record<string, unknow
   }
 
   return event as Record<string, unknown>
+}
+
+/**
+ * Validates renderer-to-main iframe request results before they settle pending gamelet requests.
+ *
+ * Use when:
+ * - The widgets renderer reports a response from a mounted extension iframe
+ *
+ * Expects:
+ * - `id` and `requestId` are non-empty strings
+ * - Successful results contain a plain response record
+ * - Failed results contain an error message
+ *
+ * Returns:
+ * - A discriminated request result safe to pass into the widgets manager
+ */
+export function validateWidgetIframeRequestResult(result: unknown): WidgetsIframeRequestResultPayload {
+  if (!isPlainObject(result)) {
+    throw new Error('iframe request result must be a plain object.')
+  }
+
+  const id = normalizeWidgetId(typeof result.id === 'string' ? result.id : undefined)
+  if (!id) {
+    throw new Error('iframe request result id is required.')
+  }
+
+  const requestId = normalizeWidgetId(typeof result.requestId === 'string' ? result.requestId : undefined)
+  if (!requestId) {
+    throw new Error('iframe request result requestId is required.')
+  }
+
+  if (result.ok === true) {
+    if (!isPlainObject(result.result)) {
+      throw new Error('iframe request result payload must be a plain object.')
+    }
+
+    return {
+      id,
+      requestId,
+      ok: true,
+      result: result.result,
+    }
+  }
+
+  if (result.ok === false) {
+    if (typeof result.error !== 'string' || !result.error.trim()) {
+      throw new Error('iframe request result error is required.')
+    }
+
+    return {
+      id,
+      requestId,
+      ok: false,
+      error: result.error,
+    }
+  }
+
+  throw new Error('iframe request result ok must be a boolean.')
 }

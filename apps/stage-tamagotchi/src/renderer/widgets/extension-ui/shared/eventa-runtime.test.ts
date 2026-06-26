@@ -1,4 +1,6 @@
+import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/window-message'
+import { gameletIframeRequest } from '@proj-airi/plugin-sdk-tamagotchi/gamelet'
 import { widgetsIframeInitEvent, widgetsIframePublishEvent } from '@proj-airi/plugin-sdk-tamagotchi/widgets'
 import { describe, expect, it } from 'vitest'
 
@@ -128,12 +130,7 @@ describe('createContext', () => {
     iframe.dispose()
   })
 
-  /**
-   * @example
-   * expect(initPayload.props.request.responseRoute).toEqual({ namespace: 'airi.plugin.gamelet', name: 'response' })
-   * expect(publishedPayload.route).toEqual({ namespace: 'airi.plugin.gamelet', name: 'response' })
-   */
-  it('relays gamelet request props and iframe response envelopes over the extension UI bridge', async () => {
+  it('relays gamelet iframe invoke requests over the extension UI bridge', async () => {
     const parentWindow = new MockWindow()
     const iframeWindow = new MockWindow()
     parentWindow.peer = iframeWindow
@@ -152,85 +149,19 @@ describe('createContext', () => {
       targetWindow: () => parentWindow as unknown as Window,
     })
 
-    const initPayload = new Promise<Record<string, unknown>>((resolve) => {
-      iframe.context.on(widgetsIframeInitEvent, (event) => {
-        const request = event.body?.props?.request
-        if (!request || typeof request !== 'object' || Array.isArray(request)) {
-          return
-        }
-
-        resolve(request as Record<string, unknown>)
-      })
+    defineInvokeHandler(iframe.context, gameletIframeRequest, ({ payload }) => {
+      return {
+        fen: payload.action === 'snapshot' ? 'fen-after-request' : 'unknown',
+      }
     })
 
-    host.context.emit(widgetsIframeInitEvent, {
-      moduleId: 'chess:board',
-      config: {},
-      module: undefined,
-      props: {
-        request: {
-          route: {
-            namespace: 'airi.plugin.gamelet',
-            name: 'request',
-          },
-          responseRoute: {
-            namespace: 'airi.plugin.gamelet',
-            name: 'response',
-          },
-          requestId: 'req-1',
-          payload: {
-            action: 'snapshot',
-          },
-        },
-      },
-    })
-
-    await expect(initPayload).resolves.toEqual({
-      route: {
-        namespace: 'airi.plugin.gamelet',
-        name: 'request',
-      },
-      responseRoute: {
-        namespace: 'airi.plugin.gamelet',
-        name: 'response',
-      },
+    const invokeGameletIframeRequest = defineInvoke(host.context, gameletIframeRequest)
+    await expect(invokeGameletIframeRequest({
       requestId: 'req-1',
       payload: {
         action: 'snapshot',
       },
-    })
-
-    const publishedPayload = new Promise<Record<string, unknown>>((resolve) => {
-      host.context.on(widgetsIframePublishEvent, (event) => {
-        if (!event.body) {
-          return
-        }
-
-        resolve(event.body)
-      })
-    })
-
-    iframe.context.emit(widgetsIframePublishEvent, {
-      route: {
-        namespace: 'airi.plugin.gamelet',
-        name: 'response',
-      },
-      payload: {
-        requestId: 'req-1',
-        fen: 'fen-after-request',
-      },
-    })
-
-    await expect(publishedPayload).resolves.toEqual({
-      route: {
-        namespace: 'airi.plugin.gamelet',
-        name: 'response',
-      },
-      payload: {
-        requestId: 'req-1',
-        fen: 'fen-after-request',
-      },
-    })
+    })).resolves.toEqual({ fen: 'fen-after-request' })
 
     host.dispose()
     iframe.dispose()

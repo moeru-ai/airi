@@ -28,6 +28,7 @@ import IndicatorMicVolume from '../Widgets/IndicatorMicVolume.vue'
 import ActionAbout from './InteractiveArea/Actions/About.vue'
 
 import { useTranscriptions } from '../../composables/use-transcriptions'
+import { useChatToolCallRerun } from '../../composables/useChatToolCallRerun'
 import { useStopSpeakingButton } from '../../composables/useStopSpeakingButton'
 import { BackgroundDialogPicker } from '../Backgrounds'
 
@@ -41,6 +42,7 @@ const { streamingMessage } = storeToRefs(chatStream)
 const { sending } = storeToRefs(chatOrchestrator)
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
 const { trackChatMessageDeleted, trackChatMessagesCleared } = useAnalytics()
+const { rerunToolCall } = useChatToolCallRerun()
 
 function handleDeleteMessage(index: number) {
   const message = messages.value[index]
@@ -184,6 +186,7 @@ onMounted(() => {
             'relative z-20',
           ]"
           @delete-message="handleDeleteMessage($event.index)"
+          @tool-call-rerun="rerunToolCall"
         />
       </Transition>
     </KeepAlive>
