@@ -419,7 +419,7 @@ onMounted(() => {
   }
 
   cleanupFns.push(
-    chatStore.onBeforeMessageComposed(async (message, context) => {
+    chatStore.onBeforeMessageComposed((message, context) => {
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -427,8 +427,9 @@ onMounted(() => {
         summary: truncateText(message),
         payload: { message, context },
       })
+      return Promise.resolve()
     }),
-    chatStore.onAfterMessageComposed(async (message, context) => {
+    chatStore.onAfterMessageComposed((message, context) => {
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -436,8 +437,9 @@ onMounted(() => {
         summary: truncateText(message),
         payload: { message, context },
       })
+      return Promise.resolve()
     }),
-    chatStore.onBeforeSend(async (message, context) => {
+    chatStore.onBeforeSend((message, context) => {
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -445,8 +447,9 @@ onMounted(() => {
         summary: truncateText(message),
         payload: { message, context },
       })
+      return Promise.resolve()
     }),
-    chatStore.onAfterSend(async (message, context) => {
+    chatStore.onAfterSend((message, context) => {
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -454,8 +457,9 @@ onMounted(() => {
         summary: truncateText(message),
         payload: { message, context },
       })
+      return Promise.resolve()
     }),
-    chatStore.onTokenLiteral(async (literal, context) => {
+    chatStore.onTokenLiteral((literal, context) => {
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -463,8 +467,9 @@ onMounted(() => {
         summary: truncateText(literal, 80),
         payload: { literal, context },
       })
+      return Promise.resolve()
     }),
-    chatStore.onTokenSpecial(async (special, context) => {
+    chatStore.onTokenSpecial((special, context) => {
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -472,8 +477,9 @@ onMounted(() => {
         summary: truncateText(special, 80),
         payload: { special, context },
       })
+      return Promise.resolve()
     }),
-    chatStore.onStreamEnd(async (context) => {
+    chatStore.onStreamEnd((context) => {
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -481,8 +487,9 @@ onMounted(() => {
         summary: 'stream completed',
         payload: { context },
       })
+      return Promise.resolve()
     }),
-    chatStore.onAssistantResponseEnd(async (message, context) => {
+    chatStore.onAssistantResponseEnd((message, context) => {
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -490,8 +497,9 @@ onMounted(() => {
         summary: truncateText(message),
         payload: { message, context },
       })
+      return Promise.resolve()
     }),
-    chatStore.onAssistantMessage(async (message, messageText, context) => {
+    chatStore.onAssistantMessage((message, messageText, context) => {
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -499,8 +507,9 @@ onMounted(() => {
         summary: truncateText(messageText),
         payload: { message, messageText, context },
       })
+      return Promise.resolve()
     }),
-    chatStore.onChatTurnComplete(async (chat, context) => {
+    chatStore.onChatTurnComplete((chat, context) => {
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -508,6 +517,7 @@ onMounted(() => {
         summary: truncateText(chat.outputText),
         payload: { chat, context },
       })
+      return Promise.resolve()
     }),
   )
 })
