@@ -701,31 +701,31 @@ chatHookCleanups.push(
 )
 
 chatHookCleanups.push(
-  onBeforeSend(async () => {
+  onBeforeSend(() => {
     currentMotion.value = { group: EmotionThinkMotionName }
   }),
 )
 
 chatHookCleanups.push(
-  onTokenLiteral(async (literal) => {
+  onTokenLiteral((literal) => {
     currentSession?.appendText(literal)
   }),
 )
 
 chatHookCleanups.push(
-  onTokenSpecial(async (special) => {
+  onTokenSpecial((special) => {
     currentSession?.appendSpecial(special)
   }),
 )
 
 chatHookCleanups.push(
-  onStreamEnd(async () => {
+  onStreamEnd(() => {
     currentSession?.finishInput()
   }),
 )
 
 chatHookCleanups.push(
-  onAssistantResponseEnd(async (_message) => {
+  onAssistantResponseEnd((_message) => {
     currentSession?.end()
     // Streaming sessions null-out via the onDone hook; segmenter sessions
     // stay around until the next `onBeforeMessageComposed` cancels them

@@ -41,7 +41,8 @@ function canFixError(err: string) {
   const isThumbnailError = e.includes('thumbnail')
   const isIconError = e.includes('icon')
   const isExpressionError = e.includes('expression')
-  return isPreviewError || isThumbnailError || isIconError || isExpressionError
+  const isFixableError = isPreviewError || isThumbnailError || isIconError || isExpressionError
+  return isFixableError
 }
 
 function handleFix(err: string) {

@@ -35,7 +35,8 @@ const hasBuildInfo = computed(() => {
   const hasCommit = Boolean(info.commit)
   const hasBuiltOn = Boolean(info.builtOn)
   const hasVersion = Boolean(info.version)
-  return hasBranch || hasCommit || hasBuiltOn || hasVersion
+  const hasRelevantBuildInfo = hasBranch || hasCommit || hasBuiltOn || hasVersion
+  return hasRelevantBuildInfo
 })
 </script>
 

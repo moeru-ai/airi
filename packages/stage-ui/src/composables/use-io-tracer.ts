@@ -92,8 +92,7 @@ export function deserializeSpan(s: SerializedSpan): ReadableSpan {
     })),
     duration: nanoToHr(String(Number(s.endTimeNano) - Number(s.startTimeNano))),
     ended: s.ended,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- local Resource stub is intentionally incomplete vs OTel's Resource class
-    resource: resource as any,
+    resource: resource as unknown as ReadableSpan['resource'],
     instrumentationScope: { name: TRACER_NAME },
     droppedAttributesCount: 0,
     droppedEventsCount: 0,

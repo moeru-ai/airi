@@ -472,35 +472,35 @@ export function createMcpServersService(params: {
   context: ReturnType<typeof createContext>['context']
   manager: McpStdioManager
 }) {
-  defineInvokeHandler(params.context, electronMcpOpenConfigFile, async () => {
+  defineInvokeHandler(params.context, electronMcpOpenConfigFile, () => {
     return params.manager.openConfigFile()
   })
 
-  defineInvokeHandler(params.context, electronMcpApplyAndRestart, async () => {
+  defineInvokeHandler(params.context, electronMcpApplyAndRestart, () => {
     return params.manager.applyAndRestart()
   })
 
-  defineInvokeHandler(params.context, electronMcpGetRuntimeStatus, async () => {
+  defineInvokeHandler(params.context, electronMcpGetRuntimeStatus, () => {
     return params.manager.getRuntimeStatus()
   })
 
-  defineInvokeHandler(params.context, electronMcpListTools, async () => {
+  defineInvokeHandler(params.context, electronMcpListTools, () => {
     return params.manager.listTools()
   })
 
-  defineInvokeHandler(params.context, electronMcpCallTool, async (payload) => {
+  defineInvokeHandler(params.context, electronMcpCallTool, (payload) => {
     return params.manager.callTool(payload)
   })
 
-  defineInvokeHandler(params.context, electronMcpReadConfigText, async () => {
+  defineInvokeHandler(params.context, electronMcpReadConfigText, () => {
     return params.manager.readConfigText()
   })
 
-  defineInvokeHandler(params.context, electronMcpWriteConfigText, async (payload) => {
+  defineInvokeHandler(params.context, electronMcpWriteConfigText, (payload) => {
     return params.manager.writeConfigText(payload.text)
   })
 
-  defineInvokeHandler(params.context, electronMcpTestServer, async (payload) => {
+  defineInvokeHandler(params.context, electronMcpTestServer, (payload) => {
     return params.manager.testServer(payload)
   })
 }

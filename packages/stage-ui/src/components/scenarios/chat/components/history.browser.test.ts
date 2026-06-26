@@ -95,7 +95,7 @@ describe('chatHistory retry actions', () => {
    *   await expect.element(screen.getByLabelText('retry-index')).toHaveTextContent('1')
    * })
    */
-  it('emits retry-message when the retry button is clicked for an error after a user message', async () => {
+  it('emits retry-message when the retry button is clicked for an error after a user message', () => {
     const messages: ChatHistoryItem[] = [
       { role: 'user', content: 'hello' },
       { role: 'error', content: 'Remote sent 400 response' },

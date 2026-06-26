@@ -478,7 +478,7 @@ export function setupWidgetsWindowManager(params: { serverChannel: ServerChannel
    * Returns:
    * - The widgets {@link BrowserWindow}
    */
-  async function getWindow(): Promise<BrowserWindow> {
+  function getWindow(): Promise<BrowserWindow> {
     return reusable.getWindow()
   }
 
@@ -544,7 +544,7 @@ export function setupWidgetsWindowManager(params: { serverChannel: ServerChannel
    * Returns:
    * - Resolves after internal state and renderer events have been updated
    */
-  async function updateWidget(payload: WidgetsUpdatePayload) {
+  function updateWidget(payload: WidgetsUpdatePayload) {
     if (!payload?.id) return
 
     const existing = widgetRecords.get(payload.id)
@@ -585,7 +585,7 @@ export function setupWidgetsWindowManager(params: { serverChannel: ServerChannel
    * Returns:
    * - Resolves after the widget has been removed from memory and renderer state
    */
-  async function removeWidget(id: string) {
+  function removeWidget(id: string) {
     if (!id) return
     removeWidgetInternal(id, false)
     eventaContext?.emit(widgetsRemoveEvent, { id })
@@ -603,7 +603,7 @@ export function setupWidgetsWindowManager(params: { serverChannel: ServerChannel
    * Returns:
    * - Resolves after state, renderer events, and windows have been cleared
    */
-  async function clearWidgets() {
+  function clearWidgets() {
     const ids = [...widgetRecords.keys()]
     for (const id of ids) removeWidgetInternal(id, false)
 
@@ -653,7 +653,7 @@ export function setupWidgetsWindowManager(params: { serverChannel: ServerChannel
     }
   }
 
-  async function hideWindow(params?: { id?: string }) {
+  function hideWindow(params?: { id?: string }) {
     const id = params?.id
     const context = id ? windowContexts.get(id) : undefined
     const window = context?.window || activeWidgetsWindow

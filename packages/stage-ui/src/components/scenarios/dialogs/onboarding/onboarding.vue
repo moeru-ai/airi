@@ -163,7 +163,7 @@ const currentStep = computed(() => allSteps.value[step.value] ?? null)
 const isLastStep = computed(() => step.value === allSteps.value.length - 1)
 const currentStepProps = computed(() => currentStep.value?.props?.() ?? {})
 
-async function handleSave(): Promise<void> {
+function handleSave(): void {
   capturePosthogEvent('onboarding_step_completed', { step: currentStep.value?.id ?? 'unknown' })
   emit('configured')
 }

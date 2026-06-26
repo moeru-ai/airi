@@ -149,12 +149,12 @@ const rows = computed<SessionRow[]>(() => {
   return list
 })
 
-async function selectSession(sessionId: string) {
-  const selectedRow = rows.value.find(row => row.meta.sessionId === sessionId)
+function selectSession(sessionId: string) {
+  const selectedRow = rows.value.find((row) => row.meta.sessionId === sessionId)
   if (sessionId !== activeSessionId.value && selectedRow) {
     trackChatSessionSelected({
       source: 'sessions_drawer',
-      message_count: (sessionMessages.value[sessionId] ?? []).filter(message => message.role !== 'system').length,
+      message_count: (sessionMessages.value[sessionId] ?? []).filter((message) => message.role !== 'system').length,
       cloud_synced: Boolean(selectedRow.meta.cloudChatId),
     })
   }
