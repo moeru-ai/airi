@@ -35,7 +35,7 @@ const tools = [
       'Optionally provide a duration in seconds for auto-reset.',
       'Examples: expression_set("Cry", true), expression_set("Blush", 0.7, 3)',
     ].join(' '),
-    execute: async ({ name, value, duration }) => {
+    execute: ({ name, value, duration }) => {
       const err = ensureModelLoaded()
       if (err) return serialize(err)
 
@@ -58,7 +58,7 @@ const tools = [
       'Get the current state of a Live2D expression or parameter.',
       'Omit the name to list all available expressions with their current values.',
     ].join(' '),
-    execute: async ({ name }) => {
+    execute: ({ name }) => {
       const err = ensureModelLoaded()
       if (err) return serialize(err)
 
@@ -78,7 +78,7 @@ const tools = [
       'Toggle a Live2D expression (flip between default and active state).',
       'Optionally provide a duration in seconds for auto-reset.',
     ].join(' '),
-    execute: async ({ name, duration }) => {
+    execute: ({ name, duration }) => {
       const err = ensureModelLoaded()
       if (err) return serialize(err)
 
@@ -96,7 +96,7 @@ const tools = [
   tool({
     name: 'expression_save_defaults',
     description: 'Save the current expression state as the new defaults. Persists across app restarts.',
-    execute: async () => {
+    execute: () => {
       const err = ensureModelLoaded()
       if (err) return serialize(err)
 
@@ -111,7 +111,7 @@ const tools = [
   tool({
     name: 'expression_reset_all',
     description: 'Reset all expressions to their default values.',
-    execute: async () => {
+    execute: () => {
       const err = ensureModelLoaded()
       if (err) return serialize(err)
 

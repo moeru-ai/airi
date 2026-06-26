@@ -729,7 +729,7 @@ chatHookCleanups.push(
 )
 
 chatHookCleanups.push(
-  onAssistantResponseEnd((_message) => {
+  onAssistantResponseEnd((_message, _context) => {
     currentSession?.end()
     // Streaming sessions null-out via the onDone hook; segmenter sessions
     // stay around until the next `onBeforeMessageComposed` cancels them
@@ -744,6 +744,7 @@ chatHookCleanups.push(
     // })
 
     // await db.value?.execute(`INSERT INTO memory_test (vec) VALUES (${JSON.stringify(res.embedding)});`)
+    return Promise.resolve()
   }),
 )
 

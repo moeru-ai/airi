@@ -124,7 +124,7 @@ describe("WorkspaceManager", () => {
 		basePath = tmpDir()
 	})
 
-	afterEach(async () => {
+	afterEach(() => {
 		fs.rmSync(basePath, { recursive: true, force: true })
 	})
 
@@ -540,7 +540,7 @@ describe("WorkspaceStorage", () => {
 		storage = new WorkspaceStorage(basePath)
 	})
 
-	afterEach(async () => {
+	afterEach(() => {
 		fs.rmSync(basePath, { recursive: true, force: true })
 	})
 
@@ -677,7 +677,7 @@ describe("WorkspaceWorktree", () => {
 		worktree = new WorkspaceWorktree(repoPath)
 	})
 
-	afterEach(async () => {
+	afterEach(() => {
 		fs.rmSync(repoPath, { recursive: true, force: true })
 	})
 
@@ -766,7 +766,7 @@ describe("Workspace events", () => {
 		basePath = tmpDir()
 	})
 
-	afterEach(async () => {
+	afterEach(() => {
 		fs.rmSync(basePath, { recursive: true, force: true })
 	})
 
@@ -844,7 +844,7 @@ describe("Workspace recovery", () => {
 		basePath = tmpDir()
 	})
 
-	afterEach(async () => {
+	afterEach(() => {
 		fs.rmSync(basePath, { recursive: true, force: true })
 	})
 
@@ -868,7 +868,7 @@ describe("Workspace recovery", () => {
 		expect(snap.activeTaskIds).toContain("task-1")
 	})
 
-	it("recovers from empty snapshots", async () => {
+	it("recovers from empty snapshots", () => {
 		const { manager } = createTestManager(basePath)
 		const restored = manager.restoreFromSnapshots([])
 		expect(restored).toBe(0)

@@ -37,7 +37,7 @@ export const tools = [
       'By default, replaces the looping idle animation; pass `oneShot: true` to layer the animation on top of the idle loop and revert when it finishes.',
       'Animation names are case-insensitive; partial matches are accepted.',
     ].join(' '),
-    execute: async ({ name, oneShot, loop }) => {
+    execute: ({ name, oneShot, loop }) => {
       const err = ensureModelLoaded()
       if (err) return serialize(err)
 
@@ -73,7 +73,7 @@ export const tools = [
   tool({
     name: 'spine_list_animations',
     description: 'List every animation available on the currently loaded Spine skeleton.',
-    execute: async () => {
+    execute: () => {
       const err = ensureModelLoaded()
       if (err) return serialize(err)
       const store = useSpine()
@@ -85,7 +85,7 @@ export const tools = [
   tool({
     name: 'spine_set_skin',
     description: 'Switch the active skin. Skins are model-defined variants (different costumes/colours).',
-    execute: async ({ name }) => {
+    execute: ({ name }) => {
       const err = ensureModelLoaded()
       if (err) return serialize(err)
 
@@ -108,7 +108,7 @@ export const tools = [
   tool({
     name: 'spine_list_skins',
     description: 'List every skin defined on the currently loaded Spine skeleton.',
-    execute: async () => {
+    execute: () => {
       const err = ensureModelLoaded()
       if (err) return serialize(err)
       const store = useSpine()
