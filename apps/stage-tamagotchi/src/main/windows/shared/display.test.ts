@@ -2,7 +2,7 @@ import type { Rectangle } from 'electron'
 
 import { describe, expect, it, vi } from 'vitest'
 
-import { heightFrom, mapForBreakpoints, widthFrom } from './display'
+import { computeResizedBoundsAnchoredToDominantDisplay, heightFrom, mapForBreakpoints, widthFrom } from './display'
 
 // NOTICE:
 // Mocking 'electron' is needed to prevent Vitest from attempting to resolve/load the real Electron binary during tests.
@@ -76,5 +76,59 @@ describe('heightFrom', () => {
     expect(heightFrom({ height: 1000 } as Rectangle, { percentage: 0.5, max: 400 })).toBe(400)
     expect(heightFrom({ height: 1000 } as Rectangle, { actual: 450, max: 400 })).toBe(400)
     expect(heightFrom({ height: 1000 } as Rectangle, { actual: 350, max: 400 })).toBe(350)
+  })
+})
+
+describe('computeResizedBoundsAnchoredToDominantDisplay', () => {
+  const primaryDisplay = {
+    bounds: { x: 0, y: 0, width: 1920, height: 1080 },
+    workArea: { x: 0, y: 25, width: 1920, height: 1055 },
+  }
+  const secondaryDisplay = {
+    bounds: { x: 1920, y: 0, width: 1920, height: 1080 },
+    workArea: { x: 1920, y: 0, width: 1920, height: 1040 },
+  }
+  const topDisplay = {
+    bounds: { x: 0, y: -900, width: 1600, height: 900 },
+    workArea: { x: 0, y: -900, width: 1600, height: 860 },
+  }
+
+  it('uses the display with the largest overlap when resizing a window across two displays', () => {
+    const bounds = computeResizedBoundsAnchoredToDominantDisplay({
+      currentBounds: { x: 1700, y: 220, width: 500, height: 600 },
+      targetSize: { width: 450, height: 600 },
+      displays: [primaryDisplay, secondaryDisplay],
+    })
+
+    expect(bounds.x).toBe(1920)
+    expect(bounds.y).toBe(220)
+    expect(bounds.width).toBe(450)
+    expect(bounds.height).toBe(600)
+  })
+
+  it('uses the display with the largest overlap across three displays', () => {
+    const bounds = computeResizedBoundsAnchoredToDominantDisplay({
+      currentBounds: { x: 1100, y: -700, width: 380, height: 620 },
+      targetSize: { width: 450, height: 600 },
+      displays: [primaryDisplay, secondaryDisplay, topDisplay],
+    })
+
+    expect(bounds.x).toBe(1030)
+    expect(bounds.y).toBe(-680)
+    expect(bounds.width).toBe(450)
+    expect(bounds.height).toBe(600)
+  })
+
+  it('keeps the matching display bottom-right corner anchored when resizing in the bottom-right quadrant', () => {
+    const bounds = computeResizedBoundsAnchoredToDominantDisplay({
+      currentBounds: { x: 3420, y: 740, width: 300, height: 250 },
+      targetSize: { width: 450, height: 600 },
+      displays: [primaryDisplay, secondaryDisplay],
+    })
+
+    expect(bounds.x).toBe(3270)
+    expect(bounds.y).toBe(390)
+    expect(bounds.width).toBe(450)
+    expect(bounds.height).toBe(600)
   })
 })
