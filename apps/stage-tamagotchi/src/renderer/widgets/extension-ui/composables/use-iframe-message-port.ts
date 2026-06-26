@@ -102,6 +102,7 @@ export function useIframeMessagePort(
   },
 ) {
   const iframeLoadError = shallowRef<string>()
+  const iframeReady = shallowRef(false)
 
   const iframeRuntime = createContext({
     channel: widgetsIframeChannel,
@@ -142,15 +143,24 @@ export function useIframeMessagePort(
   }
 
   function onIframeLoad() {
+    // NOTICE:
+    // A host component can mount after an already-loaded iframe during dev HMR
+    // or renderer remounts, which means the iframe's one-shot ready event may
+    // have already been emitted. Treat load as the point where invokes may be
+    // attempted; Eventa still owns request timeout/error handling if the iframe
+    // has not registered its handler yet.
+    iframeReady.value = true
     iframeLoadError.value = undefined
     emitInitPayload()
   }
 
   function onIframeError() {
+    iframeReady.value = false
     iframeLoadError.value = 'Failed to load extension UI iframe source.'
   }
 
   iframeRuntime.context.on(widgetsIframeReadyEvent, () => {
+    iframeReady.value = true
     emitInitPayload()
   })
 
@@ -163,6 +173,7 @@ export function useIframeMessagePort(
   })
 
   watch(options.moduleId, () => {
+    iframeReady.value = false
     emitInitPayload()
   }, { immediate: true })
 
@@ -180,6 +191,7 @@ export function useIframeMessagePort(
 
   return {
     context: iframeRuntime.context,
+    iframeReady,
     iframeLoadError,
     onIframeLoad,
     onIframeError,

@@ -1,4 +1,5 @@
 import type { WebSocketEventInputs } from '@proj-airi/server-sdk'
+import type { ToolCallRerunPayload } from '@proj-airi/stage-ui/stores/tool-call-rerun'
 import type { ChatHistoryItem, StreamingAssistantMessage } from '@proj-airi/stage-ui/types/chat'
 import type { ChatSessionMeta } from '@proj-airi/stage-ui/types/chat-session'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
@@ -10,8 +11,10 @@ import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/maintenance'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
+import { resolveLlmTools } from '@proj-airi/stage-ui/stores/llm-tool-resolver'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { executeToolCallRerun } from '@proj-airi/stage-ui/stores/tool-call-rerun'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
 
@@ -82,6 +85,7 @@ type ChatSyncMessage
     | ChatCommandMessage<'ingest', IngestCommandPayload>
     | ChatCommandMessage<'spotlight-ingest', SpotlightIngestPayload>
     | ChatCommandMessage<'retry', RetryCommandPayload>
+    | ChatCommandMessage<'tool-call-rerun', ToolCallRerunPayload<ToolsetId>>
     | ChatCommandMessage<'cleanup', { sessionId?: string }>
     | ChatCommandMessage<'delete-message', { sessionId?: string, messageId?: string, index?: number }>
     | ({ type: 'response', requestId: string, authorityId: string } & ChatResponsePayload)
@@ -384,6 +388,16 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     })
   }
 
+  async function executeToolCallRerunCommand(payload: ToolCallRerunPayload<ToolsetId>) {
+    const sessionId = payload.sessionId || activeSessionId.value
+    const nextMessages = await executeToolCallRerun({
+      messages: chatSession.getSessionMessages(sessionId),
+      payload,
+      resolveTools: () => resolveLlmTools({ customTools: resolveTools(payload.toolset) }),
+    })
+    chatSession.setSessionMessages(sessionId, nextMessages)
+  }
+
   function executeDeleteMessage(payload: { sessionId?: string, messageId?: string, index?: number }) {
     const sessionId = payload.sessionId || activeSessionId.value
     const nextMessages = chatSession.getSessionMessages(sessionId).filter((message, index) => {
@@ -443,6 +457,9 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
           return
         case 'retry':
           await executeRetry(message.payload)
+          break
+        case 'tool-call-rerun':
+          await executeToolCallRerunCommand(message.payload)
           break
         case 'cleanup':
           cleanupMessages(message.payload.sessionId)
@@ -641,6 +658,21 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     })
   }
 
+  async function requestToolCallRerun(payload: ToolCallRerunPayload<ToolsetId>) {
+    if (mode.value === 'authority') {
+      await executeToolCallRerunCommand(payload)
+      return
+    }
+
+    return await dispatch<void>({
+      type: 'command',
+      requestId: createRequestId(),
+      senderId: instanceId,
+      command: 'tool-call-rerun',
+      payload,
+    })
+  }
+
   async function requestCleanup(sessionId?: string) {
     if (mode.value === 'authority') {
       cleanupMessages(sessionId)
@@ -688,6 +720,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     requestIngest,
     requestSpotlightIngest,
     requestRetry,
+    requestToolCallRerun,
     requestCleanup,
     requestDeleteMessage,
   }
