@@ -9,6 +9,7 @@ import { uniqBy } from 'es-toolkit'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
+import { resolveOpenAICompatibleFetch } from '../libs/providers/openaiCompatibleFetch'
 import { createSparkCommandTool, debug, mcp } from '../tools'
 import { useLlmToolsStore } from './llm-tools'
 import { useModsServerChannelStore } from './mods/api/channel-server'
@@ -107,9 +108,11 @@ export const useLLM = defineStore('llm', () => {
       return []
 
     try {
+      const fetch = resolveOpenAICompatibleFetch()
       return await listModels({
         baseURL: (apiUrl.endsWith('/') ? apiUrl : `${apiUrl}/`) as `${string}/`,
         apiKey,
+        ...(fetch ? { fetch } : {}),
       })
     }
     catch (err) {

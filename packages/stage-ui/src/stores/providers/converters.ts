@@ -5,6 +5,7 @@ import type { ProviderMetadata } from '../providers'
 
 import { listModels } from '@xsai/model'
 
+import { resolveOpenAICompatibleFetch } from '../../libs/providers/openaiCompatibleFetch'
 import { resolveProviderSourceMetadata } from '../../libs/providers/source-metadata'
 import { CHAT_COMPLETIONS_VALIDATOR_ID, isModelProvider } from '../../libs/providers/types'
 import { getValidatorsOfProvider, validateProvider } from '../../libs/providers/validators/run'
@@ -143,6 +144,7 @@ export function convertProviderDefinitionToMetadata(
         : async (config) => {
           const provider = await definition.createProvider(config as any)
           try {
+            const fetch = resolveOpenAICompatibleFetch()
             if (isModelProvider(provider)) {
               const models = await listModels(provider.model())
               return mapModelsToMetadataModels(definition.id, models as any[])
@@ -156,6 +158,7 @@ export function convertProviderDefinitionToMetadata(
             const models = await listModels({
               baseURL: baseUrl,
               ...(apiKey ? { apiKey } : {}),
+              ...(fetch ? { fetch } : {}),
             })
             return mapModelsToMetadataModels(definition.id, models as any[])
           }

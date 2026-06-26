@@ -33,6 +33,7 @@ import { setupServerChannel } from './services/airi/channel-server'
 import { setupGodotStageManager } from './services/airi/godot-stage'
 import { setupBuiltInServer } from './services/airi/http-server'
 import { setupMcpStdioManager } from './services/airi/mcp-servers'
+import { setupOpenAICompatibleFetchBridge } from './services/airi/openai-compatible-fetch'
 import { setupExtensionHost } from './services/airi/plugins'
 import { setupArtistryBridge } from './services/airi/widgets/artistry-bridge'
 import { setupAutoUpdater } from './services/electron/auto-updater'
@@ -259,6 +260,7 @@ app.whenReady().then(async () => {
         context,
         artistryConfig: deps.artistryConfig,
       })
+      setupOpenAICompatibleFetchBridge({ context })
     },
   })
 

@@ -1,6 +1,7 @@
-import { createOpenAI } from '@xsai-ext/providers/create'
+import { createChatProvider, createModelProvider, merge } from '@xsai-ext/providers/utils'
 import { z } from 'zod'
 
+import { resolveOpenAICompatibleFetch } from '../../openaiCompatibleFetch'
 import { ProviderValidationCheck } from '../../types'
 import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
@@ -41,7 +42,17 @@ export const providerOpenAICompatible = defineProvider<OpenAICompatibleConfig>({
     }),
   }),
   createProvider(config) {
-    return createOpenAI(config.apiKey as string, config.baseUrl)
+    const fetch = resolveOpenAICompatibleFetch()
+    const providerOptions = () => ({
+      apiKey: config.apiKey,
+      baseURL: config.baseUrl!,
+      ...(fetch ? { fetch } : {}),
+    })
+
+    return merge(
+      createChatProvider(providerOptions()),
+      createModelProvider(providerOptions()),
+    )
   },
 
   validationRequiredWhen(config) {
