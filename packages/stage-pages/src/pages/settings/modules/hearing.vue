@@ -139,6 +139,9 @@ function formatVADThreshold(value: number) {
 }
 
 async function handleSpeechStart() {
+  if (isTestingSTT.value)
+    return
+
   if (shouldUseStreamInput.value && stream.value) {
     // Use both callbacks to support incremental updates and final transcript replacement.
     // ChatArea uses only onSentenceEnd to avoid re-adding deleted text.
@@ -157,6 +160,9 @@ async function handleSpeechStart() {
 }
 
 async function handleSpeechEnd() {
+  if (isTestingSTT.value)
+    return
+
   if (shouldUseStreamInput.value) {
     // For streaming providers, keep the session alive; idle timer will handle teardown.
     return
@@ -314,6 +320,9 @@ function syncOpenAICompatibleSettings() {
 
 onStopRecord(async (recording) => {
   if (shouldUseStreamInput.value)
+    return
+
+  if (isTestingSTT.value)
     return
 
   if (!recording || recording.size === 0)
