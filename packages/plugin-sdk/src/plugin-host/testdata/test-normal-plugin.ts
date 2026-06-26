@@ -4,6 +4,7 @@ import { defineEventa } from '@moeru/eventa'
 
 export function init({ channels }: ContextInit): Promise<void | false> {
   channels.host.emit(defineEventa('vitest-call:init'), undefined)
+  return Promise.resolve()
 }
 
 export function configure(): void {

@@ -149,7 +149,7 @@ describe('createCloudChatMapper.listChats', () => {
    * 200 with `{ chats: [...] }` body → returns chats array.
    */
   it('returns the chats array on 2xx', async () => {
-    const fetchMock = vi.fn(async () =>
+    const fetchMock = vi.fn(() =>
       jsonResponse({
         chats: [{ id: 'a', type: 'bot', title: null, createdAt: '2026-01-01', updatedAt: '2026-01-01' }],
       }),
@@ -172,7 +172,7 @@ describe('createCloudChatMapper.listChats', () => {
    * boundary validation this would feed `null.length` down into reconcile.
    */
   it('rejects malformed responses on 2xx via schema validation', async () => {
-    const fetchMock = vi.fn(async () => jsonResponse({ chats: null }))
+    const fetchMock = vi.fn(() => jsonResponse({ chats: null }))
     const mapper = createCloudChatMapper({
       serverUrl: 'https://api.example.com',
       fetch: fetchMock as unknown as typeof fetch,
@@ -185,7 +185,7 @@ describe('createCloudChatMapper.listChats', () => {
    * 401 with a JSON body → error message includes the body's `message`.
    */
   it('throws with body-derived detail on non-2xx JSON errors', async () => {
-    const fetchMock = vi.fn(async () =>
+    const fetchMock = vi.fn(() =>
       jsonResponse({ message: 'token expired' }, { status: 401, statusText: 'Unauthorized' }),
     )
     const mapper = createCloudChatMapper({
@@ -224,7 +224,7 @@ describe('createCloudChatMapper.createChat', () => {
    * Happy path: 201 with the created chat body.
    */
   it('returns the created chat on 2xx', async () => {
-    const fetchMock = vi.fn(async () =>
+    const fetchMock = vi.fn(() =>
       jsonResponse(
         {
           id: 'minted',
@@ -276,7 +276,7 @@ describe('createCloudChatMapper.createChat', () => {
    * error so the caller can retry or escalate.
    */
   it('does not attempt 409 idempotency without a client-supplied id', async () => {
-    const fetchMock = vi.fn(async () => jsonResponse({ message: 'conflict' }, { status: 409, statusText: 'Conflict' }))
+    const fetchMock = vi.fn(() => jsonResponse({ message: 'conflict' }, { status: 409, statusText: 'Conflict' }))
     const mapper = createCloudChatMapper({
       serverUrl: 'https://api.example.com',
       fetch: fetchMock as unknown as typeof fetch,
@@ -292,7 +292,7 @@ describe('createCloudChatMapper.deleteChat', () => {
    * 204 No Content → resolves silently.
    */
   it('resolves on 2xx', async () => {
-    const fetchMock = vi.fn(async () => emptyResponse())
+    const fetchMock = vi.fn(() => emptyResponse())
     const mapper = createCloudChatMapper({
       serverUrl: 'https://api.example.com',
       fetch: fetchMock as unknown as typeof fetch,
@@ -310,7 +310,7 @@ describe('createCloudChatMapper.deleteChat', () => {
    * smuggle path segments past the server.
    */
   it('encodes chat ids in the path', async () => {
-    const fetchMock = vi.fn(async () => emptyResponse())
+    const fetchMock = vi.fn(() => emptyResponse())
     const mapper = createCloudChatMapper({
       serverUrl: 'https://api.example.com',
       fetch: fetchMock as unknown as typeof fetch,
@@ -328,7 +328,7 @@ describe('createCloudChatMapper.deleteChat', () => {
    * to statusText.
    */
   it('throws on non-2xx with structured detail', async () => {
-    const fetchMock = vi.fn(async () => jsonResponse({ error: 'kaboom' }, { status: 500, statusText: 'Internal' }))
+    const fetchMock = vi.fn(() => jsonResponse({ error: 'kaboom' }, { status: 500, statusText: 'Internal' }))
     const mapper = createCloudChatMapper({
       serverUrl: 'https://api.example.com',
       fetch: fetchMock as unknown as typeof fetch,

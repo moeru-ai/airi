@@ -143,7 +143,7 @@ watch(hearingPopoverOpen, async (value) => {
   }
 })
 
-onAfterMessageComposed(() => {
+onAfterMessageComposed(async () => {
   // noop
 })
 

@@ -52,7 +52,7 @@ vi.mock('@modelcontextprotocol/sdk/client/stdio.js', async () => {
 
       constructor(readonly server: unknown) {}
 
-      close = vi.fn(async () => undefined)
+      close = vi.fn(() => undefined)
     },
   }
 })

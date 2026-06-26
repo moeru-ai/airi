@@ -53,8 +53,8 @@ const protocolMock = vi.hoisted(() => ({
 const sessionMock = vi.hoisted(() => ({
   defaultSession: {
     cookies: {
-      remove: vi.fn(async (_url: string, _name: string) => {}),
-      set: vi.fn(async (_details: { name: string; value: string }) => {}),
+      remove: vi.fn((_url: string, _name: string) => {}),
+      set: vi.fn((_details: { name: string; value: string }) => {}),
     },
   },
 }))
@@ -278,8 +278,8 @@ function createWidgetsManagerDouble() {
       widgetEventListeners.delete(listener)
     }
   })
-  const openWindow = vi.fn(async (_params?: { id?: string }) => {})
-  const pushWidget = vi.fn(async (payload: WidgetsAddPayload) => {
+  const openWindow = vi.fn((_params?: { id?: string }) => {})
+  const pushWidget = vi.fn((payload: WidgetsAddPayload) => {
     const snapshot: WidgetSnapshot = {
       id: payload.id ?? Math.random().toString(36).slice(2, 10),
       componentName: payload.componentName,
@@ -292,7 +292,7 @@ function createWidgetsManagerDouble() {
     widgetSnapshots.set(snapshot.id, snapshot)
     return snapshot.id
   })
-  const updateWidget = vi.fn(async (payload: WidgetsUpdatePayload) => {
+  const updateWidget = vi.fn((payload: WidgetsUpdatePayload) => {
     const existing = widgetSnapshots.get(payload.id)
     if (!existing) {
       return
@@ -329,7 +329,7 @@ function createWidgetsManagerDouble() {
       })
     }
   })
-  const removeWidget = vi.fn(async (id: string) => {
+  const removeWidget = vi.fn((id: string) => {
     widgetSnapshots.delete(id)
   })
   const getWidgetSnapshot = vi.fn((id: string) => widgetSnapshots.get(id))
@@ -1203,10 +1203,10 @@ describe('setupPluginHost', () => {
   it('handles rejected widget cleanup promises while stopping a session', async () => {
     const widgetSnapshots = new Map<string, WidgetSnapshot>()
     const widgetsManager = {
-      openWindow: vi.fn(async (_params?: { id?: string }) => {
+      openWindow: vi.fn((_params?: { id?: string }) => {
         /* stub — intentionally empty */
       }),
-      pushWidget: vi.fn(async (payload: WidgetsAddPayload) => {
+      pushWidget: vi.fn((payload: WidgetsAddPayload) => {
         const snapshot: WidgetSnapshot = {
           id: payload.id ?? Math.random().toString(36).slice(2, 10),
           componentName: payload.componentName,
@@ -1219,10 +1219,10 @@ describe('setupPluginHost', () => {
         widgetSnapshots.set(snapshot.id, snapshot)
         return snapshot.id
       }),
-      updateWidget: vi.fn(async (_payload: WidgetsUpdatePayload) => {
+      updateWidget: vi.fn((_payload: WidgetsUpdatePayload) => {
         /* stub — intentionally empty */
       }),
-      removeWidget: vi.fn(async (id: string) => {
+      removeWidget: vi.fn((id: string) => {
         if (id === 'gamelet-stop-cleanup-reject-a') {
           throw new Error('remove failed')
         }

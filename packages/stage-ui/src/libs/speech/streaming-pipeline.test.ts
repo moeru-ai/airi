@@ -42,7 +42,7 @@ async function startMockServer(handler: (ws: import('ws').WebSocket) => void): P
         try {
           const ev = JSON.parse(decoded as string) as { event?: string }
           if (ev.event === 'start') resolveStartObserved()
-        // eslint-disable-next-line no-empty
+          // eslint-disable-next-line no-empty
         } catch {
           // noop
         }
@@ -72,17 +72,17 @@ function makeStubAudioContext(): BaseAudioContext {
   let counter = 0
   const ctx = {
     sampleRate: 24000,
-    decodeAudioData: vi.fn(async (buf: ArrayBuffer) => {
+    decodeAudioData: vi.fn((buf: ArrayBuffer) => {
       // Return a fake AudioBuffer-like object identifiable by index/byteLength.
       counter += 1
-      return {
+      return Promise.resolve({
         duration: buf.byteLength / 24000,
         length: buf.byteLength,
         numberOfChannels: 1,
         sampleRate: 24000,
         __index: counter,
         __byteLength: buf.byteLength,
-      } as unknown as AudioBuffer
+      } as unknown as AudioBuffer)
     }),
   }
   return ctx as unknown as BaseAudioContext

@@ -60,7 +60,7 @@ describe('createConfig', () => {
       waitFor: Promise.resolve(),
       release: () => {},
     }
-    const writeFileMock = vi.fn(async (path: string) => {
+    const writeFileMock = vi.fn((path: string) => {
       existingTempFiles.add(path)
       writeCoordinator.calls += 1
       if (writeCoordinator.calls === 2) {

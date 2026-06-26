@@ -45,28 +45,31 @@ function mockedStore<TStoreDef extends () => unknown>(
   return useStore() as never
 }
 
-function getObjectSchema(schema?: Record<string, unknown>) {
+// DeepSource: any is intentional for JSON schema traversal — the schema structure is dynamic
+type JsonSchema = Record<string, any> // eslint-disable-line @typescript-eslint/no-explicit-any
+
+function getObjectSchema(schema?: JsonSchema) {
   if (!schema) return undefined
 
   if (schema.type === 'object') return schema
 
-  const candidates = [...((schema.anyOf as unknown[]) ?? []), ...((schema.oneOf as unknown[]) ?? [])]
+  const candidates = [...(schema.anyOf ?? []), ...(schema.oneOf ?? [])]
   return candidates.find(
     (candidate: unknown) =>
-      typeof candidate === 'object' && candidate !== null && (candidate as Record<string, unknown>).type === 'object',
-  ) as Record<string, unknown> | undefined
+      typeof candidate === 'object' && candidate !== null && (candidate as JsonSchema).type === 'object',
+  ) as JsonSchema | undefined
 }
 
-function getArraySchema(schema?: Record<string, unknown>) {
+function getArraySchema(schema?: JsonSchema) {
   if (!schema) return undefined
 
   if (schema.type === 'array') return schema
 
-  const candidates = [...((schema.anyOf as unknown[]) ?? []), ...((schema.oneOf as unknown[]) ?? [])]
+  const candidates = [...(schema.anyOf ?? []), ...(schema.oneOf ?? [])]
   return candidates.find(
     (candidate: unknown) =>
-      typeof candidate === 'object' && candidate !== null && (candidate as Record<string, unknown>).type === 'array',
-  ) as Record<string, unknown> | undefined
+      typeof candidate === 'object' && candidate !== null && (candidate as JsonSchema).type === 'array',
+  ) as JsonSchema | undefined
 }
 
 describe('sparkNotifyCommandSchema', () => {
@@ -78,16 +81,14 @@ describe('sparkNotifyCommandSchema', () => {
       execute: () => Promise.resolve(undefined),
     })
 
-    const schema = sparkTool.function.parameters as Record<string, unknown>
-    const commandsSchema = getArraySchema((schema as Record<string, unknown>).properties?.commands)
-    const commandItemSchema = getObjectSchema((commandsSchema as Record<string, unknown> | undefined)?.items)
-    const guidanceSchema = getObjectSchema(
-      (commandItemSchema as Record<string, unknown> | undefined)?.properties?.guidance,
-    ) as Record<string, unknown> | undefined
-    const personaSchema = getArraySchema((guidanceSchema as Record<string, unknown> | undefined)?.properties?.persona)
-    const personaItemSchema = getObjectSchema((personaSchema as Record<string, unknown> | undefined)?.items)
-    const optionsSchema = getArraySchema((guidanceSchema as Record<string, unknown> | undefined)?.properties?.options)
-    const optionsItemSchema = getObjectSchema((optionsSchema as Record<string, unknown> | undefined)?.items)
+    const schema = sparkTool.function.parameters as JsonSchema
+    const commandsSchema = getArraySchema(schema.properties?.commands)
+    const commandItemSchema = getObjectSchema(commandsSchema?.items)
+    const guidanceSchema = getObjectSchema(commandItemSchema?.properties?.guidance) as JsonSchema | undefined
+    const personaSchema = getArraySchema(guidanceSchema?.properties?.persona)
+    const personaItemSchema = getObjectSchema(personaSchema?.items)
+    const optionsSchema = getArraySchema(guidanceSchema?.properties?.options)
+    const optionsItemSchema = getObjectSchema(optionsSchema?.items)
 
     expect(schema.additionalProperties).toBe(false)
     expect(commandItemSchema?.additionalProperties).toBe(false)
@@ -102,9 +103,8 @@ describe('store character-orchestrator', () => {
     const pinia = createTestingPinia({ createSpy: vi.fn, stubActions: false })
     setActivePinia(pinia)
 
-    const mockGetProviderInstance = vi.fn()
-    mockedStore(useProvidersStore).getProviderInstance = mockGetProviderInstance
-    mockedStore(useProvidersStore).getProviderInstance.mockResolvedValue({
+    const mockGetProviderInstance = mockedStore(useProvidersStore).getProviderInstance as unknown as Mock
+    mockGetProviderInstance.mockResolvedValue({
       chat: (_model: string) => ({}) as unknown,
     } as unknown)
 
@@ -140,7 +140,7 @@ describe('store character-orchestrator', () => {
 
   it('handles immediate spark:notify with reaction and commands', async () => {
     const mockStream = vi.fn()
-    mockedStore(useLLM).stream = mockStream
+    const mockStream = mockedStore(useLLM).stream as unknown as Mock
     mockedStore(useLLM).stream.mockImplementation(
       async (_model: unknown, _provider: unknown, _messages: unknown, options: unknown) => {
         if (
@@ -216,7 +216,7 @@ describe('store character-orchestrator', () => {
 
   it('supports forcing text-only spark:notify responses', async () => {
     const mockStream = vi.fn()
-    mockedStore(useLLM).stream = mockStream
+    const mockStream = mockedStore(useLLM).stream as unknown as Mock
     mockedStore(useLLM).stream.mockImplementation(
       async (_model: unknown, _provider: unknown, _messages: unknown, options: unknown) => {
         await (options as Record<string, unknown> | undefined)?.onStreamEvent?.({
@@ -263,7 +263,7 @@ describe('store character-orchestrator', () => {
 
   it('supports forcing spark-command responses', async () => {
     const mockStream = vi.fn()
-    mockedStore(useLLM).stream = mockStream
+    const mockStream = mockedStore(useLLM).stream as unknown as Mock
     mockedStore(useLLM).stream.mockImplementation(
       async (_model: unknown, _provider: unknown, _messages: unknown, options: unknown) => {
         const sparkCommandTool = (
@@ -330,7 +330,7 @@ describe('store character-orchestrator', () => {
 
   it('forwards runtime-only message overrides into the rendered spark prompt', async () => {
     const mockStream = vi.fn()
-    mockedStore(useLLM).stream = mockStream
+    const mockStream = mockedStore(useLLM).stream as unknown as Mock
     mockedStore(useLLM).stream.mockImplementation(
       async (_model: unknown, _provider: unknown, _messages: unknown, options: unknown) => {
         await (options as Record<string, unknown> | undefined)?.onStreamEvent?.({

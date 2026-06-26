@@ -49,36 +49,30 @@ function createMutation<TVars, TData>(mutation: (vars: TVars) => Promise<TData>)
 
 function setupController() {
   const model: InferenceServiceProvidersModel = {
-    list: vi.fn(async () => ({})),
-    saveAll: vi.fn(async () => {
-      /* stub */
-    }),
-    upsert: vi.fn(async () => {
-      /* stub */
-    }),
-    remove: vi.fn(async () => {
-      /* stub */
-    }),
+    list: vi.fn(() => Promise.resolve({})),
+    saveAll: vi.fn(() => Promise.resolve()),
+    upsert: vi.fn(() => Promise.resolve()),
+    remove: vi.fn(() => Promise.resolve()),
   }
   const service: InferenceServiceProvidersService = {
     getDefinition: vi.fn(() => providerOpenAICompatible),
     listDefinitions: vi.fn(() => [providerOpenAICompatible]),
     buildLocal: vi.fn(() => localProvider),
-    fetchRemote: vi.fn(async () => ({})),
-    createRemote: vi.fn(async () => remoteProvider),
-    deleteRemote: vi.fn(async () => {
-      /* stub */
-    }),
-    patchConfigRemote: vi.fn(async () => ({ ...remoteProvider, id: 'provider-1', validated: true })),
+    fetchRemote: vi.fn(() => Promise.resolve({})),
+    createRemote: vi.fn(() => Promise.resolve(remoteProvider)),
+    deleteRemote: vi.fn(() => Promise.resolve()),
+    patchConfigRemote: vi.fn(() => Promise.resolve({ ...remoteProvider, id: 'provider-1', validated: true })),
   }
   const providersQuery = {
     error: ref<Error | null>(null),
     isLoading: ref(false),
-    refetch: vi.fn(async () => ({
-      data: {
-        'remote-id': { ...remoteProvider, id: 'remote-id' },
-      },
-    })),
+    refetch: vi.fn(() =>
+      Promise.resolve({
+        data: {
+          'remote-id': { ...remoteProvider, id: 'remote-id' },
+        },
+      }),
+    ),
   }
   const controller = createProviderCatalogStoreController({
     addProviderMutation: createMutation<InferenceServiceProvider, InferenceServiceProvider>((provider) =>
@@ -167,10 +161,10 @@ describe('store provider-catalog controller', () => {
    */
   it('passes Pinia Colada query abort signal to provider service and model', async () => {
     const service = {
-      fetchRemote: vi.fn(async () => ({}) as Promise<InferenceServiceProviders>),
+      fetchRemote: vi.fn(() => ({}) as Promise<InferenceServiceProviders>),
     }
     const model = {
-      saveAll: vi.fn(async () => {
+      saveAll: vi.fn(() => {
         /* stub */
       }),
     }

@@ -5,7 +5,7 @@ import { ResourceService } from './resources'
 describe('resourceService', () => {
   it('should prefer resolver values over stored values', async () => {
     const service = new ResourceService()
-    const resolver = vi.fn(async () => 'from-resolver')
+    const resolver = vi.fn(() => 'from-resolver')
 
     service.setValue('resource:theme', 'from-value')
     service.setResolver('resource:theme', resolver)

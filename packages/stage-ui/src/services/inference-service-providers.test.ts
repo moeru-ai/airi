@@ -42,7 +42,7 @@ describe('services inference-service-providers', () => {
       api: {
         v1: {
           providers: {
-            $get: vi.fn(async () => ({
+            $get: vi.fn(() => ({
               ok: true,
               json: async () => [
                 {
@@ -55,7 +55,7 @@ describe('services inference-service-providers', () => {
                 },
               ],
             })),
-            $post: vi.fn(async () => ({
+            $post: vi.fn(() => ({
               ok: true,
               json: async () => ({
                 id: 'provider-1',
@@ -67,8 +67,8 @@ describe('services inference-service-providers', () => {
               }),
             })),
             ':id': {
-              $delete: vi.fn(async () => ({ ok: true })),
-              $patch: vi.fn(async () => ({
+              $delete: vi.fn(() => ({ ok: true })),
+              $patch: vi.fn(() => ({
                 ok: true,
                 json: async () => ({
                   id: 'provider-1',
@@ -83,7 +83,7 @@ describe('services inference-service-providers', () => {
           },
         },
       },
-    }
+    } as any // eslint-disable-line @typescript-eslint/no-explicit-any -- complex mock client
 
     await expect(inferenceServiceProvidersService.fetchRemote(client)).resolves.toEqual({
       'provider-1': expect.objectContaining({

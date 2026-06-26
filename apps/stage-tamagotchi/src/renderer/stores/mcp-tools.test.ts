@@ -5,11 +5,11 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const invokeMocks = vi.hoisted(() => ({
-  callMcpTool: vi.fn(async () => ({
+  callMcpTool: vi.fn(() => ({
     content: [{ type: 'text', text: 'ok' }],
     isError: false,
   })),
-  listMcpTools: vi.fn(async () => [
+  listMcpTools: vi.fn(() => [
     {
       serverName: 'filesystem',
       name: 'filesystem::search',

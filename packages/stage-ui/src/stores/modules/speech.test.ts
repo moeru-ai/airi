@@ -162,12 +162,14 @@ describe('speech store helpers', () => {
       languages: [{ code: 'en-US', title: 'English' }],
     }
 
-    expect(() => speechStore.resolveVoicePackSpeechInput({
-      text: 'hello',
-      voice,
-      params: { pitch: '+20%' },
-      supportsSSML: false,
-    })).toThrow('SSML-capable speech provider')
+    expect(() =>
+      speechStore.resolveVoicePackSpeechInput({
+        text: 'hello',
+        voice,
+        params: { pitch: '+20%' },
+        supportsSSML: false,
+      }),
+    ).toThrow('SSML-capable speech provider')
   })
 
   /**
@@ -183,11 +185,13 @@ describe('speech store helpers', () => {
       languages: [{ code: 'en-US', title: 'English' }],
     }
 
-    expect(() => speechStore.resolveVoicePackSpeechInput({
-      text: 'hello',
-      voice,
-      params: { emotion: 'happy' },
-    })).toThrow('Unsupported Voice Pack parameter "emotion"')
+    expect(() =>
+      speechStore.resolveVoicePackSpeechInput({
+        text: 'hello',
+        voice,
+        params: { emotion: 'happy' },
+      }),
+    ).toThrow('Unsupported Voice Pack parameter "emotion"')
   })
 
   /**
@@ -197,7 +201,7 @@ describe('speech store helpers', () => {
   it('does not load streaming voices before server availability is confirmed', async () => {
     const providersStore = useProvidersStore()
     const speechStore = useSpeechStore()
-    const listVoices = vi.fn(async () => [])
+    const listVoices = vi.fn(() => [])
     const metadata = providersStore.providerMetadata[OFFICIAL_SPEECH_STREAMING_PROVIDER_ID]
     metadata.capabilities.listVoices = listVoices
     providersStore.providerRuntimeState[OFFICIAL_SPEECH_STREAMING_PROVIDER_ID].isConfigured = false

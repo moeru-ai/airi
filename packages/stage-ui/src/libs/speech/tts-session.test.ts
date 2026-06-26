@@ -196,8 +196,9 @@ describe('createStreamingTtsSession (adapter)', () => {
     // Simulate the pipeline emitting two sentences.
     const audio0 = { __id: 0 } as unknown as AudioBuffer
     const audio1 = { __id: 1 } as unknown as AudioBuffer
-    pipe.options.onSentence({ index: 0, text: 'first', audio: audio0 })
-    pipe.options.onSentence({ index: 1, text: 'second', audio: audio1 })
+    ;(pipe.options as any)
+      .onSentence({ index: 0, text: 'first', audio: audio0 })(pipe.options as any)
+      .onSentence({ index: 1, text: 'second', audio: audio1 })
 
     expect(playback.scheduled).toHaveLength(2)
     expect(playback.scheduled[0]).toMatchObject({
@@ -281,10 +282,10 @@ describe('createStreamingTtsSession (adapter)', () => {
       audioContext: dummyAudioContext,
       playbackManager: playback,
       pipelineFactory: pipe.factory as never,
-    })
-
-    // Pipeline naturally completes first.
-    pipe.options.onDone()
+    })(
+      // Pipeline naturally completes first.
+      pipe.options as any,
+    ).onDone()
     // Then host cancels — pipeline.cancel should NOT be re-called, but
     // any straggler playback items must still be drained.
     session.cancel('post-done-cancel')
@@ -302,11 +303,12 @@ describe('createStreamingTtsSession (adapter)', () => {
       audioContext: dummyAudioContext,
       playbackManager: playback,
       pipelineFactory: pipe.factory as never,
-    })
-
-    // Mark terminated, then a straggler sentence arrives.
-    pipe.options.onDone()
-    pipe.options.onSentence({ index: 0, text: 'too late', audio: {} as AudioBuffer })
+    })(
+      // Mark terminated, then a straggler sentence arrives.
+      pipe.options as any,
+    )
+      .onDone()(pipe.options as any)
+      .onSentence({ index: 0, text: 'too late', audio: {} as AudioBuffer })
 
     expect(playback.scheduled).toHaveLength(0)
   })
@@ -324,9 +326,9 @@ describe('createStreamingTtsSession (adapter)', () => {
       pipelineFactory: pipe.factory as never,
     })
 
-    const err = new Error('boom')
-    pipe.options.onError(err)
-    pipe.options.onDone()
+    const err = new Error('boom')(pipe.options as any)
+      .onError(err)(pipe.options as any)
+      .onDone()
 
     expect(onError).toHaveBeenCalledWith(err)
     expect(onDone).toHaveBeenCalledTimes(1)

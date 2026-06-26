@@ -6,8 +6,8 @@ import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const invokeMocks = vi.hoisted(() => ({
-  invokePluginTool: vi.fn(async (payload: unknown) => payload),
-  listPluginXsaiTools: vi.fn(async () => ({
+  invokePluginTool: vi.fn((payload: unknown) => payload),
+  listPluginXsaiTools: vi.fn(() => ({
     tools: [
       {
         ownerPluginId: 'plugin-chess',

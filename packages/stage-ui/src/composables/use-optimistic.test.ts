@@ -16,13 +16,13 @@ describe('useOptimistic', () => {
       }
     })
 
-    const action = vi.fn(async () => {
-      return actionResult
+    const action = vi.fn(() => {
+      return Promise.resolve(actionResult)
     })
 
     const onSuccess = vi.fn((result: string) => {
       state.value = `final-${result}`
-      return state.value
+      return Promise.resolve(state.value)
     })
 
     const { state: resultState, isLoading } = useOptimisticMutation({
@@ -59,7 +59,7 @@ describe('useOptimistic', () => {
       return rollback
     })
 
-    const action = vi.fn(async () => {
+    const action = vi.fn(() => {
       throw error
     })
 
@@ -107,7 +107,7 @@ describe('useOptimistic', () => {
   })
 
   it('should not throw if apply returns non-function', async () => {
-    const action = vi.fn(async () => {
+    const action = vi.fn(() => {
       throw new Error('fail')
     })
 
@@ -129,7 +129,7 @@ describe('useOptimistic', () => {
         state.value = 'initial'
       }
     })
-    const action = vi.fn(async () => 'should-not-run')
+    const action = vi.fn(() => Promise.resolve('should-not-run'))
     const skipActionIf = vi.fn(() => true)
 
     const { execute, state: resultState } = useOptimisticMutation({

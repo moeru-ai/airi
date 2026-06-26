@@ -287,7 +287,7 @@ export function toggleBeatSync(enabled: boolean) {
 
 export function getBeatSyncState(): Promise<BeatSyncDetectorState> {
   if (isStageWeb()) {
-    return getDetector().state
+    return Promise.resolve(getDetector().state)
   }
 
   if (isStageTamagotchi()) {
@@ -335,7 +335,7 @@ export function listenBeatSyncBeatSignal(listener: (e: AnalyserBeatEvent) => voi
 
 export function getBeatSyncInputByteFrequencyData(): Promise<Uint8Array<ArrayBuffer>> {
   if (isStageWeb()) {
-    return getDetector().getInputByteFrequencyData()
+    return Promise.resolve(getDetector().getInputByteFrequencyData())
   }
 
   if (isStageTamagotchi()) {

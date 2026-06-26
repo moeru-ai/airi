@@ -4,8 +4,8 @@ import { setupBuiltInServer } from './index'
 
 describe('setupBuiltInServer', () => {
   it('starts registered adapters', async () => {
-    const auth = { key: 'auth', start: vi.fn(async () => {}), stop: vi.fn(async () => {}) }
-    const assets = { key: 'assets', start: vi.fn(async () => {}), stop: vi.fn(async () => {}) }
+    const auth = { key: 'auth', start: vi.fn(() => {}), stop: vi.fn(() => {}) }
+    const assets = { key: 'assets', start: vi.fn(() => {}), stop: vi.fn(() => {}) }
 
     const service = setupBuiltInServer({
       authServer: auth,

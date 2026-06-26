@@ -3,12 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick, ref } from 'vue'
 
 const invokeMocks = vi.hoisted(() => {
-  const getConfig = vi.fn(async () => ({
+  const getConfig = vi.fn(() => ({
     authToken: 'existing-token',
     hostname: '127.0.0.1',
     tlsConfig: null,
   }))
-  const applyConfig = vi.fn(async (config: unknown) => config)
+  const applyConfig = vi.fn((config: unknown) => config)
 
   return {
     applyConfig,

@@ -6,7 +6,7 @@ import type { ProviderDefinition } from '../../libs/providers/types'
 import { convertProviderDefinitionToMetadata } from './converters'
 
 vi.mock('@xsai/model', () => ({
-  listModels: vi.fn(async () => [{ id: 'test-model', name: 'Test Model', context_length: 8192 }]),
+  listModels: vi.fn(() => [{ id: 'test-model', name: 'Test Model', context_length: 8192 }]),
 }))
 
 describe('providers converters', () => {

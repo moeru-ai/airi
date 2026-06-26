@@ -63,7 +63,7 @@ vi.mock('../../providers', () => ({
 
 vi.mock('./channel-server', () => ({
   useModsServerChannelStore: () => ({
-    ensureConnected: vi.fn(async () => undefined),
+    ensureConnected: vi.fn(() => undefined),
     send: vi.fn(),
     onReconnected: vi.fn(() => () => undefined),
     onContextUpdate: vi.fn(() => () => undefined),

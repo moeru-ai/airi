@@ -106,7 +106,8 @@ function goToModelSelection() {
         <ProviderBaseUrlInput
           v-model="baseUrl"
           :placeholder="
-            (providerMetadata?.defaultOptions?.() as Record<string, unknown>)?.baseUrl ?? 'Base URL of your provider'
+            ((providerMetadata?.defaultOptions?.() as Record<string, unknown>)?.baseUrl as string | undefined) ??
+            'Base URL of your provider'
           "
         />
       </ProviderAdvancedSettings>

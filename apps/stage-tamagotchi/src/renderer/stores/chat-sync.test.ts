@@ -107,7 +107,7 @@ vi.mock('@proj-airi/stage-ui/stores/chat/maintenance', () => ({
 
 vi.mock('@proj-airi/stage-ui/stores/providers', () => ({
   useProvidersStore: () => ({
-    getProviderInstance: vi.fn(async () => ({ id: 'provider' })),
+    getProviderInstance: vi.fn(() => ({ id: 'provider' })),
   }),
 }))
 
@@ -119,11 +119,11 @@ vi.mock('@proj-airi/stage-ui/stores/modules/consciousness', () => ({
 }))
 
 vi.mock('./tools/builtin/widgets', () => ({
-  widgetsTools: vi.fn(async () => []),
+  widgetsTools: vi.fn(() => []),
 }))
 
 vi.mock('./tools/builtin/weather', () => ({
-  weatherTools: vi.fn(async () => []),
+  weatherTools: vi.fn(() => []),
 }))
 
 /**
@@ -163,7 +163,7 @@ describe('useChatSyncStore authority ingest failures', async () => {
 
     const getSessionMessages = vi.fn((sessionId: string) => sessionMessages.value[sessionId] ?? [])
 
-    const ingest = vi.fn(async () => {
+    const ingest = vi.fn(() => {
       throw new Error(
         'Remote sent 403 response: {"error":{"message":"This model is not available in your region.","code":403}}',
       )

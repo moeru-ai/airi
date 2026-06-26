@@ -35,8 +35,8 @@ function createFakeServer(
 ) {
   return {
     key: 'static-assets',
-    start: vi.fn(async () => {}),
-    stop: vi.fn(async () => {}),
+    start: vi.fn(() => {}),
+    stop: vi.fn(() => {}),
     getBaseUrl: vi.fn(() => options.baseUrl),
     createSession: vi.fn(() => options.createSessionResult ?? createSession('asset-session-1')),
     revokeSession: vi.fn((assetSessionId: string) => createSession(assetSessionId)),
@@ -52,10 +52,10 @@ function createFakeCookieAdapter() {
 
   return {
     adapter: {
-      setCookie: vi.fn(async (cookie) => {
+      setCookie: vi.fn((cookie) => {
         setCookies.push(cookie)
       }),
-      removeCookie: vi.fn(async (cookie) => {
+      removeCookie: vi.fn((cookie) => {
         removedCookies.push(cookie)
       }),
     } satisfies PluginAssetCookieAdapter,

@@ -26,7 +26,7 @@ describe('plugin-sdk-tamagotchi', () => {
         gamelets: {
           open: openGamelet,
           configure: configureGamelet,
-          request: vi.fn(async () => ({})),
+          request: vi.fn(() => Promise.resolve({})),
           close: closeGamelet,
           isOpen: isGameletOpen,
         },
@@ -178,7 +178,7 @@ describe('plugin-sdk-tamagotchi', () => {
         gamelets: {
           open: openGamelet,
           configure: configureGamelet,
-          request: vi.fn(async () => ({ ready: true })),
+          request: vi.fn(() => Promise.resolve({ ready: true })),
           close: closeGamelet,
           isOpen: isGameletOpen,
         },
@@ -235,7 +235,7 @@ describe('plugin-sdk-tamagotchi', () => {
         gamelets: {
           open: vi.fn(),
           configure: vi.fn(),
-          request: vi.fn(async () => ({})),
+          request: vi.fn(() => Promise.resolve({})),
           close: vi.fn(),
           isOpen: vi.fn(() => true),
         },

@@ -58,33 +58,25 @@ function createMutation<TVars, TData>(mutation: (vars: TVars) => Promise<TData>)
 
 function setupController() {
   const model: CharactersModel = {
-    list: vi.fn(async () => []),
-    saveAll: vi.fn(async () => {
-      /* stub */
-    }),
-    upsert: vi.fn(async () => {
-      /* stub */
-    }),
-    remove: vi.fn(async () => {
-      /* stub */
-    }),
+    list: vi.fn(() => Promise.resolve([] as Character[])),
+    saveAll: vi.fn(() => Promise.resolve()),
+    upsert: vi.fn(() => Promise.resolve()),
+    remove: vi.fn(() => Promise.resolve()),
   }
   const service: CharactersService = {
     buildLocal: vi.fn(() => ({ ...character, id: 'local-character' })),
-    fetchRemote: vi.fn(async () => []),
-    fetchRemoteById: vi.fn(async () => character),
-    createRemote: vi.fn(async () => character),
-    updateRemote: vi.fn(async () => character),
-    removeRemote: vi.fn(async () => {
-      /* stub */
-    }),
-    likeRemote: vi.fn(async () => ({ ...character, likesCount: 1 })),
-    bookmarkRemote: vi.fn(async () => ({ ...character, bookmarksCount: 1 })),
+    fetchRemote: vi.fn(() => Promise.resolve([] as Character[])),
+    fetchRemoteById: vi.fn(() => Promise.resolve(character)),
+    createRemote: vi.fn(() => Promise.resolve(character)),
+    updateRemote: vi.fn(() => Promise.resolve(character)),
+    removeRemote: vi.fn(() => Promise.resolve()),
+    likeRemote: vi.fn(() => Promise.resolve({ ...character, likesCount: 1 })),
+    bookmarkRemote: vi.fn(() => Promise.resolve({ ...character, bookmarksCount: 1 })),
   }
   const listQuery = {
     error: ref<Error | null>(null),
     isLoading: ref(false),
-    refetch: vi.fn(async () => ({ data: [{ ...character, id: 'remote-character' }] })),
+    refetch: vi.fn(() => Promise.resolve({ data: [{ ...character, id: 'remote-character' }] })),
   }
   const controller = createCharacterStoreController({
     auth: { userId: 'user-1' },
@@ -170,7 +162,7 @@ describe('store characters controller', () => {
    */
   it('passes Pinia Colada query abort signal to the character service', async () => {
     const service = {
-      fetchRemote: vi.fn(async () => [] as Character[]),
+      fetchRemote: vi.fn(() => [] as Character[]),
     }
     const listAll = ref(true)
     const controller = new AbortController()
