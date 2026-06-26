@@ -42,7 +42,7 @@ export const providerOpenAICompatible = defineProvider<OpenAICompatibleConfig>({
     }),
   }),
   createProvider(config) {
-    const fetch = resolveOpenAICompatibleFetch()
+    const fetch = resolveOpenAICompatibleFetch(config.baseUrl)
     const providerOptions = () => ({
       apiKey: config.apiKey,
       baseURL: config.baseUrl!,

@@ -79,7 +79,7 @@ async function resolveModels<TConfig extends { apiKey?: string | null, baseUrl?:
     return providerExtra.listModels(config, provider)
   }
   if (!isModelProvider(provider)) {
-    const fetch = resolveOpenAICompatibleFetch()
+    const fetch = resolveOpenAICompatibleFetch(config.baseUrl)
     return listModels({
       baseURL: config.baseUrl!,
       apiKey: config.apiKey!,
@@ -140,7 +140,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
     }
 
     try {
-      const fetch = resolveOpenAICompatibleFetch()
+      const fetch = resolveOpenAICompatibleFetch(config.baseUrl)
       await generateText({
         apiKey: config.apiKey,
         baseURL: config.baseUrl!,
@@ -256,7 +256,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
         const timeout = setTimeout(() => controller.abort(), 10_000)
 
         try {
-          const electronFetch = resolveOpenAICompatibleFetch()
+          const electronFetch = resolveOpenAICompatibleFetch(config.baseUrl)
           const requestInit: RequestInit = {
             method: 'GET',
             headers: {

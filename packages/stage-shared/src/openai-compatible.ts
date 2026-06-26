@@ -2,6 +2,7 @@ import { defineInvokeEventa } from '@moeru/eventa'
 
 export interface OpenAICompatibleFetchRequest {
   url: string
+  baseUrl: string
   method?: string
   headers?: Record<string, string>
   body?: string

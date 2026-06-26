@@ -144,7 +144,6 @@ export function convertProviderDefinitionToMetadata(
         : async (config) => {
           const provider = await definition.createProvider(config as any)
           try {
-            const fetch = resolveOpenAICompatibleFetch()
             if (isModelProvider(provider)) {
               const models = await listModels(provider.model())
               return mapModelsToMetadataModels(definition.id, models as any[])
@@ -155,6 +154,7 @@ export function convertProviderDefinitionToMetadata(
             if (!baseUrl)
               return []
 
+            const fetch = resolveOpenAICompatibleFetch(baseUrl)
             const models = await listModels({
               baseURL: baseUrl,
               ...(apiKey ? { apiKey } : {}),

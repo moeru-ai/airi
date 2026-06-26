@@ -63,7 +63,7 @@ export const useLLM = defineStore('llm', () => {
       return []
 
     try {
-      const fetch = resolveOpenAICompatibleFetch()
+      const fetch = resolveOpenAICompatibleFetch(apiUrl)
       return await listModels({
         baseURL: (apiUrl.endsWith('/') ? apiUrl : `${apiUrl}/`) as `${string}/`,
         apiKey,

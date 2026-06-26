@@ -6,7 +6,7 @@ import { openAICompatibleFetch } from '@proj-airi/stage-shared'
 
 type IpcRendererLike = Parameters<typeof createContext>[0]
 
-let sharedFetch: Fetch | undefined
+const sharedFetches = new Map<string, Fetch>()
 
 function resolveElectronIpcRenderer(): IpcRendererLike | undefined {
   if (typeof window === 'undefined')
@@ -50,7 +50,7 @@ function canReplayRequest(method: string): boolean {
   return method === 'GET' || method === 'HEAD' || method === 'OPTIONS' || method === 'TRACE'
 }
 
-function createElectronFetch(ipcRenderer: IpcRendererLike): Fetch {
+function createElectronFetch(ipcRenderer: IpcRendererLike, baseUrl: string): Fetch {
   const { context } = createContext(ipcRenderer)
   const invokeFetch = defineStreamInvoke(context, openAICompatibleFetch)
 
@@ -61,6 +61,7 @@ function createElectronFetch(ipcRenderer: IpcRendererLike): Fetch {
     const fetchThroughElectron = async () => {
       const responseEvents = invokeFetch({
         url: requestUrl,
+        baseUrl,
         method: init.method,
         headers: headersToRecord(init.headers),
         body: await readRequestBody(init),
@@ -116,11 +117,19 @@ function createElectronFetch(ipcRenderer: IpcRendererLike): Fetch {
   }
 }
 
-export function resolveOpenAICompatibleFetch(): Fetch | undefined {
+export function resolveOpenAICompatibleFetch(baseUrl: string | URL | null | undefined): Fetch | undefined {
+  if (!baseUrl)
+    return undefined
+
   const ipcRenderer = resolveElectronIpcRenderer()
   if (!ipcRenderer)
     return undefined
 
-  sharedFetch ??= createElectronFetch(ipcRenderer)
-  return sharedFetch
+  const cacheKey = baseUrl.toString()
+  let fetch = sharedFetches.get(cacheKey)
+  if (!fetch) {
+    fetch = createElectronFetch(ipcRenderer, cacheKey)
+    sharedFetches.set(cacheKey, fetch)
+  }
+  return fetch
 }
