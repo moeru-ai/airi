@@ -51,11 +51,13 @@ export const useCharacterStore = defineStore('character', () => {
     })
 
     const parser = parserFactory({
-      onLiteral: async (literal) => {
+      onLiteral: (literal) => {
         if (literal) intent.writeLiteral(literal)
+        return Promise.resolve()
       },
-      onSpecial: async (special) => {
+      onSpecial: (special) => {
         if (special) intent.writeSpecial(special)
+        return Promise.resolve()
       },
     })
 
@@ -89,11 +91,13 @@ export const useCharacterStore = defineStore('character', () => {
       })
 
       const parser = parserFactory({
-        onLiteral: async (literal) => {
+        onLiteral: (literal) => {
           if (literal) intent.writeLiteral(literal)
+          return Promise.resolve()
         },
-        onSpecial: async (special) => {
+        onSpecial: (special) => {
           if (special) intent.writeSpecial(special)
+          return Promise.resolve()
         },
       })
 

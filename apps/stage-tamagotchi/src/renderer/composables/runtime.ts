@@ -4,13 +4,13 @@ import { computed, ref } from 'vue'
 export function useAppRuntime() {
   const isInitialized = ref(false)
 
-  const platform = computedAsync(async () => {
+  const platform = computedAsync(() => {
     const res = 'electron'
     if (!isInitialized.value) {
       isInitialized.value = true
     }
 
-    return res
+    return Promise.resolve(res)
   }, 'web')
 
   const isTauri = computed(() => {

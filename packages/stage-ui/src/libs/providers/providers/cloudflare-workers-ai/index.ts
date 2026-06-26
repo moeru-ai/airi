@@ -44,7 +44,7 @@ export const providerCloudflareWorkersAI = defineProvider({
       ({ t }) => ({
         id: 'cloudflare-workers-ai:check-config',
         name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-config.title'),
-        validator: async (config) => {
+        validator: (config) => {
           const errors: Array<{ error: unknown }> = []
           const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
           const accountId = typeof config.accountId === 'string' ? config.accountId.trim() : ''
@@ -52,12 +52,12 @@ export const providerCloudflareWorkersAI = defineProvider({
           if (!apiKey) errors.push({ error: new Error('API token is required.') })
           if (!accountId) errors.push({ error: new Error('Account ID is required.') })
 
-          return {
+          return Promise.resolve({
             errors,
             reason: errors.length > 0 ? errors.map((item) => (item.error as Error).message).join(', ') : '',
             reasonKey: '',
             valid: errors.length === 0,
-          }
+          })
         },
       }),
     ],

@@ -154,9 +154,9 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
     })
   }
 
-  async function load(onProgress?: (p: ProgressPayload) => void, options?: { signal?: AbortSignal }): Promise<void> {
+  function load(onProgress?: (p: ProgressPayload) => void, options?: { signal?: AbortSignal }): Promise<void> {
     throwIfAborted(options?.signal)
-    return operationMutex.runExclusive(async () => {
+    return operationMutex.runExclusive(() => {
       throwIfAborted(options?.signal)
       state = 'loading'
       updateInferenceStatus(MODEL_NAMES.BG_REMOVAL, { state: 'downloading', device: 'webgpu' })
@@ -164,7 +164,7 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
       return getLoadQueue().enqueue(
         MODEL_NAMES.BG_REMOVAL,
         LOAD_PRIORITY.BACKGROUND_REMOVAL,
-        async () => {
+        () => {
           throwIfAborted(options?.signal)
           const w = ensureWorker()
           const requestId = createRequestId()
@@ -192,41 +192,40 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
 
           w.postMessage({ type: 'load-model', requestId, modelId: MODEL_IDS.BG_REMOVAL, device: 'webgpu' })
 
-          let loadedResponse: ModelReadyResponse | null = null
-          try {
-            loadedResponse = await loadedPromise
-          } catch (error) {
-            state = 'error'
-            updateInferenceStatus(MODEL_NAMES.BG_REMOVAL, { state: 'error' })
-            throw error
-          }
+          return loadedPromise
+            .then((loadedResponse) => {
+              // Capture actual device reported by the worker (may fall back to WASM)
+              const actualDevice = loadedResponse?.device ?? 'webgpu'
 
-          // Capture actual device reported by the worker (may fall back to WASM)
-          const actualDevice = loadedResponse?.device ?? 'webgpu'
+              // Track GPU memory allocation
+              const coordinator = getGPUCoordinator()
+              if (allocationToken) coordinator.release(allocationToken)
+              allocationToken = coordinator.requestAllocation(
+                MODEL_NAMES.BG_REMOVAL,
+                MODEL_VRAM_ESTIMATES.modnet ?? 25 * 1024 * 1024,
+              )
 
-          // Track GPU memory allocation
-          const coordinator = getGPUCoordinator()
-          if (allocationToken) coordinator.release(allocationToken)
-          allocationToken = coordinator.requestAllocation(
-            MODEL_NAMES.BG_REMOVAL,
-            MODEL_VRAM_ESTIMATES.modnet ?? 25 * 1024 * 1024,
-          )
-
-          state = 'ready'
-          updateInferenceStatus(MODEL_NAMES.BG_REMOVAL, { state: 'ready', device: actualDevice })
+              state = 'ready'
+              updateInferenceStatus(MODEL_NAMES.BG_REMOVAL, { state: 'ready', device: actualDevice })
+            })
+            .catch((error) => {
+              state = 'error'
+              updateInferenceStatus(MODEL_NAMES.BG_REMOVAL, { state: 'error' })
+              throw error
+            })
         },
         { signal: options?.signal },
       )
     })
   }
 
-  async function processImage(imageData: ImageData, options?: { signal?: AbortSignal }): Promise<ImageData> {
+  function processImage(imageData: ImageData, options?: { signal?: AbortSignal }): Promise<ImageData> {
     throwIfAborted(options?.signal)
     return defaultPerfTracer.withMeasure(
       'inference',
       'bg-removal-process',
       () =>
-        operationMutex.runExclusive(async () => {
+        operationMutex.runExclusive(() => {
           throwIfAborted(options?.signal)
           if (!worker || (state !== 'ready' && state !== 'processing'))
             throw new Error('Model not loaded. Call load() first.')
@@ -258,28 +257,27 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
             [pixelsCopy.buffer],
           )
 
-          let result: InferenceResultResponse<BackgroundRemovalOutput> | null = null
-          try {
-            result = await resultPromise
-          } catch (error) {
-            state = 'ready'
-            throw error
-          }
+          return resultPromise
+            .then((result) => {
+              if (!result?.output) {
+                state = 'ready'
+                throw new Error('Background removal failed to produce a result')
+              }
 
-          if (!result?.output) {
-            state = 'ready'
-            throw new Error('Background removal failed to produce a result')
-          }
+              // Apply mask to original image alpha channel
+              const output = new ImageData(new Uint8ClampedArray(imageData.data), imageData.width, imageData.height)
+              const maskData = result.output.maskData
+              for (let i = 0; i < maskData.length; i++) {
+                output.data[4 * i + 3] = maskData[i]
+              }
 
-          // Apply mask to original image alpha channel
-          const output = new ImageData(new Uint8ClampedArray(imageData.data), imageData.width, imageData.height)
-          const maskData = result.output.maskData
-          for (let i = 0; i < maskData.length; i++) {
-            output.data[4 * i + 3] = maskData[i]
-          }
-
-          state = 'ready'
-          return output
+              state = 'ready'
+              return output
+            })
+            .catch((error) => {
+              state = 'ready'
+              throw error
+            })
         }),
       { width: imageData.width, height: imageData.height },
     )

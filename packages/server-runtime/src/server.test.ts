@@ -13,7 +13,7 @@ const serveMocks = vi.hoisted(() => {
       }),
   )
 
-  const closeCall = vi.fn(() => {})
+  const closeCall = vi.fn(() => Promise.resolve())
   const disposeCall = vi.fn(() => {})
   const setupAppCall = vi.fn(() => ({
     app: {

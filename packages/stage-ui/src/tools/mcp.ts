@@ -134,11 +134,11 @@ export function createMcpTools(runtime: McpToolRuntime): Array<Promise<Tool>> {
 
 function createUnavailableMcpToolRuntime(): McpToolRuntime {
   return {
-    async listTools() {
-      throw new Error('MCP tools are not available in this runtime.')
+    listTools() {
+      return Promise.reject(new Error('MCP tools are not available in this runtime.'))
     },
-    async callTool() {
-      throw new Error('MCP tools are not available in this runtime.')
+    callTool() {
+      return Promise.reject(new Error('MCP tools are not available in this runtime.'))
     },
   }
 }

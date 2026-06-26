@@ -263,10 +263,10 @@ export function buildOpenAICompatibleProvider(
     defaultOptions: () => ({
       baseUrl: defaultBaseUrl || '',
     }),
-    createProvider: async (config: { apiKey: string; baseUrl: string }) => {
+    createProvider: (config: { apiKey: string; baseUrl: string }) => {
       const apiKey = normalizeString(config.apiKey)
       const baseUrl = normalizeBaseUrl(config.baseUrl)
-      return creator(apiKey, baseUrl)
+      return Promise.resolve(creator(apiKey, baseUrl))
     },
     capabilities: finalCapabilities,
     validators: finalValidators,

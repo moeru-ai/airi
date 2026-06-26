@@ -813,12 +813,12 @@ export const useProvidersStore = defineStore('providers', () => {
         supportsStreamInput: true,
       },
       createProvider: async (config) => {
-        const toString = (value: unknown) => (typeof value === 'string' ? value.trim() : '')
+        const trimToString = (value: unknown) => (typeof value === 'string' ? value.trim() : '')
 
-        const accessKeyId = toString(config.accessKeyId)
-        const accessKeySecret = toString(config.accessKeySecret)
-        const appKey = toString(config.appKey)
-        const region = toString(config.region)
+        const accessKeyId = trimToString(config.accessKeyId)
+        const accessKeySecret = trimToString(config.accessKeySecret)
+        const appKey = trimToString(config.appKey)
+        const region = trimToString(config.region)
         const resolvedRegion = ALIYUN_NLS_REGIONS.includes(region as AliyunNlsRegion)
           ? (region as AliyunNlsRegion)
           : 'cn-shanghai'
@@ -860,12 +860,12 @@ export const useProvidersStore = defineStore('providers', () => {
         chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           const errors: Error[] = []
-          const toString = (value: unknown) => (typeof value === 'string' ? value.trim() : '')
+          const trimToString = (value: unknown) => (typeof value === 'string' ? value.trim() : '')
 
-          const accessKeyId = toString(config.accessKeyId)
-          const accessKeySecret = toString(config.accessKeySecret)
-          const appKey = toString(config.appKey)
-          const region = toString(config.region)
+          const accessKeyId = trimToString(config.accessKeyId)
+          const accessKeySecret = trimToString(config.accessKeySecret)
+          const appKey = trimToString(config.appKey)
+          const region = trimToString(config.region)
 
           if (!accessKeyId) errors.push(new Error('Access Key ID is required.'))
           if (!accessKeySecret) errors.push(new Error('Access Key Secret is required.'))

@@ -162,7 +162,7 @@ describe('store characters controller', () => {
    */
   it('passes Pinia Colada query abort signal to the character service', async () => {
     const service = {
-      fetchRemote: vi.fn(() => [] as Character[]),
+      fetchRemote: vi.fn(() => Promise.resolve([] as Character[])),
     }
     const listAll = ref(true)
     const controller = new AbortController()

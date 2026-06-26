@@ -72,7 +72,7 @@ export function createStaticAssetService(options: {
     authorize: ({ extensionId, assetSessionId, assetPath, cookieValue }) => {
       const entry = getManifestEntryForRequest(extensionId)
       if (!entry) {
-        return {
+        return Promise.resolve({
           ok: false,
           error: new HttpError({
             status: 401,
@@ -80,16 +80,18 @@ export function createStaticAssetService(options: {
             message: 'Unauthorized',
             reason: 'extension manifest entry does not exist for requested extensionId',
           }),
-        }
+        })
       }
 
-      return sessionStore.validateRequest({
-        extensionId,
-        version: entry.version,
-        assetSessionId,
-        assetPath,
-        cookieValue,
-      })
+      return Promise.resolve(
+        sessionStore.validateRequest({
+          extensionId,
+          version: entry.version,
+          assetSessionId,
+          assetPath,
+          cookieValue,
+        }),
+      )
     },
     refreshSession: sessionStore.refreshSession,
     resolveAsset: async ({ extensionId, assetPath }) => {

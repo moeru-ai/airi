@@ -132,16 +132,22 @@ export function createAuthService(params: {
 
       // Wait for the callback in the background
       loopback.result
-        .then(async ({ code, state: returnedState }) => {
+        .then(({ code, state: returnedState }) => {
           if (returnedState !== state) {
             log.warn('State mismatch — possible CSRF attack')
             params.windowAuthManager.broadcastAuthError('State mismatch')
             return
           }
 
-          const tokens = await exchangeCode(code, codeVerifier, redirectUri)
-          params.windowAuthManager.broadcastAuthCallback(tokens)
-          log.log('OIDC token exchange successful')
+          exchangeCode(code, codeVerifier, redirectUri)
+            .then((tokens) => {
+              params.windowAuthManager.broadcastAuthCallback(tokens)
+              log.log('OIDC token exchange successful')
+            })
+            .catch((err) => {
+              log.withError(err).error('OIDC token exchange failed')
+              params.windowAuthManager.broadcastAuthError(errorMessageFrom(err) ?? 'OIDC token exchange failed')
+            })
         })
         .catch((err) => {
           log.withError(err).error('OIDC signing in failed')
@@ -159,8 +165,8 @@ export function createAuthService(params: {
     }
   })
 
-  // async: returns Promise for interface compatibility
-  defineInvokeHandler(params.context, electronAuthLogout, async (_, options) => {
+  // returns Promise for interface compatibility
+  defineInvokeHandler(params.context, electronAuthLogout, (_, options) => {
     if (params.window.webContents.id !== options?.raw.ipcMainEvent.sender.id) {
       return
     }

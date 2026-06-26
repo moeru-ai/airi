@@ -877,8 +877,12 @@ async function captureFrame() {
 
 onUnmounted(() => {
   resetLive2dLipSync()
-  chatHookCleanups.forEach((dispose) => dispose?.())
-  viewUpdateCleanups.forEach((dispose) => dispose?.())
+  chatHookCleanups.forEach((dispose) => {
+    dispose?.()
+  })
+  viewUpdateCleanups.forEach((dispose) => {
+    dispose?.()
+  })
   // Tear down any in-flight TTS session (segmenter or streaming) and
   // drain playback. Without this, a still-open streaming ws keeps
   // feeding sentences into a playbackManager whose listeners still

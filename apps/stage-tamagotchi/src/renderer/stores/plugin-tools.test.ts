@@ -7,30 +7,32 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const invokeMocks = vi.hoisted(() => ({
   invokePluginTool: vi.fn((payload: unknown) => payload),
-  listPluginXsaiTools: vi.fn(() => ({
-    tools: [
-      {
-        ownerPluginId: 'plugin-chess',
-        name: 'play_chess',
-        description: 'Play a chess move.',
-        parameters: {
-          type: 'object',
-          properties: {},
+  listPluginXsaiTools: vi.fn(() =>
+    Promise.resolve({
+      tools: [
+        {
+          ownerPluginId: 'plugin-chess',
+          name: 'play_chess',
+          description: 'Play a chess move.',
+          parameters: {
+            type: 'object',
+            properties: {},
+          },
         },
-      },
-    ],
-    prompts: [
-      {
-        ownerPluginId: 'plugin-chess',
-        id: 'chess-tools',
-        prompt: {
-          id: 'airi-plugin-game-chess.prompt',
-          title: 'Chess Plugin Guidance',
-          content: 'Do not pass fen or pgn when mode is "new".',
+      ],
+      prompts: [
+        {
+          ownerPluginId: 'plugin-chess',
+          id: 'chess-tools',
+          prompt: {
+            id: 'airi-plugin-game-chess.prompt',
+            title: 'Chess Plugin Guidance',
+            content: 'Do not pass fen or pgn when mode is "new".',
+          },
         },
-      },
-    ],
-  })),
+      ],
+    }),
+  ),
 }))
 
 vi.mock('@proj-airi/electron-vueuse', () => ({
@@ -128,7 +130,7 @@ describe('useTamagotchiPluginToolsStore', async () => {
             },
             { once: true },
           )
-        }),
+        }) as never,
     )
 
     const llmToolsStore = useLlmToolsStore()

@@ -74,7 +74,9 @@ watch(
     if (newConfig) {
       // Sync speed from voiceSettings or direct speed property
       const config = newConfig as SpeechProviderConfig
-      const newSpeed = config.voiceSettings?.speed || config.speed || defaultVoiceSettings.speed
+      const voiceSettingsSpeed = config.voiceSettings?.speed
+      const configSpeed = config.speed
+      const newSpeed = voiceSettingsSpeed || configSpeed || defaultVoiceSettings.speed
       if (Math.abs(speed.value - newSpeed) > 0.001) {
         // Use small epsilon for float comparison
         speed.value = newSpeed
@@ -119,7 +121,8 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   // Use the reactive model computed property (not a local variable)
   const modelToUse = modelId || model.value || defaultModel
 
-  return await speechStore.speech(provider, modelToUse, input, voiceId || voice.value || defaultVoice, {
+  const voiceToUse = voiceId || voice.value || defaultVoice
+  return await speechStore.speech(provider, modelToUse, input, voiceToUse, {
     ...providerConfig,
     ...defaultVoiceSettings,
     speed: speed.value,

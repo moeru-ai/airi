@@ -232,7 +232,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   watch(
     isAuthenticated,
-    async (val) => {
+    (val) => {
       if (val) {
         updateCredits()
 

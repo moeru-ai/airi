@@ -307,8 +307,8 @@ export function createKokoroAdapter(): KokoroAdapter {
     restartAttempts = 0
   }
 
-  async function ensureStarted(): Promise<void> {
-    await lifecycleMutex.runExclusive(async () => {
+  function ensureStarted(): Promise<void> {
+    return lifecycleMutex.runExclusive(() => {
       if (!worker) {
         initializeWorker()
         state = 'idle'
@@ -346,7 +346,7 @@ export function createKokoroAdapter(): KokoroAdapter {
         'inference',
         'kokoro-load-model',
         () =>
-          operationMutex.runExclusive(async () => {
+          operationMutex.runExclusive(() => {
             throwIfAborted(options?.signal)
             state = 'loading'
             const modelStatusId = `kokoro-${quantization}`
@@ -365,7 +365,7 @@ export function createKokoroAdapter(): KokoroAdapter {
             return getLoadQueue().enqueue(
               modelStatusId,
               LOAD_PRIORITY.TTS,
-              async () => {
+              () => {
                 throwIfAborted(options?.signal)
                 const requestId = createRequestId()
                 // Signal is also passed to the queue below for pending-entry removal
@@ -402,28 +402,29 @@ export function createKokoroAdapter(): KokoroAdapter {
                   dtype: quantization,
                 })
 
-                const response = await readyPromise
-                voices = (response.metadata?.voices as Voices) ?? null
+                return readyPromise.then((response) => {
+                  voices = (response.metadata?.voices as Voices) ?? null
 
-                // Track GPU memory allocation
-                const coordinator = getGPUCoordinator()
-                if (allocationToken) coordinator.release(allocationToken)
-                const estimateKey = `kokoro-${quantization}`
-                const estimated = MODEL_VRAM_ESTIMATES[estimateKey] ?? 165 * 1024 * 1024
-                allocationToken = coordinator.requestAllocation(`kokoro-${quantization}`, estimated)
+                  // Track GPU memory allocation
+                  const coordinator = getGPUCoordinator()
+                  if (allocationToken) coordinator.release(allocationToken)
+                  const estimateKey = `kokoro-${quantization}`
+                  const estimated = MODEL_VRAM_ESTIMATES[estimateKey] ?? 165 * 1024 * 1024
+                  allocationToken = coordinator.requestAllocation(`kokoro-${quantization}`, estimated)
 
-                // Record manifest so consumers can inspect how the adapter resolved
-                // device selection after fallback / WASM promotion.
-                lastManifest = { quantization, device: (response.device ?? effectiveDevice) as string }
+                  // Record manifest so consumers can inspect how the adapter resolved
+                  // device selection after fallback / WASM promotion.
+                  lastManifest = { quantization, device: (response.device ?? effectiveDevice) as string }
 
-                state = 'ready'
-                updateInferenceStatus(modelStatusId, {
-                  state: 'ready',
-                  device: (response.device ?? effectiveDevice) as InferenceModelStatus['device'],
+                  state = 'ready'
+                  updateInferenceStatus(modelStatusId, {
+                    state: 'ready',
+                    device: (response.device ?? effectiveDevice) as InferenceModelStatus['device'],
+                  })
+                  onSuccess()
+                  if (!voices) throw new Error('Kokoro worker did not return voice metadata')
+                  return voices
                 })
-                onSuccess()
-                if (!voices) throw new Error('Kokoro worker did not return voice metadata')
-                return voices
               },
               { signal: options?.signal },
             )
@@ -542,8 +543,8 @@ const singletonMutex = new Mutex()
  * Automatically re-creates the adapter if it has entered a terminal state
  * ('terminated' or 'error' after max restarts exhausted).
  */
-export async function getKokoroAdapter(): Promise<KokoroAdapter> {
-  return singletonMutex.runExclusive(async () => {
+export function getKokoroAdapter(): Promise<KokoroAdapter> {
+  return singletonMutex.runExclusive(() => {
     if (!globalAdapter || globalAdapter.state === 'terminated' || globalAdapter.state === 'error') {
       globalAdapter = createKokoroAdapter()
     }

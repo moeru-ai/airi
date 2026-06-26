@@ -36,8 +36,10 @@ export function createCharactersListQueryOptions(params: {
 }) {
   return {
     key: () => ['characters', { all: params.listAll.value }],
-    query: async (context: { signal: AbortSignal }) =>
-      params.service.fetchRemote(params.client, { all: params.listAll.value }, { abortSignal: context.signal }),
+    query: (context: { signal: AbortSignal }) =>
+      Promise.resolve(
+        params.service.fetchRemote(params.client, { all: params.listAll.value }, { abortSignal: context.signal }),
+      ),
     enabled: false,
   }
 }
@@ -241,32 +243,32 @@ export const useCharacterStore = defineStore('characters', () => {
 
   const listQuery = useQuery(createCharactersListQueryOptions({ client, listAll, service }))
   const createMutation = useMutation({
-    mutation: async (payload: CreateCharacterPayload) => service.createRemote(client, payload),
-    async onSettled() {
-      await queryCache.invalidateQueries({ key: ['characters'] })
+    mutation: (payload: CreateCharacterPayload) => Promise.resolve(service.createRemote(client, payload)),
+    onSettled() {
+      return Promise.resolve(queryCache.invalidateQueries({ key: ['characters'] }))
     },
   })
 
   const updateMutation = useMutation({
-    mutation: async (payload: { id: string; data: UpdateCharacterPayload }) =>
-      service.updateRemote(client, payload.id, payload.data),
-    async onSettled() {
-      await queryCache.invalidateQueries({ key: ['characters'] })
+    mutation: (payload: { id: string; data: UpdateCharacterPayload }) =>
+      Promise.resolve(service.updateRemote(client, payload.id, payload.data)),
+    onSettled() {
+      return Promise.resolve(queryCache.invalidateQueries({ key: ['characters'] }))
     },
   })
 
   const removeMutation = useMutation({
-    mutation: async (id: string) => service.removeRemote(client, id),
-    async onSettled() {
-      await queryCache.invalidateQueries({ key: ['characters'] })
+    mutation: (id: string) => Promise.resolve(service.removeRemote(client, id)),
+    onSettled() {
+      return Promise.resolve(queryCache.invalidateQueries({ key: ['characters'] }))
     },
   })
 
   const likeMutation = useMutation({
-    mutation: async (id: string) => service.likeRemote(client, id),
+    mutation: (id: string) => Promise.resolve(service.likeRemote(client, id)),
   })
   const bookmarkMutation = useMutation({
-    mutation: async (id: string) => service.bookmarkRemote(client, id),
+    mutation: (id: string) => Promise.resolve(service.bookmarkRemote(client, id)),
   })
 
   return createCharacterStoreController({

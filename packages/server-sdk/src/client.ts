@@ -768,7 +768,7 @@ export class Client<C = undefined> {
     }
   }
 
-  private async handleControlMessage(data: WebSocketEvent<C>) {
+  private handleControlMessage(data: WebSocketEvent<C>): void {
     // eslint-disable-next-line default-case
     switch (data.type) {
       case 'error': {

@@ -15,7 +15,13 @@ import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { BasicTextarea } from '@proj-airi/ui'
 import { useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
+import {
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuPortal,
+  DropdownMenuRoot,
+  DropdownMenuTrigger,
+} from 'reka-ui'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -27,7 +33,7 @@ import { useChatSyncStore } from '../stores/chat-sync'
 const router = useRouter()
 const messageInput = ref('')
 const lastEnterTime = ref(0)
-const attachments = ref<{ type: 'image', data: string, mimeType: string, url: string }[]>([])
+const attachments = ref<{ type: 'image'; data: string; mimeType: string; url: string }[]>([])
 
 const chatOrchestrator = useChatOrchestratorStore()
 const chatSession = useChatSessionStore()
@@ -54,26 +60,20 @@ const toolCallRenderers = {
   text_journal: JournalToolCallBlock,
 } satisfies ChatToolCallRendererRegistry
 const sendModeLabels = computed<Record<SendMode, string>>(() => ({
-  'enter': t('stage.send-mode.enter'),
+  enter: t('stage.send-mode.enter'),
   'ctrl-enter': t('stage.send-mode.ctrl-enter'),
   'double-enter': t('stage.send-mode.double-enter'),
 }))
-const {
-  trackChatMessageDeleted,
-  trackChatMessageRetried,
-  trackChatMessagesCleared,
-} = useAnalytics()
+const { trackChatMessageDeleted, trackChatMessageRetried, trackChatMessagesCleared } = useAnalytics()
 const { showStopSpeakingButton, stopSpeakingFromChat } = useStopSpeakingButton()
 
 const latestImageEntries = computed(() => {
-  if (!activeCardId.value)
-    return []
+  if (!activeCardId.value) return []
   return backgroundStore.journalEntries.slice(0, 3)
 })
 
 function navigateToImageJournal() {
-  if (!activeCardId.value)
-    return
+  if (!activeCardId.value) return
   router.push(`/settings/airi-card?cardId=${activeCardId.value}&tab=gallery`)
 }
 
@@ -87,7 +87,7 @@ async function handleSend() {
   }
 
   const textToSend = messageInput.value
-  const attachmentsToSend = attachments.value.map(att => ({ ...att }))
+  const attachmentsToSend = attachments.value.map((att) => ({ ...att }))
 
   // optimistic clear
   messageInput.value = ''
@@ -100,9 +100,8 @@ async function handleSend() {
       toolset: 'artistry',
     })
 
-    attachmentsToSend.forEach(att => URL.revokeObjectURL(att.url))
-  }
-  catch (error) {
+    attachmentsToSend.forEach((att) => URL.revokeObjectURL(att.url))
+  } catch (error) {
     // restore on failure
     messageInput.value = textToSend
     attachments.value = attachmentsToSend
@@ -135,8 +134,7 @@ function handleFileSelect(event: Event) {
 }
 
 function handleMessageInputKeydown(event: KeyboardEvent) {
-  if (isComposing.value || event.key !== 'Enter')
-    return
+  if (isComposing.value || event.key !== 'Enter') return
 
   const hasControl = event.ctrlKey || event.metaKey
   const hasShift = event.shiftKey
@@ -162,15 +160,14 @@ function handleMessageInputKeydown(event: KeyboardEvent) {
           event.preventDefault()
           sendFromKeyboard()
           lastEnterTime.value = 0
-        }
-        else {
+        } else {
           lastEnterTime.value = now
         }
       }
   }
 }
 
-async function handleFilePaste(files: File[]) {
+function handleFilePaste(files: File[]) {
   for (const file of files) {
     if (file.type.startsWith('image/')) {
       const reader = new FileReader()
@@ -228,7 +225,7 @@ async function handleRetryMessage(index: number) {
 }
 
 async function handleCleanupMessages() {
-  const messageCount = messages.value.filter(message => message.role !== 'system').length
+  const messageCount = messages.value.filter((message) => message.role !== 'system').length
   await chatSyncStore.requestCleanup()
   trackChatMessagesCleared({
     source: 'chat_controls',
@@ -262,7 +259,7 @@ async function handleCleanupMessages() {
         ]"
         @click="openImagePreview(entry)"
       >
-        <img :src="entry.url || ''" class="h-full w-full object-cover">
+        <img :src="entry.url || ''" class="h-full w-full object-cover" />
         <div :class="['absolute inset-0 flex items-end p-1', 'bg-gradient-to-t from-black/60 to-transparent']">
           <span class="truncate text-[8px] text-white font-medium">{{ entry.title }}</span>
         </div>
@@ -280,14 +277,9 @@ async function handleCleanupMessages() {
         </button>
       </div>
     </div>
-    <div
-      v-if="attachments.length > 0"
-      :class="[
-        'flex flex-wrap gap-2 border-t border-primary-100 p-2',
-      ]"
-    >
+    <div v-if="attachments.length > 0" :class="['flex flex-wrap gap-2 border-t border-primary-100 p-2']">
       <div v-for="(attachment, index) in attachments" :key="index" class="relative">
-        <img :src="attachment.url" :class="['h-20 w-20 rounded-md object-cover']">
+        <img :src="attachment.url" :class="['h-20 w-20 rounded-md object-cover']" />
         <button
           :class="[
             'absolute right-1 top-1 h-5 w-5 flex items-center justify-center rounded-full',
@@ -335,7 +327,9 @@ async function handleCleanupMessages() {
               :class="[
                 'w-full flex cursor-pointer items-center rounded-md px-3 py-2 text-left text-xs outline-none transition-colors',
                 'hover:bg-primary-50 dark:hover:bg-primary-900/20',
-                sendMode === mode ? 'bg-primary-50 text-primary-600 font-semibold dark:bg-primary-900/20 dark:text-primary-300' : 'text-neutral-500',
+                sendMode === mode
+                  ? 'bg-primary-50 text-primary-600 font-semibold dark:bg-primary-900/20 dark:text-primary-300'
+                  : 'text-neutral-500',
               ]"
               @select="sendMode = mode"
             >
@@ -351,14 +345,19 @@ async function handleCleanupMessages() {
       <button
         v-if="showStopSpeakingButton"
         data-testid="stop-speaking-button"
-        :class="[
-          'max-h-[10lh] min-h-[1lh]',
-        ]"
+        :class="['max-h-[10lh] min-h-[1lh]']"
         bg="neutral-100 dark:neutral-800"
         text="lg neutral-500 dark:neutral-400"
         hover:text="primary-500 dark:primary-400"
-        flex items-center justify-center rounded-md p-2 outline-none
-        transition-colors transition-transform active:scale-95
+        flex
+        items-center
+        justify-center
+        rounded-md
+        p-2
+        outline-none
+        transition-colors
+        transition-transform
+        active:scale-95
         title="Stop speaking"
         aria-label="Stop speaking"
         @click="stopSpeakingFromChat"
@@ -367,14 +366,19 @@ async function handleCleanupMessages() {
       </button>
 
       <button
-        :class="[
-          'max-h-[10lh] min-h-[1lh]',
-        ]"
+        :class="['max-h-[10lh] min-h-[1lh]']"
         bg="neutral-100 dark:neutral-800"
         text="lg neutral-500 dark:neutral-400"
         hover:text="red-500 dark:red-400"
-        flex items-center justify-center rounded-md p-2 outline-none
-        transition-colors transition-transform active:scale-95
+        flex
+        items-center
+        justify-center
+        rounded-md
+        p-2
+        outline-none
+        transition-colors
+        transition-transform
+        active:scale-95
         @click="handleCleanupMessages"
       >
         <div class="i-solar:trash-bin-2-bold-duotone" />
@@ -386,8 +390,15 @@ async function handleCleanupMessages() {
         bg="neutral-100 dark:neutral-800"
         text="lg neutral-500 dark:neutral-400"
         hover:text="primary-500 dark:primary-400"
-        flex items-center justify-center rounded-md p-2 outline-none
-        transition-colors transition-transform active:scale-95
+        flex
+        items-center
+        justify-center
+        rounded-md
+        p-2
+        outline-none
+        transition-colors
+        transition-transform
+        active:scale-95
         title="Image Journal"
         @click="navigateToImageJournal"
       >
@@ -400,21 +411,21 @@ async function handleCleanupMessages() {
         bg="neutral-100 dark:neutral-800"
         text="lg neutral-500 dark:neutral-400"
         hover:text="primary-500 dark:primary-400"
-        flex items-center justify-center rounded-md p-2 outline-none
-        transition-colors transition-transform active:scale-95
+        flex
+        items-center
+        justify-center
+        rounded-md
+        p-2
+        outline-none
+        transition-colors
+        transition-transform
+        active:scale-95
         title="Attach Image"
         @click="handleManualAttach"
       >
         <div class="i-solar:camera-add-bold-duotone" />
       </button>
-      <input
-        ref="fileInput"
-        type="file"
-        accept="image/*"
-        class="hidden"
-        multiple
-        @change="handleFileSelect"
-      >
+      <input ref="fileInput" type="file" accept="image/*" class="hidden" multiple @change="handleFileSelect" />
     </div>
     <BasicTextarea
       v-model="messageInput"
@@ -424,8 +435,16 @@ async function handleCleanupMessages() {
       text="primary-600 dark:primary-100  placeholder:primary-500 dark:placeholder:primary-200"
       border="solid 2 primary-200/20 dark:primary-400/20"
       bg="primary-100/50 dark:primary-900/70"
-      max-h="[10lh]" min-h="[1lh]"
-      w-full shrink-0 resize-none overflow-y-auto rounded-xl p-2 font-medium outline-none
+      max-h="[10lh]"
+      min-h="[1lh]"
+      w-full
+      shrink-0
+      resize-none
+      overflow-y-auto
+      rounded-xl
+      p-2
+      font-medium
+      outline-none
       transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
       @compositionstart="isComposing = true"
       @compositionend="isComposing = false"

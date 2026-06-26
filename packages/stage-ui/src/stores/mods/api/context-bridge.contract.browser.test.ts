@@ -229,9 +229,7 @@ vi.mock('vue-i18n', () => ({
 
 vi.mock('../../character', () => ({
   useCharacterOrchestratorStore: () => ({
-    handleSparkNotifyWithReaction: vi.fn(
-      async (_event: unknown, options: { fallbackText: string }) => options.fallbackText,
-    ),
+    handleSparkNotifyWithReaction: vi.fn((_event: unknown, options: { fallbackText: string }) => options.fallbackText),
   }),
 }))
 

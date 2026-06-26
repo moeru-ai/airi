@@ -114,7 +114,8 @@ const filteredVoices = computed(() => {
     )
 
     const hasNameOrDescMatch = nameMatch || descMatch || tagMatch
-    return hasNameOrDescMatch || labelMatch || langMatch
+    const hasLabelOrLangMatch = labelMatch || langMatch
+    return hasNameOrDescMatch || hasLabelOrLangMatch
   })
 })
 

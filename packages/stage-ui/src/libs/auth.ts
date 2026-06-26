@@ -80,7 +80,7 @@ export async function initializeAuth() {
 /**
  * Persist OIDC tokens locally and schedule refresh.
  */
-export async function applyOIDCTokens(tokens: TokenResponse, clientId: string): Promise<void> {
+export function applyOIDCTokens(tokens: TokenResponse, clientId: string): void {
   const authStore = useAuthStore()
   authStore.token = tokens.access_token
   if (tokens.refresh_token) authStore.refreshToken = tokens.refresh_token

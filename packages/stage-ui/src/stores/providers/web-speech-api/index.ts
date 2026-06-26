@@ -152,7 +152,7 @@ export function createWebSpeechAPIProvider(): TranscriptionProviderWithExtraOpti
       return {
         baseURL: 'about:blank', // Web Speech API doesn't use HTTP endpoints
         model: model || 'web-speech-api',
-        fetch: async (_request: RequestInfo | URL, _init?: RequestInit) => {
+        fetch: (_request: RequestInfo | URL, _init?: RequestInit): Promise<Response> => {
           // Web Speech API does not support file-based transcription - it only supports live streaming
           // Check if a file is provided in the request body and reject it
           if (_init?.body) {
@@ -234,7 +234,7 @@ export function createWebSpeechAPIProvider(): TranscriptionProviderWithExtraOpti
           // Start recognition
           recognition.start()
 
-          return textStream as unknown as Response
+          return Promise.resolve(textStream as unknown as Response)
         },
       }
     },

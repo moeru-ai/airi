@@ -139,7 +139,7 @@ export const providerOllama = defineProvider<OllamaConfig>({
       ({ t }) => ({
         id: 'ollama:check-config',
         name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-config.title'),
-        validator: async (config) => {
+        validator: (config) => {
           const errors: Array<{ error: unknown }> = []
           const baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
 
@@ -154,12 +154,12 @@ export const providerOllama = defineProvider<OllamaConfig>({
             }
           }
 
-          return {
+          return Promise.resolve({
             errors,
             reason: errors.length > 0 ? errors.map((item) => (item.error as Error).message).join(', ') : '',
             reasonKey: '',
             valid: errors.length === 0,
-          }
+          })
         },
       }),
     ],

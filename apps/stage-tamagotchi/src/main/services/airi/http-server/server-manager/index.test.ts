@@ -4,18 +4,10 @@ import { createHttpServerManager } from './index'
 
 describe('createHttpServerManager', () => {
   it('starts and stops registered servers in order', async () => {
-    const startA = vi.fn(() => {
-      /* stub — intentionally empty */
-    })
-    const stopA = vi.fn(() => {
-      /* stub — intentionally empty */
-    })
-    const startB = vi.fn(() => {
-      /* stub — intentionally empty */
-    })
-    const stopB = vi.fn(() => {
-      /* stub — intentionally empty */
-    })
+    const startA = vi.fn(() => Promise.resolve())
+    const stopA = vi.fn(() => Promise.resolve())
+    const startB = vi.fn(() => Promise.resolve())
+    const stopB = vi.fn(() => Promise.resolve())
 
     const manager = createHttpServerManager([
       { key: 'a', start: startA, stop: stopA },
@@ -34,20 +26,14 @@ describe('createHttpServerManager', () => {
   it('serializes concurrent start and stop calls', async () => {
     let releaseStartA: (() => void) | undefined
 
-    const startA = vi.fn(() => {
+    const startA = vi.fn(async () => {
       await new Promise<void>((resolve) => {
         releaseStartA = resolve
       })
     })
-    const stopA = vi.fn(() => {
-      /* stub — intentionally empty */
-    })
-    const startB = vi.fn(() => {
-      /* stub — intentionally empty */
-    })
-    const stopB = vi.fn(() => {
-      /* stub — intentionally empty */
-    })
+    const stopA = vi.fn(() => Promise.resolve())
+    const startB = vi.fn(() => Promise.resolve())
+    const stopB = vi.fn(() => Promise.resolve())
 
     const manager = createHttpServerManager([
       { key: 'a', start: startA, stop: stopA },

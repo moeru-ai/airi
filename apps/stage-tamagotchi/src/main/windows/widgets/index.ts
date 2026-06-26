@@ -544,11 +544,11 @@ export function setupWidgetsWindowManager(params: { serverChannel: ServerChannel
    * Returns:
    * - Resolves after internal state and renderer events have been updated
    */
-  function updateWidget(payload: WidgetsUpdatePayload) {
-    if (!payload?.id) return
+  function updateWidget(payload: WidgetsUpdatePayload): Promise<void> {
+    if (!payload?.id) return Promise.resolve()
 
     const existing = widgetRecords.get(payload.id)
-    if (!existing) return
+    if (!existing) return Promise.resolve()
 
     const nextSnapshot: WidgetSnapshot = {
       ...toSnapshot(existing),
@@ -571,6 +571,7 @@ export function setupWidgetsWindowManager(params: { serverChannel: ServerChannel
       windowSize: nextSnapshot.windowSize,
       ttlMs: nextSnapshot.ttlMs,
     })
+    return Promise.resolve()
   }
 
   /**
@@ -585,10 +586,11 @@ export function setupWidgetsWindowManager(params: { serverChannel: ServerChannel
    * Returns:
    * - Resolves after the widget has been removed from memory and renderer state
    */
-  function removeWidget(id: string) {
-    if (!id) return
+  function removeWidget(id: string): Promise<void> {
+    if (!id) return Promise.resolve()
     removeWidgetInternal(id, false)
     eventaContext?.emit(widgetsRemoveEvent, { id })
+    return Promise.resolve()
   }
 
   /**
@@ -603,7 +605,7 @@ export function setupWidgetsWindowManager(params: { serverChannel: ServerChannel
    * Returns:
    * - Resolves after state, renderer events, and windows have been cleared
    */
-  function clearWidgets() {
+  function clearWidgets(): Promise<void> {
     const ids = [...widgetRecords.keys()]
     for (const id of ids) removeWidgetInternal(id, false)
 
@@ -619,6 +621,7 @@ export function setupWidgetsWindowManager(params: { serverChannel: ServerChannel
     for (const window of windowsToClose) safeClose(window)
 
     windowContexts.clear()
+    return Promise.resolve()
   }
 
   /**
@@ -653,11 +656,12 @@ export function setupWidgetsWindowManager(params: { serverChannel: ServerChannel
     }
   }
 
-  function hideWindow(params?: { id?: string }) {
+  function hideWindow(params?: { id?: string }): Promise<void> {
     const id = params?.id
     const context = id ? windowContexts.get(id) : undefined
     const window = context?.window || activeWidgetsWindow
     if (window && !window.isDestroyed()) window.hide()
+    return Promise.resolve()
   }
 
   widgetsManager = {

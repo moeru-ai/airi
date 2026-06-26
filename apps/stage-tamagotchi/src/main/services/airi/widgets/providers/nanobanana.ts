@@ -35,15 +35,16 @@ export class NanoBananaProvider implements ArtistryProvider {
     if (callback) callback(status)
   }
 
-  async initialize(config: Record<string, unknown>) {
+  initialize(config: Record<string, unknown>) {
     const c = config as Record<string, string | undefined>
     this.apiKey = c.nanobananaApiKey || c.apiKey || ''
     if (c.nanobananaModel) this.defaultModel = c.nanobananaModel
     if (c.nanobananaResolution) this.defaultResolution = c.nanobananaResolution
     log.log(`[Nano Banana] Initialized. API Key present: ${!!this.apiKey}`)
+    return Promise.resolve()
   }
 
-  async generate(request: ArtistryRequest): Promise<ArtistryJob> {
+  generate(request: ArtistryRequest): Promise<ArtistryJob> {
     if (!this.apiKey) {
       throw new Error('Nano Banana API Key not configured')
     }
@@ -60,10 +61,10 @@ export class NanoBananaProvider implements ArtistryProvider {
 
     this.runGeneration(jobId, model, resolution, request.prompt, base64Image)
 
-    return {
+    return Promise.resolve({
       jobId,
       providerJobId: jobId,
-    }
+    })
   }
 
   private async runGeneration(jobId: string, model: string, resolution: string, prompt: string, base64Image: string) {
@@ -120,7 +121,7 @@ export class NanoBananaProvider implements ArtistryProvider {
     }
   }
 
-  async getStatus(jobId: string): Promise<ArtistryJobStatus> {
-    return this.jobResults.get(jobId) || { status: 'queued' }
+  getStatus(jobId: string): Promise<ArtistryJobStatus> {
+    return Promise.resolve(this.jobResults.get(jobId) || { status: 'queued' })
   }
 }

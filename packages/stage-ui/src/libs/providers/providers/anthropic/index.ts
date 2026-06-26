@@ -15,7 +15,7 @@ const anthropicConfigSchema = z.object({
 type AnthropicConfig = z.input<typeof anthropicConfigSchema>
 
 function createAnthropic(apiKey: string, baseURL: string = 'https://api.anthropic.com/v1/') {
-  const anthropicFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+  const anthropicFetch = (input: RequestInfo | URL, init?: RequestInit) => {
     const resolvedInit = { ...init }
     const headers = new Headers(resolvedInit.headers)
     headers.set('anthropic-dangerous-direct-browser-access', 'true')
@@ -64,8 +64,8 @@ export const providerAnthropic = defineProvider<AnthropicConfig>({
   },
 
   extraMethods: {
-    listModels: async () =>
-      [
+    listModels: () =>
+      Promise.resolve([
         {
           id: 'claude-haiku-4-5-20251001',
           name: 'Claude Haiku 4.5',
@@ -84,7 +84,7 @@ export const providerAnthropic = defineProvider<AnthropicConfig>({
           provider: 'anthropic',
           description: 'Exceptional model for specialized reasoning tasks',
         },
-      ] satisfies ModelInfo[],
+      ] satisfies ModelInfo[]),
   },
   validationRequiredWhen(config) {
     return Boolean(config.apiKey?.trim())

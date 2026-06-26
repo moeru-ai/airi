@@ -1172,19 +1172,19 @@ export class PluginHost {
         },
         parameters: cloneHostDataRecord(input.tool.parameters),
       },
-      availability: async () => {
+      availability: () => {
         if (!this.getSession(session.id)) {
-          return false
+          return Promise.resolve(false)
         }
 
-        return (await input.availability?.()) ?? true
+        return Promise.resolve(input.availability?.()).then((v) => v ?? true)
       },
-      execute: async (toolInput) => {
+      execute: (toolInput) => {
         if (!this.getSession(session.id)) {
           throw new Error(`Plugin tool not found: ${session.identity.plugin.id}:${input.tool.id}`)
         }
 
-        return await input.execute(toolInput)
+        return input.execute(toolInput)
       },
     })
   }
@@ -1302,20 +1302,20 @@ export class PluginHost {
     const assert = (area: PluginHostPermissionRequest['area'], action: string, key: string) =>
       this.assertPermission(session, { area, action, key })
 
-    defineInvokeHandler(hostChannel, protocolCapabilityWait, async (payload) => {
+    defineInvokeHandler(hostChannel, protocolCapabilityWait, (payload) => {
       assert('apis', 'invoke', protocolCapabilityWaitEventName)
       assert('capabilities', 'wait', payload.key)
-      return await this.waitForCapability(payload.key, payload?.timeoutMs)
+      return this.waitForCapability(payload.key, payload?.timeoutMs)
     })
-    defineInvokeHandler(hostChannel, protocolCapabilitySnapshot, async () => {
+    defineInvokeHandler(hostChannel, protocolCapabilitySnapshot, () => {
       assert('apis', 'invoke', protocolCapabilitySnapshotEventName)
       assert('capabilities', 'snapshot', '*')
-      return this.listCapabilities()
+      return Promise.resolve(this.listCapabilities())
     })
-    defineInvokeHandler(hostChannel, protocolProviders.listProviders, async () => {
+    defineInvokeHandler(hostChannel, protocolProviders.listProviders, () => {
       assert('apis', 'invoke', protocolListProvidersEventName)
       assert('resources', 'read', protocolListProvidersEventName)
-      return (await this.resources.get<Array<{ name: string }>>(protocolListProvidersEventName, [])) ?? []
+      return this.resources.get<Array<{ name: string }>>(protocolListProvidersEventName, []).then((v) => v ?? [])
     })
   }
 
@@ -1612,8 +1612,8 @@ export class PluginHost {
     return this.init(session.id, options)
   }
 
-  // async: implements PluginHost interface (Promise<PluginHostSession>)
-  async applyConfiguration(sessionId: string, config: ModuleConfigEnvelope) {
+  // implements PluginHost interface (Promise<PluginHostSession>)
+  applyConfiguration(sessionId: string, config: ModuleConfigEnvelope): Promise<PluginHostSession> {
     // Configuration is allowed only after prepare, during configuration-needed, or while re-configuring.
     const session = this.sessionService.get(sessionId)
     if (!session) {
@@ -1640,7 +1640,7 @@ export class PluginHost {
       phase: 'configured',
     })
 
-    return session
+    return Promise.resolve(session)
   }
 
   requestPermissions(sessionId: string, requested: ModulePermissionDeclaration, reason?: string) {
@@ -1792,8 +1792,8 @@ export class PluginHost {
     return session
   }
 
-  // async: implements PluginHost interface (Promise<PluginHostSession>)
-  async reload(sessionId: string, options: PluginStartOptions = {}) {
+  // implements PluginHost interface (Promise<PluginHostSession>)
+  reload(sessionId: string, options: PluginStartOptions = {}): Promise<PluginHostSession> {
     // Reload preserves manifest/runtime intent, then performs stop + fresh start.
     // This intentionally creates a new session identity for deterministic re-bootstrap.
     const previous = this.sessionService.get(sessionId)

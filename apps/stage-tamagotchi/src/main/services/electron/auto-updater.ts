@@ -481,8 +481,8 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
     getPreferredUpdateLane() {
       return storedPreferredLane
     },
-    async setPreferredUpdateLane(lane) {
-      if (storedPreferredLane === lane) return
+    setPreferredUpdateLane(lane) {
+      if (storedPreferredLane === lane) return Promise.resolve()
 
       storedPreferredLane = lane
       options.setStoredUpdateLane?.(lane)
@@ -490,6 +490,7 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
       // Keep UI state consistent with the newly selected lane.
       // A fresh check runs right after channel update from renderer.
       broadcast({ status: 'idle' })
+      return Promise.resolve()
     },
     subscribe(callback) {
       hooks.add(callback)

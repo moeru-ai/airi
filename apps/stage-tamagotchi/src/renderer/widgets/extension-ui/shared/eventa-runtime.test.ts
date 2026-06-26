@@ -44,7 +44,7 @@ class MockWindow {
 /**
  * @example
  * describe('createContext', () => {
- *   it('relays typed events between parent and iframe windows', async () => {
+ *   it('relays typed events between parent and iframe windows', () => {
  *     expect(true).toBe(true)
  *   })
  * })
@@ -52,7 +52,7 @@ class MockWindow {
 describe('createContext', () => {
   /**
    * @example
-   * it('relays typed events between parent and iframe windows', async () => {
+   * it('relays typed events between parent and iframe windows', () => {
    *   expect(payload.moduleId).toBe('module-chess')
    * })
    */

@@ -477,7 +477,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
           await hooks.emitTokenSpecialHooks(special, streamingMessageContext)
         },
-        onEnd: async (fullText) => {
+        onEnd: (fullText) => {
           if (isStaleGeneration()) return
 
           const finalCategorization = categorizeResponse(fullText, deps.getActiveProvider())
@@ -494,18 +494,20 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       const toolCallQueue = createQueue<ChatSlices>({
         handlers: [
-          async (ctx) => {
-            if (shouldAbort()) return
+          (ctx) => {
+            if (shouldAbort()) return Promise.resolve()
             if (ctx.data.type === 'tool-call') {
               buildingMessage.slices.push(ctx.data)
               patchForegroundStream(sessionId, buildingMessage)
-              return
+              return Promise.resolve()
             }
 
             if (ctx.data.type === 'tool-call-result') {
               buildingMessage.tool_results.push(ctx.data)
               patchForegroundStream(sessionId, buildingMessage)
             }
+
+            return Promise.resolve()
           },
         ],
       })

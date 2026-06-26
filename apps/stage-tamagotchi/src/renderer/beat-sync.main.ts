@@ -28,7 +28,7 @@ detector.on('beat', (e) => {
   signalBeat(e)
 })
 
-defineInvokeHandler(context, beatSyncToggleInvokeEventa, async (enabled) => {
+defineInvokeHandler(context, beatSyncToggleInvokeEventa, (enabled) => {
   _logger('[toggle]', enabled)
   if (enabled) {
     detector.startScreenCapture()
@@ -36,12 +36,12 @@ defineInvokeHandler(context, beatSyncToggleInvokeEventa, async (enabled) => {
     detector.stop()
   }
 })
-defineInvokeHandler(context, beatSyncGetStateInvokeEventa, async () => detector.state)
-defineInvokeHandler(context, beatSyncUpdateParametersInvokeEventa, async (params) => {
+defineInvokeHandler(context, beatSyncGetStateInvokeEventa, () => Promise.resolve(detector.state))
+defineInvokeHandler(context, beatSyncUpdateParametersInvokeEventa, (params) => {
   _logger('[update-params]', params)
   detector.updateParameters(params)
 })
-defineInvokeHandler(context, beatSyncGetInputByteFrequencyDataInvokeEventa, async () => {
+defineInvokeHandler(context, beatSyncGetInputByteFrequencyDataInvokeEventa, () => {
   _logger('[get-input-byte-frequency-data]') // This could be noisy.
-  return detector.getInputByteFrequencyData()
+  return Promise.resolve(detector.getInputByteFrequencyData())
 })

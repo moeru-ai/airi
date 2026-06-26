@@ -22,7 +22,7 @@ export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', ()
   const listMcpTools = useElectronEventaInvoke(electronMcpListTools)
   const callMcpTool = useElectronEventaInvoke(electronMcpCallTool)
 
-  async function refresh() {
+  function refresh() {
     return llmToolsStore.registerTools(
       'mcp',
       Promise.all(

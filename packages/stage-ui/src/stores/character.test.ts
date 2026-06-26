@@ -43,8 +43,9 @@ describe('store character', () => {
         parserConsumeSpy(textPart)
         if (textPart) await options.onLiteral?.(textPart)
       },
-      async end() {
+      end() {
         parserEndSpy()
+        return Promise.resolve()
       },
     }))
 

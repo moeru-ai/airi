@@ -51,23 +51,24 @@ export const providerAzureAIFoundry = defineProvider<AzureAIFoundryConfig>({
     }),
   createProvider(config) {
     return createAzure({
-      apiKey: async () => config.apiKey.trim(),
+      apiKey: () => Promise.resolve(config.apiKey.trim()),
       resourceName: config.resourceName.trim(),
       apiVersion: config.apiVersion?.trim(),
     }) as unknown as ProviderInstance
   },
 
   extraMethods: {
-    listModels: async (config) => [
-      {
-        id: config.modelId,
-        name: config.modelId,
-        provider: 'azure-ai-foundry',
-        description: '',
-        contextLength: 0,
-        deprecated: false,
-      } satisfies ModelInfo,
-    ],
+    listModels: (config) =>
+      Promise.resolve([
+        {
+          id: config.modelId,
+          name: config.modelId,
+          provider: 'azure-ai-foundry',
+          description: '',
+          contextLength: 0,
+          deprecated: false,
+        } satisfies ModelInfo,
+      ]),
   },
   validationRequiredWhen(config) {
     const hasApiKey = Boolean(config.apiKey?.trim())
@@ -81,7 +82,7 @@ export const providerAzureAIFoundry = defineProvider<AzureAIFoundryConfig>({
       ({ t }) => ({
         id: 'azure-ai-foundry:check-config',
         name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-config.title'),
-        validator: async (config) => {
+        validator: (config) => {
           const errors: Array<{ error: unknown }> = []
           const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
           const resourceName = typeof config.resourceName === 'string' ? config.resourceName.trim() : ''
@@ -91,12 +92,12 @@ export const providerAzureAIFoundry = defineProvider<AzureAIFoundryConfig>({
           if (!resourceName) errors.push({ error: new Error('Resource name is required.') })
           if (!modelId) errors.push({ error: new Error('Model ID is required.') })
 
-          return {
+          return Promise.resolve({
             errors,
             reason: errors.length > 0 ? errors.map((item) => (item.error as Error).message).join(', ') : '',
             reasonKey: '',
             valid: errors.length === 0,
-          }
+          })
         },
       }),
     ],

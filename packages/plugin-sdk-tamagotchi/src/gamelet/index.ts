@@ -146,9 +146,7 @@ export async function defineGamelet<TDefaults extends HostDataRecord = HostDataR
   if (!supported) {
     return {
       id: definition.id,
-      async isSupported() {
-        return false
-      },
+      isSupported: () => Promise.resolve(false),
     }
   }
 
@@ -176,8 +174,6 @@ export async function defineGamelet<TDefaults extends HostDataRecord = HostDataR
 
   return {
     id: definition.id,
-    async isSupported() {
-      return true
-    },
+    isSupported: () => Promise.resolve(true),
   }
 }

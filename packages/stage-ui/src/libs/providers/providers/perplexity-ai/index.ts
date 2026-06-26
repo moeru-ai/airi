@@ -50,8 +50,8 @@ export const providerPerplexityAI = defineProvider<PerplexityConfig>({
     return Boolean(config.apiKey?.trim())
   },
   extraMethods: {
-    async listModels() {
-      return [
+    listModels() {
+      return Promise.resolve([
         {
           id: 'sonar',
           name: 'Sonar',
@@ -81,7 +81,7 @@ export const providerPerplexityAI = defineProvider<PerplexityConfig>({
             'Expert-level research model conducting exhaustive searches and generating comprehensive reports.',
           contextLength: 200000,
         },
-      ] satisfies ModelInfo[]
+      ] satisfies ModelInfo[])
     },
   },
   validators: {

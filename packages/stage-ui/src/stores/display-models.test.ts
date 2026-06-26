@@ -23,7 +23,7 @@ describe('display models store', () => {
 
   /**
    * @example
-   * it('resolves newly imported display models from memory before IndexedDB', async () => {})
+   * it('resolves newly imported display models from memory before IndexedDB', () => {})
    */
   it('resolves newly imported display models from memory before IndexedDB', async () => {
     const store = useDisplayModelsStore()

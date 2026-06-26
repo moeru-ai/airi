@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 /**
  * @example
  * describe('createConfig', () => {
- *   it('persists configuration data', async () => {
+ *   it('persists configuration data', () => {
  *     // assertions
  *   })
  * })
@@ -18,7 +18,7 @@ describe('createConfig', () => {
 
   /**
    * @example
-   * it('uses a unique temp file per save to avoid concurrent rename collisions', async () => {
+   * it('uses a unique temp file per save to avoid concurrent rename collisions', () => {
    *   await vi.waitFor(() => {
    *     expect(renameMock).toHaveBeenCalledTimes(2)
    *   })
@@ -26,7 +26,7 @@ describe('createConfig', () => {
    *
    * Failed to save config Error: ENOENT: no such file or directory, rename '/path/to/the/electron/app/data/app-config.json.tmp' -> '/path/to/the/electron/app/data/app-config.json'
    *   at async rename (node:internal/fs/promises:785:10)
-   *   at async file://./airi/apps/stage-tamagotchi/out/main/index.js:3327:4 {
+   *   at file://./airi/apps/stage-tamagotchi/out/main/index.js:3327:4 {
    *     errno: -2,
    *     code: 'ENOENT',
    *     syscall: 'rename',
@@ -66,7 +66,7 @@ describe('createConfig', () => {
       if (writeCoordinator.calls === 2) {
         writeCoordinator.release()
       }
-      await writeCoordinator.waitFor
+      return writeCoordinator.waitFor
     })
 
     writeCoordinator.waitFor = new Promise<void>((resolve) => {

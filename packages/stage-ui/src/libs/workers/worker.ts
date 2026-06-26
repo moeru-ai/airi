@@ -117,22 +117,20 @@ async function getAutomaticSpeechRecognitionPipelineInstance(
   // NOTICE: fp16 encoder may fail on some devices/browsers. Fall back to fp32
   // if the initial load fails. Decoder fp16 is known broken (see Issue #989).
   // https://github.com/huggingface/transformers.js/issues/989
-  _model ??= (async () => {
-    try {
-      return await WhisperForConditionalGeneration.from_pretrained(MODEL_ID, {
-        dtype: {
-          encoder_model: 'fp16',
-          decoder_model_merged: 'q4',
-        },
-        device: actualDevice,
-        progress_callback,
-      })
-    } catch (error) {
+  _model ??= (() =>
+    WhisperForConditionalGeneration.from_pretrained(MODEL_ID, {
+      dtype: {
+        encoder_model: 'fp16',
+        decoder_model_merged: 'q4',
+      },
+      device: actualDevice,
+      progress_callback,
+    }).catch((error) => {
       console.warn(
         '[Whisper Worker] fp16 encoder failed, falling back to fp32:',
         error instanceof Error ? error.message : error,
       )
-      return await WhisperForConditionalGeneration.from_pretrained(MODEL_ID, {
+      return WhisperForConditionalGeneration.from_pretrained(MODEL_ID, {
         dtype: {
           encoder_model: 'fp32',
           decoder_model_merged: 'q4',
@@ -140,8 +138,7 @@ async function getAutomaticSpeechRecognitionPipelineInstance(
         device: actualDevice,
         progress_callback,
       })
-    }
-  })()
+    }))()
 
   return Promise.all([_tokenizer, _processor, _model])
 }
@@ -150,7 +147,7 @@ async function getAutomaticSpeechRecognitionPipelineInstance(
  * Convert base64-encoded WAV audio to Float32Array features.
  * @deprecated Prefer sending Float32Array directly via transferable for zero-copy.
  */
-async function base64ToFeatures(base64Audio: string): Promise<Float32Array> {
+function base64ToFeatures(base64Audio: string): Promise<Float32Array> {
   const binaryString = atob(base64Audio)
   const bytes = new Uint8Array(binaryString.length)
   for (let i = 0; i < binaryString.length; i++) {
@@ -163,7 +160,7 @@ async function base64ToFeatures(base64Audio: string): Promise<Float32Array> {
     audio[i] = samples[i] / 32768.0
   }
 
-  return audio
+  return Promise.resolve(audio)
 }
 
 // ---------------------------------------------------------------------------

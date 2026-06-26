@@ -264,7 +264,7 @@ async function resolveGodotProjectPath() {
     try {
       await access(join(projectPath, 'project.godot'))
       return projectPath
-    // eslint-disable-next-line no-empty
+      // eslint-disable-next-line no-empty
     } catch {
       // noop
     }
@@ -335,9 +335,7 @@ async function resolveGodotBinary(): Promise<GodotBinaryResolution> {
       return { executable: exported, mode: 'exported' }
     }
 
-    throw new Error(
-      `Godot stage exported binary not found. Expected at: ${join(process.resourcesPath, 'godot-stage')}`,
-    )
+    throw new Error(`Godot stage exported binary not found. Expected at: ${join(process.resourcesPath, 'godot-stage')}`)
   }
 
   const envPath = process.env.GODOT4?.trim()
@@ -893,8 +891,10 @@ export function createGodotStageManager(): GodotStageManager {
 export function setupGodotStageManager() {
   const manager = createGodotStageManager()
 
-  onAppBeforeQuit(async () => {
-    await manager.stop()
+  onAppBeforeQuit(() => {
+    manager.stop().catch(() => {
+      /* noop — ignore stop errors on quit */
+    })
   })
 
   return manager

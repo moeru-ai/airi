@@ -15,7 +15,7 @@ describe('publishWidgetSparkNotifyReaction', () => {
    * expect(emit).toHaveBeenCalledWith(widgetsIframeBroadcastEvent, expect.objectContaining({ payload: expect.objectContaining({ text: 'Nice tactic.' }) }))
    */
   it('dispatches spark notify requests and broadcasts commentary responses to the iframe', async () => {
-    const dispatchSparkNotifyReaction = vi.fn(() => 'Nice tactic.')
+    const dispatchSparkNotifyReaction = vi.fn(() => Promise.resolve('Nice tactic.'))
     const emit = vi.fn()
 
     const result = await publishWidgetSparkNotifyReaction(
@@ -79,7 +79,7 @@ describe('publishWidgetSparkNotifyReaction', () => {
    * expect(dispatchSparkNotifyReaction).not.toHaveBeenCalled()
    */
   it('ignores non spark notify iframe events', async () => {
-    const dispatchSparkNotifyReaction = vi.fn(() => 'unused')
+    const dispatchSparkNotifyReaction = vi.fn(() => Promise.resolve('unused'))
     const emit = vi.fn()
 
     const result = await publishWidgetSparkNotifyReaction(
@@ -108,7 +108,7 @@ describe('publishWidgetSparkNotifyReaction', () => {
    * expect(dispatchSparkNotifyReaction).toHaveBeenCalledWith(expect.objectContaining({ fallbackResponseText: '' }))
    */
   it('allows empty fallback response text for optional commentary phases', async () => {
-    const dispatchSparkNotifyReaction = vi.fn(() => '')
+    const dispatchSparkNotifyReaction = vi.fn(() => Promise.resolve(''))
     const emit = vi.fn()
 
     const result = await publishWidgetSparkNotifyReaction(
@@ -147,12 +147,14 @@ describe('publishWidgetSparkNotifyReaction', () => {
    * expect(options.dispatchSparkNotifyPerformance).toHaveBeenCalledWith(expect.objectContaining({ timeoutMs: 15000 }))
    */
   it('uses awaitable performance notify when the widget declares calls', async () => {
-    const dispatchSparkNotifyReaction = vi.fn(() => 'unused')
-    const dispatchSparkNotifyPerformance = vi.fn(() => ({
-      type: 'called' as const,
-      name: 'chess.play',
-      reaction: 'Played.',
-    }))
+    const dispatchSparkNotifyReaction = vi.fn(() => Promise.resolve('unused'))
+    const dispatchSparkNotifyPerformance = vi.fn(() =>
+      Promise.resolve({
+        type: 'called' as const,
+        name: 'chess.play',
+        reaction: 'Played.',
+      }),
+    )
     const emit = vi.fn()
 
     const result = await publishWidgetSparkNotifyReaction(

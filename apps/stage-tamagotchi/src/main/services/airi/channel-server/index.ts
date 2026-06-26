@@ -127,14 +127,14 @@ function getServerChannelQrPayload(config: ElectronServerChannelConfig, serverCh
   })
 }
 
-async function getChannelServerConfig(): Promise<ElectronServerChannelConfig> {
+function getChannelServerConfig(): Promise<ElectronServerChannelConfig> {
   const config = channelServerConfigStore.get() || { hostname: '127.0.0.1', authToken: '', tlsConfig: null }
 
-  return {
+  return Promise.resolve({
     hostname: config.hostname || '127.0.0.1',
     authToken: config.authToken || '',
     tlsConfig: config.tlsConfig || null,
-  }
+  })
 }
 
 function getServerRuntimeBaseOptions() {
@@ -448,7 +448,7 @@ export async function setupServerChannel(params: { lifecycle: Lifecycle }): Prom
   }
 }
 
-export async function createServerChannelService(params: { serverChannel: Server }) {
+export function createServerChannelService(params: { serverChannel: Server }) {
   if (serverChannelServiceRegistered) {
     return
   }

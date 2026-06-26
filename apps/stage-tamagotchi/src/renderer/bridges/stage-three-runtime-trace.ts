@@ -98,9 +98,10 @@ function subscribeTraceEvent<T>(eventa: Eventa<T>, createEnvelope: (payload: T) 
   })
 }
 
-export async function setStageThreeRuntimeTraceRemoteSubscription(active: boolean) {
+export function setStageThreeRuntimeTraceRemoteSubscription(active: boolean): Promise<void> {
   const eventa = active ? stageThreeRuntimeTraceRemoteEnableEvent : stageThreeRuntimeTraceRemoteDisableEvent
   getStageThreeRuntimeTraceBroadcastContext().emit(eventa, { origin: instanceId })
+  return Promise.resolve()
 }
 
 export function initializeStageThreeRuntimeTraceBridge() {

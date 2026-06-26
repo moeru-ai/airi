@@ -204,7 +204,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
   validatorConfig.validateConfig?.push(({ t }) => ({
     id: 'openai-compatible:check-config',
     name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-config.title'),
-    validator: async (config) => {
+    validator: (config) => {
       const errors: Array<{ error: unknown }> = []
       const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
       const baseUrl =
@@ -226,12 +226,12 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
         }
       }
 
-      return {
+      return Promise.resolve({
         errors,
         reason: errors.length > 0 ? errors.map((item) => (item.error as Error).message).join(', ') : '',
         reasonKey: '',
         valid: errors.length === 0,
-      }
+      })
     },
   }))
 

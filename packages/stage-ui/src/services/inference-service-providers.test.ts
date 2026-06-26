@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { providerOpenAICompatible } from '../libs/providers/providers/openai-compatible'
 import { inferenceServiceProvidersService } from './inference-service-providers'
+import type { InferenceServiceProvidersRemoteClient } from './inference-service-providers'
 
 /**
  * @example
@@ -83,7 +84,7 @@ describe('services inference-service-providers', () => {
           },
         },
       },
-    } as any // eslint-disable-line @typescript-eslint/no-explicit-any -- complex mock client
+    } as unknown as InferenceServiceProvidersRemoteClient // complex mock client
 
     await expect(inferenceServiceProvidersService.fetchRemote(client)).resolves.toEqual({
       'provider-1': expect.objectContaining({

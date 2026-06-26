@@ -205,7 +205,7 @@ async function startCaptureLoop() {
   visionProcessingStore.startTicker(handleVisionTick)
 }
 
-async function stopCaptureLoop() {
+function stopCaptureLoop() {
   visionProcessingStore.stopTicker()
   stopStream()
   if (videoRef.value) {

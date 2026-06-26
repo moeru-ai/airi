@@ -300,7 +300,7 @@ export function setupCaptionWindowManager(params: {
     }
   }
 
-  const reusable = createReusableWindow(async () => {
+  const reusable = createReusableWindow(() => {
     // TODO: once we refactored eventa to support window-namespaced contexts,
     // we can remove the setMaxListeners call below since eventa will be able to dispatch and
     // manage events within eventa's context system.
@@ -311,74 +311,83 @@ export function setupCaptionWindowManager(params: {
     const { context } = createContext(ipcMain, window)
     eventaContext = context
 
-    await setupBaseWindowElectronInvokes({ context, window, serverChannel: params.serverChannel, i18n: params.i18n })
+    return setupBaseWindowElectronInvokes({
+      context,
+      window,
+      serverChannel: params.serverChannel,
+      i18n: params.i18n,
+    }).then(() => {
+      applyIgnoreMouseEvents(window, isFollowing)
 
-    applyIgnoreMouseEvents(window, isFollowing)
+      const cfg = getConfig()
+      const saved = cfg?.matrices?.[matrixHash]?.bounds
 
-    const cfg = getConfig()
-    const saved = cfg?.matrices?.[matrixHash]?.bounds
-
-    if (saved) {
-      const workArea = screen.getDisplayMatching(saved).workArea
-      const clamped = clampBoundsWithinRect(saved, workArea)
-      window.setBounds(clamped)
-    } else {
-      const initialBounds = computeInitialCaptionBounds({ mainWindow: params.mainWindow })
-      window.setBounds(initialBounds)
-    }
-
-    const persistBounds = () => {
-      const config = getConfig() ?? { isFollowing, matrices: {} }
-      const b = window.getBounds()
-      config.matrices[matrixHash] = { ...config.matrices[matrixHash], bounds: b }
-      config.isFollowing = isFollowing
-      if (isFollowing && Date.now() - lastProgrammaticMoveAt > 100) {
-        const rel = computeRelativeOffset(window)
-        config.matrices[matrixHash] = { ...config.matrices[matrixHash], bounds: b, relativeToMain: rel }
-      }
-      updateConfig(config)
-    }
-
-    window.on('resize', persistBounds)
-    window.on('move', persistBounds)
-    window.on('show', emitVisibilityChanged)
-    window.on('hide', emitVisibilityChanged)
-
-    const cleanupGetAttached = defineInvokeHandler(context, captionGetIsFollowingWindow, async () => isFollowing)
-
-    await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/caption'))
-
-    // eslint-disable-next-line no-empty
-    try {
-      context.emit(captionIsFollowingWindowChanged, isFollowing)
-    } catch {
-      // noop
-    }
-
-    if (isFollowing) {
-      followMainWindow(window)
-    }
-
-    // eslint-disable-next-line no-empty
-    window.on('closed', () => {
-      detachFromMain()
-      try {
-        cleanupGetAttached()
-      } catch {
-        // noop
+      if (saved) {
+        const workArea = screen.getDisplayMatching(saved).workArea
+        const clamped = clampBoundsWithinRect(saved, workArea)
+        window.setBounds(clamped)
+      } else {
+        const initialBounds = computeInitialCaptionBounds({ mainWindow: params.mainWindow })
+        window.setBounds(initialBounds)
       }
 
-      if (currentWindow === window) {
-        currentWindow = undefined
+      const persistBounds = () => {
+        const config = getConfig() ?? { isFollowing, matrices: {} }
+        const b = window.getBounds()
+        config.matrices[matrixHash] = { ...config.matrices[matrixHash], bounds: b }
+        config.isFollowing = isFollowing
+        if (isFollowing && Date.now() - lastProgrammaticMoveAt > 100) {
+          const rel = computeRelativeOffset(window)
+          config.matrices[matrixHash] = { ...config.matrices[matrixHash], bounds: b, relativeToMain: rel }
+        }
+        updateConfig(config)
       }
-      eventaContext = undefined
-      emitVisibilityChanged()
+
+      window.on('resize', persistBounds)
+      window.on('move', persistBounds)
+      window.on('show', emitVisibilityChanged)
+      window.on('hide', emitVisibilityChanged)
+
+      const cleanupGetAttached = defineInvokeHandler(context, captionGetIsFollowingWindow, () =>
+        Promise.resolve(isFollowing),
+      )
+
+      return load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/caption')).then(
+        () => {
+          // eslint-disable-next-line no-empty
+          try {
+            context.emit(captionIsFollowingWindowChanged, isFollowing)
+          } catch {
+            // noop
+          }
+
+          if (isFollowing) {
+            followMainWindow(window)
+          }
+
+          // eslint-disable-next-line no-empty
+          window.on('closed', () => {
+            detachFromMain()
+            try {
+              cleanupGetAttached()
+            } catch {
+              // noop
+            }
+
+            if (currentWindow === window) {
+              currentWindow = undefined
+            }
+            eventaContext = undefined
+            emitVisibilityChanged()
+          })
+
+          return window
+        },
+      )
     })
-
-    return window
   })
 
-  async function getWindow(): Promise<BrowserWindow> {
+  function getWindow(): Promise<BrowserWindow> {
     return reusable.getWindow()
   }
 

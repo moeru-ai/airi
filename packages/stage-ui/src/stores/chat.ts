@@ -245,7 +245,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     patternDisruptorStore.resetState()
   })
 
-  async function ingest(sendingMessage: string, options: ChatOrchestratorSendOptions, targetSessionId?: string) {
+  function ingest(sendingMessage: string, options: ChatOrchestratorSendOptions, targetSessionId?: string) {
     return runtime.ingest(sendingMessage, options, targetSessionId)
   }
 

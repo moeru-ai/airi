@@ -36,7 +36,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
       autoSendTimeout = undefined
     }
   }
-  async function debouncedAutoSend() {
+  function debouncedAutoSend(): void {
     // Double-check auto-send is enabled before proceeding
     if (!autoSendEnabled.value) {
       clearPendingAutoSend()
@@ -46,7 +46,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
       clearTimeout(autoSendTimeout)
     }
 
-    autoSendTimeout = setTimeout(async () => {
+    autoSendTimeout = setTimeout(() => {
       // Final check before sending - auto-send might have been disabled while waiting
       if (!autoSendEnabled.value) {
         clearPendingAutoSend()

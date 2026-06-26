@@ -198,7 +198,7 @@ export const useBackgroundStore = defineStore('background-entries', () => {
     initializeStore()
   })
 
-  async function sync() {
+  function sync() {
     broadcastSync(Date.now())
   }
 

@@ -479,7 +479,7 @@ watch(paused, () => {
   // We still let render run so the last frame remains visible.
 })
 
-onMounted(async () => {
+onMounted(() => {
   // First load is triggered by the immediate watch above when the canvas
   // becomes available.
 })

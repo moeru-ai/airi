@@ -109,7 +109,7 @@ async function handleSpeechStart() {
   startRecord()
 }
 
-async function handleSpeechEnd() {
+function handleSpeechEnd() {
   if (shouldUseStreamInput.value) {
     // For streaming providers, keep the session alive; idle timer will handle teardown.
     return
@@ -288,16 +288,17 @@ async function transcribeRecordingForMonitoring(recording: Blob) {
   }
 }
 
-onStopRecord(async (recording) => {
-  if (shouldUseStreamInput.value) return
-  if (!recording || recording.size === 0) return
+onStopRecord((recording) => {
+  if (shouldUseStreamInput.value) return Promise.resolve()
+  if (!recording || recording.size === 0) return Promise.resolve()
 
   if (isTestingSTT.value) {
-    await transcribeRecordingForTest(recording)
-    return
+    transcribeRecordingForTest(recording)
+    return Promise.resolve()
   }
 
-  await transcribeRecordingForMonitoring(recording)
+  transcribeRecordingForMonitoring(recording)
+  return Promise.resolve()
 })
 
 async function ensureTestStream(): Promise<boolean> {
@@ -356,7 +357,7 @@ async function startStreamingTest() {
 function startRecordingTest() {
   testStatusMessage.value = 'Recording audio for transcription... (3 seconds)'
   startRecord()
-  setTimeout(async () => {
+  setTimeout(() => {
     stopRecord()
     testStatusMessage.value = 'Processing transcription...'
   }, 3000)
@@ -440,8 +441,8 @@ async function stopSTTTest() {
 // Note: STT test transcription is now handled directly in onStopRecord handler above
 // This watch is kept for potential future use but is no longer needed for STT tests
 
-watch(selectedAudioInput, async () => {
-  if (isMonitoring.value) await setupAudioMonitoring()
+watch(selectedAudioInput, () => {
+  if (isMonitoring.value) setupAudioMonitoring()
 })
 
 function handleStreamStartError() {
@@ -454,10 +455,10 @@ function handleStreamStartError() {
 
 watch(
   activeTranscriptionProvider,
-  async (provider) => {
+  (provider) => {
     if (!provider) return
 
-    await hearingStore.loadModelsForProvider(provider)
+    hearingStore.loadModelsForProvider(provider)
     syncOpenAICompatibleSettings()
 
     // Auto-select first model for Web Speech API if no model is selected
@@ -471,7 +472,7 @@ watch(
   { immediate: true },
 )
 
-onMounted(async () => {
+onMounted(() => {
   // Audio devices are loaded on demand when user requests them
   syncOpenAICompatibleSettings()
 })
@@ -489,7 +490,9 @@ onUnmounted(() => {
     })
   }
 
-  audioCleanups.value.forEach((cleanup) => cleanup())
+  audioCleanups.value.forEach((cleanup) => {
+    cleanup()
+  })
 })
 </script>
 

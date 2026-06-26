@@ -129,7 +129,7 @@ vi.mock('./tools/builtin/weather', () => ({
 /**
  * @example
  * describe('useChatSyncStore authority ingest failures', () => {
- *   it('persists ingest errors into authoritative session snapshot', async () => {})
+ *   it('persists ingest errors into authoritative session snapshot', () => {})
  * })
  */
 describe('useChatSyncStore authority ingest failures', async () => {
@@ -189,7 +189,7 @@ describe('useChatSyncStore authority ingest failures', async () => {
 
   /**
    * @example
-   * it('keeps region-availability errors visible for follower windows', async () => {
+   * it('keeps region-availability errors visible for follower windows', () => {
    *   // authority receives ingest command failure
    *   // authoritative session gets role:error entry
    * })
@@ -281,7 +281,7 @@ describe('useChatSyncStore authority ingest failures', async () => {
 
   /**
    * @example
-   * it('replaces the last failed turn before retrying', async () => {
+   * it('replaces the last failed turn before retrying', () => {
    *   // authority receives retry command for trailing user -> error pair
    *   // authoritative session removes that failed turn before re-ingesting the user text
    * })
@@ -335,7 +335,7 @@ describe('useChatSyncStore authority ingest failures', async () => {
 
   /**
    * @example
-   * it('rewinds from the source user turn when retry targets an assistant message', async () => {
+   * it('rewinds from the source user turn when retry targets an assistant message', () => {
    *   // future assistant retry still trims the whole tail from its originating user turn
    * })
    */
@@ -380,7 +380,7 @@ describe('useChatSyncStore authority ingest failures', async () => {
 
   /**
    * @example
-   * it('keeps the follower chat window on its local session while applying remote snapshots', async () => {
+   * it('keeps the follower chat window on its local session while applying remote snapshots', () => {
    *   // follower already displays session-2
    *   // authority snapshot arrives with session-1 as active
    *   // follower keeps session-2 selected but still receives session-2 message updates

@@ -25,7 +25,7 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
   const listPluginXsaiToolDefinitions = useElectronEventaInvoke(electronPluginListXsaiTools)
   const invokePluginTool = useElectronEventaInvoke(electronPluginInvokeTool)
 
-  async function refresh() {
+  function refresh() {
     const abortController = new AbortController()
     const timeout = setTimeout(() => abortController.abort(new Error(`Timed out after ${5_000}ms`)), 5_000)
 
@@ -54,7 +54,7 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
               name: definition.name,
               description: definition.description,
               parameters: definition.parameters,
-              execute: async (input) =>
+              execute: (input) =>
                 invokePluginTool({
                   ownerPluginId: definition.ownerPluginId,
                   name: definition.name,

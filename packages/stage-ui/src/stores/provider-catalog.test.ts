@@ -164,9 +164,7 @@ describe('store provider-catalog controller', () => {
       fetchRemote: vi.fn(() => ({}) as Promise<InferenceServiceProviders>),
     }
     const model = {
-      saveAll: vi.fn(() => {
-        /* stub */
-      }),
+      saveAll: vi.fn(() => Promise.resolve()),
     }
     const controller = new AbortController()
     const options = createProviderCatalogListQueryOptions({

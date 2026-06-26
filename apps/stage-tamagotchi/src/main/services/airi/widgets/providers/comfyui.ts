@@ -69,13 +69,14 @@ export class ComfyUIProvider implements ArtistryProvider {
     if (callback) callback(status)
   }
 
-  async initialize(config: ComfyUIProviderConfig): Promise<void> {
+  initialize(config: ComfyUIProviderConfig): Promise<void> {
     if (config?.comfyuiServerUrl) this.serverUrl = config.comfyuiServerUrl.replace(/\/+$/, '') // strip trailing slashes
     if (config?.comfyuiSavedWorkflows) this.savedWorkflows = config.comfyuiSavedWorkflows
     if (config?.comfyuiActiveWorkflow) this.activeWorkflowId = config.comfyuiActiveWorkflow
+    return Promise.resolve()
   }
 
-  async generate(request: ArtistryRequest): Promise<ArtistryJob> {
+  generate(request: ArtistryRequest): Promise<ArtistryJob> {
     const extra = request.extra as Record<string, unknown> | undefined
     const jobId = (extra?.internalJobId as string) || Math.random().toString(36).slice(2)
 
@@ -89,13 +90,13 @@ export class ComfyUIProvider implements ArtistryProvider {
         error: 'No workflow template configured. Upload a workflow in Settings > Providers > ComfyUI.',
         actionLabel: 'Error: No workflow configured',
       })
-      return { jobId, providerJobId: jobId }
+      return Promise.resolve({ jobId, providerJobId: jobId })
     }
 
     // Start async generation
     this.pollForResult(jobId, template, request)
 
-    return { jobId, providerJobId: jobId }
+    return Promise.resolve({ jobId, providerJobId: jobId })
   }
 
   private async pollForResult(jobId: string, template: ComfyUIWorkflowTemplate, request: ArtistryRequest) {
@@ -360,8 +361,8 @@ export class ComfyUIProvider implements ArtistryProvider {
     return prompt
   }
 
-  async getStatus(jobId: string): Promise<ArtistryJobStatus> {
-    return this.jobResults.get(jobId) || { status: 'queued' }
+  getStatus(jobId: string): Promise<ArtistryJobStatus> {
+    return Promise.resolve(this.jobResults.get(jobId) || { status: 'queued' })
   }
 
   private async uploadImage(base64Data: string): Promise<string> {

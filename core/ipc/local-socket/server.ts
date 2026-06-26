@@ -97,9 +97,8 @@ export class LocalSocketServerTransport implements IpcServerTransport {
     })
   }
 
-  async stop(): Promise<void> {
-    // async: returns Promise for interface compatibility
-    if (this._state === 'idle' || this._state === 'disconnected') return undefined
+  stop(): Promise<void> {
+    if (this._state === 'idle' || this._state === 'disconnected') return Promise.resolve(undefined)
 
     this.setState('disconnecting')
 
@@ -208,12 +207,11 @@ export class LocalSocketServerTransport implements IpcServerTransport {
    * its shutdown handler. We attempt to connect to verify staleness;
    * if the connection fails, the file is safe to remove.
    */
-  // async: returns Promise for interface compatibility
-  async cleanupStaleSocket(): Promise<void> {
-    if (!this.socketPath.startsWith('/')) return undefined // TCP fallback — no file to clean.
+  cleanupStaleSocket(): Promise<void> {
+    if (!this.socketPath.startsWith('/')) return Promise.resolve(undefined) // TCP fallback — no file to clean.
 
     const absolutePath = resolve(this.socketPath)
-    if (!existsSync(absolutePath)) return undefined
+    if (!existsSync(absolutePath)) return Promise.resolve(undefined)
 
     // Try to connect — if it fails, the socket is stale.
     // Wrap the async socket probe in a Promise so callers can await it,

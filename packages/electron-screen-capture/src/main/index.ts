@@ -248,16 +248,17 @@ function handleSetSource(
     screenCaptureSourceMutexHandle = handle
 
     try {
-      sessionModule.defaultSession.setDisplayMediaRequestHandler(async (_req, callback) => {
-        const sources = await desktopCapturer.getSources(request.options)
-        const source = sources.find((s) => s.id === request.sourceId)
-        if (!source) {
-          throw new Error(`Source with id ${request.sourceId} not found.`)
-        }
+      sessionModule.defaultSession.setDisplayMediaRequestHandler((_req, callback) => {
+        desktopCapturer.getSources(request.options).then((sources) => {
+          const source = sources.find((s) => s.id === request.sourceId)
+          if (!source) {
+            throw new Error(`Source with id ${request.sourceId} not found.`)
+          }
 
-        callback({
-          video: source,
-          audio: loopbackWithMute ? LoopbackAudioTypes.LoopbackWithMute : LoopbackAudioTypes.Loopback,
+          callback({
+            video: source,
+            audio: loopbackWithMute ? LoopbackAudioTypes.LoopbackWithMute : LoopbackAudioTypes.Loopback,
+          })
         })
       })
 
@@ -341,7 +342,7 @@ export function initScreenCaptureForWindow(window: BrowserWindow, options?: Init
     return sources.map((source) => toSerializableDesktopCapturerSource(source))
   })
 
-  defineInvokeHandler(context, screenCapture.setSource, async (request, eventaOptions) =>
+  defineInvokeHandler(context, screenCapture.setSource, (request, eventaOptions) =>
     handleSetSource(request, eventaOptions, window, windowId, windowTitle, log, options?.loopbackWithMute),
   )
 

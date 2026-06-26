@@ -227,21 +227,18 @@ export function buildOpenRouterAudioSpeechProvider(
     defaultOptions: () => ({
       baseUrl: DEFAULT_BASE_URL,
     }),
-    createProvider: async (config) => {
+    createProvider: (config) => {
       const apiKey = normalizeApiKey(config.apiKey)
       const baseUrl = normalizeBaseUrl(config.baseUrl)
       return createSpeechProvider(apiKey, baseUrl)
     },
     capabilities: {
-      listModels: async (config: Record<string, unknown>) => {
-        try {
-          return await listModels(normalizeBaseUrl(config.baseUrl))
-        } catch (error) {
+      listModels: (config: Record<string, unknown>) =>
+        listModels(normalizeBaseUrl(config.baseUrl)).catch((error) => {
           console.error('Failed to fetch OpenRouter audio models:', error)
           return []
-        }
-      },
-      listVoices: async () => listVoices(),
+        }),
+      listVoices: () => Promise.resolve(listVoices()),
     },
     validators: {
       chatPingCheckAvailable: false,

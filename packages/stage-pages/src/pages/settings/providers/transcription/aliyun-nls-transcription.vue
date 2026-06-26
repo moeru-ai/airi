@@ -91,7 +91,8 @@ const credentialsReady = computed(() => {
   const hasAccessKeyId = Boolean(credentials.accessKeyId.trim())
   const hasAccessKeySecret = Boolean(credentials.accessKeySecret.trim())
   const hasAppKey = Boolean(credentials.appKey.trim())
-  return hasAccessKeyId && hasAccessKeySecret && hasAppKey
+  const hasAllKeys = hasAccessKeyId && hasAccessKeySecret
+  return hasAllKeys && hasAppKey
 })
 
 const isRecording = ref(false)

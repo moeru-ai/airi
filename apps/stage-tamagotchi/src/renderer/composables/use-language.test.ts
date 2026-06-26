@@ -52,7 +52,7 @@ describe('useLanguage', () => {
   // locale is restored from the main-process config.
   it('issue #1658: restores correct locale from main process when store fallback is wrong', async () => {
     const language = ref('zh-Hans') // simulate store fallback to OS locale
-    const getMainLocale = vi.fn(() => 'zh-Hant') // main has user selection
+    const getMainLocale = vi.fn(() => Promise.resolve('zh-Hant')) // main has user selection
     const setLocale = vi.fn(() => {
       /* stub — intentionally empty */
     })
@@ -68,7 +68,7 @@ describe('useLanguage', () => {
 
   it('issue #1658: does not change language when main locale matches store', async () => {
     const language = ref('zh-Hant')
-    const getMainLocale = vi.fn(() => 'zh-Hant')
+    const getMainLocale = vi.fn(() => Promise.resolve('zh-Hant'))
     const setLocale = vi.fn(() => {
       /* stub — intentionally empty */
     })
@@ -84,7 +84,7 @@ describe('useLanguage', () => {
     localStorage.setItem('settings/language', 'ja')
 
     const language = ref('ja') // user explicitly set this before
-    const getMainLocale = vi.fn(() => 'en')
+    const getMainLocale = vi.fn(() => Promise.resolve('en'))
     const setLocale = vi.fn(() => {
       /* stub — intentionally empty */
     })
@@ -100,7 +100,7 @@ describe('useLanguage', () => {
 
   it('preserves OS locale on first launch when main has no saved language', async () => {
     const language = ref('zh-Hans') // OS-detected fallback
-    const getMainLocale = vi.fn(() => undefined) // no config file yet
+    const getMainLocale = vi.fn(() => Promise.resolve(undefined)) // no config file yet
     const setLocale = vi.fn(() => {
       /* stub — intentionally empty */
     })
@@ -115,7 +115,7 @@ describe('useLanguage', () => {
 
   it('restores explicit English choice after localStorage loss', async () => {
     const language = ref('zh-Hans') // store fallback to OS locale
-    const getMainLocale = vi.fn(() => 'en') // user explicitly chose English
+    const getMainLocale = vi.fn(() => Promise.resolve('en')) // user explicitly chose English
     const setLocale = vi.fn(() => {
       /* stub — intentionally empty */
     })
@@ -156,7 +156,7 @@ describe('useLanguage', () => {
 
   it('does not sync to main before restore is called', () => {
     const language = ref('en')
-    const getMainLocale = vi.fn(() => 'en')
+    const getMainLocale = vi.fn(() => Promise.resolve('en'))
     const setLocale = vi.fn(() => {
       /* stub — intentionally empty */
     })
@@ -171,7 +171,7 @@ describe('useLanguage', () => {
 
   it('syncs to main after restore is called', async () => {
     const language = ref('en')
-    const getMainLocale = vi.fn(() => 'en')
+    const getMainLocale = vi.fn(() => Promise.resolve('en'))
     const setLocale = vi.fn(() => {
       /* stub — intentionally empty */
     })

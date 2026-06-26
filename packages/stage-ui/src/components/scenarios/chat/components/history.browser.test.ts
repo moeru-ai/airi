@@ -83,13 +83,13 @@ function createHarness(messages: ChatHistoryItem[]) {
 /**
  * @example
  * describe('ChatHistory retry actions', () => {
- *   it('emits retry-message when the retry button is clicked for an error after a user message', async () => {})
+ *   it('emits retry-message when the retry button is clicked for an error after a user message', () => {})
  * })
  */
 describe('chatHistory retry actions', () => {
   /**
    * @example
-   * it('emits retry-message when the retry button is clicked for an error after a user message', async () => {
+   * it('emits retry-message when the retry button is clicked for an error after a user message', () => {
    *   const screen = await render(createHarness(messages), { global: { plugins: [createTestI18n()] } })
    *   await screen.getByRole('button', { name: 'Retry' }).click()
    *   await expect.element(screen.getByLabelText('retry-index')).toHaveTextContent('1')
@@ -114,7 +114,7 @@ describe('chatHistory retry actions', () => {
 
   /**
    * @example
-   * it('does not render the retry button when the error is not preceded by a user message', async () => {
+   * it('does not render the retry button when the error is not preceded by a user message', () => {
    *   const screen = await render(createHarness(messages), { global: { plugins: [createTestI18n()] } })
    *   expect(document.body.textContent).not.toContain('Retry')
    * })

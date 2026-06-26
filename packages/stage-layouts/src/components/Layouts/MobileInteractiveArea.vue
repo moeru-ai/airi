@@ -153,9 +153,7 @@ watch(
   { immediate: true },
 )
 
-onAfterMessageComposed(async () => {
-  // noop
-})
+onAfterMessageComposed(() => Promise.resolve())
 
 onUnmounted(() => {
   teardownAnalyzer()

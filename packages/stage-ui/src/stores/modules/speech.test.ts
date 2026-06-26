@@ -201,7 +201,7 @@ describe('speech store helpers', () => {
   it('does not load streaming voices before server availability is confirmed', async () => {
     const providersStore = useProvidersStore()
     const speechStore = useSpeechStore()
-    const listVoices = vi.fn(() => [])
+    const listVoices = vi.fn(() => Promise.resolve([]))
     const metadata = providersStore.providerMetadata[OFFICIAL_SPEECH_STREAMING_PROVIDER_ID]
     metadata.capabilities.listVoices = listVoices
     providersStore.providerRuntimeState[OFFICIAL_SPEECH_STREAMING_PROVIDER_ID].isConfigured = false

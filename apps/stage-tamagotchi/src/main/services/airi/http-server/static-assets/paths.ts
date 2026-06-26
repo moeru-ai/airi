@@ -28,7 +28,12 @@ function decodePathSegment(segment: string): string | undefined {
 }
 
 function isSafeRouteSegment(segment: string): boolean {
-  return !segment.includes('/') && !segment.includes('\\') && segmentPattern.test(segment)
+  const hasNoForwardSlash = !segment.includes('/')
+  const hasNoBackslash = !segment.includes('\\')
+  if (!hasNoForwardSlash || !hasNoBackslash) {
+    return false
+  }
+  return segmentPattern.test(segment)
 }
 
 /**
@@ -127,16 +132,14 @@ export function parseStaticAssetRequestPath(pathname: string): ParsedStaticAsset
   const mountSegment = decodePathSegment(segments[3] ?? '')
   const rawAssetPath = segments.slice(4).join('/')
 
-  if (
-    extensionId == null ||
-    sessionsSegment == null ||
-    assetSessionId == null ||
-    mountSegment == null ||
-    !isSafeRouteSegment(extensionId) ||
-    sessionsSegment !== 'sessions' ||
-    !isSafeRouteSegment(assetSessionId) ||
-    mountSegment !== 'ui'
-  ) {
+  const hasNullSegment =
+    extensionId == null || sessionsSegment == null || assetSessionId == null || mountSegment == null
+  const extensionIdUnsafe = extensionId != null && !isSafeRouteSegment(extensionId)
+  const sessionsSegmentInvalid = sessionsSegment !== 'sessions'
+  const assetSessionIdUnsafe = assetSessionId != null && !isSafeRouteSegment(assetSessionId)
+  const mountSegmentInvalid = mountSegment !== 'ui'
+
+  if (hasNullSegment || extensionIdUnsafe || sessionsSegmentInvalid || assetSessionIdUnsafe || mountSegmentInvalid) {
     return undefined
   }
 

@@ -59,14 +59,26 @@ function makeStreamingSnapshot(overrides: Partial<StreamingSessionSnapshot> = {}
 // Stub for the streaming pipeline factory. Captures the callbacks so the
 // test can drive `onSentence` / `onError` / `onDone` directly. Tracks
 // `appendText` / `finish` / `cancel` invocations.
+interface PipelineCallbacks {
+  onSentence: (delta: { index: number; text: string; audio: AudioBuffer }) => void
+  onDone: () => void
+  onError: (error: Error) => void
+}
+
+interface PipelineStubOptions extends Record<string, unknown> {
+  onSentence: PipelineCallbacks['onSentence']
+  onDone: PipelineCallbacks['onDone']
+  onError: PipelineCallbacks['onError']
+}
+
 function makePipelineStub() {
   const calls: { appendText: string[]; finish: number; cancel: number } = {
     appendText: [],
     finish: 0,
     cancel: 0,
   }
-  let captured: Record<string, unknown>
-  const factory = vi.fn((options: Record<string, unknown>) => {
+  let captured: PipelineStubOptions
+  const factory = vi.fn((options: PipelineStubOptions) => {
     captured = options
     return {
       appendText: (text: string) => {
@@ -196,9 +208,8 @@ describe('createStreamingTtsSession (adapter)', () => {
     // Simulate the pipeline emitting two sentences.
     const audio0 = { __id: 0 } as unknown as AudioBuffer
     const audio1 = { __id: 1 } as unknown as AudioBuffer
-    ;(pipe.options as any)
-      .onSentence({ index: 0, text: 'first', audio: audio0 })(pipe.options as any)
-      .onSentence({ index: 1, text: 'second', audio: audio1 })
+    ;(pipe.options as unknown as PipelineCallbacks).onSentence({ index: 0, text: 'first', audio: audio0 })
+    ;(pipe.options as unknown as PipelineCallbacks).onSentence({ index: 1, text: 'second', audio: audio1 })
 
     expect(playback.scheduled).toHaveLength(2)
     expect(playback.scheduled[0]).toMatchObject({
@@ -282,10 +293,9 @@ describe('createStreamingTtsSession (adapter)', () => {
       audioContext: dummyAudioContext,
       playbackManager: playback,
       pipelineFactory: pipe.factory as never,
-    })(
-      // Pipeline naturally completes first.
-      pipe.options as any,
-    ).onDone()
+    })
+    // Pipeline naturally completes first.
+    ;(pipe.options as unknown as PipelineCallbacks).onDone()
     // Then host cancels — pipeline.cancel should NOT be re-called, but
     // any straggler playback items must still be drained.
     session.cancel('post-done-cancel')
@@ -303,12 +313,10 @@ describe('createStreamingTtsSession (adapter)', () => {
       audioContext: dummyAudioContext,
       playbackManager: playback,
       pipelineFactory: pipe.factory as never,
-    })(
-      // Mark terminated, then a straggler sentence arrives.
-      pipe.options as any,
-    )
-      .onDone()(pipe.options as any)
-      .onSentence({ index: 0, text: 'too late', audio: {} as AudioBuffer })
+    })
+    // Mark terminated, then a straggler sentence arrives.
+    ;(pipe.options as unknown as PipelineCallbacks).onDone()
+    ;(pipe.options as unknown as PipelineCallbacks).onSentence({ index: 0, text: 'too late', audio: {} as AudioBuffer })
 
     expect(playback.scheduled).toHaveLength(0)
   })
@@ -326,9 +334,9 @@ describe('createStreamingTtsSession (adapter)', () => {
       pipelineFactory: pipe.factory as never,
     })
 
-    const err = new Error('boom')(pipe.options as any)
-      .onError(err)(pipe.options as any)
-      .onDone()
+    const err = new Error('boom')
+    ;(pipe.options as unknown as PipelineCallbacks).onError(err)
+    ;(pipe.options as unknown as PipelineCallbacks).onDone()
 
     expect(onError).toHaveBeenCalledWith(err)
     expect(onDone).toHaveBeenCalledTimes(1)

@@ -71,7 +71,7 @@ function createFastExecutor(moduleId: string, delayMs = 10): TaskExecutor {
 }
 
 function createFailingExecutor(moduleId: string): TaskExecutor {
-	return createMockExecutor(moduleId, async () => {
+	return createMockExecutor(moduleId, () => {
 		throw new Error("Intentional failure")
 	})
 }
@@ -553,7 +553,7 @@ describe("TaskManager", () => {
 		})
 
 		it("falls back to any capable executor", () => {
-			const executor = createMockExecutor("code", async () => ({ success: true }))
+			const executor = createMockExecutor("code", () => Promise.resolve({ success: true }))
 			manager.registerExecutor("code", executor)
 
 			// Task with different module — executor only accepts "code".

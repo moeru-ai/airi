@@ -212,7 +212,8 @@ export class ExecutionTrace {
    * signature must stay Promise<void>.
    */
   // async: returns Promise for interface compatibility
-  async flush(): Promise<void> {
+  flush(): Promise<void> {
     // All records are persisted immediately. No-op.
+    return Promise.resolve()
   }
 }

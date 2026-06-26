@@ -448,7 +448,7 @@ export function createGameletHostContribution(options: { widgetsManager: PluginH
             await options.widgetsManager.removeWidget(id)
             untrackOpenWidget(session.sessionId, id)
           },
-          async isOpen(id: string) {
+          isOpen(id: string) {
             assertPermission({
               area: 'apis',
               action: 'invoke',

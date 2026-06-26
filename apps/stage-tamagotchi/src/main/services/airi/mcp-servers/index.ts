@@ -278,7 +278,7 @@ export function createMcpStdioManager(): McpStdioManager {
       throw new Error(`mcp server is not running: ${serverName}`)
     }
 
-    let result
+    let result: unknown
     try {
       result = await session.client.callTool(
         {
@@ -319,10 +319,12 @@ export function createMcpStdioManager(): McpStdioManager {
     }
 
     const normalized: ElectronMcpCallToolResult = {}
-    if ('content' in result && Array.isArray(result.content)) {
+    if (result && typeof result === 'object' && 'content' in result && Array.isArray(result.content)) {
       normalized.content = result.content as Array<Record<string, unknown>>
     }
     if (
+      result &&
+      typeof result === 'object' &&
       'structuredContent' in result &&
       result.structuredContent &&
       typeof result.structuredContent === 'object' &&
@@ -330,11 +332,11 @@ export function createMcpStdioManager(): McpStdioManager {
     ) {
       normalized.structuredContent = result.structuredContent as Record<string, unknown>
     }
-    if ('isError' in result && typeof result.isError === 'boolean') {
+    if (result && typeof result === 'object' && 'isError' in result && typeof result.isError === 'boolean') {
       normalized.isError = result.isError
     }
-    if ('toolResult' in result) {
-      normalized.toolResult = result.toolResult
+    if (result && typeof result === 'object' && 'toolResult' in result) {
+      normalized.toolResult = (result as Record<string, unknown>).toolResult
     }
 
     return normalized

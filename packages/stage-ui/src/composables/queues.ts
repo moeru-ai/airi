@@ -48,12 +48,13 @@ export function useEmotionsMessageQueue(emotionsQueue: UseQueueReturn<EmotionPay
 
   return createQueue<string>({
     handlers: [
-      async (ctx) => {
+      (ctx) => {
         const actParsed = parseActEmotion(ctx.data)
         if (actParsed.ok && actParsed.emotion) {
           ctx.emit('emotion', actParsed.emotion)
           emotionsQueue.enqueue(actParsed.emotion)
         }
+        return Promise.resolve()
       },
     ],
   })

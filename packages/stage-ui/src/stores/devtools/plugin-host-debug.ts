@@ -164,7 +164,7 @@ export const usePluginHostInspectorStore = defineStore('devtools:plugin-host-deb
     return snapshot
   }
 
-  async function refreshAll() {
+  function refreshAll() {
     return refreshInspection()
   }
 

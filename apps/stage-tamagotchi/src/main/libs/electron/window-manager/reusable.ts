@@ -8,8 +8,8 @@ export function createReusableWindow(setupFn: () => BrowserWindow | Promise<Brow
   let window: BrowserWindow | undefined
   let windowSetupFnPromise: Promise<BrowserWindow> | undefined
 
-  const ensureWindow = async () => {
-    if (window && !isRendererUnavailable(window)) return window
+  const ensureWindow = () => {
+    if (window && !isRendererUnavailable(window)) return Promise.resolve(window)
 
     if (windowSetupFnPromise) return windowSetupFnPromise
 

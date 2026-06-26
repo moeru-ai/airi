@@ -22,7 +22,8 @@ export function isRendererUnavailable(window: BrowserWindow) {
   const isWindowDestroyed = window.isDestroyed()
   const isWebContentsDestroyed = window?.webContents?.isDestroyed()
   const isWebContentsCrashed = window?.webContents?.isCrashed()
-  return isWindowDestroyed || isWebContentsDestroyed || isWebContentsCrashed
+  const isWebContentsUnhealthy = isWebContentsDestroyed || isWebContentsCrashed
+  return isWindowDestroyed || isWebContentsUnhealthy
 }
 
 export function shouldStopForRendererError(error: unknown) {

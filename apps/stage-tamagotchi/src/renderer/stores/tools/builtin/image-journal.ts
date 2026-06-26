@@ -79,7 +79,7 @@ function resolveCardArtistryConfig(
   }
 }
 
-async function setCardActiveBackgroundId(cardStore: ReturnType<typeof useAiriCardStore>, entryId: string) {
+function setCardActiveBackgroundId(cardStore: ReturnType<typeof useAiriCardStore>, entryId: string) {
   const cardId = cardStore.activeCardId
   if (!cardId) return
 
@@ -179,7 +179,7 @@ async function executeCreateImageJournalEntry(params: {
   }
 }
 
-async function executeSetAsBackground(params: { query?: string }) {
+function executeSetAsBackground(params: { query?: string }) {
   if (!params.query?.trim())
     return 'Error: query is required for image_journal.apply. Provide a title or ID to search for.'
 

@@ -304,7 +304,7 @@ function handleStreamingSpeechEnd(text: string) {
   postCaption({ type: 'caption-speaker', text })
 }
 
-async function handleSpeechStart() {
+function handleSpeechStart() {
   if (shouldUseStreamInput.value) {
     _logger('Speech detected - transcription session should already be active')
     return
@@ -313,7 +313,7 @@ async function handleSpeechStart() {
   startRecord()
 }
 
-async function handleSpeechEnd() {
+function handleSpeechEnd() {
   if (shouldUseStreamInput.value) {
     // Keep streaming session alive; idle timer in pipeline will handle teardown.
     return

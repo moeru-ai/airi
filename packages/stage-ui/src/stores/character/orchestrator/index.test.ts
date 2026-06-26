@@ -139,9 +139,8 @@ describe('store character-orchestrator', () => {
   })
 
   it('handles immediate spark:notify with reaction and commands', async () => {
-    const mockStream = vi.fn()
     const mockStream = mockedStore(useLLM).stream as unknown as Mock
-    mockedStore(useLLM).stream.mockImplementation(
+    ;(mockedStore(useLLM).stream as unknown as Mock).mockImplementation(
       async (_model: unknown, _provider: unknown, _messages: unknown, options: unknown) => {
         if (
           (options as Record<string, unknown> | undefined)?.tools
@@ -166,11 +165,19 @@ describe('store character-orchestrator', () => {
           } satisfies z.infer<typeof sparkNotifyCommandSchema>)
         }
 
-        await (options as Record<string, unknown> | undefined)?.onStreamEvent?.({
+        await (
+          (options as Record<string, unknown> | undefined)?.onStreamEvent as
+            | ((event: StreamEvent) => Promise<void>)
+            | undefined
+        )?.({
           type: 'text-delta',
           text: 'Ahhh, got hit by zombie!',
         } satisfies StreamEvent)
-        await (options as Record<string, unknown> | undefined)?.onStreamEvent?.({
+        await (
+          (options as Record<string, unknown> | undefined)?.onStreamEvent as
+            | ((event: StreamEvent) => Promise<void>)
+            | undefined
+        )?.({
           type: 'finish',
         } satisfies StreamEvent)
       },
@@ -215,15 +222,22 @@ describe('store character-orchestrator', () => {
   })
 
   it('supports forcing text-only spark:notify responses', async () => {
-    const mockStream = vi.fn()
     const mockStream = mockedStore(useLLM).stream as unknown as Mock
-    mockedStore(useLLM).stream.mockImplementation(
+    ;(mockedStore(useLLM).stream as unknown as Mock).mockImplementation(
       async (_model: unknown, _provider: unknown, _messages: unknown, options: unknown) => {
-        await (options as Record<string, unknown> | undefined)?.onStreamEvent?.({
+        await (
+          (options as Record<string, unknown> | undefined)?.onStreamEvent as
+            | ((event: StreamEvent) => Promise<void>)
+            | undefined
+        )?.({
           type: 'text-delta',
           text: 'I choose d5 to pressure the center.',
         } satisfies StreamEvent)
-        await (options as Record<string, unknown> | undefined)?.onStreamEvent?.({
+        await (
+          (options as Record<string, unknown> | undefined)?.onStreamEvent as
+            | ((event: StreamEvent) => Promise<void>)
+            | undefined
+        )?.({
           type: 'finish',
         } satisfies StreamEvent)
       },
@@ -262,9 +276,8 @@ describe('store character-orchestrator', () => {
   })
 
   it('supports forcing spark-command responses', async () => {
-    const mockStream = vi.fn()
     const mockStream = mockedStore(useLLM).stream as unknown as Mock
-    mockedStore(useLLM).stream.mockImplementation(
+    ;(mockedStore(useLLM).stream as unknown as Mock).mockImplementation(
       async (_model: unknown, _provider: unknown, _messages: unknown, options: unknown) => {
         const sparkCommandTool = (
           (options as Record<string, unknown> | undefined)?.tools as
@@ -283,11 +296,19 @@ describe('store character-orchestrator', () => {
             },
           ],
         } satisfies z.infer<typeof sparkNotifyCommandSchema>)
-        await (options as Record<string, unknown> | undefined)?.onStreamEvent?.({
+        await (
+          (options as Record<string, unknown> | undefined)?.onStreamEvent as
+            | ((event: StreamEvent) => Promise<void>)
+            | undefined
+        )?.({
           type: 'text-delta',
           text: 'This should be ignored.',
         } satisfies StreamEvent)
-        await (options as Record<string, unknown> | undefined)?.onStreamEvent?.({
+        await (
+          (options as Record<string, unknown> | undefined)?.onStreamEvent as
+            | ((event: StreamEvent) => Promise<void>)
+            | undefined
+        )?.({
           type: 'finish',
         } satisfies StreamEvent)
       },
@@ -329,15 +350,22 @@ describe('store character-orchestrator', () => {
   })
 
   it('forwards runtime-only message overrides into the rendered spark prompt', async () => {
-    const mockStream = vi.fn()
     const mockStream = mockedStore(useLLM).stream as unknown as Mock
-    mockedStore(useLLM).stream.mockImplementation(
+    ;(mockedStore(useLLM).stream as unknown as Mock).mockImplementation(
       async (_model: unknown, _provider: unknown, _messages: unknown, options: unknown) => {
-        await (options as Record<string, unknown> | undefined)?.onStreamEvent?.({
+        await (
+          (options as Record<string, unknown> | undefined)?.onStreamEvent as
+            | ((event: StreamEvent) => Promise<void>)
+            | undefined
+        )?.({
           type: 'text-delta',
           text: 'legacy-safe text',
         } satisfies StreamEvent)
-        await (options as Record<string, unknown> | undefined)?.onStreamEvent?.({
+        await (
+          (options as Record<string, unknown> | undefined)?.onStreamEvent as
+            | ((event: StreamEvent) => Promise<void>)
+            | undefined
+        )?.({
           type: 'finish',
         } satisfies StreamEvent)
       },

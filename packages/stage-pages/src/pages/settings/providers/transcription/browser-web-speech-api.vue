@@ -108,7 +108,7 @@ const isWebSpeechAPIAvailable = computed(() => {
   return hasWindow && hasSpeechAPI
 })
 
-onMounted(async () => {
+onMounted(() => {
   ensureProviderSettings()
   // Audio devices are loaded on demand when user requests them
 })
@@ -239,7 +239,7 @@ async function startSTTTest() {
   }
 }
 
-async function stopSTTTest() {
+function stopSTTTest() {
   isTestingSTT.value = false
   isTranscribing.value = false
   testStatusMessage.value = 'Stopped'

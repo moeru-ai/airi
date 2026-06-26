@@ -143,9 +143,7 @@ watch(hearingPopoverOpen, async (value) => {
   }
 })
 
-onAfterMessageComposed(async () => {
-  // noop
-})
+onAfterMessageComposed(() => Promise.resolve())
 
 const { startAnalyzer, stopAnalyzer } = useAudioAnalyzer()
 let analyzerSource: MediaStreamAudioSourceNode | undefined

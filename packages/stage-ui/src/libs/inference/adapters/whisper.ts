@@ -258,7 +258,7 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
     })
   }
 
-  async function load(onProgress?: (p: ProgressPayload) => void, options?: { signal?: AbortSignal }): Promise<void> {
+  function load(onProgress?: (p: ProgressPayload) => void, options?: { signal?: AbortSignal }): Promise<void> {
     // NOTICE: Proactive WASM promotion after repeated device-loss events.
     // See kokoro.ts for rationale. Whisper always requests 'webgpu' from the
     // caller today, so we only check the promotion threshold.
@@ -270,7 +270,7 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
       )
     }
     throwIfAborted(options?.signal)
-    return operationMutex.runExclusive(async () => {
+    return operationMutex.runExclusive(() => {
       throwIfAborted(options?.signal)
       state = 'loading'
       updateInferenceStatus(MODEL_NAMES.WHISPER, { state: 'downloading', device: requestedDevice })
@@ -278,7 +278,7 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
       return getLoadQueue().enqueue(
         MODEL_NAMES.WHISPER,
         LOAD_PRIORITY.ASR,
-        async () => {
+        () => {
           throwIfAborted(options?.signal)
           const w = ensureWorker()
           const requestId = createRequestId()
@@ -306,37 +306,36 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
 
           w.postMessage({ type: 'load-model', requestId, modelId: MODEL_NAMES.WHISPER, device: requestedDevice })
 
-          let readyResponse: ModelReadyResponse | null = null
-          try {
-            readyResponse = await readyPromise
-          } catch (error) {
-            state = 'error'
-            updateInferenceStatus(MODEL_NAMES.WHISPER, { state: 'error' })
-            throw error
-          }
+          return readyPromise
+            .then((readyResponse) => {
+              // Capture actual device reported by the worker (may fall back to WASM)
+              const actualDevice = readyResponse?.device ?? requestedDevice
 
-          // Capture actual device reported by the worker (may fall back to WASM)
-          const actualDevice = readyResponse?.device ?? requestedDevice
+              // Track GPU memory allocation
+              const coordinator = getGPUCoordinator()
+              if (allocationToken) coordinator.release(allocationToken)
+              allocationToken = coordinator.requestAllocation(
+                MODEL_NAMES.WHISPER,
+                MODEL_VRAM_ESTIMATES[MODEL_NAMES.WHISPER] ?? 800 * 1024 * 1024,
+              )
 
-          // Track GPU memory allocation
-          const coordinator = getGPUCoordinator()
-          if (allocationToken) coordinator.release(allocationToken)
-          allocationToken = coordinator.requestAllocation(
-            MODEL_NAMES.WHISPER,
-            MODEL_VRAM_ESTIMATES[MODEL_NAMES.WHISPER] ?? 800 * 1024 * 1024,
-          )
-
-          lastManifest = { device: actualDevice }
-          state = 'ready'
-          updateInferenceStatus(MODEL_NAMES.WHISPER, { state: 'ready', device: actualDevice })
-          onSuccess()
+              lastManifest = { device: actualDevice }
+              state = 'ready'
+              updateInferenceStatus(MODEL_NAMES.WHISPER, { state: 'ready', device: actualDevice })
+              onSuccess()
+            })
+            .catch((error) => {
+              state = 'error'
+              updateInferenceStatus(MODEL_NAMES.WHISPER, { state: 'error' })
+              throw error
+            })
         },
         { signal: options?.signal },
       )
     })
   }
 
-  async function transcribe(input: WhisperTranscribeInput, options?: { signal?: AbortSignal }): Promise<string> {
+  function transcribe(input: WhisperTranscribeInput, options?: { signal?: AbortSignal }): Promise<string> {
     throwIfAborted(options?.signal)
     return defaultPerfTracer.withMeasure(
       'inference',

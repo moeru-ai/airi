@@ -80,7 +80,7 @@ const DEFAULT_RESPONSE_FORMAT = 'mp3' as const
  * - Rejects with the upstream `error.message` on a server error event.
  * - Rejects with the abort reason on signal abort.
  */
-export async function streamingSynthesize(options: StreamingTtsSessionOptions): Promise<StreamingTtsSessionResult> {
+export function streamingSynthesize(options: StreamingTtsSessionOptions): Promise<StreamingTtsSessionResult> {
   const token = options.token ?? getAuthToken()
   if (!token) throw new Error('streaming-tts: not authenticated')
 

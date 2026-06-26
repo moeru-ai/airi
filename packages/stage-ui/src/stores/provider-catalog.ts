@@ -181,10 +181,10 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
   })
 
   const commitProviderConfigMutation = useMutation({
-    mutation: async (payload: { providerId: string; config: Record<string, unknown>; options: PatchConfigParams }) =>
+    mutation: (payload: { providerId: string; config: Record<string, unknown>; options: PatchConfigParams }) =>
       service.patchConfigRemote(client, payload.providerId, payload.config, payload.options),
-    async onSettled() {
-      await queryCache.invalidateQueries({ key: ['inference-service-providers'] })
+    onSettled() {
+      return Promise.resolve(queryCache.invalidateQueries({ key: ['inference-service-providers'] }))
     },
   })
 

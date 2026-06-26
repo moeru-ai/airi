@@ -9,7 +9,7 @@ import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { createWidgetsService } from '../../../services/airi/widgets'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
 
-export async function setupWidgetsWindowInvokes(params: {
+export function setupWidgetsWindowInvokes(params: {
   widgetWindow: BrowserWindow
   widgetsManager: WidgetsWindowManager
   i18n: I18n

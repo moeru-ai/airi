@@ -126,7 +126,7 @@ function createLlmMarkerStream(input: ReadableStream<string>, options?: MarkerPa
   readStream(input, async (chunk) => {
     await parser.consume(
       chunk,
-      async (literal) => {
+      (literal) => {
         if (!literal) return
         write({ type: 'literal', value: literal })
       },
@@ -136,7 +136,7 @@ function createLlmMarkerStream(input: ReadableStream<string>, options?: MarkerPa
     )
   })
     .then(async () => {
-      await parser.end(async (literal) => {
+      await parser.end((literal) => {
         if (!literal) return
         write({ type: 'literal', value: literal })
       })
@@ -192,7 +192,7 @@ export function useLlmmarkerParser(options: {
      *
      * @param textPart The chunk of text to consume.
      */
-    async consume(textPart: string) {
+    consume(textPart: string): void {
       fullText += textPart
       write(textPart)
     },

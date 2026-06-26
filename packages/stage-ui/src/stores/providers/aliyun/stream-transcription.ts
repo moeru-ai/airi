@@ -503,6 +503,6 @@ export function createAliyunNLSProvider(
       }
     },
     // Allow external caches to dispose provider instances; no persistent resources to release here.
-    async dispose() {},
+    dispose: () => Promise.resolve(),
   }
 }

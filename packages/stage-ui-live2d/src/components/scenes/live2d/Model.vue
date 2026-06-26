@@ -798,7 +798,7 @@ onMounted(() => {
   onUnmounted(() => removeListener())
 })
 
-onMounted(async () => {
+onMounted(() => {
   updateDropShadowFilter()
 })
 

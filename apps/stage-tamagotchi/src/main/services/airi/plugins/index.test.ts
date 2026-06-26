@@ -278,7 +278,7 @@ function createWidgetsManagerDouble() {
       widgetEventListeners.delete(listener)
     }
   })
-  const openWindow = vi.fn((_params?: { id?: string }) => {})
+  const openWindow = vi.fn((_params?: { id?: string }) => Promise.resolve())
   const pushWidget = vi.fn((payload: WidgetsAddPayload) => {
     const snapshot: WidgetSnapshot = {
       id: payload.id ?? Math.random().toString(36).slice(2, 10),
@@ -290,12 +290,12 @@ function createWidgetsManagerDouble() {
     }
 
     widgetSnapshots.set(snapshot.id, snapshot)
-    return snapshot.id
+    return Promise.resolve(snapshot.id)
   })
   const updateWidget = vi.fn((payload: WidgetsUpdatePayload) => {
     const existing = widgetSnapshots.get(payload.id)
     if (!existing) {
-      return
+      return Promise.resolve()
     }
 
     widgetSnapshots.set(payload.id, {
@@ -328,9 +328,11 @@ function createWidgetsManagerDouble() {
         })
       })
     }
+    return Promise.resolve()
   })
   const removeWidget = vi.fn((id: string) => {
     widgetSnapshots.delete(id)
+    return Promise.resolve()
   })
   const getWidgetSnapshot = vi.fn((id: string) => widgetSnapshots.get(id))
 
@@ -1203,9 +1205,7 @@ describe('setupPluginHost', () => {
   it('handles rejected widget cleanup promises while stopping a session', async () => {
     const widgetSnapshots = new Map<string, WidgetSnapshot>()
     const widgetsManager = {
-      openWindow: vi.fn((_params?: { id?: string }) => {
-        /* stub — intentionally empty */
-      }),
+      openWindow: vi.fn((_params?: { id?: string }) => Promise.resolve()),
       pushWidget: vi.fn((payload: WidgetsAddPayload) => {
         const snapshot: WidgetSnapshot = {
           id: payload.id ?? Math.random().toString(36).slice(2, 10),
@@ -1217,25 +1217,22 @@ describe('setupPluginHost', () => {
         }
 
         widgetSnapshots.set(snapshot.id, snapshot)
-        return snapshot.id
+        return Promise.resolve(snapshot.id)
       }),
-      updateWidget: vi.fn((_payload: WidgetsUpdatePayload) => {
-        /* stub — intentionally empty */
-      }),
+      updateWidget: vi.fn((_payload: WidgetsUpdatePayload) => Promise.resolve()),
       removeWidget: vi.fn((id: string) => {
         if (id === 'gamelet-stop-cleanup-reject-a') {
-          throw new Error('remove failed')
+          return Promise.reject(new Error('remove failed'))
         }
 
         widgetSnapshots.delete(id)
+        return Promise.resolve()
       }),
       getWidgetSnapshot: vi.fn((id: string) => widgetSnapshots.get(id)),
-      publishWidgetEvent: vi.fn((_id: string, _event: Record<string, unknown>) => {
-        /* stub — intentionally empty */
-      }),
-      onWidgetEvent: vi.fn((_listener: (event: { id: string; event: Record<string, unknown> }) => void) => () => {
-        /* stub — intentionally empty */
-      }),
+      publishWidgetEvent: vi.fn((_id: string, _event: Record<string, unknown>) => Promise.resolve()),
+      onWidgetEvent: vi.fn(
+        (_listener: (event: { id: string; event: Record<string, unknown> }) => void) => () => Promise.resolve(),
+      ),
     }
     const service = await setupPluginHostService({ widgetsManager })
     const pluginDir = join(pluginsDir, 'test-plugin-gamelets-stop-cleanup-reject')
@@ -1315,7 +1312,7 @@ describe('setupPluginHost', () => {
     const second = await service.host.start(manifest, { cwd: pluginDir })
     const secondGamelets = getGameletApis(second)
 
-    await expect(secondGamelets.isOpen('isolated-gamelet')).rejects.toThrow(
+    expect(() => secondGamelets.isOpen('isolated-gamelet')).toThrow(
       `Gamelet module \`isolated-gamelet\` is not owned by session \`${second.id}\`.`,
     )
   })

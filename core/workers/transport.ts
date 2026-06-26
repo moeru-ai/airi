@@ -122,7 +122,9 @@ export class StdioWorkerTransport implements WorkerTransport {
 	}
 
 	isAlive(): boolean {
-		return !this.closed && !this.process.killed && this.process.exitCode === null
+		const isNotClosed = !this.closed
+		const isProcessAlive = !this.process.killed && this.process.exitCode === null
+		return isNotClosed && isProcessAlive
 	}
 
 	// ── Private: stdout reading (messages FROM worker) ───────────────

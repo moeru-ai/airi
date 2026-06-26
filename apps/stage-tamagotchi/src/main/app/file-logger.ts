@@ -74,8 +74,8 @@ export interface FileLoggerHandle {
 export const nullFileLoggerHandle: FileLoggerHandle = {
   logFilePath: null,
   logFileFd: null,
-  appendLog: () => {},
-  close: () => {},
+  appendLog: (_content: string) => Promise.resolve(),
+  close: () => Promise.resolve(),
 }
 
 // ============================================================================

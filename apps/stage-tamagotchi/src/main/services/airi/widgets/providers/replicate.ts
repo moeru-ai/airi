@@ -59,7 +59,7 @@ export class ReplicateProvider implements ArtistryProvider {
     if (callback) callback(status)
   }
 
-  async initialize(config: ReplicateConfig): Promise<void> {
+  initialize(config: ReplicateConfig): Promise<void> {
     if (config?.replicateApiKey) {
       this.apiKey = config.replicateApiKey
       this.replicate = new Replicate({ auth: this.apiKey })
@@ -70,6 +70,7 @@ export class ReplicateProvider implements ArtistryProvider {
     if (config?.replicateDefaultModel) this.defaultModel = config.replicateDefaultModel
     if (config?.replicateAspectRatio) this.aspectRatio = config.replicateAspectRatio
     if (config?.replicateInferenceSteps) this.inferenceSteps = config.replicateInferenceSteps
+    return Promise.resolve()
   }
 
   async generate(request: ArtistryRequest): Promise<ArtistryJob> {
@@ -221,8 +222,8 @@ export class ReplicateProvider implements ArtistryProvider {
     }
   }
 
-  async getStatus(jobId: string): Promise<ArtistryJobStatus> {
-    return this.jobResults.get(jobId) || { status: 'queued' }
+  getStatus(jobId: string): Promise<ArtistryJobStatus> {
+    return Promise.resolve(this.jobResults.get(jobId) || { status: 'queued' })
   }
 
   // eslint-disable-next-line class-methods-use-this

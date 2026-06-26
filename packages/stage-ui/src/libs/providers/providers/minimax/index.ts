@@ -105,7 +105,7 @@ export const providerMinimax = defineProvider<MinimaxCnConfig>({
   },
 
   extraMethods: {
-    listModels: async () => minimaxModels,
+    listModels: () => Promise.resolve(minimaxModels),
   },
   validationRequiredWhen(config) {
     return Boolean(config.apiKey?.trim())
@@ -150,7 +150,7 @@ export const providerMinimaxGlobal = defineProvider<MinimaxGlobalConfig>({
   },
 
   extraMethods: {
-    listModels: async () => minimaxModels.map((m) => ({ ...m, provider: 'minimax-global' })),
+    listModels: () => Promise.resolve(minimaxModels.map((m) => ({ ...m, provider: 'minimax-global' }))),
   },
   validationRequiredWhen(config) {
     return Boolean(config.apiKey?.trim())

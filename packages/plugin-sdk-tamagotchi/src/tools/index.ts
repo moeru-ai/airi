@@ -130,13 +130,13 @@ function isToolExecutionGameletApi(value: unknown): value is ToolExecutionGamele
 
   const candidate = value as Partial<Record<keyof ToolExecutionGameletApi, unknown>>
 
-  return (
-    typeof candidate.open === 'function' &&
-    typeof candidate.configure === 'function' &&
-    typeof candidate.request === 'function' &&
-    typeof candidate.close === 'function' &&
-    typeof candidate.isOpen === 'function'
-  )
+  const hasOpen = typeof candidate.open === 'function'
+  const hasConfigure = typeof candidate.configure === 'function'
+  const hasRequest = typeof candidate.request === 'function'
+  const hasClose = typeof candidate.close === 'function'
+  const hasIsOpen = typeof candidate.isOpen === 'function'
+
+  return hasOpen && hasConfigure && hasRequest && hasClose && hasIsOpen
 }
 
 function getToolExecutionGameletApi(ctx: Pick<ContextInit, 'apis'> | TamagotchiToolContext): ToolExecutionGameletApi {
