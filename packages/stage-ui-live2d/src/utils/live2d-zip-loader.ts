@@ -4,7 +4,13 @@ import JSZip from 'jszip'
 
 import { Cubism4ModelSettings, FileLoader, Live2DFactory, ZipLoader } from 'pixi-live2d-display/cubism4'
 
-ZipLoader.zipReader = (data: Blob, _url: string) => JSZip.loadAsync(data)
+import { decodeZipFileName } from './decode-zip-filename'
+
+// Legacy/VTube-Studio archives often store entry names without the UTF-8 flag in a legacy
+// codepage; decode them so non-ASCII names (e.g. `手姿势切换.exp3.json`) don't become
+// mojibake. The same decoder must be used by `validateLive2DZip`, otherwise validation
+// sees mojibake paths and rejects archives before they reach this loader.
+ZipLoader.zipReader = (data: Blob, _url: string) => JSZip.loadAsync(data, { decodeFileName: decodeZipFileName })
 
 interface IgnoredArchivePathSegmentRule {
   matches: (segment: string) => boolean
