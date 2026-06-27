@@ -17,11 +17,17 @@ export function withCredentials() {
     const chatSession = getActivePinia() ? useChatSessionStore() : null
     if (chatSession?.activeSessionId)
       headers.set('x-airi-session-id', chatSession.activeSessionId)
-    return globalThis.fetch(input, {
+
+    const requestInit = {
       ...init,
       headers,
       credentials: 'omit',
-    })
+    } as RequestInit & { duplex?: 'half' }
+
+    if (init?.body instanceof ReadableStream)
+      requestInit.duplex = 'half'
+
+    return globalThis.fetch(input, requestInit)
   }
 }
 

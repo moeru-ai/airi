@@ -37,6 +37,7 @@ import { useSpeechPipelineAnalytics } from '../../composables/use-speech-pipelin
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { getDefaultStreamingModel, getDefinedProvider } from '../../libs/providers/providers'
 import { OFFICIAL_SPEECH_PROVIDER_ID } from '../../libs/providers/providers/official'
+import { bindSpeakingStateToPlaybackManager } from '../../libs/speech/playback-speaking-state'
 import { createStageTtsSession } from '../../libs/speech/tts-session'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useBackgroundStore } from '../../stores/background'
@@ -524,29 +525,36 @@ speechPipeline.on('onTurnCancel', ({ turnId }) => {
   streamingControl.cancelTurn(turnId)
 })
 
-playbackManager.onEnd(() => {
+function resetSpeakingState() {
   nowSpeaking.value = false
   mouthOpenSize.value = 0
-})
+}
 
-playbackManager.onStart(({ item }) => {
-  nowSpeaking.value = true
-  // NOTICE: postCaption and postPresent may throw errors if the BroadcastChannel is closed
-  // (e.g., when navigating away from the page). We wrap these in try-catch to prevent
-  // breaking playback when the channel is unavailable.
-  assistantCaption.value += ` ${item.text}`
-  try {
-    postCaption({ type: 'caption-assistant', text: item.text })
-  }
-  catch {
-    // BroadcastChannel may be closed - don't break playback
-  }
-  try {
-    postPresent({ type: 'assistant-append', text: item.text })
-  }
-  catch {
-    // BroadcastChannel may be closed - don't break playback
-  }
+bindSpeakingStateToPlaybackManager(playbackManager, {
+  setSpeaking: (speaking) => {
+    if (!speaking)
+      resetSpeakingState()
+    else
+      nowSpeaking.value = true
+  },
+  onStart: ({ item }) => {
+    // NOTICE: postCaption and postPresent may throw errors if the BroadcastChannel is closed
+    // (e.g., when navigating away from the page). We wrap these in try-catch to prevent
+    // breaking playback when the channel is unavailable.
+    assistantCaption.value += ` ${item.text}`
+    try {
+      postCaption({ type: 'caption-assistant', text: item.text })
+    }
+    catch {
+      // BroadcastChannel may be closed - don't break playback
+    }
+    try {
+      postPresent({ type: 'assistant-append', text: item.text })
+    }
+    catch {
+      // BroadcastChannel may be closed - don't break playback
+    }
+  },
 })
 
 function startLipSyncLoop() {

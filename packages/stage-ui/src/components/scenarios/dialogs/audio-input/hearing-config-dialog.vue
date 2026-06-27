@@ -13,11 +13,10 @@ const props = defineProps<{
   overlayDim?: boolean
   overlayBlur?: boolean
   granted?: boolean
-  transcription?: boolean
-  toggleTranscription?: () => void
 }>()
 
 const showDialog = defineModel('show', { type: Boolean, default: false, required: false })
+const autoSend = defineModel<boolean | undefined>('autoSend')
 
 const { isDesktop } = useBreakpoints()
 const { askPermission } = useAudioDevice()
@@ -49,8 +48,8 @@ onMounted(() => screenSafeArea.update())
           <DialogTitle>Hearing Input</DialogTitle>
         </VisuallyHidden>
         <HearingConfig
-          :granted="props.granted" :transcription="props.transcription"
-          @toggle-transcription="() => toggleTranscription?.()"
+          v-model:auto-send="autoSend"
+          :granted="props.granted"
         />
         <slot name="extra" />
       </DialogContent>
@@ -79,9 +78,8 @@ onMounted(() => screenSafeArea.update())
           ]"
         />
         <HearingConfig
+          v-model:auto-send="autoSend"
           :granted="props.granted"
-          :transcription="props.transcription"
-          @toggle-transcription="() => toggleTranscription?.()"
         />
         <slot name="extra" />
       </DrawerContent>

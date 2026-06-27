@@ -1,77 +1,32 @@
 import type { StreamOptions } from '@proj-airi/core-agent'
-import type { WebSocketEvents } from '@proj-airi/server-sdk'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
-import type { Message, Tool } from '@xsai/shared-chat'
+import type { Message } from '@xsai/shared-chat'
 
 import { streamFrom as coreStreamFrom, isContentArrayRelatedError, isToolRelatedError, modelKey } from '@proj-airi/core-agent'
 import { listModels } from '@xsai/model'
-import { uniqBy } from 'es-toolkit'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-import { createSparkCommandTool, debug, mcp } from '../tools'
-import { useLlmToolsStore } from './llm-tools'
-import { useModsServerChannelStore } from './mods/api/channel-server'
+import { resolveLlmTools } from './llm-tool-resolver'
 
 export type { StreamEvent, StreamOptions } from '@proj-airi/core-agent'
 export { isContentArrayRelatedError, isToolRelatedError } from '@proj-airi/core-agent'
 
-function toolNameFrom(tool: Tool) {
-  const candidate = tool as Tool & {
-    name?: string
-    function?: {
-      name?: string
-    }
-  }
-
-  return candidate.function?.name ?? candidate.name
-}
-
 export const useLLM = defineStore('llm', () => {
   const toolsCompatibility = ref<Map<string, boolean>>(new Map())
   const contentArrayCompatibility = ref<Map<string, boolean>>(new Map())
-  const modsServerChannelStore = useModsServerChannelStore()
-  const llmToolsStore = useLlmToolsStore()
 
   async function stream(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
     const key = modelKey(model, chatProvider)
-    // TODO(@nekomeowww,@shinohara-rin): we should not register the command callback on every stream anyway...
-    const sendSparkCommand = (command: WebSocketEvents['spark:command']) => {
-      // TODO(@nekomeowww): instruct the LLM to understand what destination is.
-      // Currently without skill like prompt injection, many issues occur.
-      // destination mostly are wrong or hallucinated, we need to find a way to make it more reliable.
-      //
-      // For now, since destinations as array will always broadcast to all connected modules/agents, we can set it to
-      // empty array to avoid wrong routing.
-      command.destinations = []
-
-      modsServerChannelStore.send({
-        type: 'spark:command',
-        data: command,
-      })
-    }
-
-    const builtinToolsResolver = async () => {
-      await llmToolsStore.awaitPendingRegistrations()
-
-      // Reverse twice so later runtime registrations win while original tool order stays stable.
-      return uniqBy(
-        [
-          ...await mcp(),
-          ...await debug(),
-          ...await createSparkCommandTool({ sendSparkCommand }),
-          ...await llmToolsStore.activeTools,
-        ].toReversed(),
-        tool => toolNameFrom(tool) ?? tool,
-      ).toReversed()
-    }
+    const { tools: customTools, ...streamOptions } = options ?? {}
+    const builtinToolsResolver = () => resolveLlmTools({ customTools })
 
     const runStream = () => coreStreamFrom({
       model,
       chatProvider,
       messages,
       options: {
-        ...options,
+        ...streamOptions,
         toolsCompatibility: toolsCompatibility.value,
         contentArrayCompatibility: contentArrayCompatibility.value,
       },
