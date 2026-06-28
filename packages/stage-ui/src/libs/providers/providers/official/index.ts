@@ -22,6 +22,15 @@ export const OFFICIAL_TRANSCRIPTION_PROVIDER_ID = 'official-provider-transcripti
 // first-voice matching when the server returns no recommendations.
 const recommendedVoicesByProvider: Record<string, Record<string, string>> = {}
 
+// Server-curated default HTTP speech model id, populated by the HTTP speech
+// provider's listModels(). The speech store uses this when it needs to seed an
+// empty/stale model selection, so the UI mirrors `/audio/speech` `model: auto`.
+let defaultSpeechModelId: string | null = null
+
+export function getDefaultSpeechModel(): string | null {
+  return defaultSpeechModelId
+}
+
 // Server-curated default streaming model id, populated by the streaming
 // provider's listModels(). Pages that need to seed an initial model selection
 // read this via getDefaultStreamingModel() instead of hardcoding an id.
@@ -117,13 +126,16 @@ export const providerOfficialSpeech = defineProvider({
   validationRequiredWhen: () => false,
   extraMethods: {
     listModels: async (): Promise<ModelInfo[]> => {
+      defaultSpeechModelId = null
       const res = await globalThis.fetch(`${SERVER_URL}/api/v1/audio/models`, { headers: authHeaders() })
       if (!res.ok)
         throw new Error(`audio models upstream ${res.status}: ${await res.text().catch(() => '')}`.slice(0, 256))
 
-      const data = await res.json() as { models?: { id: string, name: string }[] }
+      const data = await res.json() as { models?: { id: string, name: string }[], default?: string | null }
       if (!Array.isArray(data.models))
         throw new Error('audio models upstream returned malformed body')
+
+      defaultSpeechModelId = typeof data.default === 'string' && data.default.length > 0 ? data.default : null
 
       return data.models.map(m => ({
         id: m.id,

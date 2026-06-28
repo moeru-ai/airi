@@ -1,7 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '../../libs/providers/providers/official'
+import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, providerOfficialSpeech } from '../../libs/providers/providers/official'
 import { useProvidersStore } from '../providers'
 import { toSignedPercent, useSpeechStore, voicePackForSpeechProvider } from './speech'
 
@@ -289,7 +289,29 @@ describe('speech store helpers', () => {
    * @example
    * speechStore.ensureActiveSpeechModel()
    */
-  it('resets stale streaming model when the regular official speech provider is active', () => {
+  it('resets stale streaming model to the server default when the regular official speech provider is active', async () => {
+    vi.stubGlobal('localStorage', {
+      getItem: vi.fn(() => null),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    })
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = input.toString()
+      if (url.includes('/api/v1/audio/models')) {
+        return new Response(JSON.stringify({
+          models: [
+            { id: 'alibaba/cosyvoice-v2', name: 'alibaba/cosyvoice-v2' },
+            { id: 'microsoft/v1', name: 'microsoft/v1' },
+          ],
+          default: 'microsoft/v1',
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      }
+      return new Response(JSON.stringify({ voices: [], recommended: {} }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }) as typeof fetch)
+
     const providersStore = useProvidersStore()
     const speechStore = useSpeechStore()
     speechStore.activeSpeechProvider = OFFICIAL_SPEECH_PROVIDER_ID
@@ -301,15 +323,20 @@ describe('speech store helpers', () => {
       provider: OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
       languages: [],
     }
-    providersStore.providerRuntimeState[OFFICIAL_SPEECH_PROVIDER_ID].models = [
-      { id: 'microsoft/v1', name: 'microsoft/v1', provider: OFFICIAL_SPEECH_PROVIDER_ID },
-      { id: 'alibaba/cosyvoice-v2', name: 'alibaba/cosyvoice-v2', provider: OFFICIAL_SPEECH_PROVIDER_ID },
-    ]
+    try {
+      providersStore.providerRuntimeState[OFFICIAL_SPEECH_PROVIDER_ID].models = await providerOfficialSpeech.extraMethods!.listModels!(
+        {},
+        providerOfficialSpeech.createProvider({}),
+      )
 
-    speechStore.ensureActiveSpeechModel()
+      speechStore.ensureActiveSpeechModel()
 
-    expect(speechStore.activeSpeechModel).toBe('microsoft/v1')
-    expect(speechStore.activeSpeechVoiceId).toBe('')
-    expect(speechStore.activeSpeechVoice).toBeUndefined()
+      expect(speechStore.activeSpeechModel).toBe('microsoft/v1')
+      expect(speechStore.activeSpeechVoiceId).toBe('')
+      expect(speechStore.activeSpeechVoice).toBeUndefined()
+    }
+    finally {
+      vi.unstubAllGlobals()
+    }
   })
 })

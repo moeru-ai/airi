@@ -125,8 +125,11 @@ export function createSpeechCatalogOperation(deps: V1RouteDeps): SpeechCatalogOp
   async function listSpeechModels() {
     // Surface the concrete TTS models the operator has configured. The UI
     // should select an explicit model id so voice catalog requests stay
-    // model-scoped instead of hiding behind DEFAULT_TTS_MODEL.
+    // model-scoped instead of hiding behind DEFAULT_TTS_MODEL. The `default`
+    // field lets the initial client selection mirror the same server-side
+    // alias that `/audio/speech` uses for `model: "auto"`.
     const config = await deps.configKV.getOrThrow('LLM_ROUTER_CONFIG')
+    const defaultModel = await deps.configKV.getOrThrow('DEFAULT_TTS_MODEL')
     // `LLM_ROUTER_CONFIG` is `optional()` at the schema, so its inferred type
     // tolerates `undefined`. `getOrThrow` already throws on missing entries,
     // so by this line we know `config` is present — the `?.` here is purely
@@ -134,6 +137,7 @@ export function createSpeechCatalogOperation(deps: V1RouteDeps): SpeechCatalogOp
     const modelIds = Object.keys(config?.tts?.models ?? {}).sort()
     return Response.json({
       models: modelIds.map(id => ({ id, name: id })),
+      default: defaultModel,
     })
   }
 

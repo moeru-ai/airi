@@ -1134,6 +1134,7 @@ describe('v1CompletionsRoutes', () => {
       const app = createTestApp(
         createMockFluxService(),
         createMockConfigKV({
+          DEFAULT_TTS_MODEL: 'microsoft/v1',
           LLM_ROUTER_CONFIG: {
             llm: { models: {} },
             tts: {
@@ -1152,11 +1153,12 @@ describe('v1CompletionsRoutes', () => {
       )
 
       expect(res.status).toBe(200)
-      const data = await res.json() as { models: { id: string, name: string }[] }
+      const data = await res.json() as { models: { id: string, name: string }[], default: string }
       expect(data.models.map(m => m.id)).toEqual([
         'alibaba/cosyvoice-v2',
         'microsoft/v1',
       ])
+      expect(data.default).toBe('microsoft/v1')
     })
 
     it('returns an empty list when no tts models are configured', async () => {
