@@ -253,7 +253,7 @@ export function request(
 	const timeout = options.timeout ?? 30_000
 
 	if (transport.state !== "connected") {
-		throw new Error(`Cannot send request: transport is ${transport.state}.`)
+		return Promise.reject(new Error(`Cannot send request: transport is ${transport.state}.`))
 	}
 
 	const id = generateId()
@@ -261,26 +261,28 @@ export function request(
 
 	return new Promise<unknown>((resolve, reject) => {
 		let settled = false
-		let unsubscribe: (() => void) | undefined
+		let unsubscribe = () => {}
 
 		const timer = setTimeout(() => {
-			if (settled) return
-			settled = true
-			unsubscribe?.()
+			if (!settle()) return
 			reject(new Error(`Request "${method}" timed out after ${timeout}ms.`))
 		}, timeout)
 
+		function settle(): boolean {
+			if (settled) return false
+			settled = true
+			unsubscribe()
+			clearTimeout(timer)
+			return true
+		}
+
 		unsubscribe = transport.onMessage((msg) => {
 			if (msg.type === "response" && msg.correlationId === correlationId) {
-				settled = true
-				unsubscribe()
-				clearTimeout(timer)
+				if (!settle()) return
 				resolve(msg.result)
 			}
 			if (msg.type === "error" && msg.correlationId === correlationId) {
-				settled = true
-				unsubscribe()
-				clearTimeout(timer)
+				if (!settle()) return
 				reject(new Error(`${msg.code}: ${msg.message}`))
 			}
 		})
@@ -295,10 +297,7 @@ export function request(
 				params,
 			})
 			.catch((err) => {
-				if (settled) return
-				settled = true
-				unsubscribe()
-				clearTimeout(timer)
+				if (!settle()) return
 				reject(err)
 			})
 	})

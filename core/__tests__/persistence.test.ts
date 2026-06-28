@@ -8,8 +8,6 @@
 
 import { describe, it, expect, beforeEach } from "vitest"
 
-const _logger = (..._a: unknown[]) => void 0
-
 import { EventBus } from "../events/bus.js"
 import { createLogger } from "../logger.js"
 

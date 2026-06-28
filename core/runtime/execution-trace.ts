@@ -137,22 +137,34 @@ export class ExecutionTrace {
     }
     this.records.push(redacted)
 
-    // Persist to event store if configured.
     if (this.eventStore) {
-      this.eventStore
-        .append({
-          type: 'tool.execution.recorded',
-          timestamp: new Date().toISOString(),
-          source: 'execution-trace',
-          executionId: entry.executionId,
-          toolId: entry.toolId as string,
-          taskId: entry.taskId as string,
-          success: entry.success,
-          durationMs: entry.durationMs,
-        } as AiriEvent)
-        .catch(() => {
-          // Persistence failure should not block in-memory recording.
-        })
+      const event: AiriEvent = entry.success
+        ? {
+            type: 'tool.execution.completed',
+            timestamp: new Date().toISOString(),
+            source: 'execution-trace',
+            executionId: entry.executionId,
+            toolId: entry.toolId,
+            taskId: entry.taskId as string,
+            success: true,
+            durationMs: entry.durationMs ?? Math.max(0, (entry.completedAt ?? entry.startedAt) - entry.startedAt),
+          }
+        : {
+            type: 'tool.execution.failed',
+            timestamp: new Date().toISOString(),
+            source: 'execution-trace',
+            executionId: entry.executionId,
+            toolId: entry.toolId,
+            taskId: entry.taskId as string,
+            error: entry.error ?? {
+              code: 'EXECUTION_ERROR',
+              message: 'Tool execution failed without an error payload.',
+            },
+          }
+
+      this.eventStore.append(event).catch(() => {
+        // Persistence failure should not block in-memory recording.
+      })
     }
   }
 
