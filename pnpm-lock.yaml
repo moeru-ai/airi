@@ -1705,6 +1705,18 @@ importers:
         specifier: 'catalog:'
         version: 1.3.0
 
+  packages/pattern-disruptor:
+    devDependencies:
+      tsdown:
+        specifier: 'catalog:'
+        version: 0.21.9(@arethetypeswrong/core@0.18.2)(oxc-resolver@11.19.1(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2))(publint@0.3.18)(synckit@0.11.12)(typescript@5.9.3)(unplugin-unused@0.5.7)(vue-tsc@3.2.6(typescript@5.9.3))
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vitest:
+        specifier: catalog:vitest
+        version: 4.1.4(@opentelemetry/api@1.9.1)(@types/node@25.6.0)(@vitest/browser-playwright@4.1.4)(@vitest/coverage-v8@4.1.4)(jsdom@29.1.1(@noble/hashes@2.0.1)(canvas@3.2.3))(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.7.0)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
+
   packages/pipelines-audio:
     dependencies:
       '@moeru/eventa':
@@ -1956,6 +1968,9 @@ importers:
       '@proj-airi/i18n':
         specifier: workspace:*
         version: link:../i18n
+      '@proj-airi/pattern-disruptor':
+        specifier: workspace:*
+        version: link:../pattern-disruptor
       '@proj-airi/server-sdk':
         specifier: workspace:*
         version: link:../server-sdk
@@ -2168,6 +2183,9 @@ importers:
       '@proj-airi/model-driver-lipsync':
         specifier: workspace:^
         version: link:../model-driver-lipsync
+      '@proj-airi/pattern-disruptor':
+        specifier: workspace:^
+        version: link:../pattern-disruptor
       '@proj-airi/pipelines-audio':
         specifier: workspace:^
         version: link:../pipelines-audio

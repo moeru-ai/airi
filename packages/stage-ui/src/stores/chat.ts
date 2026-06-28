@@ -28,6 +28,7 @@ import { useLlmToolsetPromptsStore } from './llm-toolset-prompts'
 import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
+import { usePatternDisruptorStore } from './pattern-disruptor'
 
 interface ForkOptions {
   fromSessionId?: string
@@ -53,6 +54,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const llmToolsetPromptsStore = useLlmToolsetPromptsStore()
   const consciousnessStore = useConsciousnessStore()
   const artistryAutonomousStore = useAutonomousArtistryStore()
+  const patternDisruptorStore = usePatternDisruptorStore()
   const { activeProvider } = storeToRefs(consciousnessStore)
   const {
     trackFirstMessage,
@@ -69,6 +71,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const cardStore = useAiriCardStore()
   const contextObservability = useContextObservabilityStore()
   const { activeSessionId } = storeToRefs(chatSession)
+  const { activeCardId } = storeToRefs(cardStore)
   const { streamingMessage } = storeToRefs(chatStream)
 
   const sending = ref(false)
@@ -158,7 +161,11 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     },
     getActiveSessionId: () => activeSessionId.value,
     getActiveProvider: () => activeProvider.value,
-    getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
+    getSystemPromptSupplement: () =>
+      [llmToolsetPromptsStore.activeToolsetPrompt, patternDisruptorStore.activePromptSupplement]
+        .map((section) => section.trim())
+        .filter(Boolean)
+        .join('\n\n'),
     runtimeContextProviders: [createMinecraftContext],
     createId: nanoid,
     unwrapMessage: (message) => toRaw(message),
@@ -213,6 +220,12 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       }
     },
     onUserTurnReady: ({ messageText, sessionMessages }) => {
+      patternDisruptorStore.prepareForUserTurn({
+        settings: cardStore.activeCard?.extensions?.airi?.modules?.patternDisruptor,
+        messageText,
+        sessionMessages,
+      })
+
       const autonomousTarget = cardStore.activeCard?.extensions?.airi?.modules?.artistry?.autonomousTarget || 'user'
       if (autonomousTarget === 'user')
         void artistryAutonomousStore.runArtistTask(messageText, toProviderHistory(sessionMessages))
@@ -226,6 +239,10 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
   watch(sending, (next) => {
     if (runtime.getSending() !== next) runtime.setSending(next)
+  })
+
+  watch([activeSessionId, activeCardId], () => {
+    patternDisruptorStore.resetState()
   })
 
   async function ingest(sendingMessage: string, options: ChatOrchestratorSendOptions, targetSessionId?: string) {

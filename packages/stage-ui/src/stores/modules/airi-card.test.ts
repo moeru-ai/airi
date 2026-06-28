@@ -89,6 +89,24 @@ describe('airi-card store', () => {
     expect(stageModelStore.stageModelSelected).toBe('preset-live2d-1')
   })
 
+  it('initializes pattern disruptor settings as disabled by default', () => {
+    const cardStore = useAiriCardStore()
+    cardStore.initialize()
+
+    expect(cardStore.activeCard?.extensions.airi.modules.patternDisruptor).toMatchObject({
+      enabled: false,
+      language: 'auto',
+      randomWords: {
+        enabled: true,
+        wordCount: 3,
+      },
+      synonyms: {
+        enabled: true,
+        minOccurrences: 5,
+      },
+    })
+  })
+
   /**
    * @example
    * it('freezes a Voice Pack snapshot on the active card', () => {})

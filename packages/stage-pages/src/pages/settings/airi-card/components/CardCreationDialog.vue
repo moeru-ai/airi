@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import type { Card } from '@proj-airi/ccc'
+import type { PatternDisruptorSettings } from '@proj-airi/pattern-disruptor'
 import type { AiriExtension } from '@proj-airi/stage-ui/stores/modules/airi-card'
 
 import kebabcase from '@stdlib/string-base-kebabcase'
 
+import { resolvePatternDisruptorSettings } from '@proj-airi/pattern-disruptor'
 import { DEFAULT_ARTISTRY_WIDGET_INSTRUCTION } from '@proj-airi/stage-ui/constants/prompts/artistry-instruction'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
@@ -20,6 +22,7 @@ import { computed, ref, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import CardCreationTabArtistry from './tabs/CardCreationTabArtistry.vue'
+import CardCreationTabPatternDisruptor from './tabs/CardCreationTabPatternDisruptor.vue'
 
 interface Props {
   cardId?: string // If provided, edit mode; otherwise create mode
@@ -87,6 +90,7 @@ const selectedArtistrySpawnMode = ref<'bg' | 'widget' | 'inline' | 'bg_widget'>(
 const selectedArtistryAutonomousEnabled = ref<boolean>(false)
 const selectedArtistryAutonomousThreshold = ref<number>(70)
 const selectedArtistryConfigStr = ref<string>('{\n  \n}')
+const selectedPatternDisruptor = ref<PatternDisruptorSettings>(resolvePatternDisruptorSettings())
 
 // Computed: available display model options
 const displayModelOptions = computed(() =>
@@ -229,6 +233,11 @@ const tabs: Tab[] = [
   { id: 'behavior', label: t('settings.pages.card.creation.behavior'), icon: 'i-solar:chat-round-line-bold-duotone' },
   { id: 'modules', label: t('settings.pages.card.modules'), icon: 'i-solar:widget-4-bold-duotone' },
   { id: 'artistry', label: t('settings.pages.modules.artistry.title'), icon: 'i-solar:gallery-bold-duotone' },
+  {
+    id: 'pattern-disruptor',
+    label: t('settings.pages.modules.pattern-disruptor.title'),
+    icon: 'i-solar:magic-stick-3-bold-duotone',
+  },
   { id: 'settings', label: t('settings.pages.card.creation.settings'), icon: 'i-solar:settings-bold-duotone' },
 ]
 
@@ -359,6 +368,7 @@ function saveCard(card: Card): boolean {
             autonomousEnabled: selectedArtistryAutonomousEnabled.value,
             autonomousThreshold: selectedArtistryAutonomousThreshold.value,
           },
+          patternDisruptor: resolvePatternDisruptorSettings(selectedPatternDisruptor.value),
         },
         agents: {},
       } as AiriExtension,
@@ -401,6 +411,7 @@ function initializeCard(): Card {
   selectedArtistrySpawnMode.value = artistrySettings?.spawnMode || 'bg_widget'
   selectedArtistryAutonomousEnabled.value = artistrySettings?.autonomousEnabled ?? false
   selectedArtistryAutonomousThreshold.value = artistrySettings?.autonomousThreshold ?? 70
+  selectedPatternDisruptor.value = resolvePatternDisruptorSettings(airiExt?.modules?.patternDisruptor)
 
   try {
     selectedArtistryConfigStr.value = artistrySettings?.options
@@ -795,6 +806,10 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
             v-model:selected-artistry-config-str="selectedArtistryConfigStr"
             :artistry-provider-options="artistryProviderOptions"
             :default-artistry-provider-placeholder="getDefaultPlaceholder(defaultArtistryProvider)"
+          />
+          <CardCreationTabPatternDisruptor
+            v-else-if="activeTab === 'pattern-disruptor'"
+            v-model:settings="selectedPatternDisruptor"
           />
 
           <div class="ml-auto mr-1 flex flex-row gap-2">

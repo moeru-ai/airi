@@ -580,6 +580,73 @@ pages:
         label: Widget System Prompt
         description: Custom instructions for the AI on how to use the generation
           capabilities.
+    pattern-disruptor:
+      title: Pattern
+      description: Prompt variation controls for long conversations.
+      card:
+        description: Add controlled vocabulary variation to this character's replies.
+      enable:
+        label: Enable Pattern Disruptor
+      language:
+        label: Language
+        options:
+          auto: Auto
+          en: English
+          ru: Russian
+      max_prompt_words:
+        label: Prompt budget
+        description: Maximum words added to the system prompt.
+      random:
+        title: Random Words
+        word_count:
+          label: Word count
+          description: Number of words to inject each turn.
+        mode:
+          label: Mode
+          options:
+            random: Random
+            double-pass: Double pass
+            contextual: Contextual
+        word_length:
+          label: Word length
+          description: Exact length, or 0 for any length.
+        history:
+          label: History size
+          description: Recent injected words to avoid repeating.
+        parts:
+          noun: Noun
+          verb: Verb
+          adjective: Adjective
+          adverb: Adverb
+        blacklist:
+          label: Blacklist
+          description: Words excluded from random injection.
+          placeholder: word
+        prompt:
+          label: Random word prompt
+          description: Use {{words}} where the generated words should appear.
+      synonyms:
+        title: Word Freshness
+        scan_depth:
+          label: Scan depth
+          description: Recent assistant messages to scan.
+        min_occurrences:
+          label: Minimum repeats
+          description: Count needed before a word is flagged.
+        top_n:
+          label: Max flagged words
+          description: Number of repeated words to include.
+        output:
+          label: Output
+          options:
+            with-suggestions: With suggestions
+            avoid-only: Avoid only
+        prompt:
+          label: Freshness prompt
+          description: Use {{rows}} where repeated-word rows should appear.
+        row_prompt:
+          label: Row prompt
+          description: Supports {{originalWord}}, {{count}}, and {{synonyms}}.
     categories:
       essential: Essential
       messaging: Messaging

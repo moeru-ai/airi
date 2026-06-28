@@ -1,0 +1,34 @@
+{
+  "bright": {
+    "s": ["luminous", "vivid", "radiant", "clear"],
+    "a": ["glimmer", "lantern", "aurora", "spark"]
+  },
+  "curious": {
+    "s": ["inquisitive", "searching", "questioning"],
+    "a": ["compass", "threshold", "horizon"]
+  },
+  "garden": {
+    "s": ["grove", "plot", "courtyard"],
+    "a": ["moss", "harvest", "lantern", "ripple"]
+  },
+  "nice": {
+    "s": ["kind", "warm", "graceful", "pleasant"],
+    "a": ["tender", "patient", "softly"]
+  },
+  "soft": {
+    "s": ["gentle", "muted", "tender"],
+    "a": ["hushed", "moss", "quietly"]
+  },
+  "walk": {
+    "s": ["wander", "stroll", "pace"],
+    "a": ["drift", "linger", "sideways"]
+  },
+  "story": {
+    "s": ["account", "tale", "thread"],
+    "a": ["weave", "fold", "threshold"]
+  },
+  "warm": {
+    "s": ["kind", "cordial", "glowing"],
+    "a": ["ember", "kindle", "warmly"]
+  }
+}

@@ -174,7 +174,7 @@ watch(
       isCardCreationDialogOpen.value = false
     }
     // Artistry or other editing tabs go to Creation/Edit dialog
-    else if (['artistry', 'identity', 'behavior', 'modules', 'settings'].includes(targetTab)) {
+    else if (['artistry', 'identity', 'behavior', 'modules', 'pattern-disruptor', 'settings'].includes(targetTab)) {
       editingCardId.value = cardId
       isCardCreationDialogOpen.value = true
       isCardDialogOpen.value = false
@@ -216,7 +216,6 @@ const getModuleShortName = (id: string, module: 'consciousness' | 'voice') => {
 
   return 'default'
 }
-
 </script>
 
 <template>

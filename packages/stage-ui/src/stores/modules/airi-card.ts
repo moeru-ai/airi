@@ -1,5 +1,7 @@
 import type { Card, ccv3 } from '@proj-airi/ccc'
+import type { PatternDisruptorSettings } from '@proj-airi/pattern-disruptor'
 
+import { resolvePatternDisruptorSettings } from '@proj-airi/pattern-disruptor'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { watchDebounced } from '@vueuse/core'
 import { nanoid } from 'nanoid'
@@ -89,6 +91,8 @@ export interface AiriExtension {
       autonomousThreshold?: number
       autonomousTarget?: 'user' | 'assistant'
     }
+
+    patternDisruptor?: PatternDisruptorSettings
   }
 
   agents: {
@@ -232,6 +236,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
         autonomousThreshold: 70,
         autonomousTarget: 'assistant' as const,
       },
+      patternDisruptor: resolvePatternDisruptorSettings(),
     } as const
 
     // Return default if no extension exists
@@ -310,6 +315,9 @@ export const useAiriCardStore = defineStore('airi-card', () => {
             existingExtension.artistry?.autonomousTarget ??
             defaultModules.artistry.autonomousTarget,
         },
+        patternDisruptor: resolvePatternDisruptorSettings(
+          existingExtension.modules?.patternDisruptor ?? defaultModules.patternDisruptor,
+        ),
       },
       agents: existingExtension.agents ?? {},
     }
@@ -488,6 +496,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
         },
         displayModelId: stageModelStore.stageModelSelected,
         activeBackgroundId: activeCard.value?.extensions?.airi?.modules?.activeBackgroundId,
+        patternDisruptor: activeCard.value?.extensions?.airi?.modules?.patternDisruptor,
       } satisfies AiriExtension['modules']
     }),
 
