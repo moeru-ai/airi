@@ -412,6 +412,19 @@ function lookupRecommendedVoiceId(locale: string, map: Record<string, string>): 
   return undefined
 }
 
+function findRecommendedVoice(voices: VoiceInfo[], recommendedMap: Record<string, string>): VoiceInfo | undefined {
+  const seen = new Set<string>()
+  for (const voiceId of Object.values(recommendedMap)) {
+    if (seen.has(voiceId))
+      continue
+    seen.add(voiceId)
+    const voice = voices.find(v => v.id === voiceId)
+    if (voice)
+      return voice
+  }
+  return undefined
+}
+
 const AUTO_PICK_PROVIDER_IDS = new Set([OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID])
 
 // NOTICE: Only the official speech providers (HTTP + streaming) auto-configure
@@ -428,11 +441,11 @@ export function setupOfficialSpeechAutoPick(ctx: {
   watch([ctx.availableVoices, ctx.activeSpeechProvider], ([voices, provider]) => {
     if (!AUTO_PICK_PROVIDER_IDS.has(provider))
       return
-    if (ctx.activeSpeechVoiceId.value)
-      return
 
     const providerVoices = voices[provider]
     if (!providerVoices?.length)
+      return
+    if (ctx.activeSpeechVoiceId.value && providerVoices.some(v => v.id === ctx.activeSpeechVoiceId.value))
       return
 
     const localeCodes = Array.from(new Set(
@@ -449,13 +462,16 @@ export function setupOfficialSpeechAutoPick(ctx: {
     // voice when nothing matches):
     //   1) server-recommended voice for the exact locale, then the same
     //      language prefix
-    //   2) first voice speaking the exact target locale
-    //   3) any English voice (en-US, then en-*) — broadest comprehensible
+    //   2) any other server-recommended voice for the same model
+    //   3) first voice speaking the exact target locale
+    //   4) any English voice (en-US, then en-*) — broadest comprehensible
     //      fallback when the user's locale has no coverage at all
-    //   4) alphabetical first voice, as a last resort
-    const recommendedId = lookupRecommendedVoiceId(targetLocale, recommendedVoicesByProvider[provider] ?? {})
+    //   5) alphabetical first voice, as a last resort
+    const recommendedMap = recommendedVoicesByProvider[provider] ?? {}
+    const recommendedId = lookupRecommendedVoiceId(targetLocale, recommendedMap)
     const speaksLocale = (v: VoiceInfo, code: string) => (v.languages || []).some(l => l.code === code)
     const match = (recommendedId && providerVoices.find(v => v.id === recommendedId))
+      || findRecommendedVoice(providerVoices, recommendedMap)
       || providerVoices.find(v => speaksLocale(v, targetLocale))
       || providerVoices.find(v => speaksLocale(v, 'en-US'))
       || providerVoices.find(v => (v.languages || []).some(l => l.code.toLowerCase().startsWith('en')))

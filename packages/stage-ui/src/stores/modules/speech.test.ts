@@ -5,15 +5,20 @@ import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, pro
 import { useProvidersStore } from '../providers'
 import { toSignedPercent, useSpeechStore, voicePackForSpeechProvider } from './speech'
 
+const i18nState = vi.hoisted(() => ({
+  locale: { value: 'en-US' },
+}))
+
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
-    locale: { value: 'en-US' },
+    locale: i18nState.locale,
     t: (_key: string, fallback?: string) => fallback ?? _key,
   }),
 }))
 
 describe('speech store helpers', () => {
   beforeEach(() => {
+    i18nState.locale.value = 'en-US'
     setActivePinia(createPinia())
   })
 
@@ -334,6 +339,121 @@ describe('speech store helpers', () => {
       expect(speechStore.activeSpeechModel).toBe('microsoft/v1')
       expect(speechStore.activeSpeechVoiceId).toBe('')
       expect(speechStore.activeSpeechVoice).toBeUndefined()
+    }
+    finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  /**
+   * @example
+   * await speechStore.loadVoicesForProvider(OFFICIAL_SPEECH_PROVIDER_ID, 'microsoft/v1')
+   */
+  it('uses the server recommended voice when the persisted official voice is stale', async () => {
+    vi.stubGlobal('localStorage', {
+      getItem: vi.fn(() => null),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    })
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = input.toString()
+      if (url.includes('/api/v1/audio/models')) {
+        return new Response(JSON.stringify({
+          models: [{ id: 'microsoft/v1', name: 'microsoft/v1' }],
+          default: 'microsoft/v1',
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      }
+      return new Response(JSON.stringify({
+        voices: [
+          {
+            id: 'en-US-JennyNeural',
+            name: 'Jenny',
+            languages: [{ code: 'en-US', title: 'English' }],
+          },
+          {
+            id: 'en-US-AvaMultilingualNeural',
+            name: 'Ava',
+            languages: [{ code: 'en-US', title: 'English' }],
+          },
+        ],
+        recommended: { 'en-US': 'en-US-AvaMultilingualNeural' },
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    }) as typeof fetch)
+
+    const providersStore = useProvidersStore()
+    const speechStore = useSpeechStore()
+    speechStore.activeSpeechProvider = OFFICIAL_SPEECH_PROVIDER_ID
+    speechStore.activeSpeechModel = 'old-model'
+    speechStore.activeSpeechVoiceId = 'old-model-voice'
+
+    try {
+      providersStore.providerRuntimeState[OFFICIAL_SPEECH_PROVIDER_ID].models = await providerOfficialSpeech.extraMethods!.listModels!(
+        {},
+        providerOfficialSpeech.createProvider({}),
+      )
+
+      speechStore.ensureActiveSpeechModel()
+      await speechStore.loadVoicesForProvider(OFFICIAL_SPEECH_PROVIDER_ID, speechStore.activeSpeechModel)
+
+      expect(speechStore.activeSpeechModel).toBe('microsoft/v1')
+      expect(speechStore.activeSpeechVoiceId).toBe('en-US-AvaMultilingualNeural')
+    }
+    finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  /**
+   * @example
+   * await speechStore.loadVoicesForProvider(OFFICIAL_SPEECH_PROVIDER_ID, 'microsoft/v1')
+   */
+  it('uses another server recommended voice when the current locale has no recommendation', async () => {
+    i18nState.locale.value = 'ko-KR'
+    vi.stubGlobal('localStorage', {
+      getItem: vi.fn(() => null),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    })
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = input.toString()
+      if (url.includes('/api/v1/audio/models')) {
+        return new Response(JSON.stringify({
+          models: [{ id: 'microsoft/v1', name: 'microsoft/v1' }],
+          default: 'microsoft/v1',
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      }
+      return new Response(JSON.stringify({
+        voices: [
+          {
+            id: 'ko-KR-SunHiNeural',
+            name: 'SunHi',
+            languages: [{ code: 'ko-KR', title: 'Korean' }],
+          },
+          {
+            id: 'zh-CN-XiaochenNeural',
+            name: 'Xiaochen',
+            languages: [{ code: 'zh-CN', title: 'Chinese' }],
+          },
+        ],
+        recommended: { 'zh-CN': 'zh-CN-XiaochenNeural' },
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    }) as typeof fetch)
+
+    const providersStore = useProvidersStore()
+    const speechStore = useSpeechStore()
+    speechStore.activeSpeechProvider = OFFICIAL_SPEECH_PROVIDER_ID
+
+    try {
+      providersStore.providerRuntimeState[OFFICIAL_SPEECH_PROVIDER_ID].models = await providerOfficialSpeech.extraMethods!.listModels!(
+        {},
+        providerOfficialSpeech.createProvider({}),
+      )
+
+      speechStore.ensureActiveSpeechModel()
+      await speechStore.loadVoicesForProvider(OFFICIAL_SPEECH_PROVIDER_ID, speechStore.activeSpeechModel)
+
+      expect(speechStore.activeSpeechModel).toBe('microsoft/v1')
+      expect(speechStore.activeSpeechVoiceId).toBe('zh-CN-XiaochenNeural')
     }
     finally {
       vi.unstubAllGlobals()
