@@ -130,6 +130,12 @@ The module should register tools through `useLlmToolsStore` and prompt
 contributions through `useLlmToolsetPromptsStore`, matching the existing plugin
 and MCP tool patterns.
 
+Coding state should attach to the active chat session where possible. AIRI
+already has a session store, session metadata, and a sessions drawer, so the
+coding module should not introduce a parallel conversation model. When the
+user is having a normal conversation, coding controls stay compact and inactive
+unless a workspace or coding mode is selected.
+
 ## Modes
 
 Modes are Roo-inspired but AIRI-owned. They control tool availability and prompt
@@ -206,6 +212,12 @@ Gates:
 
 MCP should be treated as a first-class substrate. The existing Electron MCP
 runtime remains the lifecycle owner for stdio servers.
+
+Serena is an external dependency and should not be silently installed. The MCP
+settings page should provide a predefined Serena server template with a link to
+Serena's setup documentation and a clear prerequisite that `uv` must be
+available on `PATH`. Users can then test and enable the server through AIRI's
+normal MCP config flow.
 
 The coding workspace adds a semantic facade over MCP:
 
@@ -355,6 +367,11 @@ should be designed so ACP can plug in without a rewrite.
 
 The existing chat timeline remains the only visible transcript.
 
+Coding mode must integrate into the vanilla AIRI chat window without
+obstructing normal conversation. The default experience remains regular chat;
+workspace controls appear as a compact strip or drawer only when the user opts
+into coding context.
+
 Additions:
 
 - coding mode selector
@@ -413,9 +430,9 @@ User sends message with engine = ACP: Pi
 
 Persist at least:
 
-- active workspace root per chat session
-- selected mode per chat session
-- selected engine per chat session
+- active workspace root for each chat session that has coding enabled
+- selected mode for each coding-enabled chat session
+- selected engine for each coding-enabled chat session
 - command artifacts and summaries
 - approval decisions that are safe to remember
 - todo state
@@ -467,7 +484,8 @@ Contract tests:
 ### Milestone 2 - MCP Hardening
 
 - Improve MCP status visibility in chat/settings.
-- Add Serena configuration helper.
+- Add a predefined Serena MCP configuration template with setup link and `uv`
+  prerequisite guidance.
 - Add diagnostics for missing or failing MCP servers.
 - Borrow only lifecycle/config reliability fixes from external AIRI forks if
   upstream behavior is insufficient.
@@ -489,12 +507,9 @@ Contract tests:
 
 ## Open Questions
 
-1. Should the first UI expose coding mode globally or per chat session?
-2. Should Serena setup be automatic when `.serena/project.yml` exists, or only
-   configured through the MCP settings page?
-3. Should `Architect` mode be allowed to write markdown plans immediately, or
+1. Should `Architect` mode be allowed to write markdown plans immediately, or
    should all writes require approval in the first milestone?
-4. Which ACP backend should be validated first: Pi or Codex?
+2. Which ACP backend should be validated first: Pi or Codex?
 
 ## Decision
 
@@ -502,4 +517,6 @@ Proceed with an AIRI-native coding workspace hosted in the existing chat window.
 Use MCP, especially Serena, as the preferred code-intelligence backend. Keep all
 workspace authority and approvals in AIRI. Treat Pi/Codex through ACP as optional
 subprocess engines that can stream into AIRI's native timeline without owning the
-renderer or policy layer.
+renderer or policy layer. Coding state is scoped to chat sessions when enabled,
+and Serena is offered through MCP settings as a predefined external integration
+rather than auto-installed.
