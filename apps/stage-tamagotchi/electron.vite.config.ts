@@ -163,7 +163,7 @@ export default defineConfig({
     server: {
       fs: {
         // To mute errors like:
-        //   The request id ".../node_modules/@fontsource/sniglet/files/sniglet-latin-400-normal.woff" is outside of Vite serving allow list.
+        // The request id ".../node_modules/@fontsource/sniglet/files/sniglet-latin-400-normal.woff" is outside of Vite serving allow list.
         //
         // See: https://vite.dev/config/server-options#server-fs-strict
         strict: false,
@@ -173,6 +173,16 @@ export default defineConfig({
           `${resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src'))}/*.vue`,
           `${resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src'))}/*.vue`,
         ],
+      },
+      // Proxy OpenAI-compatible API calls to the backend so the browser
+      // never makes a cross-origin request directly to localhost:3001.
+      // In production (packaged Electron) this is a non-issue because the
+      // renderer runs in Electron's webview, not a browser.
+      proxy: {
+        '/v1': {
+          target: 'http://localhost:3001',
+          changeOrigin: true,
+        },
       },
     },
 

@@ -19,6 +19,31 @@ function normalizeBaseUrl(value: unknown): string {
   return base
 }
 
+/**
+ * In dev mode, rewrite localhost:3001/v1/ base URLs to /v1/ so the Vite
+ * proxy (configured in electron.vite.config.ts) intercepts the request.
+ * This avoids CORS errors when the renderer runs on the Vite dev server.
+ * In production (packaged Electron), the renderer runs in Electron's webview
+ * where CORS doesn't apply, so we keep the original baseUrl.
+ */
+function rewriteBaseUrlForDev(baseUrl: string): string {
+  if (!import.meta.env.DEV) return baseUrl
+  try {
+    const url = new URL(baseUrl)
+    // Rewrite localhost:3001/v1/* to /v1/*
+    if (url.hostname === 'localhost' && url.port === '3001' && url.pathname.startsWith('/v1/')) {
+      return '/v1/'
+    }
+    // Also handle 127.0.0.1
+    if (url.hostname === '127.0.0.1' && url.port === '3001' && url.pathname.startsWith('/v1/')) {
+      return '/v1/'
+    }
+  } catch {
+    // Invalid URL, return as-is
+  }
+  return baseUrl
+}
+
 function shouldLog(): boolean {
   try {
     // Opt-in via localStorage to minimize I/O in production
@@ -75,8 +100,7 @@ export function buildOpenAICompatibleProvider(
     listModels: async (config: Record<string, unknown>) => {
       // Safer casting of apiKey/baseUrl (prevents .trim() crash if not a string)
       const apiKey = normalizeString(config.apiKey)
-      const baseUrl = normalizeBaseUrl(config.baseUrl)
-
+      const baseUrl = rewriteBaseUrlForDev(normalizeBaseUrl(config.baseUrl))
       // If not configured yet, avoid remote calls and return empty
       if (!apiKey || !baseUrl) {
         return []
@@ -125,8 +149,8 @@ export function buildOpenAICompatibleProvider(
     chatPingCheckAvailable: false,
     validateProviderConfig: async (config: Record<string, unknown>) => {
       const errors: Error[] = []
-      let baseUrl = normalizeString(config.baseUrl)
       const apiKey = normalizeString(config.apiKey)
+      let baseUrl = normalizeString(config.baseUrl)
 
       if (!apiKey) {
         errors.push(new Error('API Key is required'))
@@ -145,7 +169,7 @@ export function buildOpenAICompatibleProvider(
       }
 
       // normalize trailing slash instead of rejecting
-      baseUrl = normalizeBaseUrl(baseUrl)
+      baseUrl = rewriteBaseUrlForDev(normalizeBaseUrl(baseUrl))
 
       if (errors.length > 0) {
         return {
@@ -265,7 +289,7 @@ export function buildOpenAICompatibleProvider(
     }),
     createProvider: (config: { apiKey: string; baseUrl: string }) => {
       const apiKey = normalizeString(config.apiKey)
-      const baseUrl = normalizeBaseUrl(config.baseUrl)
+      const baseUrl = rewriteBaseUrlForDev(normalizeBaseUrl(config.baseUrl))
       return Promise.resolve(creator(apiKey, baseUrl))
     },
     capabilities: finalCapabilities,
