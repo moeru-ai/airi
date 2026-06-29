@@ -137,7 +137,10 @@ export function sharedUnoConfig() {
           ...createExternalPackageIconLoader('@proj-airi/iconify-meteocons'),
         },
       }),
-      presetScrollbar(),
+      presetScrollbar({
+        // Electron's packaged Chromium build still needs the legacy scrollbar selectors.
+        compatible: true,
+      }),
       presetChromatic({
         baseHue: 220.44,
         colors: {

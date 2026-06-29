@@ -25,6 +25,11 @@ import {
   electronWindowSetAlwaysOnTop,
 } from '../../../../shared/eventa'
 
+const emit = defineEmits<{
+  (e: 'openVoiceInputLogs'): void
+  (e: string, ...args: unknown[]): void
+}>()
+
 const { isDark, toggleDark } = useTheme()
 const { t } = useI18n()
 
@@ -184,6 +189,15 @@ function refreshWindow() {
               </ControlButton>
               <template #tooltip>
                 {{ t('tamagotchi.stage.controls-island.refresh') }}
+              </template>
+            </ControlButtonTooltip>
+
+            <ControlButtonTooltip disable-hoverable-content>
+              <ControlButton :button-style="adjustStyleClasses.button" @click="emit('openVoiceInputLogs')">
+                <div i-solar:document-text-outline :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+              </ControlButton>
+              <template #tooltip>
+                Voice input logs
               </template>
             </ControlButtonTooltip>
 

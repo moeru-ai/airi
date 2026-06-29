@@ -129,7 +129,7 @@ onMounted(async () => {
         ]"
         @click="recording = true"
       >
-        <span :class="recording ? ['animate-pulse animate-duration-2s animate-count-infinite'] : []">
+        <span :class="recording ? ['animate-pulse shortcut-recording-loop'] : []">
           {{ shortcutLabel }}
         </span>
       </button>
@@ -141,6 +141,13 @@ onMounted(async () => {
     </div>
   </section>
 </template>
+
+<style scoped>
+.shortcut-recording-loop {
+  animation-duration: 2s;
+  animation-iteration-count: infinite;
+}
+</style>
 
 <route lang="yaml">
 meta:
