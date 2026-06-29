@@ -4,6 +4,7 @@ import type { VisionWorkloadId } from '../../../composables/vision/use-vision-wo
 
 import { errorMessageFrom } from '@moeru/std'
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
+import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
@@ -53,8 +54,13 @@ export const useVisionOrchestratorStore = defineStore('vision-orchestrator', () 
   const modsServerChannelStore = useModsServerChannelStore()
   const { runVisionInference, lastText } = useVisionInference()
 
-  const lastResultText = ref('')
-  const lastResultAt = ref<number | null>(null)
+  // Persisted to localStorage so the latest screen description crosses Electron windows: the
+  // capture runs in one renderer's Pinia, but the chat composes in another. A plain ref would
+  // only update in the capturing window; localStorage syncs live via the storage event, so the
+  // chat window's createVisionContext reads the current frame. (Freshness gating in the provider
+  // discards a stale frame left over from before a restart.)
+  const lastResultText = useLocalStorageManualReset('settings/vision/last-result-text', '')
+  const lastResultAt = useLocalStorageManualReset<number | null>('settings/vision/last-result-at', null)
   const lastError = ref<string | null>(null)
   const lastWorkloadId = ref<VisionWorkloadId>('screen:interpret')
 
