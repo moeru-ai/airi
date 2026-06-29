@@ -1,11 +1,13 @@
 import type { Card, ccv3 } from '@proj-airi/ccc'
+import type { GenericSchema, InferOutput } from 'valibot'
 
-import type { useDisplayModelsStore } from '../stores/display-models'
+import type { DisplayModel, useDisplayModelsStore } from '../stores/display-models'
 import type { AiriCard, AiriExtension } from '../stores/modules/airi-card'
 
 import JSZip from 'jszip'
 
 import { exportToJSON } from '@proj-airi/ccc'
+import { array, literal, object, optional, parse, picklist, record, string, unknown as unknownSchema } from 'valibot'
 
 import { DisplayModelFormat } from '../stores/display-models'
 
@@ -13,55 +15,64 @@ const FORMAT = 'airi-character-card'
 const VERSION = 1
 const CARD_PATH = 'card.json'
 const MANIFEST_PATH = 'manifest.json'
-const MODEL_EXT = {
+const MODEL_EXT: Partial<Record<DisplayModelFormat, string>> = {
   [DisplayModelFormat.Live2dZip]: 'zip',
   [DisplayModelFormat.SpineZip]: 'zip',
   [DisplayModelFormat.VRM]: 'vrm',
-} as const
+}
 
-type SupportedDisplayModelFormat = keyof typeof MODEL_EXT
 type DisplayModelsStore = ReturnType<typeof useDisplayModelsStore>
 type ExportableCard = Card & { extensions: { airi: AiriExtension } }
 
-interface Manifest {
-  format: typeof FORMAT
-  version: typeof VERSION
-  createdAt: string
-  card: { path: typeof CARD_PATH, spec: 'chara_card_v3' }
-  resources?: {
-    displayModel?: { path: string, format: SupportedDisplayModelFormat, name: string }
-  }
-}
+const manifestSchema = object({
+  format: literal(FORMAT),
+  version: literal(VERSION),
+  card: object({ path: literal(CARD_PATH), spec: literal('chara_card_v3') }),
+  resources: optional(object({
+    displayModel: object({
+      path: string(),
+      format: picklist([DisplayModelFormat.Live2dZip, DisplayModelFormat.SpineZip, DisplayModelFormat.VRM]),
+      name: string(),
+    }),
+  })),
+})
 
-export type AiriCardPackageErrorCode = 'missing-file' | 'invalid-file'
+const characterCardV3Schema = object({
+  spec: literal('chara_card_v3'),
+  spec_version: literal('3.0'),
+  data: object({
+    name: string(),
+    nickname: optional(string()),
+    character_version: optional(string(), '1.0.0'),
+    description: optional(string(), ''),
+    personality: optional(string(), ''),
+    scenario: optional(string(), ''),
+    first_mes: optional(string(), ''),
+    alternate_greetings: optional(array(string()), []),
+    creator_notes: optional(string(), ''),
+    system_prompt: optional(string(), ''),
+    post_history_instructions: optional(string(), ''),
+    extensions: optional(record(string(), unknownSchema()), {}),
+  }),
+})
 
-export interface ExportAiriCardPackageOptions {
-  card: AiriCard
-  displayModelsStore: DisplayModelsStore
-}
+type CharacterCardPackageJson = InferOutput<typeof characterCardV3Schema>
 
-export interface ImportAiriCardPackageOptions {
-  file: File
-  displayModelsStore: DisplayModelsStore
-}
+type AiriCardPackageErrorCode = 'missing-file' | 'invalid-file'
+type Manifest = InferOutput<typeof manifestSchema>
 
 export class AiriCardPackageError extends Error {
-  constructor(public readonly code: AiriCardPackageErrorCode, message: string) {
-    super(message)
+  constructor(public readonly code: AiriCardPackageErrorCode, message: string, options?: { cause?: unknown }) {
+    super(message, options)
     this.name = 'AiriCardPackageError'
   }
 }
 
-/** Creates character card package download filenames from the character name. */
-export function createAiriCardPackageFileName(card: Pick<AiriCard, 'name'>): string {
-  return `${card.name.trim()}.zip`
-}
-
 /** Exports only the creation/edit form whitelist; provider globals and runtime state are never cloned. */
-export async function exportAiriCardPackage({ card, displayModelsStore }: ExportAiriCardPackageOptions): Promise<Blob> {
+export async function exportAiriCardPackage({ card, displayModelsStore }: { card: AiriCard, displayModelsStore: DisplayModelsStore }): Promise<Blob> {
   const exportableCard = cardFromAiriCard(card)
   const displayModel = await exportDisplayModel(exportableCard, displayModelsStore)
-  const manifest: Manifest = {
+  const manifest = {
     format: FORMAT,
     version: VERSION,
     createdAt: new Date().toISOString(),
@@ -73,16 +84,16 @@ export async function exportAiriCardPackage({ card, displayModelsStore }: Export
   zip.file(MANIFEST_PATH, JSON.stringify(manifest, null, 2))
   zip.file(CARD_PATH, JSON.stringify(exportToJSON(exportableCard), null, 2))
   if (displayModel)
-    zip.file(displayModel.manifest.path, await displayModel.file.arrayBuffer())
+    zip.file(displayModel.manifest.path, displayModel.data)
 
   return zip.generateAsync({ type: 'blob' })
 }
 
 /** Imports a package as sanitized CCv3 JSON; edited zip payloads cannot smuggle extra AIRI fields through. */
-export async function importAiriCardPackage({ file, displayModelsStore }: ImportAiriCardPackageOptions): Promise<ccv3.CharacterCardV3> {
+export async function importAiriCardPackage({ file, displayModelsStore }: { file: File, displayModelsStore: DisplayModelsStore }): Promise<ccv3.CharacterCardV3> {
   const zip = await loadZip(file)
-  const manifest = await readJsonFile(zip, MANIFEST_PATH, isManifest)
-  const cardJson = await readJsonFile(zip, manifest.card.path, isCharacterCardV3)
+  const manifest = await readJsonFile(zip, MANIFEST_PATH, manifestSchema)
+  const cardJson = await readJsonFile(zip, manifest.card.path, characterCardV3Schema)
   const displayModelId = await importDisplayModel(zip, manifest, displayModelsStore)
 
   return exportToJSON(cardFromCharacterCard(cardJson, displayModelId))
@@ -100,17 +111,18 @@ async function exportDisplayModel(card: ExportableCard, store: DisplayModelsStor
     return
   }
 
-  if (model.type === 'url')
-    return
-  if (!isSupportedDisplayModelFormat(model.format) || model.file.size <= 0)
+  const modelExt = MODEL_EXT[model.format]
+  if (!modelExt)
     throw error('invalid-file', 'Unsupported or empty local display model')
 
+  const payload = await displayModelPayload(model)
+
   return {
-    file: model.file,
+    data: payload.data,
     manifest: {
       format: model.format,
-      name: model.file.name,
-      path: `models/body-model.${MODEL_EXT[model.format]}`,
+      name: payload.file.name,
+      path: `models/body-model.${modelExt}`,
     },
   }
 }
@@ -124,28 +136,35 @@ async function importDisplayModel(zip: JSZip, manifest: Manifest, store: Display
   if (!file)
     throw error('missing-file', 'Missing display model file')
 
-  const data = await file.async('arraybuffer')
-  return (await store.addDisplayModel(resource.format, new File([data], resource.name))).id
+  try {
+    const data = await file.async('arraybuffer')
+    return (await store.addDisplayModel(resource.format, new File([data], resource.name))).id
+  }
+  catch (cause) {
+    throw error('invalid-file', 'Failed to import display model file', cause)
+  }
 }
 
 async function loadZip(file: File) {
   try {
     return await JSZip.loadAsync(await file.arrayBuffer())
   }
-  catch {
-    throw error('invalid-file', 'Invalid zip file')
+  catch (cause) {
+    throw error('invalid-file', 'Invalid zip file', cause)
   }
 }
 
-async function readJsonFile<T>(zip: JSZip, path: string, guard: (value: unknown) => value is T): Promise<T> {
+async function readJsonFile<S extends GenericSchema>(zip: JSZip, path: string, schema: S): Promise<InferOutput<S>> {
   const file = zip.file(path)
   if (!file)
     throw error('missing-file', `Missing ${path}`)
 
-  const value = parseJson(await file.async('string'))
-  if (!guard(value))
-    throw error('invalid-file', `Invalid ${path}`)
-  return value
+  try {
+    return parse(schema, JSON.parse(await file.async('string')))
+  }
+  catch (cause) {
+    throw error('invalid-file', `Invalid ${path}`, cause)
+  }
 }
 
 function cardFromAiriCard(card: AiriCard): ExportableCard {
@@ -164,7 +183,7 @@ function cardFromAiriCard(card: AiriCard): ExportableCard {
   }
 }
 
-function cardFromCharacterCard(card: ccv3.CharacterCardV3, displayModelId?: string): ExportableCard {
+function cardFromCharacterCard(card: CharacterCardPackageJson, displayModelId?: string): ExportableCard {
   const data = card.data
   return {
     name: data.name,
@@ -182,9 +201,11 @@ function cardFromCharacterCard(card: ccv3.CharacterCardV3, displayModelId?: stri
 }
 
 function sanitizeAiri(value: unknown, displayModelIdOverride?: string): AiriExtension {
-  const modules = record(record(value).modules)
-  const artistry = record(modules.artistry)
-  const displayModelId = displayModelIdOverride ?? text(modules.displayModelId)
+  const source = isRecord(value) ? value : {}
+  const modules = isRecord(source.modules) ? source.modules : {}
+  const artistry = isRecord(modules.artistry) ? modules.artistry : {}
+  const speech = isRecord(modules.speech) ? modules.speech : {}
+  const displayModelId = displayModelIdOverride ?? stringValue(modules.displayModelId)
 
   return {
     modules: {
@@ -192,14 +213,14 @@ function sanitizeAiri(value: unknown, displayModelIdOverride?: string): AiriExte
       vision: providerModel(modules.vision),
       speech: {
         ...providerModel(modules.speech),
-        voice_id: text(record(modules.speech).voice_id),
+        voice_id: stringValue(speech.voice_id),
       },
       ...(displayModelId ? { displayModelId } : {}),
       artistry: {
-        ...(pickText(artistry, 'provider')),
-        ...(pickText(artistry, 'model')),
-        ...(pickText(artistry, 'promptPrefix')),
-        ...(pickText(artistry, 'widgetInstruction')),
+        ...(typeof artistry.provider === 'string' ? { provider: artistry.provider } : {}),
+        ...(typeof artistry.model === 'string' ? { model: artistry.model } : {}),
+        ...(typeof artistry.promptPrefix === 'string' ? { promptPrefix: artistry.promptPrefix } : {}),
+        ...(typeof artistry.widgetInstruction === 'string' ? { widgetInstruction: artistry.widgetInstruction } : {}),
         ...(isSpawnMode(artistry.spawnMode) ? { spawnMode: artistry.spawnMode } : {}),
         ...(isRecord(artistry.options) ? { options: artistry.options } : {}),
         ...(typeof artistry.autonomousEnabled === 'boolean' ? { autonomousEnabled: artistry.autonomousEnabled } : {}),
@@ -211,67 +232,38 @@ function sanitizeAiri(value: unknown, displayModelIdOverride?: string): AiriExte
 }
 
 function providerModel(value: unknown) {
-  const source = record(value)
-  return { provider: text(source.provider), model: text(source.model) }
-}
-
-function parseJson(content: string) {
-  try {
-    return JSON.parse(content) as unknown
-  }
-  catch {
-    throw error('invalid-file', 'Invalid JSON')
-  }
-}
-
-function isManifest(value: unknown): value is Manifest {
-  const manifest = record(value)
-  const card = record(manifest.card)
-  const displayModel = record(record(manifest.resources).displayModel)
-  const hasDisplayModel = 'resources' in manifest
-
-  return manifest.format === FORMAT
-    && manifest.version === VERSION
-    && card.path === CARD_PATH
-    && card.spec === 'chara_card_v3'
-    && (!hasDisplayModel || (
-      typeof displayModel.path === 'string'
-      && isSupportedDisplayModelFormat(displayModel.format)
-      && typeof displayModel.name === 'string'
-    ))
-}
-
-function isCharacterCardV3(value: unknown): value is ccv3.CharacterCardV3 {
-  const data = record(record(value).data)
-  return record(value).spec === 'chara_card_v3'
-    && record(value).spec_version === '3.0'
-    && typeof data.name === 'string'
-}
-
-function pickText(source: Record<string, unknown>, key: string) {
-  return typeof source[key] === 'string' ? { [key]: source[key] } : {}
-}
-
-function text(value: unknown) {
-  return typeof value === 'string' ? value : ''
-}
-
-function record(value: unknown): Record<string, unknown> {
-  return isRecord(value) ? value : {}
+  const source = isRecord(value) ? value : {}
+  return { provider: stringValue(source.provider), model: stringValue(source.model) }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function isSupportedDisplayModelFormat(value: unknown): value is SupportedDisplayModelFormat {
-  return value === DisplayModelFormat.Live2dZip || value === DisplayModelFormat.SpineZip || value === DisplayModelFormat.VRM
+function stringValue(value: unknown) {
+  return typeof value === 'string' ? value : ''
 }
 
 function isSpawnMode(value: unknown): value is NonNullable<AiriExtension['modules']['artistry']>['spawnMode'] {
   return value === 'bg' || value === 'widget' || value === 'inline' || value === 'bg_widget'
 }
 
-function error(code: AiriCardPackageErrorCode, message: string) {
-  return new AiriCardPackageError(code, message)
+async function displayModelPayload(model: DisplayModel): Promise<{ data: ArrayBuffer, file: File }> {
+  try {
+    const response = model.type === 'url' ? await fetch(model.url) : undefined
+    if (response && !response.ok)
+      throw new Error(`Failed to read display model URL: ${response.status} ${response.statusText}`)
+
+    const file = model.type === 'file' ? model.file : new File([await response!.blob()], `${model.name}.${MODEL_EXT[model.format]}`)
+    if (file.size <= 0)
+      throw new Error('Display model file is empty')
+    return { data: await file.arrayBuffer(), file }
+  }
+  catch (cause) {
+    throw error('invalid-file', 'Failed to read display model file', cause)
+  }
+}
+
+function error(code: AiriCardPackageErrorCode, message: string, cause?: unknown) {
+  return new AiriCardPackageError(code, message, cause === undefined ? undefined : { cause })
 }
