@@ -6,25 +6,34 @@ The AIRI coding workspace should replace the Roo-style `Architect` mode with a
 Kiro-style `Spec` mode and introduce async subagents as an early architectural
 primitive.
 
-Spec mode lets the user and model plan iteratively through workspace files:
+This spec is complemented by
+`docs/specs/coding-workspace-swarm-runtime/requirements.md`, which defines how
+approved spec tasks are executed by AIRI-native worker swarms.
+
+Spec mode always works toward canonical workspace files:
 
 1. `requirements.md`
 2. `design.md`
 3. `tasks.md`
 
-Each phase requires user approval before the next phase becomes active.
-Subagents can participate in research during the requirements and design phases,
-while implementation subagents must wait until approved tasks exist.
+It can enter that flow through requirements-first, design-first, or quick spec
+paths. Pair-programming flows require explicit approval at phase boundaries,
+while quick spec can let AIRI draft the complete spec set with less
+interruption before execution approval. Subagents can participate in research
+during requirements and design work, while implementation subagents must wait
+until approved tasks exist.
 
 ## Goals
 
 - Add `Spec` mode as the planning mode for AIRI's coding workspace.
+- Support requirements-first, design-first, and quick spec entry paths.
 - Store canonical spec artifacts under `docs/specs/<feature-slug>/`.
 - Keep normal AIRI chat unobstructed unless coding context is enabled.
 - Support async research subagents during requirements and design work.
 - Support implementation subagents after `tasks.md` is generated from an
   approved design.
-- Let users mix native AIRI agents and ACP agents per subtask.
+- Use native AIRI agents for v1 subtask execution while preserving an extension
+  point for future ACP engines.
 - Treat MCP, especially Serena, as the preferred code-intelligence substrate for
   research and coding context.
 
@@ -34,14 +43,25 @@ while implementation subagents must wait until approved tasks exist.
 
 - AIRI must expose `Ask`, `Spec`, `Code`, and `Debug` coding modes.
 - `Spec` mode replaces the earlier Roo-inspired `Architect` mode.
-- `Spec` mode must guide planning through the ordered phase flow:
+- `Spec` mode must support requirements-first, design-first, and quick spec
+  entry paths.
+- All entry paths must produce the canonical artifact set:
   `requirements.md` -> approval -> `design.md` -> approval -> `tasks.md`.
+- Requirements-first must guide planning through the full ordered phase flow.
+- Design-first may start with `design.md` when the user already has enough
+  requirements context, but it must still backfill or confirm `requirements.md`
+  before tasks are considered execution-ready.
+- Quick spec may draft `requirements.md`, `design.md`, and `tasks.md` in one
+  guided flow, but implementation still requires either user approval or an
+  explicit AFK swarm policy.
 - `Spec` mode must write canonical artifacts as workspace files under
   `docs/specs/<feature-slug>/`.
 - `Spec` mode must not edit source files.
 - `Spec` mode may update only files inside its active feature spec directory.
-- User approval must be required before moving from requirements to design.
-- User approval must be required before moving from design to tasks.
+- In pair-programming flows, user approval must be required before moving from
+  requirements to design.
+- In pair-programming flows, user approval must be required before moving from
+  design to tasks.
 - AIRI chat may mirror spec phase status, but the workspace files are the source
   of truth.
 
@@ -56,8 +76,8 @@ while implementation subagents must wait until approved tasks exist.
 - `design.md` captures the approved technical approach, data flow, interfaces,
   error handling, and test strategy.
 - `tasks.md` captures implementation tasks derived from the approved design.
-- The feature slug must be stable enough for native AIRI and ACP subagents to
-  reference consistently.
+- The feature slug must be stable enough for native AIRI agents and future ACP
+  agents to reference consistently.
 
 ### Async Subagents
 
@@ -97,11 +117,13 @@ while implementation subagents must wait until approved tasks exist.
 ### Engine Mixing
 
 - Subagent engine selection must be per subtask.
-- The initial engine identifiers are:
+- The v1 engine identifier is:
   - `native`
+- Future reserved engine identifiers include:
   - `acp:pi`
   - `acp:codex`
-- Native and ACP subagents must stream into the same AIRI chat timeline.
+- Native subagents must stream into the same AIRI chat timeline.
+- Future ACP subagents must also stream into the same AIRI chat timeline.
 - AIRI must retain ownership of chat rendering, approvals, workspace policy, and
   persistence.
 - ACP agents must be subprocess backends, not separate renderers.
@@ -120,12 +142,17 @@ while implementation subagents must wait until approved tasks exist.
 - A user can create or select a feature spec at
   `docs/specs/<feature-slug>/`.
 - In `Spec` mode, AIRI can iteratively draft `requirements.md` with the user.
-- AIRI cannot proceed to `design.md` until requirements are approved.
-- AIRI cannot proceed to `tasks.md` until design is approved.
+- A user can start from requirements-first, design-first, or quick spec.
+- Pair-programming flows cannot proceed to `design.md` until requirements are
+  approved.
+- Pair-programming flows cannot proceed to `tasks.md` until design is approved.
+- Quick spec can draft all three artifacts before final execution approval.
 - Research subagents can run before final tasks exist and their output is
   attached to the active spec context.
 - Implementation subagents are blocked before approved `tasks.md`.
-- A task can explicitly choose `native`, `acp:pi`, or `acp:codex` as its engine.
+- A v1 task can explicitly choose `native` as its engine.
+- The task engine model reserves `acp:pi` and `acp:codex` for future support
+  without requiring ACP in v1.
 - Serena can be configured from a predefined MCP settings template with a setup
   link and an explicit `uv` prerequisite.
 - Subagent results show whether MCP or Serena contributed to the job context.
@@ -139,5 +166,5 @@ while implementation subagents must wait until approved tasks exist.
 - Implementation subagents cannot start before `tasks.md` exists from approved
   design.
 - The existing AIRI chat window remains the only visible transcript.
-- ACP support is optional for the first implementation but must be accounted for
-  in the data model and architecture.
+- ACP support is deferred beyond v1 but must be accounted for in the data model
+  and architecture.

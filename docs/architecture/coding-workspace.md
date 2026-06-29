@@ -138,8 +138,7 @@ unless a workspace or coding mode is selected.
 
 ## Modes
 
-Modes are Roo-inspired but AIRI-owned. They control tool availability and prompt
-policy.
+Modes are AIRI-owned. They control tool availability and prompt policy.
 
 ### Ask
 
@@ -160,15 +159,16 @@ Blocked:
 - command execution
 - direct task delegation
 
-### Architect
+### Spec
 
-Purpose: inspect the codebase, design changes, and write plans.
+Purpose: plan changes through Kiro-style spec artifacts:
+`requirements.md`, `design.md`, and `tasks.md`.
 
 Allowed:
 
 - all Ask tools
 - todo updates
-- markdown plan edits under approved paths
+- markdown spec edits under `docs/specs/<feature-slug>/`
 
 Blocked by default:
 
@@ -181,7 +181,7 @@ Purpose: implement changes.
 
 Allowed:
 
-- all Ask and Architect tools
+- all Ask and Spec tools
 - patch proposal and application
 - file writes
 - command execution
@@ -490,7 +490,15 @@ Contract tests:
 - Borrow only lifecycle/config reliability fixes from external AIRI forks if
   upstream behavior is insufficient.
 
-### Milestone 3 - ACP Engine Adapter
+### Milestone 3 - Native Swarm Runtime
+
+- Add Spec-linked native worker jobs.
+- Store live execution state in `swarm.json`.
+- Support Pair mode approvals and experimental AFK autopilot policy.
+- Add curated inline swarm status cards in the existing chat timeline.
+- Keep workers on AIRI-mediated tools with no raw terminal access.
+
+### Milestone 4 - ACP Engine Adapter
 
 - Add ACP subprocess manager.
 - Support Pi as an ACP backend.
@@ -498,7 +506,7 @@ Contract tests:
 - Add engine selector in coding settings.
 - Normalize ACP events into AIRI chat slices and approval requests.
 
-### Milestone 4 - Advanced Code Operations
+### Milestone 5 - Advanced Code Operations
 
 - Allow selected Serena mutating operations to produce proposed edits.
 - Add worktree isolation for risky implementation sessions.
@@ -507,16 +515,16 @@ Contract tests:
 
 ## Open Questions
 
-1. Should `Architect` mode be allowed to write markdown plans immediately, or
-   should all writes require approval in the first milestone?
-2. Which ACP backend should be validated first: Pi or Codex?
+1. What production safety policy should replace the experimental AFK autopilot
+   authority model?
+2. What stability milestone should trigger ACP backend work?
 
 ## Decision
 
 Proceed with an AIRI-native coding workspace hosted in the existing chat window.
 Use MCP, especially Serena, as the preferred code-intelligence backend. Keep all
-workspace authority and approvals in AIRI. Treat Pi/Codex through ACP as optional
-subprocess engines that can stream into AIRI's native timeline without owning the
-renderer or policy layer. Coding state is scoped to chat sessions when enabled,
-and Serena is offered through MCP settings as a predefined external integration
+workspace authority and approvals in AIRI. Use native AIRI agents for the first
+swarm runtime and defer Pi/Codex ACP subprocess engines until the native agent
+model is stable. Coding state is scoped to chat sessions when enabled, and
+Serena is offered through MCP settings as a predefined external integration
 rather than auto-installed.
