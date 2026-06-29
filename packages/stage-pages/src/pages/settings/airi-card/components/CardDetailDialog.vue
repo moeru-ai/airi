@@ -3,9 +3,8 @@ import type { AiriCard } from '@proj-airi/stage-ui/stores/modules/airi-card'
 
 import DOMPurify from 'dompurify'
 
-import { errorMessageFrom } from '@moeru/std'
 import { useDownload } from '@proj-airi/stage-ui/composables/download'
-import { createAiriCardPackageFileName, exportAiriCardPackage } from '@proj-airi/stage-ui/services/airi-card-import-export'
+import { exportAiriCardPackage } from '@proj-airi/stage-ui/services/airi-card-import-export'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
@@ -128,12 +127,12 @@ async function handleExportCard() {
   try {
     useDownload(
       await exportAiriCardPackage({ card: selectedCard.value, displayModelsStore }),
-      createAiriCardPackageFileName(selectedCard.value),
+      `${selectedCard.value.name.trim()}.zip`,
     ).download()
     toast(t('settings.pages.card.exported'))
   }
   catch (error) {
-    console.error(`Error exporting card package: ${errorMessageFrom(error)}`)
+    console.error('Error exporting card package:', error)
     toast(t('settings.pages.card.export_failed'))
   }
   finally {
