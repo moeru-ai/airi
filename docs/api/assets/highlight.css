@@ -1,0 +1,22 @@
+:root {
+    --light-code-background: #FFFFFF;
+    --dark-code-background: #1E1E1E;
+}
+
+@media (prefers-color-scheme: light) { :root {
+    --code-background: var(--light-code-background);
+} }
+
+@media (prefers-color-scheme: dark) { :root {
+    --code-background: var(--dark-code-background);
+} }
+
+:root[data-theme='light'] {
+    --code-background: var(--light-code-background);
+}
+
+:root[data-theme='dark'] {
+    --code-background: var(--dark-code-background);
+}
+
+pre, code { background: var(--code-background); }

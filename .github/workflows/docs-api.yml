@@ -17,10 +17,15 @@ on:
 
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   generate-api-docs:
     name: Generate API Docs (TypeDoc)
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v6
         with:
@@ -54,3 +59,18 @@ jobs:
           name: api-docs
           path: docs/api/
           retention-days: 30
+
+      - name: Commit API docs to repo
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "actions-user"
+          git config user.email "actions@github.com"
+
+          git add docs/api/
+          if git diff --cached --quiet; then
+            echo "docs/api is up to date — no commit needed"
+            exit 0
+          fi
+
+          git commit -m "chore(ci): update generated API docs"
+          git push
