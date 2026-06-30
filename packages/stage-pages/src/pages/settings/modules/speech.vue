@@ -16,7 +16,7 @@ import {
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '@proj-airi/stage-ui/libs/providers/providers/official'
 import { useAiriCardStore, useVoicePacksStore } from '@proj-airi/stage-ui/stores'
-import { useSpeechStore, VOICE_PACK_MODEL_ID, voicePackForSpeechProvider } from '@proj-airi/stage-ui/stores/modules/speech'
+import { useSpeechStore, voicePackForSpeechProvider } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import {
   FieldCheckbox,
@@ -72,41 +72,118 @@ const isGenerating = ref(false)
 const audioUrl = ref('')
 const audioPlayer = ref<HTMLAudioElement | null>(null)
 const errorMessage = ref('')
+const selectedSpeechSource = ref<string | null>(null)
 
-const VOICE_PACK_MODEL_OPTION = {
-  id: VOICE_PACK_MODEL_ID,
-  name: 'Voice Pack',
-  description: 'Server-curated voices',
-}
+const VOICE_PACK_SOURCE_ID = 'voice-pack'
+const STREAMING_MODEL_OPTION_PREFIX = 'streaming:'
 
 const isOfficialSpeechProvider = computed(() => activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID)
-const shouldShowVoicePackModel = computed(() => isOfficialSpeechProvider.value && voicePacks.value.length > 0)
-const isVoicePackModelSelected = computed(() => shouldShowVoicePackModel.value && activeSpeechModel.value === VOICE_PACK_MODEL_ID)
 const boundVoicePack = computed(() =>
   voicePackForSpeechProvider(activeSpeechProvider.value, activeCard.value?.extensions.airi.modules.speech.voicePack),
 )
 
-const selectableSpeechProvidersMetadata = computed(() => {
+const selectableSpeechSources = computed(() => {
+  const configuredSources = configuredSpeechProvidersMetadata.value
+    .filter(metadata =>
+      metadata.id !== 'speech-noop'
+      && metadata.id !== OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
+    )
+    .map(metadata => ({
+      id: metadata.id,
+      providerId: metadata.id,
+      title: metadata.localizedName || 'Unknown',
+      description: metadata.localizedDescription,
+    }))
+
   return [
-    ...configuredSpeechProvidersMetadata.value.filter(metadata => metadata.id !== 'speech-noop'),
-    ...allAudioSpeechProvidersMetadata.value.filter(metadata => metadata.id === 'speech-noop'),
+    {
+      id: VOICE_PACK_SOURCE_ID,
+      providerId: undefined,
+      title: 'Voice Pack',
+      description: 'Server-curated voices',
+    },
+    ...configuredSources,
+    ...allAudioSpeechProvidersMetadata.value
+      .filter(metadata => metadata.id === 'speech-noop')
+      .map(metadata => ({
+        id: metadata.id,
+        providerId: metadata.id,
+        title: metadata.localizedName || 'Unknown',
+        description: metadata.localizedDescription,
+      })),
   ]
 })
 
+const displayedSpeechSource = computed({
+  get: () => {
+    if (selectedSpeechSource.value === VOICE_PACK_SOURCE_ID)
+      return VOICE_PACK_SOURCE_ID
+    if (boundVoicePack.value && isOfficialSpeechProvider.value)
+      return VOICE_PACK_SOURCE_ID
+    if (activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
+      return OFFICIAL_SPEECH_PROVIDER_ID
+    return activeSpeechProvider.value
+  },
+  set: (value: string) => {
+    selectSpeechSource(value)
+  },
+})
+
+const isVoicePackSourceSelected = computed(() => displayedSpeechSource.value === VOICE_PACK_SOURCE_ID)
+const isOfficialSpeechSourceSelected = computed(() => displayedSpeechSource.value === OFFICIAL_SPEECH_PROVIDER_ID)
+
+function streamingModelOptionId(modelId: string) {
+  return `${STREAMING_MODEL_OPTION_PREFIX}${modelId}`
+}
+
+function modelIdFromStreamingOptionId(optionId: string) {
+  return optionId.startsWith(STREAMING_MODEL_OPTION_PREFIX)
+    ? optionId.slice(STREAMING_MODEL_OPTION_PREFIX.length)
+    : null
+}
+
 const displayedProviderModels = computed(() => {
-  if (!shouldShowVoicePackModel.value)
+  if (!isOfficialSpeechSourceSelected.value)
     return providerModels.value
 
-  return [VOICE_PACK_MODEL_OPTION, ...providerModels.value]
+  const regularModels = providersStore.getModelsForProvider(OFFICIAL_SPEECH_PROVIDER_ID)
+  const streamingModels = providersStore.getModelsForProvider(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
+  return [
+    ...regularModels,
+    ...streamingModels.map(model => ({
+      ...model,
+      id: streamingModelOptionId(model.id),
+      name: model.name,
+      description: model.description || 'Low-latency streaming TTS',
+    })),
+  ]
 })
 
 const displayedSpeechModel = computed({
-  get: () => activeSpeechModel.value === VOICE_PACK_MODEL_ID && !shouldShowVoicePackModel.value
-    ? ''
+  get: () => activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID && activeSpeechModel.value
+    ? streamingModelOptionId(activeSpeechModel.value)
     : activeSpeechModel.value,
   set: (value: string) => {
-    activeSpeechModel.value = value
+    selectSpeechModel(value)
   },
+})
+
+const currentSpeechModelId = computed(() => activeSpeechModel.value || '')
+
+const displayedModelsLoading = computed(() => {
+  if (!isOfficialSpeechSourceSelected.value)
+    return isLoadingActiveProviderModels.value
+  return providersStore.isLoadingModels[OFFICIAL_SPEECH_PROVIDER_ID]
+    || providersStore.isLoadingModels[OFFICIAL_SPEECH_STREAMING_PROVIDER_ID]
+    || false
+})
+
+const displayedModelError = computed(() => {
+  if (!isOfficialSpeechSourceSelected.value)
+    return activeProviderModelError.value
+  return providersStore.modelLoadError[OFFICIAL_SPEECH_PROVIDER_ID]
+    || providersStore.modelLoadError[OFFICIAL_SPEECH_STREAMING_PROVIDER_ID]
+    || null
 })
 
 function createVoicePackVoice(voicePack: VoicePackSnapshot): VoiceInfo {
@@ -129,32 +206,8 @@ function packIdFromVoicePackVoiceId(voiceId: string) {
   return voiceId.startsWith('voice-pack:') ? voiceId.slice('voice-pack:'.length) : null
 }
 
-function createVoicePackPickerVoice(pack: (typeof voicePacks.value)[number]): VoiceInfo {
-  return {
-    id: voicePackVoiceId(pack.id),
-    name: pack.name,
-    description: pack.description ?? pack.name,
-    previewURL: '',
-    languages: [{ code: 'en', title: 'English' }],
-    provider: activeSpeechProvider.value,
-    gender: 'neutral',
-  }
-}
-
-function createVoicePackSnapshotPickerVoice(voicePack: VoicePackSnapshot): VoiceInfo {
-  return {
-    id: voicePackVoiceId(voicePack.packId),
-    name: voicePack.name,
-    description: voicePack.name,
-    previewURL: '',
-    languages: [{ code: 'en', title: 'English' }],
-    provider: activeSpeechProvider.value,
-    gender: 'neutral',
-  }
-}
-
 const displayedVoiceOptions = computed(() => {
-  if (isVoicePackModelSelected.value) {
+  if (isVoicePackSourceSelected.value) {
     const options = voicePacks.value.map(pack => ({
       id: voicePackVoiceId(pack.id),
       name: pack.name,
@@ -191,14 +244,37 @@ const displayedVoiceOptions = computed(() => {
     }))
 })
 
+const displayedSpeechVoiceId = computed({
+  get: () => {
+    if (isVoicePackSourceSelected.value && boundVoicePack.value)
+      return voicePackVoiceId(boundVoicePack.value.packId)
+    return activeSpeechVoiceId.value
+  },
+  set: (value: string) => {
+    if (isVoicePackSourceSelected.value) {
+      void selectSpeechVoice(value)
+      return
+    }
+    activeSpeechVoiceId.value = value
+  },
+})
+
+const currentSpeechVoiceId = computed(() => {
+  if (isVoicePackSourceSelected.value && boundVoicePack.value)
+    return boundVoicePack.value.voiceId
+  return activeSpeechVoiceId.value || ''
+})
+
 function syncBoundVoicePackSelection() {
   const voicePack = boundVoicePack.value
-  if (!shouldShowVoicePackModel.value || !voicePack)
+  if (!voicePack)
     return false
 
-  activeSpeechModel.value = VOICE_PACK_MODEL_ID
-  activeSpeechVoiceId.value = voicePackVoiceId(voicePack.packId)
-  activeSpeechVoice.value = createVoicePackSnapshotPickerVoice(voicePack)
+  selectedSpeechSource.value = VOICE_PACK_SOURCE_ID
+  activeSpeechProvider.value = OFFICIAL_SPEECH_PROVIDER_ID
+  activeSpeechModel.value = voicePack.ttsModelId
+  activeSpeechVoiceId.value = voicePack.voiceId
+  activeSpeechVoice.value = createVoicePackVoice(voicePack)
   return true
 }
 
@@ -206,7 +282,7 @@ function syncBoundVoicePackSelection() {
  * Resolves the current TTS model id for low-cardinality analytics payloads.
  */
 function currentTtsModelId() {
-  if (isVoicePackModelSelected.value && boundVoicePack.value)
+  if (isVoicePackSourceSelected.value && boundVoicePack.value)
     return boundVoicePack.value.ttsModelId
   return activeSpeechModel.value || 'unknown'
 }
@@ -296,7 +372,7 @@ async function selectSpeechVoice(voiceId: string | undefined) {
     return
 
   const voicePackId = packIdFromVoicePackVoiceId(voiceId)
-  if (isVoicePackModelSelected.value && voicePackId) {
+  if (isVoicePackSourceSelected.value && voicePackId) {
     const pack = voicePacks.value.find(item => item.id === voicePackId)
     if (!pack)
       return
@@ -311,6 +387,53 @@ async function selectSpeechVoice(voiceId: string | undefined) {
     ...voiceAnalyticsPayload(voiceId),
     source: 'settings',
   })
+}
+
+function selectSpeechSource(sourceId: string) {
+  selectedSpeechSource.value = sourceId === VOICE_PACK_SOURCE_ID ? VOICE_PACK_SOURCE_ID : null
+
+  if (sourceId === VOICE_PACK_SOURCE_ID) {
+    activeSpeechProvider.value = OFFICIAL_SPEECH_PROVIDER_ID
+    const voicePack = boundVoicePack.value
+    if (voicePack) {
+      activeSpeechModel.value = voicePack.ttsModelId
+      activeSpeechVoiceId.value = voicePack.voiceId
+      activeSpeechVoice.value = createVoicePackVoice(voicePack)
+      return
+    }
+    activeSpeechModel.value = ''
+    activeSpeechVoiceId.value = ''
+    activeSpeechVoice.value = undefined
+    return
+  }
+
+  if (sourceId === OFFICIAL_SPEECH_PROVIDER_ID && boundVoicePack.value) {
+    airiCardStore.updateActiveCardSpeech({
+      provider: OFFICIAL_SPEECH_PROVIDER_ID,
+      model: '',
+      voice_id: '',
+    })
+  }
+
+  activeSpeechProvider.value = sourceId
+}
+
+function selectSpeechModel(modelOptionId: string) {
+  const streamingModelId = modelIdFromStreamingOptionId(modelOptionId)
+  const nextProvider = streamingModelId == null
+    ? activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
+      ? OFFICIAL_SPEECH_PROVIDER_ID
+      : activeSpeechProvider.value
+    : OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
+  const nextModel = streamingModelId ?? modelOptionId
+
+  if (activeSpeechProvider.value !== nextProvider) {
+    activeSpeechProvider.value = nextProvider
+    activeSpeechVoiceId.value = ''
+    activeSpeechVoice.value = undefined
+  }
+
+  activeSpeechModel.value = nextModel
 }
 
 // Sync OpenAI Compatible model and voice from provider config
@@ -343,9 +466,11 @@ function syncOpenAICompatibleSettings() {
 onMounted(async () => {
   await providersStore.loadModelsForConfiguredProviders()
   await voicePacksStore.load()
-  syncBoundVoicePackSelection()
-  speechStore.ensureActiveSpeechModel()
-  await speechStore.loadVoicesForProvider(activeSpeechProvider.value, activeSpeechModel.value || undefined)
+  const syncedVoicePack = syncBoundVoicePackSelection()
+  if (!syncedVoicePack) {
+    speechStore.ensureActiveSpeechModel()
+    await speechStore.loadVoicesForProvider(activeSpeechProvider.value, activeSpeechModel.value || undefined)
+  }
   syncOpenAICompatibleSettings()
 })
 
@@ -354,9 +479,19 @@ async function bindVoicePack(pack: (typeof voicePacks.value)[number]) {
   if (!bound)
     return
 
-  activeSpeechModel.value = VOICE_PACK_MODEL_ID
-  activeSpeechVoiceId.value = voicePackVoiceId(pack.id)
-  activeSpeechVoice.value = createVoicePackPickerVoice(pack)
+  selectedSpeechSource.value = VOICE_PACK_SOURCE_ID
+  activeSpeechProvider.value = OFFICIAL_SPEECH_PROVIDER_ID
+  activeSpeechModel.value = pack.ttsModelId
+  activeSpeechVoiceId.value = pack.voiceId
+  activeSpeechVoice.value = {
+    id: pack.voiceId,
+    name: pack.name,
+    description: pack.description ?? pack.name,
+    previewURL: '',
+    languages: [{ code: 'en', title: 'English' }],
+    provider: activeSpeechProvider.value,
+    gender: 'neutral',
+  }
 
   trackVoicePackBound({
     tts_provider_id: activeSpeechProvider.value || 'unknown',
@@ -379,11 +514,21 @@ watch(activeSpeechProvider, async (newProvider, oldProvider) => {
   await providersStore.loadModelsForConfiguredProviders()
 
   // Reset model and voice when switching providers (but not on initial load)
-  if (oldProvider !== undefined && oldProvider !== newProvider) {
+  const isMergedOfficialSwitch = (
+    oldProvider === OFFICIAL_SPEECH_PROVIDER_ID
+    || oldProvider === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
+  ) && (
+    newProvider === OFFICIAL_SPEECH_PROVIDER_ID
+    || newProvider === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
+  )
+  if (oldProvider !== undefined && oldProvider !== newProvider && !isMergedOfficialSwitch) {
     activeSpeechModel.value = ''
     activeSpeechVoiceId.value = ''
     activeSpeechVoice.value = undefined
   }
+
+  if (isVoicePackSourceSelected.value)
+    return
 
   // Re-seed the streaming default model after the reset above so its voices
   // load model-scoped (the server only returns recommended voices for an
@@ -406,7 +551,7 @@ watch(activeSpeechModel, async (model) => {
   if (!activeSpeechProvider.value)
     return
 
-  if (model === VOICE_PACK_MODEL_ID)
+  if (isVoicePackSourceSelected.value)
     return
 
   activeSpeechVoiceId.value = ''
@@ -416,18 +561,6 @@ watch(activeSpeechModel, async (model) => {
 })
 
 watch([activeSpeechProvider, activeSpeechModel, activeSpeechVoiceId], ([provider, model, voiceId]) => {
-  if (provider === OFFICIAL_SPEECH_PROVIDER_ID && model === VOICE_PACK_MODEL_ID) {
-    const voicePack = boundVoicePack.value
-    if (voicePack) {
-      airiCardStore.updateActiveCardSpeech({
-        provider,
-        model: voicePack.ttsModelId,
-        voice_id: voicePack.voiceId,
-      })
-    }
-    return
-  }
-
   airiCardStore.updateActiveCardSpeech({ provider, model, voice_id: voiceId })
 })
 
@@ -636,26 +769,26 @@ function handleDeleteProvider(providerId: string) {
         </div>
         <div max-w-full>
           <fieldset
-            v-if="selectableSpeechProvidersMetadata.length > 0" flex="~ row gap-4"
+            v-if="selectableSpeechSources.length > 0" flex="~ row gap-4"
             min-w-0 overflow-x-auto scroll-smooth role="radiogroup"
           >
             <RadioCardSimple
-              v-for="metadata in selectableSpeechProvidersMetadata"
-              :id="metadata.id"
-              :key="metadata.id"
-              v-model="activeSpeechProvider"
+              v-for="source in selectableSpeechSources"
+              :id="source.id"
+              :key="source.id"
+              v-model="displayedSpeechSource"
               name="speech-provider"
-              :value="metadata.id"
-              :title="metadata.localizedName || 'Unknown'"
-              :description="metadata.localizedDescription"
-              @click="selectSpeechProvider(metadata.id)"
+              :value="source.id"
+              :title="source.title"
+              :description="source.description"
+              @click="selectSpeechProvider(source.providerId || source.id)"
             >
               <template #topRight>
                 <button
-                  v-if="metadata.id !== 'speech-noop' && !metadata.id.startsWith('official-provider')"
+                  v-if="source.providerId && source.providerId !== 'speech-noop' && !source.providerId.startsWith('official-provider')"
                   type="button"
                   class="rounded bg-neutral-100 p-1 text-neutral-600 transition-colors dark:bg-neutral-800/60 hover:bg-neutral-200 dark:text-neutral-300 dark:hover:bg-neutral-700/60"
-                  @click.stop.prevent="handleDeleteProvider(metadata.id)"
+                  @click.stop.prevent="handleDeleteProvider(source.providerId)"
                 >
                   <div i-solar:trash-bin-trash-bold-duotone class="text-base" />
                 </button>
@@ -695,7 +828,7 @@ function handleDeleteProvider(providerId: string) {
       </div>
 
       <!-- Model selection section -->
-      <div v-if="activeSpeechProvider && activeSpeechProvider !== 'speech-noop'">
+      <div v-if="activeSpeechProvider && activeSpeechProvider !== 'speech-noop' && !isVoicePackSourceSelected">
         <div flex="~ col gap-4">
           <div>
             <h2 class="text-lg md:text-2xl">
@@ -703,7 +836,7 @@ function handleDeleteProvider(providerId: string) {
             </h2>
             <div class="flex flex-col items-start gap-1 text-neutral-400 md:flex-row md:items-center md:justify-between dark:text-neutral-400">
               <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.subtitle') }}</span>
-              <span v-if="displayedSpeechModel" class="text-sm text-neutral-400 font-medium dark:text-neutral-400">{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.current_model_label') }} {{ displayedSpeechModel }}</span>
+              <span v-if="currentSpeechModelId" class="text-sm text-neutral-400 font-medium dark:text-neutral-400">{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.current_model_label') }} {{ currentSpeechModelId }}</span>
             </div>
           </div>
 
@@ -721,7 +854,7 @@ function handleDeleteProvider(providerId: string) {
           <!-- Model listing for other providers -->
           <div v-else-if="supportsModelListing" class="flex flex-col gap-4">
             <!-- Loading state -->
-            <div v-if="isLoadingActiveProviderModels" class="flex items-center justify-center py-4">
+            <div v-if="displayedModelsLoading" class="flex items-center justify-center py-4">
               <div class="mr-2 animate-spin">
                 <div i-solar:spinner-line-duotone text-xl />
               </div>
@@ -729,10 +862,10 @@ function handleDeleteProvider(providerId: string) {
             </div>
 
             <!-- Error state -->
-            <template v-else-if="activeProviderModelError">
+            <template v-else-if="displayedModelError">
               <ErrorContainer
                 :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
-                :error="activeProviderModelError"
+                :error="displayedModelError"
               />
 
               <FieldInput
@@ -745,7 +878,7 @@ function handleDeleteProvider(providerId: string) {
             </template>
 
             <!-- No models available -->
-            <template v-else-if="displayedProviderModels.length === 0 && !isLoadingActiveProviderModels">
+            <template v-else-if="displayedProviderModels.length === 0 && !displayedModelsLoading">
               <Alert type="warning">
                 <template #title>
                   {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models') }}
@@ -793,13 +926,14 @@ function handleDeleteProvider(providerId: string) {
             <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
               Voice Configuration
             </h2>
-            <div text="neutral-400 dark:neutral-500">
+            <div class="flex flex-col items-start gap-1 text-neutral-400 md:flex-row md:items-center md:justify-between dark:text-neutral-500">
               <span>Customize how your AI assistant speaks</span>
+              <span v-if="currentSpeechVoiceId" class="text-sm text-neutral-400 font-medium dark:text-neutral-400">Current voice: {{ currentSpeechVoiceId }}</span>
             </div>
           </div>
 
           <!-- Loading state -->
-          <div v-if="isLoadingSpeechProviderVoices || (isVoicePackModelSelected && isLoadingVoicePacks)">
+          <div v-if="isLoadingSpeechProviderVoices || (isVoicePackSourceSelected && isLoadingVoicePacks)">
             <div class="flex flex-col gap-4">
               <Skeleton class="w-full rounded-lg p-2.5 text-sm">
                 <div class="h-1lh" />
@@ -829,7 +963,7 @@ function handleDeleteProvider(providerId: string) {
           >
             <VoiceCardManySelect
               v-model:search-query="voiceSearchQuery"
-              v-model:voice-id="activeSpeechVoiceId"
+              v-model:voice-id="displayedSpeechVoiceId"
               :show-visualizer="false"
               :voices="displayedVoiceOptions"
               :searchable="true"
@@ -850,7 +984,7 @@ function handleDeleteProvider(providerId: string) {
           </div>
 
           <ErrorContainer
-            v-else-if="isVoicePackModelSelected && voicePacksError"
+            v-else-if="isVoicePackSourceSelected && voicePacksError"
             class="mb-2"
             :title="t('settings.pages.modules.speech.sections.section.voice-pack.error')"
             :error="voicePacksError"
@@ -898,7 +1032,7 @@ function handleDeleteProvider(providerId: string) {
 
           <!-- Manual voice input when no voices are available or for OpenAI Compatible -->
           <div
-            v-if="!isVoicePackModelSelected && (activeSpeechProvider === 'openai-compatible-audio-speech' || !availableVoices[activeSpeechProvider] || availableVoices[activeSpeechProvider].length === 0)"
+            v-if="!isVoicePackSourceSelected && (activeSpeechProvider === 'openai-compatible-audio-speech' || !availableVoices[activeSpeechProvider] || availableVoices[activeSpeechProvider].length === 0)"
             class="mt-2 space-y-6"
           >
             <FieldInput
