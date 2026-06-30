@@ -50,15 +50,15 @@ No downstream task may invent alternate names for these concepts.
 
 ## Tasks
 
-- [x] `T-001` - Shared Coding Workspace Contracts
-- [x] `T-002` - Serena MCP Settings Template
-- [x] `T-003` - Serena-Preferred Code Intelligence Facade
-- [x] `T-004` - Spec Mode Artifact State Machine
-- [x] `T-005` - Async Native Subagent Job Model
-- [x] `T-006` - Coding Workspace Tool Definitions and Prompt Contributions
-- [x] `T-007` - Chat Renderers for Coding Workspace Results
-- [x] `T-008` - Tamagotchi Renderer Integration
-- [x] `T-009` - Final Verification and Documentation Sync
+- [ ] `T-001` - Shared Coding Workspace Contracts
+- [ ] `T-002` - Serena MCP Settings Template
+- [ ] `T-003` - Serena-Preferred Code Intelligence Facade
+- [ ] `T-004` - Spec Mode Artifact State Machine
+- [ ] `T-005` - Async Native Subagent Job Model
+- [ ] `T-006` - Coding Workspace Tool Definitions and Prompt Contributions
+- [ ] `T-007` - Chat Renderers for Coding Workspace Results
+- [ ] `T-008` - Tamagotchi Renderer Integration
+- [ ] `T-009` - Final Verification and Documentation Sync
 
 ### T-001 - Shared Coding Workspace Contracts
 
@@ -428,24 +428,3 @@ new coding workspace controls or UI primitives.
 - All verification commands and outcomes.
 - Any tasks not completed.
 - Any follow-up work needed before ACP or swarm runtime integration.
-
-## Implementation Notes
-
-- V1 exposes the shared coding workspace modules through
-  `@proj-airi/stage-ui/coding-workspace`.
-- Tamagotchi registers coding tools and coding prompt contributions only while
-  coding context is enabled.
-- Chat renderers are merged at the `InteractiveArea.vue` registry integration
-  point, keeping the central chat renderer unchanged.
-- Serena is configured through the MCP settings preset and detected from
-  read-only Serena tool availability during MCP refresh.
-- The first renderer integration keeps the engine fixed to `native`.
-
-## Deferred Follow-ups
-
-- Connect `workspace_update_spec_artifact` to AIRI-owned workspace persistence.
-- Persist coding workspace state per chat session.
-- Add approval-backed filesystem, patch, terminal, and command tools.
-- Implement the native swarm runtime that executes subagent jobs outside the
-  pure in-memory model.
-- Keep ACP/Pi/Codex support deferred until the native agent runtime is stable.

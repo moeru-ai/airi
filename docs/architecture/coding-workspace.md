@@ -67,35 +67,6 @@ The repository already has most of the required host primitives:
 The coding workspace should use these paths instead of introducing a parallel
 agent runtime.
 
-## Implemented V1 Snapshot
-
-The first implementation lands the chat-integrated foundation rather than the
-full editing/runtime surface:
-
-- `@proj-airi/stage-ui/coding-workspace` exports shared contracts, the
-  Serena-preferred code-intelligence facade, Spec mode state machine, subagent
-  job model, tool definitions, and prompt contributions.
-- The Tamagotchi renderer owns live coding workspace state, compact chat
-  controls, coding tool registration, prompt contribution registration, and MCP
-  transport injection.
-- Coding context is disabled by default. While disabled, normal chat keeps its
-  existing tool and prompt behavior.
-- The v1 engine is fixed to `native`; `acp:pi` and `acp:codex` remain reserved
-  identifiers.
-- MCP refresh updates coding backend state as `unavailable`, `available`, or
-  `serena` based on registered MCP tools. Serena detection uses read-only Serena
-  tool names and server/name hints.
-- Coding workspace tool-call renderers are merged into the existing chat
-  renderer registry at the `InteractiveArea.vue` integration point.
-
-Deferred from this first slice:
-
-- AIRI-owned persistence for `workspace_update_spec_artifact`.
-- Approval-backed filesystem, patch, and terminal tools.
-- Per-chat-session persistence for coding state.
-- Native swarm runtime execution for async subagent jobs.
-- ACP subprocess engines for Pi, Codex, or other external agents.
-
 ## Architecture
 
 ```text

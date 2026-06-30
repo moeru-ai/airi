@@ -219,6 +219,233 @@ describe('coding workspace tools', () => {
   })
 })
 
+describe('edge-case coverage', () => {
+  it('aggregates ranked context and falls back to local search when no MCP tools resolve', async () => {
+    const localResults = [{ filePath: 'src/runtime.ts', line: 20, text: 'needle here' }]
+    const transport: CodeIntelligenceTransport = {
+      async listMcpTools() {
+        return []
+      },
+      async callMcpTool() {
+        throw new Error('should not be called when no MCP tools resolve')
+      },
+      async searchFiles() {
+        return localResults
+      },
+    }
+
+    const runtime = createRuntime({ codeIntelligence: createCodeIntelligenceFacade(transport) })
+    const tools = await createCodingWorkspaceTools(runtime)
+    const rankedContext = tools.find((tool) => tool.function.name === 'workspace_ranked_context')
+
+    const result = await rankedContext?.execute({ query: 'needle' }, toolExecutionContext)
+
+    // symbol result is unavailable (no find_symbol tool, no fallback) and is filtered out.
+    // pattern result falls back to local search via searchFiles.
+    // expected aggregation: one pattern item with backend='unavailable' and toolName='local_search'.
+    expect(result).toMatchObject({
+      backend: 'unavailable',
+      toolName: 'workspace_ranked_context',
+      rawResult: {
+        items: [
+          {
+            kind: 'pattern',
+            result: {
+              backend: 'unavailable',
+              serverName: undefined,
+              toolName: 'local_search',
+              rawResult: localResults,
+            },
+          },
+        ],
+      },
+    })
+  })
+
+  it('aggregates ranked context from Serena pattern result when symbol search misses', async () => {
+    const patternMatches = [{ filePath: 'src/runtime.ts', line: 42, text: 'needle' }]
+    const transport: CodeIntelligenceTransport = {
+      async listMcpTools() {
+        return [{ serverName: 'serena', name: 'serena::search_for_pattern', toolName: 'search_for_pattern' }]
+      },
+      async callMcpTool() {
+        return { structuredContent: { matches: patternMatches } }
+      },
+      async searchFiles() {
+        throw new Error('searchFiles should not be called when Serena resolves the tool')
+      },
+    }
+
+    const runtime = createRuntime({ codeIntelligence: createCodeIntelligenceFacade(transport) })
+    const tools = await createCodingWorkspaceTools(runtime)
+    const rankedContext = tools.find((tool) => tool.function.name === 'workspace_ranked_context')
+
+    const result = await rankedContext?.execute({ query: 'needle' }, toolExecutionContext)
+
+    // find_symbol resolves to empty unavailable (no Serena find_symbol), and is filtered out.
+    // search_for_pattern resolves via Serena.
+    expect(result.backend).toBe('serena')
+    expect(result.rawResult.items).toHaveLength(1)
+    expect(result.rawResult.items[0]).toMatchObject({
+      kind: 'pattern',
+      result: {
+        backend: 'serena',
+        serverName: 'serena',
+        toolName: 'search_for_pattern',
+      },
+    })
+  })
+
+  it('defaults spec artifact path to canonical artifact path when omitted', async () => {
+    const runtime = createRuntime({ mode: 'spec' })
+    const tools = await createCodingWorkspaceTools(runtime)
+    const updateSpecArtifact = tools.find((tool) => tool.function.name === 'workspace_update_spec_artifact')
+
+    // path omitted → tool should default to state.allowedArtifactPaths[input.artifactName]
+    // which is 'docs/specs/coding-workspace/requirements.md'. That path is inside the
+    // allowed write directory, so validation passes and the call succeeds.
+    await expect(
+      updateSpecArtifact?.execute(
+        {
+          artifactName: 'requirements.md',
+          content: 'Refined requirements content',
+        },
+        toolExecutionContext,
+      ),
+    ).resolves.toMatchObject({
+      ok: true,
+      artifactName: 'requirements.md',
+      path: 'docs/specs/coding-workspace/requirements.md',
+    })
+  })
+
+  it('blocks workspace_update_spec_artifact outside spec and code modes', async () => {
+    // specMutationModes = ['spec', 'code']. Both 'ask' and 'debug' are excluded.
+    // NOTE: the task spec claims debug mode should allow this tool, but the tool source
+    // explicitly lists only ['spec', 'code'] as permitted. Test reflects actual behaviour.
+    const askRuntime = createRuntime({ mode: 'ask' })
+    const askTools = await createCodingWorkspaceTools(askRuntime)
+    const askUpdate = askTools.find((tool) => tool.function.name === 'workspace_update_spec_artifact')
+
+    await expect(
+      askUpdate?.execute({ artifactName: 'requirements.md', content: 'draft' }, toolExecutionContext),
+    ).resolves.toMatchObject({
+      ok: false,
+      reason: 'mode-not-allowed',
+    })
+
+    const debugRuntime = createRuntime({ mode: 'debug' })
+    const debugTools = await createCodingWorkspaceTools(debugRuntime)
+    const debugUpdate = debugTools.find((tool) => tool.function.name === 'workspace_update_spec_artifact')
+
+    await expect(
+      debugUpdate?.execute({ artifactName: 'requirements.md', content: 'draft' }, toolExecutionContext),
+    ).resolves.toMatchObject({
+      ok: false,
+      reason: 'mode-not-allowed',
+    })
+  })
+
+  it('shapes JSON parse errors in provenanceJson as a tool failure, not an unhandled throw', async () => {
+    const runtime = createRuntime({ mode: 'code' })
+    const tools = await createCodingWorkspaceTools(runtime)
+    const createJob = tools.find((tool) => tool.function.name === 'workspace_create_subagent_job')
+
+    // The tool source wraps execute in try/catch via executeAllowed, and parseJson throws
+    // synchronously. The throw is caught and converted to { ok: false, reason: 'tool-execution-failed', message: ... }.
+    await expect(
+      createJob?.execute(
+        {
+          phase: 'requirements',
+          taskDescription: 'Research API shape',
+          provenanceJson: '{invalid',
+        },
+        toolExecutionContext,
+      ),
+    ).resolves.toMatchObject({
+      ok: false,
+      reason: 'tool-execution-failed',
+    })
+  })
+
+  it('round-trips an empty provenance JSON array', async () => {
+    const runtime = createRuntime({ mode: 'code' })
+    const tools = await createCodingWorkspaceTools(runtime)
+    const createJob = tools.find((tool) => tool.function.name === 'workspace_create_subagent_job')
+
+    const result = await createJob?.execute(
+      {
+        phase: 'requirements',
+        taskDescription: 'Research API shape',
+        provenanceJson: '[]',
+      },
+      toolExecutionContext,
+    )
+
+    expect(result).toMatchObject({
+      ok: true,
+      jobId: 'job-1',
+      job: {
+        provenance: [],
+      },
+    })
+  })
+
+  it('returns symbols overview from injected code intelligence', async () => {
+    const fullSerenaTransport: CodeIntelligenceTransport = {
+      ...serenaTransport,
+      async listMcpTools() {
+        return [
+          { serverName: 'serena', name: 'serena::get_symbols_overview', toolName: 'get_symbols_overview' },
+          { serverName: 'serena', name: 'serena::find_symbol', toolName: 'find_symbol' },
+          { serverName: 'serena', name: 'serena::get_diagnostics_for_file', toolName: 'get_diagnostics_for_file' },
+          { serverName: 'serena', name: 'serena::search_for_pattern', toolName: 'search_for_pattern' },
+        ]
+      },
+    }
+    const customFacade = createCodeIntelligenceFacade(fullSerenaTransport)
+    const runtime = createRuntime({ codeIntelligence: customFacade })
+    const tools = await createCodingWorkspaceTools(runtime)
+    const symbolsOverview = tools.find((tool) => tool.function.name === 'workspace_get_symbols_overview')
+
+    const result = await symbolsOverview?.execute({ relativePath: 'src/runtime.ts' }, toolExecutionContext)
+
+    expect(result).toMatchObject({
+      backend: 'serena',
+      serverName: 'serena',
+      toolName: 'get_symbols_overview',
+      query: { relativePath: 'src/runtime.ts' },
+    })
+  })
+
+  it('returns diagnostics from injected code intelligence', async () => {
+    const fullSerenaTransport: CodeIntelligenceTransport = {
+      ...serenaTransport,
+      async listMcpTools() {
+        return [
+          { serverName: 'serena', name: 'serena::get_symbols_overview', toolName: 'get_symbols_overview' },
+          { serverName: 'serena', name: 'serena::find_symbol', toolName: 'find_symbol' },
+          { serverName: 'serena', name: 'serena::get_diagnostics_for_file', toolName: 'get_diagnostics_for_file' },
+          { serverName: 'serena', name: 'serena::search_for_pattern', toolName: 'search_for_pattern' },
+        ]
+      },
+    }
+    const customFacade = createCodeIntelligenceFacade(fullSerenaTransport)
+    const runtime = createRuntime({ codeIntelligence: customFacade })
+    const tools = await createCodingWorkspaceTools(runtime)
+    const diagnostics = tools.find((tool) => tool.function.name === 'workspace_get_diagnostics')
+
+    const result = await diagnostics?.execute({ relativePath: 'src/runtime.ts' }, toolExecutionContext)
+
+    expect(result).toMatchObject({
+      backend: 'serena',
+      serverName: 'serena',
+      toolName: 'get_diagnostics_for_file',
+      query: { relativePath: 'src/runtime.ts' },
+    })
+  })
+})
+
 const toolExecutionContext = {
   messages: [],
   toolCallId: 'tool-call-id',

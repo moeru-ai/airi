@@ -275,7 +275,12 @@ export function createMcpStdioManager(): McpStdioManager {
     const { serverName, toolName } = parseQualifiedToolName(payload.name)
     const session = sessions.get(serverName)
     if (!session) {
-      throw new Error(`mcp server is not running: ${serverName}`)
+      const runningServers = [...sessions.keys()].sort()
+      throw new Error(
+        runningServers.length === 0
+          ? `MCP server "${serverName}" is not running. No MCP servers are currently running.`
+          : `MCP server "${serverName}" is not running. Running servers: ${runningServers.map((s) => `"${s}"`).join(', ')}. Call listTools exactly once to refresh available tools.`,
+      )
     }
 
     let result: unknown
