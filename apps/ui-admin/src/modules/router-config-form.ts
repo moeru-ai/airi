@@ -1,9 +1,11 @@
 import type {
   AdminRouterAliyunNlsAsrSlice,
   AdminRouterAzureSlice,
+  AdminRouterBedrockSlice,
   AdminRouterConfigRequest,
   AdminRouterConfigSlice,
   AdminRouterDashscopeSlice,
+  AdminRouterOpenAICompatibleSlice,
   AdminRouterOpenRouterSlice,
   AdminRouterStepfunSlice,
   AdminRouterUnspeechSlice,
@@ -38,6 +40,30 @@ export interface OpenRouterSliceDraft extends SliceDraftBase {
   existingKeyEntryId: string
   headerTemplate: string
 }
+
+export interface BedrockSliceDraft extends SliceDraftBase {
+  kind: 'bedrock'
+  modelName: string
+  overrideModel: string
+  plaintextKey: string
+  baseURL: string
+  keyEntryId: string
+  existingKeyEntryId: string
+  headerTemplate: string
+}
+
+export interface OpenAICompatibleSliceDraft extends SliceDraftBase {
+  kind: 'openai-compatible'
+  modelName: string
+  overrideModel: string
+  plaintextKey: string
+  baseURL: string
+  keyEntryId: string
+  existingKeyEntryId: string
+  headerTemplate: string
+}
+
+type LlmSliceDraft = OpenRouterSliceDraft | BedrockSliceDraft | OpenAICompatibleSliceDraft
 
 export interface AzureSliceDraft extends SliceDraftBase {
   kind: 'azure'
@@ -95,6 +121,8 @@ export interface AliyunNlsAsrSliceDraft extends SliceDraftBase {
 
 export type RouterSliceDraft
   = | OpenRouterSliceDraft
+    | BedrockSliceDraft
+    | OpenAICompatibleSliceDraft
     | AzureSliceDraft
     | DashscopeSliceDraft
     | StepfunSliceDraft
@@ -119,6 +147,8 @@ let draftId = 0
 
 export const ROUTER_SLICE_KIND_OPTIONS: Array<{ label: string, value: RouterSliceKind, description: string }> = [
   { label: 'OpenRouter', value: 'openrouter', description: 'LLM chat model alias' },
+  { label: 'Bedrock', value: 'bedrock', description: 'Amazon Bedrock OpenAI-compatible chat alias' },
+  { label: 'OpenAI Compatible', value: 'openai-compatible', description: 'Custom OpenAI-compatible chat alias' },
   { label: 'Azure Speech', value: 'azure', description: 'Microsoft TTS model alias' },
   { label: 'DashScope CosyVoice', value: 'dashscope-cosyvoice', description: 'Alibaba TTS model alias' },
   { label: 'StepFun TTS', value: 'stepfun', description: 'StepAudio / Step TTS model alias' },
@@ -178,6 +208,8 @@ export function createRouterConfigFormState(): RouterConfigFormState {
  * - A draft with provider-specific operational defaults.
  */
 export function createRouterSliceDraft(kind: 'openrouter', id?: string): OpenRouterSliceDraft
+export function createRouterSliceDraft(kind: 'bedrock', id?: string): BedrockSliceDraft
+export function createRouterSliceDraft(kind: 'openai-compatible', id?: string): OpenAICompatibleSliceDraft
 export function createRouterSliceDraft(kind: 'azure', id?: string): AzureSliceDraft
 export function createRouterSliceDraft(kind: 'dashscope-cosyvoice', id?: string): DashscopeSliceDraft
 export function createRouterSliceDraft(kind: 'stepfun', id?: string): StepfunSliceDraft
@@ -196,6 +228,30 @@ export function createRouterSliceDraft(kind: RouterSliceKind, id?: string): Rout
         plaintextKey: '',
         baseURL: 'https://openrouter.ai/api/v1',
         keyEntryId: '',
+        existingKeyEntryId: '',
+        headerTemplate: '',
+      }
+    case 'bedrock':
+      return {
+        id: sliceId,
+        kind,
+        modelName: 'chat-bedrock',
+        overrideModel: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0',
+        plaintextKey: '',
+        baseURL: 'https://bedrock-mantle.us-east-1.api.aws/v1',
+        keyEntryId: 'bedrock-prod-1',
+        existingKeyEntryId: '',
+        headerTemplate: '',
+      }
+    case 'openai-compatible':
+      return {
+        id: sliceId,
+        kind,
+        modelName: 'chat-compatible',
+        overrideModel: 'gpt-4o-mini',
+        plaintextKey: '',
+        baseURL: 'https://api.example.com/v1',
+        keyEntryId: 'openai-compatible-prod-1',
         existingKeyEntryId: '',
         headerTemplate: '',
       }
@@ -359,6 +415,8 @@ function validateSlice(slice: RouterSliceDraft, ordinal: number): string[] {
   const label = `Slice ${ordinal} (${kindLabel(slice.kind)})`
   switch (slice.kind) {
     case 'openrouter':
+    case 'bedrock':
+    case 'openai-compatible':
       return [
         required(slice.modelName, `${label}: model alias is required.`),
         noPipe(slice.modelName, `${label}: model alias must not contain "|".`),
@@ -435,8 +493,10 @@ function validateStreamingModels(json: string, label: string): string | undefine
 
 function sliceToRequest(slice: RouterSliceDraft): AdminRouterConfigSlice {
   switch (slice.kind) {
-    case 'openrouter': {
-      const request: AdminRouterOpenRouterSlice = {
+    case 'openrouter':
+    case 'bedrock':
+    case 'openai-compatible': {
+      const request: AdminRouterOpenRouterSlice | AdminRouterBedrockSlice | AdminRouterOpenAICompatibleSlice = {
         kind: slice.kind,
         modelName: trim(slice.modelName),
         overrideModel: trim(slice.overrideModel),
@@ -534,8 +594,10 @@ function draftFromRequestSlice(value: unknown, ordinal: number): RouterSliceDraf
     throw new Error(`slices[${ordinal - 1}] must include a supported kind.`)
 
   switch (value.kind) {
-    case 'openrouter': {
-      const draft = createRouterSliceDraft('openrouter', `imported-openrouter-${ordinal}`) as OpenRouterSliceDraft
+    case 'openrouter':
+    case 'bedrock':
+    case 'openai-compatible': {
+      const draft = createRouterSliceDraft(value.kind, `imported-${value.kind}-${ordinal}`) as LlmSliceDraft
       draft.modelName = stringValue(value.modelName)
       draft.overrideModel = stringValue(value.overrideModel)
       draft.plaintextKey = stringValue(value.plaintextKey)

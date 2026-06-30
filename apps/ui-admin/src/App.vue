@@ -15,6 +15,7 @@ const route = useRoute()
 const loading = shallowRef(true)
 const me = shallowRef<AdminMe | null>(null)
 const accessError = shallowRef<string | null>(null)
+const needsSignIn = shallowRef(false)
 const currentApiServerUrl = apiServerUrl()
 
 const navItems = [
@@ -42,7 +43,7 @@ onMounted(async () => {
   }
   catch (error) {
     if (error instanceof AdminApiError && error.status === 401) {
-      window.location.href = signInUrl()
+      needsSignIn.value = true
       return
     }
 
@@ -63,16 +64,19 @@ onMounted(async () => {
       </div>
     </div>
 
-    <div v-else-if="accessError" class="grid min-h-screen place-items-center px-6">
+    <div v-else-if="needsSignIn || accessError" :class="['grid', 'min-h-screen', 'place-items-center', 'px-6']">
+      <div :class="['fixed', 'right-6', 'top-5']">
+        <ApiEnvironmentSelect :api-server-url="currentApiServerUrl" />
+      </div>
       <section class="max-w-md w-full border border-neutral-200 rounded-lg bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
-        <div class="mb-4 h-10 w-10 flex items-center justify-center rounded-lg bg-red-50 text-red-600">
-          <span class="i-lucide-shield-alert text-xl" />
+        <div :class="['mb-4', 'h-10', 'w-10', 'flex', 'items-center', 'justify-center', 'rounded-lg', needsSignIn ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600']">
+          <span :class="[needsSignIn ? 'i-lucide-lock-keyhole' : 'i-lucide-shield-alert', 'text-xl']" />
         </div>
         <h1 class="text-xl font-semibold">
-          Admin access required
+          {{ needsSignIn ? 'Sign in to AIRI Admin' : 'Admin access required' }}
         </h1>
         <p class="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
-          {{ accessError }}
+          {{ needsSignIn ? 'Choose the backend environment, then continue to its auth page.' : accessError }}
         </p>
         <a class="mt-5 h-9 inline-flex items-center gap-2 rounded-md bg-emerald-600 px-3 text-sm text-white" :href="signInUrl()">
           <span class="i-lucide-log-in" />

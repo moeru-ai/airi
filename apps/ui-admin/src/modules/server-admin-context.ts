@@ -35,6 +35,13 @@ const TRUSTED_STANDALONE_API_SERVER_ORIGINS = [
   'https://airi-server-dev.up.railway.app',
 ]
 
+const TRUSTED_HTTPS_API_SERVER_HOSTS = new Map(
+  TRUSTED_STANDALONE_API_SERVER_ORIGINS.map((origin) => {
+    const url = new URL(origin)
+    return [url.hostname, origin]
+  }),
+)
+
 const DEFAULT_API_SERVER_ORIGINS_BY_ADMIN_UI_ORIGIN = new Map([
   ['https://admin.airi.build', 'https://api.airi.build'],
   ['https://server-dev.airi-server-admin.pages.dev', 'https://airi-server-dev.up.railway.app'],
@@ -155,7 +162,12 @@ function normalizeTrustedApiServerUrl(value: string | null): string | null {
     return null
 
   try {
-    const origin = new URL(value).origin
+    const url = new URL(value)
+    const normalizedHttpsOrigin = TRUSTED_HTTPS_API_SERVER_HOSTS.get(url.hostname)
+    if (normalizedHttpsOrigin)
+      return normalizedHttpsOrigin
+
+    const origin = url.origin
 
     if (TRUSTED_STANDALONE_API_SERVER_ORIGINS.includes(origin))
       return origin

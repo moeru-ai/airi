@@ -25,6 +25,10 @@ const title = computed(() => {
   switch (slice.value.kind) {
     case 'openrouter':
       return 'OpenRouter'
+    case 'bedrock':
+      return 'Bedrock'
+    case 'openai-compatible':
+      return 'OpenAI Compatible'
     case 'azure':
       return 'Azure Speech'
     case 'dashscope-cosyvoice':
@@ -54,6 +58,17 @@ const providerKeyPlaceholder = computed(() => {
     return ''
 
   return slice.value.existingKeyEntryId ? 'Leave blank to keep existing key' : 'Paste provider key'
+})
+
+const baseUrlPlaceholder = computed(() => {
+  switch (slice.value.kind) {
+    case 'bedrock':
+      return 'https://bedrock-mantle.us-east-1.api.aws/v1'
+    case 'openai-compatible':
+      return 'https://api.example.com/v1'
+    default:
+      return 'https://openrouter.ai/api/v1'
+  }
 })
 
 const streamingKeyDescription = computed(() => {
@@ -88,11 +103,11 @@ const streamingKeyPlaceholder = computed(() => {
       </div>
     </div>
 
-    <div v-if="slice.kind === 'openrouter'" :class="['grid', 'gap-4', 'md:grid-cols-2']">
+    <div v-if="slice.kind === 'openrouter' || slice.kind === 'bedrock' || slice.kind === 'openai-compatible'" :class="['grid', 'gap-4', 'md:grid-cols-2']">
       <FieldInput v-model="slice.modelName" input-class="font-mono text-xs" label="Model alias" placeholder="chat-default" required />
       <FieldInput v-model="slice.overrideModel" input-class="font-mono text-xs" label="Upstream model" placeholder="openai/gpt-4o-mini" required />
       <FieldInput v-model="slice.plaintextKey" autocomplete="new-password" :description="providerKeyDescription" input-class="font-mono text-xs" label="Provider key" :placeholder="providerKeyPlaceholder" required type="password" />
-      <FieldInput v-model="slice.baseURL" input-class="font-mono text-xs" label="Base URL" placeholder="https://openrouter.ai/api/v1" required />
+      <FieldInput v-model="slice.baseURL" input-class="font-mono text-xs" label="Base URL" :placeholder="baseUrlPlaceholder" required />
       <FieldInput v-model="slice.keyEntryId" input-class="font-mono text-xs" label="Key entry ID" placeholder="openrouter-prod-1" />
       <FieldInput v-model="slice.headerTemplate" input-class="font-mono text-xs" label="Header template" placeholder="Bearer {KEY}" />
     </div>

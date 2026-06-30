@@ -36,6 +36,37 @@ describe('router config form builder', () => {
     })
   })
 
+  it('compiles Bedrock and OpenAI-compatible LLM slices', () => {
+    const bedrock = createRouterSliceDraft('bedrock', 'bedrock-test')
+    bedrock.plaintextKey = 'bedrock-token'
+    const compatible = createRouterSliceDraft('openai-compatible', 'compatible-test')
+    compatible.plaintextKey = 'sk-compatible'
+    compatible.baseURL = 'https://llm.example.com/v1'
+
+    expect(buildRouterConfigRequest({
+      mode: 'merge',
+      slices: [bedrock, compatible],
+      defaults: { chatModel: '', ttsModel: '', ttsVoicesJson: '' },
+    }).request?.slices).toEqual([
+      {
+        kind: 'bedrock',
+        modelName: 'chat-bedrock',
+        overrideModel: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0',
+        plaintextKey: 'bedrock-token',
+        baseURL: 'https://bedrock-mantle.us-east-1.api.aws/v1',
+        keyEntryId: 'bedrock-prod-1',
+      },
+      {
+        kind: 'openai-compatible',
+        modelName: 'chat-compatible',
+        overrideModel: 'gpt-4o-mini',
+        plaintextKey: 'sk-compatible',
+        baseURL: 'https://llm.example.com/v1',
+        keyEntryId: 'openai-compatible-prod-1',
+      },
+    ])
+  })
+
   it('compiles Azure speech defaults without OpenRouter-only fields', () => {
     const azure = createRouterSliceDraft('azure', 'azure-test')
     azure.plaintextKey = 'azure-key'

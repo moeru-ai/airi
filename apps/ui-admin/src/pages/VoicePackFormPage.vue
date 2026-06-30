@@ -20,6 +20,7 @@ const router = useRouter()
 
 const packs = shallowRef<VoicePack[]>([])
 const models = shallowRef<{ id: string, name: string }[]>([])
+const catalogDefaultModel = shallowRef<string | null>(null)
 const voices = shallowRef<SpeechVoice[]>([])
 const recommendedVoices = shallowRef<Record<string, string>>({})
 const loading = shallowRef(false)
@@ -29,15 +30,16 @@ const saving = shallowRef(false)
 const testing = shallowRef(false)
 const testAudioUrl = shallowRef<string | null>(null)
 const testText = shallowRef(TEST_TEXT)
-const previousDerived = shallowRef(deriveModelParts('volcengine/seed-tts-2.0'))
+const previousDerived = shallowRef(deriveModelParts(''))
+const modelChangeVoiceLoadingEnabled = shallowRef(false)
 
 const form = reactive({
   name: '',
   description: '',
-  provider: 'volcengine',
-  model: 'seed-tts-2.0',
+  provider: '',
+  model: '',
   voiceId: '',
-  ttsModelId: 'volcengine/seed-tts-2.0',
+  ttsModelId: '',
   paramsJson: DEFAULT_PARAMS,
   costMultiplier: 1,
   status: 'enabled',
@@ -86,6 +88,10 @@ const voiceOptions = computed(() =>
     description: voiceOptionDescription(voice),
   })),
 )
+const ttsModelPlaceholder = computed(() => models.value[0]?.id ?? 'provider/model')
+const voicePlaceholder = computed(() => voices.value[0]?.id ?? 'voice-id')
+const providerPlaceholder = computed(() => providerOptions.value[0]?.value ?? 'provider')
+const baseModelPlaceholder = computed(() => baseModelOptions.value[0]?.value ?? 'model')
 
 const paramsError = computed(() => {
   try {
@@ -118,8 +124,9 @@ onMounted(async () => {
   if (isEditing.value)
     fillSelectedPack()
   else
-    previousDerived.value = deriveModelParts(form.ttsModelId)
+    resetForm()
   await loadVoices(form.ttsModelId, { autoPick: !form.voiceId.trim() })
+  modelChangeVoiceLoadingEnabled.value = true
 })
 
 onBeforeUnmount(() => {
@@ -129,7 +136,6 @@ onBeforeUnmount(() => {
 watch(() => route.params.id, async () => {
   if (!isEditing.value) {
     resetForm()
-    await loadVoices(form.ttsModelId, { autoPick: true })
     return
   }
   fillSelectedPack()
@@ -143,6 +149,8 @@ watch(() => form.ttsModelId, (next) => {
   if (!form.model.trim() || form.model === oldDerived.model)
     form.model = nextDerived.model
   previousDerived.value = nextDerived
+  if (!modelChangeVoiceLoadingEnabled.value)
+    return
   void loadVoices(next, { autoPick: true })
 })
 
@@ -162,7 +170,9 @@ async function loadPacks() {
 async function loadCatalog() {
   loadingCatalog.value = true
   try {
-    models.value = await adminApi.speechModels()
+    const catalog = await adminApi.speechModels()
+    models.value = catalog.models
+    catalogDefaultModel.value = catalog.default
   }
   catch (error) {
     toast.error(errorMessageFromUnknown(error, 'Failed to load speech models'))
@@ -221,18 +231,27 @@ function fillForm(pack: VoicePack) {
 }
 
 function resetForm() {
+  const modelId = initialCatalogModelId()
+  const modelParts = deriveModelParts(modelId)
   form.name = ''
   form.description = ''
-  form.provider = 'volcengine'
-  form.model = 'seed-tts-2.0'
+  form.provider = modelParts.provider
+  form.model = modelParts.model
   form.voiceId = ''
-  form.ttsModelId = 'volcengine/seed-tts-2.0'
+  form.ttsModelId = modelId
   form.paramsJson = DEFAULT_PARAMS
   form.costMultiplier = 1
   form.status = 'enabled'
   testText.value = TEST_TEXT
-  previousDerived.value = deriveModelParts(form.ttsModelId)
+  previousDerived.value = modelParts
   revokeTestAudio()
+}
+
+function initialCatalogModelId(): string {
+  const defaultModel = catalogDefaultModel.value
+  if (defaultModel && models.value.some(model => model.id === defaultModel))
+    return defaultModel
+  return models.value[0]?.id ?? ''
 }
 
 function parseParams(): VoicePackParams {
@@ -472,7 +491,7 @@ function normalizeRateOption(value: string | number | boolean | null | undefined
               label="TTS model ID"
               list-id="voice-pack-tts-models"
               :options="modelOptions"
-              placeholder="volcengine/seed-tts-2.0"
+              :placeholder="ttsModelPlaceholder"
               required
             />
             <DatalistField
@@ -482,7 +501,7 @@ function normalizeRateOption(value: string | number | boolean | null | undefined
               label="Voice ID"
               list-id="voice-pack-voices"
               :options="voiceOptions"
-              placeholder="zh_female_vv_uranus_bigtts"
+              :placeholder="voicePlaceholder"
               required
             />
           </div>
@@ -494,7 +513,7 @@ function normalizeRateOption(value: string | number | boolean | null | undefined
               label="Provider"
               list-id="voice-pack-providers"
               :options="providerOptions"
-              placeholder="volcengine"
+              :placeholder="providerPlaceholder"
               required
             />
             <DatalistField
@@ -503,7 +522,7 @@ function normalizeRateOption(value: string | number | boolean | null | undefined
               label="Model"
               list-id="voice-pack-provider-models"
               :options="baseModelOptions"
-              placeholder="seed-tts-2.0"
+              :placeholder="baseModelPlaceholder"
               required
             />
           </div>

@@ -58,7 +58,7 @@ const pendingSummary = computed(() => {
   const defaults = pendingRequest.value.defaults ?? {}
   return {
     slices: form.slices.length,
-    llmSlices: form.slices.filter(slice => slice.kind === 'openrouter').length,
+    llmSlices: form.slices.filter(isLlmSlice).length,
     ttsSlices: form.slices.filter(isTtsSlice).length,
     streamingTtsSlices: form.slices.filter(isStreamingTtsSlice).length,
     asrSlices: form.slices.filter(isAsrSlice).length,
@@ -73,7 +73,7 @@ const providerTabs = computed(() => [
 ])
 const providerKindOptions = computed(() => ROUTER_SLICE_KIND_OPTIONS.filter((option) => {
   if (activeProviderTab.value === 'llm')
-    return option.value === 'openrouter'
+    return isLlmSliceKind(option.value)
   if (activeProviderTab.value === 'streamingTts')
     return option.value === 'unspeech'
   if (activeProviderTab.value === 'asr')
@@ -249,7 +249,7 @@ function parseAdvancedJsonRequest(): AdminRouterConfigRequest | null {
 }
 
 function isLlmSlice(slice: RouterSliceDraft) {
-  return slice.kind === 'openrouter'
+  return isLlmSliceKind(slice.kind)
 }
 
 function isTtsSlice(slice: RouterSliceDraft) {
@@ -268,6 +268,12 @@ function isTtsSliceKind(kind: RouterSliceKind) {
   return kind === 'azure'
     || kind === 'dashscope-cosyvoice'
     || kind === 'stepfun'
+}
+
+function isLlmSliceKind(kind: RouterSliceKind) {
+  return kind === 'openrouter'
+    || kind === 'bedrock'
+    || kind === 'openai-compatible'
 }
 
 function activeProviderLabel() {

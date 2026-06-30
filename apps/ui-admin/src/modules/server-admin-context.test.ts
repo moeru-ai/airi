@@ -26,6 +26,12 @@ describe('ui-admin bootstrap context', () => {
     )?.apiServerUrl).toBe('http://127.0.0.1:3000')
   })
 
+  it('normalizes known production API hosts to HTTPS when the query param is typed with HTTP', () => {
+    expect(resolveStandaloneServerAdminContext(
+      'http://localhost:5178/llm-router?api_server_url=http%3A%2F%2Fapi.airi.build',
+    )?.apiServerUrl).toBe('https://api.airi.build')
+  })
+
   it('defaults local standalone dev UI origins to the local API port', () => {
     expect(defaultStandaloneApiServerUrl('http://localhost:5178')).toBe('http://localhost:3000')
     expect(defaultStandaloneApiServerUrl('http://127.0.0.1:5178')).toBe('http://127.0.0.1:3000')

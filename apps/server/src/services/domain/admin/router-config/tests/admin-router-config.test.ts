@@ -9,6 +9,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   buildAliyunNlsAsrSlice,
   buildAzureSlice,
+  buildBedrockSlice,
   buildDashscopeSlice,
   buildNextRouterConfig,
   buildOpenRouterSlice,
@@ -148,6 +149,29 @@ describe('buildOpenRouterSlice', () => {
     expect(built.model.upstreams[0].baseURL).toBe('https://proxy.example/api/v1')
     expect(built.model.upstreams[0].headerTemplate).toBe('X-Custom-Token {KEY}')
     expect(built.model.upstreams[0].keys[0].id).toBe('openrouter-prod-2')
+  })
+})
+
+describe('buildBedrockSlice', () => {
+  it('accepts and encrypts multi-kilobyte Bedrock bearer tokens', () => {
+    const envelope = freshEnvelope()
+    const token = `bedrock-api-key-${'x'.repeat(2200)}`
+    const built = buildBedrockSlice({
+      kind: 'bedrock',
+      modelName: 'chat-bedrock',
+      overrideModel: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0',
+      plaintextKey: token,
+    }, envelope)
+
+    expect(built.kind).toBe('bedrock')
+    expect(built.keyEntryId).toBe('bedrock-prod-1')
+    expect(built.model.upstreams[0].baseURL).toBe('https://bedrock-mantle.us-east-1.api.aws/v1')
+
+    const decrypted = envelope.decryptKey(built.model.upstreams[0].keys[0].ciphertext, {
+      modelName: 'chat-bedrock',
+      keyEntryId: 'bedrock-prod-1',
+    })
+    expect(decrypted.toString('utf8')).toBe(token)
   })
 })
 
@@ -593,6 +617,59 @@ describe('createAdminRouterConfigService', () => {
     expect(current.request.defaults.chatModel).toBe('chat-live')
     expect(JSON.stringify(current.preview)).toContain('<ciphertext: 17 chars>')
     expect(JSON.stringify(current.preview)).not.toContain('secret-ciphertext')
+  })
+
+  it('current classifies Bedrock and generic OpenAI-compatible LLM upstreams by baseURL', async () => {
+    kv.store.set('LLM_ROUTER_CONFIG', {
+      llm: {
+        models: {
+          'chat-bedrock': {
+            upstreams: [{
+              baseURL: 'https://bedrock-mantle.us-east-1.api.aws/v1',
+              overrideModel: 'us.amazon.nova-pro-v1:0',
+              keys: [{ id: 'bedrock-live', ciphertext: 'bedrock-ciphertext' }],
+              headerTemplate: 'Bearer {KEY}',
+            }],
+            fallbackTriggers: DEFAULT_FALLBACK_TRIGGERS,
+          },
+          'chat-compatible': {
+            upstreams: [{
+              baseURL: 'https://llm.example.com/v1',
+              overrideModel: 'gpt-4o-mini',
+              keys: [{ id: 'compatible-live', ciphertext: 'compatible-ciphertext' }],
+              headerTemplate: 'Bearer {KEY}',
+            }],
+            fallbackTriggers: DEFAULT_FALLBACK_TRIGGERS,
+          },
+        },
+      },
+      tts: { models: {} },
+      defaults: { perAttemptTimeoutMs: 30000, fullChainTimeoutMs: 60000, fallbackHttpCodes: [500] },
+    })
+
+    const service = createAdminRouterConfigService({ configKV: kv.service, envelope, redis })
+    const current = await service.current()
+
+    expect(current.request.slices).toEqual([
+      {
+        kind: 'bedrock',
+        modelName: 'chat-bedrock',
+        overrideModel: 'us.amazon.nova-pro-v1:0',
+        baseURL: 'https://bedrock-mantle.us-east-1.api.aws/v1',
+        headerTemplate: 'Bearer {KEY}',
+        keyEntryId: 'bedrock-live',
+        existingKeyEntryId: 'bedrock-live',
+      },
+      {
+        kind: 'openai-compatible',
+        modelName: 'chat-compatible',
+        overrideModel: 'gpt-4o-mini',
+        baseURL: 'https://llm.example.com/v1',
+        headerTemplate: 'Bearer {KEY}',
+        keyEntryId: 'compatible-live',
+        existingKeyEntryId: 'compatible-live',
+      },
+    ])
   })
 
   it('preserves an existing key entry when an applied slice omits plaintextKey', async () => {

@@ -58,6 +58,28 @@ export interface AdminRouterOpenRouterSlice {
   headerTemplate?: string
 }
 
+export interface AdminRouterBedrockSlice {
+  kind: 'bedrock'
+  modelName: string
+  overrideModel: string
+  plaintextKey?: string
+  baseURL?: string
+  keyEntryId?: string
+  existingKeyEntryId?: string
+  headerTemplate?: string
+}
+
+export interface AdminRouterOpenAICompatibleSlice {
+  kind: 'openai-compatible'
+  modelName: string
+  overrideModel: string
+  plaintextKey?: string
+  baseURL?: string
+  keyEntryId?: string
+  existingKeyEntryId?: string
+  headerTemplate?: string
+}
+
 export interface AdminRouterAzureSlice {
   kind: 'azure'
   modelName: string
@@ -115,6 +137,8 @@ export interface AdminRouterAliyunNlsAsrSlice {
 
 export type AdminRouterConfigSlice
   = | AdminRouterOpenRouterSlice
+    | AdminRouterBedrockSlice
+    | AdminRouterOpenAICompatibleSlice
     | AdminRouterAzureSlice
     | AdminRouterDashscopeSlice
     | AdminRouterStepfunSlice
@@ -179,6 +203,11 @@ export interface VoicePackPayload {
 export interface SpeechModel {
   id: string
   name: string
+}
+
+export interface SpeechModelsResult {
+  models: SpeechModel[]
+  default: string | null
 }
 
 export interface SpeechVoice {
@@ -373,9 +402,12 @@ export const adminApi = {
       body: JSON.stringify({ ...body, dryRun }),
     }),
   routerConfig: () => adminFetch<AdminRouterConfigCurrent>('/config/router'),
-  speechModels: async () => {
-    const data = await publicFetch<{ models?: SpeechModel[] }>('/audio/models')
-    return Array.isArray(data.models) ? data.models : []
+  speechModels: async (): Promise<SpeechModelsResult> => {
+    const data = await publicFetch<{ default?: unknown, models?: SpeechModel[] }>('/audio/models')
+    return {
+      models: Array.isArray(data.models) ? data.models : [],
+      default: typeof data.default === 'string' ? data.default : null,
+    }
   },
   speechVoices: async (model: string): Promise<SpeechVoicesResult> => {
     const query = new URLSearchParams()
