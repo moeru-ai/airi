@@ -784,6 +784,12 @@ pages:
       empty: No MCP servers yet — click "Add server" below to create one, or paste a config via "Edit JSON".
       error-title: Oops
       success-title: Done!
+      activated:
+        title: Activated tools
+        description: An MCP tool you've used is promoted to a directly-callable native tool (kept across restarts). Deactivating sends it back to the catalog and the generic call path.
+        empty: No tools activated yet. One shows up here after it's been used once.
+        deactivate: Deactivate
+        deactivate-all: Deactivate all
       existing:
         title: Configured
         description: Servers recorded in mcp.json. Click any row to expand and edit it.
