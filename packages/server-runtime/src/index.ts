@@ -246,7 +246,19 @@ export function normalizeLoggerConfig(options?: AppOptions) {
  * - Owns all timers and intervals created during setup
  * - Consumer orchestrator state is isolated within this function scope
  */
-export function setupApp(options?: AppOptions): { app: H3; closeAllPeers: () => void; dispose: () => void } {
+export function setupApp(options?: AppOptions): {
+  app: H3
+  closeAllPeers: () => void
+  dispose: () => void
+  getHealthCheck: () => {
+    status: 'healthy' | 'degraded'
+    instanceId: string
+    uptimeSeconds: number
+    health: { checkIntervalMs: number; heartbeatTtlMs: number }
+    peers: { total: number; healthy: number; unhealthy: number }
+    modules: { total: number }
+  }
+} {
   // === Configuration & State Initialization ===
   const instanceId = options?.instanceId || optionOrEnv(undefined, 'SERVER_INSTANCE_ID', nanoid())
   const authToken = optionOrEnv(options?.auth?.token, 'AUTHENTICATION_TOKEN', '')
@@ -969,6 +981,34 @@ export function setupApp(options?: AppOptions): { app: H3; closeAllPeers: () => 
 
   app.get('/ws', defineWebSocketHandler(websocketGateway.handler))
 
+  // === Health Check Endpoint ===
+  // Returns structured health status for operators and agents to verify
+  // server liveness. Aggregates peer module registry and heartbeat metrics.
+  app.get('/health', () => {
+    const totalPeers = peers.size
+    const healthyPeers = Array.from(peers.values()).filter((p) => p.healthy !== false).length
+    const unhealthyPeers = totalPeers - healthyPeers
+    const totalModules = peersByModule.size
+
+    return Response.json({
+      status: (unhealthyPeers === 0 ? 'healthy' : 'degraded') as 'healthy' | 'degraded',
+      instanceId,
+      uptimeSeconds: Math.round(process.uptime()),
+      health: {
+        checkIntervalMs: healthCheckIntervalMs,
+        heartbeatTtlMs,
+      },
+      peers: {
+        total: totalPeers,
+        healthy: healthyPeers,
+        unhealthy: unhealthyPeers,
+      },
+      modules: {
+        total: totalModules,
+      },
+    })
+  })
+
   function closeAllPeers() {
     logger.withFields({ totalPeers: peers.size }).log('closing all peers')
 
@@ -1024,9 +1064,34 @@ export function setupApp(options?: AppOptions): { app: H3; closeAllPeers: () => 
     websocketGateway.dispose()
   }
 
+  function getHealthCheck() {
+    const totalPeers = peers.size
+    const healthyPeers = Array.from(peers.values()).filter((p) => p.healthy !== false).length
+    const unhealthyPeers = totalPeers - healthyPeers
+
+    return {
+      status: (unhealthyPeers === 0 ? 'healthy' : 'degraded') as 'healthy' | 'degraded',
+      instanceId,
+      uptimeSeconds: Math.round(process.uptime()),
+      health: {
+        checkIntervalMs: healthCheckIntervalMs,
+        heartbeatTtlMs,
+      },
+      peers: {
+        total: totalPeers,
+        healthy: healthyPeers,
+        unhealthy: unhealthyPeers,
+      },
+      modules: {
+        total: peersByModule.size,
+      },
+    }
+  }
+
   return {
     app,
     closeAllPeers,
     dispose,
+    getHealthCheck,
   }
 }
