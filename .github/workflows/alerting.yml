@@ -98,6 +98,38 @@ jobs:
           fi
           echo "No 'failed to send event to peer' log lines found — ALR-003 gate clear."
 
+      - name: Assert /metrics returns Prometheus exposition (metrics_collection gate)
+        shell: bash
+        run: |
+          METRICS=$(curl -fsS -o /dev/null -w "%{http_code} %{content_type}" http://127.0.0.1:6121/metrics)
+          echo "METRICS: $METRICS"
+
+          HTTP_CODE=$(echo "$METRICS" | cut -d' ' -f1)
+          CONTENT_TYPE=$(echo "$METRICS" | cut -d' ' -f2)
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error file=.github/workflows/alerting.yml::metrics_collection gate tripped — /metrics returned HTTP $HTTP_CODE (expected 200)"
+            exit 1
+          fi
+          if [ "$CONTENT_TYPE" != "text/plain;charset=UTF-8" ] && [ "$CONTENT_TYPE" != "text/plain; version=0.0.4; charset=utf-8" ]; then
+            echo "::warning file=.github/workflows/alerting.yml::/metrics content-type was '$CONTENT_TYPE' (expected 'text/plain; version=0.0.4; charset=utf-8')"
+          fi
+
+          BODY=$(curl -fsS http://127.0.0.1:6121/metrics)
+          echo "---- /metrics body ----"
+          echo "$BODY"
+          echo "---- end ----"
+
+          # Must expose at least one metric from the server.
+          if ! echo "$BODY" | grep -qE '^airi_server_(peer_total|peer_healthy|peer_unhealthy|module_total) '; then
+            echo "::error file=.github/workflows/alerting.yml::metrics_collection gate tripped — no airi_server_* metrics found in /metrics body"
+            exit 1
+          fi
+          if ! echo "$BODY" | grep -qE '^# (HELP|TYPE) '; then
+            echo "::error file=.github/workflows/alerting.yml::metrics_collection gate tripped — /metrics missing Prometheus HELP/TYPE lines"
+            exit 1
+          fi
+          echo "Prometheus exposition passes: metrics_collection gate clear."
+
       - name: Stop server
         if: always()
         shell: bash

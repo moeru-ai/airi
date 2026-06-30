@@ -19,6 +19,7 @@ import { MessageHeartbeat, MessageHeartbeatKind } from '@proj-airi/server-shared
 import { defineWebSocketHandler, H3 } from 'h3'
 import { nanoid } from 'nanoid'
 
+import { Gauge, MetricRegistry } from './metrics'
 import { optionOrEnv } from './config'
 import { collectDestinations, createPolicyMiddleware, isDevtoolsPeer, matchesDestinations } from './middlewares'
 import {
@@ -258,6 +259,13 @@ export function setupApp(options?: AppOptions): {
     peers: { total: number; healthy: number; unhealthy: number }
     modules: { total: number }
   }
+  /**
+   * Self-contained Prometheus-compatible metric registry tracking
+   * server-level observables (peer counts, module totals). Register
+   * external instruments via `registry.register(...)` and scrape via
+   * `registry.expose()`.
+   */
+  metrics: MetricRegistry
 } {
   // === Configuration & State Initialization ===
   const instanceId = options?.instanceId || optionOrEnv(undefined, 'SERVER_INSTANCE_ID', nanoid())
@@ -291,6 +299,17 @@ export function setupApp(options?: AppOptions): {
 
   const healthCheckIntervalMs = resolveServerWsHealthCheckIntervalMs(heartbeatTtlMs)
   let disposed = false
+
+  // ── Server-level metrics ─────────────────────────────────────────────
+  // Track peer/module counts for scrape by operators or CI smoke tests.
+  const metrics = new MetricRegistry()
+  const mPeerTotal = metrics.createGauge('airi_server_peer_total', 'Currently connected peers')
+  const mPeerHealthy = metrics.createGauge(
+    'airi_server_peer_healthy',
+    'Peers whose last heartbeat was within threshold',
+  )
+  const mPeerUnhealthy = metrics.createGauge('airi_server_peer_unhealthy', 'Peers overdue for a heartbeat')
+  const mModuleTotal = metrics.createGauge('airi_server_module_total', 'Currently registered module identities')
 
   // === Health Check & Peer Liveness ===
   function broadcastPeerHealthy(peerInfo: AuthenticatedPeer, parentId?: string) {
@@ -501,6 +520,22 @@ export function setupApp(options?: AppOptions): {
       }))
   }
 
+  // Refresh gauges every time peer set mutates meaningfully. Cheap
+  // (a handful of arithmetic ops); called from every lifecycle hook below.
+  function refreshMetrics(): void {
+    let healthy = 0
+    let unhealthy = 0
+    for (const p of peers.values()) {
+      if (p.healthy !== false) healthy++
+      else unhealthy++
+    }
+
+    mPeerTotal.set(peers.size)
+    mPeerHealthy.set(healthy)
+    mPeerUnhealthy.set(unhealthy)
+    mModuleTotal.set(peersByModule.size)
+  }
+
   // === Broadcasting & Registry Synchronization ===
   function sendRegistrySync(peer: Peer, parentId?: string) {
     send(peer, {
@@ -539,6 +574,7 @@ export function setupApp(options?: AppOptions): {
           sendRegistrySync(peer)
         }
 
+        refreshMetrics()
         logger.withFields({ peer: peer.id, activePeers: peers.size }).log('connected')
       },
       message: (peer, message) => {
@@ -860,6 +896,7 @@ export function setupApp(options?: AppOptions): {
 
             peers.delete(selectedConsumer.peer.id)
             unregisterModulePeer(selectedConsumer, 'consumer send failed')
+            refreshMetrics()
           }
           return
         }
@@ -916,6 +953,7 @@ export function setupApp(options?: AppOptions): {
             peers.delete(id)
 
             unregisterModulePeer(other, 'send failed')
+            refreshMetrics()
           }
         }
       },
@@ -946,6 +984,7 @@ export function setupApp(options?: AppOptions): {
         if (p) {
           peers.delete(peer.id)
           unregisterModulePeer(p, 'connection closed')
+          refreshMetrics()
         }
 
         logger
@@ -1005,6 +1044,14 @@ export function setupApp(options?: AppOptions): {
       },
       modules: {
         total: totalModules,
+      },
+    })
+  })
+
+  app.get('/metrics', () => {
+    return new Response(metrics.expose(), {
+      headers: {
+        'Content-Type': 'text/plain; version=0.0.4; charset=utf-8',
       },
     })
   })
@@ -1093,5 +1140,6 @@ export function setupApp(options?: AppOptions): {
     closeAllPeers,
     dispose,
     getHealthCheck,
+    metrics,
   }
 }
