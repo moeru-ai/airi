@@ -1,3 +1,4 @@
+import type { AgentChannelMessage, ChatStreamEventContext } from '@proj-airi/core-agent'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message } from '@xsai/shared-chat'
 
@@ -307,6 +308,138 @@ describe('chat orchestrator contract', () => {
 
   /**
    * @example
+   * await store.ingest('hello', { model, chatProvider })
+   * // hook context includes channelId: 'stage-ui'
+   */
+  it('wraps legacy ingest calls as stage-ui channel messages', async () => {
+    let hookContext: Omit<ChatStreamEventContext, 'composedMessage'> | undefined
+    llmStreamMock.mockImplementationOnce(async (_model, _provider, _messages, options) => {
+      await options.onStreamEvent({ type: 'text-delta', text: 'legacy reply' })
+      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+    })
+
+    const store = useChatOrchestratorStore()
+    store.onBeforeMessageComposed(async (_message, context) => {
+      hookContext = context
+    })
+
+    await store.ingest('legacy stage message', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    expect(hookContext?.channel).toMatchObject({
+      channelId: 'stage-ui',
+      sessionId: 'session-1',
+    })
+    expect(hookContext?.channel?.channelMessageId).toEqual(expect.any(String))
+    expect(hookContext?.channel?.createdAt).toEqual(expect.any(Number))
+  })
+
+  /**
+   * @example
+   * await store.ingest('hello', { model, chatProvider }, '')
+   * // hook context still uses the active session instead of a blank session id
+   */
+  it('falls back to the active session when legacy ingest receives a blank target session id', async () => {
+    let hookContext: Omit<ChatStreamEventContext, 'composedMessage'> | undefined
+    llmStreamMock.mockImplementationOnce(async (_model, _provider, _messages, options) => {
+      await options.onStreamEvent({ type: 'text-delta', text: 'blank target reply' })
+      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+    })
+
+    const store = useChatOrchestratorStore()
+    store.onBeforeMessageComposed(async (_message, context) => {
+      hookContext = context
+    })
+
+    await store.ingest('blank target session id', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    }, '')
+
+    expect(ensureSessionMock).toHaveBeenCalledWith('session-1')
+    expect(ensureSessionMock).not.toHaveBeenCalledWith('')
+    expect(hookContext?.channel?.sessionId).toBe('session-1')
+  })
+
+  /**
+   * @example
+   * await store.ingestChannelMessage(channelMessage, { model, chatProvider })
+   * // explicit channel facts survive into hook context
+   */
+  it('accepts explicit stage-ui channel messages through the store facade', async () => {
+    let hookContext: Omit<ChatStreamEventContext, 'composedMessage'> | undefined
+    let composedMessages: Message[] = []
+    llmStreamMock.mockImplementationOnce(async (_model, _provider, messages, options) => {
+      composedMessages = messages
+      await options.onStreamEvent({ type: 'text-delta', text: 'channel reply' })
+      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+    })
+
+    const store = useChatOrchestratorStore()
+    const message: AgentChannelMessage = {
+      id: 'stage-channel-message',
+      channelId: 'stage-ui',
+      sessionId: 'session-channel',
+      role: 'user',
+      content: 'channel direct',
+      createdAt: 777,
+      attachments: [
+        {
+          type: 'image',
+          data: 'aW1hZ2U=',
+          mimeType: 'image/png',
+        },
+      ],
+      input: {
+        type: 'input:text',
+        data: {
+          text: 'channel direct',
+        },
+      },
+      metadata: {
+        source: 'stage-ui-contract',
+      },
+    }
+    store.onBeforeMessageComposed(async (_message, context) => {
+      hookContext = context
+    })
+
+    await store.ingestChannelMessage(message, {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    expect(ensureSessionMock).toHaveBeenCalledWith('session-channel')
+    expect(hookContext?.input).toEqual(message.input)
+    expect(hookContext?.channel).toEqual({
+      channelId: 'stage-ui',
+      channelMessageId: 'stage-channel-message',
+      sessionId: 'session-channel',
+      createdAt: 777,
+      metadata: {
+        source: 'stage-ui-contract',
+      },
+    })
+
+    const userMessageContent = composedMessages[1]?.content
+    if (!Array.isArray(userMessageContent))
+      throw new TypeError('Expected composed stage-ui channel message content to be an array')
+    expect(userMessageContent[0]).toEqual({
+      type: 'text',
+      text: expect.stringMatching(/^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}\] channel direct$/),
+    })
+    expect(userMessageContent[1]).toEqual({
+      type: 'image_url',
+      image_url: {
+        url: 'data:image/png;base64,aW1hZ2U=',
+      },
+    })
+  })
+
+  /**
+   * @example
    * store.sending = true
    * await nextTick()
    * expect(store.sending).toBe(true)
@@ -549,6 +682,7 @@ describe('chat orchestrator contract', () => {
 
     expect(store.$id).toBe('chat-orchestrator')
     expect(typeof store.ingest).toBe('function')
+    expect(typeof store.ingestChannelMessage).toBe('function')
     expect(typeof store.ingestOnFork).toBe('function')
     expect(typeof store.cancelPendingSends).toBe('function')
     expect(typeof store.onBeforeSend).toBe('function')
