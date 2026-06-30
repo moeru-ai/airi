@@ -140,4 +140,5 @@ apps/stage-tamagotchi/electron.vite.config.*.mjs
 .obsidian/
 
 docs/ai/context/verifications/
+docs/api/
 .playwright-mcp/

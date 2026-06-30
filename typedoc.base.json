@@ -1,0 +1,19 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "name": "AIRI Server API",
+  "entryPoints": [
+    "packages/server-shared/src/index.ts",
+    "packages/server-runtime/src/index.ts",
+    "packages/server-sdk/src/index.ts"
+  ],
+  "entryPointStrategy": "expand",
+  "out": "./docs/api",
+  "excludeExternals": true,
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "skipErrorChecking": true,
+  "cleanOutputDir": true,
+  "readme": "none",
+  "includeVersion": true,
+  "sort": ["source-order"]
+}
