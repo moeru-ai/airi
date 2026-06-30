@@ -1,35 +1,34 @@
-<img width="1254" height="972" alt="crop" src="https://github.com/user-attachments/assets/3d7e78c3-8fb5-4537-b5a3-b0eb38548274" />
-
+<img width="1254" height="972" alt="kawaii anima-chan" src="https://github.com/user-attachments/assets/3d7e78c3-8fb5-4537-b5a3-b0eb38548274" />
 
 <div align="center">
-<h3>
-
-AnimaCore is an agentic AI desktop OS built around your digital companion
-
-</h3>
+<h3>Anima is an agentic AI desktop OS built around your digital companion</h3>
+<sub> 
+  
+Full distro based on [CachyOS](https://cachyos.org/) coming soon! 
+  
+</sub>
 </div>
-
 
 ---
 
 ## 🌙 The Vision
 
-- **Always-Present Stage:** Your character lives on your desktop so she is always in control! She can open, close and switch between windows and most importantly read text in those windows through accessibility tools, not just rely on screenshotting everything~
-- **System Integration:** Hooks fully into the system, from basic stuff like notifications and global shortcuts to fully managing your terminal!
-- **Context Awareness:** Your companion observes desktop activity to respond and interact proactively and she might even take control if you let her (agentic mode)
-- **Modular Stage Layouts:** GTK3/4 widgets, interactively generated backgrounds through artistry module, and window layouts composed dynamically by the character (she will always be on screen most of the time)
+- **Always-Present Stage:** Your character lives on your desktop! She can open, close and switch between windows and most importantly read text in those windows through accessibility integration~
+- **System Integration:** Hooks fully into the system, from basic stuff like notifications to fully managing your Linux via terminal in Agentic Mode
+- **Context Awareness:** Your companion observes desktop activity to respond and interact proactively and she can also assume full desktop control in Agentic Mode
+- **Modular Stage Layouts:** GTK3/4 widgets, interactively generated backgrounds through artistry module, and window layouts composed dynamically by characters
 
 ## 🖥️ Development
-  <a href="https://github.com/animaios/animacore/actions/workflows/ci.yml">
-    <img src="https://github.com/animaios/animacore/actions/workflows/ci.yml/badge.svg" alt="CI">
+  <a href="https://github.com/animaios/Anima/actions/workflows/ci.yml">
+    <img src="https://github.com/animaios/Anima/actions/workflows/ci.yml/badge.svg" alt="CI">
   </a>
-  <a href="https://app.deepsource.com/gh/animaios/animacore/" target="_blank">
-    <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/animacore.svg/?label=code+coverage&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/></a>
-  <a href="https://app.deepsource.com/gh/animaios/animacore/" target="_blank">
-    <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/animacore.svg/?label=active+issues&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/>
+  <a href="https://app.deepsource.com/gh/animaios/Anima/" target="_blank">
+    <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/Anima.svg/?label=code+coverage&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/></a>
+  <a href="https://app.deepsource.com/gh/animaios/Anima/" target="_blank">
+    <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/Anima.svg/?label=active+issues&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/>
   </a>
-  <a href="https://app.deepsource.com/gh/animaios/animacore/" target="_blank">
-    <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/animacore.svg/?label=resolved+issues&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/>
+  <a href="https://app.deepsource.com/gh/animaios/Anima/" target="_blank">
+    <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/Anima.svg/?label=resolved+issues&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/>
   </a>
 
 ### ☕ Prerequisites
@@ -101,7 +100,7 @@ pnpm approve-builds # Select 'electron' and confirm
 ## 🤖 LLM API Providers
 
 - [x] Supported providers: everything [xsai](https://github.com/moeru-ai/xsai) supports
-- [ ] Planned [AnimaRouter](https://github.com/animaios/animarouter) integration to replace official AIRI provider, a limitless source of free yummy tokens for your cyber waifus~
+- [ ] Planned [AnimaRouter](https://github.com/animaios/animarouter)-based gamified energy system integration that will replace official AIRI provider, a limitless source of free yummy tokens for your cyber waifus~ Or just clone AnimaRouter and host it yourself with BYOK! UI will allow easy switch between hosted/localhost AnimaRouter providers!
 
 ---
 
