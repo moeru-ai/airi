@@ -23,9 +23,13 @@ export type ContextSnapshot = Record<string, ContextMessage[]>
  *   the output stays deterministic and KV-cache-friendly.
  *
  * Returns:
- * - Empty string when the snapshot is empty.
+ * - Empty string when the snapshot is empty or every message has blank text.
  * - Otherwise a `[Context]` block with one bullet per module, e.g.
  *   `[Context]\n- system:minecraft-integration: Bot is online ...`
+ *
+ * Blank-text messages are skipped so a context source can clear its line for a
+ * turn by ingesting an empty `ReplaceSelf` update (e.g. memory recall with no
+ * relevant hit), instead of rendering a dangling `- source: ` bullet.
  *
  * Why this shape (not XML):
  * - Weak local models (8B/14B) tend to mirror conspicuous structured
@@ -40,7 +44,9 @@ export function formatContextPromptText(contextsSnapshot: ContextSnapshot) {
     return ''
 
   const lines = entries.flatMap(([contextId, messages]) =>
-    messages.map(m => `- ${contextId}: ${m.text}`),
+    messages
+      .filter(m => m.text != null && m.text.trim() !== '')
+      .map(m => `- ${contextId}: ${m.text}`),
   )
 
   if (lines.length === 0)

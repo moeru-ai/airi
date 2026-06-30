@@ -10,10 +10,10 @@ import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref, toRaw, watch } from 'vue'
 
-import { useAnalytics } from '../composables'
+import { useAnalytics, useMemoryRecall, useMemoryWrite } from '../composables'
 import { activeTurnSpan, startSpan } from '../composables/use-io-tracer'
 import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
-import { createMinecraftContext } from './chat/context-providers'
+import { buildMemoryRecallContext, createMinecraftContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
@@ -23,6 +23,7 @@ import { useLlmToolsetPromptsStore } from './llm-toolset-prompts'
 import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
+import { useMemoryStore } from './modules/memory'
 
 interface ForkOptions {
   fromSessionId?: string
@@ -257,6 +258,43 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   function getPendingQueuedSendSnapshot() {
     return runtime.getPendingQueuedSendSnapshot()
   }
+
+  // Long-term memory recall (read-only). Before each turn is composed, embed the last turn or two
+  // plus the current input, search memory, and inject a `[Memory]` block. Registered on the awaited
+  // before-compose hook so the context lands in the same-turn snapshot the prompt is built from.
+  // An empty result clears the previous turn's memory line (ReplaceSelf + blank text is skipped by
+  // formatContextPromptText). recallMemories never throws — a failure just yields no memory context.
+  const memoryStore = useMemoryStore()
+  const { recall: recallMemories } = useMemoryRecall()
+  runtime.hooks.onBeforeMessageComposed(async (messageText) => {
+    // Skip all memory work when the feature is off, mirroring the write hook below. recall()
+    // already returns '' when disabled, but gating here also avoids ingesting a blank clearing
+    // context every turn in the common memory-off case.
+    if (!memoryStore.enabled || !memoryStore.configured)
+      return
+    const recentMessages = chatSession.getSessionMessages(activeSessionId.value)
+    const tail = recentMessages.slice(-2).map(extractMessageText).filter(Boolean)
+    const query = [...tail, messageText].filter(Boolean).join('\n')
+    const memoryText = await recallMemories(query)
+    chatContext.ingestContextMessage(buildMemoryRecallContext(memoryText))
+  })
+
+  // Long-term memory write (P4): every N completed turns, extract durable facts from the recent
+  // window and store them. Fire-and-forget — extractAndStore runs a backbone LLM call, holds its own
+  // re-entry lock, and never throws, so it must not block turn completion or the next turn.
+  const { extractAndStore: writeMemories } = useMemoryWrite()
+  let turnsSinceMemoryWrite = 0
+  runtime.hooks.onChatTurnComplete(async () => {
+    if (!memoryStore.enabled || !memoryStore.configured)
+      return
+    turnsSinceMemoryWrite += 1
+    if (turnsSinceMemoryWrite < memoryStore.writeEveryNTurns)
+      return
+
+    turnsSinceMemoryWrite = 0
+    const recent = chatSession.getSessionMessages(activeSessionId.value).slice(-memoryStore.writeEveryNTurns * 2)
+    void writeMemories(recent)
+  })
 
   return {
     sending,
