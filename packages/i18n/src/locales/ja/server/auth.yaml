@@ -198,3 +198,20 @@ webCallback:
     finalizing: Finalizing authentication with AIRI.
   action:
     tryAgain: Try again
+enroll:
+  banner:
+    title: Linking your Steam account
+    description: Create an account with a real email or sign in to an existing one to link Steam.
+  step:
+    identify:
+      heading: Link your Steam account
+      description: Enter your email to create an account or sign in, and we will link your Steam account.
+    password:
+      heading: Welcome back
+      description: Sign in as {email} to link your Steam account.
+    create:
+      heading: Create your account
+      description: We will create a new account for {email} and link your Steam account.
+  error:
+    invalidLink: Invalid enrollment link
+    invalidLinkDescription: This Steam enrollment link is missing required information. Please relaunch AIRI from Steam to try again.
