@@ -3,6 +3,7 @@ import type { BrowserWindow } from 'electron'
 
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
+import * as Sentry from '@sentry/electron/main'
 import { errorMessageFrom } from '@moeru/std'
 import { generateCodeChallenge, generateCodeVerifier, generateState } from '@proj-airi/stage-shared/auth'
 import { shell } from 'electron'
@@ -141,6 +142,7 @@ export function createAuthService(params: {
 
           exchangeCode(code, codeVerifier, redirectUri)
             .then((tokens) => {
+              identifyUserForErrorTracking(tokens.idToken)
               params.windowAuthManager.broadcastAuthCallback(tokens)
               log.log('OIDC token exchange successful')
             })
@@ -174,6 +176,10 @@ export function createAuthService(params: {
     closeLoopback?.()
     closeLoopback = null
     signingInFlight = false
+
+    // Clear Sentry user context on logout so subsequent errors are not
+    // associated with the previous user's session.
+    Sentry.setUser(null)
   })
 }
 
@@ -213,5 +219,44 @@ async function exchangeCode(code: string, codeVerifier: string, redirectUri: str
     refreshToken: data.refresh_token as string | undefined,
     idToken: data.id_token as string | undefined,
     expiresIn: data.expires_in as number,
+  }
+}
+
+/**
+ * Extracts the `sub` claim from an opaque OIDC idToken and feeds it
+ * to Sentry so crash reports can be associated with a specific user.
+ *
+ * We avoid using PII (email/name) in the `id` field per privacy-by-design:
+ * the `sub` is an opaque, non-reversible identifier.
+ */
+function identifyUserForErrorTracking(idToken?: string): void {
+  if (!idToken) {
+    return
+  }
+
+  try {
+    // JWT: header.payload-signature — extract the payload
+    const parts = idToken.split('.')
+    if (parts.length !== 3) {
+      return
+    }
+
+    const payload = JSON.parse(Buffer.from(parts[1]!, 'base64url').toString('utf8')) as {
+      sub?: string
+      preferred_username?: string
+    }
+    const id = payload.sub
+    if (!id) {
+      return
+    }
+
+    Sentry.setUser({
+      id,
+      // `preferred_username` is non-PII-ish (a username, not an email),
+      // useful for support workflows.
+      username: payload.preferred_username,
+    })
+  } catch (err) {
+    log.withError(err).warn('Failed to decode OIDC idToken for Sentry user')
   }
 }

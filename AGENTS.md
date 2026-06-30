@@ -121,6 +121,15 @@ The subagent for ["Extract persistence logic from Electron main thread"](https:/
 ### Credentials/Secrets
 - **Never commit secrets or API keys.** Use `.env.example` patterns.
 
+### Observability
+- **Prometheus-compatible `/metrics` endpoint** is exposed by the AIRI core HTTP server (see `core/telemetry/`). Instrument new subsystems by importing `Counter` / `Gauge` / `Histogram` from `core/telemetry/index.js` and registering them against the daemon's `MetricRegistry` (via `core/index.ts` re-export). Snapshot any registry by calling `.expose()` (Prometheus text) or `.snapshot()` (JSON).
+- Instrumentation follows OpenTelemetry naming conventions (`snake_total` for counters, underscore units like `_ms` for durations). Each daemon-owned metric is prefixed `airi_` to avoid clashes.
+
+### Environment Variables
+- `SENTRY_DSN` — DSN for Sentry error tracking on the Electron app. Optional on dev/contributor machines; the SDK gracefully no-ops when absent. Required in production builds to capture crashes.
+  - Scope: only `airi-tamagotchi@<version>` release events.
+  - Auth/identity: set post-login inside `services/airi/auth.ts` (OIDC does not expose email).
+
 ## jcodemunch Recap
 
 Repo: `airi` (indexed). Symbol ID: `{file_path}::{qualified_name}#{kind}`

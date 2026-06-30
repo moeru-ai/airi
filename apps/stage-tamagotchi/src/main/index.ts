@@ -23,6 +23,8 @@ import icon from '../../resources/icon.png?asset'
 import { openDebugger, setupDebugger } from './app/debugger'
 import { nullFileLoggerHandle, setupFileLogger } from './app/file-logger'
 import { installSingleInstanceGuard } from './app/single-instance'
+import { captureError, setupSentry } from './libs/sentry'
+import { setupSentryBreadcrumbsFromLogg } from './libs/sentry/breadcrumbs'
 import { createArtistryConfig } from './configs/artistry'
 import { createGlobalAppConfig } from './configs/global'
 import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed } from './libs/bootkit/lifecycle'
@@ -59,6 +61,7 @@ setElectronMainDirname(dirname(fileURLToPath(import.meta.url)))
 setGlobalFormat(Format.Pretty)
 setGlobalLogLevel(LogLevel.Log)
 setupDebugger()
+setupSentry()
 
 const log = useLogg('main').useGlobalConfig()
 
@@ -123,6 +126,9 @@ app
       if (skipFileLogging || fileLogger.logFileFd === null) return
       void fileLogger.appendLog(formatted)
     })
+
+    // Chain Sentry breadcrumbs hook AFTER file logger so both work together.
+    setupSentryBreadcrumbsFromLogg()
 
     injeca.setLogger(createLoggLogger(useLogg('injeca').useGlobalConfig()))
 
@@ -303,7 +309,10 @@ app
       },
     })
 
-    injeca.start().catch((err) => console.error(err))
+    injeca.start().catch((err) => {
+      log.withError(err).error('Failed to start injeca lifecycle')
+      captureError(err)
+    })
 
     // Lifecycle
     emitAppReady()
@@ -318,6 +327,7 @@ app
   })
   .catch((err) => {
     log.withError(err).error('Error during app initialization')
+    captureError(err)
   })
 
 // Quit when all windows are closed, except on macOS. There, it's common
@@ -376,4 +386,16 @@ process.on('SIGINT', () => handleAppExit())
 app.on('before-quit', (event) => {
   event.preventDefault()
   handleAppExit()
+})
+
+// Last-ditch error capture — ensure any uncaught top-level errors
+// before Sentry is initialized still have a path to be reported once ready.
+process.on('uncaughtException', (error) => {
+  log.withError(error).error('Uncaught exception')
+  captureError(error)
+})
+
+process.on('unhandledRejection', (reason) => {
+  log.withError(reason instanceof Error ? reason : new Error(String(reason))).error('Unhandled rejection')
+  captureError(reason)
 })
