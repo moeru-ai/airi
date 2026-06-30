@@ -150,6 +150,31 @@ function voiceAnalyticsPayload(
 }
 
 /**
+ * Adds server-side TTS analytics metadata to official preview requests.
+ */
+function withManualPreviewAnalytics<TProviderConfig extends Record<string, unknown> | undefined>(
+  providerConfig: TProviderConfig,
+  providerId: string,
+  voiceType: VoiceType,
+): TProviderConfig | Record<string, unknown> {
+  if (providerId !== OFFICIAL_SPEECH_PROVIDER_ID && providerId !== OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
+    return providerConfig
+
+  const baseConfig: Record<string, unknown> = providerConfig ?? {}
+  return {
+    ...baseConfig,
+    extraBody: {
+      ...(baseConfig.extraBody as Record<string, unknown> | undefined),
+      airi_analytics: {
+        trigger: 'manual',
+        source: 'manual_preview',
+        voice_type: voiceType,
+      },
+    },
+  }
+}
+
+/**
  * Tracks the active TTS provider while preserving the legacy provider-card event.
  */
 function selectSpeechProvider(providerId: string) {
@@ -318,6 +343,7 @@ async function generateTestSpeech() {
   const previewVoice = voice
   const previewModel = model
   const previewProvider = activeSpeechProvider.value || 'unknown'
+  const previewAnalytics = voiceAnalyticsPayload(previewVoice.id, previewVoicePack, previewProvider)
 
   isGenerating.value = true
   errorMessage.value = ''
@@ -348,7 +374,10 @@ async function generateTestSpeech() {
         })
 
     const response = await generateSpeech({
-      ...provider.speech(model, speechRequest.providerConfig),
+      ...provider.speech(
+        model,
+        withManualPreviewAnalytics(speechRequest.providerConfig, previewProvider, previewAnalytics.voice_type),
+      ),
       input: speechRequest.input,
       voice: voice.id,
     })
@@ -364,7 +393,7 @@ async function generateTestSpeech() {
             trackVoicePreviewPlayed({
               tts_provider_id: previewProvider,
               tts_model_id: previewModel,
-              ...voiceAnalyticsPayload(previewVoice.id, previewVoicePack, previewProvider),
+              ...previewAnalytics,
               source: 'manual_preview',
             })
           })
@@ -403,6 +432,7 @@ onUnmounted(() => {
 })
 
 function updateCustomVoiceName(value: string | undefined) {
+  activeSpeechVoiceId.value = value || ''
   if (!value) {
     activeSpeechVoice.value = undefined
     return
@@ -417,7 +447,13 @@ function updateCustomVoiceName(value: string | undefined) {
     provider: activeSpeechProvider.value,
     gender: 'male',
   }
-  selectSpeechVoice(value)
+}
+
+/**
+ * Tracks a manual voice after the input value is committed by the user.
+ */
+function commitCustomVoiceSelection() {
+  selectSpeechVoice(activeSpeechVoiceId.value)
 }
 
 function updateCustomModelName(value: string | undefined) {
@@ -782,6 +818,7 @@ function handleDeleteProvider(providerId: string) {
               label="Voice Name"
               description="Enter the voice name for your custom voice"
               placeholder="Enter voice name (e.g., 'alloy', 'echo')"
+              @change="commitCustomVoiceSelection"
               @update:model-value="updateCustomVoiceName"
             />
 
