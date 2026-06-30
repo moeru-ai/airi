@@ -124,6 +124,98 @@ export function createWindowAuthManagerService(): WindowAuthManager {
 }
 
 /**
+ * Runs the shared OIDC loopback + PKCE flow and opens the system browser.
+ *
+ * Use when:
+ * - The manual OIDC login handler opens the authorize page directly.
+ * - The Steam enrollment flow opens the enroll page (with the authorize URL
+ *   encoded as `continue`) instead.
+ *
+ * `buildBrowserUrl` transforms the OIDC authorize URL into the URL actually
+ * opened in the browser; `promptLogin` controls whether `prompt=login` is set
+ * (manual login: yes, to bypass stale cookies; enrollment: no, the user just
+ * authenticated in the same browser session).
+ *
+ * The loopback wait runs in the background; the helper resolves once the
+ * browser is opened. The shared `signingInFlight` / `closeLoopback` mutex
+ * covers both manual and enrollment flows.
+ */
+async function startOidcLoopbackFlow(
+  windowAuthManager: WindowAuthManager,
+  options: { promptLogin: boolean, buildBrowserUrl: (authorizeUrl: string) => string },
+): Promise<void> {
+  if (signingInFlight) {
+    log.warn('Replacing in-flight OIDC login attempt with a new request')
+    closeLoopback?.()
+    closeLoopback = null
+    signingInFlight = false
+  }
+
+  signingInFlight = true
+
+  try {
+    // Clean up any previous in-flight login
+    closeLoopback?.()
+
+    const codeVerifier = generateCodeVerifier()
+    const codeChallenge = await generateCodeChallenge(codeVerifier)
+    const state = generateState()
+
+    // Start loopback server to receive the callback (state validated inside).
+    const loopback = await startLoopbackServer(state)
+    closeLoopback = loopback.close
+
+    // Use the server-side relay as redirect_uri. The relay page serves HTML
+    // that forwards the authorization code to the loopback via JS fetch().
+    // The loopback port is encoded in the state parameter as "{port}:{state}".
+    const redirectUri = `${SERVER_URL}/api/auth/oidc/electron-callback`
+    const stateWithPort = `${loopback.port}:${state}`
+
+    // Build authorization URL
+    const url = new URL(OIDC_AUTHORIZE_PATH, SERVER_URL)
+    url.searchParams.set('response_type', 'code')
+    url.searchParams.set('client_id', OIDC_CLIENT_ID)
+    url.searchParams.set('redirect_uri', redirectUri)
+    url.searchParams.set('scope', OIDC_SCOPES)
+    url.searchParams.set('state', stateWithPort)
+    url.searchParams.set('code_challenge', codeChallenge)
+    url.searchParams.set('code_challenge_method', 'S256')
+    if (options.promptLogin) {
+      // NOTICE: prompt=login forces the authorization server to show the login
+      // page even if the system browser has an existing session cookie. Without
+      // this, the OIDC flow auto-completes silently using the stale cookie.
+      url.searchParams.set('prompt', 'login')
+    }
+    url.searchParams.set('resource', SERVER_URL)
+
+    // Open system browser
+    await shell.openExternal(options.buildBrowserUrl(url.toString()))
+
+    // Wait for the callback in the background
+    loopback.result
+      .then(async ({ code }) => {
+        const tokens = await exchangeCode(code, codeVerifier, redirectUri)
+        windowAuthManager.broadcastAuthCallback(tokens)
+        log.log('OIDC token exchange successful')
+      })
+      .catch((err) => {
+        log.withError(err).error('OIDC signing in failed')
+        windowAuthManager.broadcastAuthError(errorMessageFrom(err) ?? 'OIDC signing in failed')
+      })
+      .finally(() => {
+        closeLoopback = null
+        signingInFlight = false
+      })
+  }
+  catch (err) {
+    closeLoopback = null
+    signingInFlight = false
+    log.withError(err).error('Failed to start OIDC signing in flow')
+    windowAuthManager.broadcastAuthError(errorMessageFrom(err) ?? 'OIDC signing in failed')
+  }
+}
+
+/**
  * Create the auth service IPC handlers for a given window context.
  */
 export function createAuthService(params: {
@@ -141,73 +233,10 @@ export function createAuthService(params: {
       return
     }
 
-    if (signingInFlight) {
-      log.withFields({ windowId: params.window.webContents.id }).warn('Replacing in-flight OIDC login attempt with a new request')
-      closeLoopback?.()
-      closeLoopback = null
-      signingInFlight = false
-    }
-
-    signingInFlight = true
-
-    try {
-      // Clean up any previous in-flight login
-      closeLoopback?.()
-
-      const codeVerifier = generateCodeVerifier()
-      const codeChallenge = await generateCodeChallenge(codeVerifier)
-      const state = generateState()
-
-      // Start loopback server to receive the callback
-      const loopback = await startLoopbackServer(state)
-      closeLoopback = loopback.close
-
-      // Use the server-side relay as redirect_uri. The relay page serves HTML
-      // that forwards the authorization code to the loopback via JS fetch().
-      // The loopback port is encoded in the state parameter as "{port}:{state}".
-      const redirectUri = `${SERVER_URL}/api/auth/oidc/electron-callback`
-      const stateWithPort = `${loopback.port}:${state}`
-
-      // Build authorization URL
-      // NOTICE: prompt=login forces the authorization server to show the login
-      // page even if the system browser has an existing session cookie. Without
-      // this, the OIDC flow auto-completes silently using the stale cookie.
-      const url = new URL(OIDC_AUTHORIZE_PATH, SERVER_URL)
-      url.searchParams.set('response_type', 'code')
-      url.searchParams.set('client_id', OIDC_CLIENT_ID)
-      url.searchParams.set('redirect_uri', redirectUri)
-      url.searchParams.set('scope', OIDC_SCOPES)
-      url.searchParams.set('state', stateWithPort)
-      url.searchParams.set('code_challenge', codeChallenge)
-      url.searchParams.set('code_challenge_method', 'S256')
-      url.searchParams.set('prompt', 'login')
-      url.searchParams.set('resource', SERVER_URL)
-
-      // Open system browser
-      await shell.openExternal(url.toString())
-
-      // Wait for the callback in the background
-      loopback.result
-        .then(async ({ code }) => {
-          const tokens = await exchangeCode(code, codeVerifier, redirectUri)
-          params.windowAuthManager.broadcastAuthCallback(tokens)
-          log.log('OIDC token exchange successful')
-        })
-        .catch((err) => {
-          log.withError(err).error('OIDC signing in failed')
-          params.windowAuthManager.broadcastAuthError(errorMessageFrom(err) ?? 'OIDC signing in failed')
-        })
-        .finally(() => {
-          closeLoopback = null
-          signingInFlight = false
-        })
-    }
-    catch (err) {
-      closeLoopback = null
-      signingInFlight = false
-      log.withError(err).error('Failed to start OIDC signing in flow')
-      params.windowAuthManager.broadcastAuthError(errorMessageFrom(err) ?? 'OIDC signing in failed')
-    }
+    await startOidcLoopbackFlow(params.windowAuthManager, {
+      promptLogin: true,
+      buildBrowserUrl: url => url,
+    })
   })
 
   defineInvokeHandler(params.context, electronAuthLogout, async (_, options) => {
