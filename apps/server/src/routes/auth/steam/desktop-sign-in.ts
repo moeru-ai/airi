@@ -11,9 +11,11 @@ import * as v from 'valibot'
 
 import { isUserBannedNow } from '../../../libs/request-auth'
 import { mintElectronOidcTokens } from '../../../libs/steam-oidc-tokens'
-import { authenticateUserTicket, checkAppOwnership } from '../../../libs/steam-web-api'
+import { authenticateUserTicket, checkAppOwnership, getPlayerSummaries } from '../../../libs/steam-web-api'
 import { user } from '../../../schemas/accounts'
-import { resolveOrCreateSteamUser } from '../../../services/domain/steam-auth/resolve-steam-user'
+import { createEnrollmentToken } from '../../../services/domain/steam-auth/enrollment-token'
+import { findLinkedSteamUser } from '../../../services/domain/steam-auth/resolve-steam-user'
+import { resolveAuthUiUrl } from '../../../utils/auth-ui'
 import {
   createBadRequestError,
   createForbiddenError,
@@ -38,7 +40,9 @@ interface SteamDesktopSignInRouteDeps {
   collaborators?: Partial<{
     authenticateUserTicket: typeof authenticateUserTicket
     checkAppOwnership: typeof checkAppOwnership
-    resolveOrCreateSteamUser: typeof resolveOrCreateSteamUser
+    getPlayerSummaries: typeof getPlayerSummaries
+    findLinkedSteamUser: typeof findLinkedSteamUser
+    createEnrollmentToken: typeof createEnrollmentToken
     mintElectronOidcTokens: typeof mintElectronOidcTokens
   }>
 }
@@ -47,7 +51,9 @@ export function createSteamDesktopSignInRoute(deps: SteamDesktopSignInRouteDeps)
   const collaborators = {
     authenticateUserTicket,
     checkAppOwnership,
-    resolveOrCreateSteamUser,
+    getPlayerSummaries,
+    findLinkedSteamUser,
+    createEnrollmentToken,
     mintElectronOidcTokens,
     ...deps.collaborators,
   }
@@ -94,9 +100,20 @@ export function createSteamDesktopSignInRoute(deps: SteamDesktopSignInRouteDeps)
       if (!ownsApp)
         throw createForbiddenError('Steam account does not own this app', 'STEAM_NO_OWNERSHIP')
 
-      const { userId } = await collaborators.resolveOrCreateSteamUser(deps.db, steamId, {
-        publisherKey: deps.env.STEAM_PUBLISHER_KEY,
-      })
+      const linked = await collaborators.findLinkedSteamUser(deps.db, steamId)
+      if (!linked) {
+        // Unlinked steamId: do NOT create a user/account. Hand the browser a
+        // single-use enrollment token so the user can verify a real email or
+        // sign in to an existing account before Steam is linked at authorize.
+        const profile = deps.env.STEAM_PUBLISHER_KEY?.trim()
+          ? await collaborators.getPlayerSummaries({ publisherKey: deps.env.STEAM_PUBLISHER_KEY, steamId })
+          : null
+        const enrollToken = await collaborators.createEnrollmentToken(deps.db, { steamId, profile })
+        const authUiUrl = resolveAuthUiUrl(deps.env.AUTH_UI_URL, deps.env.API_SERVER_URL)
+        return c.json({ errorCode: 'STEAM_NEEDS_ENROLLMENT', enrollToken, authUiUrl }, 403)
+      }
+
+      const { userId } = linked
 
       const [userForBanCheck] = await deps.db
         .select({ banned: user.banned, banExpires: user.banExpires })
