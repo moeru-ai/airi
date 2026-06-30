@@ -3,8 +3,31 @@ import type { ArtistryJob, ArtistryJobStatus, ArtistryProvider, ArtistryRequest 
 import { Buffer } from 'node:buffer'
 
 import { useLogg } from '@guiiai/logg'
+import { resilientFetch } from '@proj-airi/resilience'
 
 const log = useLogg('providers-comfyui').useGlobalConfig()
+
+/** Derive a breaker name that stays stable across polling retries. */
+function breakerNameFor(url: string, serverUrl: string): string {
+  const path = url.replace(serverUrl, '').split('?')[0]
+  if (path.startsWith('/history/')) return 'comfyui:/history'
+  if (path.startsWith('/upload/image')) return 'comfyui:/upload/image'
+  return `comfyui:${path || '/'}`
+}
+
+/** Wrapper around fetch shared across all ComfyUI calls. Resilience: timeout
+ *  + retry + per-endpoint circuit breaker (30s open after 5 consecutive
+ *  failures). */
+function comfyuiFetch(serverUrl: string, path: string, options: RequestInit = {}, timeoutMs = 30_000) {
+  return resilientFetch(`${serverUrl}${path}`, {
+    ...options,
+    breakerName: breakerNameFor(`${serverUrl}${path}`, serverUrl),
+    breakerThreshold: 4,
+    breakerOpenForMs: 60_000,
+    timeoutMs,
+    retryAttempts: 1,
+  })
+}
 
 const POLL_INTERVAL_MS = 5000
 const POLL_TIMEOUT_MS = 1000 * 60 * 5 // 5 minutes
@@ -38,23 +61,6 @@ export class ComfyUIProvider implements ArtistryProvider {
 
   private jobResults = new Map<string, ArtistryJobStatus>()
   private callbacks = new Map<string, (status: ArtistryJobStatus) => void>()
-
-  // eslint-disable-next-line class-methods-use-this
-  private async fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 30000) {
-    const controller = new AbortController()
-    const id = setTimeout(() => controller.abort(), timeoutMs)
-    try {
-      const response = await fetch(url, {
-        ...options,
-        signal: controller.signal,
-      })
-      clearTimeout(id)
-      return response
-    } catch (error) {
-      clearTimeout(id)
-      throw error
-    }
-  }
 
   setJobCallback(jobId: string, callback: (status: ArtistryJobStatus) => void) {
     this.callbacks.set(jobId, callback)
@@ -145,8 +151,9 @@ export class ComfyUIProvider implements ArtistryProvider {
 
       let queueResp: Response
       try {
-        queueResp = await this.fetchWithTimeout(
-          `${this.serverUrl}/prompt`,
+        queueResp = await comfyuiFetch(
+          this.serverUrl,
+          '/prompt',
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -176,6 +183,7 @@ export class ComfyUIProvider implements ArtistryProvider {
       let historyDone = false
       let attempt = 0
       const startTime = Date.now()
+      const historyPath = `/history/${promptId}`
 
       while (!historyDone) {
         await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS))
@@ -191,7 +199,7 @@ export class ComfyUIProvider implements ArtistryProvider {
 
         let histResp: Response
         try {
-          histResp = await this.fetchWithTimeout(`${this.serverUrl}/history/${promptId}`, {}, 10000)
+          histResp = await comfyuiFetch(this.serverUrl, historyPath, {}, 10000)
         } catch (e: unknown) {
           throw new Error(`ComfyUI disconnected during polling: ${e instanceof Error ? e.message : String(e)}`)
         }
@@ -206,7 +214,7 @@ export class ComfyUIProvider implements ArtistryProvider {
             if ((!outputs || Object.keys(outputs).length === 0) && !historyDone) {
               log.warn(`[ComfyUI] Job ${jobId} finished but outputs are empty. Retrying history in 1s...`)
               await new Promise((r) => setTimeout(r, 1000))
-              const retryResp = await this.fetchWithTimeout(`${this.serverUrl}/history/${promptId}`, {}, 10000)
+              const retryResp = await comfyuiFetch(this.serverUrl, historyPath, {}, 10000)
               if (retryResp.ok) {
                 const retryData = await retryResp.json()
                 if (retryData[promptId]?.outputs) {
@@ -379,8 +387,9 @@ export class ComfyUIProvider implements ArtistryProvider {
     formData.append('image', blob, fileName)
     formData.append('overwrite', 'true')
 
-    const response = await this.fetchWithTimeout(
-      `${this.serverUrl}/upload/image`,
+    const response = await comfyuiFetch(
+      this.serverUrl,
+      '/upload/image',
       {
         method: 'POST',
         body: formData,

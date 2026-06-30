@@ -140,11 +140,11 @@ catalog:
   '@radix-ui/colors': ^3.0.0
   '@ricky0123/vad-web': ^0.0.30
   '@rive-app/canvas-lite': ^2.37.2
+  '@sentry/electron': ^6.1.0
   '@shikijs/markdown-it': ^4.0.2
   '@shikijs/rehype': ^4.0.2
   '@shopify/draggable': ^1.2.1
   '@snazzah/davey': ^0.1.11
-  '@sentry/electron': ^6.1.0
   '@stdlib/string-base-kebabcase': ^0.2.3
   '@takumi-rs/image-response': 1.0.0-beta.20
   '@tresjs/cientos': ^5.7.0
@@ -345,6 +345,7 @@ catalog:
   tsdown: ^0.21.9
   tsx: ^4.21.0
   turbo: ^2.9.6
+  typedoc: ^0.28.19
   typescript: ^5.9.3
   uiohook-napi: ^1.5.5
   uncrypto: ^0.1.3

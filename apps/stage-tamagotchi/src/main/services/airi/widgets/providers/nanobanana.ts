@@ -1,6 +1,7 @@
 import type { ArtistryJob, ArtistryJobStatus, ArtistryProvider, ArtistryRequest } from './base'
 
 import { useLogg } from '@guiiai/logg'
+import { resilientFetch } from '@proj-airi/resilience'
 
 /** Type for the extra provider-options bag inside {@link ArtistryRequest.extra}. */
 type NanobananaExtra = Record<string, unknown> & {
@@ -78,13 +79,21 @@ export class NanoBananaProvider implements ArtistryProvider {
         generationParts.push({ inline_data: { mime_type: 'image/jpeg', data: base64Image } })
       }
 
-      const response = await fetch(url, {
+      // Retry transient (5xx/network) errors up to 2 times with backoff, and
+      // trip a per-model circuit breaker after 4 consecutive failures to
+      // return a synthetic 503 instead of hanging calls.
+      const response = await resilientFetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: generationParts }],
           generationConfig: { imageConfig: { aspectRatio: '1:1', imageSize: resolution } },
         }),
+        breakerName: `nanobanana:${model}`,
+        breakerThreshold: 4,
+        breakerOpenForMs: 60_000,
+        timeoutMs: 60_000,
+        retryAttempts: 2,
       })
 
       const json = await response.json()

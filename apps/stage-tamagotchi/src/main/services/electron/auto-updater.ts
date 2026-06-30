@@ -17,6 +17,7 @@ import { is } from '@electron-toolkit/utils'
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom, tryCatch } from '@moeru/std'
+import { resilientFetch } from '@proj-airi/resilience'
 // NOTE: committerDate was previously injected by ~build/git at build time.
 // Using runtime date as fallback since build-time injection is not available.
 const committerDate = new Date().toISOString()
@@ -358,10 +359,15 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
 
   async function resolveGitHubReleaseTagForLane(lane: UpdateLane) {
     try {
-      const response = await fetch(GITHUB_RELEASES_API_URL, {
-        headers: {
-          accept: 'application/vnd.github+json',
-        },
+      // GitHub API feed — reuse resilience wrapper so transient 5xx errors
+      // retry and each-lane breaker stays open when GitHub is unhealthy.
+      const response = await resilientFetch(GITHUB_RELEASES_API_URL, {
+        headers: { accept: 'application/vnd.github+json' },
+        breakerName: `github:releases-api`,
+        breakerThreshold: 3,
+        breakerOpenForMs: 5 * 60_000,
+        timeoutMs: 15_000,
+        retryAttempts: 1,
       })
 
       if (!response.ok) throw new Error(`Failed to fetch GitHub releases (${response.status} ${response.statusText})`)
@@ -375,7 +381,13 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
       log.withError(error).warn('GitHub releases API lookup failed, trying releases.atom fallback')
     }
 
-    const atomResponse = await fetch(GITHUB_RELEASES_ATOM_URL)
+    const atomResponse = await resilientFetch(GITHUB_RELEASES_ATOM_URL, {
+      breakerName: `github:releases-atom`,
+      breakerThreshold: 3,
+      breakerOpenForMs: 5 * 60_000,
+      timeoutMs: 15_000,
+      retryAttempts: 1,
+    })
     if (!atomResponse.ok)
       throw new Error(`Failed to fetch GitHub releases atom (${atomResponse.status} ${atomResponse.statusText})`)
 

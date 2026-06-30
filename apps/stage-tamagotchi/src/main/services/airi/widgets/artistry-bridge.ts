@@ -12,6 +12,7 @@ import { createHash } from 'node:crypto'
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
+import { resilientFetch } from '@proj-airi/resilience'
 import { artistryGenerateHeadless, artistrySyncConfig, artistryTestComfyUIConnection } from '@proj-airi/stage-shared'
 import { injeca } from 'injeca'
 
@@ -83,7 +84,16 @@ function createRunId(widgetId: string) {
 async function downloadImageAsBase64(url: string): Promise<string> {
   try {
     log.log(`[Artistry Bridge] Downloading image from: ${url}`)
-    const response = await fetch(url)
+    // Reuse the resilience package's fetch wrapper so we get retry on
+    // transient errors and a per-breaker-name shared state with the
+    // upstream call.
+    const response = await resilientFetch(url, {
+      breakerName: `artistry:download:${new URL(url, 'http://localhost:1').hostname}`,
+      breakerThreshold: 3,
+      breakerOpenForMs: 30_000,
+      timeoutMs: 60_000,
+      retryAttempts: 2,
+    })
     if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`)
     const buffer = await response.arrayBuffer()
     const base64 = Buffer.from(buffer).toString('base64')
