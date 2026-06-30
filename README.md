@@ -86,9 +86,7 @@ pnpm approve-builds # Select 'electron' and confirm
 - [ ] **AnimAIOS (WIP)**
   - [x] System tray & screen capture integration
   - [ ] Generate native GTK3/4 windows instead of web widgets
-  - [ ] [AnimAIOS Devtools MCP](https://github.com/animaios/devtools-mcp) deep integration
   - [ ] [AnimAIOS Linux MCP](https://github.com/animaios/linux-mcp) deep integration
-  - [ ] [AnimAIOS Zed](https://github.com/animaios/zed) deep integration
     - [ ] Send recent context snapshot with each AIRI heartbeat
   - [ ] AIRI chatbox doubles as a system terminal with natural language detection (similar to Warp terminal)
 - [ ] **Misc**
