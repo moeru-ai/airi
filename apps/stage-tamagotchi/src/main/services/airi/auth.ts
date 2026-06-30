@@ -19,6 +19,7 @@ import {
   electronAuthStartLogin,
 } from '../../../shared/eventa'
 import { getWebApiTicket, initSteam } from '../steam/client'
+import { buildEnrollUrl } from './enroll-url'
 import { startLoopbackServer } from './http-server/http/auth'
 import { exchangeSteamTicketForTokens } from './steam-sign-in'
 
@@ -79,6 +80,15 @@ export async function trySteamSignIn(windowAuthManager: WindowAuthManager): Prom
     ticketHex: ticketResult.ticketHex,
   })
   if (!exchangeResult.ok) {
+    if (exchangeResult.kind === 'needs_enrollment') {
+      log.log('Steam account unlinked — starting enrollment in system browser')
+      windowAuthManager.broadcastEnrollmentStarted()
+      await startEnrollmentFlow(windowAuthManager, {
+        enrollToken: exchangeResult.enrollToken,
+        authUiUrl: exchangeResult.authUiUrl,
+      })
+      return
+    }
     log.withFields({ reason: exchangeResult.reason }).warn('Steam sign-in failed')
     windowAuthManager.broadcastAuthError(exchangeResult.reason)
     return
@@ -219,6 +229,30 @@ async function startOidcLoopbackFlow(
     log.withError(err).error('Failed to start OIDC signing in flow')
     windowAuthManager.broadcastAuthError(errorMessageFrom(err) ?? 'OIDC signing in failed')
   }
+}
+
+/**
+ * Opens the system browser to the Steam enrollment page, reusing the OIDC
+ * loopback flow so the completed enrollment lands back in Electron through the
+ * same code → token → renderer-callback path as manual login.
+ *
+ * The enroll page receives the single-use enrollment `token` plus the OIDC
+ * authorize URL as `continue`; once the user authenticates, the page navigates
+ * to `continue`, where the server consumes the token and links Steam.
+ */
+async function startEnrollmentFlow(
+  windowAuthManager: WindowAuthManager,
+  params: { enrollToken: string, authUiUrl: string },
+): Promise<void> {
+  await startOidcLoopbackFlow(windowAuthManager, {
+    promptLogin: false,
+    buildBrowserUrl: authorizeUrl =>
+      buildEnrollUrl({
+        authUiUrl: params.authUiUrl,
+        enrollToken: params.enrollToken,
+        continueUrl: authorizeUrl,
+      }),
+  })
 }
 
 /**
