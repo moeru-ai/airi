@@ -39,6 +39,7 @@
     "test:coverage": "vitest run --coverage",
     "test-vishot:run": "vitest run --config packages/vishot-runtime/vitest.config.ts",
     "test-ui:run": "vitest run --config packages/stage-ui/vitest.config.ts",
+    "lint": "eslint --cache .",
     "lint:swift": "pnpm -rF @proj-airi/stage-pocket run lint:swift",
     "capture:tamagotchi": "pnpm -F @proj-airi/vishot-runner-electron capture -- ./packages/scenarios-stage-tamagotchi-electron/src/scenarios/demo-controls-settings-chat-websocket.ts --output-dir ./packages/scenarios-stage-tamagotchi-browser/artifacts/raw",
     "to-avif": "tsx docs/scripts/avif.ts",
@@ -48,7 +49,8 @@
     "up": "taze -w -r -I && pnpm prune && pnpm dedupe",
     "nolyfill": "pnpm dlx nolyfill",
     "open:ios": "pnpm -rF @proj-airi/stage-pocket run open:ios",
-    "knip": "knip"
+    "knip": "knip",
+    "syncpack": "syncpack"
   },
   "devDependencies": {
     "@antfu/eslint-config": "catalog:",
@@ -66,6 +68,9 @@
     "@vitest/coverage-v8": "catalog:vitest",
     "bumpp": "catalog:",
     "eslint": "catalog:",
+    "eslint-import-resolver-node": "catalog:",
+    "eslint-import-resolver-typescript": "catalog:",
+    "eslint-plugin-boundaries": "catalog:",
     "eslint-plugin-oxlint": "catalog:",
     "jscpd": "catalog:",
     "knip": "catalog:",
@@ -80,6 +85,7 @@
     "simple-git-hooks": "catalog:",
     "sponsorkit": "catalog:",
     "sponsors-svg": "catalog:",
+    "syncpack": "catalog:",
     "taze": "catalog:",
     "tinyexec": "catalog:",
     "tsdown": "catalog:",

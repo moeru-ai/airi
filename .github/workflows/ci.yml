@@ -147,6 +147,46 @@ jobs:
           ./bin/deepsource report --analyzer test-coverage --key javascript --value-file ./coverage/lcov.info --use-oidc
 
 
+  version-drift:
+    name: Version Drift Detection
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: true
+
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Run syncpack
+        run: pnpm syncpack lint
+
+  eslint:
+    name: ESLint + Boundaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: true
+
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run lint
+
   cpd:
     name: Copy/Paste Detection
     runs-on: ubuntu-latest

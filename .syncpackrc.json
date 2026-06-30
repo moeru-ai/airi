@@ -1,0 +1,36 @@
+{
+  "$schema": "https://jamiemason.github.io/syncpack/configuration",
+  "dependencyTypes": [
+    "dev",
+    "local",
+    "overrides",
+    "peer",
+    "pnpmOverrides",
+    "prod",
+    "resolutions"
+  ],
+  "semverGroups": [
+    {
+      "dependencies": ["**"],
+      "isIgnored": false,
+      "label": "All dependencies should use the same version",
+      "packages": ["**"],
+      "range": "^"
+    }
+  ],
+  "type": "dev",
+  "versionGroups": [
+    {
+      "dependencies": ["@proj-airi/**", "@moeru/**"],
+      "label": "Internal workspace packages must be versioned consistently",
+      "packages": ["**"]
+    },
+    {
+      "dependencies": ["**"],
+      "dependencyTypes": ["dev", "prod"],
+      "label": "All other dependencies must be consistent across the monorepo",
+      "packages": ["**"],
+      "range": "^"
+    }
+  ]
+}
