@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { mockDB } from '../../../libs/mock-db'
 import { account, user } from '../../../schemas/accounts'
-import { resolveOrCreateSteamUser, steamPlaceholderEmail } from './resolve-steam-user'
+import { findLinkedSteamUser, resolveOrCreateSteamUser, steamPlaceholderEmail } from './resolve-steam-user'
 
 import * as schema from '../../../schemas'
 
@@ -104,5 +104,20 @@ describe('resolveOrCreateSteamUser', () => {
 
     expect(second.created).toBe(false)
     expect(getPlayerSummaries).toHaveBeenCalledOnce()
+  })
+})
+
+describe('findLinkedSteamUser', () => {
+  it('returns null when no steam account is linked', async () => {
+    const db = await mockDB(schema)
+    const result = await findLinkedSteamUser(db, '76561198000000010')
+    expect(result).toBeNull()
+  })
+
+  it('returns the userId when a steam account is linked', async () => {
+    const db = await mockDB(schema)
+    await resolveOrCreateSteamUser(db, '76561198000000011')
+    const result = await findLinkedSteamUser(db, '76561198000000011')
+    expect(result).toEqual({ userId: expect.any(String) })
   })
 })
