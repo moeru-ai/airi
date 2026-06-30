@@ -29,8 +29,8 @@
 
 import { writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { exit } from 'node:process'
-import { fileURLToPath } from 'node:url'
+import { argv, exit } from 'node:process'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const PROM = { name: 'grafanacloud-projairi-prom' }
 const LOKI = { name: 'grafanacloud-projairi-logs' }
@@ -527,7 +527,7 @@ elements['panel-92'] = timeseriesPanel(
   { unit: 'short', fillOpacity: 30 },
 )
 
-// --- Product Analytics — event-volume view only ---------------------------
+// --- Product Analytics — event volume + server-side TTS health -------------
 // Prometheus deliberately does not carry user_id. These panels answer
 // "which product actions are happening and failing"; DB-side product_events
 // queries answer "how many distinct users used each feature".
@@ -573,6 +573,42 @@ elements['panel-98'] = timeseriesPanel(
   [query(
     `sum by (feature, action, status) (rate(airi_product_events_total{${PRODUCT_EVENT_FILTER}}[$__rate_interval]))`,
     '{{feature}} · {{action}} · {{status}}',
+  )],
+  { unit: 'eps', fillOpacity: 15 },
+)
+
+elements['panel-99'] = gaugePanel(
+  99,
+  'TTS Success %',
+  'Server-side TTS successes divided by TTS requests over the dashboard range. Includes REST and WS TTS product events. Drops here mean users are asking for speech but not receiving audio; inspect failed/blocked panels next.',
+  [query(
+    `100 * sum(increase(airi_product_events_total{${PRODUCT_EVENT_FILTER}, feature="tts", action="speech_succeeded", status="succeeded"}[$__range])) / clamp_min(sum(increase(airi_product_events_total{${PRODUCT_EVENT_FILTER}, feature="tts", action="speech_requested", status="started"}[$__range])), 1)`,
+    'success %',
+  )],
+  { steps: [{ color: 'red', value: 0 }, { color: 'yellow', value: 90 }, { color: 'green', value: 98 }], max: 100, decimals: 2, noValue: '0' },
+)
+
+elements['panel-100'] = barGaugePanel(
+  100,
+  'TTS Failed / Blocked (range)',
+  'TTS user-impacting failures over the dashboard range, split by action/status/source. `speech_failed` usually means upstream/runtime failure; `speech_blocked` usually means balance/preflight blocked. Keep voice/model drilldown in Postgres metadata, not Prometheus labels.',
+  [query(
+    `topk(12, sum by (action, status, source) (increase(airi_product_events_total{${PRODUCT_EVENT_FILTER}, feature="tts", action=~"speech_failed|speech_blocked"}[$__range])))`,
+    '{{action}} · {{status}} · {{source}}',
+    'A',
+    PROM,
+    { instant: true },
+  )],
+  { unit: 'short', noValue: '0' },
+)
+
+elements['panel-101'] = timeseriesPanel(
+  101,
+  'TTS Event Rate by Source',
+  'TTS product event rate by source and action. Use this to distinguish chat auto-TTS, manual previews/settings tests, and API audio.speech traffic when speech health changes.',
+  [query(
+    `sum by (source, action, status) (rate(airi_product_events_total{${PRODUCT_EVENT_FILTER}, feature="tts"}[$__rate_interval]))`,
+    '{{source}} · {{action}} · {{status}}',
   )],
   { unit: 'eps', fillOpacity: 15 },
 )
@@ -908,14 +944,17 @@ const rows = [
     item('panel-81', 8, 0, 8, 4),
     item('panel-82', 16, 0, 8, 4),
   ]),
-  // Row 3: Product Analytics — Prom-safe event volume and failure trend.
+  // Row 3: Product Analytics — Prom-safe event volume and server TTS health.
   // Distinct-user analytics stay in Postgres `product_events`; this row
   // intentionally never uses user_id/session/request labels.
   row('Product Analytics', [
     item('panel-95', 0, 0, 6, 5),
     item('panel-96', 6, 0, 6, 5),
-    item('panel-97', 12, 0, 12, 9),
-    item('panel-98', 0, 5, 12, 4),
+    item('panel-99', 12, 0, 6, 5),
+    item('panel-100', 18, 0, 6, 5),
+    item('panel-97', 0, 5, 12, 8),
+    item('panel-98', 12, 5, 12, 4),
+    item('panel-101', 12, 9, 12, 4),
   ]),
   // Row 3: HTTP — full-width error breakdown on top, then traffic ranking +
   // latency trend side by side.
@@ -1039,7 +1078,7 @@ const variables = [
  *   1. Service Health — signup/sessions/WS counts, req-rate, 5xx, status-code
  *      heatmap, live WS trend: "is anything broken right now?"
  *   2. User Engagement — rolling DAU/WAU/MAU from user.last_seen_at
- *   3. Product Analytics — Prom-safe product event volume + failure trend
+ *   3. Product Analytics — Prom-safe product event volume + server TTS health
  *   4. HTTP — error breakdown by route, request ranking, latency by route
  *   5. LLM Gateway — per-model request rate + latency (TTFB + end-to-end)
  *   6. Provider Upstreams — per-provider rate/latency/failure + TTS chars
@@ -1056,7 +1095,7 @@ const variables = [
  * Variables source from `target_info` (always present, no business-metric
  * dependency) so the dashboard never goes blank when an app metric is renamed.
  */
-const dashboard = {
+export const dashboard = {
   annotations: [
     {
       kind: 'AnnotationQuery',
@@ -1097,28 +1136,65 @@ const dashboard = {
   variables,
 }
 
-const here = dirname(fileURLToPath(import.meta.url))
-const outPath = join(here, 'airi-server-overview-cloud.json')
-writeFileSync(outPath, `${JSON.stringify(dashboard, null, 2)}\n`)
-console.info(`wrote ${outPath}`)
+export interface DashboardLayoutCheckResult {
+  orphanRefs: string[]
+  unusedElems: string[]
+}
 
-// Cross-check elements ↔ layout references
-const elementNames = new Set(Object.keys(dashboard.elements))
-const refs = new Set<string>()
-function walk(o: unknown): void {
-  if (!o || typeof o !== 'object')
+/**
+ * Validates that every dashboard layout reference points to a defined element.
+ *
+ * Use when:
+ * - Regenerating the Grafana JSON from this dashboard builder.
+ * - Testing that row changes did not orphan panels or leave panels unused.
+ *
+ * Expects:
+ * - A Grafana dashboard object shaped like {@link dashboard}.
+ *
+ * Returns:
+ * - Orphan layout references and unused element names.
+ */
+export function checkDashboardLayoutReferences(targetDashboard: typeof dashboard): DashboardLayoutCheckResult {
+  const elementNames = new Set(Object.keys(targetDashboard.elements))
+  const refs = new Set<string>()
+  collectElementReferences(targetDashboard.layout, refs)
+  return {
+    orphanRefs: [...refs].filter(r => !elementNames.has(r)),
+    unusedElems: [...elementNames].filter(e => !refs.has(e)),
+  }
+}
+
+/**
+ * Recursively collects Grafana row element references from the layout tree.
+ */
+function collectElementReferences(node: unknown, refs: Set<string>): void {
+  if (!node || typeof node !== 'object')
     return
-  const node = o as { kind?: unknown, name?: unknown }
-  if (node.kind === 'ElementReference' && typeof node.name === 'string')
-    refs.add(node.name)
-  for (const v of Object.values(o)) walk(v)
+  const layoutNode = node as { kind?: unknown, name?: unknown }
+  if (layoutNode.kind === 'ElementReference' && typeof layoutNode.name === 'string')
+    refs.add(layoutNode.name)
+  for (const value of Object.values(node)) collectElementReferences(value, refs)
 }
-walk(dashboard.layout)
-const orphanRefs = [...refs].filter(r => !elementNames.has(r))
-const unusedElems = [...elementNames].filter(e => !refs.has(e))
-console.info(`panels defined: ${elementNames.size}, referenced: ${refs.size}, orphans: ${orphanRefs.length}, unused: ${unusedElems.length}`)
-if (orphanRefs.length || unusedElems.length) {
-  console.error('orphans:', orphanRefs)
-  console.error('unused:', unusedElems)
-  exit(1)
+
+/**
+ * Writes the generated dashboard JSON and fails the CLI on layout drift.
+ */
+function writeDashboard(): void {
+  const here = dirname(fileURLToPath(import.meta.url))
+  const outPath = join(here, 'airi-server-overview-cloud.json')
+  writeFileSync(outPath, `${JSON.stringify(dashboard, null, 2)}\n`)
+  console.info(`wrote ${outPath}`)
+
+  const { orphanRefs, unusedElems } = checkDashboardLayoutReferences(dashboard)
+  const definedCount = Object.keys(dashboard.elements).length
+  const referencedCount = definedCount - unusedElems.length + orphanRefs.length
+  console.info(`panels defined: ${definedCount}, referenced: ${referencedCount}, orphans: ${orphanRefs.length}, unused: ${unusedElems.length}`)
+  if (orphanRefs.length || unusedElems.length) {
+    console.error('orphans:', orphanRefs)
+    console.error('unused:', unusedElems)
+    exit(1)
+  }
 }
+
+if (import.meta.url === pathToFileURL(argv[1] ?? '').href)
+  writeDashboard()

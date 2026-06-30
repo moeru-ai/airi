@@ -67,6 +67,9 @@ vi.mock('../composables', () => ({
     trackLlmFirstToken: vi.fn(),
     trackAssistantResponseRendered: vi.fn(),
     trackMessageRound: vi.fn(),
+    trackChatActivationStarted: vi.fn(),
+    trackChatActivationSucceeded: vi.fn(),
+    trackChatActivationFailed: vi.fn(),
   }),
 }))
 

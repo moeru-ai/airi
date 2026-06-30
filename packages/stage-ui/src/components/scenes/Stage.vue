@@ -35,7 +35,7 @@ import { initIOTracer } from '../../composables/use-io-tracer'
 import { useSpeechPipelineAnalytics } from '../../composables/use-speech-pipeline-analytics'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { getDefaultStreamingModel, getDefinedProvider } from '../../libs/providers/providers'
-import { OFFICIAL_SPEECH_PROVIDER_ID } from '../../libs/providers/providers/official'
+import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { bindSpeakingStateToPlaybackManager } from '../../libs/speech/playback-speaking-state'
 import { createStageTtsSession } from '../../libs/speech/tts-session'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
@@ -344,6 +344,15 @@ function createVoicePackVoice(voicePack: VoicePackSnapshot): VoiceInfo {
   }
 }
 
+/**
+ * Classifies chat auto-TTS voice usage before forwarding analytics to the server.
+ */
+function resolveStageVoiceType(voicePack: VoicePackSnapshot | undefined): 'official_selected' | 'custom_configured' | 'voice_pack' {
+  if (voicePack)
+    return 'voice_pack'
+  return activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID || activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID ? 'official_selected' : 'custom_configured'
+}
+
 const speechPipeline = createSpeechPipeline<AudioBuffer>({
   tts: async (request, signal) => {
     if (signal.aborted)
@@ -461,6 +470,7 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
               airi_analytics: {
                 trigger: 'auto',
                 source: 'chat_auto_tts',
+                voice_type: resolveStageVoiceType(voicePack),
               },
             },
           }
@@ -675,6 +685,7 @@ function buildStreamingSnapshot(): StreamingSessionSnapshot | null {
   return {
     model: sessionModel,
     voice: voiceId,
+    voiceType: resolveStageVoiceType(undefined),
     bufferEntireSession,
     extraBody: {
       api_resource_id: apiResourceId,

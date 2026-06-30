@@ -230,7 +230,7 @@ describe('audio-speech-ws route', () => {
 
     const deps = makeFakeDeps({ upstreamURL: upstream.url, fluxBalance: 100 })
     const handlers = createAudioSpeechWsHandlers(deps as any)
-    const events = handlers('user-123')
+    const events = handlers('user-123', { voiceType: 'official_selected' })
     const client = makeMockClientWs()
 
     await driveClientSession(events, client, [
@@ -279,6 +279,17 @@ describe('audio-speech-ws route', () => {
       status: 200,
       fluxConsumed: 1,
     })
+    expect(deps.productEventService.track).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'user-123',
+      feature: 'tts',
+      action: 'speech_succeeded',
+      status: 'succeeded',
+      model: 'volcengine/seed-tts-2.0',
+      metadata: expect.objectContaining({
+        voice_id: 'mock',
+        voice_type: 'official_selected',
+      }),
+    }))
   })
 
   it('refuses the session with insufficient_flux when the user is broke', async () => {

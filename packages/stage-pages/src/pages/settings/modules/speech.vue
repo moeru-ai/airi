@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { VoiceType } from '@proj-airi/stage-ui/composables'
 import type { VoicePackSnapshot } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import type { VoiceInfo } from '@proj-airi/stage-ui/stores/providers'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
@@ -13,7 +14,7 @@ import {
   VoiceCardManySelect,
 } from '@proj-airi/stage-ui/components'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
-import { OFFICIAL_SPEECH_PROVIDER_ID } from '@proj-airi/stage-ui/libs/providers/providers/official'
+import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '@proj-airi/stage-ui/libs/providers/providers/official'
 import { useAiriCardStore, useVoicePacksStore } from '@proj-airi/stage-ui/stores'
 import { useSpeechStore, voicePackForSpeechProvider } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
@@ -55,7 +56,13 @@ const {
   availableVoices,
 } = storeToRefs(speechStore)
 
-const { trackProviderClick } = useAnalytics()
+const {
+  trackProviderClick,
+  trackTtsProviderSelected,
+  trackVoicePackBound,
+  trackVoicePreviewPlayed,
+  trackVoiceSelected,
+} = useAnalytics()
 
 const voiceSearchQuery = ref('')
 const useSSML = ref(false)
@@ -70,6 +77,9 @@ const supportsVoicePackSelection = computed(() => activeSpeechProvider.value ===
 const shouldShowVoicePackSection = computed(() =>
   supportsVoicePackSelection.value
   && (isLoadingVoicePacks.value || voicePacksError.value != null || voicePacks.value.length > 0),
+)
+const boundVoicePack = computed(() =>
+  voicePackForSpeechProvider(activeSpeechProvider.value, activeCard.value?.extensions.airi.modules.speech.voicePack),
 )
 
 const selectableSpeechProvidersMetadata = computed(() => {
@@ -93,6 +103,77 @@ function createVoicePackVoice(voicePack: VoicePackSnapshot): VoiceInfo {
 
 function formatCostMultiplier(multiplier: number) {
   return `${Number.isInteger(multiplier) ? multiplier : multiplier.toFixed(2).replace(/\.?0+$/, '')}x`
+}
+
+/**
+ * Resolves the current TTS model id for low-cardinality analytics payloads.
+ */
+function currentTtsModelId() {
+  return activeSpeechModel.value || 'unknown'
+}
+
+/**
+ * Classifies the selected voice without sending free-form provider config as a dimension.
+ */
+function currentVoiceType(voiceId: string, providerId = activeSpeechProvider.value, voicePack = boundVoicePack.value): VoiceType {
+  if (voicePack?.voiceId === voiceId)
+    return 'voice_pack'
+
+  const catalogVoice = availableVoices.value[providerId]?.some(voice => voice.id === voiceId)
+  if (catalogVoice)
+    return providerId === OFFICIAL_SPEECH_PROVIDER_ID || providerId === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID ? 'official_selected' : 'custom_configured'
+
+  return 'custom_configured'
+}
+
+/**
+ * Builds bounded voice analytics fields for catalog, voice pack, and manual voices.
+ */
+function voiceAnalyticsPayload(
+  voiceId: string,
+  voicePack: VoicePackSnapshot | undefined = boundVoicePack.value,
+  providerId = activeSpeechProvider.value,
+): {
+  voice_id: string
+  voice_type: VoiceType
+  voice_pack_id?: string
+} {
+  const voiceType = voicePack?.voiceId === voiceId ? 'voice_pack' : currentVoiceType(voiceId, providerId, voicePack)
+  const isCatalogVoice = availableVoices.value[providerId]?.some(voice => voice.id === voiceId) ?? false
+  const shouldBucketVoiceId = voiceType === 'custom_configured' && !isCatalogVoice
+
+  return {
+    voice_id: shouldBucketVoiceId ? 'custom' : voiceId,
+    voice_type: voiceType,
+    ...(voiceType === 'voice_pack' && voicePack ? { voice_pack_id: voicePack.packId } : {}),
+  }
+}
+
+/**
+ * Tracks the active TTS provider while preserving the legacy provider-card event.
+ */
+function selectSpeechProvider(providerId: string) {
+  trackProviderClick(providerId, 'speech')
+  trackTtsProviderSelected({
+    tts_provider_id: providerId,
+    tts_model_id: currentTtsModelId(),
+    source: 'settings',
+  })
+}
+
+/**
+ * Tracks explicit voice selection from catalog or custom input controls.
+ */
+function selectSpeechVoice(voiceId: string | undefined) {
+  if (!voiceId)
+    return
+
+  trackVoiceSelected({
+    tts_provider_id: activeSpeechProvider.value || 'unknown',
+    tts_model_id: currentTtsModelId(),
+    ...voiceAnalyticsPayload(voiceId),
+    source: 'settings',
+  })
 }
 
 // Sync OpenAI Compatible model and voice from provider config
@@ -135,6 +216,19 @@ async function bindVoicePack(pack: (typeof voicePacks.value)[number]) {
   if (!bound)
     return
   await speechStore.loadVoicesForProvider(activeSpeechProvider.value, activeSpeechModel.value || undefined)
+  trackVoicePackBound({
+    tts_provider_id: activeSpeechProvider.value || 'unknown',
+    tts_model_id: pack.ttsModelId,
+    voice_id: pack.voiceId,
+    voice_pack_id: pack.id,
+    source: 'settings',
+  })
+  trackVoiceSelected({
+    tts_provider_id: activeSpeechProvider.value || 'unknown',
+    tts_model_id: pack.ttsModelId,
+    ...voiceAnalyticsPayload(pack.voiceId, boundVoicePack.value),
+    source: 'settings',
+  })
 }
 
 watch(activeSpeechProvider, async (newProvider, oldProvider) => {
@@ -203,7 +297,7 @@ async function generateTestSpeech() {
     }
   }
 
-  const voicePack = voicePackForSpeechProvider(activeSpeechProvider.value, activeCard.value?.extensions.airi.modules.speech.voicePack)
+  const voicePack = boundVoicePack.value
   if (voicePack) {
     model = voicePack.ttsModelId
     if (!voice || voice.id !== voicePack.voiceId)
@@ -219,6 +313,11 @@ async function generateTestSpeech() {
     console.error('No voice selected')
     return
   }
+
+  const previewVoicePack = voicePack
+  const previewVoice = voice
+  const previewModel = model
+  const previewProvider = activeSpeechProvider.value || 'unknown'
 
   isGenerating.value = true
   errorMessage.value = ''
@@ -260,7 +359,16 @@ async function generateTestSpeech() {
     // Play the audio
     setTimeout(() => {
       if (audioPlayer.value) {
-        audioPlayer.value.play()
+        void audioPlayer.value.play()
+          .then(() => {
+            trackVoicePreviewPlayed({
+              tts_provider_id: previewProvider,
+              tts_model_id: previewModel,
+              ...voiceAnalyticsPayload(previewVoice.id, previewVoicePack, previewProvider),
+              source: 'manual_preview',
+            })
+          })
+          .catch(() => {})
       }
     }, 100)
   }
@@ -309,6 +417,7 @@ function updateCustomVoiceName(value: string | undefined) {
     provider: activeSpeechProvider.value,
     gender: 'male',
   }
+  selectSpeechVoice(value)
 }
 
 function updateCustomModelName(value: string | undefined) {
@@ -408,7 +517,7 @@ function handleDeleteProvider(providerId: string) {
               :value="metadata.id"
               :title="metadata.localizedName || 'Unknown'"
               :description="metadata.localizedDescription"
-              @click="trackProviderClick(metadata.id, 'speech')"
+              @click="selectSpeechProvider(metadata.id)"
             >
               <template #topRight>
                 <button
@@ -618,6 +727,7 @@ function handleDeleteProvider(providerId: string) {
               :play-button-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.play_sample')"
               :pause-button-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.pause')"
               @update:custom-value="updateCustomVoiceName"
+              @update:voice-id="selectSpeechVoice"
             />
           </div>
 

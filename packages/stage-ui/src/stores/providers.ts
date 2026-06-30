@@ -24,7 +24,7 @@ import type { ProviderOnboardingField } from '../libs/providers/types'
 import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream-transcription'
 
 import { errorMessageFrom } from '@moeru/std'
-import { isCustomProvidersDisabled, isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
+import { isCustomProvidersDisabled, isStageCapacitor, isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
 import { getCachedWebGPUCapabilities, isWebGPUSupported } from '@proj-airi/stage-shared/webgpu'
 import { computedAsync, useIntervalFn, useLocalStorage } from '@vueuse/core'
 import {
@@ -55,6 +55,7 @@ import { getKokoroAdapter } from '../libs/inference/adapters/kokoro'
 import { getProviderValidationIntervalMs, listProviders as listDefinedProviders, ProviderValidationCheck } from '../libs/providers'
 import { resolveProviderSourceMetadata } from '../libs/providers/source-metadata'
 import { getDefaultKokoroModel, KOKORO_MODELS, kokoroModelsToModelInfo } from '../workers/kokoro/constants'
+import { capturePosthogEvent, ensurePosthogInitialized, isPosthogAvailableInBuild } from './analytics/posthog'
 import { useAuthStore } from './auth'
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
 import { convertProviderDefinitionsToMetadata } from './providers/converters'
@@ -63,6 +64,7 @@ import { buildGoogleGeminiSpeechProvider } from './providers/google-gemini-speec
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
 import { buildOpenRouterAudioSpeechProvider } from './providers/openrouter/audio-speech'
 import { createWebSpeechAPIProvider } from './providers/web-speech-api'
+import { useSettingsAnalytics } from './settings/analytics'
 
 const ALIYUN_NLS_REGIONS = [
   'cn-shanghai',
@@ -78,6 +80,78 @@ type AliyunNlsRegion = typeof ALIYUN_NLS_REGIONS[number]
 function toListVoicesOptions<T>(provider: VoiceProviderWithExtraOptions<T>, options?: T): ListVoicesOptions {
   const { fetch: _fetch, ...voiceOptions } = provider.voice(options)
   return voiceOptions
+}
+
+/**
+ * Classifies provider ids into bounded analytics buckets.
+ */
+function analyticsProviderMode(providerId: string): 'official' | 'custom' | 'unknown' {
+  if (!providerId)
+    return 'unknown'
+  return providerId.startsWith('official-provider') || providerId.startsWith('vision-official-provider') ? 'official' : 'custom'
+}
+
+/**
+ * Resolves the current app surface without importing the analytics store.
+ */
+function analyticsSurface(): 'web' | 'mobile' | 'electron' {
+  if (isStageTamagotchi())
+    return 'electron'
+
+  if (isStageCapacitor())
+    return 'mobile'
+
+  return 'web'
+}
+
+/**
+ * Checks analytics settings and initializes PostHog without loading build metadata.
+ */
+function canCaptureProviderAnalytics(): boolean {
+  if (!isPosthogAvailableInBuild())
+    return false
+
+  const settingsAnalytics = useSettingsAnalytics()
+  if (!settingsAnalytics.analyticsEnabled)
+    return false
+
+  return ensurePosthogInitialized(true)
+}
+
+/**
+ * Emits model-list analytics from the provider store without loading build metadata.
+ */
+function trackModelListLoaded(properties: {
+  provider_id: string
+  provider_mode: 'official' | 'custom' | 'unknown'
+  model_count: number
+  duration_ms: number
+}) {
+  if (!canCaptureProviderAnalytics())
+    return
+
+  capturePosthogEvent('model_list_loaded', {
+    ...properties,
+    surface: analyticsSurface(),
+  })
+}
+
+/**
+ * Emits model-list failure analytics from the provider store without loading build metadata.
+ */
+function trackModelListFailed(properties: {
+  provider_id: string
+  provider_mode: 'official' | 'custom' | 'unknown'
+  error_code: string
+  duration_ms: number
+}) {
+  if (!canCaptureProviderAnalytics())
+    return
+
+  capturePosthogEvent('model_list_failed', {
+    ...properties,
+    surface: analyticsSurface(),
+  })
 }
 
 export interface ProviderMetadata {
@@ -2566,6 +2640,7 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Function to fetch models for a specific provider
   async function fetchModelsForProvider(providerId: string) {
+    const startedAt = Date.now()
     const metadata = providerMetadata[providerId]
     if (!metadata)
       return []
@@ -2594,8 +2669,20 @@ export const useProvidersStore = defineStore('providers', () => {
             deprecated: model.deprecated,
             provider: providerId,
           }))
+        trackModelListLoaded({
+          provider_id: providerId,
+          provider_mode: analyticsProviderMode(providerId),
+          model_count: runtimeState.models.length,
+          duration_ms: Date.now() - startedAt,
+        })
         return runtimeState.models
       }
+      trackModelListLoaded({
+        provider_id: providerId,
+        provider_mode: analyticsProviderMode(providerId),
+        model_count: 0,
+        duration_ms: Date.now() - startedAt,
+      })
       return []
     }
     catch (error) {
@@ -2603,6 +2690,12 @@ export const useProvidersStore = defineStore('providers', () => {
       if (runtimeState) {
         runtimeState.modelLoadError = errorMessageFrom(error) ?? 'Unknown error'
       }
+      trackModelListFailed({
+        provider_id: providerId,
+        provider_mode: analyticsProviderMode(providerId),
+        error_code: 'provider_error',
+        duration_ms: Date.now() - startedAt,
+      })
       return []
     }
     finally {

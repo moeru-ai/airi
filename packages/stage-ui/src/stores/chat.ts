@@ -56,6 +56,9 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     trackLlmFirstToken,
     trackAssistantResponseRendered,
     trackMessageRound,
+    trackChatActivationStarted,
+    trackChatActivationSucceeded,
+    trackChatActivationFailed,
   } = useAnalytics()
 
   const chatSession = useChatSessionStore()
@@ -132,6 +135,15 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     ownedActiveTurnSpan = undefined
   }
 
+  /**
+   * Classifies configured chat providers into low-cardinality product analytics buckets.
+   */
+  function providerMode(providerId: string | undefined): 'official' | 'custom' | 'unknown' {
+    if (!providerId)
+      return 'unknown'
+    return providerId.startsWith('official-provider') ? 'official' : 'custom'
+  }
+
   const runtime = createChatOrchestratorRuntime({
     session: {
       ensureSession: sessionId => chatSession.ensureSession(sessionId),
@@ -186,6 +198,27 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       duration_ms: durationMs,
       has_voice: hasVoice,
       model,
+    }),
+    onChatActivationStarted: ({ model, provider, source }) => trackChatActivationStarted({
+      provider_mode: providerMode(provider),
+      provider_id: provider || 'unknown',
+      model_id: model || 'unknown',
+      source,
+    }),
+    onChatActivationSucceeded: ({ model, provider, durationMs, source }) => trackChatActivationSucceeded({
+      provider_mode: providerMode(provider),
+      provider_id: provider || 'unknown',
+      model_id: model || 'unknown',
+      time_to_first_message_ms: durationMs,
+      source,
+    }),
+    onChatActivationFailed: ({ model, provider, errorCode, failureStage, source }) => trackChatActivationFailed({
+      provider_mode: providerMode(provider),
+      provider_id: provider || 'unknown',
+      model_id: model || 'unknown',
+      error_code: errorCode,
+      failure_stage: failureStage,
+      source,
     }),
     onLifecycle: record => contextObservability.recordLifecycle(record),
     onPromptProjection: payload => contextObservability.capturePromptProjection(payload),

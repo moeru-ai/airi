@@ -63,10 +63,12 @@ export interface OpenAiSpeechRequest {
 }
 
 type TtsTrigger = 'auto' | 'manual'
+type TtsVoiceType = 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
 
 interface TtsAnalyticsContext {
   trigger: TtsTrigger
   source: 'audio.speech' | 'chat_auto_tts' | 'manual_preview' | 'settings_test'
+  voiceType: TtsVoiceType
 }
 
 /**
@@ -100,6 +102,11 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
       voice: typeof input.body.voice === 'string' ? input.body.voice : undefined,
       voicePackService: deps.voicePackService,
     })
+    const voiceMetadata = ttsVoiceMetadata({
+      voice: typeof input.body.voice === 'string' ? input.body.voice : undefined,
+      voicePackId: voicePackRequest.voicePackId,
+      voiceType: analytics.voiceType,
+    })
     const billingUnits = Math.ceil(inputText.length * voicePackRequest.costMultiplier)
 
     logger.withFields({
@@ -120,6 +127,7 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
       metadata: {
         input_chars: inputText.length,
         trigger: analytics.trigger,
+        ...voiceMetadata,
       },
     })
 
@@ -144,6 +152,7 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
           billing_units: billingUnits,
           balance_state: 'insufficient',
           trigger: analytics.trigger,
+          ...voiceMetadata,
         },
       })
       logger.withError(err).withFields({
@@ -219,6 +228,7 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
           http_status: failure.status,
           duration_ms: Date.now() - startedAt,
           trigger: analytics.trigger,
+          ...voiceMetadata,
         },
       })
       throw err
@@ -245,6 +255,7 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
           http_status: response.status,
           duration_ms: durationMs,
           trigger: analytics.trigger,
+          ...voiceMetadata,
         },
       })
       logger.withFields({ requestId, userId: input.userId, model: requestModel, status: response.status, durationMs })
@@ -297,6 +308,7 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
         duration_ms: durationMs,
         flux_consumed: fluxConsumed,
         trigger: analytics.trigger,
+        ...voiceMetadata,
       },
     })
     deps.requestLogService.logRequest({
@@ -354,8 +366,40 @@ function ttsAnalyticsContext(body: Record<string, unknown>): TtsAnalyticsContext
     || rawSource === 'settings_test'
     ? rawSource
     : 'audio.speech'
+  const voiceType = normalizeVoiceType(analytics?.voice_type)
 
-  return { trigger, source }
+  return { trigger, source, voiceType }
+}
+
+/**
+ * Normalizes client-provided TTS voice type into bounded analytics values.
+ */
+function normalizeVoiceType(value: unknown): TtsVoiceType {
+  switch (value) {
+    case 'official_default':
+    case 'official_selected':
+    case 'custom_configured':
+    case 'voice_pack':
+      return value
+    default:
+      return 'unknown'
+  }
+}
+
+/**
+ * Builds reusable low-cardinality voice metadata for every TTS product event.
+ */
+function ttsVoiceMetadata(input: {
+  voice?: string
+  voicePackId?: string
+  voiceType: TtsVoiceType
+}): Record<string, unknown> {
+  const voiceType = input.voicePackId ? 'voice_pack' : input.voiceType
+  return {
+    ...(input.voice ? { voice_id: input.voice } : {}),
+    voice_type: voiceType,
+    ...(input.voicePackId ? { voice_pack_id: input.voicePackId } : {}),
+  }
 }
 
 async function voicePackRequestOptions(
@@ -365,12 +409,15 @@ async function voicePackRequestOptions(
     voice?: string
     voicePackService: VoicePackService
   },
-): Promise<{ extraOptions: Record<string, unknown> | undefined, costMultiplier: number }> {
+): Promise<{ extraOptions: Record<string, unknown> | undefined, costMultiplier: number, voicePackId?: string }> {
   const extraBody = asRecord(body.extra_body)
   const voicePackOptions = asRecord(extraBody?.voice_pack)
   const pitch = readOptionalNumber(voicePackOptions, 'pitch')
   const volume = readOptionalNumber(voicePackOptions, 'volume')
   const costMultiplier = await resolveVoicePackCostMultiplier(voicePackOptions, context)
+  const voicePackId = typeof voicePackOptions?.pack_id === 'string' && voicePackOptions.pack_id.trim()
+    ? voicePackOptions.pack_id
+    : undefined
   const extraOptions: Record<string, unknown> = {}
   if (pitch != null)
     extraOptions.pitch = pitch
@@ -380,6 +427,7 @@ async function voicePackRequestOptions(
   return {
     extraOptions: Object.keys(extraOptions).length > 0 ? extraOptions : undefined,
     costMultiplier,
+    voicePackId,
   }
 }
 

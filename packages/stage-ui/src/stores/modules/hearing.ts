@@ -48,6 +48,33 @@ function isExpectedStreamStopError(err: unknown): boolean {
     && (err.message === 'Stopped' || err.message === 'Aborted' || err.message === 'Closed' || err.message === 'Idle timeout')
 }
 
+type TranscriptionAnalyticsErrorCode = 'permission_denied' | 'device_unavailable' | 'input_unavailable' | 'provider_error' | 'unknown'
+
+/**
+ * Normalizes transcription failures into bounded analytics error codes.
+ */
+function transcriptionAnalyticsErrorCode(err: unknown): TranscriptionAnalyticsErrorCode {
+  if (err instanceof DOMException) {
+    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')
+      return 'permission_denied'
+
+    if (err.name === 'NotFoundError' || err.name === 'NotReadableError')
+      return 'device_unavailable'
+  }
+
+  const message = (errorMessageFrom(err) ?? '').toLowerCase()
+  if (message.includes('permission') || message.includes('notallowed'))
+    return 'permission_denied'
+
+  if (message.includes('microphone') || message.includes('audio track') || message.includes('device'))
+    return 'device_unavailable'
+
+  if (message.includes('file input') || message.includes('compatible input'))
+    return 'input_unavailable'
+
+  return message ? 'provider_error' : 'unknown'
+}
+
 function haveStreamingCallbacksChanged(
   previous: { onSentenceEnd?: (delta: string) => void, onSpeechEnd?: (text: string) => void } | undefined,
   next: { onSentenceEnd?: (delta: string) => void, onSpeechEnd?: (text: string) => void },
@@ -281,7 +308,14 @@ export function resolveTranscriptionProviderOptions(providerConfig?: Record<stri
 export const useHearingStore = defineStore('hearing-store', () => {
   const providersStore = useProvidersStore()
   const { allAudioTranscriptionProvidersMetadata } = storeToRefs(providersStore)
-  const { trackSttStarted, trackSttSucceeded, trackSttFailed } = useAnalytics()
+  const {
+    trackAudioDeviceUnavailable,
+    trackMicrophonePermissionDenied,
+    trackSttFailed,
+    trackSttStarted,
+    trackSttSucceeded,
+    trackVoiceInputStarted,
+  } = useAnalytics()
 
   // State
   const activeTranscriptionProvider = useLocalStorageManualReset('settings/hearing/active-provider', '')
@@ -378,6 +412,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     const streamExecutor = resolveStreamTranscriptionExecutor(providerId)
 
     const sttStartedAt = performance.now()
+    trackVoiceInputStarted({ stt_provider_id: providerId })
     trackSttStarted(providerId)
 
     function emitSucceeded(charCount: number, stream: boolean) {
@@ -389,7 +424,20 @@ export const useHearingStore = defineStore('hearing-store', () => {
       })
     }
     function emitFailed(err: unknown) {
-      trackSttFailed({ provider: providerId, error_code: (errorMessageFrom(err) ?? 'unknown').slice(0, 64) })
+      const errorCode = transcriptionAnalyticsErrorCode(err)
+      trackSttFailed({ provider: providerId, error_code: errorCode })
+      if (errorCode === 'permission_denied') {
+        trackMicrophonePermissionDenied({
+          stt_provider_id: providerId,
+          error_code: errorCode,
+        })
+      }
+      if (errorCode === 'device_unavailable') {
+        trackAudioDeviceUnavailable({
+          stt_provider_id: providerId,
+          error_code: errorCode,
+        })
+      }
     }
 
     try {
@@ -515,6 +563,11 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
   const hearingStore = useHearingStore()
   const { activeTranscriptionProvider, activeTranscriptionModel } = storeToRefs(hearingStore)
   const providersStore = useProvidersStore()
+  const {
+    trackAudioDeviceUnavailable,
+    trackVoiceInputCancelled,
+    trackVoiceInputStarted,
+  } = useAnalytics()
   const streamingSession = shallowRef<{
     audioContext: AudioContext | Record<string, never>
     workletNode: AudioWorkletNode | Record<string, never>
@@ -765,6 +818,8 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
 
       // Special handling for Web Speech API - it works directly with MediaStream
       if (providerId === 'browser-web-speech-api') {
+        trackVoiceInputStarted({ stt_provider_id: providerId })
+
         // Check if Web Speech API is available
         const isAvailable = typeof window !== 'undefined'
           && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)
@@ -1063,11 +1118,16 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
 
     if (!recording) {
       error.value = 'No recording captured from microphone'
+      trackVoiceInputCancelled({ stt_provider_id: activeTranscriptionProvider.value || 'unknown' })
       return
     }
 
     if (recording.size <= 0) {
       error.value = 'Recording captured from microphone is empty'
+      trackAudioDeviceUnavailable({
+        stt_provider_id: activeTranscriptionProvider.value || 'unknown',
+        error_code: 'device_unavailable',
+      })
       return
     }
 
