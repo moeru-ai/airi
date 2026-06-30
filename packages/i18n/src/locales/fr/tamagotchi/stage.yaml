@@ -30,6 +30,7 @@ docs:
   'collapse': Réduire
   'login': Se connecter
   'logging-in': Connexion en cours...
+  'enrollment-in-browser': Terminez la connexion dans votre navigateur...
   'account': Compte
   'logout': Compte
 widgets:

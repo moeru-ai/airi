@@ -30,6 +30,7 @@ docs:
   'collapse': 折叠
   'login': 登录
   'logging-in': 登录中...
+  'enrollment-in-browser': 请在浏览器中完成登录...
   'account': 账号
   'logout': 退出登录
 widgets:

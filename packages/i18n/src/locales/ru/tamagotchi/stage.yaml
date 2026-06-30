@@ -30,6 +30,7 @@ docs:
   'collapse': Свернуть
   'login': Войти
   'logging-in': Выполняется вход...
+  'enrollment-in-browser': Завершите вход в браузере...
   'account': Аккаунт
   'logout': Выйти
 widgets:

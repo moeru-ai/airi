@@ -30,6 +30,7 @@ docs:
   'collapse': Sụp đổ
   'login': Đăng nhập
   'logging-in': Đang đăng nhập...
+  'enrollment-in-browser': Vui lòng hoàn tất đăng nhập trong trình duyệt...
   'account': Tài khoản
   'logout': Đăng xuất
 widgets:
