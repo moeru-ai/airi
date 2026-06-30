@@ -234,14 +234,16 @@ export const providerOfficialSpeechStreaming = defineProvider({
   createProviderConfig: () => officialConfigSchema,
   createProvider(_config) {
     // Same audio-scoped baseURL as the HTTP speech provider. The streaming
-    // provider does not actually use `.speech()` for synthesis (it goes
-    // through `streamingSynthesize` which opens its own WebSocket), but the
-    // OpenAI-shaped provider instance is still returned so legacy fallback
-    // and feature-detection helpers keep working.
+    // provider usually goes through `streamingSynthesize`, but settings
+    // previews still use the OpenAI-shaped `.speech()` API so manual preview
+    // analytics must be able to pass extra request body fields through.
     const provider = createOfficialAudioProvider()
     const originalSpeech = provider.speech.bind(provider)
-    provider.speech = (model: string) => {
-      const result = originalSpeech(model)
+    provider.speech = (model: string, extraOptions?: Record<string, unknown>) => {
+      const result = {
+        ...originalSpeech(model),
+        ...extraOptions,
+      }
       result.fetch = withCredentials()
       return result
     }
