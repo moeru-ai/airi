@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { defaultStandaloneApiServerUrl, getServerAdminBootstrapContext, resolveStandaloneServerAdminContext } from './server-admin-context'
+import { ADMIN_API_ENVIRONMENTS, apiEnvironmentValueFor, buildApiServerSwitchUrl, defaultStandaloneApiServerUrl, getServerAdminBootstrapContext, resolveStandaloneServerAdminContext } from './server-admin-context'
 
 describe('ui-admin bootstrap context', () => {
   it('uses the trusted API server origin carried by standalone server redirects', () => {
@@ -38,6 +38,25 @@ describe('ui-admin bootstrap context', () => {
   it('defaults known standalone admin deployments to their API origins', () => {
     expect(defaultStandaloneApiServerUrl('https://admin.airi.build')).toBe('https://api.airi.build')
     expect(defaultStandaloneApiServerUrl('https://server-dev.airi-server-admin.pages.dev')).toBe('https://airi-server-dev.up.railway.app')
+  })
+
+  it('exposes production, testing, and local API environment choices', () => {
+    expect(ADMIN_API_ENVIRONMENTS.map(environment => environment.value)).toEqual([
+      'https://api.airi.build',
+      'https://airi-server-dev.up.railway.app',
+      'http://localhost:3000',
+    ])
+  })
+
+  it('maps custom localhost API origins to the local environment option', () => {
+    expect(apiEnvironmentValueFor('http://127.0.0.1:8787')).toBe('http://localhost:3000')
+  })
+
+  it('builds a switched admin URL without dropping the current page state', () => {
+    expect(buildApiServerSwitchUrl(
+      'https://admin.airi.build/voice-packs/new?draft=1#advanced',
+      'https://airi-server-dev.up.railway.app/api/admin',
+    )).toBe('https://admin.airi.build/voice-packs/new?draft=1&api_server_url=https%3A%2F%2Fairi-server-dev.up.railway.app#advanced')
   })
 
   it('falls back to the standalone query context when the static placeholder script is still present', () => {

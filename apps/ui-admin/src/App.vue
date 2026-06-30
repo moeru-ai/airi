@@ -6,13 +6,16 @@ import { computed, onMounted, shallowRef } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { Toaster } from 'vue-sonner'
 
-import { adminApi, AdminApiError, signInUrl } from './modules/api'
+import ApiEnvironmentSelect from './components/admin-shell/ApiEnvironmentSelect.vue'
+
+import { adminApi, AdminApiError, apiServerUrl, signInUrl } from './modules/api'
 
 const route = useRoute()
 
 const loading = shallowRef(true)
 const me = shallowRef<AdminMe | null>(null)
 const accessError = shallowRef<string | null>(null)
+const currentApiServerUrl = apiServerUrl()
 
 const navItems = [
   { to: '/', icon: 'i-lucide-layout-dashboard', label: 'Overview' },
@@ -138,6 +141,7 @@ onMounted(async () => {
               {{ currentTitle }}
             </h1>
           </div>
+          <ApiEnvironmentSelect :api-server-url="currentApiServerUrl" />
         </header>
         <div class="admin-content">
           <RouterView />

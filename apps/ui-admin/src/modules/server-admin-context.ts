@@ -3,8 +3,32 @@ export interface ServerAdminBootstrapContext {
   currentUrl: string
 }
 
+export interface AdminApiEnvironment {
+  label: string
+  value: string
+  description: string
+}
+
 const SCRIPT_ID = 'airi-server-admin-context'
 const API_SERVER_URL_QUERY_PARAM = 'api_server_url'
+
+export const ADMIN_API_ENVIRONMENTS = [
+  {
+    label: 'Production',
+    value: 'https://api.airi.build',
+    description: 'api.airi.build',
+  },
+  {
+    label: 'Testing',
+    value: 'https://airi-server-dev.up.railway.app',
+    description: 'airi-server-dev.up.railway.app',
+  },
+  {
+    label: 'Local',
+    value: 'http://localhost:3000',
+    description: 'localhost:3000',
+  },
+] as const satisfies readonly AdminApiEnvironment[]
 
 const TRUSTED_STANDALONE_API_SERVER_ORIGINS = [
   'https://api.airi.build',
@@ -105,6 +129,25 @@ export function resolveStandaloneServerAdminContext(currentUrl: string): ServerA
     apiServerUrl,
     currentUrl,
   }
+}
+
+export function apiEnvironmentValueFor(apiServerUrl: string): string {
+  const origin = new URL(apiServerUrl).origin
+  const known = ADMIN_API_ENVIRONMENTS.find(environment => environment.value === origin)
+  if (known)
+    return known.value
+
+  if (TRUSTED_LOCAL_API_SERVER_ORIGIN_PATTERNS.some(pattern => pattern.test(origin)))
+    return ADMIN_API_ENVIRONMENTS.find(environment => environment.label === 'Local')?.value ?? origin
+
+  return origin
+}
+
+export function buildApiServerSwitchUrl(currentUrl: string, apiServerUrl: string): string {
+  const url = new URL(currentUrl)
+  const origin = new URL(apiServerUrl).origin
+  url.searchParams.set(API_SERVER_URL_QUERY_PARAM, origin)
+  return url.toString()
 }
 
 function normalizeTrustedApiServerUrl(value: string | null): string | null {
