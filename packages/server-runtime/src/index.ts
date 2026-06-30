@@ -313,6 +313,13 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
     peersByModule.get(module.name)!.set(module.identity.id, p)
     p.healthy = true
     broadcastRegistrySync()
+    // A freshly-registered module is healthy. registry:modules:sync only conveys presence,
+    // and registry:modules:health:healthy is otherwise emitted only on a heartbeat recovery
+    // (unhealthy -> healthy), so without this, consumers that gate on health (e.g. a desktop
+    // adapter's serviceConnected) never see a newly-announced module as healthy until it first
+    // goes unhealthy and recovers. broadcastPeerHealthy no-ops until name+identity are set,
+    // which the module:announce path does before calling this.
+    broadcastPeerHealthy(p)
   }
 
   function findModulePeer(moduleName: string, moduleIndex: number | undefined, identity?: MetadataEventSource) {

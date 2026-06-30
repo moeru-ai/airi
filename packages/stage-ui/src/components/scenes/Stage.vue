@@ -44,6 +44,7 @@ import { useChatOrchestratorStore } from '../../stores/chat'
 import { useLlmStreamingControlStore } from '../../stores/llm-streaming-control'
 import { useAiriCardStore } from '../../stores/modules'
 import { useSpeechStore, voicePackForSpeechProvider } from '../../stores/modules/speech'
+import { useSystemSpeechStore } from '../../stores/modules/system-speech'
 import { useProvidersStore } from '../../stores/providers'
 import { useSettings } from '../../stores/settings'
 import { useSpeechOutputControlStore } from '../../stores/speech-output-control'
@@ -512,6 +513,14 @@ speechPipeline.on('onSpecial', (segment) => {
   }
 })
 
+speechPipeline.on('onIntentEnd', (intentId) => {
+  releaseOneOffSessionByIntentId(intentId)
+})
+
+speechPipeline.on('onIntentCancel', ({ intentId }) => {
+  releaseOneOffSessionByIntentId(intentId)
+})
+
 speechPipeline.on('onTurnEnd', (turnId) => {
   streamingControl.completeTurn(turnId)
 })
@@ -639,9 +648,31 @@ function setupAnalyser() {
 // decision point. See `packages/stage-ui/src/libs/speech/tts-session.ts`.
 let currentSession: StageTtsSession | null = null
 
+// One-off "system speech" sessions (e.g. a game adapter reading a bot line aloud). They are opened
+// independently of `currentSession` (the chat reply session) so they never disturb it, but we still
+// track them so component teardown or a provider/voice swap can cancel them — otherwise an open
+// streaming ws could keep feeding playback into an unmounted component.
+const oneOffSessions = new Set<StageTtsSession>()
+
+function releaseOneOffSession(session: StageTtsSession) {
+  oneOffSessions.delete(session)
+}
+
+function releaseOneOffSessionByIntentId(intentId: string) {
+  for (const session of oneOffSessions) {
+    if (session.intentId === intentId)
+      releaseOneOffSession(session)
+  }
+}
+
 function stopSpeechOutput(reason: string) {
   currentSession?.cancel(reason)
   currentSession = null
+  // A manual stop should silence everything, including any one-off system-speech session, so an
+  // open streaming ws does not keep feeding playback after the user asked it to stop.
+  for (const session of oneOffSessions)
+    session.cancel(reason)
+  oneOffSessions.clear()
   speechPipeline.stopAll(reason)
   playbackManager.stopAll(reason)
   resetAssistantSpeechSurface(reason)
@@ -695,7 +726,7 @@ function resolveSpeechTransport(providerId: string | null | undefined): SpeechTr
   return getDefinedProvider(providerId)?.capabilities?.speech?.transport
 }
 
-function openTtsSession(): StageTtsSession {
+function openTtsSession(extra?: { onSettled?: () => void }): StageTtsSession {
   // A session must only clear the module-level `currentSession` if it IS that session. The previous
   // code cleared it whenever any `stream-` session completed, which is unsafe once sessions exist that
   // are not assigned to `currentSession` (e.g. one-off read-aloud sessions): one of those finishing
@@ -725,9 +756,11 @@ function openTtsSession(): StageTtsSession {
           error: err,
         })
         clearIfActive()
+        extra?.onSettled?.()
       },
       onDone: () => {
         clearIfActive()
+        extra?.onSettled?.()
       },
     },
   })
@@ -740,6 +773,33 @@ watch(latestStopRequest, (request) => {
 
   stopSpeechOutput(request.reason)
 })
+
+// Voice a single system line through the same TTS + lip-sync path as a chat reply, without it
+// becoming a chat message or waking the character's LLM. Producers (e.g. the Minecraft adapter)
+// request playback via useSystemSpeechStore.speak; this opens an independent session so the active
+// chat reply is never disturbed, and releases the tracking ref once the line finishes or errors.
+function speakSystemLine(text: string) {
+  const line = text.trim()
+  if (!line)
+    return
+
+  let session: StageTtsSession | null = null
+  session = openTtsSession({ onSettled: () => {
+    if (session)
+      releaseOneOffSession(session)
+  } })
+  oneOffSessions.add(session)
+  // The whole utterance is known up front: feed it, flush, then close the input. end() is required —
+  // on the REST/segmenter path finishInput() only flushes (writeFlush); without end() the speech
+  // pipeline's intent reader never exits and would block subsequent queued chat/TTS playback. This is
+  // NOT a settled signal: REST/segmenter cleanup happens from speechPipeline.on('onIntentEnd') after
+  // queued TTS playback has drained, while streaming cleanup still uses openTtsSession.onSettled.
+  session.appendText(line)
+  session.finishInput()
+  session.end()
+}
+
+chatHookCleanups.push(useSystemSpeechStore().onSpeak(speakSystemLine).off)
 
 chatHookCleanups.push(onBeforeMessageComposed(async () => {
   playbackManager.stopAll('new-message')
@@ -794,9 +854,16 @@ chatHookCleanups.push(onAssistantResponseEnd(async (_message) => {
 watch(
   [activeSpeechProvider, () => activeSpeechVoice.value?.id, activeSpeechModel],
   ([provider, voiceId, model], [prevProvider, prevVoiceId, prevModel]) => {
-    if (!currentSession)
-      return
     if (provider === prevProvider && voiceId === prevVoiceId && model === prevModel)
+      return
+
+    // A real provider/voice/model swap: tear down sessions bound to the old adapter, including any
+    // one-off system-speech sessions still playing on it.
+    for (const session of oneOffSessions)
+      session.cancel('provider-or-voice-changed')
+    oneOffSessions.clear()
+
+    if (!currentSession)
       return
     console.warn('[Speech Pipeline] provider/voice/model changed mid-session, tearing down', {
       provider,
@@ -928,6 +995,9 @@ onUnmounted(() => {
   // #1 + MEDIUM #5.
   currentSession?.cancel('unmount')
   currentSession = null
+  for (const session of oneOffSessions)
+    session.cancel('unmount')
+  oneOffSessions.clear()
   playbackManager.stopAll('unmount')
 })
 
