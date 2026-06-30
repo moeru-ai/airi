@@ -13,6 +13,12 @@ export type StreamEvent
 export interface StreamOptions {
   abortSignal?: AbortSignal
   headers?: Record<string, string>
+  /**
+   * Hard cap on completion tokens for one LLM call, forwarded to the provider
+   * as the OpenAI-compatible `max_tokens` body field. Leave undefined to use
+   * the provider/model default (no cap).
+   */
+  maxTokens?: number
   onStreamEvent?: (event: StreamEvent) => void | Promise<void>
   toolsCompatibility?: Map<string, boolean>
   supportsTools?: boolean

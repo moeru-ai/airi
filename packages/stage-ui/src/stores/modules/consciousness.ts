@@ -12,6 +12,16 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
   const activeProvider = useLocalStorageManualReset<string>('settings/consciousness/active-provider', '')
   const activeModel = useLocalStorageManualReset<string>('settings/consciousness/active-model', '')
   const activeCustomModelName = useLocalStorageManualReset<string>('settings/consciousness/active-custom-model', '')
+  /**
+   * Hard cap on completion tokens per chat request, sent to the provider as
+   * `max_tokens`. `0` (default) means no cap — the request omits the field.
+   */
+  const responseMaxTokens = useLocalStorageManualReset<number>('settings/consciousness/response-max-tokens', 0)
+  /**
+   * Soft reply-length guideline in characters, injected into the system prompt
+   * supplement. `0` (default) disables the guideline.
+   */
+  const responseLengthHint = useLocalStorageManualReset<number>('settings/consciousness/response-length-hint', 0)
   const expandedDescriptions = refManualReset<Record<string, boolean>>(() => ({}))
   const modelSearchQuery = refManualReset<string>('')
 
@@ -72,6 +82,8 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
 
   function resetState() {
     activeProvider.reset()
+    responseMaxTokens.reset()
+    responseLengthHint.reset()
     resetModelSelection()
   }
 
@@ -81,6 +93,8 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     activeProvider,
     activeModel,
     customModelName: activeCustomModelName,
+    responseMaxTokens,
+    responseLengthHint,
     expandedDescriptions,
     modelSearchQuery,
 
