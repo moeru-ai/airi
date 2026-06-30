@@ -189,6 +189,7 @@ const EnvSchema = object({
   // Empty (default) = no one is admin — production safe by default.
   // Example: ADMIN_EMAILS=alice@example.com,bob@example.com
   ADMIN_EMAILS: optional(string(), ''),
+  STEAM_PUBLISHER_KEY: optional(string(), ''),
 })
 
 export type Env = InferOutput<typeof EnvSchema>

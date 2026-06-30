@@ -44,6 +44,9 @@ cert*/
 # Test coverage
 coverage/
 
+# Steamworks SDK (download from Steamworks partner site; not redistributable in git)
+apps/stage-tamagotchi/steamworks_sdk/
+
 # Build
 out/
 bundle/

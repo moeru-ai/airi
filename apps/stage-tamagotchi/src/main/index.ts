@@ -28,7 +28,7 @@ import { createGlobalAppConfig } from './configs/global'
 import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed } from './libs/bootkit/lifecycle'
 import { setElectronMainDirname } from './libs/electron/location'
 import { createI18n } from './libs/i18n'
-import { createWindowAuthManagerService } from './services/airi/auth'
+import { createWindowAuthManagerService, trySteamSignIn } from './services/airi/auth'
 import { setupServerChannel } from './services/airi/channel-server'
 import { setupGodotStageManager } from './services/airi/godot-stage'
 import { setupBuiltInServer } from './services/airi/http-server'
@@ -259,6 +259,13 @@ app.whenReady().then(async () => {
         context,
         artistryConfig: deps.artistryConfig,
       })
+    },
+  })
+
+  injeca.invoke({
+    dependsOn: { mainWindow, windowAuthManager },
+    callback: async (deps) => {
+      void trySteamSignIn(deps.windowAuthManager)
     },
   })
 

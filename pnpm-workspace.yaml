@@ -346,6 +346,7 @@ catalog:
   sponsors-svg: ^0.3.0
   srvx: ^0.11.15
   std-env: ^4.1.0
+  steamworks-ffi-node: ^0.10.3
   stockfish: ^18.0.7
   stripe: ^22.0.2
   superjson: ^2.2.6
