@@ -114,9 +114,20 @@ export function createMcpTools(runtime: McpToolRuntime): Array<Promise<Tool>> {
           const args = argsJson ? JSON.parse(argsJson) : {}
           return await runtime.callTool({ name, arguments: args })
         } catch (error) {
+          const reason = errorMessageFrom(error) ?? String(error)
           return {
             isError: true,
-            content: [{ type: 'text', text: errorMessageFrom(error) ?? String(error) }],
+            content: [
+              {
+                type: 'text',
+                text: [
+                  `MCP tool call failed for "${name}".`,
+                  reason,
+                  'Action required: call builtIn_mcpListTools now to refresh the catalog of available tools.',
+                  'Then retry with a tool from that refreshed list, adapting arguments to its schema.',
+                ].join(' '),
+              },
+            ],
           }
         }
       },
