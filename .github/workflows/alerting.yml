@@ -1,0 +1,116 @@
+# Alerting smoke test.
+# Run a synthetic health assertion against the server-runtime /health endpoint.
+# Trips ALR-001 equivalent (peer-unhealthy-rate) or ALR-004 equivalent (startup failure).
+
+name: Alerting
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  health-threshold:
+    name: Health Threshold
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        # At least one synthetic peer connects; confirm the server reaches healthy state.
+        auth-disabled: [true]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: true
+
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -F @proj-airi/server-runtime run build
+
+      - name: Start server-runtime in background
+        shell: bash
+        run: |
+          # When AUTHENTICATION_TOKEN is unset, auth is disabled — peer connects immediately.
+          unset AUTHENTICATION_TOKEN
+          # Start server-runtime as a background process; log to health-check.log so we can
+          # surface structured log lines in the CI summary when the smoke test fails.
+          node packages/server-runtime/dist/bin/run.mjs \
+            --hostname 127.0.0.1 \
+            --port 6121 \
+            > health-check.log 2>&1 &
+          echo "SERVER_PID=$!"
+          echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+
+          # Wait up to 15 seconds for the server to begin listening on the port.
+          for i in $(seq 1 30); do
+            if ss -tln 2>/dev/null | grep -q ':6121\b'; then
+              echo "Server is listening on port 6121 after ${i}x0.5s"
+              exit 0
+            fi
+            sleep 0.5
+          done
+
+          echo "Server did not come up within 15 seconds — tripping ALR-004 (server-startup-failure)."
+          echo "---- server log ----"
+          cat health-check.log
+          exit 1
+
+      - name: Assert /health returns healthy (ALR-004 gate)
+        shell: bash
+        run: |
+          # The auth-disabled server should return status:healthy on first call.
+          # status:degraded indicates someone else is unhealthy; that is not expected
+          # on this fresh server instance, so it trips ALR-001.
+          RESPONSE=$(curl -fsS http://127.0.0.1:6121/health)
+          echo "RESPONSE: $RESPONSE"
+
+          STATUS=$(echo "$RESPONSE" | python3 -c "import json, sys; print(json.load(sys.stdin)['status'])" 2>/dev/null)
+          echo "STATUS: $STATUS"
+
+          if [ "$STATUS" != "healthy" ]; then
+            echo "::error file=.github/workflows/alerting.yml::ALR-001 / ALR-004 gate tripped — expected 'healthy' but got '$STATUS'. Check health-check.log for the server-runtime log."
+            exit 1
+          fi
+          echo "Health check returned :status=healthy — ALR-001 / ALR-004 gates clear."
+
+      - name: Assert no 'failed to send' log lines (ALR-003 gate)
+        shell: bash
+        run: |
+          # ALR-003 tripped on any 'failed to send event to peer' line in the server log.
+          # On a freshly-started server with no peer messages, this should be clean.
+          if grep -q "failed to send event to peer" health-check.log; then
+            echo "::error file=.github/workflows/alerting.yml::ALR-003 gate tripped — 'failed to send event to peer' found in server log."
+            echo "---- matching lines ----"
+            grep -n "failed to send event to peer" health-check.log || true
+            exit 1
+          fi
+          echo "No 'failed to send event to peer' log lines found — ALR-003 gate clear."
+
+      - name: Stop server
+        if: always()
+        shell: bash
+        run: |
+          if [ -n "$SERVER_PID" ]; then
+            kill "$SERVER_PID" 2>/dev/null || true
+            wait "$SERVER_PID" 2>/dev/null || true
+          fi
+
+      - name: Upload server log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: alerting-health-check-log
+          path: health-check.log
+          retention-days: 14
