@@ -33,6 +33,7 @@ vi.mock('@proj-airi/electron-vueuse', () => ({
 }))
 
 describe('useTamagotchiMcpToolsStore', async () => {
+  const { useTamagotchiCodingWorkspaceStore } = await import('./coding-workspace')
   const { useTamagotchiMcpToolsStore } = await import('./mcp-tools')
 
   beforeEach(() => {
@@ -48,6 +49,7 @@ describe('useTamagotchiMcpToolsStore', async () => {
    */
   it('loads MCP tools, proxies execution, and clears them from the shared llm-tools store', async () => {
     const llmToolsStore = useLlmToolsStore()
+    const codingWorkspaceStore = useTamagotchiCodingWorkspaceStore()
     const store = useTamagotchiMcpToolsStore()
     const toolOptions = {} as Parameters<Tool['execute']>[1]
 
@@ -61,6 +63,7 @@ describe('useTamagotchiMcpToolsStore', async () => {
       expect.objectContaining({ function: expect.objectContaining({ name: 'builtIn_mcpListTools' }) }),
       expect.objectContaining({ function: expect.objectContaining({ name: 'builtIn_mcpCallTool' }) }),
     ])
+    expect(codingWorkspaceStore.mcpBackendState).toBe('available')
 
     const listResult = await listTools?.execute({}, toolOptions)
     const callResult = await callTool?.execute(
@@ -71,7 +74,7 @@ describe('useTamagotchiMcpToolsStore', async () => {
       toolOptions,
     )
 
-    expect(invokeMocks.listMcpTools).toHaveBeenCalledTimes(1)
+    expect(invokeMocks.listMcpTools).toHaveBeenCalledTimes(2)
     expect(invokeMocks.callMcpTool).toHaveBeenCalledWith({
       name: 'filesystem::search',
       arguments: { query: 'hello', limit: 10 },
@@ -96,5 +99,50 @@ describe('useTamagotchiMcpToolsStore', async () => {
     store.dispose()
 
     expect(llmToolsStore.toolsByProvider.mcp).toBeUndefined()
+  })
+
+  it('updates coding workspace backend state to Serena after MCP refresh finds read-only Serena tools', async () => {
+    invokeMocks.listMcpTools.mockReturnValueOnce([
+      {
+        serverName: 'serena',
+        name: 'serena::find_symbol',
+        toolName: 'find_symbol',
+        description: 'Find a symbol.',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+        },
+      },
+      {
+        serverName: 'serena',
+        name: 'serena::search_for_pattern',
+        toolName: 'search_for_pattern',
+        description: 'Search source text.',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+        },
+      },
+    ])
+
+    const codingWorkspaceStore = useTamagotchiCodingWorkspaceStore()
+    const store = useTamagotchiMcpToolsStore()
+
+    await store.refresh()
+
+    expect(codingWorkspaceStore.mcpBackendState).toBe('serena')
+    expect(codingWorkspaceStore.serenaAvailable).toBe(true)
+  })
+
+  it('updates coding workspace backend state to unavailable after MCP refresh finds no tools', async () => {
+    invokeMocks.listMcpTools.mockReturnValueOnce([])
+
+    const codingWorkspaceStore = useTamagotchiCodingWorkspaceStore()
+    const store = useTamagotchiMcpToolsStore()
+
+    await store.refresh()
+
+    expect(codingWorkspaceStore.mcpBackendState).toBe('unavailable')
+    expect(codingWorkspaceStore.serenaAvailable).toBe(false)
   })
 })

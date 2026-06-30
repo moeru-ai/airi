@@ -55,6 +55,7 @@ import { initializeElectronAuthCallbackBridge } from './bridges/electron-auth-ca
 import { initializeStageThreeRuntimeTraceBridge } from './bridges/stage-three-runtime-trace'
 import { useLanguage } from './composables/use-language'
 import { createChatSyncWindowLifecycle } from './stores/chat-sync-lifecycle'
+import { useTamagotchiCodingWorkspaceStore } from './stores/coding-workspace'
 import { useTamagotchiMcpToolsStore } from './stores/mcp-tools'
 import { useTamagotchiPluginToolsStore } from './stores/plugin-tools'
 import { useServerChannelSettingsStore } from './stores/settings/server-channel'
@@ -75,6 +76,7 @@ const characterOrchestratorStore = useCharacterOrchestratorStore()
 const analyticsStore = useSharedAnalyticsStore()
 const inferencePreload = useInferencePreload()
 const pluginHostInspectorStore = usePluginHostInspectorStore()
+const codingWorkspaceStore = useTamagotchiCodingWorkspaceStore()
 const mcpToolsStore = useTamagotchiMcpToolsStore()
 const pluginToolsStore = useTamagotchiPluginToolsStore()
 const stageWindowLifecycleStore = useStageWindowLifecycleStore()
@@ -296,6 +298,7 @@ onUnmounted(() => {
   if (!isChatWindowRoute()) {
     contextBridgeStore.dispose()
   }
+  codingWorkspaceStore.dispose()
   mcpToolsStore.dispose()
   pluginToolsStore.dispose()
 })

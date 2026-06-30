@@ -30,8 +30,11 @@ import {
   buildServerConfig,
   createServerForm,
   findServerIdentifierByRowId,
+  insertSerenaServerForm,
   loadServerForms,
   previewServerCommand,
+  SERENA_SERVER_IDENTIFIER,
+  SERENA_SETUP_URL,
   syncJsonDraftFromServers,
 } from './mcp-config'
 
@@ -80,6 +83,12 @@ function applyLoadedConfig(config: ElectronMcpStdioConfigFile) {
 
 const savedServers = computed(() => servers.value.filter((s) => savedIds.value.has(s.rowId)))
 const pendingServers = computed(() => servers.value.filter((s) => !savedIds.value.has(s.rowId)))
+const hasSerenaServer = computed(() =>
+  servers.value.some((server) => server.identifier.trim() === SERENA_SERVER_IDENTIFIER),
+)
+const serenaPresetActionLabel = computed(() =>
+  hasSerenaServer.value ? tn('presets.serena.actions.select') : tn('presets.serena.actions.add'),
+)
 
 function isExpanded(id: string) {
   return expandedIds.value.has(id)
@@ -208,6 +217,15 @@ function addServer() {
   const server = createServerForm()
   servers.value.push(server)
   if (!testRowId.value) testRowId.value = server.rowId
+}
+
+function addSerenaServer() {
+  errorMessage.value = ''
+  const result = insertSerenaServerForm(servers.value)
+  servers.value = result.servers
+  testRowId.value = result.server.rowId
+  expandedIds.value.add(result.server.rowId)
+  infoMessage.value = result.inserted ? tn('presets.serena.messages.added') : tn('presets.serena.messages.exists')
 }
 
 function removeServer(rowId: string) {
@@ -449,6 +467,42 @@ onMounted(async () => {
         </h3>
         <p class="text-xs text-neutral-500 dark:text-neutral-400">
           {{ tn('add.description') }}
+        </p>
+      </div>
+
+      <div class="flex flex-col gap-3 border-b border-neutral-200/70 pb-3 dark:border-neutral-800">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div class="min-w-0 flex flex-1 flex-col gap-1">
+            <div class="flex items-center gap-2">
+              <span class="i-solar:code-square-bold-duotone size-4 text-primary-600 dark:text-primary-300" />
+              <h4 class="text-sm font-semibold">
+                {{ tn('presets.serena.title') }}
+              </h4>
+            </div>
+            <p class="text-xs text-neutral-500 dark:text-neutral-400">
+              {{ tn('presets.serena.description') }}
+            </p>
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            :disabled="isBusy"
+            icon="i-solar:add-circle-bold-duotone"
+            :label="serenaPresetActionLabel"
+            @click="addSerenaServer"
+          />
+        </div>
+        <p class="text-xs leading-relaxed text-neutral-500 dark:text-neutral-400">
+          {{ tn('presets.serena.guidance.before-link') }}
+          <a
+            :href="SERENA_SETUP_URL"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="font-medium text-primary-600 underline underline-offset-2 dark:text-primary-300"
+          >
+            {{ tn('presets.serena.guidance.link-label') }}
+          </a>
+          {{ tn('presets.serena.guidance.after-link') }}
         </p>
       </div>
 

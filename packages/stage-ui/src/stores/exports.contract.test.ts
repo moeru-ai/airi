@@ -21,6 +21,7 @@ describe('stage-ui exports contract', () => {
 
     expect(Object.keys(exportsMap).sort()).toEqual([
       '.',
+      './coding-workspace',
       './components',
       './components/*',
       './components/scenarios/chat',
@@ -62,6 +63,7 @@ describe('stage-ui exports contract', () => {
 
     expect(exportsMap['./stores']).toBe('./src/stores/index.ts')
     expect(exportsMap['./stores/*']).toBe('./src/stores/*.ts')
+    expect(exportsMap['./coding-workspace']).toBe('./src/coding-workspace/index.ts')
     expect(exportsMap['./tools/mcp']).toBe('./src/tools/mcp.ts')
     expect(exportsMap['./types']).toBe('./src/types/index.ts')
     expect(exportsMap['./types/*']).toBe('./src/types/*.ts')

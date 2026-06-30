@@ -5,6 +5,7 @@ import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 import { errorMessageFrom } from '@moeru/std'
 import { useStopSpeakingButton } from '@proj-airi/stage-layouts/composables/useStopSpeakingButton'
 import { ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
+import { codingWorkspaceToolRendererRegistry } from '@proj-airi/stage-ui/components/scenarios/chat/components/coding-workspace/index'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
@@ -27,6 +28,7 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import JournalToolCallBlock from './chat-tool-renderers/journal-tool-call-block.vue'
+import CodingWorkspaceControls from './coding-workspace/CodingWorkspaceControls.vue'
 
 import { useChatSyncStore } from '../stores/chat-sync'
 
@@ -56,6 +58,7 @@ const SEND_MODES = ['enter', 'ctrl-enter', 'double-enter'] as const
 type SendMode = (typeof SEND_MODES)[number]
 const sendMode = useLocalStorage<SendMode>('ui/chat/settings/send-mode', 'enter')
 const toolCallRenderers = {
+  ...codingWorkspaceToolRendererRegistry,
   image_journal: JournalToolCallBlock,
   text_journal: JournalToolCallBlock,
 } satisfies ChatToolCallRendererRegistry
@@ -277,6 +280,7 @@ async function handleCleanupMessages() {
         </button>
       </div>
     </div>
+    <CodingWorkspaceControls />
     <div v-if="attachments.length > 0" :class="['flex flex-wrap gap-2 border-t border-primary-100 p-2']">
       <div v-for="(attachment, index) in attachments" :key="index" class="relative">
         <img :src="attachment.url" :class="['h-20 w-20 rounded-md object-cover']" />

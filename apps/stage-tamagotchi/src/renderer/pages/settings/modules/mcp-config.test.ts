@@ -5,7 +5,9 @@ import { parseElectronMcpConfigText } from '../../../../shared/mcp-config'
 import {
   buildConfigFile,
   buildServerConfig,
+  createSerenaServerForm,
   findServerIdentifierByRowId,
+  insertSerenaServerForm,
   loadServerForms,
   syncJsonDraftFromServers,
 } from './mcp-config'
@@ -62,6 +64,73 @@ describe('mcp-config helpers', () => {
           args: ['-y', '@modelcontextprotocol/server-filesystem'],
           env: { ROOT: '/tmp' },
           cwd: '/Users/doji/dojiwork/airi',
+        },
+      },
+    })
+  })
+
+  it('creates the Serena MCP server template', () => {
+    const server = createSerenaServerForm()
+
+    expect(server.identifier).toBe('serena')
+    expect(server.command).toBe('uvx')
+    expect(server.argsText.split('\n')).toEqual([
+      '--from',
+      'git+https://github.com/oraios/serena',
+      'serena',
+      'start-mcp-server',
+      '--context',
+      'ide-assistant',
+    ])
+    expect(server.enabled).toBe(true)
+  })
+
+  it('does not insert a duplicate Serena template when serena already exists', () => {
+    const existingSerena = {
+      rowId: 'existing-serena',
+      identifier: 'serena',
+      command: 'custom-serena',
+      argsText: 'custom',
+      envEntries: [{ key: 'SERENA_HOME', value: '/tmp/serena' }],
+      cwd: '/workspace',
+      enabled: false,
+    }
+
+    const result = insertSerenaServerForm([
+      {
+        rowId: 'filesystem',
+        identifier: 'filesystem',
+        command: 'npx',
+        argsText: '@modelcontextprotocol/server-filesystem',
+        envEntries: [],
+        cwd: '',
+        enabled: true,
+      },
+      existingSerena,
+    ])
+
+    expect(result.inserted).toBe(false)
+    expect(result.server).toBe(existingSerena)
+    expect(result.servers).toHaveLength(2)
+    expect(result.servers[1]).toEqual(existingSerena)
+  })
+
+  it('round-trips the Serena template through MCP config conversion', () => {
+    const result = insertSerenaServerForm([])
+
+    expect(result.inserted).toBe(true)
+    expect(buildConfigFile(result.servers, translateMessage)).toEqual({
+      mcpServers: {
+        serena: {
+          command: 'uvx',
+          args: [
+            '--from',
+            'git+https://github.com/oraios/serena',
+            'serena',
+            'start-mcp-server',
+            '--context',
+            'ide-assistant',
+          ],
         },
       },
     })

@@ -20,6 +20,17 @@ export interface LoadedServerForms {
   selectedRowId: string
 }
 
+export const SERENA_SERVER_IDENTIFIER = 'serena'
+export const SERENA_SETUP_URL = 'https://github.com/oraios/serena'
+export const SERENA_SERVER_ARGS = [
+  '--from',
+  'git+https://github.com/oraios/serena',
+  'serena',
+  'start-mcp-server',
+  '--context',
+  'ide-assistant',
+]
+
 function makeRowId() {
   return `mcp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 }
@@ -50,6 +61,38 @@ export function createServerForm(): ServerForm {
     envEntries: [],
     cwd: '',
     enabled: true,
+  }
+}
+
+/** Creates the predefined Serena MCP server row. */
+export function createSerenaServerForm(): ServerForm {
+  return {
+    rowId: makeRowId(),
+    identifier: SERENA_SERVER_IDENTIFIER,
+    command: 'uvx',
+    argsText: SERENA_SERVER_ARGS.join('\n'),
+    envEntries: [],
+    cwd: '',
+    enabled: true,
+  }
+}
+
+/** Inserts Serena once, returning the existing row when already configured. */
+export function insertSerenaServerForm(servers: ServerForm[]) {
+  const existing = servers.find((server) => server.identifier.trim() === SERENA_SERVER_IDENTIFIER)
+  if (existing) {
+    return {
+      servers,
+      server: existing,
+      inserted: false,
+    }
+  }
+
+  const server = createSerenaServerForm()
+  return {
+    servers: [...servers, server],
+    server,
+    inserted: true,
   }
 }
 

@@ -17,6 +17,7 @@
   },
   "exports": {
     ".": "./src/components/index.ts",
+    "./coding-workspace": "./src/coding-workspace/index.ts",
     "./components/scenarios/chat": "./src/components/scenarios/chat/index.ts",
     "./components/scenarios/settings/model-settings": "./src/components/scenarios/settings/model-settings/index.ts",
     "./components/scenes": "./src/components/scenes/index.ts",

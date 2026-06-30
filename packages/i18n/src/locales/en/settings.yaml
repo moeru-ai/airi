@@ -854,6 +854,20 @@ pages:
         title: New
         description: 'Fill in a new server, then click "Save and restart" — it''ll move into "Configured" above.'
         pending-badge: Unsaved
+      presets:
+        serena:
+          title: Serena
+          description: Add Serena as an MCP server for semantic code intelligence.
+          actions:
+            add: Add Serena
+            select: Show Serena
+          guidance:
+            before-link: Make sure uv is available on PATH before testing. Read
+            link-label: Serena setup
+            after-link: before using Test and Save and restart through AIRI's normal MCP flow.
+          messages:
+            added: Serena was added as an unsaved MCP server. Test it, then save and restart.
+            exists: Serena is already configured. The existing row was selected.
       status:
         unknown: not loaded
       actions:
