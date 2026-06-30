@@ -1,0 +1,20 @@
+version = 1
+
+test_patterns = [
+  '**/*.test.ts',
+  '**/*.spec.ts',
+]
+
+exclude_patterns = [
+  '**/node_modules/**',
+  '**/dist/**',
+  '**/coverage/**',
+]
+
+[[analyzers]]
+name = 'javascript'
+enabled = true
+
+[[analyzers]]
+name = 'test-coverage'
+enabled = true

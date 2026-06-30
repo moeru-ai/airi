@@ -98,7 +98,7 @@ devenv.*
 target/
 crates/*/target/
 
-# jscpd report output
+# jscpd config (.jscpd.json is tracked for CI enforcement)
 .jscpd/
 
 # turborepo

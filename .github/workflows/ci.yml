@@ -117,6 +117,36 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run typecheck
 
+  report-coverage:
+    name: Report Coverage to DeepSource
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          submodules: true
+
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build:packages
+      - run: pnpm run test:coverage
+
+      - name: Report to DeepSource
+        run: |
+          curl -fsSL https://cli.deepsource.com/install | BINDIR=./bin sh
+          ./bin/deepsource report --analyzer test-coverage --key javascript --value-file ./coverage/lcov.info --use-oidc
+
+
   cpd:
     name: Copy/Paste Detection
     runs-on: ubuntu-latest
@@ -135,8 +165,8 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Run jscpd
-        run: pnpm cpd
+      - name: Run jscpd with threshold
+        run: npx jscpd --silent --min-lines 5 --min-tokens 70 --threshold 5
 
       - name: Upload CPD report
         if: always()
