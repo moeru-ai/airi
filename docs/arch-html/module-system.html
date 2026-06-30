@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Module System - AIRI Architecture Docs</title>
+<style>
+:root { color-scheme: light dark; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; margin: 0; padding: 0; background: #fff; color: #1a1a1a; }
+@media (prefers-color-scheme: dark) { body { background: #1a1a2e; color: #e0e0e0; } }
+.container { display: flex; min-height: 100vh; }
+.sidebar { width: 280px; flex-shrink: 0; background: #f8f9fa; border-right: 1px solid #e1e4e8; padding: 2rem 1.5rem; position: sticky; top: 0; align-self: flex-start; overflow-y: auto; max-height: 100vh; }
+@media (prefers-color-scheme: dark) { .sidebar { background: #16213e; border-right-color: #0f3460; } }
+.sidebar h1 { font-size: 1.1rem; margin: 0 0 0.5rem 0; }
+.sidebar p { font-size: 0.8rem; color: #586069; margin: 0 0 1.5rem 0; }
+.sidebar nav { display: flex; flex-direction: column; gap: 0.25rem; }
+.sidebar nav a { display: block; padding: 0.4rem 0.75rem; border-radius: 6px; text-decoration: none; color: #24292e; font-size: 0.9rem; transition: background 0.15s; }
+@media (prefers-color-scheme: dark) { .sidebar nav a { color: #e0e0e0; } }
+.sidebar nav a:hover { background: #e1e4e8; }
+@media (prefers-color-scheme: dark) { .sidebar nav a:hover { background: #0f3460; } }
+.sidebar nav a.active { background: #0969da; color: white; font-weight: 500; }
+.content { flex: 1; max-width: 900px; padding: 3rem 4rem; line-height: 1.7; }
+.content h1 { font-size: 2rem; border-bottom: 2px solid #0969da; padding-bottom: 0.5rem; }
+.content h2 { font-size: 1.5rem; margin-top: 2.5rem; border-bottom: 1px solid #e1e4e8; padding-bottom: 0.3rem; }
+.content h3 { font-size: 1.2rem; margin-top: 2rem; }
+.content p { margin: 1rem 0; }
+.content ul, .content ol { padding-left: 2rem; margin: 1rem 0; }
+.content li { margin: 0.4rem 0; }
+.content code { background: #f6f8fa; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.9em; word-break: break-word; }
+@media (prefers-color-scheme: dark) { .content code { background: #0f3460; } }
+.content pre { background: #f6f8fa; border-radius: 8px; padding: 1.2rem; overflow-x: auto; border: 1px solid #e1e4e8; line-height: 1.5; }
+@media (prefers-color-scheme: dark) { .content pre { background: #0d1b2a; border-color: #0f3460; } }
+.content pre code { background: none; padding: 0; font-size: 0.85rem; }
+.content blockquote { border-left: 4px solid #0969da; background: #f0f7ff; padding: 0.8rem 1.2rem; margin: 1rem 0; border-radius: 0 8px 8px 0; }
+@media (prefers-color-scheme: dark) { .content blockquote { background: #0a2540; } }
+.content blockquote p { margin: 0.3rem 0; }
+.content table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.9rem; }
+.content th, .content td { border: 1px solid #d1d9e0; padding: 0.6rem 0.9rem; text-align: left; }
+.content th { background: #f6f8fa; }
+@media (prefers-color-scheme: dark) { .content th { background: #0f3460; } }
+.content a { color: #0969da; text-decoration: none; }
+.content a:hover { text-decoration: underline; }
+.colored-diagram { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 8px; padding: 1rem; overflow-x: auto; margin: 1rem 0; }
+@media (prefers-color-scheme: dark) { .colored-diagram { background: #0d1b2a; border-color: #0f3460; } }
+.colored-diagram pre { margin: 0; background: none; border: none; padding: 0; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 0.85rem; line-height: 1.4; }
+@media (max-width: 768px) { .container { flex-direction: column; } .sidebar { width: 100%; position: static; max-height: none; } .content { padding: 1.5rem; } }
+</style>
+</head>
+<body>
+<div class="container">
+<aside class="sidebar">
+<h1>AIRI Architecture Docs</h1>
+<nav><a href="bootstrap-flow.html" class="">Core — Bootstrap Flow</a>
+<a href="coding-workspace.html" class="">Core - Coding Workspace</a>
+<a href="cognition-layer.html" class="">Cognition Layer</a>
+<a href="daemonization.html" class="">Daemonization Architecture</a>
+<a href="module-system.html" class="active">Module System</a>
+<a href="planner-layer.html" class="">Planner Layer</a>
+<a href="runtime-kernel.html" class="">Runtime Kernel</a>
+<a href="runtime-persistence.html" class="">Runtime Persistence & Session Recovery</a>
+<a href="semantic-memory.html" class="">Semantic Memory & Repository Intelligence</a>
+<a href="worker-runtime.html" class="">Worker Runtime Architecture</a>
+<a href="workspace-isolation.html" class="">Workspace Isolation & Execution Sandbox Infrastructure</a></nav>
+</aside>
+<main class="content">
+<h1>AIRI Module System</h1>
+<h2>Overview</h2>
+<p>The AIRI platform is built on a modular architecture where every capability —
+coding, terminal access, git operations, model orchestration — is packaged as
+a self-contained <strong>module</strong>. Modules communicate through a shared event bus and
+are managed by a central registry.</p>
+<p>This design keeps the core lean, makes individual capabilities independently
+deployable, and creates clean seams for future extensions (plugins, detached
+runtimes, third-party integrations).</p>
+<h2>Architecture</h2>
+<div class="colored-diagram"><pre>┌─────────────────────────────────────────────────────┐
+│                     AIRI Core                        │
+│                                                     │
+│  ┌──────────────┐  ┌──────────┐  ┌──────────────┐  │
+│  │   Registry    │  │ EventBus │  │   Runtime    │  │
+│  │              │  │          │  │   Client     │  │
+│  │  register()  │  │  emit()  │  │  connect()   │  │
+│  │  activate()  │  │  on()    │  │  send()      │  │
+│  │  deactivate()│  │  once()  │  │  subscribe() │  │
+│  └──────┬───────┘  └────┬─────┘  └──────┬───────┘  │
+│         │               │               │           │
+│         └───────────────┼───────────────┘           │
+│                         │                           │
+│                    CoreContext                        │
+│              (injected into modules)                 │
+└─────────────────────────┼───────────────────────────┘
+                          │
+          ┌───────────────┼───────────────┐
+          │               │               │
+   ┌──────┴──────┐ ┌──────┴──────┐ ┌──────┴──────┐
+   │  Code       │ │  Terminal   │ │  Git        │
+   │  Module     │ │  Module     │ │  Module     │
+   │             │ │             │ │             │
+   │  activate() │ │  activate() │ │  activate() │
+   │  deactivate │ │  deactivate │ │  deactivate │
+   └─────────────┘ └─────────────┘ └─────────────┘
+</pre></div>
+<h2>AIRI Core Responsibilities</h2>
+<p>The <strong>core</strong> (<code>core/</code>) provides the infrastructure that modules run on top of:</p>
+<ul>
+<li><p><strong>Module Registry</strong> (<code>core/modules/registry.ts</code>) — Manages registration,
+activation, and deactivation of modules. Supports lazy loading so that heavy
+modules are only imported when needed.</p>
+</li>
+<li><p><strong>Event Bus</strong> (<code>core/events/</code>) — Typed, pub/sub event system for inter-module
+communication. Modules emit and subscribe to events without direct imports
+of each other.</p>
+</li>
+<li><p><strong>Runtime Client</strong> (<code>core/runtime/</code>) — Transport-agnostic interface for
+communicating with external processes (detached servers, cloud agents).
+Concrete transports (WebSocket, gRPC, stdio) are injected at startup.</p>
+</li>
+<li><p><strong>Core Contracts</strong> (<code>core/modules/module.ts</code>) — The <code>AiriModule</code> interface
+and supporting types (<code>CoreContext</code>, <code>EventBus</code>, <code>RuntimeClient</code>) that
+every module depends on.</p>
+</li>
+</ul>
+<h2>Module / Plugin Responsibilities</h2>
+<p>Each <strong>module</strong> is a self-contained unit that:</p>
+<ol>
+<li>Implements the <code>AiriModule</code> interface (id, name, activate, deactivate).</li>
+<li>Receives a <code>CoreContext</code> with the event bus, runtime client, and logger.</li>
+<li>Registers event handlers and starts background work during <code>activate()</code>.</li>
+<li>Cleans up during <code>deactivate()</code>.</li>
+</ol>
+<p>Modules must <strong>not</strong>:</p>
+<ul>
+<li>Import other modules directly — communicate via the event bus.</li>
+<li>Access global singletons — use what the context provides.</li>
+<li>Block the activation pipeline — throw if something is wrong, the registry
+will log and continue.</li>
+</ul>
+<h2>Why Coding Is a Module</h2>
+<p>The coding agent (Roo Code) is the first and most capable module in the AIRI
+platform, but it is <strong>not</strong> special-cased in the core. It follows the same
+contract as every other module:</p>
+<ul>
+<li>It registers with the id <code>&quot;code&quot;</code>.</li>
+<li>It communicates through the shared event bus.</li>
+<li>It can be deactivated without affecting other modules.</li>
+</ul>
+<p>This is intentional. Treating coding as a module (rather than building the
+platform around it) means:</p>
+<ul>
+<li>The platform can run without a coding module (e.g. a terminal-only agent).</li>
+<li>Alternative coding backends can be swapped in.</li>
+<li>The core remains focused on orchestration, not domain logic.</li>
+</ul>
+<h2>Future: Detached Runtime Direction</h2>
+<p>The runtime client interface is designed for a future where modules may run
+in separate processes or remote services:</p>
+<ul>
+<li><p><strong>In-process</strong> (current): Modules run in the same process. The event bus is
+an in-memory pub/sub. The runtime client is a no-op or loopback.</p>
+</li>
+<li><p><strong>Detached</strong> (future): Modules may run in separate processes connected via
+WebSocket or stdio. The runtime client wraps the transport. The event bus
+may be backed by the same transport.</p>
+</li>
+</ul>
+<p>The abstraction is in place today so that the transition is incremental — no
+module code changes when the transport changes.</p>
+<h2>Event-Driven Architecture Goals</h2>
+<p>Events are the backbone of inter-module communication. The design goals are:</p>
+<ol>
+<li><p><strong>Loose coupling</strong> — Modules emit events without knowing who (if anyone)
+is listening. Consumers subscribe without importing the producer.</p>
+</li>
+<li><p><strong>Type safety</strong> — All core events are defined in <code>core/events/types.ts</code> as
+a discriminated union. TypeScript narrows the payload based on the <code>type</code>
+field.</p>
+</li>
+<li><p><strong>Serializability</strong> — Event payloads are plain objects with primitive
+values, making them safe to transport across process boundaries.</p>
+</li>
+<li><p><strong>Ordering</strong> — Every event carries an ISO-8601 timestamp and a source
+identifier so consumers can reason about ordering and origin.</p>
+</li>
+</ol>
+<h2>File Layout</h2>
+<pre><code>core/
+  modules/
+    module.ts       — AiriModule interface + CoreContext
+    registry.ts     — ModuleRegistry class
+  events/
+    types.ts        — Core event type definitions
+  runtime/
+    client.ts       — RuntimeClient interface
+  ipc/              — (future) IPC transport implementations
+  types/            — (future) Shared platform types
+</code></pre>
+
+</main>
+</div>
+</body>
+</html>

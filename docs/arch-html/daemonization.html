@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daemonization Architecture - AIRI Architecture Docs</title>
+<style>
+:root { color-scheme: light dark; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; margin: 0; padding: 0; background: #fff; color: #1a1a1a; }
+@media (prefers-color-scheme: dark) { body { background: #1a1a2e; color: #e0e0e0; } }
+.container { display: flex; min-height: 100vh; }
+.sidebar { width: 280px; flex-shrink: 0; background: #f8f9fa; border-right: 1px solid #e1e4e8; padding: 2rem 1.5rem; position: sticky; top: 0; align-self: flex-start; overflow-y: auto; max-height: 100vh; }
+@media (prefers-color-scheme: dark) { .sidebar { background: #16213e; border-right-color: #0f3460; } }
+.sidebar h1 { font-size: 1.1rem; margin: 0 0 0.5rem 0; }
+.sidebar p { font-size: 0.8rem; color: #586069; margin: 0 0 1.5rem 0; }
+.sidebar nav { display: flex; flex-direction: column; gap: 0.25rem; }
+.sidebar nav a { display: block; padding: 0.4rem 0.75rem; border-radius: 6px; text-decoration: none; color: #24292e; font-size: 0.9rem; transition: background 0.15s; }
+@media (prefers-color-scheme: dark) { .sidebar nav a { color: #e0e0e0; } }
+.sidebar nav a:hover { background: #e1e4e8; }
+@media (prefers-color-scheme: dark) { .sidebar nav a:hover { background: #0f3460; } }
+.sidebar nav a.active { background: #0969da; color: white; font-weight: 500; }
+.content { flex: 1; max-width: 900px; padding: 3rem 4rem; line-height: 1.7; }
+.content h1 { font-size: 2rem; border-bottom: 2px solid #0969da; padding-bottom: 0.5rem; }
+.content h2 { font-size: 1.5rem; margin-top: 2.5rem; border-bottom: 1px solid #e1e4e8; padding-bottom: 0.3rem; }
+.content h3 { font-size: 1.2rem; margin-top: 2rem; }
+.content p { margin: 1rem 0; }
+.content ul, .content ol { padding-left: 2rem; margin: 1rem 0; }
+.content li { margin: 0.4rem 0; }
+.content code { background: #f6f8fa; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.9em; word-break: break-word; }
+@media (prefers-color-scheme: dark) { .content code { background: #0f3460; } }
+.content pre { background: #f6f8fa; border-radius: 8px; padding: 1.2rem; overflow-x: auto; border: 1px solid #e1e4e8; line-height: 1.5; }
+@media (prefers-color-scheme: dark) { .content pre { background: #0d1b2a; border-color: #0f3460; } }
+.content pre code { background: none; padding: 0; font-size: 0.85rem; }
+.content blockquote { border-left: 4px solid #0969da; background: #f0f7ff; padding: 0.8rem 1.2rem; margin: 1rem 0; border-radius: 0 8px 8px 0; }
+@media (prefers-color-scheme: dark) { .content blockquote { background: #0a2540; } }
+.content blockquote p { margin: 0.3rem 0; }
+.content table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.9rem; }
+.content th, .content td { border: 1px solid #d1d9e0; padding: 0.6rem 0.9rem; text-align: left; }
+.content th { background: #f6f8fa; }
+@media (prefers-color-scheme: dark) { .content th { background: #0f3460; } }
+.content a { color: #0969da; text-decoration: none; }
+.content a:hover { text-decoration: underline; }
+.colored-diagram { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 8px; padding: 1rem; overflow-x: auto; margin: 1rem 0; }
+@media (prefers-color-scheme: dark) { .colored-diagram { background: #0d1b2a; border-color: #0f3460; } }
+.colored-diagram pre { margin: 0; background: none; border: none; padding: 0; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 0.85rem; line-height: 1.4; }
+@media (max-width: 768px) { .container { flex-direction: column; } .sidebar { width: 100%; position: static; max-height: none; } .content { padding: 1.5rem; } }
+</style>
+</head>
+<body>
+<div class="container">
+<aside class="sidebar">
+<h1>AIRI Architecture Docs</h1>
+<nav><a href="bootstrap-flow.html" class="">Core — Bootstrap Flow</a>
+<a href="coding-workspace.html" class="">Core - Coding Workspace</a>
+<a href="cognition-layer.html" class="">Cognition Layer</a>
+<a href="daemonization.html" class="active">Daemonization Architecture</a>
+<a href="module-system.html" class="">Module System</a>
+<a href="planner-layer.html" class="">Planner Layer</a>
+<a href="runtime-kernel.html" class="">Runtime Kernel</a>
+<a href="runtime-persistence.html" class="">Runtime Persistence & Session Recovery</a>
+<a href="semantic-memory.html" class="">Semantic Memory & Repository Intelligence</a>
+<a href="worker-runtime.html" class="">Worker Runtime Architecture</a>
+<a href="workspace-isolation.html" class="">Workspace Isolation & Execution Sandbox Infrastructure</a></nav>
+</aside>
+<main class="content">
+<h1>AIRI Daemonization Architecture</h1>
+<h2>Why Process Separation</h2>
+<p>The AIRI platform separates its runtime (daemon) from its user interface (desktop/frontend) into two distinct processes. This separation provides:</p>
+<ol>
+<li><p><strong>Crash resilience</strong>: A UI crash does not take down the runtime. Modules continue executing, tasks continue running, and the daemon can broadcast the UI crash event to other connected clients.</p>
+</li>
+<li><p><strong>Independent lifecycle</strong>: The daemon can be upgraded without restarting the UI, and vice versa. Clients can disconnect and reconnect without losing runtime state.</p>
+</li>
+<li><p><strong>Multi-client support</strong>: Multiple frontend clients (desktop, web, CLI) can connect to the same daemon simultaneously, each receiving the same event stream.</p>
+</li>
+<li><p><strong>Clean ownership boundaries</strong>: The daemon owns all stateful runtime concerns; the frontend owns only presentation.</p>
+</li>
+</ol>
+<h2>Ownership Boundaries</h2>
+<div class="colored-diagram"><pre>┌─────────────────────────────────────────────────────────┐
+│  Daemon Process (apps/daemon)                           │
+│                                                         │
+│  ┌──────────┐  ┌──────────────┐  ┌───────────────────┐  │
+│  │ EventBus │  │ModuleRegistry│  │ RuntimeClient     │  │
+│  └──────────┘  └──────────────┘  └───────────────────┘  │
+│         │              │                    │            │
+│  ┌──────┴──────────────┴────────────────────┴────────┐  │
+│  │              IPC Server Transport                  │  │
+│  │         (Unix domain socket / TCP)                 │  │
+│  └──────────────────────┬────────────────────────────┘  │
+│                         │                               │
+└─────────────────────────┼───────────────────────────────┘
+                          │  IPC (length-prefixed JSON)
+                          │
+┌─────────────────────────┼───────────────────────────────┐
+│  Desktop Process (apps/desktop)                         │
+│                         │                               │
+│  ┌──────────────────────┴────────────────────────────┐  │
+│  │              IPC Client Transport                  │  │
+│  └──────────────────────┬────────────────────────────┘  │
+│                         │                               │
+│  ┌──────────────────────┴────────────────────────────┐  │
+│  │              UI / Presentation Layer               │  │
+│  │         (Electron, Web, CLI — future)              │  │
+│  └───────────────────────────────────────────────────┘  │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+</pre></div>
+<h3>Daemon owns:</h3>
+<ul>
+<li><strong>EventBus</strong>: All inter-module communication</li>
+<li><strong>ModuleRegistry</strong>: Module registration, activation, deactivation</li>
+<li><strong>RuntimeClient</strong>: External communication (AI providers, tools)</li>
+<li><strong>SessionManager</strong>: Client connection tracking</li>
+<li><strong>IPC Server</strong>: Accepts client connections, broadcasts events</li>
+</ul>
+<h3>Desktop owns:</h3>
+<ul>
+<li><strong>IPC Client</strong>: Connects to daemon, sends requests, receives events</li>
+<li><strong>UI</strong>: Renders the user interface (not yet implemented)</li>
+<li><strong>Reconnection logic</strong>: Handles daemon restarts gracefully</li>
+</ul>
+<h2>IPC Protocol Summary</h2>
+<p>The IPC protocol uses <strong>length-prefixed JSON messages</strong> over Unix domain sockets (Linux/macOS) or TCP localhost (Windows).</p>
+<h3>Message format:</h3>
+<pre><code>[4 bytes: message length (big-endian uint32)][N bytes: UTF-8 JSON]
+</code></pre>
+<h3>Message types:</h3>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Direction</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>event</code></td>
+<td>Daemon → Client</td>
+<td>Broadcasts AiriEvent to all clients</td>
+</tr>
+<tr>
+<td><code>request</code></td>
+<td>Client → Daemon</td>
+<td>RPC-style method call</td>
+</tr>
+<tr>
+<td><code>response</code></td>
+<td>Daemon → Client</td>
+<td>Successful reply to a request</td>
+</tr>
+<tr>
+<td><code>error</code></td>
+<td>Daemon → Client</td>
+<td>Error reply to a request</td>
+</tr>
+<tr>
+<td><code>ping</code></td>
+<td>Bidirectional</td>
+<td>Heartbeat keepalive</td>
+</tr>
+<tr>
+<td><code>pong</code></td>
+<td>Bidirectional</td>
+<td>Heartbeat response</td>
+</tr>
+</tbody></table>
+<h3>Request/Response correlation:</h3>
+<ul>
+<li>Each request carries a unique <code>id</code></li>
+<li>The response carries the same value as <code>correlationId</code></li>
+<li>This allows concurrent requests to be matched to their responses</li>
+</ul>
+<h3>Example request flow:</h3>
+<div class="colored-diagram"><pre>Client                              Daemon
+  │                                   │
+  │── request(id=abc, method=...) ──▶│
+  │                                   │── process request
+  │◀── response(correlationId=abc) ──│
+  │                                   │
+</pre></div>
+<h2>Transport Lifecycle</h2>
+<h3>Server (Daemon):</h3>
+<ol>
+<li><code>start()</code> — Bind socket, clean stale files, listen for connections</li>
+<li>Accept client connections, assign client IDs</li>
+<li>Receive messages, dispatch to handlers</li>
+<li>Broadcast events to all connected clients</li>
+<li><code>stop()</code> — Disconnect all clients, close socket, clean up</li>
+</ol>
+<h3>Client (Desktop):</h3>
+<ol>
+<li><code>connect()</code> — Open socket connection to daemon</li>
+<li>Send requests, receive responses via correlation IDs</li>
+<li>Receive event broadcasts</li>
+<li>On disconnect: auto-reconnect with exponential backoff</li>
+<li><code>disconnect()</code> — Close socket, stop heartbeat</li>
+</ol>
+<h2>Reconnection Behavior</h2>
+<p>The client transport implements automatic reconnection:</p>
+<ol>
+<li>When the connection is lost unexpectedly, the client enters <code>reconnecting</code> state</li>
+<li>Reconnection attempts use exponential backoff: 1s, 2s, 4s, 8s, ... up to 30s max</li>
+<li>On successful reconnect, the client re-enters <code>connected</code> state</li>
+<li>The application layer (desktop) can subscribe to state changes to update the UI</li>
+<li>Requests that were in-flight during disconnect will time out and reject</li>
+</ol>
+<h2>Session Management</h2>
+<p>The daemon tracks connected clients via <code>SessionManager</code>:</p>
+<ul>
+<li>Each client connection creates a <code>Session</code> with a unique <code>sessionId</code></li>
+<li>Sessions transition: <code>attaching</code> → <code>attached</code> → <code>detached</code></li>
+<li>Detached sessions are retained briefly for introspection, then cleaned up</li>
+<li>Sessions are in-memory only — no persistence</li>
+</ul>
+<h2>Crash Resilience Goals</h2>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>UI crash</td>
+<td>Daemon continues running. Other clients unaffected.</td>
+</tr>
+<tr>
+<td>Daemon crash</td>
+<td>Clients detect disconnect, enter reconnecting state.</td>
+</tr>
+<tr>
+<td>Module crash</td>
+<td>Other modules continue. Crash event broadcast to clients.</td>
+</tr>
+<tr>
+<td>Network hiccup</td>
+<td>Auto-reconnect with backoff. No data loss (events are fire-and-forget).</td>
+</tr>
+</tbody></table>
+<h2>Future: Remote Runtime</h2>
+<p>The IPC protocol is transport-agnostic. While the current implementation uses Unix domain sockets for local-only communication, the same protocol could be carried over:</p>
+<ul>
+<li><strong>TCP sockets</strong> for remote daemon connections</li>
+<li><strong>TLS</strong> for encrypted transport</li>
+<li><strong>WebSocket</strong> for browser-based clients</li>
+<li><strong>stdio</strong> for CLI tool integration</li>
+</ul>
+<p>The message envelopes (<code>IpcMessage</code> union) and transport interfaces (<code>IpcServerTransport</code>, <code>IpcClientTransport</code>) are designed to be implemented by any transport without changing the application layer.</p>
+<h2>File Reference</h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>core/ipc/protocol.ts</code></td>
+<td>Message envelope types, serialization</td>
+</tr>
+<tr>
+<td><code>core/ipc/transport.ts</code></td>
+<td>Transport interfaces, request/response helper</td>
+</tr>
+<tr>
+<td><code>core/ipc/local-socket/server.ts</code></td>
+<td>Unix socket server implementation</td>
+</tr>
+<tr>
+<td><code>core/ipc/local-socket/client.ts</code></td>
+<td>Unix socket client with reconnect</td>
+</tr>
+<tr>
+<td><code>core/ipc/index.ts</code></td>
+<td>Barrel export</td>
+</tr>
+<tr>
+<td><code>core/runtime/session.ts</code></td>
+<td>Session model and manager</td>
+</tr>
+<tr>
+<td><code>apps/daemon/src/index.ts</code></td>
+<td>Daemon entry point</td>
+</tr>
+<tr>
+<td><code>apps/daemon/src/lifecycle.ts</code></td>
+<td>PID file, shutdown, crash logging</td>
+</tr>
+<tr>
+<td><code>apps/desktop/src/index.ts</code></td>
+<td>Desktop entry point stub</td>
+</tr>
+<tr>
+<td><code>apps/desktop/src/client.ts</code></td>
+<td>Desktop IPC client</td>
+</tr>
+</tbody></table>
+
+</main>
+</div>
+</body>
+</html>

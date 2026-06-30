@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Runtime Kernel - AIRI Architecture Docs</title>
+<style>
+:root { color-scheme: light dark; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; margin: 0; padding: 0; background: #fff; color: #1a1a1a; }
+@media (prefers-color-scheme: dark) { body { background: #1a1a2e; color: #e0e0e0; } }
+.container { display: flex; min-height: 100vh; }
+.sidebar { width: 280px; flex-shrink: 0; background: #f8f9fa; border-right: 1px solid #e1e4e8; padding: 2rem 1.5rem; position: sticky; top: 0; align-self: flex-start; overflow-y: auto; max-height: 100vh; }
+@media (prefers-color-scheme: dark) { .sidebar { background: #16213e; border-right-color: #0f3460; } }
+.sidebar h1 { font-size: 1.1rem; margin: 0 0 0.5rem 0; }
+.sidebar p { font-size: 0.8rem; color: #586069; margin: 0 0 1.5rem 0; }
+.sidebar nav { display: flex; flex-direction: column; gap: 0.25rem; }
+.sidebar nav a { display: block; padding: 0.4rem 0.75rem; border-radius: 6px; text-decoration: none; color: #24292e; font-size: 0.9rem; transition: background 0.15s; }
+@media (prefers-color-scheme: dark) { .sidebar nav a { color: #e0e0e0; } }
+.sidebar nav a:hover { background: #e1e4e8; }
+@media (prefers-color-scheme: dark) { .sidebar nav a:hover { background: #0f3460; } }
+.sidebar nav a.active { background: #0969da; color: white; font-weight: 500; }
+.content { flex: 1; max-width: 900px; padding: 3rem 4rem; line-height: 1.7; }
+.content h1 { font-size: 2rem; border-bottom: 2px solid #0969da; padding-bottom: 0.5rem; }
+.content h2 { font-size: 1.5rem; margin-top: 2.5rem; border-bottom: 1px solid #e1e4e8; padding-bottom: 0.3rem; }
+.content h3 { font-size: 1.2rem; margin-top: 2rem; }
+.content p { margin: 1rem 0; }
+.content ul, .content ol { padding-left: 2rem; margin: 1rem 0; }
+.content li { margin: 0.4rem 0; }
+.content code { background: #f6f8fa; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.9em; word-break: break-word; }
+@media (prefers-color-scheme: dark) { .content code { background: #0f3460; } }
+.content pre { background: #f6f8fa; border-radius: 8px; padding: 1.2rem; overflow-x: auto; border: 1px solid #e1e4e8; line-height: 1.5; }
+@media (prefers-color-scheme: dark) { .content pre { background: #0d1b2a; border-color: #0f3460; } }
+.content pre code { background: none; padding: 0; font-size: 0.85rem; }
+.content blockquote { border-left: 4px solid #0969da; background: #f0f7ff; padding: 0.8rem 1.2rem; margin: 1rem 0; border-radius: 0 8px 8px 0; }
+@media (prefers-color-scheme: dark) { .content blockquote { background: #0a2540; } }
+.content blockquote p { margin: 0.3rem 0; }
+.content table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.9rem; }
+.content th, .content td { border: 1px solid #d1d9e0; padding: 0.6rem 0.9rem; text-align: left; }
+.content th { background: #f6f8fa; }
+@media (prefers-color-scheme: dark) { .content th { background: #0f3460; } }
+.content a { color: #0969da; text-decoration: none; }
+.content a:hover { text-decoration: underline; }
+.colored-diagram { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 8px; padding: 1rem; overflow-x: auto; margin: 1rem 0; }
+@media (prefers-color-scheme: dark) { .colored-diagram { background: #0d1b2a; border-color: #0f3460; } }
+.colored-diagram pre { margin: 0; background: none; border: none; padding: 0; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 0.85rem; line-height: 1.4; }
+@media (max-width: 768px) { .container { flex-direction: column; } .sidebar { width: 100%; position: static; max-height: none; } .content { padding: 1.5rem; } }
+</style>
+</head>
+<body>
+<div class="container">
+<aside class="sidebar">
+<h1>AIRI Architecture Docs</h1>
+<nav><a href="bootstrap-flow.html" class="">Core — Bootstrap Flow</a>
+<a href="coding-workspace.html" class="">Core - Coding Workspace</a>
+<a href="cognition-layer.html" class="">Cognition Layer</a>
+<a href="daemonization.html" class="">Daemonization Architecture</a>
+<a href="module-system.html" class="">Module System</a>
+<a href="planner-layer.html" class="">Planner Layer</a>
+<a href="runtime-kernel.html" class="active">Runtime Kernel</a>
+<a href="runtime-persistence.html" class="">Runtime Persistence & Session Recovery</a>
+<a href="semantic-memory.html" class="">Semantic Memory & Repository Intelligence</a>
+<a href="worker-runtime.html" class="">Worker Runtime Architecture</a>
+<a href="workspace-isolation.html" class="">Workspace Isolation & Execution Sandbox Infrastructure</a></nav>
+</aside>
+<main class="content">
+<h1>AIRI Runtime Kernel — Architecture Document</h1>
+<h2>Overview</h2>
+<p>The AIRI daemon is evolving from a simple module host into a true <strong>agent runtime kernel</strong>. This document describes the task orchestration layer that enables the daemon to manage, schedule, track, and cancel units of work (tasks) across all modules.</p>
+<h2>Why Tasks Are Daemon-Owned</h2>
+<p>Tasks are owned by the daemon, not by individual modules, for several reasons:</p>
+<ol>
+<li><strong>Centralized lifecycle management</strong>: The daemon is the single source of truth for task state. Modules request task creation; the daemon manages transitions.</li>
+<li><strong>Cross-module visibility</strong>: Any module can observe any task&#39;s progress through the event bus.</li>
+<li><strong>Graceful shutdown</strong>: The daemon can cancel all running tasks during shutdown, ensuring clean teardown.</li>
+<li><strong>Client reconnection</strong>: The replay buffer allows clients to catch up on task state after a brief disconnect.</li>
+<li><strong>Resource management</strong>: Concurrency limits and priority scheduling are enforced centrally.</li>
+</ol>
+<h2>Task Lifecycle State Machine</h2>
+<pre><code>pending → queued → running → completed
+                 ↘          ↗
+                  failed
+                  cancelled
+</code></pre>
+<h3>States</h3>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>pending</code></td>
+<td>Task created, not yet queued for execution.</td>
+</tr>
+<tr>
+<td><code>queued</code></td>
+<td>Task waiting for an execution slot.</td>
+</tr>
+<tr>
+<td><code>running</code></td>
+<td>Task currently being executed by an executor.</td>
+</tr>
+<tr>
+<td><code>completed</code></td>
+<td>Task finished successfully.</td>
+</tr>
+<tr>
+<td><code>failed</code></td>
+<td>Task encountered an unrecoverable error.</td>
+</tr>
+<tr>
+<td><code>cancelled</code></td>
+<td>Task was cancelled before completion.</td>
+</tr>
+</tbody></table>
+<h3>Valid Transitions</h3>
+<ul>
+<li><code>pending</code> → <code>queued</code> | <code>cancelled</code></li>
+<li><code>queued</code> → <code>running</code> | <code>cancelled</code></li>
+<li><code>running</code> → <code>completed</code> | <code>failed</code> | <code>cancelled</code></li>
+<li><code>completed</code>, <code>failed</code>, <code>cancelled</code> → <em>(terminal — no further transitions)</em></li>
+</ul>
+<p>Invalid transitions are rejected by the <code>TaskManager</code>. This ensures deterministic lifecycle behavior.</p>
+<h2>Architecture Components</h2>
+<h3>TaskManager (<code>core/tasks/manager.ts</code>)</h3>
+<p>The central task lifecycle manager.</p>
+<p><strong>Responsibilities:</strong></p>
+<ul>
+<li>Create tasks with auto-generated branded IDs.</li>
+<li>Enforce valid state transitions.</li>
+<li>Track cancellation token sources per task.</li>
+<li>Maintain bounded in-memory storage (configurable max, default 1000).</li>
+<li>Auto-cleanup completed tasks after TTL (configurable, default 5 minutes).</li>
+<li>Register and look up task executors by module.</li>
+</ul>
+<p><strong>Key design decisions:</strong></p>
+<ul>
+<li>Class-based, not a global singleton. One instance per daemon.</li>
+<li>All state transitions go through <code>transition()</code> which validates via <code>isValidTransition()</code>.</li>
+<li>Each task has a <code>CancellationTokenSource</code> for cooperative cancellation.</li>
+</ul>
+<h3>TaskScheduler (<code>core/tasks/scheduler.ts</code>)</h3>
+<p>Dispatches queued tasks to executors based on priority and concurrency limits.</p>
+<p><strong>Responsibilities:</strong></p>
+<ul>
+<li>Pick the highest-priority queued task when a slot frees up.</li>
+<li>Enforce concurrency limits (configurable, default 4).</li>
+<li>Starvation prevention: tasks waiting longer than the threshold get a priority boost.</li>
+<li>Find the right executor for each task via <code>TaskManager.findExecutor()</code>.</li>
+</ul>
+<p><strong>Selection order:</strong></p>
+<ol>
+<li>Highest effective priority (with starvation boost).</li>
+<li>FIFO within same priority level.</li>
+</ol>
+<h3>TaskExecutor (<code>core/tasks/executor.ts</code>)</h3>
+<p>The interface that modules implement to execute tasks.</p>
+<pre><code class="language-ts">interface TaskExecutor {
+  canExecute(task: Task): boolean
+  execute(task: Task, ctx: TaskExecutionContext): Promise&lt;TaskResult&gt;
+}
+</code></pre>
+<p><strong>Execution context provides:</strong></p>
+<ul>
+<li>The task being executed.</li>
+<li>A <code>CancellationToken</code> for cooperative cancellation.</li>
+<li><code>reportProgress(percent, message)</code> for progress updates.</li>
+<li>The <code>EventBus</code> for emitting sub-events.</li>
+<li>A tagged <code>Logger</code>.</li>
+</ul>
+<h3>TaskReplayBuffer (<code>core/tasks/replay-buffer.ts</code>)</h3>
+<p>Bounded in-memory event history for reconnecting clients.</p>
+<p><strong>Responsibilities:</strong></p>
+<ul>
+<li>Store task state transitions with timestamps (configurable max, default 500).</li>
+<li>Replay recent events to reconnecting clients.</li>
+<li>Provide a snapshot of current task states on connect.</li>
+</ul>
+<h3>TaskMetrics (<code>core/tasks/metrics.ts</code>)</h3>
+<p>In-memory runtime diagnostics.</p>
+<p><strong>Tracks:</strong></p>
+<ul>
+<li>Active/queued/completed/failed/cancelled task counts.</li>
+<li>Average execution duration.</li>
+<li>Per-module task counts.</li>
+<li>Uptime.</li>
+</ul>
+<h3>Cancellation Infrastructure (<code>core/tasks/cancellation.ts</code>)</h3>
+<p>Cooperative cancellation primitives.</p>
+<p><strong>Key concepts:</strong></p>
+<ul>
+<li><code>CancellationTokenSource</code> — the producer side. Owners call <code>cancel()</code>.</li>
+<li><code>CancellationToken</code> — the consumer side. Executors check <code>isCancelled</code> or call <code>throwIfCancelled()</code>.</li>
+<li>Linked tokens — child tokens auto-cancel when the parent cancels.</li>
+<li><code>withTimeout()</code> — wraps any promise with a deadline.</li>
+</ul>
+<p><strong>Cancellation is cooperative, not preemptive.</strong> Tasks must check the token at reasonable intervals. This is intentional — it avoids the complexity and unsafety of forced termination.</p>
+<h2>IPC Integration</h2>
+<p>The daemon exposes task operations via IPC request handlers:</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>task.create</code></td>
+<td>Create a new task. Params: <code>title</code>, <code>description?</code>, <code>priority?</code>, <code>moduleId?</code>, <code>metadata?</code></td>
+</tr>
+<tr>
+<td><code>task.cancel</code></td>
+<td>Cancel a task. Params: <code>taskId</code>, <code>reason?</code></td>
+</tr>
+<tr>
+<td><code>task.list</code></td>
+<td>List tasks. Params: <code>state?</code>, <code>moduleId?</code></td>
+</tr>
+<tr>
+<td><code>task.get</code></td>
+<td>Get task details. Params: <code>taskId</code></td>
+</tr>
+</tbody></table>
+<p>Task events are streamed to all connected clients:</p>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>task.queued</code></td>
+<td>Task was queued for execution.</td>
+</tr>
+<tr>
+<td><code>task.progress</code></td>
+<td>Task reported progress.</td>
+</tr>
+<tr>
+<td><code>task.failed</code></td>
+<td>Task failed with an error.</td>
+</tr>
+<tr>
+<td><code>task.cancelled</code></td>
+<td>Task was cancelled.</td>
+</tr>
+</tbody></table>
+<h3>Reconnect Behavior</h3>
+<p>When a new client connects, the daemon sends a <strong>replay snapshot</strong> containing:</p>
+<ul>
+<li>Current state of all active/queued tasks.</li>
+<li>Recent state transition events (last 50).</li>
+</ul>
+<p>This allows clients to catch up after a brief disconnect without missing task state changes.</p>
+<h2>Module Integration</h2>
+<p>Modules participate in the task system by registering a <code>TaskExecutor</code>:</p>
+<pre><code class="language-ts">// In module activation:
+const executor = new MyTaskExecutor()
+taskManager.registerExecutor(moduleId, executor)
+</code></pre>
+<p>The executor&#39;s <code>canExecute()</code> method determines which tasks it handles. The scheduler uses this to find the right executor for each task.</p>
+<h2>Scheduler Behavior</h2>
+<h3>Priority + FIFO</h3>
+<p>Tasks are dispatched in priority order: <code>critical</code> &gt; <code>high</code> &gt; <code>normal</code> &gt; <code>low</code>. Within the same priority, tasks are dispatched FIFO (oldest first).</p>
+<h3>Concurrency Limits</h3>
+<p>The scheduler enforces a maximum number of concurrently running tasks (default 4). When all slots are full, queued tasks wait. When a slot frees up, the highest-priority queued task is dispatched.</p>
+<h3>Starvation Prevention</h3>
+<p>Tasks waiting longer than the starvation threshold (default 30 seconds) get their effective priority boosted by one level. This prevents low-priority tasks from being permanently blocked by a stream of high-priority tasks.</p>
+<h2>Future Directions</h2>
+<h3>Persistence</h3>
+<p>Currently, all task state is in-memory. Future work could add:</p>
+<ul>
+<li>Write-ahead log for task state transitions.</li>
+<li>Periodic snapshots for fast recovery.</li>
+<li>Replay from log on daemon restart.</li>
+</ul>
+<h3>Worker Processes</h3>
+<p>Currently, all task execution is in-process. Future work could add:</p>
+<ul>
+<li>Worker process pool for isolation.</li>
+<li>IPC between daemon and workers.</li>
+<li>Sandboxed execution for untrusted code.</li>
+</ul>
+<h3>Task Dependencies</h3>
+<p>Future work could add:</p>
+<ul>
+<li>DAG-based task dependencies.</li>
+<li>Automatic scheduling when dependencies are met.</li>
+<li>Parallel execution of independent tasks.</li>
+</ul>
+<h3>Retry Policies</h3>
+<p>Future work could add:</p>
+<ul>
+<li>Configurable retry counts per task.</li>
+<li>Exponential backoff for recoverable errors.</li>
+<li>Dead-letter queue for permanently failed tasks.</li>
+</ul>
+<h2>Constraints</h2>
+<p>The current implementation deliberately does <strong>not</strong> include:</p>
+<ul>
+<li><strong>Planners or autonomous loops</strong>: Tasks are created by external requests, not by the daemon itself.</li>
+<li><strong>Vector databases or embeddings</strong>: No semantic search or memory.</li>
+<li><strong>Arbitrary shell command execution</strong>: Tasks are executed by registered executors, not by shelling out.</li>
+<li><strong>Tight coupling to coding semantics</strong>: The task system is generic and module-agnostic.</li>
+<li><strong>External queue systems</strong>: Everything is in-memory. No Redis, RabbitMQ, etc.</li>
+<li><strong>Global singletons</strong>: All components are class-based and instantiated per-daemon.</li>
+</ul>
+
+</main>
+</div>
+</body>
+</html>

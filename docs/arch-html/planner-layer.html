@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Planner Layer - AIRI Architecture Docs</title>
+<style>
+:root { color-scheme: light dark; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; margin: 0; padding: 0; background: #fff; color: #1a1a1a; }
+@media (prefers-color-scheme: dark) { body { background: #1a1a2e; color: #e0e0e0; } }
+.container { display: flex; min-height: 100vh; }
+.sidebar { width: 280px; flex-shrink: 0; background: #f8f9fa; border-right: 1px solid #e1e4e8; padding: 2rem 1.5rem; position: sticky; top: 0; align-self: flex-start; overflow-y: auto; max-height: 100vh; }
+@media (prefers-color-scheme: dark) { .sidebar { background: #16213e; border-right-color: #0f3460; } }
+.sidebar h1 { font-size: 1.1rem; margin: 0 0 0.5rem 0; }
+.sidebar p { font-size: 0.8rem; color: #586069; margin: 0 0 1.5rem 0; }
+.sidebar nav { display: flex; flex-direction: column; gap: 0.25rem; }
+.sidebar nav a { display: block; padding: 0.4rem 0.75rem; border-radius: 6px; text-decoration: none; color: #24292e; font-size: 0.9rem; transition: background 0.15s; }
+@media (prefers-color-scheme: dark) { .sidebar nav a { color: #e0e0e0; } }
+.sidebar nav a:hover { background: #e1e4e8; }
+@media (prefers-color-scheme: dark) { .sidebar nav a:hover { background: #0f3460; } }
+.sidebar nav a.active { background: #0969da; color: white; font-weight: 500; }
+.content { flex: 1; max-width: 900px; padding: 3rem 4rem; line-height: 1.7; }
+.content h1 { font-size: 2rem; border-bottom: 2px solid #0969da; padding-bottom: 0.5rem; }
+.content h2 { font-size: 1.5rem; margin-top: 2.5rem; border-bottom: 1px solid #e1e4e8; padding-bottom: 0.3rem; }
+.content h3 { font-size: 1.2rem; margin-top: 2rem; }
+.content p { margin: 1rem 0; }
+.content ul, .content ol { padding-left: 2rem; margin: 1rem 0; }
+.content li { margin: 0.4rem 0; }
+.content code { background: #f6f8fa; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.9em; word-break: break-word; }
+@media (prefers-color-scheme: dark) { .content code { background: #0f3460; } }
+.content pre { background: #f6f8fa; border-radius: 8px; padding: 1.2rem; overflow-x: auto; border: 1px solid #e1e4e8; line-height: 1.5; }
+@media (prefers-color-scheme: dark) { .content pre { background: #0d1b2a; border-color: #0f3460; } }
+.content pre code { background: none; padding: 0; font-size: 0.85rem; }
+.content blockquote { border-left: 4px solid #0969da; background: #f0f7ff; padding: 0.8rem 1.2rem; margin: 1rem 0; border-radius: 0 8px 8px 0; }
+@media (prefers-color-scheme: dark) { .content blockquote { background: #0a2540; } }
+.content blockquote p { margin: 0.3rem 0; }
+.content table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.9rem; }
+.content th, .content td { border: 1px solid #d1d9e0; padding: 0.6rem 0.9rem; text-align: left; }
+.content th { background: #f6f8fa; }
+@media (prefers-color-scheme: dark) { .content th { background: #0f3460; } }
+.content a { color: #0969da; text-decoration: none; }
+.content a:hover { text-decoration: underline; }
+.colored-diagram { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 8px; padding: 1rem; overflow-x: auto; margin: 1rem 0; }
+@media (prefers-color-scheme: dark) { .colored-diagram { background: #0d1b2a; border-color: #0f3460; } }
+.colored-diagram pre { margin: 0; background: none; border: none; padding: 0; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 0.85rem; line-height: 1.4; }
+@media (max-width: 768px) { .container { flex-direction: column; } .sidebar { width: 100%; position: static; max-height: none; } .content { padding: 1.5rem; } }
+</style>
+</head>
+<body>
+<div class="container">
+<aside class="sidebar">
+<h1>AIRI Architecture Docs</h1>
+<nav><a href="bootstrap-flow.html" class="">Core — Bootstrap Flow</a>
+<a href="coding-workspace.html" class="">Core - Coding Workspace</a>
+<a href="cognition-layer.html" class="">Cognition Layer</a>
+<a href="daemonization.html" class="">Daemonization Architecture</a>
+<a href="module-system.html" class="">Module System</a>
+<a href="planner-layer.html" class="active">Planner Layer</a>
+<a href="runtime-kernel.html" class="">Runtime Kernel</a>
+<a href="runtime-persistence.html" class="">Runtime Persistence & Session Recovery</a>
+<a href="semantic-memory.html" class="">Semantic Memory & Repository Intelligence</a>
+<a href="worker-runtime.html" class="">Worker Runtime Architecture</a>
+<a href="workspace-isolation.html" class="">Workspace Isolation & Execution Sandbox Infrastructure</a></nav>
+</aside>
+<main class="content">
+<h1>Planner Layer — Architecture Documentation</h1>
+<h2>Overview</h2>
+<p>The planner layer is a deterministic multi-step workflow orchestrator that composes existing AIRI capabilities (tasks, workers, tools, patches) into sequential or dependency-parallel plans. This is <strong>NOT AI</strong> — it is deterministic agent logic that executes predefined steps in a specified order.</p>
+<h2>Design Principles</h2>
+<ul>
+<li><strong>Deterministic execution</strong>: Plans follow predefined step sequences with no autonomous reasoning.</li>
+<li><strong>Worker isolation</strong>: Each step maps to a task; tasks execute in isolated workers.</li>
+<li><strong>Daemon ownership</strong>: The PlanExecutor orchestrates; the TaskManager is authoritative for task state.</li>
+<li><strong>Event streaming</strong>: All plan/step events flow through the EventBus for IPC broadcast and replay buffer.</li>
+<li><strong>No global singletons</strong>: PlanRegistry and PlanExecutor are classes instantiated by the daemon.</li>
+</ul>
+<h2>Architecture</h2>
+<h3>Plan → Step → Task → Worker Flow</h3>
+<div class="colored-diagram"><pre>┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│    Plan      │────▶│    Step      │────▶│    Task      │────▶│   Worker     │
+│             │     │             │     │             │     │             │
+│ - id        │     │ - id        │     │ - id        │     │ - process   │
+│ - name      │     │ - name      │     │ - title     │     │ - isolate   │
+│ - steps[]   │     │ - action    │     │ - moduleId  │     │ - execute   │
+│ - status    │     │ - input     │     │ - state     │     │ - report    │
+│             │     │ - deps[]    │     │ - result    │     │             │
+└─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘
+       │                   │                   │                   │
+       └───────────────────┴───────────────────┴───────────────────┘
+                                   │
+                                   ▼
+                          ┌─────────────────┐
+                          │    EventBus      │
+                          │                 │
+                          │ - plan.started  │
+                          │ - step.started  │
+                          │ - step.completed│
+                          │ - plan.completed│
+                          │ - plan.failed   │
+                          │ - plan.cancelled│
+                          └─────────────────┘
+                                   │
+                                   ▼
+                          ┌─────────────────┐
+                          │   IPC Clients    │
+                          │   Replay Buffer  │
+                          └─────────────────┘
+</pre></div>
+<h3>Component Responsibilities</h3>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Responsibility</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>PlanRegistry</code></td>
+<td>Stores plan definitions and runtime instances. CRUD operations.</td>
+</tr>
+<tr>
+<td><code>PlanExecutor</code></td>
+<td>Orchestrates step execution, dependency resolution, cancellation, timeout.</td>
+</tr>
+<tr>
+<td><code>TaskManager</code></td>
+<td>Owns task lifecycle (create, queue, start, complete, fail, cancel).</td>
+</tr>
+<tr>
+<td><code>EventBus</code></td>
+<td>Inter-module communication. All plan/step events published here.</td>
+</tr>
+<tr>
+<td><code>TaskReplayBuffer</code></td>
+<td>Records plan/step events for client reconnect.</td>
+</tr>
+</tbody></table>
+<h2>Plan Lifecycle</h2>
+<h3>State Machine</h3>
+<div class="colored-diagram"><pre>draft ──▶ pending ──▶ running ──▶ completed
+                         │
+                         ├──▶ failed
+                         │
+                         └──▶ cancelled
+</pre></div>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>draft</code></td>
+<td>Plan created but not yet submitted.</td>
+</tr>
+<tr>
+<td><code>pending</code></td>
+<td>Plan registered, awaiting execution.</td>
+</tr>
+<tr>
+<td><code>running</code></td>
+<td>Plan execution in progress.</td>
+</tr>
+<tr>
+<td><code>completed</code></td>
+<td>All steps completed successfully.</td>
+</tr>
+<tr>
+<td><code>failed</code></td>
+<td>A step failed, causing plan failure.</td>
+</tr>
+<tr>
+<td><code>cancelled</code></td>
+<td>Plan was cancelled (by user or system).</td>
+</tr>
+</tbody></table>
+<h3>Step Lifecycle</h3>
+<div class="colored-diagram"><pre>pending ──▶ running ──▶ completed
+               │
+               ├──▶ failed
+               │
+               ├──▶ cancelled
+               │
+               └──▶ skipped (dependency failed)
+</pre></div>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>pending</code></td>
+<td>Step awaiting execution (dependencies not yet met).</td>
+</tr>
+<tr>
+<td><code>running</code></td>
+<td>Step task has been created and queued.</td>
+</tr>
+<tr>
+<td><code>completed</code></td>
+<td>Step task completed successfully.</td>
+</tr>
+<tr>
+<td><code>failed</code></td>
+<td>Step task failed.</td>
+</tr>
+<tr>
+<td><code>cancelled</code></td>
+<td>Step task was cancelled.</td>
+</tr>
+<tr>
+<td><code>skipped</code></td>
+<td>Step skipped because a dependency failed.</td>
+</tr>
+</tbody></table>
+<h2>Step Execution with Dependency Resolution</h2>
+<h3>Dependency Graph</h3>
+<p>Steps declare dependencies via <code>dependencyIds</code>. The executor builds a dependency graph and executes steps in topological order:</p>
+<pre><code>Example: Diamond dependency
+    A
+   / \
+  B   C
+   \ /
+    D
+
+Execution order: A → (B ∥ C) → D
+</code></pre>
+<h3>Concurrency</h3>
+<ul>
+<li><strong>Independent steps</strong> (no dependencies between them) execute in parallel.</li>
+<li><strong>Concurrency limit</strong> (default: 2) controls the maximum number of simultaneously running steps.</li>
+<li><strong>Dependent steps</strong> wait for all their dependencies to complete before starting.</li>
+</ul>
+<h3>Algorithm</h3>
+<ol>
+<li>Build a map of step ID → dependency IDs.</li>
+<li>Track completed, failed, and running step sets.</li>
+<li>While pending steps remain:
+a. Mark steps with failed dependencies as &quot;skipped&quot;.
+b. Find steps whose dependencies are all met (completed or failed/skipped).
+c. Launch ready steps up to the concurrency limit.
+d. Wait for any running step to complete.
+e. Update completed/failed sets.</li>
+</ol>
+<h2>Cancellation and Failure Propagation</h2>
+<h3>Plan Cancellation</h3>
+<p>When a plan is cancelled:</p>
+<ol>
+<li>The PlanExecutor cancels all running step tasks via <code>TaskManager.cancel()</code>.</li>
+<li>The plan status is set to <code>cancelled</code>.</li>
+<li>A <code>plan.cancelled</code> event is emitted.</li>
+</ol>
+<h3>Step Failure Propagation</h3>
+<p>When a step fails:</p>
+<ol>
+<li>The step status is set to <code>failed</code>.</li>
+<li>All dependent steps are marked as <code>skipped</code>.</li>
+<li>The plan status is set to <code>failed</code>.</li>
+<li>A <code>plan.failed</code> event is emitted with the failure reason.</li>
+</ol>
+<h3>Task-Level Cancellation</h3>
+<p>Step tasks are cancelled via the standard TaskManager cancellation mechanism:</p>
+<ul>
+<li>The task&#39;s <code>CancellationTokenSource</code> is triggered.</li>
+<li>The task transitions to <code>cancelled</code> state.</li>
+<li>A <code>task.cancelled</code> event is emitted.</li>
+</ul>
+<h2>Timeout Enforcement</h2>
+<p>Each step can specify a <code>timeoutMs</code> override. If not specified, the default timeout (5 minutes) applies.</p>
+<p>When a step times out:</p>
+<ol>
+<li>The step&#39;s task is cancelled.</li>
+<li>The step status is set to <code>failed</code>.</li>
+<li>The plan fails with a timeout error.</li>
+</ol>
+<h2>Event Types</h2>
+<h3>Plan Events</h3>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>When Emitted</th>
+<th>Key Fields</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plan.started</code></td>
+<td>Plan execution begins</td>
+<td><code>planId</code>, <code>name</code>, <code>stepCount</code></td>
+</tr>
+<tr>
+<td><code>plan.completed</code></td>
+<td>All steps completed</td>
+<td><code>planId</code>, <code>name</code>, <code>durationMs</code></td>
+</tr>
+<tr>
+<td><code>plan.failed</code></td>
+<td>A step failed</td>
+<td><code>planId</code>, <code>name</code>, <code>failureReason</code>, <code>failedStepId</code></td>
+</tr>
+<tr>
+<td><code>plan.cancelled</code></td>
+<td>Plan cancelled</td>
+<td><code>planId</code>, <code>name</code>, <code>reason</code></td>
+</tr>
+</tbody></table>
+<h3>Step Events</h3>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>When Emitted</th>
+<th>Key Fields</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>step.started</code></td>
+<td>Step execution begins</td>
+<td><code>planId</code>, <code>stepId</code>, <code>stepName</code>, <code>action</code></td>
+</tr>
+<tr>
+<td><code>step.completed</code></td>
+<td>Step task completed</td>
+<td><code>planId</code>, <code>stepId</code>, <code>stepName</code>, <code>success</code>, <code>durationMs</code></td>
+</tr>
+<tr>
+<td><code>step.failed</code></td>
+<td>Step task failed</td>
+<td><code>planId</code>, <code>stepId</code>, <code>stepName</code>, <code>error</code></td>
+</tr>
+</tbody></table>
+<h2>IPC API</h2>
+<p>The daemon exposes the following IPC methods for plan management:</p>
+<h3><code>plan.create</code></h3>
+<p>Create a new plan.</p>
+<p><strong>Params:</strong></p>
+<ul>
+<li><code>name</code> (string, required): Plan name.</li>
+<li><code>input</code> (CreatePlanInput, required): Plan definition with steps.</li>
+<li><code>execute</code> (boolean, optional): Auto-execute after creation.</li>
+</ul>
+<p><strong>Returns:</strong> <code>{ plan: { id, name, status, stepCount, createdAt } }</code></p>
+<h3><code>plan.cancel</code></h3>
+<p>Cancel a running plan.</p>
+<p><strong>Params:</strong></p>
+<ul>
+<li><code>planId</code> (string, required): Plan ID.</li>
+<li><code>reason</code> (string, optional): Cancellation reason.</li>
+</ul>
+<p><strong>Returns:</strong> <code>{ plan: { id, status } }</code></p>
+<h3><code>plan.list</code></h3>
+<p>List plans with optional filtering.</p>
+<p><strong>Params:</strong></p>
+<ul>
+<li><code>status</code> (string, optional): Filter by status.</li>
+<li><code>sessionId</code> (string, optional): Filter by session.</li>
+<li><code>name</code> (string, optional): Filter by name.</li>
+</ul>
+<p><strong>Returns:</strong> <code>{ plans: PlanSummary[] }</code></p>
+<h3><code>plan.get</code></h3>
+<p>Get a specific plan by ID.</p>
+<p><strong>Params:</strong></p>
+<ul>
+<li><code>planId</code> (string, required): Plan ID.</li>
+</ul>
+<p><strong>Returns:</strong> <code>{ plan: Plan }</code></p>
+<h2>Daemon Integration</h2>
+<p>The planner layer is integrated into the daemon at Phase 3c (after task orchestration, before IPC server):</p>
+<pre><code class="language-typescript">// Phase 3c: Create planner layer
+const planRegistry = new PlanRegistry()
+const planExecutor = new PlanExecutor(taskManager, core.events, logger, {
+    concurrency: 2,
+    defaultStepTimeoutMs: 300_000,
+})
+
+// Wire plan events → IPC broadcast + replay buffer
+wirePlanEvents(core.events, planRegistry, replayBuffer)
+</code></pre>
+<h3>Shutdown Order</h3>
+<p>On daemon shutdown, the planner layer is stopped as part of the task orchestration shutdown:</p>
+<ol>
+<li>Stop IPC server.</li>
+<li>Stop worker manager.</li>
+<li>Stop task scheduler.</li>
+<li>Stop task manager.</li>
+<li>Shutdown core.</li>
+</ol>
+<p>The PlanExecutor does not need explicit stopping — it completes or cancels running plans when the task manager stops.</p>
+<h2>File Structure</h2>
+<div class="colored-diagram"><pre>core/planner/
+├── types.ts      # Core types (PlanId, StepId, Plan, PlanStep, etc.)
+├── events.ts     # Plan/step event types
+├── registry.ts   # PlanRegistry class
+├── executor.ts   # PlanExecutor class
+└── index.ts      # Barrel export
+</pre></div>
+<h2>Future: LLM-Driven Planning</h2>
+<p>The planner layer is designed to support future LLM-driven planning:</p>
+<ol>
+<li><strong>Plan Generation</strong>: An LLM generates a <code>CreatePlanInput</code> with steps and dependencies.</li>
+<li><strong>Plan Execution</strong>: The PlanExecutor executes the generated plan deterministically.</li>
+<li><strong>Plan Adaptation</strong>: Between steps, an LLM could modify remaining steps based on intermediate results.</li>
+</ol>
+<p>The key insight is that the planner layer separates <strong>plan definition</strong> (which can be AI-generated) from <strong>plan execution</strong> (which is always deterministic).</p>
+<h2>Testing</h2>
+<p>Tests are in <code>core/__tests__/planner.test.ts</code> and cover:</p>
+<ul>
+<li>Plan registry CRUD operations.</li>
+<li>Sequential step execution with dependencies.</li>
+<li>Parallel step execution with concurrency limits.</li>
+<li>Plan cancellation mid-execution.</li>
+<li>Step failure handling and propagation.</li>
+<li>Event emission order and correctness.</li>
+<li>Diamond dependency patterns.</li>
+<li>Step timeout enforcement.</li>
+</ul>
+<p>All tests use mock task executors (no real worker processes).</p>
+
+</main>
+</div>
+</body>
+</html>

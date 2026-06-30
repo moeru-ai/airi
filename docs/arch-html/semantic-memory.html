@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Semantic Memory & Repository Intelligence - AIRI Architecture Docs</title>
+<style>
+:root { color-scheme: light dark; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; margin: 0; padding: 0; background: #fff; color: #1a1a1a; }
+@media (prefers-color-scheme: dark) { body { background: #1a1a2e; color: #e0e0e0; } }
+.container { display: flex; min-height: 100vh; }
+.sidebar { width: 280px; flex-shrink: 0; background: #f8f9fa; border-right: 1px solid #e1e4e8; padding: 2rem 1.5rem; position: sticky; top: 0; align-self: flex-start; overflow-y: auto; max-height: 100vh; }
+@media (prefers-color-scheme: dark) { .sidebar { background: #16213e; border-right-color: #0f3460; } }
+.sidebar h1 { font-size: 1.1rem; margin: 0 0 0.5rem 0; }
+.sidebar p { font-size: 0.8rem; color: #586069; margin: 0 0 1.5rem 0; }
+.sidebar nav { display: flex; flex-direction: column; gap: 0.25rem; }
+.sidebar nav a { display: block; padding: 0.4rem 0.75rem; border-radius: 6px; text-decoration: none; color: #24292e; font-size: 0.9rem; transition: background 0.15s; }
+@media (prefers-color-scheme: dark) { .sidebar nav a { color: #e0e0e0; } }
+.sidebar nav a:hover { background: #e1e4e8; }
+@media (prefers-color-scheme: dark) { .sidebar nav a:hover { background: #0f3460; } }
+.sidebar nav a.active { background: #0969da; color: white; font-weight: 500; }
+.content { flex: 1; max-width: 900px; padding: 3rem 4rem; line-height: 1.7; }
+.content h1 { font-size: 2rem; border-bottom: 2px solid #0969da; padding-bottom: 0.5rem; }
+.content h2 { font-size: 1.5rem; margin-top: 2.5rem; border-bottom: 1px solid #e1e4e8; padding-bottom: 0.3rem; }
+.content h3 { font-size: 1.2rem; margin-top: 2rem; }
+.content p { margin: 1rem 0; }
+.content ul, .content ol { padding-left: 2rem; margin: 1rem 0; }
+.content li { margin: 0.4rem 0; }
+.content code { background: #f6f8fa; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.9em; word-break: break-word; }
+@media (prefers-color-scheme: dark) { .content code { background: #0f3460; } }
+.content pre { background: #f6f8fa; border-radius: 8px; padding: 1.2rem; overflow-x: auto; border: 1px solid #e1e4e8; line-height: 1.5; }
+@media (prefers-color-scheme: dark) { .content pre { background: #0d1b2a; border-color: #0f3460; } }
+.content pre code { background: none; padding: 0; font-size: 0.85rem; }
+.content blockquote { border-left: 4px solid #0969da; background: #f0f7ff; padding: 0.8rem 1.2rem; margin: 1rem 0; border-radius: 0 8px 8px 0; }
+@media (prefers-color-scheme: dark) { .content blockquote { background: #0a2540; } }
+.content blockquote p { margin: 0.3rem 0; }
+.content table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.9rem; }
+.content th, .content td { border: 1px solid #d1d9e0; padding: 0.6rem 0.9rem; text-align: left; }
+.content th { background: #f6f8fa; }
+@media (prefers-color-scheme: dark) { .content th { background: #0f3460; } }
+.content a { color: #0969da; text-decoration: none; }
+.content a:hover { text-decoration: underline; }
+.colored-diagram { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 8px; padding: 1rem; overflow-x: auto; margin: 1rem 0; }
+@media (prefers-color-scheme: dark) { .colored-diagram { background: #0d1b2a; border-color: #0f3460; } }
+.colored-diagram pre { margin: 0; background: none; border: none; padding: 0; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 0.85rem; line-height: 1.4; }
+@media (max-width: 768px) { .container { flex-direction: column; } .sidebar { width: 100%; position: static; max-height: none; } .content { padding: 1.5rem; } }
+</style>
+</head>
+<body>
+<div class="container">
+<aside class="sidebar">
+<h1>AIRI Architecture Docs</h1>
+<nav><a href="bootstrap-flow.html" class="">Core — Bootstrap Flow</a>
+<a href="coding-workspace.html" class="">Core - Coding Workspace</a>
+<a href="cognition-layer.html" class="">Cognition Layer</a>
+<a href="daemonization.html" class="">Daemonization Architecture</a>
+<a href="module-system.html" class="">Module System</a>
+<a href="planner-layer.html" class="">Planner Layer</a>
+<a href="runtime-kernel.html" class="">Runtime Kernel</a>
+<a href="runtime-persistence.html" class="">Runtime Persistence & Session Recovery</a>
+<a href="semantic-memory.html" class="active">Semantic Memory & Repository Intelligence</a>
+<a href="worker-runtime.html" class="">Worker Runtime Architecture</a>
+<a href="workspace-isolation.html" class="">Workspace Isolation & Execution Sandbox Infrastructure</a></nav>
+</aside>
+<main class="content">
+<h1>Semantic Memory &amp; Repository Intelligence</h1>
+<h2>Overview</h2>
+<p>The semantic memory system provides explicit, deterministic long-term memory for the AIRI platform. Unlike prompt-based hidden state, all memory is structured, serializable, and auditable.</p>
+<p><strong>Key principles:</strong></p>
+<ul>
+<li>No AI/autonomous reasoning — memory is explicit and deterministic</li>
+<li>All relevance scoring is heuristic-based (no ML models)</li>
+<li>Memory is purely additive — existing contracts are preserved</li>
+<li>Worker isolation is maintained — no global singletons</li>
+</ul>
+<h2>Architecture</h2>
+<div class="colored-diagram"><pre>┌─────────────────────────────────────────────────────────────┐
+│                     Cognition Layer                         │
+│  CognitionCoordinator                                       │
+│    ├── MemoryRetriever.retrieveForContext()                │
+│    │     ├── MemoryRegistry.query()                         │
+│    │     ├── RepositoryIntelligence.getFileContext()         │
+│    │     ├── DecisionMemory.getDecisions()                  │
+│    │     └── FailureMemory.detectPatterns()                 │
+│    └── DecisionMemory.recordDecision()                     │
+└─────────────────────────────────────────────────────────────┘
+                              │
+        ┌─────────────────────┼─────────────────────┐
+        ▼                     ▼                     ▼
+┌──────────────┐  ┌──────────────────┐  ┌──────────────────┐
+│MemoryRegistry│  │RepositoryIntelli-│  │ DecisionMemory   │
+│              │  │gence             │  │ FailureMemory    │
+│ query()      │  │ indexRepository()│  │ recordDecision() │
+│ register()   │  │ findRelatedFiles│  │ recordFailure()  │
+│ update()     │  │ getDependencyChain│ │ detectPatterns() │
+│ remove()     │  │ getAffectedFiles │  │                  │
+└──────────────┘  └──────────────────┘  └──────────────────┘
+        │                     │                     │
+        └─────────────────────┼─────────────────────┘
+                              ▼
+              ┌──────────────────────────┐
+              │   Persistence Layer      │
+              │   SnapshotManager        │
+              │   ├── captureMemories()  │
+              │   ├── captureRetrievals()│
+              │   └── captureRepoMaps()  │
+              └──────────────────────────┘
+</pre></div>
+<h2>Type System</h2>
+<h3>Branded IDs</h3>
+<p>All memory identifiers use branded types for type safety:</p>
+<pre><code class="language-typescript">type MemoryId = string &amp; { readonly __brand: &#39;MemoryId&#39; }
+type RetrievalId = string &amp; { readonly __brand: &#39;RetrievalId&#39; }
+type RepositoryMapId = string &amp; { readonly __brand: &#39;RepositoryMapId&#39; }
+</code></pre>
+<p>Factory functions ensure brand safety at creation sites:</p>
+<ul>
+<li><code>createMemoryId(raw: string): MemoryId</code></li>
+<li><code>createRetrievalId(raw: string): RetrievalId</code></li>
+<li><code>createRepositoryMapId(raw: string): RepositoryMapId</code></li>
+</ul>
+<h3>Memory Scopes</h3>
+<table>
+<thead>
+<tr>
+<th>Scope</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>global</code></td>
+<td>Available across all sessions and workspaces</td>
+</tr>
+<tr>
+<td><code>session</code></td>
+<td>Tied to a specific cognition session</td>
+</tr>
+<tr>
+<td><code>workspace</code></td>
+<td>Scoped to a specific workspace</td>
+</tr>
+<tr>
+<td><code>repository</code></td>
+<td>Scoped to a specific repository</td>
+</tr>
+</tbody></table>
+<h3>Memory Types</h3>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>decision</code></td>
+<td>Records a decision made during plan generation</td>
+</tr>
+<tr>
+<td><code>failure</code></td>
+<td>Records an execution failure</td>
+</tr>
+<tr>
+<td><code>architecture</code></td>
+<td>Describes architectural knowledge</td>
+</tr>
+<tr>
+<td><code>pattern</code></td>
+<td>Captures recurring patterns</td>
+</tr>
+<tr>
+<td><code>context</code></td>
+<td>General contextual information</td>
+</tr>
+</tbody></table>
+<h2>Relevance Scoring Algorithm</h2>
+<p>The <code>MemoryRegistry.query()</code> method uses deterministic heuristic scoring:</p>
+<ol>
+<li><strong>Exact text match</strong> in title/content: score 1.0</li>
+<li><strong>Reference overlap</strong>: +0.3 per matching reference</li>
+<li><strong>Scope match</strong>: +0.2</li>
+<li><strong>Type match</strong>: +0.1</li>
+<li><strong>Importance weighting</strong>: multiply by (0.5 + 0.5 * importance)</li>
+<li><strong>Recency boost</strong>: +0.1 if accessed within last 24h</li>
+<li><strong>Access frequency</strong>: +0.05 * min(accessCount, 10)</li>
+</ol>
+<p>Maximum score is capped at 2.0.</p>
+<h2>Repository Intelligence</h2>
+<p><code>RepositoryIntelligence</code> builds a structural map of a repository:</p>
+<ul>
+<li><strong>File graph</strong>: Nodes represent files, edges represent imports</li>
+<li><strong>Architecture nodes</strong>: Identified by directory structure and package.json/tsconfig.json</li>
+<li><strong>Git metadata</strong>: Branch, commit, remote, contributors</li>
+<li><strong>Multi-language import parsing</strong>: Supports .ts, .js, .tsx, .jsx, .py, .rs, .go, .java, .kt, .swift</li>
+</ul>
+<h3>Capabilities</h3>
+<ul>
+<li><code>findRelatedFiles(path, maxDepth)</code>: BFS on import graph</li>
+<li><code>getDependencyChain(path)</code>: Topological import order</li>
+<li><code>getAffectedFiles(changedPaths)</code>: Reverse dependency lookup</li>
+<li><code>getFileContext(path)</code>: Full context (node, file, imports, importedBy)</li>
+</ul>
+<h2>Decision &amp; Failure Memory</h2>
+<h3>DecisionMemory</h3>
+<p>Records decisions made during plan generation:</p>
+<ul>
+<li>Accepted, rejected, or revised proposals</li>
+<li>Validation results</li>
+<li>Outcome tracking (what actually happened)</li>
+</ul>
+<h3>FailureMemory</h3>
+<p>Records execution failures with pattern detection:</p>
+<ul>
+<li>Groups failures by normalized error signature</li>
+<li>Creates patterns when 3+ failures share a signature</li>
+<li>Suggests actions based on pattern type (timeout, permission, network, etc.)</li>
+</ul>
+<h2>Retrieval Context Assembly</h2>
+<p><code>MemoryRetriever</code> assembles context for cognition:</p>
+<pre><code>## Semantic Memory Context
+
+### Relevant Memories
+[1] (decision, 0.95) Fix authentication middleware — accepted proposal for JWT refresh
+[2] (failure, 0.87) Workspace corruption on concurrent access — pattern: workspace_race_condition
+
+### Repository Context
+- Branch: main (abc123)
+- Relevant files: src/auth/middleware.ts, src/auth/jwt.ts
+
+### Decision History
+- Last 3 decisions: 2 accepted, 1 rejected (capability mismatch)
+- Known failure patterns: workspace_race_condition (3 occurrences)
+</code></pre>
+<h2>Cognition Integration</h2>
+<p>The <code>CognitionCoordinator</code> integrates memory retrieval into the cognition pipeline:</p>
+<ol>
+<li><strong>Before provider call</strong>: <code>MemoryRetriever.retrieveForContext()</code> populates <code>CognitionContext.memoryContext</code></li>
+<li><strong>After proposal generation</strong>: <code>DecisionMemory.recordDecision()</code> records the outcome</li>
+<li><strong>Events emitted</strong>: <code>memory.retrieved</code>, <code>decision.recorded</code> for auditing</li>
+</ol>
+<p>Memory retrieval failure does not block cognition — it&#39;s a best-effort enrichment.</p>
+<h2>Persistence and Recovery</h2>
+<p>Memory state is included in <code>RuntimeSnapshot</code>:</p>
+<pre><code class="language-typescript">interface RuntimeSnapshot {
+  // ... existing fields ...
+  readonly memories: SerializedMemoryRecord[]
+  readonly retrievalTraces: SerializedRetrievalTrace[]
+  readonly repositoryMaps: SerializedRepositoryMap[]
+}
+</code></pre>
+<p><code>SnapshotManager</code> provides capture functions:</p>
+<ul>
+<li><code>setCaptureMemories(fn: () =&gt; SerializedMemoryRecord[]): void</code></li>
+<li><code>setCaptureRetrievalTraces(fn: () =&gt; SerializedRetrievalTrace[]): void</code></li>
+<li><code>setCaptureRepositoryMaps(fn: () =&gt; SerializedRepositoryMap[]): void</code></li>
+</ul>
+<h2>Event Types</h2>
+<p>Eight new event types are added to the <code>AiriEvent</code> union:</p>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>Emitted When</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>memory.stored</code></td>
+<td>A memory record is stored</td>
+</tr>
+<tr>
+<td><code>memory.retrieved</code></td>
+<td>Memories are retrieved for context</td>
+</tr>
+<tr>
+<td><code>memory.updated</code></td>
+<td>A memory record is updated</td>
+</tr>
+<tr>
+<td><code>memory.removed</code></td>
+<td>A memory record is removed</td>
+</tr>
+<tr>
+<td><code>repository.indexed</code></td>
+<td>A repository is indexed</td>
+</tr>
+<tr>
+<td><code>decision.recorded</code></td>
+<td>A decision is recorded</td>
+</tr>
+<tr>
+<td><code>failure.recorded</code></td>
+<td>A failure is recorded</td>
+</tr>
+<tr>
+<td><code>failure.pattern.detected</code></td>
+<td>A recurring failure pattern is detected</td>
+</tr>
+</tbody></table>
+<h2>Design Decisions and Trade-offs</h2>
+<ol>
+<li><p><strong>Deterministic scoring over ML</strong>: Heuristic scoring is predictable and auditable. ML-based scoring would introduce non-determinism.</p>
+</li>
+<li><p><strong>InMemory storage</strong>: All memory classes use in-memory Maps. External persistence is handled via snapshots, not direct database writes.</p>
+</li>
+<li><p><strong>No singleton pattern</strong>: All classes are instantiated via constructor injection, following the existing DI pattern.</p>
+</li>
+<li><p><strong>Optional memory context</strong>: Memory retrieval is optional in cognition. If the retriever is not configured, cognition proceeds without memory.</p>
+</li>
+<li><p><strong>Pattern detection threshold</strong>: 3+ occurrences required to create a pattern. This balances sensitivity with noise reduction.</p>
+</li>
+<li><p><strong>Import parsing</strong>: Supports common import patterns for major languages. Does not use AST parsing — regex-based parsing is sufficient for graph construction.</p>
+</li>
+<li><p><strong>Content hashing</strong>: <code>RepositoryScanner</code> uses polynomial rolling hash for change detection. Not cryptographically secure, but sufficient for detecting file changes.</p>
+</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

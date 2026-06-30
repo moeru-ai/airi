@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cognition Layer - AIRI Architecture Docs</title>
+<style>
+:root { color-scheme: light dark; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; margin: 0; padding: 0; background: #fff; color: #1a1a1a; }
+@media (prefers-color-scheme: dark) { body { background: #1a1a2e; color: #e0e0e0; } }
+.container { display: flex; min-height: 100vh; }
+.sidebar { width: 280px; flex-shrink: 0; background: #f8f9fa; border-right: 1px solid #e1e4e8; padding: 2rem 1.5rem; position: sticky; top: 0; align-self: flex-start; overflow-y: auto; max-height: 100vh; }
+@media (prefers-color-scheme: dark) { .sidebar { background: #16213e; border-right-color: #0f3460; } }
+.sidebar h1 { font-size: 1.1rem; margin: 0 0 0.5rem 0; }
+.sidebar p { font-size: 0.8rem; color: #586069; margin: 0 0 1.5rem 0; }
+.sidebar nav { display: flex; flex-direction: column; gap: 0.25rem; }
+.sidebar nav a { display: block; padding: 0.4rem 0.75rem; border-radius: 6px; text-decoration: none; color: #24292e; font-size: 0.9rem; transition: background 0.15s; }
+@media (prefers-color-scheme: dark) { .sidebar nav a { color: #e0e0e0; } }
+.sidebar nav a:hover { background: #e1e4e8; }
+@media (prefers-color-scheme: dark) { .sidebar nav a:hover { background: #0f3460; } }
+.sidebar nav a.active { background: #0969da; color: white; font-weight: 500; }
+.content { flex: 1; max-width: 900px; padding: 3rem 4rem; line-height: 1.7; }
+.content h1 { font-size: 2rem; border-bottom: 2px solid #0969da; padding-bottom: 0.5rem; }
+.content h2 { font-size: 1.5rem; margin-top: 2.5rem; border-bottom: 1px solid #e1e4e8; padding-bottom: 0.3rem; }
+.content h3 { font-size: 1.2rem; margin-top: 2rem; }
+.content p { margin: 1rem 0; }
+.content ul, .content ol { padding-left: 2rem; margin: 1rem 0; }
+.content li { margin: 0.4rem 0; }
+.content code { background: #f6f8fa; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.9em; word-break: break-word; }
+@media (prefers-color-scheme: dark) { .content code { background: #0f3460; } }
+.content pre { background: #f6f8fa; border-radius: 8px; padding: 1.2rem; overflow-x: auto; border: 1px solid #e1e4e8; line-height: 1.5; }
+@media (prefers-color-scheme: dark) { .content pre { background: #0d1b2a; border-color: #0f3460; } }
+.content pre code { background: none; padding: 0; font-size: 0.85rem; }
+.content blockquote { border-left: 4px solid #0969da; background: #f0f7ff; padding: 0.8rem 1.2rem; margin: 1rem 0; border-radius: 0 8px 8px 0; }
+@media (prefers-color-scheme: dark) { .content blockquote { background: #0a2540; } }
+.content blockquote p { margin: 0.3rem 0; }
+.content table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.9rem; }
+.content th, .content td { border: 1px solid #d1d9e0; padding: 0.6rem 0.9rem; text-align: left; }
+.content th { background: #f6f8fa; }
+@media (prefers-color-scheme: dark) { .content th { background: #0f3460; } }
+.content a { color: #0969da; text-decoration: none; }
+.content a:hover { text-decoration: underline; }
+.colored-diagram { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 8px; padding: 1rem; overflow-x: auto; margin: 1rem 0; }
+@media (prefers-color-scheme: dark) { .colored-diagram { background: #0d1b2a; border-color: #0f3460; } }
+.colored-diagram pre { margin: 0; background: none; border: none; padding: 0; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 0.85rem; line-height: 1.4; }
+@media (max-width: 768px) { .container { flex-direction: column; } .sidebar { width: 100%; position: static; max-height: none; } .content { padding: 1.5rem; } }
+</style>
+</head>
+<body>
+<div class="container">
+<aside class="sidebar">
+<h1>AIRI Architecture Docs</h1>
+<nav><a href="bootstrap-flow.html" class="">Core — Bootstrap Flow</a>
+<a href="coding-workspace.html" class="">Core - Coding Workspace</a>
+<a href="cognition-layer.html" class="active">Cognition Layer</a>
+<a href="daemonization.html" class="">Daemonization Architecture</a>
+<a href="module-system.html" class="">Module System</a>
+<a href="planner-layer.html" class="">Planner Layer</a>
+<a href="runtime-kernel.html" class="">Runtime Kernel</a>
+<a href="runtime-persistence.html" class="">Runtime Persistence & Session Recovery</a>
+<a href="semantic-memory.html" class="">Semantic Memory & Repository Intelligence</a>
+<a href="worker-runtime.html" class="">Worker Runtime Architecture</a>
+<a href="workspace-isolation.html" class="">Workspace Isolation & Execution Sandbox Infrastructure</a></nav>
+</aside>
+<main class="content">
+<h1>Cognition Layer</h1>
+<h2>Overview</h2>
+<p>The cognition layer introduces AI-assisted planning to the AIRI core architecture <strong>without surrendering execution authority to the model</strong>. It generates plan proposals from structured context, validates them deterministically, and converts them into planner-compatible <code>Plan</code> objects for execution.</p>
+<h2>Design Principles</h2>
+<h3>1. Cognition is Proposal-Only</h3>
+<p>Providers produce <code>PlanProposal</code> objects — they have <strong>no runtime or tool access</strong>. The planner remains the sole execution authority. This is a hard architectural boundary:</p>
+<ul>
+<li>Providers cannot read files, execute commands, or modify state.</li>
+<li>Providers receive structured <code>CognitionContext</code> (capabilities, workspaces, history).</li>
+<li>Providers return serializable <code>CognitionResponse</code> (proposal + reasoning trace).</li>
+</ul>
+<h3>2. Deterministic Validation</h3>
+<p>The <code>PlanValidator</code> — not the LLM — decides whether a proposal is admissible. Validation checks are:</p>
+<ol>
+<li><strong>Capability requirements</strong>: All required capabilities must be registered and active.</li>
+<li><strong>Workspace requirements</strong>: All required workspaces must exist and be available.</li>
+<li><strong>Dependency graph</strong>: No circular dependencies; all references must resolve.</li>
+<li><strong>Step actions</strong>: All actions must map to registered tools.</li>
+<li><strong>Execution constraints</strong>: Timeouts, step counts, and parallelization limits.</li>
+</ol>
+<h3>3. Full Serializability</h3>
+<p>All cognition inputs and outputs are plain serializable objects. There is no prompt-driven hidden state:</p>
+<ul>
+<li><code>CognitionRequest</code> carries all context explicitly.</li>
+<li><code>CognitionResponse</code> includes a replayable <code>ReasoningTrace</code>.</li>
+<li><code>PlanProposal</code> is immutable after creation.</li>
+<li>All types can be persisted via the existing persistence layer.</li>
+</ul>
+<h3>4. Replayability</h3>
+<p>Every stage of the cognition pipeline emits <code>AiriEvent</code> events:</p>
+<ul>
+<li><code>cognition.requested</code> — request initiated</li>
+<li><code>cognition.completed</code> — proposal generated</li>
+<li><code>cognition.failed</code> — provider error</li>
+<li><code>plan.proposed</code> — proposal created</li>
+<li><code>plan.validated</code> — proposal accepted</li>
+<li><code>plan.rejected</code> — proposal failed validation</li>
+</ul>
+<p>These events are stored in the event store and can be replayed for auditing, debugging, and state reconstruction.</p>
+<h2>Architecture</h2>
+<div class="colored-diagram"><pre>┌─────────────────────────────────────────────────────────┐
+│                   CognitionCoordinator                   │
+│                                                         │
+│  1. Create CognitionRequest from context + prompt       │
+│  2. Call CognitionProvider.generatePlanProposal         │
+│  3. Emit cognition events                               │
+│  4. Validate proposal via PlanValidator                 │
+│  5. Emit validation events                              │
+│  6. If valid: convert to Plan via proposalToPlan        │
+│  7. Persist events if event store configured            │
+└────────────┬──────────────────────┬─────────────────────┘
+             │                      │
+             ▼                      ▼
+┌────────────────────┐  ┌──────────────────────┐
+│ CognitionProvider  │  │    PlanValidator     │
+│ (proposal-only)   │  │ (deterministic)      │
+│                    │  │                      │
+│ - generatePlan     │  │ - validate caps      │
+│ - getModelInfo     │  │ - validate workspaces│
+│ - isAvailable      │  │ - validate deps      │
+└────────────────────┘  │ - validate actions   │
+                        │ - normalize          │
+                        └──────────────────────┘
+</pre></div>
+<h2>Components</h2>
+<h3>Types (<code>core/cognition/types.ts</code>)</h3>
+<p>Branded types and serializable structures:</p>
+<ul>
+<li><code>ProposalId</code>, <code>ReasoningId</code>, <code>CognitionSessionId</code> — branded ID types</li>
+<li><code>CognitionRequest</code> — input to a cognition provider</li>
+<li><code>CognitionContext</code> — structured context (capabilities, workspaces, history)</li>
+<li><code>CognitionResponse</code> — output from a provider (proposal + reasoning)</li>
+<li><code>PlanProposal</code> — the core output of cognition</li>
+<li><code>ReasoningTrace</code> — replayable record of cognitive reasoning</li>
+<li><code>ValidationResult</code> — deterministic validation outcome</li>
+</ul>
+<h3>Provider Interface (<code>core/cognition/provider.ts</code>)</h3>
+<p>Minimal interface for cognition providers:</p>
+<pre><code class="language-ts">interface CognitionProvider {
+  generatePlanProposal(request, cancellationToken?): Promise&lt;CognitionResponse&gt;
+  getModelInfo(): ModelInfo
+  isAvailable(): Promise&lt;boolean&gt;
+}
+</code></pre>
+<h3>Plan Validator (<code>core/cognition/validator.ts</code>)</h3>
+<p>Deterministic validation of proposals:</p>
+<ul>
+<li>Checks capability registration and availability</li>
+<li>Checks workspace existence and state</li>
+<li>Validates dependency graph (cycle detection via DFS)</li>
+<li>Verifies step actions map to registered tools</li>
+<li>Returns structured errors and warnings</li>
+</ul>
+<h3>Mock Provider (<code>core/cognition/providers/mock-provider.ts</code>)</h3>
+<p>Fixture-driven provider for testing:</p>
+<ul>
+<li>Register proposals by prompt pattern</li>
+<li>Set a default fallback proposal</li>
+<li>Deterministic reasoning traces</li>
+<li>Supports cancellation</li>
+</ul>
+<h3>Coordinator (<code>core/cognition/coordinator.ts</code>)</h3>
+<p>Orchestrates the full pipeline:</p>
+<ul>
+<li>Creates <code>CognitionRequest</code> from context</li>
+<li>Calls provider, emits events</li>
+<li>Validates proposal</li>
+<li>Converts accepted proposals to <code>Plan</code> objects</li>
+<li>Returns <code>CognitionPipelineResult</code> with full audit trail</li>
+</ul>
+<h3>Persistence (<code>core/persistence/types.ts</code>)</h3>
+<p>Cognition state is included in <code>RuntimeSnapshot</code>:</p>
+<ul>
+<li><code>SerializedProposal</code> — serializable proposal with validation result</li>
+<li><code>SerializedReasoningTrace</code> — serializable reasoning trace</li>
+<li><code>RuntimeSnapshot.proposals</code> — all proposals at snapshot time</li>
+<li><code>RuntimeSnapshot.reasoningTraces</code> — all reasoning traces at snapshot time</li>
+</ul>
+<p>Cognition events are stored as regular <code>AiriEvent</code> entries in the event store — no special handling needed.</p>
+<h2>Usage</h2>
+<h3>Basic Pipeline</h3>
+<pre><code class="language-ts">import { CognitionCoordinator, PlanValidator, MockCognitionProvider } from &#39;./core/cognition/index.js&#39;
+
+const provider = new MockCognitionProvider()
+const validator = new PlanValidator(capabilityRegistry, workspaceManager)
+const coordinator = new CognitionCoordinator(provider, validator, events, logger)
+
+const result = await coordinator.proposePlan(
+  {
+    availableCapabilities: [createCapabilityId(&#39;code&#39;)],
+    availableWorkspaces: [createWorkspaceId(&#39;ws-1&#39;)],
+  },
+  &#39;Scan the project and identify issues&#39;,
+)
+
+if (result.accepted) {
+  // result.plan is ready for the planner
+  console.log(`Plan accepted: ${result.plan.name} (${result.plan.steps.length} steps)`)
+} else {
+  // result.validationResult contains errors
+  console.log(`Plan rejected: ${result.validationResult.errors.map(e =&gt; e.message).join(&#39;, &#39;)}`)
+}
+</code></pre>
+<h3>Registering Fixtures (Testing)</h3>
+<pre><code class="language-ts">const provider = new MockCognitionProvider()
+
+const scanProposal = createProposal(
+  createReasoningId(&#39;fixture&#39;),
+  &#39;Project Scan&#39;,
+  [
+    createTestProposedStep({ id: &#39;s1&#39;, name: &#39;Scan&#39;, action: &#39;read_file&#39; }),
+    createTestProposedStep({ id: &#39;s2&#39;, name: &#39;Analyze&#39;, action: &#39;analyze&#39;, dependencyIds: [&#39;s1&#39;] }),
+  ],
+)
+
+provider.registerFixture(&#39;scan&#39;, scanProposal)
+</code></pre>
+<h2>Known Limitations</h2>
+<ol>
+<li><strong>Mock provider only</strong>: No real LLM integration yet. The <code>MockCognitionProvider</code> is fixture-driven.</li>
+<li><strong>Single request flow</strong>: One request → one proposal → one validation. No multi-turn or iterative refinement.</li>
+<li><strong>No model routing</strong>: All requests go to a single provider. Multi-model orchestration is planned for a future phase.</li>
+<li><strong>No streaming</strong>: Proposals are generated as complete responses. Streaming partial results is not yet supported.</li>
+<li><strong>Basic context</strong>: Context includes capabilities, workspaces, and summaries. Richer context (code analysis, git history) is planned.</li>
+</ol>
+<h2>Future Direction</h2>
+<h3>Phase 13: Multi-Model Orchestration</h3>
+<ul>
+<li>Provider registry with capability-based routing</li>
+<li>Fallback chains (try primary provider, fall back to secondary)</li>
+<li>Model selection based on task complexity</li>
+<li>Cost-aware routing (cheaper models for simple tasks)</li>
+</ul>
+<h3>Phase 14: Iterative Refinement</h3>
+<ul>
+<li>Multi-turn cognition (proposal → feedback → revision)</li>
+<li>Planner feedback loop (execution results inform re-planning)</li>
+<li>Context enrichment from execution traces</li>
+</ul>
+<h3>Phase 15: Real LLM Integration</h3>
+<ul>
+<li>OpenAI provider (GPT-4, GPT-4o)</li>
+<li>Anthropic provider (Claude)</li>
+<li>Local model provider (Ollama, llama.cpp)</li>
+<li>Streaming response support</li>
+</ul>
+
+</main>
+</div>
+</body>
+</html>

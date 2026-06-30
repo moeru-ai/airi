@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Workspace Isolation & Execution Sandbox Infrastructure - AIRI Architecture Docs</title>
+<style>
+:root { color-scheme: light dark; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; margin: 0; padding: 0; background: #fff; color: #1a1a1a; }
+@media (prefers-color-scheme: dark) { body { background: #1a1a2e; color: #e0e0e0; } }
+.container { display: flex; min-height: 100vh; }
+.sidebar { width: 280px; flex-shrink: 0; background: #f8f9fa; border-right: 1px solid #e1e4e8; padding: 2rem 1.5rem; position: sticky; top: 0; align-self: flex-start; overflow-y: auto; max-height: 100vh; }
+@media (prefers-color-scheme: dark) { .sidebar { background: #16213e; border-right-color: #0f3460; } }
+.sidebar h1 { font-size: 1.1rem; margin: 0 0 0.5rem 0; }
+.sidebar p { font-size: 0.8rem; color: #586069; margin: 0 0 1.5rem 0; }
+.sidebar nav { display: flex; flex-direction: column; gap: 0.25rem; }
+.sidebar nav a { display: block; padding: 0.4rem 0.75rem; border-radius: 6px; text-decoration: none; color: #24292e; font-size: 0.9rem; transition: background 0.15s; }
+@media (prefers-color-scheme: dark) { .sidebar nav a { color: #e0e0e0; } }
+.sidebar nav a:hover { background: #e1e4e8; }
+@media (prefers-color-scheme: dark) { .sidebar nav a:hover { background: #0f3460; } }
+.sidebar nav a.active { background: #0969da; color: white; font-weight: 500; }
+.content { flex: 1; max-width: 900px; padding: 3rem 4rem; line-height: 1.7; }
+.content h1 { font-size: 2rem; border-bottom: 2px solid #0969da; padding-bottom: 0.5rem; }
+.content h2 { font-size: 1.5rem; margin-top: 2.5rem; border-bottom: 1px solid #e1e4e8; padding-bottom: 0.3rem; }
+.content h3 { font-size: 1.2rem; margin-top: 2rem; }
+.content p { margin: 1rem 0; }
+.content ul, .content ol { padding-left: 2rem; margin: 1rem 0; }
+.content li { margin: 0.4rem 0; }
+.content code { background: #f6f8fa; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.9em; word-break: break-word; }
+@media (prefers-color-scheme: dark) { .content code { background: #0f3460; } }
+.content pre { background: #f6f8fa; border-radius: 8px; padding: 1.2rem; overflow-x: auto; border: 1px solid #e1e4e8; line-height: 1.5; }
+@media (prefers-color-scheme: dark) { .content pre { background: #0d1b2a; border-color: #0f3460; } }
+.content pre code { background: none; padding: 0; font-size: 0.85rem; }
+.content blockquote { border-left: 4px solid #0969da; background: #f0f7ff; padding: 0.8rem 1.2rem; margin: 1rem 0; border-radius: 0 8px 8px 0; }
+@media (prefers-color-scheme: dark) { .content blockquote { background: #0a2540; } }
+.content blockquote p { margin: 0.3rem 0; }
+.content table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.9rem; }
+.content th, .content td { border: 1px solid #d1d9e0; padding: 0.6rem 0.9rem; text-align: left; }
+.content th { background: #f6f8fa; }
+@media (prefers-color-scheme: dark) { .content th { background: #0f3460; } }
+.content a { color: #0969da; text-decoration: none; }
+.content a:hover { text-decoration: underline; }
+.colored-diagram { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 8px; padding: 1rem; overflow-x: auto; margin: 1rem 0; }
+@media (prefers-color-scheme: dark) { .colored-diagram { background: #0d1b2a; border-color: #0f3460; } }
+.colored-diagram pre { margin: 0; background: none; border: none; padding: 0; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 0.85rem; line-height: 1.4; }
+@media (max-width: 768px) { .container { flex-direction: column; } .sidebar { width: 100%; position: static; max-height: none; } .content { padding: 1.5rem; } }
+</style>
+</head>
+<body>
+<div class="container">
+<aside class="sidebar">
+<h1>AIRI Architecture Docs</h1>
+<nav><a href="bootstrap-flow.html" class="">Core — Bootstrap Flow</a>
+<a href="coding-workspace.html" class="">Core - Coding Workspace</a>
+<a href="cognition-layer.html" class="">Cognition Layer</a>
+<a href="daemonization.html" class="">Daemonization Architecture</a>
+<a href="module-system.html" class="">Module System</a>
+<a href="planner-layer.html" class="">Planner Layer</a>
+<a href="runtime-kernel.html" class="">Runtime Kernel</a>
+<a href="runtime-persistence.html" class="">Runtime Persistence & Session Recovery</a>
+<a href="semantic-memory.html" class="">Semantic Memory & Repository Intelligence</a>
+<a href="worker-runtime.html" class="">Worker Runtime Architecture</a>
+<a href="workspace-isolation.html" class="active">Workspace Isolation & Execution Sandbox Infrastructure</a></nav>
+</aside>
+<main class="content">
+<h1>Workspace Isolation &amp; Execution Sandbox Infrastructure</h1>
+<h2>Why Isolation Precedes Autonomy</h2>
+<p>Before an AI agent can autonomously reason about tasks, it needs <strong>bounded execution environments</strong> where its actions are predictable, recoverable, and non-destructive. Workspace isolation provides this foundation:</p>
+<ul>
+<li><strong>Filesystem containment</strong>: All execution happens within a workspace directory. The agent cannot escape to the host filesystem.</li>
+<li><strong>Git isolation</strong>: All git operations target worktrees, never the primary repository. The agent can freely experiment with branches.</li>
+<li><strong>Lease-based access control</strong>: Only one session can execute in a workspace at a time, preventing conflicting concurrent modifications.</li>
+<li><strong>Deterministic recovery</strong>: After a crash or restart, workspace state is restored from snapshots + replayed events.</li>
+</ul>
+<h2>Worktree Strategy</h2>
+<h3>Branch-per-Workspace</h3>
+<p>Each workspace can optionally have its own git worktree:</p>
+<div class="colored-diagram"><pre>primary-repo/                  # Never mutated by agents
+├── .airi-worktrees/
+│   ├── ws-abc123/             # Workspace for workspace ws-abc123
+│   │   ├── .git               # Worktree marker (file, not dir)
+│   │   ├── src/
+│   │   └── ...
+│   └── ws-def456/             # Workspace for workspace ws-def456
+│       ├── .git
+│       └── ...
+├── src/                       # Primary source
+└── ...
+</pre></div>
+<p>Worktrees are created from a specified branch (e.g., <code>main</code>) with a new branch name derived from the workspace ID. This gives each workspace an isolated git history.</p>
+<h3>Detached Worktree Support</h3>
+<p>When no branch name is specified, a detached HEAD worktree is created. This is useful for:</p>
+<ul>
+<li>Exploratory tasks that don&#39;t need a named branch.</li>
+<li>One-off execution environments that will be discarded after task completion.</li>
+<li>Scenarios where the agent should not create persistent branches.</li>
+</ul>
+<h2>Execution Containment Philosophy</h2>
+<h3>Filesystem-Level Isolation</h3>
+<p>All filesystem operations are constrained to the workspace root:</p>
+<ol>
+<li><strong>Path validation</strong>: Every path is resolved relative to the workspace root and checked for traversal attacks (<code>../</code> escaping).</li>
+<li><strong>CWD scoping</strong>: Terminal commands execute with CWD set to the workspace root.</li>
+<li><strong>Session directories</strong>: Each session gets its own subdirectory under the workspace root for temporary files.</li>
+</ol>
+<h3>Lease Model</h3>
+<p>The lease model prevents conflicting concurrent access:</p>
+<pre><code>creating → active → leased → executing → suspended → active
+                    ↓
+              destroying → destroyed
+</code></pre>
+<ul>
+<li>A workspace can only be leased by one session at a time.</li>
+<li>Lease tokens are cryptographically random UUIDs.</li>
+<li>Leases can have optional expiry (for time-bounded execution).</li>
+<li>Workspace-scoped tools validate the lease before execution.</li>
+</ul>
+<h3>Event-Driven State Transitions</h3>
+<p>All workspace lifecycle transitions emit events through the EventBus:</p>
+<ul>
+<li><code>workspace.created</code> — New workspace created</li>
+<li><code>workspace.destroyed</code> — Workspace destroyed</li>
+<li><code>workspace.leased</code> — Lease acquired</li>
+<li><code>workspace.released</code> — Lease released</li>
+<li><code>workspace.recovered</code> — Workspace restored after restart</li>
+<li><code>workspace.corrupted</code> — Corruption detected</li>
+<li><code>worktree.created</code> — Git worktree created</li>
+<li><code>worktree.removed</code> — Git worktree removed</li>
+</ul>
+<h2>Deterministic Recovery Goals</h2>
+<p>After a crash or restart, workspace state is recovered deterministically:</p>
+<ol>
+<li><strong>Load snapshot</strong>: The latest <code>RuntimeSnapshot</code> is loaded, which now includes <code>SerializedWorkspace[]</code>.</li>
+<li><strong>Restore workspaces</strong>: Workspace manifests are loaded from <code>WorkspaceStorage</code> and restored into the <code>WorkspaceManager</code>.</li>
+<li><strong>Reconcile orphaned</strong>: Workspaces with no active session are flagged for cleanup.</li>
+<li><strong>Detect corruption</strong>: Invalid workspace metadata is detected and emitted as <code>workspace.corrupted</code> events.</li>
+<li><strong>Replay events</strong>: Events since the snapshot are replayed to rebuild in-memory state.</li>
+</ol>
+<p>Recovery is deterministic: same snapshot + same events = same recovered state.</p>
+<h2>Known Limitations</h2>
+<h3>Filesystem-Level Only</h3>
+<p>Current isolation is at the filesystem level only. There is no:</p>
+<ul>
+<li><strong>Kernel isolation</strong>: No cgroups, namespaces, or seccomp profiles.</li>
+<li><strong>Network isolation</strong>: Workspaces share the same network namespace.</li>
+<li><strong>Resource limits</strong>: No CPU/memory quotas per workspace.</li>
+</ul>
+<p>This is intentional for Phase 11. The goal is to establish the workspace abstraction and lifecycle before adding kernel-level isolation.</p>
+<h3>No Container/VM Orchestration</h3>
+<p>Workspaces use the host filesystem directly. Future phases may introduce:</p>
+<ul>
+<li><strong>Docker containers</strong> per workspace for kernel isolation.</li>
+<li><strong>MicroVMs</strong> (e.g., Firecracker) for stronger isolation with fast startup.</li>
+<li><strong>Kubernetes pods</strong> for distributed workspace scheduling.</li>
+</ul>
+<h3>Single-Process Assumption</h3>
+<p>The current <code>WorkspaceManager</code> is in-process. Multi-process workspace coordination (e.g., via IPC) is not yet implemented.</p>
+<h2>Suggested Next Phase</h2>
+<p><strong>Phase 12: Autonomous AI Behavior</strong> — With workspace isolation in place, the agent can now safely:</p>
+<ol>
+<li><strong>Autonomous task decomposition</strong>: Break tasks into plans with workspace-scoped steps.</li>
+<li><strong>Self-directed execution</strong>: Execute plans within workspaces without human intervention.</li>
+<li><strong>Progress reporting</strong>: Report progress through workspace events.</li>
+<li><strong>Error recovery</strong>: Recover from errors using workspace snapshots and replay.</li>
+</ol>
+<p>The workspace infrastructure ensures that even if the agent makes mistakes, the damage is contained within the workspace and recoverable.</p>
+
+</main>
+</div>
+</body>
+</html>

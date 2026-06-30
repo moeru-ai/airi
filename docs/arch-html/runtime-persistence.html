@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Runtime Persistence & Session Recovery - AIRI Architecture Docs</title>
+<style>
+:root { color-scheme: light dark; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; margin: 0; padding: 0; background: #fff; color: #1a1a1a; }
+@media (prefers-color-scheme: dark) { body { background: #1a1a2e; color: #e0e0e0; } }
+.container { display: flex; min-height: 100vh; }
+.sidebar { width: 280px; flex-shrink: 0; background: #f8f9fa; border-right: 1px solid #e1e4e8; padding: 2rem 1.5rem; position: sticky; top: 0; align-self: flex-start; overflow-y: auto; max-height: 100vh; }
+@media (prefers-color-scheme: dark) { .sidebar { background: #16213e; border-right-color: #0f3460; } }
+.sidebar h1 { font-size: 1.1rem; margin: 0 0 0.5rem 0; }
+.sidebar p { font-size: 0.8rem; color: #586069; margin: 0 0 1.5rem 0; }
+.sidebar nav { display: flex; flex-direction: column; gap: 0.25rem; }
+.sidebar nav a { display: block; padding: 0.4rem 0.75rem; border-radius: 6px; text-decoration: none; color: #24292e; font-size: 0.9rem; transition: background 0.15s; }
+@media (prefers-color-scheme: dark) { .sidebar nav a { color: #e0e0e0; } }
+.sidebar nav a:hover { background: #e1e4e8; }
+@media (prefers-color-scheme: dark) { .sidebar nav a:hover { background: #0f3460; } }
+.sidebar nav a.active { background: #0969da; color: white; font-weight: 500; }
+.content { flex: 1; max-width: 900px; padding: 3rem 4rem; line-height: 1.7; }
+.content h1 { font-size: 2rem; border-bottom: 2px solid #0969da; padding-bottom: 0.5rem; }
+.content h2 { font-size: 1.5rem; margin-top: 2.5rem; border-bottom: 1px solid #e1e4e8; padding-bottom: 0.3rem; }
+.content h3 { font-size: 1.2rem; margin-top: 2rem; }
+.content p { margin: 1rem 0; }
+.content ul, .content ol { padding-left: 2rem; margin: 1rem 0; }
+.content li { margin: 0.4rem 0; }
+.content code { background: #f6f8fa; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.9em; word-break: break-word; }
+@media (prefers-color-scheme: dark) { .content code { background: #0f3460; } }
+.content pre { background: #f6f8fa; border-radius: 8px; padding: 1.2rem; overflow-x: auto; border: 1px solid #e1e4e8; line-height: 1.5; }
+@media (prefers-color-scheme: dark) { .content pre { background: #0d1b2a; border-color: #0f3460; } }
+.content pre code { background: none; padding: 0; font-size: 0.85rem; }
+.content blockquote { border-left: 4px solid #0969da; background: #f0f7ff; padding: 0.8rem 1.2rem; margin: 1rem 0; border-radius: 0 8px 8px 0; }
+@media (prefers-color-scheme: dark) { .content blockquote { background: #0a2540; } }
+.content blockquote p { margin: 0.3rem 0; }
+.content table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.9rem; }
+.content th, .content td { border: 1px solid #d1d9e0; padding: 0.6rem 0.9rem; text-align: left; }
+.content th { background: #f6f8fa; }
+@media (prefers-color-scheme: dark) { .content th { background: #0f3460; } }
+.content a { color: #0969da; text-decoration: none; }
+.content a:hover { text-decoration: underline; }
+.colored-diagram { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 8px; padding: 1rem; overflow-x: auto; margin: 1rem 0; }
+@media (prefers-color-scheme: dark) { .colored-diagram { background: #0d1b2a; border-color: #0f3460; } }
+.colored-diagram pre { margin: 0; background: none; border: none; padding: 0; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 0.85rem; line-height: 1.4; }
+@media (max-width: 768px) { .container { flex-direction: column; } .sidebar { width: 100%; position: static; max-height: none; } .content { padding: 1.5rem; } }
+</style>
+</head>
+<body>
+<div class="container">
+<aside class="sidebar">
+<h1>AIRI Architecture Docs</h1>
+<nav><a href="bootstrap-flow.html" class="">Core — Bootstrap Flow</a>
+<a href="coding-workspace.html" class="">Core - Coding Workspace</a>
+<a href="cognition-layer.html" class="">Cognition Layer</a>
+<a href="daemonization.html" class="">Daemonization Architecture</a>
+<a href="module-system.html" class="">Module System</a>
+<a href="planner-layer.html" class="">Planner Layer</a>
+<a href="runtime-kernel.html" class="">Runtime Kernel</a>
+<a href="runtime-persistence.html" class="active">Runtime Persistence & Session Recovery</a>
+<a href="semantic-memory.html" class="">Semantic Memory & Repository Intelligence</a>
+<a href="worker-runtime.html" class="">Worker Runtime Architecture</a>
+<a href="workspace-isolation.html" class="">Workspace Isolation & Execution Sandbox Infrastructure</a></nav>
+</aside>
+<main class="content">
+<h1>Runtime Persistence &amp; Session Recovery</h1>
+<h2>Overview</h2>
+<p>Phase 10 transforms the AIRI runtime from process-bound orchestration into
+recoverable persistent infrastructure. The runtime can now survive daemon
+restarts by persisting state to disk and replaying events to reconstruct
+in-memory state.</p>
+<h2>Architecture</h2>
+<h3>Append-Only Event Store</h3>
+<p>The core persistence primitive is an <strong>append-only event store</strong>. Every
+significant state transition (plan started, step completed, task failed, etc.)
+is recorded as an immutable event with a monotonic sequence number.</p>
+<pre><code>Event ID format: evt_{sequence}_{timestamp}
+Example: evt_42_1706119234567
+</code></pre>
+<p>Events are ordered by sequence number, not by timestamp. This guarantees
+deterministic ordering even when multiple events share the same timestamp.</p>
+<p><strong>Key properties:</strong></p>
+<ul>
+<li>Events are never mutated or deleted (append-only).</li>
+<li>Each event gets a unique, monotonically increasing sequence number.</li>
+<li>Events can be queried by: session, module, type, execution ID, or since a given event ID.</li>
+</ul>
+<h3>Snapshot Strategy</h3>
+<p>Snapshots are <strong>point-in-time captures</strong> of the full runtime state. They are:</p>
+<ul>
+<li><strong>Versioned</strong>: each save increments the version number.</li>
+<li><strong>Lightweight</strong>: only essential state is serialized (plans, tasks, capabilities, sessions).</li>
+<li><strong>Prunable</strong>: old snapshots are automatically removed, keeping only the N most recent.</li>
+</ul>
+<p>Recovery loads the latest snapshot and replays events since that snapshot.
+This bounds recovery time — instead of replaying all events from the beginning
+of time, only events since the last snapshot need to be replayed.</p>
+<h3>Deterministic Recovery Philosophy</h3>
+<p>Recovery is <strong>deterministic</strong>: given the same snapshot and the same events,
+the recovered state is always the same. There is no &quot;smart&quot; recovery heuristics
+or implicit magic.</p>
+<p><strong>Recovery flow:</strong></p>
+<ol>
+<li>Load the latest snapshot.</li>
+<li>Replay events since the snapshot.</li>
+<li>Restore planner state (active plans, pending steps).</li>
+<li>Restore active executions (running tasks).</li>
+<li>Restore session ownership.</li>
+<li>Reconcile incomplete executions (mark running-but-not-actively-running as failed).</li>
+</ol>
+<p><strong>Reconciliation:</strong>
+Executions that were running at snapshot time but are not actively running
+at recovery time are marked as failed. This handles the case where the daemon
+crashed mid-execution.</p>
+<h3>Session Persistence</h3>
+<p>Sessions survive frontend disconnects. When a client disconnects:</p>
+<ul>
+<li>The session is marked as &quot;detached&quot; but retained.</li>
+<li>A recovery token is generated for reconnection.</li>
+<li>The session can be resumed by providing the recovery token.</li>
+</ul>
+<p>Sessions are only destroyed on:</p>
+<ul>
+<li>Explicit cleanup (e.g., user logs out).</li>
+<li>Expiry (detached sessions older than a configurable threshold).</li>
+</ul>
+<h3>Planner Persistence Integration</h3>
+<p>The <code>PlanExecutor</code> accepts an optional <code>EventStore</code>. When configured:</p>
+<ul>
+<li>All plan lifecycle events (plan.started, plan.completed, plan.failed, plan.cancelled)
+are persisted to the event store.</li>
+<li>All step lifecycle events (step.started, step.completed, step.failed) are persisted.</li>
+<li>Plans can be marked as <code>resumable</code> — they can be restored after a restart.</li>
+<li>Already-completed steps are skipped on replay (idempotent recovery).</li>
+<li>Cancelled plans remain cancelled after restart.</li>
+</ul>
+<h3>Execution Persistence Integration</h3>
+<p>The <code>ExecutionTrace</code> accepts an optional <code>EventStore</code>. When configured:</p>
+<ul>
+<li>Each execution record is persisted to the event store.</li>
+<li>Execution IDs remain stable across restarts (they&#39;re already UUIDs).</li>
+<li>Failed recovery attempts become events in the store.</li>
+</ul>
+<p>The <code>LocalToolRuntime</code> also accepts an optional <code>EventStore</code> for persisting
+tool execution lifecycle events.</p>
+<h2>File Structure</h2>
+<pre><code>core/
+  persistence/
+    types.ts                    — Persistence abstractions (interfaces)
+    event-store.ts              — InMemoryEventStore + PersistedEventStore
+    snapshots.ts                — InMemorySnapshotStore + SnapshotManager
+    index.ts                    — Barrel export
+    adapters/
+      filesystem/
+        adapter.ts              — FilesystemPersistenceAdapter
+        event-store.ts          — FilesystemEventStore
+        snapshot-store.ts       — FilesystemSnapshotStore
+        runtime-state-store.ts  — FilesystemRuntimeStateStore
+        index.ts                — Barrel export
+  session/
+    types.ts                    — Persistent session types
+    session-manager.ts          — PersistentSessionManager
+  runtime/
+    recovery.ts                 — RecoveryCoordinator
+  planner/
+    executor.ts                 — Modified: optional EventStore persistence
+  runtime/
+    execution-trace.ts          — Modified: optional EventStore persistence
+    local-tool-runtime.ts       — Modified: optional EventStore persistence
+  __tests__/
+    persistence.test.ts         — Persistence layer tests
+    filesystem-adapter.test.ts  — Filesystem adapter tests
+</code></pre>
+<h2>Why Persistence Precedes Autonomy</h2>
+<p>Before the runtime can support autonomous operation (self-directed task
+execution, long-running plans), it must be able to survive restarts.
+A plan that takes hours to complete cannot afford to lose progress because
+of a daemon restart.</p>
+<p>Persistence provides the foundation for:</p>
+<ul>
+<li><strong>Long-running plans</strong>: plans that span daemon restarts.</li>
+<li><strong>Session continuity</strong>: clients can disconnect and reconnect without losing state.</li>
+<li><strong>Auditability</strong>: the event store provides a complete history of all state transitions.</li>
+<li><strong>Debugging</strong>: replaying events to understand how a particular state was reached.</li>
+</ul>
+<h2>Future Distributed Runtime Implications</h2>
+<p>The persistence abstractions are designed to support future distributed scenarios:</p>
+<ul>
+<li><strong>PersistenceAdapter</strong> can be implemented for remote blob stores (S3, GCS).</li>
+<li><strong>EventStore</strong> can be backed by distributed log systems (Kafka, Pulsar).</li>
+<li><strong>SessionOwnership</strong> tracks which process owns a session, enabling session affinity.</li>
+<li><strong>RecoveryCoordinator</strong> can be extended to coordinate recovery across multiple nodes.</li>
+</ul>
+<h2>Known Limitations</h2>
+<ol>
+<li><p><strong>Filesystem-only</strong>: Currently only filesystem-based persistence is implemented.
+No database or remote storage backends.</p>
+</li>
+<li><p><strong>Full event scan</strong>: The filesystem event store does a full file scan for queries.
+This is acceptable for bounded event counts but will need indexing for large-scale use.</p>
+</li>
+<li><p><strong>No event pruning</strong>: The event store does not yet prune old events.
+A future version should implement time-based or count-based retention.</p>
+</li>
+<li><p><strong>Single-process</strong>: Recovery assumes a single daemon process. No distributed
+coordination is implemented.</p>
+</li>
+<li><p><strong>No encryption</strong>: Data is stored in plaintext on disk. Sensitive data should
+be encrypted at rest in production deployments.</p>
+</li>
+</ol>
+<h2>Future Migration Recommendations</h2>
+<ol>
+<li><p><strong>Database backend</strong>: Implement PersistenceAdapter for SQLite or PostgreSQL
+for better query performance and concurrent access.</p>
+</li>
+<li><p><strong>Event indexing</strong>: Add an index layer (e.g., B-tree) for efficient event
+queries without full scans.</p>
+</li>
+<li><p><strong>Snapshot compression</strong>: Compress snapshot files to reduce disk usage.</p>
+</li>
+<li><p><strong>Incremental snapshots</strong>: Instead of full snapshots, store only the
+delta since the last snapshot.</p>
+</li>
+<li><p><strong>Distributed consensus</strong>: For multi-node deployments, use a consensus
+protocol (Raft) to coordinate recovery.</p>
+</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

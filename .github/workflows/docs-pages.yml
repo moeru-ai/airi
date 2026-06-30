@@ -45,6 +45,9 @@ jobs:
       - name: Generate TypeDoc API reference
         run: pnpm docs:generate
 
+      - name: Generate architecture HTML docs
+        run: pnpm docs:arch
+
       - name: Verify docs/api was produced
         run: |
           if [ ! -f docs/api/index.html ]; then
@@ -68,3 +71,40 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  commit:
+    name: Commit docs to repo
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: true
+          ref: main
+
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm docs:generate
+      - run: pnpm docs:arch
+
+      - name: Commit generated docs
+        run: |
+          git config user.name "actions-user"
+          git config user.email "actions@github.com"
+          git add docs/api/ docs/arch-html/
+          if git diff --cached --quiet; then
+            echo "Docs up to date — no commit needed"
+            exit 0
+          fi
+          git commit -m "chore(ci): update generated docs (api + arch-html)"
+          git push

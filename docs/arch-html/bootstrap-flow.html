@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Core — Bootstrap Flow - AIRI Architecture Docs</title>
+<style>
+:root { color-scheme: light dark; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; margin: 0; padding: 0; background: #fff; color: #1a1a1a; }
+@media (prefers-color-scheme: dark) { body { background: #1a1a2e; color: #e0e0e0; } }
+.container { display: flex; min-height: 100vh; }
+.sidebar { width: 280px; flex-shrink: 0; background: #f8f9fa; border-right: 1px solid #e1e4e8; padding: 2rem 1.5rem; position: sticky; top: 0; align-self: flex-start; overflow-y: auto; max-height: 100vh; }
+@media (prefers-color-scheme: dark) { .sidebar { background: #16213e; border-right-color: #0f3460; } }
+.sidebar h1 { font-size: 1.1rem; margin: 0 0 0.5rem 0; }
+.sidebar p { font-size: 0.8rem; color: #586069; margin: 0 0 1.5rem 0; }
+.sidebar nav { display: flex; flex-direction: column; gap: 0.25rem; }
+.sidebar nav a { display: block; padding: 0.4rem 0.75rem; border-radius: 6px; text-decoration: none; color: #24292e; font-size: 0.9rem; transition: background 0.15s; }
+@media (prefers-color-scheme: dark) { .sidebar nav a { color: #e0e0e0; } }
+.sidebar nav a:hover { background: #e1e4e8; }
+@media (prefers-color-scheme: dark) { .sidebar nav a:hover { background: #0f3460; } }
+.sidebar nav a.active { background: #0969da; color: white; font-weight: 500; }
+.content { flex: 1; max-width: 900px; padding: 3rem 4rem; line-height: 1.7; }
+.content h1 { font-size: 2rem; border-bottom: 2px solid #0969da; padding-bottom: 0.5rem; }
+.content h2 { font-size: 1.5rem; margin-top: 2.5rem; border-bottom: 1px solid #e1e4e8; padding-bottom: 0.3rem; }
+.content h3 { font-size: 1.2rem; margin-top: 2rem; }
+.content p { margin: 1rem 0; }
+.content ul, .content ol { padding-left: 2rem; margin: 1rem 0; }
+.content li { margin: 0.4rem 0; }
+.content code { background: #f6f8fa; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.9em; word-break: break-word; }
+@media (prefers-color-scheme: dark) { .content code { background: #0f3460; } }
+.content pre { background: #f6f8fa; border-radius: 8px; padding: 1.2rem; overflow-x: auto; border: 1px solid #e1e4e8; line-height: 1.5; }
+@media (prefers-color-scheme: dark) { .content pre { background: #0d1b2a; border-color: #0f3460; } }
+.content pre code { background: none; padding: 0; font-size: 0.85rem; }
+.content blockquote { border-left: 4px solid #0969da; background: #f0f7ff; padding: 0.8rem 1.2rem; margin: 1rem 0; border-radius: 0 8px 8px 0; }
+@media (prefers-color-scheme: dark) { .content blockquote { background: #0a2540; } }
+.content blockquote p { margin: 0.3rem 0; }
+.content table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.9rem; }
+.content th, .content td { border: 1px solid #d1d9e0; padding: 0.6rem 0.9rem; text-align: left; }
+.content th { background: #f6f8fa; }
+@media (prefers-color-scheme: dark) { .content th { background: #0f3460; } }
+.content a { color: #0969da; text-decoration: none; }
+.content a:hover { text-decoration: underline; }
+.colored-diagram { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 8px; padding: 1rem; overflow-x: auto; margin: 1rem 0; }
+@media (prefers-color-scheme: dark) { .colored-diagram { background: #0d1b2a; border-color: #0f3460; } }
+.colored-diagram pre { margin: 0; background: none; border: none; padding: 0; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 0.85rem; line-height: 1.4; }
+@media (max-width: 768px) { .container { flex-direction: column; } .sidebar { width: 100%; position: static; max-height: none; } .content { padding: 1.5rem; } }
+</style>
+</head>
+<body>
+<div class="container">
+<aside class="sidebar">
+<h1>AIRI Architecture Docs</h1>
+<nav><a href="bootstrap-flow.html" class="active">Core — Bootstrap Flow</a>
+<a href="coding-workspace.html" class="">Core - Coding Workspace</a>
+<a href="cognition-layer.html" class="">Cognition Layer</a>
+<a href="daemonization.html" class="">Daemonization Architecture</a>
+<a href="module-system.html" class="">Module System</a>
+<a href="planner-layer.html" class="">Planner Layer</a>
+<a href="runtime-kernel.html" class="">Runtime Kernel</a>
+<a href="runtime-persistence.html" class="">Runtime Persistence & Session Recovery</a>
+<a href="semantic-memory.html" class="">Semantic Memory & Repository Intelligence</a>
+<a href="worker-runtime.html" class="">Worker Runtime Architecture</a>
+<a href="workspace-isolation.html" class="">Workspace Isolation & Execution Sandbox Infrastructure</a></nav>
+</aside>
+<main class="content">
+<h1>AIRI Core — Bootstrap Flow</h1>
+<h2>Overview</h2>
+<p>The AIRI Core is the central orchestration layer that manages module lifecycle, inter-module communication, and runtime connectivity. This document describes the startup sequence, ownership boundaries, and the rationale behind the runtime/event systems.</p>
+<h2>Startup Lifecycle</h2>
+<div class="colored-diagram"><pre>┌─────────────────────────────────────────────────────────┐
+│                    bootstrap()                          │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  Phase 1: Create EventBus                               │
+│     └─ In-memory pub/sub for inter-module messaging     │
+│                                                         │
+│  Phase 2: Create RuntimeClient                          │
+│     └─ Local in-process client (no networking)          │
+│                                                         │
+│  Phase 3: Create ModuleRegistry                         │
+│     └─ Manages module registration & lifecycle          │
+│                                                         │
+│  Phase 4: (Reserved for future built-in modules)       │
+│                                                         │
+│  Phase 5: Connect runtime                              │
+│     └─ State: disconnected → connecting → connected     │
+│                                                         │
+│  Phase 6: Activate modules                              │
+│     └─ For each module (in registration order):         │
+│         ├─ Create per-module CoreContext                │
+│         ├─ Call module.activate(ctx)                    │
+│         ├─ On success → emit ModuleActivated            │
+│         └─ On failure → emit ModuleCrashed              │
+│                                                         │
+│  Return CoreInstance handle                             │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+</pre></div>
+<h2>Shutdown Sequence</h2>
+<p>Shutdown runs in reverse order:</p>
+<ol>
+<li><strong>Deactivate modules</strong> in reverse registration order (best-effort; failures don&#39;t block other modules).</li>
+<li><strong>Disconnect runtime</strong> (state: connected → disconnected).</li>
+<li>Core is now fully shut down.</li>
+</ol>
+<h2>Ownership Boundaries</h2>
+<div class="colored-diagram"><pre>┌──────────────────────────────────────────────────┐
+│                  CoreInstance                     │
+│                                                   │
+│  ┌──────────┐  ┌──────────┐  ┌───────────────┐  │
+│  │ EventBus  │  │ Runtime  │  │   Registry    │  │
+│  │           │  │ Client   │  │               │  │
+│  │ on()      │  │ connect()│  │ register()    │  │
+│  │ once()    │  │ send()   │  │ activateAll() │  │
+│  │ emit()    │  │ sub()    │  │ deactivateAll│  │
+│  │ publish() │  │ state    │  │ isActive()    │  │
+│  └──────────┘  └──────────┘  └───────────────┘  │
+│                                                   │
+│  Owned by: bootstrap()                            │
+│  Consumed by: AiriModule.activate(ctx)            │
+└──────────────────────────────────────────────────┘
+</pre></div>
+<ul>
+<li><strong>EventBus</strong> is the sole inter-module communication channel. Modules never call each other directly.</li>
+<li><strong>RuntimeClient</strong> is the sole external communication channel. Modules use it to send/receive messages beyond the local process.</li>
+<li><strong>ModuleRegistry</strong> owns module lifecycle. Modules are registered, activated, and deactivated through it.</li>
+<li><strong>CoreContext</strong> is the injection boundary. Each module receives a context with its own <code>moduleId</code> and tagged <code>logger</code>.</li>
+</ul>
+<h2>Why Runtime and Event Systems Exist</h2>
+<h3>EventBus — Inter-Module Communication</h3>
+<p>Modules need to communicate without tight coupling. The EventBus provides:</p>
+<ul>
+<li><strong>Decoupling</strong>: Publishers don&#39;t know who subscribes. Subscribers don&#39;t know who publishes.</li>
+<li><strong>Type safety</strong>: Events are defined as a discriminated union (<code>AiriEvent</code>) in <code>core/events/types.ts</code>.</li>
+<li><strong>Isolation</strong>: A failing listener never breaks delivery to other listeners.</li>
+</ul>
+<h3>RuntimeClient — External Communication</h3>
+<p>The runtime client abstracts the transport layer. Today it&#39;s in-process (backed by EventBus). Tomorrow it could be:</p>
+<ul>
+<li>WebSocket to a remote AIRI daemon.</li>
+<li>stdio to a child process.</li>
+<li>IPC to a desktop shell.</li>
+</ul>
+<p>Modules don&#39;t care — they just call <code>send()</code> and <code>subscribe()</code>.</p>
+<h2>Future Daemonization Path</h2>
+<p>When AIRI Core moves to a standalone daemon process:</p>
+<ol>
+<li><strong>Replace <code>LocalRuntimeClient</code></strong> with a WebSocket or stdio transport.</li>
+<li><strong>EventBus stays in-process</strong> — it&#39;s the daemon&#39;s internal message bus.</li>
+<li><strong>Frontend connects as a remote client</strong> — sends commands, receives events.</li>
+<li><strong>Module lifecycle stays identical</strong> — the registry and bootstrap don&#39;t change.</li>
+</ol>
+<div class="colored-diagram"><pre>Future state:
+
+  ┌─────────────┐     WebSocket      ┌──────────────────┐
+  │   Frontend  │ ◄────────────────► │   AIRI Daemon    │
+  │  (Electron) │                    │                  │
+  └─────────────┘                    │  ┌────────────┐  │
+                                     │  │ EventBus   │  │
+                                     │  │ Registry   │  │
+                                     │  │ Modules    │  │
+                                     │  └────────────┘  │
+                                     └──────────────────┘
+</pre></div>
+<h2>Detached Frontend / Runtime Direction</h2>
+<p>The long-term direction is to separate the frontend (Electron/web UI) from the runtime (AIRI daemon):</p>
+<ul>
+<li><strong>Frontend</strong>: Renders UI, captures user input, sends commands to the daemon.</li>
+<li><strong>Daemon</strong>: Runs modules, manages state, executes tasks, emits events back.</li>
+</ul>
+<p>The Core module system is designed to support this from day one — the <code>RuntimeClient</code> interface is the seam where the transport can be swapped without touching any module code.</p>
+
+</main>
+</div>
+</body>
+</html>

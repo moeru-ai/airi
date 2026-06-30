@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Worker Runtime Architecture - AIRI Architecture Docs</title>
+<style>
+:root { color-scheme: light dark; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; margin: 0; padding: 0; background: #fff; color: #1a1a1a; }
+@media (prefers-color-scheme: dark) { body { background: #1a1a2e; color: #e0e0e0; } }
+.container { display: flex; min-height: 100vh; }
+.sidebar { width: 280px; flex-shrink: 0; background: #f8f9fa; border-right: 1px solid #e1e4e8; padding: 2rem 1.5rem; position: sticky; top: 0; align-self: flex-start; overflow-y: auto; max-height: 100vh; }
+@media (prefers-color-scheme: dark) { .sidebar { background: #16213e; border-right-color: #0f3460; } }
+.sidebar h1 { font-size: 1.1rem; margin: 0 0 0.5rem 0; }
+.sidebar p { font-size: 0.8rem; color: #586069; margin: 0 0 1.5rem 0; }
+.sidebar nav { display: flex; flex-direction: column; gap: 0.25rem; }
+.sidebar nav a { display: block; padding: 0.4rem 0.75rem; border-radius: 6px; text-decoration: none; color: #24292e; font-size: 0.9rem; transition: background 0.15s; }
+@media (prefers-color-scheme: dark) { .sidebar nav a { color: #e0e0e0; } }
+.sidebar nav a:hover { background: #e1e4e8; }
+@media (prefers-color-scheme: dark) { .sidebar nav a:hover { background: #0f3460; } }
+.sidebar nav a.active { background: #0969da; color: white; font-weight: 500; }
+.content { flex: 1; max-width: 900px; padding: 3rem 4rem; line-height: 1.7; }
+.content h1 { font-size: 2rem; border-bottom: 2px solid #0969da; padding-bottom: 0.5rem; }
+.content h2 { font-size: 1.5rem; margin-top: 2.5rem; border-bottom: 1px solid #e1e4e8; padding-bottom: 0.3rem; }
+.content h3 { font-size: 1.2rem; margin-top: 2rem; }
+.content p { margin: 1rem 0; }
+.content ul, .content ol { padding-left: 2rem; margin: 1rem 0; }
+.content li { margin: 0.4rem 0; }
+.content code { background: #f6f8fa; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.9em; word-break: break-word; }
+@media (prefers-color-scheme: dark) { .content code { background: #0f3460; } }
+.content pre { background: #f6f8fa; border-radius: 8px; padding: 1.2rem; overflow-x: auto; border: 1px solid #e1e4e8; line-height: 1.5; }
+@media (prefers-color-scheme: dark) { .content pre { background: #0d1b2a; border-color: #0f3460; } }
+.content pre code { background: none; padding: 0; font-size: 0.85rem; }
+.content blockquote { border-left: 4px solid #0969da; background: #f0f7ff; padding: 0.8rem 1.2rem; margin: 1rem 0; border-radius: 0 8px 8px 0; }
+@media (prefers-color-scheme: dark) { .content blockquote { background: #0a2540; } }
+.content blockquote p { margin: 0.3rem 0; }
+.content table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.9rem; }
+.content th, .content td { border: 1px solid #d1d9e0; padding: 0.6rem 0.9rem; text-align: left; }
+.content th { background: #f6f8fa; }
+@media (prefers-color-scheme: dark) { .content th { background: #0f3460; } }
+.content a { color: #0969da; text-decoration: none; }
+.content a:hover { text-decoration: underline; }
+.colored-diagram { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 8px; padding: 1rem; overflow-x: auto; margin: 1rem 0; }
+@media (prefers-color-scheme: dark) { .colored-diagram { background: #0d1b2a; border-color: #0f3460; } }
+.colored-diagram pre { margin: 0; background: none; border: none; padding: 0; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 0.85rem; line-height: 1.4; }
+@media (max-width: 768px) { .container { flex-direction: column; } .sidebar { width: 100%; position: static; max-height: none; } .content { padding: 1.5rem; } }
+</style>
+</head>
+<body>
+<div class="container">
+<aside class="sidebar">
+<h1>AIRI Architecture Docs</h1>
+<nav><a href="bootstrap-flow.html" class="">Core — Bootstrap Flow</a>
+<a href="coding-workspace.html" class="">Core - Coding Workspace</a>
+<a href="cognition-layer.html" class="">Cognition Layer</a>
+<a href="daemonization.html" class="">Daemonization Architecture</a>
+<a href="module-system.html" class="">Module System</a>
+<a href="planner-layer.html" class="">Planner Layer</a>
+<a href="runtime-kernel.html" class="">Runtime Kernel</a>
+<a href="runtime-persistence.html" class="">Runtime Persistence & Session Recovery</a>
+<a href="semantic-memory.html" class="">Semantic Memory & Repository Intelligence</a>
+<a href="worker-runtime.html" class="active">Worker Runtime Architecture</a>
+<a href="workspace-isolation.html" class="">Workspace Isolation & Execution Sandbox Infrastructure</a></nav>
+</aside>
+<main class="content">
+<h1>Worker Runtime Architecture</h1>
+<h2>Overview</h2>
+<p>The AIRI daemon has been transformed from a process that executes tasks directly into a <strong>supervisory orchestration kernel</strong> that dispatches tasks to isolated worker processes. This architecture ensures that a crashing executor cannot bring down the entire daemon.</p>
+<div class="colored-diagram"><pre>┌─────────────────────────────────────────────────────────┐
+│                    AIRI Daemon                          │
+│                 (Orchestration Kernel)                  │
+│                                                         │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
+│  │ TaskManager  │  │TaskScheduler  │  │WorkerManager │  │
+│  │              │  │              │  │              │  │
+│  │ task CRUD    │  │ priority     │  │ pool mgmt    │  │
+│  │ state machine│  │ dispatch     │  │ crash recovery│  │
+│  │ lifecycle    │  │              │  │ quarantine  │  │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  │
+│         │                 │                  │          │
+│         └────────┬────────┘                  │          │
+│                  │                           │          │
+│           ┌──────▼───────────────────────────▼──────┐   │
+│           │         EventBus (IPC)                   │   │
+│           └──────┬───────────────────────────┬──────┘   │
+│                  │                           │          │
+└──────────────────┼───────────────────────────┼──────────┘
+                   │                           │
+    ┌──────────────┼──────────┐    ┌───────────┼──────────┐
+    │              ▼          │    │           ▼          │
+    │  ┌──────────────────┐   │    │  ┌──────────────────┐│
+    │  │  IPC Server      │   │    │  │  Worker Pool     ││
+    │  │  (Unix socket)   │   │    │  │                  ││
+    │  └──────────────────┘   │    │  │  ┌────────────┐  ││
+    │                          │    │  │  │ Worker #1  │  ││
+    │                          │    │  │  │ (Node.js)  │  ││
+    │                          │    │  │  └────────────┘  ││
+    │                          │    │  │  ┌────────────┐  ││
+    │                          │    │  │  │ Worker #2  │  ││
+    │                          │    │  │  │ (Node.js)  │  ││
+    │                          │    │  │  └────────────┘  ││
+    │                          │    │  └──────────────────┘│
+    └──────────────────────────┘    └──────────────────────┘
+</pre></div>
+<h2>Protocol</h2>
+<h3>Transport</h3>
+<p>Communication between daemon and workers uses <strong>length-prefixed JSON</strong> over stdio:</p>
+<pre><code>[4 bytes: message length (big-endian uint32)][N bytes: UTF-8 JSON]
+</code></pre>
+<p>This is the same framing used by the existing local-socket transport.</p>
+<h3>Message Types</h3>
+<p>All messages carry <code>id</code>, <code>type</code>, and <code>timestamp</code> fields.</p>
+<h4>Worker → Daemon</h4>
+<table>
+<thead>
+<tr>
+<th>Message</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>worker.hello</code></td>
+<td>Worker announces itself with capabilities</td>
+</tr>
+<tr>
+<td><code>worker.ready</code></td>
+<td>Worker is idle and ready for a task</td>
+</tr>
+<tr>
+<td><code>worker.heartbeat</code></td>
+<td>Periodic liveness ping</td>
+</tr>
+<tr>
+<td><code>worker.shutdown</code></td>
+<td>Graceful shutdown notice</td>
+</tr>
+<tr>
+<td><code>task.progress</code></td>
+<td>Progress update during execution</td>
+</tr>
+<tr>
+<td><code>task.result</code></td>
+<td>Successful completion</td>
+</tr>
+<tr>
+<td><code>task.failure</code></td>
+<td>Execution failed</td>
+</tr>
+</tbody></table>
+<h4>Daemon → Worker</h4>
+<table>
+<thead>
+<tr>
+<th>Message</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>execute.task</code></td>
+<td>Assign a task for execution</td>
+</tr>
+</tbody></table>
+<h3>Message Sequencing</h3>
+<div class="colored-diagram"><pre>Worker                          Daemon
+  │                               │
+  │──── worker.hello ────────────>│
+  │<─── execute.task ─────────────│
+  │──── task.progress ───────────>│
+  │──── task.progress ───────────>│
+  │──── task.result ─────────────>│
+  │──── worker.ready ────────────>│
+  │                               │
+</pre></div>
+<h2>Lifecycle</h2>
+<h3>Worker Startup</h3>
+<ol>
+<li>Worker process is spawned via <code>fork()</code> with <code>AIRIER_WORKER_ID</code> env var</li>
+<li>Worker sends <code>worker.hello</code> with capabilities (supported module IDs)</li>
+<li>Worker transitions to &quot;ready&quot; state</li>
+<li>Worker starts sending <code>worker.heartbeat</code> every 10 seconds</li>
+</ol>
+<h3>Task Assignment</h3>
+<ol>
+<li>Scheduler picks the highest-priority queued task</li>
+<li>Daemon calls <code>WorkerManager.assignTask(task, executor)</code></li>
+<li>Manager finds a ready worker and sends <code>execute.task</code></li>
+<li>Worker transitions to &quot;busy&quot; state</li>
+<li>Worker imports the module executor and runs it with a synthetic context</li>
+</ol>
+<h3>Crash Recovery</h3>
+<div class="colored-diagram"><pre>Worker crashes during task execution
+    │
+    ▼
+WorkerManager.handleWorkerExit()
+    │
+    ├── Mark worker as &quot;dead&quot;
+    ├── Record crash timestamp
+    ├── Fail the task with WORKER_CRASHED error
+    ├── Emit task.failed event → TaskManager.fail()
+    │
+    ├── Check quarantine:
+    │   ├── < 3 crashes in 60s → respawn worker
+    │   └── >= 3 crashes in 60s → log error, stop respawning
+    │
+    └── Clean up transport
+</pre></div>
+<h3>Heartbeat Monitoring</h3>
+<ul>
+<li>Daemon checks all workers every 10 seconds</li>
+<li>If no heartbeat received in 30 seconds → mark as &quot;unresponsive&quot;</li>
+<li>Kill unresponsive workers with SIGKILL</li>
+<li>Unresponsive workers are treated as crashed</li>
+</ul>
+<h3>Quarantine Policy</h3>
+<p>If a worker crashes more than <strong>3 times within 60 seconds</strong>, it is quarantined:</p>
+<ul>
+<li>No replacement worker is spawned</li>
+<li>An error is logged</li>
+<li>This prevents infinite crash-respawn loops</li>
+</ul>
+<h3>Graceful Shutdown</h3>
+<ol>
+<li>Daemon receives SIGTERM or shutdown signal</li>
+<li><code>WorkerManager.stop()</code> is called</li>
+<li>All pending tasks are failed with <code>WORKER_CRASHED</code></li>
+<li>Shutdown signal sent to all workers</li>
+<li>Wait up to 5 seconds for graceful exit</li>
+<li>SIGKILL any remaining workers</li>
+<li>Scheduler and TaskManager are stopped</li>
+</ol>
+<h2>Task Execution Metadata</h2>
+<p>Tasks now include execution metadata fields:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>workerId</code></td>
+<td><code>string?</code></td>
+<td><code>undefined</code></td>
+<td>Worker process executing this task</td>
+</tr>
+<tr>
+<td><code>executionAttempt</code></td>
+<td><code>number</code></td>
+<td><code>0</code></td>
+<td>Incremented on worker crash retry</td>
+</tr>
+<tr>
+<td><code>isolationLevel</code></td>
+<td><code>&quot;process&quot; | &quot;vm&quot; | &quot;container&quot;</code></td>
+<td><code>&quot;process&quot;</code></td>
+<td>Execution isolation level</td>
+</tr>
+</tbody></table>
+<h2>Error Codes</h2>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>WORKER_CRASHED</code></td>
+<td>Worker process crashed during execution</td>
+</tr>
+<tr>
+<td><code>EXECUTOR_NOT_FOUND</code></td>
+<td>No executor found for the task module</td>
+</tr>
+<tr>
+<td><code>TASK_TIMEOUT</code></td>
+<td>Task execution timed out</td>
+</tr>
+<tr>
+<td><code>WORKER_INIT_FAILED</code></td>
+<td>Worker failed to initialize</td>
+</tr>
+<tr>
+<td><code>EXECUTION_ERROR</code></td>
+<td>Generic execution error</td>
+</tr>
+</tbody></table>
+<h2>Future: Stronger Isolation</h2>
+<p>The <code>isolationLevel</code> field is designed for future isolation strategies:</p>
+<ul>
+<li><strong><code>process</code></strong> (current): Each task runs in a separate Node.js subprocess</li>
+<li><strong><code>vm&quot;</code></strong>: Tasks run in a VM sandbox (e.g., <code>isolated-vm</code>)</li>
+<li><strong><code>container&quot;</code></strong>: Tasks run in a container (e.g., Docker, OCI runtime)</li>
+</ul>
+<p>The worker architecture supports this by abstracting the execution environment behind the <code>WorkerTransport</code> interface.</p>
+
+</main>
+</div>
+</body>
+</html>

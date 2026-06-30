@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Core - Coding Workspace - AIRI Architecture Docs</title>
+<style>
+:root { color-scheme: light dark; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; margin: 0; padding: 0; background: #fff; color: #1a1a1a; }
+@media (prefers-color-scheme: dark) { body { background: #1a1a2e; color: #e0e0e0; } }
+.container { display: flex; min-height: 100vh; }
+.sidebar { width: 280px; flex-shrink: 0; background: #f8f9fa; border-right: 1px solid #e1e4e8; padding: 2rem 1.5rem; position: sticky; top: 0; align-self: flex-start; overflow-y: auto; max-height: 100vh; }
+@media (prefers-color-scheme: dark) { .sidebar { background: #16213e; border-right-color: #0f3460; } }
+.sidebar h1 { font-size: 1.1rem; margin: 0 0 0.5rem 0; }
+.sidebar p { font-size: 0.8rem; color: #586069; margin: 0 0 1.5rem 0; }
+.sidebar nav { display: flex; flex-direction: column; gap: 0.25rem; }
+.sidebar nav a { display: block; padding: 0.4rem 0.75rem; border-radius: 6px; text-decoration: none; color: #24292e; font-size: 0.9rem; transition: background 0.15s; }
+@media (prefers-color-scheme: dark) { .sidebar nav a { color: #e0e0e0; } }
+.sidebar nav a:hover { background: #e1e4e8; }
+@media (prefers-color-scheme: dark) { .sidebar nav a:hover { background: #0f3460; } }
+.sidebar nav a.active { background: #0969da; color: white; font-weight: 500; }
+.content { flex: 1; max-width: 900px; padding: 3rem 4rem; line-height: 1.7; }
+.content h1 { font-size: 2rem; border-bottom: 2px solid #0969da; padding-bottom: 0.5rem; }
+.content h2 { font-size: 1.5rem; margin-top: 2.5rem; border-bottom: 1px solid #e1e4e8; padding-bottom: 0.3rem; }
+.content h3 { font-size: 1.2rem; margin-top: 2rem; }
+.content p { margin: 1rem 0; }
+.content ul, .content ol { padding-left: 2rem; margin: 1rem 0; }
+.content li { margin: 0.4rem 0; }
+.content code { background: #f6f8fa; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.9em; word-break: break-word; }
+@media (prefers-color-scheme: dark) { .content code { background: #0f3460; } }
+.content pre { background: #f6f8fa; border-radius: 8px; padding: 1.2rem; overflow-x: auto; border: 1px solid #e1e4e8; line-height: 1.5; }
+@media (prefers-color-scheme: dark) { .content pre { background: #0d1b2a; border-color: #0f3460; } }
+.content pre code { background: none; padding: 0; font-size: 0.85rem; }
+.content blockquote { border-left: 4px solid #0969da; background: #f0f7ff; padding: 0.8rem 1.2rem; margin: 1rem 0; border-radius: 0 8px 8px 0; }
+@media (prefers-color-scheme: dark) { .content blockquote { background: #0a2540; } }
+.content blockquote p { margin: 0.3rem 0; }
+.content table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.9rem; }
+.content th, .content td { border: 1px solid #d1d9e0; padding: 0.6rem 0.9rem; text-align: left; }
+.content th { background: #f6f8fa; }
+@media (prefers-color-scheme: dark) { .content th { background: #0f3460; } }
+.content a { color: #0969da; text-decoration: none; }
+.content a:hover { text-decoration: underline; }
+.colored-diagram { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 8px; padding: 1rem; overflow-x: auto; margin: 1rem 0; }
+@media (prefers-color-scheme: dark) { .colored-diagram { background: #0d1b2a; border-color: #0f3460; } }
+.colored-diagram pre { margin: 0; background: none; border: none; padding: 0; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 0.85rem; line-height: 1.4; }
+@media (max-width: 768px) { .container { flex-direction: column; } .sidebar { width: 100%; position: static; max-height: none; } .content { padding: 1.5rem; } }
+</style>
+</head>
+<body>
+<div class="container">
+<aside class="sidebar">
+<h1>AIRI Architecture Docs</h1>
+<nav><a href="bootstrap-flow.html" class="">Core — Bootstrap Flow</a>
+<a href="coding-workspace.html" class="active">Core - Coding Workspace</a>
+<a href="cognition-layer.html" class="">Cognition Layer</a>
+<a href="daemonization.html" class="">Daemonization Architecture</a>
+<a href="module-system.html" class="">Module System</a>
+<a href="planner-layer.html" class="">Planner Layer</a>
+<a href="runtime-kernel.html" class="">Runtime Kernel</a>
+<a href="runtime-persistence.html" class="">Runtime Persistence & Session Recovery</a>
+<a href="semantic-memory.html" class="">Semantic Memory & Repository Intelligence</a>
+<a href="worker-runtime.html" class="">Worker Runtime Architecture</a>
+<a href="workspace-isolation.html" class="">Workspace Isolation & Execution Sandbox Infrastructure</a></nav>
+</aside>
+<main class="content">
+<h1>AIRI Core - Coding Workspace</h1>
+<h2>Overview</h2>
+<p>The coding workspace is an AIRI-native coding-agent surface hosted inside the
+existing chat window. It revives the useful parts of Roo-style coding agents
+without porting Roo&#39;s VS Code extension architecture or legacy transcript
+model.</p>
+<p>The core idea is simple:</p>
+<ul>
+<li>AIRI owns the chat UI, session history, tool rendering, workspace policy, and
+approvals.</li>
+<li>MCP servers provide external code-intelligence capabilities, with Serena as
+the preferred semantic backend when available.</li>
+<li>Native AIRI tools provide guarded filesystem, terminal, patch, and task-list
+actions.</li>
+<li>ACP-compatible agents such as Pi or Codex can be attached later as subprocess
+engines, while still streaming through AIRI&#39;s native chat timeline.</li>
+</ul>
+<p>This keeps AIRI as the host operating system for the coding experience. External
+agents and MCP servers become replaceable backends, not competing renderers.</p>
+<h2>Goals</h2>
+<ol>
+<li>Add a coding mode to AIRI&#39;s existing chat window.</li>
+<li>Use AIRI&#39;s upstream MCP runtime for code intelligence instead of building a
+one-off code search stack.</li>
+<li>Prefer Serena MCP for semantic operations: symbol lookup, declarations,
+references, diagnostics, and targeted source retrieval.</li>
+<li>Keep all file edits, command execution, and approvals under AIRI-owned
+policy.</li>
+<li>Make Pi/Codex ACP integration possible without making either one the
+foundation of the native coding workspace.</li>
+<li>Preserve the existing chat message model, including tool-call slices and
+custom tool renderers.</li>
+</ol>
+<h2>Non-Goals</h2>
+<ul>
+<li>Do not port Roo&#39;s VS Code host, webview UI, or legacy XML-style tool parser.</li>
+<li>Do not give MCP servers direct authority to mutate files without AIRI approval.</li>
+<li>Do not make Pi or any ACP agent the only coding engine.</li>
+<li>Do not build a separate renderer for coding-agent output.</li>
+<li>Do not replace AIRI&#39;s existing MCP settings/runtime with a fork-specific
+product direction.</li>
+</ul>
+<h2>Current AIRI Fit</h2>
+<p>The repository already has most of the required host primitives:</p>
+<ul>
+<li><code>packages/core-agent/src/runtime/chat-orchestrator-runtime.ts</code> streams chat
+messages and emits tool-call/tool-result slices.</li>
+<li><code>packages/stage-ui/src/stores/llm-tools.ts</code> registers runtime tools from
+multiple providers.</li>
+<li><code>packages/stage-ui/src/stores/llm.ts</code> merges built-in, MCP, plugin, and custom
+runtime tools before provider calls.</li>
+<li><code>apps/stage-tamagotchi/src/main/services/airi/mcp-servers/index.ts</code> manages
+MCP stdio server lifecycle, tool listing, tool calls, config, status, and
+testing.</li>
+<li><code>apps/stage-tamagotchi/src/renderer/stores/mcp-tools.ts</code> registers the
+Electron-backed MCP bridge into the shared LLM tool store.</li>
+<li><code>apps/stage-tamagotchi/src/renderer/components/InteractiveArea.vue</code> already
+passes a tool renderer registry into the chat history component.</li>
+<li><code>core/workspace</code> and <code>core/capabilities</code> define workspace leases, capability
+descriptors, and structured tool execution contracts.</li>
+</ul>
+<p>The coding workspace should use these paths instead of introducing a parallel
+agent runtime.</p>
+<h2>Architecture</h2>
+<pre><code class="language-text">Chat Window
+  |
+  | user message + selected coding mode
+  v
+Chat Orchestrator Runtime
+  |
+  | active tool set + prompt contributions
+  v
+Coding Workspace Module
+  |
+  |-- Code Intelligence Facade
+  |     |-- Serena MCP adapter preferred
+  |     |-- generic MCP adapter fallback
+  |     `-- local search fallback
+  |
+  |-- Workspace Tool Provider
+  |     |-- read_file
+  |     |-- list_files
+  |     |-- apply_patch
+  |     |-- write_file
+  |     |-- run_command
+  |     |-- read_command_output
+  |     `-- update_todo
+  |
+  |-- Approval and Policy Gate
+  |     |-- mode restrictions
+  |     |-- path sandbox
+  |     |-- diff approvals
+  |     `-- command approvals
+  |
+  `-- Optional ACP Engine Adapter
+        |-- Pi subprocess
+        |-- Codex subprocess
+        `-- other ACP-compatible agents
+</code></pre>
+<p>The model sees stable AIRI-native coding tools. Internally, those tools may call
+Serena MCP, generic MCP, local filesystem functions, or an ACP subprocess. The
+chat UI does not need to know which backend served the request.</p>
+<h2>Coding Module</h2>
+<p>The coding module is a Stage/Tamagotchi module similar in placement to
+consciousness, hearing, vision, and other runtime modules.</p>
+<p>It owns:</p>
+<ul>
+<li>active coding workspace root</li>
+<li>selected coding mode</li>
+<li>selected engine: native, ACP Pi, ACP Codex, or future engines</li>
+<li>MCP backend preference</li>
+<li>approval policy</li>
+<li>command allowlist</li>
+<li>tool renderer registrations</li>
+<li>prompt contributions for coding modes</li>
+</ul>
+<p>The module should register tools through <code>useLlmToolsStore</code> and prompt
+contributions through <code>useLlmToolsetPromptsStore</code>, matching the existing plugin
+and MCP tool patterns.</p>
+<p>Coding state should attach to the active chat session where possible. AIRI
+already has a session store, session metadata, and a sessions drawer, so the
+coding module should not introduce a parallel conversation model. When the
+user is having a normal conversation, coding controls stay compact and inactive
+unless a workspace or coding mode is selected.</p>
+<h2>Modes</h2>
+<p>Modes are AIRI-owned. They control tool availability and prompt policy.</p>
+<h3>Ask</h3>
+<p>Purpose: answer questions and inspect code.</p>
+<p>Allowed:</p>
+<ul>
+<li>semantic search</li>
+<li>symbol lookup</li>
+<li>references</li>
+<li>diagnostics</li>
+<li>file reads</li>
+<li>file listing</li>
+</ul>
+<p>Blocked:</p>
+<ul>
+<li>file edits</li>
+<li>command execution</li>
+<li>direct task delegation</li>
+</ul>
+<h3>Spec</h3>
+<p>Purpose: plan changes through Kiro-style spec artifacts:
+<code>requirements.md</code>, <code>design.md</code>, and <code>tasks.md</code>.</p>
+<p>Allowed:</p>
+<ul>
+<li>all Ask tools</li>
+<li>todo updates</li>
+<li>markdown spec edits under <code>docs/specs/&lt;feature-slug&gt;/</code></li>
+</ul>
+<p>Blocked by default:</p>
+<ul>
+<li>source edits</li>
+<li>command execution</li>
+</ul>
+<h3>Code</h3>
+<p>Purpose: implement changes.</p>
+<p>Allowed:</p>
+<ul>
+<li>all Ask and Spec tools</li>
+<li>patch proposal and application</li>
+<li>file writes</li>
+<li>command execution</li>
+</ul>
+<p>Gates:</p>
+<ul>
+<li>edits require diff approval initially</li>
+<li>commands require approval initially</li>
+<li>outside-workspace writes are rejected</li>
+</ul>
+<h3>Debug</h3>
+<p>Purpose: investigate failures and verify hypotheses.</p>
+<p>Allowed:</p>
+<ul>
+<li>all Ask tools</li>
+<li>diagnostics</li>
+<li>command execution with approval</li>
+<li>patch proposal</li>
+</ul>
+<p>Gates:</p>
+<ul>
+<li>source edits require explicit approval</li>
+<li>command output is captured and summarized when large</li>
+</ul>
+<h2>MCP and Serena</h2>
+<p>MCP should be treated as a first-class substrate. The existing Electron MCP
+runtime remains the lifecycle owner for stdio servers.</p>
+<p>Serena is an external dependency and should not be silently installed. The MCP
+settings page should provide a predefined Serena server template with a link to
+Serena&#39;s setup documentation and a clear prerequisite that <code>uv</code> must be
+available on <code>PATH</code>. Users can then test and enable the server through AIRI&#39;s
+normal MCP config flow.</p>
+<p>The coding workspace adds a semantic facade over MCP:</p>
+<pre><code class="language-text">workspace_get_symbols_overview
+workspace_find_symbol
+workspace_find_declaration
+workspace_find_references
+workspace_get_diagnostics
+workspace_search_pattern
+workspace_ranked_context
+</code></pre>
+<p>When Serena is configured and running, the facade maps these tools to Serena
+calls:</p>
+<ul>
+<li><code>get_symbols_overview</code></li>
+<li><code>find_symbol</code></li>
+<li><code>find_declaration</code></li>
+<li><code>find_referencing_symbols</code></li>
+<li><code>get_diagnostics_for_file</code></li>
+<li><code>search_for_pattern</code></li>
+</ul>
+<p>Serena mutating tools are deliberately not exposed as direct model tools in the
+first milestone:</p>
+<ul>
+<li><code>replace_symbol_body</code></li>
+<li><code>insert_before_symbol</code></li>
+<li><code>insert_after_symbol</code></li>
+<li><code>rename_symbol</code></li>
+<li><code>safe_delete_symbol</code></li>
+</ul>
+<p>Those operations may be used later to produce edit proposals, but AIRI should
+still apply final changes through its own patch and approval pipeline.</p>
+<p>If Serena is unavailable, the facade falls back to generic MCP or local tools:</p>
+<ul>
+<li><code>rg</code> for text search</li>
+<li>file-outline heuristics for basic symbol summaries</li>
+<li>TypeScript/Vue diagnostics only when a local implementation is available</li>
+</ul>
+<p>Fallback output must keep the same shape as the Serena-backed path so prompts,
+renderers, and tests stay stable.</p>
+<h2>Generic MCP Escape Hatch</h2>
+<p>The existing generic MCP tools should remain available:</p>
+<ul>
+<li><code>builtIn_mcpListTools</code></li>
+<li><code>builtIn_mcpCallTool</code></li>
+</ul>
+<p>They are useful for discovery and non-coding MCP servers. Coding workflows,
+however, should prefer stable AIRI workspace tools over raw model-selected MCP
+tool names. This avoids brittle prompts such as requiring the model to call
+<code>builtIn_mcpCallTool</code> with a serialized JSON argument for every code lookup.</p>
+<h2>Workspace Tools</h2>
+<p>The workspace tool provider exposes guarded tools with AIRI-owned semantics.</p>
+<h3>Read Tools</h3>
+<ul>
+<li><code>workspace_status</code>: current root, git branch, mode, engine, MCP backend state</li>
+<li><code>workspace_list_files</code>: list files under the workspace root</li>
+<li><code>workspace_read_file</code>: read line ranges or whole small files</li>
+<li><code>workspace_search_files</code>: text search under the workspace root</li>
+</ul>
+<h3>Code Intelligence Tools</h3>
+<ul>
+<li><code>workspace_get_symbols_overview</code></li>
+<li><code>workspace_find_symbol</code></li>
+<li><code>workspace_find_declaration</code></li>
+<li><code>workspace_find_references</code></li>
+<li><code>workspace_get_diagnostics</code></li>
+<li><code>workspace_search_pattern</code></li>
+<li><code>workspace_ranked_context</code></li>
+</ul>
+<p><code>workspace_ranked_context</code> is a composed helper that can use Serena symbols,
+references, and pattern search when available, then fall back to local search
+results when needed.</p>
+<h3>Edit Tools</h3>
+<ul>
+<li><code>workspace_apply_patch</code>: apply an AIRI-owned patch format after approval</li>
+<li><code>workspace_write_file</code>: create or overwrite files after approval</li>
+<li><code>workspace_update_todo</code>: update the visible task list</li>
+</ul>
+<h3>Terminal Tools</h3>
+<ul>
+<li><code>workspace_run_command</code>: run a command with an explicit working directory</li>
+<li><code>workspace_read_command_output</code>: read full output from stored command artifacts</li>
+</ul>
+<p>Commands should run through Electron main or a core workspace runtime, not the
+renderer. Long-running commands are captured as artifacts and summarized in chat.</p>
+<h2>Approval and Authority</h2>
+<p>The approval gate is the main safety boundary.</p>
+<p>Policy rules:</p>
+<ul>
+<li>All paths resolve against the active workspace root.</li>
+<li>Reads inside the workspace may auto-run.</li>
+<li>Writes outside the workspace are rejected.</li>
+<li>Commands require approval unless explicitly allowlisted.</li>
+<li>Edits produce a diff and wait for approval before applying.</li>
+<li>MCP mutating tools are disabled or converted into proposed edits.</li>
+<li>ACP subprocess requests are normalized into AIRI tool requests before
+execution where possible.</li>
+</ul>
+<p>The same approval gate should serve native tools, MCP-backed tools, and ACP
+engines. This prevents multiple authority systems from diverging.</p>
+<h2>ACP Engine Adapter</h2>
+<p>ACP is an interoperability layer for external coding agents. It lets AIRI host
+Pi, Codex, or other agents as subprocesses while preserving AIRI&#39;s native chat
+surface.</p>
+<p>The adapter owns:</p>
+<ul>
+<li>process lifecycle</li>
+<li>session creation</li>
+<li>request/response streaming</li>
+<li>conversion from ACP events into AIRI chat slices</li>
+<li>conversion from ACP action requests into AIRI approval/tool requests</li>
+<li>cancellation and shutdown</li>
+</ul>
+<p>The ACP adapter does not own:</p>
+<ul>
+<li>chat UI</li>
+<li>persistent AIRI chat history</li>
+<li>MCP configuration</li>
+<li>final filesystem authority</li>
+<li>approval decisions</li>
+</ul>
+<p>Engine selection belongs in the coding module settings:</p>
+<ul>
+<li><code>Native</code></li>
+<li><code>ACP: Pi</code></li>
+<li><code>ACP: Codex</code></li>
+</ul>
+<p>The first implementation can ship without ACP, but the native tool/event model
+should be designed so ACP can plug in without a rewrite.</p>
+<h2>Chat UI</h2>
+<p>The existing chat timeline remains the only visible transcript.</p>
+<p>Coding mode must integrate into the vanilla AIRI chat window without
+obstructing normal conversation. The default experience remains regular chat;
+workspace controls appear as a compact strip or drawer only when the user opts
+into coding context.</p>
+<p>Additions:</p>
+<ul>
+<li>coding mode selector</li>
+<li>active workspace indicator</li>
+<li>engine selector/status</li>
+<li>MCP backend status, including Serena availability</li>
+<li>compact todo/task panel or inline todo tool renderer</li>
+<li>custom tool renderers for:<ul>
+<li>semantic search results</li>
+<li>file reads</li>
+<li>diffs</li>
+<li>command execution</li>
+<li>diagnostics</li>
+<li>ACP subprocess events</li>
+</ul>
+</li>
+</ul>
+<p>The UI should not render a second Roo/Pi/Codex transcript. External events are
+normalized into AIRI message slices.</p>
+<h2>Data Flow</h2>
+<h3>Native Coding Turn</h3>
+<pre><code class="language-text">User sends message
+  -&gt; chat orchestrator composes prompt with active coding mode
+  -&gt; LLM calls AIRI workspace tools
+  -&gt; tools route to Serena MCP, filesystem, terminal, or patch backend
+  -&gt; approval gate pauses edits/commands when needed
+  -&gt; tool results stream into chat slices
+  -&gt; final assistant response persists in AIRI chat session
+</code></pre>
+<h3>Serena Search</h3>
+<pre><code class="language-text">workspace_find_symbol
+  -&gt; code intelligence facade
+  -&gt; MCP runtime list/status check
+  -&gt; Serena MCP call
+  -&gt; normalized symbol result
+  -&gt; chat tool renderer
+</code></pre>
+<h3>ACP Turn</h3>
+<pre><code class="language-text">User sends message with engine = ACP: Pi
+  -&gt; ACP adapter starts or reuses subprocess session
+  -&gt; subprocess streams events
+  -&gt; adapter maps text to assistant slices
+  -&gt; adapter maps action requests to AIRI tools/approvals
+  -&gt; final output persists in AIRI chat session
+</code></pre>
+<h2>Persistence</h2>
+<p>Persist at least:</p>
+<ul>
+<li>active workspace root for each chat session that has coding enabled</li>
+<li>selected mode for each coding-enabled chat session</li>
+<li>selected engine for each coding-enabled chat session</li>
+<li>command artifacts and summaries</li>
+<li>approval decisions that are safe to remember</li>
+<li>todo state</li>
+</ul>
+<p>Do not persist secrets from MCP configs or subprocess environment variables into
+chat messages.</p>
+<h2>Testing Strategy</h2>
+<p>Core tests:</p>
+<ul>
+<li>mode-to-tool gating</li>
+<li>path sandbox validation</li>
+<li>edit approval flow</li>
+<li>command approval flow</li>
+<li>Serena adapter normalization</li>
+<li>fallback search normalization</li>
+<li>ACP event normalization</li>
+</ul>
+<p>Renderer tests:</p>
+<ul>
+<li>coding mode selector state</li>
+<li>tool renderer states: executing, done, error</li>
+<li>diff approval display</li>
+<li>command output display</li>
+</ul>
+<p>Electron main tests:</p>
+<ul>
+<li>MCP status/list/call integration for the coding facade</li>
+<li>command execution artifact capture</li>
+<li>workspace root validation</li>
+</ul>
+<p>Contract tests:</p>
+<ul>
+<li>ACP adapter event mapping</li>
+<li>MCP facade output shapes</li>
+<li>persisted session metadata migration</li>
+</ul>
+<h2>Milestones</h2>
+<h3>Milestone 1 - Native Coding Workspace</h3>
+<ul>
+<li>Add coding module settings and active mode state.</li>
+<li>Register AIRI workspace tools.</li>
+<li>Add Serena-preferred code intelligence facade.</li>
+<li>Add custom chat renderers for file/search/diagnostic/diff/command output.</li>
+<li>Gate edits and commands with approval.</li>
+</ul>
+<h3>Milestone 2 - MCP Hardening</h3>
+<ul>
+<li>Improve MCP status visibility in chat/settings.</li>
+<li>Add a predefined Serena MCP configuration template with setup link and <code>uv</code>
+prerequisite guidance.</li>
+<li>Add diagnostics for missing or failing MCP servers.</li>
+<li>Borrow only lifecycle/config reliability fixes from external AIRI forks if
+upstream behavior is insufficient.</li>
+</ul>
+<h3>Milestone 3 - Native Swarm Runtime</h3>
+<ul>
+<li>Add Spec-linked native worker jobs.</li>
+<li>Store live execution state in <code>swarm.json</code>.</li>
+<li>Support Pair mode approvals and experimental AFK autopilot policy.</li>
+<li>Add curated inline swarm status cards in the existing chat timeline.</li>
+<li>Keep workers on AIRI-mediated tools with no raw terminal access.</li>
+</ul>
+<h3>Milestone 4 - ACP Engine Adapter</h3>
+<ul>
+<li>Add ACP subprocess manager.</li>
+<li>Support Pi as an ACP backend.</li>
+<li>Support Codex as an ACP backend if available.</li>
+<li>Add engine selector in coding settings.</li>
+<li>Normalize ACP events into AIRI chat slices and approval requests.</li>
+</ul>
+<h3>Milestone 5 - Advanced Code Operations</h3>
+<ul>
+<li>Allow selected Serena mutating operations to produce proposed edits.</li>
+<li>Add worktree isolation for risky implementation sessions.</li>
+<li>Add branch/checkpoint integration.</li>
+<li>Add richer task history and replay.</li>
+</ul>
+<h2>Open Questions</h2>
+<ol>
+<li>What production safety policy should replace the experimental AFK autopilot
+authority model?</li>
+<li>What stability milestone should trigger ACP backend work?</li>
+</ol>
+<h2>Decision</h2>
+<p>Proceed with an AIRI-native coding workspace hosted in the existing chat window.
+Use MCP, especially Serena, as the preferred code-intelligence backend. Keep all
+workspace authority and approvals in AIRI. Use native AIRI agents for the first
+swarm runtime and defer Pi/Codex ACP subprocess engines until the native agent
+model is stable. Coding state is scoped to chat sessions when enabled, and
+Serena is offered through MCP settings as a predefined external integration
+rather than auto-installed.</p>
+
+</main>
+</div>
+</body>
+</html>

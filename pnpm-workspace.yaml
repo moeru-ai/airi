@@ -211,8 +211,8 @@ catalog:
   canvas: ^3.2.3
   capacitor-native-settings: ^8.1.0
   chess.js: ^1.4.0
-  cockatiel: ^3.2.1
   clustr: ^1.0.2
+  cockatiel: ^3.2.1
   colorjs.io: ^0.6.1
   crossws: ^0.4.5
   csstype: ^3.2.3
@@ -271,6 +271,7 @@ catalog:
   mark.js: ^8.11.1
   markdown-it: ^14.1.1
   markdown-it-anchor: ^9.2.0
+  marked: ^15.0.12
   mediabunny: ^1.40.1
   meow: ^14.1.0
   meta-png: ^1.0.6
