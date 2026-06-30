@@ -27,6 +27,7 @@ docs:
   'collapse': 摺疊
   'login': Sign in
   'logging-in': Signing in...
+  'enrollment-in-browser': 請在瀏覽器中完成登入...
   'account': Account
   'logout': Sign out
 widgets:

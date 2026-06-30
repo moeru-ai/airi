@@ -27,6 +27,7 @@ docs:
   'collapse': 접기
   'login': 가입하기
   'logging-in': 로그인 중...
+  'enrollment-in-browser': 브라우저에서 로그인을 완료하세요...
   'account': 계정
   'logout': 로그아웃
 widgets:

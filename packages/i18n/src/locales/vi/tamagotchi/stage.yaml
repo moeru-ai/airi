@@ -27,6 +27,7 @@ docs:
   'collapse': Sụp đổ
   'login': Sign in
   'logging-in': Signing in...
+  'enrollment-in-browser': Vui lòng hoàn tất đăng nhập trong trình duyệt...
   'account': Account
   'logout': Sign out
 widgets:

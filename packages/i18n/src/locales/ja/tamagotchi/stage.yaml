@@ -27,6 +27,7 @@ docs:
   'collapse': 折りたたむ
   'login': サインイン
   'logging-in': サインイン中…
+  'enrollment-in-browser': ブラウザでサインインを完了してください…
   'account': アカウント
   'logout': サインアウト
 widgets:

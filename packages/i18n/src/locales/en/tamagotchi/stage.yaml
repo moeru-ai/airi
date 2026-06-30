@@ -27,6 +27,7 @@ docs:
   'collapse': Collapse
   'login': Sign in
   'logging-in': Signing in...
+  'enrollment-in-browser': Complete sign-in in your browser...
   'account': Account
   'logout': Sign out
 
