@@ -1,110 +1,100 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const vueUseMock = vi.hoisted(() => ({
-  audioInputs: undefined as unknown as { value: MediaDeviceInfo[] },
-  ensurePermissions: vi.fn(async () => {}),
-  startUserMediaStream: vi.fn(),
+const audioDeviceMock = vi.hoisted(() => ({
+  audioInputsRef: undefined as unknown as { value: MediaDeviceInfo[] },
+  ensurePermissions: vi.fn(),
+  startStream: vi.fn(),
   stopStream: vi.fn(),
+  trackAudioDeviceUnavailable: vi.fn(),
+  trackMicrophonePermissionDenied: vi.fn(),
+  trackMicrophonePermissionRequested: vi.fn(),
 }))
 
 vi.mock('@vueuse/core', async () => {
-  const vue = await vi.importActual<typeof import('vue')>('vue')
-  vueUseMock.audioInputs = vue.ref<MediaDeviceInfo[]>([])
+  const { ref } = await import('vue')
+
+  audioDeviceMock.audioInputsRef = ref([])
 
   return {
     useDevicesList: () => ({
-      audioInputs: vueUseMock.audioInputs,
-      permissionGranted: vue.ref(false),
-      ensurePermissions: vueUseMock.ensurePermissions,
+      audioInputs: audioDeviceMock.audioInputsRef,
+      permissionGranted: ref(false),
+      ensurePermissions: audioDeviceMock.ensurePermissions,
     }),
-    useUserMedia: ({ constraints }: { constraints: { value: MediaStreamConstraints } }) => ({
-      stream: vue.shallowRef<MediaStream>(),
-      stop: vueUseMock.stopStream,
-      start: () => vueUseMock.startUserMediaStream(constraints.value),
+    useUserMedia: () => ({
+      stream: ref(undefined),
+      stop: audioDeviceMock.stopStream,
+      start: audioDeviceMock.startStream,
     }),
   }
 })
 
-function createAudioInput(deviceId: string): MediaDeviceInfo {
-  return {
-    deviceId,
-    groupId: '',
-    kind: 'audioinput',
-    label: deviceId,
-    toJSON: () => ({}),
-  }
-}
+vi.mock('../use-analytics', () => ({
+  useAnalytics: () => ({
+    trackAudioDeviceUnavailable: audioDeviceMock.trackAudioDeviceUnavailable,
+    trackMicrophonePermissionDenied: audioDeviceMock.trackMicrophonePermissionDenied,
+    trackMicrophonePermissionRequested: audioDeviceMock.trackMicrophonePermissionRequested,
+  }),
+}))
 
-function createDeviceNotFoundError() {
-  const error = new Error('Requested device not found')
-  error.name = 'NotFoundError'
-  return error
-}
+describe('useAudioDevice analytics lifecycle', () => {
+  beforeEach(() => {
+    if (audioDeviceMock.audioInputsRef)
+      audioDeviceMock.audioInputsRef.value = []
+    audioDeviceMock.ensurePermissions.mockReset()
+    audioDeviceMock.trackAudioDeviceUnavailable.mockReset()
+    audioDeviceMock.trackMicrophonePermissionDenied.mockReset()
+    audioDeviceMock.trackMicrophonePermissionRequested.mockReset()
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+  })
 
-describe('useAudioDevice', () => {
   afterEach(() => {
-    vueUseMock.audioInputs.value = []
-    vi.clearAllMocks()
+    vi.restoreAllMocks()
   })
 
-  it('recognizes browser device-not-found errors that are not Error instances', async () => {
-    const { isMissingAudioInputDeviceError } = await import('./audio-device')
-
-    expect(isMissingAudioInputDeviceError({ name: 'NotFoundError' })).toBe(true)
-    expect(isMissingAudioInputDeviceError({ message: 'Requested device not found' })).toBe(true)
-  })
-
-  it('retries with the system default microphone when a persisted device id is stale', async () => {
+  /**
+   * @example
+   * await expect(askPermission()).rejects.toThrow()
+   */
+  it('tracks microphone permission denial without exposing browser error text', async () => {
     const { useAudioDevice } = await import('./audio-device')
-    const { selectedAudioInput, startStream } = useAudioDevice()
-    selectedAudioInput.value = 'stale-device-id'
+    const permissionError = new DOMException('User denied microphone', 'NotAllowedError')
+    audioDeviceMock.ensurePermissions.mockRejectedValue(permissionError)
 
-    vueUseMock.startUserMediaStream
-      .mockRejectedValueOnce(createDeviceNotFoundError())
-      .mockResolvedValueOnce(undefined)
+    const { askPermission } = useAudioDevice()
 
-    await startStream()
+    await expect(askPermission()).rejects.toThrow(permissionError)
 
-    expect(selectedAudioInput.value).toBe('')
-    expect(vueUseMock.startUserMediaStream).toHaveBeenNthCalledWith(1, {
-      audio: {
-        autoGainControl: true,
-        deviceId: { exact: 'stale-device-id' },
-        echoCancellation: true,
-        noiseSuppression: true,
-      },
+    expect(audioDeviceMock.trackMicrophonePermissionRequested).toHaveBeenCalledWith({
+      stt_provider_id: 'unknown',
     })
-    expect(vueUseMock.startUserMediaStream).toHaveBeenNthCalledWith(2, {
-      audio: {
-        autoGainControl: true,
-        echoCancellation: true,
-        noiseSuppression: true,
-      },
+    expect(audioDeviceMock.trackMicrophonePermissionDenied).toHaveBeenCalledWith({
+      stt_provider_id: 'unknown',
+      error_code: 'permission_denied',
     })
+    expect(audioDeviceMock.trackAudioDeviceUnavailable).not.toHaveBeenCalled()
   })
 
-  it('prefers an enumerated default input before falling back to unconstrained audio', async () => {
-    vueUseMock.audioInputs.value = [
-      createAudioInput('default'),
-      createAudioInput('microphone-1'),
-    ]
-
+  /**
+   * @example
+   * await askPermission()
+   * expect(trackAudioDeviceUnavailable).toHaveBeenCalledWith(expect.objectContaining({ error_code: 'device_unavailable' }))
+   */
+  it('tracks successful permission requests that still expose no microphone devices', async () => {
     const { useAudioDevice } = await import('./audio-device')
-    const { selectedAudioInput, startStream } = useAudioDevice()
-    selectedAudioInput.value = 'stale-device-id'
+    audioDeviceMock.ensurePermissions.mockResolvedValue(undefined)
 
-    vueUseMock.startUserMediaStream.mockResolvedValueOnce(undefined)
+    const { askPermission } = useAudioDevice()
 
-    await startStream()
+    await askPermission()
 
-    expect(selectedAudioInput.value).toBe('default')
-    expect(vueUseMock.startUserMediaStream).toHaveBeenCalledWith({
-      audio: {
-        autoGainControl: true,
-        deviceId: { exact: 'default' },
-        echoCancellation: true,
-        noiseSuppression: true,
-      },
+    expect(audioDeviceMock.trackMicrophonePermissionRequested).toHaveBeenCalledWith({
+      stt_provider_id: 'unknown',
     })
+    expect(audioDeviceMock.trackAudioDeviceUnavailable).toHaveBeenCalledWith({
+      stt_provider_id: 'unknown',
+      error_code: 'device_unavailable',
+    })
+    expect(audioDeviceMock.trackMicrophonePermissionDenied).not.toHaveBeenCalled()
   })
 })

@@ -52,6 +52,8 @@ export interface StreamingTtsPipelineOptions extends StreamingTtsPipelineEvents 
   ttsTrigger?: 'auto' | 'manual'
   /** Low-cardinality source hint sent to server-side product analytics. */
   ttsSource?: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
+  /** Low-cardinality voice bucket sent to server-side product analytics. */
+  ttsVoiceType?: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
   /**
    * Decoder context. The pipeline calls `decodeAudioData` on it for each
    * sentence (or once at session end in buffered mode). Reusing the page's
@@ -122,6 +124,7 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
   const wsUrl = toWebSocketUrl(options.serverUrl ?? SERVER_URL, '/api/v1/audio/speech/ws', token, {
     ttsTrigger: options.ttsTrigger ?? 'auto',
     ttsSource: options.ttsSource ?? 'chat_auto_tts',
+    ttsVoiceType: options.ttsVoiceType ?? 'unknown',
   })
   const ws = new WebSocket(wsUrl)
   ws.binaryType = 'arraybuffer'
@@ -411,13 +414,18 @@ function toWebSocketUrl(
   httpBase: string,
   path: string,
   token: string,
-  analytics: { ttsTrigger: 'auto' | 'manual', ttsSource: 'chat_auto_tts' | 'manual_preview' | 'settings_test' },
+  analytics: {
+    ttsTrigger: 'auto' | 'manual'
+    ttsSource: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
+    ttsVoiceType: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
+  },
 ): string {
   const u = new URL(path, httpBase)
   u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:'
   u.searchParams.set('token', token)
   u.searchParams.set('tts_trigger', analytics.ttsTrigger)
   u.searchParams.set('tts_source', analytics.ttsSource)
+  u.searchParams.set('tts_voice_type', analytics.ttsVoiceType)
   return u.toString()
 }
 

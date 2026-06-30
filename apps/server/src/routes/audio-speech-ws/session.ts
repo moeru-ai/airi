@@ -52,10 +52,12 @@ export interface AudioSpeechSessionState {
 
 export type StreamingTtsTrigger = 'auto' | 'manual'
 export type StreamingTtsSource = 'audio.speech.ws' | 'chat_auto_tts' | 'manual_preview' | 'settings_test'
+export type StreamingTtsVoiceType = 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
 
 export interface AudioSpeechSessionAnalytics {
   trigger?: StreamingTtsTrigger
   source?: StreamingTtsSource
+  voiceType?: StreamingTtsVoiceType
 }
 
 /**
@@ -93,6 +95,7 @@ export function createSessionState(
   let billed = false
   let totalInputChars = 0
   let modelLabel = STREAM_MODEL_LABEL_FALLBACK
+  let voiceLabel: string | undefined
   /**
    * Frames the client sent before the upstream finished dialing. Buffered to
    * avoid silently dropping the `start` frame; flushed in arrival order once
@@ -114,6 +117,7 @@ export function createSessionState(
       model: modelLabel,
       metadata: {
         trigger: analytics.trigger,
+        ...streamingVoiceMetadata(voiceLabel, analytics.voiceType),
       },
     })
 
@@ -227,6 +231,7 @@ export function createSessionState(
         metadata: {
           duration_ms: Date.now() - startedAt,
           trigger: analytics.trigger,
+          ...streamingVoiceMetadata(voiceLabel, analytics.voiceType),
         },
       })
       try {
@@ -361,6 +366,9 @@ export function createSessionState(
         const model = (parsed as Record<string, unknown>).model
         if (typeof model === 'string' && model.length > 0)
           modelLabel = model
+        const voice = (parsed as Record<string, unknown>).voice
+        if (typeof voice === 'string' && voice.length > 0)
+          voiceLabel = voice
       }
     }
     catch {
@@ -433,6 +441,7 @@ export function createSessionState(
         duration_ms: durationMs,
         flux_consumed: fluxConsumed,
         trigger: analytics.trigger,
+        ...streamingVoiceMetadata(voiceLabel, analytics.voiceType),
       },
     })
 
@@ -470,6 +479,7 @@ export function createSessionState(
         close_code: code,
         duration_ms: Date.now() - startedAt,
         trigger: analytics.trigger,
+        ...streamingVoiceMetadata(voiceLabel, analytics.voiceType),
       },
     })
     if (clientWs) {
@@ -503,6 +513,7 @@ export function createSessionState(
         close_code: code,
         duration_ms: Date.now() - startedAt,
         trigger: analytics.trigger,
+        ...streamingVoiceMetadata(voiceLabel, analytics.voiceType),
       },
     })
     if (clientWs) {
@@ -531,6 +542,7 @@ function normalizeAnalytics(input: AudioSpeechSessionAnalytics): Required<AudioS
   return {
     trigger: normalizeTrigger(input.trigger),
     source: normalizeSource(input.source),
+    voiceType: normalizeVoiceType(input.voiceType),
   }
 }
 
@@ -547,6 +559,31 @@ function normalizeSource(source: AudioSpeechSessionAnalytics['source']): Streami
       return source
     default:
       return 'audio.speech.ws'
+  }
+}
+
+/**
+ * Normalizes streaming TTS voice type into bounded analytics values.
+ */
+function normalizeVoiceType(voiceType: AudioSpeechSessionAnalytics['voiceType']): StreamingTtsVoiceType {
+  switch (voiceType) {
+    case 'official_default':
+    case 'official_selected':
+    case 'custom_configured':
+    case 'voice_pack':
+      return voiceType
+    default:
+      return 'unknown'
+  }
+}
+
+/**
+ * Builds reusable streaming TTS voice metadata after the start frame is known.
+ */
+function streamingVoiceMetadata(voiceId: string | undefined, voiceType: StreamingTtsVoiceType): Record<string, unknown> {
+  return {
+    ...(voiceId ? { voice_id: voiceId } : {}),
+    voice_type: voiceType,
   }
 }
 

@@ -849,6 +849,87 @@ describe('v1CompletionsRoutes', () => {
       }))
     })
 
+    /**
+     * @example
+     * POST /api/v1/audio/speech { "voice": "alloy", "extra_body": { "voice_pack": { "pack_id": "vp-premium" } } }
+     */
+    it('records TTS voice and Voice Pack metadata in product events', async () => {
+      globalThis.fetch = vi.fn(async () => new Response(new Uint8Array([1]), {
+        status: 200,
+        headers: { 'Content-Type': 'audio/mpeg' },
+      }))
+
+      const productEventService = createMockProductEventService()
+      const voicePackService = createMockVoicePackService({
+        findById: vi.fn(async () => ({
+          id: 'vp-premium',
+          name: 'Premium',
+          description: null,
+          provider: 'azure',
+          model: 'microsoft/v1',
+          voiceId: 'alloy',
+          ttsModelId: 'tts-1',
+          params: {},
+          costMultiplier: 2,
+          enabled: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })),
+      })
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV(),
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        createMockLlmTracing(),
+        productEventService,
+        voicePackService,
+      )
+
+      await app.fetch(
+        new Request('http://localhost/api/v1/audio/speech', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'auto',
+            input: 'hello',
+            voice: 'alloy',
+            extra_body: {
+              voice_pack: {
+                pack_id: 'vp-premium',
+                cost_multiplier: 2,
+              },
+              airi_analytics: {
+                source: 'manual_preview',
+                voice_type: 'voice_pack',
+              },
+            },
+          }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(productEventService.track).toHaveBeenCalledWith(expect.objectContaining({
+        action: 'speech_succeeded',
+        source: 'manual_preview',
+        metadata: expect.objectContaining({
+          voice_id: 'alloy',
+          voice_type: 'voice_pack',
+          voice_pack_id: 'vp-premium',
+        }),
+      }))
+      expect(productEventService.track).toHaveBeenCalledWith(expect.objectContaining({
+        action: 'speech_requested',
+        metadata: expect.objectContaining({
+          voice_id: 'alloy',
+          voice_type: 'voice_pack',
+          voice_pack_id: 'vp-premium',
+        }),
+      }))
+    })
+
     it('should not charge when routeTts upstream returns error', async () => {
       const llmRouter = createMockLlmRouter({
         routeTts: vi.fn(async () => new Response('{"error":"service down"}', {

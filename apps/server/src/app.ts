@@ -4,6 +4,7 @@ import type { AuthInstance } from './libs/auth'
 import type { Database } from './libs/db'
 import type { Env } from './libs/env'
 import type { OtelInstance } from './otel'
+import type { StreamingTtsVoiceType } from './routes/audio-speech-ws/session'
 import type { ConfigKVService } from './services/adapters/config-kv'
 import type { AdminFluxGrantsService } from './services/domain/admin/flux-grants'
 import type { AdminRouterConfigService } from './services/domain/admin/router-config'
@@ -213,6 +214,7 @@ export async function buildApp(deps: AppDeps) {
     return audioSpeechWsSetup(session.user.id, {
       trigger: c.req.query('tts_trigger') === 'auto' ? 'auto' : 'manual',
       source: parseTtsSource(c.req.query('tts_source'), 'audio.speech.ws'),
+      voiceType: parseTtsVoiceType(c.req.query('tts_voice_type')),
     })
   }))
 
@@ -455,6 +457,23 @@ function parseTtsSource(
       return value
     default:
       return fallback
+  }
+}
+
+/**
+ * Normalizes the client-provided streaming TTS voice bucket for product events.
+ */
+function parseTtsVoiceType(
+  value: string | undefined,
+): StreamingTtsVoiceType {
+  switch (value) {
+    case 'official_default':
+    case 'official_selected':
+    case 'custom_configured':
+    case 'voice_pack':
+      return value
+    default:
+      return 'unknown'
   }
 }
 

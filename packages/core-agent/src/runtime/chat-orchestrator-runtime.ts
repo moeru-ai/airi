@@ -190,6 +190,27 @@ export interface ChatOrchestratorRuntimeDeps {
   onSendSettled?: (event: { sessionId: string }) => void
   /** Called when a send starts and the first assistant placeholder is created. */
   onTrackFirstMessage?: () => void
+  /** Called when a user starts a chat activation attempt. */
+  onChatActivationStarted?: (event: {
+    source: 'text' | 'voice'
+    model: string
+    provider: string
+  }) => void
+  /** Called after one user-to-assistant message round completes successfully. */
+  onChatActivationSucceeded?: (event: {
+    source: 'text' | 'voice'
+    model: string
+    provider: string
+    durationMs: number
+  }) => void
+  /** Called after a chat activation attempt fails before assistant completion. */
+  onChatActivationFailed?: (event: {
+    source: 'text' | 'voice'
+    model: string
+    provider: string
+    failureStage: 'llm_response'
+    errorCode: 'llm_response_failed'
+  }) => void
   /** Called when a user message send begins. */
   onMessageSendStarted?: (event: {
     source: 'text' | 'voice'
@@ -401,9 +422,16 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       id: createId(),
     }
     patchForegroundStream(sessionId, buildingMessage)
+    const sendSource = options.input ? 'voice' : 'text'
+    const activeProvider = deps.getActiveProvider?.() ?? ''
     deps.onTrackFirstMessage?.()
+    deps.onChatActivationStarted?.({
+      source: sendSource,
+      model: options.model,
+      provider: activeProvider,
+    })
     deps.onMessageSendStarted?.({
-      source: options.input ? 'voice' : 'text',
+      source: sendSource,
       model: options.model,
     })
     const roundStartedAt = monotonicNow()
@@ -710,14 +738,28 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       })
 
       resetForegroundStream(sessionId)
+      const durationMs = Math.round(monotonicNow() - roundStartedAt)
       deps.onMessageRound?.({
-        durationMs: Math.round(monotonicNow() - roundStartedAt),
+        durationMs,
         hasVoice: !!options.input,
         model: options.model,
+      })
+      deps.onChatActivationSucceeded?.({
+        durationMs,
+        source: sendSource,
+        model: options.model,
+        provider: activeProvider,
       })
     }
     catch (error) {
       console.error('Error sending message:', error)
+      deps.onChatActivationFailed?.({
+        source: sendSource,
+        model: options.model,
+        provider: activeProvider,
+        failureStage: 'llm_response',
+        errorCode: 'llm_response_failed',
+      })
       throw error
     }
     finally {

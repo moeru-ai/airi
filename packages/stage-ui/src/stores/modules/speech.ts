@@ -408,6 +408,7 @@ export const useSpeechStore = defineStore('speech', () => {
       ? withAiriTtsAnalytics(providerConfig, {
           trigger: 'manual',
           source: 'manual_preview',
+          voice_type: resolveVoiceType(voice),
         })
       : providerConfig
     const response = await generateSpeech({
@@ -421,7 +422,11 @@ export const useSpeechStore = defineStore('speech', () => {
 
   function withAiriTtsAnalytics(
     providerConfig: Record<string, any>,
-    analytics: { trigger: 'auto' | 'manual', source: 'chat_auto_tts' | 'manual_preview' | 'settings_test' },
+    analytics: {
+      trigger: 'auto' | 'manual'
+      source: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
+      voice_type?: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack'
+    },
   ): Record<string, any> {
     return {
       ...providerConfig,
@@ -430,6 +435,14 @@ export const useSpeechStore = defineStore('speech', () => {
         airi_analytics: analytics,
       },
     }
+  }
+
+  /**
+   * Classifies the active speech voice before forwarding analytics to the server.
+   */
+  function resolveVoiceType(voiceId: string): 'official_selected' | 'custom_configured' {
+    const catalogVoice = availableVoices.value[activeSpeechProvider.value]?.some(voice => voice.id === voiceId)
+    return activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID && catalogVoice ? 'official_selected' : 'custom_configured'
   }
 
   function generateSSML(

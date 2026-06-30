@@ -20,6 +20,49 @@ export type ConversationAnalyticsSurface = 'web' | 'mobile' | 'electron'
  */
 export type ConversationAnalyticsSource = 'chat_controls' | 'history' | 'sessions_drawer'
 
+export type ProviderMode = 'official' | 'custom' | 'unknown'
+export type ChatActivationFailureStage = 'provider_config' | 'model_list' | 'message_send' | 'llm_response' | 'tts'
+export type ProviderConfigStep = 'settings_auto_validate' | 'manual_chat_ping' | 'onboarding_validate'
+export type VoiceType = 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
+export type VoiceAnalyticsSource = 'settings' | 'onboarding' | 'chat_auto_tts' | 'manual_preview'
+export type FeedbackSource = 'app' | 'discord' | 'qq' | 'github' | 'email' | 'other'
+export type FeedbackCategory = 'provider_config' | 'model_list' | 'chat_activation' | 'tts' | 'voice_input' | 'performance' | 'payment' | 'ui_ux' | 'crash' | 'update' | 'live2d' | 'desktop_window' | 'mobile' | 'unknown'
+export type FeedbackSeverity = 'blocker' | 'major' | 'minor' | 'suggestion'
+export type FeedbackUserType = 'new_user' | 'paid_user' | 'overseas_user' | 'developer_user' | 'role_chat_user' | 'unknown'
+export type FeedbackDescriptionLengthBucket = 'empty' | 'short' | 'medium' | 'long'
+
+interface ChatActivationBaseProperties {
+  provider_mode: ProviderMode
+  provider_id: string
+  model_id: string
+  source: 'text' | 'voice'
+}
+
+interface TtsVoiceBaseProperties {
+  tts_provider_id: string
+  tts_model_id: string
+  source: VoiceAnalyticsSource
+}
+
+interface VoiceInputBaseProperties {
+  stt_provider_id: string
+  duration_ms?: number
+}
+
+interface ProviderConfigBaseProperties {
+  provider_id: string
+  provider_mode: ProviderMode
+  step: ProviderConfigStep
+}
+
+interface FeedbackBaseProperties {
+  source: FeedbackSource
+  category: FeedbackCategory
+  severity: FeedbackSeverity
+  user_type: FeedbackUserType
+  entrypoint: string
+}
+
 function getConversationAnalyticsSurface(): ConversationAnalyticsSurface {
   if (isStageTamagotchi())
     return 'electron'
@@ -228,6 +271,96 @@ export function useAnalytics() {
     posthog.capture('message_round', properties)
   }
 
+  // ─── Chat activation events ──────────────────────────────────────────
+
+  function trackChatActivationStarted(properties: ChatActivationBaseProperties) {
+    if (!canCapture())
+      return
+    posthog.capture('chat_activation_started', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackChatActivationSucceeded(properties: ChatActivationBaseProperties & { time_to_first_message_ms?: number }) {
+    if (!canCapture())
+      return
+    posthog.capture('chat_activation_succeeded', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackChatActivationFailed(properties: ChatActivationBaseProperties & {
+    error_code: string
+    failure_stage: ChatActivationFailureStage
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('chat_activation_failed', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackModelListLoaded(properties: {
+    provider_id: string
+    provider_mode: ProviderMode
+    model_count: number
+    duration_ms: number
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('model_list_loaded', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackModelListFailed(properties: {
+    provider_id: string
+    provider_mode: ProviderMode
+    error_code: string
+    duration_ms: number
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('model_list_failed', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackProviderConfigStarted(properties: ProviderConfigBaseProperties) {
+    if (!canCapture())
+      return
+    posthog.capture('provider_config_started', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackProviderConfigSucceeded(properties: ProviderConfigBaseProperties & { duration_ms: number }) {
+    if (!canCapture())
+      return
+    posthog.capture('provider_config_succeeded', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackProviderConfigFailed(properties: ProviderConfigBaseProperties & {
+    error_code: string
+    duration_ms: number
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('provider_config_failed', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
   // ─── Conversation action events ─────────────────────────────────────
 
   function trackTtsStopClicked(properties: { reason: 'manual-chat' }) {
@@ -295,6 +428,75 @@ export function useAnalytics() {
     posthog.capture('stt_failed', properties)
   }
 
+  function trackVoiceInputStarted(properties: VoiceInputBaseProperties) {
+    if (!canCapture())
+      return
+    posthog.capture('voice_input_started', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackMicrophonePermissionRequested(properties: VoiceInputBaseProperties) {
+    if (!canCapture())
+      return
+    posthog.capture('microphone_permission_requested', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackMicrophonePermissionDenied(properties: VoiceInputBaseProperties & { error_code?: 'permission_denied' | string }) {
+    if (!canCapture())
+      return
+    posthog.capture('microphone_permission_denied', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackAudioDeviceUnavailable(properties: VoiceInputBaseProperties & { error_code?: 'device_unavailable' | string }) {
+    if (!canCapture())
+      return
+    posthog.capture('audio_device_unavailable', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackVoiceInputCancelled(properties: VoiceInputBaseProperties) {
+    if (!canCapture())
+      return
+    posthog.capture('voice_input_cancelled', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  // ─── Feedback and community triage events ────────────────────────────
+
+  function trackBugReportSubmitted(properties: FeedbackBaseProperties & {
+    description_length_bucket: FeedbackDescriptionLengthBucket
+    include_triage_context: boolean
+    screenshot_attached: boolean
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('bug_report_submitted', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackFeedbackSubmitted(properties: FeedbackBaseProperties) {
+    if (!canCapture())
+      return
+    posthog.capture('feedback_submitted', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
   // ─── PTT events ──────────────────────────────────────────────────────
 
   function trackPttPressed() {
@@ -310,10 +512,9 @@ export function useAnalytics() {
   }
 
   // ─── TTS events (forwarded from speech bus by use-speech-pipeline-analytics) ─
-  // voice_id is `voice_type: 'catalog' | 'custom'` to keep cardinality
-  // bounded — MiMo voice clone allows arbitrary user-supplied voice ids
-  // (see codex F6). Actual voice_id is in properties for debug, NOT for
-  // PostHog group-by.
+  // Selection events use catalog `voice_id` values for adoption analysis.
+  // Custom voices must pass `voice_id = custom` from the callsite when the
+  // raw provider value is user supplied.
 
   function trackTtsIntentStarted(properties: { intent_id: string, turn_id?: string }) {
     if (!canCapture())
@@ -331,6 +532,53 @@ export function useAnalytics() {
     if (!canCapture())
       return
     posthog.capture('tts_intent_cancelled', properties)
+  }
+
+  function trackTtsProviderSelected(properties: TtsVoiceBaseProperties) {
+    if (!canCapture())
+      return
+    posthog.capture('tts_provider_selected', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackVoiceSelected(properties: TtsVoiceBaseProperties & {
+    voice_id: string
+    voice_type: VoiceType
+    voice_pack_id?: string
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('voice_selected', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackVoicePreviewPlayed(properties: TtsVoiceBaseProperties & {
+    voice_id: string
+    voice_type: VoiceType
+    voice_pack_id?: string
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('voice_preview_played', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackVoicePackBound(properties: TtsVoiceBaseProperties & {
+    voice_id: string
+    voice_pack_id: string
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('voice_pack_bound', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
   }
 
   // ─── Autonomous LLM path (artistry-autonomous bypasses chat orchestrator) ─
@@ -430,6 +678,14 @@ export function useAnalytics() {
     trackLlmFirstToken,
     trackAssistantResponseRendered,
     trackMessageRound,
+    trackChatActivationStarted,
+    trackChatActivationSucceeded,
+    trackChatActivationFailed,
+    trackModelListLoaded,
+    trackModelListFailed,
+    trackProviderConfigStarted,
+    trackProviderConfigSucceeded,
+    trackProviderConfigFailed,
     trackTtsStopClicked,
     trackChatSessionSelected,
     trackChatMessageDeleted,
@@ -439,6 +695,13 @@ export function useAnalytics() {
     trackSttStarted,
     trackSttSucceeded,
     trackSttFailed,
+    trackVoiceInputStarted,
+    trackMicrophonePermissionRequested,
+    trackMicrophonePermissionDenied,
+    trackAudioDeviceUnavailable,
+    trackVoiceInputCancelled,
+    trackBugReportSubmitted,
+    trackFeedbackSubmitted,
 
     trackPttPressed,
     trackPttReleased,
@@ -446,6 +709,10 @@ export function useAnalytics() {
     trackTtsIntentStarted,
     trackTtsIntentEnded,
     trackTtsIntentCancelled,
+    trackTtsProviderSelected,
+    trackVoiceSelected,
+    trackVoicePreviewPlayed,
+    trackVoicePackBound,
 
     trackAutonomousGenerateText,
 
