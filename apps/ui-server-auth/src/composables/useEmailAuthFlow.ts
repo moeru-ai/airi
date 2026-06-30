@@ -15,9 +15,9 @@ import { requestSocialSignInRedirect } from '../modules/sign-in'
 export interface UseEmailAuthFlowOptions {
   apiServerUrl: string
   /** Post sign-in / post non-verified sign-up navigation target (OIDC authorize URL or UI home). */
-  callbackURL: string
+  callbackUrl: string
   /** `continueURL` handed to the verify-email page so it resumes to the OIDC flow. */
-  verifyContinueURL: string
+  verifyContinueUrl: string
   /** Optional OIDC provider hint that auto-starts social sign-in once. */
   requestedProvider?: OAuthProvider | null
 }
@@ -25,8 +25,8 @@ export interface UseEmailAuthFlowOptions {
 /**
  * Shared state + handlers for the email-first auth steps (identify / password /
  * create / social) used by both the unified sign-in page and the Steam enroll
- * page. The two pages differ only in how they compute `callbackURL` and
- * `verifyContinueURL`; the step logic, verify-email routing, and provider
+ * page. The two pages differ only in how they compute `callbackUrl` and
+ * `verifyContinueUrl`; the step logic, verify-email routing, and provider
  * auto-start are identical.
  *
  * Use when:
@@ -78,7 +78,7 @@ export function useEmailAuthFlow(options: UseEmailAuthFlowOptions) {
       const redirectUrl = await requestSocialSignInRedirect({
         apiServerUrl: options.apiServerUrl,
         provider,
-        callbackURL: options.callbackURL,
+        callbackURL: options.callbackUrl,
       })
       window.location.href = redirectUrl
     }
@@ -123,19 +123,19 @@ export function useEmailAuthFlow(options: UseEmailAuthFlowOptions) {
         apiServerUrl: options.apiServerUrl,
         email: credentials.email.trim(),
         password: credentials.password,
-        callbackURL: options.callbackURL,
+        callbackURL: options.callbackUrl,
       })
       if (result.requiresVerification) {
         await router.push({
           path: '/verify-email',
           query: {
             email: credentials.email.trim(),
-            ...(options.verifyContinueURL ? { continueURL: options.verifyContinueURL } : {}),
+            ...(options.verifyContinueUrl ? { continueURL: options.verifyContinueUrl } : {}),
           },
         })
         return
       }
-      window.location.href = result.redirectURL ?? options.callbackURL
+      window.location.href = result.redirectURL ?? options.callbackUrl
     }
     catch (error) {
       errorMessage.value = describeAuthError(error) || t('server.auth.signIn.error.fallback')
@@ -175,12 +175,12 @@ export function useEmailAuthFlow(options: UseEmailAuthFlowOptions) {
           path: '/verify-email',
           query: {
             email,
-            ...(options.verifyContinueURL ? { continueURL: options.verifyContinueURL } : {}),
+            ...(options.verifyContinueUrl ? { continueURL: options.verifyContinueUrl } : {}),
           },
         })
         return
       }
-      window.location.href = options.callbackURL
+      window.location.href = options.callbackUrl
     }
     catch (error) {
       errorMessage.value = describeAuthError(error) || t('server.auth.signIn.error.fallback')
