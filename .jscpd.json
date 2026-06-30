@@ -1,0 +1,35 @@
+{
+  "minLines": 5,
+  "minTokens": 70,
+  "reporters": ["console", "html"],
+  "output": ".jscpd",
+  "ignore": [
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.test.js",
+    "**/*.test.jsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx",
+    "**/*.spec.js",
+    "**/*.spec.jsx",
+    "**/__tests__/**",
+    "**/storybook-static/**",
+    "**/playwright-report/**",
+    "**/test-results/**"
+  ],
+  "threshold": 5,
+  "absolute": false,
+  "gitignore": true,
+  "blame": true,
+  "format": [
+    "typescript",
+    "tsx",
+    "javascript",
+    "jsx",
+    "vue",
+    "css",
+    "scss",
+    "less"
+  ],
+  "verbose": true
+}

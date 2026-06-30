@@ -257,6 +257,7 @@ catalog:
   jose: ^6.2.2
   jsdom: ^29.0.2
   jszip: ^3.10.1
+  jscpd: ^4.0.0
   knip: ^6.4.1
   kokoro-js: ^1.2.1
   less: ^4.6.4

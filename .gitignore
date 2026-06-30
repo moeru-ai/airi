@@ -98,6 +98,9 @@ devenv.*
 target/
 crates/*/target/
 
+# jscpd report output
+.jscpd/
+
 # turborepo
 .turbo
 
