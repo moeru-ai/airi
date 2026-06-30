@@ -14,6 +14,7 @@ import { shell } from 'electron'
 import {
   electronAuthCallback,
   electronAuthCallbackError,
+  electronAuthEnrollmentStarted,
   electronAuthLogout,
   electronAuthStartLogin,
 } from '../../../shared/eventa'
@@ -47,6 +48,7 @@ export interface WindowAuthManager {
   registerWindow: (params: { context: MainContext, window: BrowserWindow }) => void
   broadcastAuthCallback: (tokens: TokenExchangeResult) => void
   broadcastAuthError: (message: string) => void
+  broadcastEnrollmentStarted: () => void
 }
 
 function isOidcSignInActive(): boolean {
@@ -102,6 +104,10 @@ export function createWindowAuthManagerService(): WindowAuthManager {
     forEachAuthContext(context => context.emit(electronAuthCallbackError, { error: message }))
   }
 
+  function broadcastEnrollmentStarted(): void {
+    forEachAuthContext(context => context.emit(electronAuthEnrollmentStarted, undefined))
+  }
+
   return {
     registerWindow(params) {
       authContexts.add(params.context)
@@ -113,6 +119,7 @@ export function createWindowAuthManagerService(): WindowAuthManager {
 
     broadcastAuthCallback,
     broadcastAuthError,
+    broadcastEnrollmentStarted,
   }
 }
 
