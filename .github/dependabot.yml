@@ -1,0 +1,63 @@
+# Dependabot configuration for automatic dependency updates
+# https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
+
+version: 2
+
+updates:
+  # Root-level pnpm workspace
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    # Group non-breaking updates together to reduce PR noise
+    groups:
+      # Security patches and critical fixes get their own PRs
+      security-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+      # Minor updates grouped together
+      minor-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+      # Major updates kept separate
+      major-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
+    # Ignore internal workspace packages handled separately
+    ignore:
+      - dependency-name: "@proj-airi/*"
+      - dependency-name: "@moeru/*"
+    labels:
+      - "dependencies"
+      - "automated"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    # Stagger reviews by assignee if maintainers exist
+    reviewers:
+      - "moeru-ai"
+    # Allow Dependabot to rebase behind-the-scenes
+    rebase-strategy: "auto"
+
+  # GitHub Actions used in CI workflows
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "ci"
+      - "automated"
+    commit-message:
+      prefix: "chore(ci)"
+      include: "scope"
