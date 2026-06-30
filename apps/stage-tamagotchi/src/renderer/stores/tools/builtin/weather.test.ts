@@ -101,11 +101,11 @@ describe('weather tool helpers', () => {
         'fetch',
         vi.fn().mockResolvedValue({
           ok: false,
-          status: 500,
+          status: 400,
         }),
       )
 
-      await expect(geocodeCity('Tokyo')).rejects.toThrow('Geocoding request failed: 500')
+      await expect(geocodeCity('Tokyo')).rejects.toThrow('Geocoding request failed: 400')
 
       vi.unstubAllGlobals()
     })
@@ -293,11 +293,11 @@ describe('weather tool helpers', () => {
           })
           .mockResolvedValueOnce({
             ok: false,
-            status: 503,
+            status: 400,
           }),
       )
 
-      await expect(fetchWeather('Tokyo')).rejects.toThrow('Weather request failed: 503')
+      await expect(fetchWeather('Tokyo')).rejects.toThrow('Weather request failed: 400')
 
       vi.unstubAllGlobals()
     })

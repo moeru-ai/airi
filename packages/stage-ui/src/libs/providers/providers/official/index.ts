@@ -7,6 +7,7 @@ import { getAuthToken } from '../../../../libs/auth'
 import { SERVER_URL } from '../../../../libs/server'
 import { defineProvider } from '../registry'
 import { createOfficialAudioProvider, createOfficialOpenAIProvider, OFFICIAL_ICON, withCredentials } from './shared'
+import { resilientFetch } from '@proj-airi/resilience'
 
 export const OFFICIAL_SPEECH_PROVIDER_ID = 'official-provider-speech'
 export const OFFICIAL_SPEECH_STREAMING_PROVIDER_ID = 'official-provider-speech-streaming'
@@ -113,7 +114,14 @@ export const providerOfficialSpeech = defineProvider({
   validationRequiredWhen: () => false,
   extraMethods: {
     listModels: async (): Promise<ModelInfo[]> => {
-      const res = await globalThis.fetch(`${SERVER_URL}/api/v1/audio/models`, { headers: authHeaders() })
+      const res = await resilientFetch(`${SERVER_URL}/api/v1/audio/models`, {
+        headers: authHeaders(),
+        breakerName: 'airi:official:/api/v1/audio/models',
+        breakerThreshold: 4,
+        breakerOpenForMs: 30_000,
+        timeoutMs: 15_000,
+        retryAttempts: 2,
+      })
       if (!res.ok)
         throw new Error(`audio models upstream ${res.status}: ${await res.text().catch(() => '')}`.slice(0, 256))
 
@@ -134,7 +142,14 @@ export const providerOfficialSpeech = defineProvider({
       const target = model && model.length > 0 ? model : 'auto'
       const url = new URL(`${SERVER_URL}/api/v1/audio/voices`)
       url.searchParams.set('model', target)
-      const res = await globalThis.fetch(url.toString(), { headers: authHeaders() })
+      const res = await resilientFetch(url.toString(), {
+        headers: authHeaders(),
+        breakerName: 'airi:official:/api/v1/audio/voices',
+        breakerThreshold: 4,
+        breakerOpenForMs: 30_000,
+        timeoutMs: 15_000,
+        retryAttempts: 2,
+      })
       if (!res.ok)
         throw new Error(`audio voices upstream ${res.status}: ${await res.text().catch(() => '')}`.slice(0, 256))
 
@@ -244,7 +259,14 @@ export const providerOfficialSpeechStreaming = defineProvider({
       streamingTtsAvailable.value = false
       defaultStreamingModelId = null
 
-      const res = await globalThis.fetch(`${SERVER_URL}/api/v1/audio/models/streaming`, { headers: authHeaders() })
+      const res = await resilientFetch(`${SERVER_URL}/api/v1/audio/models/streaming`, {
+        headers: authHeaders(),
+        breakerName: 'airi:official:/api/v1/audio/models/streaming',
+        breakerThreshold: 4,
+        breakerOpenForMs: 30_000,
+        timeoutMs: 15_000,
+        retryAttempts: 2,
+      })
       if (!res.ok)
         throw new Error(`streaming models upstream ${res.status}: ${await res.text().catch(() => '')}`.slice(0, 256))
 
@@ -279,7 +301,14 @@ export const providerOfficialSpeechStreaming = defineProvider({
       const apiResourceId = model?.includes('/') ? model.split('/', 2)[1] : model
       const voicesURL = new URL(`${SERVER_URL}/api/v1/audio/voices/streaming`)
       if (apiResourceId) voicesURL.searchParams.set('model', apiResourceId)
-      const res = await globalThis.fetch(voicesURL.toString(), { headers: authHeaders() })
+      const res = await resilientFetch(voicesURL.toString(), {
+        headers: authHeaders(),
+        breakerName: 'airi:official:/api/v1/audio/voices/streaming',
+        breakerThreshold: 4,
+        breakerOpenForMs: 30_000,
+        timeoutMs: 15_000,
+        retryAttempts: 2,
+      })
       if (!res.ok)
         throw new Error(`streaming voices upstream ${res.status}: ${await res.text().catch(() => '')}`.slice(0, 256))
 

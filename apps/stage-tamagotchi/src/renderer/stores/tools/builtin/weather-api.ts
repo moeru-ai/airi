@@ -1,5 +1,7 @@
 // -- Open-Meteo API types --
 
+import { resilientFetch } from '@proj-airi/resilience'
+
 interface GeocodingResult {
   results?: Array<{
     name: string
@@ -96,7 +98,13 @@ export async function geocodeCity(
   city: string,
 ): Promise<{ name: string; latitude: number; longitude: number; country: string }> {
   const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`
-  const res = await fetch(url)
+  const res = await resilientFetch(url, {
+    breakerName: 'open-meteo:/v1/search',
+    breakerThreshold: 4,
+    breakerOpenForMs: 30_000,
+    timeoutMs: 15_000,
+    retryAttempts: 2,
+  })
 
   if (!res.ok) throw new Error(`Geocoding request failed: ${res.status}`)
 
@@ -120,7 +128,13 @@ export async function fetchWeather(city: string): Promise<WeatherData> {
     forecast_days: '1',
   })
 
-  const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`)
+  const res = await resilientFetch(`https://api.open-meteo.com/v1/forecast?${params}`, {
+    breakerName: 'open-meteo:/v1/forecast',
+    breakerThreshold: 4,
+    breakerOpenForMs: 30_000,
+    timeoutMs: 15_000,
+    retryAttempts: 2,
+  })
 
   if (!res.ok) throw new Error(`Weather request failed: ${res.status}`)
 

@@ -6,6 +6,8 @@ import { z } from 'zod'
 
 import { defineProvider } from '../registry'
 
+import { resilientFetch } from '@proj-airi/resilience'
+
 /** A content block within a message — only text is used for the Converse conversion path. */
 interface ConverseTextContentBlock {
   text: string
@@ -217,10 +219,15 @@ function createBedrockConverseProvider(config: { apiKey: string; region: string 
         // so the rest of the xsai pipeline sees a standard streaming response.
         const converseUrl = `https://bedrock-runtime.${region}.amazonaws.com/model/${encodeURIComponent(modelId)}/converse`
 
-        const response = await fetch(converseUrl, {
+        const response = await resilientFetch(converseUrl, {
           method: 'POST',
           headers: bedrockHeaders(),
           body: JSON.stringify(converseBody),
+          breakerName: 'aws-bedrock-runtime:converse',
+          breakerThreshold: 4,
+          breakerOpenForMs: 60_000,
+          timeoutMs: 30_000,
+          retryAttempts: 2,
         })
 
         if (!response.ok) {
@@ -349,7 +356,15 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig>({
         const foundationResults = await Promise.all(
           targetProviders.map(async (provider) => {
             const url = `${base}/foundation-models?byInferenceType=ON_DEMAND&byOutputModality=TEXT&byProvider=${encodeURIComponent(provider)}`
-            const res = await fetch(url, { method: 'GET', headers })
+            const res = await resilientFetch(url, {
+              method: 'GET',
+              headers,
+              breakerName: 'aws-bedrock:foundation-models',
+              breakerThreshold: 4,
+              breakerOpenForMs: 30_000,
+              timeoutMs: 15_000,
+              retryAttempts: 2,
+            })
             if (!res.ok) return { modelSummaries: [] as BedrockModelSummary[] }
             return res.json() as Promise<BedrockFoundationModelsResponse>
           }),
@@ -361,9 +376,14 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig>({
           )
 
         // 2. Fetch system-defined inference profiles (cross-region, global/us prefixed)
-        const profilesRes = await fetch(`${base}/inference-profiles?type=SYSTEM_DEFINED&maxResults=1000`, {
+        const profilesRes = await resilientFetch(`${base}/inference-profiles?type=SYSTEM_DEFINED&maxResults=1000`, {
           method: 'GET',
           headers,
+          breakerName: 'aws-bedrock:inference-profiles',
+          breakerThreshold: 4,
+          breakerOpenForMs: 30_000,
+          timeoutMs: 15_000,
+          retryAttempts: 2,
         })
         const profilesData = profilesRes.ok
           ? ((await profilesRes.json()) as BedrockInferenceProfilesResponse)
@@ -456,13 +476,18 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig>({
           const apiKey = config.apiKey
           const errors: Array<{ error: unknown }> = []
           try {
-            const res = await fetch(
+            const res = await resilientFetch(
               `https://bedrock.${region}.amazonaws.com/foundation-models?byInferenceType=ON_DEMAND&byOutputModality=TEXT&byProvider=Amazon&maxResults=1`,
               {
                 method: 'GET',
                 headers: {
                   authorization: `Bearer ${apiKey}`,
                 },
+                breakerName: 'aws-bedrock:check-credentials',
+                breakerThreshold: 3,
+                breakerOpenForMs: 30_000,
+                timeoutMs: 10_000,
+                retryAttempts: 1,
               },
             )
             if (res.status === 403 || res.status === 401) {
