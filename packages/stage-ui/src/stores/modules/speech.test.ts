@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, providerOfficialSpeech } from '../../libs/providers/providers/official'
 import { useProvidersStore } from '../providers'
-import { toSignedPercent, useSpeechStore, voicePackForSpeechProvider } from './speech'
+import { toSignedPercent, useSpeechStore, VOICE_PACK_MODEL_ID, voicePackForSpeechProvider } from './speech'
 
 const i18nState = vi.hoisted(() => ({
   locale: { value: 'en-US' },
@@ -284,6 +284,46 @@ describe('speech store helpers', () => {
     const voices = await speechStore.loadVoicesForProvider(
       OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
       'volcengine/seed-tts-2.0',
+    )
+
+    expect(voices).toEqual([])
+    expect(listVoices).not.toHaveBeenCalled()
+  })
+
+  /**
+   * @example
+   * speechStore.ensureActiveSpeechModel()
+   */
+  it('keeps the synthetic Voice Pack model selected for the regular official provider', () => {
+    const providersStore = useProvidersStore()
+    const speechStore = useSpeechStore()
+    speechStore.activeSpeechProvider = OFFICIAL_SPEECH_PROVIDER_ID
+    speechStore.activeSpeechModel = VOICE_PACK_MODEL_ID
+    speechStore.activeSpeechVoiceId = 'voice-pack:vp-1'
+    providersStore.providerRuntimeState[OFFICIAL_SPEECH_PROVIDER_ID].models = [
+      { id: 'microsoft/v1', name: 'microsoft/v1', provider: OFFICIAL_SPEECH_PROVIDER_ID },
+    ]
+
+    speechStore.ensureActiveSpeechModel()
+
+    expect(speechStore.activeSpeechModel).toBe(VOICE_PACK_MODEL_ID)
+    expect(speechStore.activeSpeechVoiceId).toBe('voice-pack:vp-1')
+  })
+
+  /**
+   * @example
+   * await speechStore.loadVoicesForProvider(OFFICIAL_SPEECH_PROVIDER_ID, VOICE_PACK_MODEL_ID)
+   */
+  it('does not request raw official voices for the synthetic Voice Pack model', async () => {
+    const providersStore = useProvidersStore()
+    const speechStore = useSpeechStore()
+    const listVoices = vi.fn(async () => [{ id: 'raw-voice', name: 'Raw', provider: OFFICIAL_SPEECH_PROVIDER_ID, languages: [] }])
+    const metadata = providersStore.providerMetadata[OFFICIAL_SPEECH_PROVIDER_ID]
+    metadata.capabilities.listVoices = listVoices
+
+    const voices = await speechStore.loadVoicesForProvider(
+      OFFICIAL_SPEECH_PROVIDER_ID,
+      VOICE_PACK_MODEL_ID,
     )
 
     expect(voices).toEqual([])

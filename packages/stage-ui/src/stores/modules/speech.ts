@@ -42,6 +42,8 @@ interface VoicePackSpeechInput {
 
 const voicePackSupportedParams = new Set(['pitch', 'rate', 'volume'])
 
+export const VOICE_PACK_MODEL_ID = 'voice-pack'
+
 export function voicePackForSpeechProvider(
   providerId: string | undefined,
   voicePack: VoicePackSnapshot | undefined,
@@ -205,6 +207,10 @@ export const useSpeechStore = defineStore('speech', () => {
       return []
     }
 
+    if (provider === OFFICIAL_SPEECH_PROVIDER_ID && model === VOICE_PACK_MODEL_ID) {
+      return []
+    }
+
     // Streaming provider visibility is server-driven and only confirmed after
     // the auth probe force-configures it. Keep the gate at the public loader so
     // pages cannot bypass it and issue `/voices/streaming` while unavailable.
@@ -280,6 +286,9 @@ export const useSpeechStore = defineStore('speech', () => {
 
     const models = providersStore.getModelsForProvider(OFFICIAL_SPEECH_PROVIDER_ID)
     if (!models.length)
+      return
+
+    if (activeSpeechModel.value === VOICE_PACK_MODEL_ID)
       return
 
     const hasValidSelection = !!activeSpeechModel.value && models.some(m => m.id === activeSpeechModel.value)
