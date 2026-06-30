@@ -7,7 +7,7 @@
     "packages/server-sdk/src/index.ts"
   ],
   "entryPointStrategy": "expand",
-  "out": "./docs/api",
+  "out": "./docs/api/api",
   "excludeExternals": true,
   "excludePrivate": true,
   "excludeProtected": true,

@@ -3,7 +3,7 @@ import { join, relative, dirname, resolve } from 'node:path'
 import { marked } from 'marked'
 
 const ARCH_DIR = resolve('docs/architecture')
-const OUTPUT_DIR = resolve('docs/arch-html')
+const OUTPUT_DIR = resolve('docs/api/arch')
 
 const SHELL_ESCAPE = (s) => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))
 

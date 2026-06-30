@@ -8,7 +8,9 @@ on:
       - 'packages/server-shared/**'
       - 'packages/server-runtime/**'
       - 'packages/server-sdk/**'
+      - 'docs/architecture/**'
       - 'typedoc.base.json'
+      - 'docs/scripts/gen-arch-docs.mjs'
       - '.github/workflows/docs-pages.yml'
 
   workflow_dispatch:
@@ -101,10 +103,10 @@ jobs:
         run: |
           git config user.name "actions-user"
           git config user.email "actions@github.com"
-          git add docs/api/ docs/arch-html/
+          git add docs/api/
           if git diff --cached --quiet; then
             echo "Docs up to date — no commit needed"
             exit 0
           fi
-          git commit -m "chore(ci): update generated docs (api + arch-html)"
+          git commit -m "chore(ci): update generated docs (api + arch)"
           git push
