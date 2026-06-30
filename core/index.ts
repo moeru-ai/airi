@@ -254,6 +254,24 @@ export type {
 	SessionReconnectResult,
 } from "./session/types.js"
 
+// ── Telemetry ────────────────────────────────────────────────────────
+
+export {
+	Counter,
+	Gauge,
+	Histogram,
+	MetricRegistry,
+	getDefaultRegistry,
+	resetDefaultRegistry,
+} from './telemetry/index.js'
+
+export type {
+	HistogramBucket,
+	HistogramSnapshot,
+	CounterInstrument,
+	GaugeInstrument,
+} from './telemetry/index.js'
+
 // ── Runtime recovery ─────────────────────────────────────────────────
 
 export { RecoveryCoordinator } from "./runtime/recovery.js"

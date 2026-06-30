@@ -18,6 +18,8 @@ import { createTaskId, isValidTransition } from "./types.js"
 import { createCancellationToken, CancellationTokenSource } from "./cancellation.js"
 import type { CancellationToken } from "./cancellation.js"
 import type { TaskExecutor } from "./executor.js"
+import type { MetricRegistry } from "../telemetry/registry.js"
+import { Counter, Gauge, Histogram } from "../telemetry/metrics.js"
 
 // ── Configuration ────────────────────────────────────────────────────────
 
@@ -36,6 +38,13 @@ export interface TaskManagerOptions {
 	 * @default 60_000 (1 minute)
 	 */
 	readonly cleanupIntervalMs?: number
+
+	/**
+	 * Metric registry to register task management instruments against.
+	 * When omitted, instruments still work but are not aggregated into
+	 * a shared /metrics scrape endpoint.
+	 */
+	readonly metricRegistry?: MetricRegistry
 }
 
 // ── Internal task record ─────────────────────────────────────────────────
@@ -53,10 +62,18 @@ interface TaskRecord {
 export class TaskManager {
 	private readonly tasks = new Map<string, TaskRecord>()
 	private readonly executors = new Map<string, TaskExecutor>()
-	private readonly options: Required<TaskManagerOptions>
+	private readonly options: Required<Omit<TaskManagerOptions, 'metricRegistry'>> & { metricRegistry?: MetricRegistry }
 	private cleanupTimer: ReturnType<typeof setInterval> | undefined
 	private readonly events: EventBus
 	private readonly logger: Logger
+
+	// ── Metrics ──────────────────────────────────────────────────────────
+	private readonly registry: MetricRegistry | undefined
+	private readonly mCreated: Counter
+	private readonly mTransition: Counter
+	private readonly mDuration: Histogram
+	private readonly mQueueSize: Gauge
+	private readonly mActiveCount: Gauge
 
 	constructor(events: EventBus, logger: Logger, options: TaskManagerOptions = {}) {
 		this.events = events
@@ -65,7 +82,31 @@ export class TaskManager {
 			maxTasks: options.maxTasks ?? 1000,
 			completedTtlMs: options.completedTtlMs ?? 300_000,
 			cleanupIntervalMs: options.cleanupIntervalMs ?? 60_000,
+			metricRegistry: options.metricRegistry,
 		}
+
+		this.registry = options.metricRegistry
+		this.mCreated = this.registry
+			? this.registry.createCounter("airi_tasks_created_total", "Total tasks created", ["module"])
+			: new Counter("airi_tasks_created_total", "Total tasks created", ["module"])
+		this.mTransition = this.registry
+			? this.registry.createCounter("airi_task_transitions_total", "State transitions", ["module", "from_state", "to_state"])
+			: new Counter("airi_task_transitions_total", "State transitions", ["module", "from_state", "to_state"])
+		this.mDuration = this.registry
+			? this.registry.createHistogram("airi_task_duration_ms", "Task execution duration", {
+					labelKeys: ["module"],
+					buckets: [50, 100, 250, 500, 1000, 2500, 5000, 15000],
+				})
+			: new Histogram("airi_task_duration_ms", "Task execution duration", {
+					labelKeys: ["module"],
+					buckets: [50, 100, 250, 500, 1000, 2500, 5000, 15000],
+				})
+		this.mQueueSize = this.registry
+			? this.registry.createGauge("airi_task_queue_size", "Tasks currently queued", ["module"])
+			: new Gauge("airi_task_queue_size", "Tasks currently queued", ["module"])
+		this.mActiveCount = this.registry
+			? this.registry.createGauge("airi_task_active_count", "Tasks currently in running state", ["module"])
+			: new Gauge("airi_task_active_count", "Tasks currently in running state", ["module"])
 	}
 
 	start(): void {
@@ -143,6 +184,7 @@ export class TaskManager {
 		}
 
 		this.tasks.set(id as string, { task, source })
+		this.mCreated.inc(1, { module: moduleId })
 		this.logger.info(`Task created: ${id} "${task.title}" [${task.moduleId}]`)
 
 		return task
@@ -159,6 +201,12 @@ export class TaskManager {
 	complete(taskId: string, result: TaskResult): Task | undefined {
 		const task = this.transition(taskId, "completed")
 		if (!task) return undefined
+
+		if (task.startedAt && task.completedAt) {
+			const start = new Date(task.startedAt).getTime()
+			const end = new Date(task.completedAt).getTime()
+			this.mDuration.observe(end - start, { module: task.moduleId })
+		}
 
 		const now = new Date().toISOString()
 		const updated: Task = {
@@ -227,6 +275,18 @@ export class TaskManager {
 		}
 
 		this.tasks.set(taskId, { ...record, task: updated })
+		this.mTransition.inc(1, {
+			module: current.moduleId,
+			from_state: current.state,
+			to_state: newState,
+		})
+
+		// Update gauges on state transitions that affect queue/active pools.
+		if (newState === "queued") this.mQueueSize.inc(1, { module: current.moduleId })
+		if (current.state === "queued" && newState !== "queued") this.mQueueSize.dec(1, { module: current.moduleId })
+		if (newState === "running") this.mActiveCount.inc(1, { module: current.moduleId })
+		if (current.state === "running") this.mActiveCount.dec(1, { module: current.moduleId })
+
 		this.logger.debug(`Task ${taskId}: ${current.state} → ${newState}`)
 
 		return updated

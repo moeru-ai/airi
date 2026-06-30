@@ -20,6 +20,8 @@ import type { EventBus } from "../events/bus.js"
 import type { Logger } from "../logger.js"
 import type { Task, TaskError } from "../tasks/types.js"
 import type { TaskExecutor } from "../tasks/executor.js"
+import type { MetricRegistry } from "../telemetry/registry.js"
+import { Counter, Gauge } from "../telemetry/metrics.js"
 import { StdioWorkerTransport } from "./transport.js"
 import type { WorkerTransport } from "./transport.js"
 import {
@@ -80,6 +82,12 @@ export interface WorkerManagerOptions {
 	 * @default 5_000 (5 seconds)
 	 */
 	readonly shutdownTimeoutMs?: number
+
+	/**
+	 * Metric registry to register worker pool instruments against.
+	 * When omitted, instruments operate standalone.
+	 */
+	readonly metricRegistry?: MetricRegistry
 }
 
 // ── Worker state ────────────────────────────────────────────────────────
@@ -143,7 +151,7 @@ interface PendingTask {
  * Manages a pool of worker processes for isolated task execution.
  */
 export class WorkerManager {
-	private readonly options: Required<WorkerManagerOptions>
+	private readonly options: Required<Omit<WorkerManagerOptions, 'metricRegistry'>> & { metricRegistry?: MetricRegistry }
 	private readonly events: EventBus
 	private readonly logger: Logger
 	private readonly workers = new Map<string, WorkerInfo>()
@@ -153,6 +161,14 @@ export class WorkerManager {
 	private heartbeatTimer: ReturnType<typeof setInterval> | undefined
 	private nextWorkerId = 1
 	private shutdown = false
+
+	// ── Prometheus-compatible instruments ───────────────────────────────
+	private readonly registry?: MetricRegistry
+	private readonly mWorkerStarted: Counter
+	private readonly mWorkerStopped: Counter
+	private readonly mWorkerCrash: Counter
+	private readonly mWorkerInvocations: Counter
+	private readonly mWorkerActive: Gauge
 
 	constructor(
 		events: EventBus,
@@ -170,7 +186,26 @@ export class WorkerManager {
 			maxCrashesBeforeQuarantine: options.maxCrashesBeforeQuarantine ?? 3,
 			quarantineWindowMs: options.quarantineWindowMs ?? 60_000,
 			shutdownTimeoutMs: options.shutdownTimeoutMs ?? 5_000,
+			metricRegistry: options.metricRegistry,
 		}
+
+		this.registry = options.metricRegistry
+		const registry = this.registry
+		this.mWorkerStarted = registry
+			? registry.createCounter("airi_worker_started_total", "Total worker processes started")
+			: new Counter("airi_worker_started_total", "Total worker processes started")
+		this.mWorkerStopped = registry
+			? registry.createCounter("airi_worker_stopped_total", "Total worker processes stopped")
+			: new Counter("airi_worker_stopped_total", "Total worker processes stopped")
+		this.mWorkerCrash = registry
+			? registry.createCounter("airi_worker_crashes_total", "Total worker crashes detected", ["reason"])
+			: new Counter("airi_worker_crashes_total", "Total worker crashes detected", ["reason"])
+		this.mWorkerInvocations = registry
+			? registry.createCounter("airi_worker_task_invocations_total", "Total tasks dispatched to workers")
+			: new Counter("airi_worker_task_invocations_total", "Total tasks dispatched to workers")
+		this.mWorkerActive = registry
+			? registry.createGauge("airi_worker_active_count", "Currently active workers")
+			: new Gauge("airi_worker_active_count", "Currently active workers")
 	}
 
 	// ── Lifecycle ────────────────────────────────────────────────────────
@@ -387,6 +422,9 @@ export class WorkerManager {
 
 		worker.state = "dead"
 		this.metrics.recordWorkerCrash()
+		this.mWorkerCrash.inc(1, { reason: signal ?? String(code) })
+		this.mWorkerStopped.inc()
+		this.mWorkerActive.dec()
 
 		// Record crash timestamp for quarantine detection.
 		const now = Date.now()
@@ -577,6 +615,7 @@ export class WorkerManager {
 		})
 
 		this.logger.debug(`Task ${task.id} assigned to worker ${worker.workerId}.`)
+		this.mWorkerInvocations.inc()
 	}
 
 	/**
@@ -683,6 +722,8 @@ export class WorkerManager {
 		this.workers.set(workerId, worker)
 		this.transports.set(workerId, transport)
 		this.metrics.recordWorkerStarted()
+		this.mWorkerStarted.inc()
+		this.mWorkerActive.inc()
 	}
 
 	// ── Private: heartbeat ───────────────────────────────────────────────
