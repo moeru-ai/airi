@@ -10,6 +10,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { buildCurrentOriginAuthUiUrl } from '../modules/auth-ui-base'
 import { decideEmailStep } from '../modules/email-auth-flow'
 import { checkEmail, describeAuthError, signInWithEmail, signUpWithEmail } from '../modules/email-password'
+import { API_SERVER_URL_QUERY_PARAM } from '../modules/server-auth-context'
 import { requestSocialSignInRedirect } from '../modules/sign-in'
 
 export interface UseEmailAuthFlowOptions {
@@ -131,6 +132,7 @@ export function useEmailAuthFlow(options: UseEmailAuthFlowOptions) {
           query: {
             email: credentials.email.trim(),
             ...(options.verifyContinueUrl ? { continueURL: options.verifyContinueUrl } : {}),
+            ...(options.apiServerUrl ? { [API_SERVER_URL_QUERY_PARAM]: options.apiServerUrl } : {}),
           },
         })
         return
@@ -176,6 +178,7 @@ export function useEmailAuthFlow(options: UseEmailAuthFlowOptions) {
           query: {
             email,
             ...(options.verifyContinueUrl ? { continueURL: options.verifyContinueUrl } : {}),
+            ...(options.apiServerUrl ? { [API_SERVER_URL_QUERY_PARAM]: options.apiServerUrl } : {}),
           },
         })
         return
