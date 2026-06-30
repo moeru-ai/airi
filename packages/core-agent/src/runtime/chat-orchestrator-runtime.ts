@@ -3,6 +3,7 @@ import type { CommonContentPart, Message, ToolMessage } from '@xsai/shared-chat'
 
 import type { AgentContextPort } from '../contracts/context-port'
 import type { AgentForegroundStreamPort } from '../contracts/stream-port'
+import type { AgentChannelIngressContext } from '../types/channel'
 import type { ChatAssistantMessage, ChatHistoryItem, ChatSlices, ChatStreamEventContext, ContextMessage, StreamingAssistantMessage } from '../types/chat'
 import type { StreamEvent, StreamOptions } from '../types/llm'
 
@@ -48,6 +49,8 @@ function cloneStreamingMessage(message: StreamingAssistantMessage): StreamingAss
  * Options accepted by the chat orchestrator runtime for one user send.
  */
 export interface ChatOrchestratorSendOptions {
+  /** Provider identifier used for this turn's telemetry and response policy. */
+  providerId?: string
   /** Provider model identifier used for the outbound LLM request. */
   model: string
   /** Concrete chat provider implementation selected by the caller. */
@@ -60,14 +63,48 @@ export interface ChatOrchestratorSendOptions {
   tools?: StreamOptions['tools']
   /** Original transport input metadata used by bridge/devtools observers. */
   input?: ChatStreamEventContext['input']
+  /** Channel facts preserved for hooks, observability, and future channel runtimes. */
+  channel?: AgentChannelIngressContext
 }
+
+/**
+ * Pending-send metadata available before execution options finish resolving.
+ */
+export interface ChatOrchestratorQueuedPreparationSnapshot {
+  /** Image attachments used only for pending queue snapshots before options resolve. */
+  attachments?: ChatOrchestratorSendOptions['attachments']
+  /** Transport input metadata used only for pending queue snapshots before options resolve. */
+  input?: ChatOrchestratorSendOptions['input']
+}
+
+/**
+ * Deferred execution options prepared after a send has already entered FIFO order.
+ */
+export interface ChatOrchestratorQueuedPreparation {
+  /** Resolves provider/model/options needed by the ordered send commit stage. */
+  resolveOptions: () => Promise<ChatOrchestratorSendOptions>
+  /** Snapshot metadata shown while the send is still waiting or preparing. */
+  snapshot: ChatOrchestratorQueuedPreparationSnapshot
+}
+
+type QueuedSendPreparationResult
+  = | { ok: true, value: ChatOrchestratorSendOptions }
+    | { ok: false, error: unknown }
+
+type QueuedSendPreparationWaitResult
+  = | { type: 'prepared', result: QueuedSendPreparationResult }
+    | { type: 'cancelled' }
 
 interface QueuedSend {
   sendingMessage: string
-  options: ChatOrchestratorSendOptions
+  preparedOptions: Promise<QueuedSendPreparationResult>
+  preparationCancelled: Promise<void>
+  cancelPreparationWait: () => void
+  snapshot: ChatOrchestratorQueuedPreparationSnapshot
   generation: number
   sessionId: string
   cancelled?: boolean
+  settled?: boolean
   deferred: {
     resolve: () => void
     reject: (error: unknown) => void
@@ -251,6 +288,8 @@ export interface ChatOrchestratorRuntimeDeps {
 export interface ChatOrchestratorRuntime {
   /** Enqueues a user send for the target session, preserving FIFO order. */
   ingest: (sendingMessage: string, options: ChatOrchestratorSendOptions, targetSessionId?: string) => Promise<void>
+  /** Enqueues a user send before its execution options have finished resolving. */
+  ingestWithQueuedPreparation: (sendingMessage: string, preparation: ChatOrchestratorQueuedPreparation, targetSessionId?: string) => Promise<void>
   /** Rejects queued sends that have not started yet. */
   cancelPendingSends: (sessionId?: string) => void
   /** Returns serializable snapshots of currently queued sends. */
@@ -349,6 +388,79 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     })
   }
 
+  async function resolveQueuedSendOptions(
+    resolveOptions: ChatOrchestratorQueuedPreparation['resolveOptions'],
+  ): Promise<QueuedSendPreparationResult> {
+    try {
+      return {
+        ok: true,
+        value: await resolveOptions(),
+      }
+    }
+    catch (error) {
+      return {
+        ok: false,
+        error,
+      }
+    }
+  }
+
+  function rejectQueuedSend(queued: QueuedSend, error: unknown) {
+    if (queued.settled)
+      return
+
+    queued.settled = true
+    queued.deferred.reject(error)
+  }
+
+  function resolveQueuedSend(queued: QueuedSend) {
+    if (queued.settled)
+      return
+
+    queued.settled = true
+    queued.deferred.resolve()
+  }
+
+  function removePendingQueuedSend(queued: QueuedSend) {
+    const nextPendingQueuedSends = pendingQueuedSends.filter(item => item !== queued)
+    if (nextPendingQueuedSends.length === pendingQueuedSends.length)
+      return
+
+    pendingQueuedSends = nextPendingQueuedSends
+    emitStateChange()
+  }
+
+  function isQueuedSendStale(queued: QueuedSend) {
+    return deps.session.getSessionGeneration(queued.sessionId) !== queued.generation
+  }
+
+  function createPreparationCancellation() {
+    let cancelPreparationWait: (() => void) | undefined
+    const preparationCancelled = new Promise<void>((resolve) => {
+      cancelPreparationWait = resolve
+    })
+
+    if (!cancelPreparationWait)
+      throw new Error('Preparation cancellation handler was not initialized')
+
+    return {
+      preparationCancelled,
+      cancelPreparationWait,
+    }
+  }
+
+  async function waitForQueuedPreparation(queued: QueuedSend): Promise<QueuedSendPreparationWaitResult> {
+    return Promise.race([
+      queued.preparedOptions.then(result => ({
+        type: 'prepared',
+        result,
+      } satisfies QueuedSendPreparationWaitResult)),
+      queued.preparationCancelled.then(() => ({
+        type: 'cancelled',
+      } satisfies QueuedSendPreparationWaitResult)),
+    ])
+  }
+
   async function performSend(
     sendingMessage: string,
     options: ChatOrchestratorSendOptions,
@@ -374,6 +486,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       contexts: deps.context.snapshot(),
       composedMessage: [],
       input: options.input,
+      channel: options.channel,
     }
     deps.onLifecycle?.({
       phase: 'before-compose',
@@ -462,7 +575,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         sessionMessages: sessionMessagesForSend,
       })
 
-      const categorizer = createStreamingCategorizer(deps.getActiveProvider())
+      const turnProviderId = options.providerId ?? deps.getActiveProvider()
+      const categorizer = createStreamingCategorizer(turnProviderId)
       let streamPosition = 0
 
       const parser = useLlmmarkerParser({
@@ -503,7 +617,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           if (isStaleGeneration())
             return
 
-          const finalCategorization = categorizeResponse(fullText, deps.getActiveProvider())
+          const finalCategorization = categorizeResponse(fullText, turnProviderId)
 
           const reasoningContentField = buildingMessage.categorization?.reasoning?.trim()
           buildingMessage.categorization = {
@@ -606,7 +720,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       let llmFirstTokenEmitted = false
       deps.onLlmRequestStarted?.({
         model: options.model,
-        provider: deps.getActiveProvider() || 'unknown',
+        provider: turnProviderId || 'unknown',
         hasVoice: !!options.input,
       })
 
@@ -726,56 +840,111 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     }
   }
 
-  const sendQueue = createQueue<QueuedSend>({
-    handlers: [
-      async ({ data }) => {
-        const { sendingMessage, options, generation, deferred, sessionId, cancelled } = data
+  let drainTask: Promise<void> | undefined
 
-        if (cancelled)
+  function requestDrain() {
+    if (drainTask)
+      return
+
+    drainTask = drainQueuedSends()
+  }
+
+  async function drainQueuedSends() {
+    try {
+      while (pendingQueuedSends.length > 0) {
+        const queued = pendingQueuedSends[0]
+
+        if (!queued)
           return
 
-        if (deps.session.getSessionGeneration(sessionId) !== generation) {
-          deferred.reject(new Error('Chat session was reset before send could start'))
-          return
+        if (queued.cancelled) {
+          removePendingQueuedSend(queued)
+          continue
         }
+
+        if (isQueuedSendStale(queued)) {
+          removePendingQueuedSend(queued)
+          rejectQueuedSend(queued, new Error('Chat session was reset before send could start'))
+          continue
+        }
+
+        const preparation = await waitForQueuedPreparation(queued)
+
+        if (preparation.type === 'cancelled' || queued.cancelled) {
+          removePendingQueuedSend(queued)
+          continue
+        }
+
+        if (isQueuedSendStale(queued)) {
+          removePendingQueuedSend(queued)
+          rejectQueuedSend(queued, new Error('Chat session was reset before send could start'))
+          continue
+        }
+
+        const preparedOptions = preparation.result
+
+        if (preparedOptions.ok === false) {
+          removePendingQueuedSend(queued)
+          rejectQueuedSend(queued, preparedOptions.error)
+          continue
+        }
+
+        removePendingQueuedSend(queued)
 
         try {
-          await performSend(sendingMessage, options, generation, sessionId)
-          deferred.resolve()
+          await performSend(queued.sendingMessage, preparedOptions.value, queued.generation, queued.sessionId)
+          resolveQueuedSend(queued)
         }
         catch (error) {
-          deferred.reject(error)
+          rejectQueuedSend(queued, error)
         }
-      },
-    ],
-  })
-
-  sendQueue.on('enqueue', (queuedSend) => {
-    pendingQueuedSends.push(queuedSend)
-    emitStateChange()
-  })
-
-  sendQueue.on('dequeue', (queuedSend) => {
-    pendingQueuedSends = pendingQueuedSends.filter(item => item !== queuedSend)
-    emitStateChange()
-  })
+      }
+    }
+    finally {
+      drainTask = undefined
+      if (pendingQueuedSends.length > 0)
+        requestDrain()
+    }
+  }
 
   function ingest(
     sendingMessage: string,
     options: ChatOrchestratorSendOptions,
     targetSessionId?: string,
   ) {
+    return ingestWithQueuedPreparation(sendingMessage, {
+      resolveOptions: async () => options,
+      snapshot: {
+        attachments: options.attachments,
+        input: options.input,
+      },
+    }, targetSessionId)
+  }
+
+  function ingestWithQueuedPreparation(
+    sendingMessage: string,
+    preparation: ChatOrchestratorQueuedPreparation,
+    targetSessionId?: string,
+  ) {
     const sessionId = targetSessionId || deps.getActiveSessionId()
     const generation = deps.session.getSessionGeneration(sessionId)
 
     return new Promise<void>((resolve, reject) => {
-      sendQueue.enqueue({
+      const preparationCancellation = createPreparationCancellation()
+      const queuedSend: QueuedSend = {
         sendingMessage,
-        options,
+        preparedOptions: resolveQueuedSendOptions(preparation.resolveOptions),
+        preparationCancelled: preparationCancellation.preparationCancelled,
+        cancelPreparationWait: preparationCancellation.cancelPreparationWait,
+        snapshot: preparation.snapshot,
         generation,
         sessionId,
         deferred: { resolve, reject },
-      })
+      }
+
+      pendingQueuedSends.push(queuedSend)
+      emitStateChange()
+      requestDrain()
     })
   }
 
@@ -785,7 +954,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         continue
 
       queued.cancelled = true
-      queued.deferred.reject(new Error('Chat session was reset before send could start'))
+      queued.cancelPreparationWait()
+      rejectQueuedSend(queued, new Error('Chat session was reset before send could start'))
     }
 
     pendingQueuedSends = sessionId
@@ -800,13 +970,14 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       generation: queued.generation,
       cancelled: !!queued.cancelled,
       messagePreview: queued.sendingMessage.slice(0, 120),
-      hasAttachments: !!queued.options.attachments?.length,
-      inputType: queued.options.input?.type,
+      hasAttachments: !!queued.snapshot.attachments?.length,
+      inputType: queued.snapshot.input?.type,
     } satisfies QueuedSendSnapshot))
   }
 
   return {
     ingest,
+    ingestWithQueuedPreparation,
     cancelPendingSends,
     getPendingQueuedSendSnapshot,
     getPendingQueuedSendCount: () => pendingQueuedSends.length,
