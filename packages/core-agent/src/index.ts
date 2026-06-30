@@ -12,6 +12,19 @@ export type { ContextSnapshot } from './messages/context-prompt'
 export { formatTimePrefix } from './messages/datetime-prefix'
 export { createChatHooks } from './runtime/agent-hooks'
 export type {
+  AgentExecutionProfile,
+  AgentProviderResolver,
+  AgentRuntimeConfig,
+  CreateAgentRuntimeConfigOptions,
+} from './runtime/agent-runtime-config'
+export { createAgentRuntimeConfig } from './runtime/agent-runtime-config'
+export type {
+  ChannelAgentExecutionOptions,
+  ChannelAgentRuntime,
+  ChannelAgentRuntimeDeps,
+} from './runtime/channel-agent-runtime'
+export { createChannelAgentRuntime } from './runtime/channel-agent-runtime'
+export type {
   ChatOrchestratorLifecycleRecord,
   ChatOrchestratorLLMPort,
   ChatOrchestratorPromptProjection,
@@ -45,6 +58,10 @@ export type {
   ResponseCategory,
 } from './runtime/response-categoriser'
 export { mergeLoadedSessionMessages } from './session/merge-loaded-session-messages'
+export type {
+  AgentChannelIngressContext,
+  AgentChannelMessage,
+} from './types/channel'
 export type {
   ChatAssistantMessage,
   ChatHistoryItem,

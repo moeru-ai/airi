@@ -1,10 +1,10 @@
-import type { ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
+import type { AgentChannelMessage, ChannelAgentExecutionOptions, ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message } from '@xsai/shared-chat'
 
 import type { ChatHistoryItem } from '../types/chat'
 
-import { createChatOrchestratorRuntime } from '@proj-airi/core-agent'
+import { createChannelAgentRuntime } from '@proj-airi/core-agent'
 import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
@@ -41,7 +41,7 @@ function isTextDelta(event: StreamEvent): event is Extract<StreamEvent, { type: 
   return event.type === 'text-delta'
 }
 
-export type { QueuedSendSnapshot, ChatOrchestratorSendOptions as SendOptions } from '@proj-airi/core-agent'
+export type { AgentChannelMessage, ChannelAgentExecutionOptions, QueuedSendSnapshot, ChatOrchestratorSendOptions as SendOptions } from '@proj-airi/core-agent'
 
 export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const llmStore = useLLM()
@@ -132,7 +132,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     ownedActiveTurnSpan = undefined
   }
 
-  const runtime = createChatOrchestratorRuntime({
+  const runtime = createChannelAgentRuntime({
     session: {
       ensureSession: sessionId => chatSession.ensureSession(sessionId),
       getSessionMessages: sessionId => chatSession.getSessionMessages(sessionId).map(message => toRaw(message)),
@@ -224,12 +224,35 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       runtime.setSending(next)
   })
 
+  function toChannelExecutionOptions(options: ChatOrchestratorSendOptions): ChannelAgentExecutionOptions {
+    const { attachments: _attachments, input: _input, channel: _channel, ...executionOptions } = options
+    return executionOptions
+  }
+
+  async function ingestChannelMessage(
+    message: AgentChannelMessage,
+    options: ChannelAgentExecutionOptions,
+  ) {
+    return runtime.ingestMessage(message, options)
+  }
+
   async function ingest(
     sendingMessage: string,
     options: ChatOrchestratorSendOptions,
     targetSessionId?: string,
   ) {
-    return runtime.ingest(sendingMessage, options, targetSessionId)
+    const message: AgentChannelMessage = {
+      id: nanoid(),
+      channelId: 'stage-ui',
+      sessionId: targetSessionId || activeSessionId.value,
+      role: 'user',
+      content: sendingMessage,
+      createdAt: Date.now(),
+      attachments: options.attachments,
+      input: options.input,
+    }
+
+    return ingestChannelMessage(message, toChannelExecutionOptions(options))
   }
 
   async function ingestOnFork(
@@ -263,6 +286,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     pendingQueuedSendCount,
 
     ingest,
+    ingestChannelMessage,
     ingestOnFork,
     cancelPendingSends,
     getPendingQueuedSendSnapshot,

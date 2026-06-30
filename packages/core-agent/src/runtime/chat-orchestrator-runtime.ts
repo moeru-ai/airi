@@ -3,6 +3,7 @@ import type { CommonContentPart, Message, ToolMessage } from '@xsai/shared-chat'
 
 import type { AgentContextPort } from '../contracts/context-port'
 import type { AgentForegroundStreamPort } from '../contracts/stream-port'
+import type { AgentChannelIngressContext } from '../types/channel'
 import type { ChatAssistantMessage, ChatHistoryItem, ChatSlices, ChatStreamEventContext, ContextMessage, StreamingAssistantMessage } from '../types/chat'
 import type { StreamEvent, StreamOptions } from '../types/llm'
 
@@ -48,6 +49,8 @@ function cloneStreamingMessage(message: StreamingAssistantMessage): StreamingAss
  * Options accepted by the chat orchestrator runtime for one user send.
  */
 export interface ChatOrchestratorSendOptions {
+  /** Provider identifier used for this turn's telemetry and response policy. */
+  providerId?: string
   /** Provider model identifier used for the outbound LLM request. */
   model: string
   /** Concrete chat provider implementation selected by the caller. */
@@ -60,6 +63,8 @@ export interface ChatOrchestratorSendOptions {
   tools?: StreamOptions['tools']
   /** Original transport input metadata used by bridge/devtools observers. */
   input?: ChatStreamEventContext['input']
+  /** Channel facts preserved for hooks, observability, and future channel runtimes. */
+  channel?: AgentChannelIngressContext
 }
 
 interface QueuedSend {
@@ -374,6 +379,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       contexts: deps.context.snapshot(),
       composedMessage: [],
       input: options.input,
+      channel: options.channel,
     }
     deps.onLifecycle?.({
       phase: 'before-compose',
@@ -462,7 +468,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         sessionMessages: sessionMessagesForSend,
       })
 
-      const categorizer = createStreamingCategorizer(deps.getActiveProvider())
+      const turnProviderId = options.providerId ?? deps.getActiveProvider()
+      const categorizer = createStreamingCategorizer(turnProviderId)
       let streamPosition = 0
 
       const parser = useLlmmarkerParser({
@@ -503,7 +510,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           if (isStaleGeneration())
             return
 
-          const finalCategorization = categorizeResponse(fullText, deps.getActiveProvider())
+          const finalCategorization = categorizeResponse(fullText, turnProviderId)
 
           const reasoningContentField = buildingMessage.categorization?.reasoning?.trim()
           buildingMessage.categorization = {
@@ -606,7 +613,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       let llmFirstTokenEmitted = false
       deps.onLlmRequestStarted?.({
         model: options.model,
-        provider: deps.getActiveProvider() || 'unknown',
+        provider: turnProviderId || 'unknown',
         hasVoice: !!options.input,
       })
 
