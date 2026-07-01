@@ -40,6 +40,16 @@ const OIDC_TOKEN_PATH = '/api/auth/oauth2/token'
 // Active loopback server cleanup handle
 let closeLoopback: (() => void) | null = null
 let signingInFlight = false
+// NOTICE:
+// Why: First-principles (P1) guard — while true, every electronAuthStartLogin
+// call routes to Steam enrollment instead of plain OIDC, so no IPC entry point
+// (onboarding welcome, controls-island, settings/account) can create an AIRI
+// account that is not linked to this SteamID.
+// Root cause: without it, the onboarding "Sign in" button would fire plain OIDC
+// and silently bypass Steam linking, recreating the cross-identity fragmentation
+// the enrollment spec exists to prevent.
+// Removal condition: only if Steam enrollment is removed from the product.
+let steamEnrollmentPending = false
 
 export interface TokenExchangeResult {
   accessToken: string
@@ -72,9 +82,15 @@ export async function trySteamSignIn(windowAuthManager: WindowAuthManager): Prom
     return
   }
 
+  // Broadcast checking so the renderer can show a "Checking Steam…" state before
+  // the probe resolves, preventing a premature plain-OIDC click that would create
+  // an unlinked account.
+  windowAuthManager.broadcastSteamProbe('checking')
+
   const ticketResult = await getWebApiTicket()
   if (!ticketResult.ok) {
     log.withFields({ reason: ticketResult.reason }).warn('Steam sign-in failed')
+    steamEnrollmentPending = false
     windowAuthManager.broadcastAuthError(ticketResult.reason)
     return
   }
@@ -83,21 +99,24 @@ export async function trySteamSignIn(windowAuthManager: WindowAuthManager): Prom
     serverUrl: SERVER_URL,
     ticketHex: ticketResult.ticketHex,
   })
+
   if (!exchangeResult.ok) {
     if (exchangeResult.kind === 'needs_enrollment') {
-      log.log('Steam account unlinked — starting enrollment in system browser')
-      windowAuthManager.broadcastEnrollmentStarted()
-      await startEnrollmentFlow(windowAuthManager, {
-        enrollToken: exchangeResult.enrollToken,
-        authUiUrl: exchangeResult.authUiUrl,
-      })
+      // User-initiated trigger: do NOT auto-open the browser. Surface a pending
+      // state; the user clicks "Link Steam account", which re-invokes the Steam
+      // exchange via startSteamEnrollment to obtain a fresh token + open browser.
+      // The probe's enrollToken is intentionally discarded — fetched fresh on
+      // click so the short TTL covers only the browser→verify→relay window.
+      steamEnrollmentPending = true
+      windowAuthManager.broadcastSteamProbe('pending')
       return
     }
-    log.withFields({ reason: exchangeResult.reason }).warn('Steam sign-in failed')
+    steamEnrollmentPending = false
     windowAuthManager.broadcastAuthError(exchangeResult.reason)
     return
   }
 
+  steamEnrollmentPending = false
   windowAuthManager.broadcastAuthCallback(exchangeResult.tokens)
   log.log('Steam sign-in successful')
 }
@@ -248,11 +267,16 @@ async function startOidcLoopbackFlow(
  * The enroll page receives the single-use enrollment `token` plus the OIDC
  * authorize URL as `continue`; once the user authenticates, the page navigates
  * to `continue`, where the server consumes the token and links Steam.
+ *
+ * Broadcasts `enrollmentStarted` so the renderer flips to its
+ * "enrollment-in-browser" state at the moment the browser opens, regardless of
+ * which call site triggered the flow.
  */
 async function startEnrollmentFlow(
   windowAuthManager: WindowAuthManager,
   params: { enrollToken: string, authUiUrl: string },
 ): Promise<void> {
+  windowAuthManager.broadcastEnrollmentStarted()
   await startOidcLoopbackFlow(windowAuthManager, {
     promptLogin: false,
     buildBrowserUrl: authorizeUrl =>
@@ -262,6 +286,62 @@ async function startEnrollmentFlow(
         continueUrl: authorizeUrl,
       }),
   })
+}
+
+/**
+ * Re-acquires a Steam ticket and opens the enrollment browser, used when the
+ * user clicks "Link Steam account" after the startup probe found an unlinked
+ * SteamID.
+ *
+ * Use when:
+ * - The `electronAuthStartLogin` IPC fires while `steamEnrollmentPending` is
+ *   true, so the fresh enroll token's short TTL covers only the
+ *   browser → verify → relay window.
+ *
+ * Expects:
+ * - Steam was initialized successfully by the startup probe.
+ *
+ * Returns:
+ * - Resolves once the browser is opened; the loopback wait runs in the
+ *   background and resolves via `broadcastAuthCallback` (same as manual OIDC).
+ * - On a surprising 200 (linked in the meantime), treats it as silent login.
+ */
+async function startSteamEnrollment(windowAuthManager: WindowAuthManager): Promise<void> {
+  const initResult = await initSteam()
+  if (!initResult.ok) {
+    steamEnrollmentPending = false
+    windowAuthManager.broadcastAuthError(initResult.reason)
+    return
+  }
+
+  const ticketResult = await getWebApiTicket()
+  if (!ticketResult.ok) {
+    steamEnrollmentPending = false
+    windowAuthManager.broadcastAuthError(ticketResult.reason)
+    return
+  }
+
+  const exchangeResult = await exchangeSteamTicketForTokens({
+    serverUrl: SERVER_URL,
+    ticketHex: ticketResult.ticketHex,
+  })
+
+  if (!exchangeResult.ok) {
+    if (exchangeResult.kind === 'needs_enrollment') {
+      await startEnrollmentFlow(windowAuthManager, {
+        enrollToken: exchangeResult.enrollToken,
+        authUiUrl: exchangeResult.authUiUrl,
+      })
+      return
+    }
+    steamEnrollmentPending = false
+    windowAuthManager.broadcastAuthError(exchangeResult.reason)
+    return
+  }
+
+  // Re-probe unexpectedly returned tokens (linked in the meantime) — silent login.
+  steamEnrollmentPending = false
+  windowAuthManager.broadcastAuthCallback(exchangeResult.tokens)
 }
 
 /**
@@ -279,6 +359,15 @@ export function createAuthService(params: {
 
   defineInvokeHandler(params.context, electronAuthStartLogin, async (_, options) => {
     if (params.window.webContents.id !== options?.raw.ipcMainEvent.sender.id) {
+      return
+    }
+
+    // NOTICE: First-principles (P1) choke point — while a Steam enrollment is
+    // pending, every sign-in entry point (onboarding welcome, controls-island,
+    // settings/account) routes to Steam enrollment so no IPC call can create an
+    // AIRI account that is not linked to this SteamID.
+    if (steamEnrollmentPending) {
+      await startSteamEnrollment(params.windowAuthManager)
       return
     }
 
