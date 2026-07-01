@@ -22,10 +22,10 @@ Full distro based on [CachyOS](https://cachyos.org/) coming soon!
   <a href="https://github.com/animaios/Anima/actions/workflows/ci.yml">
     <img src="https://github.com/animaios/Anima/actions/workflows/ci.yml/badge.svg" alt="CI">
   </a>
-  <br>
-  <a href="https://animaios.github.io/airi">
-    <img src="https://img.shields.io/badge/docs-animaios.github.io/airi-blue" alt="Docs">
+  <a href="https://animaios.github.io/anima">
+    <img src="https://img.shields.io/badge/docs-animaios.github.io/anima-blue" alt="Docs">
   </a>
+  <br>
   <a href="https://app.deepsource.com/gh/animaios/Anima/" target="_blank">
     <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/Anima.svg/?label=code+coverage&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/></a>
   <a href="https://app.deepsource.com/gh/animaios/Anima/" target="_blank">
