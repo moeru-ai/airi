@@ -52,11 +52,11 @@ const canExtractColors = computed(() => props.runtimeSnapshot.canCapturePreview)
 const trackingOptions = computed<{
   value: 'camera' | 'mouse' | 'none'
   label: string
-  class: string
+  columnStart: number
 }[]>(() => [
-  { value: 'camera', label: t('settings.vrm.scale-and-position.eye-tracking-mode.options.option.camera'), class: 'col-start-3' },
-  { value: 'mouse', label: t('settings.vrm.scale-and-position.eye-tracking-mode.options.option.mouse'), class: 'col-start-4' },
-  { value: 'none', label: t('settings.vrm.scale-and-position.eye-tracking-mode.options.option.disabled'), class: 'col-start-5' },
+  { value: 'camera', label: t('settings.vrm.scale-and-position.eye-tracking-mode.options.option.camera'), columnStart: 3 },
+  { value: 'mouse', label: t('settings.vrm.scale-and-position.eye-tracking-mode.options.option.mouse'), columnStart: 4 },
+  { value: 'none', label: t('settings.vrm.scale-and-position.eye-tracking-mode.options.option.disabled'), columnStart: 5 },
 ])
 
 // switch between hemisphere light and sky box
@@ -132,8 +132,10 @@ const envOptions = computed(() => [
       </div>
       <div />
       <template v-for="option in trackingOptions" :key="option.value">
+        <!-- Keep grid placement inline so UnoCSS extraction does not have to discover computed col-start-* classes. -->
         <Button
-          :class="[option.class, 'w-auto']"
+          class="w-auto"
+          :style="{ gridColumnStart: option.columnStart }"
           :disabled="controlsLocked"
           size="sm"
           :variant="trackingMode === option.value ? 'primary' : 'secondary'"
