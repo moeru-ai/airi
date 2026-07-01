@@ -14,7 +14,6 @@ import { shell } from 'electron'
 import {
   electronAuthCallback,
   electronAuthCallbackError,
-  electronAuthEnrollmentStarted,
   electronAuthLogout,
   electronAuthStartLogin,
 } from '../../../shared/eventa'
@@ -37,9 +36,6 @@ const OIDC_TOKEN_PATH = '/api/auth/oauth2/token'
 // Active loopback server cleanup handle
 let closeLoopback: (() => void) | null = null
 let signingInFlight = false
-// NOTICE: Covers the Steam getWebApiTicket + exchangeSteamTicketForTokens window
-// that signingInFlight/closeLoopback do not; cleared in startSteamSignIn finally.
-let steamSignInInFlight = false
 
 export interface TokenExchangeResult {
   accessToken: string
@@ -51,20 +47,10 @@ export interface TokenExchangeResult {
 export interface WindowAuthManager {
   registerWindow: (params: { context: MainContext, window: BrowserWindow }) => void
   broadcastAuthCallback: (tokens: TokenExchangeResult) => void
-  broadcastAuthError: (message: string) => void
-  broadcastEnrollmentStarted: () => void
-}
-
-function isSignInActive(): boolean {
-  return signingInFlight || closeLoopback !== null || steamSignInInFlight
+  broadcastAuthError: (error: string) => void
 }
 
 export async function trySteamSignIn(windowAuthManager: WindowAuthManager): Promise<void> {
-  if (isSignInActive()) {
-    log.debug('Skipping Steam sign-in: another sign-in flow is in progress')
-    return
-  }
-
   const initResult = await initSteam()
   if (!initResult.ok) {
     log.withFields({ reason: initResult.reason }).debug('Steam sign-in skipped')
@@ -80,21 +66,14 @@ export async function trySteamSignIn(windowAuthManager: WindowAuthManager): Prom
 export function createWindowAuthManagerService(): WindowAuthManager {
   const authContexts = new Set<MainContext>()
 
-  function forEachAuthContext(emit: (context: MainContext) => void): void {
-    for (const context of authContexts)
-      emit(context)
-  }
-
   function broadcastAuthCallback(tokens: TokenExchangeResult): void {
-    forEachAuthContext(context => context.emit(electronAuthCallback, tokens))
+    for (const context of authContexts)
+      context.emit(electronAuthCallback, tokens)
   }
 
-  function broadcastAuthError(message: string): void {
-    forEachAuthContext(context => context.emit(electronAuthCallbackError, { error: message }))
-  }
-
-  function broadcastEnrollmentStarted(): void {
-    forEachAuthContext(context => context.emit(electronAuthEnrollmentStarted, undefined))
+  function broadcastAuthError(error: string): void {
+    for (const context of authContexts)
+      context.emit(electronAuthCallbackError, { error })
   }
 
   return {
@@ -108,26 +87,18 @@ export function createWindowAuthManagerService(): WindowAuthManager {
 
     broadcastAuthCallback,
     broadcastAuthError,
-    broadcastEnrollmentStarted,
   }
 }
 
 /**
  * Runs the shared OIDC loopback + PKCE flow and opens the system browser.
  *
- * Use when:
- * - The manual OIDC login handler opens the authorize page directly.
- * - The Steam enrollment flow opens the enroll page (with the authorize URL
- *   encoded as `continue`) instead.
- *
  * `buildBrowserUrl` transforms the OIDC authorize URL into the URL actually
- * opened in the browser; `promptLogin` controls whether `prompt=login` is set
- * (manual login: yes, to bypass stale cookies; enrollment: no, the user just
- * authenticated in the same browser session).
- *
- * The loopback wait runs in the background; the helper resolves once the
- * browser is opened. The shared `signingInFlight` / `closeLoopback` mutex
- * covers both manual and enrollment flows.
+ * opened (manual login: identity; enrollment: the enroll page with the
+ * authorize URL encoded as `continue`). `promptLogin` sets `prompt=login` for
+ * manual login to bypass stale cookies; enrollment omits it since the user just
+ * authenticated in the same browser session. The loopback wait runs in the
+ * background; this resolves once the browser is opened.
  */
 async function startOidcLoopbackFlow(
   windowAuthManager: WindowAuthManager,
@@ -213,21 +184,15 @@ async function startOidcLoopbackFlow(
 /**
  * Opens the system browser to the Steam enrollment page, reusing the OIDC
  * loopback flow so the completed enrollment lands back in Electron through the
- * same code → token → renderer-callback path as manual login.
- *
- * The enroll page receives the single-use enrollment `token` plus the OIDC
- * authorize URL as `continue`; once the user authenticates, the page navigates
- * to `continue`, where the server consumes the token and links Steam.
- *
- * Broadcasts `enrollmentStarted` so the renderer flips to its
- * "enrollment-in-browser" state at the moment the browser opens, regardless of
- * which call site triggered the flow.
+ * same code → token → renderer-callback path as manual login. The enroll page
+ * receives the single-use enrollment `token` plus the OIDC authorize URL as
+ * `continue`; once the user authenticates, the page navigates to `continue`,
+ * where the server consumes the token and links Steam.
  */
 async function startEnrollmentFlow(
   windowAuthManager: WindowAuthManager,
   params: { enrollToken: string, authUiUrl: string },
 ): Promise<void> {
-  windowAuthManager.broadcastEnrollmentStarted()
   await startOidcLoopbackFlow(windowAuthManager, {
     promptLogin: false,
     buildBrowserUrl: authorizeUrl =>
@@ -244,61 +209,45 @@ async function startEnrollmentFlow(
  * log in (linked SteamID) or open the enrollment browser (unlinked). The server
  * is the P1 choke point — it only issues OIDC tokens for a linked SteamID and
  * returns needs_enrollment otherwise, so this path can never produce an unlinked
- * AIRI account.
- *
- * Use when:
- * - Startup silent attempt (`openBrowserOnNeedsEnrollment: false`): linked →
- *   silent login; unlinked → no-op (wait for the user's click).
- * - User click via `electronAuthStartLogin` (`openBrowserOnNeedsEnrollment: true`):
- *   linked → silent login; unlinked → open the enroll browser.
- *
- * Expects: caller has confirmed Steam availability via `initSteam()`.
- *
- * Returns: resolves once the silent login resolves or the browser is opened;
- * the loopback wait runs in the background and resolves via
- * `broadcastAuthCallback` (same as manual OIDC). On ticket/exchange failure,
- * broadcasts an auth error and does NOT fall back to plain OIDC (that would
- * reopen the unlinked-account bypass the Steam anchor exists to close).
+ * AIRI account. `openBrowserOnNeedsEnrollment` distinguishes the startup silent
+ * attempt (false: unlinked → no-op, wait for click) from the user-click path
+ * (true: unlinked → open enroll browser). On ticket/exchange failure broadcasts
+ * an error and does NOT fall back to plain OIDC (that would reopen the
+ * unlinked-account bypass the Steam anchor exists to close).
  */
 async function startSteamSignIn(
   windowAuthManager: WindowAuthManager,
   options: { openBrowserOnNeedsEnrollment: boolean },
 ): Promise<void> {
-  steamSignInInFlight = true
-  try {
-    const ticketResult = await getWebApiTicket()
-    if (!ticketResult.ok) {
-      windowAuthManager.broadcastAuthError(ticketResult.reason)
-      return
-    }
+  const ticketResult = await getWebApiTicket()
+  if (!ticketResult.ok) {
+    windowAuthManager.broadcastAuthError(ticketResult.reason)
+    return
+  }
 
-    const exchangeResult = await exchangeSteamTicketForTokens({
-      serverUrl: SERVER_URL,
-      ticketHex: ticketResult.ticketHex,
-    })
+  const exchangeResult = await exchangeSteamTicketForTokens({
+    serverUrl: SERVER_URL,
+    ticketHex: ticketResult.ticketHex,
+  })
 
-    if (!exchangeResult.ok) {
-      if (exchangeResult.kind === 'needs_enrollment') {
-        if (options.openBrowserOnNeedsEnrollment) {
-          await startEnrollmentFlow(windowAuthManager, {
-            enrollToken: exchangeResult.enrollToken,
-            authUiUrl: exchangeResult.authUiUrl,
-          })
-        }
-        // Startup path discards the token; the user's click re-fetches a fresh
-        // one so the short TTL covers only the browser → verify → relay window.
-        return
+  if (!exchangeResult.ok) {
+    if (exchangeResult.kind === 'needs_enrollment') {
+      if (options.openBrowserOnNeedsEnrollment) {
+        await startEnrollmentFlow(windowAuthManager, {
+          enrollToken: exchangeResult.enrollToken,
+          authUiUrl: exchangeResult.authUiUrl,
+        })
       }
-      windowAuthManager.broadcastAuthError(exchangeResult.reason)
+      // Startup path discards the token; the user's click re-fetches a fresh
+      // one so the short TTL covers only the browser → verify → relay window.
       return
     }
+    windowAuthManager.broadcastAuthError(exchangeResult.reason)
+    return
+  }
 
-    windowAuthManager.broadcastAuthCallback(exchangeResult.tokens)
-    log.log('Steam sign-in successful')
-  }
-  finally {
-    steamSignInInFlight = false
-  }
+  windowAuthManager.broadcastAuthCallback(exchangeResult.tokens)
+  log.log('Steam sign-in successful')
 }
 
 /**
@@ -319,20 +268,14 @@ export function createAuthService(params: {
       return
     }
 
-    if (isSignInActive()) {
-      log.debug('Skipping sign-in: another OIDC/Steam flow is in progress')
+    if (signingInFlight) {
+      log.debug('Skipping sign-in: another sign-in is already in progress')
       return
     }
 
-    // NOTICE: First-principles (P1) choke point — when Steam is available
-    // (launched from Steam), every sign-in entry point (onboarding welcome,
-    // controls-island, settings/account) goes through the Steam-anchored path
-    // so no IPC call can create an AIRI account that is not linked to this
-    // SteamID. The server only issues OIDC tokens for a linked SteamID (returns
-    // needs_enrollment otherwise), so this path can never produce an unlinked
-    // account. Plain OIDC is only reachable when Steam is not available
-    // (non-Steam launch); a ticket/exchange failure broadcasts an error rather
-    // than degrading to plain OIDC, so the bypass cannot reopen.
+    // P1 choke point: when Steam is available, route every sign-in entry point
+    // through the Steam-anchored path so no IPC call can create an unlinked
+    // AIRI account. Plain OIDC only runs when Steam is not available.
     const initResult = await initSteam()
     if (initResult.ok) {
       await startSteamSignIn(params.windowAuthManager, { openBrowserOnNeedsEnrollment: true })
