@@ -76,14 +76,7 @@ async function readBody<S extends GenericSchema>(c: Context<HonoEnv>, schema: S)
 
 async function syncTtsModelsFromConfig(deps: AdminProviderCatalogRoutesDeps) {
   const config = await deps.configKV.getOrThrow('LLM_ROUTER_CONFIG')
-  return await deps.service.syncTtsModelsFromRouterConfig({
-    models: Object.fromEntries(
-      Object.entries(config.tts.models).map(([routerModelId, model]) => [
-        routerModelId,
-        { provider: model.provider },
-      ]),
-    ),
-  })
+  return await deps.service.syncTtsModelsFromRouterConfig({ config })
 }
 
 /**
