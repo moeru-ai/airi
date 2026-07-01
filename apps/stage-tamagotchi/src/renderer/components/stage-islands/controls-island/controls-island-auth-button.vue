@@ -20,7 +20,7 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const authStore = useAuthStore()
-const { isAuthenticated, user, needsLogin, credits } = storeToRefs(authStore)
+const { isAuthenticated, user, needsLogin, credits, steamStatus } = storeToRefs(authStore)
 const context = useElectronEventaContext()
 
 const startSigningIn = useElectronEventaInvoke(electronAuthStartLogin)
@@ -50,6 +50,7 @@ function doSigningIn() {
 // No cleanup needed — this component lives for the window's lifetime.
 context.value.on(electronAuthEnrollmentStarted, () => {
   enrollmentInProgress.value = true
+  steamStatus.value = 'idle'
 })
 context.value.on(electronAuthCallback, () => {
   signingIn.value = false
@@ -73,13 +74,54 @@ watch(isAuthenticated, (val) => {
   if (val) {
     signingIn.value = false
     enrollmentInProgress.value = false
+    steamStatus.value = 'idle'
   }
 })
 </script>
 
 <template>
+  <!-- Steam enrollment pending state -->
+  <div v-if="steamStatus === 'pending' && !isAuthenticated" flex="~ col gap-1.5" mb-1.5>
+    <div
+      :class="[
+        'flex items-center gap-3',
+        'rounded-xl px-3 py-2.5',
+        'bg-primary-500/10',
+      ]"
+    >
+      <div
+        i-solar:link-round-bold-duotone
+        :class="[
+          'size-4.5 shrink-0',
+          'text-primary-500 dark:text-primary-400',
+        ]"
+      />
+      <span text="sm neutral-500 dark:neutral-400" truncate>
+        {{ t('tamagotchi.stage.controls-island.link-steam-prompt') }}
+      </span>
+    </div>
+
+    <button
+      type="button"
+      :class="[
+        'flex items-center justify-center gap-2.5',
+        'w-full rounded-xl px-3 py-2.5',
+        'bg-primary-500/10 hover:bg-primary-500/20',
+        'dark:bg-primary-400/10 dark:hover:bg-primary-400/20',
+        'transition-colors duration-200',
+        'cursor-pointer border-none outline-none',
+        props.buttonStyle,
+      ]"
+      @click="handleClick"
+    >
+      <span text="sm primary-600 dark:primary-400" font-medium>
+        {{ t('tamagotchi.stage.controls-island.link-steam') }}
+      </span>
+    </button>
+  </div>
+
   <!-- Enrollment in browser state -->
-  <div v-if="enrollmentInProgress && !isAuthenticated" flex="~ col gap-1.5" mb-1.5>
+  <div v-else-if="enrollmentInProgress && !isAuthenticated" flex="~ col gap-1.5" mb-1.5>
     <div
       flex="~ items-center gap-3"
       rounded-xl px-3 py-2.5
