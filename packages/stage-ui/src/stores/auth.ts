@@ -45,6 +45,10 @@ export const useAuthStore = defineStore('auth', () => {
   // path because controls-island-auth-button listens for IPC and handles
   // sign-in in the main process.
   const needsLogin = ref(false)
+  // Desktop-only Steam enrollment probe state. 'idle' on web (no Electron
+  // eventa bridge ever sets it). Drives the onboarding welcome primary button
+  // label and the controls-island pending row on stage-tamagotchi.
+  const steamStatus = ref<'idle' | 'checking' | 'pending'>('idle')
   const { isMobile } = useBreakpoints()
 
   whenever(needsLogin, async () => {
@@ -265,6 +269,7 @@ export const useAuthStore = defineStore('auth', () => {
     credits,
     updateCredits,
     needsLogin,
+    steamStatus,
     onAuthenticated,
     onLogout,
 
