@@ -180,6 +180,7 @@ export interface VoicePack {
   provider: string
   model: string
   voiceId: string
+  upstreamVoiceId: string
   ttsModelId: string
   params: VoicePackParams
   costMultiplier: number
@@ -194,6 +195,7 @@ export interface VoicePackPayload {
   provider: string
   model: string
   voiceId: string
+  upstreamVoiceId: string
   ttsModelId: string
   params?: VoicePackParams
   costMultiplier: number

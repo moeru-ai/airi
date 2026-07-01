@@ -39,6 +39,7 @@ const form = reactive({
   provider: '',
   model: '',
   voiceId: '',
+  upstreamVoiceId: '',
   ttsModelId: '',
   paramsJson: DEFAULT_PARAMS,
   costMultiplier: 1,
@@ -113,7 +114,9 @@ const formError = computed(() => {
   if (!form.ttsModelId.trim())
     return 'TTS model ID is required'
   if (!form.voiceId.trim())
-    return 'Voice ID is required'
+    return 'Voice alias is required'
+  if (!form.upstreamVoiceId.trim())
+    return 'Upstream voice ID is required'
   if (!Number.isFinite(Number(form.costMultiplier)) || Number(form.costMultiplier) < 0)
     return 'Cost multiplier must be a non-negative number'
   return null
@@ -125,7 +128,7 @@ onMounted(async () => {
     fillSelectedPack()
   else
     resetForm()
-  await loadVoices(form.ttsModelId, { autoPick: !form.voiceId.trim() })
+  await loadVoices(form.ttsModelId, { autoPick: !form.upstreamVoiceId.trim() })
   modelChangeVoiceLoadingEnabled.value = true
 })
 
@@ -194,8 +197,11 @@ async function loadVoices(model: string, options: { autoPick: boolean }) {
     const result = await adminApi.speechVoices(model.trim())
     voices.value = result.voices
     recommendedVoices.value = result.recommended
-    if (options.autoPick && !form.voiceId.trim())
-      form.voiceId = firstRecommendedVoiceId(result.recommended) ?? result.voices[0]?.id ?? ''
+    if (options.autoPick && !form.upstreamVoiceId.trim()) {
+      form.upstreamVoiceId = firstRecommendedVoiceId(result.recommended) ?? result.voices[0]?.id ?? ''
+      if (!form.voiceId.trim())
+        form.voiceId = form.upstreamVoiceId
+    }
   }
   catch (error) {
     voices.value = []
@@ -223,6 +229,7 @@ function fillForm(pack: VoicePack) {
   form.provider = pack.provider
   form.model = pack.model
   form.voiceId = pack.voiceId
+  form.upstreamVoiceId = pack.upstreamVoiceId
   form.ttsModelId = pack.ttsModelId
   form.paramsJson = JSON.stringify(pack.params ?? {}, null, 2)
   form.costMultiplier = pack.costMultiplier
@@ -238,6 +245,7 @@ function resetForm() {
   form.provider = modelParts.provider
   form.model = modelParts.model
   form.voiceId = ''
+  form.upstreamVoiceId = ''
   form.ttsModelId = modelId
   form.paramsJson = DEFAULT_PARAMS
   form.costMultiplier = 1
@@ -279,6 +287,7 @@ function payload(): VoicePackPayload {
     provider: form.provider.trim(),
     model: form.model.trim(),
     voiceId: form.voiceId.trim(),
+    upstreamVoiceId: form.upstreamVoiceId.trim(),
     ttsModelId: form.ttsModelId.trim(),
     params: parseParams(),
     costMultiplier: Number(form.costMultiplier),
@@ -340,7 +349,7 @@ async function testVoicePack() {
     const body = {
       model: form.ttsModelId.trim(),
       input: text,
-      voice: form.voiceId.trim(),
+      voice: form.upstreamVoiceId.trim(),
       speed: normalizeRateOption(params.rate),
       extra_body: voicePackExtraBody(params),
     }
@@ -494,19 +503,27 @@ function normalizeRateOption(value: string | number | boolean | null | undefined
               :placeholder="ttsModelPlaceholder"
               required
             />
-            <DatalistField
+            <FieldInput
               v-model="form.voiceId"
-              :description="loadingVoices ? 'Loading voices for the selected model...' : 'Voice catalog from /api/v1/audio/voices.'"
+              description="Product-facing Voice Pack voice alias shown to clients and analytics."
               input-class="font-mono text-xs"
-              label="Voice ID"
-              list-id="voice-pack-voices"
-              :options="voiceOptions"
-              :placeholder="voicePlaceholder"
+              label="Voice alias"
+              placeholder="narrator-cn"
               required
             />
           </div>
 
           <div :class="['grid', 'gap-4', 'md:grid-cols-2']">
+            <DatalistField
+              v-model="form.upstreamVoiceId"
+              :description="loadingVoices ? 'Loading voices for the selected model...' : 'Voice catalog from /api/v1/audio/voices.'"
+              input-class="font-mono text-xs"
+              label="Upstream voice ID"
+              list-id="voice-pack-voices"
+              :options="voiceOptions"
+              :placeholder="voicePlaceholder"
+              required
+            />
             <DatalistField
               v-model="form.provider"
               description="Derived from the model ID when possible; editable for custom routing metadata."

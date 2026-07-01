@@ -27,6 +27,7 @@ describe('voicePackService', () => {
       provider: 'volcengine',
       model: 'seed-tts-2.0',
       voiceId: 'voice-neuro',
+      upstreamVoiceId: 'voice-neuro-upstream',
       ttsModelId: 'volcengine/neuro-pool',
       params: { pitch: '+20%', volume: '+5%' },
       costMultiplier: 1.5,
@@ -37,6 +38,7 @@ describe('voicePackService', () => {
     expect(pack.provider).toBe('volcengine')
     expect(pack.model).toBe('seed-tts-2.0')
     expect(pack.voiceId).toBe('voice-neuro')
+    expect(pack.upstreamVoiceId).toBe('voice-neuro-upstream')
     expect(pack.ttsModelId).toBe('volcengine/neuro-pool')
     expect(pack.params).toEqual({ pitch: '+20%', volume: '+5%' })
     expect(pack.costMultiplier).toBe(1.5)
@@ -50,6 +52,7 @@ describe('voicePackService', () => {
       provider: 'volcengine',
       model: 'seed-tts-2.0',
       voiceId: 'voice-a',
+      upstreamVoiceId: 'voice-a-upstream',
       ttsModelId: 'volcengine/pool',
       params: {},
       costMultiplier: 1,
@@ -60,6 +63,7 @@ describe('voicePackService', () => {
       provider: 'volcengine',
       model: 'seed-tts-2.0',
       voiceId: 'voice-a',
+      upstreamVoiceId: 'voice-a-upstream',
       ttsModelId: 'volcengine/pool',
       params: { pitch: '+20%' },
       costMultiplier: 1,
@@ -78,6 +82,7 @@ describe('voicePackService', () => {
       provider: 'azure',
       model: 'v1',
       voiceId: 'en-US-AvaMultilingualNeural',
+      upstreamVoiceId: 'en-US-AvaMultilingualNeural',
       ttsModelId: 'microsoft/v1',
       params: {},
       costMultiplier: 1,
@@ -103,6 +108,7 @@ describe('voicePackService', () => {
       provider: 'dashscope-cosyvoice',
       model: 'cosyvoice-v2',
       voiceId: 'longxiaochun_v2',
+      upstreamVoiceId: 'longxiaochun_v2',
       ttsModelId: 'alibaba/cosyvoice-v2',
       params: {},
       costMultiplier: 1,

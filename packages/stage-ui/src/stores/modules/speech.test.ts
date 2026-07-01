@@ -66,10 +66,7 @@ describe('speech store helpers', () => {
     const voicePack = {
       packId: 'vp-1',
       name: 'Frozen',
-      provider: 'volcengine',
-      model: 'seed-tts-2.0',
       voiceId: 'voice-a',
-      ttsModelId: 'volcengine/pool-a',
       params: {},
       costMultiplier: 1,
     }
@@ -198,9 +195,9 @@ describe('speech store helpers', () => {
 
   /**
    * @example
-   * speechStore.resolveVoicePackSpeechInput({ text, voice, voicePack: { packId: 'vp-1', costMultiplier: 1.5 } })
+   * speechStore.resolveVoicePackSpeechInput({ text, voice, voicePack: { packId: 'vp-1' } })
    */
-  it('passes Voice Pack snapshot billing metadata through adapter options', () => {
+  it('passes only Voice Pack identity through adapter options', () => {
     const speechStore = useSpeechStore()
     const voice = {
       id: 'voice-1',
@@ -215,7 +212,6 @@ describe('speech store helpers', () => {
       params: {},
       voicePack: {
         packId: 'vp-1',
-        costMultiplier: 1.5,
       },
       supportsAdapterProsody: true,
     })
@@ -223,7 +219,6 @@ describe('speech store helpers', () => {
     expect(request.providerConfig.extraBody).toEqual({
       voice_pack: {
         pack_id: 'vp-1',
-        cost_multiplier: 1.5,
       },
     })
   })

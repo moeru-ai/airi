@@ -23,10 +23,7 @@ export type VoicePackParams = Record<string, string | number | boolean | null>
 export interface VoicePackBindingInput {
   id: string
   name: string
-  provider: string
-  model: string
   voiceId: string
-  ttsModelId: string
   params: VoicePackParams
   costMultiplier: number
 }
@@ -34,10 +31,7 @@ export interface VoicePackBindingInput {
 export interface VoicePackSnapshot {
   packId: string
   name: string
-  provider: string
-  model: string
   voiceId: string
-  ttsModelId: string
   params: VoicePackParams
   costMultiplier: number
 }
@@ -210,8 +204,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return updateActiveCardModules(({ modules }) => {
       const existingVoicePack = modules.speech.voicePack
       const shouldKeepVoicePack = speech.provider === OFFICIAL_SPEECH_PROVIDER_ID
-        && existingVoicePack?.ttsModelId === speech.model
-        && existingVoicePack.voiceId === speech.voice_id
+        && existingVoicePack?.voiceId === speech.voice_id
 
       return {
         speech: {
@@ -368,10 +361,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     const voicePack: VoicePackSnapshot = {
       packId: pack.id,
       name: pack.name,
-      provider: pack.provider,
-      model: pack.model,
       voiceId: pack.voiceId,
-      ttsModelId: pack.ttsModelId,
       params: { ...pack.params },
       costMultiplier: pack.costMultiplier,
     }
@@ -379,7 +369,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     const speech: AiriExtension['modules']['speech'] = {
       ...extension.modules.speech,
       provider: OFFICIAL_SPEECH_PROVIDER_ID,
-      model: pack.ttsModelId,
+      model: 'auto',
       voice_id: pack.voiceId,
       voicePack,
     }
@@ -399,7 +389,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     })
 
     activeSpeechProvider.value = OFFICIAL_SPEECH_PROVIDER_ID
-    activeSpeechModel.value = pack.ttsModelId
+    activeSpeechModel.value = 'auto'
     activeSpeechVoiceId.value = pack.voiceId
 
     return true

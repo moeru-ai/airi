@@ -710,7 +710,8 @@ describe('v1CompletionsRoutes', () => {
             description: null,
             provider: 'azure',
             model: 'microsoft/v1',
-            voiceId: 'en-US-AvaMultilingualNeural',
+            voiceId: 'friendly-azure',
+            upstreamVoiceId: 'en-US-AvaMultilingualNeural',
             ttsModelId: 'microsoft/v1',
             params: {},
             costMultiplier: 1.5,
@@ -728,12 +729,11 @@ describe('v1CompletionsRoutes', () => {
           body: JSON.stringify({
             model: 'auto',
             input: 'test',
-            voice: 'en-US-AvaMultilingualNeural',
+            voice: 'friendly-azure',
             speed: 1.2,
             extra_body: {
               voice_pack: {
                 pack_id: 'vp-azure',
-                cost_multiplier: 1.5,
                 pitch: 20,
                 volume: 5,
               },
@@ -784,7 +784,7 @@ describe('v1CompletionsRoutes', () => {
 
     /**
      * @example
-     * POST /api/v1/audio/speech { "input": "hello", "extra_body": { "voice_pack": { "cost_multiplier": 2 } } }
+     * POST /api/v1/audio/speech { "input": "hello", "extra_body": { "voice_pack": { "pack_id": "vp-premium" } } }
      */
     it('uses Voice Pack cost multiplier for affordability and billing units', async () => {
       globalThis.fetch = vi.fn(async () => new Response(new Uint8Array([1]), {
@@ -801,6 +801,7 @@ describe('v1CompletionsRoutes', () => {
           provider: 'azure',
           model: 'microsoft/v1',
           voiceId: 'alloy',
+          upstreamVoiceId: 'upstream-alloy',
           ttsModelId: 'tts-1',
           params: {},
           costMultiplier: 2,
@@ -832,7 +833,6 @@ describe('v1CompletionsRoutes', () => {
             extra_body: {
               voice_pack: {
                 pack_id: 'vp-premium',
-                cost_multiplier: 2,
               },
             },
           }),
@@ -868,6 +868,7 @@ describe('v1CompletionsRoutes', () => {
           provider: 'azure',
           model: 'microsoft/v1',
           voiceId: 'alloy',
+          upstreamVoiceId: 'upstream-alloy',
           ttsModelId: 'tts-1',
           params: {},
           costMultiplier: 2,
@@ -899,7 +900,6 @@ describe('v1CompletionsRoutes', () => {
             extra_body: {
               voice_pack: {
                 pack_id: 'vp-premium',
-                cost_multiplier: 2,
               },
               airi_analytics: {
                 source: 'manual_preview',

@@ -29,7 +29,7 @@ interface VoicePackSpeechInputOptions {
   voice: VoiceInfo
   providerConfig?: Record<string, unknown>
   params?: VoicePackParams
-  voicePack?: Pick<VoicePackSnapshot, 'packId' | 'costMultiplier'>
+  voicePack?: Pick<VoicePackSnapshot, 'packId'>
   forceSSML?: boolean
   supportsSSML?: boolean
   supportsAdapterProsody?: boolean
@@ -517,7 +517,6 @@ export const useSpeechStore = defineStore('speech', () => {
         ...(providerConfig.extraBody as Record<string, unknown> | undefined),
         voice_pack: {
           pack_id: options.voicePack.packId,
-          cost_multiplier: options.voicePack.costMultiplier,
           ...(needsProsody && options.supportsAdapterProsody
             ? { pitch, volume }
             : {}),

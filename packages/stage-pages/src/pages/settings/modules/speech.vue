@@ -75,6 +75,8 @@ const errorMessage = ref('')
 const selectedSpeechSource = ref<string | null>(null)
 
 const VOICE_PACK_SOURCE_ID = 'voice-pack'
+const VOICE_PACK_REQUEST_MODEL_ID = 'auto'
+const VOICE_PACK_ANALYTICS_MODEL_ID = 'voice_pack'
 const STREAMING_MODEL_OPTION_PREFIX = 'streaming:'
 
 const isOfficialSpeechProvider = computed(() => activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID)
@@ -198,6 +200,15 @@ function createVoicePackVoice(voicePack: VoicePackSnapshot): VoiceInfo {
   }
 }
 
+function formatVoicePackCostMultiplier(costMultiplier: number) {
+  return `Flux cost: ${costMultiplier}x`
+}
+
+function voicePackDescription(description: string | null | undefined, costMultiplier: number) {
+  const cost = formatVoicePackCostMultiplier(costMultiplier)
+  return description ? `${description} · ${cost}` : cost
+}
+
 function voicePackVoiceId(packId: string) {
   return `voice-pack:${packId}`
 }
@@ -211,7 +222,7 @@ const displayedVoiceOptions = computed(() => {
     const options = voicePacks.value.map(pack => ({
       id: voicePackVoiceId(pack.id),
       name: pack.name,
-      description: pack.description ?? undefined,
+      description: voicePackDescription(pack.description, pack.costMultiplier),
       previewURL: '',
       customizable: false,
     }))
@@ -221,7 +232,7 @@ const displayedVoiceOptions = computed(() => {
       options.unshift({
         id: frozenVoiceId,
         name: voicePack.name,
-        description: voicePack.name,
+        description: voicePackDescription(voicePack.name, voicePack.costMultiplier),
         previewURL: '',
         customizable: false,
       })
@@ -265,6 +276,12 @@ const currentSpeechVoiceId = computed(() => {
   return activeSpeechVoiceId.value || ''
 })
 
+const currentVoicePackCostMultiplier = computed(() => {
+  if (isVoicePackSourceSelected.value && boundVoicePack.value)
+    return formatVoicePackCostMultiplier(boundVoicePack.value.costMultiplier)
+  return ''
+})
+
 function syncBoundVoicePackSelection() {
   const voicePack = boundVoicePack.value
   if (!voicePack)
@@ -272,7 +289,7 @@ function syncBoundVoicePackSelection() {
 
   selectedSpeechSource.value = VOICE_PACK_SOURCE_ID
   activeSpeechProvider.value = OFFICIAL_SPEECH_PROVIDER_ID
-  activeSpeechModel.value = voicePack.ttsModelId
+  activeSpeechModel.value = VOICE_PACK_REQUEST_MODEL_ID
   activeSpeechVoiceId.value = voicePack.voiceId
   activeSpeechVoice.value = createVoicePackVoice(voicePack)
   return true
@@ -283,7 +300,7 @@ function syncBoundVoicePackSelection() {
  */
 function currentTtsModelId() {
   if (isVoicePackSourceSelected.value && boundVoicePack.value)
-    return boundVoicePack.value.ttsModelId
+    return VOICE_PACK_ANALYTICS_MODEL_ID
   return activeSpeechModel.value || 'unknown'
 }
 
@@ -396,7 +413,7 @@ function selectSpeechSource(sourceId: string) {
     activeSpeechProvider.value = OFFICIAL_SPEECH_PROVIDER_ID
     const voicePack = boundVoicePack.value
     if (voicePack) {
-      activeSpeechModel.value = voicePack.ttsModelId
+      activeSpeechModel.value = VOICE_PACK_REQUEST_MODEL_ID
       activeSpeechVoiceId.value = voicePack.voiceId
       activeSpeechVoice.value = createVoicePackVoice(voicePack)
       return
@@ -481,12 +498,12 @@ async function bindVoicePack(pack: (typeof voicePacks.value)[number]) {
 
   selectedSpeechSource.value = VOICE_PACK_SOURCE_ID
   activeSpeechProvider.value = OFFICIAL_SPEECH_PROVIDER_ID
-  activeSpeechModel.value = pack.ttsModelId
+  activeSpeechModel.value = VOICE_PACK_REQUEST_MODEL_ID
   activeSpeechVoiceId.value = pack.voiceId
   activeSpeechVoice.value = {
     id: pack.voiceId,
     name: pack.name,
-    description: pack.description ?? pack.name,
+    description: voicePackDescription(pack.description ?? pack.name, pack.costMultiplier),
     previewURL: '',
     languages: [{ code: 'en', title: 'English' }],
     provider: activeSpeechProvider.value,
@@ -495,14 +512,14 @@ async function bindVoicePack(pack: (typeof voicePacks.value)[number]) {
 
   trackVoicePackBound({
     tts_provider_id: activeSpeechProvider.value || 'unknown',
-    tts_model_id: pack.ttsModelId,
+    tts_model_id: VOICE_PACK_ANALYTICS_MODEL_ID,
     voice_id: pack.voiceId,
     voice_pack_id: pack.id,
     source: 'settings',
   })
   trackVoiceSelected({
     tts_provider_id: activeSpeechProvider.value || 'unknown',
-    tts_model_id: pack.ttsModelId,
+    tts_model_id: VOICE_PACK_ANALYTICS_MODEL_ID,
     voice_id: pack.voiceId,
     voice_type: 'voice_pack',
     voice_pack_id: pack.id,
@@ -603,7 +620,7 @@ async function generateTestSpeech() {
 
   const voicePack = boundVoicePack.value
   if (voicePack) {
-    model = voicePack.ttsModelId
+    model = VOICE_PACK_REQUEST_MODEL_ID
     if (!voice || voice.id !== voicePack.voiceId)
       voice = createVoicePackVoice(voicePack)
   }
@@ -928,7 +945,10 @@ function handleDeleteProvider(providerId: string) {
             </h2>
             <div class="flex flex-col items-start gap-1 text-neutral-400 md:flex-row md:items-center md:justify-between dark:text-neutral-500">
               <span>Customize how your AI assistant speaks</span>
-              <span v-if="currentSpeechVoiceId" class="text-sm text-neutral-400 font-medium dark:text-neutral-400">Current voice: {{ currentSpeechVoiceId }}</span>
+              <span v-if="currentSpeechVoiceId" class="text-sm text-neutral-400 font-medium dark:text-neutral-400">
+                Current voice: {{ currentSpeechVoiceId }}
+                <span v-if="currentVoicePackCostMultiplier">· {{ currentVoicePackCostMultiplier }}</span>
+              </span>
             </div>
           </div>
 
@@ -964,7 +984,6 @@ function handleDeleteProvider(providerId: string) {
             <VoiceCardManySelect
               v-model:search-query="voiceSearchQuery"
               v-model:voice-id="displayedSpeechVoiceId"
-              :show-visualizer="false"
               :voices="displayedVoiceOptions"
               :searchable="true"
               :search-placeholder="t('settings.pages.modules.speech.sections.section.provider-voice-selection.search_voices_placeholder')"

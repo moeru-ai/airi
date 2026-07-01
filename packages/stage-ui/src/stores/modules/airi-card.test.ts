@@ -117,10 +117,7 @@ describe('airi-card store', () => {
     const pack = {
       id: 'vp-1',
       name: 'Neuro Sama',
-      provider: 'volcengine',
-      model: 'seed-tts-2.0',
       voiceId: 'voice-neuro',
-      ttsModelId: 'volcengine/neuro-pool',
       params: { pitch: '+20%', volume: '+5%' },
       costMultiplier: 1.5,
     }
@@ -130,15 +127,12 @@ describe('airi-card store', () => {
     expect(bound).toBe(true)
     expect(cardStore.activeCard?.extensions.airi.modules.speech).toMatchObject({
       provider: OFFICIAL_SPEECH_PROVIDER_ID,
-      model: 'volcengine/neuro-pool',
+      model: 'auto',
       voice_id: 'voice-neuro',
       voicePack: {
         packId: 'vp-1',
         name: 'Neuro Sama',
-        provider: 'volcengine',
-        model: 'seed-tts-2.0',
         voiceId: 'voice-neuro',
-        ttsModelId: 'volcengine/neuro-pool',
         params: { pitch: '+20%', volume: '+5%' },
         costMultiplier: 1.5,
       },
@@ -157,12 +151,9 @@ describe('airi-card store', () => {
     cardStore.bindVoicePackToActiveCard({
       id: 'vp-1',
       name: 'Frozen',
-      provider: 'volcengine',
-      model: 'seed-tts-2.0',
       voiceId: 'voice-a',
-      ttsModelId: 'volcengine/pool-a',
       params,
-      costMultiplier: 1,
+      costMultiplier: 2,
     })
 
     params.pitch = '-10%'

@@ -83,7 +83,8 @@ function editPack(pack: VoicePack) {
         <tr>
           <th>Name</th>
           <th>Routing</th>
-          <th>Voice</th>
+          <th>Voice Alias</th>
+          <th>Upstream Voice</th>
           <th>Cost</th>
           <th>Status</th>
           <th>Updated</th>
@@ -117,6 +118,9 @@ function editPack(pack: VoicePack) {
           </td>
           <td :class="['text-xs', 'font-mono']">
             {{ pack.voiceId }}
+          </td>
+          <td :class="['text-xs', 'font-mono']">
+            {{ pack.upstreamVoiceId }}
           </td>
           <td>{{ formatMultiplier(pack.costMultiplier) }}</td>
           <td>

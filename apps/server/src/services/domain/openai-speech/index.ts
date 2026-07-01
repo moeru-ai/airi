@@ -90,20 +90,23 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
 
   async function handleSpeechRequest(input: OpenAiSpeechRequest): Promise<Response> {
     const requestId = nanoid()
-    let requestModel = typeof input.body.model === 'string' ? input.body.model : 'auto'
+    const requestedModel = typeof input.body.model === 'string' ? input.body.model : 'auto'
+    let requestModel = requestedModel
+    const requestVoice = typeof input.body.voice === 'string' ? input.body.voice : undefined
     const inputText = typeof input.body.input === 'string' ? input.body.input : ''
     const analytics = ttsAnalyticsContext(input.body)
 
-    if (requestModel === 'auto')
-      requestModel = await deps.configKV.getOrThrow('DEFAULT_TTS_MODEL')
-
     const voicePackRequest = await voicePackRequestOptions(input.body, {
-      model: requestModel,
-      voice: typeof input.body.voice === 'string' ? input.body.voice : undefined,
+      requestedModel,
+      voice: requestVoice,
       voicePackService: deps.voicePackService,
     })
+    requestModel = voicePackRequest.model ?? requestModel
+    if (requestModel === 'auto')
+      requestModel = await deps.configKV.getOrThrow('DEFAULT_TTS_MODEL')
+    const routedVoice = voicePackRequest.voice ?? requestVoice
     const voiceMetadata = ttsVoiceMetadata({
-      voice: typeof input.body.voice === 'string' ? input.body.voice : undefined,
+      voice: requestVoice,
       voicePackId: voicePackRequest.voicePackId,
       voiceType: analytics.voiceType,
     })
@@ -114,7 +117,7 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
       userId: input.userId,
       model: requestModel,
       inputChars: inputText.length,
-      voice: typeof input.body.voice === 'string' ? input.body.voice : undefined,
+      voice: requestVoice,
     }).log('tts speech request')
 
     void deps.productEventService.track({
@@ -171,7 +174,7 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
 
     const ttsInput = {
       text: inputText,
-      voice: typeof input.body.voice === 'string' ? input.body.voice : undefined,
+      voice: routedVoice,
       speed: typeof input.body.speed === 'number' ? input.body.speed : undefined,
       responseFormat: typeof input.body.response_format === 'string' ? input.body.response_format : undefined,
       extraOptions: voicePackRequest.extraOptions,
@@ -405,19 +408,22 @@ function ttsVoiceMetadata(input: {
 async function voicePackRequestOptions(
   body: Record<string, unknown>,
   context: {
-    model: string
+    requestedModel: string
     voice?: string
     voicePackService: VoicePackService
   },
-): Promise<{ extraOptions: Record<string, unknown> | undefined, costMultiplier: number, voicePackId?: string }> {
+): Promise<{
+  extraOptions: Record<string, unknown> | undefined
+  costMultiplier: number
+  voicePackId?: string
+  model?: string
+  voice?: string
+}> {
   const extraBody = asRecord(body.extra_body)
   const voicePackOptions = asRecord(extraBody?.voice_pack)
   const pitch = readOptionalNumber(voicePackOptions, 'pitch')
   const volume = readOptionalNumber(voicePackOptions, 'volume')
-  const costMultiplier = await resolveVoicePackCostMultiplier(voicePackOptions, context)
-  const voicePackId = typeof voicePackOptions?.pack_id === 'string' && voicePackOptions.pack_id.trim()
-    ? voicePackOptions.pack_id
-    : undefined
+  const voicePack = await resolveVoicePackRequest(voicePackOptions, context)
   const extraOptions: Record<string, unknown> = {}
   if (pitch != null)
     extraOptions.pitch = pitch
@@ -426,40 +432,49 @@ async function voicePackRequestOptions(
 
   return {
     extraOptions: Object.keys(extraOptions).length > 0 ? extraOptions : undefined,
-    costMultiplier,
-    voicePackId,
+    costMultiplier: voicePack?.costMultiplier ?? 1,
+    voicePackId: voicePack?.id,
+    model: voicePack?.ttsModelId,
+    voice: voicePack?.upstreamVoiceId,
   }
 }
 
-async function resolveVoicePackCostMultiplier(
+async function resolveVoicePackRequest(
   voicePackOptions: Record<string, unknown> | undefined,
   context: {
-    model: string
+    requestedModel: string
     voice?: string
     voicePackService: VoicePackService
   },
-): Promise<number> {
+): Promise<Awaited<ReturnType<VoicePackService['findById']>> | null> {
   const packId = voicePackOptions?.pack_id
-  const value = voicePackOptions?.cost_multiplier
-  if (packId == null && value == null)
-    return 1
+  if (voicePackOptions?.cost_multiplier != null) {
+    throw createBadRequestError('voice_pack.cost_multiplier is server-managed', 'INVALID_VOICE_PACK', {
+      field: 'voice_pack.cost_multiplier',
+    })
+  }
+  if (packId == null)
+    return null
   if (typeof packId !== 'string' || !packId.trim())
     throw createBadRequestError('voice_pack.pack_id is required when Voice Pack billing metadata is provided', 'INVALID_VOICE_PACK')
 
   const pack = await context.voicePackService.findById(packId)
   if (!pack)
     throw createBadRequestError('Voice Pack not found', 'INVALID_VOICE_PACK', { packId })
-  if (pack.ttsModelId !== context.model || pack.voiceId !== context.voice) {
+  if (context.requestedModel !== 'auto' && pack.ttsModelId !== context.requestedModel) {
     throw createBadRequestError('Voice Pack does not match requested model and voice', 'INVALID_VOICE_PACK', {
       packId,
-      expectedModel: pack.ttsModelId,
-      actualModel: context.model,
-      expectedVoice: pack.voiceId,
+      actualModel: context.requestedModel,
+    })
+  }
+  if (pack.voiceId !== context.voice) {
+    throw createBadRequestError('Voice Pack does not match requested model and voice', 'INVALID_VOICE_PACK', {
+      packId,
       actualVoice: context.voice,
     })
   }
 
-  return pack.costMultiplier
+  return pack
 }
 
 function routerFailure(error: unknown): { status: number, reason: string, message: string } {
