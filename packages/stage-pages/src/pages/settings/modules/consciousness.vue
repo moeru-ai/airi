@@ -25,7 +25,23 @@ const {
 } = storeToRefs(consciousnessStore)
 
 const { t } = useI18n()
-const { trackProviderClick } = useAnalytics()
+const { trackOfficialProviderSelected, trackProviderClick } = useAnalytics()
+
+/**
+ * Tracks explicit official chat-provider selection from settings.
+ */
+function trackOfficialProviderSelection(providerId: string, modelId: string) {
+  if (!providerId.startsWith('official-provider'))
+    return
+
+  trackOfficialProviderSelected({
+    provider_id: providerId,
+    provider_mode: 'official',
+    source: 'settings',
+    auto_selected: false,
+    model_id: modelId || 'unknown',
+  })
+}
 
 watch(activeProvider, async (provider, oldProvider) => {
   if (!provider)
@@ -34,6 +50,7 @@ watch(activeProvider, async (provider, oldProvider) => {
   // Reset model when switching providers (but not on initial load)
   if (oldProvider !== undefined && oldProvider !== provider) {
     activeModel.value = ''
+    trackOfficialProviderSelection(provider, activeModel.value)
   }
 
   await consciousnessStore.loadModelsForProvider(provider)

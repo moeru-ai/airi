@@ -25,6 +25,9 @@ export type ChatActivationFailureStage = 'provider_config' | 'model_list' | 'mes
 export type ProviderConfigStep = 'settings_auto_validate' | 'manual_chat_ping' | 'onboarding_validate'
 export type VoiceType = 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
 export type VoiceAnalyticsSource = 'settings' | 'onboarding' | 'chat_auto_tts' | 'manual_preview'
+export type OfficialProviderSelectionSource = 'settings' | 'onboarding' | 'default_auto'
+export type OfficialTtsExposureSource = 'settings' | 'onboarding' | 'post_first_chat' | 'chat_controls'
+export type FluxBalanceBucket = 'zero' | '1_100' | '101_1000' | '1001_10000' | '10000_plus' | 'unknown'
 export type FeedbackSource = 'app' | 'discord' | 'qq' | 'github' | 'email' | 'other'
 export type FeedbackCategory = 'provider_config' | 'model_list' | 'chat_activation' | 'tts' | 'voice_input' | 'performance' | 'payment' | 'ui_ux' | 'crash' | 'update' | 'live2d' | 'desktop_window' | 'mobile' | 'unknown'
 export type FeedbackSeverity = 'blocker' | 'major' | 'minor' | 'suggestion'
@@ -45,6 +48,12 @@ interface TtsVoiceBaseProperties {
   tts_provider_id: string
   tts_model_id: string
   source: VoiceAnalyticsSource
+}
+
+interface OfficialTtsBaseProperties {
+  tts_provider_id: string
+  tts_model_id: string
+  source: OfficialTtsExposureSource
 }
 
 interface VoiceInputBaseProperties {
@@ -189,6 +198,21 @@ export function useAnalytics() {
       { plan_id: planId, ...properties },
       { send_instantly: true, transport: 'sendBeacon' },
     )
+  }
+
+  function trackPaywallSeen(properties: {
+    surface: string
+    reason: 'manual_topup' | 'insufficient_balance' | 'checkout_recovery' | 'unknown'
+    flux_balance_bucket: FluxBalanceBucket
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('paywall_seen', {
+      surface: properties.surface,
+      app_surface: getConversationAnalyticsSurface(),
+      reason: properties.reason,
+      flux_balance_bucket: properties.flux_balance_bucket,
+    })
   }
 
   /** Activation funnel — step 1. */
@@ -370,6 +394,21 @@ export function useAnalytics() {
     })
   }
 
+  function trackOfficialProviderSelected(properties: {
+    provider_id: string
+    provider_mode: ProviderMode
+    source: OfficialProviderSelectionSource
+    auto_selected: boolean
+    model_id?: string
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('official_provider_selected', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
   function trackMessageSent(properties: ConversationBaseProperties & {
     message_id?: string
     message_index?: number
@@ -404,6 +443,15 @@ export function useAnalytics() {
     if (!canCapture())
       return
     posthog.capture('chat_failed', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackSecondTurnStarted(properties: ChatActivationBaseProperties & { turn_index: number }) {
+    if (!canCapture())
+      return
+    posthog.capture('second_turn_started', {
       ...properties,
       surface: getConversationAnalyticsSurface(),
     })
@@ -794,6 +842,15 @@ export function useAnalytics() {
     })
   }
 
+  function trackOfficialTtsExposed(properties: OfficialTtsBaseProperties) {
+    if (!canCapture())
+      return
+    posthog.capture('official_tts_exposed', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
   function trackPresetUsed(properties: {
     preset_id: string
     preset_type: 'character' | 'stage_model' | 'voice' | 'background' | 'unknown'
@@ -802,6 +859,20 @@ export function useAnalytics() {
     if (!canCapture())
       return
     posthog.capture('preset_used', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackOfficialTtsPreviewStarted(properties: Omit<TtsVoiceBaseProperties, 'source'> & {
+    voice_id: string
+    voice_type: VoiceType
+    voice_pack_id?: string
+    source: Extract<VoiceAnalyticsSource, 'manual_preview'>
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('official_tts_preview_started', {
       ...properties,
       surface: getConversationAnalyticsSurface(),
     })
@@ -816,6 +887,21 @@ export function useAnalytics() {
     if (!canCapture())
       return
     posthog.capture('model_changed', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackOfficialTtsPreviewSucceeded(properties: Omit<TtsVoiceBaseProperties, 'source'> & {
+    voice_id: string
+    voice_type: VoiceType
+    voice_pack_id?: string
+    source: Extract<VoiceAnalyticsSource, 'manual_preview'>
+    duration_ms: number
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('official_tts_preview_succeeded', {
       ...properties,
       surface: getConversationAnalyticsSurface(),
     })
@@ -858,6 +944,18 @@ export function useAnalytics() {
     if (!canCapture())
       return
     posthog.capture('support_contacted', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackOfficialTtsAutoEnabled(properties: Omit<TtsVoiceBaseProperties, 'source'> & {
+    source: Extract<VoiceAnalyticsSource, 'settings' | 'chat_auto_tts'>
+    enabled: boolean
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('official_tts_auto_enabled', {
       ...properties,
       surface: getConversationAnalyticsSurface(),
     })
@@ -983,6 +1081,7 @@ export function useAnalytics() {
     trackPricingViewed,
     trackPlanSelected,
     trackCheckoutStarted,
+    trackPaywallSeen,
     trackSignup,
     trackSignupCompleted,
     trackOnboardingStarted,
@@ -1005,6 +1104,8 @@ export function useAnalytics() {
     trackChatActivationStarted,
     trackChatActivationSucceeded,
     trackChatActivationFailed,
+    trackOfficialProviderSelected,
+    trackSecondTurnStarted,
     trackModelListLoaded,
     trackModelListFailed,
     trackProviderConfigStarted,
@@ -1049,6 +1150,10 @@ export function useAnalytics() {
     trackProviderSwitched,
     trackSettingsChanged,
     trackSupportContacted,
+    trackOfficialTtsExposed,
+    trackOfficialTtsPreviewStarted,
+    trackOfficialTtsPreviewSucceeded,
+    trackOfficialTtsAutoEnabled,
 
     trackAutonomousGenerateText,
 

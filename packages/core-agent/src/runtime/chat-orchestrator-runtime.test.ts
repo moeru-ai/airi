@@ -332,6 +332,7 @@ describe('createChatOrchestratorRuntime', () => {
     expect(harness.telemetry.chatActivationStarted).toEqual([{
       model: 'gpt-test',
       provider: 'mock-provider',
+      sessionId: 'session-1',
       source: 'voice',
     }])
     expect(harness.telemetry.chatActivationSucceeded).toEqual([{
@@ -359,6 +360,7 @@ describe('createChatOrchestratorRuntime', () => {
     expect(harness.telemetry.chatActivationStarted).toEqual([{
       model: 'gpt-test',
       provider: 'mock-provider',
+      sessionId: 'session-1',
       source: 'text',
     }])
     expect(harness.telemetry.chatActivationSucceeded).toEqual([])

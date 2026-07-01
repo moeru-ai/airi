@@ -258,6 +258,131 @@ describe('useAnalytics conversation product events', () => {
 
   /**
    * @example
+   * analytics.trackOfficialProviderSelected({ provider_id: 'official-provider', provider_mode: 'official', source: 'default_auto', auto_selected: true })
+   * expect(posthog.capture).toHaveBeenCalledWith('official_provider_selected', expect.objectContaining({ auto_selected: true }))
+   */
+  it('emits official provider and second-turn operating events with bounded fields', () => {
+    const analytics = useAnalytics()
+
+    analytics.trackOfficialProviderSelected({
+      provider_id: 'official-provider',
+      provider_mode: 'official',
+      source: 'default_auto',
+      auto_selected: true,
+      model_id: 'chat-auto',
+    })
+    analytics.trackSecondTurnStarted({
+      provider_id: 'official-provider',
+      provider_mode: 'official',
+      model_id: 'chat-auto',
+      source: 'text',
+      turn_index: 2,
+    })
+
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'official_provider_selected', {
+      surface: 'web',
+      provider_id: 'official-provider',
+      provider_mode: 'official',
+      source: 'default_auto',
+      auto_selected: true,
+      model_id: 'chat-auto',
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'second_turn_started', {
+      surface: 'web',
+      provider_id: 'official-provider',
+      provider_mode: 'official',
+      model_id: 'chat-auto',
+      source: 'text',
+      turn_index: 2,
+    })
+  })
+
+  /**
+   * @example
+   * analytics.trackOfficialTtsExposed({ source: 'post_first_chat', tts_provider_id: 'official-provider-speech', tts_model_id: 'stepfun/tts' })
+   * expect(posthog.capture).toHaveBeenCalledWith('official_tts_exposed', expect.objectContaining({ source: 'post_first_chat' }))
+   */
+  it('emits official TTS activation funnel events', () => {
+    const analytics = useAnalytics()
+
+    analytics.trackOfficialTtsExposed({
+      tts_provider_id: 'official-provider-speech',
+      tts_model_id: 'stepfun/tts',
+      source: 'post_first_chat',
+    })
+    analytics.trackOfficialTtsPreviewStarted({
+      tts_provider_id: 'official-provider-speech',
+      tts_model_id: 'stepfun/tts',
+      voice_id: 'longxiaochun_v2',
+      voice_type: 'official_selected',
+      source: 'manual_preview',
+    })
+    analytics.trackOfficialTtsPreviewSucceeded({
+      tts_provider_id: 'official-provider-speech',
+      tts_model_id: 'stepfun/tts',
+      voice_id: 'longxiaochun_v2',
+      voice_type: 'official_selected',
+      source: 'manual_preview',
+      duration_ms: 320,
+    })
+    analytics.trackOfficialTtsAutoEnabled({
+      tts_provider_id: 'official-provider-speech',
+      tts_model_id: 'stepfun/tts',
+      source: 'settings',
+      enabled: true,
+    })
+
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'official_tts_exposed', {
+      surface: 'web',
+      tts_provider_id: 'official-provider-speech',
+      tts_model_id: 'stepfun/tts',
+      source: 'post_first_chat',
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'official_tts_preview_started', {
+      surface: 'web',
+      tts_provider_id: 'official-provider-speech',
+      tts_model_id: 'stepfun/tts',
+      voice_id: 'longxiaochun_v2',
+      voice_type: 'official_selected',
+      source: 'manual_preview',
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(3, 'official_tts_preview_succeeded', {
+      surface: 'web',
+      tts_provider_id: 'official-provider-speech',
+      tts_model_id: 'stepfun/tts',
+      voice_id: 'longxiaochun_v2',
+      voice_type: 'official_selected',
+      source: 'manual_preview',
+      duration_ms: 320,
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(4, 'official_tts_auto_enabled', {
+      surface: 'web',
+      tts_provider_id: 'official-provider-speech',
+      tts_model_id: 'stepfun/tts',
+      source: 'settings',
+      enabled: true,
+    })
+  })
+
+  it('emits paywall exposure with balance bucket for monetization funnels', () => {
+    const analytics = useAnalytics()
+
+    analytics.trackPaywallSeen({
+      surface: 'settings_flux',
+      reason: 'manual_topup',
+      flux_balance_bucket: '1_100',
+    })
+
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenCalledWith('paywall_seen', {
+      surface: 'settings_flux',
+      app_surface: 'web',
+      reason: 'manual_topup',
+      flux_balance_bucket: '1_100',
+    })
+  })
+
+  /**
+   * @example
    * analytics.trackMicrophonePermissionDenied({ stt_provider_id: 'browser-web-speech-api' })
    * expect(posthog.capture).toHaveBeenCalledWith('microphone_permission_denied', expect.objectContaining({ surface: 'web' }))
    */

@@ -64,6 +64,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     trackChatActivationStarted,
     trackChatActivationSucceeded,
     trackChatActivationFailed,
+    trackSecondTurnStarted,
   } = useAnalytics()
 
   const chatSession = useChatSessionStore()
@@ -225,12 +226,18 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       has_voice: hasVoice,
       model,
     }),
-    onChatActivationStarted: ({ model, provider, source }) => trackChatActivationStarted({
-      provider_mode: providerMode(provider),
-      provider_id: provider || 'unknown',
-      model_id: model || 'unknown',
-      source,
-    }),
+    onChatActivationStarted: ({ model, provider, source }) => {
+      const mode = providerMode(provider)
+      const providerId = provider || 'unknown'
+      const modelId = model || 'unknown'
+
+      trackChatActivationStarted({
+        provider_mode: mode,
+        provider_id: providerId,
+        model_id: modelId,
+        source,
+      })
+    },
     onChatActivationSucceeded: ({ model, provider, durationMs, source }) => trackChatActivationSucceeded({
       provider_mode: providerMode(provider),
       provider_id: provider || 'unknown',
@@ -258,7 +265,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     },
     onLifecycle: record => contextObservability.recordLifecycle(record),
     onPromptProjection: payload => contextObservability.capturePromptProjection(payload),
-    onUserMessageAppended: ({ sessionId, message, messageText }) => {
+    onUserMessageAppended: ({ sessionId, message, messageText, source, model, provider, turnIndex }) => {
       trackMessageSent({
         conversation_id: sessionId,
         provider_type: providerMode(activeProvider.value),
@@ -276,6 +283,16 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         entry: 'chat',
         success: true,
       })
+      if (turnIndex === 2) {
+        trackSecondTurnStarted({
+          provider_mode: providerMode(provider),
+          provider_id: provider || 'unknown',
+          model_id: model || 'unknown',
+          source,
+          turn_index: turnIndex,
+        })
+      }
+
       if (isCloudSyncableMessage(message)) {
         void chatSession.pushMessageToCloud(sessionId, {
           id: message.id,

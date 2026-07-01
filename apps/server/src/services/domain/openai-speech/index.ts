@@ -18,6 +18,7 @@ import {
   AIRI_ATTR_GEN_AI_OPERATION_KIND,
   GEN_AI_ATTR_REQUEST_MODEL,
 } from '../../../utils/observability'
+import { fluxBalanceBucket } from '../flux-balance'
 
 const tracer = trace.getTracer('v1-completions')
 
@@ -153,7 +154,9 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
         metadata: {
           input_chars: inputText.length,
           billing_units: billingUnits,
+          block_reason: 'insufficient_balance',
           balance_state: 'insufficient',
+          flux_balance_bucket: fluxBalanceBucket(flux.flux),
           trigger: analytics.trigger,
           ...voiceMetadata,
         },
@@ -230,6 +233,7 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
         metadata: {
           http_status: failure.status,
           duration_ms: Date.now() - startedAt,
+          failure_reason: failure.reason,
           trigger: analytics.trigger,
           ...voiceMetadata,
         },
@@ -257,6 +261,7 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
         metadata: {
           http_status: response.status,
           duration_ms: durationMs,
+          failure_reason: 'upstream_error',
           trigger: analytics.trigger,
           ...voiceMetadata,
         },

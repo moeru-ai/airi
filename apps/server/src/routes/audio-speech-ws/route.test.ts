@@ -322,7 +322,9 @@ describe('audio-speech-ws route', () => {
       reason: 'insufficient_balance',
       metadata: expect.objectContaining({
         trigger: 'auto',
+        block_reason: 'insufficient_balance',
         balance_state: 'insufficient',
+        flux_balance_bucket: 'zero',
       }),
     }))
   })

@@ -38,6 +38,9 @@ Live dashboard created on 2026-06-30:
 - Current cards:
   - Text card: `AIRI product analytics runbook`
   - Funnel: `Chat activation funnel`
+  - Trend: `Official provider usage`
+  - Funnel: `Official TTS activation`
+  - Trend: `Paywall exposure`
   - Trend: `Provider config failures`
   - Trend: `TTS voice selection and preview`
   - Trend: `Top selected TTS voices`
@@ -52,6 +55,7 @@ Steps:
 
 1. `chat_activation_started`
 2. `chat_activation_succeeded`
+3. `second_turn_started`
 
 Breakdowns:
 
@@ -67,6 +71,26 @@ Watch for:
 
 - Official provider conversion lower than custom provider conversion.
 - Large drop after `chat_activation_started`.
+- First-turn success but weak `second_turn_started` conversion.
+
+### Insight 1b: Official Provider Selection
+
+Type: Trends
+
+Events:
+
+- `official_provider_selected`
+
+Breakdowns:
+
+- `provider_id`
+- `source`
+- `auto_selected`
+
+Watch for:
+
+- Official provider auto-selection is present but users do not reach `second_turn_started`.
+- A single provider id dominates errors or activation drop-off.
 
 ### Insight 2: Chat Activation Failures
 
@@ -144,6 +168,10 @@ Events:
 - `voice_selected`
 - `voice_preview_played`
 - `voice_pack_bound`
+- `official_tts_exposed`
+- `official_tts_preview_started`
+- `official_tts_preview_succeeded`
+- `official_tts_auto_enabled`
 
 Breakdowns:
 
@@ -159,6 +187,11 @@ Use PostHog or SQL when grouping by:
 
 - `voice_id`
 - `voice_pack_id`
+
+Watch for:
+
+- Users see official TTS but do not preview it.
+- Official TTS preview succeeds but chat auto TTS is not triggered later.
 
 ### Insight 6: Voice Input Friction
 
@@ -216,6 +249,8 @@ The `Product Analytics` row includes:
 - `Product Failure %`
 - `TTS Success %`
 - `TTS Failed / Blocked (range)`
+- `TTS Blocked by Reason`
+- `TTS Blocked by Flux Bucket`
 - `Top Product Actions (range)`
 - `Product Event Rate`
 - `TTS Event Rate by Source`
@@ -230,6 +265,8 @@ Live import status:
   - `Product Failure %`
   - `TTS Success %`
   - `TTS Failed / Blocked (range)`
+  - `TTS Blocked by Reason`
+  - `TTS Blocked by Flux Bucket`
   - `Top Product Actions (range)`
   - `Product Event Rate`
   - `TTS Event Rate by Source`
@@ -242,6 +279,7 @@ Permission notes from the import retry:
 - API confirmation returned `403 Access denied`: `You'll need additional permissions to perform this action. Permissions needed: any of dashboards:create, dashboards:write`.
 - The logged-in Grafana user `1260907335@qq.com` has org role `Viewer`; API metadata for `/d/rbr55dn/airi-server-overview` reports `canSave=false`, `canEdit=false`, `canAdmin=false`.
 - After permissions were updated, the generated dashboard was imported from Microsoft Edge. Grafana assigned the imported dashboard UID `ad8qbp5` instead of overwriting the earlier `rbr55dn` dashboard, so the imported dashboard was renamed to `AIRI Server Overview - Product Analytics` to avoid ambiguity.
+- On 2026-07-01, the live `ad8qbp5` dashboard was updated to include `TTS Blocked by Reason` and `TTS Blocked by Flux Bucket`. The live dashboard uses panel id `105` for the Flux bucket panel because id `103` was already occupied by the imported `User Engagement` row.
 
 Regenerate after dashboard changes:
 
@@ -298,8 +336,11 @@ clamp_min(sum(increase(airi_product_events_total{feature!="", action!=""}[15m]))
 
 ## Verification Checklist
 
-- PostHog can show `chat_activation_started -> chat_activation_succeeded` by `provider_mode`.
+- PostHog can show `chat_activation_started -> chat_activation_succeeded -> second_turn_started` by `provider_mode`.
+- PostHog can show `official_provider_selected` by `provider_id`, `source`, and `auto_selected`.
 - PostHog can show `voice_selected` by `voice_type` and `tts_provider_id`.
+- PostHog can show official TTS exposure / preview / auto-enabled events.
+- PostHog can show `paywall_seen` by `flux_balance_bucket`.
 - PostHog can show `feedback_submitted` and `bug_report_submitted`.
-- Grafana dashboard JSON contains `TTS Success %`, `TTS Failed / Blocked (range)`, and `TTS Event Rate by Source`.
-- Grafana product analytics panels use only bounded labels: `feature`, `action`, `status`, `source`.
+- Grafana dashboard JSON contains `TTS Success %`, `TTS Failed / Blocked (range)`, `TTS Blocked by Reason`, `TTS Blocked by Flux Bucket`, and `TTS Event Rate by Source`.
+- Grafana product analytics panels use only bounded labels: `feature`, `action`, `status`, `source`, `reason`, `flux_balance_bucket`.

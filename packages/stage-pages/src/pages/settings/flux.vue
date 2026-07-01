@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { FluxBalanceBucket } from '@proj-airi/stage-ui/composables/use-analytics'
+
 import { isFluxPurchaseDisabled, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { client } from '@proj-airi/stage-ui/composables/api'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
@@ -17,6 +19,7 @@ const authStore = useAuthStore()
 const { credits } = storeToRefs(authStore)
 const {
   trackCheckoutStarted,
+  trackPaywallSeen,
   trackPlanSelected,
   trackPricingViewed,
   trackQuotaLimitReached,
@@ -42,6 +45,7 @@ interface FluxPackage {
 
 const loadingPriceId = ref<string | null>(null)
 const message = ref<{ type: 'success' | 'error', text: string } | null>(null)
+const checkoutReturnMessageActive = ref(false)
 const packages = ref<FluxPackage[]>([])
 const selectedCurrency = ref<string>('usd')
 
@@ -69,6 +73,23 @@ interface AuditRecord {
 
 function formatNumber(num: number): string {
   return new Intl.NumberFormat().format(num)
+}
+
+/**
+ * Buckets Flux balances so monetization analytics never expose exact balances.
+ */
+function fluxBalanceBucket(balance: number | undefined): FluxBalanceBucket {
+  if (balance == null || Number.isNaN(balance))
+    return 'unknown'
+  if (balance <= 0)
+    return 'zero'
+  if (balance <= 100)
+    return '1_100'
+  if (balance <= 1000)
+    return '101_1000'
+  if (balance <= 10000)
+    return '1001_10000'
+  return '10000_plus'
 }
 
 /** Display amount with sign: debit is negative, credit/initial are positive */
@@ -233,18 +254,44 @@ async function fetchPackages() {
     }
   }
   catch {
-    message.value = { type: 'error', text: t('settings.pages.flux.packagesError') }
+    if (!checkoutReturnMessageActive.value)
+      message.value = { type: 'error', text: t('settings.pages.flux.packagesError') }
   }
 }
 
+/**
+ * Shows a Stripe return banner that background package refreshes must not replace.
+ */
+function showCheckoutReturnMessage(type: 'success' | 'error', text: string) {
+  checkoutReturnMessageActive.value = true
+  message.value = { type, text }
+}
+
 onMounted(async () => {
-  await Promise.allSettled([authStore.updateCredits(), fetchStats(), fetchAuditHistory(), ...(fluxPurchaseDisabled ? [] : [fetchPackages()])])
+  const creditsRefresh = authStore.updateCredits()
+  void Promise.allSettled([fetchStats(), fetchAuditHistory(), ...(fluxPurchaseDisabled ? [] : [fetchPackages()])])
+
+  if (route.query.success === 'true') {
+    showCheckoutReturnMessage('success', t('settings.pages.flux.checkout.success'))
+    router.replace({ query: {} })
+  }
+  else if (route.query.canceled === 'true') {
+    showCheckoutReturnMessage('error', t('settings.pages.flux.checkout.canceled'))
+    router.replace({ query: {} })
+  }
+
+  await creditsRefresh.catch(() => undefined)
 
   // PostHog funnel step 1: pricing surface view. Today this is an in-app
   // settings page (already-authenticated users); when we add a public
   // pricing landing page the surface label changes but the event stays the
   // same, so the funnel definition in PostHog doesn't need re-wiring.
   if (!fluxPurchaseDisabled) {
+    trackPaywallSeen({
+      surface: 'settings_flux',
+      reason: 'manual_topup',
+      flux_balance_bucket: fluxBalanceBucket(credits.value),
+    })
     trackPricingViewed('settings_flux', 'one_time')
     if (credits.value <= 0) {
       trackQuotaLimitReached({
@@ -255,19 +302,11 @@ onMounted(async () => {
       })
     }
   }
-
-  if (route.query.success === 'true') {
-    message.value = { type: 'success', text: t('settings.pages.flux.checkout.success') }
-    router.replace({ query: {} })
-  }
-  else if (route.query.canceled === 'true') {
-    message.value = { type: 'error', text: t('settings.pages.flux.checkout.canceled') }
-    router.replace({ query: {} })
-  }
 })
 
 async function handleBuy(stripePriceId: string) {
   loadingPriceId.value = stripePriceId
+  checkoutReturnMessageActive.value = false
   message.value = null
   // PostHog funnel step 2: user picked a plan. price_minor_unit lives on
   // the Stripe webhook (server-side `payment_completed`); we deliberately

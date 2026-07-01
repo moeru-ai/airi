@@ -76,6 +76,27 @@ export interface ProductEventAggregateRow {
 }
 
 /**
+ * Builds bounded Prometheus labels from product event inputs.
+ */
+function metricLabels(input: ProductEventInput): Record<string, string> {
+  const attrs: Record<string, string> = {
+    feature: input.feature,
+    action: input.action,
+    status: input.status,
+  }
+  if (input.source)
+    attrs.source = input.source
+  if (input.reason)
+    attrs.reason = input.reason
+
+  const fluxBalanceBucket = input.metadata?.flux_balance_bucket
+  if (typeof fluxBalanceBucket === 'string')
+    attrs.flux_balance_bucket = fluxBalanceBucket
+
+  return attrs
+}
+
+/**
  * Creates AIRI's first-party product analytics event writer.
  *
  * Use when:
@@ -109,14 +130,7 @@ export function createProductEventService(db: Database, metrics?: ProductMetrics
           createdAt: input.createdAt,
         })
 
-        const attrs: Record<string, string> = {
-          feature: input.feature,
-          action: input.action,
-          status: input.status,
-        }
-        if (input.source)
-          attrs.source = input.source
-        metrics?.events.add(1, attrs)
+        metrics?.events.add(1, metricLabels(input))
       }
       catch (err) {
         logger.withError(err).withFields({

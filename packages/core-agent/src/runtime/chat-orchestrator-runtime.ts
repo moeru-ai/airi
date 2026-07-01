@@ -192,6 +192,7 @@ export interface ChatOrchestratorRuntimeDeps {
   onTrackFirstMessage?: () => void
   /** Called when a user starts a chat activation attempt. */
   onChatActivationStarted?: (event: {
+    sessionId: string
     source: 'text' | 'voice'
     model: string
     provider: string
@@ -247,6 +248,10 @@ export interface ChatOrchestratorRuntimeDeps {
     sessionId: string
     message: Extract<ChatHistoryItem, { role: 'user' }> & { id: string }
     messageText: string
+    source: 'text' | 'voice'
+    model: string
+    provider: string
+    turnIndex: number
   }) => void
   /** Called after the assistant message has been finalized into session history. */
   onAssistantMessageAppended?: (event: {
@@ -426,6 +431,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     const activeProvider = deps.getActiveProvider?.() ?? ''
     deps.onTrackFirstMessage?.()
     deps.onChatActivationStarted?.({
+      sessionId,
       source: sendSource,
       model: options.model,
       provider: activeProvider,
@@ -475,6 +481,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         id: userMessageId,
       }
       deps.session.appendSessionMessage(sessionId, userMessage)
+      const userTurnIndex = deps.session.getSessionMessages(sessionId).filter(message => message.role === 'user').length
 
       // Cloud sync v1: only the raw text part round-trips; image attachments
       // and other non-text parts stay local.
@@ -482,6 +489,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         sessionId,
         message: userMessage,
         messageText: sendingMessage,
+        source: sendSource,
+        model: options.model,
+        provider: activeProvider,
+        turnIndex: userTurnIndex,
       })
 
       const sessionMessagesForSend = deps.session.getSessionMessages(sessionId)

@@ -39,6 +39,7 @@ const ioTracerMocks = vi.hoisted(() => {
 
 const llmStreamMock = vi.fn()
 const trackFirstMessageMock = vi.fn()
+const trackSecondTurnStartedMock = vi.fn()
 const ingestContextMessageMock = vi.fn()
 const getContextsSnapshotMock = vi.fn()
 const createMinecraftContextMock = vi.fn()
@@ -47,6 +48,8 @@ const forkSessionMock = vi.fn()
 const ensureSessionMock = vi.fn()
 
 const activeSessionIdRef = ref('session-1')
+const activeProviderRef = ref('mock-provider')
+const activeModelRef = ref('gpt-test')
 const streamingMessageRef = ref<any>({ role: 'assistant', content: '', slices: [], tool_results: [] })
 const sessionMessages: Record<string, any[]> = {}
 let currentGeneration = 1
@@ -62,14 +65,20 @@ vi.mock('pinia', async () => {
 vi.mock('../composables', () => ({
   useAnalytics: () => ({
     trackFirstMessage: trackFirstMessageMock,
+    trackChatFailed: vi.fn(),
+    trackChatStarted: vi.fn(),
     trackMessageSendStarted: vi.fn(),
+    trackMessageSent: vi.fn(),
     trackLlmRequestStarted: vi.fn(),
     trackLlmFirstToken: vi.fn(),
     trackAssistantResponseRendered: vi.fn(),
+    trackAssistantResponseCompleted: vi.fn(),
     trackMessageRound: vi.fn(),
+    trackFeatureUsed: vi.fn(),
     trackChatActivationStarted: vi.fn(),
     trackChatActivationSucceeded: vi.fn(),
     trackChatActivationFailed: vi.fn(),
+    trackSecondTurnStarted: trackSecondTurnStartedMock,
   }),
 }))
 
@@ -131,7 +140,8 @@ vi.mock('./llm-toolset-prompts', () => ({
 
 vi.mock('./modules/consciousness', () => ({
   useConsciousnessStore: () => ({
-    activeProvider: ref('mock-provider'),
+    activeModel: activeModelRef,
+    activeProvider: activeProviderRef,
   }),
 }))
 
@@ -156,6 +166,7 @@ describe('chat orchestrator contract', () => {
     setActivePinia(createPinia())
     llmStreamMock.mockReset()
     trackFirstMessageMock.mockReset()
+    trackSecondTurnStartedMock.mockReset()
     ingestContextMessageMock.mockReset()
     getContextsSnapshotMock.mockReset()
     getContextsSnapshotMock.mockReturnValue({})
@@ -168,6 +179,7 @@ describe('chat orchestrator contract', () => {
     ioTracerMocks.spans.length = 0
     ioTracerMocks.startSpanMock.mockClear()
     activeSessionIdRef.value = 'session-1'
+    activeProviderRef.value = 'mock-provider'
     streamingMessageRef.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
     currentGeneration = 1
 
@@ -176,6 +188,34 @@ describe('chat orchestrator contract', () => {
     }
 
     sessionMessages['session-1'] = [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }]
+  })
+
+  it('emits second turn analytics from chat sends', async () => {
+    activeProviderRef.value = 'official-provider'
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
+      await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
+      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+    })
+
+    const store = useChatOrchestratorStore()
+
+    await store.ingest('first turn', {
+      model: 'chat-auto',
+      chatProvider: provider,
+    })
+    await store.ingest('second turn', {
+      model: 'chat-auto',
+      chatProvider: provider,
+    })
+
+    expect(trackSecondTurnStartedMock).toHaveBeenCalledTimes(1)
+    expect(trackSecondTurnStartedMock).toHaveBeenCalledWith({
+      provider_id: 'official-provider',
+      provider_mode: 'official',
+      model_id: 'chat-auto',
+      source: 'text',
+      turn_index: 2,
+    })
   })
 
   it('keeps hook order and composes context prompt after system message', async () => {

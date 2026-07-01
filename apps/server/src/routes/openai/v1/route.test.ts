@@ -975,6 +975,7 @@ describe('v1CompletionsRoutes', () => {
           action: 'speech_failed',
           reason: 'TOO_MANY_REQUESTS',
           metadata: expect.objectContaining({
+            failure_reason: 'TOO_MANY_REQUESTS',
             http_status: 429,
           }),
         }),
@@ -1012,7 +1013,9 @@ describe('v1CompletionsRoutes', () => {
         reason: 'insufficient_balance',
         metadata: expect.objectContaining({
           trigger: 'manual',
+          block_reason: 'insufficient_balance',
           balance_state: 'insufficient',
+          flux_balance_bucket: 'zero',
         }),
       }))
     })
@@ -1058,7 +1061,9 @@ describe('v1CompletionsRoutes', () => {
         reason: 'insufficient_balance',
         metadata: expect.objectContaining({
           trigger: 'auto',
+          block_reason: 'insufficient_balance',
           balance_state: 'insufficient',
+          flux_balance_bucket: 'zero',
         }),
       }))
     })

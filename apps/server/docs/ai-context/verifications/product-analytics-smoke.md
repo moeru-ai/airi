@@ -1,8 +1,8 @@
 # Verification: Product Analytics Smoke Test
 
-Status: **code-level instrumentation verified; live PostHog dashboard created; Grafana dashboard imported; alert setup pending**
+Status: **code-level instrumentation verified; live PostHog dashboard updated; Grafana dashboard updated; alert setup pending**
 Owner: Community / Product Analytics
-Last updated: 2026-06-30
+Last updated: 2026-07-01
 Related:
 - [`product-analytics-instrumentation.md`](../product-analytics-instrumentation.md)
 - [`product-analytics-dashboard-setup.md`](../product-analytics-dashboard-setup.md)
@@ -12,7 +12,7 @@ Related:
 
 - **场景**：验证新增埋点能回答“用户是否能正常开始聊天”“Provider 配置卡在哪里”“哪个 TTS 音色被选择 / 实际播放”“语音输入卡在哪里”“用户是否提交反馈”。
 - **预期**：PostHog 能看到前端 journey events；Postgres `product_events` 能看到服务端 TTS metadata；Grafana 能看到低基数 server-side product health。
-- **当前状态**：代码与 dashboard JSON 已验证；线上 PostHog dashboard 已创建；线上 Grafana `AIRI Server Overview - Product Analytics` (`ad8qbp5`) 已导入完整 Product Analytics row；alert 仍需人工配置。
+- **当前状态**：代码与 dashboard JSON 已验证；线上 PostHog dashboard 已补官方 Provider / 官方 TTS / paywall 卡片；线上 Grafana `AIRI Server Overview - Product Analytics` (`ad8qbp5`) 已补 TTS blocked reason / Flux bucket 面板；alert 仍需人工配置。
 
 ## 已经由代码验证
 
@@ -35,12 +35,14 @@ Action:
 1. Use a fresh or test account.
 2. Start with an official provider.
 3. Send the first chat message and wait for the assistant response.
+4. Send a second message in the same session.
 
 Expected PostHog events:
 
 ```text
 chat_activation_started
 chat_activation_succeeded
+second_turn_started
 ```
 
 Required properties:
@@ -50,13 +52,41 @@ provider_mode = official
 provider_id = <official provider id>
 model_id = <selected model id>
 surface = web | mobile | electron
+turn_index = 2
 ```
 
 Fail if:
 
 - `chat_activation_started` appears but `chat_activation_succeeded` never appears for a successful chat.
+- The second message is sent but `second_turn_started` does not appear.
 - `provider_mode` is missing or always `unknown`.
 - `surface` is missing.
+
+### 1b. PostHog: official provider selection
+
+Action:
+
+1. Sign in with an account that has no active chat provider yet, or switch the chat provider to the official provider in settings.
+
+Expected PostHog events:
+
+```text
+official_provider_selected
+```
+
+Required properties:
+
+```text
+provider_mode = official
+provider_id = <official provider id>
+source = default_auto | settings
+auto_selected = true | false
+```
+
+Fail if:
+
+- Default official provider bootstrap reports `auto_selected = false`.
+- Manual settings selection reports `auto_selected = true`.
 
 ### 2. PostHog: provider config failure
 
@@ -99,6 +129,9 @@ Expected PostHog events:
 
 ```text
 tts_provider_selected
+official_tts_exposed
+official_tts_preview_started
+official_tts_preview_succeeded
 voice_selected
 voice_preview_played
 ```
@@ -116,7 +149,34 @@ source = settings | manual_preview
 Fail if:
 
 - `voice_selected` is missing, because this blocks “哪个 TTS 音色比较多”的核心问题。
+- Official TTS preview succeeds in the UI but `official_tts_preview_succeeded` is missing.
 - Official default voice is indistinguishable from custom configured voice.
+
+### 3b. PostHog: official TTS auto playback
+
+Action:
+
+1. Enable chat auto TTS with an official TTS provider.
+2. Send a chat message and wait for an assistant response that triggers speech playback.
+
+Expected PostHog events:
+
+```text
+official_tts_auto_enabled
+```
+
+Required properties:
+
+```text
+tts_provider_id = <official provider id>
+tts_model_id = <model id>
+source = chat_auto_tts
+enabled = true
+```
+
+Fail if:
+
+- Chat auto TTS plays through the official provider but `official_tts_auto_enabled` is missing.
 
 ### 4. PostHog: voice input friction
 
@@ -142,6 +202,32 @@ Fail if:
 
 - Permission denied or device unavailable is only visible as a generic `stt_failed`.
 - `error_code` contains raw browser error text.
+
+### 4b. PostHog: paywall exposure
+
+Action:
+
+1. Open the Flux / plan purchase entry.
+2. Use an account with a known low or zero Flux balance if possible.
+
+Expected PostHog events:
+
+```text
+paywall_seen
+```
+
+Required properties:
+
+```text
+surface = settings_flux
+reason = manual_topup
+flux_balance_bucket = zero | 1_100 | 101_1000 | 1001_10000 | 10000_plus | unknown
+```
+
+Fail if:
+
+- The purchase entry is visible but `paywall_seen` is missing.
+- A precise balance is sent instead of the bounded `flux_balance_bucket`.
 
 ### 5. Postgres: server-side TTS metadata
 
@@ -176,6 +262,8 @@ Expected:
 - `speech_requested` and `speech_succeeded` rows exist for successful TTS.
 - `voice_id` is present when the request provided a selected voice.
 - `voice_type` distinguishes official default / selected / custom / voice pack where available.
+- Blocked rows include bounded `block_reason` and `flux_balance_bucket`.
+- Failed rows include bounded `failure_reason`.
 
 Fail if:
 
@@ -197,6 +285,8 @@ Product Events (range)
 Product Failure %
 TTS Success %
 TTS Failed / Blocked (range)
+TTS Blocked by Reason
+TTS Blocked by Flux Bucket
 Top Product Actions (range)
 Product Event Rate
 TTS Event Rate by Source
@@ -211,7 +301,7 @@ sum(increase(airi_product_events_total{feature="tts"}[1h]))
 Expected:
 
 - Query returns a non-zero value after TTS smoke actions.
-- Legends only use bounded labels: `feature`, `action`, `status`, `source`.
+- Legends only use bounded labels: `feature`, `action`, `status`, `source`, `reason`, `flux_balance_bucket`.
 
 Fail if:
 
@@ -262,14 +352,16 @@ ORDER BY event_count DESC;
 | Item | Pass condition |
 |---|---|
 | Activation | PostHog funnel shows `chat_activation_started -> chat_activation_succeeded` by `provider_mode` |
+| Retention proxy | PostHog shows `second_turn_started` for the second message in a successful session |
+| Official provider | PostHog shows `official_provider_selected` by `provider_id` and `source` |
 | Provider config | Failed custom config emits `provider_config_failed` with bounded `error_code` |
-| TTS voice | PostHog can rank `voice_selected` by `voice_id`; Postgres can rank actual `speech_succeeded` by metadata voice |
+| TTS voice | PostHog can rank `voice_selected` by `voice_id`; official TTS exposure / preview / auto playback events appear; Postgres can rank actual `speech_succeeded` by metadata voice |
 | Voice input | Permission / device / cancel paths are distinguishable |
 | Feedback | Feedback event API exists with bounded fields; product feedback UI/server submission is split into a separate PR |
-| Grafana | Product Analytics row renders and uses only bounded Prometheus labels |
+| Grafana | Product Analytics row renders TTS reason / Flux bucket panels and uses only bounded Prometheus labels |
 
 ## Known Pending Work
 
-- PostHog dashboard and alerts still need to be created inside the PostHog account.
-- Updated Grafana JSON still needs to be imported or deployed to the production Grafana workspace.
+- PostHog dashboard cards are created, but the official provider / official TTS / paywall cards need deployed traffic before they show meaningful data.
+- Updated Grafana panels are deployed to the production Grafana workspace, but alert rules still need to be configured.
 - Discord / QQ ingestion and daily / weekly automation scripts are intentionally excluded from this pass.

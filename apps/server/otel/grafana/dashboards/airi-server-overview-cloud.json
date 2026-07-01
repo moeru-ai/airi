@@ -1562,6 +1562,172 @@
         }
       }
     },
+    "panel-102": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "grafanacloud-projairi-prom"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "expr": "topk(12, sum by (reason, source) (increase(airi_product_events_total{service_name=~\"$service\", deployment_environment=~\"$env\", feature!=\"\", action!=\"\", feature=\"tts\", action=\"speech_blocked\", status=\"blocked\"}[$__range])))",
+                      "legendFormat": "{{reason}} · {{source}}",
+                      "instant": true,
+                      "range": false
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "Blocked TTS events over the dashboard range, grouped by bounded product reason and source. Today this mostly shows insufficient balance; new policy/provider/preflight buckets can be added without exposing user, voice, or model labels.",
+        "id": 102,
+        "links": [],
+        "title": "TTS Blocked by Reason",
+        "vizConfig": {
+          "group": "bargauge",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short",
+                "noValue": "0"
+              },
+              "overrides": []
+            },
+            "options": {
+              "displayMode": "gradient",
+              "maxVizHeight": 300,
+              "minVizHeight": 12,
+              "minVizWidth": 8,
+              "namePlacement": "auto",
+              "orientation": "horizontal",
+              "reduceOptions": {
+                "calcs": [
+                  "lastNotNull"
+                ],
+                "fields": "",
+                "values": false
+              },
+              "showUnfilled": true,
+              "sizing": "auto",
+              "valueMode": "color"
+            }
+          },
+          "version": "13.0.0-23630096546"
+        }
+      }
+    },
+    "panel-103": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "grafanacloud-projairi-prom"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "expr": "topk(8, sum by (flux_balance_bucket, source) (increase(airi_product_events_total{service_name=~\"$service\", deployment_environment=~\"$env\", feature!=\"\", action!=\"\", feature=\"tts\", action=\"speech_blocked\", status=\"blocked\", flux_balance_bucket!=\"\"}[$__range])))",
+                      "legendFormat": "{{flux_balance_bucket}} · {{source}}",
+                      "instant": true,
+                      "range": false
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "Blocked TTS events over the dashboard range, grouped by coarse Flux balance bucket. This helps separate truly empty accounts from low-balance accounts without exposing exact user balances.",
+        "id": 103,
+        "links": [],
+        "title": "TTS Blocked by Flux Bucket",
+        "vizConfig": {
+          "group": "bargauge",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short",
+                "noValue": "0"
+              },
+              "overrides": []
+            },
+            "options": {
+              "displayMode": "gradient",
+              "maxVizHeight": 300,
+              "minVizHeight": 12,
+              "minVizWidth": 8,
+              "namePlacement": "auto",
+              "orientation": "horizontal",
+              "reduceOptions": {
+                "calcs": [
+                  "lastNotNull"
+                ],
+                "fields": "",
+                "values": false
+              },
+              "showUnfilled": true,
+              "sizing": "auto",
+              "valueMode": "color"
+            }
+          },
+          "version": "13.0.0-23630096546"
+        }
+      }
+    },
     "panel-16": {
       "kind": "Panel",
       "spec": {
@@ -4563,6 +4729,32 @@
                       "width": 12,
                       "x": 12,
                       "y": 9
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-102"
+                      },
+                      "height": 5,
+                      "width": 12,
+                      "x": 0,
+                      "y": 13
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-103"
+                      },
+                      "height": 5,
+                      "width": 12,
+                      "x": 12,
+                      "y": 13
                     }
                   }
                 ]
