@@ -385,13 +385,172 @@ describe('useAnalytics conversation product events', () => {
       step: 'manual_chat_ping',
       duration_ms: 18,
     })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(3, 'provider_config_failed', {
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(3, 'provider_config_completed', {
+      surface: 'web',
+      provider_id: 'official-provider',
+      provider_mode: 'official',
+      provider_type: 'official',
+      provider_name: 'official-provider',
+      entry_page: 'manual_chat_ping',
+      step: 'manual_chat_ping',
+      duration_ms: 18,
+      success: true,
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(4, 'official_provider_enabled', {
+      surface: 'web',
+      provider_name: 'official-provider',
+      entry: 'settings',
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(5, 'provider_config_failed', {
       surface: 'web',
       provider_id: 'openai-compatible',
       provider_mode: 'custom',
       step: 'settings_auto_validate',
       error_code: 'validation_failed',
       duration_ms: 32,
+    })
+  })
+
+  it('emits P0 activation, chat, quota, and feature events using canonical names', () => {
+    const analytics = useAnalytics()
+
+    analytics.trackSignupCompleted({
+      source: 'google',
+      locale: 'en',
+      utm_source: 'launch',
+    })
+    analytics.trackOnboardingStarted({
+      entry: 'app_start',
+    })
+    analytics.trackOnboardingCompleted({
+      selected_provider_type: 'official',
+      selected_provider_id: 'official-provider',
+      selected_use_case: 'role_chat',
+    })
+    analytics.trackChatStarted({
+      conversation_id: 'session-1',
+      provider_type: 'official',
+      provider_name: 'official-provider',
+      model: 'gpt-test',
+      entry: 'chat',
+      is_paid_user: true,
+    })
+    analytics.trackMessageSent({
+      conversation_id: 'session-1',
+      provider_type: 'official',
+      provider_name: 'official-provider',
+      model: 'gpt-test',
+      message_id: 'message-1',
+      message_index: 2,
+      message_length: 24,
+      has_attachment: false,
+      mode: 'text',
+    })
+    analytics.trackAssistantResponseCompleted({
+      conversation_id: 'session-1',
+      provider_type: 'official',
+      provider_name: 'official-provider',
+      model: 'gpt-test',
+      latency_ms: 350,
+      completion_length: 120,
+    })
+    analytics.trackChatFailed({
+      conversation_id: 'session-1',
+      provider_type: 'custom',
+      provider_name: 'openai-compatible',
+      model: 'custom',
+      failure_stage: 'llm_response',
+      error_code: 'provider_error',
+    })
+    analytics.trackQuotaLimitReached({
+      limit_type: 'flux',
+      current_usage: 0,
+      limit_value: 0,
+      entry: 'pricing',
+    })
+    analytics.trackUpgradeClicked({
+      source_page: 'settings_flux',
+      current_plan: 'flux',
+      trigger: 'manual_topup',
+    })
+    analytics.trackFeatureUsed({
+      feature_name: 'chat',
+      business_domain: 'conversation',
+      entry: 'chat',
+      success: true,
+    })
+
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'signup_completed', {
+      source: 'google',
+      locale: 'en',
+      utm_source: 'launch',
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'onboarding_started', {
+      surface: 'web',
+      entry: 'app_start',
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(3, 'onboarding_completed', {
+      surface: 'web',
+      selected_provider_type: 'official',
+      selected_provider_id: 'official-provider',
+      selected_use_case: 'role_chat',
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(4, 'chat_started', {
+      surface: 'web',
+      conversation_id: 'session-1',
+      provider_type: 'official',
+      provider_name: 'official-provider',
+      model: 'gpt-test',
+      entry: 'chat',
+      is_paid_user: true,
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(5, 'message_sent', {
+      surface: 'web',
+      conversation_id: 'session-1',
+      provider_type: 'official',
+      provider_name: 'official-provider',
+      model: 'gpt-test',
+      message_id: 'message-1',
+      message_index: 2,
+      message_length: 24,
+      has_attachment: false,
+      mode: 'text',
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(6, 'assistant_response_completed', {
+      surface: 'web',
+      conversation_id: 'session-1',
+      provider_type: 'official',
+      provider_name: 'official-provider',
+      model: 'gpt-test',
+      latency_ms: 350,
+      completion_length: 120,
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(7, 'chat_failed', {
+      surface: 'web',
+      conversation_id: 'session-1',
+      provider_type: 'custom',
+      provider_name: 'openai-compatible',
+      model: 'custom',
+      failure_stage: 'llm_response',
+      error_code: 'provider_error',
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(8, 'quota_limit_reached', {
+      limit_type: 'flux',
+      current_usage: 0,
+      limit_value: 0,
+      entry: 'pricing',
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(9, 'upgrade_clicked', {
+      source_page: 'settings_flux',
+      current_plan: 'flux',
+      trigger: 'manual_topup',
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(10, 'feature_used', {
+      surface: 'web',
+      feature_name: 'chat',
+      business_domain: 'conversation',
+      entry: 'chat',
+      success: true,
     })
   })
 

@@ -10,6 +10,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { createStripeRoutes, formatPrice } from '.'
 import { ApiError } from '../../utils/error'
+import { createWebhookOperation } from './operations/webhook'
 
 // --- Mock helpers ---
 
@@ -451,6 +452,123 @@ describe('stripeRoutes', () => {
         body: '{}',
       })
       expect(res.status).toBe(503)
+    })
+
+    it('records subscription lifecycle product events from Stripe webhooks', async () => {
+      const subscriptionEvent = {
+        id: 'evt_sub_created',
+        type: 'customer.subscription.created',
+        data: {
+          object: {
+            id: 'sub_1',
+            customer: 'cus_1',
+            status: 'active',
+            items: {
+              data: [{
+                price: { id: 'price_1' },
+                current_period_start: 1_000,
+                current_period_end: 2_000,
+              }],
+            },
+            cancel_at_period_end: false,
+            canceled_at: null,
+            ended_at: null,
+            metadata: {},
+          },
+        },
+      }
+      const productEventService = { track: vi.fn() }
+      const stripeService = createMockStripeService({
+        getCustomerByStripeId: vi.fn(async () => ({ userId: 'user-1', stripeCustomerId: 'cus_1' })),
+      })
+      const webhook = createWebhookOperation({
+        stripe: {
+          webhooks: {
+            constructEvent: vi.fn(() => subscriptionEvent),
+          },
+        } as any,
+        webhookSecret: 'whsec_test',
+        fluxService: createMockFluxService(),
+        stripeService,
+        billingService: createMockBillingService(),
+        productEventService: productEventService as any,
+      })
+
+      await webhook({ signature: 'test_sig', body: '{}' })
+
+      expect(productEventService.track).toHaveBeenCalledWith({
+        userId: 'user-1',
+        feature: 'billing',
+        action: 'subscription_started',
+        status: 'succeeded',
+        source: 'stripe.webhook',
+        metadata: {
+          stripe_price_id: 'price_1',
+          stripe_subscription_status: 'active',
+        },
+      })
+    })
+
+    it('records subscription renewals only for subscription-cycle paid invoices', async () => {
+      const invoiceEvent = {
+        id: 'evt_invoice_paid',
+        type: 'invoice.paid',
+        data: {
+          object: {
+            id: 'inv_1',
+            customer: 'cus_1',
+            parent: {
+              subscription_details: {
+                subscription: 'sub_1',
+              },
+            },
+            billing_reason: 'subscription_cycle',
+            status: 'paid',
+            amount_due: 1_200,
+            amount_paid: 1_200,
+            currency: 'usd',
+            hosted_invoice_url: null,
+            invoice_pdf: null,
+            period_start: 1_000,
+            period_end: 2_000,
+            status_transitions: {
+              paid_at: 1_500,
+            },
+            metadata: {},
+          },
+        },
+      }
+      const productEventService = { track: vi.fn() }
+      const stripeService = createMockStripeService({
+        getCustomerByStripeId: vi.fn(async () => ({ userId: 'user-1', stripeCustomerId: 'cus_1' })),
+      })
+      const webhook = createWebhookOperation({
+        stripe: {
+          webhooks: {
+            constructEvent: vi.fn(() => invoiceEvent),
+          },
+        } as any,
+        webhookSecret: 'whsec_test',
+        fluxService: createMockFluxService(),
+        stripeService,
+        billingService: createMockBillingService(),
+        productEventService: productEventService as any,
+      })
+
+      await webhook({ signature: 'test_sig', body: '{}' })
+
+      expect(productEventService.track).toHaveBeenCalledWith({
+        userId: 'user-1',
+        feature: 'billing',
+        action: 'subscription_renewed',
+        status: 'succeeded',
+        source: 'stripe.webhook',
+        metadata: {
+          amount_paid: 1200,
+          currency: 'usd',
+          stripe_price_id: null,
+        },
+      })
     })
   })
 })

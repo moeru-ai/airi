@@ -15,7 +15,13 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const { credits } = storeToRefs(authStore)
-const { trackPricingViewed, trackPlanSelected, trackCheckoutStarted } = useAnalytics()
+const {
+  trackCheckoutStarted,
+  trackPlanSelected,
+  trackPricingViewed,
+  trackQuotaLimitReached,
+  trackUpgradeClicked,
+} = useAnalytics()
 
 const fluxPurchaseDisabled = isFluxPurchaseDisabled()
 
@@ -232,7 +238,7 @@ async function fetchPackages() {
 }
 
 onMounted(async () => {
-  Promise.allSettled([authStore.updateCredits(), fetchStats(), fetchAuditHistory(), ...(fluxPurchaseDisabled ? [] : [fetchPackages()])])
+  await Promise.allSettled([authStore.updateCredits(), fetchStats(), fetchAuditHistory(), ...(fluxPurchaseDisabled ? [] : [fetchPackages()])])
 
   // PostHog funnel step 1: pricing surface view. Today this is an in-app
   // settings page (already-authenticated users); when we add a public
@@ -240,6 +246,14 @@ onMounted(async () => {
   // same, so the funnel definition in PostHog doesn't need re-wiring.
   if (!fluxPurchaseDisabled) {
     trackPricingViewed('settings_flux', 'one_time')
+    if (credits.value <= 0) {
+      trackQuotaLimitReached({
+        limit_type: 'flux',
+        current_usage: credits.value,
+        limit_value: capacity.value > 0 ? capacity.value : undefined,
+        entry: 'pricing',
+      })
+    }
   }
 
   if (route.query.success === 'true') {
@@ -259,6 +273,11 @@ async function handleBuy(stripePriceId: string) {
   // the Stripe webhook (server-side `payment_completed`); we deliberately
   // don't send a formatted-string price from the SPA so funnels don't get
   // poisoned by currency-formatting drift.
+  trackUpgradeClicked({
+    source_page: 'settings_flux',
+    current_plan: 'flux',
+    trigger: 'manual_topup',
+  })
   trackPlanSelected(stripePriceId, { currency: selectedCurrency.value })
   try {
     const res = await client.api.v1.stripe.checkout.$post({ json: { stripePriceId, currency: selectedCurrency.value } })

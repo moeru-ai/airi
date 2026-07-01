@@ -30,6 +30,8 @@ export type FeedbackCategory = 'provider_config' | 'model_list' | 'chat_activati
 export type FeedbackSeverity = 'blocker' | 'major' | 'minor' | 'suggestion'
 export type FeedbackUserType = 'new_user' | 'paid_user' | 'overseas_user' | 'developer_user' | 'role_chat_user' | 'unknown'
 export type FeedbackDescriptionLengthBucket = 'empty' | 'short' | 'medium' | 'long'
+export type ProductAnalyticsEntry = 'app_start' | 'onboarding' | 'settings' | 'chat' | 'pricing' | 'quota_banner' | 'unknown'
+export type MessageInputMode = 'text' | 'voice'
 
 interface ChatActivationBaseProperties {
   provider_mode: ProviderMode
@@ -61,6 +63,19 @@ interface FeedbackBaseProperties {
   severity: FeedbackSeverity
   user_type: FeedbackUserType
   entrypoint: string
+}
+
+interface OnboardingProviderProperties {
+  selected_provider_type: ProviderMode
+  selected_provider_id?: string
+  selected_use_case?: string
+}
+
+interface ConversationBaseProperties {
+  conversation_id: string
+  provider_type: ProviderMode
+  provider_name: string
+  model: string
 }
 
 function getConversationAnalyticsSurface(): ConversationAnalyticsSurface {
@@ -180,6 +195,39 @@ export function useAnalytics() {
     if (!canCapture())
       return
     posthog.capture('user_signed_up', { method })
+    posthog.capture('signup_completed', { source: method })
+  }
+
+  function trackSignupCompleted(properties: {
+    source: string
+    referrer?: string
+    country?: string
+    locale?: string
+    utm_source?: string
+    utm_medium?: string
+    utm_campaign?: string
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('signup_completed', properties)
+  }
+
+  function trackOnboardingStarted(properties: { entry: ProductAnalyticsEntry }) {
+    if (!canCapture())
+      return
+    posthog.capture('onboarding_started', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackOnboardingCompleted(properties: OnboardingProviderProperties) {
+    if (!canCapture())
+      return
+    posthog.capture('onboarding_completed', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
   }
 
   /**
@@ -303,6 +351,57 @@ export function useAnalytics() {
     })
   }
 
+  function trackChatStarted(properties: ConversationBaseProperties & {
+    entry: ProductAnalyticsEntry
+    is_paid_user?: boolean
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('chat_started', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackMessageSent(properties: ConversationBaseProperties & {
+    message_id?: string
+    message_index?: number
+    message_length?: number
+    has_attachment: boolean
+    mode: MessageInputMode
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('message_sent', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackAssistantResponseCompleted(properties: ConversationBaseProperties & {
+    latency_ms?: number
+    completion_length?: number
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('assistant_response_completed', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackChatFailed(properties: ConversationBaseProperties & {
+    failure_stage: ChatActivationFailureStage
+    error_code: string
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('chat_failed', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
   function trackModelListLoaded(properties: {
     provider_id: string
     provider_mode: ProviderMode
@@ -347,6 +446,16 @@ export function useAnalytics() {
       ...properties,
       surface: getConversationAnalyticsSurface(),
     })
+    trackProviderConfigCompleted({
+      ...properties,
+      success: true,
+    })
+    if (properties.provider_mode === 'official') {
+      trackOfficialProviderEnabled({
+        provider_name: properties.provider_id,
+        entry: properties.step === 'onboarding_validate' ? 'onboarding' : 'settings',
+      })
+    }
   }
 
   function trackProviderConfigFailed(properties: ProviderConfigBaseProperties & {
@@ -356,6 +465,34 @@ export function useAnalytics() {
     if (!canCapture())
       return
     posthog.capture('provider_config_failed', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackProviderConfigCompleted(properties: ProviderConfigBaseProperties & {
+    duration_ms: number
+    success: boolean
+    error_code?: string
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('provider_config_completed', {
+      ...properties,
+      provider_type: properties.provider_mode,
+      provider_name: properties.provider_id,
+      entry_page: properties.step,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackOfficialProviderEnabled(properties: {
+    provider_name: string
+    entry: 'onboarding' | 'settings' | 'chat'
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('official_provider_enabled', {
       ...properties,
       surface: getConversationAnalyticsSurface(),
     })
@@ -643,6 +780,41 @@ export function useAnalytics() {
     posthog.capture('flux_topup_clicked', properties)
   }
 
+  function trackQuotaLimitReached(properties: {
+    limit_type: 'flux' | 'rate_limit' | 'subscription'
+    current_usage: number
+    limit_value?: number
+    entry: ProductAnalyticsEntry
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('quota_limit_reached', properties)
+  }
+
+  function trackUpgradeClicked(properties: {
+    source_page: string
+    current_plan?: string
+    trigger: 'quota_limit' | 'pricing_page' | 'manual_topup' | 'feature_gate'
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('upgrade_clicked', properties)
+  }
+
+  function trackFeatureUsed(properties: {
+    feature_name: string
+    business_domain: string
+    entry: ProductAnalyticsEntry
+    success: boolean
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('feature_used', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
   // ─── Voice clone (custom TTS voice) ──────────────────────────────────
 
   function trackVoiceCloneCreated(properties: { provider: string }) {
@@ -667,6 +839,9 @@ export function useAnalytics() {
     trackPlanSelected,
     trackCheckoutStarted,
     trackSignup,
+    trackSignupCompleted,
+    trackOnboardingStarted,
+    trackOnboardingCompleted,
     trackFirstModelSelected,
     trackCharacterCreated,
     trackVoiceModeActivated,
@@ -677,7 +852,11 @@ export function useAnalytics() {
     trackLlmRequestStarted,
     trackLlmFirstToken,
     trackAssistantResponseRendered,
+    trackAssistantResponseCompleted,
     trackMessageRound,
+    trackChatStarted,
+    trackMessageSent,
+    trackChatFailed,
     trackChatActivationStarted,
     trackChatActivationSucceeded,
     trackChatActivationFailed,
@@ -686,6 +865,8 @@ export function useAnalytics() {
     trackProviderConfigStarted,
     trackProviderConfigSucceeded,
     trackProviderConfigFailed,
+    trackProviderConfigCompleted,
+    trackOfficialProviderEnabled,
     trackTtsStopClicked,
     trackChatSessionSelected,
     trackChatMessageDeleted,
@@ -726,6 +907,9 @@ export function useAnalytics() {
 
     trackFluxLowWarningShown,
     trackFluxTopupClicked,
+    trackQuotaLimitReached,
+    trackUpgradeClicked,
+    trackFeatureUsed,
     trackVoiceCloneCreated,
     trackDeviceChannelConnected,
   }

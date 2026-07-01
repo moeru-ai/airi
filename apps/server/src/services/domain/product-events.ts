@@ -29,6 +29,10 @@ export type ProductAction
     | 'voice_pack_disabled'
     | 'checkout_started'
     | 'payment_completed'
+    | 'subscription_started'
+    | 'subscription_renewed'
+    | 'subscription_cancelled'
+    | 'topic_classified'
 
 /**
  * Product event fact written to AIRI's own Postgres analytics table.
