@@ -694,6 +694,197 @@ describe('v1CompletionsRoutes', () => {
       expect(route).not.toHaveBeenCalled()
     })
 
+    it('falls back to the alias fallback pool when every primary route is exhausted', async () => {
+      const route = vi.fn(async ({ modelName }, ctx) => {
+        if (modelName === 'openai/primary')
+          throw new ApiError(502, 'BAD_GATEWAY', 'primary exhausted')
+        if (ctx) {
+          ctx.provider = 'openrouter'
+          ctx.upstreamModel = modelName
+        }
+        return new Response(JSON.stringify({ choices: [], usage: { prompt_tokens: 1, completion_tokens: 1 } }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      })
+      const now = new Date()
+      const officialCatalogService = createMockOfficialCatalogService({
+        resolveEnabledAlias: vi.fn(async () => ({
+          id: 'alias-auto',
+          surface: 'llm' as const,
+          aliasId: 'auto',
+          displayName: 'Auto',
+          enabled: true,
+          displayOrder: 0,
+          fallbackEnabled: true,
+          loadBalancingEnabled: false,
+          createdAt: now,
+          updatedAt: now,
+          routes: [
+            { id: 'route-primary', aliasId: 'alias-auto', routerModelId: 'openai/primary', pool: 'primary' as const, enabled: true, weight: 1, displayOrder: 0, createdAt: now, updatedAt: now },
+            { id: 'route-fallback', aliasId: 'alias-auto', routerModelId: 'openai/fallback', pool: 'fallback' as const, enabled: true, weight: 1, displayOrder: 1, createdAt: now, updatedAt: now },
+          ],
+        })),
+      })
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV({
+          DEFAULT_CHAT_MODEL: 'openai/primary',
+          LLM_ROUTER_CONFIG: {
+            llm: { models: { 'openai/primary': { upstreams: [] }, 'openai/fallback': { upstreams: [] } } },
+            tts: { models: {} },
+          },
+        }),
+        undefined,
+        undefined,
+        undefined,
+        createMockLlmRouter({ route }),
+        createMockLlmTracing(),
+        createMockProductEventService(),
+        createMockVoicePackService(),
+        officialCatalogService,
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/openai/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'auto', messages: [] }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(200)
+      expect(route).toHaveBeenCalledTimes(2)
+      expect(route).toHaveBeenNthCalledWith(1, expect.objectContaining({ modelName: 'openai/primary' }), expect.any(Object))
+      expect(route).toHaveBeenNthCalledWith(2, expect.objectContaining({ modelName: 'openai/fallback' }), expect.any(Object))
+    })
+
+    it('does not use the alias fallback pool when fallback is disabled', async () => {
+      const route = vi.fn(async () => {
+        throw new ApiError(502, 'BAD_GATEWAY', 'primary exhausted')
+      })
+      const now = new Date()
+      const officialCatalogService = createMockOfficialCatalogService({
+        resolveEnabledAlias: vi.fn(async () => ({
+          id: 'alias-auto',
+          surface: 'llm' as const,
+          aliasId: 'auto',
+          displayName: 'Auto',
+          enabled: true,
+          displayOrder: 0,
+          fallbackEnabled: false,
+          loadBalancingEnabled: false,
+          createdAt: now,
+          updatedAt: now,
+          routes: [
+            { id: 'route-primary', aliasId: 'alias-auto', routerModelId: 'openai/primary', pool: 'primary' as const, enabled: true, weight: 1, displayOrder: 0, createdAt: now, updatedAt: now },
+            { id: 'route-fallback', aliasId: 'alias-auto', routerModelId: 'openai/fallback', pool: 'fallback' as const, enabled: true, weight: 1, displayOrder: 1, createdAt: now, updatedAt: now },
+          ],
+        })),
+      })
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV({
+          DEFAULT_CHAT_MODEL: 'openai/primary',
+          LLM_ROUTER_CONFIG: {
+            llm: { models: { 'openai/primary': { upstreams: [] }, 'openai/fallback': { upstreams: [] } } },
+            tts: { models: {} },
+          },
+        }),
+        undefined,
+        undefined,
+        undefined,
+        createMockLlmRouter({ route }),
+        createMockLlmTracing(),
+        createMockProductEventService(),
+        createMockVoicePackService(),
+        officialCatalogService,
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/openai/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'auto', messages: [] }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(502)
+      expect(route).toHaveBeenCalledTimes(1)
+      expect(route).toHaveBeenCalledWith(expect.objectContaining({ modelName: 'openai/primary' }), expect.any(Object))
+    })
+
+    it('uses weighted primary routing when alias load balancing is enabled', async () => {
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.95)
+      const route = vi.fn(async ({ modelName }, ctx) => {
+        if (ctx) {
+          ctx.provider = 'openrouter'
+          ctx.upstreamModel = modelName
+        }
+        return new Response(JSON.stringify({ choices: [], usage: { prompt_tokens: 1, completion_tokens: 1 } }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      })
+      const now = new Date()
+      const officialCatalogService = createMockOfficialCatalogService({
+        resolveEnabledAlias: vi.fn(async () => ({
+          id: 'alias-auto',
+          surface: 'llm' as const,
+          aliasId: 'auto',
+          displayName: 'Auto',
+          enabled: true,
+          displayOrder: 0,
+          fallbackEnabled: false,
+          loadBalancingEnabled: true,
+          createdAt: now,
+          updatedAt: now,
+          routes: [
+            { id: 'route-a', aliasId: 'alias-auto', routerModelId: 'openai/light', pool: 'primary' as const, enabled: true, weight: 1, displayOrder: 0, createdAt: now, updatedAt: now },
+            { id: 'route-b', aliasId: 'alias-auto', routerModelId: 'openai/heavy', pool: 'primary' as const, enabled: true, weight: 9, displayOrder: 1, createdAt: now, updatedAt: now },
+          ],
+        })),
+      })
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV({
+          DEFAULT_CHAT_MODEL: 'openai/light',
+          LLM_ROUTER_CONFIG: {
+            llm: { models: { 'openai/light': { upstreams: [] }, 'openai/heavy': { upstreams: [] } } },
+            tts: { models: {} },
+          },
+        }),
+        undefined,
+        undefined,
+        undefined,
+        createMockLlmRouter({ route }),
+        createMockLlmTracing(),
+        createMockProductEventService(),
+        createMockVoicePackService(),
+        officialCatalogService,
+      )
+
+      try {
+        const res = await app.fetch(
+          new Request('http://localhost/api/v1/openai/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: 'auto', messages: [] }),
+          }),
+          { user: testUser } as any,
+        )
+
+        expect(res.status).toBe(200)
+        expect(route).toHaveBeenCalledTimes(1)
+        expect(route).toHaveBeenCalledWith(expect.objectContaining({ modelName: 'openai/heavy' }), expect.any(Object))
+      }
+      finally {
+        randomSpy.mockRestore()
+      }
+    })
+
     it('records Langfuse chat generation with the router-resolved upstream model', async () => {
       const llmRouter = createMockLlmRouter({
         route: vi.fn(async (_req, ctx) => {

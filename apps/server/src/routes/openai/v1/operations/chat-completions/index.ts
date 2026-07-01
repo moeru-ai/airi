@@ -1,3 +1,4 @@
+import type { OfficialProviderAliasRoute } from '../../../../../schemas/official-catalog'
 import type { UsageInfo } from '../../../../../services/domain/billing/billing'
 import type { GatewayCallback } from '../../gateway'
 import type { V1RouteDeps } from '../../types'
@@ -5,6 +6,7 @@ import type { V1RouteDeps } from '../../types'
 import { useLogger } from '@guiiai/logg'
 
 import { extractUsageFromBody } from '../../../../../services/domain/billing/billing'
+import { createBadRequestError } from '../../../../../utils/error'
 import { nanoid } from '../../../../../utils/id'
 import { buildSafeResponseHeaders } from '../../http/response'
 import { createOpenAiRouteBilling } from '../../middlewares/billing'
@@ -41,7 +43,8 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
 
     const body = input.body
     const requestedAlias = typeof body.model === 'string' && body.model.length > 0 ? body.model : 'auto'
-    const requestModel = await resolveChatModelAlias(deps, requestedAlias)
+    const aliasPlan = await resolveChatModelAliasPlan(deps, requestedAlias)
+    let requestModel = aliasPlan.modelIds[0]
 
     const stream = !!body.stream
     logger.withFields({
@@ -81,11 +84,19 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
     // fluxConsumed: 0 while real cost was incurred — a silent revenue leak.
     // Source: codex review 2026-05-15 HIGH #1.
     const clientAbort = input.abortSignal
-    const routeCtx = newRouteContext()
+    let routeCtx = newRouteContext()
     let response: Response
     try {
-      response = await telemetry.runWithSpan(span, () =>
-        deps.llmRouter.route({ modelName: requestModel, body, headers: {}, abortSignal: clientAbort }, routeCtx))
+      const routed = await telemetry.runWithSpan(span, () =>
+        routeChatAliasCandidates({
+          deps,
+          body,
+          modelIds: aliasPlan.modelIds,
+          abortSignal: clientAbort,
+        }))
+      response = routed.response
+      routeCtx = routed.routeCtx
+      requestModel = routed.modelId
     }
     catch (err) {
       telemetry.failSpan(span, 'Router exhausted or unknown model')
@@ -198,7 +209,11 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
   }
 }
 
-async function resolveChatModelAlias(deps: V1RouteDeps, aliasId: string): Promise<string> {
+interface ChatModelAliasPlan {
+  modelIds: string[]
+}
+
+async function resolveChatModelAliasPlan(deps: V1RouteDeps, aliasId: string): Promise<ChatModelAliasPlan> {
   const config = await deps.configKV.getOrThrow('LLM_ROUTER_CONFIG')
   const defaultModel = await deps.configKV.getOrThrow('DEFAULT_CHAT_MODEL')
   const modelIds = [
@@ -211,8 +226,82 @@ async function resolveChatModelAlias(deps: V1RouteDeps, aliasId: string): Promis
   })
 
   const alias = await deps.officialCatalogService.resolveEnabledAlias('llm', aliasId)
-  const primary = alias.routes.find(route => route.pool === 'primary')
-  return (primary ?? alias.routes[0]).routerModelId
+  const primaryRoutes = alias.routes.filter(route => route.pool === 'primary')
+  const fallbackRoutes = alias.fallbackEnabled
+    ? alias.routes.filter(route => route.pool === 'fallback')
+    : []
+  const orderedPrimaryRoutes = alias.loadBalancingEnabled
+    ? weightedRouteOrder(primaryRoutes)
+    : primaryRoutes
+  const routedModelIds = uniqueModelIds([...orderedPrimaryRoutes, ...fallbackRoutes])
+
+  if (routedModelIds.length === 0) {
+    throw createBadRequestError('Official provider alias has no enabled route', 'OFFICIAL_ALIAS_ROUTE_NOT_FOUND', {
+      surface: 'llm',
+      aliasId,
+    })
+  }
+
+  return { modelIds: routedModelIds }
+}
+
+async function routeChatAliasCandidates(input: {
+  deps: V1RouteDeps
+  body: Record<string, unknown>
+  modelIds: string[]
+  abortSignal?: AbortSignal
+}): Promise<{
+  modelId: string
+  response: Response
+  routeCtx: ReturnType<typeof newRouteContext>
+}> {
+  let lastError: unknown
+  for (const modelId of input.modelIds) {
+    const routeCtx = newRouteContext()
+    try {
+      const response = await input.deps.llmRouter.route({
+        modelName: modelId,
+        body: input.body,
+        headers: {},
+        abortSignal: input.abortSignal,
+      }, routeCtx)
+      return { modelId, response, routeCtx }
+    }
+    catch (err) {
+      if (input.abortSignal?.aborted)
+        throw err
+      lastError = err
+    }
+  }
+
+  throw lastError
+}
+
+function weightedRouteOrder(routes: OfficialProviderAliasRoute[]): OfficialProviderAliasRoute[] {
+  if (routes.length <= 1)
+    return routes
+
+  const totalWeight = routes.reduce((sum, route) => sum + Math.max(route.weight, 0), 0)
+  if (totalWeight <= 0)
+    return routes
+
+  let cursor = Math.random() * totalWeight
+  const selectedIndex = routes.findIndex((route) => {
+    cursor -= Math.max(route.weight, 0)
+    return cursor < 0
+  })
+  if (selectedIndex < 0)
+    return routes
+
+  const selected = routes[selectedIndex]
+  return [
+    selected,
+    ...routes.filter((_, index) => index !== selectedIndex),
+  ]
+}
+
+function uniqueModelIds(routes: OfficialProviderAliasRoute[]): string[] {
+  return Array.from(new Set(routes.map(route => route.routerModelId)))
 }
 
 function streamChatCompletion(input: {
