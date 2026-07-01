@@ -1,7 +1,8 @@
+import type { PlaybackItem } from '../types'
+
 import { describe, expect, it, vi } from 'vitest'
 
 import { createPlaybackManager } from './playback-manager'
-import type { PlaybackItem } from '../types'
 
 function createPlaybackItem(id: string, priority: number, intentId: string, ownerId?: string): PlaybackItem<unknown> {
   return {
