@@ -287,21 +287,25 @@ describe('useAnalytics conversation product events', () => {
       surface: 'web',
       stt_provider_id: 'browser-web-speech-api',
     })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'microphone_permission_requested', {
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'voice_input_used', {
       surface: 'web',
       stt_provider_id: 'browser-web-speech-api',
     })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(3, 'microphone_permission_denied', {
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(3, 'microphone_permission_requested', {
+      surface: 'web',
+      stt_provider_id: 'browser-web-speech-api',
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(4, 'microphone_permission_denied', {
       surface: 'web',
       stt_provider_id: 'browser-web-speech-api',
       error_code: 'permission_denied',
     })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(4, 'audio_device_unavailable', {
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(5, 'audio_device_unavailable', {
       surface: 'web',
       stt_provider_id: 'browser-web-speech-api',
       error_code: 'device_unavailable',
     })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(5, 'voice_input_cancelled', {
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(6, 'voice_input_cancelled', {
       surface: 'web',
       stt_provider_id: 'browser-web-speech-api',
       duration_ms: 420,
@@ -551,6 +555,130 @@ describe('useAnalytics conversation product events', () => {
       business_domain: 'conversation',
       entry: 'chat',
       success: true,
+    })
+  })
+
+  it('emits P1 conversation, attachment, preset, settings, and support events', () => {
+    const analytics = useAnalytics()
+
+    analytics.trackConversationCreated({
+      conversation_id: 'session-1',
+      source: 'new_session',
+      character_id: 'character-1',
+      cloud_synced: true,
+    })
+    analytics.trackConversationRenamed({
+      conversation_id: 'session-1',
+      source: 'sessions_drawer',
+    })
+    analytics.trackConversationShared({
+      conversation_id: 'session-1',
+      source: 'share_button',
+    })
+    analytics.trackConversationDeleted({
+      conversation_id: 'session-1',
+      message_count: 6,
+      cloud_synced: true,
+    })
+    analytics.trackAttachmentUploaded({
+      attachment_type: 'image',
+      size_bytes: 2048,
+      source: 'chat',
+      success: true,
+    })
+    analytics.trackPresetUsed({
+      preset_id: 'preset-live2d-1',
+      preset_type: 'stage_model',
+      source: 'settings',
+    })
+    analytics.trackModelChanged({
+      from_model: 'gpt-old',
+      to_model: 'gpt-new',
+      provider: 'official-provider',
+      reason: 'manual',
+    })
+    analytics.trackProviderSwitched({
+      from_provider: 'openai-compatible',
+      to_provider: 'official-provider',
+      from_provider_type: 'custom',
+      to_provider_type: 'official',
+      reason: 'manual',
+    })
+    analytics.trackSettingsChanged({
+      setting_name: 'analytics_enabled',
+      previous_value: false,
+      new_value: true,
+      source: 'settings',
+    })
+    analytics.trackSupportContacted({
+      channel: 'discord',
+      source: 'settings',
+      category: 'payment',
+    })
+
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'conversation_created', {
+      surface: 'web',
+      conversation_id: 'session-1',
+      source: 'new_session',
+      character_id: 'character-1',
+      cloud_synced: true,
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'conversation_renamed', {
+      surface: 'web',
+      conversation_id: 'session-1',
+      source: 'sessions_drawer',
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(3, 'conversation_shared', {
+      surface: 'web',
+      conversation_id: 'session-1',
+      source: 'share_button',
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(4, 'conversation_deleted', {
+      surface: 'web',
+      conversation_id: 'session-1',
+      message_count: 6,
+      cloud_synced: true,
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(5, 'attachment_uploaded', {
+      surface: 'web',
+      attachment_type: 'image',
+      size_bytes: 2048,
+      source: 'chat',
+      success: true,
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(6, 'preset_used', {
+      surface: 'web',
+      preset_id: 'preset-live2d-1',
+      preset_type: 'stage_model',
+      source: 'settings',
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(7, 'model_changed', {
+      surface: 'web',
+      from_model: 'gpt-old',
+      to_model: 'gpt-new',
+      provider: 'official-provider',
+      reason: 'manual',
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(8, 'provider_switched', {
+      surface: 'web',
+      from_provider: 'openai-compatible',
+      to_provider: 'official-provider',
+      from_provider_type: 'custom',
+      to_provider_type: 'official',
+      reason: 'manual',
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(9, 'settings_changed', {
+      surface: 'web',
+      setting_name: 'analytics_enabled',
+      previous_value: false,
+      new_value: true,
+      source: 'settings',
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(10, 'support_contacted', {
+      surface: 'web',
+      channel: 'discord',
+      source: 'settings',
+      category: 'payment',
     })
   })
 

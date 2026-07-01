@@ -32,6 +32,7 @@ export type FeedbackUserType = 'new_user' | 'paid_user' | 'overseas_user' | 'dev
 export type FeedbackDescriptionLengthBucket = 'empty' | 'short' | 'medium' | 'long'
 export type ProductAnalyticsEntry = 'app_start' | 'onboarding' | 'settings' | 'chat' | 'pricing' | 'quota_banner' | 'unknown'
 export type MessageInputMode = 'text' | 'voice'
+export type ConversationEventSource = 'new_session' | 'fork' | 'history' | 'share_button' | 'unknown'
 
 interface ChatActivationBaseProperties {
   provider_mode: ProviderMode
@@ -266,6 +267,12 @@ export function useAnalytics() {
     if (!canCapture())
       return
     posthog.capture('model_switched', { from_model: fromModel, to_model: toModel, reason })
+    posthog.capture('model_changed', {
+      from_model: fromModel,
+      to_model: toModel,
+      reason,
+      surface: getConversationAnalyticsSurface(),
+    })
   }
 
   /**
@@ -545,6 +552,57 @@ export function useAnalytics() {
     })
   }
 
+  function trackConversationCreated(properties: {
+    conversation_id: string
+    source: ConversationEventSource
+    character_id?: string
+    cloud_synced: boolean
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('conversation_created', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackConversationRenamed(properties: {
+    conversation_id: string
+    source: 'history' | 'sessions_drawer' | 'unknown'
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('conversation_renamed', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackConversationShared(properties: {
+    conversation_id: string
+    source: ConversationEventSource
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('conversation_shared', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackConversationDeleted(properties: {
+    conversation_id: string
+    message_count: number
+    cloud_synced: boolean
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('conversation_deleted', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
   // ─── STT events ──────────────────────────────────────────────────────
 
   function trackSttStarted(provider: string) {
@@ -569,6 +627,10 @@ export function useAnalytics() {
     if (!canCapture())
       return
     posthog.capture('voice_input_started', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+    posthog.capture('voice_input_used', {
       ...properties,
       surface: getConversationAnalyticsSurface(),
     })
@@ -713,6 +775,89 @@ export function useAnalytics() {
     if (!canCapture())
       return
     posthog.capture('voice_pack_bound', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackAttachmentUploaded(properties: {
+    attachment_type: 'image' | 'audio' | 'document' | 'unknown'
+    size_bytes?: number
+    source: ProductAnalyticsEntry
+    success: boolean
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('attachment_uploaded', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackPresetUsed(properties: {
+    preset_id: string
+    preset_type: 'character' | 'stage_model' | 'voice' | 'background' | 'unknown'
+    source: ProductAnalyticsEntry
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('preset_used', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackModelChanged(properties: {
+    from_model?: string
+    to_model: string
+    provider: string
+    reason: 'manual' | 'auto'
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('model_changed', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackProviderSwitched(properties: {
+    from_provider?: string
+    to_provider: string
+    from_provider_type?: ProviderMode
+    to_provider_type: ProviderMode
+    reason: 'manual' | 'auto'
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('provider_switched', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackSettingsChanged(properties: {
+    setting_name: string
+    previous_value?: string | number | boolean
+    new_value: string | number | boolean
+    source: ProductAnalyticsEntry
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('settings_changed', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackSupportContacted(properties: {
+    channel: FeedbackSource
+    source: ProductAnalyticsEntry
+    category?: FeedbackCategory
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('support_contacted', {
       ...properties,
       surface: getConversationAnalyticsSurface(),
     })
@@ -872,6 +1017,10 @@ export function useAnalytics() {
     trackChatMessageDeleted,
     trackChatMessagesCleared,
     trackChatMessageRetried,
+    trackConversationCreated,
+    trackConversationRenamed,
+    trackConversationShared,
+    trackConversationDeleted,
 
     trackSttStarted,
     trackSttSucceeded,
@@ -894,6 +1043,12 @@ export function useAnalytics() {
     trackVoiceSelected,
     trackVoicePreviewPlayed,
     trackVoicePackBound,
+    trackAttachmentUploaded,
+    trackPresetUsed,
+    trackModelChanged,
+    trackProviderSwitched,
+    trackSettingsChanged,
+    trackSupportContacted,
 
     trackAutonomousGenerateText,
 
