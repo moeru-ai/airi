@@ -52,7 +52,7 @@ function createTestDeps() {
     ttsMeter: {} as any,
     requestLogService: {} as any,
     voicePackService: {} as any,
-    officialCatalogService: {} as any,
+    providerCatalogService: {} as any,
     productEventService: {
       track: vi.fn(async () => undefined),
       countDistinctUsersByFeature: vi.fn(async () => []),

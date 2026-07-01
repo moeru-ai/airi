@@ -1,4 +1,4 @@
-import type { OfficialProviderAliasRoute } from '../../../../../schemas/official-catalog'
+import type { CapabilityAliasRoute } from '../../../../../schemas/provider-catalog'
 import type { UsageInfo } from '../../../../../services/domain/billing/billing'
 import type { GatewayCallback } from '../../gateway'
 import type { V1RouteDeps } from '../../types'
@@ -214,18 +214,7 @@ interface ChatModelAliasPlan {
 }
 
 async function resolveChatModelAliasPlan(deps: V1RouteDeps, aliasId: string): Promise<ChatModelAliasPlan> {
-  const config = await deps.configKV.getOrThrow('LLM_ROUTER_CONFIG')
-  const defaultModel = await deps.configKV.getOrThrow('DEFAULT_CHAT_MODEL')
-  const modelIds = [
-    defaultModel,
-    ...Object.keys(config.llm.models).sort().filter(modelId => modelId !== defaultModel),
-  ]
-  await deps.officialCatalogService.syncAliasesFromRouterConfig({
-    surface: 'llm',
-    modelIds,
-  })
-
-  const alias = await deps.officialCatalogService.resolveEnabledAlias('llm', aliasId)
+  const alias = await deps.providerCatalogService.resolveEnabledAlias('llm', aliasId)
   const primaryRoutes = alias.routes.filter(route => route.pool === 'primary')
   const fallbackRoutes = alias.fallbackEnabled
     ? alias.routes.filter(route => route.pool === 'fallback')
@@ -236,7 +225,7 @@ async function resolveChatModelAliasPlan(deps: V1RouteDeps, aliasId: string): Pr
   const routedModelIds = uniqueModelIds([...orderedPrimaryRoutes, ...fallbackRoutes])
 
   if (routedModelIds.length === 0) {
-    throw createBadRequestError('Official provider alias has no enabled route', 'OFFICIAL_ALIAS_ROUTE_NOT_FOUND', {
+    throw createBadRequestError('Capability alias has no enabled route', 'CAPABILITY_ALIAS_ROUTE_NOT_FOUND', {
       surface: 'llm',
       aliasId,
     })
@@ -277,7 +266,7 @@ async function routeChatAliasCandidates(input: {
   throw lastError
 }
 
-function weightedRouteOrder(routes: OfficialProviderAliasRoute[]): OfficialProviderAliasRoute[] {
+function weightedRouteOrder(routes: CapabilityAliasRoute[]): CapabilityAliasRoute[] {
   if (routes.length <= 1)
     return routes
 
@@ -300,7 +289,7 @@ function weightedRouteOrder(routes: OfficialProviderAliasRoute[]): OfficialProvi
   ]
 }
 
-function uniqueModelIds(routes: OfficialProviderAliasRoute[]): string[] {
+function uniqueModelIds(routes: CapabilityAliasRoute[]): string[] {
   return Array.from(new Set(routes.map(route => route.routerModelId)))
 }
 

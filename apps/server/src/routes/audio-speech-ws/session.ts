@@ -291,6 +291,9 @@ export function createSessionState(
           return
         startFrameAccepted = true
         void dialUpstream()
+      }).catch((err) => {
+        log.withError(err).error('streaming tts start validation failed unexpectedly')
+        closeWithError(1011, 'streaming_tts_start_validation_failed')
       })
       return
     }
@@ -722,6 +725,10 @@ function streamingVoicesURL(restBaseURL: string, resourceId: string): string | n
   try {
     const url = new URL(restBaseURL)
     url.pathname = '/api/voices'
+    // NOTICE: The streaming websocket path is currently backed only by the
+    // Volcengine Unspeech adapter. If another streaming provider is added,
+    // thread provider identity through the start-frame validation path instead
+    // of deriving it from the model id here.
     url.search = new URLSearchParams({ provider: 'volcengine', model: resourceId }).toString()
     return url.toString()
   }

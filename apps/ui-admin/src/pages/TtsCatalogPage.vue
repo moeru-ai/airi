@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { OfficialTtsModel, OfficialTtsVoice } from '../modules/api'
+import type { ProviderCatalogTtsModel, ProviderCatalogTtsVoice } from '../modules/api'
 
 import { errorMessageFromUnknown } from '@proj-airi/stage-shared'
 import { Button } from '@proj-airi/ui'
@@ -8,8 +8,8 @@ import { toast } from 'vue-sonner'
 
 import { adminApi } from '../modules/api'
 
-const models = shallowRef<OfficialTtsModel[]>([])
-const voices = shallowRef<OfficialTtsVoice[]>([])
+const models = shallowRef<ProviderCatalogTtsModel[]>([])
+const voices = shallowRef<ProviderCatalogTtsVoice[]>([])
 const selectedModel = ref('')
 const loadingModels = shallowRef(false)
 const loadingVoices = shallowRef(false)
@@ -34,7 +34,7 @@ onMounted(() => {
 async function loadModels() {
   loadingModels.value = true
   try {
-    models.value = await adminApi.officialTtsModels()
+    models.value = await adminApi.providerCatalogTtsModels()
     if (!selectedModel.value && models.value[0])
       selectedModel.value = models.value[0].routerModelId
   }
@@ -52,7 +52,7 @@ async function loadVoices() {
 
   loadingVoices.value = true
   try {
-    voices.value = await adminApi.officialTtsVoices(selectedModel.value)
+    voices.value = await adminApi.providerCatalogTtsVoices(selectedModel.value)
   }
   catch (error) {
     toast.error(errorMessageFromUnknown(error, 'Failed to load TTS voices'))
@@ -65,7 +65,7 @@ async function loadVoices() {
 async function syncModels() {
   syncingModels.value = true
   try {
-    await adminApi.syncOfficialTtsModels()
+    await adminApi.syncProviderCatalogTtsModels()
     toast.success('TTS models synced')
     await loadModels()
   }
@@ -83,7 +83,7 @@ async function syncVoices() {
 
   syncingVoices.value = true
   try {
-    const result = await adminApi.syncOfficialTtsVoices(selectedModel.value)
+    const result = await adminApi.syncProviderCatalogTtsVoices(selectedModel.value)
     toast.success(`${result.syncedCount} voices synced`)
     await loadVoices()
   }
@@ -95,9 +95,9 @@ async function syncVoices() {
   }
 }
 
-async function updateModel(model: OfficialTtsModel, patch: Partial<Pick<OfficialTtsModel, 'displayName' | 'enabled' | 'displayOrder'>>) {
+async function updateModel(model: ProviderCatalogTtsModel, patch: Partial<Pick<ProviderCatalogTtsModel, 'displayName' | 'enabled' | 'displayOrder'>>) {
   try {
-    const updated = await adminApi.updateOfficialTtsModel(model.id, patch)
+    const updated = await adminApi.updateProviderCatalogTtsModel(model.id, patch)
     models.value = models.value.map(item => item.id === updated.id ? updated : item)
     toast.success('TTS model updated')
   }
@@ -106,9 +106,9 @@ async function updateModel(model: OfficialTtsModel, patch: Partial<Pick<Official
   }
 }
 
-async function updateVoice(voice: OfficialTtsVoice, patch: Partial<Pick<OfficialTtsVoice, 'displayName' | 'enabled' | 'displayOrder' | 'previewAudioUrl'>>) {
+async function updateVoice(voice: ProviderCatalogTtsVoice, patch: Partial<Pick<ProviderCatalogTtsVoice, 'displayName' | 'enabled' | 'displayOrder' | 'previewAudioUrl'>>) {
   try {
-    const updated = await adminApi.updateOfficialTtsVoice(voice.id, patch)
+    const updated = await adminApi.updateProviderCatalogTtsVoice(voice.id, patch)
     voices.value = voices.value.map(item => item.id === updated.id ? updated : item)
     toast.success('TTS voice updated')
   }
@@ -117,10 +117,10 @@ async function updateVoice(voice: OfficialTtsVoice, patch: Partial<Pick<Official
   }
 }
 
-async function generatePreview(voice: OfficialTtsVoice) {
+async function generatePreview(voice: ProviderCatalogTtsVoice) {
   generatingPreviewVoiceId.value = voice.id
   try {
-    const result = await adminApi.generateOfficialTtsVoicePreview(voice.id)
+    const result = await adminApi.generateProviderCatalogTtsVoicePreview(voice.id)
     voices.value = voices.value.map(item => item.id === result.voice.id ? result.voice : item)
     toast.success('Preview generated')
   }
@@ -138,7 +138,7 @@ function formatDate(value: string | null): string {
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 }
 
-function languageSummary(voice: OfficialTtsVoice): string {
+function languageSummary(voice: ProviderCatalogTtsVoice): string {
   if (!voice.languages.length)
     return 'Not set'
   return voice.languages.map(language => language.title ?? language.code).join(', ')

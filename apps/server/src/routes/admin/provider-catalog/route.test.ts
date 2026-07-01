@@ -1,12 +1,12 @@
 import type { ConfigKVService } from '../../../services/adapters/config-kv'
 import type { LlmRouterService } from '../../../services/domain/llm-router'
-import type { OfficialCatalogService } from '../../../services/domain/official-catalog'
+import type { ProviderCatalogService } from '../../../services/domain/provider-catalog'
 import type { HonoEnv } from '../../../types/hono'
 
 import { Hono } from 'hono'
 import { describe, expect, it, vi } from 'vitest'
 
-import { createAdminOfficialCatalogRoutes } from '.'
+import { createAdminProviderCatalogRoutes } from '.'
 import { ApiError } from '../../../utils/error'
 
 interface MockUser {
@@ -52,7 +52,7 @@ function createLlmRouter(): LlmRouterService {
   } as unknown as LlmRouterService
 }
 
-function createService(): OfficialCatalogService {
+function createService(): ProviderCatalogService {
   return {
     syncAliasesFromRouterConfig: vi.fn(async () => []),
     listAliases: vi.fn(async () => []),
@@ -64,7 +64,7 @@ function createService(): OfficialCatalogService {
     listEnabledTtsModels: vi.fn(async () => []),
     updateTtsModel: vi.fn(async (_id, input) => ({ id: 'model-1', ...input })),
     assertTtsModelEnabled: vi.fn(),
-    syncTtsVoices: vi.fn(async (input: Parameters<OfficialCatalogService['syncTtsVoices']>[0]) => input.voices.map((voice, index) => ({
+    syncTtsVoices: vi.fn(async (input: Parameters<ProviderCatalogService['syncTtsVoices']>[0]) => input.voices.map((voice, index) => ({
       id: `voice-${index}`,
       providerVoiceId: voice.id,
       displayName: voice.name ?? voice.id,
@@ -102,21 +102,21 @@ function createService(): OfficialCatalogService {
     })),
     updateTtsVoice: vi.fn(async (_id, input) => ({ id: 'voice-1', ...input })),
     assertTtsVoiceEnabled: vi.fn(),
-  } as unknown as OfficialCatalogService
+  } as unknown as ProviderCatalogService
 }
 
 function createTestApp(input: {
   user: MockUser | null
   configKV?: ConfigKVService
   llmRouter?: LlmRouterService
-  service?: OfficialCatalogService
+  service?: ProviderCatalogService
 }) {
   return new Hono<HonoEnv>()
     .use('*', async (c, next) => {
       c.set('user', input.user as HonoEnv['Variables']['user'])
       await next()
     })
-    .route('/api/admin/official-catalog', createAdminOfficialCatalogRoutes({
+    .route('/api/admin/provider-catalog', createAdminProviderCatalogRoutes({
       configKV: input.configKV ?? createConfigKV(),
       llmRouter: input.llmRouter ?? createLlmRouter(),
       service: input.service ?? createService(),
@@ -136,22 +136,22 @@ function jsonRequest(app: Hono<HonoEnv>, method: string, path: string, body?: un
   })
 }
 
-describe('admin official catalog routes', () => {
+describe('admin provider catalog routes', () => {
   it('returns 401 when unauthenticated', async () => {
     const service = createService()
     const app = createTestApp({ user: null, service })
-    const res = await jsonRequest(app, 'GET', '/api/admin/official-catalog/aliases')
+    const res = await jsonRequest(app, 'GET', '/api/admin/provider-catalog/aliases')
 
     expect(res.status).toBe(401)
     expect(service.listAliases).not.toHaveBeenCalled()
   })
 
-  it('syncs TTS voices from the provider into the official catalog', async () => {
+  it('syncs TTS voices from the provider into the provider catalog', async () => {
     const service = createService()
     const llmRouter = createLlmRouter()
     const app = createTestApp({ user: ADMIN, service, llmRouter })
 
-    const res = await jsonRequest(app, 'POST', '/api/admin/official-catalog/tts/voices/sync', {
+    const res = await jsonRequest(app, 'POST', '/api/admin/provider-catalog/tts/voices/sync', {
       routerModelId: 'microsoft/v1',
     })
 
@@ -178,7 +178,7 @@ describe('admin official catalog routes', () => {
     vi.mocked(service.updateTtsModel).mockResolvedValueOnce(null)
     const app = createTestApp({ user: ADMIN, service })
 
-    const res = await jsonRequest(app, 'PATCH', '/api/admin/official-catalog/tts/models/missing', {
+    const res = await jsonRequest(app, 'PATCH', '/api/admin/provider-catalog/tts/models/missing', {
       enabled: false,
     })
 
@@ -190,7 +190,7 @@ describe('admin official catalog routes', () => {
     const llmRouter = createLlmRouter()
     const app = createTestApp({ user: ADMIN, service, llmRouter })
 
-    const res = await jsonRequest(app, 'POST', '/api/admin/official-catalog/tts/voices/voice-1/preview', {
+    const res = await jsonRequest(app, 'POST', '/api/admin/provider-catalog/tts/voices/voice-1/preview', {
       text: 'Preview this voice.',
     })
 

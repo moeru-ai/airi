@@ -4,8 +4,8 @@ import type { FluxMeter } from '../billing/flux-meter'
 import type { FluxService } from '../flux'
 import type { LlmRouterService } from '../llm-router'
 import type { startTtsGeneration, TtsGenerationTrace } from '../llm-tracing'
-import type { OfficialCatalogService } from '../official-catalog'
 import type { ProductEventService } from '../product-events'
+import type { ProviderCatalogService } from '../provider-catalog'
 import type { RequestLogService } from '../request-log'
 import type { VoicePackService } from '../voice-packs'
 
@@ -50,7 +50,7 @@ export interface OpenAiSpeechServiceDeps {
   ttsMeter: FluxMeter
   llmRouter: LlmRouterService
   voicePackService: VoicePackService
-  officialCatalogService: OfficialCatalogService
+  providerCatalogService: ProviderCatalogService
   productEventService: ProductEventService
   genAi?: GenAiMetrics | null
   llmTracing: {
@@ -108,9 +108,9 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
     if (requestModel === 'auto')
       requestModel = await deps.configKV.getOrThrow('DEFAULT_TTS_MODEL')
     const routedVoice = voicePackRequest.voice ?? requestVoice
-    await deps.officialCatalogService.assertTtsModelEnabled(requestModel)
+    await deps.providerCatalogService.assertTtsModelEnabled(requestModel)
     if (!voicePackRequest.voicePackId && routedVoice)
-      await deps.officialCatalogService.assertTtsVoiceEnabled(requestModel, routedVoice)
+      await deps.providerCatalogService.assertTtsVoiceEnabled(requestModel, routedVoice)
 
     const voiceMetadata = ttsVoiceMetadata({
       voice: requestVoice,

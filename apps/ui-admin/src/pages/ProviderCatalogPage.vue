@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { OfficialCatalogSurface, OfficialProviderAlias, OfficialProviderAliasRoute } from '../modules/api'
+import type { CapabilityAlias, CapabilityAliasRoute, CapabilityAliasSurface } from '../modules/api'
 
 import { errorMessageFromUnknown } from '@proj-airi/stage-shared'
 import { Button } from '@proj-airi/ui'
@@ -8,8 +8,8 @@ import { toast } from 'vue-sonner'
 
 import { adminApi } from '../modules/api'
 
-const aliases = shallowRef<OfficialProviderAlias[]>([])
-const surface = ref<OfficialCatalogSurface>('llm')
+const aliases = shallowRef<CapabilityAlias[]>([])
+const surface = ref<CapabilityAliasSurface>('llm')
 const loading = shallowRef(false)
 const syncing = shallowRef(false)
 
@@ -23,7 +23,7 @@ onMounted(() => {
 async function loadAliases() {
   loading.value = true
   try {
-    aliases.value = await adminApi.officialAliases(surface.value)
+    aliases.value = await adminApi.capabilityAliases(surface.value)
   }
   catch (error) {
     toast.error(errorMessageFromUnknown(error, 'Failed to load provider catalog'))
@@ -36,7 +36,7 @@ async function loadAliases() {
 async function syncAliases() {
   syncing.value = true
   try {
-    await adminApi.syncOfficialAliases(surface.value)
+    await adminApi.syncCapabilityAliases(surface.value)
     toast.success('Provider aliases synced')
     await loadAliases()
   }
@@ -48,9 +48,9 @@ async function syncAliases() {
   }
 }
 
-async function updateAlias(alias: OfficialProviderAlias, patch: Partial<Pick<OfficialProviderAlias, 'displayName' | 'enabled' | 'displayOrder' | 'fallbackEnabled' | 'loadBalancingEnabled'>>) {
+async function updateAlias(alias: CapabilityAlias, patch: Partial<Pick<CapabilityAlias, 'displayName' | 'enabled' | 'displayOrder' | 'fallbackEnabled' | 'loadBalancingEnabled'>>) {
   try {
-    const updated = await adminApi.updateOfficialAlias(alias.id, patch)
+    const updated = await adminApi.updateCapabilityAlias(alias.id, patch)
     aliases.value = aliases.value.map(item => item.id === updated.id ? { ...item, ...updated, routes: item.routes } : item)
     toast.success('Alias updated')
   }
@@ -59,9 +59,9 @@ async function updateAlias(alias: OfficialProviderAlias, patch: Partial<Pick<Off
   }
 }
 
-async function updateRoute(alias: OfficialProviderAlias, route: OfficialProviderAliasRoute, patch: Partial<Pick<OfficialProviderAliasRoute, 'enabled' | 'pool' | 'weight' | 'displayOrder'>>) {
+async function updateRoute(alias: CapabilityAlias, route: CapabilityAliasRoute, patch: Partial<Pick<CapabilityAliasRoute, 'enabled' | 'pool' | 'weight' | 'displayOrder'>>) {
   try {
-    const updated = await adminApi.updateOfficialAliasRoute(route.id, patch)
+    const updated = await adminApi.updateCapabilityAliasRoute(route.id, patch)
     aliases.value = aliases.value.map(item => item.id === alias.id
       ? { ...item, routes: item.routes.map(existing => existing.id === updated.id ? updated : existing) }
       : item)

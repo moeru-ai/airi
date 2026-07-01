@@ -3,7 +3,7 @@ import type { GenericSchema, InferOutput } from 'valibot'
 
 import type { ConfigKVService } from '../../../services/adapters/config-kv'
 import type { LlmRouterService } from '../../../services/domain/llm-router'
-import type { OfficialCatalogService } from '../../../services/domain/official-catalog'
+import type { ProviderCatalogService } from '../../../services/domain/provider-catalog'
 import type { HonoEnv } from '../../../types/hono'
 
 import { Buffer } from 'node:buffer'
@@ -13,7 +13,7 @@ import { any, array, boolean, integer, maxLength, minValue, nullable, number, ob
 
 import { adminGuard } from '../../../middlewares/admin-guard'
 import { authGuard } from '../../../middlewares/auth'
-import { normalizeProviderVoiceForCatalog } from '../../../services/domain/official-catalog/provider-voices'
+import { normalizeProviderVoiceForCatalog } from '../../../services/domain/provider-catalog/provider-voices'
 import { createBadGatewayError, createBadRequestError, createNotFoundError } from '../../../utils/error'
 
 const DEFAULT_PREVIEW_TEXT = 'Hello, this is an AIRI voice preview.'
@@ -64,10 +64,10 @@ const TtsVoicePreviewBodySchema = object({
   responseFormat: optional(pipe(string(), maxLength(24))),
 })
 
-export interface AdminOfficialCatalogRoutesDeps {
+export interface AdminProviderCatalogRoutesDeps {
   configKV: ConfigKVService
   llmRouter: LlmRouterService
-  service: OfficialCatalogService
+  service: ProviderCatalogService
 }
 
 function parseIssues(issues: Array<{ path?: Array<{ key: unknown }>, message: string }>) {
@@ -91,7 +91,7 @@ async function readBody<S extends GenericSchema>(c: Context<HonoEnv>, schema: S)
   return parsed.output
 }
 
-async function syncAliasesFromConfig(deps: AdminOfficialCatalogRoutesDeps, surface: 'llm' | 'asr') {
+async function syncAliasesFromConfig(deps: AdminProviderCatalogRoutesDeps, surface: 'llm' | 'asr') {
   const config = await deps.configKV.getOrThrow('LLM_ROUTER_CONFIG')
   if (surface === 'llm') {
     const defaultModel = await deps.configKV.getOrThrow('DEFAULT_CHAT_MODEL')
@@ -108,7 +108,7 @@ async function syncAliasesFromConfig(deps: AdminOfficialCatalogRoutesDeps, surfa
   })
 }
 
-async function syncTtsModelsFromConfig(deps: AdminOfficialCatalogRoutesDeps) {
+async function syncTtsModelsFromConfig(deps: AdminProviderCatalogRoutesDeps) {
   const config = await deps.configKV.getOrThrow('LLM_ROUTER_CONFIG')
   return await deps.service.syncTtsModelsFromRouterConfig({
     models: Object.fromEntries(
@@ -121,14 +121,14 @@ async function syncTtsModelsFromConfig(deps: AdminOfficialCatalogRoutesDeps) {
 }
 
 /**
- * Admin routes for the official provider catalog.
+ * Admin routes for provider catalog curation.
  *
- * Mounted at `/api/admin/official-catalog`. These routes curate only the
- * product catalog state: enabled flags, display order, aliases, and TTS voice
- * metadata. Real upstream URLs, credentials, and provider fallback config stay
- * owned by `LLM_ROUTER_CONFIG`.
+ * Mounted at `/api/admin/provider-catalog`. These routes curate only the
+ * catalog state: enabled flags, display order, capability aliases, and TTS
+ * voice metadata. Real upstream URLs, credentials, and provider fallback
+ * config stay owned by `LLM_ROUTER_CONFIG`.
  */
-export function createAdminOfficialCatalogRoutes(deps: AdminOfficialCatalogRoutesDeps) {
+export function createAdminProviderCatalogRoutes(deps: AdminProviderCatalogRoutesDeps) {
   return new Hono<HonoEnv>()
     .use('*', authGuard)
     .use('*', adminGuard)
@@ -148,14 +148,14 @@ export function createAdminOfficialCatalogRoutes(deps: AdminOfficialCatalogRoute
       const body = await readBody(c, AliasUpdateBodySchema)
       const updated = await deps.service.updateAlias(c.req.param('id'), body)
       if (!updated)
-        throw createNotFoundError('Official alias not found')
+        throw createNotFoundError('Capability alias not found')
       return c.json(updated)
     })
     .patch('/alias-routes/:id', async (c) => {
       const body = await readBody(c, AliasRouteUpdateBodySchema)
       const updated = await deps.service.updateAliasRoute(c.req.param('id'), body)
       if (!updated)
-        throw createNotFoundError('Official alias route not found')
+        throw createNotFoundError('Capability alias route not found')
       return c.json(updated)
     })
     .get('/tts/models', async (c) => {
@@ -168,7 +168,7 @@ export function createAdminOfficialCatalogRoutes(deps: AdminOfficialCatalogRoute
       const body = await readBody(c, TtsModelUpdateBodySchema)
       const updated = await deps.service.updateTtsModel(c.req.param('id'), body)
       if (!updated)
-        throw createNotFoundError('Official TTS model not found')
+        throw createNotFoundError('Provider catalog TTS model not found')
       return c.json(updated)
     })
     .get('/tts/voices', async (c) => {
@@ -189,7 +189,7 @@ export function createAdminOfficialCatalogRoutes(deps: AdminOfficialCatalogRoute
       const body = await readBody(c, TtsVoicePreviewBodySchema)
       const row = await deps.service.getTtsVoiceWithModel(c.req.param('id'))
       if (!row)
-        throw createNotFoundError('Official TTS voice not found')
+        throw createNotFoundError('Provider catalog TTS voice not found')
 
       const response = await deps.llmRouter.routeTts({
         modelName: row.model.routerModelId,
@@ -207,7 +207,7 @@ export function createAdminOfficialCatalogRoutes(deps: AdminOfficialCatalogRoute
       const previewAudioUrl = `data:${contentType};base64,${Buffer.from(bytes).toString('base64')}`
       const updated = await deps.service.updateTtsVoice(row.voice.id, { previewAudioUrl })
       if (!updated)
-        throw createNotFoundError('Official TTS voice not found')
+        throw createNotFoundError('Provider catalog TTS voice not found')
 
       return c.json({
         voice: updated,
@@ -219,7 +219,7 @@ export function createAdminOfficialCatalogRoutes(deps: AdminOfficialCatalogRoute
       const body = await readBody(c, TtsVoiceUpdateBodySchema)
       const updated = await deps.service.updateTtsVoice(c.req.param('id'), body)
       if (!updated)
-        throw createNotFoundError('Official TTS voice not found')
+        throw createNotFoundError('Provider catalog TTS voice not found')
       return c.json(updated)
     })
 }

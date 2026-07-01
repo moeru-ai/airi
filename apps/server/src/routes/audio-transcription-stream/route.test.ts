@@ -1,5 +1,5 @@
 import type { RouterConfig } from '../../services/domain/llm-router/types'
-import type { OfficialCatalogService } from '../../services/domain/official-catalog'
+import type { ProviderCatalogService } from '../../services/domain/provider-catalog'
 
 import { Buffer } from 'node:buffer'
 
@@ -22,7 +22,7 @@ function createRouterConfig(overrides?: Partial<RouterConfig>): RouterConfig {
   }
 }
 
-function createOfficialCatalogService(routeModelId = 'auto'): OfficialCatalogService {
+function createProviderCatalogService(routeModelId = 'auto'): ProviderCatalogService {
   return {
     syncAliasesFromRouterConfig: vi.fn(async () => []),
     resolveEnabledAlias: vi.fn(async () => ({
@@ -48,7 +48,7 @@ function createOfficialCatalogService(routeModelId = 'auto'): OfficialCatalogSer
         updatedAt: new Date(),
       }],
     })),
-  } as unknown as OfficialCatalogService
+  } as unknown as ProviderCatalogService
 }
 
 describe('resolveOfficialAliyunNlsCredentials', () => {
@@ -123,12 +123,12 @@ describe('resolveOfficialAliyunNlsCredentials', () => {
         },
       },
     })
-    const officialCatalogService = createOfficialCatalogService('aliyun/asr-primary')
+    const providerCatalogService = createProviderCatalogService('aliyun/asr-primary')
 
     const credentials = await resolveOfficialAliyunNlsCredentialsFromConfig({
       configKV: { getOptional: vi.fn(async () => routerConfig) } as never,
       envelopeCrypto: envelope,
-      officialCatalogService,
+      providerCatalogService,
     })
 
     expect(credentials).toMatchObject({
@@ -136,18 +136,15 @@ describe('resolveOfficialAliyunNlsCredentials', () => {
       accessKeySecret: 'secret',
       appKey: 'app',
     })
-    expect(officialCatalogService.syncAliasesFromRouterConfig).toHaveBeenCalledWith({
-      surface: 'asr',
-      modelIds: ['aliyun/asr-primary'],
-    })
-    expect(officialCatalogService.resolveEnabledAlias).toHaveBeenCalledWith('asr', 'auto')
+    expect(providerCatalogService.syncAliasesFromRouterConfig).not.toHaveBeenCalled()
+    expect(providerCatalogService.resolveEnabledAlias).toHaveBeenCalledWith('asr', 'auto')
   })
 
-  it('rejects disabled official ASR aliases before credentials are used', async () => {
+  it('rejects disabled ASR capability aliases before credentials are used', async () => {
     const envelope = createEnvelopeCrypto({ masterKey: Buffer.alloc(32, 7) })
-    const officialCatalogService = createOfficialCatalogService()
-    vi.mocked(officialCatalogService.resolveEnabledAlias).mockRejectedValueOnce(
-      new ApiError(400, 'OFFICIAL_ALIAS_DISABLED', 'Official provider alias is disabled'),
+    const providerCatalogService = createProviderCatalogService()
+    vi.mocked(providerCatalogService.resolveEnabledAlias).mockRejectedValueOnce(
+      new ApiError(400, 'CAPABILITY_ALIAS_DISABLED', 'Capability alias is disabled'),
     )
     const routerConfig = createRouterConfig({
       asr: {
@@ -166,10 +163,10 @@ describe('resolveOfficialAliyunNlsCredentials', () => {
     await expect(resolveOfficialAliyunNlsCredentialsFromConfig({
       configKV: { getOptional: vi.fn(async () => routerConfig) } as never,
       envelopeCrypto: envelope,
-      officialCatalogService,
+      providerCatalogService,
     })).rejects.toMatchObject({
       statusCode: 400,
-      errorCode: 'OFFICIAL_ALIAS_DISABLED',
+      errorCode: 'CAPABILITY_ALIAS_DISABLED',
     })
   })
 })

@@ -239,14 +239,14 @@ export interface SpeechTestPayload {
   }
 }
 
-export type OfficialCatalogSurface = 'llm' | 'asr'
-export type OfficialCatalogRoutePool = 'primary' | 'fallback'
+export type CapabilityAliasSurface = 'llm' | 'asr'
+export type CapabilityAliasRoutePool = 'primary' | 'fallback'
 
-export interface OfficialProviderAliasRoute {
+export interface CapabilityAliasRoute {
   id: string
   aliasId: string
   routerModelId: string
-  pool: OfficialCatalogRoutePool
+  pool: CapabilityAliasRoutePool
   enabled: boolean
   weight: number
   displayOrder: number
@@ -254,21 +254,21 @@ export interface OfficialProviderAliasRoute {
   updatedAt: string
 }
 
-export interface OfficialProviderAlias {
+export interface CapabilityAlias {
   id: string
-  surface: OfficialCatalogSurface
+  surface: CapabilityAliasSurface
   aliasId: string
   displayName: string
   enabled: boolean
   displayOrder: number
   fallbackEnabled: boolean
   loadBalancingEnabled: boolean
-  routes: OfficialProviderAliasRoute[]
+  routes: CapabilityAliasRoute[]
   createdAt: string
   updatedAt: string
 }
 
-export interface OfficialTtsModel {
+export interface ProviderCatalogTtsModel {
   id: string
   routerModelId: string
   provider: string
@@ -280,7 +280,7 @@ export interface OfficialTtsModel {
   updatedAt: string
 }
 
-export interface OfficialTtsVoice {
+export interface ProviderCatalogTtsVoice {
   id: string
   ttsModelId: string
   providerVoiceId: string
@@ -499,51 +499,51 @@ export const adminApi = {
     adminFetch<VoicePack>(`/voice-packs/${encodeURIComponent(id)}/disable`, {
       method: 'POST',
     }),
-  officialAliases: (surface?: OfficialCatalogSurface) => {
+  capabilityAliases: (surface?: CapabilityAliasSurface) => {
     const suffix = surface ? `?surface=${encodeURIComponent(surface)}` : ''
-    return adminFetch<OfficialProviderAlias[]>(`/official-catalog/aliases${suffix}`)
+    return adminFetch<CapabilityAlias[]>(`/provider-catalog/aliases${suffix}`)
   },
-  syncOfficialAliases: (surface: OfficialCatalogSurface) =>
-    adminFetch<{ aliases: OfficialProviderAlias[] }>('/official-catalog/aliases/sync', {
+  syncCapabilityAliases: (surface: CapabilityAliasSurface) =>
+    adminFetch<{ aliases: CapabilityAlias[] }>('/provider-catalog/aliases/sync', {
       method: 'POST',
       body: JSON.stringify({ surface }),
     }),
-  updateOfficialAlias: (id: string, body: Partial<Pick<OfficialProviderAlias, 'displayName' | 'enabled' | 'displayOrder' | 'fallbackEnabled' | 'loadBalancingEnabled'>>) =>
-    adminFetch<OfficialProviderAlias>(`/official-catalog/aliases/${encodeURIComponent(id)}`, {
+  updateCapabilityAlias: (id: string, body: Partial<Pick<CapabilityAlias, 'displayName' | 'enabled' | 'displayOrder' | 'fallbackEnabled' | 'loadBalancingEnabled'>>) =>
+    adminFetch<CapabilityAlias>(`/provider-catalog/aliases/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       body: JSON.stringify(body),
     }),
-  updateOfficialAliasRoute: (id: string, body: Partial<Pick<OfficialProviderAliasRoute, 'enabled' | 'pool' | 'weight' | 'displayOrder'>>) =>
-    adminFetch<OfficialProviderAliasRoute>(`/official-catalog/alias-routes/${encodeURIComponent(id)}`, {
+  updateCapabilityAliasRoute: (id: string, body: Partial<Pick<CapabilityAliasRoute, 'enabled' | 'pool' | 'weight' | 'displayOrder'>>) =>
+    adminFetch<CapabilityAliasRoute>(`/provider-catalog/alias-routes/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       body: JSON.stringify(body),
     }),
-  officialTtsModels: () => adminFetch<OfficialTtsModel[]>('/official-catalog/tts/models'),
-  syncOfficialTtsModels: () =>
-    adminFetch<{ models: OfficialTtsModel[] }>('/official-catalog/tts/models/sync', {
+  providerCatalogTtsModels: () => adminFetch<ProviderCatalogTtsModel[]>('/provider-catalog/tts/models'),
+  syncProviderCatalogTtsModels: () =>
+    adminFetch<{ models: ProviderCatalogTtsModel[] }>('/provider-catalog/tts/models/sync', {
       method: 'POST',
     }),
-  updateOfficialTtsModel: (id: string, body: Partial<Pick<OfficialTtsModel, 'displayName' | 'enabled' | 'displayOrder'>>) =>
-    adminFetch<OfficialTtsModel>(`/official-catalog/tts/models/${encodeURIComponent(id)}`, {
+  updateProviderCatalogTtsModel: (id: string, body: Partial<Pick<ProviderCatalogTtsModel, 'displayName' | 'enabled' | 'displayOrder'>>) =>
+    adminFetch<ProviderCatalogTtsModel>(`/provider-catalog/tts/models/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       body: JSON.stringify(body),
     }),
-  officialTtsVoices: (model: string) => {
+  providerCatalogTtsVoices: (model: string) => {
     const query = new URLSearchParams({ model })
-    return adminFetch<OfficialTtsVoice[]>(`/official-catalog/tts/voices?${query.toString()}`)
+    return adminFetch<ProviderCatalogTtsVoice[]>(`/provider-catalog/tts/voices?${query.toString()}`)
   },
-  syncOfficialTtsVoices: (routerModelId: string) =>
-    adminFetch<{ voices: OfficialTtsVoice[], syncedCount: number }>('/official-catalog/tts/voices/sync', {
+  syncProviderCatalogTtsVoices: (routerModelId: string) =>
+    adminFetch<{ voices: ProviderCatalogTtsVoice[], syncedCount: number }>('/provider-catalog/tts/voices/sync', {
       method: 'POST',
       body: JSON.stringify({ routerModelId }),
     }),
-  updateOfficialTtsVoice: (id: string, body: Partial<Pick<OfficialTtsVoice, 'displayName' | 'enabled' | 'displayOrder' | 'languages' | 'labels' | 'previewAudioUrl'>>) =>
-    adminFetch<OfficialTtsVoice>(`/official-catalog/tts/voices/${encodeURIComponent(id)}`, {
+  updateProviderCatalogTtsVoice: (id: string, body: Partial<Pick<ProviderCatalogTtsVoice, 'displayName' | 'enabled' | 'displayOrder' | 'languages' | 'labels' | 'previewAudioUrl'>>) =>
+    adminFetch<ProviderCatalogTtsVoice>(`/provider-catalog/tts/voices/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       body: JSON.stringify(body),
     }),
-  generateOfficialTtsVoicePreview: (id: string, body: { text?: string, responseFormat?: string } = {}) =>
-    adminFetch<{ voice: OfficialTtsVoice, contentType: string, byteLength: number }>(`/official-catalog/tts/voices/${encodeURIComponent(id)}/preview`, {
+  generateProviderCatalogTtsVoicePreview: (id: string, body: { text?: string, responseFormat?: string } = {}) =>
+    adminFetch<{ voice: ProviderCatalogTtsVoice, contentType: string, byteLength: number }>(`/provider-catalog/tts/voices/${encodeURIComponent(id)}/preview`, {
       method: 'POST',
       body: JSON.stringify(body),
     }),

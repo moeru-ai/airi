@@ -2047,8 +2047,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.official_provider_alias_routes": {
-      "name": "official_provider_alias_routes",
+    "public.capability_alias_routes": {
+      "name": "capability_alias_routes",
       "schema": "",
       "columns": {
         "id": {
@@ -2113,8 +2113,8 @@
         }
       },
       "indexes": {
-        "official_provider_alias_routes_alias_model_pool_uidx": {
-          "name": "official_provider_alias_routes_alias_model_pool_uidx",
+        "capability_alias_routes_alias_model_pool_uidx": {
+          "name": "capability_alias_routes_alias_model_pool_uidx",
           "columns": [
             {
               "expression": "alias_id",
@@ -2142,10 +2142,10 @@
         }
       },
       "foreignKeys": {
-        "official_provider_alias_routes_alias_id_official_provider_aliases_id_fk": {
-          "name": "official_provider_alias_routes_alias_id_official_provider_aliases_id_fk",
-          "tableFrom": "official_provider_alias_routes",
-          "tableTo": "official_provider_aliases",
+        "capability_alias_routes_alias_id_capability_aliases_id_fk": {
+          "name": "capability_alias_routes_alias_id_capability_aliases_id_fk",
+          "tableFrom": "capability_alias_routes",
+          "tableTo": "capability_aliases",
           "columnsFrom": [
             "alias_id"
           ],
@@ -2162,8 +2162,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.official_provider_aliases": {
-      "name": "official_provider_aliases",
+    "public.capability_aliases": {
+      "name": "capability_aliases",
       "schema": "",
       "columns": {
         "id": {
@@ -2234,8 +2234,8 @@
         }
       },
       "indexes": {
-        "official_provider_aliases_surface_alias_uidx": {
-          "name": "official_provider_aliases_surface_alias_uidx",
+        "capability_aliases_surface_alias_uidx": {
+          "name": "capability_aliases_surface_alias_uidx",
           "columns": [
             {
               "expression": "surface",
@@ -2263,8 +2263,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.official_tts_models": {
-      "name": "official_tts_models",
+    "public.provider_catalog_tts_models": {
+      "name": "provider_catalog_tts_models",
       "schema": "",
       "columns": {
         "id": {
@@ -2327,8 +2327,8 @@
         }
       },
       "indexes": {
-        "official_tts_models_router_model_uidx": {
-          "name": "official_tts_models_router_model_uidx",
+        "provider_catalog_tts_models_router_model_uidx": {
+          "name": "provider_catalog_tts_models_router_model_uidx",
           "columns": [
             {
               "expression": "router_model_id",
@@ -2350,8 +2350,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.official_tts_voices": {
-      "name": "official_tts_voices",
+    "public.provider_catalog_tts_voices": {
+      "name": "provider_catalog_tts_voices",
       "schema": "",
       "columns": {
         "id": {
@@ -2441,8 +2441,8 @@
         }
       },
       "indexes": {
-        "official_tts_voices_model_voice_uidx": {
-          "name": "official_tts_voices_model_voice_uidx",
+        "provider_catalog_tts_voices_model_voice_uidx": {
+          "name": "provider_catalog_tts_voices_model_voice_uidx",
           "columns": [
             {
               "expression": "tts_model_id",
@@ -2464,10 +2464,10 @@
         }
       },
       "foreignKeys": {
-        "official_tts_voices_tts_model_id_official_tts_models_id_fk": {
-          "name": "official_tts_voices_tts_model_id_official_tts_models_id_fk",
-          "tableFrom": "official_tts_voices",
-          "tableTo": "official_tts_models",
+        "provider_catalog_tts_voices_tts_model_id_provider_catalog_tts_models_id_fk": {
+          "name": "provider_catalog_tts_voices_tts_model_id_provider_catalog_tts_models_id_fk",
+          "tableFrom": "provider_catalog_tts_voices",
+          "tableTo": "provider_catalog_tts_models",
           "columnsFrom": [
             "tts_model_id"
           ],

@@ -4,21 +4,21 @@ import { boolean, integer, jsonb, pgTable, text, timestamp, uniqueIndex } from '
 
 import { nanoid } from '../utils/id'
 
-export type OfficialCatalogSurface = 'llm' | 'asr'
-export type OfficialCatalogRoutePool = 'primary' | 'fallback'
+export type CapabilityAliasSurface = 'llm' | 'asr'
+export type CapabilityAliasRoutePool = 'primary' | 'fallback'
 
-export interface OfficialTtsVoiceLanguage {
+export interface ProviderCatalogTtsVoiceLanguage {
   code: string
   title?: string
 }
 
-export type OfficialTtsVoiceLabels = Record<string, unknown>
+export type ProviderCatalogTtsVoiceLabels = Record<string, unknown>
 
-export const officialProviderAliases = pgTable(
-  'official_provider_aliases',
+export const capabilityAliases = pgTable(
+  'capability_aliases',
   {
     id: text('id').primaryKey().$defaultFn(() => nanoid()),
-    surface: text('surface').notNull().$type<OfficialCatalogSurface>(),
+    surface: text('surface').notNull().$type<CapabilityAliasSurface>(),
     aliasId: text('alias_id').notNull(),
     displayName: text('display_name').notNull(),
     enabled: boolean('enabled').notNull().default(true),
@@ -29,17 +29,17 @@ export const officialProviderAliases = pgTable(
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   table => [
-    uniqueIndex('official_provider_aliases_surface_alias_uidx').on(table.surface, table.aliasId),
+    uniqueIndex('capability_aliases_surface_alias_uidx').on(table.surface, table.aliasId),
   ],
 )
 
-export const officialProviderAliasRoutes = pgTable(
-  'official_provider_alias_routes',
+export const capabilityAliasRoutes = pgTable(
+  'capability_alias_routes',
   {
     id: text('id').primaryKey().$defaultFn(() => nanoid()),
-    aliasId: text('alias_id').notNull().references(() => officialProviderAliases.id, { onDelete: 'cascade' }),
+    aliasId: text('alias_id').notNull().references(() => capabilityAliases.id, { onDelete: 'cascade' }),
     routerModelId: text('router_model_id').notNull(),
-    pool: text('pool').notNull().$type<OfficialCatalogRoutePool>().default('primary'),
+    pool: text('pool').notNull().$type<CapabilityAliasRoutePool>().default('primary'),
     enabled: boolean('enabled').notNull().default(true),
     weight: integer('weight').notNull().default(1),
     displayOrder: integer('display_order').notNull().default(0),
@@ -47,12 +47,12 @@ export const officialProviderAliasRoutes = pgTable(
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   table => [
-    uniqueIndex('official_provider_alias_routes_alias_model_pool_uidx').on(table.aliasId, table.routerModelId, table.pool),
+    uniqueIndex('capability_alias_routes_alias_model_pool_uidx').on(table.aliasId, table.routerModelId, table.pool),
   ],
 )
 
-export const officialTtsModels = pgTable(
-  'official_tts_models',
+export const providerCatalogTtsModels = pgTable(
+  'provider_catalog_tts_models',
   {
     id: text('id').primaryKey().$defaultFn(() => nanoid()),
     routerModelId: text('router_model_id').notNull(),
@@ -65,21 +65,21 @@ export const officialTtsModels = pgTable(
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   table => [
-    uniqueIndex('official_tts_models_router_model_uidx').on(table.routerModelId),
+    uniqueIndex('provider_catalog_tts_models_router_model_uidx').on(table.routerModelId),
   ],
 )
 
-export const officialTtsVoices = pgTable(
-  'official_tts_voices',
+export const providerCatalogTtsVoices = pgTable(
+  'provider_catalog_tts_voices',
   {
     id: text('id').primaryKey().$defaultFn(() => nanoid()),
-    ttsModelId: text('tts_model_id').notNull().references(() => officialTtsModels.id, { onDelete: 'cascade' }),
+    ttsModelId: text('tts_model_id').notNull().references(() => providerCatalogTtsModels.id, { onDelete: 'cascade' }),
     providerVoiceId: text('provider_voice_id').notNull(),
     displayName: text('display_name').notNull(),
     enabled: boolean('enabled').notNull().default(false),
     displayOrder: integer('display_order').notNull().default(0),
-    languages: jsonb('languages').notNull().$type<OfficialTtsVoiceLanguage[]>().default([]),
-    labels: jsonb('labels').notNull().$type<OfficialTtsVoiceLabels>().default({}),
+    languages: jsonb('languages').notNull().$type<ProviderCatalogTtsVoiceLanguage[]>().default([]),
+    labels: jsonb('labels').notNull().$type<ProviderCatalogTtsVoiceLabels>().default({}),
     previewAudioUrl: text('preview_audio_url'),
     source: text('source').notNull().default('provider-sync'),
     lastSyncedAt: timestamp('last_synced_at'),
@@ -87,15 +87,15 @@ export const officialTtsVoices = pgTable(
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   table => [
-    uniqueIndex('official_tts_voices_model_voice_uidx').on(table.ttsModelId, table.providerVoiceId),
+    uniqueIndex('provider_catalog_tts_voices_model_voice_uidx').on(table.ttsModelId, table.providerVoiceId),
   ],
 )
 
-export type OfficialProviderAlias = InferSelectModel<typeof officialProviderAliases>
-export type NewOfficialProviderAlias = InferInsertModel<typeof officialProviderAliases>
-export type OfficialProviderAliasRoute = InferSelectModel<typeof officialProviderAliasRoutes>
-export type NewOfficialProviderAliasRoute = InferInsertModel<typeof officialProviderAliasRoutes>
-export type OfficialTtsModel = InferSelectModel<typeof officialTtsModels>
-export type NewOfficialTtsModel = InferInsertModel<typeof officialTtsModels>
-export type OfficialTtsVoice = InferSelectModel<typeof officialTtsVoices>
-export type NewOfficialTtsVoice = InferInsertModel<typeof officialTtsVoices>
+export type CapabilityAlias = InferSelectModel<typeof capabilityAliases>
+export type NewCapabilityAlias = InferInsertModel<typeof capabilityAliases>
+export type CapabilityAliasRoute = InferSelectModel<typeof capabilityAliasRoutes>
+export type NewCapabilityAliasRoute = InferInsertModel<typeof capabilityAliasRoutes>
+export type ProviderCatalogTtsModel = InferSelectModel<typeof providerCatalogTtsModels>
+export type NewProviderCatalogTtsModel = InferInsertModel<typeof providerCatalogTtsModels>
+export type ProviderCatalogTtsVoice = InferSelectModel<typeof providerCatalogTtsVoices>
+export type NewProviderCatalogTtsVoice = InferInsertModel<typeof providerCatalogTtsVoices>

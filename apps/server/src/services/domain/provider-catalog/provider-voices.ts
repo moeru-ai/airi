@@ -1,4 +1,4 @@
-import type { OfficialTtsVoice, OfficialTtsVoiceLabels, OfficialTtsVoiceLanguage } from '../../../schemas/official-catalog'
+import type { ProviderCatalogTtsVoice, ProviderCatalogTtsVoiceLabels, ProviderCatalogTtsVoiceLanguage } from '../../../schemas/provider-catalog'
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
   if (typeof value !== 'object' || value == null || Array.isArray(value))
@@ -10,7 +10,7 @@ function asOptionalString(value: unknown): string | undefined {
   return typeof value === 'string' && value.length > 0 ? value : undefined
 }
 
-function asLanguageList(value: unknown): OfficialTtsVoiceLanguage[] | undefined {
+function asLanguageList(value: unknown): ProviderCatalogTtsVoiceLanguage[] | undefined {
   if (!Array.isArray(value))
     return undefined
 
@@ -25,13 +25,13 @@ function asLanguageList(value: unknown): OfficialTtsVoiceLanguage[] | undefined 
   return languages.length > 0 ? languages : undefined
 }
 
-function asLabels(value: unknown): OfficialTtsVoiceLabels | undefined {
+function asLabels(value: unknown): ProviderCatalogTtsVoiceLabels | undefined {
   const record = asRecord(value)
   return record ? { ...record } : undefined
 }
 
 /**
- * Normalizes a provider-specific voice object into the official catalog sync shape.
+ * Normalizes a provider-specific voice object into the provider catalog sync shape.
  *
  * Before:
  * - `{ id: "en-US-AvaMultilingualNeural", name: "Ava", previewUrl: "https://..." }`
@@ -54,12 +54,17 @@ export function normalizeProviderVoiceForCatalog(value: unknown) {
   }
 }
 
-export function catalogVoiceResponse(voice: OfficialTtsVoice) {
+export function catalogVoiceResponse(voice: ProviderCatalogTtsVoice) {
+  // NOTICE: Admin-generated previews may temporarily live as data URIs until
+  // object storage is wired. Public voice catalogs stay lightweight and only
+  // expose provider or storage URLs.
+  const previewAudioUrl = voice.previewAudioUrl?.startsWith('data:') ? undefined : voice.previewAudioUrl
+
   return {
     id: voice.providerVoiceId,
     name: voice.displayName,
     languages: voice.languages,
     labels: voice.labels,
-    preview_audio_url: voice.previewAudioUrl ?? undefined,
+    preview_audio_url: previewAudioUrl ?? undefined,
   }
 }
