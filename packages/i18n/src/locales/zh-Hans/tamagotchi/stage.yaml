@@ -31,6 +31,8 @@ docs:
   'login': 登录
   'logging-in': 登录中...
   'enrollment-in-browser': 请在浏览器中完成登录...
+  'link-steam': 关联 Steam 账户
+  'link-steam-prompt': 请先关联你的 Steam 账户
   'account': 账号
   'logout': 退出登录
 widgets:

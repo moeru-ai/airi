@@ -31,6 +31,8 @@ docs:
   'login': サインイン
   'logging-in': サインイン中…
   'enrollment-in-browser': Complete sign-in in your browser...
+  'link-steam': Link Steam account
+  'link-steam-prompt': Link your Steam account to continue
   'account': アカウント
   'logout': サインアウト
 widgets:
