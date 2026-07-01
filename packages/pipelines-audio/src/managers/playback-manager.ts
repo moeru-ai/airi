@@ -218,19 +218,45 @@ export function createPlaybackManager<TAudio>(
     waiting.splice(index, 0, queued)
   }
 
+  function resolvePolicy(blocked: 'overflow' | 'owner-overflow') {
+    return blocked === 'owner-overflow'
+      ? ownerOverflowPolicy
+      : overflowPolicy
+  }
+
   function tryStartWaiting() {
     let i = 0
 
     while (i < waiting.length && active.size < maxVoices) {
       const next = waiting[i]
+      const blocked = canStart(next.item)
 
-      if (!canStart(next.item)) {
+      if (!blocked) {
         waiting.splice(i, 1)
         start(next.item)
 
         continue
       }
-      i++
+
+      const policy = resolvePolicy(blocked)
+      if (policy === 'queue') {
+        i++
+        continue
+      }
+
+      waiting.splice(i, 1)
+
+      switch (policy) {
+        case 'reject':
+          reject(next.item, blocked)
+          break
+        case 'steal-oldest':
+          stealOldest(next.item, blocked)
+          break
+        case 'steal-lowest-priority':
+          stealLowestPriority(next.item)
+          break
+      }
     }
   }
 
@@ -301,13 +327,7 @@ export function createPlaybackManager<TAudio>(
       return
     }
 
-    let policy
-    if (blocked === 'owner-overflow') {
-      policy = ownerOverflowPolicy
-    }
-    else {
-      policy = overflowPolicy
-    }
+    const policy = resolvePolicy(blocked)
     switch (policy) {
       case 'queue':
         enqueue(item)
