@@ -170,7 +170,9 @@ export interface AdminRouterConfigCurrent {
 }
 
 export interface VoicePackParams {
-  [key: string]: string | number | boolean | null
+  pitch?: number
+  volume?: number
+  rate?: number
 }
 
 export interface VoicePack {

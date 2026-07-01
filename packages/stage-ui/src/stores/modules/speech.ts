@@ -1,7 +1,6 @@
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import type { VoiceInfo } from '../providers'
-import type { VoicePackParams, VoicePackSnapshot } from './airi-card'
 
 import { errorMessageFrom } from '@moeru/std'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
@@ -24,119 +23,17 @@ export function toSignedPercent(value: number): string {
   return '0%'
 }
 
-interface VoicePackSpeechInputOptions {
+interface SpeechInputOptions {
   text: string
   voice: VoiceInfo
   providerConfig?: Record<string, unknown>
-  params?: VoicePackParams
-  voicePack?: Pick<VoicePackSnapshot, 'packId'>
   forceSSML?: boolean
   supportsSSML?: boolean
-  supportsAdapterProsody?: boolean
 }
 
-interface VoicePackSpeechInput {
+interface SpeechInput {
   input: string
   providerConfig: Record<string, unknown>
-}
-
-const voicePackSupportedParams = new Set(['pitch', 'rate', 'volume'])
-
-export function voicePackForSpeechProvider(
-  providerId: string | undefined,
-  voicePack: VoicePackSnapshot | undefined,
-): VoicePackSnapshot | undefined {
-  return providerId === OFFICIAL_SPEECH_PROVIDER_ID ? voicePack : undefined
-}
-
-/**
- * Normalizes a Voice Pack percent-style option.
- *
- * Before:
- * - "+20%"
- * - "-10%"
- * - 15
- *
- * After:
- * - 20
- * - -10
- * - 15
- */
-function normalizePercentOption(value: string | number | boolean | null | undefined, name: string): number | undefined {
-  if (value == null)
-    return undefined
-
-  if (typeof value === 'number') {
-    if (Number.isFinite(value))
-      return value
-    throw new Error(`Voice Pack parameter "${name}" must be a finite number.`)
-  }
-
-  if (typeof value !== 'string')
-    throw new Error(`Voice Pack parameter "${name}" must be a number or percent string.`)
-
-  const trimmed = value.trim()
-  const normalized = trimmed.endsWith('%') ? trimmed.slice(0, -1) : trimmed
-  const parsed = Number(normalized)
-  if (!Number.isFinite(parsed))
-    throw new Error(`Voice Pack parameter "${name}" must be a number or percent string.`)
-
-  return parsed
-}
-
-/**
- * Normalizes a Voice Pack rate option into provider speed.
- *
- * Before:
- * - "+20%"
- * - "-10%"
- * - 1.2
- *
- * After:
- * - 1.2
- * - 0.9
- * - 1.2
- */
-function normalizeRateOption(value: string | number | boolean | null | undefined): number | undefined {
-  if (value == null)
-    return undefined
-
-  if (typeof value === 'number') {
-    if (Number.isFinite(value) && value > 0)
-      return value
-    throw new Error('Voice Pack parameter "rate" must be a positive finite number or percent string.')
-  }
-
-  if (typeof value !== 'string')
-    throw new Error('Voice Pack parameter "rate" must be a positive finite number or percent string.')
-
-  const trimmed = value.trim()
-  if (trimmed.endsWith('%')) {
-    const percent = normalizePercentOption(trimmed, 'rate')
-    const speed = 1 + (percent ?? 0) / 100
-    if (speed > 0)
-      return speed
-    throw new Error('Voice Pack parameter "rate" percent must resolve to a positive speed.')
-  }
-
-  const parsed = Number(trimmed)
-  if (Number.isFinite(parsed) && parsed > 0)
-    return parsed
-
-  throw new Error('Voice Pack parameter "rate" must be a positive finite number or percent string.')
-}
-
-function assertSupportedVoicePackParams(params: VoicePackParams | undefined) {
-  if (!params)
-    return
-
-  for (const [key, value] of Object.entries(params)) {
-    if (value == null)
-      continue
-
-    if (!voicePackSupportedParams.has(key))
-      throw new Error(`Unsupported Voice Pack parameter "${key}".`)
-  }
 }
 
 export const useSpeechStore = defineStore('speech', () => {
@@ -487,67 +384,14 @@ export const useSpeechStore = defineStore('speech', () => {
     return toXml(ssmlXast)
   }
 
-  function resolveVoicePackSpeechInput(options: VoicePackSpeechInputOptions): VoicePackSpeechInput {
+  function resolveSpeechInput(options: SpeechInputOptions): SpeechInput {
     const providerConfig = { ...options.providerConfig }
     const canUseSSML = options.supportsSSML === true
 
-    if (!options.params) {
-      return {
-        input: options.forceSSML === true && canUseSSML
-          ? generateSSML(options.text, options.voice, providerConfig)
-          : options.text,
-        providerConfig,
-      }
-    }
-
-    assertSupportedVoicePackParams(options.params)
-
-    const pitch = normalizePercentOption(options.params.pitch, 'pitch')
-    const volume = normalizePercentOption(options.params.volume, 'volume')
-    const speed = normalizeRateOption(options.params.rate)
-    const needsProsody = pitch != null || volume != null
-
-    if (speed != null)
-      providerConfig.speed = speed
-
-    const shouldUseSSML = canUseSSML && (options.forceSSML === true || (needsProsody && !options.supportsAdapterProsody))
-
-    if (options.voicePack) {
-      providerConfig.extraBody = {
-        ...(providerConfig.extraBody as Record<string, unknown> | undefined),
-        voice_pack: {
-          pack_id: options.voicePack.packId,
-          ...(needsProsody && options.supportsAdapterProsody
-            ? { pitch, volume }
-            : {}),
-        },
-      }
-    }
-    else if (needsProsody && options.supportsAdapterProsody) {
-      providerConfig.extraBody = {
-        ...(providerConfig.extraBody as Record<string, unknown> | undefined),
-        voice_pack: { pitch, volume },
-      }
-    }
-    else if (needsProsody && !options.supportsAdapterProsody && !shouldUseSSML) {
-      throw new Error('Voice Pack pitch and volume parameters require an SSML-capable speech provider.')
-    }
-
-    if (!shouldUseSSML && (!needsProsody || options.supportsAdapterProsody)) {
-      return {
-        input: options.text,
-        providerConfig,
-      }
-    }
-
-    const ssmlConfig = { ...providerConfig }
-    if (pitch != null)
-      ssmlConfig.pitch = pitch
-    if (volume != null)
-      ssmlConfig.volume = volume
-
     return {
-      input: generateSSML(options.text, options.voice, ssmlConfig),
+      input: options.forceSSML === true && canUseSSML
+        ? generateSSML(options.text, options.voice, providerConfig)
+        : options.text,
       providerConfig,
     }
   }
@@ -617,7 +461,7 @@ export const useSpeechStore = defineStore('speech', () => {
     ensureStreamingDefaultModel,
     ensureActiveSpeechModel,
     generateSSML,
-    resolveVoicePackSpeechInput,
+    resolveSpeechInput,
     resetState,
   }
 })

@@ -272,9 +272,10 @@ function parseParams(): VoicePackParams {
       throw new Error('Params keys must not be empty')
     if (!supportedParams.has(key))
       throw new Error(`Unsupported Voice Pack parameter "${key}"`)
-    const valid = typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' || value == null
-    if (!valid)
-      throw new Error(`Unsupported params value for "${key}"`)
+    if (typeof value !== 'number' || !Number.isFinite(value))
+      throw new Error(`Voice Pack parameter "${key}" must be a finite number`)
+    if (key === 'rate' && value <= 0)
+      throw new Error('Voice Pack parameter "rate" must be positive')
   }
 
   return parsed as VoicePackParams
@@ -350,7 +351,7 @@ async function testVoicePack() {
       model: form.ttsModelId.trim(),
       input: text,
       voice: form.upstreamVoiceId.trim(),
-      speed: normalizeRateOption(params.rate),
+      speed: params.rate,
       extra_body: voicePackExtraBody(params),
     }
     const blob = await adminApi.testSpeech(body)
@@ -366,13 +367,11 @@ async function testVoicePack() {
 }
 
 function voicePackExtraBody(params: VoicePackParams) {
-  const pitch = normalizePercentOption(params.pitch, 'pitch')
-  const volume = normalizePercentOption(params.volume, 'volume')
   const voicePack: Record<string, unknown> = {}
-  if (pitch != null)
-    voicePack.pitch = pitch
-  if (volume != null)
-    voicePack.volume = volume
+  if (params.pitch != null)
+    voicePack.pitch = params.pitch
+  if (params.volume != null)
+    voicePack.volume = params.volume
   return Object.keys(voicePack).length > 0 ? { voice_pack: voicePack } : undefined
 }
 
@@ -410,51 +409,6 @@ function voiceOptionDescription(voice: SpeechVoice): string | undefined {
 
 function firstRecommendedVoiceId(recommended: Record<string, string>): string | undefined {
   return recommended['zh-CN'] ?? recommended['en-US'] ?? Object.values(recommended)[0]
-}
-
-function normalizePercentOption(value: string | number | boolean | null | undefined, name: string): number | undefined {
-  if (value == null)
-    return undefined
-  if (typeof value === 'number') {
-    if (Number.isFinite(value))
-      return value
-    throw new Error(`Voice Pack parameter "${name}" must be a finite number.`)
-  }
-  if (typeof value !== 'string')
-    throw new Error(`Voice Pack parameter "${name}" must be a number or percent string.`)
-
-  const trimmed = value.trim()
-  const normalized = trimmed.endsWith('%') ? trimmed.slice(0, -1) : trimmed
-  const parsed = Number(normalized)
-  if (!Number.isFinite(parsed))
-    throw new Error(`Voice Pack parameter "${name}" must be a number or percent string.`)
-  return parsed
-}
-
-function normalizeRateOption(value: string | number | boolean | null | undefined): number | undefined {
-  if (value == null)
-    return undefined
-  if (typeof value === 'number') {
-    if (Number.isFinite(value) && value > 0)
-      return value
-    throw new Error('Voice Pack parameter "rate" must be a positive finite number or percent string.')
-  }
-  if (typeof value !== 'string')
-    throw new Error('Voice Pack parameter "rate" must be a positive finite number or percent string.')
-
-  const trimmed = value.trim()
-  if (trimmed.endsWith('%')) {
-    const percent = normalizePercentOption(trimmed, 'rate')
-    const speed = 1 + (percent ?? 0) / 100
-    if (speed > 0)
-      return speed
-    throw new Error('Voice Pack parameter "rate" percent must resolve to a positive speed.')
-  }
-
-  const parsed = Number(trimmed)
-  if (Number.isFinite(parsed) && parsed > 0)
-    return parsed
-  throw new Error('Voice Pack parameter "rate" must be a positive finite number or percent string.')
 }
 </script>
 
@@ -557,9 +511,9 @@ function normalizeRateOption(value: string | number | boolean | null | undefined
 
           <FieldTextArea
             v-model="form.paramsJson"
-            description="Supported keys: rate, pitch, volume. Example: { &quot;rate&quot;: &quot;+8%&quot;, &quot;pitch&quot;: 3 }"
+            description="Supported numeric keys: rate, pitch, volume. Example: { &quot;rate&quot;: 1.08, &quot;pitch&quot;: 3 }"
             label="Params JSON"
-            placeholder="{&#10;  &quot;rate&quot;: &quot;+8%&quot;&#10;}"
+            placeholder="{&#10;  &quot;rate&quot;: 1.08&#10;}"
             :required="false"
             :rows="9"
             textarea-class="font-mono text-xs leading-5"

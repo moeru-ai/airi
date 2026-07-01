@@ -4,7 +4,11 @@ import { boolean, jsonb, pgTable, real, text, timestamp } from 'drizzle-orm/pg-c
 
 import { nanoid } from '../utils/id'
 
-export type VoicePackParams = Record<string, string | number | boolean | null>
+export interface VoicePackParams {
+  pitch?: number
+  volume?: number
+  rate?: number
+}
 
 export const voicePacks = pgTable(
   'voice_packs',

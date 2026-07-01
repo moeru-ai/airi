@@ -150,6 +150,7 @@ function createMockVoicePackService(impl?: Partial<VoicePackService>): VoicePack
     update: vi.fn(),
     disable: vi.fn(),
     findById: vi.fn(async () => null),
+    findEnabledByVoiceId: vi.fn(async () => null),
     ...impl,
   } as unknown as VoicePackService
 }
@@ -686,9 +687,9 @@ describe('v1CompletionsRoutes', () => {
 
     /**
      * @example
-     * POST /api/v1/audio/speech { "speed": 1.2, "extra_body": { "voice_pack": { "pitch": 20 } } }
+     * POST /api/v1/audio/speech { "model": "auto", "voice": "friendly-azure" }
      */
-    it('forwards TTS speed and Voice Pack prosody options to the router input', async () => {
+    it('resolves Voice Pack aliases to server-owned model, voice, and params', async () => {
       const routeTts = vi.fn(async () => new Response(new Uint8Array([1]), {
         status: 200,
         headers: { 'Content-Type': 'audio/mpeg' },
@@ -704,7 +705,7 @@ describe('v1CompletionsRoutes', () => {
         createMockLlmTracing(),
         createMockProductEventService(),
         createMockVoicePackService({
-          findById: vi.fn(async () => ({
+          findEnabledByVoiceId: vi.fn(async () => ({
             id: 'vp-azure',
             name: 'Azure',
             description: null,
@@ -713,7 +714,7 @@ describe('v1CompletionsRoutes', () => {
             voiceId: 'friendly-azure',
             upstreamVoiceId: 'en-US-AvaMultilingualNeural',
             ttsModelId: 'microsoft/v1',
-            params: {},
+            params: { pitch: 20, volume: 5, rate: 1.2 },
             costMultiplier: 1.5,
             enabled: true,
             createdAt: new Date(),
@@ -730,14 +731,6 @@ describe('v1CompletionsRoutes', () => {
             model: 'auto',
             input: 'test',
             voice: 'friendly-azure',
-            speed: 1.2,
-            extra_body: {
-              voice_pack: {
-                pack_id: 'vp-azure',
-                pitch: 20,
-                volume: 5,
-              },
-            },
           }),
         }),
         { user: testUser } as any,
@@ -784,7 +777,7 @@ describe('v1CompletionsRoutes', () => {
 
     /**
      * @example
-     * POST /api/v1/audio/speech { "input": "hello", "extra_body": { "voice_pack": { "pack_id": "vp-premium" } } }
+     * POST /api/v1/audio/speech { "input": "hello", "voice": "alloy" }
      */
     it('uses Voice Pack cost multiplier for affordability and billing units', async () => {
       globalThis.fetch = vi.fn(async () => new Response(new Uint8Array([1]), {
@@ -794,7 +787,7 @@ describe('v1CompletionsRoutes', () => {
 
       const ttsMeter = createMockTtsMeter()
       const voicePackService = createMockVoicePackService({
-        findById: vi.fn(async () => ({
+        findEnabledByVoiceId: vi.fn(async () => ({
           id: 'vp-premium',
           name: 'Premium',
           description: null,
@@ -805,7 +798,7 @@ describe('v1CompletionsRoutes', () => {
           ttsModelId: 'tts-1',
           params: {},
           costMultiplier: 2,
-          enabled: false,
+          enabled: true,
           createdAt: new Date(),
           updatedAt: new Date(),
         })),
@@ -830,11 +823,6 @@ describe('v1CompletionsRoutes', () => {
             model: 'auto',
             input: 'hello',
             voice: 'alloy',
-            extra_body: {
-              voice_pack: {
-                pack_id: 'vp-premium',
-              },
-            },
           }),
         }),
         { user: testUser } as any,
@@ -851,7 +839,7 @@ describe('v1CompletionsRoutes', () => {
 
     /**
      * @example
-     * POST /api/v1/audio/speech { "voice": "alloy", "extra_body": { "voice_pack": { "pack_id": "vp-premium" } } }
+     * POST /api/v1/audio/speech { "voice": "alloy" }
      */
     it('records TTS voice and Voice Pack metadata in product events', async () => {
       globalThis.fetch = vi.fn(async () => new Response(new Uint8Array([1]), {
@@ -861,7 +849,7 @@ describe('v1CompletionsRoutes', () => {
 
       const productEventService = createMockProductEventService()
       const voicePackService = createMockVoicePackService({
-        findById: vi.fn(async () => ({
+        findEnabledByVoiceId: vi.fn(async () => ({
           id: 'vp-premium',
           name: 'Premium',
           description: null,
@@ -898,12 +886,9 @@ describe('v1CompletionsRoutes', () => {
             input: 'hello',
             voice: 'alloy',
             extra_body: {
-              voice_pack: {
-                pack_id: 'vp-premium',
-              },
               airi_analytics: {
                 source: 'manual_preview',
-                voice_type: 'voice_pack',
+                voice_type: 'official_selected',
               },
             },
           }),
@@ -1402,6 +1387,58 @@ describe('v1CompletionsRoutes', () => {
       expect(data.voices).toEqual(voices)
       expect(data.recommended).toEqual({ 'en-US': 'en-US-AvaMultilingualNeural' })
       expect(llmRouter.listTtsVoices).toHaveBeenCalledWith('microsoft/v1')
+    })
+
+    it('includes enabled Voice Packs as official catalog voices without upstream details', async () => {
+      const llmRouter = createMockLlmRouter({
+        listTtsVoices: vi.fn(async () => [
+          { id: 'en-US-AvaMultilingualNeural', name: 'Ava', languages: [{ code: 'en-US', title: 'English' }] },
+        ]) as any,
+      })
+      const voicePackService = createMockVoicePackService({
+        listEnabled: vi.fn(async () => [{
+          id: 'vp-1',
+          name: 'Narrator',
+          description: 'Warm voice',
+          provider: 'azure',
+          model: 'microsoft/v1',
+          voiceId: 'narrator-alias',
+          upstreamVoiceId: 'en-US-AvaMultilingualNeural',
+          ttsModelId: 'microsoft/v1',
+          params: {},
+          costMultiplier: 2,
+          enabled: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }]),
+      })
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV({ DEFAULT_TTS_VOICES: { 'microsoft/v1': { 'en-US': 'en-US-AvaMultilingualNeural' } } }),
+        undefined,
+        undefined,
+        undefined,
+        llmRouter,
+        createMockLlmTracing(),
+        createMockProductEventService(),
+        voicePackService,
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/voices?model=microsoft/v1', { method: 'GET' }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(200)
+      const data = await res.json() as { voices: Array<Record<string, unknown>> }
+      expect(data.voices[0]).toMatchObject({
+        id: 'narrator-alias',
+        name: 'Narrator',
+        description: 'Warm voice · Flux cost: 2x',
+      })
+      expect(data.voices[0]).not.toHaveProperty('upstreamVoiceId')
+      expect(data.voices[0]).not.toHaveProperty('ttsModelId')
+      expect(data.voices[1]).toMatchObject({ id: 'en-US-AvaMultilingualNeural' })
     })
 
     it('returns an empty recommended map when the resolved model has no bucket', async () => {

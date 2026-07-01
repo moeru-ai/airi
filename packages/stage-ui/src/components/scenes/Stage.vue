@@ -6,8 +6,6 @@ import type { UnElevenLabsOptions } from 'unspeech'
 
 import type { EmotionPayload } from '../../constants/emotions'
 import type { SpeechTransport, StageTtsSession, StreamingSessionSnapshot } from '../../libs/speech/tts-session'
-import type { VoicePackSnapshot } from '../../stores/modules/airi-card'
-import type { VoiceInfo } from '../../stores/providers'
 
 import { sleep } from '@moeru/std'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
@@ -43,7 +41,7 @@ import { useBackgroundStore } from '../../stores/background'
 import { useChatOrchestratorStore } from '../../stores/chat'
 import { useLlmStreamingControlStore } from '../../stores/llm-streaming-control'
 import { useAiriCardStore } from '../../stores/modules'
-import { useSpeechStore, voicePackForSpeechProvider } from '../../stores/modules/speech'
+import { useSpeechStore } from '../../stores/modules/speech'
 import { useProvidersStore } from '../../stores/providers'
 import { useSettings } from '../../stores/settings'
 import { useSpeechOutputControlStore } from '../../stores/speech-output-control'
@@ -332,24 +330,10 @@ const playbackManager = createPlaybackManager<AudioBuffer>({
   ownerOverflowPolicy: 'steal-oldest',
 })
 
-function createVoicePackVoice(voicePack: VoicePackSnapshot): VoiceInfo {
-  return {
-    id: voicePack.voiceId,
-    name: voicePack.name,
-    description: voicePack.name,
-    previewURL: '',
-    languages: [{ code: 'en', title: 'English' }],
-    provider: activeSpeechProvider.value,
-    gender: 'neutral',
-  }
-}
-
 /**
  * Classifies chat auto-TTS voice usage before forwarding analytics to the server.
  */
-function resolveStageVoiceType(voicePack: VoicePackSnapshot | undefined): 'official_selected' | 'custom_configured' | 'voice_pack' {
-  if (voicePack)
-    return 'voice_pack'
+function resolveStageVoiceType(): 'official_selected' | 'custom_configured' {
   return activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID || activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID ? 'official_selected' : 'custom_configured'
 }
 
@@ -434,29 +418,19 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
       }
     }
 
-    const voicePack = voicePackForSpeechProvider(activeSpeechProvider.value, activeCard.value?.extensions.airi.modules.speech.voicePack)
-    if (voicePack) {
-      model = 'auto'
-      if (!voice || voice.id !== voicePack.voiceId)
-        voice = createVoicePackVoice(voicePack)
-    }
-
     if (!model || !voice)
       return null
 
     try {
-      const speechRequest = speechStore.resolveVoicePackSpeechInput({
+      const speechRequest = speechStore.resolveSpeechInput({
         text: request.text,
         voice,
         providerConfig: {
           ...providerConfig,
           pitch: ssmlEnabled.value ? pitch.value : undefined,
         },
-        params: voicePack?.params,
-        voicePack,
         forceSSML: ssmlEnabled.value,
         supportsSSML: speechStore.supportsSSML,
-        supportsAdapterProsody: activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID,
       })
 
       // Non-streaming providers only: synth via REST. Streaming provider
@@ -470,7 +444,7 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
               airi_analytics: {
                 trigger: 'auto',
                 source: 'chat_auto_tts',
-                voice_type: resolveStageVoiceType(voicePack),
+                voice_type: resolveStageVoiceType(),
               },
             },
           }
@@ -685,7 +659,7 @@ function buildStreamingSnapshot(): StreamingSessionSnapshot | null {
   return {
     model: sessionModel,
     voice: voiceId,
-    voiceType: resolveStageVoiceType(undefined),
+    voiceType: resolveStageVoiceType(),
     bufferEntireSession,
     extraBody: {
       api_resource_id: apiResourceId,

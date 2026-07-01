@@ -32,7 +32,7 @@ function createService() {
       voiceId: 'friendly-voice',
       upstreamVoiceId: 'en-US-AvaMultilingualNeural',
       ttsModelId: 'microsoft/v1',
-      params: { pitch: '+10%' },
+      params: { pitch: 10 },
       costMultiplier: 2,
       enabled: true,
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
@@ -43,6 +43,7 @@ function createService() {
     update: vi.fn(),
     disable: vi.fn(),
     findById: vi.fn(),
+    findEnabledByVoiceId: vi.fn(),
   } as unknown as VoicePackService
 }
 
@@ -69,7 +70,7 @@ describe('voice packs routes', () => {
       name: 'Enabled',
       description: 'Public description',
       voiceId: 'friendly-voice',
-      params: { pitch: '+10%' },
+      params: { pitch: 10 },
       costMultiplier: 2,
       enabled: true,
       createdAt: '2026-01-01T00:00:00.000Z',

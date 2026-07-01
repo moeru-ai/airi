@@ -1,5 +1,3 @@
-import type { VoicePackBindingInput } from './modules/airi-card'
-
 import { errorMessageFrom } from '@moeru/std'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
@@ -7,8 +5,17 @@ import { ref } from 'vue'
 import { authedFetch } from '../libs/auth-fetch'
 import { SERVER_URL } from '../libs/server'
 
-export type VoicePackListItem = VoicePackBindingInput & {
+export interface VoicePackListItem {
+  id: string
+  name: string
   description: string | null
+  voiceId: string
+  params: {
+    pitch?: number
+    volume?: number
+    rate?: number
+  }
+  costMultiplier: number
   enabled: boolean
   createdAt: string
   updatedAt: string

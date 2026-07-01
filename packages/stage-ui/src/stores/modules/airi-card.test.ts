@@ -1,7 +1,6 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { OFFICIAL_SPEECH_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { useSettingsStageModel } from '../settings/stage-model'
 import { useAiriCardStore } from './airi-card'
 
@@ -108,57 +107,17 @@ describe('airi-card store', () => {
 
   /**
    * @example
-   * it('freezes a Voice Pack snapshot on the active card', () => {})
+   * it('updates speech config on the active card', () => {})
    */
-  it('freezes a Voice Pack snapshot on the active card', () => {
+  it('updates speech config on the active card', () => {
     const cardStore = useAiriCardStore()
     cardStore.initialize()
 
-    const pack = {
-      id: 'vp-1',
-      name: 'Neuro Sama',
-      voiceId: 'voice-neuro',
-      params: { pitch: '+20%', volume: '+5%' },
-      costMultiplier: 1.5,
-    }
-
-    const bound = cardStore.bindVoicePackToActiveCard(pack)
-
-    expect(bound).toBe(true)
+    expect(cardStore.updateActiveCardSpeech({ provider: 'elevenlabs', model: 'eleven_multilingual_v2', voice_id: 'aria' })).toBe(true)
     expect(cardStore.activeCard?.extensions.airi.modules.speech).toMatchObject({
-      provider: OFFICIAL_SPEECH_PROVIDER_ID,
-      model: 'auto',
-      voice_id: 'voice-neuro',
-      voicePack: {
-        packId: 'vp-1',
-        name: 'Neuro Sama',
-        voiceId: 'voice-neuro',
-        params: { pitch: '+20%', volume: '+5%' },
-        costMultiplier: 1.5,
-      },
+      provider: 'elevenlabs',
+      model: 'eleven_multilingual_v2',
+      voice_id: 'aria',
     })
-  })
-
-  /**
-   * @example
-   * it('keeps the frozen Voice Pack independent from later library edits', () => {})
-   */
-  it('keeps the frozen Voice Pack independent from later library edits', () => {
-    const cardStore = useAiriCardStore()
-    cardStore.initialize()
-
-    const params = { pitch: '+20%' }
-    cardStore.bindVoicePackToActiveCard({
-      id: 'vp-1',
-      name: 'Frozen',
-      voiceId: 'voice-a',
-      params,
-      costMultiplier: 2,
-    })
-
-    params.pitch = '-10%'
-
-    expect(cardStore.activeCard?.extensions.airi.modules.speech.voicePack?.params).toEqual({ pitch: '+20%' })
-    expect(cardStore.activeCard?.extensions.airi.modules.speech.voicePack?.voiceId).toBe('voice-a')
   })
 })
