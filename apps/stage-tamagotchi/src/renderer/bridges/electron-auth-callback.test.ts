@@ -2,7 +2,7 @@ import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { electronAuthCallback, electronAuthCallbackError, electronAuthSteamProbe } from '../../shared/eventa'
+import { electronAuthCallback, electronAuthCallbackError } from '../../shared/eventa'
 import { initializeElectronAuthCallbackBridge } from './electron-auth-callback'
 
 // NOTICE:
@@ -18,6 +18,16 @@ const { handlers } = vi.hoisted(() => ({
   handlers: new Map<unknown, (event: { body?: unknown }) => void | Promise<void>>(),
 }))
 
+// NOTICE:
+// Why: `fetchSessionMock` / `toastErrorMock` are shared between the test body
+//   and the `vi.mock` factories for `@proj-airi/stage-ui/libs/auth` and
+//   `vue-sonner`, for the same hoisting reason as `handlers` above.
+// Removal condition: only if these assertions are removed.
+const { fetchSessionMock, toastErrorMock } = vi.hoisted(() => ({
+  fetchSessionMock: vi.fn(async () => {}),
+  toastErrorMock: vi.fn(),
+}))
+
 // Mock the Electron eventa context so the bridge registers handlers against a
 // controllable fake. Mocking @proj-airi/electron-vueuse is endorsed by AGENTS.md
 // ("Mock IPC/services with vi.fn/vi.mock; do not rely on real Electron runtime").
@@ -31,56 +41,36 @@ vi.mock('@proj-airi/electron-vueuse', () => ({
 }))
 
 vi.mock('@proj-airi/stage-ui/libs/auth', () => ({
-  fetchSession: vi.fn(async () => {}),
+  fetchSession: fetchSessionMock,
   triggerSignIn: vi.fn(),
 }))
 
 vi.mock('vue-sonner', () => ({
-  toast: { error: vi.fn() },
+  toast: { error: toastErrorMock },
 }))
 
 async function emit(eventDef: unknown, body: unknown): Promise<void> {
   await handlers.get(eventDef)?.({ body })
 }
 
-describe('initializeElectronAuthCallbackBridge — steamStatus', () => {
+describe('initializeElectronAuthCallbackBridge', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     handlers.clear()
-    vi.clearAllMocks()
+    fetchSessionMock.mockClear()
+    toastErrorMock.mockClear()
     initializeElectronAuthCallbackBridge()
   })
 
-  it('sets steamStatus to checking on a checking probe event', async () => {
+  it('applies tokens and fetches the session on auth callback', async () => {
     const authStore = useAuthStore()
-    await emit(electronAuthSteamProbe, { status: 'checking' })
-    expect(authStore.steamStatus).toBe('checking')
-  })
-
-  it('sets steamStatus to pending on a pending probe event', async () => {
-    const authStore = useAuthStore()
-    await emit(electronAuthSteamProbe, { status: 'pending' })
-    expect(authStore.steamStatus).toBe('pending')
-  })
-
-  it('ignores a probe event with an unknown status', async () => {
-    const authStore = useAuthStore()
-    authStore.steamStatus = 'pending'
-    await emit(electronAuthSteamProbe, { status: 'bogus' })
-    expect(authStore.steamStatus).toBe('pending')
-  })
-
-  it('resets steamStatus to idle on auth callback', async () => {
-    const authStore = useAuthStore()
-    authStore.steamStatus = 'pending'
     await emit(electronAuthCallback, { accessToken: 'a', expiresIn: 3600 })
-    expect(authStore.steamStatus).toBe('idle')
+    expect(authStore.token).toBe('a')
+    expect(fetchSessionMock).toHaveBeenCalledTimes(1)
   })
 
-  it('resets steamStatus to idle on auth callback error', async () => {
-    const authStore = useAuthStore()
-    authStore.steamStatus = 'pending'
+  it('toasts the error message on auth callback error', async () => {
     await emit(electronAuthCallbackError, { error: 'boom' })
-    expect(authStore.steamStatus).toBe('idle')
+    expect(toastErrorMock).toHaveBeenCalledWith('boom')
   })
 })
