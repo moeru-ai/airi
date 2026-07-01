@@ -61,7 +61,7 @@ function isSignInActive(): boolean {
 
 export async function trySteamSignIn(windowAuthManager: WindowAuthManager): Promise<void> {
   if (isSignInActive()) {
-    log.debug('Skipping Steam sign-in: OIDC flow in progress')
+    log.debug('Skipping Steam sign-in: another sign-in flow is in progress')
     return
   }
 
