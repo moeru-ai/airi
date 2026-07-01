@@ -15,6 +15,7 @@ const loadingModels = shallowRef(false)
 const loadingVoices = shallowRef(false)
 const syncingModels = shallowRef(false)
 const syncingVoices = shallowRef(false)
+const generatingPreviewVoiceId = shallowRef<string | null>(null)
 
 const enabledModels = computed(() => models.value.filter(model => model.enabled).length)
 const enabledVoices = computed(() => voices.value.filter(voice => voice.enabled).length)
@@ -113,6 +114,21 @@ async function updateVoice(voice: OfficialTtsVoice, patch: Partial<Pick<Official
   }
   catch (error) {
     toast.error(errorMessageFromUnknown(error, 'Failed to update TTS voice'))
+  }
+}
+
+async function generatePreview(voice: OfficialTtsVoice) {
+  generatingPreviewVoiceId.value = voice.id
+  try {
+    const result = await adminApi.generateOfficialTtsVoicePreview(voice.id)
+    voices.value = voices.value.map(item => item.id === result.voice.id ? result.voice : item)
+    toast.success('Preview generated')
+  }
+  catch (error) {
+    toast.error(errorMessageFromUnknown(error, 'Failed to generate preview'))
+  }
+  finally {
+    generatingPreviewVoiceId.value = null
   }
 }
 
@@ -253,7 +269,19 @@ function languageSummary(voice: OfficialTtsVoice): string {
               {{ languageSummary(voice) }}
             </td>
             <td>
-              <input :class="['h-8', 'w-full', 'min-w-48', 'rounded-md', 'border', 'border-neutral-200', 'bg-white', 'px-2', 'text-sm']" :value="voice.previewAudioUrl ?? ''" placeholder="https://..." @change="event => updateVoice(voice, { previewAudioUrl: (event.target as HTMLInputElement).value || null })">
+              <div :class="['flex', 'min-w-64', 'items-center', 'gap-2']">
+                <input :class="['h-8', 'min-w-0', 'flex-1', 'rounded-md', 'border', 'border-neutral-200', 'bg-white', 'px-2', 'text-sm']" :value="voice.previewAudioUrl ?? ''" placeholder="https://..." @change="event => updateVoice(voice, { previewAudioUrl: (event.target as HTMLInputElement).value || null })">
+                <audio v-if="voice.previewAudioUrl" :src="voice.previewAudioUrl" controls :class="['h-8', 'w-36']" />
+                <Button
+                  v-else
+                  :disabled="generatingPreviewVoiceId === voice.id"
+                  :icon="generatingPreviewVoiceId === voice.id ? 'i-lucide-loader-2 animate-spin' : 'i-lucide-wand-sparkles'"
+                  label="Generate"
+                  size="sm"
+                  variant="secondary"
+                  @click="generatePreview(voice)"
+                />
+              </div>
             </td>
             <td>
               <input :class="['h-8', 'w-20', 'rounded-md', 'border', 'border-neutral-200', 'bg-white', 'px-2', 'text-sm']" min="0" type="number" :value="voice.displayOrder" @change="event => updateVoice(voice, { displayOrder: Number((event.target as HTMLInputElement).value) })">

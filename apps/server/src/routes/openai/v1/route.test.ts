@@ -278,6 +278,7 @@ function createMockOfficialCatalogService(impl?: Partial<OfficialCatalogService>
     }),
     listTtsVoices: vi.fn(async () => []),
     listEnabledTtsVoices: vi.fn(async routerModelId => syncedVoicesByModel.get(routerModelId) ?? []),
+    getTtsVoiceWithModel: vi.fn(async () => null),
     assertTtsVoiceEnabled: vi.fn(async (_routerModelId, providerVoiceId) => ({
       id: 'tts-voice-1',
       ttsModelId: 'tts-model-1',

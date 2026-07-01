@@ -40,7 +40,10 @@ function createConfigKV(): ConfigKVService {
 function createLlmRouter(): LlmRouterService {
   return {
     route: vi.fn(),
-    routeTts: vi.fn(),
+    routeTts: vi.fn(async () => new Response(new Uint8Array([1, 2, 3]), {
+      status: 200,
+      headers: { 'content-type': 'audio/mpeg' },
+    })),
     listTtsVoices: vi.fn(async () => [
       { id: 'en-US-AvaMultilingualNeural', name: 'Ava', previewUrl: 'https://example.com/ava.mp3' },
     ]),
@@ -69,6 +72,34 @@ function createService(): OfficialCatalogService {
     }))),
     listTtsVoices: vi.fn(async () => []),
     listEnabledTtsVoices: vi.fn(async () => []),
+    getTtsVoiceWithModel: vi.fn(async () => ({
+      model: {
+        id: 'model-1',
+        routerModelId: 'microsoft/v1',
+        provider: 'azure',
+        displayName: 'Azure',
+        enabled: false,
+        displayOrder: 0,
+        lastSyncedAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      voice: {
+        id: 'voice-1',
+        ttsModelId: 'model-1',
+        providerVoiceId: 'en-US-AvaMultilingualNeural',
+        displayName: 'Ava',
+        enabled: false,
+        displayOrder: 0,
+        languages: [],
+        labels: {},
+        previewAudioUrl: null,
+        source: 'provider-sync',
+        lastSyncedAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    })),
     updateTtsVoice: vi.fn(async (_id, input) => ({ id: 'voice-1', ...input })),
     assertTtsVoiceEnabled: vi.fn(),
   } as unknown as OfficialCatalogService
@@ -152,5 +183,36 @@ describe('admin official catalog routes', () => {
     })
 
     expect(res.status).toBe(404)
+  })
+
+  it('generates and stores a TTS voice preview data URL', async () => {
+    const service = createService()
+    const llmRouter = createLlmRouter()
+    const app = createTestApp({ user: ADMIN, service, llmRouter })
+
+    const res = await jsonRequest(app, 'POST', '/api/admin/official-catalog/tts/voices/voice-1/preview', {
+      text: 'Preview this voice.',
+    })
+
+    expect(res.status).toBe(200)
+    expect(llmRouter.routeTts).toHaveBeenCalledWith({
+      modelName: 'microsoft/v1',
+      input: {
+        text: 'Preview this voice.',
+        voice: 'en-US-AvaMultilingualNeural',
+        responseFormat: undefined,
+      },
+    })
+    expect(service.updateTtsVoice).toHaveBeenCalledWith('voice-1', {
+      previewAudioUrl: 'data:audio/mpeg;base64,AQID',
+    })
+    expect(await res.json()).toMatchObject({
+      contentType: 'audio/mpeg',
+      byteLength: 3,
+      voice: {
+        id: 'voice-1',
+        previewAudioUrl: 'data:audio/mpeg;base64,AQID',
+      },
+    })
   })
 })

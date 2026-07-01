@@ -6,13 +6,17 @@ import type { LlmRouterService } from '../../../services/domain/llm-router'
 import type { OfficialCatalogService } from '../../../services/domain/official-catalog'
 import type { HonoEnv } from '../../../types/hono'
 
+import { Buffer } from 'node:buffer'
+
 import { Hono } from 'hono'
 import { any, array, boolean, integer, maxLength, minValue, nullable, number, object, optional, picklist, pipe, record, safeParse, string } from 'valibot'
 
 import { adminGuard } from '../../../middlewares/admin-guard'
 import { authGuard } from '../../../middlewares/auth'
 import { normalizeProviderVoiceForCatalog } from '../../../services/domain/official-catalog/provider-voices'
-import { createBadRequestError, createNotFoundError } from '../../../utils/error'
+import { createBadGatewayError, createBadRequestError, createNotFoundError } from '../../../utils/error'
+
+const DEFAULT_PREVIEW_TEXT = 'Hello, this is an AIRI voice preview.'
 
 const SurfaceSchema = picklist(['llm', 'asr'])
 
@@ -53,6 +57,11 @@ const TtsVoiceUpdateBodySchema = object({
 
 const TtsVoiceSyncBodySchema = object({
   routerModelId: pipe(string(), maxLength(160)),
+})
+
+const TtsVoicePreviewBodySchema = object({
+  text: optional(pipe(string(), maxLength(200)), DEFAULT_PREVIEW_TEXT),
+  responseFormat: optional(pipe(string(), maxLength(24))),
 })
 
 export interface AdminOfficialCatalogRoutesDeps {
@@ -175,6 +184,36 @@ export function createAdminOfficialCatalogRoutes(deps: AdminOfficialCatalogRoute
       const voices = providerVoices.map(normalizeProviderVoiceForCatalog).filter(voice => voice != null)
       const synced = await deps.service.syncTtsVoices({ routerModelId: body.routerModelId, voices })
       return c.json({ voices: synced, syncedCount: synced.length })
+    })
+    .post('/tts/voices/:id/preview', async (c) => {
+      const body = await readBody(c, TtsVoicePreviewBodySchema)
+      const row = await deps.service.getTtsVoiceWithModel(c.req.param('id'))
+      if (!row)
+        throw createNotFoundError('Official TTS voice not found')
+
+      const response = await deps.llmRouter.routeTts({
+        modelName: row.model.routerModelId,
+        input: {
+          text: body.text || DEFAULT_PREVIEW_TEXT,
+          voice: row.voice.providerVoiceId,
+          responseFormat: body.responseFormat,
+        },
+      })
+      if (!response.ok)
+        throw createBadGatewayError(`TTS preview upstream ${response.status}`, { lastStatusCode: response.status })
+
+      const contentType = response.headers.get('content-type') ?? 'audio/mpeg'
+      const bytes = await response.arrayBuffer()
+      const previewAudioUrl = `data:${contentType};base64,${Buffer.from(bytes).toString('base64')}`
+      const updated = await deps.service.updateTtsVoice(row.voice.id, { previewAudioUrl })
+      if (!updated)
+        throw createNotFoundError('Official TTS voice not found')
+
+      return c.json({
+        voice: updated,
+        contentType,
+        byteLength: bytes.byteLength,
+      })
     })
     .patch('/tts/voices/:id', async (c) => {
       const body = await readBody(c, TtsVoiceUpdateBodySchema)

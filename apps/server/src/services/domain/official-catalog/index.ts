@@ -38,6 +38,11 @@ export interface OfficialProviderAliasWithRoutes extends OfficialProviderAlias {
   routes: OfficialProviderAliasRoute[]
 }
 
+export interface OfficialTtsVoiceWithModel {
+  model: OfficialTtsModel
+  voice: OfficialTtsVoice
+}
+
 export interface OfficialProviderAliasUpdateInput {
   displayName?: string
   enabled?: boolean
@@ -367,6 +372,22 @@ export function createOfficialCatalogService(db: Database) {
         where: eq(officialTtsVoices.ttsModelId, model.id),
         orderBy: [asc(officialTtsVoices.displayOrder), asc(officialTtsVoices.providerVoiceId)],
       })
+    },
+
+    async getTtsVoiceWithModel(id: string): Promise<OfficialTtsVoiceWithModel | null> {
+      const voice = await db.query.officialTtsVoices.findFirst({
+        where: eq(officialTtsVoices.id, id),
+      })
+      if (!voice)
+        return null
+
+      const model = await db.query.officialTtsModels.findFirst({
+        where: eq(officialTtsModels.id, voice.ttsModelId),
+      })
+      if (!model)
+        return null
+
+      return { model, voice }
     },
 
     async updateTtsVoice(id: string, input: OfficialTtsVoiceUpdateInput): Promise<OfficialTtsVoice | null> {

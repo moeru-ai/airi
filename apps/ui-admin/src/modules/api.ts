@@ -542,4 +542,9 @@ export const adminApi = {
       method: 'PATCH',
       body: JSON.stringify(body),
     }),
+  generateOfficialTtsVoicePreview: (id: string, body: { text?: string, responseFormat?: string } = {}) =>
+    adminFetch<{ voice: OfficialTtsVoice, contentType: string, byteLength: number }>(`/official-catalog/tts/voices/${encodeURIComponent(id)}/preview`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
 }
