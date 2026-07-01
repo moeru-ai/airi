@@ -6,10 +6,10 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { Toaster } from 'vue-sonner'
 
 import App from './App.vue'
+import CapabilityAliasesPage from './pages/CapabilityAliasesPage.vue'
 import FluxPage from './pages/FluxPage.vue'
 import LlmRouterPage from './pages/LlmRouterPage.vue'
 import OverviewPage from './pages/OverviewPage.vue'
-import ProviderCatalogPage from './pages/ProviderCatalogPage.vue'
 import TtsCatalogPage from './pages/TtsCatalogPage.vue'
 import UsersPage from './pages/UsersPage.vue'
 import VoicePackFormPage from './pages/VoicePackFormPage.vue'
@@ -28,7 +28,7 @@ const router = createRouter({
     { path: '/users', component: UsersPage },
     { path: '/flux', component: FluxPage },
     { path: '/llm-router', component: LlmRouterPage },
-    { path: '/providers', component: ProviderCatalogPage },
+    { path: '/capability-aliases', component: CapabilityAliasesPage },
     { path: '/tts', component: TtsCatalogPage },
     { path: '/voice-packs', component: VoicePacksPage },
     { path: '/voice-packs/new', name: 'voice-pack-new', component: VoicePackFormPage },

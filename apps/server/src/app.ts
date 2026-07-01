@@ -56,6 +56,7 @@ import { registerTotalUsersGauge } from './otel/gauges/total-users'
 import { registerTtsPoolGauge } from './otel/gauges/tts-pool'
 import { createAdminRoutes } from './routes/admin'
 import { createAdminUiRoutes } from './routes/admin-ui'
+import { createAdminCapabilityAliasRoutes } from './routes/admin/capability-aliases'
 import { createAdminRouterConfigRoutes } from './routes/admin/config/router'
 import { createAdminFluxGrantsRoutes } from './routes/admin/flux-grants'
 import { createAdminProviderCatalogRoutes } from './routes/admin/provider-catalog'
@@ -418,6 +419,14 @@ export async function buildApp(deps: AppDeps) {
     .route('/api/admin/voice-packs', createAdminVoicePackRoutes({
       productEventService: deps.productEventService,
       service: deps.voicePackService,
+    }))
+
+    /**
+     * Admin product capability alias curation routes.
+     */
+    .route('/api/admin/capability-aliases', createAdminCapabilityAliasRoutes({
+      configKV: deps.configKV,
+      service: deps.providerCatalogService,
     }))
 
     /**

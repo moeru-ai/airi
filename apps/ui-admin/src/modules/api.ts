@@ -501,20 +501,20 @@ export const adminApi = {
     }),
   capabilityAliases: (surface?: CapabilityAliasSurface) => {
     const suffix = surface ? `?surface=${encodeURIComponent(surface)}` : ''
-    return adminFetch<CapabilityAlias[]>(`/provider-catalog/aliases${suffix}`)
+    return adminFetch<CapabilityAlias[]>(`/capability-aliases${suffix}`)
   },
   syncCapabilityAliases: (surface: CapabilityAliasSurface) =>
-    adminFetch<{ aliases: CapabilityAlias[] }>('/provider-catalog/aliases/sync', {
+    adminFetch<{ aliases: CapabilityAlias[] }>('/capability-aliases/sync', {
       method: 'POST',
       body: JSON.stringify({ surface }),
     }),
   updateCapabilityAlias: (id: string, body: Partial<Pick<CapabilityAlias, 'displayName' | 'enabled' | 'displayOrder' | 'fallbackEnabled' | 'loadBalancingEnabled'>>) =>
-    adminFetch<CapabilityAlias>(`/provider-catalog/aliases/${encodeURIComponent(id)}`, {
+    adminFetch<CapabilityAlias>(`/capability-aliases/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       body: JSON.stringify(body),
     }),
   updateCapabilityAliasRoute: (id: string, body: Partial<Pick<CapabilityAliasRoute, 'enabled' | 'pool' | 'weight' | 'displayOrder'>>) =>
-    adminFetch<CapabilityAliasRoute>(`/provider-catalog/alias-routes/${encodeURIComponent(id)}`, {
+    adminFetch<CapabilityAliasRoute>(`/capability-aliases/routes/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       body: JSON.stringify(body),
     }),

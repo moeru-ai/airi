@@ -140,10 +140,10 @@ describe('admin provider catalog routes', () => {
   it('returns 401 when unauthenticated', async () => {
     const service = createService()
     const app = createTestApp({ user: null, service })
-    const res = await jsonRequest(app, 'GET', '/api/admin/provider-catalog/aliases')
+    const res = await jsonRequest(app, 'GET', '/api/admin/provider-catalog/tts/models')
 
     expect(res.status).toBe(401)
-    expect(service.listAliases).not.toHaveBeenCalled()
+    expect(service.listTtsModels).not.toHaveBeenCalled()
   })
 
   it('syncs TTS voices from the provider into the provider catalog', async () => {

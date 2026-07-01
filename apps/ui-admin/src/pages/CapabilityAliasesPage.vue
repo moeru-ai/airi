@@ -26,7 +26,7 @@ async function loadAliases() {
     aliases.value = await adminApi.capabilityAliases(surface.value)
   }
   catch (error) {
-    toast.error(errorMessageFromUnknown(error, 'Failed to load provider catalog'))
+    toast.error(errorMessageFromUnknown(error, 'Failed to load capability aliases'))
   }
   finally {
     loading.value = false
@@ -37,11 +37,11 @@ async function syncAliases() {
   syncing.value = true
   try {
     await adminApi.syncCapabilityAliases(surface.value)
-    toast.success('Provider aliases synced')
+    toast.success('Capability aliases synced')
     await loadAliases()
   }
   catch (error) {
-    toast.error(errorMessageFromUnknown(error, 'Failed to sync provider aliases'))
+    toast.error(errorMessageFromUnknown(error, 'Failed to sync capability aliases'))
   }
   finally {
     syncing.value = false
@@ -83,10 +83,10 @@ function formatDate(value: string): string {
       <div :class="['flex', 'flex-col', 'gap-3', 'border-b', 'border-neutral-200', 'px-5', 'py-4', 'md:flex-row', 'md:items-center', 'md:justify-between']">
         <div>
           <h2 :class="['text-sm', 'font-semibold']">
-            Provider Catalog
+            Capability Aliases
           </h2>
           <p :class="['mt-1', 'text-sm', 'text-neutral-500']">
-            Product aliases for official LLM and ASR capabilities.
+            Product choices for LLM and ASR requests.
           </p>
         </div>
         <div :class="['flex', 'flex-wrap', 'items-center', 'gap-2']">
@@ -120,7 +120,7 @@ function formatDate(value: string): string {
 
       <div v-if="loading && aliases.length === 0" :class="['empty-state']">
         <span :class="['i-lucide-loader-2', 'animate-spin', 'text-2xl']" />
-        Loading provider catalog
+        Loading capability aliases
       </div>
 
       <div v-else-if="aliases.length > 0" :class="['divide-y', 'divide-neutral-200']">

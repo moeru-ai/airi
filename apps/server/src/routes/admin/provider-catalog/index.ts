@@ -9,7 +9,7 @@ import type { HonoEnv } from '../../../types/hono'
 import { Buffer } from 'node:buffer'
 
 import { Hono } from 'hono'
-import { any, array, boolean, integer, maxLength, minValue, nullable, number, object, optional, picklist, pipe, record, safeParse, string } from 'valibot'
+import { any, array, boolean, integer, maxLength, minValue, nullable, number, object, optional, pipe, record, safeParse, string } from 'valibot'
 
 import { adminGuard } from '../../../middlewares/admin-guard'
 import { authGuard } from '../../../middlewares/auth'
@@ -17,23 +17,6 @@ import { normalizeProviderVoiceForCatalog } from '../../../services/domain/provi
 import { createBadGatewayError, createBadRequestError, createNotFoundError } from '../../../utils/error'
 
 const DEFAULT_PREVIEW_TEXT = 'Hello, this is an AIRI voice preview.'
-
-const SurfaceSchema = picklist(['llm', 'asr'])
-
-const AliasUpdateBodySchema = object({
-  displayName: optional(pipe(string(), maxLength(120))),
-  enabled: optional(boolean()),
-  displayOrder: optional(pipe(number(), integer(), minValue(0))),
-  fallbackEnabled: optional(boolean()),
-  loadBalancingEnabled: optional(boolean()),
-})
-
-const AliasRouteUpdateBodySchema = object({
-  enabled: optional(boolean()),
-  pool: optional(picklist(['primary', 'fallback'])),
-  weight: optional(pipe(number(), integer(), minValue(1))),
-  displayOrder: optional(pipe(number(), integer(), minValue(0))),
-})
 
 const TtsModelUpdateBodySchema = object({
   displayName: optional(pipe(string(), maxLength(120))),
@@ -91,23 +74,6 @@ async function readBody<S extends GenericSchema>(c: Context<HonoEnv>, schema: S)
   return parsed.output
 }
 
-async function syncAliasesFromConfig(deps: AdminProviderCatalogRoutesDeps, surface: 'llm' | 'asr') {
-  const config = await deps.configKV.getOrThrow('LLM_ROUTER_CONFIG')
-  if (surface === 'llm') {
-    const defaultModel = await deps.configKV.getOrThrow('DEFAULT_CHAT_MODEL')
-    const modelIds = [
-      defaultModel,
-      ...Object.keys(config.llm.models).sort().filter(modelId => modelId !== defaultModel),
-    ]
-    return await deps.service.syncAliasesFromRouterConfig({ surface, modelIds })
-  }
-
-  return await deps.service.syncAliasesFromRouterConfig({
-    surface,
-    modelIds: Object.keys(config.asr?.models ?? {}).sort(),
-  })
-}
-
 async function syncTtsModelsFromConfig(deps: AdminProviderCatalogRoutesDeps) {
   const config = await deps.configKV.getOrThrow('LLM_ROUTER_CONFIG')
   return await deps.service.syncTtsModelsFromRouterConfig({
@@ -124,40 +90,14 @@ async function syncTtsModelsFromConfig(deps: AdminProviderCatalogRoutesDeps) {
  * Admin routes for provider catalog curation.
  *
  * Mounted at `/api/admin/provider-catalog`. These routes curate only the
- * catalog state: enabled flags, display order, capability aliases, and TTS
- * voice metadata. Real upstream URLs, credentials, and provider fallback
- * config stay owned by `LLM_ROUTER_CONFIG`.
+ * catalog state: enabled flags, display order, and TTS voice metadata. Real
+ * upstream URLs, credentials, and provider fallback config stay owned by
+ * `LLM_ROUTER_CONFIG`.
  */
 export function createAdminProviderCatalogRoutes(deps: AdminProviderCatalogRoutesDeps) {
   return new Hono<HonoEnv>()
     .use('*', authGuard)
     .use('*', adminGuard)
-    .get('/aliases', async (c) => {
-      const rawSurface = c.req.query('surface')
-      const parsed = rawSurface ? safeParse(SurfaceSchema, rawSurface) : null
-      if (parsed && !parsed.success)
-        throw createBadRequestError('Invalid surface', 'INVALID_QUERY', parseIssues(parsed.issues))
-
-      return c.json(await deps.service.listAliases(parsed?.success ? parsed.output : undefined))
-    })
-    .post('/aliases/sync', async (c) => {
-      const body = await readBody(c, object({ surface: SurfaceSchema }))
-      return c.json({ aliases: await syncAliasesFromConfig(deps, body.surface) })
-    })
-    .patch('/aliases/:id', async (c) => {
-      const body = await readBody(c, AliasUpdateBodySchema)
-      const updated = await deps.service.updateAlias(c.req.param('id'), body)
-      if (!updated)
-        throw createNotFoundError('Capability alias not found')
-      return c.json(updated)
-    })
-    .patch('/alias-routes/:id', async (c) => {
-      const body = await readBody(c, AliasRouteUpdateBodySchema)
-      const updated = await deps.service.updateAliasRoute(c.req.param('id'), body)
-      if (!updated)
-        throw createNotFoundError('Capability alias route not found')
-      return c.json(updated)
-    })
     .get('/tts/models', async (c) => {
       return c.json(await deps.service.listTtsModels())
     })
