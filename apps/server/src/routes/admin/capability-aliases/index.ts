@@ -59,17 +59,10 @@ async function syncAliasesFromConfig(deps: AdminCapabilityAliasRoutesDeps, surfa
   const config = await deps.configKV.getOrThrow('LLM_ROUTER_CONFIG')
   if (surface === 'llm') {
     const defaultModel = await deps.configKV.getOrThrow('DEFAULT_CHAT_MODEL')
-    const modelIds = [
-      defaultModel,
-      ...Object.keys(config.llm.models).sort().filter(modelId => modelId !== defaultModel),
-    ]
-    return await deps.service.syncAliasesFromRouterConfig({ surface, modelIds })
+    return await deps.service.syncLlmAliasesFromRouterConfig({ config, defaultModel })
   }
 
-  return await deps.service.syncAliasesFromRouterConfig({
-    surface,
-    modelIds: Object.keys(config.asr?.models ?? {}).sort(),
-  })
+  return await deps.service.syncAsrAliasesFromRouterConfig({ config })
 }
 
 /**

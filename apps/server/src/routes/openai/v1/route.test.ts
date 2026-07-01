@@ -176,8 +176,12 @@ function createMockProviderCatalogService(impl?: Partial<ProviderCatalogService>
   const syncedVoicesByModel = new Map<string, Awaited<ReturnType<ProviderCatalogService['syncTtsVoices']>>>()
 
   return {
-    syncAliasesFromRouterConfig: vi.fn(async (input: Parameters<ProviderCatalogService['syncAliasesFromRouterConfig']>[0]) => {
-      const { surface, modelIds } = input
+    syncLlmAliasesFromRouterConfig: vi.fn(async (input: Parameters<ProviderCatalogService['syncLlmAliasesFromRouterConfig']>[0]) => {
+      const { config, defaultModel } = input
+      const modelIds = [
+        defaultModel,
+        ...Object.keys(config.llm.models).sort().filter(modelId => modelId !== defaultModel),
+      ]
       syncedAliasRoutes = Array.from(new Set(modelIds)).map((routerModelId, index) => ({
         id: `alias-route-${index}`,
         aliasId: 'alias-auto',
@@ -191,7 +195,33 @@ function createMockProviderCatalogService(impl?: Partial<ProviderCatalogService>
       }))
       return [{
         id: 'alias-auto',
-        surface,
+        surface: 'llm',
+        aliasId: 'auto',
+        displayName: 'Auto',
+        enabled: true,
+        displayOrder: 0,
+        fallbackEnabled: true,
+        loadBalancingEnabled: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }]
+    }),
+    syncAsrAliasesFromRouterConfig: vi.fn(async (input: Parameters<ProviderCatalogService['syncAsrAliasesFromRouterConfig']>[0]) => {
+      const modelIds = Object.keys(input.config.asr?.models ?? {}).sort()
+      syncedAliasRoutes = Array.from(new Set(modelIds)).map((routerModelId, index) => ({
+        id: `alias-route-${index}`,
+        aliasId: 'alias-auto',
+        routerModelId,
+        pool: 'primary',
+        enabled: true,
+        weight: 1,
+        displayOrder: index,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }))
+      return [{
+        id: 'alias-auto',
+        surface: 'asr',
         aliasId: 'auto',
         displayName: 'Auto',
         enabled: true,
@@ -241,7 +271,12 @@ function createMockProviderCatalogService(impl?: Partial<ProviderCatalogService>
           }],
     })),
     syncTtsModelsFromRouterConfig: vi.fn(async (input: Parameters<ProviderCatalogService['syncTtsModelsFromRouterConfig']>[0]) => {
-      const { models } = input
+      const models = Object.fromEntries(
+        Object.entries(input.config.tts.models).map(([routerModelId, model]) => [
+          routerModelId,
+          { provider: model.provider },
+        ]),
+      )
       syncedModels = Object.entries(models).sort(([a], [b]) => a.localeCompare(b)).map(([routerModelId, model], index) => ({
         id: `tts-model-${index}`,
         routerModelId,
@@ -618,7 +653,7 @@ describe('v1CompletionsRoutes', () => {
           body: expect.stringContaining('"model":"openai/gpt-5-mini"'),
         }),
       )
-      expect(providerCatalogService.syncAliasesFromRouterConfig).not.toHaveBeenCalled()
+      expect(providerCatalogService.syncLlmAliasesFromRouterConfig).not.toHaveBeenCalled()
     })
 
     it('resolves an enabled non-auto model alias through the provider catalog', async () => {

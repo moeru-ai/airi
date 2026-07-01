@@ -43,7 +43,8 @@ function createConfigKV(): ConfigKVService {
 
 function createService(): ProviderCatalogService {
   return {
-    syncAliasesFromRouterConfig: vi.fn(async () => []),
+    syncLlmAliasesFromRouterConfig: vi.fn(async () => []),
+    syncAsrAliasesFromRouterConfig: vi.fn(async () => []),
     listAliases: vi.fn(async () => []),
     resolveEnabledAlias: vi.fn(),
     updateAlias: vi.fn(async (_id, input) => ({ id: 'alias-1', ...input })),
@@ -99,9 +100,16 @@ describe('admin capability alias routes', () => {
     })
 
     expect(res.status).toBe(200)
-    expect(service.syncAliasesFromRouterConfig).toHaveBeenCalledWith({
-      surface: 'llm',
-      modelIds: ['chat-default', 'chat-fallback'],
+    expect(service.syncLlmAliasesFromRouterConfig).toHaveBeenCalledWith({
+      config: expect.objectContaining({
+        llm: expect.objectContaining({
+          models: expect.objectContaining({
+            'chat-default': expect.any(Object),
+            'chat-fallback': expect.any(Object),
+          }),
+        }),
+      }),
+      defaultModel: 'chat-default',
     })
   })
 
@@ -114,9 +122,14 @@ describe('admin capability alias routes', () => {
     })
 
     expect(res.status).toBe(200)
-    expect(service.syncAliasesFromRouterConfig).toHaveBeenCalledWith({
-      surface: 'asr',
-      modelIds: ['aliyun/asr-primary'],
+    expect(service.syncAsrAliasesFromRouterConfig).toHaveBeenCalledWith({
+      config: expect.objectContaining({
+        asr: expect.objectContaining({
+          models: expect.objectContaining({
+            'aliyun/asr-primary': expect.any(Object),
+          }),
+        }),
+      }),
     })
   })
 

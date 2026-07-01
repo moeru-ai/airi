@@ -54,7 +54,6 @@ function createLlmRouter(): LlmRouterService {
 
 function createService(): ProviderCatalogService {
   return {
-    syncAliasesFromRouterConfig: vi.fn(async () => []),
     listAliases: vi.fn(async () => []),
     resolveEnabledAlias: vi.fn(),
     updateAlias: vi.fn(async (_id, input) => ({ id: 'alias-1', ...input })),
@@ -157,7 +156,13 @@ describe('admin provider catalog routes', () => {
 
     expect(res.status).toBe(200)
     expect(service.syncTtsModelsFromRouterConfig).toHaveBeenCalledWith({
-      models: { 'microsoft/v1': { provider: 'azure' } },
+      config: expect.objectContaining({
+        tts: expect.objectContaining({
+          models: expect.objectContaining({
+            'microsoft/v1': expect.objectContaining({ provider: 'azure' }),
+          }),
+        }),
+      }),
     })
     expect(llmRouter.listTtsVoices).toHaveBeenCalledWith('microsoft/v1')
     expect(service.syncTtsVoices).toHaveBeenCalledWith({
