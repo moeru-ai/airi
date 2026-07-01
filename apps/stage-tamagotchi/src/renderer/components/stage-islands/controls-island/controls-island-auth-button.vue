@@ -19,7 +19,7 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const authStore = useAuthStore()
-const { isAuthenticated, user, needsLogin, credits, steamStatus } = storeToRefs(authStore)
+const { isAuthenticated, user, needsLogin, credits } = storeToRefs(authStore)
 const context = useElectronEventaContext()
 
 const startSigningIn = useElectronEventaInvoke(electronAuthStartLogin)
@@ -166,7 +166,6 @@ watch(isAuthenticated, (val) => {
         'text-left',
         props.buttonStyle,
       ]"
-      :disabled="steamStatus === 'checking'"
       @click="handleClick"
     >
       <div
