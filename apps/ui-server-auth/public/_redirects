@@ -1,0 +1,5 @@
+/ /ui/profile 302
+/auth /ui/ 302
+/auth/* /ui/:splat 302
+/ui /index.html 200
+/ui/* /index.html 200

@@ -109,7 +109,7 @@ model-select:
   panel-callout:
     support-status-header: Мы поддерживаем 2D и 3D модели
     support-status: >
-      Нажмите {select-button}, чтобы выбрать или импортировать модели. В настоящее время поддерживаются {zip} (для моделей Live2D) и {vrm} (для моделей VRM).
+      Нажмите {select-button}, чтобы выбрать или импортировать модели. В настоящее время поддерживаются {zip} (для моделей Live2D и Spine) и {vrm} (для моделей VRM).
     model-type-example: >
       Neuro-sama использует 2D модель, основанную на фреймворк, разработанной компанией Live2D Inc, В то время как Grok Ani (в компании Grok) использует 3D-модели, основанные на открытых форматах VRM / MMD.
   select-model:
@@ -158,7 +158,7 @@ live2d:
       description: Случайно смотреть вокруг когда нет активного курсора фокуса.
     blink-enable:
       title: Включить моргание
-      description: Пусть модель моргает
+      description: Пусть модель моргает.
     auto-blink:
       title: Авто
       description: Использовать стандартную анимацию моргания модели
@@ -190,9 +190,9 @@ live2d:
     title: Выражения
     override-toggle: Система выражений
     sdk-preset-preserved-notice: >
-      Диспетчер выражений SDK и моргание глаз сохраняются, если выключены
-    no-expression: Нет выражений для этой модели
-    llm-integration-wip: Интеграция инструментов LLM еще не завершена
+      Диспетчер выражений SDK и моргание глаз сохраняются, если выключены.
+    no-expression: Нет выражений для этой модели.
+    llm-integration-wip: Интеграция инструментов LLM еще не завершена.
     save-default: Сохранить выражение по умолчанию
     reset: Сбросить все выражения
     expose-to-llm-toggle: Распространять в LLM
@@ -248,6 +248,8 @@ pages:
         listFailed: Не удалось загрузить подключенные учетные записи.
         unlinkFailed: Не удалось отвязать эту учетную запись.
         linkFailed: Не удалось запустить поток ссылок.
+        accountAlreadyLinkedToDifferentUser: Этот OAuth-аккаунт уже привязан к другому аккаунту AIRI. Выберите другой аккаунт провайдера или сначала отвяжите его от другого аккаунта AIRI.
+        oauthCallbackFailed: Не удалось подключить этот OAuth-аккаунт. Попробуйте еще раз или выберите другой аккаунт провайдера.
         lastAccount: Это единственный способ входа в систему. Установите пароль перед отсоединением.
     security:
       tab: Безопасность
@@ -308,6 +310,9 @@ pages:
       provider: Чат / провайдеры
     consciousness:
       model: Сознание / Модель
+    vision:
+      provider: Зрение / Провайдер
+      model: Зрение / Модель
     created_by: создано
     creator_notes: Заметки автора
     delete: Удалить
@@ -441,7 +446,7 @@ pages:
       all_deleted: Все локальные данные удалены.
       desktop_reset: Данные рабочего стола сброшены.
   models:
-    description: Live2D, VRM и др.
+    description: Live2D, VRM, Spine и др.
     title: Модели
     sections:
       section:
@@ -679,6 +684,12 @@ pages:
             select-voice:
               loading: Загрузка моделей...
               required: Выберите голос
+          voice-pack:
+            description: Выберите голос для активного персонажа
+            empty: Нет доступных голосовых пакетов
+            error: Ошибка загрузки голосовых пакетов
+            loading: Загрузка голосовых пакетов...
+            title: Голосовой пакет
           provider-voice-selection:
             custom_model_placeholder: Введите название кастомной модели...
             custom_voice_placeholder: Введите ID кастомного голоса...
@@ -743,7 +754,7 @@ pages:
         empty: Здесь пока ничего нет. Добавьте одно ниже!
       add:
         title: Новый
-        description: Заполните новый сервер, затем нажмите кнопку «Сохранить и перезапустить» — он будет перемещен в «Конфигурация» выше.
+        description: 'Заполните новый сервер, затем нажмите кнопку «Сохранить и перезапустить» — он будет перемещен в «Конфигурация» выше.'
         pending-badge: Не сохранено
       status:
         unknown: Не загружен
@@ -952,6 +963,9 @@ pages:
       chat:
         title: Чат
         description: Провайдеры текстовых моделей, напр. OpenRouter, OpenAI, Ollama.
+      vision:
+        title: Зрение
+        description: Провайдеры моделей зрения для понимания изображений.
       speech:
         title: Речь
         description: Провайдеры речи (text-to-speech), напр. ElevenLabs, Azure Speech.
@@ -1215,6 +1229,9 @@ pages:
       fireworks:
         description: Fireworks.ai
         title: Fireworks.ai
+      google-gemini-audio-speech:
+        description: aistudio.google.com
+        title: Google Gemini
       microsoft-speech:
         description: speech.microsoft.com
         fields:
@@ -1637,8 +1654,10 @@ spine:
   animation:
     title: Анимация
     idle-animation: Анимация бездействия
-    mix-duration: Mix Duration (seconds)
+    mix-duration: Длительность смешивания (в секундах)
     speed: Скорость анимации
+  appearance:
+    title: Внешний вид
   variant:
     title: Вариация
     current-variant: Активный вариант

@@ -1,6 +1,11 @@
 allow-visible-on-all-workspaces:
   title: Visibilidad Entre Espacios
   description: Permitir que la ventana sea visible en todos los espacios de trabajo, solo macOS.
+spotlight:
+  errors:
+    unknown: Error desconocido
+    prefix: 'Algo salió mal: {message}'
+    shortcutRegistrationFailed: 'Algo salió mal: no se pudo registrar el atajo de Spotlight.'
 pages:
   modules:
     mcp-server:
@@ -14,6 +19,18 @@ pages:
     window-shortcuts:
       description: Modificar los atajos de ventana.
       title: Atajos de Ventana
+      empty: Sin configurar
+      spotlight:
+        title: Atajo de Spotlight
+        description: Haz clic en el atajo y pulsa un nuevo atajo. Pulsa Esc para cancelar.
+      actions:
+        recording: Pulsa las teclas
+        reset: Restablecer
+      errors:
+        load: No se pudo cargar el atajo
+        conflict: El atajo ya está en uso.
+        failed: No se pudo actualizar el atajo
+        requiresModifier: 'Usa al menos una de estas teclas: Cmd, Ctrl, Alt o Super.'
       toggle-move:
         label: Alternar Mover
       toggle-resize:

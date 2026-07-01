@@ -1,0 +1,55 @@
+name: Cloudflare Pages (Admin UI)
+
+on:
+  push:
+    branches:
+      - 'main'
+
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy - ui-admin
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+
+    environment:
+      name: Admin Production
+      url: https://admin.airi.build/
+
+    steps:
+      - uses: actions/checkout@v6
+      # Turborepo
+      - name: Cache turbo build setup
+        uses: actions/cache@v5
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-admin-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-admin-
+            ${{ runner.os }}-turbo-
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+      - run: pnpm i -g wrangler@4
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build:packages
+      - name: Build ui-admin
+        run: pnpm -F @proj-airi/ui-admin run build
+        env:
+          VITE_SERVER_URL: 'https://api.airi.build'
+
+      - uses: cloudflare/wrangler-action@v3.14.1
+        with:
+          apiToken: ${{ secrets.MOERU_CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.MOERU_CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy ./apps/ui-admin/dist --project-name=airi-server-admin --branch=main
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}

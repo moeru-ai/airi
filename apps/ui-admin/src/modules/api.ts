@@ -47,10 +47,108 @@ export interface AdminUsersPage {
   total: number
 }
 
+export interface AdminRouterOpenRouterSlice {
+  kind: 'openrouter'
+  modelName: string
+  overrideModel: string
+  plaintextKey?: string
+  baseURL?: string
+  keyEntryId?: string
+  existingKeyEntryId?: string
+  headerTemplate?: string
+}
+
+export interface AdminRouterBedrockSlice {
+  kind: 'bedrock'
+  modelName: string
+  overrideModel: string
+  plaintextKey?: string
+  baseURL?: string
+  keyEntryId?: string
+  existingKeyEntryId?: string
+  headerTemplate?: string
+}
+
+export interface AdminRouterOpenAICompatibleSlice {
+  kind: 'openai-compatible'
+  modelName: string
+  overrideModel: string
+  plaintextKey?: string
+  baseURL?: string
+  keyEntryId?: string
+  existingKeyEntryId?: string
+  headerTemplate?: string
+}
+
+export interface AdminRouterAzureSlice {
+  kind: 'azure'
+  modelName: string
+  region: string
+  defaultVoice?: string
+  plaintextKey?: string
+  keyEntryId?: string
+  existingKeyEntryId?: string
+}
+
+export interface AdminRouterDashscopeSlice {
+  kind: 'dashscope-cosyvoice'
+  modelName: string
+  region: 'intl' | 'cn'
+  upstreamModel: string
+  plaintextKey?: string
+  keyEntryId?: string
+  existingKeyEntryId?: string
+}
+
+export interface AdminRouterStepfunSlice {
+  kind: 'stepfun'
+  modelName: string
+  upstreamModel?: 'stepaudio-2.5-tts' | 'step-tts-2' | 'step-tts-mini'
+  defaultVoice?: string
+  instruction?: string
+  plaintextKey?: string
+  keyEntryId?: string
+  existingKeyEntryId?: string
+}
+
+export interface AdminRouterUnspeechSlice {
+  kind: 'unspeech'
+  restBaseURL: string
+  streaming?: {
+    upstreamURL: string
+    plaintextKey?: string
+    keyEntryId?: string
+    existingKeyEntryId?: string
+    models?: Array<{ id: string, name?: string, description?: string }>
+    defaultModel?: string
+  }
+}
+
+export interface AdminRouterAliyunNlsAsrSlice {
+  kind: 'aliyun-nls-asr'
+  modelName: string
+  accessKeyId: string
+  appKey: string
+  region?: 'cn-shanghai' | 'cn-shanghai-internal' | 'cn-beijing' | 'cn-beijing-internal' | 'cn-shenzhen' | 'cn-shenzhen-internal'
+  plaintextKey?: string
+  keyEntryId?: string
+  existingKeyEntryId?: string
+}
+
+export type AdminRouterConfigSlice
+  = | AdminRouterOpenRouterSlice
+    | AdminRouterBedrockSlice
+    | AdminRouterOpenAICompatibleSlice
+    | AdminRouterAzureSlice
+    | AdminRouterDashscopeSlice
+    | AdminRouterStepfunSlice
+    | AdminRouterAliyunNlsAsrSlice
+    | AdminRouterUnspeechSlice
+
 export interface AdminRouterConfigRequest {
   mode?: 'merge' | 'reset'
   dryRun?: boolean
-  slices?: Array<Record<string, unknown>>
+  slices?: AdminRouterConfigSlice[]
   defaults?: {
     chatModel?: string
     ttsModel?: string
@@ -62,6 +160,83 @@ export interface AdminRouterConfigResult {
   applied: Array<Record<string, unknown>>
   invalidatedKeys: string[]
   preview: Record<string, unknown>
+}
+
+export interface AdminRouterConfigCurrent {
+  request: AdminRouterConfigRequest
+  preview: Record<string, unknown>
+  loadedAt: string
+  missingKeys: string[]
+}
+
+export interface VoicePackParams {
+  pitch?: number
+  volume?: number
+  rate?: number
+}
+
+export interface VoicePack {
+  id: string
+  name: string
+  description: string | null
+  provider: string
+  model: string
+  voiceId: string
+  upstreamVoiceId: string
+  ttsModelId: string
+  params: VoicePackParams
+  costMultiplier: number
+  enabled: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface VoicePackPayload {
+  name: string
+  description?: string
+  provider: string
+  model: string
+  voiceId: string
+  upstreamVoiceId: string
+  ttsModelId: string
+  params?: VoicePackParams
+  costMultiplier: number
+  enabled?: boolean
+}
+
+export interface SpeechModel {
+  id: string
+  name: string
+}
+
+export interface SpeechModelsResult {
+  models: SpeechModel[]
+  default: string | null
+}
+
+export interface SpeechVoice {
+  id: string
+  name: string
+  description?: string
+  labels?: Record<string, unknown>
+  tags?: string[]
+  languages?: { code: string, title: string }[]
+  preview_audio_url?: string
+}
+
+export interface SpeechVoicesResult {
+  voices: SpeechVoice[]
+  recommended: Record<string, string>
+}
+
+export interface SpeechTestPayload {
+  model: string
+  input: string
+  voice: string
+  speed?: number
+  extra_body?: {
+    voice_pack?: Record<string, unknown>
+  }
 }
 
 export class AdminApiError extends Error {
@@ -79,14 +254,40 @@ export function apiServerUrl(): string {
   return getServerAdminBootstrapContext()?.apiServerUrl ?? defaultApiServerUrl()
 }
 
-export function signInUrl(): string {
-  const url = new URL('/auth/sign-in', apiServerUrl())
-  url.searchParams.set('redirect', `${window.location.pathname}${window.location.search}`)
+/**
+ * Builds an API-owned sign-in URL that returns to the exact admin page.
+ *
+ * Use when:
+ * - The standalone admin app needs to bounce through the API auth route.
+ * - The admin app may be hosted on a different origin than the auth UI.
+ *
+ * Expects:
+ * - `currentUrl` is the browser's absolute admin URL.
+ *
+ * Returns:
+ * - An API `/auth/sign-in` URL carrying an absolute trusted return target.
+ */
+export function buildAdminSignInUrl(apiServerUrl: string, currentUrl: string): string {
+  const url = new URL('/auth/sign-in', apiServerUrl)
+  url.searchParams.set('redirect', currentUrl)
   return url.toString()
+}
+
+export function signInUrl(): string {
+  return buildAdminSignInUrl(apiServerUrl(), window.location.href)
 }
 
 async function adminFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const endpoint = new URL(`/api/admin${path}`, apiServerUrl())
+  return fetchJson<T>(endpoint, init)
+}
+
+async function publicFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const endpoint = new URL(`/api/v1${path}`, apiServerUrl())
+  return fetchJson<T>(endpoint, init)
+}
+
+async function fetchJson<T>(endpoint: URL, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers)
 
   if (init.body && !headers.has('Content-Type'))
@@ -103,7 +304,12 @@ async function adminFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
     payload = await response.json()
   }
   catch {
-    payload = null
+    const contentType = response.headers.get('Content-Type')
+    throw new AdminApiError(
+      `Expected JSON from ${endpoint.pathname}, got ${contentType ?? 'an empty response'}. Check api_server_url.`,
+      response.status,
+      null,
+    )
   }
 
   if (!response.ok) {
@@ -112,6 +318,34 @@ async function adminFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
 
   return payload as T
+}
+
+async function publicFetchBlob(path: string, init: RequestInit = {}): Promise<Blob> {
+  const endpoint = new URL(`/api/v1${path}`, apiServerUrl())
+  const headers = new Headers(init.headers)
+
+  if (init.body && !headers.has('Content-Type'))
+    headers.set('Content-Type', 'application/json')
+
+  const response = await fetch(endpoint.toString(), {
+    ...init,
+    headers,
+    credentials: 'include',
+  })
+
+  if (!response.ok) {
+    let payload: unknown = null
+    try {
+      payload = await response.json()
+    }
+    catch {
+      payload = await response.text().catch(() => null)
+    }
+    const message = extractErrorMessage(payload) ?? `Audio API request failed (${response.status})`
+    throw new AdminApiError(message, response.status, payload)
+  }
+
+  return await response.blob()
 }
 
 function extractErrorMessage(payload: unknown): string | null {
@@ -170,5 +404,42 @@ export const adminApi = {
     adminFetch<AdminRouterConfigResult>('/config/router', {
       method: 'POST',
       body: JSON.stringify({ ...body, dryRun }),
+    }),
+  routerConfig: () => adminFetch<AdminRouterConfigCurrent>('/config/router'),
+  speechModels: async (): Promise<SpeechModelsResult> => {
+    const data = await publicFetch<{ default?: unknown, models?: SpeechModel[] }>('/audio/models')
+    return {
+      models: Array.isArray(data.models) ? data.models : [],
+      default: typeof data.default === 'string' ? data.default : null,
+    }
+  },
+  speechVoices: async (model: string): Promise<SpeechVoicesResult> => {
+    const query = new URLSearchParams()
+    query.set('model', model)
+    const data = await publicFetch<Partial<SpeechVoicesResult>>(`/audio/voices?${query.toString()}`)
+    return {
+      voices: Array.isArray(data.voices) ? data.voices : [],
+      recommended: data.recommended && typeof data.recommended === 'object' ? data.recommended : {},
+    }
+  },
+  testSpeech: (body: SpeechTestPayload) =>
+    publicFetchBlob('/audio/speech', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  voicePacks: () => adminFetch<VoicePack[]>('/voice-packs'),
+  createVoicePack: (body: VoicePackPayload) =>
+    adminFetch<VoicePack>('/voice-packs', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  updateVoicePack: (id: string, body: Partial<VoicePackPayload>) =>
+    adminFetch<VoicePack>(`/voice-packs/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+  disableVoicePack: (id: string) =>
+    adminFetch<VoicePack>(`/voice-packs/${encodeURIComponent(id)}/disable`, {
+      method: 'POST',
     }),
 }

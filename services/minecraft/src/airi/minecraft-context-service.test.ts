@@ -30,18 +30,22 @@ function makeService(masterUsername?: string) {
   return { service, captured }
 }
 
-describe('minecraftContextService master propagation', () => {
-  it('carries the master username to the desktop via status hints and text', () => {
+describe('minecraftContextService master identity', () => {
+  it('surfaces the configured master username in the status text only', () => {
     const { service, captured } = makeService('dssadg')
     service.bindBot(fakeBot())
     const update = captured[0]
     expect(update.lane).toBe('minecraft:status')
-    expect(update.hints).toContain('master:dssadg')
     expect(update.text).toContain('Master (your owner) in-game username: dssadg')
+    // The owner identity rides only in the human-readable status text (for the bot's own brain). It
+    // must NOT leak as a machine-readable `master:` hint — that was a desktop-store coupling point,
+    // removed in the services/minecraft neutral restore. Desktop "主人" binding is reintroduced via
+    // the Minecraft adapter, not baked into the bot service.
+    expect(update.hints.some((hint: string) => hint.startsWith('master:'))).toBe(false)
     service.destroy()
   })
 
-  it('omits the master hint when no master username is configured', () => {
+  it('omits the master line when no master username is configured', () => {
     const { service, captured } = makeService(undefined)
     service.bindBot(fakeBot())
     const update = captured[0]

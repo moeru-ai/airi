@@ -51,6 +51,7 @@ function createTestDeps() {
     adminUsersService: {} as any,
     ttsMeter: {} as any,
     requestLogService: {} as any,
+    voicePackService: {} as any,
     productEventService: {
       track: vi.fn(async () => undefined),
       countDistinctUsersByFeature: vi.fn(async () => []),

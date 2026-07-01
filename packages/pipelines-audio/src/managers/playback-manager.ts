@@ -8,15 +8,9 @@ import type {
 
 import { errorMessageFrom } from '@moeru/std'
 
-export type OverflowPolicy =
-  | 'queue'
-  | 'reject'
-  | 'steal-oldest'
-  | 'steal-lowest-priority'
+export type OverflowPolicy = 'queue' | 'reject' | 'steal-oldest' | 'steal-lowest-priority'
 
-export type OwnerOverflowPolicy =
-  | 'reject'
-  | 'steal-oldest'
+export type OwnerOverflowPolicy = 'reject' | 'steal-oldest'
 
 type ActivePlayback<TAudio> = {
   item: PlaybackItem<TAudio>

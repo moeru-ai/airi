@@ -292,7 +292,7 @@ export function destroyPtySession(sessionId: string): boolean {
  * Destroy all PTY sessions. Called on server shutdown.
  */
 export function destroyAllPtySessions(): void {
-  for (const sessionId of [...sessions.keys()]) {
+  for (const sessionId of sessions.keys()) {
     destroyPtySession(sessionId)
   }
 }

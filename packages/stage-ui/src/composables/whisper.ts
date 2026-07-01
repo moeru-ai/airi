@@ -2,6 +2,7 @@ import type { WhisperEvent } from '../libs/inference/adapters/whisper'
 import type { ProgressPayload } from '../libs/inference/protocol'
 
 import { merge } from '@moeru/std'
+import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import { onUnmounted, ref } from 'vue'
 
 import { createWhisperAdapter } from '../libs/inference/adapters/whisper'
@@ -104,7 +105,7 @@ export function useWhisper(url: string, options?: Partial<UseWhisperOptions>) {
       }).catch((err) => {
         console.error('Whisper transcription error:', err)
         transcribing.value = false
-        opts.onError?.(err instanceof Error ? err.message : String(err))
+        opts.onError?.(errorMessageFromValue(err))
       })
     },
     status,

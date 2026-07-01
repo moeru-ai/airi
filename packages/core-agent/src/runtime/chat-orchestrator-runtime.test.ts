@@ -35,6 +35,9 @@ function createHarness() {
   const assistantTurns: unknown[] = []
   const stateChanges: unknown[] = []
   const telemetry = {
+    chatActivationStarted: [] as unknown[],
+    chatActivationSucceeded: [] as unknown[],
+    chatActivationFailed: [] as unknown[],
     messageSendStarted: [] as unknown[],
     llmRequestStarted: [] as unknown[],
     llmFirstToken: [] as unknown[],
@@ -89,6 +92,9 @@ function createHarness() {
     onUserTurnReady: event => userTurns.push(event),
     onAssistantTurnReady: event => assistantTurns.push(event),
     onStateChange: state => stateChanges.push(state),
+    onChatActivationStarted: event => telemetry.chatActivationStarted.push(event),
+    onChatActivationSucceeded: event => telemetry.chatActivationSucceeded.push(event),
+    onChatActivationFailed: event => telemetry.chatActivationFailed.push(event),
     onMessageSendStarted: event => telemetry.messageSendStarted.push(event),
     onLlmRequestStarted: event => telemetry.llmRequestStarted.push(event),
     onLlmFirstToken: event => telemetry.llmFirstToken.push(event),
@@ -322,6 +328,48 @@ describe('createChatOrchestratorRuntime', () => {
       durationMs: 360,
       hasVoice: true,
       model: 'gpt-test',
+    }])
+    expect(harness.telemetry.chatActivationStarted).toEqual([{
+      model: 'gpt-test',
+      provider: 'mock-provider',
+      sessionId: 'session-1',
+      source: 'voice',
+    }])
+    expect(harness.telemetry.chatActivationSucceeded).toEqual([{
+      durationMs: 360,
+      model: 'gpt-test',
+      provider: 'mock-provider',
+      source: 'voice',
+    }])
+    expect(harness.telemetry.chatActivationFailed).toEqual([])
+  })
+
+  /**
+   * @example
+   * await expect(runtime.ingest('hello', { model, chatProvider })).rejects.toThrow('provider rejected')
+   */
+  it('emits chat activation failure telemetry without raw provider messages', async () => {
+    const harness = createHarness()
+    harness.stream.mockRejectedValueOnce(new Error('provider rejected with sensitive details'))
+
+    await expect(harness.runtime.ingest('hello', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })).rejects.toThrow('provider rejected')
+
+    expect(harness.telemetry.chatActivationStarted).toEqual([{
+      model: 'gpt-test',
+      provider: 'mock-provider',
+      sessionId: 'session-1',
+      source: 'text',
+    }])
+    expect(harness.telemetry.chatActivationSucceeded).toEqual([])
+    expect(harness.telemetry.chatActivationFailed).toEqual([{
+      errorCode: 'llm_response_failed',
+      failureStage: 'llm_response',
+      model: 'gpt-test',
+      provider: 'mock-provider',
+      source: 'text',
     }])
   })
 

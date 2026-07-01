@@ -423,12 +423,10 @@ export function createAuth(
         },
       }),
       oauthProvider({
-        // Keep loginPage inside the ui-server-auth vue-router base (`/auth/`)
-        // so the OIDC redirect lands on a URL the SPA router actually owns.
-        // Without the prefix the address bar stays on bare `/sign-in`, which
-        // is outside vue-router's history base — SPA-internal `router.push`
-        // later jumps to `/auth/...`, and a refresh of the bare URL would
-        // fall through to the global 404.
+        // Keep loginPage on the server-owned historical `/auth/*` entrypoint.
+        // The server redirects it to standalone ui-server-auth (`/ui/*` in
+        // production), while Better Auth still gets a stable relative path for
+        // oauth-provider's OIDC redirect query construction.
         loginPage: '/auth/sign-in',
         consentPage: '/oauth/authorize',
         scopes: [...OIDC_SCOPES],
@@ -577,12 +575,24 @@ export function createAuth(
     // https://github.com/better-auth/better-auth/issues/5892
     account: {
       skipStateCookieCheck: true,
+      accountLinking: {
+        // Product requirement: signed-in users may attach OAuth identities
+        // whose provider email differs from their AIRI account email.
+        allowDifferentEmails: true,
+      },
     },
 
     socialProviders: {
       google: {
         clientId: env.AUTH_GOOGLE_CLIENT_ID,
         clientSecret: env.AUTH_GOOGLE_CLIENT_SECRET,
+        // Force the provider's authorization page to let users choose an
+        // identity before linking. Without this, an existing provider session
+        // can silently reuse the previously authorized account and immediately
+        // hit account_already_linked_to_different_user.
+        // Source: @better-auth/core/src/oauth2/create-authorization-url.ts
+        // forwards provider `prompt` to the OAuth authorization URL.
+        prompt: 'select_account',
         // NOTICE:
         // Why: better-auth's google provider already maps email_verified
         // through, but a stale Google profile that omits the claim falls
@@ -599,6 +609,13 @@ export function createAuth(
       github: {
         clientId: env.AUTH_GITHUB_CLIENT_ID,
         clientSecret: env.AUTH_GITHUB_CLIENT_SECRET,
+        // Force GitHub's authorization page to let users choose an identity
+        // before linking. Without this, an existing github.com session can
+        // silently reuse the previously authorized account and immediately hit
+        // account_already_linked_to_different_user.
+        // Source: @better-auth/core/src/oauth2/create-authorization-url.ts
+        // forwards provider `prompt` to the OAuth authorization URL.
+        prompt: 'select_account',
         // NOTICE:
         // Why: better-auth derives emailVerified from the GitHub /user/emails
         // response, but `emails.find(e => e.email === profile.email)?.verified`

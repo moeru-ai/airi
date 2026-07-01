@@ -39,13 +39,13 @@ export interface StaticAssetService extends ServerManager {
  * - A higher-level plugin asset service needs an HTTP transport adapter
  *
  * Expects:
- * - `getManifestEntryByName` returns up-to-date plugin root/version map
+ * - `getManifestEntryByExtensionId` returns up-to-date extension root/version map
  *
  * Returns:
  * - Lifecycle service with session create/revoke APIs and local base URL getter
  */
 export function createStaticAssetService(options: {
-  getManifestEntryByName: () => Map<string, StaticAssetManifestEntry>
+  getManifestEntryByExtensionId: () => Map<string, StaticAssetManifestEntry>
   host?: string
   sessionStore?: StaticAssetSessionStore
   getType?: (ext: string) => string | undefined
@@ -60,11 +60,11 @@ export function createStaticAssetService(options: {
   const getManifestEntryForRequest = (extensionId: string) => {
     const cache = manifestEntryRequestCache.getStore()
     if (!cache) {
-      return options.getManifestEntryByName().get(extensionId)
+      return options.getManifestEntryByExtensionId().get(extensionId)
     }
 
     if (!cache.has(extensionId)) {
-      cache.set(extensionId, options.getManifestEntryByName().get(extensionId))
+      cache.set(extensionId, options.getManifestEntryByExtensionId().get(extensionId))
     }
 
     return cache.get(extensionId)

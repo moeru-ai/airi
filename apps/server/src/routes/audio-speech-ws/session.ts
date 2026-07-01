@@ -11,6 +11,8 @@ import WebSocket from 'ws'
 import { useLogger } from '@guiiai/logg'
 import { context as otelContext, SpanStatusCode, trace } from '@opentelemetry/api'
 
+import { fluxBalanceBucket } from '../../services/domain/flux-balance'
+import { ApiError } from '../../utils/error'
 import { nanoid } from '../../utils/id'
 import {
   AIRI_ATTR_BILLING_FLUX_CONSUMED,
@@ -49,6 +51,16 @@ export interface AudioSpeechSessionState {
   handleClientClose: () => void
 }
 
+export type StreamingTtsTrigger = 'auto' | 'manual'
+export type StreamingTtsSource = 'audio.speech.ws' | 'chat_auto_tts' | 'manual_preview' | 'settings_test'
+export type StreamingTtsVoiceType = 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
+
+export interface AudioSpeechSessionAnalytics {
+  trigger?: StreamingTtsTrigger
+  source?: StreamingTtsSource
+  voiceType?: StreamingTtsVoiceType
+}
+
 /**
  * Creates the per-connection streaming speech state machine.
  *
@@ -63,9 +75,14 @@ export interface AudioSpeechSessionState {
  * Returns:
  * - A connection-scoped state object with no global peer registry.
  */
-export function createSessionState(userId: string, opts: AudioSpeechWsHandlersOptions): AudioSpeechSessionState {
+export function createSessionState(
+  userId: string,
+  opts: AudioSpeechWsHandlersOptions,
+  analyticsInput: AudioSpeechSessionAnalytics = {},
+): AudioSpeechSessionState {
   const requestId = nanoid()
   const startedAt = Date.now()
+  const analytics = normalizeAnalytics(analyticsInput)
   const span = tracer.startSpan('llm.gateway.tts.stream', {
     attributes: {
       [AIRI_ATTR_GEN_AI_OPERATION_KIND]: 'text_to_speech_stream',
@@ -78,7 +95,9 @@ export function createSessionState(userId: string, opts: AudioSpeechWsHandlersOp
   let closed = false
   let billed = false
   let totalInputChars = 0
+  let preflightFluxBalance: number | undefined
   let modelLabel = STREAM_MODEL_LABEL_FALLBACK
+  let voiceLabel: string | undefined
   /**
    * Frames the client sent before the upstream finished dialing. Buffered to
    * avoid silently dropping the `start` frame; flushed in arrival order once
@@ -96,8 +115,12 @@ export function createSessionState(userId: string, opts: AudioSpeechWsHandlersOp
       feature: 'tts',
       action: 'speech_requested',
       status: 'started',
-      source: 'audio.speech.ws',
+      source: analytics.source,
       model: modelLabel,
+      metadata: {
+        trigger: analytics.trigger,
+        ...streamingVoiceMetadata(voiceLabel, analytics.voiceType),
+      },
     })
 
     let unspeech: Awaited<ReturnType<AudioSpeechWsHandlersOptions['configKV']['getOptional']>>
@@ -120,10 +143,7 @@ export function createSessionState(userId: string, opts: AudioSpeechWsHandlersOp
     // afford the worst-case session.
     try {
       const flux = await opts.fluxService.getFlux(userId)
-      if (flux.flux <= 0) {
-        closeWithError(1008, 'insufficient_flux')
-        return
-      }
+      preflightFluxBalance = flux.flux
       await opts.ttsMeter.assertCanAfford(userId, STREAMING_PREFLIGHT_CHARS_ESTIMATE, flux.flux)
     }
     catch (err) {
@@ -131,7 +151,10 @@ export function createSessionState(userId: string, opts: AudioSpeechWsHandlersOp
       // assertCanAfford throws PaymentRequiredError (402) — translate to ws
       // policy-violation close. The client can read the close code/reason to
       // surface a 'top up' prompt.
-      closeWithError(1008, 'insufficient_flux')
+      if (isPaymentRequiredError(err))
+        closeWithBlockedPreflight(1008, 'insufficient_flux')
+      else
+        closeWithError(1011, 'flux_preflight_failed')
       return
     }
 
@@ -205,11 +228,13 @@ export function createSessionState(userId: string, opts: AudioSpeechWsHandlersOp
         feature: 'tts',
         action: 'speech_failed',
         status: 'failed',
-        source: 'audio.speech.ws',
+        source: analytics.source,
         model: modelLabel,
         reason: 'upstream_error',
         metadata: {
           duration_ms: Date.now() - startedAt,
+          trigger: analytics.trigger,
+          ...streamingVoiceMetadata(voiceLabel, analytics.voiceType),
         },
       })
       try {
@@ -344,6 +369,9 @@ export function createSessionState(userId: string, opts: AudioSpeechWsHandlersOp
         const model = (parsed as Record<string, unknown>).model
         if (typeof model === 'string' && model.length > 0)
           modelLabel = model
+        const voice = (parsed as Record<string, unknown>).voice
+        if (typeof voice === 'string' && voice.length > 0)
+          voiceLabel = voice
       }
     }
     catch {
@@ -409,12 +437,14 @@ export function createSessionState(userId: string, opts: AudioSpeechWsHandlersOp
       feature: 'tts',
       action: 'speech_succeeded',
       status: 'succeeded',
-      source: 'audio.speech.ws',
+      source: analytics.source,
       model: modelLabel,
       metadata: {
         input_chars: units,
         duration_ms: durationMs,
         flux_consumed: fluxConsumed,
+        trigger: analytics.trigger,
+        ...streamingVoiceMetadata(voiceLabel, analytics.voiceType),
       },
     })
 
@@ -445,12 +475,50 @@ export function createSessionState(userId: string, opts: AudioSpeechWsHandlersOp
       feature: 'tts',
       action: 'speech_failed',
       status: 'failed',
-      source: 'audio.speech.ws',
+      source: analytics.source,
       model: modelLabel,
       reason,
       metadata: {
         close_code: code,
         duration_ms: Date.now() - startedAt,
+        trigger: analytics.trigger,
+        ...streamingVoiceMetadata(voiceLabel, analytics.voiceType),
+      },
+    })
+    if (clientWs) {
+      try {
+        clientWs.send(JSON.stringify({ event: 'error', code: reason, message: reason }))
+      }
+      catch {}
+      try {
+        clientWs.close(code, reason)
+      }
+      catch {}
+    }
+    closed = true
+    span.end()
+  }
+
+  function closeWithBlockedPreflight(code: number, reason: string) {
+    if (closed)
+      return
+    void opts.productEventService.track({
+      userId,
+      feature: 'tts',
+      action: 'speech_blocked',
+      status: 'blocked',
+      source: analytics.source,
+      model: modelLabel,
+      reason: 'insufficient_balance',
+      metadata: {
+        block_reason: 'insufficient_balance',
+        balance_state: 'insufficient',
+        flux_balance_bucket: fluxBalanceBucket(preflightFluxBalance),
+        billing_units: STREAMING_PREFLIGHT_CHARS_ESTIMATE,
+        close_code: code,
+        duration_ms: Date.now() - startedAt,
+        trigger: analytics.trigger,
+        ...streamingVoiceMetadata(voiceLabel, analytics.voiceType),
       },
     })
     if (clientWs) {
@@ -473,4 +541,62 @@ export function createSessionState(userId: string, opts: AudioSpeechWsHandlersOp
     handleClientMessage,
     handleClientClose,
   }
+}
+
+function normalizeAnalytics(input: AudioSpeechSessionAnalytics): Required<AudioSpeechSessionAnalytics> {
+  return {
+    trigger: normalizeTrigger(input.trigger),
+    source: normalizeSource(input.source),
+    voiceType: normalizeVoiceType(input.voiceType),
+  }
+}
+
+function normalizeTrigger(trigger: AudioSpeechSessionAnalytics['trigger']): StreamingTtsTrigger {
+  return trigger === 'auto' ? 'auto' : 'manual'
+}
+
+function normalizeSource(source: AudioSpeechSessionAnalytics['source']): StreamingTtsSource {
+  switch (source) {
+    case 'audio.speech.ws':
+    case 'chat_auto_tts':
+    case 'manual_preview':
+    case 'settings_test':
+      return source
+    default:
+      return 'audio.speech.ws'
+  }
+}
+
+/**
+ * Normalizes streaming TTS voice type into bounded analytics values.
+ */
+function normalizeVoiceType(voiceType: AudioSpeechSessionAnalytics['voiceType']): StreamingTtsVoiceType {
+  switch (voiceType) {
+    case 'official_default':
+    case 'official_selected':
+    case 'custom_configured':
+    case 'voice_pack':
+      return voiceType
+    default:
+      return 'unknown'
+  }
+}
+
+/**
+ * Builds reusable streaming TTS voice metadata after the start frame is known.
+ */
+function streamingVoiceMetadata(voiceId: string | undefined, voiceType: StreamingTtsVoiceType): Record<string, unknown> {
+  return {
+    ...(voiceId ? { voice_id: voiceId } : {}),
+    voice_type: voiceType,
+  }
+}
+
+function isPaymentRequiredError(err: unknown): boolean {
+  if (err instanceof ApiError)
+    return err.statusCode === 402
+  return typeof err === 'object'
+    && err != null
+    && 'statusCode' in err
+    && (err as { statusCode?: unknown }).statusCode === 402
 }

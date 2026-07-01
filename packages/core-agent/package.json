@@ -51,7 +51,7 @@
     "@xsai/shared-chat": "catalog:",
     "@xsai/stream-text": "catalog:",
     "@xsai/tool": "catalog:",
-    "nanoid": "catalog:nanoid-5-1-9",
+    "nanoid": "catalog:",
     "rehype-parse": "catalog:",
     "rehype-stringify": "catalog:",
     "unified": "catalog:",

@@ -48,14 +48,23 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const llmToolsetPromptsStore = useLlmToolsetPromptsStore()
   const consciousnessStore = useConsciousnessStore()
   const artistryAutonomousStore = useAutonomousArtistryStore()
-  const { activeProvider } = storeToRefs(consciousnessStore)
+  const { activeModel, activeProvider } = storeToRefs(consciousnessStore)
   const {
     trackFirstMessage,
+    trackChatFailed,
+    trackChatStarted,
     trackMessageSendStarted,
+    trackMessageSent,
     trackLlmRequestStarted,
     trackLlmFirstToken,
     trackAssistantResponseRendered,
+    trackAssistantResponseCompleted,
     trackMessageRound,
+    trackFeatureUsed,
+    trackChatActivationStarted,
+    trackChatActivationSucceeded,
+    trackChatActivationFailed,
+    trackSecondTurnStarted,
   } = useAnalytics()
 
   const chatSession = useChatSessionStore()
@@ -132,6 +141,17 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     ownedActiveTurnSpan = undefined
   }
 
+  /**
+   * Classifies configured chat providers into low-cardinality product analytics buckets.
+   */
+  function providerMode(providerId: string | undefined): 'official' | 'custom' | 'unknown' {
+    if (!providerId)
+      return 'unknown'
+    return providerId.startsWith('official-provider') ? 'official' : 'custom'
+  }
+
+  let lastSendSource: 'text' | 'voice' = 'text'
+
   const runtime = createChatOrchestratorRuntime({
     session: {
       ensureSession: sessionId => chatSession.ensureSession(sessionId),
@@ -165,10 +185,20 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     onStateChange: syncRuntimeState,
     onSendSettled: settleOwnedActiveTurnSpan,
     onTrackFirstMessage: trackFirstMessage,
-    onMessageSendStarted: ({ source, model }) => trackMessageSendStarted({
-      source,
-      model,
-    }),
+    onMessageSendStarted: ({ source, model }) => {
+      lastSendSource = source
+      trackMessageSendStarted({
+        source,
+        model,
+      })
+      trackChatStarted({
+        conversation_id: activeSessionId.value || 'unknown',
+        provider_type: providerMode(activeProvider.value),
+        provider_name: activeProvider.value || 'unknown',
+        model: model || 'unknown',
+        entry: 'chat',
+      })
+    },
     onLlmRequestStarted: ({ model, provider, hasVoice }) => trackLlmRequestStarted({
       model,
       provider,
@@ -178,18 +208,91 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       model,
       ttfb_ms: ttfbMs,
     }),
-    onAssistantResponseRendered: ({ model, latencyMs }) => trackAssistantResponseRendered({
-      model,
-      latency_ms: latencyMs,
-    }),
+    onAssistantResponseRendered: ({ model, latencyMs }) => {
+      trackAssistantResponseRendered({
+        model,
+        latency_ms: latencyMs,
+      })
+      trackAssistantResponseCompleted({
+        conversation_id: activeSessionId.value || 'unknown',
+        provider_type: providerMode(activeProvider.value),
+        provider_name: activeProvider.value || 'unknown',
+        model: model || 'unknown',
+        latency_ms: latencyMs,
+      })
+    },
     onMessageRound: ({ durationMs, hasVoice, model }) => trackMessageRound({
       duration_ms: durationMs,
       has_voice: hasVoice,
       model,
     }),
+    onChatActivationStarted: ({ model, provider, source }) => {
+      const mode = providerMode(provider)
+      const providerId = provider || 'unknown'
+      const modelId = model || 'unknown'
+
+      trackChatActivationStarted({
+        provider_mode: mode,
+        provider_id: providerId,
+        model_id: modelId,
+        source,
+      })
+    },
+    onChatActivationSucceeded: ({ model, provider, durationMs, source }) => trackChatActivationSucceeded({
+      provider_mode: providerMode(provider),
+      provider_id: provider || 'unknown',
+      model_id: model || 'unknown',
+      time_to_first_message_ms: durationMs,
+      source,
+    }),
+    onChatActivationFailed: ({ model, provider, errorCode, failureStage, source }) => {
+      trackChatActivationFailed({
+        provider_mode: providerMode(provider),
+        provider_id: provider || 'unknown',
+        model_id: model || 'unknown',
+        error_code: errorCode,
+        failure_stage: failureStage,
+        source,
+      })
+      trackChatFailed({
+        conversation_id: activeSessionId.value || 'unknown',
+        provider_type: providerMode(provider),
+        provider_name: provider || 'unknown',
+        model: model || 'unknown',
+        failure_stage: failureStage,
+        error_code: errorCode,
+      })
+    },
     onLifecycle: record => contextObservability.recordLifecycle(record),
     onPromptProjection: payload => contextObservability.capturePromptProjection(payload),
-    onUserMessageAppended: ({ sessionId, message, messageText }) => {
+    onUserMessageAppended: ({ sessionId, message, messageText, source, model, provider, turnIndex }) => {
+      trackMessageSent({
+        conversation_id: sessionId,
+        provider_type: providerMode(activeProvider.value),
+        provider_name: activeProvider.value || 'unknown',
+        model: activeModel.value || 'unknown',
+        message_id: message.id,
+        message_index: chatSession.getSessionMessages(sessionId).length,
+        message_length: messageText.length,
+        has_attachment: false,
+        mode: lastSendSource,
+      })
+      trackFeatureUsed({
+        feature_name: 'chat',
+        business_domain: 'conversation',
+        entry: 'chat',
+        success: true,
+      })
+      if (turnIndex === 2) {
+        trackSecondTurnStarted({
+          provider_mode: providerMode(provider),
+          provider_id: provider || 'unknown',
+          model_id: model || 'unknown',
+          source,
+          turn_index: turnIndex,
+        })
+      }
+
       if (isCloudSyncableMessage(message)) {
         void chatSession.pushMessageToCloud(sessionId, {
           id: message.id,

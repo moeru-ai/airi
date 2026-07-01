@@ -99,4 +99,41 @@ describe('productEventService', () => {
       distinctUsers: 2,
     }])
   })
+
+  it('writes blocked TTS events for server-side preflight decisions', async () => {
+    const events = { add: vi.fn() }
+    const service = createProductEventService(db, { events } as unknown as ProductMetrics)
+
+    await service.track({
+      userId: 'user-1',
+      feature: 'tts',
+      action: 'speech_blocked',
+      status: 'blocked',
+      source: 'chat_auto_tts',
+      reason: 'insufficient_balance',
+      metadata: {
+        trigger: 'auto',
+        balance_state: 'insufficient',
+        flux_balance_bucket: 'zero',
+      },
+    })
+
+    const rows = await db.select().from(schema.productEvents)
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({
+      feature: 'tts',
+      action: 'speech_blocked',
+      status: 'blocked',
+      source: 'chat_auto_tts',
+      reason: 'insufficient_balance',
+    })
+    expect(events.add).toHaveBeenCalledWith(1, {
+      feature: 'tts',
+      action: 'speech_blocked',
+      status: 'blocked',
+      source: 'chat_auto_tts',
+      reason: 'insufficient_balance',
+      flux_balance_bucket: 'zero',
+    })
+  })
 })

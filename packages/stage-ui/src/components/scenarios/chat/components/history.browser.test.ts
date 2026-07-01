@@ -2,10 +2,12 @@ import type { ChatHistoryItem } from '../../../../types/chat'
 
 import { describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
-import { defineComponent, shallowRef } from 'vue'
+import { computed, defineComponent, shallowRef } from 'vue'
 import { createI18n } from 'vue-i18n'
 
 import ChatHistory from './history.vue'
+
+import { getChatHistoryItemKey } from '../utils'
 
 vi.mock('../composables/use-chat-history-scroll', () => ({
   useChatHistoryScroll: () => undefined,
@@ -57,15 +59,24 @@ function createHarness(messages: ChatHistoryItem[]) {
     },
     setup() {
       const lastRetryIndex = shallowRef('none')
+      const lastToolCallRerunPayload = shallowRef('')
 
       function handleRetryMessage(payload: { index: number }) {
         lastRetryIndex.value = String(payload.index)
       }
 
+      function handleToolCallRerun(payload: unknown) {
+        lastToolCallRerunPayload.value = JSON.stringify(payload)
+      }
+
+      const toolCallRerunPayload = computed(() => lastToolCallRerunPayload.value)
+
       return {
         handleRetryMessage,
+        handleToolCallRerun,
         lastRetryIndex,
         messages,
+        toolCallRerunPayload,
       }
     },
     template: `
@@ -73,8 +84,10 @@ function createHarness(messages: ChatHistoryItem[]) {
         <ChatHistory
           :messages="messages"
           @retry-message="handleRetryMessage"
+          @tool-call-rerun="handleToolCallRerun"
         />
         <output aria-label="retry-index">{{ lastRetryIndex }}</output>
+        <output aria-label="tool-call-rerun">{{ toolCallRerunPayload }}</output>
       </div>
     `,
   })
@@ -132,5 +145,47 @@ describe('chatHistory retry actions', () => {
     })
 
     expect(document.body.textContent).not.toContain('Retry')
+  })
+
+  it('emits tool-call-rerun with message context when a tool call rerun button is clicked', async () => {
+    const args = JSON.stringify({ location: 'Tokyo' })
+    const assistantMessage: ChatHistoryItem = {
+      role: 'assistant',
+      content: '',
+      slices: [
+        {
+          type: 'tool-call',
+          toolCall: {
+            toolCallId: 'call-weather',
+            toolCallType: 'function',
+            toolName: 'weather',
+            args,
+          },
+        },
+      ],
+      tool_results: [],
+      createdAt: 1710000000000,
+    }
+    const messages: ChatHistoryItem[] = [
+      { role: 'user', content: 'weather in Tokyo' },
+      assistantMessage,
+    ]
+
+    const screen = await render(createHarness(messages), {
+      global: {
+        plugins: [createTestI18n()],
+      },
+    })
+
+    await screen.getByLabelText('Re-run tool call').click()
+
+    await expect.element(screen.getByLabelText('tool-call-rerun')).toHaveTextContent(JSON.stringify({
+      message: assistantMessage,
+      index: 1,
+      key: getChatHistoryItemKey(assistantMessage, 1),
+      toolCallId: 'call-weather',
+      toolName: 'weather',
+      args,
+    }))
   })
 })

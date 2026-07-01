@@ -2,7 +2,7 @@ import type { Voice } from 'unspeech'
 
 import type { TtsAdapter, TtsAdapterContext, TtsInput, TtsResult, TtsVoiceCatalogContext } from './types'
 
-import { buildMicrosoftSsml, inferMicrosoftContentType, isMicrosoftVoiceId, resolveMicrosoftOutputFormat } from 'unspeech'
+import { inferMicrosoftContentType, isMicrosoftVoiceId, resolveMicrosoftOutputFormat } from 'unspeech'
 
 import { createBadRequestError, createInternalError, createServiceUnavailableError } from '../../../utils/error'
 import { listVoicesViaUnSpeech, sendSpeechViaUnSpeech } from './unspeech'
@@ -41,7 +41,10 @@ export const azureAdapter: TtsAdapter = {
 
     const ssml = disableSsml
       ? input.text
-      : buildMicrosoftSsml(input.text, voice, input.speed)
+      : buildAzureSsml(input.text, voice, input.speed, {
+          pitch: typeof input.extraOptions?.pitch === 'number' ? input.extraOptions.pitch : undefined,
+          volume: typeof input.extraOptions?.volume === 'number' ? input.extraOptions.volume : undefined,
+        })
 
     const region = ctx.adapterParams?.region
     if (typeof region !== 'string' || !region)
@@ -77,4 +80,70 @@ export const azureAdapter: TtsAdapter = {
       providerLabel: 'azure',
     })
   },
+}
+
+/**
+ * Builds Azure-compatible SSML, preserving Voice Pack prosody settings.
+ *
+ * NOTICE:
+ * `unspeech` owns the canonical Microsoft helpers, but the currently consumed
+ * helper surface only lets AIRI pass speed. Voice Pack pitch and volume must be
+ * encoded before the request reaches unspeech because AIRI sends pre-built SSML
+ * with `disable_ssml: true`.
+ * Source/context: this adapter's `extraOptions.pitch` and `extraOptions.volume`
+ * contract, covered by `azureAdapter.send` tests.
+ * Removal condition: delete this helper once `unspeech` exposes a
+ * `buildMicrosoftSsml` overload that accepts pitch and volume.
+ */
+function buildAzureSsml(
+  text: string,
+  voice: string,
+  speed: number | undefined,
+  options: {
+    pitch?: number
+    volume?: number
+  },
+): string {
+  const safe = escapeForSsml(text)
+  const rate = speedToProsodyRate(speed)
+  const pitch = percentToProsodyValue(options.pitch)
+  const volume = percentToProsodyValue(options.volume)
+  const prosodyAttrs = [
+    rate ? `rate='${rate}'` : undefined,
+    pitch ? `pitch='${pitch}'` : undefined,
+    volume ? `volume='${volume}'` : undefined,
+  ].filter(Boolean).join(' ')
+  const inner = prosodyAttrs
+    ? `<prosody ${prosodyAttrs}>${safe}</prosody>`
+    : safe
+
+  return `<speak version='1.0' xml:lang='en-US'><voice name='${voice}'>${inner}</voice></speak>`
+}
+
+function speedToProsodyRate(speed: number | undefined): string {
+  if (speed == null || speed === 1)
+    return ''
+  const delta = Math.round((speed - 1) * 100)
+  if (delta === 0)
+    return ''
+  return delta > 0 ? `+${delta}%` : `${delta}%`
+}
+
+function percentToProsodyValue(value: number | undefined): string {
+  if (value == null)
+    return ''
+  if (value > 0)
+    return `+${value}%`
+  if (value < 0)
+    return `${value}%`
+  return '0%'
+}
+
+function escapeForSsml(text: string): string {
+  return text
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll('\'', '&apos;')
 }

@@ -1,5 +1,6 @@
 import type { WSEvents } from 'hono/ws'
 
+import type { AudioSpeechSessionAnalytics } from './session'
 import type { AudioSpeechWsHandlersOptions } from './types'
 
 import { useLogger } from '@guiiai/logg'
@@ -31,8 +32,8 @@ export type { AudioSpeechWsHandlersOptions } from './types'
  *   peer registry because streaming TTS is single-session per connection.
  */
 export function createAudioSpeechWsHandlers(opts: AudioSpeechWsHandlersOptions) {
-  return function setupPeer(userId: string): WSEvents {
-    const sessionState = createSessionState(userId, opts)
+  return function setupPeer(userId: string, analytics?: AudioSpeechSessionAnalytics): WSEvents {
+    const sessionState = createSessionState(userId, opts, analytics)
 
     return {
       onOpen(_event, ws) {

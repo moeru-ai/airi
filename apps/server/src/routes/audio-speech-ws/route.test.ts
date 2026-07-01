@@ -152,7 +152,10 @@ function makeFakeDeps(overrides: {
   decryptedKey?: string
 }) {
   const ttsMeter = {
-    assertCanAfford: vi.fn(async () => undefined),
+    assertCanAfford: vi.fn(async (_userId: string, _newUnits: number, currentBalance: number) => {
+      if (currentBalance <= 0)
+        throw Object.assign(new Error('Insufficient flux'), { statusCode: 402 })
+    }),
     accumulate: vi.fn(async () => ({
       fluxDebited: 1,
       debtAfter: 0,
@@ -227,7 +230,7 @@ describe('audio-speech-ws route', () => {
 
     const deps = makeFakeDeps({ upstreamURL: upstream.url, fluxBalance: 100 })
     const handlers = createAudioSpeechWsHandlers(deps as any)
-    const events = handlers('user-123')
+    const events = handlers('user-123', { voiceType: 'official_selected' })
     const client = makeMockClientWs()
 
     await driveClientSession(events, client, [
@@ -276,13 +279,24 @@ describe('audio-speech-ws route', () => {
       status: 200,
       fluxConsumed: 1,
     })
+    expect(deps.productEventService.track).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'user-123',
+      feature: 'tts',
+      action: 'speech_succeeded',
+      status: 'succeeded',
+      model: 'volcengine/seed-tts-2.0',
+      metadata: expect.objectContaining({
+        voice_id: 'mock',
+        voice_type: 'official_selected',
+      }),
+    }))
   })
 
   it('refuses the session with insufficient_flux when the user is broke', async () => {
     upstream = await startMockUpstream([])
     const deps = makeFakeDeps({ upstreamURL: upstream.url, fluxBalance: 0 })
     const handlers = createAudioSpeechWsHandlers(deps as any)
-    const events = handlers('user-broke')
+    const events = handlers('user-broke', { trigger: 'auto', source: 'chat_auto_tts' })
     const client = makeMockClientWs()
 
     await driveClientSession(events, client, [])
@@ -299,6 +313,20 @@ describe('audio-speech-ws route', () => {
     })
     expect(client.closed).toBe(true)
     expect(client.closeCode).toBe(1008)
+    expect(deps.productEventService.track).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'user-broke',
+      feature: 'tts',
+      action: 'speech_blocked',
+      status: 'blocked',
+      source: 'chat_auto_tts',
+      reason: 'insufficient_balance',
+      metadata: expect.objectContaining({
+        trigger: 'auto',
+        block_reason: 'insufficient_balance',
+        balance_state: 'insufficient',
+        flux_balance_bucket: 'zero',
+      }),
+    }))
   })
 
   it('refuses with streaming_tts_not_configured when UNSPEECH_UPSTREAM.streaming is empty', async () => {
