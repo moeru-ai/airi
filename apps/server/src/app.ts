@@ -230,6 +230,7 @@ export async function buildApp(deps: AppDeps) {
     env: deps.env,
     configKV: deps.configKV,
     envelopeCrypto: deps.envelopeCrypto,
+    officialCatalogService: deps.officialCatalogService,
   }))
 
   // Cross-instance config invalidation. The subscriber owns its own

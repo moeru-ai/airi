@@ -4,6 +4,7 @@ import type { AuthInstance } from '../../libs/auth'
 import type { Env } from '../../libs/env'
 import type { ConfigKVService } from '../../services/adapters/config-kv'
 import type { RouterConfig } from '../../services/domain/llm-router/types'
+import type { OfficialCatalogService } from '../../services/domain/official-catalog'
 import type { EnvelopeCrypto } from '../../utils/envelope-crypto'
 
 import { resolveRequestAuth } from '../../libs/request-auth'
@@ -84,12 +85,25 @@ export function resolveOfficialAliyunNlsCredentials(
   }
 }
 
-async function resolveOfficialAliyunNlsCredentialsFromConfig(input: {
+export async function resolveOfficialAliyunNlsCredentialsFromConfig(input: {
   configKV: ConfigKVService
   envelopeCrypto: EnvelopeCrypto
+  officialCatalogService: OfficialCatalogService
 }) {
   const routerConfig = await input.configKV.getOptional('LLM_ROUTER_CONFIG')
-  const credentials = resolveOfficialAliyunNlsCredentials(routerConfig, input.envelopeCrypto)
+  const modelIds = Object.keys(routerConfig?.asr?.models ?? {}).sort()
+  if (modelIds.length === 0)
+    return null
+
+  await input.officialCatalogService.syncAliasesFromRouterConfig({
+    surface: 'asr',
+    modelIds,
+  })
+
+  const alias = await input.officialCatalogService.resolveEnabledAlias('asr', OFFICIAL_ASR_MODEL_NAME)
+  const primary = alias.routes.find(route => route.pool === 'primary')
+  const modelName = (primary ?? alias.routes[0]).routerModelId
+  const credentials = resolveOfficialAliyunNlsCredentials(routerConfig, input.envelopeCrypto, modelName)
   if (!credentials)
     return null
 
@@ -113,6 +127,7 @@ export function createAudioTranscriptionStreamHandler(input: {
   env: Env
   configKV: ConfigKVService
   envelopeCrypto: EnvelopeCrypto
+  officialCatalogService: OfficialCatalogService
 }) {
   return async function handleAudioTranscriptionStream(c: Context) {
     const session = await resolveRequestAuth(
