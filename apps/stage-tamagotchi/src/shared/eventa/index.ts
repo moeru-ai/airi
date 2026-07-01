@@ -429,8 +429,6 @@ export const electronAuthCallback = defineEventa<ElectronAuthTokens>('eventa:eve
 export const electronAuthCallbackError = defineEventa<{ error: string }>('eventa:event:electron:auth:callback-error')
 export const electronAuthLogout = defineInvokeEventa<void>('eventa:invoke:electron:auth:logout')
 export const electronAuthEnrollmentStarted = defineEventa<void>('eventa:event:electron:auth:enrollment-started')
-export type SteamProbeStatus = 'checking' | 'pending'
-export const electronAuthSteamProbe = defineEventa<{ status: SteamProbeStatus }>('eventa:event:electron:auth:steam-probe')
 
 export const i18nSetLocale = defineInvokeEventa<void, Locale>('eventa:invoke:electron:i18n:set-locale')
 export const i18nGetLocale = defineInvokeEventa<string | undefined>('eventa:invoke:electron:i18n:get-locale')
