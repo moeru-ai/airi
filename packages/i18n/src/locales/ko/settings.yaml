@@ -43,8 +43,6 @@ dialogs:
     start: 그럼 시작합시다!
     loginPrompt: 최고의 경험을 위해 공식 AIFI 제공업체를 이용하려면 로그인하세요.
     loginAction: 가입하기
-    linkSteamAction: Link Steam account
-    checkingSteam: Checking Steam…
     setupWithoutSigningIn: 당신의 제공업자로 설정하기
     flux: 플럭스
     buyFlux: 플럭스 충전하기

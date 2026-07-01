@@ -8,7 +8,6 @@ import { useI18n } from 'vue-i18n'
 import {
   electronAuthCallback,
   electronAuthCallbackError,
-  electronAuthEnrollmentStarted,
   electronAuthStartLogin,
   electronOpenSettings,
 } from '../../../../shared/eventa'
@@ -27,7 +26,6 @@ const startSigningIn = useElectronEventaInvoke(electronAuthStartLogin)
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 
 const signingIn = ref(false)
-const enrollmentInProgress = ref(false)
 
 const userName = computed(() => user.value?.name)
 const userAvatar = computed(() => user.value?.image)
@@ -48,17 +46,11 @@ function doSigningIn() {
 
 // Clear loading state on callback or error from main process.
 // No cleanup needed — this component lives for the window's lifetime.
-context.value.on(electronAuthEnrollmentStarted, () => {
-  enrollmentInProgress.value = true
-  steamStatus.value = 'idle'
-})
 context.value.on(electronAuthCallback, () => {
   signingIn.value = false
-  enrollmentInProgress.value = false
 })
 context.value.on(electronAuthCallbackError, () => {
   signingIn.value = false
-  enrollmentInProgress.value = false
 })
 
 // React to needsLogin from other components (e.g. onboarding)
@@ -71,77 +63,14 @@ watch(needsLogin, (val) => {
 
 // Clear loading when authenticated
 watch(isAuthenticated, (val) => {
-  if (val) {
+  if (val)
     signingIn.value = false
-    enrollmentInProgress.value = false
-    steamStatus.value = 'idle'
-  }
 })
 </script>
 
 <template>
-  <!-- Steam enrollment pending state -->
-  <div v-if="steamStatus === 'pending' && !isAuthenticated" flex="~ col gap-1.5" mb-1.5>
-    <div
-      :class="[
-        'flex items-center gap-3',
-        'rounded-xl px-3 py-2.5',
-        'bg-primary-500/10',
-      ]"
-    >
-      <div
-        i-solar:link-round-bold-duotone
-        :class="[
-          'size-4.5 shrink-0',
-          'text-primary-500 dark:text-primary-400',
-        ]"
-      />
-      <span text="sm neutral-500 dark:neutral-400" truncate>
-        {{ t('tamagotchi.stage.controls-island.link-steam-prompt') }}
-      </span>
-    </div>
-
-    <button
-      type="button"
-      :class="[
-        'flex items-center justify-center gap-2.5',
-        'w-full rounded-xl px-3 py-2.5',
-        'bg-primary-500/10 hover:bg-primary-500/20',
-        'dark:bg-primary-400/10 dark:hover:bg-primary-400/20',
-        'transition-colors duration-200',
-        'cursor-pointer border-none outline-none',
-        props.buttonStyle,
-      ]"
-      @click="handleClick"
-    >
-      <span text="sm primary-600 dark:primary-400" font-medium>
-        {{ t('tamagotchi.stage.controls-island.link-steam') }}
-      </span>
-    </button>
-  </div>
-
-  <!-- Enrollment in browser state -->
-  <div v-else-if="enrollmentInProgress && !isAuthenticated" flex="~ col gap-1.5" mb-1.5>
-    <div
-      flex="~ items-center gap-3"
-      rounded-xl px-3 py-2.5
-      bg="black/5 dark:white/5"
-    >
-      <div
-        :class="[
-          'size-4 shrink-0',
-          'i-svg-spinners:ring-resize',
-          'text-primary-500 dark:text-primary-400',
-        ]"
-      />
-      <span text="sm neutral-500 dark:neutral-400" truncate>
-        {{ t('tamagotchi.stage.controls-island.enrollment-in-browser') }}
-      </span>
-    </div>
-  </div>
-
   <!-- Signing in state -->
-  <div v-else-if="signingIn && !isAuthenticated" flex="~ col gap-1.5" mb-1.5>
+  <div v-if="signingIn && !isAuthenticated" flex="~ col gap-1.5" mb-1.5>
     <div
       flex="~ items-center gap-3"
       rounded-xl px-3 py-2.5
