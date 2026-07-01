@@ -36,6 +36,23 @@ function createMockStripeService(overrides: Partial<StripeService> = {}): Stripe
   } as any
 }
 
+function createMockStripeCustomer(
+  overrides: Partial<NonNullable<Awaited<ReturnType<StripeService['getCustomerByStripeId']>>>> = {},
+): NonNullable<Awaited<ReturnType<StripeService['getCustomerByStripeId']>>> {
+  const now = new Date()
+  return {
+    id: 'stripe-customer-1',
+    name: null,
+    email: null,
+    createdAt: now,
+    updatedAt: now,
+    userId: 'user-1',
+    deletedAt: null,
+    stripeCustomerId: 'cus_1',
+    ...overrides,
+  }
+}
+
 function createMockBillingService(): BillingService {
   return {
     debitFlux: vi.fn(),
@@ -479,7 +496,7 @@ describe('stripeRoutes', () => {
       }
       const productEventService = { track: vi.fn() }
       const stripeService = createMockStripeService({
-        getCustomerByStripeId: vi.fn(async () => ({ userId: 'user-1', stripeCustomerId: 'cus_1' })),
+        getCustomerByStripeId: vi.fn(async () => createMockStripeCustomer()),
       })
       const webhook = createWebhookOperation({
         stripe: {
@@ -540,7 +557,7 @@ describe('stripeRoutes', () => {
       }
       const productEventService = { track: vi.fn() }
       const stripeService = createMockStripeService({
-        getCustomerByStripeId: vi.fn(async () => ({ userId: 'user-1', stripeCustomerId: 'cus_1' })),
+        getCustomerByStripeId: vi.fn(async () => createMockStripeCustomer()),
       })
       const webhook = createWebhookOperation({
         stripe: {
