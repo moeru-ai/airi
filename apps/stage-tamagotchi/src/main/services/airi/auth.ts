@@ -1,6 +1,8 @@
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { BrowserWindow } from 'electron'
 
+import type { SteamProbeStatus } from '../../../shared/eventa'
+
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
@@ -17,6 +19,7 @@ import {
   electronAuthEnrollmentStarted,
   electronAuthLogout,
   electronAuthStartLogin,
+  electronAuthSteamProbe,
 } from '../../../shared/eventa'
 import { getWebApiTicket, initSteam } from '../steam/client'
 import { buildEnrollUrl } from './enroll-url'
@@ -50,6 +53,7 @@ export interface WindowAuthManager {
   broadcastAuthCallback: (tokens: TokenExchangeResult) => void
   broadcastAuthError: (message: string) => void
   broadcastEnrollmentStarted: () => void
+  broadcastSteamProbe: (status: SteamProbeStatus) => void
 }
 
 function isOidcSignInActive(): boolean {
@@ -118,6 +122,10 @@ export function createWindowAuthManagerService(): WindowAuthManager {
     forEachAuthContext(context => context.emit(electronAuthEnrollmentStarted, undefined))
   }
 
+  function broadcastSteamProbe(status: SteamProbeStatus): void {
+    forEachAuthContext(context => context.emit(electronAuthSteamProbe, { status }))
+  }
+
   return {
     registerWindow(params) {
       authContexts.add(params.context)
@@ -130,6 +138,7 @@ export function createWindowAuthManagerService(): WindowAuthManager {
     broadcastAuthCallback,
     broadcastAuthError,
     broadcastEnrollmentStarted,
+    broadcastSteamProbe,
   }
 }
 
