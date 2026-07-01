@@ -67,6 +67,28 @@ describe('createPlaybackManager', () => {
     expect(rejected).toEqual(['lower'])
   })
 
+  it('rejects equal-priority overflow items with steal-lowest-priority policy', () => {
+    const play = vi.fn((_item, signal) => new Promise<void>((resolve) => {
+      signal.addEventListener('abort', () => resolve(), { once: true })
+    }))
+    const rejected: string[] = []
+    const manager = createPlaybackManager({
+      maxVoices: 1,
+      overflowPolicy: 'steal-lowest-priority',
+      play,
+    })
+
+    manager.onReject((event) => {
+      rejected.push(event.item.id)
+    })
+
+    manager.schedule(createPlaybackItem('active', 10, 'intent-1'))
+    manager.schedule(createPlaybackItem('equal', 10, 'intent-2'))
+
+    expect(play).toHaveBeenCalledTimes(1)
+    expect(rejected).toEqual(['equal'])
+  })
+
   it('steals the oldest active item for queued owner-overflow when a slot frees up', async () => {
     let resolvePlayback: (() => void) | undefined
     const play = vi.fn((_item, signal) => new Promise<void>((resolve) => {

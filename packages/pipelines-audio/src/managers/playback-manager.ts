@@ -306,8 +306,9 @@ export function createPlaybackManager<TAudio>(
 
   function stealLowestPriority(item: PlaybackItem<TAudio>) {
     const victim = pickVictim(undefined, (a, b) => a.item.priority < b.item.priority)
+    const canSteal = !!victim && victim.item.priority < item.priority
 
-    if (!victim || victim.item.priority >= item.priority) {
+    if (!canSteal) {
       reject(item, 'priority-overflow')
       return
     }
