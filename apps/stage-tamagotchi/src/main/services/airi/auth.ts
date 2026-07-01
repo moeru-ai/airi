@@ -37,6 +37,9 @@ const OIDC_TOKEN_PATH = '/api/auth/oauth2/token'
 // Active loopback server cleanup handle
 let closeLoopback: (() => void) | null = null
 let signingInFlight = false
+// NOTICE: Covers the Steam getWebApiTicket + exchangeSteamTicketForTokens window
+// that signingInFlight/closeLoopback do not; cleared in startSteamSignIn finally.
+let steamSignInInFlight = false
 
 export interface TokenExchangeResult {
   accessToken: string
@@ -52,12 +55,12 @@ export interface WindowAuthManager {
   broadcastEnrollmentStarted: () => void
 }
 
-function isOidcSignInActive(): boolean {
-  return signingInFlight || closeLoopback !== null
+function isSignInActive(): boolean {
+  return signingInFlight || closeLoopback !== null || steamSignInInFlight
 }
 
 export async function trySteamSignIn(windowAuthManager: WindowAuthManager): Promise<void> {
-  if (isOidcSignInActive()) {
+  if (isSignInActive()) {
     log.debug('Skipping Steam sign-in: OIDC flow in progress')
     return
   }
@@ -255,35 +258,41 @@ async function startSteamSignIn(
   windowAuthManager: WindowAuthManager,
   options: { openBrowserOnNeedsEnrollment: boolean },
 ): Promise<void> {
-  const ticketResult = await getWebApiTicket()
-  if (!ticketResult.ok) {
-    windowAuthManager.broadcastAuthError(ticketResult.reason)
-    return
-  }
-
-  const exchangeResult = await exchangeSteamTicketForTokens({
-    serverUrl: SERVER_URL,
-    ticketHex: ticketResult.ticketHex,
-  })
-
-  if (!exchangeResult.ok) {
-    if (exchangeResult.kind === 'needs_enrollment') {
-      if (options.openBrowserOnNeedsEnrollment) {
-        await startEnrollmentFlow(windowAuthManager, {
-          enrollToken: exchangeResult.enrollToken,
-          authUiUrl: exchangeResult.authUiUrl,
-        })
-      }
-      // Startup path discards the token; the user's click re-fetches a fresh
-      // one so the short TTL covers only the browser → verify → relay window.
+  steamSignInInFlight = true
+  try {
+    const ticketResult = await getWebApiTicket()
+    if (!ticketResult.ok) {
+      windowAuthManager.broadcastAuthError(ticketResult.reason)
       return
     }
-    windowAuthManager.broadcastAuthError(exchangeResult.reason)
-    return
-  }
 
-  windowAuthManager.broadcastAuthCallback(exchangeResult.tokens)
-  log.log('Steam sign-in successful')
+    const exchangeResult = await exchangeSteamTicketForTokens({
+      serverUrl: SERVER_URL,
+      ticketHex: ticketResult.ticketHex,
+    })
+
+    if (!exchangeResult.ok) {
+      if (exchangeResult.kind === 'needs_enrollment') {
+        if (options.openBrowserOnNeedsEnrollment) {
+          await startEnrollmentFlow(windowAuthManager, {
+            enrollToken: exchangeResult.enrollToken,
+            authUiUrl: exchangeResult.authUiUrl,
+          })
+        }
+        // Startup path discards the token; the user's click re-fetches a fresh
+        // one so the short TTL covers only the browser → verify → relay window.
+        return
+      }
+      windowAuthManager.broadcastAuthError(exchangeResult.reason)
+      return
+    }
+
+    windowAuthManager.broadcastAuthCallback(exchangeResult.tokens)
+    log.log('Steam sign-in successful')
+  }
+  finally {
+    steamSignInInFlight = false
+  }
 }
 
 /**
@@ -304,7 +313,7 @@ export function createAuthService(params: {
       return
     }
 
-    if (isOidcSignInActive()) {
+    if (isSignInActive()) {
       log.debug('Skipping sign-in: another OIDC/Steam flow is in progress')
       return
     }
