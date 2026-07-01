@@ -43,6 +43,8 @@ dialogs:
     start: Поехали!
     loginPrompt: Войдите, чтобы использовать официального провайдера AIRI для наилучшего опыта.
     loginAction: Войти
+    linkSteamAction: Link Steam account
+    checkingSteam: Checking Steam…
     setupWithoutSigningIn: Настройка с вашим провайдером
     flux: Flux
     buyFlux: Пополнить Flux

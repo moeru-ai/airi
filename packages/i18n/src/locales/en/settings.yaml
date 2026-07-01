@@ -49,6 +49,8 @@ dialogs:
     start: Let's do it!
     loginPrompt: Sign in to use the official AIRI provider for the best experience.
     loginAction: Sign in
+    linkSteamAction: Link Steam account
+    checkingSteam: Checking Steam…
     setupWithoutSigningIn: Setup with your provider
     flux: Flux
     buyFlux: Charge Flux

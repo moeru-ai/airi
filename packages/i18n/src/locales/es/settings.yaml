@@ -43,6 +43,8 @@ dialogs:
     start: '¡Hagámoslo!'
     loginPrompt: Inicia sesión para utilizar el proveedor oficial de AIRI para obtener la mejor experiencia.
     loginAction: Iniciar sesión
+    linkSteamAction: Link Steam account
+    checkingSteam: Checking Steam…
     setupWithoutSigningIn: Configurar con su proveedor
     flux: Flujo
     buyFlux: Flujo de Carga

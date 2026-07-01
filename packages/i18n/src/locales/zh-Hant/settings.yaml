@@ -43,6 +43,8 @@ dialogs:
     start: 開始吧！
     loginPrompt: Sign in to use the official AIRI provider for the best experience.
     loginAction: Sign in
+    linkSteamAction: 关联 Steam 账户
+    checkingSteam: 正在检查 Steam…
     setupWithoutSigningIn: Setup with your provider
     flux: Flux
     buyFlux: Charge Flux
