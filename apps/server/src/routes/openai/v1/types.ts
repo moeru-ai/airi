@@ -5,6 +5,7 @@ import type { FluxMeter } from '../../../services/domain/billing/flux-meter'
 import type { FluxService } from '../../../services/domain/flux'
 import type { LlmRouterService } from '../../../services/domain/llm-router'
 import type { ChatGenerationTrace, TtsGenerationTrace } from '../../../services/domain/llm-tracing'
+import type { OfficialCatalogService } from '../../../services/domain/official-catalog'
 import type { ProductEventService } from '../../../services/domain/product-events'
 import type { RequestLogService } from '../../../services/domain/request-log'
 import type { VoicePackService } from '../../../services/domain/voice-packs'
@@ -25,6 +26,7 @@ export interface V1RouteDeps {
   ttsMeter: FluxMeter
   llmRouter: LlmRouterService
   voicePackService: VoicePackService
+  officialCatalogService: OfficialCatalogService
   genAi?: GenAiMetrics | null
   revenue?: RevenueMetrics | null
   rateLimitMetrics?: RateLimitMetrics | null

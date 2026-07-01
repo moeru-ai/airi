@@ -4,6 +4,7 @@ import type { V1RouteDeps } from '../../types'
 import { useLogger } from '@guiiai/logg'
 import { ofetch } from 'ofetch'
 
+import { catalogVoiceResponse, normalizeProviderVoiceForCatalog } from '../../../../../services/domain/official-catalog/provider-voices'
 import { createBadGatewayError, createBadRequestError, createServiceUnavailableError } from '../../../../../utils/error'
 
 const VOICE_PACK_MODEL_ID = 'voice-pack'
@@ -63,13 +64,19 @@ export function createSpeechCatalogOperation(deps: V1RouteDeps): SpeechCatalogOp
       return Response.json({ voices: voicePacks.map(voicePackCatalogVoice), recommended: {} })
     }
 
-    const voices = await deps.llmRouter.listTtsVoices(model)
+    await deps.officialCatalogService.assertTtsModelEnabled(model)
+    const providerVoices = await deps.llmRouter.listTtsVoices(model)
+    await deps.officialCatalogService.syncTtsVoices({
+      routerModelId: model,
+      voices: providerVoices.map(normalizeProviderVoiceForCatalog).filter(voice => voice != null),
+    })
+    const voices = await deps.officialCatalogService.listEnabledTtsVoices(model)
     const recommended = (await deps.configKV.getOptional('DEFAULT_TTS_VOICES'))?.[model] ?? {}
     // Debug level: high-frequency catalog poll from UI selectors, no
     // billing / user-facing side effect — useful only when debugging
     // voice-picker drift, never as a permanent audit trail line.
     logger.withFields({ model, voiceCount: voices.length, voicePackCount: voicePacks.length }).debug('list tts voices')
-    return Response.json({ voices, recommended })
+    return Response.json({ voices: voices.map(catalogVoiceResponse), recommended })
   }
 
   /**
@@ -155,11 +162,19 @@ export function createSpeechCatalogOperation(deps: V1RouteDeps): SpeechCatalogOp
     // tolerates `undefined`. `getOrThrow` already throws on missing entries,
     // so by this line we know `config` is present — the `?.` here is purely
     // a TS narrowing aid.
-    const modelIds = Object.keys(config?.tts?.models ?? {}).sort()
+    await deps.officialCatalogService.syncTtsModelsFromRouterConfig({
+      models: Object.fromEntries(
+        Object.entries(config?.tts?.models ?? {}).map(([routerModelId, model]) => [
+          routerModelId,
+          { provider: model.provider },
+        ]),
+      ),
+    })
+    const models = await deps.officialCatalogService.listEnabledTtsModels()
     return Response.json({
       models: [
         { id: VOICE_PACK_MODEL_ID, name: 'Voice Pack', description: 'Server-curated voices' },
-        ...modelIds.map(id => ({ id, name: id })),
+        ...models.map(model => ({ id: model.routerModelId, name: model.displayName })),
       ],
       default: defaultModel,
     })

@@ -40,11 +40,8 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
     const billingPolicy = await billing.authorizeChat(input.userId)
 
     const body = input.body
-    let requestModel = typeof body.model === 'string' && body.model.length > 0 ? body.model : 'auto'
-
-    if (requestModel === 'auto') {
-      requestModel = await deps.configKV.getOrThrow('DEFAULT_CHAT_MODEL')
-    }
+    const requestedAlias = typeof body.model === 'string' && body.model.length > 0 ? body.model : 'auto'
+    const requestModel = await resolveChatModelAlias(deps, requestedAlias)
 
     const stream = !!body.stream
     logger.withFields({
@@ -199,6 +196,23 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
       logger,
     })
   }
+}
+
+async function resolveChatModelAlias(deps: V1RouteDeps, aliasId: string): Promise<string> {
+  const config = await deps.configKV.getOrThrow('LLM_ROUTER_CONFIG')
+  const defaultModel = await deps.configKV.getOrThrow('DEFAULT_CHAT_MODEL')
+  const modelIds = [
+    defaultModel,
+    ...Object.keys(config.llm.models).sort().filter(modelId => modelId !== defaultModel),
+  ]
+  await deps.officialCatalogService.syncAliasesFromRouterConfig({
+    surface: 'llm',
+    modelIds,
+  })
+
+  const alias = await deps.officialCatalogService.resolveEnabledAlias('llm', aliasId)
+  const primary = alias.routes.find(route => route.pool === 'primary')
+  return (primary ?? alias.routes[0]).routerModelId
 }
 
 function streamChatCompletion(input: {

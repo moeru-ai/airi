@@ -9,6 +9,8 @@ import App from './App.vue'
 import FluxPage from './pages/FluxPage.vue'
 import LlmRouterPage from './pages/LlmRouterPage.vue'
 import OverviewPage from './pages/OverviewPage.vue'
+import ProviderCatalogPage from './pages/ProviderCatalogPage.vue'
+import TtsCatalogPage from './pages/TtsCatalogPage.vue'
 import UsersPage from './pages/UsersPage.vue'
 import VoicePackFormPage from './pages/VoicePackFormPage.vue'
 import VoicePacksPage from './pages/VoicePacksPage.vue'
@@ -26,6 +28,8 @@ const router = createRouter({
     { path: '/users', component: UsersPage },
     { path: '/flux', component: FluxPage },
     { path: '/llm-router', component: LlmRouterPage },
+    { path: '/providers', component: ProviderCatalogPage },
+    { path: '/tts', component: TtsCatalogPage },
     { path: '/voice-packs', component: VoicePacksPage },
     { path: '/voice-packs/new', name: 'voice-pack-new', component: VoicePackFormPage },
     { path: '/voice-packs/:id/edit', name: 'voice-pack-edit', component: VoicePackFormPage },

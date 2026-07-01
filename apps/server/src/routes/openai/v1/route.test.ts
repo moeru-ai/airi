@@ -3,6 +3,7 @@ import type { BillingService } from '../../../services/domain/billing/billing-se
 import type { FluxService } from '../../../services/domain/flux'
 import type { LlmRouterService } from '../../../services/domain/llm-router'
 import type { ChatGenerationTrace, TtsGenerationTrace } from '../../../services/domain/llm-tracing'
+import type { OfficialCatalogService } from '../../../services/domain/official-catalog'
 import type { ProductEventService } from '../../../services/domain/product-events'
 import type { RequestLogService } from '../../../services/domain/request-log'
 import type { VoicePackService } from '../../../services/domain/voice-packs'
@@ -46,6 +47,10 @@ function createMockConfigKV(overrides: Record<string, any> = {}): ConfigKVServic
     TTS_DEBT_TTL_SECONDS: 86400,
     DEFAULT_CHAT_MODEL: 'openai/gpt-5-mini',
     DEFAULT_TTS_MODEL: 'tts-1',
+    LLM_ROUTER_CONFIG: {
+      llm: { models: { 'openai/gpt-5-mini': { upstreams: [] } } },
+      tts: { models: {} },
+    },
     ...overrides,
   }
   return {
@@ -155,6 +160,143 @@ function createMockVoicePackService(impl?: Partial<VoicePackService>): VoicePack
   } as unknown as VoicePackService
 }
 
+function createMockOfficialCatalogService(impl?: Partial<OfficialCatalogService>): OfficialCatalogService {
+  let syncedAliasRoutes: Array<{
+    id: string
+    aliasId: string
+    routerModelId: string
+    pool: 'primary' | 'fallback'
+    enabled: boolean
+    weight: number
+    displayOrder: number
+    createdAt: Date
+    updatedAt: Date
+  }> = []
+  let syncedModels: Awaited<ReturnType<OfficialCatalogService['syncTtsModelsFromRouterConfig']>> = []
+  const syncedVoicesByModel = new Map<string, Awaited<ReturnType<OfficialCatalogService['syncTtsVoices']>>>()
+
+  return {
+    syncAliasesFromRouterConfig: vi.fn(async (input: Parameters<OfficialCatalogService['syncAliasesFromRouterConfig']>[0]) => {
+      const { surface, modelIds } = input
+      syncedAliasRoutes = Array.from(new Set(modelIds)).map((routerModelId, index) => ({
+        id: `alias-route-${index}`,
+        aliasId: 'alias-auto',
+        routerModelId,
+        pool: 'primary',
+        enabled: true,
+        weight: 1,
+        displayOrder: index,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }))
+      return [{
+        id: 'alias-auto',
+        surface,
+        aliasId: 'auto',
+        displayName: 'Auto',
+        enabled: true,
+        displayOrder: 0,
+        fallbackEnabled: true,
+        loadBalancingEnabled: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }]
+    }),
+    listAliases: vi.fn(async () => []),
+    resolveEnabledAlias: vi.fn(async (surface, aliasId) => ({
+      id: `alias-${aliasId}`,
+      surface,
+      aliasId,
+      displayName: aliasId,
+      enabled: true,
+      displayOrder: 0,
+      fallbackEnabled: true,
+      loadBalancingEnabled: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      routes: aliasId === 'auto'
+        ? syncedAliasRoutes
+        : [{
+            id: `alias-route-${aliasId}`,
+            aliasId: `alias-${aliasId}`,
+            routerModelId: aliasId,
+            pool: 'primary',
+            enabled: true,
+            weight: 1,
+            displayOrder: 0,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }],
+    })),
+    syncTtsModelsFromRouterConfig: vi.fn(async (input: Parameters<OfficialCatalogService['syncTtsModelsFromRouterConfig']>[0]) => {
+      const { models } = input
+      syncedModels = Object.entries(models).sort(([a], [b]) => a.localeCompare(b)).map(([routerModelId, model], index) => ({
+        id: `tts-model-${index}`,
+        routerModelId,
+        provider: model.provider,
+        displayName: routerModelId,
+        enabled: true,
+        displayOrder: index,
+        lastSyncedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }))
+      return syncedModels
+    }),
+    listTtsModels: vi.fn(async () => []),
+    listEnabledTtsModels: vi.fn(async () => syncedModels),
+    assertTtsModelEnabled: vi.fn(async routerModelId => ({
+      id: 'tts-model-1',
+      routerModelId,
+      provider: 'azure',
+      displayName: routerModelId,
+      enabled: true,
+      displayOrder: 0,
+      lastSyncedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })),
+    syncTtsVoices: vi.fn(async (input: Parameters<OfficialCatalogService['syncTtsVoices']>[0]) => {
+      const { routerModelId, voices } = input
+      const syncedVoices = voices.map((voice, index) => ({
+        id: `tts-voice-${index}`,
+        ttsModelId: 'tts-model-1',
+        providerVoiceId: voice.id,
+        displayName: voice.name ?? voice.id,
+        enabled: true,
+        displayOrder: index,
+        languages: voice.languages ?? [],
+        labels: voice.labels ?? {},
+        previewAudioUrl: voice.previewAudioUrl ?? null,
+        source: 'provider-sync' as const,
+        lastSyncedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }))
+      syncedVoicesByModel.set(routerModelId, syncedVoices)
+      return syncedVoices
+    }),
+    listTtsVoices: vi.fn(async () => []),
+    listEnabledTtsVoices: vi.fn(async routerModelId => syncedVoicesByModel.get(routerModelId) ?? []),
+    assertTtsVoiceEnabled: vi.fn(async (_routerModelId, providerVoiceId) => ({
+      id: 'tts-voice-1',
+      ttsModelId: 'tts-model-1',
+      providerVoiceId,
+      displayName: providerVoiceId,
+      enabled: true,
+      displayOrder: 0,
+      languages: [],
+      labels: {},
+      previewAudioUrl: null,
+      source: 'provider-sync',
+      lastSyncedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })),
+    ...impl,
+  } as OfficialCatalogService
+}
+
 function createTestApp(
   fluxService: FluxService,
   configKV: ConfigKVService,
@@ -165,6 +307,7 @@ function createTestApp(
   llmTracing = createMockLlmTracing(),
   productEventService = createMockProductEventService(),
   voicePackService = createMockVoicePackService(),
+  officialCatalogService = createMockOfficialCatalogService(),
 ) {
   const { openaiRoutes, audioRoutes } = createV1Routes({
     fluxService,
@@ -175,6 +318,7 @@ function createTestApp(
     ttsMeter: ttsMeter ?? createMockTtsMeter(),
     llmRouter: llmRouter ?? createMockLlmRouter(),
     voicePackService,
+    officialCatalogService,
     genAi: null,
     revenue: null,
     rateLimitMetrics: null,
@@ -454,7 +598,7 @@ describe('v1CompletionsRoutes', () => {
       )
     })
 
-    it('should pass through non-auto model as-is', async () => {
+    it('resolves an enabled non-auto model alias through the official catalog', async () => {
       globalThis.fetch = vi.fn(async () => new Response('{}', {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -477,6 +621,76 @@ describe('v1CompletionsRoutes', () => {
           body: expect.stringContaining('"model":"openai/gpt-5-mini"'),
         }),
       )
+    })
+
+    it('rejects disabled LLM aliases before upstream routing', async () => {
+      const route = vi.fn(async () => new Response('{}', { status: 200 }))
+      const officialCatalogService = createMockOfficialCatalogService({
+        resolveEnabledAlias: vi.fn(async () => {
+          throw new ApiError(400, 'OFFICIAL_ALIAS_DISABLED', 'Official provider alias is disabled')
+        }),
+      })
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV(),
+        undefined,
+        undefined,
+        undefined,
+        createMockLlmRouter({ route }),
+        createMockLlmTracing(),
+        createMockProductEventService(),
+        createMockVoicePackService(),
+        officialCatalogService,
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/openai/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'auto', messages: [] }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(400)
+      const body = await res.json() as { error?: string }
+      expect(body.error).toBe('OFFICIAL_ALIAS_DISABLED')
+      expect(route).not.toHaveBeenCalled()
+    })
+
+    it('rejects missing LLM aliases before upstream routing', async () => {
+      const route = vi.fn(async () => new Response('{}', { status: 200 }))
+      const officialCatalogService = createMockOfficialCatalogService({
+        resolveEnabledAlias: vi.fn(async () => {
+          throw new ApiError(400, 'OFFICIAL_ALIAS_NOT_FOUND', 'Official provider alias is not configured')
+        }),
+      })
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV(),
+        undefined,
+        undefined,
+        undefined,
+        createMockLlmRouter({ route }),
+        createMockLlmTracing(),
+        createMockProductEventService(),
+        createMockVoicePackService(),
+        officialCatalogService,
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/openai/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'deepseek', messages: [] }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(400)
+      const body = await res.json() as { error?: string }
+      expect(body.error).toBe('OFFICIAL_ALIAS_NOT_FOUND')
+      expect(route).not.toHaveBeenCalled()
     })
 
     it('records Langfuse chat generation with the router-resolved upstream model', async () => {
@@ -540,7 +754,11 @@ describe('v1CompletionsRoutes', () => {
 
     it('should return 503 when config keys are missing', async () => {
       const configKV = createMockConfigKV()
-      configKV.getOptional = vi.fn(async () => null)
+      configKV.getOrThrow = vi.fn(async (key: string) => {
+        if (key === 'LLM_ROUTER_CONFIG')
+          throw new ApiError(503, 'CONFIG_NOT_SET', 'Service configuration is incomplete')
+        return createMockConfigKV().getOrThrow(key as never)
+      })
 
       const app = createTestApp(createMockFluxService(), configKV)
 
@@ -683,6 +901,81 @@ describe('v1CompletionsRoutes', () => {
           body: expect.stringContaining('"model":"tts-1-hd"'),
         }),
       )
+    })
+
+    it('rejects disabled official TTS models before billing or upstream routing', async () => {
+      const routeTts = vi.fn(async () => new Response(new Uint8Array([1]), { status: 200 }))
+      const ttsMeter = createMockTtsMeter()
+      const officialCatalogService = createMockOfficialCatalogService({
+        assertTtsModelEnabled: vi.fn(async () => {
+          throw new ApiError(400, 'OFFICIAL_MODEL_DISABLED', 'Official TTS model is disabled')
+        }),
+      })
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV({ DEFAULT_TTS_MODEL: 'microsoft/v1' }),
+        undefined,
+        undefined,
+        ttsMeter,
+        createMockLlmRouter({ routeTts }),
+        createMockLlmTracing(),
+        createMockProductEventService(),
+        createMockVoicePackService(),
+        officialCatalogService,
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/speech', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'auto', input: 'test', voice: 'alloy' }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(400)
+      const body = await res.json() as { error?: string }
+      expect(body.error).toBe('OFFICIAL_MODEL_DISABLED')
+      expect(ttsMeter.assertCanAfford).not.toHaveBeenCalled()
+      expect(routeTts).not.toHaveBeenCalled()
+    })
+
+    it('rejects disabled official TTS voices before billing or upstream routing', async () => {
+      const routeTts = vi.fn(async () => new Response(new Uint8Array([1]), { status: 200 }))
+      const ttsMeter = createMockTtsMeter()
+      const officialCatalogService = createMockOfficialCatalogService({
+        assertTtsVoiceEnabled: vi.fn(async () => {
+          throw new ApiError(400, 'OFFICIAL_VOICE_DISABLED', 'Official TTS voice is disabled')
+        }),
+      })
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV({ DEFAULT_TTS_MODEL: 'microsoft/v1' }),
+        undefined,
+        undefined,
+        ttsMeter,
+        createMockLlmRouter({ routeTts }),
+        createMockLlmTracing(),
+        createMockProductEventService(),
+        createMockVoicePackService(),
+        officialCatalogService,
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/speech', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'auto', input: 'test', voice: 'alloy' }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(400)
+      const body = await res.json() as { error?: string }
+      expect(body.error).toBe('OFFICIAL_VOICE_DISABLED')
+      expect(officialCatalogService.assertTtsVoiceEnabled).toHaveBeenCalledWith('microsoft/v1', 'alloy')
+      expect(ttsMeter.assertCanAfford).not.toHaveBeenCalled()
+      expect(routeTts).not.toHaveBeenCalled()
     })
 
     /**
@@ -1398,8 +1691,23 @@ describe('v1CompletionsRoutes', () => {
       )
 
       expect(res.status).toBe(200)
-      const data = await res.json() as { voices: typeof voices, recommended: Record<string, string> }
-      expect(data.voices).toEqual(voices)
+      const data = await res.json() as { voices: Array<Record<string, unknown>>, recommended: Record<string, string> }
+      expect(data.voices).toEqual([
+        {
+          id: 'en-US-JennyNeural',
+          name: 'Jenny',
+          languages: [],
+          labels: {},
+          previewAudioUrl: null,
+        },
+        {
+          id: 'en-US-AvaMultilingualNeural',
+          name: 'Ava',
+          languages: [],
+          labels: {},
+          previewAudioUrl: null,
+        },
+      ])
       expect(data.recommended).toEqual({ 'en-US': 'en-US-AvaMultilingualNeural' })
       expect(llmRouter.listTtsVoices).toHaveBeenCalledWith('microsoft/v1')
     })
@@ -1517,8 +1825,51 @@ describe('v1CompletionsRoutes', () => {
       expect(res.status).toBe(200)
       const data = await res.json() as { voices: Array<Record<string, unknown>> }
       expect(data.voices).toEqual([
-        { id: 'en-US-AvaMultilingualNeural', name: 'Ava', languages: [{ code: 'en-US', title: 'English' }] },
+        {
+          id: 'en-US-AvaMultilingualNeural',
+          name: 'Ava',
+          languages: [{ code: 'en-US', title: 'English' }],
+          labels: {},
+          previewAudioUrl: null,
+        },
       ])
+    })
+
+    it('hides provider voices that are not enabled in the official catalog', async () => {
+      const llmRouter = createMockLlmRouter({
+        listTtsVoices: vi.fn(async () => [
+          { id: 'en-US-AvaMultilingualNeural', name: 'Ava' },
+        ]) as any,
+      })
+      const officialCatalogService = createMockOfficialCatalogService({
+        listEnabledTtsVoices: vi.fn(async () => []),
+      })
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV(),
+        undefined,
+        undefined,
+        undefined,
+        llmRouter,
+        createMockLlmTracing(),
+        createMockProductEventService(),
+        createMockVoicePackService(),
+        officialCatalogService,
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/voices?model=microsoft/v1', { method: 'GET' }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(200)
+      const data = await res.json() as { voices: Array<Record<string, unknown>> }
+      expect(data.voices).toEqual([])
+      expect(llmRouter.listTtsVoices).toHaveBeenCalledWith('microsoft/v1')
+      expect(officialCatalogService.syncTtsVoices).toHaveBeenCalledWith({
+        routerModelId: 'microsoft/v1',
+        voices: [{ id: 'en-US-AvaMultilingualNeural', name: 'Ava', languages: undefined, labels: undefined, previewAudioUrl: null }],
+      })
     })
 
     it('returns an empty recommended map when the resolved model has no bucket', async () => {

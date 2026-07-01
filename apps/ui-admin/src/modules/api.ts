@@ -239,6 +239,63 @@ export interface SpeechTestPayload {
   }
 }
 
+export type OfficialCatalogSurface = 'llm' | 'asr'
+export type OfficialCatalogRoutePool = 'primary' | 'fallback'
+
+export interface OfficialProviderAliasRoute {
+  id: string
+  aliasId: string
+  routerModelId: string
+  pool: OfficialCatalogRoutePool
+  enabled: boolean
+  weight: number
+  displayOrder: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface OfficialProviderAlias {
+  id: string
+  surface: OfficialCatalogSurface
+  aliasId: string
+  displayName: string
+  enabled: boolean
+  displayOrder: number
+  fallbackEnabled: boolean
+  loadBalancingEnabled: boolean
+  routes: OfficialProviderAliasRoute[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface OfficialTtsModel {
+  id: string
+  routerModelId: string
+  provider: string
+  displayName: string
+  enabled: boolean
+  displayOrder: number
+  lastSyncedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface OfficialTtsVoice {
+  id: string
+  ttsModelId: string
+  providerVoiceId: string
+  displayName: string
+  enabled: boolean
+  displayOrder: number
+  languages: Array<{ code: string, title?: string }>
+  labels: Record<string, unknown>
+  previewAudioUrl: string | null
+  source: 'provider-sync' | 'manual'
+  lastSyncedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 export class AdminApiError extends Error {
   constructor(
     message: string,
@@ -441,5 +498,48 @@ export const adminApi = {
   disableVoicePack: (id: string) =>
     adminFetch<VoicePack>(`/voice-packs/${encodeURIComponent(id)}/disable`, {
       method: 'POST',
+    }),
+  officialAliases: (surface?: OfficialCatalogSurface) => {
+    const suffix = surface ? `?surface=${encodeURIComponent(surface)}` : ''
+    return adminFetch<OfficialProviderAlias[]>(`/official-catalog/aliases${suffix}`)
+  },
+  syncOfficialAliases: (surface: OfficialCatalogSurface) =>
+    adminFetch<{ aliases: OfficialProviderAlias[] }>('/official-catalog/aliases/sync', {
+      method: 'POST',
+      body: JSON.stringify({ surface }),
+    }),
+  updateOfficialAlias: (id: string, body: Partial<Pick<OfficialProviderAlias, 'displayName' | 'enabled' | 'displayOrder' | 'fallbackEnabled' | 'loadBalancingEnabled'>>) =>
+    adminFetch<OfficialProviderAlias>(`/official-catalog/aliases/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+  updateOfficialAliasRoute: (id: string, body: Partial<Pick<OfficialProviderAliasRoute, 'enabled' | 'pool' | 'weight' | 'displayOrder'>>) =>
+    adminFetch<OfficialProviderAliasRoute>(`/official-catalog/alias-routes/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+  officialTtsModels: () => adminFetch<OfficialTtsModel[]>('/official-catalog/tts/models'),
+  syncOfficialTtsModels: () =>
+    adminFetch<{ models: OfficialTtsModel[] }>('/official-catalog/tts/models/sync', {
+      method: 'POST',
+    }),
+  updateOfficialTtsModel: (id: string, body: Partial<Pick<OfficialTtsModel, 'displayName' | 'enabled' | 'displayOrder'>>) =>
+    adminFetch<OfficialTtsModel>(`/official-catalog/tts/models/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+  officialTtsVoices: (model: string) => {
+    const query = new URLSearchParams({ model })
+    return adminFetch<OfficialTtsVoice[]>(`/official-catalog/tts/voices?${query.toString()}`)
+  },
+  syncOfficialTtsVoices: (routerModelId: string) =>
+    adminFetch<{ voices: OfficialTtsVoice[], syncedCount: number }>('/official-catalog/tts/voices/sync', {
+      method: 'POST',
+      body: JSON.stringify({ routerModelId }),
+    }),
+  updateOfficialTtsVoice: (id: string, body: Partial<Pick<OfficialTtsVoice, 'displayName' | 'enabled' | 'displayOrder' | 'languages' | 'labels' | 'previewAudioUrl'>>) =>
+    adminFetch<OfficialTtsVoice>(`/official-catalog/tts/voices/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
     }),
 }

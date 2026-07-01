@@ -23,6 +23,8 @@ const navItems = [
   { to: '/users', icon: 'i-lucide-users', label: 'Users' },
   { to: '/flux', icon: 'i-lucide-coins', label: 'Flux' },
   { to: '/llm-router', icon: 'i-lucide-route', label: 'LLM Router' },
+  { to: '/providers', icon: 'i-lucide-network', label: 'Providers' },
+  { to: '/tts', icon: 'i-lucide-audio-lines', label: 'TTS' },
   { to: '/voice-packs', icon: 'i-lucide-volume-2', label: 'Voice Packs' },
 ]
 
