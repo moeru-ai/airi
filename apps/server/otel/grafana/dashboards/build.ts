@@ -613,6 +613,34 @@ elements['panel-101'] = timeseriesPanel(
   { unit: 'eps', fillOpacity: 15 },
 )
 
+elements['panel-102'] = barGaugePanel(
+  102,
+  'TTS Blocked by Reason',
+  'Blocked TTS events over the dashboard range, grouped by bounded product reason and source. Today this mostly shows insufficient balance; new policy/provider/preflight buckets can be added without exposing user, voice, or model labels.',
+  [query(
+    `topk(12, sum by (reason, source) (increase(airi_product_events_total{${PRODUCT_EVENT_FILTER}, feature="tts", action="speech_blocked", status="blocked"}[$__range])))`,
+    '{{reason}} · {{source}}',
+    'A',
+    PROM,
+    { instant: true },
+  )],
+  { unit: 'short', noValue: '0' },
+)
+
+elements['panel-103'] = barGaugePanel(
+  103,
+  'TTS Blocked by Flux Bucket',
+  'Blocked TTS events over the dashboard range, grouped by coarse Flux balance bucket. This helps separate truly empty accounts from low-balance accounts without exposing exact user balances.',
+  [query(
+    `topk(8, sum by (flux_balance_bucket, source) (increase(airi_product_events_total{${PRODUCT_EVENT_FILTER}, feature="tts", action="speech_blocked", status="blocked", flux_balance_bucket!=""}[$__range])))`,
+    '{{flux_balance_bucket}} · {{source}}',
+    'A',
+    PROM,
+    { instant: true },
+  )],
+  { unit: 'short', noValue: '0' },
+)
+
 // --- Row 2: HTTP — traffic ranking, error trend, latency trend -------------
 elements['panel-16'] = barGaugePanel(
   16,
@@ -955,6 +983,8 @@ const rows = [
     item('panel-97', 0, 5, 12, 8),
     item('panel-98', 12, 5, 12, 4),
     item('panel-101', 12, 9, 12, 4),
+    item('panel-102', 0, 13, 12, 5),
+    item('panel-103', 12, 13, 12, 5),
   ]),
   // Row 3: HTTP — full-width error breakdown on top, then traffic ranking +
   // latency trend side by side.

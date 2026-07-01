@@ -64,6 +64,8 @@ describe('grafana dashboard builder', () => {
     expect(panelTitle('panel-99')).toBe('TTS Success %')
     expect(panelTitle('panel-100')).toBe('TTS Failed / Blocked (range)')
     expect(panelTitle('panel-101')).toBe('TTS Event Rate by Source')
+    expect(panelTitle('panel-102')).toBe('TTS Blocked by Reason')
+    expect(panelTitle('panel-103')).toBe('TTS Blocked by Flux Bucket')
   })
 
   /**
@@ -80,6 +82,8 @@ describe('grafana dashboard builder', () => {
       dashboard.elements['panel-99'],
       dashboard.elements['panel-100'],
       dashboard.elements['panel-101'],
+      dashboard.elements['panel-102'],
+      dashboard.elements['panel-103'],
     ]).join('\n')
 
     expect(productPanelExpressions).not.toContain('voice_id')

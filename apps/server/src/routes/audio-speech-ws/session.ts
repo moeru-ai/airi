@@ -11,6 +11,7 @@ import WebSocket from 'ws'
 import { useLogger } from '@guiiai/logg'
 import { context as otelContext, SpanStatusCode, trace } from '@opentelemetry/api'
 
+import { fluxBalanceBucket } from '../../services/domain/flux-balance'
 import { ApiError } from '../../utils/error'
 import { nanoid } from '../../utils/id'
 import {
@@ -94,6 +95,7 @@ export function createSessionState(
   let closed = false
   let billed = false
   let totalInputChars = 0
+  let preflightFluxBalance: number | undefined
   let modelLabel = STREAM_MODEL_LABEL_FALLBACK
   let voiceLabel: string | undefined
   /**
@@ -141,6 +143,7 @@ export function createSessionState(
     // afford the worst-case session.
     try {
       const flux = await opts.fluxService.getFlux(userId)
+      preflightFluxBalance = flux.flux
       await opts.ttsMeter.assertCanAfford(userId, STREAMING_PREFLIGHT_CHARS_ESTIMATE, flux.flux)
     }
     catch (err) {
@@ -508,7 +511,9 @@ export function createSessionState(
       model: modelLabel,
       reason: 'insufficient_balance',
       metadata: {
+        block_reason: 'insufficient_balance',
         balance_state: 'insufficient',
+        flux_balance_bucket: fluxBalanceBucket(preflightFluxBalance),
         billing_units: STREAMING_PREFLIGHT_CHARS_ESTIMATE,
         close_code: code,
         duration_ms: Date.now() - startedAt,

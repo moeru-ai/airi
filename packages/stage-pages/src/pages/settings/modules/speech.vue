@@ -53,6 +53,9 @@ const {
 
 const {
   trackProviderClick,
+  trackOfficialTtsExposed,
+  trackOfficialTtsPreviewStarted,
+  trackOfficialTtsPreviewSucceeded,
   trackTtsProviderSelected,
   trackVoicePreviewPlayed,
   trackVoiceSelected,
@@ -66,6 +69,7 @@ const isGenerating = ref(false)
 const audioUrl = ref('')
 const audioPlayer = ref<HTMLAudioElement | null>(null)
 const errorMessage = ref('')
+let lastOfficialTtsExposureKey = ''
 
 const STREAMING_MODEL_OPTION_PREFIX = 'streaming:'
 
@@ -195,6 +199,13 @@ function currentTtsModelId() {
 }
 
 /**
+ * Checks whether the selected provider is one of AIRI's official TTS providers.
+ */
+function isOfficialTtsProvider(providerId: string) {
+  return providerId === OFFICIAL_SPEECH_PROVIDER_ID || providerId === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
+}
+
+/**
  * Classifies the selected voice without sending free-form provider config as a dimension.
  */
 function currentVoiceType(voiceId: string, providerId = activeSpeechProvider.value): VoiceType {
@@ -299,6 +310,25 @@ function selectSpeechModel(modelOptionId: string) {
   activeSpeechModel.value = nextModel
 }
 
+/**
+ * Tracks that the settings page has shown an official TTS route to the user.
+ */
+function trackOfficialTtsExposure(providerId = activeSpeechProvider.value, modelId = currentTtsModelId()) {
+  if (!providerId || !isOfficialTtsProvider(providerId))
+    return
+
+  const exposureKey = `${providerId}:${modelId}`
+  if (lastOfficialTtsExposureKey === exposureKey)
+    return
+
+  lastOfficialTtsExposureKey = exposureKey
+  trackOfficialTtsExposed({
+    tts_provider_id: providerId,
+    tts_model_id: modelId,
+    source: 'settings',
+  })
+}
+
 // Sync OpenAI Compatible model and voice from provider config
 function syncOpenAICompatibleSettings() {
   if (activeSpeechProvider.value !== 'openai-compatible-audio-speech')
@@ -331,6 +361,7 @@ onMounted(async () => {
   speechStore.ensureActiveSpeechModel()
   await speechStore.loadVoicesForProvider(activeSpeechProvider.value, activeSpeechModel.value || undefined)
   syncOpenAICompatibleSettings()
+  trackOfficialTtsExposure()
 })
 
 watch(activeSpeechProvider, async (newProvider, oldProvider) => {
@@ -355,6 +386,7 @@ watch(activeSpeechProvider, async (newProvider, oldProvider) => {
   // explicit ?model=). No-op for other providers / when a model is selected.
   speechStore.ensureActiveSpeechModel()
   await speechStore.loadVoicesForProvider(newProvider, activeSpeechModel.value || undefined)
+  trackOfficialTtsExposure(newProvider, currentTtsModelId())
 
   syncOpenAICompatibleSettings()
 })
@@ -367,6 +399,7 @@ watch(activeSpeechModel, async (model) => {
   activeSpeechVoice.value = undefined
 
   await speechStore.loadVoicesForProvider(activeSpeechProvider.value, model || undefined)
+  trackOfficialTtsExposure(activeSpeechProvider.value, currentTtsModelId())
 })
 
 watch([activeSpeechProvider, activeSpeechModel, activeSpeechVoiceId], ([provider, model, voiceId]) => {
@@ -424,6 +457,7 @@ async function generateTestSpeech() {
   const previewModel = model
   const previewProvider = activeSpeechProvider.value || 'unknown'
   const previewAnalytics = voiceAnalyticsPayload(previewVoice.id, previewProvider)
+  const previewStartedAt = performance.now()
 
   isGenerating.value = true
   errorMessage.value = ''
@@ -450,6 +484,15 @@ async function generateTestSpeech() {
           supportsSSML: speechStore.supportsSSML,
         })
 
+    if (isOfficialTtsProvider(previewProvider)) {
+      trackOfficialTtsPreviewStarted({
+        tts_provider_id: previewProvider,
+        tts_model_id: previewModel,
+        ...previewAnalytics,
+        source: 'manual_preview',
+      })
+    }
+
     const response = await generateSpeech({
       ...provider.speech(
         model,
@@ -461,6 +504,15 @@ async function generateTestSpeech() {
 
     // Convert the response to a blob and create an object URL
     audioUrl.value = URL.createObjectURL(new Blob([response]))
+    if (isOfficialTtsProvider(previewProvider)) {
+      trackOfficialTtsPreviewSucceeded({
+        tts_provider_id: previewProvider,
+        tts_model_id: previewModel,
+        ...previewAnalytics,
+        source: 'manual_preview',
+        duration_ms: Math.round(performance.now() - previewStartedAt),
+      })
+    }
 
     // Play the audio
     setTimeout(() => {
