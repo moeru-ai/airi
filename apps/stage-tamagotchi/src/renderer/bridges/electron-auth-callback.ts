@@ -42,7 +42,7 @@ export function initializeElectronAuthCallbackBridge() {
   })
 
   context.on(electronAuthCallbackError, (event) => {
-    if (event.body?.error)
+    if (event.body)
       toast.error(event.body.error)
   })
 }
