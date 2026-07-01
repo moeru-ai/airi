@@ -6,6 +6,8 @@ import { ofetch } from 'ofetch'
 
 import { createBadGatewayError, createBadRequestError, createServiceUnavailableError } from '../../../../../utils/error'
 
+const VOICE_PACK_MODEL_ID = 'voice-pack'
+
 function voicePackCatalogVoice(pack: VoicePack) {
   const cost = `Flux cost: ${pack.costMultiplier}x`
   return {
@@ -55,14 +57,19 @@ export function createSpeechCatalogOperation(deps: V1RouteDeps): SpeechCatalogOp
       ? await deps.configKV.getOrThrow('DEFAULT_TTS_MODEL')
       : requested
 
-    const voices = await deps.llmRouter.listTtsVoices(model)
     const voicePacks = await deps.voicePackService.listEnabled()
+    if (model === VOICE_PACK_MODEL_ID) {
+      logger.withFields({ model, voiceCount: voicePacks.length, voicePackCount: voicePacks.length }).debug('list tts voices')
+      return Response.json({ voices: voicePacks.map(voicePackCatalogVoice), recommended: {} })
+    }
+
+    const voices = await deps.llmRouter.listTtsVoices(model)
     const recommended = (await deps.configKV.getOptional('DEFAULT_TTS_VOICES'))?.[model] ?? {}
     // Debug level: high-frequency catalog poll from UI selectors, no
     // billing / user-facing side effect — useful only when debugging
     // voice-picker drift, never as a permanent audit trail line.
     logger.withFields({ model, voiceCount: voices.length, voicePackCount: voicePacks.length }).debug('list tts voices')
-    return Response.json({ voices: [...voicePacks.map(voicePackCatalogVoice), ...voices], recommended })
+    return Response.json({ voices, recommended })
   }
 
   /**
@@ -150,7 +157,10 @@ export function createSpeechCatalogOperation(deps: V1RouteDeps): SpeechCatalogOp
     // a TS narrowing aid.
     const modelIds = Object.keys(config?.tts?.models ?? {}).sort()
     return Response.json({
-      models: modelIds.map(id => ({ id, name: id })),
+      models: [
+        { id: VOICE_PACK_MODEL_ID, name: 'Voice Pack', description: 'Server-curated voices' },
+        ...modelIds.map(id => ({ id, name: id })),
+      ],
       default: defaultModel,
     })
   }

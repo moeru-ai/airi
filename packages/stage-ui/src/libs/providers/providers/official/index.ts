@@ -131,7 +131,7 @@ export const providerOfficialSpeech = defineProvider({
       if (!res.ok)
         throw new Error(`audio models upstream ${res.status}: ${await res.text().catch(() => '')}`.slice(0, 256))
 
-      const data = await res.json() as { models?: { id: string, name: string }[], default?: string | null }
+      const data = await res.json() as { models?: { id: string, name: string, description?: string }[], default?: string | null }
       if (!Array.isArray(data.models))
         throw new Error('audio models upstream returned malformed body')
 
@@ -140,6 +140,7 @@ export const providerOfficialSpeech = defineProvider({
       return data.models.map(m => ({
         id: m.id,
         name: m.name,
+        description: m.description,
         provider: OFFICIAL_SPEECH_PROVIDER_ID,
       }))
     },

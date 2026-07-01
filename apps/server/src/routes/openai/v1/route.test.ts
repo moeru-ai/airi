@@ -687,7 +687,7 @@ describe('v1CompletionsRoutes', () => {
 
     /**
      * @example
-     * POST /api/v1/audio/speech { "model": "auto", "voice": "friendly-azure" }
+     * POST /api/v1/audio/speech { "model": "voice-pack", "voice": "friendly-azure" }
      */
     it('resolves Voice Pack aliases to server-owned model, voice, and params', async () => {
       const routeTts = vi.fn(async () => new Response(new Uint8Array([1]), {
@@ -728,7 +728,7 @@ describe('v1CompletionsRoutes', () => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            model: 'auto',
+            model: 'voice-pack',
             input: 'test',
             voice: 'friendly-azure',
           }),
@@ -1196,7 +1196,7 @@ describe('v1CompletionsRoutes', () => {
   })
 
   describe('gET /api/v1/audio/models', () => {
-    it('exposes every configured tts model id', async () => {
+    it('exposes Voice Pack beside every configured tts model id', async () => {
       const app = createTestApp(
         createMockFluxService(),
         createMockConfigKV({
@@ -1221,13 +1221,19 @@ describe('v1CompletionsRoutes', () => {
       expect(res.status).toBe(200)
       const data = await res.json() as { models: { id: string, name: string }[], default: string }
       expect(data.models.map(m => m.id)).toEqual([
+        'voice-pack',
         'alibaba/cosyvoice-v2',
         'microsoft/v1',
       ])
+      expect(data.models[0]).toMatchObject({
+        id: 'voice-pack',
+        name: 'Voice Pack',
+        description: 'Server-curated voices',
+      })
       expect(data.default).toBe('microsoft/v1')
     })
 
-    it('returns an empty list when no tts models are configured', async () => {
+    it('keeps the Voice Pack model entry when no tts models are configured', async () => {
       const app = createTestApp(
         createMockFluxService(),
         createMockConfigKV({
@@ -1242,7 +1248,11 @@ describe('v1CompletionsRoutes', () => {
 
       expect(res.status).toBe(200)
       const data = await res.json() as { models: { id: string, name: string }[] }
-      expect(data.models).toEqual([])
+      expect(data.models).toEqual([{
+        id: 'voice-pack',
+        name: 'Voice Pack',
+        description: 'Server-curated voices',
+      }])
     })
 
     it('should return 401 when unauthenticated', async () => {
@@ -1389,7 +1399,77 @@ describe('v1CompletionsRoutes', () => {
       expect(llmRouter.listTtsVoices).toHaveBeenCalledWith('microsoft/v1')
     })
 
-    it('includes enabled Voice Packs as official catalog voices without upstream details', async () => {
+    it('lists enabled Voice Packs from the Voice Pack model without upstream details', async () => {
+      const llmRouter = createMockLlmRouter({
+        listTtsVoices: vi.fn(async () => [
+          { id: 'en-US-AvaMultilingualNeural', name: 'Ava', languages: [{ code: 'en-US', title: 'English' }] },
+        ]) as any,
+      })
+      const voicePackService = createMockVoicePackService({
+        listEnabled: vi.fn(async () => [
+          {
+            id: 'vp-1',
+            name: 'Narrator',
+            description: 'Warm voice',
+            provider: 'azure',
+            model: 'microsoft/v1',
+            voiceId: 'narrator-alias',
+            upstreamVoiceId: 'en-US-AvaMultilingualNeural',
+            ttsModelId: 'microsoft/v1',
+            params: {},
+            costMultiplier: 2,
+            enabled: true,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          {
+            id: 'vp-other',
+            name: 'Other model pack',
+            description: null,
+            provider: 'alibaba',
+            model: 'cosyvoice-v1',
+            voiceId: 'other-model-alias',
+            upstreamVoiceId: 'longxiaochun',
+            ttsModelId: 'alibaba/cosyvoice-v1',
+            params: {},
+            costMultiplier: 1,
+            enabled: true,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        ]),
+      })
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV({ DEFAULT_TTS_VOICES: { 'microsoft/v1': { 'en-US': 'en-US-AvaMultilingualNeural' } } }),
+        undefined,
+        undefined,
+        undefined,
+        llmRouter,
+        createMockLlmTracing(),
+        createMockProductEventService(),
+        voicePackService,
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/voices?model=voice-pack', { method: 'GET' }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(200)
+      const data = await res.json() as { voices: Array<Record<string, unknown>> }
+      expect(data.voices[0]).toMatchObject({
+        id: 'narrator-alias',
+        name: 'Narrator',
+        description: 'Warm voice · Flux cost: 2x',
+      })
+      expect(data.voices[0]).not.toHaveProperty('upstreamVoiceId')
+      expect(data.voices[0]).not.toHaveProperty('ttsModelId')
+      expect(data.voices[1]).toMatchObject({ id: 'other-model-alias' })
+      expect(llmRouter.listTtsVoices).not.toHaveBeenCalled()
+    })
+
+    it('does not mix Voice Packs into concrete model voice catalogs', async () => {
       const llmRouter = createMockLlmRouter({
         listTtsVoices: vi.fn(async () => [
           { id: 'en-US-AvaMultilingualNeural', name: 'Ava', languages: [{ code: 'en-US', title: 'English' }] },
@@ -1431,14 +1511,9 @@ describe('v1CompletionsRoutes', () => {
 
       expect(res.status).toBe(200)
       const data = await res.json() as { voices: Array<Record<string, unknown>> }
-      expect(data.voices[0]).toMatchObject({
-        id: 'narrator-alias',
-        name: 'Narrator',
-        description: 'Warm voice · Flux cost: 2x',
-      })
-      expect(data.voices[0]).not.toHaveProperty('upstreamVoiceId')
-      expect(data.voices[0]).not.toHaveProperty('ttsModelId')
-      expect(data.voices[1]).toMatchObject({ id: 'en-US-AvaMultilingualNeural' })
+      expect(data.voices).toEqual([
+        { id: 'en-US-AvaMultilingualNeural', name: 'Ava', languages: [{ code: 'en-US', title: 'English' }] },
+      ])
     })
 
     it('returns an empty recommended map when the resolved model has no bucket', async () => {
