@@ -19,6 +19,7 @@ export interface UseEmailAuthFlowOptions {
   callbackUrl: string
   /** `continueURL` handed to the verify-email page so it resumes to the OIDC flow. */
   verifyContinueUrl: string
+  scope: 'signIn' | 'enroll'
   /** Optional OIDC provider hint that auto-starts social sign-in once. */
   requestedProvider?: OAuthProvider | null
 }
@@ -159,7 +160,9 @@ export function useEmailAuthFlow(options: UseEmailAuthFlowOptions) {
     credentialsLoading.value = true
     try {
       const email = credentials.email.trim()
-      const name = credentials.name.trim() || email.split('@')[0]
+      const name = options.scope === 'enroll'
+        ? ''
+        : credentials.name.trim() || email.split('@')[0]
       // NOTICE: the verification email always lands on the local verify-email
       // success page (never the OIDC authorize URL) — email links open in a
       // fresh tab with empty sessionStorage, so the original pending tab does

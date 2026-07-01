@@ -22,6 +22,7 @@ const flow = useEmailAuthFlow({
   apiServerUrl: props.apiServerUrl,
   callbackUrl: props.callbackUrl,
   verifyContinueUrl: props.verifyContinueUrl,
+  scope: props.scope,
   requestedProvider: props.requestedProvider,
 })
 
@@ -123,6 +124,7 @@ const description = computed(() => {
       @submit="flow.handleEmailSignUp"
     >
       <FieldInput
+        v-if="scope !== 'enroll'"
         v-model="flow.credentials.name"
         type="text"
         :label="t('server.auth.signIn.name.label')"
