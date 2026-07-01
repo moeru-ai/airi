@@ -40,18 +40,7 @@ const resumeURL = computed(() => {
     :api-server-url="enrollContext.apiServerUrl"
     :callback-url="resumeURL"
     :verify-continue-url="resumeURL"
-  >
-    <template #banner>
-      <div :class="['mb-6 w-full max-w-sm rounded-xl p-4 bg-primary-500/10 dark:bg-primary-400/10']">
-        <div :class="['text-center text-sm font-semibold text-primary-700 dark:text-primary-300']">
-          {{ t('server.auth.enroll.banner.title') }}
-        </div>
-        <div :class="['mt-1 text-center text-xs text-primary-600/80 dark:text-primary-400/80']">
-          {{ t('server.auth.enroll.banner.description') }}
-        </div>
-      </div>
-    </template>
-  </AuthStepForms>
+  />
 
   <main
     v-else

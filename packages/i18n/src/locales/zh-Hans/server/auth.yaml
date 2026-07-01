@@ -199,9 +199,6 @@ webCallback:
   action:
     tryAgain: 重试
 enroll:
-  banner:
-    title: 正在关联你的 Steam 账号
-    description: 使用真实邮箱创建账号，或登录已有账号以关联 Steam。
   step:
     identify:
       heading: 关联你的 Steam 账号
