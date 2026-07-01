@@ -43,6 +43,8 @@ dialogs:
     start: 始めましょう！
     loginPrompt: 最適な体験を提供するAIRI公式プロバイダーを利用するには、ログインしてください。
     loginAction: サインイン
+    linkSteamAction: Link Steam account
+    checkingSteam: Checking Steam…
     setupWithoutSigningIn: プロバイダーでセットアップ
     flux: Flux
     buyFlux: Fluxをチャージ
