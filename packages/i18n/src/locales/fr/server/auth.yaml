@@ -199,9 +199,6 @@ webCallback:
   action:
     tryAgain: Réessayez
 enroll:
-  banner:
-    title: Linking your Steam account
-    description: Create an account with a real email or sign in to an existing one to link Steam.
   step:
     identify:
       heading: Link your Steam account
