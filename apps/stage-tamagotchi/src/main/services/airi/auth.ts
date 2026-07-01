@@ -326,6 +326,12 @@ async function startSteamEnrollment(windowAuthManager: WindowAuthManager): Promi
         enrollToken: exchangeResult.enrollToken,
         authUiUrl: exchangeResult.authUiUrl,
       })
+      // The browser is open; the renderer is now in its enrollment-in-browser
+      // state (enrollmentInProgress), which hides the plain sign-in button for
+      // the browser to verify to relay window. Clear the flag so a later sign-in
+      // after enrollment completes routes to plain OpenID Connect, not a stale
+      // Steam probe.
+      steamEnrollmentPending = false
       return
     }
     steamEnrollmentPending = false
