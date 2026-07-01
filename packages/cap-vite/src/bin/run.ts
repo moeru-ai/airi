@@ -4,6 +4,7 @@ import process from 'node:process'
 
 import { runCapVite } from '..'
 import { getCapViteCliHelpText, parseCapViteCliArgs } from '../cli'
+import { errorMessageFromValue } from '../utils/error-message'
 
 async function main() {
   const parsed = parseCapViteCliArgs(process.argv.slice(2))
@@ -19,6 +20,6 @@ async function main() {
 }
 
 void main().catch((error) => {
-  process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`)
+  process.stderr.write(`${errorMessageFromValue(error)}\n`)
   process.exit(1)
 })

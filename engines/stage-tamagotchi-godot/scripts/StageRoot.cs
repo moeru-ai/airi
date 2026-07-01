@@ -32,7 +32,8 @@ public partial class StageRoot : Node3D
     private StageBridge _bridge = null!;
     private StageSceneController _sceneController = null!;
     private StageViewController _viewController = null!;
-    private StageCameraInputController _viewInputController = null!;
+    private StageCameraInputController _cameraInputController = null!;
+    private StageAvatarGlowRuntime _avatarGlowRuntime = null!;
     private StageViewRuntime _viewRuntime = null!;
     private string _activeSceneModelId;
     private bool _shutdownRequested;
@@ -44,8 +45,10 @@ public partial class StageRoot : Node3D
         StageVisualPreset.Apply(this);
 
         var avatarRoot = ResolveAvatarRoot();
+        var camera = ResolveCamera();
         _sceneController = new StageSceneController(avatarRoot, new VrmAvatarLoader());
-        InitializeViewRuntime(avatarRoot);
+        InitializeViewRuntime(avatarRoot, camera);
+        _avatarGlowRuntime = new StageAvatarGlowRuntime(camera);
 
         var webSocketUrl = ResolveWebSocketUrl();
         if (string.IsNullOrWhiteSpace(webSocketUrl))
@@ -78,13 +81,19 @@ public partial class StageRoot : Node3D
 
         _bridge.Poll();
         _viewRuntime?.Process(delta);
-        _viewInputController?.Process(delta);
+        _cameraInputController?.Process(delta);
+    }
+
+    /// <inheritdoc/>
+    public override void _ExitTree()
+    {
+        _avatarGlowRuntime?.Dispose();
     }
 
     /// <inheritdoc/>
     public override void _Input(InputEvent @event)
     {
-        _viewInputController?.HandleInput(@event);
+        _cameraInputController?.HandleInput(@event);
     }
 
     private void HandleBridgeOpened()
@@ -212,6 +221,7 @@ public partial class StageRoot : Node3D
                 // avatar already loaded.
                 var avatar = _sceneController.Apply(payload);
                 _viewController?.UseAvatar(avatar);
+                _avatarGlowRuntime?.UseAvatar(avatar);
                 _viewRuntime?.BootstrapForAvatar();
                 _activeSceneModelId = payload.ModelId;
             }
@@ -292,15 +302,15 @@ public partial class StageRoot : Node3D
         return string.Empty;
     }
 
-    private void InitializeViewRuntime(Node3D avatarRoot)
+    private void InitializeViewRuntime(Node3D avatarRoot, Camera3D camera)
     {
-        var cameraController = new StageCameraPoseController(ResolveCamera());
+        var cameraController = new StageCameraPoseController(camera);
         _viewController = new StageViewController(avatarRoot, cameraController);
         _viewRuntime = new StageViewRuntime(_viewController);
         _viewRuntime.SnapshotReady += payload =>
             _bridge.SendEnvelope("stage.view.snapshot", payload);
         _viewRuntime.ErrorReady += payload => _bridge.SendEnvelope("stage.view.error", payload);
-        _viewInputController = new StageCameraInputController(_viewRuntime, cameraController);
+        _cameraInputController = new StageCameraInputController(_viewRuntime, cameraController);
     }
 
     private void SendSceneError(string message)

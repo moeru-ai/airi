@@ -1,7 +1,7 @@
 import type { CapabilityDescriptor } from '../../../../plugin/apis/protocol'
 
 /**
- * Tracks capability lifecycle state and waits for readiness across plugin sessions.
+ * Tracks capability lifecycle state and waits for readiness across extension sessions.
  *
  * Use when:
  * - The host needs to announce, ready, degrade, or withdraw named capabilities

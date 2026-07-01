@@ -6,22 +6,32 @@ import { computed, onMounted, shallowRef } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { Toaster } from 'vue-sonner'
 
-import { adminApi, AdminApiError, signInUrl } from './modules/api'
+import ApiEnvironmentSelect from './components/admin-shell/ApiEnvironmentSelect.vue'
+
+import { adminApi, AdminApiError, apiServerUrl, signInUrl } from './modules/api'
 
 const route = useRoute()
 
 const loading = shallowRef(true)
 const me = shallowRef<AdminMe | null>(null)
 const accessError = shallowRef<string | null>(null)
+const needsSignIn = shallowRef(false)
+const currentApiServerUrl = apiServerUrl()
 
 const navItems = [
   { to: '/', icon: 'i-lucide-layout-dashboard', label: 'Overview' },
   { to: '/users', icon: 'i-lucide-users', label: 'Users' },
   { to: '/flux', icon: 'i-lucide-coins', label: 'Flux' },
   { to: '/llm-router', icon: 'i-lucide-route', label: 'LLM Router' },
+  { to: '/voice-packs', icon: 'i-lucide-volume-2', label: 'Voice Packs' },
 ]
 
-const currentTitle = computed(() => navItems.find(item => item.to === route.path)?.label ?? 'Overview')
+const activeNavItem = computed(() => navItems.find(item =>
+  item.to === '/'
+    ? route.path === '/'
+    : route.path === item.to || route.path.startsWith(`${item.to}/`),
+))
+const currentTitle = computed(() => activeNavItem.value?.label ?? 'Overview')
 const initials = computed(() => {
   const source = me.value?.user.name || me.value?.user.email || 'A'
   return source.slice(0, 1).toUpperCase()
@@ -33,7 +43,7 @@ onMounted(async () => {
   }
   catch (error) {
     if (error instanceof AdminApiError && error.status === 401) {
-      window.location.href = signInUrl()
+      needsSignIn.value = true
       return
     }
 
@@ -46,24 +56,27 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#f7f8fa] text-[#171717]">
+  <div class="min-h-screen bg-[#f7f8fa] text-[#171717] dark:bg-neutral-950 dark:text-neutral-100">
     <div v-if="loading" class="grid min-h-screen place-items-center">
-      <div class="flex items-center gap-3 text-sm text-neutral-500">
+      <div class="flex items-center gap-3 text-sm text-neutral-500 dark:text-neutral-400">
         <span class="i-lucide-loader-2 animate-spin text-lg" />
         Loading admin session
       </div>
     </div>
 
-    <div v-else-if="accessError" class="grid min-h-screen place-items-center px-6">
-      <section class="max-w-md w-full border border-neutral-200 rounded-lg bg-white p-6 shadow-sm">
-        <div class="mb-4 h-10 w-10 flex items-center justify-center rounded-lg bg-red-50 text-red-600">
-          <span class="i-lucide-shield-alert text-xl" />
+    <div v-else-if="needsSignIn || accessError" :class="['grid', 'min-h-screen', 'place-items-center', 'px-6']">
+      <div :class="['fixed', 'right-6', 'top-5']">
+        <ApiEnvironmentSelect :api-server-url="currentApiServerUrl" />
+      </div>
+      <section class="max-w-md w-full border border-neutral-200 rounded-lg bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+        <div :class="['mb-4', 'h-10', 'w-10', 'flex', 'items-center', 'justify-center', 'rounded-lg', needsSignIn ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600']">
+          <span :class="[needsSignIn ? 'i-lucide-lock-keyhole' : 'i-lucide-shield-alert', 'text-xl']" />
         </div>
         <h1 class="text-xl font-semibold">
-          Admin access required
+          {{ needsSignIn ? 'Sign in to AIRI Admin' : 'Admin access required' }}
         </h1>
-        <p class="mt-2 text-sm text-neutral-500">
-          {{ accessError }}
+        <p class="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
+          {{ needsSignIn ? 'Choose the backend environment, then continue to its auth page.' : accessError }}
         </p>
         <a class="mt-5 h-9 inline-flex items-center gap-2 rounded-md bg-emerald-600 px-3 text-sm text-white" :href="signInUrl()">
           <span class="i-lucide-log-in" />
@@ -82,7 +95,7 @@ onMounted(async () => {
             <div class="truncate text-sm font-semibold">
               AIRI Admin
             </div>
-            <div class="truncate text-xs text-neutral-500">
+            <div class="truncate text-xs text-neutral-500 dark:text-neutral-400">
               Operations
             </div>
           </div>
@@ -99,7 +112,7 @@ onMounted(async () => {
             :key="item.to"
             :to="item.to"
             class="nav-item"
-            :class="{ 'nav-item-active': route.path === item.to }"
+            :class="{ 'nav-item-active': activeNavItem?.to === item.to }"
           >
             <span :class="item.icon" />
             {{ item.label }}
@@ -126,12 +139,13 @@ onMounted(async () => {
       <main class="admin-main">
         <header class="admin-topbar">
           <div class="flex items-center gap-3">
-            <span class="i-lucide-panel-left text-neutral-500" />
-            <div class="h-5 w-px bg-neutral-200" />
+            <span class="i-lucide-panel-left text-neutral-500 dark:text-neutral-400" />
+            <div class="h-5 w-px bg-neutral-200 dark:bg-neutral-800" />
             <h1 class="text-sm font-semibold">
               {{ currentTitle }}
             </h1>
           </div>
+          <ApiEnvironmentSelect :api-server-url="currentApiServerUrl" />
         </header>
         <div class="admin-content">
           <RouterView />

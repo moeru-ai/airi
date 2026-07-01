@@ -22,6 +22,7 @@ import {
   prioritizeInspectableAiriTargets,
 } from '../e2e/debug-targets'
 import { getProviderBootstrapConfig } from '../e2e/provider-bootstrap'
+import { errorMessageFromValue } from '../utils/error-message'
 
 interface DebugTarget {
   id: string
@@ -870,7 +871,7 @@ async function main() {
       chatSurfaceMode = 'same-window-route'
       addTimeline('chat-open-fallback', {
         mode: 'same-window-route',
-        reason: error instanceof Error ? error.message : String(error),
+        reason: errorMessageFromValue(error),
       })
 
       await mainTargetClient.evaluate(`window.__AIRI_DEBUG__.navigateTo('/chat')`)
@@ -1287,7 +1288,7 @@ async function main() {
     report.discord.bot = {
       ...discordRuntimeState,
     }
-    report.error = error instanceof Error ? error.stack || error.message : String(error)
+    report.error = errorMessageFromValue(error)
     addTimeline('failure', { error: report.error })
     await writeReport()
     console.error(report.error)
@@ -1322,7 +1323,7 @@ async function main() {
 
 main()
   .catch((error) => {
-    const message = error instanceof Error ? error.stack || error.message : String(error)
+    const message = errorMessageFromValue(error)
     console.error(message)
     exitCode = 1
   })

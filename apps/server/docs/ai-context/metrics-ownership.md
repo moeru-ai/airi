@@ -115,6 +115,7 @@
 - 前端 `posthog-js` 通过 `packages/stage-ui/src/stores/analytics/posthog.ts` 初始化，三个 app（web / desktop / pocket）按 `isStageTamagotchi()` 等选 project key
 - Server 不接入 `posthog-node`。后端产品事件写 `product_events`，Grafana 展示低基数聚合；需要 PostHog revenue/person analytics 时优先用 PostHog Stripe source connector 或离线导入，不允许在 API 请求路径同步发 PostHog。
 - 前端 identity：`useSharedAnalyticsStore.initialize()` watch `authStore.isAuthenticated` 自动调 `posthog.identify(user.id)` / `reset()`
+- Conversation controls 事件的 `surface` 由 `packages/stage-ui/src/composables/use-analytics.ts` 统一按 runtime 推断，UI 调用点只传业务字段。
 
 已埋点：
 
@@ -125,6 +126,9 @@
 | Activation / Retention | `first_model_selected` / `model_switched` | 前端（consciousness store watcher） | `packages/stage-ui/src/stores/analytics/index.ts` | PostHog |
 | Retention | `character_created` | 前端 | `apps/stage-web/src/pages/settings/characters/components/CharacterDialog.vue` | PostHog |
 | Retention | `chat_session_started` | 前端 | `packages/stage-ui/src/components/scenarios/chat/components/sessions-drawer.vue` | PostHog |
+| Conversation controls | `chat_session_selected` | 前端 | `packages/stage-ui/src/components/scenarios/chat/components/sessions-drawer.vue` | PostHog |
+| Conversation controls | `chat_message_deleted` / `chat_messages_cleared` / `chat_message_retried` | 前端 | `packages/stage-layouts/src/components/Layouts/*InteractiveArea.vue` / `packages/stage-layouts/src/components/Widgets/ChatActionButtons.vue` / `apps/stage-tamagotchi/src/renderer/components/InteractiveArea.vue` | PostHog |
+| Conversation controls | `tts_stop_clicked` | 前端 | `packages/stage-layouts/src/composables/useStopSpeakingButton.ts` | PostHog |
 | Churn | `subscription_cancelled`（带 cancellation_reason） | 外部 Stripe 数据源 | PostHog Stripe source connector | Stripe/Postgres |
 | 老事件 | `provider_card_clicked` / `first_message_sent` | 前端 | `packages/stage-ui/src/composables/use-analytics.ts` | PostHog |
 

@@ -18,6 +18,7 @@ vi.mock('../server', () => ({
 interface MockServer {
   url: string
   receivedFrames: Array<{ kind: 'text' | 'binary', data: string | Buffer }>
+  observedVoiceTypes: string[]
   /** Resolves when the server has observed a `start` frame from the client. */
   startObserved: Promise<void>
   stop: () => Promise<void>
@@ -25,6 +26,7 @@ interface MockServer {
 
 async function startMockServer(handler: (ws: import('ws').WebSocket) => void): Promise<MockServer> {
   const receivedFrames: MockServer['receivedFrames'] = []
+  const observedVoiceTypes: string[] = []
   const httpServer = createServer()
   const wss = new WebSocketServer({ server: httpServer })
 
@@ -33,7 +35,12 @@ async function startMockServer(handler: (ws: import('ws').WebSocket) => void): P
     resolveStartObserved = res
   })
 
-  wss.on('connection', (ws) => {
+  wss.on('connection', (ws, req) => {
+    const u = new URL(req.url!, 'http://localhost')
+    const voiceType = u.searchParams.get('tts_voice_type')
+    if (voiceType != null)
+      observedVoiceTypes.push(voiceType)
+
     ws.on('message', (data, isBinary) => {
       const buf = Buffer.isBuffer(data) ? data : Buffer.from(data as ArrayBuffer)
       const decoded = isBinary ? buf : buf.toString('utf8')
@@ -56,6 +63,7 @@ async function startMockServer(handler: (ws: import('ws').WebSocket) => void): P
   return {
     url: `http://127.0.0.1:${port}`,
     receivedFrames,
+    observedVoiceTypes,
     startObserved,
     async stop() {
       wss.close()
@@ -127,6 +135,7 @@ describe('createStreamingTtsPipeline', () => {
       serverUrl: server.url,
       model: 'volcengine/seed-tts-1.0',
       voice: 'mock',
+      ttsVoiceType: 'official_selected',
       audioContext: makeStubAudioContext(),
       onSentence,
       onError,
@@ -146,6 +155,7 @@ describe('createStreamingTtsPipeline', () => {
     await server.startObserved
     const textFrames = server.receivedFrames.filter(f => f.kind === 'text').map(f => JSON.parse(f.data as string))
     expect(textFrames.map(f => f.event)).toEqual(['start', 'text', 'text', 'finish'])
+    expect(server.observedVoiceTypes).toEqual(['official_selected'])
     expect(textFrames[1]).toMatchObject({ event: 'text', text: 'hi ' })
     expect(textFrames[2]).toMatchObject({ event: 'text', text: 'there' })
 
@@ -287,11 +297,21 @@ describe('createStreamingTtsPipeline', () => {
     await server.startObserved
     handle.cancel()
 
-    await new Promise<void>((resolve) => {
-      onDone.mockImplementation(() => resolve())
-      setTimeout(resolve, 500)
-    })
-
-    expect(cancelObserved).toBe(true)
+    // ROOT CAUSE:
+    //
+    // This test was flaky on CI: asserting `cancelObserved` right after `onDone`
+    // resolved raced the mock server's `message` event.
+    // `cancel()` queues the cancel frame in the ws write buffer, then `terminate()`
+    // defers `ws.close()` + `onDone()` by one macrotask (streaming-pipeline.ts) —
+    // but the frame still has to cross a real loopback socket and be dispatched to
+    // the server's `message` listener, which on a loaded runner can happen AFTER
+    // the client-side `onDone` fired.
+    //
+    // We fixed this by polling for both observations instead of asserting
+    // immediately after `onDone`.
+    await vi.waitFor(() => {
+      expect(cancelObserved).toBe(true)
+      expect(onDone).toHaveBeenCalledTimes(1)
+    }, { interval: 10, timeout: 1500 })
   })
 })

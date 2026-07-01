@@ -5,11 +5,12 @@ export default defineConfig({
     projects: [
       'apps/server',
       'apps/ui-server-auth',
+      'apps/ui-admin',
       'apps/stage-tamagotchi',
-      'packages/audio-pipelines-transcribe',
       'packages/cap-vite',
       'packages/core-agent',
       'packages/vishot-runner-browser',
+      'packages/better-ws',
       'packages/plugin-sdk',
       'packages/plugin-sdk-tamagotchi',
       'packages/server-runtime',

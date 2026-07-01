@@ -46,7 +46,7 @@ Out:
 
 - **Resend SDK**：使用官方 `resend` npm 包。错误处理走 `errorMessageFrom`（`@moeru/std`）；失败时抛 `ApiError(502, 'email/send_failed', ...)` 让 Better Auth 把错传回前端。
 - **触发邮件的位置**：Better Auth 的 hook 是 server 内部回调，不是 HTTP 路由——跨实例时只有处理该次 sign-in/up 的实例会触发，不会重复。
-- **Verify / reset 链接 URL**：链接落地页不放 `apps/server`，而是放 `apps/ui-server-auth`。`API_SERVER_URL` 是 server 自身（如 `https://airi-api.moeru.ai`），ui-server-auth 通常是另一域（如 `https://auth.airi.moeru.ai`）；两者要么同源（dev）要么通过 trustedOrigins 已经互信。链接组装规则：
+- **Verify / reset 链接 URL**：链接落地页不放 `apps/server`，而是放独立部署的 `apps/ui-server-auth`。`API_SERVER_URL` 是 server 自身（如 `https://api.airi.build`），ui-server-auth 是同站点的另一域（如 `https://accounts.airi.build/ui`）；两者通过 trustedOrigins 互信。链接组装规则：
   - Verify email：`<UI_BASE>/verify-email?token=<token>`
   - Reset password：`<UI_BASE>/reset-password?token=<token>`
   - 由 `getAuthTrustedOrigins(request)` 第一个匹配的 origin 决定 `<UI_BASE>`，避免硬编码。

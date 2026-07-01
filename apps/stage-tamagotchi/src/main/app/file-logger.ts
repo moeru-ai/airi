@@ -25,6 +25,7 @@
 import { mkdir, open, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 
+import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import { app } from 'electron'
 
 // ============================================================================
@@ -71,7 +72,7 @@ export const nullFileLoggerHandle: FileLoggerHandle = {
  * Extracts a human-readable error message from an unknown error object.
  */
 function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+  return errorMessageFromValue(error)
 }
 
 /**

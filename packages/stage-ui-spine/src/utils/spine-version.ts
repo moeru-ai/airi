@@ -20,16 +20,22 @@ export type SpineVersion = '4.0' | '4.1' | '4.2'
  * The binary format header is:
  * - int32 hashLow
  * - int32 hashHigh
- * - varint-length-prefixed string: version (e.g. "4.2.18")
+ * - length-prefixed string: version (e.g. "4.2.18"). Spine encodes the
+ *   length as a varint of `(utf8ByteLength + 1)`, where 0 means null and 1
+ *   means the empty string.
  */
 export function detectSpineVersionFromBinary(data: Uint8Array): SpineVersion | undefined {
   try {
     // Skip 8 bytes of hash (two int32s)
     let offset = 8
-    // Read varint-encoded string length
-    const { value: strLen, bytesRead } = readVarint(data, offset)
+    // Read varint-encoded string length. Spine stores (byteLength + 1):
+    // 0 → null, 1 → "". Subtract 1 to get the real UTF-8 byte count.
+    const { value: rawLength, bytesRead } = readVarint(data, offset)
     offset += bytesRead
-    if (strLen <= 0 || offset + strLen > data.byteLength)
+    if (rawLength <= 1)
+      return undefined
+    const strLen = rawLength - 1
+    if (offset + strLen > data.byteLength)
       return undefined
 
     const versionStr = new TextDecoder().decode(data.slice(offset, offset + strLen))

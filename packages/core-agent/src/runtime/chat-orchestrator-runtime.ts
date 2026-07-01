@@ -190,6 +190,28 @@ export interface ChatOrchestratorRuntimeDeps {
   onSendSettled?: (event: { sessionId: string }) => void
   /** Called when a send starts and the first assistant placeholder is created. */
   onTrackFirstMessage?: () => void
+  /** Called when a user starts a chat activation attempt. */
+  onChatActivationStarted?: (event: {
+    sessionId: string
+    source: 'text' | 'voice'
+    model: string
+    provider: string
+  }) => void
+  /** Called after one user-to-assistant message round completes successfully. */
+  onChatActivationSucceeded?: (event: {
+    source: 'text' | 'voice'
+    model: string
+    provider: string
+    durationMs: number
+  }) => void
+  /** Called after a chat activation attempt fails before assistant completion. */
+  onChatActivationFailed?: (event: {
+    source: 'text' | 'voice'
+    model: string
+    provider: string
+    failureStage: 'llm_response'
+    errorCode: 'llm_response_failed'
+  }) => void
   /** Called when a user message send begins. */
   onMessageSendStarted?: (event: {
     source: 'text' | 'voice'
@@ -226,6 +248,10 @@ export interface ChatOrchestratorRuntimeDeps {
     sessionId: string
     message: Extract<ChatHistoryItem, { role: 'user' }> & { id: string }
     messageText: string
+    source: 'text' | 'voice'
+    model: string
+    provider: string
+    turnIndex: number
   }) => void
   /** Called after the assistant message has been finalized into session history. */
   onAssistantMessageAppended?: (event: {
@@ -401,9 +427,17 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       id: createId(),
     }
     patchForegroundStream(sessionId, buildingMessage)
+    const sendSource = options.input ? 'voice' : 'text'
+    const activeProvider = deps.getActiveProvider?.() ?? ''
     deps.onTrackFirstMessage?.()
+    deps.onChatActivationStarted?.({
+      sessionId,
+      source: sendSource,
+      model: options.model,
+      provider: activeProvider,
+    })
     deps.onMessageSendStarted?.({
-      source: options.input ? 'voice' : 'text',
+      source: sendSource,
       model: options.model,
     })
     const roundStartedAt = monotonicNow()
@@ -447,6 +481,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         id: userMessageId,
       }
       deps.session.appendSessionMessage(sessionId, userMessage)
+      const userTurnIndex = deps.session.getSessionMessages(sessionId).filter(message => message.role === 'user').length
 
       // Cloud sync v1: only the raw text part round-trips; image attachments
       // and other non-text parts stay local.
@@ -454,6 +489,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         sessionId,
         message: userMessage,
         messageText: sendingMessage,
+        source: sendSource,
+        model: options.model,
+        provider: activeProvider,
+        turnIndex: userTurnIndex,
       })
 
       const sessionMessagesForSend = deps.session.getSessionMessages(sessionId)
@@ -710,14 +749,28 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       })
 
       resetForegroundStream(sessionId)
+      const durationMs = Math.round(monotonicNow() - roundStartedAt)
       deps.onMessageRound?.({
-        durationMs: Math.round(monotonicNow() - roundStartedAt),
+        durationMs,
         hasVoice: !!options.input,
         model: options.model,
+      })
+      deps.onChatActivationSucceeded?.({
+        durationMs,
+        source: sendSource,
+        model: options.model,
+        provider: activeProvider,
       })
     }
     catch (error) {
       console.error('Error sending message:', error)
+      deps.onChatActivationFailed?.({
+        source: sendSource,
+        model: options.model,
+        provider: activeProvider,
+        failureStage: 'llm_response',
+        errorCode: 'llm_response_failed',
+      })
       throw error
     }
     finally {

@@ -1,20 +1,24 @@
 import { nextTick } from 'vue'
 
 import { initializeAuth } from '../libs/auth'
-import { getStreamingTtsAvailable } from '../libs/providers'
+import { getStreamingTtsAvailable, OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from '../libs/providers'
 import { useAuthStore } from '../stores/auth'
 import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useHearingStore } from '../stores/modules/hearing'
 import { useSpeechStore } from '../stores/modules/speech'
+import { useVisionStore } from '../stores/modules/vision'
 import { useProvidersStore } from '../stores/providers'
+import { useAnalytics } from './use-analytics'
 
 /**
  * Provider IDs to auto-activate on sign-in.
  * Edit this list to enable/disable official providers.
  */
-const AUTH_ACTIVATED_PROVIDERS: Array<{ id: string, module: 'consciousness' | 'speech' | 'hearing' }> = [
+const AUTH_ACTIVATED_PROVIDERS: Array<{ id: string, module: 'consciousness' | 'speech' | 'hearing' | 'vision' }> = [
   { id: 'official-provider', module: 'consciousness' },
+  { id: 'vision-official-provider', module: 'vision' },
   { id: 'official-provider-speech', module: 'speech' },
+  { id: OFFICIAL_TRANSCRIPTION_PROVIDER_ID, module: 'hearing' },
 ]
 
 // The streaming TTS provider is NOT in the static list above because its
@@ -35,8 +39,10 @@ export function useAuthProviderSync() {
   const authStore = useAuthStore()
   const providersStore = useProvidersStore()
   const consciousnessStore = useConsciousnessStore()
+  const visionStore = useVisionStore()
   const speechStore = useSpeechStore()
   const hearingStore = useHearingStore()
+  const { trackOfficialProviderSelected } = useAnalytics()
 
   // Track whether the sync has already fired in this session to avoid
   // re-running on every page navigation (onAuthenticated fires immediately
@@ -64,6 +70,19 @@ export function useAuthProviderSync() {
           if (!consciousnessStore.activeProvider) {
             consciousnessStore.activeProvider = id
             consciousnessStore.activeModel = 'auto'
+            trackOfficialProviderSelected({
+              provider_id: id,
+              provider_mode: 'official',
+              source: 'default_auto',
+              auto_selected: true,
+              model_id: 'auto',
+            })
+          }
+          break
+        case 'vision':
+          if (!visionStore.activeProvider) {
+            visionStore.activeProvider = id
+            visionStore.activeModel = 'auto'
           }
           break
         case 'speech':
@@ -87,7 +106,9 @@ export function useAuthProviderSync() {
         toActivate.map(({ id, module }) =>
           module === 'consciousness'
             ? consciousnessStore.loadModelsForProvider(id)
-            : providersStore.fetchModelsForProvider(id),
+            : module === 'vision'
+              ? visionStore.loadModelsForProvider(id)
+              : providersStore.fetchModelsForProvider(id),
         ),
       )
     }
@@ -165,6 +186,12 @@ export function useAuthProviderSync() {
           if (consciousnessStore.activeProvider === id) {
             consciousnessStore.activeProvider = ''
             consciousnessStore.activeModel = ''
+          }
+          break
+        case 'vision':
+          if (visionStore.activeProvider === id) {
+            visionStore.activeProvider = ''
+            visionStore.activeModel = ''
           }
           break
         case 'speech':

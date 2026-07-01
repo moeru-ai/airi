@@ -31,6 +31,7 @@ import { createServer } from 'node:http'
 import { homedir, tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 
+import { errorMessageFromValue } from '../utils/error-message'
 import { runProcess, sanitizeFileSegment } from '../utils/process'
 
 const sessionDisplayStart = 90
@@ -242,7 +243,7 @@ export class LinuxX11RunnerService {
       return {
         available: false,
         platform: 'linux',
-        unavailableReason: error instanceof Error ? error.message : String(error),
+        unavailableReason: errorMessageFromValue(error),
       }
     }
   }

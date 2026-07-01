@@ -64,8 +64,8 @@ dialogs:
       stateGranted: 許可済み
       stateNotGranted: 許可されていません
   bug-report:
-    title: バク報告　(´;ω;`)ヾ(･∀･`)
-    subtitle: "予期せぬエラーが発生しました　\n何が起こったか報告してくれませんか？"
+    title: バク報告(´;ω;`)ヾ(･∀･`)
+    subtitle: "予期せぬエラーが発生しました\n何が起こったか報告してくれませんか？"
     trigger-label: バグを報告
     submit-label: バグ報告を送信
     triage-description: この問題の解決のためにページ内容とスクリーンショットを含める。
@@ -109,7 +109,7 @@ model-select:
   panel-callout:
     support-status-header: 私たちは2Dと3Dのモデル両方をサポートしています
     support-status: >
-      Click {select-button} to select or import models. Currently, {zip} (for Live2D models) and {vrm} (for VRM models) are supported.
+      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models) and {vrm} (for VRM models) are supported.
     model-type-example: >
       Neuro-sama uses 2D model driven by framework developed by Live2D Inc, while Grok Ani (in Grok Companion) uses 3D model driven by VRM / MMD open formats.
   select-model:
@@ -248,6 +248,8 @@ pages:
         listFailed: Could not load connected accounts.
         unlinkFailed: Could not unlink this account.
         linkFailed: Could not start the link flow.
+        accountAlreadyLinkedToDifferentUser: この OAuth アカウントは別の AIRI アカウントにすでに連携されています。別のプロバイダーアカウントを選ぶか、先に別の AIRI アカウントから連携を解除してください。
+        oauthCallbackFailed: この OAuth アカウントを連携できませんでした。もう一度試すか、別のプロバイダーアカウントを選んでください。
         lastAccount: "これはあなたの唯一のサインイン方法です。\nリンクを解除する前にパスワードを設定してください。"
     security:
       tab: セキュリティ
@@ -308,6 +310,9 @@ pages:
       provider: チャット / プロバイダー
     consciousness:
       model: 意識 / モデル
+    vision:
+      provider: ビジョン / プロバイダー
+      model: ビジョン / モデル
     created_by: 作成者
     creator_notes: 作成者のメモ
     delete: 削除
@@ -441,7 +446,7 @@ pages:
       all_deleted: すべてのローカルデータを削除しました。
       desktop_reset: デスクトップのデータをリセットしました。
   models:
-    description: Live2D、VRMなど。
+    description: Live2D、VRM、Spine、など。
     title: モデル
     sections:
       section:
@@ -679,6 +684,12 @@ pages:
             select-voice:
               loading: モデルを読み込み中…
               required: 音声を選択してください
+          voice-pack:
+            description: Select a curated voice for the active character
+            empty: No Voice Packs available
+            error: Error loading Voice Packs
+            loading: Loading Voice Packs...
+            title: Voice Pack
           provider-voice-selection:
             custom_model_placeholder: カスタムモデル名を入力…
             custom_voice_placeholder: カスタム音声IDを入力…
@@ -952,6 +963,9 @@ pages:
       chat:
         title: チャット
         description: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
+      vision:
+        title: Vision
+        description: Vision model providers for image understanding.
       speech:
         title: Speech
         description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
@@ -1215,6 +1229,9 @@ pages:
       fireworks:
         description: fireworks.ai
         title: Fireworks.ai
+      google-gemini-audio-speech:
+        description: aistudio.google.com
+        title: Google Gemini
       microsoft-speech:
         description: speech.microsoft.com
         fields:
@@ -1639,6 +1656,8 @@ spine:
     idle-animation: Idle Animation
     mix-duration: Mix Duration (seconds)
     speed: Animation Speed
+  appearance:
+    title: 外観
   variant:
     title: Variant
     current-variant: Active Variant

@@ -1,5 +1,8 @@
-import type { ContextInit } from '../../plugin/shared'
+import { defineExtension } from '../../extension'
 
-export async function init(_initContext: ContextInit) {
-  return false
-}
+export default defineExtension({
+  id: 'test-plugin-no-connect',
+  setup() {
+    throw new Error('Plugin initialization aborted by plugin: test-plugin-no-connect')
+  },
+})

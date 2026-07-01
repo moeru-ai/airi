@@ -109,7 +109,7 @@ model-select:
   panel-callout:
     support-status-header: We support both 2D and 3D models
     support-status: >
-      Click {select-button} to select or import models. Currently, {zip} (for Live2D models) and {vrm} (for VRM models) are supported.
+      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models) and {vrm} (for VRM models) are supported.
     model-type-example: >
       Neuro-sama uses 2D model driven by framework developed by Live2D Inc, while Grok Ani (in Grok Companion) uses 3D model driven by VRM / MMD open formats.
   select-model:
@@ -248,6 +248,8 @@ pages:
         listFailed: Could not load connected accounts.
         unlinkFailed: Could not unlink this account.
         linkFailed: Could not start the link flow.
+        accountAlreadyLinkedToDifferentUser: Ce compte OAuth est déjà lié à un autre compte AIRI. Choisissez un autre compte fournisseur ou dissociez-le d'abord de l'autre compte AIRI.
+        oauthCallbackFailed: Impossible de connecter ce compte OAuth. Réessayez ou choisissez un autre compte fournisseur.
         lastAccount: This is your only sign-in method. Set a password first before unlinking it.
     security:
       tab: Security
@@ -308,6 +310,9 @@ pages:
       provider: Chat / Fournisseur
     consciousness:
       model: Conscience / Modèle
+    vision:
+      provider: Vision / Fournisseur
+      model: Vision / Modèle
     created_by: créé par
     creator_notes: Notes du créateur
     delete: Supprimer
@@ -441,7 +446,7 @@ pages:
       all_deleted: Toutes les données locales ont été supprimées.
       desktop_reset: Données du bureau réinitialisées.
   models:
-    description: Live2D, VRM, etc.
+    description: Live2D, VRM, Spine, etc.
     title: Modèles
     sections:
       section:
@@ -679,6 +684,12 @@ pages:
             select-voice:
               loading: Chargement du modèle...
               required: Veuillez sélectionner une voix
+          voice-pack:
+            description: Select a curated voice for the active character
+            empty: No Voice Packs available
+            error: Error loading Voice Packs
+            loading: Loading Voice Packs...
+            title: Voice Pack
           provider-voice-selection:
             custom_model_placeholder: Entrez le nom du modèle personnalisé...
             custom_voice_placeholder: Entrez l’ID de la voix personnalisée...
@@ -952,6 +963,9 @@ pages:
       chat:
         title: Chat
         description: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
+      vision:
+        title: Vision
+        description: Vision model providers for image understanding.
       speech:
         title: Speech
         description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
@@ -1215,6 +1229,9 @@ pages:
       fireworks:
         description: fireworks.ai
         title: Fireworks.ai
+      google-gemini-audio-speech:
+        description: aistudio.google.com
+        title: Google Gemini
       microsoft-speech:
         description: speech.microsoft.com
         fields:
@@ -1639,6 +1656,8 @@ spine:
     idle-animation: Idle Animation
     mix-duration: Mix Duration (seconds)
     speed: Animation Speed
+  appearance:
+    title: Apparence
   variant:
     title: Variant
     current-variant: Active Variant

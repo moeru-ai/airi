@@ -28,7 +28,7 @@
     "@proj-airi/vishot-runtime": "workspace:^",
     "@vueuse/core": "catalog:",
     "date-fns": "catalog:",
-    "reka-ui": "catalog:reka-ui-2-9-6",
+    "reka-ui": "catalog:",
     "vue": "catalog:",
     "vue-router": "catalog:"
   },

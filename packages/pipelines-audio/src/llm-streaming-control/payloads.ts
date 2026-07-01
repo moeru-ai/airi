@@ -65,12 +65,12 @@ function normalizeEmotionName(
  * // Accept numeric strings because many streaming payloads arrive serialized.
  */
 function normalizeIntensity(value: unknown): number {
-  const numeric =
-    typeof value === 'number'
+  const numeric
+    = typeof value === 'number'
       ? value
       : typeof value === 'string'
         ? Number(value)
-        : NaN
+        : Number.NaN
 
   if (!Number.isFinite(numeric)) {
     return 1
@@ -105,8 +105,8 @@ function normalizeEmotion(
     return undefined
   }
 
-  const name =
-    typeof value.name === 'string'
+  const name
+    = typeof value.name === 'string'
       ? normalizeEmotionName(value.name)
       : undefined
 
