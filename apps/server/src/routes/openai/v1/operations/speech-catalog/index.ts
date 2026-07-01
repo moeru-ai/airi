@@ -4,6 +4,7 @@ import type { V1RouteDeps } from '../../types'
 import { useLogger } from '@guiiai/logg'
 import { ofetch } from 'ofetch'
 
+import { catalogVoiceResponse } from '../../../../../services/domain/provider-catalog/provider-voices'
 import { createBadGatewayError, createBadRequestError, createServiceUnavailableError } from '../../../../../utils/error'
 
 const VOICE_PACK_MODEL_ID = 'voice-pack'
@@ -63,13 +64,13 @@ export function createSpeechCatalogOperation(deps: V1RouteDeps): SpeechCatalogOp
       return Response.json({ voices: voicePacks.map(voicePackCatalogVoice), recommended: {} })
     }
 
-    const voices = await deps.llmRouter.listTtsVoices(model)
+    const voices = await deps.providerCatalogService.listEnabledTtsVoices(model)
     const recommended = (await deps.configKV.getOptional('DEFAULT_TTS_VOICES'))?.[model] ?? {}
     // Debug level: high-frequency catalog poll from UI selectors, no
     // billing / user-facing side effect — useful only when debugging
     // voice-picker drift, never as a permanent audit trail line.
     logger.withFields({ model, voiceCount: voices.length, voicePackCount: voicePacks.length }).debug('list tts voices')
-    return Response.json({ voices, recommended })
+    return Response.json({ voices: voices.map(catalogVoiceResponse), recommended })
   }
 
   /**
@@ -144,24 +145,17 @@ export function createSpeechCatalogOperation(deps: V1RouteDeps): SpeechCatalogOp
   }
 
   async function listSpeechModels() {
-    // Surface the concrete TTS models the operator has configured. The UI
-    // should select an explicit model id so voice catalog requests stay
-    // model-scoped instead of hiding behind DEFAULT_TTS_MODEL. The `default`
-    // field lets the initial client selection mirror the same server-side
-    // alias that `/audio/speech` uses for `model: "auto"`.
-    const config = await deps.configKV.getOrThrow('LLM_ROUTER_CONFIG')
     const defaultModel = await deps.configKV.getOrThrow('DEFAULT_TTS_MODEL')
-    // `LLM_ROUTER_CONFIG` is `optional()` at the schema, so its inferred type
-    // tolerates `undefined`. `getOrThrow` already throws on missing entries,
-    // so by this line we know `config` is present — the `?.` here is purely
-    // a TS narrowing aid.
-    const modelIds = Object.keys(config?.tts?.models ?? {}).sort()
+    const models = await deps.providerCatalogService.listEnabledTtsModels()
+    const publicDefaultModel = models.some(model => model.routerModelId === defaultModel)
+      ? defaultModel
+      : null
     return Response.json({
       models: [
         { id: VOICE_PACK_MODEL_ID, name: 'Voice Pack', description: 'Server-curated voices' },
-        ...modelIds.map(id => ({ id, name: id })),
+        ...models.map(model => ({ id: model.routerModelId, name: model.displayName })),
       ],
-      default: defaultModel,
+      default: publicDefaultModel,
     })
   }
 

@@ -4,6 +4,7 @@ import type { AuthInstance } from '../../libs/auth'
 import type { Env } from '../../libs/env'
 import type { ConfigKVService } from '../../services/adapters/config-kv'
 import type { RouterConfig } from '../../services/domain/llm-router/types'
+import type { ProviderCatalogService } from '../../services/domain/provider-catalog'
 import type { EnvelopeCrypto } from '../../utils/envelope-crypto'
 
 import { resolveRequestAuth } from '../../libs/request-auth'
@@ -84,12 +85,19 @@ export function resolveOfficialAliyunNlsCredentials(
   }
 }
 
-async function resolveOfficialAliyunNlsCredentialsFromConfig(input: {
+export async function resolveOfficialAliyunNlsCredentialsFromConfig(input: {
   configKV: ConfigKVService
   envelopeCrypto: EnvelopeCrypto
+  providerCatalogService: ProviderCatalogService
 }) {
   const routerConfig = await input.configKV.getOptional('LLM_ROUTER_CONFIG')
-  const credentials = resolveOfficialAliyunNlsCredentials(routerConfig, input.envelopeCrypto)
+  if (Object.keys(routerConfig?.asr?.models ?? {}).length === 0)
+    return null
+
+  const alias = await input.providerCatalogService.resolveEnabledAlias('asr', OFFICIAL_ASR_MODEL_NAME)
+  const primary = alias.routes.find(route => route.pool === 'primary')
+  const modelName = (primary ?? alias.routes[0]).routerModelId
+  const credentials = resolveOfficialAliyunNlsCredentials(routerConfig, input.envelopeCrypto, modelName)
   if (!credentials)
     return null
 
@@ -113,6 +121,7 @@ export function createAudioTranscriptionStreamHandler(input: {
   env: Env
   configKV: ConfigKVService
   envelopeCrypto: EnvelopeCrypto
+  providerCatalogService: ProviderCatalogService
 }) {
   return async function handleAudioTranscriptionStream(c: Context) {
     const session = await resolveRequestAuth(
@@ -125,7 +134,7 @@ export function createAudioTranscriptionStreamHandler(input: {
 
     const credentials = await resolveOfficialAliyunNlsCredentialsFromConfig(input)
     if (!credentials)
-      throw createServiceUnavailableError('Official ASR transcription is not configured in LLM_ROUTER_CONFIG.asr.models.auto', 'CONFIG_NOT_SET')
+      throw createServiceUnavailableError('Official ASR transcription is not configured in the ASR capability catalog', 'CONFIG_NOT_SET')
 
     const audioStream = c.req.raw.body
     if (!audioStream)

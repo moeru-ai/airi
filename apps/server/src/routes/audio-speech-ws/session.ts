@@ -10,6 +10,7 @@ import WebSocket from 'ws'
 
 import { useLogger } from '@guiiai/logg'
 import { context as otelContext, SpanStatusCode, trace } from '@opentelemetry/api'
+import { ofetch } from 'ofetch'
 
 import { fluxBalanceBucket } from '../../services/domain/flux-balance'
 import { ApiError } from '../../utils/error'
@@ -43,7 +44,7 @@ const tracer = trace.getTracer('audio-speech-ws')
 export interface AudioSpeechSessionState {
   /** Stores the accepted client websocket. */
   attachClient: (ws: WSContext) => void
-  /** Reads config, checks balance, decrypts the upstream key, and dials upstream. */
+  /** Reads config, checks balance, decrypts the upstream key, and dials upstream after the start frame is accepted. */
   dialUpstream: () => Promise<void>
   /** Forwards a client frame or queues it while the upstream connection opens. */
   handleClientMessage: (message: { data: unknown }, ws: WSContext) => void
@@ -94,6 +95,9 @@ export function createSessionState(
   let upstreamReady = false
   let closed = false
   let billed = false
+  let startFrameAccepted = false
+  let startValidationStarted = false
+  let dialStarted = false
   let totalInputChars = 0
   let preflightFluxBalance: number | undefined
   let modelLabel = STREAM_MODEL_LABEL_FALLBACK
@@ -110,6 +114,10 @@ export function createSessionState(
   }
 
   async function dialUpstream() {
+    if (dialStarted)
+      return
+    dialStarted = true
+
     void opts.productEventService.track({
       userId,
       feature: 'tts',
@@ -262,11 +270,44 @@ export function createSessionState(
           ? Buffer.from(message.data)
           : Buffer.from(message.data as ArrayBufferLike)
 
+    if (!startValidationStarted) {
+      if (isBinary || typeof payload !== 'string') {
+        closeWithError(1008, 'invalid_start_frame')
+        return
+      }
+
+      const startFrame = parseStartFrame(payload)
+      if (!startFrame) {
+        closeWithError(1008, 'invalid_start_frame')
+        return
+      }
+
+      startValidationStarted = true
+      modelLabel = startFrame.model
+      voiceLabel = startFrame.voice
+      pendingClientFrames.push({ data: payload, isBinary })
+      void validateStartFrame(startFrame).then((accepted) => {
+        if (!accepted || closed)
+          return
+        startFrameAccepted = true
+        void dialUpstream()
+      }).catch((err) => {
+        log.withError(err).error('streaming tts start validation failed unexpectedly')
+        closeWithError(1011, 'streaming_tts_start_validation_failed')
+      })
+      return
+    }
+
     // Sniff input chars from text frames so billing has a fallback when
     // upstream usage.text_words is absent. Only the `text` event contributes;
     // start/finish/cancel do not.
     if (!isBinary && typeof payload === 'string') {
       maybeAccountInputChars(payload)
+    }
+
+    if (!startFrameAccepted && !dialStarted) {
+      pendingClientFrames.push({ data: payload, isBinary })
+      return
     }
 
     if (!upstreamWs || !upstreamReady) {
@@ -378,6 +419,55 @@ export function createSessionState(
       // Non-JSON text frame from client — ignore for billing, will fail
       // upstream-side anyway.
     }
+  }
+
+  async function validateStartFrame(frame: StreamingTtsStartFrame): Promise<boolean> {
+    let unspeech: Awaited<ReturnType<AudioSpeechWsHandlersOptions['configKV']['getOptional']>>
+    try {
+      unspeech = await opts.configKV.getOptional('UNSPEECH_UPSTREAM')
+    }
+    catch (err) {
+      log.withError(err).error('UNSPEECH_UPSTREAM read failed before streaming tts start')
+      closeWithError(1011, 'config_unavailable')
+      return false
+    }
+
+    const upstreamConfig = unspeech?.streaming
+    if (!unspeech?.restBaseURL || !upstreamConfig?.baseURL || upstreamConfig.keys.length === 0) {
+      closeWithError(1008, 'streaming_tts_not_configured')
+      return false
+    }
+
+    const configuredModels = upstreamConfig.models ?? []
+    if (!configuredModels.some((model: { id: string }) => model.id === frame.model)) {
+      closeWithError(1008, 'streaming_tts_model_not_enabled')
+      return false
+    }
+
+    const resourceId = streamingModelResourceId(frame.model)
+    const voicesURL = streamingVoicesURL(unspeech.restBaseURL, resourceId)
+    if (!voicesURL) {
+      closeWithError(1011, 'streaming_tts_voice_catalog_unavailable')
+      return false
+    }
+
+    let data: { voices?: unknown[] }
+    try {
+      data = await ofetch(voicesURL, { timeout: 5000 }) as { voices?: unknown[] }
+    }
+    catch (err) {
+      log.withError(err).withFields({ voicesURL }).warn('streaming tts voice catalog fetch failed')
+      closeWithError(1011, 'streaming_tts_voice_catalog_unavailable')
+      return false
+    }
+
+    const voices = Array.isArray(data.voices) ? data.voices : []
+    if (!voices.some(voice => streamingVoiceId(voice) === frame.voice)) {
+      closeWithError(1008, 'streaming_tts_voice_not_enabled')
+      return false
+    }
+
+    return true
   }
 
   async function billSession(units: number, reason: string) {
@@ -599,4 +689,57 @@ function isPaymentRequiredError(err: unknown): boolean {
     && err != null
     && 'statusCode' in err
     && (err as { statusCode?: unknown }).statusCode === 402
+}
+
+interface StreamingTtsStartFrame {
+  event: 'start'
+  model: string
+  voice: string
+}
+
+function parseStartFrame(rawText: string): StreamingTtsStartFrame | null {
+  try {
+    const parsed = JSON.parse(rawText) as Record<string, unknown>
+    if (parsed.event !== 'start')
+      return null
+    if (typeof parsed.model !== 'string' || parsed.model.length === 0)
+      return null
+    if (typeof parsed.voice !== 'string' || parsed.voice.length === 0)
+      return null
+    return {
+      event: 'start',
+      model: parsed.model,
+      voice: parsed.voice,
+    }
+  }
+  catch {
+    return null
+  }
+}
+
+function streamingModelResourceId(model: string): string {
+  return model.includes('/') ? model.split('/', 2)[1] : model
+}
+
+function streamingVoicesURL(restBaseURL: string, resourceId: string): string | null {
+  try {
+    const url = new URL(restBaseURL)
+    url.pathname = '/api/voices'
+    // NOTICE: The streaming websocket path is currently backed only by the
+    // Volcengine Unspeech adapter. If another streaming provider is added,
+    // thread provider identity through the start-frame validation path instead
+    // of deriving it from the model id here.
+    url.search = new URLSearchParams({ provider: 'volcengine', model: resourceId }).toString()
+    return url.toString()
+  }
+  catch {
+    return null
+  }
+}
+
+function streamingVoiceId(voice: unknown): string | null {
+  if (typeof voice !== 'object' || voice == null)
+    return null
+  const id = (voice as { id?: unknown }).id
+  return typeof id === 'string' && id.length > 0 ? id : null
 }
