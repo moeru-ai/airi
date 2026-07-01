@@ -44,8 +44,6 @@ const description = computed(() => {
 
 <template>
   <main :class="['min-h-screen flex flex-col items-center justify-center px-6 py-10 font-cuteen']">
-    <slot name="banner" />
-
     <div :class="['mb-2 text-3xl font-bold']">
       {{ heading }}
     </div>
