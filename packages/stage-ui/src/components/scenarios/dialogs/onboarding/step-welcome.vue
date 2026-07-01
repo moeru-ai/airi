@@ -30,17 +30,6 @@ const authStore = useAuthStore()
 const onboardingStore = useOnboardingStore()
 const settingsStore = useSettingsGeneral()
 const { language } = storeToRefs(settingsStore)
-const { steamStatus } = storeToRefs(authStore)
-
-const primaryLabel = computed(() => {
-  if (steamStatus.value === 'checking')
-    return t('settings.dialogs.onboarding.checkingSteam')
-  if (steamStatus.value === 'pending')
-    return t('settings.dialogs.onboarding.linkSteamAction')
-  return t('settings.dialogs.onboarding.loginAction')
-})
-
-const primaryDisabled = computed(() => steamStatus.value === 'checking')
 
 const languages = computed(() => {
   return Object.entries(all).map(([value, label]) => ({ value, label }))
@@ -139,8 +128,7 @@ function handleLocalSetup() {
         :enter="{ opacity: 1 }"
         :duration="500"
         :delay="200"
-        :label="primaryLabel"
-        :disabled="primaryDisabled"
+        :label="t('settings.dialogs.onboarding.loginAction')"
         :class="['flex-1']"
         @click="handleLogin"
       />

@@ -27,9 +27,6 @@ docs:
   'collapse': 摺疊
   'login': Sign in
   'logging-in': Signing in...
-  'enrollment-in-browser': 請在瀏覽器中完成登入...
-  'link-steam': 关联 Steam 账户
-  'link-steam-prompt': 请先关联你的 Steam 账户
   'account': Account
   'logout': Sign out
 widgets:

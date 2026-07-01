@@ -27,9 +27,6 @@ docs:
   'collapse': Sụp đổ
   'login': Sign in
   'logging-in': Signing in...
-  'enrollment-in-browser': Complete sign-in in your browser...
-  'link-steam': Link Steam account
-  'link-steam-prompt': Link your Steam account to continue
   'account': Account
   'logout': Sign out
 widgets:

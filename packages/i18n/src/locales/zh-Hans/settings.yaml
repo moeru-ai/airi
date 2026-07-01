@@ -43,8 +43,6 @@ dialogs:
     start: 开始吧！
     loginPrompt: 登录并使用 AIRI 官方提供的服务以获得最佳体验。
     loginAction: 登录
-    linkSteamAction: 关联 Steam 账户
-    checkingSteam: 正在检查 Steam…
     setupWithoutSigningIn: 配置您自己的 AI 服务来源
     flux: Flux 电量
     buyFlux: 补充 Flux 电量
