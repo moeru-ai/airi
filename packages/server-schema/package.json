@@ -29,9 +29,7 @@
     "package.json"
   ],
   "scripts": {
-    "build": "tsdown"
-  },
-  "devDependencies": {
-    "@proj-airi/unplugin-drizzle-orm-migrations": "catalog:"
+    "build": "tsx src/migrations/generate.ts && tsdown && tsx src/migrations/clean.ts",
+    "test": "vitest run --config vitest.config.ts"
   }
 }

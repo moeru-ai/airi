@@ -381,9 +381,6 @@ catalogs:
     '@proj-airi/unocss-preset-chromatic':
       specifier: ^1.1.1
       version: 1.1.1
-    '@proj-airi/unplugin-drizzle-orm-migrations':
-      specifier: ^0.1.6
-      version: 0.1.6
     '@proj-airi/unplugin-fetch':
       specifier: ^0.2.3
       version: 0.2.3
@@ -3736,11 +3733,7 @@ importers:
         specifier: 'catalog:'
         version: 1.3.1(typescript@5.9.3)
 
-  packages/server-schema:
-    devDependencies:
-      '@proj-airi/unplugin-drizzle-orm-migrations':
-        specifier: 'catalog:'
-        version: 0.1.6(magicast@0.5.2)(vite@6.4.2(@types/node@25.6.0)(jiti@2.6.1)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
+  packages/server-schema: {}
 
   packages/server-sdk:
     dependencies:
@@ -9644,14 +9637,6 @@ packages:
 
   '@proj-airi/unocss-preset-chromatic@1.1.1':
     resolution: {integrity: sha512-nZThnWRpxBOQwuJjLq60QKmiuAbhjuqF9CjwnxqXs1d0IeywP/0aVlmnfSoUkTqkmrHH7hqoEOy2i4W2tLMmZg==}
-
-  '@proj-airi/unplugin-drizzle-orm-migrations@0.1.6':
-    resolution: {integrity: sha512-YBlxafvxFLZJxlUm1QDSLdY7Hy1K71OAkg29bzeuzau/VZc1csUp75b9Fdb/RhtZtP2G3WQh8riMho4/gDoWMQ==}
-    peerDependencies:
-      vite: ^2.9.0 || ^3.0.0-0 || ^4.0.0 || ^5.0.0-0 || ^6.0.0-0
-    peerDependenciesMeta:
-      vite:
-        optional: true
 
   '@proj-airi/unplugin-fetch@0.2.3':
     resolution: {integrity: sha512-90I6CfbC7xMSm9/0gl+DJvHmg2Hw9E/7L5rtfXpqMmrRQqd/jhfD1Sb5LjywqTZ3rlFfnb39d051yFGeYigi9A==}
@@ -23663,16 +23648,6 @@ snapshots:
       '@iconify/types': 2.0.0
 
   '@proj-airi/unocss-preset-chromatic@1.1.1': {}
-
-  '@proj-airi/unplugin-drizzle-orm-migrations@0.1.6(magicast@0.5.2)(vite@6.4.2(@types/node@25.6.0)(jiti@2.6.1)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))':
-    dependencies:
-      c12: 3.3.3(magicast@0.5.2)
-      uncrypto: 0.1.3
-      unplugin: 2.3.11
-    optionalDependencies:
-      vite: 6.4.2(@types/node@25.6.0)(jiti@2.6.1)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
-    transitivePeerDependencies:
-      - magicast
 
   '@proj-airi/unplugin-fetch@0.2.3(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))':
     dependencies:
