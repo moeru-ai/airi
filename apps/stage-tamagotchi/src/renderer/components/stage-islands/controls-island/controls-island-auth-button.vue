@@ -237,6 +237,7 @@ watch(isAuthenticated, (val) => {
         'text-left',
         props.buttonStyle,
       ]"
+      :disabled="steamStatus === 'checking'"
       @click="handleClick"
     >
       <div
