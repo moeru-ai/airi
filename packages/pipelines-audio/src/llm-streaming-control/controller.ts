@@ -5,6 +5,7 @@ import type {
   LlmStreamingControlCallManifest,
   LlmStreamingControlOptions,
   LlmStreamingControlSignal,
+  LlmStreamingControlSignalContext,
   LlmStreamingControlSignalHandler,
   LlmStreamingControlTurnDone,
 } from './types'
@@ -44,6 +45,13 @@ function parsedParameter(signal: LlmStreamingControlSignal): string | undefined 
   }
 }
 
+function createTurnId() {
+  return `turn:${
+    globalThis.crypto?.randomUUID?.()
+    ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+  }`
+}
+
 /**
  * Normalizes manifest values before registration.
  *
@@ -73,7 +81,10 @@ function normalizeManifest(
  * Notice:
  * - Observer failures must never break dispatch
  */
-function emit(context: any, payload: unknown) {
+function emit(
+  context: Pick<LlmStreamingControlCallContext, 'observer'> | undefined,
+  payload: Parameters<NonNullable<LlmStreamingControlCallContext['observer']>>[0],
+) {
   try {
     context?.observer?.(payload)
   }
@@ -283,7 +294,7 @@ export function createStreamingControlParser(
         ...dispatchContext
       } = context ?? {}
 
-      const signalContext: LlmStreamingControlCallContext = {
+      const signalContext: LlmStreamingControlSignalContext = {
         ...dispatchContext,
         createdAt: Date.now(),
       }
@@ -414,7 +425,7 @@ export function createStreamingControlParser(
       // crypto UUID avoids collision under concurrency
       const turnId =
         options?.turnId?.trim()
-        || `turn:${crypto.randomUUID()}`
+        || createTurnId()
 
       const existing = turns.get(turnId)
 

@@ -6,6 +6,8 @@ import type {
   PlaybackStartEvent,
 } from '../types'
 
+import { errorMessageFrom } from '@moeru/std'
+
 export type OverflowPolicy =
   | 'queue'
   | 'reject'
@@ -45,14 +47,17 @@ export function createPlaybackManager<TAudio>(
   options: PlaybackManagerOptions<TAudio>,
 ) {
   const maxVoices = Math.max(1, options.maxVoices ?? 1)
-  const overflowPolicy =options.overflowPolicy ?? 'queue'
+  const maxVoicesPerOwner = options.maxVoicesPerOwner != null
+    ? Math.max(1, options.maxVoicesPerOwner)
+    : undefined
+  const overflowPolicy = options.overflowPolicy ?? 'queue'
   const ownerOverflowPolicy = options.ownerOverflowPolicy ?? 'steal-oldest'
   const active = new Map<string, ActivePlayback<TAudio>>()
   const waiting: WaitingPlayback<TAudio>[] = []
   const listeners = {
     start: new Set<Listener<PlaybackStartEvent<TAudio>>>(),
     end: new Set<Listener<PlaybackEndEvent<TAudio>>>(),
-    interrupt:new Set<Listener<PlaybackInterruptEvent<TAudio>>>(),
+    interrupt: new Set<Listener<PlaybackInterruptEvent<TAudio>>>(),
     reject: new Set<Listener<PlaybackRejectEvent<TAudio>>>(),
   }
 
@@ -64,9 +69,8 @@ export function createPlaybackManager<TAudio>(
     }
   }
 
-  function emit<T>(
-    bucket: Set<Listener<T>>, event: T) {
-    for (const listener of bucket)
+  function emit<T>(bucket: Set<Listener<T>>, event: T) {
+    for (const listener of [...bucket])
       listener(event)
   }
 
@@ -101,10 +105,10 @@ export function createPlaybackManager<TAudio>(
       return 'overflow'
 
     if (
-      options.maxVoicesPerOwner
+      maxVoicesPerOwner
       && item.ownerId
       && ownerCount(item.ownerId)
-      >= options.maxVoicesPerOwner
+      >= maxVoicesPerOwner
     ) {
       return 'owner-overflow'
     }
@@ -200,9 +204,7 @@ export function createPlaybackManager<TAudio>(
 
         finalize(
           entry,
-          err instanceof Error
-            ? err.message
-            : 'playback-error',
+          errorMessageFrom(err) ?? 'playback-error',
         )
       })
   }
@@ -268,7 +270,7 @@ export function createPlaybackManager<TAudio>(
         ? x => x.item.ownerId === item.ownerId
         : undefined,
 
-      (a, b) => a.startedAt < b.startedAt
+      (a, b) => a.startedAt < b.startedAt,
     )
 
     if (!victim) {
@@ -326,6 +328,30 @@ export function createPlaybackManager<TAudio>(
     }
   }
 
+  function stopByIntent(intentId: string, reason = 'stop-by-intent') {
+    for (const entry of [...active.values()]) {
+      if (entry.item.intentId === intentId)
+        interrupt(entry, reason)
+    }
+
+    for (let i = waiting.length - 1; i >= 0; i--) {
+      if (waiting[i]?.item.intentId === intentId)
+        waiting.splice(i, 1)
+    }
+  }
+
+  function stopByOwner(ownerId: string, reason = 'stop-by-owner') {
+    for (const entry of [...active.values()]) {
+      if (entry.item.ownerId === ownerId)
+        interrupt(entry, reason)
+    }
+
+    for (let i = waiting.length - 1; i >= 0; i--) {
+      if (waiting[i]?.item.ownerId === ownerId)
+        waiting.splice(i, 1)
+    }
+  }
+
   return {
     schedule,
     stopAll(reason = 'stop-all') {
@@ -334,6 +360,8 @@ export function createPlaybackManager<TAudio>(
       }
       waiting.length = 0
     },
+    stopByIntent,
+    stopByOwner,
     onStart: (
       f: Listener<PlaybackStartEvent<TAudio>>,
     ) => subscribe(listeners.start, f),
