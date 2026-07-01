@@ -38,7 +38,7 @@ Set this when previewing or deploying auth UI to a different Cloudflare URL.
 
 ## `ADMIN_UI_URL`
 
-`apps/ui-admin` is deployed separately from the server image. The API server still owns the historical `/admin/*` entrypoints and redirects them to **`ADMIN_UI_URL`**.
+The admin UI is deployed from the standalone `proj-airi` repository. The API server still owns the historical `/admin/*` entrypoints and redirects them to **`ADMIN_UI_URL`**.
 
 Default:
 

@@ -11,7 +11,7 @@ Auth UI for the hosted AIRI server. It is a Vue/Vite app deployed separately fro
 ## Do Not Use When
 
 - Building the main stage app sign-in callback pages that consume OIDC tokens.
-- Adding admin-only operational pages. Those belong in `apps/ui-admin`.
+- Adding admin-only operational pages. Those belong in the standalone `proj-airi` admin repository.
 
 ## Commands
 
