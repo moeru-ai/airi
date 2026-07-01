@@ -1,4 +1,9 @@
+import { getCapacitorPlatform } from './capacitor-runtime'
+
 const FALLBACK = 'http://localhost'
+
+const CAPACITOR_WEBVIEW_REDIRECT_URI = 'capacitor://localhost/auth/callback'
+const POCKET_IOS_AUTH_REDIRECT_URI = 'airi-pocket://auth/callback'
 
 /**
  * Safely retrieves environment status without crashing in non-browser runtimes.
@@ -46,8 +51,17 @@ function getRedirectOrigin() {
 
 const { isNative } = getEnvStatus()
 const origin = getRedirectOrigin()
+const capacitorPlatform = getCapacitorPlatform()
+
+const usesNativeOidcClient = capacitorPlatform !== 'web' || isNative
 
 export const OIDC_CLIENT_ID = import.meta.env.VITE_OIDC_CLIENT_ID
-  || (isNative ? 'airi-stage-pocket' : 'airi-stage-web')
+  || (usesNativeOidcClient ? 'airi-stage-pocket' : 'airi-stage-web')
 
-export const OIDC_REDIRECT_URI = `${origin}/auth/callback`
+export const OIDC_REDIRECT_URI = import.meta.env.VITE_OIDC_REDIRECT_URI
+  ? import.meta.env.VITE_OIDC_REDIRECT_URI
+  : capacitorPlatform === 'ios'
+    ? POCKET_IOS_AUTH_REDIRECT_URI
+    : capacitorPlatform !== 'web'
+      ? CAPACITOR_WEBVIEW_REDIRECT_URI
+      : `${origin}/auth/callback`

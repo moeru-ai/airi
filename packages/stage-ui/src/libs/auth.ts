@@ -5,6 +5,8 @@ import { createAuthClient } from 'better-auth/vue'
 import { useAuthStore } from '../stores/auth'
 import { OIDC_CLIENT_ID, OIDC_REDIRECT_URI } from './auth-config'
 import { buildAuthorizationURL, persistFlowState } from './auth-oidc'
+import { getIOSSignInHandler } from './auth-platform'
+import { getCapacitorPlatform } from './capacitor-runtime'
 import { SERVER_URL } from './server'
 
 export type OAuthProvider = 'google' | 'github'
@@ -183,17 +185,30 @@ export async function signOut() {
  * Builds the authorization URL, persists PKCE state, and navigates.
  */
 export async function signInOIDC(params: OIDCFlowParams) {
-  const { provider, ...oidcParams } = params
-  const { url, flowState } = await buildAuthorizationURL(oidcParams)
+  const { url, flowState } = await buildAuthorizationURL(params)
   persistFlowState(flowState, params)
 
-  if (!provider) {
+  const capacitorPlatform = getCapacitorPlatform()
+  if (capacitorPlatform === 'ios') {
+    const iosSignInHandler = getIOSSignInHandler()
+    if (!iosSignInHandler)
+      throw new Error('iOS sign-in is not configured')
+
+    await iosSignInHandler(url.toString())
+    return
+  }
+  if (capacitorPlatform !== 'web') {
+    window.location.assign(url.toString())
+    return
+  }
+
+  if (!params.provider) {
     window.location.href = url
     return
   }
 
   await authClient.signIn.social({
-    provider,
+    provider: params.provider,
     callbackURL: url.toString(),
   })
 }
