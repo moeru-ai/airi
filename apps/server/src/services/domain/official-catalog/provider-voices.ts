@@ -60,6 +60,6 @@ export function catalogVoiceResponse(voice: OfficialTtsVoice) {
     name: voice.displayName,
     languages: voice.languages,
     labels: voice.labels,
-    previewAudioUrl: voice.previewAudioUrl,
+    preview_audio_url: voice.previewAudioUrl ?? undefined,
   }
 }

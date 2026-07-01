@@ -1671,7 +1671,7 @@ describe('v1CompletionsRoutes', () => {
   describe('gET /api/v1/audio/voices', () => {
     it('returns the recommended bucket scoped to the explicit model id', async () => {
       const voices = [
-        { id: 'en-US-JennyNeural', name: 'Jenny', provider: 'azure', locale: 'en-US', gender: 'Female' },
+        { id: 'en-US-JennyNeural', name: 'Jenny', provider: 'azure', locale: 'en-US', gender: 'Female', previewAudioUrl: 'https://example.com/jenny.mp3' },
         { id: 'en-US-AvaMultilingualNeural', name: 'Ava', provider: 'azure', locale: 'en-US', gender: 'Female' },
       ]
       const llmRouter = createMockLlmRouter({
@@ -1699,14 +1699,14 @@ describe('v1CompletionsRoutes', () => {
           name: 'Jenny',
           languages: [],
           labels: {},
-          previewAudioUrl: null,
+          preview_audio_url: 'https://example.com/jenny.mp3',
         },
         {
           id: 'en-US-AvaMultilingualNeural',
           name: 'Ava',
           languages: [],
           labels: {},
-          previewAudioUrl: null,
+          preview_audio_url: undefined,
         },
       ])
       expect(data.recommended).toEqual({ 'en-US': 'en-US-AvaMultilingualNeural' })
@@ -1831,7 +1831,7 @@ describe('v1CompletionsRoutes', () => {
           name: 'Ava',
           languages: [{ code: 'en-US', title: 'English' }],
           labels: {},
-          previewAudioUrl: null,
+          preview_audio_url: undefined,
         },
       ])
     })
