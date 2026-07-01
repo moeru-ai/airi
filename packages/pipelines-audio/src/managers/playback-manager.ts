@@ -12,13 +12,13 @@ export type OverflowPolicy = 'queue' | 'reject' | 'steal-oldest' | 'steal-lowest
 
 export type OwnerOverflowPolicy = 'reject' | 'steal-oldest'
 
-type ActivePlayback<TAudio> = {
+interface ActivePlayback<TAudio> {
   item: PlaybackItem<TAudio>
   controller: AbortController
   startedAt: number
 }
 
-type WaitingPlayback<TAudio> = {
+interface WaitingPlayback<TAudio> {
   item: PlaybackItem<TAudio>
   enqueuedAt: number
 }
@@ -166,8 +166,8 @@ export function createPlaybackManager<TAudio>(
   }
 
   function start(item: PlaybackItem<TAudio>) {
-    const entry: ActivePlayback<TAudio> =
-      {
+    const entry: ActivePlayback<TAudio>
+      = {
         item,
         controller: new AbortController(),
         startedAt: Date.now(),
@@ -191,7 +191,7 @@ export function createPlaybackManager<TAudio>(
       .then(() => {
         finalize(entry)
       })
-      .catch(err => {
+      .catch((err) => {
         if (entry.controller.signal.aborted) {
           return
         }
@@ -204,8 +204,8 @@ export function createPlaybackManager<TAudio>(
   }
 
   function enqueue(item: PlaybackItem<TAudio>) {
-    const queued: WaitingPlayback<TAudio> =
-      {
+    const queued: WaitingPlayback<TAudio>
+      = {
         item,
         enqueuedAt: Date.now(),
       }
@@ -257,8 +257,8 @@ export function createPlaybackManager<TAudio>(
     item: PlaybackItem<TAudio>,
     blocked:
       | 'overflow'
-      | 'owner-overflow'
-    ) {
+      | 'owner-overflow',
+  ) {
     const victim = pickVictim(
       blocked === 'owner-overflow'
         ? x => x.item.ownerId === item.ownerId
@@ -318,7 +318,6 @@ export function createPlaybackManager<TAudio>(
         return
       case 'steal-lowest-priority':
         stealLowestPriority(item)
-        return
     }
   }
 

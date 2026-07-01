@@ -321,16 +321,16 @@ export function createStreamingControlParser(
       if (parsed.type !== 'call')
         return true
 
-      const turnHandlers =
-        dispatchContext.turnId
+      const turnHandlers
+        = dispatchContext.turnId
           ? turns
               .get(dispatchContext.turnId)
               ?.handlers
               .get(parsed.name)
           : undefined
 
-      const activeHandlers =
-        turnHandlers?.size
+      const activeHandlers
+        = turnHandlers?.size
           ? turnHandlers
           : handlers.get(parsed.name)
 
@@ -423,9 +423,9 @@ export function createStreamingControlParser(
 
     beginTurn(options) {
       // crypto UUID avoids collision under concurrency
-      const turnId =
-        options?.turnId?.trim()
-        || createTurnId()
+      const turnId
+        = options?.turnId?.trim()
+          || createTurnId()
 
       const existing = turns.get(turnId)
 
