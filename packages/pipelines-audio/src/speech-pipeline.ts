@@ -468,8 +468,10 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
     interrupt,
     stopAll,
     on<K extends SpeechPipelineEventName>(event: K, listener: SpeechPipelineEvents<TAudio>[K]) {
+      const typedListener = listener as (payload: unknown) => void
+
       return context.on(speechPipelineEventMap[event] as Eventa<{ body?: unknown }>, (payload) => {
-        listener((payload?.body ?? payload) as Parameters<SpeechPipelineEvents<TAudio>[K]>[0])
+        typedListener(payload?.body ?? payload)
       })
     },
   }

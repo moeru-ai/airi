@@ -80,8 +80,8 @@ export async function* chunkTtsInput(
     const hard = hardPunctuations.has(value)
     const soft = softPunctuations.has(value)
     const kept = keptPunctuations.has(value)
-    let next: IteratorResult<string, unknown> | undefined
-    let afterNext: IteratorResult<string, unknown> | undefined
+    let next: IteratorResult<string, void> | undefined
+    let afterNext: IteratorResult<string, void> | undefined
 
     if (flush || special || hard || soft) {
       switch (value) {

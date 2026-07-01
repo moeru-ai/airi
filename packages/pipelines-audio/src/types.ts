@@ -83,7 +83,7 @@ export interface PlaybackInterruptEvent<TAudio> {
 export interface PlaybackRejectEvent<TAudio> {
   item: PlaybackItem<TAudio>
   reason: string
-  rejectedAt: number
+  rejectedAt?: number
 }
 
 export type IntentBehavior = 'queue' | 'interrupt' | 'replace'
