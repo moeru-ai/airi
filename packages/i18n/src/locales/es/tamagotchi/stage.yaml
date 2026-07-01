@@ -30,9 +30,6 @@ docs:
   'collapse': Contraer
   'login': Iniciar sesión
   'logging-in': Iniciando sesión...
-  'enrollment-in-browser': Complete sign-in in your browser...
-  'link-steam': Link Steam account
-  'link-steam-prompt': Link your Steam account to continue
   'account': Cuenta
   'logout': Cerrar sesión
 widgets:

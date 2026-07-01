@@ -43,8 +43,6 @@ dialogs:
     start: Bắt đầu thôi!
     loginPrompt: Đăng nhập để sử dụng nhà cung cấp AIRI chính thức để có trải nghiệm tốt nhất.
     loginAction: Đăng nhập
-    linkSteamAction: Link Steam account
-    checkingSteam: Checking Steam…
     setupWithoutSigningIn: Thiết lập nhà cung cấp của bạn
     flux: Flux
     buyFlux: Mua Flux

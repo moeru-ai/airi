@@ -30,9 +30,6 @@ docs:
   'collapse': Sụp đổ
   'login': Đăng nhập
   'logging-in': Đang đăng nhập...
-  'enrollment-in-browser': Vui lòng hoàn tất đăng nhập trong trình duyệt...
-  'link-steam': Link Steam account
-  'link-steam-prompt': Link your Steam account to continue
   'account': Tài khoản
   'logout': Đăng xuất
 widgets:
