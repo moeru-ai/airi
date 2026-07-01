@@ -34,23 +34,45 @@ interface DrizzleJournalEntry {
  * Normalizes Drizzle migration SQL into individual executable statements.
  *
  * Before:
- * - "-- comment\nCREATE TABLE t (id text);\n--> statement-breakpoint\nSELECT 1;"
+ * - "-- comment\nCREATE TABLE t (id text);\n--> statement-breakpoint\nSELECT 'a;b';"
  *
  * After:
- * - ["CREATE TABLE t (id text);", "SELECT 1;"]
+ * - ["CREATE TABLE t (id text);", "SELECT 'a;b';"]
  */
 export function splitMigrationSql(sql: string): string[] {
-  return sql
+  const normalizedSql = sql
     .replace(/\/\*[\s\S]*?\*\//g, '')
-    .split(/\r?\n\t?/g)
-    .map(line => line.replace(/^--.*$/g, ''))
-    .map(line => line.replace('--> statement-breakpoint', ''))
-    .map(line => line.trim())
-    .join(' ')
+
+  if (normalizedSql.includes('--> statement-breakpoint')) {
+    return normalizedSql
+      .split('--> statement-breakpoint')
+      .map(normalizeMigrationStatement)
+      .filter(Boolean)
+  }
+
+  return normalizedSql
     .replaceAll(';', ';\n')
     .split('\n')
-    .map(line => line.trim())
+    .map(normalizeMigrationStatement)
     .filter(Boolean)
+}
+
+/**
+ * Normalizes a migration statement chunk after Drizzle breakpoint splitting.
+ *
+ * Before:
+ * - "-- comment\nSELECT 1;"
+ *
+ * After:
+ * - "SELECT 1;"
+ */
+function normalizeMigrationStatement(statement: string): string {
+  return statement
+    .split(/\r?\n\t?/g)
+    .map(line => line.replace(/^\s*--.*$/g, ''))
+    .map(line => line.trim())
+    .join(' ')
+    .trim()
 }
 
 /**

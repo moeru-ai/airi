@@ -30,6 +30,7 @@
   ],
   "scripts": {
     "build": "tsx src/migrations/generate.ts && tsdown && tsx src/migrations/clean.ts",
-    "test": "vitest run --config vitest.config.ts"
+    "test": "vitest run --config vitest.config.ts",
+    "typecheck": "tsx src/migrations/generate.ts && tsc --noEmit && tsx src/migrations/clean.ts"
   }
 }

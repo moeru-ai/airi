@@ -71,6 +71,42 @@ describe('buildMigrationEntries', () => {
       await rm(root, { recursive: true, force: true })
     }
   })
+
+  /**
+   * @example
+   * Preserves semicolons inside SQL literals when Drizzle breakpoints exist.
+   */
+  it('keeps semicolons inside breakpoint-delimited statements', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'airi-server-schema-'))
+
+    try {
+      await mkdir(join(root, 'meta'))
+      await writeFile(join(root, 'meta/_journal.json'), JSON.stringify({
+        entries: [
+          { idx: 0, when: 123, tag: '0000_alpha' },
+        ],
+      }))
+      await writeFile(join(root, '0000_alpha.sql'), [
+        'SELECT \'alpha;beta\';',
+        '--> statement-breakpoint',
+        'SELECT 2;',
+      ].join('\n'))
+
+      const entries = await buildMigrationEntries(root)
+
+      /**
+       * @example
+       * Drizzle breakpoints, not every semicolon, define statement boundaries.
+       */
+      expect(entries[0]?.sql).toEqual([
+        'SELECT \'alpha;beta\';',
+        'SELECT 2;',
+      ])
+    }
+    finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
 })
 
 /**
