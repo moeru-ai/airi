@@ -31,6 +31,8 @@ docs:
   'login': 가입하기
   'logging-in': 로그인 중...
   'enrollment-in-browser': Complete sign-in in your browser...
+  'link-steam': Link Steam account
+  'link-steam-prompt': Link your Steam account to continue
   'account': 계정
   'logout': 로그아웃
 widgets:
