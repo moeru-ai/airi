@@ -127,10 +127,10 @@ function createTurnState(): StreamingControlTurnState {
  * - Avoid duplicated Map allocations
  * - Removes manifest automatically once empty
  */
-function registerHandler(
+function registerHandler<TPayload extends Record<string, unknown>>(
   container: Pick<StreamingControlTurnState, 'handlers' | 'callManifests'>,
   manifest: LlmStreamingControlCallManifest,
-  handler: LlmStreamingControlCallHandler,
+  handler: LlmStreamingControlCallHandler<TPayload>,
 ) {
   const normalized = normalizeManifest(manifest)
 
@@ -146,7 +146,7 @@ function registerHandler(
 
   container.callManifests.set(normalized.name, normalized)
 
-  set.add(handler)
+  set.add(handler as LlmStreamingControlCallHandler)
 
   return () => {
     set!.delete(handler)
@@ -227,8 +227,8 @@ export function createStreamingControlParser(
     return {
       turnId,
 
-      on(manifest, handler) {
-        return registerHandler(turn, manifest, handler)
+      on<TPayload extends Record<string, unknown> = Record<string, unknown>>(manifest, handler) {
+        return registerHandler<TPayload>(turn, manifest, handler)
       },
 
       renderManifestPrompt() {
@@ -321,16 +321,14 @@ export function createStreamingControlParser(
       if (parsed.type !== 'call')
         return true
 
-      const turnHandlers
-        = dispatchContext.turnId
-          ? turns
-              .get(dispatchContext.turnId)
-              ?.handlers
-              .get(parsed.name)
-          : undefined
+      const turnState = dispatchContext.turnId
+        ? turns.get(dispatchContext.turnId)
+        : undefined
+
+      const turnHandlers = turnState?.handlers.get(parsed.name)
 
       const activeHandlers
-        = turnHandlers?.size
+        = turnHandlers?.size && turnState
           ? turnHandlers
           : handlers.get(parsed.name)
 
@@ -356,13 +354,6 @@ export function createStreamingControlParser(
       // preserve sequential execution
       // parallel execution would change semantics
       for (const handler of registeredHandlers) {
-        if (
-          dispatchContext.turnId
-          && !turns.has(dispatchContext.turnId)
-        ) {
-          break
-        }
-
         try {
           emit(context, {
             type: 'call-handler-start',

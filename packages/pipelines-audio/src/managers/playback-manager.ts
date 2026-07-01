@@ -137,7 +137,7 @@ export function createPlaybackManager<TAudio>(
     return victim
   }
 
-  function finalize(entry: ActivePlayback<TAudio>, interrupted?: string) {
+  function finalize(entry: ActivePlayback<TAudio>, interrupted?: string, options?: { allowStartWaiting?: boolean }) {
     if (!active.delete(entry.item.id)) {
       return
     }
@@ -162,7 +162,9 @@ export function createPlaybackManager<TAudio>(
       )
     }
 
-    tryStartWaiting()
+    if (options?.allowStartWaiting !== false) {
+      tryStartWaiting()
+    }
   }
 
   function start(item: PlaybackItem<TAudio>) {
@@ -232,13 +234,13 @@ export function createPlaybackManager<TAudio>(
     }
   }
 
-  function interrupt(entry: ActivePlayback<TAudio>, reason: string) {
+  function interrupt(entry: ActivePlayback<TAudio>, reason: string, options?: { allowStartWaiting?: boolean }) {
     if (!active.has(entry.item.id)) {
       return
     }
 
     entry.controller.abort(reason)
-    finalize(entry, reason)
+    finalize(entry, reason, options)
   }
 
   function reject(item: PlaybackItem<TAudio>, reason: string) {
@@ -280,7 +282,7 @@ export function createPlaybackManager<TAudio>(
     const victim = pickVictim(undefined, (a, b) => a.item.priority < b.item.priority)
 
     if (!victim || victim.item.priority >= item.priority) {
-      enqueue(item)
+      reject(item, 'priority-overflow')
       return
     }
 
@@ -322,36 +324,37 @@ export function createPlaybackManager<TAudio>(
   }
 
   function stopByIntent(intentId: string, reason = 'stop-by-intent') {
-    for (const entry of [...active.values()]) {
-      if (entry.item.intentId === intentId)
-        interrupt(entry, reason)
-    }
-
     for (let i = waiting.length - 1; i >= 0; i--) {
       if (waiting[i]?.item.intentId === intentId)
         waiting.splice(i, 1)
     }
+
+    for (const entry of [...active.values()]) {
+      if (entry.item.intentId === intentId)
+        interrupt(entry, reason, { allowStartWaiting: false })
+    }
   }
 
   function stopByOwner(ownerId: string, reason = 'stop-by-owner') {
-    for (const entry of [...active.values()]) {
-      if (entry.item.ownerId === ownerId)
-        interrupt(entry, reason)
-    }
-
     for (let i = waiting.length - 1; i >= 0; i--) {
       if (waiting[i]?.item.ownerId === ownerId)
         waiting.splice(i, 1)
+    }
+
+    for (const entry of [...active.values()]) {
+      if (entry.item.ownerId === ownerId)
+        interrupt(entry, reason, { allowStartWaiting: false })
     }
   }
 
   return {
     schedule,
     stopAll(reason = 'stop-all') {
-      for (const x of [...active.values()]) {
-        interrupt(x, reason)
-      }
       waiting.length = 0
+
+      for (const x of [...active.values()]) {
+        interrupt(x, reason, { allowStartWaiting: false })
+      }
     },
     stopByIntent,
     stopByOwner,
