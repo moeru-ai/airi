@@ -7,6 +7,7 @@ import { toast } from 'vue-sonner'
 import {
   electronAuthCallback,
   electronAuthCallbackError,
+  electronAuthSteamProbe,
 } from '../../shared/eventa'
 
 /**
@@ -33,6 +34,7 @@ export function initializeElectronAuthCallbackBridge() {
       authStore.oidcClientId = import.meta.env.VITE_OIDC_CLIENT_ID || 'airi-stage-electron'
       authStore.tokenExpiry = Date.now() + tokens.expiresIn * 1000
       authStore.scheduleTokenRefresh(tokens.expiresIn)
+      authStore.steamStatus = 'idle'
 
       await fetchSession()
     }
@@ -42,7 +44,17 @@ export function initializeElectronAuthCallbackBridge() {
   })
 
   context.on(electronAuthCallbackError, (event) => {
+    const authStore = useAuthStore()
+    authStore.steamStatus = 'idle'
     if (event.body?.error)
       toast.error(event.body.error)
+  })
+
+  context.on(electronAuthSteamProbe, (event) => {
+    const status = event.body?.status
+    if (status === 'checking' || status === 'pending') {
+      const authStore = useAuthStore()
+      authStore.steamStatus = status
+    }
   })
 }
