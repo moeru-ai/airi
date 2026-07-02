@@ -414,6 +414,27 @@ pages:
   memory:
     description: Where memories got stored, and organized
     title: Memory
+    accessed: Accessed
+    addFirstMemory: Add your first memory
+    addMemory: Add memory
+    cancel: Cancel
+    contentPlaceholder: Write the memory content here...
+    delete: Delete
+    deleteConfirm: Are you sure you want to delete this memory?
+    empty: No memories yet. Add one to get started.
+    from: from
+    lastAccess: Last accessed
+    manageMemories: Manage memories
+    memoryContent: Memory content
+    noCharacter: Select a character to manage memories
+    recentMemories: Recent memories
+    runHousekeeping: Compact
+    save: Save
+    searchPlaceholder: Search memories...
+    tags: Tags
+    tagsPlaceholder: comma, separated, tags
+    times: times
+    totalMemories: total memories
   data:
     title: Data
     description: Manage stored AIRI data, exports, and resets

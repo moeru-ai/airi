@@ -395,6 +395,27 @@ pages:
   memory:
     description: 存放记忆的地方，以及策略
     title: 记忆体
+    accessed: 已访问
+    addFirstMemory: 添加第一条记忆
+    addMemory: 添加记忆
+    cancel: 取消
+    contentPlaceholder: 在这里编写记忆内容...
+    delete: 删除
+    deleteConfirm: 确定要删除这条记忆吗？
+    empty: 还没有记忆记录。点击上方的添加按钮开始吧。
+    from: 起始于
+    lastAccess: 最后访问
+    manageMemories: 管理记忆
+    memoryContent: 记忆内容
+    noCharacter: 请先选择一个角色
+    recentMemories: 最近记忆
+    runHousekeeping: 整理压缩
+    save: 保存
+    searchPlaceholder: 搜索记忆...
+    tags: 标签
+    tagsPlaceholder: 用逗号分隔标签
+    times: 次
+    totalMemories: 条记忆
   data:
     title: Data
     description: 管理存储 AIRI 数据、导出和重置
