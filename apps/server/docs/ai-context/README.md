@@ -33,6 +33,10 @@
   - 全量 metric 目录（按域分组：HTTP / Auth / Engagement / Revenue / GenAI / Email / Rate limit / Runtime），含名字、类型、Labels、落点
 - `metrics-ownership.md`
   - 指标分层规则：什么走 Grafana / 什么走 PostHog / 什么是 Postgres truth；含 7 题判定 Checklist、PostHog 事件命名约定、当前指标归属总表、PostHog 接入路线图
+- `product-analytics-instrumentation.md`
+  - 面向社区 / 产品问题的埋点补充方案：上手激活、Provider 配置、TTS 音色、语音输入、反馈、看板和异常播报
+- `product-analytics-dashboard-setup.md`
+  - 产品分析看板落地说明：PostHog insights、Grafana 产品事件面板、告警表达式；不含 Discord / QQ 同步和日报 / 周报脚本
 - `auth-and-oidc.md`
   - 认证与 OIDC Provider 架构、登录流程、trusted clients、踩坑记录
 - `email-auth-resend.md`
@@ -55,6 +59,8 @@
   - 70.2K 历史漏账的取证 SQL + Loki query 模板、处理决策框架、修补后的监控建议
 - `verifications/admin-user-balance-ban.md`
   - Admin role 鉴权 / 封禁热路径闸 / 改余额：role adminGuard、resolveRequestAuth+userinfo 封禁、setFlux 的真实 PGlite/Hono 执行证据（含 flux-grants 集成测试走 role），及 better-auth admin 端点本身待端到端实测
+- `verifications/product-analytics-smoke.md`
+  - 产品分析埋点上线冒烟清单：PostHog journey events、Postgres TTS metadata、Grafana Product Analytics row、Prometheus label 安全边界
 
 ## 快速结论
 

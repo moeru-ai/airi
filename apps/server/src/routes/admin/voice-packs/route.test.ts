@@ -25,6 +25,7 @@ function createService() {
     provider: 'volcengine',
     model: 'seed-tts-2.0',
     voiceId: 'voice-neuro',
+    upstreamVoiceId: 'voice-neuro-upstream',
     ttsModelId: 'volcengine/neuro-pool',
     params: {},
     costMultiplier: 1.5,
@@ -41,6 +42,7 @@ function createService() {
     disable: vi.fn(async (id: string): Promise<VoicePack | null> => makePack({ id, enabled: false })),
     listEnabled: vi.fn(),
     findById: vi.fn(),
+    findEnabledByVoiceId: vi.fn(),
   } satisfies VoicePackService
 }
 
@@ -110,7 +112,7 @@ describe('admin voice packs — CRUD', () => {
   })
 
   it('creates a pack with validated fields', async () => {
-    // @example valid body -> route forwards normalized params and enabled default.
+    // @example valid body -> route forwards canonical numeric params and enabled default.
     const service = createService()
     const productEventService = createProductEventService()
     const app = createTestApp(service, ADMIN, productEventService)
@@ -119,8 +121,9 @@ describe('admin voice packs — CRUD', () => {
       provider: 'volcengine',
       model: 'seed-tts-2.0',
       voiceId: 'voice-neuro',
+      upstreamVoiceId: 'voice-neuro-upstream',
       ttsModelId: 'volcengine/neuro-pool',
-      params: { pitch: '+20%' },
+      params: { pitch: 20 },
       costMultiplier: 1.5,
     }
     const res = await jsonRequest(app, 'POST', '/api/admin/voice-packs', body)
@@ -149,6 +152,7 @@ describe('admin voice packs — CRUD', () => {
       provider: 'volcengine',
       model: 'seed-tts-2.0',
       voiceId: 'voice-neuro',
+      upstreamVoiceId: 'voice-neuro-upstream',
       ttsModelId: 'volcengine/neuro-pool',
       params: {},
       costMultiplier: -1,

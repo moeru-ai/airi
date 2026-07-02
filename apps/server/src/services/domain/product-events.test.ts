@@ -114,6 +114,7 @@ describe('productEventService', () => {
       metadata: {
         trigger: 'auto',
         balance_state: 'insufficient',
+        flux_balance_bucket: 'zero',
       },
     })
 
@@ -131,6 +132,8 @@ describe('productEventService', () => {
       action: 'speech_blocked',
       status: 'blocked',
       source: 'chat_auto_tts',
+      reason: 'insufficient_balance',
+      flux_balance_bucket: 'zero',
     })
   })
 })

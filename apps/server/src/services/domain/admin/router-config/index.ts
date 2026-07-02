@@ -20,6 +20,8 @@ const STREAMING_TTS_AAD_MODEL_NAME = 'streaming-tts'
 /** Default key entry id per provider. Operator can override per request. */
 const DEFAULT_KEY_ENTRY_IDS = {
   'openrouter': 'openrouter-prod-1',
+  'bedrock': 'bedrock-prod-1',
+  'openai-compatible': 'openai-compatible-prod-1',
   'azure': 'azure-tts-prod-1',
   'dashscope-cosyvoice': 'dashscope-tts-prod-1',
   'stepfun': 'stepfun-tts-prod-1',
@@ -38,6 +40,7 @@ type TtsModel = InferOutput<typeof ttsModelSchema>
 type AsrModel = InferOutput<typeof asrModelSchema>
 type UnspeechUpstream = InferOutput<typeof unspeechUpstreamSchema>
 type KeyEntry = LlmModel['upstreams'][number]['keys'][number]
+type LlmSliceKind = 'openrouter' | 'bedrock' | 'openai-compatible'
 
 /**
  * Per-provider input. The admin route validates the shape with Valibot
@@ -49,6 +52,8 @@ type KeyEntry = LlmModel['upstreams'][number]['keys'][number]
  */
 export type SliceInput
   = | OpenRouterSliceInput
+    | BedrockSliceInput
+    | OpenAICompatibleSliceInput
     | AzureSliceInput
     | DashscopeSliceInput
     | StepfunSliceInput
@@ -66,6 +71,42 @@ export interface OpenRouterSliceInput {
   /** @default 'https://openrouter.ai/api/v1' */
   baseURL?: string
   /** @default 'openrouter-prod-1' */
+  keyEntryId?: string
+  /** Existing key entry to preserve when `plaintextKey` is omitted. */
+  existingKeyEntryId?: string
+  /** @default 'Bearer {KEY}' */
+  headerTemplate?: string
+}
+
+export interface BedrockSliceInput {
+  kind: 'bedrock'
+  /** Key under `LLM_ROUTER_CONFIG.llm.models`. */
+  modelName: string
+  /** Upstream Bedrock model id sent to the OpenAI-compatible Bedrock gateway. */
+  overrideModel: string
+  /** Plaintext provider key or Bedrock bearer token. Encrypted in-place; never echoed back. */
+  plaintextKey?: string
+  /** @default 'https://bedrock-mantle.us-east-1.api.aws/v1' */
+  baseURL?: string
+  /** @default 'bedrock-prod-1' */
+  keyEntryId?: string
+  /** Existing key entry to preserve when `plaintextKey` is omitted. */
+  existingKeyEntryId?: string
+  /** @default 'Bearer {KEY}' */
+  headerTemplate?: string
+}
+
+export interface OpenAICompatibleSliceInput {
+  kind: 'openai-compatible'
+  /** Key under `LLM_ROUTER_CONFIG.llm.models`. */
+  modelName: string
+  /** Upstream OpenAI-compatible model id. */
+  overrideModel: string
+  /** Plaintext provider key. Encrypted in-place; never echoed back. */
+  plaintextKey?: string
+  /** @default 'https://api.openai.com/v1' */
+  baseURL?: string
+  /** @default 'openai-compatible-prod-1' */
   keyEntryId?: string
   /** Existing key entry to preserve when `plaintextKey` is omitted. */
   existingKeyEntryId?: string
@@ -162,7 +203,7 @@ export interface AliyunNlsAsrSliceInput {
 interface LlmModelSlice {
   target: 'llm-router'
   surface: 'llm'
-  kind: 'openrouter'
+  kind: LlmSliceKind
   modelName: string
   model: LlmModel
   keyEntryId: string
@@ -207,7 +248,19 @@ type BuiltSlice = LlmModelSlice | TtsModelSlice | AsrModelSlice | UnspeechSlice
  *   envelope-encrypted plaintext key with AAD `{modelName, keyEntryId}`.
  */
 export function buildOpenRouterSlice(input: OpenRouterSliceInput, envelope: EnvelopeCrypto): LlmModelSlice {
-  const keyEntryId = input.keyEntryId ?? DEFAULT_KEY_ENTRY_IDS.openrouter
+  return buildLlmSlice(input, envelope)
+}
+
+export function buildBedrockSlice(input: BedrockSliceInput, envelope: EnvelopeCrypto): LlmModelSlice {
+  return buildLlmSlice(input, envelope)
+}
+
+export function buildOpenAICompatibleSlice(input: OpenAICompatibleSliceInput, envelope: EnvelopeCrypto): LlmModelSlice {
+  return buildLlmSlice(input, envelope)
+}
+
+function buildLlmSlice(input: OpenRouterSliceInput | BedrockSliceInput | OpenAICompatibleSliceInput, envelope: EnvelopeCrypto): LlmModelSlice {
+  const keyEntryId = input.keyEntryId ?? DEFAULT_KEY_ENTRY_IDS[input.kind]
   const ciphertext = envelope.encryptKey(requiredPlaintextKey(input.plaintextKey, input.kind), {
     modelName: input.modelName,
     keyEntryId,
@@ -215,18 +268,29 @@ export function buildOpenRouterSlice(input: OpenRouterSliceInput, envelope: Enve
   return {
     target: 'llm-router',
     surface: 'llm',
-    kind: 'openrouter',
+    kind: input.kind,
     modelName: input.modelName,
     keyEntryId,
     model: {
       upstreams: [{
-        baseURL: input.baseURL ?? 'https://openrouter.ai/api/v1',
+        baseURL: input.baseURL ?? defaultLlmBaseURL(input.kind),
         overrideModel: input.overrideModel,
         keys: [{ id: keyEntryId, ciphertext }],
         headerTemplate: input.headerTemplate ?? 'Bearer {KEY}',
       }],
       fallbackTriggers: DEFAULT_FALLBACK_TRIGGERS,
     },
+  }
+}
+
+function defaultLlmBaseURL(kind: LlmSliceKind): string {
+  switch (kind) {
+    case 'openrouter':
+      return 'https://openrouter.ai/api/v1'
+    case 'bedrock':
+      return 'https://bedrock-mantle.us-east-1.api.aws/v1'
+    case 'openai-compatible':
+      return 'https://api.openai.com/v1'
   }
 }
 
@@ -447,21 +511,21 @@ function preservedKeyOrThrow(upstream: { keys: KeyEntry[] } | undefined, preferr
   return key
 }
 
-function buildOpenRouterSlicePreservingKey(input: OpenRouterSliceInput, envelope: EnvelopeCrypto, existing: LlmModel | undefined): LlmModelSlice {
+function buildLlmSlicePreservingKey(input: OpenRouterSliceInput | BedrockSliceInput | OpenAICompatibleSliceInput, envelope: EnvelopeCrypto, existing: LlmModel | undefined): LlmModelSlice {
   if (input.plaintextKey?.trim())
-    return buildOpenRouterSlice(input, envelope)
+    return buildLlmSlice(input, envelope)
 
   const existingUpstream = existing?.upstreams[0]
   const key = preservedKeyOrThrow(existingUpstream, input.existingKeyEntryId ?? input.keyEntryId, input.kind)
   return {
     target: 'llm-router',
     surface: 'llm',
-    kind: 'openrouter',
+    kind: input.kind,
     modelName: input.modelName,
     keyEntryId: key.id,
     model: {
       upstreams: [{
-        baseURL: input.baseURL ?? existingUpstream?.baseURL ?? 'https://openrouter.ai/api/v1',
+        baseURL: input.baseURL ?? existingUpstream?.baseURL ?? defaultLlmBaseURL(input.kind),
         overrideModel: input.overrideModel,
         keys: [key],
         headerTemplate: input.headerTemplate ?? existingUpstream?.headerTemplate ?? 'Bearer {KEY}',
@@ -618,7 +682,9 @@ export function buildSlice(
 ): BuiltSlice {
   switch (input.kind) {
     case 'openrouter':
-      return buildOpenRouterSlicePreservingKey(input, envelope, existing?.routerConfig?.llm.models[input.modelName])
+    case 'bedrock':
+    case 'openai-compatible':
+      return buildLlmSlicePreservingKey(input, envelope, existing?.routerConfig?.llm.models[input.modelName])
     case 'azure':
       return buildAzureSlicePreservingKey(input, envelope, existing?.routerConfig?.tts.models[input.modelName])
     case 'dashscope-cosyvoice':
@@ -769,7 +835,7 @@ function slicesFromRouterConfig(config: LlmRouterConfig | null): SliceInput[] {
 
   const slices: SliceInput[] = []
   for (const [modelName, model] of Object.entries(config.llm.models)) {
-    const slice = openRouterSliceFromModel(modelName, model)
+    const slice = llmSliceFromModel(modelName, model)
     if (slice)
       slices.push(slice)
   }
@@ -786,20 +852,34 @@ function slicesFromRouterConfig(config: LlmRouterConfig | null): SliceInput[] {
   return slices
 }
 
-function openRouterSliceFromModel(modelName: string, model: LlmModel): OpenRouterSliceInput | null {
+function llmSliceFromModel(modelName: string, model: LlmModel): OpenRouterSliceInput | BedrockSliceInput | OpenAICompatibleSliceInput | null {
   const upstream = model.upstreams[0]
   const key = upstream?.keys[0]
   if (!upstream || !key)
     return null
 
   return {
-    kind: 'openrouter',
+    kind: llmKindFromBaseURL(upstream.baseURL),
     modelName,
     overrideModel: upstream.overrideModel ?? modelName,
     baseURL: upstream.baseURL,
     headerTemplate: upstream.headerTemplate,
     keyEntryId: key.id,
     existingKeyEntryId: key.id,
+  }
+}
+
+function llmKindFromBaseURL(baseURL: string): LlmSliceKind {
+  try {
+    const host = new URL(baseURL).hostname
+    if (host === 'openrouter.ai')
+      return 'openrouter'
+    if (host.includes('bedrock') || host.endsWith('.api.aws'))
+      return 'bedrock'
+    return 'openai-compatible'
+  }
+  catch {
+    return 'openai-compatible'
   }
 }
 

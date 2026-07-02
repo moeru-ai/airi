@@ -40,7 +40,7 @@ const airiCardStore = useAiriCardStore()
 const { messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
 const { sending } = storeToRefs(chatOrchestrator)
-const { activeCardId } = storeToRefs(airiCardStore)
+const { activeCard, activeCardId } = storeToRefs(airiCardStore)
 const { t } = useI18n()
 const { openImagePreview } = journalPreviewStore
 const isComposing = ref(false)
@@ -203,6 +203,7 @@ watch(sendMode, () => {
 })
 
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
+const assistantLabel = computed(() => activeCard.value?.name?.trim() || undefined)
 
 async function handleDeleteMessage(index: number) {
   const message = messages.value[index]
@@ -267,6 +268,7 @@ async function handleCleanupMessages() {
     <div w-full flex-1 overflow-hidden>
       <ChatHistory
         :messages="historyMessages"
+        :assistant-label="assistantLabel"
         :sending="sending"
         :streaming-message="streamingMessage"
         :tool-call-renderers="toolCallRenderers"

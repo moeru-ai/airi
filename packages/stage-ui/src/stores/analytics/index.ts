@@ -21,6 +21,20 @@ import {
 export * from './posthog'
 export * from './privacy-policy'
 
+function analyticsSurface(): 'web' | 'desktop' | 'mobile' {
+  return isStageTamagotchi()
+    ? 'desktop'
+    : isStageCapacitor()
+      ? 'mobile'
+      : 'web'
+}
+
+function providerMode(providerId: string | undefined): 'official' | 'custom' | 'unknown' {
+  if (!providerId)
+    return 'unknown'
+  return providerId.startsWith('official-provider') ? 'official' : 'custom'
+}
+
 export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
   const buildInfo = ref<AboutBuildInfo>(useBuildInfo())
   const settingsAnalytics = useSettingsAnalytics()
@@ -39,8 +53,28 @@ export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
     if (!isInitialized.value)
       return
 
+    if (previousEnabled && !enabled) {
+      capturePosthogEvent('settings_changed', {
+        setting_name: 'analytics_enabled',
+        previous_value: previousEnabled,
+        new_value: enabled,
+        source: 'settings',
+        surface: analyticsSurface(),
+      })
+    }
+
     const shouldCapture = syncPosthogCapture(enabled)
     if (shouldCapture) {
+      if (!previousEnabled && enabled) {
+        capturePosthogEvent('settings_changed', {
+          setting_name: 'analytics_enabled',
+          previous_value: previousEnabled,
+          new_value: enabled,
+          source: 'settings',
+          surface: analyticsSurface(),
+        })
+      }
+
       // When analytics is enabled mid-session, invalidate appStartTime and
       // mark first message as already tracked to avoid backfilling a stale
       // event with a misleading duration or timing.
@@ -72,12 +106,7 @@ export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
       const shouldCapture = syncPosthogCapture(analyticsEnabled.value)
       if (shouldCapture) {
         registerPosthogBuildInfo(buildInfo.value)
-        const platform: 'web' | 'desktop' | 'mobile'
-          = isStageTamagotchi()
-            ? 'desktop'
-            : isStageCapacitor()
-              ? 'mobile'
-              : 'web'
+        const platform = analyticsSurface()
         capturePosthogEvent('app_loaded', {
           platform,
           version: buildInfo.value.version,
@@ -153,11 +182,29 @@ export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
         // Genuine switch — emit only when we have a meaningful "from" model.
         // Provider transitions without a prior model (e.g. user clears then
         // re-selects) skip the switch event; the next clean A → B will fire.
+        if (prev.provider && prev.provider !== next.provider) {
+          capturePosthogEvent('provider_switched', {
+            from_provider: prev.provider,
+            to_provider: next.provider,
+            from_provider_type: providerMode(prev.provider),
+            to_provider_type: providerMode(next.provider),
+            reason: 'manual',
+            surface: analyticsSurface(),
+          })
+        }
+
         if (prev.model) {
           capturePosthogEvent('model_switched', {
             from_model: prev.model,
             to_model: next.model,
             reason: 'manual',
+          })
+          capturePosthogEvent('model_changed', {
+            from_model: prev.model,
+            to_model: next.model,
+            provider: next.provider,
+            reason: 'manual',
+            surface: analyticsSurface(),
           })
         }
       },

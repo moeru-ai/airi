@@ -3,7 +3,7 @@ import type Stripe from 'stripe'
 import type { RevenueMetrics } from '../../../otel'
 import type { BillingService } from '../../../services/domain/billing/billing-service'
 import type { FluxService } from '../../../services/domain/flux'
-import type { ProductEventService } from '../../../services/domain/product-events'
+import type { ProductAction, ProductEventService } from '../../../services/domain/product-events'
 import type { StripeService } from '../../../services/domain/stripe'
 
 import { useLogger } from '@guiiai/logg'
@@ -12,6 +12,16 @@ import { createBadRequestError, createServiceUnavailableError } from '../../../u
 import { errorMessageFromUnknown } from '../../../utils/error-message'
 
 const logger = useLogger('stripe')
+
+interface StripeSubscriptionEventContext {
+  userId: string
+  stripeCustomerId: string
+  stripeSubscriptionId: string
+  stripePriceId?: string
+  subscriptionStatus?: string
+  amountPaid?: number
+  currency?: string
+}
 
 export interface WebhookOperationDeps {
   stripe: Stripe | null
@@ -103,15 +113,29 @@ export function createWebhookOperation(deps: WebhookOperationDeps) {
       case 'customer.subscription.created':
       case 'customer.subscription.updated':
       case 'customer.subscription.deleted': {
-        await handleSubscriptionEvent(event.data.object, deps.stripeService)
+        const result = await handleSubscriptionEvent(event.data.object, deps.stripeService)
         deps.metrics?.stripeSubscriptionEvent.add(1, { event_type: event.type.replace('customer.subscription.', '') })
+        const action = subscriptionActionForWebhookEvent(event.type)
+        if (result && action) {
+          void deps.productEventService?.track({
+            userId: result.userId,
+            feature: 'billing',
+            action,
+            status: 'succeeded',
+            source: 'stripe.webhook',
+            metadata: {
+              stripe_price_id: result.stripePriceId ?? null,
+              stripe_subscription_status: result.subscriptionStatus ?? null,
+            },
+          })
+        }
         break
       }
       case 'invoice.created':
       case 'invoice.updated':
       case 'invoice.paid':
       case 'invoice.payment_failed': {
-        await handleInvoiceEvent(event.data.object, deps.stripeService)
+        const result = await handleInvoiceEvent(event.data.object, deps.stripeService)
         if (event.type === 'invoice.payment_failed')
           deps.metrics?.stripePaymentFailed.add(1)
         if (event.type === 'invoice.paid' && event.data.object.amount_paid && event.data.object.currency) {
@@ -120,12 +144,34 @@ export function createWebhookOperation(deps: WebhookOperationDeps) {
             source: 'invoice',
           })
         }
+        if (event.type === 'invoice.paid' && event.data.object.billing_reason === 'subscription_cycle' && result?.stripeSubscriptionId) {
+          void deps.productEventService?.track({
+            userId: result.userId,
+            feature: 'billing',
+            action: 'subscription_renewed',
+            status: 'succeeded',
+            source: 'stripe.webhook',
+            metadata: {
+              amount_paid: result.amountPaid ?? null,
+              currency: result.currency ?? null,
+              stripe_price_id: result.stripePriceId ?? null,
+            },
+          })
+        }
         break
       }
     }
 
     return { received: true }
   }
+}
+
+function subscriptionActionForWebhookEvent(eventType: Stripe.Event.Type): ProductAction | null {
+  if (eventType === 'customer.subscription.created')
+    return 'subscription_started'
+  if (eventType === 'customer.subscription.deleted')
+    return 'subscription_cancelled'
+  return null
 }
 
 async function handleCheckoutSessionCompleted(
@@ -239,11 +285,11 @@ async function handleCustomerEvent(
 async function handleSubscriptionEvent(
   subscription: Stripe.Subscription,
   stripeService: StripeService,
-) {
+): Promise<StripeSubscriptionEventContext | null> {
   const stripeCustomerId = typeof subscription.customer === 'string' ? subscription.customer : subscription.customer.id
   const customer = await stripeService.getCustomerByStripeId(stripeCustomerId)
   if (!customer)
-    return
+    return null
 
   // In newer Stripe API, period info is on subscription items.
   const firstItem = subscription.items.data[0]
@@ -260,19 +306,27 @@ async function handleSubscriptionEvent(
     endedAt: subscription.ended_at ? new Date(subscription.ended_at * 1000) : null,
     metadata: subscription.metadata ? JSON.stringify(subscription.metadata) : null,
   })
+
+  return {
+    userId: customer.userId,
+    stripeCustomerId,
+    stripeSubscriptionId: subscription.id,
+    stripePriceId: firstItem?.price?.id,
+    subscriptionStatus: subscription.status,
+  }
 }
 
 async function handleInvoiceEvent(
   invoice: Stripe.Invoice,
   stripeService: StripeService,
-) {
+): Promise<StripeSubscriptionEventContext | null> {
   const stripeCustomerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id
   if (!stripeCustomerId)
-    return
+    return null
 
   const customer = await stripeService.getCustomerByStripeId(stripeCustomerId)
   if (!customer)
-    return
+    return null
 
   // In newer Stripe API, subscription is under parent.subscription_details.
   const subDetails = invoice.parent?.subscription_details
@@ -300,4 +354,13 @@ async function handleInvoiceEvent(
   // TODO: implement subscription-based flux crediting when subscriptions are enabled
   if (invoice.status === 'paid' && invoice.amount_paid && subscriptionId)
     logger.withFields({ userId: customer.userId, invoiceId: invoice.id, amountPaid: invoice.amount_paid }).warn('Subscription invoice paid but flux crediting for subscriptions is not yet implemented')
+
+  return {
+    userId: customer.userId,
+    stripeCustomerId,
+    stripeSubscriptionId: subscriptionId ?? '',
+    subscriptionStatus: invoice.status ?? undefined,
+    amountPaid: invoice.amount_paid,
+    currency: invoice.currency,
+  }
 }

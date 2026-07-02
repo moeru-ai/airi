@@ -27,8 +27,9 @@ describe('voicePackService', () => {
       provider: 'volcengine',
       model: 'seed-tts-2.0',
       voiceId: 'voice-neuro',
+      upstreamVoiceId: 'voice-neuro-upstream',
       ttsModelId: 'volcengine/neuro-pool',
-      params: { pitch: '+20%', volume: '+5%' },
+      params: { pitch: 20, volume: 5 },
       costMultiplier: 1.5,
       enabled: true,
     })
@@ -37,8 +38,9 @@ describe('voicePackService', () => {
     expect(pack.provider).toBe('volcengine')
     expect(pack.model).toBe('seed-tts-2.0')
     expect(pack.voiceId).toBe('voice-neuro')
+    expect(pack.upstreamVoiceId).toBe('voice-neuro-upstream')
     expect(pack.ttsModelId).toBe('volcengine/neuro-pool')
-    expect(pack.params).toEqual({ pitch: '+20%', volume: '+5%' })
+    expect(pack.params).toEqual({ pitch: 20, volume: 5 })
     expect(pack.costMultiplier).toBe(1.5)
     expect(pack.enabled).toBe(true)
   })
@@ -50,6 +52,7 @@ describe('voicePackService', () => {
       provider: 'volcengine',
       model: 'seed-tts-2.0',
       voiceId: 'voice-a',
+      upstreamVoiceId: 'voice-a-upstream',
       ttsModelId: 'volcengine/pool',
       params: {},
       costMultiplier: 1,
@@ -60,8 +63,9 @@ describe('voicePackService', () => {
       provider: 'volcengine',
       model: 'seed-tts-2.0',
       voiceId: 'voice-a',
+      upstreamVoiceId: 'voice-a-upstream',
       ttsModelId: 'volcengine/pool',
-      params: { pitch: '+20%' },
+      params: { pitch: 20 },
       costMultiplier: 1,
       enabled: true,
     })
@@ -78,6 +82,7 @@ describe('voicePackService', () => {
       provider: 'azure',
       model: 'v1',
       voiceId: 'en-US-AvaMultilingualNeural',
+      upstreamVoiceId: 'en-US-AvaMultilingualNeural',
       ttsModelId: 'microsoft/v1',
       params: {},
       costMultiplier: 1,
@@ -86,13 +91,13 @@ describe('voicePackService', () => {
 
     const updated = await service.update(pack.id, {
       name: 'New',
-      params: { rate: '+10%' },
+      params: { rate: 1.1 },
       costMultiplier: 2,
     })
 
     expect(updated?.id).toBe(pack.id)
     expect(updated?.name).toBe('New')
-    expect(updated?.params).toEqual({ rate: '+10%' })
+    expect(updated?.params).toEqual({ rate: 1.1 })
     expect(updated?.costMultiplier).toBe(2)
   })
 
@@ -103,6 +108,7 @@ describe('voicePackService', () => {
       provider: 'dashscope-cosyvoice',
       model: 'cosyvoice-v2',
       voiceId: 'longxiaochun_v2',
+      upstreamVoiceId: 'longxiaochun_v2',
       ttsModelId: 'alibaba/cosyvoice-v2',
       params: {},
       costMultiplier: 1,
@@ -116,6 +122,37 @@ describe('voicePackService', () => {
     expect(disabled?.enabled).toBe(false)
     expect(all).toHaveLength(1)
     expect(enabled).toEqual([])
+  })
+
+  it('finds only enabled packs by product-facing voice alias', async () => {
+    // @example TTS request voice="narrator" -> enabled Voice Pack row resolves server-side.
+    await service.create({
+      name: 'Disabled narrator',
+      provider: 'azure',
+      model: 'v1',
+      voiceId: 'narrator',
+      upstreamVoiceId: 'disabled-upstream',
+      ttsModelId: 'microsoft/v1',
+      params: {},
+      costMultiplier: 1,
+      enabled: false,
+    })
+    const enabled = await service.create({
+      name: 'Enabled narrator',
+      provider: 'azure',
+      model: 'v1',
+      voiceId: 'narrator',
+      upstreamVoiceId: 'enabled-upstream',
+      ttsModelId: 'microsoft/v1',
+      params: {},
+      costMultiplier: 1,
+      enabled: true,
+    })
+
+    expect(await service.findEnabledByVoiceId('narrator')).toMatchObject({
+      id: enabled.id,
+      upstreamVoiceId: 'enabled-upstream',
+    })
   })
 
   it('returns null when updating or disabling a missing pack', async () => {

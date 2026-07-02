@@ -8,6 +8,7 @@ import { useHearingStore } from '../stores/modules/hearing'
 import { useSpeechStore } from '../stores/modules/speech'
 import { useVisionStore } from '../stores/modules/vision'
 import { useProvidersStore } from '../stores/providers'
+import { useAnalytics } from './use-analytics'
 
 /**
  * Provider IDs to auto-activate on sign-in.
@@ -41,6 +42,7 @@ export function useAuthProviderSync() {
   const visionStore = useVisionStore()
   const speechStore = useSpeechStore()
   const hearingStore = useHearingStore()
+  const { trackOfficialProviderSelected } = useAnalytics()
 
   // Track whether the sync has already fired in this session to avoid
   // re-running on every page navigation (onAuthenticated fires immediately
@@ -68,6 +70,13 @@ export function useAuthProviderSync() {
           if (!consciousnessStore.activeProvider) {
             consciousnessStore.activeProvider = id
             consciousnessStore.activeModel = 'auto'
+            trackOfficialProviderSelected({
+              provider_id: id,
+              provider_mode: 'official',
+              source: 'default_auto',
+              auto_selected: true,
+              model_id: 'auto',
+            })
           }
           break
         case 'vision':

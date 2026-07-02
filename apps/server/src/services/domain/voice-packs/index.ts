@@ -4,14 +4,15 @@ import type { Database } from '../../../libs/db'
 import type { VoicePack } from '../../../schemas/voice-packs'
 
 import { and, eq } from 'drizzle-orm'
-import { boolean, maxLength, minValue, nonEmpty, null_, number, object, optional, pipe, record, string, union } from 'valibot'
+import { boolean, maxLength, minValue, nonEmpty, number, object, optional, pipe, string } from 'valibot'
 
 import * as schema from '../../../schemas/voice-packs'
 
-export const VoicePackParamsSchema = record(
-  pipe(string(), nonEmpty('params keys must not be empty'), maxLength(100)),
-  union([string(), number(), boolean(), null_()]),
-)
+export const VoicePackParamsSchema = object({
+  pitch: optional(number()),
+  volume: optional(number()),
+  rate: optional(pipe(number(), minValue(0.01, 'rate must be positive'))),
+})
 
 export const VoicePackCostMultiplierSchema = pipe(
   number(),
@@ -24,6 +25,7 @@ export const CreateVoicePackInputSchema = object({
   provider: pipe(string(), nonEmpty('provider is required'), maxLength(100)),
   model: pipe(string(), nonEmpty('model is required'), maxLength(200)),
   voiceId: pipe(string(), nonEmpty('voiceId is required'), maxLength(200)),
+  upstreamVoiceId: pipe(string(), nonEmpty('upstreamVoiceId is required'), maxLength(200)),
   ttsModelId: pipe(string(), nonEmpty('ttsModelId is required'), maxLength(200)),
   params: optional(VoicePackParamsSchema, {}),
   costMultiplier: VoicePackCostMultiplierSchema,
@@ -36,6 +38,7 @@ export const UpdateVoicePackInputSchema = object({
   provider: optional(pipe(string(), nonEmpty('provider must not be empty'), maxLength(100))),
   model: optional(pipe(string(), nonEmpty('model must not be empty'), maxLength(200))),
   voiceId: optional(pipe(string(), nonEmpty('voiceId must not be empty'), maxLength(200))),
+  upstreamVoiceId: optional(pipe(string(), nonEmpty('upstreamVoiceId must not be empty'), maxLength(200))),
   ttsModelId: optional(pipe(string(), nonEmpty('ttsModelId must not be empty'), maxLength(200))),
   params: optional(VoicePackParamsSchema),
   costMultiplier: optional(VoicePackCostMultiplierSchema),
@@ -74,6 +77,7 @@ export function createVoicePackService(db: Database) {
         provider: input.provider,
         model: input.model,
         voiceId: input.voiceId,
+        upstreamVoiceId: input.upstreamVoiceId,
         ttsModelId: input.ttsModelId,
         params: input.params,
         costMultiplier: input.costMultiplier,
@@ -99,6 +103,15 @@ export function createVoicePackService(db: Database) {
     async findById(id: string) {
       return await db.query.voicePacks.findFirst({
         where: eq(schema.voicePacks.id, id),
+      })
+    },
+
+    async findEnabledByVoiceId(voiceId: string) {
+      return await db.query.voicePacks.findFirst({
+        where: and(
+          eq(schema.voicePacks.voiceId, voiceId),
+          eq(schema.voicePacks.enabled, true),
+        ),
       })
     },
 
