@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { OAuthProvider } from '@proj-airi/stage-ui/libs/auth'
 
-import { defaultSignInProviders } from '@proj-airi/stage-ui/components/auth'
 import { SERVER_URL } from '@proj-airi/stage-ui/libs/server'
 import { computed } from 'vue'
 
@@ -25,13 +24,9 @@ const oidcContinueURL = computed(() =>
   signInContext.value.callbackURL === '/' ? '' : signInContext.value.callbackURL,
 )
 
-const providerLookup = new Set<OAuthProvider>(defaultSignInProviders.map(provider => provider.id))
-const requestedProvider = computed<OAuthProvider | null>(() => {
-  const provider = signInContext.value.requestedProvider
-  if (!provider || !providerLookup.has(provider as OAuthProvider))
-    return null
-  return provider as OAuthProvider
-})
+// Membership is validated inside useEmailAuthFlow; the cast only satisfies its
+// OAuthProvider-typed option since the context carries a raw query string.
+const requestedProvider = computed(() => signInContext.value.requestedProvider as OAuthProvider | null)
 </script>
 
 <template>
