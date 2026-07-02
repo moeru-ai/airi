@@ -105,9 +105,7 @@ export function createSteamDesktopSignInRoute(deps: SteamDesktopSignInRouteDeps)
         // Unlinked steamId: do NOT create a user/account. Hand the browser a
         // single-use enrollment token so the user can verify a real email or
         // sign in to an existing account before Steam is linked at authorize.
-        const profile = deps.env.STEAM_PUBLISHER_KEY?.trim()
-          ? await collaborators.getPlayerSummaries({ publisherKey: deps.env.STEAM_PUBLISHER_KEY, steamId })
-          : null
+        const profile = await collaborators.getPlayerSummaries({ publisherKey: deps.env.STEAM_PUBLISHER_KEY, steamId })
         const enrollToken = await collaborators.createEnrollmentToken(deps.db, { steamId, profile })
         const authUiUrl = resolveAuthUiUrl(deps.env.AUTH_UI_URL, deps.env.API_SERVER_URL)
         return c.json({ errorCode: 'STEAM_NEEDS_ENROLLMENT', enrollToken, authUiUrl }, 403)
