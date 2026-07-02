@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { SERVER_URL } from '@proj-airi/stage-ui/libs/server'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -10,19 +9,12 @@ import { getServerAuthBootstrapContext } from '../modules/server-auth-context'
 
 const { t } = useI18n()
 const bootstrapContext = getServerAuthBootstrapContext()
-const fallbackApiServerUrl = bootstrapContext?.apiServerUrl ?? SERVER_URL
 const currentUrl = bootstrapContext?.currentUrl ?? window.location.href
 
-const enrollContext = computed(() => createEnrollContext(currentUrl, fallbackApiServerUrl))
+const enrollContext = computed(() => createEnrollContext(currentUrl))
 
-// NOTICE:
-// The OIDC authorize URL Electron handed us as `continue` does NOT carry the
-// enrollment token — `buildEnrollUrl` keeps `token` and `continue` as separate
-// query params on the enroll page URL. Re-attach the single-use `enrollToken`
-// here so that once the user authenticates (directly, or after email
-// verification via the verify-email `continueURL`), the authorize choke point
-// finds `enrollToken` in the query, consumes it, and links Steam. Without this
-// the user would sign in but Steam would never be linked.
+// Re-attach the single-use enrollToken to the authorize URL so the authorize
+// choke point (apps/server routes/auth/index.ts) consumes it and links Steam.
 const resumeURL = computed(() => {
   const ctx = enrollContext.value
   if (!ctx)
