@@ -18,7 +18,6 @@ import {
   electronAuthStartLogin,
 } from '../../../shared/eventa'
 import { getWebApiTicket, initSteam } from '../steam/client'
-import { buildEnrollUrl } from './enroll-url'
 import { startLoopbackServer } from './http-server/http/auth'
 import { exchangeSteamTicketForTokens } from './steam-sign-in'
 
@@ -187,14 +186,15 @@ async function startEnrollmentFlow(
   windowAuthManager: WindowAuthManager,
   params: { enrollToken: string, authUiUrl: string },
 ): Promise<void> {
+  const authUiBase = params.authUiUrl.replace(/\/+$/, '')
   await startOidcLoopbackFlow(windowAuthManager, {
     promptLogin: false,
-    buildBrowserUrl: authorizeUrl =>
-      buildEnrollUrl({
-        authUiUrl: params.authUiUrl,
-        enrollToken: params.enrollToken,
-        continueUrl: authorizeUrl,
-      }),
+    buildBrowserUrl: (authorizeUrl) => {
+      const enrollUrl = new URL(`${authUiBase}/enroll`)
+      enrollUrl.searchParams.set('token', params.enrollToken)
+      enrollUrl.searchParams.set('continue', authorizeUrl)
+      return enrollUrl.toString()
+    },
   })
 }
 
