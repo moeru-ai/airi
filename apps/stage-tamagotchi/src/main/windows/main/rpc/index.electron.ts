@@ -13,9 +13,9 @@ import type { WidgetsWindowManager } from '../../widgets'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
-import { ipcMain } from 'electron'
+import { ipcMain, screen } from 'electron'
 
-import { electronOpenChat, electronOpenMainDevtools, electronOpenSettings, noticeWindowEventa } from '../../../../shared/eventa'
+import { electronCenterMainWindow, electronOpenChat, electronOpenMainDevtools, electronOpenSettings, noticeWindowEventa } from '../../../../shared/eventa'
 import { createAuthService } from '../../../services/airi/auth'
 import { createGodotStageService } from '../../../services/airi/godot-stage'
 import { createMcpServersService } from '../../../services/airi/mcp-servers'
@@ -24,6 +24,7 @@ import { createWidgetsService } from '../../../services/airi/widgets'
 import { createAutoUpdaterService } from '../../../services/electron'
 import { toggleWindowShow } from '../../shared'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
+import { centerWindowOnDisplay } from '../window-position'
 
 export async function setupMainWindowElectronInvokes(params: {
   window: BrowserWindow
@@ -54,6 +55,17 @@ export async function setupMainWindowElectronInvokes(params: {
   createOnboardingService({ context, onboardingWindowManager: params.onboardingWindowManager, mainWindow: params.window })
   createAuthService({ context, window: params.window, windowAuthManager: params.windowAuthManager })
 
+  /**
+   * Moves the main AIRI window back to the center of its current display.
+   */
+  function centerMainWindow() {
+    return centerWindowOnDisplay({
+      getDisplayMatching: bounds => screen.getDisplayMatching(bounds),
+      window: params.window,
+    })
+  }
+
+  defineInvokeHandler(context, electronCenterMainWindow, centerMainWindow)
   defineInvokeHandler(context, electronOpenMainDevtools, () => params.window.webContents.openDevTools({ mode: 'detach' }))
   defineInvokeHandler(context, electronOpenSettings, payload => params.settingsWindow.openWindow(payload?.route))
   defineInvokeHandler(context, electronOpenChat, async () => toggleWindowShow(await params.chatWindow()))

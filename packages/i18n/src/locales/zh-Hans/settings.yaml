@@ -431,6 +431,7 @@ pages:
       desktop:
         title: 重置桌面设置和状态
         description: 清除 AIRI 桌面设置和运行状态。
+        center: 将桌宠移回屏幕中心
         reset: 重置桌面数据
     confirmations:
       tooltip: 您确定吗？
@@ -444,6 +445,7 @@ pages:
       modules_reset: 重置模块设置。
       providers_reset: 服务端设置重置。
       all_deleted: 已删除所有本地数据。
+      desktop_window_centered: 桌宠窗口已移回屏幕中心。
       desktop_reset: 桌面数据重置。
   models:
     description: Live2D, VRM, Spine, etc.

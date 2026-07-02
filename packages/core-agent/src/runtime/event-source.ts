@@ -1,15 +1,32 @@
-import type { MetadataEventSource } from '@proj-airi/server-sdk'
+import type { MetadataEventSource } from '@proj-airi/server-shared/types'
 
 interface EventSourcePayload {
   source?: string
   metadata?: { source?: MetadataEventSource }
 }
 
+type ExtensionModuleEventSource = MetadataEventSource & {
+  extension: { id: string }
+}
+
+/**
+ * Checks whether a protocol source belongs to a module owned by an extension.
+ */
+function isExtensionModuleIdentity(source: MetadataEventSource): source is ExtensionModuleEventSource {
+  return (
+    'extension' in source
+    && typeof source.extension === 'object'
+    && source.extension !== null
+    && 'id' in source.extension
+    && typeof source.extension.id === 'string'
+  )
+}
+
 function formatMetadataSource(source?: MetadataEventSource) {
   if (!source)
     return undefined
 
-  if ('extension' in source) {
+  if (isExtensionModuleIdentity(source)) {
     return `${source.extension.id}:${source.id}`
   }
 
