@@ -43,7 +43,7 @@ export interface EnrollContext {
  * - The parsed context, or `null` when `token` / `continue` are missing or
  *   `continue` is not a valid URL.
  */
-export function createEnrollContext(currentUrl: string, fallbackApiServerUrl: string): EnrollContext | null {
+export function createEnrollContext(currentUrl: string): EnrollContext | null {
   const url = new URL(currentUrl)
   const enrollToken = url.searchParams.get('token')
   const continueUrl = url.searchParams.get('continue')
@@ -61,6 +61,6 @@ export function createEnrollContext(currentUrl: string, fallbackApiServerUrl: st
   return {
     enrollToken,
     continueUrl,
-    apiServerUrl: continueOrigin || fallbackApiServerUrl,
+    apiServerUrl: continueOrigin,
   }
 }
