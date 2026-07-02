@@ -79,7 +79,7 @@ dialogs:
       description: 'Opcional: selección manual.'
       placeholder: Elegir captura de pantalla o video
       selected-count: '{count} archivo(s) seleccionados'
-    last-submitted-preview: Last Submitted Payload Preview
+    last-submitted-preview: Vista previa de la última payload enviada
 language:
   title: Idioma
   description: |
@@ -109,9 +109,9 @@ model-select:
   panel-callout:
     support-status-header: Soportamos tanto modelos 2D como 3D
     support-status: >
-      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models) and {vrm} (for VRM models) are supported.
+      Haz clic en {select-button} para seleccionar o importar modelos. Actualmente, se admiten los formatos {zip} (para modelos Live2D y Spine) y {vrm} (para modelos VRM).
     model-type-example: >
-      Neuro-sama uses 2D model driven by framework developed by Live2D Inc, while Grok Ani (in Grok Companion) uses 3D model driven by VRM / MMD open formats.
+      Neuro-sama utiliza un modelo 2D basado en el marco de trabajo desarrollado por Live2D Inc, mientras que Grok Ani (en Grok Companion) utiliza un modelo 3D basado en los formatos abiertos VRM y MMD.
   select-model:
     title: Selector de modelo
     button: Seleccionar modelo
@@ -144,30 +144,30 @@ live2d:
   theme-color-from-model:
     title: Extraer colores del modelo
     description: >
-      Extract prominent colors from current rendering canvas. Click on the color to apply it to AIRI. Try to extract multiple times, with the model in different poses, if the colors are not desirable.
+      Extrae los colores más destacados del lienzo de renderizado actual. Haz clic en el color para aplicarlo a AIRI. Si los colores no te convencen, prueba a realizar la extracción varias veces, con el modelo en diferentes poses.
     button-extract:
       title: Extraer
   animation:
     title: Animación
     focus:
       title: Habilitar Seguimiento del Ratón
-      description: Look at the cursor while it is moving. Idle eye movement resumes after the cursor stops.
+      description: Fíjate en el cursor mientras se mueve. El movimiento ocular espontáneo se reanuda cuando el cursor se detiene.
       offset: Desplazamiento ocular (%)
     force-idle-eye-animation:
       title: Movimiento ojo inactivo
-      description: Randomly look around when there is no active cursor focus.
+      description: Mira al azar a tu alrededor cuando el cursor no esté activo.
     blink-enable:
       title: Habilitar parpadeo
       description: Dejar que el modelo parpadee.
     auto-blink:
       title: Automático
-      description: Use default blinking animation of the model
+      description: Utilizar la animación de parpadeo predeterminada del modelo
     force-auto-blink:
       title: Forzar
-      description: Force blinking animation with external timer
+      description: Forzar la animación de parpadeo con un temporizador externo
     blink-mode:
       title: Modo parpadeo
-      description: Choose the model built-in blink or AIRI's forced blink timer.
+      description: Elige entre el parpadeo integrado en el modelo o el temporizador de parpadeo forzado de AIRI.
     idle-motion:
       title: Animación inactiva
       no-motion: No hay animación disponible
@@ -183,16 +183,16 @@ live2d:
       description: Limitar velocidad de fotogramas
       options:
         unlimited: '∞'
-    shadow: Drop shadow
+    shadow: Sombra proyectada.
     reset-parameters: Restablecer valores predeterminados
-  clear-model-cache: Clear model cache
+  clear-model-cache: Borrar la caché del modelo.
   expressions:
     title: Expresiones
     override-toggle: Sistema de Expresión
     sdk-preset-preserved-notice: >
-      SDK expression manager and eye blink are preserved when disabled.
+      El gestor de expresiones del SDK y el parpadeo se mantienen cuando están desactivados.
     no-expression: No hay expresiones disponibles para este modelo.
-    llm-integration-wip: LLM tool integration is not yet wired up.
+    llm-integration-wip: La integración de la herramienta LLM aún no está configurada
     save-default: Guardar expresiones por defecto
     reset: Restablecer todas las expresiones
     expose-to-llm-toggle: Exponer a LLM
@@ -231,7 +231,7 @@ pages:
     connections:
       tab: Cuentas conectadas
       title: Cuentas conectadas
-      description: Sign in to AIRI through these providers. Unlink to revoke access, then link again to switch to a different account.
+      description: Inicia sesión en AIRI a través de estos proveedores. Desvincula tu cuenta para revocar el acceso y, a continuación, vuelve a vincularla para cambiar a otra cuenta.
       status:
         linked: Vinculado
         notLinked: No vinculado
@@ -250,12 +250,12 @@ pages:
         linkFailed: No se pudo iniciar el flujo de vinculación.
         accountAlreadyLinkedToDifferentUser: Esta cuenta OAuth ya está vinculada a otra cuenta de AIRI. Elige otra cuenta del proveedor o desvincúlala primero de la otra cuenta de AIRI.
         oauthCallbackFailed: No pudimos conectar esta cuenta OAuth. Inténtalo de nuevo o elige otra cuenta del proveedor.
-        lastAccount: This is your only sign-in method. Set a password first before unlinking it.
+        lastAccount: Este es tu único método de inicio de sesión. Establece primero una contraseña antes de desvincularlo.
     security:
       tab: Seguridad
       title: Seguridad
       description: Cambia tu contraseña. Tus otros dispositivos cerrarán sesión.
-      setDescription: You signed in via a social provider, so there is no current password yet. We'll email a secure link to set one.
+      setDescription: Te has registrado a través de una red social, por lo que aún no tienes contraseña. Te enviaremos por correo electrónico un enlace seguro para que puedas establecer una.
       currentPassword:
         label: Contraseña actual
         placeholder: Introduce tu contraseña actual
@@ -279,7 +279,7 @@ pages:
     danger:
       tab: Zona peligrosa
       title: Zona peligrosa
-      description: Irreversible account actions live here.
+      description: Las acciones irreversibles relacionadas con la cuenta se muestran aquí.
       deleteAccount:
         title: Eliminar cuenta
         description: Elimina permanentemente tu cuenta y tus datos personales.
@@ -369,7 +369,7 @@ pages:
         scenario: 'Error: Se requiere un escenario.'
         systemprompt: 'Error: Por favor, proporciona un prompt del sistema.'
         posthistoryinstructions: 'Error: Se requiere un prompt post-historial.'
-        invalid_artistry_json: 'Error: Artistry provider options contains invalid JSON.'
+        invalid_artistry_json: 'Error: Las opciones del proveedor Artistry contienen un JSON no válido.'
       none: Nada
     modules: Módulos
     name_asc: Nombre (A-Z)
@@ -509,35 +509,35 @@ pages:
       title: Artistry
       description: Generación de imágenes, fondo de escena y dibujo.
       page:
-        title: Artistry Provider Configuration
-        description: Select the active backend provider for image generation. Characters can override this in their Card settings.
+        title: Configuración del proveedor de Artistry
+        description: Selecciona el proveedor de backend activo para la generación de imágenes. Los usuarios pueden anular esta configuración en los ajustes de su tarjeta.
       providers:
         none:
           name: Ninguno
-          description: Bypass and disable the image generation module globally.
+          description: Omitir y desactivar el módulo de generación de imágenes de forma global.
         comfyui:
           name: ConfyUI (local)
-          description: Use a local ComfyUI instance via WSL for image generation.
+          description: Utiliza una instancia local de ComfyUI a través de WSL para generar imágenes.
         replicate:
-          name: Replicate.ai (Cloud)
-          description: Use cloud-based models via the Replicate API.
+          name: Replicate.ai (en la nube)
+          description: Utiliza modelos basados en la nube a través de la API de Replicate.
         nanobanana:
           name: Nano Banana (Vista previa)
           description: Utilice Google AI Studio para previsualizar imágenes y reacciones.
       card:
-        description: Configure how AIRI generates images and visual content.
-        comfyui_empty: No ComfyUI workflows configured. Go to Settings → Providers → ComfyUI to upload a workflow template.
+        description: Configura cómo AIRI genera imágenes y contenido visual.
+        comfyui_empty: No hay flujos de trabajo de ComfyUI configurados. Ve a Ajustes → Proveedores → ComfyUI para cargar una plantilla de flujo de trabajo.
         exposed_fields: 'Campos expuestos {count}'
         open_on_replicate: Abrir al replicar
         instruction_sync:
           title: Sincronización de Instrucción de ComfyUI
-          description: A specialized prompt is ready for your {workflowName} workflow. Applying this will overwrite current widget instructions so the AI knows how to use this specific template.
-          apply: Apply Recommended Prompt
+          description: Ya está disponible una indicación especializada para tu flujo de trabajo {workflowName}. Al aplicarla, se sobrescribirán las instrucciones actuales del widget para que la IA sepa cómo utilizar esta plantilla concreta.
+          apply: Aplicar el prompt recomendado.
           keep: Mantener existente
-      provider: Artistry Provider
+      provider: Proveedor de Artistry.
       spawn_mode:
-        label: Manifestation Mode (Spawn Mode)
-        description: Choose how images are delivered to the interface.
+        label: Modo de aparición (Spawn Mode)
+        description: Elige cómo se muestran las imágenes en la interfaz.
         options:
           bg: Entorno de fondo
           inline: Chat en línea
