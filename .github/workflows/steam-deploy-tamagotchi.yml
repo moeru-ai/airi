@@ -196,8 +196,6 @@ jobs:
             exit 1
           fi
 
-          find steam-build -maxdepth 2 -type d -print
-
       - name: Deploy desktop builds to Steam
         uses: game-ci/steam-deploy@v3.2.0
         with:
