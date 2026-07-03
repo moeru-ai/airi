@@ -6,8 +6,6 @@ import type {
   WordBankEntry,
 } from '../types'
 
-import { getSynonymMap } from '../data/synonyms'
-import { getWordBank } from '../data/words'
 import {
   isStopword,
   normalizeToken,
@@ -15,6 +13,8 @@ import {
   resolvePatternDisruptorLanguage,
   tokenizeWords,
 } from '../data/language'
+import { getSynonymMap } from '../data/synonyms'
+import { getWordBank } from '../data/words'
 
 interface GenerateRandomWordsInput {
   settings: PatternDisruptorSettings

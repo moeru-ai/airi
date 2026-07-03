@@ -30,7 +30,7 @@ export type WorkspaceId = string & { readonly __brand: 'WorkspaceId' }
  * ```
  */
 export function createWorkspaceId(raw: string): WorkspaceId {
-	return raw as WorkspaceId
+  return raw as WorkspaceId
 }
 
 // ── Workspace lifecycle states ────────────────────────────────────────────
@@ -43,15 +43,15 @@ export function createWorkspaceId(raw: string): WorkspaceId {
  * creating → active → destroying → destroyed
  * Any state → corrupted (on error)
  */
-export type WorkspaceState =
-	| "creating"
-	| "active"
-	| "leased"
-	| "executing"
-	| "suspended"
-	| "destroying"
-	| "destroyed"
-	| "corrupted"
+export type WorkspaceState
+  = | 'creating'
+    | 'active'
+    | 'leased'
+    | 'executing'
+    | 'suspended'
+    | 'destroying'
+    | 'destroyed'
+    | 'corrupted'
 
 /**
  * Valid workspace state transitions.
@@ -59,24 +59,24 @@ export type WorkspaceState =
  * Each entry maps a current state to the set of states it can transition to.
  */
 export const VALID_WORKSPACE_TRANSITIONS: Record<WorkspaceState, readonly WorkspaceState[]> = {
-	creating: ["active", "corrupted"],
-	active: ["leased", "destroying", "corrupted"],
-	leased: ["executing", "active", "destroying", "corrupted"],
-	executing: ["suspended", "active", "corrupted"],
-	suspended: ["active", "destroying", "corrupted"],
-	destroying: ["destroyed", "corrupted"],
-	destroyed: [],
-	corrupted: [],
+  creating: ['active', 'corrupted'],
+  active: ['leased', 'destroying', 'corrupted'],
+  leased: ['executing', 'active', 'destroying', 'corrupted'],
+  executing: ['suspended', 'active', 'corrupted'],
+  suspended: ['active', 'destroying', 'corrupted'],
+  destroying: ['destroyed', 'corrupted'],
+  destroyed: [],
+  corrupted: [],
 }
 
 /**
  * Check whether a workspace state transition is valid.
  */
 export function isValidWorkspaceTransition(
-	from: WorkspaceState,
-	to: WorkspaceState,
+  from: WorkspaceState,
+  to: WorkspaceState,
 ): boolean {
-	return VALID_WORKSPACE_TRANSITIONS[from]?.includes(to) ?? false
+  return VALID_WORKSPACE_TRANSITIONS[from]?.includes(to) ?? false
 }
 
 // ── Workspace descriptor ─────────────────────────────────────────────────
@@ -85,41 +85,41 @@ export function isValidWorkspaceTransition(
  * Workspace descriptor — the full metadata for a workspace.
  */
 export interface WorkspaceDescriptor {
-	/** Unique workspace identifier. */
-	readonly id: WorkspaceId
+  /** Unique workspace identifier. */
+  readonly id: WorkspaceId
 
-	/** Human-readable workspace name. */
-	readonly name: string
+  /** Human-readable workspace name. */
+  readonly name: string
 
-	/** Optional description. */
-	readonly description?: string
+  /** Optional description. */
+  readonly description?: string
 
-	/** Absolute path to the workspace root directory. */
-	readonly rootPath: string
+  /** Absolute path to the workspace root directory. */
+  readonly rootPath: string
 
-	/** Current lifecycle state. */
-	readonly state: WorkspaceState
+  /** Current lifecycle state. */
+  readonly state: WorkspaceState
 
-	/** Associated session ID, if any. */
-	readonly sessionId?: string
+  /** Associated session ID, if any. */
+  readonly sessionId?: string
 
-	/** Associated repository ID, if any. */
-	readonly repositoryId?: string
+  /** Associated repository ID, if any. */
+  readonly repositoryId?: string
 
-	/** Git branch name, if using worktree isolation. */
-	readonly branchName?: string
+  /** Git branch name, if using worktree isolation. */
+  readonly branchName?: string
 
-	/** ISO-8601 creation timestamp. */
-	readonly createdAt: string
+  /** ISO-8601 creation timestamp. */
+  readonly createdAt: string
 
-	/** ISO-8601 last-update timestamp. */
-	readonly updatedAt: string
+  /** ISO-8601 last-update timestamp. */
+  readonly updatedAt: string
 
-	/** Path to git worktree, if applicable. */
-	readonly worktreePath?: string
+  /** Path to git worktree, if applicable. */
+  readonly worktreePath?: string
 
-	/** Arbitrary metadata. */
-	readonly metadata: Record<string, unknown>
+  /** Arbitrary metadata. */
+  readonly metadata: Record<string, unknown>
 }
 
 // ── Workspace lease ──────────────────────────────────────────────────────
@@ -131,20 +131,20 @@ export interface WorkspaceDescriptor {
  * token is a unique string that must be presented for release/validation.
  */
 export interface WorkspaceLease {
-	/** The workspace this lease is for. */
-	readonly workspaceId: WorkspaceId
+  /** The workspace this lease is for. */
+  readonly workspaceId: WorkspaceId
 
-	/** The session that holds this lease. */
-	readonly sessionId: string
+  /** The session that holds this lease. */
+  readonly sessionId: string
 
-	/** ISO-8601 timestamp of when the lease was acquired. */
-	readonly acquiredAt: string
+  /** ISO-8601 timestamp of when the lease was acquired. */
+  readonly acquiredAt: string
 
-	/** Optional ISO-8601 lease expiry timestamp. */
-	readonly expiresAt?: string
+  /** Optional ISO-8601 lease expiry timestamp. */
+  readonly expiresAt?: string
 
-	/** Unique token for lease validation. */
-	readonly leaseToken: string
+  /** Unique token for lease validation. */
+  readonly leaseToken: string
 }
 
 // ── Workspace snapshot ───────────────────────────────────────────────────
@@ -153,20 +153,20 @@ export interface WorkspaceLease {
  * Workspace snapshot — serializable state for persistence.
  */
 export interface WorkspaceSnapshot {
-	/** Workspace ID. */
-	readonly id: WorkspaceId
+  /** Workspace ID. */
+  readonly id: WorkspaceId
 
-	/** Snapshot of the workspace descriptor. */
-	readonly descriptor: WorkspaceDescriptor
+  /** Snapshot of the workspace descriptor. */
+  readonly descriptor: WorkspaceDescriptor
 
-	/** Active lease, if any. */
-	readonly lease?: WorkspaceLease
+  /** Active lease, if any. */
+  readonly lease?: WorkspaceLease
 
-	/** IDs of tasks currently associated with this workspace. */
-	readonly activeTaskIds: string[]
+  /** IDs of tasks currently associated with this workspace. */
+  readonly activeTaskIds: string[]
 
-	/** ISO-8601 snapshot creation timestamp. */
-	readonly createdAt: string
+  /** ISO-8601 snapshot creation timestamp. */
+  readonly createdAt: string
 }
 
 // ── Workspace recovery state ─────────────────────────────────────────────
@@ -175,20 +175,20 @@ export interface WorkspaceSnapshot {
  * Workspace recovery state — tracks recovery progress for a workspace.
  */
 export interface WorkspaceRecoveryState {
-	/** The workspace being recovered. */
-	readonly workspaceId: WorkspaceId
+  /** The workspace being recovered. */
+  readonly workspaceId: WorkspaceId
 
-	/** Last known state before the crash/restart. */
-	readonly lastKnownState: WorkspaceState
+  /** Last known state before the crash/restart. */
+  readonly lastKnownState: WorkspaceState
 
-	/** Whether this workspace needs reconciliation. */
-	readonly needsReconciliation: boolean
+  /** Whether this workspace needs reconciliation. */
+  readonly needsReconciliation: boolean
 
-	/** Paths to orphaned worktrees that need cleanup. */
-	readonly orphanedWorktrees: string[]
+  /** Paths to orphaned worktrees that need cleanup. */
+  readonly orphanedWorktrees: string[]
 
-	/** Last error message, if any. */
-	readonly lastError?: string
+  /** Last error message, if any. */
+  readonly lastError?: string
 }
 
 // ── Workspace filter ─────────────────────────────────────────────────────
@@ -197,14 +197,14 @@ export interface WorkspaceRecoveryState {
  * Filter criteria for listing workspaces.
  */
 export interface WorkspaceFilter {
-	/** Filter by workspace state. */
-	readonly state?: WorkspaceState
+  /** Filter by workspace state. */
+  readonly state?: WorkspaceState
 
-	/** Filter by associated session. */
-	readonly sessionId?: string
+  /** Filter by associated session. */
+  readonly sessionId?: string
 
-	/** Filter by associated repository. */
-	readonly repositoryId?: string
+  /** Filter by associated repository. */
+  readonly repositoryId?: string
 }
 
 // ── Workspace creation input ─────────────────────────────────────────────
@@ -213,27 +213,27 @@ export interface WorkspaceFilter {
  * Input for creating a new workspace.
  */
 export interface CreateWorkspaceInput {
-	/** Human-readable workspace name. */
-	readonly name: string
+  /** Human-readable workspace name. */
+  readonly name: string
 
-	/** Optional description. */
-	readonly description?: string
+  /** Optional description. */
+  readonly description?: string
 
-	/** Absolute path to the workspace root directory. */
-	readonly rootPath: string
+  /** Absolute path to the workspace root directory. */
+  readonly rootPath: string
 
-	/** Optional session to associate with this workspace. */
-	readonly sessionId?: string
+  /** Optional session to associate with this workspace. */
+  readonly sessionId?: string
 
-	/** Optional repository ID. */
-	readonly repositoryId?: string
+  /** Optional repository ID. */
+  readonly repositoryId?: string
 
-	/** Optional git branch name for worktree creation. */
-	readonly branchName?: string
+  /** Optional git branch name for worktree creation. */
+  readonly branchName?: string
 
-	/** Whether to create a git worktree for this workspace. */
-	readonly useWorktree?: boolean
+  /** Whether to create a git worktree for this workspace. */
+  readonly useWorktree?: boolean
 
-	/** Arbitrary metadata. */
-	readonly metadata?: Record<string, unknown>
+  /** Arbitrary metadata. */
+  readonly metadata?: Record<string, unknown>
 }

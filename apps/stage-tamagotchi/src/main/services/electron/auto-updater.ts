@@ -5,24 +5,21 @@ import type { UpdateInfo } from 'electron-updater'
 
 import type { ElectronUpdaterChannel } from '../../../shared/eventa'
 
-import process from 'node:process'
-
 import { appendFile, mkdir, rm } from 'node:fs/promises'
-import { dirname, join, normalize } from 'node:path'
 
-import electronUpdater from 'electron-updater'
-import semver from 'semver'
+import { dirname, join, normalize } from 'node:path'
+import process from 'node:process'
 
 import { is } from '@electron-toolkit/utils'
 import { useLogg } from '@guiiai/logg'
+
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom, tryCatch } from '@moeru/std'
 import { resilientFetch } from '@proj-airi/resilience'
-// NOTE: committerDate was previously injected by ~build/git at build time.
-// Using runtime date as fallback since build-time injection is not available.
-const committerDate = new Date().toISOString()
 import { app } from 'electron'
+import electronUpdater from 'electron-updater'
 import { Semaphore } from 'es-toolkit'
+import semver from 'semver'
 import { isWindows } from 'std-env'
 
 import {
@@ -32,6 +29,9 @@ import {
   electronSetUpdaterPreferences,
 } from '../../../shared/eventa'
 import { MockAutoUpdater } from './mock-auto-updater'
+// NOTE: committerDate was previously injected by ~build/git at build time.
+// Using runtime date as fallback since build-time injection is not available.
+const committerDate = new Date().toISOString()
 
 function getReleaseChannelName() {
   return process.arch === 'arm64' ? 'latest-arm64' : 'latest-x64'
@@ -509,7 +509,6 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
 
       try {
         callback(state)
-        // eslint-disable-next-line no-empty
       } catch {
         // noop
       }

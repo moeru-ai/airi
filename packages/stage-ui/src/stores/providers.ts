@@ -230,7 +230,6 @@ export interface ProviderRuntimeState {
   modelLoadError: string | null
 }
 
-// eslint-disable-next-line complexity
 export const useProvidersStore = defineStore('providers', () => {
   const providerCredentials = useLocalStorage<Record<string, Record<string, unknown>>>(
     'settings/credentials/providers',
@@ -2553,8 +2552,9 @@ export const useProvidersStore = defineStore('providers', () => {
       !forceValidation &&
       runtimeState?.validatedCredentialHash === configString &&
       typeof runtimeState.isConfigured === 'boolean'
-    )
+    ) {
       return runtimeState.isConfigured
+    }
 
     if (!forceValidation) {
       const pending = providerValidationInFlight.get(cacheKey)
@@ -2633,7 +2633,6 @@ export const useProvidersStore = defineStore('providers', () => {
 
       const loop = useIntervalFn(
         () => {
-          // eslint-disable-next-line no-void
           void validateProvider(providerId, { force: true })
         },
         intervalMs,
@@ -2827,7 +2826,7 @@ export const useProvidersStore = defineStore('providers', () => {
 
       for (const providerId of changedProviders) {
         // Since credentials changed, dispose the cached instance so new creds take effect.
-        // eslint-disable-next-line no-void
+
         void disposeProviderInstance(providerId)
 
         // If the provider is configured and has the capability, refetch its models

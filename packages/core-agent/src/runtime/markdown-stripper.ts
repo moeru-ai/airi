@@ -32,10 +32,10 @@ export function stripMarkdownFromSpeech(text: string): string {
   result = result.replace(/`([^`]+)`/g, '$1')
 
   // Bold (**text**) — preserve inner text
-  result = result.replace(/\*\*([^*]+?)\*\*/g, '$1')
+  result = result.replace(/\*\*([^*]+)\*\*/g, '$1')
 
   // Strikethrough (~~text~~) — preserve inner text
-  result = result.replace(/~~([^~]+?)~~/g, '$1')
+  result = result.replace(/~~([^~]+)~~/g, '$1')
 
   // Headings (# Heading) — remove # markers at line start, preserve text
   result = result.replace(/^#{1,6}\s+/gm, '')
@@ -52,21 +52,21 @@ export function stripMarkdownFromSpeech(text: string): string {
 
   // Italic (*text*) — preserve inner text
   // Must run after bold and list stripping to avoid matching * list markers
-  result = result.replace(/\*([^*]+?)\*/g, '$1')
+  result = result.replace(/\*([^*]+)\*/g, '$1')
 
   // Italic (_text_) — preserve inner text
-  result = result.replace(/_([^_]+?)_/g, '$1')
+  result = result.replace(/_([^_]+)_/g, '$1')
 
   // Links [text](url) — preserve link text only
-  result = result.replace(/\[([^\]]+?)\]\([^)]+?\)/g, '$1')
+  result = result.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
 
   // Blockquotes (> quote) — remove > marker at line start, preserve text
   result = result.replace(/^>\s+/gm, '')
 
   // Horizontal rules (---, ***, ___) — remove entirely
-  result = result.replace(/^---+$/gm, '')
-  result = result.replace(/^\*\*\*+$/gm, '')
-  result = result.replace(/^___+$/gm, '')
+  result = result.replace(/^-{3,}$/gm, '')
+  result = result.replace(/^\*{3,}$/gm, '')
+  result = result.replace(/^_{3,}$/gm, '')
 
   // Table pipes — remove | characters at line boundaries, preserve cell text
   result = result.replace(/^\|(.*)\|$/gm, (_match, inner: string) => {

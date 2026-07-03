@@ -83,12 +83,12 @@ export function isCloudSyncableMessage(message: ChatHistoryItem): boolean {
  *   that the wire format does not, so we synthesize minimal placeholders
  *   for them.
  */
-// eslint-disable-next-line consistent-return
+
 export function wireMessageToLocal(wire: WireMessage): ChatHistoryItem {
   // Server wire format only stores plain text content; we recreate the
   // local shape with empty tool_results / slices so downstream UI code can
   // assume the invariants documented in core-agent's ChatAssistantMessage.
-  // eslint-disable-next-line default-case
+
   switch (wire.role) {
     case 'assistant': {
       const assistant: ChatAssistantMessage = {

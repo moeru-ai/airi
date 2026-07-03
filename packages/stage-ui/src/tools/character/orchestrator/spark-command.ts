@@ -1,9 +1,9 @@
 import type { WebSocketEvents } from '@proj-airi/server-sdk'
-import type z from 'zod/v4'
+import type { JsonSchema } from 'xsschema'
 
+import type z from 'zod/v4'
 import { rawTool } from '@xsai/tool'
 import { nanoid } from 'nanoid'
-import type { JsonSchema } from 'xsschema'
 import { toJsonSchema } from 'xsschema'
 
 import {

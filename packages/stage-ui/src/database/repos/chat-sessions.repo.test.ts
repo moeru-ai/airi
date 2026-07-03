@@ -1,6 +1,6 @@
-import memoryDriver from 'unstorage/drivers/memory'
-
 import { createStorage } from 'unstorage'
+
+import memoryDriver from 'unstorage/drivers/memory'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Replace the IDB-backed storage with an in-memory driver for tests; the

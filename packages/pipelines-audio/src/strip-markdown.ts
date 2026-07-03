@@ -12,10 +12,10 @@ export function stripMarkdownFromText(text: string): string {
   result = result.replace(/`([^`]+)`/g, '$1')
 
   // Bold (**text**) — preserve inner text
-  result = result.replace(/\*\*([^*]+?)\*\*/g, '$1')
+  result = result.replace(/\*\*([^*]+)\*\*/g, '$1')
 
   // Strikethrough (~~text~~) — preserve inner text
-  result = result.replace(/~~([^~]+?)~~/g, '$1')
+  result = result.replace(/~~([^~]+)~~/g, '$1')
 
   // Headings (# Heading) — remove # markers at line start, preserve text
   result = result.replace(/^#{1,6}\s+/gm, '')
@@ -30,18 +30,18 @@ export function stripMarkdownFromText(text: string): string {
   result = result.replace(/^>\s+/gm, '')
 
   // Italic (*text*) — preserve inner text
-  result = result.replace(/\*([^*]+?)\*/g, '$1')
+  result = result.replace(/\*([^*]+)\*/g, '$1')
 
   // Italic (_text_) — preserve inner text
-  result = result.replace(/_([^_]+?)_/g, '$1')
+  result = result.replace(/_([^_]+)_/g, '$1')
 
   // Links [text](url) — preserve link text only
-  result = result.replace(/\[([^\]]+?)\]\([^)]+?\)/g, '$1')
+  result = result.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
 
   // Horizontal rules (---, ***, ___) — remove entirely
-  result = result.replace(/^---+$/gm, '')
-  result = result.replace(/^\*\*\*+$/gm, '')
-  result = result.replace(/^___+$/gm, '')
+  result = result.replace(/^-{3,}$/gm, '')
+  result = result.replace(/^\*{3,}$/gm, '')
+  result = result.replace(/^_{3,}$/gm, '')
 
   // Aggressive star stripping: remove any ** that survived
   result = result.replace(/\*\*/g, '')

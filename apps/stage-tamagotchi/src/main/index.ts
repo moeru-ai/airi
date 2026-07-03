@@ -2,17 +2,17 @@ import type { BrowserWindow } from 'electron'
 
 import type { FileLoggerHandle } from './app/file-logger'
 
-import process, { env, platform } from 'node:process'
-
 import { dirname } from 'node:path'
+
+import process, { env, platform } from 'node:process'
 import { fileURLToPath } from 'node:url'
 
-import messages from '@proj-airi/i18n/locales'
-
 import { electronApp, optimizer } from '@electron-toolkit/utils'
+
 import { Format, LogLevel, setGlobalFormat, setGlobalHookPostLog, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { initScreenCaptureForMain } from '@proj-airi/electron-screen-capture/main'
+import messages from '@proj-airi/i18n/locales'
 import { app, ipcMain } from 'electron'
 import { noop } from 'es-toolkit'
 import { createLoggLogger, injeca, lifecycle } from 'injeca'
@@ -23,13 +23,13 @@ import icon from '../../resources/icon.png?asset'
 import { openDebugger, setupDebugger } from './app/debugger'
 import { nullFileLoggerHandle, setupFileLogger } from './app/file-logger'
 import { installSingleInstanceGuard } from './app/single-instance'
-import { captureError, setupSentry } from './libs/sentry'
-import { setupSentryBreadcrumbsFromLogg } from './libs/sentry/breadcrumbs'
 import { createArtistryConfig } from './configs/artistry'
 import { createGlobalAppConfig } from './configs/global'
 import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed } from './libs/bootkit/lifecycle'
 import { setElectronMainDirname } from './libs/electron/location'
 import { createI18n } from './libs/i18n'
+import { captureError, setupSentry } from './libs/sentry'
+import { setupSentryBreadcrumbsFromLogg } from './libs/sentry/breadcrumbs'
 import { createWindowAuthManagerService } from './services/airi/auth'
 import { setupServerChannel } from './services/airi/channel-server'
 import { setupGodotStageManager } from './services/airi/godot-stage'

@@ -14,10 +14,10 @@ import { generateTranscription } from '@xsai/generate-transcription'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref, shallowRef, watch } from 'vue'
 
-import vadWorkletUrl from '../../workers/vad/process.worklet?worker&url'
-
 import { useAnalytics } from '../../composables/use-analytics'
+
 import { activeTurnSpan, startSpan } from '../../composables/use-io-tracer'
+import vadWorkletUrl from '../../workers/vad/process.worklet?worker&url'
 import { useProvidersStore } from '../providers'
 import { streamAliyunTranscription } from '../providers/aliyun/stream-transcription'
 import { streamWebSpeechAPITranscription } from '../providers/web-speech-api'
@@ -140,7 +140,6 @@ const STREAM_TRANSCRIPTION_EXECUTORS: Record<string, StreamTranscription> = {
   // Web Speech API is handled specially in transcribeForMediaStream since it works directly with MediaStream
 }
 
-// eslint-disable-next-line complexity
 export const useHearingStore = defineStore('hearing-store', () => {
   const providersStore = useProvidersStore()
   const { allAudioTranscriptionProvidersMetadata } = storeToRefs(providersStore)
@@ -372,7 +371,6 @@ export const useHearingStore = defineStore('hearing-store', () => {
   }
 })
 
-// eslint-disable-next-line complexity
 export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech:audio-input-pipeline', () => {
   const error = ref<string>()
 
@@ -497,7 +495,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
       if (session.result?.mode === 'stream') {
         try {
           const text = await session.result.text
-          // eslint-disable-next-line consistent-return
+
           return text
         } catch (err) {
           if (isExpectedStreamStopError(err)) return undefined
@@ -519,7 +517,6 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
 
       if (abort) session.audioStreamController?.error(reason)
       else session.audioStreamController?.close()
-      // eslint-disable-next-line no-empty
     } catch {
       // noop
     }
@@ -541,7 +538,6 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
 
         if (disposeProviderId) {
           await providersStore.disposeProviderInstance(disposeProviderId)
-          // eslint-disable-next-line consistent-return
         }
 
         return text
@@ -553,7 +549,6 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
       }
     }
 
-    // eslint-disable-next-line consistent-return
     if (disposeProviderId) await providersStore.disposeProviderInstance(disposeProviderId)
 
     return session.result?.text
@@ -909,7 +904,6 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
         if (!text || !text.trim()) {
           error.value = 'No transcription result returned from provider'
           return
-          // eslint-disable-next-line consistent-return
         }
 
         return text

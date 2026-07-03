@@ -1,0 +1,37 @@
+{
+  "name": "@proj-airi/core",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AIRI runtime kernel: EventBus, ModuleRegistry, TaskManager, Planner, Cognition, Persistence, Workers, Capabilities, Semantic Memory, Workspace isolation",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "core"
+  },
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "files": [
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@proj-airi/core-terminal": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "@proj-airi/core-terminal": {
+      "optional": true
+    }
+  }
+}

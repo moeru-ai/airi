@@ -1,7 +1,7 @@
-import process from 'node:process'
-
 import { readdir, readFile, writeFile } from 'node:fs/promises'
+
 import { resolve } from 'node:path'
+import process from 'node:process'
 
 import { getFilenames } from './utils'
 

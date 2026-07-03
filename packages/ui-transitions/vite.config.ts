@@ -2,10 +2,10 @@ import { resolve } from 'node:path'
 
 import Vue from '@vitejs/plugin-vue'
 import Unocss from 'unocss/vite'
-import VueDevTools from 'vite-plugin-vue-devtools'
-import VueRouter from 'vue-router/vite'
-
 import { defineConfig } from 'vite'
+import VueDevTools from 'vite-plugin-vue-devtools'
+
+import VueRouter from 'vue-router/vite'
 
 export default defineConfig({
   build: {

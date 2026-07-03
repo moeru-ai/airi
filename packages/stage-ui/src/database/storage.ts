@@ -1,7 +1,7 @@
-import indexedDbDriver from 'unstorage/drivers/indexedb'
-import memoryDriver from 'unstorage/drivers/memory'
-
 import { createStorage } from 'unstorage'
+import indexedDbDriver from 'unstorage/drivers/indexedb'
+
+import memoryDriver from 'unstorage/drivers/memory'
 
 export const storage = createStorage({
   driver: memoryDriver(),

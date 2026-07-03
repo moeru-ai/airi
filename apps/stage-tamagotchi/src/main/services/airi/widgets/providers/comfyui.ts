@@ -15,9 +15,11 @@ function breakerNameFor(url: string, serverUrl: string): string {
   return `comfyui:${path || '/'}`
 }
 
-/** Wrapper around fetch shared across all ComfyUI calls. Resilience: timeout
+/**
+ * Wrapper around fetch shared across all ComfyUI calls. Resilience: timeout
  *  + retry + per-endpoint circuit breaker (30s open after 5 consecutive
- *  failures). */
+ *  failures).
+ */
 function comfyuiFetch(serverUrl: string, path: string, options: RequestInit = {}, timeoutMs = 30_000) {
   return resilientFetch(`${serverUrl}${path}`, {
     ...options,
@@ -231,7 +233,7 @@ export class ComfyUIProvider implements ArtistryProvider {
 
             // Find first image in any node's output
             for (const nodeId in outputs) {
-              if (!Object.prototype.hasOwnProperty.call(outputs, nodeId)) continue
+              if (!Object.hasOwn(outputs, nodeId)) continue
               const nodeOutput = outputs[nodeId]
               if (nodeOutput.images && nodeOutput.images.length > 0) {
                 const img = nodeOutput.images[0]
@@ -281,7 +283,7 @@ export class ComfyUIProvider implements ArtistryProvider {
    * Matches nodes by _meta.title and overwrites exposed input fields.
    * Mirrors the logic from CUIPP's getComfyTemplate.js.
    */
-  // eslint-disable-next-line class-methods-use-this
+
   private applyOverrides(
     template: ComfyUIWorkflowTemplate,
     request: ArtistryRequest,
@@ -335,7 +337,7 @@ export class ComfyUIProvider implements ArtistryProvider {
 
     // Apply overrides to matching nodes
     for (const nodeId in prompt) {
-      if (!Object.prototype.hasOwnProperty.call(prompt, nodeId)) continue
+      if (!Object.hasOwn(prompt, nodeId)) continue
       const node = prompt[nodeId]
       const title = node._meta?.title
       if (title && overrides[title]) {
@@ -356,7 +358,7 @@ export class ComfyUIProvider implements ArtistryProvider {
         (overrides[nodeTitle]?.seed === undefined || overrides[nodeTitle]?.seed === null)
       ) {
         for (const nodeId in prompt) {
-          if (!Object.prototype.hasOwnProperty.call(prompt, nodeId)) continue
+          if (!Object.hasOwn(prompt, nodeId)) continue
           const node = prompt[nodeId]
           if (node._meta?.title === nodeTitle) {
             node.inputs.seed = Math.floor(Math.random() * 1e15)

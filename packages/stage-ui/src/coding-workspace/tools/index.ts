@@ -1,8 +1,13 @@
 import type { Tool } from '@xsai/shared-chat'
 
-import { tool } from '@xsai/tool'
-import { z } from 'zod'
-
+import type {
+  CodeIntelligenceFacade,
+  WorkspaceDiagnosticsInput,
+  WorkspaceRankedContextInput,
+  WorkspaceSearchPatternInput,
+  WorkspaceSymbolQueryInput,
+  WorkspaceSymbolsOverviewInput,
+} from '../code-intelligence'
 import type {
   CodingMode,
   McpBackendState,
@@ -12,17 +17,12 @@ import type {
   SubagentJobProvenance,
   SubagentJobStatus,
 } from '../contracts'
-import type {
-  CodeIntelligenceFacade,
-  WorkspaceDiagnosticsInput,
-  WorkspaceRankedContextInput,
-  WorkspaceSearchPatternInput,
-  WorkspaceSymbolQueryInput,
-  WorkspaceSymbolsOverviewInput,
-} from '../code-intelligence'
+
 import type { SpecModeState } from '../spec-mode'
-import { validateSpecModeWritePath } from '../spec-mode'
 import type { SubagentJobId, SubagentJobStore } from '../subagents'
+import { tool } from '@xsai/tool'
+import { z } from 'zod'
+import { validateSpecModeWritePath } from '../spec-mode'
 import { createSubagentJob, transitionSubagentJob } from '../subagents'
 
 export const CODING_WORKSPACE_TOOL_NAMES = [
@@ -82,7 +82,7 @@ export interface CodingWorkspaceToolRuntime {
   setSubagentStore: (store: SubagentJobStore) => void
 }
 
-type ToolFailure = {
+interface ToolFailure {
   ok: false
   reason: string
   message: string

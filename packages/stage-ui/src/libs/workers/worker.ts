@@ -391,7 +391,6 @@ async function runInference(request: RunInferenceRequest<WhisperInput>): Promise
 globalThis.addEventListener('message', async (event: MessageEvent<WorkerInboundMessage<WhisperInput>>) => {
   const message = event.data
 
-  // eslint-disable-next-line default-case
   switch (message.type) {
     case 'load-model':
       await loadModel(message)

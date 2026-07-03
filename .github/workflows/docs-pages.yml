@@ -9,9 +9,9 @@ on:
       - 'packages/server-runtime/**'
       - 'packages/server-sdk/**'
       - 'docs/architecture/**'
-      - 'typedoc.base.json'
-      - 'docs/scripts/gen-arch-docs.mjs'
-      - '.github/workflows/docs-pages.yml'
+      - typedoc.base.json
+      - docs/scripts/gen-arch-docs.mjs
+      - .github/workflows/docs-pages.yml
 
   workflow_dispatch:
 

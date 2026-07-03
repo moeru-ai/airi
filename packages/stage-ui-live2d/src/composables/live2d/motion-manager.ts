@@ -216,8 +216,9 @@ export function useMotionUpdatePluginIdleDisable(idleEyeFocus = useLive2DIdleEye
       if (
         ctx.live2dForceIdleEyeAnimation.value &&
         (!ctx.live2dEyeTrackingEnabled.value || !ctx.live2dEyeFocusSourceActive.value)
-      )
+      ) {
         idleEyeFocus.update(ctx.internalModel, ctx.now)
+      }
       if (ctx.internalModel.eyeBlink != null) {
         ctx.internalModel.eyeBlink.updateParameters(ctx.model, ctx.timeDelta / 1000)
       }

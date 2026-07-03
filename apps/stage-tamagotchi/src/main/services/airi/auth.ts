@@ -3,9 +3,9 @@ import type { BrowserWindow } from 'electron'
 
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
-import * as Sentry from '@sentry/electron/main'
 import { errorMessageFrom } from '@moeru/std'
 import { generateCodeChallenge, generateCodeVerifier, generateState } from '@proj-airi/stage-shared/auth'
+import * as Sentry from '@sentry/electron/main'
 import { shell } from 'electron'
 
 import {

@@ -1,8 +1,8 @@
 import type { InferenceServiceProvider } from './inference-service-providers'
 
-import memoryDriver from 'unstorage/drivers/memory'
-
 import { createStorage } from 'unstorage'
+
+import memoryDriver from 'unstorage/drivers/memory'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { createInferenceServiceProvidersModel } from './inference-service-providers'

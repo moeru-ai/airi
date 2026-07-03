@@ -19,8 +19,8 @@ import { useTwitterStore } from '../stores/modules/twitter'
 import { useOnboardingStore } from '../stores/onboarding'
 import { useProvidersStore } from '../stores/providers'
 import {
-  useSettingsAudioDevice,
   useSettingsAnalytics,
+  useSettingsAudioDevice,
   useSettingsControlsIsland,
   useSettingsDeveloper,
   useSettingsGeneral,

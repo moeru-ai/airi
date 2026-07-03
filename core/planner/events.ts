@@ -10,8 +10,8 @@
  * - Plan events use "plan." / "step." prefix namespace to avoid collisions.
  */
 
-import type { AiriEventBase } from "../events/types.js"
-import type { TaskError } from "../tasks/types.js"
+import type { AiriEventBase } from '../events/types.js'
+import type { TaskError } from '../tasks/types.js'
 
 // ── Plan lifecycle events ─────────────────────────────────────────────────
 
@@ -19,61 +19,61 @@ import type { TaskError } from "../tasks/types.js"
  * Emitted when a plan begins execution.
  */
 export interface PlanStarted extends AiriEventBase {
-	readonly type: "plan.started"
+  readonly type: 'plan.started'
 
-	/** The plan's unique identifier. */
-	readonly planId: string
+  /** The plan's unique identifier. */
+  readonly planId: string
 
-	/** Human-readable plan name. */
-	readonly name: string
+  /** Human-readable plan name. */
+  readonly name: string
 
-	/** Total number of steps in the plan. */
-	readonly stepCount: number
+  /** Total number of steps in the plan. */
+  readonly stepCount: number
 }
 
 /**
  * Emitted when a plan completes successfully.
  */
 export interface PlanCompleted extends AiriEventBase {
-	readonly type: "plan.completed"
+  readonly type: 'plan.completed'
 
-	readonly planId: string
+  readonly planId: string
 
-	readonly name: string
+  readonly name: string
 
-	/** Total execution duration in milliseconds. */
-	readonly durationMs: number
+  /** Total execution duration in milliseconds. */
+  readonly durationMs: number
 }
 
 /**
  * Emitted when a plan fails (a step failed and the plan is marked failed).
  */
 export interface PlanFailed extends AiriEventBase {
-	readonly type: "plan.failed"
+  readonly type: 'plan.failed'
 
-	readonly planId: string
+  readonly planId: string
 
-	readonly name: string
+  readonly name: string
 
-	/** Human-readable failure reason. */
-	readonly failureReason?: string
+  /** Human-readable failure reason. */
+  readonly failureReason?: string
 
-	/** The step that caused the plan to fail, if any. */
-	readonly failedStepId?: string
+  /** The step that caused the plan to fail, if any. */
+  readonly failedStepId?: string
 }
 
 /**
  * Emitted when a plan is cancelled (by user or system).
  */
 export interface PlanCancelled extends AiriEventBase {
-	readonly type: "plan.cancelled"
+  readonly type: 'plan.cancelled'
 
-	readonly planId: string
+  readonly planId: string
 
-	readonly name: string
+  readonly name: string
 
-	/** Optional cancellation reason. */
-	readonly reason?: string
+  /** Optional cancellation reason. */
+  readonly reason?: string
 }
 
 // ── Step lifecycle events ─────────────────────────────────────────────────
@@ -82,50 +82,50 @@ export interface PlanCancelled extends AiriEventBase {
  * Emitted when a step begins execution.
  */
 export interface StepStarted extends AiriEventBase {
-	readonly type: "step.started"
+  readonly type: 'step.started'
 
-	readonly planId: string
+  readonly planId: string
 
-	readonly stepId: string
+  readonly stepId: string
 
-	/** Human-readable step name. */
-	readonly stepName: string
+  /** Human-readable step name. */
+  readonly stepName: string
 
-	/** The action this step performs. */
-	readonly action: string
+  /** The action this step performs. */
+  readonly action: string
 }
 
 /**
  * Emitted when a step completes successfully.
  */
 export interface StepCompleted extends AiriEventBase {
-	readonly type: "step.completed"
+  readonly type: 'step.completed'
 
-	readonly planId: string
+  readonly planId: string
 
-	readonly stepId: string
+  readonly stepId: string
 
-	readonly stepName: string
+  readonly stepName: string
 
-	/** Whether the step execution succeeded. */
-	readonly success: boolean
+  /** Whether the step execution succeeded. */
+  readonly success: boolean
 
-	/** Step execution duration in milliseconds. */
-	readonly durationMs: number
+  /** Step execution duration in milliseconds. */
+  readonly durationMs: number
 }
 
 /**
  * Emitted when a step fails.
  */
 export interface StepFailed extends AiriEventBase {
-	readonly type: "step.failed"
+  readonly type: 'step.failed'
 
-	readonly planId: string
+  readonly planId: string
 
-	readonly stepId: string
+  readonly stepId: string
 
-	readonly stepName: string
+  readonly stepName: string
 
-	/** Structured error information. */
-	readonly error: TaskError
+  /** Structured error information. */
+  readonly error: TaskError
 }

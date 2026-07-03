@@ -12,9 +12,9 @@ import { createContext as createWsContext, wsErrorEvent } from '@moeru/eventa/ad
 import { errorMessageFrom } from '@moeru/std'
 import { newMessages, pullMessages, sendMessages } from '@proj-airi/server-sdk-shared'
 import { useWebSocket } from '@vueuse/core'
-import { computed, ref, shallowRef, watch } from 'vue'
-
 import * as v from 'valibot'
+
+import { computed, ref, shallowRef, watch } from 'vue'
 
 /** Placeholder to ensure all imports are used */
 void wsErrorEvent
@@ -247,7 +247,6 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
       const dispose = contextDisposers.pop()!
       try {
         dispose()
-      // eslint-disable-next-line no-empty
       } catch {
         // noop
       }

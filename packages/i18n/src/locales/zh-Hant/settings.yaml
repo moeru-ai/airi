@@ -137,7 +137,7 @@ live2d:
     title: 縮放與位置
     scale: 縮放
     x: X
-    'y': 'Y'
+    y: Y
   switch-to-vrm:
     title: 想切換至 3D 虛擬角色嗎？
     change-to-vrm: 切換至 3D 虛擬角色設定頁面（VRM）
@@ -182,7 +182,7 @@ live2d:
       title: FPS
       description: Limit rendering frame rate
       options:
-        unlimited: '∞'
+        unlimited: ∞
     shadow: Drop shadow
     reset-parameters: Reset to default parameters
   clear-model-cache: Clear model cache
@@ -358,12 +358,12 @@ pages:
         speech_model: 請為此角色選用語音合成模型與聲線。
       errors:
         name: 錯誤：你必須提供一個有效的名稱！
-        version: '錯誤：版本號無效！'
-        description: '錯誤：你必須為此卡片提供描述。'
-        personality: '錯誤：必須為該角色提供個性描述。'
-        scenario: '錯誤：必須提供一個情境。'
-        systemprompt: '錯誤：請提供系統提示。'
-        posthistoryinstructions: '錯誤：必須提供訊息歷史後的提示。'
+        version: 錯誤：版本號無效！
+        description: 錯誤：你必須為此卡片提供描述。
+        personality: 錯誤：必須為該角色提供個性描述。
+        scenario: 錯誤：必須提供一個情境。
+        systemprompt: 錯誤：請提供系統提示。
+        posthistoryinstructions: 錯誤：必須提供訊息歷史後的提示。
         invalid_artistry_json: 'Error: Artistry provider options contains invalid JSON.'
       none: None
     modules: 模組
@@ -429,7 +429,7 @@ pages:
         reset: 重設桌面資料
     confirmations:
       tooltip: 您確定嗎？
-      'yes': '是'
+      yes: 是
     status:
       exported: 對話階段已匯出。
       imported: 對話階段已匯入。
@@ -568,7 +568,7 @@ pages:
           provider-model-selection:
             collapse: 摺疊
             custom_model_placeholder: 輸入自訂模型名稱
-            current_model_label: '當前模型：'
+            current_model_label: 當前模型：
             description: 為意識選擇合適的 LLM 服務來源
             error: 取得發生錯誤
             health_check_failed: 健康度檢查失敗
@@ -1014,7 +1014,7 @@ pages:
           description:
             part1: >-
               雖然 Anthropic 最近宣布他們正在提供對 OpenAI SDK 相容性的 Beta 版支援
-            part2: '（您可以在此處閱讀更多資訊）'
+            part2: （您可以在此處閱讀更多資訊）
             part3: 但由於實作細節附帶
             part4: >-
               與 OpenAI SDK 不一致，目前無法在瀏覽器中使用此提供者。
@@ -1602,7 +1602,7 @@ vrm:
       座標軸已視覺化。
     scale: 縮放
     x: X 軸位移
-    'y': Y 軸位移
+    y: Y 軸位移
     z: Z 軸位移
     fov: 視角調整（度）
     rotation-y: 模型朝向（Y 軸旋轉）
@@ -1629,7 +1629,7 @@ spine:
     title: Scale And Position
     scale: Scale
     x: X
-    'y': 'Y'
+    y: Y
   theme-color-from-model:
     title: Extract colors from model
     button-extract:

@@ -127,9 +127,8 @@ async function main() {
     releaseNotes: String(parsed.options.releaseNotes),
   })
 
-  // eslint-disable-next-line no-console
   console.log(`Generated ${result.latestFilename} in ${result.channelDir}`)
-  // eslint-disable-next-line no-console
+
   console.log(`Artifact: ${result.artifactFilename}`)
 }
 

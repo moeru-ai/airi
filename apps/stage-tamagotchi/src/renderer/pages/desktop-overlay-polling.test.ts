@@ -4,10 +4,6 @@ import type { OverlayState } from './desktop-overlay-polling'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-interface RunStateLike {
-  lastGroundingSnapshot?: { snapshotId?: string }
-}
-
 import {
   createEmptyOverlayState,
   createOverlayPollController,
@@ -15,6 +11,10 @@ import {
   extractRunStateFromResult,
   MCP_TOOL_NAME,
 } from './desktop-overlay-polling'
+
+interface RunStateLike {
+  lastGroundingSnapshot?: { snapshotId?: string }
+}
 
 // ---------------------------------------------------------------------------
 // extractOverlayState

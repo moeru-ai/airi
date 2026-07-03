@@ -1,17 +1,18 @@
 // @vitest-environment jsdom
 
+import type { Ref } from 'vue'
+import type { LinkedAccountsClient, LinkedAccountsMessages } from './use-linked-accounts'
+
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { ref, type Ref } from 'vue'
+import { ref } from 'vue'
 
 import { useLinkedAccounts } from './use-linked-accounts'
-
-import type { LinkedAccountsClient, LinkedAccountsMessages } from './use-linked-accounts'
 
 beforeAll(() => {
   // Suppress the Vue onMounted warning that fires when calling composables
   // outside of a mounted component context. The composable's lifecycle hooks
   // (onMounted, watch) are tested indirectly through the returned API.
-  // eslint-disable-next-line ts/no-empty-function -- intentional no-op to swallow Vue lifecycle warnings outside component context
+
   vi.spyOn(console, 'warn').mockImplementation(() => {
     /* noop */
   })

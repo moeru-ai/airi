@@ -1,6 +1,8 @@
-import { describe, expect, it, vi } from 'vitest'
+import type { CodeIntelligenceTransport } from '../code-intelligence'
 
-import { createCodeIntelligenceFacade, type CodeIntelligenceTransport } from '../code-intelligence'
+import type { CodingWorkspaceStatus } from './index'
+import { describe, expect, it, vi } from 'vitest'
+import { createCodeIntelligenceFacade } from '../code-intelligence'
 import { createSpecModeState } from '../spec-mode'
 import { approveTasksArtifact, createSubagentJobStore } from '../subagents'
 import {
@@ -8,7 +10,6 @@ import {
   CODING_WORKSPACE_TOOL_NAMES,
   createCodingWorkspaceTools,
   createCodingWorkspaceToolsetPrompts,
-  type CodingWorkspaceStatus,
 } from './index'
 
 const serenaTransport: CodeIntelligenceTransport = {

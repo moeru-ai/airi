@@ -1,6 +1,6 @@
-import type { PluginTransport } from '../../transports'
-
 import type { ChannelHost } from '../../../channels/shared'
+
+import type { PluginTransport } from '../../transports'
 import { createContext } from '@moeru/eventa'
 
 export * from '../../core'

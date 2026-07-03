@@ -1,6 +1,6 @@
-import JSZip from 'jszip'
-
 import { errorMessageFrom } from '@moeru/std'
+
+import JSZip from 'jszip'
 
 export type SpineValidationStatus = 'VALID' | 'INVALID'
 
@@ -48,10 +48,11 @@ export async function validateSpineZip(file: File): Promise<SpineValidationRepor
       errors.push('No texture atlas (`.atlas` or `.atlas.txt`) found in the ZIP. A Spine export must include one.')
       return { status: 'INVALID', errors, warnings, detected }
     }
-    if (atlasCandidates.length > 1)
+    if (atlasCandidates.length > 1) {
       warnings.push(
         `Multiple atlas files detected (${atlasCandidates.length}). The import will pick the one paired with a same-named skeleton.`,
       )
+    }
 
     const skelCandidates = files.filter((name) => name.toLowerCase().endsWith('.skel'))
     const jsonCandidates = files.filter((name) => /\.json$/i.test(name) && !/(?:package|manifest)\.json$/i.test(name))

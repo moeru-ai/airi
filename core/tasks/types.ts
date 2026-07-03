@@ -31,7 +31,7 @@ export type TaskId = string & { readonly __brand: 'TaskId' }
  * ```
  */
 export function createTaskId(raw: string): TaskId {
-	return raw as TaskId
+  return raw as TaskId
 }
 
 // ── State machine ────────────────────────────────────────────────────────
@@ -47,32 +47,32 @@ export function createTaskId(raw: string): TaskId {
  *                   cancelled
  * ```
  */
-export type TaskState =
-	| "pending"
-	| "queued"
-	| "running"
-	| "completed"
-	| "failed"
-	| "cancelled"
+export type TaskState
+  = | 'pending'
+    | 'queued'
+    | 'running'
+    | 'completed'
+    | 'failed'
+    | 'cancelled'
 
 /**
  * Valid state transitions.
  * Maps each state to the set of states it can transition to.
  */
 export const VALID_TRANSITIONS: Record<TaskState, readonly TaskState[]> = {
-	pending: ["queued", "cancelled"],
-	queued: ["running", "cancelled"],
-	running: ["completed", "failed", "cancelled"],
-	completed: [],
-	failed: [],
-	cancelled: [],
+  pending: ['queued', 'cancelled'],
+  queued: ['running', 'cancelled'],
+  running: ['completed', 'failed', 'cancelled'],
+  completed: [],
+  failed: [],
+  cancelled: [],
 }
 
 /**
  * Check whether a state transition is valid.
  */
 export function isValidTransition(from: TaskState, to: TaskState): boolean {
-	return (VALID_TRANSITIONS[from] as readonly string[]).includes(to)
+  return (VALID_TRANSITIONS[from] as readonly string[]).includes(to)
 }
 
 // ── Priority ─────────────────────────────────────────────────────────────
@@ -81,17 +81,17 @@ export function isValidTransition(from: TaskState, to: TaskState): boolean {
  * Task priority levels.
  * Ordered from lowest to highest urgency.
  */
-export type TaskPriority = "low" | "normal" | "high" | "critical"
+export type TaskPriority = 'low' | 'normal' | 'high' | 'critical'
 
 /**
  * Priority numeric values for comparison.
  * Higher number = higher priority.
  */
 export const PRIORITY_WEIGHTS: Record<TaskPriority, number> = {
-	low: 0,
-	normal: 1,
-	high: 2,
-	critical: 3,
+  low: 0,
+  normal: 1,
+  high: 2,
+  critical: 3,
 }
 
 // ── Status ───────────────────────────────────────────────────────────────
@@ -100,26 +100,26 @@ export const PRIORITY_WEIGHTS: Record<TaskPriority, number> = {
  * Snapshot of a task's current status.
  */
 export interface TaskStatus {
-	/** Current state in the lifecycle. */
-	readonly state: TaskState
+  /** Current state in the lifecycle. */
+  readonly state: TaskState
 
-	/** Progress percentage (0-100). */
-	readonly progress: number
+  /** Progress percentage (0-100). */
+  readonly progress: number
 
-	/** Human-readable progress message. */
-	readonly message?: string
+  /** Human-readable progress message. */
+  readonly message?: string
 
-	/** ISO-8601 timestamp of the last status update. */
-	readonly updatedAt: string
+  /** ISO-8601 timestamp of the last status update. */
+  readonly updatedAt: string
 
-	/** ISO-8601 timestamp when the task was created. */
-	readonly createdAt: string
+  /** ISO-8601 timestamp when the task was created. */
+  readonly createdAt: string
 
-	/** ISO-8601 timestamp when the task started executing. */
-	readonly startedAt?: string
+  /** ISO-8601 timestamp when the task started executing. */
+  readonly startedAt?: string
 
-	/** ISO-8601 timestamp when the task completed/failed/cancelled. */
-	readonly completedAt?: string
+  /** ISO-8601 timestamp when the task completed/failed/cancelled. */
+  readonly completedAt?: string
 }
 
 // ── Result & Error ───────────────────────────────────────────────────────
@@ -128,31 +128,31 @@ export interface TaskStatus {
  * Successful task execution result.
  */
 export interface TaskResult {
-	/** Whether the task completed successfully. */
-	readonly success: boolean
+  /** Whether the task completed successfully. */
+  readonly success: boolean
 
-	/** Task output data (module-specific). */
-	readonly output?: unknown
+  /** Task output data (module-specific). */
+  readonly output?: unknown
 
-	/** Error message when success is false. */
-	readonly error?: string
+  /** Error message when success is false. */
+  readonly error?: string
 }
 
 /**
  * Structured task error.
  */
 export interface TaskError {
-	/** Machine-readable error code (e.g. "EXECUTION_FAILED", "TIMEOUT"). */
-	readonly code: string
+  /** Machine-readable error code (e.g. "EXECUTION_FAILED", "TIMEOUT"). */
+  readonly code: string
 
-	/** Human-readable error description. */
-	readonly message: string
+  /** Human-readable error description. */
+  readonly message: string
 
-	/** Whether this error is potentially recoverable via retry. */
-	readonly recoverable: boolean
+  /** Whether this error is potentially recoverable via retry. */
+  readonly recoverable: boolean
 
-	/** Optional structured error details. */
-	readonly details?: unknown
+  /** Optional structured error details. */
+  readonly details?: unknown
 }
 
 // ── Cancellation ─────────────────────────────────────────────────────────
@@ -161,14 +161,14 @@ export interface TaskError {
  * Cancellation record for a task.
  */
 export interface TaskCancellation {
-	/** Whether the task has been cancelled. */
-	readonly isCancelled: boolean
+  /** Whether the task has been cancelled. */
+  readonly isCancelled: boolean
 
-	/** ISO-8601 timestamp of cancellation. */
-	readonly cancelledAt?: string
+  /** ISO-8601 timestamp of cancellation. */
+  readonly cancelledAt?: string
 
-	/** Reason for cancellation. */
-	readonly reason?: string
+  /** Reason for cancellation. */
+  readonly reason?: string
 }
 
 // ── Isolation level ────────────────────────────────────────────────────
@@ -179,7 +179,7 @@ export interface TaskCancellation {
  * - "vm": future — execute in a VM sandbox.
  * - "container": future — execute in a container.
  */
-export type TaskIsolationLevel = "process" | "vm" | "container"
+export type TaskIsolationLevel = 'process' | 'vm' | 'container'
 
 // ── Task ─────────────────────────────────────────────────────────────────
 
@@ -194,68 +194,68 @@ export type TaskIsolationLevel = "process" | "vm" | "container"
  * (the TaskManager handles this internally).
  */
 export interface Task {
-	/** Unique, branded task identifier. */
-	readonly id: TaskId
+  /** Unique, branded task identifier. */
+  readonly id: TaskId
 
-	/** Human-readable title. */
-	readonly title: string
+  /** Human-readable title. */
+  readonly title: string
 
-	/** Optional detailed description. */
-	readonly description?: string
+  /** Optional detailed description. */
+  readonly description?: string
 
-	/** Current lifecycle state. */
-	readonly state: TaskState
+  /** Current lifecycle state. */
+  readonly state: TaskState
 
-	/** Task priority. */
-	readonly priority: TaskPriority
+  /** Task priority. */
+  readonly priority: TaskPriority
 
-	/** Module that owns this task. */
-	readonly moduleId: string
+  /** Module that owns this task. */
+  readonly moduleId: string
 
-	/** Session that originated this task, if any. */
-	readonly sessionId?: string
+  /** Session that originated this task, if any. */
+  readonly sessionId?: string
 
-	/** ISO-8601 creation timestamp. */
-	readonly createdAt: string
+  /** ISO-8601 creation timestamp. */
+  readonly createdAt: string
 
-	/** ISO-8601 last-update timestamp. */
-	readonly updatedAt: string
+  /** ISO-8601 last-update timestamp. */
+  readonly updatedAt: string
 
-	/** ISO-8601 timestamp when execution started. */
-	readonly startedAt?: string
+  /** ISO-8601 timestamp when execution started. */
+  readonly startedAt?: string
 
-	/** ISO-8601 timestamp when execution completed/failed/cancelled. */
-	readonly completedAt?: string
+  /** ISO-8601 timestamp when execution completed/failed/cancelled. */
+  readonly completedAt?: string
 
-	/** Progress percentage (0-100). */
-	readonly progress: number
+  /** Progress percentage (0-100). */
+  readonly progress: number
 
-	/** Human-readable progress message. */
-	readonly progressMessage?: string
+  /** Human-readable progress message. */
+  readonly progressMessage?: string
 
-	/** Execution result (populated on completion). */
-	readonly result?: TaskResult
+  /** Execution result (populated on completion). */
+  readonly result?: TaskResult
 
-	/** Error details (populated on failure). */
-	readonly error?: TaskError
+  /** Error details (populated on failure). */
+  readonly error?: TaskError
 
-	/** Module-specific metadata. */
-	readonly metadata: Record<string, unknown>
+  /** Module-specific metadata. */
+  readonly metadata: Record<string, unknown>
 
-	/** Parent task ID, if this is a subtask. */
-	readonly parentTaskId?: TaskId
+  /** Parent task ID, if this is a subtask. */
+  readonly parentTaskId?: TaskId
 
-	/** Cancellation state. */
-	readonly cancellation: TaskCancellation
+  /** Cancellation state. */
+  readonly cancellation: TaskCancellation
 
-	/** Worker process that is/was executing this task, if any. */
-	readonly workerId?: string
+  /** Worker process that is/was executing this task, if any. */
+  readonly workerId?: string
 
-	/** Number of execution attempts (incremented on worker crash retry). @default 0 */
-	readonly executionAttempt: number
+  /** Number of execution attempts (incremented on worker crash retry). @default 0 */
+  readonly executionAttempt: number
 
-	/** Isolation level for task execution. @default "process" */
-	readonly isolationLevel: TaskIsolationLevel
+  /** Isolation level for task execution. @default "process" */
+  readonly isolationLevel: TaskIsolationLevel
 }
 
 // ── Task creation input ──────────────────────────────────────────────────
@@ -264,29 +264,29 @@ export interface Task {
  * Parameters for creating a new task.
  */
 export interface CreateTaskInput {
-	/** Human-readable title. */
-	readonly title: string
+  /** Human-readable title. */
+  readonly title: string
 
-	/** Optional detailed description. */
-	readonly description?: string
+  /** Optional detailed description. */
+  readonly description?: string
 
-	/** Priority level. @default "normal" */
-	readonly priority?: TaskPriority
+  /** Priority level. @default "normal" */
+  readonly priority?: TaskPriority
 
-	/** Owning module ID. @default "core" */
-	readonly moduleId?: string
+  /** Owning module ID. @default "core" */
+  readonly moduleId?: string
 
-	/** Originating session ID, if any. */
-	readonly sessionId?: string
+  /** Originating session ID, if any. */
+  readonly sessionId?: string
 
-	/** Module-specific metadata. @default {} */
-	readonly metadata?: Record<string, unknown>
+  /** Module-specific metadata. @default {} */
+  readonly metadata?: Record<string, unknown>
 
-	/** Parent task ID, if this is a subtask. */
-	readonly parentTaskId?: TaskId
+  /** Parent task ID, if this is a subtask. */
+  readonly parentTaskId?: TaskId
 
-	/** Isolation level for task execution. @default "process" */
-	readonly isolationLevel?: TaskIsolationLevel
+  /** Isolation level for task execution. @default "process" */
+  readonly isolationLevel?: TaskIsolationLevel
 }
 
 // ── Task filter ──────────────────────────────────────────────────────────
@@ -295,18 +295,18 @@ export interface CreateTaskInput {
  * Filter criteria for listing tasks.
  */
 export interface TaskFilter {
-	/** Filter by task state. */
-	readonly state?: TaskState
+  /** Filter by task state. */
+  readonly state?: TaskState
 
-	/** Filter by owning module. */
-	readonly moduleId?: string
+  /** Filter by owning module. */
+  readonly moduleId?: string
 
-	/** Filter by session. */
-	readonly sessionId?: string
+  /** Filter by session. */
+  readonly sessionId?: string
 
-	/** Filter by priority. */
-	readonly priority?: TaskPriority
+  /** Filter by priority. */
+  readonly priority?: TaskPriority
 
-	/** Filter by parent task. */
-	readonly parentTaskId?: TaskId
+  /** Filter by parent task. */
+  readonly parentTaskId?: TaskId
 }

@@ -12,12 +12,13 @@
  * into individual messages even when they arrive in arbitrary chunks.
  */
 
-import { Socket, createServer, type Server as NetServer } from 'node:net'
-import { existsSync, unlinkSync } from 'node:fs'
-import { resolve } from 'node:path'
-
+import type { Server as NetServer } from 'node:net'
 import type { IpcMessage } from '../protocol.js'
-import type { IpcServerTransport, IpcConnectionState, IpcStateHandler } from '../transport.js'
+import type { IpcConnectionState, IpcServerTransport, IpcStateHandler } from '../transport.js'
+
+import { existsSync, unlinkSync } from 'node:fs'
+import { createServer, Socket } from 'node:net'
+import { resolve } from 'node:path'
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -73,7 +74,8 @@ export class LocalSocketServerTransport implements IpcServerTransport {
   }
 
   async start(): Promise<void> {
-    if (this._state === 'connected') return undefined
+    if (this._state === 'connected')
+      return undefined
 
     this.setState('connecting')
 
@@ -88,7 +90,7 @@ export class LocalSocketServerTransport implements IpcServerTransport {
         reject(err)
       })
 
-      this.server.on('connection', (socket) => this.handleConnection(socket))
+      this.server.on('connection', socket => this.handleConnection(socket))
 
       this.server.listen(this.socketPath, () => {
         this.setState('connected')
@@ -98,7 +100,8 @@ export class LocalSocketServerTransport implements IpcServerTransport {
   }
 
   stop(): Promise<void> {
-    if (this._state === 'idle' || this._state === 'disconnected') return Promise.resolve(undefined)
+    if (this._state === 'idle' || this._state === 'disconnected')
+      return Promise.resolve(undefined)
 
     this.setState('disconnecting')
 
@@ -109,7 +112,8 @@ export class LocalSocketServerTransport implements IpcServerTransport {
       for (const handler of this.disconnectHandlers) {
         try {
           handler(id)
-        } catch (error) {
+        }
+        catch (error) {
           console.error('[LocalSocketServer] Disconnect handler threw:', error)
         }
       }
@@ -127,7 +131,8 @@ export class LocalSocketServerTransport implements IpcServerTransport {
         if (err) {
           this.setState('error', err.message)
           reject(err)
-        } else {
+        }
+        else {
           this.setState('disconnected')
           resolve()
         }
@@ -144,7 +149,8 @@ export class LocalSocketServerTransport implements IpcServerTransport {
     const data = LocalSocketServerTransport.encodeMessage(message)
     return new Promise<void>((resolve, reject) => {
       entry.socket.write(data, (err) => {
-        if (err) reject(err)
+        if (err)
+          reject(err)
         else resolve()
       })
     })
@@ -208,10 +214,12 @@ export class LocalSocketServerTransport implements IpcServerTransport {
    * if the connection fails, the file is safe to remove.
    */
   cleanupStaleSocket(): Promise<void> {
-    if (!this.socketPath.startsWith('/')) return Promise.resolve(undefined) // TCP fallback — no file to clean.
+    if (!this.socketPath.startsWith('/'))
+      return Promise.resolve(undefined) // TCP fallback — no file to clean.
 
     const absolutePath = resolve(this.socketPath)
-    if (!existsSync(absolutePath)) return Promise.resolve(undefined)
+    if (!existsSync(absolutePath))
+      return Promise.resolve(undefined)
 
     // Try to connect — if it fails, the socket is stale.
     // Wrap the async socket probe in a Promise so callers can await it,
@@ -227,7 +235,8 @@ export class LocalSocketServerTransport implements IpcServerTransport {
         // Connection failed — socket is stale, remove it.
         try {
           unlinkSync(absolutePath)
-        } catch {
+        }
+        catch {
           // Best-effort: ignore unlink errors.
         }
         testSocket.destroy()
@@ -255,7 +264,8 @@ export class LocalSocketServerTransport implements IpcServerTransport {
       while (true) {
         if (expectedLength === null) {
           // Need at least HEADER_SIZE bytes to read the length prefix.
-          if (buffer.length < HEADER_SIZE) break
+          if (buffer.length < HEADER_SIZE)
+            break
 
           expectedLength = buffer.readUInt32BE(0)
 
@@ -270,7 +280,8 @@ export class LocalSocketServerTransport implements IpcServerTransport {
           buffer = buffer.subarray(HEADER_SIZE)
         }
 
-        if (buffer.length < expectedLength) break
+        if (buffer.length < expectedLength)
+          break
 
         // We have a complete message.
         const messageBytes = buffer.subarray(0, expectedLength)
@@ -284,11 +295,13 @@ export class LocalSocketServerTransport implements IpcServerTransport {
           for (const handler of this.messageHandlers) {
             try {
               handler(clientId, parsed)
-            } catch (error) {
+            }
+            catch (error) {
               console.error('[LocalSocketServer] Message handler threw:', error)
             }
           }
-        } catch (error) {
+        }
+        catch (error) {
           console.error(
             '[LocalSocketServer] Failed to parse message:',
             error instanceof Error ? error.message : String(error),
@@ -302,7 +315,8 @@ export class LocalSocketServerTransport implements IpcServerTransport {
       for (const handler of this.disconnectHandlers) {
         try {
           handler(clientId)
-        } catch (error) {
+        }
+        catch (error) {
           console.error('[LocalSocketServer] Disconnect handler threw:', error)
         }
       }
@@ -316,7 +330,8 @@ export class LocalSocketServerTransport implements IpcServerTransport {
     for (const handler of this.connectHandlers) {
       try {
         handler(clientId)
-      } catch (error) {
+      }
+      catch (error) {
         console.error('[LocalSocketServer] Connect handler threw:', error)
       }
     }
@@ -344,7 +359,8 @@ export class LocalSocketServerTransport implements IpcServerTransport {
     for (const handler of this.stateHandlers) {
       try {
         handler(state, error)
-      } catch (err) {
+      }
+      catch (err) {
         console.error('[LocalSocketServer] State handler threw:', err)
       }
     }

@@ -141,7 +141,6 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
 
   function scheduleRestart(): void {
     if (restartAttempts >= MAX_RESTARTS) {
-      // eslint-disable-next-line no-console -- Adapter needs to log critical errors
       console.error(`[WhisperAdapter] Max restart attempts (${MAX_RESTARTS}) reached.`)
       // NOTICE: Transition to 'terminated' so callers can detect the dead adapter
       // instead of being stuck in 'error' state indefinitely.
@@ -151,7 +150,7 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
 
     restartAttempts++
     const delay = RESTART_DELAY_MS * restartAttempts
-    // eslint-disable-next-line no-console -- Adapter needs to log warnings
+
     console.warn(`[WhisperAdapter] Restarting in ${delay}ms (attempt ${restartAttempts}/${MAX_RESTARTS})`)
 
     setTimeout(() => {
@@ -264,7 +263,6 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
     // caller today, so we only check the promotion threshold.
     const requestedDevice = deviceLossCount >= DEVICE_LOSS_WASM_THRESHOLD ? 'wasm' : 'webgpu'
     if (requestedDevice === 'wasm') {
-      // eslint-disable-next-line no-console -- Adapter needs to log warnings
       console.warn(
         `[WhisperAdapter] ${deviceLossCount} device-loss events recorded, promoting load from webgpu to wasm.`,
       )

@@ -77,8 +77,9 @@ function getContextUpdatePreview(entry: FlowEntry) {
   if (
     !candidate ||
     (candidate.text === undefined && candidate.content === undefined && candidate.destinations === undefined)
-  )
+  ) {
     return null
+  }
   return {
     text: candidate.text as string | undefined,
     content: candidate.content as unknown,

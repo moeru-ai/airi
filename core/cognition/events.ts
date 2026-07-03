@@ -10,9 +10,8 @@
  * - Rejected proposals are preserved via events for auditing.
  */
 
-import type { AiriEventBase } from "../events/types.js"
-import type { ProposalId, ReasoningId, ValidationResult } from "./types.js"
-import type { ModelInfo } from "./types.js"
+import type { AiriEventBase } from '../events/types.js'
+import type { ModelInfo, ProposalId, ReasoningId, ValidationResult } from './types.js'
 
 // ── Cognition lifecycle events ───────────────────────────────────────────
 
@@ -20,51 +19,51 @@ import type { ModelInfo } from "./types.js"
  * Emitted when a cognition request is made.
  */
 export interface CognitionRequested extends AiriEventBase {
-	readonly type: "cognition.requested"
+  readonly type: 'cognition.requested'
 
-	/** The reasoning request identifier. */
-	readonly requestId: ReasoningId
+  /** The reasoning request identifier. */
+  readonly requestId: ReasoningId
 
-	/** Associated session, if any. */
-	readonly sessionId?: string
+  /** Associated session, if any. */
+  readonly sessionId?: string
 
-	/** Target workspace, if scoped. */
-	readonly workspaceId?: string
+  /** Target workspace, if scoped. */
+  readonly workspaceId?: string
 }
 
 /**
  * Emitted when a cognition request completes successfully.
  */
 export interface CognitionCompleted extends AiriEventBase {
-	readonly type: "cognition.completed"
+  readonly type: 'cognition.completed'
 
-	/** The reasoning request identifier. */
-	readonly requestId: ReasoningId
+  /** The reasoning request identifier. */
+  readonly requestId: ReasoningId
 
-	/** The generated proposal identifier. */
-	readonly proposalId: ProposalId
+  /** The generated proposal identifier. */
+  readonly proposalId: ProposalId
 
-	/** Model that produced the proposal. */
-	readonly modelInfo: ModelInfo
+  /** Model that produced the proposal. */
+  readonly modelInfo: ModelInfo
 
-	/** Generation duration in milliseconds. */
-	readonly durationMs: number
+  /** Generation duration in milliseconds. */
+  readonly durationMs: number
 }
 
 /**
  * Emitted when a cognition request fails.
  */
 export interface CognitionFailed extends AiriEventBase {
-	readonly type: "cognition.failed"
+  readonly type: 'cognition.failed'
 
-	/** The reasoning request identifier. */
-	readonly requestId: ReasoningId
+  /** The reasoning request identifier. */
+  readonly requestId: ReasoningId
 
-	/** Human-readable error message. */
-	readonly error: string
+  /** Human-readable error message. */
+  readonly error: string
 
-	/** Model info, if available before failure. */
-	readonly modelInfo?: ModelInfo
+  /** Model info, if available before failure. */
+  readonly modelInfo?: ModelInfo
 }
 
 // ── Plan proposal events ─────────────────────────────────────────────────
@@ -73,54 +72,54 @@ export interface CognitionFailed extends AiriEventBase {
  * Emitted when a plan proposal is generated.
  */
 export interface PlanProposed extends AiriEventBase {
-	readonly type: "plan.proposed"
+  readonly type: 'plan.proposed'
 
-	/** The proposal identifier. */
-	readonly proposalId: ProposalId
+  /** The proposal identifier. */
+  readonly proposalId: ProposalId
 
-	/** The reasoning request that generated this proposal. */
-	readonly requestId: ReasoningId
+  /** The reasoning request that generated this proposal. */
+  readonly requestId: ReasoningId
 
-	/** Human-readable proposal name. */
-	readonly name: string
+  /** Human-readable proposal name. */
+  readonly name: string
 
-	/** Number of steps in the proposal. */
-	readonly stepCount: number
+  /** Number of steps in the proposal. */
+  readonly stepCount: number
 
-	/** Model's self-reported confidence (0-1). */
-	readonly confidence?: number
+  /** Model's self-reported confidence (0-1). */
+  readonly confidence?: number
 }
 
 /**
  * Emitted when a plan proposal is validated and accepted.
  */
 export interface PlanValidated extends AiriEventBase {
-	readonly type: "plan.validated"
+  readonly type: 'plan.validated'
 
-	/** The proposal identifier. */
-	readonly proposalId: ProposalId
+  /** The proposal identifier. */
+  readonly proposalId: ProposalId
 
-	/** The PlanId it was converted to. */
-	readonly planId: string
+  /** The PlanId it was converted to. */
+  readonly planId: string
 
-	/** The validation result. */
-	readonly validationResult: ValidationResult
+  /** The validation result. */
+  readonly validationResult: ValidationResult
 }
 
 /**
  * Emitted when a plan proposal is rejected by validation.
  */
 export interface PlanRejected extends AiriEventBase {
-	readonly type: "plan.rejected"
+  readonly type: 'plan.rejected'
 
-	/** The proposal identifier. */
-	readonly proposalId: ProposalId
+  /** The proposal identifier. */
+  readonly proposalId: ProposalId
 
-	/** Human-readable rejection reason. */
-	readonly reason: string
+  /** Human-readable rejection reason. */
+  readonly reason: string
 
-	/** The validation result with error details. */
-	readonly validationResult: ValidationResult
+  /** The validation result with error details. */
+  readonly validationResult: ValidationResult
 }
 
 // ── Union type ───────────────────────────────────────────────────────────
@@ -128,10 +127,10 @@ export interface PlanRejected extends AiriEventBase {
 /**
  * Union of all cognition-related events.
  */
-export type CognitionEvent =
-	| CognitionRequested
-	| CognitionCompleted
-	| CognitionFailed
-	| PlanProposed
-	| PlanValidated
-	| PlanRejected
+export type CognitionEvent
+  = | CognitionRequested
+    | CognitionCompleted
+    | CognitionFailed
+    | PlanProposed
+    | PlanValidated
+    | PlanRejected

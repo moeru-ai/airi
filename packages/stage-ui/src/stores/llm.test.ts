@@ -12,14 +12,15 @@ const { streamTextMock, mcpMock, debugMock, createSparkCommandToolMock } = vi.ho
   mcpMock: vi.fn((): Promise<Tool[]> => Promise.resolve([])),
   debugMock: vi.fn((): Promise<Tool[]> => Promise.resolve([])),
   createSparkCommandToolMock: vi.fn(
-    (): Promise<unknown> => Promise.resolve([
-      {
-        name: 'spark',
-        description: '',
-        parameters: {},
-        execute: vi.fn(),
-      },
-    ]),
+    (): Promise<unknown> =>
+      Promise.resolve([
+        {
+          name: 'spark',
+          description: '',
+          parameters: {},
+          execute: vi.fn(),
+        },
+      ]),
   ),
 }))
 

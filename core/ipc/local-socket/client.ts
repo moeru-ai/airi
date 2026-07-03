@@ -8,13 +8,14 @@
  * heartbeat/ping for connection liveness detection.
  */
 
-import { connect as netConnect, type Socket } from 'node:net'
-
-const _logger = (..._a: unknown[]) => void 0
+import type { Socket } from 'node:net'
 
 import type { IpcMessage } from '../protocol.js'
 import type { IpcClientTransport, IpcConnectionState, IpcMessageHandler, IpcStateHandler } from '../transport.js'
+import { connect as netConnect } from 'node:net'
 import { generateId } from '../transport.js'
+
+const _logger = (..._a: unknown[]) => void 0
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -91,7 +92,8 @@ export class LocalSocketClientTransport implements IpcClientTransport {
   }
 
   async connect(): Promise<void> {
-    if (this._state === 'connected') return
+    if (this._state === 'connected')
+      return
 
     this.intentionallyDisconnected = false
     this.setState('connecting')
@@ -100,7 +102,8 @@ export class LocalSocketClientTransport implements IpcClientTransport {
   }
 
   disconnect(): Promise<void> {
-    if (this._state === 'idle' || this._state === 'disconnected') return Promise.resolve()
+    if (this._state === 'idle' || this._state === 'disconnected')
+      return Promise.resolve()
 
     this.intentionallyDisconnected = true
     this.setState('disconnecting')
@@ -125,7 +128,8 @@ export class LocalSocketClientTransport implements IpcClientTransport {
     const data = LocalSocketClientTransport.encodeMessage(message)
     return new Promise<void>((resolve, reject) => {
       this.socket!.write(data, (err) => {
-        if (err) reject(err)
+        if (err)
+          reject(err)
         else resolve()
       })
     })
@@ -159,7 +163,7 @@ export class LocalSocketClientTransport implements IpcClientTransport {
       const isTcp = this.socketPath.includes(':') && !this.socketPath.startsWith('/')
 
       const socket = isTcp
-        ? netConnect({ port: parseInt(this.socketPath.split(':')[1]), host: this.socketPath.split(':')[0] })
+        ? netConnect({ port: Number.parseInt(this.socketPath.split(':')[1]), host: this.socketPath.split(':')[0] })
         : netConnect(this.socketPath)
 
       socket.on('connect', () => {
@@ -185,7 +189,7 @@ export class LocalSocketClientTransport implements IpcClientTransport {
 
     socket.on('data', (chunk: Buffer) => {
       buffer = Buffer.concat([buffer, chunk])
-     	expectedLength = this.processSocketData(buffer, socket, expectedLength)
+      expectedLength = this.processSocketData(buffer, socket, expectedLength)
     })
 
     socket.on('close', () => {
@@ -203,7 +207,8 @@ export class LocalSocketClientTransport implements IpcClientTransport {
 
     while (true) {
       if (currentExpected === null) {
-        if (currentBuffer.length < HEADER_SIZE) return null
+        if (currentBuffer.length < HEADER_SIZE)
+          return null
 
         currentExpected = currentBuffer.readUInt32BE(0)
 
@@ -216,7 +221,8 @@ export class LocalSocketClientTransport implements IpcClientTransport {
         currentBuffer = currentBuffer.subarray(HEADER_SIZE)
       }
 
-      if (currentBuffer.length < currentExpected) return currentExpected
+      if (currentBuffer.length < currentExpected)
+        return currentExpected
 
       const messageBytes = currentBuffer.subarray(0, currentExpected)
       currentBuffer = currentBuffer.subarray(currentExpected)
@@ -245,11 +251,13 @@ export class LocalSocketClientTransport implements IpcClientTransport {
       for (const handler of this.messageHandlers) {
         try {
           handler(parsed)
-        } catch (error) {
+        }
+        catch (error) {
           _logger('[LocalSocketClient] Message handler threw:', error)
         }
       }
-    } catch (error) {
+    }
+    catch (error) {
       _logger(
         '[LocalSocketClient] Failed to parse message:',
         error instanceof Error ? error.message : String(error),
@@ -264,14 +272,16 @@ export class LocalSocketClientTransport implements IpcClientTransport {
     for (const handler of this.disconnectHandlers) {
       try {
         handler()
-      } catch (error) {
+      }
+      catch (error) {
         _logger('[LocalSocketClient] Disconnect handler threw:', error)
       }
     }
 
     if (!this.intentionallyDisconnected && this.autoReconnect) {
       this.scheduleReconnect()
-    } else {
+    }
+    else {
       this.setState('disconnected')
     }
   }
@@ -279,11 +289,12 @@ export class LocalSocketClientTransport implements IpcClientTransport {
   // ── Private: reconnection ──────────────────────────────────────────
 
   private scheduleReconnect(): void {
-    if (this.reconnectTimer) return
+    if (this.reconnectTimer)
+      return
 
     this.setState('reconnecting')
 
-    const delay = Math.min(this.reconnectBaseDelay * Math.pow(2, this.reconnectAttempts), this.reconnectMaxDelay)
+    const delay = Math.min(this.reconnectBaseDelay * 2 ** this.reconnectAttempts, this.reconnectMaxDelay)
     this.reconnectAttempts++
 
     console.log(`[LocalSocketClient] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})...`)
@@ -307,7 +318,8 @@ export class LocalSocketClientTransport implements IpcClientTransport {
   // ── Private: heartbeat ─────────────────────────────────────────────
 
   private startHeartbeat(): void {
-    if (this.heartbeatInterval <= 0) return
+    if (this.heartbeatInterval <= 0)
+      return
 
     this.stopHeartbeat()
     this.heartbeatTimer = setInterval(() => {
@@ -347,7 +359,8 @@ export class LocalSocketClientTransport implements IpcClientTransport {
     for (const handler of this.stateHandlers) {
       try {
         handler(state, error)
-      } catch (err) {
+      }
+      catch (err) {
         console.error('[LocalSocketClient] State handler threw:', err)
       }
     }

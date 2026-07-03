@@ -14,9 +14,9 @@
  */
 
 import type { ToolId } from '../capabilities/types.js'
-import type { TaskId } from '../tasks/types.js'
-import type { EventStore } from '../persistence/types.js'
 import type { AiriEvent } from '../events/types.js'
+import type { EventStore } from '../persistence/types.js'
+import type { TaskId } from '../tasks/types.js'
 
 // ── Redaction ──────────────────────────────────────────────────────────
 
@@ -175,14 +175,18 @@ export class ExecutionTrace {
    * @returns Array of matching execution trace entries.
    */
   getRecords(filter?: ExecutionTraceFilter): ExecutionTraceEntry[] {
-    if (!filter) return [...this.records]
-    return this.records.filter((entry) => this.matchesFilter(entry, filter))
+    if (!filter)
+      return [...this.records]
+    return this.records.filter(entry => this.matchesFilter(entry, filter))
   }
 
   private matchesFilter(entry: ExecutionTraceEntry, filter: ExecutionTraceFilter): boolean {
-    if (filter.toolId !== undefined && entry.toolId !== filter.toolId) return false
-    if (filter.taskId !== undefined && entry.taskId !== filter.taskId) return false
-    if (filter.since !== undefined && entry.startedAt < filter.since) return false
+    if (filter.toolId !== undefined && entry.toolId !== filter.toolId)
+      return false
+    if (filter.taskId !== undefined && entry.taskId !== filter.taskId)
+      return false
+    if (filter.since !== undefined && entry.startedAt < filter.since)
+      return false
     return true
   }
 
@@ -193,7 +197,8 @@ export class ExecutionTrace {
    * @returns Array of the most recent execution trace entries.
    */
   getRecent(count: number): ExecutionTraceEntry[] {
-    if (count <= 0) return []
+    if (count <= 0)
+      return []
     const start = Math.max(0, this.records.length - count)
     return this.records.slice(start)
   }

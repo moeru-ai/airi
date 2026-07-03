@@ -1,7 +1,7 @@
-import { ref } from 'vue'
+import type { VoicePackBindingInput } from './modules/airi-card'
 import { defineStore } from 'pinia'
 
-import type { VoicePackBindingInput } from './modules/airi-card'
+import { ref } from 'vue'
 
 export const useVoicePacksStore = defineStore('voice-packs', () => {
   const packs = ref<VoicePackBindingInput[]>([])

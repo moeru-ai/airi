@@ -1,6 +1,6 @@
-import localforage from 'localforage'
-
 import { until } from '@vueuse/core'
+
+import localforage from 'localforage'
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'

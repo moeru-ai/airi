@@ -23,7 +23,7 @@ for (let i = 1; i < EYE_SACCADE_INT_P.length; i++) {
  */
 export function randomSaccadeInterval(): number {
   const r = Math.random()
-  // eslint-disable-next-line no-restricted-syntax
+
   for (const entry of EYE_SACCADE_INT_P) {
     if (r <= entry[0]) {
       return entry[1] + Math.random() * EYE_SACCADE_INT_STEP

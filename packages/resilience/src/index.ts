@@ -1,2 +1,2 @@
+export { BrokenCircuitError, resilientFetch, type ResilientFetchOptions } from './fetch'
 export { BreakerRegistry, sharedBreakerRegistry } from './registry'
-export { resilientFetch, BrokenCircuitError, type ResilientFetchOptions } from './fetch'

@@ -157,7 +157,7 @@ function assertSupportedVoicePackParams(params: VoicePackParams | undefined) {
  * Expects:
  * - `activeSpeechProvider` is the currently selected speech provider id.
  */
-// eslint-disable-next-line complexity
+
 export function createVoicePackVoice(voicePack: VoicePackSnapshot, activeSpeechProvider: string): VoiceInfo {
   return {
     id: voicePack.voiceId,
@@ -170,7 +170,6 @@ export function createVoicePackVoice(voicePack: VoicePackSnapshot, activeSpeechP
   }
 }
 
-// eslint-disable-next-line complexity
 export const useSpeechStore = defineStore('speech', () => {
   const providersStore = useProvidersStore()
   const { allAudioSpeechProvidersMetadata } = storeToRefs(providersStore)

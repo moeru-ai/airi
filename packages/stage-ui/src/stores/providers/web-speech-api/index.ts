@@ -121,7 +121,7 @@ export interface WebSpeechAPIExtraOptions {
  * - Language support depends on browser implementation
  * - Not available in Node.js or Tauri main process
  */
-// eslint-disable-next-line complexity
+
 export function createWebSpeechAPIProvider(): TranscriptionProviderWithExtraOptions<string, WebSpeechAPIExtraOptions> {
   // Check if Web Speech API is available
   const isAvailable =
@@ -273,7 +273,6 @@ export function streamWebSpeechAPITranscription(
       if (recognitionInstance) {
         try {
           recognitionInstance.stop()
-          // eslint-disable-next-line no-empty
         } catch {
           // noop
         }
@@ -444,7 +443,6 @@ export function streamWebSpeechAPITranscription(
   // Handle abort signal
   if (options?.abortSignal) {
     options.abortSignal.addEventListener('abort', () => {
-      // eslint-disable-next-line no-empty
       try {
         recognition.stop()
       } catch {

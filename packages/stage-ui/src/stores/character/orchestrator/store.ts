@@ -1,9 +1,7 @@
-import type { WebSocketBaseEvent, WebSocketEventOf, WebSocketEvents } from '@proj-airi/server-sdk'
+import type { SparkNotifyResponseControl } from '@proj-airi/core-agent/agents/spark-notify'
 
-import {
-  type SparkNotifyResponseControl,
-  setupAgentSparkNotifyHandler,
-} from '@proj-airi/core-agent/agents/spark-notify'
+import type { WebSocketBaseEvent, WebSocketEventOf, WebSocketEvents } from '@proj-airi/server-sdk'
+import { setupAgentSparkNotifyHandler } from '@proj-airi/core-agent/agents/spark-notify'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref } from 'vue'
 

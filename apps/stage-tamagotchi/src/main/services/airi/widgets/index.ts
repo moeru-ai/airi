@@ -112,7 +112,7 @@ export function createWidgetsService(params: {
           normalizeRequiredWidgetId(payload?.id, 'id is required to fetch a widget snapshot.'),
         )
       },
-      // eslint-disable-next-line consistent-return
+
       widgetsIframePublish: (payload, options) => {
         if (!isFromWindow(options as InvokeOptions, params.window)) return undefined
         const id = normalizeRequiredWidgetId(payload?.id, 'id is required to publish a widget iframe event.')

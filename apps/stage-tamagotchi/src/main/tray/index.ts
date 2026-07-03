@@ -60,7 +60,6 @@ function alignWindow(
   const { width: windowWidth, height: windowHeight } = window.getBounds()
   const { x: areaX, y: areaY, width: areaWidth, height: areaHeight } = screen.getPrimaryDisplay().workArea
 
-  // eslint-disable-next-line default-case
   switch (position) {
     case 'center':
       window.center()

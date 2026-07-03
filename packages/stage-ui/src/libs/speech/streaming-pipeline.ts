@@ -1,9 +1,9 @@
-import { buildStreamingTtsUrl } from './tts-analytics'
-import { stripMarkdownFromText } from '@proj-airi/pipelines-audio/strip-markdown'
 import type { TtsSource, TtsTrigger } from './tts-analytics'
-
+import { stripMarkdownFromText } from '@proj-airi/pipelines-audio/strip-markdown'
 import { getAuthToken } from '../auth'
+
 import { SERVER_URL } from '../server'
+import { buildStreamingTtsUrl } from './tts-analytics'
 
 /**
  * One synthesized sentence emitted by the streaming pipeline. The pipeline
@@ -254,7 +254,6 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
 
   ws.addEventListener('message', (e) => {
     if (typeof e.data === 'string') {
-      // eslint-disable-next-line no-void
       void handleControlFrame(e.data)
       return
     }
@@ -273,7 +272,6 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
       return
     }
 
-    // eslint-disable-next-line default-case
     switch (evt.event) {
       case 'sentence.start': {
         // Append to the queue. `sentence.end` consumes from the head, so
@@ -292,7 +290,7 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
         // await would only delay this handler's own return without
         // preventing the session.finished race. The chain itself is what
         // enforces ordering.
-        // eslint-disable-next-line no-void
+
         void enqueueFlush(text)
         break
       }
@@ -307,16 +305,16 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
       }
       case 'session.finished': {
         sawSessionFinished = true
-        // eslint-disable-next-line no-void
+
         void enqueueFlush()
-        // eslint-disable-next-line no-void
+
         void requestTerminate(null)
         break
       }
       case 'error': {
         const code = evt.code ?? 'streaming_tts_error'
         const message = evt.message ?? code
-        // eslint-disable-next-line no-void
+
         void requestTerminate(new Error(`${code}: ${message}`))
         break
       }
@@ -330,14 +328,14 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
       // already enqueued the tail flush and called requestTerminate. Just
       // make sure termination happens even if that path somehow didn't
       // (idempotent — requestTerminate guards against re-entry).
-      // eslint-disable-next-line no-void
+
       void requestTerminate(null)
       return
     }
     // Closed before completion: surface as an error so callers don't
     // mistake truncated audio for a successful (short) sentence.
     const reason = ev.reason || `closed_${ev.code}`
-    // eslint-disable-next-line no-void
+
     void requestTerminate(new Error(`streaming_tts_closed: ${reason}`))
   })
 
@@ -365,13 +363,12 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
         setTimeout(() => {
           try {
             ws.close()
-            // eslint-disable-next-line no-empty
           } catch {
             // noop
           }
           triggerCallbacks()
         }, 0)
-        // eslint-disable-next-line no-empty
+
         return
       }
     } catch {
@@ -404,7 +401,7 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
       // Route through `requestTerminate` so any in-flight `decodeAudioData`
       // can still resolve and emit `onSentence` before `onDone` flips the
       // consumer's `terminated` flag. tts-session.ts then runs
-      // eslint-disable-next-line no-void
+
       // `stopByIntent` on the playback manager and drops whatever did
       // schedule, so this does NOT prolong playback — it just keeps the
       // termination semantics consistent across cancel / session.finished

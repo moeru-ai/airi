@@ -5,20 +5,20 @@
  * and filesystem constraints.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import type { ToolExecutionContext, WorkspaceContext } from '../capabilities/types.js'
 
 import fs from 'node:fs'
-import path from 'node:path'
 import os from 'node:os'
+import path from 'node:path'
 
-import { EventBus } from '../events/bus.js'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { CapabilityRegistry } from '../capabilities/registry.js'
+import { createCapabilityId, createToolId } from '../capabilities/types.js'
+import { EventBus } from '../events/bus.js'
 import { LocalToolRuntime } from '../runtime/local-tool-runtime.js'
 import { createCancellationToken } from '../tasks/cancellation.js'
-import type { WorkspaceContext, ToolExecutionContext } from '../capabilities/types.js'
-import { createToolId, createCapabilityId } from '../capabilities/types.js'
-import { createWorkspaceId } from '../workspace/types.js'
 import { WorkspaceManager } from '../workspace/manager.js'
+import { createWorkspaceId } from '../workspace/types.js'
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
@@ -49,7 +49,7 @@ function createToolCtx(overrides?: Partial<ToolExecutionContext>): ToolExecution
 
 // ── WorkspaceContext in ToolExecutionContext ────────────────────────────
 
-describe('WorkspaceContext in ToolExecutionContext', () => {
+describe('workspaceContext in ToolExecutionContext', () => {
   it('can be included in ToolExecutionContext', () => {
     const wsContext: WorkspaceContext = {
       workspaceId: createWorkspaceId('ws-1'),
@@ -95,7 +95,7 @@ describe('WorkspaceContext in ToolExecutionContext', () => {
 
 // ── Workspace-scoped tool execution ──────────────────────────────────────
 
-describe('Workspace-scoped tool execution', () => {
+describe('workspace-scoped tool execution', () => {
   let basePath: string
   let manager: WorkspaceManager
 
@@ -268,7 +268,7 @@ describe('Workspace-scoped tool execution', () => {
 
 // ── Filesystem constraint ───────────────────────────────────────────────
 
-describe('Filesystem constraint', () => {
+describe('filesystem constraint', () => {
   it('validates paths within workspace root', () => {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const path = require('node:path')

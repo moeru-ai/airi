@@ -15,8 +15,8 @@
  *   connected is a no-op, same for disconnect().
  */
 
-import type { EventBus } from "../events/bus.js"
-import type { RuntimeClient, RuntimeConnectionState, RuntimeMessageHandler, RuntimeStateHandler } from "./client.js"
+import type { EventBus } from '../events/bus.js'
+import type { RuntimeClient, RuntimeConnectionState, RuntimeMessageHandler, RuntimeStateHandler } from './client.js'
 
 /**
  * Creates a local RuntimeClient backed by the given EventBus.
@@ -41,7 +41,7 @@ import type { RuntimeClient, RuntimeConnectionState, RuntimeMessageHandler, Runt
  * ```
  */
 export function createLocalRuntimeClient(bus: EventBus): LocalRuntimeClient {
-	return new LocalRuntimeClient(bus)
+  return new LocalRuntimeClient(bus)
 }
 
 /**
@@ -51,79 +51,82 @@ export function createLocalRuntimeClient(bus: EventBus): LocalRuntimeClient {
  * messaging is in-process — no networking, no serialization.
  */
 export class LocalRuntimeClient implements RuntimeClient {
-	private _state: RuntimeConnectionState = "disconnected"
-	private readonly stateHandlers = new Set<RuntimeStateHandler>()
+  private _state: RuntimeConnectionState = 'disconnected'
+  private readonly stateHandlers = new Set<RuntimeStateHandler>()
 
-	/** Channel prefix to avoid collisions with non-runtime events. */
-	private readonly channelPrefix = "runtime."
+  /** Channel prefix to avoid collisions with non-runtime events. */
+  private readonly channelPrefix = 'runtime.'
 
-	constructor(private readonly bus: EventBus) {}
+  constructor(private readonly bus: EventBus) {}
 
-	// ── RuntimeClient interface ────────────────────────────────────────
+  // ── RuntimeClient interface ────────────────────────────────────────
 
-	get state(): RuntimeConnectionState {
-		return this._state
-	}
+  get state(): RuntimeConnectionState {
+    return this._state
+  }
 
-	connect(): Promise<void> {
-		if (this._state === "connected") return Promise.resolve()
+  connect(): Promise<void> {
+    if (this._state === 'connected')
+      return Promise.resolve()
 
-		this._state = "connecting"
-		this.notifyStateChange("connecting")
+    this._state = 'connecting'
+    this.notifyStateChange('connecting')
 
-		// In-process connection is always immediate.
-		this._state = "connected"
-		this.notifyStateChange("connected")
-		return Promise.resolve()
-	}
+    // In-process connection is always immediate.
+    this._state = 'connected'
+    this.notifyStateChange('connected')
+    return Promise.resolve()
+  }
 
-	disconnect(): Promise<void> {
-		if (this._state === "disconnected") return Promise.resolve()
+  disconnect(): Promise<void> {
+    if (this._state === 'disconnected')
+      return Promise.resolve()
 
-		this._state = "disconnected"
-		this.notifyStateChange("disconnected")
-		return Promise.resolve()
-	}
+    this._state = 'disconnected'
+    this.notifyStateChange('disconnected')
+    return Promise.resolve()
+  }
 
-	send(channel: string, payload: unknown): Promise<void> {
-		if (this._state !== "connected") {
-			throw new Error(`Cannot send on channel "${channel}": client is ${this._state}.`)
-		}
+  send(channel: string, payload: unknown): Promise<void> {
+    if (this._state !== 'connected') {
+      throw new Error(`Cannot send on channel "${channel}": client is ${this._state}.`)
+    }
 
-		// Publish through the bus so local subscribers receive it.
-		this.bus.emit(this.channelPrefix + channel, payload)
-		return Promise.resolve()
-	}
+    // Publish through the bus so local subscribers receive it.
+    this.bus.emit(this.channelPrefix + channel, payload)
+    return Promise.resolve()
+  }
 
-	subscribe(channel: string, handler: RuntimeMessageHandler): () => void {
-		// Listen on the bus for messages on this channel.
-		const unsubscribe = this.bus.on(this.channelPrefix + channel, (payload) => {
-			handler(channel, payload)
-		})
+  subscribe(channel: string, handler: RuntimeMessageHandler): () => void {
+    // Listen on the bus for messages on this channel.
+    const unsubscribe = this.bus.on(this.channelPrefix + channel, (payload) => {
+      handler(channel, payload)
+    })
 
-		return unsubscribe
-	}
+    return unsubscribe
+  }
 
-	onStateChange(handler: RuntimeStateHandler): () => void {
-		this.stateHandlers.add(handler)
+  onStateChange(handler: RuntimeStateHandler): () => void {
+    this.stateHandlers.add(handler)
 
-		return () => {
-			this.stateHandlers.delete(handler)
-		}
-	}
+    return () => {
+      this.stateHandlers.delete(handler)
+    }
+  }
 
-	// ── Private ────────────────────────────────────────────────────────
+  // ── Private ────────────────────────────────────────────────────────
 
-	private notifyStateChange(state: RuntimeConnectionState): void {
-		for (const handler of this.stateHandlers) {
-			try {
-				handler(state)
-			} catch (error) {
-				console.error(
-					"[LocalRuntimeClient] State change handler threw:",
-					error instanceof Error ? error.message : String(error),
-				)
-			}
-		}
-	}
+  private notifyStateChange(state: RuntimeConnectionState): void {
+    for (const handler of this.stateHandlers) {
+      try {
+        handler(state)
+      }
+      catch (error) {
+        console.error(
+          '[LocalRuntimeClient] State change handler threw:',
+          error instanceof Error ? error.message : String(error),
+        )
+      }
+    }
+  }
 }

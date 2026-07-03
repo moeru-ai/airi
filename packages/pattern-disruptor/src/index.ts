@@ -1,3 +1,9 @@
+export { detectPatternDisruptorLanguage, resolvePatternDisruptorLanguage, tokenizeWords } from './data/language'
+export { getSynonymMap } from './data/synonyms'
+export { getWordBank } from './data/words'
+export { buildPatternDisruptorSupplement } from './engine/injector'
+export { generateRandomWords } from './engine/random-words'
+export { scanSynonymOveruse } from './engine/synonym-scanner'
 export {
   DEFAULT_PATTERN_DISRUPTOR_SETTINGS,
   DEFAULT_RANDOM_WORDS_PROMPT,
@@ -5,12 +11,6 @@ export {
   DEFAULT_SYNONYM_ROW_PROMPT,
   resolvePatternDisruptorSettings,
 } from './settings'
-export { detectPatternDisruptorLanguage, resolvePatternDisruptorLanguage, tokenizeWords } from './data/language'
-export { getSynonymMap } from './data/synonyms'
-export { getWordBank } from './data/words'
-export { buildPatternDisruptorSupplement } from './engine/injector'
-export { generateRandomWords } from './engine/random-words'
-export { scanSynonymOveruse } from './engine/synonym-scanner'
 export type {
   PatternDisruptorBuildInput,
   PatternDisruptorBuildResult,

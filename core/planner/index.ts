@@ -14,35 +14,35 @@
  * ```
  */
 
-// ── Types
-export type {
-	PlanId,
-	StepId,
-	PlanStatus,
-	StepStatus,
-	PlanStep,
-	StepResult,
-	Plan,
-	CreatePlanInput,
-	PlanFilter,
-} from "./types.js"
-export type { TaskError } from "../tasks/types.js"
-export { createPlanId, createStepId } from "./types.js"
-
+export type { TaskError } from '../tasks/types.js'
 // ── Events
 export type {
-	PlanStarted,
-	PlanCompleted,
-	PlanFailed,
-	PlanCancelled,
-	StepStarted,
-	StepCompleted,
-	StepFailed,
-} from "./events.js"
+  PlanCancelled,
+  PlanCompleted,
+  PlanFailed,
+  PlanStarted,
+  StepCompleted,
+  StepFailed,
+  StepStarted,
+} from './events.js'
+// ── Executor
+export { PlanExecutor } from './executor.js'
+
+export type { PlanExecutorOptions } from './executor.js'
 
 // ── Registry
-export { PlanRegistry } from "./registry.js"
+export { PlanRegistry } from './registry.js'
 
-// ── Executor
-export { PlanExecutor } from "./executor.js"
-export type { PlanExecutorOptions } from "./executor.js"
+// ── Types
+export type {
+  CreatePlanInput,
+  Plan,
+  PlanFilter,
+  PlanId,
+  PlanStatus,
+  PlanStep,
+  StepId,
+  StepResult,
+  StepStatus,
+} from './types.js'
+export { createPlanId, createStepId } from './types.js'

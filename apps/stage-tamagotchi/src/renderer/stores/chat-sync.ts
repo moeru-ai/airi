@@ -3,6 +3,7 @@ import type { ChatHistoryItem, StreamingAssistantMessage } from '@proj-airi/stag
 import type { ChatSessionMeta } from '@proj-airi/stage-ui/types/chat-session'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 
+import type { Tool } from '@xsai/shared-chat'
 import { errorMessageFrom } from '@moeru/std'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/maintenance'
@@ -11,9 +12,8 @@ import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { defineStore, storeToRefs } from 'pinia'
-import { ref, watch } from 'vue'
 
-import type { Tool } from '@xsai/shared-chat'
+import { ref, watch } from 'vue'
 
 import { imageJournalTools } from './tools/builtin/image-journal'
 import { weatherTools } from './tools/builtin/weather'
@@ -175,7 +175,6 @@ function previewChatSyncPayload(payload: unknown): unknown {
  * - Writes an error entry to the renderer console for postmortem debugging
  */
 function logChatSyncError(message: string, error: unknown, details: Record<string, unknown>) {
-  // eslint-disable-next-line no-console
   console.error(`[chat-sync] ${message}`, {
     ...details,
     error,
@@ -406,7 +405,6 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     }
 
     try {
-      // eslint-disable-next-line default-case
       switch (message.command) {
         case 'ingest':
           await executeIngest(message.payload)
@@ -460,7 +458,6 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     const message = event.data
     if (!message) return
 
-    // eslint-disable-next-line default-case
     switch (message.type) {
       case 'authority-announcement':
         authorityId.value = message.authorityId
@@ -556,7 +553,6 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       return
     }
 
-    // eslint-disable-next-line consistent-return
     return await dispatchCommand({
       type: 'command',
       requestId: createRequestId(),
@@ -572,7 +568,6 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       return
     }
 
-    // eslint-disable-next-line consistent-return
     return await dispatchCommand({
       type: 'command',
       requestId: createRequestId(),
@@ -588,7 +583,6 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       return
     }
 
-    // eslint-disable-next-line consistent-return
     return await dispatchCommand({
       type: 'command',
       requestId: createRequestId(),
@@ -604,7 +598,6 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       return
     }
 
-    // eslint-disable-next-line consistent-return
     return await dispatchCommand({
       type: 'command',
       requestId: createRequestId(),

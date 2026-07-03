@@ -1,8 +1,8 @@
 import type { Color } from 'culori'
 
-import html2canvas from 'html2canvas'
-
 import { average } from 'culori'
+
+import html2canvas from 'html2canvas'
 import { Vibrant } from 'node-vibrant/browser'
 
 export type ColorFromElementMode = 'vibrant' | 'html2canvas' | 'both'

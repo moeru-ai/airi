@@ -1,12 +1,12 @@
-import type { ModelInfo } from '../../types'
+import type { AssistantMessage, Message, SystemMessage, TextContentPart, UserMessage } from '@xsai/shared-chat'
 
+import type { ModelInfo } from '../../types'
+import { resilientFetch } from '@proj-airi/resilience'
 import { createModelProvider, merge } from '@xsai-ext/providers/utils'
-import type { Message, TextContentPart, UserMessage, AssistantMessage, SystemMessage } from '@xsai/shared-chat'
+
 import { z } from 'zod'
 
 import { defineProvider } from '../registry'
-
-import { resilientFetch } from '@proj-airi/resilience'
 
 /** A content block within a message — only text is used for the Converse conversion path. */
 interface ConverseTextContentBlock {

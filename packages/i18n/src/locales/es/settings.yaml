@@ -11,7 +11,7 @@ dialogs:
   onboarding:
     official:
       title: AIRI Official Provider
-    title: '¡Bienvenido a AIRI!'
+    title: ¡Bienvenido a AIRI!
     description: Configuremos tu primer proveedor de IA para comenzar.
     selectProvider: Elige un Proveedor de IA
     configureProvider: Configurar {provider}
@@ -33,14 +33,14 @@ dialogs:
     saveAndContinue: Guardar y Continuar
     next: Siguiente
     retry: Volver a intentar
-    credentialsSafeLabel: '¡Mantén tus claves y credenciales API a salvo!'
+    credentialsSafeLabel: ¡Mantén tus claves y credenciales API a salvo!
     credentialsSafeLocal: >-
       AIRI se está ejecutando localmente en su PC, y nunca robaremos sus credenciales para proveedores de IA / LLM. Pero tenga en cuenta que sus claves API son información confidencial. Asegúrese de mantenerlas seguras y no compartirlas con nadie.
     credentialsSafeOpenSource: >-
       AIRI es de código abierto en {github}, si desea comprobar cómo manejamos sus credenciales, no dude en inspeccionar nuestro código.
     enableChatCheck: >-
       Permitir a airi enviar un mensaje "ping" al primer modelo de chat disponible para comprobar la disponibilidad
-    start: '¡Hagámoslo!'
+    start: ¡Hagámoslo!
     loginPrompt: Inicia sesión para utilizar el proveedor oficial de AIRI para obtener la mejor experiencia.
     loginAction: Iniciar sesión
     setupWithoutSigningIn: Configurar con su proveedor
@@ -137,9 +137,9 @@ live2d:
     title: Escala y Posición
     scale: Escala
     x: X
-    'y': 'Y'
+    y: Y
   switch-to-vrm:
-    title: '¿Cambiar a Avatar 3D?'
+    title: ¿Cambiar a Avatar 3D?
     change-to-vrm: Haz clic aquí para cambiar a la configuración de avatar 3D (VRM)
   theme-color-from-model:
     title: Extraer colores del modelo
@@ -182,7 +182,7 @@ live2d:
       title: FPS
       description: Limit rendering frame rate
       options:
-        unlimited: '∞'
+        unlimited: ∞
     shadow: Drop shadow
     reset-parameters: Reset to default parameters
   clear-model-cache: Clear model cache
@@ -312,7 +312,7 @@ pages:
     creator_notes: Notas del Creador
     delete: Eliminar
     delete_card: Eliminar Tarjeta
-    delete_confirmation: '¿Estás seguro de que quieres eliminar esta tarjeta?'
+    delete_confirmation: ¿Estás seguro de que quieres eliminar esta tarjeta?
     description: Usar presets de tarjeta de personaje AIRI
     description_label: Descripción
     drop_here: Suelta para subir
@@ -347,7 +347,7 @@ pages:
         notes: Si quieres agregar algunas notas personales.
         personality: >-
           Describe aquí la personalidad de tu personaje. ¿Tímido? ¿Curioso? ¿Algo más?
-        scenario: '¿Cuáles son los alrededores? ¿Cuál es la situación actual?'
+        scenario: ¿Cuáles son los alrededores? ¿Cuál es la situación actual?
         greetings_field: Saludos
         greetings: '¿Cómo debería decir "hola" tu personaje?'
         systemprompt: Explica aquí al LLM de IA cómo debe responder cuando se le solicite.
@@ -428,8 +428,8 @@ pages:
         description: Limpiar ajustes de escritorio y estado de ejecución de AIRI.
         reset: Restablecer datos de escritorio
     confirmations:
-      tooltip: '¿Estás seguro?'
-      'yes': 'Sí'
+      tooltip: ¿Estás seguro?
+      yes: Sí
     status:
       exported: Sesiones de chat exportadas.
       imported: Sesiones de chat importadas.
@@ -568,7 +568,7 @@ pages:
           provider-model-selection:
             collapse: Colapsar
             custom_model_placeholder: Ingresa el nombre del modelo personalizado...
-            current_model_label: 'Modelo actual'
+            current_model_label: Modelo actual
             description: Selecciona el proveedor LLM adecuado para la consciencia
             error: Error cargando modelos
             health_check_failed: Comprobación de salud fallida
@@ -593,7 +593,7 @@ pages:
       title: Consciencia
     description: Pensamiento, visión, síntesis de voz, juegos, etc.
     gaming-factorio:
-      description: '¡Jugando Factorio!'
+      description: ¡Jugando Factorio!
       title: Factorio
       enable: Habilitar integración con Factorio
       enable-description: Permitir que AIRI interactúe con el juego Factorio
@@ -605,14 +605,14 @@ pages:
       username: Nombre de usuario
       username-description: Su nombre de usuario en el servidor de Factorio
       username-placeholder: Ingrese su nombre de usuario de Factorio
-      configured: '¡Factorio está configurado correctamente!'
+      configured: ¡Factorio está configurado correctamente!
     gaming-minecraft:
-      description: '¡Jugando Minecraft!'
+      description: ¡Jugando Minecraft!
       title: Minecraft
       enable: Habilitar integración con Minecraft
       enable-description: >-
         Include Minecraft self-knowledge in Stage chat turns and keep passive runtime visibility enabled.
-      configured: '¡Minecraft está configurado correctamente!'
+      configured: ¡Minecraft está configurado correctamente!
       read-only:
         title: Consola de solo lectura
         description: >-
@@ -667,7 +667,7 @@ pages:
       token: Token del bot
       token-description: Su token de bot de Discord
       token-placeholder: Ingrese su token de bot de Discord
-      configured: '¡Discord está configurado correctamente!'
+      configured: ¡Discord está configurado correctamente!
     speech:
       description: Síntesis de voz
       sections:
@@ -728,7 +728,7 @@ pages:
       access-token-secret: Secreto de token de acceso
       access-token-secret-description: Su secreto de token de acceso de X / Twitter
       access-token-secret-placeholder: Ingrese su secreto de token de acceso de X / Twitter
-      configured: '¡X / Twitter está configurado correctamente!'
+      configured: ¡X / Twitter está configurado correctamente!
     mcp-server:
       title: MCP servers
       description: Configure MCP servers and bring their tools into AIRI.
@@ -819,7 +819,7 @@ pages:
     description: Flujo actual
     packagesError: Error al cargar paquetes. Por favor, inténtalo de nuevo más tarde.
     checkout:
-      success: '¡Pago exitoso! Tu Flujo ha sido recargado.'
+      success: ¡Pago exitoso! Tu Flujo ha sido recargado.
       canceled: Se ha anulado el pago
       error: Algo ha ido mal, inténtalo más tarde.
     audit:
@@ -970,7 +970,7 @@ pages:
           nanobanana:
             description: Google AI Studio Image Preview.
     helpinfo:
-      title: '¿Primera vez aquí?'
+      title: ¿Primera vez aquí?
       description: >
         AIRI requiere que al menos un proveedor de {chat} esté configurado para pensar y comportarse correctamente. Podrías pensarlo como el cerebro de los personajes que viven en el sistema AIRI.
     explained:
@@ -1209,7 +1209,7 @@ pages:
           q4f16:
             description: 4-bit con FP16
         playground:
-          default-text: '¡Hola! Esta es una prueba del sistema de texto a voz de Kokoro.'
+          default-text: ¡Hola! Esta es una prueba del sistema de texto a voz de Kokoro.
           title: Campo de voz
         title: TTS de Kokoro (local)
       fireworks:
@@ -1413,7 +1413,7 @@ pages:
     general:
       description: Tema oscuro, idiomas, etc.
       title: General
-    description: '¡Personaliza tu escenario!'
+    description: ¡Personaliza tu escenario!
     sections:
       section:
         custom-color:
@@ -1422,7 +1422,7 @@ pages:
               primary-color:
                 label: Color primario
                 rgb-on:
-                  title: '¡Lo Quiero Dinámico!'
+                  title: ¡Lo Quiero Dinámico!
           title: Esquema de Colores
         developer:
           title: Desarrollador
@@ -1571,7 +1571,7 @@ pages:
       active_badge: Escena actual
       delete_confirm: Are you sure you want to delete this background?
     tip:
-      label: '¡Un consejo!'
+      label: ¡Un consejo!
       description: Using a square image will leverage <b>cover</b> cropping in portrait mode, focusing on the center of the scene.
 sections:
   section:
@@ -1602,7 +1602,7 @@ vrm:
       Los ejes de coordenadas están visualizados.
     scale: Escala
     x: Desplazamiento X
-    'y': Desplazamiento Y
+    y: Desplazamiento Y
     z: Desplazamiento Z
     fov: FOV (grados)
     rotation-y: Rotación (eje Y)
@@ -1615,7 +1615,7 @@ vrm:
           mouse: Ratón
           disabled: Desactivado
   switch-to-vrm:
-    title: '¿Cambiar a Avatar Live2D?'
+    title: ¿Cambiar a Avatar Live2D?
     change-to-vrm: Haz clic aquí para cambiar a la configuración de avatar Live2D
   theme-color-from-model:
     button-extract:
@@ -1629,7 +1629,7 @@ spine:
     title: Scale And Position
     scale: Scale
     x: X
-    'y': 'Y'
+    y: Y
   theme-color-from-model:
     title: Extract colors from model
     button-extract:

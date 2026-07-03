@@ -13,9 +13,9 @@
  * - Structured error wrapping for all tool execution results.
  */
 
-import type { TaskId } from "../tasks/types.js"
-import type { WorkspaceId } from "../workspace/types.js"
-import type { CancellationToken } from "../tasks/cancellation.js"
+import type { CancellationToken } from '../tasks/cancellation.js'
+import type { TaskId } from '../tasks/types.js'
+import type { WorkspaceId } from '../workspace/types.js'
 
 // ── Branded IDs ──────────────────────────────────────────────────────────
 
@@ -42,7 +42,7 @@ export type ToolId = string & { readonly __brand: 'ToolId' }
  * ```
  */
 export function createCapabilityId(raw: string): CapabilityId {
-	return raw as CapabilityId
+  return raw as CapabilityId
 }
 
 /**
@@ -54,7 +54,7 @@ export function createCapabilityId(raw: string): CapabilityId {
  * ```
  */
 export function createToolId(raw: string): ToolId {
-	return raw as ToolId
+  return raw as ToolId
 }
 
 // ── Tool descriptor ─────────────────────────────────────────────────────
@@ -66,29 +66,29 @@ export function createToolId(raw: string): ToolId {
  * capability and has a unique ToolId across the entire system.
  */
 export interface ToolDescriptor {
-	/** Unique tool identifier (e.g. "read_file", "apply_diff"). */
-	readonly id: ToolId
+  /** Unique tool identifier (e.g. "read_file", "apply_diff"). */
+  readonly id: ToolId
 
-	/** Human-readable name (e.g. "Read File"). */
-	readonly name: string
+  /** Human-readable name (e.g. "Read File"). */
+  readonly name: string
 
-	/** Description of what this tool does. */
-	readonly description: string
+  /** Description of what this tool does. */
+  readonly description: string
 
-	/** The capability this tool belongs to. */
-	readonly capabilityId: CapabilityId
+  /** The capability this tool belongs to. */
+  readonly capabilityId: CapabilityId
 
-	/**
-	 * JSON Schema or similar descriptor for tool input validation.
-	 * `unknown` keeps this agnostic to the schema format.
-	 */
-	readonly inputSchema: unknown
+  /**
+   * JSON Schema or similar descriptor for tool input validation.
+   * `unknown` keeps this agnostic to the schema format.
+   */
+  readonly inputSchema: unknown
 
-	/**
-	 * JSON Schema or similar descriptor for tool output.
-	 * `unknown` keeps this agnostic to the schema format.
-	 */
-	readonly outputSchema: unknown
+  /**
+   * JSON Schema or similar descriptor for tool output.
+   * `unknown` keeps this agnostic to the schema format.
+   */
+  readonly outputSchema: unknown
 }
 
 // ── Capability descriptor ───────────────────────────────────────────────
@@ -100,20 +100,20 @@ export interface ToolDescriptor {
  * CapabilityId and contains one or more tools.
  */
 export interface CapabilityDescriptor {
-	/** Unique capability identifier (e.g. "code", "terminal", "filesystem"). */
-	readonly id: CapabilityId
+  /** Unique capability identifier (e.g. "code", "terminal", "filesystem"). */
+  readonly id: CapabilityId
 
-	/** Human-readable name (e.g. "Code Tools"). */
-	readonly name: string
+  /** Human-readable name (e.g. "Code Tools"). */
+  readonly name: string
 
-	/** Description of what this capability provides. */
-	readonly description: string
+  /** Description of what this capability provides. */
+  readonly description: string
 
-	/** The module that owns this capability. */
-	readonly moduleId: string
+  /** The module that owns this capability. */
+  readonly moduleId: string
 
-	/** Tools provided by this capability. */
-	readonly tools: ToolDescriptor[]
+  /** Tools provided by this capability. */
+  readonly tools: ToolDescriptor[]
 }
 
 // ── Workspace context ──────────────────────────────────────────────────
@@ -125,17 +125,17 @@ export interface CapabilityDescriptor {
  * to the workspace root and worktree.
  */
 export interface WorkspaceContext {
-	/** The workspace this execution is scoped to. */
-	readonly workspaceId: WorkspaceId
+  /** The workspace this execution is scoped to. */
+  readonly workspaceId: WorkspaceId
 
-	/** Absolute path to the workspace root directory. */
-	readonly rootPath: string
+  /** Absolute path to the workspace root directory. */
+  readonly rootPath: string
 
-	/** Optional git worktree path for isolated git operations. */
-	readonly worktreePath?: string
+  /** Optional git worktree path for isolated git operations. */
+  readonly worktreePath?: string
 
-	/** Lease token for workspace access validation. */
-	readonly leaseToken?: string
+  /** Lease token for workspace access validation. */
+  readonly leaseToken?: string
 }
 
 // ── Tool execution context ──────────────────────────────────────────────
@@ -146,23 +146,23 @@ export interface WorkspaceContext {
  * Carries task association, cancellation, timeout, and metadata.
  */
 export interface ToolExecutionContext {
-	/** The task this tool execution is associated with. */
-	readonly taskId: TaskId
+  /** The task this tool execution is associated with. */
+  readonly taskId: TaskId
 
-	/** Optional workspace identifier for scoping filesystem operations. */
-	readonly workspaceId?: string
+  /** Optional workspace identifier for scoping filesystem operations. */
+  readonly workspaceId?: string
 
-	/** Optional workspace context for sandbox-aware execution. */
-	readonly workspaceContext?: WorkspaceContext
+  /** Optional workspace context for sandbox-aware execution. */
+  readonly workspaceContext?: WorkspaceContext
 
-	/** Cancellation token for cooperative cancellation. */
-	readonly cancellationToken: CancellationToken
+  /** Cancellation token for cooperative cancellation. */
+  readonly cancellationToken: CancellationToken
 
-	/** Maximum execution time in milliseconds. */
-	readonly timeoutMs: number
+  /** Maximum execution time in milliseconds. */
+  readonly timeoutMs: number
 
-	/** Additional metadata for the tool execution. */
-	readonly metadata: Record<string, unknown>
+  /** Additional metadata for the tool execution. */
+  readonly metadata: Record<string, unknown>
 }
 
 // ── Tool execution result ───────────────────────────────────────────────
@@ -171,26 +171,26 @@ export interface ToolExecutionContext {
  * Structured result of a tool execution.
  */
 export interface ToolExecutionResult {
-	/** Whether the tool executed successfully. */
-	readonly success: boolean
+  /** Whether the tool executed successfully. */
+  readonly success: boolean
 
-	/** Tool output data (tool-specific). */
-	readonly output: unknown
+  /** Tool output data (tool-specific). */
+  readonly output: unknown
 
-	/** Execution duration in milliseconds. */
-	readonly durationMs: number
+  /** Execution duration in milliseconds. */
+  readonly durationMs: number
 
-	/** Error details when success is false. */
-	readonly error?: {
-		/** Machine-readable error code (e.g. "TIMEOUT", "CANCELLED", "EXECUTION_ERROR"). */
-		readonly code: string
+  /** Error details when success is false. */
+  readonly error?: {
+    /** Machine-readable error code (e.g. "TIMEOUT", "CANCELLED", "EXECUTION_ERROR"). */
+    readonly code: string
 
-		/** Human-readable error description. */
-		readonly message: string
+    /** Human-readable error description. */
+    readonly message: string
 
-		/** Optional structured error details. */
-		readonly details?: unknown
-	}
+    /** Optional structured error details. */
+    readonly details?: unknown
+  }
 }
 
 // ── Capability status ──────────────────────────────────────────────────
@@ -198,29 +198,29 @@ export interface ToolExecutionResult {
 /**
  * Lifecycle states for a registered capability.
  */
-export type CapabilityStatus =
-	| "registered"
-	| "active"
-	| "failed"
-	| "deregistered"
+export type CapabilityStatus
+  = | 'registered'
+    | 'active'
+    | 'failed'
+    | 'deregistered'
 
 /**
  * Full information about a registered capability, including its current
  * lifecycle state and timestamps.
  */
 export interface CapabilityInfo {
-	/** The capability descriptor. */
-	readonly descriptor: CapabilityDescriptor
+  /** The capability descriptor. */
+  readonly descriptor: CapabilityDescriptor
 
-	/** Current lifecycle status. */
-	readonly status: CapabilityStatus
+  /** Current lifecycle status. */
+  readonly status: CapabilityStatus
 
-	/** Unix timestamp (ms) of when the capability was registered. */
-	readonly registeredAt: number
+  /** Unix timestamp (ms) of when the capability was registered. */
+  readonly registeredAt: number
 
-	/** Unix timestamp (ms) of last activation, if any. */
-	readonly lastActivatedAt?: number
+  /** Unix timestamp (ms) of last activation, if any. */
+  readonly lastActivatedAt?: number
 
-	/** Error message if the capability is in a failed state. */
-	readonly error?: string
+  /** Error message if the capability is in a failed state. */
+  readonly error?: string
 }

@@ -7,38 +7,38 @@
 
 // ── Protocol ──────────────────────────────────────────────────────────
 
-export type {
-	IpcMessage,
-	IpcMessageBase,
-	IpcMessageType,
-	IpcEventMessage,
-	IpcRequestMessage,
-	IpcResponseMessage,
-	IpcErrorMessage,
-	IpcPingMessage,
-	IpcPongMessage,
-} from "./protocol.js"
+export {
+  LocalSocketClientTransport,
+  LocalSocketServerTransport,
+} from './local-socket/index.js'
 
-export { serializeMessage, deserializeMessage } from "./protocol.js"
+export type { LocalSocketClientOptions } from './local-socket/index.js'
 
 // ── Transport interfaces ──────────────────────────────────────────────
 
 export type {
-	IpcConnectionState,
-	IpcMessageHandler,
-	IpcStateHandler,
-	IpcServerTransport,
-	IpcClientTransport,
-	IpcRequestOptions,
-} from "./transport.js"
+  IpcErrorMessage,
+  IpcEventMessage,
+  IpcMessage,
+  IpcMessageBase,
+  IpcMessageType,
+  IpcPingMessage,
+  IpcPongMessage,
+  IpcRequestMessage,
+  IpcResponseMessage,
+} from './protocol.js'
 
-export { request, generateId } from "./transport.js"
+export { deserializeMessage, serializeMessage } from './protocol.js'
 
 // ── Local socket transport ────────────────────────────────────────────
 
-export {
-	LocalSocketServerTransport,
-	LocalSocketClientTransport,
-} from "./local-socket/index.js"
+export type {
+  IpcClientTransport,
+  IpcConnectionState,
+  IpcMessageHandler,
+  IpcRequestOptions,
+  IpcServerTransport,
+  IpcStateHandler,
+} from './transport.js'
 
-export type { LocalSocketClientOptions } from "./local-socket/index.js"
+export { generateId, request } from './transport.js'

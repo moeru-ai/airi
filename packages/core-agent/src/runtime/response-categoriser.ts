@@ -241,7 +241,6 @@ export function createStreamingCategorizer(providerId?: string, onSegment?: (seg
     for (let i = 0; i < chunk.length; i++) {
       const char = chunk[i]
 
-      // eslint-disable-next-line default-case
       switch (tagState) {
         case 'outside': {
           if (char === '<') {

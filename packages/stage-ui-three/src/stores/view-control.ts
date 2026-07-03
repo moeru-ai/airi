@@ -87,7 +87,7 @@ const viewControlMode = ref<SupportedControl>('cameraDistance')
 function set(key: SupportedControl, value?: number) {
   const clamped =
     value !== undefined ? clampMinMax(value, defaultControlConfig[key].min, defaultControlConfig[key].max) : undefined
-  // eslint-disable-next-line default-case
+
   switch (key) {
     case 'x':
       modelOffset.value.x = clamped ?? defaultControlConfig.x.default

@@ -8,27 +8,27 @@ docs:
     navbar:
       appearance:
         title: Appearance
-'controls-island':
-  'fade-on-hover':
+controls-island:
+  fade-on-hover:
     enable: Auto hide
     disable: Always show
-  'open-settings': Open settings
-  'open-chat': Open Chat
-  'refresh': Refresh
-  'open-hearing-controls': Open hearing Controls
-  'drag-to-move-window': Drag to move window
-  'switch-to-light-mode': Switch to light mode
-  'switch-to-dark-mode': Switch to dark mode
-  'pin-on-top': Pin on top
-  'unpin-from-top': Unpin from top
-  'switch-profile': Switch Profile
-  'close': Close
-  'expand': Expand
-  'collapse': Collapse
-  'login': Sign in
-  'logging-in': Signing in...
-  'account': Account
-  'logout': Sign out
+  open-settings: Open settings
+  open-chat: Open Chat
+  refresh: Refresh
+  open-hearing-controls: Open hearing Controls
+  drag-to-move-window: Drag to move window
+  switch-to-light-mode: Switch to light mode
+  switch-to-dark-mode: Switch to dark mode
+  pin-on-top: Pin on top
+  unpin-from-top: Unpin from top
+  switch-profile: Switch Profile
+  close: Close
+  expand: Expand
+  collapse: Collapse
+  login: Sign in
+  logging-in: Signing in...
+  account: Account
+  logout: Sign out
 
 widgets:
   close: Close widget
@@ -39,7 +39,7 @@ widgets:
   waiting: Waiting for widget data for "{id}"…
 
 notice:
-  'fade-on-hover':
+  fade-on-hover:
     title: Fade on Hover
     intro: Automatically fades the character when your cursor roams nearby. It helps reduce distractions while keeping your character visible.
     opacity: After turning on, the opacity drops to {value} for both {targets} when your cursor is nearby.

@@ -2,34 +2,41 @@
  * AIRI Core — Bootstrap Lifecycle
  *
  * Orchestrates startup and shutdown of the AIRI core subsystem:
- * EventBus → RuntimeClient → ModuleRegistry → Module activation.
+ * EventBus → RuntimeClient → CapabilityRegistry → ModuleRegistry → Module activation.
  *
  * Lifecycle:
  * 1. Create EventBus (inter-module communication).
  * 2. Create RuntimeClient (external communication, currently local-only).
- * 3. Create ModuleRegistry (module lifecycle management).
- * 4. Connect the runtime client.
- * 5. Activate all modules in registration order.
+ * 3. Create CapabilityRegistry + LocalToolRuntime (capability/tool layer).
+ * 4. Create ModuleRegistry (module lifecycle management).
+ * 5. Connect the runtime client.
+ * 6. Activate all modules in registration order.
  *    - Each successful activation emits ModuleActivated.
  *    - Each failed activation emits ModuleCrashed.
+ * 7. Optionally register the terminal capability (when AIRI_ENABLE_TERMINAL=1).
  *
  * Shutdown (reverse order):
- * 1. Deactivate all modules in reverse registration order.
- * 2. Disconnect the runtime client.
+ * 1. Close the terminal bridge (if registered).
+ * 2. Deactivate all modules in reverse registration order.
+ * 3. Disconnect the runtime client.
  *
  * The bootstrap function returns a CoreInstance handle that exposes
  * the registry, bus, runtime, and lifecycle methods.
  */
 
+import type { ModuleActivated, ModuleCrashed } from './events/types.js'
 import type { CoreContext } from './modules/module.js'
 import type { ActivationResult } from './modules/registry.js'
 import type { RuntimeClient } from './runtime/client.js'
-import type { ModuleActivated, ModuleCrashed } from './events/types.js'
 
-import { ModuleRegistry } from './modules/registry.js'
+import process from 'node:process'
+
+import { CapabilityRegistry } from './capabilities/registry.js'
 import { EventBus } from './events/bus.js'
-import { createLocalRuntimeClient } from './runtime/local-client.js'
 import { createLogger } from './logger.js'
+import { ModuleRegistry } from './modules/registry.js'
+import { createLocalRuntimeClient } from './runtime/local-client.js'
+import { LocalToolRuntime } from './runtime/local-tool-runtime.js'
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -44,6 +51,12 @@ export interface CoreInstance {
   /** The runtime client for external communication. */
   readonly runtime: RuntimeClient
 
+  /** The capability registry managing all registered capabilities. */
+  readonly capabilities: CapabilityRegistry
+
+  /** The local tool runtime for dispatching tool invocations. */
+  readonly toolRuntime: LocalToolRuntime
+
   /** The module registry managing all modules. */
   readonly registry: ModuleRegistry
 
@@ -52,10 +65,11 @@ export interface CoreInstance {
 
   /**
    * Gracefully shut down the core:
+   * - Close the terminal bridge (if registered).
    * - Deactivate modules in reverse order.
    * - Disconnect the runtime client.
    */
-  shutdown(): Promise<void>
+  shutdown: () => Promise<void>
 }
 
 // ── Bootstrap ────────────────────────────────────────────────────────
@@ -80,7 +94,7 @@ export interface CoreInstance {
  * await core.shutdown()
  * ```
  */
-// eslint-disable-next-line complexity
+
 export async function bootstrap(): Promise<CoreInstance> {
   const logger = createLogger('core')
 
@@ -92,19 +106,24 @@ export async function bootstrap(): Promise<CoreInstance> {
   logger.info('Phase 2: Initializing RuntimeClient...')
   const runtime = createLocalRuntimeClient(events)
 
-  // ── Phase 3: Create ModuleRegistry ────────────────────────────────
-  logger.info('Phase 3: Initializing ModuleRegistry...')
+  // ── Phase 3: Create CapabilityRegistry + LocalToolRuntime ──────────────────────────────────
+  logger.info('Phase 3: Initializing CapabilityRegistry + LocalToolRuntime...')
+  const capabilities = new CapabilityRegistry()
+  const toolRuntime = new LocalToolRuntime(capabilities, events)
+
+  // ── Phase 4: Create ModuleRegistry ────────────────────────────────
+  logger.info('Phase 4: Initializing ModuleRegistry...')
   const registry = new ModuleRegistry()
 
-  // ── Phase 4: Connect runtime ──────────────────────────────────────
-  logger.info('Phase 4: Connecting runtime...')
+  // ── Phase 5: Connect runtime ──────────────────────────────────────
+  logger.info('Phase 5: Connecting runtime...')
   await runtime.connect()
   logger.info(`Runtime connected (state: ${runtime.state})`)
 
-  // ── Phase 5: Activate modules ──────────────────────────────────────
-  logger.info('Phase 5: Activating modules...')
+  // ── Phase 6: Activate modules ──────────────────────────────────────
+  logger.info('Phase 6: Activating modules...')
 
-  const activationResult = await activateAllModules(registry, events, runtime, logger)
+  const activationResult = await activateAllModules(registry, events, runtime, logger, capabilities, toolRuntime)
 
   const succeeded = activationResult.succeeded
   const failed = activationResult.failed
@@ -120,16 +139,55 @@ export async function bootstrap(): Promise<CoreInstance> {
     }
   }
 
+  // ── Phase 7: Optional terminal capability (AIRI_ENABLE_TERMINAL=1) ──
+  let terminalRegistration: { bridge: { close: () => Promise<void> } } | undefined
+  if (process.env.AIRI_ENABLE_TERMINAL === '1') {
+    logger.info('Phase 7: Registering terminal capability...')
+    try {
+      const { tryRegisterTerminalCapability } = await import('@proj-airi/core-terminal/runtime-entrypoint')
+      const result = await tryRegisterTerminalCapability({ registry: capabilities, runtime: toolRuntime })
+      if (result) {
+        terminalRegistration = { bridge: result.bridge as { close: () => Promise<void> } }
+        logger.info(`Terminal capability registered with ${result.toolIds.length} tools.`)
+      }
+      else {
+        logger.info('Terminal capability disabled (no registration returned).')
+      }
+    }
+    catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      logger.error(`Failed to register terminal capability: ${message}`)
+      // Degrade gracefully — terminal is optional.
+    }
+  }
+
   // ── Return handle ─────────────────────────────────────────────────
   return {
     events,
     runtime,
+    capabilities,
+    toolRuntime,
     registry,
     activationResult,
 
     async shutdown(): Promise<void> {
+      // Close terminal bridge first (if registered).
+      if (terminalRegistration) {
+        logger.info('Shutdown: Closing terminal bridge...')
+        try {
+          await terminalRegistration.bridge.close()
+        }
+        catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
+          logger.warn(`Error closing terminal bridge: ${message}`)
+        }
+      }
+
       logger.info('Shutdown: Deactivating modules...')
       await registry.deactivateAll()
+
+      logger.info('Shutdown: Clearing capability registry...')
+      capabilities.clear()
 
       logger.info('Shutdown: Disconnecting runtime...')
       await runtime.disconnect()
@@ -157,11 +215,15 @@ async function activateAllModules(
   events: EventBus,
   runtime: RuntimeClient,
   logger: ReturnType<typeof createLogger>,
+  capabilities: CapabilityRegistry,
+  toolRuntime: LocalToolRuntime,
 ): Promise<ActivationResult> {
   const ctx: CoreContext = {
     moduleId: 'core',
     events,
     runtime,
+    capabilities,
+    toolRuntime,
     logger,
   }
 
@@ -181,7 +243,8 @@ async function activateAllModules(
       }
       events.emit('module.activated', event)
       logger.info(`Module "${r.id}" activated.`)
-    } else {
+    }
+    else {
       const event: ModuleCrashed = {
         type: 'module.crashed',
         timestamp: new Date().toISOString(),

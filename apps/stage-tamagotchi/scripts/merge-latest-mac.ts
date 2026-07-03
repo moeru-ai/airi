@@ -134,7 +134,7 @@ async function readUpdateInfo(filePath: string): Promise<UpdateInfo> {
 
 function collectLatestMacFiles(rootDir: string): string[] {
   const results: string[] = []
-  // eslint-disable-next-line no-console
+
   console.debug('merge-latest-mac: scan context', {
     cwd: cwd(),
     rootDir,
@@ -148,7 +148,7 @@ function collectLatestMacFiles(rootDir: string): string[] {
   }
 
   const entries = readdirSync(rootDir, { withFileTypes: true })
-  // eslint-disable-next-line no-console
+
   console.debug('merge-latest-mac: scan directory entries', {
     rootDir,
     entries: entries.map((entry) => ({

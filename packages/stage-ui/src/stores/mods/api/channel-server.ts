@@ -50,7 +50,6 @@ const REPLAYABLE_EVENT_TYPES = new Set<keyof WebSocketEvents>([
   'registry:modules:sync',
 ])
 
-// eslint-disable-next-line complexity
 export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:server', () => {
   const connected = ref(false)
   const client = ref<Client>()
@@ -94,7 +93,6 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     'ui:configure',
   ]
 
-  // eslint-disable-next-line consistent-return
   function initialize(options?: {
     token?: string
     possibleEvents?: Array<keyof WebSocketEvents>
@@ -129,11 +127,12 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
         possibleEvents,
         onAnyMessage: (event) => {
           const eventType = event.type as keyof WebSocketEvents
-          if (REPLAYABLE_EVENT_TYPES.has(eventType))
+          if (REPLAYABLE_EVENT_TYPES.has(eventType)) {
             replayableEvents.set(
               eventType,
               event as WebSocketBaseEvent<keyof WebSocketEvents, WebSocketEvents[keyof WebSocketEvents]>,
             )
+          }
 
           useWebSocketInspectorStore().add('incoming', event)
         },
@@ -214,7 +213,6 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     return initializing.value
   }
 
-  // eslint-disable-next-line consistent-return
   async function ensureConnected() {
     await initializing.value
     if (!connected.value) {

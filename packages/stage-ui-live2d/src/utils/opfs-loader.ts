@@ -6,7 +6,6 @@ interface OPFSContext extends Live2DFactoryContext {
 }
 
 declare global {
-  // eslint-disable-next-line no-restricted-syntax
   interface FileSystemDirectoryHandle {
     values: () => FileSystemDirectoryHandleAsyncIterator<FileSystemHandle>
   }

@@ -527,7 +527,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
    * callers share a single in-flight promise so a rapid `[userId, characterId]`
    * change burst does not produce duplicate sessions.
    */
-  // eslint-disable-next-line consistent-return
+
   async function ensureActiveSessionForCharacter(): Promise<void> {
     if (ensureActivePromise) return ensureActivePromise
     const myEpoch = ensureActiveEpoch
@@ -1098,7 +1098,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       return
     }
     if (initializePromise) {
-      // eslint-disable-next-line consistent-return
       return initializePromise
     }
     initializing.value = true

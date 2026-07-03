@@ -470,7 +470,7 @@ interface InputSource {
 interface OutputSource {
   'gen-ai:chat': {
     message: UserMessage
-    contexts: Record<string, ContextUpdate<Record<string, unknown>, unknown>[]>,
+    contexts: Record<string, ContextUpdate<Record<string, unknown>, unknown>[]>
     composedMessage: Array<Message>
     input?: InputEventEnvelope
   }

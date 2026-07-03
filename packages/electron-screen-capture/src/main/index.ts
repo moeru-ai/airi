@@ -270,7 +270,6 @@ function handleSetSource(
         request.timeout ?? 5000,
       )
 
-      // eslint-disable-next-line consistent-return
       return handle
     } catch (e) {
       log

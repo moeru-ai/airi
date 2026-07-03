@@ -23,14 +23,12 @@ export function useElectronAutoUpdater() {
     try {
       const current = await getState()
       if (current) state.value = current
-    // eslint-disable-next-line no-empty
     } catch {
       // noop
     }
 
     try {
       context.value.on(electronAutoUpdaterStateChanged, (evt) => {
-        // eslint-disable-next-line no-empty
         if (evt.body) state.value = evt.body
       })
     } catch {

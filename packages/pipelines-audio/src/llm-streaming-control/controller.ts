@@ -12,9 +12,7 @@ import type {
 import { tokenAct, tokenCall, tokenDelay } from './parsers'
 import { renderCallManifestPrompt } from './parsers/call'
 
-// eslint-disable-next-line consistent-return
 function parsedParameter(signal: LlmStreamingControlSignal): string | undefined {
-  // eslint-disable-next-line default-case
   switch (signal.type) {
     case 'act':
       return JSON.stringify(signal.payload)

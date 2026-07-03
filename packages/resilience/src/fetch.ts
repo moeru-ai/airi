@@ -1,6 +1,7 @@
-import { BrokenCircuitError, ConsecutiveBreaker, circuitBreaker, handleAll } from 'cockatiel'
+import type { BreakerRegistry } from './registry'
 
-import { sharedBreakerRegistry, type BreakerRegistry } from './registry'
+import { BrokenCircuitError, circuitBreaker, ConsecutiveBreaker, handleAll } from 'cockatiel'
+import { sharedBreakerRegistry } from './registry'
 
 export interface ResilientFetchOptions extends RequestInit {
   /** Circuit-breaker name (e.g. `comfyui:http`, `nanobanana:gen`). Default: derived from URL. */

@@ -11,47 +11,47 @@
  * - Auto-removes completed tasks after TTL (configurable, default 5 minutes).
  */
 
-import type { EventBus } from "../events/bus.js"
-import type { Logger } from "../logger.js"
-import type { Task, TaskState, TaskFilter, TaskResult, TaskError, CreateTaskInput } from "./types.js"
-import { createTaskId, isValidTransition } from "./types.js"
-import { createCancellationToken, CancellationTokenSource } from "./cancellation.js"
-import type { CancellationToken } from "./cancellation.js"
-import type { TaskExecutor } from "./executor.js"
-import type { MetricRegistry } from "../telemetry/registry.js"
-import { Counter, Gauge, Histogram } from "../telemetry/metrics.js"
+import type { EventBus } from '../events/bus.js'
+import type { Logger } from '../logger.js'
+import type { MetricRegistry } from '../telemetry/registry.js'
+import type { CancellationToken, CancellationTokenSource } from './cancellation.js'
+import type { TaskExecutor } from './executor.js'
+import type { CreateTaskInput, Task, TaskError, TaskFilter, TaskResult, TaskState } from './types.js'
+import { Counter, Gauge, Histogram } from '../telemetry/metrics.js'
+import { createCancellationToken } from './cancellation.js'
+import { createTaskId, isValidTransition } from './types.js'
 
 // ── Configuration ────────────────────────────────────────────────────────
 
 export interface TaskManagerOptions {
-	/** Maximum number of tasks to retain in memory. @default 1000 */
-	readonly maxTasks?: number
+  /** Maximum number of tasks to retain in memory. @default 1000 */
+  readonly maxTasks?: number
 
-	/**
-	 * TTL in milliseconds for completed/failed/cancelled tasks.
-	 * After this duration, tasks are auto-removed. @default 300_000 (5 minutes)
-	 */
-	readonly completedTtlMs?: number
+  /**
+   * TTL in milliseconds for completed/failed/cancelled tasks.
+   * After this duration, tasks are auto-removed. @default 300_000 (5 minutes)
+   */
+  readonly completedTtlMs?: number
 
-	/**
-	 * Interval in milliseconds for the cleanup timer.
-	 * @default 60_000 (1 minute)
-	 */
-	readonly cleanupIntervalMs?: number
+  /**
+   * Interval in milliseconds for the cleanup timer.
+   * @default 60_000 (1 minute)
+   */
+  readonly cleanupIntervalMs?: number
 
-	/**
-	 * Metric registry to register task management instruments against.
-	 * When omitted, instruments still work but are not aggregated into
-	 * a shared /metrics scrape endpoint.
-	 */
-	readonly metricRegistry?: MetricRegistry
+  /**
+   * Metric registry to register task management instruments against.
+   * When omitted, instruments still work but are not aggregated into
+   * a shared /metrics scrape endpoint.
+   */
+  readonly metricRegistry?: MetricRegistry
 }
 
 // ── Internal task record ─────────────────────────────────────────────────
 
 interface TaskRecord {
-	task: Task
-	source: CancellationTokenSource
+  task: Task
+  source: CancellationTokenSource
 }
 
 // ── Task Manager ─────────────────────────────────────────────────────────
@@ -60,311 +60,326 @@ interface TaskRecord {
  * Manages the full lifecycle of tasks in the AIRI daemon.
  */
 export class TaskManager {
-	private readonly tasks = new Map<string, TaskRecord>()
-	private readonly executors = new Map<string, TaskExecutor>()
-	private readonly options: Required<Omit<TaskManagerOptions, 'metricRegistry'>> & { metricRegistry?: MetricRegistry }
-	private cleanupTimer: ReturnType<typeof setInterval> | undefined
-	private readonly events: EventBus
-	private readonly logger: Logger
+  private readonly tasks = new Map<string, TaskRecord>()
+  private readonly executors = new Map<string, TaskExecutor>()
+  private readonly options: Required<Omit<TaskManagerOptions, 'metricRegistry'>> & { metricRegistry?: MetricRegistry }
+  private cleanupTimer: ReturnType<typeof setInterval> | undefined
+  private readonly events: EventBus
+  private readonly logger: Logger
 
-	// ── Metrics ──────────────────────────────────────────────────────────
-	private readonly registry: MetricRegistry | undefined
-	private readonly mCreated: Counter
-	private readonly mTransition: Counter
-	private readonly mDuration: Histogram
-	private readonly mQueueSize: Gauge
-	private readonly mActiveCount: Gauge
+  // ── Metrics ──────────────────────────────────────────────────────────
+  private readonly registry: MetricRegistry | undefined
+  private readonly mCreated: Counter
+  private readonly mTransition: Counter
+  private readonly mDuration: Histogram
+  private readonly mQueueSize: Gauge
+  private readonly mActiveCount: Gauge
 
-	constructor(events: EventBus, logger: Logger, options: TaskManagerOptions = {}) {
-		this.events = events
-		this.logger = logger
-		this.options = {
-			maxTasks: options.maxTasks ?? 1000,
-			completedTtlMs: options.completedTtlMs ?? 300_000,
-			cleanupIntervalMs: options.cleanupIntervalMs ?? 60_000,
-			metricRegistry: options.metricRegistry,
-		}
+  constructor(events: EventBus, logger: Logger, options: TaskManagerOptions = {}) {
+    this.events = events
+    this.logger = logger
+    this.options = {
+      maxTasks: options.maxTasks ?? 1000,
+      completedTtlMs: options.completedTtlMs ?? 300_000,
+      cleanupIntervalMs: options.cleanupIntervalMs ?? 60_000,
+      metricRegistry: options.metricRegistry,
+    }
 
-		this.registry = options.metricRegistry
-		this.mCreated = this.registry
-			? this.registry.createCounter("airi_tasks_created_total", "Total tasks created", ["module"])
-			: new Counter("airi_tasks_created_total", "Total tasks created", ["module"])
-		this.mTransition = this.registry
-			? this.registry.createCounter("airi_task_transitions_total", "State transitions", ["module", "from_state", "to_state"])
-			: new Counter("airi_task_transitions_total", "State transitions", ["module", "from_state", "to_state"])
-		this.mDuration = this.registry
-			? this.registry.createHistogram("airi_task_duration_ms", "Task execution duration", {
-					labelKeys: ["module"],
-					buckets: [50, 100, 250, 500, 1000, 2500, 5000, 15000],
-				})
-			: new Histogram("airi_task_duration_ms", "Task execution duration", {
-					labelKeys: ["module"],
-					buckets: [50, 100, 250, 500, 1000, 2500, 5000, 15000],
-				})
-		this.mQueueSize = this.registry
-			? this.registry.createGauge("airi_task_queue_size", "Tasks currently queued", ["module"])
-			: new Gauge("airi_task_queue_size", "Tasks currently queued", ["module"])
-		this.mActiveCount = this.registry
-			? this.registry.createGauge("airi_task_active_count", "Tasks currently in running state", ["module"])
-			: new Gauge("airi_task_active_count", "Tasks currently in running state", ["module"])
-	}
+    this.registry = options.metricRegistry
+    this.mCreated = this.registry
+      ? this.registry.createCounter('airi_tasks_created_total', 'Total tasks created', ['module'])
+      : new Counter('airi_tasks_created_total', 'Total tasks created', ['module'])
+    this.mTransition = this.registry
+      ? this.registry.createCounter('airi_task_transitions_total', 'State transitions', ['module', 'from_state', 'to_state'])
+      : new Counter('airi_task_transitions_total', 'State transitions', ['module', 'from_state', 'to_state'])
+    this.mDuration = this.registry
+      ? this.registry.createHistogram('airi_task_duration_ms', 'Task execution duration', {
+          labelKeys: ['module'],
+          buckets: [50, 100, 250, 500, 1000, 2500, 5000, 15000],
+        })
+      : new Histogram('airi_task_duration_ms', 'Task execution duration', {
+          labelKeys: ['module'],
+          buckets: [50, 100, 250, 500, 1000, 2500, 5000, 15000],
+        })
+    this.mQueueSize = this.registry
+      ? this.registry.createGauge('airi_task_queue_size', 'Tasks currently queued', ['module'])
+      : new Gauge('airi_task_queue_size', 'Tasks currently queued', ['module'])
+    this.mActiveCount = this.registry
+      ? this.registry.createGauge('airi_task_active_count', 'Tasks currently in running state', ['module'])
+      : new Gauge('airi_task_active_count', 'Tasks currently in running state', ['module'])
+  }
 
-	start(): void {
-		this.cleanupTimer = setInterval(() => {
-			this.cleanupCompleted()
-		}, this.options.cleanupIntervalMs)
-	}
+  start(): void {
+    this.cleanupTimer = setInterval(() => {
+      this.cleanupCompleted()
+    }, this.options.cleanupIntervalMs)
+  }
 
-	stop(): void {
-		if (this.cleanupTimer) {
-			clearInterval(this.cleanupTimer)
-			this.cleanupTimer = undefined
-		}
-		for (const [id, record] of this.tasks) {
-			if (record.task.state === "running" || record.task.state === "queued") {
-				record.source.cancel("TaskManager stopped")
-				this.transition(id, "cancelled", "TaskManager stopped")
-			}
-		}
-	}
+  stop(): void {
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer)
+      this.cleanupTimer = undefined
+    }
+    for (const [id, record] of this.tasks) {
+      if (record.task.state === 'running' || record.task.state === 'queued') {
+        record.source.cancel('TaskManager stopped')
+        this.transition(id, 'cancelled', 'TaskManager stopped')
+      }
+    }
+  }
 
-	registerExecutor(moduleId: string, executor: TaskExecutor): void {
-		this.executors.set(moduleId, executor)
-		this.logger.info(`TaskExecutor registered for module: ${moduleId}`)
-	}
+  registerExecutor(moduleId: string, executor: TaskExecutor): void {
+    this.executors.set(moduleId, executor)
+    this.logger.info(`TaskExecutor registered for module: ${moduleId}`)
+  }
 
-	unregisterExecutor(moduleId: string): void {
-		this.executors.delete(moduleId)
-	}
+  unregisterExecutor(moduleId: string): void {
+    this.executors.delete(moduleId)
+  }
 
-	findExecutor(task: Task): TaskExecutor | undefined {
-		const moduleExecutor = this.executors.get(task.moduleId)
-		if (moduleExecutor?.canExecute(task)) {
-			return moduleExecutor
-		}
-		for (const [, executor] of this.executors) {
-			if (executor.canExecute(task)) {
-				return executor
-			}
-		}
-		return undefined
-	}
+  findExecutor(task: Task): TaskExecutor | undefined {
+    const moduleExecutor = this.executors.get(task.moduleId)
+    if (moduleExecutor?.canExecute(task)) {
+      return moduleExecutor
+    }
+    for (const [, executor] of this.executors) {
+      if (executor.canExecute(task)) {
+        return executor
+      }
+    }
+    return undefined
+  }
 
-	createTask(input: CreateTaskInput): Task {
-		const id = createTaskId(crypto.randomUUID())
-		const now = new Date().toISOString()
-		const priority = input.priority ?? "normal"
-		const moduleId = input.moduleId ?? "core"
+  createTask(input: CreateTaskInput): Task {
+    const id = createTaskId(crypto.randomUUID())
+    const now = new Date().toISOString()
+    const priority = input.priority ?? 'normal'
+    const moduleId = input.moduleId ?? 'core'
 
-		const task: Task = {
-			id,
-			title: input.title,
-			description: input.description,
-			state: "pending",
-			priority,
-			moduleId,
-			sessionId: input.sessionId,
-			createdAt: now,
-			updatedAt: now,
-			progress: 0,
-			metadata: input.metadata ?? {},
-			executionAttempt: 0,
-			isolationLevel: input.isolationLevel ?? "process",
-			parentTaskId: input.parentTaskId,
-			cancellation: { isCancelled: false },
-		}
+    const task: Task = {
+      id,
+      title: input.title,
+      description: input.description,
+      state: 'pending',
+      priority,
+      moduleId,
+      sessionId: input.sessionId,
+      createdAt: now,
+      updatedAt: now,
+      progress: 0,
+      metadata: input.metadata ?? {},
+      executionAttempt: 0,
+      isolationLevel: input.isolationLevel ?? 'process',
+      parentTaskId: input.parentTaskId,
+      cancellation: { isCancelled: false },
+    }
 
-		const source = createCancellationToken()
+    const source = createCancellationToken()
 
-		if (this.tasks.size >= this.options.maxTasks) {
-			this.cleanupCompleted()
-			if (this.tasks.size >= this.options.maxTasks) {
-				throw new Error(`Task limit reached (${this.options.maxTasks}). Cannot create new task.`)
-			}
-		}
+    if (this.tasks.size >= this.options.maxTasks) {
+      this.cleanupCompleted()
+      if (this.tasks.size >= this.options.maxTasks) {
+        throw new Error(`Task limit reached (${this.options.maxTasks}). Cannot create new task.`)
+      }
+    }
 
-		this.tasks.set(id as string, { task, source })
-		this.mCreated.inc(1, { module: moduleId })
-		this.logger.info(`Task created: ${id} "${task.title}" [${task.moduleId}]`)
+    this.tasks.set(id as string, { task, source })
+    this.mCreated.inc(1, { module: moduleId })
+    this.logger.info(`Task created: ${id} "${task.title}" [${task.moduleId}]`)
 
-		return task
-	}
+    return task
+  }
 
-	queue(taskId: string): Task | undefined {
-		return this.transition(taskId, "queued")
-	}
+  queue(taskId: string): Task | undefined {
+    return this.transition(taskId, 'queued')
+  }
 
-	startTask(taskId: string): Task | undefined {
-		return this.transition(taskId, "running")
-	}
+  startTask(taskId: string): Task | undefined {
+    return this.transition(taskId, 'running')
+  }
 
-	complete(taskId: string, result: TaskResult): Task | undefined {
-		const task = this.transition(taskId, "completed")
-		if (!task) return undefined
+  complete(taskId: string, result: TaskResult): Task | undefined {
+    const task = this.transition(taskId, 'completed')
+    if (!task)
+      return undefined
 
-		if (task.startedAt && task.completedAt) {
-			const start = new Date(task.startedAt).getTime()
-			const end = new Date(task.completedAt).getTime()
-			this.mDuration.observe(end - start, { module: task.moduleId })
-		}
+    if (task.startedAt && task.completedAt) {
+      const start = new Date(task.startedAt).getTime()
+      const end = new Date(task.completedAt).getTime()
+      this.mDuration.observe(end - start, { module: task.moduleId })
+    }
 
-		const now = new Date().toISOString()
-		const updated: Task = {
-			...task,
-			state: "completed",
-			progress: 100,
-			updatedAt: now,
-			completedAt: now,
-			result,
-			cancellation: { isCancelled: false },
-		}
-		this.tasks.set(taskId, { ...this.tasks.get(taskId)!, task: updated })
-		return updated
-	}
+    const now = new Date().toISOString()
+    const updated: Task = {
+      ...task,
+      state: 'completed',
+      progress: 100,
+      updatedAt: now,
+      completedAt: now,
+      result,
+      cancellation: { isCancelled: false },
+    }
+    this.tasks.set(taskId, { ...this.tasks.get(taskId)!, task: updated })
+    return updated
+  }
 
-	fail(taskId: string, error: TaskError): Task | undefined {
-		const task = this.transition(taskId, "failed")
-		if (!task) return undefined
+  fail(taskId: string, error: TaskError): Task | undefined {
+    const task = this.transition(taskId, 'failed')
+    if (!task)
+      return undefined
 
-		const now = new Date().toISOString()
-		const updated: Task = {
-			...task,
-			state: "failed",
-			updatedAt: now,
-			completedAt: now,
-			error,
-			cancellation: { isCancelled: false },
-		}
-		this.tasks.set(taskId, { ...this.tasks.get(taskId)!, task: updated })
-		return updated
-	}
+    const now = new Date().toISOString()
+    const updated: Task = {
+      ...task,
+      state: 'failed',
+      updatedAt: now,
+      completedAt: now,
+      error,
+      cancellation: { isCancelled: false },
+    }
+    this.tasks.set(taskId, { ...this.tasks.get(taskId)!, task: updated })
+    return updated
+  }
 
-	cancel(taskId: string, reason?: string): Task | undefined {
-		const record = this.tasks.get(taskId)
-		if (!record) return undefined
-		record.source.cancel(reason)
-		return this.transition(taskId, "cancelled", reason)
-	}
+  cancel(taskId: string, reason?: string): Task | undefined {
+    const record = this.tasks.get(taskId)
+    if (!record)
+      return undefined
+    record.source.cancel(reason)
+    return this.transition(taskId, 'cancelled', reason)
+  }
 
-	private transition(taskId: string, newState: TaskState, message?: string): Task | undefined {
-		const record = this.tasks.get(taskId)
-		if (!record) return undefined
+  private transition(taskId: string, newState: TaskState, message?: string): Task | undefined {
+    const record = this.tasks.get(taskId)
+    if (!record)
+      return undefined
 
-		const current = record.task
+    const current = record.task
 
-		if (!isValidTransition(current.state, newState)) {
-			this.logger.warn(
-				`Invalid transition for task ${taskId}: ${current.state} → ${newState}`,
-			)
-			return undefined
-		}
+    if (!isValidTransition(current.state, newState)) {
+      this.logger.warn(
+        `Invalid transition for task ${taskId}: ${current.state} → ${newState}`,
+      )
+      return undefined
+    }
 
-		const now = new Date().toISOString()
-		const updated: Task = {
-			...current,
-			state: newState,
-			updatedAt: now,
-			progressMessage: message ?? current.progressMessage,
-			cancellation: newState === "cancelled"
-				? { isCancelled: true, cancelledAt: now, reason: message }
-				: current.cancellation,
-			startedAt: newState === "running" ? now : current.startedAt,
-			completedAt: newState === "completed" || newState === "failed" || newState === "cancelled"
-				? now
-				: current.completedAt,
-		}
+    const now = new Date().toISOString()
+    const updated: Task = {
+      ...current,
+      state: newState,
+      updatedAt: now,
+      progressMessage: message ?? current.progressMessage,
+      cancellation: newState === 'cancelled'
+        ? { isCancelled: true, cancelledAt: now, reason: message }
+        : current.cancellation,
+      startedAt: newState === 'running' ? now : current.startedAt,
+      completedAt: newState === 'completed' || newState === 'failed' || newState === 'cancelled'
+        ? now
+        : current.completedAt,
+    }
 
-		this.tasks.set(taskId, { ...record, task: updated })
-		this.mTransition.inc(1, {
-			module: current.moduleId,
-			from_state: current.state,
-			to_state: newState,
-		})
+    this.tasks.set(taskId, { ...record, task: updated })
+    this.mTransition.inc(1, {
+      module: current.moduleId,
+      from_state: current.state,
+      to_state: newState,
+    })
 
-		// Update gauges on state transitions that affect queue/active pools.
-		if (newState === "queued") this.mQueueSize.inc(1, { module: current.moduleId })
-		if (current.state === "queued" && newState !== "queued") this.mQueueSize.dec(1, { module: current.moduleId })
-		if (newState === "running") this.mActiveCount.inc(1, { module: current.moduleId })
-		if (current.state === "running") this.mActiveCount.dec(1, { module: current.moduleId })
+    // Update gauges on state transitions that affect queue/active pools.
+    if (newState === 'queued')
+      this.mQueueSize.inc(1, { module: current.moduleId })
+    if (current.state === 'queued' && newState !== 'queued')
+      this.mQueueSize.dec(1, { module: current.moduleId })
+    if (newState === 'running')
+      this.mActiveCount.inc(1, { module: current.moduleId })
+    if (current.state === 'running')
+      this.mActiveCount.dec(1, { module: current.moduleId })
 
-		this.logger.debug(`Task ${taskId}: ${current.state} → ${newState}`)
+    this.logger.debug(`Task ${taskId}: ${current.state} → ${newState}`)
 
-		return updated
-	}
+    return updated
+  }
 
-	reportProgress(taskId: string, progress: number, message?: string): void {
-		const record = this.tasks.get(taskId)
-		if (!record) return
+  reportProgress(taskId: string, progress: number, message?: string): void {
+    const record = this.tasks.get(taskId)
+    if (!record)
+      return
 
-		const clamped = Math.max(0, Math.min(100, progress))
-		const now = new Date().toISOString()
-		const updated: Task = {
-			...record.task,
-			progress: clamped,
-			progressMessage: message ?? record.task.progressMessage,
-			updatedAt: now,
-		}
-		this.tasks.set(taskId, { ...record, task: updated })
-	}
+    const clamped = Math.max(0, Math.min(100, progress))
+    const now = new Date().toISOString()
+    const updated: Task = {
+      ...record.task,
+      progress: clamped,
+      progressMessage: message ?? record.task.progressMessage,
+      updatedAt: now,
+    }
+    this.tasks.set(taskId, { ...record, task: updated })
+  }
 
-	get(taskId: string): Task | undefined {
-		return this.tasks.get(taskId)?.task
-	}
+  get(taskId: string): Task | undefined {
+    return this.tasks.get(taskId)?.task
+  }
 
-	getCancellationToken(taskId: string): CancellationToken | undefined {
-		return this.tasks.get(taskId)?.source.token
-	}
+  getCancellationToken(taskId: string): CancellationToken | undefined {
+    return this.tasks.get(taskId)?.source.token
+  }
 
-	list(filter: TaskFilter = {}): Task[] {
-		const results: Task[] = []
-		for (const [, record] of this.tasks) {
-			const task = record.task
-			if (filter.state && task.state !== filter.state) continue
-			if (filter.moduleId && task.moduleId !== filter.moduleId) continue
-			if (filter.sessionId && task.sessionId !== filter.sessionId) continue
-			if (filter.priority && task.priority !== filter.priority) continue
-			if (filter.parentTaskId && task.parentTaskId !== filter.parentTaskId) continue
-			results.push(task)
-		}
-		return results
-	}
+  list(filter: TaskFilter = {}): Task[] {
+    const results: Task[] = []
+    for (const [, record] of this.tasks) {
+      const task = record.task
+      if (filter.state && task.state !== filter.state)
+        continue
+      if (filter.moduleId && task.moduleId !== filter.moduleId)
+        continue
+      if (filter.sessionId && task.sessionId !== filter.sessionId)
+        continue
+      if (filter.priority && task.priority !== filter.priority)
+        continue
+      if (filter.parentTaskId && task.parentTaskId !== filter.parentTaskId)
+        continue
+      results.push(task)
+    }
+    return results
+  }
 
-	getByState(state: TaskState): Task[] {
-		return this.list({ state })
-	}
+  getByState(state: TaskState): Task[] {
+    return this.list({ state })
+  }
 
-	countByState(state: TaskState): number {
-		let count = 0
-		for (const [, record] of this.tasks) {
-			if (record.task.state === state) count++
-		}
-		return count
-	}
+  countByState(state: TaskState): number {
+    let count = 0
+    for (const [, record] of this.tasks) {
+      if (record.task.state === state)
+        count++
+    }
+    return count
+  }
 
-	get size(): number {
-		return this.tasks.size
-	}
+  get size(): number {
+    return this.tasks.size
+  }
 
-	private cleanupCompleted(): void {
-		const now = Date.now()
-		const toRemove: string[] = []
-		for (const [id, record] of this.tasks) {
-			const { task } = record
-			if (
-				(task.state === "completed" || task.state === "failed" || task.state === "cancelled") &&
-				task.completedAt
-			) {
-				const completedTime = new Date(task.completedAt).getTime()
-				if (now - completedTime > this.options.completedTtlMs) {
-					toRemove.push(id)
-				}
-			}
-		}
-		for (const id of toRemove) {
-			this.tasks.delete(id)
-		}
-		if (toRemove.length > 0) {
-			this.logger.debug(`Cleaned up ${toRemove.length} expired tasks`)
-		}
-	}
+  private cleanupCompleted(): void {
+    const now = Date.now()
+    const toRemove: string[] = []
+    for (const [id, record] of this.tasks) {
+      const { task } = record
+      if (
+        (task.state === 'completed' || task.state === 'failed' || task.state === 'cancelled')
+        && task.completedAt
+      ) {
+        const completedTime = new Date(task.completedAt).getTime()
+        if (now - completedTime > this.options.completedTtlMs) {
+          toRemove.push(id)
+        }
+      }
+    }
+    for (const id of toRemove) {
+      this.tasks.delete(id)
+    }
+    if (toRemove.length > 0) {
+      this.logger.debug(`Cleaned up ${toRemove.length} expired tasks`)
+    }
+  }
 }

@@ -40,7 +40,6 @@ const artistLog = import.meta.env.DEV
       /* noop — silent in production */
     }
 
-// eslint-disable-next-line complexity
 export const useAutonomousArtistryStore = defineStore('artistry-autonomous', () => {
   const cardStore = useAiriCardStore()
   const backgroundStore = useBackgroundStore()

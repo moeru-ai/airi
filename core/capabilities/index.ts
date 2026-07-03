@@ -13,19 +13,19 @@
  * ```
  */
 
+// ── Registry
+export { CapabilityRegistry } from './registry.js'
 // ── Types
 export type {
-	CapabilityId,
-	ToolId,
-	CapabilityDescriptor,
-	ToolDescriptor,
-	WorkspaceContext,
-	ToolExecutionContext,
-	ToolExecutionResult,
-	CapabilityStatus,
-	CapabilityInfo,
-} from "./types.js"
-export { createCapabilityId, createToolId } from "./types.js"
+  CapabilityDescriptor,
+  CapabilityId,
+  CapabilityInfo,
+  CapabilityStatus,
+  ToolDescriptor,
+  ToolExecutionContext,
+  ToolExecutionResult,
+  ToolId,
+  WorkspaceContext,
+} from './types.js'
 
-// ── Registry
-export { CapabilityRegistry } from "./registry.js"
+export { createCapabilityId, createToolId } from './types.js'

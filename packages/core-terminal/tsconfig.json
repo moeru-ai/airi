@@ -1,0 +1,7 @@
+{
+  "extends": "../core-agent/tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts", "__tests__/**/*.ts"]
+}

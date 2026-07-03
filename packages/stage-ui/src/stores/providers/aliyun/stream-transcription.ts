@@ -2,10 +2,11 @@ import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { CommonRequestOptions } from '@xsai/shared'
 import type { StreamTranscriptionDelta, StreamTranscriptionResult } from '@xsai/stream-transcription'
 
+import type { EventStartTranscription, ServerEvent, ServerEvents } from './'
 import { tryCatch } from '@moeru/std'
-import { timeout as promiseTimeout } from 'es-toolkit/promise'
 
-import { type EventStartTranscription, type ServerEvent, type ServerEvents, createAliyunNLSSession } from './'
+import { timeout as promiseTimeout } from 'es-toolkit/promise'
+import { createAliyunNLSSession } from './'
 import { nlsWebSocketEndpointFromRegion } from './utils'
 
 type SessionOptions = NonNullable<Parameters<typeof createAliyunNLSSession>[3]>
@@ -179,7 +180,6 @@ interface InternalRealtimeOptions extends CreateAliyunStreamTranscriptionOptions
   stopAckTimeoutMs?: number
 }
 
-// eslint-disable-next-line complexity
 async function startRealtimeSession(options: InternalRealtimeOptions): Promise<AliyunStreamTranscriptionHandle> {
   const {
     accessKeyId,
@@ -342,7 +342,6 @@ async function startRealtimeSession(options: InternalRealtimeOptions): Promise<A
   return handle
 }
 
-// eslint-disable-next-line complexity
 export function streamAliyunTranscription(options: AliyunStreamTranscriptionOptions): StreamTranscriptionResult {
   const audioStream = resolveAudioStream(options)
   const fetcher = options.fetch ?? globalThis.fetch
@@ -422,7 +421,6 @@ export function streamAliyunTranscription(options: AliyunStreamTranscriptionOpti
   }
 }
 
-// eslint-disable-next-line complexity
 export function createAliyunNLSProvider(
   accessKeyId: string,
   accessKeySecret: string,
@@ -438,10 +436,11 @@ export function createAliyunNLSProvider(
         model: 'aliyun-nls-v1',
         fetch: async (_request: RequestInfo | URL, init?: RequestInit) => {
           const streamSource = init?.body ?? extraOptions?.inputAudioStream
-          if (!(streamSource instanceof ReadableStream))
+          if (!(streamSource instanceof ReadableStream)) {
             throw new TypeError(
               'Audio stream must be provided as a ReadableStream for Aliyun NLS streaming transcription.',
             )
+          }
 
           let sessionHandle: AliyunStreamTranscriptionHandle | undefined
           let controllerClosed = false

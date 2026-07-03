@@ -94,9 +94,9 @@ Minimal interface for cognition providers:
 
 ```ts
 interface CognitionProvider {
-  generatePlanProposal(request, cancellationToken?): Promise<CognitionResponse>
-  getModelInfo(): ModelInfo
-  isAvailable(): Promise<boolean>
+  generatePlanProposal: (request, cancellationToken?) => Promise<CognitionResponse>
+  getModelInfo: () => ModelInfo
+  isAvailable: () => Promise<boolean>
 }
 ```
 
@@ -145,7 +145,7 @@ Cognition events are stored as regular `AiriEvent` entries in the event store â€
 ### Basic Pipeline
 
 ```ts
-import { CognitionCoordinator, PlanValidator, MockCognitionProvider } from './core/cognition/index.js'
+import { CognitionCoordinator, MockCognitionProvider, PlanValidator } from './core/cognition/index.js'
 
 const provider = new MockCognitionProvider()
 const validator = new PlanValidator(capabilityRegistry, workspaceManager)
@@ -162,7 +162,8 @@ const result = await coordinator.proposePlan(
 if (result.accepted) {
   // result.plan is ready for the planner
   console.log(`Plan accepted: ${result.plan.name} (${result.plan.steps.length} steps)`)
-} else {
+}
+else {
   // result.validationResult contains errors
   console.log(`Plan rejected: ${result.validationResult.errors.map(e => e.message).join(', ')}`)
 }

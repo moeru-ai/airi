@@ -1,6 +1,3 @@
-import type { ChildProcessByStdio } from 'node:child_process'
-import type { Readable } from 'node:stream'
-
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type {
   StageViewErrorPayload,
@@ -8,17 +5,20 @@ import type {
   StageViewRequestAckPayload,
   StageViewSnapshotPayload,
 } from '@proj-airi/stage-shared/godot-stage'
+
 import type { BrowserWindow } from 'electron'
+import type { ChildProcessByStdio } from 'node:child_process'
+import type { Readable } from 'node:stream'
 import type { InferOutput } from 'valibot'
 
 import type { ElectronGodotStageSceneInputPayload, ElectronGodotStageStatus } from '../../../../shared/eventa'
 
-import process from 'node:process'
-
 import { spawn } from 'node:child_process'
+
 import { randomUUID } from 'node:crypto'
 import { access, mkdir, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, join, resolve } from 'node:path'
+import process from 'node:process'
 
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
@@ -264,7 +264,6 @@ async function resolveGodotProjectPath() {
     try {
       await access(join(projectPath, 'project.godot'))
       return projectPath
-      // eslint-disable-next-line no-empty
     } catch {
       // noop
     }

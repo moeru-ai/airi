@@ -6,9 +6,9 @@ import { useAsyncState } from '@vueuse/core'
 import { onUnmounted, watch } from 'vue'
 import { createWLipSyncNode } from 'wlipsync'
 
-import profile from '../../assets/lip-sync-profile.json' with { type: 'json' }
-
 import { useAudioContext } from '../../../../stage-ui/src/stores/audio'
+
+import profile from '../../assets/lip-sync-profile.json' with { type: 'json' }
 
 export function useVRMLipSync(audioNode: Ref<AudioBufferSourceNode | undefined, AudioBufferSourceNode | undefined>) {
   const { audioContext } = useAudioContext()
@@ -49,13 +49,12 @@ export function useVRMLipSync(audioNode: Ref<AudioBufferSourceNode | undefined, 
       if (oldAudioNode && oldAudioNode !== newAudioNode) {
         try {
           oldAudioNode.disconnect()
-        // eslint-disable-next-line no-empty
         } catch (error) {
           console.error('[LipSync] Failed to disconnect old audio node:', error)
         }
       }
       if (!ready || !newAudioNode || !lipSyncNode.value) return
-      // eslint-disable-next-line no-empty
+
       try {
         newAudioNode.connect(lipSyncNode.value)
       } catch (error) {

@@ -1,1 +1,1 @@
-export { Counter, Gauge, MetricRegistry, escapeLabelValue } from './registry.js'
+export { Counter, escapeLabelValue, Gauge, MetricRegistry } from './registry.js'

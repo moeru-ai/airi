@@ -6,7 +6,7 @@ import type {
 } from '../types'
 
 const CYRILLIC_RE = /[\u0400-\u04FF]/u
-const WORD_RE = /[\p{L}][\p{L}'-]*/gu
+const WORD_RE = /\p{L}[\p{L}'-]*/gu
 
 const RU_KNOWN_NORMAL_FORMS = new Set([
   'брести',
@@ -232,7 +232,7 @@ function normalizeRussianToken(token: string): string {
 }
 
 export function normalizeToken(token: string, language: ResolvedPatternDisruptorLanguage): string {
-  const lower = token.toLowerCase().replace(/^[^\p{L}]+|[^\p{L}]+$/gu, '')
+  const lower = token.toLowerCase().replace(/^\P{L}+|\P{L}+$/gu, '')
   return language === 'ru' ? normalizeRussianToken(lower) : normalizeEnglishToken(lower)
 }
 

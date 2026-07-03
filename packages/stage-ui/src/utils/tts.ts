@@ -84,7 +84,6 @@ export async function* chunkTTSInput(
     let afterNext: IteratorResult<string, void> | undefined
 
     if (flush || special || hard || soft) {
-      // eslint-disable-next-line default-case
       switch (value) {
         case '.':
         case ',': {

@@ -1,6 +1,7 @@
+import type { Ref } from 'vue'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
-import { computed, isRef, ref, watch, type Ref } from 'vue'
+import { computed, isRef, ref, watch } from 'vue'
 
 export interface ResolvedArtistryConfig {
   provider?: string
@@ -36,7 +37,6 @@ interface ArtistryConfigStoreLike {
   nanobananaResolution: MaybeRefLike<string>
 }
 
-// eslint-disable-next-line complexity
 export const useArtistryStore = defineStore('artistry', () => {
   // --- Persistent Global Settings (User Preferences) ---
   const globalProvider = useLocalStorageManualReset<string>('artistry-provider', 'none')

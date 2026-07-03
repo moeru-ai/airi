@@ -130,7 +130,6 @@ export function createServer(opts?: ServerOptions): Server {
       return
     }
     if (startTask) {
-      // eslint-disable-next-line consistent-return
       return startTask
     }
 
@@ -193,7 +192,6 @@ export function createServer(opts?: ServerOptions): Server {
       startTask = null
     })
 
-    // eslint-disable-next-line consistent-return
     return startTask
   }
   async function stop() {

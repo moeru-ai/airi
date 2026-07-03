@@ -35,11 +35,11 @@ viewers:
       angry: 화남
       awkward: 어색함
       happy: 행복함
-      neutral: '🙂 중립'
-      question: '🤔 질문'
+      neutral: 🙂 중립
+      question: 🤔 질문
       sad: 슬픔
       surprised: 놀람
-      think: '🤨 생각'
+      think: 🤨 생각
     vrm:
       camera: 카메라
       model:

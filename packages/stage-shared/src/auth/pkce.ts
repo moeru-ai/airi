@@ -1,8 +1,7 @@
-// eslint-disable-next-line no-div-regex -- False positive: valid regex pattern
 const BASE64_PLUS = /\+/g
-// eslint-disable-next-line no-div-regex -- False positive: valid regex pattern
+
 const BASE64_SLASH = /\//g
-// eslint-disable-next-line no-div-regex -- False positive: valid regex pattern
+
 const BASE64_TRAILING_EQ = /=+$/
 
 /**

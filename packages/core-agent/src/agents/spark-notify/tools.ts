@@ -1,9 +1,9 @@
 import type { ContextUpdate } from '@proj-airi/server-sdk'
 import type { Tool } from '@xsai/shared-chat'
 
-import type { SparkNotifyTracingHooks, SparkTraceEvent } from './types'
-
 import type { JsonSchema } from 'xsschema'
+
+import type { SparkNotifyTracingHooks, SparkTraceEvent } from './types'
 
 import { errorMessageFrom } from '@moeru/std'
 import { rawTool } from '@xsai/tool'

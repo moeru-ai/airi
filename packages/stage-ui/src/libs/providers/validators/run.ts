@@ -8,10 +8,10 @@ import type {
   ProviderRuntimeValidator,
 } from '../types'
 
+import { errorMessageFrom, merge } from '@moeru/std'
+
 /** Placeholder for the validator parameter type */
 type ValidatorProviderExtra = ProviderExtraMethods<Record<string, unknown>>
-
-import { errorMessageFrom, merge } from '@moeru/std'
 
 export type ProviderValidationStepStatus = 'idle' | 'validating' | 'valid' | 'invalid'
 export type ProviderValidationStepKind = 'config' | 'provider'

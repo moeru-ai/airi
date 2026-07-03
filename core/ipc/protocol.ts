@@ -12,13 +12,13 @@
 
 // ── Message type discriminants ────────────────────────────────────────
 
-export type IpcMessageType =
-	| "event"
-	| "request"
-	| "response"
-	| "error"
-	| "ping"
-	| "pong"
+export type IpcMessageType
+  = | 'event'
+    | 'request'
+    | 'response'
+    | 'error'
+    | 'ping'
+    | 'pong'
 
 // ── Base envelope ─────────────────────────────────────────────────────
 
@@ -29,14 +29,14 @@ export type IpcMessageType =
  * Payload-specific data belongs in the concrete message types.
  */
 export interface IpcMessageBase {
-	/** Unique message identifier (UUID v4). */
-	readonly id: string
+  /** Unique message identifier (UUID v4). */
+  readonly id: string
 
-	/** Discriminant — determines which concrete type to use. */
-	readonly type: IpcMessageType
+  /** Discriminant — determines which concrete type to use. */
+  readonly type: IpcMessageType
 
-	/** ISO-8601 timestamp of when the message was created. */
-	readonly timestamp: string
+  /** ISO-8601 timestamp of when the message was created. */
+  readonly timestamp: string
 }
 
 // ── Event message ─────────────────────────────────────────────────────
@@ -48,10 +48,10 @@ export interface IpcMessageBase {
  * event is emitted on its EventBus.
  */
 export interface IpcEventMessage extends IpcMessageBase {
-	readonly type: "event"
+  readonly type: 'event'
 
-	/** The AIRI event payload (discriminated union). */
-	readonly payload: Record<string, unknown>
+  /** The AIRI event payload (discriminated union). */
+  readonly payload: Record<string, unknown>
 }
 
 // ── Request message ───────────────────────────────────────────────────
@@ -66,16 +66,16 @@ export interface IpcEventMessage extends IpcMessageBase {
  * carrying the same `correlationId`.
  */
 export interface IpcRequestMessage extends IpcMessageBase {
-	readonly type: "request"
+  readonly type: 'request'
 
-	/** Matches the `id` of the corresponding request. */
-	readonly correlationId: string
+  /** Matches the `id` of the corresponding request. */
+  readonly correlationId: string
 
-	/** Operation name (e.g. "module.list", "runtime.status"). */
-	readonly method: string
+  /** Operation name (e.g. "module.list", "runtime.status"). */
+  readonly method: string
 
-	/** Method-specific input parameters. */
-	readonly params?: Record<string, unknown>
+  /** Method-specific input parameters. */
+  readonly params?: Record<string, unknown>
 }
 
 // ── Response message ──────────────────────────────────────────────────
@@ -86,13 +86,13 @@ export interface IpcRequestMessage extends IpcMessageBase {
  * `correlationId` matches the `id` of the corresponding IpcRequestMessage.
  */
 export interface IpcResponseMessage extends IpcMessageBase {
-	readonly type: "response"
+  readonly type: 'response'
 
-	/** Matches the `id` of the corresponding request. */
-	readonly correlationId: string
+  /** Matches the `id` of the corresponding request. */
+  readonly correlationId: string
 
-	/** Operation-specific result data. */
-	readonly result: unknown
+  /** Operation-specific result data. */
+  readonly result: unknown
 }
 
 // ── Error message ─────────────────────────────────────────────────────
@@ -104,19 +104,19 @@ export interface IpcResponseMessage extends IpcMessageBase {
  * When sent out-of-band, `correlationId` may be empty.
  */
 export interface IpcErrorMessage extends IpcMessageBase {
-	readonly type: "error"
+  readonly type: 'error'
 
-	/** Matches the `id` of the corresponding request, if any. */
-	readonly correlationId?: string
+  /** Matches the `id` of the corresponding request, if any. */
+  readonly correlationId?: string
 
-	/** Machine-readable error code (e.g. "MODULE_NOT_FOUND"). */
-	readonly code: string
+  /** Machine-readable error code (e.g. "MODULE_NOT_FOUND"). */
+  readonly code: string
 
-	/** Human-readable error description. */
-	readonly message: string
+  /** Human-readable error description. */
+  readonly message: string
 
-	/** Optional structured error details. */
-	readonly details?: Record<string, unknown>
+  /** Optional structured error details. */
+  readonly details?: Record<string, unknown>
 }
 
 // ── Heartbeat messages ────────────────────────────────────────────────
@@ -127,17 +127,17 @@ export interface IpcErrorMessage extends IpcMessageBase {
  * The receiver should respond with an IpcPongMessage carrying the same `id`.
  */
 export interface IpcPingMessage extends IpcMessageBase {
-	readonly type: "ping"
+  readonly type: 'ping'
 }
 
 /**
  * Pong message — response to a ping.
  */
 export interface IpcPongMessage extends IpcMessageBase {
-	readonly type: "pong"
+  readonly type: 'pong'
 
-	/** Matches the `id` of the corresponding ping. */
-	readonly correlationId: string
+  /** Matches the `id` of the corresponding ping. */
+  readonly correlationId: string
 }
 
 // ── Union type ────────────────────────────────────────────────────────
@@ -158,13 +158,13 @@ export interface IpcPongMessage extends IpcMessageBase {
  * }
  * ```
  */
-export type IpcMessage =
-	| IpcEventMessage
-	| IpcRequestMessage
-	| IpcResponseMessage
-	| IpcErrorMessage
-	| IpcPingMessage
-	| IpcPongMessage
+export type IpcMessage
+  = | IpcEventMessage
+    | IpcRequestMessage
+    | IpcResponseMessage
+    | IpcErrorMessage
+    | IpcPingMessage
+    | IpcPongMessage
 
 // ── Serialization helpers ─────────────────────────────────────────────
 
@@ -175,7 +175,7 @@ export type IpcMessage =
  * Date objects are expected to be stored as ISO-8601 strings already.
  */
 export function serializeMessage(msg: IpcMessage): string {
-	return JSON.stringify(msg)
+  return JSON.stringify(msg)
 }
 
 /**
@@ -185,34 +185,40 @@ export function serializeMessage(msg: IpcMessage): string {
  * the IpcMessage shape (missing required fields or unknown type).
  */
 export function deserializeMessage(raw: string): IpcMessage | null {
-	try {
-		const parsed = JSON.parse(raw) as unknown
-		if (!isValidMessage(parsed)) return null
-		return parsed
-	} catch {
-		return null
-	}
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (!isValidMessage(parsed))
+      return null
+    return parsed
+  }
+  catch {
+    return null
+  }
 }
 
 // ── Type guard ────────────────────────────────────────────────────────
 
 function isValidMessage(value: unknown): value is IpcMessage {
-	if (typeof value !== "object" || value === null) return false
+  if (typeof value !== 'object' || value === null)
+    return false
 
-	const obj = value as Record<string, unknown>
+  const obj = value as Record<string, unknown>
 
-	if (typeof obj["id"] !== "string") return false
-	if (typeof obj["type"] !== "string") return false
-	if (typeof obj["timestamp"] !== "string") return false
+  if (typeof obj.id !== 'string')
+    return false
+  if (typeof obj.type !== 'string')
+    return false
+  if (typeof obj.timestamp !== 'string')
+    return false
 
-	const validTypes: string[] = [
-		"event",
-		"request",
-		"response",
-		"error",
-		"ping",
-		"pong",
-	]
+  const validTypes: string[] = [
+    'event',
+    'request',
+    'response',
+    'error',
+    'ping',
+    'pong',
+  ]
 
-	return validTypes.includes(obj["type"])
+  return validTypes.includes(obj.type)
 }

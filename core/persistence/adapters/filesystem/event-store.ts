@@ -8,7 +8,7 @@
  */
 
 import type { AiriEvent } from '../../../events/types.js'
-import type { EventId, PersistedEvent, EventStore } from '../../types.js'
+import type { EventId, EventStore, PersistedEvent } from '../../types.js'
 import type { FilesystemPersistenceAdapter } from './adapter.js'
 
 /**
@@ -39,7 +39,8 @@ export class FilesystemEventStore implements EventStore {
     if (metaBuffer) {
       const meta = JSON.parse(metaBuffer.toString('utf-8')) as { nextSequence: number }
       this.nextSequence = meta.nextSequence
-    } else {
+    }
+    else {
       this.nextSequence = 1
     }
   }
@@ -80,7 +81,7 @@ export class FilesystemEventStore implements EventStore {
 
   async getSince(eventId: EventId, limit?: number): Promise<PersistedEvent[]> {
     const all = await this.readAllEvents()
-    const idx = all.findIndex((e) => e.eventId === eventId)
+    const idx = all.findIndex(e => e.eventId === eventId)
     if (idx === -1) {
       return limit !== undefined ? all.slice(0, limit) : all
     }
@@ -99,13 +100,13 @@ export class FilesystemEventStore implements EventStore {
 
   async getByModule(moduleId: string, limit?: number): Promise<PersistedEvent[]> {
     const all = await this.readAllEvents()
-    const matching = all.filter((e) => e.source === moduleId)
+    const matching = all.filter(e => e.source === moduleId)
     return limit !== undefined ? matching.slice(0, limit) : matching
   }
 
   async getByType(eventType: string, limit?: number): Promise<PersistedEvent[]> {
     const all = await this.readAllEvents()
-    const matching = all.filter((e) => e.type === eventType)
+    const matching = all.filter(e => e.type === eventType)
     return limit !== undefined ? matching.slice(0, limit) : matching
   }
 
@@ -120,7 +121,8 @@ export class FilesystemEventStore implements EventStore {
 
   async getLastEvent(): Promise<PersistedEvent | null> {
     const all = await this.readAllEvents()
-    if (all.length === 0) return null
+    if (all.length === 0)
+      return null
     return all[all.length - 1] ?? null
   }
 
@@ -143,11 +145,12 @@ export class FilesystemEventStore implements EventStore {
 
   private async readAllEvents(): Promise<PersistedEvent[]> {
     const buffer = await this.adapter.read(`${this.keyPrefix}:log`)
-    if (!buffer) return []
+    if (!buffer)
+      return []
 
     const content = buffer.toString('utf-8')
-    const lines = content.split('\n').filter((l) => l.trim().length > 0)
+    const lines = content.split('\n').filter(l => l.trim().length > 0)
 
-    return lines.map((line) => JSON.parse(line) as PersistedEvent)
+    return lines.map(line => JSON.parse(line) as PersistedEvent)
   }
 }

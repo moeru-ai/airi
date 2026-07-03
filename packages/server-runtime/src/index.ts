@@ -19,8 +19,8 @@ import { MessageHeartbeat, MessageHeartbeatKind } from '@proj-airi/server-shared
 import { defineWebSocketHandler, H3 } from 'h3'
 import { nanoid } from 'nanoid'
 
-import { Gauge, MetricRegistry } from './metrics'
 import { optionOrEnv } from './config'
+import { MetricRegistry } from './metrics'
 import { collectDestinations, createPolicyMiddleware, isDevtoolsPeer, matchesDestinations } from './middlewares'
 import {
   createEventMetadata,
@@ -468,7 +468,6 @@ export function setupApp(options?: AppOptions): {
       return
     }
 
-    // eslint-disable-next-line consistent-return
     return peers.get(selectedPeerId)
   }
 
@@ -626,7 +625,6 @@ export function setupApp(options?: AppOptions): {
           }
         }
 
-        // eslint-disable-next-line default-case
         switch (event.type) {
           case 'transport:connection:heartbeat': {
             const p = peers.get(peer.id)

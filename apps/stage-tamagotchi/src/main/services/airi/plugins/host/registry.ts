@@ -1,7 +1,7 @@
-import type { Dirent } from 'node:fs'
-
 import type { useLogg } from '@guiiai/logg'
+
 import type { ManifestV1 } from '@proj-airi/plugin-sdk/plugin-host'
+import type { Dirent } from 'node:fs'
 
 import type { PluginManifestSummary, PluginRegistrySnapshot } from '../../../../../shared/eventa/plugin/host'
 import type { ManifestEntry, PluginConfig } from '../types'

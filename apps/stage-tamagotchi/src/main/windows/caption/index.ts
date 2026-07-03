@@ -284,7 +284,6 @@ export function setupCaptionWindowManager(params: {
     for (const listener of visibilityListeners) {
       try {
         listener()
-        // eslint-disable-next-line no-empty
       } catch {
         // noop
       }
@@ -354,7 +353,6 @@ export function setupCaptionWindowManager(params: {
 
       return load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/caption')).then(
         () => {
-          // eslint-disable-next-line no-empty
           try {
             context.emit(captionIsFollowingWindowChanged, isFollowing)
           } catch {
@@ -365,7 +363,6 @@ export function setupCaptionWindowManager(params: {
             followMainWindow(window)
           }
 
-          // eslint-disable-next-line no-empty
           window.on('closed', () => {
             detachFromMain()
             try {
@@ -414,7 +411,6 @@ export function setupCaptionWindowManager(params: {
       updateConfig(config)
     }
 
-    // eslint-disable-next-line no-empty
     // Keep window visible after toggle
     window.show()
 

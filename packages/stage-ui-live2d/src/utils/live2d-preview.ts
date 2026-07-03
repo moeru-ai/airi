@@ -8,7 +8,7 @@ import { Live2DFactory, Live2DModel } from 'pixi-live2d-display/cubism4'
 /**
  * Render a Live2D zip/file to an offscreen canvas and return a padded preview data URL.
  */
-// eslint-disable-next-line consistent-return
+
 export async function loadLive2DModelPreview(file: File) {
   Live2DModel.registerTicker(Ticker)
   extensions.add(TickerPlugin)

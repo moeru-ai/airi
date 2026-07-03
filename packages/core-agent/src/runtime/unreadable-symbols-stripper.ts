@@ -36,7 +36,7 @@ const TOKEN_SUFFIX = '\x00'
  * Extracts streaming control tokens from text, replacing them with
  * null-byte-delimited placeholders that won't be affected by stripping passes.
  */
-function extractStreamingTokens(text: string): { processed: string, tokens: string[] } {
+function extractStreamingTokens(text: string): { processed: string; tokens: string[] } {
   const tokens: string[] = []
   const processed = text.replace(/<\|[^|]+\|>/g, (match) => {
     const index = tokens.length
@@ -82,10 +82,7 @@ function restoreStreamingTokens(text: string, tokens: string[]): string {
  * stripUnreadableSymbols('Price is $5!!! Really???', { collapseRepeatedPunctuation: false })
  * // -> 'Price is $5!!! Really???'
  */
-export function stripUnreadableSymbols(
-  text: string,
-  options?: StripUnreadableSymbolsOptions,
-): string {
+export function stripUnreadableSymbols(text: string, options?: StripUnreadableSymbolsOptions): string {
   const opts: Required<StripUnreadableSymbolsOptions> = { ...DEFAULT_OPTIONS, ...options }
 
   // Protect streaming control tokens from stripping
@@ -122,11 +119,19 @@ export function stripUnreadableSymbols(
         '\\u{231A}-\\u{231B}', // Watch, hourglass
         '\\u{23E9}-\\u{23F3}', // Media controls, clocks
         '\\u{23F8}-\\u{23FA}', // Media controls
-        '\\u{25AA}-\\u{25AB}', '\\u{25B6}', '\\u{25C0}', '\\u{25FB}-\\u{25FE}', // Geometric shapes
+        '\\u{25AA}-\\u{25AB}',
+        '\\u{25B6}',
+        '\\u{25C0}',
+        '\\u{25FB}-\\u{25FE}', // Geometric shapes
         '\\u{2934}-\\u{2935}', // Arrows
         '\\u{2B05}-\\u{2B07}', // Arrows
-        '\\u{2B1B}-\\u{2B1C}', '\\u{2B50}', '\\u{2B55}', // Geometric shapes
-        '\\u{3030}', '\\u{303D}', '\\u{3297}', '\\u{3299}', // CJK symbols
+        '\\u{2B1B}-\\u{2B1C}',
+        '\\u{2B50}',
+        '\\u{2B55}', // Geometric shapes
+        '\\u{3030}',
+        '\\u{303D}',
+        '\\u{3297}',
+        '\\u{3299}', // CJK symbols
       )
     }
 
@@ -140,9 +145,16 @@ export function stripUnreadableSymbols(
         '\\u{25A0}-\\u{25FF}', // Geometric shapes
         '\\u{2100}-\\u{214F}', // Letterlike symbols
         '\\u{2000}-\\u{206F}', // General punctuation (em/en dashes, quotes, ellipsis, etc.)
-        '\u00A9', '\u00AE', '\\u{2122}', // © ® ™
-        '\\u{00A7}', '\\u{00B6}', '\\u{2020}', '\\u{2021}', // § ¶ † ‡
-        '\\u{2022}', '\\u{2023}', '\\u{2043}', // • ‣ ⁃
+        '\u00A9',
+        '\u00AE',
+        '\\u{2122}', // © ® ™
+        '\\u{00A7}',
+        '\\u{00B6}',
+        '\\u{2020}',
+        '\\u{2021}', // § ¶ † ‡
+        '\\u{2022}',
+        '\\u{2023}',
+        '\\u{2043}', // • ‣ ⁃
       )
     }
 

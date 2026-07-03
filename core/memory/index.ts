@@ -8,40 +8,40 @@
 
 // ── Types ────────────────────────────────────────────────────────────────
 
-export type {
-	MemoryId,
-	RetrievalId,
-	RepositoryMapId,
-	MemoryScope,
-	MemoryType,
-	MemoryRecord,
-	MemoryReference,
-	MemoryEmbedding,
-	MemoryQuery,
-	MemoryResult,
-	RepositoryMap,
-	ArchitectureNode,
-	FileGraphNode,
-	ImportEdge,
-	GitMetadata,
-	GitCommitInfo,
-	DecisionRecord,
-	FailureRecord,
-	FailurePattern,
-	RetrievalTrace,
-	RetrievalContext,
-} from "./types.js"
+export { DecisionMemory } from './decision-memory.js'
 
-export {
-	createMemoryId,
-	createRetrievalId,
-	createRepositoryMapId,
-} from "./types.js"
+export { FailureMemory } from './failure-memory.js'
 
 // ── Implementations ──────────────────────────────────────────────────────
 
-export { MemoryRegistry } from "./registry.js"
-export { RepositoryIntelligence } from "./repository-map.js"
-export { DecisionMemory } from "./decision-memory.js"
-export { FailureMemory } from "./failure-memory.js"
-export { MemoryRetriever } from "./retrieval.js"
+export { MemoryRegistry } from './registry.js'
+export { RepositoryIntelligence } from './repository-map.js'
+export { MemoryRetriever } from './retrieval.js'
+export type {
+  ArchitectureNode,
+  DecisionRecord,
+  FailurePattern,
+  FailureRecord,
+  FileGraphNode,
+  GitCommitInfo,
+  GitMetadata,
+  ImportEdge,
+  MemoryEmbedding,
+  MemoryId,
+  MemoryQuery,
+  MemoryRecord,
+  MemoryReference,
+  MemoryResult,
+  MemoryScope,
+  MemoryType,
+  RepositoryMap,
+  RepositoryMapId,
+  RetrievalContext,
+  RetrievalId,
+  RetrievalTrace,
+} from './types.js'
+export {
+  createMemoryId,
+  createRepositoryMapId,
+  createRetrievalId,
+} from './types.js'

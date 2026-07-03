@@ -62,11 +62,11 @@
     "@proj-airi/stage-shared": "workspace:^",
     "@types/audioworklet": "catalog:",
     "@types/three": "catalog:",
+    "@vue-macros/volar": "catalog:",
     "@vue/test-utils": "catalog:",
     "@webgpu/types": "catalog:",
     "jsdom": "catalog:",
     "unplugin-info": "catalog:",
-    "@vue-macros/volar": "catalog:",
     "vitest": "catalog:vitest",
     "vue-tsc": "catalog:"
   }

@@ -10,14 +10,14 @@ import { dirname, join, resolve } from 'node:path'
 import { env } from 'node:process'
 import { fileURLToPath } from 'node:url'
 
-import clickDragPlugin from 'electron-click-drag-plugin'
-
 import { is } from '@electron-toolkit/utils'
+
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
 import { defu } from 'defu'
 import { BrowserWindow, ipcMain, shell } from 'electron'
+import clickDragPlugin from 'electron-click-drag-plugin'
 import { isLinux } from 'std-env'
 import { array, number, object, optional, string } from 'valibot'
 

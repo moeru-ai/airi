@@ -13,28 +13,26 @@
  * Shutdown: SIGTERM triggers graceful shutdown (send WorkerShutdown, exit).
  */
 
-import { stdin, stdout } from 'node:process'
-
-import {
-  WORKER_ERROR_CODES,
-  type WorkerMessage,
-  type WorkerHelloMessage,
-  type WorkerReadyMessage,
-  type WorkerHeartbeatMessage,
-  type WorkerShutdownMessage,
-  type ExecuteTaskMessage,
-  type TaskProgressMessage,
-  type TaskResultMessage,
-  type TaskFailureMessage,
-  type WorkerCapabilities,
-  serializeWorkerMessage,
-  deserializeWorkerMessage,
-} from '../../../core/workers/protocol.js'
-import { EventBus } from '../../../core/events/bus.js'
-import type { TaskExecutor, TaskExecutionContext } from '../../../core/tasks/executor.js'
-import type { CancellationToken } from '../../../core/tasks/cancellation.js'
 import type { Logger } from '../../../core/logger.js'
+
+import type { CancellationToken } from '../../../core/tasks/cancellation.js'
+import type { TaskExecutionContext, TaskExecutor } from '../../../core/tasks/executor.js'
 import type { TaskId } from '../../../core/tasks/types.js'
+import type {
+  ExecuteTaskMessage,
+  TaskFailureMessage,
+  TaskProgressMessage,
+  TaskResultMessage,
+  WorkerCapabilities,
+  WorkerHeartbeatMessage,
+  WorkerHelloMessage,
+  WorkerMessage,
+  WorkerReadyMessage,
+  WorkerShutdownMessage,
+} from '../../../core/workers/protocol.js'
+import { stdin, stdout } from 'node:process'
+import { EventBus } from '../../../core/events/bus.js'
+import { deserializeWorkerMessage, serializeWorkerMessage, WORKER_ERROR_CODES } from '../../../core/workers/protocol.js'
 
 // ── State ───────────────────────────────────────────────────────────────
 
@@ -194,7 +192,7 @@ async function handleExecuteTask(message: ExecuteTaskMessage): Promise<void> {
  */
 async function importExecutor(moduleId: string): Promise<TaskExecutor | null> {
   // Validate moduleId to prevent path traversal.
-  const SAFE_MODULE_ID = /^[a-zA-Z0-9_-]+$/
+  const SAFE_MODULE_ID = /^[\w-]+$/
   if (!SAFE_MODULE_ID.test(moduleId)) {
     console.error(`[Worker ${workerId}] Rejected unsafe moduleId: ${moduleId}`)
     return null

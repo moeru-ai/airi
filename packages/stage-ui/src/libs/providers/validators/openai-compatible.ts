@@ -1,12 +1,12 @@
 import type { ProviderDefinition, ProviderExtraMethods, ProviderInstance } from '../types'
 
-import isNetworkError from 'is-network-error'
-
 import { errorMessageFrom } from '@moeru/std'
+
 import { generateText } from '@xsai/generate-text'
 import { listModels } from '@xsai/model'
 import { message } from '@xsai/utils-chat'
 import { Mutex } from 'es-toolkit'
+import isNetworkError from 'is-network-error'
 
 import { isModelProvider, ProviderValidationCheck } from '../types'
 

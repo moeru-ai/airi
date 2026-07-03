@@ -129,8 +129,6 @@ export function createGodotViewPatchQueue(options: GodotViewPatchQueueOptions): 
         schedule()
       }
     }
-
-    return
   }
 
   function reset() {

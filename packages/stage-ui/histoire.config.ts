@@ -1,7 +1,7 @@
-import Info from 'unplugin-info/vite'
-
 import { HstVue } from '@histoire/plugin-vue'
+
 import { defineConfig } from 'histoire'
+import Info from 'unplugin-info/vite'
 
 export default defineConfig({
   routerMode: 'hash',

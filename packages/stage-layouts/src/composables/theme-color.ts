@@ -3,13 +3,13 @@ import type { Ref } from 'vue'
 import type { BackgroundProvider } from '../components/Backgrounds'
 import type { BackgroundItem } from '../stores/background'
 
-import Color from 'colorjs.io'
-
 import { withRetry } from '@moeru/std'
+
 import { colorFromElement, patchThemeSamplingHtml2CanvasClone } from '@proj-airi/stage-ui/libs'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { useDocumentVisibility, useIntervalFn } from '@vueuse/core'
+import Color from 'colorjs.io'
 import { storeToRefs } from 'pinia'
 import { nextTick, watch } from 'vue'
 

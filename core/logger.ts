@@ -15,23 +15,23 @@
 /**
  * Supported log levels. Ordered by severity.
  */
-export type LogLevel = "debug" | "info" | "warn" | "error"
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 
 /**
  * Log levels ranked by severity. Used to filter output.
  */
 const LOG_LEVELS: Record<LogLevel, number> = {
-	debug: 0,
-	info: 1,
-	warn: 2,
-	error: 3,
+  debug: 0,
+  info: 1,
+  warn: 2,
+  error: 3,
 }
 
 /**
  * Minimum level to emit. Configured globally.
  * Everything below this level is silently dropped.
  */
-let minLevel: LogLevel = "debug"
+let minLevel: LogLevel = 'debug'
 
 /**
  * Configure the global minimum log level.
@@ -39,21 +39,21 @@ let minLevel: LogLevel = "debug"
  * @param level — Messages below this level are dropped.
  */
 export function setLogLevel(level: LogLevel): void {
-	minLevel = level
+  minLevel = level
 }
 
 /**
  * Get the current minimum log level.
  */
 export function getLogLevel(): LogLevel {
-	return minLevel
+  return minLevel
 }
 
 /**
  * Check whether a message at the given level would be emitted.
  */
 function shouldEmit(level: LogLevel): boolean {
-	return LOG_LEVELS[level] >= LOG_LEVELS[minLevel]
+  return LOG_LEVELS[level] >= LOG_LEVELS[minLevel]
 }
 
 /**
@@ -62,15 +62,16 @@ function shouldEmit(level: LogLevel): boolean {
  * Format: 2025-01-15T10:30:00.000Z [source] LEVEL message ...args
  */
 function format(source: string, level: LogLevel, message: string, args: unknown[]): string {
-	const timestamp = new Date().toISOString()
-	const base = `${timestamp} [${source}] ${level.toUpperCase()} ${message}`
+  const timestamp = new Date().toISOString()
+  const base = `${timestamp} [${source}] ${level.toUpperCase()} ${message}`
 
-	if (args.length === 0) return base
+  if (args.length === 0)
+    return base
 
-	// Stringify additional args — keep it simple, no heavy serialization.
-	const rest = args.map((a) => (typeof a === "string" ? a : JSON.stringify(a))).join(" ")
+  // Stringify additional args — keep it simple, no heavy serialization.
+  const rest = args.map(a => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ')
 
-	return `${base} ${rest}`
+  return `${base} ${rest}`
 }
 
 /**
@@ -79,26 +80,27 @@ function format(source: string, level: LogLevel, message: string, args: unknown[
  * Each level maps to its console counterpart so that DevTools filtering works.
  */
 function log(source: string, level: LogLevel, message: string, ...args: unknown[]): void {
-	if (!shouldEmit(level)) return
+  if (!shouldEmit(level))
+    return
 
-	const formatted = format(source, level, message, args)
+  const formatted = format(source, level, message, args)
 
-	switch (level) {
-		case "debug":
-			console.debug(formatted)
-			break
-		case "info":
-			console.info(formatted)
-			break
-		case "warn":
-			console.warn(formatted)
-			break
-		case "error":
-			console.error(formatted)
-			break
-		default:
-			break
-	}
+  switch (level) {
+    case 'debug':
+      console.debug(formatted)
+      break
+    case 'info':
+      console.info(formatted)
+      break
+    case 'warn':
+      console.warn(formatted)
+      break
+    case 'error':
+      console.error(formatted)
+      break
+    default:
+      break
+  }
 }
 
 /**
@@ -108,17 +110,17 @@ function log(source: string, level: LogLevel, message: string, ...args: unknown[
  * arguments which are stringified to JSON.
  */
 export interface Logger {
-	/** Debug-level message. Only emitted when minLevel is "debug". */
-	debug(message: string, ...args: unknown[]): void
+  /** Debug-level message. Only emitted when minLevel is "debug". */
+  debug: (message: string, ...args: unknown[]) => void
 
-	/** Info-level message. */
-	info(message: string, ...args: unknown[]): void
+  /** Info-level message. */
+  info: (message: string, ...args: unknown[]) => void
 
-	/** Warn-level message. */
-	warn(message: string, ...args: unknown[]): void
+  /** Warn-level message. */
+  warn: (message: string, ...args: unknown[]) => void
 
-	/** Error-level message. */
-	error(message: string, ...args: unknown[]): void
+  /** Error-level message. */
+  error: (message: string, ...args: unknown[]) => void
 }
 
 /**
@@ -134,10 +136,10 @@ export interface Logger {
  * ```
  */
 export function createLogger(source: string): Logger {
-	return {
-		debug: (msg, ...args) => log(source, "debug", msg, ...args),
-		info: (msg, ...args) => log(source, "info", msg, ...args),
-		warn: (msg, ...args) => log(source, "warn", msg, ...args),
-		error: (msg, ...args) => log(source, "error", msg, ...args),
-	}
+  return {
+    debug: (msg, ...args) => log(source, 'debug', msg, ...args),
+    info: (msg, ...args) => log(source, 'info', msg, ...args),
+    warn: (msg, ...args) => log(source, 'warn', msg, ...args),
+    error: (msg, ...args) => log(source, 'error', msg, ...args),
+  }
 }

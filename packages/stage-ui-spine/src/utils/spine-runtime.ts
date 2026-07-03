@@ -13,9 +13,8 @@ import type { SpineVersion } from './spine-version'
  * Returns:
  * - The full spine-webgl module namespace for that version.
  */
-// eslint-disable-next-line consistent-return
+
 export async function loadSpineRuntime(version: SpineVersion): Promise<typeof import('@esotericsoftware/spine-webgl')> {
-  // eslint-disable-next-line default-case
   switch (version) {
     case '4.0':
       return (await import('@esotericsoftware/spine-webgl-4-0')) as unknown as typeof import('@esotericsoftware/spine-webgl')

@@ -1,6 +1,6 @@
-import posthog from 'posthog-js'
-
 import { isStageCapacitor, isStageTamagotchi } from '@proj-airi/stage-shared'
+
+import posthog from 'posthog-js'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -21,11 +21,9 @@ export type ConversationAnalyticsSurface = 'web' | 'mobile' | 'electron'
 export type ConversationAnalyticsSource = 'chat_controls' | 'history' | 'sessions_drawer'
 
 function getConversationAnalyticsSurface(): ConversationAnalyticsSurface {
-  if (isStageTamagotchi())
-    return 'electron'
+  if (isStageTamagotchi()) return 'electron'
 
-  if (isStageCapacitor())
-    return 'mobile'
+  if (isStageCapacitor()) return 'mobile'
 
   return 'web'
 }
@@ -217,35 +215,35 @@ export function useAnalytics() {
   // ─── Conversation action events ─────────────────────────────────────
 
   function trackTtsStopClicked(properties: { reason: 'manual-chat' }) {
-    if (!canCapture())
-      return
+    if (!canCapture()) return
     posthog.capture('tts_stop_clicked', {
       ...properties,
       surface: getConversationAnalyticsSurface(),
     })
   }
 
-  function trackChatSessionSelected(properties: { source: 'sessions_drawer', message_count: number, cloud_synced: boolean }) {
-    if (!canCapture())
-      return
+  function trackChatSessionSelected(properties: {
+    source: 'sessions_drawer'
+    message_count: number
+    cloud_synced: boolean
+  }) {
+    if (!canCapture()) return
     posthog.capture('chat_session_selected', {
       ...properties,
       surface: getConversationAnalyticsSurface(),
     })
   }
 
-  function trackChatMessageDeleted(properties: { source: 'history', message_role: string }) {
-    if (!canCapture())
-      return
+  function trackChatMessageDeleted(properties: { source: 'history'; message_role: string }) {
+    if (!canCapture()) return
     posthog.capture('chat_message_deleted', {
       ...properties,
       surface: getConversationAnalyticsSurface(),
     })
   }
 
-  function trackChatMessagesCleared(properties: { source: 'chat_controls', message_count: number }) {
-    if (!canCapture())
-      return
+  function trackChatMessagesCleared(properties: { source: 'chat_controls'; message_count: number }) {
+    if (!canCapture()) return
     posthog.capture('chat_messages_cleared', {
       ...properties,
       surface: getConversationAnalyticsSurface(),
@@ -253,8 +251,7 @@ export function useAnalytics() {
   }
 
   function trackChatMessageRetried(properties: { source: 'history' }) {
-    if (!canCapture())
-      return
+    if (!canCapture()) return
     posthog.capture('chat_message_retried', {
       ...properties,
       surface: getConversationAnalyticsSurface(),

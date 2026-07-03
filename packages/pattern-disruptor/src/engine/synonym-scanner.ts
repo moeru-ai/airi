@@ -5,8 +5,8 @@ import type {
   SynonymMap,
 } from '../types'
 
-import { getSynonymMap } from '../data/synonyms'
 import { isStopword, normalizeToken, resolvePatternDisruptorLanguage, tokenizeWords } from '../data/language'
+import { getSynonymMap } from '../data/synonyms'
 
 interface ScanSynonymOveruseInput {
   settings: PatternDisruptorSettings

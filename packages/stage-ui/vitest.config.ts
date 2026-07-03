@@ -10,11 +10,11 @@ import { defineConfig } from 'vitest/config'
 function BuildInfoTestPlugin() {
   return {
     name: 'stage-ui-test-build-info',
-    // eslint-disable-next-line consistent-return
+
     resolveId(id: string) {
       if (id === '~build/git' || id === '~build/time') return `\0${id}`
     },
-    // eslint-disable-next-line consistent-return
+
     load(id: string) {
       if (id === '\0~build/git') {
         return ['export const abbreviatedSha = "test-sha"', 'export const branch = "test-branch"'].join('\n')

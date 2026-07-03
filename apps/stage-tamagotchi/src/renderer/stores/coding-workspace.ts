@@ -129,7 +129,7 @@ export const useTamagotchiCodingWorkspaceStore = defineStore('tamagotchi-coding-
 
   function setActiveWorkspaceRoot(root: string | undefined) {
     const normalizedRoot = root?.trim()
-    activeWorkspaceRoot.value = normalizedRoot ? normalizedRoot : undefined
+    activeWorkspaceRoot.value = normalizedRoot || undefined
   }
 
   function setCodingMode(mode: CodingMode) {
@@ -142,7 +142,7 @@ export const useTamagotchiCodingWorkspaceStore = defineStore('tamagotchi-coding-
 
   function setActiveSpecFeatureSlug(featureSlug: string | undefined) {
     const normalizedSlug = featureSlug?.trim()
-    activeSpecFeatureSlug.value = normalizedSlug ? normalizedSlug : undefined
+    activeSpecFeatureSlug.value = normalizedSlug || undefined
   }
 
   function updateMcpBackendStateFromTools(tools: readonly McpToolSummary[]) {

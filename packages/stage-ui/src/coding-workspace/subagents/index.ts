@@ -1,14 +1,14 @@
-import {
-  isV1Engine,
-  type CodingEngineId,
-  type McpBackendState,
-  type SubagentJobInput,
-  type SubagentJobOutput,
-  type SubagentJobPhase,
-  type SubagentJobProvenance,
-  type SubagentJobRecord,
-  type SubagentJobStatus,
+import type {
+  CodingEngineId,
+  McpBackendState,
+  SubagentJobInput,
+  SubagentJobOutput,
+  SubagentJobPhase,
+  SubagentJobProvenance,
+  SubagentJobRecord,
+  SubagentJobStatus,
 } from '@proj-airi/stage-ui/coding-workspace'
+import { isV1Engine } from '@proj-airi/stage-ui/coding-workspace'
 
 export type SubagentJobId = `job-${number}`
 

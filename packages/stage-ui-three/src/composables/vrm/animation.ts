@@ -31,7 +31,6 @@ export async function loadVRMAnimation(url: string) {
     return
   }
 
-  // eslint-disable-next-line consistent-return
   return userData.vrmAnimations[0]
 }
 
@@ -45,7 +44,7 @@ export function clipFromVRMAnimation(vrm?: VRMCore, animation?: VRMAnimation) {
   }
 
   // create animation clip
-  // eslint-disable-next-line consistent-return
+
   return createVRMAnimationClip(animation, vrm)
 }
 

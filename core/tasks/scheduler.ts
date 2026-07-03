@@ -14,10 +14,10 @@
 
 import type { EventBus } from '../events/bus.js'
 import type { Logger } from '../logger.js'
+import type { TaskExecutionContext, TaskExecutor } from './executor.js'
+import type { TaskManager } from './manager.js'
 import type { Task } from './types.js'
 import { PRIORITY_WEIGHTS } from './types.js'
-import type { TaskManager } from './manager.js'
-import type { TaskExecutor, TaskExecutionContext } from './executor.js'
 
 // ── Configuration ────────────────────────────────────────────────────────
 
@@ -102,7 +102,8 @@ export class TaskScheduler {
   private tick(): void {
     while (this.activeCount < this.options.concurrencyLimit) {
       const next = this.pickNextTask()
-      if (!next) break
+      if (!next)
+        break
 
       this.dispatch(next)
     }
@@ -119,7 +120,8 @@ export class TaskScheduler {
    */
   private pickNextTask(): Task | undefined {
     const queued = this.manager.getByState('queued')
-    if (queued.length === 0) return undefined
+    if (queued.length === 0)
+      return undefined
 
     const now = Date.now()
 
@@ -151,7 +153,7 @@ export class TaskScheduler {
 
     if (waitTime >= this.options.starvationThresholdMs) {
       // Boost by one level, but don't exceed critical.
-      return Math.min(base + 1, PRIORITY_WEIGHTS['critical'])
+      return Math.min(base + 1, PRIORITY_WEIGHTS.critical)
     }
 
     return base
@@ -171,7 +173,8 @@ export class TaskScheduler {
 
     // Transition to running.
     const running = this.manager.startTask(task.id)
-    if (!running) return
+    if (!running)
+      return
 
     this.activeCount++
 
@@ -190,9 +193,11 @@ export class TaskScheduler {
     try {
       const result = await executor.execute(task, ctx)
       this.handleTaskResult(task, result)
-    } catch (error) {
+    }
+    catch (error) {
       this.handleTaskError(task, error)
-    } finally {
+    }
+    finally {
       this.activeCount--
     }
   }
@@ -218,10 +223,11 @@ export class TaskScheduler {
     }
   }
 
-  private handleTaskResult(task: Task, result: { success: boolean; error?: string }): void {
+  private handleTaskResult(task: Task, result: { success: boolean, error?: string }): void {
     if (result.success) {
       this.manager.complete(task.id, result)
-    } else {
+    }
+    else {
       this.manager.fail(task.id, {
         code: 'EXECUTION_FAILED',
         message: result.error ?? 'Task execution failed',

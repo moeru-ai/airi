@@ -1,15 +1,14 @@
-import { describe, expect, it } from 'vitest'
-
-import {
-  callReadOnlyMcpTool,
-  createCodeIntelligenceFacade,
-  type CodeIntelligenceTransport,
-  type LocalSearchInput,
-  type LocalSearchResult,
-  type McpToolCall,
-  type McpToolResult,
-  type McpToolSummary,
+import type {
+  CodeIntelligenceTransport,
+  LocalSearchInput,
+  LocalSearchResult,
+  McpToolCall,
+  McpToolResult,
+  McpToolSummary,
 } from './index'
+
+import { describe, expect, it } from 'vitest'
+import { callReadOnlyMcpTool, createCodeIntelligenceFacade } from './index'
 
 const serenaTools: McpToolSummary[] = [
   { serverName: 'serena', name: 'serena::get_symbols_overview', toolName: 'get_symbols_overview' },

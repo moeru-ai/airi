@@ -1,11 +1,11 @@
 import type { McpToolResult, McpToolSummary } from '@proj-airi/stage-ui/coding-workspace'
 
+import type { ElectronMcpCallToolResult, ElectronMcpToolDescriptor } from '../../shared/eventa'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/llm-tools'
 import { createMcpTools } from '@proj-airi/stage-ui/tools/mcp'
-import { defineStore } from 'pinia'
 
-import type { ElectronMcpCallToolResult, ElectronMcpToolDescriptor } from '../../shared/eventa'
+import { defineStore } from 'pinia'
 import { electronMcpCallTool, electronMcpListTools } from '../../shared/eventa'
 import { useTamagotchiCodingWorkspaceStore } from './coding-workspace'
 

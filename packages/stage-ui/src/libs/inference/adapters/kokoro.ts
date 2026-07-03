@@ -5,21 +5,10 @@
  * The worker now speaks the same protocol — no translation layer needed.
  */
 
+import type { InferenceModelStatus } from '../../../composables/use-inference-status'
 import type { VoiceKey, Voices } from '../../../workers/kokoro/types'
 import type { AllocationToken } from '../gpu-resource-coordinator'
-import type { InferenceModelStatus } from '../../../composables/use-inference-status'
 import type { InferenceResultResponse, ModelReadyResponse, ProgressPayload, WorkerOutboundMessage } from '../protocol'
-
-/**
- * Kokoro-specific generate output shape — mirrors the `KokoroGenerateOutput`
- * interface declared in the kokoro worker. Kept local to the adapter so the
- * protocol remains domain-agnostic.
- */
-interface KokoroGenerateOutput {
-  action: 'generate'
-  samples: Float32Array
-  samplingRate: number
-}
 
 import { defaultPerfTracer } from '@proj-airi/stage-shared'
 import { Mutex } from 'async-mutex'
@@ -35,6 +24,17 @@ import {
   InferenceAbortError,
   throwIfAborted,
 } from '../protocol'
+
+/**
+ * Kokoro-specific generate output shape — mirrors the `KokoroGenerateOutput`
+ * interface declared in the kokoro worker. Kept local to the adapter so the
+ * protocol remains domain-agnostic.
+ */
+interface KokoroGenerateOutput {
+  action: 'generate'
+  samples: Float32Array
+  samplingRate: number
+}
 
 /** Placeholder to ensure all imports are used */
 void LOAD_PRIORITY
@@ -281,7 +281,6 @@ export function createKokoroAdapter(): KokoroAdapter {
 
   function scheduleRestart(): void {
     if (restartAttempts >= MAX_RESTARTS) {
-      // eslint-disable-next-line no-console -- Adapter needs to log critical errors
       console.error(`[KokoroAdapter] Max restart attempts (${MAX_RESTARTS}) reached.`)
       // NOTICE: Transition to 'terminated' so getKokoroAdapter() can detect
       // the dead singleton and create a fresh adapter on next access.
@@ -292,12 +291,10 @@ export function createKokoroAdapter(): KokoroAdapter {
     restartAttempts++
     const delay = RESTART_DELAY_MS * restartAttempts
 
-    // eslint-disable-next-line no-console -- Adapter needs to log warnings
     console.warn(`[KokoroAdapter] Restarting in ${delay}ms (attempt ${restartAttempts}/${MAX_RESTARTS})`)
 
     setTimeout(() => {
       ensureStarted().catch((err) => {
-        // eslint-disable-next-line no-console -- Adapter needs to log errors
         console.error('[KokoroAdapter] Restart failed:', err)
       })
     }, delay)
@@ -332,7 +329,6 @@ export function createKokoroAdapter(): KokoroAdapter {
     // chain handles transient failures; this guard handles persistent ones.
     let effectiveDevice = device
     if (device === 'webgpu' && deviceLossCount >= DEVICE_LOSS_WASM_THRESHOLD) {
-      // eslint-disable-next-line no-console -- Adapter needs to log warnings
       console.warn(
         `[KokoroAdapter] ${deviceLossCount} device-loss events recorded, promoting load from webgpu to wasm.`,
       )

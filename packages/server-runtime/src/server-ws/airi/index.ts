@@ -185,7 +185,7 @@ export function isAiriWebSocketEventFormatError(error: unknown): error is AiriWe
  * Returns:
  * - The heartbeat kind when the text is a control frame, otherwise `undefined`
  */
-// eslint-disable-next-line consistent-return
+
 export function heartbeatFrameFrom(text: string): MessageHeartbeatKind | undefined {
   if (text === MessageHeartbeatKind.Ping || text === MessageHeartbeatKind.Pong) {
     return text
@@ -313,7 +313,7 @@ export function createEventSerializer() {
  * Returns:
  * - The first route decision, or `undefined` when no middleware decided
  */
-// eslint-disable-next-line consistent-return
+
 export function forEachEventMiddlewares(input: {
   event: WebSocketEvent
   fromPeer: RouteContext['fromPeer']

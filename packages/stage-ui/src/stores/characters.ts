@@ -145,10 +145,9 @@ export function createCharacterStoreController(params: {
       const remote = await updateMutation.mutateAsync({ id, data: payload })
       characters.value.set(remote.id, remote)
       await model.upsert(remote)
-      // eslint-disable-next-line consistent-return
+
       return remote
     } catch {
-      // eslint-disable-next-line consistent-return
       return localCharacter
     }
   }

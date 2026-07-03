@@ -53,8 +53,7 @@ function calculateVolumeWithMinMaxNormalize(analyser: AnalyserNode) {
 }
 
 function calculateVolume(analyser: AnalyserNode, mode: 'linear' | 'minmax' = 'linear') {
-  if (mode === 'minmax')
-    return calculateVolumeWithMinMaxNormalize(analyser)
+  if (mode === 'minmax') return calculateVolumeWithMinMaxNormalize(analyser)
 
   return calculateVolumeWithLinearNormalize(analyser)
 }

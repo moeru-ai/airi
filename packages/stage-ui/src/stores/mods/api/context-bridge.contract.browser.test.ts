@@ -209,11 +209,10 @@ vi.mock('es-toolkit', async (importOriginal) => {
   return {
     ...actual,
     Mutex: class {
-      // eslint-disable-next-line class-methods-use-this
       async acquire() {
         /* stub */
       }
-      // eslint-disable-next-line class-methods-use-this
+
       release() {
         /* stub */
       }

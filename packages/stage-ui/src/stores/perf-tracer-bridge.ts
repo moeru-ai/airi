@@ -34,7 +34,6 @@ const RELAY_META_KEY = '__perfTracerRelayedFrom'
 const BRIDGE_TOKEN = 'perf-bridge'
 const FORWARDED_TRACERS = new Set(['chat', 'markdown'])
 
-// eslint-disable-next-line complexity
 export const usePerfTracerBridgeStore = defineStore('perfTracerBridge', () => {
   const instanceId = Math.random().toString(36).slice(2, 10)
   const { post, data } = useBroadcastChannel<PerfTracerMessage, PerfTracerMessage>({ name: PERF_TRACER_CHANNEL })

@@ -1,7 +1,7 @@
-import type EventEmitter from 'node:events'
-
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
+
 import type { BrowserWindow } from 'electron'
+import type EventEmitter from 'node:events'
 
 import { electronEvents } from '@proj-airi/electron-eventa'
 import { powerMonitor } from 'electron'

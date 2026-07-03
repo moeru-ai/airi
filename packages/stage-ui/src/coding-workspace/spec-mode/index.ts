@@ -270,7 +270,7 @@ function normalizeWorkspaceRelativePath(path: string): string | undefined {
 
   const normalizedSeparators = path.replaceAll('\\', '/')
 
-  if (normalizedSeparators.startsWith('/') || /^[a-zA-Z]:\//.test(normalizedSeparators)) return undefined
+  if (normalizedSeparators.startsWith('/') || /^[a-z]:\//i.test(normalizedSeparators)) return undefined
 
   const segments: string[] = []
 

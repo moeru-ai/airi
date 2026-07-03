@@ -1,5 +1,6 @@
+import type { PerspectiveCamera } from 'three'
 import { createPinia, setActivePinia } from 'pinia'
-import { PerspectiveCamera, Raycaster, Vector3 } from 'three'
+import { Raycaster, Vector3 } from 'three'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@vueuse/core', async () => {

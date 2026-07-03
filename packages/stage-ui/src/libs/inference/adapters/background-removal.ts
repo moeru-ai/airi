@@ -6,9 +6,9 @@
  * Uses the unified inference protocol from protocol.ts.
  */
 
+import type { BackgroundRemovalOutput } from '../../../workers/background-removal/worker'
 import type { AllocationToken } from '../gpu-resource-coordinator'
 import type { InferenceResultResponse, ModelReadyResponse, ProgressPayload, WorkerOutboundMessage } from '../protocol'
-import type { BackgroundRemovalOutput } from '../../../workers/background-removal/worker'
 
 import { defaultPerfTracer } from '@proj-airi/stage-shared'
 import { Mutex } from 'async-mutex'

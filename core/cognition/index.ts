@@ -9,76 +9,76 @@
 
 // ── Types ────────────────────────────────────────────────────────────────
 
-export type {
-	ProposalId,
-	ReasoningId,
-	CognitionSessionId,
-	CognitionRequest,
-	CognitionContext,
-	PlanSummary,
-	ExecutionSummary,
-	CognitionConstraints,
-	CognitionResponse,
-	ModelInfo,
-	TokenUsage,
-	PlanProposal,
-	ProposedStep,
-	WorkspaceRequirements,
-	EstimatedExecution,
-	ReasoningTrace,
-	ReasoningEntry,
-	CognitionModel,
-	ModelCapabilities,
-	CognitionSession,
-	ValidationResult,
-	ValidationError,
-	ValidationWarning,
-} from "./types.js"
+export { CognitionCoordinator } from './coordinator.js'
 
-export {
-	createProposalId,
-	createReasoningId,
-	createCognitionSessionId,
-} from "./types.js"
+export type { CognitionPipelineResult } from './coordinator.js'
 
 // ── Provider interface ──────────────────────────────────────────────────
 
 export type {
-	CognitionProvider,
-	CognitionProviderOptions,
-} from "./provider.js"
+  CognitionCompleted,
+  CognitionEvent,
+  CognitionFailed,
+  CognitionRequested,
+  PlanProposed,
+  PlanRejected,
+  PlanValidated,
+} from './events.js'
 
 // ── Events ───────────────────────────────────────────────────────────────
 
-export type {
-	CognitionRequested,
-	CognitionCompleted,
-	CognitionFailed,
-	PlanProposed,
-	PlanValidated,
-	PlanRejected,
-	CognitionEvent,
-} from "./events.js"
+export {
+  createProposal,
+  extractCapabilityRequirements,
+  extractWorkspaceRequirements,
+  proposalToPlan,
+  summarizeProposal,
+} from './proposals.js'
 
 // ── Proposal management ─────────────────────────────────────────────────
 
-export {
-	createProposal,
-	proposalToPlan,
-	summarizeProposal,
-	extractCapabilityRequirements,
-	extractWorkspaceRequirements,
-} from "./proposals.js"
+export type {
+  CognitionProvider,
+  CognitionProviderOptions,
+} from './provider.js'
 
 // ── Validator ────────────────────────────────────────────────────────────
 
-export { PlanValidator } from "./validator.js"
+export { MockCognitionProvider } from './providers/mock-provider.js'
 
 // ── Mock provider ────────────────────────────────────────────────────────
 
-export { MockCognitionProvider } from "./providers/mock-provider.js"
+export type {
+  CognitionConstraints,
+  CognitionContext,
+  CognitionModel,
+  CognitionRequest,
+  CognitionResponse,
+  CognitionSession,
+  CognitionSessionId,
+  EstimatedExecution,
+  ExecutionSummary,
+  ModelCapabilities,
+  ModelInfo,
+  PlanProposal,
+  PlanSummary,
+  ProposalId,
+  ProposedStep,
+  ReasoningEntry,
+  ReasoningId,
+  ReasoningTrace,
+  TokenUsage,
+  ValidationError,
+  ValidationResult,
+  ValidationWarning,
+  WorkspaceRequirements,
+} from './types.js'
 
 // ── Coordinator ──────────────────────────────────────────────────────────
 
-export { CognitionCoordinator } from "./coordinator.js"
-export type { CognitionPipelineResult } from "./coordinator.js"
+export {
+  createCognitionSessionId,
+  createProposalId,
+  createReasoningId,
+} from './types.js'
+export { PlanValidator } from './validator.js'

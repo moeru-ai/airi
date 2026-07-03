@@ -31,7 +31,7 @@ export function useAudioAnalyzer() {
 
       // Calculate RMS volume level
       let sum = 0
-      // eslint-disable-next-line no-restricted-syntax
+
       for (const value of dataArray.value) {
         sum += value * value
       }
@@ -48,7 +48,6 @@ export function useAudioAnalyzer() {
     analyze()
   }
 
-  // eslint-disable-next-line consistent-return
   function startAnalyzer(audioContext: AudioContext) {
     if (!audioContext) {
       throw new Error('AudioContext is not initialized')

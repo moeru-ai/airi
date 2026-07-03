@@ -85,7 +85,6 @@ function buildKeycodeMap(): Record<ShortcutKey, number> {
 function resolveModifierMask(modifiers: readonly ShortcutModifier[], platform: NodeJS.Platform): ModifierMask {
   const mask: ModifierMask = { ctrl: false, shift: false, alt: false, meta: false }
   for (const m of modifiers) {
-    // eslint-disable-next-line default-case
     switch (m) {
       case 'cmd-or-ctrl':
         if (platform === 'darwin') mask.meta = true

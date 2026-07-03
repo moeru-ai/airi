@@ -50,7 +50,6 @@ export const useLlmStreamingControlStore = defineStore('llm-streaming-control', 
     span.setAttribute(IOAttributes.TooltipKeys, tooltipKeys)
 
     function observe(event: LlmStreamingControlDispatchEvent) {
-      // eslint-disable-next-line default-case
       switch (event.type) {
         case 'rejected':
           span.setAttribute(IOAttributes.StreamingControlReason, event.reason)

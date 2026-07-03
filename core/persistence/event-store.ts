@@ -67,7 +67,7 @@ export class InMemoryEventStore implements EventStore {
   }
 
   getSince(eventId: EventId, limit?: number): Promise<PersistedEvent[]> {
-    const idx = this.events.findIndex((e) => e.eventId === eventId)
+    const idx = this.events.findIndex(e => e.eventId === eventId)
     if (idx === -1) {
       // Event ID not found — return all events.
       const all = [...this.events]
@@ -87,12 +87,12 @@ export class InMemoryEventStore implements EventStore {
   }
 
   getByModule(moduleId: string, limit?: number): Promise<PersistedEvent[]> {
-    const matching = this.events.filter((e) => e.source === moduleId)
+    const matching = this.events.filter(e => e.source === moduleId)
     return Promise.resolve(limit !== undefined ? matching.slice(0, limit) : matching)
   }
 
   getByType(eventType: string, limit?: number): Promise<PersistedEvent[]> {
-    const matching = this.events.filter((e) => e.type === eventType)
+    const matching = this.events.filter(e => e.type === eventType)
     return Promise.resolve(limit !== undefined ? matching.slice(0, limit) : matching)
   }
 
@@ -105,7 +105,8 @@ export class InMemoryEventStore implements EventStore {
   }
 
   getLastEvent(): Promise<PersistedEvent | null> {
-    if (this.events.length === 0) return Promise.resolve(null)
+    if (this.events.length === 0)
+      return Promise.resolve(null)
     return Promise.resolve(this.events[this.events.length - 1] ?? null)
   }
 
@@ -174,7 +175,8 @@ export class PersistedEventStore implements EventStore {
     if (metaBuffer) {
       const meta = JSON.parse(metaBuffer.toString('utf-8')) as { nextSequence: number }
       this.nextSequence = meta.nextSequence
-    } else {
+    }
+    else {
       this.nextSequence = 1
     }
   }
@@ -200,7 +202,7 @@ export class PersistedEventStore implements EventStore {
     }
 
     // Append the event as a JSON line.
-    const data = Buffer.from(JSON.stringify(persisted) + '\n', 'utf-8')
+    const data = Buffer.from(`${JSON.stringify(persisted)}\n`, 'utf-8')
     await this.adapter.append(this.eventKey, data)
 
     // Update metadata.
@@ -213,7 +215,7 @@ export class PersistedEventStore implements EventStore {
   // async: implements EventStore interface (Promise<PersistedEvent[]>)
   async getSince(eventId: EventId, limit?: number): Promise<PersistedEvent[]> {
     const all = await this.readAllEvents()
-    const idx = all.findIndex((e) => e.eventId === eventId)
+    const idx = all.findIndex(e => e.eventId === eventId)
     if (idx === -1) {
       return limit !== undefined ? all.slice(0, limit) : all
     }
@@ -234,14 +236,14 @@ export class PersistedEventStore implements EventStore {
   // async: implements EventStore interface (Promise<PersistedEvent[]>)
   async getByModule(moduleId: string, limit?: number): Promise<PersistedEvent[]> {
     const all = await this.readAllEvents()
-    const matching = all.filter((e) => e.source === moduleId)
+    const matching = all.filter(e => e.source === moduleId)
     return limit !== undefined ? matching.slice(0, limit) : matching
   }
 
   // async: implements EventStore interface (Promise<PersistedEvent[]>)
   async getByType(eventType: string, limit?: number): Promise<PersistedEvent[]> {
     const all = await this.readAllEvents()
-    const matching = all.filter((e) => e.type === eventType)
+    const matching = all.filter(e => e.type === eventType)
     return limit !== undefined ? matching.slice(0, limit) : matching
   }
 
@@ -258,7 +260,8 @@ export class PersistedEventStore implements EventStore {
   // async: implements EventStore interface (Promise<PersistedEvent | null>)
   async getLastEvent(): Promise<PersistedEvent | null> {
     const all = await this.readAllEvents()
-    if (all.length === 0) return null
+    if (all.length === 0)
+      return null
     return all[all.length - 1] ?? null
   }
 
@@ -291,11 +294,12 @@ export class PersistedEventStore implements EventStore {
    */
   private async readAllEvents(): Promise<PersistedEvent[]> {
     const buffer = await this.adapter.read(this.eventKey)
-    if (!buffer) return []
+    if (!buffer)
+      return []
 
     const content = buffer.toString('utf-8')
-    const lines = content.split('\n').filter((l) => l.trim().length > 0)
+    const lines = content.split('\n').filter(l => l.trim().length > 0)
 
-    return lines.map((line) => JSON.parse(line) as PersistedEvent)
+    return lines.map(line => JSON.parse(line) as PersistedEvent)
   }
 }

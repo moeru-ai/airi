@@ -399,7 +399,6 @@ export async function loadSpineZip(file: File | Blob | ArrayBuffer): Promise<Spi
         if (url.startsWith('blob:')) {
           try {
             URL.revokeObjectURL(url)
-            // eslint-disable-next-line no-empty
           } catch {
             // noop
           }
@@ -422,7 +421,7 @@ function isPassthroughLine(line: string): boolean {
 
 function rewriteAtlasPageReferences(atlasText: string, layout: SpineModelLayout, blobUrls: Record<string, string>) {
   const dir = dirname(layout.atlasPath)
-  // eslint-disable-next-line no-restricted-syntax
+
   const lines = atlasText.split(/\r?\n/)
   const out: string[] = []
   for (const line of lines) {

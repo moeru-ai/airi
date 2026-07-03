@@ -1,13 +1,14 @@
-import { ref, watch, type Ref, type WatchSource } from 'vue'
+import type { Ref, WatchSource } from 'vue'
 
 import type { ModelInfo, VoiceInfo } from '../../../../stores/providers'
-import { z } from 'zod'
+import { resilientFetch } from '@proj-airi/resilience'
+import { ref, watch } from 'vue'
 
+import { z } from 'zod'
 import { getAuthToken } from '../../../../libs/auth'
 import { SERVER_URL } from '../../../../libs/server'
 import { defineProvider } from '../registry'
 import { createOfficialAudioProvider, createOfficialOpenAIProvider, OFFICIAL_ICON, withCredentials } from './shared'
-import { resilientFetch } from '@proj-airi/resilience'
 
 export const OFFICIAL_SPEECH_PROVIDER_ID = 'official-provider-speech'
 export const OFFICIAL_SPEECH_STREAMING_PROVIDER_ID = 'official-provider-speech-streaming'

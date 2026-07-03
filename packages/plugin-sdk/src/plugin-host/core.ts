@@ -725,7 +725,6 @@ export class PluginHost {
     }
   }
 
-  // eslint-disable-next-line class-methods-use-this
   private getPermissionScopeKey(session: PluginHostSession) {
     return session.id
   }
@@ -765,7 +764,6 @@ export class PluginHost {
     return session
   }
 
-  // eslint-disable-next-line class-methods-use-this
   private createSessionContext(session: PluginHostSession): PluginHostSessionContext {
     return {
       sessionId: session.id,

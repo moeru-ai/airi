@@ -7,7 +7,6 @@ import JSZip from 'jszip'
  * Enhanced reporting utility to analyze and validate Live2D ZIP structures.
  */
 
-// eslint-disable-next-line no-console -- CLI reporting tool needs console output
 async function generateReport(zipPath: string) {
   // eslint-disable-next-line no-console -- CLI reporting tool needs console output
   console.log('\n================================================================')
@@ -17,7 +16,6 @@ async function generateReport(zipPath: string) {
   console.log('================================================================\n')
 
   if (!fs.existsSync(zipPath)) {
-    // eslint-disable-next-line no-console -- CLI reporting tool needs console output
     console.error(`Error: File not found at ${zipPath}`)
     process.exit(1)
   }
@@ -40,7 +38,7 @@ async function generateReport(zipPath: string) {
       pose: null as string | null,
       cdi: null as string | null,
       expressions: [] as string[],
-      // eslint-disable-next-line no-console
+
       motions: [] as string[],
     },
   }
@@ -165,15 +163,12 @@ async function generateReport(zipPath: string) {
   report.checks.push(`Total Expressions found: ${report.metadata.expressions.length}`)
 
   const motionFiles = allFiles.filter(
-    // eslint-disable-next-line no-console
     (f) => f.toLowerCase().endsWith('.motion3.json') || f.toLowerCase().endsWith('.mtn'),
-    // eslint-disable-next-line no-console
   )
-  // eslint-disable-next-line no-console
+
   report.metadata.motions = motionFiles
   report.checks.push(`Total Motions found: ${report.metadata.motions.length}`)
 
-  // eslint-disable-next-line no-console
   // Final Summary
   // eslint-disable-next-line no-console -- CLI reporting tool needs console output
   console.log(`[2] SUMMARY`)
@@ -188,7 +183,6 @@ async function generateReport(zipPath: string) {
     report.checks.forEach((c) => {
       // eslint-disable-next-line no-console -- CLI reporting tool needs console output
       console.log(`    [V] ${c}`)
-      // eslint-disable-next-line no-console
     })
   }
 
@@ -206,13 +200,10 @@ async function generateReport(zipPath: string) {
 }
 
 const target = process.argv[2]
-// eslint-disable-next-line no-console -- CLI entry point needs console output
+
 if (!target) {
   // eslint-disable-next-line no-console -- CLI entry point needs console output
   console.log('Usage: node_modules/.bin/tsx packages/stage-ui-live2d/src/utils/live2d-structure-report.ts <zip-path>')
 } else {
-  generateReport(target).catch(
-    // eslint-disable-next-line no-console -- CLI entry point needs console output
-    console.error,
-  )
+  generateReport(target).catch(console.error)
 }

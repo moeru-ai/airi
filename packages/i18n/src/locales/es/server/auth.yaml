@@ -17,7 +17,7 @@ electronCallback:
   label:
     signIn: Iniciar sesión
     safeToClose: Es seguro cerrar la pestaña ahora.
-    whyStillHere: '¿Por qué esta pestaña sigue aquí?'
+    whyStillHere: ¿Por qué esta pestaña sigue aquí?
   action:
     openAiriManually: Abrir AIRI manualmente
   hint:
@@ -53,7 +53,7 @@ signIn:
     continue: Continuar
     signIn: Iniciar sesión
     createAccount: Crear cuenta
-    forgotPassword: '¿Has olvidado la contraseña?'
+    forgotPassword: ¿Has olvidado la contraseña?
     useDifferentEmail: Usar un correo electrónico diferente
   divider:
     or: o

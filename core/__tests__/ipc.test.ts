@@ -5,19 +5,19 @@
  * session management, and event streaming across the IPC boundary.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest'
-
-import { serializeMessage, deserializeMessage } from '../ipc/protocol.js'
 import type {
-  IpcMessage,
+  IpcErrorMessage,
   IpcEventMessage,
+  IpcMessage,
+  IpcPingMessage,
   IpcRequestMessage,
   IpcResponseMessage,
-  IpcErrorMessage,
-  IpcPingMessage,
 } from '../ipc/protocol.js'
-import { generateId, request } from '../ipc/transport.js'
+
 import type { IpcClientTransport, IpcConnectionState } from '../ipc/transport.js'
+import { beforeEach, describe, expect, it } from 'vitest'
+import { deserializeMessage, serializeMessage } from '../ipc/protocol.js'
+import { generateId, request } from '../ipc/transport.js'
 import { SessionManager } from '../runtime/session.js'
 
 // ── Protocol tests ────────────────────────────────────────────────────

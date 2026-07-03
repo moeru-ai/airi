@@ -1,6 +1,6 @@
-import localforage from 'localforage'
-
 import { useBroadcastChannel } from '@vueuse/core'
+
+import localforage from 'localforage'
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
 import { computed, onScopeDispose, reactive, ref, watch } from 'vue'

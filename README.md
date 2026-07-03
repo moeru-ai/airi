@@ -2,10 +2,10 @@
 
 <div align="center">
 <h3>Anima is an agentic AI desktop OS built around your digital companion</h3>
-<sub> 
-  
-Full distro based on [CachyOS](https://cachyos.org/) coming soon! 
-  
+<sub>
+
+Full distro based on [CachyOS](https://cachyos.org/) coming soon!
+
 </sub>
 </div>
 

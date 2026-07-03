@@ -10,15 +10,15 @@
 
 // ── Message type discriminants ────────────────────────────────────────
 
-export type WorkerMessageType =
-	| "worker.hello"
-	| "worker.ready"
-	| "worker.heartbeat"
-	| "worker.shutdown"
-	| "execute.task"
-	| "task.progress"
-	| "task.result"
-	| "task.failure"
+export type WorkerMessageType
+  = | 'worker.hello'
+    | 'worker.ready'
+    | 'worker.heartbeat'
+    | 'worker.shutdown'
+    | 'execute.task'
+    | 'task.progress'
+    | 'task.result'
+    | 'task.failure'
 
 // ── Base envelope ─────────────────────────────────────────────────────
 
@@ -26,14 +26,14 @@ export type WorkerMessageType =
  * Base fields present on every worker IPC message.
  */
 export interface WorkerMessageBase {
-	/** Unique message identifier (UUID v4). */
-	readonly id: string
+  /** Unique message identifier (UUID v4). */
+  readonly id: string
 
-	/** Discriminant — determines which concrete type to use. */
-	readonly type: WorkerMessageType
+  /** Discriminant — determines which concrete type to use. */
+  readonly type: WorkerMessageType
 
-	/** ISO-8601 timestamp of when the message was created. */
-	readonly timestamp: string
+  /** ISO-8601 timestamp of when the message was created. */
+  readonly timestamp: string
 }
 
 // ── Worker → Daemon messages ──────────────────────────────────────────
@@ -44,34 +44,34 @@ export interface WorkerMessageBase {
  * Carries capabilities so the daemon can route tasks to appropriate workers.
  */
 export interface WorkerHelloMessage extends WorkerMessageBase {
-	readonly type: "worker.hello"
+  readonly type: 'worker.hello'
 
-	/** Worker process identifier (from the daemon's perspective). */
-	readonly workerId: string
+  /** Worker process identifier (from the daemon's perspective). */
+  readonly workerId: string
 
-	/**
-	 * Capabilities this worker supports.
-	 * Used by the daemon to match workers to tasks.
-	 */
-	readonly capabilities: WorkerCapabilities
+  /**
+   * Capabilities this worker supports.
+   * Used by the daemon to match workers to tasks.
+   */
+  readonly capabilities: WorkerCapabilities
 }
 
 /**
  * Worker is idle and ready to accept a task.
  */
 export interface WorkerReadyMessage extends WorkerMessageBase {
-	readonly type: "worker.ready"
+  readonly type: 'worker.ready'
 
-	readonly workerId: string
+  readonly workerId: string
 }
 
 /**
  * Periodic liveness ping from worker to daemon.
  */
 export interface WorkerHeartbeatMessage extends WorkerMessageBase {
-	readonly type: "worker.heartbeat"
+  readonly type: 'worker.heartbeat'
 
-	readonly workerId: string
+  readonly workerId: string
 }
 
 /**
@@ -81,12 +81,12 @@ export interface WorkerHeartbeatMessage extends WorkerMessageBase {
  * without waiting for heartbeat timeout.
  */
 export interface WorkerShutdownMessage extends WorkerMessageBase {
-	readonly type: "worker.shutdown"
+  readonly type: 'worker.shutdown'
 
-	readonly workerId: string
+  readonly workerId: string
 
-	/** Optional reason for shutdown. */
-	readonly reason?: string
+  /** Optional reason for shutdown. */
+  readonly reason?: string
 }
 
 // ── Daemon → Worker messages ──────────────────────────────────────────
@@ -95,13 +95,13 @@ export interface WorkerShutdownMessage extends WorkerMessageBase {
  * Assign a task to a worker for execution.
  */
 export interface ExecuteTaskMessage extends WorkerMessageBase {
-	readonly type: "execute.task"
+  readonly type: 'execute.task'
 
-	/** The task to execute (full task snapshot). */
-	readonly task: TaskPayload
+  /** The task to execute (full task snapshot). */
+  readonly task: TaskPayload
 
-	/** Module ID that owns the executor for this task. */
-	readonly moduleId: string
+  /** Module ID that owns the executor for this task. */
+  readonly moduleId: string
 }
 
 // ── Worker → Daemon task result messages ──────────────────────────────
@@ -110,52 +110,52 @@ export interface ExecuteTaskMessage extends WorkerMessageBase {
  * Progress update during task execution.
  */
 export interface TaskProgressMessage extends WorkerMessageBase {
-	readonly type: "task.progress"
+  readonly type: 'task.progress'
 
-	readonly workerId: string
+  readonly workerId: string
 
-	readonly taskId: string
+  readonly taskId: string
 
-	/** Progress percentage (0-100). */
-	readonly progress: number
+  /** Progress percentage (0-100). */
+  readonly progress: number
 
-	/** Optional human-readable progress message. */
-	readonly message?: string
+  /** Optional human-readable progress message. */
+  readonly message?: string
 }
 
 /**
  * Successful task completion.
  */
 export interface TaskResultMessage extends WorkerMessageBase {
-	readonly type: "task.result"
+  readonly type: 'task.result'
 
-	readonly workerId: string
+  readonly workerId: string
 
-	readonly taskId: string
+  readonly taskId: string
 
-	/** Task execution result. */
-	readonly result: {
-		readonly success: boolean
-		readonly output?: unknown
-	}
+  /** Task execution result. */
+  readonly result: {
+    readonly success: boolean
+    readonly output?: unknown
+  }
 }
 
 /**
  * Task execution failed.
  */
 export interface TaskFailureMessage extends WorkerMessageBase {
-	readonly type: "task.failure"
+  readonly type: 'task.failure'
 
-	readonly workerId: string
+  readonly workerId: string
 
-	readonly taskId: string
+  readonly taskId: string
 
-	/** Structured error information. */
-	readonly error: {
-		readonly code: string
-		readonly message: string
-		readonly details?: unknown
-	}
+  /** Structured error information. */
+  readonly error: {
+    readonly code: string
+    readonly message: string
+    readonly details?: unknown
+  }
 }
 
 // ── Union type ────────────────────────────────────────────────────────
@@ -163,15 +163,15 @@ export interface TaskFailureMessage extends WorkerMessageBase {
 /**
  * Discriminated union of all worker IPC message types.
  */
-export type WorkerMessage =
-	| WorkerHelloMessage
-	| WorkerReadyMessage
-	| WorkerHeartbeatMessage
-	| WorkerShutdownMessage
-	| ExecuteTaskMessage
-	| TaskProgressMessage
-	| TaskResultMessage
-	| TaskFailureMessage
+export type WorkerMessage
+  = | WorkerHelloMessage
+    | WorkerReadyMessage
+    | WorkerHeartbeatMessage
+    | WorkerShutdownMessage
+    | ExecuteTaskMessage
+    | TaskProgressMessage
+    | TaskResultMessage
+    | TaskFailureMessage
 
 // ── Payload types ─────────────────────────────────────────────────────
 
@@ -179,11 +179,11 @@ export type WorkerMessage =
  * Worker capabilities advertised at hello time.
  */
 export interface WorkerCapabilities {
-	/** Module IDs this worker can execute tasks for. */
-	readonly moduleIds: string[]
+  /** Module IDs this worker can execute tasks for. */
+  readonly moduleIds: string[]
 
-	/** Maximum concurrent tasks (currently always 1 per worker process). */
-	readonly maxConcurrent: number
+  /** Maximum concurrent tasks (currently always 1 per worker process). */
+  readonly maxConcurrent: number
 }
 
 /**
@@ -193,13 +193,13 @@ export interface WorkerCapabilities {
  * everything the worker needs to execute the task.
  */
 export interface TaskPayload {
-	readonly id: string
-	readonly title: string
-	readonly description?: string
-	readonly priority: string
-	readonly moduleId: string
-	readonly sessionId?: string
-	readonly metadata: Record<string, unknown>
+  readonly id: string
+  readonly title: string
+  readonly description?: string
+  readonly priority: string
+  readonly moduleId: string
+  readonly sessionId?: string
+  readonly metadata: Record<string, unknown>
 }
 
 // ── Serialization helpers ─────────────────────────────────────────────
@@ -208,7 +208,7 @@ export interface TaskPayload {
  * Serialize a worker message to a JSON string.
  */
 export function serializeWorkerMessage(msg: WorkerMessage): string {
-	return JSON.stringify(msg)
+  return JSON.stringify(msg)
 }
 
 /**
@@ -218,38 +218,44 @@ export function serializeWorkerMessage(msg: WorkerMessage): string {
  * the WorkerMessage shape.
  */
 export function deserializeWorkerMessage(raw: string): WorkerMessage | null {
-	try {
-		const parsed = JSON.parse(raw) as unknown
-		if (!isValidWorkerMessage(parsed)) return null
-		return parsed
-	} catch {
-		return null
-	}
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (!isValidWorkerMessage(parsed))
+      return null
+    return parsed
+  }
+  catch {
+    return null
+  }
 }
 
 // ── Type guard ────────────────────────────────────────────────────────
 
 function isValidWorkerMessage(value: unknown): value is WorkerMessage {
-	if (typeof value !== "object" || value === null) return false
+  if (typeof value !== 'object' || value === null)
+    return false
 
-	const obj = value as Record<string, unknown>
+  const obj = value as Record<string, unknown>
 
-	if (typeof obj["id"] !== "string") return false
-	if (typeof obj["type"] !== "string") return false
-	if (typeof obj["timestamp"] !== "string") return false
+  if (typeof obj.id !== 'string')
+    return false
+  if (typeof obj.type !== 'string')
+    return false
+  if (typeof obj.timestamp !== 'string')
+    return false
 
-	const validTypes: string[] = [
-		"worker.hello",
-		"worker.ready",
-		"worker.heartbeat",
-		"worker.shutdown",
-		"execute.task",
-		"task.progress",
-		"task.result",
-		"task.failure",
-	]
+  const validTypes: string[] = [
+    'worker.hello',
+    'worker.ready',
+    'worker.heartbeat',
+    'worker.shutdown',
+    'execute.task',
+    'task.progress',
+    'task.result',
+    'task.failure',
+  ]
 
-	return validTypes.includes(obj["type"])
+  return validTypes.includes(obj.type)
 }
 
 // ── Error codes ───────────────────────────────────────────────────────
@@ -258,20 +264,20 @@ function isValidWorkerMessage(value: unknown): value is WorkerMessage {
  * Error codes used in TaskFailureMessage.
  */
 export const WORKER_ERROR_CODES = {
-	/** Worker process crashed during execution. */
-	WORKER_CRASHED: "WORKER_CRASHED",
+  /** Worker process crashed during execution. */
+  WORKER_CRASHED: 'WORKER_CRASHED',
 
-	/** Executor for the task module was not found in the worker. */
-	EXECUTOR_NOT_FOUND: "EXECUTOR_NOT_FOUND",
+  /** Executor for the task module was not found in the worker. */
+  EXECUTOR_NOT_FOUND: 'EXECUTOR_NOT_FOUND',
 
-	/** Task execution timed out. */
-	TASK_TIMEOUT: "TASK_TIMEOUT",
+  /** Task execution timed out. */
+  TASK_TIMEOUT: 'TASK_TIMEOUT',
 
-	/** Worker failed to initialize. */
-	WORKER_INIT_FAILED: "WORKER_INIT_FAILED",
+  /** Worker failed to initialize. */
+  WORKER_INIT_FAILED: 'WORKER_INIT_FAILED',
 
-	/** Generic execution error. */
-	EXECUTION_ERROR: "EXECUTION_ERROR",
+  /** Generic execution error. */
+  EXECUTION_ERROR: 'EXECUTION_ERROR',
 } as const
 
 export type WorkerErrorCode = (typeof WORKER_ERROR_CODES)[keyof typeof WORKER_ERROR_CODES]

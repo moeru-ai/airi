@@ -76,7 +76,7 @@ dialogs:
       optional: 可选的。
     media-files:
       label: 媒体文件
-      description: '可选：手动选择。'
+      description: 可选：手动选择。
       placeholder: 选择屏幕截图或视频文件
       selected-count: '已选择 {count} 个文件'
     last-submitted-preview: 提交前预览
@@ -137,7 +137,7 @@ live2d:
     title: 缩放与位置
     scale: 缩放
     x: X
-    'y': 'Y'
+    y: Y
   switch-to-vrm:
     title: 想切换至3D虚拟形象？
     change-to-vrm: 切换至3D虚拟形象设定页面（VRM）
@@ -182,7 +182,7 @@ live2d:
       title: FPS
       description: Limit rendering frame rate
       options:
-        unlimited: '∞'
+        unlimited: ∞
     shadow: Drop shadow
     reset-parameters: Reset to default parameters
   clear-model-cache: Clear model cache
@@ -358,12 +358,12 @@ pages:
         speech_model: 为此角色指定语音合成模型与音色。
       errors:
         name: 错误：你必须提供一个有效的名称！
-        version: '错误：版本号无效！'
-        description: '错误：你必须为此卡片提供描述。'
-        personality: '错误：必须为该角色提供性格描述。'
-        scenario: '错误：必须提供一个情境。'
-        systemprompt: '错误：请提供系统提示。'
-        posthistoryinstructions: '错误：必须提供消息历史后的提示。'
+        version: 错误：版本号无效！
+        description: 错误：你必须为此卡片提供描述。
+        personality: 错误：必须为该角色提供性格描述。
+        scenario: 错误：必须提供一个情境。
+        systemprompt: 错误：请提供系统提示。
+        posthistoryinstructions: 错误：必须提供消息历史后的提示。
         invalid_artistry_json: 'Error: Artistry provider options contains invalid JSON.'
       none: None
     modules: 模块
@@ -429,7 +429,7 @@ pages:
         reset: 重置桌面数据
     confirmations:
       tooltip: 您确定吗？
-      'yes': '是'
+      yes: 是
     status:
       exported: 聊天会话已导出。
       imported: 聊天会话已导入。
@@ -568,7 +568,7 @@ pages:
           provider-model-selection:
             collapse: 折叠
             custom_model_placeholder: 输入自订模型名称
-            current_model_label: '当前模型：'
+            current_model_label: 当前模型：
             description: 为意识选择合适的 LLM 服务来源
             error: 获取出错啦
             health_check_failed: 健康检查失败
@@ -636,7 +636,7 @@ pages:
         service-offline: 服务已离线
         no-runtime-context: 尚未观察到 Bot 状态
         last-context-seconds: '最后一次 Bot 状态更新：{seconds} 秒之前'
-        last-context-stale: '最后一次 Bot 状态：挂起'
+        last-context-stale: 最后一次 Bot 状态：挂起
     hearing:
       description: 语音识别
       title: 听觉
@@ -789,7 +789,7 @@ pages:
           label: 启用
       json:
         title: 编辑 mcp.json
-        description: '可以直接修改 JSON，点击「应用」时会自动解析，此时再次点击「保存并重启」就能写到磁盘上啦～'
+        description: 可以直接修改 JSON，点击「应用」时会自动解析，此时再次点击「保存并重启」就能写到磁盘上啦～
         placeholder: 在这里粘贴 mcp.json...
       test:
         title: 测试连接
@@ -1014,7 +1014,7 @@ pages:
           description:
             part1: >-
               虽然 Anthropic 最近宣布他们正在提供对 OpenAI SDK 兼容性的 Beta 版支持
-            part2: '（您可以在此处阅读更多信息）'
+            part2: （您可以在此处阅读更多信息）
             part3: 但由于实现细节附带
             part4: >-
               与 OpenAI SDK 不一致，目前无法在浏览器中使用此提供程序。
@@ -1602,7 +1602,7 @@ vrm:
       坐标轴已被可视化。
     scale: 缩放
     x: X轴偏移
-    'y': Y 轴偏移
+    y: Y 轴偏移
     z: Z轴偏移
     fov: 视角调整（度）
     rotation-y: 模型朝向（Y轴旋转）
@@ -1629,7 +1629,7 @@ spine:
     title: Scale And Position
     scale: Scale
     x: X
-    'y': 'Y'
+    y: Y
   theme-color-from-model:
     title: Extract colors from model
     button-extract:

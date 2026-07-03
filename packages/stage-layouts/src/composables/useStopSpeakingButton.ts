@@ -1,7 +1,7 @@
-import { computed } from 'vue'
-
 import { useSpeakingStore } from '@proj-airi/stage-ui/stores/audio'
+
 import { useSpeechOutputControlStore } from '@proj-airi/stage-ui/stores/speech-output-control'
+import { computed } from 'vue'
 
 /**
  * Composable that provides stop-speaking button state and action for chat surfaces.

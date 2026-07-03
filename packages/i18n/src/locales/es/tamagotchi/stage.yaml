@@ -8,27 +8,27 @@ docs:
     navbar:
       appearance:
         title: Apariencia
-'controls-island':
-  'fade-on-hover':
+controls-island:
+  fade-on-hover:
     enable: Ocultar al pasar el cursor
     disable: Mostrar siempre
-  'open-settings': Abrir configuración
-  'open-chat': Abrir Chat
-  'refresh': Actualizar
-  'open-hearing-controls': Abrir controles de audición
-  'drag-to-move-window': Arrastra para mover la ventana
-  'switch-to-light-mode': Cambiar a modo claro
-  'switch-to-dark-mode': Cambiar a modo oscuro
-  'pin-on-top': Anclar Arriba
-  'unpin-from-top': Desanclar de la parte superior
-  'switch-profile': Cambiar Perfil
-  'close': Cerrar
-  'expand': Expandir
-  'collapse': Contraer
-  'login': Iniciar sesión
-  'logging-in': Iniciando sesión...
-  'account': Cuenta
-  'logout': Cerrar sesión
+  open-settings: Abrir configuración
+  open-chat: Abrir Chat
+  refresh: Actualizar
+  open-hearing-controls: Abrir controles de audición
+  drag-to-move-window: Arrastra para mover la ventana
+  switch-to-light-mode: Cambiar a modo claro
+  switch-to-dark-mode: Cambiar a modo oscuro
+  pin-on-top: Anclar Arriba
+  unpin-from-top: Desanclar de la parte superior
+  switch-profile: Cambiar Perfil
+  close: Cerrar
+  expand: Expandir
+  collapse: Contraer
+  login: Iniciar sesión
+  logging-in: Iniciando sesión...
+  account: Cuenta
+  logout: Cerrar sesión
 widgets:
   close: Cerrar widget
   empty:
@@ -37,7 +37,7 @@ widgets:
   loading: Cargando widget…
   waiting: Esperando los datos del widget "{id}"…
 notice:
-  'fade-on-hover':
+  fade-on-hover:
     title: Desvanecer al pasar el cursor
     intro: Difumina el personaje automáticamente cuando el cursor está cerca. Reduce distracciones sin perder visibilidad.
     opacity: Al activarlo, la opacidad baja a {value} para {targets} cuando el cursor está cerca.
@@ -50,7 +50,7 @@ notice:
     dont-show-again: No volver a mostrar
     preparing: Preparando…
     read-more: Leer más
-    preview-title: '¿Qué es esto?'
+    preview-title: ¿Qué es esto?
 about:
   subtitle: Versión de escritorio.
   current-version: Versión actual

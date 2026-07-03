@@ -8,27 +8,27 @@ docs:
     navbar:
       appearance:
         title: Giao diện
-'controls-island':
-  'fade-on-hover':
+controls-island:
+  fade-on-hover:
     enable: Ẩn khi rê chuột
     disable: Luôn hiển thị
-  'open-settings': Mở cài đặt
-  'open-chat': Mở trò chuyện
-  'refresh': Làm mới
-  'open-hearing-controls': Kiểm soát thính giác mở
-  'drag-to-move-window': Kéo để di chuyển cửa sổ
-  'switch-to-light-mode': Chuyển sang chế độ sáng
-  'switch-to-dark-mode': Chuyển sang chế độ tối
-  'pin-on-top': Ghim lên trên
-  'unpin-from-top': Gỡ ghim khỏi đầu trang
-  'switch-profile': Switch Profile
-  'close': Đóng
-  'expand': Mở rộng
-  'collapse': Sụp đổ
-  'login': Sign in
-  'logging-in': Signing in...
-  'account': Account
-  'logout': Sign out
+  open-settings: Mở cài đặt
+  open-chat: Mở trò chuyện
+  refresh: Làm mới
+  open-hearing-controls: Kiểm soát thính giác mở
+  drag-to-move-window: Kéo để di chuyển cửa sổ
+  switch-to-light-mode: Chuyển sang chế độ sáng
+  switch-to-dark-mode: Chuyển sang chế độ tối
+  pin-on-top: Ghim lên trên
+  unpin-from-top: Gỡ ghim khỏi đầu trang
+  switch-profile: Switch Profile
+  close: Đóng
+  expand: Mở rộng
+  collapse: Sụp đổ
+  login: Sign in
+  logging-in: Signing in...
+  account: Account
+  logout: Sign out
 widgets:
   close: Close widget
   empty:
@@ -37,7 +37,7 @@ widgets:
   loading: Loading widget…
   waiting: Waiting for widget data for "{id}"…
 notice:
-  'fade-on-hover':
+  fade-on-hover:
     title: Mờ dần khi rê chuột
     intro: Tự làm mờ nhân vật khi con trỏ ở gần. Giảm xao nhãng nhưng vẫn nhìn thấy nhân vật.
     opacity: Bật lên thì độ mờ giảm xuống {value} cho {targets} khi con trỏ ở gần.

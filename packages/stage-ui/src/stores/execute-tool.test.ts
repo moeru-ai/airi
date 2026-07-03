@@ -1,8 +1,8 @@
 import type { Message, Tool, ToolCall } from '@xsai/shared-chat'
 
 import { InvalidToolCallError, InvalidToolInputError, ToolExecutionError } from '@xsai/shared'
-import { executeTool } from './execute-tool'
 import { describe, expect, it, vi } from 'vitest'
+import { executeTool } from './execute-tool'
 
 function createToolCall(
   overrides: Partial<ToolCall> & {

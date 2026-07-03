@@ -1,8 +1,8 @@
-import { buildStreamingTtsUrl } from './tts-analytics'
 import type { TtsSource, TtsTrigger } from './tts-analytics'
-
 import { getAuthToken } from '../auth'
+
 import { SERVER_URL } from '../server'
+import { buildStreamingTtsUrl } from './tts-analytics'
 
 /**
  * One control event over the bidirectional streaming TTS protocol
@@ -107,7 +107,6 @@ export function streamingSynthesize(options: StreamingTtsSessionOptions): Promis
       } finally {
         try {
           if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) ws.close()
-          // eslint-disable-next-line no-empty
         } catch {
           // noop
         }
@@ -117,7 +116,6 @@ export function streamingSynthesize(options: StreamingTtsSessionOptions): Promis
 
     function onAbort() {
       settle(() => {
-        // eslint-disable-next-line no-empty
         try {
           ws.send(JSON.stringify({ event: 'cancel' }))
         } catch {
@@ -162,7 +160,6 @@ export function streamingSynthesize(options: StreamingTtsSessionOptions): Promis
         let evt: StreamingTtsServerEvent
         try {
           evt = JSON.parse(e.data) as StreamingTtsServerEvent
-          // eslint-disable-next-line default-case
         } catch {
           return
         }

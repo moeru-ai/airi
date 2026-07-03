@@ -18,8 +18,8 @@ import { createContext } from '@moeru/eventa'
 import { speechPipelineEventMap } from './eventa'
 import { createPriorityResolver } from './priority'
 import { createTtsSegmentStream } from './processors/tts-chunker'
-import { stripMarkdownFromText } from './strip-markdown'
 import { createPushStream } from './stream'
+import { stripMarkdownFromText } from './strip-markdown'
 import { createTimeline } from './timeline'
 
 export interface SpeechPipelineOptions<TAudio> {
@@ -307,11 +307,12 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
           intentId: intent.intentId,
           reason: intent.controller.signal.reason as string | undefined,
         })
-        if (intent.turnId)
+        if (intent.turnId) {
           context.emit(speechPipelineEventMap.onTurnCancel, {
             turnId: intent.turnId,
             reason: intent.controller.signal.reason as string | undefined,
           })
+        }
       } else {
         context.emit(speechPipelineEventMap.onIntentEnd, intent.intentId)
         if (intent.turnId) context.emit(speechPipelineEventMap.onTurnEnd, intent.turnId)

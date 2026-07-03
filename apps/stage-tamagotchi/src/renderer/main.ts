@@ -1,26 +1,10 @@
 import type { Plugin } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
 
-import Tres from '@tresjs/core'
-
-// Dev-only CORS workaround: rewrite localhost backend fetch URLs to go
-// through the Vite dev server proxy instead of hitting the backend
-// directly. In production (packaged Electron) CORS doesn't apply.
-if (import.meta.env.DEV) {
-  const originalFetch = globalThis.fetch
-  const LOCALHOST_BACKEND_RE = /^https?:\/\/(localhost|127\.0\.0\.1):3001(\/v1\/.*)$/
-  globalThis.fetch = function devFetch(input: RequestInfo | URL, init?: RequestInit) {
-    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
-    const rewritten = url.replace(LOCALHOST_BACKEND_RE, '$2')
-    if (rewritten !== url) {
-      return originalFetch(rewritten, init)
-    }
-    return originalFetch(input, init)
-  }
-}
-
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
+
 import { PiniaColada } from '@pinia/colada'
+import Tres from '@tresjs/core'
 import { MotionPlugin } from '@vueuse/motion'
 import { createPinia } from 'pinia'
 import { setupLayouts } from 'virtual:generated-layouts'
@@ -51,6 +35,22 @@ import '@fontsource/gugi/index.css'
 import '@fontsource/kiwi-maru/index.css'
 import '@fontsource/m-plus-rounded-1c/index.css'
 import '@fontsource-variable/nunito/index.css'
+
+// Dev-only CORS workaround: rewrite localhost backend fetch URLs to go
+// through the Vite dev server proxy instead of hitting the backend
+// directly. In production (packaged Electron) CORS doesn't apply.
+if (import.meta.env.DEV) {
+  const originalFetch = globalThis.fetch
+  const LOCALHOST_BACKEND_RE = /^https?:\/\/(localhost|127\.0\.0\.1):3001(\/v1\/.*)$/
+  globalThis.fetch = function devFetch(input: RequestInfo | URL, init?: RequestInit) {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
+    const rewritten = url.replace(LOCALHOST_BACKEND_RE, '$2')
+    if (rewritten !== url) {
+      return originalFetch(rewritten, init)
+    }
+    return originalFetch(input, init)
+  }
+}
 
 const pinia = createPinia()
 

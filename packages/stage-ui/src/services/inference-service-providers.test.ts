@@ -1,8 +1,8 @@
-import { describe, expect, it, vi } from 'vitest'
+import type { InferenceServiceProvidersRemoteClient } from './inference-service-providers'
 
+import { describe, expect, it, vi } from 'vitest'
 import { providerOpenAICompatible } from '../libs/providers/providers/openai-compatible'
 import { inferenceServiceProvidersService } from './inference-service-providers'
-import type { InferenceServiceProvidersRemoteClient } from './inference-service-providers'
 
 /**
  * @example

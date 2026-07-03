@@ -32,14 +32,14 @@ viewers:
   debug-menu:
     emotions: 表情
     emotions-btn:
-      angry: '😠 生气'
-      awkward: '😳 尴尬'
-      happy: '😄 开心'
-      neutral: '🙂 日常'
-      question: '🤔 疑问'
-      sad: '😫 难过'
-      surprised: '🤯 惊喜'
-      think: '🤨 思考'
+      angry: 😠 生气
+      awkward: 😳 尴尬
+      happy: 😄 开心
+      neutral: 🙂 日常
+      question: 🤔 疑问
+      sad: 😫 难过
+      surprised: 🤯 惊喜
+      think: 🤨 思考
     vrm:
       camera: 摄像机
       model:

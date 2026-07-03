@@ -137,7 +137,7 @@ live2d:
     title: 크기 및 위치
     scale: 크기
     x: X 좌표
-    'y': 'Y 좌표'
+    y: Y 좌표
   switch-to-vrm:
     title: 3D 아바타로 전환하시겠습니까?
     change-to-vrm: 3D 아바타 설정(VRM)으로 전환하려면 여기를 클릭하세요
@@ -182,7 +182,7 @@ live2d:
       title: FPS
       description: Limit rendering frame rate
       options:
-        unlimited: '∞'
+        unlimited: ∞
     shadow: Drop shadow
     reset-parameters: Reset to default parameters
   clear-model-cache: Clear model cache
@@ -429,7 +429,7 @@ pages:
         reset: 데스크탑 데이터 지우기
     confirmations:
       tooltip: 정말 진행하실 건가요?
-      'yes': '네'
+      yes: 네
     status:
       exported: 채팅 세션을 내보냈습니다.
       imported: 채팅 세션을 가져왔습니다.
@@ -1602,7 +1602,7 @@ vrm:
       좌표 축이 시각화됩니다.
     scale: 크기
     x: X 오프셋
-    'y': Y 오프셋
+    y: Y 오프셋
     z: Z 오프셋
     fov: FOV (각도)
     rotation-y: 회전 (Y 좌표)
@@ -1629,7 +1629,7 @@ spine:
     title: Scale And Position
     scale: Scale
     x: X
-    'y': 'Y'
+    y: Y
   theme-color-from-model:
     title: Extract colors from model
     button-extract:

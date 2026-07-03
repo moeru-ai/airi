@@ -5,59 +5,59 @@ version: 2
 
 updates:
   # Root-level pnpm workspace
-  - package-ecosystem: "npm"
-    directory: "/"
+  - package-ecosystem: npm
+    directory: /
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: weekly
+      day: monday
     open-pull-requests-limit: 10
     # Group non-breaking updates together to reduce PR noise
     groups:
       # Security patches and critical fixes get their own PRs
       security-updates:
         patterns:
-          - "*"
+          - '*'
         update-types:
-          - "patch"
+          - patch
       # Minor updates grouped together
       minor-updates:
         patterns:
-          - "*"
+          - '*'
         update-types:
-          - "minor"
+          - minor
       # Major updates kept separate
       major-updates:
         patterns:
-          - "*"
+          - '*'
         update-types:
-          - "major"
+          - major
     # Ignore internal workspace packages handled separately
     ignore:
-      - dependency-name: "@proj-airi/*"
-      - dependency-name: "@moeru/*"
+      - dependency-name: '@proj-airi/*'
+      - dependency-name: '@moeru/*'
     labels:
-      - "dependencies"
-      - "automated"
+      - dependencies
+      - automated
     commit-message:
-      prefix: "chore(deps)"
-      include: "scope"
+      prefix: chore(deps)
+      include: scope
     # Stagger reviews by assignee if maintainers exist
     reviewers:
-      - "moeru-ai"
+      - moeru-ai
     # Allow Dependabot to rebase behind-the-scenes
-    rebase-strategy: "auto"
+    rebase-strategy: auto
 
   # GitHub Actions used in CI workflows
-  - package-ecosystem: "github-actions"
-    directory: "/"
+  - package-ecosystem: github-actions
+    directory: /
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: weekly
+      day: monday
     open-pull-requests-limit: 5
     labels:
-      - "dependencies"
-      - "ci"
-      - "automated"
+      - dependencies
+      - ci
+      - automated
     commit-message:
-      prefix: "chore(ci)"
-      include: "scope"
+      prefix: chore(ci)
+      include: scope

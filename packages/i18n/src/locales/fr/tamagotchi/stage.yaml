@@ -8,27 +8,27 @@ docs:
     navbar:
       appearance:
         title: Apparence
-'controls-island':
-  'fade-on-hover':
+controls-island:
+  fade-on-hover:
     enable: Masquer au survol
     disable: Toujours afficher
-  'open-settings': Ouvrir les paramètres
-  'open-chat': Ouvrir le Chat
-  'refresh': Actualiser
-  'open-hearing-controls': Ouvrir les contrôles d'écoute
-  'drag-to-move-window': Glisser pour déplacer la fenêtre
-  'switch-to-light-mode': Passer au mode clair
-  'switch-to-dark-mode': Passer au mode sombre
-  'pin-on-top': Épingler en haut
-  'unpin-from-top': Désépingler du haut
-  'switch-profile': Changer de Profil
-  'close': Fermer
-  'expand': Développer
-  'collapse': Réduire
-  'login': Se connecter
-  'logging-in': Connexion en cours...
-  'account': Compte
-  'logout': Compte
+  open-settings: Ouvrir les paramètres
+  open-chat: Ouvrir le Chat
+  refresh: Actualiser
+  open-hearing-controls: Ouvrir les contrôles d'écoute
+  drag-to-move-window: Glisser pour déplacer la fenêtre
+  switch-to-light-mode: Passer au mode clair
+  switch-to-dark-mode: Passer au mode sombre
+  pin-on-top: Épingler en haut
+  unpin-from-top: Désépingler du haut
+  switch-profile: Changer de Profil
+  close: Fermer
+  expand: Développer
+  collapse: Réduire
+  login: Se connecter
+  logging-in: Connexion en cours...
+  account: Compte
+  logout: Compte
 widgets:
   close: Close widget
   empty:
@@ -37,7 +37,7 @@ widgets:
   loading: Loading widget…
   waiting: Waiting for widget data for "{id}"…
 notice:
-  'fade-on-hover':
+  fade-on-hover:
     title: Disparaître au survol
     intro: Fait disparaître légèrement le personnage quand le curseur s’approche. Moins de distractions tout en restant visible.
     opacity: Une fois activé, l’opacité descend à {value} pour {targets} quand le curseur est à proximité.

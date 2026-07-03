@@ -195,6 +195,7 @@
     "@types/ws": "catalog:",
     "@unocss/reset": "catalog:",
     "@vitejs/plugin-vue": "catalog:",
+    "@vue-macros/volar": "catalog:",
     "@webgpu/types": "catalog:",
     "clustr": "catalog:",
     "csstype": "catalog:",
@@ -207,7 +208,6 @@
     "vite": "catalog:vite-6-4-2",
     "vitest-browser-vue": "catalog:",
     "vue": "catalog:",
-    "@vue-macros/volar": "catalog:",
     "vue-tsc": "catalog:",
     "ws": "catalog:"
   }

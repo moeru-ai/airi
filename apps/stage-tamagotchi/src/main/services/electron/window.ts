@@ -45,7 +45,7 @@ export function createWindowService(params: {
   onAppWindowAllClosed(() => stop())
   onAppBeforeQuit(() => stop())
   defineInvokeHandler(params.context, startLoopGetBounds, () => start())
-  // eslint-disable-next-line consistent-return
+
   defineInvokeHandler(params.context, electronGetWindowLifecycleState, (_, options) => {
     if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) return getWindowLifecycleState('snapshot')
   })

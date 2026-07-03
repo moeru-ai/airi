@@ -11,34 +11,34 @@
  * - Persistence integration (snapshots)
  */
 
-import { describe, it, expect, beforeEach } from 'vitest'
+import type { CapabilityId } from '../capabilities/types.js'
 
+import type { CognitionContext, CognitionRequest, ProposedStep } from '../cognition/types.js'
+import type { AiriEvent } from '../events/types.js'
+import type { SerializedProposal, SerializedReasoningTrace } from '../persistence/types.js'
+import type { WorkspaceId } from '../workspace/types.js'
+import { beforeEach, describe, expect, it } from 'vitest'
+import { CapabilityRegistry } from '../capabilities/registry.js'
+import { createCapabilityId, createToolId } from '../capabilities/types.js'
+import { CognitionCoordinator } from '../cognition/coordinator.js'
 import {
-  createProposalId,
-  createReasoningId,
   createCognitionSessionId,
   createProposal,
-  proposalToPlan,
-  summarizeProposal,
+  createProposalId,
+  createReasoningId,
   extractCapabilityRequirements,
   extractWorkspaceRequirements,
+  proposalToPlan,
+  summarizeProposal,
 } from '../cognition/index.js'
-import type { CognitionContext, CognitionRequest, ProposedStep } from '../cognition/types.js'
-import { PlanValidator } from '../cognition/validator.js'
 import { MockCognitionProvider } from '../cognition/providers/mock-provider.js'
-import { CognitionCoordinator } from '../cognition/coordinator.js'
-import { CapabilityRegistry } from '../capabilities/registry.js'
-import { WorkspaceManager } from '../workspace/manager.js'
-import { CancellationTokenSource } from '../tasks/cancellation.js'
-import type { CapabilityId } from '../capabilities/types.js'
-import { createCapabilityId, createToolId } from '../capabilities/types.js'
-import type { WorkspaceId } from '../workspace/types.js'
-import { createWorkspaceId } from '../workspace/types.js'
+import { PlanValidator } from '../cognition/validator.js'
 import { EventBus } from '../events/bus.js'
 import { createLogger } from '../logger.js'
 import { InMemoryEventStore, InMemorySnapshotStore, SnapshotManager } from '../persistence/index.js'
-import type { SerializedProposal, SerializedReasoningTrace } from '../persistence/types.js'
-import type { AiriEvent } from '../events/types.js'
+import { CancellationTokenSource } from '../tasks/cancellation.js'
+import { WorkspaceManager } from '../workspace/manager.js'
+import { createWorkspaceId } from '../workspace/types.js'
 
 const events = new EventBus()
 const logger = createLogger('test')
@@ -54,7 +54,7 @@ function createTestWorkspaceId(name: string): WorkspaceId {
 }
 
 function createTestProposedStep(
-  overrides: Partial<ProposedStep> & { id: string; name: string; action: string },
+  overrides: Partial<ProposedStep> & { id: string, name: string, action: string },
 ): ProposedStep {
   return {
     input: {},
@@ -64,7 +64,7 @@ function createTestProposedStep(
 
 // ── Branded ID Tests ────────────────────────────────────────────────────
 
-describe('Branded IDs', () => {
+describe('branded IDs', () => {
   it('creates ProposalId from raw string', () => {
     const id = createProposalId('test-proposal')
     expect(id).toBe('test-proposal')
@@ -252,7 +252,7 @@ describe('extractWorkspaceRequirements', () => {
 
 // ── PlanValidator Tests ──────────────────────────────────────────────────
 
-describe('PlanValidator', () => {
+describe('planValidator', () => {
   let capabilityRegistry: CapabilityRegistry
   let workspaceManager: WorkspaceManager
   let validator: PlanValidator
@@ -301,7 +301,7 @@ describe('PlanValidator', () => {
 
     const result = validator.validate(proposal)
     expect(result.valid).toBe(false)
-    expect(result.errors.some((e) => e.code === 'UNKNOWN_CAPABILITY')).toBe(true)
+    expect(result.errors.some(e => e.code === 'UNKNOWN_CAPABILITY')).toBe(true)
   })
 
   it('rejects proposal with step-level unknown capability', () => {
@@ -312,7 +312,7 @@ describe('PlanValidator', () => {
 
     const result = validator.validate(proposal)
     expect(result.valid).toBe(false)
-    expect(result.errors.some((e) => e.code === 'UNKNOWN_STEP_CAPABILITY')).toBe(true)
+    expect(result.errors.some(e => e.code === 'UNKNOWN_STEP_CAPABILITY')).toBe(true)
   })
 
   it('rejects proposal with invalid dependency reference', () => {
@@ -340,7 +340,7 @@ describe('PlanValidator', () => {
 
     const result = validator.validate(proposal)
     expect(result.valid).toBe(false)
-    expect(result.errors.some((e) => e.code === 'MISSING_DEPENDENCY')).toBe(true)
+    expect(result.errors.some(e => e.code === 'MISSING_DEPENDENCY')).toBe(true)
   })
 
   it('rejects proposal with cyclic dependencies', () => {
@@ -369,7 +369,7 @@ describe('PlanValidator', () => {
 
     const result = validator.validate(proposal)
     expect(result.valid).toBe(false)
-    expect(result.errors.some((e) => e.code === 'CYCLIC_DEPENDENCY')).toBe(true)
+    expect(result.errors.some(e => e.code === 'CYCLIC_DEPENDENCY')).toBe(true)
   })
 
   it('rejects proposal with unknown workspace', () => {
@@ -381,7 +381,7 @@ describe('PlanValidator', () => {
 
     const result = validator.validate(proposal)
     expect(result.valid).toBe(false)
-    expect(result.errors.some((e) => e.code === 'UNKNOWN_WORKSPACE')).toBe(true)
+    expect(result.errors.some(e => e.code === 'UNKNOWN_WORKSPACE')).toBe(true)
   })
 
   it('rejects proposal with unknown step action', () => {
@@ -391,14 +391,14 @@ describe('PlanValidator', () => {
 
     const result = validator.validate(proposal)
     expect(result.valid).toBe(false)
-    expect(result.errors.some((e) => e.code === 'UNKNOWN_ACTION')).toBe(true)
+    expect(result.errors.some(e => e.code === 'UNKNOWN_ACTION')).toBe(true)
   })
 
   it('warns on empty proposal', () => {
     const proposal = createProposal(createReasoningId('r1'), 'Empty', [])
 
     const result = validator.validate(proposal)
-    expect(result.warnings.some((w) => w.code === 'EMPTY_PROPOSAL')).toBe(true)
+    expect(result.warnings.some(w => w.code === 'EMPTY_PROPOSAL')).toBe(true)
   })
 
   it('warns on large proposal', () => {
@@ -422,12 +422,11 @@ describe('PlanValidator', () => {
 
     const LARGE_PROPOSAL_THRESHOLD = 101
     const steps = Array.from({ length: LARGE_PROPOSAL_THRESHOLD }, (_, i) =>
-      createTestProposedStep({ id: `s${i}`, name: `Step ${i}`, action: 'read_file' }),
-    )
+      createTestProposedStep({ id: `s${i}`, name: `Step ${i}`, action: 'read_file' }))
     const proposal = createProposal(createReasoningId('r1'), 'Large', steps)
 
     const result = validator.validate(proposal)
-    expect(result.warnings.some((w) => w.code === 'LARGE_PROPOSAL')).toBe(true)
+    expect(result.warnings.some(w => w.code === 'LARGE_PROPOSAL')).toBe(true)
   })
 
   it('normalizes proposal with default timeouts', () => {
@@ -443,7 +442,7 @@ describe('PlanValidator', () => {
 
 // ── MockCognitionProvider Tests ──────────────────────────────────────────
 
-describe('MockCognitionProvider', () => {
+describe('mockCognitionProvider', () => {
   let provider: MockCognitionProvider
 
   beforeEach(() => {
@@ -522,7 +521,7 @@ describe('MockCognitionProvider', () => {
 
 // ── CognitionCoordinator Tests ───────────────────────────────────────────
 
-describe('CognitionCoordinator', () => {
+describe('cognitionCoordinator', () => {
   let coordinator: CognitionCoordinator
   let provider: MockCognitionProvider
   let capabilityRegistry: CapabilityRegistry
@@ -659,7 +658,7 @@ describe('CognitionCoordinator', () => {
 
     const result = coordinator.validateProposal(proposal)
     expect(result.valid).toBe(false)
-    expect(result.errors.some((e) => e.code === 'UNKNOWN_ACTION')).toBe(true)
+    expect(result.errors.some(e => e.code === 'UNKNOWN_ACTION')).toBe(true)
   })
 
   it('accepts a validated proposal', () => {
@@ -694,7 +693,7 @@ describe('CognitionCoordinator', () => {
 
 // ── Persistence Integration Tests ────────────────────────────────────────
 
-describe('Cognition Persistence', () => {
+describe('cognition Persistence', () => {
   it('includes proposals in RuntimeSnapshot', async () => {
     const store = new InMemorySnapshotStore()
     const snapshotManager = new SnapshotManager(store, events)
@@ -781,7 +780,7 @@ describe('Cognition Persistence', () => {
 
 // ── Replay Consistency Tests ─────────────────────────────────────────────
 
-describe('Replay Consistency', () => {
+describe('replay Consistency', () => {
   it('replaying cognition events produces consistent state', async () => {
     const eventStore = new InMemoryEventStore()
 

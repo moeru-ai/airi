@@ -1,10 +1,8 @@
 version = 1
-
 test_patterns = [
   '**/*.test.ts',
   '**/*.spec.ts',
 ]
-
 exclude_patterns = [
   '**/node_modules/**',
   '**/dist/**',

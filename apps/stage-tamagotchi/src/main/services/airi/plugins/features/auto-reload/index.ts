@@ -1,6 +1,6 @@
-import type { FSWatcher } from 'node:fs'
-
 import type { useLogg } from '@guiiai/logg'
+
+import type { FSWatcher } from 'node:fs'
 
 import type { ManifestEntry, PluginConfig } from '../../types'
 

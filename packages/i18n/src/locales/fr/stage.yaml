@@ -32,14 +32,14 @@ viewers:
   debug-menu:
     emotions: Émotions
     emotions-btn:
-      angry: '😠 En colère'
-      awkward: '😳 Mal à l’aise'
-      happy: '😄 Heureux'
-      neutral: '🙂 Neutre'
-      question: '🤔 Interrogatif'
-      sad: '😫 Triste'
-      surprised: '🤯 Surpris'
-      think: '🤨 Pensif'
+      angry: 😠 En colère
+      awkward: 😳 Mal à l’aise
+      happy: 😄 Heureux
+      neutral: 🙂 Neutre
+      question: 🤔 Interrogatif
+      sad: 😫 Triste
+      surprised: 🤯 Surpris
+      think: 🤨 Pensif
     vrm:
       camera: Caméra
       model:

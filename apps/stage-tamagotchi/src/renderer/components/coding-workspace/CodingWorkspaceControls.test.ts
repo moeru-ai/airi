@@ -42,10 +42,10 @@ async function mountControls() {
 /**
  * Project pattern: vitest unit tests live alongside source files and exercise
  * components via `render` from `vitest-browser-vue` (see packages/stage-ui
- * *.browser.test.ts). Because this run executes under the Node test project,
+ * .browser.test.ts). Because this run executes under the Node test project,
  * we mount via a raw Vue app + Pinia and assert on the resulting DOM.
  */
-describe('CodingWorkspaceControls.vue — visibility and mode badges', () => {
+describe('codingWorkspaceControls.vue — visibility and mode badges', () => {
   beforeEach(() => {
     // Fresh Pinia per test.
     document.body.innerHTML = ''

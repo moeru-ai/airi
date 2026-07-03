@@ -5,18 +5,18 @@
  * Uses a temporary directory for each test.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { promises as fs } from 'node:fs'
-import path from 'node:path'
-import os from 'node:os'
-
-import { FilesystemPersistenceAdapter } from '../persistence/adapters/filesystem/adapter.js'
-import { FilesystemEventStore } from '../persistence/adapters/filesystem/event-store.js'
-import { FilesystemSnapshotStore } from '../persistence/adapters/filesystem/snapshot-store.js'
-import { FilesystemRuntimeStateStore } from '../persistence/adapters/filesystem/runtime-state-store.js'
-
 import type { AiriEvent } from '../events/types.js'
 import type { RuntimeSnapshot } from '../persistence/types.js'
+import { promises as fs } from 'node:fs'
+import os from 'node:os'
+
+import path from 'node:path'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { FilesystemPersistenceAdapter } from '../persistence/adapters/filesystem/adapter.js'
+import { FilesystemEventStore } from '../persistence/adapters/filesystem/event-store.js'
+
+import { FilesystemRuntimeStateStore } from '../persistence/adapters/filesystem/runtime-state-store.js'
+import { FilesystemSnapshotStore } from '../persistence/adapters/filesystem/snapshot-store.js'
 
 // ── Test helpers ─────────────────────────────────────────────────────────
 
@@ -40,7 +40,7 @@ function createTestEvent(overrides: Partial<AiriEvent> = {}): AiriEvent {
 
 // ── FilesystemPersistenceAdapter tests ───────────────────────────────────
 
-describe('FilesystemPersistenceAdapter', () => {
+describe('filesystemPersistenceAdapter', () => {
   let adapter: FilesystemPersistenceAdapter
   let tmpDir: string
 
@@ -148,7 +148,7 @@ describe('FilesystemPersistenceAdapter', () => {
 
 // ── FilesystemEventStore tests ───────────────────────────────────────────
 
-describe('FilesystemEventStore', () => {
+describe('filesystemEventStore', () => {
   let store: FilesystemEventStore
   let tmpDir: string
 
@@ -215,7 +215,7 @@ describe('FilesystemEventStore', () => {
 
 // ── FilesystemSnapshotStore tests ────────────────────────────────────────
 
-describe('FilesystemSnapshotStore', () => {
+describe('filesystemSnapshotStore', () => {
   let store: FilesystemSnapshotStore
   let tmpDir: string
 
@@ -316,7 +316,7 @@ describe('FilesystemSnapshotStore', () => {
 
 // ── FilesystemRuntimeStateStore tests ────────────────────────────────────
 
-describe('FilesystemRuntimeStateStore', () => {
+describe('filesystemRuntimeStateStore', () => {
   let store: FilesystemRuntimeStateStore
   let tmpDir: string
 

@@ -7,9 +7,9 @@ import Vue from '@vitejs/plugin-vue'
 import Unocss from 'unocss/vite'
 import Basemove, { createS3Provider } from 'unplugin-basemove/vite'
 import Yaml from 'unplugin-yaml/vite'
-import Inspect from 'vite-plugin-inspect'
-
 import { defineConfig } from 'vite'
+
+import Inspect from 'vite-plugin-inspect'
 
 // For Histoire
 export default defineConfig({
@@ -65,7 +65,7 @@ export default defineConfig({
             prefix: env.STAGE_UI_WARP_DRIVE_PREFIX || 'proj-airi/stage-ui/main/',
             include: [/\.wasm$/i, /\.ttf$/i, /\.vrm$/i, /\.zip$/i], // in existing assets, wasm, ttf, vrm files are the largest ones
             manifest: true,
-            // eslint-disable-next-line consistent-return
+
             contentTypeBy: (filename: string) => {
               if (filename.endsWith('.wasm')) {
                 return 'application/wasm'

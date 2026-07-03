@@ -28,7 +28,7 @@ function calculateVolume(manager: AudioManagerType): number {
 
   // Find peak volume
   let volume = 0.0
-  // eslint-disable-next-line no-restricted-syntax
+
   for (const value of manager.dataBuffer) {
     volume = Math.max(volume, Math.abs(value))
   }

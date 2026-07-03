@@ -1,8 +1,8 @@
-import { describe, expect, it, vi } from 'vitest'
-import { z } from 'zod'
 import type { ComposerTranslation } from 'vue-i18n'
-
 import type { ProviderDefinition } from '../../libs/providers/types'
+import { describe, expect, it, vi } from 'vitest'
+
+import { z } from 'zod'
 import { convertProviderDefinitionToMetadata } from './converters'
 
 vi.mock('@xsai/model', () => ({

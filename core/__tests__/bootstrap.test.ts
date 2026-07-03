@@ -5,13 +5,29 @@
  * and module activation sequencing.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest'
+import type { CoreContext } from '../modules/module.js'
 
 // ── EventBus tests ──────────────────────────────────────────────────
 
-import { EventBus } from '../events/bus.js'
+import { beforeEach, describe, expect, it } from 'vitest'
 
-describe('EventBus', () => {
+// ── RuntimeClient tests ─────────────────────────────────────────────
+
+import { bootstrap } from '../bootstrap.js'
+
+// ── Logger tests ────────────────────────────────────────────────────
+
+import { CapabilityRegistry } from '../capabilities/registry.js'
+
+// ── Bootstrap tests ─────────────────────────────────────────────────
+
+import { EventBus } from '../events/bus.js'
+import { createLogger, getLogLevel, setLogLevel } from '../logger.js'
+import { ModuleRegistry } from '../modules/registry.js'
+import { createLocalRuntimeClient } from '../runtime/local-client.js'
+import { LocalToolRuntime } from '../runtime/local-tool-runtime.js'
+
+describe('eventBus', () => {
   let bus: EventBus
 
   beforeEach(() => {
@@ -20,7 +36,7 @@ describe('EventBus', () => {
 
   it('delivers events to subscribers via on()', () => {
     const received: unknown[] = []
-    bus.on('test.event', (payload) => received.push(payload))
+    bus.on('test.event', payload => received.push(payload))
 
     bus.emit('test.event', { hello: 'world' })
 
@@ -30,7 +46,7 @@ describe('EventBus', () => {
 
   it('delivers events to subscribers via subscribe()', () => {
     const received: unknown[] = []
-    bus.subscribe('test.event', (payload) => received.push(payload))
+    bus.subscribe('test.event', payload => received.push(payload))
 
     bus.emit('test.event', 42)
 
@@ -50,7 +66,7 @@ describe('EventBus', () => {
     // publish() is async — subscribe after publish won't receive.
     // Test that subscribe + publish works in the right order.
     const collected: unknown[] = []
-    bus.subscribe('task.started', (payload) => collected.push(payload))
+    bus.subscribe('task.started', payload => collected.push(payload))
 
     await bus.publish({
       type: 'task.started',
@@ -65,7 +81,7 @@ describe('EventBus', () => {
 
   it('once() fires exactly once', () => {
     const received: unknown[] = []
-    bus.once('test.event', (payload) => received.push(payload))
+    bus.once('test.event', payload => received.push(payload))
 
     bus.emit('test.event', 'first')
     bus.emit('test.event', 'second')
@@ -77,7 +93,7 @@ describe('EventBus', () => {
 
   it('unsubscribe function removes the handler', () => {
     const received: unknown[] = []
-    const unsub = bus.on('test.event', (payload) => received.push(payload))
+    const unsub = bus.on('test.event', payload => received.push(payload))
 
     bus.emit('test.event', 'first')
     unsub()
@@ -94,7 +110,7 @@ describe('EventBus', () => {
       throw new Error('Listener 1 failed')
     })
 
-    bus.on('test.event', (payload) => received.push(payload))
+    bus.on('test.event', payload => received.push(payload))
 
     // Should not throw — the failing listener is caught.
     bus.emit('test.event', 'hello')
@@ -110,7 +126,7 @@ describe('EventBus', () => {
       throw new Error('Async listener failed')
     })
 
-    bus.subscribe('test.event', (payload) => received.push(payload))
+    bus.subscribe('test.event', payload => received.push(payload))
 
     await bus.publish({
       type: 'task.started',
@@ -132,7 +148,7 @@ describe('EventBus', () => {
 
   it('clear() removes all listeners for a specific event', () => {
     const received: unknown[] = []
-    bus.on('test.event', (payload) => received.push(payload))
+    bus.on('test.event', payload => received.push(payload))
 
     bus.clear('test.event')
     bus.emit('test.event', 'hello')
@@ -155,11 +171,7 @@ describe('EventBus', () => {
   })
 })
 
-// ── RuntimeClient tests ─────────────────────────────────────────────
-
-import { createLocalRuntimeClient } from '../runtime/local-client.js'
-
-describe('LocalRuntimeClient', () => {
+describe('localRuntimeClient', () => {
   let bus: EventBus
   let client: ReturnType<typeof createLocalRuntimeClient>
 
@@ -206,7 +218,7 @@ describe('LocalRuntimeClient', () => {
 
   it('onStateChange() fires on connect and disconnect', async () => {
     const states: string[] = []
-    client.onStateChange((state) => states.push(state))
+    client.onStateChange(state => states.push(state))
 
     await client.connect()
     await client.disconnect()
@@ -229,10 +241,6 @@ describe('LocalRuntimeClient', () => {
     expect(received[0]).toBe('first')
   })
 })
-
-// ── Logger tests ────────────────────────────────────────────────────
-
-import { createLogger, setLogLevel, getLogLevel } from '../logger.js'
 
 describe('createLogger', () => {
   it('returns an object with debug, info, warn, error methods', () => {
@@ -270,12 +278,6 @@ describe('createLogger', () => {
   })
 })
 
-// ── Bootstrap tests ─────────────────────────────────────────────────
-
-import { bootstrap } from '../bootstrap.js'
-import { ModuleRegistry } from '../modules/registry.js'
-import type { CoreContext } from '../modules/module.js'
-
 describe('bootstrap()', () => {
   it('returns a CoreInstance with all subsystems', async () => {
     const core = await bootstrap()
@@ -303,7 +305,7 @@ describe('bootstrap()', () => {
 
 // ── Module activation ordering tests ────────────────────────────────
 
-describe('ModuleRegistry activation order', () => {
+describe('moduleRegistry activation order', () => {
   it('activates modules in registration order', async () => {
     const registry = new ModuleRegistry()
     const activationOrder: string[] = []
@@ -340,6 +342,8 @@ describe('ModuleRegistry activation order', () => {
       moduleId: '',
       events: new EventBus(),
       runtime: createLocalRuntimeClient(new EventBus()),
+      capabilities: new CapabilityRegistry(),
+      toolRuntime: new LocalToolRuntime(new CapabilityRegistry(), new EventBus()),
       logger: createLogger('test'),
     }
 
@@ -381,6 +385,8 @@ describe('ModuleRegistry activation order', () => {
       moduleId: '',
       events: new EventBus(),
       runtime: createLocalRuntimeClient(new EventBus()),
+      capabilities: new CapabilityRegistry(),
+      toolRuntime: new LocalToolRuntime(new CapabilityRegistry(), new EventBus()),
       logger: createLogger('test'),
     }
 
@@ -430,6 +436,8 @@ describe('ModuleRegistry activation order', () => {
       moduleId: '',
       events: new EventBus(),
       runtime: createLocalRuntimeClient(new EventBus()),
+      capabilities: new CapabilityRegistry(),
+      toolRuntime: new LocalToolRuntime(new CapabilityRegistry(), new EventBus()),
       logger: createLogger('test'),
     }
 
@@ -464,6 +472,8 @@ describe('ModuleRegistry activation order', () => {
       moduleId: '',
       events: new EventBus(),
       runtime: createLocalRuntimeClient(new EventBus()),
+      capabilities: new CapabilityRegistry(),
+      toolRuntime: new LocalToolRuntime(new CapabilityRegistry(), new EventBus()),
       logger: createLogger('test'),
     }
 
@@ -471,5 +481,37 @@ describe('ModuleRegistry activation order', () => {
 
     expect(factoryCalled).toBe(true)
     expect(registry.isActive('lazy')).toBe(true)
+  })
+})
+
+// ── Terminal capability integration tests ─────────────────────────────
+
+describe('bootstrap terminal capability', () => {
+  it('exposes capabilities and toolRuntime on CoreInstance', async () => {
+    const core = await bootstrap()
+
+    expect(core.capabilities).toBeDefined()
+    expect(core.toolRuntime).toBeDefined()
+    expect(typeof core.capabilities.size).toBe('function')
+    expect(typeof core.toolRuntime.execute).toBe('function')
+
+    await core.shutdown()
+  })
+
+  it('does not register terminal capability when AIRI_ENABLE_TERMINAL is not set', async () => {
+    // Ensure env is not set
+    const prev = process.env.AIRI_ENABLE_TERMINAL
+    delete process.env.AIRI_ENABLE_TERMINAL
+
+    const core = await bootstrap()
+
+    // Terminal capability should not be registered (registry should be empty)
+    expect(core.capabilities.size()).toBe(0)
+
+    await core.shutdown()
+
+    // Restore env
+    if (prev !== undefined)
+      process.env.AIRI_ENABLE_TERMINAL = prev
   })
 })

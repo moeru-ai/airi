@@ -239,8 +239,8 @@ The planner layer is integrated into the daemon at Phase 3c (after task orchestr
 // Phase 3c: Create planner layer
 const planRegistry = new PlanRegistry()
 const planExecutor = new PlanExecutor(taskManager, core.events, logger, {
-    concurrency: 2,
-    defaultStepTimeoutMs: 300_000,
+  concurrency: 2,
+  defaultStepTimeoutMs: 300_000,
 })
 
 // Wire plan events → IPC broadcast + replay buffer

@@ -1,9 +1,9 @@
 import type { BackgroundOption } from '@proj-airi/stage-ui/components'
 import type { Ref, ShallowRef } from 'vue'
 
-import localforage from 'localforage'
-
 import { useLocalStorage, useObjectUrl } from '@vueuse/core'
+
+import localforage from 'localforage'
 import { defineStore } from 'pinia'
 import { computed, markRaw, onScopeDispose, ref, shallowRef, watch } from 'vue'
 

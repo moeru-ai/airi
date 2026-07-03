@@ -1,6 +1,6 @@
+import type { Card, CardFn } from './card'
 import { describe, expect, it } from 'vitest'
 import { defineCard, defineCardFn } from './card'
-import type { Card, CardFn } from './card'
 
 const validCard: Card = {
   name: 'Test Character',

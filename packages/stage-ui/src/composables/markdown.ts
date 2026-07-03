@@ -1,15 +1,15 @@
 import type { RehypeShikiOptions } from '@shikijs/rehype'
-import type { BundledLanguage } from 'shiki'
 import type { Root } from 'hast'
+import type { BundledLanguage } from 'shiki'
 
+import { defaultPerfTracer } from '@proj-airi/stage-shared'
 import rehypeShiki from '@shikijs/rehype'
 import rehypeKatex from 'rehype-katex'
 import RehypeStringify from 'rehype-stringify'
 import remarkMath from 'remark-math'
 import RemarkParse from 'remark-parse'
-import RemarkRehype from 'remark-rehype'
 
-import { defaultPerfTracer } from '@proj-airi/stage-shared'
+import RemarkRehype from 'remark-rehype'
 import { unified } from 'unified'
 
 /** Minimal VFile interface for unified ecosystem — only properties used by this composable */

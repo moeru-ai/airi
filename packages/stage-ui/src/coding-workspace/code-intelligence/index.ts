@@ -144,7 +144,7 @@ interface MethodDefinition<Input extends Record<string, unknown>> {
   buildSerenaArguments: (input: Input) => Record<string, unknown>
 }
 
-type MethodInputByName = {
+interface MethodInputByName {
   workspace_get_symbols_overview: WorkspaceSymbolsOverviewInput
   workspace_find_symbol: WorkspaceSymbolQueryInput
   workspace_find_declaration: WorkspaceSymbolQueryInput

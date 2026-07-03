@@ -40,7 +40,6 @@ export function normalizeContextSnapshot<C extends Pick<ChatStreamEventContext, 
   } as C
 }
 
-// eslint-disable-next-line complexity
 export const useContextBridgeStore = defineStore('mods:api:context-bridge', () => {
   const consumerRegistrationEvents = ['input:text', 'input:text:voice', 'input:voice'] as const
   const mutex = new Mutex()
@@ -843,7 +842,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
         try {
           // Use the receiver's active session to avoid clobbering chat state when events come from other windows/devtools.
-          // eslint-disable-next-line default-case
+
           switch (event.type) {
             case 'before-compose':
               await chatOrchestrator.emitBeforeMessageComposedHooks(event.message, event.context)

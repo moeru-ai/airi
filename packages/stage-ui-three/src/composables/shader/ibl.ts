@@ -1,6 +1,6 @@
+import type { WebGLProgramParametersWithUniforms } from 'three/src/renderers/webgl/WebGLPrograms.js'
 // stage-ui/composables/shader/ibl.ts
 import * as THREE from 'three'
-import type { WebGLProgramParametersWithUniforms } from 'three/src/renderers/webgl/WebGLPrograms.js'
 
 // ===== head guard shader injection =====
 const VS_DECL = `
@@ -61,16 +61,22 @@ if (uNprEnvMode == 2) {
 // ===== Utility tools =====
 export type EnvMode = 'off' | 'skyBox' | 'hemisphere'
 
-export const isShaderMat = (m: unknown): m is THREE.ShaderMaterial =>
-  typeof m === 'object' &&
-  m !== null &&
-  'isShaderMaterial' in m &&
-  Boolean((m as THREE.ShaderMaterial).isShaderMaterial)
-export const isRawShader = (m: unknown): m is THREE.RawShaderMaterial =>
-  typeof m === 'object' &&
-  m !== null &&
-  'isRawShaderMaterial' in m &&
-  Boolean((m as THREE.RawShaderMaterial).isRawShaderMaterial)
+export function isShaderMat(m: unknown): m is THREE.ShaderMaterial {
+  return (
+    typeof m === 'object' &&
+    m !== null &&
+    'isShaderMaterial' in m &&
+    Boolean((m as THREE.ShaderMaterial).isShaderMaterial)
+  )
+}
+export function isRawShader(m: unknown): m is THREE.RawShaderMaterial {
+  return (
+    typeof m === 'object' &&
+    m !== null &&
+    'isRawShaderMaterial' in m &&
+    Boolean((m as THREE.RawShaderMaterial).isRawShaderMaterial)
+  )
+}
 
 export function normalizeEnvMode(v?: string | null): EnvMode {
   if (v === 'skyBox') return 'skyBox'

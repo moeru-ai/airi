@@ -1,4 +1,9 @@
+catalogMode: prefer
+shellEmulator: true
+trustPolicy: no-downgrade
+
 packages:
+  - core
   - packages/**
   - plugins/**
   - integrations/**
@@ -8,6 +13,16 @@ packages:
   - engines/**
   - apps/**
   - '!**/dist/**'
+overrides:
+  array-flatten: npm:@nolyfill/array-flatten@^1.0.44
+  axios: npm:feaxios@^0.0.23
+  is-core-module: npm:@nolyfill/is-core-module@^1.0.39
+  isarray: npm:@nolyfill/isarray@^1.0.44
+  onnxruntime-web: npm:onnxruntime-web@^1.24.3
+  safe-buffer: npm:@nolyfill/safe-buffer@^1.0.44
+  safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
+  side-channel: npm:@nolyfill/side-channel@^1.0.44
+  string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
 catalog:
   '@alexanderolsen/libsamplerate-js': ^2.1.2
   '@antfu/eslint-config': ^8.2.0
@@ -401,7 +416,6 @@ catalog:
   yauzl: ^3.3.0
   zod: ^4.3.6
   zod-to-json-schema: ^3.25.2
-catalogMode: prefer
 catalogs:
   capacitor-cli-8-0-0:
     '@capacitor/cli': ^8.0.0
@@ -482,23 +496,13 @@ onlyBuiltDependencies:
   - uiohook-napi
   - utf-8-validate
   - vue-demi
-overrides:
-  array-flatten: npm:@nolyfill/array-flatten@^1.0.44
-  axios: npm:feaxios@^0.0.23
-  is-core-module: npm:@nolyfill/is-core-module@^1.0.39
-  isarray: npm:@nolyfill/isarray@^1.0.44
-  onnxruntime-web: npm:onnxruntime-web@^1.24.3
-  safe-buffer: npm:@nolyfill/safe-buffer@^1.0.44
-  safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
-  side-channel: npm:@nolyfill/side-channel@^1.0.44
-  string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
 packageExtensions:
   '@formkit/auto-animate':
     peerDependencies:
       vue: '*'
   '@huggingface/transformers':
     optionalDependencies:
-      'onnxruntime-common': '*'
+      onnxruntime-common: '*'
   '@intlify/unplugin-vue-i18n':
     peerDependencies:
       vite: '*'
@@ -520,11 +524,10 @@ packageExtensions:
   '@unocss/eslint-plugin':
     peerDependencies:
       '@typescript-eslint/types': '*'
-  'vitepress':
+  vitepress:
     peerDependencies:
       vite: '*'
       vue: '*'
-  'vue-sonner':
+  vue-sonner:
     peerDependencies:
-      vue: '^3.2.0'
-shellEmulator: true
+      vue: ^3.2.0

@@ -117,6 +117,37 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run typecheck
 
+  file-size-guard:
+    name: Large File Detection
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: true
+
+      - name: Fail on source files exceeding 4000 lines
+        run: |
+          set -euo pipefail
+          threshold=4000
+          offenders_file="$(mktemp)"
+          git ls-files '*.ts' '*.tsx' '*.vue' '*.js' '*.jsx' \
+            | grep -vE '(^docs/|/dist/|/node_modules/|/storybook-static/|/playwright-report/|\.test\.|\.spec\.|generated|\.config\.|\.d\.ts)' \
+            | while IFS= read -r f; do
+                if [ -f "$f" ]; then
+                  lines=$(wc -l < "$f")
+                  if [ "$lines" -gt "$threshold" ]; then
+                    echo "$f ($lines lines)"
+                  fi
+                fi
+              done > "$offenders_file"
+          if [ -s "$offenders_file" ]; then
+            echo "::error::The following source files exceed ${threshold} lines and must be split or refactored:"
+            cat "$offenders_file"
+            exit 1
+          else
+            echo "OK: all source files within ${threshold} lines"
+          fi
+
   report-coverage:
     name: Report Coverage to DeepSource
     runs-on: ubuntu-latest
@@ -145,7 +176,6 @@ jobs:
         run: |
           curl -fsSL https://cli.deepsource.com/install | BINDIR=./bin sh
           ./bin/deepsource report --analyzer test-coverage --key javascript --value-file ./coverage/lcov.info --use-oidc
-
 
   version-drift:
     name: Version Drift Detection

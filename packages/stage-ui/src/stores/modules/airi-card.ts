@@ -9,9 +9,9 @@ import { defineStore, storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import SystemPromptV2 from '../../constants/prompts/system-v2'
-
 import { DEFAULT_ARTISTRY_WIDGET_SPAWNING_PROMPT } from '../../constants/prompts/character-defaults'
+
+import SystemPromptV2 from '../../constants/prompts/system-v2'
 import { OFFICIAL_SPEECH_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { capturePosthogEvent } from '../analytics/posthog'
 import { useSettingsStageModel } from '../settings/stage-model'
@@ -134,7 +134,6 @@ interface LegacyAiriExtension {
   }
 }
 
-// eslint-disable-next-line complexity
 export const useAiriCardStore = defineStore('airi-card', () => {
   const { t } = useI18n()
 

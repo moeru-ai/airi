@@ -1,8 +1,7 @@
-import type { Message, Tool, ToolCall } from '@xsai/shared-chat'
-import type { CompletionToolResult, ToolMessage } from '@xsai/shared-chat'
+import type { CompletionToolResult, Message, Tool, ToolCall, ToolMessage } from '@xsai/shared-chat'
 
-import { InvalidToolCallError, InvalidToolInputError, ToolExecutionError } from '@xsai/shared'
 import { errorMessageFrom } from '@moeru/std'
+import { InvalidToolCallError, InvalidToolInputError, ToolExecutionError } from '@xsai/shared'
 
 /**
  * Result type for the local executeTool wrapper.
@@ -15,7 +14,7 @@ export type ExecuteToolCompletionResult = CompletionToolResult & {
   error?: InvalidToolCallError | InvalidToolInputError | ToolExecutionError
 }
 
-export type ExecuteToolResult = {
+export interface ExecuteToolResult {
   completionToolResult: ExecuteToolCompletionResult
   message: ToolMessage
 }

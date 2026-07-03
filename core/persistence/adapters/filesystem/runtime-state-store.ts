@@ -38,7 +38,8 @@ export class FilesystemRuntimeStateStore implements RuntimeStateStore {
   async get<T>(key: string): Promise<T | null> {
     const fullKey = `${this.keyPrefix}:${key}`
     const buffer = await this.adapter.read(fullKey)
-    if (!buffer) return null
+    if (!buffer)
+      return null
     return JSON.parse(buffer.toString('utf-8')) as T
   }
 

@@ -131,10 +131,9 @@ export function createProviderCatalogStoreController(params: {
       const remote = await commitProviderConfigMutation.mutateAsync({ providerId, config: newConfig, options })
       configs.value[remote.id] = remote
       await model.upsert(remote)
-      // eslint-disable-next-line consistent-return
+
       return remote
     } catch {
-      // eslint-disable-next-line consistent-return
       return localProvider
     }
   }

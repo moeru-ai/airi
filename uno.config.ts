@@ -69,7 +69,7 @@ export function safelistAllPrimaryBackgrounds(): string[] {
   return [undefined, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950]
     .map((shade) => {
       const prefix = shade ? `bg-primary-${shade}` : 'bg-primary'
-      return [prefix, ...[5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map((opacity) => `${prefix}/${opacity}`)]
+      return [prefix, ...[5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(opacity => `${prefix}/${opacity}`)]
     })
     .flat()
 }
@@ -78,44 +78,44 @@ export function presetWebFontsFonts(
   provider: 'fontsource' | 'none',
 ): Record<string, string | WebFontMeta | (string | WebFontMeta)[]> {
   return {
-    sans: {
+    'sans': {
       name: provider === 'fontsource' ? 'DM Sans' : 'DM Sans Variable',
       provider,
     },
-    serif: {
+    'serif': {
       name: 'DM Serif Display',
       provider,
     },
-    mono: {
+    'mono': {
       name: 'DM Mono',
       provider,
     },
-    cutejp: {
+    'cutejp': {
       name: 'Kiwi Maru',
       provider,
       subsets: ['latin', 'japanese'],
     },
-    cuteen: {
+    'cuteen': {
       name: provider === 'fontsource' ? 'Nunito' : 'Nunito Variable',
       provider,
     },
-    jura: {
+    'jura': {
       name: provider === 'fontsource' ? 'Jura' : 'Jura Variable',
       provider,
     },
-    gugi: {
+    'gugi': {
       name: 'Gugi',
       provider,
     },
-    quicksand: {
+    'quicksand': {
       name: provider === 'fontsource' ? 'Quicksand' : 'Quicksand Variable',
       provider,
     },
-    urbanist: {
+    'urbanist': {
       name: provider === 'fontsource' ? 'Urbanist' : 'Urbanist Variable',
       provider,
     },
-    comfortaa: {
+    'comfortaa': {
       name: provider === 'fontsource' ? 'Comfortaa' : 'Comfortaa Variable',
       provider,
     },
@@ -123,11 +123,11 @@ export function presetWebFontsFonts(
       name: 'M PLUS Rounded 1c',
       provider,
     },
-    quanlai: {
+    'quanlai': {
       name: 'cjkfonts AllSeto',
       provider: 'none',
     },
-    xiaolai: {
+    'xiaolai': {
       name: 'Xiaolai SC',
       provider: 'none',
     },
@@ -208,11 +208,11 @@ export function sharedUnoConfig() {
     ],
     theme: {
       fontFamily: {
-        sans: `"DM Sans Variant", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
+        'sans': `"DM Sans Variant", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
         'sans-rounded': `"Comfortaa Variable", "Comfortaa", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
-        cute: `"Nunito Variable", "Nunito", "ChillRoundM", "Kiwi Maru", "Comfortaa Variable", "Comfortaa", "DM Sans Variant", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
-        cuteen: `"Nunito Variable", "Nunito", "ChillRoundM", "Kiwi Maru", "Comfortaa Variable", "Comfortaa", "DM Sans Variant", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
-        cutejp: `"Nunito Variable", "Nunito", "ChillRoundM", "Kiwi Maru", "Comfortaa Variable", "Comfortaa", "DM Sans Variant", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
+        'cute': `"Nunito Variable", "Nunito", "ChillRoundM", "Kiwi Maru", "Comfortaa Variable", "Comfortaa", "DM Sans Variant", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
+        'cuteen': `"Nunito Variable", "Nunito", "ChillRoundM", "Kiwi Maru", "Comfortaa Variable", "Comfortaa", "DM Sans Variant", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
+        'cutejp': `"Nunito Variable", "Nunito", "ChillRoundM", "Kiwi Maru", "Comfortaa Variable", "Comfortaa", "DM Sans Variant", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
       },
       /**
        * https://github.com/unocss/unocss/blob/1031312057a3bea1082b7d938eb2ad640f57613a/packages-presets/preset-wind4/src/theme/animate.ts

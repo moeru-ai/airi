@@ -32,11 +32,10 @@ class MockWebSocket {
     this.onclose?.()
   }
 
-  // eslint-disable-next-line class-methods-use-this
   ping() {
     /* stub — intentionally empty */
   }
-  // eslint-disable-next-line class-methods-use-this
+
   pong() {
     /* stub — intentionally empty */
   }

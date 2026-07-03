@@ -17,13 +17,13 @@
  * - Optional WorkspaceManager for workspace-scoped tool execution.
  */
 
-import type { EventBus } from '../events/bus.js'
-import { withTimeout } from '../tasks/cancellation.js'
-import type { ToolId, ToolDescriptor, ToolExecutionContext, ToolExecutionResult } from '../capabilities/types.js'
-import type { ToolRuntime } from './tool-runtime.js'
 import type { CapabilityRegistry } from '../capabilities/registry.js'
+import type { ToolDescriptor, ToolExecutionContext, ToolExecutionResult, ToolId } from '../capabilities/types.js'
+import type { EventBus } from '../events/bus.js'
 import type { EventStore } from '../persistence/types.js'
 import type { WorkspaceManager } from '../workspace/manager.js'
+import type { ToolRuntime } from './tool-runtime.js'
+import { withTimeout } from '../tasks/cancellation.js'
 
 /**
  * Tool handler function type.
@@ -121,7 +121,8 @@ export class LocalToolRuntime implements ToolRuntime {
 
     if (this.workspaceManager && context.workspaceContext) {
       const leaseError = this.validateWorkspaceLease(toolId, context, executionId, startedAt)
-      if (leaseError) return leaseError
+      if (leaseError)
+        return leaseError
     }
 
     const found = this.registry.findTool(toolId)
@@ -140,7 +141,8 @@ export class LocalToolRuntime implements ToolRuntime {
       this.emitSuccess(executionId, toolId, context, durationMs)
       this.persistSuccess(executionId, toolId, context, durationMs)
       return { success: true, output, durationMs }
-    } catch (error) {
+    }
+    catch (error) {
       return this.handleExecutionError(toolId, context, executionId, startedAt, error)
     }
   }
@@ -156,7 +158,8 @@ export class LocalToolRuntime implements ToolRuntime {
   }
 
   private persistStarted(executionId: string, toolId: ToolId, context: ToolExecutionContext): void {
-    if (!this.eventStore) return
+    if (!this.eventStore)
+      return
     this.eventStore
       .append({
         type: 'tool.execution.started',
@@ -191,7 +194,8 @@ export class LocalToolRuntime implements ToolRuntime {
       context.workspaceContext!.workspaceId,
       context.workspaceContext!.leaseToken ?? '',
     )
-    if (valid) return null
+    if (valid)
+      return null
     return this.buildErrorResult(toolId, context, executionId, startedAt, 'LEASE_INVALID', 'Workspace lease is invalid or expired')
   }
 
@@ -212,7 +216,7 @@ export class LocalToolRuntime implements ToolRuntime {
     executionId: string,
     toolId: ToolId,
     context: ToolExecutionContext,
-    error: { code: string; message: string },
+    error: { code: string, message: string },
   ): void {
     this.events.emit('tool.execution.failed', {
       timestamp: new Date().toISOString(),
@@ -237,7 +241,8 @@ export class LocalToolRuntime implements ToolRuntime {
   }
 
   private persistSuccess(executionId: string, toolId: ToolId, context: ToolExecutionContext, durationMs: number): void {
-    if (!this.eventStore) return
+    if (!this.eventStore)
+      return
     this.eventStore
       .append({
         type: 'tool.execution.completed',
@@ -268,8 +273,10 @@ export class LocalToolRuntime implements ToolRuntime {
   }
 
   private classifyErrorMessage(message: string): string {
-    if (this.isCancelledMessage(message)) return 'CANCELLED'
-    if (this.isTimeoutMessage(message)) return 'TIMEOUT'
+    if (this.isCancelledMessage(message))
+      return 'CANCELLED'
+    if (this.isTimeoutMessage(message))
+      return 'TIMEOUT'
     return 'EXECUTION_ERROR'
   }
 
@@ -288,7 +295,8 @@ export class LocalToolRuntime implements ToolRuntime {
     code: string,
     message: string,
   ): void {
-    if (!this.eventStore) return
+    if (!this.eventStore)
+      return
     this.eventStore
       .append({
         type: 'tool.execution.failed',

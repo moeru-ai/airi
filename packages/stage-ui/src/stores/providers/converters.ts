@@ -1,8 +1,8 @@
 import type { ComposerTranslation } from 'vue-i18n'
 
 import type { ModelInfo, ProviderDefinition } from '../../libs/providers/types'
-import type { ProviderMetadata } from '../providers'
 import type { ProviderValidationPlan, ProviderValidationStep } from '../../libs/providers/validators/run'
+import type { ProviderMetadata } from '../providers'
 
 import { listModels } from '@xsai/model'
 
@@ -49,7 +49,6 @@ function extractSchemaDefaults<TConfig>(definition: ProviderDefinition<TConfig>,
     if (parsed?.success && typeof parsed.data === 'object' && parsed.data !== null) {
       Object.assign(defaults, parsed.data as Record<string, unknown>)
     }
-    // eslint-disable-next-line no-empty
   } catch {
     // noop
   }
@@ -95,7 +94,6 @@ function appendUniqueReason(reasons: string[], next: string) {
   if (!reasons.includes(next)) reasons.push(next)
 }
 
-// eslint-disable-next-line complexity
 export function convertProviderDefinitionToMetadata<TConfig>(
   definition: ProviderDefinition<TConfig>,
   t: ComposerTranslation,

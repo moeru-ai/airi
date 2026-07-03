@@ -1,8 +1,8 @@
 import type { ArtistryJob, ArtistryJobStatus, ArtistryProvider, ArtistryRequest } from './base'
 
-import Replicate from 'replicate'
-
 import { useLogg } from '@guiiai/logg'
+
+import Replicate from 'replicate'
 
 const log = useLogg('providers-replicate').useGlobalConfig()
 
@@ -125,7 +125,7 @@ export class ReplicateProvider implements ArtistryProvider {
       if (typeof obj === 'object' && obj !== null) {
         const newObj: Record<string, unknown> = {}
         for (const key in obj) {
-          if (Object.prototype.hasOwnProperty.call(obj, key)) {
+          if (Object.hasOwn(obj, key)) {
             newObj[key] = replacePlaceholders((obj as Record<string, unknown>)[key])
           }
         }
@@ -226,7 +226,6 @@ export class ReplicateProvider implements ArtistryProvider {
     return Promise.resolve(this.jobResults.get(jobId) || { status: 'queued' })
   }
 
-  // eslint-disable-next-line class-methods-use-this
   private truncatePrompt(prompt: string, maxChars: number = 380): string {
     if (prompt.length <= maxChars) return prompt
     log.log(`[Replicate] Truncating prompt from ${prompt.length} to ${maxChars} chars.`)

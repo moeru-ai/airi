@@ -272,23 +272,27 @@ describe('stripUnreadableSymbols', () => {
 
     it('preserves all when all options are false', () => {
       const input = 'Hi 😊 + wow!!! → ●'
-      expect(stripUnreadableSymbols(input, {
-        stripEmoji: false,
-        stripMathOperators: false,
-        stripDecorativeUnicode: false,
-        stripStandaloneSpecialChars: false,
-        collapseRepeatedPunctuation: false,
-      })).toBe('Hi 😊 + wow!!! → ●')
+      expect(
+        stripUnreadableSymbols(input, {
+          stripEmoji: false,
+          stripMathOperators: false,
+          stripDecorativeUnicode: false,
+          stripStandaloneSpecialChars: false,
+          collapseRepeatedPunctuation: false,
+        }),
+      ).toBe('Hi 😊 + wow!!! → ●')
     })
 
     it('only strips emoji when only stripEmoji is true', () => {
-      expect(stripUnreadableSymbols('Hi 😊 + wow!!!', {
-        stripEmoji: true,
-        stripMathOperators: false,
-        stripDecorativeUnicode: false,
-        stripStandaloneSpecialChars: false,
-        collapseRepeatedPunctuation: false,
-      })).toBe('Hi + wow!!!')
+      expect(
+        stripUnreadableSymbols('Hi 😊 + wow!!!', {
+          stripEmoji: true,
+          stripMathOperators: false,
+          stripDecorativeUnicode: false,
+          stripStandaloneSpecialChars: false,
+          collapseRepeatedPunctuation: false,
+        }),
+      ).toBe('Hi + wow!!!')
     })
   })
 

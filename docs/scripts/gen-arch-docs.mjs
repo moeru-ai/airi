@@ -1,11 +1,11 @@
-import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from 'node:fs'
-import { join, relative, dirname, resolve } from 'node:path'
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { join, relative, resolve } from 'node:path'
 import { marked } from 'marked'
 
 const ARCH_DIR = resolve('docs/architecture')
 const OUTPUT_DIR = resolve('docs/api/arch')
 
-const SHELL_ESCAPE = (s) => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))
+const SHELL_ESCAPE = s => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))
 
 marked.setOptions({
   gfm: true,
@@ -14,7 +14,8 @@ marked.setOptions({
   mangle: false,
 })
 
-const HTML_TEMPLATE = (title, body, nav) => `<!DOCTYPE html>
+function HTML_TEMPLATE(title, body, nav) {
+  return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -74,6 +75,7 @@ ${body}
 </div>
 </body>
 </html>`
+}
 
 function extractTitle(fpath) {
   const firstLine = readFileSync(fpath, 'utf8').split('\n').find(l => l.startsWith('# ')) ?? ''
@@ -86,7 +88,7 @@ function extractTitle(fpath) {
 function getMarkdownFiles(dir) {
   return readdirSync(dir)
     .filter(f => f.endsWith('.md'))
-    .map(f => {
+    .map((f) => {
       const path = join(dir, f)
       return {
         name: f,
@@ -117,7 +119,7 @@ function mdToHtml(md, currentSlug) {
 
 function buildNav(files, currentSlug) {
   return files.map(f =>
-    `<a href="${f.slug}.html" class="${f.slug === currentSlug ? 'active' : ''}">${f.title}</a>`
+    `<a href="${f.slug}.html" class="${f.slug === currentSlug ? 'active' : ''}">${f.title}</a>`,
   ).join('\n')
 }
 

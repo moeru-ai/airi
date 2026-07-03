@@ -82,8 +82,8 @@ The interface that modules implement to execute tasks.
 
 ```ts
 interface TaskExecutor {
-  canExecute(task: Task): boolean
-  execute(task: Task, ctx: TaskExecutionContext): Promise<TaskResult>
+  canExecute: (task: Task) => boolean
+  execute: (task: Task, ctx: TaskExecutionContext) => Promise<TaskResult>
 }
 ```
 

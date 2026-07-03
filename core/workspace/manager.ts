@@ -15,13 +15,13 @@
 import type { EventBus } from '../events/bus.js'
 import type { Logger } from '../logger.js'
 import type {
-  WorkspaceId,
-  WorkspaceState,
-  WorkspaceDescriptor,
-  WorkspaceLease,
-  WorkspaceFilter,
-  WorkspaceSnapshot,
   CreateWorkspaceInput,
+  WorkspaceDescriptor,
+  WorkspaceFilter,
+  WorkspaceId,
+  WorkspaceLease,
+  WorkspaceSnapshot,
+  WorkspaceState,
 } from './types.js'
 import { createWorkspaceId, isValidWorkspaceTransition } from './types.js'
 
@@ -134,8 +134,8 @@ export class WorkspaceManager {
     // Validate state transition.
     if (!isValidWorkspaceTransition(descriptor.state, 'destroying')) {
       throw new Error(
-        `Cannot destroy workspace ${workspaceId} in state "${descriptor.state}": ` +
-          `valid transitions are ${isValidWorkspaceTransition(descriptor.state, 'destroying') ? 'allowed' : 'blocked'}`,
+        `Cannot destroy workspace ${workspaceId} in state "${descriptor.state}": `
+        + `valid transitions are ${isValidWorkspaceTransition(descriptor.state, 'destroying') ? 'allowed' : 'blocked'}`,
       )
     }
 
@@ -183,12 +183,16 @@ export class WorkspaceManager {
   listWorkspaces(filter?: WorkspaceFilter): WorkspaceDescriptor[] {
     const all = [...this.workspaces.values()]
 
-    if (!filter) return all
+    if (!filter)
+      return all
 
     return all.filter((ws) => {
-      if (filter.state && ws.state !== filter.state) return false
-      if (filter.sessionId && ws.sessionId !== filter.sessionId) return false
-      if (filter.repositoryId && ws.repositoryId !== filter.repositoryId) return false
+      if (filter.state && ws.state !== filter.state)
+        return false
+      if (filter.sessionId && ws.sessionId !== filter.sessionId)
+        return false
+      if (filter.repositoryId && ws.repositoryId !== filter.repositoryId)
+        return false
       return true
     })
   }
@@ -289,14 +293,17 @@ export class WorkspaceManager {
    */
   validateLease(workspaceId: WorkspaceId, leaseToken: string): boolean {
     const lease = this.leases.get(workspaceId)
-    if (!lease) return false
-    if (lease.leaseToken !== leaseToken) return false
+    if (!lease)
+      return false
+    if (lease.leaseToken !== leaseToken)
+      return false
 
     // Check expiry.
     if (lease.expiresAt) {
       const expiry = new Date(lease.expiresAt).getTime()
       const isExpired = Date.now() >= expiry
-      if (isExpired) return false
+      if (isExpired)
+        return false
     }
 
     return true
