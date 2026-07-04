@@ -29,9 +29,7 @@ pub async fn electron_server_channel_get_config() -> Value {
 
 /// Apply server channel config
 #[tauri::command]
-pub async fn electron_server_channel_apply_config(
-    _config: Option<Value>,
-) -> Value {
+pub async fn electron_server_channel_apply_config(_config: Option<Value>) -> Value {
     serde_json::json!({
         "authToken": "placeholder-token",
         "hostname": "localhost",

@@ -65,9 +65,7 @@ pub async fn electron_plugins_load_enabled() -> PluginRegistrySnapshot {
 
 /// Load a specific plugin - placeholder
 #[tauri::command]
-pub async fn electron_plugins_load(
-    _name: Option<String>,
-) -> PluginRegistrySnapshot {
+pub async fn electron_plugins_load(_name: Option<String>) -> PluginRegistrySnapshot {
     PluginRegistrySnapshot {
         root: String::new(),
         plugins: vec![],
@@ -76,9 +74,7 @@ pub async fn electron_plugins_load(
 
 /// Unload a specific plugin - placeholder
 #[tauri::command]
-pub async fn electron_plugins_unload(
-    _name: Option<String>,
-) -> PluginRegistrySnapshot {
+pub async fn electron_plugins_unload(_name: Option<String>) -> PluginRegistrySnapshot {
     PluginRegistrySnapshot {
         root: String::new(),
         plugins: vec![],
@@ -132,8 +128,7 @@ pub async fn electron_plugins_capability_update(
 
 /// List plugin protocol providers - placeholder
 #[tauri::command]
-pub async fn proj_airi_plugin_sdk_apis_protocol_resources_providers_list_providers(
-) -> Vec<Value> {
+pub async fn proj_airi_plugin_sdk_apis_protocol_resources_providers_list_providers() -> Vec<Value> {
     vec![]
 }
 

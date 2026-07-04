@@ -29,7 +29,9 @@ pub struct Bounds {
 
 /// Get all displays connected to the system
 #[tauri::command]
-pub async fn electron_screen_get_all_displays(_window: WebviewWindow) -> Result<Vec<Display>, String> {
+pub async fn electron_screen_get_all_displays(
+    _window: WebviewWindow,
+) -> Result<Vec<Display>, String> {
     // Placeholder: returns a single fake display
     Ok(vec![Display {
         id: "primary".to_string(),
@@ -46,7 +48,9 @@ pub async fn electron_screen_get_all_displays(_window: WebviewWindow) -> Result<
 
 /// Get the primary display
 #[tauri::command]
-pub async fn electron_screen_get_primary_display(_window: WebviewWindow) -> Result<Display, String> {
+pub async fn electron_screen_get_primary_display(
+    _window: WebviewWindow,
+) -> Result<Display, String> {
     // Placeholder
     Ok(Display {
         id: "primary".to_string(),
@@ -63,7 +67,9 @@ pub async fn electron_screen_get_primary_display(_window: WebviewWindow) -> Resu
 
 /// Get current cursor screen point
 #[tauri::command]
-pub async fn electron_screen_get_cursor_screen_point(_window: WebviewWindow) -> Result<Point, String> {
+pub async fn electron_screen_get_cursor_screen_point(
+    _window: WebviewWindow,
+) -> Result<Point, String> {
     // Placeholder: returns origin
     Ok(Point { x: 0, y: 0 })
 }

@@ -8,6 +8,7 @@
 // `electron_window_get_bounds` serves `eventa:invoke:electron:window:get-bounds`).
 
 mod commands;
+mod window_manager;
 
 use tauri::{Emitter, Manager};
 
@@ -18,6 +19,8 @@ const AUTO_UPDATER_STATE_CHANGED_EVENT: &str = "electron:auto-updater:state-chan
 
 fn main() {
     tauri::Builder::default()
+        .manage(commands::notice::new_notice_registry())
+        .manage(commands::widgets::new_widget_registry())
         .setup(|app| {
             let handle = app.handle().clone();
             // Spawn a background task that emits window:bounds events on resize/move.
@@ -178,6 +181,7 @@ fn main() {
             commands::auth::electron_auth_logout,
             // ===== windows.rs =====
             commands::windows::electron_window_get_lifecycle_state,
+            commands::windows::stage_tauri_managed_window_open,
             commands::windows::electron_windows_main_devtools_open,
             commands::windows::electron_windows_settings_open,
             commands::windows::electron_windows_chat_open,

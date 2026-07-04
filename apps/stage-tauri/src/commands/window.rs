@@ -61,8 +61,7 @@ pub async fn electron_window_get_bounds(window: WebviewWindow) -> Result<Bounds,
 #[tauri::command]
 pub async fn electron_window_set_bounds(
     window: WebviewWindow,
-    #[allow(dead_code)]
-    bounds: Option<Bounds>,
+    #[allow(dead_code)] bounds: Option<Bounds>,
 ) -> Result<(), String> {
     // Placeholder: real implementation uses window.set_position and set_size
     let _ = (window, bounds);

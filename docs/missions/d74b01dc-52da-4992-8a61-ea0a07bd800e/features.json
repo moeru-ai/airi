@@ -209,10 +209,15 @@
         "VAL-TAURI-WIN-002"
       ],
       "milestone": "tauri-app-scaffold",
-      "status": "pending",
-      "workerSessionIds": [],
+      "status": "completed",
+      "workerSessionIds": [
+        "codex-orchestrator-2026-07-04T19-16-47Z"
+      ],
       "currentWorkerSessionId": null,
-      "completedWorkerSessionId": null
+      "completedWorkerSessionId": "codex-orchestrator-2026-07-04T19-16-47Z",
+      "commit": "8bc2f442f",
+      "commitId": "8bc2f442f",
+      "completedAt": "2026-07-04T19:16:47.243Z"
     },
     {
       "id": "window-display-features",

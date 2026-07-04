@@ -193,11 +193,23 @@ type NativeInvokeEvent = EventaContractLike & {
 const SEND_INVOKE_TYPE = 0
 
 function eventaInvokeIdToTauriCommand(eventId: string): string | undefined {
-  if (!eventId.startsWith('eventa:invoke:electron:') || !eventId.endsWith('-send')) {
+  if (!eventId.endsWith('-send')) {
     return undefined
   }
 
-  return eventId.slice('eventa:invoke:'.length, -'-send'.length).replace(/[:-]/g, '_')
+  if (eventId.startsWith('eventa:invoke:electron:')) {
+    return eventId.slice('eventa:invoke:'.length, -'-send'.length).replace(/[:-]/g, '_')
+  }
+
+  if (eventId.startsWith('eventa:invoke:stage-tauri:')) {
+    return eventId.slice('eventa:invoke:'.length, -'-send'.length).replace(/[:-]/g, '_')
+  }
+
+  const requestWindowMatch = eventId.match(/^eventa:invoke:([^:]+):electron:windows:([^:]+)-send$/)
+  if (!requestWindowMatch) return undefined
+
+  const [, action, namespace] = requestWindowMatch
+  return `electron_windows_${namespace.replace(/-/g, '_')}_invoke_${action.replace(/-/g, '_')}`
 }
 
 function isTauriNativeEvent(event: unknown): event is EventaContractLike {

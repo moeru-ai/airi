@@ -63,8 +63,6 @@ pub async fn electron_auto_updater_get_preferences() -> Value {
 
 /// Auto-updater preferences set
 #[tauri::command]
-pub async fn electron_auto_updater_set_preferences(
-    _prefs: Option<Value>,
-) -> Value {
+pub async fn electron_auto_updater_set_preferences(_prefs: Option<Value>) -> Value {
     serde_json::json!({})
 }
