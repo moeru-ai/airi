@@ -87,6 +87,21 @@ const widgetId = computed(() => routeQueryValue(windowRoute.value.route, 'id'))
 let mountedNoticeId: string | null = null
 let widgetEventCleanups: Array<() => void> = []
 
+function noticeIdForRoute(route?: string): string | null {
+  if (!route || !isNoticeRoute(route)) return null
+  return routeQueryValue(route, 'id')
+}
+
+function clearNoticeState(nextMountedId: string | null = null) {
+  noticePending.value = null
+  mountedNoticeId = nextMountedId
+}
+
+function clearWidgetState() {
+  widgetSnapshot.value = null
+  widgetLoading.value = false
+}
+
 async function notifyPreviousNoticeUnmounted(id: string | null) {
   if (!id || !notifyNoticeUnmounted) return
   try {
@@ -96,48 +111,55 @@ async function notifyPreviousNoticeUnmounted(id: string | null) {
   }
 }
 
+async function fetchMountedNotice(id: string | null) {
+  if (!notifyNoticeMounted) return null
+
+  try {
+    return await notifyNoticeMounted({ id: id ?? undefined })
+  } catch {
+    return null
+  }
+}
+
 async function syncNoticeRoute(route: string, previousRoute?: string) {
-  const previousNoticeId = previousRoute && isNoticeRoute(previousRoute) ? routeQueryValue(previousRoute, 'id') : null
+  const previousNoticeId = noticeIdForRoute(previousRoute)
   const currentNoticeId = routeQueryValue(route, 'id')
 
   if (previousNoticeId && previousNoticeId !== currentNoticeId) {
     await notifyPreviousNoticeUnmounted(previousNoticeId)
   }
 
-  noticePending.value = null
-  mountedNoticeId = currentNoticeId
+  clearNoticeState(currentNoticeId)
 
-  if (!notifyNoticeMounted) return
+  const pending = await fetchMountedNotice(currentNoticeId)
+  if (windowRoute.value.route !== route) return
+
+  noticePending.value = pending ?? null
+  mountedNoticeId = pending?.id ?? currentNoticeId
+}
+
+async function fetchWidgetSnapshot(id: string) {
+  if (!fetchWidget) return null
 
   try {
-    const pending = await notifyNoticeMounted({ id: currentNoticeId ?? undefined })
-    if (windowRoute.value.route !== route) return
-    noticePending.value = pending ?? null
-    mountedNoticeId = pending?.id ?? currentNoticeId
+    return await fetchWidget({ id })
   } catch {
-    noticePending.value = null
+    return null
   }
 }
 
 async function syncWidgetRoute(route: string) {
   const id = routeQueryValue(route, 'id')
-  widgetSnapshot.value = null
+  clearWidgetState()
   widgetLoading.value = Boolean(id)
 
-  if (!id || !fetchWidget) {
-    widgetLoading.value = false
-    return
-  }
+  if (!id) return clearWidgetState()
 
-  try {
-    const snapshot = await fetchWidget({ id })
-    if (windowRoute.value.route !== route) return
-    widgetSnapshot.value = snapshot ?? null
-  } catch {
-    widgetSnapshot.value = null
-  } finally {
-    if (windowRoute.value.route === route) widgetLoading.value = false
-  }
+  const snapshot = await fetchWidgetSnapshot(id)
+  if (windowRoute.value.route !== route) return
+
+  widgetSnapshot.value = snapshot ?? null
+  widgetLoading.value = false
 }
 
 function applyWidgetSnapshot(snapshot: WidgetSnapshot) {
@@ -146,20 +168,28 @@ function applyWidgetSnapshot(snapshot: WidgetSnapshot) {
   widgetLoading.value = false
 }
 
+function mergeWidgetSnapshot(
+  snapshot: WidgetSnapshot,
+  update: Partial<WidgetSnapshot> & { id: string },
+): WidgetSnapshot {
+  return {
+    ...snapshot,
+    componentProps: update.componentProps ?? snapshot.componentProps,
+    size: update.size ?? snapshot.size,
+    windowSize: update.windowSize ?? snapshot.windowSize,
+    ttlMs: update.ttlMs ?? snapshot.ttlMs,
+  }
+}
+
 function applyWidgetUpdate(update: Partial<WidgetSnapshot> & { id: string }) {
   if (update.id !== widgetId.value) return
-  if (!widgetSnapshot.value) {
+  const snapshot = widgetSnapshot.value
+  if (!snapshot) {
     void syncWidgetRoute(windowRoute.value.route)
     return
   }
 
-  widgetSnapshot.value = {
-    ...widgetSnapshot.value,
-    componentProps: update.componentProps ?? widgetSnapshot.value.componentProps,
-    size: update.size ?? widgetSnapshot.value.size,
-    windowSize: update.windowSize ?? widgetSnapshot.value.windowSize,
-    ttlMs: update.ttlMs ?? widgetSnapshot.value.ttlMs,
-  }
+  widgetSnapshot.value = mergeWidgetSnapshot(snapshot, update)
 }
 
 function registerWidgetEventListeners() {
@@ -184,25 +214,35 @@ function registerWidgetEventListeners() {
   ]
 }
 
-async function syncSecondaryRoute(route = windowRoute.value, previousRoute?: string) {
-  if (route.kind === 'stage') return
+async function cleanupPreviousNoticeRoute(route: string, previousRoute?: string) {
+  if (isNoticeRoute(route) || !previousRoute || !isNoticeRoute(previousRoute)) return
 
-  if (!isNoticeRoute(route.route) && previousRoute && isNoticeRoute(previousRoute)) {
-    await notifyPreviousNoticeUnmounted(routeQueryValue(previousRoute, 'id') ?? mountedNoticeId)
-    noticePending.value = null
-    mountedNoticeId = null
+  await notifyPreviousNoticeUnmounted(routeQueryValue(previousRoute, 'id') ?? mountedNoticeId)
+  clearNoticeState()
+}
+
+async function syncWidgetRouteOrClear(route: string) {
+  if (isWidgetsRoute(route)) {
+    await syncWidgetRoute(route)
+    return
+  }
+
+  clearWidgetState()
+}
+
+async function syncSecondaryRoute(route = windowRoute.value, previousRoute?: string) {
+  await cleanupPreviousNoticeRoute(route.route, previousRoute)
+
+  if (route.kind === 'stage') {
+    clearWidgetState()
+    return
   }
 
   if (isNoticeRoute(route.route)) {
     await syncNoticeRoute(route.route, previousRoute)
   }
 
-  if (isWidgetsRoute(route.route)) {
-    await syncWidgetRoute(route.route)
-  } else {
-    widgetSnapshot.value = null
-    widgetLoading.value = false
-  }
+  await syncWidgetRouteOrClear(route.route)
 }
 
 async function handleNoticeAction(action: RequestWindowActionDefault) {
@@ -215,8 +255,7 @@ async function handleNoticeAction(action: RequestWindowActionDefault) {
   noticeBusy.value = true
   try {
     await sendNoticeAction({ id, action })
-    noticePending.value = null
-    mountedNoticeId = null
+    clearNoticeState()
   } finally {
     noticeBusy.value = false
   }

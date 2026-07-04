@@ -131,8 +131,7 @@ fn resolve_notice_unmounted(
 fn generated_notice_id() -> String {
     let now_ms = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_millis())
-        .unwrap_or(0);
+        .map_or(0, |duration| duration.as_millis());
     let sequence = NOTICE_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
     format!("notice-{now_ms}-{sequence}")
 }
@@ -202,7 +201,7 @@ pub async fn electron_windows_notice_invoke_action(
         let confirmed = matches!(action.as_deref(), Some("confirm"));
         resolve_notice_action(&registry, &id, confirmed)?;
         if let Some(window) = app.get_webview_window(&notice_window_label(&id)) {
-            window.close().map_err(|e| e.to_string())?;
+            let _ = window.close();
         }
     }
     Ok(())
@@ -226,7 +225,7 @@ pub async fn electron_windows_notice_invoke_page_unmounted(
 ) -> Result<(), String> {
     if let Some(id) = resolve_notice_unmounted(&registry, id)? {
         if let Some(window) = app.get_webview_window(&notice_window_label(&id)) {
-            window.close().map_err(|e| e.to_string())?;
+            let _ = window.close();
         }
     }
     Ok(())
@@ -278,7 +277,7 @@ mod tests {
 
         assert!(resolve_notice_action(&registry, "fade-on-hover", true).unwrap());
 
-        assert_eq!(receiver.await.unwrap(), true);
+        assert!(receiver.await.unwrap());
         assert_eq!(
             pending_notice_for_page(&registry, Some("fade-on-hover".to_string())).unwrap(),
             None

@@ -14,7 +14,7 @@ use std::{
     },
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State, WindowEvent};
 
 const WIDGETS_RENDER_EVENT: &str = "electron:windows:widgets:render";
 const WIDGETS_REMOVE_EVENT: &str = "electron:windows:widgets:remove";
@@ -29,6 +29,7 @@ pub(crate) type WidgetRegistry = Mutex<HashMap<String, WidgetRecord>>;
 pub(crate) struct WidgetRecord {
     pub(crate) snapshot: WidgetSnapshot,
     pub(crate) generation: u64,
+    pub(crate) close_handler_attached: bool,
 }
 
 pub(crate) fn new_widget_registry() -> WidgetRegistry {
@@ -49,8 +50,7 @@ pub struct WidgetSnapshot {
 fn generated_widget_id() -> String {
     let now_ms = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_millis())
-        .unwrap_or(0);
+        .map_or(0, |duration| duration.as_millis());
     let sequence = WIDGET_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
     format!("widget-{now_ms}-{sequence}")
 }
@@ -73,8 +73,8 @@ fn widget_window_label(id: Option<&str>) -> String {
     }
 }
 
-fn open_widgets_window(app: &AppHandle, id: Option<&str>) -> Result<(), String> {
-    open_managed_window(
+fn open_widgets_window(app: &AppHandle, id: Option<&str>) -> Result<bool, String> {
+    let opened = open_managed_window(
         app,
         OpenManagedWindowOptions {
             label: "widgets".to_string(),
@@ -83,14 +83,63 @@ fn open_widgets_window(app: &AppHandle, id: Option<&str>) -> Result<(), String> 
             ..Default::default()
         },
     )?;
-    Ok(())
+    Ok(!opened.reused)
 }
 
 fn close_widget_window(app: &AppHandle, id: &str) -> Result<(), String> {
     if let Some(window) = app.get_webview_window(&widget_window_label(Some(id))) {
-        window.close().map_err(|e| e.to_string())?;
+        let _ = window.close();
     }
     Ok(())
+}
+
+fn remove_widget_record(registry: &WidgetRegistry, id: &str) -> Result<bool, String> {
+    Ok(registry
+        .lock()
+        .map_err(|e| e.to_string())?
+        .remove(id)
+        .is_some())
+}
+
+fn emit_widget_remove(app: &AppHandle, id: &str) -> Result<(), String> {
+    app.emit(WIDGETS_REMOVE_EVENT, serde_json::json!({ "id": id }))
+        .map_err(|e| e.to_string())
+}
+
+fn emit_widget_render(app: &AppHandle, snapshot: WidgetSnapshot) -> Result<(), String> {
+    app.emit_to(
+        widget_window_label(Some(&snapshot.id)),
+        WIDGETS_RENDER_EVENT,
+        snapshot,
+    )
+    .map_err(|e| e.to_string())
+}
+
+fn emit_widget_update(app: &AppHandle, id: &str, payload: Value) -> Result<(), String> {
+    app.emit_to(widget_window_label(Some(id)), WIDGETS_UPDATE_EVENT, payload)
+        .map_err(|e| e.to_string())
+}
+
+fn attach_widget_close_cleanup(app: &AppHandle, id: &str) {
+    let Some(window) = app.get_webview_window(&widget_window_label(Some(id))) else {
+        return;
+    };
+
+    let app_for_close = app.clone();
+    let id_for_close = id.to_string();
+    window.on_window_event(move |event| {
+        if !matches!(
+            event,
+            WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed
+        ) {
+            return;
+        }
+
+        let registry = app_for_close.state::<WidgetRegistry>();
+        if remove_widget_record(&registry, &id_for_close).unwrap_or(false) {
+            let _ = emit_widget_remove(&app_for_close, &id_for_close);
+        }
+    });
 }
 
 fn schedule_widget_ttl_removal(app: &AppHandle, id: &str, generation: u64, ttl_ms: i64) {
@@ -123,7 +172,7 @@ fn schedule_widget_ttl_removal(app: &AppHandle, id: &str, generation: u64, ttl_m
 
         if should_remove {
             let _ = close_widget_window(&app, &id);
-            let _ = app.emit(WIDGETS_REMOVE_EVENT, serde_json::json!({ "id": id }));
+            let _ = emit_widget_remove(&app, &id);
         }
     });
 }
@@ -134,7 +183,7 @@ pub async fn electron_windows_widgets_open(
     app: AppHandle,
     id: Option<String>,
 ) -> Result<(), String> {
-    open_widgets_window(&app, id.as_deref())
+    open_widgets_window(&app, id.as_deref()).map(|_| ())
 }
 
 /// Hide widgets window.
@@ -172,19 +221,35 @@ pub async fn electron_windows_widgets_add(
         ttl_ms: ttl_ms.unwrap_or(0),
     };
     let generation = next_widget_generation();
-    registry.lock().map_err(|e| e.to_string())?.insert(
-        id.clone(),
-        WidgetRecord {
-            snapshot: snapshot.clone(),
-            generation,
-        },
-    );
+    let should_attach_close_cleanup = {
+        let mut registry = registry.lock().map_err(|e| e.to_string())?;
+        let close_handler_attached = registry
+            .get(&id)
+            .is_some_and(|record| record.close_handler_attached);
+        registry.insert(
+            id.clone(),
+            WidgetRecord {
+                snapshot: snapshot.clone(),
+                generation,
+                close_handler_attached,
+            },
+        );
+        !close_handler_attached
+    };
+
     if let Err(error) = open_widgets_window(&app, Some(&id)) {
         registry.lock().map_err(|e| e.to_string())?.remove(&id);
         return Err(error);
     }
-    app.emit(WIDGETS_RENDER_EVENT, snapshot)
-        .map_err(|e| e.to_string())?;
+
+    if should_attach_close_cleanup {
+        attach_widget_close_cleanup(&app, &id);
+        if let Some(record) = registry.lock().map_err(|e| e.to_string())?.get_mut(&id) {
+            record.close_handler_attached = true;
+        }
+    }
+
+    emit_widget_render(&app, snapshot)?;
     schedule_widget_ttl_removal(&app, &id, generation, ttl_ms.unwrap_or(0));
     Ok(Some(id))
 }
@@ -197,10 +262,9 @@ pub async fn electron_windows_widgets_remove(
     id: Option<String>,
 ) -> Result<(), String> {
     if let Some(id) = id {
-        registry.lock().map_err(|e| e.to_string())?.remove(&id);
+        let _ = remove_widget_record(&registry, &id)?;
         close_widget_window(&app, &id)?;
-        app.emit(WIDGETS_REMOVE_EVENT, serde_json::json!({ "id": id }))
-            .map_err(|e| e.to_string())?;
+        emit_widget_remove(&app, &id)?;
     }
     Ok(())
 }
@@ -214,7 +278,7 @@ pub async fn electron_windows_widgets_clear(
     registry.lock().map_err(|e| e.to_string())?.clear();
     for window in app.webview_windows().into_values() {
         if window.label() == "widgets" || window.label().starts_with("widgets-") {
-            window.close().map_err(|e| e.to_string())?;
+            let _ = window.close();
         }
     }
     app.emit(WIDGETS_CLEAR_EVENT, serde_json::json!(null))
@@ -270,9 +334,11 @@ pub async fn electron_windows_widgets_update(
         )
     };
 
-    open_widgets_window(&app, Some(&id))?;
-    app.emit(WIDGETS_UPDATE_EVENT, update_payload)
-        .map_err(|e| e.to_string())?;
+    let created_window = open_widgets_window(&app, Some(&id))?;
+    if created_window {
+        attach_widget_close_cleanup(&app, &id);
+    }
+    emit_widget_update(&app, &id, update_payload)?;
     schedule_widget_ttl_removal(&app, &id, generation, ttl_ms);
     Ok(())
 }
@@ -338,6 +404,7 @@ mod tests {
                     ttl_ms: 250,
                 },
                 generation: 1,
+                close_handler_attached: false,
             },
         );
 

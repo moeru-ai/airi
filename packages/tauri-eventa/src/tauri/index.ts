@@ -201,6 +201,10 @@ function eventaInvokeIdToTauriCommand(eventId: string): string | undefined {
     return eventId.slice('eventa:invoke:'.length, -'-send'.length).replace(/[:-]/g, '_')
   }
 
+  if (eventId.startsWith('eventa:invoke:stage-tauri:')) {
+    return eventId.slice('eventa:invoke:'.length, -'-send'.length).replace(/[:-]/g, '_')
+  }
+
   const requestWindowMatch = eventId.match(/^eventa:invoke:([^:]+):electron:windows:([^:]+)-send$/)
   if (!requestWindowMatch) return undefined
 

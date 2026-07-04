@@ -1,7 +1,14 @@
 import type { TauriInternals } from './types'
 import { defineInvoke, defineInvokeEventa } from '@moeru/eventa'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { electron, electronGetWindowLifecycleState } from '../contracts'
+import {
+  electron,
+  electronGetWindowLifecycleState,
+  stageTauriManagedWindowOpen,
+  widgetsAdd,
+  widgetsFetch,
+  widgetsPrepareWindow,
+} from '../contracts'
 import { createContextFromTauriIpc, buildIpcRendererLike, subscribeTauriEvent } from './index'
 
 const { listenMock, invokeMock, registeredHandlers } = vi.hoisted(() => {
@@ -200,6 +207,37 @@ describe('createContextFromTauriIpc', () => {
       expect(internals.invoke).toHaveBeenLastCalledWith(command, payload)
       expect(result).toBe(true)
     }
+  })
+
+  it('maps managed stage-window invokes to the registered Tauri command', async () => {
+    const internals = buildMockInternals()
+    ;(internals.invoke as any).mockResolvedValue({ label: 'about', route: '/about', reused: false })
+
+    const { context } = createContextFromTauriIpc(internals)
+    const openManagedWindow = defineInvoke(context, stageTauriManagedWindowOpen)
+
+    const result = await openManagedWindow({ label: 'about' })
+
+    expect(internals.invoke).toHaveBeenCalledWith('stage_tauri_managed_window_open', { label: 'about' })
+    expect(result).toEqual({ label: 'about', route: '/about', reused: false })
+  })
+
+  it('exports widget invoke contracts that map to registered Tauri commands', async () => {
+    const internals = buildMockInternals()
+    ;(internals.invoke as any).mockResolvedValue('widget-1')
+
+    const { context } = createContextFromTauriIpc(internals)
+    const addWidget = defineInvoke(context, widgetsAdd)
+    const fetchWidget = defineInvoke(context, widgetsFetch)
+    const prepareWidget = defineInvoke(context, widgetsPrepareWindow)
+
+    await addWidget({ componentName: 'demo' })
+    await fetchWidget({ id: 'widget-1' })
+    await prepareWidget({ id: 'widget-1' })
+
+    expect(internals.invoke).toHaveBeenNthCalledWith(1, 'electron_windows_widgets_add', { componentName: 'demo' })
+    expect(internals.invoke).toHaveBeenNthCalledWith(2, 'electron_windows_widgets_fetch', { id: 'widget-1' })
+    expect(internals.invoke).toHaveBeenNthCalledWith(3, 'electron_windows_widgets_prepare', { id: 'widget-1' })
   })
 
   it('re-exports pubsub helpers from the tauri adapter entry', () => {

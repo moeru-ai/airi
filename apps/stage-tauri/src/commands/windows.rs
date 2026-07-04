@@ -25,8 +25,7 @@ pub struct WindowLifecycleState {
 fn now_ms() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_millis() as u64)
-        .unwrap_or(0)
+        .map_or(0, |duration| duration.as_millis() as u64)
 }
 
 pub(crate) fn get_window_lifecycle_state(
@@ -154,7 +153,7 @@ pub async fn electron_windows_onboarding_open(app: AppHandle) -> Result<(), Stri
 #[tauri::command]
 pub async fn electron_windows_onboarding_close(app: AppHandle) -> Result<(), String> {
     if let Some(window) = app.get_webview_window("onboarding") {
-        window.close().map_err(|e| e.to_string())?;
+        let _ = window.close();
     }
     Ok(())
 }

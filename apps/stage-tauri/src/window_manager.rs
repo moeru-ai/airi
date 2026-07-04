@@ -225,7 +225,7 @@ pub(crate) fn route_with_query(route: &str, key: &str, value: &str) -> String {
             if part.is_empty() {
                 return false;
             }
-            let existing_key = part.split_once('=').map(|(key, _)| key).unwrap_or(part);
+            let existing_key = part.split_once('=').map_or(*part, |(key, _)| key);
             existing_key != key
         })
         .map(ToString::to_string)
