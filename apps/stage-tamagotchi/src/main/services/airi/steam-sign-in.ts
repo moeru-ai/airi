@@ -1,8 +1,16 @@
 import type { TokenExchangeResult } from './auth'
 
 import { errorMessageFrom } from '@moeru/std'
+import { literal, object, safeParse, string } from 'valibot'
 
 const STEAM_NEEDS_ENROLLMENT = 'STEAM_NEEDS_ENROLLMENT'
+
+// Mirrors the 403 body from apps/server/src/routes/auth/steam/desktop-sign-in.ts.
+const SteamNeedsEnrollmentBodySchema = object({
+  errorCode: literal(STEAM_NEEDS_ENROLLMENT),
+  enrollToken: string(),
+  authUiUrl: string(),
+})
 
 export type SteamExchangeResult
   = | { ok: true, tokens: TokenExchangeResult }
@@ -40,24 +48,21 @@ export async function exchangeSteamTicketForTokens(params: {
 
     if (response.status === 403) {
       const text = await response.text().catch(() => '')
-      let body: { errorCode?: unknown, enrollToken?: unknown, authUiUrl?: unknown } | null = null
+      let body: unknown = null
       try {
         body = JSON.parse(text)
       }
       catch {
         body = null
       }
-      if (
-        body?.errorCode === STEAM_NEEDS_ENROLLMENT
-        && typeof body.enrollToken === 'string'
-        && typeof body.authUiUrl === 'string'
-      ) {
+      const parsed = safeParse(SteamNeedsEnrollmentBodySchema, body)
+      if (parsed.success) {
         return {
           ok: false,
           kind: 'needs_enrollment',
           reason: 'Steam account is not linked — enrollment required',
-          enrollToken: body.enrollToken,
-          authUiUrl: body.authUiUrl,
+          enrollToken: parsed.output.enrollToken,
+          authUiUrl: parsed.output.authUiUrl,
         }
       }
       return { ok: false, kind: 'error', reason: `Steam sign-in failed (403): ${text}` }
