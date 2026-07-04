@@ -115,7 +115,18 @@
       "status": "pending"
     },
     "VAL-TAURI-WIN-002": {
-      "status": "pending"
+      "status": "implemented",
+      "featureId": "multi-window-creation",
+      "commitId": "8bc2f442f",
+      "updatedAt": "2026-07-04T19:16:47.243Z",
+      "evidence": [
+        "Managed window specs and route tests cover settings, chat, widgets, caption, notice, about, onboarding, devtools, beat-sync, inlay, and dashboard.",
+        "stage-tauri build, route Vitest, tauri-eventa adapter tests, typechecks, Cargo tests/build, and whitespace checks passed.",
+        "Codex reviewer found notice native-close and widget ttlMs gaps; both were fixed and follow-up review reported no remaining issues."
+      ],
+      "remainingEvidence": [
+        "Per-window runtime screenshots were not captured in this headless run."
+      ]
     },
     "VAL-TAURI-WIN-003": {
       "status": "pending"

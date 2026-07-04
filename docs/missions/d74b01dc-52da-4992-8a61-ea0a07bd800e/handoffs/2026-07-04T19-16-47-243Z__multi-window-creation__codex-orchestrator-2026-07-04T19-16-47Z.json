@@ -1,0 +1,129 @@
+{
+  "timestamp": "2026-07-04T19:16:47.243Z",
+  "workerSessionId": "codex-orchestrator-2026-07-04T19-16-47Z",
+  "featureId": "multi-window-creation",
+  "milestone": "tauri-app-scaffold",
+  "commitId": "8bc2f442f",
+  "repoPath": "/home/vi/anima",
+  "successState": "success",
+  "returnToOrchestrator": true,
+  "handoff": {
+    "salientSummary": "Implemented the Tauri managed multi-window layer. The Rust window manager can open settings, chat, widgets, caption, notice, about, onboarding, devtools, beat-sync, inlay, and dashboard windows with stable labels and hash routes. Secondary windows render nonblank shells, and notice/widgets flows now have Tauri-backed Eventa contracts and state registries.",
+    "whatWasImplemented": "Added apps/stage-tauri/src/window_manager.rs with managed window specs, route normalization, query encoding, stable hash-suffixed child labels, reuse behavior, and tests. Added window route classification in apps/stage-tauri/src/window-routes.ts and nonblank secondary shells in App.vue. Implemented stage_tauri_managed_window_open plus Eventa-backed settings/chat/devtools/onboarding open handlers. Replaced notice placeholder commands with a pending-request registry, oneshot resolution, page-mounted/action/unmounted handling, generated ids with sequence suffixes, and a native close/destroy fallback that resolves false. Replaced widget placeholder commands with a registry-backed add/open/hide/remove/clear/update/fetch/prepare flow, native Tauri event emission, generated ids with sequence suffixes, and generation-guarded ttlMs cleanup. Added stage window contracts in @proj-airi/tauri-eventa and mapped request-window factory invokes to Tauri command names.",
+    "whatWasLeftUndone": "Per-window runtime screenshots were not captured in this headless session. Secondary settings/chat/about/dashboard/etc. pages currently render minimal nonblank shells; full renderer page migration remains in later renderer-migration features. Beat-sync is represented as a visible /beat-sync shell, not the original hidden Electron beat-sync.html background window. Overlay click-through remains in later hitbox/click-through features.",
+    "verification": {
+      "commandsRun": [
+        {
+          "command": "pnpm -F @proj-airi/stage-tauri build",
+          "exitCode": 0,
+          "observation": "vue-tsc and Vite production build passed with existing DuckDB browser externalization, import.meta IIFE, plugin timing, and large chunk warnings."
+        },
+        {
+          "command": "pnpm -F @proj-airi/stage-tauri typecheck",
+          "exitCode": 0,
+          "observation": "vue-tsc --noEmit passed."
+        },
+        {
+          "command": "pnpm -F @proj-airi/stage-tauri exec vitest run src/window-routes.test.ts",
+          "exitCode": 0,
+          "observation": "3 route classification tests passed."
+        },
+        {
+          "command": "pnpm -F @proj-airi/tauri-eventa exec vitest run src/tauri/index.test.ts",
+          "exitCode": 0,
+          "observation": "13 adapter tests passed, including request-window invoke mapping."
+        },
+        {
+          "command": "pnpm -F @proj-airi/tauri-eventa typecheck",
+          "exitCode": 0,
+          "observation": "tsc --noEmit passed."
+        },
+        {
+          "command": "pnpm -F @proj-airi/tauri-eventa build",
+          "exitCode": 0,
+          "observation": "tsdown build passed with stage-windows contract entry."
+        },
+        {
+          "command": "cargo fmt --check",
+          "exitCode": 0,
+          "observation": "Rust formatting passed after final widget/notice fixes."
+        },
+        {
+          "command": "cargo test",
+          "exitCode": 0,
+          "observation": "11 Rust tests passed with the known placeholder dead-code warnings."
+        },
+        {
+          "command": "cargo build",
+          "exitCode": 0,
+          "observation": "Rust build passed with the known placeholder dead-code warnings."
+        },
+        {
+          "command": "git diff --check",
+          "exitCode": 0,
+          "observation": "No whitespace errors."
+        },
+        {
+          "command": "codex exec read-only review",
+          "exitCode": 0,
+          "observation": "Reviewer found notice native-close and widget ttlMs issues; both were fixed. Follow-up read-only review reported no Critical, Important, or Minor findings for those fixes."
+        }
+      ],
+      "interactiveChecks": [
+        {
+          "description": "Main Tauri Live2D rendering",
+          "result": "Previously confirmed manually by the user before this feature completion; this feature did not regress the renderer build."
+        }
+      ]
+    },
+    "tests": {
+      "added": [
+        "apps/stage-tauri/src/window-routes.test.ts"
+      ],
+      "updated": [
+        "apps/stage-tauri/src/window_manager.rs unit tests",
+        "apps/stage-tauri/src/commands/notice.rs unit tests",
+        "apps/stage-tauri/src/commands/widgets.rs unit tests",
+        "packages/tauri-eventa/src/tauri/index.test.ts"
+      ],
+      "coverage": "Tests cover managed window labels/routes, overlay flags, route query encoding, stable child labels, route classification, notice pending/action/id behavior, widget id/generation behavior, and request-window invoke mapping."
+    },
+    "discoveredIssues": [
+      {
+        "severity": "fixed",
+        "description": "Notice openWindow could hang forever if the native titlebar/OS closed a decorated notice window; fixed by resolving the pending oneshot as false on CloseRequested/Destroyed."
+      },
+      {
+        "severity": "fixed",
+        "description": "Widget ttlMs was stored but not enforced; fixed with generation-guarded async TTL cleanup that closes the widget window and emits the remove event."
+      },
+      {
+        "severity": "fixed",
+        "description": "Generated notice/widget ids were millisecond-only; fixed with process-local atomic sequence suffixes."
+      },
+      {
+        "severity": "fixed",
+        "description": "Dynamic child labels could collide after sanitization; fixed with stable hash suffixes."
+      },
+      {
+        "severity": "non_blocking",
+        "description": "Per-window screenshots required by the validation contract were not captured in this headless session."
+      },
+      {
+        "severity": "non_blocking",
+        "description": "AGENTS.md mandates Serena/jcodemunch MCP tools; they were not exposed in this session, so native tooling fallback was used and recorded."
+      }
+    ],
+    "skillFeedback": {
+      "followedProcedure": true,
+      "deviations": [
+        {
+          "step": "AGENTS.md MCP startup and delegated code-change loop",
+          "whatIDidInstead": "Used native rg/sed/git/apply_patch/pnpm/cargo tooling and codex exec reviewer subagents.",
+          "why": "The MCP tools named by AGENTS.md were not exposed in the current tool list."
+        }
+      ],
+      "suggestedChanges": []
+    }
+  }
+}

@@ -3,13 +3,13 @@
   "state": "orchestrator_turn",
   "workingDirectory": "/home/vi/anima",
   "createdAt": "2026-07-03T13:04:45.737Z",
-  "updatedAt": "2026-07-04T15:32:36.000Z",
+  "updatedAt": "2026-07-04T19:16:47.243Z",
   "lastReviewedHandoffCount": 9,
   "orchestrator": {
     "current": "codex",
-    "note": "Codex completed window-lifecycle-events at commit ccd3be7f7, merged PR #66 with all 6 Gemini review fixes; completed transparent-main-window, merged PR #67; continue with multi-window-creation."
+    "note": "Codex completed multi-window-creation at commit 8bc2f442f. Main Tauri Live2D rendering remains manually confirmed. Continue with window-display-features in an isolated git worktree per user preference."
   },
   "missionDirectory": "/home/vi/anima/docs/missions/d74b01dc-52da-4992-8a61-ea0a07bd800e",
   "migratedFrom": "/home/vi/.factory/missions/d74b01dc-52da-4992-8a61-ea0a07bd800e",
-  "currentFeatureId": "multi-window-creation"
+  "currentFeatureId": "window-display-features"
 }
