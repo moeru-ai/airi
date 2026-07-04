@@ -163,11 +163,14 @@ export function useEmailAuthFlow(options: UseEmailAuthFlowOptions) {
       const name = options.scope === 'enroll'
         ? ''
         : credentials.name.trim() || email.split('@')[0]
-      // NOTICE: the verification email always lands on the local verify-email
-      // success page (never the OIDC authorize URL) — email links open in a
-      // fresh tab with empty sessionStorage, so the original pending tab does
-      // the OIDC continuation once the cookie lands via BroadcastChannel.
-      const signUpCallbackURL = buildCurrentOriginAuthUiUrl('/verify-email?verified=true')
+      // NOTICE: carry api_server_url onto the verify-email callback URL.
+      // The email link opens in a fresh tab with no bootstrap context, so
+      // without it the verified tab falls back to the production SERVER_URL
+      // default and any navigation off it (e.g. "back to sign in") talks to
+      // the wrong backend than the one the enrollment targeted.
+      const signUpCallbackUrl = new URL(buildCurrentOriginAuthUiUrl('/verify-email?verified=true'))
+      signUpCallbackUrl.searchParams.set(API_SERVER_URL_QUERY_PARAM, options.apiServerUrl)
+      const signUpCallbackURL = signUpCallbackUrl.toString()
       const result = await signUpWithEmail({
         apiServerUrl: options.apiServerUrl,
         email,

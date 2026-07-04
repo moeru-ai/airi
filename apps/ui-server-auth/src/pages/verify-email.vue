@@ -7,7 +7,7 @@ import { useRoute } from 'vue-router'
 
 import { trackEmailVerificationCompleted, trackEmailVerificationFailed } from '../modules/analytics'
 import { buildCurrentOriginAuthUiUrl } from '../modules/auth-ui-base'
-import { getServerAuthBootstrapContext } from '../modules/server-auth-context'
+import { API_SERVER_URL_QUERY_PARAM, getServerAuthBootstrapContext } from '../modules/server-auth-context'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -155,7 +155,7 @@ watch(data, async (event) => {
     </p>
 
     <RouterLink
-      to="/sign-in"
+      :to="{ path: '/sign-in', query: { [API_SERVER_URL_QUERY_PARAM]: apiServerUrl } }"
       :class="['mt-8 text-xs text-neutral-500 underline']"
     >
       {{ t('server.auth.verifyEmail.action.backToSignIn') }}
