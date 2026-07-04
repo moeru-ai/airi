@@ -15,8 +15,8 @@
         "title": "AIRI",
         "width": 480,
         "height": 720,
-        "transparent": false,
-        "decorations": true,
+        "transparent": true,
+        "decorations": false,
         "alwaysOnTop": true,
         "skipTaskbar": false,
         "focusable": true

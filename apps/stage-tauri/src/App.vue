@@ -39,7 +39,7 @@ onMounted(async () => {
   <main class="shell">
     <section class="stage-shell" aria-label="AIRI character stage">
       <WidgetStage v-if="stageReady" class="stage" />
-      <div class="status-panel">
+      <div class="status-panel" data-tauri-drag-region>
         <p class="eyebrow">AIRI</p>
         <h1>Character stage</h1>
         <p class="status">Runtime: {{ runtime }}</p>

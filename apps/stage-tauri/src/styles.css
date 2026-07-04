@@ -1,6 +1,6 @@
 :root {
   color: #eef5ff;
-  background: #151515;
+  background: transparent;
   font-family:
     Inter,
     ui-sans-serif,
@@ -24,7 +24,7 @@ body,
 }
 
 body {
-  background: #151515;
+  background: transparent;
   overflow: hidden;
 }
 
@@ -32,7 +32,7 @@ body {
   position: relative;
   height: 100%;
   min-height: 100%;
-  background: #151515;
+  background: transparent;
   overflow: hidden;
 }
 

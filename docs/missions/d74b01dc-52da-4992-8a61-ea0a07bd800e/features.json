@@ -182,9 +182,11 @@
         "VAL-TAURI-WIN-001"
       ],
       "milestone": "tauri-app-scaffold",
-      "status": "pending",
-      "workerSessionIds": [],
-      "currentWorkerSessionId": null,
+      "status": "in_progress",
+      "workerSessionIds": [
+        "codex-orchestrator-2026-07-04T00-00-00Z"
+      ],
+      "currentWorkerSessionId": "codex-orchestrator-2026-07-04T00-00-00Z",
       "completedWorkerSessionId": null
     },
     {
