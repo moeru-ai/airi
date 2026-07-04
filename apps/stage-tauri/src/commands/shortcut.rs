@@ -18,9 +18,7 @@ pub struct ShortcutBinding {
 
 /// Register a global shortcut - placeholder
 #[tauri::command]
-pub async fn electron_shortcut_register(
-    _binding: Option<Value>,
-) -> ShortcutRegistrationResult {
+pub async fn electron_shortcut_register(_binding: Option<Value>) -> ShortcutRegistrationResult {
     ShortcutRegistrationResult {
         id: "placeholder".to_string(),
         success: false,
@@ -29,9 +27,7 @@ pub async fn electron_shortcut_register(
 
 /// Unregister a global shortcut - placeholder
 #[tauri::command]
-pub async fn electron_shortcut_unregister(
-    _id: Option<String>,
-) -> Result<(), String> {
+pub async fn electron_shortcut_unregister(_id: Option<String>) -> Result<(), String> {
     Ok(())
 }
 

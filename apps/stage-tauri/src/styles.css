@@ -89,3 +89,127 @@ h1 {
 .status-compact {
   margin-top: 4px;
 }
+
+.secondary-window {
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  background: #10141b;
+  color: #edf3fb;
+  overflow: auto;
+}
+
+.secondary-window[data-window-label='caption'],
+.secondary-window[data-window-label='inlay'],
+.secondary-window[data-window-label='widgets'],
+.secondary-window[data-window-label^='widgets-'] {
+  background: rgb(16 20 27 / 74%);
+}
+
+.secondary-toolbar {
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
+  padding: 18px 22px;
+}
+
+.secondary-toolbar .eyebrow {
+  margin: 0;
+}
+
+.secondary-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1px;
+  margin: 0;
+  background: rgb(255 255 255 / 10%);
+}
+
+.secondary-details > div {
+  min-width: 0;
+  background: #151b24;
+  padding: 18px 22px;
+}
+
+.secondary-details dt {
+  margin: 0 0 8px;
+  color: #8ddbbf;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.secondary-details dd {
+  margin: 0;
+  color: #d8e1ee;
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.secondary-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  border-top: 1px solid rgb(255 255 255 / 10%);
+  padding: 22px;
+}
+
+.panel-title {
+  margin: 0;
+  color: #edf3fb;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.panel-text {
+  margin: 6px 0 0;
+  color: #b9c5d6;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.secondary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.secondary-actions button {
+  min-width: 92px;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 6px;
+  background: #23483f;
+  color: #eefaf6;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 9px 12px;
+}
+
+.secondary-actions button:disabled {
+  cursor: default;
+  opacity: 0.48;
+}
+
+.widget-snapshot {
+  grid-column: 1 / -1;
+  max-height: 280px;
+  margin: 0;
+  overflow: auto;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 6px;
+  background: rgb(0 0 0 / 22%);
+  color: #d8e1ee;
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 14px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

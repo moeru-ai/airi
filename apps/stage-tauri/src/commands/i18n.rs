@@ -2,9 +2,7 @@
 // All commands use placeholder implementations
 /// Set locale - placeholder
 #[tauri::command]
-pub async fn electron_i18n_set_locale(
-    _locale: Option<String>,
-) -> Result<(), String> {
+pub async fn electron_i18n_set_locale(_locale: Option<String>) -> Result<(), String> {
     Ok(())
 }
 

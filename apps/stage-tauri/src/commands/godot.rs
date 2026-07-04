@@ -43,9 +43,7 @@ pub async fn electron_godot_stage_get_status() -> GodotStageStatus {
 
 /// Apply scene input to Godot - placeholder
 #[tauri::command]
-pub async fn electron_godot_stage_apply_scene_input(
-    _payload: Option<Value>,
-) -> Result<(), String> {
+pub async fn electron_godot_stage_apply_scene_input(_payload: Option<Value>) -> Result<(), String> {
     Ok(())
 }
 
@@ -57,9 +55,7 @@ pub async fn electron_godot_stage_view_snapshot_get() -> Option<Value> {
 
 /// Apply view patch to Godot - placeholder
 #[tauri::command]
-pub async fn electron_godot_stage_view_state_apply_patch(
-    _patch: Option<Value>,
-) -> Value {
+pub async fn electron_godot_stage_view_state_apply_patch(_patch: Option<Value>) -> Value {
     serde_json::json!({ "ok": true })
 }
 

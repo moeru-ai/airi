@@ -28,10 +28,7 @@ pub async fn electron_mcp_list_tools() -> Vec<McpToolDescriptor> {
 
 /// Call a tool on an MCP server - placeholder
 #[tauri::command]
-pub async fn electron_mcp_call_tool(
-    _name: Option<String>,
-    _arguments: Option<Value>,
-) -> Value {
+pub async fn electron_mcp_call_tool(_name: Option<String>, _arguments: Option<Value>) -> Value {
     serde_json::json!({ "content": [], "isError": false })
 }
 
@@ -59,18 +56,13 @@ pub async fn electron_mcp_read_config_text() -> Value {
 
 /// Write MCP config file - placeholder
 #[tauri::command]
-pub async fn electron_mcp_write_config_text(
-    _text: Option<String>,
-) -> Value {
+pub async fn electron_mcp_write_config_text(_text: Option<String>) -> Value {
     serde_json::json!({ "path": "", "text": "{}" })
 }
 
 /// Test MCP server connection - placeholder
 #[tauri::command]
-pub async fn electron_mcp_test_server(
-    _name: Option<String>,
-    _config: Option<Value>,
-) -> Value {
+pub async fn electron_mcp_test_server(_name: Option<String>, _config: Option<Value>) -> Value {
     serde_json::json!({ "ok": false, "error": "not implemented", "durationMs": 0 })
 }
 

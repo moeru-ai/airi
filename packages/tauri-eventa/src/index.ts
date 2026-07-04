@@ -17,6 +17,10 @@ export {
   type ElectronWindowLifecycleReason,
   type ElectronWindowLifecycleState,
   powerMonitorEvents,
+  noticeWindowEventa,
+  type RequestWindowActionDefault,
+  type RequestWindowPayload,
+  type RequestWindowPending,
   type ResizeDirection,
   screen,
   startLoopGetBounds,
@@ -24,6 +28,13 @@ export {
   systemPreferences,
   type VibrancyType,
   window,
+  widgetsClearEvent,
+  widgetsFetch,
+  widgetsRemoveEvent,
+  widgetsRenderEvent,
+  widgetsUpdateEvent,
+  type WidgetSnapshot,
+  type WidgetsUpdatePayload,
 } from './contracts'
 
 export { createContextFromTauriIpc, setupTauriEventaContext, useTauriEventaInvoke } from './tauri'

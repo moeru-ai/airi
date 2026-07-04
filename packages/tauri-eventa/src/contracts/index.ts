@@ -15,6 +15,19 @@ export { cursorScreenPoint, screen, startLoopGetCursorScreenPoint } from './scre
 export { systemPreferences } from './system-preferences'
 export { powerMonitorEvents } from './power-monitor'
 export { autoUpdater, electronAutoUpdaterStateChanged } from './electron-updater'
+export {
+  noticeWindowEventa,
+  widgetsClearEvent,
+  widgetsFetch,
+  widgetsRemoveEvent,
+  widgetsRenderEvent,
+  widgetsUpdateEvent,
+  type RequestWindowActionDefault,
+  type RequestWindowPayload,
+  type RequestWindowPending,
+  type WidgetSnapshot,
+  type WidgetsUpdatePayload,
+} from './stage-windows'
 export type {
   AutoUpdaterDiagnostics,
   AutoUpdaterError,

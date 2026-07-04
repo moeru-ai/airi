@@ -1,5 +1,5 @@
 import type { TauriInternals } from './types'
-import { defineInvoke } from '@moeru/eventa'
+import { defineInvoke, defineInvokeEventa } from '@moeru/eventa'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { electron, electronGetWindowLifecycleState } from '../contracts'
 import { createContextFromTauriIpc, buildIpcRendererLike, subscribeTauriEvent } from './index'
@@ -162,6 +162,44 @@ describe('createContextFromTauriIpc', () => {
       updatedAt: 123,
       visible: true,
     })
+  })
+
+  it('maps request-window factory invokes to their registered Tauri commands', async () => {
+    const internals = buildMockInternals()
+    ;(internals.invoke as any).mockResolvedValue(true)
+
+    const { context } = createContextFromTauriIpc(internals)
+    const cases = [
+      {
+        id: 'eventa:invoke:open:electron:windows:notice',
+        command: 'electron_windows_notice_invoke_open',
+        payload: { id: 'notice-1', route: '/notice/fade-on-hover' },
+      },
+      {
+        id: 'eventa:invoke:action:electron:windows:notice',
+        command: 'electron_windows_notice_invoke_action',
+        payload: { id: 'notice-1', action: 'confirm' },
+      },
+      {
+        id: 'eventa:invoke:page-mounted:electron:windows:notice',
+        command: 'electron_windows_notice_invoke_page_mounted',
+        payload: { id: 'notice-1' },
+      },
+      {
+        id: 'eventa:invoke:page-unmounted:electron:windows:notice',
+        command: 'electron_windows_notice_invoke_page_unmounted',
+        payload: { id: 'notice-1' },
+      },
+    ] as const
+
+    for (const { id, command, payload } of cases) {
+      const eventa = defineInvokeEventa<boolean, typeof payload>(id)
+      const invoke = defineInvoke(context, eventa)
+      const result = await invoke(payload)
+
+      expect(internals.invoke).toHaveBeenLastCalledWith(command, payload)
+      expect(result).toBe(true)
+    }
   })
 
   it('re-exports pubsub helpers from the tauri adapter entry', () => {
