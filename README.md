@@ -50,9 +50,26 @@ The Electron version will be archived only after the Tauri build reaches full fe
 
 ### 🖱️ Quick Start
 
+Electron desktop app:
+
 ```shell
 pnpm i
 pnpm dev:tamagotchi
+```
+
+Tauri desktop app:
+
+```shell
+pnpm i
+cd apps/stage-tauri
+./init.sh
+cargo tauri dev
+```
+
+`./init.sh` checks the local Tauri scaffold, Rust toolchain, `cargo-tauri` CLI, and runs `cargo check`. Install the Tauri CLI first if needed:
+
+```shell
+cargo install tauri-cli --version '^2.0'
 ```
 
 <img width="256" height="384" alt="AnimAIOS mascot" src="https://github.com/user-attachments/assets/0d048b16-c5f2-4d9a-8735-ce1417256b22" />
