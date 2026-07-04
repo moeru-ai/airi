@@ -3,11 +3,11 @@
   "state": "orchestrator_turn",
   "workingDirectory": "/home/vi/anima",
   "createdAt": "2026-07-03T13:04:45.737Z",
-  "updatedAt": "2026-07-04T21:11:09.968Z",
+  "updatedAt": "2026-07-04T22:41:25.015Z",
   "lastReviewedHandoffCount": 9,
   "orchestrator": {
     "current": "codex",
-    "note": "PR #68 review fixes implemented for multi-window-creation: Gemini close/route cleanup, DeepSource static nits, widget native-close cleanup, expanded Eventa window contracts, and validation wording. Verification passed locally; next push fixes and re-check PR before merge."
+    "note": "PR #68 DeepSource JavaScript follow-up applied: syncWidgetRoute now has explicit async returns and App.vue route/widget helpers were split to lower complexity. Local stage-tauri typecheck and git diff --check passed; push and re-check PR next."
   },
   "missionDirectory": "/home/vi/anima/docs/missions/d74b01dc-52da-4992-8a61-ea0a07bd800e",
   "migratedFrom": "/home/vi/.factory/missions/d74b01dc-52da-4992-8a61-ea0a07bd800e",
