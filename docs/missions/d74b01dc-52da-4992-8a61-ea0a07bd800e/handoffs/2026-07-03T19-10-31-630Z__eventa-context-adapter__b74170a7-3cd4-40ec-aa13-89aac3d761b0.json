@@ -1,0 +1,104 @@
+{
+  "timestamp": "2026-07-03T19:10:31.630Z",
+  "workerSessionId": "b74170a7-3cd4-40ec-aa13-89aac3d761b0",
+  "featureId": "eventa-context-adapter",
+  "milestone": "eventa-adapter",
+  "commitId": "a5d74fafa",
+  "repoPath": "/home/vi/anima",
+  "successState": "success",
+  "returnToOrchestrator": true,
+  "handoff": {
+    "salientSummary": "Created the keystone @proj-airi/tauri-eventa IPC adapter. Provides createContext(tauriIpc) and setupTauriEventaContext() that wrap window.__TAURI_INTERNALS__.ipc into the IpcRenderer-shaped interface expected by @moeru/eventa. Package builds, typechecks, and passes unit tests.",
+    "whatWasImplemented": "@proj-airi/tauri-eventa package providing createContext(tauriIpc) and setupTauriEventaContext() helpers. The adapter wraps Tauri's window.__TAURI_INTERNALS__.ipc invoke/transformCallback model into the send/on/removeListener interface expected by @moeru/eventa/adapters/electron/renderer, allowing the existing eventa protocol (messageEventName, pushEventName, errorEventName) to be reused unchanged. All six eventa contracts (window, screen, app, system-preferences, power-monitor, electron-updater) are re-declared using defineEventa/defineInvokeEventa with the same string IDs that Electron uses. Includes tsdown config with ESM-only emit, typecheck, and 5 unit tests all passing. Also includes apps/stage-tauri minimal Rust scaffold.",
+    "whatWasLeftUndone": "No renderer integration test with cargo tauri dev — requires WebKitGTK dev headers and headless compositor on CachyOS. No cargo build verification of scaffold. Rust command handlers for full contract surface deferred to eventa-invoke-contracts and eventa-event-pubsub features. Package registered as workspace member.",
+    "verification": {
+      "commandsRun": [
+        {
+          "command": "cd packages/tauri-eventa && pnpm run build",
+          "exitCode": 0,
+          "observation": "Build produced 25 files (60.18 kB total) including dist/index.mjs, dist/tauri/index.mjs, dist/contracts/*.mjs and their .d.mts counterparts"
+        },
+        {
+          "command": "cd packages/tauri-eventa && pnpm run typecheck",
+          "exitCode": 0,
+          "observation": "tsc --noEmit completed with exit code 0 and no errors"
+        },
+        {
+          "command": "cd packages/tauri-eventa && pnpm exec vitest run",
+          "exitCode": 0,
+          "observation": "5/5 tests passing in src/tauri/index.test.ts"
+        },
+        {
+          "command": "git add packages/tauri-eventa apps/stage-tauri && git commit",
+          "exitCode": 0,
+          "observation": "Committed as a5d74fafa on main"
+        }
+      ],
+      "interactiveChecks": []
+    },
+    "tests": {
+      "added": [
+        {
+          "file": "packages/tauri-eventa/src/tauri/index.test.ts",
+          "cases": [
+            {
+              "name": "should return a non-null eventa context",
+              "verifies": "createContextFromTauriIpc().context is truthy with emit/on/off methods"
+            },
+            {
+              "name": "should register IPC listeners for eventa channels",
+              "verifies": "context.on() triggers transformCallback registration"
+            },
+            {
+              "name": "should dispose context and unsubscribe",
+              "verifies": "dispose() cleans up bridge listeners without throwing"
+            },
+            {
+              "name": "sends ipc on outbound event emit (fire-and-forget)",
+              "verifies": "context.emit() calls internals.ipc() with eventa-message channel"
+            },
+            {
+              "name": "invoke should resolve with mock response",
+              "verifies": "internals.invoke resolves with mock data"
+            }
+          ]
+        }
+      ],
+      "updated": [],
+      "coverage": "Unit tests cover adapter construction, event subscription, dispose, and outbound emit. No tests yet for Rust-side round-trip; deferred to later work."
+    },
+    "discoveredIssues": [
+      {
+        "severity": "non_blocking",
+        "description": "Pre-existing: pnpm install postinstall fails on core-terminal and electron-screen-capture packages; unrelated to tauri-eventa changes. Workaround: pnpm install --ignore-scripts."
+      },
+      {
+        "severity": "suggestion",
+        "description": "Contracts in tauri-eventa have distinct object identity from electron-eventa. eventa dispatches by ID string so this is safe, but === comparisons on .sendEvent objects will diverge."
+      },
+      {
+        "severity": "suggestion",
+        "description": "Tauri adapter bridges through electron/renderer createElectronContext. Rust emit must target the right transformCallback ID for subscription routing to work."
+      },
+      {
+        "severity": "non_blocking",
+        "description": "Pre-existing: @moeru/eventa/adapters/tauri/renderer does not exist in installed catalog. Adapter synthesized inline via electron renderer shim. Follow-up: upstream into @moeru/eventa."
+      }
+    ],
+    "skillFeedback": {
+      "followedProcedure": true,
+      "deviations": [
+        {
+          "step": "Opening move (serena-list-memories, jcodemunch resolve/assemble)",
+          "whatIDidInstead": "Skipped MCP-driven opening move; used Read/Grep/Glob directly",
+          "why": "MCP tools not available in current tool list"
+        },
+        {
+          "step": "Contract export pattern (electron-eventa re-export)",
+          "whatIDidInstead": "Re-declared contracts inline using defineEventa/defineInvokeEventa",
+          "why": "rolldown-plugin-dts fails to handle transitive re-exports across chunks; inline declaration avoids bundler bugs while preserving string IDs"
+        }
+      ]
+    }
+  }
+}

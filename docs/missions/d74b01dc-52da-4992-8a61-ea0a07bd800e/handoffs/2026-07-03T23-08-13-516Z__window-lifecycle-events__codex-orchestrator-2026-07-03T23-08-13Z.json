@@ -1,0 +1,112 @@
+{
+  "timestamp": "2026-07-03T23:08:13.516Z",
+  "workerSessionId": "codex-orchestrator-2026-07-03T23-08-13Z",
+  "featureId": "window-lifecycle-events",
+  "milestone": "tauri-app-scaffold",
+  "commitId": "ccd3be7f7",
+  "repoPath": "/home/vi/anima",
+  "successState": "success",
+  "returnToOrchestrator": true,
+  "handoff": {
+    "salientSummary": "The Tauri stage now emits and consumes Electron-compatible window lifecycle state. Rust snapshots focused/minimized/visible state from WebviewWindow, emits electron:window:lifecycle-changed on state changes, and the renderer shows reactive bounds plus lifecycle diagnostics while the Live2D stage remains visible.",
+    "whatWasImplemented": "Added lifecycle contracts to @proj-airi/tauri-eventa, mapped lifecycle invokes to electron_window_get_lifecycle_state, implemented real Rust lifecycle snapshots and a setup-time polling emitter, introduced @proj-airi/tauri-vueuse with Electron-compatible Eventa context helpers and useElectronWindowBounds, and added a stage-tauri Pinia lifecycle store consumed by App.vue.",
+    "whatWasLeftUndone": "The lifecycle emitter uses polling because Tauri's Linux window event stream does not expose every minimize/restore transition directly. Later transparent-window and multi-window features can revisit this if a lower-level Wayland signal source is added.",
+    "verification": {
+      "commandsRun": [
+        {
+          "command": "pnpm -F @proj-airi/tauri-eventa exec vitest run src/tauri/index.test.ts",
+          "exitCode": 0,
+          "observation": "1 test file passed; 8 tests passed, including lifecycle invoke mapping."
+        },
+        {
+          "command": "pnpm -F @proj-airi/tauri-eventa typecheck",
+          "exitCode": 0,
+          "observation": "tsc --noEmit passed."
+        },
+        {
+          "command": "pnpm -F @proj-airi/tauri-eventa build",
+          "exitCode": 0,
+          "observation": "tsdown build passed."
+        },
+        {
+          "command": "pnpm -F @proj-airi/tauri-vueuse typecheck",
+          "exitCode": 0,
+          "observation": "tsc --noEmit passed."
+        },
+        {
+          "command": "pnpm -F @proj-airi/tauri-vueuse build",
+          "exitCode": 0,
+          "observation": "tsdown build passed."
+        },
+        {
+          "command": "pnpm -F @proj-airi/stage-tauri typecheck",
+          "exitCode": 0,
+          "observation": "vue-tsc --noEmit passed after rerunning sequentially behind tauri-vueuse build. An earlier parallel run raced the dependency's dist clean step and failed to resolve @proj-airi/tauri-vueuse."
+        },
+        {
+          "command": "pnpm -F @proj-airi/stage-tauri build",
+          "exitCode": 0,
+          "observation": "vue-tsc and Vite production build passed with existing DuckDB/browser externalization, import.meta, large chunk, and plugin timing warnings."
+        },
+        {
+          "command": "cd apps/stage-tauri && cargo build",
+          "exitCode": 0,
+          "observation": "Rust build passed with known placeholder dead-code warnings."
+        },
+        {
+          "command": "cd apps/stage-tauri && bash init.sh",
+          "exitCode": 0,
+          "observation": "Init script passed and cargo check completed with known placeholder dead-code warnings."
+        },
+        {
+          "command": "git diff --check",
+          "exitCode": 0,
+          "observation": "No whitespace errors."
+        },
+        {
+          "command": "User visual check",
+          "exitCode": 0,
+          "observation": "User confirmed the Tauri stage was running well and the Live2D character works."
+        }
+      ],
+      "interactiveChecks": [
+        {
+          "description": "Main Tauri window lifecycle/bounds UI with Live2D stage",
+          "result": "User confirmed the running Tauri stage and Live2D character were working after the lifecycle feature changes."
+        }
+      ]
+    },
+    "tests": {
+      "added": [],
+      "updated": [
+        "packages/tauri-eventa/src/tauri/index.test.ts"
+      ],
+      "coverage": "Adapter test covers the lifecycle Eventa invoke mapping. Runtime/user verification covers the Tauri stage staying usable with the Live2D renderer while the lifecycle bridge is active."
+    },
+    "discoveredIssues": [
+      {
+        "severity": "fixed",
+        "description": "Running stage-tauri typecheck in parallel with tauri-vueuse build can race against tsdown's dist cleanup because stage-tauri resolves @proj-airi/tauri-vueuse through package exports."
+      },
+      {
+        "severity": "non_blocking",
+        "description": "Rust build still reports known placeholder dead-code warnings in auth, server_channel, and window command structs."
+      },
+      {
+        "severity": "non_blocking",
+        "description": "MCP Serena/jcodemunch tools required by AGENTS.md were unavailable, so native tooling fallback was used and recorded."
+      }
+    ],
+    "skillFeedback": {
+      "followedProcedure": true,
+      "deviations": [
+        {
+          "step": "AGENTS.md MCP startup and delegated code-change loop",
+          "whatIDidInstead": "Used native rg/sed/git/apply_patch/pnpm/cargo tooling, plus user runtime confirmation.",
+          "why": "The MCP tools named by AGENTS.md were not exposed in the current tool list."
+        }
+      ],
+      "suggestedChanges": []
+    }
+  }
+}

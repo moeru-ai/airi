@@ -1,0 +1,15 @@
+{
+  "customModels": [
+    {
+      "model": "auto",
+      "id": "custom:API-Gateway-Auto-(router)-0",
+      "index": 0,
+      "baseUrl": "http://localhost:3001/v1",
+      "apiKey": "<redacted-local-api-gateway-key>",
+      "displayName": "Auto",
+      "maxOutputTokens": 131072,
+      "noImageSupport": true,
+      "provider": "generic-chat-completion-api"
+    }
+  ]
+}

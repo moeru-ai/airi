@@ -1,0 +1,43 @@
+{
+  "name": "@proj-airi/tauri-vueuse",
+  "type": "module",
+  "version": "0.10.2",
+  "private": true,
+  "description": "VueUse-like composables and helpers for Tauri apps",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai/airi"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/tauri-vueuse"
+  },
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/index.d.mts",
+  "files": [
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "dev": "pnpm run build",
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "vue": "catalog:vue-gte-3"
+  },
+  "dependencies": {
+    "@moeru/eventa": "catalog:",
+    "@proj-airi/tauri-eventa": "workspace:^"
+  },
+  "devDependencies": {
+    "typescript": "catalog:"
+  }
+}

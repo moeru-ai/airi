@@ -2,6 +2,7 @@ export enum StageEnvironment {
   Web = 'web',
   Capacitor = 'capacitor',
   Tamagotchi = 'tamagotchi',
+  Tauri = 'tauri',
 }
 
 /**
@@ -20,6 +21,10 @@ export function isStageCapacitor(): boolean {
 
 export function isStageTamagotchi(): boolean {
   return import.meta.env.RUNTIME_ENVIRONMENT === 'electron'
+}
+
+export function isStageTauri(): boolean {
+  return import.meta.env.RUNTIME_ENVIRONMENT === 'tauri'
 }
 
 export function isUrlMode(mode: 'file' | 'server'): boolean {

@@ -1,0 +1,8 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "types": ["vite/client", "@webgpu/types"],
+    "lib": ["ESNext", "DOM", "DOM.Iterable", "DOM.AsyncIterable"]
+  },
+  "include": ["env.d.ts", "vite.config.ts", "src/**/*.ts", "src/**/*.vue"]
+}

@@ -246,6 +246,9 @@ catalogs:
     '@stdlib/string-base-kebabcase':
       specifier: ^0.2.3
       version: 0.2.3
+    '@tauri-apps/api':
+      specifier: ^2.11.1
+      version: 2.11.1
     '@tresjs/cientos':
       specifier: ^5.7.0
       version: 5.7.0
@@ -1552,7 +1555,60 @@ importers:
         specifier: 'catalog:'
         version: 3.3.0
 
-  core: {}
+  apps/stage-tauri:
+    dependencies:
+      '@proj-airi/i18n':
+        specifier: workspace:^
+        version: link:../../packages/i18n
+      '@proj-airi/stage-ui':
+        specifier: workspace:^
+        version: link:../../packages/stage-ui
+      '@proj-airi/tauri-eventa':
+        specifier: workspace:^
+        version: link:../../packages/tauri-eventa
+      '@proj-airi/tauri-vueuse':
+        specifier: workspace:^
+        version: link:../../packages/tauri-vueuse
+      '@tauri-apps/api':
+        specifier: 'catalog:'
+        version: 2.11.1
+      pinia:
+        specifier: 'catalog:'
+        version: 3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3))
+      vue:
+        specifier: 'catalog:'
+        version: 3.5.32(typescript@5.9.3)
+      vue-i18n:
+        specifier: 'catalog:'
+        version: 11.3.2(vue@3.5.32(typescript@5.9.3))
+    devDependencies:
+      '@proj-airi/unplugin-live2d-sdk':
+        specifier: 'catalog:'
+        version: 0.1.7(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.7.0)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
+      '@vitejs/plugin-vue':
+        specifier: 'catalog:'
+        version: 6.0.6(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.7.0)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vue@3.5.32(typescript@5.9.3))
+      '@webgpu/types':
+        specifier: 'catalog:'
+        version: 0.1.69
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      unocss:
+        specifier: 'catalog:'
+        version: 66.6.8(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.7.0)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
+      vite:
+        specifier: 'catalog:'
+        version: 8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.7.0)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
+      vue-tsc:
+        specifier: 'catalog:'
+        version: 3.2.6(typescript@5.9.3)
+
+  core:
+    dependencies:
+      '@proj-airi/core-terminal':
+        specifier: workspace:*
+        version: link:../packages/core-terminal
 
   packages/audio:
     dependencies:
@@ -1670,7 +1726,7 @@ importers:
   packages/core-terminal:
     dependencies:
       '@modelcontextprotocol/sdk':
-        specifier: ^1.29.0
+        specifier: 'catalog:'
         version: 1.29.0(@cfworker/json-schema@4.1.1)(zod@4.3.6)
       '@proj-airi/core':
         specifier: workspace:^
@@ -2859,6 +2915,38 @@ importers:
         version: 3.2.6(typescript@5.9.3)
 
   packages/stream-kit: {}
+
+  packages/tauri-eventa:
+    dependencies:
+      '@moeru/eventa':
+        specifier: 'catalog:'
+        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)
+      '@tauri-apps/api':
+        specifier: 'catalog:'
+        version: 2.11.1
+      builder-util-runtime:
+        specifier: 'catalog:'
+        version: 9.5.1
+    devDependencies:
+      vitest:
+        specifier: catalog:vitest
+        version: 4.1.4(@opentelemetry/api@1.9.1)(@types/node@25.6.0)(@vitest/browser-playwright@4.1.4)(@vitest/coverage-v8@4.1.4)(jsdom@29.1.1(@noble/hashes@2.0.1)(canvas@3.2.3))(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.7.0)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
+
+  packages/tauri-vueuse:
+    dependencies:
+      '@moeru/eventa':
+        specifier: 'catalog:'
+        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)
+      '@proj-airi/tauri-eventa':
+        specifier: workspace:^
+        version: link:../tauri-eventa
+      vue:
+        specifier: catalog:vue-gte-3
+        version: 3.5.32(typescript@5.9.3)
+    devDependencies:
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
 
   packages/ui:
     dependencies:
@@ -6543,6 +6631,9 @@ packages:
     resolution: {integrity: sha512-Cf2xIEE8nWAfsX0N5nihkPYMeQRT+pHt4NEkuP8rNCn6lVnLDiV8rC8IeIxbKmQC0yPnj4SIBLwXYVf86xxKTQ==}
     peerDependencies:
       vue: ^2.7.0 || ^3.0.0
+
+  '@tauri-apps/api@2.11.1':
+    resolution: {integrity: sha512-M2FPuYND2m+wh5hfW9ZpSdxMPdEJovPBWwoHJmwUpysTYNHaOkVFN419m/K0LIgjb/7KU2vBgsUepJWugQCvAA==}
 
   '@tokenizer/token@0.3.0':
     resolution: {integrity: sha512-OvjF+z51L3ov0OyAU0duzsYuvO01PH7x4t6DJx+guahgTnBHkhJdG7soQeTSFLWN3efnHyibZ4Z8l2EuWwJN3A==}
@@ -17606,6 +17697,8 @@ snapshots:
     dependencies:
       '@tanstack/virtual-core': 3.13.13
       vue: 3.5.32(typescript@5.9.3)
+
+  '@tauri-apps/api@2.11.1': {}
 
   '@tokenizer/token@0.3.0': {}
 

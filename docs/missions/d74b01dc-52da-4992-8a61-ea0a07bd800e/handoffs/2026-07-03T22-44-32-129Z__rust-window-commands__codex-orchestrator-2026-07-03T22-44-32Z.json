@@ -1,0 +1,107 @@
+{
+  "timestamp": "2026-07-03T22:44:32.129Z",
+  "workerSessionId": "codex-orchestrator-2026-07-03T22-44-32Z",
+  "featureId": "rust-window-commands",
+  "milestone": "tauri-app-scaffold",
+  "commitId": "72119dfc6",
+  "repoPath": "/home/vi/anima",
+  "successState": "success",
+  "returnToOrchestrator": true,
+  "handoff": {
+    "salientSummary": "The Tauri renderer can now invoke the Eventa window get-bounds contract and receive the real WebviewWindow outer position/size from Rust. The stage window displays the returned bounds alongside Runtime: Tauri for page-level acceptance evidence.",
+    "whatWasImplemented": "Added a Tauri native invoke bridge in @proj-airi/tauri-eventa that intercepts Eventa invoke send events, maps eventa:invoke:electron:window:get-bounds to the registered electron_window_get_bounds Tauri command, and emits the matching inbound Eventa receive/error event. Exported useTauriEventaInvoke for app consumers. Added a focused adapter test and a compact bounds readout to apps/stage-tauri.",
+    "whatWasLeftUndone": "Only get-bounds is verified end to end in this feature. Additional window/screen commands with request payloads, lifecycle events, and reactive bounds composables remain in later mission features.",
+    "verification": {
+      "commandsRun": [
+        {
+          "command": "pnpm -F @proj-airi/tauri-eventa exec vitest run src/tauri/index.test.ts",
+          "exitCode": 1,
+          "observation": "RED check timed out before implementation because Eventa defineInvoke emitted a send event that never produced a receive event."
+        },
+        {
+          "command": "pnpm -F @proj-airi/tauri-eventa exec vitest run src/tauri/index.test.ts",
+          "exitCode": 0,
+          "observation": "7 tests passed after the native invoke bridge mapped get-bounds to electron_window_get_bounds."
+        },
+        {
+          "command": "pnpm -F @proj-airi/tauri-eventa typecheck",
+          "exitCode": 0,
+          "observation": "tsc --noEmit passed."
+        },
+        {
+          "command": "pnpm -F @proj-airi/tauri-eventa build",
+          "exitCode": 0,
+          "observation": "tsdown build passed and regenerated local ignored dist output for dependent app typechecking."
+        },
+        {
+          "command": "pnpm -F @proj-airi/stage-tauri typecheck",
+          "exitCode": 0,
+          "observation": "vue-tsc --noEmit passed after rebuilding tauri-eventa."
+        },
+        {
+          "command": "pnpm -F @proj-airi/stage-tauri build",
+          "exitCode": 0,
+          "observation": "vue-tsc and vite build passed with existing DuckDB/browser externalization and large chunk warnings."
+        },
+        {
+          "command": "cd apps/stage-tauri && bash init.sh",
+          "exitCode": 0,
+          "observation": "Init script passed and cargo check completed with known placeholder dead-code warnings."
+        },
+        {
+          "command": "cd apps/stage-tauri && cargo build",
+          "exitCode": 0,
+          "observation": "Rust build passed with the known five placeholder dead-code warnings."
+        },
+        {
+          "command": "git diff --check",
+          "exitCode": 0,
+          "observation": "No whitespace errors."
+        },
+        {
+          "command": "cargo tauri dev plus grim /tmp/stage-tauri-bounds.png",
+          "exitCode": 0,
+          "observation": "Tauri dev app launched on Wayland. Screenshot showed Live2D stage with Runtime: Tauri and Bounds: 0, 0, 946 x 1030."
+        }
+      ],
+      "interactiveChecks": [
+        {
+          "description": "Main Tauri window bounds readout",
+          "result": "Screenshot /tmp/stage-tauri-bounds.png showed the Tauri window rendering the Live2D character and bounds values returned through the Tauri invoke path."
+        }
+      ]
+    },
+    "tests": {
+      "added": [],
+      "updated": [
+        "packages/tauri-eventa/src/tauri/index.test.ts"
+      ],
+      "coverage": "Adapter test covers defineInvoke(context, electron.window.getBounds) mapping to electron_window_get_bounds and resolving the returned bounds payload. Runtime screenshot covers the page-visible Tauri bounds readout."
+    },
+    "discoveredIssues": [
+      {
+        "severity": "fixed",
+        "description": "The previous adapter test called internals.invoke directly and did not prove renderer Eventa invokes reached registered Tauri commands."
+      },
+      {
+        "severity": "non_blocking",
+        "description": "MCP Serena/jcodemunch tools required by AGENTS.md were unavailable, so native tooling fallback was used and recorded."
+      },
+      {
+        "severity": "non_blocking",
+        "description": "Runtime dev output still includes existing intlify HTML warning and DuckDB sourcemap warnings unrelated to this feature."
+      }
+    ],
+    "skillFeedback": {
+      "followedProcedure": true,
+      "deviations": [
+        {
+          "step": "AGENTS.md MCP startup and delegated code-change loop",
+          "whatIDidInstead": "Used native rg/sed/git/apply_patch/pnpm/cargo/grim tooling and structured JSON edits.",
+          "why": "The MCP tools named by AGENTS.md were not exposed in the current tool list."
+        }
+      ],
+      "suggestedChanges": []
+    }
+  }
+}

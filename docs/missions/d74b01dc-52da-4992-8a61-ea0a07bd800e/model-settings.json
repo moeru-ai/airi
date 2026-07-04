@@ -1,0 +1,8 @@
+{
+  "workerModel": "custom:API-Gateway-Auto-(router)-0",
+  "workerReasoningEffort": "none",
+  "validationWorkerModel": "custom:API-Gateway-Auto-(router)-0",
+  "validationWorkerReasoningEffort": "none",
+  "skipScrutiny": false,
+  "skipUserTesting": false
+}

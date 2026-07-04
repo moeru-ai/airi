@@ -1,0 +1,45 @@
+{
+  "name": "@proj-airi/tauri-eventa",
+  "type": "module",
+  "version": "0.10.2",
+  "private": true,
+  "description": "Shared Eventa contracts for Tauri IPC",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/tauri-eventa"
+  },
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./tauri": "./dist/tauri/index.mjs",
+    "./pubsub": "./dist/tauri/pubsub.mjs",
+    "./contracts": "./dist/contracts/index.mjs",
+    "./contracts/window": "./dist/contracts/window.mjs",
+    "./contracts/screen": "./dist/contracts/screen.mjs",
+    "./contracts/system-preferences": "./dist/contracts/system-preferences.mjs",
+    "./contracts/app": "./dist/contracts/app.mjs",
+    "./contracts/power-monitor": "./dist/contracts/power-monitor.mjs",
+    "./contracts/electron-updater": "./dist/contracts/electron-updater.mjs",
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/index.d.mts",
+  "scripts": {
+    "dev": "pnpm run build",
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "vitest": "catalog:vitest"
+  },
+  "dependencies": {
+    "@moeru/eventa": "catalog:",
+    "@tauri-apps/api": "catalog:",
+    "builder-util-runtime": "catalog:"
+  }
+}

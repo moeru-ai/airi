@@ -1,4 +1,4 @@
-import type { ChatSessionRecord, ChatSessionsIndex } from '../../types/chat-session'
+import type { ChatCharacterSessionsIndex, ChatSessionRecord, ChatSessionsIndex } from '../../types/chat-session'
 
 import { storage } from '../storage'
 
@@ -140,7 +140,7 @@ export const chatSessionsRepo = {
   async clear(userId: string) {
     const index = await this.getIndex(userId)
     if (index) {
-      for (const charIndex of Object.values(index.characters)) {
+      for (const charIndex of Object.values(index.characters) as ChatCharacterSessionsIndex[]) {
         for (const sessionId of Object.keys(charIndex.sessions)) {
           await this.deleteSession(sessionId)
         }

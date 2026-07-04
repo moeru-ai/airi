@@ -162,6 +162,7 @@ catalog:
   '@snazzah/davey': ^0.1.11
   '@stdlib/string-base-kebabcase': ^0.2.3
   '@takumi-rs/image-response': 1.0.0-beta.20
+  '@tauri-apps/api': ^2.11.1
   '@tresjs/cientos': ^5.7.0
   '@tresjs/core': ^5.8.0
   '@tresjs/post-processing': ^3.7.1

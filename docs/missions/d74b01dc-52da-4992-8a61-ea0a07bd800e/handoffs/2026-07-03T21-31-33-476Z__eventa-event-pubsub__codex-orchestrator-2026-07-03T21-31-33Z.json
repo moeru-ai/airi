@@ -1,0 +1,105 @@
+{
+  "timestamp": "2026-07-03T21:31:33.476Z",
+  "workerSessionId": "codex-orchestrator-2026-07-03T21-31-33Z",
+  "featureId": "eventa-event-pubsub",
+  "milestone": "eventa-adapter",
+  "commitId": "993de67ea",
+  "repoPath": "/home/vi/anima",
+  "successState": "success",
+  "returnToOrchestrator": true,
+  "handoff": {
+    "salientSummary": "Implemented Tauri native pubsub for eventa event contracts. Renderer eventa context subscriptions now bridge to Tauri listen() for electron:window:bounds, electron:screen:cursor-screen-point, and electron:auto-updater:state-changed. Renderer emits for those contracts route through Rust emit_event, which can broadcast to all windows, the current window, or a named window.",
+    "whatWasImplemented": "Added packages/tauri-eventa/src/tauri/pubsub.ts with subscribeTauriEvent(), emitTauriEvent(), tauriEventNameFromContract(), and tauriEventPubSub(). Patched createContextFromTauriIpc() so context.on/context.once/context.off/context.emit recognize eventa:event:electron:* contracts and bridge them to Tauri native events. Added apps/stage-tauri/src/commands/events.rs with emit_event and registered it in commands/mod.rs and main.rs. Main Tauri setup now emits dirty-checked window bounds, a placeholder cursor point stream, and a one-shot auto-updater not-available state. Exported the pubsub helpers and added @tauri-apps/api to the package catalog.",
+    "whatWasLeftUndone": "Cursor screen point is still a placeholder stream of { x: 0, y: 0 } until the Wayland cursor reader lands. Auto-updater state is a stub until the real updater binding feature replaces it. No interactive multi-window screenshot was captured in this headless session.",
+    "verification": {
+      "commandsRun": [
+        {
+          "command": "pnpm -F @proj-airi/tauri-eventa exec vitest run src/tauri/index.test.ts src/tauri/pubsub.test.ts",
+          "exitCode": 0,
+          "observation": "2 test files passed; 15 tests passed."
+        },
+        {
+          "command": "pnpm -F @proj-airi/tauri-eventa typecheck",
+          "exitCode": 0,
+          "observation": "tsc --noEmit completed with no errors."
+        },
+        {
+          "command": "pnpm -F @proj-airi/tauri-eventa build",
+          "exitCode": 0,
+          "observation": "tsdown built index, tauri/index, tauri/pubsub, and contract entries successfully."
+        },
+        {
+          "command": "cargo build --manifest-path apps/stage-tauri/Cargo.toml",
+          "exitCode": 0,
+          "observation": "Rust build completed successfully with the five known placeholder dead-code warnings from prior invoke-contracts work."
+        },
+        {
+          "command": "git diff --check",
+          "exitCode": 0,
+          "observation": "No whitespace errors."
+        }
+      ],
+      "interactiveChecks": []
+    },
+    "tests": {
+      "added": [
+        {
+          "file": "packages/tauri-eventa/src/tauri/pubsub.test.ts",
+          "cases": [
+            {
+              "name": "registers a callback and the callback fires on emit",
+              "verifies": "eventa event contracts derive the correct Tauri channel and receive payloads from listen()."
+            },
+            {
+              "name": "returns an unsubscribe function that stops subsequent deliveries",
+              "verifies": "unsubscribe removes the JS callback from the channel bucket."
+            },
+            {
+              "name": "multiple subscribers on the same channel all receive the payload",
+              "verifies": "one native listener fans out to multiple JS subscribers."
+            },
+            {
+              "name": "calls the Rust emit_event command with the right channel",
+              "verifies": "emitTauriEvent() invokes the Rust broadcaster with target all."
+            }
+          ]
+        },
+        {
+          "file": "packages/tauri-eventa/src/tauri/index.test.ts",
+          "cases": [
+            {
+              "name": "bridges eventa context.on subscriptions to Tauri native events",
+              "verifies": "createContextFromTauriIpc().context.on() subscribes through @tauri-apps/api/event listen()."
+            },
+            {
+              "name": "bridges native eventa context.emit calls to the Rust event broadcaster",
+              "verifies": "context.emit() for event contracts uses emit_event instead of raw IPC."
+            }
+          ]
+        }
+      ],
+      "coverage": "Unit tests cover event name derivation, subscribe/unsubscribe, fan-out, emit routing, context.on bridging, and context.emit bridging. Rust command behavior is covered by cargo build only."
+    },
+    "discoveredIssues": [
+      {
+        "severity": "non_blocking",
+        "description": "The mission directory contained a local API gateway key in runtime-custom-models.json. It was redacted before the docs mission move commit."
+      },
+      {
+        "severity": "non_blocking",
+        "description": "MCP Serena/jcodemunch tools required by AGENTS.md were not available in this runtime, so native git/rg/sed/pnpm/cargo/apply_patch tooling was used and recorded as fallback."
+      }
+    ],
+    "skillFeedback": {
+      "followedProcedure": true,
+      "deviations": [
+        {
+          "step": "Delegated Code-Change Loop MCP verification",
+          "whatIDidInstead": "Used native diff review, targeted vitest, typecheck, package build, cargo build, and git diff --check.",
+          "why": "The MCP tools named by AGENTS.md were not exposed in the current tool list."
+        }
+      ],
+      "suggestedChanges": []
+    }
+  }
+}

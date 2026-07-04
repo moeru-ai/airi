@@ -1,0 +1,35 @@
+commands:
+  install: pnpm install
+  typecheck: pnpm -F @proj-airi/<pkg> typecheck
+  build: pnpm -F @proj-airi/<pkg> build
+  test: pnpm exec vitest run --run --reporter=default
+  lint: pnpm lint --cache
+
+services:
+  tauri-dev:
+    start: cd apps/stage-tauri && cargo tauri dev
+    stop: lsof -ti :1420 | xargs kill
+    healthcheck: curl -sf http://localhost:1420
+    port: 1420
+    depends_on: []
+
+  tauri-release:
+    start: cd apps/stage-tauri && cargo tauri build
+    stop: lsof -ti :1420 | xargs kill
+    healthcheck: lsof -ti :1420
+    port: 1420
+    depends_on: []
+
+  channel-server:
+    start: cd apps/stage-tauri && cargo tauri dev --features channel-server
+    stop: lsof -ti :3101 | xargs kill
+    healthcheck: curl -sf http://localhost:3131/health
+    port: 3101
+    depends_on: []
+
+  plugin-host-sidecar:
+    start: cd packages/plugin-host && pkg . --out-path ../../apps/stage-tauri/sidecars/
+    stop: pkill -f plugin-host-sidecar
+    healthcheck: pgrep -f plugin-host-sidecar
+    port: 0
+    depends_on: []

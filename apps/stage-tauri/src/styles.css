@@ -1,0 +1,91 @@
+:root {
+  color: #eef5ff;
+  background: #151515;
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: #151515;
+  overflow: hidden;
+}
+
+.shell {
+  position: relative;
+  height: 100%;
+  min-height: 100%;
+  background: #151515;
+  overflow: hidden;
+}
+
+.stage-shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+}
+
+.stage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.status-panel {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  width: min(calc(100% - 36px), 260px);
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 8px;
+  background: rgb(20 24 31 / 78%);
+  box-shadow: 0 18px 60px rgb(0 0 0 / 28%);
+  padding: 16px;
+  backdrop-filter: blur(16px);
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  color: #9ee6c9;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.status {
+  margin: 16px 0 0;
+  color: #c8d2e2;
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.status-compact {
+  margin-top: 4px;
+}

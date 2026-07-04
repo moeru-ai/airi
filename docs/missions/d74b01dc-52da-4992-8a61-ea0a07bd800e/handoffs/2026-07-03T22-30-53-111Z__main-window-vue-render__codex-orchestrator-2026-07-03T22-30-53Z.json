@@ -1,0 +1,117 @@
+{
+  "timestamp": "2026-07-03T22:30:53.111Z",
+  "workerSessionId": "codex-orchestrator-2026-07-03T22-30-53Z",
+  "featureId": "main-window-vue-render",
+  "milestone": "tauri-app-scaffold",
+  "commitId": "3f905f743",
+  "repoPath": "/home/vi/anima",
+  "successState": "success",
+  "returnToOrchestrator": true,
+  "handoff": {
+    "salientSummary": "The main Tauri window now renders the shared AIRI Live2D character stage instead of the minimal launch shell. The Vue app mounts #app, initializes stage model state, loads the Cubism runtime through the existing Live2D SDK Vite plugin, and renders a nonblank Live2D canvas in the Tauri window.",
+    "whatWasImplemented": "Bootstrapped the stage-tauri renderer with Pinia, vue-i18n, UnoCSS, and @proj-airi/stage-ui WidgetStage. Added a Tauri-local i18n module, initialized display model presets and selected stage model before mounting WidgetStage, loaded live2dcubismcore.min.js from generated public assets, excluded DuckDB wasm packages from optimizeDeps, added WebGPU/DOM async iterable types, and treated RUNTIME_ENVIRONMENT=tauri as a local beat-sync renderer environment so Live2D beat subscriptions no longer throw.",
+    "whatWasLeftUndone": "The full Electron renderer shell, routing, auth/plugin host, channel server integration, transparent overlay behavior, and multi-window workflows remain in later mission features. The Cubism SDK download can fail on a cold cache if upstream network/HTTP2 is flaky; this matches the existing generated asset pattern and passes once cache/public asset is present.",
+    "verification": {
+      "commandsRun": [
+        {
+          "command": "rg -n \"WidgetStage\" apps/stage-tauri/src",
+          "exitCode": 1,
+          "observation": "RED check before implementation found no WidgetStage rendering in the Tauri app."
+        },
+        {
+          "command": "timeout 45s cargo tauri dev",
+          "exitCode": 124,
+          "observation": "Initial reproduction showed Vue crashing in WidgetStage setup because vue-i18n was not installed with app.use()."
+        },
+        {
+          "command": "pnpm -F @proj-airi/stage-tauri typecheck",
+          "exitCode": 0,
+          "observation": "vue-tsc --noEmit passed after the final renderer changes."
+        },
+        {
+          "command": "pnpm -F @proj-airi/stage-tauri build",
+          "exitCode": 0,
+          "observation": "vue-tsc and vite build passed. A cold-cache SDK download attempt failed once with ERR_HTTP2_STREAM_ERROR; after seeding the generated SDK cache from the local public runtime, the cached build path passed."
+        },
+        {
+          "command": "pnpm -F @proj-airi/stage-shared typecheck",
+          "exitCode": 0,
+          "observation": "stage-shared TypeScript check passed after adding the tauri environment helper."
+        },
+        {
+          "command": "cd apps/stage-tauri && bash init.sh",
+          "exitCode": 0,
+          "observation": "Tauri scaffold init passed and cargo check completed with the known placeholder dead-code warnings."
+        },
+        {
+          "command": "cd apps/stage-tauri && cargo build",
+          "exitCode": 0,
+          "observation": "Rust build passed with the five known placeholder dead-code warnings."
+        },
+        {
+          "command": "git diff --check",
+          "exitCode": 0,
+          "observation": "No whitespace errors."
+        },
+        {
+          "command": "Playwright renderer probe via system Brave at http://127.0.0.1:1420/",
+          "exitCode": 0,
+          "observation": "Observed #app at 1280x800, one Live2D canvas at 1280x800 CSS pixels / 2560x1600 backing pixels, and screenshot /tmp/stage-tauri-render-unocss.png showed the default character stage."
+        },
+        {
+          "command": "timeout 55s cargo tauri dev",
+          "exitCode": 124,
+          "observation": "Tauri dev app launched, stayed alive until timeout, and no longer emitted the i18n or beat-sync fatal renderer errors."
+        },
+        {
+          "command": "User visual check",
+          "exitCode": 0,
+          "observation": "User confirmed the Live2D character works in the Tauri stage window."
+        }
+      ],
+      "interactiveChecks": [
+        {
+          "description": "Main Tauri window character render",
+          "result": "User confirmed the Live2D character appears and works."
+        }
+      ]
+    },
+    "tests": {
+      "added": [],
+      "coverage": "Feature is covered by typecheck/build gates, stage-shared typecheck, app-local init, cargo build, bounded cargo tauri dev, Playwright/Brave DOM+screenshot probe, and user visual confirmation."
+    },
+    "discoveredIssues": [
+      {
+        "severity": "fixed",
+        "description": "WidgetStage crashed on startup until the Tauri renderer installed vue-i18n with app.use()."
+      },
+      {
+        "severity": "fixed",
+        "description": "The shared stage rendered zero-height canvases until UnoCSS was installed and uno.css was loaded in stage-tauri."
+      },
+      {
+        "severity": "fixed",
+        "description": "Live2D model mount threw Unknown environment for listenBeatSyncBeatSignal() until tauri was handled as a local beat-sync environment."
+      },
+      {
+        "severity": "non_blocking",
+        "description": "Generated Cubism SDK assets live under ignored public/assets/js and .cache paths. The Vite plugin now materializes them; a cold-cache upstream download failed once with an HTTP2 stream error."
+      },
+      {
+        "severity": "non_blocking",
+        "description": "MCP Serena/jcodemunch tools required by AGENTS.md were unavailable, so native tooling fallback was used and recorded."
+      }
+    ],
+    "skillFeedback": {
+      "followedProcedure": true,
+      "deviations": [
+        {
+          "step": "Delegated Code-Change Loop MCP verification",
+          "whatIDidInstead": "Used native rg/sed/git/apply_patch/pnpm/cargo tooling plus Playwright/Brave and user visual confirmation.",
+          "why": "The MCP tools named by AGENTS.md were not exposed in the current tool list."
+        }
+      ],
+      "suggestedChanges": []
+    }
+  }
+}

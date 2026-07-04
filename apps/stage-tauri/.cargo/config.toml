@@ -1,0 +1,5 @@
+[env]
+# WebKitGTK 2.52 can crash on Hyprland/Wayland with
+# "Error 71 (Protocol error) dispatching to Wayland display" unless the
+# DMABUF renderer is disabled for the Tauri webview process.
+WEBKIT_DISABLE_DMABUF_RENDERER = "1"

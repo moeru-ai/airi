@@ -1,0 +1,127 @@
+{
+  "assertions": {
+    "VAL-CROSS-001": {
+      "status": "pending"
+    },
+    "VAL-CROSS-002": {
+      "status": "pending"
+    },
+    "VAL-CROSS-003": {
+      "status": "pending"
+    },
+    "VAL-CROSS-004": {
+      "status": "pending"
+    },
+    "VAL-NFR-001": {
+      "status": "pending"
+    },
+    "VAL-NFR-002": {
+      "status": "pending"
+    },
+    "VAL-NFR-003": {
+      "status": "pending"
+    },
+    "VAL-TAURI-AUTH-001": {
+      "status": "pending"
+    },
+    "VAL-TAURI-AUTH-002": {
+      "status": "pending"
+    },
+    "VAL-TAURI-IPC-001": {
+      "status": "pending"
+    },
+    "VAL-TAURI-IPC-002": {
+      "status": "pending"
+    },
+    "VAL-TAURI-IPC-003": {
+      "status": "pending"
+    },
+    "VAL-TAURI-IPC-004": {
+      "status": "pending"
+    },
+    "VAL-TAURI-OVRL-001": {
+      "status": "pending"
+    },
+    "VAL-TAURI-OVRL-002": {
+      "status": "pending"
+    },
+    "VAL-TAURI-OVRL-003": {
+      "status": "pending"
+    },
+    "VAL-TAURI-PLGN-001": {
+      "status": "pending"
+    },
+    "VAL-TAURI-PLGN-002": {
+      "status": "pending"
+    },
+    "VAL-TAURI-RDR-001": {
+      "status": "pending"
+    },
+    "VAL-TAURI-RDR-002": {
+      "status": "pending"
+    },
+    "VAL-TAURI-RDR-003": {
+      "status": "pending"
+    },
+    "VAL-TAURI-RDR-004": {
+      "status": "pending"
+    },
+    "VAL-TAURI-RDR-005": {
+      "status": "pending"
+    },
+    "VAL-TAURI-SCRN-001": {
+      "status": "pending"
+    },
+    "VAL-TAURI-SCRN-002": {
+      "status": "pending"
+    },
+    "VAL-TAURI-SRV-001": {
+      "status": "pending"
+    },
+    "VAL-TAURI-SRV-002": {
+      "status": "pending"
+    },
+    "VAL-TAURI-SRV-003": {
+      "status": "pending"
+    },
+    "VAL-TAURI-SRV-004": {
+      "status": "pending"
+    },
+    "VAL-TAURI-SRV-005": {
+      "status": "pending"
+    },
+    "VAL-TAURI-SYS-001": {
+      "status": "pending"
+    },
+    "VAL-TAURI-SYS-002": {
+      "status": "pending"
+    },
+    "VAL-TAURI-SYS-003": {
+      "status": "pending"
+    },
+    "VAL-TAURI-SYS-004": {
+      "status": "pending"
+    },
+    "VAL-TAURI-SYS-005": {
+      "status": "pending"
+    },
+    "VAL-TAURI-UPD-001": {
+      "status": "pending"
+    },
+    "VAL-TAURI-UPD-002": {
+      "status": "pending"
+    },
+    "VAL-TAURI-WIN-001": {
+      "status": "pending"
+    },
+    "VAL-TAURI-WIN-002": {
+      "status": "pending"
+    },
+    "VAL-TAURI-WIN-003": {
+      "status": "pending"
+    },
+    "VAL-TAURI-WIN-004": {
+      "status": "pending"
+    }
+  }
+}

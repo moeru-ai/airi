@@ -1,0 +1,31 @@
+{
+  "name": "@proj-airi/stage-tauri",
+  "type": "module",
+  "version": "0.10.2",
+  "private": true,
+  "description": "AIRI Tauri desktop app renderer",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 1420 --strictPort",
+    "build": "vue-tsc --noEmit && vite build",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@proj-airi/i18n": "workspace:^",
+    "@proj-airi/stage-ui": "workspace:^",
+    "@proj-airi/tauri-eventa": "workspace:^",
+    "@proj-airi/tauri-vueuse": "workspace:^",
+    "@tauri-apps/api": "catalog:",
+    "pinia": "catalog:",
+    "vue": "catalog:",
+    "vue-i18n": "catalog:"
+  },
+  "devDependencies": {
+    "@proj-airi/unplugin-live2d-sdk": "catalog:",
+    "@vitejs/plugin-vue": "catalog:",
+    "@webgpu/types": "catalog:",
+    "typescript": "catalog:",
+    "unocss": "catalog:",
+    "vite": "catalog:",
+    "vue-tsc": "catalog:"
+  }
+}

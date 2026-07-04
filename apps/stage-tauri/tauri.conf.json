@@ -1,0 +1,38 @@
+{
+  "productName": "AIRI",
+  "version": "0.1.0",
+  "identifier": "ai.moeru.airi-tauri",
+  "build": {
+    "beforeDevCommand": "pnpm -F @proj-airi/stage-tauri dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "pnpm -F @proj-airi/stage-tauri build",
+    "frontendDist": "./dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "AIRI",
+        "width": 480,
+        "height": 720,
+        "transparent": false,
+        "decorations": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": false,
+        "focusable": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "externalBin": [],
+    "category": "DeveloperTool",
+    "shortDescription": "AIRI",
+    "longDescription": "AIRI desktop app",
+    "icon": []
+  }
+}

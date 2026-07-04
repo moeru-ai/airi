@@ -1,0 +1,99 @@
+{
+  "timestamp": "2026-07-03T21:53:44.493Z",
+  "workerSessionId": "codex-orchestrator-2026-07-03T21-53-44Z",
+  "featureId": "tauri-app-launch",
+  "milestone": "tauri-app-scaffold",
+  "commitId": "66b08d164",
+  "repoPath": "/home/vi/anima",
+  "successState": "success",
+  "returnToOrchestrator": true,
+  "handoff": {
+    "salientSummary": "cargo tauri dev now starts the @proj-airi/stage-tauri Vite dev server on port 1420, builds/runs the Rust Tauri process, and displays the main window on pure Wayland. The visible first screen is a minimal AIRI Tauri shell that says 'Tauri stage is running'.",
+    "whatWasImplemented": "Added apps/stage-tauri/package.json, vite.config.ts, tsconfig.json, env.d.ts, index.html, and a minimal Vue renderer under apps/stage-tauri/src/. The package exposes dev/build/typecheck scripts; dev binds Vite to 127.0.0.1:1420 with strictPort. Updated tauri.conf.json frontendDist to ./dist for the current app-root layout, kept the launch window opaque/decorated until the later transparent-main-window feature, and extended init.sh to validate frontend files. Added apps/stage-tauri/.cargo/config.toml with WEBKIT_DISABLE_DMABUF_RENDERER=1 to avoid WebKitGTK 2.52 Wayland/Hyprland GDK protocol crashes.",
+    "whatWasLeftUndone": "The renderer is intentionally a minimal launch shell. Full Vue 3 AIRI renderer migration, Tauri eventa context bootstrapping in the production renderer, and the default character rendering page are tracked by main-window-vue-render and renderer-migration features. Transparent undecorated behavior is deferred to transparent-main-window.",
+    "verification": {
+      "commandsRun": [
+        {
+          "command": "pnpm -F @proj-airi/stage-tauri dev",
+          "exitCode": 0,
+          "observation": "RED check before implementation reported: No projects matched the filters in /home/vi/anima."
+        },
+        {
+          "command": "timeout 8s pnpm -F @proj-airi/stage-tauri dev",
+          "exitCode": 124,
+          "observation": "After implementation Vite reported ready on http://127.0.0.1:1420/ before the timeout stopped it."
+        },
+        {
+          "command": "timeout 35s cargo tauri dev",
+          "exitCode": 124,
+          "observation": "After adding the WebKitGTK Wayland workaround, plain cargo tauri dev reported Vite ready in 208 ms, finished the Rust dev build, ran target/debug/airi-tauri, and stayed alive until timeout."
+        },
+        {
+          "command": "User visual check",
+          "exitCode": 0,
+          "observation": "User confirmed the Tauri window displayed: 'Tauri stage is running'."
+        },
+        {
+          "command": "pnpm -F @proj-airi/stage-tauri typecheck",
+          "exitCode": 0,
+          "observation": "vue-tsc --noEmit passed."
+        },
+        {
+          "command": "pnpm -F @proj-airi/stage-tauri build",
+          "exitCode": 0,
+          "observation": "vue-tsc and vite build passed; dist/index.html and JS/CSS assets were produced."
+        },
+        {
+          "command": "cd apps/stage-tauri && bash init.sh",
+          "exitCode": 0,
+          "observation": "Updated init script validated Rust and frontend scaffold files and ran cargo check."
+        },
+        {
+          "command": "cd apps/stage-tauri && cargo build",
+          "exitCode": 0,
+          "observation": "Rust build passed with the five known placeholder dead-code warnings."
+        },
+        {
+          "command": "git diff --check",
+          "exitCode": 0,
+          "observation": "No whitespace errors."
+        }
+      ],
+      "interactiveChecks": [
+        {
+          "description": "Pure Wayland/Hyprland Tauri window render",
+          "result": "User confirmed the main window appeared and showed the expected launch shell text."
+        }
+      ]
+    },
+    "tests": {
+      "added": [],
+      "coverage": "Launch feature is covered by Vite/typecheck/build, app-local init, cargo build, bounded cargo tauri dev, and user visual confirmation."
+    },
+    "discoveredIssues": [
+      {
+        "severity": "non_blocking",
+        "description": "WebKitGTK 2.52 on Wayland/Hyprland crashed with 'Error 71 (Protocol error) dispatching to Wayland display' until WEBKIT_DISABLE_DMABUF_RENDERER=1 was applied through Cargo config."
+      },
+      {
+        "severity": "non_blocking",
+        "description": "The main window is now opaque and decorated for launch stability. Restoring transparent/undecorated behavior belongs to the pending transparent-main-window feature."
+      },
+      {
+        "severity": "non_blocking",
+        "description": "MCP Serena/jcodemunch tools required by AGENTS.md were unavailable, so native tooling fallback was used and recorded."
+      }
+    ],
+    "skillFeedback": {
+      "followedProcedure": true,
+      "deviations": [
+        {
+          "step": "Delegated Code-Change Loop MCP verification",
+          "whatIDidInstead": "Used native rg/sed/git/apply_patch/pnpm/cargo tooling, bounded launch commands, and user visual confirmation.",
+          "why": "The MCP tools named by AGENTS.md were not exposed in the current tool list."
+        }
+      ],
+      "suggestedChanges": []
+    }
+  }
+}

@@ -1,0 +1,694 @@
+{
+  "features": [
+    {
+      "id": "eventa-event-pubsub",
+      "description": "Implement eventa defineEvent/subscribe proxying over Tauri emit/listen so the renderer can subscribe to backend events (electron:screen:cursor-screen-point, electron:window:bounds, electron:auto-updater:state-changed). Use WebviewWindow::emit_to / emit_all so events emitted from one window (e.g. a channel-server state change in settings) propagate to all other open windows.",
+      "skillName": "tauri-ipc-worker",
+      "preconditions": [
+        "eventa-context-adapter feature is complete",
+        "Tauri event/listen plugin is configured"
+      ],
+      "expectedBehavior": [
+        "Renderer can subscribe to Tauri events and the backend emits them at the expected times",
+        "An event emitted from one window reaches other open windows",
+        "Console logs on the receiving window show the delivered payload"
+      ],
+      "fulfills": [
+        "VAL-TAURI-IPC-003",
+        "VAL-TAURI-IPC-004"
+      ],
+      "milestone": "eventa-adapter",
+      "status": "completed",
+      "commit": "993de67ea",
+      "completedAt": "2026-07-03T21:31:33.476Z",
+      "workerSessionIds": [
+        "6994ba90-14c4-4490-a228-1c253842f5ee",
+        "b41911f3-0421-46ee-892a-859364abad33",
+        "codex-orchestrator-2026-07-03T21-31-33Z"
+      ],
+      "currentWorkerSessionId": null,
+      "completedWorkerSessionId": "codex-orchestrator-2026-07-03T21-31-33Z"
+    },
+    {
+      "id": "tauri-scaffold-builds",
+      "description": "Scaffold the new apps/stage-tauri/ binary: Cargo.toml, tauri.conf.json, main.rs, capabilities/ACL, and the idempotent init.sh setup script. 'cd apps/stage-tauri && cargo build' must compile without errors. The init script must be safe to run multiple times (running it twice produces the same result, no errors, no duplicate files).",
+      "skillName": "tauri-ipc-worker",
+      "preconditions": [
+        "Rust toolchain is installed",
+        "cargo tauri CLI v2 is available",
+        "apps/stage-tamagotchi/ Electron source is still present (do not delete)"
+      ],
+      "expectedBehavior": [
+        "'cd apps/stage-tauri && cargo build' compiles and prints a 'Finished' line with no errors",
+        "'bash init.sh' exits 0 on first run and again exits 0 on a second run with no duplicate files or errors"
+      ],
+      "fulfills": [
+        "VAL-TAURI-SYS-001",
+        "VAL-NFR-002"
+      ],
+      "milestone": "tauri-app-scaffold",
+      "status": "completed",
+      "commit": "e16ebcca9",
+      "completedAt": "2026-07-03T21:37:45.790Z",
+      "workerSessionIds": [
+        "codex-orchestrator-2026-07-03T21-37-45Z"
+      ],
+      "currentWorkerSessionId": null,
+      "completedWorkerSessionId": "codex-orchestrator-2026-07-03T21-37-45Z"
+    },
+    {
+      "id": "tauri-app-launch",
+      "description": "Make 'cargo tauri dev' launch the Rust process, the Vite dev server on port 1420, and the main window appear on screen within 30 seconds of a cold start. Verify on Linux pure Wayland (no X11 fallback). Capture terminal timing evidence showing the dev server '[INFO] Dev server running' line and a screenshot of the AIRI main window.",
+      "skillName": "tauri-ipc-worker",
+      "preconditions": [
+        "tauri-scaffold-builds feature is complete (cargo build passes)",
+        "Vite is configured for the Tauri dev server on port 1420"
+      ],
+      "expectedBehavior": [
+        "'cargo tauri dev' launches the Rust process and the Vite dev server on port 1420",
+        "The main window appears on screen within 30 seconds of a cold start",
+        "Terminal output shows '[INFO] Dev server running' and a screenshot shows the AIRI main window"
+      ],
+      "fulfills": [
+        "VAL-TAURI-SYS-002",
+        "VAL-NFR-001"
+      ],
+      "milestone": "tauri-app-scaffold",
+      "status": "completed",
+      "commit": "66b08d164",
+      "completedAt": "2026-07-03T21:53:44.493Z",
+      "workerSessionIds": [
+        "codex-orchestrator-2026-07-03T21-53-44Z"
+      ],
+      "currentWorkerSessionId": null,
+      "completedWorkerSessionId": "codex-orchestrator-2026-07-03T21-53-44Z"
+    },
+    {
+      "id": "main-window-vue-render",
+      "description": "Configure the main Tauri window's web content to load the Vue 3 renderer so that #app exists and the page is not blank. The default page is the character rendering view. Replace RUNTIME_ENVIRONMENT='electron' with 'tauri' in the renderer entry so it boots the Tauri eventa context instead of the Electron preload bridge.",
+      "skillName": "renderer-migration-worker",
+      "preconditions": [
+        "tauri-app-launch feature is complete",
+        "eventa-context-adapter feature is complete",
+        "Vite config serves the renderer HTML on port 1420"
+      ],
+      "expectedBehavior": [
+        "The main window's web content renders the Vue 3 app (#app exists, not a blank page)",
+        "The default page is the character rendering view",
+        "Screenshot confirms rendered content; console-errors are clean"
+      ],
+      "fulfills": [
+        "VAL-TAURI-SYS-003"
+      ],
+      "milestone": "tauri-app-scaffold",
+      "status": "completed",
+      "workerSessionIds": [
+        "codex-orchestrator-2026-07-03T22-30-53Z"
+      ],
+      "currentWorkerSessionId": null,
+      "completedWorkerSessionId": "codex-orchestrator-2026-07-03T22-30-53Z",
+      "commitId": "3f905f743",
+      "completedAt": "2026-07-03T22:30:53.111Z"
+    },
+    {
+      "id": "rust-window-commands",
+      "description": "Implement the Rust #[tauri::command] handlers backing the window/screen eventa invoke contracts, starting with window_get_bounds returning { x, y, width, height } matching the actual window position. Register the commands in the Tauri app builder and expose them via the eventa adapter so the renderer can call them.",
+      "skillName": "tauri-ipc-worker",
+      "preconditions": [
+        "eventa-invoke-contracts feature is complete",
+        "main-window-vue-render feature is complete"
+      ],
+      "expectedBehavior": [
+        "The renderer can invoke the Tauri command window_get_bounds",
+        "It returns { x, y, width, height } matching the actual window position",
+        "Screenshot/page shows the bounds values; console-errors are clean"
+      ],
+      "fulfills": [
+        "VAL-TAURI-SYS-004"
+      ],
+      "milestone": "tauri-app-scaffold",
+      "status": "completed",
+      "workerSessionIds": [
+        "codex-orchestrator-2026-07-03T22-44-32Z"
+      ],
+      "currentWorkerSessionId": null,
+      "completedWorkerSessionId": "codex-orchestrator-2026-07-03T22-44-32Z",
+      "commit": "72119dfc6",
+      "commitId": "72119dfc6",
+      "completedAt": "2026-07-03T22:44:32.129Z"
+    },
+    {
+      "id": "window-lifecycle-events",
+      "description": "Emit electron:window:lifecycle-changed events from Rust with correct isMinimized / isVisible / isFocused states when the main window is minimized and restored. Port the useElectronWindowBounds composable and the window lifecycle Pinia store to the Tauri adapter so reactive bounds update on resize/move and the store reports correct lifecycle states.",
+      "skillName": "tauri-ipc-worker",
+      "preconditions": [
+        "rust-window-commands feature is complete",
+        "eventa-event-pubsub feature is complete"
+      ],
+      "expectedBehavior": [
+        "Minimizing and restoring the main window emits electron:window:lifecycle-changed events with correct isMinimized/isVisible/isFocused states",
+        "useElectronWindowBounds (backed by the Tauri adapter) exposes reactive bounds that update on resize/move",
+        "The window lifecycle store reports correct states (console logs confirm reactive state)"
+      ],
+      "fulfills": [
+        "VAL-TAURI-SYS-005",
+        "VAL-TAURI-RDR-002"
+      ],
+      "milestone": "tauri-app-scaffold",
+      "status": "completed",
+      "workerSessionIds": [
+        "codex-orchestrator-2026-07-03T23-08-13Z"
+      ],
+      "currentWorkerSessionId": null,
+      "completedWorkerSessionId": "codex-orchestrator-2026-07-03T23-08-13Z",
+      "commit": "ccd3be7f7",
+      "commitId": "ccd3be7f7",
+      "completedAt": "2026-07-03T23:08:13.516Z"
+    },
+    {
+      "id": "transparent-main-window",
+      "description": "Create the main window with transparent: true and decorations: false in tauri.conf.json / WindowBuilder. The character render must show on a transparent background (not a black or white rectangle behind the character). Verify on KDE or GNOME for compositor transparency support.",
+      "skillName": "tauri-ipc-worker",
+      "preconditions": [
+        "main-window-vue-render feature is complete",
+        "Test environment is KDE or GNOME (compositor-dependent transparency)"
+      ],
+      "expectedBehavior": [
+        "The main window is created with transparent: true and decorations: false",
+        "The character render shows on a transparent background (not a black or white rectangle)",
+        "Screenshot on a standard desktop wallpaper shows transparent areas"
+      ],
+      "fulfills": [
+        "VAL-TAURI-WIN-001"
+      ],
+      "milestone": "tauri-app-scaffold",
+      "status": "pending",
+      "workerSessionIds": [],
+      "currentWorkerSessionId": null,
+      "completedWorkerSessionId": null
+    },
+    {
+      "id": "multi-window-creation",
+      "description": "Implement the multi-window manager in Rust that opens each Electron window the renderer expects: settings, chat, widgets, caption, notice, about, onboarding, devtools, beat-sync, inlay, dashboard. Each window opens without crashing and renders its expected content. Use WebviewWindow builders with per-window URLs/routes.",
+      "skillName": "tauri-ipc-worker",
+      "preconditions": [
+        "transparent-main-window feature is complete",
+        "eventa-event-pubsub feature is complete (cross-window events)"
+      ],
+      "expectedBehavior": [
+        "Settings, chat, widgets, caption, notice, about, onboarding, devtools, beat-sync, inlay, dashboard windows can each be opened without crashing",
+        "Each window renders its expected content",
+        "A screenshot is captured per opened window"
+      ],
+      "fulfills": [
+        "VAL-TAURI-WIN-002"
+      ],
+      "milestone": "tauri-app-scaffold",
+      "status": "pending",
+      "workerSessionIds": [],
+      "currentWorkerSessionId": null,
+      "completedWorkerSessionId": null
+    },
+    {
+      "id": "window-display-features",
+      "description": "Set always_on_top: true on the main floating window so it remains on top when other application windows are brought forward. Additionally ensure the AIRI window renders correctly on the display where it was opened when the user has multiple displays (not always the primary one).",
+      "skillName": "tauri-ipc-worker",
+      "preconditions": [
+        "transparent-main-window feature is complete",
+        "multi-window-creation feature is complete"
+      ],
+      "expectedBehavior": [
+        "The main window has always_on_top: true and remains on top when other windows are brought forward",
+        "On a multi-display setup the AIRI window renders correctly on the display where it was opened",
+        "Screenshot shows the AIRI window overlapping a file manager window"
+      ],
+      "fulfills": [
+        "VAL-TAURI-WIN-003",
+        "VAL-TAURI-WIN-004"
+      ],
+      "milestone": "tauri-app-scaffold",
+      "status": "pending",
+      "workerSessionIds": [],
+      "currentWorkerSessionId": null,
+      "completedWorkerSessionId": null
+    },
+    {
+      "id": "app-lifecycle-persistence",
+      "description": "Implement the system tray (icon, menu, quit) and ensure quitting the app via tray or window close leaves no orphan cargo/rustc/sidecar processes. Persist the main window size, position, and transparency state across app restarts using tauri-plugin-store (or equivalent) so a relaunch restores the previous geometry.",
+      "skillName": "tauri-ipc-worker",
+      "preconditions": [
+        "multi-window-creation feature is complete",
+        "tauri-plugin-store (or equivalent) is configured"
+      ],
+      "expectedBehavior": [
+        "After quitting via tray or window close, no cargo/rustc/sidecar processes remain (ps aux | grep is clean)",
+        "The main window size, position, and transparency state are preserved across app restarts",
+        "Terminal output and a relaunch screenshot confirm the restored geometry"
+      ],
+      "fulfills": [
+        "VAL-CROSS-002",
+        "VAL-CROSS-004"
+      ],
+      "milestone": "tauri-app-scaffold",
+      "status": "pending",
+      "workerSessionIds": [],
+      "currentWorkerSessionId": null,
+      "completedWorkerSessionId": null
+    },
+    {
+      "id": "channel-server-health",
+      "description": "Start the channel server as a Tauri async task (tauri::async_runtime/tokio::spawn) during setup, serving an h3/ws server on a dynamic port with self-signed TLS generated via rcgen. 'curl http://localhost:<port>/health' returns HTTP 200 with a JSON body. A second machine on the same LAN can reach the channel server URL (non-loopback bind).",
+      "skillName": "tauri-ipc-worker",
+      "preconditions": [
+        "tauri-app-launch feature is complete",
+        "rcgen and tokio-rustls crates are added to Cargo.toml",
+        "Port range 3100-3199 is reserved for existing services; channel server uses a dynamic non-conflicting port"
+      ],
+      "expectedBehavior": [
+        "The channel server async task starts during Tauri setup",
+        "'curl http://localhost:<port>/health' returns HTTP 200 with a JSON body",
+        "curl to the LAN IP of the host returns HTTP 200 from a second machine on the same network"
+      ],
+      "fulfills": [
+        "VAL-TAURI-SRV-001",
+        "VAL-CROSS-003"
+      ],
+      "milestone": "service-ports",
+      "status": "pending",
+      "workerSessionIds": [],
+      "currentWorkerSessionId": null,
+      "completedWorkerSessionId": null
+    },
+    {
+      "id": "channel-server-qr",
+      "description": "Implement the electron:server-channel:get-qr-payload Rust command returning the channel server URL, and migrate the settings/connection page so it renders a QR code from that payload. The QR code must encode a valid URL to the channel server.",
+      "skillName": "renderer-migration-worker",
+      "preconditions": [
+        "channel-server-health feature is complete",
+        "eventa-invoke-contracts covers the electron:server-channel:* contracts"
+      ],
+      "expectedBehavior": [
+        "The server-channel page in settings renders a QR code from the electron:server-channel:get-qr-payload invocation",
+        "The QR code encodes a valid URL to the channel server",
+        "Screenshot of the QR card is captured on the settings/connection page"
+      ],
+      "fulfills": [
+        "VAL-TAURI-SRV-002"
+      ],
+      "milestone": "service-ports",
+      "status": "pending",
+      "workerSessionIds": [],
+      "currentWorkerSessionId": null,
+      "completedWorkerSessionId": null
+    },
+    {
+      "id": "plugin-host-sidecar",
+      "description": "Replace cookie-based plugin auth with token-based auth and launch the plugin-host as a Node sidecar (tauri-plugin-shell Command::new_sidecar) that reports status via its configured WebSocket/HTTP endpoint. Migrate the settings/plugins page to list enabled plugins and persist enable/disable toggles across reload (via tauri-plugin-store).",
+      "skillName": "tauri-sidecar-worker",
+      "preconditions": [
+        "tauri-app-launch feature is complete",
+        "tauri-plugin-shell sidecar bundling is configured",
+        "The pkg-compiled Node plugin-host sidecar binary is available"
+      ],
+      "expectedBehavior": [
+        "On desktop with the sidecar binary available, the plugin-host sidecar launches and reports status via its endpoint",
+        "The settings/plugins page shows the list of enabled plugins (even if empty) with no 500 errors or thrown exceptions",
+        "Toggling a plugin's enabled state persists across reload; screenshots before/after toggling are captured"
+      ],
+      "fulfills": [
+        "VAL-TAURI-SRV-003",
+        "VAL-TAURI-PLGN-001",
+        "VAL-TAURI-PLGN-002"
+      ],
+      "milestone": "service-ports",
+      "status": "pending",
+      "workerSessionIds": [],
+      "currentWorkerSessionId": null,
+      "completedWorkerSessionId": null
+    },
+    {
+      "id": "godot-stage-sidecar",
+      "description": "Configure Tauri sidecar bundling for the Godot stage binary and implement spawn/health logic so that, when $GODOT4 is exported or the godot-stage binary is available, the sidecar starts and reports 'booting | ready | degraded' status via its configured WebSocket endpoint. If the binary is missing, the settings/system/godot-stage page should note that gracefully rather than crash.",
+      "skillName": "tauri-sidecar-worker",
+      "preconditions": [
+        "tauri-plugin-shell sidecar bundling is configured",
+        "godot-stage binary path or $GODOT4 env is resolvable (or documented as missing)"
+      ],
+      "expectedBehavior": [
+        "When the Godot binary is available on desktop, the Godot stage sidecar starts",
+        "It reports 'booting | ready | degraded' status via the configured WebSocket endpoint",
+        "The settings/system/godot-stage page shows the status; console-errors note if the binary is missing"
+      ],
+      "fulfills": [
+        "VAL-TAURI-SRV-004"
+      ],
+      "milestone": "service-ports",
+      "status": "pending",
+      "workerSessionIds": [],
+      "currentWorkerSessionId": null,
+      "completedWorkerSessionId": null
+    },
+    {
+      "id": "mcp-server-config",
+      "description": "Implement the MCP server management: read <app_data_dir>/mcp.json, spawn stdio MCP servers (via a Node sidecar or embedded Rust rmcp), expose the mcp_list_tools Tauri command, and migrate the settings/modules/mcp page to list configured servers without throwing.",
+      "skillName": "tauri-sidecar-worker",
+      "preconditions": [
+        "tauri-plugin-shell or embedded Rust MCP runtime is configured",
+        "<app_data_dir>/mcp.json path is resolvable via tauri::path::app_data_dir()"
+      ],
+      "expectedBehavior": [
+        "When MCP servers are configured in <app_data_dir>/mcp.json, the renderer can list them via mcp_list_tools without throwing",
+        "The settings/modules/mcp page shows the server list",
+        "Screenshot of the server list is captured; console-errors are clean"
+      ],
+      "fulfills": [
+        "VAL-TAURI-SRV-005"
+      ],
+      "milestone": "service-ports",
+      "status": "pending",
+      "workerSessionIds": [],
+      "currentWorkerSessionId": null,
+      "completedWorkerSessionId": null
+    },
+    {
+      "id": "auth-oidc-flow",
+      "description": "Implement the OIDC auth flow in Rust: auth_start_login starts a loopback HTTP server on a random port and opens the system browser to the OIDC authorize URL. Implement auth_logout to clear the stored token and reset the UI to the logged-out state. Integrate with the renderer auth page.",
+      "skillName": "tauri-ipc-worker",
+      "preconditions": [
+        "eventa-invoke-contracts covers the auth contracts",
+        "OIDC client credentials are available via .env.example pattern (no committed secrets)"
+      ],
+      "expectedBehavior": [
+        "Clicking the auth login button invokes auth_start_login, starts a loopback HTTP server on a random port, and opens the system browser to the OIDC authorize URL",
+        "Clicking logout clears the stored token and resets the UI to the logged-out state",
+        "Screenshot of the auth page is captured; before/after screenshots show the logout state change"
+      ],
+      "fulfills": [
+        "VAL-TAURI-AUTH-001",
+        "VAL-TAURI-AUTH-002"
+      ],
+      "milestone": "service-ports",
+      "status": "pending",
+      "workerSessionIds": [],
+      "currentWorkerSessionId": null,
+      "completedWorkerSessionId": null
+    },
+    {
+      "id": "auto-updater-binding",
+      "description": "Replace electron-updater with tauri-plugin-updater. Implement the auto_updater_check_for_updates Rust command and migrate the about/updater page to show the current app version and an update status indicator (even if it says no updates). Clicking check for updates populates the isUpdateAvailable state in the UI.",
+      "skillName": "tauri-ipc-worker",
+      "preconditions": [
+        "tauri-plugin-updater is added to Cargo.toml",
+        "eventa-invoke-contracts covers the electron:auto-updater:* contracts"
+      ],
+      "expectedBehavior": [
+        "The about/updater page shows the current app version and an update status indicator (even if it says no updates)",
+        "Clicking check for updates fires auto_updater_check_for_updates and populates the isUpdateAvailable state in the UI",
+        "Screenshot and a console log showing the check result are captured"
+      ],
+      "fulfills": [
+        "VAL-TAURI-UPD-001",
+        "VAL-TAURI-UPD-002"
+      ],
+      "milestone": "service-ports",
+      "status": "pending",
+      "workerSessionIds": [],
+      "currentWorkerSessionId": null,
+      "completedWorkerSessionId": null
+    },
+    {
+      "id": "end-to-end-user-session",
+      "description": "Validate the end-to-end anonymous (no-auth) user session flow across the migrated renderer and Tauri backend: launch the app, see the character rendered, open the settings window, view the connection/server-channel config with QR code, close settings and return to the main window, and close the app via tray menu or window close.",
+      "skillName": "renderer-migration-worker",
+      "preconditions": [
+        "channel-server-qr feature is complete",
+        "app-lifecycle-persistence (tray) feature is complete",
+        "main-window-vue-render and multi-window-creation features are complete"
+      ],
+      "expectedBehavior": [
+        "An anonymous user can launch the Tauri app and see the character rendered on screen",
+        "The user can open the settings window and view the connection/server-channel config with QR code",
+        "The user can close settings, return to the main window, and close the app via tray menu or window close",
+        "A series of screenshots with clean console-errors documents the full flow"
+      ],
+      "fulfills": [
+        "VAL-CROSS-001"
+      ],
+      "milestone": "service-ports",
+      "status": "pending",
+      "workerSessionIds": [],
+      "currentWorkerSessionId": null,
+      "completedWorkerSessionId": null
+    },
+    {
+      "id": "renderer-vite-config-migrate",
+      "description": "Migrate electron.vite.config.ts to a Vite config for Tauri (dev server on port 1420, correct base/public paths, replace Electron preload entrypoints). Port the /chat and /settings routes so they render full content with all <Suspense>-wrapped async components resolving. Run 'pnpm -F @proj-airi/stage-tauri typecheck' (or equivalent) until it passes without errors after all ported files are in place.",
+      "skillName": "renderer-migration-worker",
+      "preconditions": [
+        "eventa-context-adapter and eventa-invoke-contracts features are complete",
+        "main-window-vue-render feature is complete"
+      ],
+      "expectedBehavior": [
+        "The /chat and /settings routes render their full content without errors; all <Suspense>-wrapped async components resolve",
+        "'pnpm -F @proj-airi/stage-tauri typecheck' (or equivalent workspace check) passes without errors",
+        "Screenshots per page and clean console-errors are captured"
+      ],
+      "fulfills": [
+        "VAL-TAURI-RDR-003",
+        "VAL-NFR-003"
+      ],
+      "milestone": "renderer-migration",
+      "status": "pending",
+      "workerSessionIds": [],
+      "currentWorkerSessionId": null,
+      "completedWorkerSessionId": null
+    },
+    {
+      "id": "character-renderers",
+      "description": "Verify and patch the stage-ui-three (VRM), stage-ui-live2d, and stage-ui-spine renderers so they work in the Tauri webview with no WebGL2 context lost and no shader compile errors. A loaded VRM / Live2D model must be visible.",
+      "skillName": "renderer-migration-worker",
+      "preconditions": [
+        "renderer-vite-config-migrate feature is complete",
+        "main-window-vue-render feature renders #app"
+      ],
+      "expectedBehavior": [
+        "stage-ui-three, stage-ui-live2d, and stage-ui-spine renderers work in the Tauri webview",
+        "There are no WebGL2 context-lost events and no shader compile errors",
+        "A loaded VRM / Live2D model is visible; screenshot and clean console-errors are captured"
+      ],
+      "fulfills": [
+        "VAL-TAURI-RDR-001"
+      ],
+      "milestone": "renderer-migration",
+      "status": "pending",
+      "workerSessionIds": [],
+      "currentWorkerSessionId": null,
+      "completedWorkerSessionId": null
+    },
+    {
+      "id": "caption-window-follow",
+      "description": "Migrate the caption window follow-mode logic so that, when the user enables follow mode on the caption window, moving the main window causes the caption window to smoothly track its position via the Tauri window bounds events/commands.",
+      "skillName": "renderer-migration-worker",
+      "preconditions": [
+        "window-lifecycle-events feature is complete (reactive bounds)",
+        "multi-window-creation feature can open the caption window"
+      ],
+      "expectedBehavior": [
+        "When follow mode is enabled on the caption window, moving the main window causes the caption window to track its position",
+        "The tracking is smooth (no large jitter/lag)",
+        "A screenshot of the caption following the main window is captured"
+      ],
+      "fulfills": [
+        "VAL-TAURI-RDR-004"
+      ],
+      "milestone": "renderer-migration",
+      "status": "pending",
+      "workerSessionIds": [],
+      "currentWorkerSessionId": null,
+      "completedWorkerSessionId": null
+    },
+    {
+      "id": "inlay-hud-render",
+      "description": "Migrate the inlay window so it renders as a small transparent HUD centered horizontally near the bottom of the screen inside the Tauri webview.",
+      "skillName": "renderer-migration-worker",
+      "preconditions": [
+        "multi-window-creation feature can open the inlay window",
+        "transparent-main-window transparency approach is reused for the inlay"
+      ],
+      "expectedBehavior": [
+        "The inlay window renders as a small transparent HUD centered horizontally near the bottom of the screen",
+        "Screenshot of the inlay HUD is captured; console-errors are clean"
+      ],
+      "fulfills": [
+        "VAL-TAURI-RDR-005"
+      ],
+      "milestone": "renderer-migration",
+      "status": "pending",
+      "workerSessionIds": [],
+      "currentWorkerSessionId": null,
+      "completedWorkerSessionId": null
+    },
+    {
+      "id": "drop-local-inference",
+      "description": "Remove the dropped local inference packages (@huggingface/transformers, onnxruntime-web, @xsai-transformers/*, @xsai/generate-speech, kokoro-js, @ricky0123/vad-web, libsamplerate-js, mediabunny) from renderer imports and from apps/stage-tauri/package.json dependencies. Grep must show 0 matches for these packages in renderer files or the new app's deps.",
+      "skillName": "renderer-migration-worker",
+      "preconditions": [
+        "renderer-vite-config-migrate feature is complete",
+        "All renderer imports depending on these packages have been stubbed or rewritten"
+      ],
+      "expectedBehavior": [
+        "None of the dropped packages are imported by any renderer file",
+        "None of the dropped packages are listed in apps/stage-tauri/package.json dependencies",
+        "grep for each package returns 0 matches"
+      ],
+      "fulfills": [
+        "VAL-TAURI-SCRN-002"
+      ],
+      "milestone": "renderer-migration",
+      "status": "pending",
+      "workerSessionIds": [],
+      "currentWorkerSessionId": null,
+      "completedWorkerSessionId": null
+    },
+    {
+      "id": "screen-capture-picker",
+      "description": "Replace the Electron desktopCapturer-based useElectronScreenCapture composable with a navigator.mediaDevices.getDisplayMedia() wrapper so clicking select screen invokes the OS-native screen picker. Update packages/stage-shared/src/beat-sync/detector.ts which currently uses @proj-airi/electron-screen-capture.",
+      "skillName": "renderer-migration-worker",
+      "preconditions": [
+        "renderer-vite-config-migrate feature is complete",
+        "drop-local-inference feature is in progress or complete (related dep removals)"
+      ],
+      "expectedBehavior": [
+        "When the user clicks select screen in the screen capture page, navigator.mediaDevices.getDisplayMedia() is invoked",
+        "The OS-native screen picker appears (or is granted automatically in test environments)",
+        "Console log or screenshot documents the picker invocation; packages/stage-shared/src/beat-sync/detector.ts no longer imports the Electron screen-capture package"
+      ],
+      "fulfills": [
+        "VAL-TAURI-SCRN-001"
+      ],
+      "milestone": "renderer-migration",
+      "status": "pending",
+      "workerSessionIds": [],
+      "currentWorkerSessionId": null,
+      "completedWorkerSessionId": null
+    },
+    {
+      "id": "hitbox-thread-spawn",
+      "description": "Implement the background rd-ev (or equivalent) Rust thread that starts when a transparent window with hitbox click-through is created. The thread must emit device-mouse-move events to the renderer. This is the foundation for the click-through workaround.",
+      "skillName": "tauri-ipc-worker",
+      "preconditions": [
+        "transparent-main-window feature is complete",
+        "multi-window-creation can open transparent windows (caption/widgets)",
+        "rd-ev (or equivalent) Rust crate is available"
+      ],
+      "expectedBehavior": [
+        "The background rd-ev (or equivalent) thread starts when a transparent window with hitbox click-through is created",
+        "The Rust side emits device-mouse-move events",
+        "Console logs show device-mouse-move events being received in the renderer"
+      ],
+      "fulfills": [
+        "VAL-TAURI-OVRL-001"
+      ],
+      "milestone": "overlay-click-through",
+      "status": "pending",
+      "workerSessionIds": [],
+      "currentWorkerSessionId": null,
+      "completedWorkerSessionId": null
+    },
+    {
+      "id": "click-through-toggle",
+      "description": "Implement the hitbox-polling click-through toggle: when the cursor moves over a transparent area of a window (no DOM element), the Rust backend calls Window::set_ignore_cursor_events(true) so clicks pass through to the window below; when the cursor moves over a rendered element, click-through is disabled.",
+      "skillName": "tauri-ipc-worker",
+      "preconditions": [
+        "hitbox-thread-spawn feature is complete",
+        "transparent-main-window feature is complete"
+      ],
+      "expectedBehavior": [
+        "When the cursor is over a transparent area of the caption window (no DOM element), the Rust backend toggles Window::set_ignore_cursor_events(true) and clicks pass through to the window below",
+        "When the cursor moves over a rendered element, click-through is disabled",
+        "A screenshot shows the desktop behind the caption; a cursor interaction log documents the toggling"
+      ],
+      "fulfills": [
+        "VAL-TAURI-OVRL-002"
+      ],
+      "milestone": "overlay-click-through",
+      "status": "pending",
+      "workerSessionIds": [],
+      "currentWorkerSessionId": null,
+      "completedWorkerSessionId": null
+    },
+    {
+      "id": "desktop-overlay-gated",
+      "description": "Re-implement the desktop overlay window gated behind the AIRI_DESKTOP_OVERLAY=1 env var. Without the env var no desktop overlay window is created; with it set, the overlay window appears using focusable: false, click-through via the hitbox workaround, and heartbeat MCP polling.",
+      "skillName": "tauri-ipc-worker",
+      "preconditions": [
+        "click-through-toggle feature is complete",
+        "mcp-server-config feature is complete (heartbeat polling)"
+      ],
+      "expectedBehavior": [
+        "Without AIRI_DESKTOP_OVERLAY=1, no desktop overlay window is created",
+        "With AIRI_DESKTOP_OVERLAY=1 set, the overlay window appears",
+        "Console log documents the env gate; screenshots show overlay visible vs. absent"
+      ],
+      "fulfills": [
+        "VAL-TAURI-OVRL-003"
+      ],
+      "milestone": "overlay-click-through",
+      "status": "pending",
+      "workerSessionIds": [],
+      "currentWorkerSessionId": null,
+      "completedWorkerSessionId": null
+    },
+    {
+      "id": "eventa-context-adapter",
+      "description": "Create the @proj-airi/tauri-eventa package providing createContext(tauriIpc) that wraps Tauri's window.__TAURI_INTERNALS__.ipc into the IpcRenderer-like interface expected by @moeru/eventa. The context must expose working invoke and subscribe operations without throwing. This is the keystone: no renderer code can talk to the Tauri backend until this lands.",
+      "skillName": "tauri-ipc-worker",
+      "preconditions": [
+        "Tauri v2 SDK (@tauri-apps/api) is installed in the renderer workspace",
+        "@moeru/eventa contract definitions are available and unchanged",
+        "Rust toolchain is installed and cargo tauri CLI is available"
+      ],
+      "expectedBehavior": [
+        "createContext(window.__TAURI_INTERNALS__.ipc).context returns a non-null eventa context",
+        "The context can perform invoke and subscribe operations without throwing",
+        "Console logs 'eventa context ok: true' with no Rust panic"
+      ],
+      "fulfills": [
+        "VAL-TAURI-IPC-001"
+      ],
+      "milestone": "eventa-adapter",
+      "status": "completed",
+      "workerSessionIds": [
+        "d54b062b-5124-489d-8e59-189ecf27ec92",
+        "397f7b67-f11e-4ce2-8b3b-f2ed1ea13c0f",
+        "b74170a7-3cd4-40ec-aa13-89aac3d761b0"
+      ],
+      "currentWorkerSessionId": null,
+      "completedWorkerSessionId": null
+    },
+    {
+      "id": "eventa-invoke-contracts",
+      "description": "Wire every eventa invoke contract name the Electron backend exposes (electron:window:*, electron:screen:*, electron:system-preferences:*, electron:app:*, electron:server-channel:*, etc.) through the Tauri adapter to corresponding Rust #[tauri::command] handlers. Each contract returns a valid response (placeholder data acceptable) rather than a not-found error. Contract names must NOT be renamed.",
+      "skillName": "tauri-ipc-worker",
+      "preconditions": [
+        "eventa-context-adapter feature is complete",
+        "The full list of eventa invoke contract names used by the renderer is enumerated"
+      ],
+      "expectedBehavior": [
+        "Renderer can invoke every eventa invoke contract name exposed by the current Electron backend",
+        "Each invocation returns a valid response (not an error); placeholder data is acceptable",
+        "Console shows per-contract status with no 'not found' errors"
+      ],
+      "fulfills": [
+        "VAL-TAURI-IPC-002"
+      ],
+      "milestone": "eventa-adapter",
+      "status": "completed",
+      "workerSessionIds": [
+        "a4582569-9413-405a-ac57-2b90509f071e"
+      ],
+      "currentWorkerSessionId": null,
+      "completedWorkerSessionId": null
+    }
+  ]
+}

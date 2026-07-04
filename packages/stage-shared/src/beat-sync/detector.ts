@@ -10,7 +10,7 @@ import { startAnalyser as startTemporaAnalyser } from '@nekopaw/tempora'
 import analyserWorklet from '@nekopaw/tempora/worklet?url'
 import { setupElectronScreenCapture } from '@proj-airi/electron-screen-capture/renderer'
 
-import { isStageTamagotchi, isStageWeb, StageEnvironment } from '../environment'
+import { isStageTamagotchi, isStageTauri, isStageWeb, StageEnvironment } from '../environment'
 import { isElectronWindow } from '../window'
 import {
   beatSyncBeatSignaledInvokeEventa,
@@ -253,8 +253,12 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
 }
 
 let detector: BeatSyncDetector | undefined
+function isLocalBeatSyncEnvironment() {
+  return isStageWeb() || isStageTauri()
+}
+
 function getDetector() {
-  if (!isStageWeb()) throw new Error('getDetector() is only available in Stage Web environment')
+  if (!isLocalBeatSyncEnvironment()) throw new Error('getDetector() is only available in local renderer environments')
 
   if (!detector) detector = createBeatSyncDetector({ env: StageEnvironment.Web })
 
@@ -269,7 +273,7 @@ function getContext() {
 }
 
 export function toggleBeatSync(enabled: boolean) {
-  if (isStageWeb()) {
+  if (isLocalBeatSyncEnvironment()) {
     if (enabled) {
       return getDetector().startScreenCapture()
     } else {
@@ -286,7 +290,7 @@ export function toggleBeatSync(enabled: boolean) {
 }
 
 export function getBeatSyncState(): Promise<BeatSyncDetectorState> {
-  if (isStageWeb()) {
+  if (isLocalBeatSyncEnvironment()) {
     return Promise.resolve(getDetector().state)
   }
 
@@ -298,7 +302,7 @@ export function getBeatSyncState(): Promise<BeatSyncDetectorState> {
 }
 
 export function updateBeatSyncParameters(params: Partial<AnalyserWorkletParameters>) {
-  if (isStageWeb()) {
+  if (isLocalBeatSyncEnvironment()) {
     return getDetector().updateParameters(params)
   }
 
@@ -310,7 +314,7 @@ export function updateBeatSyncParameters(params: Partial<AnalyserWorkletParamete
 }
 
 export function listenBeatSyncStateChange(listener: (state: BeatSyncDetectorState) => void) {
-  if (isStageWeb()) {
+  if (isLocalBeatSyncEnvironment()) {
     return getDetector().on('stateChange', listener)
   }
 
@@ -322,7 +326,7 @@ export function listenBeatSyncStateChange(listener: (state: BeatSyncDetectorStat
 }
 
 export function listenBeatSyncBeatSignal(listener: (e: AnalyserBeatEvent) => void) {
-  if (isStageWeb()) {
+  if (isLocalBeatSyncEnvironment()) {
     return getDetector().on('beat', listener)
   }
 
@@ -334,7 +338,7 @@ export function listenBeatSyncBeatSignal(listener: (e: AnalyserBeatEvent) => voi
 }
 
 export function getBeatSyncInputByteFrequencyData(): Promise<Uint8Array<ArrayBuffer>> {
-  if (isStageWeb()) {
+  if (isLocalBeatSyncEnvironment()) {
     return Promise.resolve(getDetector().getInputByteFrequencyData())
   }
 
