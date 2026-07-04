@@ -139,6 +139,9 @@ apps/stage-tamagotchi/electron.vite.config.*.mjs
 # Tools - ghfs
 .ghfs/
 
+# Local git worktrees
+.worktrees/
+
 # Tools - Obsidian
 .obsidian/
 
