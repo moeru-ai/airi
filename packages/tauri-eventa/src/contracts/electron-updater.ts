@@ -34,6 +34,8 @@ export interface AutoUpdaterDiagnostics {
 }
 
 export interface AutoUpdaterState {
+  currentVersion?: string
+  isUpdateAvailable?: boolean
   status: AutoUpdaterStatus
   info?: any
   progress?: AutoUpdaterProgress

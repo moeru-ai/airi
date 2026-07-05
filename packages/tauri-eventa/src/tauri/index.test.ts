@@ -2,6 +2,7 @@ import type { TauriInternals } from './types'
 import { defineInvoke, defineInvokeEventa } from '@moeru/eventa'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  autoUpdater,
   electron,
   electronGetServerChannelQrPayload,
   electronGetWindowLifecycleState,
@@ -173,6 +174,42 @@ describe('createContextFromTauriIpc', () => {
       updatedAt: 123,
       visible: true,
     })
+  })
+
+  it('maps auto-updater state and check invokes to registered Tauri commands', async () => {
+    const internals = buildMockInternals()
+    vi.mocked(internals.invoke)
+      .mockResolvedValueOnce({
+        currentVersion: '0.1.0',
+        isUpdateAvailable: false,
+        status: 'not-available',
+      })
+      .mockResolvedValueOnce({
+        currentVersion: '0.1.0',
+        info: {
+          isUpdateAvailable: false,
+          version: '0.1.0',
+        },
+        isUpdateAvailable: false,
+        status: 'not-available',
+      })
+
+    const { context } = createContextFromTauriIpc(internals)
+    const getState = defineInvoke(context, autoUpdater.getState)
+    const checkForUpdates = defineInvoke(context, autoUpdater.checkForUpdates)
+
+    await expect(getState()).resolves.toEqual({
+      currentVersion: '0.1.0',
+      isUpdateAvailable: false,
+      status: 'not-available',
+    })
+    await expect(checkForUpdates()).resolves.toMatchObject({
+      currentVersion: '0.1.0',
+      isUpdateAvailable: false,
+      status: 'not-available',
+    })
+    expect(internals.invoke).toHaveBeenNthCalledWith(1, 'electron_auto_updater_get_state', undefined)
+    expect(internals.invoke).toHaveBeenNthCalledWith(2, 'electron_auto_updater_check_for_updates', undefined)
   })
 
   it('maps server-channel QR payload invokes to the registered Tauri command', async () => {

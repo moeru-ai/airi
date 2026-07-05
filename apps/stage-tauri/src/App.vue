@@ -4,6 +4,8 @@ import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models
 import { usePluginHostInspectorStore } from '@proj-airi/stage-ui/stores/devtools/plugin-host-debug'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings'
 import {
+  autoUpdater,
+  electronAutoUpdaterStateChanged,
   electronPluginsInspect,
   electronPluginsList,
   electronPluginsLoad,
@@ -17,6 +19,7 @@ import {
   widgetsRemoveEvent,
   widgetsRenderEvent,
   widgetsUpdateEvent,
+  type AutoUpdaterState,
   type RequestWindowActionDefault,
   type RequestWindowPending,
   type WidgetSnapshot,
@@ -51,6 +54,12 @@ const sendNoticeAction = eventaContext
   ? useElectronEventaInvoke(noticeWindowEventa.windowAction, eventaContext.value)
   : undefined
 const fetchWidget = eventaContext ? useElectronEventaInvoke(widgetsFetch, eventaContext.value) : undefined
+const getAutoUpdaterState = eventaContext
+  ? useElectronEventaInvoke(autoUpdater.getState, eventaContext.value)
+  : undefined
+const checkAutoUpdaterUpdates = eventaContext
+  ? useElectronEventaInvoke(autoUpdater.checkForUpdates, eventaContext.value)
+  : undefined
 
 const pluginHostInspectorStore = usePluginHostInspectorStore()
 const displayModelsStore = useDisplayModelsStore()
@@ -84,6 +93,11 @@ function isWidgetsRoute(route: string): boolean {
   return routePath(route) === '/widgets'
 }
 
+function isAboutRoute(route: string): boolean {
+  const path = routePath(route)
+  return path === '/about' || path === '/about/updater'
+}
+
 const noticePending = ref<RequestWindowPending | null>(null)
 const noticeBusy = ref(false)
 const noticeStatus = computed(() => {
@@ -94,8 +108,40 @@ const noticeStatus = computed(() => {
 const widgetSnapshot = ref<WidgetSnapshot | null>(null)
 const widgetLoading = ref(false)
 const widgetId = computed(() => routeQueryValue(windowRoute.value.route, 'id'))
+const updaterState = ref<AutoUpdaterState>({
+  currentVersion: '',
+  isUpdateAvailable: false,
+  status: 'idle',
+})
+const updaterChecking = ref(false)
+const updaterVersion = computed(
+  () => updaterState.value.currentVersion || updaterState.value.info?.version || 'unknown',
+)
+const updaterRequestActive = computed(
+  () =>
+    updaterChecking.value || updaterState.value.status === 'checking' || updaterState.value.status === 'downloading',
+)
+type UpdaterStatusResolver = (state: AutoUpdaterState) => string
+
+const updaterStatusResolvers: Record<AutoUpdaterState['status'], UpdaterStatusResolver> = {
+  idle: ({ isUpdateAvailable }) => (isUpdateAvailable ? 'Update available' : 'Idle'),
+  disabled: () => 'Updater disabled',
+  checking: () => 'Checking',
+  available: () => 'Update available',
+  'not-available': () => 'No updates available',
+  downloading: () => 'Downloading update',
+  downloaded: () => 'Update downloaded',
+  error: ({ error }) => (error?.message ? `Updater error: ${error.message}` : 'Updater error'),
+}
+
+function resolveUpdaterStatus(state: AutoUpdaterState): string {
+  return updaterStatusResolvers[state.status](state)
+}
+
+const updaterStatus = computed(() => resolveUpdaterStatus(updaterState.value))
 let mountedNoticeId: string | null = null
 let widgetEventCleanups: Array<() => void> = []
+let autoUpdaterEventCleanup: (() => void) | undefined
 
 function noticeIdForRoute(route?: string): string | null {
   if (!route || !isNoticeRoute(route)) return null
@@ -181,6 +227,38 @@ async function loadWidgetRouteSnapshot(route: string, id: string | null) {
 
 async function syncWidgetRoute(route: string): Promise<WidgetSnapshot | null> {
   return loadWidgetRouteSnapshot(route, beginWidgetRouteSync(route))
+}
+
+async function refreshUpdaterState() {
+  if (!getAutoUpdaterState) return
+
+  try {
+    updaterState.value = await getAutoUpdaterState()
+  } catch (error) {
+    updaterState.value = {
+      ...updaterState.value,
+      error: { message: error instanceof Error ? error.message : String(error) },
+      status: 'error',
+    }
+  }
+}
+
+async function checkForUpdatesFromAbout() {
+  if (!checkAutoUpdaterUpdates || updaterRequestActive.value) return
+
+  updaterChecking.value = true
+  updaterState.value = { ...updaterState.value, status: 'checking' }
+  try {
+    updaterState.value = await checkAutoUpdaterUpdates()
+  } catch (error) {
+    updaterState.value = {
+      ...updaterState.value,
+      error: { message: error instanceof Error ? error.message : String(error) },
+      status: 'error',
+    }
+  } finally {
+    updaterChecking.value = false
+  }
 }
 
 function applyWidgetSnapshot(snapshot: WidgetSnapshot) {
@@ -272,6 +350,10 @@ async function syncSecondaryRoute(route = windowRoute.value, previousRoute?: str
     await syncNoticeRoute(route.route, previousRoute)
   }
 
+  if (isAboutRoute(route.route)) {
+    await refreshUpdaterState()
+  }
+
   await syncWidgetRouteOrClear(route.route)
 }
 
@@ -316,6 +398,9 @@ onMounted(async () => {
     const loadPlugin = useElectronEventaInvoke(electronPluginsLoad, ctx)
     const unloadPlugin = useElectronEventaInvoke(electronPluginsUnload, ctx)
     const inspectPluginHost = useElectronEventaInvoke(electronPluginsInspect, ctx)
+    autoUpdaterEventCleanup = ctx.on(electronAutoUpdaterStateChanged, (event: { body?: AutoUpdaterState }) => {
+      if (event.body) updaterState.value = event.body
+    })
 
     pluginHostInspectorStore.setBridge({
       list: () =>
@@ -347,6 +432,8 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   window.removeEventListener('hashchange', refreshHashRoute)
   void notifyPreviousNoticeUnmounted(mountedNoticeId)
+  autoUpdaterEventCleanup?.()
+  autoUpdaterEventCleanup = undefined
   for (const cleanup of widgetEventCleanups) cleanup()
   widgetEventCleanups = []
 })
@@ -393,6 +480,19 @@ onBeforeUnmount(() => {
       </dl>
       <div v-if="windowRoute.kind === 'settings-connection'" class="secondary-panel secondary-panel-block">
         <ServerChannelQrCard />
+      </div>
+      <div v-else-if="isAboutRoute(windowRoute.route)" class="secondary-panel">
+        <div>
+          <p class="panel-title">Updater</p>
+          <p class="panel-text">Current version: {{ updaterVersion }}</p>
+          <p class="panel-text">Status: {{ updaterStatus }}</p>
+          <p class="panel-text">Update available: {{ updaterState.isUpdateAvailable ? 'Yes' : 'No' }}</p>
+        </div>
+        <div class="secondary-actions">
+          <button type="button" :disabled="updaterRequestActive" @click="checkForUpdatesFromAbout()">
+            {{ updaterChecking ? 'Checking' : 'Check for updates' }}
+          </button>
+        </div>
       </div>
       <div v-else-if="isNoticeRoute(windowRoute.route)" class="secondary-panel">
         <div>
