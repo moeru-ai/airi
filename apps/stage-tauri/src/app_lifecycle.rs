@@ -173,7 +173,9 @@ pub(crate) fn write_main_window_state_to_path(
     }
 
     let bytes = serde_json::to_vec_pretty(&state).map_err(|e| e.to_string())?;
-    std::fs::write(path, bytes).map_err(|e| e.to_string())
+    let temp_path = path.with_extension("tmp");
+    std::fs::write(&temp_path, bytes).map_err(|e| e.to_string())?;
+    std::fs::rename(&temp_path, path).map_err(|e| e.to_string())
 }
 
 pub(crate) fn capture_main_window_state(
@@ -241,9 +243,6 @@ pub(crate) fn setup_main_window_close_persistence(app: &AppHandle) {
         WindowEvent::CloseRequested { api, .. } => {
             api.prevent_close();
             quit_after_persisting(&handle);
-        }
-        WindowEvent::Destroyed => {
-            let _ = persist_main_window_state(&handle);
         }
         _ => {}
     });
@@ -399,6 +398,32 @@ mod tests {
             Some(state)
         );
         let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn replaces_stale_temporary_window_state_file() {
+        let path = unique_test_path("stale-temp");
+        let temp_path = path.with_extension("tmp");
+        let state = PersistedMainWindowState {
+            geometry: Some(WindowGeometry {
+                x: 33.0,
+                y: 44.0,
+                width: 640.0,
+                height: 480.0,
+            }),
+            transparent: true,
+        };
+        std::fs::write(&temp_path, "stale").unwrap();
+
+        write_main_window_state_to_path(&path, state).unwrap();
+
+        assert_eq!(
+            read_main_window_state_from_path(&path).unwrap(),
+            Some(state)
+        );
+        assert!(!temp_path.exists());
+        let _ = std::fs::remove_file(path);
+        let _ = std::fs::remove_file(temp_path);
     }
 
     #[test]

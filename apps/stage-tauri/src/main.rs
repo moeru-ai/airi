@@ -34,6 +34,9 @@ fn main() {
             } else if let Err(error) = window_manager::apply_main_window_display_features(&handle) {
                 eprintln!("failed to apply main window display features: {error}");
             }
+            if let Err(error) = app_lifecycle::show_main_window(&handle) {
+                eprintln!("failed to show main window after lifecycle setup: {error}");
+            }
             app_lifecycle::setup_main_window_close_persistence(&handle);
             if let Err(error) = app_lifecycle::setup_tray(&handle) {
                 eprintln!("failed to setup tray: {error}");

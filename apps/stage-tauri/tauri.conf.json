@@ -19,7 +19,8 @@
         "decorations": false,
         "alwaysOnTop": true,
         "skipTaskbar": false,
-        "focusable": true
+        "focusable": true,
+        "visible": false
       }
     ],
     "security": {
