@@ -7,6 +7,7 @@
 // ID is `eventa:invoke:<contract-group>:<snake-name>` (e.g.
 // `electron_window_get_bounds` serves `eventa:invoke:electron:window:get-bounds`).
 
+mod app_lifecycle;
 mod commands;
 mod window_manager;
 
