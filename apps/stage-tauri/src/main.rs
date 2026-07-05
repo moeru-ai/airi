@@ -28,19 +28,7 @@ fn main() {
         .manage(commands::widgets::new_widget_registry())
         .setup(move |app| {
             let handle = app.handle().clone();
-            {
-                let state = channel_server_state.clone();
-                tauri::async_runtime::spawn(async move {
-                    if let Err(error) = channel_server::start_channel_server(
-                        state,
-                        channel_server::ChannelServerConfig::default(),
-                    )
-                    .await
-                    {
-                        eprintln!("failed to start channel server: {error}");
-                    }
-                });
-            }
+            spawn_channel_server(channel_server_state.clone());
 
             let restored = app_lifecycle::restore_main_window_state(&handle).unwrap_or(false);
             if restored {
@@ -290,4 +278,17 @@ fn main() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+fn spawn_channel_server(state: channel_server::ChannelServerState) {
+    tauri::async_runtime::spawn(async move {
+        if let Err(error) = channel_server::start_channel_server(
+            state,
+            channel_server::ChannelServerConfig::default(),
+        )
+        .await
+        {
+            eprintln!("failed to start channel server: {error}");
+        }
+    });
 }

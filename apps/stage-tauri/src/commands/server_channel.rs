@@ -49,8 +49,8 @@ fn config_payload_from_snapshot(snapshot: &ChannelServerSnapshot) -> Value {
 fn qr_payload_from_snapshot(snapshot: &ChannelServerSnapshot) -> ServerChannelQrPayload {
     let Some(port) = snapshot.port else {
         return ServerChannelQrPayload {
-            url: String::new(),
-            token: String::new(),
+            url: String::default(),
+            token: String::default(),
         };
     };
 
@@ -97,7 +97,7 @@ mod tests {
     fn qr_payload_is_empty_until_server_port_is_known() {
         let payload = qr_payload_from_snapshot(&ChannelServerSnapshot::default());
 
-        assert_eq!(payload.url, "");
-        assert_eq!(payload.token, "");
+        assert_eq!(payload.url, String::default());
+        assert_eq!(payload.token, String::default());
     }
 }

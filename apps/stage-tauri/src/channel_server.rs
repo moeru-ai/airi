@@ -41,7 +41,7 @@ impl Default for ChannelServerSnapshot {
         Self {
             hostname: DEFAULT_CHANNEL_SERVER_HOSTNAME.to_string(),
             port: None,
-            lan_hosts: Vec::new(),
+            lan_hosts: Vec::default(),
             auth_token: DEFAULT_CHANNEL_SERVER_AUTH_TOKEN.to_string(),
             last_error: None,
         }
@@ -227,18 +227,20 @@ async fn serve_connection(mut stream: TcpStream, state: ChannelServerState) -> s
 }
 
 fn discover_lan_hosts() -> Vec<String> {
-    let Ok(socket) = UdpSocket::bind(SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0)) else {
-        return Vec::new();
+    let bind_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0);
+    // deepsource: ignore - Route discovery uses UDP connect only; this is not a listening socket.
+    let Ok(socket) = UdpSocket::bind(bind_addr) else {
+        return Vec::default();
     };
     if socket.connect("8.8.8.8:80").is_err() {
-        return Vec::new();
+        return Vec::default();
     }
     let Ok(addr) = socket.local_addr() else {
-        return Vec::new();
+        return Vec::default();
     };
     let host = addr.ip();
     if host.is_loopback() || host.is_unspecified() {
-        Vec::new()
+        Vec::default()
     } else {
         vec![host.to_string()]
     }
@@ -297,7 +299,7 @@ mod tests {
         assert_eq!(preferred_qr_host(&snapshot), "192.168.1.10");
 
         let snapshot = ChannelServerSnapshot {
-            lan_hosts: Vec::new(),
+            lan_hosts: Vec::default(),
             ..snapshot
         };
         assert_eq!(preferred_qr_host(&snapshot), "localhost");
@@ -397,7 +399,7 @@ mod tests {
             .await
             .expect("writes request");
 
-        let mut response = String::new();
+        let mut response = String::default();
         stream
             .read_to_string(&mut response)
             .await
