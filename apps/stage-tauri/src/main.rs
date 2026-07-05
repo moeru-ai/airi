@@ -8,6 +8,8 @@
 // `electron_window_get_bounds` serves `eventa:invoke:electron:window:get-bounds`).
 
 mod app_lifecycle;
+#[cfg(test)]
+mod channel_server;
 mod commands;
 mod window_manager;
 
