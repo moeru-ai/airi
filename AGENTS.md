@@ -149,7 +149,11 @@ This protocol applies to **every** session — no matter how trivial the task ap
 7. For planned multi-file refactors: `jcodemunch___plan_refactoring(symbol=<>, refactor_type=...)` → returns ready-to-apply `{old_text, new_text}` blocks.
 
 ### Step 2: Delegate ONE Step
-- Use `spawn_agent` for execution.
+- In Codex sessions, delegate via CLI subagents when native subagent tools are unavailable:
+  - Premium / high-judgment task: `cd /path/to/worktree && codex exec --yolo "<prompt>"`
+  - Cheaper / mechanical task: `cd /path/to/worktree && droid exec --auto high "<prompt>"`
+  - Do not pass custom model, config, profile, sandbox, cwd, settings, or reasoning flags unless the user explicitly asks. The CLIs are already configured; pass only the prompt plus the required autonomy flag shown above.
+- If native `spawn_agent` is available in the current tool surface, it may be used instead of CLI dispatch.
 - Subagent prompt MUST contain:
   - Repo identifier: `"airi"`.
   - Exact `symbol_ids` (use outlines to find them).
