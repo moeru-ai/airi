@@ -1,12 +1,23 @@
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use tauri::{
+    menu::{MenuBuilder, MenuItemBuilder},
+    tray::TrayIconBuilder,
     AppHandle, LogicalPosition, LogicalSize, Manager, PhysicalPosition, PhysicalSize,
     WebviewWindow, WindowEvent,
 };
 
 pub(crate) const MAIN_WINDOW_LABEL: &str = "main";
+pub(crate) const TRAY_SHOW_ID: &str = "show-airi";
+pub(crate) const TRAY_QUIT_ID: &str = "quit-airi";
 const WINDOW_STATE_FILE: &str = "main-window-state.json";
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum TrayMenuAction {
+    Show,
+    Quit,
+    Ignore,
+}
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -42,6 +53,14 @@ pub(crate) fn merge_saved_state(
     fallback: PersistedMainWindowState,
 ) -> PersistedMainWindowState {
     saved.unwrap_or(fallback)
+}
+
+fn tray_menu_action(id: &str) -> TrayMenuAction {
+    match id {
+        TRAY_SHOW_ID => TrayMenuAction::Show,
+        TRAY_QUIT_ID => TrayMenuAction::Quit,
+        _ => TrayMenuAction::Ignore,
+    }
 }
 
 fn default_main_window_state() -> PersistedMainWindowState {
@@ -165,14 +184,66 @@ pub(crate) fn setup_main_window_close_persistence(app: &AppHandle) {
     };
 
     let handle = app.clone();
-    window.on_window_event(move |event| {
-        if matches!(
-            event,
-            WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed
-        ) {
+    window.on_window_event(move |event| match event {
+        WindowEvent::CloseRequested { api, .. } => {
+            api.prevent_close();
+            quit_after_persisting(&handle);
+        }
+        WindowEvent::Destroyed => {
             let _ = persist_main_window_state(&handle);
         }
+        _ => {}
     });
+}
+
+pub(crate) fn show_main_window(app: &AppHandle) -> Result<(), String> {
+    let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) else {
+        return Ok(());
+    };
+
+    if window.is_minimized().unwrap_or(false) {
+        window.unminimize().map_err(|e| e.to_string())?;
+    }
+    window.show().map_err(|e| e.to_string())?;
+    window.set_focus().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+pub(crate) fn quit_after_persisting(app: &AppHandle) {
+    let _ = persist_main_window_state(app);
+    app.exit(0);
+}
+
+pub(crate) fn setup_tray(app: &AppHandle) -> Result<(), String> {
+    let show = MenuItemBuilder::with_id(TRAY_SHOW_ID, "Show AIRI")
+        .build(app)
+        .map_err(|e| e.to_string())?;
+    let quit = MenuItemBuilder::with_id(TRAY_QUIT_ID, "Quit")
+        .build(app)
+        .map_err(|e| e.to_string())?;
+    let menu = MenuBuilder::new(app)
+        .items(&[&show, &quit])
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let mut tray = TrayIconBuilder::new()
+        .tooltip("AIRI")
+        .menu(&menu)
+        .show_menu_on_left_click(false)
+        .on_menu_event(|app, event| match tray_menu_action(event.id().as_ref()) {
+            TrayMenuAction::Show => {
+                let _ = show_main_window(app);
+            }
+            TrayMenuAction::Quit => quit_after_persisting(app),
+            TrayMenuAction::Ignore => {}
+        });
+
+    if let Some(icon) = app.default_window_icon().cloned() {
+        tray = tray.icon(icon);
+    }
+
+    tray.build(app).map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -325,5 +396,18 @@ mod tests {
                 height: 600.0,
             }
         );
+    }
+
+    #[test]
+    fn tray_menu_ids_are_stable() {
+        assert_eq!(TRAY_SHOW_ID, "show-airi");
+        assert_eq!(TRAY_QUIT_ID, "quit-airi");
+    }
+
+    #[test]
+    fn maps_tray_menu_ids_to_lifecycle_actions() {
+        assert_eq!(tray_menu_action(TRAY_SHOW_ID), TrayMenuAction::Show);
+        assert_eq!(tray_menu_action(TRAY_QUIT_ID), TrayMenuAction::Quit);
+        assert_eq!(tray_menu_action("unknown"), TrayMenuAction::Ignore);
     }
 }

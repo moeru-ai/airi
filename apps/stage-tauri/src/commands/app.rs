@@ -25,7 +25,7 @@ pub async fn electron_app_is_linux() -> bool {
 /// Quit the app
 #[tauri::command]
 pub async fn electron_app_quit(app: AppHandle) {
-    app.exit(0);
+    crate::app_lifecycle::quit_after_persisting(&app);
 }
 
 /// Open the user data folder in file manager

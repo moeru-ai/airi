@@ -35,6 +35,9 @@ fn main() {
                 eprintln!("failed to apply main window display features: {error}");
             }
             app_lifecycle::setup_main_window_close_persistence(&handle);
+            if let Err(error) = app_lifecycle::setup_tray(&handle) {
+                eprintln!("failed to setup tray: {error}");
+            }
 
             // Spawn a background task that emits window:bounds events on resize/move.
             // Broadcasting (Tauri v2 bare `emit`) is used so caption/settings widgets
