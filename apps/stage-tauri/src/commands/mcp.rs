@@ -269,7 +269,52 @@ impl McpRuntimeManager {
         path: String,
         config: &McpConfigFile,
     ) -> McpRuntimeStatus {
-        let state = self.state.lock().await;
+        let mut state = self.state.lock().await;
+        let child_names: Vec<_> = state.children.keys().cloned().collect();
+        let mut exited_children = Vec::new();
+
+        for name in child_names {
+            let Some(child) = state.children.get_mut(&name) else {
+                continue;
+            };
+
+            match child.try_wait() {
+                Ok(Some(exit_status)) => exited_children.push((name, Ok(exit_status))),
+                Ok(None) => {}
+                Err(error) => exited_children.push((
+                    name,
+                    Err(format!("failed to refresh process status: {error}")),
+                )),
+            }
+        }
+
+        if !exited_children.is_empty() {
+            for (name, exit_result) in exited_children {
+                state.children.remove(&name);
+                let Some(status) = state.statuses.get_mut(&name) else {
+                    continue;
+                };
+
+                status.pid = None;
+                match exit_result {
+                    Ok(exit_status) if exit_status.success() => {
+                        status.state = "stopped".to_string();
+                        status.last_error = None;
+                    }
+                    Ok(exit_status) => {
+                        status.state = "error".to_string();
+                        status.last_error =
+                            Some(format!("process exited unsuccessfully with {exit_status}"));
+                    }
+                    Err(error) => {
+                        status.state = "error".to_string();
+                        status.last_error = Some(error);
+                    }
+                }
+            }
+            state.updated_at = now_ms();
+        }
+
         let mut servers: Vec<_> = config
             .mcp_servers
             .iter()
@@ -294,8 +339,7 @@ impl McpRuntimeManager {
 fn now_ms() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_millis() as u64)
-        .unwrap_or(0)
+        .map_or(0, |duration| duration.as_millis() as u64)
 }
 
 pub fn mcp_config_path(app_data_dir: &Path) -> PathBuf {
@@ -459,8 +503,9 @@ pub async fn electron_mcp_list_tools(
 #[tauri::command]
 pub async fn electron_mcp_call_tool(
     name: Option<String>,
-    _arguments: Option<Value>,
+    arguments: Option<Value>,
 ) -> McpCallToolResult {
+    let _ = arguments;
     let requested_name = name.unwrap_or_else(|| "<missing>".to_string());
     McpCallToolResult {
         content: Some(vec![serde_json::json!({
@@ -584,6 +629,11 @@ mod tests {
 
     use std::fs;
     use std::path::PathBuf;
+    use std::time::Duration;
+
+    const SHELL_ENV: &str = "SHELL";
+    const TEST_ENV_KEY: &str = "A";
+    const TEST_ENV_VALUE: &str = "B";
 
     fn unique_test_dir(name: &str) -> PathBuf {
         let nanos = SystemTime::now()
@@ -591,6 +641,36 @@ mod tests {
             .expect("system clock before unix epoch")
             .as_nanos();
         std::env::temp_dir().join(format!("airi-tauri-mcp-{name}-{nanos}"))
+    }
+
+    #[cfg(windows)]
+    fn test_shell_command(script: &str) -> (String, Vec<String>) {
+        (
+            "cmd".to_string(),
+            vec!["/C".to_string(), script.to_string()],
+        )
+    }
+
+    #[cfg(not(windows))]
+    fn test_shell_command(script: &str) -> (String, Vec<String>) {
+        (
+            std::env::var(SHELL_ENV).unwrap_or_else(|_| "/bin/sh".to_string()),
+            vec!["-c".to_string(), script.to_string()],
+        )
+    }
+
+    #[cfg(windows)]
+    fn long_running_test_command() -> (String, Vec<String>) {
+        test_shell_command("ping -n 31 127.0.0.1 > NUL")
+    }
+
+    #[cfg(not(windows))]
+    fn long_running_test_command() -> (String, Vec<String>) {
+        test_shell_command("sleep 30")
+    }
+
+    fn immediately_successful_test_command() -> (String, Vec<String>) {
+        test_shell_command("exit 0")
     }
 
     #[test]
@@ -606,14 +686,17 @@ mod tests {
 
     #[test]
     fn parses_disabled_and_enabled_servers_from_mcp_servers() {
-        let config = parse_mcp_config_text(
-            r#"{
-              "mcpServers": {
-                "disabled": { "command": "node", "args": ["server.js"], "enabled": false },
-                "enabled": { "command": "python", "args": ["-m", "example"], "env": { "A": "B" }, "cwd": "/tmp" }
-              }
-            }"#,
-        )
+        let cwd = unique_test_dir("parse-cwd").display().to_string();
+        let cwd_json = serde_json::to_string(&cwd).expect("cwd should serialize");
+
+        let config = parse_mcp_config_text(&format!(
+            r#"{{
+              "mcpServers": {{
+                "disabled": {{ "command": "node", "args": ["server.js"], "enabled": false }},
+                "enabled": {{ "command": "python", "args": ["-m", "example"], "env": {{ "{TEST_ENV_KEY}": "{TEST_ENV_VALUE}" }}, "cwd": {cwd_json} }}
+              }}
+            }}"#,
+        ))
         .expect("valid config should parse");
 
         assert_eq!(config.mcp_servers["disabled"].enabled, Some(false));
@@ -626,10 +709,13 @@ mod tests {
             config.mcp_servers["enabled"]
                 .env
                 .as_ref()
-                .and_then(|env| env.get("A")),
-            Some(&"B".to_string()),
+                .and_then(|env| env.get(TEST_ENV_KEY)),
+            Some(&TEST_ENV_VALUE.to_string()),
         );
-        assert_eq!(config.mcp_servers["enabled"].cwd.as_deref(), Some("/tmp"));
+        assert_eq!(
+            config.mcp_servers["enabled"].cwd.as_deref(),
+            Some(cwd.as_str())
+        );
     }
 
     #[tokio::test]
@@ -664,16 +750,18 @@ mod tests {
     #[tokio::test]
     async fn apply_and_restart_records_started_failed_and_skipped_servers() {
         let app_data_dir = unique_test_dir("apply");
-        let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
+        let (command, args) = long_running_test_command();
+        let command_json = serde_json::to_string(&command).expect("command should serialize");
+        let args_json = serde_json::to_string(&args).expect("args should serialize");
         fs::create_dir_all(&app_data_dir).expect("test dir should be created");
         fs::write(
             mcp_config_path(&app_data_dir),
             format!(
                 r#"{{
                   "mcpServers": {{
-                    "started": {{ "command": "{shell}", "args": ["-c", "sleep 30"] }},
+                    "started": {{ "command": {command_json}, "args": {args_json} }},
                     "failed": {{ "command": "__airi_missing_mcp_command__" }},
-                    "skipped": {{ "command": "{shell}", "enabled": false }}
+                    "skipped": {{ "command": {command_json}, "enabled": false }}
                   }}
                 }}"#,
             ),
@@ -745,6 +833,51 @@ mod tests {
 
         runtime.stop_all().await;
         fs::remove_dir_all(&app_data_dir).expect("test dir should clean up");
+    }
+
+    #[tokio::test]
+    async fn status_for_config_reaps_immediately_exited_successful_child() {
+        let (command, args) = immediately_successful_test_command();
+        let mut mcp_servers = HashMap::new();
+        mcp_servers.insert(
+            "quick".to_string(),
+            McpStdioServerConfig {
+                command,
+                args: Some(args),
+                env: None,
+                cwd: None,
+                enabled: None,
+            },
+        );
+        let config = McpConfigFile { mcp_servers };
+        let runtime = McpRuntimeManager::default();
+
+        runtime
+            .start_server("quick", &config.mcp_servers["quick"])
+            .await
+            .expect("quick command should start");
+
+        let mut status = runtime
+            .status_for_config("mcp.json".to_string(), &config)
+            .await;
+        for _ in 0..20 {
+            if status.servers[0].state != "running" {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(25)).await;
+            status = runtime
+                .status_for_config("mcp.json".to_string(), &config)
+                .await;
+        }
+
+        let quick = &status.servers[0];
+        assert_eq!(quick.name, "quick");
+        assert_eq!(quick.state, "stopped");
+        assert_eq!(quick.pid, None);
+        assert_eq!(quick.last_error, None);
+
+        let state = runtime.state.lock().await;
+        assert!(!state.children.contains_key("quick"));
     }
 
     #[tokio::test]
