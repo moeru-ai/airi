@@ -1,7 +1,7 @@
 use serde::Serialize;
 use std::fmt::Write;
 use tauri::{
-    AppHandle, LogicalPosition, Manager, Monitor, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
+    AppHandle, Manager, Monitor, PhysicalPosition, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -51,6 +51,20 @@ pub(crate) struct LogicalDisplayBounds {
 pub(crate) struct LogicalWindowPosition {
     pub(crate) x: f64,
     pub(crate) y: f64,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct PhysicalDisplayBounds {
+    pub(crate) x: i32,
+    pub(crate) y: i32,
+    pub(crate) width: u32,
+    pub(crate) height: u32,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct PhysicalWindowPosition {
+    pub(crate) x: i32,
+    pub(crate) y: i32,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -321,6 +335,16 @@ fn monitor_work_area_bounds(monitor: &Monitor) -> LogicalDisplayBounds {
     }
 }
 
+fn monitor_work_area_physical_bounds(monitor: &Monitor) -> PhysicalDisplayBounds {
+    let work_area = monitor.work_area();
+    PhysicalDisplayBounds {
+        x: work_area.position.x,
+        y: work_area.position.y,
+        width: work_area.size.width,
+        height: work_area.size.height,
+    }
+}
+
 fn center_window_position(
     width: f64,
     height: f64,
@@ -329,6 +353,20 @@ fn center_window_position(
     LogicalWindowPosition {
         x: display.x + ((display.width - width).max(0.0) / 2.0),
         y: display.y + ((display.height - height).max(0.0) / 2.0),
+    }
+}
+
+fn center_physical_window_position(
+    width: u32,
+    height: u32,
+    display: PhysicalDisplayBounds,
+) -> PhysicalWindowPosition {
+    let x_offset = display.width.saturating_sub(width) / 2;
+    let y_offset = display.height.saturating_sub(height) / 2;
+
+    PhysicalWindowPosition {
+        x: display.x + x_offset as i32,
+        y: display.y + y_offset as i32,
     }
 }
 
@@ -349,6 +387,17 @@ pub(crate) fn resolve_initial_window_position(
     }
 
     InitialWindowPosition::TauriCenter
+}
+
+fn target_display_for_initial_position(
+    explicit_position: Option<(f64, f64)>,
+    lookup_target_display: impl FnOnce() -> Result<Option<LogicalDisplayBounds>, String>,
+) -> Result<Option<LogicalDisplayBounds>, String> {
+    if explicit_position.is_some() {
+        return Ok(None);
+    }
+
+    lookup_target_display()
 }
 
 fn target_display_for_new_window(app: &AppHandle) -> Result<Option<LogicalDisplayBounds>, String> {
@@ -404,15 +453,14 @@ pub(crate) fn apply_main_window_display_features(app: &AppHandle) -> Result<(), 
         return Ok(());
     };
 
-    let scale_factor = window.scale_factor().map_err(|e| e.to_string())?;
-    let size = window
-        .outer_size()
-        .map_err(|e| e.to_string())?
-        .to_logical::<f64>(scale_factor);
-    let position =
-        center_window_position(size.width, size.height, monitor_work_area_bounds(&monitor));
+    let size = window.outer_size().map_err(|e| e.to_string())?;
+    let position = center_physical_window_position(
+        size.width,
+        size.height,
+        monitor_work_area_physical_bounds(&monitor),
+    );
     window
-        .set_position(LogicalPosition::new(position.x, position.y))
+        .set_position(PhysicalPosition::new(position.x, position.y))
         .map_err(|e| e.to_string())
 }
 
@@ -471,14 +519,13 @@ pub(crate) fn open_managed_window(
         builder = builder.min_inner_size(min_width, min_height);
     }
 
+    let explicit_position = options.x.zip(options.y);
+    let target_display = target_display_for_initial_position(explicit_position, || {
+        target_display_for_new_window(app)
+    })?;
     builder = apply_initial_window_position(
         builder,
-        resolve_initial_window_position(
-            width,
-            height,
-            options.x.zip(options.y),
-            target_display_for_new_window(app)?,
-        ),
+        resolve_initial_window_position(width, height, explicit_position, target_display),
     );
 
     let window = builder.build().map_err(|e| e.to_string())?;
@@ -642,6 +689,31 @@ mod tests {
         assert_eq!(
             resolve_initial_window_position(480.0, 720.0, Some((64.0, 96.0)), Some(display)),
             InitialWindowPosition::Explicit(LogicalWindowPosition { x: 64.0, y: 96.0 })
+        );
+    }
+
+    #[test]
+    fn explicit_coordinates_do_not_require_display_lookup() {
+        let target_display = target_display_for_initial_position(Some((64.0, 96.0)), || {
+            Err("monitor lookup failed".to_string())
+        })
+        .unwrap();
+
+        assert_eq!(target_display, None);
+    }
+
+    #[test]
+    fn centered_main_window_position_uses_target_display_physical_coordinates() {
+        let display = PhysicalDisplayBounds {
+            x: 3840,
+            y: 240,
+            width: 2560,
+            height: 1440,
+        };
+
+        assert_eq!(
+            center_physical_window_position(480, 720, display),
+            PhysicalWindowPosition { x: 4880, y: 600 }
         );
     }
 
