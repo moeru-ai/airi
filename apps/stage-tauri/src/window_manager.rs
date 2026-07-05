@@ -1,6 +1,8 @@
 use serde::Serialize;
 use std::fmt::Write;
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use tauri::{
+    AppHandle, Manager, Monitor, PhysicalPosition, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct ManagedWindowSpec {
@@ -35,6 +37,41 @@ pub(crate) struct OpenedManagedWindow {
     pub(crate) label: String,
     pub(crate) route: String,
     pub(crate) reused: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct LogicalDisplayBounds {
+    pub(crate) x: f64,
+    pub(crate) y: f64,
+    pub(crate) width: f64,
+    pub(crate) height: f64,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct LogicalWindowPosition {
+    pub(crate) x: f64,
+    pub(crate) y: f64,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct PhysicalDisplayBounds {
+    pub(crate) x: i32,
+    pub(crate) y: i32,
+    pub(crate) width: u32,
+    pub(crate) height: u32,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct PhysicalWindowPosition {
+    pub(crate) x: i32,
+    pub(crate) y: i32,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) enum InitialWindowPosition {
+    Explicit(LogicalWindowPosition),
+    DisplayCentered(LogicalWindowPosition),
+    TauriCenter,
 }
 
 const MANAGED_WINDOW_SPECS: &[ManagedWindowSpec] = &[
@@ -281,6 +318,152 @@ fn app_url() -> WebviewUrl {
     WebviewUrl::App("index.html".into())
 }
 
+fn monitor_work_area_bounds(monitor: &Monitor) -> LogicalDisplayBounds {
+    let work_area = monitor.work_area();
+    let scale_factor = monitor.scale_factor();
+    let scale_factor = if scale_factor > 0.0 {
+        scale_factor
+    } else {
+        1.0
+    };
+
+    LogicalDisplayBounds {
+        x: work_area.position.x as f64 / scale_factor,
+        y: work_area.position.y as f64 / scale_factor,
+        width: work_area.size.width as f64 / scale_factor,
+        height: work_area.size.height as f64 / scale_factor,
+    }
+}
+
+fn monitor_work_area_physical_bounds(monitor: &Monitor) -> PhysicalDisplayBounds {
+    let work_area = monitor.work_area();
+    PhysicalDisplayBounds {
+        x: work_area.position.x,
+        y: work_area.position.y,
+        width: work_area.size.width,
+        height: work_area.size.height,
+    }
+}
+
+fn center_window_position(
+    width: f64,
+    height: f64,
+    display: LogicalDisplayBounds,
+) -> LogicalWindowPosition {
+    LogicalWindowPosition {
+        x: display.x + ((display.width - width).max(0.0) / 2.0),
+        y: display.y + ((display.height - height).max(0.0) / 2.0),
+    }
+}
+
+fn center_physical_window_position(
+    width: u32,
+    height: u32,
+    display: PhysicalDisplayBounds,
+) -> PhysicalWindowPosition {
+    let x_offset = display.width.saturating_sub(width) / 2;
+    let y_offset = display.height.saturating_sub(height) / 2;
+
+    PhysicalWindowPosition {
+        x: display.x + x_offset as i32,
+        y: display.y + y_offset as i32,
+    }
+}
+
+pub(crate) fn resolve_initial_window_position(
+    width: f64,
+    height: f64,
+    explicit_position: Option<(f64, f64)>,
+    target_display: Option<LogicalDisplayBounds>,
+) -> InitialWindowPosition {
+    if let Some((x, y)) = explicit_position {
+        return InitialWindowPosition::Explicit(LogicalWindowPosition { x, y });
+    }
+
+    if let Some(display) = target_display {
+        return InitialWindowPosition::DisplayCentered(center_window_position(
+            width, height, display,
+        ));
+    }
+
+    InitialWindowPosition::TauriCenter
+}
+
+fn target_display_for_initial_position(
+    explicit_position: Option<(f64, f64)>,
+    lookup_target_display: impl FnOnce() -> Result<Option<LogicalDisplayBounds>, String>,
+) -> Result<Option<LogicalDisplayBounds>, String> {
+    if explicit_position.is_some() {
+        return Ok(None);
+    }
+
+    lookup_target_display()
+}
+
+fn target_display_for_new_window(app: &AppHandle) -> Result<Option<LogicalDisplayBounds>, String> {
+    if let Some(main_window) = app.get_webview_window("main") {
+        if let Some(monitor) = main_window.current_monitor().map_err(|e| e.to_string())? {
+            return Ok(Some(monitor_work_area_bounds(&monitor)));
+        }
+    }
+
+    let cursor = match app.cursor_position() {
+        Ok(cursor) => cursor,
+        Err(_) => return Ok(None),
+    };
+
+    Ok(app
+        .monitor_from_point(cursor.x, cursor.y)
+        .map_err(|e| e.to_string())?
+        .map(|monitor| monitor_work_area_bounds(&monitor)))
+}
+
+fn apply_initial_window_position<'a, R, M>(
+    builder: WebviewWindowBuilder<'a, R, M>,
+    position: InitialWindowPosition,
+) -> WebviewWindowBuilder<'a, R, M>
+where
+    R: tauri::Runtime,
+    M: Manager<R>,
+{
+    match position {
+        InitialWindowPosition::Explicit(position)
+        | InitialWindowPosition::DisplayCentered(position) => {
+            builder.position(position.x, position.y)
+        }
+        InitialWindowPosition::TauriCenter => builder.center(),
+    }
+}
+
+pub(crate) fn apply_main_window_display_features(app: &AppHandle) -> Result<(), String> {
+    let Some(window) = app.get_webview_window("main") else {
+        return Ok(());
+    };
+
+    window.set_always_on_top(true).map_err(|e| e.to_string())?;
+
+    let cursor = match app.cursor_position() {
+        Ok(cursor) => cursor,
+        Err(_) => return Ok(()),
+    };
+    let Some(monitor) = app
+        .monitor_from_point(cursor.x, cursor.y)
+        .map_err(|e| e.to_string())?
+    else {
+        return Ok(());
+    };
+
+    let size = window.outer_size().map_err(|e| e.to_string())?;
+    let position = center_physical_window_position(
+        size.width,
+        size.height,
+        monitor_work_area_physical_bounds(&monitor),
+    );
+    window
+        .set_position(PhysicalPosition::new(position.x, position.y))
+        .map_err(|e| e.to_string())
+}
+
 fn route_initialization_script(route: &str) -> Result<String, String> {
     let hash = format!("#{route}");
     let hash_literal = serde_json::to_string(&hash).map_err(|e| e.to_string())?;
@@ -336,11 +519,14 @@ pub(crate) fn open_managed_window(
         builder = builder.min_inner_size(min_width, min_height);
     }
 
-    if let (Some(x), Some(y)) = (options.x, options.y) {
-        builder = builder.position(x, y);
-    } else {
-        builder = builder.center();
-    }
+    let explicit_position = options.x.zip(options.y);
+    let target_display = target_display_for_initial_position(explicit_position, || {
+        target_display_for_new_window(app)
+    })?;
+    builder = apply_initial_window_position(
+        builder,
+        resolve_initial_window_position(width, height, explicit_position, target_display),
+    );
 
     let window = builder.build().map_err(|e| e.to_string())?;
     window.show().map_err(|e| e.to_string())?;
@@ -488,6 +674,87 @@ mod tests {
         assert_ne!(
             stable_child_label("widgets", "a/"),
             stable_child_label("widgets", "a-2f")
+        );
+    }
+
+    #[test]
+    fn explicit_coordinates_take_precedence_over_display_centering() {
+        let display = LogicalDisplayBounds {
+            x: 1920.0,
+            y: 0.0,
+            width: 1440.0,
+            height: 900.0,
+        };
+
+        assert_eq!(
+            resolve_initial_window_position(480.0, 720.0, Some((64.0, 96.0)), Some(display)),
+            InitialWindowPosition::Explicit(LogicalWindowPosition { x: 64.0, y: 96.0 })
+        );
+    }
+
+    #[test]
+    fn explicit_coordinates_do_not_require_display_lookup() {
+        let target_display = target_display_for_initial_position(Some((64.0, 96.0)), || {
+            Err("monitor lookup failed".to_string())
+        })
+        .unwrap();
+
+        assert_eq!(target_display, None);
+    }
+
+    #[test]
+    fn centered_main_window_position_uses_target_display_physical_coordinates() {
+        let display = PhysicalDisplayBounds {
+            x: 3840,
+            y: 240,
+            width: 2560,
+            height: 1440,
+        };
+
+        assert_eq!(
+            center_physical_window_position(480, 720, display),
+            PhysicalWindowPosition { x: 4880, y: 600 }
+        );
+    }
+
+    #[test]
+    fn centers_default_window_position_on_target_display() {
+        let display = LogicalDisplayBounds {
+            x: 1920.0,
+            y: 0.0,
+            width: 1440.0,
+            height: 900.0,
+        };
+
+        assert_eq!(
+            resolve_initial_window_position(480.0, 720.0, None, Some(display)),
+            InitialWindowPosition::DisplayCentered(LogicalWindowPosition { x: 2400.0, y: 90.0 })
+        );
+    }
+
+    #[test]
+    fn keeps_oversized_windows_inside_target_display_origin() {
+        let display = LogicalDisplayBounds {
+            x: -1600.0,
+            y: 32.0,
+            width: 320.0,
+            height: 240.0,
+        };
+
+        assert_eq!(
+            resolve_initial_window_position(480.0, 720.0, None, Some(display)),
+            InitialWindowPosition::DisplayCentered(LogicalWindowPosition {
+                x: -1600.0,
+                y: 32.0
+            })
+        );
+    }
+
+    #[test]
+    fn falls_back_to_tauri_center_without_target_display() {
+        assert_eq!(
+            resolve_initial_window_position(480.0, 720.0, None, None),
+            InitialWindowPosition::TauriCenter
         );
     }
 }

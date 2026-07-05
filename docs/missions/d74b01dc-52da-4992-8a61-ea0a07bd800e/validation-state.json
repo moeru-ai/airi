@@ -130,10 +130,35 @@
       "runtimeEvidenceStatus": "pending"
     },
     "VAL-TAURI-WIN-003": {
-      "status": "pending"
+      "status": "implementation-complete-runtime-evidence-pending",
+      "featureId": "window-display-features",
+      "commitId": "5ae07591b",
+      "updatedAt": "2026-07-05T00:05:29.173Z",
+      "evidence": [
+        "apps/stage-tauri/tauri.conf.json already sets the main window alwaysOnTop:true.",
+        "apps/stage-tauri/src/window_manager.rs now reapplies set_always_on_top(true) during Tauri setup.",
+        "cargo test, cargo build, cargo fmt --check, git diff --check, and stage-tauri typecheck passed."
+      ],
+      "remainingEvidence": [
+        "Manual screenshot showing AIRI overlapping another application was not captured in this session."
+      ],
+      "runtimeEvidenceStatus": "pending"
     },
     "VAL-TAURI-WIN-004": {
-      "status": "pending"
+      "status": "implementation-complete-runtime-evidence-pending",
+      "featureId": "window-display-features",
+      "commitId": "5ae07591b",
+      "updatedAt": "2026-07-05T00:05:29.173Z",
+      "evidence": [
+        "Main window startup now centers the floating window on the monitor under the cursor using Tauri monitor_from_point/cursor_position.",
+        "Managed windows without explicit coordinates now center on the main/current monitor instead of Tauri global center().",
+        "screen get-all-displays/get-primary-display/get-cursor-screen-point now use Tauri monitor/cursor APIs instead of a fake primary display.",
+        "Rust unit tests cover display-centered placement, explicit-coordinate precedence, oversized-window origin clamping, and physical-to-logical monitor conversion."
+      ],
+      "remainingEvidence": [
+        "Manual multi-display screenshot was not captured in this session."
+      ],
+      "runtimeEvidenceStatus": "pending"
     }
   }
 }

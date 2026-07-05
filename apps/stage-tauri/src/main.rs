@@ -23,6 +23,10 @@ fn main() {
         .manage(commands::widgets::new_widget_registry())
         .setup(|app| {
             let handle = app.handle().clone();
+            if let Err(error) = window_manager::apply_main_window_display_features(&handle) {
+                eprintln!("failed to apply main window display features: {error}");
+            }
+
             // Spawn a background task that emits window:bounds events on resize/move.
             // Broadcasting (Tauri v2 bare `emit`) is used so caption/settings widgets
             // observe the same bounds events as the main window.

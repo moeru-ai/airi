@@ -3,13 +3,13 @@
   "state": "orchestrator_turn",
   "workingDirectory": "/home/vi/anima",
   "createdAt": "2026-07-03T13:04:45.737Z",
-  "updatedAt": "2026-07-04T22:49:55.928Z",
-  "lastReviewedHandoffCount": 9,
+  "updatedAt": "2026-07-05T00:56:04.786Z",
+  "lastReviewedHandoffCount": 10,
   "orchestrator": {
     "current": "codex",
-    "note": "PR #68 multi-window-creation merged into main at merge commit 39cf225a3dbbbd030e1193b1f8dd4b8285ec3ffa after user explicitly instructed to yolo merge despite red external checks. Local main fast-forwarded to origin/main. Continue window-display-features next."
+    "note": "PR #69 DeepSource lint follow-up committed in dd052a3d1 after prior review fixes: screen display Option map/unwrap patterns now satisfy local clippy map_unwrap_or. Targeted Rust/build/typecheck checks pass; stage-tauri build still stalls in the external Cubism SDK download hook. Merge PR #69 when only documented external/pre-existing checks remain, then continue app-lifecycle-persistence."
   },
   "missionDirectory": "/home/vi/anima/docs/missions/d74b01dc-52da-4992-8a61-ea0a07bd800e",
   "migratedFrom": "/home/vi/.factory/missions/d74b01dc-52da-4992-8a61-ea0a07bd800e",
-  "currentFeatureId": "window-display-features"
+  "currentFeatureId": "app-lifecycle-persistence"
 }
