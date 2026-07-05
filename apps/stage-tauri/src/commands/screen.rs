@@ -51,12 +51,10 @@ fn display_from_physical_monitor(
     let display_number = index + 1;
     let id = name
         .filter(|name| !name.is_empty())
-        .map(ToString::to_string)
-        .unwrap_or_else(|| format!("display-{index}-{x}-{y}"));
+        .map_or_else(|| format!("display-{index}-{x}-{y}"), ToString::to_string);
     let label = name
         .filter(|name| !name.is_empty())
-        .map(ToString::to_string)
-        .unwrap_or_else(|| format!("Display {display_number}"));
+        .map_or_else(|| format!("Display {display_number}"), ToString::to_string);
 
     Display {
         id,
@@ -167,8 +165,7 @@ pub async fn electron_screen_get_cursor_screen_point(
     let scale_factor = window
         .monitor_from_point(cursor.x, cursor.y)
         .map_err(|e| e.to_string())?
-        .map(|monitor| monitor.scale_factor())
-        .unwrap_or(1.0);
+        .map_or(1.0, |monitor| monitor.scale_factor());
 
     Ok(Point {
         x: logical_i32(cursor.x, scale_factor),
