@@ -149,11 +149,13 @@ This protocol applies to **every** session — no matter how trivial the task ap
 7. For planned multi-file refactors: `jcodemunch___plan_refactoring(symbol=<>, refactor_type=...)` → returns ready-to-apply `{old_text, new_text}` blocks.
 
 ### Step 2: Delegate ONE Step
-- In Codex sessions, delegate via CLI subagents when native subagent tools are unavailable:
-  - Premium / high-judgment task: `cd /path/to/worktree && codex exec --yolo "<prompt>"`
-  - Cheaper / mechanical task: `cd /path/to/worktree && droid exec --auto high "<prompt>"`
-  - Do not pass custom model, config, profile, sandbox, cwd, settings, or reasoning flags unless the user explicitly asks. The CLIs are already configured; pass only the prompt plus the required autonomy flag shown above.
-- If native `spawn_agent` is available in the current tool surface, it may be used instead of CLI dispatch.
+- Prefer asynchronous subagent execution when steps are independent and write-conflict safe. Do not run concurrent writers against the same file, lockfile, mission ledger, git index, or other serialization point.
+- If concurrent implementation needs write access, prefer separate task worktrees and merge results deliberately after review.
+- Dispatch with the first available mechanism:
+  1. Use the agent runtime's native/internal subagent spawn tool when one is available. Do not call `codex exec` when native subagent dispatch exists.
+  2. If no native/internal subagent spawn tool is available, use `codex exec --yolo "<prompt>"`. This Codex CLI path is the only approved CLI fallback for subagent work.
+- Do not call `droid exec` for subagent dispatch.
+- Do not pass custom model/config/profile/sandbox/cwd/settings/reasoning flags unless the user explicitly asks.
 - Subagent prompt MUST contain:
   - Repo identifier: `"airi"`.
   - Exact `symbol_ids` (use outlines to find them).
