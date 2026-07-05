@@ -24,7 +24,19 @@
       "runtimeEvidenceStatus": "pending"
     },
     "VAL-CROSS-003": {
-      "status": "pending"
+      "status": "implementation-complete-runtime-evidence-pending",
+      "featureId": "channel-server-health",
+      "commitId": "7e8262aee",
+      "updatedAt": "2026-07-05T03:57:13.894Z",
+      "evidence": [
+        "Channel server startup binds to 0.0.0.0 by default on a dynamic OS-selected port outside the reserved 3100..=3199 range.",
+        "ChannelServerState records LAN host candidates for QR/config consumers.",
+        "cargo test --manifest-path apps/stage-tauri/Cargo.toml channel_server verifies the async TCP server returns HTTP 200 JSON on /health."
+      ],
+      "remainingEvidence": [
+        "A second-machine curl to http://<LAN-IP>:<port>/health was not captured in this CLI run."
+      ],
+      "runtimeEvidenceStatus": "pending"
     },
     "VAL-CROSS-004": {
       "status": "implementation-complete-runtime-evidence-pending",
@@ -105,7 +117,20 @@
       "status": "pending"
     },
     "VAL-TAURI-SRV-001": {
-      "status": "pending"
+      "status": "implementation-complete-runtime-evidence-pending",
+      "featureId": "channel-server-health",
+      "commitId": "7e8262aee",
+      "updatedAt": "2026-07-05T03:57:13.894Z",
+      "evidence": [
+        "Tauri setup manages ChannelServerState and spawns start_channel_server with tauri::async_runtime::spawn.",
+        "The channel server uses tokio::net::TcpListener on a dynamic non-reserved port and serves GET/HEAD /health.",
+        "cargo test --manifest-path apps/stage-tauri/Cargo.toml channel_server covers reserved port detection, URL formatting, health JSON, HTTP status handling, shared state snapshots, accept-error continuation, split request-line reads, and async TCP /health requests returning HTTP 200 JSON.",
+        "cargo test --manifest-path apps/stage-tauri/Cargo.toml passed with 43 Rust tests."
+      ],
+      "remainingEvidence": [
+        "Runtime curl -i http://localhost:<port>/health from a launched desktop app was not captured in this CLI run."
+      ],
+      "runtimeEvidenceStatus": "pending"
     },
     "VAL-TAURI-SRV-002": {
       "status": "pending"
