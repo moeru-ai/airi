@@ -216,10 +216,7 @@ async fn bind_channel_listener(config: &ChannelServerConfig) -> std::io::Result<
     }
 }
 
-async fn serve_connection(
-    mut stream: TcpStream,
-    state: ChannelServerState,
-) -> std::io::Result<()> {
+async fn serve_connection(mut stream: TcpStream, state: ChannelServerState) -> std::io::Result<()> {
     let mut buffer = vec![0_u8; 8192];
     let bytes_read = stream.read(&mut buffer).await?;
     let request = String::from_utf8_lossy(&buffer[..bytes_read]);

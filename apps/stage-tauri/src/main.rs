@@ -8,7 +8,6 @@
 // `electron_window_get_bounds` serves `eventa:invoke:electron:window:get-bounds`).
 
 mod app_lifecycle;
-#[cfg(test)]
 mod channel_server;
 mod commands;
 mod window_manager;
@@ -21,11 +20,28 @@ const CURSOR_SCREEN_POINT_EVENT: &str = "electron:screen:cursor-screen-point";
 const AUTO_UPDATER_STATE_CHANGED_EVENT: &str = "electron:auto-updater:state-changed";
 
 fn main() {
+    let channel_server_state = channel_server::ChannelServerState::default();
+
     tauri::Builder::default()
+        .manage(channel_server_state.clone())
         .manage(commands::notice::new_notice_registry())
         .manage(commands::widgets::new_widget_registry())
-        .setup(|app| {
+        .setup(move |app| {
             let handle = app.handle().clone();
+            {
+                let state = channel_server_state.clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(error) = channel_server::start_channel_server(
+                        state,
+                        channel_server::ChannelServerConfig::default(),
+                    )
+                    .await
+                    {
+                        eprintln!("failed to start channel server: {error}");
+                    }
+                });
+            }
+
             let restored = app_lifecycle::restore_main_window_state(&handle).unwrap_or(false);
             if restored {
                 if let Some(window) = handle.get_webview_window(app_lifecycle::MAIN_WINDOW_LABEL) {
