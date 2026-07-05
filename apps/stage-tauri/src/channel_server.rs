@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, UdpSocket};
 use std::sync::{Arc, Mutex};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::{TcpListener, TcpStream};
 
 pub const DEFAULT_CHANNEL_SERVER_HOSTNAME: &str = "0.0.0.0";
 pub const DEFAULT_CHANNEL_SERVER_AUTH_TOKEN: &str = "placeholder-token";
@@ -23,7 +26,7 @@ impl Default for ChannelServerConfig {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ChannelServerSnapshot {
     pub hostname: String,
@@ -31,6 +34,18 @@ pub struct ChannelServerSnapshot {
     pub lan_hosts: Vec<String>,
     pub auth_token: String,
     pub last_error: Option<String>,
+}
+
+impl Default for ChannelServerSnapshot {
+    fn default() -> Self {
+        Self {
+            hostname: DEFAULT_CHANNEL_SERVER_HOSTNAME.to_string(),
+            port: None,
+            lan_hosts: Vec::new(),
+            auth_token: DEFAULT_CHANNEL_SERVER_AUTH_TOKEN.to_string(),
+            last_error: None,
+        }
+    }
 }
 
 #[derive(Clone, Default)]
@@ -143,10 +158,93 @@ pub fn handle_http_request(request: &str, snapshot: &ChannelServerSnapshot) -> V
 }
 
 pub async fn start_channel_server(
-    _state: ChannelServerState,
-    _config: ChannelServerConfig,
+    state: ChannelServerState,
+    config: ChannelServerConfig,
 ) -> Result<(), String> {
-    Ok(())
+    let listener = bind_channel_listener(&config).await.map_err(|error| {
+        let message = error.to_string();
+        state.record_error(message.clone());
+        message
+    })?;
+
+    let local_addr = listener.local_addr().map_err(|error| {
+        let message = error.to_string();
+        state.record_error(message.clone());
+        message
+    })?;
+    let port = local_addr.port();
+    let lan_hosts = discover_lan_hosts();
+    state.record_started(
+        config.hostname.clone(),
+        port,
+        lan_hosts,
+        config.auth_token.clone(),
+    );
+
+    loop {
+        let (stream, _) = listener.accept().await.map_err(|error| {
+            let message = error.to_string();
+            state.record_error(message.clone());
+            message
+        })?;
+        let connection_state = state.clone();
+        tokio::spawn(async move {
+            if let Err(error) = serve_connection(stream, connection_state).await {
+                eprintln!("channel server connection failed: {error}");
+            }
+        });
+    }
+}
+
+async fn bind_channel_listener(config: &ChannelServerConfig) -> std::io::Result<TcpListener> {
+    if let Some(port) = config.port {
+        if is_reserved_channel_port(port) {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!("channel server port {port} is reserved"),
+            ));
+        }
+        return TcpListener::bind((config.hostname.as_str(), port)).await;
+    }
+
+    loop {
+        let listener = TcpListener::bind((config.hostname.as_str(), 0)).await?;
+        let port = listener.local_addr()?.port();
+        if !is_reserved_channel_port(port) {
+            return Ok(listener);
+        }
+    }
+}
+
+async fn serve_connection(
+    mut stream: TcpStream,
+    state: ChannelServerState,
+) -> std::io::Result<()> {
+    let mut buffer = vec![0_u8; 8192];
+    let bytes_read = stream.read(&mut buffer).await?;
+    let request = String::from_utf8_lossy(&buffer[..bytes_read]);
+    let snapshot = state.snapshot();
+    let response = handle_http_request(&request, &snapshot);
+    stream.write_all(&response).await?;
+    stream.shutdown().await
+}
+
+fn discover_lan_hosts() -> Vec<String> {
+    let Ok(socket) = UdpSocket::bind(SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0)) else {
+        return Vec::new();
+    };
+    if socket.connect("8.8.8.8:80").is_err() {
+        return Vec::new();
+    }
+    let Ok(addr) = socket.local_addr() else {
+        return Vec::new();
+    };
+    let host = addr.ip();
+    if host.is_loopback() || host.is_unspecified() {
+        Vec::new()
+    } else {
+        vec![host.to_string()]
+    }
 }
 
 #[cfg(test)]
@@ -270,5 +368,58 @@ mod tests {
 
         state.record_error("bind failed");
         assert_eq!(state.snapshot().last_error.as_deref(), Some("bind failed"));
+    }
+
+    #[tokio::test]
+    async fn serves_health_over_tcp_on_dynamic_port() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        use tokio::net::TcpStream;
+
+        let state = ChannelServerState::default();
+        let server_state = state.clone();
+        let task = tokio::spawn(async move {
+            start_channel_server(
+                server_state,
+                ChannelServerConfig {
+                    hostname: "127.0.0.1".to_string(),
+                    auth_token: "test-token".to_string(),
+                    port: None,
+                },
+            )
+            .await
+        });
+
+        let port = wait_for_started_port(&state).await;
+        assert!(!is_reserved_channel_port(port));
+
+        let mut stream = TcpStream::connect(("127.0.0.1", port))
+            .await
+            .expect("connects to channel server");
+        stream
+            .write_all(b"GET /health HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            .await
+            .expect("writes request");
+
+        let mut response = String::new();
+        stream
+            .read_to_string(&mut response)
+            .await
+            .expect("reads response");
+
+        assert!(response.starts_with("HTTP/1.1 200 OK\r\n"));
+        assert!(response.contains("\"status\":\"ok\""));
+        assert!(response.contains("\"port\":"));
+
+        task.abort();
+    }
+
+    async fn wait_for_started_port(state: &ChannelServerState) -> u16 {
+        for _ in 0..100 {
+            if let Some(port) = state.snapshot().port {
+                return port;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+        panic!("channel server did not start");
     }
 }
