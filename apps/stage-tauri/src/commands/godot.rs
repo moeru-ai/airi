@@ -2,10 +2,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter, State};
 
+const AIRI_GODOT_STAGE_PATH_ENV: &str = "AIRI_GODOT_STAGE_PATH";
+const GODOT4_ENV: &str = "GODOT4";
 const GODOT_STAGE_STATUS_CHANGED_EVENT: &str = "electron:godot-stage:status-changed";
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -13,6 +15,7 @@ const GODOT_STAGE_STATUS_CHANGED_EVENT: &str = "electron:godot-stage:status-chan
 pub struct GodotStageStatus {
     pub state: GodotStageState,
     pub pid: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub last_error: Option<String>,
     pub updated_at: u64,
 }
@@ -38,7 +41,7 @@ pub struct GodotStageResolvedSidecar {
     pub mode: GodotStageLaunchMode,
 }
 
-struct GodotStageController {
+pub struct GodotStageController {
     app_data_dir: PathBuf,
     inner: Mutex<GodotStageControllerInner>,
 }
@@ -105,7 +108,7 @@ impl GodotStageStatus {
 }
 
 impl GodotStageController {
-    fn new(app_data_dir: PathBuf) -> Self {
+    pub fn new(app_data_dir: PathBuf) -> Self {
         Self {
             app_data_dir,
             inner: Mutex::new(GodotStageControllerInner {
@@ -186,13 +189,7 @@ impl GodotStageControllerInner {
                     "Godot stage exited unexpectedly with status {exit_status}."
                 ));
             }
-            Ok(None) => {
-                if matches!(self.status.state, GodotStageState::Booting) {
-                    if let Some(pid) = self.status.pid {
-                        self.status = GodotStageStatus::ready(pid);
-                    }
-                }
-            }
+            Ok(None) => {}
             Err(error) => {
                 self.child = None;
                 self.status = GodotStageStatus::degraded(format!(
@@ -221,17 +218,6 @@ fn current_timestamp_ms() -> u64 {
         .unwrap_or_default()
 }
 
-fn global_controller(app_data_dir: PathBuf) -> Arc<GodotStageController> {
-    static CONTROLLER: OnceLock<Arc<GodotStageController>> = OnceLock::new();
-    CONTROLLER
-        .get_or_init(|| Arc::new(GodotStageController::new(app_data_dir)))
-        .clone()
-}
-
-fn app_data_dir(app: &AppHandle) -> Result<PathBuf, String> {
-    app.path().app_data_dir().map_err(|error| error.to_string())
-}
-
 fn emit_status(app: &AppHandle, status: GodotStageStatus) -> GodotStageStatus {
     let _ = app.emit(GODOT_STAGE_STATUS_CHANGED_EVENT, status.clone());
     status
@@ -256,12 +242,12 @@ fn existing_file_from_env(
 
 pub fn resolve_godot_stage_sidecar_path(app_data_dir: &Path) -> Option<GodotStageResolvedSidecar> {
     if let Some(resolved) =
-        existing_file_from_env("AIRI_GODOT_STAGE_PATH", GodotStageLaunchMode::Exported)
+        existing_file_from_env(AIRI_GODOT_STAGE_PATH_ENV, GodotStageLaunchMode::Exported)
     {
         return Some(resolved);
     }
 
-    if let Some(resolved) = existing_file_from_env("GODOT4", GodotStageLaunchMode::Engine) {
+    if let Some(resolved) = existing_file_from_env(GODOT4_ENV, GodotStageLaunchMode::Engine) {
         return Some(resolved);
     }
 
@@ -275,7 +261,7 @@ pub fn resolve_godot_stage_sidecar_path(app_data_dir: &Path) -> Option<GodotStag
                 && path
                     .file_name()
                     .and_then(|name| name.to_str())
-                    .is_some_and(|name| name.starts_with("godot-stage"))
+                    .is_some_and(is_godot_stage_sidecar_name)
         })
         .collect::<Vec<_>>();
 
@@ -288,6 +274,16 @@ pub fn resolve_godot_stage_sidecar_path(app_data_dir: &Path) -> Option<GodotStag
             executable,
             mode: GodotStageLaunchMode::Exported,
         })
+}
+
+#[cfg(windows)]
+fn is_godot_stage_sidecar_name(name: &str) -> bool {
+    name == "godot-stage.exe"
+}
+
+#[cfg(not(windows))]
+fn is_godot_stage_sidecar_name(name: &str) -> bool {
+    name.starts_with("godot-stage")
 }
 
 fn find_godot_project_path() -> Option<PathBuf> {
@@ -310,7 +306,7 @@ fn find_godot_project_path() -> Option<PathBuf> {
 fn build_godot_stage_launch(app_data_dir: &Path) -> Result<GodotStageLaunch, GodotStageStartError> {
     let resolved = resolve_godot_stage_sidecar_path(app_data_dir).ok_or_else(|| GodotStageStartError {
         message: format!(
-            "Godot stage binary not found. Set AIRI_GODOT_STAGE_PATH, GODOT4, or place godot-stage under {}.",
+            "Godot stage binary not found. Set {AIRI_GODOT_STAGE_PATH_ENV}, {GODOT4_ENV}, or place godot-stage under {}.",
             app_data_dir.join("sidecars").display()
         ),
     })?;
@@ -365,32 +361,27 @@ fn spawn_godot_stage(launch: GodotStageLaunch) -> Result<Child, GodotStageStartE
     })
 }
 
-fn controller_from_app(app: &AppHandle) -> Result<Arc<GodotStageController>, String> {
-    Ok(global_controller(app_data_dir(app)?))
+#[tauri::command]
+pub fn electron_godot_stage_start(
+    app: AppHandle,
+    controller: State<'_, GodotStageController>,
+) -> GodotStageStatus {
+    emit_status(&app, controller.start_blocking())
 }
 
 #[tauri::command]
-pub async fn electron_godot_stage_start(app: AppHandle) -> GodotStageStatus {
-    match controller_from_app(&app) {
-        Ok(controller) => emit_status(&app, controller.start_blocking()),
-        Err(error) => GodotStageStatus::degraded(error),
-    }
+pub fn electron_godot_stage_stop(
+    app: AppHandle,
+    controller: State<'_, GodotStageController>,
+) -> GodotStageStatus {
+    emit_status(&app, controller.stop_blocking())
 }
 
 #[tauri::command]
-pub async fn electron_godot_stage_stop(app: AppHandle) -> GodotStageStatus {
-    match controller_from_app(&app) {
-        Ok(controller) => emit_status(&app, controller.stop_blocking()),
-        Err(error) => GodotStageStatus::degraded(error),
-    }
-}
-
-#[tauri::command]
-pub async fn electron_godot_stage_get_status(app: AppHandle) -> GodotStageStatus {
-    match controller_from_app(&app) {
-        Ok(controller) => controller.status_blocking(),
-        Err(error) => GodotStageStatus::degraded(error),
-    }
+pub fn electron_godot_stage_get_status(
+    controller: State<'_, GodotStageController>,
+) -> GodotStageStatus {
+    controller.status_blocking()
 }
 
 /// Apply scene input to Godot - placeholder
@@ -459,18 +450,18 @@ mod tests {
         write_fake_executable(&godot4);
         write_fake_executable(&bundled);
 
-        std::env::set_var("AIRI_GODOT_STAGE_PATH", &configured_stage);
-        std::env::set_var("GODOT4", &godot4);
+        std::env::set_var(AIRI_GODOT_STAGE_PATH_ENV, &configured_stage);
+        std::env::set_var(GODOT4_ENV, &godot4);
         let resolved = resolve_godot_stage_sidecar_path(&root).unwrap();
         assert_eq!(resolved.executable, configured_stage);
         assert_eq!(resolved.mode, GodotStageLaunchMode::Exported);
 
-        std::env::remove_var("AIRI_GODOT_STAGE_PATH");
+        std::env::remove_var(AIRI_GODOT_STAGE_PATH_ENV);
         let resolved = resolve_godot_stage_sidecar_path(&root).unwrap();
         assert_eq!(resolved.executable, godot4);
         assert_eq!(resolved.mode, GodotStageLaunchMode::Engine);
 
-        std::env::remove_var("GODOT4");
+        std::env::remove_var(GODOT4_ENV);
         let resolved = resolve_godot_stage_sidecar_path(&root).unwrap();
         assert_eq!(resolved.executable, bundled);
         assert_eq!(resolved.mode, GodotStageLaunchMode::Exported);
@@ -484,8 +475,8 @@ mod tests {
         let root = unique_test_path("missing");
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(root.join("sidecars")).unwrap();
-        std::env::remove_var("AIRI_GODOT_STAGE_PATH");
-        std::env::remove_var("GODOT4");
+        std::env::remove_var(AIRI_GODOT_STAGE_PATH_ENV);
+        std::env::remove_var(GODOT4_ENV);
 
         let controller = GodotStageController::new_for_tests(root.clone());
         let status = controller.start_blocking();
@@ -521,16 +512,57 @@ mod tests {
     }
 
     #[test]
+    fn godot_stage_status_omits_last_error_when_empty() {
+        let status = GodotStageStatus {
+            state: GodotStageState::Stopped,
+            pid: None,
+            last_error: None,
+            updated_at: 123,
+        };
+
+        assert_eq!(
+            serde_json::to_value(status).unwrap(),
+            serde_json::json!({
+                "state": "stopped",
+                "pid": null,
+                "updatedAt": 123,
+            })
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn godot_stage_resolution_on_windows_prefers_exact_exe_name() {
+        let _guard = env_lock().lock().unwrap();
+        let root = unique_test_path("windows-resolution");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("sidecars")).unwrap();
+        std::env::remove_var(AIRI_GODOT_STAGE_PATH_ENV);
+        std::env::remove_var(GODOT4_ENV);
+
+        let wrong_prefix = root.join("sidecars").join("godot-stage-a");
+        let exact_exe = root.join("sidecars").join("godot-stage.exe");
+        write_fake_executable(&wrong_prefix);
+        write_fake_executable(&exact_exe);
+
+        let resolved = resolve_godot_stage_sidecar_path(&root).unwrap();
+        assert_eq!(resolved.executable, exact_exe);
+        assert_eq!(resolved.mode, GodotStageLaunchMode::Exported);
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
     fn godot_stage_status_transitions_without_real_godot_binary() {
         let _guard = env_lock().lock().unwrap();
         let root = unique_test_path("transitions");
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(root.join("sidecars")).unwrap();
-        std::env::remove_var("GODOT4");
+        std::env::remove_var(GODOT4_ENV);
 
         let fake_stage = root.join("sidecars").join("godot-stage");
         write_fake_executable(&fake_stage);
-        std::env::set_var("AIRI_GODOT_STAGE_PATH", &fake_stage);
+        std::env::set_var(AIRI_GODOT_STAGE_PATH_ENV, &fake_stage);
 
         let controller = GodotStageController::new_for_tests(root.clone());
         assert_eq!(controller.status_blocking().state, GodotStageState::Stopped);
@@ -544,7 +576,7 @@ mod tests {
         assert_eq!(stopped.pid, None);
         assert_eq!(controller.status_blocking().state, GodotStageState::Stopped);
 
-        std::env::remove_var("AIRI_GODOT_STAGE_PATH");
+        std::env::remove_var(AIRI_GODOT_STAGE_PATH_ENV);
         let _ = fs::remove_dir_all(&root);
     }
 }
