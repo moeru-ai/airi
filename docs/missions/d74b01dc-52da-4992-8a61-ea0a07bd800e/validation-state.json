@@ -90,10 +90,35 @@
       "status": "pending"
     },
     "VAL-TAURI-PLGN-001": {
-      "status": "pending"
+      "status": "implementation-complete-runtime-evidence-pending",
+      "featureId": "plugin-host-sidecar",
+      "commitId": "c6ceead0d",
+      "updatedAt": "2026-07-05T22:42:51.414Z",
+      "evidence": [
+        "Stage Tauri settings/plugins route is registered and wired through App.vue.",
+        "@proj-airi/tauri-eventa plugin contracts are exported for renderer consumers.",
+        "Plugin host Rust surface includes config persistence, manifest scanning, capability state, and degraded sidecar status handling."
+      ],
+      "remainingEvidence": [
+        "Runtime screenshot of the settings/plugins page showing the loaded plugin list remains pending.",
+        "Console-error capture for settings/plugins remains pending."
+      ],
+      "runtimeEvidenceStatus": "pending"
     },
     "VAL-TAURI-PLGN-002": {
-      "status": "pending"
+      "status": "implementation-complete-runtime-evidence-pending",
+      "featureId": "plugin-host-sidecar",
+      "commitId": "c6ceead0d",
+      "updatedAt": "2026-07-05T22:42:51.414Z",
+      "evidence": [
+        "Plugin enabled-state persistence is implemented through the plugin-host config surface.",
+        "Renderer wiring for plugin enable/disable operations is present on the settings/plugins route."
+      ],
+      "remainingEvidence": [
+        "Before/after runtime screenshots for toggling a plugin remain pending.",
+        "Reload persistence evidence for plugin enable/disable state remains pending."
+      ],
+      "runtimeEvidenceStatus": "pending"
     },
     "VAL-TAURI-RDR-001": {
       "status": "pending"
@@ -154,13 +179,57 @@
       "runtimeEvidenceStatus": "pending"
     },
     "VAL-TAURI-SRV-003": {
-      "status": "pending"
+      "status": "implementation-complete-runtime-evidence-pending",
+      "featureId": "plugin-host-sidecar",
+      "commitId": "c6ceead0d",
+      "updatedAt": "2026-07-05T22:42:51.414Z",
+      "evidence": [
+        "Plugin-host sidecar resolution supports AIRI_PLUGIN_HOST_PATH and target-triple binary suffixes.",
+        "PluginHostState reports degraded status when the sidecar binary is unavailable instead of crashing the renderer.",
+        "Plugin config and manifest scanner tests cover the local registry/config surface."
+      ],
+      "remainingEvidence": [
+        "Runtime launch evidence with the pkg-compiled Node plugin-host sidecar binary remains pending.",
+        "WebSocket/HTTP status endpoint evidence remains pending."
+      ],
+      "runtimeEvidenceStatus": "pending"
     },
     "VAL-TAURI-SRV-004": {
-      "status": "pending"
+      "status": "implementation-complete-runtime-evidence-pending",
+      "featureId": "godot-stage-sidecar",
+      "commitId": "0a710b0fa",
+      "updatedAt": "2026-07-05T22:42:51.414Z",
+      "evidence": [
+        "Godot stage command/runtime changes are present on branch vi/feat/godot-stage-sidecar.",
+        "rustfmt --edition 2021 --check apps/stage-tauri/src/commands/godot.rs passed.",
+        "cargo test --manifest-path apps/stage-tauri/Cargo.toml godot passed with 4 tests.",
+        "pnpm -F @proj-airi/tauri-eventa exec vitest run src/index.test.ts passed with 3 tests.",
+        "pnpm -F @proj-airi/tauri-eventa typecheck passed."
+      ],
+      "remainingEvidence": [
+        "Runtime settings/system/godot-stage screenshot remains pending.",
+        "Runtime sidecar status evidence with $GODOT4 exported or a godot-stage binary available remains pending.",
+        "Full Stage Tauri cargo fmt/check remains blocked by unrelated existing Rust formatting drift and was not treated as a feature failure."
+      ],
+      "runtimeEvidenceStatus": "pending"
     },
     "VAL-TAURI-SRV-005": {
-      "status": "pending"
+      "status": "implementation-complete-runtime-evidence-pending",
+      "featureId": "mcp-server-config",
+      "commitId": "cf4c565af",
+      "updatedAt": "2026-07-05T22:42:51.414Z",
+      "evidence": [
+        "MCP server config/runtime changes are present on branch vi/feat/mcp-server-config.",
+        "apps/stage-tauri/src/main.rs registers the MCP state surface.",
+        "rustfmt --edition 2021 --check apps/stage-tauri/src/commands/mcp.rs passed.",
+        "cargo test --manifest-path apps/stage-tauri/Cargo.toml mcp passed with 5 tests."
+      ],
+      "remainingEvidence": [
+        "JS verification was blocked by unlinked dependencies in the fresh worktree; rerun @proj-airi/tauri-eventa Vitest/typecheck after workspace deps are linked.",
+        "Runtime settings/modules/mcp screenshot and configured <app_data_dir>/mcp.json mcp_list_tools evidence remain pending.",
+        "Full Stage Tauri cargo fmt/check remains blocked by unrelated existing Rust formatting drift and was not treated as a feature failure."
+      ],
+      "runtimeEvidenceStatus": "pending"
     },
     "VAL-TAURI-SYS-001": {
       "status": "pending"
@@ -178,10 +247,39 @@
       "status": "pending"
     },
     "VAL-TAURI-UPD-001": {
-      "status": "pending"
+      "status": "implementation-complete-runtime-evidence-pending",
+      "featureId": "auto-updater-binding",
+      "commitId": "d41426fe",
+      "updatedAt": "2026-07-05T22:42:51.414Z",
+      "evidence": [
+        "No-feed-safe auto-updater command/UI changes are present on branch vi/feat/auto-updater-binding.",
+        "rustfmt --edition 2021 --check apps/stage-tauri/src/commands/auto_updater.rs passed.",
+        "cargo test --manifest-path apps/stage-tauri/Cargo.toml auto_updater passed with 2 tests.",
+        "pnpm -F @proj-airi/tauri-eventa exec vitest run src/tauri/index.test.ts passed with 17 tests.",
+        "pnpm -F @proj-airi/tauri-eventa typecheck passed."
+      ],
+      "remainingEvidence": [
+        "Runtime screenshot of the about/updater page showing current app version and update status remains pending.",
+        "tauri-plugin-updater has not yet been added/configured, so full replacement of electron-updater remains acceptance-blocked.",
+        "Full Stage Tauri cargo fmt/check remains blocked by unrelated existing Rust formatting drift and was not treated as a feature failure."
+      ],
+      "runtimeEvidenceStatus": "pending"
     },
     "VAL-TAURI-UPD-002": {
-      "status": "pending"
+      "status": "implementation-complete-runtime-evidence-pending",
+      "featureId": "auto-updater-binding",
+      "commitId": "d41426fe",
+      "updatedAt": "2026-07-05T22:42:51.414Z",
+      "evidence": [
+        "auto_updater_check_for_updates backend binding is covered by cargo test --manifest-path apps/stage-tauri/Cargo.toml auto_updater.",
+        "Tauri Eventa invoke mapping is covered by pnpm -F @proj-airi/tauri-eventa exec vitest run src/tauri/index.test.ts.",
+        "pnpm -F @proj-airi/tauri-eventa typecheck passed."
+      ],
+      "remainingEvidence": [
+        "Runtime click evidence for check-for-updates and a console/logged check result remain pending.",
+        "tauri-plugin-updater has not yet been added/configured, so full replacement of electron-updater remains acceptance-blocked."
+      ],
+      "runtimeEvidenceStatus": "pending"
     },
     "VAL-TAURI-WIN-001": {
       "status": "pending"

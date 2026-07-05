@@ -3,13 +3,13 @@
   "state": "orchestrator_turn",
   "workingDirectory": "/home/vi/anima",
   "createdAt": "2026-07-03T13:04:45.737Z",
-  "updatedAt": "2026-07-05T15:07:00Z",
-  "lastReviewedHandoffCount": 10,
+  "updatedAt": "2026-07-05T22:42:51.414Z",
+  "lastReviewedHandoffCount": 11,
   "orchestrator": {
     "current": "codex",
-    "note": "Plugin-host surface landed on isolated worktree at .worktrees/plugin-host-sidecar as vi/feat/plugin-host-sidecar, commit 4f10d138e, with 19 files / 1370 insertions. Rust placeholder plugin-host sidecar registry + eventa contracts for plugin tools. Ready for PR. Review with Option A scope: Node sidecar binary + websocket transport in plugin-sdk deferred. Next feature: pick from pending list (godot-stage-sidecar, mcp-server-config, auth-oidc-flow)."
+    "note": "Service-port fan-out produced branch heads for godot-stage-sidecar (vi/feat/godot-stage-sidecar, 0a710b0fa), mcp-server-config (vi/feat/mcp-server-config, cf4c565af), and auto-updater-binding (vi/feat/auto-updater-binding, d41426fe). Plugin-host implementation surface is already on main at c6ceead0d and is recorded as implementation-complete with runtime evidence pending. Godot and MCP are ready for PR/merge review with runtime evidence still pending; auto-updater has no-feed-safe UI/command binding but remains acceptance-blocked on tauri-plugin-updater wiring. Next feature target after branch review is auth-oidc-flow."
   },
   "missionDirectory": "/home/vi/anima/docs/missions/d74b01dc-52da-4992-8a61-ea0a07bd800e",
   "migratedFrom": "/home/vi/.factory/missions/d74b01dc-52da-4992-8a61-ea0a07bd800e",
-  "currentFeatureId": "plugin-host-sidecar"
+  "currentFeatureId": "auth-oidc-flow"
 }
