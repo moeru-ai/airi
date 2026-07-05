@@ -19,7 +19,7 @@ pub struct AutoUpdaterState {
 
 impl Default for AutoUpdaterState {
     fn default() -> Self {
-        current_state()
+        AutoUpdaterState::no_feed(false)
     }
 }
 

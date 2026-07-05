@@ -54,7 +54,9 @@ const sendNoticeAction = eventaContext
   ? useElectronEventaInvoke(noticeWindowEventa.windowAction, eventaContext.value)
   : undefined
 const fetchWidget = eventaContext ? useElectronEventaInvoke(widgetsFetch, eventaContext.value) : undefined
-const getAutoUpdaterState = eventaContext ? useElectronEventaInvoke(autoUpdater.getState, eventaContext.value) : undefined
+const getAutoUpdaterState = eventaContext
+  ? useElectronEventaInvoke(autoUpdater.getState, eventaContext.value)
+  : undefined
 const checkAutoUpdaterUpdates = eventaContext
   ? useElectronEventaInvoke(autoUpdater.checkForUpdates, eventaContext.value)
   : undefined
@@ -112,13 +114,33 @@ const updaterState = ref<AutoUpdaterState>({
   status: 'idle',
 })
 const updaterChecking = ref(false)
-const updaterVersion = computed(() => updaterState.value.currentVersion || updaterState.value.info?.version || 'unknown')
+const updaterVersion = computed(
+  () => updaterState.value.currentVersion || updaterState.value.info?.version || 'unknown',
+)
+const updaterRequestActive = computed(
+  () =>
+    updaterChecking.value || updaterState.value.status === 'checking' || updaterState.value.status === 'downloading',
+)
 const updaterStatus = computed(() => {
-  if (updaterChecking.value || updaterState.value.status === 'checking') return 'Checking'
-  if (updaterState.value.status === 'available' || updaterState.value.isUpdateAvailable) return 'Update available'
-  if (updaterState.value.status === 'not-available') return 'No updates available'
-  if (updaterState.value.status === 'disabled') return 'Updater disabled'
-  if (updaterState.value.status === 'error') return updaterState.value.error?.message ?? 'Updater error'
+  switch (updaterState.value.status) {
+    case 'idle':
+      return updaterState.value.isUpdateAvailable ? 'Update available' : 'Idle'
+    case 'disabled':
+      return 'Updater disabled'
+    case 'checking':
+      return 'Checking'
+    case 'available':
+      return 'Update available'
+    case 'not-available':
+      return 'No updates available'
+    case 'downloading':
+      return 'Downloading update'
+    case 'downloaded':
+      return 'Update downloaded'
+    case 'error':
+      return updaterState.value.error?.message ? `Updater error: ${updaterState.value.error.message}` : 'Updater error'
+  }
+
   return 'Idle'
 })
 let mountedNoticeId: string | null = null
@@ -226,7 +248,7 @@ async function refreshUpdaterState() {
 }
 
 async function checkForUpdatesFromAbout() {
-  if (!checkAutoUpdaterUpdates || updaterChecking.value) return
+  if (!checkAutoUpdaterUpdates || updaterRequestActive.value) return
 
   updaterChecking.value = true
   updaterState.value = { ...updaterState.value, status: 'checking' }
@@ -471,7 +493,7 @@ onBeforeUnmount(() => {
           <p class="panel-text">Update available: {{ updaterState.isUpdateAvailable ? 'Yes' : 'No' }}</p>
         </div>
         <div class="secondary-actions">
-          <button type="button" :disabled="updaterChecking" @click="checkForUpdatesFromAbout()">
+          <button type="button" :disabled="updaterRequestActive" @click="checkForUpdatesFromAbout()">
             {{ updaterChecking ? 'Checking' : 'Check for updates' }}
           </button>
         </div>
