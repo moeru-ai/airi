@@ -133,7 +133,24 @@
       "runtimeEvidenceStatus": "pending"
     },
     "VAL-TAURI-SRV-002": {
-      "status": "pending"
+      "status": "implementation-complete-runtime-evidence-pending",
+      "featureId": "channel-server-qr",
+      "commitId": "facd71ac6",
+      "updatedAt": "2026-07-05T06:01:27.099Z",
+      "evidence": [
+        "Rust tests verify electron:server-channel:get-qr-payload serializes the shared QR payload contract and errors until the channel-server port is known.",
+        "Rust tests verify QR candidate URLs use ws://, /ws, LAN-host preference, and IPv6 bracket formatting.",
+        "Tauri Eventa tests verify the server-channel QR invoke maps to electron_server_channel_get_qr_payload and is exported from @proj-airi/tauri-eventa root.",
+        "Stage Tauri Vitest tests verify QR payload JSON serialization, SVG data URL generation, unavailable-state handling, refresh error state, and /settings/connection route selection.",
+        "Stage Tauri renderer now mounts ServerChannelQrCard when windowRoute.kind is settings-connection.",
+        "Stage Tauri Vite config now resolves Cubism SDK from a persistent AIRI Live2D cache, validates Core/live2dcubismcore.min.js, and stages it into .cache/public without re-downloading on cache hit.",
+        "A fake-cache Vite startup check reached VITE ready on port 1437 without the Cubism download message."
+      ],
+      "remainingEvidence": [
+        "Runtime screenshot of the Tauri settings connection QR card remains pending; the previous cold-worktree Cubism download blocker is addressed by facd71ac6, but a full cargo tauri dev screenshot was not captured in this CLI run.",
+        "pnpm -F @proj-airi/stage-tauri typecheck and build remain blocked by pre-existing @proj-airi/electron-screen-capture type resolution through packages/stage-shared/src/beat-sync/detector.ts."
+      ],
+      "runtimeEvidenceStatus": "pending"
     },
     "VAL-TAURI-SRV-003": {
       "status": "pending"
