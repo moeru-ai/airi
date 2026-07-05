@@ -121,24 +121,24 @@ const updaterRequestActive = computed(
   () =>
     updaterChecking.value || updaterState.value.status === 'checking' || updaterState.value.status === 'downloading',
 )
-const updaterStatusLabels: Record<string, string> = {
-  disabled: 'Updater disabled',
-  checking: 'Checking',
-  available: 'Update available',
-  'not-available': 'No updates available',
-  downloading: 'Downloading update',
-  downloaded: 'Update downloaded',
+type UpdaterStatusResolver = (state: AutoUpdaterState) => string
+
+const updaterStatusResolvers: Record<AutoUpdaterState['status'], UpdaterStatusResolver> = {
+  idle: ({ isUpdateAvailable }) => (isUpdateAvailable ? 'Update available' : 'Idle'),
+  disabled: () => 'Updater disabled',
+  checking: () => 'Checking',
+  available: () => 'Update available',
+  'not-available': () => 'No updates available',
+  downloading: () => 'Downloading update',
+  downloaded: () => 'Update downloaded',
+  error: ({ error }) => (error?.message ? `Updater error: ${error.message}` : 'Updater error'),
 }
-const updaterStatus = computed(() => {
-  const { error, isUpdateAvailable, status } = updaterState.value
 
-  if (status === 'idle') return isUpdateAvailable ? 'Update available' : 'Idle'
-  if (status === 'error') {
-    return error?.message ? `Updater error: ${error.message}` : 'Updater error'
-  }
+function resolveUpdaterStatus(state: AutoUpdaterState): string {
+  return updaterStatusResolvers[state.status](state)
+}
 
-  return updaterStatusLabels[status] ?? 'Idle'
-})
+const updaterStatus = computed(() => resolveUpdaterStatus(updaterState.value))
 let mountedNoticeId: string | null = null
 let widgetEventCleanups: Array<() => void> = []
 let autoUpdaterEventCleanup: (() => void) | undefined
