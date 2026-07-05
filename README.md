@@ -19,6 +19,8 @@ Full distro based on [CachyOS](https://cachyos.org/) coming soon!
 - **Modular Stage Layouts:** GTK3/4 widgets, interactively generated backgrounds through artistry module, and window layouts composed dynamically by characters
 
 ## 🖥️ Development
+  <img width="256" height="384" alt="AnimAIOS mascot" src="https://github.com/user-attachments/assets/0d048b16-c5f2-4d9a-8735-ce1417256b22" />
+  <br>
   <a href="https://github.com/animaios/Anima/actions/workflows/ci.yml">
     <img src="https://github.com/animaios/Anima/actions/workflows/ci.yml/badge.svg" alt="CI">
   </a>
@@ -35,29 +37,22 @@ Full distro based on [CachyOS](https://cachyos.org/) coming soon!
     <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/Anima.svg/?label=resolved+issues&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/>
   </a>
 
-### 🦀 Tauri Migration (WIP)
-
-The current desktop app is still the Electron version in `apps/stage-tamagotchi/`, while the Tauri port is actively being built in `apps/stage-tauri/`.
-
-Tauri lets us keep the Vue 3 renderer and AIRI companion experience while replacing the Electron main process with a smaller Rust backend. That means lower idle memory use, smaller native bundles, better Linux desktop integration, and a cleaner path to shipping AIRI as a native mobile app.
-
-The Electron version will be archived only after the Tauri build reaches full feature parity, including local LLM inference support. The same migration is also our path to native Android and iOS AIRI builds over the next few months.
-
 ### ☕ Prerequisites
 
-- Node.js >= 20.14.0
-- pnpm >= 10.0.0
+- pnpm
+- Node.js (Electron only)
+- Rust (Tauri only)
 
 ### 🖱️ Quick Start
 
-Electron desktop app:
+🍎🐧🪟 Electron desktop app:
 
 ```shell
 pnpm i
 pnpm dev:tamagotchi
 ```
 
-Tauri desktop app:
+🍎🐧 Tauri desktop app:
 
 ```shell
 pnpm i
@@ -72,8 +67,13 @@ cargo tauri dev
 cargo install tauri-cli --version '^2.0'
 ```
 
-<img width="256" height="384" alt="AnimAIOS mascot" src="https://github.com/user-attachments/assets/0d048b16-c5f2-4d9a-8735-ce1417256b22" />
+### 🦀 Tauri Migration (WIP)
 
+The current recommended desktop app is still the Electron version in `apps/stage-tamagotchi/`, while the Tauri port is actively being built in `apps/stage-tauri/`.
+
+Tauri lets us keep the Vue 3 renderer and AIRI companion experience while replacing the Electron main process with a smaller Rust backend. That means lower idle memory use, smaller native bundles, better Linux desktop integration, and a cleaner path to shipping AIRI as a native mobile app.
+
+The Electron version will be archived only after the Tauri build reaches full feature parity, including local LLM inference support. The same migration is also our path to native Android and iOS AIRI builds over the next few months.
 
 <!--
 ### ⌨️ Building for Linux (under construction)
