@@ -150,15 +150,15 @@ fn main() {
                 });
             }
 
-            // Auto-updater init handshake stub. Emits "not-available" so the frontend
-            // adapter completes its init sequence without a real updater backend.
+            // Auto-updater init handshake. Until tauri-plugin-updater is configured
+            // with a feed, emit a stable no-updates state that includes the app version.
             {
                 let handle = handle.clone();
                 tauri::async_runtime::spawn(async move {
                     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
                     let _ = handle.emit(
                         AUTO_UPDATER_STATE_CHANGED_EVENT,
-                        serde_json::json!({ "status": "not-available" }),
+                        commands::auto_updater::current_state(),
                     );
                 });
             }
