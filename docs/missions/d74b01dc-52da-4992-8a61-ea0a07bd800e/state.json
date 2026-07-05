@@ -3,11 +3,11 @@
   "state": "orchestrator_turn",
   "workingDirectory": "/home/vi/anima",
   "createdAt": "2026-07-03T13:04:45.737Z",
-  "updatedAt": "2026-07-05T02:06:46.545Z",
+  "updatedAt": "2026-07-05T02:25:36.247Z",
   "lastReviewedHandoffCount": 10,
   "orchestrator": {
     "current": "codex",
-    "note": "app-lifecycle-persistence implementation complete on branch vi/feat/app-lifecycle-persistence through f4546bc9a with Rust verification passing and review fixes applied for stale offscreen restore plus mixed-DPI physical lifecycle bounds. Runtime relaunch/process evidence remains pending, and stage-tauri typecheck is blocked by pre-existing stage-ui/@proj-airi/server-sdk export drift. Continue currentFeatureId channel-server-health next after PR merge."
+    "note": "app-lifecycle-persistence implementation complete on branch vi/feat/app-lifecycle-persistence through 28a6b4299 with Rust verification passing and review fixes applied for stale offscreen restore, mixed-DPI physical lifecycle bounds, atomic state writes, startup show-after-placement, and destroyed-handler cleanup. Runtime relaunch/process evidence remains pending, and stage-tauri typecheck is blocked by pre-existing stage-ui/@proj-airi/server-sdk export drift. Continue currentFeatureId channel-server-health next after PR merge."
   },
   "missionDirectory": "/home/vi/anima/docs/missions/d74b01dc-52da-4992-8a61-ea0a07bd800e",
   "migratedFrom": "/home/vi/.factory/missions/d74b01dc-52da-4992-8a61-ea0a07bd800e",
