@@ -6,15 +6,16 @@
     "VAL-CROSS-002": {
       "status": "implementation-complete-runtime-evidence-pending",
       "featureId": "app-lifecycle-persistence",
-      "commitId": "28a6b4299",
-      "updatedAt": "2026-07-05T02:25:36.247Z",
+      "commitId": "4949ce270",
+      "updatedAt": "2026-07-05T02:33:43.545Z",
       "evidence": [
         "Main window geometry is captured from Tauri physical position/size and persisted to main-window-state.json under app data without scale-factor normalization.",
         "Startup keeps the main window hidden until saved main window size/position restore or cursor-display fallback placement completes, then explicitly shows/focuses the window.",
         "Saved main window size/position restores with Tauri PhysicalSize/PhysicalPosition before falling back to cursor-display placement, and reasserts always-on-top after restore.",
         "Restore rejects saved geometry that no longer intersects any current monitor work area, preventing stale off-screen placement after display topology changes.",
         "State writes go through a same-directory temporary file before rename so successful writes replace stale temp output instead of directly truncating the persisted state.",
-        "Rust unit tests cover JSON persistence, malformed JSON fallback, app-data state path construction, physical geometry preservation for mixed-DPI restore, stale temporary state replacement, and off-screen geometry rejection."
+        "Windows builds unlink an existing persisted state file before renaming the temporary state file, avoiding stale geometry after the first save on platforms where rename does not replace existing files.",
+        "Rust unit tests cover JSON persistence, malformed JSON fallback, app-data state path construction, physical geometry preservation for mixed-DPI restore, stale temporary state replacement, Windows-style existing-target replacement policy, and off-screen geometry rejection."
       ],
       "remainingEvidence": [
         "Runtime relaunch screenshot and terminal output confirming restored geometry were not captured in this CLI run.",
@@ -28,8 +29,8 @@
     "VAL-CROSS-004": {
       "status": "implementation-complete-runtime-evidence-pending",
       "featureId": "app-lifecycle-persistence",
-      "commitId": "28a6b4299",
-      "updatedAt": "2026-07-05T02:25:36.247Z",
+      "commitId": "4949ce270",
+      "updatedAt": "2026-07-05T02:33:43.545Z",
       "evidence": [
         "Tray menu setup adds stable Show AIRI and Quit entries using Tauri tray/menu APIs.",
         "Tray Quit, electron_app_quit, and main-window CloseRequested now route through quit_after_persisting, which persists state and calls app.exit(0).",
