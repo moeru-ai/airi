@@ -165,23 +165,25 @@ Godot Environment Glow, and leaves Godot tonemap/adjustment neutral. The current
 custom color mapping is applied by the stage compositor instead of Godot's
 Environment adjustment controls.
 
-## Avatar Glow And Color Mapping
+## Avatar Mask, Glow, And Color Mapping
 
-The current avatar presentation path uses a camera-local compositor:
+The current avatar presentation path uses stage-owned overlay and compositor
+owners:
 
-1. `StageAvatarGlowRuntime` assigns a `Compositor` to the active `Camera3D`.
-2. The runtime marks loaded avatar `GeometryInstance3D` nodes with a
-   depth-tested `MaterialOverlay` that writes stencil reference `1`.
-3. `StageAvatarGlowCompositorEffect` runs at `PostTransparent`, extracts
-   stencil-marked avatar pixels from the resolved scene color, builds the bloom
-   pyramid, composites avatar glare, and applies the current NAES/toon color
-   mapping before Godot's neutral output path.
+1. `StageRenderEffectsRuntime` wires the active camera and loaded avatar into the
+   stage render-effect owners.
+2. `StageMaterialOverlayOwner` records render-effect source claims and assigns
+   the shared avatar mask overlay material to loaded avatar `GeometryInstance3D`
+   nodes.
+3. `StageCompositorOwner` installs the stage post-process compositor effect on
+   the active `Camera3D`.
+4. `StagePostProcessCompositorEffect` runs at `PostTransparent` and applies the
+   ordered scene copy, avatar glow, and final color mapping stages.
 
 This is not Godot Environment Glow and does not use material emission as the
-avatar-style glow source. The color mapping currently lives in the same
-compositor effect as avatar glow; before adding more post effects such as rim
-light or screen-space outlines, pass orchestration and shared transient render
-textures should move behind a shared post-process owner.
+avatar-style glow source. The color mapping is an independently enabled final
+stage inside the stage post-process compositor. Future avatar-only edge light
+work must first establish same-scene visual comparison against this baseline.
 
 Design notes live in [`docs/rendering-effects.md`](docs/rendering-effects.md).
 
@@ -202,6 +204,29 @@ runtime material surface covers MToon, alpha/cutout, transparent materials,
 outline passes, and mesh shadow casters. The current A/B fixtures do not contain
 unlit materials, so this check reports `unlit = 0` and does not treat that as a
 failure.
+
+## Visual Baseline Check
+
+Renderer-facing changes must compare against the accepted main-stage visual
+baseline before they are accepted:
+
+```powershell
+pnpm -F @proj-airi/stage-tamagotchi-godot verify:visual-baseline
+```
+
+When the current output is manually accepted as the new local baseline:
+
+```powershell
+pnpm -F @proj-airi/stage-tamagotchi-godot verify:visual-baseline -- --update-baseline
+```
+
+The command launches the real `StageRoot` scene through the local WebSocket
+protocol, loads `AvatarSample_A.vrm`, captures the visible Godot window client
+area as the final rendered output, and compares it with
+`tests/visual-baselines/avatarSampleA-main-stage.png`.
+
+The Technical Art workflow and acceptance rules live in
+[`docs/technical-art-workflow.md`](docs/technical-art-workflow.md).
 
 ## Live Debugging From The Godot Editor
 

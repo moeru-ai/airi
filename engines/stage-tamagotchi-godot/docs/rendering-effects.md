@@ -23,29 +23,37 @@ CompositorEffect
 
 For avatar glow, this means:
 
-- `StageAvatarGlowRuntime` marks avatar meshes with an overlay material that
-  depth-tests against the scene and writes stencil reference `1` without writing
-  scene depth.
-- `StageAvatarGlowCompositorEffect` reads the stencil-marked scene color,
-  extracts the glow source, diffuses it, composites it, and applies the current
-  toon color mapping.
+- `StageRenderEffectsRuntime` wires the stage-level overlay and compositor
+  owners for the active camera and loaded avatar.
+- `StageMaterialOverlayOwner` records render-effect source claims and assigns
+  the shared avatar mask overlay material. The overlay depth-tests against the
+  scene and writes stencil reference `1` without writing scene depth.
+- `StagePostProcessCompositorEffect` always owns the final NAES/toon color
+  mapping stage. Its internal pipeline currently runs scene copy, avatar glow,
+  and final color mapping in that order.
+- When avatar glow is active, it extracts bright source from the stencil-marked
+  scene color, diffuses it, and composites avatar glare into the HDR input
+  consumed by final color mapping.
 - The vendored V-Sekai MToon shader remains responsible for the avatar's base
   material look.
 
 Current implementation details:
 
-- `StageAvatarGlowRuntime` currently assigns a new `Compositor` directly to the
-  active `Camera3D`. This is acceptable while avatar glow is the only stage
-  compositor, but multiple camera effects need a shared compositor owner.
-- `StageAvatarGlowCompositorEffect` currently owns both avatar glow and the
-  stage toon color mapping. That is an implementation coupling, not the desired
-  long-term feature boundary.
-- The effect owns its transient bloom textures. It uses Godot's
+- `StageCompositorOwner` owns the active `Camera3D` compositor slot and registers
+  the stage post-process compositor effect without feature runtimes replacing
+  the camera compositor independently.
+- `StageMaterialOverlayOwner` owns `GeometryInstance3D.MaterialOverlay` writes
+  for stage render-effect source passes.
+- The compositor effect owns its transient post-process textures. It uses Godot's
   `FramebufferCacheRD` and `UniformSetCacheRD` for derived framebuffer and
-  uniform-set RIDs, while texture ownership stays local to the effect until a
-  shared post-process resource context exists.
+  uniform-set RIDs, while texture ownership stays local to the stage
+  post-process pass graph.
+- The final NAES/toon color mapping is a separate compositor stage and no
+  longer depends on avatar glow being enabled. Later source effects can feed the
+  same final color stage before display output after visual baseline comparison.
 - Godot Environment Glow is disabled in `StageVisualPreset`; avatar-style glow
-  source selection comes from the stencil overlay, not from material emission.
+  source selection comes from the shared stencil overlay, not from material
+  emission.
 
 ## Why Overlay First
 
@@ -57,7 +65,7 @@ Use overlay first when an effect can be represented as an extra whole-geometry
 pass:
 
 - stencil or object-mask tagging;
-- avatar-only glow source selection;
+- avatar mask selection for glow and future avatar-only effects;
 - silhouette, outline, selection, or interaction masks;
 - depth-tested x-ray or rim/shell source passes;
 - temporary verification passes that should not mutate imported materials.
@@ -86,11 +94,11 @@ authoring data that the overlay pass can read.
 ## Known Constraints
 
 - `MaterialOverlay` is a single slot on each `GeometryInstance3D`. Multiple
-  effects cannot assign it independently without an owner that arbitrates the
-  slot.
-- `Camera3D.Compositor` is also a single owner slot in the current stage code.
-  Additional post effects should be registered through a shared compositor owner
-  instead of independently replacing the camera compositor.
+  effects must go through `StageMaterialOverlayOwner` instead of assigning it
+  independently.
+- `Camera3D.Compositor` is also a single owner slot. Additional post effects
+  must be registered through the stage compositor owner instead of independently
+  replacing the camera compositor.
 - The overlay material applies to the whole geometry and all surfaces unless
   the mesh is split or the overlay shader has reliable mask data.
 - Overlay adds draw work for every marked geometry. This is acceptable for the
@@ -102,9 +110,8 @@ authoring data that the overlay pass can read.
 - Screen-space diffusion, blur pyramids, and color mapping still belong in a
   same-frame compositor. Overlay should produce source information, not replace
   the compositor pass graph.
-- The current color mapping is tied to `StageAvatarGlowCompositorEffect`.
-  Splitting color mapping into a stage-level post-process pass should happen
-  together with the next multi-effect refactor.
+- The current final color mapping still lives inside the stage post-process
+  compositor, but it is an independently enabled stage, not a glow sub-pass.
 
 ## Decision Rule
 
