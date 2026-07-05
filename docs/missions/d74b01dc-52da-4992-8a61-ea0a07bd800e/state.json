@@ -3,11 +3,11 @@
   "state": "orchestrator_turn",
   "workingDirectory": "/home/vi/anima",
   "createdAt": "2026-07-03T13:04:45.737Z",
-  "updatedAt": "2026-07-05T22:42:51.414Z",
-  "lastReviewedHandoffCount": 11,
+  "updatedAt": "2026-07-06T22:55:44Z",
+  "lastReviewedHandoffCount": 12,
   "orchestrator": {
     "current": "codex",
-    "note": "Service-port fan-out produced branch heads for godot-stage-sidecar (vi/feat/godot-stage-sidecar, 0a710b0fa), mcp-server-config (vi/feat/mcp-server-config, cf4c565af), and auto-updater-binding (vi/feat/auto-updater-binding, d41426fe). Plugin-host implementation surface is already on main at c6ceead0d and is recorded as implementation-complete with runtime evidence pending. Godot and MCP are ready for PR/merge review with runtime evidence still pending; auto-updater has no-feed-safe UI/command binding but remains acceptance-blocked on tauri-plugin-updater wiring. Next feature target after branch review is auth-oidc-flow."
+    "note": "Accepted plugin-host-sidecar handoff. PR #73 is merged on main at c6ceead0d with the scoped Tauri plugin-host Rust IPC/config/manifest/sidecar-resolution surface; actual Node sidecar binary build and plugin-sdk WebSocket transport remain deferred. Ledger branch vi/missions/plugin-host-sidecar-ledger is rebased onto anima/main and marks plugin-host-sidecar, channel-server-qr, channel-server-health, and app-lifecycle-persistence completed. Godot stage, MCP server config, and auto-updater binding remain recorded as implementation-complete-runtime-evidence-pending. Next current feature is auth-oidc-flow."
   },
   "missionDirectory": "/home/vi/anima/docs/missions/d74b01dc-52da-4992-8a61-ea0a07bd800e",
   "migratedFrom": "/home/vi/.factory/missions/d74b01dc-52da-4992-8a61-ea0a07bd800e",
