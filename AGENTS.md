@@ -156,6 +156,15 @@ This protocol applies to **every** session — no matter how trivial the task ap
   2. If no native/internal subagent spawn tool is available, use `codex exec --yolo "<prompt>"`. This Codex CLI path is the only approved CLI fallback for subagent work.
 - Do not call `droid exec` for subagent dispatch.
 - Do not pass custom model/config/profile/sandbox/cwd/settings/reasoning flags unless the user explicitly asks.
+- Codex-controller fan-out SOP:
+  - When Codex is the controller and no native subagent tool exists, fan out by launching independent `codex exec --yolo` runs from separate managed tool sessions, one task per session. Do not serialize independent jobs.
+  - Write each subagent prompt to a task file, then pass only that prompt: `cd /path/to/worktree && codex exec --yolo "$(cat .superpowers/sdd/task-N-codex-prompt.md)"`.
+  - Use the shell/session working directory or `cd` to select the checkout. Do not add `--cd`, model, profile, sandbox, approval, reasoning, or config overrides unless the user explicitly asks.
+  - Keep the returned session IDs and poll them until exit so failures are visible. Treat a silent session as unfinished until its process and log state prove otherwise.
+  - If detached background jobs are unavoidable, redirect stdout/stderr to a task log, write a PID file, then immediately verify the PID is alive and the log is nonempty. Empty logs plus a dead PID means the agent did not start and must be relaunched.
+  - For fresh task worktrees, expect `node_modules` to be absent. If a test command fails with a missing runner such as `vitest`, run `pnpm install --ignore-scripts` once in that worktree, then retry. Do not update lockfiles unless the task owns the lockfile.
+  - If a fresh worktree blocks on generated SDK/cache assets, seed only ignored generated paths from a known-good local checkout after confirming with `git check-ignore -v`. Never stage or commit seeded cache assets.
+  - Give every concurrent Codex a non-overlapping writable file set and an explicit report file. Let only one agent per worktree commit at a time; use separate worktrees for concurrent committers.
 - Subagent prompt MUST contain:
   - Repo identifier: `"airi"`.
   - Exact `symbol_ids` (use outlines to find them).
