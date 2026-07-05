@@ -3,13 +3,13 @@
   "state": "orchestrator_turn",
   "workingDirectory": "/home/vi/anima",
   "createdAt": "2026-07-03T13:04:45.737Z",
-  "updatedAt": "2026-07-05T03:03:27.585Z",
+  "updatedAt": "2026-07-05T07:58:57Z",
   "lastReviewedHandoffCount": 10,
   "orchestrator": {
     "current": "codex",
-    "note": "PR #70 app-lifecycle-persistence merged into main at c661b2423b97db5b06e6c0dd05f7644a12ed6e58 with admin override for documented external/pre-existing checks after targeted Rust verification. Local main is fast-forwarded. Continue currentFeatureId channel-server-health next in a fresh isolated worktree."
+    "note": "PR #72 channel-server-qr merged into main at 7dd23d1be93c68b2f2a7ce5c2633f7092c37b6ed with admin override after targeted verification and review fixes. Local main is fast-forwarded. Continue currentFeatureId plugin-host-sidecar next in a fresh isolated worktree."
   },
   "missionDirectory": "/home/vi/anima/docs/missions/d74b01dc-52da-4992-8a61-ea0a07bd800e",
   "migratedFrom": "/home/vi/.factory/missions/d74b01dc-52da-4992-8a61-ea0a07bd800e",
-  "currentFeatureId": "channel-server-health"
+  "currentFeatureId": "plugin-host-sidecar"
 }
