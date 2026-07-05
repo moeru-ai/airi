@@ -20,6 +20,11 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import type { StdioServerParameters } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 
+export interface NormalizedToolError {
+  code: string
+  message: string
+}
+
 export interface TerminalMcpToolSummary {
   name: string
   description?: string
