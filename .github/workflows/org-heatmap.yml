@@ -1,0 +1,42 @@
+name: Org Activity Heatmap
+
+on:
+  schedule:
+    # 4 times a day (00:00, 06:00, 12:00, 18:00 UTC)
+    - cron: '0 0,6,12,18 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: org-heatmap
+  cancel-in-progress: true
+
+jobs:
+  regenerate:
+    name: Refresh animaios org activity heatmap
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+
+      - name: Generate org activity SVG
+        run: node docs/scripts/gen-org-heatmap.mjs docs/content/public/assets/org-heatmap.svg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Commit SVG if changed
+        run: |
+          git config user.name "actions-user"
+          git config user.email "actions@github.com"
+          git add docs/content/public/assets/org-heatmap.svg
+          if git diff --cached --quiet; then
+            echo "Heatmap unchanged - no commit needed"
+            exit 0
+          fi
+          git commit -m "chore(ci): refresh animaios org activity heatmap"
+          git push
