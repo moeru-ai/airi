@@ -3,8 +3,7 @@ use std::path::{Path, PathBuf};
 use tauri::{
     menu::{MenuBuilder, MenuItemBuilder},
     tray::TrayIconBuilder,
-    AppHandle, LogicalPosition, LogicalSize, Manager, Monitor, PhysicalPosition, PhysicalSize,
-    WebviewWindow, WindowEvent,
+    AppHandle, Manager, Monitor, PhysicalPosition, PhysicalSize, WebviewWindow, WindowEvent,
 };
 
 pub(crate) const MAIN_WINDOW_LABEL: &str = "main";
@@ -78,37 +77,26 @@ fn default_main_window_state() -> PersistedMainWindowState {
     }
 }
 
-fn normalize_scale_factor(scale_factor: f64) -> f64 {
-    if scale_factor > 0.0 {
-        scale_factor
-    } else {
-        1.0
-    }
-}
-
 fn window_geometry_from_physical_state(
     position: PhysicalPosition<i32>,
     size: PhysicalSize<u32>,
-    scale_factor: f64,
 ) -> WindowGeometry {
-    let scale_factor = normalize_scale_factor(scale_factor);
     WindowGeometry {
-        x: position.x as f64 / scale_factor,
-        y: position.y as f64 / scale_factor,
-        width: size.width as f64 / scale_factor,
-        height: size.height as f64 / scale_factor,
+        x: position.x as f64,
+        y: position.y as f64,
+        width: size.width as f64,
+        height: size.height as f64,
     }
 }
 
 fn display_work_area_from_monitor(monitor: &Monitor) -> DisplayWorkArea {
     let work_area = monitor.work_area();
-    let scale_factor = normalize_scale_factor(monitor.scale_factor());
 
     DisplayWorkArea {
-        x: work_area.position.x as f64 / scale_factor,
-        y: work_area.position.y as f64 / scale_factor,
-        width: work_area.size.width as f64 / scale_factor,
-        height: work_area.size.height as f64 / scale_factor,
+        x: work_area.position.x as f64,
+        y: work_area.position.y as f64,
+        width: work_area.size.width as f64,
+        height: work_area.size.height as f64,
     }
 }
 
@@ -191,16 +179,11 @@ pub(crate) fn write_main_window_state_to_path(
 pub(crate) fn capture_main_window_state(
     window: &WebviewWindow,
 ) -> Result<PersistedMainWindowState, String> {
-    let scale_factor = window.scale_factor().map_err(|e| e.to_string())?;
     let position = window.outer_position().map_err(|e| e.to_string())?;
     let size = window.outer_size().map_err(|e| e.to_string())?;
 
     Ok(PersistedMainWindowState {
-        geometry: Some(window_geometry_from_physical_state(
-            position,
-            size,
-            scale_factor,
-        )),
+        geometry: Some(window_geometry_from_physical_state(position, size)),
         transparent: true,
     })
 }
@@ -234,10 +217,16 @@ pub(crate) fn restore_main_window_state(app: &AppHandle) -> Result<bool, String>
     }
 
     window
-        .set_size(LogicalSize::new(geometry.width, geometry.height))
+        .set_size(PhysicalSize::new(
+            geometry.width.round() as u32,
+            geometry.height.round() as u32,
+        ))
         .map_err(|e| e.to_string())?;
     window
-        .set_position(LogicalPosition::new(geometry.x, geometry.y))
+        .set_position(PhysicalPosition::new(
+            geometry.x.round() as i32,
+            geometry.y.round() as i32,
+        ))
         .map_err(|e| e.to_string())?;
     Ok(true)
 }
@@ -432,26 +421,11 @@ mod tests {
     }
 
     #[test]
-    fn converts_physical_window_state_to_logical_geometry() {
+    fn preserves_physical_window_state_geometry() {
         assert_eq!(
             window_geometry_from_physical_state(
                 tauri::PhysicalPosition::new(200, 300),
                 tauri::PhysicalSize::new(800, 600),
-                2.0,
-            ),
-            WindowGeometry {
-                x: 100.0,
-                y: 150.0,
-                width: 400.0,
-                height: 300.0,
-            }
-        );
-
-        assert_eq!(
-            window_geometry_from_physical_state(
-                tauri::PhysicalPosition::new(200, 300),
-                tauri::PhysicalSize::new(800, 600),
-                0.0,
             ),
             WindowGeometry {
                 x: 200.0,
