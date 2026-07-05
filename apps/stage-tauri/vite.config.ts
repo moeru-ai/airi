@@ -1,12 +1,13 @@
 import { fileURLToPath, URL } from 'node:url'
 
-import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
 import Vue from '@vitejs/plugin-vue'
 import UnoCss from 'unocss/vite'
 import { defineConfig } from 'vite'
 
+import { Live2dSdkCache } from './scripts/live2d-sdk-cache'
+
 export default defineConfig(({ mode }) => ({
-  plugins: [Vue(), UnoCss(), DownloadLive2DSDK()],
+  plugins: [Vue(), UnoCss(), Live2dSdkCache()],
   define: {
     'import.meta.env.RUNTIME_ENVIRONMENT': JSON.stringify('tauri'),
     'import.meta.env.URL_MODE': JSON.stringify(mode === 'production' ? 'file' : 'server'),

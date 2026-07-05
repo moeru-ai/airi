@@ -22,12 +22,13 @@
     "vue-i18n": "catalog:"
   },
   "devDependencies": {
-    "@proj-airi/unplugin-live2d-sdk": "catalog:",
+    "@types/yauzl": "catalog:",
     "@vitejs/plugin-vue": "catalog:",
     "@webgpu/types": "catalog:",
     "typescript": "catalog:",
     "unocss": "catalog:",
     "vite": "catalog:",
+    "yauzl": "catalog:",
     "vue-tsc": "catalog:"
   }
 }

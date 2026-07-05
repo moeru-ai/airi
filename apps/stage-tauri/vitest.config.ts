@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => ({
     exclude: ['@duckdb/duckdb-wasm', '@proj-airi/duckdb-wasm'],
   },
   test: {
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'],
     exclude: ['**/node_modules/**', '**/.git/**'],
   },
 }))
