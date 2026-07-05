@@ -175,7 +175,23 @@ pub(crate) fn write_main_window_state_to_path(
     let bytes = serde_json::to_vec_pretty(&state).map_err(|e| e.to_string())?;
     let temp_path = path.with_extension("tmp");
     std::fs::write(&temp_path, bytes).map_err(|e| e.to_string())?;
-    std::fs::rename(&temp_path, path).map_err(|e| e.to_string())
+    replace_window_state_file(&temp_path, path)
+}
+
+fn replace_window_state_file(temp_path: &Path, path: &Path) -> Result<(), String> {
+    replace_window_state_file_with_policy(temp_path, path, cfg!(windows))
+}
+
+fn replace_window_state_file_with_policy(
+    temp_path: &Path,
+    path: &Path,
+    remove_existing_before_rename: bool,
+) -> Result<(), String> {
+    if remove_existing_before_rename && path.exists() {
+        std::fs::remove_file(path).map_err(|e| e.to_string())?;
+    }
+
+    std::fs::rename(temp_path, path).map_err(|e| e.to_string())
 }
 
 pub(crate) fn capture_main_window_state(
@@ -421,6 +437,21 @@ mod tests {
             read_main_window_state_from_path(&path).unwrap(),
             Some(state)
         );
+        assert!(!temp_path.exists());
+        let _ = std::fs::remove_file(path);
+        let _ = std::fs::remove_file(temp_path);
+    }
+
+    #[test]
+    fn replaces_existing_window_state_file_when_platform_requires_unlink() {
+        let path = unique_test_path("replace-existing");
+        let temp_path = path.with_extension("tmp");
+        std::fs::write(&path, "old").unwrap();
+        std::fs::write(&temp_path, "new").unwrap();
+
+        replace_window_state_file_with_policy(&temp_path, &path, true).unwrap();
+
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "new");
         assert!(!temp_path.exists());
         let _ = std::fs::remove_file(path);
         let _ = std::fs::remove_file(temp_path);
