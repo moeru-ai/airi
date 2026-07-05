@@ -24,9 +24,17 @@ fn main() {
         .manage(commands::widgets::new_widget_registry())
         .setup(|app| {
             let handle = app.handle().clone();
-            if let Err(error) = window_manager::apply_main_window_display_features(&handle) {
+            let restored = app_lifecycle::restore_main_window_state(&handle).unwrap_or(false);
+            if restored {
+                if let Some(window) = handle.get_webview_window(app_lifecycle::MAIN_WINDOW_LABEL) {
+                    if let Err(error) = window.set_always_on_top(true) {
+                        eprintln!("failed to reassert main window always-on-top: {error}");
+                    }
+                }
+            } else if let Err(error) = window_manager::apply_main_window_display_features(&handle) {
                 eprintln!("failed to apply main window display features: {error}");
             }
+            app_lifecycle::setup_main_window_close_persistence(&handle);
 
             // Spawn a background task that emits window:bounds events on resize/move.
             // Broadcasting (Tauri v2 bare `emit`) is used so caption/settings widgets
