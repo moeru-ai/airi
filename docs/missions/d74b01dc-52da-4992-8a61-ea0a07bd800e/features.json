@@ -237,10 +237,15 @@
         "VAL-TAURI-WIN-004"
       ],
       "milestone": "tauri-app-scaffold",
-      "status": "pending",
-      "workerSessionIds": [],
+      "status": "completed",
+      "workerSessionIds": [
+        "codex-orchestrator-2026-07-05T00-05-29Z"
+      ],
       "currentWorkerSessionId": null,
-      "completedWorkerSessionId": null
+      "completedWorkerSessionId": "codex-orchestrator-2026-07-05T00-05-29Z",
+      "commit": "5ae07591b",
+      "commitId": "5ae07591b",
+      "completedAt": "2026-07-05T00:05:29.173Z"
     },
     {
       "id": "app-lifecycle-persistence",
