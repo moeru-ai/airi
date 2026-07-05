@@ -26,8 +26,8 @@
     "VAL-CROSS-003": {
       "status": "implementation-complete-runtime-evidence-pending",
       "featureId": "channel-server-health",
-      "commitId": "5a0107919",
-      "updatedAt": "2026-07-05T03:42:18.900Z",
+      "commitId": "42419800d",
+      "updatedAt": "2026-07-05T03:52:05.262Z",
       "evidence": [
         "Channel server startup binds to 0.0.0.0 by default on a dynamic OS-selected port outside the reserved 3100..=3199 range.",
         "ChannelServerState records LAN host candidates for QR/config consumers.",
@@ -119,8 +119,8 @@
     "VAL-TAURI-SRV-001": {
       "status": "implementation-complete-runtime-evidence-pending",
       "featureId": "channel-server-health",
-      "commitId": "5a0107919",
-      "updatedAt": "2026-07-05T03:42:18.900Z",
+      "commitId": "42419800d",
+      "updatedAt": "2026-07-05T03:52:05.262Z",
       "evidence": [
         "Tauri setup manages ChannelServerState and spawns start_channel_server with tauri::async_runtime::spawn.",
         "The channel server uses tokio::net::TcpListener on a dynamic non-reserved port and serves GET/HEAD /health.",
